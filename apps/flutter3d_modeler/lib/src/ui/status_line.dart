@@ -19,6 +19,8 @@ library;
 import 'package:flutter/material.dart';
 import 'package:flutter3d_model_core/flutter3d_model_core.dart';
 
+import '../mouse_hints.dart';
+
 /// How loudly the bar should say what it is saying.
 enum StatusTone {
   /// Nothing is wrong: the sentence is about what just happened.
@@ -87,7 +89,19 @@ class StatusLine extends StatelessWidget {
     this.onExport,
     this.onShowFolder,
     this.saidIsRefusal = false,
+    this.mouseHints,
+    this.onConsole,
   });
+
+  /// What the three buttons do right now — `ux-26`. Null hides the segment,
+  /// which is what a touch shell wants: there are no buttons to describe.
+  final MouseHints? mouseHints;
+
+  /// Opens the console — `ux-26`. Offered as the message itself, because the
+  /// sentence in this strip is the last line of the log and "where did the
+  /// rest of it go" is the question this answers. Null leaves the sentence
+  /// plain, for a test or a shell with nowhere to put a panel.
+  final VoidCallback? onConsole;
 
   /// What just happened, or what is selected when nothing has.
   final String said;
@@ -179,19 +193,27 @@ class StatusLine extends StatelessWidget {
                 // wrong with it runs to a couple of hundred characters and
                 // this line is a fraction of a window wide, so the part that
                 // says what to do about it is exactly the part the ellipsis
-                // eats — `ux-17`.
+                // eats — `ux-17`. `ux-26`: and a click on it opens the
+                // console, where the whole of it is, along with everything
+                // this line has already said and forgotten.
                 child: Tooltip(
-                  message: said,
-                  child: Text(
-                    said,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: saidIsRefusal
-                        ? small?.copyWith(
-                            color: theme.colorScheme.tertiary,
-                            fontWeight: FontWeight.w500,
-                          )
-                        : small,
+                  message: onConsole == null
+                      ? said
+                      : '$said\n(click to open the console)',
+                  child: GestureDetector(
+                    onTap: onConsole,
+                    behavior: HitTestBehavior.translucent,
+                    child: Text(
+                      said,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: saidIsRefusal
+                          ? small?.copyWith(
+                              color: theme.colorScheme.tertiary,
+                              fontWeight: FontWeight.w500,
+                            )
+                          : small,
+                    ),
                   ),
                 ),
               ),
@@ -238,6 +260,21 @@ class StatusLine extends StatelessWidget {
             ),
           ),
         ),
+        // `ux-26`: what the three buttons do right now, between the sentence
+        // and the counts. **Before the numbers rather than after them**: it
+        // is the segment that changes as somebody works and the one they are
+        // looking for, and the counts are what a glance at the far end of a
+        // strip is for.
+        if (mouseHints case final MouseHints hints)
+          Padding(
+            padding: const EdgeInsets.only(right: 12),
+            child: Text(
+              mouseHintLine(hints),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: small?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+            ),
+          ),
         Padding(
           padding: const EdgeInsets.only(right: 12),
           child: Text('${grouped(triangles)} △', style: figureStyle),

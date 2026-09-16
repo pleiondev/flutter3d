@@ -326,4 +326,66 @@ void main() {
       );
     });
   });
+
+  group('ux-26: get_console', () {
+    test('answers with what the session has said, in order', () {
+      final cubit = _opened();
+      var at = DateTime.utc(2026, 9, 16, 14);
+      cubit.now = () => at = at.add(const Duration(seconds: 1));
+      cubit
+        ..say('opened teapot.glb')
+        ..say('saved');
+
+      final answer = _actions(cubit, _Counters()).console();
+
+      expect(answer.did, isTrue);
+      // Mutation: hand back only the last line — the one the strip is
+      // already showing. An agent asking what the person has been doing then
+      // learns exactly what it could already see.
+      expect(answer.says, contains('opened teapot.glb'));
+      expect(answer.says, contains('saved'));
+      expect(
+        answer.says.indexOf('opened'),
+        lessThan(answer.says.indexOf('saved')),
+      );
+    });
+
+    test('and with only what happened since a stamp', () {
+      final cubit = _opened();
+      var at = DateTime.utc(2026, 9, 16, 14);
+      cubit.now = () => at = at.add(const Duration(seconds: 1));
+      cubit.say('opened teapot.glb');
+      final DateTime seen = cubit.console.entries.last.at;
+      cubit.say('saved');
+
+      final answer = _actions(
+        cubit,
+        _Counters(),
+      ).console(since: seen);
+
+      expect(answer.says, isNot(contains('opened teapot.glb')));
+      expect(answer.says, contains('saved'));
+    });
+
+    test('an empty session says so rather than answering with nothing', () {
+      final answer = _actions(_opened(), _Counters()).console();
+
+      // Mutation: answer with an empty string. An agent cannot tell that
+      // from a tool that failed quietly, and the natural next move is to
+      // call it again.
+      expect(answer.did, isTrue);
+      expect(answer.says, contains('nothing has been said'));
+    });
+
+    test('a refusal is marked in the line an agent reads', () {
+      final cubit = _opened();
+      var at = DateTime.utc(2026, 9, 16, 14);
+      cubit.now = () => at = at.add(const Duration(seconds: 1));
+      cubit.ran(const DeleteObjects());
+
+      final answer = _actions(cubit, _Counters()).console();
+
+      expect(answer.says, contains('refusal'));
+    });
+  });
 }

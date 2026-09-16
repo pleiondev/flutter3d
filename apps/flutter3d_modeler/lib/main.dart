@@ -63,6 +63,7 @@ import 'src/measurement_runs.dart';
 import 'src/modeler_cubit.dart';
 import 'src/modeler_ui_actions.dart';
 import 'src/modeler_viewport.dart';
+import 'src/mouse_hints.dart';
 import 'src/object_picking.dart';
 import 'src/open_report.dart';
 import 'src/opening.dart';
@@ -88,12 +89,14 @@ import 'src/ui/bend_slider_bar.dart';
 import 'src/ui/clip_library.dart';
 import 'src/ui/clip_tracks_bar.dart';
 import 'src/ui/command_palette.dart';
+import 'src/ui/console_panel.dart';
 import 'src/ui/export_anyway_dialog.dart';
 import 'src/ui/export_screen.dart';
 import 'src/ui/game_preview_screen.dart';
 import 'src/ui/import_screen.dart';
 import 'src/ui/keymap.dart';
 import 'src/ui/lathe_dialog.dart';
+import 'src/ui/layout_class.dart';
 import 'src/ui/material_studio_dialog.dart';
 import 'src/ui/measurement_report_overlay.dart';
 import 'src/ui/modeler_keys.dart';
@@ -491,6 +494,16 @@ class _ModelerScreenState extends State<ModelerScreen>
   /// somebody has to know a key to get back.
   bool _foldedPanel = false;
   bool _foldedRail = false;
+
+  /// Whether the console is open under the viewport — `ux-26`. This
+  /// session's own, like `ux-27`'s two folds and for the same reason.
+  bool _consoleOpen = false;
+
+  /// Whether a free-look is being held right now — `ux-26`'s own hints, which
+  /// have to say so: while the right button is down the buttons mean
+  /// something else and the walk keys are live, and that is exactly the
+  /// moment somebody looks at the strip to find out what happened.
+  bool _lookingAround = false;
 
   /// What the pointer is resting on inside the mesh — `ux-28`.
   ///

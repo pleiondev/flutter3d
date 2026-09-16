@@ -76,7 +76,17 @@ final class ModelerReady extends ModelerState {
     this.agentCalls = const <AgentToolCall>[],
     this.autosaveTrouble,
     this.agentClient,
+    this.consoleVersion = 0,
   });
+
+  /// How many lines the console has taken — `ux-26`.
+  ///
+  /// **A counter rather than the log itself.** `ModelerCubit.console` is a
+  /// mutable list held by the cubit, for the reason its own doc gives; a
+  /// state carrying it would compare equal to itself after every append and
+  /// nothing would rebuild. One integer is what tells a panel that a line
+  /// landed, and it costs nothing to compare.
+  final int consoleVersion;
 
   /// Live, and mutated by the frame loop.
   final Renderer renderer;
@@ -200,6 +210,7 @@ final class ModelerReady extends ModelerState {
     ({String reason, String? folder})? autosaveTrouble,
     bool clearAutosaveTrouble = false,
     String? agentClient,
+    int? consoleVersion,
   }) => ModelerReady(
     renderer: renderer,
     stage: stage ?? this.stage,
@@ -224,6 +235,7 @@ final class ModelerReady extends ModelerState {
         ? null
         : (autosaveTrouble ?? this.autosaveTrouble),
     agentClient: agentClient ?? this.agentClient,
+    consoleVersion: consoleVersion ?? this.consoleVersion,
   );
 }
 

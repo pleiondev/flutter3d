@@ -13,6 +13,7 @@ library;
 
 import 'dart:async';
 
+import 'console_log.dart';
 import 'display_modes.dart';
 import 'mcp_ui_actions.dart';
 import 'modeler_cubit.dart';
@@ -112,6 +113,37 @@ final class ModelerUiActions implements UiActions {
     if (!known) return (did: false, says: 'no such command: $id');
     runTool(id);
     return (did: true, says: 'ran $id');
+  }
+
+  /// `ux-26`. **`says` is the log itself, as one line per entry**, rather
+  /// than a structured answer: every other tool in this file answers with a
+  /// sentence, the transport is text, and an agent reading "14:03:22 you
+  /// refused: nothing is selected to extrude" needs no parser to act on it.
+  /// The machine-readable shape is `ConsoleEntry.toJson`, and it is there
+  /// for whatever wants it next.
+  @override
+  UiAnswer console({DateTime? since}) {
+    final List<ConsoleEntry> entries = cubit.console.since(since);
+    if (entries.isEmpty) {
+      return (
+        did: true,
+        says: since == null
+            ? 'nothing has been said this session'
+            : 'nothing since ${since.toIso8601String()}',
+      );
+    }
+    return (
+      did: true,
+      says: entries
+          .map(
+            (ConsoleEntry it) =>
+                '${it.at.toIso8601String()} '
+                '${it.author.name}'
+                '${it.kind == ConsoleKind.report ? '' : ' (${it.kind.name})'}'
+                '${it.tool == null ? '' : ' ${it.tool}'}: ${it.text}',
+          )
+          .join('\n'),
+    );
   }
 
   @override

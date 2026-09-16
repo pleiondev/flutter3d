@@ -211,6 +211,20 @@ extension _ReadyParts on _ModelerScreenState {
                   final String folder => () => _showAutosaveFolder(folder),
                   null => null,
                 },
+                // `ux-26`: what the three buttons do right now, under the
+                // person's own scheme and whatever is armed. Only where
+                // there are three buttons — a touch shell has none, and the
+                // segment would be three lies.
+                mouseHints:
+                    LayoutClass.of(MediaQuery.sizeOf(context).width) ==
+                        LayoutClass.desktop
+                    ? mouseHintsFor(
+                        scheme: _settings.navigation,
+                        tool: state.tool,
+                        lookingAround: _lookingAround,
+                      )
+                    : null,
+                onConsole: () => setState(() => _consoleOpen = !_consoleOpen),
               );
               final properties = PropertiesPanel(
                 mode: state.mode,
@@ -440,6 +454,10 @@ extension _ReadyParts on _ModelerScreenState {
                             hovered: _mode == ModelerMode.mesh
                                 ? _hoveredElements
                                 : null,
+                            // `ux-26`: while the right button is held the
+                            // strip says the buttons mean something else.
+                            onLookingChanged: (bool looking) =>
+                                setState(() => _lookingAround = looking),
                             // One or the other: with a transform tool armed a left drag is
                             // the transform, and with none it is a rectangle. A viewport
                             // that offered both would have to guess, and the guess would be
@@ -636,7 +654,20 @@ extension _ReadyParts on _ModelerScreenState {
                         onClose: () => setState(() => _agentPanelOpen = false),
                       )
                     : null,
-                bottom: showsTimeline
+                // `ux-26`: the console takes the lower area when it is open,
+                // over whatever the mode would otherwise put there. **Over
+                // rather than beside**: the timeline, the bend bar and the
+                // retarget tracks are each the thing that mode is for, and a
+                // window that tried to show one of them and the console at
+                // once would show too little of both. Opening the console is
+                // a deliberate "what did it just say", and closing it puts
+                // the mode's own area straight back.
+                bottom: _consoleOpen
+                    ? ConsolePanel(
+                        log: _cubit.console,
+                        onClose: () => setState(() => _consoleOpen = false),
+                      )
+                    : showsTimeline
                     ? AnimationBottom(
                         clipIndex: openClipIndex,
                         clip: openClip,
@@ -662,7 +693,9 @@ extension _ReadyParts on _ModelerScreenState {
                     : retargetView
                     ? _retargetBottom()
                     : null,
-                bottomHeight: showsTimeline
+                bottomHeight: _consoleOpen
+                    ? kConsoleHeight
+                    : showsTimeline
                     ? ModelerMetrics.timeline
                     : weightsView
                     ? ModelerMetrics.bendBar

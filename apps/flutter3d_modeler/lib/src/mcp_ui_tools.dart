@@ -184,4 +184,34 @@ List<ModelPictureTool> uiToolsFor(UiActions actions) => <ModelPictureTool>[
       ),
     },
   ),
+  // `ux-26`: the same log the person's own console panel shows.
+  _ui(
+    Tool(
+      name: 'get_console',
+      description:
+          'Everything the editor has said this session — what a person did, '
+          'what you did, and every refusal and warning either of you earned, '
+          'in the order it happened. Pass the `at` of the last entry you saw '
+          'as `since` to get only what has happened since; leave it out for '
+          'the whole log. This is how you find out what the person at the '
+          'other end of the document has been doing.',
+      inputSchema: ObjectSchema(
+        properties: <String, Schema>{
+          'since': StringSchema(
+            description:
+                'an ISO-8601 timestamp — an entry stamped exactly this is '
+                'the one you already have, and is not returned',
+          ),
+        },
+      ),
+    ),
+    (Map<String, Object?> arguments) => actions.console(
+      // Not `final String when` — `when` is the guard keyword in a switch
+      // expression, and the parser reads it as one.
+      since: switch (arguments['since']) {
+        final String stamp => DateTime.tryParse(stamp),
+        _ => null,
+      },
+    ),
+  ),
 ];

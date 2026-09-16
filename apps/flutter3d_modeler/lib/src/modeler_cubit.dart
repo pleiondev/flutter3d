@@ -28,6 +28,7 @@ import 'package:flutter3d_mesh/flutter3d_mesh.dart';
 import 'package:flutter3d_model_core/flutter3d_model_core.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import 'console_log.dart';
 import 'job_runner.dart';
 import 'material_pool.dart';
 import 'modeler_state.dart';
@@ -77,6 +78,42 @@ final class ModelerCubit extends Cubit<ModelerState> {
   /// only [runJob]'s own `T` ever needs to be the real one, since nothing
   /// here calls a stored [Job]'s own `run` a second time.
   final Map<JobKey, Job<Object?>> _activeJobs = <JobKey, Job<Object?>>{};
+
+  /// Everything said this session — `ux-26`.
+  ///
+  /// **Here rather than on the state, and handed out by reference.** It is a
+  /// log: it only ever grows at one end, and copying two hundred entries into
+  /// a new state on every sentence — several a second while somebody drags —
+  /// would be the immutability habit costing more than it buys. What the
+  /// state carries instead is a counter, so a panel rebuilds when a line
+  /// lands and nothing else has to compare lists to notice.
+  final ConsoleLog _console = ConsoleLog();
+
+  /// The console, for the panel that draws it and for `get_console`.
+  ConsoleLog get console => _console;
+
+  /// The clock the log is stamped by. Overridable so a test can assert an
+  /// order rather than race one.
+  DateTime Function() now = DateTime.now;
+
+  /// Records one line, and bumps the counter the state carries so whatever is
+  /// drawing the log rebuilds.
+  void _logged(
+    String text, {
+    required ConsoleAuthor author,
+    ConsoleKind kind = ConsoleKind.report,
+    String? tool,
+  }) {
+    _console.add(
+      ConsoleEntry(
+        at: now(),
+        text: text,
+        author: author,
+        kind: kind,
+        tool: tool,
+      ),
+    );
+  }
 
   /// A document opened, with the world that draws it.
   void opened(
@@ -154,9 +191,17 @@ final class ModelerCubit extends Cubit<ModelerState> {
     if (refused != null) {
       // `ux-17`: a refusal is marked as one, so the strip can paint it
       // differently from "saved" and keep it up rather than letting the next
-      // selection change clear it.
+      // selection change clear it. `ux-26`: and it is kept, since a refusal
+      // read while somebody was looking at the viewport is gone by the time
+      // they look down.
+      _logged(refused, author: ConsoleAuthor.person, kind: ConsoleKind.refusal);
       emit(
-        now.copyWith(said: refused, saidIsImportant: true, saidIsRefusal: true),
+        now.copyWith(
+          said: refused,
+          saidIsImportant: true,
+          saidIsRefusal: true,
+          consoleVersion: _console.length,
+        ),
       );
       return false;
     }
@@ -261,6 +306,26 @@ final class ModelerCubit extends Cubit<ModelerState> {
         ? null
         : 'the agent was refused: ${call.says}';
     final String? message = unshowable ?? refusal;
+    // `ux-26`: every call the agent made, whether or not it was worth
+    // interrupting the person's strip for. **What the agent said, not the
+    // sentence written for the strip** — "the agent was refused: …" is a
+    // wrapper for a person glancing at a line that is usually about their
+    // own work, and a console filtered to the agent already says who is
+    // speaking.
+    _logged(
+      call.says,
+      author: ConsoleAuthor.agent,
+      kind: call.did ? ConsoleKind.report : ConsoleKind.refusal,
+      tool: call.tool,
+    );
+    if (unshowable != null) {
+      _logged(
+        unshowable,
+        author: ConsoleAuthor.agent,
+        kind: ConsoleKind.warning,
+        tool: call.tool,
+      );
+    }
     emit(
       now.copyWith(
         agentCalls: calls,
@@ -268,6 +333,7 @@ final class ModelerCubit extends Cubit<ModelerState> {
         said: message,
         saidIsImportant: message != null,
         saidIsRefusal: refusal != null,
+        consoleVersion: _console.length,
       ),
     );
   }
@@ -524,7 +590,7 @@ final class ModelerCubit extends Cubit<ModelerState> {
   /// it clears [ModelerReady.said] unless the sentence sitting there was
   /// marked important, in which case it is left for a person to actually
   /// read — the whole point of marking it that way.
-  void say(String? said, {bool important = false}) {
+  void say(String? said, {bool important = false, bool refusal = false}) {
     final ModelerReady? now = _ready;
     if (now == null) return;
     if (said == null) {
@@ -532,7 +598,22 @@ final class ModelerCubit extends Cubit<ModelerState> {
       emit(now.copyWith(clearSaid: true));
       return;
     }
-    emit(now.copyWith(said: said, saidIsImportant: important));
+    // `ux-26`: the strip shows it and the console keeps it. A `say(null)` is
+    // not a sentence and leaves nothing behind — the log is what was said,
+    // not when the line went quiet.
+    _logged(
+      said,
+      author: ConsoleAuthor.person,
+      kind: refusal ? ConsoleKind.refusal : ConsoleKind.report,
+    );
+    emit(
+      now.copyWith(
+        said: said,
+        saidIsImportant: important,
+        saidIsRefusal: refusal,
+        consoleVersion: _console.length,
+      ),
+    );
   }
 
   /// Autosave stopped working, for [reason], while writing into [folder].
@@ -590,12 +671,26 @@ final class ModelerCubit extends Cubit<ModelerState> {
     // simply does not have it.
     final String? unshowable = unshowableSaid(now.stage.sync?.unshowable);
     final String? message = unshowable ?? overflow ?? said;
+    // `ux-26`. A refusal never reaches here — `ran` answers one before it
+    // syncs anything — so the only two levels this can leave are a warning
+    // (the device would not take an object, the skeleton is over-large) and
+    // a report of what just landed.
+    if (message != null) {
+      _logged(
+        message,
+        author: ConsoleAuthor.person,
+        kind: overflow != null || unshowable != null
+            ? ConsoleKind.warning
+            : ConsoleKind.report,
+      );
+    }
     emit(
       now.copyWith(
         readiness: _readiness.of(now.project),
         said: message,
         clearSaid: message == null,
         saidIsImportant: overflow != null || unshowable != null,
+        consoleVersion: _console.length,
       ),
     );
   }

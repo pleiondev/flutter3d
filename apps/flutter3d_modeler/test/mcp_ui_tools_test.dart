@@ -48,6 +48,9 @@ final class _NoopUiActions implements UiActions {
   UiAnswer runCommand(String id) => (did: true, says: 'ran $id');
 
   @override
+  UiAnswer console({DateTime? since}) => (did: true, says: 'nothing said');
+
+  @override
   List<({String id, String label, String mode})> commands() =>
       const <({String id, String label, String mode})>[
         (id: 'object.duplicate', label: 'Duplicate', mode: 'object'),
@@ -66,6 +69,9 @@ const List<String> _uiToolNames = <String>[
   // name the row gives it rather than a `ui.` one — it runs a command rather
   // than moving the interface.
   'run_command',
+  // `ux-26`: the same reasoning — it reads the session rather than moving
+  // anything, and the row names it.
+  'get_console',
 ];
 
 void main() {
@@ -106,7 +112,10 @@ void main() {
     expect(
       names
           .where(
-            (String name) => name.startsWith('ui.') || name == 'run_command',
+            (String name) =>
+                name.startsWith('ui.') ||
+                name == 'run_command' ||
+                name == 'get_console',
           )
           .toSet(),
       _uiToolNames.toSet(),
