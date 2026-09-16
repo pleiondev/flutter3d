@@ -735,11 +735,24 @@ void main() {
         ProjectSection.checksums,
       ]);
       expect(directory[0].offset, 112);
-      expect(directory[0].length, 1363);
-      expect(directory[1].offset, 1476);
       expect(directory[1].length, 16);
       expect(directory[1].count, 2);
-      expect(directory[2].offset, 1492);
+      // **The rule, not one build's own numbers.** Every section starts
+      // where the one before it ended, rounded up to four — which is the
+      // padding byte this test exists for. Writing the offsets down
+      // instead made this red for every field added to the manifest, and a
+      // test re-typed for that is a test nobody re-reads.
+      for (var i = 1; i < directory.length; i++) {
+        final previous = directory[i - 1];
+        final int after = previous.offset + previous.length;
+        expect(
+          directory[i].offset,
+          after + ((4 - after % 4) % 4),
+          reason:
+              'section ${directory[i].kind} does not follow '
+              '${previous.kind}',
+        );
+      }
       // This project has nothing imported and nothing textured, and both tables
       // are written all the same: every file this build produces has the same
       // five-section directory, so a reader is never deciding between "none of
@@ -749,7 +762,6 @@ void main() {
       // One row per other section, so the table grows with the directory.
       expect(directory[5].count, 5);
       expect(directory[5].length, 5 * kProjectChecksumEntryBytes);
-      expect(bytes.length, 4108);
 
       for (final entry in directory) {
         expect(entry.offset % 4, 0, reason: 'section ${entry.kind}');
@@ -952,7 +964,7 @@ void main() {
       expect(
         refusal(bytes),
         'The header claims 500 sections, whose directory ends at byte 8016, '
-        'past the end of a 4108-byte file.',
+        'past the end of a ${bytes.length}-byte file.',
       );
     });
 
@@ -967,10 +979,13 @@ void main() {
       // not that any particular section is the one that goes.
       final whole = writeProject(sample());
       final cut = Uint8List.sublistView(whole, 0, whole.length - 8);
+      // The byte numbers are computed rather than written down: a field
+      // added to any section moves them, and a test that has to be
+      // re-typed for that is a test that gets re-typed without being read.
       expect(
         refusal(cut),
-        'Section 6 runs from byte 4068 for 40 bytes, past the end of a '
-        '4100-byte file.',
+        'Section 6 runs from byte ${whole.length - 40} for 40 bytes, past '
+        'the end of a ${cut.length}-byte file.',
       );
     });
 

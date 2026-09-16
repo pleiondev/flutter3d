@@ -1430,6 +1430,8 @@ Map<String, Object?> _profileJson(ProjectProfile profile) => <String, Object?>{
   // `syn-03`, younger still, read back the same optional way.
   'fps': profile.fps,
   'frameSnap': profile.frameSnap,
+  // `pro-sc-09`, younger again, and optional for the same reason.
+  'sculptTriangleLimitWeb': profile.sculptTriangleLimitWeb,
 };
 
 Map<String, Object?> _skeletonJson(ProjectSkeleton skeleton) =>
@@ -1775,6 +1777,10 @@ ProjectProfile? _readProfile(Object? json, List<String> warnings) {
         _ => fallback.fps,
       },
       frameSnap: json['frameSnap'] as bool? ?? fallback.frameSnap,
+      sculptTriangleLimitWeb: switch (json['sculptTriangleLimitWeb']) {
+        final num value => value.round(),
+        _ => fallback.sculptTriangleLimitWeb,
+      },
     );
   }
   return null;

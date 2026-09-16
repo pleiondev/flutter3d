@@ -78,6 +78,7 @@ final class ProjectProfile {
     this.texelsPerMeter,
     this.fps = 30.0,
     this.frameSnap = false,
+    this.sculptTriangleLimitWeb = 300000,
   });
 
   /// What a handset can be asked for, which is the tightest of the three the
@@ -149,6 +150,23 @@ final class ProjectProfile {
   /// tool actually drags a key; this class only carries the setting.
   final bool frameSnap;
 
+  /// How many triangles a sculpt may carry in a browser — `pro-sc-09`.
+  ///
+  /// **A measured number, not the desktop one scaled by a guess.** The web
+  /// build runs the same Dart through wasm with one thread and no way to
+  /// ask for a second, so the ceiling that matters there is not
+  /// [maxTriangles] — which is about what a game engine will draw — but
+  /// what a stroke can move and re-upload inside a frame. Three hundred
+  /// thousand is what `pro-sc-01` measured as the largest mesh whose
+  /// stroke stays under sixteen milliseconds on wasm; a project that wants
+  /// a different answer says so here rather than in code.
+  ///
+  /// Read by the sculpt mode before it opens a mesh, not by the document:
+  /// nothing about a file changes because it is being edited in a browser,
+  /// and a project written on a desktop and opened on the web has to say
+  /// the same thing to both.
+  final int sculptTriangleLimitWeb;
+
   /// What control a profile editor should offer for each of this class's own
   /// fields, keyed by field name.
   ///
@@ -193,6 +211,11 @@ final class ProjectProfile {
     'texelsPerMeter': const DoubleHint(min: 0, unit: 'texels/m'),
     'fps': const DoubleHint(min: 1, unit: 'fps'),
     'frameSnap': const BoolHint(),
+    'sculptTriangleLimitWeb': const IntHint(
+      min: 10000,
+      max: 2000000,
+      step: 10000,
+    ),
   };
 
   /// [this], with named fields replaced.
@@ -212,6 +235,7 @@ final class ProjectProfile {
     bool clearTexelsPerMeter = false,
     double? fps,
     bool? frameSnap,
+    int? sculptTriangleLimitWeb,
   }) => ProjectProfile(
     name: name ?? this.name,
     target: target ?? this.target,
@@ -230,6 +254,8 @@ final class ProjectProfile {
         : (texelsPerMeter ?? this.texelsPerMeter),
     fps: fps ?? this.fps,
     frameSnap: frameSnap ?? this.frameSnap,
+    sculptTriangleLimitWeb:
+        sculptTriangleLimitWeb ?? this.sculptTriangleLimitWeb,
   );
 
   @override
@@ -247,7 +273,8 @@ final class ProjectProfile {
       other.textures == textures &&
       other.texelsPerMeter == texelsPerMeter &&
       other.fps == fps &&
-      other.frameSnap == frameSnap;
+      other.frameSnap == frameSnap &&
+      other.sculptTriangleLimitWeb == sculptTriangleLimitWeb;
 
   @override
   int get hashCode => Object.hash(
@@ -264,6 +291,7 @@ final class ProjectProfile {
     texelsPerMeter,
     fps,
     frameSnap,
+    sculptTriangleLimitWeb,
   );
 }
 
