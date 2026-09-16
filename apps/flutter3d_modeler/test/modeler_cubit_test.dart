@@ -17,6 +17,7 @@ import 'package:flutter3d_mesh/flutter3d_mesh.dart';
 import 'package:flutter3d_model_core/flutter3d_model_core.dart';
 import 'package:flutter3d_modeler/src/console_log.dart';
 import 'package:flutter3d_modeler/src/modeler_cubit.dart';
+import 'package:flutter3d_modeler/src/settings.dart' show Workspace;
 import 'package:flutter3d_modeler/src/staging.dart';
 import 'package:flutter3d_modeler/src/timeline_playback.dart';
 import 'package:flutter3d_modeler/src/ui/tools.dart';
@@ -430,7 +431,10 @@ void main() {
 
   group('the mode', () {
     test('changing it keeps the selection', () {
-      final cubit = opened().cubit;
+      // `ux-37`: Mesh mode lives in the Full workspace, and these tests are
+      // about what a mode change does rather than about which workspace
+      // offers one — `workspace_test.dart` is where that gate is checked.
+      final cubit = opened().cubit..workspace(Workspace.full);
       final id = ready(cubit).project.objects.first.id;
       cubit.ran(const SelectAll());
       expect(ready(cubit).selection.objects, contains(id));
@@ -546,7 +550,9 @@ void main() {
     });
 
     test('a command replaces it and a mode change clears it', () {
-      final cubit = opened().cubit..say('wrote 40 bytes');
+      final cubit = opened().cubit
+        ..workspace(Workspace.full)
+        ..say('wrote 40 bytes');
       cubit.ran(Rename(id: ready(cubit).project.objects.first.id, to: 'x'));
       expect(ready(cubit).said, isNot('wrote 40 bytes'));
 

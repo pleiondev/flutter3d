@@ -16,6 +16,7 @@ library;
 
 import 'package:flutter/material.dart';
 
+import '../settings.dart' show Workspace;
 import 'keymap.dart';
 import 'shortcut_help.dart' show describeShortcut;
 import 'theme.dart';
@@ -43,6 +44,7 @@ class ModelerShell extends StatelessWidget {
     super.key,
     required this.mode,
     required this.onMode,
+    this.workspace = Workspace.full,
     required this.submode,
     required this.onSubmode,
     required this.animationSubmode,
@@ -71,6 +73,11 @@ class ModelerShell extends StatelessWidget {
 
   final ModelerMode mode;
   final ValueChanged<ModelerMode> onMode;
+
+  /// Which set of modes the switcher offers — `ux-37`. Full by default, so a
+  /// caller that has not been told about workspaces shows what it always did.
+  final Workspace workspace;
+
 
   final MeshSubmode submode;
   final ValueChanged<MeshSubmode> onSubmode;
@@ -165,6 +172,7 @@ class ModelerShell extends StatelessWidget {
         children: <Widget>[
           _TopBar(
             mode: mode,
+            workspace: workspace,
             onMode: onMode,
             submode: submode,
             onSubmode: onSubmode,
@@ -297,6 +305,7 @@ class _TopBar extends StatelessWidget {
   const _TopBar({
     required this.mode,
     required this.onMode,
+    this.workspace = Workspace.full,
     required this.submode,
     required this.onSubmode,
     required this.animationSubmode,
@@ -308,6 +317,11 @@ class _TopBar extends StatelessWidget {
 
   final ModelerMode mode;
   final ValueChanged<ModelerMode> onMode;
+
+  /// Which set of modes the switcher offers — `ux-37`. Full by default, so a
+  /// caller that has not been told about workspaces shows what it always did.
+  final Workspace workspace;
+
   final MeshSubmode submode;
   final ValueChanged<MeshSubmode> onSubmode;
   final AnimationSubmode animationSubmode;
@@ -352,6 +366,7 @@ class _TopBar extends StatelessWidget {
                 child: SingleChildScrollView(
                   scrollDirection: Axis.horizontal,
                   child: ModelerModeSwitcher(
+                    workspace: workspace,
                     mode: mode,
                     onMode: onMode,
                     submode: submode,
@@ -382,6 +397,7 @@ class ModelerModeSwitcher extends StatelessWidget {
     super.key,
     required this.mode,
     required this.onMode,
+    this.workspace = Workspace.full,
     required this.submode,
     required this.onSubmode,
     this.animationSubmode,
@@ -390,6 +406,11 @@ class ModelerModeSwitcher extends StatelessWidget {
 
   final ModelerMode mode;
   final ValueChanged<ModelerMode> onMode;
+
+  /// Which set of modes the switcher offers — `ux-37`. Full by default, so a
+  /// caller that has not been told about workspaces shows what it always did.
+  final Workspace workspace;
+
   final MeshSubmode submode;
   final ValueChanged<MeshSubmode> onSubmode;
 
@@ -418,9 +439,14 @@ class ModelerModeSwitcher extends StatelessWidget {
           // does nothing a person can tell from a press that missed. A
           // roadmap belongs on the site, not in the one control a person
           // uses every minute.
-          for (final ModelerMode each in ModelerMode.values)
-            if (each.ready)
-              ButtonSegment<ModelerMode>(
+          //
+          // **`ux-37`: and a mode the open workspace does not offer is not on
+          // it either.** Essential is Object, Material and Scene; a person who
+          // came to open a model, paint it and export it should not have to
+          // decide what Mesh mode is before doing any of that. Settings turns
+          // the other two on, and `modesFor` is the one place that decides.
+          for (final ModelerMode each in modesFor(workspace))
+            ButtonSegment<ModelerMode>(
                 value: each,
                 // `ui-23`'s own pass: `tooltip:` below sets
                 // `SemanticsNode.tooltip`, not `.label` — wrapping the icon

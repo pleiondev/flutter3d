@@ -14,6 +14,7 @@ library;
 
 import 'package:flutter/material.dart';
 
+import '../settings.dart' show Workspace;
 import 'shell.dart';
 import 'shell_tablet.dart';
 import 'theme.dart';
@@ -25,6 +26,7 @@ class ModelerPhoneShell extends StatelessWidget {
     super.key,
     required this.mode,
     required this.onMode,
+    this.workspace = Workspace.full,
     required this.submode,
     required this.onSubmode,
     required this.activeTool,
@@ -46,6 +48,11 @@ class ModelerPhoneShell extends StatelessWidget {
 
   final ModelerMode mode;
   final ValueChanged<ModelerMode> onMode;
+
+  /// Which set of modes the switcher offers — `ux-37`. Full by default, so a
+  /// caller that has not been told about workspaces shows what it always did.
+  final Workspace workspace;
+
 
   final MeshSubmode submode;
   final ValueChanged<MeshSubmode> onSubmode;
@@ -144,6 +151,7 @@ class ModelerPhoneShell extends StatelessWidget {
                   child: SingleChildScrollView(
                     scrollDirection: Axis.horizontal,
                     child: ModelerModeSwitcher(
+                      workspace: workspace,
                       mode: mode,
                       onMode: onMode,
                       submode: submode,

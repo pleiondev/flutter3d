@@ -11,6 +11,7 @@ library;
 
 import 'package:flutter/material.dart';
 
+import '../settings.dart' show Workspace;
 import 'keymap.dart';
 import 'layout_class.dart';
 import 'screen_parts.dart';
@@ -28,6 +29,7 @@ class ShellForWidth extends StatelessWidget {
     required this.parts,
     required this.mode,
     required this.onMode,
+    this.workspace = Workspace.full,
     required this.submode,
     required this.onSubmode,
     required this.animationSubmode,
@@ -69,6 +71,11 @@ class ShellForWidth extends StatelessWidget {
   final ModelerMode mode;
   final ValueChanged<ModelerMode> onMode;
 
+  /// Which set of modes the switcher offers — `ux-37`. Full by default, so a
+  /// caller that has not been told about workspaces shows what it always did.
+  final Workspace workspace;
+
+
   final MeshSubmode submode;
   final ValueChanged<MeshSubmode> onSubmode;
 
@@ -107,6 +114,7 @@ class ShellForWidth extends StatelessWidget {
           LayoutClass.desktop => ModelerShell(
             mode: mode,
             onMode: onMode,
+            workspace: workspace,
             submode: submode,
             onSubmode: onSubmode,
             animationSubmode: animationSubmode,
@@ -136,6 +144,7 @@ class ShellForWidth extends StatelessWidget {
           LayoutClass.tablet => ModelerTabletShell(
             mode: mode,
             onMode: onMode,
+            workspace: workspace,
             submode: submode,
             onSubmode: onSubmode,
             activeTool: activeTool,
@@ -150,6 +159,7 @@ class ShellForWidth extends StatelessWidget {
           LayoutClass.phone => ModelerPhoneShell(
             mode: mode,
             onMode: onMode,
+            workspace: workspace,
             submode: submode,
             onSubmode: onSubmode,
             activeTool: activeTool,

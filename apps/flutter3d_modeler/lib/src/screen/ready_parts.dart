@@ -731,6 +731,10 @@ extension _ReadyParts on _ModelerScreenState {
                 ),
                 mode: state.mode,
                 onMode: onMode,
+                // `ux-37`: Essential offers three modes, Full five. The
+                // state carries it so the switcher, the keyboard and an
+                // agent's own `ui.setMode` cannot disagree about which.
+                workspace: state.workspace,
                 submode: state.submode,
                 onSubmode: _cubit.submode,
                 animationSubmode: state.animationSubmode,
