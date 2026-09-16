@@ -97,6 +97,18 @@ final class ModelerCubit extends Cubit<ModelerState> {
   /// order rather than race one.
   DateTime Function() now = DateTime.now;
 
+  /// Which modes the switcher offers — `ux-37`, held here as well as on the
+  /// state.
+  ///
+  /// **Because a workspace belongs to the session and a state belongs to the
+  /// document.** [opened] builds a fresh [ModelerReady] every time a file is
+  /// opened, and a field that lived only on the state would go back to its
+  /// default there: open a project in the Full workspace and Mesh mode is
+  /// gone, with nothing to say why. `tutorial_case_screenshots_test.dart`
+  /// found it — every screenshot of a character stopped being able to reach
+  /// Animation mode the moment the case's own file was opened.
+  Workspace _workspace = Workspace.essential;
+
   /// Records one line, and bumps the counter the state carries so whatever is
   /// drawing the log rebuilds.
   void _logged(
@@ -135,6 +147,7 @@ final class ModelerCubit extends Cubit<ModelerState> {
         readiness: _readiness.of(history.project),
         documentName: documentName,
         said: said,
+        workspace: _workspace,
       ),
     );
   }
@@ -161,6 +174,7 @@ final class ModelerCubit extends Cubit<ModelerState> {
         saidIsImportant: now.saidIsImportant,
         jobs: now.jobs,
         playback: now.playback,
+        workspace: now.workspace,
       ),
     );
     // The new stage's own pool is empty — see [_pooledInto]. Filling it here
@@ -553,6 +567,7 @@ final class ModelerCubit extends Cubit<ModelerState> {
   /// person in a mode with no way back to it and no segment lit; Object is
   /// where the switcher starts and where this puts them.
   void workspace(Workspace to) {
+    _workspace = to;
     final ModelerReady? now = _ready;
     if (now == null || now.workspace == to) return;
     final List<ModelerMode> offered = modesFor(to);
