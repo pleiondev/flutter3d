@@ -75,6 +75,12 @@ final class ModelerStage {
   /// in clay.
   final MaterialPool? materials;
 
+  /// `ux-49`: keeps [scene]'s own environment cube in step with
+  /// [SceneLighting.panorama]. Its own object rather than a call, because it
+  /// remembers which image is on the scene so an ordinary edit costs a
+  /// comparison rather than a convolution.
+  final PanoramaSync panorama = PanoramaSync();
+
   /// Keeps [scene]'s own lights in step with [ModelProject.lighting] —
   /// `tut-07`'s own fix. Null for the measurement stands, the same reason
   /// [sync] is: they have no document, only the fixed key/fill pair [_light]

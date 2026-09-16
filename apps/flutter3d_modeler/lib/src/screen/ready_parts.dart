@@ -301,6 +301,9 @@ extension _ReadyParts on _ModelerScreenState {
                 // `ux-48`: reads the held object's own source file again,
                 // keeping everything this project has done around its mesh.
                 onReimport: (int id) => unawaited(_reimport(id)),
+                // `ux-49`: a Radiance panorama beside the four presets.
+                onChoosePanorama: () => unawaited(_choosePanorama()),
+                onClearPanorama: () => _cubit.ran(const SetPanorama()),
                 onSetMaterialField: _setMaterialField,
                 onChooseTexture: _chooseTexture,
                 onClearTexture: _clearTexture,

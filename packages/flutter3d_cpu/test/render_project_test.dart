@@ -9,6 +9,7 @@
 ///     dart test test/render_project_test.dart
 library;
 
+import 'dart:convert';
 import 'dart:math' as math;
 import 'dart:typed_data';
 
@@ -143,6 +144,47 @@ int _litPixels(Rgba8Image image, {int threshold = 60}) {
     }
   }
   return lit;
+}
+
+/// A Radiance panorama of [width] x [height], every pixel [channels].
+///
+/// Flat rather than a picture: what is in question is whether an environment
+/// reaches the shading at all, and a flat sky makes the answer one number per
+/// pixel rather than a pattern somebody has to interpret.
+Uint8List _panorama(int width, int height, List<int> channels) =>
+    Uint8List.fromList(<int>[
+      ...utf8.encode(
+        '#?RADIANCE\nFORMAT=32-bit_rle_rgbe\n\n-Y $height +X $width\n',
+      ),
+      for (var i = 0; i < width * height; i++) ...channels,
+    ]);
+
+/// [_cubeProject], lit by [panorama] where one is given.
+ModelProject _underPanorama(Uint8List? panorama) {
+  final ModelProject cube = _cubeProject();
+  if (panorama == null) return cube;
+  final ModelProject withImage = cube.copyWith(
+    images: <EncodedImage>[
+      EncodedImage(
+        bytes: panorama,
+        name: 'sky.hdr',
+        mimeType: 'image/vnd.radiance',
+      ),
+    ],
+  );
+  final ModelHistory history = ModelHistory(withImage);
+  final String? refused = history.run(const SetPanorama(index: 0));
+  expect(refused, isNull, reason: refused);
+  return history.project;
+}
+
+/// How bright a picture is on average, as a number to compare two by.
+double _brightness(Rgba8Image image) {
+  var total = 0;
+  for (var i = 0; i < image.pixels.length; i += 4) {
+    total += image.pixels[i] + image.pixels[i + 1] + image.pixels[i + 2];
+  }
+  return total / (image.pixels.length / 4);
 }
 
 void main() {
@@ -926,6 +968,66 @@ void main() {
         reason:
             'an unskinned object under `weights` mode should still draw '
             'its own material rather than nothing at all',
+      );
+    });
+  });
+
+  group('ux-49: a panorama lights the scene', () {
+    test('a bright 2:1 sky lights the model, and no sky does not', () async {
+      Future<Rgba8Image> drawn(Uint8List? panorama) async =>
+          (await decodeImagePure(
+            await renderProject(
+              RenderRequest(
+                project: _underPanorama(panorama),
+                width: 48,
+                height: 48,
+              ),
+              deviceFactory: _cpuDevice,
+            ),
+          ))!;
+
+      final Rgba8Image bare = await drawn(null);
+      // Every pixel at mantissa 200, exponent 136 - so a channel reads back
+      // as 200 and clamps to white in the eight-bit cube. A sky this bright
+      // is what an HDRI of an overcast noon looks like to a surface.
+      final Rgba8Image lit = await drawn(
+        _panorama(8, 4, const <int>[200, 200, 200, 136]),
+      );
+
+      // **The row's own acceptance.** Mutation: leave `PanoramaSync` out of
+      // `renderProject`, which is how this was - a project can then hold a
+      // panorama that the viewport shows and a render does not, which is two
+      // answers to one question.
+      expect(_brightness(lit), greaterThan(_brightness(bare)));
+    });
+
+    test('and a dark sky is not the same picture as a bright one', () async {
+      Future<double> brightnessUnder(List<int> channels) async {
+        final Rgba8Image image = (await decodeImagePure(
+          await renderProject(
+            RenderRequest(
+              project: _underPanorama(_panorama(8, 4, channels)),
+              width: 48,
+              height: 48,
+            ),
+            deviceFactory: _cpuDevice,
+          ),
+        ))!;
+        return _brightness(image);
+      }
+
+      // Mutation: build the cube from the exponent alone, or from the first
+      // channel - both draw every sky the same and this is the check that
+      // says so.
+      expect(
+        await brightnessUnder(const <int>[200, 200, 200, 136]),
+        // Exponent 128 rather than 136: `mantissa * 2^(e-136)` puts this at
+        // an eighth of a unit, which is a byte of 8 in the cube. At 136 it
+        // would be 8.0 — eight times over white, and clamped to the same
+        // 255 the bright sky is, which is a pair of skies this could not
+        // tell apart for a reason that is about the fixture rather than
+        // about the code.
+        greaterThan(await brightnessUnder(const <int>[8, 8, 8, 128])),
       );
     });
   });

@@ -12,6 +12,7 @@ import 'package:flutter3d_editor_widgets/flutter3d_editor_widgets.dart';
 import 'package:flutter3d_model_core/flutter3d_model_core.dart';
 
 import '../../l10n/app_localizations.dart';
+import 'named_button.dart';
 
 /// The project's own sky preset, and its ambient level.
 final class SceneEnvironmentPanel extends StatelessWidget {
@@ -21,12 +22,26 @@ final class SceneEnvironmentPanel extends StatelessWidget {
     required this.ambientIntensity,
     required this.onEnvironmentChanged,
     required this.onAmbientChanged,
+    this.panoramaName,
+    this.onChoosePanorama,
+    this.onClearPanorama,
   });
 
   final SceneEnvironmentPreset environment;
   final double ambientIntensity;
   final ValueChanged<SceneEnvironmentPreset> onEnvironmentChanged;
   final ValueChanged<double> onAmbientChanged;
+
+  /// What the project's own panorama is called, or null for none — `ux-49`.
+  final String? panoramaName;
+
+  /// Opens a picker for a Radiance `.hdr`. Null where there is no filesystem
+  /// to pick one from, and the row does not appear at all — a browser has no
+  /// path and no `.hdr` to point at.
+  final VoidCallback? onChoosePanorama;
+
+  /// Takes the panorama off, so the preset above lights the scene again.
+  final VoidCallback? onClearPanorama;
 
   static String _labelOf(SceneEnvironmentPreset preset) => switch (preset) {
     SceneEnvironmentPreset.studio => 'Studio',
@@ -61,6 +76,42 @@ final class SceneEnvironmentPanel extends StatelessWidget {
           },
         ),
       ),
+      // `ux-49`: a panorama beside the four presets rather than as a fifth
+      // one. **When there is one it is what lights the scene**, and the
+      // dropdown above is what a project falls back to when it is cleared —
+      // which is why this row says which of the two is in force rather than
+      // sitting silently under a preset nobody is looking at.
+      if (onChoosePanorama != null) ...<Widget>[
+        Padding(
+          padding: const EdgeInsets.symmetric(vertical: 4),
+          child: Row(
+            children: <Widget>[
+              const Icon(Icons.panorama_outlined, size: 14),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Text(
+                  panoramaName ?? 'No panorama — the preset above lights it',
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+              ),
+              if (panoramaName != null && onClearPanorama != null)
+                NamedButton(
+                  label: 'Clear the panorama',
+                  child: IconButton(
+                    tooltip: 'Clear the panorama',
+                    icon: const Icon(Icons.close, size: 16),
+                    onPressed: onClearPanorama,
+                  ),
+                ),
+              TextButton(
+                onPressed: onChoosePanorama,
+                child: Text(panoramaName == null ? 'Choose…' : 'Replace…'),
+              ),
+            ],
+          ),
+        ),
+      ],
       NumberField(
         label: 'Ambient',
         value: ambientIntensity,

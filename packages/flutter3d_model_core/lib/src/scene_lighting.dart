@@ -183,6 +183,7 @@ final class SceneLighting {
     this.shadows = false,
     this.exposure = 1.6,
     this.post = const ScenePostSettings(),
+    this.panorama,
   });
 
   final List<ProjectLight> lights;
@@ -205,6 +206,23 @@ final class SceneLighting {
 
   final ScenePostSettings post;
 
+  /// An index into [ModelProject.images], or null — `ux-49`.
+  ///
+  /// **A panorama beside the presets rather than a fifth preset.** The four
+  /// [SceneEnvironmentPreset] values are names this build knows how to draw;
+  /// a panorama is a picture the project carries, and the two cannot be the
+  /// same field without one of them becoming a string that sometimes means a
+  /// file. When this is set it is what lights the scene, and [environment]
+  /// is what a project falls back to when the image is cleared.
+  ///
+  /// **An index into the image table**, like every texture binding in this
+  /// document, so a panorama is saved with the project and travels with it
+  /// rather than being a path that may not exist on the next machine.
+  ///
+  /// `SetPanorama` is the only thing that sets this, and it refuses an image
+  /// that is not twice as wide as it is tall — see that command for why.
+  final int? panorama;
+
   SceneLighting copyWith({
     List<ProjectLight>? lights,
     SceneEnvironmentPreset? environment,
@@ -212,6 +230,8 @@ final class SceneLighting {
     bool? shadows,
     double? exposure,
     ScenePostSettings? post,
+    int? panorama,
+    bool clearPanorama = false,
   }) => SceneLighting(
     lights: lights ?? this.lights,
     environment: environment ?? this.environment,
@@ -219,5 +239,6 @@ final class SceneLighting {
     shadows: shadows ?? this.shadows,
     exposure: exposure ?? this.exposure,
     post: post ?? this.post,
+    panorama: clearPanorama ? null : (panorama ?? this.panorama),
   );
 }

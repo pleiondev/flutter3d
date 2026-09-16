@@ -95,6 +95,23 @@ Future<PickedFile?> openModel() async {
   return PickedFile(name: name, bytes: embedGltfSiblings(bytes, siblings));
 }
 
+/// Asks for a Radiance `.hdr` to light the scene with — `ux-49`.
+///
+/// **A browser can do this half.** Picking a file is what a file input is
+/// for; what it cannot do is remember where the file came from, which is
+/// `ux-48`'s problem and not this one — a panorama is copied into the
+/// project's own image table either way.
+Future<PickedFile?> openPanorama() async {
+  final byName = await _pickFiles(
+    web.HTMLInputElement()
+      ..type = 'file'
+      ..accept = '.hdr',
+  );
+  if (byName.isEmpty) return null;
+  final name = byName.keys.single;
+  return PickedFile(name: name, bytes: byName.values.single);
+}
+
 /// Asks for an image and reads it, for a material's texture slot.
 ///
 /// Null when the person dismissed the picker — `mat-04a-n`'s own "Choose…"

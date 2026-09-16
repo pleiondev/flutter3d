@@ -35,6 +35,7 @@ export 'src/formats/fbx/fbx_decoder.dart';
 export 'src/formats/fmat/fmat.dart';
 export 'src/formats/gltf/gltf.dart';
 export 'src/formats/image/deflate.dart';
+export 'src/formats/image/hdr_decoder.dart';
 export 'src/formats/image/inflate.dart';
 export 'src/formats/image/jpeg_decoder.dart';
 export 'src/formats/image/png_decoder.dart';

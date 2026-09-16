@@ -555,6 +555,32 @@ extension _FileHandling on _ModelerScreenState {
     }
   }
 
+  /// `ux-49`: picks a Radiance `.hdr` and lights the scene with it.
+  ///
+  /// **The image goes into the project's own table**, like every texture,
+  /// so a panorama travels with the file rather than being a path that may
+  /// not exist on the next machine — and so `SetPanorama` can check its size
+  /// by index rather than being handed a number to trust.
+  ///
+  /// Two commands rather than one: the image is added, and then pointed at.
+  /// `SetPanorama` is what refuses an image that is not twice as wide as it
+  /// is tall, and the refusal reaches the strip with the size in it.
+  Future<void> _choosePanorama() async {
+    final PickedFile? picked = await openPanorama();
+    if (picked == null || !mounted) return;
+    final int at = _history.project.images.length;
+    _cubit.ran(
+      AddImage(
+        bytes: picked.bytes,
+        imageName: picked.name,
+        mimeType: 'image/vnd.radiance',
+      ),
+      said: 'added ${picked.name}',
+    );
+    if (!mounted) return;
+    _cubit.ran(SetPanorama(index: at), said: 'lit by ${picked.name}');
+  }
+
   /// `ux-48`: reads [id]'s own source file again and replaces its geometry.
   ///
   /// **Everything else about the object stays**, which is the whole reason
