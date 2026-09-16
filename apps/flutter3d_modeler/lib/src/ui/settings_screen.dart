@@ -18,6 +18,8 @@
 library;
 
 import 'package:flutter/material.dart';
+import 'package:flutter3d_editor_widgets/flutter3d_editor_widgets.dart'
+    show NumberField;
 
 import '../settings.dart';
 
@@ -42,6 +44,11 @@ class SettingsScreen extends StatefulWidget {
 
 class _SettingsScreenState extends State<SettingsScreen> {
   late ModelerSettings _draft = widget.settings;
+
+  /// A step has to be a positive number: zero would divide by zero the moment
+  /// the modifier was held, and a negative one would round the wrong way. A
+  /// field that says otherwise keeps whatever it had.
+  double _step(double said) => said.isFinite && said > 0 ? said : 0.1;
 
   @override
   Widget build(BuildContext context) => AlertDialog(
@@ -113,6 +120,55 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     ? _draft.copyWith(clearLanguage: true)
                     : _draft.copyWith(language: it);
               }),
+            ),
+            const SizedBox(height: 8),
+            // `ux-11`: what holding the snap modifier rounds to. Three
+            // numbers rather than one, because a tenth of a radian is not a
+            // step anybody thinks in — and the label beside the pointer
+            // during a transform says which of them is live.
+            Padding(
+              padding: const EdgeInsets.only(bottom: 4),
+              child: Text(
+                'Snap steps',
+                style: Theme.of(context).textTheme.labelLarge,
+              ),
+            ),
+            Row(
+              children: <Widget>[
+                Expanded(
+                  child: NumberField(
+                    label: 'Move',
+                    labelWidth: 44,
+                    value: _draft.snapMove,
+                    onChanged: (double it) => setState(
+                      () => _draft = _draft.copyWith(snapMove: _step(it)),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: NumberField(
+                    label: 'Turn°',
+                    labelWidth: 44,
+                    value: _draft.snapTurnDegrees,
+                    onChanged: (double it) => setState(
+                      () =>
+                          _draft = _draft.copyWith(snapTurnDegrees: _step(it)),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: NumberField(
+                    label: 'Scale',
+                    labelWidth: 44,
+                    value: _draft.snapScale,
+                    onChanged: (double it) => setState(
+                      () => _draft = _draft.copyWith(snapScale: _step(it)),
+                    ),
+                  ),
+                ),
+              ],
             ),
             const SizedBox(height: 8),
             SwitchListTile(

@@ -169,6 +169,9 @@ final class ModelerSettings {
     this.showHomeAtLaunch = true,
     this.saveWithHistory = true,
     this.quickSetupDone = false,
+    this.snapMove = 0.1,
+    this.snapTurnDegrees = 15,
+    this.snapScale = 0.1,
   });
 
   /// How the camera is driven.
@@ -207,6 +210,23 @@ final class ModelerSettings {
   /// first launch and never again.
   final bool quickSetupDone;
 
+  /// How coarse a held snap is, per kind of transform — `ux-11`.
+  ///
+  /// **Settings rather than three constants in `transform_modal.dart`.** The
+  /// steps every modeller ships with are a tenth of a unit, fifteen degrees
+  /// and a tenth of a factor, and they are right until somebody is working at
+  /// a scale where they are not: a millimetre part wants a millimetre step,
+  /// and an architectural scene wants a quarter metre. The chips the viewport
+  /// shows during a transform read these, so what the modifier will do is
+  /// legible before it is held.
+  final double snapMove;
+
+  /// In degrees, because that is what a person types. `TransformModal` takes
+  /// radians and the conversion happens where the two meet.
+  final double snapTurnDegrees;
+
+  final double snapScale;
+
   ModelerSettings copyWith({
     NavigationScheme? navigation,
     KeymapPreset? keymap,
@@ -217,6 +237,9 @@ final class ModelerSettings {
     bool? showHomeAtLaunch,
     bool? saveWithHistory,
     bool? quickSetupDone,
+    double? snapMove,
+    double? snapTurnDegrees,
+    double? snapScale,
   }) => ModelerSettings(
     navigation: navigation ?? this.navigation,
     keymap: keymap ?? this.keymap,
@@ -226,6 +249,9 @@ final class ModelerSettings {
     showHomeAtLaunch: showHomeAtLaunch ?? this.showHomeAtLaunch,
     saveWithHistory: saveWithHistory ?? this.saveWithHistory,
     quickSetupDone: quickSetupDone ?? this.quickSetupDone,
+    snapMove: snapMove ?? this.snapMove,
+    snapTurnDegrees: snapTurnDegrees ?? this.snapTurnDegrees,
+    snapScale: snapScale ?? this.snapScale,
   );
 
   Map<String, Object?> toJson() => <String, Object?>{
@@ -237,6 +263,9 @@ final class ModelerSettings {
     'showHomeAtLaunch': showHomeAtLaunch,
     'saveWithHistory': saveWithHistory,
     'quickSetupDone': quickSetupDone,
+    'snapMove': snapMove,
+    'snapTurnDegrees': snapTurnDegrees,
+    'snapScale': snapScale,
   };
 
   /// What [json] says, with the default standing in for anything it does not
@@ -259,6 +288,16 @@ final class ModelerSettings {
       return value is String ? value : null;
     }
 
+    // A step of zero or less is not a step: it would divide by zero the
+    // moment the modifier was held. A document that says so gets the default
+    // rather than the launch getting an exception.
+    double step(String key, double otherwise) {
+      final Object? value = json[key];
+      if (value is! num) return otherwise;
+      final double read = value.toDouble();
+      return read.isFinite && read > 0 ? read : otherwise;
+    }
+
     final String? language = text('language');
     return ModelerSettings(
       navigation:
@@ -272,6 +311,9 @@ final class ModelerSettings {
       showHomeAtLaunch: flag('showHomeAtLaunch', fallback.showHomeAtLaunch),
       saveWithHistory: flag('saveWithHistory', fallback.saveWithHistory),
       quickSetupDone: flag('quickSetupDone', fallback.quickSetupDone),
+      snapMove: step('snapMove', fallback.snapMove),
+      snapTurnDegrees: step('snapTurnDegrees', fallback.snapTurnDegrees),
+      snapScale: step('snapScale', fallback.snapScale),
     );
   }
 
@@ -285,7 +327,10 @@ final class ModelerSettings {
       other.language == language &&
       other.showHomeAtLaunch == showHomeAtLaunch &&
       other.saveWithHistory == saveWithHistory &&
-      other.quickSetupDone == quickSetupDone;
+      other.quickSetupDone == quickSetupDone &&
+      other.snapMove == snapMove &&
+      other.snapTurnDegrees == snapTurnDegrees &&
+      other.snapScale == snapScale;
 
   @override
   int get hashCode => Object.hash(
@@ -297,6 +342,9 @@ final class ModelerSettings {
     showHomeAtLaunch,
     saveWithHistory,
     quickSetupDone,
+    snapMove,
+    snapTurnDegrees,
+    snapScale,
   );
 }
 

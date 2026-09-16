@@ -867,7 +867,12 @@ extension _FileHandling on _ModelerScreenState {
       _settings,
     );
     if (chosen == null || !mounted) return;
-    setState(() => _settings = chosen);
+    setState(() {
+      _settings = chosen;
+      // `ux-11`: the steps a held snap rounds to are the person's own, and a
+      // transform started after this reads the new ones.
+      _transformSession.snapSteps = _snapStepsOf(chosen);
+    });
     if (!_settingsStore.write(chosen)) {
       _cubit.say('Settings could not be saved', important: true);
     }

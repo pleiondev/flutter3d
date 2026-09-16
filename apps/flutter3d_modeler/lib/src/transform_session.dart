@@ -12,6 +12,7 @@
 /// fresh each time is what keeps this in step with whichever one is current.
 library;
 
+import 'dart:math' as math;
 import 'dart:ui' show Offset;
 
 import 'package:flutter/services.dart'
@@ -121,7 +122,12 @@ class TransformSession {
   /// search below asks to run at all — one modifier, so a hand that has
   /// learned "hold this to snap" gets the sharper answer whenever there is one
   /// in reach and the plain grid otherwise, rather than a second key to learn.
-  void dragged(Offset delta, double viewportHeight, PickingView view) {
+  void dragged(
+    Offset delta,
+    double viewportHeight,
+    PickingView view,
+    Offset at,
+  ) {
     final state = cubit.state;
     final String? tool = state is ModelerReady ? state.tool : null;
     if (state is! ModelerReady || tool == null) return;
@@ -134,20 +140,37 @@ class TransformSession {
     final TransformModal modal = modalFor(tool);
     modal.snapping = HardwareKeyboard.instance.isControlPressed;
 
+    // `ux-11`: Shift is precision. A tenth of the travel for the same hand
+    // movement, which is what the modifier means in every package in the
+    // field — and the one thing missing from a drag that otherwise cannot be
+    // aimed more finely than a pixel is worth.
+    final double fine = HardwareKeyboard.instance.isShiftPressed ? 0.1 : 1.0;
+
     // Pixels into whatever the transform is measured in. A move is metres at
     // the depth the selection is at — a pixel is a different number of metres a
-    // metre further away — and a turn and a scale are a hundredth per pixel,
-    // which is the sensitivity every modeller settles on.
+    // metre further away.
     if (modal.kind == TransformKind.move) {
       final vm.Vector3 middle = middleOfSelection();
       final double metres =
-          look.pixel * (look.perspective ? (middle - look.eye).length : 1.0);
+          look.pixel *
+          (look.perspective ? (middle - look.eye).length : 1.0) *
+          fine;
       modal.dragged +=
           look.right * (delta.dx * metres) + look.up * (-delta.dy * metres);
     } else {
       // One number, carried on whichever component the constraint lets
       // through, so `amount` can zero the rest the same way it does for a move.
-      final double by = delta.dx * 0.01;
+      //
+      // **A turn is the angle the hand swept around the pivot**, not the
+      // horizontal travel times a hundredth — `ux-11`. The old number meant a
+      // drag of the same length turned the model by the same amount wherever
+      // it was aimed, so grabbing near the pivot and swinging right round it
+      // produced almost nothing while a flick across the far side produced a
+      // spin. Sweeping the angle is what a person is doing with their hand
+      // and is the only version where the model follows it.
+      final double by = modal.kind == TransformKind.rotate
+          ? _sweptAngle(view, at, delta) * fine
+          : delta.dx * 0.01 * fine;
       modal.dragged += switch (modal.axis) {
         TransformAxis.y => vm.Vector3(0, by, 0),
         TransformAxis.z => vm.Vector3(0, 0, by),
@@ -156,6 +179,32 @@ class TransformSession {
     }
     updateGeometrySnap(modal, view);
     applyModal(modal, look);
+  }
+
+  /// The angle the pointer swept around the pivot between the previous
+  /// position and [at], in radians, positive counter-clockwise on screen.
+  ///
+  /// Falls back to the horizontal reading when the pivot is behind the camera
+  /// and so has nowhere on screen to sweep around.
+  double _sweptAngle(PickingView view, Offset at, Offset delta) {
+    final Offset? pivot = view.project(middleOfSelection());
+    if (pivot == null) return delta.dx * 0.01;
+    final Offset from = at - delta;
+    // Screen y grows downward and a turn is described the other way, so both
+    // vectors are flipped before the angle between them is taken.
+    final double ax = from.dx - pivot.dx;
+    final double ay = -(from.dy - pivot.dy);
+    final double bx = at.dx - pivot.dx;
+    final double by = -(at.dy - pivot.dy);
+    // Within a few pixels of the pivot there is no angle to speak of: the
+    // arithmetic is dominated by the pointer's own jitter and one pixel of it
+    // can read as most of a turn.
+    const double reach = 8.0;
+    if (ax * ax + ay * ay < reach * reach ||
+        bx * bx + by * by < reach * reach) {
+      return 0.0;
+    }
+    return math.atan2(ax * by - ay * bx, ax * bx + ay * by);
   }
 
   /// What `view-26n`'s drag would snap onto right now, or nothing.
@@ -239,7 +288,7 @@ class TransformSession {
   /// backspace takes one off, Enter accepts and Escape throws it away.
   bool modalKey(LogicalKeyboardKey key, String? character) {
     final TransformModal? modal = _modal;
-    if (modal == null) return false;
+    if (modal == null) return _keyWhileArmed(key);
     if (key == LogicalKeyboardKey.escape) {
       cancel();
       return true;
@@ -261,7 +310,13 @@ class TransformSession {
       _ => null,
     };
     if (pressed != null) {
-      modal.axis = modal.axis.pressed(pressed);
+      // `ux-11`: `Shift` with the axis key is the plane across it, in one
+      // press. Without it the key toggles axis → plane → free, which is the
+      // other school's way of saying the same three things and is what this
+      // has always done.
+      modal.axis = HardwareKeyboard.instance.isShiftPressed
+          ? (modal.axis == pressed.plane ? TransformAxis.free : pressed.plane)
+          : modal.axis.pressed(pressed);
       reapply(modal);
       return true;
     }
@@ -271,6 +326,38 @@ class TransformSession {
     }
     return false;
   }
+
+  /// An axis key pressed with a transform tool armed but no drag begun yet —
+  /// `ux-11`.
+  ///
+  /// **The gap the review found.** Under "arm, then drag" there is a window
+  /// between the key that arms the tool and the first pointer move, and `X`
+  /// in that window fell through to whatever `X` means otherwise — which
+  /// under the modal preset is delete. So the axis is remembered here and
+  /// handed to the transform the moment it opens, and the key is reported as
+  /// taken either way.
+  bool _keyWhileArmed(LogicalKeyboardKey key) {
+    final state = cubit.state;
+    final String? tool = state is ModelerReady ? state.tool : null;
+    if (tool == null || !kDragTools.contains(tool)) return false;
+    final TransformAxis? pressed = switch (key) {
+      LogicalKeyboardKey.keyX => TransformAxis.x,
+      LogicalKeyboardKey.keyY => TransformAxis.y,
+      LogicalKeyboardKey.keyZ => TransformAxis.z,
+      _ => null,
+    };
+    if (pressed == null) return false;
+    final TransformAxis want = HardwareKeyboard.instance.isShiftPressed
+        ? pressed.plane
+        : (_armedAxis ?? TransformAxis.free).pressed(pressed);
+    _armedAxis = want;
+    cubit.say('${tool.split('.').last} ${want.says}'.trim());
+    return true;
+  }
+
+  /// What an axis key asked for before the drag began, waiting for the
+  /// transform that will carry it. Null when nothing has been asked.
+  TransformAxis? _armedAxis;
 
   /// Re-runs the transform at whatever it is now, after a key changed it.
   void reapply(TransformModal modal) {
@@ -302,8 +389,68 @@ class TransformSession {
             history().selection.mode == SelectionMode.mesh
         ? middleOfSelection()
         : null;
-    return _modal = TransformModal(kind);
+    final TransformModal modal = TransformModal(kind);
+    // `ux-11`: an axis asked for between arming the tool and the first move.
+    if (_armedAxis case final TransformAxis axis) {
+      modal.axis = axis;
+      _armedAxis = null;
+    }
+    if (snapSteps
+        case final ({double move, double turnRadians, double scale}) steps) {
+      modal.snapSteps(
+        move: steps.move,
+        turnRadians: steps.turnRadians,
+        scale: steps.scale,
+      );
+    }
+    return _modal = modal;
   }
+
+  /// Whether the transform in progress is being driven by a pointer with no
+  /// button held — `ux-11`'s own "modal on press".
+  ///
+  /// A viewport reads this to know that a plain hover is a drag, that the
+  /// left button means "accept" rather than "begin", and that the right one
+  /// means "throw it away".
+  bool get followsPointer => _modal != null && _startedOnPress;
+  bool _startedOnPress = false;
+
+  /// `G`/`R`/`S` under the modal preset: the transform begins with the key
+  /// rather than waiting for a button, and the pointer takes it from there.
+  ///
+  /// Does nothing without a selection — there would be nothing to move, and
+  /// an open transaction with nothing in it is a step somebody would have to
+  /// press Escape to be rid of.
+  void startOnPress(String tool) {
+    if (!kDragTools.contains(tool)) return;
+    if (cubit.state is! ModelerReady) return;
+    if (history().selection.isEmpty || _modal != null) return;
+    final TransformModal modal = modalFor(tool);
+    _startedOnPress = true;
+    cubit.say(modal.says);
+  }
+
+  /// Which point a transform turns and scales about, and whose axes it goes
+  /// along — `ux-12`: the two chips on the properties panel, which reached
+  /// the typed fields and stopped there.
+  ///
+  /// **Read on every command rather than latched when the transform opens.**
+  /// Both are a person's own setting rather than part of the gesture, and a
+  /// chip pressed mid-drag should change what the drag is doing — there is
+  /// nothing to jump, because the amount dragged so far is re-applied from
+  /// scratch on every frame anyway.
+  TransformPivot Function()? pivot;
+  TransformSpace Function()? space;
+
+  TransformPivot get _pivot => pivot?.call() ?? TransformPivot.median;
+  TransformSpace get _space => space?.call() ?? TransformSpace.global;
+
+  /// How coarse a held snap is, per kind — Settings' own three steps, handed
+  /// over by the screen and applied to every transform this starts.
+  ///
+  /// Null leaves `TransformModal`'s own defaults, which is what a caller with
+  /// no settings behind it (a test, a preview) wants.
+  ({double move, double turnRadians, double scale})? snapSteps;
 
   /// A gizmo arm was grabbed: the same transform `G` starts, with the axis it
   /// was grabbed by already set.
@@ -352,6 +499,8 @@ class TransformSession {
   void commit() {
     if (_modal == null) return;
     _modal = null;
+    _startedOnPress = false;
+    _armedAxis = null;
     _snapAnchorStart = null;
     _snapTarget = null;
     _lastPickingView = null;
@@ -374,6 +523,8 @@ class TransformSession {
   void cancel() {
     if (_modal == null) return;
     _modal = null;
+    _startedOnPress = false;
+    _armedAxis = null;
     _snapAnchorStart = null;
     _snapTarget = null;
     _lastPickingView = null;
@@ -409,9 +560,15 @@ class TransformSession {
     // and nothing on either side of the seam caught it because the command's
     // own pivot had no test. What is handed over is the bare rotation or the
     // bare scale.
+    // `ux-12`: the pivot and the space chips reach a drag, not only a typed
+    // number. In mesh mode neither applies — `TransformElements` takes the
+    // median of the selected vertices itself, and "each object's own axes"
+    // has no meaning for vertices of one mesh.
     final ModelCommand command = switch (modal.kind) {
       TransformKind.move =>
-        mesh ? TransformElements(vm.Matrix4.translation(step)) : MoveBy(step),
+        mesh
+            ? TransformElements(vm.Matrix4.translation(step))
+            : MoveBy(step, space: _space),
       TransformKind.rotate =>
         mesh
             ? TransformElements(
@@ -422,14 +579,19 @@ class TransformSession {
                 ),
                 what: 'turn',
               )
-            : RotateBy(axis: axisOf(modal, look), radians: scalar),
+            : RotateBy(
+                axis: axisOf(modal, look),
+                radians: scalar,
+                pivot: _pivot,
+                space: _space,
+              ),
       TransformKind.scale =>
         mesh
             ? TransformElements(
                 vm.Matrix4.diagonal3(vm.Vector3.all(1 + scalar)),
                 what: 'scale',
               )
-            : ScaleBy(1 + scalar),
+            : ScaleBy(1 + scalar, pivot: _pivot),
     };
     cubit.ran(command, said: modal.says);
   }

@@ -397,10 +397,27 @@ class _ModelerScreenState extends State<ModelerScreen>
 
   /// The modal transform, the gizmo it shares a path with, and `view-26n`'s
   /// geometry snap — see `transform_session.dart`.
-  late final TransformSession _transformSession = TransformSession(
-    cubit: _cubit,
-    history: () => _history,
-    editMesh: () => _editMesh,
+  late final TransformSession _transformSession =
+      TransformSession(
+          cubit: _cubit,
+          history: () => _history,
+          editMesh: () => _editMesh,
+        )
+        ..snapSteps = _snapStepsOf(_settings)
+        // `ux-12`: the two chips on the properties panel, read on every command
+        // rather than copied when a transform opens — see [TransformSession.pivot].
+        ..pivot = (() => transformPivotOf(_pivot))
+        ..space = (() => _space);
+
+  /// `ux-11`'s own three steps, in the units a transform is measured in —
+  /// Settings holds the turn in degrees because that is what a person types,
+  /// and `TransformModal` rounds radians.
+  ({double move, double turnRadians, double scale}) _snapStepsOf(
+    ModelerSettings settings,
+  ) => (
+    move: settings.snapMove,
+    turnRadians: settings.snapTurnDegrees * math.pi / 180.0,
+    scale: settings.snapScale,
   );
 
   /// What the last operation said when it refused, shown in the status line

@@ -54,6 +54,14 @@ extension _Interactions on _ModelerScreenState {
     if (kDragTools.contains(id) || id.endsWith('.select')) {
       // Arming rather than acting: these wait for a pointer.
       _cubit.tool(id);
+      // `ux-11`: under the modal preset the key does not arm and wait for a
+      // button — it starts the transform there and then, and the pointer
+      // drives it with nothing held. Which of the two happens is the
+      // person's own setting, because the two schools genuinely disagree
+      // about it and neither is wrong.
+      if (_settings.transformStart == TransformStart.modalOnPress) {
+        _transformSession.startOnPress(id);
+      }
       return;
     }
     if (id == 'object.lathe') {
