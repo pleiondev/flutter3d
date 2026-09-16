@@ -107,6 +107,7 @@ import 'src/ui/retarget_viewports.dart';
 import 'src/ui/save_as_dialog.dart';
 import 'src/ui/screen_parts.dart';
 import 'src/ui/settings_screen.dart';
+import 'src/ui/shell.dart' show RailEntry;
 import 'src/ui/shell_for_width.dart';
 import 'src/ui/shortcut_help_screen.dart';
 import 'src/ui/start_screen.dart';

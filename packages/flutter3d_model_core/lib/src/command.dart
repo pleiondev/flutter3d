@@ -748,6 +748,16 @@ _modelCommandReaders =
           ),
           _ => ProjectLightType.directional,
         },
+        // `ux-23`. Absent is the identity transform a light has always had,
+        // which is what a journal written before this existed replays to.
+        at: switch (_doubleListFrom(json['at'])) {
+          final List<double> at when at.length == 3 => Vector3(
+            at[0],
+            at[1],
+            at[2],
+          ),
+          _ => null,
+        },
       ),
       'removeLight': (json) => switch (json['index']) {
         final int index => RemoveLight(index),

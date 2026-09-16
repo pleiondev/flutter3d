@@ -9,9 +9,21 @@ part of 'command.dart';
 /// Adds a light to the project's own lighting, with nothing lit in
 /// particular.
 final class AddLight extends ModelCommand {
-  const AddLight({this.type = ProjectLightType.directional});
+  const AddLight({this.type = ProjectLightType.directional, this.at});
 
   final ProjectLightType type;
+
+  /// Where to put it, in the scene's own space — `ux-23`.
+  ///
+  /// **An argument rather than something this works out.** A light belongs
+  /// above the model, and where the model is means walking every object's
+  /// geometry through its own transform — which the viewport has already
+  /// done for the camera it framed. So the caller that knows hands the
+  /// answer over, and a caller that does not (an agent, a headless script)
+  /// leaves it out and gets the origin, exactly as before.
+  ///
+  /// Null keeps `ProjectLight`'s own identity transform.
+  final Vector3? at;
 
   @override
   String get name => 'addLight';
@@ -20,7 +32,11 @@ final class AddLight extends ModelCommand {
   String get says => 'add a light';
 
   @override
-  Map<String, Object?> get arguments => <String, Object?>{'type': type.name};
+  Map<String, Object?> get arguments => <String, Object?>{
+    'type': type.name,
+    if (at case final Vector3 where)
+      'at': <double>[where.x, where.y, where.z],
+  };
 
   @override
   Outcome apply(ModelProject project, ProjectSelection selection) =>
@@ -29,7 +45,12 @@ final class AddLight extends ModelCommand {
           lighting: project.lighting.copyWith(
             lights: <ProjectLight>[
               ...project.lighting.lights,
-              ProjectLight(type: type),
+              ProjectLight(
+                type: type,
+                transform: at == null
+                    ? null
+                    : Matrix4.translation(Vector3.copy(at!)),
+              ),
             ],
           ),
         ),
