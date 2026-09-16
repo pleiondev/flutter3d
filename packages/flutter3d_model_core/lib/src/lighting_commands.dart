@@ -34,8 +34,7 @@ final class AddLight extends ModelCommand {
   @override
   Map<String, Object?> get arguments => <String, Object?>{
     'type': type.name,
-    if (at case final Vector3 where)
-      'at': <double>[where.x, where.y, where.z],
+    if (at case final Vector3 where) 'at': <double>[where.x, where.y, where.z],
   };
 
   @override
@@ -201,6 +200,65 @@ final class SetLightTransform extends ModelCommand {
           ],
         ),
       ),
+    );
+  }
+}
+
+/// Lights the scene with a panorama the project carries — `ux-49`.
+///
+/// **An equirectangular image is twice as wide as it is tall, and this
+/// refuses anything else by name.** The mapping from a pixel to a direction
+/// assumes exactly that: longitude runs the full width and latitude the full
+/// height, so a 4:3 photograph fed in as a panorama comes out as a sky
+/// stretched round the horizon with the poles pinched, and nothing about the
+/// picture says why. Saying the size back is the difference between "this
+/// looks wrong" and "this is 1920 by 1080, and a panorama is 2:1".
+///
+/// [index] names a row of [ModelProject.images], so a panorama is saved with
+/// the project rather than being a path that may not exist on the next
+/// machine. Null clears it, and the scene falls back to whatever
+/// [SceneLighting.environment] names.
+final class SetPanorama extends ModelCommand {
+  const SetPanorama({this.index});
+
+  final int? index;
+
+  @override
+  String get name => 'setPanorama';
+
+  @override
+  String get says => index == null ? 'clear the panorama' : 'set the panorama';
+
+  @override
+  Map<String, Object?> get arguments => <String, Object?>{'index': index};
+
+  @override
+  Outcome apply(ModelProject project, ProjectSelection selection) {
+    final int? at = index;
+    if (at == null) {
+      return Outcome.done(
+        project.copyWith(
+          lighting: project.lighting.copyWith(clearPanorama: true),
+        ),
+      );
+    }
+    if (at < 0 || at >= project.images.length) {
+      return Outcome.refused('there is no image $at in this project');
+    }
+    final ({int width, int height})? size = hdrSizeOf(project.images[at].bytes);
+    if (size == null) {
+      return Outcome.refused(
+        'image $at is not a Radiance .hdr this build can read',
+      );
+    }
+    if (size.width != size.height * 2) {
+      return Outcome.refused(
+        'a panorama is twice as wide as it is tall, and image $at is '
+        '${size.width} by ${size.height}',
+      );
+    }
+    return Outcome.done(
+      project.copyWith(lighting: project.lighting.copyWith(panorama: at)),
     );
   }
 }

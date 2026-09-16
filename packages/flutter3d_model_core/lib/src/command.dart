@@ -1056,6 +1056,10 @@ _modelCommandReaders =
         (final int id, final int index) => ApplyModifier(id: id, index: index),
         _ => null,
       },
+      // `ux-49`: the panorama beside the four presets. A null index is
+      // "clear it", which is why `index` is read as `int?` rather than
+      // refused when absent.
+      'setPanorama': (json) => SetPanorama(index: json['index'] as int?),
       // `ux-48`: the three that link an object to the file it came from.
       'linkToSource': (json) =>
           switch ((json['id'], json['path'], json['sha'])) {

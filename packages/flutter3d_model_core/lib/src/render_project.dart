@@ -23,6 +23,7 @@ import 'package:flutter3d_core/flutter3d_core.dart';
 import 'package:vector_math/vector_math.dart';
 
 import 'lighting_sync.dart';
+import 'panorama_sync.dart';
 import 'project.dart';
 import 'scene_from_project.dart';
 
@@ -268,6 +269,12 @@ Future<Uint8List> renderProject(
         ? request.weightsJoint
         : null,
   );
+  // `ux-49`: the project's own panorama, where it has one. A headless
+  // picture is exactly where an environment matters most — a tutorial page's
+  // own "what you get" and an agent's "show me the model" are both lit by
+  // whatever the project says lights it, and a sky the viewport shows and a
+  // render does not would be two answers to one question.
+  PanoramaSync().sync(device, scene, request.project);
   final camera = CameraNode(name: 'renderProject');
   scene.add(camera);
   _frame(camera, scene.meshes, request.view);

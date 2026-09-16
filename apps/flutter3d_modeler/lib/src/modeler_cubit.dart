@@ -32,7 +32,7 @@ import 'console_log.dart';
 import 'job_runner.dart';
 import 'material_pool.dart';
 import 'modeler_state.dart';
-import 'scene_sync.dart' show unshowableSaid;
+import 'scene_sync.dart' show SceneSync, unshowableSaid;
 import 'settings.dart' show Workspace;
 import 'staging.dart';
 import 'timeline_playback.dart';
@@ -315,6 +315,11 @@ final class ModelerCubit extends Cubit<ModelerState> {
     now.stage.sync?.apply(now.project);
     _restageMaterials(now);
     now.stage.lighting?.sync(now.stage.scene, now.project.lighting);
+    // `ux-49`: and the panorama, where the project has one. Rebuilt only
+    // when the picture itself changed — see `PanoramaSync`.
+    if (now.stage.sync case final SceneSync sync) {
+      now.stage.panorama.sync(sync.device, now.stage.scene, now.project);
+    }
     // `ux-02`: this is the re-sync that used to throw a second time for an
     // object the device had already refused, turning one failed import into
     // a session where every later call answered with the same stack.
@@ -749,6 +754,11 @@ final class ModelerCubit extends Cubit<ModelerState> {
     // `tut-07`'s own fix: the scene's own lights follow `project.lighting`
     // the same way its objects already follow `project.objects` above.
     now.stage.lighting?.sync(now.stage.scene, now.project.lighting);
+    // `ux-49`: and the panorama, where the project has one. Rebuilt only
+    // when the picture itself changed — see `PanoramaSync`.
+    if (now.stage.sync case final SceneSync sync) {
+      now.stage.panorama.sync(sync.device, now.stage.scene, now.project);
+    }
     // `view-27d`'s own "more than 64 joints is a status line, never a
     // throw": `SceneSync.apply` refuses to build an over-large skeleton
     // rather than let its constructor throw, and reports it here the same

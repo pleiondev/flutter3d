@@ -2635,6 +2635,8 @@ void main() {
           baseVersion: 1,
           meshBytes: Uint8List.fromList(<int>[1, 2, 3]),
         ),
+        // `ux-49`: the panorama beside the four presets.
+        const SetPanorama(index: 0),
         // `ux-48`: the three that link an object to the file it came from.
         const LinkToSource(id: 1, path: 'props/crate.obj', sha: 'abc123'),
         const UnlinkSource(id: 1),

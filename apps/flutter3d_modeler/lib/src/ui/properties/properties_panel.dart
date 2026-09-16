@@ -72,6 +72,8 @@ class PropertiesPanel extends StatelessWidget {
     required this.onAddMaterial,
     this.onOpenLinkedFile,
     this.onReimport,
+    this.onChoosePanorama,
+    this.onClearPanorama,
     required this.onSetMaterialField,
     required this.onChooseTexture,
     required this.onClearTexture,
@@ -217,6 +219,12 @@ class PropertiesPanel extends StatelessWidget {
 
   /// The material panel's own "Add material" link was pressed.
   final VoidCallback onAddMaterial;
+
+  /// `ux-49`: opens a picker for a Radiance `.hdr` to light the scene with,
+  /// and takes one off again. Null where there is no filesystem to pick from,
+  /// and the row does not appear.
+  final VoidCallback? onChoosePanorama;
+  final VoidCallback? onClearPanorama;
 
   /// `ux-48`: reads the held object's own source file again, keeping its
   /// transform, materials and modifiers. Null where there is no filesystem
@@ -739,6 +747,16 @@ class PropertiesPanel extends StatelessWidget {
             ambientIntensity: project.lighting.ambientIntensity,
             onEnvironmentChanged: onEnvironmentChanged,
             onAmbientChanged: onAmbientChanged,
+            // `ux-49`: the panorama beside the presets. Its name from the
+            // project's own image table, so the row says which picture is
+            // lighting the scene rather than only that one is.
+            panoramaName: switch (project.lighting.panorama) {
+              final int at when at >= 0 && at < project.images.length =>
+                project.images[at].name ?? 'panorama $at',
+              _ => null,
+            },
+            onChoosePanorama: onChoosePanorama,
+            onClearPanorama: onClearPanorama,
           ),
         if (sections.contains(PropertiesSection.scenePost))
           ScenePostPanel(

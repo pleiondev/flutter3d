@@ -29,6 +29,10 @@
 /// cannot use.
 library;
 
+// The rig algorithms — bone-name mapping, rest-relative retargeting with a
+// tracks and know nothing of a project; they were a package of their own
+// two-bone-IK foot lock, automatic skin weights. They read a rig as nodes and
+// until the only callers turned out to be this one and the server above it.
 export 'src/autosave.dart';
 export 'src/byte_size.dart';
 export 'src/command.dart';
@@ -49,6 +53,7 @@ export 'src/material.dart';
 export 'src/modifier_evaluation_cache.dart';
 export 'src/modifier_slot.dart';
 export 'src/paint_layer.dart';
+export 'src/panorama_sync.dart';
 export 'src/param_hint.dart';
 export 'src/parametric_json.dart';
 export 'src/pose_of_skeleton.dart';
@@ -65,10 +70,6 @@ export 'src/render_sheet.dart';
 export 'src/render_snapshot.dart';
 export 'src/retarget_clip.dart';
 export 'src/retarget_source.dart';
-// The rig algorithms — bone-name mapping, rest-relative retargeting with a
-// two-bone-IK foot lock, automatic skin weights. They read a rig as nodes and
-// tracks and know nothing of a project; they were a package of their own
-// until the only callers turned out to be this one and the server above it.
 export 'src/rig/bind_weights.dart';
 export 'src/rig/bone_map.dart';
 export 'src/rig/bone_segments.dart';
