@@ -587,9 +587,36 @@ class _ModelerScreenState extends State<ModelerScreen>
   Widget build(BuildContext context) => FileDropZone(
     onDropped: (String name, Uint8List bytes) =>
         unawaited(_handleDroppedFile(name, bytes)),
-    child: BlocBuilder<ModelerCubit, ModelerState>(
+    child: BlocConsumer<ModelerCubit, ModelerState>(
       bloc: _cubit,
+      listenWhen: (ModelerState before, ModelerState after) =>
+          _saidIn(before) != _saidIn(after),
+      listener: _showLongMessage,
       builder: (BuildContext context, ModelerState state) => _screen(state),
     ),
   );
+
+  static String? _saidIn(ModelerState state) =>
+      state is ModelerReady ? state.said : null;
+
+  /// `ux-17`: a message written as more than one line goes to a snackbar as
+  /// well as to the strip.
+  ///
+  /// **Because the strip is one line and always will be.** An export refusal
+  /// that lists three things wrong with a model is three lines by
+  /// construction, and the strip shows the first few words of the first one;
+  /// the tooltip holds the rest for a mouse, and this holds it for everybody
+  /// else. Anything that fits on one line stays where it was — a snackbar for
+  /// "saved" would be a thing to dismiss sixty times an hour.
+  void _showLongMessage(BuildContext context, ModelerState state) {
+    final String? said = _saidIn(state);
+    if (said == null || !said.contains('\n')) return;
+    ScaffoldMessenger.maybeOf(context)?.showSnackBar(
+      SnackBar(
+        content: Text(said),
+        duration: const Duration(seconds: 8),
+        showCloseIcon: true,
+      ),
+    );
+  }
 }

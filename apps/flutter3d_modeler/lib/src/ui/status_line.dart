@@ -86,10 +86,16 @@ class StatusLine extends StatelessWidget {
     this.micros,
     this.onExport,
     this.onShowFolder,
+    this.saidIsRefusal = false,
   });
 
   /// What just happened, or what is selected when nothing has.
   final String said;
+
+  /// Whether [said] is a refusal — `ux-17`. A refused command is the one
+  /// message in this strip somebody has to notice, and it used to read
+  /// exactly like "saved".
+  final bool saidIsRefusal;
 
   /// What the project would refuse to export as, shown beside what just
   /// happened — because the moment to learn that a model has an n-gon in it is
@@ -168,11 +174,25 @@ class StatusLine extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             children: <Widget>[
               Flexible(
-                child: Text(
-                  said,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: small,
+                // **The whole sentence in a tooltip, because the strip shows
+                // one line of it.** A refusal naming an object and what is
+                // wrong with it runs to a couple of hundred characters and
+                // this line is a fraction of a window wide, so the part that
+                // says what to do about it is exactly the part the ellipsis
+                // eats — `ux-17`.
+                child: Tooltip(
+                  message: said,
+                  child: Text(
+                    said,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: saidIsRefusal
+                        ? small?.copyWith(
+                            color: theme.colorScheme.tertiary,
+                            fontWeight: FontWeight.w500,
+                          )
+                        : small,
+                  ),
                 ),
               ),
               if (onShowFolder case final VoidCallback show)
