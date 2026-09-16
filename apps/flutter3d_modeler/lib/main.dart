@@ -74,6 +74,7 @@ import 'src/open_report.dart';
 import 'src/opening.dart';
 import 'src/orbit_run.dart';
 import 'src/orientation_dial.dart';
+import 'src/play/play_control.dart';
 import 'src/play/play_template.dart';
 import 'src/recent_projects.dart';
 import 'src/report_problem.dart';
@@ -365,6 +366,11 @@ class _ModelerScreenState extends State<ModelerScreen>
   /// button, so a material library edited in another tool afterwards left
   /// the project holding a colour that file no longer has. The re-link runs
   /// as an ordinary command, so it is one undo step and says what it was.
+  /// `ux-52`: whether Play is running, filled in by `PlayScreen` while its
+  /// route is up and emptied when it goes — the one place anything outside
+  /// that route can ask.
+  final PlayControl _play = PlayControl();
+
   late final LinkedMaterials _linkedMaterials = LinkedMaterials(
     host: linkedMaterialHost(),
     onRelink: (LinkMaterialFile relink) {

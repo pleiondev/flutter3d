@@ -31,7 +31,7 @@ ModelPictureTool _ui(
   return (did: answer.did, says: answer.says, png: null);
 });
 
-/// The seven tools, each a thin call into [actions] — see [UiActions] for
+/// The tools, each a thin call into [actions] — see [UiActions] for
 /// what each one does and refuses. GUI build only: nothing calls this except
 /// `mcp_bootstrap_io.dart`'s own `startMcpServer`, and only when a screen
 /// hands it a live [UiActions].
@@ -168,6 +168,87 @@ List<ModelPictureTool> uiToolsFor(UiActions actions) => <ModelPictureTool>[
     ),
     (ModelSession session, Map<String, Object?> arguments) async {
       final UiPicture shot = await actions.screenshot();
+      return (
+        did: shot.did,
+        says: shot.says,
+        png: shot.png == null ? null : Uint8List.fromList(shot.png!),
+      );
+    },
+  ),
+  // `ux-52`: Play, driven from outside the route it runs in. Five tools
+  // rather than one with a verb argument, for the same reason the document
+  // side has `undo` and `redo` rather than `history {direction}`: an agent
+  // reading a tool list learns what it can do from the names.
+  _ui(
+    Tool(
+      name: 'play.start',
+      description:
+          'Opens Play: the document walked in rather than looked at. '
+          'Templates are character (the document rides the walking body, '
+          'seen from behind), prop (walk around it at eye height) and '
+          'walkthrough (the same from further out). The document is handed '
+          'over the way an export hands it over, so a project that will not '
+          'export refuses here with the same problems Export names. Refuses '
+          'a second start while one is running — reload or stop it first.',
+      inputSchema: ObjectSchema(
+        properties: <String, Schema>{
+          'template': StringSchema(
+            description: 'character, prop or walkthrough',
+          ),
+        },
+        required: <String>['template'],
+      ),
+    ),
+    (Map<String, Object?> arguments) =>
+        actions.playStart(arguments['template']! as String),
+  ),
+  _ui(
+    Tool(
+      name: 'play.reload',
+      description:
+          'Brings the running game to the document as it is now, keeping '
+          'the walk the body has already made. This is how you see an edit '
+          'without losing where the player got to. Refuses when nothing is '
+          'running.',
+      inputSchema: ObjectSchema(),
+    ),
+    (Map<String, Object?> arguments) => actions.playReload(),
+  ),
+  _ui(
+    Tool(
+      name: 'play.stop',
+      description:
+          'Closes the running game and comes back to the editor. Refuses '
+          'when nothing is running.',
+      inputSchema: ObjectSchema(),
+    ),
+    (Map<String, Object?> arguments) => actions.playStop(),
+  ),
+  _ui(
+    Tool(
+      name: 'play.console',
+      description:
+          'What the running game is: which template, and where the body is '
+          'standing. Play prints its sentences into the editor\'s own log, '
+          'so get_console is where those are; this is the state that log '
+          'cannot carry. Refuses when nothing is running.',
+      inputSchema: ObjectSchema(),
+    ),
+    (Map<String, Object?> arguments) => actions.playConsole(),
+  ),
+  ModelPictureTool(
+    Tool(
+      name: 'play.screenshot',
+      description:
+          'The running game as a picture. The same capture ui.screenshot '
+          'makes \u2014 Play is a full-screen route, so the window is the game '
+          '\u2014 except that this one refuses when Play is not running, so a '
+          'picture of the editor is never mistaken for a picture of the '
+          'game.',
+      inputSchema: ObjectSchema(),
+    ),
+    (ModelSession session, Map<String, Object?> arguments) async {
+      final UiPicture shot = await actions.playScreenshot();
       return (
         did: shot.did,
         says: shot.says,

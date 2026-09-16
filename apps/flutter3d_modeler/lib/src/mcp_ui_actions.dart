@@ -103,6 +103,32 @@ abstract interface class UiActions {
   /// document server has none, and neither does a screen that has not laid
   /// out yet.
   Future<UiPicture> screenshot();
+
+  /// `ux-52`: starts Play on [template] — one of `PlayTemplate`'s own
+  /// names. Refuses with Export's own sentence for a document that will not
+  /// export, and refuses a second start while one is already running.
+  UiAnswer playStart(String template);
+
+  /// Brings the running game to the document as it is now, keeping the
+  /// walk the body has already made. Refuses when nothing is running.
+  UiAnswer playReload();
+
+  /// Closes the running game. Refuses when nothing is running.
+  UiAnswer playStop();
+
+  /// What the running game is: which template, and where the body is
+  /// standing. Refuses when nothing is running.
+  ///
+  /// **Not a second log.** An in-process Play prints into the editor's own
+  /// console — `get_console` is where its sentences are — so what this adds
+  /// is the state that console cannot carry: whether a game is running at
+  /// all, and where in it the player got to.
+  UiAnswer playConsole();
+
+  /// The running game as a picture. Refuses when nothing is running, so an
+  /// agent that expected a game and got the modeller finds out from the
+  /// refusal rather than from the picture.
+  Future<UiPicture> playScreenshot();
 }
 
 /// [UiAnswer] with the picture beside it, for the one action that draws.

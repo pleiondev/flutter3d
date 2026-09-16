@@ -55,6 +55,22 @@ final class _NoopUiActions implements UiActions {
   UiAnswer console({DateTime? since}) => (did: true, says: 'nothing said');
 
   @override
+  UiAnswer playStart(String template) => (did: true, says: 'ok');
+
+  @override
+  UiAnswer playReload() => (did: true, says: 'ok');
+
+  @override
+  UiAnswer playStop() => (did: true, says: 'ok');
+
+  @override
+  UiAnswer playConsole() => (did: true, says: 'ok');
+
+  @override
+  Future<UiPicture> playScreenshot() async =>
+      (did: false, says: 'no window here', png: null);
+
+  @override
   List<({String id, String label, String mode})> commands() =>
       const <({String id, String label, String mode})>[
         (id: 'object.duplicate', label: 'Duplicate', mode: 'object'),
@@ -76,6 +92,13 @@ const List<String> _uiToolNames = <String>[
   // name the row gives it rather than a `ui.` one — it runs a command rather
   // than moving the interface.
   'run_command',
+  // `ux-52`: Play, driven from outside the route it runs in — five names
+  // rather than one verb argument, so a tool list says what it can do.
+  'play.start',
+  'play.reload',
+  'play.stop',
+  'play.console',
+  'play.screenshot',
   // `ux-26`: the same reasoning — it reads the session rather than moving
   // anything, and the row names it.
   'get_console',
@@ -121,6 +144,7 @@ void main() {
           .where(
             (String name) =>
                 name.startsWith('ui.') ||
+                name.startsWith('play.') ||
                 name == 'run_command' ||
                 name == 'get_console',
           )
