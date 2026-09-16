@@ -34,6 +34,7 @@ export 'src/byte_size.dart';
 export 'src/command.dart';
 export 'src/command_journal.dart';
 export 'src/curve_display.dart';
+export 'src/describe.dart';
 export 'src/history.dart';
 export 'src/ik_constraint.dart';
 export 'src/image_dimensions.dart';
