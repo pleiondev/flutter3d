@@ -190,6 +190,9 @@ extension _FileHandling on _ModelerScreenState {
               openLatheDialog: _openLatheDialog,
               // `ux-25`: the same door the rail and the palette press.
               runTool: _ranTool,
+              // `ux-44`: the window itself, for an agent that needs to see
+              // what the person sees rather than what the model looks like.
+              captureWindow: _captureWindow,
             ),
             // `tut-16`'s own feed: screen 26's own tool-call panel reads
             // `ModelerReady.agentCalls`, appended to here as each call
@@ -988,6 +991,28 @@ extension _FileHandling on _ModelerScreenState {
     });
     if (!_settingsStore.write(chosen)) {
       _cubit.say('Settings could not be saved', important: true);
+    }
+  }
+
+  /// `ux-44`'s own `ui.screenshot`: the window as PNG bytes, or null when
+  /// there is nothing laid out to capture yet.
+  ///
+  /// **A `RepaintBoundary` round the whole screen, not round the viewport.**
+  /// The point of this picture is everything the viewport is not — the
+  /// panels, the rail, the dialog that is open, the status line somebody
+  /// just captioned with `ui.say`. `render` already draws the model on its
+  /// own and does it better, with a camera an agent can aim.
+  Future<List<int>?> _captureWindow() async {
+    final RenderObject? found = _windowKey.currentContext?.findRenderObject();
+    if (found is! RenderRepaintBoundary) return null;
+    final ui.Image image = await found.toImage();
+    try {
+      final ByteData? png = await image.toByteData(
+        format: ui.ImageByteFormat.png,
+      );
+      return png?.buffer.asUint8List();
+    } finally {
+      image.dispose();
     }
   }
 

@@ -117,6 +117,18 @@ final ModelPictureTool renderTool = ModelPictureTool(
               'own object id — the id `setRig`/`paintWeights` already name a '
               'joint with. Ignored by every other mode.',
         ),
+        // `ux-44`: a picture costs tokens, and 512×512 is more of them than
+        // "is the cube still a cube" needs. A caller that is checking a shape
+        // asks for 256; one that is showing somebody the result asks for
+        // more. Capped because a picture nobody can hold is not a kindness
+        // either — and because this draws on a CPU rasteriser, where the cost
+        // is linear in pixels and paid on this thread.
+        'size': IntegerSchema(
+          description:
+              'How big the picture is, in pixels, square. 512 by default; '
+              '128 to 1024, which is what renderProject itself draws '
+              'between. Smaller is cheaper to look at.',
+        ),
       },
     ),
   ),
@@ -131,17 +143,30 @@ final ModelPictureTool renderTool = ModelPictureTool(
     }
     final view = _viewNamed(arguments['view']);
     final mode = _modeOf(arguments['mode'], session);
+    final int size = switch (arguments['size']) {
+      // `renderProject`'s own ceiling, not a second one invented here:
+      // asking past it refuses, and a caller that typed a big number
+      // wanted a big picture rather than an error.
+      final int asked => asked.clamp(128, 1024),
+      _ => 512,
+    };
     final png = await renderProject(
       RenderRequest(
         project: project,
         view: view,
+        width: size,
+        height: size,
         shading: mode.shading,
         selection: mode.selection,
         weightsJoint: _jointNamed(arguments['joint']),
       ),
       deviceFactory: _cpuDevice,
     );
-    return (did: true, says: 'Rendered from the ${view.name} view.', png: png);
+    return (
+      did: true,
+      says: 'Rendered from the ${view.name} view, $size×$size.',
+      png: png,
+    );
   },
 );
 

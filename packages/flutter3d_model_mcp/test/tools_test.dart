@@ -53,6 +53,9 @@ void main() {
       // `ux-19`: reads the mesh and says where every element is; changes
       // nothing, so there is no command for it to be.
       'describe',
+      // `ux-44`: says what a modifier kind, a shape or a texture node takes,
+      // built from the readers themselves rather than from a paragraph.
+      'describe_type',
       'listMaterials',
       // `tut-05`: runs a real command (`SelectElements`) underneath now, but
       // under this tool's own historic name and JSON shape rather than the

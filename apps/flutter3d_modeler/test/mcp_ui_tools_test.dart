@@ -45,6 +45,10 @@ final class _NoopUiActions implements UiActions {
   UiAnswer say(String text) => (did: true, says: 'ok');
 
   @override
+  Future<UiPicture> screenshot() async =>
+      (did: false, says: 'no window here', png: null);
+
+  @override
   UiAnswer runCommand(String id) => (did: true, says: 'ran $id');
 
   @override
@@ -65,6 +69,9 @@ const List<String> _uiToolNames = <String>[
   'ui.frameSubject',
   'ui.openDialog',
   'ui.say',
+  // `ux-44`: the window as a picture — what the person sees, which
+  // `render` cannot show because it draws the model without the interface.
+  'ui.screenshot',
   // `ux-25`: the palette's own list and door, offered to an agent under the
   // name the row gives it rather than a `ui.` one — it runs a command rather
   // than moving the interface.

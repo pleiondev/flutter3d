@@ -15,7 +15,17 @@
 part of '../../main.dart';
 
 extension _ReadyParts on _ModelerScreenState {
-  Widget _screen(ModelerState state) => switch (state) {
+  /// The whole screen, inside `ux-44`'s own capture boundary.
+  ///
+  /// **A boundary round everything, and only one.** `ui.screenshot` is for
+  /// what the person is looking at — the panels, the rail, the dialog that
+  /// is open — and a boundary round the viewport alone would answer the
+  /// question `render` already answers better. It costs a layer at the root,
+  /// which is where Flutter puts one anyway.
+  Widget _screen(ModelerState state) =>
+      RepaintBoundary(key: _windowKey, child: _screenBody(state));
+
+  Widget _screenBody(ModelerState state) => switch (state) {
     ModelerOpening() => const Scaffold(
       body: Center(child: CircularProgressIndicator()),
     ),
