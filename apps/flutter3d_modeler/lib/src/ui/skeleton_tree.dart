@@ -16,6 +16,7 @@ library;
 import 'package:flutter/material.dart';
 import 'package:flutter3d_model_core/flutter3d_model_core.dart';
 
+import 'named_button.dart';
 import 'theme.dart';
 
 /// A joint-hierarchy tree over one [ProjectSkeleton]. Selecting a row reports
@@ -137,19 +138,28 @@ class _SkeletonTreeState extends State<SkeletonTree> {
                 width: 24,
                 child: children.isEmpty
                     ? null
-                    : IconButton(
-                        padding: EdgeInsets.zero,
-                        iconSize: 16,
-                        icon: Icon(
-                          expanded ? Icons.expand_more : Icons.chevron_right,
+                    : NamedButton(
+                        // The joint's own name, so a screen reader says
+                        // which branch is being folded rather than "button"
+                        // once per row of the tree.
+                        label: expanded
+                            ? 'Collapse ${_labelOf(id)}'
+                            : 'Expand ${_labelOf(id)}',
+                        child: IconButton(
+                          padding: EdgeInsets.zero,
+                          iconSize: 16,
+                          tooltip: expanded ? 'Collapse' : 'Expand',
+                          icon: Icon(
+                            expanded ? Icons.expand_more : Icons.chevron_right,
+                          ),
+                          onPressed: () => setState(() {
+                            if (expanded) {
+                              _collapsed.add(id);
+                            } else {
+                              _collapsed.remove(id);
+                            }
+                          }),
                         ),
-                        onPressed: () => setState(() {
-                          if (expanded) {
-                            _collapsed.add(id);
-                          } else {
-                            _collapsed.remove(id);
-                          }
-                        }),
                       ),
               ),
               Expanded(

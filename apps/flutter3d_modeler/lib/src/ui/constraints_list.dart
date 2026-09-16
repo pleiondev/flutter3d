@@ -9,6 +9,7 @@ library;
 import 'package:flutter/material.dart';
 import 'package:flutter3d_model_core/flutter3d_model_core.dart';
 
+import 'named_button.dart';
 import 'theme.dart';
 
 /// One row per [IkConstraint] in [constraints]. Tapping a row reports its
@@ -71,9 +72,13 @@ class ConstraintsList extends StatelessWidget {
           ),
           trailing: onRemove == null
               ? null
-              : IconButton(
-                  icon: const Icon(Icons.close, size: 16),
-                  onPressed: () => onRemove!(index),
+              : NamedButton(
+                  label: 'Remove this constraint',
+                  child: IconButton(
+                    tooltip: 'Remove this constraint',
+                    icon: const Icon(Icons.close, size: 16),
+                    onPressed: () => onRemove!(index),
+                  ),
                 ),
           onTap: () => onSelect(index),
         );

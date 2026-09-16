@@ -41,6 +41,7 @@ import 'package:flutter3d_model_core/flutter3d_model_core.dart' hide EnumHint;
 
 import '../../l10n/app_localizations.dart';
 import 'job_button.dart';
+import 'named_button.dart';
 import 'theme.dart';
 
 /// A node's own header, in logical pixels — the offset every input port and
@@ -203,16 +204,19 @@ final class HintRow extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: <Widget>[
           Text('#${value ?? '—'}', style: theme.textTheme.bodySmall),
-          IconButton(
-            padding: EdgeInsets.zero,
-            constraints: const BoxConstraints(minWidth: 22, minHeight: 22),
-            iconSize: 14,
-            icon: const Icon(Icons.swap_horiz),
-            tooltip: 'Next image',
-            onPressed: () => onChanged(switch (value) {
-              final int n => n + 1,
-              _ => 0,
-            }),
+          NamedButton(
+            label: 'Next image',
+            child: IconButton(
+              padding: EdgeInsets.zero,
+              constraints: const BoxConstraints(minWidth: 22, minHeight: 22),
+              iconSize: 14,
+              icon: const Icon(Icons.swap_horiz),
+              tooltip: 'Next image',
+              onPressed: () => onChanged(switch (value) {
+                final int n => n + 1,
+                _ => 0,
+              }),
+            ),
           ),
         ],
       ),

@@ -171,19 +171,27 @@ class ModelerShell extends StatelessWidget {
       // exactly enough for the panels drawn on top of it to sit a shade
       // *darker* than the window they are in rather than a shade lighter.
       backgroundColor: theme.colorScheme.surfaceContainerLowest,
+      // **A traversal group per region** — `ux-33`. Tab used to walk the
+      // whole window in the order the widgets happen to be built in: the top
+      // bar, then whichever rail button came first, then a field in the
+      // panel, then back. Grouping them means Tab moves inside the region a
+      // person is in and leaves it at the end, which is what "Tab moves
+      // between regions" asks for and what every other application does.
       body: Column(
         children: <Widget>[
-          _TopBar(
-            mode: mode,
-            workspace: workspace,
-            onMode: onMode,
-            submode: submode,
-            onSubmode: onSubmode,
-            animationSubmode: animationSubmode,
-            onAnimationSubmode: onAnimationSubmode,
-            actions: actions,
-            documentName: documentName,
-            isDirty: isDirty,
+          FocusTraversalGroup(
+            child: _TopBar(
+              mode: mode,
+              workspace: workspace,
+              onMode: onMode,
+              submode: submode,
+              onSubmode: onSubmode,
+              animationSubmode: animationSubmode,
+              onAnimationSubmode: onAnimationSubmode,
+              actions: actions,
+              documentName: documentName,
+              isDirty: isDirty,
+            ),
           ),
           const Divider(),
           Expanded(
@@ -191,13 +199,15 @@ class ModelerShell extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: <Widget>[
                 if (!foldedRail) ...<Widget>[
-                  _Rail(
-                    mode: mode,
-                    animationSubmode: animationSubmode,
-                    active: activeTool,
-                    onTool: onTool,
-                    keymap: keymap,
-                    extras: railExtras,
+                  FocusTraversalGroup(
+                    child: _Rail(
+                      mode: mode,
+                      animationSubmode: animationSubmode,
+                      active: activeTool,
+                      onTool: onTool,
+                      keymap: keymap,
+                      extras: railExtras,
+                    ),
                   ),
                   const VerticalDivider(width: 1, thickness: 1),
                 ],
@@ -258,7 +268,9 @@ class ModelerShell extends StatelessWidget {
                       // costs nothing and the layout is the one it was.
                       child: Stack(
                         children: <Widget>[
-                          Positioned.fill(child: properties),
+                          Positioned.fill(
+                            child: FocusTraversalGroup(child: properties),
+                          ),
                           if (onPropertiesWidth
                               case final ValueChanged<double> resize)
                             Positioned(
@@ -278,7 +290,7 @@ class ModelerShell extends StatelessWidget {
                     ),
                   ),
                 ],
-                if (agentPanel != null) ...<Widget>[
+                if (agentPanel case final Widget panel) ...<Widget>[
                   const VerticalDivider(width: 1, thickness: 1),
                   SizedBox(
                     width: ModelerMetrics.agentPanel,
@@ -287,7 +299,7 @@ class ModelerShell extends StatelessWidget {
                       // nothing there had one — so it takes the tone of the
                       // panel it sits beside rather than a third answer.
                       color: theme.colorScheme.surfaceContainer,
-                      child: agentPanel,
+                      child: FocusTraversalGroup(child: panel),
                     ),
                   ),
                 ],

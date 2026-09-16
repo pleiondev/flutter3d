@@ -24,6 +24,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter3d_editor_widgets/flutter3d_editor_widgets.dart';
 import 'package:flutter3d_model_core/flutter3d_model_core.dart' hide Outcome;
 
+import 'named_button.dart';
 import 'theme.dart';
 
 /// Radians as degrees — [ShapeDriver.from]/[ShapeDriver.to] are stored in
@@ -220,18 +221,21 @@ class _ShapeRow extends StatelessWidget {
               onChanged: onWeightChanged,
             ),
           ),
-          IconButton(
-            tooltip: 'Key this shape',
-            icon: Icon(
-              hasKey
-                  ? Icons.radio_button_checked
-                  : Icons.radio_button_unchecked,
-              size: 18,
-              color: hasKey
-                  ? kModelerScheme.secondary
-                  : kModelerScheme.outlineVariant,
+          NamedButton(
+            label: 'Key this shape',
+            child: IconButton(
+              tooltip: 'Key this shape',
+              icon: Icon(
+                hasKey
+                    ? Icons.radio_button_checked
+                    : Icons.radio_button_unchecked,
+                size: 18,
+                color: hasKey
+                    ? kModelerScheme.secondary
+                    : kModelerScheme.outlineVariant,
+              ),
+              onPressed: onKey,
             ),
-            onPressed: onKey,
           ),
         ],
       ),
@@ -302,10 +306,13 @@ class _DriverRow extends StatelessWidget {
                   },
                 ),
               ),
-              IconButton(
-                tooltip: 'Remove driver',
-                icon: const Icon(Icons.close, size: 14),
-                onPressed: onRemove,
+              NamedButton(
+                label: 'Remove driver',
+                child: IconButton(
+                  tooltip: 'Remove driver',
+                  icon: const Icon(Icons.close, size: 14),
+                  onPressed: onRemove,
+                ),
               ),
             ],
           ),
