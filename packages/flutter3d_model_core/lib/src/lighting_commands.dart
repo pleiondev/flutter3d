@@ -73,7 +73,12 @@ final class RemoveLight extends ModelCommand {
   String get name => 'removeLight';
 
   @override
-  String get says => 'remove a light';
+  // `ux-43`: an index-shifting removal says so, because every index an
+  // agent is holding past this one has just moved and nothing else
+  // would tell it. The review watched one delete material 1 and then
+  // paint with material 2, which was a different material by then.
+  String get says =>
+      'remove light $index (every light after it shifts down by one)';
 
   @override
   Map<String, Object?> get arguments => <String, Object?>{'index': index};

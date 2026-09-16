@@ -127,6 +127,10 @@ base class ModelMcpServer extends ToolTableServer<ModelSession, PictureAnswer> {
          // read off the session after the call — what is selected now, and
          // what this call made.
          toResult: (PictureAnswer answer) => _resultOf(answer, session),
+         // `ux-43`: an argument this server does not take is refused by name
+         // rather than ignored, and the refusal travels back the same way an
+         // edit's own does — structured, marked as an error, readable.
+         refusal: (String says) => (did: false, says: says, png: null),
        );
 }
 
@@ -159,5 +163,13 @@ run this session to a recovery file.
 
 `undo`/`redo` walk the history one step at a time, where a step is whatever one
 tool call did — except a drag of many small changes, which nothing here can
-send as one call anyway.
+send as one call anyway. `batch` is the other way round: several commands as
+one step, taken back whole if any of them refuses.
+
+Units, everywhere: distances are metres, angles are radians unless a field
+says degrees, the world is Y-up and right-handed, and a transform is sixteen
+numbers in `Matrix4.storage` (column-major) order. An argument this server
+does not take is refused by name rather than ignored, so a call that comes
+back with a sentence about a key is a call with a misspelling in it, not a
+project that would not do what you asked.
 ''';
