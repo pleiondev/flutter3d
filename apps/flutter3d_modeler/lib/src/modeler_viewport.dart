@@ -103,6 +103,8 @@ class ModelerViewport extends StatefulWidget {
     this.onElementHover,
     this.onLookingChanged,
     this.hovered,
+    this.brushRadius,
+    this.brushInverting = false,
     this.onDragTool,
     this.onDragDone,
     this.onBox,
@@ -305,6 +307,22 @@ class ModelerViewport extends StatefulWidget {
   /// A free-look has started or ended — `ux-26`'s own mouse hints, which say
   /// so while it is held. Called on the edge only, never per frame.
   final ValueChanged<bool>? onLookingChanged;
+
+  /// How wide the weight brush is, in logical pixels — `ux-24`. Null draws
+  /// no circle, which is every mode but the weights sub-mode with a brush
+  /// armed.
+  ///
+  /// **A circle at the pointer, because the radius is the whole gesture.**
+  /// A brush whose reach is a number in a panel is one people paint with
+  /// blind: the only way to find out what forty-eight pixels covers on this
+  /// model at this zoom is to paint and undo.
+  final double? brushRadius;
+
+  /// Whether the brush would take weight away rather than add it — Control,
+  /// the same modifier `weight_paint_session.dart` reads. Drawn as a
+  /// different colour, so the circle says which way the stroke will go
+  /// before it goes.
+  final bool brushInverting;
 
   /// A left-button drag with a tool armed, in logical pixels, with the height
   /// the picture was laid out at so a caller can turn it into world units, and
@@ -905,10 +923,30 @@ class _ModelerViewportState extends State<ModelerViewport> {
             final String? readout = widget.transformReadout;
             final Offset? labelAt = _pointerAt;
             final bool showReadout = readout != null && labelAt != null;
-            if (!showBox && snapScreen == null && !showReadout) return picture;
+            // `ux-24`: the brush's own reach, where the pointer is.
+            final bool showBrush =
+                widget.brushRadius != null && _pointerAt != null;
+            if (!showBox &&
+                snapScreen == null &&
+                !showReadout &&
+                !showBrush) {
+              return picture;
+            }
             return Stack(
               children: <Widget>[
                 Positioned.fill(child: picture),
+                if (showBrush)
+                  Positioned.fill(
+                    child: IgnorePointer(
+                      child: CustomPaint(
+                        painter: _BrushPainter(
+                          at: _pointerAt!,
+                          radius: widget.brushRadius!,
+                          inverting: widget.brushInverting,
+                        ),
+                      ),
+                    ),
+                  ),
                 if (showBox)
                   Positioned.fill(
                     child: IgnorePointer(
@@ -1072,6 +1110,12 @@ class _ModelerViewportState extends State<ModelerViewport> {
     // in the document, and a second rebuild per pointer event would be one
     // per pointer event more than the picture needs.
     if (widget.transformReadout != null) _pointerAt = event.localPosition;
+    // `ux-24`: and while a stroke is actually going on, which is a move
+    // rather than a hover. `setState` here for the same reason the hover
+    // does it — the circle is drawn in Flutter.
+    if (widget.brushRadius != null) {
+      setState(() => _pointerAt = event.localPosition);
+    }
     // A box, when the left button is dragging and no tool wants the drag. It
     // begins on the first move rather than on the press, because a press that
     // never moves is a click and a box that existed from the press would have
@@ -1135,6 +1179,13 @@ class _ModelerViewportState extends State<ModelerViewport> {
         event.localPosition,
       );
       return;
+    }
+    // `ux-24`: the brush circle follows the pointer, so where the pointer is
+    // has to be known on every hover rather than only while something is
+    // being dragged. `setState` because the circle is drawn in Flutter and
+    // nothing else this frame is going to schedule a repaint of it.
+    if (widget.brushRadius != null) {
+      setState(() => _pointerAt = event.localPosition);
     }
     // `ux-28`: what is under the pointer, for the caller to light up. After
     // the gizmo, because a viewport with a gizmo in it has both and the
@@ -1508,6 +1559,60 @@ class _BoxPainter extends CustomPainter {
       old.box.rect != box.rect ||
       old.box.mode != box.mode ||
       old.box.trail?.length != box.trail?.length;
+}
+
+/// `ux-24`'s own brush circle: how far the weight brush reaches, where the
+/// pointer is.
+///
+/// **On the glass rather than on the model.** The radius is a number of
+/// screen pixels — `WeightPaintSession` converts it to world units at the
+/// depth it finds — so the honest picture of it is a circle on screen, and a
+/// ring projected onto the surface would be a different shape from the one
+/// the stroke actually covers.
+class _BrushPainter extends CustomPainter {
+  const _BrushPainter({
+    required this.at,
+    required this.radius,
+    required this.inverting,
+  });
+
+  final Offset at;
+  final double radius;
+  final bool inverting;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    // Warm for adding weight, cool for taking it away — the same two
+    // directions `SelectionBoxMode` already colours, so a hand that has
+    // learned one has learned the other.
+    final Color colour = inverting
+        ? const Color(0xFF62D4E3)
+        : const Color(0xFFFF9926);
+    canvas
+      ..drawCircle(
+        at,
+        radius,
+        Paint()
+          ..color = colour
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 1.5,
+      )
+      // A second, darker ring just outside it: the brush is drawn over a
+      // model that is sometimes the same colour as the circle, and one line
+      // disappears into it.
+      ..drawCircle(
+        at,
+        radius + 1.5,
+        Paint()
+          ..color = const Color(0x66000000)
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 1,
+      );
+  }
+
+  @override
+  bool shouldRepaint(_BrushPainter old) =>
+      old.at != at || old.radius != radius || old.inverting != inverting;
 }
 
 /// The ring `view-26n` draws round whatever a snapped drag is about to land

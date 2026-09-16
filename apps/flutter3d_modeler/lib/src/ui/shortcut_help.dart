@@ -144,6 +144,11 @@ const Map<ModelerAction, (String, ShortcutSection)> _actionLabels =
         'Shrink the selection',
         ShortcutSection.application,
       ),
+      ModelerAction.brushNarrower: (
+        'Narrower brush',
+        ShortcutSection.tools,
+      ),
+      ModelerAction.brushWider: ('Wider brush', ShortcutSection.tools),
       ModelerAction.frameSelection: (
         'Frame what is selected',
         ShortcutSection.application,

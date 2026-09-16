@@ -67,6 +67,14 @@ extension _ReadyParts on _ModelerScreenState {
           // `ux-28`: one ring of neighbours more, and one less.
           onGrowSelection: () => _runSelection(const GrowSelection()),
           onShrinkSelection: () => _runSelection(const ShrinkSelection()),
+          // `ux-24`: the brush's own reach, a fifth at a time so that a
+          // handful of presses crosses the whole range rather than fifty.
+          onBrushNarrower: () => _setWeightBrushRadius(
+            (_weightBrushRadius * 0.8).clamp(4.0, 256.0),
+          ),
+          onBrushWider: () => _setWeightBrushRadius(
+            (_weightBrushRadius * 1.25).clamp(4.0, 256.0),
+          ),
           // `ux-10`: whichever preset Settings holds, on this platform's own
           // command key.
           keymap: keymapFor(
@@ -538,6 +546,15 @@ extension _ReadyParts on _ModelerScreenState {
                             // about a pointer anywhere else — including the
                             // weights sub-mode's own one-shot mirror/normalize
                             // tools, which take no drag at all.
+                            // `ux-24`: how far the brush reaches, drawn where
+                            // the pointer is. Only while one is actually
+                            // armed — a circle following the pointer in
+                            // object mode would be a control for nothing.
+                            brushRadius: weightsBrushArmed
+                                ? _weightBrushRadius
+                                : null,
+                            brushInverting:
+                                HardwareKeyboard.instance.isControlPressed,
                             strokeTool: weightsBrushArmed
                                 ? ToolCategory.weightPainting
                                 : null,

@@ -35,6 +35,8 @@ class ModelerKeys extends StatelessWidget {
     this.onFoldRail,
     this.onGrowSelection,
     this.onShrinkSelection,
+    this.onBrushNarrower,
+    this.onBrushWider,
     required this.tools,
     required this.child,
     required this.keymap,
@@ -107,6 +109,12 @@ class ModelerKeys extends StatelessWidget {
   /// `ux-28`'s own two: one ring of neighbours more, and one less.
   final VoidCallback? onGrowSelection;
   final VoidCallback? onShrinkSelection;
+
+  /// `ux-24`'s own two: the weight brush narrower and wider. Null outside
+  /// the weights sub-mode, where the keys mean nothing rather than moving a
+  /// brush nobody can see.
+  final VoidCallback? onBrushNarrower;
+  final VoidCallback? onBrushWider;
   final List<ModelerTool> tools;
   final Widget child;
 
@@ -147,6 +155,8 @@ class ModelerKeys extends StatelessWidget {
                 ModelerAction.foldRail: onFoldRail,
                 ModelerAction.growSelection: onGrowSelection,
                 ModelerAction.shrinkSelection: onShrinkSelection,
+                ModelerAction.brushNarrower: onBrushNarrower,
+                ModelerAction.brushWider: onBrushWider,
               }.entries)
             if (each.value case final VoidCallback run)
               for (final ShortcutActivator key in keymap.forAction(each.key))
