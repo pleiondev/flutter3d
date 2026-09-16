@@ -16,7 +16,7 @@ class LabelValueRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return SizedBox(
-      height: ModelerMetrics.row,
+      height: rowHeightOf(context),
       child: Row(
         children: <Widget>[
           Expanded(

@@ -15,6 +15,7 @@ import 'package:flutter3d_modeler/l10n/app_localizations_en.dart';
 import 'package:flutter3d_modeler/src/display_modes.dart';
 import 'package:flutter3d_modeler/src/scene_mode.dart';
 import 'package:flutter3d_modeler/src/staging.dart';
+import 'package:flutter3d_modeler/src/ui/properties/label_value_row.dart';
 import 'package:flutter3d_modeler/src/ui/properties/properties_panel.dart';
 import 'package:flutter3d_modeler/src/ui/scene_environment_panel.dart';
 import 'package:flutter3d_modeler/src/ui/scene_post_panel.dart';
@@ -41,6 +42,7 @@ Future<void> _pump(
   List<String> retargetSourceNames = const <String>[],
   BoneMap retargetBoneMap = const BoneMap(<String, String>{}),
   bool canApplyRetarget = false,
+  bool touch = false,
 }) async {
   // Tall enough that the panel's own `ListView` never has to scroll to
   // reach the scene panels — nine light rows push the shadows panel well
@@ -53,84 +55,92 @@ Future<void> _pump(
   final it = cpuTestDevice(width: 8, height: 8);
   final held = project ?? const ModelProject();
   final stage = ModelerStage.fromProject(device: it.device, project: held);
+  // The platform is pinned for `ux-21`'s own sake: `ThemeData` derives
+  // `materialTapTargetSize` from it, so a tap-target test that let it fall
+  // back to the host would answer differently in CI and on a Mac.
   await tester.pumpWidget(
     MaterialApp(
-      theme: modelerTheme(),
+      theme: modelerTheme().copyWith(platform: TargetPlatform.macOS),
       locale: const Locale('en'),
       localizationsDelegates: AppLocalizations.localizationsDelegates,
       supportedLocales: AppLocalizations.supportedLocales,
       home: Scaffold(
-        body: PropertiesPanel(
-          mode: mode,
-          animationSubmode: animationSubmode,
-          stage: stage,
-          project: held,
-          selection: ProjectSelection.none,
-          onSelect: (_) {},
-          onTransform: (_, _) {},
-          pivot: PivotChip.median,
-          onPivot: (_) {},
-          space: TransformSpace.global,
-          onSpace: (_) {},
-          onRename: (_, _) {},
-          onToggleModifier: (_, _) {},
-          onReorderModifier: (_, _, _) {},
-          onAddModifier: (_) {},
-          onAssignMaterial: (_, _) {},
-          onAddMaterial: () {},
-          onSetMaterialField: (_, _, _) {},
-          onChooseTexture: (_, _) {},
-          onClearTexture: (_, _) {},
-          onAddTextureNode: (_, _, _, _) {},
-          onLinkTextureNode: (_, _, _, _) {},
-          onUnlinkTextureNode: (_, _, _) {},
-          onSetTextureNodeField: (_, _, _, _) {},
-          onMoveTextureNode: (_, _, _, _) {},
-          onRemoveTextureNode: (_, _) {},
-          onBakeTextureGraph: (_) {},
-          onAddClip: () {},
-          onSelectAnimationClip: (_) {},
-          onSelectJoint: (_) {},
-          onSelectConstraint: (_) {},
-          onSetShapeWeight: (_, _, _) {},
-          onKeyShape: (_) {},
-          onSelectShape: (_) {},
-          onAddShapeDriver: (_, _) {},
-          onRemoveShapeDriver: (_, _) {},
-          onSetShapeDriverField: (_, _, _, _) {},
-          retargetSourceNames: retargetSourceNames,
-          retargetBoneMap: retargetBoneMap,
-          onRetargetAutoMap: () {},
-          onRetargetRootMotionChanged: (_) {},
-          onRetargetLockFeetChanged: (_) {},
-          onRetargetGroundYChanged: (_) {},
-          onRetargetFootToleranceChanged: (_) {},
-          canApplyRetarget: canApplyRetarget,
-          onWeightBrushModeChanged: (_) {},
-          onWeightBrushRadiusChanged: (_) {},
-          onWeightBrushStrengthChanged: (_) {},
-          onWeightMirrorChanged: (_) {},
-          onWeightNormalizeChanged: (_) {},
-          onSelectLight: (_) {},
-          onAddLight: () {},
-          onRemoveLight: (_) {},
-          onLightTypeChanged: (_, _) {},
-          onLightIntensityChanged: (_, _) {},
-          onLightRangeChanged: (_, _) {},
-          onLightShadowChanged: (_, _) {},
-          onLightConeChanged: (_, _) {},
-          onSceneShadowsChanged: (_) {},
-          onEnvironmentChanged: (_) {},
-          onAmbientChanged: (_) {},
-          onBloomChanged: (_) {},
-          onExposureChanged: (_) {},
-          lastCommand: null,
-          onAmend: (_) {},
-          shading: ShadingMode.material,
-          onShading: (_) {},
-          lens: ViewLens.perspective,
-          onLens: (_) {},
-          onView: (_) {},
+        body: Builder(
+          builder: (BuildContext context) {
+            final Widget panel = PropertiesPanel(
+              mode: mode,
+              animationSubmode: animationSubmode,
+              stage: stage,
+              project: held,
+              selection: ProjectSelection.none,
+              onSelect: (_) {},
+              onTransform: (_, _) {},
+              pivot: PivotChip.median,
+              onPivot: (_) {},
+              space: TransformSpace.global,
+              onSpace: (_) {},
+              onRename: (_, _) {},
+              onToggleModifier: (_, _) {},
+              onReorderModifier: (_, _, _) {},
+              onAddModifier: (_) {},
+              onAssignMaterial: (_, _) {},
+              onAddMaterial: () {},
+              onSetMaterialField: (_, _, _) {},
+              onChooseTexture: (_, _) {},
+              onClearTexture: (_, _) {},
+              onAddTextureNode: (_, _, _, _) {},
+              onLinkTextureNode: (_, _, _, _) {},
+              onUnlinkTextureNode: (_, _, _) {},
+              onSetTextureNodeField: (_, _, _, _) {},
+              onMoveTextureNode: (_, _, _, _) {},
+              onRemoveTextureNode: (_, _) {},
+              onBakeTextureGraph: (_) {},
+              onAddClip: () {},
+              onSelectAnimationClip: (_) {},
+              onSelectJoint: (_) {},
+              onSelectConstraint: (_) {},
+              onSetShapeWeight: (_, _, _) {},
+              onKeyShape: (_) {},
+              onSelectShape: (_) {},
+              onAddShapeDriver: (_, _) {},
+              onRemoveShapeDriver: (_, _) {},
+              onSetShapeDriverField: (_, _, _, _) {},
+              retargetSourceNames: retargetSourceNames,
+              retargetBoneMap: retargetBoneMap,
+              onRetargetAutoMap: () {},
+              onRetargetRootMotionChanged: (_) {},
+              onRetargetLockFeetChanged: (_) {},
+              onRetargetGroundYChanged: (_) {},
+              onRetargetFootToleranceChanged: (_) {},
+              canApplyRetarget: canApplyRetarget,
+              onWeightBrushModeChanged: (_) {},
+              onWeightBrushRadiusChanged: (_) {},
+              onWeightBrushStrengthChanged: (_) {},
+              onWeightMirrorChanged: (_) {},
+              onWeightNormalizeChanged: (_) {},
+              onSelectLight: (_) {},
+              onAddLight: () {},
+              onRemoveLight: (_) {},
+              onLightTypeChanged: (_, _) {},
+              onLightIntensityChanged: (_, _) {},
+              onLightRangeChanged: (_, _) {},
+              onLightShadowChanged: (_, _) {},
+              onLightConeChanged: (_, _) {},
+              onSceneShadowsChanged: (_) {},
+              onEnvironmentChanged: (_) {},
+              onAmbientChanged: (_) {},
+              onBloomChanged: (_) {},
+              onExposureChanged: (_) {},
+              lastCommand: null,
+              onAmend: (_) {},
+              shading: ShadingMode.material,
+              onShading: (_) {},
+              lens: ViewLens.perspective,
+              onLens: (_) {},
+              onView: (_) {},
+            );
+            return touch ? withTouchTargets(context, panel) : panel;
+          },
         ),
       ),
     ),
@@ -225,5 +235,57 @@ void main() {
     // `sectionsFor`'s "wholesale, not piecemeal" holding for the fourth
     // sub-mode too, not only the three `S5`/`S6` already covered here.
     expect(find.text('BRUSH'), findsNothing);
+  });
+
+  group('ux-21: a finger can hit the panel', () {
+    testWidgets('the guideline passes over the real panel, mode by mode', (
+      WidgetTester tester,
+    ) async {
+      for (final ModelerMode mode in <ModelerMode>[
+        ModelerMode.object,
+        ModelerMode.mesh,
+        ModelerMode.scene,
+      ]) {
+        final SemanticsHandle handle = tester.ensureSemantics();
+        await _pump(
+          tester,
+          mode: mode,
+          project: mode == ModelerMode.scene ? _sceneProject(2) : null,
+          touch: true,
+        );
+
+        // Mutation: hand the panel to a touch shell untouched, as both of
+        // them did. A 32-pixel row under a thumb is not a target, and the
+        // buttons beside it are drawn with no padding at all on exactly the
+        // platforms this row is about — a desktop build dragged narrow, and
+        // a browser reporting itself as one.
+        await expectLater(
+          tester,
+          meetsGuideline(androidTapTargetGuideline),
+          reason: '$mode',
+        );
+        handle.dispose();
+      }
+    });
+
+    testWidgets('and a row grows only where something asked it to', (
+      WidgetTester tester,
+    ) async {
+      await _pump(tester, mode: ModelerMode.object);
+      final double desk = tester
+          .getSize(find.byType(LabelValueRow).first)
+          .height;
+
+      await _pump(tester, mode: ModelerMode.object, touch: true);
+      final double thumb = tester
+          .getSize(find.byType(LabelValueRow).first)
+          .height;
+
+      // Mutation: give every shell the taller row. A desktop panel then
+      // shows two thirds as much of the document for no gain at all —
+      // a cursor's hotspot is one pixel wide.
+      expect(desk, ModelerMetrics.row);
+      expect(thumb, kTouchTarget);
+    });
   });
 }

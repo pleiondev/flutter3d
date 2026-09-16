@@ -33,7 +33,16 @@ class ModelerPhoneShell extends StatelessWidget {
     required this.properties,
     required this.status,
     this.actions = const <Widget>[],
+    this.documentName = 'untitled',
+    this.isDirty = false,
   });
+
+  /// What the open document is called, and whether it has unsaved changes —
+  /// `ux-21`. A phone has the least room of the three and is the one place
+  /// with no window title behind it at all, which is exactly why it cannot
+  /// be the shell that leaves this out.
+  final String documentName;
+  final bool isDirty;
 
   final ModelerMode mode;
   final ValueChanged<ModelerMode> onMode;
@@ -60,11 +69,19 @@ class ModelerPhoneShell extends StatelessWidget {
     final colours = theme.extension<ModelerColors>() ?? ModelerColors.dark;
     return Scaffold(
       backgroundColor: theme.colorScheme.surface,
-      appBar: actions.isEmpty
-          ? null
-          : AppBar(
-              toolbarHeight: ModelerMetrics.statusBar + 22,
-              actions: <Widget>[
+      // `ux-21`: always there now, because the document's own name is in it
+      // and that is true whether or not the caller handed over any actions.
+      appBar: AppBar(
+        toolbarHeight: ModelerMetrics.statusBar + 22,
+        titleSpacing: 12,
+        title: Text(
+          documentLabel(documentName, isDirty: isDirty),
+          overflow: TextOverflow.ellipsis,
+          style: theme.textTheme.titleSmall,
+        ),
+        actions: actions.isEmpty
+            ? const <Widget>[]
+            : <Widget>[
                 // **A bottom sheet, not a `PopupMenuItem`.** A menu item's
                 // own `enabled: false` blocks taps to whatever it wraps —
                 // the review found this made Save/Open/Export dead buttons
@@ -88,7 +105,7 @@ class ModelerPhoneShell extends StatelessWidget {
                   ),
                 ),
               ],
-            ),
+      ),
       body: Stack(
         children: <Widget>[
           Column(
@@ -150,12 +167,25 @@ class ModelerPhoneShell extends StatelessWidget {
           ),
         ],
       ),
-      floatingActionButton: SizedBox(
-        width: ModelerMetrics.phoneFab,
-        height: ModelerMetrics.phoneFab,
-        child: FloatingActionButton(
-          onPressed: () => _openToolSheet(context),
-          child: Icon(_armedIcon(mode, activeTool)),
+      // `ux-21`: the one button on this shell whose icon is its only label,
+      // and the icon changes with whatever is armed — so the tooltip names
+      // the armed tool rather than saying "Tools", which would leave the
+      // person no way at all to find out what the picture means. Through
+      // `Semantics` as well as `tooltip:` for `ui-23`'s own reason, written
+      // out over the More button above.
+      floatingActionButton: MergeSemantics(
+        child: Semantics(
+          label: _armedLabel(mode, activeTool),
+          button: true,
+          child: SizedBox(
+            width: ModelerMetrics.phoneFab,
+            height: ModelerMetrics.phoneFab,
+            child: FloatingActionButton(
+              tooltip: _armedLabel(mode, activeTool),
+              onPressed: () => _openToolSheet(context),
+              child: Icon(_armedIcon(mode, activeTool)),
+            ),
+          ),
         ),
       ),
       bottomNavigationBar: SizedBox(
@@ -182,6 +212,16 @@ class ModelerPhoneShell extends StatelessWidget {
     if (tools.isEmpty) return Icons.touch_app_outlined;
     final armed = tools.where((t) => t.id == active);
     return armed.isNotEmpty ? armed.first.icon : tools.first.icon;
+  }
+
+  /// What [_armedIcon] is a picture of, in words — `ux-21`. The same table,
+  /// so the two can never drift apart.
+  String _armedLabel(ModelerMode mode, String? active) {
+    final tools = toolsFor(mode);
+    if (tools.isEmpty) return 'Tools';
+    final armed = tools.where((ModelerTool it) => it.id == active);
+    return '${armed.isNotEmpty ? armed.first.label : tools.first.label} — '
+        'pick a tool';
   }
 
   /// [actions] laid out where a thumb can reach and a tap actually lands —

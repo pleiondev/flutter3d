@@ -59,6 +59,30 @@ final class EditorWidgetsTheme extends ThemeExtension<EditorWidgetsTheme> {
   static EditorWidgetsTheme of(BuildContext context) =>
       Theme.of(context).extension<EditorWidgetsTheme>() ?? defaults;
 
+  /// Whether a field in a row this tall is drawn dense.
+  ///
+  /// **Derived rather than a field of its own**, because a dense field in a
+  /// tall row is the one combination nobody wants: `InputDecorator` sizes
+  /// itself to its own padding and ignores the box round it, so a dense
+  /// field in a 48-pixel row is a 31-pixel target with a gap above and below
+  /// it that a tap falls straight through. Tying the two together is what
+  /// makes [rowHeight] mean the row a finger or a cursor actually hits.
+  ///
+  /// Forty is the boundary because it is between the two heights this is
+  /// ever set to — the 28-32 a properties panel is drawn at under a cursor,
+  /// and the 48 a touch target has to be.
+  bool get denseFields => rowHeight < 40;
+
+  /// The padding a text field in this row takes, so that the field fills the
+  /// row rather than floating inside it. [horizontal] is the field's own,
+  /// since a number and a hex colour want different room across.
+  EdgeInsets fieldPadding({double horizontal = 9}) => EdgeInsets.symmetric(
+    horizontal: horizontal,
+    // 24 is about what one line of body text plus the border occupies; the
+    // rest of the row is split above and below it.
+    vertical: denseFields ? 6 : (rowHeight - 24) / 2,
+  );
+
   @override
   EditorWidgetsTheme copyWith({
     double? rowHeight,

@@ -275,13 +275,12 @@ class _NumberFieldState extends State<NumberField> {
             decimal: true,
           ),
           decoration: InputDecoration(
-            isDense: true,
+            isDense: editorTheme.denseFields,
             // The hand-over's own metric: padding 6×8-10, radius 6 — this file
-            // had the two axes swapped and the corner square until now.
-            contentPadding: const EdgeInsets.symmetric(
-              horizontal: 9,
-              vertical: 6,
-            ),
+            // had the two axes swapped and the corner square until now. Both
+            // now come off the row height, so a panel handed a taller row
+            // gets a field that fills it rather than one floating in it.
+            contentPadding: editorTheme.fieldPadding(),
             border: OutlineInputBorder(
               borderRadius: BorderRadius.all(
                 Radius.circular(editorTheme.fieldRadius),

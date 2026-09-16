@@ -319,11 +319,8 @@ class _ColorFieldState extends State<ColorField> {
                     LengthLimitingTextInputFormatter(7),
                   ],
                   decoration: InputDecoration(
-                    isDense: true,
-                    contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 9,
-                      vertical: 6,
-                    ),
+                    isDense: editorTheme.denseFields,
+                    contentPadding: editorTheme.fieldPadding(),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.all(
                         Radius.circular(editorTheme.fieldRadius),
