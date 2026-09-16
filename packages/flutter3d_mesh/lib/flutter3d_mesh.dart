@@ -38,6 +38,7 @@ export 'src/mesh_bvh.dart';
 export 'src/mesh_repair.dart';
 export 'src/mirror.dart';
 export 'src/modifier.dart';
+export 'src/multires.dart';
 export 'src/normals.dart';
 export 'src/operations.dart';
 export 'src/parametric.dart';
