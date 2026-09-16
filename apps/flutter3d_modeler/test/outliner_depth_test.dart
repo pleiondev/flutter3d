@@ -4,6 +4,7 @@
 ///     flutter test test/outliner_depth_test.dart
 library;
 
+import 'package:flutter/gestures.dart' show PointerDeviceKind;
 import 'package:flutter/material.dart' hide Material;
 import 'package:flutter3d_mesh/flutter3d_mesh.dart';
 import 'package:flutter3d_model_core/flutter3d_model_core.dart';
@@ -71,8 +72,27 @@ void main() {
     expect(tester.takeException(), isNull);
 
     // And the buttons are still there to press, which is the thing the
-    // overflow was taking away.
-    expect(find.byTooltip('Hide'), findsNWidgets(12));
-    expect(find.byTooltip('Lock'), findsNWidgets(12));
+    // overflow was taking away — on every row the region draws, which is
+    // ten and not twelve because the outliner scrolls inside itself now.
+    expect(find.byTooltip('Hide'), findsNWidgets(10));
+    expect(find.byTooltip('Lock'), findsNWidgets(10));
+
+    // The other two are a scroll away rather than gone. **Mutation: draw
+    // the rows in a `Column` again.** All twelve would be found here and
+    // the test would pass — and the twenty-odd clipped semantics nodes a
+    // thirty-object scene hands the framework are what
+    // `08-imported-unskinned` crashed on.
+    //
+    // Scrolled with the wheel rather than a drag, because a drag on a row is
+    // already spoken for: every row is a `Draggable`, and that is how an
+    // object is dropped into a group.
+    final TestPointer wheel = TestPointer(1, PointerDeviceKind.mouse);
+    wheel.hover(tester.getCenter(find.byType(Outliner)));
+    await tester.sendEventToBinding(wheel.scroll(const Offset(0, 200)));
+    await tester.pump();
+    expect(
+      find.text('joint 12 with a long enough name to matter'),
+      findsOneWidget,
+    );
   });
 }
