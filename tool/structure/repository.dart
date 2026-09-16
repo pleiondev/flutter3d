@@ -603,6 +603,14 @@ String relative(File file, Directory dir) => file.path
 /// the next one has to be argued for rather than typed.
 const Map<String, Map<String, String>>
 boundaryEnumExempt = <String, Map<String, String>>{
+  'flutter3d_mesh/lib/src/recipes.dart': <String, String>{
+    'RecipeCategory':
+        'how a gallery groups the models this package builds, and the set '
+        'is the gallery\'s own four sections rather than a taxonomy '
+        'anybody outside switches over. The one `switch` is the heading a '
+        'card draws; a fifth section is a fifth heading in that same file, '
+        'not a case somebody else has to answer',
+  },
   'flutter3d_editor_widgets/lib/src/number_expression.dart': <String, String>{
     'NumberUnit':
         'what one field\'s own numbers mean, and the set is the two things '
