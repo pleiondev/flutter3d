@@ -77,6 +77,12 @@ enum ModelerAction {
   /// tool for exactly that reason.
   growSelection,
   shrinkSelection,
+
+  /// `ux-24`: the weight brush's own reach, `[` narrower and `]` wider —
+  /// the two keys the field spends on exactly this, and the two nothing
+  /// else in this application wants.
+  brushNarrower,
+  brushWider,
 }
 
 /// What a key means in one preset.
@@ -300,6 +306,13 @@ Map<ModelerAction, List<ShortcutActivator>> _actions(
     ModelerAction.shrinkSelection: <ShortcutActivator>[
       command(LogicalKeyboardKey.minus),
       command(LogicalKeyboardKey.numpadSubtract),
+    ],
+    // `ux-24`.
+    ModelerAction.brushNarrower: const <ShortcutActivator>[
+      SingleActivator(LogicalKeyboardKey.bracketLeft),
+    ],
+    ModelerAction.brushWider: const <ShortcutActivator>[
+      SingleActivator(LogicalKeyboardKey.bracketRight),
     ],
   };
 }

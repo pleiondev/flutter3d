@@ -24,6 +24,7 @@ import 'dart:typed_data';
 
 import 'package:flutter3d/flutter3d.dart' hide Material;
 import 'package:flutter3d/flutter3d.dart' as engine show Material;
+import 'package:flutter3d_mesh/flutter3d_mesh.dart' show EditMesh, ShapeKey;
 import 'package:flutter3d_model_core/flutter3d_model_core.dart';
 
 import 'material_pool.dart';
@@ -36,7 +37,18 @@ final class _Tracked {
     this.geometry,
     this.modifiers, {
     this.skeletonIndex,
+    this.shapeSet = const ShapeSet(),
   });
+
+  /// [ModelObject.shapeSet] as of the last upload — `ux-24`.
+  ///
+  /// **Its own field beside [geometry], because a weight moves neither.** A
+  /// shape key dragged to one bumps the object's version and leaves
+  /// `geometry` the identical instance it was, so the three questions above
+  /// all answer "nothing changed" and the buffer keeps the base positions —
+  /// which is exactly the bug the row found: the markers moved and the model
+  /// did not.
+  ShapeSet shapeSet;
 
   final MeshNode node;
   int version;
@@ -188,6 +200,7 @@ final class SceneSync {
           object.geometry,
           object.modifiers,
           skeletonIndex: object.skeletonIndex,
+          shapeSet: object.shapeSet,
         );
         uploaded++;
         continue;
@@ -206,9 +219,14 @@ final class SceneSync {
       // object's version and still upload nothing new.
       final bool reskinned = had.skeletonIndex != object.skeletonIndex;
       final bool modifiersChanged = !identical(had.modifiers, object.modifiers);
+      // `ux-24`: a weight moved. `ModelObject.copyWith` hands back a new
+      // `ShapeSet` exactly when a shape command touched one, so `identical`
+      // is the same free, exact signal `modifiers` above already uses.
+      final bool morphed = !identical(had.shapeSet, object.shapeSet);
       if (!identical(had.geometry, object.geometry) ||
           reskinned ||
-          modifiersChanged) {
+          modifiersChanged ||
+          morphed) {
         final DeviceMesh? mesh = _upload(project, object);
         // The node keeps whatever it was drawing last: a mesh the device
         // refused is not a reason to blank an object that was on screen a
@@ -219,6 +237,7 @@ final class SceneSync {
         had.geometry = object.geometry;
         had.skeletonIndex = object.skeletonIndex;
         had.modifiers = object.modifiers;
+        had.shapeSet = object.shapeSet;
         uploaded++;
       }
       had.node
@@ -418,10 +437,23 @@ final class SceneSync {
     );
     if (hasEnabledModifier) {
       final evaluated = _modifiers.evaluatedMesh(project, object);
-      if (evaluated != null) return evaluated.toMeshData(layout: layout);
+      if (evaluated != null) {
+        return _morphed(
+          object,
+          evaluated.toMeshData(layout: layout),
+          evaluated,
+        );
+      }
     }
-    return _dataOf(object.geometry, layout);
+    final MeshData data = _dataOf(object.geometry, layout);
+    return switch (object.geometry) {
+      EditedGeometry(:final mesh) => _morphed(object, data, mesh),
+      _ => data,
+    };
   }
+
+  MeshData _morphed(ModelObject object, MeshData data, EditMesh base) =>
+      morphedForPreview(object.shapeSet, data, base);
 
   /// The buffers a geometry draws as, in [layout] — [_layoutFor]'s own
   /// answer for the object this geometry belongs to. Ignored for
@@ -443,6 +475,58 @@ final class SceneSync {
     layout: VertexLayout.standard,
     vertices: Float32List(0),
     indices: Uint32List(0),
+  );
+}
+
+/// [data] with [shapes] blended into its positions — `ux-24`.
+///
+/// **The viewport drew the base mesh and the markers moved.** A shape key at
+/// weight one changed the document, changed the little points drawn over the
+/// model, and left the model itself exactly where it was — so the one thing
+/// a morph is for, seeing the expression, was the one thing the slider did
+/// not do.
+///
+/// **Written into the buffer rather than into the mesh.** `EditMesh` is the
+/// document's own geometry and a blend is a preview of it; writing the
+/// blended positions back would make the preview the document and the slider
+/// destructive. The `MeshData` this hands on is built fresh for the upload
+/// and is nobody else's.
+///
+/// **Public and free-standing, because it is the arithmetic.** Whether the
+/// viewport shows an expression is a question about three numbers per
+/// vertex, and a test that had to build a device, a scene and a stage to ask
+/// it would be a test of the staging. [SceneSync] is the one caller.
+///
+/// Costs nothing at all for an object with no keys or every weight at
+/// nought, which is almost every object — the check is a walk of a list that
+/// is usually empty.
+MeshData morphedForPreview(ShapeSet shapes, MeshData data, EditMesh base) {
+  if (shapes.keys.isEmpty) return data;
+  if (!shapes.weights.any((double it) => it != 0.0)) return data;
+  // A stack that changed the vertex count has left the keys naming slots
+  // that are not there any more; `ShapeKey.blend` covers what it covers and
+  // the rest keeps the base, which is the same "no data, no effect" rule
+  // that file already states.
+  final Float32List blended = ShapeKey.blend(base, shapes.keys, shapes.weights);
+  final int stride = data.layout.floatsPerVertex;
+  final int offset = data.layout.floatOffsetOf('position');
+  if (offset < 0) return data;
+  final Float32List vertices = Float32List.fromList(data.vertices);
+  for (
+    var vertex = 0;
+    vertex * stride + offset + 2 < vertices.length;
+    vertex++
+  ) {
+    if (vertex * 3 + 2 >= blended.length) break;
+    final int at = vertex * stride + offset;
+    vertices[at] = blended[vertex * 3];
+    vertices[at + 1] = blended[vertex * 3 + 1];
+    vertices[at + 2] = blended[vertex * 3 + 2];
+  }
+  return MeshData(
+    layout: data.layout,
+    vertices: vertices,
+    indices: data.indices,
   );
 }
 
