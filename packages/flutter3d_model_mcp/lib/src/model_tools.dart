@@ -311,7 +311,10 @@ List<ModelTool> get _commandTools => <ModelTool>[
           'world\'s axes or each object\'s own.',
       inputSchema: ObjectSchema(
         properties: <String, Schema>{
-          'axis': _vector('the axis to turn about', unit: 'a direction, no unit'),
+          'axis': _vector(
+            'the axis to turn about',
+            unit: 'a direction, no unit',
+          ),
           'radians': NumberSchema(description: 'how far, in radians'),
           'pivot': _pivot('median (default) or individual'),
           'space': _space('global (default) or local'),
@@ -862,7 +865,10 @@ List<ModelTool> get _commandTools => <ModelTool>[
           'face to extrude without rendering a picture and guessing.',
       inputSchema: ObjectSchema(
         properties: <String, Schema>{
-          'axis': _vector('the direction to face, e.g. [0,1,0] for up', unit: 'a direction, no unit'),
+          'axis': _vector(
+            'the direction to face, e.g. [0,1,0] for up',
+            unit: 'a direction, no unit',
+          ),
           'within': NumberSchema(
             description:
                 'how far off that direction a face may point and still '
@@ -1592,8 +1598,7 @@ List<ModelTool> get _commandTools => <ModelTool>[
             description: 'how many joints a skeleton may have, 1 to 64',
           ),
           'maxInfluences': IntegerSchema(
-            description:
-                'how many joints may pull on one vertex, 1 to 4',
+            description: 'how many joints may pull on one vertex, 1 to 4',
           ),
         },
       ),
@@ -1981,7 +1986,10 @@ List<ModelTool> get _commandTools => <ModelTool>[
                     'midJointId': IntegerSchema(),
                     'effectorJointId': IntegerSchema(),
                     'target': _vector('the effector\'s own target position'),
-                    'pole': _vector('where the mid joint bends toward', unit: 'a direction, no unit'),
+                    'pole': _vector(
+                      'where the mid joint bends toward',
+                      unit: 'a direction, no unit',
+                    ),
                   },
                   required: <String>[
                     'rootJointId',
@@ -2044,8 +2052,12 @@ List<ModelTool> get _commandTools => <ModelTool>[
             'own units — metres for translation, a unit quaternion for '
             'rotation, a multiplier for scale',
           ),
-          'inTangent': _numbers('optional; one number a component, in the track\'s own units'),
-          'outTangent': _numbers('optional; one number a component, in the track\'s own units'),
+          'inTangent': _numbers(
+            'optional; one number a component, in the track\'s own units',
+          ),
+          'outTangent': _numbers(
+            'optional; one number a component, in the track\'s own units',
+          ),
         },
         required: <String>['clipIndex', 'trackIndex', 'time', 'values'],
       ),
@@ -2120,8 +2132,12 @@ List<ModelTool> get _commandTools => <ModelTool>[
           'clipIndex': IntegerSchema(description: 'which clip, from list'),
           'trackIndex': IntegerSchema(description: 'which track in that clip'),
           'index': IntegerSchema(description: 'the key, from its own track'),
-          'inTangent': _numbers('optional; one number a component, in the track\'s own units'),
-          'outTangent': _numbers('optional; one number a component, in the track\'s own units'),
+          'inTangent': _numbers(
+            'optional; one number a component, in the track\'s own units',
+          ),
+          'outTangent': _numbers(
+            'optional; one number a component, in the track\'s own units',
+          ),
         },
         required: <String>['clipIndex', 'trackIndex', 'index'],
       ),
@@ -2308,16 +2324,26 @@ List<ModelTool> get _commandTools => <ModelTool>[
           'Set one scene-wide lighting field that is not a light or the '
           'environment: ambientIntensity (a number, the flat ambient '
           'term), shadows (a bool — whether this project\'s lights ask the '
-          'viewport for a shadow map at all), or exposure (a number).',
+          'viewport for a shadow map at all), exposure (a number), or '
+          'bloomEnabled (a bool — whether bright pixels bleed).',
       inputSchema: ObjectSchema(
         properties: <String, Schema>{
+          // `ux-35`: `bloomEnabled` has been one of the four this command
+          // sets since `SetSceneLightingField` was written, and the schema
+          // named three — so the one field an agent could not discover was
+          // the only post-processing switch the project has.
           'field': UntitledSingleSelectEnumSchema(
-            values: <String>['ambientIntensity', 'shadows', 'exposure'],
+            values: <String>[
+              'ambientIntensity',
+              'shadows',
+              'exposure',
+              'bloomEnabled',
+            ],
           ),
           'value': Schema.combined(
             description:
                 'a number for ambientIntensity/exposure, a bool for '
-                'shadows',
+                'shadows/bloomEnabled',
             anyOf: <Schema>[NumberSchema(), BooleanSchema()],
           ),
         },
@@ -2344,11 +2370,13 @@ List<ModelTool> get _commandTools => <ModelTool>[
             additionalProperties: true,
           ),
           'x': NumberSchema(
-            description: 'where on the graph canvas, in pixels; '
+            description:
+                'where on the graph canvas, in pixels; '
                 'default 0',
           ),
           'y': NumberSchema(
-            description: 'where on the graph canvas, in pixels; '
+            description:
+                'where on the graph canvas, in pixels; '
                 'default 0',
           ),
         },
@@ -2432,12 +2460,8 @@ List<ModelTool> get _commandTools => <ModelTool>[
         properties: <String, Schema>{
           'materialIndex': IntegerSchema(description: 'the material row'),
           'nodeId': IntegerSchema(description: 'the node'),
-          'x': NumberSchema(
-            description: 'the new canvas position, in pixels',
-          ),
-          'y': NumberSchema(
-            description: 'the new canvas position, in pixels',
-          ),
+          'x': NumberSchema(description: 'the new canvas position, in pixels'),
+          'y': NumberSchema(description: 'the new canvas position, in pixels'),
         },
         required: <String>['materialIndex', 'nodeId', 'x', 'y'],
       ),
@@ -3003,11 +3027,11 @@ List<ModelTool> get modelTools => <ModelTool>[
                   values: AddPrimitive.primitiveKinds,
                 ),
                 'size': NumberSchema(
-            description: 'how big across, in metres; default 1',
-          ),
+                  description: 'how big across, in metres; default 1',
+                ),
                 'segments': IntegerSchema(
-            description: 'how many segments around, default 32',
-          ),
+                  description: 'how many segments around, default 32',
+                ),
                 'at': _vector('where it goes, default the origin'),
                 'name': StringSchema(description: 'what to call it'),
                 'parent': IntegerSchema(
@@ -3229,10 +3253,10 @@ List<ModelTool> get _rigPipelineTools => <ModelTool>[
             description: 'optional; mirror the stroke across a plane',
             properties: <String, Schema>{
               'axis': IntegerSchema(
-            description:
-                'which axis to mirror across, as an index: 0 for x, 1 '
-                'for y, 2 for z',
-          ),
+                description:
+                    'which axis to mirror across, as an index: 0 for x, 1 '
+                    'for y, 2 for z',
+              ),
               'jointMirror': ObjectSchema(
                 description: 'source joint index (string key) to target',
                 additionalProperties: IntegerSchema(),
@@ -3354,7 +3378,10 @@ List<ModelTool> get _rigPipelineTools => <ModelTool>[
           'midJointId': IntegerSchema(description: 'the chain\'s own middle'),
           'effectorJointId': IntegerSchema(description: 'the chain\'s own tip'),
           'target': _vector('where the effector should reach'),
-          'pole': _vector('which side the middle joint bends toward', unit: 'a direction, no unit'),
+          'pole': _vector(
+            'which side the middle joint bends toward',
+            unit: 'a direction, no unit',
+          ),
           'fps': NumberSchema(
             description: 'how many samples a second, in fps; default 30',
           ),
@@ -3474,25 +3501,13 @@ List<ModelTool> get _rigPipelineTools => <ModelTool>[
       );
     }),
   ),
-  ModelTool(
-    Tool(
-      name: 'addShape',
-      description:
-          'Add a new shape key to an object, captured from the mesh\'s own '
-          'current vertex positions — the same command addShapeFromMesh '
-          'already offers, under the name the rig-pipeline scenario '
-          'knows it by. Sculpt the mesh first, then call this to save it '
-          'as a shape; it starts at weight 0.0.',
-      inputSchema: ObjectSchema(
-        properties: <String, Schema>{
-          'id': IntegerSchema(description: 'the object; needs an edited mesh'),
-          'shapeName': StringSchema(description: 'the new shape key\'s name'),
-        },
-        required: <String>['id', 'shapeName'],
-      ),
-    ),
-    _command('addShapeFromMesh'),
-  ),
+  // **`addShape` was here, and `ux-35` dropped it.** It was a second name
+  // for `addShapeFromMesh` — same command, same arguments, same answer —
+  // offered because one scenario's own script had been written against that
+  // spelling. Two names for one thing is the kind of thing a table of tools
+  // must not have: an agent reading the list has to decide which of two
+  // identical entries it wants, and every sentence written about either has
+  // to be kept true of both.
   ModelTool(
     Tool(
       name: 'validateRig',
