@@ -295,9 +295,14 @@ class ModelerPropertiesSheet extends StatelessWidget {
               width: 32,
               height: 4,
               decoration: BoxDecoration(
-                color: theme.colorScheme.onSurfaceVariant.withValues(
-                  alpha: 0.4,
-                ),
+                // `ux-34`: 40 % of `onSurfaceVariant` over this sheet came
+                // out at 2.7:1, and the handle is the only thing saying the
+                // sheet can be dragged at all. `ModelerColors.controlTrack`
+                // is opaque and clears 3:1 — a handle drawn through an alpha
+                // also changes ratio whenever the sheet's own tone does,
+                // which is a check nobody would think to redo.
+                color: (theme.extension<ModelerColors>() ?? ModelerColors.dark)
+                    .controlTrack,
                 borderRadius: BorderRadius.circular(2),
               ),
             ),
