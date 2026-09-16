@@ -9,6 +9,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter3d_editor_widgets/flutter3d_editor_widgets.dart';
 import 'package:flutter3d_modeler/l10n/app_localizations.dart';
+import 'package:flutter3d_modeler/src/settings.dart';
+import 'package:flutter3d_modeler/src/ui/keymap.dart';
 import 'package:flutter3d_modeler/src/ui/shortcut_help.dart';
 import 'package:flutter3d_modeler/src/ui/shortcut_help_screen.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -37,9 +39,13 @@ Widget _harness({required VoidCallback onHelp, required Widget child}) =>
       ),
     );
 
+/// The default preset on a Mac — one keymap for the whole file, so the
+/// dialog under test and the table it is compared against are the same.
+final Keymap _keymap = keymapFor(KeymapPreset.standard, apple: true);
+
 void main() {
   group("ui-32n's own acceptance", () {
-    testWidgets('every entry in shortcutTable() is drawn in the dialog', (
+    testWidgets('the dialog draws the table, in its four sections', (
       tester,
     ) async {
       await tester.pumpWidget(
@@ -50,7 +56,7 @@ void main() {
           home: Scaffold(
             body: Builder(
               builder: (context) => TextButton(
-                onPressed: () => showShortcutHelp(context),
+                onPressed: () => showShortcutHelp(context, keymap: _keymap),
                 child: const Text('open'),
               ),
             ),
@@ -60,23 +66,38 @@ void main() {
       await tester.tap(find.text('open'));
       await tester.pumpAndSettle();
 
-      // The list is taller than the dialog's own fixed height, so a row this
-      // far down is not built at all until something scrolls it into view —
-      // `ListView`'s sliver machinery only materialises what the viewport
-      // (plus its cache extent) actually needs, whatever the full children
-      // list handed to its constructor says.
-      final entries = shortcutTable();
-      expect(entries, isNotEmpty);
-      for (final ShortcutEntry entry in entries) {
-        await tester.scrollUntilVisible(
-          find.text(entry.label),
-          80,
-          scrollable: find.byType(Scrollable),
-        );
+      // **Scrolled through rather than asked row by row.** The list is far
+      // taller than the dialog's own fixed height and `ListView` only
+      // materialises what the viewport needs, so a row near the bottom is
+      // not in the tree at all until something scrolls it there — and since
+      // `ux-10` a label can legitimately appear twice (`Delete` is both a
+      // tool and an application action), which a per-row `findsOneWidget`
+      // would call a failure.
+      final Finder list = find.byType(Scrollable).first;
+      final seen = <String>{};
+      for (var step = 0; step < 40; step++) {
+        for (final Text text in tester.widgetList<Text>(find.byType(Text))) {
+          final String? said = text.data;
+          if (said != null) seen.add(said);
+        }
+        await tester.drag(list, const Offset(0, -120));
+        await tester.pump();
+      }
+
+      // The four headings, which is what `ux-10` added — and the rows the
+      // review found missing from every one of them.
+      expect(seen, containsAll(<String>['CAMERA', 'APPLICATION', 'SELECTION']));
+      expect(seen.any((String it) => it.startsWith('TOOLS')), isTrue);
+      expect(seen, contains('Orbit'));
+      expect(seen, contains('Save'));
+      expect(seen, contains('Select everything'));
+
+      // And every entry the table hands out really is drawn somewhere in it.
+      for (final ShortcutEntry entry in shortcutTable(_keymap)) {
         expect(
-          find.text(entry.label),
-          findsOneWidget,
-          reason: '${entry.label} (${entry.shortcut.keyLabel}) is missing',
+          seen,
+          contains(entry.label),
+          reason: '${entry.label} (${entry.keys}) is missing',
         );
       }
     });

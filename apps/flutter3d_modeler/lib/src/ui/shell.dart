@@ -16,6 +16,8 @@ library;
 
 import 'package:flutter/material.dart';
 
+import 'keymap.dart';
+import 'shortcut_help.dart' show describeShortcut;
 import 'theme.dart';
 import 'tools.dart';
 
@@ -41,6 +43,7 @@ class ModelerShell extends StatelessWidget {
     this.bottom,
     this.bottomHeight,
     this.agentPanel,
+    this.keymap,
   }) : assert(
          (bottom == null) == (bottomHeight == null),
          'bottom and bottomHeight are given together or not at all',
@@ -100,6 +103,14 @@ class ModelerShell extends StatelessWidget {
   /// already promises every mode with no lower area of its own.
   final Widget? agentPanel;
 
+  /// Which keys the rail's own tooltips should name — `ux-10`.
+  ///
+  /// Null falls back to `ModelerTool.shortcut`, which is what every caller
+  /// that has no settings behind it wants: a preview shell, a test. A
+  /// tooltip naming a key the live preset does not bind is worse than one
+  /// naming none, so this is threaded rather than read from a global.
+  final Keymap? keymap;
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -129,6 +140,7 @@ class ModelerShell extends StatelessWidget {
                   animationSubmode: animationSubmode,
                   active: activeTool,
                   onTool: onTool,
+                  keymap: keymap,
                 ),
                 const VerticalDivider(width: 1, thickness: 1),
                 // The picture takes whatever is left, and takes it last: the
@@ -406,7 +418,10 @@ class _Rail extends StatelessWidget {
     required this.animationSubmode,
     required this.active,
     required this.onTool,
+    this.keymap,
   });
+
+  final Keymap? keymap;
 
   final ModelerMode mode;
 
@@ -415,6 +430,18 @@ class _Rail extends StatelessWidget {
   final AnimationSubmode animationSubmode;
   final String? active;
   final ValueChanged<String> onTool;
+
+  /// "Extrude · E", with the key from the live preset when there is one.
+  ///
+  /// A tool the preset gives no key at all gets its label alone rather than
+  /// a dangling separator — `ux-10`'s own tool-key preset deliberately
+  /// leaves some mesh operations where they were and moves only the four a
+  /// hand rests on, so "no key here" is a real answer.
+  String _tooltipFor(ModelerTool tool) {
+    final ShortcutActivator key =
+        keymap?.forTool(tool.id) ?? SingleActivator(tool.shortcut);
+    return '${tool.label}  ·  ${describeShortcut(key)}';
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -452,9 +479,7 @@ class _Rail extends StatelessWidget {
                     label: tool.label,
                     button: true,
                     child: Tooltip(
-                      message:
-                          '${tool.label}  ·  '
-                          '${tool.shortcut.keyLabel.toUpperCase()}',
+                      message: _tooltipFor(tool),
                       child: IconButton(
                         onPressed: () => onTool(tool.id),
                         icon: Icon(tool.icon, size: 18),

@@ -59,6 +59,36 @@ extension _ReadyParts on _ModelerScreenState {
           onSelectNone: () => _runSelection(const SelectNone()),
           onInvertSelection: () => _runSelection(const InvertSelection()),
           onShortcutHelp: _showShortcutHelp,
+          // `ux-10`: whichever preset Settings holds, on this platform's own
+          // command key.
+          keymap: keymapFor(
+            _settings.keymap,
+            apple:
+                Theme.of(context).platform == TargetPlatform.macOS ||
+                Theme.of(context).platform == TargetPlatform.iOS,
+          ),
+          onSave: () => unawaited(_saveFile()),
+          onDelete: () => _ranTool(
+            state.mode == ModelerMode.mesh ? 'mesh.delete' : 'object.delete',
+          ),
+          // Object ⇄ Mesh, and nothing else: the other modes are a choice
+          // somebody makes, and this is the switch a modeller makes most.
+          onToggleObjectMesh: () => _cubit.mode(
+            state.mode == ModelerMode.mesh
+                ? ModelerMode.object
+                : ModelerMode.mesh,
+          ),
+          onFrameSelection: () =>
+              setState(() => stage.frameObjects(state.selection.objects)),
+          onFrameAll: () => setState(stage.frameSubject),
+          onPlayPause: _toggleAnimationPlayback,
+          onStandardView: (ModelerAction view) => setState(
+            () => lookFrom(stage.orbit, switch (view) {
+              ModelerAction.viewSide => StandardView.right,
+              ModelerAction.viewTop => StandardView.top,
+              _ => StandardView.front,
+            }),
+          ),
           mode: state.mode,
           onLevel: _cubit.submode,
           onAnimationLevel: _cubit.animationSubmode,
@@ -522,6 +552,12 @@ extension _ReadyParts on _ModelerScreenState {
               final bool agentPanelOpen =
                   agentClient != null && _agentPanelOpen;
 
+              final Keymap keymap = keymapFor(
+                _settings.keymap,
+                apple:
+                    Theme.of(context).platform == TargetPlatform.macOS ||
+                    Theme.of(context).platform == TargetPlatform.iOS,
+              );
               return ShellForWidth(
                 parts: ScreenParts(
                   actions: actions,
@@ -539,6 +575,7 @@ extension _ReadyParts on _ModelerScreenState {
                 onTool: _ranTool,
                 documentName: state.documentName,
                 isDirty: state.history.isDirty,
+                keymap: keymap,
                 agentPanel: agentPanelOpen
                     ? AgentSessionPanel(
                         calls: state.agentCalls,
