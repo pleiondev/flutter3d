@@ -632,8 +632,8 @@ List<ModelTool> get _commandTools => <ModelTool>[
           ),
           'depth': NumberSchema(
             description:
-                'how far along the face normal to push it; omit for a flat '
-                'inset',
+                'how far along the face normal to push it, in metres; omit '
+                'for a flat inset',
           ),
         },
         required: <String>['thickness'],
@@ -666,7 +666,7 @@ List<ModelTool> get _commandTools => <ModelTool>[
       inputSchema: ObjectSchema(
         properties: <String, Schema>{
           'amount': NumberSchema(
-            description: 'how far along the rail, -1 to 1',
+            description: 'how far along the rail, as a fraction of it: -1 to 1',
           ),
         },
         required: <String>['amount'],
@@ -1509,6 +1509,83 @@ List<ModelTool> get _commandTools => <ModelTool>[
       ),
     ),
     _command('applyJobResult'),
+  ),
+  // `ux-48` and `ux-49` landed their commands without the tools beside them,
+  // so an agent could read `modelCommandNames` and find four names it had no
+  // way to call. The four below close that.
+  ModelTool(
+    Tool(
+      name: 'setPanorama',
+      description:
+          'Light the scene from one of the built-in panoramas instead of a '
+          'preset. Leave index out (or pass null) to clear it and go back to '
+          'whichever preset the project already names.',
+      inputSchema: ObjectSchema(
+        properties: <String, Schema>{
+          'index': IntegerSchema(
+            description:
+                'which panorama, by its index in the built-in list; null '
+                'clears it',
+          ),
+        },
+      ),
+    ),
+    _command('setPanorama'),
+  ),
+  ModelTool(
+    Tool(
+      name: 'linkToSource',
+      description:
+          'Record that an object came from a file on disk, so a later '
+          'reimport can tell whether that file has changed. sha is the '
+          'file\'s own digest as it was read; path is where it was read '
+          'from.',
+      inputSchema: ObjectSchema(
+        properties: <String, Schema>{
+          'id': IntegerSchema(description: 'the object'),
+          'path': StringSchema(description: 'where the file was read from'),
+          'sha': StringSchema(description: 'the file\'s digest when read'),
+        },
+        required: <String>['id', 'path', 'sha'],
+      ),
+    ),
+    _command('linkToSource'),
+  ),
+  ModelTool(
+    Tool(
+      name: 'unlinkSource',
+      description:
+          'Forget the file an object came from. What it is now is what it '
+          'is; nothing will offer to reimport it again.',
+      inputSchema: ObjectSchema(
+        properties: <String, Schema>{
+          'id': IntegerSchema(description: 'the object'),
+        },
+        required: <String>['id'],
+      ),
+    ),
+    _command('unlinkSource'),
+  ),
+  ModelTool(
+    Tool(
+      name: 'reimport',
+      description:
+          'Replace a linked object\'s mesh with the file as it is now, '
+          'keeping its transform, its name and its place in the tree — one '
+          'undo step. sha is the digest of what is being brought in, which '
+          'is what the link then records.',
+      inputSchema: ObjectSchema(
+        properties: <String, Schema>{
+          'id': IntegerSchema(description: 'the object, already linked'),
+          'sha': StringSchema(description: 'the digest of the new file'),
+          'meshBytes': StringSchema(
+            description: 'the new mesh, base64-encoded EditMesh.toBytes',
+          ),
+        },
+        required: <String>['id', 'sha', 'meshBytes'],
+      ),
+    ),
+    _command('reimport'),
   ),
   ModelTool(
     Tool(
@@ -3350,6 +3427,63 @@ List<ModelTool> get _rigPipelineTools => <ModelTool>[
       ),
     ),
     _command('paintWeights'),
+  ),
+  ModelTool(
+    Tool(
+      name: 'sculptStroke',
+      description:
+          'Drag one sculpting brush along a path over an object\'s mesh, as '
+          'one undo step — `pro-sc-06`\'s own tool. points are where the '
+          'brush went, in the mesh\'s own space, in order; pressures (when '
+          'given, one per point) scales strength at each of them, which is '
+          'what a tablet reports and a mouse does not. The brush moves '
+          'vertices within radius of each point: draw and clay build a '
+          'surface up along the shared normal, inflate pushes each vertex '
+          'along its own, smooth and flatten even it out, grab drags the '
+          'vertices with the path, pinch and crease pull them together. '
+          'symmetryX applies the same stroke mirrored across x = 0.',
+      inputSchema: ObjectSchema(
+        properties: <String, Schema>{
+          'objectId': IntegerSchema(description: 'the object, with a mesh'),
+          'kind': UntitledSingleSelectEnumSchema(
+            description: 'which brush',
+            values: <String>[
+              'draw',
+              'clay',
+              'smooth',
+              'flatten',
+              'inflate',
+              'grab',
+              'pinch',
+              'crease',
+            ],
+          ),
+          'radius': NumberSchema(
+            description: 'how far each dab reaches, in metres',
+          ),
+          'strength': NumberSchema(description: 'how hard it pushes, 0..1'),
+          'points': ListSchema(
+            description: 'the path the brush was dragged along, in order',
+            items: _vector('one point on the stroke'),
+          ),
+          'pressures': ListSchema(
+            description:
+                'optional; pressure 0..1 per point, same length as points. '
+                'A point at 0 moves the brush without sculpting.',
+            items: NumberSchema(),
+          ),
+          'falloff': UntitledSingleSelectEnumSchema(
+            description: 'how influence tapers to the edge; default smooth',
+            values: <String>['linear', 'smooth', 'sharp'],
+          ),
+          'symmetryX': BooleanSchema(
+            description: 'also apply the stroke mirrored across x = 0',
+          ),
+        },
+        required: <String>['objectId', 'kind', 'radius', 'strength', 'points'],
+      ),
+    ),
+    _command('sculptStroke'),
   ),
   ModelTool(
     Tool(

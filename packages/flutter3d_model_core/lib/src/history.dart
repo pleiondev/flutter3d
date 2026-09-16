@@ -106,6 +106,7 @@ final class ModelHistory {
   ModelHistory(
     this._project, {
     this.depth = 64,
+    this.historyBudgetBytes = kHistoryBudgetBytes,
     ProjectSelection? selection,
     this.recoveryJournal,
   }) : _selection = selection ?? ProjectSelection.none,
@@ -128,6 +129,7 @@ final class ModelHistory {
     this._project,
     List<HistoryStep> steps, {
     this.depth = 64,
+    this.historyBudgetBytes = kHistoryBudgetBytes,
     ProjectSelection? selection,
     this.recoveryJournal,
   }) : _selection = selection ?? ProjectSelection.none,
@@ -143,6 +145,23 @@ final class ModelHistory {
   /// Sixty-four is far past what anybody undoes through and near enough to
   /// nothing in the ordinary case.
   final int depth;
+
+  /// How many bytes of mesh journal the kept steps may hold together before
+  /// the oldest of them are dropped — [kHistoryBudgetBytes] by default.
+  ///
+  /// **[depth] alone is the wrong cap for a mesh, and `pro-sc-06` is where
+  /// that stops being theoretical.** A step is a pointer to a kept document
+  /// for every command that edits the document, and the shared parts cost
+  /// nothing; a step that edits a *mesh* is a journal entry the size of what
+  /// it wrote, and a sculpting stroke writes whatever the brush reached.
+  /// Sixty-four nudges of one vertex and sixty-four strokes over a dense mesh
+  /// are the same number of steps and three orders of magnitude apart in
+  /// memory, so the second cap counts what is actually held.
+  ///
+  /// It counts the meshes the kept steps name, both directions of each
+  /// journal — an undone step is memory too, and the redo it offers is the
+  /// reason it is still there.
+  final int historyBudgetBytes;
 
   /// A recovery journal every [run]/[amend]/[beginTransaction]/
   /// [endTransaction] call writes to as well, when one is attached — see the
@@ -249,6 +268,7 @@ final class ModelHistory {
       // through here would wipe the very stack it is walking.
       _undone.clear();
       if (_done.length > depth) _done.removeAt(0);
+      _trimToBudget();
     }
     if (command.isJournaled) {
       recoveryJournal?.record(command, author: author);
@@ -379,6 +399,40 @@ final class ModelHistory {
     );
     _undone.clear();
     if (_done.length > depth) _done.removeAt(0);
+    _trimToBudget();
+  }
+
+  /// Drops the oldest steps until the meshes they name hold no more than
+  /// [historyBudgetBytes] between them — `pro-sc-06`.
+  ///
+  /// **The step and the mesh journal go together, or the history lies.** A
+  /// `HistoryStep` dropped on its own leaves its journal entries behind,
+  /// costing the memory this exists to reclaim; a journal entry dropped on
+  /// its own leaves a step offering an undo the mesh can no longer take. So
+  /// each step that goes takes its own [HistoryStep.meshSteps] with it, by
+  /// the count it recorded.
+  ///
+  /// **The newest step is never dropped.** A history with nothing in it is
+  /// the one state a person cannot get out of: whatever they just did would
+  /// stop being undoable at the exact moment they might want to.
+  void _trimToBudget() {
+    if (_done.length < 2) return;
+    var bytes = 0;
+    final Set<EditMesh> meshes = <EditMesh>{
+      for (final HistoryStep step in _done) ...step.meshSteps.keys,
+    };
+    for (final EditMesh mesh in meshes) {
+      bytes += mesh.journalBytes;
+    }
+    while (bytes > historyBudgetBytes && _done.length > 1) {
+      // A document-only step frees nothing, and still has to go: the stack is
+      // walked backwards, so the mesh steps under it cannot be reached
+      // without it.
+      final HistoryStep oldest = _done.removeAt(0);
+      for (final MapEntry<EditMesh, int> each in oldest.meshSteps.entries) {
+        bytes -= each.key.dropOldestJournalSteps(each.value);
+      }
+    }
   }
 
   ModelProject? _projectBeforeTransaction;
