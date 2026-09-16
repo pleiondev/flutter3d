@@ -238,4 +238,420 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get resetPoseButtonLabel => 'Сбросить позу';
+
+  @override
+  String get toolObjectSelectLabel => 'Выделение';
+
+  @override
+  String get toolObjectSelectAbout =>
+      'Клик по объекту берёт его в работу; с Shift — добавляет к уже выбранному.';
+
+  @override
+  String get toolObjectMoveLabel => 'Перемещение';
+
+  @override
+  String get toolObjectMoveAbout =>
+      'Тяните стрелку, чтобы двигать вдоль одной оси, или центр — чтобы свободно.';
+
+  @override
+  String get toolObjectRotateLabel => 'Поворот';
+
+  @override
+  String get toolObjectRotateAbout =>
+      'Тяните кольцо, чтобы повернуть вокруг этой оси.';
+
+  @override
+  String get toolObjectScaleLabel => 'Масштаб';
+
+  @override
+  String get toolObjectScaleAbout =>
+      'Тяните ручку, чтобы растянуть или сжать — по одной оси или сразу по трём от центра.';
+
+  @override
+  String get toolObjectAddLabel => 'Добавить куб';
+
+  @override
+  String get toolObjectAddAbout =>
+      'Ставит новый куб в начале координат, всё ещё параметрический: размеры и разбиение правятся в панели.';
+
+  @override
+  String get toolObjectDuplicateLabel => 'Дублировать';
+
+  @override
+  String get toolObjectDuplicateAbout =>
+      'Копирует выделенное и выделяет копию, оставляя оригинал на месте.';
+
+  @override
+  String get toolObjectBakeLabel => 'Превратить в меш';
+
+  @override
+  String get toolObjectBakeAbout =>
+      'Превращает форму, помнящую свои параметры, в обычную правимую геометрию. Поля размеров и разбиения исчезают.';
+
+  @override
+  String get toolObjectLatheLabel => 'Добавить тело вращения';
+
+  @override
+  String get toolObjectLatheAbout =>
+      'Вращает нарисованный профиль вокруг оси — так делаются ваза, бутылка или колесо.';
+
+  @override
+  String get toolObjectOriginLabel => 'Опорную точку вниз';
+
+  @override
+  String get toolObjectOriginAbout =>
+      'Опускает точку, вокруг которой объект поворачивается и масштабируется, к самой нижней вершине — объект встаёт на пол.';
+
+  @override
+  String get toolObjectApplyLabel => 'Применить трансформацию';
+
+  @override
+  String get toolObjectApplyAbout =>
+      'Вживляет положение, поворот и масштаб в сами вершины и обнуляет трансформацию.';
+
+  @override
+  String get toolObjectDeleteLabel => 'Удалить';
+
+  @override
+  String get toolObjectDeleteAbout => 'Убирает выделенное. Отмена возвращает.';
+
+  @override
+  String get toolMeshSelectLabel => 'Выделение';
+
+  @override
+  String get toolMeshSelectAbout =>
+      'Клик по вершине, ребру или грани; с Shift — добавляет к уже выбранному.';
+
+  @override
+  String get toolMeshLassoLabel => 'Лассо';
+
+  @override
+  String get toolMeshLassoAbout =>
+      'Обведите нужное от руки вместо того, чтобы кликать каждую часть.';
+
+  @override
+  String get toolMeshLinkedLabel => 'Выделить связное';
+
+  @override
+  String get toolMeshLinkedAbout =>
+      'Берёт всё, что соединено с уже выбранным, — целую оболочку меша, если их несколько.';
+
+  @override
+  String get toolMeshMoveLabel => 'Перемещение';
+
+  @override
+  String get toolMeshMoveAbout =>
+      'Двигает выбранные элементы. Число, набранное во время перетаскивания, задаёт расстояние точно.';
+
+  @override
+  String get toolMeshRotateLabel => 'Поворот';
+
+  @override
+  String get toolMeshRotateAbout =>
+      'Поворачивает выбранные элементы вокруг центра выделения.';
+
+  @override
+  String get toolMeshScaleLabel => 'Масштаб';
+
+  @override
+  String get toolMeshScaleAbout =>
+      'Растягивает или сжимает выбранные элементы относительно центра выделения.';
+
+  @override
+  String get toolMeshExtrudeLabel => 'Выдавливание';
+
+  @override
+  String get toolMeshExtrudeAbout =>
+      'Вытягивает новую геометрию из выбранных граней и оставляет стенку, соединяющую её с тем, откуда она вышла.';
+
+  @override
+  String get toolMeshLoopCutLabel => 'Кольцевой разрез';
+
+  @override
+  String get toolMeshLoopCutAbout =>
+      'Добавляет кольцо рёбер вокруг всего меша — там, где следующему изгибу нужно место.';
+
+  @override
+  String get toolMeshBevelLabel => 'Фаска';
+
+  @override
+  String get toolMeshBevelAbout =>
+      'Заменяет острое ребро узкой полоской, чтобы свет ложился на неё как на настоящем предмете.';
+
+  @override
+  String get toolMeshInsetLabel => 'Врезка';
+
+  @override
+  String get toolMeshInsetAbout =>
+      'Сжимает грань внутрь и застраивает оставшееся кольцо — так делаются панель, окно или утопленная кнопка.';
+
+  @override
+  String get toolMeshBridgeLabel => 'Мост';
+
+  @override
+  String get toolMeshBridgeAbout =>
+      'Соединяет две открытые границы кольцом четырёхугольников: две половины трубы становятся одной поверхностью.';
+
+  @override
+  String get toolMeshSlideLabel => 'Сдвиг рёбер';
+
+  @override
+  String get toolMeshSlideAbout =>
+      'Двигает петлю вдоль пересекающих её рёбер: шов переезжает, но ни одна грань не меняется.';
+
+  @override
+  String get toolMeshTriangulateLabel => 'Триангуляция';
+
+  @override
+  String get toolMeshTriangulateAbout =>
+      'Режет каждую грань на треугольники — то, что читает игровой движок, и то, чем сначала должна стать грань больше чем с четырьмя углами.';
+
+  @override
+  String get toolMeshSeparateLabel => 'Отделить';
+
+  @override
+  String get toolMeshSeparateAbout =>
+      'Выносит выбранные грани в отдельный объект.';
+
+  @override
+  String get toolMeshDissolveLabel => 'Растворить рёбра';
+
+  @override
+  String get toolMeshDissolveAbout =>
+      'Убирает выбранные рёбра, сохраняя поверхность: разделённые ими грани сливаются в одну.';
+
+  @override
+  String get toolMeshFillHolesLabel => 'Заполнить дыры';
+
+  @override
+  String get toolMeshFillHolesAbout =>
+      'Закрывает каждую открытую границу — те щели, из-за которых модель просвечивает с одной стороны.';
+
+  @override
+  String get toolMeshMergeLabel => 'Сшить по расстоянию';
+
+  @override
+  String get toolMeshMergeAbout =>
+      'Сплавляет вершины, лежащие одна на другой, — то, чем полны скан и STL.';
+
+  @override
+  String get toolMeshNormalsLabel => 'Пересчитать нормали';
+
+  @override
+  String get toolMeshNormalsAbout =>
+      'Разворачивает каждую грань наружу, чтобы поверхность перестала читаться вывернутой.';
+
+  @override
+  String get toolMeshFlipLabel => 'Развернуть нормали';
+
+  @override
+  String get toolMeshFlipAbout =>
+      'Поворачивает выбранные грани в другую сторону — для оболочки, которую и правда смотрят изнутри.';
+
+  @override
+  String get toolMeshDeleteLabel => 'Удалить';
+
+  @override
+  String get toolMeshDeleteAbout =>
+      'Убирает выбранные вершины, рёбра или грани и всё, что на них держалось.';
+
+  @override
+  String get toolPoseSelectLabel => 'Выделение';
+
+  @override
+  String get toolPoseSelectAbout => 'Клик по суставу скелета берёт его в позу.';
+
+  @override
+  String get toolPoseKeyLabel => 'Ключ позы';
+
+  @override
+  String get toolPoseKeyAbout =>
+      'Записывает позу с экрана в клип, на кадре, где стоит бегунок.';
+
+  @override
+  String get toolPoseDeleteKeyLabel => 'Удалить ключ';
+
+  @override
+  String get toolPoseDeleteKeyAbout =>
+      'Убирает ключ этого кадра, оставляя соседние вести движение сквозь него.';
+
+  @override
+  String get toolPoseAutoRigLabel => 'Автоскелет…';
+
+  @override
+  String get toolPoseAutoRigAbout =>
+      'Строит скелет по горсти точек, которые вы расставляете на модели.';
+
+  @override
+  String get toolWeightsPaintLabel => 'Красить веса';
+
+  @override
+  String get toolWeightsPaintAbout =>
+      'Кистью задаёт, насколько сильно выбранный сустав тянет поверхность под курсором.';
+
+  @override
+  String get toolWeightsAssignLabel => 'Привязать к суставу';
+
+  @override
+  String get toolWeightsAssignAbout =>
+      'Отдаёт выбранному суставу каждую вершину, которой коснулась кисть, — на полную силу.';
+
+  @override
+  String get toolWeightsMirrorLabel => 'Отзеркалить';
+
+  @override
+  String get toolWeightsMirrorAbout =>
+      'Копирует веса одной стороны на другую: симметричная модель красится один раз.';
+
+  @override
+  String get toolWeightsNormalizeLabel => 'Нормализовать';
+
+  @override
+  String get toolWeightsNormalizeAbout =>
+      'Сводит тяги каждой вершины в сумму, равную единице, и отбрасывает самые слабые сверх её собственного предела.';
+
+  @override
+  String get toolRetargetImportLabel => 'Импортировать клип-источник';
+
+  @override
+  String get toolRetargetImportAbout =>
+      'Читает клип из другого файла, чтобы вести этим ригом.';
+
+  @override
+  String get toolRetargetAutoMapLabel => 'Сопоставить кости автоматически';
+
+  @override
+  String get toolRetargetAutoMapAbout =>
+      'Угадывает по именам, какая кость источника какой кости этого рига соответствует.';
+
+  @override
+  String get toolRetargetApplyLabel => 'Применить перенос';
+
+  @override
+  String get toolRetargetApplyAbout =>
+      'Записывает перенесённое движение на этот риг как собственный клип.';
+
+  @override
+  String get toolMorphsAddLabel => 'Добавить форму';
+
+  @override
+  String get toolMorphsAddAbout =>
+      'Берёт меш как он есть сейчас — как форму, к которой будет вести ползунок.';
+
+  @override
+  String get toolMorphsKeyLabel => 'Ключ формы';
+
+  @override
+  String get toolMorphsKeyAbout =>
+      'Записывает веса форм как они есть в клип, на кадре бегунка.';
+
+  @override
+  String get toolMorphsDeleteLabel => 'Удалить форму';
+
+  @override
+  String get toolMorphsDeleteAbout =>
+      'Убирает выбранную форму и ползунок, который её вёл.';
+
+  @override
+  String get primitiveBox => 'Куб';
+
+  @override
+  String get primitivePlane => 'Плоскость';
+
+  @override
+  String get primitiveSphere => 'Сфера';
+
+  @override
+  String get primitiveCylinder => 'Цилиндр';
+
+  @override
+  String get primitiveTorus => 'Тор';
+
+  @override
+  String get openTooltip => 'Открыть файл — заменяет всё, что открыто сейчас';
+
+  @override
+  String get importTooltip =>
+      'Импортировать файл — добавляет его к тому, что уже открыто';
+
+  @override
+  String get import => 'Импорт';
+
+  @override
+  String get saveTooltipDirty => 'Сохранить — есть несохранённые изменения';
+
+  @override
+  String get saveTooltipClean => 'Сохранить — всё записано';
+
+  @override
+  String get saveToCabinet => 'Сохранить в кабинет';
+
+  @override
+  String get splitViewportSemanticsLabel => 'Разделить вьюпорт';
+
+  @override
+  String get splitViewportOn =>
+      'Разделить вьюпорт — один документ с двух камер';
+
+  @override
+  String get splitViewportOff => 'Снова один вьюпорт';
+
+  @override
+  String get play => 'Играть';
+
+  @override
+  String get playTooltip => 'Играть — походить по документу в шаблоне';
+
+  @override
+  String playBlockedTooltip(String reason) {
+    return 'Играть — $reason';
+  }
+
+  @override
+  String get preview => 'Предпросмотр';
+
+  @override
+  String get previewTooltip => 'Предпросмотр — как это нарисует игра';
+
+  @override
+  String get settings => 'Настройки';
+
+  @override
+  String get settingsTooltip =>
+      'Настройки — навигация, клавиши, рабочее пространство, язык';
+
+  @override
+  String agentSessionSemanticsLabel(int count) {
+    return 'Сеанс агента, вызовов: $count';
+  }
+
+  @override
+  String agentSessionTooltip(String client, int count) {
+    return '$client · вызовов: $count';
+  }
+
+  @override
+  String get exportCopyTooltip => 'Экспортировать копию';
+
+  @override
+  String get reportProblemTooltip => 'Сообщить о проблеме';
+
+  @override
+  String get startScreenLabel => 'Начальный экран';
+
+  @override
+  String get more => 'Ещё';
+
+  @override
+  String get foldPropertiesPanel => 'Свернуть панель свойств';
+
+  @override
+  String get foldToolRail => 'Свернуть панель инструментов';
+
+  @override
+  String get legalEntry =>
+      'Юридическое: лицензия, приватность и сторонние лицензии';
+
+  @override
+  String get runACommand => 'Выполнить команду';
 }

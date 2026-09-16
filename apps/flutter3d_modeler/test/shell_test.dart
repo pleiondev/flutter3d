@@ -11,6 +11,7 @@ library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter3d_modeler/l10n/app_localizations.dart';
 import 'package:flutter3d_modeler/src/ui/shell.dart';
 import 'package:flutter3d_modeler/src/ui/theme.dart';
 import 'package:flutter3d_modeler/src/ui/tools.dart';
@@ -40,6 +41,9 @@ Future<void> pumpShell(
   addTearDown(tester.view.reset);
   await tester.pumpWidget(
     MaterialApp(
+      locale: const Locale('en'),
+      localizationsDelegates: AppLocalizations.localizationsDelegates,
+      supportedLocales: AppLocalizations.supportedLocales,
       theme: modelerTheme(),
       home: ModelerShell(
         mode: mode,
@@ -111,6 +115,9 @@ void main() {
         addTearDown(tester.view.reset);
         await tester.pumpWidget(
           MaterialApp(
+            locale: const Locale('en'),
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
             theme: modelerTheme(),
             home: ModelerShell(
               mode: ModelerMode.animation,
@@ -450,6 +457,9 @@ void main() {
       // background color or ink splashes may be invisible".
       await tester.pumpWidget(
         MaterialApp(
+          locale: const Locale('en'),
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
           theme: modelerTheme(),
           home: ModelerShell(
             mode: ModelerMode.scene,

@@ -19,8 +19,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter3d_model_core/flutter3d_model_core.dart'
     show ProjectSelection;
 
+import '../../l10n/app_localizations.dart';
 import 'keymap.dart';
 import 'shortcut_help.dart' show describeShortcut;
+import 'tool_strings.dart';
 import 'tools.dart';
 
 /// One line of the palette: what it is, what it would do, and whether it can
@@ -83,6 +85,12 @@ List<PaletteEntry> paletteEntries({
   required ModelerMode mode,
   required AnimationSubmode animation,
   required Keymap keymap,
+
+  /// `ux-22`: what each tool is called in the language the person picked.
+  /// Null lists them in English, which is what a test pumping this list
+  /// without a `MaterialApp` gets — and what an agent reading the same
+  /// table over MCP sees regardless.
+  AppLocalizations? l10n,
   Set<String> unavailable = const <String>{},
   List<PaletteEntry> extra = const <PaletteEntry>[],
 }) {
@@ -96,8 +104,8 @@ List<PaletteEntry> paletteEntries({
     entries.add(
       PaletteEntry(
         id: tool.id,
-        label: tool.label,
-        about: tool.about,
+        label: l10n == null ? tool.label : toolLabel(l10n, tool),
+        about: l10n == null ? tool.about : toolAbout(l10n, tool),
         icon: tool.icon,
         mode: from,
         keys: key == null ? null : describeShortcut(key),
@@ -174,7 +182,11 @@ const String kFoldRailCommand = 'view.foldRail';
 const String kLegalCommand = 'help.legal';
 
 /// Those two, with whatever keys [keymap] gives them.
-List<PaletteEntry> foldEntries(Keymap keymap, {required ModelerMode mode}) {
+List<PaletteEntry> foldEntries(
+  Keymap keymap, {
+  required ModelerMode mode,
+  required AppLocalizations l10n,
+}) {
   String? keysFor(ModelerAction action) {
     final List<ShortcutActivator> keys = keymap.forAction(action);
     return keys.isEmpty ? null : describeShortcut(keys.first);
@@ -183,14 +195,14 @@ List<PaletteEntry> foldEntries(Keymap keymap, {required ModelerMode mode}) {
   return <PaletteEntry>[
     PaletteEntry(
       id: kFoldPanelCommand,
-      label: 'Fold the properties panel',
+      label: l10n.foldPropertiesPanel,
       icon: Icons.view_sidebar_outlined,
       mode: mode,
       keys: keysFor(ModelerAction.foldPanel),
     ),
     PaletteEntry(
       id: kFoldRailCommand,
-      label: 'Fold the tool rail',
+      label: l10n.foldToolRail,
       icon: Icons.view_week_outlined,
       mode: mode,
       keys: keysFor(ModelerAction.foldRail),
@@ -205,10 +217,13 @@ List<PaletteEntry> foldEntries(Keymap keymap, {required ModelerMode mode}) {
 /// are about the window and this is not, and a function called `foldEntries`
 /// that also returns a legal screen is the kind of small lie that makes a
 /// file hard to read a year later.
-List<PaletteEntry> helpEntries({required ModelerMode mode}) => <PaletteEntry>[
+List<PaletteEntry> helpEntries({
+  required ModelerMode mode,
+  required AppLocalizations l10n,
+}) => <PaletteEntry>[
   PaletteEntry(
     id: kLegalCommand,
-    label: 'Legal: licence, privacy and third-party licences',
+    label: l10n.legalEntry,
     icon: Icons.gavel_outlined,
     mode: mode,
   ),
@@ -262,11 +277,11 @@ class _CommandPaletteState extends State<CommandPalette> {
               padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
               child: TextField(
                 autofocus: true,
-                decoration: const InputDecoration(
-                  prefixIcon: Icon(Icons.search),
-                  hintText: 'Run a command',
+                decoration: InputDecoration(
+                  prefixIcon: const Icon(Icons.search),
+                  hintText: AppLocalizations.of(context).runACommand,
                   isDense: true,
-                  border: OutlineInputBorder(),
+                  border: const OutlineInputBorder(),
                 ),
                 onChanged: (String it) => setState(() => _said = it),
                 // Enter runs the first thing on the list, which is what a
