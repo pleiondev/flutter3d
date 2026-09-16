@@ -2864,6 +2864,7 @@ void main() {
           normalize: false,
           maxInfluences: 3,
         ),
+        const SubdivideMesh(levels: 2, smooth: false),
         SculptStroke(
           objectId: 10,
           kind: BrushKind.clay,

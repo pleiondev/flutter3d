@@ -234,5 +234,21 @@
   "legalEntry": "Legal: licence, privacy and third-party licences",
   "runACommand": "Run a command",
   "gallery": "Gallery",
-  "galleryTooltip": "Gallery — insert a ready model beside what is open"
+  "galleryTooltip": "Gallery — insert a ready model beside what is open",
+  "toolSculptDrawLabel": "Draw",
+  "toolSculptDrawAbout": "Pushes everything under the brush out along one shared direction, the way a stamp would.",
+  "toolSculptClayLabel": "Clay",
+  "toolSculptClayAbout": "Builds the surface up in flat layers, like thumbing clay on.",
+  "toolSculptInflateLabel": "Inflate",
+  "toolSculptInflateAbout": "Pushes each vertex along its own normal, so a rounded patch puffs up rather than rising as a plane.",
+  "toolSculptSmoothLabel": "Smooth",
+  "toolSculptSmoothAbout": "Evens out what is under the brush, taking the bumps down.",
+  "toolSculptFlattenLabel": "Flatten",
+  "toolSculptFlattenAbout": "Pulls everything under the brush toward one plane.",
+  "toolSculptGrabLabel": "Grab",
+  "toolSculptGrabAbout": "Drags the vertices under the brush along with the pointer.",
+  "toolSculptPinchLabel": "Pinch",
+  "toolSculptPinchAbout": "Pulls the vertices under the brush toward its centre.",
+  "toolSculptCreaseLabel": "Crease",
+  "toolSculptCreaseAbout": "Pinches and sinks at once, which is how a fold is cut in."
 }

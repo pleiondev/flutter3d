@@ -66,6 +66,14 @@ String toolLabel(AppLocalizations l, ModelerTool tool) => switch (tool.id) {
   'morphs.add' => l.toolMorphsAddLabel,
   'morphs.key' => l.toolMorphsKeyLabel,
   'morphs.delete' => l.toolMorphsDeleteLabel,
+  'sculpt.draw' => l.toolSculptDrawLabel,
+  'sculpt.clay' => l.toolSculptClayLabel,
+  'sculpt.inflate' => l.toolSculptInflateLabel,
+  'sculpt.smooth' => l.toolSculptSmoothLabel,
+  'sculpt.flatten' => l.toolSculptFlattenLabel,
+  'sculpt.grab' => l.toolSculptGrabLabel,
+  'sculpt.pinch' => l.toolSculptPinchLabel,
+  'sculpt.crease' => l.toolSculptCreaseLabel,
   _ => tool.label,
 };
 
@@ -116,6 +124,14 @@ String toolAbout(AppLocalizations l, ModelerTool tool) => switch (tool.id) {
   'morphs.add' => l.toolMorphsAddAbout,
   'morphs.key' => l.toolMorphsKeyAbout,
   'morphs.delete' => l.toolMorphsDeleteAbout,
+  'sculpt.draw' => l.toolSculptDrawAbout,
+  'sculpt.clay' => l.toolSculptClayAbout,
+  'sculpt.inflate' => l.toolSculptInflateAbout,
+  'sculpt.smooth' => l.toolSculptSmoothAbout,
+  'sculpt.flatten' => l.toolSculptFlattenAbout,
+  'sculpt.grab' => l.toolSculptGrabAbout,
+  'sculpt.pinch' => l.toolSculptPinchAbout,
+  'sculpt.crease' => l.toolSculptCreaseAbout,
   _ => tool.about,
 };
 

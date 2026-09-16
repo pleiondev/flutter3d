@@ -60,6 +60,9 @@ void main() {
         ModelerMode.object,
         ModelerMode.mesh,
         ModelerMode.material,
+        // `pro-sc-08`: sculpting is built now, and Full is the workspace
+        // that offers what is built.
+        ModelerMode.sculpt,
         ModelerMode.animation,
         ModelerMode.scene,
       ]);

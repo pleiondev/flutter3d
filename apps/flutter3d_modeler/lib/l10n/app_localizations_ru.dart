@@ -661,4 +661,60 @@ class AppLocalizationsRu extends AppLocalizations {
   @override
   String get galleryTooltip =>
       'Галерея — вставить готовую модель рядом с открытым';
+
+  @override
+  String get toolSculptDrawLabel => 'Лепка';
+
+  @override
+  String get toolSculptDrawAbout =>
+      'Выдавливает всё под кистью в одном общем направлении — как штамп.';
+
+  @override
+  String get toolSculptClayLabel => 'Глина';
+
+  @override
+  String get toolSculptClayAbout =>
+      'Наращивает поверхность плоскими слоями — как глину пальцем.';
+
+  @override
+  String get toolSculptInflateLabel => 'Надув';
+
+  @override
+  String get toolSculptInflateAbout =>
+      'Двигает каждую вершину по её собственной нормали: округлый участок раздувается, а не поднимается плоскостью.';
+
+  @override
+  String get toolSculptSmoothLabel => 'Сглаживание';
+
+  @override
+  String get toolSculptSmoothAbout =>
+      'Выравнивает то, что под кистью, снимая неровности.';
+
+  @override
+  String get toolSculptFlattenLabel => 'Выравнивание';
+
+  @override
+  String get toolSculptFlattenAbout =>
+      'Притягивает всё под кистью к одной плоскости.';
+
+  @override
+  String get toolSculptGrabLabel => 'Захват';
+
+  @override
+  String get toolSculptGrabAbout =>
+      'Тянет вершины под кистью вслед за указателем.';
+
+  @override
+  String get toolSculptPinchLabel => 'Сжатие';
+
+  @override
+  String get toolSculptPinchAbout =>
+      'Стягивает вершины под кистью к её центру.';
+
+  @override
+  String get toolSculptCreaseLabel => 'Складка';
+
+  @override
+  String get toolSculptCreaseAbout =>
+      'Сжимает и вдавливает разом — так прорезается складка.';
 }

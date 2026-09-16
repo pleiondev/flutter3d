@@ -1249,6 +1249,102 @@ abstract class AppLocalizations {
   /// In ru, this message translates to:
   /// **'Галерея — вставить готовую модель рядом с открытым'**
   String get galleryTooltip;
+
+  /// No description provided for @toolSculptDrawLabel.
+  ///
+  /// In ru, this message translates to:
+  /// **'Лепка'**
+  String get toolSculptDrawLabel;
+
+  /// No description provided for @toolSculptDrawAbout.
+  ///
+  /// In ru, this message translates to:
+  /// **'Выдавливает всё под кистью в одном общем направлении — как штамп.'**
+  String get toolSculptDrawAbout;
+
+  /// No description provided for @toolSculptClayLabel.
+  ///
+  /// In ru, this message translates to:
+  /// **'Глина'**
+  String get toolSculptClayLabel;
+
+  /// No description provided for @toolSculptClayAbout.
+  ///
+  /// In ru, this message translates to:
+  /// **'Наращивает поверхность плоскими слоями — как глину пальцем.'**
+  String get toolSculptClayAbout;
+
+  /// No description provided for @toolSculptInflateLabel.
+  ///
+  /// In ru, this message translates to:
+  /// **'Надув'**
+  String get toolSculptInflateLabel;
+
+  /// No description provided for @toolSculptInflateAbout.
+  ///
+  /// In ru, this message translates to:
+  /// **'Двигает каждую вершину по её собственной нормали: округлый участок раздувается, а не поднимается плоскостью.'**
+  String get toolSculptInflateAbout;
+
+  /// No description provided for @toolSculptSmoothLabel.
+  ///
+  /// In ru, this message translates to:
+  /// **'Сглаживание'**
+  String get toolSculptSmoothLabel;
+
+  /// No description provided for @toolSculptSmoothAbout.
+  ///
+  /// In ru, this message translates to:
+  /// **'Выравнивает то, что под кистью, снимая неровности.'**
+  String get toolSculptSmoothAbout;
+
+  /// No description provided for @toolSculptFlattenLabel.
+  ///
+  /// In ru, this message translates to:
+  /// **'Выравнивание'**
+  String get toolSculptFlattenLabel;
+
+  /// No description provided for @toolSculptFlattenAbout.
+  ///
+  /// In ru, this message translates to:
+  /// **'Притягивает всё под кистью к одной плоскости.'**
+  String get toolSculptFlattenAbout;
+
+  /// No description provided for @toolSculptGrabLabel.
+  ///
+  /// In ru, this message translates to:
+  /// **'Захват'**
+  String get toolSculptGrabLabel;
+
+  /// No description provided for @toolSculptGrabAbout.
+  ///
+  /// In ru, this message translates to:
+  /// **'Тянет вершины под кистью вслед за указателем.'**
+  String get toolSculptGrabAbout;
+
+  /// No description provided for @toolSculptPinchLabel.
+  ///
+  /// In ru, this message translates to:
+  /// **'Сжатие'**
+  String get toolSculptPinchLabel;
+
+  /// No description provided for @toolSculptPinchAbout.
+  ///
+  /// In ru, this message translates to:
+  /// **'Стягивает вершины под кистью к её центру.'**
+  String get toolSculptPinchAbout;
+
+  /// No description provided for @toolSculptCreaseLabel.
+  ///
+  /// In ru, this message translates to:
+  /// **'Складка'**
+  String get toolSculptCreaseLabel;
+
+  /// No description provided for @toolSculptCreaseAbout.
+  ///
+  /// In ru, this message translates to:
+  /// **'Сжимает и вдавливает разом — так прорезается складка.'**
+  String get toolSculptCreaseAbout;
 }
 
 class _AppLocalizationsDelegate

@@ -251,5 +251,21 @@
   "legalEntry": "Юридическое: лицензия, приватность и сторонние лицензии",
   "runACommand": "Выполнить команду",
   "gallery": "Галерея",
-  "galleryTooltip": "Галерея — вставить готовую модель рядом с открытым"
+  "galleryTooltip": "Галерея — вставить готовую модель рядом с открытым",
+  "toolSculptDrawLabel": "Лепка",
+  "toolSculptDrawAbout": "Выдавливает всё под кистью в одном общем направлении — как штамп.",
+  "toolSculptClayLabel": "Глина",
+  "toolSculptClayAbout": "Наращивает поверхность плоскими слоями — как глину пальцем.",
+  "toolSculptInflateLabel": "Надув",
+  "toolSculptInflateAbout": "Двигает каждую вершину по её собственной нормали: округлый участок раздувается, а не поднимается плоскостью.",
+  "toolSculptSmoothLabel": "Сглаживание",
+  "toolSculptSmoothAbout": "Выравнивает то, что под кистью, снимая неровности.",
+  "toolSculptFlattenLabel": "Выравнивание",
+  "toolSculptFlattenAbout": "Притягивает всё под кистью к одной плоскости.",
+  "toolSculptGrabLabel": "Захват",
+  "toolSculptGrabAbout": "Тянет вершины под кистью вслед за указателем.",
+  "toolSculptPinchLabel": "Сжатие",
+  "toolSculptPinchAbout": "Стягивает вершины под кистью к её центру.",
+  "toolSculptCreaseLabel": "Складка",
+  "toolSculptCreaseAbout": "Сжимает и вдавливает разом — так прорезается складка."
 }

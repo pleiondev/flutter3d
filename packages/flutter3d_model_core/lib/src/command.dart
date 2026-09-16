@@ -1363,6 +1363,10 @@ _modelCommandReaders =
           },
         _ => null,
       },
+      'subdivideMesh': (json) => SubdivideMesh(
+        levels: (json['levels'] as num?)?.toInt() ?? 1,
+        smooth: json['smooth'] as bool? ?? true,
+      ),
       'sculptStroke': (json) => switch ((
         json['objectId'],
         json['kind'],

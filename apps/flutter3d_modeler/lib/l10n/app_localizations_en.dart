@@ -655,4 +655,60 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get galleryTooltip =>
       'Gallery — insert a ready model beside what is open';
+
+  @override
+  String get toolSculptDrawLabel => 'Draw';
+
+  @override
+  String get toolSculptDrawAbout =>
+      'Pushes everything under the brush out along one shared direction, the way a stamp would.';
+
+  @override
+  String get toolSculptClayLabel => 'Clay';
+
+  @override
+  String get toolSculptClayAbout =>
+      'Builds the surface up in flat layers, like thumbing clay on.';
+
+  @override
+  String get toolSculptInflateLabel => 'Inflate';
+
+  @override
+  String get toolSculptInflateAbout =>
+      'Pushes each vertex along its own normal, so a rounded patch puffs up rather than rising as a plane.';
+
+  @override
+  String get toolSculptSmoothLabel => 'Smooth';
+
+  @override
+  String get toolSculptSmoothAbout =>
+      'Evens out what is under the brush, taking the bumps down.';
+
+  @override
+  String get toolSculptFlattenLabel => 'Flatten';
+
+  @override
+  String get toolSculptFlattenAbout =>
+      'Pulls everything under the brush toward one plane.';
+
+  @override
+  String get toolSculptGrabLabel => 'Grab';
+
+  @override
+  String get toolSculptGrabAbout =>
+      'Drags the vertices under the brush along with the pointer.';
+
+  @override
+  String get toolSculptPinchLabel => 'Pinch';
+
+  @override
+  String get toolSculptPinchAbout =>
+      'Pulls the vertices under the brush toward its centre.';
+
+  @override
+  String get toolSculptCreaseLabel => 'Crease';
+
+  @override
+  String get toolSculptCreaseAbout =>
+      'Pinches and sinks at once, which is how a fold is cut in.';
 }

@@ -67,6 +67,7 @@ final class StrokeEvent {
     required this.view,
     required this.kind,
     required this.force,
+    this.erase = false,
   });
 
   final StrokePhase phase;
@@ -87,6 +88,16 @@ final class StrokeEvent {
   /// [StrokePhase.end] always reports 0.0, there being no pressure left on a
   /// pointer that has come up.
   final double force;
+
+  /// Whether this is a stylus held the wrong way up — `pro-sc-08`, which is
+  /// the first tool with anything to do about it.
+  ///
+  /// **The same stroke, the opposite effect**, which is what flipping a pen
+  /// over means in every drawing application on every platform;
+  /// `InputPolicy`'s own `ToolStroke.erase` already resolves it and this
+  /// carries it the last few inches to a tool. False for a mouse and for a
+  /// pen the right way up.
+  final bool erase;
 }
 
 /// Draws [stage] through [renderer], and orbits it under the pointer.
@@ -1070,6 +1081,7 @@ class _ModelerViewportState extends State<ModelerViewport> {
             view: view,
             kind: _kindOf(event.kind),
             force: intent.force,
+            erase: intent.erase,
           ),
         );
         return;
@@ -1110,6 +1122,7 @@ class _ModelerViewportState extends State<ModelerViewport> {
             view: view,
             kind: _kindOf(event.kind),
             force: InputPolicy.normalizePressure(event.pressure),
+            erase: event.kind == PointerDeviceKind.invertedStylus,
           ),
         );
       }
