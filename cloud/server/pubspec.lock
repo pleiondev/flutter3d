@@ -218,26 +218,12 @@ packages:
     source: hosted
     version: "1.1.1"
   flutter3d_core:
-    dependency: "direct overridden"
+    dependency: "direct main"
     description:
       path: "../../packages/flutter3d_core"
       relative: true
     source: path
     version: "0.1.0"
-  flutter3d_formats:
-    dependency: "direct main"
-    description:
-      path: "../../packages/flutter3d_formats"
-      relative: true
-    source: path
-    version: "0.6.0"
-  flutter3d_geometry:
-    dependency: "direct overridden"
-    description:
-      path: "../../packages/flutter3d_geometry"
-      relative: true
-    source: path
-    version: "0.6.0"
   flutter3d_hardware:
     dependency: "direct overridden"
     description:
@@ -259,10 +245,10 @@ packages:
       relative: true
     source: path
     version: "0.6.0"
-  flutter3d_particles_core:
+  flutter3d_particles:
     dependency: "direct main"
     description:
-      path: "../../packages/flutter3d_particles_core"
+      path: "../../packages/flutter3d_particles"
       relative: true
     source: path
     version: "0.6.0"
@@ -273,13 +259,6 @@ packages:
       relative: true
     source: path
     version: "0.7.0"
-  flutter3d_rig:
-    dependency: "direct main"
-    description:
-      path: "../../packages/flutter3d_rig"
-      relative: true
-    source: path
-    version: "0.6.0"
   frontend_server_client:
     dependency: transitive
     description:

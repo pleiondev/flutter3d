@@ -201,6 +201,10 @@ extension _FileHandling on _ModelerScreenState {
               cubit: _cubit,
               openExportDialog: _showExportDialog,
               openLatheDialog: _openLatheDialog,
+              // `ux-36`: both of these are built, and `ui.openDialog` said
+              // otherwise until somebody re-read the sentence.
+              openAutorigDialog: _openAutorigDialog,
+              openGamePreview: _openGamePreview,
               // `ux-25`: the same door the rail and the palette press.
               runTool: _ranTool,
               // `ux-44`: the window itself, for an agent that needs to see

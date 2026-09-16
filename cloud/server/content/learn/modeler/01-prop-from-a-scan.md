@@ -17,11 +17,19 @@ every "bring in somebody else's object" job in the modeler touches.
 
 ## 1. Start
 
-Launch the modeler. The start screen offers **Open file**, **New project**
-and a list of anything you opened recently. Choose **Open file** and pick
-`teapot.stl`.
+Launch the modeler. The very first launch asks five questions once — the
+camera scheme, the keymap, whether G and R act or arm, which workspace, and
+the language — and every launch after that opens Home: **Open file**, **New
+project**, four cards under **Start from**, and a list of anything you
+opened recently.
 
-![The start screen: Open file, New project, and the list of recent documents, over the empty editor.](/assets/learn/modeler/prop-from-a-scan/01-start-screen.png)
+Two ways in from here, and both land in the same place. **Open file** and
+pick `teapot.stl`, or take the first card, **From a scan or a download**,
+which opens the import screen directly. If Home is switched off — there is a
+"show this at launch" tick at the bottom of it — the ⌂ button in the top bar
+opens it again.
+
+![Home: Open file, New project, the four Start-from cards, and the list of recent documents, over the empty editor.](/assets/learn/modeler/prop-from-a-scan/01-start-screen.png)
 
 ## 2. Import: units and axis
 

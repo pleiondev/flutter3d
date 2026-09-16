@@ -93,9 +93,18 @@ recovery log: JSON Lines, one command per line (a crash mid-write loses at
 most the last line, not the whole file), written only after `run`
 succeeds. Because it replays commands cold, any command whose behaviour
 depends on live UI state rather than its own JSON arguments would replay
-wrong — which is why selection itself now runs as a real command
+wrong — which is why selection over MCP runs as a real command
 (`SelectElements`, via `ModelSession.select`) instead of assigning
 `history.selection` directly.
+
+**A person's own clicks do not**, and that is a real gap rather than a
+simplification: `interactions.dart` and `ready_parts.dart` assign
+`_history.selection` where a click, a lasso or an outliner row changes what
+is held. The consequence is exact and worth stating — a recovery journal
+replayed after a session in which somebody clicked comes back with the
+selection the *commands* implied rather than the one they had, so a command
+that reads the selection replays against a different one. Nothing else
+diverges: every edit itself is a command with its own arguments.
 
 **Every `ModelCommand` subclass** (~95, `grep -rn "extends ModelCommand"`),
 grouped by file:
@@ -638,6 +647,11 @@ the other half of that gap: arguments are now checked against the schema
 before a tool runs, so an undeclared field is refused by name rather than
 quietly working.
 
+**Eight lights, six of them shadowed** — two different limits, and the
+panel names the second one ("0 of 6 shadowed") while this line names the
+first. A ninth light in one draw call is what turns the scene status
+orange; a seventh *shadowed* light is what stops getting a shadow map.
+
 **Eight lights maximum** — `apps/flutter3d_modeler/lib/src/scene_mode.dart:64`,
 `LightBuffer.maxLights = 8`; a ninth light in one draw call turns the
 scene status orange (`lightOverflowOf`,
@@ -679,9 +693,11 @@ count mismatch. `setProfileLimits {maxJoints? (1-64), maxInfluences?
   `to`'s own extension; `force` writes anyway despite an error-level
   issue. The format list is generated straight from `builtInModelWriters`
   (§17).
-- `import {path/bytes, unit?, upAxis? (default y), weld?, fixNormals?,
-  triangulate? (all default false)}` — reads glTF, GLB, OBJ, `.f3d`, or
-  STL; **FBX is recognised and explicitly refused with a reason**, not
+- `import {from, unit?, upAxis? (default y), weld?, fixNormals?,
+  triangulate? (all default false)}` — `from` is a path, and the only way
+  in: there is no `bytes` argument, because a server that took one would be
+  a second file reader beside the one every other tool already goes
+  through. Reads glTF, GLB, OBJ, `.f3d`, or STL; **FBX is recognised and explicitly refused with a reason**, not
   silently ignored. Each imported object is one undo step.
 - `journal` — writes the session's own successfully-run command list as
   JSON Lines (`CommandJournal` shape) — not the project itself (`save`

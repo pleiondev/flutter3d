@@ -24,6 +24,8 @@ final class ModelerUiActions implements UiActions {
     required this.cubit,
     required this.openExportDialog,
     required this.openLatheDialog,
+    required this.openAutorigDialog,
+    required this.openGamePreview,
     required this.runTool,
     this.captureWindow,
   });
@@ -38,6 +40,18 @@ final class ModelerUiActions implements UiActions {
 
   /// `_ModelerScreenState._openLatheDialog`, the same deal.
   final Future<void> Function() openLatheDialog;
+
+  /// `_ModelerScreenState._openAutorigDialog` and `._openGamePreview` —
+  /// `ux-36`.
+  ///
+  /// **Both used to be a refusal here.** `ui.openDialog` said "not built in
+  /// this app yet" for autorig and for preview, which was true when the
+  /// sentence was written and stopped being true when `S8` built
+  /// `autorig_dialog.dart` and `S9` built the game preview. A refusal that
+  /// has outlived its reason is worse than no tool: a screenshot script
+  /// reads it as a thing the application cannot do.
+  final Future<void> Function() openAutorigDialog;
+  final Future<void> Function() openGamePreview;
 
   /// `ux-44`: the window as PNG bytes, or null when there is no laid-out
   /// window to capture. Handed in for the same reason the two dialogs above
@@ -198,15 +212,15 @@ final class ModelerUiActions implements UiActions {
       case 'lathe':
         unawaited(openLatheDialog());
         return (did: true, says: 'opened the lathe dialog');
-      // `RigBuildOptions` (`anim-33d`) and the game preview (`anim-19`, T5)
-      // have no dialog on this branch yet — refusing cleanly here beats
-      // duplicating a dialog that does not exist.
+      // `ux-36`: both of these exist now — `S8`'s own autorig dialog and
+      // `S9`'s own game preview — and this answered "not built in this app
+      // yet" for as long as nobody re-read it.
       case 'autorig':
+        unawaited(openAutorigDialog());
+        return (did: true, says: 'opened the auto-rig dialog');
       case 'preview':
-        return (
-          did: false,
-          says: 'the $dialog dialog is not built in this app yet',
-        );
+        unawaited(openGamePreview());
+        return (did: true, says: 'opened the game preview');
       default:
         return (did: false, says: 'no such dialog: $dialog');
     }
