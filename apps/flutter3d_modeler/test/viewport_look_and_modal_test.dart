@@ -255,4 +255,78 @@ void main() {
       expect(confirmed, 1);
     });
   });
+
+  group('ux-33: the arrows turn the camera', () {
+    testWidgets('left and right take the yaw one way and the other', (
+      WidgetTester tester,
+    ) async {
+      final ModelerStage stage = await pumpViewport(tester);
+      tester.element(find.byType(ModelerViewport));
+      final Focus look = tester.widget<Focus>(
+        find
+            .descendant(
+              of: find.byType(ModelerViewport),
+              matching: find.byType(Focus),
+            )
+            .first,
+      );
+      look.focusNode!.requestFocus();
+      await tester.pump();
+
+      final double started = stage.orbit.yaw;
+      await tester.sendKeyEvent(LogicalKeyboardKey.arrowRight);
+      await tester.pump();
+      final double right = stage.orbit.yaw;
+      await tester.sendKeyEvent(LogicalKeyboardKey.arrowLeft);
+      await tester.sendKeyEvent(LogicalKeyboardKey.arrowLeft);
+      await tester.pump();
+
+      // **The one control in the application that needed a mouse.** Every
+      // panel is a list of focusable fields and every tool has a letter, and
+      // then the picture in the middle could only be turned by dragging.
+      // Mutation: ignore the arrows, which is how this was — and a person
+      // who cannot use a pointing device cannot look at the other side of
+      // the model they are editing.
+      expect(right, lessThan(started));
+      expect(stage.orbit.yaw, greaterThan(started));
+      expect(
+        started - right,
+        closeTo(kOrbitKeyStep * stage.orbit.rotateSensitivity, 1e-9),
+      );
+    });
+
+    testWidgets('up and down take the pitch, and shift pans instead', (
+      WidgetTester tester,
+    ) async {
+      final ModelerStage stage = await pumpViewport(tester);
+      final Focus look = tester.widget<Focus>(
+        find
+            .descendant(
+              of: find.byType(ModelerViewport),
+              matching: find.byType(Focus),
+            )
+            .first,
+      );
+      look.focusNode!.requestFocus();
+      await tester.pump();
+
+      final double startedPitch = stage.orbit.pitch;
+      await tester.sendKeyEvent(LogicalKeyboardKey.arrowUp);
+      await tester.pump();
+      expect(stage.orbit.pitch, isNot(startedPitch));
+
+      // Shift is the same distinction a middle-drag already makes: getting
+      // round a model and getting a different part of it on screen are two
+      // wants, and both need an answer without a mouse.
+      final double turned = stage.orbit.yaw;
+      final Vector3 was = stage.orbit.target.clone();
+      await tester.sendKeyDownEvent(LogicalKeyboardKey.shiftLeft);
+      await tester.sendKeyEvent(LogicalKeyboardKey.arrowRight);
+      await tester.sendKeyUpEvent(LogicalKeyboardKey.shiftLeft);
+      await tester.pump();
+
+      expect(stage.orbit.yaw, closeTo(turned, 1e-9));
+      expect((stage.orbit.target - was).length, greaterThan(0));
+    });
+  });
 }

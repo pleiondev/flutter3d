@@ -14,6 +14,7 @@ import 'package:flutter3d_editor_widgets/flutter3d_editor_widgets.dart';
 import 'package:flutter3d_model_core/flutter3d_model_core.dart';
 
 import '../../l10n/app_localizations.dart';
+import 'named_button.dart';
 import 'theme.dart';
 
 /// The lights, and the selected one's own fields.
@@ -95,10 +96,13 @@ final class SceneSourcePanel extends StatelessWidget {
               selected: i == active,
               onTap: () => onSelect(i),
               title: Text(_labelOf(lights[i].type)),
-              trailing: IconButton(
-                icon: const Icon(Icons.close, size: 16),
-                tooltip: 'Remove',
-                onPressed: () => onRemove(i),
+              trailing: NamedButton(
+                label: 'Remove this light',
+                child: IconButton(
+                  icon: const Icon(Icons.close, size: 16),
+                  tooltip: 'Remove this light',
+                  onPressed: () => onRemove(i),
+                ),
               ),
             ),
         TextButton(

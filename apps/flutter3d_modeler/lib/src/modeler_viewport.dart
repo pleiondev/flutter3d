@@ -90,6 +90,22 @@ final class StrokeEvent {
 }
 
 /// Draws [stage] through [renderer], and orbits it under the pointer.
+/// What one arrow press stands for, in the pixels of drag
+/// [OrbitController.rotate] measures a turn in — `ux-33`.
+///
+/// **Pixels, not radians, because that is the unit the controller takes.**
+/// Twelve of them is about five and a half degrees at the default
+/// `rotateSensitivity`: a press nudges, and the key held down at a keyboard's
+/// own repeat rate comes round in a couple of seconds, which is the speed a
+/// drag makes. Smaller and a person holds the key wondering whether anything
+/// is happening; larger and one press overshoots the face they were aiming
+/// at.
+const double kOrbitKeyStep = 12.0;
+
+/// What one shifted arrow press slides the view by, in the pixels
+/// [OrbitController.pan] measures in.
+const double kOrbitKeyPan = 24.0;
+
 class ModelerViewport extends StatefulWidget {
   const ModelerViewport({
     super.key,
@@ -825,151 +841,151 @@ class _ModelerViewportState extends State<ModelerViewport> {
         opaque: false,
         onExit: _hoverLeft,
         child: Listener(
-        // On the picture and nothing else. A `Listener` up at the scaffold would
-        // orbit the camera when somebody drags a value in the properties panel,
-        // which is the first bug every viewport in every tool has had.
-        //
-        // **Opaque, rather than deferring to whatever the backend presented.**
-        // The child is `presentFrame`'s own widget, and a backend with no image
-        // to show yet — the first frame, a device composited elsewhere, a test
-        // — hands back something that hit-tests as nothing, so the viewport
-        // silently stopped answering the mouse at all. Its own area is its own
-        // to answer for; what is drawn in it does not decide that.
-        behavior: HitTestBehavior.opaque,
-        onPointerDown: _down,
-        onPointerMove: _move,
-        onPointerUp: _up,
-        // The lit arm follows a pointer that is not pressed. A hover rather than
-        // a move, so that dragging the camera across the gizmo does not light
-        // arms behind it.
-        onPointerHover: _hover,
-        onPointerCancel: (PointerCancelEvent event) => _up(event),
-        onPointerSignal: _signal,
-        onPointerPanZoomStart: (PointerPanZoomStartEvent event) =>
-            _gestures.pinchStart(),
-        onPointerPanZoomUpdate: _panZoom,
-        child: LayoutBuilder(
-          builder: (BuildContext context, BoxConstraints constraints) {
-            _viewport = constraints.biggest;
-            // `ux-04`: before anything else this frame, so a scheme changed in
-            // Settings and a tool armed a moment ago are both true of the very
-            // next press rather than of the one after it.
-            _syncGestureRules();
-            // `ux-04`: the walk keys are read per frame, and this is the frame.
-            _walkWhileLooking();
-            widget.onFrame();
-            // Near and far from where the camera ended up, every frame: a fixed
-            // range spends its precision on empty space when the model is small
-            // and clips it when the model is large, and a modeller meets both
-            // inside one session.
-            widget.stage.orbit.syncProjectionDepth(widget.stage.camera);
-            // After the projection and before the render: the overlay is sized
-            // against the camera as it will be for this frame, not as it was for
-            // the last one, and a grid a frame behind is a grid that swims under
-            // a model while somebody orbits. Skipped entirely for a viewport
-            // that asked for none of it — see [ModelerViewport.overlay].
-            if (widget.overlay) _buildOverlay(widget.renderer);
-            // Clamped because a zero-sized viewport is a real state — a panel
-            // animating open, a window dragged to nothing — and a render
-            // target of no pixels is not.
-            final int width = (constraints.maxWidth * dpr).round().clamp(
-              1,
-              8192,
-            );
-            final int height = (constraints.maxHeight * dpr).round().clamp(
-              1,
-              8192,
-            );
-            widget.onViewportMetrics?.call(width, height, dpr);
-            final frame = widget.renderer.render(
-              width: width,
-              height: height,
-              scene: widget.stage.scene,
-              views: widget.stage.views(),
-              settings: widget.settings,
-            );
-            widget.onRendered?.call(frame);
-            // From the device rather than painted from an image, for the
-            // reason `SceneSurface` gives: a backend whose frame is composited
-            // elsewhere has no image to paint, and presentFrame is the one
-            // answer every backend can give.
-            final Widget picture = presentFrame(
-              widget.renderer.device,
-              frame.frame,
-            );
-            final SelectionBox? box = _box;
-            final bool showBox = box != null && box.isBox;
-            // Re-projected every frame rather than cached: the target does not
-            // move, but the camera can — an orbit mid-drag has to carry the
-            // ring with it the same way it carries the gizmo.
-            final Vector3? snapAt = widget.snapHighlight;
-            final Offset? snapScreen = snapAt == null || _viewport.isEmpty
-                ? null
-                : PickingView(
-                    camera: widget.stage.camera,
-                    size: _viewport,
-                  ).project(snapAt);
-            // Drawn in Flutter rather than into the overlay, and that is the one
-            // thing in this viewport that belongs on top of the picture rather
-            // than in it: a selection rectangle — and `view-26n`'s own snap
-            // target — are screen-space things with no position in the world,
-            // and putting either in the overlay would mean unprojecting it back
-            // out every frame to draw a shape that was never anywhere but the
-            // glass.
-            // `ux-11`'s own carried label is the third of these, and the
-            // one that has to follow the pointer rather than sit in a corner:
-            // a readout in the status line is a readout nobody looking at
-            // what they are dragging ever sees.
-            final String? readout = widget.transformReadout;
-            final Offset? labelAt = _pointerAt;
-            final bool showReadout = readout != null && labelAt != null;
-            // `ux-24`: the brush's own reach, where the pointer is.
-            final bool showBrush =
-                widget.brushRadius != null && _pointerAt != null;
-            if (!showBox &&
-                snapScreen == null &&
-                !showReadout &&
-                !showBrush) {
-              return picture;
-            }
-            return Stack(
-              children: <Widget>[
-                Positioned.fill(child: picture),
-                if (showBrush)
-                  Positioned.fill(
-                    child: IgnorePointer(
-                      child: CustomPaint(
-                        painter: _BrushPainter(
-                          at: _pointerAt!,
-                          radius: widget.brushRadius!,
-                          inverting: widget.brushInverting,
+          // On the picture and nothing else. A `Listener` up at the scaffold would
+          // orbit the camera when somebody drags a value in the properties panel,
+          // which is the first bug every viewport in every tool has had.
+          //
+          // **Opaque, rather than deferring to whatever the backend presented.**
+          // The child is `presentFrame`'s own widget, and a backend with no image
+          // to show yet — the first frame, a device composited elsewhere, a test
+          // — hands back something that hit-tests as nothing, so the viewport
+          // silently stopped answering the mouse at all. Its own area is its own
+          // to answer for; what is drawn in it does not decide that.
+          behavior: HitTestBehavior.opaque,
+          onPointerDown: _down,
+          onPointerMove: _move,
+          onPointerUp: _up,
+          // The lit arm follows a pointer that is not pressed. A hover rather than
+          // a move, so that dragging the camera across the gizmo does not light
+          // arms behind it.
+          onPointerHover: _hover,
+          onPointerCancel: (PointerCancelEvent event) => _up(event),
+          onPointerSignal: _signal,
+          onPointerPanZoomStart: (PointerPanZoomStartEvent event) =>
+              _gestures.pinchStart(),
+          onPointerPanZoomUpdate: _panZoom,
+          child: LayoutBuilder(
+            builder: (BuildContext context, BoxConstraints constraints) {
+              _viewport = constraints.biggest;
+              // `ux-04`: before anything else this frame, so a scheme changed in
+              // Settings and a tool armed a moment ago are both true of the very
+              // next press rather than of the one after it.
+              _syncGestureRules();
+              // `ux-04`: the walk keys are read per frame, and this is the frame.
+              _walkWhileLooking();
+              widget.onFrame();
+              // Near and far from where the camera ended up, every frame: a fixed
+              // range spends its precision on empty space when the model is small
+              // and clips it when the model is large, and a modeller meets both
+              // inside one session.
+              widget.stage.orbit.syncProjectionDepth(widget.stage.camera);
+              // After the projection and before the render: the overlay is sized
+              // against the camera as it will be for this frame, not as it was for
+              // the last one, and a grid a frame behind is a grid that swims under
+              // a model while somebody orbits. Skipped entirely for a viewport
+              // that asked for none of it — see [ModelerViewport.overlay].
+              if (widget.overlay) _buildOverlay(widget.renderer);
+              // Clamped because a zero-sized viewport is a real state — a panel
+              // animating open, a window dragged to nothing — and a render
+              // target of no pixels is not.
+              final int width = (constraints.maxWidth * dpr).round().clamp(
+                1,
+                8192,
+              );
+              final int height = (constraints.maxHeight * dpr).round().clamp(
+                1,
+                8192,
+              );
+              widget.onViewportMetrics?.call(width, height, dpr);
+              final frame = widget.renderer.render(
+                width: width,
+                height: height,
+                scene: widget.stage.scene,
+                views: widget.stage.views(),
+                settings: widget.settings,
+              );
+              widget.onRendered?.call(frame);
+              // From the device rather than painted from an image, for the
+              // reason `SceneSurface` gives: a backend whose frame is composited
+              // elsewhere has no image to paint, and presentFrame is the one
+              // answer every backend can give.
+              final Widget picture = presentFrame(
+                widget.renderer.device,
+                frame.frame,
+              );
+              final SelectionBox? box = _box;
+              final bool showBox = box != null && box.isBox;
+              // Re-projected every frame rather than cached: the target does not
+              // move, but the camera can — an orbit mid-drag has to carry the
+              // ring with it the same way it carries the gizmo.
+              final Vector3? snapAt = widget.snapHighlight;
+              final Offset? snapScreen = snapAt == null || _viewport.isEmpty
+                  ? null
+                  : PickingView(
+                      camera: widget.stage.camera,
+                      size: _viewport,
+                    ).project(snapAt);
+              // Drawn in Flutter rather than into the overlay, and that is the one
+              // thing in this viewport that belongs on top of the picture rather
+              // than in it: a selection rectangle — and `view-26n`'s own snap
+              // target — are screen-space things with no position in the world,
+              // and putting either in the overlay would mean unprojecting it back
+              // out every frame to draw a shape that was never anywhere but the
+              // glass.
+              // `ux-11`'s own carried label is the third of these, and the
+              // one that has to follow the pointer rather than sit in a corner:
+              // a readout in the status line is a readout nobody looking at
+              // what they are dragging ever sees.
+              final String? readout = widget.transformReadout;
+              final Offset? labelAt = _pointerAt;
+              final bool showReadout = readout != null && labelAt != null;
+              // `ux-24`: the brush's own reach, where the pointer is.
+              final bool showBrush =
+                  widget.brushRadius != null && _pointerAt != null;
+              if (!showBox &&
+                  snapScreen == null &&
+                  !showReadout &&
+                  !showBrush) {
+                return picture;
+              }
+              return Stack(
+                children: <Widget>[
+                  Positioned.fill(child: picture),
+                  if (showBrush)
+                    Positioned.fill(
+                      child: IgnorePointer(
+                        child: CustomPaint(
+                          painter: _BrushPainter(
+                            at: _pointerAt!,
+                            radius: widget.brushRadius!,
+                            inverting: widget.brushInverting,
+                          ),
                         ),
                       ),
                     ),
-                  ),
-                if (showBox)
-                  Positioned.fill(
-                    child: IgnorePointer(
-                      child: CustomPaint(painter: _BoxPainter(box)),
+                  if (showBox)
+                    Positioned.fill(
+                      child: IgnorePointer(
+                        child: CustomPaint(painter: _BoxPainter(box)),
+                      ),
                     ),
-                  ),
-                if (snapScreen != null)
-                  Positioned.fill(
-                    child: IgnorePointer(
-                      child: CustomPaint(painter: _SnapPainter(snapScreen)),
+                  if (snapScreen != null)
+                    Positioned.fill(
+                      child: IgnorePointer(
+                        child: CustomPaint(painter: _SnapPainter(snapScreen)),
+                      ),
                     ),
-                  ),
-                if (showReadout)
-                  TransformReadout(
-                    readout: readout,
-                    hints: widget.transformHints,
-                    at: labelAt,
-                    within: _viewport,
-                  ),
-              ],
-            );
-          },
-        ),
+                  if (showReadout)
+                    TransformReadout(
+                      readout: readout,
+                      hints: widget.transformHints,
+                      at: labelAt,
+                      within: _viewport,
+                    ),
+                ],
+              );
+            },
+          ),
         ),
       ),
     );
@@ -1190,11 +1206,9 @@ class _ModelerViewportState extends State<ModelerViewport> {
     // `ux-28`: what is under the pointer, for the caller to light up. After
     // the gizmo, because a viewport with a gizmo in it has both and the
     // element under an arm is not the thing a hand is reaching for.
-    if (widget.onElementHover case final void Function(
-      PickingView,
-      Offset?,
-      PointerDeviceKind,
-    ) told when !_viewport.isEmpty) {
+    if (widget.onElementHover
+        case final void Function(PickingView, Offset?, PointerDeviceKind) told
+        when !_viewport.isEmpty) {
       told(
         PickingView(camera: widget.stage.camera, size: _viewport),
         event.localPosition,
@@ -1388,10 +1402,54 @@ class _ModelerViewportState extends State<ModelerViewport> {
   /// here, and the one that should win is the one the right button is
   /// currently holding open. Everything else — a save, an undo — goes up to
   /// the application unchanged.
-  KeyEventResult _lookKey(FocusNode node, KeyEvent event) =>
-      _gestures.isLooking && _walkKeys.contains(event.logicalKey)
-      ? KeyEventResult.handled
-      : KeyEventResult.ignored;
+  KeyEventResult _lookKey(FocusNode node, KeyEvent event) {
+    if (_gestures.isLooking && _walkKeys.contains(event.logicalKey)) {
+      return KeyEventResult.handled;
+    }
+    return _orbitKey(event);
+  }
+
+  /// The arrow keys turn the camera while the viewport has the focus —
+  /// `ux-33`.
+  ///
+  /// **The one control in the application that needed a mouse to use at
+  /// all.** Every panel is a list of focusable fields and every tool has a
+  /// letter, and then the picture in the middle — the thing all of it is
+  /// about — could only be turned by dragging. A quarter of a radian a press,
+  /// held down for a sweep, is the same movement a drag makes and the same
+  /// one `lookFrom` animates for a named view.
+  ///
+  /// Shift pans instead, for the same reason a middle-drag does: getting to
+  /// the other side of a model and getting a different part of it on screen
+  /// are two different wants and both need an answer without a mouse.
+  KeyEventResult _orbitKey(KeyEvent event) {
+    if (event is! KeyDownEvent && event is! KeyRepeatEvent) {
+      return KeyEventResult.ignored;
+    }
+    // The same signs a drag in that direction carries: `rotate` takes a
+    // yaw that grows to the left and a pitch that grows upward, which is
+    // what `_apply` already converts a `CameraIntent` into.
+    final (double x, double y) = switch (event.logicalKey) {
+      LogicalKeyboardKey.arrowLeft => (-1.0, 0.0),
+      LogicalKeyboardKey.arrowRight => (1.0, 0.0),
+      LogicalKeyboardKey.arrowUp => (0.0, 1.0),
+      LogicalKeyboardKey.arrowDown => (0.0, -1.0),
+      _ => (0.0, 0.0),
+    };
+    if (x == 0.0 && y == 0.0) return KeyEventResult.ignored;
+    final bool pans = HardwareKeyboard.instance.isShiftPressed;
+    final OrbitController orbit = widget.stage.orbit;
+    if (pans) {
+      orbit.pan(
+        x * kOrbitKeyPan,
+        y * kOrbitKeyPan,
+        viewportHeight: _viewport.height,
+      );
+    } else {
+      orbit.rotate(x * kOrbitKeyStep, y * kOrbitKeyStep);
+    }
+    return KeyEventResult.handled;
+  }
 
   /// Moves the camera by [intent], in the sense `OrbitController` takes.
   ///

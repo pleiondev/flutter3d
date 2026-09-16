@@ -50,6 +50,9 @@ Future<void> _pump(
   BoneMap retargetBoneMap = const BoneMap(<String, String>{}),
   bool canApplyRetarget = false,
   bool touch = false,
+
+  /// What the platform's own text-size setting is turned up to — `ux-33`.
+  double textScale = 1.0,
 }) async {
   // Tall enough that the panel's own `ListView` never has to scroll to
   // reach the scene panels — nine light rows push the shadows panel well
@@ -68,6 +71,12 @@ Future<void> _pump(
   await tester.pumpWidget(
     MaterialApp(
       theme: modelerTheme().copyWith(platform: TargetPlatform.macOS),
+      builder: (BuildContext context, Widget? child) => MediaQuery(
+        data: MediaQuery.of(
+          context,
+        ).copyWith(textScaler: TextScaler.linear(textScale)),
+        child: child!,
+      ),
       locale: const Locale('en'),
       localizationsDelegates: AppLocalizations.localizationsDelegates,
       supportedLocales: AppLocalizations.supportedLocales,
@@ -273,6 +282,37 @@ void main() {
         .getTopLeft(find.text('No shape keys on this object'))
         .dy;
     expect(heading, lessThan(said));
+  });
+
+  group('ux-33: the panel at twice the text size', () {
+    testWidgets('a real panel does not overflow in any mode', (
+      WidgetTester tester,
+    ) async {
+      // **A real panel, because the shell's own 1.3× test used an empty
+      // one.** Nothing overflows when the thing being measured is a
+      // `SizedBox.shrink`, and 2.0 is what a platform's own accessibility
+      // slider actually reaches — the fixed 32/30/52-pixel rows the review
+      // listed are the ones that would fail here first.
+      for (final ModelerMode mode in <ModelerMode>[
+        ModelerMode.object,
+        ModelerMode.mesh,
+        ModelerMode.material,
+        ModelerMode.scene,
+        ModelerMode.animation,
+      ]) {
+        await _pump(
+          tester,
+          mode: mode,
+          project: mode == ModelerMode.scene ? _sceneProject(2) : null,
+          textScale: 2.0,
+        );
+        expect(
+          tester.takeException(),
+          isNull,
+          reason: '$mode overflows at a 2.0 text scale',
+        );
+      }
+    });
   });
 
   group('ux-21: a finger can hit the panel', () {
