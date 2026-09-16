@@ -256,6 +256,65 @@ List<ModelPictureTool> uiToolsFor(UiActions actions) => <ModelPictureTool>[
       );
     },
   ),
+  // `gal-06`: the gallery, for an agent that has no grid to look at. Two
+  // verbs rather than one with a mode argument, for the reason the Play
+  // tools are five: a tool list is what an agent learns the application
+  // from.
+  ModelPictureTool(
+    Tool(
+      name: 'gallery.list',
+      description:
+          'What the gallery offers: one line per item, each starting with '
+          'the id gallery.insert takes. Every line names the licence, and '
+          'an item under CC-BY names its author — an export that includes '
+          'one owes that credit. Narrow with category (lighting, '
+          'furniture, tableware, architecture) or licence (cc0, '
+          'cc-by-4.0). Both left out lists everything.',
+      inputSchema: ObjectSchema(
+        properties: <String, Schema>{
+          'category': StringSchema(
+            description:
+                'lighting, furniture, tableware or architecture; omit for '
+                'all of them',
+          ),
+          'licence': StringSchema(
+            description: 'cc0 for the items that need no credit',
+          ),
+        },
+      ),
+    ),
+    (ModelSession session, Map<String, Object?> arguments) async {
+      final UiAnswer answer = await actions.galleryList(
+        category: arguments['category'] as String?,
+        licence: arguments['licence'] as String?,
+      );
+      return (did: answer.did, says: answer.says, png: null);
+    },
+  ),
+  ModelPictureTool(
+    Tool(
+      name: 'gallery.insert',
+      description:
+          'Inserts a gallery item beside what is already open — one undo '
+          'step, and the document that was open stays open. Takes an id '
+          'from gallery.list; anything else refuses and says to call that '
+          'first.',
+      inputSchema: ObjectSchema(
+        properties: <String, Schema>{
+          'id': StringSchema(
+            description: 'an id from gallery.list, such as built-in/mug',
+          ),
+        },
+        required: <String>['id'],
+      ),
+    ),
+    (ModelSession session, Map<String, Object?> arguments) async {
+      final UiAnswer answer = await actions.galleryInsert(
+        arguments['id']! as String,
+      );
+      return (did: answer.did, says: answer.says, png: null);
+    },
+  ),
   // `ux-25`: the command palette's own list, and the same door it presses.
   _ui(
     Tool(

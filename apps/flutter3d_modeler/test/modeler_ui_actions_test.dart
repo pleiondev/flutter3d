@@ -453,6 +453,59 @@ void main() {
       expect(shot.says, contains('not running'));
     });
 
+    test(
+      'gal-06: the gallery lists what it offers, with the licence',
+      () async {
+        final ModelerUiActions actions = _actions(_opened(), _Counters());
+
+        final UiAnswer all = await actions.galleryList();
+        // Every line starts with the id an insert takes, because an agent
+        // that has to guess one is an agent that guesses wrong.
+        expect(all.says, contains('built-in/mug'));
+        expect(all.says, contains('cc0'));
+
+        final UiAnswer lighting = await actions.galleryList(
+          category: 'lighting',
+        );
+        expect(lighting.says, contains('built-in/floor-lamp'));
+        expect(lighting.says, isNot(contains('built-in/mug')));
+
+        // **Mutation: leave the licence off the line.** An agent picks a
+        // model, the export owes somebody a credit, and nothing it read ever
+        // said so.
+        final UiAnswer none = await actions.galleryList(licence: 'cc-by-4.0');
+        expect(none.says, contains('nothing'));
+      },
+    );
+
+    test('gal-06: and inserts one beside what is open, in one step', () async {
+      final ModelerCubit cubit = _opened();
+      final ModelerUiActions actions = _actions(cubit, _Counters());
+      final int before = _ready(cubit).project.objects.length;
+
+      final UiAnswer said = await actions.galleryInsert('built-in/mug');
+      expect(said.did, isTrue);
+      expect(said.says, contains('Mug'));
+      expect(_ready(cubit).project.objects, hasLength(before + 1));
+
+      // One step: the undo that takes the mug back leaves the document
+      // that was open exactly as it was.
+      expect(_ready(cubit).history.canUndo, isTrue);
+      _ready(cubit).history.undo();
+      expect(_ready(cubit).project.objects, hasLength(before));
+    });
+
+    test('gal-06: an id nothing offers refuses, and says where ids come '
+        'from', () async {
+      final UiAnswer said = await _actions(
+        _opened(),
+        _Counters(),
+      ).galleryInsert('built-in/spaceship');
+
+      expect(said.did, isFalse);
+      expect(said.says, contains('gallery.list'));
+    });
+
     test('an unknown name refuses cleanly', () {
       final cubit = _opened();
       final answer = _actions(cubit, _Counters()).openDialog('nonsense');
