@@ -72,6 +72,7 @@ base class ToolTableServer<S, A> extends MCPServer
     required String version,
     required String instructions,
     this.refusal,
+    this.pausedBecause,
     this.onCall,
     this.onInitialize,
   }) : super.fromStreamChannel(
@@ -105,6 +106,19 @@ base class ToolTableServer<S, A> extends MCPServer
   /// Null leaves the framework's own validation in place, which says the same
   /// thing as a JSON Schema path expression.
   final A Function(String says)? refusal;
+
+  /// Why calls are not being answered right now, or null when they are —
+  /// `ux-45`.
+  ///
+  /// **A person's own hand on the brake.** An agent editing a document
+  /// somebody is working in is a second pair of hands, and the moment a
+  /// person wants it to stop there is no way to ask: killing the process
+  /// loses the session, and closing the window loses the work. This is asked
+  /// before every call, so a paused agent is told why rather than left
+  /// waiting — and being told is what lets it say so rather than retry.
+  ///
+  /// Null for every headless server: there is nobody there to press it.
+  final String? Function()? pausedBecause;
 
   /// `tut-16`'s own hook, run after every call answers, whichever of [tools]
   /// it was — a caller with a screen open beside this server (`mcp-13n`'s
@@ -166,6 +180,12 @@ base class ToolTableServer<S, A> extends MCPServer
         // for why, and `argument_check.dart` for what it catches that the
         // framework's own pass does not.
         if (refusal case final A Function(String) asRefusal) {
+          // `ux-45`: the brake first. A paused session refuses a call it
+          // would otherwise have run, before it reads the arguments — a
+          // complaint about a misspelt key would be a strange answer to
+          // "you are paused".
+          final String? paused = pausedBecause?.call();
+          if (paused != null) return toResult(asRefusal(paused));
           final String? wrong = refuseArguments(offered.tool, arguments);
           if (wrong != null) return toResult(asRefusal(wrong));
         }

@@ -47,7 +47,16 @@ class AgentSessionPanel extends StatefulWidget {
     required this.onUndoAgentSteps,
     this.clientName,
     this.onClose,
+    this.paused = false,
+    this.onPaused,
   });
+
+  /// Whether agent calls are being refused right now — `ux-45`.
+  final bool paused;
+
+  /// Flips [paused]. Null hides the switch, which is what a test pumping the
+  /// panel without a server behind it wants.
+  final ValueChanged<bool>? onPaused;
 
   /// What the connected agent called itself — `ux-05`'s own `initialize`.
   /// Null in a test that has no client to name.
@@ -65,7 +74,8 @@ class AgentSessionPanel extends StatefulWidget {
   final ModelHistory history;
 
   /// `mcp-10n`'s own restriction, offered a button: enabled only while
-  /// [ModelHistory.topStepAuthor] is [StepAuthor.agent].
+  /// [ModelHistory.topStepAuthor] is [StepAuthor.agent]. `ux-45` made it take
+  /// back the whole run rather than one step.
   final VoidCallback onUndoAgentSteps;
 
   @override
@@ -177,6 +187,31 @@ class _AgentSessionPanelState extends State<AgentSessionPanel> {
             ],
           ),
         ),
+        // `ux-45`: the brake, under the numbers it is about. A person who
+        // wants an agent to stop has, until now, had the choice of killing
+        // the process or closing the window — one loses the session, the
+        // other loses the work.
+        if (widget.onPaused case final ValueChanged<bool> onPaused)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 12, 12),
+            child: Row(
+              children: <Widget>[
+                Expanded(
+                  child: Text(
+                    widget.paused
+                        ? 'Paused — calls are being refused'
+                        : 'Pause agent',
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: widget.paused
+                          ? theme.colorScheme.error
+                          : theme.colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                ),
+                Switch(value: widget.paused, onChanged: onPaused),
+              ],
+            ),
+          ),
       ],
     );
   }

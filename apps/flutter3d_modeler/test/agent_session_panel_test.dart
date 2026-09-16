@@ -41,6 +41,8 @@ Future<void> _pump(
   required List<AgentToolCall> calls,
   required ModelHistory history,
   VoidCallback? onUndoAgentSteps,
+  bool paused = false,
+  ValueChanged<bool>? onPaused,
 }) => tester.pumpWidget(
   MaterialApp(
     theme: modelerTheme(),
@@ -51,6 +53,8 @@ Future<void> _pump(
           calls: calls,
           history: history,
           onUndoAgentSteps: onUndoAgentSteps ?? () {},
+          paused: paused,
+          onPaused: onPaused,
         ),
       ),
     ),
@@ -217,4 +221,46 @@ void main() {
       expect(disabled.onPressed, isNull);
     },
   );
+
+  group('ux-45: the person\'s own brake', () {
+    testWidgets('no handler, no switch — a panel with no server behind it', (
+      WidgetTester tester,
+    ) async {
+      await _pump(
+        tester,
+        calls: const <AgentToolCall>[],
+        history: ModelHistory(const ModelProject()),
+      );
+      expect(find.byType(Switch), findsNothing);
+    });
+
+    testWidgets('the switch flips, and says what it did', (
+      WidgetTester tester,
+    ) async {
+      final flipped = <bool>[];
+      await _pump(
+        tester,
+        calls: const <AgentToolCall>[],
+        history: ModelHistory(const ModelProject()),
+        onPaused: flipped.add,
+      );
+
+      expect(find.text('Pause agent'), findsOneWidget);
+      await tester.tap(find.byType(Switch));
+      await tester.pump();
+      expect(flipped, <bool>[true]);
+
+      // Mutation: leave the label alone once it is on. A brake that looks
+      // the same pressed and unpressed is a brake nobody trusts — and this
+      // one is reached for exactly when somebody is already worried.
+      await _pump(
+        tester,
+        calls: const <AgentToolCall>[],
+        history: ModelHistory(const ModelProject()),
+        paused: true,
+        onPaused: flipped.add,
+      );
+      expect(find.text('Paused — calls are being refused'), findsOneWidget);
+    });
+  });
 }

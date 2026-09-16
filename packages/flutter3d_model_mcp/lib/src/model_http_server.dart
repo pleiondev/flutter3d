@@ -67,6 +67,11 @@ final class ModelHttpServer {
     )?
     onToolCall,
     void Function(String clientName)? onInitialize,
+
+    /// `ux-45`: why calls are being refused right now, or null when they are
+    /// not — a person's own hand on the brake, asked before every call. See
+    /// `ToolTableServer.pausedBecause`.
+    String? Function()? pausedBecause,
   }) async => ModelHttpServer._(
     await LoopbackMcpServer.start(
       serve: (channel) => ModelMcpServer(
@@ -75,6 +80,7 @@ final class ModelHttpServer {
         extraTools: extraTools,
         onCall: onToolCall,
         onInitialize: onInitialize,
+        pausedBecause: pausedBecause,
       ),
       port: port,
       token: token,

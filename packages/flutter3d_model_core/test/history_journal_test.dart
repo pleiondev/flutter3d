@@ -103,15 +103,17 @@ void main() {
       );
     });
 
-    test("amend records under the step's own original author, not a fixed "
-        'one', () {
+    test('amend records under whoever adjusted it, not a fixed one', () {
       final journal = CommandJournal();
       final history = ModelHistory(
         const ModelProject(),
         recoveryJournal: journal,
       );
       history.run(const AddPrimitive(kind: 'box'), author: StepAuthor.agent);
-      history.amend(const AddPrimitive(kind: 'box', size: 2.0));
+      history.amend(
+        const AddPrimitive(kind: 'box', size: 2.0),
+        by: StepAuthor.agent,
+      );
 
       // One line: `amend` overwrote rather than appended.
       expect(journal.length, 1);
@@ -120,11 +122,12 @@ void main() {
         const ModelProject(),
       );
       expect(replay.ok, isTrue, reason: replay.refused);
-      // Mutation: record the amend under a fixed author regardless of the
-      // step it replaces — the live undo stack's own adjusted step keeps
-      // the original author (`history_author_test.dart`), and a journal
-      // that disagreed with it would leave a replayed session's own later
-      // agent `undo` refusing, or not, for the wrong reason.
+      // Mutation: record the amend under a fixed author regardless of who
+      // adjusted it — the live undo stack's own adjusted step is marked with
+      // whoever made the adjustment (`ux-45`, `history_author_test.dart`),
+      // and a journal that disagreed with it would leave a replayed
+      // session's own later agent `undo` refusing, or not, for the wrong
+      // reason.
       expect(replay.history!.topStepAuthor, StepAuthor.agent);
     });
 

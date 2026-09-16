@@ -65,6 +65,11 @@ Future<void> startMcpServer({
   )?
   onToolCall,
   void Function(String clientName)? onInitialize,
+
+  /// `ux-45`: asked before every agent call, and a sentence from it is the
+  /// refusal the agent gets. The screen's own "Pause agent" toggle is what
+  /// makes it answer.
+  String? Function()? pausedBecause,
 }) async {
   if (_server != null) return;
   final session = ModelSession(history);
@@ -76,6 +81,7 @@ Future<void> startMcpServer({
         : uiToolsFor(uiActions),
     onToolCall: onToolCall,
     onInitialize: onInitialize,
+    pausedBecause: pausedBecause,
   );
   _server = server;
   final dir =

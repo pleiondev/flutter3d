@@ -791,6 +791,11 @@ extension _ReadyParts on _ModelerScreenState {
                         calls: state.agentCalls,
                         history: state.history,
                         onUndoAgentSteps: _undoAgentSteps,
+                        // `ux-45`: the person's own brake, read by the
+                        // server's `pausedBecause` gate.
+                        paused: _agentPaused,
+                        onPaused: (bool to) =>
+                            setState(() => _agentPaused = to),
                         clientName: agentClient,
                         onClose: () => setState(() => _agentPanelOpen = false),
                       )
