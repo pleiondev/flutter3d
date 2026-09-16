@@ -52,9 +52,7 @@ this project already behaves: move or turn the root, and the mesh riding
 under it goes along, the same "an object's transform is local to its
 parent" rule the renderer itself already follows.
 
-*(screenshot: the viewport with the vase and the freshly imported, still
-axis-aligned box, the outliner showing the new object under the vase's own
-— placeholder, see the note at the end of this page)*
+![Case 3's own document as it opens: the vase and the imported box in the viewport, both listed in the outliner, nothing selected yet.](/assets/learn/modeler/a-lit-corner/05-outliner-after-import.png)
 
 ## 2. The gizmo and its pivot
 
@@ -71,8 +69,7 @@ With one object selected the two give the same answer here, but naming
 actually wants once a second object joins the selection, and the command
 takes the argument regardless of how many objects are picked.
 
-*(screenshot: the viewport mid-drag, the gizmo and the pivot indicator over
-the box, the status line reading the move — placeholder)*
+![The box selected: the transform gizmo on it, its position, rotation and scale in the panel, and the pivot and space choices under them.](/assets/learn/modeler/a-lit-corner/01-scene-viewport-gizmo.png)
 
 ## 3. Scene mode: a source, its shadow, an environment, post
 
@@ -99,8 +96,7 @@ Switch to Scene mode. Its four panels each set one part of the project's own
   (`SetSceneLightingField('exposure', 1.25)`), and **Bloom**
   (`SetSceneLightingField('bloomEnabled', true)`).
 
-*(screenshot: Scene mode's four panels — sources, shadows, environment,
-post — with the values above set — placeholder)*
+![Scene mode: the project's own lights, the environment and the post settings, each on its own section of the panel.](/assets/learn/modeler/a-lit-corner/02-scene-mode-panel.png)
 
 > **What a headless render shows now, and what it still does not.**
 > `renderProject`/`renderSheet` — the same functions this page's own
@@ -144,8 +140,7 @@ export proceeds. Decoding the written GLB back:
   only dedupes materials that would write the identical manifest entry, and
   these two genuinely do not.
 
-*(screenshot: the export dialog, the readiness warning, the file about to
-write — placeholder)*
+![The export screen over the two-object scene, with the readiness checks for both.](/assets/learn/modeler/a-lit-corner/04-export-two-nodes.png)
 
 ## 5. Into the cabinet
 
@@ -161,10 +156,10 @@ case by hand on a real machine and fill in a line here — "*n* minutes,
 *date*, *machine*" — the way `rel-09`'s own cohort rows do. Nothing in this
 session could actually run the desktop app, so no time is claimed.
 
-**Screenshots.** All three pictures of the editor on this page are real,
+**Screenshots.** All four pictures of the editor on this page are real,
 taken from the running application over case 3's own saved document: the
-viewport with the object selected, the Scene mode panel, and the export
-dialog. They are taken headlessly rather than by hand —
+document as it opens with both objects in the outliner, the viewport with
+the box selected, the Scene mode panel, and the export screen. They are taken headlessly rather than by hand —
 `apps/flutter3d_modeler/test/tutorial_case_screenshots_test.dart` drives the
 real editor under the software rasteriser and photographs the window — so
 they are goldens: a run says whether a panel has moved since, and one

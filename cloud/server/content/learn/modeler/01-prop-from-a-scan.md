@@ -21,8 +21,7 @@ Launch the modeler. The start screen offers **Open file**, **New project**
 and a list of anything you opened recently. Choose **Open file** and pick
 `teapot.stl`.
 
-*(screenshot: the start screen — placeholder, see note at the end of this
-page)*
+![The start screen: Open file, New project, and the list of recent documents, over the empty editor.](/assets/learn/modeler/prop-from-a-scan/01-start-screen.png)
 
 ## 2. Import: units and axis
 
@@ -48,8 +47,7 @@ Choosing "mm" here is exactly `ImportUnit.millimetres` in
 real screen shows is `ImportPlan.scaledBounds` reading the file's own
 `computeBounds()` through that unit.
 
-*(screenshot: the import dialog with "mm" chosen and the bounds preview —
-placeholder)*
+![The import screen over teapot.stl: the unit and up-axis choices, the three cleanup checkboxes, and the bounds the chosen unit gives the file.](/assets/learn/modeler/prop-from-a-scan/02-import-dialog.png)
 
 > **Diagnosis does not wait for weld.** `ExportReadiness` used to run its
 > mesh checks (degenerate faces, pinched vertices, inside-out shells) only
@@ -102,8 +100,7 @@ Assign it to the teapot. The material list shows one row with a colour
 swatch instead of a checkbox, and the status line's material count moves
 from 0 to 1.
 
-*(screenshot: the material panel with "glazed ceramic" set and assigned —
-placeholder)*
+![Case 1's own document with the teapot selected: the properties panel showing its transform, its modifier stack and the material it is painted with.](/assets/learn/modeler/prop-from-a-scan/03-material-panel.png)
 
 Below are the same teapot rendered twice, headlessly, through
 `renderProject` (`packages/flutter3d_model_mcp/lib/src/render_tool.dart`'s
@@ -115,8 +112,9 @@ own underlying function) — no viewport chrome, just the geometry, the way
 ![The teapot with "glazed ceramic" assigned](/assets/learn/modeler/prop-from-a-scan/06-final-material.png)
 
 These two are real renders of this exact case's own project data (see
-"Proving it" below) — not mockups. They are rendered at 20× the model's
-real size for legibility; see the note at the end of this page for why.
+"Proving it" below) — not mockups, and at the model's own size: about eight
+millimetres across, which is what a millimetre-scale scan read in as metres
+really is.
 
 ## 5. Export, with checks
 
@@ -133,7 +131,7 @@ there will be wrong and nothing downstream can thicken or subdivide it
 That is `ModelSession.export`'s own answer sentence
 (`packages/flutter3d_model_mcp/lib/src/model_session.dart`), verbatim.
 
-*(screenshot: the export dialog, readiness warning and all — placeholder)*
+![The export screen: the format list, the readiness checks with what each one found, and the file about to be written.](/assets/learn/modeler/prop-from-a-scan/04-export-dialog.png)
 
 ## 6. Into the cabinet
 
@@ -156,10 +154,10 @@ case by hand on a real machine and fill in a line here — "*n* minutes,
 *date*, *machine*" — the way `rel-09`'s own cohort rows do. Nothing in this
 session could actually run the desktop app, so no time is claimed.
 
-**Screenshots.** Three of the pictures of the editor on this page are real,
-taken from the running application: the start screen, the import dialog with
-the teapot's own STL in it, and the material panel over the opened document.
-They are taken headlessly rather than by hand — `apps/flutter3d_modeler/
+**Screenshots.** Every picture of the editor on this page is real, taken
+from the running application: the start screen, the import dialog with the
+teapot's own STL in it, the material panel over the opened document, and the
+export screen. They are taken headlessly rather than by hand — `apps/flutter3d_modeler/
 test/tutorial_case_screenshots_test.dart` drives the real editor, the real
 Open button and the real import screen under the software rasteriser, and
 photographs the window — so they are goldens: a run says whether a panel has
@@ -170,21 +168,20 @@ moved since, and one command regenerates every page's pictures at once.
       test/tutorial_case_screenshots_test.dart --update-goldens)
     dart run tool/publish_modeler_screenshots.dart
 
-The export dialog is the one still missing here; it is reached from the
-status line rather than from a button and has not been added to the
-screenshot list yet.
+The export screen is reached by clicking what the status line says the model
+would export as, rather than from a button, and the screenshot step clicks
+exactly that.
 
-**The render scale.** The two real renders are of the imported project
-scaled up 20× for the picture only (`tool/make_case1_fixtures.dart`'s own
-`_scaledForRender`) — the exported `case1.glb`/`case1.f3dproj` fixtures are
-never scaled this way, only the pixels above. This works around a real gap,
-`tut-02` in `doc/modeler-tutorial-gaps.md`: `renderProject`'s own camera fit
-floors its bounding radius at 5 cm, so an honestly millimetre-scale prop —
-this one is about 8 mm across — renders as a few pixels in the middle of
-the frame instead of filling it. The interactive viewport's own camera fit
-has no such floor and would show the same object large and clear, so this
-is a headless-render-tool limitation, not something you would see using the
-real app.
+**The render scale, and the gap that used to need one.** These two pictures
+were rendered at 20× the model's own size until `tut-02` was fixed: the
+headless renderer's camera fit floored its bounding radius at 5 cm, so an
+honestly millimetre-scale prop — this one is about 8 mm across — came out as
+a few pixels in the middle of an empty frame. The floor was there because
+the camera's near plane was fixed at a tenth of a metre, and a camera
+framing something 8 mm across stands closer than that. The fit now derives
+its own near and far planes from the distance it computes, the way the
+interactive viewport's camera always has, so both pictures are of the
+project exactly as the fixtures carry it.
 
 **Proving it.** Every step above is a real, replayable command, not
 narration. `packages/flutter3d_model_mcp/test/fixtures/tutorial/

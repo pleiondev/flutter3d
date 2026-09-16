@@ -27,8 +27,7 @@ skeleton at all — not because anything strips one, but because nothing
 brings one in. 79 objects land: mesh shells (torso, head, arms, hands, legs,
 feet) and bare bones alike, every one a plain object with no skin.
 
-*(screenshot: the freshly imported robot, outliner showing 79 objects, no
-skeleton in sight — placeholder, see the note at the end of this page)*
+![RobotExpressive.glb as it lands: every part its own object in the outliner, and not a joint anywhere.](/assets/learn/modeler/character-from-a-bare-mesh/08-imported-unskinned.png)
 
 ## 2. Auto-rig: markers, build, bind
 
@@ -56,8 +55,7 @@ case's own test walks every live vertex and confirms more than one joint
 carries weight across the mesh, not a single-joint collapse), each vertex's
 own weights summing to exactly one.
 
-*(screenshot: the auto-rig dialog, markers placed, the "N bones · M
-deforming" card — placeholder)*
+![The auto-rig dialog: the markers to place, the preset to build from, and the card saying how many bones the rig would have.](/assets/learn/modeler/character-from-a-bare-mesh/01-autorig-dialog.png)
 
 ## 3. Weight paint: a touch-up, and its gradient
 
@@ -79,6 +77,8 @@ the selected joint), the legend in the corner naming which is which.
 > placeholder (`tut-11`, fixed alongside `tut-07`/`tut-10`).
 
 ![The weight-paint gradient over the left elbow, real: cold blue where the joint has no pull, warming toward red where it does (tut-11).](/assets/learn/modeler/character-from-a-bare-mesh/02-weight-paint-gradient.png)
+
+![The Weights sub-mode in the editor: the skeleton tree on the panel, the brush settings under it, and the bend slider along the bottom of the viewport.](/assets/learn/modeler/character-from-a-bare-mesh/03-bend-slider.png)
 
 ## 4. A short clip: bend, pose, keys
 
@@ -111,8 +111,7 @@ dragging the timeline scrubs between rest and bent.
 > in the gaps journal (`tut-09`), not a defect this case works around; see
 > the note at the end of this page.
 
-*(screenshot: the pose sub-mode, transport bar with the "wave" clip and two
-keys, the elbow mid-scrub — placeholder)*
+![The animation mode in its pose sub-mode: the skeleton tree, the transport bar and the timeline under the viewport.](/assets/learn/modeler/character-from-a-bare-mesh/04-pose-and-keys.png)
 
 ## 5. A morph, and a real driver
 
@@ -136,8 +135,7 @@ lives on.
 > and its driver are both real, persisted document state either way; only
 > *watching* the chest actually puff in the viewport waits on that row.
 
-*(screenshot: the morphs panel, "chestPuff" with its driver fields set —
-placeholder)*
+![The morphs sub-mode: the shape list with its weights and the driver fields beside them.](/assets/learn/modeler/character-from-a-bare-mesh/05-morphs-panel.png)
 
 ## 6. Preview, as in game
 
@@ -146,8 +144,7 @@ route: the profile's own tonemap and shadow settings, a sky, an fps/draw-call/
 triangle/bones overlay, and four budget bars (triangles, joints, texture
 bytes, influences) against the current profile.
 
-*(screenshot: the game-preview screen, budget bars and metrics overlay —
-placeholder)*
+![The game-preview screen: the model drawn the way a game would draw it, with the budget bars and the metrics overlay.](/assets/learn/modeler/character-from-a-bare-mesh/06-game-preview.png)
 
 ## 7. Export, and into a game template
 
@@ -157,8 +154,7 @@ to the cabinet the way case 1 does, then open the game template project and
 point it at the exported file — the character walks in already rigged,
 already carrying its one clip.
 
-*(screenshot: the export dialog on the rigged, animated character —
-placeholder)*
+![The export screen over the rigged, animated character.](/assets/learn/modeler/character-from-a-bare-mesh/09-export-rigged.png)
 
 Below is this exact project, rendered headlessly through `renderProject`
 (`packages/flutter3d_model_mcp/lib/src/render_tool.dart`'s own underlying
@@ -177,10 +173,11 @@ case by hand on a real machine and fill in a line here — "*n* minutes,
 *date*, *machine*" — the way `rel-09`'s own cohort rows do. Nothing in this
 session could actually run the desktop app, so no time is claimed.
 
-**Screenshots.** Three of the pictures of the editor on this page are real,
-taken from the running application over case 4's own saved document: the
-pose screen with its timeline, the weights sub-mode with the bend bar, and
-the morphs panel. They are taken headlessly rather than by hand —
+**Screenshots.** Every picture of the editor on this page is real: the
+imported robot before anything rigs it, the auto-rig dialog, the pose screen
+with its timeline, the weights sub-mode with the bend bar, the morphs panel,
+the game preview and the export screen. All but the first two are taken over
+case 4's own saved document. They are taken headlessly rather than by hand —
 `apps/flutter3d_modeler/test/tutorial_case_screenshots_test.dart` drives the
 real editor under the software rasteriser and photographs the window — so
 they are goldens: a run says whether a panel has moved since, and one
@@ -191,9 +188,10 @@ command regenerates every page's pictures at once.
       test/tutorial_case_screenshots_test.dart --update-goldens)
     dart run tool/publish_modeler_screenshots.dart
 
-The auto-rig dialog and the game preview are the two still missing:
-both are modal screens reached through a marker-placing flow no
-screenshot step drives yet.
+The auto-rig dialog is photographed over the starting cube rather than over
+case 4: that document is the state *after* the rig, and `autoRig` refuses —
+correctly — to build a second skeleton over a rigged object. A bare mesh is
+what the dialog is for, so a bare mesh is what it is photographed over.
 
 **The one real render, now showing the rig too.** The picture above is a
 genuine CPU render of this case's own final project — the real imported

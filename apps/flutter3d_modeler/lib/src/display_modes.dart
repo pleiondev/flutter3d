@@ -196,12 +196,35 @@ final class SurfaceShading {
   /// those drawn with their own material in a view that is meant to show
   /// normals — and, worse, leave them unrecorded, so switching back would be
   /// the first thing that ever assigned them anything.
+  ///
+  /// **The memory lasts exactly as long as the swap does, and it used not
+  /// to.** What was recorded the first time a node was seen was then written
+  /// back over it on every frame the normals view was off — so a material
+  /// edited afterwards, by a person in the panel or by an agent over MCP,
+  /// reached the node through `SceneSync` and was painted over again before
+  /// anybody saw it. The model in the viewport stayed the colour it was when
+  /// the document opened while the swatch beside it showed the new one. So
+  /// the entry is dropped the moment it is put back: away from the normals
+  /// view a node's own material is whatever the scene last wrote onto it, and
+  /// a memory of an older one is only a way to undo an edit.
   void apply(SceneNode subject, ShadingMode mode) {
     _mode = mode;
+    if (mode != ShadingMode.normals) {
+      for (final MapEntry<MeshNode, Material> each in _own.entries) {
+        each.key.material = each.value;
+      }
+      _own.clear();
+      return;
+    }
     subject.traverse((SceneNode node) {
       if (node is! MeshNode) return;
-      final Material own = _own.putIfAbsent(node, () => node.material);
-      node.material = mode == ShadingMode.normals ? normals : own;
+      // Already swapped, and [normals] is one shared instance — so this is
+      // "has this node been recorded yet", asked of the node rather than of
+      // the map, and it keeps a material `SceneSync` wrote *during* a normals
+      // session from being lost: the next walk records that one instead.
+      if (identical(node.material, normals)) return;
+      _own[node] = node.material;
+      node.material = normals;
     });
   }
 

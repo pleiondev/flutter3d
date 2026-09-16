@@ -321,9 +321,17 @@ void _frame(
     box = box == null ? worldBox : (box..hull(worldBox));
   }
   final center = box?.center ?? Vector3.zero();
+  // **Floored only against zero, not against five centimetres** — `tut-02`.
+  // A scanned prop read in at millimetre scale is a few millimetres across,
+  // and a floor of 0.05 framed it as if it were ten centimetres: a handful
+  // of pixels in the middle of an empty picture, which is what the tutorial's
+  // own case 1 worked around by scaling the model up twenty times for the
+  // render alone. The near plane was the real reason for the floor, and it
+  // now follows the framing (below) rather than staying at the default tenth
+  // of a metre.
   final radius = box == null
       ? 1.0
-      : math.max(box.min.distanceTo(box.max) / 2, 0.05);
+      : math.max(box.min.distanceTo(box.max) / 2, 1e-5);
 
   final fovY = switch (camera.projection) {
     PerspectiveProjection(:final fovYRadians) => fovYRadians,
@@ -332,6 +340,15 @@ void _frame(
   // A margin over the tight fit, so an object's silhouette does not touch
   // the frame's own edge.
   final distance = radius / math.sin(fovY / 2) * 1.2;
+  // The depth range from where the camera ended up, the same reasoning
+  // `OrbitController.suggestedDepthRange` gives: a fixed 0.1..1000 spends its
+  // precision on empty space for a small model and clips it outright once the
+  // camera is closer than a tenth of a metre.
+  camera.projection = PerspectiveProjection(
+    fovYRadians: fovY,
+    near: math.max(distance * 0.01, 1e-6),
+    far: distance * 10.0 + 10.0,
+  );
 
   final cosPitch = math.cos(view.pitch);
   final offset = Vector3(

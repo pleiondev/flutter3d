@@ -14,6 +14,7 @@ Future<void> startMcpServer({
   required ModelHistory history,
   required int port,
   UiActions? uiActions,
+  String? sessionPath,
   void Function(
     String toolName,
     Map<String, Object?> arguments,

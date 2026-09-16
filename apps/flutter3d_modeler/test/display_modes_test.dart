@@ -173,6 +173,49 @@ void main() {
       expect(arrived.material.name, 'late');
     });
 
+    test('a material painted on afterwards is not painted back over', () {
+      final it = cpuTestDevice(width: 8, height: 8);
+      final stage = ModelerStage.build(device: it.device);
+      final shading = SurfaceShading();
+      final MeshNode node = stage.subject as MeshNode;
+
+      // One frame in the material view, which is what a viewport does before
+      // anybody touches anything.
+      shading.apply(stage.subject, ShadingMode.material);
+
+      // Then an edit lands: `SceneSync` writes the rebuilt material onto the
+      // node, the way it does after a colour changes in the panel or an agent
+      // calls `setMaterialField`.
+      final Material edited = Material(name: 'edited');
+      node.material = edited;
+      shading.apply(stage.subject, ShadingMode.material);
+
+      // Mutation: record what a node was drawn with the first time it is seen
+      // and write that back on every frame — which is what this did. The
+      // document, the material list and the swatch beside it all show the new
+      // colour, and the model in the viewport keeps the one it had when the
+      // file was opened.
+      expect(identical(node.material, edited), isTrue);
+    });
+
+    test('and an edit during a normals session survives the way back', () {
+      final it = cpuTestDevice(width: 8, height: 8);
+      final stage = ModelerStage.build(device: it.device);
+      final shading = SurfaceShading();
+      final MeshNode node = stage.subject as MeshNode;
+
+      shading.apply(stage.subject, ShadingMode.normals);
+      // `SceneSync` runs before the shading does, so an edit made while the
+      // normals view is on reaches the node between two walks.
+      final Material edited = Material(name: 'edited');
+      node.material = edited;
+      shading.apply(stage.subject, ShadingMode.normals);
+      expect(node.material.lighting, LightingModel.normals);
+
+      shading.apply(stage.subject, ShadingMode.material);
+      expect(identical(node.material, edited), isTrue);
+    });
+
     test('forgetting lets a replaced subject go', () {
       final it = cpuTestDevice(width: 8, height: 8);
       final stage = ModelerStage.build(device: it.device);

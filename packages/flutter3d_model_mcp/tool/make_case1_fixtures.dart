@@ -13,7 +13,6 @@ import 'package:flutter3d_cpu/flutter3d_cpu.dart';
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:flutter3d_model_core/flutter3d_model_core.dart';
 import 'package:flutter3d_model_mcp/flutter3d_model_mcp.dart';
-import 'package:vector_math/vector_math.dart';
 
 import '../test/fixtures/tutorial/case1_scenario.dart';
 
@@ -23,34 +22,10 @@ GraphicsDevice _cpuDevice(int width, int height) => CpuDevice(
   shaders: CpuShaderLibrary(builtinCpuShaders()),
 );
 
-/// [project]'s roots scaled up by [factor], for a render only — never for a
-/// fixture a test reads back.
-///
-/// **Works around `tut-02`, not the real case.** `render_project.dart`'s own
-/// `_frame` floors its fitted bounding radius at `0.05` (5 cm); the real
-/// teapot this case imports is about 8 mm across, so an unscaled render
-/// asks the camera to frame an object 6× under that floor and gets back a
-/// handful of pixels in the middle of a 512×512 frame — confirmed by
-/// rendering `case1ImportedProject()` unscaled before this helper existed.
-/// `OrbitController.frame` (`flutter3d_core`), the interactive viewport's own
-/// fit, floors at `1e-4` instead and would show the same object large and
-/// clear — so this is a headless-render-tool gap, not something a person
-/// driving the real GUI would hit. See `doc/modeler-tutorial-gaps.md`.
-ModelProject _scaledForRender(ModelProject project, double factor) {
-  var scaled = project;
-  final adjustment = Matrix4.diagonal3Values(factor, factor, factor);
-  for (final object in project.objects.where((o) => o.parent == null)) {
-    scaled = scaled.withObject(
-      object.copyWith(transform: adjustment.multiplied(object.transform)),
-    );
-  }
-  return scaled;
-}
-
 Future<void> _renderTo(ModelProject project, String path) async {
   final png = await renderProject(
     RenderRequest(
-      project: _scaledForRender(project, 20),
+      project: project,
       view: RenderProjectView.iso,
     ),
     deviceFactory: _cpuDevice,

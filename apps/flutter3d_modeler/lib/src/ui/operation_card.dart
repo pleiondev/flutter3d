@@ -198,15 +198,29 @@ class _OperationCardState extends State<OperationCard> {
       IntHint(:final min?, :final max?) => (min.toDouble(), max.toDouble()),
       _ => null,
     };
+    // A parameter's own name is a word — `distance`, `segments`, `amount` —
+    // and the default label slot is the width of the single letter a
+    // transform row carries, which wrapped "distance" into two lines.
+    const double nameWidth = 58;
     if (range == null) {
-      return NumberField(label: label, value: value, onChanged: onChanged);
+      return NumberField(
+        label: label,
+        labelWidth: nameWidth,
+        value: value,
+        onChanged: onChanged,
+      );
     }
     final (double min, double max) = range;
     return Row(
       children: <Widget>[
         SizedBox(
-          width: 90,
-          child: NumberField(label: label, value: value, onChanged: onChanged),
+          width: 130,
+          child: NumberField(
+            label: label,
+            labelWidth: nameWidth,
+            value: value,
+            onChanged: onChanged,
+          ),
         ),
         Expanded(
           child: Slider(

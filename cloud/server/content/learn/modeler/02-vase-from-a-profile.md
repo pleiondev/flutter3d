@@ -39,8 +39,7 @@ the same sentence `AddLathe.says` gives regardless of what the profile
 looks like, because the word is whatever the shape editor's own name field
 says at the time.
 
-*(screenshot: the profile editor with this curve drawn and the 12-segment
-turn previewed — placeholder, see the note at the end of this page)*
+![The lathe dialog: the profile canvas on the left with its points, the segment count and the live preview of what turning the curve makes.](/assets/learn/modeler/vase-from-a-profile/01-profile-editor.png)
 
 Twelve segments is a parameter, not a mesh yet — `AddLathe` builds a
 `ParametricGeometry`, and the operation card (below) can still change the
@@ -62,9 +61,7 @@ Press **E** (extrude) and pull outward: `Extrude(distance: 0.04)` answers
 sitting 4 cm further out along their own normals, which is a lip rather
 than a straight-sided tube.
 
-*(screenshot: the viewport in edit mode, the extruded rim highlighted, the
-mesh-edit toolbar and the status line's selection count visible —
-placeholder)*
+![The vase in mesh mode: the element rail on the left, the vertex/edge/face switcher above the viewport, and the status line counting what is selected.](/assets/learn/modeler/vase-from-a-profile/02-mesh-edit-toolbar.png)
 
 ## 3. A modal move, snapped
 
@@ -115,8 +112,7 @@ session's own recovery journal — a `.jsonl` written after this drag says
 of a journal ending on an amend like this one lands on that same adjusted
 state.
 
-*(screenshot: the last-operation card under the viewport, showing the
-extrude's own distance field — placeholder)*
+![The last-operation card at the foot of the properties panel, carrying the operation just run and the number it can still be amended by.](/assets/learn/modeler/vase-from-a-profile/05-operation-card.png)
 
 ## 6. Mirror and array
 
@@ -137,8 +133,7 @@ Two modifiers, added from the modifier stack panel:
 Both answer **"add a modifier"**, and the panel lists two rows under
 "vase" afterward.
 
-*(screenshot: the modifier stack panel with both rows listed and enabled —
-placeholder)*
+![The modifier stack on the properties panel, both rows listed with their own viewport and export toggles.](/assets/learn/modeler/vase-from-a-profile/03-modifier-stack.png)
 
 > **The effect is live.** Add either modifier and the viewport updates —
 > `SceneSync` reads `ModelObject.modifiers` now, evaluating the stack
@@ -170,8 +165,7 @@ vase, then a texture: an image added to the project and pointed at the
 material's albedo slot (`SetTexture(materialIndex: 0, slot: "albedo",
 imageIndex: 0)`), answering **"set the albedo texture — …"**.
 
-*(screenshot: the material panel, "glazed clay" set, the albedo slot
-showing the texture thumbnail — placeholder)*
+![Material mode over the vase: the material list, the surface fields and the texture slots.](/assets/learn/modeler/vase-from-a-profile/04-material-texture-panel.png)
 
 ## 8. Save
 
@@ -189,9 +183,10 @@ case by hand on a real machine and fill in a line here — "*n* minutes,
 *date*, *machine*" — the way `rel-09`'s own cohort rows do. Nothing in this
 session could actually run the desktop app, so no time is claimed.
 
-**Screenshots.** Three of the pictures of the editor on this page are real,
-taken from the running application over case 2's own saved document: the
-mesh-editing toolbar, the modifier stack and the material panel. They are
+**Screenshots.** Every picture of the editor on this page is real, taken
+from the running application over case 2's own saved document: the profile
+editor, the mesh-editing toolbar, the last-operation card, the modifier
+stack and the material panel. They are
 taken headlessly rather than by hand —
 `apps/flutter3d_modeler/test/tutorial_case_screenshots_test.dart` drives the
 real editor under the software rasteriser and photographs the window — so
@@ -203,9 +198,9 @@ command regenerates every page's pictures at once.
       test/tutorial_case_screenshots_test.dart --update-goldens)
     dart run tool/publish_modeler_screenshots.dart
 
-The profile editor is the one still missing here: it lives inside the
-Lathe dialog, which shows nothing worth photographing until a profile
-has been drawn in it, and no screenshot step draws one yet.
+The profile editor is the Lathe dialog as it opens, with the curve it starts
+from and the live preview of what turning it makes — which is what the step
+above describes before anything is dragged.
 
 **Proving it.** `packages/flutter3d_model_mcp/test/fixtures/tutorial/
 case2_scenario.dart` builds exactly the project this page describes,

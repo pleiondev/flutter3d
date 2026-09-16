@@ -62,6 +62,8 @@ class ModelerScreen extends StatefulWidget {
     super.key,
     this.autosaveStorage,
     this.settingsStorage,
+    this.mcpPort,
+    this.mcpSessionPath,
     this.cabinetLink,
     this.cabinetSourceSender,
     this.previewCapturer,
@@ -76,6 +78,27 @@ class ModelerScreen extends StatefulWidget {
   /// which falls back to the platform's own `defaultStorage`. A test hands in
   /// a map in memory, the same shape [autosaveStorage] already is.
   final Storage? settingsStorage;
+
+  /// Which port the agent server listens on — null in every real build,
+  /// which reads `--dart-define=mcpPort` the way it always has.
+  ///
+  /// **Injected for the same reason [autosaveStorage] is.** A define is not
+  /// reachable from a test, so the whole agent path — a client connecting,
+  /// the badge appearing, the panel opening on a real tool call — could only
+  /// be exercised by standing the server up by hand beside the application
+  /// rather than through it. Zero is a real value here and means "any free
+  /// port", which is what a test wants.
+  final int? mcpPort;
+
+  /// Where that server writes its own `mcp-session.json` — null in every
+  /// real build, which asks the platform for its application-support
+  /// directory.
+  ///
+  /// A path rather than a `Directory`, because this file compiles for the
+  /// web too and `dart:io` does not exist there. A headless test has no
+  /// `path_provider` plugin behind it, so a caller that injects [mcpPort]
+  /// injects this beside it.
+  final String? mcpSessionPath;
 
   /// `tut-19`/`tut-20`'s own cabinet id/mode — null in every real build,
   /// which falls back to `CabinetLink.fromQuery(Uri.base.queryParameters)`

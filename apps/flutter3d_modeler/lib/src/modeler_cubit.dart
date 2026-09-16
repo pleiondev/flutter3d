@@ -21,12 +21,15 @@
 /// selection commands forgot the second one.
 library;
 
+import 'dart:async';
+
 import 'package:flutter3d/flutter3d.dart' hide Material;
 import 'package:flutter3d_mesh/flutter3d_mesh.dart';
 import 'package:flutter3d_model_core/flutter3d_model_core.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import 'job_runner.dart';
+import 'material_pool.dart';
 import 'modeler_state.dart';
 import 'scene_sync.dart' show unshowableSaid;
 import 'staging.dart';
@@ -122,6 +125,10 @@ final class ModelerCubit extends Cubit<ModelerState> {
         playback: now.playback,
       ),
     );
+    // The new stage's own pool is empty — see [_pooledInto]. Filling it here
+    // rather than waiting for the next command is what keeps a reopened
+    // device from drawing the document in clay until somebody edits it.
+    if (_ready case final ModelerReady then) _restageMaterials(then);
   }
 
   /// Nothing could be opened at all — a device that would not start, or a file
@@ -145,7 +152,12 @@ final class ModelerCubit extends Cubit<ModelerState> {
     // answer rather than a failure, and the history is not touched by one.
     final String? refused = now.history.run(command);
     if (refused != null) {
-      emit(now.copyWith(said: refused));
+      // `ux-17`: a refusal is marked as one, so the strip can paint it
+      // differently from "saved" and keep it up rather than letting the next
+      // selection change clear it.
+      emit(
+        now.copyWith(said: refused, saidIsImportant: true, saidIsRefusal: true),
+      );
       return false;
     }
     _synced(now, said: said ?? command.says);
@@ -235,17 +247,27 @@ final class ModelerCubit extends Cubit<ModelerState> {
       calls.removeRange(0, calls.length - _agentCallFeedLimit);
     }
     now.stage.sync?.apply(now.project);
+    _restageMaterials(now);
     now.stage.lighting?.sync(now.stage.scene, now.project.lighting);
     // `ux-02`: this is the re-sync that used to throw a second time for an
     // object the device had already refused, turning one failed import into
     // a session where every later call answered with the same stack.
     final String? unshowable = unshowableSaid(now.stage.sync?.unshowable);
+    // `ux-17`: an agent's refusal reaches the person's own strip. The panel
+    // beside the viewport already shows it, but the panel is closed most of
+    // the time and the document is shared — being told that the thing asking
+    // for changes was told no is the same news whichever of you asked.
+    final String? refusal = call.did
+        ? null
+        : 'the agent was refused: ${call.says}';
+    final String? message = unshowable ?? refusal;
     emit(
       now.copyWith(
         agentCalls: calls,
         readiness: _readiness.of(now.project),
-        said: unshowable,
-        saidIsImportant: unshowable != null,
+        said: message,
+        saidIsImportant: message != null,
+        saidIsRefusal: refusal != null,
       ),
     );
   }
@@ -552,6 +574,7 @@ final class ModelerCubit extends Cubit<ModelerState> {
   /// somebody is dragging — it is dropped here and read by the frame test.
   void _synced(ModelerReady now, {String? said}) {
     now.stage.sync?.apply(now.project);
+    _restageMaterials(now);
     // `tut-07`'s own fix: the scene's own lights follow `project.lighting`
     // the same way its objects already follow `project.objects` above.
     now.stage.lighting?.sync(now.stage.scene, now.project.lighting);
@@ -575,6 +598,63 @@ final class ModelerCubit extends Cubit<ModelerState> {
         saidIsImportant: overflow != null || unshowable != null,
       ),
     );
+  }
+
+  /// The material table and image list the stage's own pool was last built
+  /// for, so the rebuild below happens on the commands that changed one and
+  /// on no others.
+  ///
+  /// Compared by identity, which is exact here: every edit builds a new list
+  /// rather than mutating the old one, so "the same list" really does mean
+  /// "nothing to rebuild" — and it costs one pointer rather than a walk of
+  /// the table on every command.
+  Object? _pooledMaterials;
+  Object? _pooledImages;
+
+  /// And which pool it was built into.
+  ///
+  /// **A stage can be replaced under a document, and the new one's pool
+  /// starts empty.** `redeviced` builds a whole new `ModelerStage` when the
+  /// viewport's size no longer fits the device — an ordinary thing on the
+  /// first frames of a window — and without this the table would look
+  /// unchanged, the refresh would be skipped, and the new stage would draw
+  /// every object in clay for the rest of the session.
+  Object? _pooledInto;
+
+  /// Rebuilds whatever material the last command changed and repaints the
+  /// nodes wearing it.
+  ///
+  /// **The gap this closes.** `MaterialPool.refresh` ran once, while the
+  /// document was opening, and never again — so a material edited afterwards
+  /// changed the document, the material list and the swatch beside it, and
+  /// left the model in the viewport painted the way it was when the file was
+  /// opened. It applied to both authors equally: a person dragging a colour
+  /// in the panel and an agent calling `setMaterialField` over MCP both went
+  /// through here.
+  ///
+  /// **Fired rather than awaited**, because building a material decodes and
+  /// uploads its textures and the frame that asked for it must not wait: the
+  /// picture catches up on a later frame, the same deal `openDocument`
+  /// already makes while the first pass paints everything in clay.
+  void _restageMaterials(ModelerReady now) {
+    final MaterialPool? pool = now.stage.materials;
+    if (pool == null) return;
+    final ModelProject project = now.project;
+    if (identical(pool, _pooledInto) &&
+        identical(project.materials, _pooledMaterials) &&
+        identical(project.images, _pooledImages)) {
+      return;
+    }
+    _pooledInto = pool;
+    _pooledMaterials = project.materials;
+    _pooledImages = project.images;
+    unawaited(() async {
+      await pool.refresh(project);
+      // The window can close between the two, and a cubit nobody is
+      // listening to has no scene left to paint.
+      if (isClosed) return;
+      now.stage.sync?.repaint(project);
+    }());
   }
 
   ModelerReady? get _ready =>

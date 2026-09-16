@@ -163,7 +163,18 @@ Future<void> settleFrames(WidgetTester tester) async {
 }
 
 /// Starts the application and waits until it has a document and a frame.
-Future<void> launchModeller(WidgetTester tester, {required bool fonts}) async {
+///
+/// [mcpPort] and [mcpSessionPath] are handed straight to [ModelerScreen]:
+/// null leaves the agent server off, which is what every picture but the
+/// agent panel's own wants. Zero asks the platform for a free port and
+/// writes the session file into [mcpSessionPath], which is how a test can
+/// connect a real client to the running editor.
+Future<void> launchModeller(
+  WidgetTester tester, {
+  required bool fonts,
+  int? mcpPort,
+  String? mcpSessionPath,
+}) async {
   // A picture of boxes is not a picture the tutorial can use, and saying so
   // is better than writing one out.
   expect(fonts, isTrue, reason: "the SDK's own fonts were not found");
@@ -183,6 +194,8 @@ Future<void> launchModeller(WidgetTester tester, {required bool fonts}) async {
       home: ModelerScreen(
         autosaveStorage: NullBinaryStorage(),
         settingsStorage: MemorySettings(),
+        mcpPort: mcpPort,
+        mcpSessionPath: mcpSessionPath,
       ),
     ),
   );

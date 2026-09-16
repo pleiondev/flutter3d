@@ -35,10 +35,12 @@ not a second document, not a copy. `--mcp-port` in the plan's own shorthand
 is this one flag; the app calls it `mcpPort` because it is read through
 Dart's own `--dart-define`, not a separate command-line parser.
 
-*(screenshot: the "Agent session" panel — tool-call feed, You/Agent history
-badges, the contact sheet — placeholder, see the note at the end of this
-page. The panel itself is real now (`tut-16`); the picture is still pending
-because nothing in this sandbox can run the desktop build to take it)*
+![The Agent session panel, open beside the viewport: five tool calls with what each one answered and how long it took, the history below them with an "Agent" badge on every step, and "Undo agent steps" at the foot of the panel. The badge on the top bar counts the calls.](/assets/learn/modeler/an-agent-beside-you/01-agent-session-panel.png)
+
+That picture is taken with a client genuinely on the other end: the test
+that photographs it binds the port, reads `mcp-session.json`, and sends the
+five requests below over a socket. The badge and the panel appear because a
+client introduced itself, which is the only thing that makes them appear.
 
 ## 2. The agent does case 1's own five steps — over the tool surface
 
@@ -125,8 +127,7 @@ case by hand on a real machine and fill in a line here — "*n* minutes,
 *date*, *machine*" — the way `rel-09`'s own cohort rows do. Nothing in this
 session could actually run the desktop app, so no time is claimed.
 
-**Screenshots.** The agent session panel on this page is still a
-placeholder. They are taken headlessly rather than by hand —
+**Screenshots.** Taken headlessly rather than by hand —
 `apps/flutter3d_modeler/test/tutorial_case_screenshots_test.dart` drives the
 real editor under the software rasteriser and photographs the window — so
 they are goldens: a run says whether a panel has moved since, and one
@@ -137,10 +138,12 @@ command regenerates every page's pictures at once.
       test/tutorial_case_screenshots_test.dart --update-goldens)
     dart run tool/publish_modeler_screenshots.dart
 
-It needs a client on the other end of `--mcp-port` for the badge to
-appear at all — `ux-05` made the panel wait for a real `initialize`
-rather than for an open port — and no screenshot step stands one up
-yet.
+This page's own picture needed a client on the other end of `--mcp-port`,
+because `ux-05` made the panel wait for a real `initialize` rather than for
+an open port. The test stands one up: the editor is launched with the port
+injected, and the requests go out over a raw socket rather than an
+`HttpClient`, because the binding replaces that with a mock that answers
+every request without touching the network.
 
 **The tool-call layer, and why the journal it writes looks the way it
 does.** Case 6's own fixtures (`packages/flutter3d_model_mcp/test/fixtures/

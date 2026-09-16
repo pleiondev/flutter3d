@@ -26,11 +26,14 @@
 /// assembled for the camera.
 library;
 
+import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:file_selector_platform_interface/file_selector_platform_interface.dart';
 import 'package:flutter/material.dart' hide Matrix4;
+import 'package:flutter3d_modeler/src/ui/properties/object_row.dart';
 import 'package:flutter3d_modeler/src/ui/tools.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:plugin_platform_interface/plugin_platform_interface.dart';
@@ -102,11 +105,26 @@ void main() {
     if (stopAtImportScreen) return;
     // Only a mesh file is asked the unit and the cleanup questions; a
     // project file is already a document and goes straight in.
-    if (find.widgetWithText(FilledButton, 'Import').evaluate().isNotEmpty) {
+    //
+    // **Looped, because a heavy file answers late.** A half-megabyte glTF
+    // decodes over several real-time hops rather than the handful of
+    // microtask ones a small `.f3d` needs, so the screen can arrive after
+    // the pumps above have run out — and it is still the screen a person has
+    // to answer before anything opens. Settling and looking again is what
+    // makes this helper work for a real model as well as a fixture.
+    for (var attempt = 0; attempt < 3; attempt++) {
+      final Finder confirm = find.widgetWithText(FilledButton, 'Import');
+      if (confirm.evaluate().isEmpty) {
+        await settleFrames(tester);
+        if (find.widgetWithText(FilledButton, 'Import').evaluate().isEmpty) {
+          break;
+        }
+      }
       await tester.tap(find.widgetWithText(FilledButton, 'Import'));
       for (var i = 0; i < 6; i++) {
         await tester.pump();
       }
+      await tester.pump(const Duration(milliseconds: 400));
     }
     // Twice: the document lands on one frame and the scene it builds is
     // rasterised and decoded over the next two.
@@ -119,11 +137,13 @@ void main() {
 
   /// Selects the first object in the outliner, which is what puts the
   /// transform, modifier and material sections on the panel.
+  /// **By the row's own type, not by the first `InkWell` in the panel.**
+  /// The panel's own display and view controls are inkwells too and come
+  /// first, so tapping "the first one" armed a display mode and left nothing
+  /// selected — which the auto-rig dialog then refused, correctly, with
+  /// "select a mesh to rig first".
   Future<void> selectFirstObject(WidgetTester tester) async {
-    final Finder rows = find.byType(InkWell);
-    await tester.tap(
-      find.descendant(of: find.byType(Scrollable), matching: rows).first,
-    );
+    await tester.tap(find.byType(ObjectRow).first);
     await settleFrames(tester);
   }
 
@@ -193,6 +213,28 @@ void main() {
         'vase-from-a-profile/04-material-texture-panel',
       );
     });
+
+    testWidgets('05-operation-card', (WidgetTester tester) async {
+      // The card is the panel's own last row, and it only exists once a
+      // command has landed — so the picture is taken right after the page's
+      // own extrude: into mesh mode, every face selected from the keyboard,
+      // then the rail's Extrude.
+      await launchModeller(tester, fonts: fonts);
+      await openCase(tester, case2);
+      await selectFirstObject(tester);
+      await switchMode(tester, ModelerMode.mesh);
+      await switchMeshSubmode(tester, MeshSubmode.face);
+      // A click on the model picks the face under it, which is how a person
+      // chooses what to extrude. The pick is answered by the next frame the
+      // renderer draws, so it needs settling before the tool runs.
+      await tester.tapAt(const Offset(600, 430));
+      await settleFrames(tester);
+      await settleFrames(tester);
+      await tester.tap(find.bySemanticsLabel('Extrude'));
+      await settleFrames(tester);
+      await settleFrames(tester);
+      await shootWindow(tester, 'vase-from-a-profile/05-operation-card');
+    });
   });
 
   group('a lit corner', () {
@@ -217,6 +259,15 @@ void main() {
       await openCase(tester, case3);
       await openExportScreen(tester);
       await shootWindow(tester, 'a-lit-corner/04-export-two-nodes');
+    });
+
+    testWidgets('05-outliner-after-import', (WidgetTester tester) async {
+      // Page 3's own first step: the second object has arrived beside the
+      // first and the outliner lists both, with nothing selected yet — which
+      // is what separates this from `01-scene-viewport-gizmo` above.
+      await launchModeller(tester, fonts: fonts);
+      await openCase(tester, case3);
+      await shootWindow(tester, 'a-lit-corner/05-outliner-after-import');
     });
   });
 
@@ -245,6 +296,76 @@ void main() {
       await switchAnimationSubmode(tester, AnimationSubmode.morphs);
       await shootWindow(tester, 'character-from-a-bare-mesh/05-morphs-panel');
     });
+
+    testWidgets('01-autorig-dialog', (WidgetTester tester) async {
+      // **Over the starting cube, not over case 4's own document.** The
+      // page's own step is "rig a bare mesh", and case 4's saved document is
+      // the state *after* that step: it already carries a skeleton and a
+      // clip, and `autoRig` correctly refuses to build a second rig over a
+      // rigged object. A bare mesh is what the dialog is for, so a bare mesh
+      // is what it is photographed over.
+      await launchModeller(tester, fonts: fonts);
+      await selectFirstObject(tester);
+      await switchMode(tester, ModelerMode.animation);
+      // The rail's own "Auto-rig…", which opens the marker dialog over
+      // whatever is selected — screen 16.
+      // By the semantics label the rail already carries, not by the
+      // tooltip: the tooltip now names whichever key the live preset
+      // binds, which is exactly the thing that should be free to
+      // change without breaking a screenshot.
+      await tester.tap(find.bySemanticsLabel('Auto-rig…'));
+      await settleFrames(tester);
+      await tester.pump(const Duration(milliseconds: 400));
+      await settleFrames(tester);
+      await shootWindow(tester, 'character-from-a-bare-mesh/01-autorig-dialog');
+    });
+
+    testWidgets('06-game-preview', (WidgetTester tester) async {
+      await launchModeller(tester, fonts: fonts);
+      await openCase(tester, case4);
+      await openByTooltip(
+        tester,
+        'Preview — see it the way the game would draw it',
+      );
+      await settleFrames(tester);
+      await shootWindow(tester, 'character-from-a-bare-mesh/06-game-preview');
+    });
+
+    testWidgets('08-imported-unskinned', (WidgetTester tester) async {
+      // Page 4's own first step, over the file it actually names: the robot
+      // as it lands, every part its own object and not a joint anywhere —
+      // which is the state the rest of the page turns into a character.
+      await launchModeller(tester, fonts: fonts);
+      await openThrough(
+        tester,
+        '../../packages/flutter3d_samples/assets/RobotExpressive.glb',
+        'RobotExpressive.glb',
+      );
+      await shootWindow(
+        tester,
+        'character-from-a-bare-mesh/08-imported-unskinned',
+      );
+    });
+
+    testWidgets('09-export-rigged', (WidgetTester tester) async {
+      await launchModeller(tester, fonts: fonts);
+      await openCase(tester, case4);
+      await openExportScreen(tester);
+      await shootWindow(tester, 'character-from-a-bare-mesh/09-export-rigged');
+    });
+  });
+
+  group('a vase from a profile, its own dialog', () {
+    testWidgets('01-profile-editor', (WidgetTester tester) async {
+      await launchModeller(tester, fonts: fonts);
+      // The Lathe dialog is the profile editor: a canvas somebody draws a
+      // half-section in, with a live preview of what turning it makes.
+      await tester.tap(find.bySemanticsLabel('Add a lathe'));
+      await settleFrames(tester);
+      await tester.pump(const Duration(milliseconds: 400));
+      await settleFrames(tester);
+      await shootWindow(tester, 'vase-from-a-profile/01-profile-editor');
+    });
   });
 
   group('borrowing a walk', () {
@@ -261,6 +382,178 @@ void main() {
       // viewports and the bone map at once, which is what both placeholders
       // were standing in for either half of.
       await shootWindow(tester, 'borrowing-a-walk/01-clip-library');
+    });
+
+    testWidgets('05-clip-tracks', (WidgetTester tester) async {
+      // Page 5's own last step is about the clips lying side by side on the
+      // tracks bar, which is the animation mode's own lower area — a
+      // different half of the screen from the retarget above.
+      await launchModeller(tester, fonts: fonts);
+      await openCase(tester, case5);
+      await switchMode(tester, ModelerMode.animation);
+      await switchAnimationSubmode(tester, AnimationSubmode.pose);
+      await shootWindow(tester, 'borrowing-a-walk/05-clip-tracks');
+    });
+  });
+
+  group('an agent beside you', () {
+    testWidgets('01-agent-session-panel', (WidgetTester tester) async {
+      // **A real client on a real socket, not a panel fed by hand.** The
+      // page's own note said this picture could not be taken because "it
+      // needs a client on the other end of `--mcp-port` for the badge to
+      // appear at all" — `ux-05` made the badge wait for a genuine
+      // `initialize` rather than for an open port. So the test stands one
+      // up: the editor binds a free port and writes its own session file,
+      // and the JSON-RPC exchange below is the same raw handshake
+      // `mcp_bootstrap_test.dart` already uses, over the same
+      // `ModelHistory` the window on screen is editing.
+      final Directory session = Directory.systemTemp.createTempSync(
+        'flutter3d_modeler_agent_shot',
+      );
+      // **Nothing awaited in here.** A widget test's teardown runs inside the
+      // binding's own fake-clock zone, where a future belonging to real IO —
+      // closing a socket, say — never completes and the run hangs until the
+      // harness kills it. The screen's own `dispose` already stops the server
+      // without waiting for it, which is the whole of the cleanup that needs
+      // doing; the directory goes synchronously.
+      addTearDown(() {
+        if (session.existsSync()) session.deleteSync(recursive: true);
+      });
+
+      await launchModeller(
+        tester,
+        fonts: fonts,
+        mcpPort: 0,
+        mcpSessionPath: session.path,
+      );
+
+      final File sessionFile = File('${session.path}/mcp-session.json');
+      // Binding a socket and writing the file is real asynchronous work, so
+      // it only happens under `runAsync` — and it happens after the document
+      // opens, which is why this waits rather than reading straight away.
+      for (var wait = 0; wait < 40 && !sessionFile.existsSync(); wait++) {
+        await tester.runAsync(
+          () => Future<void>.delayed(const Duration(milliseconds: 50)),
+        );
+        await tester.pump();
+      }
+      expect(
+        sessionFile.existsSync(),
+        isTrue,
+        reason: 'the editor never wrote its own session file',
+      );
+      final written =
+          json.decode(sessionFile.readAsStringSync()) as Map<String, Object?>;
+      final int port = written['port']! as int;
+      final String token = written['token']! as String;
+
+      // **A socket written by hand, and the answer never awaited.** Two
+      // things stand in the way of an ordinary `HttpClient` here. The binding
+      // installs an `HttpOverrides` that answers every request with 400 and
+      // touches no socket at all — right for a test that must not reach the
+      // network, wrong when the server on the other end is this very process.
+      // And the server *is* this process: it was bound from inside the
+      // binding's own fake-clock zone, so its handler only advances when the
+      // binding drains that zone's microtasks, which is exactly what does not
+      // happen while a `runAsync` sits waiting for the reply. Awaiting the
+      // response is therefore a deadlock — the client waits for the server,
+      // and the server waits for the pump the client is blocking.
+      //
+      // So the request goes out over a raw socket and the pumping happens
+      // afterwards, which is also all this picture needs: what reaches the
+      // screen is the server having *handled* the call, not the client having
+      // read the reply.
+      Future<void> call(Object body) async {
+        final List<int> payload = utf8.encode(json.encode(body));
+        await tester.runAsync(() async {
+          final Socket socket = await Socket.connect('127.0.0.1', port);
+          socket
+            ..add(
+              utf8.encode(
+                'POST /mcp?token=$token HTTP/1.1\r\n'
+                'Host: 127.0.0.1:$port\r\n'
+                'Content-Type: application/json\r\n'
+                'Content-Length: ${payload.length}\r\n'
+                'Connection: close\r\n'
+                '\r\n',
+              ),
+            )
+            ..add(payload);
+          await socket.flush();
+          unawaited(socket.drain<void>().whenComplete(socket.destroy));
+        });
+        // Alternating on purpose: the pump lets the server's own handler take
+        // its next step, the real delay lets the socket deliver whatever that
+        // step asked for. Neither alone gets a request answered.
+        for (var step = 0; step < 24; step++) {
+          await tester.pump(const Duration(milliseconds: 16));
+          await tester.runAsync(
+            () => Future<void>.delayed(const Duration(milliseconds: 10)),
+          );
+        }
+        await settleFrames(tester);
+      }
+
+      await call(<String, Object?>{
+        'jsonrpc': '2.0',
+        'id': 1,
+        'method': 'initialize',
+        'params': <String, Object?>{
+          'protocolVersion': '2024-11-05',
+          'capabilities': <String, Object?>{},
+          'clientInfo': <String, Object?>{
+            'name': 'mcp-client',
+            'version': '0.1.0',
+          },
+        },
+      });
+      await call(<String, Object?>{
+        'jsonrpc': '2.0',
+        'method': 'notifications/initialized',
+      });
+
+      // Case 6's own opening steps, as an MCP client actually sends them —
+      // a name and a JSON object — so the feed in the picture is the feed a
+      // reader of that page will see.
+      var id = 2;
+      Future<void> callTool(String tool, Map<String, Object?> arguments) =>
+          call(<String, Object?>{
+            'jsonrpc': '2.0',
+            'id': id++,
+            'method': 'tools/call',
+            'params': <String, Object?>{'name': tool, 'arguments': arguments},
+          });
+
+      // The starting document is one cube, and a new project numbers from
+      // one — so this is the same "select, then paint" an agent does over any
+      // document, with the id it would have read out of `list`.
+      await callTool('list', const <String, Object?>{});
+      await callTool('select', const <String, Object?>{
+        'objects': <int>[1],
+      });
+      await callTool('addMaterial', const <String, Object?>{
+        'materialName': 'glazed clay',
+      });
+      // A new document's material table is empty, so the row just added is
+      // row zero — and assigning it is what makes the call after this one
+      // visible on the model rather than an edit to a row nothing wears.
+      await callTool('assignMaterial', const <String, Object?>{
+        'id': 1,
+        'to': 0,
+      });
+      await callTool('setMaterialField', const <String, Object?>{
+        'index': 0,
+        'field': 'baseColor',
+        'value': <double>[0.72, 0.36, 0.22, 1],
+      });
+
+      // The badge only exists once a client has introduced itself, which is
+      // the state this picture is of.
+      expect(find.byIcon(Icons.smart_toy), findsOneWidget);
+      await tester.tap(find.byIcon(Icons.smart_toy));
+      await settleFrames(tester);
+      await settleFrames(tester);
+      await shootWindow(tester, 'an-agent-beside-you/01-agent-session-panel');
     });
   });
 }

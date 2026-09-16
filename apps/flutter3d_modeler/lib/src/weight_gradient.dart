@@ -243,13 +243,32 @@ final class WeightGradientShading {
   final Map<MeshNode, Material> _own = <MeshNode, Material>{};
 
   /// Draws every [MeshNode] under [subject] with [kWeightGradientMaterial]
-  /// when [active], or with what it was drawn with before this ever ran
-  /// otherwise.
+  /// when [active], and puts back whatever it took away otherwise.
+  ///
+  /// **The memory lasts exactly as long as the swap does.** What this
+  /// recorded the first time it saw a node, it then wrote back on every frame
+  /// the weights view was *off* — which is every frame of an ordinary
+  /// session, since this is walked whether or not the sub-mode is open. A
+  /// material edited afterwards reached the node and was painted over again
+  /// before the next frame was drawn, so the model stayed the colour it was
+  /// when the window opened however the document changed. `SurfaceShading`
+  /// had the same fault and is fixed the same way.
   void apply(SceneNode subject, {required bool active}) {
+    if (!active) {
+      for (final MapEntry<MeshNode, Material> each in _own.entries) {
+        each.key.material = each.value;
+      }
+      _own.clear();
+      return;
+    }
     subject.traverse((SceneNode node) {
       if (node is! MeshNode) return;
-      final Material own = _own.putIfAbsent(node, () => node.material);
-      node.material = active ? kWeightGradientMaterial : own;
+      // Already swapped — asked of the node rather than of the map, so a
+      // material `SceneSync` wrote *during* a weights session is the one put
+      // back at the end of it rather than the one from before it began.
+      if (identical(node.material, kWeightGradientMaterial)) return;
+      _own[node] = node.material;
+      node.material = kWeightGradientMaterial;
     });
   }
 

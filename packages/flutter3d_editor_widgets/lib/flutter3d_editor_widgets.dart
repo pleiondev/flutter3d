@@ -18,6 +18,7 @@ export 'src/editor_widgets_theme.dart';
 export 'src/enum_field.dart';
 export 'src/field_row.dart';
 export 'src/hint_text_box.dart';
+export 'src/number_expression.dart';
 export 'src/number_field.dart';
 export 'src/range_slider_field.dart';
 export 'src/section_label.dart';
