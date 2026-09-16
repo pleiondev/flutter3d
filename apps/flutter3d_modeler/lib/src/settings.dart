@@ -27,6 +27,7 @@ import 'dart:convert';
 import 'package:flutter3d_app/flutter3d_app.dart' show Storage, defaultStorage;
 
 import 'recent_projects.dart' show RecentModels;
+import 'ui/dock_layout.dart';
 
 /// Which way the camera is driven — `ux-04`'s own two schemes.
 ///
@@ -173,6 +174,7 @@ final class ModelerSettings {
     this.snapTurnDegrees = 15,
     this.snapScale = 0.1,
     this.propertiesWidth = 250,
+    this.layouts = const <String, DockLayout>{},
   });
 
   /// How the camera is driven.
@@ -236,6 +238,16 @@ final class ModelerSettings {
   /// thing people stop doing and then work narrow instead.
   final double propertiesWidth;
 
+  /// How each workspace has its window arranged — `ux-38`.
+  ///
+  /// **Beside [propertiesWidth] rather than instead of it.** That field is
+  /// what every build before this one wrote, and a settings file from one of
+  /// them has to keep opening at the width its owner dragged the panel to;
+  /// `layoutFor` falls back to it for a workspace with no entry here yet, so
+  /// the first launch after an upgrade looks exactly like the last one
+  /// before it.
+  final DockLayouts layouts;
+
   ModelerSettings copyWith({
     NavigationScheme? navigation,
     KeymapPreset? keymap,
@@ -250,6 +262,7 @@ final class ModelerSettings {
     double? snapTurnDegrees,
     double? snapScale,
     double? propertiesWidth,
+    DockLayouts? layouts,
   }) => ModelerSettings(
     navigation: navigation ?? this.navigation,
     keymap: keymap ?? this.keymap,
@@ -263,7 +276,13 @@ final class ModelerSettings {
     snapTurnDegrees: snapTurnDegrees ?? this.snapTurnDegrees,
     snapScale: snapScale ?? this.snapScale,
     propertiesWidth: propertiesWidth ?? this.propertiesWidth,
+    layouts: layouts ?? this.layouts,
   );
+
+  /// [workspace]'s own layout, falling back to [propertiesWidth] for a
+  /// workspace this file has never arranged.
+  DockLayout layoutOf(Workspace workspace) =>
+      layouts[workspace.id] ?? DockLayout(propertiesWidth: propertiesWidth);
 
   Map<String, Object?> toJson() => <String, Object?>{
     'navigation': navigation.id,
@@ -278,6 +297,11 @@ final class ModelerSettings {
     'snapTurnDegrees': snapTurnDegrees,
     'snapScale': snapScale,
     'propertiesWidth': propertiesWidth,
+    if (layouts.isNotEmpty)
+      'layouts': <String, Object?>{
+        for (final MapEntry<String, DockLayout> each in layouts.entries)
+          each.key: each.value.toJson(),
+      },
   };
 
   /// What [json] says, with the default standing in for anything it does not
@@ -327,6 +351,14 @@ final class ModelerSettings {
       snapTurnDegrees: step('snapTurnDegrees', fallback.snapTurnDegrees),
       snapScale: step('snapScale', fallback.snapScale),
       propertiesWidth: step('propertiesWidth', fallback.propertiesWidth),
+      layouts: switch (json['layouts']) {
+        final Map<String, Object?> saved => <String, DockLayout>{
+          for (final MapEntry<String, Object?> each in saved.entries)
+            if (each.value case final Map<String, Object?> layout)
+              each.key: DockLayout.fromJson(layout),
+        },
+        _ => fallback.layouts,
+      },
     );
   }
 
@@ -344,6 +376,7 @@ final class ModelerSettings {
       other.snapMove == snapMove &&
       other.snapTurnDegrees == snapTurnDegrees &&
       other.snapScale == snapScale &&
+      _sameLayouts(other.layouts, layouts) &&
       other.propertiesWidth == propertiesWidth;
 
   @override
@@ -360,7 +393,24 @@ final class ModelerSettings {
     snapTurnDegrees,
     snapScale,
     propertiesWidth,
+    // The map itself cannot be hashed — two equal maps are different
+    // objects — so the entries are, in a fixed order.
+    Object.hashAll(<Object>[
+      for (final String id in layouts.keys.toList()..sort())
+        Object.hash(id, layouts[id]),
+    ]),
   );
+
+  /// Whether two layout maps hold the same entries. `Map` has no value
+  /// equality of its own, and `==` above is what decides whether a settings
+  /// write is worth making at all.
+  static bool _sameLayouts(DockLayouts a, DockLayouts b) {
+    if (a.length != b.length) return false;
+    for (final MapEntry<String, DockLayout> each in a.entries) {
+      if (b[each.key] != each.value) return false;
+    }
+    return true;
+  }
 }
 
 /// The settings document on disk.

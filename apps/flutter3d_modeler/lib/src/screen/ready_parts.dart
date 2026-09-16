@@ -15,6 +15,37 @@
 part of '../../main.dart';
 
 extension _ReadyParts on _ModelerScreenState {
+  /// `ux-38`: writes one field of [workspace]'s own layout and keeps the
+  /// rest.
+  ///
+  /// **One place, because a layout is written from three gestures** — the
+  /// panel splitter, the viewport divider and the split toggle — and three
+  /// call sites each doing their own read-modify-write is three chances for
+  /// one of them to drop what another had just set.
+  void _saveLayout(
+    Workspace workspace, {
+    double? propertiesWidth,
+    bool? splitViewport,
+    double? viewportSplit,
+  }) => setState(() {
+    final DockLayout was = _settings.layoutOf(workspace);
+    _settings = _settings.copyWith(
+      layouts: withLayout(
+        _settings.layouts,
+        workspace,
+        was.copyWith(
+          propertiesWidth: propertiesWidth,
+          splitViewport: splitViewport,
+          viewportSplit: viewportSplit,
+        ),
+      ),
+      // Kept in step so a build that only reads the old field — and every
+      // one before this row did — still opens at the width somebody chose.
+      propertiesWidth: propertiesWidth,
+    );
+    _settingsStore.write(_settings);
+  });
+
   /// The whole screen, inside `ux-44`'s own capture boundary.
   ///
   /// **A boundary round everything, and only one.** `ui.screenshot` is for
@@ -157,6 +188,15 @@ extension _ReadyParts on _ModelerScreenState {
                       unawaited(_showExportDialog(format: format)),
                   onMaterialStudio: () => unawaited(_openMaterialStudio()),
                   onPreview: () => unawaited(_openGamePreview()),
+                  // `ux-38`: two views of the one document, remembered
+                  // per workspace. Off in the retarget screen, which is
+                  // already two viewports and whose second is another
+                  // document.
+                  splitViewport: _settings
+                      .layoutOf(state.workspace)
+                      .splitViewport,
+                  onSplitViewport: (bool to) =>
+                      _saveLayout(state.workspace, splitViewport: to),
                   // `ux-51`: Play, held back by the same readiness Export
                   // is — and saying so in Export's own words.
                   onPlay: (PlayTemplate template) =>
@@ -720,6 +760,22 @@ extension _ReadyParts on _ModelerScreenState {
                       ],
                     );
 
+              // `ux-38`: the same document from a second camera, when this
+              // workspace's own layout says so. Not over the retarget
+              // screen, which is already two viewports of its own and whose
+              // second one is a different document.
+              final DockLayout layout = _settings.layoutOf(state.workspace);
+              final Widget docked = layout.splitViewport && !retargetView
+                  ? SplitViewports(
+                      renderer: renderer,
+                      stage: stage,
+                      primary: viewport,
+                      split: layout.viewportSplit,
+                      onSplit: (double to) =>
+                          _saveLayout(state.workspace, viewportSplit: to),
+                    )
+                  : viewport;
+
               void onMode(ModelerMode mode) {
                 // `ui-40d`'s own row: the animation mode's own tools depend
                 // on the remembered sub-mode, the same as the rail already
@@ -776,7 +832,7 @@ extension _ReadyParts on _ModelerScreenState {
                   actions: actions,
                   status: status,
                   properties: properties,
-                  viewport: viewport,
+                  viewport: docked,
                 ),
                 mode: state.mode,
                 onMode: onMode,
@@ -797,11 +853,13 @@ extension _ReadyParts on _ModelerScreenState {
                 // the two folds are this session's, since a window that
                 // opened with its panels hidden would be a window somebody
                 // has to find the keys to get back.
-                propertiesWidth: _settings.propertiesWidth,
-                onPropertiesWidth: (double to) => setState(() {
-                  _settings = _settings.copyWith(propertiesWidth: to);
-                  _settingsStore.write(_settings);
-                }),
+                // `ux-38`: per workspace now — the width somebody wants
+                // beside a material is not the width they want beside a
+                // retarget, and one shared number means rebuilding the
+                // layout by hand on every switch.
+                propertiesWidth: layout.propertiesWidth,
+                onPropertiesWidth: (double to) =>
+                    _saveLayout(state.workspace, propertiesWidth: to),
                 foldedPanel: _foldedPanel,
                 foldedRail: _foldedRail,
                 // `ux-23`: the lights, in the mode that is about them. The

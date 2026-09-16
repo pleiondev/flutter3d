@@ -119,6 +119,11 @@ dependencies:
   # this is the one place a real plugin buys more than it costs.
   url_launcher: ^6.3.0
 
+  # `ux-38`: the split the viewport divides along, and the weights a person
+  # drags it to. Pure Dart over `Flex` — no native side, so the web build
+  # docks exactly as the desktop one does, which is what that row asks for.
+  multi_split_view: ^3.6.2
+
   # `AppLocalizations`'s own delegates (`GlobalMaterialLocalizations` and
   # friends) — `ui-22`'s own русский/английский, so the framework's stock
   # widgets (a date picker this app does not have yet, a text field's own
