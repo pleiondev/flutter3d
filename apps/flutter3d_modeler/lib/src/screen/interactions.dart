@@ -548,7 +548,7 @@ extension _Interactions on _ModelerScreenState {
     // The renderer answers with the leaf it rasterised; the document speaks in
     // ids. `SceneSync` is the only place that knows which is which, and a
     // second map here would be a second thing to keep in step.
-    final int? id = switch (pick) {
+    final int? found = switch (pick) {
       PickedObject(:final node) => sync.objectOf(node),
       // The viewport's own furniture. Not "nothing": clicking a gizmo's arrow
       // is the first half of a drag of the very object that is selected, and
@@ -556,6 +556,14 @@ extension _Interactions on _ModelerScreenState {
       PickedService() => null,
       PickedNothing() => null,
     };
+    // `ux-14`: a locked object does not answer the pointer. Read as "nothing
+    // was hit" rather than dropped outright, so a bare click on the floor
+    // still clears the selection — which is what a click on the background
+    // does, and a locked floor is background as far as a pointer is
+    // concerned.
+    final int? id = found != null && (state.project[found]?.locked ?? false)
+        ? null
+        : found;
     final was = _history.selection;
     final List<int>? next = nextSelection(
       id: id,
@@ -565,6 +573,33 @@ extension _Interactions on _ModelerScreenState {
     );
     if (next == null) return;
     setState(() {
+      _history.selection = was.copyWith(
+        mode: SelectionMode.object,
+        objects: next,
+      );
+      _cubit.say(null);
+    });
+  }
+
+  /// A click in the outliner — `ux-14`.
+  ///
+  /// **The anchor is kept here rather than inside the list.** A shift-click
+  /// means "from the last one I picked", and the last one picked survives a
+  /// rebuild of the panel, a trip through another mode and an undo; a
+  /// `StatefulWidget` inside the list would lose it on any of the three.
+  void _pickedInOutliner(int id, OutlinerPick how) {
+    final ProjectSelection was = _history.selection;
+    final List<int> next = outlinerSelection(
+      current: was.objects,
+      rows: outlinerRows(_history.project.objects),
+      id: id,
+      how: how,
+      anchor: _outlinerAnchor,
+    );
+    setState(() {
+      // A range keeps whatever it was measured from; anything else sets it,
+      // so the next shift-click reaches back to here.
+      if (how != OutlinerPick.through) _outlinerAnchor = id;
       _history.selection = was.copyWith(
         mode: SelectionMode.object,
         objects: next,

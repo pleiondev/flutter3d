@@ -393,7 +393,32 @@ final class ModelObject {
     this.shapeDrivers = const <ShapeDriver>[],
     this.lods = const <LodSpec>[],
     this.simulationCache,
+    this.visible = true,
+    this.locked = false,
   });
+
+  /// Whether this object is drawn — `ux-14`.
+  ///
+  /// **A fact about the document, not about the session.** Hiding the walls
+  /// to get at what is inside them is something a person does once and comes
+  /// back to tomorrow, and an exporter has to know: a hidden object is one
+  /// the person has said they are not working on, and writing it into the
+  /// GLB anyway is writing something they cannot see.
+  ///
+  /// A hidden parent hides its children — see [ModelProject.isVisible]. That
+  /// is what makes it a hierarchy toggle rather than a per-object one, and
+  /// the reason the flag is stored per object rather than resolved on the
+  /// way in: unhiding the parent brings back exactly the children that were
+  /// visible before, rather than all of them.
+  final bool visible;
+
+  /// Whether this object refuses to be picked or transformed — `ux-14`.
+  ///
+  /// **Locked is not hidden.** The floor a person keeps clicking by accident
+  /// while aiming at what stands on it has to stay on screen — that is what
+  /// it is for — and has to stop answering the pointer. Hiding it answers a
+  /// different question.
+  final bool locked;
 
   /// Stable for the life of the object, and not reused after a delete.
   final int id;
@@ -475,6 +500,8 @@ final class ModelObject {
     List<LodSpec>? lods,
     SimulationCache? simulationCache,
     bool clearSimulationCache = false,
+    bool? visible,
+    bool? locked,
   }) => ModelObject(
     id: id,
     name: name ?? this.name,
@@ -493,6 +520,8 @@ final class ModelObject {
     simulationCache: clearSimulationCache
         ? null
         : (simulationCache ?? this.simulationCache),
+    visible: visible ?? this.visible,
+    locked: locked ?? this.locked,
   );
 
   @override
@@ -556,6 +585,28 @@ final class ModelProject implements ModelProjectView {
       if (object.id == id) return object;
     }
     return null;
+  }
+
+  /// Whether [id] is drawn, counting its parents — `ux-14`.
+  ///
+  /// **A hidden parent hides its children.** That is what people mean by
+  /// hiding a group, and it is the only rule under which the toggle is worth
+  /// having: an outliner where hiding a rig's root left forty bones on
+  /// screen would be one where the toggle has to be pressed forty-one times.
+  ///
+  /// A cycle cannot form — [SetParent] refuses to make one — but the walk is
+  /// bounded anyway by the number of objects, because a project read from a
+  /// file somebody edited by hand is a project this has to survive rather
+  /// than hang in.
+  bool isVisible(int id) {
+    var at = this[id];
+    for (var steps = 0; at != null && steps <= objects.length; steps++) {
+      if (!at.visible) return false;
+      final int? up = at.parent;
+      if (up == null) return true;
+      at = this[up];
+    }
+    return true;
   }
 
   int get triangleCount => objects.fold(

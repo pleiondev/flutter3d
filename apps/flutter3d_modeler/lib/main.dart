@@ -100,6 +100,7 @@ import 'src/ui/layout_class.dart';
 import 'src/ui/material_studio_dialog.dart';
 import 'src/ui/measurement_report_overlay.dart';
 import 'src/ui/modeler_keys.dart';
+import 'src/ui/properties/outliner.dart';
 import 'src/ui/properties/properties_panel.dart';
 import 'src/ui/restore_autosave_dialog.dart';
 import 'src/ui/retarget_panel.dart';
@@ -496,6 +497,10 @@ class _ModelerScreenState extends State<ModelerScreen>
   /// somebody has to know a key to get back.
   bool _foldedPanel = false;
   bool _foldedRail = false;
+
+  /// The last object picked in the outliner, which a shift-click reaches
+  /// back to — `ux-14`. Null until one has been.
+  int? _outlinerAnchor;
 
   /// How tall the picture was last laid out, in logical pixels — `ux-29`.
   /// A drag started from the keyboard measures a pixel the same way one

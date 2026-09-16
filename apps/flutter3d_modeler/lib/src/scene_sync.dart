@@ -219,6 +219,19 @@ final class SceneSync {
       had.version = object.version;
     }
 
+    // `ux-14`: what is drawn, counting parents — a pass of its own, after
+    // the one above, and deliberately not inside it.
+    //
+    // **Every tracked node, every time, regardless of its own version.**
+    // Hiding a parent bumps the parent's version and nothing else's, so a
+    // child whose version has not moved is exactly the node whose visibility
+    // has to change — and that is the case the `continue`s above skip. The
+    // walk is a handful of parent lookups per object and runs when a command
+    // lands rather than per frame.
+    for (final MapEntry<int, _Tracked> each in _tracked.entries) {
+      each.value.node.visible = project.isVisible(each.key);
+    }
+
     // Anything the project no longer holds. Removed after the pass rather than
     // during it, because a map cannot be walked while it is being changed and
     // because an object that moved under a new parent is not a removal.
