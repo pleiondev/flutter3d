@@ -3,12 +3,19 @@
 /// answer for drawn in the hand-off's own warning colours — `anim-18`'s
 /// row, `ui/bone_map_table.dart` in the plan's own words.
 ///
-/// **Read-only, on purpose.** The hand-off names one way to change a row:
-/// "Сопоставить автоматически" (map automatically), which is
-/// [onAutoMap]/`retarget.autoMap`. There is no per-row picker in the design
-/// to build a second one out of, and a table nobody asked for would be a
-/// second, silently divergent way to build a [BoneMap] this pass does not
-/// need.
+/// **Editable per row since `ux-46`.** It was read-only on the argument that
+/// the hand-off names one way to change a map — "Сопоставить автоматически",
+/// which is [onAutoMap] — and that held until somebody tried it on a rig
+/// whose bones are named anything but the convention `looseAutoMap` knows.
+/// Automatic mapping gets most of a humanoid and misses the two that matter,
+/// and a table that can only be regenerated leaves "the left hand went to
+/// the right elbow" as a thing to fix by renaming bones in another
+/// application.
+///
+/// The picker offers the *target* rig's own joint names, so a row cannot be
+/// pointed at a bone that is not there; [onMapBone] reports the pair and
+/// nothing more, the same way every other panel here reports rather than
+/// edits.
 library;
 
 import 'package:flutter/material.dart' hide Material;
@@ -23,6 +30,8 @@ class BoneMapTable extends StatelessWidget {
     required this.sourceNames,
     required this.boneMap,
     required this.onAutoMap,
+    this.targetNames = const <String>[],
+    this.onMapBone,
   });
 
   /// Every joint name on the source skeleton — `retargetRigOf`'s own read
@@ -35,6 +44,15 @@ class BoneMapTable extends StatelessWidget {
   /// `retarget.autoMap`'s own rail button, reachable a second way from
   /// here — the hand-off's own "Сопоставить автоматически" link.
   final VoidCallback onAutoMap;
+
+  /// Every joint on the rig being retargeted *onto* — what a row may be
+  /// pointed at. Empty leaves every row read-only, which is what a caller
+  /// that has not been taught this row still gets.
+  final List<String> targetNames;
+
+  /// A row was pointed at [target], or at nothing when it is null —
+  /// `ux-46`. Null here leaves the table read-only.
+  final void Function(String source, String? target)? onMapBone;
 
   @override
   Widget build(BuildContext context) {
@@ -64,17 +82,29 @@ class BoneMapTable extends StatelessWidget {
           ],
         ),
         for (final String name in sourceNames)
-          _BoneMapRow(source: name, target: boneMap.targetOf(name)),
+          _BoneMapRow(
+            source: name,
+            target: boneMap.targetOf(name),
+            targetNames: targetNames,
+            onMapBone: targetNames.isEmpty ? null : onMapBone,
+          ),
       ],
     );
   }
 }
 
 class _BoneMapRow extends StatelessWidget {
-  const _BoneMapRow({required this.source, this.target});
+  const _BoneMapRow({
+    required this.source,
+    this.target,
+    this.targetNames = const <String>[],
+    this.onMapBone,
+  });
 
   final String source;
   final String? target;
+  final List<String> targetNames;
+  final void Function(String source, String? target)? onMapBone;
 
   @override
   Widget build(BuildContext context) {
@@ -115,13 +145,42 @@ class _BoneMapRow extends StatelessWidget {
                   ),
                 if (unmapped) const SizedBox(width: 4),
                 Expanded(
-                  child: Text(
-                    target ?? 'unmapped',
-                    overflow: TextOverflow.ellipsis,
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: unmapped ? scheme.tertiary : null,
-                    ),
-                  ),
+                  child: onMapBone == null
+                      ? Text(
+                          target ?? 'unmapped',
+                          overflow: TextOverflow.ellipsis,
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: unmapped ? scheme.tertiary : null,
+                          ),
+                        )
+                      // `ux-46`: the target rig's own joints, and "unmapped"
+                      // as a real choice rather than only a state — a bone
+                      // automatic mapping got wrong is one somebody wants to
+                      // take *off* as often as move.
+                      : DropdownButton<String?>(
+                          key: ValueKey<String>('bone-map-$source'),
+                          isExpanded: true,
+                          isDense: true,
+                          underline: const SizedBox.shrink(),
+                          value: target,
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: unmapped ? scheme.tertiary : null,
+                          ),
+                          items: <DropdownMenuItem<String?>>[
+                            const DropdownMenuItem<String?>(
+                              child: Text('unmapped'),
+                            ),
+                            for (final String name in targetNames)
+                              DropdownMenuItem<String?>(
+                                value: name,
+                                child: Text(
+                                  name,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                          ],
+                          onChanged: (String? to) => onMapBone!(source, to),
+                        ),
                 ),
               ],
             ),

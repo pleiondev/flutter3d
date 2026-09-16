@@ -112,6 +112,41 @@ extension _RetargetWiring on _ModelerScreenState {
     ];
   }
 
+  /// Every joint name on the rig being retargeted *onto* — `ux-46`'s own
+  /// right column, and the list a row's own picker offers.
+  ///
+  /// Empty where there is nothing to retarget onto, which is exactly when
+  /// the table should stay read-only: a picker of no bones is a control that
+  /// can only be opened and closed again.
+  List<String> get _retargetTargetNames {
+    final ModelerState state = _state;
+    if (state is! ModelerReady) return const <String>[];
+    final ProjectSkeleton? target = _retargetTargetSkeleton(state);
+    if (target == null) return const <String>[];
+    return <String>[
+      for (final int id in target.joints)
+        state.project[id]?.name ?? 'joint $id',
+    ];
+  }
+
+  /// `ux-46`: one row of the bone map, pointed somewhere else.
+  ///
+  /// **A `setState` rather than a command.** The map is not document state —
+  /// `RetargetClipJobRequest` reads it when Apply runs and nothing saves it —
+  /// which is the same reason `looseAutoMap`'s own result is held here
+  /// rather than run through the history.
+  void _mapBone(String source, String? target) => setState(() {
+    final Map<String, String> next = <String, String>{
+      ..._retargetBoneMap.pairs,
+    };
+    if (target == null) {
+      next.remove(source);
+    } else {
+      next[source] = target;
+    }
+    _retargetBoneMap = BoneMap(next);
+  });
+
   /// Whether `retarget.apply` has a source clip and a rigged target to run
   /// against — [RetargetPanel.canApply]'s own value.
   bool get _retargetCanApply {

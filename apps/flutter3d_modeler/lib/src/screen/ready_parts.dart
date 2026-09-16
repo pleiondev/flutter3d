@@ -343,6 +343,11 @@ extension _ReadyParts on _ModelerScreenState {
                 retargetSourceNames: _retargetSourceNames,
                 retargetBoneMap: _retargetBoneMap,
                 onRetargetAutoMap: _autoMapRetarget,
+                // `ux-46`: a bone map a person can correct a row of, since
+                // automatic mapping gets most of a humanoid and misses the
+                // two that matter.
+                retargetTargetNames: _retargetTargetNames,
+                onMapBone: _mapBone,
                 retargetRootMotion: _retargetRootMotion,
                 onRetargetRootMotionChanged: _setRetargetRootMotion,
                 retargetLockFeet: _retargetLockFeet,
@@ -864,6 +869,12 @@ extension _ReadyParts on _ModelerScreenState {
                         onSpeedChanged: _setAnimationSpeed,
                         selectedTrack: _selectedAnimationTrack,
                         selectedKey: _selectedAnimationKey,
+                        selectedKeys: _selectedAnimationKeys,
+                        // `ux-46`: the profile's own switch, which nothing
+                        // read before this row.
+                        frameSnap: state.project.profile.frameSnap,
+                        pixelsPerSecond: _timelineZoom,
+                        onZoom: _setTimelineZoom,
                         onMoveKeys: _moveKeys,
                         onSeek: _scrubAnimation,
                         onSelectKey: _selectAnimationTrackKey,

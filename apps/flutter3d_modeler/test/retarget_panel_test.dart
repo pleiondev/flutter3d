@@ -25,6 +25,8 @@ Future<void> _pump(
   ValueChanged<double>? onFootToleranceChanged,
   bool canApply = false,
   VoidCallback? onApply,
+  List<String> targetNames = const <String>[],
+  void Function(String source, String? target)? onMapBone,
 }) => tester.pumpWidget(
   MaterialApp(
     theme: modelerTheme(),
@@ -46,6 +48,8 @@ Future<void> _pump(
             onFootToleranceChanged: onFootToleranceChanged ?? (_) {},
             canApply: canApply,
             onApply: onApply,
+            targetNames: targetNames,
+            onMapBone: onMapBone,
           ),
         ),
       ),
@@ -131,5 +135,69 @@ void main() {
     await _pump(tester, canApply: true, onApply: () => applied++);
     await tester.tap(find.text('Apply the retarget'));
     expect(applied, 1);
+  });
+
+  group("ux-46: a bone map row a person can correct", () {
+    testWidgets('with no target rig the table stays read-only', (
+      WidgetTester tester,
+    ) async {
+      await _pump(
+        tester,
+        sourceNames: const <String>['hips', 'spine'],
+        boneMap: const BoneMap(<String, String>{'hips': 'Hips'}),
+      );
+
+      // A picker of no bones is a control that can only be opened and shut
+      // again. Mutation: draw it regardless, and every row of a panel with
+      // nothing to retarget onto becomes a dropdown offering "unmapped".
+      expect(find.byType(DropdownButton<String?>), findsNothing);
+      expect(find.text('Hips'), findsOneWidget);
+    });
+
+    testWidgets('and with one, each row picks from the target\'s own joints', (
+      WidgetTester tester,
+    ) async {
+      await _pump(
+        tester,
+        sourceNames: const <String>['hips', 'spine'],
+        boneMap: const BoneMap(<String, String>{'hips': 'Hips'}),
+        targetNames: const <String>['Hips', 'Spine', 'Head'],
+        onMapBone: (String source, String? target) {},
+      );
+
+      expect(find.byType(DropdownButton<String?>), findsNWidgets(2));
+    });
+
+    testWidgets('changing a row reports the pair, and clearing it reports '
+        'nothing', (WidgetTester tester) async {
+      final changes = <String>[];
+      await _pump(
+        tester,
+        sourceNames: const <String>['spine'],
+        boneMap: const BoneMap(<String, String>{'spine': 'Spine'}),
+        targetNames: const <String>['Hips', 'Spine', 'Head'],
+        onMapBone: (String source, String? target) =>
+            changes.add('$source -> ${target ?? 'nothing'}'),
+      );
+
+      // **Automatic mapping gets most of a humanoid and misses the two that
+      // matter.** Mutation: leave the table read-only, which is what it
+      // was — "the left hand went to the right elbow" is then a thing to
+      // fix by renaming bones in another application.
+      await tester.tap(find.byKey(const ValueKey<String>('bone-map-spine')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Head').last);
+      await tester.pumpAndSettle();
+      expect(changes.single, 'spine -> Head');
+
+      // And "unmapped" is a real choice rather than only a state: a bone
+      // the guess got wrong is one somebody wants to take off as often as
+      // move.
+      await tester.tap(find.byKey(const ValueKey<String>('bone-map-spine')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('unmapped').last);
+      await tester.pumpAndSettle();
+      expect(changes.last, 'spine -> nothing');
+    });
   });
 }

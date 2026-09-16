@@ -50,9 +50,26 @@ extension _AnimationWiring on _ModelerScreenState {
 
   /// `TimelinePanel.onSelectKey`/`CurveEditor.onSelectKey`: a diamond or a
   /// curve point was picked.
-  void _selectAnimationTrackKey(int trackIndex, int keyIndex) => setState(() {
+  ///
+  /// [add] is `ux-46`'s own shift-click. **The single pair still moves**, so
+  /// everything reading "which key is selected" — the curve editor, the
+  /// value boxes under the timeline — keeps answering about the one a person
+  /// touched last, and the set beside it is what a drag moves together.
+  void _selectAnimationTrackKey(
+    int trackIndex,
+    int keyIndex, {
+    bool add = false,
+  }) => setState(() {
     _selectedAnimationTrack = trackIndex;
     _selectedAnimationKey = keyIndex;
+    if (add) {
+      final (int, int) at = (trackIndex, keyIndex);
+      if (!_selectedAnimationKeys.remove(at)) _selectedAnimationKeys.add(at);
+    } else {
+      _selectedAnimationKeys
+        ..clear()
+        ..add((trackIndex, keyIndex));
+    }
   });
 
   /// `SkeletonTree.onSelectJoint`, and `S5`'s own `WeightPaintPanel`'s

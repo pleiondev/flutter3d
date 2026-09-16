@@ -35,6 +35,10 @@ class AnimationBottom extends StatelessWidget {
     this.onSpeedChanged,
     this.selectedTrack,
     this.selectedKey,
+    this.selectedKeys = const <(int, int)>{},
+    this.frameSnap = false,
+    this.pixelsPerSecond = 120.0,
+    this.onZoom,
     this.onMoveKeys,
     this.onSeek,
     this.onSelectKey,
@@ -71,7 +75,16 @@ class AnimationBottom extends StatelessWidget {
 
   final ValueChanged<MoveKeys>? onMoveKeys;
   final ValueChanged<double>? onSeek;
-  final void Function(int trackIndex, int keyIndex)? onSelectKey;
+
+  /// `ux-46`: [add] is shift, "and this one too" rather than "instead".
+  final void Function(int trackIndex, int keyIndex, {bool add})? onSelectKey;
+
+  /// `ux-46`'s own three, handed straight to `TimelinePanel` — see that
+  /// widget for what each is and why it is reported rather than kept.
+  final Set<(int, int)> selectedKeys;
+  final bool frameSnap;
+  final double pixelsPerSecond;
+  final ValueChanged<double>? onZoom;
 
   /// [TimelinePanel.onSetKey]'s own tap-to-key, forwarded straight through —
   /// a caller turns `(trackIndex, time)` into the real `PoseJoint` through
@@ -152,8 +165,12 @@ class AnimationBottom extends StatelessWidget {
               time: KeyTable.timeOfFrame(frameValue, fps),
               fps: fps,
               labelWidth: 180,
+              pixelsPerSecond: pixelsPerSecond,
               selectedTrack: selectedTrack,
               selectedKey: selectedKey,
+              selectedKeys: selectedKeys,
+              frameSnap: frameSnap,
+              onZoom: onZoom,
               onMoveKeys: onMoveKeys,
               onSeek: onSeek,
               onSelectKey: onSelectKey,
