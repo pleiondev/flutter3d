@@ -3512,6 +3512,81 @@ List<ModelTool> get _rigPipelineTools => <ModelTool>[
   ),
   ModelTool(
     Tool(
+      name: 'drawQuad',
+      description:
+          'Add one quad to a retopology by naming its four corners in the '
+          'target mesh\'s own space, in order — `pro-rt-02`. A corner '
+          'within snap metres of a vertex the mesh already has reuses that '
+          'vertex, which is what welds the new quad to the strip beside it; '
+          'a corner that is not is pulled onto sourceId\'s own surface when '
+          'one is given, and left where it is when none is. Refused when '
+          'two corners snap to the same vertex, which would be a triangle.',
+      inputSchema: ObjectSchema(
+        properties: <String, Schema>{
+          'objectId': IntegerSchema(
+            description: 'the retopology mesh the quad is added to',
+          ),
+          'points': ListSchema(
+            description: 'the four corners, in order',
+            items: _vector('one corner, in the target mesh\'s own space'),
+          ),
+          'sourceId': IntegerSchema(
+            description: 'optional; the high mesh a new corner is pulled onto',
+          ),
+          'snap': NumberSchema(
+            description:
+                'how near an existing vertex has to be to be reused, in '
+                'metres; default 0.02',
+          ),
+        },
+        required: <String>['objectId', 'points'],
+      ),
+    ),
+    _command('drawQuad'),
+  ),
+  ModelTool(
+    Tool(
+      name: 'bakeMaps',
+      description:
+          'Bake a high mesh\'s surface onto a low mesh\'s UVs — '
+          '`pro-rt-06`. normal and ao land in the target material\'s own '
+          'normal and occlusion slots; curvature and thickness have no slot '
+          'in glTF, so they are added to the project\'s images for a '
+          'texture graph to read as a mask. The target needs UVs and, for '
+          'normal or ao, a material. One command for however many maps: '
+          'they share the rasterization and the high mesh\'s tree.',
+      inputSchema: ObjectSchema(
+        properties: <String, Schema>{
+          'sourceId': IntegerSchema(
+            description: 'the high mesh, the one with the detail',
+          ),
+          'targetId': IntegerSchema(
+            description: 'the low mesh, the one with the UVs',
+          ),
+          'maps': ListSchema(
+            description: 'which maps; default ["normal"]',
+            items: UntitledSingleSelectEnumSchema(
+              values: <String>['normal', 'ao', 'curvature', 'thickness'],
+            ),
+          ),
+          'resolution': IntegerSchema(
+            description:
+                'the side of the square image, in texels, 16 to 4096; '
+                'default 1024',
+          ),
+          'shell': NumberSchema(
+            description:
+                'how far either side of the low surface the ray cage '
+                'reaches, in metres; default 0.1',
+          ),
+        },
+        required: <String>['sourceId', 'targetId'],
+      ),
+    ),
+    _command('bakeMaps'),
+  ),
+  ModelTool(
+    Tool(
       name: 'retargetClip',
       description:
           'Retarget a clip authored for one skeleton onto another '
