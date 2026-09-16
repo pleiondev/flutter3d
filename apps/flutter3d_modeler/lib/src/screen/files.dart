@@ -884,10 +884,20 @@ extension _FileHandling on _ModelerScreenState {
           mode: state.mode,
           selection: state.history.selection,
         ),
+        extra: foldEntries(keymap, mode: state.mode),
       ),
     );
     if (chosen == null || !mounted) return;
-    _ranTool(chosen);
+    switch (chosen) {
+      // `ux-27`'s own two, which are about the window rather than the model
+      // and so are not rail tools.
+      case kFoldPanelCommand:
+        setState(() => _foldedPanel = !_foldedPanel);
+      case kFoldRailCommand:
+        setState(() => _foldedRail = !_foldedRail);
+      default:
+        _ranTool(chosen);
+    }
   }
 
   /// `ux-25`'s own right-click menu: the tools of the mode somebody is in,

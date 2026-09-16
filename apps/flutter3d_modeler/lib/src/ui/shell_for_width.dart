@@ -39,7 +39,20 @@ class ShellForWidth extends StatelessWidget {
     this.bottomHeight,
     this.agentPanel,
     this.keymap,
+    this.propertiesWidth,
+    this.onPropertiesWidth,
+    this.foldedPanel = false,
+    this.foldedRail = false,
   });
+
+  /// `ux-27`'s own three: how wide the properties panel is, what a drag on
+  /// its splitter reports, and whether either it or the rail is folded away.
+  /// The desktop shell alone — the touch shells put the panel in a sheet,
+  /// which has no splitter to drag and nothing to fold it out of the way of.
+  final double? propertiesWidth;
+  final ValueChanged<double>? onPropertiesWidth;
+  final bool foldedPanel;
+  final bool foldedRail;
 
   /// Which keys the desktop rail's own tooltips name — `ux-10`. The touch
   /// shells have no tooltips of their own to carry it into.
@@ -104,6 +117,10 @@ class ShellForWidth extends StatelessWidget {
             bottomHeight: bottomHeight,
             agentPanel: agentPanel,
             keymap: keymap,
+            propertiesWidth: propertiesWidth,
+            onPropertiesWidth: onPropertiesWidth,
+            foldedPanel: foldedPanel,
+            foldedRail: foldedRail,
           ),
           LayoutClass.tablet => ModelerTabletShell(
             mode: mode,

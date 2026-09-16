@@ -31,6 +31,8 @@ class ModelerKeys extends StatelessWidget {
     required this.onInvertSelection,
     required this.onShortcutHelp,
     this.onCommandPalette,
+    this.onFoldPanel,
+    this.onFoldRail,
     required this.tools,
     required this.child,
     required this.keymap,
@@ -95,6 +97,10 @@ class ModelerKeys extends StatelessWidget {
   /// over — a preview, a test — and the keys then mean nothing rather than
   /// throwing.
   final VoidCallback? onCommandPalette;
+
+  /// `ux-27`'s own two folds. Null where there is no shell to fold.
+  final VoidCallback? onFoldPanel;
+  final VoidCallback? onFoldRail;
   final List<ModelerTool> tools;
   final Widget child;
 
@@ -131,6 +137,8 @@ class ModelerKeys extends StatelessWidget {
                 ModelerAction.playPause: onPlayPause,
                 ModelerAction.shortcutHelp: onShortcutHelp,
                 ModelerAction.commandPalette: onCommandPalette,
+                ModelerAction.foldPanel: onFoldPanel,
+                ModelerAction.foldRail: onFoldRail,
               }.entries)
             if (each.value case final VoidCallback run)
               for (final ShortcutActivator key in keymap.forAction(each.key))

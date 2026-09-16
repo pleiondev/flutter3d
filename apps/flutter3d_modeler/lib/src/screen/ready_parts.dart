@@ -61,6 +61,9 @@ extension _ReadyParts on _ModelerScreenState {
           onShortcutHelp: _showShortcutHelp,
           // `ux-25`: ⌘P, or F3 on a keyboard with no command key.
           onCommandPalette: () => unawaited(_showCommandPalette()),
+          // `ux-27`: `N` and `T`, and the same two from the palette.
+          onFoldPanel: () => setState(() => _foldedPanel = !_foldedPanel),
+          onFoldRail: () => setState(() => _foldedRail = !_foldedRail),
           // `ux-10`: whichever preset Settings holds, on this platform's own
           // command key.
           keymap: keymapFor(
@@ -597,6 +600,17 @@ extension _ReadyParts on _ModelerScreenState {
                 documentName: state.documentName,
                 isDirty: state.history.isDirty,
                 keymap: keymap,
+                // `ux-27`: the width is the person's own and is remembered;
+                // the two folds are this session's, since a window that
+                // opened with its panels hidden would be a window somebody
+                // has to find the keys to get back.
+                propertiesWidth: _settings.propertiesWidth,
+                onPropertiesWidth: (double to) => setState(() {
+                  _settings = _settings.copyWith(propertiesWidth: to);
+                  _settingsStore.write(_settings);
+                }),
+                foldedPanel: _foldedPanel,
+                foldedRail: _foldedRail,
                 agentPanel: agentPanelOpen
                     ? AgentSessionPanel(
                         calls: state.agentCalls,

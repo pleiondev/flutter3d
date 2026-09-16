@@ -172,6 +172,7 @@ final class ModelerSettings {
     this.snapMove = 0.1,
     this.snapTurnDegrees = 15,
     this.snapScale = 0.1,
+    this.propertiesWidth = 250,
   });
 
   /// How the camera is driven.
@@ -227,6 +228,14 @@ final class ModelerSettings {
 
   final double snapScale;
 
+  /// How wide the properties panel is, in logical pixels — `ux-27`.
+  ///
+  /// Remembered because it is a choice about the window a person makes once
+  /// and expects to find again, the same as which keys are live: dragging a
+  /// panel back to the width you work at on every launch is the kind of
+  /// thing people stop doing and then work narrow instead.
+  final double propertiesWidth;
+
   ModelerSettings copyWith({
     NavigationScheme? navigation,
     KeymapPreset? keymap,
@@ -240,6 +249,7 @@ final class ModelerSettings {
     double? snapMove,
     double? snapTurnDegrees,
     double? snapScale,
+    double? propertiesWidth,
   }) => ModelerSettings(
     navigation: navigation ?? this.navigation,
     keymap: keymap ?? this.keymap,
@@ -252,6 +262,7 @@ final class ModelerSettings {
     snapMove: snapMove ?? this.snapMove,
     snapTurnDegrees: snapTurnDegrees ?? this.snapTurnDegrees,
     snapScale: snapScale ?? this.snapScale,
+    propertiesWidth: propertiesWidth ?? this.propertiesWidth,
   );
 
   Map<String, Object?> toJson() => <String, Object?>{
@@ -266,6 +277,7 @@ final class ModelerSettings {
     'snapMove': snapMove,
     'snapTurnDegrees': snapTurnDegrees,
     'snapScale': snapScale,
+    'propertiesWidth': propertiesWidth,
   };
 
   /// What [json] says, with the default standing in for anything it does not
@@ -314,6 +326,7 @@ final class ModelerSettings {
       snapMove: step('snapMove', fallback.snapMove),
       snapTurnDegrees: step('snapTurnDegrees', fallback.snapTurnDegrees),
       snapScale: step('snapScale', fallback.snapScale),
+      propertiesWidth: step('propertiesWidth', fallback.propertiesWidth),
     );
   }
 
@@ -330,7 +343,8 @@ final class ModelerSettings {
       other.quickSetupDone == quickSetupDone &&
       other.snapMove == snapMove &&
       other.snapTurnDegrees == snapTurnDegrees &&
-      other.snapScale == snapScale;
+      other.snapScale == snapScale &&
+      other.propertiesWidth == propertiesWidth;
 
   @override
   int get hashCode => Object.hash(
@@ -345,6 +359,7 @@ final class ModelerSettings {
     snapMove,
     snapTurnDegrees,
     snapScale,
+    propertiesWidth,
   );
 }
 

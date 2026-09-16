@@ -29,6 +29,10 @@ Future<void> pumpShell(
   Size size = const Size(1440, 900),
   String documentName = 'untitled',
   bool isDirty = false,
+  double? propertiesWidth,
+  ValueChanged<double>? onPropertiesWidth,
+  bool foldedPanel = false,
+  bool foldedRail = false,
 }) async {
   tester.view
     ..physicalSize = size
@@ -55,6 +59,10 @@ Future<void> pumpShell(
         actions: const <Widget>[Text('actions')],
         documentName: documentName,
         isDirty: isDirty,
+        propertiesWidth: propertiesWidth,
+        onPropertiesWidth: onPropertiesWidth,
+        foldedPanel: foldedPanel,
+        foldedRail: foldedRail,
       ),
     ),
   );
@@ -473,6 +481,91 @@ void main() {
           reason: '${mode.label} threw on the way in',
         );
       }
+    });
+  });
+
+  group('ux-27: panels that resize and fold', () {
+    testWidgets('a folded panel gives its width to the picture', (
+      WidgetTester tester,
+    ) async {
+      await pumpShell(tester);
+      final double before = regionOf(tester, 'viewport', Expanded).width;
+
+      await pumpShell(tester, foldedPanel: true);
+
+      // Mutation: hide the panel and leave its width behind. The point of
+      // folding it is the picture, and a gap where the panel was is the one
+      // outcome nobody wants.
+      expect(find.text('properties'), findsNothing);
+      expect(
+        regionOf(tester, 'viewport', Expanded).width,
+        greaterThan(before + 200),
+      );
+    });
+
+    testWidgets('and a folded rail gives its own', (WidgetTester tester) async {
+      await pumpShell(tester);
+      final double before = regionOf(tester, 'viewport', Expanded).width;
+
+      await pumpShell(tester, foldedRail: true);
+
+      expect(
+        regionOf(tester, 'viewport', Expanded).width,
+        closeTo(before + ModelerMetrics.rail + 1, 0.5),
+      );
+    });
+
+    testWidgets('the panel is as wide as it is told, within its range', (
+      WidgetTester tester,
+    ) async {
+      await pumpShell(tester, propertiesWidth: 400);
+
+      expect(regionOf(tester, 'properties', SizedBox).width, 400);
+
+      // Past the widest it may be, it is the widest it may be — the number
+      // arrives from a saved document as well as from a drag.
+      await pumpShell(tester, propertiesWidth: 4000);
+      expect(
+        regionOf(tester, 'properties', SizedBox).width,
+        ModelerMetrics.propertiesWidest,
+      );
+    });
+
+    testWidgets('dragging the splitter reports a wider panel', (
+      WidgetTester tester,
+    ) async {
+      final widths = <double>[];
+      await pumpShell(
+        tester,
+        propertiesWidth: 300,
+        onPropertiesWidth: widths.add,
+      );
+
+      // The splitter lies over the panel's own left edge, so that nothing in
+      // the row moves to make room for it.
+      final Offset panel = tester.getTopLeft(find.text('properties'));
+      await tester.dragFrom(Offset(panel.dx + 3, 400), const Offset(-40, 0));
+      await tester.pump();
+
+      // Mutation: report the raw delta, or report it with the wrong sign.
+      // Dragging left would then narrow the panel it is pulling wider.
+      expect(widths, isNotEmpty);
+      expect(widths.last, greaterThan(300));
+    });
+
+    testWidgets('and offering the drag at all moves nothing', (
+      WidgetTester tester,
+    ) async {
+      await pumpShell(tester);
+      final double without = regionOf(tester, 'viewport', Expanded).width;
+
+      await pumpShell(tester, onPropertiesWidth: (_) {});
+
+      // Mutation: put the grab zone in the row as a widget of its own. Six
+      // pixels wide enough to hit is six pixels the picture loses, and every
+      // screenshot in the tutorial moves by six pixels to pay for it — which
+      // is how this was found.
+      expect(regionOf(tester, 'viewport', Expanded).width, without);
     });
   });
 }

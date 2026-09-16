@@ -32,6 +32,15 @@ abstract final class ModelerMetrics {
   static const double rail = 52;
   static const double propertiesMin = 250;
   static const double propertiesMax = 330;
+
+  /// The widest a person may drag the properties panel — `ux-27`.
+  ///
+  /// **Wider than [propertiesMax], which is the *layout's* own preference
+  /// rather than a limit on the person.** A panel of texture slots and a
+  /// nine-cell transform grid is genuinely more useful wide, and somebody who
+  /// drags it there has said so; half the window is where it stops, because
+  /// past that the picture is the thing that has been folded away.
+  static const double propertiesWidest = 640;
   static const double statusBar = 30;
 
   /// A row in a properties panel, and a button on the rail.
