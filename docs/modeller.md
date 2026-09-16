@@ -583,7 +583,7 @@ shape key driven by a joint's own rotation around one axis, rather than a
 manual slider.
 
 **Morph/shape-key tools**: `setShapeWeight {id, shapeIndex, weight}` (live
-preview weight, not a keyframe); `addShapeFromMesh` (alias `addShape`)
+preview weight, not a keyframe); `addShapeFromMesh`
 `{id, shapeName}` — captures a new shape key from the mesh's current
 vertex positions (sculpt first, then save), starting at weight 0;
 `renameShape`, `deleteShape` (also removes the matching component from
@@ -626,17 +626,17 @@ asks for more."
 Tools: `addLight {type?}`, `removeLight {index}`, `setLightField {index,
 field, value}` (fields: `type`, `color`, `intensity`, `range`,
 `castsShadow`, `innerConeAngle`/`outerConeAngle` — spot only),
-`setEnvironment {preset}`, `setSceneLightingField {field, value}`. The
-tool's own advertised schema enumerates only `ambientIntensity`,
-`shadows`, `exposure` (`model_tools.dart:2087-2089`) — but the command it
-dispatches to, `_sceneLightingFieldSet`
-(`packages/flutter3d_model_core/lib/src/lighting_commands.dart:278-296`),
-also has a working `'bloomEnabled'` (bool) case, and nothing in this
-codebase validates a tool call's arguments against its own advertised
-schema before running it. In practice `setSceneLightingField {field:
-'bloomEnabled', value: true}` sets it — it is real, working, undocumented
-surface, not a missing one; a client relying only on `tools/list` would
-never discover it.
+`setEnvironment {preset}`, `setSceneLightingField {field, value}` — whose
+fields are `ambientIntensity`, `shadows`, `exposure` and `bloomEnabled`.
+
+That last one used to be missing from the advertised schema while working
+perfectly well in `_sceneLightingFieldSet`
+(`packages/flutter3d_model_core/lib/src/lighting_commands.dart`), so the
+project's one post-processing switch was surface a client reading
+`tools/list` could not discover. `ux-35` put it in the enum. `ux-43` closed
+the other half of that gap: arguments are now checked against the schema
+before a tool runs, so an undeclared field is refused by name rather than
+quietly working.
 
 **Eight lights maximum** — `apps/flutter3d_modeler/lib/src/scene_mode.dart:64`,
 `LightBuffer.maxLights = 8`; a ninth light in one draw call turns the

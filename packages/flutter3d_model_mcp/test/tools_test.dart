@@ -82,22 +82,20 @@ void main() {
       'inspect',
       // `anim-30`: session recipes over real functions that are not, and
       // cannot be (`command.dart`'s own sealed hierarchy), a `ModelCommand`
-      // — see `model_session.dart`'s own "anim-30" section. `addShape` is
-      // the one exception with a command underneath it (`AddShapeFromMesh`,
-      // already offered as `addShapeFromMesh` too); it is a second name
-      // for that same command, not a session recipe, and belongs here for
-      // the same reason: this set is "what a tool is besides its own
-      // command name," and `addShape`'s own command name is not "addShape".
+      // — see `model_session.dart`'s own "anim-30" section.
       // `paintWeights` used to be here too, as a session recipe over a
       // function that could not be a command — it now has a real one
       // (`PaintWeights`) behind it, runs through `_command('paintWeights')`
       // like every other command tool, and its tool name equals its own
       // command name, so it is not one of these exceptions any more.
+      // `addShape` used to be here as well, as a second name for
+      // `addShapeFromMesh` over the same command; `ux-35` dropped it, since
+      // two identical entries in a tool list are a choice an agent has to
+      // make and cannot make correctly.
       'autoRig',
       'retargetClip',
       'bakeIk',
       'bakeDrivers',
-      'addShape',
       'validateRig',
     };
     expect(
