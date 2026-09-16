@@ -18,10 +18,12 @@ library;
 
 export 'src/attributes.dart';
 export 'src/bevel.dart';
+export 'src/bridge.dart';
 export 'src/bsp.dart';
 export 'src/checks.dart';
 export 'src/collision_shapes.dart';
 export 'src/cut.dart';
+export 'src/edge_slide.dart';
 export 'src/edit_mesh.dart';
 export 'src/extrude.dart';
 export 'src/import_mesh.dart';

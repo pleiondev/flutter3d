@@ -694,6 +694,21 @@ _modelCommandReaders =
         ),
         _ => null,
       },
+      'insetFaces': (json) => switch (json['thickness']) {
+        final num thickness => InsetFaces(
+          thickness.toDouble(),
+          depth: switch (json['depth']) {
+            final num depth => depth.toDouble(),
+            _ => 0.0,
+          },
+        ),
+        _ => null,
+      },
+      'bridgeLoops': (json) => const BridgeLoops(),
+      'slideEdges': (json) => switch (json['amount']) {
+        final num amount => SlideEdges(amount.toDouble()),
+        _ => null,
+      },
       'deleteElements': (json) => const DeleteElements(),
       'mergeByDistance': (json) => MergeByDistance(
         distance: switch (json['distance']) {

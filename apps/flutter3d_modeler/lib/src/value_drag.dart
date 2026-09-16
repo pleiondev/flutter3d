@@ -30,7 +30,12 @@ import 'dart:math' as math;
 /// application's pointer, not about the document.
 enum DraggedValue {
   extrude('mesh.extrude', 'distance', 'Extrude'),
-  bevel('mesh.bevel', 'width', 'Bevel');
+  bevel('mesh.bevel', 'width', 'Bevel'),
+  // `ux-39`: both are a single number a pointer means, the same as the
+  // two above — an inset's thickness and how far along its rail a loop
+  // travels.
+  inset('mesh.inset', 'thickness', 'Inset'),
+  slide('mesh.slide', 'amount', 'Slide');
 
   const DraggedValue(this.tool, this.argument, this.label);
 
@@ -57,11 +62,8 @@ enum DraggedValue {
 
 /// One of those drags, in progress.
 final class ValueDrag {
-  ValueDrag({
-    required this.what,
-    required this.started,
-    required this.perPixel,
-  }) : amount = started;
+  ValueDrag({required this.what, required this.started, required this.perPixel})
+    : amount = started;
 
   final DraggedValue what;
 

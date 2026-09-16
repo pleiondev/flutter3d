@@ -1218,6 +1218,85 @@ void main() {
       expect(history.undoSays, 'add a material');
     });
 
+    group('ux-39: inset, bridge and slide', () {
+      test('inset walls the ring it leaves, and undo puts the mesh back', () {
+        final history = edited();
+        final EditMesh mesh = meshOf(history);
+        final Uint8List before = mesh.toBytes();
+        history.selection = history.selection.copyWith(
+          mode: SelectionMode.mesh,
+          level: ElementLevel.face,
+          elements: <int>[0],
+        );
+
+        expect(history.run(const InsetFaces(0.2)), isNull);
+        // One face on the cube became five: the inner ring, remapped onto the
+        // face's own id, and a wall per edge.
+        expect(mesh.faceCount, 10);
+
+        history.undo();
+        // The trap `_asMeshStep` names: leave `meshTouched` out and the
+        // document goes back a step while the mesh stays inset.
+        expect(mesh.toBytes(), before);
+      });
+
+      test('and its hints are what a card draws a slider from', () {
+        // **Mutation: leave the hints off.** The operation card then has a
+        // number field where a person expected to drag a thickness, and
+        // `ux-29`'s own amend loses the one control it exists for.
+        expect(
+          const InsetFaces(0.2).hints['thickness'],
+          isA<DoubleHint>().having((DoubleHint it) => it.min, 'min', 0.0),
+        );
+        expect(const SlideEdges(0.5).hints['amount'], isA<DoubleHint>());
+      });
+
+      test('slide moves the loop without changing one face', () {
+        final history = edited();
+        final EditMesh mesh = meshOf(history);
+        final int faces = mesh.faceCount;
+        final int vertices = mesh.vertexCount;
+        history.selection = history.selection.copyWith(
+          mode: SelectionMode.mesh,
+          level: ElementLevel.edge,
+          elements: <int>[mesh.edgeOf(mesh.halfEdgeOf(0))],
+        );
+
+        expect(history.run(const SlideEdges(0.25)), isNull);
+        expect(mesh.faceCount, faces);
+        expect(mesh.vertexCount, vertices);
+      });
+
+      test(
+        'bridge refuses a closed edge, in a sentence a person can act on',
+        () {
+          final history = edited();
+          final EditMesh mesh = meshOf(history);
+          history.selection = history.selection.copyWith(
+            mode: SelectionMode.mesh,
+            level: ElementLevel.edge,
+            elements: <int>[mesh.edgeOf(mesh.halfEdgeOf(0))],
+          );
+
+          final String? said = history.run(const BridgeLoops());
+          expect(said, contains('open borders'));
+          expect(mesh.faceCount, 6);
+        },
+      );
+
+      test('all three round-trip through the journal', () {
+        for (final ModelCommand command in <ModelCommand>[
+          const InsetFaces(0.2, depth: 0.1),
+          const BridgeLoops(),
+          const SlideEdges(-0.4),
+        ]) {
+          final ModelCommand? back = modelCommandFromJson(command.toJson());
+          expect(back, isNotNull, reason: command.name);
+          expect(back!.toJson(), command.toJson(), reason: command.name);
+        }
+      });
+    });
+
     test('ux-40: a material added for an object arrives painted onto it', () {
       final history = ModelHistory(
         const ModelProject().added(
@@ -2591,6 +2670,10 @@ void main() {
         const Extrude(0.25),
         const LoopCut(cuts: 2),
         const BevelEdges(0.05),
+        // `ux-39`'s own three.
+        const InsetFaces(0.1, depth: 0.05),
+        const BridgeLoops(),
+        const SlideEdges(0.3),
         const DeleteElements(),
         TransformElements(
           Matrix4.identity(),
@@ -3030,6 +3113,10 @@ void main() {
       const Extrude(0.25),
       const LoopCut(cuts: 3, factor: 0.25),
       const BevelEdges(0.05),
+      // `ux-39`'s own three.
+      const InsetFaces(0.1, depth: 0.05),
+      const BridgeLoops(),
+      const SlideEdges(0.3),
       TransformElements(Matrix4.identity()),
       const MergeByDistance(distance: 0.001),
       const RecalculateNormals(flip: true),

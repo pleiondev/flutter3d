@@ -618,6 +618,64 @@ List<ModelTool> get _commandTools => <ModelTool>[
   ),
   ModelTool(
     Tool(
+      name: 'insetFaces',
+      description:
+          'Shrink every selected face inward and wall the ring it leaves - '
+          'the way a panel, a window or a recessed button is made. Mesh '
+          'mode, face level. depth pushes the new ring along the face\'s own '
+          'normal as well, so one call makes an inset and a push.',
+      inputSchema: ObjectSchema(
+        properties: <String, Schema>{
+          'thickness': NumberSchema(
+            description:
+                'how far inside the border the new ring sits, in metres',
+          ),
+          'depth': NumberSchema(
+            description:
+                'how far along the face normal to push it; omit for a flat '
+                'inset',
+          ),
+        },
+        required: <String>['thickness'],
+      ),
+    ),
+    _command('insetFaces'),
+  ),
+  ModelTool(
+    Tool(
+      name: 'bridgeLoops',
+      description:
+          'Join two open borders with a ring of quads - how two halves of a '
+          'tube, or a sleeve and a body, are made one surface. Mesh mode, '
+          'edge level: select exactly the two borders, which must have the '
+          'same number of edges, must not meet, and must not already be '
+          'joined corner to corner. Refuses with the reason otherwise.',
+      inputSchema: ObjectSchema(),
+    ),
+    _command('bridgeLoops'),
+  ),
+  ModelTool(
+    Tool(
+      name: 'slideEdges',
+      description:
+          'Move the selected loop along the edges that cross it, without '
+          'changing a single face - how a seam is nudged to where a detail '
+          'wants it. Mesh mode, edge level. amount is a fraction of each '
+          'rail\'s own length, from -1 to 1; the sign picks which of a '
+          'vertex\'s two rails it travels.',
+      inputSchema: ObjectSchema(
+        properties: <String, Schema>{
+          'amount': NumberSchema(
+            description: 'how far along the rail, -1 to 1',
+          ),
+        },
+        required: <String>['amount'],
+      ),
+    ),
+    _command('slideEdges'),
+  ),
+  ModelTool(
+    Tool(
       name: 'deleteElements',
       description:
           'Delete the selected vertices, edges or faces, at '

@@ -265,6 +265,105 @@ final class BevelEdges extends ModelCommand {
       });
 }
 
+/// Shrinks every selected face inward and walls the ring it leaves —
+/// `ux-39`.
+final class InsetFaces extends ModelCommand {
+  const InsetFaces(this.thickness, {this.depth = 0.0});
+
+  /// How far the new ring sits inside the face's own border.
+  final double thickness;
+
+  /// How far the new ring is pushed along the face's own normal — nought
+  /// for a flat inset, which is what a panel is.
+  final double depth;
+
+  @override
+  String get name => 'insetFaces';
+
+  @override
+  String get says => 'inset';
+
+  @override
+  Map<String, Object?> get arguments => <String, Object?>{
+    'thickness': thickness,
+    'depth': depth,
+  };
+
+  @override
+  Map<String, ParamHint> get hints => const <String, ParamHint>{
+    'thickness': DoubleHint(min: 0.0, unit: 'm', step: 0.01),
+    'depth': DoubleHint(unit: 'm', step: 0.01),
+  };
+
+  @override
+  Outcome apply(ModelProject project, ProjectSelection selection) =>
+      _asMeshStep(
+        project,
+        selection,
+        (_MeshTarget target) => insetFaces(
+          target.mesh,
+          target.elements,
+          thickness: thickness,
+          depth: depth,
+        ),
+      );
+}
+
+/// Joins the two open borders the selection names with a ring of quads —
+/// `ux-39`.
+final class BridgeLoops extends ModelCommand {
+  const BridgeLoops();
+
+  @override
+  String get name => 'bridgeLoops';
+
+  @override
+  String get says => 'bridge';
+
+  @override
+  Map<String, Object?> get arguments => const <String, Object?>{};
+
+  @override
+  Outcome apply(ModelProject project, ProjectSelection selection) =>
+      _asMeshStep(
+        project,
+        selection,
+        (_MeshTarget target) => bridgeLoops(target.mesh, target.elements),
+      );
+}
+
+/// Moves the selected loop along the edges that cross it — `ux-39`.
+final class SlideEdges extends ModelCommand {
+  const SlideEdges(this.amount);
+
+  /// How far along the rail, as a fraction of its own length. Negative
+  /// slides the other way.
+  final double amount;
+
+  @override
+  String get name => 'slideEdges';
+
+  @override
+  String get says => 'slide';
+
+  @override
+  Map<String, Object?> get arguments => <String, Object?>{'amount': amount};
+
+  @override
+  Map<String, ParamHint> get hints => const <String, ParamHint>{
+    'amount': DoubleHint(min: -1.0, max: 1.0, step: 0.01),
+  };
+
+  @override
+  Outcome apply(ModelProject project, ProjectSelection selection) =>
+      _asMeshStep(
+        project,
+        selection,
+        (_MeshTarget target) =>
+            slideEdges(target.mesh, target.elements, amount: amount),
+      );
+}
+
 /// Takes the selected elements out of the mesh.
 final class DeleteElements extends ModelCommand {
   const DeleteElements();
