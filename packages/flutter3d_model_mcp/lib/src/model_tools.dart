@@ -24,8 +24,14 @@ Future<Answer> Function(ModelSession, Map<String, Object?>) _sync(
 
 /// Three numbers, which is how the project spells every position, axis and
 /// size.
-ListSchema _vector(String about) => ListSchema(
-  description: about,
+///
+/// [unit] is appended to [about] rather than left to each call site —
+/// `ux-43`'s own acceptance is that every numeric field says what its number
+/// is a number *of*, and forty call sites each remembering to say "in metres"
+/// is forty chances to forget. A direction says so instead: a normalised axis
+/// is a ratio of three numbers and has no unit at all.
+ListSchema _vector(String about, {String unit = 'in metres'}) => ListSchema(
+  description: '$about — three numbers, x y z, $unit',
   items: NumberSchema(),
   minItems: 3,
   maxItems: 3,
@@ -34,7 +40,9 @@ ListSchema _vector(String about) => ListSchema(
 /// Sixteen numbers, column-major — `Matrix4.storage` — for the two commands
 /// that take a whole transform rather than a friendlier vector or angle.
 ListSchema _matrix16(String about) => ListSchema(
-  description: about,
+  description:
+      '$about — sixteen numbers, column-major (Matrix4.storage order); the '
+      'translation in the last column is in metres, Y-up',
   items: NumberSchema(),
   minItems: 16,
   maxItems: 16,
@@ -286,7 +294,7 @@ List<ModelTool> get _commandTools => <ModelTool>[
           'units. Select objects first — this reads the current selection '
           'rather than taking an id.',
       inputSchema: ObjectSchema(
-        properties: <String, Schema>{'by': _vector('how far, as x, y, z')},
+        properties: <String, Schema>{'by': _vector('how far to move')},
         required: <String>['by'],
       ),
     ),
@@ -302,7 +310,7 @@ List<ModelTool> get _commandTools => <ModelTool>[
           'world\'s axes or each object\'s own.',
       inputSchema: ObjectSchema(
         properties: <String, Schema>{
-          'axis': _vector('the axis to turn about'),
+          'axis': _vector('the axis to turn about', unit: 'a direction, no unit'),
           'radians': NumberSchema(description: 'how far, in radians'),
           'pivot': _pivot('median (default) or individual'),
           'space': _space('global (default) or local'),
@@ -320,7 +328,11 @@ List<ModelTool> get _commandTools => <ModelTool>[
           'pivot. 2 doubles the size; 0.5 halves it.',
       inputSchema: ObjectSchema(
         properties: <String, Schema>{
-          'by': NumberSchema(description: 'the factor, above 0'),
+          'by': NumberSchema(
+            description:
+                'how much bigger, as a multiplier: 2 is twice the size, '
+                '0.5 is half. Above 0',
+          ),
           'pivot': _pivot('median (default) or individual'),
         },
         required: <String>['by'],
@@ -338,7 +350,9 @@ List<ModelTool> get _commandTools => <ModelTool>[
       inputSchema: ObjectSchema(
         properties: <String, Schema>{
           'id': IntegerSchema(description: 'the object to reparent'),
-          'to': IntegerSchema(description: 'the new parent; omit for none'),
+          'to': IntegerSchema(
+            description: 'the new parent, by object id; omit for none',
+          ),
         },
         required: <String>['id'],
       ),
@@ -392,11 +406,19 @@ List<ModelTool> get _commandTools => <ModelTool>[
       inputSchema: ObjectSchema(
         properties: <String, Schema>{
           'kind': UntitledSingleSelectEnumSchema(
-            description: 'which shape',
-            values: AddPrimitive.primitiveKinds,
+            // `ux-43`: `cuboid` is offered beside `box` and means the same
+            // shape. The project format spells it `cuboid` and the menu says
+            // `box`; a caller that read one and asked the other used to be
+            // refused for spelling it the way the file did.
+            description: 'which shape. "cuboid" is another name for "box"',
+            values: <String>[...AddPrimitive.primitiveKinds, 'cuboid'],
           ),
-          'size': NumberSchema(description: 'how big, default 1'),
-          'segments': IntegerSchema(description: 'how round, default 32'),
+          'size': NumberSchema(
+            description: 'how big across, in metres; default 1',
+          ),
+          'segments': IntegerSchema(
+            description: 'how many segments around, default 32',
+          ),
           'at': _vector('where it goes, default the origin'),
         },
         required: <String>['kind'],
@@ -418,7 +440,9 @@ List<ModelTool> get _commandTools => <ModelTool>[
             items: ListSchema(items: NumberSchema(), minItems: 2, maxItems: 2),
             minItems: 2,
           ),
-          'segments': IntegerSchema(description: 'how round, default 32'),
+          'segments': IntegerSchema(
+            description: 'how many segments around, default 32',
+          ),
           'closedProfile': BooleanSchema(
             description:
                 'join the last point back to the first, for a torus '
@@ -538,7 +562,9 @@ List<ModelTool> get _commandTools => <ModelTool>[
           'level.',
       inputSchema: ObjectSchema(
         properties: <String, Schema>{
-          'distance': NumberSchema(description: 'how far, along the normal'),
+          'distance': NumberSchema(
+            description: 'how far along the face normal, in metres',
+          ),
         },
         required: <String>['distance'],
       ),
@@ -555,7 +581,9 @@ List<ModelTool> get _commandTools => <ModelTool>[
         properties: <String, Schema>{
           'cuts': IntegerSchema(description: 'how many loops, default 1'),
           'factor': NumberSchema(
-            description: '0 to 1 along the edge, default 0.5 (centred)',
+            description:
+                'where along the edge, as a fraction 0..1; default 0.5 '
+                '(centred)',
           ),
         },
       ),
@@ -574,7 +602,9 @@ List<ModelTool> get _commandTools => <ModelTool>[
       inputSchema: ObjectSchema(
         properties: <String, Schema>{
           'width': NumberSchema(
-            description: 'how far the new wall sits from the original corner',
+            description:
+                'how far the new wall sits from the original corner, '
+                'in metres',
           ),
         },
         required: <String>['width'],
@@ -624,8 +654,8 @@ List<ModelTool> get _commandTools => <ModelTool>[
         properties: <String, Schema>{
           'distance': NumberSchema(
             description:
-                'the threshold, default a '
-                'small epsilon',
+                'how close two vertices must be to become one, in '
+                'metres; default a small epsilon',
           ),
         },
       ),
@@ -697,7 +727,9 @@ List<ModelTool> get _commandTools => <ModelTool>[
       inputSchema: ObjectSchema(
         properties: <String, Schema>{
           'margin': NumberSchema(
-            description: 'gap autoPack leaves between islands, default 0.01',
+            description:
+                'gap autoPack leaves between islands, as a fraction of '
+                'the UV square; default 0.01',
           ),
           'autoPack': BooleanSchema(
             description:
@@ -829,7 +861,7 @@ List<ModelTool> get _commandTools => <ModelTool>[
           'face to extrude without rendering a picture and guessing.',
       inputSchema: ObjectSchema(
         properties: <String, Schema>{
-          'axis': _vector('the direction to face, e.g. [0,1,0] for up'),
+          'axis': _vector('the direction to face, e.g. [0,1,0] for up', unit: 'a direction, no unit'),
           'within': NumberSchema(
             description:
                 'how far off that direction a face may point and still '
@@ -916,7 +948,9 @@ List<ModelTool> get _commandTools => <ModelTool>[
       inputSchema: ObjectSchema(
         properties: <String, Schema>{
           'point': _vector('the centre, in the object\'s own space'),
-          'radius': NumberSchema(description: 'how far from it to reach'),
+          'radius': NumberSchema(
+            description: 'how far from it to reach, in metres',
+          ),
         },
         required: <String>['point', 'radius'],
       ),
@@ -1336,8 +1370,12 @@ List<ModelTool> get _commandTools => <ModelTool>[
       inputSchema: ObjectSchema(
         properties: <String, Schema>{
           'id': IntegerSchema(description: 'the object'),
-          'from': IntegerSchema(description: 'the modifier\'s current index'),
-          'to': IntegerSchema(description: 'where it should end up'),
+          'from': IntegerSchema(
+            description: 'the modifier\'s current index in the stack',
+          ),
+          'to': IntegerSchema(
+            description: 'the index in the stack it should end up at',
+          ),
         },
         required: <String>['id', 'from', 'to'],
       ),
@@ -1549,9 +1587,12 @@ List<ModelTool> get _commandTools => <ModelTool>[
           'left out keeps the project\'s current value for it.',
       inputSchema: ObjectSchema(
         properties: <String, Schema>{
-          'maxJoints': IntegerSchema(description: 'new ceiling, 1 through 64'),
+          'maxJoints': IntegerSchema(
+            description: 'how many joints a skeleton may have, 1 to 64',
+          ),
           'maxInfluences': IntegerSchema(
-            description: 'new ceiling, 1 through 4',
+            description:
+                'how many joints may pull on one vertex, 1 to 4',
           ),
         },
       ),
@@ -1873,7 +1914,11 @@ List<ModelTool> get _commandTools => <ModelTool>[
           'skeletonIndex': IntegerSchema(
             description: 'which skeleton, from list',
           ),
-          'axis': IntegerSchema(description: '0 for x, 1 for y, 2 for z'),
+          'axis': IntegerSchema(
+            description:
+                'which axis to mirror across, as an index: 0 for x, 1 '
+                'for y, 2 for z',
+          ),
           'jointMirror': ObjectSchema(
             description:
                 'source joint index (as a string key) to target joint index',
@@ -1935,7 +1980,7 @@ List<ModelTool> get _commandTools => <ModelTool>[
                     'midJointId': IntegerSchema(),
                     'effectorJointId': IntegerSchema(),
                     'target': _vector('the effector\'s own target position'),
-                    'pole': _vector('where the mid joint bends toward'),
+                    'pole': _vector('where the mid joint bends toward', unit: 'a direction, no unit'),
                   },
                   required: <String>[
                     'rootJointId',
@@ -1993,9 +2038,13 @@ List<ModelTool> get _commandTools => <ModelTool>[
           'clipIndex': IntegerSchema(description: 'which clip, from list'),
           'trackIndex': IntegerSchema(description: 'which track in that clip'),
           'time': NumberSchema(description: 'when, in seconds'),
-          'values': _numbers('one number a component'),
-          'inTangent': _numbers('optional; one number a component'),
-          'outTangent': _numbers('optional; one number a component'),
+          'values': _numbers(
+            'the keyed value, one number a component, in the track\'s '
+            'own units — metres for translation, a unit quaternion for '
+            'rotation, a multiplier for scale',
+          ),
+          'inTangent': _numbers('optional; one number a component, in the track\'s own units'),
+          'outTangent': _numbers('optional; one number a component, in the track\'s own units'),
         },
         required: <String>['clipIndex', 'trackIndex', 'time', 'values'],
       ),
@@ -2070,8 +2119,8 @@ List<ModelTool> get _commandTools => <ModelTool>[
           'clipIndex': IntegerSchema(description: 'which clip, from list'),
           'trackIndex': IntegerSchema(description: 'which track in that clip'),
           'index': IntegerSchema(description: 'the key, from its own track'),
-          'inTangent': _numbers('optional; one number a component'),
-          'outTangent': _numbers('optional; one number a component'),
+          'inTangent': _numbers('optional; one number a component, in the track\'s own units'),
+          'outTangent': _numbers('optional; one number a component, in the track\'s own units'),
         },
         required: <String>['clipIndex', 'trackIndex', 'index'],
       ),
@@ -2293,8 +2342,14 @@ List<ModelTool> get _commandTools => <ModelTool>[
             description: 'the kind\'s own fields beyond id and kind',
             additionalProperties: true,
           ),
-          'x': NumberSchema(description: 'canvas position, default 0'),
-          'y': NumberSchema(description: 'canvas position, default 0'),
+          'x': NumberSchema(
+            description: 'where on the graph canvas, in pixels; '
+                'default 0',
+          ),
+          'y': NumberSchema(
+            description: 'where on the graph canvas, in pixels; '
+                'default 0',
+          ),
         },
         required: <String>['materialIndex', 'kind'],
       ),
@@ -2313,7 +2368,9 @@ List<ModelTool> get _commandTools => <ModelTool>[
           'materialIndex': IntegerSchema(description: 'the material row'),
           'nodeId': IntegerSchema(description: 'the node being wired into'),
           'input': StringSchema(description: 'which of its inputs'),
-          'from': IntegerSchema(description: 'the node whose output feeds it'),
+          'from': IntegerSchema(
+            description: 'the node whose output feeds it, by node id',
+          ),
         },
         required: <String>['materialIndex', 'nodeId', 'input', 'from'],
       ),
@@ -2374,8 +2431,12 @@ List<ModelTool> get _commandTools => <ModelTool>[
         properties: <String, Schema>{
           'materialIndex': IntegerSchema(description: 'the material row'),
           'nodeId': IntegerSchema(description: 'the node'),
-          'x': NumberSchema(description: 'new canvas position'),
-          'y': NumberSchema(description: 'new canvas position'),
+          'x': NumberSchema(
+            description: 'the new canvas position, in pixels',
+          ),
+          'y': NumberSchema(
+            description: 'the new canvas position, in pixels',
+          ),
         },
         required: <String>['materialIndex', 'nodeId', 'x', 'y'],
       ),
@@ -2411,7 +2472,11 @@ List<ModelTool> get _commandTools => <ModelTool>[
       inputSchema: ObjectSchema(
         properties: <String, Schema>{
           'id': IntegerSchema(description: 'the object'),
-          'ratio': NumberSchema(description: 'target triangle ratio, (0, 1]'),
+          'ratio': NumberSchema(
+            description:
+                'how many triangles to keep, as a fraction of the '
+                'original: (0, 1]',
+          ),
           'maxScreenFraction': NumberSchema(
             description: 'screen-height fraction this level takes over below',
           ),
@@ -2431,7 +2496,11 @@ List<ModelTool> get _commandTools => <ModelTool>[
         properties: <String, Schema>{
           'id': IntegerSchema(description: 'the object'),
           'lodIndex': IntegerSchema(description: 'which level, from addLod'),
-          'ratio': NumberSchema(description: 'the new target ratio, (0, 1]'),
+          'ratio': NumberSchema(
+            description:
+                'how many triangles to keep, as a fraction of the '
+                'original: (0, 1]',
+          ),
         },
         required: <String>['id', 'lodIndex', 'ratio'],
       ),
@@ -2898,8 +2967,12 @@ List<ModelTool> get modelTools => <ModelTool>[
                 'kind': UntitledSingleSelectEnumSchema(
                   values: AddPrimitive.primitiveKinds,
                 ),
-                'size': NumberSchema(description: 'how big, default 1'),
-                'segments': IntegerSchema(description: 'how round, default 32'),
+                'size': NumberSchema(
+            description: 'how big across, in metres; default 1',
+          ),
+                'segments': IntegerSchema(
+            description: 'how many segments around, default 32',
+          ),
                 'at': _vector('where it goes, default the origin'),
                 'name': StringSchema(description: 'what to call it'),
                 'parent': IntegerSchema(
@@ -3001,8 +3074,9 @@ List<ModelTool> get _rigPipelineTools => <ModelTool>[
           ),
           'bounds': ListSchema(
             description:
-                'optional sanity box, 6 numbers: minX minY minZ maxX maxY '
-                'maxZ; computed from the markers themselves when left out',
+                'optional sanity box, 6 numbers in metres: minX minY minZ '
+                'maxX maxY maxZ; computed from the markers themselves '
+                'when left out',
             items: NumberSchema(),
             minItems: 6,
             maxItems: 6,
@@ -3119,7 +3193,11 @@ List<ModelTool> get _rigPipelineTools => <ModelTool>[
           'mirror': ObjectSchema(
             description: 'optional; mirror the stroke across a plane',
             properties: <String, Schema>{
-              'axis': IntegerSchema(description: '0 for x, 1 for y, 2 for z'),
+              'axis': IntegerSchema(
+            description:
+                'which axis to mirror across, as an index: 0 for x, 1 '
+                'for y, 2 for z',
+          ),
               'jointMirror': ObjectSchema(
                 description: 'source joint index (string key) to target',
                 additionalProperties: IntegerSchema(),
@@ -3136,8 +3214,8 @@ List<ModelTool> get _rigPipelineTools => <ModelTool>[
           ),
           'maxInfluences': IntegerSchema(
             description:
-                'what normalize prunes to; default the project\'s own '
-                'profile limit',
+                'how many joints may pull on one vertex once normalize '
+                'has pruned; default the project\'s own profile limit',
           ),
         },
         required: <String>[
@@ -3176,8 +3254,14 @@ List<ModelTool> get _rigPipelineTools => <ModelTool>[
             additionalProperties: StringSchema(),
           ),
           'lockFeet': BooleanSchema(description: 'default true'),
-          'groundY': NumberSchema(description: 'default 0'),
-          'footTolerance': NumberSchema(description: 'default 1e-3'),
+          'groundY': NumberSchema(
+            description: 'where the floor is, in metres; default 0',
+          ),
+          'footTolerance': NumberSchema(
+            description:
+                'how far a foot may drift from the floor before it is '
+                'locked to it, in metres; default 1e-3',
+          ),
           'clipName': StringSchema(description: 'optional'),
         },
         required: <String>[
@@ -3235,8 +3319,10 @@ List<ModelTool> get _rigPipelineTools => <ModelTool>[
           'midJointId': IntegerSchema(description: 'the chain\'s own middle'),
           'effectorJointId': IntegerSchema(description: 'the chain\'s own tip'),
           'target': _vector('where the effector should reach'),
-          'pole': _vector('which side the middle joint bends toward'),
-          'fps': NumberSchema(description: 'sampling rate, default 30'),
+          'pole': _vector('which side the middle joint bends toward', unit: 'a direction, no unit'),
+          'fps': NumberSchema(
+            description: 'how many samples a second, in fps; default 30',
+          ),
         },
         required: <String>[
           'clipIndex',

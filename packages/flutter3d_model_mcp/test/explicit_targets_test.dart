@@ -118,25 +118,31 @@ void main() {
     expect(session.history.selection.objects, isEmpty);
   });
 
-  test('naming elements without a level says so rather than guessing',
-      () async {
-    await aCube();
-    final CallToolResult refused = await call(
-      'transformElements',
-      <String, Object?>{
-        'object': 1,
-        'elements': <int>[0],
-        'by': <double>[
-          1, 0, 0, 0, //
-          0, 1, 0, 0,
-          0, 0, 1, 0,
-          0, 1, 0, 1,
-        ],
-        'what': 'move',
-      },
-    );
+  test('naming an object with no level says so rather than guessing', () {
+    // Reached in Dart rather than over the protocol, because the tools
+    // themselves cannot ask this: `faces`/`edges`/`vertices` carry the level
+    // with the ids, and `ux-43` took the second spelling away. A caller that
+    // aims at an object's mesh without saying at what grain still gets a
+    // sentence rather than a guess.
+    final Answer refused = session.runOn(const SelectAll(), object: 1);
+    expect(refused.did, isFalse);
+    expect(refused.says, contains('needs a "level"'));
+  });
+
+  test('an argument this build does not take is refused by name', () async {
+    await call('addPrimitive', <String, Object?>{'kind': 'box'});
+    // `ux-43`'s own acceptance, and the bug behind it: `select {ids: [1]}`
+    // used to be accepted, do nothing, and answer "nothing selected" — the
+    // agent had spelled `objects` wrong and had no way to find out.
+    final CallToolResult refused = await call('select', <String, Object?>{
+      'ids': <int>[1],
+    });
     expect(refused.isError, isTrue);
-    expect(saidBy(refused), contains('needs a "level"'));
+    expect(saidBy(refused), contains('"ids"'));
+    expect(saidBy(refused), contains('objects'));
+    // And it refused before the tool ran: the selection is still whatever
+    // `addPrimitive` left, not the empty one `select` with no arguments makes.
+    expect(session.history.selection.objects, <int>[1]);
   });
 
   test('a tool that already names its target is left alone', () async {

@@ -628,7 +628,13 @@ _modelCommandReaders =
       },
       'addPrimitive': (json) => switch (json['kind']) {
         final String kind => AddPrimitive(
-          kind: kind,
+          // `ux-43`: one shape, one meaning, whichever of its two names a
+          // caller uses. The project format has written `cuboid` since the
+          // first file it saved and cannot stop; `primitiveKinds` has said
+          // `box` for as long, because that is the word on the menu. An
+          // agent that read a `.f3dproj` and then asked for another one of
+          // those was refused for spelling it the way the file did.
+          kind: kind == 'cuboid' ? 'box' : kind,
           size: switch (json['size']) {
             final num size => size.toDouble(),
             _ => 1.0,

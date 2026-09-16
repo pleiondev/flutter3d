@@ -204,7 +204,12 @@ final class DeleteShape extends ModelCommand {
   String get name => 'deleteShape';
 
   @override
-  String get says => 'delete a shape key';
+  // `ux-43`: an index-shifting removal says so, because every index an
+  // agent is holding past this one has just moved and nothing else
+  // would tell it. The review watched one delete material 1 and then
+  // paint with material 2, which was a different material by then.
+  String get says =>
+      'delete shape key $shapeIndex (every key after it shifts down by one)';
 
   @override
   Map<String, Object?> get arguments => <String, Object?>{
@@ -440,7 +445,12 @@ final class RemoveShapeDriver extends ModelCommand {
   String get name => 'removeShapeDriver';
 
   @override
-  String get says => 'remove a shape driver';
+  // `ux-43`: an index-shifting removal says so, because every index an
+  // agent is holding past this one has just moved and nothing else
+  // would tell it. The review watched one delete material 1 and then
+  // paint with material 2, which was a different material by then.
+  String get says =>
+      'remove shape driver $index (every driver after it shifts down by one)';
 
   @override
   Map<String, Object?> get arguments => <String, Object?>{

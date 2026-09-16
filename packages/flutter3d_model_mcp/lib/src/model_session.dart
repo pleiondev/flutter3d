@@ -586,8 +586,13 @@ final class ModelSession {
       value is List ? value.whereType<int>().toList() : null;
 
   /// `ux-20`'s own target arguments, read out of a call's own map: `object`
-  /// with `faces`/`edges`/`vertices`, or `ids` for whole objects, or an
-  /// explicit `level` with `elements`.
+  /// with `faces`/`edges`/`vertices`, or `ids` for whole objects.
+  ///
+  /// **One way to name elements, not two** (`ux-43`). An earlier draft also
+  /// took `level` with `elements`, for a caller holding a level in a
+  /// variable; that is a second vocabulary for one idea, and two fields that
+  /// can contradict each other. `faces: [4]` says which and what in one
+  /// field, and cannot be said inconsistently.
   ///
   /// **Read here rather than in the tool table, because a batch entry is a
   /// call too.** The shorthand lived beside the schema at first and
@@ -609,8 +614,8 @@ final class ModelSession {
     }
     return (
       object: arguments['object'] as int?,
-      level: arguments['level'] as String?,
-      elements: _intsIn(arguments['elements']),
+      level: null,
+      elements: null,
       objects: _intsIn(arguments['ids']),
     );
   }

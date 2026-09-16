@@ -5,6 +5,8 @@ import 'dart:async';
 
 import 'package:dart_mcp/server.dart';
 
+import 'argument_check.dart';
+
 /// One tool: what an agent is offered, and what calling it does to the
 /// session.
 ///
@@ -43,6 +45,7 @@ base class ToolTableServer<S, A> extends MCPServer with ToolsSupport {
     required String name,
     required String version,
     required String instructions,
+    this.refusal,
     this.onCall,
     this.onInitialize,
   }) : super.fromStreamChannel(
@@ -58,6 +61,20 @@ base class ToolTableServer<S, A> extends MCPServer with ToolsSupport {
 
   /// How an answer travels back — see `resultOf` and `pictureResultOf`.
   final CallToolResult Function(A answer) toResult;
+
+  /// A refusal, as the answer type this server speaks — `ux-43`.
+  ///
+  /// **Given rather than built here, because only the caller knows what an
+  /// [A] is.** A server whose answers carry a picture has a null one to put
+  /// in; one whose answers are a bare `(did, says)` has nothing to add. What
+  /// this buys is that an argument refused before a tool ever runs travels
+  /// back through [toResult] like every other answer — marked as an error,
+  /// and carrying whatever machine-readable half that server attaches — so a
+  /// misspelt key and a refused edit read the same way to whoever called.
+  ///
+  /// Null leaves the framework's own validation in place, which says the same
+  /// thing as a JSON Schema path expression.
+  final A Function(String says)? refusal;
 
   /// `tut-16`'s own hook, run after every call answers, whichever of [tools]
   /// it was — a caller with a screen open beside this server (`mcp-13n`'s
@@ -100,6 +117,14 @@ base class ToolTableServer<S, A> extends MCPServer with ToolsSupport {
       registerTool(offered.tool, (CallToolRequest call) async {
         final Map<String, Object?> arguments =
             call.arguments ?? const <String, Object?>{};
+        // `ux-43`: checked here rather than by `registerTool`'s own
+        // `validateArguments`, which is switched off below — see [refusal]
+        // for why, and `argument_check.dart` for what it catches that the
+        // framework's own pass does not.
+        if (refusal case final A Function(String) asRefusal) {
+          final String? wrong = refuseArguments(offered.tool, arguments);
+          if (wrong != null) return toResult(asRefusal(wrong));
+        }
         // Null exactly when [onCall] is: a headless server (nobody
         // watching) never reads the clock at all, not even to throw the
         // answer away — see `repeatableStepExempt`'s own entry for this
@@ -125,7 +150,7 @@ base class ToolTableServer<S, A> extends MCPServer with ToolsSupport {
           );
         } catch (_) {}
         return toResult(answer);
-      });
+      }, validateArguments: refusal == null);
     }
     return super.initialize(request);
   }
