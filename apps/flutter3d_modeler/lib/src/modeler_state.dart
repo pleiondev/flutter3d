@@ -29,6 +29,7 @@ import 'dart:typed_data';
 import 'package:flutter3d/flutter3d.dart' hide Material;
 import 'package:flutter3d_model_core/flutter3d_model_core.dart';
 
+import 'settings.dart' show Workspace;
 import 'staging.dart';
 import 'timeline_playback.dart';
 import 'ui/tools.dart';
@@ -77,6 +78,7 @@ final class ModelerReady extends ModelerState {
     this.autosaveTrouble,
     this.agentClient,
     this.consoleVersion = 0,
+    this.workspace = Workspace.essential,
   });
 
   /// How many lines the console has taken — `ux-26`.
@@ -87,6 +89,17 @@ final class ModelerReady extends ModelerState {
   /// nothing would rebuild. One integer is what tells a panel that a line
   /// landed, and it costs nothing to compare.
   final int consoleVersion;
+
+  /// Which set of modes the switcher offers — `ux-37`.
+  ///
+  /// **On the state rather than read from settings wherever it is wanted.**
+  /// The switcher, the keyboard, the command palette and an agent's own
+  /// `ui.setMode` all have to agree about whether Mesh mode exists right now;
+  /// four readers of one setting is four chances for one of them to be
+  /// looking at yesterday's value. Essential is the default because an empty
+  /// settings store is a first launch, and a first launch is the case this
+  /// row exists for.
+  final Workspace workspace;
 
   /// Live, and mutated by the frame loop.
   final Renderer renderer;
@@ -211,6 +224,7 @@ final class ModelerReady extends ModelerState {
     bool clearAutosaveTrouble = false,
     String? agentClient,
     int? consoleVersion,
+    Workspace? workspace,
   }) => ModelerReady(
     renderer: renderer,
     stage: stage ?? this.stage,
@@ -236,6 +250,7 @@ final class ModelerReady extends ModelerState {
         : (autosaveTrouble ?? this.autosaveTrouble),
     agentClient: agentClient ?? this.agentClient,
     consoleVersion: consoleVersion ?? this.consoleVersion,
+    workspace: workspace ?? this.workspace,
   );
 }
 

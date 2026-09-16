@@ -15,6 +15,7 @@ import 'package:flutter3d_model_core/flutter3d_model_core.dart';
 import 'package:flutter3d_modeler/src/mcp_ui_actions.dart';
 import 'package:flutter3d_modeler/src/modeler_cubit.dart';
 import 'package:flutter3d_modeler/src/modeler_ui_actions.dart';
+import 'package:flutter3d_modeler/src/settings.dart' show Workspace;
 import 'package:flutter3d_modeler/src/staging.dart';
 import 'package:flutter3d_modeler/src/ui/tools.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -37,11 +38,12 @@ ModelerCubit _opened() {
     device: it.device,
     project: history.project,
   );
-  return ModelerCubit()..opened(
-    history,
-    renderer: Renderer.create(device: it.device),
-    stage: stage,
-  );
+  return ModelerCubit()
+    ..opened(history, renderer: Renderer.create(device: it.device), stage: stage)
+    // `ux-37`: these tests are about modes, not about which workspace offers
+    // them, and Essential — the default a first launch gets — offers three of
+    // the five. `workspace_test.dart` is where the gate itself is checked.
+    ..workspace(Workspace.full);
 }
 
 ModelerReady _ready(ModelerCubit cubit) => cubit.state as ModelerReady;

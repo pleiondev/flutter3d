@@ -177,6 +177,12 @@ extension _FileHandling on _ModelerScreenState {
         stage: stage,
         documentName: kModel.isEmpty ? 'cube' : kModel,
       );
+      // `ux-37`: whichever workspace the settings store holds — Essential
+      // for an empty one, which is a first launch and the case the row is
+      // for. Applied here rather than carried into `opened`, because
+      // `opened` is also the door a *re*-open comes through and the
+      // workspace is a property of the session rather than of the document.
+      _cubit.workspace(_settings.workspace);
       final int mcpPort = widget.mcpPort ?? kMcpPort;
       if (mcpPort >= 0) {
         unawaited(
@@ -996,6 +1002,9 @@ extension _FileHandling on _ModelerScreenState {
       // transform started after this reads the new ones.
       _transformSession.snapSteps = _snapStepsOf(chosen);
     });
+    // `ux-37`: the switcher grows or shrinks with no restart, and a person
+    // standing in a mode the new workspace does not have is moved off it.
+    _cubit.workspace(chosen.workspace);
     if (!_settingsStore.write(chosen)) {
       _cubit.say('Settings could not be saved', important: true);
     }

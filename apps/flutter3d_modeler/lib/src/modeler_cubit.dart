@@ -33,6 +33,7 @@ import 'job_runner.dart';
 import 'material_pool.dart';
 import 'modeler_state.dart';
 import 'scene_sync.dart' show unshowableSaid;
+import 'settings.dart' show Workspace;
 import 'staging.dart';
 import 'timeline_playback.dart';
 import 'ui/tools.dart';
@@ -525,7 +526,43 @@ final class ModelerCubit extends Cubit<ModelerState> {
   void mode(ModelerMode mode) {
     final ModelerReady? now = _ready;
     if (now == null || now.mode == mode) return;
+    // `ux-37`: a mode the open workspace does not offer is not a mode right
+    // now, and the refusal names the workspace rather than doing nothing —
+    // a key that appears to miss is the failure `ux-07` already found in the
+    // switcher, reached a different way.
+    if (!modesFor(now.workspace).contains(mode)) {
+      emit(
+        now.copyWith(
+          said:
+              '${mode.label} is in the Full workspace — this one is '
+              '${now.workspace.label}. Settings changes it',
+          saidIsImportant: true,
+          saidIsRefusal: true,
+        ),
+      );
+      return;
+    }
     emit(now.copyWith(mode: mode, clearSaid: true));
+  }
+
+  /// Changes which modes the switcher offers — `ux-37`, Settings' own
+  /// Workspace row.
+  ///
+  /// **And moves off a mode the new workspace does not have.** Switching from
+  /// Full to Essential while standing in Mesh mode would otherwise leave a
+  /// person in a mode with no way back to it and no segment lit; Object is
+  /// where the switcher starts and where this puts them.
+  void workspace(Workspace to) {
+    final ModelerReady? now = _ready;
+    if (now == null || now.workspace == to) return;
+    final List<ModelerMode> offered = modesFor(to);
+    emit(
+      now.copyWith(
+        workspace: to,
+        mode: offered.contains(now.mode) ? now.mode : ModelerMode.object,
+        clearSaid: true,
+      ),
+    );
   }
 
   /// Changes the element level, carrying the selection across.

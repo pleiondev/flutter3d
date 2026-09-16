@@ -25,6 +25,8 @@ library;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../settings.dart' show Workspace;
+
 /// The tools that wait for a pointer instead of acting when pressed.
 ///
 /// A set rather than a check at the call site, so that the shell can ask
@@ -60,16 +62,26 @@ const Set<String> kStrokeTools = <String>{'weights.paint', 'weights.assign'};
 /// that is missing entirely reads as a mode that was never planned. The rest
 /// are shown disabled, with the phase they arrive in — see [ModelerMode.phase].
 enum ModelerMode {
-  object('Object', Icons.category_outlined, 1, ready: true),
+  object('Object', Icons.category_outlined, 1, ready: true, inEssential: true),
   mesh('Mesh', Icons.hexagon_outlined, 1, ready: true),
-  material('Material', Icons.palette_outlined, 2, ready: true),
+  material('Material', Icons.palette_outlined, 2, ready: true, inEssential: true),
   uv('UV', Icons.grid_on_outlined, 4, ready: false),
   sculpt('Sculpt', Icons.brush_outlined, 4, ready: false),
   animation('Animation', Icons.animation_outlined, 3, ready: true),
   render('Render', Icons.camera_outlined, 4, ready: false),
-  scene('Scene', Icons.light_mode_outlined, 2, ready: true);
+  scene('Scene', Icons.light_mode_outlined, 2, ready: true, inEssential: true);
 
-  const ModelerMode(this.label, this.icon, this.phase, {required this.ready});
+  const ModelerMode(
+    this.label,
+    this.icon,
+    this.phase, {
+    required this.ready,
+    this.inEssential = false,
+  });
+
+  /// Whether the Essential workspace offers this mode — `ux-37`. See
+  /// [modesFor].
+  final bool inEssential;
 
   /// English, and not through `l10n` yet: the strings move to `app_en.arb` and
   /// `app_ru.arb` in `ui-22`, and moving them one at a time as each screen
@@ -94,6 +106,22 @@ enum ModelerMode {
 
 /// The modes the phone `NavigationBar` offers, in the handoff's own order —
 /// `README.md:137`: "Object, Mesh, Material, Scene". Not
+/// Which modes a workspace offers — `ux-37`.
+///
+/// **Essential is three: Object, Material, Scene.** "Open a model, paint it,
+/// export it" is what most people who open a modeller are doing, and a
+/// switcher with five icons on it asks them to decide what Mesh mode and
+/// Animation mode are before they have done anything. Full is everything
+/// this build has.
+///
+/// Always filtered by [ModelerMode.ready] as well, so a mode nobody has built
+/// cannot appear in either workspace — `ux-07`'s own rule, kept here rather
+/// than restated at the switcher.
+List<ModelerMode> modesFor(Workspace workspace) => <ModelerMode>[
+  for (final ModelerMode mode in ModelerMode.values)
+    if (mode.ready && (workspace == Workspace.full || mode.inEssential)) mode,
+];
+
 /// `ModelerMode.values.where((m) => m.ready)`: animation is [ModelerMode.ready]
 /// too as of `ui-39d`, but the phone bar has no room for a fifth destination
 /// and the handoff's phone screens simply do not offer animation mode as one
