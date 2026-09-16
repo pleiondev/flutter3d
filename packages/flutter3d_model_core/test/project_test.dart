@@ -138,6 +138,9 @@ void main() {
           'texelsPerMeter',
           'fps',
           'frameSnap',
+          // `pro-sc-09`: a browser's own sculpt ceiling is a number a
+          // project states, not one this build decides for it.
+          'sculptTriangleLimitWeb',
         ]),
       );
     });
