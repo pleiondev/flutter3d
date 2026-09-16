@@ -117,6 +117,7 @@ import 'src/ui/top_bar_actions.dart';
 import 'src/ui/transport_bar.dart';
 import 'src/ui/unsaved_changes_dialog.dart';
 import 'src/ui/weight_legend.dart';
+import 'src/value_drag.dart';
 import 'src/viewport_metrics.dart';
 import 'src/weight_gradient.dart';
 import 'src/weight_paint_session.dart';
@@ -494,6 +495,12 @@ class _ModelerScreenState extends State<ModelerScreen>
   /// somebody has to know a key to get back.
   bool _foldedPanel = false;
   bool _foldedRail = false;
+
+  /// How tall the picture was last laid out, in logical pixels — `ux-29`.
+  /// A drag started from the keyboard measures a pixel the same way one
+  /// started from the pointer does, and this is what the viewport last
+  /// reported.
+  double _viewportHeight = 600;
 
   /// Whether the console is open under the viewport — `ux-26`. This
   /// session's own, like `ux-27`'s two folds and for the same reason.

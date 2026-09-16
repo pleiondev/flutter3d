@@ -431,10 +431,16 @@ extension _ReadyParts on _ModelerScreenState {
                             onRendered: (FrameResult result) =>
                                 _lastRenderMicros = result.cpuMicros,
                             onViewportMetrics:
-                                (int width, int height, double dpr) =>
-                                    unawaited(
-                                      _reopenDeviceIfStale(width, height, dpr),
-                                    ),
+                                (int width, int height, double dpr) {
+                                  // `ux-29`: a value drag started from the
+                                  // keyboard needs the same pixel size a
+                                  // pointer drag measures with, and this is
+                                  // the one place the screen is told it.
+                                  _viewportHeight = height / dpr;
+                                  unawaited(
+                                    _reopenDeviceIfStale(width, height, dpr),
+                                  );
+                                },
                             // One or the other, never both: a click in the mesh mode is a
                             // question about this mesh's elements and is answered on the
                             // CPU, and asking the renderer for a node as well would cost a
@@ -462,7 +468,22 @@ extension _ReadyParts on _ModelerScreenState {
                             // the transform, and with none it is a rectangle. A viewport
                             // that offered both would have to guess, and the guess would be
                             // wrong on the frame a person changed their mind.
-                            onDragTool: kDragTools.contains(_tool)
+                            // `ux-29`: an extrusion or a bevel takes the drag
+                            // ahead of a transform, because while one is open
+                            // it is the thing the pointer is driving — and it
+                            // wants only the delta, not the view a transform
+                            // needs to cast a ray through.
+                            onDragTool: _transformSession.valueDrag != null
+                                ? (
+                                    Offset delta,
+                                    double _,
+                                    PickingView _,
+                                    Offset _,
+                                  ) => setState(
+                                    () =>
+                                        _transformSession.valueDragged(delta),
+                                  )
+                                : kDragTools.contains(_tool)
                                 ? _transformSession.dragged
                                 : null,
                             onDragDone: _transformSession.endDrag,
@@ -472,12 +493,30 @@ extension _ReadyParts on _ModelerScreenState {
                             // it. The readout goes beside the pointer either
                             // way — a drag started from a button wants it as
                             // much as one started from a key.
+                            // `ux-29`: a value drag is always pointer-driven —
+                            // it opens on a key press with nothing held, the
+                            // same shape `ux-11`'s modal preset gives a
+                            // transform, so the hover drives it and the
+                            // buttons answer it.
                             toolFollowsPointer:
+                                _transformSession.valueDrag != null ||
                                 _transformSession.followsPointer,
-                            onToolConfirm: _transformSession.commit,
-                            onToolCancel: _transformSession.cancel,
-                            transformReadout: _transformSession.modal?.readout,
-                            transformHints: _transformSession.modal?.hints,
+                            onToolConfirm: () => setState(() {
+                              _transformSession
+                                ..commitValueDrag()
+                                ..commit();
+                            }),
+                            onToolCancel: () => setState(() {
+                              _transformSession
+                                ..cancelValueDrag()
+                                ..cancel();
+                            }),
+                            transformReadout:
+                                _transformSession.valueDrag?.readout ??
+                                _transformSession.modal?.readout,
+                            transformHints:
+                                _transformSession.valueDrag?.hints ??
+                                _transformSession.modal?.hints,
                             transformAxis: _transformSession.modal?.axis,
                             // `ux-25`: the same tools, where the pointer is.
                             onContextMenu: (Offset at) =>

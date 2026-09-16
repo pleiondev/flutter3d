@@ -112,6 +112,21 @@ extension _Interactions on _ModelerScreenState {
 
   /// Presses a rail button.
   void _ranTool(String id) {
+    // `ux-29`: Extrude and Bevel land at the guess and then follow the
+    // pointer, so pressing either is the start of a gesture rather than the
+    // whole of it. Before the `commandFor` branch below, which is where they
+    // used to be answered and where they still are for a caller with no
+    // pointer — `startValueDrag` refuses with nothing selected, and the
+    // ordinary path then gives the same refusal it always did.
+    if (DraggedValue.forTool(id) != null &&
+        _transformSession.startValueDrag(
+          id,
+          viewportHeight: _viewportHeight,
+        )) {
+      _cubit.tool(id);
+      setState(() {});
+      return;
+    }
     // `ux-28`: the lasso arms and waits for a drag, exactly as Select does.
     if (kDragTools.contains(id) ||
         id.endsWith('.select') ||
