@@ -1218,4 +1218,39 @@ void main() {
       expect(ready(cubit).consoleVersion, greaterThan(before));
     });
   });
+
+  group("ux-18: an export has more to say than the strip can hold", () {
+    test('note keeps the line without taking the strip', () {
+      final cubit = opened().cubit;
+      final int before = ready(cubit).consoleVersion;
+
+      cubit.say('wrote model.glb', important: true);
+      cubit.note('one face has more than three sides and was cut');
+      cubit.note('OBJ has no node tree, so the hierarchy is baked in');
+
+      // **The headline is what the eye is already on; the rest is the
+      // console's job.** Joining six warnings with newlines showed the first
+      // and hid the others — a person was told the file was written and
+      // never told what had been left out of it.
+      expect(ready(cubit).said, 'wrote model.glb');
+      expect(
+        cubit.console.entries.map((ConsoleEntry it) => it.text).toList(),
+        containsAllInOrder(<String>[
+          'wrote model.glb',
+          'one face has more than three sides and was cut',
+          'OBJ has no node tree, so the hierarchy is baked in',
+        ]),
+      );
+      // Mutation: skip the version bump and the panel never redraws, so the
+      // lines are kept somewhere nobody sees them.
+      expect(ready(cubit).consoleVersion, greaterThan(before + 1));
+    });
+
+    test('and says nothing at all before a document is open', () {
+      // Mutation: drop the guard and this throws on the null state — an
+      // export that failed before the project loaded would take the app
+      // down instead of reporting anything.
+      ModelerCubit().note('nothing to attach this to');
+    });
+  });
 }

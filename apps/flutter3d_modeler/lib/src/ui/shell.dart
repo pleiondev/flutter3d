@@ -78,7 +78,6 @@ class ModelerShell extends StatelessWidget {
   /// caller that has not been told about workspaces shows what it always did.
   final Workspace workspace;
 
-
   final MeshSubmode submode;
   final ValueChanged<MeshSubmode> onSubmode;
 
@@ -447,18 +446,18 @@ class ModelerModeSwitcher extends StatelessWidget {
           // the other two on, and `modesFor` is the one place that decides.
           for (final ModelerMode each in modesFor(workspace))
             ButtonSegment<ModelerMode>(
-                value: each,
-                // `ui-23`'s own pass: `tooltip:` below sets
-                // `SemanticsNode.tooltip`, not `.label` — wrapping the icon
-                // is what actually names the segment for a screen reader,
-                // since `showSelectedIcon: false` above means there is no
-                // visible `Text` label for its semantics to merge from.
-                icon: Semantics(
-                  label: each.label,
-                  child: Icon(each.icon, size: 15),
-                ),
-                tooltip: each.label,
+              value: each,
+              // `ui-23`'s own pass: `tooltip:` below sets
+              // `SemanticsNode.tooltip`, not `.label` — wrapping the icon
+              // is what actually names the segment for a screen reader,
+              // since `showSelectedIcon: false` above means there is no
+              // visible `Text` label for its semantics to merge from.
+              icon: Semantics(
+                label: each.label,
+                child: Icon(each.icon, size: 15),
               ),
+              tooltip: each.label,
+            ),
         ],
         selected: <ModelerMode>{mode},
         onSelectionChanged: (Set<ModelerMode> picked) => onMode(picked.first),
@@ -589,10 +588,18 @@ class _Rail extends StatelessWidget {
   /// a dangling separator — `ux-10`'s own tool-key preset deliberately
   /// leaves some mesh operations where they were and moves only the four a
   /// hand rests on, so "no key here" is a real answer.
+  /// The name and its key on the first line, what it does on the second —
+  /// `ux-18`.
+  ///
+  /// **The name alone told somebody who already knew.** "Dissolve edges" and
+  /// "Bake" are the two the review watched people press to find out what they
+  /// were, and a tooltip that repeats the word on the button is a tooltip that
+  /// answers nothing. `ModelerTool.about` is where the sentence lives, so the
+  /// rail, the tablet palette and the command palette all read the same one.
   String _tooltipFor(ModelerTool tool) {
     final ShortcutActivator key =
         keymap?.forTool(tool.id) ?? SingleActivator(tool.shortcut);
-    return '${tool.label}  ·  ${describeShortcut(key)}';
+    return '${tool.label}  ·  ${describeShortcut(key)}\n${tool.about}';
   }
 
   @override
@@ -645,9 +652,7 @@ class _Rail extends StatelessWidget {
                     label: row.label,
                     button: true,
                     child: Tooltip(
-                      message: isTool
-                          ? _tooltipFor(tools[index])
-                          : row.label,
+                      message: isTool ? _tooltipFor(tools[index]) : row.label,
                       child: IconButton(
                         onPressed: row.onPressed,
                         icon: Icon(row.icon, size: 18),

@@ -25,6 +25,14 @@ import 'package:flutter3d_model_core/flutter3d_model_core.dart';
 /// work is `document → writer → files`, and the writer — its suffix, its
 /// sentence, how many files it makes — is `flutter3d_formats`' own
 /// [ModelWriter]; what is decided here is only which of them this menu shows.
+///
+/// **And it shows all of them** (`ux-18`). This listed three of the six
+/// `builtInModelWriters` carries, so STL and USDZ were written, tested and
+/// unreachable from the application that ships them. `exporting_test.dart`
+/// holds the two lists against each other both ways round, the same way
+/// `flutter3d_model_mcp`'s own tool table is held against its command names:
+/// a writer added there without a member here is a failing test rather than
+/// a format nobody can pick.
 enum ExportFormat {
   /// The engine's own container: every surface, material, image, node and
   /// animation this repository knows how to write.
@@ -39,13 +47,36 @@ enum ExportFormat {
   /// most of the rest of the world actually opens. Everything OBJ cannot
   /// carry survives this one: the node tree, materials with textures,
   /// skins and animation.
-  glb(GlbModelWriter());
+  glb(GlbModelWriter()),
+
+  /// Binary STL: triangles and nothing else — no colour, no hierarchy, no
+  /// names. What a printer and most CAD tools want, and `ux-18`'s own
+  /// reason for being here: the writer has existed since `fmt-09` and this
+  /// menu did not offer it, so the one format a person with a 3D printer
+  /// came for was the one they could not choose.
+  stl(StlModelWriter()),
+
+  /// The same triangles as text. Larger by several times and readable in an
+  /// editor, which is occasionally exactly what somebody needs.
+  stlAscii(StlModelWriter(ascii: true)),
+
+  /// USDZ, for Quick Look on an Apple device — geometry only so far, which
+  /// is what the writer's own sentence says and what this menu repeats.
+  usdz(UsdzModelWriter());
 
   const ExportFormat(this.writer);
 
   final ModelWriter writer;
 
   String get suffix => writer.suffix;
+
+  /// What a picker calls this one — `ux-18`.
+  ///
+  /// **Two of these share a [suffix].** Binary and ASCII STL both write a
+  /// `.stl` file, so a menu built on the suffix alone offers `.stl` twice and
+  /// asks a person to choose between two identical buttons. Everything else
+  /// is its own extension, which is the name people already use for it.
+  String get label => this == stlAscii ? '.stl (text)' : suffix;
 
   /// One line for a menu, in the words a person recognises.
   String get says => writer.says;
@@ -194,7 +225,31 @@ ExportResult planExport(
   bool force = false,
   bool bakeTransforms = false,
   TextureEncoding textureEncoding = TextureEncoding.png,
+
+  /// Write only these objects and whatever hangs under them — `ux-18`.
+  ///
+  /// **A prop out of a scene, without deleting the scene.** The review found
+  /// people exporting a whole room to get one chair out of it, then undoing
+  /// the deletions they had made to do it. Empty (the default) writes
+  /// everything, which is what Export has always meant.
+  ///
+  /// Children come with their parents, because a node whose parent is not in
+  /// the file has nowhere to hang: an export of "the chair" that dropped the
+  /// chair's own legs would be a worse answer than refusing.
+  Set<int> only = const <int>{},
+
+  /// Whether the modifier stacks are folded into the geometry that is
+  /// written — `ux-18`.
+  ///
+  /// **On, because that is what the file has always carried** since `ux-13`
+  /// gave `toModelDocument` its own evaluator: a mirror a person can see is a
+  /// mirror the export writes. Off writes the base mesh instead, which is
+  /// what somebody taking a model into a tool that has its own mirror wants,
+  /// and what nothing here could ask for before.
+  bool applyModifiers = true,
 }) {
+  if (only.isNotEmpty) project = _narrowedTo(project, only);
+  if (!applyModifiers) project = _withoutModifiers(project);
   if (bakeTransforms) project = bakeAllTransforms(project);
   // An empty project is refused rather than written, and this is the one place
   // that differs from `ObjWriter`, which writes an empty file on purpose and
@@ -253,6 +308,77 @@ ExportResult planExport(
           project.objects.any((ModelObject o) => o.parent != null))
         flattened,
     ],
+  );
+}
+
+/// [project] with every modifier stack emptied — `ux-18`'s own "apply
+/// modifiers", switched off.
+///
+/// **The stacks are dropped for the trip, not from the document.** This is a
+/// copy handed to the writer; the project a person is editing keeps every
+/// modifier it had, which is the difference between an export option and an
+/// edit.
+ModelProject _withoutModifiers(ModelProject project) => ModelProject(
+  profile: project.profile,
+  objects: <ModelObject>[
+    for (final ModelObject each in project.objects)
+      each.modifiers.isEmpty
+          ? each
+          : each.copyWith(modifiers: const <ModifierSlot>[]),
+  ],
+  materials: project.materials,
+  images: project.images,
+  nextId: project.nextId,
+  skeletons: project.skeletons,
+  clips: project.clips,
+  lighting: project.lighting,
+);
+
+/// [project] with nothing in it but [keep] and everything hanging under
+/// them — `ux-18`'s own "selection only".
+///
+/// **Parents are kept too, not only children.** An object whose own parent is
+/// left out would come back at the origin rather than where it sits, because
+/// its transform is local to a parent the file no longer has. Keeping the
+/// chain up to the root costs a few empty nodes and keeps every placement
+/// true.
+ModelProject _narrowedTo(ModelProject project, Set<int> keep) {
+  final wanted = <int>{};
+  void keepUp(int id) {
+    var at = project[id];
+    var guard = 0;
+    while (at != null && wanted.add(at.id) && guard++ < 1000) {
+      at = at.parent == null ? null : project[at.parent!];
+    }
+  }
+
+  void keepDown(int id) {
+    wanted.add(id);
+    for (final ModelObject each in project.objects) {
+      if (each.parent == id) keepDown(each.id);
+    }
+  }
+
+  for (final int id in keep) {
+    keepUp(id);
+    keepDown(id);
+  }
+  // `copyWith` does not take an object list — deliberately, since every
+  // ordinary edit goes through a command — so this builds the narrowed
+  // project directly. Materials, images, skeletons, clips and the lighting
+  // come across whole: an object kept here still indexes into all of them.
+  return ModelProject(
+    profile: project.profile,
+    objects: <ModelObject>[
+      for (final ModelObject each in project.objects)
+        if (wanted.contains(each.id)) each,
+    ],
+    materials: project.materials,
+    images: project.images,
+    nextId: project.nextId,
+    skeletons: project.skeletons,
+    clips: project.clips,
+    lighting: project.lighting,
   );
 }
 

@@ -52,7 +52,6 @@ class ModelerTabletShell extends StatelessWidget {
   /// caller that has not been told about workspaces shows what it always did.
   final Workspace workspace;
 
-
   final MeshSubmode submode;
   final ValueChanged<MeshSubmode> onSubmode;
 
@@ -215,9 +214,12 @@ class _TabletPalette extends StatelessWidget {
                     label: tool.label,
                     button: true,
                     child: Tooltip(
+                      // `ux-18`: the same second line the desktop rail shows
+                      // — `ModelerTool.about`, written once in `tools.dart`.
                       message:
                           '${tool.label}  ·  '
-                          '${tool.shortcut.keyLabel.toUpperCase()}',
+                          '${tool.shortcut.keyLabel.toUpperCase()}\n'
+                          '${tool.about}',
                       child: IconButton(
                         onPressed: () => onTool(tool.id),
                         icon: Icon(tool.icon, size: 16),

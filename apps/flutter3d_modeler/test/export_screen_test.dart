@@ -30,6 +30,8 @@ Future<ExportChoice?> openOver(
   WidgetTester tester,
   ModelProject project, {
   ValueChanged<int>? onShow,
+  ExportFormat format = ExportFormat.glb,
+  bool hasSelection = false,
 }) async {
   ExportChoice? result;
   await tester.pumpWidget(
@@ -43,6 +45,8 @@ Future<ExportChoice?> openOver(
                 context,
                 project: project,
                 onShow: onShow ?? (int id) {},
+                format: format,
+                hasSelection: hasSelection,
               );
             },
             child: const Text('open'),
@@ -393,6 +397,139 @@ void main() {
       await tester.tap(find.text('Cancel'));
       await tester.pumpAndSettle();
       expect(result, isNull);
+    });
+  });
+
+  group("ux-18: one export screen, and every term on it explained", () {
+    /// Opens the screen and hands back a reader for whatever it is eventually
+    /// answered with — [openOver] returns the value as it stood when the
+    /// dialog first settled, which is null for every test that presses
+    /// Export afterwards.
+    Future<ExportChoice? Function()> open(
+      WidgetTester tester,
+      ModelProject project, {
+      ExportFormat format = ExportFormat.glb,
+      bool hasSelection = false,
+    }) async {
+      ExportChoice? answer;
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: modelerTheme(),
+          home: Scaffold(
+            body: Builder(
+              builder: (BuildContext context) => ElevatedButton(
+                onPressed: () async {
+                  answer = await showExportScreen(
+                    context,
+                    project: project,
+                    onShow: (int id) {},
+                    format: format,
+                    hasSelection: hasSelection,
+                  );
+                },
+                child: const Text('open'),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.tap(find.text('open'));
+      await tester.pumpAndSettle();
+      return () => answer;
+    }
+
+    testWidgets('it opens on the format the menu named', (
+      WidgetTester tester,
+    ) async {
+      final ExportChoice? Function() answer = await open(
+        tester,
+        withQuads(),
+        format: ExportFormat.obj,
+      );
+
+      // The top bar's Export menu used to write the file itself, which meant
+      // two export paths that could disagree about every option on this
+      // screen. It opens this instead — and opening it on .glb after
+      // somebody chose .obj would make the shortcut worse than useless.
+      await tester.tap(find.widgetWithText(FilledButton, 'Export'));
+      await tester.pumpAndSettle();
+      expect(answer()!.format, ExportFormat.obj);
+    });
+
+    testWidgets('selection only is offered when something is selected, and '
+        'reaches the answer', (WidgetTester tester) async {
+      final ExportChoice? Function() answer = await open(
+        tester,
+        withQuads(),
+        hasSelection: true,
+      );
+
+      expect(find.text('Selection only'), findsOneWidget);
+      await tester.tap(find.text('Selection only'));
+      await tester.pump();
+      await tester.tap(find.widgetWithText(FilledButton, 'Export'));
+      await tester.pumpAndSettle();
+
+      expect(answer()!.selectionOnly, isTrue);
+    });
+
+    testWidgets('and is not offered at all when nothing is', (
+      WidgetTester tester,
+    ) async {
+      await open(tester, withQuads());
+
+      // A checkbox that would narrow the export to nothing is worse than no
+      // checkbox: it invites somebody to tick it and get a refusal.
+      expect(find.text('Selection only'), findsNothing);
+    });
+
+    testWidgets('apply modifiers is on to begin with, and can be turned off', (
+      WidgetTester tester,
+    ) async {
+      final ExportChoice? Function() answer = await open(tester, withQuads());
+
+      expect(find.text('Apply modifiers'), findsOneWidget);
+      await tester.tap(find.widgetWithText(FilledButton, 'Export'));
+      await tester.pumpAndSettle();
+      // On by default, because that is what the file has carried since
+      // `ux-13`: a mirror a person can see is a mirror the export writes.
+      expect(answer()!.applyModifiers, isTrue);
+
+      await tester.tap(find.text('open'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Apply modifiers'));
+      await tester.pump();
+      await tester.tap(find.widgetWithText(FilledButton, 'Export'));
+      await tester.pumpAndSettle();
+      expect(answer()!.applyModifiers, isFalse);
+    });
+
+    testWidgets('every checkbox on the screen says what its words mean', (
+      WidgetTester tester,
+    ) async {
+      await open(
+        tester,
+        withQuads(),
+        format: ExportFormat.f3d,
+        hasSelection: true,
+      );
+
+      // **The review's own finding, as a test.** "Bake node transforms",
+      // "apply modifiers" and "compress textures" are three phrases somebody
+      // who has never used a modeller cannot guess at, and the fix is only
+      // a fix while it holds for the next checkbox somebody adds.
+      final Iterable<CheckboxListTile> boxes = tester
+          .widgetList<CheckboxListTile>(find.byType(CheckboxListTile));
+      expect(boxes, hasLength(4));
+      for (final CheckboxListTile box in boxes) {
+        final Text title = box.title! as Text;
+        expect(
+          box.subtitle,
+          isNotNull,
+          reason: '"${title.data}" is a name with no explanation under it',
+        );
+        expect(((box.subtitle! as Text).data ?? '').length, greaterThan(24));
+      }
     });
   });
 }

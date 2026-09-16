@@ -1,6 +1,6 @@
 /// `ui-40d`'s own row: `AnimationSubmode`, the tools each of its four
 /// values answers with, and the tool-id space they share with every other
-/// mode and sub-mode.
+/// mode and sub-mode. And `ux-18`'s own: a description for every one of them.
 ///
 ///     flutter test test/tools_test.dart
 library;
@@ -122,4 +122,104 @@ void main() {
       }
     },
   );
+
+  group("ux-18's own acceptance: a description for every tool", () {
+    /// Every tool the application offers, once each — the object and mesh
+    /// rails, and all four of the animation sub-mode rails.
+    ///
+    /// Built from [ModelerMode.values] rather than listed, so a mode that
+    /// becomes [ModelerMode.ready] later arrives here without anybody
+    /// remembering to add it: the whole point of a table nothing else
+    /// duplicates.
+    List<ModelerTool> everyTool() {
+      final seen = <String>{};
+      return <ModelerTool>[
+        for (final ModelerMode mode in ModelerMode.values)
+          for (final AnimationSubmode submode in AnimationSubmode.values)
+            for (final ModelerTool tool in toolsFor(mode, animation: submode))
+              if (seen.add(tool.id)) tool,
+      ];
+    }
+
+    test('there are tools to check at all', () {
+      // A guard on the guards below: a `toolsFor` that started answering
+      // empty would make every one of them pass over nothing.
+      expect(everyTool().length, greaterThan(30));
+    });
+
+    test('every tool has one', () {
+      for (final ModelerTool tool in everyTool()) {
+        expect(
+          tool.about.trim(),
+          isNotEmpty,
+          reason: '${tool.id} has no description — see ModelerTool.about',
+        );
+      }
+    });
+
+    test('and it is a sentence rather than a second label', () {
+      // **The failure this catches is mechanical, which is why a test can
+      // catch it.** No test can judge prose; what the review actually found
+      // was buttons added with a name and no explanation, and every check
+      // here is something a sentence written in five seconds fails.
+      for (final ModelerTool tool in everyTool()) {
+        final String about = tool.about;
+        expect(
+          about,
+          endsWith('.'),
+          reason: '${tool.id}: a description is a sentence and ends in a stop',
+        );
+        expect(
+          about.length,
+          greaterThan(24),
+          reason: '${tool.id}: too short to be saying anything',
+        );
+        // Long enough to explain, short enough for a tooltip and for the
+        // phone sheet's own three-line row.
+        expect(
+          about.length,
+          lessThan(150),
+          reason: '${tool.id}: too long for a tooltip',
+        );
+        expect(
+          about.toLowerCase(),
+          isNot(equals('${tool.label.toLowerCase()}.')),
+          reason: '${tool.id}: the description only repeats the label',
+        );
+        expect(
+          about[0],
+          equals(about[0].toUpperCase()),
+          reason: '${tool.id}: a sentence starts with a capital',
+        );
+      }
+    });
+
+    test('no two tools are described the same way', () {
+      final descriptions = <String, String>{};
+      for (final ModelerTool tool in everyTool()) {
+        final String? already = descriptions[tool.about];
+        expect(
+          already,
+          isNull,
+          reason:
+              '${tool.id} and $already share a description, so at least one '
+              'of them is not being explained',
+        );
+        descriptions[tool.about] = tool.id;
+      }
+    });
+
+    test('and none of them names a key, which a person can rebind', () {
+      // `keymap.dart` lets every one of these be rebound, and the rail
+      // already prints the live binding beside the name. A sentence naming a
+      // letter would be the one part of the tooltip that can go stale.
+      for (final ModelerTool tool in everyTool()) {
+        expect(
+          tool.about.toLowerCase(),
+          isNot(contains('press ')),
+          reason: '${tool.id}: the live shortcut is already in the tooltip',
+        );
+      }
+    });
+  });
 }

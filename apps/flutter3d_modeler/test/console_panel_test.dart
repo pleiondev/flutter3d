@@ -77,13 +77,21 @@ void main() {
     ) async {
       await _pumpPanel(tester, _log());
 
-      await tester.tap(find.text('Agent'));
+      // Each row names its own author as well, so "Agent" and "You" are on
+      // this panel twice over and a bare text finder cannot say which one it
+      // means — the filter is the one inside the `SegmentedButton`.
+      Finder filter(String named) => find.descendant(
+        of: find.byType(SegmentedButton<int>),
+        matching: find.text(named),
+      );
+
+      await tester.tap(filter('Agent'));
       await tester.pumpAndSettle();
 
       expect(find.textContaining('added a box'), findsOneWidget);
       expect(find.textContaining('opened'), findsNothing);
 
-      await tester.tap(find.text('You'));
+      await tester.tap(filter('You'));
       await tester.pumpAndSettle();
 
       expect(find.textContaining('added a box'), findsNothing);

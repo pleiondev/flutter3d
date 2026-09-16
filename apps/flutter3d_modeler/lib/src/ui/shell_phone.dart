@@ -53,7 +53,6 @@ class ModelerPhoneShell extends StatelessWidget {
   /// caller that has not been told about workspaces shows what it always did.
   final Workspace workspace;
 
-
   final MeshSubmode submode;
   final ValueChanged<MeshSubmode> onSubmode;
 
@@ -257,6 +256,7 @@ class ModelerPhoneShell extends StatelessWidget {
   /// palette, reading the identical table both of them do.
   void _openToolSheet(BuildContext context) {
     final tools = toolsFor(mode);
+    final TextStyle? about = Theme.of(context).textTheme.bodySmall;
     showModalBottomSheet<void>(
       context: context,
       builder: (BuildContext context) => SafeArea(
@@ -264,9 +264,25 @@ class ModelerPhoneShell extends StatelessWidget {
           shrinkWrap: true,
           children: <Widget>[
             for (final ModelerTool tool in tools)
+              // **A phone has no hover, so it has no tooltip** — `ux-18`.
+              // The sentence the desktop rail keeps on the second line of
+              // one is on the row itself here, or it is a sentence a phone
+              // can never show at all.
+              //
+              // Small and capped at three lines, because this list is
+              // seventeen rows long in mesh mode: at the body size and
+              // unbounded it ran past two and a half screens of scrolling
+              // for a sheet somebody opens to press one button.
               ListTile(
+                dense: true,
                 leading: Icon(tool.icon),
                 title: Text(tool.label),
+                subtitle: Text(
+                  tool.about,
+                  style: about,
+                  maxLines: 3,
+                  overflow: TextOverflow.ellipsis,
+                ),
                 trailing: Text(tool.shortcut.keyLabel.toUpperCase()),
                 selected: tool.id == activeTool,
                 onTap: () {

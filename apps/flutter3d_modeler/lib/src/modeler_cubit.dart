@@ -270,10 +270,7 @@ final class ModelerCubit extends Cubit<ModelerState> {
     // edit would mean re-running that edit against a document it was never
     // made against.
     final int took = now.history.undoAllBy(StepAuthor.agent);
-    _synced(
-      now,
-      said: 'undone $took agent ${took == 1 ? 'step' : 'steps'}',
-    );
+    _synced(now, said: 'undone $took agent ${took == 1 ? 'step' : 'steps'}');
   }
 
   /// `tut-16`'s own hook: `mcp_bootstrap_io.dart`'s `onToolCall` calls this
@@ -655,6 +652,22 @@ final class ModelerCubit extends Cubit<ModelerState> {
     final ModelerReady? now = _ready;
     if (now == null) return;
     emit(id == null ? now.copyWith(clearTool: true) : now.copyWith(tool: id));
+  }
+
+  /// One more sentence for the console, without taking the strip — `ux-18`.
+  ///
+  /// **The strip holds one line and an export has several.** Joining them
+  /// with newlines showed the first and hid the rest, so a person was told
+  /// the file was written and never told what had been left out of it. The
+  /// headline goes through [say]; everything after it comes here, where the
+  /// console `ux-26` built keeps it.
+  void note(String said) {
+    if (_ready == null) return;
+    _logged(said, author: ConsoleAuthor.person);
+    // The counter the console panel rebuilds on, bumped without touching
+    // `said`: nothing about the strip changes.
+    final ModelerReady now = _ready!;
+    emit(now.copyWith(consoleVersion: now.consoleVersion + 1));
   }
 
   /// Something worth saying that changed nothing — a file written, a refusal

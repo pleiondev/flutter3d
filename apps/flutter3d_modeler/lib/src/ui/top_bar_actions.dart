@@ -152,7 +152,10 @@ class TopBarActions extends StatelessWidget {
               value: format,
               height: ModelerMetrics.row,
               child: Text(
-                '${format.suffix}  ${format.says}',
+                // `ux-18`: `label` rather than `suffix`, because binary and
+                // ASCII STL write the same extension and this menu would
+                // otherwise offer `.stl` twice.
+                '${format.label}  ${format.says}',
                 style: const TextStyle(fontSize: 13),
               ),
             ),

@@ -5,6 +5,7 @@
 library;
 
 import 'package:flutter/material.dart';
+import 'package:flutter3d_modeler/src/exporting.dart';
 import 'package:flutter3d_modeler/src/ui/top_bar_actions.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -14,6 +15,7 @@ Future<void> show(
   VoidCallback? onPreview,
   VoidCallback? onImport,
   ValueChanged<String>? onAddPrimitive,
+  ValueChanged<ExportFormat>? onExport,
 }) {
   // Wide enough to lay out every button this row now holds — `tut-08`'s own
   // "Import" tipped the default 800-pixel test window into an overflow that
@@ -36,7 +38,7 @@ Future<void> show(
           onOpen: () {},
           onImport: onImport ?? () {},
           onSave: onSave ?? () {},
-          onExport: (_) {},
+          onExport: onExport ?? (_) {},
           onMaterialStudio: () {},
           onPreview: onPreview ?? () {},
           onShortcutHelp: () {},
@@ -96,4 +98,48 @@ void main() {
 
     expect(imports, 1);
   });
+
+  group(
+    "ux-18: the Export menu offers every format, each under its own name",
+    () {
+      testWidgets('all six are listed, and none of them twice', (
+        WidgetTester tester,
+      ) async {
+        await show(tester);
+        await tester.tap(find.text('Export'));
+        await tester.pumpAndSettle();
+
+        // `builtInModelWriters` has had STL and USDZ since `fmt-09` and this
+        // menu offered three of the six, so the one format somebody with a 3D
+        // printer came for was the one they could not choose.
+        for (final ExportFormat format in ExportFormat.values) {
+          expect(
+            find.textContaining(format.label),
+            findsWidgets,
+            reason: '${format.name} is not on the menu',
+          );
+        }
+        // Binary and ASCII STL share a suffix; `label` is what keeps them
+        // apart. Mutation: print `suffix` and this menu shows ".stl" twice
+        // with no way to tell which is which.
+        expect(find.textContaining('.stl (text)'), findsOneWidget);
+      });
+
+      testWidgets('choosing one hands the format on rather than writing it', (
+        WidgetTester tester,
+      ) async {
+        ExportFormat? asked;
+        await show(tester, onExport: (ExportFormat it) => asked = it);
+        await tester.tap(find.text('Export'));
+        await tester.pumpAndSettle();
+        await tester.tap(find.textContaining('.stl (text)'));
+        await tester.pumpAndSettle();
+
+        // The menu names a format and nothing else. What happens next is the
+        // one export screen, which is where "bake transforms", "selection
+        // only" and every readiness issue are asked about once.
+        expect(asked, ExportFormat.stlAscii);
+      });
+    },
+  );
 }

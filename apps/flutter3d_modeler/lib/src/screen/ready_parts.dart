@@ -145,7 +145,13 @@ extension _ReadyParts on _ModelerScreenState {
                   onSaveToCabinet: _cabinetLink.canSaveBack
                       ? () => unawaited(_saveToCabinet())
                       : null,
-                  onExport: _exportFile,
+                  // `ux-18`: the menu no longer exports on its own. It
+                  // opens the one export screen with the format it names
+                  // already chosen — two export paths that could disagree
+                  // about "bake transforms", "selection only" and every
+                  // readiness issue were two answers to one question.
+                  onExport: (ExportFormat format) =>
+                      unawaited(_showExportDialog(format: format)),
                   onMaterialStudio: () => unawaited(_openMaterialStudio()),
                   onPreview: () => unawaited(_openGamePreview()),
                   onShortcutHelp: _showShortcutHelp,
@@ -635,10 +641,8 @@ extension _ReadyParts on _ModelerScreenState {
                             left: 12,
                             top: 12,
                             child: NoMeshBanner(
-                              object: state.project[state
-                                  .selection
-                                  .activeObject ??
-                                  -1],
+                              object: state
+                                  .project[state.selection.activeObject ?? -1],
                               onConvert: _ranTool,
                               onBuildTopology: (int id) =>
                                   _cubit.ran(BuildTopology(id: id)),
