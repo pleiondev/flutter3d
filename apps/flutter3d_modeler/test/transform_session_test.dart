@@ -654,4 +654,122 @@ void main() {
       expect(fine.abs(), closeTo(plain.abs() * 0.1, 1e-6));
     });
   });
+
+  group('ux-29: an extrusion that follows the pointer', () {
+    /// One cube with every face selected, which is what `E` acts on.
+    ({ModelerCubit cubit, TransformSession session}) withFacesSelected() {
+      final made = openedWith(cubes(1));
+      final ModelHistory history = ready(made.cubit).history;
+      final int id = history.project.objects.first.id;
+      final EditMesh mesh =
+          (history.project.objects.first.geometry as EditedGeometry).mesh;
+      history.selection = ProjectSelection(
+        mode: SelectionMode.mesh,
+        objects: <int>[id],
+        level: ElementLevel.face,
+        elements: <int>[
+          for (var face = 0; face < mesh.faceSlotCount; face++)
+            if (mesh.isFaceAlive(face)) face,
+        ],
+      );
+      return made;
+    }
+
+    int stepsOf(ModelerCubit cubit) => ready(cubit).history.journal.length;
+
+    test('E, a move and a click leave one step, at the dragged distance', () {
+      final made = withFacesSelected();
+
+      expect(
+        made.session.startValueDrag('mesh.extrude', viewportHeight: 600),
+        isTrue,
+      );
+      final int after = stepsOf(made.cubit);
+      made.session
+        ..valueDragged(const Offset(40, 0))
+        ..valueDragged(const Offset(40, 0))
+        ..commitValueDrag();
+
+      // The acceptance this row states. Mutation: run the command per frame
+      // inside a transaction, the way a transform does. An extrusion changes
+      // the topology and the selection with it, so the second frame extrudes
+      // the face the first one made — and the undo stack grows by one per
+      // frame of the drag.
+      expect(stepsOf(made.cubit), after);
+      final ModelCommand last = ready(made.cubit).history.journal.last;
+      expect(last, isA<Extrude>());
+      expect(
+        (last as Extrude).distance,
+        greaterThan(made.session.valueDrag?.started ?? 0),
+      );
+    });
+
+    test('and Escape leaves the mesh exactly as it was', () {
+      final made = withFacesSelected();
+      final int before = stepsOf(made.cubit);
+      final int vertices = ready(made.cubit).project.vertexCount;
+
+      made.session
+        ..startValueDrag('mesh.extrude', viewportHeight: 600)
+        ..valueDragged(const Offset(60, 0))
+        ..cancelValueDrag();
+
+      // Mutation: reverse the operation rather than undoing it. There is no
+      // "un-extrude" command, so the only shape that puts the mesh back is
+      // the one undo the single step allows.
+      expect(stepsOf(made.cubit), before);
+      expect(ready(made.cubit).project.vertexCount, vertices);
+      expect(made.session.valueDrag, isNull);
+    });
+
+    test('a typed number is the distance, whatever the pointer did', () {
+      final made = withFacesSelected();
+
+      made.session
+        ..startValueDrag('mesh.extrude', viewportHeight: 600)
+        ..valueDragged(const Offset(80, 0));
+      expect(
+        made.session.modalKey(LogicalKeyboardKey.digit2, '2'),
+        isTrue,
+        reason: 'the drag takes the digit',
+      );
+      made.session.commitValueDrag();
+
+      final ModelCommand last = ready(made.cubit).history.journal.last;
+      expect((last as Extrude).distance, 2.0);
+    });
+
+    test('Escape reaches it through the same key path a transform uses', () {
+      final made = withFacesSelected();
+      final int before = stepsOf(made.cubit);
+
+      made.session.startValueDrag('mesh.extrude', viewportHeight: 600);
+      expect(made.session.modalKey(LogicalKeyboardKey.escape, null), isTrue);
+
+      expect(made.session.valueDrag, isNull);
+      expect(stepsOf(made.cubit), before);
+    });
+
+    test('with nothing selected it does not open, and nothing lands', () {
+      final made = openedWith(cubes(1));
+
+      // Mutation: open it anyway. The command refuses, nothing is on the
+      // stack, and the first pointer move amends whatever step happened to
+      // be there — which is the last thing the person did before this.
+      expect(
+        made.session.startValueDrag('mesh.extrude', viewportHeight: 600),
+        isFalse,
+      );
+      expect(made.session.valueDrag, isNull);
+    });
+
+    test('and a tool that is not one of the two is left alone', () {
+      final made = withFacesSelected();
+
+      expect(
+        made.session.startValueDrag('mesh.triangulate', viewportHeight: 600),
+        isFalse,
+      );
+    });
+  });
 }

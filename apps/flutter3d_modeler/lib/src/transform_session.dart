@@ -24,9 +24,11 @@ import 'package:vector_math/vector_math.dart' as vm;
 import 'element_picking.dart' show PickingView, cursorPickSlack;
 import 'geometry_snap.dart';
 import 'modeler_cubit.dart';
+import 'tool_commands.dart' show commandFor;
 import 'transform_gizmo.dart';
 import 'transform_modal.dart';
 import 'ui/tools.dart' show kDragTools;
+import 'value_drag.dart';
 
 /// What [ModelerStage.overlayView] hands back — the three numbers a drag's
 /// pixel math and a turn's axis both need from whichever camera is current.
@@ -104,6 +106,134 @@ class TransformSession {
 
   /// Whether a transform is currently in progress.
   TransformModal? get modal => _modal;
+
+  /// `ux-29`: an extrusion or a bevel whose one number is following the
+  /// pointer. Never open at the same time as [_modal] — both are "the
+  /// pointer is driving something", and two of those at once would be two
+  /// answers to what a move of the mouse means.
+  ValueDrag? _value;
+
+  ValueDrag? get valueDrag => _value;
+
+  /// Opens one: runs [tool]'s own command at whatever `commandFor` guessed,
+  /// then lets the pointer change it — `ux-29`.
+  ///
+  /// **The operation lands first and is amended after.** The alternative is
+  /// opening a transaction and running the command per frame inside it,
+  /// which is what a transform does; it does not work here, because an
+  /// extrusion changes the topology and the selection with it, so the second
+  /// frame would extrude the face the first frame just made. Amending re-runs
+  /// the one step against the document as it was before it, which is the only
+  /// shape where sixty frames of dragging leave one extrusion.
+  ///
+  /// Answers whether it opened. False where nothing is selected, where the
+  /// command refused, or where the tool is not one of the two.
+  bool startValueDrag(String tool, {required double viewportHeight}) {
+    final DraggedValue? what = DraggedValue.forTool(tool);
+    if (what == null) return false;
+    final state = cubit.state;
+    if (state is! ModelerReady) return false;
+    if (history().selection.isEmpty || _modal != null || _value != null) {
+      return false;
+    }
+    final ModelCommand? command = commandFor(
+      tool,
+      activeObject: history().selection.activeObject,
+      editMesh: editMesh(),
+    );
+    if (command == null) return false;
+    if (!cubit.ran(command)) return false;
+
+    final OverlayView look = state.stage.overlayView(viewportHeight);
+    final vm.Vector3 middle = middleOfSelection();
+    _value = ValueDrag(
+      what: what,
+      started: (command.arguments[what.argument] as num?)?.toDouble() ?? 0.0,
+      perPixel: ValueDrag.perPixelAt(
+        pixel: look.pixel,
+        distance: (middle - look.eye).length,
+        perspective: look.perspective,
+      ),
+    )..snapStep = snapSteps?.move ?? 0.1;
+    cubit.say(_value!.readout);
+    return true;
+  }
+
+  /// The pointer moved while one is open.
+  void valueDragged(Offset delta) {
+    final ValueDrag? drag = _value;
+    if (drag == null) return;
+    drag
+      ..snapping = HardwareKeyboard.instance.isControlPressed
+      ..dragged(
+        delta.dx,
+        delta.dy,
+        fine: HardwareKeyboard.instance.isShiftPressed ? 0.1 : 1.0,
+      );
+    _reapplyValue(drag);
+  }
+
+  /// Re-runs the step with the number the drag is at now.
+  void _reapplyValue(ValueDrag drag) {
+    final List<ModelCommand> journal = history().journal;
+    if (journal.isEmpty) return;
+    final ModelCommand last = journal.last;
+    // Through the command's own JSON, the same door the operation card uses
+    // — this file knows the argument's name and nothing else about which
+    // command it is holding.
+    final ModelCommand? amended = modelCommandFromJson(<String, Object?>{
+      ...last.toJson(),
+      drag.what.argument: drag.value,
+    });
+    if (amended == null) return;
+    history().amend(amended);
+    cubit
+      ..documentMoved()
+      ..say(drag.readout);
+  }
+
+  /// Takes the number the drag is at. The step stays where it is.
+  void commitValueDrag() {
+    if (_value == null) return;
+    _value = null;
+    cubit.say(null);
+  }
+
+  /// Throws the whole operation away — one undo, since one step landed.
+  void cancelValueDrag() {
+    if (_value == null) return;
+    _value = null;
+    final doc = history();
+    if (doc.undo()) {
+      doc.dropRedo();
+      cubit.documentMoved();
+    }
+    cubit.say('cancelled');
+  }
+
+  /// `ux-29`'s own keyboard: the same three answers a modal transform gives.
+  bool _valueKey(LogicalKeyboardKey key, String? character) {
+    final ValueDrag drag = _value!;
+    if (key == LogicalKeyboardKey.escape) {
+      cancelValueDrag();
+      return true;
+    }
+    if (key == LogicalKeyboardKey.enter ||
+        key == LogicalKeyboardKey.numpadEnter) {
+      commitValueDrag();
+      return true;
+    }
+    if (key == LogicalKeyboardKey.backspace) {
+      if (!drag.backspace()) return false;
+      _reapplyValue(drag);
+      return true;
+    }
+    if (character != null && drag.typedCharacter(character)) {
+      _reapplyValue(drag);
+      return true;
+    }
+    return false;
+  }
 
   /// How much of the transform has been applied to the document already.
   vm.Vector3 _appliedSoFar = vm.Vector3.zero();
@@ -287,6 +417,12 @@ class TransformSession {
   /// `X`/`Y`/`Z` constrain, digits and a point and a minus type a number,
   /// backspace takes one off, Enter accepts and Escape throws it away.
   bool modalKey(LogicalKeyboardKey key, String? character) {
+    // `ux-29`: an extrusion or a bevel following the pointer answers for the
+    // keyboard the same way a transform does — Escape throws it away, Enter
+    // takes it, digits say the number outright. Asked first, because only
+    // one of the two can be open at a time and this one is the shorter
+    // question.
+    if (_value != null) return _valueKey(key, character);
     final TransformModal? modal = _modal;
     if (modal == null) return _keyWhileArmed(key);
     if (key == LogicalKeyboardKey.escape) {
