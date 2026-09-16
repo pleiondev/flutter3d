@@ -3487,6 +3487,31 @@ List<ModelTool> get _rigPipelineTools => <ModelTool>[
   ),
   ModelTool(
     Tool(
+      name: 'subdivideMesh',
+      description:
+          'Subdivide the selected object\'s mesh, four quads per face per '
+          'level — `pro-sc-08`\'s own Subdivide. smooth (default true) is '
+          'Catmull-Clark, which pulls the surface toward its limit; false '
+          'keeps every vertex where it is and only adds topology. Refused '
+          'on an object with shape keys or a bound skeleton, neither of '
+          'which a subdivision carries with it.',
+      inputSchema: ObjectSchema(
+        properties: <String, Schema>{
+          'levels': IntegerSchema(
+            description: 'how many times to subdivide, 1 to 4; default 1',
+          ),
+          'smooth': BooleanSchema(
+            description:
+                'Catmull-Clark when true (the default), plain linear '
+                'subdivision when false',
+          ),
+        },
+      ),
+    ),
+    _command('subdivideMesh'),
+  ),
+  ModelTool(
+    Tool(
       name: 'retargetClip',
       description:
           'Retarget a clip authored for one skeleton onto another '

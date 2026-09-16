@@ -47,13 +47,29 @@ const Set<String> kDragTools = <String>{
 /// `InputPolicy.classify` (`input_policy.dart`) reads off `ToolCategory` to
 /// decide who gets a touch pointer, the camera or the tool.
 ///
-/// **Only the weight brush is in it, and only its two paint modes.** `ui-40d`
+/// **The weight brush is in it, and only its two paint modes.** `ui-40d`
 /// gives the weights sub-mode four tools — `weights.paint`/`weights.assign`
 /// both ride `PaintWeights` over however many `BrushSample`s one drag
 /// collects, which is what a stroke is; `weights.mirror`/`weights.normalize`
 /// run once, over whatever a stroke already touched, and belong beside
 /// [kDragTools]'s own single-gesture tools instead.
-const Set<String> kStrokeTools = <String>{'weights.paint', 'weights.assign'};
+///
+/// `pro-sc-08` adds the eight sculpting brushes, which are what this set was
+/// named for in the first place: every one of them is a drag sampled many
+/// times over a surface, and `ui-29`'s own "touch doesn't create a stroke"
+/// is `InputPolicy` reading this to decide who gets a finger.
+const Set<String> kStrokeTools = <String>{
+  'weights.paint',
+  'weights.assign',
+  'sculpt.draw',
+  'sculpt.clay',
+  'sculpt.inflate',
+  'sculpt.smooth',
+  'sculpt.flatten',
+  'sculpt.grab',
+  'sculpt.pinch',
+  'sculpt.crease',
+};
 
 /// What the modeller is being used for.
 ///
@@ -72,7 +88,7 @@ enum ModelerMode {
     inEssential: true,
   ),
   uv('UV', Icons.grid_on_outlined, 4, ready: false),
-  sculpt('Sculpt', Icons.brush_outlined, 4, ready: false),
+  sculpt('Sculpt', Icons.brush_outlined, 4, ready: true),
   animation('Animation', Icons.animation_outlined, 3, ready: true),
   render('Render', Icons.camera_outlined, 4, ready: false),
   scene('Scene', Icons.light_mode_outlined, 2, ready: true, inEssential: true);
@@ -733,6 +749,81 @@ List<ModelerTool> toolsFor(
       ),
     ],
   },
+  // `pro-sc-08`: the eight brushes, one rail tool each. The sculpting layout
+  // has no rail on it — `SculptChrome`'s own palette is where these are
+  // pressed — but they are rail tools all the same, because the armed tool
+  // is one value and the keyboard, the command palette and an agent's own
+  // `ui.setTool` all reach it through this list.
+  ModelerMode.sculpt => const <ModelerTool>[
+    ModelerTool(
+      id: 'sculpt.draw',
+      label: 'Draw',
+      about:
+          'Pushes everything under the brush out along one shared '
+          'direction, the way a stamp would.',
+      icon: Icons.brush_outlined,
+      shortcut: LogicalKeyboardKey.keyQ,
+      group: 'build',
+    ),
+    ModelerTool(
+      id: 'sculpt.clay',
+      label: 'Clay',
+      about: 'Builds the surface up in flat layers, like thumbing clay on.',
+      icon: Icons.layers_outlined,
+      shortcut: LogicalKeyboardKey.keyW,
+      group: 'build',
+    ),
+    ModelerTool(
+      id: 'sculpt.inflate',
+      label: 'Inflate',
+      about:
+          'Pushes each vertex along its own normal, so a rounded patch '
+          'puffs up rather than rising as a plane.',
+      icon: Icons.bubble_chart_outlined,
+      shortcut: LogicalKeyboardKey.keyE,
+      group: 'build',
+    ),
+    ModelerTool(
+      id: 'sculpt.smooth',
+      label: 'Smooth',
+      about: 'Evens out what is under the brush, taking the bumps down.',
+      icon: Icons.blur_on_outlined,
+      shortcut: LogicalKeyboardKey.keyR,
+      group: 'even',
+    ),
+    ModelerTool(
+      id: 'sculpt.flatten',
+      label: 'Flatten',
+      about: 'Pulls everything under the brush toward one plane.',
+      icon: Icons.horizontal_rule_outlined,
+      shortcut: LogicalKeyboardKey.keyT,
+      group: 'even',
+    ),
+    ModelerTool(
+      id: 'sculpt.grab',
+      label: 'Grab',
+      about: 'Drags the vertices under the brush along with the pointer.',
+      icon: Icons.pan_tool_outlined,
+      shortcut: LogicalKeyboardKey.keyG,
+      group: 'move',
+    ),
+    ModelerTool(
+      id: 'sculpt.pinch',
+      label: 'Pinch',
+      about: 'Pulls the vertices under the brush toward its centre.',
+      icon: Icons.compress_outlined,
+      shortcut: LogicalKeyboardKey.keyF,
+      group: 'move',
+    ),
+    ModelerTool(
+      id: 'sculpt.crease',
+      label: 'Crease',
+      about: 'Pinches and sinks at once, which is how a fold is cut in.',
+      icon: Icons.change_history_outlined,
+      shortcut: LogicalKeyboardKey.keyC,
+      group: 'move',
+    ),
+  ],
   // Every mode past phase one is drawn on the bar and refused, so there is
   // nothing to offer. Returning an empty list rather than throwing, because a
   // rail asking a disabled mode what it holds is not a bug.

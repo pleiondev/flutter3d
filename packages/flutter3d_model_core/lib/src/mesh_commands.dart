@@ -884,3 +884,95 @@ final class FillHoles extends ModelCommand {
     );
   }
 }
+
+/// Subdivides the selected object's mesh — `pro-sc-08`'s own "Subdivide"
+/// button, and the coarse-to-fine step a sculptor takes when the shape is
+/// right and the detail is not.
+///
+/// **A new mesh rather than an edit to the one that is there.** Every other
+/// command in this file mutates an [EditMesh] through its own journal, which
+/// is how a history of two hundred thousand faces stays affordable;
+/// `catmullClark` builds a mesh of four times the faces, and there is no
+/// journal entry that describes "everything is different now" more cheaply
+/// than the old mesh already does. So the object takes a fresh
+/// [EditedGeometry] and the step's own kept document holds the old one —
+/// [Outcome.meshTouched] is deliberately null, because no journal moved.
+///
+/// **[smooth] false is the linear subdivision.** Catmull-Clark pulls the
+/// surface in toward its own limit — a cube becomes a ball at three levels —
+/// which is what a sculptor usually wants and is exactly wrong for a shape
+/// that is already the shape, a screw thread or a bevelled panel. The
+/// unsmoothed pass gives the same four-quads-per-face topology and leaves
+/// every vertex where it was.
+///
+/// **It refuses on a mesh that carries something subdivision would drop.**
+/// `subdivide.dart` carries position, UV and crease and says plainly that it
+/// carries neither skin weights nor shape keys; subdividing a rigged
+/// character would silently unbind it. A refusal that names what is in the
+/// way is the honest answer, and bakes are what a person does about it.
+final class SubdivideMesh extends ModelCommand {
+  const SubdivideMesh({this.levels = 1, this.smooth = true});
+
+  /// How many times. Capped at four: a level is four times the faces, so
+  /// four of them is two hundred and fifty-six, and a fifth on anything but
+  /// a toy mesh is a machine that stops answering rather than a model that
+  /// gets finer.
+  final int levels;
+
+  final bool smooth;
+
+  @override
+  String get name => 'subdivideMesh';
+
+  @override
+  String get says => levels == 1 ? 'subdivide' : 'subdivide $levels times';
+
+  @override
+  Map<String, Object?> get arguments => <String, Object?>{
+    'levels': levels,
+    'smooth': smooth,
+  };
+
+  @override
+  Map<String, ParamHint> get hints => const <String, ParamHint>{
+    'levels': IntHint(min: 1, max: 4),
+  };
+
+  @override
+  Outcome apply(ModelProject project, ProjectSelection selection) {
+    if (levels < 1 || levels > 4) {
+      return Outcome.refused('subdivide takes one to four levels, not $levels');
+    }
+    final found = _meshTarget(project, selection);
+    if (found.target == null) return Outcome.refused(found.refused!);
+    final _MeshTarget target = found.target!;
+    if (target.object.shapeSet.keys.isNotEmpty) {
+      return Outcome.refused(
+        '"${target.object.name}" carries ${target.object.shapeSet.keys.length} '
+        'shape keys, which a subdivision does not carry with it — delete them '
+        'or subdivide a copy',
+      );
+    }
+    if (target.object.skeletonIndex != null) {
+      return Outcome.refused(
+        '"${target.object.name}" is bound to a skeleton, and a subdivision '
+        'does not carry skin weights — subdivide before binding, or bind '
+        'again afterwards',
+      );
+    }
+
+    var mesh = target.mesh;
+    for (var i = 0; i < levels; i++) {
+      mesh = smooth ? catmullClark(mesh) : subdivideSimple(mesh);
+    }
+    return Outcome.done(
+      project.withObject(
+        target.object.copyWith(geometry: EditedGeometry(mesh)),
+      ),
+      // Every element id the selection held belonged to the old mesh and
+      // names something else in the new one, which is worse than naming
+      // nothing.
+      selection: selection.copyWith(elements: const <int>[]),
+    );
+  }
+}

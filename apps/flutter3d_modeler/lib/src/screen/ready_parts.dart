@@ -473,6 +473,15 @@ extension _ReadyParts on _ModelerScreenState {
               // with no stroke tool of its own.
               final bool weightsBrushArmed =
                   weightsView && kStrokeTools.contains(state.tool);
+              // `pro-sc-08`: the sculpting mode's own brush, routed the same
+              // way — `InputPolicy` keeps a finger on the camera, a stylus
+              // and a mouse reach the surface. Every tool this mode offers
+              // is a stroke tool, so the mode being on is very nearly
+              // enough; the `kStrokeTools` test is still here because
+              // nothing promises a future sculpt tool will be one.
+              final bool sculptView = state.mode == ModelerMode.sculpt;
+              final bool sculptBrushArmed =
+                  sculptView && kStrokeTools.contains(state.tool);
               // `S6`'s own row: the morphs sub-mode's own shape markers —
               // one per shape key, in world space, `secondary` for whichever
               // one `MorphsPanel` has selected. No live deformation: only
@@ -648,16 +657,25 @@ extension _ReadyParts on _ModelerScreenState {
                             // the pointer is. Only while one is actually
                             // armed — a circle following the pointer in
                             // object mode would be a control for nothing.
+                            // `view-21`: the circle the brush reaches
+                            // to, drawn where the pointer is, in whichever
+                            // of the two modes has one armed.
                             brushRadius: weightsBrushArmed
                                 ? _weightBrushRadius
+                                : sculptBrushArmed
+                                ? _sculptRadius / 2
                                 : null,
                             brushInverting:
                                 HardwareKeyboard.instance.isControlPressed,
                             strokeTool: weightsBrushArmed
                                 ? ToolCategory.weightPainting
+                                : sculptBrushArmed
+                                ? ToolCategory.sculpting
                                 : null,
                             onStroke: weightsBrushArmed
                                 ? _onWeightStroke
+                                : sculptBrushArmed
+                                ? _onSculptStroke
                                 : null,
                             // The gizmo stands on the selection and offers the transform
                             // the armed tool asks for. On a tablet it is the only way in:
@@ -777,6 +795,34 @@ extension _ReadyParts on _ModelerScreenState {
                     )
                   : viewport;
 
+              // `pro-sc-08`/`ui-29`: the one layout with nothing docked
+              // beside it. The palette and the card float over the picture
+              // and the shell is asked to fold the rail and the panel away,
+              // because a sculptor is looking at the model rather than at a
+              // list of what is in the document.
+              final Widget staged = !sculptView
+                  ? docked
+                  : SculptChrome(
+                      viewport: docked,
+                      palette: SculptPalette(
+                        armed: brushKindOf(state.tool),
+                        onBrush: _setSculptBrush,
+                      ),
+                      panel: SculptPanel(
+                        radius: _sculptRadius,
+                        onRadius: _setSculptRadius,
+                        strength: _sculptStrength,
+                        onStrength: _setSculptStrength,
+                        falloff: _sculptFalloff,
+                        onFalloff: _setSculptFalloff,
+                        symmetryX: _sculptSymmetryX,
+                        onSymmetryX: _setSculptSymmetryX,
+                        onSubdivide: _subdivideForSculpt,
+                        faces: _sculptFaceCount(state),
+                        subdivideRefusal: _subdivideRefusal(state),
+                      ),
+                    );
+
               void onMode(ModelerMode mode) {
                 // `ui-40d`'s own row: the animation mode's own tools depend
                 // on the remembered sub-mode, the same as the rail already
@@ -833,7 +879,7 @@ extension _ReadyParts on _ModelerScreenState {
                   actions: actions,
                   status: status,
                   properties: properties,
-                  viewport: docked,
+                  viewport: staged,
                 ),
                 mode: state.mode,
                 onMode: onMode,
@@ -861,8 +907,11 @@ extension _ReadyParts on _ModelerScreenState {
                 propertiesWidth: layout.propertiesWidth,
                 onPropertiesWidth: (double to) =>
                     _saveLayout(state.workspace, propertiesWidth: to),
-                foldedPanel: _foldedPanel,
-                foldedRail: _foldedRail,
+                // `ui-29`: no Rail and no Properties in the sculpting
+                // mode, whatever this session's own two folds say — the
+                // layout is the row's own acceptance, not a preference.
+                foldedPanel: _foldedPanel || sculptView,
+                foldedRail: _foldedRail || sculptView,
                 // `ux-23`: the lights, in the mode that is about them. The
                 // panel lists them too — it has room for their settings —
                 // but a mode whose rail is empty reads as a mode with

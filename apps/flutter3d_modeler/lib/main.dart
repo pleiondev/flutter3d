@@ -81,6 +81,7 @@ import 'src/play/play_control.dart';
 import 'src/play/play_template.dart';
 import 'src/recent_projects.dart';
 import 'src/report_problem.dart';
+import 'src/sculpt_session.dart';
 import 'src/selection_box.dart';
 import 'src/selection_rules.dart';
 import 'src/settings.dart';
@@ -123,6 +124,7 @@ import 'src/ui/retarget_panel.dart';
 import 'src/ui/retarget_viewports.dart';
 import 'src/ui/save_as_dialog.dart';
 import 'src/ui/screen_parts.dart';
+import 'src/ui/sculpt_panel.dart';
 import 'src/ui/settings_screen.dart';
 import 'src/ui/shell.dart' show RailEntry;
 import 'src/ui/shell_for_width.dart';
@@ -153,6 +155,7 @@ part 'src/screen/interactions.dart';
 part 'src/screen/morphs_wiring.dart';
 part 'src/screen/ready_parts.dart';
 part 'src/screen/retarget_wiring.dart';
+part 'src/screen/sculpt_wiring.dart';
 part 'src/screen/weight_paint_wiring.dart';
 
 /// `ui-30n`: wires an exception nobody caught to the same response wherever
@@ -337,6 +340,23 @@ class _ModelerScreenState extends State<ModelerScreen>
   /// The vertex nearest the weight brush's own last hit —
   /// `ui/weight_paint_panel.dart`'s own influences card.
   int? _selectedWeightVertex;
+
+  /// `pro-sc-08`'s own sculpting brush: the cursor's diameter in logical
+  /// pixels, strength 0 to 1, how its influence tapers, and whether a stroke
+  /// is mirrored across `x = 0`. Plain fields for the same reason the weight
+  /// brush's own four above are: none of them is on [ModelHistory], so undo
+  /// has nowhere to put any of them back to. `view-21`'s own ⌀140 is where
+  /// the size starts.
+  double _sculptRadius = kSculptCursorDiameter;
+  double _sculptStrength = 0.5;
+  BrushFalloff _sculptFalloff = BrushFalloff.smooth;
+  bool _sculptSymmetryX = false;
+
+  /// `pro-sc-08`'s own stroke controller — see `sculpt_session.dart`.
+  late final SculptSession _sculptSession = SculptSession(
+    cubit: _cubit,
+    history: () => _history,
+  );
 
   /// `S5`'s own brush stroke controller — see `weight_paint_session.dart`.
   late final WeightPaintSession _weightPaintSession = WeightPaintSession(
