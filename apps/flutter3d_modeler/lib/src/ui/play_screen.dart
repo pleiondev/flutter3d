@@ -14,6 +14,7 @@ import 'package:flutter3d_model_core/flutter3d_model_core.dart' hide Outcome;
 import 'package:vector_math/vector_math.dart' show Vector2;
 
 import '../modeler_viewport.dart';
+import '../play/play_control.dart';
 import '../play/play_session.dart';
 import '../play/play_template.dart';
 import 'budget_bars.dart';
@@ -49,6 +50,7 @@ Future<void> showPlay(
   required Renderer renderer,
   required ModelProject Function() projectNow,
   required PlayTemplate template,
+  PlayControl? control,
 }) => Navigator.of(context).push(
   MaterialPageRoute<void>(
     fullscreenDialog: true,
@@ -56,6 +58,7 @@ Future<void> showPlay(
       renderer: renderer,
       projectNow: projectNow,
       template: template,
+      control: control,
     ),
   ),
 );
@@ -67,6 +70,7 @@ class PlayScreen extends StatefulWidget {
     required this.renderer,
     required this.projectNow,
     required this.template,
+    this.control,
   });
 
   final Renderer renderer;
@@ -75,6 +79,10 @@ class PlayScreen extends StatefulWidget {
   final ModelProject Function() projectNow;
 
   final PlayTemplate template;
+
+  /// `ux-52`: where this screen registers itself so an agent can reload,
+  /// stop and ask about it. Null in a test that only wants the picture.
+  final PlayControl? control;
 
   @override
   State<PlayScreen> createState() => _PlayScreenState();
@@ -94,7 +102,23 @@ class _PlayScreenState extends State<PlayScreen> {
   Duration? _last;
 
   @override
+  void initState() {
+    super.initState();
+    widget.control?.running = (
+      template: widget.template,
+      reload: _reload,
+      stop: () => Navigator.of(context).maybePop(),
+      where: () => _session.position,
+    );
+  }
+
+  @override
   void dispose() {
+    // Cleared here rather than by whoever pushed the route: a person
+    // pressing Escape and an agent calling `play.stop` both end up here,
+    // and a flag cleared in only one of those paths is a `play.reload` that
+    // reloads a game nobody is looking at.
+    widget.control?.running = null;
     _keys.dispose();
     super.dispose();
   }

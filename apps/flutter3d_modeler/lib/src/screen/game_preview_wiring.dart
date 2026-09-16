@@ -75,6 +75,7 @@ extension _GamePreviewWiring on _ModelerScreenState {
       // Play is open.
       projectNow: () => _history.project,
       template: template,
+      control: _play,
     );
   }
 }

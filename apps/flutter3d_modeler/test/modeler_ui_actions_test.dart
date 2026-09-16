@@ -15,6 +15,7 @@ import 'package:flutter3d_model_core/flutter3d_model_core.dart';
 import 'package:flutter3d_modeler/src/mcp_ui_actions.dart';
 import 'package:flutter3d_modeler/src/modeler_cubit.dart';
 import 'package:flutter3d_modeler/src/modeler_ui_actions.dart';
+import 'package:flutter3d_modeler/src/play/play_control.dart';
 import 'package:flutter3d_modeler/src/play/play_template.dart';
 import 'package:flutter3d_modeler/src/settings.dart' show Workspace;
 import 'package:flutter3d_modeler/src/staging.dart';
@@ -68,6 +69,10 @@ final class _Counters {
   /// `ux-50`: which template Play was started on, in order.
   final List<PlayTemplate> played = <PlayTemplate>[];
 
+  /// `ux-52`: the registry `PlayScreen` fills in while its route is up —
+  /// a test fills it in by hand, since there is no route here.
+  final PlayControl play = PlayControl();
+
   /// `ux-25`: every id `run_command` pressed, in order.
   final List<String> ran = <String>[];
 }
@@ -80,6 +85,7 @@ ModelerUiActions _actions(ModelerCubit cubit, _Counters counters) =>
       openAutorigDialog: () async => counters.autorig++,
       openGamePreview: () async => counters.preview++,
       openPlay: (PlayTemplate template) async => counters.played.add(template),
+      play: counters.play,
       runTool: counters.ran.add,
     );
 
@@ -239,6 +245,7 @@ void main() {
         openAutorigDialog: () async {},
         openGamePreview: () async {},
         openPlay: (_) async {},
+        play: PlayControl(),
         runTool: (_) {},
         captureWindow: () async => null,
       );
@@ -255,6 +262,7 @@ void main() {
         openAutorigDialog: () async {},
         openGamePreview: () async {},
         openPlay: (_) async {},
+        play: PlayControl(),
         runTool: (_) {},
         captureWindow: () async => <int>[1, 2, 3, 4],
       );
@@ -371,6 +379,78 @@ void main() {
         PlayTemplate.walkthrough,
         PlayTemplate.character,
       ]);
+    });
+
+    test('ux-52: play.reload, stop and console refuse while nothing runs', () {
+      final counters = _Counters();
+      final ModelerUiActions actions = _actions(_opened(), counters);
+
+      // **Mutation: reload whatever the last session was.** An agent that
+      // called `play.reload` after the person pressed Stop would be told it
+      // worked, and would then take a screenshot of the editor believing it
+      // to be the game.
+      for (final UiAnswer answer in <UiAnswer>[
+        actions.playReload(),
+        actions.playStop(),
+        actions.playConsole(),
+      ]) {
+        expect(answer.did, isFalse);
+        expect(answer.says, contains('not running'));
+      }
+    });
+
+    test('ux-52: and reach the running game once there is one', () {
+      final counters = _Counters();
+      final ModelerUiActions actions = _actions(_opened(), counters);
+      var reloads = 0;
+      var stops = 0;
+      counters.play.running = (
+        template: PlayTemplate.prop,
+        reload: () => reloads++,
+        stop: () => stops++,
+        where: () => Vector3(1.0, 0.9, -2.0),
+      );
+
+      expect(actions.playReload().did, isTrue);
+      expect(reloads, 1);
+
+      // The state `get_console` cannot carry: which template, and where in
+      // it the player got to.
+      final UiAnswer said = actions.playConsole();
+      expect(said.says, contains('prop'));
+      expect(said.says, contains('-2.00'));
+
+      expect(actions.playStop().did, isTrue);
+      expect(stops, 1);
+
+      // A second start while one runs is refused rather than restarting:
+      // restarting would throw away the walk the first one made, and an
+      // agent that meant that has `play.reload`.
+      final UiAnswer again = actions.playStart('character');
+      expect(again.did, isFalse);
+      expect(again.says, contains('already running'));
+    });
+
+    test('ux-52: play.start names its templates, and screenshots refuse '
+        'while nothing runs', () async {
+      final counters = _Counters();
+      final ModelerUiActions actions = _actions(_opened(), counters);
+
+      expect(actions.playStart('prop').did, isTrue);
+      expect(counters.played, <PlayTemplate>[PlayTemplate.prop]);
+
+      final UiAnswer wrong = actions.playStart('platformer');
+      expect(wrong.did, isFalse);
+      // Refused with the list, not only with a no: an agent that guessed a
+      // name should not have to guess a second time.
+      expect(wrong.says, contains('walkthrough'));
+
+      // **Mutation: fall through to `ui.screenshot`.** A picture of the
+      // editor would come back where a picture of the game was asked for,
+      // and nothing in the answer would say which one it is.
+      final UiPicture shot = await actions.playScreenshot();
+      expect(shot.did, isFalse);
+      expect(shot.says, contains('not running'));
     });
 
     test('an unknown name refuses cleanly', () {

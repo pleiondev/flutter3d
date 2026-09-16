@@ -13,10 +13,13 @@ library;
 
 import 'dart:async';
 
+import 'package:vector_math/vector_math.dart' show Vector3;
+
 import 'console_log.dart';
 import 'display_modes.dart';
 import 'mcp_ui_actions.dart';
 import 'modeler_cubit.dart';
+import 'play/play_control.dart';
 import 'play/play_template.dart';
 import 'ui/tools.dart';
 
@@ -28,6 +31,7 @@ final class ModelerUiActions implements UiActions {
     required this.openAutorigDialog,
     required this.openGamePreview,
     required this.openPlay,
+    required this.play,
     required this.runTool,
     this.captureWindow,
   });
@@ -59,6 +63,10 @@ final class ModelerUiActions implements UiActions {
   /// rather than looked at, which is what separates this from the preview
   /// above.
   final Future<void> Function(PlayTemplate template) openPlay;
+
+  /// `ux-52`: whether Play is running, and how to press its buttons. Filled
+  /// in by `PlayScreen` itself while the route is up — see `PlayControl`.
+  final PlayControl play;
 
   /// `ux-44`: the window as PNG bytes, or null when there is no laid-out
   /// window to capture. Handed in for the same reason the two dialogs above
@@ -230,16 +238,15 @@ final class ModelerUiActions implements UiActions {
         return (did: true, says: 'opened the game preview');
       // `ux-50`: one name per template, because "play" with no template is
       // a question rather than a command — the three answer different ones.
+      // `ux-52` gave Play its own tool; this stays because a screenshot
+      // script that already speaks `ui.openDialog` should not have to learn
+      // a second verb to reach the same route.
       case 'play':
+        return playStart(PlayTemplate.character.name);
       case 'play.character':
-        unawaited(openPlay(PlayTemplate.character));
-        return (did: true, says: 'started Play on the character template');
       case 'play.prop':
-        unawaited(openPlay(PlayTemplate.prop));
-        return (did: true, says: 'started Play on the prop template');
       case 'play.walkthrough':
-        unawaited(openPlay(PlayTemplate.walkthrough));
-        return (did: true, says: 'started Play on the walkthrough template');
+        return playStart(dialog.split('.').last);
       default:
         return (did: false, says: 'no such dialog: $dialog');
     }
@@ -271,6 +278,85 @@ final class ModelerUiActions implements UiActions {
       );
     }
     return (did: true, says: 'the window, ${png.length} bytes', png: png);
+  }
+
+  @override
+  UiAnswer playStart(String template) {
+    final ModelerReady? ready = _ready;
+    if (ready == null) return (did: false, says: 'no document open');
+    if (play.running case final PlayRunning already) {
+      // Refused rather than restarted: a second start would throw away the
+      // walk the first one made, and an agent that meant "reload" has a
+      // tool that says so.
+      return (
+        did: false,
+        says:
+            'Play is already running on the ${already.template.name} '
+            'template; reload or stop it first',
+      );
+    }
+    final PlayTemplate? picked = PlayTemplate.values
+        .where((PlayTemplate it) => it.name == template)
+        .firstOrNull;
+    if (picked == null) {
+      return (
+        did: false,
+        says:
+            'no such template: $template — '
+            '${PlayTemplate.values.map((PlayTemplate it) => it.name).join(', ')}',
+      );
+    }
+    // `ux-51`'s own gate, answered here as well as on the button: Play
+    // hands the document over the way an export does, so an agent that asks
+    // for Play on a project that will not export is told the same thing a
+    // person pressing the button is told.
+    if (!ready.readiness.canExport) {
+      return (did: false, says: 'Play: ${ready.readiness.says}');
+    }
+    unawaited(openPlay(picked));
+    return (did: true, says: 'started Play on the ${picked.name} template');
+  }
+
+  @override
+  UiAnswer playReload() {
+    final PlayRunning? running = play.running;
+    if (running == null) return (did: false, says: 'Play is not running');
+    running.reload();
+    return (did: true, says: 'reloaded the running game');
+  }
+
+  @override
+  UiAnswer playStop() {
+    final PlayRunning? running = play.running;
+    if (running == null) return (did: false, says: 'Play is not running');
+    running.stop();
+    return (did: true, says: 'stopped Play');
+  }
+
+  @override
+  UiAnswer playConsole() {
+    final PlayRunning? running = play.running;
+    if (running == null) return (did: false, says: 'Play is not running');
+    final Vector3 at = running.where();
+    return (
+      did: true,
+      says:
+          'Play is running on the ${running.template.name} template; the '
+          'body is standing at '
+          '${at.x.toStringAsFixed(2)}, ${at.y.toStringAsFixed(2)}, '
+          '${at.z.toStringAsFixed(2)}',
+    );
+  }
+
+  @override
+  Future<UiPicture> playScreenshot() async {
+    if (play.running == null) {
+      return (did: false, says: 'Play is not running', png: null);
+    }
+    // The same capture `ui.screenshot` makes: Play is a full-screen route,
+    // so the window *is* the game. A second capture path that cropped or
+    // re-rendered would be a second answer to "what is on screen".
+    return screenshot();
   }
 }
 
