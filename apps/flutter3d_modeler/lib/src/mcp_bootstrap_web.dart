@@ -23,6 +23,7 @@ Future<void> startMcpServer({
   )?
   onToolCall,
   void Function(String clientName)? onInitialize,
+  String? Function()? pausedBecause,
 }) async {}
 
 Future<void> stopMcpServer() async {}

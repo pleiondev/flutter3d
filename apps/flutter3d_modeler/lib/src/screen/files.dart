@@ -194,6 +194,13 @@ extension _FileHandling on _ModelerScreenState {
               // what the person sees rather than what the model looks like.
               captureWindow: _captureWindow,
             ),
+            // `ux-45`: the person's own brake. Asked before every call, so a
+            // paused agent is told why rather than left waiting — and being
+            // told is what lets it say so instead of retrying.
+            pausedBecause: () => _agentPaused
+                ? 'the person has paused agent calls in this editor; '
+                      'they will resume when the pause is lifted'
+                : null,
             // `tut-16`'s own feed: screen 26's own tool-call panel reads
             // `ModelerReady.agentCalls`, appended to here as each call
             // answers — the one place a headless caller has nobody to

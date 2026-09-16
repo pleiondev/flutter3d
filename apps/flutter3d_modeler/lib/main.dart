@@ -508,6 +508,14 @@ class _ModelerScreenState extends State<ModelerScreen>
   /// viewport. See `ready_parts.dart`'s own `_screen`.
   final GlobalKey _windowKey = GlobalKey();
 
+  /// Whether agent calls are being refused — `ux-45`.
+  ///
+  /// **This session's own, not a setting.** A pause is something a person
+  /// reaches for in the middle of something going wrong, and a pause that
+  /// survived a restart would be one they had to remember to undo before
+  /// wondering why nothing answers.
+  bool _agentPaused = false;
+
   /// The last object picked in the outliner, which a shift-click reaches
   /// back to — `ux-14`. Null until one has been.
   int? _outlinerAnchor;

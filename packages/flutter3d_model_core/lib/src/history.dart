@@ -55,6 +55,7 @@ final class HistoryStep {
     required this.selectionBefore,
     this.meshSteps = const <EditMesh, int>{},
     this.author = StepAuthor.person,
+    this.client,
   });
 
   final ModelCommand command;
@@ -65,6 +66,20 @@ final class HistoryStep {
   /// The selection the command was made against, kept so a redo does the same
   /// thing to the same elements even if the pointer has moved on.
   final ProjectSelection selectionBefore;
+
+  /// Which agent made this step, by the name its client said hello with —
+  /// `ux-45`.
+  ///
+  /// **One `agent` for everybody was not enough the moment there were two.**
+  /// A person with an assistant in the editor and a script running beside it
+  /// sees one undo stack, and "an agent did this" does not say which; the
+  /// live run had exactly that, and the only way to tell the two apart was
+  /// the order things happened in. The name comes from `initialize`, which
+  /// every client sends before it calls anything.
+  ///
+  /// Null for a person's own step, and for an agent whose client gave no
+  /// name — an honest gap rather than a made-up one.
+  final String? client;
 
   /// Who made this step — a person at the app, or an agent over MCP.
   /// Defaults to [StepAuthor.person] because that is every call site this
@@ -201,13 +216,18 @@ final class ModelHistory {
   /// call this same method, so attaching a journal here is what lets both a
   /// person's live edit and an agent's own reach the identical recovery file
   /// (`tut-15`), each under the [author] it was actually given.
-  String? run(ModelCommand command, {StepAuthor author = StepAuthor.person}) {
+  String? run(
+    ModelCommand command, {
+    StepAuthor author = StepAuthor.person,
+    String? client,
+  }) {
     final Outcome outcome = command.apply(_project, selection);
     if (!outcome.ok) return outcome.refused;
     final EditMesh? touched = outcome.meshTouched;
     if (_inTransaction) {
       _firstOfTransaction ??= command;
       _authorOfTransaction ??= author;
+      _clientOfTransaction ??= client;
       if (touched != null) {
         _meshStepsOfTransaction[touched] =
             (_meshStepsOfTransaction[touched] ?? 0) + 1;
@@ -222,6 +242,7 @@ final class ModelHistory {
               ? const <EditMesh, int>{}
               : <EditMesh, int>{touched: 1},
           author: author,
+          client: client,
         ),
       );
       // Only a step that a person made clears the redo stack. A redo that ran
@@ -245,6 +266,7 @@ final class ModelHistory {
   bool _inTransaction = false;
   ModelCommand? _firstOfTransaction;
   StepAuthor? _authorOfTransaction;
+  String? _clientOfTransaction;
   final Map<EditMesh, int> _meshStepsOfTransaction = <EditMesh, int>{};
 
   /// Completed by [endTransaction] and awaited by [whenNotInTransaction] —
@@ -304,6 +326,7 @@ final class ModelHistory {
     _inTransaction = true;
     _firstOfTransaction = null;
     _authorOfTransaction = null;
+    _clientOfTransaction = null;
     _meshStepsOfTransaction.clear();
     _projectBeforeTransaction = _project;
     _selectionBeforeTransaction = _selection;
@@ -320,6 +343,7 @@ final class ModelHistory {
     if (!_inTransaction) return;
     final ModelCommand? first = _firstOfTransaction;
     final StepAuthor author = _authorOfTransaction ?? StepAuthor.person;
+    final String? client = _clientOfTransaction;
     final ModelProject before = _projectBeforeTransaction!;
     final ProjectSelection selectionBefore = _selectionBeforeTransaction!;
     final Map<EditMesh, int> meshSteps = Map<EditMesh, int>.of(
@@ -328,6 +352,7 @@ final class ModelHistory {
     _inTransaction = false;
     _firstOfTransaction = null;
     _authorOfTransaction = null;
+    _clientOfTransaction = null;
     _projectBeforeTransaction = null;
     _selectionBeforeTransaction = null;
     _meshStepsOfTransaction.clear();
@@ -349,6 +374,7 @@ final class ModelHistory {
         selectionBefore: selectionBefore,
         meshSteps: meshSteps,
         author: author,
+        client: client,
       ),
     );
     _undone.clear();
@@ -385,7 +411,17 @@ final class ModelHistory {
   /// calling `ModelSession.amend` both reach this, and both now leave the
   /// adjustment on a shared recovery journal the same way an ordinary edit
   /// does.
-  String? amend(ModelCommand replacement) {
+  /// **[by] is who is adjusting, and it changes whose the step is** —
+  /// `ux-45`. A person dragging the operation card's slider over an agent's
+  /// extrusion has taken that operation over: it is their distance now, and
+  /// an agent's own undo must not reach past it. Leaving the step marked as
+  /// the agent's was what let one take back an edit a person had just
+  /// adjusted by hand.
+  String? amend(
+    ModelCommand replacement, {
+    StepAuthor by = StepAuthor.person,
+    String? client,
+  }) {
     if (_done.isEmpty) return 'there is nothing to adjust';
     final HistoryStep step = _done.last;
     _rollMeshes(step.meshSteps, forward: false);
@@ -405,7 +441,10 @@ final class ModelHistory {
       meshSteps: touched == null
           ? const <EditMesh, int>{}
           : <EditMesh, int>{touched: 1},
-      author: step.author,
+      author: by,
+      // A person taking a step over has no client name; an agent adjusting
+      // its own keeps the one it said hello with.
+      client: by == StepAuthor.person ? null : (client ?? step.client),
     );
     // A different result is a different future, the same rule [run] keeps: a
     // redo recorded against the old one would put back a document that no
@@ -413,7 +452,7 @@ final class ModelHistory {
     // journal the moment the replacement wrote.
     _undone.clear();
     if (replacement.isJournaled) {
-      recoveryJournal?.amend(replacement, author: step.author);
+      recoveryJournal?.amend(replacement, author: by);
     }
     _project = outcome.project!;
     _selection = outcome.selection ?? step.selectionBefore;
@@ -448,6 +487,7 @@ final class ModelHistory {
         selectionBefore: _selection,
         meshSteps: step.meshSteps,
         author: step.author,
+        client: step.client,
       ),
     );
     _project = step.before;
@@ -455,6 +495,38 @@ final class ModelHistory {
     _rollMeshes(step.meshSteps, forward: false);
     return true;
   }
+
+  /// Takes back every step on top of the stack that [author] made, newest
+  /// first, and says how many — `ux-45`'s own "Undo all agent steps".
+  ///
+  /// **It stops at the first step somebody else made, and that is the whole
+  /// design.** An undo stack is a stack: a person's own edit sitting above
+  /// three of an agent's cannot be stepped over, because taking back what is
+  /// under it would mean re-running the person's edit against a document it
+  /// was never made against. So this takes the run at the top and stops,
+  /// which is exactly "undo everything the agent has done since I last
+  /// touched it" — the thing a person actually wants when they reach for it.
+  ///
+  /// [client] narrows it further: with two agents connected, one of them can
+  /// be taken back without touching the other's steps under it.
+  int undoAllBy(StepAuthor author, {String? client}) {
+    var taken = 0;
+    while (_done.isNotEmpty &&
+        _done.last.author == author &&
+        (client == null || _done.last.client == client)) {
+      if (!undo()) break;
+      taken++;
+    }
+    return taken;
+  }
+
+  /// Every step still on the stack, newest last, with who made each — what a
+  /// panel showing "three steps by Claude, then one of yours" reads.
+  List<({String says, StepAuthor author, String? client})> get authorship =>
+      <({String says, StepAuthor author, String? client})>[
+        for (final HistoryStep step in _done)
+          (says: step.command.says, author: step.author, client: step.client),
+      ];
 
   /// One step forward.
   bool redo() {

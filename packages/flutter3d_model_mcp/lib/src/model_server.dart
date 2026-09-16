@@ -107,10 +107,21 @@ base class ModelMcpServer extends ToolTableServer<ModelSession, PictureAnswer> {
     super.channel, {
     required ModelSession session,
     List<ModelPictureTool> extraTools = const <ModelPictureTool>[],
+    super.pausedBecause,
     super.onCall,
-    super.onInitialize,
+    void Function(String clientName)? onInitialize,
   }) : super(
          session: session,
+         // `ux-45`: the name the client said hello with is what every step
+         // this session makes is stamped with, so an undo stack shared with
+         // a person — and possibly with a second agent — says which of them
+         // did what. Set here rather than left to each caller's own hook,
+         // because a caller that forgot would leave the stack unable to tell
+         // two agents apart and nothing would say so.
+         onInitialize: (String clientName) {
+           session.client = clientName;
+           onInitialize?.call(clientName);
+         },
          name: 'flutter3d_model_mcp',
          version: modelMcpVersion,
          instructions: _instructions,

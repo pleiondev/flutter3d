@@ -51,9 +51,16 @@ final class ModelSession {
   /// whichever journal is attached regardless of caller, every command a
   /// person runs directly against the same shared [history] too — land on
   /// one recovery journal rather than each caller needing one of its own.
-  ModelSession(this.history, {this.path}) {
+  ModelSession(this.history, {this.path, this.client}) {
     history.recoveryJournal ??= CommandJournal();
   }
+
+  /// Which client this session is talking to, by the name it said hello with
+  /// — `ux-45`. Every step this session makes is stamped with it, so an undo
+  /// stack shared with a person, and possibly with a second agent, says which
+  /// of them did what. Null until `initialize` arrives, and for a session a
+  /// test built directly.
+  String? client;
 
   /// Opens the project at [path], or a fresh one when there is nothing there
   /// yet — the shape `dart_mcp`'s own examples and `Г8` (the plan's decision
@@ -424,7 +431,11 @@ final class ModelSession {
   /// own recovery file agrees with the live one about whose step each was
   /// without this method having to record to a journal of its own.
   Answer run(ModelCommand command) {
-    final String? refused = history.run(command, author: StepAuthor.agent);
+    final String? refused = history.run(
+      command,
+      author: StepAuthor.agent,
+      client: client,
+    );
     if (refused != null) {
       return (did: false, says: 'nothing did ${command.says}: $refused');
     }
@@ -656,7 +667,11 @@ final class ModelSession {
   /// than the original one followed by an adjustment nothing on disk
   /// remembers, whoever made the step being adjusted.
   Answer amend(ModelCommand to) {
-    final String? refused = history.amend(to);
+    final String? refused = history.amend(
+      to,
+      by: StepAuthor.agent,
+      client: client,
+    );
     if (refused != null) {
       return (did: false, says: 'nothing did ${to.says}: $refused');
     }

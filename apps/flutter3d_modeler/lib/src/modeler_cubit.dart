@@ -247,9 +247,18 @@ final class ModelerCubit extends Cubit<ModelerState> {
       emit(now.copyWith(said: "the top step is yours, not the agent's"));
       return;
     }
-    final String? took = now.history.undoSays;
-    now.history.undo(onlyIfAuthoredBy: StepAuthor.agent);
-    _synced(now, said: took == null ? 'undone' : 'undone $took');
+    // `ux-45`: all of them, not one. "Undo the agent's work" is a single
+    // thing a person wants in a single moment — usually the moment it has
+    // gone wrong — and pressing a button four times while watching the
+    // document walk backwards is not that. It stops at the first step of
+    // theirs underneath, because taking back what is under a person's own
+    // edit would mean re-running that edit against a document it was never
+    // made against.
+    final int took = now.history.undoAllBy(StepAuthor.agent);
+    _synced(
+      now,
+      said: 'undone $took agent ${took == 1 ? 'step' : 'steps'}',
+    );
   }
 
   /// `tut-16`'s own hook: `mcp_bootstrap_io.dart`'s `onToolCall` calls this

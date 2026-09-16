@@ -51,15 +51,27 @@ void main() {
       expect(history.steps.single.author, StepAuthor.agent);
     });
 
-    test('amend keeps the step\'s own original author', () {
+    test('an agent amending its own step keeps it the agent\'s', () {
       // Mutation: rebuild the amended step with the default author instead
-      // of the original one — an agent's own step, adjusted through a
-      // slider, would silently become a person's, and its own undo would
-      // stop being refusable.
+      // of the one that asked — an agent adjusting its own extrusion would
+      // silently hand the step to the person, and its own undo would stop
+      // being able to take back its own work.
+      final history = freshHistory();
+      history.run(MoveBy(Vector3(1, 0, 0)), author: StepAuthor.agent);
+      history.amend(MoveBy(Vector3(2, 0, 0)), by: StepAuthor.agent);
+      expect(history.steps.single.author, StepAuthor.agent);
+    });
+
+    test('and a person amending it takes it over — ux-45', () {
+      // The other direction, and the row's own reason for it: a person
+      // dragging the operation card's slider over an agent's extrusion has
+      // made that distance theirs, and an agent's undo must not reach past
+      // a hand that has just been on it.
       final history = freshHistory();
       history.run(MoveBy(Vector3(1, 0, 0)), author: StepAuthor.agent);
       history.amend(MoveBy(Vector3(2, 0, 0)));
-      expect(history.steps.single.author, StepAuthor.agent);
+      expect(history.steps.single.author, StepAuthor.person);
+      expect(history.undo(onlyIfAuthoredBy: StepAuthor.agent), isFalse);
     });
   });
 
