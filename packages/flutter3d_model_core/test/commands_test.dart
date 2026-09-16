@@ -2635,6 +2635,14 @@ void main() {
           baseVersion: 1,
           meshBytes: Uint8List.fromList(<int>[1, 2, 3]),
         ),
+        // `ux-48`: the three that link an object to the file it came from.
+        const LinkToSource(id: 1, path: 'props/crate.obj', sha: 'abc123'),
+        const UnlinkSource(id: 1),
+        Reimport(
+          id: 1,
+          sha: 'def456',
+          meshBytes: Uint8List.fromList(<int>[1, 2, 3]),
+        ),
         ApplyClipResult(
           clipIndex: 0,
           clip: ProjectClip(

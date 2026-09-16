@@ -39,6 +39,7 @@ final class ImportChoice {
     required this.weld,
     required this.fixNormals,
     required this.triangulate,
+    this.linkToSource = false,
   });
 
   final ImportUnit unit;
@@ -46,6 +47,15 @@ final class ImportChoice {
   final bool weld;
   final bool fixNormals;
   final bool triangulate;
+
+  /// Keep the file this came from, so it can be read again — `ux-48`.
+  ///
+  /// **Off by default, because the ordinary import is a copy.** Somebody
+  /// pulling in a prop once wants it to stop owing anything to a file that
+  /// may not be there tomorrow. A link is for the other case: the mesh being
+  /// sculpted in another tool and checked here, where "read it again" is a
+  /// thing somebody does ten times an hour.
+  final bool linkToSource;
 }
 
 /// Shows the import screen for [document], already decoded, against
@@ -142,6 +152,7 @@ class _ImportScreenState extends State<_ImportScreen> {
   late bool _weld = weldForFile(widget.fileName);
   bool _fixNormals = false;
   bool _triangulate = false;
+  bool _linkToSource = false;
 
   ImportPlan get _plan => ImportPlan(
     document: widget.document,
@@ -256,6 +267,25 @@ class _ImportScreenState extends State<_ImportScreen> {
                 onChanged: (bool? to) =>
                     setState(() => _triangulate = to ?? _triangulate),
               ),
+              // `ux-48`. Only where there is a path to keep: a file dropped
+              // into a browser arrives as bytes and a name, and a link with
+              // nowhere to point is a button that fails later rather than
+              // now.
+              if (widget.fileName != null)
+                CheckboxListTile(
+                  dense: true,
+                  contentPadding: EdgeInsets.zero,
+                  controlAffinity: ListTileControlAffinity.leading,
+                  title: const Text('Link to source'),
+                  subtitle: const Text(
+                    'Remember where this came from, so "Re-import" can read '
+                    'it again and keep the transform, materials and '
+                    'modifiers.',
+                  ),
+                  value: _linkToSource,
+                  onChanged: (bool? to) =>
+                      setState(() => _linkToSource = to ?? _linkToSource),
+                ),
               if (plan.warningCount > 0) ...<Widget>[
                 const SizedBox(height: 12),
                 Text(
@@ -291,6 +321,7 @@ class _ImportScreenState extends State<_ImportScreen> {
               weld: _weld,
               fixNormals: _fixNormals,
               triangulate: _triangulate,
+              linkToSource: _linkToSource,
             ),
           ),
           child: const Text('Import'),

@@ -298,6 +298,9 @@ extension _ReadyParts on _ModelerScreenState {
                 // uses for one. The row itself only appears when the active
                 // material has a file and the platform has an editor.
                 onOpenLinkedFile: _linkedMaterials.openInEditor,
+                // `ux-48`: reads the held object's own source file again,
+                // keeping everything this project has done around its mesh.
+                onReimport: (int id) => unawaited(_reimport(id)),
                 onSetMaterialField: _setMaterialField,
                 onChooseTexture: _chooseTexture,
                 onClearTexture: _clearTexture,

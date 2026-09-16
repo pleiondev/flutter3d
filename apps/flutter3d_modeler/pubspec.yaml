@@ -77,6 +77,14 @@ dependencies:
   flutter3d_samples:
     path: ../../packages/flutter3d_samples
 
+  # `ux-48`: the digest that says whether a linked file has changed. A
+  # timestamp does not — a file restored from a backup or checked out of
+  # version control has a new one and the same bytes — and a hash this
+  # project writes into its own file has to mean the same thing next year,
+  # which `Object.hashAll` does not promise across runs. Same package
+  # `cloud/server` already hashes uploads with.
+  crypto: ^3.0.7
+
   vector_math: ^2.2.0
 
   # The native half of opening and saving a file. The web half is

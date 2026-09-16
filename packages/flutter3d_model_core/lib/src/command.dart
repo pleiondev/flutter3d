@@ -70,6 +70,7 @@ part 'selection_commands.dart';
 part 'set_rig.dart';
 part 'shape_commands.dart';
 part 'simulation_commands.dart';
+part 'source_commands.dart';
 part 'texture_graph_commands.dart';
 part 'uv_commands.dart';
 
@@ -1055,6 +1056,29 @@ _modelCommandReaders =
         (final int id, final int index) => ApplyModifier(id: id, index: index),
         _ => null,
       },
+      // `ux-48`: the three that link an object to the file it came from.
+      'linkToSource': (json) =>
+          switch ((json['id'], json['path'], json['sha'])) {
+            (final int id, final String path, final String sha) => LinkToSource(
+              id: id,
+              path: path,
+              sha: sha,
+            ),
+            _ => null,
+          },
+      'unlinkSource': (json) => switch (json['id']) {
+        final int id => UnlinkSource(id: id),
+        _ => null,
+      },
+      'reimport': (json) =>
+          switch ((json['id'], json['sha'], json['meshBytes'])) {
+            (final int id, final String sha, final String encoded) => Reimport(
+              id: id,
+              sha: sha,
+              meshBytes: base64Decode(encoded),
+            ),
+            _ => null,
+          },
       'applyJobResult': (json) =>
           switch ((json['objectId'], json['baseVersion'], json['meshBytes'])) {
             (final int objectId, final int baseVersion, final String encoded) =>
