@@ -157,6 +157,13 @@ extension _ReadyParts on _ModelerScreenState {
                       unawaited(_showExportDialog(format: format)),
                   onMaterialStudio: () => unawaited(_openMaterialStudio()),
                   onPreview: () => unawaited(_openGamePreview()),
+                  // `ux-51`: Play, held back by the same readiness Export
+                  // is — and saying so in Export's own words.
+                  onPlay: (PlayTemplate template) =>
+                      unawaited(_openPlay(template)),
+                  playBlocked: state.readiness.canExport
+                      ? null
+                      : state.readiness.says,
                   onShortcutHelp: _showShortcutHelp,
                   onSettings: () => unawaited(_showSettings()),
                   agentClient: state.agentClient,

@@ -138,4 +138,28 @@ void main() {
       closeTo(3.0, 1e-6),
     );
   });
+
+  test('ux-51: Reload keeps the walk the player already made', () {
+    final it = cpuTestDevice(width: 8, height: 8);
+    final ModelHistory history = ModelHistory(_one());
+    final PlaySession session = PlaySession.start(
+      device: it.device,
+      project: history.project,
+      template: PlayTemplate.prop,
+    );
+    _walk(session);
+    final Vector3 stood = session.position.clone();
+    final int id = history.project.objects.single.id;
+
+    expect(history.run(const AddMaterial(materialName: 'brass')), isNull);
+    session.reload(history.project);
+
+    // **Mutation: respawn on reload.** That is Play stopped and started
+    // again under another name, and it throws away the walk somebody made
+    // to reach the corner they wanted to look at — which is the whole
+    // reason a Reload button exists beside a Stop one.
+    expect(session.position.x, closeTo(stood.x, 1e-6));
+    expect(session.position.z, closeTo(stood.z, 1e-6));
+    expect(session.stage.sync!.nodeOf(id), isNotNull);
+  });
 }

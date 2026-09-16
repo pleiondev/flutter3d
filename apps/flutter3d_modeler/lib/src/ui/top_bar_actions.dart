@@ -12,6 +12,7 @@ import 'package:flutter/material.dart' hide Material;
 import 'package:flutter3d_model_core/flutter3d_model_core.dart' hide Outcome;
 
 import '../exporting.dart';
+import '../play/play_template.dart';
 import 'theme.dart';
 import 'undo_redo_buttons.dart';
 
@@ -56,6 +57,8 @@ class TopBarActions extends StatelessWidget {
     required this.onExport,
     required this.onMaterialStudio,
     required this.onPreview,
+    required this.onPlay,
+    this.playBlocked,
     required this.onShortcutHelp,
     this.onSettings,
     this.agentClient,
@@ -108,6 +111,20 @@ class TopBarActions extends StatelessWidget {
   /// game" route — a route, not a mode, which is why it sits beside Export
   /// rather than on the mode switcher.
   final VoidCallback onPreview;
+
+  /// `ux-51`: Play on one of `PlayTemplate`'s three.
+  final ValueChanged<PlayTemplate> onPlay;
+
+  /// Why Play cannot start, or null when it can — `ExportReadiness.says`
+  /// for a document that will not export.
+  ///
+  /// **The same gate Export keeps, and the same words.** Play hands the
+  /// document over exactly as an export does, so a project that cannot be
+  /// exported cannot be played either; saying so in Export's own sentence
+  /// rather than a second one written for this button means a person fixes
+  /// one problem rather than learning two names for it.
+  final String? playBlocked;
+
   final VoidCallback onShortcutHelp;
   final VoidCallback onStartScreen;
   final VoidCallback onReportProblem;
@@ -254,6 +271,51 @@ class TopBarActions extends StatelessWidget {
             tooltip: 'Preview — see it the way the game would draw it',
             onPressed: onPreview,
             icon: const Icon(Icons.play_circle_outline, size: 20),
+          ),
+        ),
+      ),
+      // `ux-51`: Play, beside Preview because the two are the same question
+      // asked differently — Preview looks at the document the way a game
+      // would draw it, Play walks around inside it. A menu rather than a
+      // button, because the three templates answer three different
+      // questions and picking one afterwards would mean stopping first.
+      PopupMenuButton<PlayTemplate>(
+        tooltip: playBlocked == null
+            ? 'Play — walk the document in a template'
+            : 'Play — $playBlocked',
+        enabled: playBlocked == null,
+        onSelected: onPlay,
+        itemBuilder: (BuildContext context) => <PopupMenuEntry<PlayTemplate>>[
+          for (final PlayTemplate template in PlayTemplate.values)
+            PopupMenuItem<PlayTemplate>(
+              value: template,
+              height: ModelerMetrics.row,
+              child: Text(
+                '${template.label}  ${template.about}',
+                style: const TextStyle(fontSize: 13),
+              ),
+            ),
+        ],
+        child: MergeSemantics(
+          child: Semantics(
+            label: 'Play',
+            button: true,
+            enabled: playBlocked == null,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              child: Text(
+                'Play',
+                style: TextStyle(
+                  fontSize: 13,
+                  // The same grey a disabled `TextButton` takes, so a Play
+                  // an export error is holding back reads as held back
+                  // rather than as a button that swallowed the press.
+                  color: playBlocked == null
+                      ? null
+                      : Theme.of(context).disabledColor,
+                ),
+              ),
+            ),
           ),
         ),
       ),
