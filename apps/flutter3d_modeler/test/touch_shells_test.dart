@@ -80,7 +80,11 @@ Widget panel() => ListView(
           onPressed: () {},
         ),
       ),
-    SwitchListTile(title: const Text('Visible'), value: true, onChanged: (_) {}),
+    SwitchListTile(
+      title: const Text('Visible'),
+      value: true,
+      onChanged: (_) {},
+    ),
   ],
 );
 
@@ -207,7 +211,10 @@ void main() {
     ) async {
       await atSize(tester, const ui.Size(1440, 900), () async {
         await tester.pumpWidget(
-          MaterialApp(theme: deskTheme(), home: Scaffold(body: panel())),
+          MaterialApp(
+            theme: deskTheme(),
+            home: Scaffold(body: panel()),
+          ),
         );
 
         // Not a guideline check — the point is that nothing here grew. A
@@ -247,6 +254,35 @@ void main() {
           tester.widget<FloatingActionButton>(fab).tooltip,
           contains('Extrude'),
         );
+      });
+    });
+  });
+
+  group('ux-18: a phone has no hover, so the sheet carries the sentence', () {
+    testWidgets('every row of the tool sheet says what the tool does', (
+      WidgetTester tester,
+    ) async {
+      await atSize(tester, const ui.Size(420, 900), () async {
+        await pumpPhone(tester);
+
+        await tester.tap(find.byType(FloatingActionButton));
+        await tester.pumpAndSettle();
+
+        // **A tooltip nobody can reach is not an explanation.** The desktop
+        // rail keeps this on the second line of a hover; a thumb has no
+        // hover, so the row itself has to say it. Mutation: drop the
+        // subtitle here and the one shell with no tooltips at all is the
+        // one shell where "Dissolve edges" stays a word.
+        final ModelerTool first = toolsFor(ModelerMode.mesh).first;
+        final ListTile row = tester.widget<ListTile>(
+          find
+              .ancestor(
+                of: find.text(first.label),
+                matching: find.byType(ListTile),
+              )
+              .first,
+        );
+        expect((row.subtitle! as Text).data, first.about);
       });
     });
   });

@@ -715,6 +715,8 @@ extension _FileHandling on _ModelerScreenState {
   Future<void> _exportFile(
     ExportFormat format, {
     bool bakeTransforms = false,
+    bool selectionOnly = false,
+    bool applyModifiers = true,
     TextureEncoding textureEncoding = TextureEncoding.png,
     // The export screen's own "Export anyway" label already showed every
     // issue this would otherwise ask about a second time — `ui-17`'s own
@@ -732,6 +734,10 @@ extension _FileHandling on _ModelerScreenState {
       bakeTransforms: bakeTransforms,
       textureEncoding: textureEncoding,
       force: skipConfirm,
+      // `ux-18`: what the screen asked for. An empty set writes everything,
+      // which is what Export has always meant.
+      only: selectionOnly ? _history.selection.objects.toSet() : const <int>{},
+      applyModifiers: applyModifiers,
     );
 
     if (planned case final ExportBlocked blocked) {
@@ -775,10 +781,18 @@ extension _FileHandling on _ModelerScreenState {
           if (result.outcome != SaveOutcome.written) break;
         }
         if (mounted) {
-          _cubit.say(
-            <String>[...said, ...warnings].join('\n'),
-            important: true,
-          );
+          // **The status line is one line, and an export can have six
+          // things to say** — `ux-18`. Joining them with newlines put
+          // everything after the first into a strip that shows one, so a
+          // person was told the file was written and never told what had
+          // been left out of it. The first line goes to the strip, which is
+          // where the eye already is; the whole of it goes to the console,
+          // which `ux-26` built for exactly this.
+          final List<String> everything = <String>[...said, ...warnings];
+          _cubit.say(everything.first, important: true);
+          for (final String line in everything.skip(1)) {
+            _cubit.note(line);
+          }
         }
     }
   }
@@ -790,11 +804,13 @@ extension _FileHandling on _ModelerScreenState {
   /// format-only dialog as a placeholder for this; both now open this
   /// screen instead, so there is one export entry point rather than two
   /// that could drift apart.
-  Future<void> _showExportDialog() async {
+  Future<void> _showExportDialog({ExportFormat? format}) async {
     if (_state is! ModelerReady) return;
     final choice = await showExportScreen(
       context,
       project: _history.project,
+      format: format ?? ExportFormat.glb,
+      hasSelection: _history.selection.objects.isNotEmpty,
       onShow: (int id) {
         _history.selection = _history.selection.copyWith(
           mode: SelectionMode.object,

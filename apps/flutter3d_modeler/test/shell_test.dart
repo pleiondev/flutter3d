@@ -303,6 +303,29 @@ void main() {
       // whose tools stop working in Russian.
       expect(pressed, <String>['mesh.extrude']);
     });
+
+    testWidgets("ux-18: the tooltip says what the tool does, not only what "
+        'it is called', (WidgetTester tester) async {
+      await pumpShell(tester, mode: ModelerMode.mesh);
+
+      final ModelerTool dissolve = toolsFor(
+        ModelerMode.mesh,
+      ).firstWhere((ModelerTool it) => it.id == 'mesh.dissolve');
+      final Tooltip tip = tester.widget<Tooltip>(
+        find.ancestor(
+          of: find.byIcon(dissolve.icon),
+          matching: find.byType(Tooltip),
+        ),
+      );
+
+      // **"Dissolve edges" is a name.** The review watched people press it
+      // to find out what it was. Mutation: leave the tooltip as the label
+      // and its key, and the one place the interface could have explained
+      // itself repeats the word already on the button.
+      expect(tip.message, contains(dissolve.label));
+      expect(tip.message, contains('\n'));
+      expect(tip.message, endsWith(dissolve.about));
+    });
   });
 
   group('the tool table', () {

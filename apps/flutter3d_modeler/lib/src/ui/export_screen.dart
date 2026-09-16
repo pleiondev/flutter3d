@@ -31,7 +31,16 @@ final class ExportChoice {
     required this.bakeTransforms,
     this.textureEncoding = TextureEncoding.png,
     this.acknowledgedWarnings = false,
+    this.selectionOnly = false,
+    this.applyModifiers = true,
   });
+
+  /// Write only what is selected, and whatever hangs under it — `ux-18`.
+  final bool selectionOnly;
+
+  /// Fold the modifier stacks into the geometry — `ux-18`. On, because that
+  /// is what the file has carried since `ux-13`.
+  final bool applyModifiers;
 
   final ExportFormat format;
 
@@ -58,29 +67,53 @@ final class ExportChoice {
 /// an object's id when a person presses "Show" beside an issue naming it —
 /// the caller's job is to select that object, this screen does not touch
 /// selection itself.
+///
+/// [format] is which one the screen opens on — `ux-18`'s own "the Export
+/// menu opens this screen with the format preselected". The top bar used to
+/// export straight from its own menu, which meant two export paths that could
+/// disagree about everything this screen asks; now the menu is a shortcut
+/// into here.
+///
+/// [hasSelection] is whether "selection only" is offerable at all: a checkbox
+/// that would write nothing is worse than no checkbox.
 Future<ExportChoice?> showExportScreen(
   BuildContext context, {
   required ModelProject project,
   required ValueChanged<int> onShow,
+  ExportFormat format = ExportFormat.glb,
+  bool hasSelection = false,
 }) => showDialog<ExportChoice>(
   context: context,
-  builder: (BuildContext context) =>
-      _ExportScreen(project: project, onShow: onShow),
+  builder: (BuildContext context) => _ExportScreen(
+    project: project,
+    onShow: onShow,
+    format: format,
+    hasSelection: hasSelection,
+  ),
 );
 
 class _ExportScreen extends StatefulWidget {
-  const _ExportScreen({required this.project, required this.onShow});
+  const _ExportScreen({
+    required this.project,
+    required this.onShow,
+    this.format = ExportFormat.glb,
+    this.hasSelection = false,
+  });
 
   final ModelProject project;
   final ValueChanged<int> onShow;
+  final ExportFormat format;
+  final bool hasSelection;
 
   @override
   State<_ExportScreen> createState() => _ExportScreenState();
 }
 
 class _ExportScreenState extends State<_ExportScreen> {
-  ExportFormat _format = ExportFormat.glb;
+  late ExportFormat _format = widget.format;
   bool _bakeTransforms = false;
+  bool _selectionOnly = false;
+  bool _applyModifiers = true;
   TextureEncoding _textureEncoding = TextureEncoding.png;
 
   @override
@@ -101,83 +134,126 @@ class _ExportScreenState extends State<_ExportScreen> {
 
     return AlertDialog(
       title: const Text('Export'),
+      // **The whole body scrolls, rather than the issue list alone** —
+      // `ux-18`. Explaining each checkbox underneath it costs two lines
+      // apiece, which is what turned a dialog that just fitted into one that
+      // overflowed its own content box on a short window. A scroll here is
+      // the cheap answer: nothing has to be dropped, and a laptop with the
+      // keyboard open sees the same screen a desktop does.
       content: SizedBox(
         width: 420,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: <Widget>[
-            SegmentedButton<ExportFormat>(
-              showSelectedIcon: false,
-              segments: <ButtonSegment<ExportFormat>>[
-                for (final ExportFormat format in ExportFormat.values)
-                  ButtonSegment<ExportFormat>(
-                    value: format,
-                    label: Text(format.suffix),
-                    tooltip: format.says,
-                  ),
-              ],
-              selected: <ExportFormat>{_format},
-              onSelectionChanged: (Set<ExportFormat> picked) => setState(() {
-                _format = picked.first;
-                // A toggle nobody can see any more should not still be "on"
-                // in the answer, even though `planExport` itself ignores it
-                // for every format but `.f3d`.
-                if (_format != ExportFormat.f3d) {
-                  _textureEncoding = TextureEncoding.png;
-                }
-              }),
-            ),
-            const SizedBox(height: 12),
-            Text('Triangles', style: theme.textTheme.labelMedium),
-            const SizedBox(height: 4),
-            LinearProgressIndicator(
-              value: budget > 0 ? (triangles / budget).clamp(0.0, 1.0) : 0.0,
-              color: overBudget ? theme.colorScheme.error : null,
-            ),
-            const SizedBox(height: 4),
-            Text(
-              '$triangles of $budget (${widget.project.profile.name})',
-              style: theme.textTheme.bodySmall,
-            ),
-            const SizedBox(height: 12),
-            CheckboxListTile(
-              contentPadding: EdgeInsets.zero,
-              controlAffinity: ListTileControlAffinity.leading,
-              title: const Text('Bake node transforms'),
-              value: _bakeTransforms,
-              onChanged: (bool? to) =>
-                  setState(() => _bakeTransforms = to ?? false),
-            ),
-            // Only `.f3d` ever reads `textureEncoding` — see `TextureEncoding`'s
-            // own doc comment — so the toggle disappears rather than sitting
-            // there disabled for a format it can never change.
-            if (_format == ExportFormat.f3d)
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              SegmentedButton<ExportFormat>(
+                showSelectedIcon: false,
+                segments: <ButtonSegment<ExportFormat>>[
+                  for (final ExportFormat format in ExportFormat.values)
+                    ButtonSegment<ExportFormat>(
+                      value: format,
+                      label: Text(format.label),
+                      tooltip: format.says,
+                    ),
+                ],
+                selected: <ExportFormat>{_format},
+                onSelectionChanged: (Set<ExportFormat> picked) => setState(() {
+                  _format = picked.first;
+                  // A toggle nobody can see any more should not still be "on"
+                  // in the answer, even though `planExport` itself ignores it
+                  // for every format but `.f3d`.
+                  if (_format != ExportFormat.f3d) {
+                    _textureEncoding = TextureEncoding.png;
+                  }
+                }),
+              ),
+              const SizedBox(height: 12),
+              Text('Triangles', style: theme.textTheme.labelMedium),
+              const SizedBox(height: 4),
+              LinearProgressIndicator(
+                value: budget > 0 ? (triangles / budget).clamp(0.0, 1.0) : 0.0,
+                color: overBudget ? theme.colorScheme.error : null,
+              ),
+              const SizedBox(height: 4),
+              Text(
+                '$triangles of $budget (${widget.project.profile.name})',
+                style: theme.textTheme.bodySmall,
+              ),
+              const SizedBox(height: 12),
+              // **Every checkbox says what it means underneath it** —
+              // `ux-18`'s own review finding: "bake node transforms", "apply
+              // modifiers" and "compress textures" are three phrases a person
+              // who has never used a modeller has no way to guess at, and a
+              // tooltip they have to hover to find is a sentence most people
+              // never see.
               CheckboxListTile(
                 contentPadding: EdgeInsets.zero,
                 controlAffinity: ListTileControlAffinity.leading,
-                title: const Text('Compress textures (KTX2)'),
-                value: _textureEncoding == TextureEncoding.ktx2,
-                onChanged: (bool? to) => setState(
-                  () => _textureEncoding = (to ?? false)
-                      ? TextureEncoding.ktx2
-                      : TextureEncoding.png,
+                title: const Text('Bake node transforms'),
+                subtitle: const Text(
+                  'Move each object\'s position into its own vertices, so the '
+                  'file has no hierarchy to lose.',
                 ),
+                value: _bakeTransforms,
+                onChanged: (bool? to) =>
+                    setState(() => _bakeTransforms = to ?? false),
               ),
-            const SizedBox(height: 8),
-            if (readiness.issues.isEmpty)
-              Text('ready to export', style: theme.textTheme.bodySmall)
-            else
-              Flexible(
-                child: ListView(
-                  shrinkWrap: true,
-                  children: <Widget>[
-                    for (final ExportIssue issue in readiness.issues)
-                      _IssueRow(issue: issue, onShow: widget.onShow),
-                  ],
+              CheckboxListTile(
+                contentPadding: EdgeInsets.zero,
+                controlAffinity: ListTileControlAffinity.leading,
+                title: const Text('Apply modifiers'),
+                subtitle: const Text(
+                  'Write the shape you see, with the mirrors and arrays folded '
+                  'in. Off writes the base mesh instead.',
                 ),
+                value: _applyModifiers,
+                onChanged: (bool? to) =>
+                    setState(() => _applyModifiers = to ?? true),
               ),
-          ],
+              if (widget.hasSelection)
+                CheckboxListTile(
+                  contentPadding: EdgeInsets.zero,
+                  controlAffinity: ListTileControlAffinity.leading,
+                  title: const Text('Selection only'),
+                  subtitle: const Text(
+                    'Write what is selected and whatever hangs under it, '
+                    'leaving the rest of the project where it is.',
+                  ),
+                  value: _selectionOnly,
+                  onChanged: (bool? to) =>
+                      setState(() => _selectionOnly = to ?? false),
+                ),
+              // Only `.f3d` ever reads `textureEncoding` — see `TextureEncoding`'s
+              // own doc comment — so the toggle disappears rather than sitting
+              // there disabled for a format it can never change.
+              if (_format == ExportFormat.f3d)
+                CheckboxListTile(
+                  contentPadding: EdgeInsets.zero,
+                  controlAffinity: ListTileControlAffinity.leading,
+                  title: const Text('Compress textures (KTX2)'),
+                  subtitle: const Text(
+                    'Smaller images that a GPU reads without unpacking. Only '
+                    'the .f3d reader takes them.',
+                  ),
+                  value: _textureEncoding == TextureEncoding.ktx2,
+                  onChanged: (bool? to) => setState(
+                    () => _textureEncoding = (to ?? false)
+                        ? TextureEncoding.ktx2
+                        : TextureEncoding.png,
+                  ),
+                ),
+              const SizedBox(height: 8),
+              if (readiness.issues.isEmpty)
+                Text('ready to export', style: theme.textTheme.bodySmall)
+              else
+                // Plain rows now that the scroll is outside them: a
+                // `Flexible` `ListView` inside a `SingleChildScrollView` has
+                // no bounded height to be flexible within.
+                for (final ExportIssue issue in readiness.issues)
+                  _IssueRow(issue: issue, onShow: widget.onShow),
+            ],
+          ),
         ),
       ),
       actions: <Widget>[
@@ -194,6 +270,8 @@ class _ExportScreenState extends State<_ExportScreen> {
                     bakeTransforms: _bakeTransforms,
                     textureEncoding: _textureEncoding,
                     acknowledgedWarnings: blocked,
+                    selectionOnly: _selectionOnly,
+                    applyModifiers: _applyModifiers,
                   ),
                 ),
           child: Text(

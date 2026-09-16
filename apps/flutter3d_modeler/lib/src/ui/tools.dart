@@ -64,7 +64,13 @@ const Set<String> kStrokeTools = <String>{'weights.paint', 'weights.assign'};
 enum ModelerMode {
   object('Object', Icons.category_outlined, 1, ready: true, inEssential: true),
   mesh('Mesh', Icons.hexagon_outlined, 1, ready: true),
-  material('Material', Icons.palette_outlined, 2, ready: true, inEssential: true),
+  material(
+    'Material',
+    Icons.palette_outlined,
+    2,
+    ready: true,
+    inEssential: true,
+  ),
   uv('UV', Icons.grid_on_outlined, 4, ready: false),
   sculpt('Sculpt', Icons.brush_outlined, 4, ready: false),
   animation('Animation', Icons.animation_outlined, 3, ready: true),
@@ -185,6 +191,7 @@ final class ModelerTool {
   const ModelerTool({
     required this.id,
     required this.label,
+    required this.about,
     required this.icon,
     required this.shortcut,
     required this.group,
@@ -195,6 +202,20 @@ final class ModelerTool {
   final String id;
 
   final String label;
+
+  /// One sentence saying what pressing this actually does — `ux-18`.
+  ///
+  /// **A label is a name and not an explanation.** "Dissolve edges", "Bake",
+  /// "Normalize" and "Loop cut" are words somebody who has used a modeller
+  /// before already knows and somebody opening their first one has no way to
+  /// guess at, and the review watched people find out by pressing and
+  /// undoing. The desktop rail puts this on the second line of its tooltip,
+  /// the tablet palette does the same, the command palette shows it under the
+  /// name, and `tools_test.dart` refuses a tool that has none: a button
+  /// nobody can describe in a sentence is a button that should not have been
+  /// added.
+  final String about;
+
   final IconData icon;
 
   /// The key that arms it. One key, not a combination: the modelling keys are
@@ -230,6 +251,9 @@ List<ModelerTool> toolsFor(
     ModelerTool(
       id: 'object.select',
       label: 'Select',
+      about:
+          'Click an object to work on it; shift-click adds to what is '
+          'already picked.',
       icon: Icons.near_me_outlined,
       shortcut: LogicalKeyboardKey.keyQ,
       group: 'transform',
@@ -237,6 +261,9 @@ List<ModelerTool> toolsFor(
     ModelerTool(
       id: 'object.move',
       label: 'Move',
+      about:
+          'Drag an arrow to slide it along one axis, or the centre to '
+          'move it freely.',
       icon: Icons.open_with_outlined,
       shortcut: LogicalKeyboardKey.keyG,
       group: 'transform',
@@ -244,6 +271,7 @@ List<ModelerTool> toolsFor(
     ModelerTool(
       id: 'object.rotate',
       label: 'Rotate',
+      about: 'Drag a ring to turn it about that axis.',
       icon: Icons.rotate_90_degrees_ccw_outlined,
       shortcut: LogicalKeyboardKey.keyR,
       group: 'transform',
@@ -251,6 +279,9 @@ List<ModelerTool> toolsFor(
     ModelerTool(
       id: 'object.scale',
       label: 'Scale',
+      about:
+          'Drag a handle to grow or shrink it — one axis at a time, or '
+          'all three from the centre.',
       icon: Icons.aspect_ratio_outlined,
       shortcut: LogicalKeyboardKey.keyS,
       group: 'transform',
@@ -258,6 +289,9 @@ List<ModelerTool> toolsFor(
     ModelerTool(
       id: 'object.add',
       label: 'Add a box',
+      about:
+          'Puts a new box at the origin, still parametric: its size and '
+          'segment counts stay editable in the panel.',
       icon: Icons.add_box_outlined,
       shortcut: LogicalKeyboardKey.keyA,
       group: 'create',
@@ -265,6 +299,9 @@ List<ModelerTool> toolsFor(
     ModelerTool(
       id: 'object.duplicate',
       label: 'Duplicate',
+      about:
+          'Copies what is selected and selects the copy, leaving the '
+          'original where it was.',
       icon: Icons.copy_all_outlined,
       shortcut: LogicalKeyboardKey.keyD,
       group: 'create',
@@ -272,6 +309,9 @@ List<ModelerTool> toolsFor(
     ModelerTool(
       id: 'object.bake',
       label: 'Convert to a mesh',
+      about:
+          'Turns a shape that still knows its own parameters into plain '
+          'editable geometry. Its size and segment fields go away.',
       icon: Icons.change_circle_outlined,
       shortcut: LogicalKeyboardKey.keyB,
       group: 'create',
@@ -279,6 +319,9 @@ List<ModelerTool> toolsFor(
     ModelerTool(
       id: 'object.lathe',
       label: 'Add a lathe',
+      about:
+          'Spins a profile you draw around an axis — how a vase, a '
+          'bottle or a wheel is made.',
       icon: Icons.wine_bar_outlined,
       shortcut: LogicalKeyboardKey.keyL,
       group: 'create',
@@ -286,6 +329,9 @@ List<ModelerTool> toolsFor(
     ModelerTool(
       id: 'object.origin',
       label: 'Origin to the bottom',
+      about:
+          'Moves the point the object turns and scales about down to its '
+          'lowest vertex, so it sits on the floor.',
       icon: Icons.vertical_align_bottom_outlined,
       shortcut: LogicalKeyboardKey.keyO,
       group: 'cleanup',
@@ -293,6 +339,9 @@ List<ModelerTool> toolsFor(
     ModelerTool(
       id: 'object.apply',
       label: 'Apply the transform',
+      about:
+          'Folds the position, rotation and scale into the vertices '
+          'themselves and leaves the transform at rest.',
       icon: Icons.done_all_outlined,
       shortcut: LogicalKeyboardKey.keyY,
       group: 'cleanup',
@@ -300,6 +349,7 @@ List<ModelerTool> toolsFor(
     ModelerTool(
       id: 'object.delete',
       label: 'Delete',
+      about: 'Removes what is selected. Undo brings it back.',
       icon: Icons.backspace_outlined,
       shortcut: LogicalKeyboardKey.keyX,
       group: 'cleanup',
@@ -309,6 +359,9 @@ List<ModelerTool> toolsFor(
     ModelerTool(
       id: 'mesh.select',
       label: 'Select',
+      about:
+          'Click a vertex, edge or face; shift-click adds to what is '
+          'already picked.',
       icon: Icons.near_me_outlined,
       shortcut: LogicalKeyboardKey.keyQ,
       group: 'transform',
@@ -320,6 +373,9 @@ List<ModelerTool> toolsFor(
     ModelerTool(
       id: 'mesh.lasso',
       label: 'Lasso select',
+      about:
+          'Draw a freehand loop round what you want instead of clicking '
+          'each part of it.',
       icon: Icons.gesture_outlined,
       shortcut: LogicalKeyboardKey.keyK,
       group: 'transform',
@@ -331,6 +387,9 @@ List<ModelerTool> toolsFor(
     ModelerTool(
       id: 'mesh.linked',
       label: 'Select linked',
+      about:
+          'Takes everything joined to what is already picked — one whole '
+          'shell of a mesh that has several.',
       icon: Icons.hub_outlined,
       shortcut: LogicalKeyboardKey.keyL,
       group: 'transform',
@@ -338,6 +397,9 @@ List<ModelerTool> toolsFor(
     ModelerTool(
       id: 'mesh.move',
       label: 'Move',
+      about:
+          'Drags the picked elements. Typing a number while dragging sets '
+          'the distance exactly.',
       icon: Icons.open_with_outlined,
       shortcut: LogicalKeyboardKey.keyG,
       group: 'transform',
@@ -345,6 +407,7 @@ List<ModelerTool> toolsFor(
     ModelerTool(
       id: 'mesh.rotate',
       label: 'Rotate',
+      about: 'Turns the picked elements about the middle of the selection.',
       icon: Icons.rotate_90_degrees_ccw_outlined,
       shortcut: LogicalKeyboardKey.keyR,
       group: 'transform',
@@ -352,6 +415,9 @@ List<ModelerTool> toolsFor(
     ModelerTool(
       id: 'mesh.scale',
       label: 'Scale',
+      about:
+          'Grows or shrinks the picked elements about the middle of the '
+          'selection.',
       icon: Icons.aspect_ratio_outlined,
       shortcut: LogicalKeyboardKey.keyS,
       group: 'transform',
@@ -359,6 +425,9 @@ List<ModelerTool> toolsFor(
     ModelerTool(
       id: 'mesh.extrude',
       label: 'Extrude',
+      about:
+          'Pulls new geometry out of the picked faces and leaves a wall '
+          'joining it to where it came from.',
       icon: Icons.upload_outlined,
       shortcut: LogicalKeyboardKey.keyE,
       group: 'topology',
@@ -366,6 +435,9 @@ List<ModelerTool> toolsFor(
     ModelerTool(
       id: 'mesh.loopCut',
       label: 'Loop cut',
+      about:
+          'Adds a ring of edges all the way round the mesh, where the '
+          'next change of shape needs one to bend at.',
       icon: Icons.content_cut_outlined,
       shortcut: LogicalKeyboardKey.keyC,
       group: 'topology',
@@ -373,6 +445,9 @@ List<ModelerTool> toolsFor(
     ModelerTool(
       id: 'mesh.bevel',
       label: 'Bevel',
+      about:
+          'Replaces a sharp edge with a narrow strip, so light catches it '
+          'the way it does on a real object.',
       icon: Icons.rounded_corner_outlined,
       shortcut: LogicalKeyboardKey.keyB,
       group: 'topology',
@@ -380,6 +455,9 @@ List<ModelerTool> toolsFor(
     ModelerTool(
       id: 'mesh.triangulate',
       label: 'Triangulate',
+      about:
+          'Cuts every face into triangles — what a game engine reads, and '
+          'what a face with more than four corners has to become first.',
       icon: Icons.change_history_outlined,
       shortcut: LogicalKeyboardKey.keyT,
       group: 'topology',
@@ -387,6 +465,7 @@ List<ModelerTool> toolsFor(
     ModelerTool(
       id: 'mesh.separate',
       label: 'Separate',
+      about: 'Moves the picked faces out into an object of their own.',
       icon: Icons.call_split_outlined,
       shortcut: LogicalKeyboardKey.keyP,
       group: 'topology',
@@ -394,6 +473,9 @@ List<ModelerTool> toolsFor(
     ModelerTool(
       id: 'mesh.dissolve',
       label: 'Dissolve edges',
+      about:
+          'Removes the picked edges but keeps the surface, merging the '
+          'faces they divided into one.',
       icon: Icons.remove_outlined,
       shortcut: LogicalKeyboardKey.keyV,
       group: 'cleanup',
@@ -404,6 +486,9 @@ List<ModelerTool> toolsFor(
     ModelerTool(
       id: 'mesh.fillHoles',
       label: 'Fill holes',
+      about:
+          'Closes every open boundary — the gaps that make a model look '
+          'see-through from one side.',
       icon: Icons.format_color_fill_outlined,
       shortcut: LogicalKeyboardKey.keyH,
       group: 'cleanup',
@@ -411,6 +496,9 @@ List<ModelerTool> toolsFor(
     ModelerTool(
       id: 'mesh.merge',
       label: 'Merge by distance',
+      about:
+          'Fuses vertices sitting on top of each other, which is what a '
+          'scan or an STL arrives full of.',
       icon: Icons.compress_outlined,
       shortcut: LogicalKeyboardKey.keyM,
       group: 'cleanup',
@@ -418,6 +506,9 @@ List<ModelerTool> toolsFor(
     ModelerTool(
       id: 'mesh.normals',
       label: 'Recalculate normals',
+      about:
+          'Points every face outward again, so the surface stops reading '
+          'as inside-out.',
       icon: Icons.north_outlined,
       shortcut: LogicalKeyboardKey.keyN,
       group: 'cleanup',
@@ -425,6 +516,9 @@ List<ModelerTool> toolsFor(
     ModelerTool(
       id: 'mesh.flip',
       label: 'Flip normals',
+      about:
+          'Turns the picked faces the other way round, for the shell that '
+          'really is meant to be seen from inside.',
       icon: Icons.south_outlined,
       shortcut: LogicalKeyboardKey.keyF,
       group: 'cleanup',
@@ -432,6 +526,9 @@ List<ModelerTool> toolsFor(
     ModelerTool(
       id: 'mesh.delete',
       label: 'Delete',
+      about:
+          'Removes the picked vertices, edges or faces, and whatever '
+          'depended on them.',
       icon: Icons.backspace_outlined,
       shortcut: LogicalKeyboardKey.keyX,
       group: 'cleanup',
@@ -452,6 +549,7 @@ List<ModelerTool> toolsFor(
       ModelerTool(
         id: 'pose.select',
         label: 'Select',
+        about: 'Click a joint of the skeleton to pose it.',
         icon: Icons.near_me_outlined,
         shortcut: LogicalKeyboardKey.keyQ,
         group: 'select',
@@ -459,6 +557,9 @@ List<ModelerTool> toolsFor(
       ModelerTool(
         id: 'pose.key',
         label: 'Key the pose',
+        about:
+            'Writes the pose on screen into the clip, at the frame the '
+            'playhead is on.',
         icon: Icons.vpn_key_outlined,
         shortcut: LogicalKeyboardKey.keyI,
         group: 'keys',
@@ -466,6 +567,9 @@ List<ModelerTool> toolsFor(
       ModelerTool(
         id: 'pose.deleteKey',
         label: 'Delete the key',
+        about:
+            'Takes this frame\'s key back out, leaving the keys either '
+            'side to carry the motion through it.',
         icon: Icons.backspace_outlined,
         shortcut: LogicalKeyboardKey.keyX,
         group: 'keys',
@@ -476,6 +580,9 @@ List<ModelerTool> toolsFor(
       ModelerTool(
         id: 'pose.autoRig',
         label: 'Auto-rig…',
+        about:
+            'Builds a skeleton from a handful of points you place on the '
+            'model.',
         icon: Icons.accessibility_new_outlined,
         shortcut: LogicalKeyboardKey.keyU,
         group: 'rig',
@@ -490,6 +597,9 @@ List<ModelerTool> toolsFor(
       ModelerTool(
         id: 'weights.paint',
         label: 'Paint weights',
+        about:
+            'Brushes how strongly the chosen joint pulls on the surface '
+            'under the cursor.',
         icon: Icons.brush_outlined,
         shortcut: LogicalKeyboardKey.keyB,
         group: 'brush',
@@ -497,6 +607,9 @@ List<ModelerTool> toolsFor(
       ModelerTool(
         id: 'weights.assign',
         label: 'Assign to the joint',
+        about:
+            'Gives every vertex the brush touches to the chosen joint, at '
+            'full strength.',
         icon: Icons.push_pin_outlined,
         shortcut: LogicalKeyboardKey.keyA,
         group: 'brush',
@@ -504,6 +617,9 @@ List<ModelerTool> toolsFor(
       ModelerTool(
         id: 'weights.mirror',
         label: 'Mirror',
+        about:
+            'Copies one side\'s weights onto the other, so a symmetrical '
+            'model is painted once.',
         icon: Icons.flip_outlined,
         shortcut: LogicalKeyboardKey.keyM,
         group: 'symmetry',
@@ -511,6 +627,9 @@ List<ModelerTool> toolsFor(
       ModelerTool(
         id: 'weights.normalize',
         label: 'Normalize',
+        about:
+            'Makes each vertex\'s pulls add up to one and drops the '
+            'smallest past the profile\'s own limit.',
         icon: Icons.balance_outlined,
         shortcut: LogicalKeyboardKey.keyN,
         group: 'symmetry',
@@ -527,6 +646,7 @@ List<ModelerTool> toolsFor(
       ModelerTool(
         id: 'retarget.import',
         label: 'Import a source clip',
+        about: 'Reads a clip out of another file to drive this rig with.',
         icon: Icons.file_open_outlined,
         shortcut: LogicalKeyboardKey.keyI,
         group: 'source',
@@ -534,6 +654,9 @@ List<ModelerTool> toolsFor(
       ModelerTool(
         id: 'retarget.autoMap',
         label: 'Map bones automatically',
+        about:
+            'Guesses which bone of the source matches which of this rig, '
+            'from their names.',
         icon: Icons.auto_fix_high_outlined,
         shortcut: LogicalKeyboardKey.keyM,
         group: 'mapping',
@@ -541,6 +664,7 @@ List<ModelerTool> toolsFor(
       ModelerTool(
         id: 'retarget.apply',
         label: 'Apply the retarget',
+        about: 'Writes the mapped motion onto this rig as a clip of its own.',
         icon: Icons.check_circle_outlined,
         shortcut: LogicalKeyboardKey.enter,
         group: 'mapping',
@@ -552,6 +676,9 @@ List<ModelerTool> toolsFor(
       ModelerTool(
         id: 'morphs.add',
         label: 'Add a shape',
+        about:
+            'Takes the mesh as it stands now as a shape the slider can '
+            'blend towards.',
         icon: Icons.add_circle_outlined,
         shortcut: LogicalKeyboardKey.keyA,
         group: 'shapes',
@@ -559,6 +686,9 @@ List<ModelerTool> toolsFor(
       ModelerTool(
         id: 'morphs.key',
         label: 'Key the shape',
+        about:
+            'Writes the shape weights as they stand into the clip, at the '
+            'playhead.',
         icon: Icons.vpn_key_outlined,
         shortcut: LogicalKeyboardKey.keyK,
         group: 'shapes',
@@ -566,6 +696,7 @@ List<ModelerTool> toolsFor(
       ModelerTool(
         id: 'morphs.delete',
         label: 'Delete the shape',
+        about: 'Removes the selected shape and the slider that drove it.',
         icon: Icons.backspace_outlined,
         shortcut: LogicalKeyboardKey.keyX,
         group: 'shapes',

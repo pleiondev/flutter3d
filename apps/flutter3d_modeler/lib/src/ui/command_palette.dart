@@ -32,6 +32,7 @@ final class PaletteEntry {
     required this.label,
     required this.icon,
     required this.mode,
+    this.about = '',
     this.keys,
     this.disabledBecause,
   });
@@ -41,6 +42,16 @@ final class PaletteEntry {
   final String id;
 
   final String label;
+
+  /// `ModelerTool.about` — one sentence on what running it does, shown under
+  /// the name (`ux-18`).
+  ///
+  /// **Empty rather than null, and empty means "the name says it".** The two
+  /// folds and the legal screen are already sentences: "Fold the properties
+  /// panel" leaves nothing for a second line to add, and a subtitle repeating
+  /// it would make the list longer without making it clearer.
+  final String about;
+
   final IconData icon;
 
   /// Which mode this tool belongs to, shown beside the label so the list
@@ -86,6 +97,7 @@ List<PaletteEntry> paletteEntries({
       PaletteEntry(
         id: tool.id,
         label: tool.label,
+        about: tool.about,
         icon: tool.icon,
         mode: from,
         keys: key == null ? null : describeShortcut(key),
@@ -287,9 +299,26 @@ class _CommandPaletteState extends State<CommandPalette> {
                       enabled: entry.enabled,
                       leading: Icon(entry.icon, size: 18),
                       title: Text(entry.label),
-                      subtitle: entry.disabledBecause == null
-                          ? null
-                          : Text(entry.disabledBecause!),
+                      // `ux-18`: what it does, under the name. The refusal
+                      // wins the line where there is one — being told why a
+                      // row is greyed matters more right now than being told
+                      // what it would have done.
+                      // One line each, clipped rather than wrapped: a palette
+                      // is scanned, and a list that gives three lines to
+                      // every row shows four things at a time.
+                      subtitle: switch ((entry.disabledBecause, entry.about)) {
+                        (final String why?, _) => Text(
+                          why,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        (_, '') => null,
+                        (_, final String about) => Text(
+                          about,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      },
                       trailing: entry.keys == null
                           ? null
                           : Text(

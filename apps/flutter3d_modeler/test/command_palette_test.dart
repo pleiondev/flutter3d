@@ -149,7 +149,11 @@ void main() {
       await tester.tap(find.text('open'));
       await tester.pumpAndSettle();
 
-      expect(find.text('Bevel'), findsOneWidget);
+      // Everything in the mesh rail, before a word is typed. Bevel is the
+      // ninth of them and `ux-18` gave every row a second line saying what
+      // the tool does, so it starts below the fold — which is what the
+      // field above the list is for.
+      expect(find.text('Extrude'), findsOneWidget);
       await tester.enterText(find.byType(TextField), 'bev');
       await tester.pumpAndSettle();
 
@@ -198,6 +202,42 @@ void main() {
       // rather than pretending to run.
       expect(chosen, 'untouched');
       expect(find.byType(TextField), findsOneWidget);
+    });
+
+    testWidgets("ux-18: a row says what the command does, and a refusal "
+        'takes that line instead', (WidgetTester tester) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: modelerTheme(),
+          home: Scaffold(
+            body: Builder(
+              builder: (BuildContext context) => TextButton(
+                onPressed: () => showCommandPalette(
+                  context,
+                  entries: _entries(mode: ModelerMode.mesh),
+                ),
+                child: const Text('open'),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.tap(find.text('open'));
+      await tester.pumpAndSettle();
+      await tester.enterText(find.byType(TextField), 'dissolve');
+      await tester.pumpAndSettle();
+
+      final ModelerTool dissolve = toolsFor(
+        ModelerMode.mesh,
+      ).firstWhere((ModelerTool it) => it.id == 'mesh.dissolve');
+      expect(find.text(dissolve.about), findsOneWidget);
+
+      // And where there is a reason the row cannot run, that wins the line:
+      // being told why something is greyed matters more right now than
+      // being told what it would have done.
+      await tester.enterText(find.byType(TextField), 'lathe');
+      await tester.pumpAndSettle();
+      expect(find.textContaining('Object mode'), findsOneWidget);
     });
   });
 }

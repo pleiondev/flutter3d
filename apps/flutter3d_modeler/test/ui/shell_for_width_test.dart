@@ -83,12 +83,15 @@ void main() {
     expect(tester.widget<SizedBox>(sizedBox.first).height, 270);
   });
 
-  /// Every tooltip the shell draws, as text — the rail's own are the only
-  /// ones in this harness, since `_parts` hands it plain `Text` everywhere
-  /// else.
+  /// The first line of every tooltip the shell draws — the rail's own are
+  /// the only ones in this harness, since `_parts` hands it plain `Text`
+  /// everywhere else.
+  ///
+  /// First line alone because `ux-18` put a second one under it saying what
+  /// the tool does; what this group is about is the key named on the first.
   Set<String> tooltips(WidgetTester tester) => tester
       .widgetList<Tooltip>(find.byType(Tooltip))
-      .map((Tooltip it) => it.message ?? '')
+      .map((Tooltip it) => (it.message ?? '').split('\n').first)
       .toSet();
 
   group('ux-10: the rail names the key the live preset binds', () {
