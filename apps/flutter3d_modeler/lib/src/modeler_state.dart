@@ -70,6 +70,7 @@ final class ModelerReady extends ModelerState {
     this.tool = 'object.select',
     this.said,
     this.saidIsImportant = false,
+    this.saidIsRefusal = false,
     this.jobs = const <ActiveJob>[],
     this.playback = const Playback(),
     this.agentCalls = const <AgentToolCall>[],
@@ -127,6 +128,16 @@ final class ModelerReady extends ModelerState {
   /// unconditionally, the same as before this field existed.
   final bool saidIsImportant;
 
+  /// Whether [said] is a refusal rather than a report — `ux-17`.
+  ///
+  /// **Its own flag beside [saidIsImportant], because they answer different
+  /// questions.** "Important" is about how long the sentence stays up;
+  /// this is about what it looks like, and the review's finding was that a
+  /// refusal read exactly like "saved": same colour, same size, in a line
+  /// people stop reading after a week. A refused command is the one message
+  /// in the strip somebody has to notice.
+  final bool saidIsRefusal;
+
   /// Background bakes in progress, for a `JobButton` to show — `ui-25`'s own
   /// row. Empty whenever nothing is baking, which is almost always.
   final List<ActiveJob> jobs;
@@ -182,6 +193,7 @@ final class ModelerReady extends ModelerState {
     String? said,
     bool clearSaid = false,
     bool saidIsImportant = false,
+    bool saidIsRefusal = false,
     List<ActiveJob>? jobs,
     Playback? playback,
     List<AgentToolCall>? agentCalls,
@@ -202,6 +214,9 @@ final class ModelerReady extends ModelerState {
     saidIsImportant: clearSaid
         ? false
         : (said != null ? saidIsImportant : this.saidIsImportant),
+    saidIsRefusal: clearSaid
+        ? false
+        : (said != null ? saidIsRefusal : this.saidIsRefusal),
     jobs: jobs ?? this.jobs,
     playback: playback ?? this.playback,
     agentCalls: agentCalls ?? this.agentCalls,

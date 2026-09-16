@@ -177,11 +177,13 @@ extension _FileHandling on _ModelerScreenState {
         stage: stage,
         documentName: kModel.isEmpty ? 'cube' : kModel,
       );
-      if (kMcpPort >= 0) {
+      final int mcpPort = widget.mcpPort ?? kMcpPort;
+      if (mcpPort >= 0) {
         unawaited(
           startMcpServer(
             history: opening3,
-            port: kMcpPort,
+            port: mcpPort,
+            sessionPath: widget.mcpSessionPath,
             uiActions: ModelerUiActions(
               cubit: _cubit,
               openExportDialog: _showExportDialog,

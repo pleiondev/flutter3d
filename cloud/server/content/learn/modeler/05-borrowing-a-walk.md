@@ -25,9 +25,7 @@ character on the right, both on the same `ModelerStage`, picking off in the
 source the way the material studio's own two-viewport dialog already keeps
 it off in its second one.
 
-*(screenshot: the retarget screen, source viewport on the left with
-`RiggedFigure.glb` loaded, this character on the right — placeholder, see
-the note at the end of this page)*
+![The retarget screen: the source on the left, this character on the right, the bone map between them and the clip library above.](/assets/learn/modeler/borrowing-a-walk/01-clip-library.png)
 
 ## 2. Auto-map — matched by chain position
 
@@ -104,8 +102,7 @@ crossfade is a live preview only — it never touches `ModelHistory`, so
 there is nothing here for an agent or a headless case to call, the same
 by-design shape `tut-09` already names for the bend slider.
 
-*(screenshot: the clip tracks bar, both clips visible, the blend slider set
-partway between them — placeholder)*
+![The animation mode over the retargeted character: both clips on the tracks bar under the viewport.](/assets/learn/modeler/borrowing-a-walk/05-clip-tracks.png)
 
 ---
 
@@ -125,10 +122,11 @@ case by hand on a real machine and fill in a line here — "*n* minutes,
 *date*, *machine*" — the way `rel-09`'s own cohort rows do. Nothing in this
 session could actually run the desktop app, so no time is claimed.
 
-**Screenshots.** The picture of the editor on this page is real, taken from
-the running application over case 5's own saved document: the retarget
+**Screenshots.** Both pictures of the editor on this page are real, taken
+from the running application over case 5's own saved document: the retarget
 screen — the clip library, the two viewports and the bone map at once, which
-is what both of the old placeholders stood in for either half of. They are
+is what two of the old placeholders stood in for either half of — and the
+animation mode with both clips on the tracks bar. They are
 taken headlessly rather than by hand —
 `apps/flutter3d_modeler/test/tutorial_case_screenshots_test.dart` drives the
 real editor under the software rasteriser and photographs the window — so
@@ -140,7 +138,7 @@ command regenerates every page's pictures at once.
       test/tutorial_case_screenshots_test.dart --update-goldens)
     dart run tool/publish_modeler_screenshots.dart
 
-The blend slider is in the same picture, along the bottom.
+The blend slider is along the bottom of the second picture.
 
 **The one real render, and what it cannot show.** The picture above is a
 genuine CPU render of this case's own final project — case 4's own

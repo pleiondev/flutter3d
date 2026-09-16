@@ -52,6 +52,11 @@ Future<void> startMcpServer({
   required int port,
   UiActions? uiActions,
   Directory? sessionDirectory,
+
+  /// The same thing as [sessionDirectory], as a path — the door a caller
+  /// that compiles for the web too can reach, since `dart:io` has no
+  /// `Directory` there. Ignored when [sessionDirectory] is given.
+  String? sessionPath,
   void Function(
     String toolName,
     Map<String, Object?> arguments,
@@ -73,7 +78,11 @@ Future<void> startMcpServer({
     onInitialize: onInitialize,
   );
   _server = server;
-  final dir = sessionDirectory ?? await getApplicationSupportDirectory();
+  final dir =
+      sessionDirectory ??
+      (sessionPath == null
+          ? await getApplicationSupportDirectory()
+          : Directory(sessionPath));
   final file = File('${dir.path}/mcp-session.json');
   _sessionFile = file;
   writeMcpSessionFile(file, port: server.port, token: server.token);

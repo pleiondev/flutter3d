@@ -168,6 +168,52 @@ void main() {
       },
     );
 
+    test('tut-02: a millimetre-scale prop fills the frame too', () async {
+      // Case 1's own teapot, correctly imported from a millimetre STL, is
+      // about eight millimetres across. The framing used to floor its fitted
+      // radius at five centimetres, so a picture of it was a speck in the
+      // middle of an empty frame — which the tutorial worked around by
+      // scaling the model up twenty times for the render alone.
+      final ModelProject small = ModelProject(
+        objects: <ModelObject>[
+          ModelObject(
+            id: 1,
+            name: 'prop',
+            geometry: ParametricGeometry(
+              ParametricCuboid(size: Vector3(0.008, 0.006, 0.008)),
+            ),
+            transform: Matrix4.identity(),
+            materialSlots: const <int>[0],
+          ),
+        ],
+        materials: <ProjectMaterial>[
+          ProjectMaterial(
+            surface: SurfaceMaterial(
+              name: 'red',
+              baseColor: Vector4(0.9, 0.1, 0.1, 1.0),
+              roughness: 0.8,
+            ),
+          ),
+        ],
+        nextId: 2,
+      );
+
+      final png = await renderProject(
+        RenderRequest(project: small, width: 64, height: 64),
+        deviceFactory: _cpuDevice,
+      );
+      final decoded = await decodeImagePure(png);
+
+      // Mutation: put the floor back. The prop covers a pixel or two and the
+      // picture is of nothing — for the tutorial and for an agent's own
+      // "show me the model" alike.
+      expect(
+        _litPixels(decoded!),
+        greaterThan(64 * 64 ~/ 20),
+        reason: 'a small prop is framed by its own size, not by a floor',
+      );
+    });
+
     test('every named view actually points at the cube', () async {
       for (final view in RenderProjectView.values) {
         final png = await renderProject(

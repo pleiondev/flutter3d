@@ -286,5 +286,54 @@ void main() {
 
       expect(node.material, same(second));
     });
+
+    test('a material painted on while it is off is not painted back over', () {
+      final device = FakeBackend();
+      final deviceMesh = DeviceMesh.upload(
+        device,
+        EditMesh.cuboid().toMeshData(),
+      );
+      final clay = Material(name: 'clay');
+      final root = SceneNode(name: 'root');
+      final node = MeshNode(deviceMesh, clay, name: 'leg');
+      root.add(node);
+
+      // Every frame of an ordinary session: this is walked whether or not the
+      // weights sub-mode is open, and it is off.
+      final shading = WeightGradientShading()..apply(root, active: false);
+
+      // Then an edit lands — `SceneSync` writes the rebuilt material onto the
+      // node after a colour changes in the panel or over MCP.
+      final Material edited = Material(name: 'edited');
+      node.material = edited;
+      shading.apply(root, active: false);
+
+      // Mutation: record what a node was drawn with the first time it is seen
+      // and write that back on every frame — which is what this did. The
+      // model then keeps the colour it had when the window opened however the
+      // document changes, and the panel's own swatch disagrees with the
+      // viewport for the rest of the session.
+      expect(node.material, same(edited));
+    });
+
+    test('and an edit during a weights session survives the way out', () {
+      final device = FakeBackend();
+      final deviceMesh = DeviceMesh.upload(
+        device,
+        EditMesh.cuboid().toMeshData(),
+      );
+      final root = SceneNode(name: 'root');
+      final node = MeshNode(deviceMesh, Material(name: 'clay'), name: 'leg');
+      root.add(node);
+
+      final shading = WeightGradientShading()..apply(root, active: true);
+      final Material edited = Material(name: 'edited');
+      node.material = edited;
+      shading.apply(root, active: true);
+      expect(node.material, same(kWeightGradientMaterial));
+
+      shading.apply(root, active: false);
+      expect(node.material, same(edited));
+    });
   });
 }

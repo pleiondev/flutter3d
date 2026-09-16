@@ -335,14 +335,16 @@ final class SceneSync {
   /// without touching a vertex buffer. Calling [apply] again instead would work
   /// and would compare every mesh to decide it had not changed.
   ///
-  /// **This has to run before the stage's first frame, and the reason is in
-  /// `display_modes.dart`.** `SurfaceShading` records what each node was drawn
-  /// with the first time it sees one, so that switching to the normals view and
-  /// back can put it back. A repaint after that first sight changes the node
-  /// and not the record, and the next frame in material mode writes the
-  /// remembered clay straight back over the paint. Opening is safe because
-  /// `openDocument` repaints before the stage reaches the screen; whatever
-  /// changes a material later has to make the shading forget the node too.
+  /// **It used to have to run before the stage's first frame, and the reason
+  /// is worth keeping.** `SurfaceShading` and `WeightGradientShading` both
+  /// record what a node was drawn with so they can put it back — and both
+  /// recorded it the first time they saw the node and wrote that back on
+  /// every frame afterwards, so a repaint was undone before anybody saw it
+  /// and a document opened into a stage that had already drawn one frame
+  /// stayed in clay. Both now remember only for as long as their own swap
+  /// lasts (`display_modes.dart`, `weight_gradient.dart`), so this can be
+  /// called at any point in a session — which is what `ModelerCubit`'s own
+  /// material restage does after every command that edits one.
   void repaint(ModelProject project) {
     for (final ModelObject object in project.objects) {
       _tracked[object.id]?.node.material = _paintFor(object);

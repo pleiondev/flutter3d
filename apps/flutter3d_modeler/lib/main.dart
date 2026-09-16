@@ -561,7 +561,7 @@ class _ModelerScreenState extends State<ModelerScreen>
     _autosave?.dispose();
     _lifecycle.dispose();
     _frame.dispose();
-    if (kMcpPort >= 0) unawaited(stopMcpServer());
+    if ((widget.mcpPort ?? kMcpPort) >= 0) unawaited(stopMcpServer());
     _cubit.close();
     super.dispose();
   }

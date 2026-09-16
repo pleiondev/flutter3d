@@ -603,6 +603,14 @@ String relative(File file, Directory dir) => file.path
 /// the next one has to be argued for rather than typed.
 const Map<String, Map<String, String>>
 boundaryEnumExempt = <String, Map<String, String>>{
+  'flutter3d_editor_widgets/lib/src/number_expression.dart': <String, String>{
+    'NumberUnit':
+        'what one field\'s own numbers mean, and the set is the two things '
+        'this application measures — a length and an angle — plus "neither". '
+        'A `switch` over it lives in one function beside the enum, and a '
+        'third kind of field would be a third kind of unit table in the same '
+        'file rather than a new case anybody outside has to answer',
+  },
   'flutter3d_core/lib/src/formats/gltf/gltf_accessor_type.dart':
       <String, String>{
         'GltfComponentType':

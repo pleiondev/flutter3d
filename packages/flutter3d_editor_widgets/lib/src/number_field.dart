@@ -14,8 +14,10 @@
 library;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import 'editor_widgets_theme.dart';
+import 'number_expression.dart';
 
 /// One labelled number.
 class NumberField extends StatefulWidget {
@@ -27,10 +29,33 @@ class NumberField extends StatefulWidget {
     this.enabled = true,
     this.showLabel = true,
     this.semanticLabel,
+    this.labelWidth = 18,
+    this.unit = NumberUnit.plain,
+    this.step = 0.1,
   });
+
+  /// What this field's own numbers mean, so `10cm` typed into a field of
+  /// metres commits 0.1 — `ux-15`. [NumberUnit.plain] refuses suffixes,
+  /// which is right for a count or a factor.
+  final NumberUnit unit;
+
+  /// How much one press of an arrow key, or one pixel of a scrub on the
+  /// label, is worth. `Shift` is ten of these and `Ctrl` a tenth.
+  final double step;
 
   /// What it is: `X`, `Y`, `Segments`.
   final String label;
+
+  /// How much room the drawn [label] gets, in logical pixels.
+  ///
+  /// Eighteen fits the single letter a transform grid's own rows carry, which
+  /// is what every caller wanted until one arrived with a word: the
+  /// last-operation card labels its field with the parameter's own name, and
+  /// "distance" in eighteen pixels wrapped to two lines reading "dis" and
+  /// "ta". A caller with a word passes the room it needs; the label is kept
+  /// to one line either way, so the worst case is a name cut short rather
+  /// than a row twice the height of the ones above it.
+  final double labelWidth;
 
   /// Whether [label] draws as the field's own visible left-hand text.
   ///
@@ -59,18 +84,19 @@ class NumberField extends StatefulWidget {
 
   /// What [said] means as a number, or null.
   ///
-  /// Static and public because the rule — a comma is a decimal point — is the
-  /// thing worth testing, and testing it through a widget would mean pumping
-  /// one to ask what `1,5` is.
-  static double? parse(String said) {
-    final String trimmed = said.trim().replaceAll(',', '.');
+  /// Static and public because the rules — a comma is a decimal point, `1/3`
+  /// is a third, `10cm` in a field of metres is 0.1 — are the thing worth
+  /// testing, and testing them through a widget would mean pumping one to ask
+  /// what `1,5` is.
+  ///
+  /// Infinity and NaN are refused along with everything else that is not a
+  /// number: a transform holding either draws nothing, and every later number
+  /// computed from it is a NaN as well — so the failure would arrive far from
+  /// the field somebody typed it into.
+  static double? parse(String said, {NumberUnit unit = NumberUnit.plain}) {
+    final String trimmed = said.trim();
     if (trimmed.isEmpty) return null;
-    final double? read = double.tryParse(trimmed);
-    // Infinity and NaN parse. A transform holding either draws nothing, and
-    // every later number computed from it is a NaN as well — so the failure
-    // arrives far from the field somebody typed it into.
-    if (read == null || !read.isFinite) return null;
-    return read;
+    return evaluateNumber(trimmed, unit: unit);
   }
 
   /// How a number is shown: enough places to be exact, none of them noise.
@@ -85,10 +111,28 @@ class NumberField extends StatefulWidget {
   /// numbers was written and taken back out — it answered the same thing for
   /// every value that reaches a field, which makes it a branch no test can
   /// tell from its absence.
-  static String show(double value) => value
-      .toStringAsFixed(3)
-      .replaceAll(RegExp(r'0+$'), '')
-      .replaceAll(RegExp(r'\.$'), '');
+  ///
+  /// **The places follow the magnitude**, which is `ux-15`'s own live
+  /// finding: an STL read in at a scale of 0.001 put numbers in these fields
+  /// that three places round to zero, so a field showed `0` for a value that
+  /// was not zero and typing what it showed would have destroyed the model.
+  /// Three places is right at the scale things are built at and wrong four
+  /// decades below it, so the small end gets more of them.
+  static String show(double value) {
+    final double size = value.abs();
+    // Three places down to a hundredth, which is where a field stops being
+    // readable and is the whole range things are normally built at; below
+    // that, enough places to show a value three would round away.
+    final int places = size == 0 || size >= 0.01
+        ? 3
+        : size >= 1e-4
+        ? 6
+        : 8;
+    return value
+        .toStringAsFixed(places)
+        .replaceAll(RegExp(r'0+$'), '')
+        .replaceAll(RegExp(r'\.$'), '');
+  }
 
   @override
   State<NumberField> createState() => _NumberFieldState();
@@ -137,8 +181,52 @@ class _NumberFieldState extends State<NumberField> {
     super.dispose();
   }
 
+  /// What one press of an arrow key, or one pixel of a scrub, is worth right
+  /// now — `ux-15`.
+  ///
+  /// Shift is ten of the field's own step and Ctrl a tenth, which is the pair
+  /// every application in the field agrees on. The command key counts as Ctrl
+  /// because on a Mac it is the one under the same finger.
+  double get _stepNow {
+    final HardwareKeyboard keys = HardwareKeyboard.instance;
+    if (keys.isShiftPressed) return widget.step * 10;
+    if (keys.isControlPressed || keys.isMetaPressed) return widget.step * 0.1;
+    return widget.step;
+  }
+
+  /// Moves the value by [by] and reports it, the way a commit does.
+  ///
+  /// Reported as it goes rather than when the drag ends: the document takes
+  /// these as one step anyway — a transform panel runs them through the same
+  /// `amend`/transaction the sliders already use — and a scrub that showed
+  /// nothing until it was let go would be a scrub nobody could aim.
+  void _nudge(double by) {
+    if (!widget.enabled || by == 0) return;
+    final double from =
+        NumberField.parse(_text.text, unit: widget.unit) ?? widget.value;
+    final double to = from + by;
+    if (!to.isFinite) return;
+    _text.text = NumberField.show(to);
+    if (to == _reported) return;
+    _reported = to;
+    widget.onChanged(to);
+  }
+
+  /// Up and down nudge the value; everything else is the field's own.
+  KeyEventResult _arrowKeys(FocusNode node, KeyEvent event) {
+    if (event is KeyUpEvent) return KeyEventResult.ignored;
+    final double direction = switch (event.logicalKey) {
+      LogicalKeyboardKey.arrowUp => 1,
+      LogicalKeyboardKey.arrowDown => -1,
+      _ => 0,
+    };
+    if (direction == 0) return KeyEventResult.ignored;
+    _nudge(direction * _stepNow);
+    return KeyEventResult.handled;
+  }
+
   void _commit() {
-    final double? read = NumberField.parse(_text.text);
+    final double? read = NumberField.parse(_text.text, unit: widget.unit);
     if (read == null) {
       // Put back what the document says rather than leaving whatever was
       // typed: a field showing `1,5,` after a slip is a field a person will
@@ -157,44 +245,52 @@ class _NumberFieldState extends State<NumberField> {
   Widget build(BuildContext context) {
     final ThemeData theme = Theme.of(context);
     final EditorWidgetsTheme editorTheme = EditorWidgetsTheme.of(context);
-    final field = Semantics(
-      // The visible label is one `Text` widget among several in a row or a
-      // grid cell; nothing ties it to this specific `TextField` in the
-      // semantics tree unless something here says so explicitly — a screen
-      // reader otherwise announces a bare number with no idea what it is a
-      // number of.
-      label: widget.semanticLabel ?? widget.label,
-      textField: true,
-      child: TextField(
-        controller: _text,
-        focusNode: _focus,
-        enabled: widget.enabled,
-        textAlign: TextAlign.right,
-        style: theme.textTheme.bodyMedium?.copyWith(
-          fontFeatures: const <FontFeature>[FontFeature.tabularFigures()],
-        ),
-        // A keyboard on a handset, and nothing on a desktop. `signed` and
-        // `decimal` both, because a coordinate is either.
-        keyboardType: const TextInputType.numberWithOptions(
-          signed: true,
-          decimal: true,
-        ),
-        decoration: InputDecoration(
-          isDense: true,
-          // The hand-over's own metric: padding 6×8-10, radius 6 — this file
-          // had the two axes swapped and the corner square until now.
-          contentPadding: const EdgeInsets.symmetric(
-            horizontal: 9,
-            vertical: 6,
+    final field = Focus(
+      // Ancestor of the box rather than a handler on it: a single-line
+      // `TextField` does not use up or down, so the key arrives here after it
+      // has passed on it — which is exactly the order that lets the box keep
+      // left, right, home and end for the text.
+      onKeyEvent: _arrowKeys,
+      canRequestFocus: false,
+      child: Semantics(
+        // The visible label is one `Text` widget among several in a row or a
+        // grid cell; nothing ties it to this specific `TextField` in the
+        // semantics tree unless something here says so explicitly — a screen
+        // reader otherwise announces a bare number with no idea what it is a
+        // number of.
+        label: widget.semanticLabel ?? widget.label,
+        textField: true,
+        child: TextField(
+          controller: _text,
+          focusNode: _focus,
+          enabled: widget.enabled,
+          textAlign: TextAlign.right,
+          style: theme.textTheme.bodyMedium?.copyWith(
+            fontFeatures: const <FontFeature>[FontFeature.tabularFigures()],
           ),
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.all(
-              Radius.circular(editorTheme.fieldRadius),
+          // A keyboard on a handset, and nothing on a desktop. `signed` and
+          // `decimal` both, because a coordinate is either.
+          keyboardType: const TextInputType.numberWithOptions(
+            signed: true,
+            decimal: true,
+          ),
+          decoration: InputDecoration(
+            isDense: true,
+            // The hand-over's own metric: padding 6×8-10, radius 6 — this file
+            // had the two axes swapped and the corner square until now.
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 9,
+              vertical: 6,
+            ),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.all(
+                Radius.circular(editorTheme.fieldRadius),
+              ),
             ),
           ),
+          onSubmitted: (_) => _commit(),
+          onTapOutside: (_) => _focus.unfocus(),
         ),
-        onSubmitted: (_) => _commit(),
-        onTapOutside: (_) => _focus.unfocus(),
       ),
     );
     return SizedBox(
@@ -203,16 +299,35 @@ class _NumberFieldState extends State<NumberField> {
           ? Row(
               children: <Widget>[
                 SizedBox(
-                  width: 18,
+                  width: widget.labelWidth,
                   // Excluded from the semantics tree: the `Semantics` wrapping
                   // `field` above already announces this same text, and a
                   // screen reader that also finds this plain `Text` widget
                   // would say "X" twice for one field.
                   child: ExcludeSemantics(
-                    child: Text(
-                      widget.label,
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: theme.colorScheme.onSurfaceVariant,
+                    // `ux-15`: the label is a scrub handle. Dragging sideways
+                    // on it moves the value a step a pixel, which is how a
+                    // number gets set by eye against what is on screen rather
+                    // than by typing and looking and typing again. On the
+                    // label rather than the box, so selecting text in the box
+                    // still works.
+                    child: MouseRegion(
+                      cursor: widget.enabled
+                          ? SystemMouseCursors.resizeLeftRight
+                          : MouseCursor.defer,
+                      child: GestureDetector(
+                        behavior: HitTestBehavior.opaque,
+                        onHorizontalDragUpdate: (DragUpdateDetails it) =>
+                            _nudge(it.delta.dx * _stepNow),
+                        child: Text(
+                          widget.label,
+                          maxLines: 1,
+                          softWrap: false,
+                          overflow: TextOverflow.ellipsis,
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: theme.colorScheme.onSurfaceVariant,
+                          ),
+                        ),
                       ),
                     ),
                   ),

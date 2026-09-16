@@ -998,4 +998,120 @@ void main() {
       expect(ready(it.cubit).said, contains('could not be shown'));
     });
   });
+
+  group('an edited material reaches the scene', () {
+    /// Lets the rebuild this fires finish. It is asynchronous because a
+    /// material may have textures to decode, and a plain `test()` has a real
+    /// event loop to run it on.
+    Future<void> settle() async {
+      for (var step = 0; step < 4; step++) {
+        await Future<void>.delayed(Duration.zero);
+      }
+    }
+
+    /// The node the one object on the stage is drawn as, so the test reads
+    /// the material off the scene rather than out of the document.
+    MeshNode painted(ModelerStage stage) =>
+        stage.subject.children.whereType<MeshNode>().first;
+
+    test('a colour set after opening is the colour the node wears', () async {
+      final it = openedWith(cubes(1));
+      final ModelerStage stage = it.stage;
+
+      expect(it.cubit.ran(const AddMaterial(materialName: 'glaze')), isTrue);
+      expect(it.cubit.ran(const AssignMaterial(id: 1, to: 0)), isTrue);
+      expect(
+        it.cubit.ran(
+          const SetMaterialField(
+            index: 0,
+            field: 'baseColor',
+            value: <double>[0.72, 0.36, 0.22, 1],
+          ),
+        ),
+        isTrue,
+      );
+      await settle();
+
+      // Mutation: leave `MaterialPool.refresh` to the one call `openDocument`
+      // makes and never rebuild after a command — which is what this did. The
+      // document, the material list and the swatch beside it all show the new
+      // colour; the model in the viewport keeps whatever it had when the file
+      // was opened, for the rest of the session, for a person in the panel and
+      // for an agent over MCP alike.
+      expect(painted(stage).material.baseColor.x, closeTo(0.72, 1e-6));
+      expect(painted(stage).material.baseColor.y, closeTo(0.36, 1e-6));
+      expect(painted(stage).material.baseColor.z, closeTo(0.22, 1e-6));
+    });
+
+    test('and a command that changes no material rebuilds nothing', () async {
+      final it = openedWith(cubes(1));
+      it.cubit.ran(const AddMaterial(materialName: 'glaze'));
+      await settle();
+
+      // The guard that keeps this off the hot path: a drag is a command a
+      // frame, and rebuilding every material on each of them would decode
+      // every texture again sixty times a second. `refresh` answers with how
+      // many it had to build, and after a command that touched no material
+      // there is nothing to build.
+      expect(it.cubit.ran(const Rename(id: 1, to: 'b')), isTrue);
+      await settle();
+
+      expect(await it.stage.materials!.refresh(ready(it.cubit).project), 0);
+    });
+  });
+
+  group('ux-17: a refusal is marked as one', () {
+    test('a refused command says so on the state, not only in words', () {
+      final cubit = opened().cubit;
+
+      // Nothing is selected, so the move is refused — an answer, not a
+      // failure, and the history is untouched either way.
+      expect(cubit.ran(MoveBy(Vector3(1, 0, 0))), isFalse);
+
+      // Mutation: emit the sentence and nothing else, which is what this did.
+      // The strip then paints a refusal exactly like "saved", and the next
+      // selection change clears it before anybody reads it.
+      final ModelerReady now = ready(cubit);
+      expect(now.said, isNotNull);
+      expect(now.saidIsRefusal, isTrue);
+      expect(now.saidIsImportant, isTrue);
+    });
+
+    test('and an agent being refused reaches the person too', () {
+      final cubit = opened().cubit;
+
+      cubit.agentToolCalled(
+        AgentToolCall(
+          tool: 'deleteObjects',
+          arguments: const <String, Object?>{},
+          did: false,
+          says: 'nothing is selected to delete',
+          elapsed: Duration.zero,
+          at: DateTime(2026, 1, 1),
+        ),
+      );
+
+      // Mutation: leave it to the agent panel, which is closed most of the
+      // time. The document is shared; being told that the thing asking for
+      // changes was told no is the same news whichever of you asked.
+      expect(ready(cubit).said, contains('nothing is selected to delete'));
+      expect(ready(cubit).saidIsRefusal, isTrue);
+    });
+
+    test('and a call that landed says nothing extra', () {
+      final cubit = opened().cubit;
+      cubit.agentToolCalled(
+        AgentToolCall(
+          tool: 'list',
+          arguments: const <String, Object?>{},
+          did: true,
+          says: 'two objects',
+          elapsed: Duration.zero,
+          at: DateTime(2026, 1, 1),
+        ),
+      );
+
+      expect(ready(cubit).saidIsRefusal, isFalse);
+    });
+  });
 }
