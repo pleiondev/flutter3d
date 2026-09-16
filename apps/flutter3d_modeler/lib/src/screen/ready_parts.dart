@@ -188,6 +188,7 @@ extension _ReadyParts on _ModelerScreenState {
                       unawaited(_showExportDialog(format: format)),
                   onMaterialStudio: () => unawaited(_openMaterialStudio()),
                   onPreview: () => unawaited(_openGamePreview()),
+                  onGallery: () => unawaited(_openGallery()),
                   // `ux-38`: two views of the one document, remembered
                   // per workspace. Off in the retarget screen, which is
                   // already two viewports and whose second is another

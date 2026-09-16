@@ -49,6 +49,40 @@ extension _GamePreviewWiring on _ModelerScreenState {
     );
   }
 
+  /// `gal-03`: the gallery, and whatever it inserts.
+  ///
+  /// **One command, whatever the item was.** A built model becomes an
+  /// object and a fetched one goes through `importInto`; either way the
+  /// document lands as a single `ReplaceDocument`, so an insert is one
+  /// undo and the scene somebody was building is still there under it.
+  Future<void> _openGallery() async {
+    final ModelerState state = _state;
+    if (state is! ModelerReady) return;
+    final GalleryItem? picked = await showGallery(
+      context,
+      sources: <GallerySource>[const RecipeSource()],
+    );
+    if (picked == null || !mounted) return;
+    try {
+      final GalleryModel model = await picked.open();
+      final GalleryInsert inserted = insertIntoProject(
+        _history.project,
+        picked,
+        model,
+      );
+      if (inserted.ids.isEmpty) {
+        _cubit.say('${picked.name} brought nothing this reader could place');
+        return;
+      }
+      _cubit.ran(
+        ReplaceDocument(inserted.project, 'insert ${picked.name}'),
+        said: insertSaid(picked, inserted.ids.length),
+      );
+    } on Object catch (error) {
+      if (mounted) _cubit.say('could not insert ${picked.name}: $error');
+    }
+  }
+
   /// `ux-50`: the document walked in, on [template].
   ///
   /// **The live project, not a copy.** `PlaySession` builds its scene with

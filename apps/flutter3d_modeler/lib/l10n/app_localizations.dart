@@ -1237,6 +1237,18 @@ abstract class AppLocalizations {
   /// In ru, this message translates to:
   /// **'Выполнить команду'**
   String get runACommand;
+
+  /// No description provided for @gallery.
+  ///
+  /// In ru, this message translates to:
+  /// **'Галерея'**
+  String get gallery;
+
+  /// No description provided for @galleryTooltip.
+  ///
+  /// In ru, this message translates to:
+  /// **'Галерея — вставить готовую модель рядом с открытым'**
+  String get galleryTooltip;
 }
 
 class _AppLocalizationsDelegate

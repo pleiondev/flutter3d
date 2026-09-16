@@ -654,4 +654,11 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get runACommand => 'Выполнить команду';
+
+  @override
+  String get gallery => 'Галерея';
+
+  @override
+  String get galleryTooltip =>
+      'Галерея — вставить готовую модель рядом с открытым';
 }
