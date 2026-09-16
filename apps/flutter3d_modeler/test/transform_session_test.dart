@@ -95,7 +95,12 @@ void main() {
       ready(made.cubit).history.selection = ProjectSelection(objects: [id]);
       made.cubit.tool('object.move');
 
-      made.session.dragged(const Offset(40, 0), 600, viewOver(made.cubit));
+      made.session.dragged(
+        const Offset(40, 0),
+        600,
+        viewOver(made.cubit),
+        const Offset(340, 300),
+      );
 
       // Mutation: never call `applyModal`, or call it with a zero step. A drag
       // that opens the transaction but never runs a command would leave the
@@ -111,7 +116,12 @@ void main() {
     final id = ready(made.cubit).project.objects.single.id;
     ready(made.cubit).history.selection = ProjectSelection(objects: [id]);
     made.cubit.tool('object.move');
-    made.session.dragged(const Offset(40, 0), 600, viewOver(made.cubit));
+    made.session.dragged(
+      const Offset(40, 0),
+      600,
+      viewOver(made.cubit),
+      const Offset(340, 300),
+    );
 
     made.session.commit();
     expect(made.session.modal, isNull);
@@ -136,7 +146,12 @@ void main() {
       made.cubit,
     ).project.objects.single.transform.getTranslation();
 
-    made.session.dragged(const Offset(40, 0), 600, viewOver(made.cubit));
+    made.session.dragged(
+      const Offset(40, 0),
+      600,
+      viewOver(made.cubit),
+      const Offset(340, 300),
+    );
     made.session.cancel();
 
     expect(made.session.modal, isNull);
@@ -151,7 +166,12 @@ void main() {
     final id = ready(made.cubit).project.objects.single.id;
     ready(made.cubit).history.selection = ProjectSelection(objects: [id]);
     made.cubit.tool('object.move');
-    made.session.dragged(const Offset(40, 0), 600, viewOver(made.cubit));
+    made.session.dragged(
+      const Offset(40, 0),
+      600,
+      viewOver(made.cubit),
+      const Offset(340, 300),
+    );
 
     final taken = made.session.modalKey(LogicalKeyboardKey.escape, null);
 
@@ -354,6 +374,284 @@ void main() {
       expect(session.snapTarget, isNotNull);
       expect(session.snapTarget!.position, Vector3(1.5, 1.0, 1.0));
       session.commit();
+    });
+  });
+
+  group('ux-12: the pivot and the space chips reach a drag', () {
+    /// Two cubes, four metres apart, both selected and both turned a
+    /// quarter-turn about Y so that "its own axes" is a different direction
+    /// for each of them.
+    ({ModelerCubit cubit, TransformSession session}) twoFacingApart() {
+      final made = openedWith(cubes(2));
+      final List<ModelObject> objects = ready(made.cubit).project.objects;
+      ready(made.cubit).history.selection = ProjectSelection(
+        objects: objects.map((ModelObject it) => it.id).toList(),
+      );
+      // The second one faces a quarter-turn round from the first.
+      made.cubit.ran(
+        SetTransform(
+          id: objects[1].id,
+          to: Matrix4.compose(
+            Vector3(4, 0, 0),
+            Quaternion.axisAngle(Vector3(0, 1, 0), math.pi / 2),
+            Vector3.all(1),
+          ),
+        ),
+      );
+      return made;
+    }
+
+    List<Vector3> placesIn(ModelerCubit cubit) => <Vector3>[
+      for (final ModelObject it in ready(cubit).project.objects)
+        it.transform.getTranslation(),
+    ];
+
+    test('under "individual" a turn leaves both centres where they are', () {
+      final made = twoFacingApart();
+      made.session.pivot = () => TransformPivot.individual;
+      made.cubit.tool('object.rotate');
+      final List<Vector3> before = placesIn(made.cubit);
+
+      final PickingView view = viewOver(made.cubit);
+      final Offset pivot = view.project(made.session.middleOfSelection())!;
+      final Offset from = pivot + const Offset(120, 0);
+      final Offset to = pivot + const Offset(0, -120);
+      made.session.dragged(to - from, 600, view, to);
+
+      // Mutation: ignore the chip and turn about the median, which is what a
+      // drag did. Two objects four metres apart swing round each other
+      // instead of spinning where they stand — which is the whole difference
+      // between the two chips, and it was only ever honoured for a number
+      // typed into the panel.
+      final List<Vector3> after = placesIn(made.cubit);
+      expect((after[0] - before[0]).length, lessThan(1e-6));
+      expect((after[1] - before[1]).length, lessThan(1e-6));
+    });
+
+    test('and under "median" the same drag swings them round each other', () {
+      final made = twoFacingApart();
+      made.session.pivot = () => TransformPivot.median;
+      made.cubit.tool('object.rotate');
+      final List<Vector3> before = placesIn(made.cubit);
+
+      final PickingView view = viewOver(made.cubit);
+      final Offset pivot = view.project(made.session.middleOfSelection())!;
+      final Offset from = pivot + const Offset(120, 0);
+      final Offset to = pivot + const Offset(0, -120);
+      made.session.dragged(to - from, 600, view, to);
+
+      final List<Vector3> after = placesIn(made.cubit);
+      expect((after[0] - before[0]).length, greaterThan(0.1));
+    });
+
+    test('under "local" a move follows each object\'s own axes', () {
+      final made = twoFacingApart();
+      made.session.space = () => TransformSpace.local;
+      made.cubit.tool('object.move');
+      final List<Vector3> before = placesIn(made.cubit);
+
+      made.session.dragged(
+        const Offset(60, 0),
+        600,
+        viewOver(made.cubit),
+        const Offset(460, 300),
+      );
+
+      // Mutation: send a plain `MoveBy` with no space. Both objects then go
+      // the same way whatever they are facing, and the "Local" chip means
+      // nothing for a drag.
+      final List<Vector3> after = placesIn(made.cubit);
+      final Vector3 first = after[0] - before[0];
+      final Vector3 second = after[1] - before[1];
+      expect(first.length, closeTo(second.length, 1e-6));
+      expect(
+        first.normalized().dot(second.normalized()),
+        lessThan(0.9),
+        reason: 'one is a quarter-turn round from the other',
+      );
+    });
+
+    test('and under "global" both go the same way', () {
+      final made = twoFacingApart();
+      made.session.space = () => TransformSpace.global;
+      made.cubit.tool('object.move');
+      final List<Vector3> before = placesIn(made.cubit);
+
+      made.session.dragged(
+        const Offset(60, 0),
+        600,
+        viewOver(made.cubit),
+        const Offset(460, 300),
+      );
+
+      final List<Vector3> after = placesIn(made.cubit);
+      expect(
+        (after[0] - before[0] - (after[1] - before[1])).length,
+        lessThan(1e-6),
+      );
+    });
+  });
+
+  group('ux-11: the transform starts with the key', () {
+    test('G opens it at once, and the pointer drives it with nothing held', () {
+      final made = openedWith(cubes(1));
+      final id = ready(made.cubit).project.objects.single.id;
+      ready(made.cubit).history.selection = ProjectSelection(objects: [id]);
+      made.cubit.tool('object.move');
+
+      expect(made.session.followsPointer, isFalse);
+      made.session.startOnPress('object.move');
+
+      // Mutation: arm the tool and wait for a button, which is the other
+      // preset — under this one `X` between the key and the first move falls
+      // through to whatever `X` means otherwise, which is delete.
+      expect(made.session.modal, isNotNull);
+      expect(made.session.followsPointer, isTrue);
+      expect(
+        made.session.modalKey(LogicalKeyboardKey.keyX, null),
+        isTrue,
+        reason: 'the axis keys belong to the transform from the key press on',
+      );
+      expect(made.session.modal!.axis, TransformAxis.x);
+    });
+
+    test('with nothing selected it starts nothing at all', () {
+      final made = openedWith(cubes(1));
+      made.cubit.tool('object.move');
+
+      // An open transaction with nothing in it is a step somebody would have
+      // to press Escape to be rid of, for a key they pressed by accident.
+      made.session.startOnPress('object.move');
+
+      expect(made.session.modal, isNull);
+      expect(made.session.followsPointer, isFalse);
+    });
+
+    test('and accepting it puts the pointer back in charge of nothing', () {
+      final made = openedWith(cubes(1));
+      final id = ready(made.cubit).project.objects.single.id;
+      ready(made.cubit).history.selection = ProjectSelection(objects: [id]);
+      made.cubit.tool('object.move');
+      made.session
+        ..startOnPress('object.move')
+        ..commit();
+
+      expect(made.session.followsPointer, isFalse);
+    });
+  });
+
+  group('ux-11: a turn follows the hand around the pivot', () {
+    /// How far the object ended up turned, about whatever axis — an
+    /// unconstrained turn goes about the one the camera is looking down, and
+    /// what this asks is the size of the turn rather than its direction.
+    double turnedBy(ModelerCubit cubit) {
+      final Quaternion q = Quaternion.fromRotation(
+        ready(cubit).project.objects.single.transform.getRotation(),
+      );
+      return 2 * math.acos(q.w.clamp(-1.0, 1.0));
+    }
+
+    test('a quarter turn of the hand is a quarter turn of the model', () {
+      final made = openedWith(cubes(1));
+      final id = ready(made.cubit).project.objects.single.id;
+      ready(made.cubit).history.selection = ProjectSelection(objects: [id]);
+      made.cubit.tool('object.rotate');
+      final PickingView view = viewOver(made.cubit);
+      final Offset pivot = view.project(made.session.middleOfSelection())!;
+
+      // A hand at three o'clock, swung to twelve: a quarter turn, whatever
+      // the radius. Mutation: read the horizontal travel and multiply by a
+      // hundredth — the same sweep at twice the radius then turns the model
+      // twice as far, and a sweep around the near side of the pivot barely
+      // turns it at all.
+      const double radius = 120;
+      final Offset from = pivot + const Offset(radius, 0);
+      final Offset to = pivot + const Offset(0, -radius);
+      made.session.dragged(to - from, 600, view, to);
+
+      expect(turnedBy(made.cubit).abs(), closeTo(math.pi / 2, 1e-4));
+    });
+
+    test(
+      'and under "arm, then drag" the axis key is taken before the drag',
+      () {
+        final made = openedWith(cubes(1));
+        final id = ready(made.cubit).project.objects.single.id;
+        ready(made.cubit).history.selection = ProjectSelection(objects: [id]);
+        made.cubit.tool('object.move');
+
+        // No modal yet: the tool is armed and nothing has been dragged. This is
+        // the window the review found — `X` here fell through to whatever else
+        // `X` is bound to, which under the modal preset is delete.
+        expect(made.session.modal, isNull);
+        expect(made.session.modalKey(LogicalKeyboardKey.keyX, null), isTrue);
+
+        made.session.dragged(
+          const Offset(40, 25),
+          600,
+          viewOver(made.cubit),
+          const Offset(440, 275),
+        );
+
+        // Mutation: drop the remembered axis on the floor. The drag then moves
+        // the object in two directions after somebody asked for one.
+        expect(made.session.modal!.axis, TransformAxis.x);
+        final Vector3 moved = ready(
+          made.cubit,
+        ).project.objects.single.transform.getTranslation();
+        expect(moved.x, isNot(0));
+        expect(moved.y, 0);
+        expect(moved.z, 0);
+      },
+    );
+
+    test('Shift with an axis key names the plane across it', () async {
+      final made = openedWith(cubes(1));
+      final id = ready(made.cubit).project.objects.single.id;
+      ready(made.cubit).history.selection = ProjectSelection(objects: [id]);
+      made.cubit.tool('object.move');
+      made.session.startOnPress('object.move');
+
+      await simulateKeyDownEvent(LogicalKeyboardKey.shiftLeft);
+      made.session.modalKey(LogicalKeyboardKey.keyZ, null);
+      await simulateKeyUpEvent(LogicalKeyboardKey.shiftLeft);
+
+      // Mutation: ignore the modifier. `Shift+Z` then means the Z axis, which
+      // is the opposite of what the hand that pressed it was asking for —
+      // and the person finds out by watching the model go the wrong way.
+      expect(made.session.modal!.axis, TransformAxis.xy);
+    });
+
+    test('Shift is a tenth of the travel', () async {
+      Future<double> movedBy({required bool precise}) async {
+        final made = openedWith(cubes(1));
+        final id = ready(made.cubit).project.objects.single.id;
+        ready(made.cubit).history.selection = ProjectSelection(objects: [id]);
+        made.cubit.tool('object.move');
+        if (precise) {
+          await simulateKeyDownEvent(LogicalKeyboardKey.shiftLeft);
+        }
+        made.session.dragged(
+          const Offset(80, 0),
+          600,
+          viewOver(made.cubit),
+          const Offset(400, 300),
+        );
+        if (precise) await simulateKeyUpEvent(LogicalKeyboardKey.shiftLeft);
+        return ready(
+          made.cubit,
+        ).project.objects.single.transform.getTranslation().x;
+      }
+
+      final double plain = await movedBy(precise: false);
+      final double fine = await movedBy(precise: true);
+
+      // Mutation: read the modifier nowhere. The same drag then moves the
+      // object the same distance whatever is held, and there is no way to
+      // place anything more finely than a pixel is worth at the distance the
+      // camera happens to be at.
+      expect(plain.abs(), greaterThan(0));
+      expect(fine.abs(), closeTo(plain.abs() * 0.1, 1e-6));
     });
   });
 }

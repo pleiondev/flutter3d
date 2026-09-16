@@ -111,6 +111,36 @@ void main() {
       );
     });
 
+    test('ux-11: the snap steps survive a round trip', () {
+      const ModelerSettings settings = ModelerSettings(
+        snapMove: 0.25,
+        snapTurnDegrees: 5,
+        snapScale: 0.05,
+      );
+
+      final ModelerSettings read = ModelerSettings.fromJson(settings.toJson());
+      expect(read.snapMove, 0.25);
+      expect(read.snapTurnDegrees, 5);
+      expect(read.snapScale, 0.05);
+    });
+
+    test('and a step of zero or less is refused, not divided by', () {
+      final ModelerSettings read = ModelerSettings.fromJson(<String, Object?>{
+        'snapMove': 0,
+        'snapTurnDegrees': -15,
+        'snapScale': 'a quarter',
+      });
+
+      // Mutation: take whatever the document says. A step of zero divides by
+      // zero the moment somebody holds the modifier, and a negative one
+      // rounds the wrong way — both from a hand-edited file, which is a shape
+      // this document really does take.
+      const ModelerSettings fallback = ModelerSettings();
+      expect(read.snapMove, fallback.snapMove);
+      expect(read.snapTurnDegrees, fallback.snapTurnDegrees);
+      expect(read.snapScale, fallback.snapScale);
+    });
+
     test('a language of null is left out rather than written as null', () {
       const settings = ModelerSettings();
 

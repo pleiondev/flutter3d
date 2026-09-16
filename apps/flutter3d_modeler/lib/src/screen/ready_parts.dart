@@ -427,6 +427,19 @@ extension _ReadyParts on _ModelerScreenState {
                                 ? _transformSession.dragged
                                 : null,
                             onDragDone: _transformSession.endDrag,
+                            // `ux-11`: under the modal preset the transform is
+                            // already running by the time the pointer moves,
+                            // so the hover drives it and the buttons answer
+                            // it. The readout goes beside the pointer either
+                            // way — a drag started from a button wants it as
+                            // much as one started from a key.
+                            toolFollowsPointer:
+                                _transformSession.followsPointer,
+                            onToolConfirm: _transformSession.commit,
+                            onToolCancel: _transformSession.cancel,
+                            transformReadout: _transformSession.modal?.readout,
+                            transformHints: _transformSession.modal?.hints,
+                            transformAxis: _transformSession.modal?.axis,
                             onBox: _boxed,
                             // Earlier and more specific than the box/drag branch
                             // above: only set while `weights.paint`/`weights.assign`
