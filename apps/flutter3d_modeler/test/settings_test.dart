@@ -9,6 +9,8 @@
 /// yet, or by one that had a different spelling for it.
 library;
 
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter3d_app/flutter3d_app.dart' show Storage;
 import 'package:flutter3d_modeler/main.dart' show ModelerScreen;
@@ -213,7 +215,12 @@ void main() {
     testWidgets('a changed dropdown reaches Save', (WidgetTester tester) async {
       await open(tester, const ModelerSettings());
 
-      await tester.tap(find.text('Workspace'));
+      // **The field, not its label.** "Workspace" is an `InputDecoration`
+      // label: it floats inside the decoration, takes no pointer events, and
+      // a tap on it lands on the decoration behind and opens nothing. This
+      // test passed anyway, because Save closes the dialog whether or not
+      // anything changed and closing was all it checked.
+      await tester.tap(find.byType(DropdownButtonFormField<Workspace>));
       await tester.pumpAndSettle();
       await tester.tap(find.text(Workspace.full.label).last);
       await tester.pumpAndSettle();
@@ -278,13 +285,29 @@ void main() {
       tester.view.devicePixelRatio = 1.0;
       addTearDown(tester.view.resetPhysicalSize);
       addTearDown(tester.view.resetDevicePixelRatio);
-      final storage = FakeStorage();
+      // **Already past Quick Setup** — `ux-42`. An empty store is a first
+      // launch, and a first launch opens a screen that asks five questions
+      // including this one: the editor behind it never got a tap, and there
+      // were two `DropdownButtonFormField<Workspace>` on screen for a finder
+      // that expects one. This test is about the Settings screen, so it
+      // starts where a person who has used the editor before starts.
+      final storage = FakeStorage()
+        ..documents[SettingsStore.name] = jsonEncode(
+          const ModelerSettings(
+            quickSetupDone: true,
+            showHomeAtLaunch: false,
+          ).toJson(),
+        );
 
       await launch(tester, storage);
 
       await tester.tap(find.byTooltip(_settingsTooltip));
       await settle(tester);
-      await tester.tap(find.text('Workspace'));
+      // The field itself — see the note in "a changed dropdown reaches Save"
+      // above. Here the miss actually showed: nothing opened, nothing was
+      // picked, and the store came back holding the workspace it started
+      // with.
+      await tester.tap(find.byType(DropdownButtonFormField<Workspace>));
       await settle(tester);
       await tester.tap(find.text(Workspace.full.label).last);
       await settle(tester);
