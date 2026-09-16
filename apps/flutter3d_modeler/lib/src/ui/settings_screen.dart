@@ -25,18 +25,41 @@ import '../settings.dart';
 
 /// Opens the settings dialog over [context], and answers with what to save —
 /// null when the person backed out.
+/// [onShowLegal] opens `rel-21d`'s own legal screen and [onClearLocalData]
+/// removes what the application has written on this device, answering with a
+/// sentence to show. Both optional, and a caller that passes neither gets the
+/// settings dialog exactly as it was — which is what every test of the rows
+/// above does.
 Future<ModelerSettings?> showSettingsScreen(
   BuildContext context,
-  ModelerSettings current,
-) => showDialog<ModelerSettings>(
+  ModelerSettings current, {
+  VoidCallback? onShowLegal,
+  Future<String> Function()? onClearLocalData,
+}) => showDialog<ModelerSettings>(
   context: context,
-  builder: (BuildContext context) => SettingsScreen(settings: current),
+  builder: (BuildContext context) => SettingsScreen(
+    settings: current,
+    onShowLegal: onShowLegal,
+    onClearLocalData: onClearLocalData,
+  ),
 );
 
 class SettingsScreen extends StatefulWidget {
-  const SettingsScreen({super.key, required this.settings});
+  const SettingsScreen({
+    super.key,
+    required this.settings,
+    this.onShowLegal,
+    this.onClearLocalData,
+  });
 
   final ModelerSettings settings;
+
+  /// Opens the legal documents. Null hides the row.
+  final VoidCallback? onShowLegal;
+
+  /// Removes what this application has written on the device, and answers
+  /// with what it removed, in a sentence. Null hides the row.
+  final Future<String> Function()? onClearLocalData;
 
   @override
   State<SettingsScreen> createState() => _SettingsScreenState();
@@ -44,6 +67,44 @@ class SettingsScreen extends StatefulWidget {
 
 class _SettingsScreenState extends State<SettingsScreen> {
   late ModelerSettings _draft = widget.settings;
+
+  /// Asks first, then clears, then says what went.
+  ///
+  /// **Asked rather than undone**, because there is no undo for this: the
+  /// autosave is the copy a crash would have been recovered from, and once it
+  /// is gone the only thing between a person and a lost session is a file
+  /// they saved themselves.
+  Future<void> _clearLocalData() async {
+    final Future<String> Function()? clear = widget.onClearLocalData;
+    if (clear == null) return;
+    final bool? sure = await showDialog<bool>(
+      context: context,
+      builder: (BuildContext context) => AlertDialog(
+        title: const Text('Clear local data?'),
+        content: const Text(
+          'This removes the settings, the recent-files list and the '
+          'autosave copy. Project files you saved yourself are left alone. '
+          'It cannot be undone.',
+        ),
+        actions: <Widget>[
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('Clear'),
+          ),
+        ],
+      ),
+    );
+    if (sure != true) return;
+    final String said = await clear();
+    if (!mounted) return;
+    ScaffoldMessenger.maybeOf(context)?.showSnackBar(
+      SnackBar(content: Text(said)),
+    );
+  }
 
   /// A step has to be a positive number: zero would divide by zero the moment
   /// the modifier was held, and a negative one would round the wrong way. A
@@ -192,6 +253,45 @@ class _SettingsScreenState extends State<SettingsScreen> {
               onChanged: (bool it) =>
                   setState(() => _draft = _draft.copyWith(saveWithHistory: it)),
             ),
+            // `rel-21d`: the two rows that are about the person's rights and
+            // their data rather than about how the editor behaves. Here
+            // rather than behind a seventh icon in the top bar, which is
+            // where a person looking for either of them would not think to
+            // look anyway — "where do I turn things off and get my data
+            // back" is what a settings screen is.
+            if (widget.onShowLegal != null || widget.onClearLocalData != null)
+              ...<Widget>[
+                const Divider(height: 32),
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 4),
+                  child: Text(
+                    'Legal and data',
+                    style: Theme.of(context).textTheme.labelLarge,
+                  ),
+                ),
+                if (widget.onShowLegal case final VoidCallback open)
+                  ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    leading: const Icon(Icons.gavel_outlined),
+                    title: const Text('Licence, privacy and the rest'),
+                    subtitle: const Text(
+                      'The documents this build shipped under, and the '
+                      'third-party licences.',
+                    ),
+                    onTap: open,
+                  ),
+                if (widget.onClearLocalData != null)
+                  ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    leading: const Icon(Icons.delete_sweep_outlined),
+                    title: const Text('Clear local data'),
+                    subtitle: const Text(
+                      'Settings, the recent-files list and the autosave. '
+                      'Saved project files are not touched.',
+                    ),
+                    onTap: _clearLocalData,
+                  ),
+              ],
           ],
         ),
       ),
