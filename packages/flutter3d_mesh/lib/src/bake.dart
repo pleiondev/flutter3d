@@ -114,6 +114,9 @@ typedef BakeSample = ({
 /// belongs to nothing. Seams are handled by [dilate] afterwards, which is
 /// where every baker puts them.
 ///
+/// [faces], when given, narrows the walk to those faces — what a brush
+/// needs, since it touches a few of them and a bake touches all of them.
+///
 /// The frame handed to [onSample] is orthonormal: the normal is interpolated
 /// from the triangle's own corners, and the tangent follows the direction U
 /// increases in, which is what makes the baked map agree with the one a
@@ -121,8 +124,9 @@ typedef BakeSample = ({
 void rasterizeUv(
   EditMesh low,
   int size,
-  void Function(BakeSample sample) onSample,
-) {
+  void Function(BakeSample sample) onSample, {
+  Set<int>? faces,
+}) {
   if (size < 1) {
     throw ArgumentError('a bake needs a positive size, not $size');
   }
@@ -135,6 +139,10 @@ void rasterizeUv(
 
   for (var face = 0; face < low.faceSlotCount; face++) {
     if (!low.isFaceAlive(face)) continue;
+    // `faces`, when given, is `pro-pt-02`'s own narrowing: a brush touches a
+    // handful of faces and walking the whole mesh per dab would cost the
+    // model rather than the stroke.
+    if (faces != null && !faces.contains(face)) continue;
     final corners = <int>[];
     low.forEachHalfEdge(face, corners.add);
     if (corners.length < 3) continue;

@@ -42,6 +42,7 @@ export 'src/modifier.dart';
 export 'src/multires.dart';
 export 'src/normals.dart';
 export 'src/operations.dart';
+export 'src/paint_project.dart';
 export 'src/parametric.dart';
 export 'src/parts.dart';
 export 'src/picker.dart';
