@@ -21,6 +21,8 @@ import 'dart:ui' as ui show Image;
 import 'package:flutter/material.dart';
 import 'package:flutter3d_editor_widgets/flutter3d_editor_widgets.dart';
 
+import '../../l10n/app_localizations.dart';
+
 /// What a render is asked for at — `pro-rn-04`'s own 760×428, which is 16:9
 /// to within a point. The result is then drawn to fit whatever the viewport
 /// slot is, so a wider window shows a bigger picture of the same render.
@@ -72,13 +74,14 @@ class RenderPanel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final ThemeData theme = Theme.of(context);
+    final AppLocalizations l = AppLocalizations.of(context);
     return SizedBox(
       width: kRenderGraphWidth,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         mainAxisSize: MainAxisSize.min,
         children: <Widget>[
-          SectionLabel('Passes'),
+          SectionLabel(l.renderPasses),
           for (final RenderPassRow pass in passes)
             SwitchListTile(
               key: ValueKey<String>('renderPass-${pass.name}'),
@@ -96,14 +99,14 @@ class RenderPanel extends StatelessWidget {
             OutlinedButton(
               key: const ValueKey<String>('renderCancel'),
               onPressed: onCancel,
-              child: Text('Cancel · $tilesDone/$tilesTotal'),
+              child: Text(l.renderCancelTiles(tilesDone, tilesTotal)),
             )
           else
             FilledButton.icon(
               key: const ValueKey<String>('render'),
               onPressed: onRender,
               icon: const Icon(Icons.camera_outlined),
-              label: const Text('Render'),
+              label: Text(l.renderStart),
             ),
         ],
       ),
@@ -141,6 +144,7 @@ class RenderResult extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final ThemeData theme = Theme.of(context);
+    final AppLocalizations l = AppLocalizations.of(context);
     return Stack(
       fit: StackFit.expand,
       children: <Widget>[
@@ -150,7 +154,7 @@ class RenderResult extends StatelessWidget {
           child: result == null
               ? Center(
                   child: Text(
-                    'Nothing rendered yet',
+                    l.renderNothingYet,
                     style: theme.textTheme.bodySmall,
                   ),
                 )

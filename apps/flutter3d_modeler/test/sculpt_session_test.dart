@@ -13,6 +13,7 @@ import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_cpu/testing.dart';
 import 'package:flutter3d_mesh/flutter3d_mesh.dart';
 import 'package:flutter3d_model_core/flutter3d_model_core.dart' hide Outcome;
+import 'package:flutter3d_modeler/l10n/app_localizations.dart';
 import 'package:flutter3d_modeler/src/element_picking.dart' show PickingView;
 import 'package:flutter3d_modeler/src/input_policy.dart';
 import 'package:flutter3d_modeler/src/modeler_cubit.dart';
@@ -223,6 +224,9 @@ void main() {
     ) async {
       var subdivided = 0;
       Widget card({String? refusal}) => MaterialApp(
+        locale: const Locale('en'),
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
         home: Scaffold(
           body: SculptPanel(
             radius: kSculptCursorDiameter,

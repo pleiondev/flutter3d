@@ -359,5 +359,57 @@
         "type": "int"
       }
     }
+  },
+  "brushSize": "Размер",
+  "brushStrength": "Сила",
+  "sculptBrush": "Кисть",
+  "sculptFalloffLinear": "Линейное",
+  "sculptFalloffSmooth": "Мягкое",
+  "sculptFalloffSharp": "Резкое",
+  "sculptSymmetryX": "Симметрия (X)",
+  "sculptSurface": "Поверхность",
+  "sculptSubdivide": "Подразделить",
+  "paintCanvas": "Холст",
+  "paintNothingYet": "Пока ничего не нарисовано",
+  "paintLayers": "Слои",
+  "paintAddLayer": "Добавить слой",
+  "paintColour": "Цвет",
+  "paintMask": "Маска",
+  "paintMaskNone": "Нет",
+  "bakeRetopology": "Ретопология",
+  "bakeTargetQuads": "Сколько квадов",
+  "bakeRetopologize": "Ретопологизировать",
+  "bakeMaps": "Карты",
+  "bakeResolution": "Разрешение",
+  "simKind": "Вид",
+  "simParameters": "Параметры",
+  "simCollidesWith": "Сталкивается с",
+  "simNothingElse": "В сцене больше ничего нет",
+  "simPinned": "Закреплено",
+  "simClearPins": "Снять закрепление",
+  "simClearCache": "Очистить кеш",
+  "renderPasses": "Проходы",
+  "renderStart": "Рендер",
+  "renderNothingYet": "Пока ничего не отрендерено",
+  "sculptFaces": "{count} граней",
+  "renderCancelTiles": "Отмена · {done}/{total}",
+  "@sculptFaces": {
+    "description": "Скульптинг — ux-22.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "@renderCancelTiles": {
+    "description": "Рендер — ux-22.",
+    "placeholders": {
+      "done": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
   }
 }

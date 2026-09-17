@@ -1783,6 +1783,204 @@ abstract class AppLocalizations {
   /// In ru, this message translates to:
   /// **'Маркеров {placed} из {total}'**
   String autorigMarkers(int placed, int total);
+
+  /// No description provided for @brushSize.
+  ///
+  /// In ru, this message translates to:
+  /// **'Размер'**
+  String get brushSize;
+
+  /// No description provided for @brushStrength.
+  ///
+  /// In ru, this message translates to:
+  /// **'Сила'**
+  String get brushStrength;
+
+  /// No description provided for @sculptBrush.
+  ///
+  /// In ru, this message translates to:
+  /// **'Кисть'**
+  String get sculptBrush;
+
+  /// No description provided for @sculptFalloffLinear.
+  ///
+  /// In ru, this message translates to:
+  /// **'Линейное'**
+  String get sculptFalloffLinear;
+
+  /// No description provided for @sculptFalloffSmooth.
+  ///
+  /// In ru, this message translates to:
+  /// **'Мягкое'**
+  String get sculptFalloffSmooth;
+
+  /// No description provided for @sculptFalloffSharp.
+  ///
+  /// In ru, this message translates to:
+  /// **'Резкое'**
+  String get sculptFalloffSharp;
+
+  /// No description provided for @sculptSymmetryX.
+  ///
+  /// In ru, this message translates to:
+  /// **'Симметрия (X)'**
+  String get sculptSymmetryX;
+
+  /// No description provided for @sculptSurface.
+  ///
+  /// In ru, this message translates to:
+  /// **'Поверхность'**
+  String get sculptSurface;
+
+  /// No description provided for @sculptSubdivide.
+  ///
+  /// In ru, this message translates to:
+  /// **'Подразделить'**
+  String get sculptSubdivide;
+
+  /// No description provided for @paintCanvas.
+  ///
+  /// In ru, this message translates to:
+  /// **'Холст'**
+  String get paintCanvas;
+
+  /// No description provided for @paintNothingYet.
+  ///
+  /// In ru, this message translates to:
+  /// **'Пока ничего не нарисовано'**
+  String get paintNothingYet;
+
+  /// No description provided for @paintLayers.
+  ///
+  /// In ru, this message translates to:
+  /// **'Слои'**
+  String get paintLayers;
+
+  /// No description provided for @paintAddLayer.
+  ///
+  /// In ru, this message translates to:
+  /// **'Добавить слой'**
+  String get paintAddLayer;
+
+  /// No description provided for @paintColour.
+  ///
+  /// In ru, this message translates to:
+  /// **'Цвет'**
+  String get paintColour;
+
+  /// No description provided for @paintMask.
+  ///
+  /// In ru, this message translates to:
+  /// **'Маска'**
+  String get paintMask;
+
+  /// No description provided for @paintMaskNone.
+  ///
+  /// In ru, this message translates to:
+  /// **'Нет'**
+  String get paintMaskNone;
+
+  /// No description provided for @bakeRetopology.
+  ///
+  /// In ru, this message translates to:
+  /// **'Ретопология'**
+  String get bakeRetopology;
+
+  /// No description provided for @bakeTargetQuads.
+  ///
+  /// In ru, this message translates to:
+  /// **'Сколько квадов'**
+  String get bakeTargetQuads;
+
+  /// No description provided for @bakeRetopologize.
+  ///
+  /// In ru, this message translates to:
+  /// **'Ретопологизировать'**
+  String get bakeRetopologize;
+
+  /// No description provided for @bakeMaps.
+  ///
+  /// In ru, this message translates to:
+  /// **'Карты'**
+  String get bakeMaps;
+
+  /// No description provided for @bakeResolution.
+  ///
+  /// In ru, this message translates to:
+  /// **'Разрешение'**
+  String get bakeResolution;
+
+  /// No description provided for @simKind.
+  ///
+  /// In ru, this message translates to:
+  /// **'Вид'**
+  String get simKind;
+
+  /// No description provided for @simParameters.
+  ///
+  /// In ru, this message translates to:
+  /// **'Параметры'**
+  String get simParameters;
+
+  /// No description provided for @simCollidesWith.
+  ///
+  /// In ru, this message translates to:
+  /// **'Сталкивается с'**
+  String get simCollidesWith;
+
+  /// No description provided for @simNothingElse.
+  ///
+  /// In ru, this message translates to:
+  /// **'В сцене больше ничего нет'**
+  String get simNothingElse;
+
+  /// No description provided for @simPinned.
+  ///
+  /// In ru, this message translates to:
+  /// **'Закреплено'**
+  String get simPinned;
+
+  /// No description provided for @simClearPins.
+  ///
+  /// In ru, this message translates to:
+  /// **'Снять закрепление'**
+  String get simClearPins;
+
+  /// No description provided for @simClearCache.
+  ///
+  /// In ru, this message translates to:
+  /// **'Очистить кеш'**
+  String get simClearCache;
+
+  /// No description provided for @renderPasses.
+  ///
+  /// In ru, this message translates to:
+  /// **'Проходы'**
+  String get renderPasses;
+
+  /// No description provided for @renderStart.
+  ///
+  /// In ru, this message translates to:
+  /// **'Рендер'**
+  String get renderStart;
+
+  /// No description provided for @renderNothingYet.
+  ///
+  /// In ru, this message translates to:
+  /// **'Пока ничего не отрендерено'**
+  String get renderNothingYet;
+
+  /// Скульптинг — ux-22.
+  ///
+  /// In ru, this message translates to:
+  /// **'{count} граней'**
+  String sculptFaces(int count);
+
+  /// Рендер — ux-22.
+  ///
+  /// In ru, this message translates to:
+  /// **'Отмена · {done}/{total}'**
+  String renderCancelTiles(int done, int total);
 }
 
 class _AppLocalizationsDelegate
