@@ -4,6 +4,7 @@
 ///     dart test test/command_journal_test.dart
 library;
 
+import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:flutter3d_mesh/flutter3d_mesh.dart'
@@ -123,6 +124,114 @@ void main() {
       final journal = CommandJournal()
         ..beginTransaction()
         ..record(const AddPrimitive(kind: 'sphere'));
+
+      final replay = CommandJournal.replay(
+        journal.toBytes(),
+        const ModelProject(),
+      );
+
+      expect(replay.ok, isTrue);
+      expect(replay.history!.project.objects, hasLength(1));
+    });
+  });
+
+  group('tut-01: a transaction that does nothing leaves nothing', () {
+    /// The journal's lines, which `toBytes` is the only way back out to.
+    List<String> linesOf(CommandJournal journal) => utf8
+        .decode(journal.toBytes())
+        .split('\n')
+        .where((String line) => line.isNotEmpty)
+        .toList();
+
+    test('an empty transaction writes no markers at all', () {
+      // The gap `doc/modeler-tutorial-gaps.md` found reading `case1.jsonl`:
+      // a `cleanup()` recipe that finds nothing to clean still opened and
+      // closed a transaction, and the journal wrote both markers, so a person
+      // reading the raw file met a pointless pair. `ModelHistory` promised
+      // otherwise on its own side — "a transaction in which nothing succeeded
+      // leaves no step" — and this is the same promise on the page.
+      final journal = CommandJournal()..transaction(() {});
+
+      expect(linesOf(journal), isEmpty);
+      expect(journal.length, 0);
+    });
+
+    test('a transaction that records keeps its bracket', () {
+      // The other half, and the mutation the first test alone would not
+      // catch: never writing the `begin` marker at all passes "an empty
+      // transaction is empty" and loses every grouping a drag depends on.
+      final journal = CommandJournal();
+      journal.transaction(() {
+        journal.record(const AddPrimitive(kind: 'box'));
+      });
+
+      expect(linesOf(journal), hasLength(3));
+      expect(jsonDecode(linesOf(journal).first), <String, Object?>{
+        'transaction': 'begin',
+      });
+      expect(jsonDecode(linesOf(journal).last), <String, Object?>{
+        'transaction': 'end',
+      });
+    });
+
+    test('an empty transaction inside a real one leaves only the real one', () {
+      // Nesting is why the count is a count. A recipe that runs two cleanups
+      // inside one batch, one of which finds work and one of which does not,
+      // must still bracket the work at the depth the caller opened it.
+      final journal = CommandJournal();
+      journal.transaction(() {
+        journal
+          ..transaction(() {})
+          ..record(const AddPrimitive(kind: 'box'))
+          ..transaction(() {});
+      });
+
+      final List<String> lines = linesOf(journal);
+      expect(lines, hasLength(3));
+      expect(
+        lines.where((String l) => l.contains('"transaction":"begin"')),
+        hasLength(1),
+      );
+    });
+
+    test('a nested transaction that records keeps both brackets', () {
+      final journal = CommandJournal();
+      journal.transaction(() {
+        journal.transaction(() {
+          journal.record(const AddPrimitive(kind: 'box'));
+        });
+      });
+
+      expect(linesOf(journal), hasLength(5));
+      expect(
+        linesOf(journal).take(2).map(jsonDecode),
+        everyElement(<String, Object?>{'transaction': 'begin'}),
+      );
+    });
+
+    test('a rollback of a transaction that recorded nothing writes no marker '
+        'either', () {
+      // `ux-20`'s rollback says "and then that was undone", which is only
+      // worth saying about something that was done. `replay`'s own rollback
+      // branch already guards the other side of this — it refuses to undo
+      // past a transaction that left no step — and now the marker it would
+      // have been guarding against is never written.
+      final journal = CommandJournal()
+        ..beginTransaction()
+        ..rollbackTransaction();
+
+      expect(linesOf(journal), isEmpty);
+    });
+
+    test('a batch whose commands all refused still replays to the project it '
+        'started from', () {
+      // The end-to-end claim, not the line count: a rollback that has nothing
+      // to roll back must not reach past itself. The journal below adds a box,
+      // then opens and abandons a batch that recorded nothing.
+      final journal = CommandJournal()
+        ..record(const AddPrimitive(kind: 'box'))
+        ..beginTransaction()
+        ..rollbackTransaction();
 
       final replay = CommandJournal.replay(
         journal.toBytes(),
