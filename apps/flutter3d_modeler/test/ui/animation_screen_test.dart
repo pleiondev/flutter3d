@@ -6,6 +6,7 @@ library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter3d_model_core/flutter3d_model_core.dart';
+import 'package:flutter3d_modeler/l10n/app_localizations.dart';
 import 'package:flutter3d_modeler/src/ui/actions_list.dart';
 import 'package:flutter3d_modeler/src/ui/animation_screen.dart';
 import 'package:flutter3d_modeler/src/ui/constraints_list.dart';
@@ -54,6 +55,9 @@ Widget _screen({
   int? selectedConstraint,
   ValueChanged<int>? onSelectConstraint,
 }) => MaterialApp(
+  locale: const Locale('en'),
+  localizationsDelegates: AppLocalizations.localizationsDelegates,
+  supportedLocales: AppLocalizations.supportedLocales,
   home: Material(
     child: AnimationScreen(
       viewport: const Placeholder(key: ValueKey<String>('viewport')),
