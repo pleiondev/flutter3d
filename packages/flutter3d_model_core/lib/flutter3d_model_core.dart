@@ -41,6 +41,7 @@ export 'src/composite_graph.dart';
 export 'src/credits.dart';
 export 'src/curve_display.dart';
 export 'src/describe.dart';
+export 'src/exporting.dart';
 export 'src/history.dart';
 export 'src/ik_constraint.dart';
 export 'src/image_dimensions.dart';

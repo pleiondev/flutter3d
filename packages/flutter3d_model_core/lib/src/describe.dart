@@ -111,8 +111,7 @@ Iterable<int> liveElements(EditMesh mesh, ElementLevel level) sync* {
 /// gathers all of them at once.
 Vector3? elementCentre(EditMesh mesh, ElementLevel level, int id) =>
     switch (level) {
-      ElementLevel.vertex =>
-        _liveVertex(mesh, id) ? mesh.positionOf(id) : null,
+      ElementLevel.vertex => _liveVertex(mesh, id) ? mesh.positionOf(id) : null,
       ElementLevel.face =>
         _liveFace(mesh, id) ? _centre(mesh, mesh.verticesOf(id)) : null,
       ElementLevel.edge => _edgeMidpoint(mesh, id),
@@ -173,8 +172,7 @@ DescribedElement? _describeEdge(EditMesh mesh, int id) {
   // the surface goes there, which is the average.
   final normals = <Vector3>[
     mesh.normalOf(face),
-    if (mesh.hasLiveTwin(half))
-      mesh.normalOf(mesh.faceOf(mesh.twinOf(half))),
+    if (mesh.hasLiveTwin(half)) mesh.normalOf(mesh.faceOf(mesh.twinOf(half))),
   ];
   return (
     id: half,

@@ -346,8 +346,7 @@ void main() {
       // clip is two rows tall, and the space under them is not the canvas
       // any more now that the rows scroll.
       final Offset at =
-          tester.getTopLeft(find.byType(TimelinePanel)) +
-          const Offset(200, 36);
+          tester.getTopLeft(find.byType(TimelinePanel)) + const Offset(200, 36);
       final TestPointer pointer = TestPointer(1, PointerDeviceKind.mouse)
         ..hover(at);
       await tester.sendEventToBinding(pointer.scroll(const Offset(0, -100)));

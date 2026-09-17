@@ -22,7 +22,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter3d_model_core/flutter3d_model_core.dart';
 
 import '../../l10n/app_localizations.dart';
-import '../exporting.dart';
 
 /// What the person chose, or null from [showExportScreen] when they backed
 /// out without exporting.

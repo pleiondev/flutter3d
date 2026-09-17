@@ -6,9 +6,8 @@ library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter3d_model_core/flutter3d_model_core.dart'
-    show AddPrimitive;
+    show AddPrimitive, ExportFormat;
 import 'package:flutter3d_modeler/l10n/app_localizations.dart';
-import 'package:flutter3d_modeler/src/exporting.dart';
 import 'package:flutter3d_modeler/src/play/play_template.dart';
 import 'package:flutter3d_modeler/src/ui/top_bar_actions.dart';
 import 'package:flutter_test/flutter_test.dart';

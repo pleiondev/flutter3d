@@ -75,7 +75,6 @@ class ShellForWidth extends StatelessWidget {
   /// caller that has not been told about workspaces shows what it always did.
   final Workspace workspace;
 
-
   final MeshSubmode submode;
   final ValueChanged<MeshSubmode> onSubmode;
 

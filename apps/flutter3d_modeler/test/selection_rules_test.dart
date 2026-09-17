@@ -151,10 +151,13 @@ void main() {
       );
     });
 
-    test('control on its own is not a walk — it is the box\'s own subtract', () {
-      expect(asked(control: true), ElementPickIntent.replace);
-      expect(asked(control: true, extend: true), ElementPickIntent.toggle);
-    });
+    test(
+      'control on its own is not a walk — it is the box\'s own subtract',
+      () {
+        expect(asked(control: true), ElementPickIntent.replace);
+        expect(asked(control: true, extend: true), ElementPickIntent.toggle);
+      },
+    );
 
     test('and only the two walks are walks', () {
       expect(ElementPickIntent.loop.isWalk, isTrue);
