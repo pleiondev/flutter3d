@@ -27,6 +27,14 @@ uniform sampler2D bloom_texture;
 /// nothing and removes the branch.
 uniform sampler2D ao_texture;
 
+/// The colour table, as a strip: N slices of N×N laid out left to right, so
+/// the image is N² wide and N tall. Bound to whatever the engine has when no
+/// table is set — the strength is zero then and nothing samples it, but a
+/// sampler this shader declares and nobody binds is a native crash on Metal
+/// rather than a black texture, which is the same rule `ao_texture` above
+/// already follows.
+uniform sampler2D lut_texture;
+
 uniform CompositeInfo {
   /// x: exposure, y: bloom intensity, z: which tone curve, w: how much of the
   /// occlusion to apply, 0 for none.
@@ -39,7 +47,8 @@ uniform CompositeInfo {
   /// scene already recorded.
   vec4 params;
 
-  /// x, y: one texel of the ao texture. z, w unused.
+  /// x, y: one texel of the ao texture. z: how much of the colour table to
+  /// apply, 0 for none. w: how many slices the table has, its N.
   vec4 ao_texel;
 
   /// The look, half of it. x: contrast, y: saturation, z: temperature,
@@ -203,6 +212,37 @@ vec3 TonemapReinhard(vec3 color) {
 /// so every backend takes the same branch for a whole frame, and `switch` on
 /// a non-constant is the construct that has needed a workaround on one
 /// backend or another every time it has been used here.
+/// [color] looked up in the colour table, which holds `size` slices.
+///
+/// **A strip, not a 3D texture**, because three of the four backends this
+/// engine runs on either have no 3D sampler or have one that costs a
+/// capability check — and a strip is an ordinary 2D image an artist can open,
+/// which is how every grading tool exports one anyway.
+///
+/// The blue axis picks a pair of neighbouring slices and mixes between them;
+/// red and green come out of the sampler's own bilinear filtering inside a
+/// slice. The half-texel inset on red is what keeps the first and last
+/// entries reachable: without it the ends of the ramp are never sampled and a
+/// table that should be an identity darkens white.
+vec3 SampleLut(vec3 color, float size) {
+  vec3 c = clamp(color, vec3(0.0), vec3(1.0));
+
+  float sliceWidth = 1.0 / size;
+  float texel = 1.0 / (size * size);
+  float innerWidth = texel * (size - 1.0);
+
+  float u = texel * 0.5 + c.r * innerWidth;
+  float v = (0.5 / size) + c.g * ((size - 1.0) / size);
+
+  float slice = c.b * (size - 1.0);
+  float lower = floor(slice);
+  float upper = min(lower + 1.0, size - 1.0);
+
+  vec3 a = texture(lut_texture, vec2(lower * sliceWidth + u, v)).rgb;
+  vec3 b = texture(lut_texture, vec2(upper * sliceWidth + u, v)).rgb;
+  return mix(a, b, slice - lower);
+}
+
 vec3 TonemapBy(vec3 color, int curve) {
   if (curve == 1) return TonemapNeutral(color);
   if (curve == 2) return TonemapAces(color);
@@ -281,6 +321,21 @@ void main() {
   // A gain on the ends against the middle. Not a white-balance conversion —
   // a scene lit at the wrong temperature is fixed at the light, not here.
   color *= vec3(1.0 + temperature * 0.1, 1.0, 1.0 - temperature * 0.1);
+
+  // **The table goes after the grade and before the barrel**, which is where
+  // a grading suite puts it: a LUT is somebody's finished look, so it should
+  // see the contrast and saturation decisions rather than have them applied
+  // on top of it — and it should not see the vignette or the grain, which
+  // belong to the lens and the film rather than to the colour.
+  //
+  // Branched on the strength rather than mixed by it, so a frame with no
+  // table does not sample one. The branch is on a uniform, so the whole draw
+  // takes the same side of it.
+  float lutStrength = composite_info.ao_texel.z;
+  if (lutStrength > 0.0) {
+    vec3 graded = SampleLut(color, max(composite_info.ao_texel.w, 2.0));
+    color = mix(color, graded, clamp(lutStrength, 0.0, 1.0));
+  }
 
   // The barrel and the film, last, and in that order: a vignette darkens what
   // the grain then lands on, which is the way round a camera does it.

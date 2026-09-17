@@ -1,3 +1,6 @@
+import 'dart:typed_data';
+
+import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:vector_math/vector_math.dart' as vm;
 
 import '../scene/scene_node.dart';
@@ -616,6 +619,8 @@ final class LookSettings {
     this.vignetteRoundness = 1.0,
     this.grain = 0.0,
     this.chromaticAberration = 0.0,
+    this.lut,
+    this.lutStrength = 1.0,
   });
 
   /// Pivoted about mid grey, so raising it does not also raise exposure.
@@ -649,6 +654,28 @@ final class LookSettings {
   /// visible without reading as a fault.
   final double chromaticAberration;
 
+  /// A colour table, as a strip of N slices of N×N — `gfx-18n`'s own row.
+  ///
+  /// **The shape every grading tool exports**, and the shape three of this
+  /// engine's four backends can sample without a capability check: N² wide
+  /// and N tall, blue selecting the slice, red running across it and green
+  /// down. [buildIdentityLut] makes the one that changes nothing, which is
+  /// what a test compares against and what somebody starts from.
+  ///
+  /// Null is not "a neutral table": nothing is sampled at all, and that is
+  /// the difference [lutStrength] of zero also makes.
+  final TextureHandle? lut;
+
+  /// How much of [lut] to apply, 0 to 1.
+  ///
+  /// Zero means the composite never samples the table — a branch on a
+  /// uniform, so the whole draw takes one side of it. Anything above zero
+  /// mixes towards the graded colour.
+  final double lutStrength;
+
+  /// Whether [lut] will actually be sampled this frame.
+  bool get gradesThroughLut => lut != null && lutStrength > 0.0;
+
   /// Whether any of this changes the picture at all.
   ///
   /// Read by the renderer to skip packing the second uniform, and by tests to
@@ -659,7 +686,8 @@ final class LookSettings {
       temperature == 0.0 &&
       vignette == 0.0 &&
       grain == 0.0 &&
-      chromaticAberration == 0.0;
+      chromaticAberration == 0.0 &&
+      !gradesThroughLut;
 
   LookSettings copyWith({
     double? contrast,
@@ -669,6 +697,8 @@ final class LookSettings {
     double? vignetteRoundness,
     double? grain,
     double? chromaticAberration,
+    TextureHandle? lut,
+    double? lutStrength,
   }) => LookSettings(
     contrast: contrast ?? this.contrast,
     saturation: saturation ?? this.saturation,
@@ -677,7 +707,46 @@ final class LookSettings {
     vignetteRoundness: vignetteRoundness ?? this.vignetteRoundness,
     grain: grain ?? this.grain,
     chromaticAberration: chromaticAberration ?? this.chromaticAberration,
+    lut: lut ?? this.lut,
+    lutStrength: lutStrength ?? this.lutStrength,
   );
+}
+
+/// The colour table that changes nothing, [size] slices wide — `gfx-18n`.
+///
+/// **What every other table is a departure from.** A grading tool exports one
+/// of these, somebody paints over it, and the difference between the two is
+/// the look. It is also what a test compares against: a table whose entries
+/// are exactly the colours they stand for should leave a frame where it was,
+/// and whether it *exactly* does is a question about the texture's own
+/// precision rather than about the arithmetic.
+///
+/// The strip is `size²` wide and `size` tall: blue picks the slice, red runs
+/// across it, green down. 33 is what most tools export and is the default;
+/// 17 is the other common one and is cheap enough to test with.
+///
+/// Eight bits a channel, because that is what a table read off disk will be
+/// and a neutral one that is secretly more precise than a real one would be
+/// testing the wrong thing.
+Uint8List buildIdentityLut({int size = 33}) {
+  if (size < 2) {
+    throw ArgumentError.value(size, 'size', 'a table needs at least two ends');
+  }
+  final width = size * size;
+  final pixels = Uint8List(width * size * 4);
+  final last = size - 1;
+  for (var blue = 0; blue < size; blue++) {
+    for (var green = 0; green < size; green++) {
+      for (var red = 0; red < size; red++) {
+        final at = ((green * width) + blue * size + red) * 4;
+        pixels[at] = (red * 255 / last).round();
+        pixels[at + 1] = (green * 255 / last).round();
+        pixels[at + 2] = (blue * 255 / last).round();
+        pixels[at + 3] = 255;
+      }
+    }
+  }
+  return pixels;
 }
 
 final class BloomSettings {
