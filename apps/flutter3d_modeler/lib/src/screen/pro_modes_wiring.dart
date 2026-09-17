@@ -18,15 +18,16 @@ part of '../../main.dart';
 extension _ProModesWiring on _ModelerScreenState {
   // ------------------------------------------------------------- retopology
 
-  void _setRetopoQuads(int to) => setState(() => _retopoQuads = to);
+  void _setRetopoQuads(int to) => setState(() => _retopo.quads = to);
 
-  void _setBakeResolution(int to) => setState(() => _bakeResolution = to);
+  void _setBakeResolution(int to) =>
+      setState(() => _retopo.bakeResolution = to);
 
   void _setBakeMap(String map, bool on) => setState(() {
     if (on) {
-      _bakeMaps.add(map);
+      _retopo.bakeMaps.add(map);
     } else {
-      _bakeMaps.remove(map);
+      _retopo.bakeMaps.remove(map);
     }
   });
 
@@ -57,7 +58,7 @@ extension _ProModesWiring on _ModelerScreenState {
     if (state is! ModelerReady) return;
     final int? objectId = state.selection.activeObject;
     if (objectId == null) return;
-    _cubit.ran(Retopologize(objectId: objectId, targetQuads: _retopoQuads));
+    _cubit.ran(Retopologize(objectId: objectId, targetQuads: _retopo.quads));
   }
 
   /// The Bake button: one `BakeMaps` over the two objects the mode names —
@@ -67,11 +68,11 @@ extension _ProModesWiring on _ModelerScreenState {
     final state = _state;
     if (state is! ModelerReady) return;
     final int? objectId = state.selection.activeObject;
-    if (objectId == null || _bakeMaps.isEmpty) return;
+    if (objectId == null || _retopo.bakeMaps.isEmpty) return;
 
     setState(
-      () => _bakeRunning = (
-        label: AppLocalizations.of(context).bakingMaps(_bakeMaps.length),
+      () => _retopo.baking = (
+        label: AppLocalizations.of(context).bakingMaps(_retopo.bakeMaps.length),
         fraction: null,
       ),
     );
@@ -83,30 +84,30 @@ extension _ProModesWiring on _ModelerScreenState {
         BakeMaps(
           sourceId: objectId,
           targetId: objectId,
-          maps: _bakeMaps.toList(),
-          resolution: _bakeResolution,
+          maps: _retopo.bakeMaps.toList(),
+          resolution: _retopo.bakeResolution,
         ),
       );
     } finally {
-      if (mounted) setState(() => _bakeRunning = null);
+      if (mounted) setState(() => _retopo.baking = null);
     }
   }
 
-  void _cancelBake() => setState(() => _bakeRunning = null);
+  void _cancelBake() => setState(() => _retopo.baking = null);
 
   // ------------------------------------------------------------------ paint
 
-  void _setPaintLayer(int to) => setState(() => _paintLayer = to);
-  void _setPaintColour(List<double> to) => setState(() => _paintColour = to);
-  void _setPaintRadius(double to) => setState(() => _paintRadius = to);
-  void _setPaintStrength(double to) => setState(() => _paintStrength = to);
-  void _setPaintMask(String? to) => setState(() => _paintMask = to);
+  void _setPaintLayer(int to) => setState(() => _paint.layer = to);
+  void _setPaintColour(List<double> to) => setState(() => _paint.colour = to);
+  void _setPaintRadius(double to) => setState(() => _paint.diameter = to);
+  void _setPaintStrength(double to) => setState(() => _paint.strength = to);
+  void _setPaintMask(String? to) => setState(() => _paint.mask = to);
 
   /// A layer above the ones there are. The stack itself grows when a stroke
   /// lands on a layer past its end (`PaintStroke.layer`), so this only has
   /// to move the selection.
   void _addPaintLayer() =>
-      setState(() => _paintLayer = _paintLayersOf(_state).length);
+      setState(() => _paint.layer = _paintLayersOf(_state).length);
 
   /// The layers of the selected object's own material, as the panel lists
   /// them — empty for anything with no paint on it yet.
@@ -186,20 +187,20 @@ extension _ProModesWiring on _ModelerScreenState {
           view: event.view,
           at: event.at,
           objectId: objectId,
-          radiusPixels: _paintRadius / 2,
-          colour: _paintColour,
-          strength: _paintStrength * event.force,
-          layer: _paintLayer,
+          radiusPixels: _paint.radius,
+          colour: _paint.colour,
+          strength: _paint.strength * event.force,
+          layer: _paint.layer,
           maskImage: _maskImageOf(state),
         );
       case StrokePhase.move:
         _paintSession.pointerMove(
           view: event.view,
           at: event.at,
-          radiusPixels: _paintRadius / 2,
-          colour: _paintColour,
-          strength: _paintStrength * event.force,
-          layer: _paintLayer,
+          radiusPixels: _paint.radius,
+          colour: _paint.colour,
+          strength: _paint.strength * event.force,
+          layer: _paint.layer,
           maskImage: _maskImageOf(state),
         );
       case StrokePhase.end:
@@ -211,7 +212,7 @@ extension _ProModesWiring on _ModelerScreenState {
 
   /// Which image the chosen mask is, or null for none.
   int? _maskImageOf(ModelerReady state) {
-    final String? wanted = _paintMask;
+    final String? wanted = _paint.mask;
     if (wanted == null) return null;
     for (var i = 0; i < state.project.images.length; i++) {
       if (state.project.images[i].name == wanted) return i;
@@ -286,22 +287,23 @@ extension _ProModesWiring on _ModelerScreenState {
     );
     final ui.FrameInfo frame = await codec.getNextFrame();
     if (!mounted) return;
-    setState(() => _paintCanvas = frame.image);
+    setState(() => _paint.canvas = frame.image);
   }
 
   // ------------------------------------------------------------- simulation
 
   void _setSimKind(String to) => setState(() {
-    _simKind = to;
-    _simParameters = _defaultSimParameters(to);
+    _sim.kind = to;
+    _sim.parameters = _defaultSimParameters(to);
   });
 
   void _setSimParameter(String name, double to) => setState(
-    () => _simParameters = <String, double>{..._simParameters, name: to},
+    () => _sim.parameters = <String, double>{..._sim.parameters, name: to},
   );
 
-  void _setSimCollider(String name, bool on) =>
-      setState(() => on ? _simColliders.add(name) : _simColliders.remove(name));
+  void _setSimCollider(String name, bool on) => setState(
+    () => on ? _sim.colliders.add(name) : _sim.colliders.remove(name),
+  );
 
   /// Everything else in the scene with a mesh, and whether it is switched on
   /// as something to collide with.
@@ -310,19 +312,19 @@ extension _ProModesWiring on _ModelerScreenState {
     return <String, bool>{
       for (final ModelObject each in state.project.objects)
         if (each.id != objectId && each.geometry is! SocketGeometry)
-          each.name: _simColliders.contains(each.name),
+          each.name: _sim.colliders.contains(each.name),
     };
   }
 
   void _pinSimSelection(ModelerReady state) => setState(
-    () => _simPinned = <int>{..._simPinned, ...state.selection.elements},
+    () => _sim.pinned = <int>{..._sim.pinned, ...state.selection.elements},
   );
 
-  void _clearSimPins() => setState(() => _simPinned = <int>{});
+  void _clearSimPins() => setState(() => _sim.pinned = <int>{});
 
-  void _seekSimulation(int to) => setState(() => _simFrame = to);
+  void _seekSimulation(int to) => setState(() => _sim.frame = to);
 
-  void _toggleSimulation() => setState(() => _simPlaying = !_simPlaying);
+  void _toggleSimulation() => setState(() => _sim.playing = !_sim.playing);
 
   void _bakeSimulation() => setState(() {
     // A real solve is `BakeClothJobRequest`'s own job and has no
@@ -330,17 +332,17 @@ extension _ProModesWiring on _ModelerScreenState {
     // description says the same thing to an agent. What this does is mark
     // the cache as being built so the strip says so; the solve lands when
     // `pro-job-01`'s own runner carries it.
-    _simCache = (
-      frames: _simCache.frames,
-      baked: _simCache.baked,
+    _sim.cache = (
+      frames: _sim.cache.frames,
+      baked: _sim.cache.baked,
       running: true,
     );
   });
 
   void _clearSimCache() => setState(() {
-    _simCache = (frames: 0, baked: 0, running: false);
-    _simFrame = 0;
-    _simPlaying = false;
+    _sim.cache = (frames: 0, baked: 0, running: false);
+    _sim.frame = 0;
+    _sim.playing = false;
   });
 
   /// The numbers a kind starts at — a cloth is not a rigid body and the two
@@ -356,8 +358,8 @@ extension _ProModesWiring on _ModelerScreenState {
   // ----------------------------------------------------------------- render
 
   void _setRenderPass(String pass, bool on) => setState(() {
-    _renderPasses = <RenderPassRow>[
-      for (final RenderPassRow each in _renderPasses)
+    _render.passes = <RenderPassRow>[
+      for (final RenderPassRow each in _render.passes)
         if (each.name == pass)
           (name: each.name, enabled: on, fixed: each.fixed)
         else
@@ -374,8 +376,8 @@ extension _ProModesWiring on _ModelerScreenState {
 
     const int tiles = 4;
     setState(() {
-      _renderTilesTotal = tiles * tiles;
-      _renderTilesDone = 0;
+      _render.tilesTotal = tiles * tiles;
+      _render.tilesDone = 0;
     });
     try {
       final Uint8List png = await renderSnapshotOf(
@@ -385,28 +387,28 @@ extension _ProModesWiring on _ModelerScreenState {
         tiles: tiles,
         onProgress: (double done) {
           if (!mounted) return;
-          setState(() => _renderTilesDone = (done * tiles * tiles).round());
+          setState(() => _render.tilesDone = (done * tiles * tiles).round());
         },
       );
       final ui.Codec codec = await ui.instantiateImageCodec(png);
       final ui.FrameInfo frame = await codec.getNextFrame();
       if (!mounted) return;
       setState(() {
-        _renderResult = frame.image;
-        _renderTilesDone = tiles * tiles;
+        _render.result = frame.image;
+        _render.tilesDone = tiles * tiles;
       });
     } finally {
       if (mounted) {
         setState(() {
-          _renderTilesTotal = 0;
-          _renderTilesDone = 0;
+          _render.tilesTotal = 0;
+          _render.tilesDone = 0;
         });
       }
     }
   }
 
   void _cancelRender() => setState(() {
-    _renderTilesTotal = 0;
-    _renderTilesDone = 0;
+    _render.tilesTotal = 0;
+    _render.tilesDone = 0;
   });
 }

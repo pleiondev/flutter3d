@@ -26,13 +26,13 @@ extension _SculptWiring on _ModelerScreenState {
           at: event.at,
           objectId: objectId,
           kind: kind,
-          radiusPixels: _sculptRadius / 2,
+          radiusPixels: _sculpt.radius,
           // A stylus reports how hard it is pressing and a mouse reports
           // 1.0 — `InputPolicy`'s own rule — so the same field means "how
           // hard this brush pushes at full pressure" on both.
-          strength: _sculptStrength * event.force,
-          falloff: _sculptFalloff,
-          symmetryX: _sculptSymmetryX,
+          strength: _sculpt.strength * event.force,
+          falloff: _sculpt.falloff,
+          symmetryX: _sculpt.symmetryX,
           inverted: event.erase,
         );
       case StrokePhase.move:
@@ -40,10 +40,10 @@ extension _SculptWiring on _ModelerScreenState {
           view: event.view,
           at: event.at,
           kind: kind,
-          radiusPixels: _sculptRadius / 2,
-          strength: _sculptStrength * event.force,
-          falloff: _sculptFalloff,
-          symmetryX: _sculptSymmetryX,
+          radiusPixels: _sculpt.radius,
+          strength: _sculpt.strength * event.force,
+          falloff: _sculpt.falloff,
+          symmetryX: _sculpt.symmetryX,
           inverted: event.erase,
         );
       case StrokePhase.end:
@@ -55,14 +55,14 @@ extension _SculptWiring on _ModelerScreenState {
   /// pressing its key already does.
   void _setSculptBrush(BrushKind kind) => _ranTool(sculptToolOf(kind));
 
-  void _setSculptRadius(double to) => setState(() => _sculptRadius = to);
+  void _setSculptRadius(double to) => setState(() => _sculpt.diameter = to);
 
-  void _setSculptStrength(double to) => setState(() => _sculptStrength = to);
+  void _setSculptStrength(double to) => setState(() => _sculpt.strength = to);
 
   void _setSculptFalloff(BrushFalloff to) =>
-      setState(() => _sculptFalloff = to);
+      setState(() => _sculpt.falloff = to);
 
-  void _setSculptSymmetryX(bool to) => setState(() => _sculptSymmetryX = to);
+  void _setSculptSymmetryX(bool to) => setState(() => _sculpt.symmetryX = to);
 
   /// The Subdivide button — one `SubdivideMesh`, which is one undo step.
   void _subdivideForSculpt() => _cubit.ran(const SubdivideMesh());

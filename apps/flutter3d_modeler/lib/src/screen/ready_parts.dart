@@ -466,53 +466,53 @@ extension _ReadyParts on _ModelerScreenState {
               // one for free.
               final Widget? proPanel = switch (state.mode) {
                 ModelerMode.retopo => BakePanel(
-                  targetQuads: _retopoQuads,
+                  targetQuads: _retopo.quads,
                   onTargetQuads: _setRetopoQuads,
                   onRetopologize: _retopologize,
-                  maps: _bakeMaps,
+                  maps: _retopo.bakeMaps,
                   onMap: _setBakeMap,
-                  resolution: _bakeResolution,
+                  resolution: _retopo.bakeResolution,
                   onResolution: _setBakeResolution,
                   onBake: _bakeTheMaps,
-                  running: _bakeRunning,
+                  running: _retopo.baking,
                   onCancel: _cancelBake,
                   refusal: _bakeRefusal(state),
                 ),
                 ModelerMode.paint => PaintPanel(
                   layers: _paintLayersOf(state),
-                  selectedLayer: _paintLayer,
+                  selectedLayer: _paint.layer,
                   onSelectLayer: _setPaintLayer,
                   onAddLayer: _addPaintLayer,
-                  colour: _paintColour,
+                  colour: _paint.colour,
                   onColour: _setPaintColour,
-                  radius: _paintRadius,
+                  radius: _paint.diameter,
                   onRadius: _setPaintRadius,
-                  strength: _paintStrength,
+                  strength: _paint.strength,
                   onStrength: _setPaintStrength,
                   masks: _paintMasksOf(state),
-                  mask: _paintMask,
+                  mask: _paint.mask,
                   onMask: _setPaintMask,
-                  canvas: _paintCanvas,
+                  canvas: _paint.canvas,
                   refusal: _paintRefusal(state),
                 ),
                 ModelerMode.simulation => SimulationPanel(
-                  kind: _simKind,
+                  kind: _sim.kind,
                   onKind: _setSimKind,
-                  parameters: _simParameters,
+                  parameters: _sim.parameters,
                   onParameter: _setSimParameter,
                   colliders: _simCollidersOf(state),
                   onCollider: _setSimCollider,
-                  pinnedCount: _simPinned.length,
+                  pinnedCount: _sim.pinned.length,
                   selectedCount: state.selection.elements.length,
                   onPinSelection: () => _pinSimSelection(state),
                   onClearPins: _clearSimPins,
                 ),
                 ModelerMode.render => RenderPanel(
-                  passes: _renderPasses,
+                  passes: _render.passes,
                   onPass: _setRenderPass,
                   onRender: _renderSnapshot,
-                  tilesDone: _renderTilesDone,
-                  tilesTotal: _renderTilesTotal,
+                  tilesDone: _render.tilesDone,
+                  tilesTotal: _render.tilesTotal,
                   onCancel: _cancelRender,
                 ),
                 _ => null,
@@ -730,9 +730,9 @@ extension _ReadyParts on _ModelerScreenState {
                             brushRadius: weightsBrushArmed
                                 ? _weightBrushRadius
                                 : sculptBrushArmed
-                                ? _sculptRadius / 2
+                                ? _sculpt.radius
                                 : paintBrushArmed
-                                ? _paintRadius / 2
+                                ? _paint.radius
                                 : null,
                             brushInverting:
                                 HardwareKeyboard.instance.isControlPressed,
@@ -877,9 +877,9 @@ extension _ReadyParts on _ModelerScreenState {
                   // pictures of one scene competing for a glance is worse
                   // than one.
                   ? RenderResult(
-                      result: _renderResult,
-                      tilesDone: _renderTilesDone,
-                      tilesTotal: _renderTilesTotal,
+                      result: _render.result,
+                      tilesDone: _render.tilesDone,
+                      tilesTotal: _render.tilesTotal,
                     )
                   : !sculptView
                   ? docked
@@ -890,13 +890,13 @@ extension _ReadyParts on _ModelerScreenState {
                         onBrush: _setSculptBrush,
                       ),
                       panel: SculptPanel(
-                        radius: _sculptRadius,
+                        radius: _sculpt.diameter,
                         onRadius: _setSculptRadius,
-                        strength: _sculptStrength,
+                        strength: _sculpt.strength,
                         onStrength: _setSculptStrength,
-                        falloff: _sculptFalloff,
+                        falloff: _sculpt.falloff,
                         onFalloff: _setSculptFalloff,
-                        symmetryX: _sculptSymmetryX,
+                        symmetryX: _sculpt.symmetryX,
                         onSymmetryX: _setSculptSymmetryX,
                         onSubdivide: _subdivideForSculpt,
                         faces: _sculptFaceCount(state),
@@ -1092,10 +1092,10 @@ extension _ReadyParts on _ModelerScreenState {
                     // same way the animation mode's own does — a cache is
                     // scrubbed while looking at the model.
                     ? SimulationBar(
-                        cache: _simCache,
-                        frame: _simFrame,
+                        cache: _sim.cache,
+                        frame: _sim.frame,
                         onSeek: _seekSimulation,
-                        playing: _simPlaying,
+                        playing: _sim.playing,
                         onPlayPause: _toggleSimulation,
                         onBake: _bakeSimulation,
                         onClearCache: _clearSimCache,
