@@ -56,7 +56,26 @@ final class CommandJournal {
 
   final List<String> _lines = <String>[];
 
+  /// Transactions opened whose `begin` marker has not been written yet.
+  ///
+  /// **A transaction that records nothing writes no markers at all** —
+  /// `tut-01`'s own gap, found reading `case1.jsonl`. `ModelHistory` already
+  /// promised this on its side: "a transaction in which nothing succeeded
+  /// leaves no step". This journal promised it on replay — an empty bracket is
+  /// a no-op there — and broke it on the page, where a `cleanup()` that found
+  /// nothing to clean still left a `begin`/`end` pair for whoever opened the
+  /// file to puzzle over. Holding the marker until the first line inside it
+  /// costs one counter and makes the two promises the same promise.
+  ///
+  /// Counted rather than flagged, because transactions nest: the count is how
+  /// many `begin` lines a record has to lay down before its own, which is what
+  /// keeps the depth a replay sees the depth the caller opened.
+  int _unwrittenBegins = 0;
+
   /// How many lines have been recorded, transaction markers included.
+  ///
+  /// A transaction that has opened but not yet recorded anything counts for
+  /// nothing here, because it has written nothing — see [_unwrittenBegins].
   int get length => _lines.length;
 
   /// Records [command] as the next line. Call this after [command] has
@@ -69,13 +88,19 @@ final class CommandJournal {
   /// [replay] and threaded into `ModelHistory.run` the same way, so a
   /// recovered journal's undo stack refuses an agent's own undo past a
   /// person's step exactly as the live session would have.
-  void record(ModelCommand command, {StepAuthor author = StepAuthor.person}) =>
-      _lines.add(
-        jsonEncode(<String, Object?>{
-          ...command.toJson(),
-          'author': author.name,
-        }),
-      );
+  void record(ModelCommand command, {StepAuthor author = StepAuthor.person}) {
+    _writeOpenBegins();
+    _lines.add(
+      jsonEncode(<String, Object?>{...command.toJson(), 'author': author.name}),
+    );
+  }
+
+  /// Lays down the `begin` lines for every transaction still holding one.
+  void _writeOpenBegins() {
+    for (; _unwrittenBegins > 0; _unwrittenBegins--) {
+      _lines.add(_beginMarker);
+    }
+  }
 
   /// Forgets the last recorded step and writes [replacement] in its place —
   /// the journal-side half of `ModelHistory.amend`'s own "the stack does
@@ -122,10 +147,21 @@ final class CommandJournal {
   /// [endTransaction] as one undo step on [replay], mirroring
   /// `ModelHistory.beginTransaction`. Call it at the same moment a caller
   /// opens the transaction on its own `ModelHistory`, not after.
-  void beginTransaction() => _marker('begin');
+  ///
+  /// **The marker itself waits for the first line inside it** — see
+  /// [_unwrittenBegins]. A transaction that records nothing leaves nothing.
+  void beginTransaction() => _unwrittenBegins++;
 
   /// Closes the transaction [beginTransaction] opened.
-  void endTransaction() => _marker('end');
+  void endTransaction() {
+    if (_unwrittenBegins > 0) {
+      // Nothing was recorded inside it, so its `begin` never reached the page
+      // and neither does this.
+      _unwrittenBegins--;
+      return;
+    }
+    _lines.add(_endMarker);
+  }
 
   /// Abandons the transaction [beginTransaction] opened: on [replay] it is
   /// closed and then taken straight back, leaving the project exactly as it
@@ -136,7 +172,18 @@ final class CommandJournal {
   /// is the case it exists for; rewinding a file that may already be on disk
   /// is not something this can promise. Saying "and then that was undone" is
   /// something it can.
-  void rollbackTransaction() => _lines.add(_rollbackMarker);
+  ///
+  /// A transaction whose every command refused recorded nothing, so there is
+  /// nothing on the page to take back and no marker to write — the same
+  /// silence [endTransaction] keeps, and the case `replay`'s own rollback
+  /// branch already guards against on the other side.
+  void rollbackTransaction() {
+    if (_unwrittenBegins > 0) {
+      _unwrittenBegins--;
+      return;
+    }
+    _lines.add(_rollbackMarker);
+  }
 
   /// Runs [body], recording everything it does as one transaction.
   T transaction<T>(T Function() body) {
@@ -147,9 +194,6 @@ final class CommandJournal {
       endTransaction();
     }
   }
-
-  void _marker(String which) =>
-      _lines.add(which == 'begin' ? _beginMarker : _endMarker);
 
   static final String _beginMarker = jsonEncode(<String, Object?>{
     'transaction': 'begin',
