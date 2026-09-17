@@ -65,10 +65,10 @@ Future<_Calls> _pump(
   final calls = _Calls();
   await tester.pumpWidget(
     MaterialApp(
-      theme: modelerTheme(),
       locale: const Locale('en'),
       localizationsDelegates: AppLocalizations.localizationsDelegates,
       supportedLocales: AppLocalizations.supportedLocales,
+      theme: modelerTheme(),
       home: Scaffold(
         body: TextureGraphPanel(
           graph: graph ?? _graph(),

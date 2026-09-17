@@ -13,6 +13,7 @@ library;
 import 'package:flutter/material.dart';
 import 'package:flutter3d_model_core/flutter3d_model_core.dart' hide Key;
 
+import '../../../l10n/app_localizations.dart';
 import 'status_line.dart' show grouped;
 import 'theme.dart';
 
@@ -38,40 +39,43 @@ class BudgetBars extends StatelessWidget {
   final ProfileBudgetReport report;
 
   @override
-  Widget build(BuildContext context) => Column(
-    crossAxisAlignment: CrossAxisAlignment.start,
-    children: <Widget>[
-      _BudgetRow(
-        label: 'triangles',
-        title: 'Triangles',
-        usage: report.triangles,
-        readout:
-            '${grouped(report.triangles.used)} / ${grouped(report.triangles.limit)}',
-      ),
-      const SizedBox(height: 8),
-      _BudgetRow(
-        label: 'joints',
-        title: 'Joints',
-        usage: report.joints,
-        readout: '${report.joints.used} / ${report.joints.limit}',
-      ),
-      const SizedBox(height: 8),
-      _BudgetRow(
-        label: 'texture-bytes',
-        title: 'Texture memory',
-        usage: report.textureBytes,
-        readout:
-            '${_bytes(report.textureBytes.used)} / ${_bytes(report.textureBytes.limit)}',
-      ),
-      const SizedBox(height: 8),
-      _BudgetRow(
-        label: 'influences',
-        title: 'Influences',
-        usage: report.influences,
-        readout: '${report.influences.used} / ${report.influences.limit}',
-      ),
-    ],
-  );
+  Widget build(BuildContext context) {
+    final AppLocalizations l = AppLocalizations.of(context);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: <Widget>[
+        _BudgetRow(
+          label: 'triangles',
+          title: l.budgetTriangles,
+          usage: report.triangles,
+          readout:
+              '${grouped(report.triangles.used)} / ${grouped(report.triangles.limit)}',
+        ),
+        const SizedBox(height: 8),
+        _BudgetRow(
+          label: 'joints',
+          title: l.budgetJoints,
+          usage: report.joints,
+          readout: '${report.joints.used} / ${report.joints.limit}',
+        ),
+        const SizedBox(height: 8),
+        _BudgetRow(
+          label: 'texture-bytes',
+          title: l.budgetTextureMemory,
+          usage: report.textureBytes,
+          readout:
+              '${_bytes(report.textureBytes.used)} / ${_bytes(report.textureBytes.limit)}',
+        ),
+        const SizedBox(height: 8),
+        _BudgetRow(
+          label: 'influences',
+          title: l.budgetInfluences,
+          usage: report.influences,
+          readout: '${report.influences.used} / ${report.influences.limit}',
+        ),
+      ],
+    );
+  }
 }
 
 class _BudgetRow extends StatelessWidget {

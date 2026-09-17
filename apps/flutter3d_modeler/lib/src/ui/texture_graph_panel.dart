@@ -152,8 +152,10 @@ final class HintRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final AppLocalizations l = AppLocalizations.of(context);
     final ThemeData theme = Theme.of(context);
     final String label = hint.label ?? field;
+    final String bound = value?.toString() ?? '\u2014';
     final Widget control = switch (hint.kind) {
       RangeHint(:final double min, :final double max, :final double? step) =>
         RangeSliderField(
@@ -203,15 +205,20 @@ final class HintRow extends StatelessWidget {
       TextureHint() => Row(
         mainAxisSize: MainAxisSize.min,
         children: <Widget>[
-          Text('#${value ?? '—'}', style: theme.textTheme.bodySmall),
+          // The image index, or an em dash for a node that names none.
+          // Built above rather than inside the string: a quote inside
+          // an interpolation reads as the end of the string to every
+          // scanner that is not a Dart parser, `ux-22`'s own literal
+          // check included.
+          Text('#$bound', style: theme.textTheme.bodySmall),
           NamedButton(
-            label: 'Next image',
+            label: l.graphNextImage,
             child: IconButton(
               padding: EdgeInsets.zero,
               constraints: const BoxConstraints(minWidth: 22, minHeight: 22),
               iconSize: 14,
               icon: const Icon(Icons.swap_horiz),
-              tooltip: 'Next image',
+              tooltip: l.graphNextImageTooltip,
               onPressed: () => onChanged(switch (value) {
                 final int n => n + 1,
                 _ => 0,
@@ -685,6 +692,7 @@ class _TextureGraphPanelState extends State<TextureGraphPanel> {
     final List<TextureNode> nodes = widget.graph.nodes;
     final Map<int, Offset> positions = <int, Offset>{};
     final Map<int, double> widths = <int, double>{};
+    final AppLocalizations l = AppLocalizations.of(context);
     for (var i = 0; i < nodes.length; i++) {
       final TextureNode node = nodes[i];
       final (double x, double y) at = _positionOf(node, i);
@@ -701,7 +709,7 @@ class _TextureGraphPanelState extends State<TextureGraphPanel> {
             children: <Widget>[
               PopupMenuButton<String>(
                 key: const ValueKey<String>('textureGraphAddNode'),
-                tooltip: 'Add node',
+                tooltip: l.graphAddNode,
                 onSelected: (String kind) => widget.onAddNode(
                   kind,
                   defaultTextureNodeFields(kind),
@@ -782,6 +790,7 @@ class _TextureGraphPanelState extends State<TextureGraphPanel> {
   @override
   Widget build(BuildContext context) {
     final ThemeData theme = Theme.of(context);
+    final AppLocalizations l = AppLocalizations.of(context);
     return Container(
       key: const ValueKey<String>('textureGraphPanel'),
       height: _expanded
@@ -821,7 +830,7 @@ class _TextureGraphPanelState extends State<TextureGraphPanel> {
                       color: theme.colorScheme.onSurfaceVariant,
                     ),
                     const SizedBox(width: 4),
-                    Text('Texture graph', style: theme.textTheme.labelMedium),
+                    Text(l.graphTitle, style: theme.textTheme.labelMedium),
                   ],
                 ),
               ),

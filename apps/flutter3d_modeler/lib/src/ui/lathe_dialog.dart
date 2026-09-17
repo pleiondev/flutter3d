@@ -21,6 +21,7 @@ import 'package:flutter3d/flutter3d.dart' hide Material;
 import 'package:flutter3d_mesh/flutter3d_mesh.dart';
 import 'package:vector_math/vector_math.dart' show Vector2;
 
+import '../../../l10n/app_localizations.dart';
 import '../modeler_viewport.dart';
 import '../profile_editing.dart';
 import '../staging.dart';
@@ -139,6 +140,7 @@ class _LatheDialogState extends State<_LatheDialog> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final mesh = _lastMesh;
+    final AppLocalizations l = AppLocalizations.of(context);
     var minHeight = 0.0;
     var maxHeight = 0.0;
     for (final point in _curve.points) {
@@ -183,7 +185,7 @@ class _LatheDialogState extends State<_LatheDialog> {
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
       children: <Widget>[
-        Text('Segments', style: theme.textTheme.labelMedium),
+        Text(l.latheSegments, style: theme.textTheme.labelMedium),
         Slider(
           value: _segments.toDouble(),
           min: 3,
@@ -195,7 +197,7 @@ class _LatheDialogState extends State<_LatheDialog> {
         CheckboxListTile(
           contentPadding: EdgeInsets.zero,
           controlAffinity: ListTileControlAffinity.leading,
-          title: const Text('Closed profile'),
+          title: Text(l.latheClosed),
           value: _closedProfile,
           onChanged: _onClosedProfileChanged,
         ),
@@ -213,7 +215,7 @@ class _LatheDialogState extends State<_LatheDialog> {
     final List<Widget> buttons = <Widget>[
       TextButton(
         onPressed: () => Navigator.of(context).pop(),
-        child: const Text('Cancel'),
+        child: Text(l.cancel),
       ),
       FilledButton(
         onPressed: _curve.toPolyline().length < 2
@@ -225,12 +227,12 @@ class _LatheDialogState extends State<_LatheDialog> {
                   closedProfile: _closedProfile,
                 ),
               ),
-        child: const Text('Add'),
+        child: Text(l.latheAdd),
       ),
     ];
 
     return RoomyDialog(
-      title: 'Lathe',
+      title: l.latheTitle,
       width: 900,
       height: 720,
       onClose: () => Navigator.of(context).pop(),

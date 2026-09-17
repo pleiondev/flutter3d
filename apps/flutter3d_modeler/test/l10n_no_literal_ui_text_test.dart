@@ -52,6 +52,14 @@ const List<String> translated = <String>[
   'lib/src/ui/quick_setup_screen.dart',
   'lib/src/ui/properties/pivot_space_chips.dart',
   'lib/src/ui/modifier_stack_panel.dart',
+  'lib/src/ui/lathe_dialog.dart',
+  'lib/src/ui/save_as_dialog.dart',
+  'lib/src/ui/export_anyway_dialog.dart',
+  'lib/src/ui/gallery_screen.dart',
+  'lib/src/ui/budget_bars.dart',
+  'lib/src/ui/console_panel.dart',
+  'lib/src/ui/metrics_overlay.dart',
+  'lib/src/ui/texture_graph_panel.dart',
 ];
 
 /// Strings a translated file may still name, and why each one is there.
@@ -66,6 +74,10 @@ const Map<String, String> allowed = <String, String>{
   'X': 'an axis is the same letter in both languages',
   'Y': 'an axis is the same letter in both languages',
   'Z': 'an axis is the same letter in both languages',
+  'texture-bytes':
+      'a widget key rather than a word: `_BudgetRow` takes the id it builds '
+      'its own test keys from as `label` and the words a person reads as '
+      '`title`',
 };
 
 /// Where a widget puts something a person reads.

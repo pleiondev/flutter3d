@@ -13,6 +13,7 @@ library;
 
 import 'package:flutter/material.dart';
 
+import '../../../l10n/app_localizations.dart';
 import 'status_line.dart' show grouped;
 
 /// The card's own background — the hand-over's `rgba(11, 14, 15, 0.72)`,
@@ -36,6 +37,7 @@ class MetricsOverlay extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final AppLocalizations l = AppLocalizations.of(context);
     const TextStyle style = TextStyle(
       color: Colors.white,
       fontSize: 12,
@@ -54,10 +56,10 @@ class MetricsOverlay extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: <Widget>[
-            Text('${fps.round()} fps', style: style),
-            Text('${grouped(drawCalls)} draw calls', style: style),
-            Text('${grouped(triangles)} triangles', style: style),
-            Text('${grouped(bones)} bones', style: style),
+            Text(l.metricsFps(fps.round()), style: style),
+            Text(l.metricsDrawCalls(grouped(drawCalls)), style: style),
+            Text(l.metricsTriangles(grouped(triangles)), style: style),
+            Text(l.metricsBones(grouped(bones)), style: style),
           ],
         ),
       ),

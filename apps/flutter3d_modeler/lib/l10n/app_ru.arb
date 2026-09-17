@@ -607,5 +607,138 @@
         "type": "int"
       }
     }
+  },
+  "latheSegments": "Сегментов",
+  "latheClosed": "Замкнутый профиль",
+  "latheAdd": "Добавить",
+  "latheTitle": "Тело вращения",
+  "saveAsTitle": "Сохранить как",
+  "saveWithoutHistory": "Сохранить без истории",
+  "saveWithoutHistoryHelp": "После повторного открытия этого файла отмена будет недоступна.",
+  "galleryTitle": "Галерея",
+  "galleryClose": "Закрыть",
+  "gallerySearch": "Искать в галерее",
+  "galleryAll": "Все",
+  "galleryNoCredit": "Указание авторства не требуется",
+  "previewBudgets": "Бюджеты",
+  "previewTitle": "Превью",
+  "previewClose": "Закрыть превью",
+  "previewWireframe": "Показать сетку",
+  "previewNotBuilt": "для этого экрана ещё не собрано",
+  "agentHide": "Скрыть панель агента",
+  "agentSession": "Сессия",
+  "agentRenders": "Рендеров",
+  "agentToolCalls": "Вызовов инструментов",
+  "agentHistoryAuthor": "История · автор",
+  "agentUndoSteps": "Отменить шаги агента",
+  "agentContactSheet": "КОНТАКТНЫЙ ЛИСТ",
+  "agentInsteadOfNumbers": "что агент получает вместо чисел",
+  "agentNoRenderYet": "В этой сессии ещё не было вызова render/renderSheet",
+  "graphNextImage": "Следующее изображение",
+  "graphAddNode": "Добавить узел",
+  "graphTitle": "Граф текстур",
+  "legalTitle": "Юридическое",
+  "legalClose": "Закрыть",
+  "legalDocument": "Документ",
+  "legalEnglishOnly": "Эти документы публикуются только на английском, каким бы ни был язык интерфейса: одна подлинная версия, чтобы не было вопроса, какая из них обязывает.",
+  "legalThirdParty": "Сторонние лицензии",
+  "budgetTriangles": "Треугольники",
+  "budgetJoints": "Суставы",
+  "budgetTextureMemory": "Память текстур",
+  "budgetInfluences": "Влияния",
+  "consoleAll": "Все",
+  "consoleYou": "Вы",
+  "consoleAgent": "Агент",
+  "consoleClose": "Закрыть консоль",
+  "previewLights": "{lights} источников · {shadowed}/{cap} с тенью",
+  "agentSteps": "{agent} агента · {person} ваших",
+  "exportAnywayMore": "и ещё {count}",
+  "legalLoadFailed": "Документы не загрузились: {error}",
+  "metricsFps": "{fps} кадр/с",
+  "metricsDrawCalls": "{count} вызовов отрисовки",
+  "metricsTriangles": "{count} треугольников",
+  "metricsBones": "{count} костей",
+  "@previewLights": {
+    "description": "Превью — ux-22.",
+    "placeholders": {
+      "lights": {
+        "type": "int"
+      },
+      "shadowed": {
+        "type": "int"
+      },
+      "cap": {
+        "type": "int"
+      }
+    }
+  },
+  "@agentSteps": {
+    "description": "Панель агента — ux-22.",
+    "placeholders": {
+      "agent": {
+        "type": "int"
+      },
+      "person": {
+        "type": "int"
+      }
+    }
+  },
+  "@exportAnywayMore": {
+    "description": "Экспорт — ux-22.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "@legalLoadFailed": {
+    "description": "Юридический экран — ux-22.",
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "@metricsFps": {
+    "description": "Оверлей метрик — ux-22.",
+    "placeholders": {
+      "fps": {
+        "type": "int"
+      }
+    }
+  },
+  "@metricsDrawCalls": {
+    "description": "Оверлей метрик — ux-22. Число уже отформатировано.",
+    "placeholders": {
+      "count": {
+        "type": "String"
+      }
+    }
+  },
+  "@metricsTriangles": {
+    "description": "Оверлей метрик — ux-22. Число уже отформатировано.",
+    "placeholders": {
+      "count": {
+        "type": "String"
+      }
+    }
+  },
+  "@metricsBones": {
+    "description": "Оверлей метрик — ux-22. Число уже отформатировано.",
+    "placeholders": {
+      "count": {
+        "type": "String"
+      }
+    }
+  },
+  "galleryUnreachable": "Не удалось достучаться: {names}; всё остальное на месте",
+  "graphNextImageTooltip": "Следующее изображение",
+  "@galleryUnreachable": {
+    "description": "Галерея — ux-22.",
+    "placeholders": {
+      "names": {
+        "type": "String"
+      }
+    }
   }
 }

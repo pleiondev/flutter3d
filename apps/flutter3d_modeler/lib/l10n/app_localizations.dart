@@ -2911,6 +2911,318 @@ abstract class AppLocalizations {
   /// In ru, this message translates to:
   /// **'{before} → {after} треугольников'**
   String modifierTriangles(int before, int after);
+
+  /// No description provided for @latheSegments.
+  ///
+  /// In ru, this message translates to:
+  /// **'Сегментов'**
+  String get latheSegments;
+
+  /// No description provided for @latheClosed.
+  ///
+  /// In ru, this message translates to:
+  /// **'Замкнутый профиль'**
+  String get latheClosed;
+
+  /// No description provided for @latheAdd.
+  ///
+  /// In ru, this message translates to:
+  /// **'Добавить'**
+  String get latheAdd;
+
+  /// No description provided for @latheTitle.
+  ///
+  /// In ru, this message translates to:
+  /// **'Тело вращения'**
+  String get latheTitle;
+
+  /// No description provided for @saveAsTitle.
+  ///
+  /// In ru, this message translates to:
+  /// **'Сохранить как'**
+  String get saveAsTitle;
+
+  /// No description provided for @saveWithoutHistory.
+  ///
+  /// In ru, this message translates to:
+  /// **'Сохранить без истории'**
+  String get saveWithoutHistory;
+
+  /// No description provided for @saveWithoutHistoryHelp.
+  ///
+  /// In ru, this message translates to:
+  /// **'После повторного открытия этого файла отмена будет недоступна.'**
+  String get saveWithoutHistoryHelp;
+
+  /// No description provided for @galleryTitle.
+  ///
+  /// In ru, this message translates to:
+  /// **'Галерея'**
+  String get galleryTitle;
+
+  /// No description provided for @galleryClose.
+  ///
+  /// In ru, this message translates to:
+  /// **'Закрыть'**
+  String get galleryClose;
+
+  /// No description provided for @gallerySearch.
+  ///
+  /// In ru, this message translates to:
+  /// **'Искать в галерее'**
+  String get gallerySearch;
+
+  /// No description provided for @galleryAll.
+  ///
+  /// In ru, this message translates to:
+  /// **'Все'**
+  String get galleryAll;
+
+  /// No description provided for @galleryNoCredit.
+  ///
+  /// In ru, this message translates to:
+  /// **'Указание авторства не требуется'**
+  String get galleryNoCredit;
+
+  /// No description provided for @previewBudgets.
+  ///
+  /// In ru, this message translates to:
+  /// **'Бюджеты'**
+  String get previewBudgets;
+
+  /// No description provided for @previewTitle.
+  ///
+  /// In ru, this message translates to:
+  /// **'Превью'**
+  String get previewTitle;
+
+  /// No description provided for @previewClose.
+  ///
+  /// In ru, this message translates to:
+  /// **'Закрыть превью'**
+  String get previewClose;
+
+  /// No description provided for @previewWireframe.
+  ///
+  /// In ru, this message translates to:
+  /// **'Показать сетку'**
+  String get previewWireframe;
+
+  /// No description provided for @previewNotBuilt.
+  ///
+  /// In ru, this message translates to:
+  /// **'для этого экрана ещё не собрано'**
+  String get previewNotBuilt;
+
+  /// No description provided for @agentHide.
+  ///
+  /// In ru, this message translates to:
+  /// **'Скрыть панель агента'**
+  String get agentHide;
+
+  /// No description provided for @agentSession.
+  ///
+  /// In ru, this message translates to:
+  /// **'Сессия'**
+  String get agentSession;
+
+  /// No description provided for @agentRenders.
+  ///
+  /// In ru, this message translates to:
+  /// **'Рендеров'**
+  String get agentRenders;
+
+  /// No description provided for @agentToolCalls.
+  ///
+  /// In ru, this message translates to:
+  /// **'Вызовов инструментов'**
+  String get agentToolCalls;
+
+  /// No description provided for @agentHistoryAuthor.
+  ///
+  /// In ru, this message translates to:
+  /// **'История · автор'**
+  String get agentHistoryAuthor;
+
+  /// No description provided for @agentUndoSteps.
+  ///
+  /// In ru, this message translates to:
+  /// **'Отменить шаги агента'**
+  String get agentUndoSteps;
+
+  /// No description provided for @agentContactSheet.
+  ///
+  /// In ru, this message translates to:
+  /// **'КОНТАКТНЫЙ ЛИСТ'**
+  String get agentContactSheet;
+
+  /// No description provided for @agentInsteadOfNumbers.
+  ///
+  /// In ru, this message translates to:
+  /// **'что агент получает вместо чисел'**
+  String get agentInsteadOfNumbers;
+
+  /// No description provided for @agentNoRenderYet.
+  ///
+  /// In ru, this message translates to:
+  /// **'В этой сессии ещё не было вызова render/renderSheet'**
+  String get agentNoRenderYet;
+
+  /// No description provided for @graphNextImage.
+  ///
+  /// In ru, this message translates to:
+  /// **'Следующее изображение'**
+  String get graphNextImage;
+
+  /// No description provided for @graphAddNode.
+  ///
+  /// In ru, this message translates to:
+  /// **'Добавить узел'**
+  String get graphAddNode;
+
+  /// No description provided for @graphTitle.
+  ///
+  /// In ru, this message translates to:
+  /// **'Граф текстур'**
+  String get graphTitle;
+
+  /// No description provided for @legalTitle.
+  ///
+  /// In ru, this message translates to:
+  /// **'Юридическое'**
+  String get legalTitle;
+
+  /// No description provided for @legalClose.
+  ///
+  /// In ru, this message translates to:
+  /// **'Закрыть'**
+  String get legalClose;
+
+  /// No description provided for @legalDocument.
+  ///
+  /// In ru, this message translates to:
+  /// **'Документ'**
+  String get legalDocument;
+
+  /// No description provided for @legalEnglishOnly.
+  ///
+  /// In ru, this message translates to:
+  /// **'Эти документы публикуются только на английском, каким бы ни был язык интерфейса: одна подлинная версия, чтобы не было вопроса, какая из них обязывает.'**
+  String get legalEnglishOnly;
+
+  /// No description provided for @legalThirdParty.
+  ///
+  /// In ru, this message translates to:
+  /// **'Сторонние лицензии'**
+  String get legalThirdParty;
+
+  /// No description provided for @budgetTriangles.
+  ///
+  /// In ru, this message translates to:
+  /// **'Треугольники'**
+  String get budgetTriangles;
+
+  /// No description provided for @budgetJoints.
+  ///
+  /// In ru, this message translates to:
+  /// **'Суставы'**
+  String get budgetJoints;
+
+  /// No description provided for @budgetTextureMemory.
+  ///
+  /// In ru, this message translates to:
+  /// **'Память текстур'**
+  String get budgetTextureMemory;
+
+  /// No description provided for @budgetInfluences.
+  ///
+  /// In ru, this message translates to:
+  /// **'Влияния'**
+  String get budgetInfluences;
+
+  /// No description provided for @consoleAll.
+  ///
+  /// In ru, this message translates to:
+  /// **'Все'**
+  String get consoleAll;
+
+  /// No description provided for @consoleYou.
+  ///
+  /// In ru, this message translates to:
+  /// **'Вы'**
+  String get consoleYou;
+
+  /// No description provided for @consoleAgent.
+  ///
+  /// In ru, this message translates to:
+  /// **'Агент'**
+  String get consoleAgent;
+
+  /// No description provided for @consoleClose.
+  ///
+  /// In ru, this message translates to:
+  /// **'Закрыть консоль'**
+  String get consoleClose;
+
+  /// Превью — ux-22.
+  ///
+  /// In ru, this message translates to:
+  /// **'{lights} источников · {shadowed}/{cap} с тенью'**
+  String previewLights(int lights, int shadowed, int cap);
+
+  /// Панель агента — ux-22.
+  ///
+  /// In ru, this message translates to:
+  /// **'{agent} агента · {person} ваших'**
+  String agentSteps(int agent, int person);
+
+  /// Экспорт — ux-22.
+  ///
+  /// In ru, this message translates to:
+  /// **'и ещё {count}'**
+  String exportAnywayMore(int count);
+
+  /// Юридический экран — ux-22.
+  ///
+  /// In ru, this message translates to:
+  /// **'Документы не загрузились: {error}'**
+  String legalLoadFailed(String error);
+
+  /// Оверлей метрик — ux-22.
+  ///
+  /// In ru, this message translates to:
+  /// **'{fps} кадр/с'**
+  String metricsFps(int fps);
+
+  /// Оверлей метрик — ux-22. Число уже отформатировано.
+  ///
+  /// In ru, this message translates to:
+  /// **'{count} вызовов отрисовки'**
+  String metricsDrawCalls(String count);
+
+  /// Оверлей метрик — ux-22. Число уже отформатировано.
+  ///
+  /// In ru, this message translates to:
+  /// **'{count} треугольников'**
+  String metricsTriangles(String count);
+
+  /// Оверлей метрик — ux-22. Число уже отформатировано.
+  ///
+  /// In ru, this message translates to:
+  /// **'{count} костей'**
+  String metricsBones(String count);
+
+  /// Галерея — ux-22.
+  ///
+  /// In ru, this message translates to:
+  /// **'Не удалось достучаться: {names}; всё остальное на месте'**
+  String galleryUnreachable(String names);
+
+  /// No description provided for @graphNextImageTooltip.
+  ///
+  /// In ru, this message translates to:
+  /// **'Следующее изображение'**
+  String get graphNextImageTooltip;
 }
 
 class _AppLocalizationsDelegate

@@ -14,6 +14,7 @@ library;
 import 'package:flutter/material.dart';
 import 'package:flutter3d_model_core/flutter3d_model_core.dart';
 
+import '../../../l10n/app_localizations.dart';
 import '../exporting.dart';
 
 class ExportAnywayDialog extends StatelessWidget {
@@ -41,35 +42,41 @@ class ExportAnywayDialog extends StatelessWidget {
       false;
 
   @override
-  Widget build(BuildContext context) => AlertDialog(
-    title: const Text('Export anyway?'),
-    content: Column(
-      mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: <Widget>[
-        Text(blocked.says),
-        const SizedBox(height: 12),
-        for (final ExportIssue issue in issues.take(5))
-          Padding(
-            padding: const EdgeInsets.only(bottom: 6),
-            child: Text(issue.message, style: const TextStyle(fontSize: 12.5)),
-          ),
-        if (issues.length > 5)
-          Text(
-            'and ${issues.length - 5} more',
-            style: const TextStyle(fontSize: 12.5),
-          ),
+  Widget build(BuildContext context) {
+    final AppLocalizations l = AppLocalizations.of(context);
+    return AlertDialog(
+      title: Text(l.exportAnywayTitle),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          Text(blocked.says),
+          const SizedBox(height: 12),
+          for (final ExportIssue issue in issues.take(5))
+            Padding(
+              padding: const EdgeInsets.only(bottom: 6),
+              child: Text(
+                issue.message,
+                style: const TextStyle(fontSize: 12.5),
+              ),
+            ),
+          if (issues.length > 5)
+            Text(
+              l.exportAnywayMore(issues.length - 5),
+              style: const TextStyle(fontSize: 12.5),
+            ),
+        ],
+      ),
+      actions: <Widget>[
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(false),
+          child: Text(l.cancel),
+        ),
+        FilledButton(
+          onPressed: () => Navigator.of(context).pop(true),
+          child: Text(l.exportAnyway),
+        ),
       ],
-    ),
-    actions: <Widget>[
-      TextButton(
-        onPressed: () => Navigator.of(context).pop(false),
-        child: const Text('Cancel'),
-      ),
-      FilledButton(
-        onPressed: () => Navigator.of(context).pop(true),
-        child: const Text('Export anyway'),
-      ),
-    ],
-  );
+    );
+  }
 }
