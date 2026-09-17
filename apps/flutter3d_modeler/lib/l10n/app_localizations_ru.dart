@@ -792,4 +792,99 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get toolRenderSaveAbout => 'Записывает последний рендер в PNG.';
+
+  @override
+  String get settingsClearDataTitle => 'Очистить локальные данные?';
+
+  @override
+  String get settingsClear => 'Очистить';
+
+  @override
+  String get settingsCameraNavigation => 'Навигация камерой';
+
+  @override
+  String get settingsKeys => 'Клавиши';
+
+  @override
+  String get settingsTransformTools => 'Перемещение, поворот и масштаб';
+
+  @override
+  String get settingsWorkspace => 'Рабочее пространство';
+
+  @override
+  String get settingsLanguage => 'Язык';
+
+  @override
+  String get settingsStepMove => 'Сдвиг';
+
+  @override
+  String get settingsStepTurn => 'Поворот°';
+
+  @override
+  String get settingsStepScale => 'Масштаб';
+
+  @override
+  String get settingsShowHome => 'Показывать «Домой» при запуске';
+
+  @override
+  String get settingsSaveHistory => 'Сохранять проекты вместе с историей';
+
+  @override
+  String get settingsLegal => 'Лицензия, приватность и остальное';
+
+  @override
+  String get settingsClearData => 'Очистить локальные данные';
+
+  @override
+  String get settingsClearDataBody =>
+      'Удалятся настройки, список недавних файлов и автосохранение. Файлы проектов, сохранённые вами, не трогаются. Отменить нельзя.';
+
+  @override
+  String get settingsCameraNavigationHelp =>
+      'Какие кнопки и жесты вращают, двигают и приближают.';
+
+  @override
+  String get settingsKeysHelp => 'Какой набор горячих клавиш действует.';
+
+  @override
+  String get settingsTransformToolsHelp =>
+      'Открывает ли клавиша преобразование сразу или готовит его к перетаскиванию.';
+
+  @override
+  String get settingsWorkspaceHelp =>
+      'Какие экраны предлагает переключатель режимов.';
+
+  @override
+  String get settingsLanguageHelp => 'На каком языке написан интерфейс.';
+
+  @override
+  String get settingsLanguageEnglish => 'Английский';
+
+  @override
+  String get settingsLanguageRussian => 'Русский';
+
+  @override
+  String get settingsLanguageSystem => 'Системный';
+
+  @override
+  String get settingsSnapSteps => 'Шаги привязки';
+
+  @override
+  String get settingsShowHomeHelp =>
+      'Стартовый экран с недавними моделями и карточками сценариев.';
+
+  @override
+  String get settingsSaveHistoryHelp =>
+      'Сохраняет внутри файла то, что ещё можно отменить.';
+
+  @override
+  String get settingsLegalSection => 'Юридическое и данные';
+
+  @override
+  String get settingsClearDataHelp =>
+      'Настройки, список недавних файлов и автосохранение. Сохранённые файлы проектов не трогаются.';
+
+  @override
+  String get settingsLegalHelp =>
+      'Документы, под которыми вышла эта сборка, и сторонние лицензии.';
 }

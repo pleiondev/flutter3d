@@ -16,6 +16,7 @@ import 'package:flutter3d_app/flutter3d_app.dart' show Storage;
 import 'package:flutter3d_modeler/main.dart' show ModelerScreen;
 import 'package:flutter3d_modeler/src/settings.dart';
 import 'package:flutter3d_modeler/src/ui/settings_screen.dart';
+import 'package:flutter3d_modeler/l10n/app_localizations.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 /// A storage kept in a map, so a round trip can be driven without a disk.
@@ -179,6 +180,9 @@ void main() {
       var opened = false;
       await tester.pumpWidget(
         MaterialApp(
+          locale: const Locale('en'),
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
           home: Scaffold(
             body: Builder(
               builder: (BuildContext context) {
@@ -268,7 +272,12 @@ void main() {
 
     Future<void> launch(WidgetTester tester, FakeStorage storage) async {
       await tester.pumpWidget(
-        MaterialApp(home: ModelerScreen(settingsStorage: storage)),
+        MaterialApp(
+          locale: const Locale('en'),
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: ModelerScreen(settingsStorage: storage),
+        ),
       );
       // Opening a device is genuine async work — the software-rasteriser
       // fallback a headless `flutter test` takes.

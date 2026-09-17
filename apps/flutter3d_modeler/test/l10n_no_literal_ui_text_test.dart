@@ -31,6 +31,7 @@ const List<String> translated = <String>[
   'lib/src/ui/shell_tablet.dart',
   'lib/src/ui/shell_phone.dart',
   'lib/src/ui/command_palette.dart',
+  'lib/src/ui/settings_screen.dart',
 ];
 
 /// Strings a translated file may still name, and why each one is there.

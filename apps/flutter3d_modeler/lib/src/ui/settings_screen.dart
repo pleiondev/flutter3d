@@ -21,6 +21,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter3d_editor_widgets/flutter3d_editor_widgets.dart'
     show NumberField;
 
+import '../../l10n/app_localizations.dart';
 import '../settings.dart';
 
 /// Opens the settings dialog over [context], and answers with what to save —
@@ -80,20 +81,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final bool? sure = await showDialog<bool>(
       context: context,
       builder: (BuildContext context) => AlertDialog(
-        title: const Text('Clear local data?'),
-        content: const Text(
-          'This removes the settings, the recent-files list and the '
-          'autosave copy. Project files you saved yourself are left alone. '
-          'It cannot be undone.',
-        ),
+        title: Text(AppLocalizations.of(context).settingsClearDataTitle),
+        content: Text(AppLocalizations.of(context).settingsClearDataBody),
         actions: <Widget>[
           TextButton(
             onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('Cancel'),
+            child: Text(AppLocalizations.of(context).cancel),
           ),
           FilledButton(
             onPressed: () => Navigator.of(context).pop(true),
-            child: const Text('Clear'),
+            child: Text(AppLocalizations.of(context).settingsClear),
           ),
         ],
       ),
@@ -101,9 +98,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
     if (sure != true) return;
     final String said = await clear();
     if (!mounted) return;
-    ScaffoldMessenger.maybeOf(context)?.showSnackBar(
-      SnackBar(content: Text(said)),
-    );
+    ScaffoldMessenger.maybeOf(
+      context,
+    )?.showSnackBar(SnackBar(content: Text(said)));
   }
 
   /// A step has to be a positive number: zero would divide by zero the moment
@@ -112,160 +109,159 @@ class _SettingsScreenState extends State<SettingsScreen> {
   double _step(double said) => said.isFinite && said > 0 ? said : 0.1;
 
   @override
-  Widget build(BuildContext context) => AlertDialog(
-    title: const Text('Settings'),
-    content: SizedBox(
-      width: 420,
-      child: SingleChildScrollView(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: <Widget>[
-            _Choice<NavigationScheme>(
-              label: 'Camera navigation',
-              help: 'Which buttons and gestures orbit, pan and zoom.',
-              value: _draft.navigation,
-              values: NavigationScheme.values,
-              labelOf: (NavigationScheme it) => it.label,
-              onChanged: (NavigationScheme it) =>
-                  setState(() => _draft = _draft.copyWith(navigation: it)),
-            ),
-            _Choice<KeymapPreset>(
-              label: 'Keys',
-              help: 'Which set of shortcuts is live.',
-              value: _draft.keymap,
-              values: KeymapPreset.values,
-              labelOf: (KeymapPreset it) => it.label,
-              onChanged: (KeymapPreset it) =>
-                  setState(() => _draft = _draft.copyWith(keymap: it)),
-            ),
-            _Choice<TransformStart>(
-              label: 'Move, rotate and scale',
-              help:
-                  'Whether the key opens a transform at once or arms it for '
-                  'the drag that follows.',
-              value: _draft.transformStart,
-              values: TransformStart.values,
-              labelOf: (TransformStart it) => it.label,
-              onChanged: (TransformStart it) =>
-                  setState(() => _draft = _draft.copyWith(transformStart: it)),
-            ),
-            _Choice<Workspace>(
-              label: 'Workspace',
-              help: 'Which screens the mode switcher offers.',
-              value: _draft.workspace,
-              values: Workspace.values,
-              labelOf: (Workspace it) => it.label,
-              onChanged: (Workspace it) =>
-                  setState(() => _draft = _draft.copyWith(workspace: it)),
-            ),
-            _Choice<String>(
-              label: 'Language',
-              help: 'What the interface is written in.',
-              value: _draft.language ?? _system,
-              values: const <String>[_system, 'en', 'ru'],
-              // **Named in English rather than each in its own language.** A
-              // picker usually shows endonyms — "Русский" beside "English" —
-              // and a hardcoded one here would be the one Cyrillic string in
-              // `lib/`, which `ui-22`'s own rule exists to keep out. `ux-22`
-              // takes the whole interface through `AppLocalizations`, and the
-              // endonyms belong in the same pass rather than as one exception
-              // ahead of it.
-              labelOf: (String it) => switch (it) {
-                'en' => 'English',
-                'ru' => 'Russian',
-                _ => 'System',
-              },
-              onChanged: (String it) => setState(() {
-                _draft = it == _system
-                    ? _draft.copyWith(clearLanguage: true)
-                    : _draft.copyWith(language: it);
-              }),
-            ),
-            const SizedBox(height: 8),
-            // `ux-11`: what holding the snap modifier rounds to. Three
-            // numbers rather than one, because a tenth of a radian is not a
-            // step anybody thinks in — and the label beside the pointer
-            // during a transform says which of them is live.
-            Padding(
-              padding: const EdgeInsets.only(bottom: 4),
-              child: Text(
-                'Snap steps',
-                style: Theme.of(context).textTheme.labelLarge,
+  Widget build(BuildContext context) {
+    final AppLocalizations l = AppLocalizations.of(context);
+    return AlertDialog(
+      title: Text(l.settings),
+      content: SizedBox(
+        width: 420,
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: <Widget>[
+              _Choice<NavigationScheme>(
+                label: l.settingsCameraNavigation,
+                help: l.settingsCameraNavigationHelp,
+                value: _draft.navigation,
+                values: NavigationScheme.values,
+                labelOf: (NavigationScheme it) => it.label,
+                onChanged: (NavigationScheme it) =>
+                    setState(() => _draft = _draft.copyWith(navigation: it)),
               ),
-            ),
-            Row(
-              children: <Widget>[
-                Expanded(
-                  child: NumberField(
-                    label: 'Move',
-                    labelWidth: 44,
-                    value: _draft.snapMove,
-                    onChanged: (double it) => setState(
-                      () => _draft = _draft.copyWith(snapMove: _step(it)),
+              _Choice<KeymapPreset>(
+                label: l.settingsKeys,
+                help: l.settingsKeysHelp,
+                value: _draft.keymap,
+                values: KeymapPreset.values,
+                labelOf: (KeymapPreset it) => it.label,
+                onChanged: (KeymapPreset it) =>
+                    setState(() => _draft = _draft.copyWith(keymap: it)),
+              ),
+              _Choice<TransformStart>(
+                label: l.settingsTransformTools,
+                help: l.settingsTransformToolsHelp,
+                value: _draft.transformStart,
+                values: TransformStart.values,
+                labelOf: (TransformStart it) => it.label,
+                onChanged: (TransformStart it) => setState(
+                  () => _draft = _draft.copyWith(transformStart: it),
+                ),
+              ),
+              _Choice<Workspace>(
+                label: l.settingsWorkspace,
+                help: l.settingsWorkspaceHelp,
+                value: _draft.workspace,
+                values: Workspace.values,
+                labelOf: (Workspace it) => it.label,
+                onChanged: (Workspace it) =>
+                    setState(() => _draft = _draft.copyWith(workspace: it)),
+              ),
+              _Choice<String>(
+                label: l.settingsLanguage,
+                help: l.settingsLanguageHelp,
+                value: _draft.language ?? _system,
+                values: const <String>[_system, 'en', 'ru'],
+                // **Named in English rather than each in its own language.** A
+                // picker usually shows endonyms — "Русский" beside "English" —
+                // and a hardcoded one here would be the one Cyrillic string in
+                // `lib/`, which `ui-22`'s own rule exists to keep out. `ux-22`
+                // takes the whole interface through `AppLocalizations`, and the
+                // endonyms belong in the same pass rather than as one exception
+                // ahead of it.
+                labelOf: (String it) => switch (it) {
+                  'en' => l.settingsLanguageEnglish,
+                  'ru' => l.settingsLanguageRussian,
+                  _ => l.settingsLanguageSystem,
+                },
+                onChanged: (String it) => setState(() {
+                  _draft = it == _system
+                      ? _draft.copyWith(clearLanguage: true)
+                      : _draft.copyWith(language: it);
+                }),
+              ),
+              const SizedBox(height: 8),
+              // `ux-11`: what holding the snap modifier rounds to. Three
+              // numbers rather than one, because a tenth of a radian is not a
+              // step anybody thinks in — and the label beside the pointer
+              // during a transform says which of them is live.
+              Padding(
+                padding: const EdgeInsets.only(bottom: 4),
+                child: Text(
+                  l.settingsSnapSteps,
+                  style: Theme.of(context).textTheme.labelLarge,
+                ),
+              ),
+              Row(
+                children: <Widget>[
+                  Expanded(
+                    child: NumberField(
+                      label: l.settingsStepMove,
+                      labelWidth: 44,
+                      value: _draft.snapMove,
+                      onChanged: (double it) => setState(
+                        () => _draft = _draft.copyWith(snapMove: _step(it)),
+                      ),
                     ),
                   ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: NumberField(
-                    label: 'Turn°',
-                    labelWidth: 44,
-                    value: _draft.snapTurnDegrees,
-                    onChanged: (double it) => setState(
-                      () =>
-                          _draft = _draft.copyWith(snapTurnDegrees: _step(it)),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: NumberField(
+                      label: l.settingsStepTurn,
+                      labelWidth: 44,
+                      value: _draft.snapTurnDegrees,
+                      onChanged: (double it) => setState(
+                        () => _draft = _draft.copyWith(
+                          snapTurnDegrees: _step(it),
+                        ),
+                      ),
                     ),
                   ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: NumberField(
-                    label: 'Scale',
-                    labelWidth: 44,
-                    value: _draft.snapScale,
-                    onChanged: (double it) => setState(
-                      () => _draft = _draft.copyWith(snapScale: _step(it)),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: NumberField(
+                      label: l.settingsStepScale,
+                      labelWidth: 44,
+                      value: _draft.snapScale,
+                      onChanged: (double it) => setState(
+                        () => _draft = _draft.copyWith(snapScale: _step(it)),
+                      ),
                     ),
                   ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              SwitchListTile(
+                contentPadding: EdgeInsets.zero,
+                title: Text(l.settingsShowHome),
+                subtitle: Text(l.settingsShowHomeHelp),
+                value: _draft.showHomeAtLaunch,
+                onChanged: (bool it) => setState(
+                  () => _draft = _draft.copyWith(showHomeAtLaunch: it),
                 ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            SwitchListTile(
-              contentPadding: EdgeInsets.zero,
-              title: const Text('Show Home at launch'),
-              subtitle: const Text(
-                'The start screen, with recent models and the scenario cards.',
               ),
-              value: _draft.showHomeAtLaunch,
-              onChanged: (bool it) => setState(
-                () => _draft = _draft.copyWith(showHomeAtLaunch: it),
+              SwitchListTile(
+                contentPadding: EdgeInsets.zero,
+                title: Text(l.settingsSaveHistory),
+                subtitle: Text(l.settingsSaveHistoryHelp),
+                value: _draft.saveWithHistory,
+                onChanged: (bool it) => setState(
+                  () => _draft = _draft.copyWith(saveWithHistory: it),
+                ),
               ),
-            ),
-            SwitchListTile(
-              contentPadding: EdgeInsets.zero,
-              title: const Text('Save projects with their history'),
-              subtitle: const Text(
-                'Keeps what you could still undo inside the saved file.',
-              ),
-              value: _draft.saveWithHistory,
-              onChanged: (bool it) =>
-                  setState(() => _draft = _draft.copyWith(saveWithHistory: it)),
-            ),
-            // `rel-21d`: the two rows that are about the person's rights and
-            // their data rather than about how the editor behaves. Here
-            // rather than behind a seventh icon in the top bar, which is
-            // where a person looking for either of them would not think to
-            // look anyway — "where do I turn things off and get my data
-            // back" is what a settings screen is.
-            if (widget.onShowLegal != null || widget.onClearLocalData != null)
-              ...<Widget>[
+              // `rel-21d`: the two rows that are about the person's rights and
+              // their data rather than about how the editor behaves. Here
+              // rather than behind a seventh icon in the top bar, which is
+              // where a person looking for either of them would not think to
+              // look anyway — "where do I turn things off and get my data
+              // back" is what a settings screen is.
+              if (widget.onShowLegal != null ||
+                  widget.onClearLocalData != null) ...<Widget>[
                 const Divider(height: 32),
                 Padding(
                   padding: const EdgeInsets.only(bottom: 4),
                   child: Text(
-                    'Legal and data',
+                    l.settingsLegalSection,
                     style: Theme.of(context).textTheme.labelLarge,
                   ),
                 ),
@@ -273,40 +269,35 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   ListTile(
                     contentPadding: EdgeInsets.zero,
                     leading: const Icon(Icons.gavel_outlined),
-                    title: const Text('Licence, privacy and the rest'),
-                    subtitle: const Text(
-                      'The documents this build shipped under, and the '
-                      'third-party licences.',
-                    ),
+                    title: Text(l.settingsLegal),
+                    subtitle: Text(l.settingsLegalHelp),
                     onTap: open,
                   ),
                 if (widget.onClearLocalData != null)
                   ListTile(
                     contentPadding: EdgeInsets.zero,
                     leading: const Icon(Icons.delete_sweep_outlined),
-                    title: const Text('Clear local data'),
-                    subtitle: const Text(
-                      'Settings, the recent-files list and the autosave. '
-                      'Saved project files are not touched.',
-                    ),
+                    title: Text(l.settingsClearData),
+                    subtitle: Text(l.settingsClearDataHelp),
                     onTap: _clearLocalData,
                   ),
               ],
-          ],
+            ],
+          ),
         ),
       ),
-    ),
-    actions: <Widget>[
-      TextButton(
-        onPressed: () => Navigator.of(context).pop(),
-        child: const Text('Cancel'),
-      ),
-      FilledButton(
-        onPressed: () => Navigator.of(context).pop(_draft),
-        child: const Text('Save'),
-      ),
-    ],
-  );
+      actions: <Widget>[
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: Text(l.cancel),
+        ),
+        FilledButton(
+          onPressed: () => Navigator.of(context).pop(_draft),
+          child: Text(l.save),
+        ),
+      ],
+    );
+  }
 
   /// The value that means "no language of its own", which is null on
   /// [ModelerSettings] and needs something to stand for it in a dropdown.

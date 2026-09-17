@@ -1477,6 +1477,180 @@ abstract class AppLocalizations {
   /// In ru, this message translates to:
   /// **'Записывает последний рендер в PNG.'**
   String get toolRenderSaveAbout;
+
+  /// No description provided for @settingsClearDataTitle.
+  ///
+  /// In ru, this message translates to:
+  /// **'Очистить локальные данные?'**
+  String get settingsClearDataTitle;
+
+  /// No description provided for @settingsClear.
+  ///
+  /// In ru, this message translates to:
+  /// **'Очистить'**
+  String get settingsClear;
+
+  /// No description provided for @settingsCameraNavigation.
+  ///
+  /// In ru, this message translates to:
+  /// **'Навигация камерой'**
+  String get settingsCameraNavigation;
+
+  /// No description provided for @settingsKeys.
+  ///
+  /// In ru, this message translates to:
+  /// **'Клавиши'**
+  String get settingsKeys;
+
+  /// No description provided for @settingsTransformTools.
+  ///
+  /// In ru, this message translates to:
+  /// **'Перемещение, поворот и масштаб'**
+  String get settingsTransformTools;
+
+  /// No description provided for @settingsWorkspace.
+  ///
+  /// In ru, this message translates to:
+  /// **'Рабочее пространство'**
+  String get settingsWorkspace;
+
+  /// No description provided for @settingsLanguage.
+  ///
+  /// In ru, this message translates to:
+  /// **'Язык'**
+  String get settingsLanguage;
+
+  /// No description provided for @settingsStepMove.
+  ///
+  /// In ru, this message translates to:
+  /// **'Сдвиг'**
+  String get settingsStepMove;
+
+  /// No description provided for @settingsStepTurn.
+  ///
+  /// In ru, this message translates to:
+  /// **'Поворот°'**
+  String get settingsStepTurn;
+
+  /// No description provided for @settingsStepScale.
+  ///
+  /// In ru, this message translates to:
+  /// **'Масштаб'**
+  String get settingsStepScale;
+
+  /// No description provided for @settingsShowHome.
+  ///
+  /// In ru, this message translates to:
+  /// **'Показывать «Домой» при запуске'**
+  String get settingsShowHome;
+
+  /// No description provided for @settingsSaveHistory.
+  ///
+  /// In ru, this message translates to:
+  /// **'Сохранять проекты вместе с историей'**
+  String get settingsSaveHistory;
+
+  /// No description provided for @settingsLegal.
+  ///
+  /// In ru, this message translates to:
+  /// **'Лицензия, приватность и остальное'**
+  String get settingsLegal;
+
+  /// No description provided for @settingsClearData.
+  ///
+  /// In ru, this message translates to:
+  /// **'Очистить локальные данные'**
+  String get settingsClearData;
+
+  /// No description provided for @settingsClearDataBody.
+  ///
+  /// In ru, this message translates to:
+  /// **'Удалятся настройки, список недавних файлов и автосохранение. Файлы проектов, сохранённые вами, не трогаются. Отменить нельзя.'**
+  String get settingsClearDataBody;
+
+  /// No description provided for @settingsCameraNavigationHelp.
+  ///
+  /// In ru, this message translates to:
+  /// **'Какие кнопки и жесты вращают, двигают и приближают.'**
+  String get settingsCameraNavigationHelp;
+
+  /// No description provided for @settingsKeysHelp.
+  ///
+  /// In ru, this message translates to:
+  /// **'Какой набор горячих клавиш действует.'**
+  String get settingsKeysHelp;
+
+  /// No description provided for @settingsTransformToolsHelp.
+  ///
+  /// In ru, this message translates to:
+  /// **'Открывает ли клавиша преобразование сразу или готовит его к перетаскиванию.'**
+  String get settingsTransformToolsHelp;
+
+  /// No description provided for @settingsWorkspaceHelp.
+  ///
+  /// In ru, this message translates to:
+  /// **'Какие экраны предлагает переключатель режимов.'**
+  String get settingsWorkspaceHelp;
+
+  /// No description provided for @settingsLanguageHelp.
+  ///
+  /// In ru, this message translates to:
+  /// **'На каком языке написан интерфейс.'**
+  String get settingsLanguageHelp;
+
+  /// No description provided for @settingsLanguageEnglish.
+  ///
+  /// In ru, this message translates to:
+  /// **'Английский'**
+  String get settingsLanguageEnglish;
+
+  /// No description provided for @settingsLanguageRussian.
+  ///
+  /// In ru, this message translates to:
+  /// **'Русский'**
+  String get settingsLanguageRussian;
+
+  /// No description provided for @settingsLanguageSystem.
+  ///
+  /// In ru, this message translates to:
+  /// **'Системный'**
+  String get settingsLanguageSystem;
+
+  /// No description provided for @settingsSnapSteps.
+  ///
+  /// In ru, this message translates to:
+  /// **'Шаги привязки'**
+  String get settingsSnapSteps;
+
+  /// No description provided for @settingsShowHomeHelp.
+  ///
+  /// In ru, this message translates to:
+  /// **'Стартовый экран с недавними моделями и карточками сценариев.'**
+  String get settingsShowHomeHelp;
+
+  /// No description provided for @settingsSaveHistoryHelp.
+  ///
+  /// In ru, this message translates to:
+  /// **'Сохраняет внутри файла то, что ещё можно отменить.'**
+  String get settingsSaveHistoryHelp;
+
+  /// No description provided for @settingsLegalSection.
+  ///
+  /// In ru, this message translates to:
+  /// **'Юридическое и данные'**
+  String get settingsLegalSection;
+
+  /// No description provided for @settingsClearDataHelp.
+  ///
+  /// In ru, this message translates to:
+  /// **'Настройки, список недавних файлов и автосохранение. Сохранённые файлы проектов не трогаются.'**
+  String get settingsClearDataHelp;
+
+  /// No description provided for @settingsLegalHelp.
+  ///
+  /// In ru, this message translates to:
+  /// **'Документы, под которыми вышла эта сборка, и сторонние лицензии.'**
+  String get settingsLegalHelp;
 }
 
 class _AppLocalizationsDelegate
