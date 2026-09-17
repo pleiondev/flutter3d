@@ -57,6 +57,10 @@ Future<void> _pump(
 
   /// `ux-48`: null is a platform with no filesystem, and the section goes.
   void Function(int id)? onReimport,
+
+  /// What the interface is written in — `ux-22`'s own acceptance pumps the
+  /// panel under both.
+  Locale locale = const Locale('en'),
 }) async {
   // Tall enough that the panel's own `ListView` never has to scroll to
   // reach the scene panels — nine light rows push the shadows panel well
@@ -81,7 +85,7 @@ Future<void> _pump(
         ).copyWith(textScaler: TextScaler.linear(textScale)),
         child: child!,
       ),
-      locale: const Locale('en'),
+      locale: locale,
       localizationsDelegates: AppLocalizations.localizationsDelegates,
       supportedLocales: AppLocalizations.supportedLocales,
       home: Scaffold(
@@ -510,5 +514,63 @@ void main() {
         findsNothing,
       );
     });
+  });
+
+  group('ux-22: the panel under Locale(ru)', () {
+    /// Words that are the same in both languages, or are not language.
+    ///
+    /// **Each one is a decision, not a hole.** An axis is a letter, a format
+    /// is a file extension, and a name the person typed is theirs — a check
+    /// that quietly skipped anything Latin would pass on a panel that was
+    /// still entirely English.
+    const Set<String> same = <String>{
+      'X', 'Y', 'Z', 'W',
+      'IK', 'UV', 'LOD', 'KTX2', 'PBR', 'RGB', 'sRGB',
+      'Box', 'Plane', 'Sphere', 'Cylinder', 'Torus',
+      'cube', 'thing', 'body', 'lid', 'handle', 'arm',
+      // A profile's own name is a value in the file and the word an agent
+      // passes for it, not a label this interface chose.
+      'mobile', 'desktop', 'web',
+      // `ProjectSelection.says` lives in `flutter3d_model_core`, which has
+      // no interface and no delegates: its sentence is what an agent reads
+      // back and what the journal quotes, English by the same rule every
+      // other `says` in this document is.
+      'nothing', 'selected', 'object', 'objects',
+      'vertex', 'vertices', 'edge', 'edges', 'face', 'faces',
+    };
+
+    /// A word of Latin letters, which is what would be left untranslated.
+    final RegExp latin = RegExp('[A-Za-z]{2,}');
+
+    List<String> englishOn(WidgetTester tester) {
+      final left = <String>[];
+      for (final Element each in find.byType(Text).evaluate()) {
+        final String? said = (each.widget as Text).data;
+        if (said == null) continue;
+        for (final RegExpMatch m in latin.allMatches(said)) {
+          final String word = m.group(0)!;
+          if (same.contains(word)) continue;
+          // A number with a unit — "12 MB of 256", "0.5 m" — is the unit,
+          // and a unit is a symbol rather than a word.
+          if (word.length <= 2) continue;
+          left.add('$word (in "$said")');
+        }
+      }
+      return left;
+    }
+
+    for (final ModelerMode mode in ModelerMode.values) {
+      if (!mode.ready) continue;
+      testWidgets('${mode.label} shows no English', (
+        WidgetTester tester,
+      ) async {
+        await _pump(tester, mode: mode, locale: const Locale('ru'));
+
+        // Mutation: put one label back as a literal. The source check sees
+        // it too — but a word returned from a helper, the way
+        // `fixLabelFor` returns one, is invisible there and visible here.
+        expect(englishOn(tester), isEmpty, reason: 'in ${mode.label} mode');
+      });
+    }
   });
 }

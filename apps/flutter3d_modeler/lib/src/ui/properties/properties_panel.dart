@@ -552,7 +552,7 @@ class PropertiesPanel extends StatelessWidget {
                     context,
                   ).textTheme.labelMedium?.copyWith(fontSize: 12),
                 ),
-                child: Text(_viewNames[view]!),
+                child: Text(_viewName(l, view)),
               ),
           ],
         ),
@@ -893,7 +893,7 @@ class PropertiesPanel extends StatelessWidget {
         ],
         if (sections.contains(PropertiesSection.selection)) ...<Widget>[
           SectionLabel(l.propSelection),
-          LabelValueRow('What', selection.says),
+          LabelValueRow(l.propWhat, selection.says),
         ],
         if (mesh != null &&
             sections.contains(PropertiesSection.mesh)) ...<Widget>[
@@ -913,20 +913,27 @@ class PropertiesPanel extends StatelessWidget {
           ),
         ],
         SectionLabel(l.propBudget),
-        LabelValueRow('Triangles', '${project.triangleCount}'),
-        LabelValueRow('Profile', project.profile.name),
+        LabelValueRow(l.budgetTriangles, '${project.triangleCount}'),
+        LabelValueRow(l.budgetProfile, project.profile.name),
       ],
     );
   }
 
-  static const Map<StandardView, String> _viewNames = <StandardView, String>{
-    StandardView.front: 'Front',
-    StandardView.back: 'Back',
-    StandardView.left: 'Left',
-    StandardView.right: 'Right',
-    StandardView.top: 'Top',
-    StandardView.bottom: 'Bottom',
-  };
+  /// The six standard views, in the language the interface is in.
+  ///
+  /// **A function rather than a `const Map`, which is what `ux-22`'s own
+  /// pumped check found.** A map of words is a table nothing that scans for
+  /// `Text(` sites can see, so these six stayed English through the whole
+  /// translation pass with nothing to say so.
+  static String _viewName(AppLocalizations l, StandardView view) =>
+      switch (view) {
+        StandardView.front => l.viewFront,
+        StandardView.back => l.viewBack,
+        StandardView.left => l.viewLeft,
+        StandardView.right => l.viewRight,
+        StandardView.top => l.viewTop,
+        StandardView.bottom => l.viewBottom,
+      };
 }
 
 /// One [MaterialPanel] texture slot, from [binding] (what the material

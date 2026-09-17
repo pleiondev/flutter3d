@@ -25,6 +25,7 @@ import 'package:flutter/services.dart' hide Matrix4;
 import 'package:flutter3d_app/flutter3d_app.dart';
 import 'package:flutter3d_mesh/flutter3d_mesh.dart';
 import 'package:flutter3d_model_core/flutter3d_model_core.dart';
+import 'package:flutter3d_modeler/l10n/app_localizations.dart';
 import 'package:flutter3d_modeler/main.dart' hide main;
 import 'package:flutter3d_modeler/src/files/file_drop_io.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -63,6 +64,9 @@ void main() {
 
     await tester.pumpWidget(
       MaterialApp(
+        locale: const Locale('en'),
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
         home: FileDropZone(
           onDropped: (String name, Uint8List bytes) =>
               dropped.add((name, bytes)),
@@ -95,6 +99,9 @@ void main() {
 
     await tester.pumpWidget(
       MaterialApp(
+        locale: const Locale('en'),
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
         home: Column(
           children: <Widget>[
             SizedBox(
@@ -154,7 +161,12 @@ void main() {
         addTearDown(tester.view.resetDevicePixelRatio);
 
         await tester.pumpWidget(
-          MaterialApp(home: ModelerScreen(autosaveStorage: storage)),
+          MaterialApp(
+            locale: const Locale('en'),
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
+            home: ModelerScreen(autosaveStorage: storage),
+          ),
         );
 
         // `_open()`'s own `openDevice()` is genuine async work — the same

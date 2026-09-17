@@ -43,15 +43,16 @@ final class SceneEnvironmentPanel extends StatelessWidget {
   /// Takes the panorama off, so the preset above lights the scene again.
   final VoidCallback? onClearPanorama;
 
-  static String _labelOf(SceneEnvironmentPreset preset) => switch (preset) {
-    SceneEnvironmentPreset.studio => 'Studio',
-    SceneEnvironmentPreset.daylight => 'Daylight',
-    SceneEnvironmentPreset.sunset => 'Sunset',
-    // A value class, not a sealed one — see its own doc comment — so a
-    // fifth preset reads as "None" here until this switch is taught its
-    // name.
-    _ => 'None',
-  };
+  static String _labelOf(AppLocalizations l, SceneEnvironmentPreset preset) =>
+      switch (preset) {
+        SceneEnvironmentPreset.studio => l.envStudio,
+        SceneEnvironmentPreset.daylight => l.envDaylight,
+        SceneEnvironmentPreset.sunset => l.envSunset,
+        // A value class, not a sealed one — see its own doc comment — so a
+        // fifth preset reads as "None" here until this switch is taught its
+        // name.
+        _ => l.envNone,
+      };
 
   @override
   Widget build(BuildContext context) {
@@ -70,7 +71,7 @@ final class SceneEnvironmentPanel extends StatelessWidget {
                   in SceneEnvironmentPreset.values)
                 DropdownMenuItem<SceneEnvironmentPreset>(
                   value: preset,
-                  child: Text(_labelOf(preset)),
+                  child: Text(_labelOf(l, preset)),
                 ),
             ],
             onChanged: (SceneEnvironmentPreset? preset) {

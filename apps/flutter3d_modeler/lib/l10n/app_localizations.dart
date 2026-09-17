@@ -3565,6 +3565,48 @@ abstract class AppLocalizations {
   /// In ru, this message translates to:
   /// **'Исправить'**
   String get healthFix;
+
+  /// No description provided for @budgetProfile.
+  ///
+  /// In ru, this message translates to:
+  /// **'Профиль'**
+  String get budgetProfile;
+
+  /// No description provided for @importBounds.
+  ///
+  /// In ru, this message translates to:
+  /// **'Габариты'**
+  String get importBounds;
+
+  /// No description provided for @propWhat.
+  ///
+  /// In ru, this message translates to:
+  /// **'Что'**
+  String get propWhat;
+
+  /// No description provided for @envNone.
+  ///
+  /// In ru, this message translates to:
+  /// **'Нет'**
+  String get envNone;
+
+  /// No description provided for @envStudio.
+  ///
+  /// In ru, this message translates to:
+  /// **'Студия'**
+  String get envStudio;
+
+  /// No description provided for @envDaylight.
+  ///
+  /// In ru, this message translates to:
+  /// **'Дневной свет'**
+  String get envDaylight;
+
+  /// No description provided for @envSunset.
+  ///
+  /// In ru, this message translates to:
+  /// **'Закат'**
+  String get envSunset;
 }
 
 class _AppLocalizationsDelegate

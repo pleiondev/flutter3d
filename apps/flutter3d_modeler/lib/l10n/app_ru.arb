@@ -913,5 +913,12 @@
   "healthFill": "Закрыть",
   "healthMerge": "Слить",
   "healthRecalculate": "Пересчитать",
-  "healthFix": "Исправить"
+  "healthFix": "Исправить",
+  "budgetProfile": "Профиль",
+  "importBounds": "Габариты",
+  "propWhat": "Что",
+  "envNone": "Нет",
+  "envStudio": "Студия",
+  "envDaylight": "Дневной свет",
+  "envSunset": "Закат"
 }
