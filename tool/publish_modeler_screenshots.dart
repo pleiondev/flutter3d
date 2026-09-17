@@ -41,9 +41,28 @@ void main(List<String> arguments) {
 
   final published = <String>[];
   final stale = <String>[];
-  // Only the ones filed under a case directory: the flat pictures beside
-  // them are the reference tour of every mode, which belongs to the goldens
-  // and not to any one page.
+  // The flat pictures beside the case directories are the reference tour of
+  // every mode, and they are published under `modes/` — `00-every-mode.md`
+  // is the page that shows them. They used to stay in the goldens on the
+  // reasoning that they belong to no one page; once there was a page whose
+  // whole job is "here is every mode", that reasoning stopped applying.
+  for (final FileSystemEntity picture in from.listSync()) {
+    if (picture is! File || !picture.path.endsWith('.png')) continue;
+    final String name = picture.uri.pathSegments.last;
+    final File target = File('$_assets/modes/$name');
+    final bool same =
+        target.existsSync() &&
+        _sameBytes(picture.readAsBytesSync(), target.readAsBytesSync());
+    if (same) continue;
+    if (checkOnly) {
+      stale.add('modes/$name');
+      continue;
+    }
+    target.parent.createSync(recursive: true);
+    picture.copySync(target.path);
+    published.add('modes/$name');
+  }
+
   for (final FileSystemEntity entity in from.listSync()) {
     if (entity is! Directory) continue;
     final String caseName = entity.uri.pathSegments
