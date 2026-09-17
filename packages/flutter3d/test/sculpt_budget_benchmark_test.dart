@@ -43,10 +43,32 @@
 /// |---|---|
 /// | select ~20k vertices in a random circle | see printed run |
 /// | `moveVertex` × touched, journalled | see printed run |
-/// | `MeshNormals.build` (whole mesh — no partial path exists yet) | see printed run |
-/// | `fillVerticesOf` (touched rows only) | see printed run |
+/// | `MeshNormals.rebuildAround` (the stroke and its ring) | see printed run |
+/// | `fillVerticesOf` (the ring's rows) | see printed run |
 /// | `DeviceMesh.overwriteVertices` (CPU backend) | see printed run |
 /// | one `TriangleBvh.raycast` | see printed run |
+///
+/// **The partial normals path, and what it moved — 2026-09-17.** This used to
+/// call `MeshNormals.build` over the whole mesh every stroke, and the row's
+/// own conclusion named that as the bottleneck. `gfx`-side work has since
+/// given `MeshNormals` a `rebuildAround`, which rebuilds the fans at the moved
+/// vertices and at the ring of faces around them. Measured back to back on
+/// this machine, in one sitting, the only difference being which of the two is
+/// called:
+///
+/// | | normals | stroke total |
+/// |---|---|---|
+/// | `build`, whole mesh | 156.70 ms | 178.81 ms |
+/// | `rebuildAround`, the ring | 18.62 ms | 41.11 ms |
+///
+/// Eight times on the normals and four on the stroke, and the stroke still
+/// misses. What is left is two halves of roughly equal size: selecting the
+/// touched vertices is a brute-force scan over all 602 176 of them (16.5 ms)
+/// and wants the spatial chunking `pro-sc-02` describes, and the ring rebuild
+/// is 18.6 ms because a brush this wide touches a ring of tens of thousands
+/// of vertices and the implementation gathers them into hash sets. Normals
+/// are no longer *the* bottleneck; they are one of two, and the other one is
+/// a loop nobody has indexed yet.
 ///
 /// The actual numbers are in the run's own stdout, not frozen into this
 /// comment, because a comment is not where a dated, honest number belongs —
@@ -66,11 +88,15 @@
 /// | Run 1 | 24 396.20 ms | 7 581.03 ms |
 /// | Run 2 | 24 249.50 ms | 7 705.40 ms |
 /// | Run 3 | 24 206.50 ms | 7 578.07 ms |
+/// | 2026-09-17, `rebuildAround` | 24 873.70 ms | 396.87 ms |
 ///
 /// Both miss their budget by roughly the same margin macOS does — Chrome is
 /// about four to five times slower than the native run above on the same
 /// hardware, which is the usual JS/wasm cost of the same Dart arithmetic
-/// with no SIMD path, not a surprise specific to sculpting.
+/// with no SIMD path, not a surprise specific to sculpting. The partial
+/// normals path is worth nineteen times here against macOS's four, which is
+/// the same ratio the other way round: whatever the browser is slow at, it
+/// was doing 602 176 vertices' worth of it every stroke.
 ///
 /// **A Galaxy A55 is still not measured here**, and cannot be from this
 /// sandbox: it needs the device in hand, which `p0-03` already drew the
@@ -268,6 +294,10 @@ void main() {
     // `MeshNormals` and `MeshLayoutPlan` already use, applied to the one
     // array in this benchmark's own hot path that they do not own.
     final touchedStore = Int32List(80000);
+    // The ring `rebuildAround` fills: the moved vertices plus every vertex of
+    // every face touching one. Kept and cleared rather than remade, for the
+    // same reason as the store above.
+    final ring = <int>{};
     final ray = Ray(Vector3.zero(), Vector3(0, -1, 0));
 
     const strokeIterations = 3; // plus one untimed warmup, below
@@ -311,16 +341,26 @@ void main() {
       mesh.endStep();
       swEdit.stop();
 
+      // **The partial path, which did not exist when this was first
+      // measured.** `MeshNormals.rebuildAround` rebuilds the fans at the
+      // moved vertices and the ring of faces around them, and hands back
+      // that ring; the whole-mesh `build` this used to call is what made the
+      // first run of this benchmark miss both thresholds on both platforms.
+      // Its own doc comment names this caller: the rows carrying a changed
+      // normal are the ring's, not the moved vertices', so the fill below
+      // takes `ring` — filling only what moved leaves a seam of old lighting
+      // one vertex wide around every stroke.
+      ring.clear();
       final swNormals = Stopwatch()..start();
-      plan.normals.build(mesh);
+      plan.normals.rebuildAround(mesh, touchedView, touched: ring);
       swNormals.stop();
 
       final swFillStroke = Stopwatch()..start();
-      plan.fillVerticesOf(mesh, drawn.vertices, touchedView);
+      plan.fillVerticesOf(mesh, drawn.vertices, ring);
       swFillStroke.stop();
 
       var minRow = 1 << 30, maxRow = -1;
-      for (final v in touchedView) {
+      for (final v in ring) {
         final row = rowOfVertex[v];
         if (row < minRow) minRow = row;
         if (row > maxRow) maxRow = row;
@@ -377,10 +417,10 @@ void main() {
     print('select ~20k in a circle: ${_fmt(avg(selectMs))}');
     print('moveVertex x touched, journalled: ${_fmt(avg(editMs))}');
     print(
-      'MeshNormals.build (whole mesh, $triangleCount triangles): '
-      '${_fmt(avg(normalsMs))}',
+      'MeshNormals.rebuildAround (the stroke and its ring, of '
+      '$triangleCount triangles): ${_fmt(avg(normalsMs))}',
     );
-    print('fillVerticesOf (touched rows only): ${_fmt(avg(fillMs))}');
+    print('fillVerticesOf (the ring\'s rows only): ${_fmt(avg(fillMs))}');
     print(
       'overwrite region: avg ${avgRows.round()} rows '
       '(${(avgRows * plan.floatsPerVertex * 4 / 1e6).toStringAsFixed(2)} MB) '
