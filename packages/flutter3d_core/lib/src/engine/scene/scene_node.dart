@@ -1,6 +1,7 @@
 import 'package:vector_math/vector_math.dart';
 
 import '../animation/animation_target.dart' show AnimationTarget;
+import 'light_node.dart' show LightChannels;
 import 'scene.dart';
 
 /// A node in the scene graph: a name, a place in the hierarchy, and a transform.
@@ -60,6 +61,19 @@ base class SceneNode implements AnimationTarget {
   /// Bitmask filtered against a render view's mask, in the manner of three.js
   /// layers. Bit 0 is the default layer.
   int layerMask = 1;
+
+  /// Which light channels this node accepts — `gfx-12n`.
+  ///
+  /// Met against [LightNode.channels]: a light reaches this node when the two
+  /// masks share a bit. Every bit by default, so a scene that has never heard
+  /// of channels is lit as it always was.
+  ///
+  /// **Not inherited down the graph**, unlike [visible]. A channel is a
+  /// statement about one surface — the sky dome that the torch must not
+  /// reach — and making it inherit would mean a prop parented to a lamp post
+  /// silently changing what lights it. A caller who wants a subtree to share
+  /// a channel sets it on the subtree, which is a loop they can read.
+  int lightChannels = LightChannels.all;
 
   SceneNode? get parent => _parent;
 

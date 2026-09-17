@@ -119,13 +119,28 @@ final class LightBuffer {
   /// either is not a light that lost a slot, it is a light that is not there,
   /// and counting it in [overflow] would report a scene as crowded because
   /// somebody turned a lamp off.
+  /// Whether any candidate asks for a channel — `gfx-12n`.
+  ///
+  /// Read by the per-draw selection to keep the fast path exactly as fast as
+  /// it was: a scene with no channels takes the same short-circuit and packs
+  /// the same bytes, and that is what "zero changes to frames with no
+  /// channels" means as something a test can check rather than a hope.
+  bool get anyChannelled => _anyChannelled;
+  bool _anyChannelled = false;
+
+  /// Whether [channels] admits [light].
+  static bool reaches(LightNode light, int channels) =>
+      light.channels & channels != 0;
+
   void collect(List<LightNode> lights) {
     candidates.clear();
+    _anyChannelled = false;
     for (var i = 0; i < lights.length; i++) {
       final light = lights[i];
       if (!light.visibleInHierarchy) continue;
       if (light.intensity <= 0.0) continue;
       candidates.add(light);
+      if (light.channels != LightChannels.all) _anyChannelled = true;
     }
 
     final needed = candidates.length * _kCandidateStride;
@@ -210,7 +225,12 @@ final class LightBuffer {
   /// either method, so nothing that fits can change appearance by adopting
   /// this; and a light that stays chosen keeps its slot while the set holds,
   /// which keeps the shadow slot table from churning as the camera walks.
-  void gatherNearFrom(LightBuffer table, Vector3 centre, double radius) {
+  void gatherNearFrom(
+    LightBuffer table,
+    Vector3 centre,
+    double radius, {
+    int channels = LightChannels.all,
+  }) {
     _reset();
 
     // Read out of the vector once. Every component read inside the loop is a
@@ -224,6 +244,13 @@ final class LightBuffer {
     var weakest = 0;
     final length = table.candidates.length;
     for (var i = 0; i < length; i++) {
+      // Channels before relevance — `gfx-12n`. A light this object is not on
+      // the channel of should not take one of its eight slots, which is the
+      // difference between a channel and a check made in the shader.
+      if (channels != LightChannels.all &&
+          !reaches(table.candidates[i], channels)) {
+        continue;
+      }
       final score = _relevanceIn(data, i, cx, cy, cz, radius);
       // Zero is not a weak light, it is a light this object is outside of.
       // Packing it would spend a slot on a term the shader evaluates to black.
@@ -264,6 +291,29 @@ final class LightBuffer {
       _pack(table.candidates[_chosen[i]]);
     }
     _overflow = table.candidates.length - _count;
+  }
+
+  /// Packs whichever of [table]'s candidates [channels] admits, in order —
+  /// `gfx-12n`'s path for a scene that fits in [maxLights].
+  ///
+  /// **Separate from [gatherNearFrom] because relevance is not the question
+  /// here.** A scene inside eight lights packs them all and ranks nothing; a
+  /// channel does not make it overflow, it makes it *smaller*. Sending it
+  /// through the ranking path would compute a score per light to answer a
+  /// question nobody asked, and would drop a light whose attenuation is zero
+  /// at this object — which the unranked path deliberately keeps, so that a
+  /// scene inside eight sees the same eight everywhere.
+  void gatherMatchingFrom(LightBuffer table, int channels) {
+    _reset();
+    for (var i = 0; i < table.candidates.length && _count < maxLights; i++) {
+      final light = table.candidates[i];
+      if (!reaches(light, channels)) continue;
+      _pack(light);
+    }
+    // Nothing is left waiting: what a channel excluded is not overflow, it is
+    // a light that does not apply, and reporting it as pressure on the eight
+    // slots would read as a scene that needs selection when it does not.
+    _overflow = 0;
   }
 
   /// [gatherNearFrom] against this buffer's own candidates.

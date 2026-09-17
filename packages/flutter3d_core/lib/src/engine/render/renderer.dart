@@ -1174,14 +1174,28 @@ final class Renderer implements RenderServices {
     required Float32List frameShadowSlots,
     required MeshNode node,
   }) {
-    if (frameLights.overflow == 0) {
+    // **The fast path is what makes `gfx-12n` free when nobody uses it.** A
+    // scene whose lights fit and whose lights ask for no channel shares the
+    // frame's own arrays, not a copy, and packs byte for byte what it packed
+    // before channels existed. Both halves of the condition matter: a
+    // channelled light in a scene of three still has to be filtered, and an
+    // object on every channel in a scene of two hundred still has to rank.
+    final channels = node.lightChannels;
+    final channelled =
+        frameLights.anyChannelled || channels != LightChannels.all;
+    if (frameLights.overflow == 0 && !channelled) {
       return (lights: frameLights, shadowSlots: frameShadowSlots);
     }
-    _drawLights.gatherNearFrom(
-      frameLights,
-      node.worldBoundsCentre,
-      node.worldBoundsRadius,
-    );
+    if (frameLights.overflow == 0) {
+      _drawLights.gatherMatchingFrom(frameLights, channels);
+    } else {
+      _drawLights.gatherNearFrom(
+        frameLights,
+        node.worldBoundsCentre,
+        node.worldBoundsRadius,
+        channels: channels,
+      );
+    }
     // The frame's table is the world scene's; a contributor scene was handed
     // `_noShadowSlots` and its lights own no rows, so rebuilding from the row
     // map would invent shadows the atlas never drew.
