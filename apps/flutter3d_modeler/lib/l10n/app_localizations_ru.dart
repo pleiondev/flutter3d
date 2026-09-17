@@ -1723,6 +1723,19 @@ class AppLocalizationsRu extends AppLocalizations {
   }
 
   @override
+  String get metricsPasses => 'Проходы кадра';
+
+  @override
+  String metricsPassLine(
+    String name,
+    String ms,
+    String draws,
+    String triangles,
+  ) {
+    return '$name · $ms мс · $draws выз. · $triangles тр.';
+  }
+
+  @override
   String galleryUnreachable(String names) {
     return 'Не удалось достучаться: $names; всё остальное на месте';
   }

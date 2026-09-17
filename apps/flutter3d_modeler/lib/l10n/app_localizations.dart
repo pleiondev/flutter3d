@@ -3212,6 +3212,23 @@ abstract class AppLocalizations {
   /// **'{count} костей'**
   String metricsBones(String count);
 
+  /// Заголовок разбивки по проходам кадра — gfx-01n.
+  ///
+  /// In ru, this message translates to:
+  /// **'Проходы кадра'**
+  String get metricsPasses;
+
+  /// Одна строка разбивки по проходам — gfx-01n. Числа уже отформатированы.
+  ///
+  /// In ru, this message translates to:
+  /// **'{name} · {ms} мс · {draws} выз. · {triangles} тр.'**
+  String metricsPassLine(
+    String name,
+    String ms,
+    String draws,
+    String triangles,
+  );
+
   /// Галерея — ux-22.
   ///
   /// In ru, this message translates to:

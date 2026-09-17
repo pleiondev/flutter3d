@@ -658,6 +658,8 @@
   "metricsDrawCalls": "{count} вызовов отрисовки",
   "metricsTriangles": "{count} треугольников",
   "metricsBones": "{count} костей",
+  "metricsPasses": "Проходы кадра",
+  "metricsPassLine": "{name} · {ms} мс · {draws} выз. · {triangles} тр.",
   "@previewLights": {
     "description": "Превью — ux-22.",
     "placeholders": {
@@ -727,6 +729,26 @@
     "description": "Оверлей метрик — ux-22. Число уже отформатировано.",
     "placeholders": {
       "count": {
+        "type": "String"
+      }
+    }
+  },
+  "@metricsPasses": {
+    "description": "Заголовок разбивки по проходам кадра — gfx-01n."
+  },
+  "@metricsPassLine": {
+    "description": "Одна строка разбивки по проходам — gfx-01n. Числа уже отформатированы.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "ms": {
+        "type": "String"
+      },
+      "draws": {
+        "type": "String"
+      },
+      "triangles": {
         "type": "String"
       }
     }

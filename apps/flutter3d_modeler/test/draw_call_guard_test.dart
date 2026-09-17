@@ -1,4 +1,4 @@
-/// `view-22`: what one modeller frame costs in draw calls, written down.
+/// `view-22`: what one modeller viewport costs in draw calls, written down.
 ///
 ///     flutter test test/draw_call_guard_test.dart
 ///
@@ -9,14 +9,20 @@
 /// numbers, taken apart into what they are made of, so the commit that adds
 /// one has to say so here.
 ///
-/// **The row's own shorthand is `1 + 3 + 1 + N`, and the tree turns out to do
-/// slightly better than that.** Measured rather than assumed: a frame is the
-/// floor, the `N` objects, and the mesh overlay's three batches — and a batch
-/// with nothing in it is not drawn at all, so the grid and the wire share one
+/// **Counted in the scene pass, not over the whole frame.** A modeller frame
+/// also runs the shadow map and the bloom ladder, which between them are
+/// twelve draws that have nothing to do with what the viewport is showing;
+/// the engine's own `frame_baseline_test.dart` watches those. What this file
+/// is about is the picture: the objects, the grid and the mesh overlay.
+///
+/// **The row's shorthand is `1 + 3 + 1 + N`, and the tree does better.**
+/// Measured through `FrameResult.passes` rather than assumed: the scene pass
+/// is the `N` objects plus the overlay's three batches, and a batch with
+/// nothing in it is not drawn at all — so the grid and the wire share one
 /// line draw instead of paying for two. A new project in mesh mode with a
-/// face selected is five: floor, cube, lines, solid handles, translucent
-/// wash. The ceiling is what matters, and it is `1 + N + 3` whatever is
-/// selected and however many elements are in it.
+/// face selected is four: the cube, the lines, the solid handles, the
+/// translucent wash. The ceiling is `N + 3`, whatever is selected and however
+/// many elements are in it.
 ///
 /// A guard and not a benchmark: counts on the software rasteriser, which
 /// needs no GPU and gives the same answer on every machine.
@@ -24,9 +30,7 @@
 /// **Written by breaking what it covers** (`ARCHITECTURE.md` rule 6.3). The
 /// mutation: `if (batch.isEmpty) return;` in `mesh_overlay.dart` turned off,
 /// so every batch is drawn whether or not anything is in it — the cheapest
-/// way an extra draw gets into `MeshOverlay`. Three of the six go red,
-/// *a mesh-mode frame never exceeds the floor, N and three* among them,
-/// which is `view-22`'s own acceptance sentence.
+/// way an extra draw gets into `MeshOverlay`.
 library;
 
 import 'package:flutter3d/flutter3d.dart';
@@ -40,14 +44,11 @@ import 'package:flutter_test/flutter_test.dart';
 const int _width = 160;
 const int _height = 100;
 
-/// The floor. It is in every viewport frame, and it is one draw.
-const int kFloor = 1;
-
 /// The most the mesh overlay can cost: lines, solid triangles, translucent
 /// triangles. Fewer when a batch is empty.
 const int kOverlayBatches = 3;
 
-/// Draws one frame of [stage] and hands back what the renderer counted.
+/// The draws the scene pass itself made, and the pipelines the frame needed.
 ({int drawCalls, int pipelineSwitches}) _count(
   Renderer renderer,
   ModelerStage stage,
@@ -60,7 +61,9 @@ const int kOverlayBatches = 3;
     settings: const RenderSettings(),
   );
   return (
-    drawCalls: result.drawCalls,
+    drawCalls: result.passes
+        .where((FramePass pass) => pass.name == 'scene')
+        .fold<int>(0, (int sum, FramePass pass) => sum + pass.drawCalls),
     pipelineSwitches: result.pipelineSwitches,
   );
 }
@@ -97,13 +100,14 @@ const int kOverlayBatches = 3;
 }
 
 void main() {
-  test('object mode is the floor and the objects, and nothing else', () {
+  test('object mode is the objects, and nothing else', () {
     final it = cpuTestDevice(width: _width, height: _height);
     final renderer = Renderer.create(device: it.device);
     final stage = ModelerStage.build(device: it.device)..frameSubject();
 
-    // N is one: a new project is the cube.
-    expect(_count(renderer, stage).drawCalls, kFloor + 1);
+    // N is one: a new project is the cube. The floor a person sees is the
+    // grid, and the grid is an overlay — it is not in this number.
+    expect(_count(renderer, stage).drawCalls, 1);
   });
 
   test('an overlay with nothing in it is not drawn', () {
@@ -165,7 +169,7 @@ void main() {
     expect(_count(renderer, stage).drawCalls, gridOnly + 1);
   });
 
-  test('a mesh-mode frame never exceeds the floor, N and three', () {
+  test('a mesh-mode viewport never exceeds N and three', () {
     final it = cpuTestDevice(width: _width, height: _height);
     final renderer = Renderer.create(device: it.device);
     final stage = ModelerStage.build(device: it.device)..frameSubject();
@@ -188,10 +192,10 @@ void main() {
     const int objects = 1;
     expect(
       _count(renderer, stage).drawCalls,
-      kFloor + objects + kOverlayBatches,
+      objects + kOverlayBatches,
       reason:
-          'the floor, $objects object and at most $kOverlayBatches overlay '
-          'batches — an extra draw in MeshOverlay shows up right here',
+          '$objects object and at most $kOverlayBatches overlay batches — an '
+          'extra draw in MeshOverlay shows up right here',
     );
   });
 

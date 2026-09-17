@@ -71,7 +71,7 @@ final class DiagnosticFrame {
   /// `FrameResult.passes`, named rather than re-derived: naming which pass
   /// ran is exactly the question a diagnostic exists to answer, and the
   /// renderer already answers it for free.
-  final List<({String name, bool active, int micros})> passes;
+  final List<FramePass> passes;
 
   int get _stride => width * 4;
 

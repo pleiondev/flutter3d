@@ -570,6 +570,8 @@
   "metricsDrawCalls": "{count} draw calls",
   "metricsTriangles": "{count} triangles",
   "metricsBones": "{count} bones",
+  "metricsPasses": "Frame passes",
+  "metricsPassLine": "{name} · {ms} ms · {draws} draws · {triangles} tri",
   "galleryUnreachable": "{names} could not be reached; everything else is still here",
   "graphNextImageTooltip": "Next image",
   "statusShowFolder": "Show folder",

@@ -227,6 +227,7 @@ class _GamePreviewScreenState extends State<GamePreviewScreen>
                             drawCalls: _lastFrame?.drawCalls ?? 0,
                             triangles: _lastFrame?.triangles ?? 0,
                             bones: report.joints.used,
+                            passes: _lastFrame?.passes ?? const <FramePass>[],
                           ),
                         ),
                         Positioned(

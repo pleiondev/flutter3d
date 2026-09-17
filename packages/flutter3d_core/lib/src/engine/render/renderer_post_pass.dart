@@ -95,6 +95,7 @@ extension _PostPasses on Renderer {
       _bloomParams[3] = 0.0;
 
       _drawFullscreenAdditive(target: into, source: from);
+      _frameCounters?.drawCalls++;
     }
     developer.Timeline.finishSync();
   }

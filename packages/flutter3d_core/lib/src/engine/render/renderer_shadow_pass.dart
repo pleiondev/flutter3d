@@ -229,6 +229,7 @@ extension _ShadowPasses on Renderer {
         pass.bindVertexBuffer(_fullscreenTriangle, 3);
         pass.bindIndexBuffer(_identityIndices(3), IndexType.int32, 3);
         pass.draw();
+        _frameCounters?.drawCalls++;
 
         pass.setState(casterState);
         // Which cull the pass is currently in. A node that casts from every
@@ -354,6 +355,7 @@ extension _ShadowPasses on Renderer {
           }
           pass.bindUniformBlock(shader, 'ShadowLight', {'light': _cubeLight});
           pass.draw(instanceCount: instanced?.count ?? 1);
+          _frameCounters?.drawCalls++;
           drawn++;
         }
       }
@@ -746,9 +748,15 @@ extension _ShadowPasses on Renderer {
         }
         pass.draw(instanceCount: instanced?.count ?? 1);
         // Counted once, not once per cascade: the number answers "how many things
-        // cast", and a caster drawn into three tiles is still one caster. The
-        // draw call count is the graph's business.
+        // cast", and a caster drawn into three tiles is still one caster.
+        //
+        // The draws are counted every time, which is the other half of the
+        // same sentence and was missing until `gfx-01n` went looking: a
+        // caster in three cascades is three draws, and a frame that reported
+        // one caster and no draws at all was hiding the cost of the cascade
+        // count from every measurement made of it.
         if (cascade == 0) _shadowCasters++;
+        _frameCounters?.drawCalls++;
       }
     }
 
