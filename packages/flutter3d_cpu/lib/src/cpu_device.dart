@@ -115,11 +115,18 @@ final class CpuDevice implements GraphicsDevice {
 
   @override
   // One tap along one axis from one level, chosen per triangle — see
-  // `BoundTexture.sample`. A sampler that asks for more is honoured on the
-  // hardware backends and ignored here, and the answer says so rather than
-  // promising taps this rasteriser does not take: `anisotropic-floor` is the
-  // scene where the two sets are allowed to differ by exactly that.
-  int get maxAnisotropy => 1;
+  // `BoundTexture.sample`, which takes the taps since `gfx-02n`: a sampler
+  // asking for eight gets eight, spread along the long axis of its footprint,
+  // each at the level the short axis asks for. This answered one until then,
+  // and `anisotropic-floor` is the scene whose cross-backend budget was the
+  // measured size of that difference — a budget now describing a smaller gap
+  // than it was written for, since the remaining difference is the weighting
+  // of the taps rather than their absence.
+  //
+  // Sixteen because that is what the hardware backends report and what a
+  // sampler is clamped against; the cost here is linear in the taps and paid
+  // only by a sampler that asked.
+  int get maxAnisotropy => 16;
 
   @override
   // Nothing to probe: a cube here is six arrays of floats and a table saying

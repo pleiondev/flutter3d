@@ -33,13 +33,30 @@ import 'cpu_shaders_layout.dart';
 /// takes and for the same reason: a hardware sampler uses the longer side of
 /// the footprint parallelogram, and the maximum of the axis-aligned components
 /// is that for a surface facing the camera.
-({double du, double dv}) uvFootprint(FragmentContext c) {
+({double du, double dv, double dudx, double dvdx, double dudy, double dvdy})
+uvFootprint(FragmentContext c) {
   final ddx = c.ddx;
   final ddy = c.ddy;
-  if (ddx == null || ddy == null) return (du: 0.0, dv: 0.0);
+  if (ddx == null || ddy == null) {
+    return (du: 0.0, dv: 0.0, dudx: 0.0, dvdx: 0.0, dudy: 0.0, dvdy: 0.0);
+  }
+  // **Both vectors, as well as the axis maxima** — `gfx-02n`. `du`/`dv` are
+  // what every caller here has always used and what the mip level is still
+  // chosen from, unchanged: the maximum of the axis-aligned components, which
+  // is the longer side of the footprint for a surface facing the camera.
+  //
+  // The four below are the footprint itself, before that collapse, and they
+  // are why anisotropy needed them: a floor at a grazing angle has a long,
+  // thin parallelogram, and `max` over each axis separately throws away
+  // exactly the *ratio* between its sides. The sampler reads them only when a
+  // sampler asked for taps, so nothing that did not ask can move.
   return (
     du: math.max(ddx[kVUv].abs(), ddy[kVUv].abs()),
     dv: math.max(ddx[kVUv + 1].abs(), ddy[kVUv + 1].abs()),
+    dudx: ddx[kVUv],
+    dvdx: ddx[kVUv + 1],
+    dudy: ddy[kVUv],
+    dvdy: ddy[kVUv + 1],
   );
 }
 
@@ -106,7 +123,19 @@ Surface? readSurface(
   final texture = bindings.textures['base_color_texture'];
   final texel = texture == null
       ? Vector4(1, 1, 1, 1)
-      : texture.sample(v[kVUv], v[kVUv + 1], du: uv.du, dv: uv.dv);
+      : texture.sample(
+          v[kVUv],
+          v[kVUv + 1],
+          du: uv.du,
+          dv: uv.dv,
+          // The albedo is the one map a floor's checks live in, and the one
+          // this engine's samplers ever ask taps for. The other maps below
+          // pass the axis maxima alone, which is what they always did.
+          dudx: uv.dudx,
+          dvdx: uv.dvdx,
+          dudy: uv.dudy,
+          dvdy: uv.dvdy,
+        );
 
   // Texture and tint are sRGB; the vertex colour is authored linear, per glTF.
   final albedo = Vector3(
