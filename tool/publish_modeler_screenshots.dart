@@ -1,4 +1,5 @@
-/// Copies the modeller's own screenshots into the tutorial's assets.
+/// Copies the modeller's own screenshots into the tutorial's assets and the
+/// documentation site's.
 ///
 ///     dart run tool/publish_modeler_screenshots.dart
 ///     dart run tool/publish_modeler_screenshots.dart --check
@@ -24,6 +25,33 @@ const String _goldens = 'apps/flutter3d_modeler/test/goldens/screens';
 
 /// Where the site serves them from.
 const String _assets = 'cloud/server/web/assets/learn/modeler';
+
+/// Where the documentation site's own Modeler section serves them from —
+/// `rel-08`.
+///
+/// **A third directory, and the alternative was a third copy nobody
+/// maintained.** `site/content/modeler/` needs pictures of the editor, and
+/// the pictures of the editor are already taken twice a day by the tour's
+/// goldens. Copying a handful by hand would have meant a set that drifted
+/// the first time a panel moved — the exact failure `--check` exists to
+/// catch for the tutorial. So the site's copies are published by the same
+/// command and held by the same check, and the only thing this file knows
+/// extra is which of the tour's pictures the docs pages actually show.
+const String _siteAssets = 'site/assets/modeler';
+
+/// The tour pictures the documentation site's pages carry.
+///
+/// A named list rather than all of them: the tutorial's own page shows every
+/// mode because that is its subject, and the docs section shows the five that
+/// carry its argument. A picture added here without a page that shows it is a
+/// file the site serves and nothing links to.
+const List<String> _siteShots = <String>[
+  'object-mode.png',
+  'mesh-mode.png',
+  'animation-weights.png',
+  'scene-mode.png',
+  'render-mode.png',
+];
 
 void main(List<String> arguments) {
   final bool checkOnly = arguments.contains('--check');
@@ -61,6 +89,27 @@ void main(List<String> arguments) {
     target.parent.createSync(recursive: true);
     picture.copySync(target.path);
     published.add('modes/$name');
+  }
+
+  for (final String name in _siteShots) {
+    final File picture = File('$_goldens/$name');
+    if (!picture.existsSync()) {
+      stderr.writeln('$name is on the docs list and not in the goldens');
+      exitCode = 1;
+      continue;
+    }
+    final File target = File('$_siteAssets/$name');
+    final bool same =
+        target.existsSync() &&
+        _sameBytes(picture.readAsBytesSync(), target.readAsBytesSync());
+    if (same) continue;
+    if (checkOnly) {
+      stale.add('site/$name');
+      continue;
+    }
+    target.parent.createSync(recursive: true);
+    picture.copySync(target.path);
+    published.add('site/$name');
   }
 
   for (final FileSystemEntity entity in from.listSync()) {

@@ -147,6 +147,16 @@ const NAV = [
     ],
   },
   {
+    section: 'Modeler',
+    slug: 'modeler',
+    badge: 'tool',
+    pages: [
+      { file: 'modeler/index.md', url: '/modeler/', title: 'What the modeller is' },
+      { file: 'modeler/tutorial.md', url: '/modeler/tutorial/', title: 'Tutorial: six ways in', kind: 'tutorial' },
+      { file: 'modeler/demo.md', url: '/modeler/demo/', title: 'Trying it', kind: 'demo' },
+    ],
+  },
+  {
     section: 'Shooter',
     slug: 'shooter',
     badge: 'genre',
@@ -626,4 +636,49 @@ cpSync(
   join(distDir, 'assets/mermaid.min.js'),
 );
 
-console.log(`built ${built} pages -> ${relative(process.cwd(), distDir)}`);
+// Every picture a page points at is in `dist` — `rel-08`.
+//
+// The `{{golden}}` check above covers the one syntax that names a picture by
+// id; an ordinary `![alt](/assets/…)` was checked by nothing, and the
+// tutorial on the other site shipped a page with four broken images for
+// exactly that reason. Walking the built HTML is the only place that can see
+// both halves at once: what a page asks for, and what the copy step put
+// there.
+function builtPages(dir) {
+  const out = [];
+  for (const entry of readdirSync(dir, { withFileTypes: true })) {
+    const path = join(dir, entry.name);
+    if (entry.isDirectory()) out.push(...builtPages(path));
+    else if (entry.name.endsWith('.html')) out.push(path);
+  }
+  return out;
+}
+
+const missingAssets = [];
+let checkedAssets = 0;
+for (const page of builtPages(distDir)) {
+  const html = readFileSync(page, 'utf8');
+  for (const [, url] of html.matchAll(/(?:src|href)="(\/(?:assets|goldens|demo)\/[^"#?]+)"/g)) {
+    if (url.endsWith('/')) continue;
+    checkedAssets += 1;
+    if (!existsSync(join(distDir, url.slice(1)))) {
+      missingAssets.push(`${relative(distDir, page)} -> ${url}`);
+    }
+  }
+}
+if (missingAssets.length > 0) {
+  throw new Error(
+    `these pages point at files that are not in dist:\n  ${missingAssets.join('\n  ')}`,
+  );
+}
+// A walk that visited nothing proves nothing: if the pattern above stops
+// matching — a template that writes its own tags differently, say — this is
+// what says so rather than a silent pass over an empty list.
+if (checkedAssets < 20) {
+  throw new Error(`only ${checkedAssets} asset links found; the scan has stopped scanning`);
+}
+
+console.log(
+  `built ${built} pages -> ${relative(process.cwd(), distDir)} ` +
+    `(${checkedAssets} asset links, all present)`,
+);

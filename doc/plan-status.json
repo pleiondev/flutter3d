@@ -462,7 +462,8 @@
     "ux-54n": "done",
     "ux-55n": "done",
     "tut-09": "done",
-    "gfx-13n": "done"
+    "gfx-13n": "done",
+    "rel-08": "done"
   },
   "absent": {
     "view-27d": {
@@ -552,6 +553,10 @@
     },
     "ux-22": {
       "_actionLabels": "the row's own account of what it did to that map: it names _actionLabels in the sentence that says it split in two — the sections stayed in shortcut_help.dart as _actionSections and the twenty-three names went to the ARB files, read back through _actionLabel"
+    },
+    "rel-08": {
+      "goldenSets": "the row offered it as an alternative and the alternative was not taken: `goldenSets` is a table inside `site/tool/build.mjs` that resolves `{{golden name}}` against the four reference sets, and extending it would have meant the modeller's screenshots pretending to be golden *scenes*, which they are not — they are pictures of the application's chrome. The other half of the row's own \"or\" is what landed: the pictures live in `site/assets/modeler/` and are put there by `tool/publish_modeler_screenshots.dart`, which is the same command that publishes the tutorial's, so one run keeps all three copies in step",
+      "llms": "a file the site build writes into `dist/`, not a file in the tree: `site/tool/build.mjs` generates it on every run and `dist/` is not committed. The row's acceptance is that the three pages are *in* it, which is checkable by building — they are, at lines 45–47 of the generated file — rather than by finding a name in the source"
     }
   }
 }
