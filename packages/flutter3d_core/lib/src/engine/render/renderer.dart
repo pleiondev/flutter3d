@@ -88,6 +88,7 @@ const String _kPostSourceSlot = 'source_texture';
 const String _kSceneTextureSlot = 'scene_texture';
 const String _kBloomTextureSlot = 'bloom_texture';
 const String _kAoTextureSlot = 'ao_texture';
+const String _kLutTextureSlot = 'lut_texture';
 
 /// Draws a [Scene] through one or more [RenderView]s.
 ///

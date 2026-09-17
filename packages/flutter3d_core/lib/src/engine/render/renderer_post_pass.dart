@@ -482,10 +482,27 @@ extension _PostPasses on Renderer {
       occlusion ?? fallbackAlbedo,
       sampler: Renderer._clampSampler,
     );
+    // The colour table, or nothing — `gfx-18n`. The same pairing as the two
+    // samplers above: a texture is always bound because a declared sampler
+    // with nothing in it is a native crash on Metal, and the strength is
+    // zeroed alongside it so the stand-in is never read. Its size comes off
+    // the texture rather than from a field: a strip is N² by N, so the height
+    // *is* N, and a table whose two dimensions disagree about that is a table
+    // the engine should not be guessing about.
+    final look = settings.look;
+    final lut = look.gradesThroughLut ? look.lut : null;
+    _compositeAoTexel[2] = lut == null ? 0.0 : look.lutStrength.clamp(0.0, 1.0);
+    _compositeAoTexel[3] = (lut?.height ?? 2).toDouble();
+    pass.bindTexture(
+      compositeShader,
+      _kLutTextureSlot,
+      lut ?? fallbackAlbedo,
+      sampler: Renderer._clampSampler,
+    );
+
     // Neutral is (1, 1, 0, 0) and (0, …, 0, aspect), which the shader relies on
     // being exact: every golden in the repository goes through this block, and a
     // default that only nearly cancels moves all of them by a bit each.
-    final look = settings.look;
     _compositeLook[0] = look.contrast;
     _compositeLook[1] = look.saturation;
     _compositeLook[2] = look.temperature;

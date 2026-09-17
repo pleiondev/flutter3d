@@ -126,6 +126,20 @@ final class CompositeShader implements CpuFragmentShader {
     colour.x *= 1.0 + look.z * 0.1;
     colour.z *= 1.0 - look.z * 0.1;
 
+    // The colour table, after the grade and before the barrel — the order
+    // `composite.frag` uses and the order a grading suite does.
+    final aoTexel = bindings.vec4('CompositeInfo', 'ao_texel', Vector4.zero());
+    final lut = bindings.textures['lut_texture'];
+    if (lut != null && aoTexel.z > 0.0) {
+      final graded = _sampleLut(lut, colour, math.max(aoTexel.w, 2.0));
+      final amount = aoTexel.z.clamp(0.0, 1.0);
+      colour = Vector3(
+        colour.x + (graded.x - colour.x) * amount,
+        colour.y + (graded.y - colour.y) * amount,
+        colour.z + (graded.z - colour.z) * amount,
+      );
+    }
+
     if (lookMore.x > 0.0) {
       final aspect = math.max(lookMore.w, 1e-4);
       final fx = (v[0] - 0.5) * (1.0 + (aspect - 1.0) * lookMore.y);
@@ -155,6 +169,37 @@ final class CompositeShader implements CpuFragmentShader {
       sampled.w,
     );
   }
+}
+
+/// `SampleLut` from `composite.frag`, operation for operation.
+///
+/// The half-texel inset on red and the `(size - 1) / size` span on green are
+/// what make the ends of the ramp reachable; without them an identity table
+/// darkens white, which is the one thing a neutral table must not do.
+Vector3 _sampleLut(BoundTexture table, Vector3 colour, double size) {
+  final r = colour.x.clamp(0.0, 1.0);
+  final g = colour.y.clamp(0.0, 1.0);
+  final b = colour.z.clamp(0.0, 1.0);
+
+  final sliceWidth = 1.0 / size;
+  final texel = 1.0 / (size * size);
+  final innerWidth = texel * (size - 1.0);
+
+  final u = texel * 0.5 + r * innerWidth;
+  final v = (0.5 / size) + g * ((size - 1.0) / size);
+
+  final slice = b * (size - 1.0);
+  final lower = slice.floorToDouble();
+  final upper = math.min(lower + 1.0, size - 1.0);
+
+  final a = table.sample(lower * sliceWidth + u, v);
+  final c = table.sample(upper * sliceWidth + u, v);
+  final f = slice - lower;
+  return Vector3(
+    a.x + (c.x - a.x) * f,
+    a.y + (c.y - a.y) * f,
+    a.z + (c.z - a.z) * f,
+  );
 }
 
 /// `Hash` from `composite.frag`: a value in [0, 1) from a screen position.
