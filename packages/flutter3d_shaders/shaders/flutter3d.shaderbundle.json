@@ -59,6 +59,10 @@
     "type": "fragment",
     "file": "shaders/post/composite.frag"
   },
+  "Fxaa": {
+    "type": "fragment",
+    "file": "shaders/post/fxaa.frag"
+  },
   "MrtProbe": {
     "type": "fragment",
     "file": "shaders/post/mrt_probe.frag"

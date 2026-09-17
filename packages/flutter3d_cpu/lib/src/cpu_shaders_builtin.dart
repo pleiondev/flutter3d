@@ -156,6 +156,7 @@ Map<String, CpuStage> builtinCpuShaders() {
     'ProbePrefilter': const CpuStage.fragment(ProbePrefilterShader()),
     'MrtProbe': const CpuStage.fragment(MrtProbeShader()),
     'Composite': const CpuStage.fragment(CompositeShader()),
+    'Fxaa': const CpuStage.fragment(FxaaShader()),
     'ShadowDepth': const CpuStage.fragment(ShadowDepthShader()),
     'ShadowDistance': const CpuStage.fragment(ShadowDistanceShader()),
     'ShadowTileReset': const CpuStage.fragment(ShadowTileResetShader()),

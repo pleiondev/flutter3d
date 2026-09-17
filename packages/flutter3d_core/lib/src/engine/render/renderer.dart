@@ -70,6 +70,7 @@ const String _kMorphInstanceInfoBlock = 'MorphInstanceInfo';
 const String _kLineInfoBlock = 'LineInfo';
 const String _kSkinInfoBlock = 'SkinInfo';
 const String _kBloomInfoBlock = 'BloomInfo';
+const String _kFxaaInfoBlock = 'FxaaInfo';
 const String _kCompositeInfoBlock = 'CompositeInfo';
 const String _kLuminanceInfoBlock = 'LuminanceInfo';
 const String _kIdInfoBlock = 'IdInfo';
@@ -127,6 +128,7 @@ final class Renderer implements RenderServices {
     required this.bloomDownsampleShader,
     required this.bloomUpsampleShader,
     required this.compositeShader,
+    required this.fxaaShader,
     required this.reflectionShader,
     required this.ssaoShader,
     required TextureHandle fallbackAlbedo,
@@ -243,6 +245,9 @@ final class Renderer implements RenderServices {
   final ShaderHandle bloomDownsampleShader;
   final ShaderHandle bloomUpsampleShader;
   final ShaderHandle compositeShader;
+
+  /// `gfx-04n`: edges smoothed on the composited picture.
+  final ShaderHandle fxaaShader;
 
   /// The screen-space reflection pass.
   final ShaderHandle reflectionShader;
@@ -830,6 +835,7 @@ final class Renderer implements RenderServices {
   /// most applications never draw one and a full-size depth buffer is megabytes
   /// nobody asked for.
   final Float32List _bloomParams = Float32List(4);
+  final Float32List _fxaaParams = Float32List(4);
   final Float32List _compositeParams = Float32List(4);
   final Float32List _compositeAoTexel = Float32List(4);
   final Float32List _luminanceParams = Float32List(4);
@@ -999,6 +1005,7 @@ final class Renderer implements RenderServices {
       bloomDownsampleShader: require('BloomDownsample'),
       bloomUpsampleShader: require('BloomUpsample'),
       compositeShader: require('Composite'),
+      fxaaShader: require('Fxaa'),
       reflectionShader: require('Reflections'),
       ssaoShader: require('Ssao'),
       fallbackAlbedo: fallbackAlbedo ?? SolidColorTexture.white.upload(device),
@@ -1752,7 +1759,12 @@ final class Renderer implements RenderServices {
     // glow, the graph culls the node, and the optional read comes back null.
     graph
       ..addNode(bloom)
-      ..addNode(composite);
+      ..addNode(composite)
+      // And the smoothing after the composite, which is what lets it read a
+      // finished picture — `gfx-04n`. Registered whether or not it is on, for
+      // the same reason bloom is: registration order is the version chain, and
+      // an inactive node is culled rather than branched around.
+      ..addNode(_FxaaNode(this, s.antiAlias));
 
     // After the composite, which is the whole of what [FramePhase.present]
     // means: registration order is the version chain, so a node here reads the

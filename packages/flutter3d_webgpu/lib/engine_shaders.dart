@@ -10647,6 +10647,230 @@ fn main(@location(5) v_uv: vec2<f32>, @builtin(position) gl_FragCoord: vec4<f32>
         ),
       ],
     ),
+    'Fxaa': WebGpuStage(
+      wgsl: r'''
+struct FxaaInfo {
+    params: vec4<f32>,
+}
+
+@group(1) @binding(0) 
+var<uniform> fxaa_info: FxaaInfo;
+@group(1) @binding(1) 
+var source_texture_tex: texture_2d<f32>;
+@group(1) @binding(2) 
+var source_texture_smp: sampler;
+var<private> v_uv_1: vec2<f32>;
+var<private> frag_color: vec4<f32>;
+
+fn Weight_u0028_vf3_u003b(color: ptr<function, vec3<f32>>) -> f32 {
+    let _e21 = (*color);
+    return dot(_e21, vec3<f32>(0.299f, 0.587f, 0.114f));
+}
+
+fn main_1() {
+    var texel: vec2<f32>;
+    var middle: vec3<f32>;
+    var mid: f32;
+    var param: vec3<f32>;
+    var north: f32;
+    var param_1: vec3<f32>;
+    var south: f32;
+    var param_2: vec3<f32>;
+    var west: f32;
+    var param_3: vec3<f32>;
+    var east: f32;
+    var param_4: vec3<f32>;
+    var lowest: f32;
+    var highest: f32;
+    var contrast: f32;
+    var vertical: f32;
+    var horizontal: f32;
+    var horizontalEdge: bool;
+    var towards: f32;
+    var local: f32;
+    var away: f32;
+    var local_1: f32;
+    var step_length: f32;
+    var local_2: f32;
+    var average: f32;
+    var blend: f32;
+    var offset: vec2<f32>;
+    var local_3: vec2<f32>;
+
+    let _e49 = fxaa_info.params;
+    texel = _e49.xy;
+    let _e51 = v_uv_1;
+    let _e52 = textureSample(source_texture_tex, source_texture_smp, _e51);
+    middle = _e52.xyz;
+    let _e54 = middle;
+    param = _e54;
+    let _e55 = Weight_u0028_vf3_u003b((&param));
+    mid = _e55;
+    let _e56 = v_uv_1;
+    let _e58 = texel[1u];
+    let _e62 = textureSample(source_texture_tex, source_texture_smp, (_e56 + vec2<f32>(0f, -(_e58))));
+    param_1 = _e62.xyz;
+    let _e64 = Weight_u0028_vf3_u003b((&param_1));
+    north = _e64;
+    let _e65 = v_uv_1;
+    let _e67 = texel[1u];
+    let _e70 = textureSample(source_texture_tex, source_texture_smp, (_e65 + vec2<f32>(0f, _e67)));
+    param_2 = _e70.xyz;
+    let _e72 = Weight_u0028_vf3_u003b((&param_2));
+    south = _e72;
+    let _e73 = v_uv_1;
+    let _e75 = texel[0u];
+    let _e79 = textureSample(source_texture_tex, source_texture_smp, (_e73 + vec2<f32>(-(_e75), 0f)));
+    param_3 = _e79.xyz;
+    let _e81 = Weight_u0028_vf3_u003b((&param_3));
+    west = _e81;
+    let _e82 = v_uv_1;
+    let _e84 = texel[0u];
+    let _e87 = textureSample(source_texture_tex, source_texture_smp, (_e82 + vec2<f32>(_e84, 0f)));
+    param_4 = _e87.xyz;
+    let _e89 = Weight_u0028_vf3_u003b((&param_4));
+    east = _e89;
+    let _e90 = mid;
+    let _e91 = north;
+    let _e92 = south;
+    let _e94 = west;
+    let _e95 = east;
+    lowest = min(_e90, min(min(_e91, _e92), min(_e94, _e95)));
+    let _e99 = mid;
+    let _e100 = north;
+    let _e101 = south;
+    let _e103 = west;
+    let _e104 = east;
+    highest = max(_e99, max(max(_e100, _e101), max(_e103, _e104)));
+    let _e108 = highest;
+    let _e109 = lowest;
+    contrast = (_e108 - _e109);
+    let _e111 = contrast;
+    let _e112 = highest;
+    let _e115 = fxaa_info.params[2u];
+    if (_e111 < max(0.0312f, (_e112 * _e115))) {
+        let _e119 = middle;
+        frag_color = vec4<f32>(_e119.x, _e119.y, _e119.z, 1f);
+        return;
+    }
+    let _e124 = north;
+    let _e125 = south;
+    let _e127 = mid;
+    vertical = abs(((_e124 + _e125) - (2f * _e127)));
+    let _e131 = west;
+    let _e132 = east;
+    let _e134 = mid;
+    horizontal = abs(((_e131 + _e132) - (2f * _e134)));
+    let _e138 = vertical;
+    let _e139 = horizontal;
+    horizontalEdge = (_e138 >= _e139);
+    let _e141 = horizontalEdge;
+    if _e141 {
+        let _e142 = south;
+        let _e143 = mid;
+        local = (_e142 - _e143);
+    } else {
+        let _e145 = east;
+        let _e146 = mid;
+        local = (_e145 - _e146);
+    }
+    let _e148 = local;
+    towards = _e148;
+    let _e149 = horizontalEdge;
+    if _e149 {
+        let _e150 = north;
+        let _e151 = mid;
+        local_1 = (_e150 - _e151);
+    } else {
+        let _e153 = west;
+        let _e154 = mid;
+        local_1 = (_e153 - _e154);
+    }
+    let _e156 = local_1;
+    away = _e156;
+    let _e157 = horizontalEdge;
+    if _e157 {
+        let _e159 = texel[1u];
+        local_2 = _e159;
+    } else {
+        let _e161 = texel[0u];
+        local_2 = _e161;
+    }
+    let _e162 = local_2;
+    step_length = _e162;
+    let _e163 = away;
+    let _e165 = towards;
+    if (abs(_e163) > abs(_e165)) {
+        let _e168 = step_length;
+        step_length = -(_e168);
+    }
+    let _e170 = north;
+    let _e171 = south;
+    let _e173 = west;
+    let _e175 = east;
+    average = ((((_e170 + _e171) + _e173) + _e175) * 0.25f);
+    let _e178 = average;
+    let _e179 = mid;
+    let _e182 = contrast;
+    blend = clamp((abs((_e178 - _e179)) / max(_e182, 0.00001f)), 0f, 1f);
+    let _e186 = blend;
+    let _e187 = blend;
+    let _e191 = fxaa_info.params[3u];
+    blend = ((_e186 * _e187) * _e191);
+    let _e193 = horizontalEdge;
+    if _e193 {
+        let _e194 = step_length;
+        let _e195 = blend;
+        local_3 = vec2<f32>(0f, (_e194 * _e195));
+    } else {
+        let _e198 = step_length;
+        let _e199 = blend;
+        local_3 = vec2<f32>((_e198 * _e199), 0f);
+    }
+    let _e202 = local_3;
+    offset = _e202;
+    let _e203 = v_uv_1;
+    let _e204 = offset;
+    let _e206 = textureSample(source_texture_tex, source_texture_smp, (_e203 + _e204));
+    let _e207 = _e206.xyz;
+    frag_color = vec4<f32>(_e207.x, _e207.y, _e207.z, 1f);
+    return;
+}
+
+@fragment 
+fn main(@location(5) v_uv: vec2<f32>) -> @location(0) vec4<f32> {
+    v_uv_1 = v_uv;
+    main_1();
+    let _e3 = frag_color;
+    return _e3;
+}
+''',
+      attributes: <WebGpuAttribute>[],
+      blocks: <WebGpuBlock>[
+        WebGpuBlock(
+          name: 'FxaaInfo',
+          group: 1,
+          binding: 0,
+          sizeInBytes: 16,
+          members: <WebGpuBlockMember>[
+            WebGpuBlockMember(
+              name: 'params',
+              offsetInBytes: 0,
+              sizeInBytes: 16,
+            ),
+          ],
+        ),
+      ],
+      samplers: <WebGpuSampler>[
+        WebGpuSampler(
+          name: 'source_texture',
+          group: 1,
+          textureBinding: 1,
+          samplerBinding: 2,
+          dimension: WebGpuTextureDimension.twoDimensional,
+        ),
+      ],
+    ),
     'MrtProbe': WebGpuStage(
       wgsl: r'''
 struct FragmentOutput {

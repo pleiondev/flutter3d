@@ -231,6 +231,7 @@ final class RenderSettings {
     this.highlighted = const <SceneNode>[],
     this.tonemap = true,
     this.tonemapCurve = TonemapCurve.neutral,
+    this.antiAlias = const AntiAliasSettings(),
     this.bloom = const BloomSettings(),
     this.look = const LookSettings(),
     this.shadows = const ShadowSettings(),
@@ -335,6 +336,9 @@ final class RenderSettings {
   /// reference viewer. The other three are a look a game asks for, not a
   /// default anybody inherits.
   final TonemapCurve tonemapCurve;
+
+  /// Edges smoothed after the composite — see [AntiAliasSettings].
+  final AntiAliasSettings antiAlias;
 
   final BloomSettings bloom;
 
@@ -472,6 +476,7 @@ final class RenderSettings {
     List<SceneNode>? highlighted,
     bool? tonemap,
     TonemapCurve? tonemapCurve,
+    AntiAliasSettings? antiAlias,
     BloomSettings? bloom,
     LookSettings? look,
     ShadowSettings? shadows,
@@ -496,6 +501,7 @@ final class RenderSettings {
     highlighted: highlighted ?? this.highlighted,
     tonemap: tonemap ?? this.tonemap,
     tonemapCurve: tonemapCurve ?? this.tonemapCurve,
+    antiAlias: antiAlias ?? this.antiAlias,
     bloom: bloom ?? this.bloom,
     look: look ?? this.look,
     shadows: shadows ?? this.shadows,
@@ -709,6 +715,54 @@ final class LookSettings {
     chromaticAberration: chromaticAberration ?? this.chromaticAberration,
     lut: lut ?? this.lut,
     lutStrength: lutStrength ?? this.lutStrength,
+  );
+}
+
+/// Edges smoothed on the finished picture — `gfx-04n`'s own row.
+///
+/// **It exists to end a choice nobody should have to make.** The scene pass
+/// turns MSAA off whenever anything consumes the surface buffer, because a
+/// multisampled attachment and a buffer a later pass reads are the same
+/// decision made twice — so switching ambient occlusion on cost every edge in
+/// the frame its smoothing, and a game got shadows in its corners or clean
+/// silhouettes and not both.
+///
+/// Off by default, because it is a pass and a texture, and because MSAA is
+/// the better answer wherever it is still available: it sees edges this
+/// cannot, a thin wire that fell between two pixel centres among them. On by
+/// default *with* the surface buffer would be a reasonable policy and is
+/// deliberately not taken here — the renderer does not turn passes on behind
+/// a caller's back.
+final class AntiAliasSettings {
+  const AntiAliasSettings({
+    this.enabled = false,
+    this.contrastThreshold = 0.125,
+    this.blend = 0.75,
+  });
+
+  final bool enabled;
+
+  /// How much local contrast a pixel needs before it is worth touching, as a
+  /// fraction of the local maximum.
+  ///
+  /// Relative and not absolute: a step of 0.02 across a dark surface is an
+  /// edge somebody can see and the same step across a white wall is
+  /// dithering. 0.125 is where an edge starts reading as an edge; lower
+  /// scrubs texture detail, higher leaves staircases on shallow slopes.
+  final double contrastThreshold;
+
+  /// How far along the edge to sample, as a fraction of a texel. One is the
+  /// whole neighbour, which over-blurs; 0.75 keeps a silhouette crisp.
+  final double blend;
+
+  AntiAliasSettings copyWith({
+    bool? enabled,
+    double? contrastThreshold,
+    double? blend,
+  }) => AntiAliasSettings(
+    enabled: enabled ?? this.enabled,
+    contrastThreshold: contrastThreshold ?? this.contrastThreshold,
+    blend: blend ?? this.blend,
   );
 }
 
