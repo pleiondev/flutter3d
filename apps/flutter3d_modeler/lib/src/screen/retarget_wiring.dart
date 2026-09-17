@@ -16,7 +16,7 @@
 /// as code written inside the class — even though this file is, syntactically,
 /// exactly that. The call itself is correct; only the check misfires.
 // ignore_for_file: invalid_use_of_protected_member
-part of '../../main.dart';
+part of 'modeler_screen.dart';
 
 extension _RetargetWiring on _ModelerScreenState {
   /// `retarget.import`: opens the same picker `_openFile` uses, decodes it

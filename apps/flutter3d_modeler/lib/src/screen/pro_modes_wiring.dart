@@ -13,7 +13,7 @@
 /// number to size that decision with, so what is here runs it, shows the
 /// progress the panel already draws, and leaves the row honest about it.
 // ignore_for_file: invalid_use_of_protected_member
-part of '../../main.dart';
+part of 'modeler_screen.dart';
 
 extension _ProModesWiring on _ModelerScreenState {
   // ------------------------------------------------------------- retopology

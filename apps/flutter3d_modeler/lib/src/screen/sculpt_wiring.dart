@@ -7,7 +7,7 @@
 /// file in this directory is: every method here reaches `_cubit`, `_history`,
 /// `_state` or `setState` directly.
 // ignore_for_file: invalid_use_of_protected_member
-part of '../../main.dart';
+part of 'modeler_screen.dart';
 
 extension _SculptWiring on _ModelerScreenState {
   /// `ModelerViewport.onStroke`, wired only while a sculpting brush is armed

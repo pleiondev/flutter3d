@@ -7,7 +7,7 @@
 /// own `_cubit`/`_autosave` directly, and [ModelerApp] reaches
 /// `_rootNavigatorKey`, both private to this library. See `device.dart` in
 /// this same directory for the fuller version of this rationale.
-part of '../../main.dart';
+part of 'modeler_screen.dart';
 
 /// Reaches whatever `ModelerScreen` is on screen right now — see
 /// [_liveCrashScreen]'s own doc comment for why a top-level error handler

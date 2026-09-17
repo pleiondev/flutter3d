@@ -4,7 +4,7 @@
 /// A `part of 'main.dart'` for the same reason `device.dart` beside it is:
 /// every method here opens a dialog against `context`, reads `mounted`
 /// after the `await`, and reaches `_cubit`/`_history` directly.
-part of '../../main.dart';
+part of 'modeler_screen.dart';
 
 extension _CloseAndRecovery on _ModelerScreenState {
   /// Answers the OS's own "can you close now?" — `ui-24`'s "при isDirty —

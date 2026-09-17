@@ -7,7 +7,7 @@
 /// of those into a parameter or a public setter. See
 /// `renderer_scene_pass.dart` in `flutter3d_core` for the same split, over a
 /// much larger class.
-part of '../../main.dart';
+part of 'modeler_screen.dart';
 
 extension _DeviceHandling on _ModelerScreenState {
   /// Swaps in a device sized for [width]/[height]/[devicePixelRatio] when the
