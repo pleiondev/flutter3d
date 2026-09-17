@@ -9,6 +9,7 @@ library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter3d_model_core/flutter3d_model_core.dart';
+import 'package:flutter3d_modeler/l10n/app_localizations.dart';
 import 'package:flutter3d_modeler/src/ui/uv_layout_view.dart';
 import 'package:flutter3d_modeler/src/ui/uv_screen.dart';
 import 'package:flutter3d_modeler/src/ui/uv_unwrap_panel.dart';
@@ -39,6 +40,9 @@ List<UvIslandData> _islands() => const <UvIslandData>[
 
 Widget _screen({int? selectedIslandId, ValueChanged<int>? onIslandSelected}) =>
     MaterialApp(
+      locale: const Locale('en'),
+      localizationsDelegates: AppLocalizations.localizationsDelegates,
+      supportedLocales: AppLocalizations.supportedLocales,
       home: Material(
         child: UvScreen(
           // A real caller hands in `ModelerViewport`; this screen's own doc

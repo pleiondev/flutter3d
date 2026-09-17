@@ -11,6 +11,7 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter3d_core/formats.dart';
 import 'package:flutter3d_model_core/flutter3d_model_core.dart' hide Key;
+import 'package:flutter3d_modeler/l10n/app_localizations.dart';
 import 'package:flutter3d_modeler/src/timeline_playback.dart';
 import 'package:flutter3d_modeler/src/ui/animation_bottom.dart';
 import 'package:flutter3d_modeler/src/ui/curve_editor.dart';
@@ -45,6 +46,9 @@ void main() {
 
     await tester.pumpWidget(
       MaterialApp(
+        locale: const Locale('en'),
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
         theme: modelerTheme(),
         home: Scaffold(
           body: Builder(
@@ -92,6 +96,9 @@ void main() {
 
     Future<void> pump(TimelineEditMode mode) => tester.pumpWidget(
       MaterialApp(
+        locale: const Locale('en'),
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
         theme: modelerTheme(),
         home: Scaffold(
           body: SizedBox(
@@ -129,6 +136,9 @@ void main() {
 
     await tester.pumpWidget(
       MaterialApp(
+        locale: const Locale('en'),
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
         theme: modelerTheme(),
         home: Scaffold(
           body: SizedBox(
