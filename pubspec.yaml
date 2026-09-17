@@ -70,3 +70,4 @@ workspace:
   - tool/skills
   - tool/init
   - tool/tutorial
+  - tool/godot_check

@@ -189,6 +189,15 @@ step "publish check" bash tool/publish_check.sh
 # `--flat-dart` prints the list the rules are held to, so there is one list.
 FLAT_DART="$(dart run tool/structure.dart --flat-dart)"
 
+# **What this loop does not cover, said here because here is where somebody
+# would look for it.** It walks `packages/`, and the six programs under `tool/`
+# carry suites of their own that nothing in this script runs: `convert_asset`
+# (13), `skills` (13), `init` (18), `tutorial` (29), `godot_check` (11) and
+# `webgpu_spike` (which needs `flutter test`, not `dart test` — its fixtures
+# reach for `flutter_test`, so a loop over `tool/` would want the same split
+# this one has). `godot_check`'s run in the `godot` job in
+# .github/workflows/ci.yml; the other five are a hole, found on 2026-09-17 and
+# left named rather than quietly half-fixed.
 for package in packages/*/; do
   name="$(basename "$package")"
   # Matched on the files rather than on the directory, for the reason the

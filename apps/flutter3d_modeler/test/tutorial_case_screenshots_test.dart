@@ -320,6 +320,23 @@ void main() {
       await shootWindow(tester, 'character-from-a-bare-mesh/01-autorig-dialog');
     });
 
+    // **This one is red, and has been since before anybody noticed.** It
+    // differs from its committed reference in 7.78% of its pixels, and it
+    // does so on a clean checkout of `12b02f8f` with nothing uncommitted —
+    // so it is not the tutorial-fixture change that landed beside this note.
+    // Its golden was written on 2026-09-16 (`c2fe2a09`) and a hundred and
+    // three commits have gone in since without this suite being run, which
+    // is the whole failure: a golden set catches a drift the day somebody
+    // asks it to and not before.
+    //
+    // **It is left red on purpose rather than regenerated.** A `--update-
+    // goldens` here would make a published tutorial picture agree with
+    // whatever the editor draws today, which is not the same as knowing what
+    // changed it. A `git bisect run` over those hundred and three commits
+    // was attempted and gave nothing usable — every step reported "cannot
+    // test", so the range was never narrowed. Finding the commit is the next
+    // piece of work on this, not a checkbox to tick by overwriting the
+    // evidence.
     testWidgets('06-game-preview', (WidgetTester tester) async {
       await launchModeller(tester, fonts: fonts);
       await openCase(tester, case4);
