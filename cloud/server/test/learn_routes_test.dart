@@ -228,6 +228,57 @@ void main() {
       );
     });
 
+    test('the mode tour is the first page, and shows every mode', () {
+      final cases = loadLearnCases();
+      // Sorted by file name, and it is `00-` — the tour is what somebody
+      // reads before a case tells them to switch into a mode.
+      expect(cases.first.slug, '00-every-mode');
+      expect(cases.first.title, contains('Every mode'));
+
+      // **A page that claims to cover every mode has to name every mode.**
+      // Mutation: write the page once and let a mode be added later without
+      // it. The tutorial then promises a tour and quietly misses whichever
+      // mode arrived last, which is exactly what this row exists to stop.
+      for (final String mode in <String>[
+        'object',
+        'mesh',
+        'material',
+        'sculpt',
+        'retopo',
+        'paint',
+        'simulation',
+        'animation',
+        'render',
+        'scene',
+      ]) {
+        expect(
+          cases.first.bodyHtml,
+          contains('/assets/learn/modeler/modes/$mode-mode.png'),
+          reason: 'the tour has no picture of $mode mode',
+        );
+      }
+      for (final String screen in <String>[
+        'start-screen',
+        'settings-screen',
+        'shortcuts-screen',
+      ]) {
+        expect(
+          cases.first.bodyHtml,
+          contains('/assets/learn/modeler/modes/$screen.png'),
+          reason: 'the tour has no picture of the $screen',
+        );
+      }
+    });
+
+    test('and it serves end to end through learnRoutes', () async {
+      final handler = _mounted(learnRoutes());
+      final response = await _get(handler, '/learn/modeler/00-every-mode');
+      expect(response.statusCode, 200);
+      final body = await response.readAsString();
+      expect(body, contains('Every mode'));
+      expect(body, contains('/assets/learn/modeler/modes/sculpt-mode.png'));
+    });
+
     test('reads case 6 off disk and renders its Markdown', () {
       final cases = loadLearnCases();
       final case6 = cases.firstWhere((c) => c.slug == '06-an-agent-beside-you');
