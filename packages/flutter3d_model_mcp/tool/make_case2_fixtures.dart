@@ -278,9 +278,18 @@ Future<void> main() async {
     '04-material-texture-panel.png': 'Material panel',
   };
   for (final entry in placeholders.entries) {
-    File(
-      '${assetDir.path}/${entry.key}',
-    ).writeAsBytesSync(_placeholderPng(320, 180, entry.value));
+    // **Never over a picture that is already there.** These captions stood
+    // in for screenshots nobody had taken yet, and `tut-09` has since taken
+    // them. Without this guard a run for the *fixtures* replaces a real
+    // two-hundred-kilobyte frame with a one-kilobyte caption and says
+    // "wrote" about it — which is exactly what it did once, caught by a
+    // `git status` rather than by anything here.
+    final file = File('${assetDir.path}/${entry.key}');
+    if (file.existsSync()) {
+      stderr.writeln('kept ${assetDir.path}/${entry.key} (already taken)');
+      continue;
+    }
+    file.writeAsBytesSync(_placeholderPng(320, 180, entry.value));
     stderr.writeln('wrote ${assetDir.path}/${entry.key} (placeholder)');
   }
 

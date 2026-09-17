@@ -248,9 +248,14 @@ Future<void> main() async {
     '03-blend-slider.png': 'Blend slider',
   };
   for (final entry in placeholders.entries) {
-    File(
-      '${assetDir.path}/${entry.key}',
-    ).writeAsBytesSync(_placeholderPng(320, 180, entry.value));
+    // Never over a picture that is already there — see
+    // `make_case2_fixtures.dart`'s own note at the same spot.
+    final file = File('${assetDir.path}/${entry.key}');
+    if (file.existsSync()) {
+      stderr.writeln('kept ${assetDir.path}/${entry.key} (already taken)');
+      continue;
+    }
+    file.writeAsBytesSync(_placeholderPng(320, 180, entry.value));
     stderr.writeln('wrote ${assetDir.path}/${entry.key} (placeholder)');
   }
 

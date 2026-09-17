@@ -461,28 +461,32 @@ and the editor is the tool that made the gaps visible.
 
 ## Quality, infrastructure, and CI
 
-**✅ Done**
+**✅ Done** — every row here but one, and the list below said otherwise until
+2026-09-17, when closing the last of them made the staleness worth fixing.
+
 - A green `main` build, structure-scanner rules for new packages (qa-01,
   qa-02), the "a flat Dart package resolves with no Flutter SDK" check
   (qa-03)
 - CI reads the test list from flat packages (qa-04), a forbidden-word
-  dictionary for the scanner's detector (qa-05)
-- A CI benchmark artifact and a stress scene with a measurement table
-  (qa-13)
-
-**⬜ Not started**
-- An enum/sealed policy as a scanner rule (qa-06)
-- A formal half-edge invariant audit as a separate quality item, writer
-  round-trips with fixtures and provenance (qa-07, qa-08), a glTF-validator
-  check in CI (qa-09), an automatic check that a file opens in headless
-  Godot (qa-19n)
+  dictionary for the scanner's detector (qa-05), an enum/sealed policy as a
+  scanner rule (qa-06)
+- A half-edge invariant audit and writer round-trips with fixtures and
+  provenance (qa-07, qa-08), the real Khronos validator in CI
+  (qa-09, `tool/validate_gltf.dart`)
 - Golden scenes for the mesh overlay (qa-10), a conformance check for
   partial buffer rewrites (qa-11), an agent scenario and tool round-trip
   (qa-12)
-- A draw-call-count guard (qa-14), app tests through software rendering
-  (qa-15), documents kept in sync with the tree (qa-16), builds for every
-  platform in CI (qa-17), format/command/history/readiness tests as a
-  separate summary check (qa-18)
+- A CI benchmark artifact and a stress scene with a measurement table
+  (qa-13), a draw-call-count guard (qa-14), app tests through software
+  rendering (qa-15), documents kept in sync with the tree (qa-16),
+  format/command/history/readiness tests as a separate summary check (qa-18)
+- **An automatic check that a file opens in headless Godot (qa-19n)** —
+  `tool/godot_check` and the `godot` job in `ci.yml`. It found a broken
+  embedded PNG in a published tutorial GLB on its first run; see "A run
+  somewhere this is not" below for why it was on the wrong list.
+
+**⬜ Not started**
+- Builds for every platform in CI (qa-17)
 
 ## Phase 0 measurements (the numbers decisions are built on)
 
@@ -591,14 +595,17 @@ closed, 63 remain open across ten groups):
 ## What is left, and what each piece is waiting for
 
 *Audited 2026-09-17, against `doc/plan-status.json`. Twenty-six rows were not
-`done` when this was written; two of them — `gfx-02n` and `gfx-03n` — were
-closed within the hour by disbelieving this section, which is recorded below
-rather than tidied away. Of what remains, **not one row is waiting on
-somebody sitting down to write code**. Every one is held by something outside the repository: a device, a
-credential, a golden set that has to be recorded on hardware, or a decision
-that belongs to the owner. That is worth stating plainly rather than leaving
-as a count, because "twenty-six to go" reads like a backlog and this is a
-list of six errands.*
+`done` when this was written; **three of them — `gfx-02n`, `gfx-03n` and
+`qa-19n` — were closed within hours by disbelieving this section**, which is
+recorded below rather than tidied away. Of what remains, **not one row is
+waiting on somebody sitting down to write code**. Every one is held by
+something outside the repository: a device, a credential, a golden set that
+has to be recorded on hardware, or a decision that belongs to the owner. That
+is worth stating plainly rather than leaving as a count, because "twenty-six
+to go" reads like a backlog and this is a list of six errands. It is also
+worth reading with suspicion, three times over now: a row lands on this list
+because of a sentence somebody wrote about it, and the sentence is not the
+measurement.*
 
 ### A device nobody has yet (4)
 
@@ -651,13 +658,28 @@ adapters say what each will need rather than shipping a guessed shape.
 `rel-05` and `rel-06` are publishing to pub.dev. `rel-16` is five to ten
 people doing a timed tutorial run.
 
-### A run somewhere this is not (5)
+### A run somewhere this is not (4)
 
-`qa-17` (a CI matrix), `qa-19n` (headless Godot), `rel-09` (the tutorial as a
-CI scenario), `rel-10` (Chrome *and* Safari), `rel-11` (a clean Mac opening a
-signed-nothing build). Each can be written here and none can be *verified*
-here, and a CI job nobody has watched go green is a claim rather than a
-check.
+`qa-17` (a CI matrix), `rel-09` (the tutorial as a CI scenario), `rel-10`
+(Chrome *and* Safari), `rel-11` (a clean Mac opening a signed-nothing build).
+Each can be written here and none can be *verified* here, and a CI job nobody
+has watched go green is a claim rather than a check.
+
+**`qa-19n` was on this list and should not have been, which makes three.**
+The list said "headless Godot" and left it there. Headless Godot is one
+archive off a GitHub release — fifty megabytes for Linux, a hundred for the
+macOS universal build — and it runs headless on this machine, over the seven
+committed GLBs, in 4.6 seconds idle and 21.7 on the same machine under load
+— an import of all seven and one script over them. It
+also found something in the first minute it existed: a tutorial GLB this
+repository publishes carried a 33-byte "PNG" whose IHDR checksum was zero,
+which Godot rejected and which nothing here had ever looked at, because
+nothing here had ever handed one of these files to a decoder that was not
+ours. The two earlier corrections above were about a *measurement* a backend
+supposedly could not take; this one is about a *tool* supposedly somewhere
+else. The pattern is the same and it is worth naming once more: the thing to
+check is whether it can be done here, not whether it is usually done
+elsewhere.
 
 `fmt-27` belongs here too for a narrower reason: its remaining half is a
 Quick Look screenshot, and this machine has `simctl` but no `Simulator.app`

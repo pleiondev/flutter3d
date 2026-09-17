@@ -1,0 +1,20 @@
+name: godot_check
+description: "qa-19n: hands this repository's exported GLBs to Godot and compares what a second engine reads out of them with what our own loader put in."
+publish_to: 'none'
+resolution: workspace
+
+# **Under `tool/` and not under `packages/`, deliberately** — the same reason
+# `tool/convert_asset`'s own pubspec gives: a package under `packages/` is
+# checked against ARCHITECTURE.md's publishing list by `tool/structure.dart`'s
+# "the publishing order names every package" rule, and this is never going out.
+
+environment:
+  sdk: ^3.12.2
+
+dependencies:
+  # `decodeModel` and `ModelDocument` — the numbers Godot's are compared
+  # against are this repository's own loader's, read from the same file.
+  flutter3d_core: ^0.1.0
+
+dev_dependencies:
+  test: ^1.24.0

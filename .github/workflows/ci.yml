@@ -150,6 +150,81 @@ jobs:
           sdk: '3.13.0'
       - run: tool/flat_dart_check.sh
 
+  # **A second engine opens the files this one writes, which nothing here had
+  # ever checked.** The design plan's line is "the exported file opens in Godot
+  # and Unity", and K2 closed on 2026-09-09 with: headless Godot in CI —
+  # `qa-19n` — and a manual Unity/Blender checklist before the phase-1 release,
+  # because there is no headless Unity licence to put in a workflow.
+  #
+  # `tool/validate_gltf.dart` in the check job already runs the real Khronos
+  # validator, and `compareModelDocuments` already asks whether a document
+  # survives a round trip. Both are checks a file can pass while still being
+  # unopenable by the program somebody wants to open it in. The first run of
+  # this one found a committed tutorial GLB carrying a 33-byte "PNG" — a
+  # signature, an IHDR, and a checksum field left at zero — that Godot's
+  # importer rejected outright and ours had never looked at.
+  #
+  # A job of its own rather than a step in `check`, for the reason the android
+  # matrix gives: `check` is already seventeen minutes and is what a push waits
+  # for, and this brings an engine with it — a 50 MB archive holding a 112 MB
+  # binary. The work itself is seconds: a cold import of the seven committed
+  # GLBs and one script run over them measured 4.6 s on an idle developer's
+  # machine and 21.7 s on the same machine under load, which is the honest
+  # range rather than the flattering end of it.
+  #
+  # Flutter, even though `godot_check` is plain Dart and never draws anything:
+  # one `flutter pub get` at the root is what resolves the workspace, and a
+  # bare `dart pub get` there cannot, which is the whole subject of the
+  # `flat-dart` job above.
+  godot:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.47.0'
+          channel: stable
+          cache: true
+      - run: flutter pub get
+
+      # Pinned, and the reason is the same one the glslang and gltf_validator
+      # steps give: an importer that updates itself out from under a commit is
+      # a step whose answer nobody could reproduce a week later. Godot's own
+      # version is printed in the check's output for that reason too.
+      #
+      # The editor build and not a headless export template: `--import` is the
+      # editor's, and `--headless` is what makes it runnable on a machine with
+      # no display. Cached on the version, so a bump fetches a fresh binary
+      # rather than a stale one under a matching name.
+      - uses: actions/cache@v4
+        with:
+          path: ~/godot/godot
+          key: godot-4.3-stable
+      - name: godot
+        run: |
+          set -euo pipefail
+          mkdir -p ~/godot
+          if [ ! -x ~/godot/godot ]; then
+            curl -fsSL -o /tmp/godot.zip \
+              https://github.com/godotengine/godot/releases/download/4.3-stable/Godot_v4.3-stable_linux.x86_64.zip
+            unzip -q -o /tmp/godot.zip -d /tmp/godot
+            mv /tmp/godot/Godot_v4.3-stable_linux.x86_64 ~/godot/godot
+            chmod +x ~/godot/godot
+          fi
+          ~/godot/godot --headless --version
+
+      # The comparison's own suite, here rather than in `check`: that job's
+      # test loop walks `packages/` and has never run anything under `tool/`
+      # — see `tool/ci.sh`'s own note above its loop. These eleven break each
+      # of the comparison's rules on purpose, which is the half where it could
+      # be quietly wrong: a check that pairs surfaces badly, or forgives a
+      # bound it should not, passes every committed fixture in silence.
+      - run: dart test
+        working-directory: tool/godot_check
+      - run: dart run godot_check:godot_check --godot=$HOME/godot/godot
+
   # **A second operating system, because half of what this repository does is
   # macOS-only and nothing compiled it.** `tool/golden.sh` runs `flutter run -d
   # macos` and is the only way any of the three reference sets can be

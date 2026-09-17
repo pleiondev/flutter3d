@@ -23,6 +23,7 @@ library;
 
 import 'dart:typed_data';
 
+import 'package:flutter3d_core/formats.dart' show encodeCompressedPng;
 import 'package:flutter3d_mesh/flutter3d_mesh.dart'
     show ArrayModifier, MirrorModifier;
 import 'package:flutter3d_model_core/flutter3d_model_core.dart';
@@ -45,27 +46,45 @@ List<Vector2> vaseProfile() => <Vector2>[
   Vector2(0.26, 1.0),
 ];
 
-/// A 64×64 truecolour PNG header the way `image_dimensions_test.dart`'s own
-/// `_png` helper builds one — the fewest bytes a real PNG needs, not a real
-/// encoder's output, since nothing downstream of [AddImage] in this case
-/// decodes a pixel (`imageDimensions` only reads the header, and this case
-/// never exports, so no GLB writer ever reaches for the pixels either).
-Uint8List stubGlazeTexture() {
-  final bytes = Uint8List(33);
-  bytes.setAll(0, <int>[0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A]);
-  void be32(int offset, int value) {
-    bytes[offset] = (value >> 24) & 0xFF;
-    bytes[offset + 1] = (value >> 16) & 0xFF;
-    bytes[offset + 2] = (value >> 8) & 0xFF;
-    bytes[offset + 3] = value & 0xFF;
+/// A 64×64 glaze, written by [encodeCompressedPng] — a real PNG, and
+/// `qa-19n` is why it is one.
+///
+/// **This used to be 33 bytes: a signature, an IHDR with the width and the
+/// height in it, and a CRC field left at zero.** Its own comment said
+/// nothing downstream decoded a pixel — `imageDimensions` reads the header
+/// and "this case never exports". The second half was not true. Case 3
+/// starts from case 2's saved project, and `case3.glb` is a file this
+/// repository commits, publishes and asks a reader to open. What was in it
+/// was a byte string no PNG decoder will accept: `godot --headless
+/// --import` says "IHDR: CRC error", then "Couldn't load image index '0'
+/// with its given mimetype: image/png", and drops the texture. Nothing here
+/// had ever said so, because nothing here had ever handed one of these
+/// files to a decoder that was not ours.
+///
+/// So it is a real image now. A pale celadon that darkens down the height
+/// and carries a faint mottling across it, which is what a glaze looks like
+/// and, more to the point, is content rather than a header: every byte of
+/// it goes through a filter, a deflate stream and a checksum, so a reader
+/// that rejects it is telling us something.
+Uint8List glazeTexture() {
+  const size = 64;
+  final rgba = Uint8List(size * size * 4);
+  for (var y = 0; y < size; y++) {
+    // Darker at the foot, lighter at the lip: a glaze pools where it runs.
+    final shade = 0.82 + 0.18 * (y / (size - 1));
+    for (var x = 0; x < size; x++) {
+      // A cheap deterministic mottle — no random, so the fixture is the same
+      // file on every machine that regenerates it.
+      final mottle = 1.0 + 0.04 * (((x * 7 + y * 13) % 11) - 5) / 5.0;
+      final level = shade * mottle;
+      final at = (y * size + x) * 4;
+      rgba[at] = (214 * level).round().clamp(0, 255);
+      rgba[at + 1] = (228 * level).round().clamp(0, 255);
+      rgba[at + 2] = (219 * level).round().clamp(0, 255);
+      rgba[at + 3] = 255;
+    }
   }
-
-  be32(8, 13);
-  bytes.setAll(12, <int>[0x49, 0x48, 0x44, 0x52]);
-  be32(16, 64);
-  be32(20, 64);
-  bytes.setAll(24, <int>[8, 6, 0, 0, 0]);
-  return bytes;
+  return encodeCompressedPng(size, size, rgba);
 }
 
 /// Every step case 2's own page (`cloud/server/content/learn/modeler/
@@ -191,7 +210,7 @@ void runCase2Scenario(ModelSession session) {
   must(
     session.run(
       AddImage(
-        bytes: stubGlazeTexture(),
+        bytes: glazeTexture(),
         imageName: 'clay-glaze',
         mimeType: 'image/png',
       ),
