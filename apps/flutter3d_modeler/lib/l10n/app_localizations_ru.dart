@@ -1428,4 +1428,128 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get actionDelete => 'Удалить';
+
+  @override
+  String get matNoMaterials => 'Материалов нет';
+
+  @override
+  String get matAdd => 'Добавить материал';
+
+  @override
+  String get matUnassign => 'Снять назначение';
+
+  @override
+  String get matOpenInEditor => 'Открыть в редакторе';
+
+  @override
+  String get matCutoff => 'Порог';
+
+  @override
+  String get matAdvanced => 'Дополнительно';
+
+  @override
+  String get matEmissiveStrength => 'Сила свечения';
+
+  @override
+  String get matNormalScale => 'Масштаб нормалей';
+
+  @override
+  String get matOcclusionStrength => 'Сила затенения';
+
+  @override
+  String get matDoubleSided => 'Двусторонний';
+
+  @override
+  String get sceneNoLights => 'Источников нет';
+
+  @override
+  String get sceneRemoveLight => 'Убрать этот источник';
+
+  @override
+  String get sceneAdd => 'Добавить';
+
+  @override
+  String get sceneSource => 'Источник';
+
+  @override
+  String get sceneIntensity => 'Яркость';
+
+  @override
+  String get sceneRange => 'Дальность';
+
+  @override
+  String get sceneCone => 'Конус';
+
+  @override
+  String get sceneCastsShadow => 'Отбрасывает тень';
+
+  @override
+  String get quickSetupTitle => 'Настроить редактор';
+
+  @override
+  String get quickSetupHelp =>
+      'Пять ответов, один раз. Каждый из них потом есть в настройках.';
+
+  @override
+  String get quickSetupCamera => 'Камера';
+
+  @override
+  String get quickSetupHowMuch => 'Сколько всего';
+
+  @override
+  String get quickSetupStart => 'Начать';
+
+  @override
+  String get pivotHelp =>
+      'Вокруг чего центрируется поворот или масштаб из полей выше';
+
+  @override
+  String get pivotMedian => 'Медиана';
+
+  @override
+  String get pivotIndividual => 'Каждый сам';
+
+  @override
+  String get pivotCursor => '3D-курсор';
+
+  @override
+  String get spaceHelp => 'В чьих осях задан поворот из полей выше';
+
+  @override
+  String get spaceGlobal => 'Глобальные';
+
+  @override
+  String get spaceLocal => 'Локальные';
+
+  @override
+  String get modifierMirror => 'Зеркало';
+
+  @override
+  String get modifierArray => 'Массив';
+
+  @override
+  String get modifierSmooth => 'Сглаживание';
+
+  @override
+  String get modifierSubdivision => 'Подразделение';
+
+  @override
+  String get modifierBoolean => 'Булева операция';
+
+  @override
+  String get modifierNone => 'Модификаторов нет';
+
+  @override
+  String get modifierAdd => 'Добавить модификатор';
+
+  @override
+  String get modifierAddShort => 'Добавить';
+
+  @override
+  String get modifierRemove => 'Убрать';
+
+  @override
+  String modifierTriangles(int before, int after) {
+    return '$before → $after треугольников';
+  }
 }

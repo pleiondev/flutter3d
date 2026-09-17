@@ -13,6 +13,7 @@ library;
 import 'package:flutter/material.dart' hide Material;
 import 'package:flutter3d_model_core/flutter3d_model_core.dart' hide Outcome;
 
+import '../../../l10n/app_localizations.dart';
 import '../../display_modes.dart';
 
 /// Where a rotation or a scale from the transform grid is centred.
@@ -27,29 +28,32 @@ class PivotAndSpaceChips extends StatelessWidget {
   final ValueChanged<PivotChip> onPivot;
 
   @override
-  Widget build(BuildContext context) => Tooltip(
-    message: 'Where a turn or a scale from the boxes above is centred',
-    child: SegmentedButton<PivotChip>(
-      showSelectedIcon: false,
-      segments: const <ButtonSegment<PivotChip>>[
-        ButtonSegment<PivotChip>(
-          value: PivotChip.median,
-          label: Text('Median'),
-        ),
-        ButtonSegment<PivotChip>(
-          value: PivotChip.individual,
-          label: Text('Individual'),
-        ),
-        ButtonSegment<PivotChip>(
-          value: PivotChip.cursor,
-          label: Text('3D Cursor'),
-          enabled: false,
-        ),
-      ],
-      selected: <PivotChip>{pivot},
-      onSelectionChanged: (Set<PivotChip> picked) => onPivot(picked.first),
-    ),
-  );
+  Widget build(BuildContext context) {
+    final AppLocalizations l = AppLocalizations.of(context);
+    return Tooltip(
+      message: l.pivotHelp,
+      child: SegmentedButton<PivotChip>(
+        showSelectedIcon: false,
+        segments: <ButtonSegment<PivotChip>>[
+          ButtonSegment<PivotChip>(
+            value: PivotChip.median,
+            label: Text(l.pivotMedian),
+          ),
+          ButtonSegment<PivotChip>(
+            value: PivotChip.individual,
+            label: Text(l.pivotIndividual),
+          ),
+          ButtonSegment<PivotChip>(
+            value: PivotChip.cursor,
+            label: Text(l.pivotCursor),
+            enabled: false,
+          ),
+        ],
+        selected: <PivotChip>{pivot},
+        onSelectionChanged: (Set<PivotChip> picked) => onPivot(picked.first),
+      ),
+    );
+  }
 }
 
 /// Whose axes a rotation from the transform grid is given in.
@@ -60,22 +64,26 @@ class SpaceChips extends StatelessWidget {
   final ValueChanged<TransformSpace> onSpace;
 
   @override
-  Widget build(BuildContext context) => Tooltip(
-    message: 'Whose axes a turn from the boxes above is given in',
-    child: SegmentedButton<TransformSpace>(
-      showSelectedIcon: false,
-      segments: const <ButtonSegment<TransformSpace>>[
-        ButtonSegment<TransformSpace>(
-          value: TransformSpace.global,
-          label: Text('Global'),
-        ),
-        ButtonSegment<TransformSpace>(
-          value: TransformSpace.local,
-          label: Text('Local'),
-        ),
-      ],
-      selected: <TransformSpace>{space},
-      onSelectionChanged: (Set<TransformSpace> picked) => onSpace(picked.first),
-    ),
-  );
+  Widget build(BuildContext context) {
+    final AppLocalizations l = AppLocalizations.of(context);
+    return Tooltip(
+      message: l.spaceHelp,
+      child: SegmentedButton<TransformSpace>(
+        showSelectedIcon: false,
+        segments: <ButtonSegment<TransformSpace>>[
+          ButtonSegment<TransformSpace>(
+            value: TransformSpace.global,
+            label: Text(l.spaceGlobal),
+          ),
+          ButtonSegment<TransformSpace>(
+            value: TransformSpace.local,
+            label: Text(l.spaceLocal),
+          ),
+        ],
+        selected: <TransformSpace>{space},
+        onSelectionChanged: (Set<TransformSpace> picked) =>
+            onSpace(picked.first),
+      ),
+    );
+  }
 }

@@ -51,6 +51,9 @@ void main() {
       ModelerSettings? answered;
       await tester.pumpWidget(
         MaterialApp(
+          locale: const Locale('en'),
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
           theme: modelerTheme(),
           home: Scaffold(
             body: Builder(
@@ -105,8 +108,10 @@ void main() {
       addTearDown(tester.view.reset);
       await tester.pumpWidget(
         MaterialApp(
-          theme: modelerTheme(),
+          locale: const Locale('en'),
           localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          theme: modelerTheme(),
           home: Scaffold(
             body: StartScreen(
               recentPaths: recent,

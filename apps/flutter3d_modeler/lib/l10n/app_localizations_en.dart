@@ -1421,4 +1421,128 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get actionDelete => 'Delete';
+
+  @override
+  String get matNoMaterials => 'No materials';
+
+  @override
+  String get matAdd => 'Add material';
+
+  @override
+  String get matUnassign => 'Unassign';
+
+  @override
+  String get matOpenInEditor => 'Open in editor';
+
+  @override
+  String get matCutoff => 'Cutoff';
+
+  @override
+  String get matAdvanced => 'Advanced';
+
+  @override
+  String get matEmissiveStrength => 'Emissive strength';
+
+  @override
+  String get matNormalScale => 'Normal scale';
+
+  @override
+  String get matOcclusionStrength => 'Occlusion strength';
+
+  @override
+  String get matDoubleSided => 'Double-sided';
+
+  @override
+  String get sceneNoLights => 'No lights';
+
+  @override
+  String get sceneRemoveLight => 'Remove this light';
+
+  @override
+  String get sceneAdd => 'Add';
+
+  @override
+  String get sceneSource => 'Source';
+
+  @override
+  String get sceneIntensity => 'Intensity';
+
+  @override
+  String get sceneRange => 'Range';
+
+  @override
+  String get sceneCone => 'Cone';
+
+  @override
+  String get sceneCastsShadow => 'Casts shadow';
+
+  @override
+  String get quickSetupTitle => 'Set up the editor';
+
+  @override
+  String get quickSetupHelp =>
+      'Five answers, once. Every one of them is in Settings afterwards.';
+
+  @override
+  String get quickSetupCamera => 'Camera';
+
+  @override
+  String get quickSetupHowMuch => 'How much of it';
+
+  @override
+  String get quickSetupStart => 'Start';
+
+  @override
+  String get pivotHelp =>
+      'Where a turn or a scale from the boxes above is centred';
+
+  @override
+  String get pivotMedian => 'Median';
+
+  @override
+  String get pivotIndividual => 'Individual';
+
+  @override
+  String get pivotCursor => '3D Cursor';
+
+  @override
+  String get spaceHelp => 'Whose axes a turn from the boxes above is given in';
+
+  @override
+  String get spaceGlobal => 'Global';
+
+  @override
+  String get spaceLocal => 'Local';
+
+  @override
+  String get modifierMirror => 'Mirror';
+
+  @override
+  String get modifierArray => 'Array';
+
+  @override
+  String get modifierSmooth => 'Smooth';
+
+  @override
+  String get modifierSubdivision => 'Subdivision';
+
+  @override
+  String get modifierBoolean => 'Boolean';
+
+  @override
+  String get modifierNone => 'No modifiers';
+
+  @override
+  String get modifierAdd => 'Add a modifier';
+
+  @override
+  String get modifierAddShort => 'Add';
+
+  @override
+  String get modifierRemove => 'Remove it';
+
+  @override
+  String modifierTriangles(int before, int after) {
+    return '$before → $after triangles';
+  }
 }
