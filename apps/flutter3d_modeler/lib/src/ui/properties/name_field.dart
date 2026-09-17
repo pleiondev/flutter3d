@@ -8,6 +8,7 @@ library;
 
 import 'package:flutter/material.dart';
 
+import '../../../../l10n/app_localizations.dart';
 import '../theme.dart';
 
 /// The object's name, editable.
@@ -62,6 +63,7 @@ class _NameFieldState extends State<NameField> {
 
   @override
   Widget build(BuildContext context) {
+    final AppLocalizations l = AppLocalizations.of(context);
     // `ux-21`: a dense field is 31 tall however tall the box round it is —
     // `InputDecorator` sizes itself to its own padding, and a `SizedBox`
     // taller than that just leaves a gap the tap does not reach. So the
@@ -74,7 +76,7 @@ class _NameFieldState extends State<NameField> {
         // The row it sits in already reads "Objects" above the list, but a
         // screen reader stepping field by field through the panel has no other
         // way to tell this box apart from a `NumberField`'s own bare value.
-        label: 'Name',
+        label: l.nameField,
         textField: true,
         child: TextField(
           controller: _text,

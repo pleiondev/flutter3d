@@ -13,6 +13,7 @@ import 'package:flutter3d/flutter3d.dart' hide Material;
 import 'package:flutter3d_model_core/flutter3d_model_core.dart' hide Outcome;
 import 'package:vector_math/vector_math.dart' show Vector2;
 
+import '../../../l10n/app_localizations.dart';
 import '../modeler_viewport.dart';
 import '../play/play_control.dart';
 import '../play/play_session.dart';
@@ -192,6 +193,7 @@ class _PlayScreenState extends State<PlayScreen> {
   @override
   Widget build(BuildContext context) {
     final ThemeData theme = Theme.of(context);
+    final AppLocalizations l = AppLocalizations.of(context);
     return Scaffold(
       body: Focus(
         focusNode: _keys,
@@ -229,7 +231,7 @@ class _PlayScreenState extends State<PlayScreen> {
                   FilledButton.tonalIcon(
                     onPressed: () => Navigator.of(context).maybePop(),
                     icon: const Icon(Icons.stop),
-                    label: const Text('Stop'),
+                    label: Text(l.playStop),
                   ),
                   const SizedBox(width: 8),
                   // `ux-51`: the document again, with the body left where it
@@ -240,12 +242,11 @@ class _PlayScreenState extends State<PlayScreen> {
                   FilledButton.tonalIcon(
                     onPressed: _reload,
                     icon: const Icon(Icons.refresh),
-                    label: const Text('Reload'),
+                    label: Text(l.playReload),
                   ),
                   const SizedBox(width: 12),
                   Text(
-                    '${widget.template.label}  ·  WASD to walk, drag to look, '
-                    'Esc to stop',
+                    l.playHint(widget.template.label),
                     style: theme.textTheme.labelSmall,
                   ),
                 ],

@@ -10,6 +10,8 @@ library;
 
 import 'package:flutter/material.dart';
 
+import '../../../l10n/app_localizations.dart';
+
 /// A thin horizontal bar, filled from the left by [bakedFrameCount] out of
 /// [targetFrameCount] — an empty strip for a bake nobody has started, and a
 /// fully filled one once every target frame is cached.
@@ -44,12 +46,12 @@ final class SimulationCacheStrip extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final coverage = _coverage;
+    final AppLocalizations l = AppLocalizations.of(context);
     return Semantics(
-      label:
-          'Simulation cache: $bakedFrameCount of $targetFrameCount frames baked',
+      label: l.simCacheSemantics(bakedFrameCount, targetFrameCount),
       value: '${(coverage * 100).round()}%',
       child: Tooltip(
-        message: '$bakedFrameCount / $targetFrameCount frames cached',
+        message: l.simCacheReadout(bakedFrameCount, targetFrameCount),
         child: ClipRRect(
           borderRadius: BorderRadius.circular(3),
           child: SizedBox(

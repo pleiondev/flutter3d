@@ -210,9 +210,7 @@ class _LegalViewState extends State<LegalView> {
                   for (final List<List<LegalSpan>> row in rows)
                     DataRow(
                       cells: <DataCell>[
-                        for (var column = 0;
-                            column < header.length;
-                            column++)
+                        for (var column = 0; column < header.length; column++)
                           DataCell(
                             SizedBox(
                               width: 180,
@@ -252,9 +250,7 @@ class _LegalViewState extends State<LegalView> {
                 fontWeight: span.strong ? FontWeight.w600 : null,
                 fontFamily: span.code ? 'monospace' : null,
                 color: span.href == null ? null : theme.colorScheme.primary,
-                decoration: span.href == null
-                    ? null
-                    : TextDecoration.underline,
+                decoration: span.href == null ? null : TextDecoration.underline,
                 decorationColor: span.href == null
                     ? null
                     : theme.colorScheme.primary,

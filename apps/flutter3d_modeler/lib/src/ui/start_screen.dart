@@ -14,7 +14,7 @@ library;
 import 'package:flutter/material.dart';
 import 'package:flutter3d_model_core/flutter3d_model_core.dart';
 
-import '../../l10n/app_localizations.dart';
+import '../../../l10n/app_localizations.dart';
 
 /// What the person chose, or null from [showStartScreen] when they backed
 /// out without picking anything.
@@ -156,6 +156,7 @@ class StartScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final l10n = AppLocalizations.of(context);
+    final AppLocalizations l = AppLocalizations.of(context);
     return AlertDialog(
       title: Text(l10n.startTitle),
       // **Scrolling, since `ux-42` put four scenario cards above Recent.**
@@ -192,7 +193,7 @@ class StartScreen extends StatelessWidget {
               // `ux-42`: the four the tutorial is written around. Above Recent,
               // because a first session has nothing in Recent and this is the
               // screen a first session sees.
-              Text('Start from', style: theme.textTheme.labelMedium),
+              Text(l.startFrom, style: theme.textTheme.labelMedium),
               for (final StartScenario scenario in StartScenario.values)
                 ListTile(
                   contentPadding: EdgeInsets.zero,

@@ -14,6 +14,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter3d_model_core/flutter3d_model_core.dart' hide Key;
 
+import '../../../l10n/app_localizations.dart';
 import '../timeline_playback.dart';
 import 'curve_editor.dart';
 import 'theme.dart';
@@ -97,6 +98,7 @@ class AnimationBottom extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final AppLocalizations l = AppLocalizations.of(context);
     final theme = Theme.of(context);
     final panelEdge =
         theme.extension<ModelerColors>()?.panelEdge ?? theme.dividerColor;
@@ -135,7 +137,13 @@ class AnimationBottom extends StatelessWidget {
         ),
         Container(height: 1, color: panelEdge),
         Expanded(
-          child: _timelineOrCurves(openClipIndex, openClip, track, trackIndex),
+          child: _timelineOrCurves(
+            l,
+            openClipIndex,
+            openClip,
+            track,
+            trackIndex,
+          ),
         ),
       ],
     );
@@ -145,15 +153,14 @@ class AnimationBottom extends StatelessWidget {
   /// of the two has nothing to show yet — no open clip for [TimelinePanel],
   /// no selected track for [CurveEditor].
   Widget _timelineOrCurves(
+    AppLocalizations l,
     int? openClipIndex,
     ProjectClip? openClip,
     ProjectTrack? track,
     int? trackIndex,
   ) {
     if (openClipIndex == null || openClip == null) {
-      return const Center(
-        child: Text('Select or add an action to see its timeline'),
-      );
+      return Center(child: Text(l.animPickAction));
     }
     if (editMode == TimelineEditMode.keys) {
       return ValueListenableBuilder<int>(
@@ -179,9 +186,7 @@ class AnimationBottom extends StatelessWidget {
       );
     }
     if (track == null || trackIndex == null) {
-      return const Center(
-        child: Text('Select a track in Keys mode to see its curve'),
-      );
+      return Center(child: Text(l.animPickTrack));
     }
     return ValueListenableBuilder<int>(
       valueListenable: frame,

@@ -75,9 +75,5 @@ Future<ClearedLocalData> clearLocalData({
   final bool hadAutosave = await documents.read(autosave) != null;
   if (hadAutosave) await documents.remove(autosave);
 
-  return (
-    settings: hadSettings,
-    recentFiles: hadRecent,
-    autosave: hadAutosave,
-  );
+  return (settings: hadSettings, recentFiles: hadRecent, autosave: hadAutosave);
 }

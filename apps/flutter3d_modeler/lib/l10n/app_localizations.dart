@@ -3277,6 +3277,264 @@ abstract class AppLocalizations {
   /// In ru, this message translates to:
   /// **'Ограничения'**
   String get animConstraints;
+
+  /// No description provided for @crashTitle.
+  ///
+  /// In ru, this message translates to:
+  /// **'Что-то пошло не так'**
+  String get crashTitle;
+
+  /// No description provided for @crashDismiss.
+  ///
+  /// In ru, this message translates to:
+  /// **'Закрыть'**
+  String get crashDismiss;
+
+  /// No description provided for @crashReport.
+  ///
+  /// In ru, this message translates to:
+  /// **'Сообщить о проблеме'**
+  String get crashReport;
+
+  /// No description provided for @postBloom.
+  ///
+  /// In ru, this message translates to:
+  /// **'Свечение'**
+  String get postBloom;
+
+  /// No description provided for @postExposure.
+  ///
+  /// In ru, this message translates to:
+  /// **'Экспозиция'**
+  String get postExposure;
+
+  /// No description provided for @playStop.
+  ///
+  /// In ru, this message translates to:
+  /// **'Стоп'**
+  String get playStop;
+
+  /// No description provided for @playReload.
+  ///
+  /// In ru, this message translates to:
+  /// **'Перезапустить'**
+  String get playReload;
+
+  /// No description provided for @operationNothingDone.
+  ///
+  /// In ru, this message translates to:
+  /// **'пока ничего не сделано'**
+  String get operationNothingDone;
+
+  /// No description provided for @operationHide.
+  ///
+  /// In ru, this message translates to:
+  /// **'Скрыть карточку'**
+  String get operationHide;
+
+  /// No description provided for @operationHideHelp.
+  ///
+  /// In ru, this message translates to:
+  /// **'Скрыть карточку, не отменяя действие'**
+  String get operationHideHelp;
+
+  /// No description provided for @operationNothingToAdjust.
+  ///
+  /// In ru, this message translates to:
+  /// **'нечего настраивать'**
+  String get operationNothingToAdjust;
+
+  /// No description provided for @studioTitle.
+  ///
+  /// In ru, this message translates to:
+  /// **'Студия материалов'**
+  String get studioTitle;
+
+  /// No description provided for @studioClose.
+  ///
+  /// In ru, this message translates to:
+  /// **'Закрыть'**
+  String get studioClose;
+
+  /// No description provided for @constraintsNone.
+  ///
+  /// In ru, this message translates to:
+  /// **'Ограничений нет'**
+  String get constraintsNone;
+
+  /// No description provided for @constraintsRemove.
+  ///
+  /// In ru, this message translates to:
+  /// **'Убрать это ограничение'**
+  String get constraintsRemove;
+
+  /// No description provided for @clipBlend.
+  ///
+  /// In ru, this message translates to:
+  /// **'Смешение'**
+  String get clipBlend;
+
+  /// No description provided for @clipPreview.
+  ///
+  /// In ru, this message translates to:
+  /// **'Превью'**
+  String get clipPreview;
+
+  /// No description provided for @boneMapTitle.
+  ///
+  /// In ru, this message translates to:
+  /// **'Карта костей'**
+  String get boneMapTitle;
+
+  /// No description provided for @boneMapAuto.
+  ///
+  /// In ru, this message translates to:
+  /// **'Сопоставить автоматически'**
+  String get boneMapAuto;
+
+  /// No description provided for @animPickAction.
+  ///
+  /// In ru, this message translates to:
+  /// **'Выберите или добавьте действие, чтобы увидеть таймлайн'**
+  String get animPickAction;
+
+  /// No description provided for @animPickTrack.
+  ///
+  /// In ru, this message translates to:
+  /// **'Выберите дорожку в режиме ключей, чтобы увидеть кривую'**
+  String get animPickTrack;
+
+  /// No description provided for @startFrom.
+  ///
+  /// In ru, this message translates to:
+  /// **'Начать с'**
+  String get startFrom;
+
+  /// No description provided for @dialogClose.
+  ///
+  /// In ru, this message translates to:
+  /// **'Закрыть'**
+  String get dialogClose;
+
+  /// No description provided for @nameField.
+  ///
+  /// In ru, this message translates to:
+  /// **'Имя'**
+  String get nameField;
+
+  /// No description provided for @healthNothingWrong.
+  ///
+  /// In ru, this message translates to:
+  /// **'С ним всё в порядке'**
+  String get healthNothingWrong;
+
+  /// No description provided for @clipSearch.
+  ///
+  /// In ru, this message translates to:
+  /// **'Искать клипы'**
+  String get clipSearch;
+
+  /// No description provided for @clipNoSource.
+  ///
+  /// In ru, this message translates to:
+  /// **'Источник ещё не импортирован'**
+  String get clipNoSource;
+
+  /// No description provided for @actionsNone.
+  ///
+  /// In ru, this message translates to:
+  /// **'Действий нет'**
+  String get actionsNone;
+
+  /// No description provided for @actionsAdd.
+  ///
+  /// In ru, this message translates to:
+  /// **'Добавить'**
+  String get actionsAdd;
+
+  /// No description provided for @weightsPickBone.
+  ///
+  /// In ru, this message translates to:
+  /// **'Выберите кость, чтобы проверить сгиб'**
+  String get weightsPickBone;
+
+  /// Карточка падения — ux-22.
+  ///
+  /// In ru, this message translates to:
+  /// **'Команда: {name}'**
+  String crashCommand(String name);
+
+  /// Карточка падения — ux-22.
+  ///
+  /// In ru, this message translates to:
+  /// **'Последние команды: {names}'**
+  String crashRecent(String names);
+
+  /// Игровой экран — ux-22.
+  ///
+  /// In ru, this message translates to:
+  /// **'{template}  ·  WASD — идти, тянуть — смотреть, Esc — выйти'**
+  String playHint(String template);
+
+  /// Полоса кеша симуляции — ux-22.
+  ///
+  /// In ru, this message translates to:
+  /// **'Кеш симуляции: запечено {baked} из {target} кадров'**
+  String simCacheSemantics(int baked, int target);
+
+  /// Полоса кеша симуляции — ux-22.
+  ///
+  /// In ru, this message translates to:
+  /// **'{baked} / {target} кадров в кеше'**
+  String simCacheReadout(int baked, int target);
+
+  /// Панель состояния меша — ux-22.
+  ///
+  /// In ru, this message translates to:
+  /// **'{message}, выделить их'**
+  String healthSelectThem(String message);
+
+  /// Полоса зон LOD — ux-22.
+  ///
+  /// In ru, this message translates to:
+  /// **'Порог LOD {index}'**
+  String lodThreshold(int index);
+
+  /// Библиотека клипов — ux-22.
+  ///
+  /// In ru, this message translates to:
+  /// **'Ни один клип не подходит под «{query}»'**
+  String clipNoMatch(String query);
+
+  /// Ретопология — ux-22.
+  ///
+  /// In ru, this message translates to:
+  /// **'Печётся карт: {count}…'**
+  String bakingMaps(int count);
+
+  /// No description provided for @outlinerToTopLevel.
+  ///
+  /// In ru, this message translates to:
+  /// **'на верхний уровень'**
+  String get outlinerToTopLevel;
+
+  /// No description provided for @retargetImportSource.
+  ///
+  /// In ru, this message translates to:
+  /// **'Импортируйте исходный клип'**
+  String get retargetImportSource;
+
+  /// No description provided for @skeletonNoJoints.
+  ///
+  /// In ru, this message translates to:
+  /// **'Суставов нет'**
+  String get skeletonNoJoints;
+
+  /// Режим сцены — ux-22.
+  ///
+  /// In ru, this message translates to:
+  /// **'Источник {number} · {kind}'**
+  String sceneLightNamed(int number, String kind);
 }
 
 class _AppLocalizationsDelegate

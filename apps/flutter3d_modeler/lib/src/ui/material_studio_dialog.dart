@@ -23,6 +23,7 @@ import 'package:flutter3d_mesh/flutter3d_mesh.dart';
 import 'package:flutter3d_samples/flutter3d_samples.dart';
 import 'package:vector_math/vector_math.dart' show Vector3, Vector4;
 
+import '../../../l10n/app_localizations.dart';
 import '../modeler_viewport.dart';
 import '../staging.dart';
 import 'roomy_dialog.dart';
@@ -287,6 +288,7 @@ class _MaterialStudioDialogState extends State<_MaterialStudioDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final AppLocalizations l = AppLocalizations.of(context);
     // The same three pieces at either width — this dialog was already a
     // column, so `ux-21` costs it only the fixed 720 that used to overflow
     // anything narrower than the desktop shell.
@@ -356,7 +358,7 @@ class _MaterialStudioDialogState extends State<_MaterialStudioDialog> {
     );
 
     return RoomyDialog(
-      title: 'Material Studio',
+      title: l.studioTitle,
       width: 720,
       height: 520,
       onClose: () => Navigator.of(context).pop(),
@@ -368,7 +370,7 @@ class _MaterialStudioDialogState extends State<_MaterialStudioDialog> {
       actions: <Widget>[
         TextButton(
           onPressed: () => Navigator.of(context).pop(),
-          child: const Text('Close'),
+          child: Text(l.studioClose),
         ),
       ],
     );

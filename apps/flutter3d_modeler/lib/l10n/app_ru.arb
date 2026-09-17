@@ -776,5 +776,137 @@
     }
   },
   "animSkeleton": "Скелет",
-  "animConstraints": "Ограничения"
+  "animConstraints": "Ограничения",
+  "crashTitle": "Что-то пошло не так",
+  "crashDismiss": "Закрыть",
+  "crashReport": "Сообщить о проблеме",
+  "postBloom": "Свечение",
+  "postExposure": "Экспозиция",
+  "playStop": "Стоп",
+  "playReload": "Перезапустить",
+  "operationNothingDone": "пока ничего не сделано",
+  "operationHide": "Скрыть карточку",
+  "operationHideHelp": "Скрыть карточку, не отменяя действие",
+  "operationNothingToAdjust": "нечего настраивать",
+  "studioTitle": "Студия материалов",
+  "studioClose": "Закрыть",
+  "constraintsNone": "Ограничений нет",
+  "constraintsRemove": "Убрать это ограничение",
+  "clipBlend": "Смешение",
+  "clipPreview": "Превью",
+  "boneMapTitle": "Карта костей",
+  "boneMapAuto": "Сопоставить автоматически",
+  "animPickAction": "Выберите или добавьте действие, чтобы увидеть таймлайн",
+  "animPickTrack": "Выберите дорожку в режиме ключей, чтобы увидеть кривую",
+  "startFrom": "Начать с",
+  "dialogClose": "Закрыть",
+  "nameField": "Имя",
+  "healthNothingWrong": "С ним всё в порядке",
+  "clipSearch": "Искать клипы",
+  "clipNoSource": "Источник ещё не импортирован",
+  "actionsNone": "Действий нет",
+  "actionsAdd": "Добавить",
+  "weightsPickBone": "Выберите кость, чтобы проверить сгиб",
+  "crashCommand": "Команда: {name}",
+  "crashRecent": "Последние команды: {names}",
+  "playHint": "{template}  ·  WASD — идти, тянуть — смотреть, Esc — выйти",
+  "simCacheSemantics": "Кеш симуляции: запечено {baked} из {target} кадров",
+  "simCacheReadout": "{baked} / {target} кадров в кеше",
+  "healthSelectThem": "{message}, выделить их",
+  "lodThreshold": "Порог LOD {index}",
+  "clipNoMatch": "Ни один клип не подходит под «{query}»",
+  "bakingMaps": "Печётся карт: {count}…",
+  "@crashCommand": {
+    "description": "Карточка падения — ux-22.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "@crashRecent": {
+    "description": "Карточка падения — ux-22.",
+    "placeholders": {
+      "names": {
+        "type": "String"
+      }
+    }
+  },
+  "@playHint": {
+    "description": "Игровой экран — ux-22.",
+    "placeholders": {
+      "template": {
+        "type": "String"
+      }
+    }
+  },
+  "@simCacheSemantics": {
+    "description": "Полоса кеша симуляции — ux-22.",
+    "placeholders": {
+      "baked": {
+        "type": "int"
+      },
+      "target": {
+        "type": "int"
+      }
+    }
+  },
+  "@simCacheReadout": {
+    "description": "Полоса кеша симуляции — ux-22.",
+    "placeholders": {
+      "baked": {
+        "type": "int"
+      },
+      "target": {
+        "type": "int"
+      }
+    }
+  },
+  "@healthSelectThem": {
+    "description": "Панель состояния меша — ux-22.",
+    "placeholders": {
+      "message": {
+        "type": "String"
+      }
+    }
+  },
+  "@lodThreshold": {
+    "description": "Полоса зон LOD — ux-22.",
+    "placeholders": {
+      "index": {
+        "type": "int"
+      }
+    }
+  },
+  "@clipNoMatch": {
+    "description": "Библиотека клипов — ux-22.",
+    "placeholders": {
+      "query": {
+        "type": "String"
+      }
+    }
+  },
+  "@bakingMaps": {
+    "description": "Ретопология — ux-22.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "outlinerToTopLevel": "на верхний уровень",
+  "retargetImportSource": "Импортируйте исходный клип",
+  "skeletonNoJoints": "Суставов нет",
+  "sceneLightNamed": "Источник {number} · {kind}",
+  "@sceneLightNamed": {
+    "description": "Режим сцены — ux-22.",
+    "placeholders": {
+      "number": {
+        "type": "int"
+      },
+      "kind": {
+        "type": "String"
+      }
+    }
+  }
 }

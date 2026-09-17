@@ -11,6 +11,8 @@ library;
 import 'package:flutter/material.dart';
 import 'package:flutter3d_model_core/flutter3d_model_core.dart' hide Outcome;
 
+import '../../../l10n/app_localizations.dart';
+
 /// [clip]'s own length, in seconds — the latest key any of its tracks
 /// carries, or zero for a clip with no keys at all.
 double clipDurationSeconds(ProjectClip clip) {
@@ -63,6 +65,7 @@ class _ClipLibraryState extends State<ClipLibrary> {
     final RetargetSource? source = widget.source;
     final List<ProjectClip> clips = source?.clips ?? const <ProjectClip>[];
     final String query = _query.trim().toLowerCase();
+    final AppLocalizations l = AppLocalizations.of(context);
     final List<int> shown = <int>[
       for (var i = 0; i < clips.length; i++)
         if (query.isEmpty ||
@@ -86,7 +89,7 @@ class _ClipLibraryState extends State<ClipLibrary> {
               onChanged: (String v) => setState(() => _query = v),
               decoration: InputDecoration(
                 isDense: true,
-                hintText: 'Search clips',
+                hintText: l.clipSearch,
                 prefixIcon: const Icon(Icons.search, size: 18),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(18),
@@ -117,7 +120,7 @@ class _ClipLibraryState extends State<ClipLibrary> {
                     child: Padding(
                       padding: const EdgeInsets.all(16),
                       child: Text(
-                        'No source imported yet',
+                        l.clipNoSource,
                         textAlign: TextAlign.center,
                         style: theme.textTheme.bodySmall?.copyWith(
                           fontStyle: FontStyle.italic,
@@ -128,7 +131,7 @@ class _ClipLibraryState extends State<ClipLibrary> {
                 : shown.isEmpty
                 ? Center(
                     child: Text(
-                      'No clips match "$_query"',
+                      l.clipNoMatch(_query),
                       style: theme.textTheme.bodySmall,
                     ),
                   )

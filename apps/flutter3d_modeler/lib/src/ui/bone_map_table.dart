@@ -22,6 +22,8 @@ import 'package:flutter/material.dart' hide Material;
 import 'package:flutter3d_editor_widgets/flutter3d_editor_widgets.dart';
 import 'package:flutter3d_model_core/flutter3d_model_core.dart' show BoneMap;
 
+import '../../../l10n/app_localizations.dart';
+
 /// One row: [source]'s own bone name, and whatever [boneMap] answers for
 /// it.
 class BoneMapTable extends StatelessWidget {
@@ -57,6 +59,7 @@ class BoneMapTable extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final ThemeData theme = Theme.of(context);
+    final AppLocalizations l = AppLocalizations.of(context);
     final int mapped = <int>[
       for (final String name in sourceNames)
         if (boneMap.targetOf(name) != null) 1,
@@ -64,7 +67,7 @@ class BoneMapTable extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: <Widget>[
-        SectionLabel('Bone map'),
+        SectionLabel(l.boneMapTitle),
         Row(
           children: <Widget>[
             Expanded(
@@ -77,7 +80,7 @@ class BoneMapTable extends StatelessWidget {
             ),
             TextButton(
               onPressed: sourceNames.isEmpty ? null : onAutoMap,
-              child: const Text('Map automatically'),
+              child: Text(l.boneMapAuto),
             ),
           ],
         ),
