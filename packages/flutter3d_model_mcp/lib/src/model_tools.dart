@@ -2048,6 +2048,36 @@ List<ModelTool> get _commandTools => <ModelTool>[
   ),
   ModelTool(
     Tool(
+      name: 'bendJoint',
+      description:
+          'Bend a joint to a given angle from its bind pose, the way the '
+          'editor\'s own bend slider does. This is an absolute angle, not a '
+          'nudge: calling it twice with the same degrees leaves the joint '
+          'where the first call put it, and zero puts it back on its bind '
+          'pose. Use rotateBy instead to turn a joint from wherever it '
+          'currently stands. The joint\'s position and scale are left alone.',
+      inputSchema: ObjectSchema(
+        properties: <String, Schema>{
+          'skeletonIndex': IntegerSchema(
+            description: 'which skeleton, from list',
+          ),
+          'jointIndex': IntegerSchema(description: 'the joint, from list'),
+          'degrees': NumberSchema(
+            description: 'the angle from the bind pose, in degrees',
+          ),
+          'axis': IntegerSchema(
+            description:
+                'which axis to bend about, as an index: 0 for x (the '
+                'default), 1 for y, 2 for z',
+          ),
+        },
+        required: <String>['skeletonIndex', 'jointIndex', 'degrees'],
+      ),
+    ),
+    _command('bendJoint'),
+  ),
+  ModelTool(
+    Tool(
       name: 'mirrorJoints',
       description:
           'Mirror one or more joints across an axis-aligned plane, by '

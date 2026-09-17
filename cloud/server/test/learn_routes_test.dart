@@ -383,17 +383,15 @@ final RegExp _assetLinks = RegExp(r'src="(/assets/[^"]+)"');
 
 /// Pictures the pages already point at and the screenshot pass has not taken.
 ///
-/// **Named with a reason rather than left to render as a broken image.** These
-/// four are the dialogs the tour gained after the last time the modeller's
-/// golden screenshots were recorded: `tutorial_screenshots_test.dart` knows
-/// how to shoot them, and doing it is one `--update-goldens` run followed by
-/// `tool/publish_modeler_screenshots.dart`. Until that runs the page is
-/// honestly incomplete, which is a different thing from silently wrong, and
-/// the test above turns the difference into something a reader of this file
-/// can see.
-const Set<String> _pendingPictures = <String>{
-  '/assets/learn/modeler/modes/export-dialog.png',
-  '/assets/learn/modeler/modes/gallery-dialog.png',
-  '/assets/learn/modeler/modes/material-studio-dialog.png',
-  '/assets/learn/modeler/modes/add-primitive-menu.png',
-};
+/// **Empty, and kept rather than deleted.** It held four names for one day:
+/// the dialogs the tour gained after the last time the modeller's golden
+/// screenshots were recorded — the export sheet, the gallery, the material
+/// studio and the primitive menu — which rendered as broken images while
+/// every check that existed asked only whether the page *mentioned* them.
+/// They were shot on 2026-09-17 and the list emptied itself, which is the
+/// second test above doing its job.
+///
+/// The mechanism stays because the situation recurs: a page is written before
+/// its picture is taken more often than the other way round, and naming the
+/// gap here is what keeps the check green without going quiet.
+const Set<String> _pendingPictures = <String>{};

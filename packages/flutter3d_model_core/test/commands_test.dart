@@ -2846,6 +2846,7 @@ void main() {
           jointIndex: 0,
           worldTransform: Matrix4.identity(),
         ),
+        const BendJoint(skeletonIndex: 0, jointIndex: 1, degrees: 30.0),
         const MirrorJoints(
           skeletonIndex: 0,
           axis: 0,
@@ -5116,6 +5117,132 @@ void main() {
         }); // mid, tip — shifted down
       },
     );
+
+    group('tut-09: BendJoint says a pose rather than a nudge', () {
+      /// The joint's own local rotation, as a turn about X in degrees.
+      ///
+      /// The fixture's bind pose is the identity, so the local rotation *is*
+      /// the bend; `2·atan2(x, w)` reads it back out of the quaternion's own
+      /// half-angle.
+      double bendOf(ModelHistory history, int jointIndex) {
+        final skeleton = history.project.skeletons.single;
+        final object = history.project[skeleton.joints[jointIndex]]!;
+        final rotation = Quaternion.identity();
+        object.transform.decompose(Vector3.zero(), rotation, Vector3.zero());
+        return degrees(2.0 * math.atan2(rotation.x, rotation.w));
+      }
+
+      test('it turns the joint by what it was asked for', () {
+        final history = riggedChain();
+        expect(
+          history.run(
+            const BendJoint(skeletonIndex: 0, jointIndex: 1, degrees: 30.0),
+          ),
+          isNull,
+        );
+        expect(bendOf(history, 1), closeTo(30.0, 1e-4));
+      });
+
+      test('twice is the same as once, which RotateBy is not', () {
+        // The whole reason this command exists. A slider at thirty means
+        // thirty however many times it is set there; `RotateBy` turns a
+        // joint from where it stands, so running it twice gives sixty and a
+        // caller wanting an absolute pose has to read the current one and
+        // work out the difference first.
+        final history = riggedChain();
+        for (var i = 0; i < 2; i++) {
+          expect(
+            history.run(
+              const BendJoint(skeletonIndex: 0, jointIndex: 1, degrees: 30.0),
+            ),
+            isNull,
+          );
+        }
+        expect(bendOf(history, 1), closeTo(30.0, 1e-4));
+      });
+
+      test('nought puts the joint back on its bind pose', () {
+        final history = riggedChain();
+        expect(
+          history.run(
+            const BendJoint(skeletonIndex: 0, jointIndex: 1, degrees: 45.0),
+          ),
+          isNull,
+        );
+        expect(
+          history.run(
+            const BendJoint(skeletonIndex: 0, jointIndex: 1, degrees: 0.0),
+          ),
+          isNull,
+        );
+        expect(bendOf(history, 1), closeTo(0.0, 1e-4));
+      });
+
+      test('it keeps the translation and scale the document holds', () {
+        // The slider calls `setRotation` and leaves the node's position
+        // alone; this leaves the object's own translation and scale. A rig
+        // whose joints were moved deliberately keeps that.
+        final history = riggedChain();
+        final skeleton = history.project.skeletons.single;
+        final midId = skeleton.joints[1];
+        final moved = Matrix4.compose(
+          Vector3(0.0, 1.5, 0.0),
+          Quaternion.identity(),
+          Vector3(2.0, 2.0, 2.0),
+        );
+        expect(history.run(SetTransform(id: midId, to: moved)), isNull);
+        expect(
+          history.run(
+            const BendJoint(skeletonIndex: 0, jointIndex: 1, degrees: 30.0),
+          ),
+          isNull,
+        );
+
+        final after = history.project[midId]!.transform;
+        final translation = Vector3.zero();
+        final scale = Vector3.zero();
+        after.decompose(translation, Quaternion.identity(), scale);
+        expect(translation.y, closeTo(1.5, 1e-6));
+        expect(scale.x, closeTo(2.0, 1e-6));
+        expect(bendOf(history, 1), closeTo(30.0, 1e-4));
+      });
+
+      test('it refuses a joint and an axis that are not there', () {
+        final history = riggedChain();
+        expect(
+          history.run(
+            const BendJoint(skeletonIndex: 0, jointIndex: 9, degrees: 10.0),
+          ),
+          contains('is not one of them'),
+        );
+        expect(
+          history.run(
+            const BendJoint(
+              skeletonIndex: 0,
+              jointIndex: 1,
+              degrees: 10.0,
+              axis: 7,
+            ),
+          ),
+          contains('an axis is 0 for x'),
+        );
+      });
+
+      test('it round-trips through the journal', () {
+        const written = BendJoint(
+          skeletonIndex: 0,
+          jointIndex: 1,
+          degrees: 30.0,
+          axis: 2,
+        );
+        final read = modelCommandFromJson(written.toJson());
+        expect(read, isA<BendJoint>());
+        final bend = read! as BendJoint;
+        expect(bend.jointIndex, 1);
+        expect(bend.degrees, 30.0);
+        expect(bend.axis, 2);
+      });
+    });
 
     test('SetRestPose moves the joint in world space and recomputes its own '
         'inverse bind matrix', () {
