@@ -10193,23 +10193,80 @@ var<private> gl_FragCoord_1: vec4<f32>;
 var<private> frag_color: vec4<f32>;
 
 fn LinearToSrgb_u0028_vf3_u003b(linear: ptr<function, vec3<f32>>) -> vec3<f32> {
-    let _e52 = (*linear);
-    let _e54 = (*linear);
-    let _e59 = (*linear);
-    return mix((_e52 * 12.92f), ((pow(max(_e54, vec3<f32>(0f, 0f, 0f)), vec3<f32>(0.41666666f, 0.41666666f, 0.41666666f)) * 1.055f) - vec3<f32>(0.055f, 0.055f, 0.055f)), step(vec3<f32>(0.0031308f, 0.0031308f, 0.0031308f), _e59));
+    let _e76 = (*linear);
+    let _e78 = (*linear);
+    let _e83 = (*linear);
+    return mix((_e76 * 12.92f), ((pow(max(_e78, vec3<f32>(0f, 0f, 0f)), vec3<f32>(0.41666666f, 0.41666666f, 0.41666666f)) * 1.055f) - vec3<f32>(0.055f, 0.055f, 0.055f)), step(vec3<f32>(0.0031308f, 0.0031308f, 0.0031308f), _e83));
 }
 
 fn Hash_u0028_vf2_u003b(at: ptr<function, vec2<f32>>) -> f32 {
-    let _e52 = (*at);
-    return fract((sin(dot(_e52, vec2<f32>(12.9898f, 78.233f))) * 43758.547f));
+    let _e76 = (*at);
+    return fract((sin(dot(_e76, vec2<f32>(12.9898f, 78.233f))) * 43758.547f));
 }
 
 fn Luma_u0028_vf3_u003b(color: ptr<function, vec3<f32>>) -> f32 {
-    let _e52 = (*color);
-    return dot(_e52, vec3<f32>(0.2126f, 0.7152f, 0.0722f));
+    let _e76 = (*color);
+    return dot(_e76, vec3<f32>(0.2126f, 0.7152f, 0.0722f));
 }
 
-fn TonemapNeutral_u0028_vf3_u003b(color_1: ptr<function, vec3<f32>>) -> vec3<f32> {
+fn TonemapReinhard_u0028_vf3_u003b(color_1: ptr<function, vec3<f32>>) -> vec3<f32> {
+    var numerator: vec3<f32>;
+
+    let _e77 = (*color_1);
+    let _e78 = (*color_1);
+    numerator = (_e77 * (vec3<f32>(1f, 1f, 1f) + (_e78 / vec3<f32>(16f, 16f, 16f))));
+    let _e82 = numerator;
+    let _e83 = (*color_1);
+    return clamp((_e82 / (vec3<f32>(1f, 1f, 1f) + _e83)), vec3<f32>(0f, 0f, 0f), vec3<f32>(1f, 1f, 1f));
+}
+
+fn TonemapAgx_u0028_vf3_u003b(color_2: ptr<function, vec3<f32>>) -> vec3<f32> {
+    var v: vec3<f32>;
+    var v2_: vec3<f32>;
+    var v4_: vec3<f32>;
+    var luma: f32;
+    var param: vec3<f32>;
+
+    let _e81 = (*color_2);
+    v = clamp(log2(max(_e81, vec3<f32>(0.0000000001f, 0.0000000001f, 0.0000000001f))), vec3<f32>(-12.47393f, -12.47393f, -12.47393f), vec3<f32>(4.026069f, 4.026069f, 4.026069f));
+    let _e85 = v;
+    v = ((_e85 - vec3<f32>(-12.47393f, -12.47393f, -12.47393f)) / vec3(16.499998f));
+    let _e89 = v;
+    let _e90 = v;
+    v2_ = (_e89 * _e90);
+    let _e92 = v2_;
+    let _e93 = v2_;
+    v4_ = (_e92 * _e93);
+    let _e95 = v4_;
+    let _e97 = v2_;
+    let _e99 = v4_;
+    let _e101 = v;
+    let _e104 = v4_;
+    let _e107 = v2_;
+    let _e109 = v;
+    let _e112 = v2_;
+    let _e115 = v;
+    v = ((((((((_e95 * 15.5f) * _e97) - ((_e99 * 40.14f) * _e101)) + (_e104 * 31.96f)) - ((_e107 * 6.868f) * _e109)) + (_e112 * 0.4298f)) + (_e115 * 0.1191f)) - vec3(0.00232f));
+    let _e120 = v;
+    v = clamp(_e120, vec3<f32>(0f, 0f, 0f), vec3<f32>(1f, 1f, 1f));
+    let _e122 = v;
+    param = _e122;
+    let _e123 = Luma_u0028_vf3_u003b((&param));
+    luma = _e123;
+    let _e124 = luma;
+    let _e126 = v;
+    return mix(vec3(_e124), _e126, vec3(0.84f));
+}
+
+fn TonemapAces_u0028_vf3_u003b(color_3: ptr<function, vec3<f32>>) -> vec3<f32> {
+    let _e76 = (*color_3);
+    let _e77 = (*color_3);
+    let _e82 = (*color_3);
+    let _e83 = (*color_3);
+    return clamp(((_e76 * ((_e77 * 2.51f) + vec3(0.03f))) / ((_e82 * ((_e83 * 2.43f) + vec3(0.59f))) + vec3(0.14f))), vec3<f32>(0f, 0f, 0f), vec3<f32>(1f, 1f, 1f));
+}
+
+fn TonemapNeutral_u0028_vf3_u003b(color_4: ptr<function, vec3<f32>>) -> vec3<f32> {
     var minChannel: f32;
     var offset: f32;
     var local: f32;
@@ -10217,46 +10274,84 @@ fn TonemapNeutral_u0028_vf3_u003b(color_1: ptr<function, vec3<f32>>) -> vec3<f32
     var newPeak: f32;
     var desaturate: f32;
 
-    let _e59 = (*color_1)[0u];
-    let _e61 = (*color_1)[1u];
-    let _e63 = (*color_1)[2u];
-    minChannel = min(_e59, min(_e61, _e63));
-    let _e66 = minChannel;
-    if (_e66 < 0.08f) {
-        let _e68 = minChannel;
-        let _e69 = minChannel;
-        let _e71 = minChannel;
-        local = (_e68 - ((6.25f * _e69) * _e71));
+    let _e83 = (*color_4)[0u];
+    let _e85 = (*color_4)[1u];
+    let _e87 = (*color_4)[2u];
+    minChannel = min(_e83, min(_e85, _e87));
+    let _e90 = minChannel;
+    if (_e90 < 0.08f) {
+        let _e92 = minChannel;
+        let _e93 = minChannel;
+        let _e95 = minChannel;
+        local = (_e92 - ((6.25f * _e93) * _e95));
     } else {
         local = 0.04f;
     }
-    let _e74 = local;
-    offset = _e74;
-    let _e75 = offset;
-    let _e76 = (*color_1);
-    (*color_1) = (_e76 - vec3(_e75));
-    let _e80 = (*color_1)[0u];
-    let _e82 = (*color_1)[1u];
-    let _e84 = (*color_1)[2u];
-    peak = max(_e80, max(_e82, _e84));
-    let _e87 = peak;
-    if (_e87 < 0.76f) {
-        let _e89 = (*color_1);
-        return _e89;
+    let _e98 = local;
+    offset = _e98;
+    let _e99 = offset;
+    let _e100 = (*color_4);
+    (*color_4) = (_e100 - vec3(_e99));
+    let _e104 = (*color_4)[0u];
+    let _e106 = (*color_4)[1u];
+    let _e108 = (*color_4)[2u];
+    peak = max(_e104, max(_e106, _e108));
+    let _e111 = peak;
+    if (_e111 < 0.76f) {
+        let _e113 = (*color_4);
+        return _e113;
     }
-    let _e90 = peak;
-    newPeak = (1f - (0.0576f / ((_e90 + 0.24f) - 0.76f)));
-    let _e95 = newPeak;
-    let _e96 = peak;
-    let _e98 = (*color_1);
-    (*color_1) = (_e98 * (_e95 / _e96));
-    let _e100 = peak;
-    let _e101 = newPeak;
-    desaturate = (1f - (1f / ((0.15f * (_e100 - _e101)) + 1f)));
-    let _e107 = (*color_1);
-    let _e108 = newPeak;
-    let _e110 = desaturate;
-    return mix(_e107, vec3(_e108), vec3(_e110));
+    let _e114 = peak;
+    newPeak = (1f - (0.0576f / ((_e114 + 0.24f) - 0.76f)));
+    let _e119 = newPeak;
+    let _e120 = peak;
+    let _e122 = (*color_4);
+    (*color_4) = (_e122 * (_e119 / _e120));
+    let _e124 = peak;
+    let _e125 = newPeak;
+    desaturate = (1f - (1f / ((0.15f * (_e124 - _e125)) + 1f)));
+    let _e131 = (*color_4);
+    let _e132 = newPeak;
+    let _e134 = desaturate;
+    return mix(_e131, vec3(_e132), vec3(_e134));
+}
+
+fn TonemapBy_u0028_vf3_u003b_i1_u003b(color_5: ptr<function, vec3<f32>>, curve: ptr<function, i32>) -> vec3<f32> {
+    var param_1: vec3<f32>;
+    var param_2: vec3<f32>;
+    var param_3: vec3<f32>;
+    var param_4: vec3<f32>;
+
+    let _e81 = (*curve);
+    if (_e81 == 1i) {
+        let _e83 = (*color_5);
+        param_1 = _e83;
+        let _e84 = TonemapNeutral_u0028_vf3_u003b((&param_1));
+        return _e84;
+    }
+    let _e85 = (*curve);
+    if (_e85 == 2i) {
+        let _e87 = (*color_5);
+        param_2 = _e87;
+        let _e88 = TonemapAces_u0028_vf3_u003b((&param_2));
+        return _e88;
+    }
+    let _e89 = (*curve);
+    if (_e89 == 3i) {
+        let _e91 = (*color_5);
+        param_3 = _e91;
+        let _e92 = TonemapAgx_u0028_vf3_u003b((&param_3));
+        return _e92;
+    }
+    let _e93 = (*curve);
+    if (_e93 == 4i) {
+        let _e95 = (*color_5);
+        param_4 = _e95;
+        let _e96 = TonemapReinhard_u0028_vf3_u003b((&param_4));
+        return _e96;
+    }
+    let _e97 = (*color_5);
+    return _e97;
 }
 
 fn main_1() {
@@ -10267,139 +10362,139 @@ fn main_1() {
     var bloom: vec3<f32>;
     var half_texel: vec2<f32>;
     var ao: f32;
-    var color_2: vec3<f32>;
-    var param: vec3<f32>;
+    var color_6: vec3<f32>;
+    var param_5: vec3<f32>;
+    var param_6: i32;
     var contrast: f32;
     var saturation: f32;
     var temperature: f32;
-    var param_1: vec3<f32>;
+    var param_7: vec3<f32>;
     var vignette: f32;
     var fromCentre_1: vec2<f32>;
     var aspect: f32;
     var radius: f32;
     var grain: f32;
-    var param_2: vec2<f32>;
-    var param_3: vec3<f32>;
+    var param_8: vec2<f32>;
+    var param_9: vec3<f32>;
 
-    let _e73 = composite_info.look[3u];
-    dispersion = _e73;
-    let _e74 = dispersion;
-    if (_e74 > 0f) {
-        let _e76 = v_uv_1;
-        fromCentre = (_e76 - vec2<f32>(0.5f, 0.5f));
-        let _e78 = fromCentre;
-        let _e79 = dispersion;
-        step_uv = (_e78 * _e79);
-        let _e81 = v_uv_1;
-        let _e82 = textureSample(scene_texture_tex, scene_texture_smp, _e81);
-        scene = _e82;
-        let _e83 = v_uv_1;
-        let _e84 = step_uv;
-        let _e86 = textureSample(scene_texture_tex, scene_texture_smp, (_e83 + _e84));
-        scene[0u] = _e86.x;
-        let _e89 = v_uv_1;
-        let _e90 = step_uv;
-        let _e92 = textureSample(scene_texture_tex, scene_texture_smp, (_e89 - _e90));
-        scene[2u] = _e92.z;
+    let _e98 = composite_info.look[3u];
+    dispersion = _e98;
+    let _e99 = dispersion;
+    if (_e99 > 0f) {
+        let _e101 = v_uv_1;
+        fromCentre = (_e101 - vec2<f32>(0.5f, 0.5f));
+        let _e103 = fromCentre;
+        let _e104 = dispersion;
+        step_uv = (_e103 * _e104);
+        let _e106 = v_uv_1;
+        let _e107 = textureSample(scene_texture_tex, scene_texture_smp, _e106);
+        scene = _e107;
+        let _e108 = v_uv_1;
+        let _e109 = step_uv;
+        let _e111 = textureSample(scene_texture_tex, scene_texture_smp, (_e108 + _e109));
+        scene[0u] = _e111.x;
+        let _e114 = v_uv_1;
+        let _e115 = step_uv;
+        let _e117 = textureSample(scene_texture_tex, scene_texture_smp, (_e114 - _e115));
+        scene[2u] = _e117.z;
     } else {
-        let _e95 = v_uv_1;
-        let _e96 = textureSample(scene_texture_tex, scene_texture_smp, _e95);
-        scene = _e96;
+        let _e120 = v_uv_1;
+        let _e121 = textureSample(scene_texture_tex, scene_texture_smp, _e120);
+        scene = _e121;
     }
-    let _e97 = v_uv_1;
-    let _e98 = textureSample(bloom_texture_tex, bloom_texture_smp, _e97);
-    bloom = _e98.xyz;
-    let _e101 = composite_info.ao_texel;
-    half_texel = (_e101.xy * 0.5f);
-    let _e104 = v_uv_1;
-    let _e106 = half_texel[0u];
-    let _e108 = half_texel[1u];
-    let _e111 = textureSample(ao_texture_tex, ao_texture_smp, (_e104 + vec2<f32>(_e106, _e108)));
-    let _e113 = v_uv_1;
-    let _e115 = half_texel[0u];
-    let _e118 = half_texel[1u];
-    let _e121 = textureSample(ao_texture_tex, ao_texture_smp, (_e113 + vec2<f32>(-(_e115), _e118)));
-    let _e124 = v_uv_1;
-    let _e126 = half_texel[0u];
-    let _e128 = half_texel[1u];
-    let _e132 = textureSample(ao_texture_tex, ao_texture_smp, (_e124 + vec2<f32>(_e126, -(_e128))));
-    let _e135 = v_uv_1;
-    let _e137 = half_texel[0u];
-    let _e140 = half_texel[1u];
-    let _e144 = textureSample(ao_texture_tex, ao_texture_smp, (_e135 + vec2<f32>(-(_e137), -(_e140))));
-    ao = (0.25f * (((_e111.x + _e121.x) + _e132.x) + _e144.x));
-    let _e148 = ao;
-    let _e151 = composite_info.params[3u];
-    ao = mix(1f, _e148, clamp(_e151, 0f, 1f));
-    let _e154 = scene;
-    let _e156 = ao;
-    let _e158 = bloom;
-    let _e161 = composite_info.params[1u];
-    color_2 = ((_e154.xyz * _e156) + (_e158 * _e161));
-    let _e166 = composite_info.params[0u];
-    let _e168 = color_2;
-    color_2 = (_e168 * max(_e166, 0f));
-    let _e172 = composite_info.params[2u];
-    if (_e172 > 0.5f) {
-        let _e174 = color_2;
-        param = _e174;
-        let _e175 = TonemapNeutral_u0028_vf3_u003b((&param));
-        color_2 = _e175;
+    let _e122 = v_uv_1;
+    let _e123 = textureSample(bloom_texture_tex, bloom_texture_smp, _e122);
+    bloom = _e123.xyz;
+    let _e126 = composite_info.ao_texel;
+    half_texel = (_e126.xy * 0.5f);
+    let _e129 = v_uv_1;
+    let _e131 = half_texel[0u];
+    let _e133 = half_texel[1u];
+    let _e136 = textureSample(ao_texture_tex, ao_texture_smp, (_e129 + vec2<f32>(_e131, _e133)));
+    let _e138 = v_uv_1;
+    let _e140 = half_texel[0u];
+    let _e143 = half_texel[1u];
+    let _e146 = textureSample(ao_texture_tex, ao_texture_smp, (_e138 + vec2<f32>(-(_e140), _e143)));
+    let _e149 = v_uv_1;
+    let _e151 = half_texel[0u];
+    let _e153 = half_texel[1u];
+    let _e157 = textureSample(ao_texture_tex, ao_texture_smp, (_e149 + vec2<f32>(_e151, -(_e153))));
+    let _e160 = v_uv_1;
+    let _e162 = half_texel[0u];
+    let _e165 = half_texel[1u];
+    let _e169 = textureSample(ao_texture_tex, ao_texture_smp, (_e160 + vec2<f32>(-(_e162), -(_e165))));
+    ao = (0.25f * (((_e136.x + _e146.x) + _e157.x) + _e169.x));
+    let _e173 = ao;
+    let _e176 = composite_info.params[3u];
+    ao = mix(1f, _e173, clamp(_e176, 0f, 1f));
+    let _e179 = scene;
+    let _e181 = ao;
+    let _e183 = bloom;
+    let _e186 = composite_info.params[1u];
+    color_6 = ((_e179.xyz * _e181) + (_e183 * _e186));
+    let _e191 = composite_info.params[0u];
+    let _e193 = color_6;
+    color_6 = (_e193 * max(_e191, 0f));
+    let _e197 = composite_info.params[2u];
+    let _e200 = color_6;
+    param_5 = _e200;
+    param_6 = i32((_e197 + 0.5f));
+    let _e201 = TonemapBy_u0028_vf3_u003b_i1_u003b((&param_5), (&param_6));
+    color_6 = _e201;
+    let _e204 = composite_info.look[0u];
+    contrast = _e204;
+    let _e207 = composite_info.look[1u];
+    saturation = _e207;
+    let _e210 = composite_info.look[2u];
+    temperature = _e210;
+    let _e211 = color_6;
+    let _e213 = contrast;
+    color_6 = (((_e211 - vec3<f32>(0.5f, 0.5f, 0.5f)) * _e213) + vec3<f32>(0.5f, 0.5f, 0.5f));
+    let _e216 = color_6;
+    param_7 = _e216;
+    let _e217 = Luma_u0028_vf3_u003b((&param_7));
+    let _e219 = color_6;
+    let _e220 = saturation;
+    color_6 = mix(vec3(_e217), _e219, vec3(_e220));
+    let _e223 = temperature;
+    let _e226 = temperature;
+    let _e230 = color_6;
+    color_6 = (_e230 * vec3<f32>((1f + (_e223 * 0.1f)), 1f, (1f - (_e226 * 0.1f))));
+    let _e234 = composite_info.look_more[0u];
+    vignette = _e234;
+    let _e235 = vignette;
+    if (_e235 > 0f) {
+        let _e237 = v_uv_1;
+        fromCentre_1 = (_e237 - vec2<f32>(0.5f, 0.5f));
+        let _e241 = composite_info.look_more[3u];
+        aspect = max(_e241, 0.0001f);
+        let _e243 = aspect;
+        let _e246 = composite_info.look_more[1u];
+        let _e249 = fromCentre_1[0u];
+        fromCentre_1[0u] = (_e249 * mix(1f, _e243, _e246));
+        let _e252 = fromCentre_1;
+        radius = (length(_e252) * 1.4142135f);
+        let _e255 = vignette;
+        let _e257 = radius;
+        let _e260 = color_6;
+        color_6 = (_e260 * mix(1f, (1f - _e255), clamp(_e257, 0f, 1f)));
     }
-    let _e178 = composite_info.look[0u];
-    contrast = _e178;
-    let _e181 = composite_info.look[1u];
-    saturation = _e181;
-    let _e184 = composite_info.look[2u];
-    temperature = _e184;
-    let _e185 = color_2;
-    let _e187 = contrast;
-    color_2 = (((_e185 - vec3<f32>(0.5f, 0.5f, 0.5f)) * _e187) + vec3<f32>(0.5f, 0.5f, 0.5f));
-    let _e190 = color_2;
-    param_1 = _e190;
-    let _e191 = Luma_u0028_vf3_u003b((&param_1));
-    let _e193 = color_2;
-    let _e194 = saturation;
-    color_2 = mix(vec3(_e191), _e193, vec3(_e194));
-    let _e197 = temperature;
-    let _e200 = temperature;
-    let _e204 = color_2;
-    color_2 = (_e204 * vec3<f32>((1f + (_e197 * 0.1f)), 1f, (1f - (_e200 * 0.1f))));
-    let _e208 = composite_info.look_more[0u];
-    vignette = _e208;
-    let _e209 = vignette;
-    if (_e209 > 0f) {
-        let _e211 = v_uv_1;
-        fromCentre_1 = (_e211 - vec2<f32>(0.5f, 0.5f));
-        let _e215 = composite_info.look_more[3u];
-        aspect = max(_e215, 0.0001f);
-        let _e217 = aspect;
-        let _e220 = composite_info.look_more[1u];
-        let _e223 = fromCentre_1[0u];
-        fromCentre_1[0u] = (_e223 * mix(1f, _e217, _e220));
-        let _e226 = fromCentre_1;
-        radius = (length(_e226) * 1.4142135f);
-        let _e229 = vignette;
-        let _e231 = radius;
-        let _e234 = color_2;
-        color_2 = (_e234 * mix(1f, (1f - _e229), clamp(_e231, 0f, 1f)));
+    let _e264 = composite_info.look_more[2u];
+    grain = _e264;
+    let _e265 = grain;
+    if (_e265 > 0f) {
+        let _e267 = gl_FragCoord_1;
+        param_8 = _e267.xy;
+        let _e269 = Hash_u0028_vf2_u003b((&param_8));
+        let _e271 = grain;
+        let _e274 = color_6;
+        color_6 = (_e274 + vec3(((_e269 - 0.5f) * _e271)));
     }
-    let _e238 = composite_info.look_more[2u];
-    grain = _e238;
-    let _e239 = grain;
-    if (_e239 > 0f) {
-        let _e241 = gl_FragCoord_1;
-        param_2 = _e241.xy;
-        let _e243 = Hash_u0028_vf2_u003b((&param_2));
-        let _e245 = grain;
-        let _e248 = color_2;
-        color_2 = (_e248 + vec3(((_e243 - 0.5f) * _e245)));
-    }
-    let _e250 = color_2;
-    param_3 = max(_e250, vec3<f32>(0f, 0f, 0f));
-    let _e252 = LinearToSrgb_u0028_vf3_u003b((&param_3));
-    let _e254 = scene[3u];
-    frag_color = vec4<f32>(_e252.x, _e252.y, _e252.z, _e254);
+    let _e276 = color_6;
+    param_9 = max(_e276, vec3<f32>(0f, 0f, 0f));
+    let _e278 = LinearToSrgb_u0028_vf3_u003b((&param_9));
+    let _e280 = scene[3u];
+    frag_color = vec4<f32>(_e278.x, _e278.y, _e278.z, _e280);
     return;
 }
 

@@ -107,7 +107,7 @@ final class CompositeShader implements CpuFragmentShader {
     }
 
     colour.scale(math.max(params.x, 0.0));
-    if (params.z > 0.5) colour = tonemapNeutral(colour);
+    colour = tonemapBy(colour, (params.z + 0.5).floor());
 
     // Grading after the tone map, then the barrel, then the film. The order is
     // the one a camera imposes and it is the order `composite.frag` uses; the

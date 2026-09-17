@@ -227,6 +227,7 @@ final class RenderSettings {
     this.debug = const DebugDrawOptions(),
     this.highlighted = const <SceneNode>[],
     this.tonemap = true,
+    this.tonemapCurve = TonemapCurve.neutral,
     this.bloom = const BloomSettings(),
     this.look = const LookSettings(),
     this.shadows = const ShadowSettings(),
@@ -323,6 +324,14 @@ final class RenderSettings {
   /// is not a light value at all and a tone curve would corrupt it — a normal
   /// encoded as RGB has no business being rolled off.
   final bool tonemap;
+
+  /// Which curve [tonemap] applies — `gfx-17n`'s own row.
+  ///
+  /// [TonemapCurve.neutral] by default, which is what every golden in this
+  /// repository was recorded with and what a glTF asset's author saw in a
+  /// reference viewer. The other three are a look a game asks for, not a
+  /// default anybody inherits.
+  final TonemapCurve tonemapCurve;
 
   final BloomSettings bloom;
 
@@ -459,6 +468,7 @@ final class RenderSettings {
     DebugDrawOptions? debug,
     List<SceneNode>? highlighted,
     bool? tonemap,
+    TonemapCurve? tonemapCurve,
     BloomSettings? bloom,
     LookSettings? look,
     ShadowSettings? shadows,
@@ -482,6 +492,7 @@ final class RenderSettings {
     debug: debug ?? this.debug,
     highlighted: highlighted ?? this.highlighted,
     tonemap: tonemap ?? this.tonemap,
+    tonemapCurve: tonemapCurve ?? this.tonemapCurve,
     bloom: bloom ?? this.bloom,
     look: look ?? this.look,
     shadows: shadows ?? this.shadows,
@@ -549,6 +560,53 @@ final class RenderSettings {
 /// the scene at offset coordinates; grading is a decision about a displayable
 /// image and so follows the tone map; grain and vignette are the film and the
 /// barrel, and come last.
+/// Which curve the composite rolls highlights off with — `gfx-17n`.
+///
+/// **A final class with const instances rather than an enum**, the shape
+/// `LightingModel` already has and the one `tool/structure.dart`'s "an enum in
+/// a published package is machinery or is not an enum" rule asks for: the
+/// [code] is part of a uniform layout four backends read, so it is a number
+/// this type owns rather than an ordinal the language happens to assign.
+///
+/// None of these is better than the others and the default is not a verdict:
+/// [neutral] leaves midtones where the asset's author put them, [aces] trades
+/// midtones for a filmic shoulder, [agx] keeps a gradient inside bright
+/// saturated light at the cost of desaturating as it climbs, and [reinhard]
+/// touches nothing but the highlights. `composite.frag` carries the argument
+/// for each one beside its arithmetic.
+final class TonemapCurve {
+  const TonemapCurve._(this.name, this.code);
+
+  /// The name it is written down as.
+  final String name;
+
+  /// What goes into `CompositeInfo.params.z`. Part of the shader contract.
+  final double code;
+
+  /// Khronos PBR Neutral — the default, and what every golden here holds.
+  static const TonemapCurve neutral = TonemapCurve._('neutral', 1.0);
+
+  /// ACES, the Narkowicz fit.
+  static const TonemapCurve aces = TonemapCurve._('aces', 2.0);
+
+  /// AgX's curve, without the gamut rotation — see `composite.frag`.
+  static const TonemapCurve agx = TonemapCurve._('agx', 3.0);
+
+  /// Reinhard, extended so white reaches white.
+  static const TonemapCurve reinhard = TonemapCurve._('reinhard', 4.0);
+
+  /// All of them, in the order their codes run.
+  static const List<TonemapCurve> values = <TonemapCurve>[
+    neutral,
+    aces,
+    agx,
+    reinhard,
+  ];
+
+  @override
+  String toString() => 'TonemapCurve.$name';
+}
+
 final class LookSettings {
   const LookSettings({
     this.contrast = 1.0,

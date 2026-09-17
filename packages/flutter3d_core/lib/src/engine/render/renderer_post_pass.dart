@@ -429,6 +429,7 @@ extension _PostPasses on Renderer {
       exposure: _exposureFor(settings),
       bloomIntensity: settings.bloom.intensity,
       tonemap: settings.tonemap,
+      curve: settings.tonemapCurve,
     );
     _compositeParams[0] = mix.exposure;
     _compositeParams[1] = mix.bloomIntensity;
