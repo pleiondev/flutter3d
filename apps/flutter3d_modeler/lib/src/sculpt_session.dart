@@ -95,6 +95,7 @@ class SculptSession {
     required BrushFalloff falloff,
     required bool symmetryX,
     required bool inverted,
+    double pressure = 1.0,
   }) {
     if (isActive) return false;
     final ModelProject project = history().project;
@@ -119,6 +120,7 @@ class SculptSession {
       falloff: falloff,
       symmetryX: symmetryX,
       inverted: inverted,
+      pressure: pressure,
     );
   }
 
@@ -132,6 +134,7 @@ class SculptSession {
     required BrushFalloff falloff,
     required bool symmetryX,
     required bool inverted,
+    double pressure = 1.0,
   }) {
     if (!isActive) return false;
     return _sculpt(
@@ -143,6 +146,7 @@ class SculptSession {
       falloff: falloff,
       symmetryX: symmetryX,
       inverted: inverted,
+      pressure: pressure,
     );
   }
 
@@ -150,6 +154,9 @@ class SculptSession {
   /// made. A no-op when nothing is open.
   void pointerUp() {
     if (!isActive) return;
+    // Whatever the last frame collected and never drew — a drag that ends
+    // between two frames is the ordinary case, not an edge one.
+    flush();
     _surface = null;
     _objectId = null;
     _toObject = null;
@@ -166,6 +173,7 @@ class SculptSession {
     required BrushFalloff falloff,
     required bool symmetryX,
     required bool inverted,
+    required double pressure,
   }) {
     final TriangleBvh? surface = _surface;
     final int? objectId = _objectId;
@@ -186,25 +194,94 @@ class SculptSession {
     final Vector3? previous = _lastPoint;
     _lastPoint = point;
 
-    cubit.ran(
-      SculptStroke(
+    // The inverted end of a stylus is the same stroke with the sign turned
+    // round — `InputPolicy`'s own `ToolStroke.erase`, which every drawing
+    // application on every platform already agrees means this.
+    final double signed = inverted ? -strength : strength;
+
+    // **The radius is compared loosely and everything else exactly**, and
+    // that is the one judgement in this batching. A stroke carries a single
+    // radius, so samples that want different ones cannot share it — but the
+    // radius is the world width of a fixed *pixel* circle at the hit depth,
+    // and within one frame the camera does not move, so the only thing that
+    // varies it is the surface's own relief under the brush. Measured on the
+    // fixture below: six samples across a subdivided cube spread the radius
+    // by 0.0083%, three hundred-thousandths of a world unit on a brush 0.4
+    // wide. Insisting on equality there would flush on every sample and
+    // batch nothing at all, which is what the first run of this did.
+    final bool sameBatch =
+        _batch != null &&
+        _batch!.kind == kind &&
+        _batch!.strength == signed &&
+        _batch!.falloff == falloff &&
+        _batch!.symmetryX == symmetryX &&
+        (radius - _batch!.radius).abs() <= _batch!.radius * _radiusTolerance;
+    if (!sameBatch) {
+      flush();
+      _batch = _Batch(
         objectId: objectId,
         kind: kind,
         radius: radius,
-        // The inverted end of a stylus is the same stroke with the sign
-        // turned round — `InputPolicy`'s own `ToolStroke.erase`, which every
-        // drawing application on every platform already agrees means this.
-        strength: inverted ? -strength : strength,
-        points: <Vector3>[
-          if (previous != null && kind == BrushKind.grab) previous,
-          point,
-        ],
+        strength: signed,
         falloff: falloff,
         symmetryX: symmetryX,
-      ),
-    );
+      );
+      // A grab that starts a batch needs the point it is dragging *from*, and
+      // `SculptStroke.apply` already has the spelling for one: a point whose
+      // pressure is nought moves the brush without dabbing.
+      if (kind == BrushKind.grab && previous != null) {
+        _batch!.points.add(previous);
+        _batch!.pressures.add(0.0);
+      }
+    }
+    _batch!.points.add(point);
+    _batch!.pressures.add(pressure);
     return true;
   }
+
+  /// Runs whatever the batch has collected, as one [SculptStroke].
+  ///
+  /// **Once a frame, and the caller is what decides when a frame is** — the
+  /// same arrangement `SculptUpload.sync` has, and for the same reason: a
+  /// stylus reports a few hundred samples a second and a screen draws sixty,
+  /// so the work between two drawn frames is one stroke's worth however many
+  /// times the pen moved. `view-21`'s own remaining half.
+  ///
+  /// A no-op when nothing has been collected, which is every frame of a drag
+  /// that did not move and every frame while nobody is sculpting.
+  void flush() {
+    final _Batch? batch = _batch;
+    _batch = null;
+    if (batch == null || batch.points.isEmpty) return;
+    cubit.ran(
+      SculptStroke(
+        objectId: batch.objectId,
+        kind: batch.kind,
+        radius: batch.radius,
+        strength: batch.strength,
+        points: batch.points,
+        // Pressure rides its own list rather than being folded into the
+        // strength, which is what `SculptStroke.apply` has always multiplied
+        // it as (`strength * pressure`) and what makes a batch possible: two
+        // samples pressed differently used to be two strokes because their
+        // strengths differed, and are now two points of one.
+        pressures: batch.pressures,
+        falloff: batch.falloff,
+        symmetryX: batch.symmetryX,
+      ),
+    );
+  }
+
+  _Batch? _batch;
+
+  /// How far a sample's radius may sit from its batch's before it starts a
+  /// new one, as a fraction.
+  ///
+  /// Half a per cent, against a measured spread of 0.0083% across a frame:
+  /// wide enough that a frame holds together on any surface a brush is
+  /// dragged over, and narrow enough that the footprint a stroke lands on
+  /// never moves by a fraction of a pixel.
+  static const double _radiusTolerance = 0.005;
 
   /// A triangle tree over [mesh]'s own surface, in world space.
   static TriangleBvh _surfaceOf(EditMesh mesh, Matrix4 toWorld) {
@@ -226,4 +303,33 @@ class SculptSession {
     }
     return TriangleBvh.fromArrays(positions, indices);
   }
+}
+
+/// A frame's worth of samples, waiting to become one [SculptStroke].
+///
+/// Every field but the two lists is what a stroke cannot vary across its own
+/// points, so a sample that changes one of them starts a new batch rather
+/// than being quietly folded into a stroke that means something else. In
+/// practice the one that changes is [radius], which is read off the hit
+/// distance: a brush dragged across a flat face keeps it and batches the
+/// whole frame, and one dragged over a curve does not.
+final class _Batch {
+  _Batch({
+    required this.objectId,
+    required this.kind,
+    required this.radius,
+    required this.strength,
+    required this.falloff,
+    required this.symmetryX,
+  });
+
+  final int objectId;
+  final BrushKind kind;
+  final double radius;
+  final double strength;
+  final BrushFalloff falloff;
+  final bool symmetryX;
+
+  final List<Vector3> points = <Vector3>[];
+  final List<double> pressures = <double>[];
 }

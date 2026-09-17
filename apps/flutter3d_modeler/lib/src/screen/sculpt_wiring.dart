@@ -30,7 +30,14 @@ extension _SculptWiring on _ModelerScreenState {
           // A stylus reports how hard it is pressing and a mouse reports
           // 1.0 — `InputPolicy`'s own rule — so the same field means "how
           // hard this brush pushes at full pressure" on both.
-          strength: _sculpt.strength * event.force,
+          //
+          // The force rides beside the strength rather than multiplied into
+          // it, which is where `SculptStroke` has always wanted it: its own
+          // `apply` computes `strength * pressure`, so this is the identical
+          // arithmetic said in the place that lets a frame's samples share
+          // one stroke — `view-21`'s own batching.
+          strength: _sculpt.strength,
+          pressure: event.force,
           falloff: _sculpt.falloff,
           symmetryX: _sculpt.symmetryX,
           inverted: event.erase,
@@ -41,7 +48,8 @@ extension _SculptWiring on _ModelerScreenState {
           at: event.at,
           kind: kind,
           radiusPixels: _sculpt.radius,
-          strength: _sculpt.strength * event.force,
+          strength: _sculpt.strength,
+          pressure: event.force,
           falloff: _sculpt.falloff,
           symmetryX: _sculpt.symmetryX,
           inverted: event.erase,

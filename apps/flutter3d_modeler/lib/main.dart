@@ -753,6 +753,10 @@ class _ModelerScreenState extends State<ModelerScreen>
             animationSubmode == AnimationSubmode.weights,
       );
       _timelinePreview.tick(_history.project, stage.sync, seconds);
+      // `view-21`: a frame's worth of brush samples become one `SculptStroke`
+      // here rather than one apiece as the pointer reports them. A no-op on
+      // every frame nobody is sculpting, which is almost all of them.
+      _sculptSession.flush();
     }
     final said = _measurementRuns.step(
       elapsed.inMicroseconds,
