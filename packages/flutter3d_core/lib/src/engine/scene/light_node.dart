@@ -75,6 +75,15 @@ final class LightNode extends SceneNode {
   /// is the difference between a channel and a check in the shader.
   int channels = LightChannels.all;
 
+  /// How bright this light is, in the engine's own unit — see [Photometric]
+  /// for what that unit is worth in lumens, candela and lux.
+  ///
+  /// Dimensionless on purpose, and it stays that way: the shaders multiply
+  /// it by an attenuation and a tone curve maps the result, so putting a
+  /// physical unit *in* here would mean every existing scene's numbers
+  /// changing meaning. [Photometric] converts into it instead, which leaves
+  /// a hand-tuned lamp and a lamp off a datasheet side by side in the same
+  /// field.
   double intensity;
 
   /// Distance at which a point or spot light stops contributing. Zero means
@@ -109,4 +118,103 @@ final class LightNode extends SceneNode {
 
   @override
   void onDetachedFromScene(Scene scene) => scene.unregisterLight(this);
+}
+
+/// Lumens, candela and lux, into [LightNode.intensity] — `gfx-13n`.
+///
+/// **What the engine's own unit is worth, stated once so it can be argued
+/// with.** [LightNode.intensity] is a plain number the shaders multiply by an
+/// attenuation; nothing in the renderer has ever said what one of it *means*,
+/// so a lamp off a datasheet could only be tuned by eye. This fixes the
+/// exchange rate at one place, and the place the row itself names:
+///
+/// > an 800-lumen lamp gives the same illuminance as today's tuned number
+///
+/// Eight hundred lumens is the ordinary bulb — what a sixty-watt incandescent
+/// was replaced by — and today's tuned number is one. So: **an 800 lm point
+/// lamp is [LightNode.intensity] 1.0 at a metre**, and every other conversion
+/// follows from that by arithmetic rather than by taste.
+///
+/// Reading it out: a point lamp spreads its flux over the whole sphere, so
+/// 800 lm is `800 / 4π` = 63.66 candela, and a source of *I* candela lights a
+/// surface a metre away with *I* lux. [referenceIlluminance] is therefore
+/// 63.66 lux, and it is the one number here anybody should want to change —
+/// changing it rescales every physically-specified light in a scene together,
+/// which is what an exposure control is for and why this is not one.
+///
+/// **Nothing is applied automatically.** A scene built by hand keeps the
+/// numbers it was tuned with, because these are functions a caller reaches
+/// for rather than a mode the renderer enters.
+abstract final class Photometric {
+  /// The illuminance one unit of [LightNode.intensity] stands for, in lux.
+  ///
+  /// `800 / 4π`, which is what makes an 800-lumen point lamp come out at one.
+  static const double referenceIlluminance = 63.66197723675813;
+
+  /// Illuminance in lux — what a *directional* light is rated in.
+  ///
+  /// A directional light has no position and so no falloff: its intensity is
+  /// the illuminance on a surface facing it, anywhere in the scene. Overcast
+  /// daylight is about 10 000 lux, a bright office 500, a living room 150.
+  static double fromLux(double lux) => lux / referenceIlluminance;
+
+  /// Luminous intensity in candela — what a *point or spot* light's own
+  /// datasheet gives when it gives a direction rather than a total.
+  ///
+  /// A source of one candela lights a surface a metre away with one lux, and
+  /// the shaders' inverse square does the rest, so this is [fromLux] with the
+  /// metre already in it.
+  static double fromCandela(double candela) => candela / referenceIlluminance;
+
+  /// Luminous flux in lumens — what a bulb's box says.
+  ///
+  /// Spread over the solid angle the light actually covers: the whole sphere
+  /// for a point lamp, and the cone for a spot, which is why the same eight
+  /// hundred lumens are far brighter through a spot. [outerConeAngle] is the
+  /// half-angle from the axis, the same one [LightNode.outerConeAngle] holds,
+  /// and is ignored for the two types that do not have one.
+  ///
+  /// A directional light is not rated in lumens at all — the sun's flux is
+  /// not a useful number for lighting a room — so asking for one here gives
+  /// back what [fromLux] would, treating the flux as an illuminance and
+  /// leaving the caller to have meant it.
+  static double fromLumens(
+    double lumens, {
+    LightType type = LightType.point,
+    double outerConeAngle = math.pi / 4.0,
+  }) => switch (type) {
+    LightType.directional => fromLux(lumens),
+    LightType.point => fromCandela(lumens / (4.0 * math.pi)),
+    LightType.spot => fromCandela(lumens / _coneSteradians(outerConeAngle)),
+  };
+
+  /// [intensity] back in lux, for a panel that shows what a light is set to.
+  static double toLux(double intensity) => intensity * referenceIlluminance;
+
+  /// [intensity] back in candela.
+  static double toCandela(double intensity) => intensity * referenceIlluminance;
+
+  /// [intensity] back in lumens, inverting [fromLumens] for the same type and
+  /// cone.
+  static double toLumens(
+    double intensity, {
+    LightType type = LightType.point,
+    double outerConeAngle = math.pi / 4.0,
+  }) => switch (type) {
+    LightType.directional => toLux(intensity),
+    LightType.point => toCandela(intensity) * 4.0 * math.pi,
+    LightType.spot => toCandela(intensity) * _coneSteradians(outerConeAngle),
+  };
+
+  /// The solid angle of a cone of half-angle [outerConeAngle], in steradians.
+  ///
+  /// `2π(1 − cos θ)`, clamped away from nothing: a cone of no width has no
+  /// solid angle, and dividing a flux by it would make one lumen infinitely
+  /// bright. The floor is a cone about a tenth of a degree across, which is
+  /// narrower than any spot anybody aims and wide enough that the arithmetic
+  /// stays finite.
+  static double _coneSteradians(double outerConeAngle) {
+    final angle = outerConeAngle.clamp(0.001, math.pi);
+    return 2.0 * math.pi * (1.0 - math.cos(angle));
+  }
 }
