@@ -314,7 +314,7 @@ a caller for that cannot supply a Flutter SDK.
 
 ### 3.3 Rules that are scanned, not remembered
 
-`tool/structure.dart` walks `packages/` and `apps/` and enforces thirty-two rules in
+`tool/structure.dart` walks `packages/` and `apps/` and enforces thirty-three rules in
 under a second, as the first step of CI. They cover the *arrangement* of the code
 — who imports what, what a name says, where a thing may live — while anything
 about what the code *does* stays a test.
@@ -1908,8 +1908,8 @@ entities a game defines.
 |---|---|
 | Style | `dart format` |
 | Analysis | `flutter analyze` clean across the workspace, no warnings |
-| Unit tests | **8898 tests** across 36 packages and 8 applications |
-| Structure rules | 32, `dart run tool/structure.dart`, the first CI step |
+| Unit tests | **8902 tests** across 36 packages and 8 applications |
+| Structure rules | 33, `dart run tool/structure.dart`, the first CI step |
 | CI | GitHub Actions over `tool/ci.sh`, on `ubuntu-latest`, with no graphics card |
 
 ### 13.1 The published-enum boundary

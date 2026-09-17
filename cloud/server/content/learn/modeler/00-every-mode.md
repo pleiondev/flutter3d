@@ -157,6 +157,35 @@ the document is lit rather than what is in it. The lights are on the rail as
 well as in the panel: a mode whose rail is empty reads as a mode with nothing
 in it.
 
+## The dialogs a mode opens over itself
+
+These are not modes either, and no case page shows them: each one is a whole
+decision, taken over whatever mode you happen to be in.
+
+![The export sheet: the six formats, the triangle count against the profile, what gets baked in, and whether it is ready.](/assets/learn/modeler/modes/export-dialog.png)
+
+The formats are a row rather than a dropdown because the choice changes what
+the rest of the sheet means — the KTX2 toggle only exists for `.f3d`, and a
+format that cannot carry a thing is better missing the switch than showing
+one that does nothing. The readiness list is the part worth reading: it names
+what will not survive the format, with a Show beside each that selects the
+object it is about.
+
+![The gallery: fifteen models, a search, the four kinds and the credit filter.](/assets/learn/modeler/modes/gallery-dialog.png)
+
+Every model here was built by this application, which is why every card says
+CC0 — the filter is there for the day that stops being true, not because it
+is interesting now.
+
+![Material Studio: one material on a sphere, a cube or a teapot, under three environments.](/assets/learn/modeler/modes/material-studio-dialog.png)
+
+A material read off a flat panel of numbers is a material nobody can judge.
+Three shapes because roughness reads differently on a curve and an edge, and
+three environments because a surface that looks right under studio light and
+wrong at sunset is a surface that is wrong.
+
+![The primitive menu: the five shapes a document can start from.](/assets/learn/modeler/modes/add-primitive-menu.png)
+
 ## The three screens
 
 These are not modes — they are places the editor sends you, from any mode.

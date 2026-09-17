@@ -268,6 +268,21 @@ void main() {
           reason: 'the tour has no picture of the $screen',
         );
       }
+      // The dialogs a mode opens over itself. No case page shows any of
+      // them, so if the tour drops one there is no picture of it anywhere
+      // in the tutorial at all.
+      for (final String dialog in <String>[
+        'export-dialog',
+        'gallery-dialog',
+        'material-studio-dialog',
+        'add-primitive-menu',
+      ]) {
+        expect(
+          cases.first.bodyHtml,
+          contains('/assets/learn/modeler/modes/$dialog.png'),
+          reason: 'the tour has no picture of the $dialog',
+        );
+      }
     });
 
     test('and it serves end to end through learnRoutes', () async {

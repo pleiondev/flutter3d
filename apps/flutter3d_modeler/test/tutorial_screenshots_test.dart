@@ -102,4 +102,44 @@ void main() {
       await shootWindow(tester, 'shortcuts-screen');
     });
   });
+
+  group('the dialogs a person opens over a mode', () {
+    // **The tour was every mode and no dialog.** A tutorial that promises
+    // every aspect of the editor cannot stop at the chrome behind them: the
+    // export sheet, the gallery, the material studio and the primitive menu
+    // are each a whole decision a person makes, and each one is reachable
+    // from a launch with nothing open but the document the editor starts on.
+    //
+    // The two that are not here are the two that cannot be: Open and Import
+    // hand the platform's own file picker up, and a headless test has no
+    // platform to hand it to.
+    testWidgets('the export sheet, with its readiness list', (
+      WidgetTester tester,
+    ) async {
+      await launchModeller(tester, fonts: fonts);
+      await openExportScreen(tester);
+      await shootWindow(tester, 'export-dialog');
+    });
+
+    testWidgets('the gallery', (WidgetTester tester) async {
+      await launchModeller(tester, fonts: fonts);
+      await openByTooltip(
+        tester,
+        'Gallery \u2014 insert a ready model beside what is open',
+      );
+      await shootWindow(tester, 'gallery-dialog');
+    });
+
+    testWidgets('the material studio', (WidgetTester tester) async {
+      await launchModeller(tester, fonts: fonts);
+      await openByTooltip(tester, 'Material Studio \u2014 preview a material');
+      await shootWindow(tester, 'material-studio-dialog');
+    });
+
+    testWidgets('the primitive menu', (WidgetTester tester) async {
+      await launchModeller(tester, fonts: fonts);
+      await openByTooltip(tester, 'Add a primitive');
+      await shootWindow(tester, 'add-primitive-menu');
+    });
+  });
 }
