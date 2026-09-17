@@ -3535,6 +3535,36 @@ abstract class AppLocalizations {
   /// In ru, this message translates to:
   /// **'Источник {number} · {kind}'**
   String sceneLightNamed(int number, String kind);
+
+  /// No description provided for @healthTriangulate.
+  ///
+  /// In ru, this message translates to:
+  /// **'Триангулировать'**
+  String get healthTriangulate;
+
+  /// No description provided for @healthFill.
+  ///
+  /// In ru, this message translates to:
+  /// **'Закрыть'**
+  String get healthFill;
+
+  /// No description provided for @healthMerge.
+  ///
+  /// In ru, this message translates to:
+  /// **'Слить'**
+  String get healthMerge;
+
+  /// No description provided for @healthRecalculate.
+  ///
+  /// In ru, this message translates to:
+  /// **'Пересчитать'**
+  String get healthRecalculate;
+
+  /// No description provided for @healthFix.
+  ///
+  /// In ru, this message translates to:
+  /// **'Исправить'**
+  String get healthFix;
 }
 
 class _AppLocalizationsDelegate

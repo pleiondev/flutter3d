@@ -11,6 +11,7 @@ import 'package:flutter/material.dart' hide Material;
 import 'package:flutter3d/flutter3d.dart' show MeshData, VertexLayout;
 import 'package:flutter3d_mesh/flutter3d_mesh.dart';
 import 'package:flutter3d_model_core/flutter3d_model_core.dart' hide Outcome;
+import 'package:flutter3d_modeler/l10n/app_localizations.dart';
 import 'package:flutter3d_modeler/src/tool_commands.dart';
 import 'package:flutter3d_modeler/src/ui/mesh_health_panel.dart';
 import 'package:flutter3d_modeler/src/ui/no_mesh_banner.dart';
@@ -22,11 +23,17 @@ import 'package:vector_math/vector_math.dart' as vm show Matrix4;
 /// edges.
 EditMesh _holed() {
   final EditMesh mesh = EditMesh.cuboid();
+  // **Inside a step, because every write is.** `EditMesh` grew a journal
+  // after this fixture was written and `deleteFace` now refuses outside one
+  // — which is the right refusal and is what this helper had been getting
+  // away with until the whole suite was run again.
+  mesh.beginStep();
   for (var face = 0; face < mesh.faceSlotCount; face++) {
     if (!mesh.isFaceAlive(face)) continue;
     mesh.deleteFace(face);
     break;
   }
+  mesh.endStep();
   return mesh;
 }
 
@@ -44,18 +51,30 @@ MeshData _unwelded() => MeshData(
       <double>[1, 0, 0],
       <double>[1, 1, 0],
       <double>[0, 1, 0],
-    ])
+    ]) ...<double>[
       ...corner,
-    0,
-    0,
-    1,
-    0,
-    0,
+      // **A whole standard vertex, not a position and five spare floats.**
+      // This wrote three and then five once, which is twenty-three floats
+      // for six vertices against a layout that asks for sixteen each, and
+      // `MeshData` refuses that now rather than reading past the end.
+      0, 0, 1,
+      0, 0,
+      1, 0, 0, 1,
+      1, 1, 1, 1,
+    ],
   ]),
   indices: Uint32List.fromList(<int>[0, 1, 2, 3, 4, 5]),
 );
 
 void main() {
+  /// The labels are words now, so the one the button shows is asked for in
+  /// the language the expectation is written in.
+  late AppLocalizations english;
+
+  setUpAll(() async {
+    english = await AppLocalizations.delegate.load(const Locale('en'));
+  });
+
   group('ux-16: what is wrong with it, and the press that fixes it', () {
     test('a hole is a boundary-edge row, and Fill is what closes it', () {
       final EditMesh mesh = _holed();
@@ -68,7 +87,7 @@ void main() {
       // boundary edges, and the fix is one press.
       expect(hole.ids, hasLength(4));
       expect(fixToolFor(hole.kind), 'mesh.fillHoles');
-      expect(fixLabelFor(hole.kind), 'Fill');
+      expect(fixLabelFor(english, hole.kind), 'Fill');
 
       // And the tool it names is a real one that closes it.
       final ModelCommand? fill = commandFor(
@@ -77,7 +96,9 @@ void main() {
         editMesh: mesh,
       );
       expect(fill, isA<FillHoles>());
+      mesh.beginStep();
       fillHoles(mesh);
+      mesh.endStep();
       expect(
         MeshChecks(
           mesh,
@@ -108,6 +129,9 @@ void main() {
       final fixed = <String>[];
       await tester.pumpWidget(
         MaterialApp(
+          locale: const Locale('en'),
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
           theme: modelerTheme(),
           home: Scaffold(
             body: MeshHealthPanel(
@@ -142,6 +166,9 @@ void main() {
     ) async {
       await tester.pumpWidget(
         MaterialApp(
+          locale: const Locale('en'),
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
           theme: modelerTheme(),
           home: Scaffold(
             body: MeshHealthPanel(

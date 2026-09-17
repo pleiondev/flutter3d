@@ -19,6 +19,7 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter3d_app/flutter3d_app.dart';
 import 'package:flutter3d_model_core/flutter3d_model_core.dart';
+import 'package:flutter3d_modeler/l10n/app_localizations.dart';
 import 'package:flutter3d_modeler/main.dart' hide main;
 import 'package:flutter3d_modeler/src/cabinet_link.dart';
 import 'package:flutter3d_modeler/src/files/cabinet_save_outcome.dart';
@@ -59,6 +60,9 @@ Future<void> _pumpReady(
 
   await tester.pumpWidget(
     MaterialApp(
+      locale: const Locale('en'),
+      localizationsDelegates: AppLocalizations.localizationsDelegates,
+      supportedLocales: AppLocalizations.supportedLocales,
       home: ModelerScreen(
         autosaveStorage: _NullBinaryStorage(),
         cabinetLink: cabinetLink,

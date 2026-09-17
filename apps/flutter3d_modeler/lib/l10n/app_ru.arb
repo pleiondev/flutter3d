@@ -908,5 +908,10 @@
         "type": "String"
       }
     }
-  }
+  },
+  "healthTriangulate": "Триангулировать",
+  "healthFill": "Закрыть",
+  "healthMerge": "Слить",
+  "healthRecalculate": "Пересчитать",
+  "healthFix": "Исправить"
 }

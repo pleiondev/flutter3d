@@ -1903,4 +1903,19 @@ class AppLocalizationsEn extends AppLocalizations {
   String sceneLightNamed(int number, String kind) {
     return 'Light $number · $kind';
   }
+
+  @override
+  String get healthTriangulate => 'Triangulate';
+
+  @override
+  String get healthFill => 'Fill';
+
+  @override
+  String get healthMerge => 'Merge';
+
+  @override
+  String get healthRecalculate => 'Recalculate';
+
+  @override
+  String get healthFix => 'Fix';
 }

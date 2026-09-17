@@ -28,21 +28,31 @@ import 'theme.dart';
 /// Null where a kind has no one-press answer: an inverted shell is a
 /// recalculate with `flip`, an isolated vertex is a delete of things nothing
 /// is drawing, and neither is a thing to do to a mesh without being asked.
-String? fixToolFor(MeshIssueKind kind) => switch (kind.name) {
-  'n-gon' => 'mesh.triangulate',
-  'boundary edge' => 'mesh.fillHoles',
-  'duplicate vertex' => 'mesh.merge',
-  'inverted shell' => 'mesh.normals',
+/// **Matched on the kind itself, not on how it is spelled.** Both of these
+/// switched on `kind.name` and asked for `n-gon`, `boundary edge`,
+/// `duplicate vertex` and `inverted shell`; `MeshIssueKind`'s own names are
+/// `ngon`, `boundary-edge`, `duplicate-vertex` and `inverted-shell`, so every
+/// row fell to the default — no fix button on anything, every label reading
+/// "Fix", and nothing to say so, because a `switch` over strings has no case
+/// that can be wrong. `MeshIssueKind` is a final class with const instances
+/// (the shape a published vocabulary takes here), so the instances compare
+/// exactly and a renamed name cannot quietly break this again.
+String? fixToolFor(MeshIssueKind kind) => switch (kind) {
+  MeshIssueKind.ngon => 'mesh.triangulate',
+  MeshIssueKind.boundaryEdge => 'mesh.fillHoles',
+  MeshIssueKind.duplicateVertex => 'mesh.merge',
+  MeshIssueKind.invertedShell => 'mesh.normals',
   _ => null,
 };
 
-/// What the button beside a row says.
-String fixLabelFor(MeshIssueKind kind) => switch (kind.name) {
-  'n-gon' => 'Triangulate',
-  'boundary edge' => 'Fill',
-  'duplicate vertex' => 'Merge',
-  'inverted shell' => 'Recalculate',
-  _ => 'Fix',
+/// What the button beside a row says. See [fixToolFor] for why this matches
+/// the kind rather than its name.
+String fixLabelFor(AppLocalizations l, MeshIssueKind kind) => switch (kind) {
+  MeshIssueKind.ngon => l.healthTriangulate,
+  MeshIssueKind.boundaryEdge => l.healthFill,
+  MeshIssueKind.duplicateVertex => l.healthMerge,
+  MeshIssueKind.invertedShell => l.healthRecalculate,
+  _ => l.healthFix,
 };
 
 /// The mesh's own health, a row per thing that is wrong.
@@ -147,7 +157,7 @@ class _Row extends StatelessWidget {
                 tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                 textStyle: theme.textTheme.labelSmall,
               ),
-              child: Text(fixLabelFor(issue.kind)),
+              child: Text(fixLabelFor(l, issue.kind)),
             ),
         ],
       ),
