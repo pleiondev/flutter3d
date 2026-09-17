@@ -32,6 +32,7 @@ List<Rule> get allRules => <Rule>[
     run: _flatDartResolvesWithoutFlutter,
   ),
   (name: 'the hardware layer names no graphics API', run: _hardwareNamesNoApi),
+  (name: 'the hardware layer names no Flutter', run: _hardwareNamesNoFlutter),
   (name: 'the engine names no backend', run: _engineNamesNoBackend),
   (name: 'each assembly has one home per application', run: _oneAssembly),
   (name: 'no test builds its own world', run: _noHarnessAssembly),
@@ -468,42 +469,46 @@ List<Finding> _flatDartResolvesWithoutFlutter() {
 
 // ------------------------------------------------------- backend containment
 
-List<Finding> _hardwareNamesNoApi() {
+/// The files of `flutter3d_hardware`, or the one finding that says why there
+/// are none to read.
+///
+/// Both hardware rules walk the same list, and both are worthless against an
+/// empty one: a scan over no files reports nothing and is indistinguishable
+/// from a scan over clean ones.
+(List<File>, Finding?) _hardwareFiles() {
   final dir = packages['flutter3d_hardware'];
   if (dir == null) {
-    return <Finding>[const Finding('flutter3d_hardware', 'is not there')];
+    return (
+      const <File>[],
+      const Finding('flutter3d_hardware', 'is not there'),
+    );
   }
-  final found = <Finding>[];
   final files = dartFilesIn(Directory('${dir.path}/lib'));
   if (files.isEmpty) {
-    return <Finding>[
+    return (
+      const <File>[],
       const Finding(
         'flutter3d_hardware',
-        'has no lib/ — a scan that finds '
-            'nothing proves nothing',
+        'has no lib/ — a scan that finds nothing proves nothing',
       ),
-    ];
+    );
   }
+  return (files, null);
+}
 
-  for (final file in files) {
-    final name = file.uri.pathSegments.last;
-    final source = file.readAsStringSync();
-    final where = 'flutter3d_hardware/${relative(file, dir)}';
-    if (reaches(source, 'flutter_gpu')) {
-      found.add(Finding(where, 'reaches a backend'));
-    }
-    if (hardwareMayUseFlutter.containsKey(name)) continue;
-    if (reaches(source, 'dart:ui') || reaches(source, 'package:flutter/')) {
-      found.add(
+List<Finding> _hardwareNamesNoApi() {
+  final (files, missing) = _hardwareFiles();
+  if (missing != null) return <Finding>[missing];
+  final dir = packages['flutter3d_hardware']!;
+
+  final found = <Finding>[
+    for (final file in files)
+      if (reaches(file.readAsStringSync(), 'flutter_gpu'))
         Finding(
-          where,
-          "reaches Flutter — this package's vocabulary is its own. If this is "
-          'genuinely something every backend must answer, name it in '
-          'hardwareMayUseFlutter with the reason',
+          'flutter3d_hardware/${relative(file, dir)}',
+          'reaches a backend',
         ),
-      );
-    }
-  }
+  ];
 
   if (File(
     '${dir.path}/pubspec.yaml',
@@ -516,6 +521,40 @@ List<Finding> _hardwareNamesNoApi() {
     );
   }
   return found;
+}
+
+/// The hardware layer's vocabulary is its own — Flutter's included.
+///
+/// **This was the back half of `the hardware layer names no graphics API`,
+/// and a rule that fires under another rule's name is a rule nobody reads.**
+/// A `dart:ui` import in `graphics_device.dart` was reported by a line that
+/// says "graphics API", which is the one thing such an import is not; the
+/// reader goes looking for a `flutter_gpu` they will not find. mcp-01n's own
+/// acceptance asks for this rule by name for that reason, and the split costs
+/// nothing: both halves read the same files, neither excuses the other's
+/// findings, and the failure now says which boundary was crossed.
+///
+/// `package:flutter/` is banned alongside `dart:ui` because widgets re-export
+/// half of `dart:ui` — [hardwareMayUseFlutter] carries the longer argument,
+/// and is empty since `present()` left `GraphicsDevice` for `presentFrame` in
+/// `flutter3d_app`.
+List<Finding> _hardwareNamesNoFlutter() {
+  final (files, missing) = _hardwareFiles();
+  if (missing != null) return <Finding>[missing];
+  final dir = packages['flutter3d_hardware']!;
+
+  return <Finding>[
+    for (final file in files)
+      if (!hardwareMayUseFlutter.containsKey(file.uri.pathSegments.last) &&
+          (reaches(file.readAsStringSync(), 'dart:ui') ||
+              reaches(file.readAsStringSync(), 'package:flutter/')))
+        Finding(
+          'flutter3d_hardware/${relative(file, dir)}',
+          "reaches Flutter — this package's vocabulary is its own. If this is "
+              'genuinely something every backend must answer, name it in '
+              'hardwareMayUseFlutter with the reason',
+        ),
+  ];
 }
 
 List<Finding> _engineNamesNoBackend() {

@@ -216,6 +216,12 @@ Future<void> launchModeller(
 
   await tester.pumpWidget(
     MaterialApp(
+      // **Off, the way the real build has it** (`app_wiring.dart`). A test
+      // that builds its own `MaterialApp` gets Flutter's DEBUG ribbon by
+      // default, and every picture this tour has ever produced carried a red
+      // band across the top-right corner, over the settings gear — a
+      // photograph of something nobody running the application ever sees.
+      debugShowCheckedModeBanner: false,
       // The application's own theme, which `ModelerApp` sets in a real
       // build — a screenshot in Flutter's default lavender would be a
       // picture of a modeller nobody has.
