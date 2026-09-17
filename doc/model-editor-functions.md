@@ -590,9 +590,11 @@ closed, 63 remain open across ten groups):
 
 ## What is left, and what each piece is waiting for
 
-*Audited 2026-09-17, against `doc/plan-status.json`. Twenty-six rows are not
-`done`, and **not one of them is waiting on somebody sitting down to write
-code**. Every one is held by something outside the repository: a device, a
+*Audited 2026-09-17, against `doc/plan-status.json`. Twenty-six rows were not
+`done` when this was written; two of them — `gfx-02n` and `gfx-03n` — were
+closed within the hour by disbelieving this section, which is recorded below
+rather than tidied away. Of what remains, **not one row is waiting on
+somebody sitting down to write code**. Every one is held by something outside the repository: a device, a
 credential, a golden set that has to be recorded on hardware, or a decision
 that belongs to the owner. That is worth stating plainly rather than leaving
 as a count, because "twenty-six to go" reads like a backlog and this is a
@@ -621,13 +623,26 @@ default, waiting only for the frame.
 `cross_backend_test.dart`'s own `_provisional` is the route: a new scene
 names itself there with a reason until the other sets catch up.
 
-### A measurement the software backend cannot make (2)
+### A measurement the software backend cannot make — *wrong, and both closed*
 
-`gfx-02n` and `gfx-03n`. `CpuDevice.maxAnisotropy` is 1 — the software
-rasteriser filters isotropically and the setting is clamped to it — so
-"capture one frame at anisotropy 1 and at 8" has nothing to capture. The same
-goes for the three shadow options in `gfx-03n`, whose whole content is a
-frame cost on real hardware.
+This section named `gfx-02n` and `gfx-03n` when the audit was written, on the
+reasoning that `CpuDevice.maxAnisotropy` is 1 and that three shadow options
+are a frame cost on real hardware. Both were closed the same day, and the
+mistake is worth keeping rather than editing away, because it was the same
+mistake twice: *a measurement the backend cannot take today* is not the same
+thing as *a measurement that cannot be taken*.
+
+`gfx-02n` needed the software rasteriser to take anisotropic taps. It takes
+them now, a sampler that asks for one is untouched byte for byte, and the
+measurement is 3165 of 14400 pixels and 1.7× the surviving detail.
+
+`gfx-03n` needed three options compared, and the finding was that the engine
+has one: a fourth cascade is a shader change on four backends and a static
+far map does not exist. What the option that exists costs turned out to be
+nothing — the same nine draws at sixty metres and at two hundred and forty.
+
+What is left of the pair is `gfx-07n`, the flip of the default, which is in
+the golden-set group below for the reason everything there is.
 
 ### A credential, a service, or other people (4)
 
