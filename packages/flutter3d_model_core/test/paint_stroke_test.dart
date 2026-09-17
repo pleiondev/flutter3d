@@ -308,6 +308,68 @@ void main() {
     });
   });
 
+  group('the dirty rectangle', () {
+    test('names the tiles a stroke touched and no others', () {
+      final ModelHistory history = opened();
+      expect(history.run(stroke(size: 256)), isNull);
+      final PaintStack first = history.project.materials.single.paint!;
+
+      // A second stroke in a corner, well away from the first.
+      expect(
+        history.run(
+          stroke(at: Vector3(0.05, 0.05, 0), radius: 0.05, size: 256),
+        ),
+        isNull,
+      );
+      final PaintStack second = history.project.materials.single.paint!;
+
+      final List<(int, int)> dirty = dirtyTilesBetween(first, second);
+      // **What copy-on-write is for, read back.** Mutation: compare the
+      // pixels instead. Sixteen kilobytes a tile, every tile, every stroke —
+      // and the answer is the same one `identical` gives for nothing.
+      expect(dirty, isNotEmpty);
+      expect(dirty.length, lessThan(first.layers.single.tilesX * 4));
+      for (final (int tx, int ty) in dirty) {
+        expect(tx, lessThan(2));
+        expect(ty, lessThan(2));
+      }
+    });
+
+    test('a stack compared with itself is clean', () {
+      final ModelHistory history = opened();
+      expect(history.run(stroke(size: 256)), isNull);
+      final PaintStack stack = history.project.materials.single.paint!;
+      expect(dirtyTilesBetween(stack, stack), isEmpty);
+    });
+
+    test('and the first stroke onto nothing is all of what it wrote', () {
+      final ModelHistory history = opened();
+      expect(history.run(stroke(size: 256)), isNull);
+      final PaintStack stack = history.project.materials.single.paint!;
+      expect(dirtyTilesBetween(null, stack), isNotEmpty);
+    });
+
+    test('the rectangle covers those tiles and stops at the canvas', () {
+      final ModelHistory history = opened();
+      expect(history.run(stroke(size: 256)), isNull);
+      final PaintStack stack = history.project.materials.single.paint!;
+      final (int x, int y, int width, int height) = dirtyRectOf(
+        dirtyTilesBetween(null, stack),
+        256,
+      )!;
+      expect(x, greaterThanOrEqualTo(0));
+      expect(y, greaterThanOrEqualTo(0));
+      expect(x + width, lessThanOrEqualTo(256));
+      expect(y + height, lessThanOrEqualTo(256));
+      expect(width, greaterThan(0));
+      expect(height, greaterThan(0));
+    });
+
+    test('and no tiles is no rectangle', () {
+      expect(dirtyRectOf(const <(int, int)>[], 256), isNull);
+    });
+  });
+
   group('a project file', () {
     test('carries the layers, not just the flattening — pro-doc-01', () {
       final ModelHistory history = opened();
