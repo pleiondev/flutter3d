@@ -13,6 +13,8 @@ library;
 
 import 'package:flutter/material.dart' hide Material;
 
+import '../../../l10n/app_localizations.dart';
+
 /// A clip's own name, the blend-duration slider, and a "Preview" button —
 /// one row, 22 logical pixels tall.
 class ClipTracksBar extends StatelessWidget {
@@ -41,6 +43,7 @@ class ClipTracksBar extends StatelessWidget {
   Widget build(BuildContext context) {
     final ThemeData theme = Theme.of(context);
     final bool enabled = clipName != null;
+    final AppLocalizations l = AppLocalizations.of(context);
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 12),
       child: Row(
@@ -56,7 +59,7 @@ class ClipTracksBar extends StatelessWidget {
             ),
           ),
           const SizedBox(width: 8),
-          Text('Blend', style: theme.textTheme.bodySmall),
+          Text(l.clipBlend, style: theme.textTheme.bodySmall),
           Expanded(
             flex: 3,
             child: Slider(
@@ -77,7 +80,7 @@ class ClipTracksBar extends StatelessWidget {
             ),
           ),
           const SizedBox(width: 8),
-          TextButton(onPressed: onPreview, child: const Text('Preview')),
+          TextButton(onPressed: onPreview, child: Text(l.clipPreview)),
         ],
       ),
     );

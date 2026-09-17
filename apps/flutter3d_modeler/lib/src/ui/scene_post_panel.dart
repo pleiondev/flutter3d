@@ -14,7 +14,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter3d_editor_widgets/flutter3d_editor_widgets.dart';
 import 'package:flutter3d_model_core/flutter3d_model_core.dart';
 
-import '../../l10n/app_localizations.dart';
+import '../../../l10n/app_localizations.dart';
 
 /// Bloom, and exposure.
 final class ScenePostPanel extends StatelessWidget {
@@ -35,22 +35,25 @@ final class ScenePostPanel extends StatelessWidget {
   final ValueChanged<double> onExposureChanged;
 
   @override
-  Widget build(BuildContext context) => Column(
-    crossAxisAlignment: CrossAxisAlignment.start,
-    children: <Widget>[
-      SectionLabel(AppLocalizations.of(context).scenePostSectionLabel),
-      SwitchListTile(
-        dense: true,
-        contentPadding: EdgeInsets.zero,
-        title: const Text('Bloom'),
-        value: post.bloomEnabled,
-        onChanged: onBloomChanged,
-      ),
-      NumberField(
-        label: 'Exposure',
-        value: exposure,
-        onChanged: onExposureChanged,
-      ),
-    ],
-  );
+  Widget build(BuildContext context) {
+    final AppLocalizations l = AppLocalizations.of(context);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: <Widget>[
+        SectionLabel(AppLocalizations.of(context).scenePostSectionLabel),
+        SwitchListTile(
+          dense: true,
+          contentPadding: EdgeInsets.zero,
+          title: Text(l.postBloom),
+          value: post.bloomEnabled,
+          onChanged: onBloomChanged,
+        ),
+        NumberField(
+          label: l.postExposure,
+          value: exposure,
+          onChanged: onExposureChanged,
+        ),
+      ],
+    );
+  }
 }

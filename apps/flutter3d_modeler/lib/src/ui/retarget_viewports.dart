@@ -19,6 +19,7 @@ import 'package:flutter/material.dart' hide Material;
 import 'package:flutter3d/flutter3d.dart' hide Material;
 import 'package:flutter3d_model_core/flutter3d_model_core.dart' hide Outcome;
 
+import '../../../l10n/app_localizations.dart';
 import '../modeler_viewport.dart';
 import '../staging.dart';
 
@@ -92,13 +93,14 @@ class _RetargetViewportsState extends State<RetargetViewports> {
   Widget build(BuildContext context) {
     final ThemeData theme = Theme.of(context);
     final ModelerStage? sourceStage = _sourceStage;
+    final AppLocalizations l = AppLocalizations.of(context);
     return Row(
       children: <Widget>[
         Expanded(
           child: sourceStage == null
               ? Center(
                   child: Text(
-                    'Import a source clip',
+                    l.retargetImportSource,
                     style: theme.textTheme.bodySmall,
                   ),
                 )

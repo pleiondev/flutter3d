@@ -21,6 +21,7 @@ import 'package:flutter/material.dart' hide Material;
 import 'package:flutter/services.dart' show HardwareKeyboard;
 import 'package:flutter3d_model_core/flutter3d_model_core.dart' hide Outcome;
 
+import '../../../../l10n/app_localizations.dart';
 import '../theme.dart';
 import 'object_row.dart';
 
@@ -206,6 +207,7 @@ class Outliner extends StatelessWidget {
   Widget build(BuildContext context) {
     final List<OutlinerRow> rows = outlinerRows(objects);
     final double rowHeight = rowHeightOf(context);
+    final AppLocalizations l = AppLocalizations.of(context);
     // The drop target for the top level counts as a row, so a short list is
     // drawn whole and a long one stops at [_rowsBeforeScrolling].
     final int items = rows.length + 1;
@@ -243,7 +245,7 @@ class Outliner extends StatelessWidget {
                       child: over.isEmpty
                           ? null
                           : Text(
-                              'to the top level',
+                              l.outlinerToTopLevel,
                               style: Theme.of(context).textTheme.labelSmall,
                             ),
                     ),

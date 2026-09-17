@@ -122,7 +122,7 @@ extension _WeightPaintWiring on _ModelerScreenState {
         jointNode == null ||
         projectSkeleton == null ||
         jointIndex < 0) {
-      return const Center(child: Text('Select a bone to test its bend'));
+      return Center(child: Text(AppLocalizations.of(context).weightsPickBone));
     }
     return BendSliderBar(
       joint: jointNode,

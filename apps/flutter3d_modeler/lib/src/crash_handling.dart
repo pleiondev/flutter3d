@@ -21,6 +21,7 @@ import 'package:flutter3d_app/flutter3d_app.dart';
 import 'package:flutter3d_model_core/flutter3d_model_core.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../../l10n/app_localizations.dart';
 import 'autosaving.dart';
 import 'modeler_cubit.dart';
 import 'report_problem.dart';
@@ -210,51 +211,54 @@ class CrashDialog extends StatelessWidget {
   );
 
   @override
-  Widget build(BuildContext context) => AlertDialog(
-    title: const Text('Something went wrong'),
-    content: SingleChildScrollView(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: <Widget>[
-          Text(
-            autosaved
-                ? 'The modeller ran into a problem it did not expect. An '
-                      'emergency autosave was written, so the last edits '
-                      'should not be lost.'
-                : 'The modeller ran into a problem it did not expect, and the '
-                      'emergency autosave could not be written — save your '
-                      'work now, before dismissing this.',
-          ),
-          const SizedBox(height: 12),
-          Text('${report.error}'),
-          if (report.commandThatThrew case final String name) ...<Widget>[
-            const SizedBox(height: 8),
-            Text('Command: $name'),
+  Widget build(BuildContext context) {
+    final AppLocalizations l = AppLocalizations.of(context);
+    return AlertDialog(
+      title: Text(l.crashTitle),
+      content: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
+            Text(
+              autosaved
+                  ? 'The modeller ran into a problem it did not expect. An '
+                        'emergency autosave was written, so the last edits '
+                        'should not be lost.'
+                  : 'The modeller ran into a problem it did not expect, and the '
+                        'emergency autosave could not be written — save your '
+                        'work now, before dismissing this.',
+            ),
+            const SizedBox(height: 12),
+            Text('${report.error}'),
+            if (report.commandThatThrew case final String name) ...<Widget>[
+              const SizedBox(height: 8),
+              Text(l.crashCommand(name)),
+            ],
+            if (report.recentCommands.isNotEmpty) ...<Widget>[
+              const SizedBox(height: 8),
+              Text(l.crashRecent(report.recentCommands.join(', '))),
+            ],
           ],
-          if (report.recentCommands.isNotEmpty) ...<Widget>[
-            const SizedBox(height: 8),
-            Text('Recent commands: ${report.recentCommands.join(', ')}'),
-          ],
-        ],
+        ),
       ),
-    ),
-    actions: <Widget>[
-      TextButton(
-        onPressed: () => Navigator.of(context).pop(),
-        child: const Text('Dismiss'),
-      ),
-      FilledButton(
-        onPressed: () => unawaited(
-          launchUrl(
-            reportProblemUrl(
-              environment: environment,
-              whatHappened: report.describe(),
+      actions: <Widget>[
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: Text(l.crashDismiss),
+        ),
+        FilledButton(
+          onPressed: () => unawaited(
+            launchUrl(
+              reportProblemUrl(
+                environment: environment,
+                whatHappened: report.describe(),
+              ),
             ),
           ),
+          child: Text(l.crashReport),
         ),
-        child: const Text('Report a problem'),
-      ),
-    ],
-  );
+      ],
+    );
+  }
 }

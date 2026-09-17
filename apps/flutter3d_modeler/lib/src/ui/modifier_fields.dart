@@ -150,27 +150,33 @@ class ModifierFields extends StatelessWidget {
             Row(
               children: <Widget>[
                 for (var axis = 0; axis < 3; axis++)
-                  Expanded(
-                    child: Padding(
-                      padding: EdgeInsets.only(right: axis == 2 ? 0 : 4),
-                      child: NumberField(
-                        label: <String>['X', 'Y', 'Z'][axis],
-                        semanticLabel:
-                            '$label ${<String>['x', 'y', 'z'][axis]}',
-                        value: now.length > axis ? now[axis] : 0,
-                        step: step ?? 0.1,
-                        unit: unit == 'm'
-                            ? NumberUnit.metres
-                            : NumberUnit.plain,
-                        onChanged: (double to) => onSet(field, <double>[
-                          for (var each = 0; each < 3; each++)
-                            each == axis
-                                ? to
-                                : (now.length > each ? now[each] : 0),
-                        ]),
+                  // The axis letters are the same in both languages, and the
+                  // name in front of them is whatever the caller passed. Both
+                  // halves are read out above the string: a quote inside an
+                  // interpolation reads as the end of the string to every
+                  // scanner that is not a Dart parser, `ux-22`'s own literal
+                  // check included.
+                  if (<String>['X', 'Y', 'Z'][axis] case final String letter)
+                    Expanded(
+                      child: Padding(
+                        padding: EdgeInsets.only(right: axis == 2 ? 0 : 4),
+                        child: NumberField(
+                          label: letter,
+                          semanticLabel: '$label ${letter.toLowerCase()}',
+                          value: now.length > axis ? now[axis] : 0,
+                          step: step ?? 0.1,
+                          unit: unit == 'm'
+                              ? NumberUnit.metres
+                              : NumberUnit.plain,
+                          onChanged: (double to) => onSet(field, <double>[
+                            for (var each = 0; each < 3; each++)
+                              each == axis
+                                  ? to
+                                  : (now.length > each ? now[each] : 0),
+                          ]),
+                        ),
                       ),
                     ),
-                  ),
               ],
             ),
           ],

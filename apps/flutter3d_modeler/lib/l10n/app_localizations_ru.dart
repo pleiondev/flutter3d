@@ -1762,4 +1762,155 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get animConstraints => 'Ограничения';
+
+  @override
+  String get crashTitle => 'Что-то пошло не так';
+
+  @override
+  String get crashDismiss => 'Закрыть';
+
+  @override
+  String get crashReport => 'Сообщить о проблеме';
+
+  @override
+  String get postBloom => 'Свечение';
+
+  @override
+  String get postExposure => 'Экспозиция';
+
+  @override
+  String get playStop => 'Стоп';
+
+  @override
+  String get playReload => 'Перезапустить';
+
+  @override
+  String get operationNothingDone => 'пока ничего не сделано';
+
+  @override
+  String get operationHide => 'Скрыть карточку';
+
+  @override
+  String get operationHideHelp => 'Скрыть карточку, не отменяя действие';
+
+  @override
+  String get operationNothingToAdjust => 'нечего настраивать';
+
+  @override
+  String get studioTitle => 'Студия материалов';
+
+  @override
+  String get studioClose => 'Закрыть';
+
+  @override
+  String get constraintsNone => 'Ограничений нет';
+
+  @override
+  String get constraintsRemove => 'Убрать это ограничение';
+
+  @override
+  String get clipBlend => 'Смешение';
+
+  @override
+  String get clipPreview => 'Превью';
+
+  @override
+  String get boneMapTitle => 'Карта костей';
+
+  @override
+  String get boneMapAuto => 'Сопоставить автоматически';
+
+  @override
+  String get animPickAction =>
+      'Выберите или добавьте действие, чтобы увидеть таймлайн';
+
+  @override
+  String get animPickTrack =>
+      'Выберите дорожку в режиме ключей, чтобы увидеть кривую';
+
+  @override
+  String get startFrom => 'Начать с';
+
+  @override
+  String get dialogClose => 'Закрыть';
+
+  @override
+  String get nameField => 'Имя';
+
+  @override
+  String get healthNothingWrong => 'С ним всё в порядке';
+
+  @override
+  String get clipSearch => 'Искать клипы';
+
+  @override
+  String get clipNoSource => 'Источник ещё не импортирован';
+
+  @override
+  String get actionsNone => 'Действий нет';
+
+  @override
+  String get actionsAdd => 'Добавить';
+
+  @override
+  String get weightsPickBone => 'Выберите кость, чтобы проверить сгиб';
+
+  @override
+  String crashCommand(String name) {
+    return 'Команда: $name';
+  }
+
+  @override
+  String crashRecent(String names) {
+    return 'Последние команды: $names';
+  }
+
+  @override
+  String playHint(String template) {
+    return '$template  ·  WASD — идти, тянуть — смотреть, Esc — выйти';
+  }
+
+  @override
+  String simCacheSemantics(int baked, int target) {
+    return 'Кеш симуляции: запечено $baked из $target кадров';
+  }
+
+  @override
+  String simCacheReadout(int baked, int target) {
+    return '$baked / $target кадров в кеше';
+  }
+
+  @override
+  String healthSelectThem(String message) {
+    return '$message, выделить их';
+  }
+
+  @override
+  String lodThreshold(int index) {
+    return 'Порог LOD $index';
+  }
+
+  @override
+  String clipNoMatch(String query) {
+    return 'Ни один клип не подходит под «$query»';
+  }
+
+  @override
+  String bakingMaps(int count) {
+    return 'Печётся карт: $count…';
+  }
+
+  @override
+  String get outlinerToTopLevel => 'на верхний уровень';
+
+  @override
+  String get retargetImportSource => 'Импортируйте исходный клип';
+
+  @override
+  String get skeletonNoJoints => 'Суставов нет';
+
+  @override
+  String sceneLightNamed(int number, String kind) {
+    return 'Источник $number · $kind';
+  }
 }

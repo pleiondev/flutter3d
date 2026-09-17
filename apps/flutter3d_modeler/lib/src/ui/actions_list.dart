@@ -8,6 +8,7 @@ library;
 import 'package:flutter/material.dart';
 import 'package:flutter3d_model_core/flutter3d_model_core.dart';
 
+import '../../../l10n/app_localizations.dart';
 import 'theme.dart';
 
 /// One row per clip in [clips]. Selecting a row reports its index through
@@ -31,45 +32,48 @@ class ActionsList extends StatelessWidget {
       clip.name ?? 'clip $index';
 
   @override
-  Widget build(BuildContext context) => Column(
-    crossAxisAlignment: CrossAxisAlignment.start,
-    children: <Widget>[
-      if (clips.isEmpty)
-        Padding(
-          padding: const EdgeInsets.symmetric(vertical: 4),
-          child: Text(
-            'No actions',
-            style: Theme.of(
-              context,
-            ).textTheme.bodySmall?.copyWith(fontStyle: FontStyle.italic),
-          ),
-        )
-      else
-        ListView.builder(
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          itemCount: clips.length,
-          itemBuilder: (BuildContext context, int index) => ListTile(
-            dense: true,
-            selected: index == selectedClip,
-            selectedTileColor: kModelerScheme.primaryContainer,
-            contentPadding: EdgeInsets.zero,
-            title: Text(
-              _labelOf(clips[index], index),
-              overflow: TextOverflow.ellipsis,
+  Widget build(BuildContext context) {
+    final AppLocalizations l = AppLocalizations.of(context);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: <Widget>[
+        if (clips.isEmpty)
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 4),
+            child: Text(
+              l.actionsNone,
+              style: Theme.of(
+                context,
+              ).textTheme.bodySmall?.copyWith(fontStyle: FontStyle.italic),
             ),
-            onTap: () => onSelectClip(index),
+          )
+        else
+          ListView.builder(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            itemCount: clips.length,
+            itemBuilder: (BuildContext context, int index) => ListTile(
+              dense: true,
+              selected: index == selectedClip,
+              selectedTileColor: kModelerScheme.primaryContainer,
+              contentPadding: EdgeInsets.zero,
+              title: Text(
+                _labelOf(clips[index], index),
+                overflow: TextOverflow.ellipsis,
+              ),
+              onTap: () => onSelectClip(index),
+            ),
           ),
+        TextButton(
+          onPressed: onAddClip,
+          style: TextButton.styleFrom(
+            padding: EdgeInsets.zero,
+            minimumSize: panelButtonMinimum(context),
+            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+          ),
+          child: Text(l.actionsAdd),
         ),
-      TextButton(
-        onPressed: onAddClip,
-        style: TextButton.styleFrom(
-          padding: EdgeInsets.zero,
-          minimumSize: panelButtonMinimum(context),
-          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-        ),
-        child: const Text('Add'),
-      ),
-    ],
-  );
+      ],
+    );
+  }
 }

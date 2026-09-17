@@ -15,6 +15,7 @@ library;
 import 'package:flutter/material.dart';
 import 'package:flutter3d_mesh/flutter3d_mesh.dart';
 
+import '../../../l10n/app_localizations.dart';
 import 'theme.dart';
 
 /// The fix a kind of issue calls for — `ux-16`.
@@ -65,11 +66,12 @@ class MeshHealthPanel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final ThemeData theme = Theme.of(context);
+    final AppLocalizations l = AppLocalizations.of(context);
     if (issues.isEmpty) {
       return Padding(
         padding: const EdgeInsets.symmetric(vertical: 4),
         child: Text(
-          'Nothing wrong with it',
+          l.healthNothingWrong,
           style: theme.textTheme.bodySmall?.copyWith(
             color: theme.colorScheme.onSurfaceVariant,
           ),
@@ -101,6 +103,7 @@ class _Row extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final ThemeData theme = Theme.of(context);
+    final AppLocalizations l = AppLocalizations.of(context);
     // The same three levels the status line and the console paint in, for the
     // same reason: an error is the one row somebody has to notice.
     final Color colour = switch (issue.severity) {
@@ -119,21 +122,16 @@ class _Row extends StatelessWidget {
             child: MergeSemantics(
               child: Semantics(
                 button: true,
-                label: '${issue.message}, select them',
+                label: l.healthSelectThem(issue.message),
                 child: InkWell(
-                  onTap: () => onSelect(
-                    issue.kind.level,
-                    <int>[...issue.ids],
-                  ),
+                  onTap: () => onSelect(issue.kind.level, <int>[...issue.ids]),
                   child: Align(
                     alignment: Alignment.centerLeft,
                     child: Text(
                       issue.message,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: colour,
-                      ),
+                      style: theme.textTheme.bodySmall?.copyWith(color: colour),
                     ),
                   ),
                 ),

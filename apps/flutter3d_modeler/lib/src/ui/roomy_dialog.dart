@@ -19,6 +19,7 @@ library;
 
 import 'package:flutter/material.dart';
 
+import '../../../l10n/app_localizations.dart';
 import 'layout_class.dart';
 
 /// Whether a dialog opened over [context] has room for its desktop layout.
@@ -66,6 +67,7 @@ class RoomyDialog extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final AppLocalizations l = AppLocalizations.of(context);
     if (hasRoomForDialogs(context)) {
       return AlertDialog(
         title: Text(title),
@@ -78,7 +80,7 @@ class RoomyDialog extends StatelessWidget {
         appBar: AppBar(
           title: Text(title),
           leading: IconButton(
-            tooltip: 'Close',
+            tooltip: l.dialogClose,
             icon: const Icon(Icons.close),
             onPressed: onClose,
           ),

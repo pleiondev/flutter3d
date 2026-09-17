@@ -1754,4 +1754,153 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get animConstraints => 'Constraints';
+
+  @override
+  String get crashTitle => 'Something went wrong';
+
+  @override
+  String get crashDismiss => 'Dismiss';
+
+  @override
+  String get crashReport => 'Report a problem';
+
+  @override
+  String get postBloom => 'Bloom';
+
+  @override
+  String get postExposure => 'Exposure';
+
+  @override
+  String get playStop => 'Stop';
+
+  @override
+  String get playReload => 'Reload';
+
+  @override
+  String get operationNothingDone => 'nothing done yet';
+
+  @override
+  String get operationHide => 'Hide this card';
+
+  @override
+  String get operationHideHelp => 'Hide this card without undoing it';
+
+  @override
+  String get operationNothingToAdjust => 'nothing to adjust';
+
+  @override
+  String get studioTitle => 'Material Studio';
+
+  @override
+  String get studioClose => 'Close';
+
+  @override
+  String get constraintsNone => 'No constraints';
+
+  @override
+  String get constraintsRemove => 'Remove this constraint';
+
+  @override
+  String get clipBlend => 'Blend';
+
+  @override
+  String get clipPreview => 'Preview';
+
+  @override
+  String get boneMapTitle => 'Bone map';
+
+  @override
+  String get boneMapAuto => 'Map automatically';
+
+  @override
+  String get animPickAction => 'Select or add an action to see its timeline';
+
+  @override
+  String get animPickTrack => 'Select a track in Keys mode to see its curve';
+
+  @override
+  String get startFrom => 'Start from';
+
+  @override
+  String get dialogClose => 'Close';
+
+  @override
+  String get nameField => 'Name';
+
+  @override
+  String get healthNothingWrong => 'Nothing wrong with it';
+
+  @override
+  String get clipSearch => 'Search clips';
+
+  @override
+  String get clipNoSource => 'No source imported yet';
+
+  @override
+  String get actionsNone => 'No actions';
+
+  @override
+  String get actionsAdd => 'Add';
+
+  @override
+  String get weightsPickBone => 'Select a bone to test its bend';
+
+  @override
+  String crashCommand(String name) {
+    return 'Command: $name';
+  }
+
+  @override
+  String crashRecent(String names) {
+    return 'Recent commands: $names';
+  }
+
+  @override
+  String playHint(String template) {
+    return '$template  ·  WASD to walk, drag to look, Esc to stop';
+  }
+
+  @override
+  String simCacheSemantics(int baked, int target) {
+    return 'Simulation cache: $baked of $target frames baked';
+  }
+
+  @override
+  String simCacheReadout(int baked, int target) {
+    return '$baked / $target frames cached';
+  }
+
+  @override
+  String healthSelectThem(String message) {
+    return '$message, select them';
+  }
+
+  @override
+  String lodThreshold(int index) {
+    return 'LOD $index threshold';
+  }
+
+  @override
+  String clipNoMatch(String query) {
+    return 'No clips match “$query”';
+  }
+
+  @override
+  String bakingMaps(int count) {
+    return 'Baking $count maps…';
+  }
+
+  @override
+  String get outlinerToTopLevel => 'to the top level';
+
+  @override
+  String get retargetImportSource => 'Import a source clip';
+
+  @override
+  String get skeletonNoJoints => 'No joints';
+
+  @override
+  String sceneLightNamed(int number, String kind) {
+    return 'Light $number · $kind';
+  }
 }

@@ -16,6 +16,7 @@ library;
 import 'package:flutter/material.dart';
 import 'package:flutter3d_model_core/flutter3d_model_core.dart';
 
+import '../../../l10n/app_localizations.dart';
 import 'named_button.dart';
 import 'theme.dart';
 
@@ -89,11 +90,12 @@ class _SkeletonTreeState extends State<SkeletonTree> {
 
   @override
   Widget build(BuildContext context) {
+    final AppLocalizations l = AppLocalizations.of(context);
     if (widget.skeleton.joints.isEmpty) {
       return Padding(
         padding: const EdgeInsets.symmetric(vertical: 4),
         child: Text(
-          'No joints',
+          l.skeletonNoJoints,
           style: Theme.of(
             context,
           ).textTheme.bodySmall?.copyWith(fontStyle: FontStyle.italic),

@@ -71,7 +71,7 @@ extension _ProModesWiring on _ModelerScreenState {
 
     setState(
       () => _bakeRunning = (
-        label: 'Baking ${_bakeMaps.length} maps…',
+        label: AppLocalizations.of(context).bakingMaps(_bakeMaps.length),
         fraction: null,
       ),
     );

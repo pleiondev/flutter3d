@@ -163,7 +163,8 @@ List<LegalBlock> _blocks(List<String> lines) {
 
     if (trimmed.startsWith('#')) {
       flushParagraph();
-      final int level = trimmed.length - trimmed.replaceFirst(RegExp('^#+'), '').length;
+      final int level =
+          trimmed.length - trimmed.replaceFirst(RegExp('^#+'), '').length;
       blocks.add(
         LegalHeading(
           level: level.clamp(1, 3),
@@ -192,7 +193,9 @@ List<LegalBlock> _blocks(List<String> lines) {
       continue;
     }
 
-    final RegExpMatch? bullet = RegExp(r'^(-|\d+\.)\s+(.*)$').firstMatch(trimmed);
+    final RegExpMatch? bullet = RegExp(
+      r'^(-|\d+\.)\s+(.*)$',
+    ).firstMatch(trimmed);
     if (bullet != null) {
       flushParagraph();
       final bool numbered = bullet.group(1) != '-';
@@ -202,7 +205,9 @@ List<LegalBlock> _blocks(List<String> lines) {
         final RegExpMatch? next = RegExp(r'^(-|\d+\.)\s+(.*)$').firstMatch(at);
         if (next != null && (next.group(1) != '-') == numbered) {
           items.add(<String>[next.group(2)!]);
-        } else if (at.isNotEmpty && items.isNotEmpty && lines[i].startsWith(' ')) {
+        } else if (at.isNotEmpty &&
+            items.isNotEmpty &&
+            lines[i].startsWith(' ')) {
           // A wrapped continuation of the item above, which is how every list
           // in these documents is written once a line runs past eighty
           // columns.
@@ -248,7 +253,10 @@ LegalTable? _table(List<String> rows) {
 }
 
 List<String> _cells(String row) {
-  final String inner = row.substring(1, row.length - (row.endsWith('|') ? 1 : 0));
+  final String inner = row.substring(
+    1,
+    row.length - (row.endsWith('|') ? 1 : 0),
+  );
   return <String>[for (final String cell in inner.split('|')) cell.trim()];
 }
 

@@ -355,7 +355,7 @@
     "ux-52": "done",
     "ux-39": "done",
     "ux-38": "done",
-    "ux-22": "partial",
+    "ux-22": "done",
     "ux-13": "done",
     "ux-24": "done",
     "ux-16": "done",
@@ -528,6 +528,9 @@
       "BAKE": "a four-letter section tag out of the plan's own original sketch of this format, not a name in the tree: the row's whole argument is which of those eight are sections, which are records, and which have nothing on the document to write — the ones that landed are named in Dart (ProjectSection.simulationCaches, the paint record on a material, lods on an object), and these are cited as the sketch they came from",
       "LODS": "a four-letter section tag out of the plan's own original sketch of this format, not a name in the tree: the row's whole argument is which of those eight are sections, which are records, and which have nothing on the document to write — the ones that landed are named in Dart (ProjectSection.simulationCaches, the paint record on a material, lods on an object), and these are cited as the sketch they came from",
       "RNDR": "a four-letter section tag out of the plan's own original sketch of this format, not a name in the tree: the row's whole argument is which of those eight are sections, which are records, and which have nothing on the document to write — the ones that landed are named in Dart (ProjectSection.simulationCaches, the paint record on a material, lods on an object), and these are cited as the sketch they came from"
+    },
+    "ux-22": {
+      "_actionLabels": "the row's own account of what it did to that map: it names _actionLabels in the sentence that says it split in two — the sections stayed in shortcut_help.dart as _actionSections and the twenty-three names went to the ARB files, read back through _actionLabel"
     }
   }
 }
