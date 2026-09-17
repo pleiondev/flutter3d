@@ -787,4 +787,98 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get toolRenderSaveAbout => 'Writes the last render out as a PNG.';
+
+  @override
+  String get settingsClearDataTitle => 'Clear local data?';
+
+  @override
+  String get settingsClear => 'Clear';
+
+  @override
+  String get settingsCameraNavigation => 'Camera navigation';
+
+  @override
+  String get settingsKeys => 'Keys';
+
+  @override
+  String get settingsTransformTools => 'Move, rotate and scale';
+
+  @override
+  String get settingsWorkspace => 'Workspace';
+
+  @override
+  String get settingsLanguage => 'Language';
+
+  @override
+  String get settingsStepMove => 'Move';
+
+  @override
+  String get settingsStepTurn => 'Turn°';
+
+  @override
+  String get settingsStepScale => 'Scale';
+
+  @override
+  String get settingsShowHome => 'Show Home at launch';
+
+  @override
+  String get settingsSaveHistory => 'Save projects with their history';
+
+  @override
+  String get settingsLegal => 'Licence, privacy and the rest';
+
+  @override
+  String get settingsClearData => 'Clear local data';
+
+  @override
+  String get settingsClearDataBody =>
+      'This removes the settings, the recent-files list and the autosave copy. Project files you saved yourself are left alone. It cannot be undone.';
+
+  @override
+  String get settingsCameraNavigationHelp =>
+      'Which buttons and gestures orbit, pan and zoom.';
+
+  @override
+  String get settingsKeysHelp => 'Which set of shortcuts is live.';
+
+  @override
+  String get settingsTransformToolsHelp =>
+      'Whether the key opens a transform at once or arms it for a drag.';
+
+  @override
+  String get settingsWorkspaceHelp => 'Which screens the mode switcher offers.';
+
+  @override
+  String get settingsLanguageHelp => 'What the interface is written in.';
+
+  @override
+  String get settingsLanguageEnglish => 'English';
+
+  @override
+  String get settingsLanguageRussian => 'Russian';
+
+  @override
+  String get settingsLanguageSystem => 'System';
+
+  @override
+  String get settingsSnapSteps => 'Snap steps';
+
+  @override
+  String get settingsShowHomeHelp =>
+      'The start screen, with recent models and the scenario cards.';
+
+  @override
+  String get settingsSaveHistoryHelp =>
+      'Keeps what you could still undo inside the saved file.';
+
+  @override
+  String get settingsLegalSection => 'Legal and data';
+
+  @override
+  String get settingsClearDataHelp =>
+      'Settings, the recent-files list and the autosave. Saved project files are not touched.';
+
+  @override
+  String get settingsLegalHelp =>
+      'The documents this build shipped under, and the third-party licences.';
 }
