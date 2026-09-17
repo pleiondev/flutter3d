@@ -21,6 +21,8 @@ library;
 import 'package:flutter/material.dart';
 import 'package:flutter3d_editor_widgets/flutter3d_editor_widgets.dart';
 
+import '../../l10n/app_localizations.dart';
+
 /// The transport strip's own height — `pro-sim-06`'s own 150.
 const double kSimulationBarHeight = 150;
 
@@ -79,11 +81,12 @@ class SimulationPanel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final ThemeData theme = Theme.of(context);
+    final AppLocalizations l = AppLocalizations.of(context);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       mainAxisSize: MainAxisSize.min,
       children: <Widget>[
-        SectionLabel('Kind'),
+        SectionLabel(l.simKind),
         Wrap(
           spacing: 6,
           children: <Widget>[
@@ -99,7 +102,7 @@ class SimulationPanel extends StatelessWidget {
               ),
           ],
         ),
-        SectionLabel('Parameters'),
+        SectionLabel(l.simParameters),
         for (final MapEntry<String, double> each in parameters.entries)
           RangeSliderField(
             key: ValueKey<String>('simParameter-${each.key}'),
@@ -110,9 +113,9 @@ class SimulationPanel extends StatelessWidget {
             step: 0.01,
             onChanged: (double to) => onParameter(each.key, to),
           ),
-        SectionLabel('Collides with'),
+        SectionLabel(l.simCollidesWith),
         if (colliders.isEmpty)
-          Text('Nothing else in the scene', style: theme.textTheme.bodySmall)
+          Text(l.simNothingElse, style: theme.textTheme.bodySmall)
         else
           for (final MapEntry<String, bool> each in colliders.entries)
             CheckboxListTile(
@@ -124,7 +127,7 @@ class SimulationPanel extends StatelessWidget {
               value: each.value,
               onChanged: (bool? on) => onCollider(each.key, on ?? false),
             ),
-        SectionLabel('Pinned'),
+        SectionLabel(l.simPinned),
         Text(
           pinnedCount == 0 ? 'Nothing pinned' : '$pinnedCount vertices',
           key: const ValueKey<String>('simPinnedCount'),
@@ -143,7 +146,7 @@ class SimulationPanel extends StatelessWidget {
         TextButton(
           key: const ValueKey<String>('simClearPins'),
           onPressed: pinnedCount == 0 ? null : onClearPins,
-          child: const Text('Clear the pins'),
+          child: Text(l.simClearPins),
         ),
       ],
     );
@@ -180,6 +183,7 @@ class SimulationBar extends StatelessWidget {
   Widget build(BuildContext context) {
     final ThemeData theme = Theme.of(context);
     final bool hasCache = cache.baked > 0;
+    final AppLocalizations l = AppLocalizations.of(context);
     return SizedBox(
       height: kSimulationBarHeight,
       child: Padding(
@@ -237,7 +241,7 @@ class SimulationBar extends StatelessWidget {
                 TextButton(
                   key: const ValueKey<String>('simClearCache'),
                   onPressed: hasCache ? onClearCache : null,
-                  child: const Text('Clear the cache'),
+                  child: Text(l.simClearCache),
                 ),
               ],
             ),

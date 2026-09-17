@@ -16,6 +16,8 @@ import 'dart:ui' as ui show Image;
 import 'package:flutter/material.dart';
 import 'package:flutter3d_editor_widgets/flutter3d_editor_widgets.dart';
 
+import '../../l10n/app_localizations.dart';
+
 /// The panel's own width — `pro-pt-05`'s own 300.
 const double kPaintPanelWidth = 300;
 
@@ -113,6 +115,7 @@ class PaintPanel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final ThemeData theme = Theme.of(context);
+    final AppLocalizations l = AppLocalizations.of(context);
     return SizedBox(
       width: kPaintPanelWidth,
       child: ListView(
@@ -126,7 +129,7 @@ class PaintPanel extends StatelessWidget {
                 color: theme.colorScheme.error,
               ),
             ),
-          SectionLabel('Canvas'),
+          SectionLabel(l.paintCanvas),
           AspectRatio(
             aspectRatio: 1,
             child: Container(
@@ -137,14 +140,14 @@ class PaintPanel extends StatelessWidget {
               child: canvas == null
                   ? Center(
                       child: Text(
-                        'Nothing painted yet',
+                        l.paintNothingYet,
                         style: theme.textTheme.bodySmall,
                       ),
                     )
                   : RawImage(image: canvas, fit: BoxFit.contain),
             ),
           ),
-          SectionLabel('Layers'),
+          SectionLabel(l.paintLayers),
           for (var i = layers.length - 1; i >= 0; i--)
             ListTile(
               key: ValueKey<String>('paintLayer-$i'),
@@ -168,9 +171,9 @@ class PaintPanel extends StatelessWidget {
             key: const ValueKey<String>('paintAddLayer'),
             onPressed: onAddLayer,
             icon: const Icon(Icons.add),
-            label: const Text('Add a layer'),
+            label: Text(l.paintAddLayer),
           ),
-          SectionLabel('Colour'),
+          SectionLabel(l.paintColour),
           Wrap(
             spacing: 6,
             runSpacing: 6,
@@ -197,27 +200,27 @@ class PaintPanel extends StatelessWidget {
             ],
           ),
           RangeSliderField(
-            label: 'Size',
+            label: l.brushSize,
             value: radius,
             min: 8,
             max: 400,
             onChanged: onRadius,
           ),
           RangeSliderField(
-            label: 'Strength',
+            label: l.brushStrength,
             value: strength,
             min: 0,
             max: 1,
             step: 0.05,
             onChanged: onStrength,
           ),
-          SectionLabel('Mask'),
+          SectionLabel(l.paintMask),
           DropdownButton<String?>(
             key: const ValueKey<String>('paintMask'),
             isExpanded: true,
             value: mask,
             items: <DropdownMenuItem<String?>>[
-              const DropdownMenuItem<String?>(child: Text('None')),
+              DropdownMenuItem<String?>(child: Text(l.paintMaskNone)),
               for (final String each in masks)
                 DropdownMenuItem<String?>(value: each, child: Text(each)),
             ],

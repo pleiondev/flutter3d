@@ -28,6 +28,7 @@ import 'package:flutter3d_editor_widgets/flutter3d_editor_widgets.dart';
 import 'package:flutter3d_mesh/flutter3d_mesh.dart'
     show BrushFalloff, BrushKind;
 
+import '../../l10n/app_localizations.dart';
 import 'theme.dart';
 
 /// The brush palette's own width — `ui-29`'s own 48, which is also
@@ -180,6 +181,7 @@ class SculptPanel extends StatelessWidget {
   Widget build(BuildContext context) {
     final ThemeData theme = Theme.of(context);
     final ColorScheme colours = theme.colorScheme;
+    final AppLocalizations l = AppLocalizations.of(context);
     return Material(
       color: colours.surfaceContainerHigh.withValues(alpha: 0.92),
       borderRadius: const BorderRadius.all(Radius.circular(12)),
@@ -191,16 +193,16 @@ class SculptPanel extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: <Widget>[
-              SectionLabel('Brush'),
+              SectionLabel(l.sculptBrush),
               RangeSliderField(
-                label: 'Size',
+                label: l.brushSize,
                 value: radius,
                 min: 8,
                 max: 400,
                 onChanged: onRadius,
               ),
               RangeSliderField(
-                label: 'Strength',
+                label: l.brushStrength,
                 value: strength,
                 min: 0,
                 max: 1,
@@ -210,18 +212,18 @@ class SculptPanel extends StatelessWidget {
               const SizedBox(height: 8),
               SegmentedButton<BrushFalloff>(
                 showSelectedIcon: false,
-                segments: const <ButtonSegment<BrushFalloff>>[
+                segments: <ButtonSegment<BrushFalloff>>[
                   ButtonSegment<BrushFalloff>(
                     value: BrushFalloff.linear,
-                    label: Text('Linear'),
+                    label: Text(l.sculptFalloffLinear),
                   ),
                   ButtonSegment<BrushFalloff>(
                     value: BrushFalloff.smooth,
-                    label: Text('Smooth'),
+                    label: Text(l.sculptFalloffSmooth),
                   ),
                   ButtonSegment<BrushFalloff>(
                     value: BrushFalloff.sharp,
-                    label: Text('Sharp'),
+                    label: Text(l.sculptFalloffSharp),
                   ),
                 ],
                 selected: <BrushFalloff>{falloff},
@@ -233,13 +235,16 @@ class SculptPanel extends StatelessWidget {
                 dense: true,
                 contentPadding: EdgeInsets.zero,
                 controlAffinity: ListTileControlAffinity.leading,
-                title: Text('Symmetry (X)', style: theme.textTheme.bodySmall),
+                title: Text(
+                  l.sculptSymmetryX,
+                  style: theme.textTheme.bodySmall,
+                ),
                 value: symmetryX,
                 onChanged: (bool? to) => onSymmetryX(to ?? false),
               ),
-              SectionLabel('Surface'),
-              if (faces != null)
-                Text('$faces faces', style: theme.textTheme.bodySmall),
+              SectionLabel(l.sculptSurface),
+              if (faces case final int count)
+                Text(l.sculptFaces(count), style: theme.textTheme.bodySmall),
               const SizedBox(height: 4),
               // An empty message shows no tooltip at all, which is what a
               // button with nothing wrong with it should have.
@@ -249,7 +254,7 @@ class SculptPanel extends StatelessWidget {
                   key: const ValueKey<String>('sculptSubdivide'),
                   onPressed: subdivideRefusal == null ? onSubdivide : null,
                   icon: const Icon(Icons.grid_4x4_outlined),
-                  label: const Text('Subdivide'),
+                  label: Text(l.sculptSubdivide),
                 ),
               ),
             ],

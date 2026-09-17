@@ -957,4 +957,107 @@ class AppLocalizationsRu extends AppLocalizations {
   String autorigMarkers(int placed, int total) {
     return 'Маркеров $placed из $total';
   }
+
+  @override
+  String get brushSize => 'Размер';
+
+  @override
+  String get brushStrength => 'Сила';
+
+  @override
+  String get sculptBrush => 'Кисть';
+
+  @override
+  String get sculptFalloffLinear => 'Линейное';
+
+  @override
+  String get sculptFalloffSmooth => 'Мягкое';
+
+  @override
+  String get sculptFalloffSharp => 'Резкое';
+
+  @override
+  String get sculptSymmetryX => 'Симметрия (X)';
+
+  @override
+  String get sculptSurface => 'Поверхность';
+
+  @override
+  String get sculptSubdivide => 'Подразделить';
+
+  @override
+  String get paintCanvas => 'Холст';
+
+  @override
+  String get paintNothingYet => 'Пока ничего не нарисовано';
+
+  @override
+  String get paintLayers => 'Слои';
+
+  @override
+  String get paintAddLayer => 'Добавить слой';
+
+  @override
+  String get paintColour => 'Цвет';
+
+  @override
+  String get paintMask => 'Маска';
+
+  @override
+  String get paintMaskNone => 'Нет';
+
+  @override
+  String get bakeRetopology => 'Ретопология';
+
+  @override
+  String get bakeTargetQuads => 'Сколько квадов';
+
+  @override
+  String get bakeRetopologize => 'Ретопологизировать';
+
+  @override
+  String get bakeMaps => 'Карты';
+
+  @override
+  String get bakeResolution => 'Разрешение';
+
+  @override
+  String get simKind => 'Вид';
+
+  @override
+  String get simParameters => 'Параметры';
+
+  @override
+  String get simCollidesWith => 'Сталкивается с';
+
+  @override
+  String get simNothingElse => 'В сцене больше ничего нет';
+
+  @override
+  String get simPinned => 'Закреплено';
+
+  @override
+  String get simClearPins => 'Снять закрепление';
+
+  @override
+  String get simClearCache => 'Очистить кеш';
+
+  @override
+  String get renderPasses => 'Проходы';
+
+  @override
+  String get renderStart => 'Рендер';
+
+  @override
+  String get renderNothingYet => 'Пока ничего не отрендерено';
+
+  @override
+  String sculptFaces(int count) {
+    return '$count граней';
+  }
+
+  @override
+  String renderCancelTiles(int done, int total) {
+    return 'Отмена · $done/$total';
+  }
 }

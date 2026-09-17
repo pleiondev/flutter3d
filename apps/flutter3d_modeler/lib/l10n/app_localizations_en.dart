@@ -951,4 +951,107 @@ class AppLocalizationsEn extends AppLocalizations {
   String autorigMarkers(int placed, int total) {
     return 'Markers $placed of $total';
   }
+
+  @override
+  String get brushSize => 'Size';
+
+  @override
+  String get brushStrength => 'Strength';
+
+  @override
+  String get sculptBrush => 'Brush';
+
+  @override
+  String get sculptFalloffLinear => 'Linear';
+
+  @override
+  String get sculptFalloffSmooth => 'Smooth';
+
+  @override
+  String get sculptFalloffSharp => 'Sharp';
+
+  @override
+  String get sculptSymmetryX => 'Symmetry (X)';
+
+  @override
+  String get sculptSurface => 'Surface';
+
+  @override
+  String get sculptSubdivide => 'Subdivide';
+
+  @override
+  String get paintCanvas => 'Canvas';
+
+  @override
+  String get paintNothingYet => 'Nothing painted yet';
+
+  @override
+  String get paintLayers => 'Layers';
+
+  @override
+  String get paintAddLayer => 'Add a layer';
+
+  @override
+  String get paintColour => 'Colour';
+
+  @override
+  String get paintMask => 'Mask';
+
+  @override
+  String get paintMaskNone => 'None';
+
+  @override
+  String get bakeRetopology => 'Retopology';
+
+  @override
+  String get bakeTargetQuads => 'Target quads';
+
+  @override
+  String get bakeRetopologize => 'Retopologize';
+
+  @override
+  String get bakeMaps => 'Maps';
+
+  @override
+  String get bakeResolution => 'Resolution';
+
+  @override
+  String get simKind => 'Kind';
+
+  @override
+  String get simParameters => 'Parameters';
+
+  @override
+  String get simCollidesWith => 'Collides with';
+
+  @override
+  String get simNothingElse => 'Nothing else in the scene';
+
+  @override
+  String get simPinned => 'Pinned';
+
+  @override
+  String get simClearPins => 'Clear the pins';
+
+  @override
+  String get simClearCache => 'Clear the cache';
+
+  @override
+  String get renderPasses => 'Passes';
+
+  @override
+  String get renderStart => 'Render';
+
+  @override
+  String get renderNothingYet => 'Nothing rendered yet';
+
+  @override
+  String sculptFaces(int count) {
+    return '$count faces';
+  }
+
+  @override
+  String renderCancelTiles(int done, int total) {
+    return 'Cancel · $done/$total';
+  }
 }

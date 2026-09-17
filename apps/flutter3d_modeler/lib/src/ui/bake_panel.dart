@@ -18,6 +18,8 @@ library;
 import 'package:flutter/material.dart';
 import 'package:flutter3d_editor_widgets/flutter3d_editor_widgets.dart';
 
+import '../../l10n/app_localizations.dart';
+
 /// The panel's own width — `pro-rt-07`'s own 290.
 const double kBakePanelWidth = 290;
 
@@ -85,6 +87,7 @@ class BakePanel extends StatelessWidget {
   Widget build(BuildContext context) {
     final ThemeData theme = Theme.of(context);
     final bool busy = running != null;
+    final AppLocalizations l = AppLocalizations.of(context);
     return SizedBox(
       width: kBakePanelWidth,
       child: Column(
@@ -102,9 +105,9 @@ class BakePanel extends StatelessWidget {
                 ),
               ),
             ),
-          SectionLabel('Retopology'),
+          SectionLabel(l.bakeRetopology),
           RangeSliderField(
-            label: 'Target quads',
+            label: l.bakeTargetQuads,
             value: targetQuads.toDouble(),
             min: 100,
             max: 20000,
@@ -116,10 +119,10 @@ class BakePanel extends StatelessWidget {
             key: const ValueKey<String>('retopologize'),
             onPressed: busy || refusal != null ? null : onRetopologize,
             icon: const Icon(Icons.grid_on_outlined),
-            label: const Text('Retopologize'),
+            label: Text(l.bakeRetopologize),
           ),
           const SizedBox(height: 12),
-          SectionLabel('Maps'),
+          SectionLabel(l.bakeMaps),
           for (final String map in offered)
             CheckboxListTile(
               key: ValueKey<String>('bakeMap-$map'),
@@ -131,7 +134,7 @@ class BakePanel extends StatelessWidget {
               onChanged: busy ? null : (bool? on) => onMap(map, on ?? false),
             ),
           RangeSliderField(
-            label: 'Resolution',
+            label: l.bakeResolution,
             value: resolution.toDouble(),
             min: 256,
             max: 4096,
@@ -155,7 +158,7 @@ class BakePanel extends StatelessWidget {
                 OutlinedButton(
                   key: const ValueKey<String>('bakeCancel'),
                   onPressed: onCancel,
-                  child: const Text('Cancel'),
+                  child: Text(l.cancel),
                 ),
               ],
             )

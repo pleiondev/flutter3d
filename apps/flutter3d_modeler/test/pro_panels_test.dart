@@ -8,6 +8,7 @@ library;
 import 'dart:ui' as ui show PictureRecorder;
 
 import 'package:flutter/material.dart';
+import 'package:flutter3d_modeler/l10n/app_localizations.dart';
 import 'package:flutter3d_modeler/src/ui/bake_panel.dart';
 import 'package:flutter3d_modeler/src/ui/paint_panel.dart';
 import 'package:flutter3d_modeler/src/ui/render_panel.dart';
@@ -15,7 +16,15 @@ import 'package:flutter3d_modeler/src/ui/retopo_overlay.dart';
 import 'package:flutter3d_modeler/src/ui/simulation_panel.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+/// A panel under the delegates it reads its own words from.
+///
+/// **English, stated rather than inherited.** Every expectation below names
+/// a word, and a test that took the host's locale would read those words in
+/// whatever language the machine running it happens to be set to.
 Widget wrapped(Widget child) => MaterialApp(
+  locale: const Locale('en'),
+  localizationsDelegates: AppLocalizations.localizationsDelegates,
+  supportedLocales: AppLocalizations.supportedLocales,
   home: Scaffold(body: SingleChildScrollView(child: child)),
 );
 
