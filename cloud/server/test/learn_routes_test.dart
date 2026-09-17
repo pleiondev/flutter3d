@@ -3,6 +3,8 @@
 /// way the rest of the server's routes cannot be without Postgres.
 library;
 
+import 'dart:io';
+
 import 'package:flutter3d_models/main.server.options.dart';
 import 'package:flutter3d_models/src/content/learn_content.dart';
 import 'package:flutter3d_models/src/http/learn_routes.dart';
@@ -324,4 +326,74 @@ void main() {
       );
     });
   });
+
+  group('every picture a page points at is on disk', () {
+    test('no page references an asset that is not there', () {
+      // **What the checks above could not see.** Each of them asks whether a
+      // page *mentions* a picture, which is the half that catches a tour
+      // quietly dropping a mode. It says nothing about whether the file
+      // exists — and four references in the tour pointed at pictures nobody
+      // had taken, so the page rendered with four broken images and every
+      // test passed.
+      //
+      // This walks the other way: from what the pages point at to what is on
+      // disk. Nothing else can, because the pages are Markdown read at run
+      // time and the pictures are written by a tool in a different package.
+      final missing = <String>[];
+      var checked = 0;
+      for (final LearnCase page in loadLearnCases()) {
+        for (final Match match in _assetLinks.allMatches(page.bodyHtml)) {
+          final String url = match.group(1)!;
+          if (_pendingPictures.contains(url)) continue;
+          checked++;
+          if (!File('web$url').existsSync()) missing.add('${page.slug}: $url');
+        }
+      }
+      expect(missing, isEmpty);
+      // A walk that visited nothing proves nothing, and this one can stop
+      // visiting in two silent ways: the pages could stop carrying `src="…"`
+      // at all if the Markdown renderer changed how it writes an image, and
+      // this test would keep passing over an empty list for ever.
+      expect(
+        checked,
+        greaterThan(30),
+        reason: 'seven pages carry far more than thirty pictures between them',
+      );
+    });
+
+    test('nothing on the pending list has quietly arrived', () {
+      // The other side of the list, and the reason it is safe to have one:
+      // `cross_backend_test`'s own `_provisional` does exactly this for a
+      // scene waiting on a backend's reference set. A name left behind after
+      // its picture lands is a check that has stopped checking, so finding
+      // the file is a failure here rather than a quiet pass.
+      for (final String url in _pendingPictures) {
+        expect(
+          File('web$url').existsSync(),
+          isFalse,
+          reason: '$url is on disk now — take it off the pending list',
+        );
+      }
+    });
+  });
 }
+
+/// `src="/assets/…"` in a rendered page, however the Markdown spelled it.
+final RegExp _assetLinks = RegExp(r'src="(/assets/[^"]+)"');
+
+/// Pictures the pages already point at and the screenshot pass has not taken.
+///
+/// **Named with a reason rather than left to render as a broken image.** These
+/// four are the dialogs the tour gained after the last time the modeller's
+/// golden screenshots were recorded: `tutorial_screenshots_test.dart` knows
+/// how to shoot them, and doing it is one `--update-goldens` run followed by
+/// `tool/publish_modeler_screenshots.dart`. Until that runs the page is
+/// honestly incomplete, which is a different thing from silently wrong, and
+/// the test above turns the difference into something a reader of this file
+/// can see.
+const Set<String> _pendingPictures = <String>{
+  '/assets/learn/modeler/modes/export-dialog.png',
+  '/assets/learn/modeler/modes/gallery-dialog.png',
+  '/assets/learn/modeler/modes/material-studio-dialog.png',
+  '/assets/learn/modeler/modes/add-primitive-menu.png',
+};
