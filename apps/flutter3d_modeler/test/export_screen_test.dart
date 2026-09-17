@@ -8,7 +8,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter3d_mesh/flutter3d_mesh.dart';
 import 'package:flutter3d_model_core/flutter3d_model_core.dart';
 import 'package:flutter3d_modeler/l10n/app_localizations.dart';
-import 'package:flutter3d_modeler/src/exporting.dart';
 import 'package:flutter3d_modeler/src/ui/export_screen.dart';
 import 'package:flutter3d_modeler/src/ui/theme.dart';
 import 'package:flutter_test/flutter_test.dart';

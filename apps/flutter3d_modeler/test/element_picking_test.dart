@@ -891,10 +891,13 @@ void main() {
         screenOf(Vector3(0.05, 0.45, 0.0)),
         screenOf(Vector3(-1.05, 0.45, 0.0)),
       ];
-      final Rect bounds = path.skip(1).fold(
-        Rect.fromPoints(path.first, path.first),
-        (Rect box, Offset at) => box.expandToInclude(Rect.fromPoints(at, at)),
-      );
+      final Rect bounds = path
+          .skip(1)
+          .fold(
+            Rect.fromPoints(path.first, path.first),
+            (Rect box, Offset at) =>
+                box.expandToInclude(Rect.fromPoints(at, at)),
+          );
       bool inside(Offset at) => bounds.deflate(0.0).contains(at);
 
       final Selection caught = pickElementsInLoop(

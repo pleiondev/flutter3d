@@ -439,7 +439,10 @@ void main() {
         ).isLasso,
         isFalse,
       );
-      expect(drawn(<Offset>[Offset.zero, const Offset(10, 10)]).isLasso, isTrue);
+      expect(
+        drawn(<Offset>[Offset.zero, const Offset(10, 10)]).isLasso,
+        isTrue,
+      );
     });
 
     test('a point inside the loop is inside and one outside is not', () {

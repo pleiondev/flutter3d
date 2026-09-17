@@ -10,9 +10,9 @@ library;
 
 import 'package:flutter/material.dart' hide Material;
 import 'package:flutter3d_model_core/flutter3d_model_core.dart' hide Outcome;
+import 'package:flutter3d_model_core/flutter3d_model_core.dart';
 
 import '../../l10n/app_localizations.dart';
-import '../exporting.dart';
 import '../play/play_template.dart';
 import 'theme.dart';
 import 'undo_redo_buttons.dart';

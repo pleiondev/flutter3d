@@ -660,6 +660,19 @@ boundaryEnumExempt = <String, Map<String, String>>{
             'how a clip ends. Each value is a branch in the sampler, so a fifth '
             'is code rather than a name',
       },
+  'flutter3d_model_core/lib/src/exporting.dart': <String, String>{
+    'ExportFormat':
+        'each value carries the writer that produces it — `f3d(F3dModelWriter())`, '
+        '`glb(GlbModelWriter())` and the rest — so a fifth format is a `ModelWriter` '
+        'somebody wrote, not a name added to a list. The one `switch` over it picks '
+        'an extension in `bin/export.dart`, beside the enum, and a caller outside '
+        'reads `ExportFormat.values` rather than naming cases',
+    'TextureEncoding':
+        'what an export does to its images, and the set is what the writers can '
+        'actually produce. A sixth encoding is an encoder in `flutter3d_core`, not a '
+        'value here; the switches over it live in this same file, choosing which of '
+        'those encoders to call',
+  },
   'flutter3d_core/lib/src/engine/animation/animation_layer.dart':
       <String, String>{
         'AnimationBlend':

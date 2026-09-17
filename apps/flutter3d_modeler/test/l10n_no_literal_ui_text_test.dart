@@ -45,7 +45,6 @@ const List<String> translated = <String>[
   'lib/src/element_picker_cache.dart',
   'lib/src/element_picking.dart',
   'lib/src/environment_summary.dart',
-  'lib/src/exporting.dart',
   'lib/src/files/cabinet_save.dart',
   'lib/src/files/cabinet_save_io.dart',
   'lib/src/files/cabinet_save_outcome.dart',

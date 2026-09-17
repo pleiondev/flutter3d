@@ -59,7 +59,6 @@ import '../display_modes.dart';
 import '../element_picker_cache.dart';
 import '../element_picking.dart';
 import '../environment_summary.dart';
-import '../exporting.dart';
 import '../files/cabinet_save.dart';
 import '../files/fetch_model.dart';
 import '../files/file_drop.dart';

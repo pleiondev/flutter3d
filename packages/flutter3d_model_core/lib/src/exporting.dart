@@ -17,7 +17,14 @@ import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:flutter3d_core/formats.dart';
-import 'package:flutter3d_model_core/flutter3d_model_core.dart';
+
+import 'command.dart';
+import 'credits.dart';
+import 'modifier_slot.dart';
+import 'project.dart';
+import 'project_document.dart';
+import 'readiness.dart';
+import 'selection.dart';
 
 /// What the model can be taken out as: the writers this application offers
 /// out of `flutter3d_formats`' own list.
