@@ -81,6 +81,7 @@ import 'project_animation.dart';
 import 'project_morphs.dart';
 import 'selection.dart';
 import 'shape_driver.dart';
+import 'simulation_cache.dart';
 import 'texture_budget.dart';
 import 'texture_graph.dart';
 import 'texture_info.dart';
@@ -123,6 +124,12 @@ const int kProjectImageEntryBytes = 8;
 
 /// One entry of the checksum table: u32 section kind, u32 CRC-32.
 const int kProjectChecksumEntryBytes = 8;
+
+/// One entry of the simulation-cache table: u32 offset into the blob, u32
+/// length. The shape of the frames it addresses — how many, and how long each
+/// is — is in the object's own manifest record, for the reason
+/// [ProjectSection.simulationCaches] gives.
+const int kProjectSimulationEntryBytes = 8;
 
 /// Section kinds.
 ///
@@ -223,6 +230,26 @@ abstract final class ProjectSection {
   /// it to that count; rows only history needs would open in that reader as
   /// images the project does not have. Absent when history needs none.
   static const int historyImages = 8;
+
+  /// `pro-doc-01`'s own `SIMC`: `count` entries of
+  /// [kProjectSimulationEntryBytes], addressing [blob] — one baked
+  /// [SimulationCache]'s frames, packed end to end as raw `Float32List`
+  /// bytes, in the same host-endian form the imported-mesh buffers already
+  /// take.
+  ///
+  /// **A section rather than a record, because a cache is the one thing on
+  /// this document that really is bulk.** A hundred-and-twenty-frame bake of
+  /// a two-thousand-vertex cloth is nearly three megabytes of floats, and
+  /// through `SimulationCache.toJson`'s own base64 it is four — sitting
+  /// inside the manifest, which every reader parses in full before it knows
+  /// whether it wants a simulation at all. So the frames go in the blob,
+  /// which is what the blob is for, and `vertexCount` and the frame count are
+  /// two integers that stay in the object's own record beside the index of
+  /// this row.
+  ///
+  /// Written only for a project that has one, and absent from every file
+  /// written before this existed — the additive rule, same as [historyImages].
+  static const int simulationCaches = 9;
 }
 
 /// What [readProject] gives back.
@@ -368,6 +395,13 @@ Uint8List writeProject(
   final importedAt = <MeshData, int>{};
   final importedJson = <Map<String, Object?>>[];
 
+  // `pro-doc-01`: baked simulation frames, deduplicated by identity for the
+  // same reason the imported buffers are — a history step and the live
+  // project usually hold the same cache, and comparing megabytes of floats
+  // to find that out costs more than writing them twice would.
+  final caches = <SimulationCache>[];
+  final cacheAt = Map<SimulationCache, int>.identity();
+
   List<Map<String, Object?>> objectsJsonFor(List<ModelObject> objectList) {
     final out = <Map<String, Object?>>[];
     for (final ModelObject object in objectList) {
@@ -429,6 +463,20 @@ Uint8List writeProject(
         // `pro-lod-03`, younger still — absent reads back as `<LodSpec>[]`,
         // the ordinary case of an object nobody has asked to simplify.
         'lods': _lodsJson(object.lods),
+        // `pro-doc-01`, and written only for an object somebody has baked:
+        // the row addresses the frames in
+        // `ProjectSection.simulationCaches`, and the two counts here are
+        // what says how to read them back. Absent is the ordinary case and
+        // what every file written before this existed says.
+        if (object.simulationCache case final SimulationCache cache)
+          'simulationCache': <String, Object?>{
+            'chunk': cacheAt.putIfAbsent(cache, () {
+              caches.add(cache);
+              return caches.length - 1;
+            }),
+            'vertexCount': cache.vertexCount,
+            'frameCount': cache.frameCount,
+          },
         // `ux-14`, younger still, and written only when it is not the
         // default: almost every object in almost every file is visible and
         // unlocked, and two more keys per object is real bytes on a project
@@ -586,6 +634,14 @@ Uint8List writeProject(
     for (final EncodedImage each in historyImages)
       (place(each.bytes), each.bytes.lengthInBytes),
   ];
+  // One chunk per cache, its frames end to end: every frame is the same
+  // length, which the object's own record already says, so a table of one
+  // offset and one length per cache is enough to cut them apart again.
+  final cacheOffsets = <(int, int)>[
+    for (final SimulationCache each in caches)
+      if (_packedFrames(each) case final Uint8List packed)
+        (place(packed), packed.lengthInBytes),
+  ];
 
   final blob = Uint8List(blobLength);
   for (var i = 0; i < chunks.length; i++) {
@@ -624,6 +680,15 @@ Uint8List writeProject(
     imageView
       ..setUint32(i * kProjectImageEntryBytes, at, Endian.little)
       ..setUint32(i * kProjectImageEntryBytes + 4, length, Endian.little);
+  }
+
+  final cacheTable = Uint8List(caches.length * kProjectSimulationEntryBytes);
+  final cacheView = ByteData.view(cacheTable.buffer);
+  for (var i = 0; i < cacheOffsets.length; i++) {
+    final (int at, int length) = cacheOffsets[i];
+    cacheView
+      ..setUint32(i * kProjectSimulationEntryBytes, at, Endian.little)
+      ..setUint32(i * kProjectSimulationEntryBytes + 4, length, Endian.little);
   }
 
   final historyImageTable = Uint8List(
@@ -678,6 +743,11 @@ Uint8List writeProject(
       ),
     if (historyImages.isNotEmpty)
       (ProjectSection.historyImages, historyImageTable, historyImages.length),
+    // Absent rather than empty for a project nobody has baked — the same
+    // rule `historyImages` keeps, and the reason an older reader never has
+    // to know this section exists.
+    if (caches.isNotEmpty)
+      (ProjectSection.simulationCaches, cacheTable, caches.length),
   ];
 
   // Computed over the section data, before anything knows where in the file it
@@ -903,6 +973,10 @@ ProjectRead readProject(Uint8List bytes) {
         'its five original limits, the nextId, and a list of objects.',
       );
     }
+    final (List<Uint8List> simulationChunks, String? cacheRefusal) =
+        _readSimulationChunks(bytes, sections);
+    if (cacheRefusal != null) return ProjectRefused(cacheRefusal);
+
     final objects = <ModelObject>[];
     for (var i = 0; i < entries.length; i++) {
       final (ModelObject? object, String? refusal) = _readObject(
@@ -911,6 +985,7 @@ ProjectRead readProject(Uint8List bytes) {
         meshes,
         arrived,
         pool,
+        simulationChunks: simulationChunks,
       );
       if (refusal != null) return ProjectRefused(refusal);
       objects.add(object!);
@@ -929,6 +1004,7 @@ ProjectRead readProject(Uint8List bytes) {
       clips: clips,
       nextId: nextId,
       warnings: warnings,
+      simulationChunks: simulationChunks,
     );
     if (historyRefusal != null) return ProjectRefused(historyRefusal);
 
@@ -983,6 +1059,7 @@ ProjectRead readProject(Uint8List bytes) {
   required List<ProjectClip> clips,
   required int nextId,
   required List<String> warnings,
+  List<Uint8List> simulationChunks = const <Uint8List>[],
 }) {
   final at = sections[ProjectSection.history];
   if (at == null) return (const <HistoryStep>[], null);
@@ -1067,6 +1144,7 @@ ProjectRead readProject(Uint8List bytes) {
           meshes,
           arrived,
           pool,
+          simulationChunks: simulationChunks,
         );
         if (refusal != null) {
           return (const <HistoryStep>[], 'History step $i: $refusal');
@@ -1969,6 +2047,126 @@ LightingModel? _lightingModelNamed(
   return (images, null);
 }
 
+/// The raw frame bytes of every row of [ProjectSection.simulationCaches], or
+/// the sentence that stops the file being read.
+///
+/// Sliced rather than decoded here: what the bytes mean — how many frames,
+/// how many vertices each — is on the object that names the row, and an
+/// object is what this file has to refuse against. A row nothing names costs
+/// a slice and is dropped when the project is built, which is the same thing
+/// an unreferenced mesh chunk already costs.
+///
+/// Copied out of the file rather than viewed over it, for [_readImages]'s own
+/// reason: a project holding one bake should not keep the whole `.f3dproj`
+/// alive for as long as anything scrubs it.
+(List<Uint8List>, String?) _readSimulationChunks(
+  Uint8List bytes,
+  Map<int, ({int offset, int length})> sections,
+) {
+  final table = sections[ProjectSection.simulationCaches];
+  if (table == null || table.length == 0) return (const <Uint8List>[], null);
+  final blob = sections[ProjectSection.blob];
+  if (blob == null) {
+    return (
+      const <Uint8List>[],
+      'This file has a simulation-cache table and no blob for it to point '
+          'into.',
+    );
+  }
+
+  final view = ByteData.view(
+    bytes.buffer,
+    bytes.offsetInBytes,
+    bytes.lengthInBytes,
+  );
+  final chunks = <Uint8List>[];
+  final count = table.length ~/ kProjectSimulationEntryBytes;
+  for (var i = 0; i < count; i++) {
+    final entry = table.offset + i * kProjectSimulationEntryBytes;
+    final at = view.getUint32(entry, Endian.little);
+    final length = view.getUint32(entry + 4, Endian.little);
+    if (at + length > blob.length) {
+      return (
+        const <Uint8List>[],
+        'Simulation cache $i runs from $at for $length bytes and the blob is '
+            '${blob.length} bytes long.',
+      );
+    }
+    chunks.add(
+      Uint8List.fromList(
+        Uint8List.sublistView(
+          bytes,
+          blob.offset + at,
+          blob.offset + at + length,
+        ),
+      ),
+    );
+  }
+  return (chunks, null);
+}
+
+/// The cache object [record] names, or the sentence that stops the file being
+/// read.
+///
+/// **Refused rather than dropped when the numbers do not agree.** A bake that
+/// opens with the wrong vertex count is a cloth that scrubs into a shape
+/// nothing in the document has, and nothing downstream can tell that from a
+/// simulation that really did look like that.
+(SimulationCache?, String?) _readSimulationCache(
+  Object? record,
+  List<Uint8List> chunks,
+  int index,
+  String name,
+) {
+  if (record == null) return (null, null);
+  if (record case {
+    'chunk': final int chunk,
+    'vertexCount': final int vertexCount,
+    'frameCount': final int frameCount,
+  }) {
+    if (chunk < 0 || chunk >= chunks.length) {
+      return (
+        null,
+        'Object $index ("$name") names simulation cache $chunk and the file '
+            'holds ${chunks.length}.',
+      );
+    }
+    final Float32List floats = Float32List.view(
+      chunks[chunk].buffer,
+      chunks[chunk].offsetInBytes,
+      chunks[chunk].lengthInBytes ~/ Float32List.bytesPerElement,
+    );
+    if (floats.length != frameCount * vertexCount * 3) {
+      return (
+        null,
+        'Object $index ("$name") names a simulation cache of $frameCount '
+            'frames over $vertexCount vertices, which is '
+            '${frameCount * vertexCount * 3} values, and the file holds '
+            '${floats.length}.',
+      );
+    }
+    return (
+      SimulationCache(
+        vertexCount: vertexCount,
+        frames: <Float32List>[
+          for (var i = 0; i < frameCount; i++)
+            Float32List.sublistView(
+              floats,
+              i * vertexCount * 3,
+              (i + 1) * vertexCount * 3,
+            ),
+        ],
+      ),
+      null,
+    );
+  }
+  return (
+    null,
+    'Object $index ("$name") has a simulation cache that is not a chunk, a '
+        'vertex count and a frame count.',
+  );
+}
+
 /// The CRC-32 of [bytes], the polynomial PNG and zip use.
 ///
 /// **Written here rather than reached for, because there is nowhere to reach.**
@@ -2130,6 +2328,25 @@ Object? _canonical(Object? value) => switch (value) {
 /// the repository is worth more than a byte-swap nothing here can exercise.
 Uint8List _rawBytes(TypedData data) =>
     Uint8List.view(data.buffer, data.offsetInBytes, data.lengthInBytes);
+
+/// [cache]'s frames end to end, as raw bytes.
+///
+/// One buffer rather than one blob entry per frame: a frame is the unit a
+/// scrub reads, not the unit a file addresses, and a hundred and twenty table
+/// rows to say "these are contiguous" is a table that can disagree with
+/// itself. The frames are all the same length — [SimulationCache]'s own
+/// constructor refuses otherwise — so where one ends is arithmetic.
+Uint8List _packedFrames(SimulationCache cache) {
+  final out = Float32List(cache.frameCount * cache.vertexCount * 3);
+  for (var i = 0; i < cache.frameCount; i++) {
+    out.setRange(
+      i * cache.vertexCount * 3,
+      (i + 1) * cache.vertexCount * 3,
+      cache.frame(i),
+    );
+  }
+  return _rawBytes(out);
+}
 
 /// A vertex layout as JSON: the attribute names, in order, with how many floats
 /// each of them takes.
@@ -2595,8 +2812,9 @@ VertexLayout? _layoutFrom(Object? json, Map<String, String> pool) {
   int index,
   List<EditMesh> meshes,
   List<MeshData> arrived,
-  Map<String, String> pool,
-) {
+  Map<String, String> pool, {
+  List<Uint8List> simulationChunks = const <Uint8List>[],
+}) {
   if (entry case {
     'id': final int id,
     'name': final String name,
@@ -2647,6 +2865,14 @@ VertexLayout? _layoutFrom(Object? json, Map<String, String> pool) {
     );
     if (lodsRefusal != null) return (null, lodsRefusal);
 
+    final (SimulationCache? cache, String? cacheRefusal) = _readSimulationCache(
+      entry['simulationCache'],
+      simulationChunks,
+      index,
+      name,
+    );
+    if (cacheRefusal != null) return (null, cacheRefusal);
+
     return (
       ModelObject(
         id: id,
@@ -2666,6 +2892,9 @@ VertexLayout? _layoutFrom(Object? json, Map<String, String> pool) {
         shapeSet: shapeSet ?? const ShapeSet(),
         shapeDrivers: shapeDrivers ?? const <ShapeDriver>[],
         lods: lods ?? const <LodSpec>[],
+        // `pro-doc-01`. Absent is an object nobody has baked, which is what
+        // every file written before the section existed says.
+        simulationCache: cache,
         // `ux-14`. Written as "hidden" rather than "visible" so that absent
         // and false say the same thing, which is what every file written
         // before this existed says.
