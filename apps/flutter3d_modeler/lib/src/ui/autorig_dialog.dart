@@ -28,6 +28,7 @@ import 'package:flutter3d_model_core/flutter3d_model_core.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:vector_math/vector_math.dart' show Aabb3, Vector3, Vector4;
 
+import '../../l10n/app_localizations.dart';
 import '../autorig_markers.dart';
 import '../display_modes.dart';
 import '../element_picking.dart';
@@ -226,20 +227,21 @@ class _AutorigDialogState extends State<_AutorigDialog> {
         final ModelerReady? ready = cubitState is ModelerReady
             ? cubitState
             : null;
+        final AppLocalizations l = AppLocalizations.of(context);
         return RoomyDialog(
-          title: 'Auto-rig',
+          title: l.autorigTitle,
           width: 980,
           height: 720,
           onClose: () => Navigator.of(context).pop(),
           wide: Row(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: <Widget>[
-              Expanded(child: _viewport(theme)),
+              Expanded(child: _viewport(theme, l)),
               const VerticalDivider(width: 24),
               SizedBox(
                 width: 300,
                 child: SingleChildScrollView(
-                  child: _rightPanel(theme, preview),
+                  child: _rightPanel(theme, preview, l),
                 ),
               ),
             ],
@@ -253,12 +255,12 @@ class _AutorigDialogState extends State<_AutorigDialog> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: <Widget>[
-                Expanded(flex: 3, child: _viewport(theme)),
+                Expanded(flex: 3, child: _viewport(theme, l)),
                 const Divider(),
                 Expanded(
                   flex: 2,
                   child: SingleChildScrollView(
-                    child: _rightPanel(theme, preview),
+                    child: _rightPanel(theme, preview, l),
                   ),
                 ),
               ],
@@ -275,10 +277,10 @@ class _AutorigDialogState extends State<_AutorigDialog> {
               ),
             TextButton(
               onPressed: () => Navigator.of(context).pop(),
-              child: const Text('Cancel'),
+              child: Text(l.cancel),
             ),
             JobButton(
-              label: 'Create',
+              label: l.autorigCreate,
               progress: ready == null ? null : _progressOf(ready),
               onStart: ready == null ? () {} : () => unawaited(_create(ready)),
               onCancel: () =>
@@ -290,7 +292,7 @@ class _AutorigDialogState extends State<_AutorigDialog> {
     );
   }
 
-  Widget _viewport(ThemeData theme) => ClipRect(
+  Widget _viewport(ThemeData theme, AppLocalizations l) => ClipRect(
     child: LayoutBuilder(
       builder: (BuildContext context, BoxConstraints constraints) {
         _viewportSize = constraints.biggest;
@@ -339,14 +341,16 @@ class _AutorigDialogState extends State<_AutorigDialog> {
               top: 12,
               child: _badge(
                 theme,
-                'Markers ${onScreenMarkerKeys(_template).length} of '
-                '${onScreenMarkerKeys(_template).length}',
+                l.autorigMarkers(
+                  onScreenMarkerKeys(_template).length,
+                  onScreenMarkerKeys(_template).length,
+                ),
               ),
             ),
             Positioned(
               left: 12,
               bottom: 12,
-              child: _badge(theme, 'Drag a marker to refine the joint'),
+              child: _badge(theme, l.autorigDragMarker),
             ),
           ],
         );
@@ -368,47 +372,53 @@ class _AutorigDialogState extends State<_AutorigDialog> {
     ),
   );
 
-  Widget _rightPanel(ThemeData theme, RigPreview preview) => Column(
+  Widget _rightPanel(
+    ThemeData theme,
+    RigPreview preview,
+    AppLocalizations l,
+  ) => Column(
     crossAxisAlignment: CrossAxisAlignment.start,
     children: <Widget>[
-      Text('Template', style: theme.textTheme.labelMedium),
+      Text(l.autorigTemplate, style: theme.textTheme.labelMedium),
       const SizedBox(height: 8),
       Wrap(
         spacing: 6,
         children: <Widget>[
           ChoiceChip(
-            label: const Text('Humanoid'),
+            label: Text(l.autorigHumanoid),
             selected: _template == RigTemplate.humanoid,
             onSelected: (_) => _selectTemplate(RigTemplate.humanoid),
           ),
           ChoiceChip(
-            label: const Text('Quadruped'),
+            label: Text(l.autorigQuadruped),
             selected: _template == RigTemplate.quadruped,
             onSelected: (_) => _selectTemplate(RigTemplate.quadruped),
           ),
           // Screen 16's own third chip — no `RigTemplate` behind it yet, the
           // same "shown, disabled, honest about not working" choice
           // `PivotChip.cursor` already makes in `display_modes.dart`.
-          const ChoiceChip(label: Text('Custom'), selected: false),
+          ChoiceChip(label: Text(l.autorigCustom), selected: false),
         ],
       ),
       const SizedBox(height: 16),
-      Text('Composition', style: theme.textTheme.labelMedium),
+      Text(l.autorigComposition, style: theme.textTheme.labelMedium),
       const SizedBox(height: 8),
       if (_template == RigTemplate.humanoid) ...<Widget>[
         _twoWayRow(
-          'Fingers',
+          l,
+          l.autorigFingers,
           _options.fingers,
           (bool v) => setState(() => _options = _copyOptions(fingers: v)),
         ),
         _twoWayRow(
-          'Toes',
+          l,
+          l.autorigToes,
           _options.toes,
           (bool v) => setState(() => _options = _copyOptions(toes: v)),
         ),
         Row(
           children: <Widget>[
-            Text('Spine', style: theme.textTheme.bodySmall),
+            Text(l.autorigSpine, style: theme.textTheme.bodySmall),
             const Spacer(),
             SegmentedButton<int>(
               showSelectedIcon: false,
@@ -427,7 +437,7 @@ class _AutorigDialogState extends State<_AutorigDialog> {
         CheckboxListTile(
           contentPadding: EdgeInsets.zero,
           controlAffinity: ListTileControlAffinity.leading,
-          title: const Text('Face bones'),
+          title: Text(l.autorigFaceBones),
           value: _options.faceBones,
           onChanged: (bool? v) =>
               setState(() => _options = _copyOptions(faceBones: v ?? false)),
@@ -436,7 +446,7 @@ class _AutorigDialogState extends State<_AutorigDialog> {
       CheckboxListTile(
         contentPadding: EdgeInsets.zero,
         controlAffinity: ListTileControlAffinity.leading,
-        title: const Text('IK chains'),
+        title: Text(l.autorigIkChains),
         value: _options.ikChains,
         onChanged: (bool? v) =>
             setState(() => _options = _copyOptions(ikChains: v ?? false)),
@@ -444,18 +454,18 @@ class _AutorigDialogState extends State<_AutorigDialog> {
       CheckboxListTile(
         contentPadding: EdgeInsets.zero,
         controlAffinity: ListTileControlAffinity.leading,
-        title: const Text('Rig controller'),
+        title: Text(l.autorigController),
         value: _options.controllers,
         onChanged: (bool? v) =>
             setState(() => _options = _copyOptions(controllers: v ?? false)),
       ),
       const SizedBox(height: 16),
-      Text('Binding', style: theme.textTheme.labelMedium),
+      Text(l.autorigBinding, style: theme.textTheme.labelMedium),
       const SizedBox(height: 8),
       CheckboxListTile(
         contentPadding: EdgeInsets.zero,
         controlAffinity: ListTileControlAffinity.leading,
-        title: const Text('Assign primary weights'),
+        title: Text(l.autorigPrimaryWeights),
         value: _bindPrimaryWeights,
         onChanged: (bool? v) => setState(() => _bindPrimaryWeights = v ?? true),
       ),
@@ -463,7 +473,7 @@ class _AutorigDialogState extends State<_AutorigDialog> {
         contentPadding: EdgeInsets.zero,
         controlAffinity: ListTileControlAffinity.leading,
         enabled: _bindPrimaryWeights,
-        title: const Text('Symmetry'),
+        title: Text(l.autorigSymmetry),
         value: _mirrorWeights,
         onChanged: !_bindPrimaryWeights
             ? null
@@ -479,9 +489,9 @@ class _AutorigDialogState extends State<_AutorigDialog> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: <Widget>[
-            _labelValue(theme, 'Bones', '${preview.jointCount}'),
+            _labelValue(theme, l.autorigBones, '${preview.jointCount}'),
             const SizedBox(height: 6),
-            _labelValue(theme, 'Deforming', '${preview.deformingCount}'),
+            _labelValue(theme, l.autorigDeforming, '${preview.deformingCount}'),
           ],
         ),
       ),
@@ -496,24 +506,28 @@ class _AutorigDialogState extends State<_AutorigDialog> {
     ],
   );
 
-  Widget _twoWayRow(String label, bool value, ValueChanged<bool> onChanged) =>
-      Padding(
-        padding: const EdgeInsets.symmetric(vertical: 4),
-        child: Row(
-          children: <Widget>[
-            Expanded(child: Text(label)),
-            SegmentedButton<bool>(
-              showSelectedIcon: false,
-              segments: const <ButtonSegment<bool>>[
-                ButtonSegment<bool>(value: false, label: Text('None')),
-                ButtonSegment<bool>(value: true, label: Text('5')),
-              ],
-              selected: <bool>{value},
-              onSelectionChanged: (Set<bool> picked) => onChanged(picked.first),
-            ),
+  Widget _twoWayRow(
+    AppLocalizations l,
+    String label,
+    bool value,
+    ValueChanged<bool> onChanged,
+  ) => Padding(
+    padding: const EdgeInsets.symmetric(vertical: 4),
+    child: Row(
+      children: <Widget>[
+        Expanded(child: Text(label)),
+        SegmentedButton<bool>(
+          showSelectedIcon: false,
+          segments: <ButtonSegment<bool>>[
+            ButtonSegment<bool>(value: false, label: Text(l.autorigNone)),
+            const ButtonSegment<bool>(value: true, label: Text('5')),
           ],
+          selected: <bool>{value},
+          onSelectionChanged: (Set<bool> picked) => onChanged(picked.first),
         ),
-      );
+      ],
+    ),
+  );
 
   RigBuildOptions _copyOptions({
     int? spineCount,

@@ -327,5 +327,37 @@
         "type": "String"
       }
     }
+  },
+  "autorigTitle": "Авториг",
+  "autorigCreate": "Создать",
+  "autorigDragMarker": "Перетащите маркер, чтобы уточнить сустав",
+  "autorigTemplate": "Шаблон",
+  "autorigHumanoid": "Человек",
+  "autorigQuadruped": "Четвероногое",
+  "autorigCustom": "Свой",
+  "autorigComposition": "Состав",
+  "autorigFingers": "Пальцы рук",
+  "autorigToes": "Пальцы ног",
+  "autorigSpine": "Позвоночник",
+  "autorigFaceBones": "Кости лица",
+  "autorigIkChains": "IK-цепи",
+  "autorigController": "Контроллер рига",
+  "autorigBinding": "Привязка",
+  "autorigPrimaryWeights": "Назначить основные веса",
+  "autorigSymmetry": "Симметрия",
+  "autorigBones": "Костей",
+  "autorigDeforming": "Деформирующих",
+  "autorigNone": "Нет",
+  "autorigMarkers": "Маркеров {placed} из {total}",
+  "@autorigMarkers": {
+    "description": "Авториг — ux-22.",
+    "placeholders": {
+      "placed": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
   }
 }

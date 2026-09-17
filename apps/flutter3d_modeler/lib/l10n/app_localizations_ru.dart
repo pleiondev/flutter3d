@@ -892,4 +892,69 @@ class AppLocalizationsRu extends AppLocalizations {
   String commandPaletteNoMatch(String said) {
     return 'ничего не найдено по «$said»';
   }
+
+  @override
+  String get autorigTitle => 'Авториг';
+
+  @override
+  String get autorigCreate => 'Создать';
+
+  @override
+  String get autorigDragMarker => 'Перетащите маркер, чтобы уточнить сустав';
+
+  @override
+  String get autorigTemplate => 'Шаблон';
+
+  @override
+  String get autorigHumanoid => 'Человек';
+
+  @override
+  String get autorigQuadruped => 'Четвероногое';
+
+  @override
+  String get autorigCustom => 'Свой';
+
+  @override
+  String get autorigComposition => 'Состав';
+
+  @override
+  String get autorigFingers => 'Пальцы рук';
+
+  @override
+  String get autorigToes => 'Пальцы ног';
+
+  @override
+  String get autorigSpine => 'Позвоночник';
+
+  @override
+  String get autorigFaceBones => 'Кости лица';
+
+  @override
+  String get autorigIkChains => 'IK-цепи';
+
+  @override
+  String get autorigController => 'Контроллер рига';
+
+  @override
+  String get autorigBinding => 'Привязка';
+
+  @override
+  String get autorigPrimaryWeights => 'Назначить основные веса';
+
+  @override
+  String get autorigSymmetry => 'Симметрия';
+
+  @override
+  String get autorigBones => 'Костей';
+
+  @override
+  String get autorigDeforming => 'Деформирующих';
+
+  @override
+  String get autorigNone => 'Нет';
+
+  @override
+  String autorigMarkers(int placed, int total) {
+    return 'Маркеров $placed из $total';
+  }
 }
