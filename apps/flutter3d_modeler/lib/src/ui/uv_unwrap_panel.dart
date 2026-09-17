@@ -11,6 +11,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter3d_editor_widgets/flutter3d_editor_widgets.dart';
 import 'package:flutter3d_model_core/flutter3d_model_core.dart';
 
+import '../../l10n/app_localizations.dart';
 import '../uv_unwrap_layout.dart';
 
 /// The unwrap's own method, margin and island list, in one panel.
@@ -56,11 +57,12 @@ final class UvUnwrapPanel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final AppLocalizations l = AppLocalizations.of(context);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
       children: <Widget>[
-        const SectionLabel('Method'),
+        SectionLabel(l.uvMethod),
         SegmentedButton<UnwrapMethod>(
           segments: <ButtonSegment<UnwrapMethod>>[
             for (final option in methods)
@@ -74,14 +76,18 @@ final class UvUnwrapPanel extends StatelessWidget {
           onSelectionChanged: (Set<UnwrapMethod> selection) =>
               onMethodChanged(selection.first),
         ),
-        const SectionLabel('Margin'),
-        NumberField(label: 'Margin', value: margin, onChanged: onMarginChanged),
-        const SectionLabel('Islands'),
+        SectionLabel(l.uvMargin),
+        NumberField(
+          label: l.uvMargin,
+          value: margin,
+          onChanged: onMarginChanged,
+        ),
+        SectionLabel(l.uvIslands),
         if (islands.isEmpty)
           Padding(
             padding: const EdgeInsets.symmetric(vertical: 4),
             child: Text(
-              'No islands',
+              l.uvNoIslands,
               style: theme.textTheme.bodySmall?.copyWith(
                 fontStyle: FontStyle.italic,
               ),
@@ -123,7 +129,7 @@ final class _IslandRow extends StatelessWidget {
       ),
       child: const SizedBox(width: 16, height: 16),
     ),
-    title: Text('Island ${island.id}'),
+    title: Text(AppLocalizations.of(context).uvIsland(island.id)),
     trailing: Text(island.stretch.toStringAsFixed(2)),
   );
 }

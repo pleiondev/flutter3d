@@ -411,5 +411,44 @@
         "type": "int"
       }
     }
+  },
+  "weightsBrush": "Кисть",
+  "weightsPaint": "Рисовать",
+  "weightsAssign": "Назначить",
+  "weightsRadius": "Радиус",
+  "weightsMirror": "Зеркалить",
+  "weightsNormalize": "Нормализовать",
+  "weightsSelectedVertex": "Выбранная вершина",
+  "weightsNoVertex": "Под кистью пока нет вершины",
+  "weightsNoInfluences": "На эту вершину ничто не влияет",
+  "weightsBones": "Кости",
+  "weightsNoBones": "Костей нет",
+  "morphsNoShapeKeys": "У этого объекта нет ключей формы",
+  "morphsAddDriver": "Добавить драйвер",
+  "morphsKeyShape": "Поставить ключ на форму",
+  "morphsRemoveDriver": "Удалить драйвер",
+  "morphsFrom": "От°",
+  "morphsTo": "До°",
+  "retargetRootMotion": "Движение корня",
+  "retargetCorrections": "Поправки",
+  "retargetLockFeet": "Зафиксировать стопы",
+  "retargetGroundY": "Уровень земли Y",
+  "retargetFootTolerance": "Допуск для стопы",
+  "retargetApply": "Применить ретаргет",
+  "uvMethod": "Метод",
+  "uvMargin": "Отступ",
+  "uvIslands": "Острова",
+  "uvNoIslands": "Островов нет",
+  "transportKeys": "Ключи",
+  "transportCurves": "Кривые",
+  "transportLoop": "Цикл",
+  "uvIsland": "Остров {id}",
+  "@uvIsland": {
+    "description": "Развёртка UV — ux-22.",
+    "placeholders": {
+      "id": {
+        "type": "int"
+      }
+    }
   }
 }

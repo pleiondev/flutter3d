@@ -14,6 +14,7 @@ library;
 import 'package:flutter/material.dart';
 import 'package:flutter3d/flutter3d.dart' show AnimationWrap;
 
+import '../../l10n/app_localizations.dart';
 import '../timeline_playback.dart';
 
 /// Which of [TimelinePanel]/[CurveEditor] the timeline slot shows —
@@ -107,6 +108,7 @@ class TransportBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final AppLocalizations l = AppLocalizations.of(context);
     if (_compact) {
       return Row(
         mainAxisSize: MainAxisSize.min,
@@ -155,14 +157,14 @@ class TransportBar extends StatelessWidget {
         const SizedBox(width: 12),
         SegmentedButton<TimelineEditMode>(
           showSelectedIcon: false,
-          segments: const <ButtonSegment<TimelineEditMode>>[
+          segments: <ButtonSegment<TimelineEditMode>>[
             ButtonSegment<TimelineEditMode>(
               value: TimelineEditMode.keys,
-              label: Text('Keys'),
+              label: Text(l.transportKeys),
             ),
             ButtonSegment<TimelineEditMode>(
               value: TimelineEditMode.curves,
-              label: Text('Curves'),
+              label: Text(l.transportCurves),
             ),
           ],
           selected: <TimelineEditMode>{editMode},
@@ -171,7 +173,7 @@ class TransportBar extends StatelessWidget {
         ),
         const Spacer(),
         IconButton(
-          tooltip: 'Loop',
+          tooltip: l.transportLoop,
           isSelected: playback.wrap == AnimationWrap.loop,
           onPressed: onLoopChanged == null
               ? null

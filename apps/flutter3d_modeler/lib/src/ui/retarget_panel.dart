@@ -13,6 +13,7 @@ import 'package:flutter/material.dart' hide Material;
 import 'package:flutter3d_editor_widgets/flutter3d_editor_widgets.dart';
 import 'package:flutter3d_model_core/flutter3d_model_core.dart' show BoneMap;
 
+import '../../l10n/app_localizations.dart';
 import 'bone_map_table.dart';
 
 /// Where a retargeted clip's own root motion ends up — the hand-off's own
@@ -79,60 +80,66 @@ class RetargetPanel extends StatelessWidget {
   final void Function(String source, String? target)? onMapBone;
 
   @override
-  Widget build(BuildContext context) => Column(
-    crossAxisAlignment: CrossAxisAlignment.stretch,
-    children: <Widget>[
-      BoneMapTable(
-        sourceNames: sourceNames,
-        boneMap: boneMap,
-        onAutoMap: onAutoMap,
-        // `ux-46`: the rig being retargeted onto, so a row can only be
-        // pointed at a bone that is there.
-        targetNames: targetNames,
-        onMapBone: onMapBone,
-      ),
-      SectionLabel('Root motion'),
-      SegmentedButton<RetargetRootMotion>(
-        showSelectedIcon: false,
-        segments: <ButtonSegment<RetargetRootMotion>>[
-          for (final RetargetRootMotion mode in RetargetRootMotion.values)
-            ButtonSegment<RetargetRootMotion>(
-              value: mode,
-              label: Text(mode.label),
-            ),
-        ],
-        selected: <RetargetRootMotion>{rootMotion},
-        onSelectionChanged: (Set<RetargetRootMotion> picked) =>
-            onRootMotionChanged(picked.first),
-      ),
-      SectionLabel('Corrections'),
-      CheckboxListTile(
-        key: const ValueKey<String>('retargetLockFeetCheckbox'),
-        dense: true,
-        contentPadding: EdgeInsets.zero,
-        controlAffinity: ListTileControlAffinity.leading,
-        title: Text('Lock feet', style: Theme.of(context).textTheme.bodySmall),
-        value: lockFeet,
-        onChanged: (bool? v) => onLockFeetChanged(v ?? false),
-      ),
-      NumberField(
-        label: 'Ground Y',
-        value: groundY,
-        onChanged: onGroundYChanged,
-        enabled: lockFeet,
-      ),
-      NumberField(
-        label: 'Foot tolerance',
-        value: footTolerance,
-        onChanged: onFootToleranceChanged,
-        enabled: lockFeet,
-      ),
-      const SizedBox(height: 8),
-      FilledButton.icon(
-        onPressed: canApply ? onApply : null,
-        icon: const Icon(Icons.check_circle_outlined, size: 16),
-        label: const Text('Apply the retarget'),
-      ),
-    ],
-  );
+  Widget build(BuildContext context) {
+    final AppLocalizations l = AppLocalizations.of(context);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: <Widget>[
+        BoneMapTable(
+          sourceNames: sourceNames,
+          boneMap: boneMap,
+          onAutoMap: onAutoMap,
+          // `ux-46`: the rig being retargeted onto, so a row can only be
+          // pointed at a bone that is there.
+          targetNames: targetNames,
+          onMapBone: onMapBone,
+        ),
+        SectionLabel(l.retargetRootMotion),
+        SegmentedButton<RetargetRootMotion>(
+          showSelectedIcon: false,
+          segments: <ButtonSegment<RetargetRootMotion>>[
+            for (final RetargetRootMotion mode in RetargetRootMotion.values)
+              ButtonSegment<RetargetRootMotion>(
+                value: mode,
+                label: Text(mode.label),
+              ),
+          ],
+          selected: <RetargetRootMotion>{rootMotion},
+          onSelectionChanged: (Set<RetargetRootMotion> picked) =>
+              onRootMotionChanged(picked.first),
+        ),
+        SectionLabel(l.retargetCorrections),
+        CheckboxListTile(
+          key: const ValueKey<String>('retargetLockFeetCheckbox'),
+          dense: true,
+          contentPadding: EdgeInsets.zero,
+          controlAffinity: ListTileControlAffinity.leading,
+          title: Text(
+            l.retargetLockFeet,
+            style: Theme.of(context).textTheme.bodySmall,
+          ),
+          value: lockFeet,
+          onChanged: (bool? v) => onLockFeetChanged(v ?? false),
+        ),
+        NumberField(
+          label: l.retargetGroundY,
+          value: groundY,
+          onChanged: onGroundYChanged,
+          enabled: lockFeet,
+        ),
+        NumberField(
+          label: l.retargetFootTolerance,
+          value: footTolerance,
+          onChanged: onFootToleranceChanged,
+          enabled: lockFeet,
+        ),
+        const SizedBox(height: 8),
+        FilledButton.icon(
+          onPressed: canApply ? onApply : null,
+          icon: const Icon(Icons.check_circle_outlined, size: 16),
+          label: Text(l.retargetApply),
+        ),
+      ],
+    );
+  }
 }

@@ -1981,6 +1981,192 @@ abstract class AppLocalizations {
   /// In ru, this message translates to:
   /// **'Отмена · {done}/{total}'**
   String renderCancelTiles(int done, int total);
+
+  /// No description provided for @weightsBrush.
+  ///
+  /// In ru, this message translates to:
+  /// **'Кисть'**
+  String get weightsBrush;
+
+  /// No description provided for @weightsPaint.
+  ///
+  /// In ru, this message translates to:
+  /// **'Рисовать'**
+  String get weightsPaint;
+
+  /// No description provided for @weightsAssign.
+  ///
+  /// In ru, this message translates to:
+  /// **'Назначить'**
+  String get weightsAssign;
+
+  /// No description provided for @weightsRadius.
+  ///
+  /// In ru, this message translates to:
+  /// **'Радиус'**
+  String get weightsRadius;
+
+  /// No description provided for @weightsMirror.
+  ///
+  /// In ru, this message translates to:
+  /// **'Зеркалить'**
+  String get weightsMirror;
+
+  /// No description provided for @weightsNormalize.
+  ///
+  /// In ru, this message translates to:
+  /// **'Нормализовать'**
+  String get weightsNormalize;
+
+  /// No description provided for @weightsSelectedVertex.
+  ///
+  /// In ru, this message translates to:
+  /// **'Выбранная вершина'**
+  String get weightsSelectedVertex;
+
+  /// No description provided for @weightsNoVertex.
+  ///
+  /// In ru, this message translates to:
+  /// **'Под кистью пока нет вершины'**
+  String get weightsNoVertex;
+
+  /// No description provided for @weightsNoInfluences.
+  ///
+  /// In ru, this message translates to:
+  /// **'На эту вершину ничто не влияет'**
+  String get weightsNoInfluences;
+
+  /// No description provided for @weightsBones.
+  ///
+  /// In ru, this message translates to:
+  /// **'Кости'**
+  String get weightsBones;
+
+  /// No description provided for @weightsNoBones.
+  ///
+  /// In ru, this message translates to:
+  /// **'Костей нет'**
+  String get weightsNoBones;
+
+  /// No description provided for @morphsNoShapeKeys.
+  ///
+  /// In ru, this message translates to:
+  /// **'У этого объекта нет ключей формы'**
+  String get morphsNoShapeKeys;
+
+  /// No description provided for @morphsAddDriver.
+  ///
+  /// In ru, this message translates to:
+  /// **'Добавить драйвер'**
+  String get morphsAddDriver;
+
+  /// No description provided for @morphsKeyShape.
+  ///
+  /// In ru, this message translates to:
+  /// **'Поставить ключ на форму'**
+  String get morphsKeyShape;
+
+  /// No description provided for @morphsRemoveDriver.
+  ///
+  /// In ru, this message translates to:
+  /// **'Удалить драйвер'**
+  String get morphsRemoveDriver;
+
+  /// No description provided for @morphsFrom.
+  ///
+  /// In ru, this message translates to:
+  /// **'От°'**
+  String get morphsFrom;
+
+  /// No description provided for @morphsTo.
+  ///
+  /// In ru, this message translates to:
+  /// **'До°'**
+  String get morphsTo;
+
+  /// No description provided for @retargetRootMotion.
+  ///
+  /// In ru, this message translates to:
+  /// **'Движение корня'**
+  String get retargetRootMotion;
+
+  /// No description provided for @retargetCorrections.
+  ///
+  /// In ru, this message translates to:
+  /// **'Поправки'**
+  String get retargetCorrections;
+
+  /// No description provided for @retargetLockFeet.
+  ///
+  /// In ru, this message translates to:
+  /// **'Зафиксировать стопы'**
+  String get retargetLockFeet;
+
+  /// No description provided for @retargetGroundY.
+  ///
+  /// In ru, this message translates to:
+  /// **'Уровень земли Y'**
+  String get retargetGroundY;
+
+  /// No description provided for @retargetFootTolerance.
+  ///
+  /// In ru, this message translates to:
+  /// **'Допуск для стопы'**
+  String get retargetFootTolerance;
+
+  /// No description provided for @retargetApply.
+  ///
+  /// In ru, this message translates to:
+  /// **'Применить ретаргет'**
+  String get retargetApply;
+
+  /// No description provided for @uvMethod.
+  ///
+  /// In ru, this message translates to:
+  /// **'Метод'**
+  String get uvMethod;
+
+  /// No description provided for @uvMargin.
+  ///
+  /// In ru, this message translates to:
+  /// **'Отступ'**
+  String get uvMargin;
+
+  /// No description provided for @uvIslands.
+  ///
+  /// In ru, this message translates to:
+  /// **'Острова'**
+  String get uvIslands;
+
+  /// No description provided for @uvNoIslands.
+  ///
+  /// In ru, this message translates to:
+  /// **'Островов нет'**
+  String get uvNoIslands;
+
+  /// No description provided for @transportKeys.
+  ///
+  /// In ru, this message translates to:
+  /// **'Ключи'**
+  String get transportKeys;
+
+  /// No description provided for @transportCurves.
+  ///
+  /// In ru, this message translates to:
+  /// **'Кривые'**
+  String get transportCurves;
+
+  /// No description provided for @transportLoop.
+  ///
+  /// In ru, this message translates to:
+  /// **'Цикл'**
+  String get transportLoop;
+
+  /// Развёртка UV — ux-22.
+  ///
+  /// In ru, this message translates to:
+  /// **'Остров {id}'**
+  String uvIsland(int id);
 }
 
 class _AppLocalizationsDelegate

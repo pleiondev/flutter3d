@@ -24,6 +24,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter3d_editor_widgets/flutter3d_editor_widgets.dart';
 import 'package:flutter3d_model_core/flutter3d_model_core.dart' hide Outcome;
 
+import '../../l10n/app_localizations.dart';
 import 'named_button.dart';
 import 'theme.dart';
 
@@ -107,11 +108,12 @@ class MorphsPanel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final ModelObject? held = object;
+    final AppLocalizations l = AppLocalizations.of(context);
     if (held == null || held.shapeSet.keys.isEmpty) {
       return Padding(
         padding: const EdgeInsets.symmetric(vertical: 4),
         child: Text(
-          'No shape keys on this object',
+          l.morphsNoShapeKeys,
           style: Theme.of(
             context,
           ).textTheme.bodySmall?.copyWith(fontStyle: FontStyle.italic),
@@ -160,7 +162,7 @@ class MorphsPanel extends StatelessWidget {
                 minimumSize: panelButtonMinimum(context),
                 tapTargetSize: MaterialTapTargetSize.shrinkWrap,
               ),
-              child: const Text('Add driver'),
+              child: Text(l.morphsAddDriver),
             ),
           ),
         ],
@@ -195,6 +197,7 @@ class _ShapeRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final ThemeData theme = Theme.of(context);
+    final AppLocalizations l = AppLocalizations.of(context);
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 2),
       child: Row(
@@ -222,9 +225,9 @@ class _ShapeRow extends StatelessWidget {
             ),
           ),
           NamedButton(
-            label: 'Key this shape',
+            label: l.morphsKeyShape,
             child: IconButton(
-              tooltip: 'Key this shape',
+              tooltip: l.morphsKeyShape,
               icon: Icon(
                 hasKey
                     ? Icons.radio_button_checked
@@ -273,6 +276,7 @@ class _DriverRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final bool boneListed = bones.contains(driver.jointId);
+    final AppLocalizations l = AppLocalizations.of(context);
     return Padding(
       padding: const EdgeInsets.only(left: 12, top: 2, bottom: 2),
       child: Column(
@@ -307,9 +311,9 @@ class _DriverRow extends StatelessWidget {
                 ),
               ),
               NamedButton(
-                label: 'Remove driver',
+                label: l.morphsRemoveDriver,
                 child: IconButton(
-                  tooltip: 'Remove driver',
+                  tooltip: l.morphsRemoveDriver,
                   icon: const Icon(Icons.close, size: 14),
                   onPressed: onRemove,
                 ),
@@ -341,7 +345,7 @@ class _DriverRow extends StatelessWidget {
               const SizedBox(width: 6),
               Expanded(
                 child: NumberField(
-                  label: 'From°',
+                  label: l.morphsFrom,
                   value: _degreesOf(driver.from),
                   onChanged: onFromChanged,
                 ),
@@ -349,7 +353,7 @@ class _DriverRow extends StatelessWidget {
               const SizedBox(width: 6),
               Expanded(
                 child: NumberField(
-                  label: 'To°',
+                  label: l.morphsTo,
                   value: _degreesOf(driver.to),
                   onChanged: onToChanged,
                 ),
