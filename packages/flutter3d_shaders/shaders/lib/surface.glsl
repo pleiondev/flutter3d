@@ -92,7 +92,14 @@ uniform FragInfo {
   vec4 ambient_sky;
 
   /// rgb: what a surface facing straight down receives — bounce off the ground
-  /// rather than the ground itself. w unused.
+  /// rather than the ground itself.
+  ///
+  /// **w is the directional light's apparent size** — `gfx-15n` — which has
+  /// nothing to do with ambient and everything to do with this being the last
+  /// unspent component in a block six shaders share. `frame_params.w` was the
+  /// slot reserved for a frame-wide parameter and the environment's level
+  /// count took it; appending to this block moves offsets four backends have
+  /// agreed on. See `shadow.glsl`, which reads it.
   ///
   /// Two colours rather than one is the whole of what makes ambient look like
   /// light instead of like a lifted black level. Outdoors the sky is blue and
