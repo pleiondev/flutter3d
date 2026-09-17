@@ -85,6 +85,7 @@ import 'src/opening.dart';
 import 'src/orbit_run.dart';
 import 'src/orientation_dial.dart';
 import 'src/paint_session.dart';
+import 'src/paint_upload.dart';
 import 'src/play/play_control.dart';
 import 'src/play/play_template.dart';
 import 'src/recent_projects.dart';
@@ -382,6 +383,11 @@ class _ModelerScreenState extends State<ModelerScreen>
   double _paintStrength = 1;
   String? _paintMask;
   ui.Image? _paintCanvas;
+
+  /// `pro-pt-03`'s own one-write-per-stroke upload — see
+  /// `paint_upload.dart`. Built against whichever device is open; a stroke
+  /// before one is has nothing to write to and says so by writing nothing.
+  late final PaintUpload _paintUpload = PaintUpload(device: _device!);
 
   /// `pro-pt-05`'s own stroke controller — see `paint_session.dart`.
   late final PaintSession _paintSession = PaintSession(

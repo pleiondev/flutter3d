@@ -174,6 +174,14 @@ extension _ProModesWiring on _ModelerScreenState {
 
     switch (event.phase) {
       case StrokePhase.start:
+        // `pro-pt-03`: what the stack looked like before the stroke, so the
+        // tiles it replaces are the rectangle uploaded when it closes —
+        // see `paint_upload.dart` for why a whole upload per stroke is the
+        // difference between painting and waiting.
+        _paintUpload.opened(
+          _paintStackOf(state),
+          canvas: _paintCanvasSideOf(state),
+        );
         _paintSession.pointerDown(
           view: event.view,
           at: event.at,
@@ -196,6 +204,7 @@ extension _ProModesWiring on _ModelerScreenState {
         );
       case StrokePhase.end:
         _paintSession.pointerUp();
+        unawaited(_uploadPaint());
         unawaited(_refreshPaintCanvas());
     }
   }
@@ -208,6 +217,39 @@ extension _ProModesWiring on _ModelerScreenState {
       if (state.project.images[i].name == wanted) return i;
     }
     return null;
+  }
+
+  /// The side of the canvas this material paints onto, in texels.
+  int _paintCanvasSideOf(ModelerReady state) {
+    final PaintStack? stack = _paintStackOf(state);
+    if (stack == null || stack.layers.isEmpty) return 1024;
+    return stack.layers.first.tilesX * paintTileSize;
+  }
+
+  /// `pro-pt-03`: writes the rectangle the stroke changed into the texture
+  /// the viewport is already sampling, rather than letting `MaterialPool`
+  /// decode and upload the whole image again because its bytes changed.
+  Future<void> _uploadPaint() async {
+    final state = _state;
+    final PaintUpload upload = _paintUpload;
+    if (state is! ModelerReady) return;
+    final int? objectId = state.selection.activeObject;
+    final ModelObject? object = objectId == null
+        ? null
+        : state.project[objectId];
+    if (object == null || object.materialSlots.isEmpty) return;
+    final int at = object.materialSlots.first;
+    if (at < 0 || at >= state.project.materials.length) return;
+    final ProjectMaterial material = state.project.materials[at];
+    final int? image = material.surface.baseColorTexture?.imageIndex;
+    if (image == null) return;
+    final TextureHandle? texture = state.stage.materials?.textureForImage(
+      state.project,
+      image,
+    );
+    final PaintStack? stack = material.paint;
+    if (texture == null || stack == null) return;
+    await upload.flush(texture, stack, stack.flatten());
   }
 
   /// Decodes the flattened canvas for the panel to draw, after a stroke.
