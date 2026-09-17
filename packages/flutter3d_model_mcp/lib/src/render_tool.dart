@@ -174,17 +174,18 @@ final ModelPictureTool renderTool = ModelPictureTool(
   },
 );
 
-/// A contact sheet of `renderSheetViews` — `mcp-07n`'s own tool. See
-/// `render_sheet.dart`'s own doc comment for the real, named gap: no labels
-/// yet, since nothing in this workspace draws text into a raster with no
-/// `dart:ui` behind it.
+/// A contact sheet of `renderSheetViews` — `mcp-07n`'s own tool. Labelled:
+/// each quadrant carries the name of the view it is, drawn with
+/// `tiny_font.dart` rather than a widget, since this runs in a plain Dart
+/// process with no canvas in it.
 final ModelPictureTool renderSheetTool = ModelPictureTool(
   Tool(
     name: 'renderSheet',
     description:
-        'A 2×2 contact sheet: front, right, top and iso, one picture — the '
-        'whole silhouette an agent more often needs than any single view. '
-        'An empty project refuses rather than handing back a blank sheet.',
+        'A 2×2 contact sheet: front, right, top and iso, one picture, each '
+        'quadrant labelled with the view it is — the whole silhouette an '
+        'agent more often needs than any single view. An empty project '
+        'refuses rather than handing back a blank sheet.',
     inputSchema: ObjectSchema(
       properties: <String, Schema>{
         'mode': _modeSchema(
