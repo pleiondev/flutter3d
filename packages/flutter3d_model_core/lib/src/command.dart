@@ -1303,6 +1303,27 @@ _modelCommandReaders =
           ),
         _ => null,
       },
+      // `axis` defaults to x where it is absent, which the tool's own schema
+      // leaves optional: a caller who names only an angle means the bend a
+      // slider makes, and refusing them for the field they did not fill in
+      // would be the schema and the reader disagreeing.
+      'bendJoint': (json) => switch ((
+        json['skeletonIndex'],
+        json['jointIndex'],
+        json['degrees'],
+      )) {
+        (final int skeletonIndex, final int jointIndex, final num degrees) =>
+          BendJoint(
+            skeletonIndex: skeletonIndex,
+            jointIndex: jointIndex,
+            degrees: degrees.toDouble(),
+            axis: switch (json['axis']) {
+              final int axis => axis,
+              _ => 0,
+            },
+          ),
+        _ => null,
+      },
       'mirrorJoints': (json) =>
           switch ((json['skeletonIndex'], json['axis'], json['jointMirror'])) {
             (
