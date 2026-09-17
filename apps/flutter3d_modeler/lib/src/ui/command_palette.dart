@@ -298,7 +298,7 @@ class _CommandPaletteState extends State<CommandPalette> {
               Expanded(
                 child: Center(
                   child: Text(
-                    'nothing matches "$_said"',
+                    AppLocalizations.of(context).commandPaletteNoMatch(_said),
                     style: theme.textTheme.bodySmall,
                   ),
                 ),

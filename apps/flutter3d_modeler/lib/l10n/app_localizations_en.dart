@@ -881,4 +881,9 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get settingsLegalHelp =>
       'The documents this build shipped under, and the third-party licences.';
+
+  @override
+  String commandPaletteNoMatch(String said) {
+    return 'nothing matches “$said”';
+  }
 }

@@ -1651,6 +1651,12 @@ abstract class AppLocalizations {
   /// In ru, this message translates to:
   /// **'Документы, под которыми вышла эта сборка, и сторонние лицензии.'**
   String get settingsLegalHelp;
+
+  /// Палитра команд — ux-22.
+  ///
+  /// In ru, this message translates to:
+  /// **'ничего не найдено по «{said}»'**
+  String commandPaletteNoMatch(String said);
 }
 
 class _AppLocalizationsDelegate

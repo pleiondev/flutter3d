@@ -13,10 +13,10 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:flutter3d_app/flutter3d_app.dart' show Storage;
+import 'package:flutter3d_modeler/l10n/app_localizations.dart';
 import 'package:flutter3d_modeler/main.dart' show ModelerScreen;
 import 'package:flutter3d_modeler/src/settings.dart';
 import 'package:flutter3d_modeler/src/ui/settings_screen.dart';
-import 'package:flutter3d_modeler/l10n/app_localizations.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 /// A storage kept in a map, so a round trip can be driven without a disk.
