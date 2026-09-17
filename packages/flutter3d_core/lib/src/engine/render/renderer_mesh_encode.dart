@@ -366,6 +366,14 @@ extension _MeshEncode on Renderer {
       // flag, so the shader needs no second uniform and no second branch.
       _frameParams[3] = environmentLevels.toDouble();
 
+      // `gfx-15n`, and it rides here for the reason `surface.glsl` gives:
+      // this is the last unspent component of a block six shaders share, and
+      // the slot that was reserved for a frame-wide parameter went to the
+      // line above. Zero keeps the 3×3 kernel every recorded golden holds.
+      _ambientGround[3] = settings.shadows.enabled
+          ? settings.shadows.directionalLightRadius
+          : 0.0;
+
       // Its own block, bound beside FragInfo rather than folded into it. See
       // the note in color.glsl: appending to a block six shaders share moves
       // offsets nobody expected to move.

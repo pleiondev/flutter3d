@@ -47,6 +47,7 @@ final class ShadowSettings {
     this.pointBias = 0.08,
     this.pointNormalOffset = 1.5,
     this.pointSoftness = 4.0,
+    this.directionalLightRadius = 0.0,
     this.pointLightRadius = 0.0,
     this.pointMaxSoftness = 16.0,
     this.casterFaces = ShadowCasterFaces.back,
@@ -232,6 +233,39 @@ final class ShadowSettings {
   /// filter that softens it — so it is a real expense rather than free realism.
   final double pointLightRadius;
 
+  /// The **directional** light's apparent size — `gfx-15n`'s own row.
+  ///
+  /// **Zero is the 3×3 kernel this renderer has always had**, and that is
+  /// what every recorded golden holds. Above zero the directional map is
+  /// sampled with five taps on a disc whose radius comes from how far the
+  /// occluder is from what it shadows: a box on the floor keeps a hard edge
+  /// where it touches and its shadow spreads as it climbs a wall. A fixed
+  /// kernel cannot be both, and the ROADMAP promised the first one for long
+  /// enough that it was worth measuring rather than promising again.
+  ///
+  /// The counterpart of [pointLightRadius], and off for the same honest
+  /// reason: it costs a second set of taps — a search for what is blocking,
+  /// before the filter — so it is a real expense rather than free realism.
+  /// Unlike the point version it is cheaper than what it replaces, since the
+  /// filter itself drops from nine taps to five; the search is what it adds.
+  ///
+  /// **Texels of penumbra per unit of the map's own depth**, and that unit is
+  /// scene-dependent in exactly the way [AmbientOcclusionSettings.radius] is:
+  /// the shadow map stores linear depth across the cascade's own volume, so
+  /// the same physical gap reads as a different number in a room and on a
+  /// hillside. The blocker search measures that gap and this scales it into
+  /// the radius the sampler needs.
+  ///
+  /// Measured on a box above a floor with `viewDistance: 20`: a 0.4 m gap
+  /// comes back as about 0.10 of stored depth, so 10 gives a one-texel
+  /// penumbra there and 100 gives ten. Pick it against a scene rather than
+  /// from this sentence; the number that matters is what it looks like at the
+  /// distance the camera actually stands.
+  ///
+  /// Capped at sixteen texels inside the shader, which is what stops an
+  /// occluder near the light from smearing its shadow across a cascade.
+  final double directionalLightRadius;
+
   /// The widest a penumbra may get, in texels of one cube face.
   ///
   /// Two jobs: it stops a blocker close to the light from spreading a shadow
@@ -321,6 +355,7 @@ final class ShadowSettings {
     double? pointBias,
     double? pointNormalOffset,
     double? pointSoftness,
+    double? directionalLightRadius,
     double? pointLightRadius,
     double? pointMaxSoftness,
     ShadowCasterFaces? casterFaces,
@@ -344,6 +379,8 @@ final class ShadowSettings {
         pointBias: pointBias ?? this.pointBias,
         pointNormalOffset: pointNormalOffset ?? this.pointNormalOffset,
         pointSoftness: pointSoftness ?? this.pointSoftness,
+        directionalLightRadius:
+            directionalLightRadius ?? this.directionalLightRadius,
         pointLightRadius: pointLightRadius ?? this.pointLightRadius,
         pointMaxSoftness: pointMaxSoftness ?? this.pointMaxSoftness,
         casterFaces: casterFaces ?? this.casterFaces,
