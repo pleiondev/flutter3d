@@ -147,6 +147,32 @@ extension _PostPasses on Renderer {
     pass.submit();
   }
 
+  /// Smooths the edges of [source] into [target] — `gfx-04n`.
+  ///
+  /// One full-screen draw through [drawFullscreen], which counts it, so the
+  /// profiler's own breakdown shows what the pass costs without anything here
+  /// keeping a number.
+  void _encodeFxaa({
+    required TextureHandle target,
+    required TextureHandle source,
+    required AntiAliasSettings settings,
+  }) {
+    _fxaaParams[0] = 1.0 / math.max(source.width, 1);
+    _fxaaParams[1] = 1.0 / math.max(source.height, 1);
+    _fxaaParams[2] = settings.contrastThreshold.clamp(0.0, 1.0);
+    _fxaaParams[3] = settings.blend.clamp(0.0, 1.0);
+    drawFullscreen(
+      FullscreenDraw(
+        target: target,
+        fragment: fxaaShader,
+        textures: <String, TextureHandle>{_kPostSourceSlot: source},
+        uniforms: <String, Map<String, Float32List>>{
+          _kFxaaInfoBlock: <String, Float32List>{'params': _fxaaParams},
+        },
+      ),
+    );
+  }
+
   /// Draws ambient occlusion into [target] from the surface buffer.
   ///
   /// A node that *produces* a resource, the way bloom does, rather than one

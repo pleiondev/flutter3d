@@ -171,6 +171,71 @@ final class CompositeShader implements CpuFragmentShader {
   }
 }
 
+/// `fxaa.frag`: edges smoothed on the composited picture — `gfx-04n`.
+///
+/// Mirrors the GLSL operation for operation, the same contract every shader in
+/// this file keeps: the two are compared by golden images and a shortcut here
+/// would read as a backend disagreeing about the picture.
+final class FxaaShader implements CpuFragmentShader {
+  const FxaaShader();
+
+  /// `Weight` from `fxaa.frag`: green-weighted, on the encoded image.
+  static double _weight(Vector4 c) => 0.299 * c.x + 0.587 * c.y + 0.114 * c.z;
+
+  @override
+  Vector4? run(Float32List v, ShaderBindings bindings, FragmentContext c) {
+    final source = bindings.textures['source_texture'];
+    if (source == null) return Vector4(0.0, 0.0, 0.0, 1.0);
+    final params = bindings.vec4(
+      'FxaaInfo',
+      'params',
+      Vector4(0.0, 0.0, 0.125, 0.75),
+    );
+
+    final middle = source.sample(v[0], v[1]);
+    final mid = _weight(middle);
+
+    final north = _weight(source.sample(v[0], v[1] - params.y));
+    final south = _weight(source.sample(v[0], v[1] + params.y));
+    final west = _weight(source.sample(v[0] - params.x, v[1]));
+    final east = _weight(source.sample(v[0] + params.x, v[1]));
+
+    final lowest = math.min(
+      mid,
+      math.min(math.min(north, south), math.min(west, east)),
+    );
+    final highest = math.max(
+      mid,
+      math.max(math.max(north, south), math.max(west, east)),
+    );
+    final contrast = highest - lowest;
+    if (contrast < math.max(0.0312, highest * params.z)) {
+      return Vector4(middle.x, middle.y, middle.z, 1.0);
+    }
+
+    final vertical = (north + south - 2.0 * mid).abs();
+    final horizontal = (west + east - 2.0 * mid).abs();
+    final horizontalEdge = vertical >= horizontal;
+
+    final towards = horizontalEdge ? south - mid : east - mid;
+    final away = horizontalEdge ? north - mid : west - mid;
+    var stepLength = horizontalEdge ? params.y : params.x;
+    if (away.abs() > towards.abs()) stepLength = -stepLength;
+
+    final average = (north + south + west + east) * 0.25;
+    final distance = ((average - mid).abs() / math.max(contrast, 1e-5)).clamp(
+      0.0,
+      1.0,
+    );
+    final blend = distance * distance * params.w;
+
+    final out = horizontalEdge
+        ? source.sample(v[0], v[1] + stepLength * blend)
+        : source.sample(v[0] + stepLength * blend, v[1]);
+    return Vector4(out.x, out.y, out.z, 1.0);
+  }
+}
+
 /// `SampleLut` from `composite.frag`, operation for operation.
 ///
 /// The half-texel inset on red and the `(size - 1) / size` span on green are

@@ -816,10 +816,26 @@ final class _CompositeNode extends RenderNode {
   @override
   void execute(NodeFrame frame) {
     developer.Timeline.startSync('Renderer.composite');
-    final target = _renderer._ldrColor!;
-    // The renderer's texture, not the pool's, so the name is bound rather than
-    // allocated. Before the draw, so anything reading `frame` after this node
-    // finds the picture rather than nothing.
+    // **Where the picture lands depends on whether anything runs after it.**
+    // Ordinarily this is the renderer's own finished-frame texture — the one
+    // that outlives the frame and that Flutter samples — bound by name rather
+    // than allocated. With `gfx-04n`'s pass on, the smoothing needs to read a
+    // finished picture and write another, and the *presented* texture has to
+    // stay the renderer's: a pooled one would be handed back while the
+    // compositor was still reading it. So the composite draws into scratch
+    // and the pass after it draws into the frame.
+    final smoothing = _settings.antiAlias.enabled;
+    final target = smoothing
+        ? frame.resources.transient(
+            RenderTargetSpec(
+              width: frame.width,
+              height: frame.height,
+              format: _renderer.device.defaultColorFormat,
+            ),
+          )
+        : _renderer._ldrColor!;
+    // Before the draw, so anything reading `frame` after this node finds the
+    // picture rather than nothing.
     frame.resources.provide(FrameResourceIds.frame, target);
     overlayLines = _renderer._encodeComposite(
       target: target,
@@ -852,6 +868,48 @@ final class _CompositeNode extends RenderNode {
     );
     // The composite is a draw, and so is the overlay batch.
     frame.state.drawCalls += 1 + (overlayLines > 0 ? 1 : 0);
+    developer.Timeline.finishSync();
+  }
+}
+
+/// Edges smoothed on the composited picture — `gfx-04n`'s own row.
+///
+/// **Registered after the composite, which is the whole of how it knows what
+/// to read.** Registration order is the version chain: this node reads the
+/// version the composite wrote and produces the next one, and the frame's own
+/// result takes whichever version is last. Nothing is threaded, nothing is
+/// branched on outside this file.
+///
+/// It draws into the renderer's finished-frame texture and reads the pooled
+/// one the composite drew into — the opposite way round from every other post
+/// pass, and deliberately: the texture that leaves the frame has to be the
+/// renderer's, because a pooled one would be handed back to the pool while
+/// the compositor was still sampling it.
+final class _FxaaNode extends RenderNode {
+  _FxaaNode(this._renderer, this._settings);
+
+  final Renderer _renderer;
+  final AntiAliasSettings _settings;
+
+  @override
+  String get name => 'antialias';
+
+  @override
+  bool get isActive => _settings.enabled;
+
+  @override
+  List<ResourceId> get reads => const <ResourceId>[FrameResourceIds.frame];
+
+  @override
+  List<ResourceId> get writes => const <ResourceId>[FrameResourceIds.frame];
+
+  @override
+  void execute(NodeFrame frame) {
+    developer.Timeline.startSync('Renderer.antialias');
+    final source = frame.resources.texture(FrameResourceIds.frame);
+    final target = _renderer._ldrColor!;
+    frame.resources.provide(FrameResourceIds.frame, target);
+    _renderer._encodeFxaa(target: target, source: source, settings: _settings);
     developer.Timeline.finishSync();
   }
 }
