@@ -436,7 +436,12 @@
     "ui-39d": "done",
     "ui-38d": "done",
     "mat-33d": "done",
-    "mat-34d": "done"
+    "mat-34d": "done",
+    "anim-33d": "done",
+    "anim-34d": "done",
+    "doc-36d": "done",
+    "mcp-16d": "done",
+    "ui-37d": "partial"
   },
   "absent": {
     "view-27d": {
