@@ -165,11 +165,9 @@ void main() {
       // roadmap belongs on the site, not in the one control a person uses
       // every minute.
       //
-      // Mutation: put the disabled segments back. `sculpt` is on the bar
-      // again and this finds it.
-      expect(find.byIcon(ModelerMode.sculpt.icon), findsNothing);
+      // Mutation: put the disabled segments back. `uv` is on the bar again
+      // and this finds it.
       expect(find.byIcon(ModelerMode.uv.icon), findsNothing);
-      expect(find.byIcon(ModelerMode.render.icon), findsNothing);
 
       // And the mesh mode, which is ready, is there and answers.
       await tester.tap(find.byIcon(ModelerMode.mesh.icon));
@@ -200,17 +198,20 @@ void main() {
       }
     });
 
-    testWidgets('uv, sculpt and render are unreachable (ui-39d, ux-07)', (
+    testWidgets('a mode that is not ready is unreachable (ui-39d, ux-07)', (
       WidgetTester tester,
     ) async {
+      // Read off `ready` rather than named here: this test listed `uv`,
+      // `sculpt` and `render` when it was written, and the phase-four work
+      // built two of the three. A list of names would have had to be edited
+      // to stay true, which is the same as not checking.
+      //
       // One assertion per mode rather than one shared sweep: a switcher that
-      // hid `sculpt` and left the other two would pass a check that only
-      // looked for the first.
-      for (final ModelerMode target in <ModelerMode>[
-        ModelerMode.uv,
-        ModelerMode.sculpt,
-        ModelerMode.render,
-      ]) {
+      // hid one and left another would pass a check that only looked for the
+      // first.
+      final refused = ModelerMode.values.where((m) => !m.ready);
+      expect(refused, isNotEmpty, reason: 'nothing left to check otherwise');
+      for (final ModelerMode target in refused) {
         final asked = <ModelerMode>[];
         await pumpShell(tester, onMode: asked.add);
 
@@ -368,12 +369,24 @@ void main() {
       }
     });
 
-    test('object and mesh have tools on the rail, nothing else does yet', () {
-      // Material, animation and scene are `ready` (`ui-39d`) but work through
-      // their own properties-panel sections rather than the tool rail, so
-      // `toolsFor` still answers empty for them — same as the modes that
-      // are not `ready` at all. Only object and mesh have a rail today.
-      const withTools = <ModelerMode>{ModelerMode.object, ModelerMode.mesh};
+    test('a rail is for the modes you aim at the picture', () {
+      // The rule, and not a list that happens to be true today: a mode has a
+      // rail when its work is done by pointing at the model. Material and
+      // scene are `ready` (`ui-39d`) and have none — their work is numbers
+      // and slots in the properties panel, and a rail of one tool called
+      // "select" would say a mode is emptier than it is. Animation answers
+      // empty until a sub-mode is picked, since its four sub-modes have four
+      // different rails (`toolsFor`'s own doc comment). UV has none because
+      // nothing switches into it yet.
+      const withTools = <ModelerMode>{
+        ModelerMode.object,
+        ModelerMode.mesh,
+        ModelerMode.sculpt,
+        ModelerMode.retopo,
+        ModelerMode.paint,
+        ModelerMode.simulation,
+        ModelerMode.render,
+      };
       for (final ModelerMode mode in ModelerMode.values) {
         expect(
           toolsFor(mode).isNotEmpty,
