@@ -411,7 +411,28 @@
     "gal-05": "done",
     "gal-04": "partial",
     "gal-07": "done",
-    "tut-23n": "done"
+    "tut-23n": "done",
+    "tut-00": "done",
+    "tut-01": "done",
+    "tut-03": "done",
+    "tut-04": "done",
+    "tut-05": "done",
+    "tut-06": "done",
+    "tut-07": "done",
+    "tut-08": "done",
+    "tut-10": "done",
+    "tut-11": "done",
+    "tut-12": "done",
+    "tut-13": "done",
+    "tut-14": "done",
+    "tut-15": "done",
+    "tut-16": "done",
+    "tut-17": "done",
+    "tut-18": "done",
+    "tut-19": "done",
+    "tut-20": "done",
+    "tut-21": "done",
+    "tut-22": "done"
   },
   "absent": {
     "view-27d": {
@@ -483,6 +504,13 @@
     },
     "mat-25": {
       "LightGizmos": "неформальное имя в тексте плана, не имя символа: реализовано как расширение DebugDrawGizmos.addLightGizmo в packages/flutter3d_core/lib/src/engine/render/debug_draw_gizmos.dart (view-05's own уже готовая работа) — стрелка, маркер-сфера и конус прожектора рисуются им же. mat-25's own вклад — apps/flutter3d_modeler/lib/src/lighting_sync.dart: LightingSync.apply включает RenderSettings.debug.lightGizmos, когда у проекта есть хотя бы один свет. Оба пункта приёмки строки проверены: cone-ребра ложатся на окружность, которую даёт outerConeAngle (геометрически, не тавтологично — подтверждено мутацией формулы), и стрелка отслеживает живой поворот узла, а не застывший снимок. Не построено и честно оставлено: 'сферы дальности' (реального радиуса point-light, а не фиксированного маркера) — потребовало бы правки того же движкового файла, который в этом цикле занят параллельным форком (pro-eng-03); и билборд-маркер в id-проходе (кликабельный пикинг света) — реальная, отдельная работа, которую строка называет в 'что', но не в 'приёмке', и которая тянет за собой main.dart и панель свойств, вне размера S этой строки"
+    },
+    "tut-06": {
+      "_withModifiersBaked": "the row's own history: the name is cited as what case 2's fixture tool used to hand-evaluate the stack with, in the same sentence that says it is gone, replaced by _withModifiersDisabled (packages/flutter3d_model_mcp/tool/make_case2_fixtures.dart) — a claim about what was removed, not about what is there"
+    },
+    "tut-22": {
+      "cf317f17": "a commit hash, not a symbol: the row cites the commit that last regenerated case 5's picture, which is why that picture no longer differs from a clean regenerate",
+      "c7e1da1d": "a commit hash, not a symbol: the row cites tut-07's own commit as the change that moved the two lighting defaults these pictures were rendered against"
     }
   }
 }
