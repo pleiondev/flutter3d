@@ -17,7 +17,7 @@
 /// as code written inside the class — even though this file is, syntactically,
 /// exactly that. The call itself is correct; only the check misfires.
 // ignore_for_file: invalid_use_of_protected_member
-part of '../../main.dart';
+part of 'modeler_screen.dart';
 
 extension _WeightPaintWiring on _ModelerScreenState {
   /// `ModelerViewport.onStroke`, wired only while the weights sub-mode's own

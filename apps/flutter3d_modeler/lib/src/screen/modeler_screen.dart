@@ -1,0 +1,839 @@
+/// `ModelerScreen` and the state behind it — the editor's whole screen.
+///
+/// **A library of its own rather than `main.dart`, and `ui-37d` is the row
+/// that says why.** That row moved every method reading `context`, `mounted`,
+/// `setState` or the device into `screen/*.dart` as an
+/// `extension … on _ModelerScreenState`, and then could not get `main.dart`
+/// under its own four-hundred-line target: an extension cannot declare a
+/// field, so every session, notifier and cache the screen owns had to stay in
+/// the class body. Folding those into holder objects helped and could not
+/// finish the job — of the 832 lines left, 147 were `import` and `part`
+/// directives and 82 were blank, so 229 were spoken for before a single
+/// statement. A file that is the library root of fourteen parts cannot be
+/// short.
+///
+/// So the parts, the imports and the class live here, and `main.dart` is the
+/// entry point and nothing else. [runModeler] is what it calls: the body that
+/// used to be `main()`, moved because the error handlers it installs reach
+/// `_onUncaughtError` and `_liveCrashScreen`, which are private to this
+/// library and belong beside the screen they photograph.
+library;
+
+import 'dart:async';
+import 'dart:math' as math;
+import 'dart:ui'
+    as ui
+    show
+        AppExitResponse,
+        Codec,
+        FrameInfo,
+        Image,
+        ImageByteFormat,
+        PlatformDispatcher,
+        instantiateImageCodec;
+
+import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/gestures.dart';
+import 'package:flutter/material.dart' hide Material;
+import 'package:flutter/rendering.dart' show RenderRepaintBoundary;
+import 'package:flutter/scheduler.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter3d/flutter3d.dart' hide Material;
+import 'package:flutter3d_app/flutter3d_app.dart';
+import 'package:flutter3d_mesh/flutter3d_mesh.dart';
+import 'package:flutter3d_model_core/flutter3d_model_core.dart' hide Outcome;
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:url_launcher/url_launcher.dart';
+import 'package:vector_math/vector_math.dart' as vm;
+
+import '../../l10n/app_localizations.dart';
+import '../animation_wiring.dart';
+import '../app_config.dart';
+import '../autosaving.dart';
+import '../cabinet_link.dart';
+import '../churn_run.dart';
+import '../close_beforeunload.dart';
+import '../close_guard.dart';
+import '../crash_handling.dart';
+import '../display_modes.dart';
+import '../element_picker_cache.dart';
+import '../element_picking.dart';
+import '../environment_summary.dart';
+import '../exporting.dart';
+import '../files/cabinet_save.dart';
+import '../files/fetch_model.dart';
+import '../files/file_drop.dart';
+import '../files/linked_materials.dart';
+import '../files/preview_capture.dart';
+import '../files/project_files.dart';
+import '../files/sandbox_probe.dart';
+import '../gallery/gallery_insert.dart';
+import '../gallery/gallery_item.dart';
+import '../gallery/recipe_source.dart';
+import '../ground_grid.dart';
+import '../import_plan.dart';
+import '../input_policy.dart';
+import '../local_data.dart';
+import '../material_editing.dart';
+import '../material_pool.dart' show clay;
+import '../mcp_bootstrap.dart';
+import '../measurement_runs.dart';
+import '../modeler_cubit.dart';
+import '../modeler_ui_actions.dart';
+import '../modeler_viewport.dart';
+import '../mouse_hints.dart';
+import '../object_picking.dart';
+import '../open_report.dart';
+import '../opening.dart';
+import '../orbit_run.dart';
+import '../orientation_dial.dart';
+import '../paint_brush.dart';
+import '../paint_session.dart';
+import '../paint_upload.dart';
+import '../play/play_control.dart';
+import '../play/play_template.dart';
+import '../pro_panel_state.dart';
+import '../recent_projects.dart';
+import '../render_snapshot_run.dart';
+import '../report_problem.dart';
+import '../sculpt_brush.dart';
+import '../sculpt_session.dart';
+import '../selection_box.dart';
+import '../selection_rules.dart';
+import '../settings.dart';
+import '../shape_key_state.dart';
+import '../shape_points_overlay.dart';
+import '../staging.dart';
+import '../timeline_preview_wiring.dart';
+import '../tool_commands.dart';
+import '../transform_dispatch.dart';
+import '../transform_fields.dart';
+import '../transform_session.dart';
+import '../ui/agent_session_panel.dart';
+import '../ui/animation_bottom.dart';
+import '../ui/autorig_dialog.dart';
+import '../ui/bake_panel.dart';
+import '../ui/bend_slider_bar.dart';
+import '../ui/clip_library.dart';
+import '../ui/clip_tracks_bar.dart';
+import '../ui/command_palette.dart';
+import '../ui/console_panel.dart';
+import '../ui/dock_layout.dart';
+import '../ui/export_anyway_dialog.dart';
+import '../ui/export_screen.dart';
+import '../ui/gallery_screen.dart';
+import '../ui/game_preview_screen.dart';
+import '../ui/import_screen.dart';
+import '../ui/keymap.dart';
+import '../ui/lathe_dialog.dart';
+import '../ui/layout_class.dart';
+import '../ui/legal_screen.dart';
+import '../ui/material_studio_dialog.dart';
+import '../ui/measurement_report_overlay.dart';
+import '../ui/modeler_keys.dart';
+import '../ui/no_mesh_banner.dart';
+import '../ui/paint_panel.dart';
+import '../ui/play_screen.dart';
+import '../ui/properties/outliner.dart';
+import '../ui/properties/properties_panel.dart';
+import '../ui/quick_setup_screen.dart';
+import '../ui/render_panel.dart';
+import '../ui/restore_autosave_dialog.dart';
+import '../ui/retarget_panel.dart';
+import '../ui/retarget_viewports.dart';
+import '../ui/save_as_dialog.dart';
+import '../ui/screen_parts.dart';
+import '../ui/sculpt_panel.dart';
+import '../ui/settings_screen.dart';
+import '../ui/shell.dart' show RailEntry;
+import '../ui/shell_for_width.dart';
+import '../ui/shortcut_help_screen.dart';
+import '../ui/simulation_panel.dart';
+import '../ui/split_viewports.dart';
+import '../ui/start_screen.dart';
+import '../ui/status_line.dart';
+import '../ui/theme.dart';
+import '../ui/tools.dart';
+import '../ui/top_bar_actions.dart';
+import '../ui/transport_bar.dart';
+import '../ui/unsaved_changes_dialog.dart';
+import '../ui/weight_legend.dart';
+import '../ui/window_chrome.dart';
+import '../value_drag.dart';
+import '../viewport_metrics.dart';
+import '../weight_gradient.dart';
+import '../weight_paint_session.dart';
+
+part 'animation.dart';
+part 'app_wiring.dart';
+part 'autorig_wiring.dart';
+part 'close_and_recovery.dart';
+part 'device.dart';
+part 'files.dart';
+part 'game_preview_wiring.dart';
+part 'interactions.dart';
+part 'morphs_wiring.dart';
+part 'pro_modes_wiring.dart';
+part 'ready_parts.dart';
+part 'retarget_wiring.dart';
+part 'sculpt_wiring.dart';
+part 'weight_paint_wiring.dart';
+
+/// `ui-30n`: wires an exception nobody caught to the same response wherever
+/// it surfaces. `FlutterError.onError` catches one the framework itself
+/// caught mid-callback (a build, a gesture, a layout) and would otherwise
+/// only dump to the console; `runZonedGuarded`'s own handler catches one that
+/// got past that — thrown from a `Future` callback with nobody awaiting it,
+/// say. Both call [_onUncaughtError] with the same two arguments, so a
+/// command's `apply()` throwing lands the same emergency autosave and the
+/// same dialog regardless of which door it went out.
+void runModeler() {
+  FlutterError.onError = (FlutterErrorDetails details) {
+    FlutterError.presentError(details);
+    unawaited(
+      _onUncaughtError(details.exception, details.stack ?? StackTrace.current),
+    );
+  };
+  runZonedGuarded(
+    () => runApp(const ModelerApp()),
+    (Object error, StackTrace stack) =>
+        unawaited(_onUncaughtError(error, stack)),
+  );
+}
+
+class _ModelerScreenState extends State<ModelerScreen>
+    with SingleTickerProviderStateMixin {
+  /// The document and everything a screen rebuilds on. See
+  /// `modeler_cubit.dart`: the orbit, the modal transform and the frame
+  /// timings stay plain fields below, because they change while a finger is
+  /// down and a rebuild of the shell per frame is not a thing this can afford.
+  final ModelerCubit _cubit = ModelerCubit();
+
+  ModelerState get _state => _cubit.state;
+
+  /// The open document. Reading it through the cubit rather than holding a
+  /// second reference is what stops the two disagreeing — the mistake this
+  /// application already made once, between the scene and the project.
+  ModelHistory get _history => (_state as ModelerReady).history;
+
+  Ticker? _ticker;
+
+  /// The measured camera orbit and the edit-convert-upload churn loop, when
+  /// the build asked for either.
+  final MeasurementRuns _measurementRuns = MeasurementRuns(
+    what: kStress > 0
+        ? '$kStress triangles in $kStressObjects draws'
+        : (kModel.isEmpty ? 'the cube' : kModel),
+  );
+
+  /// What the last frame's `render` cost, which the run records against the
+  /// wall clock the ticker reports.
+  int? _lastRenderMicros;
+
+  /// The device, kept so a model opened later can be uploaded through it.
+  GraphicsDevice? _device;
+
+  /// The viewport size and pixel ratio the current [_device] was opened at,
+  /// so a later resize past that fixed canvas can be noticed.
+  int _deviceWidth = 0;
+  int _deviceHeight = 0;
+  double _deviceDevicePixelRatio = 1;
+
+  /// Set while a stale device is being swapped for a freshly sized one, so a
+  /// second resize during the swap does not start a redundant reopen.
+  bool _reopeningDevice = false;
+
+  /// `tut-19`/`tut-20`'s own cabinet id/mode — [CabinetLink.none] until
+  /// `_open()` reads `widget.cabinetLink` or, failing that, `Uri.base`'s own
+  /// `id`/`mode`/`csrf`, the same place `model`/`name` already come from.
+  /// Fixed for the life of one document: nothing later in a session changes
+  /// which cabinet entry, if any, this build was opened from.
+  CabinetLink _cabinetLink = CabinetLink.none;
+
+  /// Where `_saveToCabinet` sends its POST — `widget.cabinetSourceSender`
+  /// when a test supplied one, otherwise the platform's own real send.
+  CabinetSourceSender get _sendCabinetSource =>
+      widget.cabinetSourceSender ?? postSourceToCabinet;
+
+  /// Where `tut-19`'s own preview capture sends its POST —
+  /// `widget.previewCapturer` when a test supplied one, otherwise the
+  /// platform's own real capture-and-send.
+  PreviewCapturer get _sendPreviewCapture =>
+      widget.previewCapturer ?? capturePreview;
+
+  /// Whether `tut-19`'s own preview capture has already fired once this
+  /// session — set the first time [_installOpened] sees a
+  /// [CabinetLink.shouldCapturePreview] worth acting on, so a document
+  /// opened locally afterward (a drag-drop, a recovered autosave) over a
+  /// cabinet-viewed model never captures a picture of something that is not
+  /// what the cabinet entry's id names. [_cabinetLink] itself never changes
+  /// after `_open()` sets it, so this is the one latch a second
+  /// [_installOpened] needs.
+  bool _cabinetPreviewCaptured = false;
+
+  /// What the last file operation said, shown beside the buttons.
+
+  /// Which lens the viewport looks through, and what the surface is drawn as.
+  ViewLens _lens = ViewLens.perspective;
+  ShadingMode _shading = ShadingMode.material;
+
+  /// Where a rotation or a scale from the transform panel is centred, and
+  /// whose axes a rotation is given in.
+  ///
+  /// **Plain fields, the way [_lens] and [_shading] are.** Neither is part of
+  /// the document — undoing to before a rotation does not put the pivot chip
+  /// back where it was either — so there is nothing here for `ModelerCubit`
+  /// to keep in step with a command landing.
+  PivotChip _pivot = PivotChip.median;
+  TransformSpace _space = TransformSpace.global;
+
+  /// Which of the project's own lights `SceneSourcePanel` shows the fields
+  /// of — `mat-34d`'s own scene-mode wiring. A plain field for the same
+  /// reason [_pivot] is one: nothing on the document remembers which light a
+  /// person was looking at, so undo has nothing to put this back to either.
+  int? _selectedLight;
+
+  /// `S2`'s own row: which clip, track, key, joint and constraint the
+  /// animation mode's own panels highlight — see `screen/animation.dart`'s
+  /// own `_AnimationWiring` for the setters. Plain fields for the same
+  /// reason [_selectedLight] is one: none of them are on [ModelHistory], so
+  /// undo has nowhere to put any of them back to.
+  int? _selectedAnimationClip;
+  int? _selectedAnimationTrack;
+  int? _selectedAnimationKey;
+
+  /// `ux-46`: every key picked, as `(track, key)` pairs. A drag moves all of
+  /// them; [_selectedAnimationKey] above is still the one touched last, which
+  /// is what the curve editor and the value boxes read.
+  final Set<(int, int)> _selectedAnimationKeys = <(int, int)>{};
+
+  /// `ux-46`: how wide a second is on the timeline, which a wheel over it
+  /// changes. Here rather than in the panel because a curve editor beside it
+  /// reads the same scale.
+  double _timelineZoom = 120.0;
+
+  void _setTimelineZoom(double to) => setState(() => _timelineZoom = to);
+  int? _selectedJoint;
+  int? _selectedConstraint;
+
+  /// `S6`'s own row: which shape key `MorphsPanel` highlights, and the
+  /// marker the viewport's own shape-points overlay draws `secondary` for —
+  /// a plain field for the same reason [_selectedLight] is one.
+  int? _selectedShape;
+
+  /// `S7`'s own row: screen 14's own retarget state — see `screen/
+  /// retarget_wiring.dart`. Plain fields for the same reason [_selectedLight]
+  /// is one: none of them are on [ModelHistory], so undo has nowhere to put
+  /// any of them back to. `RetargetSource` itself is a whole second
+  /// `ModelProject`, never folded into [_history]'s own.
+  RetargetSource? _retargetSource;
+  int? _retargetSourceClipIndex;
+  BoneMap _retargetBoneMap = const BoneMap(<String, String>{});
+  RetargetRootMotion _retargetRootMotion = RetargetRootMotion.inAnimation;
+  bool _retargetLockFeet = true;
+  double _retargetGroundY = 0.0;
+  double _retargetFootTolerance = 1e-3;
+  double _retargetBlendSeconds = 0.15;
+
+  /// Which of the target's own clips `retarget.apply` last appended, and
+  /// its name — null before anything has landed. `ClipTracksBar`'s own
+  /// "nothing to preview yet" and `RetargetPanel.onRootMotionChanged`'s own
+  /// "nothing landed yet to re-bake" both read this.
+  int? _retargetAppliedClipIndex;
+  String? _retargetAppliedClipName;
+
+  /// The transport's own `Keys`/`Curves` switch — screen 07's own row, not
+  /// on [ModelerReady] for the identical reason [_selectedAnimationClip]
+  /// above is not.
+  TimelineEditMode _timelineEditMode = TimelineEditMode.keys;
+
+  /// `S5`'s own weight-paint brush: radius in logical pixels, strength 0 to
+  /// 1, and the mirror/normalize flags a stroke reads the moment it opens —
+  /// see `screen/weight_paint_wiring.dart`. Plain fields for the same reason
+  /// [_selectedLight] is one: none of them are on [ModelHistory], so undo has
+  /// nowhere to put any of them back to. `48`/`1.0` match the design
+  /// hand-over's own screen 13.
+  double _weightBrushRadius = 48.0;
+  double _weightBrushStrength = 1.0;
+  bool _weightMirror = false;
+  bool _weightNormalize = true;
+
+  /// The vertex nearest the weight brush's own last hit —
+  /// `ui/weight_paint_panel.dart`'s own influences card.
+  int? _selectedWeightVertex;
+
+  /// `pro-sc-08`'s own sculpting brush — see [SculptBrush], which is where
+  /// its four settings went and why.
+  final SculptBrush _sculpt = SculptBrush();
+
+  /// `pro-rt-07`'s own panel state — see [RetopoPanelState].
+  final RetopoPanelState _retopo = RetopoPanelState();
+
+  /// `pro-pt-05`'s own painting brush — see [PaintBrush], which is where its
+  /// settings and the panel's canvas went.
+  final PaintBrush _paint = PaintBrush();
+
+  /// `pro-pt-03`'s own one-write-per-stroke upload — see
+  /// `paint_upload.dart`. Built against whichever device is open; a stroke
+  /// before one is has nothing to write to and says so by writing nothing.
+  late final PaintUpload _paintUpload = PaintUpload(device: _device!);
+
+  /// `pro-pt-05`'s own stroke controller — see `paint_session.dart`.
+  late final PaintSession _paintSession = PaintSession(
+    cubit: _cubit,
+    history: () => _history,
+  );
+
+  /// `pro-sim-06`'s own panel state — see [SimulationPanelState].
+  final SimulationPanelState _sim = SimulationPanelState();
+
+  /// `pro-rn-04`'s own panel state — see [RenderPanelState].
+  final RenderPanelState _render = RenderPanelState();
+
+  /// `pro-sc-08`'s own stroke controller — see `sculpt_session.dart`.
+  late final SculptSession _sculptSession = SculptSession(
+    cubit: _cubit,
+    history: () => _history,
+  );
+
+  /// `S5`'s own brush stroke controller — see `weight_paint_session.dart`.
+  late final WeightPaintSession _weightPaintSession = WeightPaintSession(
+    cubit: _cubit,
+    history: () => _history,
+    stage: () => (_state as ModelerReady).stage,
+  );
+
+  /// `S5`'s own viewport-preview material swap for the weights view — see
+  /// `weight_gradient.dart`'s own class comment for why nothing calls it
+  /// before this row.
+  final WeightGradientShading _weightGradientShading = WeightGradientShading();
+
+  /// The playhead, in whole frames — `S2`'s own `ValueNotifier<int>`.
+  ///
+  /// **Not a field on [ModelerState], and not moved by `setState` either.**
+  /// [TimelinePlayback.onFrameChanged] fires up to sixty times a second
+  /// while a clip plays; a `Cubit`'s `emit` at that rate would rebuild the
+  /// whole shell for a number only the transport bar and the timeline's own
+  /// playhead read, and `setState` on this screen would do the same for
+  /// every other widget the `build` method below returns. The transport bar
+  /// and `TimelinePanel`/`CurveEditor` read this through a
+  /// `ValueListenableBuilder` instead — see `ui/animation_bottom.dart`.
+  final ValueNotifier<int> _frame = ValueNotifier<int>(0);
+
+  /// Remembers what the materials were, so the normals view can be left.
+  final SurfaceShading _surfaces = SurfaceShading();
+
+  /// `ux-47`: every `.fmat` this project links to, watched.
+  ///
+  /// **A file linked once is a snapshot, and that is what the row fixes.**
+  /// `linkMaterialFile` reads the bytes at the moment somebody presses the
+  /// button, so a material library edited in another tool afterwards left
+  /// the project holding a colour that file no longer has. The re-link runs
+  /// as an ordinary command, so it is one undo step and says what it was.
+  /// `ux-52`: whether Play is running, filled in by `PlayScreen` while its
+  /// route is up and emptied when it goes — the one place anything outside
+  /// that route can ask.
+  final PlayControl _play = PlayControl();
+
+  late final LinkedMaterials _linkedMaterials = LinkedMaterials(
+    host: linkedMaterialHost(),
+    onRelink: (LinkMaterialFile relink) {
+      if (_state is! ModelerReady) return;
+      _cubit.ran(relink);
+    },
+    onTrouble: (String path, String because) {
+      if (_state is! ModelerReady) return;
+      // The last good material stays: a `.fmat` spends part of every save
+      // half-written, and swapping a look for a default each time an editor
+      // flushes would be a viewport that flickers.
+      _cubit.say('$path: $because', important: true);
+    },
+  );
+
+  /// Which mode the interface is in, which level a mesh is edited at, and
+  /// which tool is armed.
+  ///
+  /// Three fields on the state rather than a `ModelerCubit`, and only until
+  /// `ui-03`: what that class is for is a *project* — a document, a history, a
+  /// readiness — and standing one up around three enums would be a cubit that
+  /// has to be rewritten the day it gets something to hold.
+  ModelerMode get _mode => (_state as ModelerReady).mode;
+  MeshSubmode get _submode => (_state as ModelerReady).submode;
+  String? get _tool => (_state as ModelerReady).tool;
+
+  /// The document, and everything that has been done to it.
+  ///
+  /// **One history for both modes**, which is what replaced the mesh-only
+  /// session: ⌘Z now takes back a rename, a move of an object and an extrusion
+  /// with the same press, in the order they were made. Two stacks would have
+  /// meant a person undoing a move and getting an extrusion back.
+  /// A project with the cube a new one starts as.
+  ///
+  /// **Triangulated, since `ux-06`.** `EditMesh.cuboid()` is six quads, and
+  /// the profile's own `requireTriangles` is right about them: every writer
+  /// this application has cuts a quad on whichever diagonal it likes, and
+  /// that is worth saying about a model somebody built. It is not worth
+  /// saying about the cube the application hands them before they have done
+  /// anything at all — the live run's own first-hour finding was a fresh
+  /// launch greeting a beginner with "exports with a warning", truncated
+  /// with an ellipsis, over a document they had not touched.
+  ///
+  /// The other way to fix it was to stop warning about quads for a format
+  /// that triangulates, and that would be a worse trade: the warning is
+  /// honest for every model a person actually makes, and `export.dart`'s own
+  /// comment says why for both writers. So the cube changes, not the rule.
+  static ModelProject _newProject() {
+    final EditMesh cube = EditMesh.cuboid();
+    // A step, because every write to a mesh belongs to one — the journal
+    // refuses otherwise. It is never undone: this mesh has no history a
+    // person has seen, and the cube they start with is the triangulated one.
+    cube.beginStep();
+    triangulateFaces(cube, Selection.all(cube, ElementLevel.face));
+    cube.endStep();
+    return const ModelProject().added(
+      (int id) => ModelObject(
+        id: id,
+        name: 'cube',
+        geometry: EditedGeometry(cube),
+        transform: vm.Matrix4.identity(),
+      ),
+    );
+  }
+
+  /// The mesh being edited, when what is selected has one.
+  ///
+  /// One implementation, in the cubit, because the sub-mode change needs the
+  /// same answer and two copies of "which mesh is being edited" is exactly the
+  /// shape of the disagreement this application already had once.
+  EditMesh? get _editMesh => editMeshOf(_history.project, _history.selection);
+
+  /// The picker over that mesh, rebuilt when its version moves.
+  final ElementPickerCache _elementPickerCache = ElementPickerCache();
+
+  MeshPicker? get _elementPicker {
+    final EditMesh? mesh = _editMesh;
+    final int? id = _history.selection.activeObject;
+    if (mesh == null || id == null) return null;
+    return _elementPickerCache.pickerFor(mesh, _history.project[id]!.version);
+  }
+
+  /// The modal transform, the gizmo it shares a path with, and `view-26n`'s
+  /// geometry snap — see `transform_session.dart`.
+  late final TransformSession _transformSession =
+      TransformSession(
+          cubit: _cubit,
+          history: () => _history,
+          editMesh: () => _editMesh,
+        )
+        ..snapSteps = _snapStepsOf(_settings)
+        // `ux-12`: the two chips on the properties panel, read on every command
+        // rather than copied when a transform opens — see [TransformSession.pivot].
+        ..pivot = (() => transformPivotOf(_pivot))
+        ..space = (() => _space);
+
+  /// `ux-11`'s own three steps, in the units a transform is measured in —
+  /// Settings holds the turn in degrees because that is what a person types,
+  /// and `TransformModal` rounds radians.
+  ({double move, double turnRadians, double scale}) _snapStepsOf(
+    ModelerSettings settings,
+  ) => (
+    move: settings.snapMove,
+    turnRadians: settings.snapTurnDegrees * math.pi / 180.0,
+    scale: settings.snapScale,
+  );
+
+  /// What the last operation said when it refused, shown in the status line
+  /// until something else happens.
+
+  /// The tick the last frame was at, so a turn advances by real time rather
+  /// than by frames — a view that swings faster on a fast machine is a view
+  /// nobody can aim.
+  Duration _lastTick = Duration.zero;
+
+  /// `anim-07`'s own live pose binding: whichever clip [AnimationPanel] has
+  /// open, sampled onto the scene nodes [ModelerStage.sync] tracks — see
+  /// `timeline_preview_wiring.dart`. `S2` wires its two hooks straight to
+  /// [ModelerCubit.playback] (the coarse half) and [_frame] (the per-frame
+  /// half) — see `screen/animation.dart`'s own class comment for why they
+  /// are two different mechanisms rather than one.
+  late final TimelinePreviewWiring _timelinePreview = TimelinePreviewWiring(
+    onPlaybackChanged: _cubit.playback,
+    onFrameChanged: (int frame) => _frame.value = frame,
+  );
+
+  /// [AnimationPanel.onTimeChanged].
+  void _scrubAnimation(double time) {
+    if (_state case ModelerReady(:final project, :final stage)) {
+      _timelinePreview.scrub(project, stage.sync, time);
+    }
+  }
+
+  /// What the finished run measured, shown over the viewport.
+  ///
+  /// **On the screen and not only in the console**, because the console is the
+  /// one place half the platforms being measured do not have: a browser's is
+  /// behind a keyboard shortcut and a handset's needs a cable. A panel in the
+  /// corner is legible in a screenshot from any of them, which is what a
+  /// measurement recorded in a document needs to have come from.
+  String? _report;
+
+  /// What takes [_report] away again, where it was shown for a while rather
+  /// than until the next one — `ux-30`.
+  Timer? _reportFades;
+
+  /// Puts [said] over the viewport, for [forAWhile] or until something else
+  /// replaces it.
+  ///
+  /// **"opened in 340 ms" is a greeting, and a greeting that stays is a
+  /// smudge.** The opening cost was written here on every launch and never
+  /// taken back, so a card nobody had asked for sat over the top-left corner
+  /// of the model for the whole session — including in every screenshot
+  /// somebody took of it. A measurement run's own report is the other case
+  /// and keeps the old behaviour: it is the answer somebody started the run
+  /// to read, and it waits until they have.
+  void _showReport(String said, {Duration? forAWhile}) {
+    _reportFades?.cancel();
+    _reportFades = null;
+    _report = said;
+    if (forAWhile == null) return;
+    _reportFades = Timer(forAWhile, () {
+      if (!mounted) return;
+      setState(() => _report = null);
+    });
+  }
+
+  /// Build and raster times, printed when the build asked for them with
+  /// `--dart-define=FLUTTER3D_TIMINGS=true`. Off otherwise, and off is not a
+  /// half measure: the log costs a callback per frame and reports nothing.
+  final FrameTimingLog _timings = FrameTimingLog(label: 'modeller');
+
+  /// `ui-24`'s own window-close interception on desktop, where there is no
+  /// `Navigator` route for `PopScope` to guard — the OS asks the app
+  /// directly rather than routing a back gesture through one.
+  late final AppLifecycleListener _lifecycle;
+
+  /// `ui-18`'s own background writer. Watches `_cubit` from the moment this
+  /// screen exists, not from whenever a document happens to open — the same
+  /// `ModelerCubit` instance moves between states as files come and go, so
+  /// one controller for the state's whole lifetime is what its own stream
+  /// subscription already expects.
+  AutosaveController? _autosave;
+
+  /// `ux-09`'s own document, read once at startup and written whenever the
+  /// settings screen is saved.
+  ///
+  /// **Held here rather than looked up where it is read.** Every row that
+  /// says "a setting" reads this one value — the navigation scheme on every
+  /// pointer event, the keymap on every key — and a store that re-read the
+  /// file each time would be a disk touch inside a drag.
+  late final SettingsStore _settingsStore = SettingsStore(
+    storage: widget.settingsStorage,
+  );
+  late ModelerSettings _settings = _settingsStore.read();
+
+  /// `ux-27`: whether the properties panel and the tool rail are folded
+  /// away, giving their width to the picture. This session's own, not
+  /// Settings': a window that opened with its panels hidden would be one
+  /// somebody has to know a key to get back.
+  bool _foldedPanel = false;
+  bool _foldedRail = false;
+
+  /// The `RepaintBoundary` `ux-44`'s own `ui.screenshot` captures — one, at
+  /// the root of the screen, so the picture is the window rather than the
+  /// viewport. See `ready_parts.dart`'s own `_screen`.
+  final GlobalKey _windowKey = GlobalKey();
+
+  /// Whether agent calls are being refused — `ux-45`.
+  ///
+  /// **This session's own, not a setting.** A pause is something a person
+  /// reaches for in the middle of something going wrong, and a pause that
+  /// survived a restart would be one they had to remember to undo before
+  /// wondering why nothing answers.
+  bool _agentPaused = false;
+
+  /// The last object picked in the outliner, which a shift-click reaches
+  /// back to — `ux-14`. Null until one has been.
+  int? _outlinerAnchor;
+
+  /// How tall the picture was last laid out, in logical pixels — `ux-29`.
+  /// A drag started from the keyboard measures a pixel the same way one
+  /// started from the pointer does, and this is what the viewport last
+  /// reported.
+  double _viewportHeight = 600;
+
+  /// Whether the console is open under the viewport — `ux-26`. This
+  /// session's own, like `ux-27`'s two folds and for the same reason.
+  bool _consoleOpen = false;
+
+  /// Whether a free-look is being held right now — `ux-26`'s own hints, which
+  /// have to say so: while the right button is down the buttons mean
+  /// something else and the walk keys are live, and that is exactly the
+  /// moment somebody looks at the strip to find out what happened.
+  bool _lookingAround = false;
+
+  /// What the pointer is resting on inside the mesh — `ux-28`.
+  ///
+  /// Never in the document: where a pointer happens to be is not a fact
+  /// about the model, it does not survive a save and undoing it would mean
+  /// nothing. Null whenever the pointer is over nothing, has left the
+  /// picture, or there is no mesh to be over.
+  Selection? _hoveredElements;
+
+  /// Whether the agent panel is showing — `ux-05`.
+  ///
+  /// Starts closed and opens from the badge. **A person's own choice, not a
+  /// consequence of an agent doing something**: a panel that reopened itself
+  /// on every tool call would take the window back the moment it was useful
+  /// to have closed, which is the behaviour that made the old always-on panel
+  /// complained about in the first place.
+  bool _agentPanelOpen = false;
+
+  /// Where the autosave's own storage says what it could not do — `ux-01`.
+  ///
+  /// Without a sink of its own a `FileBinaryStorage` prints and carries on,
+  /// which is how a whole session's worth of "no such file or directory" went
+  /// to the console while the status line said only "could not write".
+  final IssueLog _storageIssues = IssueLog();
+
+  @override
+  void initState() {
+    super.initState();
+    // A ticker rather than `setState` from a timer: the viewport draws from
+    // whatever the camera is now, and the frame is what asks for the next one.
+    _ticker = createTicker(_onTick)..start();
+    _timings.start();
+    _autosave = AutosaveController(
+      cubit: _cubit,
+      storage:
+          widget.autosaveStorage ??
+          defaultBinaryStorage(
+            'flutter3d_modeler',
+            onIssue: _storageIssues.add,
+          ),
+      sessionId: _kAutosaveSessionId,
+      issues: _storageIssues,
+      onIssue: (String reason) => _cubit.autosaveFailed(
+        reason,
+        folder: applicationFolder('flutter3d_modeler'),
+      ),
+      onRecovered: _cubit.autosaveRecovered,
+    );
+    unawaited(_open());
+    _lifecycle = AppLifecycleListener(onExitRequested: _onExitRequested);
+    installBeforeUnloadGuard(() => _history.isDirty);
+    _liveCrashScreen = this;
+  }
+
+  void _onTick(Duration elapsed) {
+    // Clamped because the first tick is measured from zero and a tab that was
+    // in the background comes back with a gap of minutes: either one would
+    // finish a quarter-second turn before its first frame was drawn.
+    final double seconds = ((elapsed - _lastTick).inMicroseconds / 1e6).clamp(
+      0.0,
+      0.1,
+    );
+    _lastTick = elapsed;
+    if (_state case ModelerReady(
+      :final stage,
+      :final mode,
+      :final animationSubmode,
+    )) {
+      stage.orbit.advance(seconds);
+      _surfaces.apply(stage.subject, _shading);
+      // Reasserted every frame rather than only when a chip is pressed: the
+      // lens and the shading are two of the three things a newly opened model
+      // has to inherit, and a state that is reasserted cannot be got out of
+      // step with the interface by anything.
+      useLens(stage.camera, _lens, stage.orbit);
+      // `S5`'s own row: idempotent and walked every frame the weights
+      // sub-mode might be open, for `WeightGradientShading.apply`'s own
+      // reason — a model opened while it is on brings nodes this has never
+      // seen.
+      _weightGradientShading.apply(
+        stage.subject,
+        active:
+            mode == ModelerMode.animation &&
+            animationSubmode == AnimationSubmode.weights,
+      );
+      _timelinePreview.tick(_history.project, stage.sync, seconds);
+      // `view-21`: a frame's worth of brush samples become one `SculptStroke`
+      // here rather than one apiece as the pointer reports them. A no-op on
+      // every frame nobody is sculpting, which is almost all of them.
+      _sculptSession.flush();
+    }
+    final said = _measurementRuns.step(
+      elapsed.inMicroseconds,
+      _lastRenderMicros,
+    );
+    if (said != null) _showReport(said);
+    setState(() {});
+  }
+
+  @override
+  void dispose() {
+    if (identical(_liveCrashScreen, this)) _liveCrashScreen = null;
+    _ticker?.dispose();
+    _timings.stop();
+    _reportFades?.cancel();
+    unawaited(_linkedMaterials.dispose());
+    _autosave?.dispose();
+    _lifecycle.dispose();
+    _frame.dispose();
+    if ((widget.mcpPort ?? kMcpPort) >= 0) unawaited(stopMcpServer());
+    _cubit.close();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => FileDropZone(
+    onDropped: (String name, Uint8List bytes) =>
+        unawaited(_handleDroppedFile(name, bytes)),
+    child: BlocConsumer<ModelerCubit, ModelerState>(
+      bloc: _cubit,
+      listenWhen: (ModelerState before, ModelerState after) =>
+          _saidIn(before) != _saidIn(after) ||
+          _linksIn(before) != _linksIn(after),
+      listener: (BuildContext context, ModelerState state) {
+        _showLongMessage(context, state);
+        // `ux-47`: a material linked after the project was opened — by an
+        // agent's own `linkMaterialFile`, say — starts being watched here.
+        // Gated on the set of paths rather than run per state, since this
+        // fires on every command otherwise.
+        if (state is ModelerReady) _linkedMaterials.follow(state.project);
+      },
+      builder: (BuildContext context, ModelerState state) => _screen(state),
+    ),
+  );
+
+  static String? _saidIn(ModelerState state) =>
+      state is ModelerReady ? state.said : null;
+
+  /// Every `.fmat` path [state] links to, as one string — `ux-47`.
+  ///
+  /// Sorted and joined rather than a `Set`, because `listenWhen` compares
+  /// with `!=` and two sets holding the same paths are not equal.
+  static String _linksIn(ModelerState state) => state is ModelerReady
+      ? (LinkedMaterials.pathsOf(state.project).toList()..sort()).join('\u0000')
+      : '';
+
+  /// `ux-17`: a message written as more than one line goes to a snackbar as
+  /// well as to the strip.
+  ///
+  /// **Because the strip is one line and always will be.** An export refusal
+  /// that lists three things wrong with a model is three lines by
+  /// construction, and the strip shows the first few words of the first one;
+  /// the tooltip holds the rest for a mouse, and this holds it for everybody
+  /// else. Anything that fits on one line stays where it was — a snackbar for
+  /// "saved" would be a thing to dismiss sixty times an hour.
+  void _showLongMessage(BuildContext context, ModelerState state) {
+    final String? said = _saidIn(state);
+    if (said == null || !said.contains('\n')) return;
+    ScaffoldMessenger.maybeOf(context)?.showSnackBar(
+      SnackBar(
+        content: Text(said),
+        duration: const Duration(seconds: 8),
+        showCloseIcon: true,
+      ),
+    );
+  }
+}
