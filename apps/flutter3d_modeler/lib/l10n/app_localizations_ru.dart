@@ -1928,4 +1928,25 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get healthFix => 'Исправить';
+
+  @override
+  String get budgetProfile => 'Профиль';
+
+  @override
+  String get importBounds => 'Габариты';
+
+  @override
+  String get propWhat => 'Что';
+
+  @override
+  String get envNone => 'Нет';
+
+  @override
+  String get envStudio => 'Студия';
+
+  @override
+  String get envDaylight => 'Дневной свет';
+
+  @override
+  String get envSunset => 'Закат';
 }

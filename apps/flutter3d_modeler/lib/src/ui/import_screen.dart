@@ -180,12 +180,12 @@ class _ImportScreenState extends State<_ImportScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: <Widget>[
-              _Row('Triangles', '${plan.triangleCount}'),
+              _Row(l.exportTriangles, '${plan.triangleCount}'),
               _Row(
-                'Bounds',
+                l.importBounds,
                 '${size.x.toStringAsFixed(2)} × '
-                    '${size.y.toStringAsFixed(2)} × '
-                    '${size.z.toStringAsFixed(2)} m',
+                '${size.y.toStringAsFixed(2)} × '
+                '${size.z.toStringAsFixed(2)} m',
               ),
               if (plausibilityHintFor(size.length) case final String hint)
                 _Warning(hint),

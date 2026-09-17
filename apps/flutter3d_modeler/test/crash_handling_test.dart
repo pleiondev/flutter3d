@@ -22,6 +22,7 @@ import 'package:flutter3d_app/flutter3d_app.dart';
 import 'package:flutter3d_cpu/testing.dart';
 import 'package:flutter3d_mesh/flutter3d_mesh.dart';
 import 'package:flutter3d_model_core/flutter3d_model_core.dart';
+import 'package:flutter3d_modeler/l10n/app_localizations.dart';
 import 'package:flutter3d_modeler/src/crash_handling.dart';
 import 'package:flutter3d_modeler/src/modeler_cubit.dart';
 import 'package:flutter3d_modeler/src/staging.dart';
@@ -131,6 +132,9 @@ void main() {
 
       await tester.pumpWidget(
         MaterialApp(
+          locale: const Locale('en'),
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
           navigatorKey: navigatorKey,
           home: Scaffold(
             body: Builder(
@@ -195,6 +199,9 @@ void main() {
 
     await tester.pumpWidget(
       MaterialApp(
+        locale: const Locale('en'),
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
         navigatorKey: navigatorKey,
         home: Scaffold(
           body: Builder(
@@ -223,8 +230,11 @@ void main() {
     const report = CrashReport(error: 'boom', stackTrace: StackTrace.empty);
 
     await tester.pumpWidget(
-      const MaterialApp(
-        home: Scaffold(
+      MaterialApp(
+        locale: const Locale('en'),
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
+        home: const Scaffold(
           body: CrashDialog(
             report: report,
             environment: 'Flutter, test',
@@ -247,8 +257,11 @@ void main() {
     const report = CrashReport(error: 'boom', stackTrace: StackTrace.empty);
 
     await tester.pumpWidget(
-      const MaterialApp(
-        home: Scaffold(
+      MaterialApp(
+        locale: const Locale('en'),
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
+        home: const Scaffold(
           body: CrashDialog(report: report, environment: 'Flutter, test'),
         ),
       ),
@@ -265,7 +278,13 @@ void main() {
     final navigatorKey = GlobalKey<NavigatorState>();
 
     await tester.pumpWidget(
-      MaterialApp(navigatorKey: navigatorKey, home: const Scaffold()),
+      MaterialApp(
+        locale: const Locale('en'),
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
+        navigatorKey: navigatorKey,
+        home: const Scaffold(),
+      ),
     );
 
     // Not awaited: `handleCrash` only returns once the dialog it shows has
@@ -305,7 +324,13 @@ void main() {
     final navigatorKey = GlobalKey<NavigatorState>();
 
     await tester.pumpWidget(
-      MaterialApp(navigatorKey: navigatorKey, home: const Scaffold()),
+      MaterialApp(
+        locale: const Locale('en'),
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
+        navigatorKey: navigatorKey,
+        home: const Scaffold(),
+      ),
     );
 
     Future<void> crash(Object error) async {
@@ -346,7 +371,13 @@ void main() {
     final navigatorKey = GlobalKey<NavigatorState>();
 
     await tester.pumpWidget(
-      MaterialApp(navigatorKey: navigatorKey, home: const Scaffold()),
+      MaterialApp(
+        locale: const Locale('en'),
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
+        navigatorKey: navigatorKey,
+        home: const Scaffold(),
+      ),
     );
 
     Future<void> crash(Object error) async {

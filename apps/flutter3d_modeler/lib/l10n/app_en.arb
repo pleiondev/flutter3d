@@ -628,5 +628,12 @@
   "healthFill": "Fill",
   "healthMerge": "Merge",
   "healthRecalculate": "Recalculate",
-  "healthFix": "Fix"
+  "healthFix": "Fix",
+  "budgetProfile": "Profile",
+  "importBounds": "Bounds",
+  "propWhat": "What",
+  "envNone": "None",
+  "envStudio": "Studio",
+  "envDaylight": "Daylight",
+  "envSunset": "Sunset"
 }

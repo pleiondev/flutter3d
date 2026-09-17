@@ -1918,4 +1918,25 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get healthFix => 'Fix';
+
+  @override
+  String get budgetProfile => 'Profile';
+
+  @override
+  String get importBounds => 'Bounds';
+
+  @override
+  String get propWhat => 'What';
+
+  @override
+  String get envNone => 'None';
+
+  @override
+  String get envStudio => 'Studio';
+
+  @override
+  String get envDaylight => 'Daylight';
+
+  @override
+  String get envSunset => 'Sunset';
 }
