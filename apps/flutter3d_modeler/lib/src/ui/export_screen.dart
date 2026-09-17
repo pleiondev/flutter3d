@@ -21,6 +21,7 @@ library;
 import 'package:flutter/material.dart';
 import 'package:flutter3d_model_core/flutter3d_model_core.dart';
 
+import '../../l10n/app_localizations.dart';
 import '../exporting.dart';
 
 /// What the person chose, or null from [showExportScreen] when they backed
@@ -118,6 +119,7 @@ class _ExportScreenState extends State<_ExportScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final AppLocalizations l = AppLocalizations.of(context);
     final theme = Theme.of(context);
     final readiness = ExportReadiness.check(widget.project);
     final triangles = widget.project.triangleCount;
@@ -133,7 +135,7 @@ class _ExportScreenState extends State<_ExportScreen> {
     final blocked = !isEmpty && !readiness.canExport;
 
     return AlertDialog(
-      title: const Text('Export'),
+      title: Text(l.exportTitle),
       // **The whole body scrolls, rather than the issue list alone** —
       // `ux-18`. Explaining each checkbox underneath it costs two lines
       // apiece, which is what turned a dialog that just fitted into one that
@@ -169,7 +171,7 @@ class _ExportScreenState extends State<_ExportScreen> {
                 }),
               ),
               const SizedBox(height: 12),
-              Text('Triangles', style: theme.textTheme.labelMedium),
+              Text(l.exportTriangles, style: theme.textTheme.labelMedium),
               const SizedBox(height: 4),
               LinearProgressIndicator(
                 value: budget > 0 ? (triangles / budget).clamp(0.0, 1.0) : 0.0,
@@ -177,7 +179,11 @@ class _ExportScreenState extends State<_ExportScreen> {
               ),
               const SizedBox(height: 4),
               Text(
-                '$triangles of $budget (${widget.project.profile.name})',
+                l.exportOfBudget(
+                  triangles,
+                  budget,
+                  widget.project.profile.name,
+                ),
                 style: theme.textTheme.bodySmall,
               ),
               const SizedBox(height: 12),
@@ -190,11 +196,8 @@ class _ExportScreenState extends State<_ExportScreen> {
               CheckboxListTile(
                 contentPadding: EdgeInsets.zero,
                 controlAffinity: ListTileControlAffinity.leading,
-                title: const Text('Bake node transforms'),
-                subtitle: const Text(
-                  'Move each object\'s position into its own vertices, so the '
-                  'file has no hierarchy to lose.',
-                ),
+                title: Text(l.exportBakeTransforms),
+                subtitle: Text(l.exportBakeTransformsHelp),
                 value: _bakeTransforms,
                 onChanged: (bool? to) =>
                     setState(() => _bakeTransforms = to ?? false),
@@ -202,11 +205,8 @@ class _ExportScreenState extends State<_ExportScreen> {
               CheckboxListTile(
                 contentPadding: EdgeInsets.zero,
                 controlAffinity: ListTileControlAffinity.leading,
-                title: const Text('Apply modifiers'),
-                subtitle: const Text(
-                  'Write the shape you see, with the mirrors and arrays folded '
-                  'in. Off writes the base mesh instead.',
-                ),
+                title: Text(l.exportApplyModifiers),
+                subtitle: Text(l.exportApplyModifiersHelp),
                 value: _applyModifiers,
                 onChanged: (bool? to) =>
                     setState(() => _applyModifiers = to ?? true),
@@ -215,11 +215,8 @@ class _ExportScreenState extends State<_ExportScreen> {
                 CheckboxListTile(
                   contentPadding: EdgeInsets.zero,
                   controlAffinity: ListTileControlAffinity.leading,
-                  title: const Text('Selection only'),
-                  subtitle: const Text(
-                    'Write what is selected and whatever hangs under it, '
-                    'leaving the rest of the project where it is.',
-                  ),
+                  title: Text(l.exportSelectionOnly),
+                  subtitle: Text(l.exportSelectionOnlyHelp),
                   value: _selectionOnly,
                   onChanged: (bool? to) =>
                       setState(() => _selectionOnly = to ?? false),
@@ -231,11 +228,8 @@ class _ExportScreenState extends State<_ExportScreen> {
                 CheckboxListTile(
                   contentPadding: EdgeInsets.zero,
                   controlAffinity: ListTileControlAffinity.leading,
-                  title: const Text('Compress textures (KTX2)'),
-                  subtitle: const Text(
-                    'Smaller images that a GPU reads without unpacking. Only '
-                    'the .f3d reader takes them.',
-                  ),
+                  title: Text(l.exportCompressTextures),
+                  subtitle: Text(l.exportCompressTexturesHelp),
                   value: _textureEncoding == TextureEncoding.ktx2,
                   onChanged: (bool? to) => setState(
                     () => _textureEncoding = (to ?? false)
@@ -245,7 +239,7 @@ class _ExportScreenState extends State<_ExportScreen> {
                 ),
               const SizedBox(height: 8),
               if (readiness.issues.isEmpty)
-                Text('ready to export', style: theme.textTheme.bodySmall)
+                Text(l.exportReady, style: theme.textTheme.bodySmall)
               else
                 // Plain rows now that the scroll is outside them: a
                 // `Flexible` `ListView` inside a `SingleChildScrollView` has
@@ -259,7 +253,7 @@ class _ExportScreenState extends State<_ExportScreen> {
       actions: <Widget>[
         TextButton(
           onPressed: () => Navigator.of(context).pop(),
-          child: const Text('Cancel'),
+          child: Text(l.cancel),
         ),
         FilledButton(
           onPressed: isEmpty
@@ -276,8 +270,8 @@ class _ExportScreenState extends State<_ExportScreen> {
                 ),
           child: Text(
             isEmpty
-                ? 'Nothing to export'
-                : (blocked ? 'Export anyway' : 'Export'),
+                ? l.exportNothing
+                : (blocked ? l.exportAnyway : l.exportTitle),
           ),
         ),
       ],
@@ -293,6 +287,7 @@ class _IssueRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final AppLocalizations l = AppLocalizations.of(context);
     final theme = Theme.of(context);
     final colour = issue.severity == ExportSeverity.error
         ? theme.colorScheme.error
@@ -340,7 +335,7 @@ class _IssueRow extends StatelessWidget {
                 onShow(object.id);
                 Navigator.of(context).pop();
               },
-              child: const Text('Show'),
+              child: Text(l.exportShow),
             ),
         ],
       ),

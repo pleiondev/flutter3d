@@ -43,6 +43,9 @@ const List<String> translated = <String>[
   'lib/src/ui/retarget_panel.dart',
   'lib/src/ui/uv_unwrap_panel.dart',
   'lib/src/ui/transport_bar.dart',
+  'lib/src/ui/properties/properties_panel.dart',
+  'lib/src/ui/import_screen.dart',
+  'lib/src/ui/export_screen.dart',
 ];
 
 /// Strings a translated file may still name, and why each one is there.

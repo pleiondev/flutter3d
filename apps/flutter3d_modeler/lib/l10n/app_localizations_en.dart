@@ -1149,4 +1149,199 @@ class AppLocalizationsEn extends AppLocalizations {
   String uvIsland(int id) {
     return 'Island $id';
   }
+
+  @override
+  String get propDisplay => 'Display';
+
+  @override
+  String get propMaterial => 'Material';
+
+  @override
+  String get propNormals => 'Normals';
+
+  @override
+  String get propWire => 'Wire';
+
+  @override
+  String get propPerspective => 'Perspective';
+
+  @override
+  String get propOrthographic => 'Orthographic';
+
+  @override
+  String get propView => 'View';
+
+  @override
+  String get propObjects => 'Objects';
+
+  @override
+  String get propTransform => 'Transform';
+
+  @override
+  String get propSource => 'Source';
+
+  @override
+  String get propReimport => 'Re-import';
+
+  @override
+  String get propModifiers => 'Modifiers';
+
+  @override
+  String get propMorphs => 'Morphs';
+
+  @override
+  String get propLastOperation => 'Last operation';
+
+  @override
+  String get propSelection => 'Selection';
+
+  @override
+  String get propMesh => 'Mesh';
+
+  @override
+  String get propHealth => 'Health';
+
+  @override
+  String get propBudget => 'Budget';
+
+  @override
+  String get importTitle => 'Import';
+
+  @override
+  String get importUnit => 'Unit';
+
+  @override
+  String get importUpAxis => 'Up axis';
+
+  @override
+  String get importWeld => 'Weld coincident vertices';
+
+  @override
+  String get importWeldHelp =>
+      'Builds real mesh topology; leave off to keep the file\'s own data exactly as it arrived.';
+
+  @override
+  String get importRecalculateNormals => 'Recalculate normals';
+
+  @override
+  String get importTriangulate => 'Triangulate n-gons';
+
+  @override
+  String get importLinkToSource => 'Link to source';
+
+  @override
+  String get importLinkToSourceHelp =>
+      'Remember where this came from, so \"Re-import\" can read it again and keep the transform, materials and modifiers.';
+
+  @override
+  String get exportTitle => 'Export';
+
+  @override
+  String get exportTriangles => 'Triangles';
+
+  @override
+  String get exportBakeTransforms => 'Bake node transforms';
+
+  @override
+  String get exportBakeTransformsHelp =>
+      'Move each object\'s position into its own vertices, so the file has no hierarchy to lose.';
+
+  @override
+  String get exportApplyModifiers => 'Apply modifiers';
+
+  @override
+  String get exportApplyModifiersHelp =>
+      'Write the shape you see, with the mirrors and arrays folded in. Off writes the base mesh instead.';
+
+  @override
+  String get exportSelectionOnly => 'Selection only';
+
+  @override
+  String get exportSelectionOnlyHelp =>
+      'Write what is selected and whatever hangs under it, leaving the rest of the project where it is.';
+
+  @override
+  String get exportCompressTextures => 'Compress textures (KTX2)';
+
+  @override
+  String get exportCompressTexturesHelp =>
+      'Smaller images that a GPU reads without unpacking. Only the .f3d reader takes them.';
+
+  @override
+  String get exportReady => 'ready to export';
+
+  @override
+  String get exportShow => 'Show';
+
+  @override
+  String get shortcutEdgeLoop => 'Select the edge loop';
+
+  @override
+  String get shortcutEdgeRing => 'Select the edge ring';
+
+  @override
+  String get shortcutFinger => 'A finger';
+
+  @override
+  String get shortcutFingerHeld => 'A finger held still';
+
+  @override
+  String get shortcutPen => 'A pen';
+
+  @override
+  String get shortcutPenOtherEnd => 'The other end of the pen';
+
+  @override
+  String get shortcutOrbit => 'Orbit';
+
+  @override
+  String get shortcutPan => 'Pan';
+
+  @override
+  String get shortcutZoom => 'Zoom';
+
+  @override
+  String get exportNothing => 'Nothing to export';
+
+  @override
+  String exportOfBudget(int triangles, int budget, String profile) {
+    return '$triangles of $budget ($profile)';
+  }
+
+  @override
+  String get shortcutEdgeLoopKeys => 'Alt and a click, in mesh mode';
+
+  @override
+  String get shortcutEdgeRingKeys => 'Ctrl or ⌘, with Alt and a click';
+
+  @override
+  String get shortcutFingerKeys => 'Moves the camera, whatever tool is armed';
+
+  @override
+  String get shortcutFingerHeldKeys =>
+      'Opens the menu, without nudging the camera first';
+
+  @override
+  String get shortcutPenKeys =>
+      'Draws on the model, harder for a stronger stroke';
+
+  @override
+  String get shortcutPenOtherEndKeys => 'The same stroke, erasing';
+
+  @override
+  String get shortcutPanKeys => 'Shift and whatever orbits';
+
+  @override
+  String get shortcutZoomKeys => 'The wheel, or Ctrl with two fingers';
+
+  @override
+  String importWarnings(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count warnings',
+      one: '1 warning',
+    );
+    return '$_temp0';
+  }
 }
