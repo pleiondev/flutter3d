@@ -6,9 +6,11 @@ library;
 
 import 'dart:typed_data';
 
+import 'package:flutter3d_core/formats.dart';
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:flutter3d_hardware/testing.dart';
 import 'package:flutter3d_model_core/flutter3d_model_core.dart';
+import 'package:flutter3d_modeler/src/material_pool.dart';
 import 'package:flutter3d_modeler/src/paint_upload.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -94,6 +96,64 @@ void main() {
       Uint8List(100 * 100 * 4),
     );
     expect(written, (100 - paintTileSize) * (100 - paintTileSize));
+  });
+
+  test('a finished stroke leaves the texture with its whole chain', () async {
+    // **The clause that was open on `pro-pt-03`, and the path it takes.**
+    // Nothing writes a mip level below zero — `overwriteTexture` refuses —
+    // so the chain comes from a whole upload, and the whole upload is the
+    // one `MaterialPool` already does when a material's version moves.
+    // `withPaint` moves it, so a refresh after the stroke is the rebuild.
+    final fake = device as FakeBackend;
+    final pool = MaterialPool(device: fake);
+
+    final Uint8List before = encodeCompressedPng(
+      64,
+      64,
+      Uint8List(64 * 64 * 4)..fillRange(0, 64 * 64 * 4, 40),
+    );
+    var project = const ModelProject().copyWith(
+      images: <EncodedImage>[
+        EncodedImage(bytes: before, name: 'albedo', mimeType: 'image/png'),
+      ],
+      materials: <ProjectMaterial>[
+        ProjectMaterial(
+          surface: SurfaceMaterial(
+            name: 'painted',
+            baseColorTexture: TextureBinding(imageIndex: 0),
+          ),
+        ),
+      ],
+    );
+    await pool.refresh(project);
+    final int uploadsBefore = fake.uploadedMipLevels.length;
+
+    // The stroke: new bytes in the slot, and a material version that moved.
+    final Uint8List after = encodeCompressedPng(
+      64,
+      64,
+      Uint8List(64 * 64 * 4)..fillRange(0, 64 * 64 * 4, 200),
+    );
+    project = project.copyWith(
+      images: <EncodedImage>[
+        EncodedImage(bytes: after, name: 'albedo', mimeType: 'image/png'),
+      ],
+      materials: <ProjectMaterial>[
+        project.materials.single.withPaint(stackOf(64, <(int, int)>[(0, 0)])),
+      ],
+    );
+    await pool.refresh(project);
+
+    expect(
+      fake.uploadedMipLevels.length,
+      greaterThan(uploadsBefore),
+      reason: 'the repainted image was never uploaded again',
+    );
+    // 64 down to 1 is six levels below the base. **Mutation: upload with
+    // `mipLevels: null`.** The picture is identical at arm's length and the
+    // surface shimmers the moment it is seen at an angle, which is the whole
+    // of what a chain is for.
+    expect(fake.uploadedMipLevels.last, hasLength(6));
   });
 
   test('and nothing opened is nothing written', () async {

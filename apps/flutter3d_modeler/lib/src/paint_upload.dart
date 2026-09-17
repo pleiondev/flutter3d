@@ -15,11 +15,20 @@
 /// pointer comes up. The dirty rectangle is the union over the whole drag,
 /// so a stroke that wandered across the model still costs one write.
 ///
-/// **What this does not do is mips.** `overwriteTexture` refuses any level
-/// but zero, and deliberately: patching one level of a chain leaves the rest
-/// stale with nothing saying so. A painted texture is sampled at level zero
-/// while it is being painted; the chain is rebuilt when the pool next
-/// uploads the image whole, which is what a save and a reopen already do.
+/// **The chain is rebuilt whole, on completion, and never patched.**
+/// `overwriteTexture` refuses any level but zero, and deliberately: patching
+/// one level leaves the rest stale with nothing saying so, and nothing
+/// downstream can tell which half of such a chain it is sampling. So a
+/// painted texture is sampled at level zero for as long as the pointer is
+/// down, and when the stroke ends the caller asks `MaterialPool.refresh` for
+/// that one material — `PaintStroke` bumps `ProjectMaterial.version`, so the
+/// pool rebuilds it and uploads the flattened canvas with the chain its own
+/// sampling asks for. One path that builds a chain, not two.
+///
+/// Once per stroke, not once per sample: a decode and a chain over a 4K
+/// canvas is affordable when a gesture ends and is not affordable sixty
+/// times a second, which is the whole reason the dirty rectangle exists
+/// above it.
 library;
 
 import 'dart:typed_data';
