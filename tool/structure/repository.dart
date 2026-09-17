@@ -660,6 +660,14 @@ boundaryEnumExempt = <String, Map<String, String>>{
             'how a clip ends. Each value is a branch in the sampler, so a fifth '
             'is code rather than a name',
       },
+  'flutter3d_core/lib/src/engine/animation/animation_layer.dart':
+      <String, String>{
+        'AnimationBlend':
+            'how a layer meets the base. Both values are whole arithmetic in '
+            'the player — one replaces a joint, the other adds a delta to it '
+            'per path — so a third is a third set of formulas there rather '
+            'than a name anybody outside has to answer',
+      },
   'flutter3d_core/lib/src/engine/scene/light_node.dart': <String, String>{
     'LightType':
         'the three the lit shaders have code for. A fourth kind of light is '
