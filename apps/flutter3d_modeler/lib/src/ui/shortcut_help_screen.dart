@@ -28,7 +28,9 @@ import 'shortcut_help.dart';
 /// while there was no modeller section to point at; `rel-08` built one, and a
 /// person pressing "Tutorial" in a modeller and landing on a page about a
 /// rendering engine has been answered with a different question.
-final Uri tutorialUrl = Uri.parse('https://flutter3d.pleion.dev/learn/modeler/');
+final Uri tutorialUrl = Uri.parse(
+  'https://flutter3d.pleion.dev/learn/modeler/',
+);
 
 /// Opens `ui-32n`'s own shortcut-help dialog, over the live preset.
 Future<void> showShortcutHelp(
@@ -51,7 +53,7 @@ class _ShortcutHelpScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final l10n = AppLocalizations.of(context);
-    final entries = shortcutTable(keymap, navigation: navigation);
+    final entries = shortcutTable(keymap, l: l10n, navigation: navigation);
     return AlertDialog(
       title: Text(l10n.keyboardShortcuts),
       // **As tall as the list needs, up to what the window can give** —

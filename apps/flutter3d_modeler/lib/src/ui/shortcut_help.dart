@@ -21,8 +21,10 @@ library;
 import 'package:flutter/services.dart' show LogicalKeyboardKey;
 import 'package:flutter/widgets.dart' show ShortcutActivator, SingleActivator;
 
+import '../../l10n/app_localizations.dart';
 import '../settings.dart' show NavigationScheme;
 import 'keymap.dart';
+import 'tool_strings.dart';
 import 'tools.dart';
 
 /// Which part of the application a row belongs to.
@@ -73,13 +75,14 @@ final class ShortcutEntry {
 /// Every shortcut [keymap] hands out, each key once, in sections.
 List<ShortcutEntry> shortcutTable(
   Keymap keymap, {
+  required AppLocalizations l,
   NavigationScheme navigation = NavigationScheme.middleMouseOrbit,
 }) => <ShortcutEntry>[
-  ..._cameraRows(navigation),
-  ..._actionRows(keymap),
-  ..._pointerRows,
-  ..._touchRows,
-  ..._toolRows(keymap),
+  ..._cameraRows(l, navigation),
+  ..._actionRows(l, keymap),
+  ..._pointerRows(l),
+  ..._touchRows(l),
+  ..._toolRows(l, keymap),
 ];
 
 /// `ux-28`: what a click inside a mesh means with a modifier held.
@@ -89,15 +92,15 @@ List<ShortcutEntry> shortcutTable(
 /// thing the camera rows already describe in words — and the help screen is
 /// the one place a person goes to find out that alt-click does anything at
 /// all, since a modifier leaves no mark on the interface until it is held.
-const List<ShortcutEntry> _pointerRows = <ShortcutEntry>[
+List<ShortcutEntry> _pointerRows(AppLocalizations l) => <ShortcutEntry>[
   ShortcutEntry(
-    label: 'Select the edge loop',
-    keys: 'Alt and a click, in mesh mode',
+    label: l.shortcutEdgeLoop,
+    keys: l.shortcutEdgeLoopKeys,
     section: ShortcutSection.selection,
   ),
   ShortcutEntry(
-    label: 'Select the edge ring',
-    keys: 'Ctrl or ⌘, with Alt and a click',
+    label: l.shortcutEdgeRing,
+    keys: l.shortcutEdgeRingKeys,
     section: ShortcutSection.selection,
   ),
 ];
@@ -110,120 +113,131 @@ const List<ShortcutEntry> _pointerRows = <ShortcutEntry>[
 /// into rows would be a table nobody reads; these four are what the policy
 /// actually decides, said the way a person would ask about it. The test holds
 /// them to it.
-const List<ShortcutEntry> _touchRows = <ShortcutEntry>[
+List<ShortcutEntry> _touchRows(AppLocalizations l) => <ShortcutEntry>[
   ShortcutEntry(
-    label: 'A finger',
-    keys: 'Moves the camera, whatever tool is armed',
+    label: l.shortcutFinger,
+    keys: l.shortcutFingerKeys,
     section: ShortcutSection.touch,
   ),
   ShortcutEntry(
-    label: 'A finger held still',
-    keys: 'Opens the menu, without nudging the camera first',
+    label: l.shortcutFingerHeld,
+    keys: l.shortcutFingerHeldKeys,
     section: ShortcutSection.touch,
   ),
   ShortcutEntry(
-    label: 'A pen',
-    keys: 'Draws on the model, harder for a stronger stroke',
+    label: l.shortcutPen,
+    keys: l.shortcutPenKeys,
     section: ShortcutSection.touch,
   ),
   ShortcutEntry(
-    label: 'The other end of the pen',
-    keys: 'The same stroke, erasing',
+    label: l.shortcutPenOtherEnd,
+    keys: l.shortcutPenOtherEndKeys,
     section: ShortcutSection.touch,
   ),
 ];
 
-List<ShortcutEntry> _cameraRows(NavigationScheme navigation) => <ShortcutEntry>[
+List<ShortcutEntry> _cameraRows(
+  AppLocalizations l,
+  NavigationScheme navigation,
+) => <ShortcutEntry>[
   ShortcutEntry(
-    label: 'Orbit',
+    label: l.shortcutOrbit,
     keys: switch (navigation) {
-      NavigationScheme.middleMouseOrbit =>
-        'Middle button, Alt and the left button, or two fingers on a '
-            'trackpad',
-      NavigationScheme.leftDragOrbit =>
-        'Left button on empty space, the middle button, or two fingers on a '
-            'trackpad',
+      NavigationScheme.middleMouseOrbit => l.shortcutOrbitMiddle,
+      NavigationScheme.leftDragOrbit => l.shortcutOrbitLeft,
     },
     section: ShortcutSection.camera,
   ),
-  const ShortcutEntry(
-    label: 'Pan',
-    keys: 'Shift and whatever orbits',
+  ShortcutEntry(
+    label: l.shortcutPan,
+    keys: l.shortcutPanKeys,
     section: ShortcutSection.camera,
   ),
-  const ShortcutEntry(
-    label: 'Zoom',
-    keys: 'The wheel, or Ctrl with two fingers',
+  ShortcutEntry(
+    label: l.shortcutZoom,
+    keys: l.shortcutZoomKeys,
     section: ShortcutSection.camera,
   ),
 ];
 
-/// The rows in the order a person meets them, one per action.
-const Map<ModelerAction, (String, ShortcutSection)> _actionLabels =
-    <ModelerAction, (String, ShortcutSection)>{
-      ModelerAction.save: ('Save', ShortcutSection.application),
-      ModelerAction.export: ('Export', ShortcutSection.application),
-      ModelerAction.undo: ('Undo', ShortcutSection.application),
-      ModelerAction.redo: ('Redo', ShortcutSection.application),
-      ModelerAction.shortcutHelp: ('This screen', ShortcutSection.application),
-      ModelerAction.commandPalette: (
-        'Command palette',
-        ShortcutSection.application,
-      ),
-      ModelerAction.foldPanel: (
-        'Fold the properties panel',
-        ShortcutSection.application,
-      ),
-      ModelerAction.foldRail: (
-        'Fold the tool rail',
-        ShortcutSection.application,
-      ),
-      ModelerAction.growSelection: (
-        'Grow the selection',
-        ShortcutSection.application,
-      ),
-      ModelerAction.shrinkSelection: (
-        'Shrink the selection',
-        ShortcutSection.application,
-      ),
-      ModelerAction.brushNarrower: (
-        'Narrower brush',
-        ShortcutSection.tools,
-      ),
-      ModelerAction.brushWider: ('Wider brush', ShortcutSection.tools),
-      ModelerAction.frameSelection: (
-        'Frame what is selected',
-        ShortcutSection.application,
-      ),
-      ModelerAction.frameAll: ('Frame everything', ShortcutSection.application),
-      ModelerAction.viewFront: ('Front view', ShortcutSection.application),
-      ModelerAction.viewSide: ('Side view', ShortcutSection.application),
-      ModelerAction.viewTop: ('Top view', ShortcutSection.application),
-      ModelerAction.playPause: ('Play and pause', ShortcutSection.application),
-      ModelerAction.selectAll: ('Select everything', ShortcutSection.selection),
-      ModelerAction.selectNone: ('Select nothing', ShortcutSection.selection),
-      ModelerAction.invertSelection: (
-        'Invert the selection',
-        ShortcutSection.selection,
-      ),
-      ModelerAction.toggleObjectMesh: (
-        'Object and mesh',
-        ShortcutSection.selection,
-      ),
-      ModelerAction.delete: ('Delete', ShortcutSection.selection),
+/// Which section each action's row belongs in.
+///
+/// **The section here and the words in the ARB files.** A section is a fact
+/// about the application — saving is not selecting — and stays where the
+/// reader of this file can see it; the label is language and lives with
+/// every other string a person reads. Pairing them in one map was what made
+/// this file the last one in `ux-22` with English in it.
+const Map<ModelerAction, ShortcutSection> _actionSections =
+    <ModelerAction, ShortcutSection>{
+      ModelerAction.save: ShortcutSection.application,
+      ModelerAction.export: ShortcutSection.application,
+      ModelerAction.undo: ShortcutSection.application,
+      ModelerAction.redo: ShortcutSection.application,
+      ModelerAction.shortcutHelp: ShortcutSection.application,
+      ModelerAction.commandPalette: ShortcutSection.application,
+      ModelerAction.foldPanel: ShortcutSection.application,
+      ModelerAction.foldRail: ShortcutSection.application,
+      ModelerAction.growSelection: ShortcutSection.application,
+      ModelerAction.shrinkSelection: ShortcutSection.application,
+      ModelerAction.brushNarrower: ShortcutSection.tools,
+      ModelerAction.brushWider: ShortcutSection.tools,
+      ModelerAction.frameSelection: ShortcutSection.application,
+      ModelerAction.frameAll: ShortcutSection.application,
+      ModelerAction.viewFront: ShortcutSection.application,
+      ModelerAction.viewSide: ShortcutSection.application,
+      ModelerAction.viewTop: ShortcutSection.application,
+      ModelerAction.playPause: ShortcutSection.application,
+      ModelerAction.selectAll: ShortcutSection.selection,
+      ModelerAction.selectNone: ShortcutSection.selection,
+      ModelerAction.invertSelection: ShortcutSection.selection,
+      ModelerAction.toggleObjectMesh: ShortcutSection.selection,
+      ModelerAction.delete: ShortcutSection.selection,
     };
 
-List<ShortcutEntry> _actionRows(Keymap keymap) => <ShortcutEntry>[
-  for (final MapEntry<ModelerAction, (String, ShortcutSection)> each
-      in _actionLabels.entries)
-    if (keymap.forAction(each.key) case final List<ShortcutActivator> keys)
-      if (keys.isNotEmpty)
-        ShortcutEntry(
-          label: each.value.$1,
-          keys: keys.map(describeShortcut).join(' or '),
-          section: each.value.$2,
-        ),
-];
+/// What each action is called, in the language the application is in.
+///
+/// A switch rather than a map for `tool_strings.dart`'s own reason: a
+/// generated getter cannot be reached by a string, and a map would build all
+/// twenty-three answers to give one.
+String _actionLabel(AppLocalizations l, ModelerAction action) =>
+    switch (action) {
+      ModelerAction.save => l.actionSave,
+      ModelerAction.export => l.actionExport,
+      ModelerAction.undo => l.actionUndo,
+      ModelerAction.redo => l.actionRedo,
+      ModelerAction.shortcutHelp => l.actionThisScreen,
+      ModelerAction.commandPalette => l.actionCommandPalette,
+      ModelerAction.foldPanel => l.actionFoldPanel,
+      ModelerAction.foldRail => l.actionFoldRail,
+      ModelerAction.growSelection => l.actionGrowSelection,
+      ModelerAction.shrinkSelection => l.actionShrinkSelection,
+      ModelerAction.brushNarrower => l.actionBrushNarrower,
+      ModelerAction.brushWider => l.actionBrushWider,
+      ModelerAction.frameSelection => l.actionFrameSelection,
+      ModelerAction.frameAll => l.actionFrameAll,
+      ModelerAction.viewFront => l.actionViewFront,
+      ModelerAction.viewSide => l.actionViewSide,
+      ModelerAction.viewTop => l.actionViewTop,
+      ModelerAction.playPause => l.actionPlayPause,
+      ModelerAction.selectAll => l.actionSelectAll,
+      ModelerAction.selectNone => l.actionSelectNone,
+      ModelerAction.invertSelection => l.actionInvertSelection,
+      ModelerAction.toggleObjectMesh => l.actionToggleObjectMesh,
+      ModelerAction.delete => l.actionDelete,
+    };
+
+List<ShortcutEntry> _actionRows(AppLocalizations l, Keymap keymap) =>
+    <ShortcutEntry>[
+      for (final MapEntry<ModelerAction, ShortcutSection> each
+          in _actionSections.entries)
+        if (keymap.forAction(each.key) case final List<ShortcutActivator> keys)
+          if (keys.isNotEmpty)
+            ShortcutEntry(
+              label: _actionLabel(l, each.key),
+              keys: keys.map(describeShortcut).join(' or '),
+              section: each.value,
+            ),
+    ];
 
 /// One row per thing a key does, not one per key.
 ///
@@ -233,7 +247,7 @@ List<ShortcutEntry> _actionRows(Keymap keymap) => <ShortcutEntry>[
 /// is two answers and was being folded into whichever came first — so the
 /// help screen simply did not mention bevel at all. Keying the fold on the
 /// pair rather than the key alone is what tells those two cases apart.
-List<ShortcutEntry> _toolRows(Keymap keymap) {
+List<ShortcutEntry> _toolRows(AppLocalizations l, Keymap keymap) {
   final seen = <String>{};
   return <ShortcutEntry>[
     for (final ModelerMode mode in ModelerMode.values)
@@ -243,9 +257,9 @@ List<ShortcutEntry> _toolRows(Keymap keymap) {
       ])
         for (final ModelerTool tool in toolsFor(mode, animation: animation))
           if (keymap.forTool(tool.id) case final ShortcutActivator key)
-            if (seen.add('${describeShortcut(key)}|${tool.label}'))
+            if (seen.add('${describeShortcut(key)}|${toolLabel(l, tool)}'))
               ShortcutEntry(
-                label: tool.label,
+                label: toolLabel(l, tool),
                 keys: describeShortcut(key),
                 section: ShortcutSection.tools,
               ),

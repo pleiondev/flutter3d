@@ -531,5 +531,30 @@
         "type": "int"
       }
     }
-  }
+  },
+  "shortcutOrbitMiddle": "Средняя кнопка, Alt с левой кнопкой или два пальца на трекпаде",
+  "shortcutOrbitLeft": "Левая кнопка по пустому месту, средняя кнопка или два пальца на трекпаде",
+  "actionSave": "Сохранить",
+  "actionExport": "Экспорт",
+  "actionUndo": "Отменить",
+  "actionRedo": "Повторить",
+  "actionThisScreen": "Этот экран",
+  "actionCommandPalette": "Палитра команд",
+  "actionFoldPanel": "Свернуть панель свойств",
+  "actionFoldRail": "Свернуть рельсу инструментов",
+  "actionGrowSelection": "Расширить выделение",
+  "actionShrinkSelection": "Сузить выделение",
+  "actionBrushNarrower": "Кисть уже",
+  "actionBrushWider": "Кисть шире",
+  "actionFrameSelection": "Показать выделенное целиком",
+  "actionFrameAll": "Показать всё целиком",
+  "actionViewFront": "Вид спереди",
+  "actionViewSide": "Вид сбоку",
+  "actionViewTop": "Вид сверху",
+  "actionPlayPause": "Пуск и пауза",
+  "actionSelectAll": "Выделить всё",
+  "actionSelectNone": "Снять выделение",
+  "actionInvertSelection": "Инвертировать выделение",
+  "actionToggleObjectMesh": "Объект и меш",
+  "actionDelete": "Удалить"
 }

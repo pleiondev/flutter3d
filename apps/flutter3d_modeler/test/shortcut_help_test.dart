@@ -10,16 +10,27 @@
 /// were on it, two of which were not bound to anything at all.
 library;
 
+import 'package:flutter/widgets.dart' show Locale;
+import 'package:flutter3d_modeler/l10n/app_localizations.dart';
 import 'package:flutter3d_modeler/src/settings.dart';
 import 'package:flutter3d_modeler/src/ui/keymap.dart';
 import 'package:flutter3d_modeler/src/ui/shortcut_help.dart';
 import 'package:flutter3d_modeler/src/ui/tools.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+/// English, stated rather than inherited: every expectation below names
+/// a word, and a machine set to another language would read a different
+/// one.
+late AppLocalizations english;
+
 List<ShortcutEntry> tableFor(KeymapPreset preset) =>
-    shortcutTable(keymapFor(preset, apple: true));
+    shortcutTable(keymapFor(preset, apple: true), l: english);
 
 void main() {
+  setUpAll(() async {
+    english = await AppLocalizations.delegate.load(const Locale('en'));
+  });
+
   test('every tool the rail arms is on the table, whichever preset', () {
     for (final KeymapPreset preset in KeymapPreset.values) {
       final Set<String> labels = <String>{
@@ -82,6 +93,7 @@ void main() {
     final Keymap keymap = keymapFor(KeymapPreset.standard, apple: true);
     String orbitRow(NavigationScheme scheme) => shortcutTable(
       keymap,
+      l: english,
       navigation: scheme,
     ).firstWhere((ShortcutEntry it) => it.label == 'Orbit').keys;
 

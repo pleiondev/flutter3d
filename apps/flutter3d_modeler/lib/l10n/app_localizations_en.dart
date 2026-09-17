@@ -1344,4 +1344,81 @@ class AppLocalizationsEn extends AppLocalizations {
     );
     return '$_temp0';
   }
+
+  @override
+  String get shortcutOrbitMiddle =>
+      'Middle button, Alt and the left button, or two fingers on a trackpad';
+
+  @override
+  String get shortcutOrbitLeft =>
+      'Left button on empty space, the middle button, or two fingers on a trackpad';
+
+  @override
+  String get actionSave => 'Save';
+
+  @override
+  String get actionExport => 'Export';
+
+  @override
+  String get actionUndo => 'Undo';
+
+  @override
+  String get actionRedo => 'Redo';
+
+  @override
+  String get actionThisScreen => 'This screen';
+
+  @override
+  String get actionCommandPalette => 'Command palette';
+
+  @override
+  String get actionFoldPanel => 'Fold the properties panel';
+
+  @override
+  String get actionFoldRail => 'Fold the tool rail';
+
+  @override
+  String get actionGrowSelection => 'Grow the selection';
+
+  @override
+  String get actionShrinkSelection => 'Shrink the selection';
+
+  @override
+  String get actionBrushNarrower => 'Narrower brush';
+
+  @override
+  String get actionBrushWider => 'Wider brush';
+
+  @override
+  String get actionFrameSelection => 'Frame what is selected';
+
+  @override
+  String get actionFrameAll => 'Frame everything';
+
+  @override
+  String get actionViewFront => 'Front view';
+
+  @override
+  String get actionViewSide => 'Side view';
+
+  @override
+  String get actionViewTop => 'Top view';
+
+  @override
+  String get actionPlayPause => 'Play and pause';
+
+  @override
+  String get actionSelectAll => 'Select everything';
+
+  @override
+  String get actionSelectNone => 'Select nothing';
+
+  @override
+  String get actionInvertSelection => 'Invert the selection';
+
+  @override
+  String get actionToggleObjectMesh => 'Object and mesh';
+
+  @override
+  String get actionDelete => 'Delete';
 }

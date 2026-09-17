@@ -93,7 +93,10 @@ void main() {
       expect(seen, contains('Select everything'));
 
       // And every entry the table hands out really is drawn somewhere in it.
-      for (final ShortcutEntry entry in shortcutTable(_keymap)) {
+      final AppLocalizations l = await AppLocalizations.delegate.load(
+        const Locale('en'),
+      );
+      for (final ShortcutEntry entry in shortcutTable(_keymap, l: l)) {
         expect(
           seen,
           contains(entry.label),
