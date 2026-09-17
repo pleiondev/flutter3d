@@ -55,8 +55,10 @@ void main() {
           home: Scaffold(
             body: Builder(
               builder: (BuildContext context) => TextButton(
-                onPressed: () async =>
-                    answered = await showQuickSetup(context, const ModelerSettings()),
+                onPressed: () async => answered = await showQuickSetup(
+                  context,
+                  const ModelerSettings(),
+                ),
                 child: const Text('open'),
               ),
             ),
@@ -139,11 +141,14 @@ void main() {
   });
 
   group('ux-42: Help', () {
-    test('has a section for a finger and a pen', () {
-      final List<ShortcutEntry> rows = shortcutTable(
-        keymapFor(KeymapPreset.standard, apple: false),
-      ).where((ShortcutEntry it) => it.section == ShortcutSection.touch)
-          .toList();
+    test('has a section for a finger and a pen', () async {
+      final List<ShortcutEntry> rows =
+          shortcutTable(
+                keymapFor(KeymapPreset.standard, apple: false),
+                l: await AppLocalizations.delegate.load(const Locale('en')),
+              )
+              .where((ShortcutEntry it) => it.section == ShortcutSection.touch)
+              .toList();
 
       // Mutation: leave it out. A person on a tablet has no keyboard to read
       // the rest of the screen against, and what `InputPolicy` decides for a
@@ -167,11 +172,7 @@ void main() {
           tool: ToolCategory.sculpting,
           inverted: true,
         ),
-        isA<ToolStroke>().having(
-          (ToolStroke it) => it.erase,
-          'erase',
-          isTrue,
-        ),
+        isA<ToolStroke>().having((ToolStroke it) => it.erase, 'erase', isTrue),
       );
     });
 

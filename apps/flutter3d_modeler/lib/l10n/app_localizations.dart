@@ -2521,6 +2521,156 @@ abstract class AppLocalizations {
   /// In ru, this message translates to:
   /// **'{count, plural, =1{1 предупреждение} few{{count} предупреждения} other{{count} предупреждений}}'**
   String importWarnings(int count);
+
+  /// No description provided for @shortcutOrbitMiddle.
+  ///
+  /// In ru, this message translates to:
+  /// **'Средняя кнопка, Alt с левой кнопкой или два пальца на трекпаде'**
+  String get shortcutOrbitMiddle;
+
+  /// No description provided for @shortcutOrbitLeft.
+  ///
+  /// In ru, this message translates to:
+  /// **'Левая кнопка по пустому месту, средняя кнопка или два пальца на трекпаде'**
+  String get shortcutOrbitLeft;
+
+  /// No description provided for @actionSave.
+  ///
+  /// In ru, this message translates to:
+  /// **'Сохранить'**
+  String get actionSave;
+
+  /// No description provided for @actionExport.
+  ///
+  /// In ru, this message translates to:
+  /// **'Экспорт'**
+  String get actionExport;
+
+  /// No description provided for @actionUndo.
+  ///
+  /// In ru, this message translates to:
+  /// **'Отменить'**
+  String get actionUndo;
+
+  /// No description provided for @actionRedo.
+  ///
+  /// In ru, this message translates to:
+  /// **'Повторить'**
+  String get actionRedo;
+
+  /// No description provided for @actionThisScreen.
+  ///
+  /// In ru, this message translates to:
+  /// **'Этот экран'**
+  String get actionThisScreen;
+
+  /// No description provided for @actionCommandPalette.
+  ///
+  /// In ru, this message translates to:
+  /// **'Палитра команд'**
+  String get actionCommandPalette;
+
+  /// No description provided for @actionFoldPanel.
+  ///
+  /// In ru, this message translates to:
+  /// **'Свернуть панель свойств'**
+  String get actionFoldPanel;
+
+  /// No description provided for @actionFoldRail.
+  ///
+  /// In ru, this message translates to:
+  /// **'Свернуть рельсу инструментов'**
+  String get actionFoldRail;
+
+  /// No description provided for @actionGrowSelection.
+  ///
+  /// In ru, this message translates to:
+  /// **'Расширить выделение'**
+  String get actionGrowSelection;
+
+  /// No description provided for @actionShrinkSelection.
+  ///
+  /// In ru, this message translates to:
+  /// **'Сузить выделение'**
+  String get actionShrinkSelection;
+
+  /// No description provided for @actionBrushNarrower.
+  ///
+  /// In ru, this message translates to:
+  /// **'Кисть уже'**
+  String get actionBrushNarrower;
+
+  /// No description provided for @actionBrushWider.
+  ///
+  /// In ru, this message translates to:
+  /// **'Кисть шире'**
+  String get actionBrushWider;
+
+  /// No description provided for @actionFrameSelection.
+  ///
+  /// In ru, this message translates to:
+  /// **'Показать выделенное целиком'**
+  String get actionFrameSelection;
+
+  /// No description provided for @actionFrameAll.
+  ///
+  /// In ru, this message translates to:
+  /// **'Показать всё целиком'**
+  String get actionFrameAll;
+
+  /// No description provided for @actionViewFront.
+  ///
+  /// In ru, this message translates to:
+  /// **'Вид спереди'**
+  String get actionViewFront;
+
+  /// No description provided for @actionViewSide.
+  ///
+  /// In ru, this message translates to:
+  /// **'Вид сбоку'**
+  String get actionViewSide;
+
+  /// No description provided for @actionViewTop.
+  ///
+  /// In ru, this message translates to:
+  /// **'Вид сверху'**
+  String get actionViewTop;
+
+  /// No description provided for @actionPlayPause.
+  ///
+  /// In ru, this message translates to:
+  /// **'Пуск и пауза'**
+  String get actionPlayPause;
+
+  /// No description provided for @actionSelectAll.
+  ///
+  /// In ru, this message translates to:
+  /// **'Выделить всё'**
+  String get actionSelectAll;
+
+  /// No description provided for @actionSelectNone.
+  ///
+  /// In ru, this message translates to:
+  /// **'Снять выделение'**
+  String get actionSelectNone;
+
+  /// No description provided for @actionInvertSelection.
+  ///
+  /// In ru, this message translates to:
+  /// **'Инвертировать выделение'**
+  String get actionInvertSelection;
+
+  /// No description provided for @actionToggleObjectMesh.
+  ///
+  /// In ru, this message translates to:
+  /// **'Объект и меш'**
+  String get actionToggleObjectMesh;
+
+  /// No description provided for @actionDelete.
+  ///
+  /// In ru, this message translates to:
+  /// **'Удалить'**
+  String get actionDelete;
 }
 
 class _AppLocalizationsDelegate

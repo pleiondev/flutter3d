@@ -1351,4 +1351,81 @@ class AppLocalizationsRu extends AppLocalizations {
     );
     return '$_temp0';
   }
+
+  @override
+  String get shortcutOrbitMiddle =>
+      'Средняя кнопка, Alt с левой кнопкой или два пальца на трекпаде';
+
+  @override
+  String get shortcutOrbitLeft =>
+      'Левая кнопка по пустому месту, средняя кнопка или два пальца на трекпаде';
+
+  @override
+  String get actionSave => 'Сохранить';
+
+  @override
+  String get actionExport => 'Экспорт';
+
+  @override
+  String get actionUndo => 'Отменить';
+
+  @override
+  String get actionRedo => 'Повторить';
+
+  @override
+  String get actionThisScreen => 'Этот экран';
+
+  @override
+  String get actionCommandPalette => 'Палитра команд';
+
+  @override
+  String get actionFoldPanel => 'Свернуть панель свойств';
+
+  @override
+  String get actionFoldRail => 'Свернуть рельсу инструментов';
+
+  @override
+  String get actionGrowSelection => 'Расширить выделение';
+
+  @override
+  String get actionShrinkSelection => 'Сузить выделение';
+
+  @override
+  String get actionBrushNarrower => 'Кисть уже';
+
+  @override
+  String get actionBrushWider => 'Кисть шире';
+
+  @override
+  String get actionFrameSelection => 'Показать выделенное целиком';
+
+  @override
+  String get actionFrameAll => 'Показать всё целиком';
+
+  @override
+  String get actionViewFront => 'Вид спереди';
+
+  @override
+  String get actionViewSide => 'Вид сбоку';
+
+  @override
+  String get actionViewTop => 'Вид сверху';
+
+  @override
+  String get actionPlayPause => 'Пуск и пауза';
+
+  @override
+  String get actionSelectAll => 'Выделить всё';
+
+  @override
+  String get actionSelectNone => 'Снять выделение';
+
+  @override
+  String get actionInvertSelection => 'Инвертировать выделение';
+
+  @override
+  String get actionToggleObjectMesh => 'Объект и меш';
+
+  @override
+  String get actionDelete => 'Удалить';
 }
