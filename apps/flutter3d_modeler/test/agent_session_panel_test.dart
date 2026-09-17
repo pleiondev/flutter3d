@@ -7,6 +7,7 @@ library;
 import 'package:flutter/material.dart' hide Matrix4;
 import 'package:flutter3d_mesh/flutter3d_mesh.dart';
 import 'package:flutter3d_model_core/flutter3d_model_core.dart';
+import 'package:flutter3d_modeler/l10n/app_localizations.dart';
 import 'package:flutter3d_modeler/src/modeler_state.dart';
 import 'package:flutter3d_modeler/src/ui/agent_session_panel.dart';
 import 'package:flutter3d_modeler/src/ui/theme.dart';
@@ -45,6 +46,9 @@ Future<void> _pump(
   ValueChanged<bool>? onPaused,
 }) => tester.pumpWidget(
   MaterialApp(
+    locale: const Locale('en'),
+    localizationsDelegates: AppLocalizations.localizationsDelegates,
+    supportedLocales: AppLocalizations.supportedLocales,
     theme: modelerTheme(),
     home: Scaffold(
       body: SizedBox(

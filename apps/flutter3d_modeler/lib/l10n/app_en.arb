@@ -571,5 +571,14 @@
   "metricsTriangles": "{count} triangles",
   "metricsBones": "{count} bones",
   "galleryUnreachable": "{names} could not be reached; everything else is still here",
-  "graphNextImageTooltip": "Next image"
+  "graphNextImageTooltip": "Next image",
+  "statusShowFolder": "Show folder",
+  "envClearPanorama": "Clear the panorama",
+  "envAmbient": "Ambient",
+  "animActions": "Actions",
+  "statusTexelDensity": "{density} tex/cm",
+  "statusTextureBudget": "{used} MB of {budget}",
+  "statusFrameTime": "{ms} ms",
+  "animSkeleton": "Skeleton",
+  "animConstraints": "Constraints"
 }

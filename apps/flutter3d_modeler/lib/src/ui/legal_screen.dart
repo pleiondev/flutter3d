@@ -14,6 +14,7 @@ library;
 
 import 'package:flutter/material.dart';
 
+import '../../../l10n/app_localizations.dart';
 import '../legal/legal_document.dart';
 import '../legal/legal_library.dart';
 import '../legal/legal_view.dart';
@@ -73,30 +74,33 @@ class _LegalScreenState extends State<LegalScreen> {
   late String _showing = widget.openedAt ?? kLegalDocuments.first;
 
   @override
-  Widget build(BuildContext context) => RoomyDialog(
-    title: 'Legal',
-    width: 900,
-    height: 620,
-    onClose: () => Navigator.of(context).pop(),
-    actions: <Widget>[
-      TextButton(
-        onPressed: () => Navigator.of(context).pop(),
-        child: const Text('Close'),
+  Widget build(BuildContext context) {
+    final AppLocalizations l = AppLocalizations.of(context);
+    return RoomyDialog(
+      title: l.legalTitle,
+      width: 900,
+      height: 620,
+      onClose: () => Navigator.of(context).pop(),
+      actions: <Widget>[
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: Text(l.legalClose),
+        ),
+      ],
+      wide: _Body(
+        showing: _showing,
+        onShow: (String name) => setState(() => _showing = name),
+        documents: _documents,
+        stacked: false,
       ),
-    ],
-    wide: _Body(
-      showing: _showing,
-      onShow: (String name) => setState(() => _showing = name),
-      documents: _documents,
-      stacked: false,
-    ),
-    narrow: _Body(
-      showing: _showing,
-      onShow: (String name) => setState(() => _showing = name),
-      documents: _documents,
-      stacked: true,
-    ),
-  );
+      narrow: _Body(
+        showing: _showing,
+        onShow: (String name) => setState(() => _showing = name),
+        documents: _documents,
+        stacked: true,
+      ),
+    );
+  }
 }
 
 class _Body extends StatelessWidget {
@@ -117,58 +121,58 @@ class _Body extends StatelessWidget {
   final bool stacked;
 
   @override
-  Widget build(BuildContext context) => FutureBuilder<List<LegalDocument>>(
-    future: documents,
-    builder:
-        (
-          BuildContext context,
-          AsyncSnapshot<List<LegalDocument>> snapshot,
-        ) {
-          if (snapshot.hasError) {
-            // A bundle that will not give up its own assets is a broken
-            // build, and saying so beats an empty pane that looks like a
-            // document with nothing in it.
-            return Center(
-              child: Text('The documents did not load: ${snapshot.error}'),
+  Widget build(BuildContext context) {
+    final AppLocalizations l = AppLocalizations.of(context);
+    return FutureBuilder<List<LegalDocument>>(
+      future: documents,
+      builder:
+          (BuildContext context, AsyncSnapshot<List<LegalDocument>> snapshot) {
+            if (snapshot.hasError) {
+              // A bundle that will not give up its own assets is a broken
+              // build, and saying so beats an empty pane that looks like a
+              // document with nothing in it.
+              return Center(
+                child: Text(l.legalLoadFailed('${snapshot.error}')),
+              );
+            }
+            final List<LegalDocument>? loaded = snapshot.data;
+            if (loaded == null) {
+              return const Center(child: CircularProgressIndicator());
+            }
+            final LegalDocument document = loaded.firstWhere(
+              (LegalDocument it) => it.name == showing,
+              orElse: () => loaded.first,
             );
-          }
-          final List<LegalDocument>? loaded = snapshot.data;
-          if (loaded == null) {
-            return const Center(child: CircularProgressIndicator());
-          }
-          final LegalDocument document = loaded.firstWhere(
-            (LegalDocument it) => it.name == showing,
-            orElse: () => loaded.first,
-          );
-          final Widget list = _Chooser(
-            documents: loaded,
-            showing: document.name,
-            onShow: onShow,
-            stacked: stacked,
-          );
-          final Widget text = LegalView(
-            key: ValueKey<String>(document.name),
-            document: document,
-          );
-          return stacked
-              ? Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: <Widget>[
-                    list,
-                    const Divider(height: 1),
-                    Expanded(child: text),
-                  ],
-                )
-              : Row(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: <Widget>[
-                    SizedBox(width: 240, child: list),
-                    const VerticalDivider(width: 1),
-                    Expanded(child: text),
-                  ],
-                );
-        },
-  );
+            final Widget list = _Chooser(
+              documents: loaded,
+              showing: document.name,
+              onShow: onShow,
+              stacked: stacked,
+            );
+            final Widget text = LegalView(
+              key: ValueKey<String>(document.name),
+              document: document,
+            );
+            return stacked
+                ? Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: <Widget>[
+                      list,
+                      const Divider(height: 1),
+                      Expanded(child: text),
+                    ],
+                  )
+                : Row(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: <Widget>[
+                      SizedBox(width: 240, child: list),
+                      const VerticalDivider(width: 1),
+                      Expanded(child: text),
+                    ],
+                  );
+          },
+    );
+  }
 }
 
 class _Chooser extends StatelessWidget {
@@ -187,6 +191,7 @@ class _Chooser extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final ThemeData theme = Theme.of(context);
+    final AppLocalizations l = AppLocalizations.of(context);
     if (stacked) {
       return Padding(
         padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
@@ -195,8 +200,8 @@ class _Chooser extends StatelessWidget {
           children: <Widget>[
             DropdownButtonFormField<String>(
               initialValue: showing,
-              decoration: const InputDecoration(
-                labelText: 'Document',
+              decoration: InputDecoration(
+                labelText: l.legalDocument,
                 isDense: true,
                 border: OutlineInputBorder(),
               ),
@@ -239,9 +244,7 @@ class _Chooser extends StatelessWidget {
         Padding(
           padding: const EdgeInsets.fromLTRB(16, 12, 12, 8),
           child: Text(
-            'These documents are published in English only, whatever the '
-            'interface language: one authentic version, so there is never a '
-            'question of which one binds.',
+            l.legalEnglishOnly,
             style: theme.textTheme.bodySmall?.copyWith(
               color: theme.colorScheme.onSurfaceVariant,
             ),
@@ -256,13 +259,16 @@ class _ThirdPartyButton extends StatelessWidget {
   const _ThirdPartyButton();
 
   @override
-  Widget build(BuildContext context) => OutlinedButton.icon(
-    icon: const Icon(Icons.inventory_2_outlined, size: 18),
-    label: const Text('Third-party licences'),
-    onPressed: () => showLicensePage(
-      context: context,
-      applicationName: 'flutter3d Modeler',
-      applicationLegalese: '© 2026 Dmitrii Zolotov. MIT licence.',
-    ),
-  );
+  Widget build(BuildContext context) {
+    final AppLocalizations l = AppLocalizations.of(context);
+    return OutlinedButton.icon(
+      icon: const Icon(Icons.inventory_2_outlined, size: 18),
+      label: Text(l.legalThirdParty),
+      onPressed: () => showLicensePage(
+        context: context,
+        applicationName: 'flutter3d Modeler',
+        applicationLegalese: '© 2026 Dmitrii Zolotov. MIT licence.',
+      ),
+    );
+  }
 }

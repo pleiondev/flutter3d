@@ -22,6 +22,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter3d_editor_widgets/flutter3d_editor_widgets.dart';
 import 'package:flutter3d_model_core/flutter3d_model_core.dart' hide Key;
 
+import '../../../l10n/app_localizations.dart';
 import 'actions_list.dart';
 import 'constraints_list.dart';
 import 'skeleton_tree.dart';
@@ -81,11 +82,12 @@ class AnimationPanel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final ProjectSkeleton? skeleton = this.skeleton;
+    final AppLocalizations l = AppLocalizations.of(context);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: <Widget>[
-        SectionLabel('Actions'),
+        SectionLabel(l.animActions),
         ActionsList(
           clips: clips,
           selectedClip: selectedClip,
@@ -94,7 +96,7 @@ class AnimationPanel extends StatelessWidget {
         ),
         if (skeleton != null) ...<Widget>[
           const SizedBox(height: 6),
-          SectionLabel('Skeleton'),
+          SectionLabel(l.animSkeleton),
           SkeletonTree(
             objects: objects,
             skeleton: skeleton,
@@ -102,7 +104,7 @@ class AnimationPanel extends StatelessWidget {
             onSelectJoint: onSelectJoint,
           ),
           const SizedBox(height: 6),
-          SectionLabel('Constraints'),
+          SectionLabel(l.animConstraints),
           ConstraintsList(
             constraints: skeleton.constraints,
             nameOf: _jointName,

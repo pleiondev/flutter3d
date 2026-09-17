@@ -21,10 +21,10 @@ Future<void> _pump(
   VoidCallback? onClearPanorama,
 }) => tester.pumpWidget(
   MaterialApp(
-    theme: modelerTheme(),
     locale: const Locale('en'),
     localizationsDelegates: AppLocalizations.localizationsDelegates,
     supportedLocales: AppLocalizations.supportedLocales,
+    theme: modelerTheme(),
     home: Scaffold(
       body: SceneEnvironmentPanel(
         environment: environment,

@@ -19,6 +19,7 @@ library;
 import 'package:flutter/material.dart';
 import 'package:flutter3d_model_core/flutter3d_model_core.dart';
 
+import '../../../l10n/app_localizations.dart';
 import '../mouse_hints.dart';
 
 /// How loudly the bar should say what it is saying.
@@ -164,6 +165,7 @@ class StatusLine extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final AppLocalizations l = AppLocalizations.of(context);
     // 11/400 — `ui-38d`'s own section-label size and weight, for the status
     // bar's own text to match rather than sit a point larger beside it.
     final small = theme.textTheme.bodySmall?.copyWith(fontSize: 11);
@@ -226,7 +228,7 @@ class StatusLine extends StatelessWidget {
                     tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                     textStyle: small,
                   ),
-                  child: const Text('Show folder'),
+                  child: Text(l.statusShowFolder),
                 ),
             ],
           ),
@@ -294,7 +296,7 @@ class StatusLine extends StatelessWidget {
             // Stored in texels/m; a metre of texture is a hundred centimetres
             // of it, so this is the same number a hundredth as large.
             child: Text(
-              '${(density / 100).toStringAsFixed(1)} tex/cm',
+              l.statusTexelDensity((density / 100).toStringAsFixed(1)),
               style: figureStyle,
             ),
           ),
@@ -302,13 +304,18 @@ class StatusLine extends StatelessWidget {
           Padding(
             padding: const EdgeInsets.only(right: 12),
             child: Text(
-              '${_mebibytes(budget.usedBytes)} MB of '
-              '${_mebibytes(budget.budgetBytes)}',
+              l.statusTextureBudget(
+                '${_mebibytes(budget.usedBytes)}',
+                '${_mebibytes(budget.budgetBytes)}',
+              ),
               style: figureStyle,
             ),
           ),
         if (micros case final int spent)
-          Text('${(spent / 1000).toStringAsFixed(1)} ms', style: figureStyle),
+          Text(
+            l.statusFrameTime((spent / 1000).toStringAsFixed(1)),
+            style: figureStyle,
+          ),
       ],
     );
   }

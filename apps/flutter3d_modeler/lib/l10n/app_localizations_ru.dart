@@ -1729,4 +1729,37 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get graphNextImageTooltip => 'Следующее изображение';
+
+  @override
+  String get statusShowFolder => 'Показать папку';
+
+  @override
+  String get envClearPanorama => 'Убрать панораму';
+
+  @override
+  String get envAmbient => 'Окружающий свет';
+
+  @override
+  String get animActions => 'Действия';
+
+  @override
+  String statusTexelDensity(String density) {
+    return '$density тексел/см';
+  }
+
+  @override
+  String statusTextureBudget(String used, String budget) {
+    return '$used МБ из $budget';
+  }
+
+  @override
+  String statusFrameTime(String ms) {
+    return '$ms мс';
+  }
+
+  @override
+  String get animSkeleton => 'Скелет';
+
+  @override
+  String get animConstraints => 'Ограничения';
 }
