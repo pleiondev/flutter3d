@@ -827,7 +827,12 @@ List<ModelerTool> toolsFor(
       label: 'Pinch',
       about: 'Pulls the vertices under the brush toward its centre.',
       icon: Icons.compress_outlined,
-      shortcut: LogicalKeyboardKey.keyF,
+      // **`P`, not `F`.** Two of the three keymap presets frame the
+      // selection on `F` — the tool school's own habit — so a brush on the
+      // same letter is one of the two never reached from the keyboard, and
+      // which one wins is whichever the `Shortcuts` map happened to build
+      // last. `keymap_test.dart` is what said so.
+      shortcut: LogicalKeyboardKey.keyP,
       group: 'move',
     ),
     ModelerTool(
@@ -890,7 +895,9 @@ List<ModelerTool> toolsFor(
       label: 'Fill the layer',
       about: 'Floods the whole layer with the colour on the palette.',
       icon: Icons.format_color_fill_outlined,
-      shortcut: LogicalKeyboardKey.keyF,
+      // `B` for the bucket, and not `F` — see `sculpt.pinch` above for what
+      // `F` already answers to.
+      shortcut: LogicalKeyboardKey.keyB,
       group: 'paint',
     ),
     ModelerTool(
