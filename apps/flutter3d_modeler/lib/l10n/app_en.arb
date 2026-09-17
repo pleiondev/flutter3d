@@ -310,5 +310,26 @@
         "type": "String"
       }
     }
-  }
+  },
+  "autorigTitle": "Auto-rig",
+  "autorigCreate": "Create",
+  "autorigDragMarker": "Drag a marker to refine the joint",
+  "autorigTemplate": "Template",
+  "autorigHumanoid": "Humanoid",
+  "autorigQuadruped": "Quadruped",
+  "autorigCustom": "Custom",
+  "autorigComposition": "Composition",
+  "autorigFingers": "Fingers",
+  "autorigToes": "Toes",
+  "autorigSpine": "Spine",
+  "autorigFaceBones": "Face bones",
+  "autorigIkChains": "IK chains",
+  "autorigController": "Rig controller",
+  "autorigBinding": "Binding",
+  "autorigPrimaryWeights": "Assign primary weights",
+  "autorigSymmetry": "Symmetry",
+  "autorigBones": "Bones",
+  "autorigDeforming": "Deforming",
+  "autorigNone": "None",
+  "autorigMarkers": "Markers {placed} of {total}"
 }

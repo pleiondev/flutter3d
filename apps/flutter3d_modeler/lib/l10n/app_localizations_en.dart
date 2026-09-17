@@ -886,4 +886,69 @@ class AppLocalizationsEn extends AppLocalizations {
   String commandPaletteNoMatch(String said) {
     return 'nothing matches “$said”';
   }
+
+  @override
+  String get autorigTitle => 'Auto-rig';
+
+  @override
+  String get autorigCreate => 'Create';
+
+  @override
+  String get autorigDragMarker => 'Drag a marker to refine the joint';
+
+  @override
+  String get autorigTemplate => 'Template';
+
+  @override
+  String get autorigHumanoid => 'Humanoid';
+
+  @override
+  String get autorigQuadruped => 'Quadruped';
+
+  @override
+  String get autorigCustom => 'Custom';
+
+  @override
+  String get autorigComposition => 'Composition';
+
+  @override
+  String get autorigFingers => 'Fingers';
+
+  @override
+  String get autorigToes => 'Toes';
+
+  @override
+  String get autorigSpine => 'Spine';
+
+  @override
+  String get autorigFaceBones => 'Face bones';
+
+  @override
+  String get autorigIkChains => 'IK chains';
+
+  @override
+  String get autorigController => 'Rig controller';
+
+  @override
+  String get autorigBinding => 'Binding';
+
+  @override
+  String get autorigPrimaryWeights => 'Assign primary weights';
+
+  @override
+  String get autorigSymmetry => 'Symmetry';
+
+  @override
+  String get autorigBones => 'Bones';
+
+  @override
+  String get autorigDeforming => 'Deforming';
+
+  @override
+  String get autorigNone => 'None';
+
+  @override
+  String autorigMarkers(int placed, int total) {
+    return 'Markers $placed of $total';
+  }
 }

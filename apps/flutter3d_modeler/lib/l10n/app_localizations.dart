@@ -1657,6 +1657,132 @@ abstract class AppLocalizations {
   /// In ru, this message translates to:
   /// **'ничего не найдено по «{said}»'**
   String commandPaletteNoMatch(String said);
+
+  /// No description provided for @autorigTitle.
+  ///
+  /// In ru, this message translates to:
+  /// **'Авториг'**
+  String get autorigTitle;
+
+  /// No description provided for @autorigCreate.
+  ///
+  /// In ru, this message translates to:
+  /// **'Создать'**
+  String get autorigCreate;
+
+  /// No description provided for @autorigDragMarker.
+  ///
+  /// In ru, this message translates to:
+  /// **'Перетащите маркер, чтобы уточнить сустав'**
+  String get autorigDragMarker;
+
+  /// No description provided for @autorigTemplate.
+  ///
+  /// In ru, this message translates to:
+  /// **'Шаблон'**
+  String get autorigTemplate;
+
+  /// No description provided for @autorigHumanoid.
+  ///
+  /// In ru, this message translates to:
+  /// **'Человек'**
+  String get autorigHumanoid;
+
+  /// No description provided for @autorigQuadruped.
+  ///
+  /// In ru, this message translates to:
+  /// **'Четвероногое'**
+  String get autorigQuadruped;
+
+  /// No description provided for @autorigCustom.
+  ///
+  /// In ru, this message translates to:
+  /// **'Свой'**
+  String get autorigCustom;
+
+  /// No description provided for @autorigComposition.
+  ///
+  /// In ru, this message translates to:
+  /// **'Состав'**
+  String get autorigComposition;
+
+  /// No description provided for @autorigFingers.
+  ///
+  /// In ru, this message translates to:
+  /// **'Пальцы рук'**
+  String get autorigFingers;
+
+  /// No description provided for @autorigToes.
+  ///
+  /// In ru, this message translates to:
+  /// **'Пальцы ног'**
+  String get autorigToes;
+
+  /// No description provided for @autorigSpine.
+  ///
+  /// In ru, this message translates to:
+  /// **'Позвоночник'**
+  String get autorigSpine;
+
+  /// No description provided for @autorigFaceBones.
+  ///
+  /// In ru, this message translates to:
+  /// **'Кости лица'**
+  String get autorigFaceBones;
+
+  /// No description provided for @autorigIkChains.
+  ///
+  /// In ru, this message translates to:
+  /// **'IK-цепи'**
+  String get autorigIkChains;
+
+  /// No description provided for @autorigController.
+  ///
+  /// In ru, this message translates to:
+  /// **'Контроллер рига'**
+  String get autorigController;
+
+  /// No description provided for @autorigBinding.
+  ///
+  /// In ru, this message translates to:
+  /// **'Привязка'**
+  String get autorigBinding;
+
+  /// No description provided for @autorigPrimaryWeights.
+  ///
+  /// In ru, this message translates to:
+  /// **'Назначить основные веса'**
+  String get autorigPrimaryWeights;
+
+  /// No description provided for @autorigSymmetry.
+  ///
+  /// In ru, this message translates to:
+  /// **'Симметрия'**
+  String get autorigSymmetry;
+
+  /// No description provided for @autorigBones.
+  ///
+  /// In ru, this message translates to:
+  /// **'Костей'**
+  String get autorigBones;
+
+  /// No description provided for @autorigDeforming.
+  ///
+  /// In ru, this message translates to:
+  /// **'Деформирующих'**
+  String get autorigDeforming;
+
+  /// No description provided for @autorigNone.
+  ///
+  /// In ru, this message translates to:
+  /// **'Нет'**
+  String get autorigNone;
+
+  /// Авториг — ux-22.
+  ///
+  /// In ru, this message translates to:
+  /// **'Маркеров {placed} из {total}'**
+  String autorigMarkers(int placed, int total);
 }
 
 class _AppLocalizationsDelegate
