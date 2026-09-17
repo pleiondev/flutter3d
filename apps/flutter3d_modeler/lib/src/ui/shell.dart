@@ -452,89 +452,98 @@ class ModelerModeSwitcher extends StatelessWidget {
   final ValueChanged<AnimationSubmode>? onAnimationSubmode;
 
   @override
-  Widget build(BuildContext context) => Row(
-    children: <Widget>[
-      SegmentedButton<ModelerMode>(
-        showSelectedIcon: false,
-        segments: <ButtonSegment<ModelerMode>>[
-          // **`ux-07`: a mode that is not ready is not on the bar at all.**
-          // It used to be drawn and disabled, on the reasoning that what the
-          // modeller is going to be should be visible from the first build
-          // rather than arriving as a surprise. The live run cost that
-          // reasoning its case: the switcher reads as eight unlabelled
-          // icons, three of them look active, and pressing one of the three
-          // does nothing a person can tell from a press that missed. A
-          // roadmap belongs on the site, not in the one control a person
-          // uses every minute.
-          //
-          // **`ux-37`: and a mode the open workspace does not offer is not on
-          // it either.** Essential is Object, Material and Scene; a person who
-          // came to open a model, paint it and export it should not have to
-          // decide what Mesh mode is before doing any of that. Settings turns
-          // the other two on, and `modesFor` is the one place that decides.
-          for (final ModelerMode each in modesFor(workspace))
-            ButtonSegment<ModelerMode>(
-              value: each,
-              // `ui-23`'s own pass: `tooltip:` below sets
-              // `SemanticsNode.tooltip`, not `.label` — wrapping the icon
-              // is what actually names the segment for a screen reader,
-              // since `showSelectedIcon: false` above means there is no
-              // visible `Text` label for its semantics to merge from.
-              icon: Semantics(
-                label: each.label,
-                child: Icon(each.icon, size: 15),
-              ),
-              tooltip: each.label,
-            ),
-        ],
-        selected: <ModelerMode>{mode},
-        onSelectionChanged: (Set<ModelerMode> picked) => onMode(picked.first),
-      ),
-      const SizedBox(width: 12),
-      // The sub-mode belongs to the mesh mode and to nothing else, so
-      // it is absent rather than disabled elsewhere: a control that is
-      // permanently grey in seven modes out of eight is a control
-      // people stop seeing.
-      if (mode == ModelerMode.mesh)
-        SegmentedButton<MeshSubmode>(
+  Widget build(BuildContext context) => SingleChildScrollView(
+    // **It scrolls, because ten modes do not fit a laptop's top bar.**
+    // `pro-sc-08` and the four phase-four screens took the Full workspace
+    // from five modes to ten, and a `Row` that does not fit overflows with a
+    // stripe rather than hiding the last segment politely. Scrolling keeps
+    // every mode reachable at every width and costs nothing where they all
+    // fit, which is most of the time.
+    scrollDirection: Axis.horizontal,
+    child: Row(
+      children: <Widget>[
+        SegmentedButton<ModelerMode>(
           showSelectedIcon: false,
-          segments: <ButtonSegment<MeshSubmode>>[
-            for (final MeshSubmode each in MeshSubmode.values)
-              ButtonSegment<MeshSubmode>(
+          segments: <ButtonSegment<ModelerMode>>[
+            // **`ux-07`: a mode that is not ready is not on the bar at all.**
+            // It used to be drawn and disabled, on the reasoning that what the
+            // modeller is going to be should be visible from the first build
+            // rather than arriving as a surprise. The live run cost that
+            // reasoning its case: the switcher reads as eight unlabelled
+            // icons, three of them look active, and pressing one of the three
+            // does nothing a person can tell from a press that missed. A
+            // roadmap belongs on the site, not in the one control a person
+            // uses every minute.
+            //
+            // **`ux-37`: and a mode the open workspace does not offer is not on
+            // it either.** Essential is Object, Material and Scene; a person who
+            // came to open a model, paint it and export it should not have to
+            // decide what Mesh mode is before doing any of that. Settings turns
+            // the other two on, and `modesFor` is the one place that decides.
+            for (final ModelerMode each in modesFor(workspace))
+              ButtonSegment<ModelerMode>(
                 value: each,
-                icon: Icon(each.icon, size: 15),
-                label: Text(each.label),
+                // `ui-23`'s own pass: `tooltip:` below sets
+                // `SemanticsNode.tooltip`, not `.label` — wrapping the icon
+                // is what actually names the segment for a screen reader,
+                // since `showSelectedIcon: false` above means there is no
+                // visible `Text` label for its semantics to merge from.
+                icon: Semantics(
+                  label: each.label,
+                  child: Icon(each.icon, size: 15),
+                ),
+                tooltip: each.label,
               ),
           ],
-          selected: <MeshSubmode>{submode},
-          onSelectionChanged: (Set<MeshSubmode> picked) =>
-              onSubmode(picked.first),
+          selected: <ModelerMode>{mode},
+          onSelectionChanged: (Set<ModelerMode> picked) => onMode(picked.first),
         ),
-      // `ui-40d`'s own row: the handoff's own frame rule 2 gives the
-      // current mode's sub-mode this same slot — mesh's is above, and
-      // animation's four (pose/weights/retarget/morphs) are the only other
-      // one built so far. [animationSubmode]/[onAnimationSubmode] are left
-      // null by the shells that do not wire this mode's switcher yet
-      // (`ModelerTabletShell`, `ModelerPhoneShell`), which is why both are
-      // checked rather than just [mode].
-      if (mode == ModelerMode.animation &&
-          animationSubmode != null &&
-          onAnimationSubmode != null)
-        SegmentedButton<AnimationSubmode>(
-          showSelectedIcon: false,
-          segments: <ButtonSegment<AnimationSubmode>>[
-            for (final AnimationSubmode each in AnimationSubmode.values)
-              ButtonSegment<AnimationSubmode>(
-                value: each,
-                icon: Icon(each.icon, size: 15),
-                label: Text(each.label),
-              ),
-          ],
-          selected: <AnimationSubmode>{animationSubmode!},
-          onSelectionChanged: (Set<AnimationSubmode> picked) =>
-              onAnimationSubmode!(picked.first),
-        ),
-    ],
+        const SizedBox(width: 12),
+        // The sub-mode belongs to the mesh mode and to nothing else, so
+        // it is absent rather than disabled elsewhere: a control that is
+        // permanently grey in seven modes out of eight is a control
+        // people stop seeing.
+        if (mode == ModelerMode.mesh)
+          SegmentedButton<MeshSubmode>(
+            showSelectedIcon: false,
+            segments: <ButtonSegment<MeshSubmode>>[
+              for (final MeshSubmode each in MeshSubmode.values)
+                ButtonSegment<MeshSubmode>(
+                  value: each,
+                  icon: Icon(each.icon, size: 15),
+                  label: Text(each.label),
+                ),
+            ],
+            selected: <MeshSubmode>{submode},
+            onSelectionChanged: (Set<MeshSubmode> picked) =>
+                onSubmode(picked.first),
+          ),
+        // `ui-40d`'s own row: the handoff's own frame rule 2 gives the
+        // current mode's sub-mode this same slot — mesh's is above, and
+        // animation's four (pose/weights/retarget/morphs) are the only other
+        // one built so far. [animationSubmode]/[onAnimationSubmode] are left
+        // null by the shells that do not wire this mode's switcher yet
+        // (`ModelerTabletShell`, `ModelerPhoneShell`), which is why both are
+        // checked rather than just [mode].
+        if (mode == ModelerMode.animation &&
+            animationSubmode != null &&
+            onAnimationSubmode != null)
+          SegmentedButton<AnimationSubmode>(
+            showSelectedIcon: false,
+            segments: <ButtonSegment<AnimationSubmode>>[
+              for (final AnimationSubmode each in AnimationSubmode.values)
+                ButtonSegment<AnimationSubmode>(
+                  value: each,
+                  icon: Icon(each.icon, size: 15),
+                  label: Text(each.label),
+                ),
+            ],
+            selected: <AnimationSubmode>{animationSubmode!},
+            onSelectionChanged: (Set<AnimationSubmode> picked) =>
+                onAnimationSubmode!(picked.first),
+          ),
+      ],
+    ),
   );
 }
 

@@ -217,13 +217,9 @@ void main() {
   });
 
   group('pro-rn-04: the render panel', () {
-    testWidgets('draws the result at 760×428 and a 260-wide pass list', (
+    testWidgets('is a 260-wide pass list, and fixed passes have no switch', (
       WidgetTester tester,
     ) async {
-      tester.view.physicalSize = const Size(1400, 900);
-      tester.view.devicePixelRatio = 1;
-      addTearDown(tester.view.reset);
-
       await tester.pumpWidget(
         wrapped(
           RenderPanel(
@@ -239,11 +235,7 @@ void main() {
         ),
       );
 
-      final Size result = tester.getSize(
-        find.byKey(const ValueKey<String>('renderResult')),
-      );
-      expect(result.width, kRenderResultSize.width);
-      expect(result.height, kRenderResultSize.height);
+      expect(tester.getSize(find.byType(RenderPanel)).width, kRenderGraphWidth);
       // A fixed pass is drawn without a switch that does nothing.
       final SwitchListTile scene = tester.widget(
         find.byKey(const ValueKey<String>('renderPass-scene')),
@@ -255,24 +247,46 @@ void main() {
       expect(ssao.onChanged, isNotNull);
     });
 
+    testWidgets('and the result takes the viewport, not a slot beside it', (
+      WidgetTester tester,
+    ) async {
+      // **A thousand points of chrome does not fit a properties slot.**
+      // Mutation: put the 760-wide result beside the 260-wide list. It
+      // overflows every window narrower than the two of them together, which
+      // is what it did before this split.
+      await tester.pumpWidget(
+        wrapped(const SizedBox(width: 400, height: 300, child: RenderResult())),
+      );
+      expect(find.text('Nothing rendered yet'), findsOneWidget);
+      expect(
+        tester.getSize(find.byKey(const ValueKey<String>('renderResult'))),
+        const Size(400, 300),
+      );
+    });
+
     testWidgets('a render in progress shows the tiles and offers a cancel', (
       WidgetTester tester,
     ) async {
-      tester.view.physicalSize = const Size(1400, 900);
-      tester.view.devicePixelRatio = 1;
-      addTearDown(tester.view.reset);
-
       await tester.pumpWidget(
         wrapped(
-          RenderPanel(
-            passes: const <RenderPassRow>[
-              (name: 'scene', enabled: true, fixed: true),
+          Column(
+            children: <Widget>[
+              RenderPanel(
+                passes: const <RenderPassRow>[
+                  (name: 'scene', enabled: true, fixed: true),
+                ],
+                onPass: (String _, bool _) {},
+                onRender: () {},
+                tilesDone: 6,
+                tilesTotal: 16,
+                onCancel: () {},
+              ),
+              const SizedBox(
+                width: 400,
+                height: 300,
+                child: RenderResult(tilesDone: 6, tilesTotal: 16),
+              ),
             ],
-            onPass: (String _, bool _) {},
-            onRender: () {},
-            tilesDone: 6,
-            tilesTotal: 16,
-            onCancel: () {},
           ),
         ),
       );

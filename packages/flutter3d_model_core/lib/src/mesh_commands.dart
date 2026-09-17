@@ -1127,3 +1127,89 @@ int _vertexNear(EditMesh mesh, Vector3 point, double snap) {
   }
   return best;
 }
+
+/// Rebuilds the selected object's surface as quads — `pro-rt-01`'s own
+/// `retopologize`, as a command.
+///
+/// **A new mesh rather than an edit, the same shape [SubdivideMesh] has.**
+/// Nothing of the old topology survives a retopology; a journal entry
+/// describing that is larger than the old mesh the kept document already
+/// holds, so the object takes a fresh [EditedGeometry] and
+/// [Outcome.meshTouched] is null.
+///
+/// **It refuses on a mesh carrying what a retopology drops**, for the reason
+/// [SubdivideMesh] refuses: skin weights and shape keys are per-vertex, and
+/// a retopology has none of the old vertices.
+final class Retopologize extends ModelCommand {
+  const Retopologize({required this.objectId, this.targetQuads = 2000});
+
+  final int objectId;
+
+  /// About how many quads to come out at. About, not exactly: a
+  /// quadrangulation that hit a number exactly would be one that had stopped
+  /// caring where the edges go.
+  final int targetQuads;
+
+  @override
+  String get name => 'retopologize';
+
+  @override
+  String get says => 'retopologize';
+
+  @override
+  Map<String, Object?> get arguments => <String, Object?>{
+    'objectId': objectId,
+    'targetQuads': targetQuads,
+  };
+
+  @override
+  Map<String, ParamHint> get hints => const <String, ParamHint>{
+    'targetQuads': IntHint(min: 20, max: 200000, step: 100),
+  };
+
+  @override
+  Outcome apply(ModelProject project, ProjectSelection selection) {
+    if (targetQuads < 20) {
+      return Outcome.refused(
+        'a retopology of $targetQuads quads is not a surface',
+      );
+    }
+    final ModelObject? object = project[objectId];
+    if (object == null) return Outcome.refused('there is no object $objectId');
+    final EditedGeometry? edited = switch (object.geometry) {
+      final EditedGeometry it => it,
+      _ => null,
+    };
+    if (edited == null) {
+      return Outcome.refused(
+        '"${object.name}" has no mesh to retopologize — bake it to a mesh '
+        'first',
+      );
+    }
+    if (object.shapeSet.keys.isNotEmpty) {
+      return Outcome.refused(
+        '"${object.name}" carries shape keys, which a retopology does not '
+        'carry with it — delete them or retopologize a copy',
+      );
+    }
+    if (object.skeletonIndex != null) {
+      return Outcome.refused(
+        '"${object.name}" is bound to a skeleton, and a retopology has none '
+        'of the old vertices to carry weights on — bind it again afterwards',
+      );
+    }
+
+    final EditMesh next = retopologize(edited.mesh, targetQuads: targetQuads);
+    if (next.faceCount == 0) {
+      return Outcome.refused(
+        '"${object.name}" came back from the retopology with no faces; try '
+        'a higher quad count',
+      );
+    }
+    return Outcome.done(
+      project.withObject(object.copyWith(geometry: EditedGeometry(next))),
+      // Every element id named the old mesh — see [SubdivideMesh].
+      selection: selection.copyWith(elements: const <int>[]),
+    );
+  }
+}

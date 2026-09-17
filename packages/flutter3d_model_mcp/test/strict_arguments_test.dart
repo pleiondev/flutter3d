@@ -102,8 +102,9 @@ void main() {
     test('no numeric field is left without a unit', () {
       final naked = <String>[];
       for (final Tool tool in _tools()) {
-        for (final (String name, String field, Schema schema)
-            in _numericFields(tool)) {
+        for (final (String name, String field, Schema schema) in _numericFields(
+          tool,
+        )) {
           if (_namesItsOwnUnit(field)) continue;
           final String said =
               ((schema as Map<String, Object?>)['description'] as String? ?? '')
@@ -128,15 +129,20 @@ void main() {
     Tool named(String name) =>
         _tools().firstWhere((Tool it) => it.name == name);
 
-    test('a key the tool does not take names itself, and what it does take',
-        () {
-      final String? refused = refuseArguments(named('select'), <String, Object?>{
-        'ids': <int>[1],
-      });
-      expect(refused, isNotNull);
-      expect(refused, contains('"ids"'));
-      expect(refused, contains('objects'));
-    });
+    test(
+      'a key the tool does not take names itself, and what it does take',
+      () {
+        final String? refused = refuseArguments(
+          named('select'),
+          <String, Object?>{
+            'ids': <int>[1],
+          },
+        );
+        expect(refused, isNotNull);
+        expect(refused, contains('"ids"'));
+        expect(refused, contains('objects'));
+      },
+    );
 
     test('a value outside an enum lists the values, and quotes what came', () {
       final String? refused = refuseArguments(
@@ -150,10 +156,10 @@ void main() {
     });
 
     test('a value of the wrong shape says which shape it wanted', () {
-      final String? refused = refuseArguments(named('rename'), <String, Object?>{
-        'id': 'one',
-        'to': 'a name',
-      });
+      final String? refused = refuseArguments(
+        named('rename'),
+        <String, Object?>{'id': 'one', 'to': 'a name'},
+      );
       expect(refused, contains('"id"'));
       expect(refused, contains('whole number'));
       expect(refused, contains('"one"'));
@@ -209,7 +215,9 @@ void main() {
       expect(read, isA<AddPrimitive>());
       expect((read! as AddPrimitive).kind, 'box');
       // And the tool offers both, so it is discoverable rather than folklore.
-      final Tool tool = _tools().firstWhere((Tool it) => it.name == 'addPrimitive');
+      final Tool tool = _tools().firstWhere(
+        (Tool it) => it.name == 'addPrimitive',
+      );
       final Object? kind = tool.inputSchema.properties!['kind'];
       expect((kind! as Map<String, Object?>)['enum'], contains('cuboid'));
       expect((kind as Map<String, Object?>)['enum'], contains('box'));

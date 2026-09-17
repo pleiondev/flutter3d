@@ -81,7 +81,13 @@ part 'uv_commands.dart';
 
 /// What a command did.
 final class Outcome {
-  const Outcome._(this.project, this.selection, this.refused, this.meshTouched);
+  const Outcome._(
+    this.project,
+    this.selection,
+    this.refused,
+    this.meshTouched,
+    this.meshesTouched,
+  );
 
   /// It worked, and this is the project now.
   ///
@@ -91,14 +97,25 @@ final class Outcome {
   /// [meshTouched] is the mesh that took a journal step, when one did. See
   /// `mesh_commands.dart`: a mesh is not a value with old versions in it, so
   /// the history has to roll its journal in step with the documents it keeps.
+  ///
+  /// [meshesTouched] is for a command that edited *several* — `PackAtlas`
+  /// rewrites every object's UVs in one step, and a history that rolled one
+  /// of the three back would leave a document disagreeing with itself.
+  /// Naming one mesh through [meshTouched] is the ordinary case and stays
+  /// the shorter way to say it.
   factory Outcome.done(
     ModelProject project, {
     ProjectSelection? selection,
     EditMesh? meshTouched,
-  }) => Outcome._(project, selection, null, meshTouched);
+    List<EditMesh> meshesTouched = const <EditMesh>[],
+  }) => Outcome._(project, selection, null, meshTouched, <EditMesh>[
+    ?meshTouched,
+    ...meshesTouched,
+  ]);
 
   /// It did not, and this is what to tell somebody.
-  factory Outcome.refused(String said) => Outcome._(null, null, said, null);
+  factory Outcome.refused(String said) =>
+      Outcome._(null, null, said, null, const <EditMesh>[]);
 
   final ModelProject? project;
   final ProjectSelection? selection;
@@ -107,6 +124,10 @@ final class Outcome {
   /// The mesh whose journal moved on, or null when the command only touched
   /// the document.
   final EditMesh? meshTouched;
+
+  /// Every mesh whose journal moved on, [meshTouched] included — what the
+  /// history rolls. Empty for a command that only touched the document.
+  final List<EditMesh> meshesTouched;
 
   bool get ok => refused == null;
 }
@@ -1367,6 +1388,44 @@ _modelCommandReaders =
           },
         _ => null,
       },
+      'packAtlas': (json) => switch (json['objectIds']) {
+        final List<Object?> ids => PackAtlas(
+          objectIds: <int>[
+            for (final Object? it in ids)
+              if (it is int) it,
+          ],
+          margin: (json['margin'] as num?)?.toDouble() ?? 0.01,
+        ),
+        _ => null,
+      },
+      'paintVertexColour': (json) => switch ((
+        json['objectId'],
+        json['samples'],
+        _doubleListFrom(json['colour']),
+      )) {
+        (
+          final int objectId,
+          final List<Object?> samplesJson,
+          final List<double> colour,
+        ) =>
+          switch (_paintSamplesFrom(samplesJson)) {
+            final List<PaintSample> samples => PaintVertexColour(
+              objectId: objectId,
+              samples: samples,
+              colour: colour,
+              strength: (json['strength'] as num?)?.toDouble() ?? 1.0,
+            ),
+            null => null,
+          },
+        _ => null,
+      },
+      'adoptTexture': (json) => switch (json['materialIndex']) {
+        final int materialIndex => AdoptTexture(
+          materialIndex: materialIndex,
+          size: (json['size'] as num?)?.toInt(),
+        ),
+        _ => null,
+      },
       'paintStroke': (json) => switch ((
         json['objectId'],
         json['samples'],
@@ -1404,6 +1463,13 @@ _modelCommandReaders =
           },
           resolution: (json['resolution'] as num?)?.toInt() ?? 1024,
           shell: (json['shell'] as num?)?.toDouble() ?? 0.1,
+        ),
+        _ => null,
+      },
+      'retopologize': (json) => switch (json['objectId']) {
+        final int objectId => Retopologize(
+          objectId: objectId,
+          targetQuads: (json['targetQuads'] as num?)?.toInt() ?? 2000,
         ),
         _ => null,
       },

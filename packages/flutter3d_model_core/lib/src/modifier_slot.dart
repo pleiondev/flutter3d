@@ -42,15 +42,12 @@ final class ModifierSlot {
 
   final Modifier modifier;
 
-  ModifierSlot copyWith({
-    Modifier? modifier,
-    bool? enabled,
-    bool? inExport,
-  }) => ModifierSlot(
-    modifier: modifier ?? this.modifier,
-    enabled: enabled ?? this.enabled,
-    inExport: inExport ?? this.inExport,
-  );
+  ModifierSlot copyWith({Modifier? modifier, bool? enabled, bool? inExport}) =>
+      ModifierSlot(
+        modifier: modifier ?? this.modifier,
+        enabled: enabled ?? this.enabled,
+        inExport: inExport ?? this.inExport,
+      );
 
   Map<String, Object?> toJson() => <String, Object?>{
     'modifier': modifier.toJson(),

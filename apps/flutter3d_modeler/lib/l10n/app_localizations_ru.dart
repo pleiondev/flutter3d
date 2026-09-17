@@ -717,4 +717,79 @@ class AppLocalizationsRu extends AppLocalizations {
   @override
   String get toolSculptCreaseAbout =>
       'Сжимает и вдавливает разом — так прорезается складка.';
+
+  @override
+  String get toolRetopoQuadLabel => 'Нарисовать квад';
+
+  @override
+  String get toolRetopoQuadAbout =>
+      'Четыре клика по исходной модели: каждая точка либо прилипает к уже существующей вершине новой сетки, либо ложится на поверхность.';
+
+  @override
+  String get toolRetopoAutoLabel => 'Ретопология';
+
+  @override
+  String get toolRetopoAutoAbout =>
+      'Перестраивает всю поверхность квадами примерно в том количестве, что задано на панели, и обтягивает ими оригинал.';
+
+  @override
+  String get toolRetopoBakeLabel => 'Запечь карты';
+
+  @override
+  String get toolRetopoBakeAbout =>
+      'Запекает поверхность исходной модели в развёртку новой — карту нормалей, карту затенения или обе.';
+
+  @override
+  String get toolPaintBrushLabel => 'Кисть';
+
+  @override
+  String get toolPaintBrushAbout =>
+      'Красит текстуру объекта через его развёртку: штрих поперёк шва ложится на оба острова.';
+
+  @override
+  String get toolPaintFillLabel => 'Залить слой';
+
+  @override
+  String get toolPaintFillAbout => 'Заливает весь слой цветом с палитры.';
+
+  @override
+  String get toolPaintClearLabel => 'Очистить слой';
+
+  @override
+  String get toolPaintClearAbout =>
+      'Опустошает слой, не трогая те, что под ним.';
+
+  @override
+  String get toolSimSelectLabel => 'Выделение';
+
+  @override
+  String get toolSimSelectAbout =>
+      'Выбрать вершины, на которых висит ткань, или объект для расчёта.';
+
+  @override
+  String get toolSimPinLabel => 'Закрепить выделение';
+
+  @override
+  String get toolSimPinAbout =>
+      'Удерживает выбранные вершины на месте, пока всё остальное падает.';
+
+  @override
+  String get toolSimBakeLabel => 'Запечь';
+
+  @override
+  String get toolSimBakeAbout =>
+      'Считает весь клип и сохраняет его, чтобы по нему можно было перематывать.';
+
+  @override
+  String get toolRenderSnapshotLabel => 'Рендер';
+
+  @override
+  String get toolRenderSnapshotAbout =>
+      'Рендерит проект в размере, заданном на панели, по тайлу за раз и показывает результат.';
+
+  @override
+  String get toolRenderSaveLabel => 'Сохранить картинку';
+
+  @override
+  String get toolRenderSaveAbout => 'Записывает последний рендер в PNG.';
 }

@@ -457,6 +457,67 @@ extension _ReadyParts on _ModelerScreenState {
                 onLens: (ViewLens lens) => setState(() => _lens = lens),
                 onView: (StandardView view) => lookFrom(stage.orbit, view),
               );
+              // `pro-rt-07`/`pro-pt-05`/`pro-sim-06`/`pro-rn-04`: the four
+              // phase-four modes dock a panel of their own in the
+              // properties slot rather than the outliner and the transform
+              // grid, which is what every one of them is *not* about. The
+              // slot is already resizable and remembered per workspace
+              // (`ux-38`), so a person who wants a wider bake panel gets
+              // one for free.
+              final Widget? proPanel = switch (state.mode) {
+                ModelerMode.retopo => BakePanel(
+                  targetQuads: _retopoQuads,
+                  onTargetQuads: _setRetopoQuads,
+                  onRetopologize: _retopologize,
+                  maps: _bakeMaps,
+                  onMap: _setBakeMap,
+                  resolution: _bakeResolution,
+                  onResolution: _setBakeResolution,
+                  onBake: _bakeTheMaps,
+                  running: _bakeRunning,
+                  onCancel: _cancelBake,
+                  refusal: _bakeRefusal(state),
+                ),
+                ModelerMode.paint => PaintPanel(
+                  layers: _paintLayersOf(state),
+                  selectedLayer: _paintLayer,
+                  onSelectLayer: _setPaintLayer,
+                  onAddLayer: _addPaintLayer,
+                  colour: _paintColour,
+                  onColour: _setPaintColour,
+                  radius: _paintRadius,
+                  onRadius: _setPaintRadius,
+                  strength: _paintStrength,
+                  onStrength: _setPaintStrength,
+                  masks: _paintMasksOf(state),
+                  mask: _paintMask,
+                  onMask: _setPaintMask,
+                  canvas: _paintCanvas,
+                  refusal: _paintRefusal(state),
+                ),
+                ModelerMode.simulation => SimulationPanel(
+                  kind: _simKind,
+                  onKind: _setSimKind,
+                  parameters: _simParameters,
+                  onParameter: _setSimParameter,
+                  colliders: _simCollidersOf(state),
+                  onCollider: _setSimCollider,
+                  pinnedCount: _simPinned.length,
+                  selectedCount: state.selection.elements.length,
+                  onPinSelection: () => _pinSimSelection(state),
+                  onClearPins: _clearSimPins,
+                ),
+                ModelerMode.render => RenderPanel(
+                  passes: _renderPasses,
+                  onPass: _setRenderPass,
+                  onRender: _renderSnapshot,
+                  tilesDone: _renderTilesDone,
+                  tilesTotal: _renderTilesTotal,
+                  onCancel: _cancelRender,
+                ),
+                _ => null,
+              };
+
               // `S5`'s own row: the weights sub-mode's own view — the brush
               // routes to `InputPolicy` rather than the drag/box branches,
               // the picture draws unlit through the vertex-colour gradient
@@ -482,6 +543,12 @@ extension _ReadyParts on _ModelerScreenState {
               final bool sculptView = state.mode == ModelerMode.sculpt;
               final bool sculptBrushArmed =
                   sculptView && kStrokeTools.contains(state.tool);
+              // `pro-pt-05`: the texture brush, routed the same way — one
+              // tool of the three the mode offers is a stroke, and the
+              // other two act when pressed.
+              final bool paintBrushArmed =
+                  state.mode == ModelerMode.paint &&
+                  kStrokeTools.contains(state.tool);
               // `S6`'s own row: the morphs sub-mode's own shape markers —
               // one per shape key, in world space, `secondary` for whichever
               // one `MorphsPanel` has selected. No live deformation: only
@@ -664,18 +731,22 @@ extension _ReadyParts on _ModelerScreenState {
                                 ? _weightBrushRadius
                                 : sculptBrushArmed
                                 ? _sculptRadius / 2
+                                : paintBrushArmed
+                                ? _paintRadius / 2
                                 : null,
                             brushInverting:
                                 HardwareKeyboard.instance.isControlPressed,
                             strokeTool: weightsBrushArmed
                                 ? ToolCategory.weightPainting
-                                : sculptBrushArmed
+                                : sculptBrushArmed || paintBrushArmed
                                 ? ToolCategory.sculpting
                                 : null,
                             onStroke: weightsBrushArmed
                                 ? _onWeightStroke
                                 : sculptBrushArmed
                                 ? _onSculptStroke
+                                : paintBrushArmed
+                                ? _onPaintStroke
                                 : null,
                             // The gizmo stands on the selection and offers the transform
                             // the armed tool asks for. On a tablet it is the only way in:
@@ -800,7 +871,17 @@ extension _ReadyParts on _ModelerScreenState {
               // and the shell is asked to fold the rail and the panel away,
               // because a sculptor is looking at the model rather than at a
               // list of what is in the document.
-              final Widget staged = !sculptView
+              final Widget staged = state.mode == ModelerMode.render
+                  // `pro-rn-04`: the render takes the viewport's own place,
+                  // the way the retarget mode's own pair already does — two
+                  // pictures of one scene competing for a glance is worse
+                  // than one.
+                  ? RenderResult(
+                      result: _renderResult,
+                      tilesDone: _renderTilesDone,
+                      tilesTotal: _renderTilesTotal,
+                    )
+                  : !sculptView
                   ? docked
                   : SculptChrome(
                       viewport: docked,
@@ -878,7 +959,7 @@ extension _ReadyParts on _ModelerScreenState {
                 parts: ScreenParts(
                   actions: actions,
                   status: status,
-                  properties: properties,
+                  properties: proPanel ?? properties,
                   viewport: staged,
                 ),
                 mode: state.mode,
@@ -1005,6 +1086,19 @@ extension _ReadyParts on _ModelerScreenState {
                     ? _weightBottom(state)
                     : retargetView
                     ? _retargetBottom()
+                    : state.mode == ModelerMode.simulation
+                    // `pro-sim-06`: the transport goes under the picture the
+                    // same way the animation mode's own does — a cache is
+                    // scrubbed while looking at the model.
+                    ? SimulationBar(
+                        cache: _simCache,
+                        frame: _simFrame,
+                        onSeek: _seekSimulation,
+                        playing: _simPlaying,
+                        onPlayPause: _toggleSimulation,
+                        onBake: _bakeSimulation,
+                        onClearCache: _clearSimCache,
+                      )
                     : null,
                 bottomHeight: _consoleOpen
                     ? kConsoleHeight
@@ -1014,6 +1108,8 @@ extension _ReadyParts on _ModelerScreenState {
                     ? ModelerMetrics.bendBar
                     : retargetView
                     ? ModelerMetrics.retargetTracksBar
+                    : state.mode == ModelerMode.simulation
+                    ? kSimulationBarHeight
                     : null,
               );
             },

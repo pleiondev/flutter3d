@@ -711,4 +711,80 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get toolSculptCreaseAbout =>
       'Pinches and sinks at once, which is how a fold is cut in.';
+
+  @override
+  String get toolRetopoQuadLabel => 'Draw a quad';
+
+  @override
+  String get toolRetopoQuadAbout =>
+      'Click four points on the high mesh; each one snaps to a vertex the new mesh already has, or lands on the surface.';
+
+  @override
+  String get toolRetopoAutoLabel => 'Retopologize';
+
+  @override
+  String get toolRetopoAutoAbout =>
+      'Rebuilds the whole surface as quads at about the count the panel asks for, shrink-wrapped back onto the original.';
+
+  @override
+  String get toolRetopoBakeLabel => 'Bake the maps';
+
+  @override
+  String get toolRetopoBakeAbout =>
+      'Bakes the high mesh\'s own surface into the low one\'s UVs — a normal map, an occlusion map, or both.';
+
+  @override
+  String get toolPaintBrushLabel => 'Brush';
+
+  @override
+  String get toolPaintBrushAbout =>
+      'Paints onto the object\'s own texture, through its UVs — a stroke over a seam paints both islands.';
+
+  @override
+  String get toolPaintFillLabel => 'Fill the layer';
+
+  @override
+  String get toolPaintFillAbout =>
+      'Floods the whole layer with the colour on the palette.';
+
+  @override
+  String get toolPaintClearLabel => 'Clear the layer';
+
+  @override
+  String get toolPaintClearAbout =>
+      'Empties the layer without touching the ones under it.';
+
+  @override
+  String get toolSimSelectLabel => 'Select';
+
+  @override
+  String get toolSimSelectAbout =>
+      'Pick the vertices a cloth hangs from, or the object to solve.';
+
+  @override
+  String get toolSimPinLabel => 'Pin the selection';
+
+  @override
+  String get toolSimPinAbout =>
+      'Holds the selected vertices still while everything else falls.';
+
+  @override
+  String get toolSimBakeLabel => 'Bake';
+
+  @override
+  String get toolSimBakeAbout =>
+      'Solves the whole clip and keeps it, so it can be scrubbed.';
+
+  @override
+  String get toolRenderSnapshotLabel => 'Render';
+
+  @override
+  String get toolRenderSnapshotAbout =>
+      'Renders the project at the size on the panel, one tile at a time, and shows the result.';
+
+  @override
+  String get toolRenderSaveLabel => 'Save the picture';
+
+  @override
+  String get toolRenderSaveAbout => 'Writes the last render out as a PNG.';
 }

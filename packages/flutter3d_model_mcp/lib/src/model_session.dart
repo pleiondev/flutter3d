@@ -158,8 +158,7 @@ final class ModelSession {
       if (vertices != null)
         ', ${vertices}v ${row.about['edges']}e ${row.about['faces']}f',
       if (row.materials.isNotEmpty) ', materials ${row.materials.join('/')}',
-      if (row.about['skeleton'] case final int skeleton)
-        ', skeleton $skeleton',
+      if (row.about['skeleton'] case final int skeleton) ', skeleton $skeleton',
       if (row.about['hidden'] == true) ', hidden',
       if (row.about['locked'] == true) ', locked',
       // Indented under the object rather than in a section of their own: a
@@ -203,12 +202,7 @@ final class ModelSession {
   /// without it this describes the first [limit] live ones, because a
   /// 200 000-face import would otherwise cost more context than the rest of
   /// the session put together.
-  String describe(
-    int id, {
-    String? level,
-    int? limit,
-    List<int>? elements,
-  }) {
+  String describe(int id, {String? level, int? limit, List<int>? elements}) {
     final ModelObject? object = project[id];
     if (object == null) return 'there is no object $id';
     final Listed row = contentsOf(
@@ -588,7 +582,8 @@ final class ModelSession {
     }
     return (
       did: true,
-      says: 'ran ${read.length} ${read.length == 1 ? 'command' : 'commands'} '
+      says:
+          'ran ${read.length} ${read.length == 1 ? 'command' : 'commands'} '
           'as one step — $selection',
     );
   }

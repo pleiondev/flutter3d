@@ -69,14 +69,18 @@ const Set<String> kStrokeTools = <String>{
   'sculpt.grab',
   'sculpt.pinch',
   'sculpt.crease',
+  // `pro-pt-05`: the texture brush is a stroke the same way the sculpting
+  // one is — sampled over a drag, and kept off a finger by `InputPolicy`.
+  'paint.brush',
 };
 
 /// What the modeller is being used for.
 ///
-/// **All eight are here and five of them work**, which is deliberate: a person
-/// opening this should be able to see what the thing is going to be, and a mode
-/// that is missing entirely reads as a mode that was never planned. The rest
-/// are shown disabled, with the phase they arrive in — see [ModelerMode.phase].
+/// **Eleven, and ten of them work.** A person opening this should be able to
+/// see what the thing is going to be, so a mode that is not built yet is
+/// shown disabled with the phase it arrives in rather than left out
+/// entirely — see [ModelerMode.phase]. UV is the one still waiting: `ui-28`
+/// built the screen and nothing switches into it yet.
 enum ModelerMode {
   object('Object', Icons.category_outlined, 1, ready: true, inEssential: true),
   mesh('Mesh', Icons.hexagon_outlined, 1, ready: true),
@@ -89,8 +93,17 @@ enum ModelerMode {
   ),
   uv('UV', Icons.grid_on_outlined, 4, ready: false),
   sculpt('Sculpt', Icons.brush_outlined, 4, ready: true),
+  // `pro-rt-03`/`pro-rt-07`, `pro-pt-05`, `pro-sim-06`, `pro-rn-04`: the
+  // four screens whose panels were built before a mode switch could reach
+  // them. Each is its own mode rather than a sub-mode of another, for the
+  // reason `AnimationSubmode`'s own doc comment gives about what a sub-mode
+  // is: these are four different workflows over one document, not one
+  // workflow looked at four grains.
+  retopo('Retopo', Icons.grid_4x4_outlined, 4, ready: true),
+  paint('Paint', Icons.format_paint_outlined, 4, ready: true),
+  simulation('Simulate', Icons.waves_outlined, 4, ready: true),
   animation('Animation', Icons.animation_outlined, 3, ready: true),
-  render('Render', Icons.camera_outlined, 4, ready: false),
+  render('Render', Icons.camera_outlined, 4, ready: true),
   scene('Scene', Icons.light_mode_outlined, 2, ready: true, inEssential: true);
 
   const ModelerMode(
@@ -113,16 +126,15 @@ enum ModelerMode {
   final IconData icon;
 
   /// Which phase of the plan brings this mode to life — shown in the tooltip
-  /// of a mode that is not [ready] yet. No longer what gates the switcher: a
-  /// phase-2 mode (material, scene) and a phase-3 one (animation) are ready
-  /// today while another phase-2 mode (uv) and a phase-4 one (sculpt, render)
-  /// are not, so the number alone cannot answer it any more.
+  /// of a mode that is not [ready] yet. No longer what gates the switcher:
+  /// every phase-four mode but UV is ready now, so the number alone cannot
+  /// answer it any more.
   final int phase;
 
   /// Whether this mode's panel is built and wired up, so the switcher should
-  /// actually let a person choose it. `ui-39d`: object, mesh, material,
-  /// animation and scene are; uv, sculpt and render — the pro-mode rows — are
-  /// deliberately not, regardless of their [phase].
+  /// actually let a person choose it, regardless of its [phase] — `ui-39d`'s
+  /// own rule. UV is the one false: its screen exists (`ui-28`) and nothing
+  /// switches into it.
   final bool ready;
 }
 
@@ -822,6 +834,117 @@ List<ModelerTool> toolsFor(
       icon: Icons.change_history_outlined,
       shortcut: LogicalKeyboardKey.keyC,
       group: 'move',
+    ),
+  ],
+  // `pro-rt-03`/`pro-rt-07`: drawing the new mesh over the old one, and the
+  // two long jobs that follow.
+  ModelerMode.retopo => const <ModelerTool>[
+    ModelerTool(
+      id: 'retopo.quad',
+      label: 'Draw a quad',
+      about:
+          'Click four points on the high mesh; each one snaps to a vertex '
+          'the new mesh already has, or lands on the surface.',
+      icon: Icons.highlight_alt_outlined,
+      shortcut: LogicalKeyboardKey.keyQ,
+      group: 'draw',
+    ),
+    ModelerTool(
+      id: 'retopo.auto',
+      label: 'Retopologize',
+      about:
+          'Rebuilds the whole surface as quads at about the count the panel '
+          'asks for, shrink-wrapped back onto the original.',
+      icon: Icons.grid_on_outlined,
+      shortcut: LogicalKeyboardKey.keyR,
+      group: 'draw',
+    ),
+    ModelerTool(
+      id: 'retopo.bake',
+      label: 'Bake the maps',
+      about:
+          'Bakes the high mesh\'s own surface into the low one\'s UVs — a '
+          'normal map, an occlusion map, or both.',
+      icon: Icons.texture_outlined,
+      shortcut: LogicalKeyboardKey.keyB,
+      group: 'bake',
+    ),
+  ],
+  // `pro-pt-05`: one brush, and the two one-shot actions beside it.
+  ModelerMode.paint => const <ModelerTool>[
+    ModelerTool(
+      id: 'paint.brush',
+      label: 'Brush',
+      about:
+          'Paints onto the object\'s own texture, through its UVs — a '
+          'stroke over a seam paints both islands.',
+      icon: Icons.brush_outlined,
+      shortcut: LogicalKeyboardKey.keyQ,
+      group: 'paint',
+    ),
+    ModelerTool(
+      id: 'paint.fill',
+      label: 'Fill the layer',
+      about: 'Floods the whole layer with the colour on the palette.',
+      icon: Icons.format_color_fill_outlined,
+      shortcut: LogicalKeyboardKey.keyF,
+      group: 'paint',
+    ),
+    ModelerTool(
+      id: 'paint.clear',
+      label: 'Clear the layer',
+      about: 'Empties the layer without touching the ones under it.',
+      icon: Icons.layers_clear_outlined,
+      shortcut: LogicalKeyboardKey.keyX,
+      group: 'paint',
+    ),
+  ],
+  // `pro-sim-06`: what is simulated, and what holds it up.
+  ModelerMode.simulation => const <ModelerTool>[
+    ModelerTool(
+      id: 'sim.select',
+      label: 'Select',
+      about: 'Pick the vertices a cloth hangs from, or the object to solve.',
+      icon: Icons.near_me_outlined,
+      shortcut: LogicalKeyboardKey.keyQ,
+      group: 'select',
+    ),
+    ModelerTool(
+      id: 'sim.pin',
+      label: 'Pin the selection',
+      about: 'Holds the selected vertices still while everything else falls.',
+      icon: Icons.push_pin_outlined,
+      shortcut: LogicalKeyboardKey.keyP,
+      group: 'select',
+    ),
+    ModelerTool(
+      id: 'sim.bake',
+      label: 'Bake',
+      about: 'Solves the whole clip and keeps it, so it can be scrubbed.',
+      icon: Icons.play_circle_outline,
+      shortcut: LogicalKeyboardKey.keyB,
+      group: 'cache',
+    ),
+  ],
+  // `pro-rn-04`: one button and the pass list beside it.
+  ModelerMode.render => const <ModelerTool>[
+    ModelerTool(
+      id: 'render.snapshot',
+      label: 'Render',
+      about:
+          'Renders the project at the size on the panel, one tile at a time, '
+          'and shows the result.',
+      icon: Icons.camera_outlined,
+      shortcut: LogicalKeyboardKey.keyR,
+      group: 'render',
+    ),
+    ModelerTool(
+      id: 'render.save',
+      label: 'Save the picture',
+      about: 'Writes the last render out as a PNG.',
+      icon: Icons.save_outlined,
+      shortcut: LogicalKeyboardKey.keyS,
+      group: 'render',
     ),
   ],
   // Every mode past phase one is drawn on the bar and refused, so there is
