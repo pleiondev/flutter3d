@@ -11,6 +11,7 @@ library;
 import 'package:flutter/material.dart';
 import 'package:flutter3d_editor_widgets/flutter3d_editor_widgets.dart';
 import 'package:flutter3d_model_core/flutter3d_model_core.dart';
+import 'package:flutter3d_modeler/l10n/app_localizations.dart';
 import 'package:flutter3d_modeler/src/ui/operation_card.dart';
 import 'package:flutter3d_modeler/src/ui/theme.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -38,6 +39,9 @@ void main() {
       final amended = <ModelCommand>[];
       await tester.pumpWidget(
         MaterialApp(
+          locale: const Locale('en'),
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
           theme: modelerTheme(),
           home: Scaffold(
             body: OperationCard(
@@ -66,6 +70,9 @@ void main() {
       final amended = <ModelCommand>[];
       await tester.pumpWidget(
         MaterialApp(
+          locale: const Locale('en'),
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
           theme: modelerTheme(),
           home: Scaffold(
             body: OperationCard(
@@ -98,6 +105,9 @@ void main() {
     ) async {
       await tester.pumpWidget(
         MaterialApp(
+          locale: const Locale('en'),
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
           theme: modelerTheme(),
           home: Scaffold(body: OperationCard(command: null, onAmend: (_) {})),
         ),
@@ -112,6 +122,9 @@ void main() {
         final amended = <ModelCommand>[];
         await tester.pumpWidget(
           MaterialApp(
+            locale: const Locale('en'),
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
             theme: modelerTheme(),
             home: Scaffold(
               body: OperationCard(
@@ -145,6 +158,9 @@ void main() {
         final amended = <ModelCommand>[];
         await tester.pumpWidget(
           MaterialApp(
+            locale: const Locale('en'),
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
             theme: modelerTheme(),
             home: Scaffold(
               body: OperationCard(
@@ -175,6 +191,9 @@ void main() {
       WidgetTester tester,
     ) async {
       Widget cardFor(ModelCommand? command) => MaterialApp(
+        locale: const Locale('en'),
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
         theme: modelerTheme(),
         home: Scaffold(
           body: OperationCard(command: command, onAmend: (_) {}),
@@ -200,6 +219,9 @@ void main() {
       (WidgetTester tester) async {
         await tester.pumpWidget(
           MaterialApp(
+            locale: const Locale('en'),
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
             theme: modelerTheme(),
             home: Scaffold(
               body: OperationCard(
@@ -236,6 +258,9 @@ void main() {
       (WidgetTester tester) async {
         await tester.pumpWidget(
           MaterialApp(
+            locale: const Locale('en'),
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
             theme: modelerTheme(),
             home: Scaffold(
               body: OperationCard(
