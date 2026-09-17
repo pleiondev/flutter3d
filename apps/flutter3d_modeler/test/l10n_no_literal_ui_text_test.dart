@@ -49,11 +49,32 @@ const Map<String, String> allowed = <String, String>{
 };
 
 /// Where a widget puts something a person reads.
+///
+/// **Matched over the whole file rather than line by line, and adjacent
+/// literals joined.** Both of those were holes: a `Text(` whose string starts
+/// on the next line is invisible to a per-line scan, and a sentence broken
+/// across two quoted pieces — which is how every paragraph in this
+/// application is written, because the formatter wraps at eighty — showed up
+/// as the first piece alone or not at all. The settings screen's own helps
+/// and subtitles were exactly that shape, and this check read none of them
+/// until it stopped reading lines.
 final RegExp _sites = RegExp(
   r"(?:Text\(\s*|SectionLabel\(\s*|message:\s*|label:\s*|tooltip:\s*"
   r"|title:\s*|labelText:\s*|hintText:\s*|helperText:\s*|semanticLabel:\s*)"
-  r"'((?:\\.|[^'\\])*)'",
+  r"(?:const\s+)?((?:'(?:\\.|[^'\\])*'\s*)+)",
+  multiLine: true,
 );
+
+/// [said] with every `${…}` and `$name` taken out, so what is left is the
+/// words the file itself is putting on the screen.
+String _outsideInterpolations(String said) => said
+    .replaceAll(RegExp(r'\$\{[^}]*\}'), ' ')
+    .replaceAll(RegExp(r'\$[A-Za-z_][A-Za-z0-9_]*'), ' ');
+
+/// A run of adjacent quoted pieces, as the one string Dart joins them into.
+String _joined(String pieces) => RegExp(
+  r"'((?:\\.|[^'\\])*)'",
+).allMatches(pieces).map((RegExpMatch m) => m.group(1)!).join();
 
 /// An id, a key or a field name — `materialSlot`, `mesh.extrude` — which is
 /// vocabulary rather than language.
@@ -65,20 +86,23 @@ void main() {
     for (final String path in translated) {
       final file = File(path);
       expect(file.existsSync(), isTrue, reason: '$path is not there');
-      final lines = file.readAsLinesSync();
-      for (var i = 0; i < lines.length; i++) {
-        for (final RegExpMatch m in _sites.allMatches(lines[i])) {
-          final String said = m.group(1)!;
-          if (said.length < 2) continue;
-          if (!RegExp('[A-Za-z]{2}').hasMatch(said)) continue;
-          if (_identifier.hasMatch(said)) continue;
-          // A string that is only an interpolation is whatever it
-          // interpolates — a count, a file name, a sentence already
-          // translated where it was built.
-          if (RegExp(r'^\$[A-Za-z_][A-Za-z0-9_]*$').hasMatch(said)) continue;
-          if (allowed.containsKey(said)) continue;
-          offenders.add('$path:${i + 1}: $said');
+      final String source = file.readAsStringSync();
+      for (final RegExpMatch m in _sites.allMatches(source)) {
+        final String said = _joined(m.group(1)!);
+        if (said.length < 2) continue;
+        if (!RegExp('[A-Za-z]{2}').hasMatch(said)) continue;
+        if (_identifier.hasMatch(said)) continue;
+        // **A string with no word of its own outside an interpolation is
+        // whatever it interpolates** — a count, a file name, a label and a
+        // shortcut already translated where they were built. What is left
+        // after the interpolations come out is punctuation and spacing,
+        // which is not language and has nowhere to go in an ARB file.
+        if (!RegExp('[A-Za-z]{2}').hasMatch(_outsideInterpolations(said))) {
+          continue;
         }
+        if (allowed.containsKey(said)) continue;
+        final int line = '\n'.allMatches(source.substring(0, m.start)).length;
+        offenders.add('$path:${line + 1}: $said');
       }
     }
 

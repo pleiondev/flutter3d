@@ -318,5 +318,14 @@
   "settingsSaveHistoryHelp": "Сохраняет внутри файла то, что ещё можно отменить.",
   "settingsLegalSection": "Юридическое и данные",
   "settingsClearDataHelp": "Настройки, список недавних файлов и автосохранение. Сохранённые файлы проектов не трогаются.",
-  "settingsLegalHelp": "Документы, под которыми вышла эта сборка, и сторонние лицензии."
+  "settingsLegalHelp": "Документы, под которыми вышла эта сборка, и сторонние лицензии.",
+  "commandPaletteNoMatch": "ничего не найдено по «{said}»",
+  "@commandPaletteNoMatch": {
+    "description": "Палитра команд — ux-22.",
+    "placeholders": {
+      "said": {
+        "type": "String"
+      }
+    }
+  }
 }

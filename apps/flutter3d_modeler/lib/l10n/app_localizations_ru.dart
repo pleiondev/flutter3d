@@ -887,4 +887,9 @@ class AppLocalizationsRu extends AppLocalizations {
   @override
   String get settingsLegalHelp =>
       'Документы, под которыми вышла эта сборка, и сторонние лицензии.';
+
+  @override
+  String commandPaletteNoMatch(String said) {
+    return 'ничего не найдено по «$said»';
+  }
 }

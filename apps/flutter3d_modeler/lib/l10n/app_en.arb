@@ -301,5 +301,14 @@
   "settingsSaveHistoryHelp": "Keeps what you could still undo inside the saved file.",
   "settingsLegalSection": "Legal and data",
   "settingsClearDataHelp": "Settings, the recent-files list and the autosave. Saved project files are not touched.",
-  "settingsLegalHelp": "The documents this build shipped under, and the third-party licences."
+  "settingsLegalHelp": "The documents this build shipped under, and the third-party licences.",
+  "commandPaletteNoMatch": "nothing matches “{said}”",
+  "@commandPaletteNoMatch": {
+    "description": "Command palette — ux-22.",
+    "placeholders": {
+      "said": {
+        "type": "String"
+      }
+    }
+  }
 }
