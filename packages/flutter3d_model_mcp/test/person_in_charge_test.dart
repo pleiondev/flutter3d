@@ -27,8 +27,7 @@ void main() {
     ModelMcpServer(
       pipe.local,
       session: session,
-      pausedBecause: () =>
-          paused ? 'the person has paused agent calls' : null,
+      pausedBecause: () => paused ? 'the person has paused agent calls' : null,
     );
     client = MCPClient(Implementation(name: name, version: modelMcpVersion));
     connection = client.connectServer(pipe.foreign);
@@ -59,22 +58,21 @@ void main() {
   Future<CallToolResult> call(
     String name, [
     Map<String, Object?> arguments = const <String, Object?>{},
-  ]) => connection.callTool(
-    CallToolRequest(name: name, arguments: arguments),
-  );
+  ]) => connection.callTool(CallToolRequest(name: name, arguments: arguments));
 
   String saidBy(CallToolResult result) =>
       (result.content.first as TextContent).text;
 
   test('a paused agent is refused, and told why', () async {
-    expect((await call('addPrimitive', <String, Object?>{'kind': 'box'})).isError,
-        isNot(true));
+    expect(
+      (await call('addPrimitive', <String, Object?>{'kind': 'box'})).isError,
+      isNot(true),
+    );
 
     paused = true;
-    final CallToolResult refused = await call(
-      'addPrimitive',
-      <String, Object?>{'kind': 'sphere'},
-    );
+    final CallToolResult refused = await call('addPrimitive', <String, Object?>{
+      'kind': 'sphere',
+    });
 
     // Mutation: let the call through, or drop it silently. A person's only
     // ways to stop an agent were killing the process — which loses the
@@ -111,23 +109,22 @@ void main() {
     expect(session.client, 'claude');
   });
 
-  test('a person taking over an agent step stops the agent undoing it',
-      () async {
-    await call('addPrimitive', <String, Object?>{'kind': 'box'});
-    await call('moveBy', <String, Object?>{
-      'by': <double>[0, 1, 0],
-    });
+  test(
+    'a person taking over an agent step stops the agent undoing it',
+    () async {
+      await call('addPrimitive', <String, Object?>{'kind': 'box'});
+      await call('moveBy', <String, Object?>{
+        'by': <double>[0, 1, 0],
+      });
 
-    // The person drags the operation card's own slider: the same command,
-    // different distance, amended by a hand rather than by the agent.
-    expect(
-      session.history.amend(MoveBy(Vector3(0, 2, 0))),
-      isNull,
-    );
+      // The person drags the operation card's own slider: the same command,
+      // different distance, amended by a hand rather than by the agent.
+      expect(session.history.amend(MoveBy(Vector3(0, 2, 0))), isNull);
 
-    final CallToolResult refused = await call('undo');
-    expect(refused.isError, isTrue);
-    expect(saidBy(refused), contains("person's own"));
-    expect(session.project[1]!.transform.storage[13], closeTo(2.0, 1e-6));
-  });
+      final CallToolResult refused = await call('undo');
+      expect(refused.isError, isTrue);
+      expect(saidBy(refused), contains("person's own"));
+      expect(session.project[1]!.transform.storage[13], closeTo(2.0, 1e-6));
+    },
+  );
 }

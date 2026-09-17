@@ -32,10 +32,7 @@ GraphicsDevice _cpuDevice(int width, int height) => CpuDevice(
 
 Future<void> _renderTo(ModelProject project, String path) async {
   final png = await renderProject(
-    RenderRequest(
-      project: project,
-      view: RenderProjectView.iso,
-    ),
+    RenderRequest(project: project, view: RenderProjectView.iso),
     deviceFactory: _cpuDevice,
   );
   File(path).writeAsBytesSync(png);

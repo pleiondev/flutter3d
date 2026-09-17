@@ -54,9 +54,7 @@ void main() {
   Future<CallToolResult> call(
     String name, [
     Map<String, Object?> arguments = const <String, Object?>{},
-  ]) => connection.callTool(
-    CallToolRequest(name: name, arguments: arguments),
-  );
+  ]) => connection.callTool(CallToolRequest(name: name, arguments: arguments));
 
   String saidBy(CallToolResult result) =>
       (result.content.single as TextContent).text;
@@ -156,12 +154,14 @@ void main() {
     // `extrude` reads the selection, so it grew the target arguments.
     expect(named('extrude').inputSchema.properties!.keys, contains('faces'));
     expect(named('extrude').inputSchema.properties!.keys, contains('object'));
-    expect(named('deleteObjects').inputSchema.properties!.keys, contains('ids'));
+    expect(
+      named('deleteObjects').inputSchema.properties!.keys,
+      contains('ids'),
+    );
   });
 
   group('batch', () {
-    test('runs as one step, and one undo takes the whole thing back',
-        () async {
+    test('runs as one step, and one undo takes the whole thing back', () async {
       final CallToolResult ran = await call('batch', <String, Object?>{
         'commands': <Map<String, Object?>>[
           <String, Object?>{'name': 'addPrimitive', 'kind': 'box'},
@@ -222,19 +222,21 @@ void main() {
       expect(session.project.objects, hasLength(1));
     });
 
-    test('an entry this build cannot read is refused before anything runs',
-        () async {
-      await call('addPrimitive', <String, Object?>{'kind': 'box'});
-      final CallToolResult refused = await call('batch', <String, Object?>{
-        'commands': <Map<String, Object?>>[
-          <String, Object?>{'name': 'rename', 'id': 1, 'to': 'fine'},
-          <String, Object?>{'name': 'notACommand'},
-        ],
-      });
-      expect(refused.isError, isTrue);
-      expect(saidBy(refused), contains('entry 1'));
-      expect(session.project[1]!.name, 'box');
-    });
+    test(
+      'an entry this build cannot read is refused before anything runs',
+      () async {
+        await call('addPrimitive', <String, Object?>{'kind': 'box'});
+        final CallToolResult refused = await call('batch', <String, Object?>{
+          'commands': <Map<String, Object?>>[
+            <String, Object?>{'name': 'rename', 'id': 1, 'to': 'fine'},
+            <String, Object?>{'name': 'notACommand'},
+          ],
+        });
+        expect(refused.isError, isTrue);
+        expect(saidBy(refused), contains('entry 1'));
+        expect(session.project[1]!.name, 'box');
+      },
+    );
 
     test('each entry may aim itself', () async {
       await aCube();
@@ -292,27 +294,29 @@ void main() {
     expect(session.history.selection.objects, <int>[1]);
   });
 
-  test('the journal replays a rolled-back batch as a batch that did nothing',
-      () async {
-    await call('addPrimitive', <String, Object?>{'kind': 'box'});
-    await call('batch', <String, Object?>{
-      'commands': <Map<String, Object?>>[
-        <String, Object?>{'name': 'rename', 'id': 1, 'to': 'changed'},
-        <String, Object?>{'name': 'rename', 'id': 99, 'to': 'nothing'},
-      ],
-    });
+  test(
+    'the journal replays a rolled-back batch as a batch that did nothing',
+    () async {
+      await call('addPrimitive', <String, Object?>{'kind': 'box'});
+      await call('batch', <String, Object?>{
+        'commands': <Map<String, Object?>>[
+          <String, Object?>{'name': 'rename', 'id': 1, 'to': 'changed'},
+          <String, Object?>{'name': 'rename', 'id': 99, 'to': 'nothing'},
+        ],
+      });
 
-    final String journal = '${workspace.path}/recovery.jsonl';
-    await call('journal', <String, Object?>{'to': journal});
+      final String journal = '${workspace.path}/recovery.jsonl';
+      await call('journal', <String, Object?>{'to': journal});
 
-    final JournalReplay replayed = CommandJournal.replay(
-      File(journal).readAsBytesSync(),
-      const ModelProject(),
-    );
-    expect(replayed.refused, isNull, reason: replayed.refused);
-    // Mutation: replay the commands and ignore the rollback. A recovery that
-    // brings back an edit the live session had already taken back is worse
-    // than no recovery — the person cannot tell which of the two is right.
-    expect(replayed.history!.project.objects.single.name, 'box');
-  });
+      final JournalReplay replayed = CommandJournal.replay(
+        File(journal).readAsBytesSync(),
+        const ModelProject(),
+      );
+      expect(replayed.refused, isNull, reason: replayed.refused);
+      // Mutation: replay the commands and ignore the rollback. A recovery that
+      // brings back an edit the live session had already taken back is worse
+      // than no recovery — the person cannot tell which of the two is right.
+      expect(replayed.history!.project.objects.single.name, 'box');
+    },
+  );
 }

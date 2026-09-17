@@ -19,8 +19,7 @@ import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:flutter3d_app/src/cpu_frame_presenter.dart';
 import 'package:flutter3d_cpu/flutter3d_cpu.dart' show CpuTexture;
-import 'package:flutter3d_hardware/flutter3d_hardware.dart'
-    show TextureFormat;
+import 'package:flutter3d_hardware/flutter3d_hardware.dart' show TextureFormat;
 import 'package:flutter_test/flutter_test.dart';
 
 /// Paints every pixel of [texture] one colour, the way a render into it does.
