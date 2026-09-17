@@ -1054,4 +1054,99 @@ class AppLocalizationsEn extends AppLocalizations {
   String renderCancelTiles(int done, int total) {
     return 'Cancel · $done/$total';
   }
+
+  @override
+  String get weightsBrush => 'Brush';
+
+  @override
+  String get weightsPaint => 'Paint';
+
+  @override
+  String get weightsAssign => 'Assign';
+
+  @override
+  String get weightsRadius => 'Radius';
+
+  @override
+  String get weightsMirror => 'Mirror';
+
+  @override
+  String get weightsNormalize => 'Normalize';
+
+  @override
+  String get weightsSelectedVertex => 'Selected vertex';
+
+  @override
+  String get weightsNoVertex => 'No vertex under the brush yet';
+
+  @override
+  String get weightsNoInfluences => 'No influences on this vertex';
+
+  @override
+  String get weightsBones => 'Bones';
+
+  @override
+  String get weightsNoBones => 'No bones';
+
+  @override
+  String get morphsNoShapeKeys => 'No shape keys on this object';
+
+  @override
+  String get morphsAddDriver => 'Add driver';
+
+  @override
+  String get morphsKeyShape => 'Key this shape';
+
+  @override
+  String get morphsRemoveDriver => 'Remove driver';
+
+  @override
+  String get morphsFrom => 'From°';
+
+  @override
+  String get morphsTo => 'To°';
+
+  @override
+  String get retargetRootMotion => 'Root motion';
+
+  @override
+  String get retargetCorrections => 'Corrections';
+
+  @override
+  String get retargetLockFeet => 'Lock feet';
+
+  @override
+  String get retargetGroundY => 'Ground Y';
+
+  @override
+  String get retargetFootTolerance => 'Foot tolerance';
+
+  @override
+  String get retargetApply => 'Apply the retarget';
+
+  @override
+  String get uvMethod => 'Method';
+
+  @override
+  String get uvMargin => 'Margin';
+
+  @override
+  String get uvIslands => 'Islands';
+
+  @override
+  String get uvNoIslands => 'No islands';
+
+  @override
+  String get transportKeys => 'Keys';
+
+  @override
+  String get transportCurves => 'Curves';
+
+  @override
+  String get transportLoop => 'Loop';
+
+  @override
+  String uvIsland(int id) {
+    return 'Island $id';
+  }
 }

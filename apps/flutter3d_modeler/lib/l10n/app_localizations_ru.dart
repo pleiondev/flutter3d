@@ -1060,4 +1060,99 @@ class AppLocalizationsRu extends AppLocalizations {
   String renderCancelTiles(int done, int total) {
     return 'Отмена · $done/$total';
   }
+
+  @override
+  String get weightsBrush => 'Кисть';
+
+  @override
+  String get weightsPaint => 'Рисовать';
+
+  @override
+  String get weightsAssign => 'Назначить';
+
+  @override
+  String get weightsRadius => 'Радиус';
+
+  @override
+  String get weightsMirror => 'Зеркалить';
+
+  @override
+  String get weightsNormalize => 'Нормализовать';
+
+  @override
+  String get weightsSelectedVertex => 'Выбранная вершина';
+
+  @override
+  String get weightsNoVertex => 'Под кистью пока нет вершины';
+
+  @override
+  String get weightsNoInfluences => 'На эту вершину ничто не влияет';
+
+  @override
+  String get weightsBones => 'Кости';
+
+  @override
+  String get weightsNoBones => 'Костей нет';
+
+  @override
+  String get morphsNoShapeKeys => 'У этого объекта нет ключей формы';
+
+  @override
+  String get morphsAddDriver => 'Добавить драйвер';
+
+  @override
+  String get morphsKeyShape => 'Поставить ключ на форму';
+
+  @override
+  String get morphsRemoveDriver => 'Удалить драйвер';
+
+  @override
+  String get morphsFrom => 'От°';
+
+  @override
+  String get morphsTo => 'До°';
+
+  @override
+  String get retargetRootMotion => 'Движение корня';
+
+  @override
+  String get retargetCorrections => 'Поправки';
+
+  @override
+  String get retargetLockFeet => 'Зафиксировать стопы';
+
+  @override
+  String get retargetGroundY => 'Уровень земли Y';
+
+  @override
+  String get retargetFootTolerance => 'Допуск для стопы';
+
+  @override
+  String get retargetApply => 'Применить ретаргет';
+
+  @override
+  String get uvMethod => 'Метод';
+
+  @override
+  String get uvMargin => 'Отступ';
+
+  @override
+  String get uvIslands => 'Острова';
+
+  @override
+  String get uvNoIslands => 'Островов нет';
+
+  @override
+  String get transportKeys => 'Ключи';
+
+  @override
+  String get transportCurves => 'Кривые';
+
+  @override
+  String get transportLoop => 'Цикл';
+
+  @override
+  String uvIsland(int id) {
+    return 'Остров $id';
+  }
 }

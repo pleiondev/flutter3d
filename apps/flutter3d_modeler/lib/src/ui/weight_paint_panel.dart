@@ -22,6 +22,8 @@ import 'package:flutter3d_editor_widgets/flutter3d_editor_widgets.dart';
 import 'package:flutter3d_mesh/flutter3d_mesh.dart';
 import 'package:flutter3d_model_core/flutter3d_model_core.dart' hide Outcome;
 
+import '../../l10n/app_localizations.dart';
+
 /// The brush parameters, the held vertex's own influences, and the skeleton's
 /// own bone list — screen 13's whole right panel.
 class WeightPaintPanel extends StatelessWidget {
@@ -104,6 +106,7 @@ class WeightPaintPanel extends StatelessWidget {
     final EditMesh? mesh = this.mesh;
     final int? vertex = selectedVertex;
     final List<int> joints = skeleton?.joints ?? const <int>[];
+    final AppLocalizations l = AppLocalizations.of(context);
 
     final List<WeightPair> influences = mesh == null || vertex == null
         ? const <WeightPair>[]
@@ -135,17 +138,17 @@ class WeightPaintPanel extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: <Widget>[
-        SectionLabel('Brush'),
+        SectionLabel(l.weightsBrush),
         SegmentedButton<PaintWeightsMode>(
           showSelectedIcon: false,
-          segments: const <ButtonSegment<PaintWeightsMode>>[
+          segments: <ButtonSegment<PaintWeightsMode>>[
             ButtonSegment<PaintWeightsMode>(
               value: PaintWeightsMode.paint,
-              label: Text('Paint'),
+              label: Text(l.weightsPaint),
             ),
             ButtonSegment<PaintWeightsMode>(
               value: PaintWeightsMode.assign,
-              label: Text('Assign'),
+              label: Text(l.weightsAssign),
             ),
           ],
           selected: <PaintWeightsMode>{mode},
@@ -154,14 +157,14 @@ class WeightPaintPanel extends StatelessWidget {
         ),
         const SizedBox(height: 8),
         RangeSliderField(
-          label: 'Radius',
+          label: l.weightsRadius,
           value: radius,
           min: 4,
           max: 200,
           onChanged: onRadiusChanged,
         ),
         RangeSliderField(
-          label: 'Strength',
+          label: l.brushStrength,
           value: strength,
           min: 0,
           max: 1,
@@ -173,7 +176,7 @@ class WeightPaintPanel extends StatelessWidget {
           dense: true,
           contentPadding: EdgeInsets.zero,
           controlAffinity: ListTileControlAffinity.leading,
-          title: Text('Mirror', style: theme.textTheme.bodySmall),
+          title: Text(l.weightsMirror, style: theme.textTheme.bodySmall),
           value: mirror,
           onChanged: (bool? v) => onMirrorChanged(v ?? false),
         ),
@@ -182,16 +185,16 @@ class WeightPaintPanel extends StatelessWidget {
           dense: true,
           contentPadding: EdgeInsets.zero,
           controlAffinity: ListTileControlAffinity.leading,
-          title: Text('Normalize', style: theme.textTheme.bodySmall),
+          title: Text(l.weightsNormalize, style: theme.textTheme.bodySmall),
           value: normalize,
           onChanged: (bool? v) => onNormalizeChanged(v ?? false),
         ),
-        SectionLabel('Selected vertex'),
+        SectionLabel(l.weightsSelectedVertex),
         if (vertex == null)
           Padding(
             padding: const EdgeInsets.symmetric(vertical: 4),
             child: Text(
-              'No vertex under the brush yet',
+              l.weightsNoVertex,
               style: theme.textTheme.bodySmall?.copyWith(
                 fontStyle: FontStyle.italic,
               ),
@@ -201,7 +204,7 @@ class WeightPaintPanel extends StatelessWidget {
           Padding(
             padding: const EdgeInsets.symmetric(vertical: 4),
             child: Text(
-              'No influences on this vertex',
+              l.weightsNoInfluences,
               style: theme.textTheme.bodySmall?.copyWith(
                 fontStyle: FontStyle.italic,
               ),
@@ -215,12 +218,12 @@ class WeightPaintPanel extends StatelessWidget {
                   : 'joint ${pair.joint}',
               weight: pair.weight,
             ),
-        SectionLabel('Bones'),
+        SectionLabel(l.weightsBones),
         if (joints.isEmpty)
           Padding(
             padding: const EdgeInsets.symmetric(vertical: 4),
             child: Text(
-              'No bones',
+              l.weightsNoBones,
               style: theme.textTheme.bodySmall?.copyWith(
                 fontStyle: FontStyle.italic,
               ),
