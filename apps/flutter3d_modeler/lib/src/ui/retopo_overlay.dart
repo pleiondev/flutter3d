@@ -21,8 +21,13 @@ library;
 
 import 'package:flutter/material.dart';
 
-/// The active quad's own colour — `pro-rt-03`'s own `#FF458E`.
-const Color kActiveQuadColour = Color(0xFFFF458E);
+import 'theme.dart';
+
+/// The active quad's own colour — `pro-rt-03`'s own `#FF458E`, which is the
+/// scheme's own `secondary` rather than a second copy of the hex. `ui-38d`'s
+/// own rule: the accent is named in one place, so a theme that moves it moves
+/// this with it.
+final Color kActiveQuadColour = kModelerScheme.secondary;
 
 /// How much of it is drawn — `pro-rt-03`'s own 22%.
 const double kActiveQuadOpacity = 0.22;
