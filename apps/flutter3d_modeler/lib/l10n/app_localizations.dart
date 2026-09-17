@@ -3223,6 +3223,60 @@ abstract class AppLocalizations {
   /// In ru, this message translates to:
   /// **'Следующее изображение'**
   String get graphNextImageTooltip;
+
+  /// No description provided for @statusShowFolder.
+  ///
+  /// In ru, this message translates to:
+  /// **'Показать папку'**
+  String get statusShowFolder;
+
+  /// No description provided for @envClearPanorama.
+  ///
+  /// In ru, this message translates to:
+  /// **'Убрать панораму'**
+  String get envClearPanorama;
+
+  /// No description provided for @envAmbient.
+  ///
+  /// In ru, this message translates to:
+  /// **'Окружающий свет'**
+  String get envAmbient;
+
+  /// No description provided for @animActions.
+  ///
+  /// In ru, this message translates to:
+  /// **'Действия'**
+  String get animActions;
+
+  /// Строка состояния — ux-22. Число уже отформатировано.
+  ///
+  /// In ru, this message translates to:
+  /// **'{density} тексел/см'**
+  String statusTexelDensity(String density);
+
+  /// Строка состояния — ux-22.
+  ///
+  /// In ru, this message translates to:
+  /// **'{used} МБ из {budget}'**
+  String statusTextureBudget(String used, String budget);
+
+  /// Строка состояния — ux-22. Число уже отформатировано.
+  ///
+  /// In ru, this message translates to:
+  /// **'{ms} мс'**
+  String statusFrameTime(String ms);
+
+  /// No description provided for @animSkeleton.
+  ///
+  /// In ru, this message translates to:
+  /// **'Скелет'**
+  String get animSkeleton;
+
+  /// No description provided for @animConstraints.
+  ///
+  /// In ru, this message translates to:
+  /// **'Ограничения'**
+  String get animConstraints;
 }
 
 class _AppLocalizationsDelegate

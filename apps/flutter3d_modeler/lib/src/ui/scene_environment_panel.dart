@@ -54,69 +54,72 @@ final class SceneEnvironmentPanel extends StatelessWidget {
   };
 
   @override
-  Widget build(BuildContext context) => Column(
-    crossAxisAlignment: CrossAxisAlignment.start,
-    children: <Widget>[
-      SectionLabel(AppLocalizations.of(context).sceneEnvironmentSectionLabel),
-      Padding(
-        padding: const EdgeInsets.symmetric(vertical: 4),
-        child: DropdownButton<SceneEnvironmentPreset>(
-          isExpanded: true,
-          value: environment,
-          items: <DropdownMenuItem<SceneEnvironmentPreset>>[
-            for (final SceneEnvironmentPreset preset
-                in SceneEnvironmentPreset.values)
-              DropdownMenuItem<SceneEnvironmentPreset>(
-                value: preset,
-                child: Text(_labelOf(preset)),
-              ),
-          ],
-          onChanged: (SceneEnvironmentPreset? preset) {
-            if (preset != null) onEnvironmentChanged(preset);
-          },
-        ),
-      ),
-      // `ux-49`: a panorama beside the four presets rather than as a fifth
-      // one. **When there is one it is what lights the scene**, and the
-      // dropdown above is what a project falls back to when it is cleared —
-      // which is why this row says which of the two is in force rather than
-      // sitting silently under a preset nobody is looking at.
-      if (onChoosePanorama != null) ...<Widget>[
+  Widget build(BuildContext context) {
+    final AppLocalizations l = AppLocalizations.of(context);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: <Widget>[
+        SectionLabel(AppLocalizations.of(context).sceneEnvironmentSectionLabel),
         Padding(
           padding: const EdgeInsets.symmetric(vertical: 4),
-          child: Row(
-            children: <Widget>[
-              const Icon(Icons.panorama_outlined, size: 14),
-              const SizedBox(width: 6),
-              Expanded(
-                child: Text(
-                  panoramaName ?? 'No panorama — the preset above lights it',
-                  overflow: TextOverflow.ellipsis,
-                  style: Theme.of(context).textTheme.bodySmall,
+          child: DropdownButton<SceneEnvironmentPreset>(
+            isExpanded: true,
+            value: environment,
+            items: <DropdownMenuItem<SceneEnvironmentPreset>>[
+              for (final SceneEnvironmentPreset preset
+                  in SceneEnvironmentPreset.values)
+                DropdownMenuItem<SceneEnvironmentPreset>(
+                  value: preset,
+                  child: Text(_labelOf(preset)),
                 ),
-              ),
-              if (panoramaName != null && onClearPanorama != null)
-                NamedButton(
-                  label: 'Clear the panorama',
-                  child: IconButton(
-                    tooltip: 'Clear the panorama',
-                    icon: const Icon(Icons.close, size: 16),
-                    onPressed: onClearPanorama,
-                  ),
-                ),
-              TextButton(
-                onPressed: onChoosePanorama,
-                child: Text(panoramaName == null ? 'Choose…' : 'Replace…'),
-              ),
             ],
+            onChanged: (SceneEnvironmentPreset? preset) {
+              if (preset != null) onEnvironmentChanged(preset);
+            },
           ),
         ),
+        // `ux-49`: a panorama beside the four presets rather than as a fifth
+        // one. **When there is one it is what lights the scene**, and the
+        // dropdown above is what a project falls back to when it is cleared —
+        // which is why this row says which of the two is in force rather than
+        // sitting silently under a preset nobody is looking at.
+        if (onChoosePanorama != null) ...<Widget>[
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 4),
+            child: Row(
+              children: <Widget>[
+                const Icon(Icons.panorama_outlined, size: 14),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text(
+                    panoramaName ?? 'No panorama — the preset above lights it',
+                    overflow: TextOverflow.ellipsis,
+                    style: Theme.of(context).textTheme.bodySmall,
+                  ),
+                ),
+                if (panoramaName != null && onClearPanorama != null)
+                  NamedButton(
+                    label: l.envClearPanorama,
+                    child: IconButton(
+                      tooltip: l.envClearPanorama,
+                      icon: const Icon(Icons.close, size: 16),
+                      onPressed: onClearPanorama,
+                    ),
+                  ),
+                TextButton(
+                  onPressed: onChoosePanorama,
+                  child: Text(panoramaName == null ? 'Choose…' : 'Replace…'),
+                ),
+              ],
+            ),
+          ),
+        ],
+        NumberField(
+          label: l.envAmbient,
+          value: ambientIntensity,
+          onChanged: onAmbientChanged,
+        ),
       ],
-      NumberField(
-        label: 'Ambient',
-        value: ambientIntensity,
-        onChanged: onAmbientChanged,
-      ),
-    ],
-  );
+    );
+  }
 }

@@ -45,6 +45,7 @@ import 'package:flutter3d/flutter3d.dart' hide Material;
 import 'package:flutter3d_model_core/flutter3d_model_core.dart'
     hide Key, Outcome;
 
+import '../../../l10n/app_localizations.dart';
 import '../game_preview_settings.dart';
 import '../modeler_viewport.dart';
 import '../scene_mode.dart';
@@ -165,6 +166,7 @@ class _GamePreviewScreenState extends State<GamePreviewScreen>
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final ProfileBudgetReport report = ProfileBudgetReport.of(widget.project);
+    final AppLocalizations l = AppLocalizations.of(context);
     final GamePreviewSettings preview = GamePreviewSettings.forProfile(
       widget.project.profile,
     );
@@ -271,7 +273,10 @@ class _GamePreviewScreenState extends State<GamePreviewScreen>
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: <Widget>[
-                          Text('Budgets', style: theme.textTheme.titleSmall),
+                          Text(
+                            l.previewBudgets,
+                            style: theme.textTheme.titleSmall,
+                          ),
                           const SizedBox(height: 12),
                           BudgetBars(report: report),
                           const SizedBox(height: 20),
@@ -298,6 +303,7 @@ class _TopBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final AppLocalizations l = AppLocalizations.of(context);
     return SizedBox(
       height: ModelerMetrics.topBar,
       child: Padding(
@@ -305,7 +311,7 @@ class _TopBar extends StatelessWidget {
         child: Row(
           children: <Widget>[
             Text(
-              'Preview',
+              l.previewTitle,
               style: theme.textTheme.titleMedium?.copyWith(
                 color: theme.colorScheme.onSurface,
               ),
@@ -313,10 +319,10 @@ class _TopBar extends StatelessWidget {
             const Spacer(),
             MergeSemantics(
               child: Semantics(
-                label: 'Close preview',
+                label: l.previewClose,
                 button: true,
                 child: IconButton(
-                  tooltip: 'Close preview',
+                  tooltip: l.previewClose,
                   onPressed: onClose,
                   icon: const Icon(Icons.close),
                 ),
@@ -348,6 +354,7 @@ class _WarningCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final AppLocalizations l = AppLocalizations.of(context);
     final bool warns =
         readiness.issues.isNotEmpty || rigIssues.isNotEmpty || scene.warning;
     final Color background = warns
@@ -381,8 +388,11 @@ class _WarningCard extends StatelessWidget {
               Padding(
                 padding: const EdgeInsets.only(top: 4),
                 child: Text(
-                  '${scene.lightCount} lights · ${scene.shadowedCount}/'
-                  '${scene.shadowCap} shadowed',
+                  l.previewLights(
+                    scene.lightCount,
+                    scene.shadowedCount,
+                    scene.shadowCap,
+                  ),
                   style: style,
                 ),
               ),
@@ -405,11 +415,14 @@ class _WireframeToggle extends StatelessWidget {
   const _WireframeToggle();
 
   @override
-  Widget build(BuildContext context) => const SwitchListTile(
-    contentPadding: EdgeInsets.zero,
-    value: false,
-    onChanged: null,
-    title: Text('Show wireframe'),
-    subtitle: Text('not built for this screen yet'),
-  );
+  Widget build(BuildContext context) {
+    final AppLocalizations l = AppLocalizations.of(context);
+    return SwitchListTile(
+      contentPadding: EdgeInsets.zero,
+      value: false,
+      onChanged: null,
+      title: Text(l.previewWireframe),
+      subtitle: Text(l.previewNotBuilt),
+    );
+  }
 }

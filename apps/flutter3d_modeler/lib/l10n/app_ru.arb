@@ -740,5 +740,41 @@
         "type": "String"
       }
     }
-  }
+  },
+  "statusShowFolder": "Показать папку",
+  "envClearPanorama": "Убрать панораму",
+  "envAmbient": "Окружающий свет",
+  "animActions": "Действия",
+  "statusTexelDensity": "{density} тексел/см",
+  "statusTextureBudget": "{used} МБ из {budget}",
+  "statusFrameTime": "{ms} мс",
+  "@statusTexelDensity": {
+    "description": "Строка состояния — ux-22. Число уже отформатировано.",
+    "placeholders": {
+      "density": {
+        "type": "String"
+      }
+    }
+  },
+  "@statusTextureBudget": {
+    "description": "Строка состояния — ux-22.",
+    "placeholders": {
+      "used": {
+        "type": "String"
+      },
+      "budget": {
+        "type": "String"
+      }
+    }
+  },
+  "@statusFrameTime": {
+    "description": "Строка состояния — ux-22. Число уже отформатировано.",
+    "placeholders": {
+      "ms": {
+        "type": "String"
+      }
+    }
+  },
+  "animSkeleton": "Скелет",
+  "animConstraints": "Ограничения"
 }

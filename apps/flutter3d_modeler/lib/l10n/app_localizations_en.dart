@@ -1721,4 +1721,37 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get graphNextImageTooltip => 'Next image';
+
+  @override
+  String get statusShowFolder => 'Show folder';
+
+  @override
+  String get envClearPanorama => 'Clear the panorama';
+
+  @override
+  String get envAmbient => 'Ambient';
+
+  @override
+  String get animActions => 'Actions';
+
+  @override
+  String statusTexelDensity(String density) {
+    return '$density tex/cm';
+  }
+
+  @override
+  String statusTextureBudget(String used, String budget) {
+    return '$used MB of $budget';
+  }
+
+  @override
+  String statusFrameTime(String ms) {
+    return '$ms ms';
+  }
+
+  @override
+  String get animSkeleton => 'Skeleton';
+
+  @override
+  String get animConstraints => 'Constraints';
 }

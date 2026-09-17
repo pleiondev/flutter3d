@@ -34,6 +34,7 @@ library;
 import 'package:flutter/material.dart';
 import 'package:flutter3d_model_core/flutter3d_model_core.dart';
 
+import '../../../l10n/app_localizations.dart';
 import '../modeler_state.dart' show AgentToolCall;
 import 'theme.dart';
 
@@ -95,6 +96,7 @@ class _AgentSessionPanelState extends State<AgentSessionPanel> {
     final List<AgentToolCall> calls = widget.calls;
     final ModelHistory history = widget.history;
     final steps = history.steps;
+    final AppLocalizations l = AppLocalizations.of(context);
     final int agentSteps = steps
         .where((HistoryStep step) => step.author == StepAuthor.agent)
         .length;
@@ -120,7 +122,7 @@ class _AgentSessionPanelState extends State<AgentSessionPanel> {
               ),
               if (widget.onClose case final VoidCallback close)
                 IconButton(
-                  tooltip: 'Hide the agent panel',
+                  tooltip: l.agentHide,
                   onPressed: close,
                   iconSize: 18,
                   icon: const Icon(Icons.close),
@@ -131,9 +133,9 @@ class _AgentSessionPanelState extends State<AgentSessionPanel> {
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 12),
           child: SegmentedButton<bool>(
-            segments: const <ButtonSegment<bool>>[
-              ButtonSegment<bool>(value: false, label: Text('Session')),
-              ButtonSegment<bool>(value: true, label: Text('Renders')),
+            segments: <ButtonSegment<bool>>[
+              ButtonSegment<bool>(value: false, label: Text(l.agentSession)),
+              ButtonSegment<bool>(value: true, label: Text(l.agentRenders)),
             ],
             selected: <bool>{_renders},
             showSelectedIcon: false,
@@ -148,14 +150,14 @@ class _AgentSessionPanelState extends State<AgentSessionPanel> {
               : ListView(
                   padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
                   children: <Widget>[
-                    const _SectionLabel('Tool calls'),
+                    _SectionLabel(l.agentToolCalls),
                     if (calls.isEmpty)
                       const _EmptyHint('No tool calls yet this session')
                     else
                       for (final AgentToolCall call in calls)
                         _ToolCallRow(call),
                     const SizedBox(height: 18),
-                    const _SectionLabel('History · author'),
+                    _SectionLabel(l.agentHistoryAuthor),
                     if (steps.isEmpty)
                       const _EmptyHint('Nothing done yet')
                     else
@@ -172,7 +174,7 @@ class _AgentSessionPanelState extends State<AgentSessionPanel> {
             children: <Widget>[
               Expanded(
                 child: Text(
-                  '$agentSteps agent · $personSteps yours',
+                  l.agentSteps(agentSteps, personSteps),
                   style: theme.textTheme.bodySmall?.copyWith(
                     color: theme.colorScheme.onSurfaceVariant,
                   ),
@@ -182,7 +184,7 @@ class _AgentSessionPanelState extends State<AgentSessionPanel> {
                 onPressed: history.topStepAuthor == StepAuthor.agent
                     ? widget.onUndoAgentSteps
                     : null,
-                child: const Text('Undo agent steps'),
+                child: Text(l.agentUndoSteps),
               ),
             ],
           ),
@@ -387,6 +389,7 @@ class AgentContactSheet extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final AppLocalizations l = AppLocalizations.of(context);
     final List<AgentToolCall> pictures = <AgentToolCall>[
       for (final AgentToolCall call in calls.reversed)
         if (call.png != null) call,
@@ -401,7 +404,7 @@ class AgentContactSheet extends StatelessWidget {
             Row(
               children: <Widget>[
                 Text(
-                  'CONTACT SHEET',
+                  l.agentContactSheet,
                   style: theme.textTheme.labelSmall?.copyWith(
                     letterSpacing: 1.0,
                     color: theme.colorScheme.onSurfaceVariant,
@@ -415,7 +418,7 @@ class AgentContactSheet extends StatelessWidget {
                 // worse than one that ellipsises.
                 Flexible(
                   child: Text(
-                    'what the agent gets instead of numbers',
+                    l.agentInsteadOfNumbers,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: theme.textTheme.bodySmall?.copyWith(
@@ -431,7 +434,7 @@ class AgentContactSheet extends StatelessWidget {
               child: pictures.isEmpty
                   ? Center(
                       child: Text(
-                        'No render/renderSheet call yet this session',
+                        l.agentNoRenderYet,
                         style: theme.textTheme.bodySmall?.copyWith(
                           fontStyle: FontStyle.italic,
                         ),

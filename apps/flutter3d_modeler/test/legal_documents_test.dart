@@ -12,6 +12,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter3d_app/flutter3d_app.dart' show BinaryStorage, Storage;
 import 'package:flutter3d_model_core/flutter3d_model_core.dart'
     show recoveryPathFor;
+import 'package:flutter3d_modeler/l10n/app_localizations.dart';
 import 'package:flutter3d_modeler/src/legal/legal_document.dart';
 import 'package:flutter3d_modeler/src/legal/legal_library.dart';
 import 'package:flutter3d_modeler/src/legal/legal_view.dart';
@@ -127,27 +128,29 @@ void main() {
   });
 
   group('rel-21d: they parse', () {
-    test('each carries a title, a version and a date, and real blocks',
-        () async {
-      for (final String name in kLegalDocuments) {
-        final LegalDocument document = await loadLegalDocument(name);
-        expect(document.title, isNotEmpty, reason: name);
-        expect(document.version, isNotEmpty, reason: name);
-        expect(document.effective, isNotEmpty, reason: name);
-        // Every document is more than a title: a parser that silently
-        // produced nothing would pass every other assertion here.
-        expect(
-          document.blocks.whereType<LegalParagraph>().length,
-          greaterThan(10),
-          reason: name,
-        );
-        expect(
-          document.blocks.whereType<LegalHeading>().length,
-          greaterThan(3),
-          reason: name,
-        );
-      }
-    });
+    test(
+      'each carries a title, a version and a date, and real blocks',
+      () async {
+        for (final String name in kLegalDocuments) {
+          final LegalDocument document = await loadLegalDocument(name);
+          expect(document.title, isNotEmpty, reason: name);
+          expect(document.version, isNotEmpty, reason: name);
+          expect(document.effective, isNotEmpty, reason: name);
+          // Every document is more than a title: a parser that silently
+          // produced nothing would pass every other assertion here.
+          expect(
+            document.blocks.whereType<LegalParagraph>().length,
+            greaterThan(10),
+            reason: name,
+          );
+          expect(
+            document.blocks.whereType<LegalHeading>().length,
+            greaterThan(3),
+            reason: name,
+          );
+        }
+      },
+    );
 
     test('no mark is left in the text a person reads', () async {
       for (final String name in kLegalDocuments) {
@@ -209,11 +212,17 @@ void main() {
       expect(legalPlainText(parseLegalSpans('a **b** c')), 'a b c');
       expect(parseLegalSpans('a **b** c')[1].strong, isTrue);
       expect(parseLegalSpans('use `--mcp-port` now')[1].code, isTrue);
-      expect(parseLegalSpans('[here](https://x.dev)').single.href, 'https://x.dev');
+      expect(
+        parseLegalSpans('[here](https://x.dev)').single.href,
+        'https://x.dev',
+      );
       expect(parseLegalSpans('<https://x.dev>').single.href, 'https://x.dev');
       // Unmatched marks come through as written rather than eating the rest
       // of the sentence, which is the failure that loses a clause.
-      expect(legalPlainText(parseLegalSpans('2 ** 3 is not bold')), '2 ** 3 is not bold');
+      expect(
+        legalPlainText(parseLegalSpans('2 ** 3 is not bold')),
+        '2 ** 3 is not bold',
+      );
       expect(legalPlainText(parseLegalSpans('a `b')), 'a `b');
     });
   });
@@ -231,7 +240,12 @@ void main() {
       tester.view.devicePixelRatio = 1.0;
       addTearDown(tester.view.reset);
       await tester.pumpWidget(
-        MaterialApp(home: Scaffold(body: LegalScreen(bundle: _Bundle()))),
+        MaterialApp(
+          locale: const Locale('en'),
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: Scaffold(body: LegalScreen(bundle: _Bundle())),
+        ),
       );
       // Explicit pumps rather than `pumpAndSettle`: the spinner the
       // `FutureBuilder` shows while the six assets load animates forever, so
@@ -267,6 +281,9 @@ Write to <https://example.invalid/here>.
       final opened = <String>[];
       await tester.pumpWidget(
         MaterialApp(
+          locale: const Locale('en'),
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
           home: Scaffold(
             body: LegalView(document: document, onOpenLink: opened.add),
           ),
