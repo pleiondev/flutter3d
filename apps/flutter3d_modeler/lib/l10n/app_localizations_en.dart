@@ -1545,4 +1545,180 @@ class AppLocalizationsEn extends AppLocalizations {
   String modifierTriangles(int before, int after) {
     return '$before → $after triangles';
   }
+
+  @override
+  String get latheSegments => 'Segments';
+
+  @override
+  String get latheClosed => 'Closed profile';
+
+  @override
+  String get latheAdd => 'Add';
+
+  @override
+  String get latheTitle => 'Lathe';
+
+  @override
+  String get saveAsTitle => 'Save as';
+
+  @override
+  String get saveWithoutHistory => 'Save without history';
+
+  @override
+  String get saveWithoutHistoryHelp =>
+      'Undo will not be available after this file is reopened.';
+
+  @override
+  String get galleryTitle => 'Gallery';
+
+  @override
+  String get galleryClose => 'Close';
+
+  @override
+  String get gallerySearch => 'Search the gallery';
+
+  @override
+  String get galleryAll => 'All';
+
+  @override
+  String get galleryNoCredit => 'No credit needed';
+
+  @override
+  String get previewBudgets => 'Budgets';
+
+  @override
+  String get previewTitle => 'Preview';
+
+  @override
+  String get previewClose => 'Close preview';
+
+  @override
+  String get previewWireframe => 'Show wireframe';
+
+  @override
+  String get previewNotBuilt => 'not built for this screen yet';
+
+  @override
+  String get agentHide => 'Hide the agent panel';
+
+  @override
+  String get agentSession => 'Session';
+
+  @override
+  String get agentRenders => 'Renders';
+
+  @override
+  String get agentToolCalls => 'Tool calls';
+
+  @override
+  String get agentHistoryAuthor => 'History · author';
+
+  @override
+  String get agentUndoSteps => 'Undo agent steps';
+
+  @override
+  String get agentContactSheet => 'CONTACT SHEET';
+
+  @override
+  String get agentInsteadOfNumbers => 'what the agent gets instead of numbers';
+
+  @override
+  String get agentNoRenderYet => 'No render/renderSheet call yet this session';
+
+  @override
+  String get graphNextImage => 'Next image';
+
+  @override
+  String get graphAddNode => 'Add node';
+
+  @override
+  String get graphTitle => 'Texture graph';
+
+  @override
+  String get legalTitle => 'Legal';
+
+  @override
+  String get legalClose => 'Close';
+
+  @override
+  String get legalDocument => 'Document';
+
+  @override
+  String get legalEnglishOnly =>
+      'These documents are published in English only, whatever the interface language: one authentic version, so there is never a question of which one binds.';
+
+  @override
+  String get legalThirdParty => 'Third-party licences';
+
+  @override
+  String get budgetTriangles => 'Triangles';
+
+  @override
+  String get budgetJoints => 'Joints';
+
+  @override
+  String get budgetTextureMemory => 'Texture memory';
+
+  @override
+  String get budgetInfluences => 'Influences';
+
+  @override
+  String get consoleAll => 'All';
+
+  @override
+  String get consoleYou => 'You';
+
+  @override
+  String get consoleAgent => 'Agent';
+
+  @override
+  String get consoleClose => 'Close the console';
+
+  @override
+  String previewLights(int lights, int shadowed, int cap) {
+    return '$lights lights · $shadowed/$cap shadowed';
+  }
+
+  @override
+  String agentSteps(int agent, int person) {
+    return '$agent agent · $person yours';
+  }
+
+  @override
+  String exportAnywayMore(int count) {
+    return 'and $count more';
+  }
+
+  @override
+  String legalLoadFailed(String error) {
+    return 'The documents did not load: $error';
+  }
+
+  @override
+  String metricsFps(int fps) {
+    return '$fps fps';
+  }
+
+  @override
+  String metricsDrawCalls(String count) {
+    return '$count draw calls';
+  }
+
+  @override
+  String metricsTriangles(String count) {
+    return '$count triangles';
+  }
+
+  @override
+  String metricsBones(String count) {
+    return '$count bones';
+  }
+
+  @override
+  String galleryUnreachable(String names) {
+    return '$names could not be reached; everything else is still here';
+  }
+
+  @override
+  String get graphNextImageTooltip => 'Next image';
 }

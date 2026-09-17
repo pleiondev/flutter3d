@@ -15,6 +15,8 @@ library;
 
 import 'package:flutter/material.dart';
 
+import '../../../l10n/app_localizations.dart';
+
 /// What the person chose, or null from [showSaveAsScreen] when they backed
 /// out of the dialog without saving.
 final class SaveAsChoice {
@@ -44,17 +46,16 @@ class _SaveAsScreenState extends State<_SaveAsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final AppLocalizations l = AppLocalizations.of(context);
     return AlertDialog(
-      title: const Text('Save as'),
+      title: Text(l.saveAsTitle),
       content: SizedBox(
         width: 360,
         child: CheckboxListTile(
           contentPadding: EdgeInsets.zero,
           controlAffinity: ListTileControlAffinity.leading,
-          title: const Text('Save without history'),
-          subtitle: const Text(
-            'Undo will not be available after this file is reopened.',
-          ),
+          title: Text(l.saveWithoutHistory),
+          subtitle: Text(l.saveWithoutHistoryHelp),
           value: _withoutHistory,
           onChanged: (bool? to) =>
               setState(() => _withoutHistory = to ?? false),
@@ -63,13 +64,13 @@ class _SaveAsScreenState extends State<_SaveAsScreen> {
       actions: <Widget>[
         TextButton(
           onPressed: () => Navigator.of(context).pop(),
-          child: const Text('Cancel'),
+          child: Text(l.cancel),
         ),
         FilledButton(
           onPressed: () => Navigator.of(
             context,
           ).pop(SaveAsChoice(includeHistory: !_withoutHistory)),
-          child: const Text('Save'),
+          child: Text(l.save),
         ),
       ],
     );

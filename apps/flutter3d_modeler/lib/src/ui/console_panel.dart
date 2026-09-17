@@ -10,6 +10,7 @@ library;
 
 import 'package:flutter/material.dart';
 
+import '../../../l10n/app_localizations.dart';
 import '../console_log.dart';
 import 'theme.dart';
 
@@ -38,6 +39,7 @@ class _ConsolePanelState extends State<ConsolePanel> {
   Widget build(BuildContext context) {
     final ThemeData theme = Theme.of(context);
     final List<ConsoleEntry> shown = widget.log.by(_only).reversed.toList();
+    final AppLocalizations l = AppLocalizations.of(context);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: <Widget>[
@@ -48,10 +50,10 @@ class _ConsolePanelState extends State<ConsolePanel> {
               Expanded(
                 child: SegmentedButton<int>(
                   showSelectedIcon: false,
-                  segments: const <ButtonSegment<int>>[
-                    ButtonSegment<int>(value: 0, label: Text('All')),
-                    ButtonSegment<int>(value: 1, label: Text('You')),
-                    ButtonSegment<int>(value: 2, label: Text('Agent')),
+                  segments: <ButtonSegment<int>>[
+                    ButtonSegment<int>(value: 0, label: Text(l.consoleAll)),
+                    ButtonSegment<int>(value: 1, label: Text(l.consoleYou)),
+                    ButtonSegment<int>(value: 2, label: Text(l.consoleAgent)),
                   ],
                   selected: <int>{
                     switch (_only) {
@@ -72,7 +74,7 @@ class _ConsolePanelState extends State<ConsolePanel> {
               if (widget.onClose case final VoidCallback close) ...<Widget>[
                 const SizedBox(width: 8),
                 IconButton(
-                  tooltip: 'Close the console',
+                  tooltip: l.consoleClose,
                   icon: const Icon(Icons.close, size: 16),
                   onPressed: close,
                 ),
@@ -135,9 +137,7 @@ class _Line extends StatelessWidget {
               _clock(entry.at),
               style: theme.textTheme.labelSmall?.copyWith(
                 color: theme.colorScheme.onSurfaceVariant,
-                fontFeatures: const <FontFeature>[
-                  FontFeature.tabularFigures(),
-                ],
+                fontFeatures: const <FontFeature>[FontFeature.tabularFigures()],
               ),
             ),
           ),

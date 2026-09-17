@@ -15,6 +15,7 @@ library;
 import 'package:flutter/material.dart' hide Material;
 import 'package:flutter3d_mesh/flutter3d_mesh.dart' show RecipeCategory;
 
+import '../../../l10n/app_localizations.dart';
 import '../gallery/gallery_item.dart';
 import 'theme.dart';
 
@@ -98,13 +99,14 @@ class _GalleryScreenState extends State<GalleryScreen> {
   Widget build(BuildContext context) {
     final ThemeData theme = Theme.of(context);
     final List<GalleryItem> shown = _shown;
+    final AppLocalizations l = AppLocalizations.of(context);
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Gallery'),
+        title: Text(l.galleryTitle),
         actions: <Widget>[
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Close'),
+            child: Text(l.galleryClose),
           ),
           const SizedBox(width: 8),
         ],
@@ -123,17 +125,17 @@ class _GalleryScreenState extends State<GalleryScreen> {
                   width: 240,
                   child: TextField(
                     key: const ValueKey<String>('gallerySearch'),
-                    decoration: const InputDecoration(
-                      prefixIcon: Icon(Icons.search),
-                      hintText: 'Search the gallery',
+                    decoration: InputDecoration(
+                      prefixIcon: const Icon(Icons.search),
+                      hintText: l.gallerySearch,
                       isDense: true,
-                      border: OutlineInputBorder(),
+                      border: const OutlineInputBorder(),
                     ),
                     onChanged: (String it) => setState(() => _search = it),
                   ),
                 ),
                 ChoiceChip(
-                  label: const Text('All'),
+                  label: Text(l.galleryAll),
                   selected: _category == null,
                   onSelected: (bool _) => setState(() => _category = null),
                 ),
@@ -150,7 +152,7 @@ class _GalleryScreenState extends State<GalleryScreen> {
                 // actually care about.
                 FilterChip(
                   key: const ValueKey<String>('galleryFreeOnly'),
-                  label: const Text('No credit needed'),
+                  label: Text(l.galleryNoCredit),
                   selected: _freeOnly,
                   onSelected: (bool to) => setState(() => _freeOnly = to),
                 ),
@@ -166,8 +168,7 @@ class _GalleryScreenState extends State<GalleryScreen> {
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
-                      '${_unreachable.join(', ')} could not be reached; '
-                      'everything else is still here',
+                      l.galleryUnreachable(_unreachable.join(', ')),
                       style: theme.textTheme.bodySmall,
                     ),
                   ),

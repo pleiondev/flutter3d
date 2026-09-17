@@ -1552,4 +1552,181 @@ class AppLocalizationsRu extends AppLocalizations {
   String modifierTriangles(int before, int after) {
     return '$before → $after треугольников';
   }
+
+  @override
+  String get latheSegments => 'Сегментов';
+
+  @override
+  String get latheClosed => 'Замкнутый профиль';
+
+  @override
+  String get latheAdd => 'Добавить';
+
+  @override
+  String get latheTitle => 'Тело вращения';
+
+  @override
+  String get saveAsTitle => 'Сохранить как';
+
+  @override
+  String get saveWithoutHistory => 'Сохранить без истории';
+
+  @override
+  String get saveWithoutHistoryHelp =>
+      'После повторного открытия этого файла отмена будет недоступна.';
+
+  @override
+  String get galleryTitle => 'Галерея';
+
+  @override
+  String get galleryClose => 'Закрыть';
+
+  @override
+  String get gallerySearch => 'Искать в галерее';
+
+  @override
+  String get galleryAll => 'Все';
+
+  @override
+  String get galleryNoCredit => 'Указание авторства не требуется';
+
+  @override
+  String get previewBudgets => 'Бюджеты';
+
+  @override
+  String get previewTitle => 'Превью';
+
+  @override
+  String get previewClose => 'Закрыть превью';
+
+  @override
+  String get previewWireframe => 'Показать сетку';
+
+  @override
+  String get previewNotBuilt => 'для этого экрана ещё не собрано';
+
+  @override
+  String get agentHide => 'Скрыть панель агента';
+
+  @override
+  String get agentSession => 'Сессия';
+
+  @override
+  String get agentRenders => 'Рендеров';
+
+  @override
+  String get agentToolCalls => 'Вызовов инструментов';
+
+  @override
+  String get agentHistoryAuthor => 'История · автор';
+
+  @override
+  String get agentUndoSteps => 'Отменить шаги агента';
+
+  @override
+  String get agentContactSheet => 'КОНТАКТНЫЙ ЛИСТ';
+
+  @override
+  String get agentInsteadOfNumbers => 'что агент получает вместо чисел';
+
+  @override
+  String get agentNoRenderYet =>
+      'В этой сессии ещё не было вызова render/renderSheet';
+
+  @override
+  String get graphNextImage => 'Следующее изображение';
+
+  @override
+  String get graphAddNode => 'Добавить узел';
+
+  @override
+  String get graphTitle => 'Граф текстур';
+
+  @override
+  String get legalTitle => 'Юридическое';
+
+  @override
+  String get legalClose => 'Закрыть';
+
+  @override
+  String get legalDocument => 'Документ';
+
+  @override
+  String get legalEnglishOnly =>
+      'Эти документы публикуются только на английском, каким бы ни был язык интерфейса: одна подлинная версия, чтобы не было вопроса, какая из них обязывает.';
+
+  @override
+  String get legalThirdParty => 'Сторонние лицензии';
+
+  @override
+  String get budgetTriangles => 'Треугольники';
+
+  @override
+  String get budgetJoints => 'Суставы';
+
+  @override
+  String get budgetTextureMemory => 'Память текстур';
+
+  @override
+  String get budgetInfluences => 'Влияния';
+
+  @override
+  String get consoleAll => 'Все';
+
+  @override
+  String get consoleYou => 'Вы';
+
+  @override
+  String get consoleAgent => 'Агент';
+
+  @override
+  String get consoleClose => 'Закрыть консоль';
+
+  @override
+  String previewLights(int lights, int shadowed, int cap) {
+    return '$lights источников · $shadowed/$cap с тенью';
+  }
+
+  @override
+  String agentSteps(int agent, int person) {
+    return '$agent агента · $person ваших';
+  }
+
+  @override
+  String exportAnywayMore(int count) {
+    return 'и ещё $count';
+  }
+
+  @override
+  String legalLoadFailed(String error) {
+    return 'Документы не загрузились: $error';
+  }
+
+  @override
+  String metricsFps(int fps) {
+    return '$fps кадр/с';
+  }
+
+  @override
+  String metricsDrawCalls(String count) {
+    return '$count вызовов отрисовки';
+  }
+
+  @override
+  String metricsTriangles(String count) {
+    return '$count треугольников';
+  }
+
+  @override
+  String metricsBones(String count) {
+    return '$count костей';
+  }
+
+  @override
+  String galleryUnreachable(String names) {
+    return 'Не удалось достучаться: $names; всё остальное на месте';
+  }
+
+  @override
+  String get graphNextImageTooltip => 'Следующее изображение';
 }

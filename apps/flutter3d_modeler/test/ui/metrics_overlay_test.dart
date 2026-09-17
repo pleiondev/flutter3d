@@ -5,14 +5,18 @@
 library;
 
 import 'package:flutter/material.dart';
+import 'package:flutter3d_modeler/l10n/app_localizations.dart';
 import 'package:flutter3d_modeler/src/ui/metrics_overlay.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
   testWidgets('the four numbers are drawn as given', (tester) async {
     await tester.pumpWidget(
-      const MaterialApp(
-        home: Scaffold(
+      MaterialApp(
+        locale: const Locale('en'),
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
+        home: const Scaffold(
           body: MetricsOverlay(
             fps: 59.6,
             drawCalls: 12,
@@ -34,8 +38,11 @@ void main() {
     tester,
   ) async {
     await tester.pumpWidget(
-      const MaterialApp(
-        home: Scaffold(
+      MaterialApp(
+        locale: const Locale('en'),
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
+        home: const Scaffold(
           body: MetricsOverlay(fps: 60, drawCalls: 1, triangles: 1, bones: 0),
         ),
       ),

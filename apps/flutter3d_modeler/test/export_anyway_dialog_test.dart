@@ -63,17 +63,23 @@ void main() {
     expect(find.text('Export anyway'), findsOneWidget);
   });
 
-  testWidgets('stays English under Locale(ru) too — there is no ARB entry '
-      'for it yet', (WidgetTester tester) async {
+  testWidgets('and reads Russian under Locale(ru) — ux-22', (
+    WidgetTester tester,
+  ) async {
+    // **This test used to assert the opposite**, and said so in its own
+    // name: there was no ARB entry for this dialog, so it stayed English
+    // whatever the interface was set to. `ux-22` gave it one, and a test
+    // that still expected English would have been the thing keeping the
+    // dialog untranslated.
     await tester.pumpWidget(
       _harness(const Locale('ru'), _blocked.issues, (_) {}),
     );
     await tester.tap(find.text('open'));
     await tester.pumpAndSettle();
 
-    expect(find.text('Export anyway?'), findsOneWidget);
-    expect(find.text('Cancel'), findsOneWidget);
-    expect(find.text('Export anyway'), findsOneWidget);
+    expect(find.text('Всё равно экспортировать?'), findsOneWidget);
+    expect(find.text('Отмена'), findsOneWidget);
+    expect(find.text('Всё равно экспортировать'), findsOneWidget);
   });
 
   testWidgets('truncates past five issues with a count of the rest', (

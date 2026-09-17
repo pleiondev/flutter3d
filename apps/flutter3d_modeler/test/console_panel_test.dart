@@ -5,6 +5,7 @@ library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter3d_model_core/flutter3d_model_core.dart';
+import 'package:flutter3d_modeler/l10n/app_localizations.dart';
 import 'package:flutter3d_modeler/src/console_log.dart';
 import 'package:flutter3d_modeler/src/mouse_hints.dart';
 import 'package:flutter3d_modeler/src/settings.dart' show NavigationScheme;
@@ -45,6 +46,9 @@ Future<void> _pumpPanel(WidgetTester tester, ConsoleLog log) async {
   addTearDown(tester.view.reset);
   await tester.pumpWidget(
     MaterialApp(
+      locale: const Locale('en'),
+      localizationsDelegates: AppLocalizations.localizationsDelegates,
+      supportedLocales: AppLocalizations.supportedLocales,
       theme: modelerTheme(),
       home: Scaffold(body: ConsolePanel(log: log)),
     ),
@@ -133,6 +137,9 @@ void main() {
       addTearDown(tester.view.reset);
       await tester.pumpWidget(
         MaterialApp(
+          locale: const Locale('en'),
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
           theme: modelerTheme(),
           home: Scaffold(
             body: StatusLine(

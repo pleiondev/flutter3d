@@ -69,10 +69,10 @@ Future<void> _pump(WidgetTester tester, List<GallerySource> sources) async {
   addTearDown(tester.view.reset);
   await tester.pumpWidget(
     MaterialApp(
-      theme: modelerTheme(),
       locale: const Locale('en'),
       localizationsDelegates: AppLocalizations.localizationsDelegates,
       supportedLocales: AppLocalizations.supportedLocales,
+      theme: modelerTheme(),
       home: GalleryScreen(sources: sources),
     ),
   );
@@ -174,6 +174,9 @@ void main() {
     addTearDown(tester.view.reset);
     await tester.pumpWidget(
       MaterialApp(
+        locale: const Locale('en'),
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
         theme: modelerTheme(),
         home: Builder(
           builder: (BuildContext context) => TextButton(
