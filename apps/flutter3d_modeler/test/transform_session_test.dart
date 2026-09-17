@@ -656,7 +656,14 @@ void main() {
   });
 
   group('ux-29: an extrusion that follows the pointer', () {
-    /// One cube with every face selected, which is what `E` acts on.
+    /// One cube with a single face selected.
+    ///
+    /// **Not every face, which is what this used to do.** `Extrude` refuses a
+    /// selection that is a closed surface — "the selected faces are a closed
+    /// surface with no rim to wall in" — and rightly: there is no rim to
+    /// build the walls on, so there is nothing to extrude. The fixture was
+    /// written before that refusal existed and had been asking for the one
+    /// case the command will not do.
     ({ModelerCubit cubit, TransformSession session}) withFacesSelected() {
       final made = openedWith(cubes(1));
       final ModelHistory history = ready(made.cubit).history;
@@ -670,7 +677,7 @@ void main() {
         elements: <int>[
           for (var face = 0; face < mesh.faceSlotCount; face++)
             if (mesh.isFaceAlive(face)) face,
-        ],
+        ].take(1).toList(),
       );
       return made;
     }
