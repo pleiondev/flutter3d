@@ -255,3 +255,68 @@ Vector3 tonemapNeutral(Vector3 colour) {
     c.z + (newPeak - c.z) * desaturate,
   );
 }
+
+/// `TonemapAces` from `composite.frag`: the Narkowicz fit.
+Vector3 tonemapAces(Vector3 colour) {
+  const a = 2.51;
+  const b = 0.03;
+  const c = 2.43;
+  const d = 0.59;
+  const e = 0.14;
+  double curve(double x) =>
+      ((x * (a * x + b)) / (x * (c * x + d) + e)).clamp(0.0, 1.0);
+  return Vector3(curve(colour.x), curve(colour.y), curve(colour.z));
+}
+
+/// `TonemapAgx` from `composite.frag`: the log sigmoid and its desaturation.
+Vector3 tonemapAgx(Vector3 colour) {
+  const minEv = -12.47393;
+  const maxEv = 4.026069;
+
+  double curve(double channel) {
+    final logged = (math.log(math.max(channel, 1e-10)) / math.ln2).clamp(
+      minEv,
+      maxEv,
+    );
+    final v = (logged - minEv) / (maxEv - minEv);
+    final v2 = v * v;
+    final v4 = v2 * v2;
+    final shaped =
+        15.5 * v4 * v2 -
+        40.14 * v4 * v +
+        31.96 * v4 -
+        6.868 * v2 * v +
+        0.4298 * v2 +
+        0.1191 * v -
+        0.00232;
+    return shaped.clamp(0.0, 1.0);
+  }
+
+  final shaped = Vector3(curve(colour.x), curve(colour.y), curve(colour.z));
+  final luma = 0.2126 * shaped.x + 0.7152 * shaped.y + 0.0722 * shaped.z;
+  return Vector3(
+    luma + (shaped.x - luma) * 0.84,
+    luma + (shaped.y - luma) * 0.84,
+    luma + (shaped.z - luma) * 0.84,
+  );
+}
+
+/// `TonemapReinhard` from `composite.frag`, extended so white reaches white.
+Vector3 tonemapReinhard(Vector3 colour) {
+  const white = 4.0;
+  double curve(double x) =>
+      (x * (1.0 + x / (white * white)) / (1.0 + x)).clamp(0.0, 1.0);
+  return Vector3(curve(colour.x), curve(colour.y), curve(colour.z));
+}
+
+/// `TonemapBy` from `composite.frag`: whichever curve the number names.
+///
+/// The numbers are `TonemapCurve`'s own and are part of the uniform layout —
+/// see `composite.frag`'s note on why 1 is the default rather than 0.
+Vector3 tonemapBy(Vector3 colour, int curve) => switch (curve) {
+  1 => tonemapNeutral(colour),
+  2 => tonemapAces(colour),
+  3 => tonemapAgx(colour),
+  4 => tonemapReinhard(colour),
+  _ => colour,
+};

@@ -8876,8 +8876,15 @@ uniform sampler2D bloom_texture;
 uniform sampler2D ao_texture;
 
 layout(std140) uniform CompositeInfo {
-  /// x: exposure, y: bloom intensity, z: 1 to tone map, w: how much of the
+  /// x: exposure, y: bloom intensity, z: which tone curve, w: how much of the
   /// occlusion to apply, 0 for none.
+  ///
+  /// **z is a curve number, not a flag, and 1 is still the old flag's
+  /// meaning.** 0 leaves the colour alone, 1 is Khronos PBR Neutral — what
+  /// every golden in this repository was recorded with — 2 is ACES, 3 is AgX
+  /// and 4 is Reinhard. Numbering the default 1 is what lets a `> 0.5` read
+  /// of the old flag and an `int()` read of the new number agree about every
+  /// scene already recorded.
   vec4 params;
 
   /// x, y: one texel of the ao texture. z, w unused.
@@ -8944,6 +8951,114 @@ vec3 TonemapNeutral(vec3 color) {
   return mix(color, vec3(newPeak), desaturate);
 }
 
+/// ACES, the Narkowicz fit.
+///
+/// **It lifts the midtones, and that is why it is offered rather than
+/// imposed.** Measured rather than recited: 18% grey comes out at 0.267 where
+/// the neutral curve leaves it at 0.140, because this fit carries roughly a
+/// stop of exposure inside it — the RRT and ODT it approximates were never
+/// meant to be fed display-referred values. The result is the brighter,
+/// contrastier image people recognise from film, and it is also exactly why
+/// it is wrong as a default here: a glTF asset is authored against a
+/// reference viewer, and a curve that moves the midtones moves the asset away
+/// from how its author saw it.
+///
+/// The three-term rational fit rather than the full RRT/ODT: the matrices in
+/// front and behind cost more than the curve is worth at this end of the
+/// pipeline. Its own ceiling arrives early — everything above about 7.2 comes
+/// out at exactly one, so two different highlights an artist can tell apart
+/// become one flat patch. [TonemapAgx] is the answer to that.
+vec3 TonemapAces(vec3 color) {
+  const float a = 2.51;
+  const float b = 0.03;
+  const float c = 2.43;
+  const float d = 0.59;
+  const float e = 0.14;
+  return clamp((color * (a * color + b)) / (color * (c * color + d) + e),
+               vec3(0.0), vec3(1.0));
+}
+
+/// AgX, as a curve without the rotation matrices.
+///
+/// **What it is for: bright saturated light that does not turn into a flat
+/// disc of colour.** A coloured lamp four stops over white comes out of ACES
+/// with its channels 0.36 apart and out of this with 0.22 — the highlight
+/// walks towards white rather than towards its own primary. And it keeps
+/// separating values long after ACES has stopped: at 8 and at 40 ACES returns
+/// one and one, where this returns 0.971 and 0.999, so the inside of a bright
+/// patch still has shape in it.
+///
+/// **It is a much more exposed curve than the other three**, which is a
+/// decision to make with open eyes rather than a side effect: 18% grey lands
+/// at 0.50 here against 0.14 through the neutral curve, because AgX is built
+/// to put middle grey at middle display and the log encoding below does
+/// exactly that. A scene switched to this without re-lighting looks washed
+/// out, and correctly so.
+///
+/// A log-encoded sigmoid on each channel, then a pull towards the luminance
+/// by how far each channel climbed. The full transform rotates into and out
+/// of a wider gamut first; that rotation is what keeps deep blues from going
+/// purple, and it needs two matrices this pass has nowhere to keep. Named as
+/// missing rather than implied: this is AgX's curve, not AgX.
+vec3 TonemapAgx(vec3 color) {
+  const float kMinEv = -12.47393;
+  const float kMaxEv = 4.026069;
+
+  vec3 v = clamp(log2(max(color, vec3(1e-10))), vec3(kMinEv), vec3(kMaxEv));
+  v = (v - vec3(kMinEv)) / (kMaxEv - kMinEv);
+
+  // A sixth-order fit of AgX's own sigmoid, which is the part that does the
+  // work: gentle through the middle, long shoulders at both ends.
+  vec3 v2 = v * v;
+  vec3 v4 = v2 * v2;
+  v = 15.5 * v4 * v2 - 40.14 * v4 * v + 31.96 * v4 - 6.868 * v2 * v +
+      0.4298 * v2 + 0.1191 * v - 0.00232;
+  v = clamp(v, vec3(0.0), vec3(1.0));
+
+  // The desaturation AgX is known for, applied where the curve lifted the
+  // most. Without it the sigmoid alone leaves highlights as saturated as ACES
+  // does and the point of the curve is lost.
+  float luma = Luma(v);
+  return mix(vec3(luma), v, 0.84);
+}
+
+/// Reinhard, extended so that white maps to white.
+///
+/// The plain `c / (1 + c)` never reaches one, so a sky that should clip to
+/// paper white comes out grey; the extension takes the value that *should*
+/// become white and normalises to it. Here that value is 4 — two stops over
+/// display white — which is the point past which this engine's bloom has
+/// taken over anyway.
+///
+/// **Clamped, because the extension keeps climbing past its own white
+/// point.** The curve maps 4 to exactly one and 40 to 3.4, which is not a
+/// tone mapper's job: anything above white is white. Without the clamp the
+/// only thing bounding the output is the sRGB encode at the very end, and a
+/// curve whose contract is "this fits on a display" should be the thing that
+/// makes it fit.
+///
+/// Kept because it is the plainest of the four and the one everything else
+/// gets compared against.
+vec3 TonemapReinhard(vec3 color) {
+  const float kWhite = 4.0;
+  vec3 numerator = color * (vec3(1.0) + color / vec3(kWhite * kWhite));
+  return clamp(numerator / (vec3(1.0) + color), vec3(0.0), vec3(1.0));
+}
+
+/// [color] through whichever curve [curve] names.
+///
+/// A chain of comparisons rather than a `switch`: the number is a uniform,
+/// so every backend takes the same branch for a whole frame, and `switch` on
+/// a non-constant is the construct that has needed a workaround on one
+/// backend or another every time it has been used here.
+vec3 TonemapBy(vec3 color, int curve) {
+  if (curve == 1) return TonemapNeutral(color);
+  if (curve == 2) return TonemapAces(color);
+  if (curve == 3) return TonemapAgx(color);
+  if (curve == 4) return TonemapReinhard(color);
+  return color;
+}
+
 void main() {
   // **Dispersion happens at the lens, so it happens at sampling.** Sampling the
   // scene three times at radially offset coordinates is the whole effect; doing
@@ -8999,7 +9114,7 @@ void main() {
   // stretching an already-compressed image.
   color *= max(composite_info.params.x, 0.0);
 
-  if (composite_info.params.z > 0.5) color = TonemapNeutral(color);
+  color = TonemapBy(color, int(composite_info.params.z + 0.5));
 
   // **After the tone map, and that is the point.** Grading is a decision about
   // an image somebody can see; applied to unbounded scene-referred colour it

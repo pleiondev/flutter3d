@@ -195,12 +195,29 @@ void main() {
       settings: const RenderSettings(),
     );
 
+    /// What one named pass drew.
+    int drawsIn(FrameResult frame, String pass) => frame.passes
+        .where((FramePass each) => each.name == pass)
+        .fold<int>(0, (int sum, FramePass each) => sum + each.drawCalls);
+
     expect(
-      nodes.drawCalls - batch.drawCalls,
+      drawsIn(nodes, 'scene') - drawsIn(batch, 'scene'),
       _side * _side - 1,
       reason:
           'sixteen cubes as one draw instead of sixteen, in the colour '
-          'pass; the shadow pass has the same saving and is counted apart',
+          'pass',
+    );
+
+    // **This used to read the frame's own total and mean the same thing,
+    // because the shadow pass counted nothing.** `gfx-01n` gave every pass
+    // its own numbers, and the saving turns out to be larger than this test
+    // was claiming: the shadow map pays it once per cascade, so batching
+    // saves forty-five draws there against fifteen here.
+    expect(
+      drawsIn(nodes, 'directional shadows') -
+          drawsIn(batch, 'directional shadows'),
+      (_side * _side - 1) * 3,
+      reason: 'the same saving, once for each of the three cascades',
     );
   });
 
