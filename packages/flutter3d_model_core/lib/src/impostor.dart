@@ -20,18 +20,23 @@
 /// horizon into view, and the impostor's whole trick is that the picture was
 /// taken from eye level.
 ///
-/// **This file picks the angle and lays out the atlas; it draws nothing.**
-/// Rendering the eight views is `pro-rn-02`'s own tiled job, over the same
-/// `SnapshotCamera` a snapshot uses, and the card is a two-triangle mesh a
-/// caller builds — both of those need a device, and everything here is
-/// arithmetic a test can check without one.
+/// **The arithmetic here needs no device; the baking takes one as an
+/// argument.** [ImpostorAtlas] and [ImpostorCard] are numbers a test checks
+/// with nothing running, and [bakeImpostor] renders the views through
+/// `pro-rn-02`'s own tiled job over a [TileDevice] the caller supplies — the
+/// same shape `renderProject` already takes a device factory in, and for the
+/// same reason: this package has no window and must not grow one.
 library;
 
 import 'dart:math' as math;
+import 'dart:typed_data';
 
-import 'package:flutter3d_core/flutter3d_core.dart' show PerspectiveProjection;
+import 'package:flutter3d_core/flutter3d_core.dart'
+    show PerspectiveProjection, RenderSettings;
+import 'package:flutter3d_core/formats.dart' show DecodedImage, decodePng;
 import 'package:vector_math/vector_math.dart';
 
+import 'project.dart';
 import 'render_snapshot.dart';
 
 /// Where one baked view sits in the atlas, and which way it was taken from.
@@ -149,6 +154,25 @@ final class ImpostorAtlas {
 final class ImpostorCard {
   const ImpostorCard({required this.width, required this.height});
 
+  /// The card a bake at [distance] through [fovYRadians] actually fills.
+  ///
+  /// **Not the model's own bounds, and this is the mistake worth naming.** A
+  /// cell holds a picture of the model taken from [distance] through a fixed
+  /// field of view, so the model occupies whatever part of that frame it
+  /// subtends — usually well under half of it. Drawing the whole cell onto a
+  /// card the size of the model shrinks the model by exactly that fraction,
+  /// which reads as an impostor that is slightly too small and pops on the
+  /// swap. What the cell covers at the subject's own distance is
+  /// `2 · distance · tan(fov / 2)`, and a card that size puts the picture
+  /// back at the size it was taken at.
+  factory ImpostorCard.framing({
+    required double distance,
+    double fovYRadians = math.pi / 8,
+  }) {
+    final double side = 2 * distance * math.tan(fovYRadians / 2);
+    return ImpostorCard(width: side, height: side);
+  }
+
   final double width;
   final double height;
 
@@ -169,4 +193,88 @@ final class ImpostorCard {
       centre - right + up,
     ];
   }
+}
+
+/// A baked impostor: the atlas's own pixels, and the atlas that laid them out.
+///
+/// RGBA rather than a PNG, because what a caller does next is put it on a
+/// texture, and the one that wants a file already has an encoder.
+typedef ImpostorBake = ({ImpostorAtlas atlas, int size, Uint8List rgba});
+
+/// [project] rendered from every one of [atlas]'s angles, composited into one
+/// atlas image.
+///
+/// Each view is a [RenderSnapshotJob] over [tileDevice] — `pro-rn-02`'s own
+/// tiled job, at one cell's resolution, from the camera
+/// [ImpostorAtlas.cameraFor] gives. The background is transparent unless
+/// [clearColor] says otherwise: an impostor is a silhouette on a card, and a
+/// card baked against a sky carries that sky into every scene it stands in.
+///
+/// **One job per view rather than one grid over all of them.** The tiles of a
+/// snapshot share a camera and these do not, so the eight are eight renders
+/// however they are arranged — which is what keeps the composite here rather
+/// than inside a job that has no idea it is filling an atlas.
+///
+/// **Bake from the distance the impostor will be shown at, through whatever
+/// [fovYRadians] frames the subject there.** The perspective is baked into
+/// the picture: a card baked from eight metres and shown from three hundred
+/// carries eight metres' worth of convergence into a view that has almost
+/// none, and the silhouette is visibly the wrong shape rather than merely
+/// soft — measured at about fourteen percent of it in
+/// `flutter3d_cpu`'s own `impostor_card_test.dart`, against three at the
+/// matching distance. [distance] and [ImpostorCard.framing]'s own argument
+/// are the same number for that reason.
+Future<ImpostorBake> bakeImpostor({
+  required ModelProject project,
+  required ImpostorAtlas atlas,
+  required Vector3 centre,
+  required double distance,
+  required TileDevice tileDevice,
+  double fovYRadians = math.pi / 8,
+  RenderSettings settings = const RenderSettings(),
+  Vector4? clearColor,
+}) async {
+  final int cell = atlas.cellSize;
+  final rgba = Uint8List(atlas.size * atlas.size * 4);
+  for (var i = 0; i < atlas.angles; i++) {
+    final Uint8List png = await RenderSnapshotJob(
+      project,
+      RenderPreset(
+        width: cell,
+        height: cell,
+        camera: atlas.cameraFor(
+          i,
+          centre: centre,
+          distance: distance,
+          fovYRadians: fovYRadians,
+        ),
+        settings: settings,
+        clearColor: clearColor ?? Vector4.zero(),
+      ),
+      tileDevice: tileDevice,
+    ).run();
+    // The bytes came straight out of the encoder this repository wrote, so a
+    // null here is not a file somebody chose badly — it is the writer and the
+    // reader disagreeing, which is a bug rather than a case to handle.
+    final DecodedImage? view = decodePng(png);
+    if (view == null) {
+      throw StateError(
+        'the snapshot of impostor view $i did not decode as a PNG',
+      );
+    }
+    final ImpostorView where = atlas.viewAt(i);
+    final int x0 = (where.cell.x * atlas.size).round();
+    final int y0 = (where.cell.y * atlas.size).round();
+    // Row by row: the cell is narrower than the atlas, so the two have
+    // different strides and there is no single range to copy.
+    for (var y = 0; y < cell; y++) {
+      rgba.setRange(
+        ((y0 + y) * atlas.size + x0) * 4,
+        ((y0 + y) * atlas.size + x0 + cell) * 4,
+        view.rgba,
+        y * view.width * 4,
+      );
+    }
+  }
+  return (atlas: atlas, size: atlas.size, rgba: rgba);
 }

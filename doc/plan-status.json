@@ -392,9 +392,9 @@
     "pro-pt-04": "done",
     "pro-pt-06n": "done",
     "pro-uv-08n": "done",
-    "pro-lod-05n": "partial",
+    "pro-lod-05n": "done",
     "pro-pt-03": "partial",
-    "pro-doc-01": "partial",
+    "pro-doc-01": "done",
     "pro-rt-03": "done",
     "pro-rt-07": "done",
     "pro-sim-06": "done",
@@ -520,6 +520,14 @@
     "tut-22": {
       "cf317f17": "a commit hash, not a symbol: the row cites the commit that last regenerated case 5's picture, which is why that picture no longer differs from a clean regenerate",
       "c7e1da1d": "a commit hash, not a symbol: the row cites tut-07's own commit as the change that moved the two lighting defaults these pictures were rendered against"
+    },
+    "pro-doc-01": {
+      "SEAM": "a four-letter section tag out of the plan's own original sketch of this format, not a name in the tree: the row's whole argument is which of those eight are sections, which are records, and which have nothing on the document to write — the ones that landed are named in Dart (ProjectSection.simulationCaches, the paint record on a material, lods on an object), and these are cited as the sketch they came from",
+      "UVIS": "a four-letter section tag out of the plan's own original sketch of this format, not a name in the tree: the row's whole argument is which of those eight are sections, which are records, and which have nothing on the document to write — the ones that landed are named in Dart (ProjectSection.simulationCaches, the paint record on a material, lods on an object), and these are cited as the sketch they came from",
+      "MRES": "a four-letter section tag out of the plan's own original sketch of this format, not a name in the tree: the row's whole argument is which of those eight are sections, which are records, and which have nothing on the document to write — the ones that landed are named in Dart (ProjectSection.simulationCaches, the paint record on a material, lods on an object), and these are cited as the sketch they came from",
+      "BAKE": "a four-letter section tag out of the plan's own original sketch of this format, not a name in the tree: the row's whole argument is which of those eight are sections, which are records, and which have nothing on the document to write — the ones that landed are named in Dart (ProjectSection.simulationCaches, the paint record on a material, lods on an object), and these are cited as the sketch they came from",
+      "LODS": "a four-letter section tag out of the plan's own original sketch of this format, not a name in the tree: the row's whole argument is which of those eight are sections, which are records, and which have nothing on the document to write — the ones that landed are named in Dart (ProjectSection.simulationCaches, the paint record on a material, lods on an object), and these are cited as the sketch they came from",
+      "RNDR": "a four-letter section tag out of the plan's own original sketch of this format, not a name in the tree: the row's whole argument is which of those eight are sections, which are records, and which have nothing on the document to write — the ones that landed are named in Dart (ProjectSection.simulationCaches, the paint record on a material, lods on an object), and these are cited as the sketch they came from"
     }
   }
 }
