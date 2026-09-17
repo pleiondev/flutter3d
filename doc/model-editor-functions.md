@@ -588,6 +588,80 @@ closed, 63 remain open across ten groups):
   Impeller/WebGL/WebGPU sets for new scenes, whether an automatic
   number-recompute tool is needed for the documents
 
+## What is left, and what each piece is waiting for
+
+*Audited 2026-09-17, against `doc/plan-status.json`. Twenty-six rows are not
+`done`, and **not one of them is waiting on somebody sitting down to write
+code**. Every one is held by something outside the repository: a device, a
+credential, a golden set that has to be recorded on hardware, or a decision
+that belongs to the owner. That is worth stating plainly rather than leaving
+as a count, because "twenty-six to go" reads like a backlog and this is a
+list of six errands.*
+
+### A device nobody has yet (4)
+
+`p0-03`, `pro-sc-11n`, `ui-21`, `rel-19d`. A Galaxy A55 and an iPad with a
+Pencil. `rel-19d` is the purchase itself; the other three are measurements
+and a platform check that need the hardware in hand. The benchmarks are
+written and run unchanged on a device — `sculpt_budget_benchmark_test.dart`
+is the same file that produced the macOS and Chrome numbers in
+`doc/model-editor.md` §6.
+
+### A golden set recorded on a GPU (7)
+
+`gfx-05n`, `gfx-06n`, `gfx-07n`, `gfx-08n`, `gfx-09n`, `mat-17`, and
+`mcp-08n` through `view-07`. Forty-four scenes are held against four
+reference sets, and only the software one can be recorded on a machine with
+no GPU app run and no browser stand. So a row whose acceptance is a *frame* —
+`many-lights`, `contact-shadow`, `ambient-occlusion-corner`, `ibl-hdr` —
+cannot be closed here, however finished its code is. Several are exactly
+that: `gfx-05n`'s selection and its fade are built, tested and off by
+default, waiting only for the frame.
+
+`cross_backend_test.dart`'s own `_provisional` is the route: a new scene
+names itself there with a reason until the other sets catch up.
+
+### A measurement the software backend cannot make (2)
+
+`gfx-02n` and `gfx-03n`. `CpuDevice.maxAnisotropy` is 1 — the software
+rasteriser filters isotropically and the setting is clamped to it — so
+"capture one frame at anisotropy 1 and at 8" has nothing to capture. The same
+goes for the three shadow options in `gfx-03n`, whose whole content is a
+frame cost on real hardware.
+
+### A credential, a service, or other people (4)
+
+`gal-04` needs API keys for Smithsonian, Poly Pizza and Sketchfab; the
+adapters say what each will need rather than shipping a guessed shape.
+`rel-05` and `rel-06` are publishing to pub.dev. `rel-16` is five to ten
+people doing a timed tutorial run.
+
+### A run somewhere this is not (5)
+
+`qa-17` (a CI matrix), `qa-19n` (headless Godot), `rel-09` (the tutorial as a
+CI scenario), `rel-10` (Chrome *and* Safari), `rel-11` (a clean Mac opening a
+signed-nothing build). Each can be written here and none can be *verified*
+here, and a CI job nobody has watched go green is a claim rather than a
+check.
+
+`fmt-27` belongs here too for a narrower reason: its remaining half is a
+Quick Look screenshot, and this machine has `simctl` but no `Simulator.app`
+to tap.
+
+### An owner decision (1)
+
+`rel-13`'s second half. The template models are drawn out of primitives by
+`tool/make_models.py`; moving them to modeller documents changes the bytes of
+every model a new project is scaffolded with. That is a decision about what
+the editor ships.
+
+### Sequenced behind the above (2)
+
+`fmt-24` and `fmt-25`, the FBX reader and its animation half. The row says it
+itself: *a separate phase-2 track, starting after `rel-16`*. Starting it now
+would be working out of the order the plan chose.
+
+
 Every one of these questions has a recommendation in the plan itself (§8) —
 these are not gaps, but decisions left to the product owner at the point
 each phase actually starts.
