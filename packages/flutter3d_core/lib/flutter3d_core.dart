@@ -102,6 +102,7 @@ export 'src/engine/scene/lod_group.dart';
 export 'src/engine/scene/mesh_node.dart';
 export 'src/engine/scene/morph_state.dart';
 export 'src/engine/scene/orbit_controller.dart';
+export 'src/engine/scene/posed_mesh.dart';
 export 'src/engine/scene/projection.dart';
 export 'src/engine/scene/raycaster.dart';
 export 'src/engine/scene/reflection_probe_node.dart';
