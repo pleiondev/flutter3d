@@ -245,9 +245,11 @@ final class RenderSettings {
     this.fog = const FogSettings(),
     this.sky = const SkySettings(),
     this.anisotropy = 1,
+    this.lightFadeBand = 0.0,
     this.autoExposure = const AutoExposureSettings(),
     this.xray = const XraySettings(),
-  }) : assert(anisotropy >= 1, 'anisotropy is a count of taps, one or more');
+  }) : assert(anisotropy >= 1, 'anisotropy is a count of taps, one or more'),
+       assert(lightFadeBand >= 0.0, 'a fade band is a width, not a direction');
 
   final double specular;
 
@@ -272,6 +274,31 @@ final class RenderSettings {
   /// to spread them over. That is also flutter_gpu's rule, which refuses
   /// anisotropy on a nearest filter.
   final int anisotropy;
+
+  /// How wide a ramp sits at the edge of a draw's own light list — `gfx-05n`.
+  ///
+  /// A scene with more lights than the shader's eight slots picks the eight
+  /// that reach each object, and that choice changes as the camera walks: the
+  /// light leaving the list was contributing whatever the ranking said it was,
+  /// and the next frame it contributes nothing. That is a pop, and it belongs
+  /// to the hard cut-off rather than to any fault in the ranking.
+  ///
+  /// This is the width of the ramp that replaces the cut-off, as a fraction of
+  /// the strongest score the selection rejected: `0.5` fades a light in over
+  /// the range where it is between one and one and a half times as relevant as
+  /// the best light left out. A light about to be swapped out is then already
+  /// near nothing, and the swap has nothing to show.
+  ///
+  /// **Nought, the default, is the hard edge this engine has always had.**
+  /// Not approximately — a band of nought scales nothing and packs the same
+  /// bytes, which is what lets the feature ship without moving a recorded
+  /// frame on the three backends that cannot be re-recorded here. A wider band
+  /// costs brightness: every light near the water line is dimmer than the
+  /// shader would have made it, so this trades a little light for no jump.
+  ///
+  /// A scene whose lights all fit ignores this entirely: with nothing
+  /// rejected there is no water line and nothing to fade.
+  final double lightFadeBand;
 
   /// Linear multiplier applied before tone mapping.
   ///
@@ -490,6 +517,7 @@ final class RenderSettings {
     FogSettings? fog,
     SkySettings? sky,
     int? anisotropy,
+    double? lightFadeBand,
     AutoExposureSettings? autoExposure,
     XraySettings? xray,
   }) => RenderSettings(
@@ -515,6 +543,7 @@ final class RenderSettings {
     fog: fog ?? this.fog,
     sky: sky ?? this.sky,
     anisotropy: anisotropy ?? this.anisotropy,
+    lightFadeBand: lightFadeBand ?? this.lightFadeBand,
     autoExposure: autoExposure ?? this.autoExposure,
     xray: xray ?? this.xray,
   );

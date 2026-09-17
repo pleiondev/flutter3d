@@ -225,11 +225,37 @@ final class LightBuffer {
   /// either method, so nothing that fits can change appearance by adopting
   /// this; and a light that stays chosen keeps its slot while the set holds,
   /// which keeps the shadow slot table from churning as the camera walks.
+  ///
+  /// ## The pop at the edge of the list, and [fadeBand] — `gfx-05n`
+  ///
+  /// Ranking correctly does not stop a light from *arriving*. Walk a camera
+  /// down a corridor of forty torches and the eighth slot changes hands every
+  /// few metres; the light leaving was contributing whatever the ranking said
+  /// it was, and the next frame it contributes nothing. That is the pop, and
+  /// it is a property of any hard cut-off, however good the ranking is.
+  ///
+  /// [fadeBand] closes it by making the edge of the list a ramp rather than a
+  /// cliff. The strongest score this selection *rejected* is the water line:
+  /// a light exactly at it contributes nothing, one at `(1 + fadeBand)` times
+  /// it contributes fully, and in between its intensity is scaled smoothly.
+  /// Two lights swapping places are then both near the water line, both near
+  /// nothing, and the swap has nothing to show.
+  ///
+  /// **Nought, the default, is the old hard edge exactly** — not approximately:
+  /// with no band there is nothing to divide by and every chosen light packs
+  /// its own intensity, byte for byte. That is what lets this ship without
+  /// moving a recorded frame on a backend this machine cannot re-record.
+  ///
+  /// **A scene that fits pays nothing either way.** The water line is the best
+  /// *rejected* score, and a selection that rejected nothing has none — so a
+  /// scene inside [maxLights] fades nothing even with a band set, which is the
+  /// same "only overflow pays" rule the rest of this method follows.
   void gatherNearFrom(
     LightBuffer table,
     Vector3 centre,
     double radius, {
     int channels = LightChannels.all,
+    double fadeBand = 0.0,
   }) {
     _reset();
 
@@ -242,6 +268,9 @@ final class LightBuffer {
 
     var chosen = 0;
     var weakest = 0;
+    // The strongest score this selection turned away — the water line the
+    // fade is measured against. Stays nought when nothing was turned away.
+    var rejected = 0.0;
     final length = table.candidates.length;
     for (var i = 0; i < length; i++) {
       // Channels before relevance — `gfx-12n`. A light this object is not on
@@ -266,7 +295,12 @@ final class LightBuffer {
 
       // Strictly better, so an incumbent survives an equal score and the
       // earlier light wins the tie.
-      if (score <= _chosenScore[weakest]) continue;
+      if (score <= _chosenScore[weakest]) {
+        if (score > rejected) rejected = score;
+        continue;
+      }
+      final evicted = _chosenScore[weakest];
+      if (evicted > rejected) rejected = evicted;
       _chosen[weakest] = i;
       _chosenScore[weakest] = score;
       weakest = _weakest(chosen);
@@ -287,10 +321,34 @@ final class LightBuffer {
       _chosenScore[j + 1] = score;
     }
 
+    // Above the top of the band nothing is scaled, so the whole fade costs a
+    // comparison in the ordinary case: one full light at the water line is
+    // rare, and eight of them is a corridor of identical torches.
+    final ceiling = rejected * (1.0 + fadeBand);
+    final fading = fadeBand > 0.0 && rejected > 0.0;
     for (var i = 0; i < chosen; i++) {
-      _pack(table.candidates[_chosen[i]]);
+      _pack(
+        table.candidates[_chosen[i]],
+        scale: fading ? _edgeFade(_chosenScore[i], rejected, ceiling) : 1.0,
+      );
     }
     _overflow = table.candidates.length - _count;
+  }
+
+  /// How much of a chosen light survives its distance from the water line.
+  ///
+  /// Smoothstep rather than a straight ramp: the derivative is nought at both
+  /// ends, so a light does not start fading with a visible kink the moment it
+  /// crosses the top of the band — which would be a second, smaller pop in
+  /// place of the one this removes.
+  ///
+  /// [score] is infinite for a directional light, which falls out correctly
+  /// without a branch: `infinity > ceiling`, so the sun is never faded.
+  static double _edgeFade(double score, double floor, double ceiling) {
+    if (score >= ceiling) return 1.0;
+    if (score <= floor) return 0.0;
+    final t = (score - floor) / (ceiling - floor);
+    return t * t * (3.0 - 2.0 * t);
   }
 
   /// Packs whichever of [table]'s candidates [channels] admits, in order —
@@ -322,8 +380,8 @@ final class LightBuffer {
   /// drawn on its own. A frame uses the two-buffer form: its own buffer holds
   /// the table and the packing the shadow atlas was assigned against, and a
   /// second buffer is repacked per draw without disturbing it.
-  void gatherNear(Vector3 centre, double radius) =>
-      gatherNearFrom(this, centre, radius);
+  void gatherNear(Vector3 centre, double radius, {double fadeBand = 0.0}) =>
+      gatherNearFrom(this, centre, radius, fadeBand: fadeBand);
 
   /// Which of the chosen slots is the easiest to give up.
   ///
@@ -408,8 +466,14 @@ final class LightBuffer {
     packed.clear();
   }
 
-  /// Writes one light into the next free slot.
-  void _pack(LightNode light) {
+  /// Writes one light into the next free slot, its intensity scaled by
+  /// [scale] — nought to one, and one for every caller but the edge fade.
+  ///
+  /// The intensity and not the colour, because they are the same multiply to
+  /// the shader and only one of them is a number nobody authored: dimming a
+  /// light by writing a darker colour would show up in a debug view as a lamp
+  /// somebody tinted.
+  void _pack(LightNode light, {double scale = 1.0}) {
     packed.add(light);
     final slot = _count * 4;
     light.readDirection(_direction);
@@ -423,7 +487,7 @@ final class LightBuffer {
     colors[slot] = light.color.x;
     colors[slot + 1] = light.color.y;
     colors[slot + 2] = light.color.z;
-    colors[slot + 3] = light.intensity;
+    colors[slot + 3] = light.intensity * scale;
 
     directions[slot] = _direction.x;
     directions[slot + 1] = _direction.y;

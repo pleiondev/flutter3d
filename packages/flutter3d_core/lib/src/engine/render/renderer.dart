@@ -1173,6 +1173,7 @@ final class Renderer implements RenderServices {
     required LightBuffer frameLights,
     required Float32List frameShadowSlots,
     required MeshNode node,
+    double fadeBand = 0.0,
   }) {
     // **The fast path is what makes `gfx-12n` free when nobody uses it.** A
     // scene whose lights fit and whose lights ask for no channel shares the
@@ -1194,6 +1195,7 @@ final class Renderer implements RenderServices {
         node.worldBoundsCentre,
         node.worldBoundsRadius,
         channels: channels,
+        fadeBand: fadeBand,
       );
     }
     // The frame's table is the world scene's; a contributor scene was handed

@@ -321,6 +321,7 @@ extension _MeshEncode on Renderer {
       frameLights: lights,
       frameShadowSlots: shadowSlots,
       node: node,
+      fadeBand: settings.lightFadeBand,
     );
     final drawLights = draw.lights;
     final drawShadowSlots = draw.shadowSlots;
