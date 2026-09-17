@@ -17,6 +17,7 @@ import 'package:flutter/material.dart' hide Material;
 import 'package:flutter3d/flutter3d.dart' hide Material;
 import 'package:flutter3d/flutter3d.dart' as engine show Material;
 import 'package:flutter3d_cpu/testing.dart';
+import 'package:flutter3d_modeler/l10n/app_localizations.dart';
 import 'package:flutter3d_modeler/src/ui/lathe_dialog.dart';
 import 'package:flutter3d_modeler/src/ui/material_studio_dialog.dart';
 import 'package:flutter3d_modeler/src/ui/roomy_dialog.dart';
@@ -95,6 +96,9 @@ Future<void> pumpPhone(
   Widget? properties,
 }) => tester.pumpWidget(
   MaterialApp(
+    locale: const Locale('en'),
+    localizationsDelegates: AppLocalizations.localizationsDelegates,
+    supportedLocales: AppLocalizations.supportedLocales,
     theme: modelerTheme(),
     home: ModelerPhoneShell(
       mode: ModelerMode.mesh,
@@ -119,6 +123,9 @@ Future<void> pumpTablet(
   Widget? properties,
 }) => tester.pumpWidget(
   MaterialApp(
+    locale: const Locale('en'),
+    localizationsDelegates: AppLocalizations.localizationsDelegates,
+    supportedLocales: AppLocalizations.supportedLocales,
     theme: modelerTheme(),
     home: ModelerTabletShell(
       mode: ModelerMode.object,
@@ -187,6 +194,9 @@ void main() {
         final SemanticsHandle handle = tester.ensureSemantics();
         await tester.pumpWidget(
           MaterialApp(
+            locale: const Locale('en'),
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
             theme: deskTheme(),
             home: Scaffold(
               body: Builder(
@@ -212,6 +222,9 @@ void main() {
       await atSize(tester, const ui.Size(1440, 900), () async {
         await tester.pumpWidget(
           MaterialApp(
+            locale: const Locale('en'),
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
             theme: deskTheme(),
             home: Scaffold(body: panel()),
           ),
@@ -224,6 +237,9 @@ void main() {
         late double row;
         await tester.pumpWidget(
           MaterialApp(
+            locale: const Locale('en'),
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
             theme: deskTheme(),
             home: Builder(
               builder: (BuildContext context) {
@@ -295,6 +311,9 @@ void main() {
         final Renderer renderer = testRenderer();
         await tester.pumpWidget(
           MaterialApp(
+            locale: const Locale('en'),
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
             theme: modelerTheme(),
             home: Scaffold(
               body: Builder(
@@ -331,6 +350,9 @@ void main() {
         final Renderer renderer = testRenderer();
         await tester.pumpWidget(
           MaterialApp(
+            locale: const Locale('en'),
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
             theme: modelerTheme(),
             home: Scaffold(
               body: Builder(
@@ -362,6 +384,9 @@ void main() {
         final Renderer renderer = testRenderer();
         await tester.pumpWidget(
           MaterialApp(
+            locale: const Locale('en'),
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
             theme: modelerTheme(),
             home: Scaffold(
               body: Builder(
@@ -401,6 +426,9 @@ void main() {
       await atSize(tester, const ui.Size(1199, 900), () async {
         await tester.pumpWidget(
           MaterialApp(
+            locale: const Locale('en'),
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
             home: Builder(
               builder: (BuildContext context) {
                 roomy = hasRoomForDialogs(context);
@@ -415,6 +443,9 @@ void main() {
       await atSize(tester, const ui.Size(1200, 900), () async {
         await tester.pumpWidget(
           MaterialApp(
+            locale: const Locale('en'),
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
             home: Builder(
               builder: (BuildContext context) {
                 roomy = hasRoomForDialogs(context);

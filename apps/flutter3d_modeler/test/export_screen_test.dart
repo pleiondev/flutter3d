@@ -7,6 +7,7 @@ library;
 import 'package:flutter/material.dart';
 import 'package:flutter3d_mesh/flutter3d_mesh.dart';
 import 'package:flutter3d_model_core/flutter3d_model_core.dart';
+import 'package:flutter3d_modeler/l10n/app_localizations.dart';
 import 'package:flutter3d_modeler/src/exporting.dart';
 import 'package:flutter3d_modeler/src/ui/export_screen.dart';
 import 'package:flutter3d_modeler/src/ui/theme.dart';
@@ -36,6 +37,9 @@ Future<ExportChoice?> openOver(
   ExportChoice? result;
   await tester.pumpWidget(
     MaterialApp(
+      locale: const Locale('en'),
+      localizationsDelegates: AppLocalizations.localizationsDelegates,
+      supportedLocales: AppLocalizations.supportedLocales,
       theme: modelerTheme(),
       home: Scaffold(
         body: Builder(
@@ -97,6 +101,9 @@ void main() {
         ExportChoice? result;
         await tester.pumpWidget(
           MaterialApp(
+            locale: const Locale('en'),
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
             theme: modelerTheme(),
             home: Scaffold(
               body: Builder(
@@ -139,6 +146,9 @@ void main() {
         ExportChoice? result;
         await tester.pumpWidget(
           MaterialApp(
+            locale: const Locale('en'),
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
             theme: modelerTheme(),
             home: Scaffold(
               body: Builder(
@@ -184,6 +194,9 @@ void main() {
         ExportChoice? result;
         await tester.pumpWidget(
           MaterialApp(
+            locale: const Locale('en'),
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
             theme: modelerTheme(),
             home: Scaffold(
               body: Builder(
@@ -245,6 +258,9 @@ void main() {
       ExportChoice? result;
       await tester.pumpWidget(
         MaterialApp(
+          locale: const Locale('en'),
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
           theme: modelerTheme(),
           home: Scaffold(
             body: Builder(
@@ -285,6 +301,9 @@ void main() {
       ExportChoice? result;
       await tester.pumpWidget(
         MaterialApp(
+          locale: const Locale('en'),
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
           theme: modelerTheme(),
           home: Scaffold(
             body: Builder(
@@ -330,6 +349,9 @@ void main() {
         );
         await tester.pumpWidget(
           MaterialApp(
+            locale: const Locale('en'),
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
             theme: modelerTheme(),
             home: Scaffold(
               body: Builder(
@@ -371,6 +393,9 @@ void main() {
       );
       await tester.pumpWidget(
         MaterialApp(
+          locale: const Locale('en'),
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
           theme: modelerTheme(),
           home: Scaffold(
             body: Builder(
@@ -414,6 +439,9 @@ void main() {
       ExportChoice? answer;
       await tester.pumpWidget(
         MaterialApp(
+          locale: const Locale('en'),
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
           theme: modelerTheme(),
           home: Scaffold(
             body: Builder(

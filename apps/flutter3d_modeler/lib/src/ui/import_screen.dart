@@ -18,6 +18,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter3d_core/formats.dart';
 import 'package:flutter3d_model_core/flutter3d_model_core.dart';
 
+import '../../l10n/app_localizations.dart';
 import '../import_plan.dart';
 import 'theme.dart';
 
@@ -166,12 +167,13 @@ class _ImportScreenState extends State<_ImportScreen> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final AppLocalizations l = AppLocalizations.of(context);
     final plan = _plan;
     final bounds = plan.scaledBounds;
     final size = bounds.max - bounds.min;
 
     return AlertDialog(
-      title: const Text('Import'),
+      title: Text(l.importTitle),
       content: SizedBox(
         width: 420,
         child: SingleChildScrollView(
@@ -200,7 +202,10 @@ class _ImportScreenState extends State<_ImportScreen> {
                   'allows it.',
                 ),
               const SizedBox(height: 12),
-              const Text('Unit', style: TextStyle(fontWeight: FontWeight.w500)),
+              Text(
+                l.importUnit,
+                style: const TextStyle(fontWeight: FontWeight.w500),
+              ),
               SegmentedButton<ImportUnit>(
                 showSelectedIcon: false,
                 segments: const <ButtonSegment<ImportUnit>>[
@@ -222,9 +227,9 @@ class _ImportScreenState extends State<_ImportScreen> {
                     setState(() => _unit = picked.first),
               ),
               const SizedBox(height: 12),
-              const Text(
-                'Up axis',
-                style: TextStyle(fontWeight: FontWeight.w500),
+              Text(
+                l.importUpAxis,
+                style: const TextStyle(fontWeight: FontWeight.w500),
               ),
               SegmentedButton<UpAxis>(
                 showSelectedIcon: false,
@@ -241,11 +246,8 @@ class _ImportScreenState extends State<_ImportScreen> {
                 dense: true,
                 contentPadding: EdgeInsets.zero,
                 controlAffinity: ListTileControlAffinity.leading,
-                title: const Text('Weld coincident vertices'),
-                subtitle: const Text(
-                  'Builds real mesh topology; leave off to keep the file\'s '
-                  'own data exactly as it arrived.',
-                ),
+                title: Text(l.importWeld),
+                subtitle: Text(l.importWeldHelp),
                 value: _weld,
                 onChanged: (bool? to) => setState(() => _weld = to ?? _weld),
               ),
@@ -253,7 +255,7 @@ class _ImportScreenState extends State<_ImportScreen> {
                 dense: true,
                 contentPadding: EdgeInsets.zero,
                 controlAffinity: ListTileControlAffinity.leading,
-                title: const Text('Recalculate normals'),
+                title: Text(l.importRecalculateNormals),
                 value: _fixNormals,
                 onChanged: (bool? to) =>
                     setState(() => _fixNormals = to ?? _fixNormals),
@@ -262,7 +264,7 @@ class _ImportScreenState extends State<_ImportScreen> {
                 dense: true,
                 contentPadding: EdgeInsets.zero,
                 controlAffinity: ListTileControlAffinity.leading,
-                title: const Text('Triangulate n-gons'),
+                title: Text(l.importTriangulate),
                 value: _triangulate,
                 onChanged: (bool? to) =>
                     setState(() => _triangulate = to ?? _triangulate),
@@ -276,12 +278,8 @@ class _ImportScreenState extends State<_ImportScreen> {
                   dense: true,
                   contentPadding: EdgeInsets.zero,
                   controlAffinity: ListTileControlAffinity.leading,
-                  title: const Text('Link to source'),
-                  subtitle: const Text(
-                    'Remember where this came from, so "Re-import" can read '
-                    'it again and keep the transform, materials and '
-                    'modifiers.',
-                  ),
+                  title: Text(l.importLinkToSource),
+                  subtitle: Text(l.importLinkToSourceHelp),
                   value: _linkToSource,
                   onChanged: (bool? to) =>
                       setState(() => _linkToSource = to ?? _linkToSource),
@@ -289,8 +287,7 @@ class _ImportScreenState extends State<_ImportScreen> {
               if (plan.warningCount > 0) ...<Widget>[
                 const SizedBox(height: 12),
                 Text(
-                  '${plan.warningCount} warning'
-                  '${plan.warningCount == 1 ? '' : 's'}',
+                  l.importWarnings(plan.warningCount),
                   style: theme.textTheme.titleSmall,
                 ),
                 for (final String warning in plan.warnings)
@@ -311,7 +308,7 @@ class _ImportScreenState extends State<_ImportScreen> {
       actions: <Widget>[
         TextButton(
           onPressed: () => Navigator.of(context).pop(),
-          child: const Text('Cancel'),
+          child: Text(l.cancel),
         ),
         FilledButton(
           onPressed: () => Navigator.of(context).pop(
@@ -324,7 +321,7 @@ class _ImportScreenState extends State<_ImportScreen> {
               linkToSource: _linkToSource,
             ),
           ),
-          child: const Text('Import'),
+          child: Text(l.importTitle),
         ),
       ],
     );

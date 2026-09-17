@@ -1155,4 +1155,200 @@ class AppLocalizationsRu extends AppLocalizations {
   String uvIsland(int id) {
     return 'Остров $id';
   }
+
+  @override
+  String get propDisplay => 'Отображение';
+
+  @override
+  String get propMaterial => 'Материал';
+
+  @override
+  String get propNormals => 'Нормали';
+
+  @override
+  String get propWire => 'Сетка';
+
+  @override
+  String get propPerspective => 'Перспектива';
+
+  @override
+  String get propOrthographic => 'Ортографическая';
+
+  @override
+  String get propView => 'Вид';
+
+  @override
+  String get propObjects => 'Объекты';
+
+  @override
+  String get propTransform => 'Преобразование';
+
+  @override
+  String get propSource => 'Источник';
+
+  @override
+  String get propReimport => 'Переимпорт';
+
+  @override
+  String get propModifiers => 'Модификаторы';
+
+  @override
+  String get propMorphs => 'Морфы';
+
+  @override
+  String get propLastOperation => 'Последняя операция';
+
+  @override
+  String get propSelection => 'Выделение';
+
+  @override
+  String get propMesh => 'Меш';
+
+  @override
+  String get propHealth => 'Состояние';
+
+  @override
+  String get propBudget => 'Бюджет';
+
+  @override
+  String get importTitle => 'Импорт';
+
+  @override
+  String get importUnit => 'Единица';
+
+  @override
+  String get importUpAxis => 'Ось вверх';
+
+  @override
+  String get importWeld => 'Сварить совпадающие вершины';
+
+  @override
+  String get importWeldHelp =>
+      'Строит настоящую топологию меша; оставьте выключенным, чтобы данные файла остались ровно такими, какими пришли.';
+
+  @override
+  String get importRecalculateNormals => 'Пересчитать нормали';
+
+  @override
+  String get importTriangulate => 'Триангулировать n-угольники';
+
+  @override
+  String get importLinkToSource => 'Связать с источником';
+
+  @override
+  String get importLinkToSourceHelp =>
+      'Запомнить, откуда это пришло, чтобы «Переимпорт» прочитал файл снова и сохранил преобразование, материалы и модификаторы.';
+
+  @override
+  String get exportTitle => 'Экспорт';
+
+  @override
+  String get exportTriangles => 'Треугольников';
+
+  @override
+  String get exportBakeTransforms => 'Запечь преобразования узлов';
+
+  @override
+  String get exportBakeTransformsHelp =>
+      'Переносит положение каждого объекта в его собственные вершины, чтобы файлу нечего было терять из иерархии.';
+
+  @override
+  String get exportApplyModifiers => 'Применить модификаторы';
+
+  @override
+  String get exportApplyModifiersHelp =>
+      'Пишет ту форму, которую вы видите, со свёрнутыми зеркалами и массивами. Выключено — пишется базовый меш.';
+
+  @override
+  String get exportSelectionOnly => 'Только выделенное';
+
+  @override
+  String get exportSelectionOnlyHelp =>
+      'Пишет то, что выделено, и всё, что под ним, оставляя остальной проект на месте.';
+
+  @override
+  String get exportCompressTextures => 'Сжать текстуры (KTX2)';
+
+  @override
+  String get exportCompressTexturesHelp =>
+      'Меньшие изображения, которые GPU читает без распаковки. Их понимает только читатель .f3d.';
+
+  @override
+  String get exportReady => 'готово к экспорту';
+
+  @override
+  String get exportShow => 'Показать';
+
+  @override
+  String get shortcutEdgeLoop => 'Выделить кольцо рёбер вдоль';
+
+  @override
+  String get shortcutEdgeRing => 'Выделить кольцо рёбер поперёк';
+
+  @override
+  String get shortcutFinger => 'Палец';
+
+  @override
+  String get shortcutFingerHeld => 'Палец, удержанный на месте';
+
+  @override
+  String get shortcutPen => 'Перо';
+
+  @override
+  String get shortcutPenOtherEnd => 'Обратная сторона пера';
+
+  @override
+  String get shortcutOrbit => 'Вращать';
+
+  @override
+  String get shortcutPan => 'Сдвигать';
+
+  @override
+  String get shortcutZoom => 'Приближать';
+
+  @override
+  String get exportNothing => 'Нечего экспортировать';
+
+  @override
+  String exportOfBudget(int triangles, int budget, String profile) {
+    return '$triangles из $budget ($profile)';
+  }
+
+  @override
+  String get shortcutEdgeLoopKeys => 'Alt и клик, в режиме меша';
+
+  @override
+  String get shortcutEdgeRingKeys => 'Ctrl или ⌘, вместе с Alt и кликом';
+
+  @override
+  String get shortcutFingerKeys =>
+      'Двигает камеру, каким бы инструментом ни целились';
+
+  @override
+  String get shortcutFingerHeldKeys => 'Открывает меню, не сдвинув камеру';
+
+  @override
+  String get shortcutPenKeys =>
+      'Рисует по модели, сильнее нажим — сильнее штрих';
+
+  @override
+  String get shortcutPenOtherEndKeys => 'Тот же штрих, стирающий';
+
+  @override
+  String get shortcutPanKeys => 'Shift и то, чем вращают';
+
+  @override
+  String get shortcutZoomKeys => 'Колесо или Ctrl с двумя пальцами';
+
+  @override
+  String importWarnings(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count предупреждений',
+      few: '$count предупреждения',
+      one: '1 предупреждение',
+    );
+    return '$_temp0';
+  }
 }

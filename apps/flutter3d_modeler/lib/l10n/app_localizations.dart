@@ -2167,6 +2167,360 @@ abstract class AppLocalizations {
   /// In ru, this message translates to:
   /// **'Остров {id}'**
   String uvIsland(int id);
+
+  /// No description provided for @propDisplay.
+  ///
+  /// In ru, this message translates to:
+  /// **'Отображение'**
+  String get propDisplay;
+
+  /// No description provided for @propMaterial.
+  ///
+  /// In ru, this message translates to:
+  /// **'Материал'**
+  String get propMaterial;
+
+  /// No description provided for @propNormals.
+  ///
+  /// In ru, this message translates to:
+  /// **'Нормали'**
+  String get propNormals;
+
+  /// No description provided for @propWire.
+  ///
+  /// In ru, this message translates to:
+  /// **'Сетка'**
+  String get propWire;
+
+  /// No description provided for @propPerspective.
+  ///
+  /// In ru, this message translates to:
+  /// **'Перспектива'**
+  String get propPerspective;
+
+  /// No description provided for @propOrthographic.
+  ///
+  /// In ru, this message translates to:
+  /// **'Ортографическая'**
+  String get propOrthographic;
+
+  /// No description provided for @propView.
+  ///
+  /// In ru, this message translates to:
+  /// **'Вид'**
+  String get propView;
+
+  /// No description provided for @propObjects.
+  ///
+  /// In ru, this message translates to:
+  /// **'Объекты'**
+  String get propObjects;
+
+  /// No description provided for @propTransform.
+  ///
+  /// In ru, this message translates to:
+  /// **'Преобразование'**
+  String get propTransform;
+
+  /// No description provided for @propSource.
+  ///
+  /// In ru, this message translates to:
+  /// **'Источник'**
+  String get propSource;
+
+  /// No description provided for @propReimport.
+  ///
+  /// In ru, this message translates to:
+  /// **'Переимпорт'**
+  String get propReimport;
+
+  /// No description provided for @propModifiers.
+  ///
+  /// In ru, this message translates to:
+  /// **'Модификаторы'**
+  String get propModifiers;
+
+  /// No description provided for @propMorphs.
+  ///
+  /// In ru, this message translates to:
+  /// **'Морфы'**
+  String get propMorphs;
+
+  /// No description provided for @propLastOperation.
+  ///
+  /// In ru, this message translates to:
+  /// **'Последняя операция'**
+  String get propLastOperation;
+
+  /// No description provided for @propSelection.
+  ///
+  /// In ru, this message translates to:
+  /// **'Выделение'**
+  String get propSelection;
+
+  /// No description provided for @propMesh.
+  ///
+  /// In ru, this message translates to:
+  /// **'Меш'**
+  String get propMesh;
+
+  /// No description provided for @propHealth.
+  ///
+  /// In ru, this message translates to:
+  /// **'Состояние'**
+  String get propHealth;
+
+  /// No description provided for @propBudget.
+  ///
+  /// In ru, this message translates to:
+  /// **'Бюджет'**
+  String get propBudget;
+
+  /// No description provided for @importTitle.
+  ///
+  /// In ru, this message translates to:
+  /// **'Импорт'**
+  String get importTitle;
+
+  /// No description provided for @importUnit.
+  ///
+  /// In ru, this message translates to:
+  /// **'Единица'**
+  String get importUnit;
+
+  /// No description provided for @importUpAxis.
+  ///
+  /// In ru, this message translates to:
+  /// **'Ось вверх'**
+  String get importUpAxis;
+
+  /// No description provided for @importWeld.
+  ///
+  /// In ru, this message translates to:
+  /// **'Сварить совпадающие вершины'**
+  String get importWeld;
+
+  /// No description provided for @importWeldHelp.
+  ///
+  /// In ru, this message translates to:
+  /// **'Строит настоящую топологию меша; оставьте выключенным, чтобы данные файла остались ровно такими, какими пришли.'**
+  String get importWeldHelp;
+
+  /// No description provided for @importRecalculateNormals.
+  ///
+  /// In ru, this message translates to:
+  /// **'Пересчитать нормали'**
+  String get importRecalculateNormals;
+
+  /// No description provided for @importTriangulate.
+  ///
+  /// In ru, this message translates to:
+  /// **'Триангулировать n-угольники'**
+  String get importTriangulate;
+
+  /// No description provided for @importLinkToSource.
+  ///
+  /// In ru, this message translates to:
+  /// **'Связать с источником'**
+  String get importLinkToSource;
+
+  /// No description provided for @importLinkToSourceHelp.
+  ///
+  /// In ru, this message translates to:
+  /// **'Запомнить, откуда это пришло, чтобы «Переимпорт» прочитал файл снова и сохранил преобразование, материалы и модификаторы.'**
+  String get importLinkToSourceHelp;
+
+  /// No description provided for @exportTitle.
+  ///
+  /// In ru, this message translates to:
+  /// **'Экспорт'**
+  String get exportTitle;
+
+  /// No description provided for @exportTriangles.
+  ///
+  /// In ru, this message translates to:
+  /// **'Треугольников'**
+  String get exportTriangles;
+
+  /// No description provided for @exportBakeTransforms.
+  ///
+  /// In ru, this message translates to:
+  /// **'Запечь преобразования узлов'**
+  String get exportBakeTransforms;
+
+  /// No description provided for @exportBakeTransformsHelp.
+  ///
+  /// In ru, this message translates to:
+  /// **'Переносит положение каждого объекта в его собственные вершины, чтобы файлу нечего было терять из иерархии.'**
+  String get exportBakeTransformsHelp;
+
+  /// No description provided for @exportApplyModifiers.
+  ///
+  /// In ru, this message translates to:
+  /// **'Применить модификаторы'**
+  String get exportApplyModifiers;
+
+  /// No description provided for @exportApplyModifiersHelp.
+  ///
+  /// In ru, this message translates to:
+  /// **'Пишет ту форму, которую вы видите, со свёрнутыми зеркалами и массивами. Выключено — пишется базовый меш.'**
+  String get exportApplyModifiersHelp;
+
+  /// No description provided for @exportSelectionOnly.
+  ///
+  /// In ru, this message translates to:
+  /// **'Только выделенное'**
+  String get exportSelectionOnly;
+
+  /// No description provided for @exportSelectionOnlyHelp.
+  ///
+  /// In ru, this message translates to:
+  /// **'Пишет то, что выделено, и всё, что под ним, оставляя остальной проект на месте.'**
+  String get exportSelectionOnlyHelp;
+
+  /// No description provided for @exportCompressTextures.
+  ///
+  /// In ru, this message translates to:
+  /// **'Сжать текстуры (KTX2)'**
+  String get exportCompressTextures;
+
+  /// No description provided for @exportCompressTexturesHelp.
+  ///
+  /// In ru, this message translates to:
+  /// **'Меньшие изображения, которые GPU читает без распаковки. Их понимает только читатель .f3d.'**
+  String get exportCompressTexturesHelp;
+
+  /// No description provided for @exportReady.
+  ///
+  /// In ru, this message translates to:
+  /// **'готово к экспорту'**
+  String get exportReady;
+
+  /// No description provided for @exportShow.
+  ///
+  /// In ru, this message translates to:
+  /// **'Показать'**
+  String get exportShow;
+
+  /// No description provided for @shortcutEdgeLoop.
+  ///
+  /// In ru, this message translates to:
+  /// **'Выделить кольцо рёбер вдоль'**
+  String get shortcutEdgeLoop;
+
+  /// No description provided for @shortcutEdgeRing.
+  ///
+  /// In ru, this message translates to:
+  /// **'Выделить кольцо рёбер поперёк'**
+  String get shortcutEdgeRing;
+
+  /// No description provided for @shortcutFinger.
+  ///
+  /// In ru, this message translates to:
+  /// **'Палец'**
+  String get shortcutFinger;
+
+  /// No description provided for @shortcutFingerHeld.
+  ///
+  /// In ru, this message translates to:
+  /// **'Палец, удержанный на месте'**
+  String get shortcutFingerHeld;
+
+  /// No description provided for @shortcutPen.
+  ///
+  /// In ru, this message translates to:
+  /// **'Перо'**
+  String get shortcutPen;
+
+  /// No description provided for @shortcutPenOtherEnd.
+  ///
+  /// In ru, this message translates to:
+  /// **'Обратная сторона пера'**
+  String get shortcutPenOtherEnd;
+
+  /// No description provided for @shortcutOrbit.
+  ///
+  /// In ru, this message translates to:
+  /// **'Вращать'**
+  String get shortcutOrbit;
+
+  /// No description provided for @shortcutPan.
+  ///
+  /// In ru, this message translates to:
+  /// **'Сдвигать'**
+  String get shortcutPan;
+
+  /// No description provided for @shortcutZoom.
+  ///
+  /// In ru, this message translates to:
+  /// **'Приближать'**
+  String get shortcutZoom;
+
+  /// No description provided for @exportNothing.
+  ///
+  /// In ru, this message translates to:
+  /// **'Нечего экспортировать'**
+  String get exportNothing;
+
+  /// Экспорт — ux-22.
+  ///
+  /// In ru, this message translates to:
+  /// **'{triangles} из {budget} ({profile})'**
+  String exportOfBudget(int triangles, int budget, String profile);
+
+  /// No description provided for @shortcutEdgeLoopKeys.
+  ///
+  /// In ru, this message translates to:
+  /// **'Alt и клик, в режиме меша'**
+  String get shortcutEdgeLoopKeys;
+
+  /// No description provided for @shortcutEdgeRingKeys.
+  ///
+  /// In ru, this message translates to:
+  /// **'Ctrl или ⌘, вместе с Alt и кликом'**
+  String get shortcutEdgeRingKeys;
+
+  /// No description provided for @shortcutFingerKeys.
+  ///
+  /// In ru, this message translates to:
+  /// **'Двигает камеру, каким бы инструментом ни целились'**
+  String get shortcutFingerKeys;
+
+  /// No description provided for @shortcutFingerHeldKeys.
+  ///
+  /// In ru, this message translates to:
+  /// **'Открывает меню, не сдвинув камеру'**
+  String get shortcutFingerHeldKeys;
+
+  /// No description provided for @shortcutPenKeys.
+  ///
+  /// In ru, this message translates to:
+  /// **'Рисует по модели, сильнее нажим — сильнее штрих'**
+  String get shortcutPenKeys;
+
+  /// No description provided for @shortcutPenOtherEndKeys.
+  ///
+  /// In ru, this message translates to:
+  /// **'Тот же штрих, стирающий'**
+  String get shortcutPenOtherEndKeys;
+
+  /// No description provided for @shortcutPanKeys.
+  ///
+  /// In ru, this message translates to:
+  /// **'Shift и то, чем вращают'**
+  String get shortcutPanKeys;
+
+  /// No description provided for @shortcutZoomKeys.
+  ///
+  /// In ru, this message translates to:
+  /// **'Колесо или Ctrl с двумя пальцами'**
+  String get shortcutZoomKeys;
+
+  /// Импорт — ux-22.
+  ///
+  /// In ru, this message translates to:
+  /// **'{count, plural, =1{1 предупреждение} few{{count} предупреждения} other{{count} предупреждений}}'**
+  String importWarnings(int count);
 }
 
 class _AppLocalizationsDelegate

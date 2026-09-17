@@ -16,6 +16,7 @@ import 'package:flutter3d_mesh/flutter3d_mesh.dart'
     show EditMesh, ElementLevel, MeshChecks, Modifier;
 import 'package:flutter3d_model_core/flutter3d_model_core.dart' hide Outcome;
 
+import '../../../l10n/app_localizations.dart';
 import '../../display_modes.dart';
 import '../../material_editing.dart';
 import '../../material_pool.dart' show clay;
@@ -450,6 +451,7 @@ class PropertiesPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final AppLocalizations l = AppLocalizations.of(context);
     final mesh = switch (project[selection.activeObject ?? -1]?.geometry) {
       EditedGeometry(:final mesh) => mesh,
       _ => null,
@@ -495,21 +497,21 @@ class PropertiesPanel extends StatelessWidget {
     return ListView(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       children: <Widget>[
-        SectionLabel('Display'),
+        SectionLabel(l.propDisplay),
         SegmentedButton<ShadingMode>(
           showSelectedIcon: false,
-          segments: const <ButtonSegment<ShadingMode>>[
+          segments: <ButtonSegment<ShadingMode>>[
             ButtonSegment<ShadingMode>(
               value: ShadingMode.material,
-              label: Text('Material'),
+              label: Text(l.propMaterial),
             ),
             ButtonSegment<ShadingMode>(
               value: ShadingMode.normals,
-              label: Text('Normals'),
+              label: Text(l.propNormals),
             ),
             ButtonSegment<ShadingMode>(
               value: ShadingMode.wireframe,
-              label: Text('Wire'),
+              label: Text(l.propWire),
             ),
           ],
           selected: <ShadingMode>{shading},
@@ -519,20 +521,20 @@ class PropertiesPanel extends StatelessWidget {
         const SizedBox(height: 8),
         SegmentedButton<ViewLens>(
           showSelectedIcon: false,
-          segments: const <ButtonSegment<ViewLens>>[
+          segments: <ButtonSegment<ViewLens>>[
             ButtonSegment<ViewLens>(
               value: ViewLens.perspective,
-              label: Text('Perspective'),
+              label: Text(l.propPerspective),
             ),
             ButtonSegment<ViewLens>(
               value: ViewLens.orthographic,
-              label: Text('Orthographic'),
+              label: Text(l.propOrthographic),
             ),
           ],
           selected: <ViewLens>{lens},
           onSelectionChanged: (Set<ViewLens> picked) => onLens(picked.first),
         ),
-        SectionLabel('View'),
+        SectionLabel(l.propView),
         Wrap(
           spacing: 4,
           runSpacing: 4,
@@ -555,7 +557,7 @@ class PropertiesPanel extends StatelessWidget {
           ],
         ),
         if (sections.contains(PropertiesSection.objects)) ...<Widget>[
-          SectionLabel('Objects'),
+          SectionLabel(l.propObjects),
           // `ux-14`: a tree, with the two toggles and the rename the row
           // asks for. `onSelect` is still there for every caller that only
           // wants "this one" — the palette, an agent, a test.
@@ -583,7 +585,7 @@ class PropertiesPanel extends StatelessWidget {
         ],
         if (held != null &&
             sections.contains(PropertiesSection.transform)) ...<Widget>[
-          SectionLabel('Transform'),
+          SectionLabel(l.propTransform),
           NameField(
             key: ValueKey<String>('name-${held.id}'),
             name: held.name,
@@ -606,7 +608,7 @@ class PropertiesPanel extends StatelessWidget {
         // path, shows nothing rather than a button that always refuses.
         if (held?.source case final SourceLink link
             when onReimport != null) ...<Widget>[
-          SectionLabel('Source'),
+          SectionLabel(l.propSource),
           Row(
             children: <Widget>[
               const Icon(Icons.link, size: 14),
@@ -620,14 +622,14 @@ class PropertiesPanel extends StatelessWidget {
               ),
               TextButton(
                 onPressed: () => onReimport!(held!.id),
-                child: const Text('Re-import'),
+                child: Text(l.propReimport),
               ),
             ],
           ),
         ],
         if (held != null &&
             sections.contains(PropertiesSection.modifiers)) ...<Widget>[
-          SectionLabel('Modifiers'),
+          SectionLabel(l.propModifiers),
           ModifierStackPanel(
             key: ValueKey<String>('modifiers-${held.id}'),
             slots: held.modifiers,
@@ -673,7 +675,7 @@ class PropertiesPanel extends StatelessWidget {
         ],
         if (held != null &&
             sections.contains(PropertiesSection.materials)) ...<Widget>[
-          SectionLabel('Material'),
+          SectionLabel(l.propMaterial),
           // `ux-40`: the preview stands above the list it is a preview of,
           // so a slider and the sphere it moves are on screen together.
           // Only where there is a device to draw with — a panel pumped on
@@ -867,7 +869,7 @@ class PropertiesPanel extends StatelessWidget {
         // come before it — usually Display — and read as something that
         // section was saying about the view.
         if (held != null && sections.contains(PropertiesSection.morphs))
-          SectionLabel('Morphs'),
+          SectionLabel(l.propMorphs),
         if (held != null && sections.contains(PropertiesSection.morphs))
           MorphsPanel(
             object: held,
@@ -886,16 +888,16 @@ class PropertiesPanel extends StatelessWidget {
                 onSetShapeDriverField(held.id, index, field, value),
           ),
         if (sections.contains(PropertiesSection.lastOperation)) ...<Widget>[
-          SectionLabel('Last operation'),
+          SectionLabel(l.propLastOperation),
           OperationCard(command: lastCommand, onAmend: onAmend),
         ],
         if (sections.contains(PropertiesSection.selection)) ...<Widget>[
-          SectionLabel('Selection'),
+          SectionLabel(l.propSelection),
           LabelValueRow('What', selection.says),
         ],
         if (mesh != null &&
             sections.contains(PropertiesSection.mesh)) ...<Widget>[
-          SectionLabel('Mesh'),
+          SectionLabel(l.propMesh),
           LabelValueRow('Vertices', '${mesh.vertexCount}'),
           LabelValueRow('Faces', '${mesh.faceCount}'),
           // `ux-16`: what is wrong with it, and the press that fixes each.
@@ -903,14 +905,14 @@ class PropertiesPanel extends StatelessWidget {
           // is a walk of a mesh a person is looking at rather than of every
           // mesh in the project, and it is wanted only in the one mode that
           // shows this section.
-          SectionLabel('Health'),
+          SectionLabel(l.propHealth),
           MeshHealthPanel(
             issues: MeshChecks(mesh).all(),
             onSelect: onSelectElements ?? (_, _) {},
             onFix: onFixMesh ?? (_) {},
           ),
         ],
-        SectionLabel('Budget'),
+        SectionLabel(l.propBudget),
         LabelValueRow('Triangles', '${project.triangleCount}'),
         LabelValueRow('Profile', project.profile.name),
       ],

@@ -450,5 +450,86 @@
         "type": "int"
       }
     }
+  },
+  "propDisplay": "Отображение",
+  "propMaterial": "Материал",
+  "propNormals": "Нормали",
+  "propWire": "Сетка",
+  "propPerspective": "Перспектива",
+  "propOrthographic": "Ортографическая",
+  "propView": "Вид",
+  "propObjects": "Объекты",
+  "propTransform": "Преобразование",
+  "propSource": "Источник",
+  "propReimport": "Переимпорт",
+  "propModifiers": "Модификаторы",
+  "propMorphs": "Морфы",
+  "propLastOperation": "Последняя операция",
+  "propSelection": "Выделение",
+  "propMesh": "Меш",
+  "propHealth": "Состояние",
+  "propBudget": "Бюджет",
+  "importTitle": "Импорт",
+  "importUnit": "Единица",
+  "importUpAxis": "Ось вверх",
+  "importWeld": "Сварить совпадающие вершины",
+  "importWeldHelp": "Строит настоящую топологию меша; оставьте выключенным, чтобы данные файла остались ровно такими, какими пришли.",
+  "importRecalculateNormals": "Пересчитать нормали",
+  "importTriangulate": "Триангулировать n-угольники",
+  "importLinkToSource": "Связать с источником",
+  "importLinkToSourceHelp": "Запомнить, откуда это пришло, чтобы «Переимпорт» прочитал файл снова и сохранил преобразование, материалы и модификаторы.",
+  "exportTitle": "Экспорт",
+  "exportTriangles": "Треугольников",
+  "exportBakeTransforms": "Запечь преобразования узлов",
+  "exportBakeTransformsHelp": "Переносит положение каждого объекта в его собственные вершины, чтобы файлу нечего было терять из иерархии.",
+  "exportApplyModifiers": "Применить модификаторы",
+  "exportApplyModifiersHelp": "Пишет ту форму, которую вы видите, со свёрнутыми зеркалами и массивами. Выключено — пишется базовый меш.",
+  "exportSelectionOnly": "Только выделенное",
+  "exportSelectionOnlyHelp": "Пишет то, что выделено, и всё, что под ним, оставляя остальной проект на месте.",
+  "exportCompressTextures": "Сжать текстуры (KTX2)",
+  "exportCompressTexturesHelp": "Меньшие изображения, которые GPU читает без распаковки. Их понимает только читатель .f3d.",
+  "exportReady": "готово к экспорту",
+  "exportShow": "Показать",
+  "shortcutEdgeLoop": "Выделить кольцо рёбер вдоль",
+  "shortcutEdgeRing": "Выделить кольцо рёбер поперёк",
+  "shortcutFinger": "Палец",
+  "shortcutFingerHeld": "Палец, удержанный на месте",
+  "shortcutPen": "Перо",
+  "shortcutPenOtherEnd": "Обратная сторона пера",
+  "shortcutOrbit": "Вращать",
+  "shortcutPan": "Сдвигать",
+  "shortcutZoom": "Приближать",
+  "exportNothing": "Нечего экспортировать",
+  "exportOfBudget": "{triangles} из {budget} ({profile})",
+  "@exportOfBudget": {
+    "description": "Экспорт — ux-22.",
+    "placeholders": {
+      "triangles": {
+        "type": "int"
+      },
+      "budget": {
+        "type": "int"
+      },
+      "profile": {
+        "type": "String"
+      }
+    }
+  },
+  "shortcutEdgeLoopKeys": "Alt и клик, в режиме меша",
+  "shortcutEdgeRingKeys": "Ctrl или ⌘, вместе с Alt и кликом",
+  "shortcutFingerKeys": "Двигает камеру, каким бы инструментом ни целились",
+  "shortcutFingerHeldKeys": "Открывает меню, не сдвинув камеру",
+  "shortcutPenKeys": "Рисует по модели, сильнее нажим — сильнее штрих",
+  "shortcutPenOtherEndKeys": "Тот же штрих, стирающий",
+  "shortcutPanKeys": "Shift и то, чем вращают",
+  "shortcutZoomKeys": "Колесо или Ctrl с двумя пальцами",
+  "importWarnings": "{count, plural, =1{1 предупреждение} few{{count} предупреждения} other{{count} предупреждений}}",
+  "@importWarnings": {
+    "description": "Импорт — ux-22.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
   }
 }
