@@ -11,6 +11,26 @@ enum LightType { directional, point, spot }
 ///
 /// Direction comes from the node's local -Z, the same forward axis cameras use,
 /// so [SceneNode.lookAt] aims a spot light exactly as it aims a camera.
+/// The bit masks [LightNode.channels] and [SceneNode.lightChannels] meet on.
+///
+/// Plain integers rather than an enum, because the whole point is that a
+/// caller invents their own meanings: this engine knows that a bit set on
+/// both sides means the light applies, and nothing about what the bit is
+/// called. [all] and [none] are the two a caller does not have to invent.
+abstract final class LightChannels {
+  /// Every channel — what both sides default to, so channels cost nothing
+  /// until somebody uses them.
+  static const int all = 0xFFFFFFFF;
+
+  /// No channel at all. A light set to this shines on nothing and an object
+  /// set to it is lit by nothing but the ambient term — which is a stranger
+  /// thing to want than it looks, and is here so that "off" has a spelling.
+  static const int none = 0;
+
+  /// The nth channel, counting from zero.
+  static int only(int index) => 1 << index;
+}
+
 final class LightNode extends SceneNode {
   LightNode({
     this.type = LightType.directional,
@@ -35,6 +55,25 @@ final class LightNode extends SceneNode {
   /// queue. The level format has carried the flag since it was written and
   /// nothing read it, which is why a torch lit the far side of a wall.
   bool castsShadow;
+
+  /// Which channels this light shines on — `gfx-12n`'s own row.
+  ///
+  /// A bit mask meeting [SceneNode.lightChannels]: a light reaches an object
+  /// when `light.channels & node.lightChannels` is not zero. Both default to
+  /// every bit, so a scene that has never heard of channels is lit exactly as
+  /// it was — which is checkable rather than asserted, since a frame with no
+  /// channels takes the same fast path through the light selection it always
+  /// did and packs the identical bytes.
+  ///
+  /// **What it is for**: a hero's flashlight that does not light the sky, an
+  /// interior lamp that does not leak through a wall the renderer has no way
+  /// to know is there. Both are cases where the right answer is not more
+  /// shadow work but a statement about what a light is *for*.
+  ///
+  /// It is applied when the eight lights of a draw are chosen, so a light
+  /// that cannot reach an object does not take one of its slots either. That
+  /// is the difference between a channel and a check in the shader.
+  int channels = LightChannels.all;
 
   double intensity;
 
