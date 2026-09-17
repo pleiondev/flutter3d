@@ -13,6 +13,36 @@ import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 
 import 'render_settings.dart' show RenderSettings;
 
+/// What one node of the frame graph cost — `gfx-01n`'s own row.
+///
+/// **A frame total says a frame got slower and not where.** Four passes draw
+/// in an ordinary frame — the shadows, the scene, the sky, the composite —
+/// and "the frame is up twelve draw calls" is the same sentence whether the
+/// shadow map gained a cascade or somebody added an overlay. Per pass, it is
+/// one sentence and it names the pass.
+///
+/// A record rather than a class because it is read and never built by
+/// anything outside the renderer, and a named one because the shape is
+/// written out in four files and was drifting.
+typedef FramePass = ({
+  /// The graph node's own name.
+  String name,
+
+  /// What `RenderNode.isActive` said at the node this timing came from. See
+  /// [FrameResult.passes] for why absence, not `false`, is how a pass that
+  /// did not run is reported.
+  bool active,
+
+  /// Wall-clock time inside this node's own `execute`.
+  int micros,
+
+  /// Draws this node encoded. Zero for a node that only moves textures
+  /// about — the composite's own full-screen triangle is a draw and counts.
+  int drawCalls,
+  int triangles,
+  int pipelineSwitches,
+});
+
 /// One rendered frame.
 final class FrameResult {
   const FrameResult({
@@ -33,7 +63,7 @@ final class FrameResult {
     this.shadowsDenied = 0,
     this.wireframeDeclined = false,
     this.exposure = RenderSettings.defaultExposure,
-    this.passes = const <({String name, bool active, int micros})>[],
+    this.passes = const <FramePass>[],
   });
 
   /// The exposure the composite used: the setting's, or — with auto exposure
@@ -155,7 +185,7 @@ final class FrameResult {
   /// two questions — "did the graph keep this node" and "what did the node
   /// itself say about its own readiness" — happen to agree now and are not
   /// the same question.
-  final List<({String name, bool active, int micros})> passes;
+  final List<FramePass> passes;
 }
 
 /// What [Renderer.renderPost] handed back.

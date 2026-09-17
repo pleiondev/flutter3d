@@ -2028,8 +2028,24 @@ final class Renderer implements RenderServices {
     });
 
     pass.draw();
+    _frameCounters?.drawCalls++;
     pass.submit();
   }
+
+  /// The counters of the frame currently being encoded, or null between
+  /// frames — `gfx-01n`.
+  ///
+  /// **Not global state; the frame's own, held where the draws are.** A draw
+  /// is counted by whatever encodes it, and most of them are encoded inside
+  /// `encodeScene`, which is handed a `FramePassState` already. The post
+  /// chain and the shadow passes are not: they draw through [drawFullscreen]
+  /// and through their own passes, neither of which had anywhere to count.
+  /// So the shadow map and the whole bloom ladder were drawing and reporting
+  /// nothing — `FrameResult.drawCalls` was the scene and the composite, and
+  /// a shadow pass that gained a cascade moved no number at all. The comment
+  /// in `_renderShadowMap` even says "the draw call count is the graph's
+  /// business", which was a promise nobody had kept.
+  FramePassState? _frameCounters;
 
   /// The diagnostic overlay: lines, on top of everything.
   ///
@@ -2723,11 +2739,22 @@ final class Renderer implements RenderServices {
     // written for this and had no caller; it has one now, and the throw the
     // resource layer raises when a node breaks its `keeps` promise is the first
     // thing likely to use it.
-    final passTimings = <({String name, bool active, int micros})>[];
+    final passTimings = <FramePass>[];
+    _frameCounters = passState;
     try {
       for (var i = 0; i < frameGraph.order.length; i++) {
         resources.beginNode(i);
         final node = frameGraph.order[i] as RenderNode;
+        // **Differenced rather than counted per node** — `gfx-01n`. The
+        // counters live on `passState` because a draw is encoded deep inside
+        // the mesh encoder, which has no idea which graph node called it, and
+        // threading a node identity down there to be incremented would put
+        // the profiler's concern into every drawing path in the engine.
+        // Reading the running totals either side of `execute` asks the same
+        // question from outside and costs three integers a pass.
+        final drawsBefore = passState.drawCalls;
+        final trianglesBefore = passState.triangles;
+        final switchesBefore = passState.pipelineSwitches;
         final passClock = Stopwatch()..start();
         node.execute(
           NodeFrame(
@@ -2757,6 +2784,9 @@ final class Renderer implements RenderServices {
           name: node.name,
           active: node.isActive,
           micros: passClock.elapsedMicroseconds,
+          drawCalls: passState.drawCalls - drawsBefore,
+          triangles: passState.triangles - trianglesBefore,
+          pipelineSwitches: passState.pipelineSwitches - switchesBefore,
         ));
         resources.endNode(i);
       }
@@ -2786,6 +2816,12 @@ final class Renderer implements RenderServices {
       // enough; zero is worse.
       _frameIndex++;
       rethrow;
+    } finally {
+      // Cleared whichever way the frame ended: a counter left pointing at a
+      // frame that is over would be incremented by the next `drawFullscreen`
+      // somebody makes outside one — `renderPost` is exactly that call — and
+      // the number would land in a report nobody is reading any more.
+      _frameCounters = null;
     }
 
     // Out of the nodes rather than out of the calls, which is the shape of

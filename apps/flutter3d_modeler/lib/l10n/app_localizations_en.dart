@@ -1715,6 +1715,19 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String get metricsPasses => 'Frame passes';
+
+  @override
+  String metricsPassLine(
+    String name,
+    String ms,
+    String draws,
+    String triangles,
+  ) {
+    return '$name · $ms ms · $draws draws · $triangles tri';
+  }
+
+  @override
   String galleryUnreachable(String names) {
     return '$names could not be reached; everything else is still here';
   }
