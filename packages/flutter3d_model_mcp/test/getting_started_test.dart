@@ -47,37 +47,43 @@ void main() {
   });
 
   group('the strategy prompt', () {
-    test('prompts/list offers it, and prompts/get returns the advice',
-        () async {
-      expect(ready.capabilities.prompts, isNotNull);
+    test(
+      'prompts/list offers it, and prompts/get returns the advice',
+      () async {
+        expect(ready.capabilities.prompts, isNotNull);
 
-      final ListPromptsResult offered = await connection.listPrompts();
-      final Prompt strategy = offered.prompts.singleWhere(
-        (Prompt it) => it.name == 'modelling_strategy',
-      );
-      expect(strategy.description, isNotNull);
+        final ListPromptsResult offered = await connection.listPrompts();
+        final Prompt strategy = offered.prompts.singleWhere(
+          (Prompt it) => it.name == 'modelling_strategy',
+        );
+        expect(strategy.description, isNotNull);
 
-      final GetPromptResult got = await connection.getPrompt(
-        GetPromptRequest(name: 'modelling_strategy'),
-      );
-      final String text = (got.messages.single.content as TextContent).text;
+        final GetPromptResult got = await connection.getPrompt(
+          GetPromptRequest(name: 'modelling_strategy'),
+        );
+        final String text = (got.messages.single.content as TextContent).text;
 
-      // Mutation: offer a prompt that repeats the tool list. The thing a
-      // tool table cannot say is the order, and each of these is a step of
-      // it — read before editing, aim before acting, look at the result,
-      // group what belongs together, check before exporting.
-      for (final String named in <String>[
-        'describe',
-        'selectFacing',
-        'render',
-        'amend',
-        'batch',
-        'cleanup',
-        'check',
-      ]) {
-        expect(text, contains(named), reason: 'the strategy never mentions $named');
-      }
-    });
+        // Mutation: offer a prompt that repeats the tool list. The thing a
+        // tool table cannot say is the order, and each of these is a step of
+        // it — read before editing, aim before acting, look at the result,
+        // group what belongs together, check before exporting.
+        for (final String named in <String>[
+          'describe',
+          'selectFacing',
+          'render',
+          'amend',
+          'batch',
+          'cleanup',
+          'check',
+        ]) {
+          expect(
+            text,
+            contains(named),
+            reason: 'the strategy never mentions $named',
+          );
+        }
+      },
+    );
   });
 
   group('the instructions', () {
@@ -96,7 +102,11 @@ void main() {
         'describe_type',
         'modelling_strategy',
       ]) {
-        expect(said, contains(named), reason: 'instructions never mention $named');
+        expect(
+          said,
+          contains(named),
+          reason: 'instructions never mention $named',
+        );
       }
       // And say what the numbers mean, since every one of them is a number
       // in something.
@@ -104,9 +114,11 @@ void main() {
       expect(said, contains('Y-up'));
       // Fifteen to twenty lines, not a manual: an agent reads this before it
       // has a reason to care about any of it.
-      final int lines = said!.trim().split('\n').where(
-        (String it) => it.trim().isNotEmpty,
-      ).length;
+      final int lines = said!
+          .trim()
+          .split('\n')
+          .where((String it) => it.trim().isNotEmpty)
+          .length;
       expect(lines, lessThan(40));
     });
   });
@@ -132,22 +144,24 @@ void main() {
       }
     });
 
-    test('a kind lists its own fields, with the ranges an inspector uses',
-        () async {
-      final String said = await call(<String, Object?>{
-        'family': 'modifier',
-        'kind': 'array',
-      });
-      // Mutation: hand back the paragraph inside `addModifier`'s description.
-      // That paragraph covers five kinds in three hundred words and an agent
-      // has to read all of it to find the two fields it wants.
-      expect(said, contains('count'));
-      expect(said, contains('offset'));
-      expect(said, contains('mergeDistance'));
-      // The hint table's own range, which is where the panel's slider comes
-      // from — so the two cannot disagree.
-      expect(said, contains('1 to 64'));
-    });
+    test(
+      'a kind lists its own fields, with the ranges an inspector uses',
+      () async {
+        final String said = await call(<String, Object?>{
+          'family': 'modifier',
+          'kind': 'array',
+        });
+        // Mutation: hand back the paragraph inside `addModifier`'s description.
+        // That paragraph covers five kinds in three hundred words and an agent
+        // has to read all of it to find the two fields it wants.
+        expect(said, contains('count'));
+        expect(said, contains('offset'));
+        expect(said, contains('mergeDistance'));
+        // The hint table's own range, which is where the panel's slider comes
+        // from — so the two cannot disagree.
+        expect(said, contains('1 to 64'));
+      },
+    );
 
     test('shapes and texture nodes answer the same way', () async {
       expect(
@@ -171,8 +185,7 @@ void main() {
       );
     });
 
-    test('a name it does not have is an answer naming what there is',
-        () async {
+    test('a name it does not have is an answer naming what there is', () async {
       expect(
         await call(<String, Object?>{'family': 'modifier', 'kind': 'bevel'}),
         allOf(contains('not a modifier'), contains('array')),
@@ -227,10 +240,7 @@ void main() {
         isNot(true),
         reason: (result.content.first as TextContent).text,
       );
-      expect(
-        (result.content.first as TextContent).text,
-        contains('1024×1024'),
-      );
+      expect((result.content.first as TextContent).text, contains('1024×1024'));
     });
   });
 }

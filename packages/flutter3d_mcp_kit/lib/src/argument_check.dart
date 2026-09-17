@@ -150,15 +150,16 @@ int? _exactItems(Schema? schema) {
 }
 
 /// What a schema wants, in the words a person uses.
-String _typeOf(Schema? schema) => switch ((schema as Map<String, Object?>?)?['type']) {
-  'integer' => 'a whole number',
-  'number' => 'a number',
-  'string' => 'a word',
-  'boolean' => 'true or false',
-  'array' => 'a list',
-  'object' => 'an object',
-  _ => 'not that shape',
-};
+String _typeOf(Schema? schema) =>
+    switch ((schema as Map<String, Object?>?)?['type']) {
+      'integer' => 'a whole number',
+      'number' => 'a number',
+      'string' => 'a word',
+      'boolean' => 'true or false',
+      'array' => 'a list',
+      'object' => 'an object',
+      _ => 'not that shape',
+    };
 
 String _list(Iterable<String> words) {
   final List<String> all = words.toList();
