@@ -35,17 +35,22 @@ const String kRootMotionExtra = 'flutter3dRootMotion';
 /// **And [layers] over the top of that**, each one a clip on the joints its
 /// mask names — an upper body that reloads while the legs keep running. A
 /// crossfade moves the whole skeleton; a layer moves part of it and leaves the
-/// rest alone. See [AnimationLayer], which says why it overrides rather than
-/// adds, and [AnimationMask], which says why a mask is indices.
+/// rest alone. See [AnimationLayer], which says how a layer meets the base, and
+/// [AnimationMask], which says why a mask is indices.
 ///
 /// The base is applied first and a layer writes over it, so a player with no
 /// layers poses exactly as it did before there were any — `animation_layer_test`
 /// holds that, because a feature that moved every existing character by a hair
 /// would have been a feature that moved every golden.
 ///
-/// Additive blending is still a separate feature. What is missing above this is
-/// a state machine that decides *which* clip — that belongs to the game layer,
-/// not here.
+/// **A layer can also add rather than replace** — [AnimationBlend.additive],
+/// `gfx-10n`. The layer's distance from its clip's own
+/// [AnimationClip.referenceTime] is laid on the base: a breath over a walk, a
+/// recoil over an aim. A clip with no reference time has no delta to give and
+/// stays on the override path, so nothing about an existing clip changes.
+///
+/// What is missing above this is a state machine that decides *which* clip —
+/// that belongs to the game layer, not here.
 final class AnimationPlayer {
   AnimationPlayer({
     required this.clips,
@@ -92,6 +97,12 @@ final class AnimationPlayer {
   /// here is: `apply` runs once per model per frame, and a set allocated inside
   /// it would be a set allocated per model per frame.
   Float32List _layerSample = Float32List(4);
+
+  /// Scratch for an additive layer's reference frame — `gfx-10n`.
+  ///
+  /// Separate from [_layerSample] because both are wanted at once: the delta is
+  /// the distance between them.
+  Float32List _referenceSample = Float32List(4);
   final Set<int> _baseKeys = <int>{};
 
   final Quaternion _fadeQuaternion = Quaternion.identity();
@@ -133,12 +144,14 @@ final class AnimationPlayer {
     AnimationWrap wrap = AnimationWrap.once,
     double fadeIn = 0.15,
     double speed = 1.0,
+    AnimationBlend blend = AnimationBlend.override,
   }) {
     final layer = AnimationLayer(
       clip: clip,
       mask: mask,
       wrap: wrap,
       speed: speed,
+      blend: blend,
       weight: fadeIn > 0.0 ? 0.0 : 1.0,
     );
     if (fadeIn > 0.0) layer.fadeTo(1.0, seconds: fadeIn);
@@ -255,6 +268,36 @@ final class AnimationPlayer {
       scaleFrom * from.z + scaleTo * sign * to.z,
       scaleFrom * from.w + scaleTo * sign * to.w,
     )..normalize();
+  }
+
+  /// [q] scaled by [t]: a quarter of a turn, not a quarter of four numbers.
+  ///
+  /// The slerp from no rotation, written out — the identity end collapses most
+  /// of it. A unit quaternion is its axis at `sin θ` with `cos θ` alongside, so
+  /// raising it to [t] is the same axis at `sin(tθ)`, `cos(tθ)`. Scaling the
+  /// four components instead agrees with this at a half, by symmetry, and
+  /// nowhere else — which is why the fixture for it uses a quarter.
+  static Quaternion _scaledRotation(Quaternion q, double t) {
+    // A quaternion and its negation are the same rotation, and the one with a
+    // positive w is the short way round — the same choice [_slerp] makes, and
+    // for the same reason.
+    final sign = q.w < 0.0 ? -1.0 : 1.0;
+    final w = sign * q.w;
+    if (w > 0.9995) {
+      // Barely a rotation at all: the arc is shorter than the trigonometry's
+      // own error, and `acos` cannot resolve it out of these four floats.
+      return Quaternion(sign * q.x * t, sign * q.y * t, sign * q.z * t, 1.0)
+        ..normalize();
+    }
+
+    final theta = math.acos(w);
+    final scale = sign * math.sin(t * theta) / math.sin(theta);
+    return Quaternion(
+      q.x * scale,
+      q.y * scale,
+      q.z * scale,
+      math.cos(t * theta),
+    );
   }
 
   /// One copy, shared with the layers — see [animationTrackKey].
@@ -602,11 +645,19 @@ final class AnimationPlayer {
         _layerSample = Float32List(track.componentCount);
       }
       track.sample(layer.time, _layerSample);
+      // An additive layer contributes its distance from its own reference
+      // frame here too — `gfx-10n`. A weight track is already a sum, so the
+      // only thing additive changes is *what* is summed: a blink authored over
+      // a half-open eye adds the change it makes, not the eyelid twice.
+      final reference = _referenceOf(layer, clips[index], track);
       final shared = count < track.componentCount
           ? count
           : track.componentCount;
       for (var i = 0; i < shared; i++) {
-        into[i] += _layerSample[i] * weight;
+        final value = reference == null
+            ? _layerSample[i]
+            : _layerSample[i] - reference[i];
+        into[i] += value * weight;
       }
       added = true;
     }
@@ -705,6 +756,92 @@ final class AnimationPlayer {
     }
   }
 
+  /// [track] sampled at its clip's reference time, or null when this layer is
+  /// not adding — `gfx-10n`.
+  ///
+  /// Null covers both halves of "not adding": an override layer, and an
+  /// additive one over a clip that names no [AnimationClip.referenceTime].
+  /// The second is the case worth being deliberate about — a caller who asks
+  /// for an additive blend over an ordinary clip gets the clip, overriding,
+  /// rather than a delta measured from a pose nobody declared. Guessing at
+  /// frame zero would work for most exports and silently ruin the rest.
+  Float32List? _referenceOf(
+    AnimationLayer layer,
+    AnimationClip clip,
+    AnimationTrack track,
+  ) {
+    if (layer.blend != AnimationBlend.additive) return null;
+    final at = clip.referenceTime;
+    if (at == null) return null;
+    if (_referenceSample.length < track.componentCount) {
+      _referenceSample = Float32List(track.componentCount);
+    }
+    track.sample(at, _referenceSample);
+    return _referenceSample;
+  }
+
+  /// Lays [from]'s distance from [reference] on top of [pose] — `gfx-10n`.
+  ///
+  /// Unlike [_blendInto], [pose] is both what is read and what is written: an
+  /// additive layer modifies the base rather than replacing it, so there is
+  /// nothing to copy back afterwards.
+  ///
+  /// Each path adds in whatever way undoes itself at a delta of nothing, which
+  /// is the property that makes a clip sitting on its own reference frame
+  /// invisible: a difference for a position, a ratio for a scale, and the
+  /// rotation that carries one orientation to the other.
+  void _addInto(
+    Float32List pose,
+    Float32List from,
+    Float32List reference,
+    double weight,
+    AnimationPath path,
+  ) {
+    switch (path) {
+      case AnimationPath.rotation:
+        // The delta in the joint's own frame — reference⁻¹ · sample — applied
+        // as base · delta, which is what makes a lean authored on a standing
+        // chest still read as a lean when the chest is already turned.
+        // Keyframes are unit quaternions, so the conjugate is the inverse and
+        // costs three sign flips instead of a division.
+        _quaternion
+          ..setValues(reference[0], reference[1], reference[2], reference[3])
+          ..conjugate();
+        _fadeQuaternion.setValues(from[0], from[1], from[2], from[3]);
+        // Scaled as an angle rather than component-wise: a delta at a quarter
+        // weight is a quarter of the turn — see [_scaledRotation].
+        final delta = _scaledRotation(_quaternion * _fadeQuaternion, weight);
+        _quaternion.setValues(pose[0], pose[1], pose[2], pose[3]);
+        final mixed = _quaternion * delta
+          ..normalize();
+        pose[0] = mixed.x;
+        pose[1] = mixed.y;
+        pose[2] = mixed.z;
+        pose[3] = mixed.w;
+
+      case AnimationPath.translation:
+        for (var i = 0; i < 3; i++) {
+          pose[i] += (from[i] - reference[i]) * weight;
+        }
+
+      case AnimationPath.scale:
+        // A ratio, not a difference: a breath authored on a chest scaled to
+        // one should swell a chest scaled to two by the same proportion, and
+        // adding 0.05 to both would not. A reference component of nought has
+        // no ratio, and leaving the base alone is the only answer that does
+        // not invent one.
+        for (var i = 0; i < 3; i++) {
+          if (reference[i] == 0.0) continue;
+          pose[i] *= _mix(1.0, from[i] / reference[i], weight);
+        }
+
+      case AnimationPath.weights:
+        // Weights are summed across every layer at once rather than folded in
+        // one at a time — [_addLayerWeights] is where their delta is taken.
+        break;
+    }
+  }
+
   /// Lets every layer covering this joint write over [pose], in order.
   ///
   /// The last layer wins where two want the same joint, which is the rule the
@@ -724,6 +861,13 @@ final class AnimationPlayer {
         _layerSample = Float32List(track.componentCount);
       }
       track.sample(layer.time, _layerSample);
+
+      final reference = _referenceOf(layer, clips[index], track);
+      if (reference != null) {
+        _addInto(pose, _layerSample, reference, weight, path);
+        continue;
+      }
+
       // The layer is what is being mixed *in*, so it is the destination and the
       // pose so far is what it comes from — the same direction the crossfade
       // uses, where a weight of one means all of the newer thing. Written the
@@ -745,6 +889,14 @@ final class AnimationPlayer {
   /// mean depending on the scene graph. The cost is that a layer fading in over
   /// a joint its base ignores arrives at once; an upper-body clip over a walk
   /// that animates the arms — which is the ordinary case — never meets it.
+  ///
+  /// **An additive layer takes the same path, and the arithmetic agrees** —
+  /// `gfx-10n`. Adding a delta needs something to add it to, and here there is
+  /// nothing: the base is silent, so the joint is sitting wherever the model
+  /// authored it. That is what an additive clip's reference frame *is*, and
+  /// reference · delta is the sample — which is exactly what the line below
+  /// writes. A joint the base does not touch is therefore the one place where
+  /// adding and overriding are the same answer.
   void _applyLayersWhereBaseIsSilent() {
     for (final layer in layers) {
       final index = layer.clip;

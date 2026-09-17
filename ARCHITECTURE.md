@@ -1908,7 +1908,7 @@ entities a game defines.
 |---|---|
 | Style | `dart format` |
 | Analysis | `flutter analyze` clean across the workspace, no warnings |
-| Unit tests | **8994 tests** across 36 packages and 8 applications |
+| Unit tests | **9003 tests** across 36 packages and 8 applications |
 | Structure rules | 33, `dart run tool/structure.dart`, the first CI step |
 | CI | GitHub Actions over `tool/ci.sh`, on `ubuntu-latest`, with no graphics card |
 
@@ -2193,8 +2193,8 @@ a panel that shows a colour as a swatch instead of as four boxes, and that is
 the whole of what they were for. The one consumer today is
 `apps/flutter3d_editor/lib/src/material_panel.dart`.
 
-**Morph targets are drawn on the GPU, and there is still no additive
-animation.** A file's targets are read into `MeshData.morphTargets`, packed by
+**Morph targets are drawn on the GPU, and a pose layer can now add rather
+than replace.** A file's targets are read into `MeshData.morphTargets`, packed by
 `MorphTexture` into an `r32g32b32a32Float` texture — one column a vertex, three
 rows a target: positions, normals, tangents — uploaded once with the mesh, and
 sampled by the vertex stage through `lib/morph.glsl`. `MorphState` holds the
@@ -2253,8 +2253,17 @@ vertex stage can sample one, measured on all three backends by
 
 Additive blending **of a pose** — a delta over a reference pose, which is what
 recoil and lean want — needs a reference frame per clip, and glTF has no
-standard place to say which frame that is. Morph *weights* are a different
-matter and are additive already: a weight is a number from nought, so a layer
+standard place to say which frame that is. So the clip carries it:
+`AnimationClip.referenceTime` names a moment rather than holding a pose,
+because the reference is a frame of the clip in almost every case and sampling
+it there needs no second structure. `AnimationLayer.blend` then picks how the
+layer meets the base, and the delta is taken in whatever way undoes itself at
+nothing: a difference for a translation, a ratio for a scale, `base · delta`
+for a rotation. Null is the ordinary value and means the clip is not additive,
+which is what every clip read from a file has — guessing at frame zero would
+work for most exports and silently ruin the rest, so a layer asking to add over
+such a clip overrides instead. Morph *weights* are a different
+matter and were additive already: a weight is a number from nought, so a layer
 has a reference frame without anybody naming one. So a layer adds its weights
 to the base's, scaled by the layer's own weight and bounded at one — a wince
 over a shout rather than instead of half of it — while a crossfade mixes them

@@ -431,25 +431,30 @@ but the richest in functionality:
 ## Game graphics — a parallel engine-work track (G1–G3)
 
 Not part of the editor's phases: these items fix game rendering directly,
-and the editor is the tool that made the gaps visible. Not one item is
-started.
+and the editor is the tool that made the gaps visible.
 
-**⬜ Not started**
+**✅ Done**
 - A per-pass frame profiler as a first step, so further work is measured,
   not eyeballed (gfx-01n)
-- Measuring and possibly changing the default anisotropic filtering
-  (gfx-02n, gfx-07n), distant shadows (gfx-03n, gfx-06n)
 - FXAA, resolving the conflict between SSAO/reflections and anti-aliasing
-  (gfx-04n), turning SSAO on by default after that (gfx-08n)
-- Culling light sources by contribution instead of a hard cap of eight, with
-  no "pop" as the camera moves (gfx-05n), light channels (gfx-12n), physical
-  light units (gfx-13n)
-- Screen-space contact shadows (gfx-09n)
+  (gfx-04n)
 - An additive pose layer over the base animation (gfx-10n)
 - Ray hits against the animated pose, not the base shape (gfx-11n)
+- Light channels (gfx-12n)
 - Light and cameras from glTF (`KHR_lights_punctual`) (gfx-14n)
 - Soft disc shadows instead of hard PCF (gfx-15n), alpha hashing for foliage
-  and nets (gfx-16n), LUT color grading (gfx-17n)
+  and nets (gfx-16n), tone curves (gfx-17n) and the LUT sampled after them
+  (gfx-18n)
+
+**⬜ Not started**
+- Measuring and possibly changing the default anisotropic filtering
+  (gfx-02n, gfx-07n), distant shadows (gfx-03n, gfx-06n)
+- Turning SSAO on by default now that it no longer fights anti-aliasing
+  (gfx-08n) — held by the golden sets on the three backends this machine
+  cannot re-record
+- Culling light sources by contribution instead of a hard cap of eight, with
+  no "pop" as the camera moves (gfx-05n), physical light units (gfx-13n)
+- Screen-space contact shadows (gfx-09n)
 
 ## Quality, infrastructure, and CI
 

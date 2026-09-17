@@ -243,9 +243,11 @@ character does not catch on a seam — is where the risk in this track is. A
 capsule stops being swept as a box on the way past, and the slope limit stops
 being a constant.
 
-Animation gains an additive layer over a reference pose and a small stack of
-push, blend and add operations, which is what a recoil is, and what a
-graph editor would have been an expensive way to express.
+Animation has the additive layer over a reference pose since 2026-09-17 —
+`AnimationLayer.blend` with `AnimationClip.referenceTime`, which is where the
+reference frame lives because glTF has nowhere to put it. What is left of this
+is the small stack of push, blend and add operations around it, which is what a
+recoil is, and what a graph editor would have been an expensive way to express.
 
 *Acceptance: six collision shapes rather than four, with the heightfield and
 the triangle mesh answering sweeps and rays; a capsule swept as a capsule; a
