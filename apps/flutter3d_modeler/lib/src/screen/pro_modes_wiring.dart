@@ -250,6 +250,17 @@ extension _ProModesWiring on _ModelerScreenState {
     final PaintStack? stack = material.paint;
     if (texture == null || stack == null) return;
     await upload.flush(texture, stack, stack.flatten());
+
+    // **The mip chain, on completion.** The write above touched level zero
+    // and nothing else, which is all `overwriteTexture` will do and all the
+    // screen needs while the pointer is down. `PaintStroke` bumped this
+    // material's version, so one refresh rebuilds exactly it — decoding the
+    // flattened canvas and uploading it with whatever chain its sampling
+    // asks for. Awaited after the rectangle rather than instead of it: the
+    // decode is the cost the rectangle exists to keep out of the drag, and
+    // paying it once when the gesture ends is what the row asked for.
+    if (!mounted) return;
+    await state.stage.materials?.refresh(state.project);
   }
 
   /// Decodes the flattened canvas for the panel to draw, after a stroke.
