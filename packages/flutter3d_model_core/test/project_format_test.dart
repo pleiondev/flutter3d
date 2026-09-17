@@ -2247,6 +2247,188 @@ void main() {
     });
   });
 
+  group('pro-doc-01: a baked simulation survives a save', () {
+    /// Frames nobody could mistake for a default: every value is its own
+    /// number, so a frame written in the wrong order or read at the wrong
+    /// offset lands somewhere this can see.
+    SimulationCache bake({int frames = 3, int vertices = 2}) => SimulationCache(
+      vertexCount: vertices,
+      frames: <Float32List>[
+        for (var f = 0; f < frames; f++)
+          Float32List.fromList(<double>[
+            for (var v = 0; v < vertices * 3; v++) f * 100.0 + v + 0.5,
+          ]),
+      ],
+    );
+
+    ModelProject baked({int frames = 3, int vertices = 2}) {
+      final project = const ModelProject().added(
+        (int id) => ModelObject(
+          id: id,
+          name: 'cloth',
+          geometry: EditedGeometry(EditMesh.cuboid()),
+          transform: Matrix4.identity(),
+        ),
+      );
+      return project.withObject(
+        project.objects.single.copyWith(
+          simulationCache: bake(frames: frames, vertices: vertices),
+        ),
+      );
+    }
+
+    test('every frame comes back with the values it went in with', () {
+      final ModelProject read = opened(writeProject(baked()));
+      final SimulationCache? cache = read.objects.single.simulationCache;
+
+      expect(cache, isNotNull);
+      expect(cache!.vertexCount, 2);
+      expect(cache.frameCount, 3);
+      // Frame by frame rather than "the cache equals the cache": what this is
+      // guarding is the packing, and a check that compared the object with
+      // itself would pass against a writer that wrote every frame the same.
+      for (var f = 0; f < 3; f++) {
+        expect(cache.frame(f), bake().frame(f), reason: 'frame $f');
+      }
+    });
+
+    test('and the frames are in the blob, not in the manifest', () {
+      // **The whole reason this is a section.** Mutation: write the cache
+      // through `SimulationCache.toJson` into the object's own record, and
+      // the manifest grows by the size of the bake — which every reader
+      // parses before it knows whether it wants a simulation at all.
+      final Uint8List big = writeProject(baked(frames: 40, vertices: 64));
+      final Uint8List small = writeProject(baked(frames: 1, vertices: 1));
+      final int grew = big.length - small.length;
+
+      expect(grew, greaterThan(40 * 64 * 3 * 4 - 1024));
+      // The manifest is JSON, so a base64'd bake inside it would show up as
+      // text. Nothing of the sort is in the file.
+      expect(
+        utf8.decode(big, allowMalformed: true),
+        isNot(contains('"frames"')),
+      );
+    });
+
+    test('a project nobody baked writes no such section at all', () {
+      // The additive rule: a file with no bake is the file this build wrote
+      // before the section existed, byte for byte, so an older reader has
+      // nothing to step over.
+      expect(
+        utf8.decode(writeProject(sample()), allowMalformed: true),
+        isNot(contains('simulationCache')),
+      );
+      expect(
+        opened(writeProject(sample())).objects.first.simulationCache,
+        isNull,
+      );
+    });
+
+    test('two objects sharing one bake write it once', () {
+      final SimulationCache shared = bake(frames: 8, vertices: 32);
+      var project = const ModelProject();
+      for (var i = 0; i < 2; i++) {
+        project = project.added(
+          (int id) => ModelObject(
+            id: id,
+            name: 'cloth$id',
+            geometry: EditedGeometry(EditMesh.cuboid()),
+            transform: Matrix4.identity(),
+            simulationCache: shared,
+          ),
+        );
+      }
+
+      final ModelProject read = opened(writeProject(project));
+      expect(read.objects.first.simulationCache!.frameCount, 8);
+      expect(read.objects.last.simulationCache!.frameCount, 8);
+      // One chunk, named twice: the manifest holds two records and both point
+      // at row zero.
+      final String text = utf8.decode(
+        writeProject(project),
+        allowMalformed: true,
+      );
+      expect('"chunk":1'.allMatches(text), isEmpty);
+    });
+
+    /// A file whose one object names [record] as its bake, over a table of
+    /// [rows] chunks each of [floats] values. Forged rather than written,
+    /// because the writer cannot produce any of these and a file edited after
+    /// the fact would be caught by its own checksums first — which is what
+    /// the checksums are for, and not what these tests are about.
+    Uint8List fileNaming(Object? record, {int rows = 1, int floats = 6}) {
+      final table = Uint8List(rows * kProjectSimulationEntryBytes);
+      final view = ByteData.sublistView(table);
+      for (var i = 0; i < rows; i++) {
+        view
+          ..setUint32(
+            i * kProjectSimulationEntryBytes,
+            i * floats * 4,
+            Endian.little,
+          )
+          ..setUint32(
+            i * kProjectSimulationEntryBytes + 4,
+            floats * 4,
+            Endian.little,
+          );
+      }
+      return forge(
+        <String, Object?>{
+          ...manifestOf(<Map<String, Object?>>[objectJson()]),
+          'objects': <Map<String, Object?>>[
+            <String, Object?>{...objectJson(), 'simulationCache': record},
+          ],
+        },
+        <(int, Uint8List, int)>[
+          (ProjectSection.blob, Uint8List(rows * floats * 4), 0),
+          (ProjectSection.simulationCaches, table, rows),
+        ],
+      );
+    }
+
+    test('a record naming a row the file does not have is refused', () {
+      // Refused rather than opened without the bake: a cloth that scrubs into
+      // a shape nothing in the document has is worse than a file that will
+      // not open, and nothing downstream can tell the two apart.
+      final ProjectRead read = readProject(
+        fileNaming(<String, Object?>{
+          'chunk': 7,
+          'vertexCount': 2,
+          'frameCount': 1,
+        }),
+      );
+
+      expect(read, isA<ProjectRefused>());
+      // Both numbers, the way every other table refusal in this file reads:
+      // "names 7" and "holds 1" is something somebody can act on.
+      expect((read as ProjectRefused).because, contains('7'));
+      expect(read.because, contains('holds 1'));
+    });
+
+    test('and a row whose length disagrees with the counts is refused', () {
+      final ProjectRead read = readProject(
+        fileNaming(<String, Object?>{
+          'chunk': 0,
+          'vertexCount': 2,
+          'frameCount': 4,
+        }),
+      );
+
+      expect(read, isA<ProjectRefused>());
+      expect((read as ProjectRefused).because, contains('24'));
+      expect(read.because, contains('6'));
+    });
+
+    test('and a record that is not one is refused rather than ignored', () {
+      final ProjectRead read = readProject(fileNaming('a bake, honest'));
+      expect(read, isA<ProjectRefused>());
+      expect(
+        (read as ProjectRefused).because,
+        contains('a chunk, a vertex count and a frame count'),
+      );
+    });
+  });
+
   group('telling a project file from anything else', () {
     test('it recognises its own output', () {
       expect(isProjectFile(writeProject(sample())), isTrue);
