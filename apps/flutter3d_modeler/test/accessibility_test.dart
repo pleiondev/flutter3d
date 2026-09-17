@@ -6,6 +6,7 @@
 library;
 
 import 'package:flutter/material.dart';
+import 'package:flutter3d_modeler/l10n/app_localizations.dart';
 import 'package:flutter3d_modeler/src/ui/shell.dart';
 import 'package:flutter3d_modeler/src/ui/shell_phone.dart';
 import 'package:flutter3d_modeler/src/ui/shell_tablet.dart';
@@ -25,6 +26,9 @@ const _status = SizedBox.shrink();
 
 Widget _wrapped(Widget child, {Size size = const Size(1440, 900)}) =>
     MaterialApp(
+      locale: const Locale('en'),
+      localizationsDelegates: AppLocalizations.localizationsDelegates,
+      supportedLocales: AppLocalizations.supportedLocales,
       theme: modelerTheme(),
       home: Scaffold(body: child),
     );
@@ -154,6 +158,9 @@ void main() {
       addTearDown(tester.view.reset);
       await tester.pumpWidget(
         MaterialApp(
+          locale: const Locale('en'),
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
           theme: modelerTheme(),
           builder: (context, child) => MediaQuery(
             data: MediaQuery.of(
@@ -221,6 +228,9 @@ void main() {
       addTearDown(tester.view.reset);
       await tester.pumpWidget(
         MaterialApp(
+          locale: const Locale('en'),
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
           theme: modelerTheme(),
           builder: (context, child) => MediaQuery(
             data: MediaQuery.of(
@@ -316,6 +326,9 @@ void main() {
       addTearDown(tester.view.reset);
       await tester.pumpWidget(
         MaterialApp(
+          locale: const Locale('en'),
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
           theme: modelerTheme(),
           builder: (context, child) => MediaQuery(
             data: MediaQuery.of(

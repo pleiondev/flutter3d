@@ -623,5 +623,10 @@
   "outlinerToTopLevel": "to the top level",
   "retargetImportSource": "Import a source clip",
   "skeletonNoJoints": "No joints",
-  "sceneLightNamed": "Light {number} · {kind}"
+  "sceneLightNamed": "Light {number} · {kind}",
+  "healthTriangulate": "Triangulate",
+  "healthFill": "Fill",
+  "healthMerge": "Merge",
+  "healthRecalculate": "Recalculate",
+  "healthFix": "Fix"
 }

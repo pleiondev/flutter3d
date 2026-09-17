@@ -1913,4 +1913,19 @@ class AppLocalizationsRu extends AppLocalizations {
   String sceneLightNamed(int number, String kind) {
     return 'Источник $number · $kind';
   }
+
+  @override
+  String get healthTriangulate => 'Триангулировать';
+
+  @override
+  String get healthFill => 'Закрыть';
+
+  @override
+  String get healthMerge => 'Слить';
+
+  @override
+  String get healthRecalculate => 'Пересчитать';
+
+  @override
+  String get healthFix => 'Исправить';
 }

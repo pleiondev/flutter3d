@@ -14,6 +14,8 @@
 /// `RenderBox` at 1440×900, which is why nothing here is left to a flex factor.
 library;
 
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 
 import '../settings.dart' show Workspace;
@@ -358,8 +360,18 @@ class _TopBar extends StatelessWidget {
   final bool isDirty;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context) => LayoutBuilder(
+    builder: (BuildContext context, BoxConstraints constraints) =>
+        _bar(context, constraints.maxWidth),
+  );
+
+  Widget _bar(BuildContext context, double width) {
     final theme = Theme.of(context);
+    // What the actions may take before they start scrolling: everything but
+    // the name, the two gaps and a hundred pixels the mode switcher keeps
+    // whatever else is on the bar. A switcher squeezed to nothing is a bar
+    // with no way back to Object mode.
+    final double actionsCap = math.max(0, width - 20 - 160 - 24 - 100);
     return SizedBox(
       height: ModelerMetrics.topBar,
       child: ColoredBox(
@@ -404,7 +416,24 @@ class _TopBar extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: 12),
-              ...actions,
+              // **The actions keep their natural width and scroll only when
+              // there is not one to keep.** They were laid out unbounded and
+              // the row simply overflowed once there were enough of them: a
+              // document opened from the cabinet adds a "Save to cabinet"
+              // button, and at 1400 logical pixels — an ordinary window —
+              // that is sixty-four pixels of striped banner painted over the
+              // last control. A cap rather than a `Flexible`, because a
+              // second flexible child would split the free space with the
+              // switcher and move the actions in off the right edge even
+              // when everything fits.
+              ConstrainedBox(
+                constraints: BoxConstraints(maxWidth: actionsCap),
+                child: SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  reverse: true,
+                  child: Row(children: actions),
+                ),
+              ),
             ],
           ),
         ),
