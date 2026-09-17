@@ -452,8 +452,11 @@ and the editor is the tool that made the gaps visible.
 - Turning SSAO on by default now that it no longer fights anti-aliasing
   (gfx-08n) — held by the golden sets on the three backends this machine
   cannot re-record
+- Physical light units (gfx-13n)
 - Culling light sources by contribution instead of a hard cap of eight, with
-  no "pop" as the camera moves (gfx-05n), physical light units (gfx-13n)
+  no "pop" as the camera moves (gfx-05n) — the selection and the fade are
+  both built; what is left is the golden frame, which means turning the fade
+  on for every backend
 - Screen-space contact shadows (gfx-09n)
 
 ## Quality, infrastructure, and CI
