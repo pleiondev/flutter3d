@@ -123,7 +123,25 @@ Surface? readSurface(
   final cutoff = bindings
       .vec4('FragInfo', 'material2', Vector4(-1.0, 1.0, 1.0, 1.0))
       .x;
-  if (cutoff >= 0.0 && alpha < cutoff) return null;
+  if (cutoff >= 0.0) {
+    if (alpha < cutoff) return null;
+  } else if (cutoff < -1.5) {
+    // `gfx-16n`: hashed, the fourth mode. Anchored to world position rather
+    // than to the screen so the pattern travels with the surface — see
+    // `surface.glsl`, which this mirrors operation for operation.
+    final world = Vector3(v[kVWorld], v[kVWorld + 1], v[kVWorld + 2]);
+    final anchored = Vector3(
+      (world.x * 16.0).floorToDouble(),
+      (world.y * 16.0).floorToDouble(),
+      (world.z * 16.0).floorToDouble(),
+    );
+    final t =
+        math.sin(
+          anchored.x * 12.9898 + anchored.y * 78.233 + anchored.z * 37.719,
+        ) *
+        43758.5453;
+    if (alpha < t - t.floorToDouble()) return null;
+  }
 
   final normal = Vector3(v[kVNormal], v[kVNormal + 1], v[kVNormal + 2]);
   final length = normal.length;

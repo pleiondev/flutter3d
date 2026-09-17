@@ -8,7 +8,32 @@ import 'package:vector_math/vector_math.dart';
 ///
 /// The renderer uses this to split draws into the opaque and transparent halves
 /// of the render list, in the manner of PlayCanvas sub-layers.
-enum MaterialAlphaMode { opaque, mask, blend }
+enum MaterialAlphaMode {
+  opaque,
+  mask,
+  blend,
+
+  /// Kept or dropped per pixel against noise instead of a threshold —
+  /// `gfx-16n`'s own row, and the one mode here that glTF has no word for.
+  ///
+  /// **What it is for: foliage and nets.** A leaf texture at 40% opacity is
+  /// either entirely there or entirely gone under [mask], so a fern comes out
+  /// as a hard-edged cut-out; [blend] draws it correctly and needs the
+  /// geometry sorted, which costs a sort per frame and defeats instancing.
+  /// Hashed keeps 40% of the *pixels* and resolves as 40% opacity to anything
+  /// that averages several of them.
+  ///
+  /// It is drawn in the opaque half, writes depth, and needs no sorting —
+  /// which is the whole point — at the price of visible noise anywhere the
+  /// result is not averaged down. Without temporal accumulation this engine
+  /// does not have, that price is real: it suits a supersampled render or a
+  /// distant canopy better than a leaf held up to the camera.
+  ///
+  /// The noise is anchored to world position rather than to the screen, so a
+  /// moving branch keeps its verdict instead of sparkling as it passes
+  /// through a fixed pattern. See `surface.glsl`, which does the work.
+  hashed,
+}
 
 /// Surface appearance as plain data.
 ///

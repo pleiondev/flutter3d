@@ -348,9 +348,15 @@ extension _MeshEncode on Renderer {
       // A negative cutoff means "not masked". The shader compares against
       // it directly, so encoding the mode in the value keeps a branch and
       // a separate flag out of the uniform block.
-      _material2Data[0] = material.alphaMode == MaterialAlphaMode.mask
-          ? material.alphaCutoff
-          : -1.0;
+      _material2Data[0] = switch (material.alphaMode) {
+        MaterialAlphaMode.mask => material.alphaCutoff,
+        // `gfx-16n`'s sentinel. Below -1.5 is "hashed", which the shader
+        // reads out of the same component: -1 already meant "not masked" and
+        // anything more negative was free, where a second number would have
+        // been a member added to a block six shaders share.
+        MaterialAlphaMode.hashed => -2.0,
+        _ => -1.0,
+      };
       _material2Data[1] = material.normalScale;
       _material2Data[2] = material.occlusionStrength;
       _material2Data[3] = material.emissiveStrength;
