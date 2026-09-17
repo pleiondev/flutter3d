@@ -46,6 +46,18 @@ dependencies:
   flutter3d_model_core:
     path: ../../packages/flutter3d_model_core
 
+  # `pro-rn-04`: a render snapshot is a different size from the window and
+  # is drawn in tiles, so it cannot borrow the viewport's own device without
+  # resizing the thing a person is looking at. A software device costs
+  # nothing to make at any size and nothing to lose when the picture is
+  # thrown away — the same renderer the golden suite already draws with.
+  flutter3d_cpu:
+    path: ../../packages/flutter3d_cpu
+
+  # The `GraphicsDevice` that device factory answers with.
+  flutter3d_hardware:
+    path: ../../packages/flutter3d_hardware
+
   flutter3d_mesh:
     path: ../../packages/flutter3d_mesh
 
@@ -148,21 +160,8 @@ dev_dependencies:
   integration_test:
     sdk: flutter
 
-  # A renderer with no GPU under it, so the tests draw the real frame the way
-  # the application draws it. Everything this repository knows about testing a
-  # picture goes through here.
-  flutter3d_cpu:
-    path: ../../packages/flutter3d_cpu
-
   flutter3d_testing:
     path: ../../packages/flutter3d_testing
-
-  # `FakeBackend`, for `material_studio_environment_test.dart`: a device that
-  # records every `releaseTexture` call, so the studio's "give the old
-  # environment back on preset switch" rule is checked directly rather than
-  # inferred from a picture.
-  flutter3d_hardware:
-    path: ../../packages/flutter3d_hardware
 
   # `FakeAsync`, for `autosaving_test.dart`: a real `Timer` and `clock.now()`
   # in `AutosaveController`, driven at test speed rather than a wall clock.

@@ -63,7 +63,13 @@ void main() {
         // `pro-sc-08`: sculpting is built now, and Full is the workspace
         // that offers what is built.
         ModelerMode.sculpt,
+        // The four screens `pro-rt-03`/`pro-rt-07`, `pro-pt-05`,
+        // `pro-sim-06` and `pro-rn-04` built, each now a mode of its own.
+        ModelerMode.retopo,
+        ModelerMode.paint,
+        ModelerMode.simulation,
         ModelerMode.animation,
+        ModelerMode.render,
         ModelerMode.scene,
       ]);
     });

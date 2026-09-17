@@ -233,6 +233,81 @@ void main() {
     });
   });
 
+  group('an imported texture', () {
+    test('becomes the bottom layer rather than being thrown away', () {
+      final ModelHistory history = opened(
+        images: <EncodedImage>[
+          EncodedImage(bytes: flatPng(16, 200), name: 'wall'),
+        ],
+      );
+      // The material points at the imported texture, the way an imported
+      // model's own does.
+      history.selection = ProjectSelection.none;
+      expect(
+        history.run(
+          const SetTexture(materialIndex: 0, slot: 'albedo', imageIndex: 0),
+        ),
+        isNull,
+      );
+
+      expect(history.run(const AdoptTexture(materialIndex: 0)), isNull);
+      final PaintStack stack = history.project.materials.single.paint!;
+      expect(stack.layers, hasLength(1));
+      // **Mutation: start the stack empty.** The first stroke then writes a
+      // red dot on transparency into the slot the wall was in, which reads
+      // as the application having deleted the texture.
+      expect(stack.pixelAt(4, 4)[0], closeTo(200 / 255, 0.02));
+      expect(stack.pixelAt(4, 4)[3], closeTo(1, 0.01));
+    });
+
+    test('and painting over it keeps what is underneath', () {
+      final ModelHistory history = opened(
+        images: <EncodedImage>[
+          EncodedImage(bytes: flatPng(16, 200), name: 'wall'),
+        ],
+      );
+      expect(
+        history.run(
+          const SetTexture(materialIndex: 0, slot: 'albedo', imageIndex: 0),
+        ),
+        isNull,
+      );
+      expect(history.run(const AdoptTexture(materialIndex: 0)), isNull);
+      expect(history.run(stroke(layer: 1)), isNull);
+
+      final DecodedImage canvas = painted(history)!;
+      final int side = canvas.width;
+      // The corner is the wall the material came with; the middle is the
+      // stroke over it.
+      expect(canvas.rgba[(2 * side + 2) * 4], closeTo(200, 6));
+      expect(
+        canvas.rgba[((side ~/ 2) * side + side ~/ 2) * 4],
+        greaterThan(200),
+      );
+    });
+
+    test('a material with layers already on it refuses', () {
+      final ModelHistory history = opened(
+        images: <EncodedImage>[
+          EncodedImage(bytes: flatPng(16, 200), name: 'wall'),
+        ],
+      );
+      expect(history.run(stroke()), isNull);
+      expect(
+        history.run(const AdoptTexture(materialIndex: 0)),
+        contains('already has layers'),
+      );
+    });
+
+    test('and a material with no texture says so', () {
+      final ModelHistory history = opened();
+      expect(
+        history.run(const AdoptTexture(materialIndex: 0)),
+        contains('no base-colour texture'),
+      );
+    });
+  });
+
   group('a project file', () {
     test('carries the layers, not just the flattening — pro-doc-01', () {
       final ModelHistory history = opened();

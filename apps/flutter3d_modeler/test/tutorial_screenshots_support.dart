@@ -253,7 +253,15 @@ Future<void> launchModeller(
 Future<void> switchMode(WidgetTester tester, ModelerMode mode) async {
   // By tooltip, not by icon: an outliner row carries the same hexagon the
   // Mesh segment does, and a finder on the glyph alone matches both.
-  await tester.tap(find.byTooltip(mode.label));
+  //
+  // **Scrolled into view first.** Ten modes do not fit a laptop's top bar,
+  // so `ModelerModeSwitcher` scrolls; a tap at a segment's own coordinates
+  // without this hits whatever is drawn over it instead, which is how this
+  // helper started failing the moment the fourth phase-four mode landed.
+  final Finder segment = find.byTooltip(mode.label);
+  await tester.ensureVisible(segment);
+  await settleFrames(tester);
+  await tester.tap(segment);
   await settleFrames(tester);
 }
 
@@ -262,23 +270,25 @@ Future<void> switchAnimationSubmode(
   WidgetTester tester,
   AnimationSubmode submode,
 ) async {
-  await tester.tap(
-    find.descendant(
-      of: find.byType(SegmentedButton<AnimationSubmode>),
-      matching: find.text(submode.label),
-    ),
+  final Finder segment = find.descendant(
+    of: find.byType(SegmentedButton<AnimationSubmode>),
+    matching: find.text(submode.label),
   );
+  await tester.ensureVisible(segment);
+  await settleFrames(tester);
+  await tester.tap(segment);
   await settleFrames(tester);
 }
 
 /// Switches the mesh mode's own sub-mode.
 Future<void> switchMeshSubmode(WidgetTester tester, MeshSubmode submode) async {
-  await tester.tap(
-    find.descendant(
-      of: find.byType(SegmentedButton<MeshSubmode>),
-      matching: find.text(submode.label),
-    ),
+  final Finder segment = find.descendant(
+    of: find.byType(SegmentedButton<MeshSubmode>),
+    matching: find.text(submode.label),
   );
+  await tester.ensureVisible(segment);
+  await settleFrames(tester);
+  await tester.tap(segment);
   await settleFrames(tester);
 }
 

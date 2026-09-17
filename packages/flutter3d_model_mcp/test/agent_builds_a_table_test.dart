@@ -80,6 +80,9 @@ void main() {
       ...modelTools.map((ModelTool it) => it.name),
       renderTool.name,
       renderSheetTool.name,
+      // `pro-rn-04`: the full-quality snapshot, which is not `render` with
+      // more arguments — see `render_tool.dart` for why the two are apart.
+      renderSnapshotTool.name,
     ], reason: 'tools/list and the table this server was built from disagree');
     for (final tool in offered.tools) {
       expect(tool.description, isNotEmpty, reason: '${tool.name} says nothing');

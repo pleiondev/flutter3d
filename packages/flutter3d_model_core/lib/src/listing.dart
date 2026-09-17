@@ -116,12 +116,13 @@ List<Listed> contentsOf(ModelProject project) => <Listed>[
       transform: object.transform.storage.toList(),
       materials: object.materialSlots,
       about: <String, Object?>{
-        if (object.geometry case EditedGeometry(:final mesh))
-          ...<String, Object?>{
-            'vertices': mesh.vertexCount,
-            'edges': mesh.edgeCount,
-            'faces': mesh.faceCount,
-          },
+        if (object.geometry case EditedGeometry(
+          :final mesh,
+        )) ...<String, Object?>{
+          'vertices': mesh.vertexCount,
+          'edges': mesh.edgeCount,
+          'faces': mesh.faceCount,
+        },
         if (object.skeletonIndex case final int skeleton) 'skeleton': skeleton,
         if (object.shapeSet.keys.isNotEmpty)
           'shapes': object.shapeSet.keys.length,

@@ -1345,6 +1345,138 @@ abstract class AppLocalizations {
   /// In ru, this message translates to:
   /// **'Сжимает и вдавливает разом — так прорезается складка.'**
   String get toolSculptCreaseAbout;
+
+  /// No description provided for @toolRetopoQuadLabel.
+  ///
+  /// In ru, this message translates to:
+  /// **'Нарисовать квад'**
+  String get toolRetopoQuadLabel;
+
+  /// No description provided for @toolRetopoQuadAbout.
+  ///
+  /// In ru, this message translates to:
+  /// **'Четыре клика по исходной модели: каждая точка либо прилипает к уже существующей вершине новой сетки, либо ложится на поверхность.'**
+  String get toolRetopoQuadAbout;
+
+  /// No description provided for @toolRetopoAutoLabel.
+  ///
+  /// In ru, this message translates to:
+  /// **'Ретопология'**
+  String get toolRetopoAutoLabel;
+
+  /// No description provided for @toolRetopoAutoAbout.
+  ///
+  /// In ru, this message translates to:
+  /// **'Перестраивает всю поверхность квадами примерно в том количестве, что задано на панели, и обтягивает ими оригинал.'**
+  String get toolRetopoAutoAbout;
+
+  /// No description provided for @toolRetopoBakeLabel.
+  ///
+  /// In ru, this message translates to:
+  /// **'Запечь карты'**
+  String get toolRetopoBakeLabel;
+
+  /// No description provided for @toolRetopoBakeAbout.
+  ///
+  /// In ru, this message translates to:
+  /// **'Запекает поверхность исходной модели в развёртку новой — карту нормалей, карту затенения или обе.'**
+  String get toolRetopoBakeAbout;
+
+  /// No description provided for @toolPaintBrushLabel.
+  ///
+  /// In ru, this message translates to:
+  /// **'Кисть'**
+  String get toolPaintBrushLabel;
+
+  /// No description provided for @toolPaintBrushAbout.
+  ///
+  /// In ru, this message translates to:
+  /// **'Красит текстуру объекта через его развёртку: штрих поперёк шва ложится на оба острова.'**
+  String get toolPaintBrushAbout;
+
+  /// No description provided for @toolPaintFillLabel.
+  ///
+  /// In ru, this message translates to:
+  /// **'Залить слой'**
+  String get toolPaintFillLabel;
+
+  /// No description provided for @toolPaintFillAbout.
+  ///
+  /// In ru, this message translates to:
+  /// **'Заливает весь слой цветом с палитры.'**
+  String get toolPaintFillAbout;
+
+  /// No description provided for @toolPaintClearLabel.
+  ///
+  /// In ru, this message translates to:
+  /// **'Очистить слой'**
+  String get toolPaintClearLabel;
+
+  /// No description provided for @toolPaintClearAbout.
+  ///
+  /// In ru, this message translates to:
+  /// **'Опустошает слой, не трогая те, что под ним.'**
+  String get toolPaintClearAbout;
+
+  /// No description provided for @toolSimSelectLabel.
+  ///
+  /// In ru, this message translates to:
+  /// **'Выделение'**
+  String get toolSimSelectLabel;
+
+  /// No description provided for @toolSimSelectAbout.
+  ///
+  /// In ru, this message translates to:
+  /// **'Выбрать вершины, на которых висит ткань, или объект для расчёта.'**
+  String get toolSimSelectAbout;
+
+  /// No description provided for @toolSimPinLabel.
+  ///
+  /// In ru, this message translates to:
+  /// **'Закрепить выделение'**
+  String get toolSimPinLabel;
+
+  /// No description provided for @toolSimPinAbout.
+  ///
+  /// In ru, this message translates to:
+  /// **'Удерживает выбранные вершины на месте, пока всё остальное падает.'**
+  String get toolSimPinAbout;
+
+  /// No description provided for @toolSimBakeLabel.
+  ///
+  /// In ru, this message translates to:
+  /// **'Запечь'**
+  String get toolSimBakeLabel;
+
+  /// No description provided for @toolSimBakeAbout.
+  ///
+  /// In ru, this message translates to:
+  /// **'Считает весь клип и сохраняет его, чтобы по нему можно было перематывать.'**
+  String get toolSimBakeAbout;
+
+  /// No description provided for @toolRenderSnapshotLabel.
+  ///
+  /// In ru, this message translates to:
+  /// **'Рендер'**
+  String get toolRenderSnapshotLabel;
+
+  /// No description provided for @toolRenderSnapshotAbout.
+  ///
+  /// In ru, this message translates to:
+  /// **'Рендерит проект в размере, заданном на панели, по тайлу за раз и показывает результат.'**
+  String get toolRenderSnapshotAbout;
+
+  /// No description provided for @toolRenderSaveLabel.
+  ///
+  /// In ru, this message translates to:
+  /// **'Сохранить картинку'**
+  String get toolRenderSaveLabel;
+
+  /// No description provided for @toolRenderSaveAbout.
+  ///
+  /// In ru, this message translates to:
+  /// **'Записывает последний рендер в PNG.'**
+  String get toolRenderSaveAbout;
 }
 
 class _AppLocalizationsDelegate

@@ -20,7 +20,14 @@ import 'dart:async';
 import 'dart:math' as math;
 import 'dart:ui'
     as ui
-    show AppExitResponse, Image, ImageByteFormat, PlatformDispatcher;
+    show
+        AppExitResponse,
+        Codec,
+        FrameInfo,
+        Image,
+        ImageByteFormat,
+        PlatformDispatcher,
+        instantiateImageCodec;
 
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/gestures.dart';
@@ -77,9 +84,11 @@ import 'src/open_report.dart';
 import 'src/opening.dart';
 import 'src/orbit_run.dart';
 import 'src/orientation_dial.dart';
+import 'src/paint_session.dart';
 import 'src/play/play_control.dart';
 import 'src/play/play_template.dart';
 import 'src/recent_projects.dart';
+import 'src/render_snapshot_run.dart';
 import 'src/report_problem.dart';
 import 'src/sculpt_session.dart';
 import 'src/selection_box.dart';
@@ -96,6 +105,7 @@ import 'src/transform_session.dart';
 import 'src/ui/agent_session_panel.dart';
 import 'src/ui/animation_bottom.dart';
 import 'src/ui/autorig_dialog.dart';
+import 'src/ui/bake_panel.dart';
 import 'src/ui/bend_slider_bar.dart';
 import 'src/ui/clip_library.dart';
 import 'src/ui/clip_tracks_bar.dart';
@@ -115,10 +125,12 @@ import 'src/ui/material_studio_dialog.dart';
 import 'src/ui/measurement_report_overlay.dart';
 import 'src/ui/modeler_keys.dart';
 import 'src/ui/no_mesh_banner.dart';
+import 'src/ui/paint_panel.dart';
 import 'src/ui/play_screen.dart';
 import 'src/ui/properties/outliner.dart';
 import 'src/ui/properties/properties_panel.dart';
 import 'src/ui/quick_setup_screen.dart';
+import 'src/ui/render_panel.dart';
 import 'src/ui/restore_autosave_dialog.dart';
 import 'src/ui/retarget_panel.dart';
 import 'src/ui/retarget_viewports.dart';
@@ -129,6 +141,7 @@ import 'src/ui/settings_screen.dart';
 import 'src/ui/shell.dart' show RailEntry;
 import 'src/ui/shell_for_width.dart';
 import 'src/ui/shortcut_help_screen.dart';
+import 'src/ui/simulation_panel.dart';
 import 'src/ui/split_viewports.dart';
 import 'src/ui/start_screen.dart';
 import 'src/ui/status_line.dart';
@@ -153,6 +166,7 @@ part 'src/screen/files.dart';
 part 'src/screen/game_preview_wiring.dart';
 part 'src/screen/interactions.dart';
 part 'src/screen/morphs_wiring.dart';
+part 'src/screen/pro_modes_wiring.dart';
 part 'src/screen/ready_parts.dart';
 part 'src/screen/retarget_wiring.dart';
 part 'src/screen/sculpt_wiring.dart';
@@ -351,6 +365,57 @@ class _ModelerScreenState extends State<ModelerScreen>
   double _sculptStrength = 0.5;
   BrushFalloff _sculptFalloff = BrushFalloff.smooth;
   bool _sculptSymmetryX = false;
+
+  /// `pro-rt-07`'s own panel state: the retopology's target, which maps are
+  /// ticked, how big they bake, and the job running now. Plain fields for
+  /// the reason every other panel's are — none of them is on [ModelHistory].
+  int _retopoQuads = 4000;
+  final Set<String> _bakeMaps = <String>{'normal'};
+  int _bakeResolution = 1024;
+  BakeProgress? _bakeRunning;
+
+  /// `pro-pt-05`'s own: the brush, the layer it lands on, and the flattened
+  /// canvas the panel draws.
+  int _paintLayer = 0;
+  List<double> _paintColour = const <double>[0.85, 0.2, 0.2, 1];
+  double _paintRadius = kPaintCursorDiameter;
+  double _paintStrength = 1;
+  String? _paintMask;
+  ui.Image? _paintCanvas;
+
+  /// `pro-pt-05`'s own stroke controller — see `paint_session.dart`.
+  late final PaintSession _paintSession = PaintSession(
+    cubit: _cubit,
+    history: () => _history,
+  );
+
+  /// `pro-sim-06`'s own: what is being simulated, what it collides with,
+  /// what holds it up, and where the transport is.
+  String _simKind = 'cloth';
+  Map<String, double> _simParameters = const <String, double>{
+    'stiffness': 0.6,
+    'damping': 0.1,
+  };
+  final Set<String> _simColliders = <String>{};
+  Set<int> _simPinned = <int>{};
+  SimulationCacheState _simCache = (frames: 0, baked: 0, running: false);
+  int _simFrame = 0;
+  bool _simPlaying = false;
+
+  /// `pro-rn-04`'s own: the composite chain, the last result, and the tiles
+  /// still to come.
+  List<RenderPassRow> _renderPasses = const <RenderPassRow>[
+    (name: 'scene', enabled: true, fixed: true),
+    (name: 'ssao', enabled: true, fixed: false),
+    (name: 'reflections', enabled: false, fixed: false),
+    (name: 'bloom', enabled: true, fixed: false),
+    (name: 'tonemap', enabled: true, fixed: false),
+    (name: 'look', enabled: false, fixed: false),
+    (name: 'output', enabled: true, fixed: true),
+  ];
+  ui.Image? _renderResult;
+  int _renderTilesDone = 0;
+  int _renderTilesTotal = 0;
 
   /// `pro-sc-08`'s own stroke controller — see `sculpt_session.dart`.
   late final SculptSession _sculptSession = SculptSession(

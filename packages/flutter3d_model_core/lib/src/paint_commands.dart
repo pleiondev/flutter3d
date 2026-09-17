@@ -331,3 +331,255 @@ List<PaintSample>? _paintSamplesFrom(List<Object?> json) {
   }
   return out;
 }
+
+/// `pro-pt-04`: the texture a material already had, taken as the bottom
+/// layer of its paint stack.
+///
+/// **Otherwise the first stroke throws it away.** A material with a
+/// base-colour texture on it — imported with the model, or baked by a
+/// texture graph — has a picture somebody wants to paint *over*, and
+/// `PaintStroke` writes the flattened stack into that same slot. Without
+/// this the first stroke would replace a photograph of a wall with one red
+/// dot on transparency, which reads as the application having deleted the
+/// texture.
+///
+/// **The image is decoded into tiles rather than referenced.** A layer is
+/// tiles, and a stack that had one layer pointing at an image and the rest
+/// holding tiles would need two paths through every operation on it; the
+/// decode is once, when a person first paints on an imported material.
+final class AdoptTexture extends ModelCommand {
+  const AdoptTexture({required this.materialIndex, this.size});
+
+  final int materialIndex;
+
+  /// The canvas to lay the texture into, or null to take the image's own
+  /// size — which is what a person means by "paint on this texture".
+  final int? size;
+
+  @override
+  String get name => 'adoptTexture';
+
+  @override
+  String get says => 'take the texture as a layer';
+
+  @override
+  Map<String, Object?> get arguments => <String, Object?>{
+    'materialIndex': materialIndex,
+    if (size != null) 'size': size,
+  };
+
+  @override
+  Outcome apply(ModelProject project, ProjectSelection selection) {
+    if (materialIndex < 0 || materialIndex >= project.materials.length) {
+      return Outcome.refused('there is no material $materialIndex');
+    }
+    final ProjectMaterial material = project.materials[materialIndex];
+    if (material.paint != null) {
+      return Outcome.refused(
+        'material $materialIndex already has layers on it; adopting the '
+        'texture now would put it under work already done',
+      );
+    }
+    final int? image = material.surface.baseColorTexture?.imageIndex;
+    if (image == null || image >= project.images.length) {
+      return Outcome.refused(
+        'material $materialIndex has no base-colour texture to adopt',
+      );
+    }
+    final decoded = decodePng(project.images[image].bytes);
+    if (decoded == null) {
+      return Outcome.refused(
+        'the base-colour texture of material $materialIndex is not a PNG '
+        'this build can decode',
+      );
+    }
+
+    final int canvas = size ?? decoded.width;
+    if (canvas < 16 || canvas > 4096) {
+      return Outcome.refused(
+        'a canvas is between 16 and 4096 texels a side, not $canvas',
+      );
+    }
+    final int tiles = (canvas / paintTileSize).ceil();
+    var layer = PaintLayer(tilesX: tiles, tilesY: tiles);
+    for (var ty = 0; ty < tiles; ty++) {
+      for (var tx = 0; tx < tiles; tx++) {
+        final pixels = Uint8List(paintTileSize * paintTileSize * 4);
+        var any = false;
+        for (var y = 0; y < paintTileSize; y++) {
+          for (var x = 0; x < paintTileSize; x++) {
+            final int cx = tx * paintTileSize + x;
+            final int cy = ty * paintTileSize + y;
+            if (cx >= canvas || cy >= canvas) continue;
+            // Nearest-neighbour: a canvas the same size as the image — the
+            // default, and what anybody painting on a texture means — reads
+            // one texel per texel, and a resample there would soften a
+            // picture nobody asked to have softened.
+            final int sx = (cx * decoded.width ~/ canvas).clamp(
+              0,
+              decoded.width - 1,
+            );
+            final int sy = (cy * decoded.height ~/ canvas).clamp(
+              0,
+              decoded.height - 1,
+            );
+            final int from = (sy * decoded.width + sx) * 4;
+            final int into = (y * paintTileSize + x) * 4;
+            for (var c = 0; c < 4; c++) {
+              pixels[into + c] = decoded.rgba[from + c];
+            }
+            any = true;
+          }
+        }
+        // A tile entirely off the edge of the canvas is a tile nothing reads;
+        // leaving it absent is what keeps a layer sparse.
+        if (any) layer = layer.paintTile(tx, ty, pixels);
+      }
+    }
+
+    return Outcome.done(
+      project.copyWith(
+        materials: <ProjectMaterial>[
+          for (var i = 0; i < project.materials.length; i++)
+            i == materialIndex
+                ? material.withPaint(PaintStack(<PaintLayer>[layer]))
+                : project.materials[i],
+        ],
+      ),
+    );
+  }
+}
+
+/// `pro-pt-06n`: the same brush, writing into the mesh's own vertex colour
+/// instead of a texture.
+///
+/// **Free, and it travels with the mesh.** Masks for wind, grime, wear and
+/// texture blending live in vertex colour in every game engine there is,
+/// because there is no texture to author, no UV to unwrap and no second file
+/// to keep beside the model — the colour is on the vertices and goes wherever
+/// they go, including through a glTF export.
+///
+/// **A vertex, not a texel, and that changes what the brush means.** A
+/// texture stroke is measured against the surface and lands on whatever
+/// texels the UVs put there; this lands on the vertices inside the ball, so
+/// its resolution is the mesh's own. A stroke on a cube paints eight corners
+/// and looks like nothing; on a subdivided one it looks like a brush. That
+/// is the honest shape of vertex colour rather than a limitation to work
+/// around, and it is why this is its own command instead of a flag on
+/// [PaintStroke].
+///
+/// **Per corner, because that is where the layer is.** `mesh-12` holds
+/// colour per corner so a hard edge can carry two colours at one vertex;
+/// every corner meeting a painted vertex takes the colour, which is the
+/// soft-edge answer and the one a mask wants.
+final class PaintVertexColour extends ModelCommand {
+  const PaintVertexColour({
+    required this.objectId,
+    required this.samples,
+    required this.colour,
+    this.strength = 1.0,
+  });
+
+  final int objectId;
+
+  /// Where the brush touched, in the object's own space — the same
+  /// [PaintSample] a texture stroke takes.
+  final List<PaintSample> samples;
+
+  /// Straight RGBA, `0..1` each.
+  final List<double> colour;
+
+  /// How hard, `0..1`, multiplied into the brush's own falloff.
+  final double strength;
+
+  @override
+  String get name => 'paintVertexColour';
+
+  @override
+  String get says => 'paint vertex colour';
+
+  @override
+  Map<String, Object?> get arguments => <String, Object?>{
+    'objectId': objectId,
+    'samples': <Object?>[for (final PaintSample it in samples) it.toJson()],
+    'colour': colour,
+    'strength': strength,
+  };
+
+  @override
+  Map<String, ParamHint> get hints => const <String, ParamHint>{
+    'strength': DoubleHint(min: 0, max: 1, step: 0.05),
+  };
+
+  @override
+  Outcome apply(ModelProject project, ProjectSelection selection) {
+    if (samples.isEmpty) {
+      return Outcome.refused('paintVertexColour needs at least one sample');
+    }
+    if (colour.length != 4) {
+      return Outcome.refused(
+        'a colour is four numbers, red green blue alpha; got ${colour.length}',
+      );
+    }
+    final ModelObject? object = project[objectId];
+    if (object == null) return Outcome.refused('there is no object $objectId');
+    final EditMesh? mesh = switch (object.geometry) {
+      EditedGeometry(:final mesh) => mesh,
+      _ => null,
+    };
+    if (mesh == null) {
+      return Outcome.refused('"${object.name}" has no mesh to paint on');
+    }
+
+    // How hard each vertex was hit, over the whole stroke — a vertex two
+    // dabs crossed takes the stronger of the two rather than twice the
+    // colour.
+    final weights = <int, double>{};
+    final Vector3 at = Vector3.zero();
+    for (final PaintSample sample in samples) {
+      if (sample.radius <= 0) continue;
+      for (var v = 0; v < mesh.vertexSlotCount; v++) {
+        if (!mesh.isVertexAlive(v)) continue;
+        mesh.positionOf(v, at);
+        final double distance = at.distanceTo(sample.centre);
+        if (distance > sample.radius) continue;
+        final double weight =
+            shapeFalloff(BrushFalloff.smooth, 1 - distance / sample.radius) *
+            strength;
+        if (weight <= 0) continue;
+        final double? already = weights[v];
+        if (already == null || weight > already) weights[v] = weight;
+      }
+    }
+    if (weights.isEmpty) {
+      return Outcome.refused('the brush reached no vertices');
+    }
+
+    final Vector4 wanted = Vector4(colour[0], colour[1], colour[2], colour[3]);
+    final Vector4 was = Vector4.zero();
+    mesh.beginStep();
+    for (var face = 0; face < mesh.faceSlotCount; face++) {
+      if (!mesh.isFaceAlive(face)) continue;
+      mesh.forEachHalfEdge(face, (int half) {
+        final double? weight = weights[mesh.originOf(half)];
+        if (weight == null) return;
+        mesh.colourOf(half, was);
+        mesh.setColour(
+          half,
+          Vector4(
+            was.x + (wanted.x - was.x) * weight,
+            was.y + (wanted.y - was.y) * weight,
+            was.z + (wanted.z - was.z) * weight,
+            was.w + (wanted.w - was.w) * weight,
+          ),
+        );
+      });
+    }
+    mesh.endStep();
+
+    return Outcome.done(
+      project.withObject(object.copyWith(geometry: EditedGeometry(mesh))),
+      meshTouched: mesh,
+    );
+  }
+}

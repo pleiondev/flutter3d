@@ -526,8 +526,7 @@ final class SelectFacing extends ModelCommand {
   String get name => 'selectFacing';
 
   @override
-  String get says =>
-      'select the faces facing ${axis.x}, ${axis.y}, ${axis.z}';
+  String get says => 'select the faces facing ${axis.x}, ${axis.y}, ${axis.z}';
 
   @override
   Map<String, Object?> get arguments => <String, Object?>{

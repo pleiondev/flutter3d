@@ -3544,6 +3544,27 @@ List<ModelTool> get _rigPipelineTools => <ModelTool>[
     ),
     _command('drawQuad'),
   ),
+
+  ModelTool(
+    Tool(
+      name: 'retopologize',
+      description:
+          'Rebuild an object\'s surface as quads at about the count you ask '
+          'for, shrink-wrapped back onto the shape it had — `pro-rt-01`. '
+          'Refused on an object with shape keys or a bound skeleton, neither '
+          'of which survives a retopology: it has none of the old vertices.',
+      inputSchema: ObjectSchema(
+        properties: <String, Schema>{
+          'objectId': IntegerSchema(description: 'the object to rebuild'),
+          'targetQuads': IntegerSchema(
+            description: 'about how many quads to come out at; default 2000',
+          ),
+        },
+        required: <String>['objectId'],
+      ),
+    ),
+    _command('retopologize'),
+  ),
   ModelTool(
     Tool(
       name: 'bakeMaps',
@@ -3641,6 +3662,96 @@ List<ModelTool> get _rigPipelineTools => <ModelTool>[
       ),
     ),
     _command('paintStroke'),
+  ),
+  ModelTool(
+    Tool(
+      name: 'adoptTexture',
+      description:
+          'Take the base-colour texture a material already has as the bottom '
+          'layer of its paint stack — `pro-pt-04`. Without this the first '
+          'stroke replaces the texture rather than painting over it, since '
+          'the flattened stack is written into that same slot. Refused on a '
+          'material that already has layers: adopting the texture then would '
+          'put it under work already done.',
+      inputSchema: ObjectSchema(
+        properties: <String, Schema>{
+          'materialIndex': IntegerSchema(description: 'which material'),
+          'size': IntegerSchema(
+            description:
+                'the canvas to lay it into, a side in texels; default the '
+                'image\'s own size',
+          ),
+        },
+        required: <String>['materialIndex'],
+      ),
+    ),
+    _command('adoptTexture'),
+  ),
+  ModelTool(
+    Tool(
+      name: 'paintVertexColour',
+      description:
+          'Paint into the mesh\'s own vertex colour rather than a texture — '
+          '`pro-pt-06n`. No UVs and no second file: the colour is on the '
+          'vertices and travels with them, including through a glTF export, '
+          'which is why masks for wind, grime and wear live here. The '
+          'resolution is the mesh\'s own, so a stroke on a cube paints eight '
+          'corners; subdivide first if you want a brush rather than a flood.',
+      inputSchema: ObjectSchema(
+        properties: <String, Schema>{
+          'objectId': IntegerSchema(description: 'the object being painted'),
+          'samples': ListSchema(
+            description: 'one or more brush hits making up this stroke',
+            items: ObjectSchema(
+              properties: <String, Schema>{
+                'centre': _vector(
+                  'where the brush touched, in the object\'s own space',
+                ),
+                'radius': NumberSchema(
+                  description: 'how far the hit reaches, in metres',
+                ),
+              },
+              required: <String>['centre', 'radius'],
+            ),
+          ),
+          'colour': ListSchema(
+            description: 'straight RGBA, four numbers 0..1',
+            items: NumberSchema(),
+          ),
+          'strength': NumberSchema(description: 'how hard, 0..1; default 1'),
+        },
+        required: <String>['objectId', 'samples', 'colour'],
+      ),
+    ),
+    _command('paintVertexColour'),
+  ),
+  ModelTool(
+    Tool(
+      name: 'packAtlas',
+      description:
+          'Pack several objects\' UVs into one shared square and point them '
+          'all at one material — `pro-uv-08n`. Nine props with one texture '
+          'is one draw call instead of nine, which is the whole reason. Each '
+          'object keeps the island layout it already has and is scaled into '
+          'a cell of the square, so a face somebody laid out carefully stays '
+          'laid out, smaller. Every object needs UVs, and the first needs a '
+          'material for the rest to share.',
+      inputSchema: ObjectSchema(
+        properties: <String, Schema>{
+          'objectIds': ListSchema(
+            description: 'which objects share the atlas; two or more',
+            items: IntegerSchema(),
+          ),
+          'margin': NumberSchema(
+            description:
+                'empty space between two cells, as a fraction of the '
+                'square\'s own side; default 0.01',
+          ),
+        },
+        required: <String>['objectIds'],
+      ),
+    ),
+    _command('packAtlas'),
   ),
   ModelTool(
     Tool(

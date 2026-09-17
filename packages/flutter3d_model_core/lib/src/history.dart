@@ -242,14 +242,14 @@ final class ModelHistory {
   }) {
     final Outcome outcome = command.apply(_project, selection);
     if (!outcome.ok) return outcome.refused;
-    final EditMesh? touched = outcome.meshTouched;
+    final List<EditMesh> touched = outcome.meshesTouched;
     if (_inTransaction) {
       _firstOfTransaction ??= command;
       _authorOfTransaction ??= author;
       _clientOfTransaction ??= client;
-      if (touched != null) {
-        _meshStepsOfTransaction[touched] =
-            (_meshStepsOfTransaction[touched] ?? 0) + 1;
+      for (final EditMesh each in touched) {
+        _meshStepsOfTransaction[each] =
+            (_meshStepsOfTransaction[each] ?? 0) + 1;
       }
     } else {
       _done.add(
@@ -257,9 +257,9 @@ final class ModelHistory {
           command: command,
           before: _project,
           selectionBefore: _selection,
-          meshSteps: touched == null
-              ? const <EditMesh, int>{}
-              : <EditMesh, int>{touched: 1},
+          meshSteps: <EditMesh, int>{
+            for (final EditMesh each in touched) each: 1,
+          },
           author: author,
           client: client,
         ),
@@ -487,14 +487,12 @@ final class ModelHistory {
       _rollMeshes(step.meshSteps, forward: true);
       return outcome.refused;
     }
-    final EditMesh? touched = outcome.meshTouched;
+    final List<EditMesh> touched = outcome.meshesTouched;
     _done[_done.length - 1] = HistoryStep(
       command: replacement,
       before: step.before,
       selectionBefore: step.selectionBefore,
-      meshSteps: touched == null
-          ? const <EditMesh, int>{}
-          : <EditMesh, int>{touched: 1},
+      meshSteps: <EditMesh, int>{for (final EditMesh each in touched) each: 1},
       author: by,
       // A person taking a step over has no client name; an agent adjusting
       // its own keeps the one it said hello with.

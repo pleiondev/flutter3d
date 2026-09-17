@@ -2864,6 +2864,17 @@ void main() {
           normalize: false,
           maxInfluences: 3,
         ),
+        const Retopologize(objectId: 10, targetQuads: 800),
+        const PackAtlas(objectIds: <int>[10, 11], margin: 0.02),
+        PaintVertexColour(
+          objectId: 10,
+          samples: <PaintSample>[
+            PaintSample(centre: Vector3(0, 0, 0), radius: 0.4),
+          ],
+          colour: const <double>[0, 1, 0, 1],
+          strength: 0.7,
+        ),
+        const AdoptTexture(materialIndex: 0, size: 256),
         PaintStroke(
           objectId: 10,
           samples: <PaintSample>[
