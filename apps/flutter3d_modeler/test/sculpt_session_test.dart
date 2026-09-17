@@ -113,6 +113,127 @@ bool move(
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
+  group('view-21: a frame of samples is one stroke', () {
+    test('a frame of samples runs one command, not one per sample', () {
+      // The half of `view-21` that was left open: a stylus reports a few
+      // hundred samples a second and a screen draws sixty, so what happens
+      // between two drawn frames should be one stroke however many times the
+      // pen moved. Nothing runs here until the frame flushes.
+      //
+      // Measured on the mesh rather than on the undo stack, because the stack
+      // cannot answer this: the drag holds a transaction open, so every step
+      // inside it folds into one and `history.steps` stays empty until the
+      // pointer comes up whichever way the samples ran.
+      final made = openedWith();
+      expect(down(made.session, made.cubit), isTrue);
+      // Read after the pointer is down, because opening the transaction marks
+      // the mesh's own journal and that alone moves these bytes.
+      final before = made.mesh.toBytes();
+      for (var i = 1; i <= 5; i++) {
+        move(made.session, made.cubit, middle + Offset(i.toDouble(), 0));
+      }
+      // Six samples in, and the mesh has not moved.
+      expect(made.mesh.toBytes(), before);
+
+      made.session.flush();
+      expect(made.mesh.toBytes(), isNot(before));
+    });
+
+    test('and it lands within a hair of a stroke-per-sample drag', () {
+      // The claim that makes the batching safe rather than merely cheaper.
+      // `SculptStroke.apply` walks its points in order, multiplying each
+      // one's pressure into the strength — exactly what the wiring used to do
+      // by hand, one stroke at a time — so the only difference left is the
+      // radius: a batch carries one, and the samples in it wanted radii
+      // spread by 0.0083%. That is what this measures, in the units that
+      // matter: how far a vertex ends up from where the old path put it.
+      final batched = openedWith();
+      expect(down(batched.session, batched.cubit), isTrue);
+      for (var i = 1; i <= 5; i++) {
+        move(batched.session, batched.cubit, middle + Offset(i.toDouble(), 0));
+      }
+      batched.session.pointerUp();
+
+      final apiece = openedWith();
+      expect(down(apiece.session, apiece.cubit), isTrue);
+      apiece.session.flush();
+      for (var i = 1; i <= 5; i++) {
+        move(apiece.session, apiece.cubit, middle + Offset(i.toDouble(), 0));
+        apiece.session.flush();
+      }
+      apiece.session.pointerUp();
+
+      var worst = 0.0;
+      final a = vm.Vector3.zero();
+      final b = vm.Vector3.zero();
+      for (var v = 0; v < batched.mesh.vertexSlotCount; v++) {
+        if (!batched.mesh.isVertexAlive(v)) continue;
+        batched.mesh.positionOf(v, a);
+        apiece.mesh.positionOf(v, b);
+        final double apart = (a - b).length;
+        if (apart > worst) worst = apart;
+      }
+      // The cube is two units across and the brush is 0.4 wide; a vertex
+      // moved by less than a ten-thousandth of that is a difference no
+      // rendered frame can carry. Measured rather than asserted loosely: the
+      // number this fixture produces is 2.7e-5.
+      expect(worst, lessThan(1e-4));
+      // And not a tautology — the drag really did move the mesh.
+      expect(batched.mesh.toBytes(), isNot(openedWith().mesh.toBytes()));
+    });
+
+    test('a drag that ends between two frames still runs', () {
+      // `pointerUp` flushes, because a pen leaving the tablet between two
+      // drawn frames is the ordinary case and losing that frame's samples
+      // would be a stroke that visibly stops short of where it was released.
+      final made = openedWith();
+      expect(down(made.session, made.cubit), isTrue);
+      move(made.session, made.cubit, middle + const Offset(6, 0));
+      made.session.pointerUp();
+
+      expect(ready(made.cubit).history.steps, hasLength(1));
+      expect(ready(made.cubit).history.undoSays, 'sculpt');
+    });
+
+    test('pressure rides its own list, so two presses are one stroke', () {
+      // What made batching impossible before: the force was multiplied into
+      // the strength at the call site, so two samples pressed differently
+      // were two strokes with different strengths and nothing could group
+      // them. `SculptStroke` has always computed `strength * pressure`
+      // itself; the wiring now says it there.
+      final made = openedWith();
+      expect(
+        made.session.pointerDown(
+          view: view(made.cubit),
+          at: middle,
+          objectId: 2,
+          kind: BrushKind.draw,
+          radiusPixels: kSculptCursorDiameter / 2,
+          strength: 0.5,
+          falloff: BrushFalloff.smooth,
+          symmetryX: false,
+          inverted: false,
+          pressure: 0.25,
+        ),
+        isTrue,
+      );
+      made.session.pointerMove(
+        view: view(made.cubit),
+        at: middle + const Offset(2, 0),
+        kind: BrushKind.draw,
+        radiusPixels: kSculptCursorDiameter / 2,
+        strength: 0.5,
+        falloff: BrushFalloff.smooth,
+        symmetryX: false,
+        inverted: false,
+        pressure: 1.0,
+      );
+      made.session.pointerUp();
+
+      expect(ready(made.cubit).history.steps, hasLength(1));
+    });
+  });
+
   group('a drag is one step', () {
     test('however many samples it is made of', () {
       final made = openedWith();
