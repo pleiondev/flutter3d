@@ -1759,8 +1759,38 @@ Surface ReadSurface() {
   // material is opaque or blended, and discard would then be wrong rather than
   // merely unnecessary. Doing it before anything else is deliberate: a
   // discarded fragment should not pay for the lighting loop.
+  //
+  // **A cutoff below -1.5 is the fourth mode: hashed** — `gfx-16n`. The
+  // sentinel rides in the same component because the alternative is a second
+  // number in a block six shaders share, and -1 already meant "not masked";
+  // anything more negative was free. See [MaterialAlphaMode.hashed].
   float cutoff = frag_info.material2.x;
-  if (cutoff >= 0.0 && s.alpha < cutoff) discard;
+  if (cutoff >= 0.0) {
+    if (s.alpha < cutoff) discard;
+  } else if (cutoff < -1.5) {
+    // **Stochastic instead of a threshold.** A leaf texture at 40% opacity is
+    // either entirely there or entirely gone under a fixed cutoff, so a fern
+    // comes out as a hard-edged cardboard cut-out; sorting would fix it and
+    // costs a sort per frame and a draw per layer. Comparing against noise
+    // instead keeps 40% of the *pixels*, which resolves as 40% opacity to
+    // anything that averages several of them — a higher-resolution target,
+    // a downsample, a person standing back.
+    //
+    // **Hashed on world position, not on the screen.** Screen-space noise is
+    // one line shorter and swims: the pattern stays put while the object
+    // moves through it, so a moving branch sparkles. Anchoring it to where
+    // the surface *is* means a given speck of leaf keeps its verdict from
+    // frame to frame, and the camera moving changes nothing.
+    //
+    // The scale is a constant and it is the whole tuning: finer than the
+    // texture's own detail and the noise disappears into aliasing, coarser
+    // and the leaf breaks into blotches. Sixteen per metre is about a
+    // centimetre of grain at a metre away.
+    vec3 anchored = floor(v_world_position * 16.0);
+    float noise = fract(
+        sin(dot(anchored, vec3(12.9898, 78.233, 37.719))) * 43758.5453);
+    if (s.alpha < noise) discard;
+  }
 
   s.n = normalize(v_normal);
   s.v = normalize(frag_info.camera_position.xyz - v_world_position);
@@ -2774,8 +2804,38 @@ Surface ReadSurface() {
   // material is opaque or blended, and discard would then be wrong rather than
   // merely unnecessary. Doing it before anything else is deliberate: a
   // discarded fragment should not pay for the lighting loop.
+  //
+  // **A cutoff below -1.5 is the fourth mode: hashed** — `gfx-16n`. The
+  // sentinel rides in the same component because the alternative is a second
+  // number in a block six shaders share, and -1 already meant "not masked";
+  // anything more negative was free. See [MaterialAlphaMode.hashed].
   float cutoff = frag_info.material2.x;
-  if (cutoff >= 0.0 && s.alpha < cutoff) discard;
+  if (cutoff >= 0.0) {
+    if (s.alpha < cutoff) discard;
+  } else if (cutoff < -1.5) {
+    // **Stochastic instead of a threshold.** A leaf texture at 40% opacity is
+    // either entirely there or entirely gone under a fixed cutoff, so a fern
+    // comes out as a hard-edged cardboard cut-out; sorting would fix it and
+    // costs a sort per frame and a draw per layer. Comparing against noise
+    // instead keeps 40% of the *pixels*, which resolves as 40% opacity to
+    // anything that averages several of them — a higher-resolution target,
+    // a downsample, a person standing back.
+    //
+    // **Hashed on world position, not on the screen.** Screen-space noise is
+    // one line shorter and swims: the pattern stays put while the object
+    // moves through it, so a moving branch sparkles. Anchoring it to where
+    // the surface *is* means a given speck of leaf keeps its verdict from
+    // frame to frame, and the camera moving changes nothing.
+    //
+    // The scale is a constant and it is the whole tuning: finer than the
+    // texture's own detail and the noise disappears into aliasing, coarser
+    // and the leaf breaks into blotches. Sixteen per metre is about a
+    // centimetre of grain at a metre away.
+    vec3 anchored = floor(v_world_position * 16.0);
+    float noise = fract(
+        sin(dot(anchored, vec3(12.9898, 78.233, 37.719))) * 43758.5453);
+    if (s.alpha < noise) discard;
+  }
 
   s.n = normalize(v_normal);
   s.v = normalize(frag_info.camera_position.xyz - v_world_position);
@@ -3779,8 +3839,38 @@ Surface ReadSurface() {
   // material is opaque or blended, and discard would then be wrong rather than
   // merely unnecessary. Doing it before anything else is deliberate: a
   // discarded fragment should not pay for the lighting loop.
+  //
+  // **A cutoff below -1.5 is the fourth mode: hashed** — `gfx-16n`. The
+  // sentinel rides in the same component because the alternative is a second
+  // number in a block six shaders share, and -1 already meant "not masked";
+  // anything more negative was free. See [MaterialAlphaMode.hashed].
   float cutoff = frag_info.material2.x;
-  if (cutoff >= 0.0 && s.alpha < cutoff) discard;
+  if (cutoff >= 0.0) {
+    if (s.alpha < cutoff) discard;
+  } else if (cutoff < -1.5) {
+    // **Stochastic instead of a threshold.** A leaf texture at 40% opacity is
+    // either entirely there or entirely gone under a fixed cutoff, so a fern
+    // comes out as a hard-edged cardboard cut-out; sorting would fix it and
+    // costs a sort per frame and a draw per layer. Comparing against noise
+    // instead keeps 40% of the *pixels*, which resolves as 40% opacity to
+    // anything that averages several of them — a higher-resolution target,
+    // a downsample, a person standing back.
+    //
+    // **Hashed on world position, not on the screen.** Screen-space noise is
+    // one line shorter and swims: the pattern stays put while the object
+    // moves through it, so a moving branch sparkles. Anchoring it to where
+    // the surface *is* means a given speck of leaf keeps its verdict from
+    // frame to frame, and the camera moving changes nothing.
+    //
+    // The scale is a constant and it is the whole tuning: finer than the
+    // texture's own detail and the noise disappears into aliasing, coarser
+    // and the leaf breaks into blotches. Sixteen per metre is about a
+    // centimetre of grain at a metre away.
+    vec3 anchored = floor(v_world_position * 16.0);
+    float noise = fract(
+        sin(dot(anchored, vec3(12.9898, 78.233, 37.719))) * 43758.5453);
+    if (s.alpha < noise) discard;
+  }
 
   s.n = normalize(v_normal);
   s.v = normalize(frag_info.camera_position.xyz - v_world_position);
@@ -5080,8 +5170,38 @@ Surface ReadSurface() {
   // material is opaque or blended, and discard would then be wrong rather than
   // merely unnecessary. Doing it before anything else is deliberate: a
   // discarded fragment should not pay for the lighting loop.
+  //
+  // **A cutoff below -1.5 is the fourth mode: hashed** — `gfx-16n`. The
+  // sentinel rides in the same component because the alternative is a second
+  // number in a block six shaders share, and -1 already meant "not masked";
+  // anything more negative was free. See [MaterialAlphaMode.hashed].
   float cutoff = frag_info.material2.x;
-  if (cutoff >= 0.0 && s.alpha < cutoff) discard;
+  if (cutoff >= 0.0) {
+    if (s.alpha < cutoff) discard;
+  } else if (cutoff < -1.5) {
+    // **Stochastic instead of a threshold.** A leaf texture at 40% opacity is
+    // either entirely there or entirely gone under a fixed cutoff, so a fern
+    // comes out as a hard-edged cardboard cut-out; sorting would fix it and
+    // costs a sort per frame and a draw per layer. Comparing against noise
+    // instead keeps 40% of the *pixels*, which resolves as 40% opacity to
+    // anything that averages several of them — a higher-resolution target,
+    // a downsample, a person standing back.
+    //
+    // **Hashed on world position, not on the screen.** Screen-space noise is
+    // one line shorter and swims: the pattern stays put while the object
+    // moves through it, so a moving branch sparkles. Anchoring it to where
+    // the surface *is* means a given speck of leaf keeps its verdict from
+    // frame to frame, and the camera moving changes nothing.
+    //
+    // The scale is a constant and it is the whole tuning: finer than the
+    // texture's own detail and the noise disappears into aliasing, coarser
+    // and the leaf breaks into blotches. Sixteen per metre is about a
+    // centimetre of grain at a metre away.
+    vec3 anchored = floor(v_world_position * 16.0);
+    float noise = fract(
+        sin(dot(anchored, vec3(12.9898, 78.233, 37.719))) * 43758.5453);
+    if (s.alpha < noise) discard;
+  }
 
   s.n = normalize(v_normal);
   s.v = normalize(frag_info.camera_position.xyz - v_world_position);
@@ -6396,8 +6516,38 @@ Surface ReadSurface() {
   // material is opaque or blended, and discard would then be wrong rather than
   // merely unnecessary. Doing it before anything else is deliberate: a
   // discarded fragment should not pay for the lighting loop.
+  //
+  // **A cutoff below -1.5 is the fourth mode: hashed** — `gfx-16n`. The
+  // sentinel rides in the same component because the alternative is a second
+  // number in a block six shaders share, and -1 already meant "not masked";
+  // anything more negative was free. See [MaterialAlphaMode.hashed].
   float cutoff = frag_info.material2.x;
-  if (cutoff >= 0.0 && s.alpha < cutoff) discard;
+  if (cutoff >= 0.0) {
+    if (s.alpha < cutoff) discard;
+  } else if (cutoff < -1.5) {
+    // **Stochastic instead of a threshold.** A leaf texture at 40% opacity is
+    // either entirely there or entirely gone under a fixed cutoff, so a fern
+    // comes out as a hard-edged cardboard cut-out; sorting would fix it and
+    // costs a sort per frame and a draw per layer. Comparing against noise
+    // instead keeps 40% of the *pixels*, which resolves as 40% opacity to
+    // anything that averages several of them — a higher-resolution target,
+    // a downsample, a person standing back.
+    //
+    // **Hashed on world position, not on the screen.** Screen-space noise is
+    // one line shorter and swims: the pattern stays put while the object
+    // moves through it, so a moving branch sparkles. Anchoring it to where
+    // the surface *is* means a given speck of leaf keeps its verdict from
+    // frame to frame, and the camera moving changes nothing.
+    //
+    // The scale is a constant and it is the whole tuning: finer than the
+    // texture's own detail and the noise disappears into aliasing, coarser
+    // and the leaf breaks into blotches. Sixteen per metre is about a
+    // centimetre of grain at a metre away.
+    vec3 anchored = floor(v_world_position * 16.0);
+    float noise = fract(
+        sin(dot(anchored, vec3(12.9898, 78.233, 37.719))) * 43758.5453);
+    if (s.alpha < noise) discard;
+  }
 
   s.n = normalize(v_normal);
   s.v = normalize(frag_info.camera_position.xyz - v_world_position);
@@ -7805,8 +7955,38 @@ Surface ReadSurface() {
   // material is opaque or blended, and discard would then be wrong rather than
   // merely unnecessary. Doing it before anything else is deliberate: a
   // discarded fragment should not pay for the lighting loop.
+  //
+  // **A cutoff below -1.5 is the fourth mode: hashed** — `gfx-16n`. The
+  // sentinel rides in the same component because the alternative is a second
+  // number in a block six shaders share, and -1 already meant "not masked";
+  // anything more negative was free. See [MaterialAlphaMode.hashed].
   float cutoff = frag_info.material2.x;
-  if (cutoff >= 0.0 && s.alpha < cutoff) discard;
+  if (cutoff >= 0.0) {
+    if (s.alpha < cutoff) discard;
+  } else if (cutoff < -1.5) {
+    // **Stochastic instead of a threshold.** A leaf texture at 40% opacity is
+    // either entirely there or entirely gone under a fixed cutoff, so a fern
+    // comes out as a hard-edged cardboard cut-out; sorting would fix it and
+    // costs a sort per frame and a draw per layer. Comparing against noise
+    // instead keeps 40% of the *pixels*, which resolves as 40% opacity to
+    // anything that averages several of them — a higher-resolution target,
+    // a downsample, a person standing back.
+    //
+    // **Hashed on world position, not on the screen.** Screen-space noise is
+    // one line shorter and swims: the pattern stays put while the object
+    // moves through it, so a moving branch sparkles. Anchoring it to where
+    // the surface *is* means a given speck of leaf keeps its verdict from
+    // frame to frame, and the camera moving changes nothing.
+    //
+    // The scale is a constant and it is the whole tuning: finer than the
+    // texture's own detail and the noise disappears into aliasing, coarser
+    // and the leaf breaks into blotches. Sixteen per metre is about a
+    // centimetre of grain at a metre away.
+    vec3 anchored = floor(v_world_position * 16.0);
+    float noise = fract(
+        sin(dot(anchored, vec3(12.9898, 78.233, 37.719))) * 43758.5453);
+    if (s.alpha < noise) discard;
+  }
 
   s.n = normalize(v_normal);
   s.v = normalize(frag_info.camera_position.xyz - v_world_position);
