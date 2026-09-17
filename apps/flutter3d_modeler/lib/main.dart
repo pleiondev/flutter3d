@@ -84,13 +84,16 @@ import 'src/open_report.dart';
 import 'src/opening.dart';
 import 'src/orbit_run.dart';
 import 'src/orientation_dial.dart';
+import 'src/paint_brush.dart';
 import 'src/paint_session.dart';
 import 'src/paint_upload.dart';
 import 'src/play/play_control.dart';
 import 'src/play/play_template.dart';
+import 'src/pro_panel_state.dart';
 import 'src/recent_projects.dart';
 import 'src/render_snapshot_run.dart';
 import 'src/report_problem.dart';
+import 'src/sculpt_brush.dart';
 import 'src/sculpt_session.dart';
 import 'src/selection_box.dart';
 import 'src/selection_rules.dart';
@@ -356,33 +359,16 @@ class _ModelerScreenState extends State<ModelerScreen>
   /// `ui/weight_paint_panel.dart`'s own influences card.
   int? _selectedWeightVertex;
 
-  /// `pro-sc-08`'s own sculpting brush: the cursor's diameter in logical
-  /// pixels, strength 0 to 1, how its influence tapers, and whether a stroke
-  /// is mirrored across `x = 0`. Plain fields for the same reason the weight
-  /// brush's own four above are: none of them is on [ModelHistory], so undo
-  /// has nowhere to put any of them back to. `view-21`'s own ⌀140 is where
-  /// the size starts.
-  double _sculptRadius = kSculptCursorDiameter;
-  double _sculptStrength = 0.5;
-  BrushFalloff _sculptFalloff = BrushFalloff.smooth;
-  bool _sculptSymmetryX = false;
+  /// `pro-sc-08`'s own sculpting brush — see [SculptBrush], which is where
+  /// its four settings went and why.
+  final SculptBrush _sculpt = SculptBrush();
 
-  /// `pro-rt-07`'s own panel state: the retopology's target, which maps are
-  /// ticked, how big they bake, and the job running now. Plain fields for
-  /// the reason every other panel's are — none of them is on [ModelHistory].
-  int _retopoQuads = 4000;
-  final Set<String> _bakeMaps = <String>{'normal'};
-  int _bakeResolution = 1024;
-  BakeProgress? _bakeRunning;
+  /// `pro-rt-07`'s own panel state — see [RetopoPanelState].
+  final RetopoPanelState _retopo = RetopoPanelState();
 
-  /// `pro-pt-05`'s own: the brush, the layer it lands on, and the flattened
-  /// canvas the panel draws.
-  int _paintLayer = 0;
-  List<double> _paintColour = const <double>[0.85, 0.2, 0.2, 1];
-  double _paintRadius = kPaintCursorDiameter;
-  double _paintStrength = 1;
-  String? _paintMask;
-  ui.Image? _paintCanvas;
+  /// `pro-pt-05`'s own painting brush — see [PaintBrush], which is where its
+  /// settings and the panel's canvas went.
+  final PaintBrush _paint = PaintBrush();
 
   /// `pro-pt-03`'s own one-write-per-stroke upload — see
   /// `paint_upload.dart`. Built against whichever device is open; a stroke
@@ -395,33 +381,11 @@ class _ModelerScreenState extends State<ModelerScreen>
     history: () => _history,
   );
 
-  /// `pro-sim-06`'s own: what is being simulated, what it collides with,
-  /// what holds it up, and where the transport is.
-  String _simKind = 'cloth';
-  Map<String, double> _simParameters = const <String, double>{
-    'stiffness': 0.6,
-    'damping': 0.1,
-  };
-  final Set<String> _simColliders = <String>{};
-  Set<int> _simPinned = <int>{};
-  SimulationCacheState _simCache = (frames: 0, baked: 0, running: false);
-  int _simFrame = 0;
-  bool _simPlaying = false;
+  /// `pro-sim-06`'s own panel state — see [SimulationPanelState].
+  final SimulationPanelState _sim = SimulationPanelState();
 
-  /// `pro-rn-04`'s own: the composite chain, the last result, and the tiles
-  /// still to come.
-  List<RenderPassRow> _renderPasses = const <RenderPassRow>[
-    (name: 'scene', enabled: true, fixed: true),
-    (name: 'ssao', enabled: true, fixed: false),
-    (name: 'reflections', enabled: false, fixed: false),
-    (name: 'bloom', enabled: true, fixed: false),
-    (name: 'tonemap', enabled: true, fixed: false),
-    (name: 'look', enabled: false, fixed: false),
-    (name: 'output', enabled: true, fixed: true),
-  ];
-  ui.Image? _renderResult;
-  int _renderTilesDone = 0;
-  int _renderTilesTotal = 0;
+  /// `pro-rn-04`'s own panel state — see [RenderPanelState].
+  final RenderPanelState _render = RenderPanelState();
 
   /// `pro-sc-08`'s own stroke controller — see `sculpt_session.dart`.
   late final SculptSession _sculptSession = SculptSession(
