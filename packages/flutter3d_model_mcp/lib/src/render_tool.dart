@@ -45,19 +45,21 @@ RenderProjectView _viewNamed(Object? value) {
   return RenderProjectView.iso;
 }
 
-/// `mcp-08n`'s own four reachable modes, `tut-11`'s own fix landing the
-/// fourth: `wireframe` still waits on `view-07`'s own edge-drawing landing
-/// in the engine, the same honest gap `RenderShading` itself already names.
+/// Every mode an agent can ask for — `mcp-08n`'s own four, plus
+/// `selection`, which the row does not count because it is not a shading
+/// mode. `wireframe` landed 2026-09-17 as geometry rather than as a line
+/// topology; `RenderShading.wireframe` and `wire_overlay.dart` both say why.
 ///
 /// Plain strings rather than a type of their own — this never leaves the
 /// tool boundary as a value another package's code holds onto, only ever a
 /// JSON argument in and a `RenderRequest` out, so there is no `switch`
-/// anywhere for a fifth member to break.
+/// anywhere for a sixth member to break.
 const List<String> renderModes = <String>[
   'material',
   'normals',
   'selection',
   'weights',
+  'wireframe',
 ];
 
 /// [value] turned into what `RenderRequest` actually wants: a [RenderShading]
@@ -77,6 +79,7 @@ const List<String> renderModes = <String>[
     selection: session.history.selection.objects.toSet(),
   ),
   'weights' => (shading: RenderShading.weights, selection: const <int>{}),
+  'wireframe' => (shading: RenderShading.wireframe, selection: const <int>{}),
   _ => (shading: RenderShading.material, selection: const <int>{}),
 };
 
@@ -113,7 +116,12 @@ final ModelPictureTool renderTool = ModelPictureTool(
           'selection: material, with whatever `select` last picked tinted '
           'towards orange. weights: the weight-paint gradient for `joint`, '
           'unlit — everything not bound to that joint\'s own skeleton draws '
-          'as material instead of going blank.',
+          'as material instead of going blank. wireframe: the document\'s '
+          'own polygon edges as dark wires over a flat pale surface — the '
+          'edges the model has, not the triangles it is drawn with, so an '
+          'n-gon shows as an n-sided cell rather than as a fan of '
+          'triangles; an imported mesh with no editable topology behind it '
+          'gets the flat surface and no wires.',
         ),
         'joint': IntegerSchema(
           description:

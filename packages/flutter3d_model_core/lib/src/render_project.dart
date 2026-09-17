@@ -108,16 +108,14 @@ const double _maxPitch = math.pi / 2 - 0.01;
 /// What a surface is drawn as.
 ///
 /// A final class with const instances for the same reason
-/// [RenderProjectView] is one, not an enum. Three instances now, not the
-/// four `mcp-08n`'s own row eventually names. [material] and [normals] are
-/// real, distinct shaders (`LightingModel.pbr`/`LightingModel.unlit` and
+/// [RenderProjectView] is one, not an enum. All four `mcp-08n`'s own row
+/// names, as of 2026-09-17. [material] and [normals] are real, distinct
+/// shaders (`LightingModel.pbr`/`LightingModel.unlit` and
 /// `LightingModel.normals`, both already compiled into every backend's
 /// shader bundle). [weights] is not a shader at all — `tut-11`'s own fix —
-/// see its own doc comment. `wireframe` waits on `view-07`'s own
-/// edge-drawing landing in the engine — there is no member for it here
-/// rather than one that draws the same picture [material] does under a name
-/// that promises otherwise. `selection` is not a shading mode; see
-/// [RenderRequest.selection] for how it is drawn instead.
+/// see its own doc comment, and neither is [wireframe]; see that one's.
+/// `selection` is not a shading mode; see [RenderRequest.selection] for how
+/// it is drawn instead.
 final class RenderShading {
   const RenderShading._(this.name);
 
@@ -134,10 +132,35 @@ final class RenderShading {
   /// a scene with more than one object still shows all of it.
   static const RenderShading weights = RenderShading._('weights');
 
+  /// The document's own polygon edges, drawn as thin solids over a flat
+  /// surface — `mcp-08n`'s fourth mode, and no more a shader than [weights]
+  /// is.
+  ///
+  /// **Not a line topology, and `wire_overlay.dart` says why at length.** In
+  /// short: a wire drawn as a three-sided prism needs nothing a backend does
+  /// not already do, it costs six triangles an edge, and that is the right
+  /// trade for a frame an agent asks for once and the wrong one for a
+  /// viewport. `view-07`'s edge drawing is still the answer for the live
+  /// viewport.
+  ///
+  /// The edges are the *document's* — `EditMesh`'s half-edges, walked face by
+  /// face — not the triangulation's. A wireframe built from drawn triangles
+  /// draws a hexagon as six triangles with three diagonals across it, which
+  /// is a picture of the triangulator; this draws six wires, which is what
+  /// makes the mode worth having: an agent told "this object has n-gons" can
+  /// look at one.
+  ///
+  /// An object whose geometry is not an [EditedGeometry] has no polygons to
+  /// read, so it keeps its flat surface and gets no wires. Said here rather
+  /// than left to be noticed: an imported mesh drawn under this mode is not
+  /// a bug, it is a mesh with no topology behind it.
+  static const RenderShading wireframe = RenderShading._('wireframe');
+
   static const List<RenderShading> values = <RenderShading>[
     material,
     normals,
     weights,
+    wireframe,
   ];
 
   @override
@@ -268,6 +291,7 @@ Future<Uint8List> renderProject(
     weightsJoint: request.shading == RenderShading.weights
         ? request.weightsJoint
         : null,
+    wires: request.shading == RenderShading.wireframe,
   );
   // `ux-49`: the project's own panorama, where it has one. A headless
   // picture is exactly where an environment matters most — a tutorial page's
@@ -293,7 +317,13 @@ Future<Uint8List> renderProject(
   // out of the way — the identical pair `weight_gradient.dart`'s own
   // `weightGradientSettings` gives the live viewport's weights view, for
   // the same reason `ShadingMode.normals` gets it there too.
-  final RenderSettings settings = request.shading == RenderShading.weights
+  // The wireframe wants the same pair for the same reason: both of its
+  // colours are named by hand — a pale ground and a near-black wire — and
+  // a tonemap would lift the wire off the black it was chosen to be and
+  // pull the ground off the white, which is the contrast the mode is.
+  final RenderSettings settings =
+      request.shading == RenderShading.weights ||
+          request.shading == RenderShading.wireframe
       ? lit.copyWith(tonemap: false, exposure: 1.0)
       : lit;
 
@@ -375,14 +405,28 @@ Material _restyle(
   ModelObject object,
   Material material,
 ) {
-  final shaded = request.shading == RenderShading.normals
-      ? Material(
-          name: material.name,
-          lighting: LightingModel.normals,
-          baseColor: material.baseColor,
-          doubleSided: material.doubleSided,
-        )
-      : material;
+  final shaded = switch (request.shading) {
+    RenderShading.normals => Material(
+      name: material.name,
+      lighting: LightingModel.normals,
+      baseColor: material.baseColor,
+      doubleSided: material.doubleSided,
+    ),
+    // A pale flat surface under the wires, and flat for the reason the wires
+    // are unlit: this mode is a diagram. A lit surface would shade half the
+    // model down to where a near-black wire on it is one indistinguishable
+    // dark shape, which is the picture somebody asked the wireframe *not* to
+    // be. `baseColor` is dropped with the lighting — the model's own greys
+    // and browns are not information here, and one ground makes every wire
+    // read the same against every object.
+    RenderShading.wireframe => Material(
+      name: material.name,
+      lighting: LightingModel.unlit,
+      baseColor: Vector4(0.82, 0.83, 0.85, material.baseColor.a),
+      doubleSided: material.doubleSided,
+    ),
+    _ => material,
+  };
   if (!request.selection.contains(object.id)) return shaded;
   // Blended into `baseColor` itself, not left to `emissive`: the CPU backend
   // only ever reads `Material.emissive` behind a bound `emissiveTexture`

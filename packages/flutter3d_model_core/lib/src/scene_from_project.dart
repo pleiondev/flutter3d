@@ -46,6 +46,7 @@ import 'project.dart';
 import 'project_animation.dart';
 import 'project_morphs.dart';
 import 'weight_gradient_colors.dart';
+import 'wire_overlay.dart';
 import 'world_transform.dart';
 
 /// [project]'s objects as a [Scene] on [device] — a key and a fill light and
@@ -60,11 +61,19 @@ import 'world_transform.dart';
 /// a gradient on every [EditedGeometry] mesh bound to that joint's skeleton —
 /// `tut-11`'s own weights picture. Such an object draws unlit in its gradient
 /// and [restyle] is not asked about it; everything else draws as usual.
+///
+/// [wires], when true, hangs a second mesh under every [EditedGeometry]
+/// object: that object's own polygon edges as thin solids — `mcp-08n`'s
+/// fourth render mode, and `wire_overlay.dart` says why it is geometry
+/// rather than a line topology. An object with no half-edge topology behind
+/// it — an [ImportedGeometry] — gets none, because it has no polygons to
+/// read.
 Scene sceneFromProject(
   ModelProject project,
   GraphicsDevice device, {
   Material Function(ModelObject object, Material material)? restyle,
   int? weightsJoint,
+  bool wires = false,
 }) {
   final scene = Scene()
     ..add(
@@ -114,8 +123,41 @@ Scene sceneFromProject(
         scene.add(node);
     }
   }
+  if (wires) {
+    // A child of the object's own node rather than a sibling in the scene, so
+    // the wires carry the object's transform — and the whole chain of its
+    // parents' — without this function computing a world matrix a second
+    // time. The child's own matrix is identity: the edges are already in the
+    // object's local space, which is where `EditMesh` keeps them.
+    for (final ModelObject object in project.objects) {
+      final Geometry geometry = object.geometry;
+      if (geometry is! EditedGeometry) continue;
+      final MeshData? wire = wireMeshFor(geometry.mesh);
+      if (wire == null) continue;
+      nodes[object.id]!.add(
+        MeshNode(
+          DeviceMesh.upload(device, wire),
+          _wireMaterial,
+          name: '${object.name} wires',
+        ),
+      );
+    }
+  }
   return scene;
 }
+
+/// What a wire is drawn with: near-black, unlit, and lit by nothing.
+///
+/// Unlit for the reason the weights gradient is — a wire is a diagram and not
+/// a surface, and a shaded one would be bright on the lit side of the model
+/// and invisible on the other, which is the half of the mesh somebody asked
+/// to see. Not fully black: a wire against a dark background needs somewhere
+/// to go.
+final Material _wireMaterial = Material(
+  name: 'wires',
+  lighting: LightingModel.unlit,
+  baseColor: Vector4(0.06, 0.07, 0.09, 1.0),
+);
 
 /// [VertexLayout.skinned] for an object bound to a skeleton,
 /// [VertexLayout.standard] otherwise — the exact switch `SceneSync

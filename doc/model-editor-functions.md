@@ -149,15 +149,18 @@ run/undo/redo/check/save/export/import/journal). Every new command
 automatically requires its own tool — a test enforces this, so commands and
 tools never drift apart.
 
-**⬜ Not started — a whole functional track ("an agent that can see the
-model")**
-Today the agent edits the model blind: it gets readiness-check numbers, but
-no picture. Requires separate engine groundwork (moving the remaining
-Flutter dependencies out of the hardware layer and the rendering core, at
-four points):
+**✅ Done — the whole "an agent that can see the model" track.** This section
+described it as not started, with a paragraph about the engine groundwork it
+would need first; the groundwork happened, the track closed row by row, and
+the list below was still saying otherwise when `mcp-08n`, the last of them,
+closed on 2026-09-17.
+
 - Rendering a project to PNG with no GPU widget (mcp-05n) and a `render` MCP
   tool with ready-made angles (mcp-06n), a contact sheet from several views
-  (mcp-07n), display modes — material/wireframe/normals/selection (mcp-08n)
+  (mcp-07n), display modes — material/wireframe/normals/selection (mcp-08n),
+  the wireframe drawn as geometry rather than as a line topology; see that
+  row, and "A golden set recorded on a GPU" below for why it sat on the
+  wrong list for a day
 - Composite recipes as one transaction: `cleanup()`, `makeGameReady(profile)`,
   `buildFrom(spec)`, `inspect()` (mcp-09n)
 - Splitting history-step authorship between human/agent, undoing only one's
@@ -167,11 +170,10 @@ four points):
   through the headless stdio server (mcp-13n), syncing with an open window
   (mcp-14n)
 - Import/export as session verbs with a readiness gate and `force` (mcp-15n)
-
-Materials (`listMaterials`, `setMaterialField`, `bakeTextureGraph`, light)
-and animation (`autoRig`, `paintWeights`, `bakeIk`) as MCP tools — also not
-started (mat-32, anim-30), since the underlying phase 2–3 material/animation
-functionality itself isn't done beyond the basic set.
+- Materials (`listMaterials`, `setMaterialField`, `bakeTextureGraph`, light)
+  and animation (`autoRig`, `paintWeights`, `bakeIk`) as MCP tools (mat-32,
+  anim-30) — this section said both were blocked on the underlying material
+  and animation work, and that work is done too
 
 ## Formats: import and export
 
@@ -595,17 +597,22 @@ closed, 63 remain open across ten groups):
 ## What is left, and what each piece is waiting for
 
 *Audited 2026-09-17, against `doc/plan-status.json`. Twenty-six rows were not
-`done` when this was written; **three of them — `gfx-02n`, `gfx-03n` and
-`qa-19n` — were closed within hours by disbelieving this section**, which is
-recorded below rather than tidied away. Of what remains, **not one row is
-waiting on somebody sitting down to write code**. Every one is held by
-something outside the repository: a device, a credential, a golden set that
-has to be recorded on hardware, or a decision that belongs to the owner. That
-is worth stating plainly rather than leaving as a count, because "twenty-six
-to go" reads like a backlog and this is a list of six errands. It is also
-worth reading with suspicion, three times over now: a row lands on this list
-because of a sentence somebody wrote about it, and the sentence is not the
-measurement.*
+`done` when this was written; **four of them — `gfx-02n`, `gfx-03n`,
+`qa-19n` and `mcp-08n` — were closed within hours by disbelieving this
+section**, which is recorded below rather than tidied away. Of what remains,
+**not one row is waiting on somebody sitting down to write code**: every one
+is held by a device, a credential, a golden set that has to be recorded on
+hardware, or a decision that belongs to the owner.*
+
+*That claim is worth reading with suspicion, and four corrections in one day
+are why. A row lands on a list like this because of a sentence somebody wrote
+about it, and the sentence is not the measurement. Each of the four was held
+by a different kind of wrong sentence: two said the software backend could
+not take a measurement it could; one said a tool lived somewhere this machine
+is not, when it is a download; one said a feature needed a phase-2 engine
+row, when it needed six triangles an edge. None of them was found by reading
+the code — each was found by trying the thing the sentence said was
+impossible.*
 
 ### A device nobody has yet (4)
 
@@ -616,16 +623,27 @@ written and run unchanged on a device — `sculpt_budget_benchmark_test.dart`
 is the same file that produced the macOS and Chrome numbers in
 `doc/model-editor.md` §6.
 
-### A golden set recorded on a GPU (7)
+### A golden set recorded on a GPU (6)
 
-`gfx-05n`, `gfx-06n`, `gfx-07n`, `gfx-08n`, `gfx-09n`, `mat-17`, and
-`mcp-08n` through `view-07`. Forty-four scenes are held against four
-reference sets, and only the software one can be recorded on a machine with
-no GPU app run and no browser stand. So a row whose acceptance is a *frame* —
-`many-lights`, `contact-shadow`, `ambient-occlusion-corner`, `ibl-hdr` —
-cannot be closed here, however finished its code is. Several are exactly
-that: `gfx-05n`'s selection and its fade are built, tested and off by
-default, waiting only for the frame.
+`gfx-05n`, `gfx-06n`, `gfx-07n`, `gfx-08n`, `gfx-09n` and `mat-17`.
+Forty-four scenes are held against four reference sets, and only the software
+one can be recorded on a machine with no GPU app run and no browser stand. So
+a row whose acceptance is a *frame* — `many-lights`, `contact-shadow`,
+`ambient-occlusion-corner`, `ibl-hdr` — cannot be closed here, however
+finished its code is. Several are exactly that: `gfx-05n`'s selection and its
+fade are built, tested and off by default, waiting only for the frame.
+
+**`mcp-08n` was here too, "through `view-07`", and that was the fourth wrong
+call in this section's short life.** It is not a golden-set row: its own
+acceptance is a measured difference between two frames, not a reference
+picture. What it was missing was the `wireframe` mode, and the reason
+recorded in three places was that a wire needs `view-07`'s line topology.
+A wire drawn as a thin *solid* needs no topology at all — six triangles an
+edge — which costs geometry rather than a shader and is the right trade for
+a headless frame an agent asks for once. Closed 2026-09-17, with the edges
+read off the document's own half-edges so a cube shows twelve and not the
+triangulation's eighteen. `view-07` is still the answer for the live
+viewport, and still phase 2.
 
 `cross_backend_test.dart`'s own `_provisional` is the route: a new scene
 names itself there with a reason until the other sets catch up.
