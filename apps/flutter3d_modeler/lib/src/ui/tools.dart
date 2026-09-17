@@ -138,8 +138,6 @@ enum ModelerMode {
   final bool ready;
 }
 
-/// The modes the phone `NavigationBar` offers, in the handoff's own order —
-/// `README.md:137`: "Object, Mesh, Material, Scene". Not
 /// Which modes a workspace offers — `ux-37`.
 ///
 /// **Essential is three: Object, Material, Scene.** "Open a model, paint it,
@@ -156,10 +154,15 @@ List<ModelerMode> modesFor(Workspace workspace) => <ModelerMode>[
     if (mode.ready && (workspace == Workspace.full || mode.inEssential)) mode,
 ];
 
-/// `ModelerMode.values.where((m) => m.ready)`: animation is [ModelerMode.ready]
-/// too as of `ui-39d`, but the phone bar has no room for a fifth destination
-/// and the handoff's phone screens simply do not offer animation mode as one
-/// — a person on a phone reaches everything else the same way a desktop does.
+/// The modes the phone `NavigationBar` offers, in the handoff's own order —
+/// `doc/design/modeler-handoff/README.md`'s own layout table: "Телефон
+/// (<600) — `NavigationBar` снизу (Объект, Меш, Материал, Сцена)".
+///
+/// Deliberately not `ModelerMode.values.where((m) => m.ready)`: animation is
+/// [ModelerMode.ready] too as of `ui-39d`, but the phone bar has no room for a
+/// fifth destination and the handoff's phone screens simply do not offer
+/// animation mode as one — a person on a phone reaches everything else the
+/// same way a desktop does.
 const List<ModelerMode> kPhoneModes = <ModelerMode>[
   ModelerMode.object,
   ModelerMode.mesh,
