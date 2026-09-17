@@ -68,6 +68,7 @@ final class SceneSourcePanel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final AppLocalizations l = AppLocalizations.of(context);
     final int? active =
         selected != null && selected! >= 0 && selected! < lights.length
         ? selected
@@ -81,7 +82,7 @@ final class SceneSourcePanel extends StatelessWidget {
           Padding(
             padding: const EdgeInsets.symmetric(vertical: 4),
             child: Text(
-              'No lights',
+              l.sceneNoLights,
               style: theme.textTheme.bodySmall?.copyWith(
                 fontStyle: FontStyle.italic,
               ),
@@ -97,10 +98,10 @@ final class SceneSourcePanel extends StatelessWidget {
               onTap: () => onSelect(i),
               title: Text(_labelOf(lights[i].type)),
               trailing: NamedButton(
-                label: 'Remove this light',
+                label: l.sceneRemoveLight,
                 child: IconButton(
                   icon: const Icon(Icons.close, size: 16),
-                  tooltip: 'Remove this light',
+                  tooltip: l.sceneRemoveLight,
                   onPressed: () => onRemove(i),
                 ),
               ),
@@ -112,10 +113,10 @@ final class SceneSourcePanel extends StatelessWidget {
             minimumSize: panelButtonMinimum(context),
             tapTargetSize: MaterialTapTargetSize.shrinkWrap,
           ),
-          child: const Text('Add'),
+          child: Text(l.sceneAdd),
         ),
         if (active != null) ...<Widget>[
-          const SectionLabel('Source'),
+          SectionLabel(l.sceneSource),
           Padding(
             padding: const EdgeInsets.symmetric(vertical: 4),
             child: DropdownButton<ProjectLightType>(
@@ -134,25 +135,25 @@ final class SceneSourcePanel extends StatelessWidget {
             ),
           ),
           NumberField(
-            label: 'Intensity',
+            label: l.sceneIntensity,
             value: lights[active].intensity,
             onChanged: (double value) => onIntensityChanged(active, value),
           ),
           NumberField(
-            label: 'Range',
+            label: l.sceneRange,
             value: lights[active].range,
             onChanged: (double value) => onRangeChanged(active, value),
           ),
           if (lights[active].type == ProjectLightType.spot)
             NumberField(
-              label: 'Cone',
+              label: l.sceneCone,
               value: lights[active].outerConeAngle,
               onChanged: (double value) => onConeChanged(active, value),
             ),
           SwitchListTile(
             dense: true,
             contentPadding: EdgeInsets.zero,
-            title: const Text('Casts shadow'),
+            title: Text(l.sceneCastsShadow),
             value: lights[active].castsShadow,
             onChanged: (bool value) => onShadowChanged(active, value),
           ),

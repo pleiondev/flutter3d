@@ -25,10 +25,10 @@ Future<void> _pump(
   void Function(int, double)? onConeChanged,
 }) => tester.pumpWidget(
   MaterialApp(
-    theme: modelerTheme(),
     locale: const Locale('en'),
     localizationsDelegates: AppLocalizations.localizationsDelegates,
     supportedLocales: AppLocalizations.supportedLocales,
+    theme: modelerTheme(),
     home: Scaffold(
       body: SceneSourcePanel(
         lights: lights,

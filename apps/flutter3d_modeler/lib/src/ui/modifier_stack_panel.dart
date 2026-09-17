@@ -20,6 +20,7 @@ import 'package:flutter3d_mesh/flutter3d_mesh.dart';
 import 'package:flutter3d_model_core/flutter3d_model_core.dart';
 import 'package:vector_math/vector_math.dart' as vm show Matrix4, Vector3;
 
+import '../../l10n/app_localizations.dart';
 import 'modifier_fields.dart';
 import 'theme.dart';
 
@@ -33,28 +34,36 @@ import 'theme.dart';
 /// A boolean needs an operand and there is no sensible default one, so it is
 /// built against [operandId] — the other selected object, when there is one.
 /// With none it is left out of the picker rather than offered and refused.
-List<({String label, Modifier modifier})> addableModifiers({int? operandId}) =>
-    <({String label, Modifier modifier})>[
-      (label: 'Mirror', modifier: MirrorModifier(normal: vm.Vector3(1, 0, 0))),
-      (
-        label: 'Array',
-        modifier: ArrayModifier(count: 3, offset: vm.Vector3(1, 0, 0)),
+List<({String label, Modifier modifier})> addableModifiers(
+  AppLocalizations l, {
+  int? operandId,
+}) => <({String label, Modifier modifier})>[
+  (
+    label: l.modifierMirror,
+    modifier: MirrorModifier(normal: vm.Vector3(1, 0, 0)),
+  ),
+  (
+    label: l.modifierArray,
+    modifier: ArrayModifier(count: 3, offset: vm.Vector3(1, 0, 0)),
+  ),
+  (label: l.modifierSmooth, modifier: const SmoothModifier(iterations: 2)),
+  (
+    label: l.modifierSubdivision,
+    modifier: const SubdivisionModifier(levels: 1),
+  ),
+  if (operandId != null)
+    (
+      label: l.modifierBoolean,
+      // Subtract, because that is what a boolean is reached for: the
+      // other two are the same gesture with a different sign and the
+      // menu's own field changes it in one press.
+      modifier: BooleanModifier(
+        operation: CsgOperation.subtract,
+        operandId: operandId,
+        operandTransform: vm.Matrix4.identity(),
       ),
-      (label: 'Smooth', modifier: const SmoothModifier(iterations: 2)),
-      (label: 'Subdivision', modifier: const SubdivisionModifier(levels: 1)),
-      if (operandId != null)
-        (
-          label: 'Boolean',
-          // Subtract, because that is what a boolean is reached for: the
-          // other two are the same gesture with a different sign and the
-          // menu's own field changes it in one press.
-          modifier: BooleanModifier(
-            operation: CsgOperation.subtract,
-            operandId: operandId,
-            operandTransform: vm.Matrix4.identity(),
-          ),
-        ),
-    ];
+    ),
+];
 
 /// The active object's own stack, empty or not.
 final class ModifierStackPanel extends StatelessWidget {
@@ -118,6 +127,7 @@ final class ModifierStackPanel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final ThemeData theme = Theme.of(context);
+    final AppLocalizations l = AppLocalizations.of(context);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: <Widget>[
@@ -125,7 +135,7 @@ final class ModifierStackPanel extends StatelessWidget {
           Padding(
             padding: const EdgeInsets.symmetric(vertical: 4),
             child: Text(
-              'No modifiers',
+              l.modifierNone,
               style: theme.textTheme.bodySmall?.copyWith(
                 fontStyle: FontStyle.italic,
               ),
@@ -150,16 +160,17 @@ final class ModifierStackPanel extends StatelessWidget {
         // in. Under the list rather than per slot — the interesting figure
         // is what comes out of the whole stack, and a per-slot count would
         // mean folding the stack once per slot to find out.
-        if (trianglesIn != null && trianglesOut != null)
+        if ((trianglesIn, trianglesOut) case (
+          final int before,
+          final int after,
+        ))
           Padding(
             padding: const EdgeInsets.only(top: 2, bottom: 2),
             child: Text(
-              '$trianglesIn → $trianglesOut triangles',
+              l.modifierTriangles(before, after),
               style: theme.textTheme.labelSmall?.copyWith(
                 color: theme.colorScheme.onSurfaceVariant,
-                fontFeatures: const <FontFeature>[
-                  FontFeature.tabularFigures(),
-                ],
+                fontFeatures: const <FontFeature>[FontFeature.tabularFigures()],
               ),
             ),
           ),
@@ -167,21 +178,20 @@ final class ModifierStackPanel extends StatelessWidget {
         // on the X axis without asking, which is one of five kinds and was
         // never the one anybody meant more than a fifth of the time.
         PopupMenuButton<Modifier>(
-          tooltip: 'Add a modifier',
+          tooltip: l.modifierAdd,
           onSelected: onAdd,
-          itemBuilder: (BuildContext context) =>
-              <PopupMenuEntry<Modifier>>[
-                for (final ({String label, Modifier modifier}) each
-                    in addableModifiers(operandId: operandId))
-                  PopupMenuItem<Modifier>(
-                    value: each.modifier,
-                    child: Text(each.label),
-                  ),
-              ],
+          itemBuilder: (BuildContext context) => <PopupMenuEntry<Modifier>>[
+            for (final ({String label, Modifier modifier}) each
+                in addableModifiers(l, operandId: operandId))
+              PopupMenuItem<Modifier>(
+                value: each.modifier,
+                child: Text(each.label),
+              ),
+          ],
           child: Padding(
             padding: const EdgeInsets.symmetric(vertical: 6),
             child: Text(
-              'Add',
+              l.modifierAddShort,
               style: theme.textTheme.labelLarge?.copyWith(
                 color: theme.colorScheme.primary,
               ),
@@ -193,6 +203,7 @@ final class ModifierStackPanel extends StatelessWidget {
   }
 
   Widget _slot(BuildContext context, ThemeData theme, int index) {
+    final AppLocalizations l = AppLocalizations.of(context);
     final ModifierSlot slot = slots[index];
     return Padding(
       key: ValueKey<int>(index),
@@ -236,7 +247,7 @@ final class ModifierStackPanel extends StatelessWidget {
               if (onRemove case final ValueChanged<int> remove)
                 _StackToggle(
                   on: true,
-                  tooltip: 'Remove it',
+                  tooltip: l.modifierRemove,
                   onIcon: Icons.close,
                   offIcon: Icons.close,
                   onPressed: () => remove(index),

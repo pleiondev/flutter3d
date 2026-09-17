@@ -2671,6 +2671,246 @@ abstract class AppLocalizations {
   /// In ru, this message translates to:
   /// **'Удалить'**
   String get actionDelete;
+
+  /// No description provided for @matNoMaterials.
+  ///
+  /// In ru, this message translates to:
+  /// **'Материалов нет'**
+  String get matNoMaterials;
+
+  /// No description provided for @matAdd.
+  ///
+  /// In ru, this message translates to:
+  /// **'Добавить материал'**
+  String get matAdd;
+
+  /// No description provided for @matUnassign.
+  ///
+  /// In ru, this message translates to:
+  /// **'Снять назначение'**
+  String get matUnassign;
+
+  /// No description provided for @matOpenInEditor.
+  ///
+  /// In ru, this message translates to:
+  /// **'Открыть в редакторе'**
+  String get matOpenInEditor;
+
+  /// No description provided for @matCutoff.
+  ///
+  /// In ru, this message translates to:
+  /// **'Порог'**
+  String get matCutoff;
+
+  /// No description provided for @matAdvanced.
+  ///
+  /// In ru, this message translates to:
+  /// **'Дополнительно'**
+  String get matAdvanced;
+
+  /// No description provided for @matEmissiveStrength.
+  ///
+  /// In ru, this message translates to:
+  /// **'Сила свечения'**
+  String get matEmissiveStrength;
+
+  /// No description provided for @matNormalScale.
+  ///
+  /// In ru, this message translates to:
+  /// **'Масштаб нормалей'**
+  String get matNormalScale;
+
+  /// No description provided for @matOcclusionStrength.
+  ///
+  /// In ru, this message translates to:
+  /// **'Сила затенения'**
+  String get matOcclusionStrength;
+
+  /// No description provided for @matDoubleSided.
+  ///
+  /// In ru, this message translates to:
+  /// **'Двусторонний'**
+  String get matDoubleSided;
+
+  /// No description provided for @sceneNoLights.
+  ///
+  /// In ru, this message translates to:
+  /// **'Источников нет'**
+  String get sceneNoLights;
+
+  /// No description provided for @sceneRemoveLight.
+  ///
+  /// In ru, this message translates to:
+  /// **'Убрать этот источник'**
+  String get sceneRemoveLight;
+
+  /// No description provided for @sceneAdd.
+  ///
+  /// In ru, this message translates to:
+  /// **'Добавить'**
+  String get sceneAdd;
+
+  /// No description provided for @sceneSource.
+  ///
+  /// In ru, this message translates to:
+  /// **'Источник'**
+  String get sceneSource;
+
+  /// No description provided for @sceneIntensity.
+  ///
+  /// In ru, this message translates to:
+  /// **'Яркость'**
+  String get sceneIntensity;
+
+  /// No description provided for @sceneRange.
+  ///
+  /// In ru, this message translates to:
+  /// **'Дальность'**
+  String get sceneRange;
+
+  /// No description provided for @sceneCone.
+  ///
+  /// In ru, this message translates to:
+  /// **'Конус'**
+  String get sceneCone;
+
+  /// No description provided for @sceneCastsShadow.
+  ///
+  /// In ru, this message translates to:
+  /// **'Отбрасывает тень'**
+  String get sceneCastsShadow;
+
+  /// No description provided for @quickSetupTitle.
+  ///
+  /// In ru, this message translates to:
+  /// **'Настроить редактор'**
+  String get quickSetupTitle;
+
+  /// No description provided for @quickSetupHelp.
+  ///
+  /// In ru, this message translates to:
+  /// **'Пять ответов, один раз. Каждый из них потом есть в настройках.'**
+  String get quickSetupHelp;
+
+  /// No description provided for @quickSetupCamera.
+  ///
+  /// In ru, this message translates to:
+  /// **'Камера'**
+  String get quickSetupCamera;
+
+  /// No description provided for @quickSetupHowMuch.
+  ///
+  /// In ru, this message translates to:
+  /// **'Сколько всего'**
+  String get quickSetupHowMuch;
+
+  /// No description provided for @quickSetupStart.
+  ///
+  /// In ru, this message translates to:
+  /// **'Начать'**
+  String get quickSetupStart;
+
+  /// No description provided for @pivotHelp.
+  ///
+  /// In ru, this message translates to:
+  /// **'Вокруг чего центрируется поворот или масштаб из полей выше'**
+  String get pivotHelp;
+
+  /// No description provided for @pivotMedian.
+  ///
+  /// In ru, this message translates to:
+  /// **'Медиана'**
+  String get pivotMedian;
+
+  /// No description provided for @pivotIndividual.
+  ///
+  /// In ru, this message translates to:
+  /// **'Каждый сам'**
+  String get pivotIndividual;
+
+  /// No description provided for @pivotCursor.
+  ///
+  /// In ru, this message translates to:
+  /// **'3D-курсор'**
+  String get pivotCursor;
+
+  /// No description provided for @spaceHelp.
+  ///
+  /// In ru, this message translates to:
+  /// **'В чьих осях задан поворот из полей выше'**
+  String get spaceHelp;
+
+  /// No description provided for @spaceGlobal.
+  ///
+  /// In ru, this message translates to:
+  /// **'Глобальные'**
+  String get spaceGlobal;
+
+  /// No description provided for @spaceLocal.
+  ///
+  /// In ru, this message translates to:
+  /// **'Локальные'**
+  String get spaceLocal;
+
+  /// No description provided for @modifierMirror.
+  ///
+  /// In ru, this message translates to:
+  /// **'Зеркало'**
+  String get modifierMirror;
+
+  /// No description provided for @modifierArray.
+  ///
+  /// In ru, this message translates to:
+  /// **'Массив'**
+  String get modifierArray;
+
+  /// No description provided for @modifierSmooth.
+  ///
+  /// In ru, this message translates to:
+  /// **'Сглаживание'**
+  String get modifierSmooth;
+
+  /// No description provided for @modifierSubdivision.
+  ///
+  /// In ru, this message translates to:
+  /// **'Подразделение'**
+  String get modifierSubdivision;
+
+  /// No description provided for @modifierBoolean.
+  ///
+  /// In ru, this message translates to:
+  /// **'Булева операция'**
+  String get modifierBoolean;
+
+  /// No description provided for @modifierNone.
+  ///
+  /// In ru, this message translates to:
+  /// **'Модификаторов нет'**
+  String get modifierNone;
+
+  /// No description provided for @modifierAdd.
+  ///
+  /// In ru, this message translates to:
+  /// **'Добавить модификатор'**
+  String get modifierAdd;
+
+  /// No description provided for @modifierAddShort.
+  ///
+  /// In ru, this message translates to:
+  /// **'Добавить'**
+  String get modifierAddShort;
+
+  /// No description provided for @modifierRemove.
+  ///
+  /// In ru, this message translates to:
+  /// **'Убрать'**
+  String get modifierRemove;
+
+  /// Стек модификаторов — ux-22.
+  ///
+  /// In ru, this message translates to:
+  /// **'{before} → {after} треугольников'**
+  String modifierTriangles(int before, int after);
 }
 
 class _AppLocalizationsDelegate

@@ -21,6 +21,7 @@ import 'package:flutter3d_core/formats.dart';
 import 'package:flutter3d_editor_widgets/flutter3d_editor_widgets.dart';
 import 'package:flutter3d_model_core/flutter3d_model_core.dart' hide EnumHint;
 
+import '../../l10n/app_localizations.dart';
 import '../material_editing.dart';
 import 'theme.dart';
 
@@ -112,6 +113,7 @@ class MaterialPanel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final AppLocalizations l = AppLocalizations.of(context);
     final ProjectMaterial? active =
         (activeIndex != null &&
             activeIndex! >= 0 &&
@@ -143,7 +145,7 @@ class MaterialPanel extends StatelessWidget {
           Padding(
             padding: const EdgeInsets.symmetric(vertical: 4),
             child: Text(
-              'No materials',
+              l.matNoMaterials,
               style: theme.textTheme.bodySmall?.copyWith(
                 fontStyle: FontStyle.italic,
               ),
@@ -168,14 +170,11 @@ class MaterialPanel extends StatelessWidget {
           padding: const EdgeInsets.only(top: 4),
           child: Row(
             children: <Widget>[
-              TextButton(
-                onPressed: onAddMaterial,
-                child: const Text('Add material'),
-              ),
+              TextButton(onPressed: onAddMaterial, child: Text(l.matAdd)),
               if (activeIndex != null)
                 TextButton(
                   onPressed: () => onAssign(null),
-                  child: const Text('Unassign'),
+                  child: Text(l.matUnassign),
                 ),
             ],
           ),
@@ -203,7 +202,7 @@ class MaterialPanel extends StatelessWidget {
               ),
               TextButton(
                 onPressed: () => onOpenLinkedFile!(materials[at].fmat!),
-                child: const Text('Open in editor'),
+                child: Text(l.matOpenInEditor),
               ),
             ],
           ),
@@ -311,7 +310,7 @@ class MaterialPanel extends StatelessWidget {
           ),
           if (surface.alphaMode == SurfaceAlphaMode.mask)
             RangeSliderField(
-              label: 'Cutoff',
+              label: l.matCutoff,
               value: surface.alphaCutoff,
               min: 0.0,
               max: 1.0,
@@ -405,16 +404,17 @@ class _MaterialAdvancedSection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final AppLocalizations l = AppLocalizations.of(context);
     return Theme(
       data: theme.copyWith(dividerColor: Colors.transparent),
       child: ExpansionTile(
         key: const ValueKey<String>('materialAdvanced'),
         tilePadding: EdgeInsets.zero,
-        title: Text('Advanced', style: theme.textTheme.bodySmall),
+        title: Text(l.matAdvanced, style: theme.textTheme.bodySmall),
         childrenPadding: EdgeInsets.zero,
         children: <Widget>[
           RangeSliderField(
-            label: 'Emissive strength',
+            label: l.matEmissiveStrength,
             value: emissiveStrength.value,
             min: emissiveStrength.min,
             max: emissiveStrength.max,
@@ -423,7 +423,7 @@ class _MaterialAdvancedSection extends StatelessWidget {
           ),
           if (normalScale != null)
             RangeSliderField(
-              label: 'Normal scale',
+              label: l.matNormalScale,
               value: normalScale!.value,
               min: normalScale!.min,
               max: normalScale!.max,
@@ -432,7 +432,7 @@ class _MaterialAdvancedSection extends StatelessWidget {
             ),
           if (occlusionStrength != null)
             RangeSliderField(
-              label: 'Occlusion strength',
+              label: l.matOcclusionStrength,
               value: occlusionStrength!.value,
               min: occlusionStrength!.min,
               max: occlusionStrength!.max,
@@ -444,7 +444,7 @@ class _MaterialAdvancedSection extends StatelessWidget {
             dense: true,
             contentPadding: EdgeInsets.zero,
             controlAffinity: ListTileControlAffinity.leading,
-            title: Text('Double-sided', style: theme.textTheme.bodySmall),
+            title: Text(l.matDoubleSided, style: theme.textTheme.bodySmall),
             value: doubleSided.value,
             onChanged: (bool? v) => doubleSided.onChanged(v ?? false),
           ),

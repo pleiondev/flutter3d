@@ -22,6 +22,7 @@ library;
 
 import 'package:flutter/material.dart';
 
+import '../../l10n/app_localizations.dart';
 import '../settings.dart';
 
 /// Opens Quick Setup over [context], starting from [current], and answers
@@ -61,8 +62,9 @@ class _QuickSetupScreenState extends State<QuickSetupScreen> {
   @override
   Widget build(BuildContext context) {
     final ThemeData theme = Theme.of(context);
+    final AppLocalizations l = AppLocalizations.of(context);
     return AlertDialog(
-      title: const Text('Set up the editor'),
+      title: Text(l.quickSetupTitle),
       content: SizedBox(
         width: 460,
         child: SingleChildScrollView(
@@ -73,15 +75,14 @@ class _QuickSetupScreenState extends State<QuickSetupScreen> {
               Padding(
                 padding: const EdgeInsets.only(bottom: 12),
                 child: Text(
-                  'Five answers, once. Every one of them is in Settings '
-                  'afterwards.',
+                  l.quickSetupHelp,
                   style: theme.textTheme.bodyMedium?.copyWith(
                     color: theme.colorScheme.onSurfaceVariant,
                   ),
                 ),
               ),
               _Ask<NavigationScheme>(
-                label: 'Camera',
+                label: l.quickSetupCamera,
                 help: 'Which buttons and gestures orbit, pan and zoom.',
                 value: _draft.navigation,
                 values: NavigationScheme.values,
@@ -90,7 +91,7 @@ class _QuickSetupScreenState extends State<QuickSetupScreen> {
                     setState(() => _draft = _draft.copyWith(navigation: it)),
               ),
               _Ask<KeymapPreset>(
-                label: 'Keys',
+                label: l.settingsKeys,
                 help: 'Which set of shortcuts you already know.',
                 value: _draft.keymap,
                 values: KeymapPreset.values,
@@ -99,7 +100,7 @@ class _QuickSetupScreenState extends State<QuickSetupScreen> {
                     setState(() => _draft = _draft.copyWith(keymap: it)),
               ),
               _Ask<TransformStart>(
-                label: 'Move, rotate and scale',
+                label: l.settingsTransformTools,
                 help: 'Whether the key acts at once or arms the next drag.',
                 value: _draft.transformStart,
                 values: TransformStart.values,
@@ -109,7 +110,7 @@ class _QuickSetupScreenState extends State<QuickSetupScreen> {
                 ),
               ),
               _Ask<Workspace>(
-                label: 'How much of it',
+                label: l.quickSetupHowMuch,
                 help:
                     'Essential is Object, Material and Scene. Full adds Mesh '
                     'and Animation.',
@@ -120,7 +121,7 @@ class _QuickSetupScreenState extends State<QuickSetupScreen> {
                     setState(() => _draft = _draft.copyWith(workspace: it)),
               ),
               _Ask<String>(
-                label: 'Language',
+                label: l.settingsLanguage,
                 help: 'What the interface is written in.',
                 value: _draft.language ?? _system,
                 values: const <String>[_system, 'en', 'ru'],
@@ -142,7 +143,7 @@ class _QuickSetupScreenState extends State<QuickSetupScreen> {
       actions: <Widget>[
         FilledButton(
           onPressed: () => Navigator.of(context).pop(_draft),
-          child: const Text('Start'),
+          child: Text(l.quickSetupStart),
         ),
       ],
     );

@@ -556,5 +556,56 @@
   "actionSelectNone": "Снять выделение",
   "actionInvertSelection": "Инвертировать выделение",
   "actionToggleObjectMesh": "Объект и меш",
-  "actionDelete": "Удалить"
+  "actionDelete": "Удалить",
+  "matNoMaterials": "Материалов нет",
+  "matAdd": "Добавить материал",
+  "matUnassign": "Снять назначение",
+  "matOpenInEditor": "Открыть в редакторе",
+  "matCutoff": "Порог",
+  "matAdvanced": "Дополнительно",
+  "matEmissiveStrength": "Сила свечения",
+  "matNormalScale": "Масштаб нормалей",
+  "matOcclusionStrength": "Сила затенения",
+  "matDoubleSided": "Двусторонний",
+  "sceneNoLights": "Источников нет",
+  "sceneRemoveLight": "Убрать этот источник",
+  "sceneAdd": "Добавить",
+  "sceneSource": "Источник",
+  "sceneIntensity": "Яркость",
+  "sceneRange": "Дальность",
+  "sceneCone": "Конус",
+  "sceneCastsShadow": "Отбрасывает тень",
+  "quickSetupTitle": "Настроить редактор",
+  "quickSetupHelp": "Пять ответов, один раз. Каждый из них потом есть в настройках.",
+  "quickSetupCamera": "Камера",
+  "quickSetupHowMuch": "Сколько всего",
+  "quickSetupStart": "Начать",
+  "pivotHelp": "Вокруг чего центрируется поворот или масштаб из полей выше",
+  "pivotMedian": "Медиана",
+  "pivotIndividual": "Каждый сам",
+  "pivotCursor": "3D-курсор",
+  "spaceHelp": "В чьих осях задан поворот из полей выше",
+  "spaceGlobal": "Глобальные",
+  "spaceLocal": "Локальные",
+  "modifierMirror": "Зеркало",
+  "modifierArray": "Массив",
+  "modifierSmooth": "Сглаживание",
+  "modifierSubdivision": "Подразделение",
+  "modifierBoolean": "Булева операция",
+  "modifierNone": "Модификаторов нет",
+  "modifierAdd": "Добавить модификатор",
+  "modifierAddShort": "Добавить",
+  "modifierRemove": "Убрать",
+  "modifierTriangles": "{before} → {after} треугольников",
+  "@modifierTriangles": {
+    "description": "Стек модификаторов — ux-22.",
+    "placeholders": {
+      "before": {
+        "type": "int"
+      },
+      "after": {
+        "type": "int"
+      }
+    }
+  }
 }
