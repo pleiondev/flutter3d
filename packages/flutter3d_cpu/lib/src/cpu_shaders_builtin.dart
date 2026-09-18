@@ -157,6 +157,10 @@ Map<String, CpuStage> builtinCpuShaders() {
     'LightShafts': const CpuStage.fragment(LightShaftsShader()),
     'DepthOfField': const CpuStage.fragment(DepthOfFieldShader()),
     'ViewportShade': const CpuStage.fragment(ViewportShadeShader()),
+    'ShadowDepthMasked': const CpuStage.fragment(ShadowDepthMaskedShader()),
+    'ShadowDistanceMasked': const CpuStage.fragment(
+      ShadowDistanceMaskedShader(),
+    ),
     'ProbePrefilter': const CpuStage.fragment(ProbePrefilterShader()),
     'MrtProbe': const CpuStage.fragment(MrtProbeShader()),
     'Composite': const CpuStage.fragment(CompositeShader()),

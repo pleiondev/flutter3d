@@ -75,6 +75,10 @@ Future<void> checkLinking(GraphicsDevice device) async {
       // Every mesh casts, through the layout it already has.
       (vertex, 'ShadowDepth'),
       (vertex, 'ShadowDistance'),
+      // `gfx-60n`: the cut-out twins of both, which declare a sampler the
+      // plain ones do not, so they are a different link.
+      (vertex, 'ShadowDepthMasked'),
+      (vertex, 'ShadowDistanceMasked'),
     ],
     // The picking pass draws every mesh again through the stage its layout
     // needs — plain, skinned or instanced; a lightmapped mesh has the plain

@@ -45,6 +45,55 @@ final class ShadowDistanceShader implements CpuFragmentShader {
   }
 }
 
+/// Whether a cut-out caster covers this fragment — `gfx-60n`.
+///
+/// Shared by both masked stages because both ask the same question of the same
+/// two numbers: the base colour map's alpha times the material's own alpha,
+/// against the material's cutoff. glTF's MASK mode is a hard threshold rather
+/// than coverage, and a shadow map holds one depth per texel, so a
+/// half-transparent fragment either records or does not.
+bool _maskPasses(ShaderBindings bindings, Float32List v) {
+  final texture = bindings.textures['base_color_texture'];
+  final mask = bindings.vec4('MaskInfo', 'mask', Vector4.zero());
+  // No map bound is a caster with nothing to cut out, which passes: the engine
+  // only selects these stages for a material that has one, and a stage that
+  // discarded everything on a missing binding would turn a mistake into an
+  // invisible shadow rather than a loud one.
+  if (texture == null) return true;
+  final alpha = texture.sample(v[kVUv], v[kVUv + 1]).w * mask.y;
+  return alpha >= mask.x;
+}
+
+/// `shadow_depth_masked.frag`: window depth, where the caster is opaque
+/// enough — `gfx-60n`.
+///
+/// Null is a discard here, which is what the rasteriser does with it, and it
+/// is the whole stage: a leaf card that does not cut out casts the shadow of
+/// its quad, which is a stack of dark slabs where the eye expects dappled
+/// light.
+final class ShadowDepthMaskedShader implements CpuFragmentShader {
+  const ShadowDepthMaskedShader();
+
+  @override
+  Vector4? run(Float32List v, ShaderBindings bindings, FragmentContext c) =>
+      _maskPasses(bindings, v) ? Vector4(c.coord.z, 0.0, 0.0, 1.0) : null;
+}
+
+/// `shadow_distance_masked.frag`: the point-light twin of the above.
+final class ShadowDistanceMaskedShader implements CpuFragmentShader {
+  const ShadowDistanceMaskedShader();
+
+  @override
+  Vector4? run(Float32List v, ShaderBindings bindings, FragmentContext c) {
+    if (!_maskPasses(bindings, v)) return null;
+    final light = bindings.vec4('ShadowLight', 'light', Vector4.zero());
+    final range = math.max(light.w, 1e-4);
+    final world = Vector3(v[kVWorld], v[kVWorld + 1], v[kVWorld + 2]);
+    final distance = (world - Vector3(light.x, light.y, light.z)).length;
+    return Vector4((distance / range).clamp(0.0, 1.0), 0.0, 0.0, 1.0);
+  }
+}
+
 /// `shadow_tile_reset.frag`: one, the far end of the range.
 ///
 /// A texel no caster covers means "nothing between the light and its range",

@@ -135,6 +135,14 @@
     "type": "fragment",
     "file": "shaders/lighting/shadow_distance.frag"
   },
+  "ShadowDepthMasked": {
+    "type": "fragment",
+    "file": "shaders/lighting/shadow_depth_masked.frag"
+  },
+  "ShadowDistanceMasked": {
+    "type": "fragment",
+    "file": "shaders/lighting/shadow_distance_masked.frag"
+  },
   "ShadowTileReset": {
     "type": "fragment",
     "file": "shaders/lighting/shadow_tile_reset.frag"
