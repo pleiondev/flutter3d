@@ -70,20 +70,6 @@ Future<List<int>> _frame({
   return <int>[for (var i = 0; i < width * height; i++) bytes!.getUint8(i * 4)];
 }
 
-/// The total step between neighbours across the whole frame.
-///
-/// One number over everything rather than a variance over a region somebody
-/// chose: a blur's promise is less difference between neighbours, and picking
-/// where to look for it is picking the answer.
-int _roughness(List<int> pixels, int width) {
-  var total = 0;
-  for (var i = 1; i < pixels.length; i++) {
-    if (i % width == 0) continue;
-    total += (pixels[i] - pixels[i - 1]).abs();
-  }
-  return total;
-}
-
 void main() {
   test('no taps is no pass, and is the default', () async {
     // The occlusion is already off by default, and this is a second
@@ -107,7 +93,6 @@ void main() {
     // What occlusion is, in this frame, is a contact shadow a couple of
     // hundred pixels wide. So the honest measure is how many pixels the pass
     // moves, and where.
-    const width = 96;
     final plain = await _frame(blurTaps: 0);
     final blurred = await _frame(blurTaps: 6);
 
