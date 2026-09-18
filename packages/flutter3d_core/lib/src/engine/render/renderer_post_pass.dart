@@ -333,12 +333,6 @@ extension _PostPasses on Renderer {
     developer.Timeline.finishSync();
   }
 
-  /// Adds screen-space reflections, returning the texture the rest of the
-  /// chain should treat as the scene.
-  ///
-  /// Its own target rather than in place: the pass samples the scene while it
-  /// writes, and a texture cannot be both. Returns [scene] untouched when the
-  /// effect is off, so the chain downstream never branches.
   /// `gfx-33n`: adds volumetric shafts into the lit colour.
   ///
   /// Reuses the shadow pass's own matrices and splits rather than recomputing
@@ -432,6 +426,75 @@ extension _PostPasses on Renderer {
     return target;
   }
 
+  /// `gfx-34n`: defocuses the lit colour through a thin lens.
+  ///
+  /// **Everything about scale is taken from the scene texture rather than
+  /// from the frame**, which is what keeps `gfx-35n`'s resolution lever
+  /// honest. Half the width is half the texels per metre and half the radius
+  /// in texels, so the blur covers the same share of the picture: the lever
+  /// spends less on the same photograph rather than taking a different one,
+  /// and `gfx-36n` pulling it while the camera holds still does not change
+  /// what is in focus.
+  TextureHandle _encodeDepthOfField({
+    required TextureHandle scene,
+    required TextureHandle surface,
+    required DepthOfFieldSettings settings,
+    required FrameResources resources,
+    required int width,
+    required int height,
+  }) {
+    developer.Timeline.startSync('Renderer.depthOfField');
+    // A transient of the scene's own shape, for the reason the shafts take
+    // one: a pass cannot sample and write a single texture, and nothing
+    // outside this frame wants the intermediate.
+    final target = resources.transient(
+      RenderTargetSpec(
+        width: scene.width,
+        height: scene.height,
+        format: scene.format,
+      ),
+    );
+
+    _dofLens[0] = math.max(settings.focusDistance, 1e-3);
+    _dofLens[1] = math.max(settings.focalLength, 1e-4);
+    _dofLens[2] = math.max(settings.aperture, 1e-3);
+    _dofLens[3] = settings.samples.clamp(0, 64).toDouble();
+
+    _dofParams[0] = scene.width == 0 ? 0.0 : 1.0 / scene.width;
+    _dofParams[1] = scene.height == 0 ? 0.0 : 1.0 / scene.height;
+    _dofParams[2] = math.max(settings.maxRadius, 0.0);
+    // Texels per metre across the sensor. The scene texture's width rather
+    // than the frame's, so that under `renderScale` the lens keeps blurring
+    // the same fraction of the picture: the resolution lever is there to
+    // spend less on the same photograph, not to take a different one.
+    _dofParams[3] = scene.width / math.max(settings.sensorWidth, 1e-4);
+
+    drawFullscreen(
+      FullscreenDraw(
+        target: target,
+        fragment: depthOfFieldShader,
+        textures: <String, TextureHandle>{
+          'scene_texture': scene,
+          'surface_texture': surface,
+        },
+        uniforms: <String, Map<String, Float32List>>{
+          'DofInfo': <String, Float32List>{
+            'lens': _dofLens,
+            'params': _dofParams,
+          },
+        },
+      ),
+    );
+    developer.Timeline.finishSync();
+    return target;
+  }
+
+  /// Adds screen-space reflections, returning the texture the rest of the
+  /// chain should treat as the scene.
+  ///
+  /// Its own target rather than in place: the pass samples the scene while it
+  /// writes, and a texture cannot be both. Returns [scene] untouched when the
+  /// effect is off, so the chain downstream never branches.
   TextureHandle _encodeReflections({
     required TextureHandle scene,
     required RenderSettings settings,

@@ -133,6 +133,7 @@ final class Renderer implements RenderServices {
     required this.ssaoShader,
     required this.ssaoBlurShader,
     required this.lightShaftsShader,
+    required this.depthOfFieldShader,
     required TextureHandle fallbackAlbedo,
     required TextureHandle fallbackNormal,
     required TextureHandle fallbackBlack,
@@ -262,6 +263,9 @@ final class Renderer implements RenderServices {
 
   /// `gfx-33n`'s volumetric shafts through the directional shadow map.
   final ShaderHandle lightShaftsShader;
+
+  /// `gfx-34n`'s thin lens and its gather.
+  final ShaderHandle depthOfFieldShader;
 
   /// 1x1 opaque white, bound when a material has no base-colour texture.
   ///
@@ -860,6 +864,8 @@ final class Renderer implements RenderServices {
   final Float32List _shaftCascades = Float32List(4);
   final vm.Vector3 _shaftCameraVec = vm.Vector3.zero();
   final vm.Vector3 _shaftForwardVec = vm.Vector3.zero();
+  final Float32List _dofLens = Float32List(4);
+  final Float32List _dofParams = Float32List(4);
   final Float32List _compositeParams = Float32List(4);
   final Float32List _compositeAoTexel = Float32List(4);
   final Float32List _luminanceParams = Float32List(4);
@@ -1045,6 +1051,7 @@ final class Renderer implements RenderServices {
       ssaoShader: require('Ssao'),
       ssaoBlurShader: require('SsaoBlur'),
       lightShaftsShader: require('LightShafts'),
+      depthOfFieldShader: require('DepthOfField'),
       fallbackAlbedo: fallbackAlbedo ?? SolidColorTexture.white.upload(device),
       fallbackNormal:
           fallbackNormal ?? SolidColorTexture.flatNormal.upload(device),
@@ -1812,6 +1819,11 @@ final class Renderer implements RenderServices {
     // the air, so it should glow the way any other light does, and it is not
     // a surface so the occlusion has nothing to say about it.
     graph.addNode(_LightShaftsNode(this, view, s));
+    // `gfx-34n`. After the shafts, because a lens is in front of everything
+    // the scene emits and light in the air defocuses exactly as the geometry
+    // behind it does; before bloom, because a glow is what the sensor does
+    // with light that has already been through the lens.
+    graph.addNode(_DepthOfFieldNode(this, s));
     // Then bloom, so it reads the scene as everything before it left it — the
     // registration order *is* the version chain — and the composite last, so it
     // reads the end of that chain and the glow taken from it.

@@ -238,6 +238,105 @@ final class LightShaftSettings {
   );
 }
 
+/// Depth of field, from a lens rather than from a ramp — `gfx-34n`.
+///
+/// **Every number here is one a photographer already knows.** A focus
+/// distance, a focal length and an f-number are what a lens is described by,
+/// and the circle of confusion that follows from them is the thin-lens
+/// formula rather than a curve chosen because it looked right. Open
+/// [aperture] and the background softens by an amount somebody can predict
+/// from the three numbers, which a strength slider between zero and one
+/// cannot offer.
+///
+/// **The depth comes from the surface buffer's alpha**, which carries
+/// distance along the view axis in metres. That is the same channel the
+/// shafts read, and the reason the engine keeps it rather than depending on a
+/// sampleable depth attachment: the formula wants a real distance, and a
+/// window depth would make the same blur mean different things near and far.
+///
+/// Off by default, with defaults that are a no-op if it is switched on
+/// blind — [focusDistance] is far enough and [aperture] narrow enough that
+/// nothing in an ordinary scene leaves focus until somebody says so.
+final class DepthOfFieldSettings {
+  const DepthOfFieldSettings({
+    this.enabled = false,
+    this.focusDistance = 10.0,
+    this.focalLength = 0.05,
+    this.aperture = 8.0,
+    this.samples = 24,
+    this.maxRadius = 16.0,
+    this.sensorWidth = 0.036,
+  });
+
+  /// Off by default: it is a full-screen gather of two dozen taps, and a scene
+  /// either wants a lens or wants everything sharp.
+  final bool enabled;
+
+  /// What the lens is focused on, in world metres. Things at this distance
+  /// image to a point; everything either side of it spreads.
+  final double focusDistance;
+
+  /// The focal length in metres — 0.05 is a fifty-millimetre lens.
+  ///
+  /// It enters the formula squared, so it is the strongest of the three: a
+  /// long lens throws a background out of focus at an aperture where a wide
+  /// one keeps it sharp, which is why a portrait is shot long.
+  final double focalLength;
+
+  /// The f-number. Eight is a landscape, 1.4 is a portrait wide open.
+  ///
+  /// Larger means a smaller circle, because it is a divisor — the direction
+  /// is the one a photographer expects and the opposite of what a "blur
+  /// amount" slider would do.
+  final double aperture;
+
+  /// Taps in the gather, on a spiral. Bounded at sixty-four in the shader, the
+  /// rule every loop in this engine keeps.
+  ///
+  /// The spiral is why this is a number of taps rather than a kernel width: a
+  /// square kernel makes a square bokeh, and the shape of an out-of-focus
+  /// highlight is the one thing anybody looks at in this effect.
+  final int samples;
+
+  /// The largest circle the gather will draw, in pixels at the render
+  /// resolution.
+  ///
+  /// A bound on the cost rather than on the optics: the formula is happy to
+  /// ask for a circle a hundred pixels across at f/1.4 with a near focus, and
+  /// the taps that would need are not there. Clamping shows as a background
+  /// that stops getting softer, which is the failure worth having.
+  final double maxRadius;
+
+  /// How wide the sensor is, in metres. 0.036 is full-frame 35mm.
+  ///
+  /// **Without it a focal length in millimetres means nothing.** "Fifty
+  /// millimetres" is only a normal lens beside a 36mm frame; on a phone
+  /// sensor it is a telephoto. The circle of confusion comes out in metres on
+  /// the sensor, and this is what turns those metres into pixels together
+  /// with the frame's width — which is also why the blur does not change when
+  /// the resolution does: a scene rendered twice as wide is the same
+  /// photograph, larger.
+  final double sensorWidth;
+
+  DepthOfFieldSettings copyWith({
+    bool? enabled,
+    double? focusDistance,
+    double? focalLength,
+    double? aperture,
+    int? samples,
+    double? maxRadius,
+    double? sensorWidth,
+  }) => DepthOfFieldSettings(
+    enabled: enabled ?? this.enabled,
+    focusDistance: focusDistance ?? this.focusDistance,
+    focalLength: focalLength ?? this.focalLength,
+    aperture: aperture ?? this.aperture,
+    samples: samples ?? this.samples,
+    maxRadius: maxRadius ?? this.maxRadius,
+    sensorWidth: sensorWidth ?? this.sensorWidth,
+  );
+}
+
 /// Distance fog.
 ///
 /// Exponential per metre, which is what the level format already stores. A
@@ -348,6 +447,7 @@ final class RenderSettings {
     this.disabledPasses = const <String>{},
     this.renderScale = 1.0,
     this.lightShafts = const LightShaftSettings(),
+    this.depthOfField = const DepthOfFieldSettings(),
   }) : assert(anisotropy >= 1, 'anisotropy is a count of taps, one or more'),
        assert(lightFadeBand >= 0.0, 'a fade band is a width, not a direction');
 
@@ -503,6 +603,10 @@ final class RenderSettings {
 
   /// `gfx-33n`'s volumetric shafts through the directional shadow map.
   final LightShaftSettings lightShafts;
+
+  /// `gfx-34n`'s lens, which decides what is sharp and by how much the rest
+  /// is not.
+  final DepthOfFieldSettings depthOfField;
 
   final FogSettings fog;
 
@@ -683,6 +787,7 @@ final class RenderSettings {
     Set<String>? disabledPasses,
     double? renderScale,
     LightShaftSettings? lightShafts,
+    DepthOfFieldSettings? depthOfField,
   }) => RenderSettings(
     specular: specular ?? this.specular,
     exposure: exposure ?? this.exposure,
@@ -712,6 +817,7 @@ final class RenderSettings {
     disabledPasses: disabledPasses ?? this.disabledPasses,
     renderScale: renderScale ?? this.renderScale,
     lightShafts: lightShafts ?? this.lightShafts,
+    depthOfField: depthOfField ?? this.depthOfField,
   );
 
   /// These settings with the effects a stereo pair cannot have taken out.
@@ -760,6 +866,15 @@ final class RenderSettings {
     'reflections',
     'antialias',
     'luminance',
+    // Both of these are off by default, so a measurement frame taken from
+    // stock settings never had them. They are named all the same, because a
+    // caller who switched a lens on and then asked for a measurement would
+    // otherwise be handed a photograph of the numbers rather than the
+    // numbers: a shaft adds light the material never wrote, and a lens
+    // averages a neighbourhood of values that each meant something on their
+    // own.
+    'light shafts',
+    'depth of field',
   };
 
   /// These settings, arranged so the frame's bytes are the numbers the

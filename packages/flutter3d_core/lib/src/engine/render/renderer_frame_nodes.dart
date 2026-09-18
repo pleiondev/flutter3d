@@ -712,16 +712,6 @@ final class _SsaoNode extends RenderNode {
   }
 }
 
-/// The bloom pyramid, as a graph node.
-///
-/// The first pass in the frame whose output the graph **allocates**: everything
-/// before it was handed a texture the renderer already owned. `bloom` is
-/// declared as half the frame in the HDR format, the chain's top level is that
-/// texture, and the levels below it are scratch — see
-/// [FrameResources.transient].
-///
-/// Switching bloom off is [isActive], not a null return: nothing produces the
-/// glow, so the node is culled and costs no pass, no texture and no branch.
 /// `gfx-33n`'s volumetric shafts, as a link in the lit-colour chain.
 ///
 /// **Reads the shadow map optionally, which is the whole of how it declines.**
@@ -786,6 +776,65 @@ final class _LightShaftsNode extends RenderNode {
   }
 }
 
+/// `gfx-34n`'s lens, as a link in the lit-colour chain.
+///
+/// **Placed after the shafts and before the bloom, which is an order with a
+/// reason.** A lens is in front of the scene, so anything the scene emits goes
+/// through it — including the shafts, which are light in the air and are
+/// blurred by a lens exactly as the geometry behind them is. Bloom comes
+/// after, because a glow is what the *sensor* does with light that already
+/// went through the lens: blooming first and defocusing the glow afterwards
+/// would soften the one part of the picture a wide aperture makes more
+/// pronounced, not less.
+///
+/// Reads the surface buffer for depth, which is what the circle of confusion
+/// is computed from. Declaring it is what attaches the buffer, the same way
+/// the occlusion pass's declaration does.
+final class _DepthOfFieldNode extends RenderNode {
+  _DepthOfFieldNode(this._renderer, this._settings);
+
+  final Renderer _renderer;
+  final RenderSettings _settings;
+
+  @override
+  String get name => 'depth of field';
+
+  @override
+  bool get isActive =>
+      _settings.depthOfField.enabled &&
+      _settings.depthOfField.samples > 0 &&
+      _settings.depthOfField.maxRadius > 0.0;
+
+  @override
+  List<ResourceId> get reads => const <ResourceId>[
+    FrameResourceIds.hdrColour,
+    FrameResourceIds.surfaceBuffer,
+  ];
+
+  @override
+  List<ResourceId> get writes => const <ResourceId>[FrameResourceIds.hdrColour];
+
+  @override
+  void execute(NodeFrame frame) {
+    final surface = frame.resources.tryTexture(FrameResourceIds.surfaceBuffer);
+    // A hard read, so this should not happen — but a lens with no depth would
+    // focus on whatever the alpha channel last held, and a plausible blur out
+    // of stale pixels is the kind of wrong that survives review.
+    if (surface == null) return;
+    final focused = _renderer._encodeDepthOfField(
+      scene: frame.resources.texture(FrameResourceIds.hdrColour),
+      surface: surface,
+      settings: _settings.depthOfField,
+      resources: frame.resources,
+      width: frame.width,
+      height: frame.height,
+    );
+    // A different texture from the one it read — a pass cannot sample and
+    // write one — so the version it produced is told which texture it is.
+    frame.resources.provide(FrameResourceIds.hdrColour, focused);
+  }
+}
+
 /// `gfx-32n`'s depth-aware blur, as a link in the occlusion chain.
 ///
 /// **Reads `ao` and writes `ao`, which is what makes it skippable for free.**
@@ -836,6 +885,16 @@ final class _SsaoBlurNode extends RenderNode {
   }
 }
 
+/// The bloom pyramid, as a graph node.
+///
+/// The first pass in the frame whose output the graph **allocates**: everything
+/// before it was handed a texture the renderer already owned. `bloom` is
+/// declared as half the frame in the HDR format, the chain's top level is that
+/// texture, and the levels below it are scratch — see
+/// [FrameResources.transient].
+///
+/// Switching bloom off is [isActive], not a null return: nothing produces the
+/// glow, so the node is culled and costs no pass, no texture and no branch.
 final class _BloomNode extends RenderNode {
   _BloomNode(this._renderer, this._settings);
 
