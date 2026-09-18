@@ -237,8 +237,16 @@ final class FakeBackend implements GraphicsDevice {
   @override
   TextureFormat get defaultDepthStencilFormat => TextureFormat.d24UnormS8Uint;
 
+  /// True, and settable so a test can be the device that answers no —
+  /// `gfx-20n`.
+  ///
+  /// The reason it is worth setting: a frame that stops multisampling because
+  /// the device cannot and a frame that stops because something reads the
+  /// surface buffer look identical from outside, and
+  /// `FrameResult.antiAliasing` exists to tell them apart. A fake that could
+  /// only say yes leaves half of that untested.
   @override
-  bool get supportsOffscreenMsaa => true;
+  bool supportsOffscreenMsaa = true;
 
   @override
   // Recorded, not evaluated: this device blends nothing, so the honest answer

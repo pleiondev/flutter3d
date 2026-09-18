@@ -1247,10 +1247,16 @@ final class _ScenePass {
     required this.debugLines,
     required this.lightOverflow,
     required this.submitMicros,
+    this.msaaSamples = 1,
+    this.msaaDeclined,
   });
 
   final int culled;
   final int debugLines;
   final int lightOverflow;
   final int submitMicros;
+
+  /// `gfx-20n`: samples the pass actually drew with, and why not more.
+  final int msaaSamples;
+  final String? msaaDeclined;
 }

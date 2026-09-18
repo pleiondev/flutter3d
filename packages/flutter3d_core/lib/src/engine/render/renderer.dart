@@ -3005,6 +3005,15 @@ final class Renderer implements RenderServices {
       // scene pass, because it is a fact about the settings and the device
       // rather than about anything that happened during the frame.
       wireframeDeclined: settings.wireframe && !device.supportsWireframe,
+      // `gfx-20n`. Half of it comes from the scene pass, which knows what it
+      // attached, and half from the graph, which knows whether the node ran.
+      // Neither half can answer alone, which is why the answer is assembled
+      // here rather than reported by one of them.
+      antiAliasing: EffectiveAntiAliasing(
+        msaaSamples: scenePass.msaaSamples,
+        fxaa: passTimings.any((p) => p.name == 'antialias'),
+        msaaDeclined: scenePass.msaaDeclined,
+      ),
       cpuMicros: frameClock.elapsedMicroseconds,
       submitMicros: scenePass.submitMicros,
       drawCalls: passState.drawCalls,
