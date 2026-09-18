@@ -163,11 +163,6 @@ extension _ShadowPasses on Renderer {
     final position = vm.Vector3.zero();
     var drawn = 0;
 
-    // Which skinned casters have had their pose evaluated in this pass. See
-    // [_cubeShadowPosed]: the loop below reaches the same node once per face
-    // of every light, and the pose it would compute is the same each time.
-    _cubeShadowPosed.clear();
-
     for (var slot = 0; slot < slotCount; slot++) {
       position.setValues(
         _cubeLightData[slot * 4],
@@ -274,8 +269,19 @@ extension _ShadowPasses on Renderer {
         // state change per run of them rather than one per draw.
         var everyFace = casterCull == CullMode.none;
 
+        // What this face can see — `gfx-63n`. A cube face is a ninety-degree
+        // frustum reaching as far as the light's range, so it holds a small
+        // part of any real level, and the loop below was walking all of it six
+        // times per light. Built from the unremapped matrix and reused for
+        // every mesh on the face.
+        _faceFrustum.setFromMatrix(_cubeMatrix);
+
         for (final node in scene.meshes) {
           if (!node.visibleInHierarchy || !node.shadowCasting.casts) continue;
+          if (node.frustumCulled &&
+              !_faceFrustum.intersectsWithAabb3(node.worldBounds)) {
+            continue;
+          }
           // One atlas holds the things that never move, the other the things
           // that do. Splitting them is the whole point: the walls are baked
           // once and only a spinning pickup, a monster or a door is redrawn.
@@ -401,13 +407,13 @@ extension _ShadowPasses on Renderer {
             // exactly what makes the shadow follow the animation, so an
             // animated caster near a shadowed light pays this every frame.
             //
-            // The CPU half is not repeated. `update` allocates a matrix per
-            // joint, and running it once per face would be sixty-odd
-            // allocations six times over for a pose that cannot change inside
-            // one pass.
-            if (_cubeShadowPosed.add(node)) {
-              skeleton.update(node.worldMatrix);
-            }
+            // The CPU half is not repeated, and since `gfx-64n` the skeleton
+            // is what refuses rather than a set kept here: `update` returns at
+            // once when the pose and the mesh transform are the ones it last
+            // computed for, which is the same refusal extended to the cascade
+            // pass, the pick pass and mesh encoding, all of which reached this
+            // same call once per primitive and none of which had a guard.
+            skeleton.update(node.worldMatrix);
             pass.bindUniformBlock(skinnedVertexShader, _kSkinInfoBlock, {
               'joint_matrices': skeleton.matrices,
             });
@@ -532,6 +538,11 @@ extension _ShadowPasses on Renderer {
     // One matrix per cascade, plus the copy each backend needs to *draw* with.
     final drawMatrices = <vm.Matrix4>[];
     final shaderMatrices = <vm.Matrix4>[];
+    // And the volume each one covers, for `gfx-63n`'s caster cull. Built from
+    // the unremapped matrix, because that is the one in the clip space the
+    // planes are extracted for; the drawing copy has been through the backend's
+    // depth convention and the shader copy may have had its y flipped.
+    final cascadeFrusta = <vm.Frustum>[];
 
     for (var i = 0; i < centres.length; i++) {
       final radius = radii[i];
@@ -581,6 +592,7 @@ extension _ShadowPasses on Renderer {
       final matrix = vm.Matrix4.copy(projection)..multiply(view);
       drawMatrices.add(toDepthRange(matrix, device.depthRange));
       shaderMatrices.add(toFramebufferOrigin(matrix, device.framebufferOrigin));
+      cascadeFrusta.add(vm.Frustum.matrix(matrix));
     }
 
     _shadowMatrix.setFrom(shaderMatrices.first);
@@ -717,6 +729,7 @@ extension _ShadowPasses on Renderer {
         boundKind = null;
       }
       final drawMatrix = drawMatrices[cascade];
+      final casterFrustum = cascadeFrusta[cascade];
 
       for (var i = 0; i < meshes.length; i++) {
         final node = meshes[i];
@@ -724,6 +737,20 @@ extension _ShadowPasses on Renderer {
         if (!node.shadowCasting.casts) continue;
         final mesh = node.mesh;
         if (mesh is! DrawableGeometry || mesh.indexCount == 0) continue;
+        // **A caster outside this cascade is not drawn into it — `gfx-63n`.**
+        // Every cascade used to walk the whole scene, so a level larger than
+        // the nearest cascade covers was recorded three or four times over,
+        // most of it clipped away the moment it reached the rasteriser.
+        //
+        // The map cannot move a byte, and that is a property rather than a
+        // hope: the box bounds every triangle the node has, so a box the
+        // volume does not touch holds no triangle that could have produced a
+        // fragment. What is rejected here is what the clipper was going to
+        // reject anyway, only without the vertex work first.
+        if (node.frustumCulled &&
+            !casterFrustum.intersectsWithAabb3(node.worldBounds)) {
+          continue;
+        }
         final instanced = node is InstancedMeshNode ? node : null;
         if (instanced != null && instanced.count == 0) continue;
 
@@ -751,8 +778,7 @@ extension _ShadowPasses on Renderer {
         // it; everything else keeps the stage it has always had, which is why
         // the masked half costs the common path nothing and why forty-four
         // goldens recorded against the plain stage cannot move.
-        final masked =
-            maskedShadowShader != shadowShader && _castsMasked(node);
+        final masked = maskedShadowShader != shadowShader && _castsMasked(node);
         final kind =
             (instanced != null
                 ? 2

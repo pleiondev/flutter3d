@@ -35,6 +35,15 @@ base class SceneNode implements AnimationTarget {
   /// Monotonic source of version stamps, shared by every node.
   static int _versionCounter = 0;
 
+  /// How many times anything anywhere has been *touched*.
+  ///
+  /// Distinct from [_versionCounter], which also advances when a matrix is
+  /// recomputed. This one moves only when dirt is introduced: a transform set,
+  /// a node reparented, added or removed, a visibility flipped, a mesh's own
+  /// bounds invalidated. Starts at 1 so that zero is a value no node can have
+  /// verified itself at.
+  static int _dirtyEpoch = 1;
+
   /// The counter as a public reading: "has anything anywhere changed since?"
   ///
   /// **What it is for — `gfx-62n`.** The lazy scheme above has one gap that
@@ -46,10 +55,9 @@ base class SceneNode implements AnimationTarget {
   /// as much as the cull it was there to make unnecessary, so the tree could
   /// not win at any size.
   ///
-  /// So the counter advances when dirt is *introduced* as well as when a
-  /// matrix is recomputed. A reader that holds a previous value and finds it
-  /// unchanged knows no node was touched: not moved, not reparented, not
-  /// added, not removed, and no mesh's own bounds invalidated.
+  /// A reader that holds a previous value and finds it unchanged knows no node
+  /// was touched: not moved, not reparented, not added, not removed, not
+  /// hidden, and no mesh's own bounds invalidated.
   ///
   /// It over-reports on purpose. Setting a node to the position it already
   /// holds advances it, and so does a move that nothing derived from
@@ -57,19 +65,29 @@ base class SceneNode implements AnimationTarget {
   /// every setter and paying for the comparison always to save a frame
   /// rarely. Over-reporting costs a frame of redone work; under-reporting
   /// draws the wrong picture.
-  static int get changeEpoch => _versionCounter;
+  static int get changeEpoch => _dirtyEpoch;
 
   /// Advances [changeEpoch] for a change the graph itself cannot see.
   ///
   /// The one caller is `MeshNode.markBoundsDirty`, which is the only way
   /// something a reader derived from the graph goes stale without a transform
   /// being touched.
-  static void noteChange() => _versionCounter++;
+  static void noteChange() => _dirtyEpoch++;
+
+  /// How many times a [worldMatrix] read has had to walk to the root.
+  ///
+  /// Here because the saving `gfx-65n` is about is invisible in a picture: a
+  /// frame that walks every ancestor of every drawable twice per pass draws
+  /// exactly what a frame that walks none of them draws. A count is what a test
+  /// can hold to, and what this one holds to is that a second read of an
+  /// unmoved node adds nothing.
+  static int get ancestorWalks => _ancestorWalks;
+  static int _ancestorWalks = 0;
 
   /// Records that this node's local transform no longer matches its matrix.
   void _markLocalDirty() {
     _localDirty = true;
-    _versionCounter++;
+    _dirtyEpoch++;
   }
 
   SceneNode? _parent;
@@ -92,8 +110,25 @@ base class SceneNode implements AnimationTarget {
   /// at a value no stamp can equal, so the first read always computes.
   int _seenParentVersion = -1;
 
+  /// The epoch at which [_worldMatrix] was last confirmed current, all the way
+  /// to the root. Zero is before the first epoch, so the first read walks.
+  int _verifiedEpoch = 0;
+
   /// Whether this node and its subtree are drawn.
-  bool visible = true;
+  bool get visible => _visible;
+
+  set visible(bool value) {
+    // Hiding a branch changes what [visibleInHierarchy] answers for everything
+    // under it, and that answer is cached on the epoch — `gfx-65n`. Guarded on
+    // the value because this is the one setter where the comparison is free and
+    // the common write is `visible = visible`: `LodGroup` sets every level's
+    // flag every frame to pick one.
+    if (_visible == value) return;
+    _visible = value;
+    _dirtyEpoch++;
+  }
+
+  bool _visible = true;
 
   /// Bitmask filtered against a render view's mask, in the manner of three.js
   /// layers. Bit 0 is the default layer.
@@ -215,6 +250,23 @@ base class SceneNode implements AnimationTarget {
 
   /// The node-to-world transform, always current.
   Matrix4 get worldMatrix {
+    // **The read that does not walk — `gfx-65n`.** Everything below is correct
+    // and costs an ancestor walk every time, with no early-out, and a frame is
+    // made of reads: the inverse, the world bounds and the normal matrix all
+    // route through this, and every drawable was paying two full walks a pass.
+    //
+    // `_dirtyEpoch` advances only when something is *touched* — a transform
+    // set, a node reparented, a visibility flipped — and never when a matrix is
+    // merely recomputed. So a node that verified itself at the current epoch
+    // has an ancestor chain nobody has touched since, and the cached matrix is
+    // the answer. What this cannot do is tell one subtree's change from
+    // another's: move one node and every node in the scene walks once more.
+    // That is the trade, and it is the right way round, because the walk is
+    // per read and the change is per move.
+    if (_verifiedEpoch == _dirtyEpoch) return _worldMatrix;
+    _verifiedEpoch = _dirtyEpoch;
+    _ancestorWalks++;
+
     final parent = _parent;
 
     if (parent == null) {
@@ -268,7 +320,7 @@ base class SceneNode implements AnimationTarget {
   /// Forces the next [worldMatrix] read to recompute, used on reparenting.
   void _invalidateWorld() {
     _seenParentVersion = -1;
-    _versionCounter++;
+    _dirtyEpoch++;
   }
 
   /// Aims the node's local -Z along [direction], expressed in the parent's space.
@@ -410,14 +462,24 @@ base class SceneNode implements AnimationTarget {
 
   /// True when this node and every ancestor is visible.
   bool get visibleInHierarchy {
+    // Cached on the epoch for the reason [worldMatrix] is — `gfx-65n`. This one
+    // is read from seventeen call sites, and the cull path alone asks it once
+    // per mesh per pass, so a deep hierarchy paid a second full ancestor walk
+    // on top of the transform's.
+    if (_visibleEpoch == _dirtyEpoch) return _visibleCached;
+    _visibleEpoch = _dirtyEpoch;
+
     var current = this;
     while (true) {
-      if (!current.visible) return false;
+      if (!current._visible) return _visibleCached = false;
       final parent = current._parent;
-      if (parent == null) return true;
+      if (parent == null) return _visibleCached = true;
       current = parent;
     }
   }
+
+  bool _visibleCached = true;
+  int _visibleEpoch = 0;
 
   /// Binds this node's subtree to [scene]. Called by [Scene] for its own root;
   /// user code attaches nodes with [add] instead.
