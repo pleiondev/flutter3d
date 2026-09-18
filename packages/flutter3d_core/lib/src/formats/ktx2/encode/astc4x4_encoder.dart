@@ -72,14 +72,35 @@ Uint8List encodeAstc4x4(Rgba8Image image) {
   return out;
 }
 
-/// Bits per endpoint channel value (7 bits, 128 levels, plain binary — no
-/// ASTC trit/quint packing, which only intermediate-precision ranges need).
-const int _kColorBits = 7;
-const int _kColorMax = (1 << _kColorBits) - 1; // 127
+/// Bits per endpoint channel value — `gfx-88n`.
+///
+/// **Eight, and it is derived rather than chosen.** ASTC does not let an
+/// encoder pick the endpoint precision: the decoder computes it from what is
+/// left after the block mode, the partition count, the colour-endpoint mode and
+/// the weights, and reads the endpoints at the highest level that fits. With
+/// three-bit weights the leftovers are 63 bits for six values, and the highest
+/// level fitting that is the 256-level one — plain eight-bit binary, no trits
+/// and no quints. Four-bit weights would leave 47, where the answer is a
+/// trit-packed 192-level range instead, so this pair of widths is what keeps
+/// both halves of the block plain binary.
+const int _kColorBits = 8;
+const int _kColorMax = (1 << _kColorBits) - 1; // 255
 
-/// Bits per texel weight (4 bits, 16 levels, plain binary).
-const int _kWeightBits = 4;
-const int _kWeightMax = (1 << _kWeightBits) - 1; // 15
+/// Bits per texel weight (3 bits, 8 levels, plain binary). See [_kColorBits]
+/// for why three rather than four.
+const int _kWeightBits = 3;
+const int _kWeightMax = (1 << _kWeightBits) - 1; // 7
+
+/// The block mode for one plane, a 4×4 weight grid and eight weight levels.
+///
+/// **Read out of the reference decoder, not derived.** `decode_block_mode_2d`
+/// in ARM's `astc-encoder` unpacks this field through a branching table; the
+/// bits that make it say what this block is are `[1:0] = 3`, `[3:2] = 0`,
+/// `[4] = 1`, `[6:5] = 2` (height 4), `[8:7] = 0` (width 4), `[9] = 0` and
+/// `[10] = 0` (single plane). The version of this file before `gfx-88n` wrote
+/// eleven zeros here and called the layout its own, which is a reserved
+/// encoding: `astcenc` returned magenta — ASTC's error colour — for every block.
+const int _kBlockMode = 0x53;
 
 /// The real specification's colour-endpoint-mode value for "LDR RGB Direct"
 /// — two RGB endpoints, no alpha (alpha reads back as opaque), the same
@@ -134,28 +155,52 @@ Uint8List encodeAstc4x4Block(List<(int, int, int, int)> pixels) {
 
   final (r0q, g0q, b0q) = _quantizeColor(e0);
   final (r1q, g1q, b1q) = _quantizeColor(e1);
-  final e0Expanded = _expandColor(r0q, g0q, b0q);
-  final e1Expanded = _expandColor(r1q, g1q, b1q);
 
   final block = Uint8List(16);
-  var cursor = 0;
-  cursor = _setBits(block, cursor, 11, 0); // header — see library doc comment
-  cursor = _setBits(block, cursor, 2, 0); // partition count = 1
-  cursor = _setBits(block, cursor, 4, _kCemLdrRgbDirect);
-  for (final value in <int>[r0q, r1q, g0q, g1q, b0q, b1q]) {
+  _setBits(block, 0, 11, _kBlockMode);
+  _setBits(block, 11, 2, 0); // one partition
+  _setBits(block, 13, 4, _kCemLdrRgbDirect);
+
+  // **The second endpoint must not be the darker one.** For `LDR RGB Direct`
+  // the decoder compares the two sums and, when the first is the larger, reads
+  // the pair swapped *and* blue-contracted — a different colour entirely. So
+  // the encoder orders them and inverts the weights to match, rather than
+  // letting a block whose endpoints happen to come out that way round decode
+  // as something else.
+  var (ra, ga, ba) = (r0q, g0q, b0q);
+  var (rb, gb, bb) = (r1q, g1q, b1q);
+  final swapped = rb + gb + bb < ra + ga + ba;
+  if (swapped) {
+    final tr = ra, tg = ga, tb = ba;
+    ra = rb;
+    ga = gb;
+    ba = bb;
+    rb = tr;
+    gb = tg;
+    bb = tb;
+  }
+
+  var cursor = 17;
+  for (final value in <int>[ra, rb, ga, gb, ba, bb]) {
     cursor = _setBits(block, cursor, _kColorBits, value);
   }
 
-  // Weights fill in from the end of the block, one per texel, raster order —
-  // a fixed offset per texel rather than the specification's own reversed
-  // bit order (see the library doc comment on what this port's layout does
-  // and does not reproduce).
+  final lowExpanded = _expandColor(ra, ga, ba);
+  final highExpanded = _expandColor(rb, gb, bb);
+
+  // **The weights live at the top of the block, reversed.** ASTC stores the
+  // weight stream growing downward from bit 127, with the bit order flipped —
+  // so it is built here in an ordinary buffer and then folded in byte by byte,
+  // each byte reversed and taken from the other end. Written forwards, as this
+  // file did before `gfx-88n`, every weight lands somewhere else.
+  final weights = Uint8List(16);
+  var weightCursor = 0;
   for (var i = 0; i < 16; i++) {
     final (er, eg, eb, _) = pixels[i];
     var bestWeight = 0;
     var bestError = double.infinity;
     for (var w = 0; w <= _kWeightMax; w++) {
-      final (dr, dg, db) = _lerpColor(e0Expanded, e1Expanded, w / _kWeightMax);
+      final (dr, dg, db) = _lerpColor(lowExpanded, highExpanded, w / _kWeightMax);
       final errR = er - dr, errG = eg - dg, errB = eb - db;
       final error = errR * errR + errG * errG + errB * errB;
       if (error < bestError) {
@@ -163,8 +208,11 @@ Uint8List encodeAstc4x4Block(List<(int, int, int, int)> pixels) {
         bestWeight = w;
       }
     }
-    final weightOffset = 128 - (i + 1) * _kWeightBits;
-    _setBits(block, weightOffset, _kWeightBits, bestWeight);
+    weightCursor = _setBits(weights, weightCursor, _kWeightBits, bestWeight);
+  }
+
+  for (var i = 0; i < 16; i++) {
+    block[i] |= _reverseByte(weights[15 - i]);
   }
 
   return block;
@@ -247,6 +295,16 @@ double _sqrt(double x) {
 /// [bitOffset] (bit 0 is the LSB of byte 0, rising through each byte then
 /// into the next), and returns `bitOffset + numBits` — the next field's
 /// offset, so a run of fields can chain calls without recomputing cursors.
+/// The bits of one byte, back to front — what the weight stream's placement
+/// needs. A table rather than a loop: it is called sixteen times per block.
+int _reverseByte(int value) {
+  var out = 0;
+  for (var i = 0; i < 8; i++) {
+    if ((value >> i) & 1 != 0) out |= 1 << (7 - i);
+  }
+  return out;
+}
+
 int _setBits(Uint8List block, int bitOffset, int numBits, int value) {
   for (var i = 0; i < numBits; i++) {
     if (((value >> i) & 1) != 0) {
