@@ -12,6 +12,7 @@ library;
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:code_assets/code_assets.dart';
 import 'package:crypto/crypto.dart';
 import 'package:flutter3d_core/formats.dart';
 import 'package:hooks/hooks.dart';
@@ -189,6 +190,43 @@ Future<AssetBuildReport> runAssetBuild(
 ///   await build(arguments, buildAssets);
 /// }
 /// ```
+/// The compression family the platform being built for guarantees —
+/// `gfx-69n`, and `ap-09`'s own table.
+///
+/// **Not a guess about a device.** A block format is guaranteed by the
+/// platform: every desktop GPU samples BC, and ETC2 is required by OpenGL ES
+/// 3.0 and by Metal on every iOS device this engine runs on. Getting it wrong
+/// is not a worse picture — `uploadTexture` refuses a format the device does
+/// not sample and says so by name, and the material draws untextured — which
+/// is exactly why this reads the target rather than picking a default.
+///
+/// **The web gets nothing**, and that is the one target where a guess would be
+/// a guess: a browser is whatever machine it is running on, and `ap-09`'s
+/// answer there is to ship both sets and choose at load time from the
+/// context's extensions. Until that exists, a web build carries what it
+/// carried.
+///
+/// Null is a build that names no target, and takes [TextureFamily.auto]:
+/// `HookConfig.code` throws without a code configuration, `buildCodeAssets` is
+/// the guard that says so, and a build that cannot see its target must not
+/// invent one.
+///
+/// **A function over an `OS` rather than over a `BuildInput`**, because the
+/// input cannot be built with a code configuration outside `code_assets`
+/// itself — `CodeAssetBuildInputBuilder`, which holds `setupCode`, is not among
+/// the symbols that library exports. This table is the part that can be got
+/// wrong, so this is the part that is tested; the guard beside it is one read
+/// of a documented flag.
+TextureFamily familyForTargetOS(OS? targetOS) => switch (targetOS) {
+  OS.macOS || OS.windows || OS.linux => TextureFamily.bc,
+  OS.android || OS.iOS => TextureFamily.etc2,
+  _ => TextureFamily.auto,
+};
+
+TextureFamily _familyForTarget(BuildInput input) => familyForTargetOS(
+  input.config.buildCodeAssets ? input.config.code.targetOS : null,
+);
+
 Future<void> buildAssets(BuildInput input, BuildOutputBuilder output) async {
   // `packageRoot` is a directory `Uri` — its own path ends in `/`, and
   // `Directory.fromUri(...).path` keeps that trailing slash rather than
@@ -203,22 +241,14 @@ Future<void> buildAssets(BuildInput input, BuildOutputBuilder output) async {
     root.endsWith('/') ? root.substring(0, root.length - 1) : root,
   );
 
-  // **Which family, and why the hook still asks rather than decides —
-  // `gfx-69n`.** The row's other half is that the application path never
-  // reached `--textures`, and it does now: a project says `textures: bc` (or
-  // `etc2`, or `none`) under this package's key in its `hook_user_defines`, and
-  // the build passes it through.
-  //
-  // What is deliberately *not* here is a default other than `auto`. Choosing
-  // one means guessing which formats the device sampling the texture supports,
-  // and a device that cannot sample the family it was handed does not draw a
-  // slower picture, it draws no picture. That guess belongs to `ap-09`, which
-  // resolves the family per target and keeps both sets for the web, and which
-  // is not built.
+  // **Which family — `gfx-69n`.** A project's own word first: `textures: bc`
+  // (or `etc2`, or `none`) under this package's key in its
+  // `hook_user_defines`, which is also how `--textures` finally reaches the
+  // application path. Failing that, the platform being built for.
   final requested = input.userDefines['textures'];
   final textures = requested is String
-      ? TextureFamily.parse(requested) ?? TextureFamily.auto
-      : TextureFamily.auto;
+      ? TextureFamily.parse(requested) ?? _familyForTarget(input)
+      : _familyForTarget(input);
 
   final report = await runAssetBuild(projectRoot, textures: textures);
   for (final source in report.dependencies) {
