@@ -277,6 +277,7 @@ final class RenderSettings {
     this.autoExposure = const AutoExposureSettings(),
     this.xray = const XraySettings(),
     this.disabledPasses = const <String>{},
+    this.renderScale = 1.0,
   }) : assert(anisotropy >= 1, 'anisotropy is a count of taps, one or more'),
        assert(lightFadeBand >= 0.0, 'a fade band is a width, not a direction');
 
@@ -441,6 +442,29 @@ final class RenderSettings {
   /// Silhouettes of the nodes on a layer, drawn where something hides them.
   final XraySettings xray;
 
+  /// How much of the asked-for resolution the frame is actually drawn at —
+  /// `gfx-35n`. 1 is all of it, and is the default.
+  ///
+  /// **The one missing capability class that is not an effect.** Every other
+  /// knob in this class trades a look for time; this trades resolution for
+  /// it, which is the lever an application reaches for when a frame will not
+  /// fit in its budget and everything else is already off. flutter_scene
+  /// exhausts resolution before it starts switching effects off, and this
+  /// engine had no way to.
+  ///
+  /// Applied at the top of `Renderer.render`, so it reaches everything: the
+  /// scene target, the surface buffer, the occlusion, the bloom chain and the
+  /// composite are all sized from it. At 0.75 a frame costs 0.5625 of the
+  /// pixels, because both axes shrink.
+  ///
+  /// **What comes back is the smaller texture, not an upscaled one.**
+  /// `FrameResult.frame` is what a presenter stretches over its widget, and
+  /// it already stretches — so an upscale pass here would be a full-screen
+  /// draw to do again what the presenter does for nothing. A caller reading
+  /// pixels back gets the size it was drawn at, which is the honest answer
+  /// and the one a measurement wants.
+  final double renderScale;
+
   /// Frame-graph nodes to leave out of this frame, by name — `gfx-37n`.
   ///
   /// The name is the node's own [FrameGraphNode.name], exactly as
@@ -584,6 +608,7 @@ final class RenderSettings {
     AutoExposureSettings? autoExposure,
     XraySettings? xray,
     Set<String>? disabledPasses,
+    double? renderScale,
   }) => RenderSettings(
     specular: specular ?? this.specular,
     exposure: exposure ?? this.exposure,
@@ -611,6 +636,7 @@ final class RenderSettings {
     autoExposure: autoExposure ?? this.autoExposure,
     xray: xray ?? this.xray,
     disabledPasses: disabledPasses ?? this.disabledPasses,
+    renderScale: renderScale ?? this.renderScale,
   );
 
   /// These settings with the effects a stereo pair cannot have taken out.
