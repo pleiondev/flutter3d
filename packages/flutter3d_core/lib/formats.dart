@@ -29,6 +29,7 @@ export 'src/formats/animation/animation_track.dart';
 export 'src/formats/asset_resolver.dart';
 export 'src/formats/asset_source.dart';
 export 'src/formats/document_compare.dart';
+export 'src/formats/draco/draco.dart';
 export 'src/formats/export_report.dart';
 export 'src/formats/f3d/f3d.dart';
 export 'src/formats/fbx/fbx_decoder.dart';
