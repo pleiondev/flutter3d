@@ -126,6 +126,48 @@ final class CompositeShader implements CpuFragmentShader {
     colour.x *= 1.0 + look.z * 0.1;
     colour.z *= 1.0 - look.z * 0.1;
 
+    // `gfx-27n`: lift, then gamma, then gain — the order `composite.frag`
+    // applies them and the order a grading panel names them.
+    final lift = bindings.vec4('CompositeInfo', 'lift', Vector4.zero());
+    final gammaCurve = bindings.vec4(
+      'CompositeInfo',
+      'gamma',
+      Vector4(1.0, 1.0, 1.0, 0.0),
+    );
+    final gain = bindings.vec4(
+      'CompositeInfo',
+      'gain',
+      Vector4(1.0, 1.0, 1.0, 0.0),
+    );
+    colour = Vector3(
+      math.max(colour.x + lift.x, 0.0),
+      math.max(colour.y + lift.y, 0.0),
+      math.max(colour.z + lift.z, 0.0),
+    );
+    if (gammaCurve.x != 1.0 || gammaCurve.y != 1.0 || gammaCurve.z != 1.0) {
+      colour = Vector3(
+        math.pow(colour.x, 1.0 / gammaCurve.x).toDouble(),
+        math.pow(colour.y, 1.0 / gammaCurve.y).toDouble(),
+        math.pow(colour.z, 1.0 / gammaCurve.z).toDouble(),
+      );
+    }
+    colour = Vector3(colour.x * gain.x, colour.y * gain.y, colour.z * gain.z);
+
+    // White balance and tint, which are the correction rather than the look
+    // `look.z` above is — see `LookSettings.whiteBalance`.
+    final encode = bindings.vec4(
+      'CompositeInfo',
+      'output_encode',
+      Vector4.zero(),
+    );
+    if (encode.y != 0.0 || encode.z != 0.0) {
+      colour = Vector3(
+        colour.x * (1.0 + encode.y * 0.20) - encode.z * 0.075,
+        colour.y * (1.0 + encode.z * 0.15),
+        colour.z * (1.0 - encode.y * 0.20) - encode.z * 0.075,
+      );
+    }
+
     // The colour table, after the grade and before the barrel — the order
     // `composite.frag` uses and the order a grading suite does.
     final aoTexel = bindings.vec4('CompositeInfo', 'ao_texel', Vector4.zero());

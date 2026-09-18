@@ -756,6 +756,11 @@ final class LookSettings {
     this.grain = 0.0,
     this.chromaticAberration = 0.0,
     this.dither = 0.0,
+    this.lift,
+    this.gamma,
+    this.gain,
+    this.whiteBalance = 0.0,
+    this.tint = 0.0,
     this.lut,
     this.lutStrength = 1.0,
   });
@@ -790,6 +795,45 @@ final class LookSettings {
   /// Radial colour dispersion, in screen widths at the corner. 0.005 is
   /// visible without reading as a fault.
   final double chromaticAberration;
+
+  /// What is **added**, per channel, so the shadows move and white stays —
+  /// `gfx-27n`. Null is neutral, the same as zero.
+  ///
+  /// **Lift, gamma and gain are three ranges rather than three strengths.**
+  /// [contrast] and [saturation] move the whole picture at once; these move
+  /// one end of it, which is what a grade is for. Lift raises the shadows and
+  /// leaves white alone, [gain] moves the highlights and leaves black alone,
+  /// and [gamma] is the exponent between them. Each is a colour rather than a
+  /// number, because the whole reason to reach for them is a warm highlight
+  /// over a cool shadow, and one scalar per stage cannot say that.
+  final vm.Vector3? lift;
+
+  /// The **exponent**, per channel, so the midtones move and both ends stay.
+  /// Null is neutral, the same as one. See [lift].
+  final vm.Vector3? gamma;
+
+  /// What is **multiplied**, per channel, so the highlights move and black
+  /// stays. Null is neutral, the same as one. See [lift].
+  final vm.Vector3? gain;
+
+  /// Warm above zero, cool below, in the range −1 to 1 — `gfx-27n`.
+  ///
+  /// **Not [temperature], and the two are deliberately both here.**
+  /// [temperature] is a gain on red against blue: a look, and documented as
+  /// one. This is the correction a camera and a grading panel offer, and it
+  /// comes with [tint] across it because a white balance without a
+  /// green-magenta axis can only fix half of what is wrong with a white.
+  ///
+  /// Approximated in display space rather than converted through a chromatic
+  /// adaptation matrix: the exact transform wants the scene's own white
+  /// point, and the composite has the picture rather than the light that made
+  /// it.
+  final double whiteBalance;
+
+  /// Green above zero, magenta below, in the range −1 to 1. The other axis of
+  /// [whiteBalance], and takes its green out of red and blue rather than
+  /// adding light, so a tint alone changes the hue and not the level.
+  final double tint;
 
   /// Ordered noise added after the sRGB encode, in output steps — `gfx-24n`.
   ///
@@ -856,6 +900,11 @@ final class LookSettings {
     double? grain,
     double? chromaticAberration,
     double? dither,
+    vm.Vector3? lift,
+    vm.Vector3? gamma,
+    vm.Vector3? gain,
+    double? whiteBalance,
+    double? tint,
     TextureHandle? lut,
     double? lutStrength,
   }) => LookSettings(
@@ -867,6 +916,11 @@ final class LookSettings {
     grain: grain ?? this.grain,
     chromaticAberration: chromaticAberration ?? this.chromaticAberration,
     dither: dither ?? this.dither,
+    lift: lift ?? this.lift,
+    gamma: gamma ?? this.gamma,
+    gain: gain ?? this.gain,
+    whiteBalance: whiteBalance ?? this.whiteBalance,
+    tint: tint ?? this.tint,
     lut: lut ?? this.lut,
     lutStrength: lutStrength ?? this.lutStrength,
   );
