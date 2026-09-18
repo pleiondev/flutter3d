@@ -47,6 +47,7 @@ export 'render_settings.dart';
 
 part 'renderer_batch.dart';
 part 'renderer_frame_nodes.dart';
+part 'renderer_light_list.dart';
 part 'renderer_mesh_encode.dart';
 part 'renderer_pick_pass.dart';
 part 'renderer_post_pass.dart';
@@ -67,6 +68,9 @@ const String _kReflectionInfoBlock = 'ReflectionInfo';
 const String _kSsaoInfoBlock = 'SsaoInfo';
 const String _kFrameInfoBlock = 'FrameInfo';
 const String _kFragInfoBlock = 'FragInfo';
+
+/// The per-draw half of the light list — `gfx-74n`.
+const String _kLightListBlock = 'LightListInfo';
 const String _kFogInfoBlock = 'FogInfo';
 const String _kMorphInfoBlock = 'MorphInfo';
 const String _kMorphInstanceInfoBlock = 'MorphInstanceInfo';
@@ -2083,6 +2087,18 @@ final class Renderer implements RenderServices {
   final vm.Matrix4 _cubeDrawMatrix = vm.Matrix4.identity();
   final Float32List _cubeLight = Float32List(4);
 
+  /// This frame's light rows, or null while the scene fits in eight slots —
+  /// `gfx-74n`. See `renderer_light_list.dart`.
+  TextureHandle? _lightListTexture;
+  int _lightListEpoch = -1;
+  int _lightListRows = 0;
+
+  /// Staging for the per-draw list, beside every other uniform this renderer
+  /// writes: arrays reused rather than allocated per draw.
+  final Float32List _lightListParams = Float32List(4);
+  final Float32List _lightListIndices = Float32List(LightBuffer.maxExtraLights);
+  final Float32List _lightListScales = Float32List(LightBuffer.maxExtraLights);
+
   /// The capture being filled, or null — `gfx-70n`.
   FrameCaptureBuilder? _capture;
 
@@ -2846,7 +2862,16 @@ final class Renderer implements RenderServices {
     lights.gather(scene.lights);
     if (lights.count == 0) lights.useDefaultLight();
     _lightsScene = scene;
-    final lightOverflowCount = lights.overflow;
+    // **What was actually lost, not what did not fit the slots — `gfx-74n`.**
+    // The frame's own `gather` fills eight slots in scene order and calls the
+    // rest overflow; every draw then re-selects for itself, and since this row
+    // a draw carries up to `maxExtraLights` more in the light list. So a scene
+    // of sixteen lamps drops nothing, and reporting eight here would tell
+    // somebody their ninth lamp does nothing while it is lighting the floor.
+    final lightOverflowCount = math.max(
+      scene.lights.length - LightBuffer.maxLights - LightBuffer.maxExtraLights,
+      0,
+    );
     final shadowCaster = _firstDirectionalIndex();
 
     // Zeroed by the frame rather than by the pass, because the pass may not

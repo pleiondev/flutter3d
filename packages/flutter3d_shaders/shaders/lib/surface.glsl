@@ -30,6 +30,84 @@
 /// offset, with the std140 stride of 16 bytes.
 #define kMaxLights 8
 
+/// How many more lights one draw may be handed — `gfx-74n`.
+///
+/// **The eight above stay exactly what they were**, which is what keeps this
+/// from moving a single recorded frame: a draw with eight lights or fewer runs
+/// the loop it has always run, reads the uniform arrays it has always read, and
+/// never touches the texture below. The tail is the part that used to be
+/// impossible.
+///
+/// A loop bound rather than a cost. `AccumulateLights` breaks at the draw's own
+/// count, so a scene with three lights costs three iterations whatever this
+/// says. Twenty-four because the two tables below are `vec4 x[6]` and four
+/// lanes fit a `vec4`: two hundred and eight bytes a draw, against the five
+/// hundred and twelve the light arrays already cost.
+#define kExtraLights 24
+#define kTotalLights (kMaxLights + kExtraLights)
+
+/// Every light in the scene, one per row, four texels across — `gfx-74n`.
+///
+/// **A texture rather than a wider uniform block, and that is the design.**
+/// `FragInfo` is uploaded on every draw, so widening its four `vec4` arrays to
+/// hold thirty-two lights would be a two-kilobyte upload per draw in every
+/// scene, including every scene with one light. This is built once a frame and
+/// only when a scene has more lights than a draw can hold in its slots.
+///
+/// Row layout, which `renderer_light_list.dart` writes and only this reads:
+///
+///  * texel 0 — xyz world position, w type (0 directional, 1 point, 2 spot)
+///  * texel 1 — rgb linear colour, w intensity
+///  * texel 2 — xyz the direction it points, w range
+///  * texel 3 — x cos(inner), y cos(outer), zw unused
+///
+/// The same four vectors the uniform arrays hold, in the same order, so one
+/// reader serves both.
+uniform sampler2D light_list_texture;
+
+uniform LightListInfo {
+  /// x: how many rows this draw reads, zero when it reads none.
+  /// y, z: one over the texture's width and height.
+  /// w: unused.
+  vec4 list;
+
+  /// Which rows, four to a vector, in the order they are read.
+  ///
+  /// Indices rather than the light data itself: the data is the same for every
+  /// draw in the frame and belongs in the texture; what differs per draw is
+  /// *which* of them reach it, and that is what `Renderer._drawLightsFor`
+  /// already decides.
+  vec4 indices[6];
+
+  /// How much of each of those survives the edge fade, in the same order.
+  ///
+  /// Per draw and not in the texture, because the row an index points at is
+  /// shared by every draw in the frame: a scale written into it would dim that
+  /// light for all of them. `gfx-12n`'s fade lives at the end of the list now —
+  /// that is where a light stops contributing, and fading the slots against a
+  /// water line that no longer marks a cliff would dim a light for no reason
+  /// while its rival stayed bright, making the swap more visible rather than
+  /// less.
+  vec4 scales[6];
+}
+light_list_info;
+
+/// One lane of a six-vector table, [slot] counting from nought.
+float LightListLane(vec4 four, int slot) {
+  int lane = slot - (slot / 4) * 4;
+  return lane == 0 ? four.x : lane == 1 ? four.y : lane == 2 ? four.z : four.w;
+}
+
+/// The row light [slot] of the list reads.
+float LightListRow(int slot) {
+  return LightListLane(light_list_info.indices[slot / 4], slot);
+}
+
+/// How much of light [slot] of the list survives the edge fade.
+float LightListScale(int slot) {
+  return LightListLane(light_list_info.scales[slot / 4], slot);
+}
+
 uniform FragInfo {
   /// xyz: world position (point and spot). w: type, 0 directional 1 point 2 spot.
   vec4 light_position[kMaxLights];
@@ -218,8 +296,18 @@ Surface ReadSurface() {
 }
 
 int LightCount() {
-  return clamp(int(frag_info.frame_params.y + 0.5), 0, kMaxLights);
+  return clamp(int(frag_info.frame_params.y + 0.5), 0, kMaxLights) +
+      clamp(int(light_list_info.list.x + 0.5), 0, kExtraLights);
 }
+
+/// Whether light [index] carries a shadow — `gfx-74n`.
+///
+/// Only the first eight do. The cube atlas holds six rows and the slot table is
+/// eight entries wide, so a light from the list has no row to read and asking
+/// for one would index past the table. That is a real limit and the right one:
+/// the eight a draw keeps in its slots are the eight ranked most relevant to
+/// it, which is exactly the set worth a shadow map.
+bool LightHasShadow(int index) { return index < kMaxLights; }
 
 /// Distance attenuation for a punctual light, following the glTF spec.
 ///
@@ -244,10 +332,30 @@ float PunctualAttenuation(float distance, float range) {
 LightSample SampleLight(int index, Surface s) {
   LightSample light;
 
-  vec4 position = frag_info.light_position[index];
-  vec4 color = frag_info.light_color[index];
-  vec4 direction = frag_info.light_direction[index];
-  vec4 cone = frag_info.light_cone[index];
+  vec4 position;
+  vec4 color;
+  vec4 direction;
+  vec4 cone;
+  if (index < kMaxLights) {
+    position = frag_info.light_position[index];
+    color = frag_info.light_color[index];
+    direction = frag_info.light_direction[index];
+    cone = frag_info.light_cone[index];
+  } else {
+    // A row of the light list — `gfx-74n`. Sampled at texel centres so a
+    // driver's rounding cannot land a fetch on a neighbour, and the four texels
+    // across the row are the same four vectors the arrays above hold.
+    int slot = index - kMaxLights;
+    float v = (LightListRow(slot) + 0.5) * light_list_info.list.z;
+    float u = light_list_info.list.y;
+    position = texture(light_list_texture, vec2(0.5 * u, v));
+    color = texture(light_list_texture, vec2(1.5 * u, v));
+    direction = texture(light_list_texture, vec2(2.5 * u, v));
+    cone = texture(light_list_texture, vec2(3.5 * u, v));
+    // The intensity and not the colour, for `LightBuffer._pack`'s own reason:
+    // the same multiply here, and only one of them is a number nobody authored.
+    color.w *= LightListScale(slot);
+  }
 
   float type = position.w;
   vec3 aim = normalize(direction.xyz);
@@ -714,12 +822,18 @@ vec3 AccumulateLights(Surface s) {
   vec3 total = vec3(0.0);
   int count = LightCount();
 
-  for (int i = 0; i < kMaxLights; i++) {
+  for (int i = 0; i < kTotalLights; i++) {
     if (i >= count) break;
     LightSample light = SampleLight(i, s);
     if (light.n_dot_l <= 0.0) continue;
-    float visibility = LightVisibility(s, light, i) *
-        PointShadowFactor(v_world_position, s.n, i);
+    // A light from the list has no shadow row to read — see `LightHasShadow`.
+    // A branch rather than something folded into the two calls, because both
+    // index tables eight entries wide and the ninth light would read past them
+    // rather than read a one.
+    float visibility = LightHasShadow(i)
+        ? LightVisibility(s, light, i) *
+              PointShadowFactor(v_world_position, s.n, i)
+        : 1.0;
     if (visibility <= 0.0) continue;
     total += ShadeLight(s, light) * light.radiance * light.n_dot_l * visibility;
   }
