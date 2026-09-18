@@ -82,6 +82,7 @@ export 'src/engine/render/frame_resources.dart';
 export 'src/engine/render/key_sort.dart';
 export 'src/engine/render/material.dart';
 export 'src/engine/render/mesh_overlay.dart';
+export 'src/engine/render/pass_contribution.dart';
 export 'src/engine/render/pass_contributor.dart';
 export 'src/engine/render/probe_faces.dart';
 export 'src/engine/render/procedural_texture.dart';
