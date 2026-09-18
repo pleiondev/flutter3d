@@ -662,6 +662,28 @@ final class Renderer implements RenderServices {
   /// and no second way to make one.
   final RenderTargetPool targetPool;
 
+  /// Gives back every pooled transient target no live frame is holding —
+  /// `gfx-71n`.
+  ///
+  /// **What the pool does without this is settle at a high-water mark and stay
+  /// there.** It keeps one texture of every attachment shape any frame has ever
+  /// needed: turn bloom on once and its five levels are held for the rest of
+  /// the session, take one screenshot at twice the window size and that pair of
+  /// targets is held too. On a desktop that is a megabyte nobody notices; on a
+  /// phone it is the difference between a slow frame and the process being
+  /// killed, which is why this is wired to the platform's own warning rather
+  /// than to a budget this package would have to invent.
+  ///
+  /// Safe at any moment between frames: what is lent out is left alone, and
+  /// `RenderTargetPool.trim` marks those retired so they go back to the device
+  /// when their frame releases them rather than into a free list for a size
+  /// nothing will ask for again. The next frame allocates what it needs and
+  /// draws the same picture, a little slower once.
+  ///
+  /// `Flutter3dSurface` calls it from `didHaveMemoryPressure`. An application
+  /// that owns its own renderer calls it from wherever its platform says.
+  void releaseTransientTargets() => targetPool.trim();
+
   int _targetWidth = 0;
   int _targetHeight = 0;
 

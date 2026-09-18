@@ -51,6 +51,7 @@ export 'src/storage/storage.dart';
 export 'src/surface/did_not_start.dart';
 export 'src/surface/frame_clock.dart';
 export 'src/surface/frame_timing_log.dart';
+export 'src/surface/memory_pressure.dart';
 export 'src/surface/scene_surface.dart';
 export 'src/surface/status_screens.dart';
 export 'src/widget_surface/widget_surface.dart';
