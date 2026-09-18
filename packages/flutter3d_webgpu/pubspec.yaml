@@ -51,6 +51,11 @@ dev_dependencies:
   # like the rest: nothing in `lib/` reaches it, and the generator in `tool/`
   # already did through the workspace.
   flutter3d_shaders: ^0.6.0
+  # The material language's emitter — `gfx-84n`. For
+  # `material_language_generators_test.dart` alone: a material written as
+  # source has to reach both generators, and this is the one package that has
+  # both. Not a real dependency — nothing in `lib/` reaches it.
+  flutter3d_core: ^0.1.0
   # For `resolveIncludes` in `glsl_translate.dart`, and for nothing else. The
   # WebGL2 backend already answers "which headers does this shader really pull
   # in", and a second answer to that question is how two backends drift apart in

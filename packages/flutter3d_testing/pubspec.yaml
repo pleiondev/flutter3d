@@ -31,6 +31,14 @@ dependencies:
   # to a frame is this package's own job, the same as rendering a
   # hand-built scene already is.
   flutter3d_sim: ^0.6.0
+  # The material language — `gfx-84n`. A real dependency now, and for the same
+  # reason the two above it are: `MaterialProgramStage` is what lets the
+  # software backend draw a material written as source, and it needs the
+  # engine's parsed program and the backend's stage interface at once.
+  # `flutter3d_cpu` may not reach for the first (its own pubspec says nothing
+  # in its `lib/` does), so the pairing lives here, which is the package that
+  # exists for pairings neither side may hold.
+  flutter3d_core: ^0.1.0
   # `expect` and the test binding, which is what makes this a testing package
   # rather than a rendering one.
   flutter_test:
@@ -40,11 +48,9 @@ dependencies:
 dev_dependencies:
   flutter_lints: ^6.0.0
 
-  # The document decoders and writer, and the Khronos sample models they read —
-  # for the one test that checks a *rendered* round trip rather than a byte
-  # one. Neither is a real dependency: nothing this package ships builds a
-  # `ModelDocument`.
-  flutter3d_core: ^0.1.0
+  # The Khronos sample models the document decoders read — for the one test
+  # that checks a *rendered* round trip rather than a byte one. Not a real
+  # dependency: nothing this package ships builds a `ModelDocument`.
   flutter3d_samples: ^0.4.2
 
 resolution: workspace
