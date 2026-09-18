@@ -120,6 +120,10 @@ Future<void> checkLinking(GraphicsDevice device) async {
     // which is the only one in the bundle with a per-instance buffer.
     ('ParticleVertex', 'Particle'),
     ('ParticleVertex', 'ParticleTextured'),
+    // `gfx-80n` shares that vertex stage rather than adding a third one, so
+    // this pair is the check that it really does read the same three
+    // attributes and the same two varyings.
+    ('ParticleVertex', 'Splat'),
     ('ParticleMeshVertex', 'ParticleMesh'),
     // The sky is the only pair where both stages are new at once, so it is the
     // one where a varying can disagree with nothing to compare against. Both

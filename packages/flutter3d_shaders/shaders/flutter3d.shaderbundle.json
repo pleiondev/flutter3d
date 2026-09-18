@@ -95,6 +95,10 @@
     "type": "fragment",
     "file": "shaders/lighting/particle_textured.frag"
   },
+  "Splat": {
+    "type": "fragment",
+    "file": "shaders/lighting/splat.frag"
+  },
   "ParticleMeshVertex": {
     "type": "vertex",
     "file": "shaders/particle_mesh.vert"

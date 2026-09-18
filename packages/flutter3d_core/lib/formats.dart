@@ -61,6 +61,7 @@ export 'src/formats/model_node.dart';
 export 'src/formats/model_writer.dart';
 export 'src/formats/obj/obj.dart';
 export 'src/formats/plain_model_document.dart';
+export 'src/formats/splat/splat.dart';
 export 'src/formats/stl/stl.dart';
 export 'src/formats/surface_material.dart';
 export 'src/formats/usdz/usdz.dart';
