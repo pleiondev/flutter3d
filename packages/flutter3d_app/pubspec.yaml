@@ -68,3 +68,9 @@ dev_dependencies:
 
   # Fake time for `FrameClock.tick`, which reads `package:clock`.
   fake_async: ^1.3.0
+
+  # For `terrain_tiles_test.dart` alone — `gfx-87n`: the terrain material is
+  # written in the material language, and `MaterialProgramStage` is what lets
+  # the software backend draw one. Not a real dependency: nothing in `lib/`
+  # reaches it.
+  flutter3d_testing: ^0.6.0
