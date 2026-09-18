@@ -466,6 +466,20 @@ extension _MeshEncode on Renderer {
         'forward': _forwardData,
       });
 
+      // **The irradiance field, where there is one — `gfx-81n`.** It replaces
+      // the two ambient colours for this draw and nothing else, which is the
+      // whole of why a scene without one is byte for byte what it was: the
+      // staged arrays are rewritten per draw either way, and with no field the
+      // values written are the ones `_updateAmbient` put there.
+      //
+      // Per object rather than per pixel, and that is the granularity this
+      // costs: a large floor reads one point of the field, so it takes the
+      // bounce of its own middle. The two samples are the surface facing up and
+      // the surface facing down, which is exactly the pair the shader already
+      // blends between — so the field arrives through a uniform that exists
+      // rather than through a texture and a fifth set of bindings.
+      _applyIrradiance(scene, node);
+
       // **Every lit draw, both halves — `gfx-74n`.** A draw with no tail binds
       // a count of nought and a one-by-one stand-in it never samples, because a
       // declared sampler nobody binds is a native crash on Metal and a declared
@@ -607,4 +621,33 @@ extension _MeshEncode on Renderer {
     state.triangles += (mesh.indexCount ~/ 3) * (instanced?.count ?? 1);
     if (instanced != null) state.instances += instanced.count;
   }
+
+  /// Rewrites the two ambient colours for [node] from the scene's irradiance
+  /// field — `gfx-81n`. Does nothing at all when there is no field, which is
+  /// what keeps every recorded frame where it was.
+  void _applyIrradiance(Scene scene, MeshNode node) {
+    final field = scene.irradianceField;
+    if (field == null) return;
+
+    // The node's own middle. A point on its surface would be better and is not
+    // available here — the encode sees a bounding box, not the geometry — and
+    // the middle is the one point that is certainly inside the thing being lit.
+    final at = node.worldBoundsCentre;
+    final up = field.sample(at, _kUp, _irradianceUp);
+    final down = field.sample(at, _kDown, _irradianceDown);
+
+    // Scaled by the scene's own ambient knob, so the one control still dials
+    // indirect light: a field is a measurement of the room and this is how much
+    // of that measurement the author wants.
+    final tint = scene.ambientIntensity;
+    _ambientSky[0] = up.x * tint;
+    _ambientSky[1] = up.y * tint;
+    _ambientSky[2] = up.z * tint;
+    _ambientGround[0] = down.x * tint;
+    _ambientGround[1] = down.y * tint;
+    _ambientGround[2] = down.z * tint;
+  }
 }
+
+final vm.Vector3 _kUp = vm.Vector3(0.0, 1.0, 0.0);
+final vm.Vector3 _kDown = vm.Vector3(0.0, -1.0, 0.0);
