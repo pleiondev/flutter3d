@@ -33,10 +33,22 @@ import 'rgba8_image.dart';
 /// package's own test suite — proved by decode-and-compare and by PSNR
 /// against a real texture, the same bar `fmt-22`'s own BC1/BC3/ETC2 encoders
 /// were held to.
-/// A real GPU's own ASTC block-mode decode is not exercised here — the real
-/// gap this leaves, named rather than silently assumed away, the same
-/// reasoning `mip_chain.dart`'s wrap-mode limit and `ktx2_format.dart`'s
-/// refusal list are both named by.
+/// **That gap has now been exercised, and it is real — `gfx-88n`, 2026-09-18.**
+/// This comment used to end by naming a risk nobody had measured, because there
+/// was no reference decoder to measure it with. There is one: ARM's own
+/// `astcenc` installs from npm. Fed a file this encoder wrote, it returns
+/// `(255, 0, 255)` for every block — ASTC's error colour — because an all-zero
+/// block-mode field is not a 4×4 weight grid, it is a reserved encoding. So
+/// what this writes is a 16-byte-per-block container that only this package can
+/// read, and a real GPU would draw magenta.
+///
+/// Nothing ships magenta today: `texture_encode.dart` switches on `bc` and
+/// `etc2` and returns the image untouched for anything else, so no build can
+/// select this. What it does mean is that the function is exported and cannot
+/// be used for what its name promises. `gfx-88n` is the row that makes it
+/// conformant, and it now starts with the oracle that was missing — the correct
+/// mode for this configuration is `0x242`, read out of `decode_block_mode_2d`
+/// in the reference encoder rather than guessed.
 ///
 /// **Endpoints from the same principal-axis fit [encodeBc1Block] uses, one
 /// weight per texel from an exhaustive nearest-level search against the
