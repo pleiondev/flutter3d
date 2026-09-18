@@ -2446,6 +2446,16 @@ final class Renderer implements RenderServices {
     if (views.isEmpty) {
       throw ArgumentError('At least one RenderView is required.');
     }
+    // `gfx-35n`. Applied here, once, so every target and every pass below is
+    // sized from it — the scene, the surface buffer, the occlusion, the bloom
+    // chain and the composite all take their size from these two numbers.
+    // Clamped to at least one pixel: a viewport animating open is a real
+    // state and a zero-pixel target is not.
+    final scale = settings.renderScale.clamp(0.1, 1.0);
+    if (scale != 1.0) {
+      width = math.max(1, (width * scale).round());
+      height = math.max(1, (height * scale).round());
+    }
     // Timeline markers, not print statements: the phases below are only
     // meaningful next to Flutter's own build and raster spans, and only in
     // profile or release, where the debug interpreter is not the bottleneck.
