@@ -344,7 +344,7 @@ Thirty-seven entry points. `kRequiredShaders` and the bundle manifest are kept i
 
 | Stage | Names |
 |---|---|
-| Vertex | `MeshVertex`, `MeshSkinnedVertex`, `MeshInstancedVertex`, `MeshLightmappedVertex`, `FullscreenVertex`, `DebugLineVertex`, `ParticleVertex`, `ParticleMeshVertex`, `ShadowTileResetVertex`, `SkyVertex`, `SkyCubeVertex` |
+| Vertex | `MeshVertex`, `MeshSkinnedVertex`, `MeshInstancedVertex`, `MeshLightmappedVertex`, `FullscreenVertex`, `DebugLineVertex`, `ParticleVertex`, `ParticleMeshVertex`, `PolylineVertex`, `ShadowTileResetVertex`, `SkyVertex`, `SkyCubeVertex` |
 | Lighting | `Unlit`, `Lambert`, `BlinnPhong`, `Pbr`, `Toon`, `Normals` |
 | Shadows | `ShadowDepth`, `ShadowDistance`, `ShadowDepthMasked`, `ShadowDistanceMasked`, `ShadowTileReset` |
 | Post | `BloomThreshold`, `BloomDownsample`, `BloomUpsample`, `Composite`, `Fxaa`, `Reflections`, `Ssao`, `SsaoBlur`, `ContactShadow`, `Splat`, `LightShafts`, `DepthOfField`, `ViewportShade`, `Luminance`, `ProbePrefilter` |

@@ -1684,6 +1684,330 @@ fn main(@builtin(vertex_index) gl_VertexIndex: u32, @location(0) position: vec3<
         ),
       ],
     ),
+    'PolylineVertex': WebGpuStage(
+      wgsl: r'''
+struct MaterialParams {
+    viewport: vec4<f32>,
+}
+
+struct FrameInfo {
+    mvp: mat4x4<f32>,
+    model: mat4x4<f32>,
+    normal_matrix: mat4x4<f32>,
+}
+
+struct gl_PerVertex {
+    @builtin(position) gl_Position: vec4<f32>,
+    gl_PointSize: f32,
+    gl_ClipDistance: array<f32, 1>,
+    gl_CullDistance: array<f32, 1>,
+}
+
+struct VertexOutput {
+    @builtin(position) gl_Position: vec4<f32>,
+    @location(6) member: vec3<f32>,
+    @location(2) member_1: vec3<f32>,
+    @location(4) member_2: vec2<f32>,
+    @location(3) member_3: vec4<f32>,
+    @location(0) member_4: vec4<f32>,
+    @location(1) member_5: vec2<f32>,
+}
+
+@group(0) @binding(1) 
+var<uniform> params: MaterialParams;
+var<private> tangent_1: vec4<f32>;
+@group(0) @binding(0) 
+var<uniform> frame_info: FrameInfo;
+var<private> position_1: vec3<f32>;
+var<private> normal_1: vec3<f32>;
+var<private> unnamed: gl_PerVertex = gl_PerVertex(vec4<f32>(0f, 0f, 0f, 1f), 1f, array<f32, 1>(), array<f32, 1>());
+var<private> v_world_position: vec3<f32>;
+var<private> v_normal: vec3<f32>;
+var<private> v_texcoord: vec2<f32>;
+var<private> texcoord_1: vec2<f32>;
+var<private> v_tangent: vec4<f32>;
+var<private> v_color: vec4<f32>;
+var<private> color_1: vec4<f32>;
+var<private> v_lightmap_uv: vec2<f32>;
+
+fn ToPixels_u0028_vf4_u003b_vf2_u003b(clip: ptr<function, vec4<f32>>, viewport: ptr<function, vec2<f32>>) -> vec2<f32> {
+    let _e33 = (*clip);
+    let _e36 = (*clip)[3u];
+    let _e39 = (*viewport);
+    return (((_e33.xy / vec2(_e36)) * _e39) * 0.5f);
+}
+
+fn InFront_u0028_vf4_u003b_vf4_u003b(from_: ptr<function, vec4<f32>>, to: ptr<function, vec4<f32>>) -> vec4<f32> {
+    var t: f32;
+
+    let _e35 = (*from_)[3u];
+    if (_e35 >= 0.0001f) {
+        let _e37 = (*from_);
+        return _e37;
+    }
+    let _e39 = (*from_)[3u];
+    let _e42 = (*to)[3u];
+    let _e44 = (*from_)[3u];
+    t = ((0.0001f - _e39) / (_e42 - _e44));
+    let _e47 = (*from_);
+    let _e48 = (*to);
+    let _e49 = t;
+    return mix(_e47, _e48, vec4(clamp(_e49, 0f, 1f)));
+}
+
+fn main_1() {
+    var viewport_1: vec2<f32>;
+    var halfWidth: f32;
+    var side: f32;
+    var here: vec4<f32>;
+    var before: vec4<f32>;
+    var after: vec4<f32>;
+    var local: vec4<f32>;
+    var param: vec4<f32>;
+    var param_1: vec4<f32>;
+    var param_2: vec4<f32>;
+    var param_3: vec4<f32>;
+    var param_4: vec4<f32>;
+    var param_5: vec4<f32>;
+    var param_6: vec4<f32>;
+    var param_7: vec4<f32>;
+    var at: vec2<f32>;
+    var param_8: vec4<f32>;
+    var param_9: vec2<f32>;
+    var incoming: vec2<f32>;
+    var param_10: vec4<f32>;
+    var param_11: vec2<f32>;
+    var outgoing: vec2<f32>;
+    var param_12: vec4<f32>;
+    var param_13: vec2<f32>;
+    var offset: vec2<f32>;
+    var inDir: vec2<f32>;
+    var outDir: vec2<f32>;
+    var segmentNormal: vec2<f32>;
+    var along: vec2<f32>;
+    var miter: vec2<f32>;
+    var local_1: vec2<f32>;
+    var stretch: f32;
+
+    let _e64 = params.viewport;
+    viewport_1 = _e64.xy;
+    let _e67 = tangent_1[3u];
+    halfWidth = abs(_e67);
+    let _e70 = tangent_1[3u];
+    side = select(1f, -1f, (_e70 < 0f));
+    let _e74 = frame_info.mvp;
+    let _e75 = position_1;
+    here = (_e74 * vec4<f32>(_e75.x, _e75.y, _e75.z, 1f));
+    let _e82 = frame_info.mvp;
+    let _e83 = normal_1;
+    before = (_e82 * vec4<f32>(_e83.x, _e83.y, _e83.z, 1f));
+    let _e90 = frame_info.mvp;
+    let _e91 = tangent_1;
+    let _e92 = _e91.xyz;
+    after = (_e90 * vec4<f32>(_e92.x, _e92.y, _e92.z, 1f));
+    let _e99 = here[3u];
+    if (_e99 < 0.0001f) {
+        let _e102 = after[3u];
+        if (_e102 >= 0.0001f) {
+            let _e104 = here;
+            param = _e104;
+            let _e105 = after;
+            param_1 = _e105;
+            let _e106 = InFront_u0028_vf4_u003b_vf4_u003b((&param), (&param_1));
+            local = _e106;
+        } else {
+            let _e107 = here;
+            param_2 = _e107;
+            let _e108 = before;
+            param_3 = _e108;
+            let _e109 = InFront_u0028_vf4_u003b_vf4_u003b((&param_2), (&param_3));
+            local = _e109;
+        }
+        let _e110 = local;
+        here = _e110;
+    }
+    let _e111 = before;
+    param_4 = _e111;
+    let _e112 = here;
+    param_5 = _e112;
+    let _e113 = InFront_u0028_vf4_u003b_vf4_u003b((&param_4), (&param_5));
+    before = _e113;
+    let _e114 = after;
+    param_6 = _e114;
+    let _e115 = here;
+    param_7 = _e115;
+    let _e116 = InFront_u0028_vf4_u003b_vf4_u003b((&param_6), (&param_7));
+    after = _e116;
+    let _e117 = here;
+    param_8 = _e117;
+    let _e118 = viewport_1;
+    param_9 = _e118;
+    let _e119 = ToPixels_u0028_vf4_u003b_vf2_u003b((&param_8), (&param_9));
+    at = _e119;
+    let _e120 = at;
+    let _e121 = before;
+    param_10 = _e121;
+    let _e122 = viewport_1;
+    param_11 = _e122;
+    let _e123 = ToPixels_u0028_vf4_u003b_vf2_u003b((&param_10), (&param_11));
+    incoming = (_e120 - _e123);
+    let _e125 = after;
+    param_12 = _e125;
+    let _e126 = viewport_1;
+    param_13 = _e126;
+    let _e127 = ToPixels_u0028_vf4_u003b_vf2_u003b((&param_12), (&param_13));
+    let _e128 = at;
+    outgoing = (_e127 - _e128);
+    let _e130 = incoming;
+    let _e131 = incoming;
+    if (dot(_e130, _e131) < 0.000000000001f) {
+        let _e134 = outgoing;
+        incoming = _e134;
+    }
+    let _e135 = outgoing;
+    let _e136 = outgoing;
+    if (dot(_e135, _e136) < 0.000000000001f) {
+        let _e139 = incoming;
+        outgoing = _e139;
+    }
+    offset = vec2<f32>(0f, 0f);
+    let _e140 = incoming;
+    let _e141 = incoming;
+    if (dot(_e140, _e141) >= 0.000000000001f) {
+        let _e144 = incoming;
+        inDir = normalize(_e144);
+        let _e146 = outgoing;
+        outDir = normalize(_e146);
+        let _e149 = inDir[1u];
+        let _e152 = inDir[0u];
+        segmentNormal = vec2<f32>(-(_e149), _e152);
+        let _e154 = inDir;
+        let _e155 = outDir;
+        along = (_e154 + _e155);
+        let _e157 = along;
+        let _e158 = along;
+        if (dot(_e157, _e158) < 0.000000000001f) {
+            let _e161 = segmentNormal;
+            local_1 = _e161;
+        } else {
+            let _e163 = along[1u];
+            let _e166 = along[0u];
+            local_1 = normalize(vec2<f32>(-(_e163), _e166));
+        }
+        let _e169 = local_1;
+        miter = _e169;
+        let _e170 = miter;
+        let _e171 = segmentNormal;
+        stretch = (1f / max(dot(_e170, _e171), 0.25f));
+        let _e175 = miter;
+        let _e176 = halfWidth;
+        let _e178 = stretch;
+        let _e180 = side;
+        offset = (((_e175 * _e176) * _e178) * _e180);
+    }
+    let _e182 = here;
+    let _e184 = offset;
+    let _e185 = viewport_1;
+    let _e189 = here[3u];
+    let _e191 = (_e182.xy + ((_e184 / (_e185 * 0.5f)) * _e189));
+    let _e192 = here;
+    let _e193 = _e192.zw;
+    unnamed.gl_Position = vec4<f32>(_e191.x, _e191.y, _e193.x, _e193.y);
+    let _e201 = frame_info.model;
+    let _e202 = position_1;
+    v_world_position = (_e201 * vec4<f32>(_e202.x, _e202.y, _e202.z, 1f)).xyz;
+    let _e210 = frame_info.normal_matrix;
+    v_normal = normalize((mat3x3<f32>(_e210[0].xyz, _e210[1].xyz, _e210[2].xyz) * vec3<f32>(0f, 1f, 0f)));
+    let _e220 = texcoord_1;
+    v_texcoord = _e220;
+    v_tangent = vec4<f32>(1f, 0f, 0f, 1f);
+    let _e221 = color_1;
+    v_color = _e221;
+    v_lightmap_uv = vec2<f32>(0f, 0f);
+    return;
+}
+
+@vertex 
+fn main(@location(3) tangent: vec4<f32>, @location(0) position: vec3<f32>, @location(1) normal: vec3<f32>, @location(2) texcoord: vec2<f32>, @location(4) color: vec4<f32>) -> VertexOutput {
+    tangent_1 = tangent;
+    position_1 = position;
+    normal_1 = normal;
+    texcoord_1 = texcoord;
+    color_1 = color;
+    main_1();
+    let _e18 = unnamed.gl_Position;
+    let _e19 = v_world_position;
+    let _e20 = v_normal;
+    let _e21 = v_texcoord;
+    let _e22 = v_tangent;
+    let _e23 = v_color;
+    let _e24 = v_lightmap_uv;
+    return VertexOutput(_e18, _e19, _e20, _e21, _e22, _e23, _e24);
+}
+''',
+      attributes: <WebGpuAttribute>[
+        WebGpuAttribute(
+          name: 'position',
+          location: 0,
+          format: VertexFormat.float32x3,
+        ),
+        WebGpuAttribute(
+          name: 'normal',
+          location: 1,
+          format: VertexFormat.float32x3,
+        ),
+        WebGpuAttribute(
+          name: 'texcoord',
+          location: 2,
+          format: VertexFormat.float32x2,
+        ),
+        WebGpuAttribute(
+          name: 'tangent',
+          location: 3,
+          format: VertexFormat.float32x4,
+        ),
+        WebGpuAttribute(
+          name: 'color',
+          location: 4,
+          format: VertexFormat.float32x4,
+        ),
+      ],
+      blocks: <WebGpuBlock>[
+        WebGpuBlock(
+          name: 'FrameInfo',
+          group: 0,
+          binding: 0,
+          sizeInBytes: 192,
+          members: <WebGpuBlockMember>[
+            WebGpuBlockMember(name: 'mvp', offsetInBytes: 0, sizeInBytes: 64),
+            WebGpuBlockMember(
+              name: 'model',
+              offsetInBytes: 64,
+              sizeInBytes: 64,
+            ),
+            WebGpuBlockMember(
+              name: 'normal_matrix',
+              offsetInBytes: 128,
+              sizeInBytes: 64,
+            ),
+          ],
+        ),
+        WebGpuBlock(
+          name: 'MaterialParams',
+          group: 0,
+          binding: 1,
+          sizeInBytes: 16,
+          members: <WebGpuBlockMember>[
+            WebGpuBlockMember(
+              name: 'viewport',
+              offsetInBytes: 0,
+              sizeInBytes: 16,
+            ),
+          ],
+        ),
+      ],
+      samplers: <WebGpuSampler>[],
+    ),
     'ParticleVertex': WebGpuStage(
       wgsl: r'''
 struct gl_PerVertex {

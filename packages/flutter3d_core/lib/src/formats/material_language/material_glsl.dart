@@ -11,9 +11,11 @@
 /// `glsl_to_wgsl.dart` prepares it for glslang and naga, all without knowing a
 /// material language exists.
 ///
-/// **What it does not emit is as deliberate.** No uniform block, because the
-/// engine's blocks are frozen by offset agreement across four backends. No
-/// sampler declaration, because `surface.glsl` already declares the ones the
+/// **What it does not emit is as deliberate.** No uniform block of its own:
+/// the engine's shared blocks are frozen by offset agreement across four
+/// backends, and the one block a material may add — `MaterialParams`, filled
+/// from `Material.parameters` — is not something the language writes yet,
+/// because its parameters are folded constants. No sampler declaration, because `surface.glsl` already declares the ones the
 /// engine binds and a second declaration is a duplicate symbol. No `#define`
 /// the author chose, because a material that could switch headers on and off
 /// could turn off the surface buffer and lie to every screen-space effect.

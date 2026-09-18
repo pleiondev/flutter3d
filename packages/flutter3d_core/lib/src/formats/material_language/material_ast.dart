@@ -64,14 +64,18 @@ final class MaterialType {
 /// One declared parameter: a name, a type and the value a variant that says
 /// nothing about it gets.
 ///
-/// **A compile-time constant, and the row says why that is the shape rather
-/// than a compromise.** What `gfx-84n` asks the toolchain to generate is "the
-/// entry points, the variants and the binding metadata" — a variant *is* a set
-/// of parameter values compiled into its own entry point. A parameter that
-/// changed per frame would need a uniform block per material, and this engine's
-/// blocks are frozen by offset agreement across four backends: `surface.glsl`
-/// says in as many words that appending to `FragInfo` moves offsets the
-/// backends have already agreed on. That is the named gap, not this.
+/// **A compile-time constant.** What `gfx-84n` asks the toolchain to generate
+/// is "the entry points, the variants and the binding metadata", and a variant
+/// *is* a set of parameter values compiled into its own entry point.
+///
+/// **What this is not is the only way a value could reach the shader**, and an
+/// earlier version of this comment said it was. It claimed a parameter that
+/// changed per frame would need a new uniform block per material, which the
+/// engine could not have. The engine already has one: `Material.parameters`
+/// is bound as `MaterialParams` to the fragment stage, and since `gfx-86n` to
+/// a vertex stage the material brought as well. A runtime parameter in this
+/// language would be a member of that block; it is not written, and the reason
+/// is scope rather than impossibility.
 final class MaterialParameter {
   const MaterialParameter(this.name, this.type, this.defaultValue);
 

@@ -116,6 +116,12 @@ Future<void> checkLinking(GraphicsDevice device) async {
     ])
       ('FullscreenVertex', post),
     ('DebugLineVertex', 'DebugLine'),
+    // `gfx-86n`: the polyline stage behind the one fragment stage
+    // `LightingModel.polyline` pairs it with. A stage a material brings has to
+    // write every varying the fragment side reads, and this is the pair where
+    // that is least likely to have been copied right — the line writes a normal
+    // and a tangent it has no geometry for.
+    ('PolylineVertex', 'Unlit'),
     // Both particle fragment stages, and the mesh particle's own vertex stage,
     // which is the only one in the bundle with a per-instance buffer.
     ('ParticleVertex', 'Particle'),
