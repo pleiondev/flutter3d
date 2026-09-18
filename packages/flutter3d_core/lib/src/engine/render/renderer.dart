@@ -18,6 +18,7 @@ import '../scene/morph_state.dart';
 import '../scene/projection.dart';
 import '../scene/reflection_probe_node.dart';
 import '../scene/scene.dart';
+import '../scene/scene_node.dart';
 import 'composite_mix.dart';
 import 'debug_draw.dart';
 import 'debug_draw_gizmos.dart';
@@ -2051,6 +2052,15 @@ final class Renderer implements RenderServices {
   /// [_cubeMatrix] in the backend's clip space, for drawing a face with.
   final vm.Matrix4 _cubeDrawMatrix = vm.Matrix4.identity();
   final Float32List _cubeLight = Float32List(4);
+
+  /// What the directional atlas currently holds, as the key that drew it —
+  /// `gfx-68n`. Null until a first pass.
+  ({int matrices, int epoch, int generation, int faces, int casters})?
+  _directionalBaked;
+
+  /// How many casters the last directional pass actually drew, so a frame that
+  /// skips the pass can put the figure back after the frame zeroed it.
+  int _directionalCasters = 0;
 
   /// One reusable batch per mesh-and-material pair — `gfx-67n`.
   ///

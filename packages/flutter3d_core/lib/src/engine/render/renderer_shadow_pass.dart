@@ -436,6 +436,50 @@ extension _ShadowPasses on Renderer {
     return drawn > 0;
   }
 
+  /// Everything that decides a texel of the directional atlas — `gfx-68n`.
+  ///
+  /// A record rather than a hash, so two frames that differ are never equal by
+  /// accident; the matrices are the one part reduced to a number, because the
+  /// alternative is holding copies of up to four of them and comparing
+  /// sixty-four doubles.
+  ({int matrices, int epoch, int generation, int faces, int casters})
+  _directionalBakeKey(
+    Scene scene,
+    ShadowSettings settings,
+    List<vm.Matrix4> shaderMatrices,
+  ) {
+    var matrices = shaderMatrices.length;
+    for (final matrix in shaderMatrices) {
+      for (final value in matrix.storage) {
+        matrices = 0x1fffffff & (matrices * 31 + value.hashCode);
+      }
+    }
+
+    // Masked casters read a cutoff and an alpha off their material, and neither
+    // a material's fields nor the texture it points at reach `changeEpoch` or
+    // the static generation — a material is not a node. This is that gap
+    // closed, and it costs one pass over the casters against the two or three
+    // passes of drawing them it is deciding about.
+    var casters = 0;
+    for (final node in scene.meshes) {
+      if (!node.shadowCasting.casts) continue;
+      final material = node.material;
+      casters = 0x1fffffff & (casters * 31 + identityHashCode(material));
+      casters = 0x1fffffff & (casters * 31 + material.alphaMode.hashCode);
+      casters = 0x1fffffff & (casters * 31 + material.alphaCutoff.hashCode);
+      casters = 0x1fffffff & (casters * 31 + material.baseColor.w.hashCode);
+      casters = 0x1fffffff & (casters * 31 + identityHashCode(material.albedo));
+    }
+
+    return (
+      matrices: matrices,
+      epoch: SceneNode.changeEpoch,
+      generation: scene.staticShadowGeneration,
+      faces: settings.casterFaces.hashCode,
+      casters: casters,
+    );
+  }
+
   /// Draws the directional light's shadow map, and says whether it drew one.
   ///
   /// The frame's own resources are handed in for the depth attachment, which is
@@ -615,9 +659,60 @@ extension _ShadowPasses on Renderer {
     // the uv it computes has to be mirrored with it. Measured: that alone takes
     // the directional shadow from a worst cell of 32 to 4.
 
+    // **A cascade nobody changed is not redrawn — `gfx-68n`.** Every cascade
+    // was drawn from nothing every frame, which on a scene larger than the
+    // nearest cascade covers is the whole caster set two or three times over,
+    // for a picture identical to the one already in the texture. The map is
+    // `devicePrivate` and has always survived the frame; nothing was reading it
+    // back.
+    //
+    // The key is everything that decides a texel. The matrices carry the
+    // camera, the light's aim, the scene's own bounds, the resolution and the
+    // padding, because all of those went into fitting them.
+    // `SceneNode.changeEpoch` carries every caster that moved, appeared,
+    // vanished or was hidden, and a skinned caster's pose with it, since a joint
+    // is a node. `Scene.staticShadowGeneration` carries a caster that changed
+    // *how* it casts. The cull mode and the masked casters' own thresholds are
+    // read directly, because neither reaches either counter.
     // Cascades live side by side in one texture, so the number of samplers the
     // fragment shader binds does not depend on how many there are.
     final atlasWidth = resolution * count;
+
+    /// What the lighting shader reads about the map, whether or not this frame
+    /// drew into it.
+    ///
+    /// A closure with two call sites rather than a tail with one, because the
+    /// skip below leaves by a different door and these are not optional: they
+    /// are applied per fragment, so a frame that left them at nought would read
+    /// a perfectly good atlas with a strength of zero and come back unshadowed.
+    void publishShadowParams() {
+      // Horizontally the texel is a texel of the *atlas*, vertically it is a
+      // texel of a tile. With one cascade they are the same number, which is
+      // what keeps that path byte-identical to the one this renderer has always
+      // had.
+      _shadowParams[0] = 1.0 / atlasWidth;
+      _shadowCascades[0] = splits[0];
+      _shadowCascades[1] = splits[1];
+      _shadowCascades[2] = count.toDouble();
+      _shadowCascades[3] = 1.0 / resolution;
+      _shadowParams[1] = settings.bias;
+      _shadowParams[2] = settings.normalOffset;
+      _shadowParams[3] = settings.strength.clamp(0.0, 1.0);
+    }
+
+    final bakeKey = _directionalBakeKey(scene, settings, shaderMatrices);
+    if (_shadowMap != null &&
+        _shadowResolution == resolution &&
+        _shadowCascadeCount == count &&
+        _directionalBaked == bakeKey) {
+      // Zeroed by the frame, so a pass that draws nothing has to put back what
+      // the last one counted or the overlay reports a scene that stopped
+      // casting.
+      _shadowCasters = _directionalCasters;
+      publishShadowParams();
+      return true;
+    }
+    _directionalBaked = bakeKey;
     if (_shadowMap == null ||
         _shadowResolution != resolution ||
         _shadowCascadeCount != count) {
@@ -875,17 +970,8 @@ extension _ShadowPasses on Renderer {
     pass.submit();
     developer.Timeline.finishSync();
 
-    // Horizontally the texel is a texel of the *atlas*, vertically it is a
-    // texel of a tile. With one cascade they are the same number, which is what
-    // keeps that path byte-identical to the one this renderer has always had.
-    _shadowParams[0] = 1.0 / atlasWidth;
-    _shadowCascades[0] = splits[0];
-    _shadowCascades[1] = splits[1];
-    _shadowCascades[2] = count.toDouble();
-    _shadowCascades[3] = 1.0 / resolution;
-    _shadowParams[1] = settings.bias;
-    _shadowParams[2] = settings.normalOffset;
-    _shadowParams[3] = settings.strength.clamp(0.0, 1.0);
+    publishShadowParams();
+    _directionalCasters = _shadowCasters;
     return true;
   }
 }
