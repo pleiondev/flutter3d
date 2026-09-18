@@ -100,7 +100,14 @@ extension _PostPasses on Renderer {
       _bloomParams[0] = 1.0 / from.width;
       _bloomParams[1] = 1.0 / from.height;
       _bloomParams[2] = settings.filterRadius;
-      _bloomParams[3] = 0.0;
+      // `gfx-30n`: the wider the level, the warmer it goes. Level zero is the
+      // tight core and stays exactly neutral; the broadest level carries the
+      // whole amount. One over the chain rather than a constant, because
+      // halation that warmed the core too would be a tint on the glow rather
+      // than a halo around it.
+      _bloomParams[3] = chain.length > 1
+          ? settings.halation * (level / (chain.length - 1))
+          : 0.0;
 
       _drawFullscreenAdditive(target: into, source: from);
       _frameCounters?.drawCalls++;
