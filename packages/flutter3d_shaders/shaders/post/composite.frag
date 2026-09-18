@@ -504,20 +504,31 @@ void main() {
     color *= mix(1.0, 1.0 - vignette, clamp(radius, 0.0, 1.0));
   }
 
-  float grain = composite_info.look_more.z;
-  // Centred on zero so grain neither lifts nor lowers the average level, and
-  // added rather than multiplied so it stays visible in the shadows, which is
-  // where film grain lives.
-  if (grain > 0.0) color += vec3((Hash(gl_FragCoord.xy) - 0.5) * grain);
-
-  // **Dither is the last thing that happens, and it happens after the sRGB
-  // encode on purpose.** Banding is a quantisation artefact of the 8-bit
-  // target, so the noise that breaks it up has to be the size of one output
-  // step — which is a fixed distance in display space and a wildly varying
-  // one in linear space, where a step near black is a thousandth of a step
-  // near white. Dithering before the encode would put most of the noise where
-  // the banding is not.
+  // **Grain and dither are both after the encode, and for the same reason.**
+  // Banding is a quantisation artefact of the 8-bit target, so the noise that
+  // breaks it up has to be the size of one output step: a fixed distance in
+  // display space and a wildly varying one in linear space, where a step near
+  // black is a thousandth of a step near white.
   vec3 encoded = LinearToSrgb(max(color, vec3(0.0)));
+
+  // **This used to be added in linear light, and the comment on it was
+  // wrong.** It said the noise was centred on zero so grain neither lifts nor
+  // lowers the average level. Symmetric in linear it was; symmetric by the
+  // time anybody saw it, it was not. `max(color, 0.0)` clipped the negative
+  // half, and the sRGB encode then stretched what was left: at a grain of
+  // 0.08 on black, the surviving half ran up to a linear 0.04, which encodes
+  // to 56 of 255. Measured over the `look` parity fixture, the darkest cell
+  // sat at 14 instead of 0, across a picture that is 188 cells of black.
+  //
+  // In display space the two halves are the same size, nothing is clipped
+  // before the average is taken, and the sentence above is finally true. What
+  // it costs is that the amount means something different: 0.08 is now eight
+  // percent of the output range rather than of the light, which is what a
+  // film grain control has always meant on every other tool.
+  float grain = composite_info.look_more.z;
+  if (grain > 0.0) encoded += vec3((Hash(gl_FragCoord.xy) - 0.5) * grain);
+
+  // Dither last, because it is the one aimed at the quantiser itself.
   float dither = composite_info.output_encode.x;
   if (dither > 0.0) encoded += vec3(BayerCell(gl_FragCoord.xy) * dither);
 

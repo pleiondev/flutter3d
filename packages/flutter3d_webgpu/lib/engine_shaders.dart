@@ -10733,16 +10733,16 @@ fn BayerCell_u0028_vf2_u003b(at: ptr<function, vec2<f32>>) -> f32 {
     return ((_e181 / 16f) - 0.5f);
 }
 
+fn Hash_u0028_vf2_u003b(at_1: ptr<function, vec2<f32>>) -> f32 {
+    let _e129 = (*at_1);
+    return fract((sin(dot(_e129, vec2<f32>(12.9898f, 78.233f))) * 43758.547f));
+}
+
 fn LinearToSrgb_u0028_vf3_u003b(linear: ptr<function, vec3<f32>>) -> vec3<f32> {
     let _e129 = (*linear);
     let _e131 = (*linear);
     let _e136 = (*linear);
     return mix((_e129 * 12.92f), ((pow(max(_e131, vec3<f32>(0f, 0f, 0f)), vec3<f32>(0.41666666f, 0.41666666f, 0.41666666f)) * 1.055f) - vec3<f32>(0.055f, 0.055f, 0.055f)), step(vec3<f32>(0.0031308f, 0.0031308f, 0.0031308f), _e136));
-}
-
-fn Hash_u0028_vf2_u003b(at_1: ptr<function, vec2<f32>>) -> f32 {
-    let _e129 = (*at_1);
-    return fract((sin(dot(_e129, vec2<f32>(12.9898f, 78.233f))) * 43758.547f));
 }
 
 fn SampleLut_u0028_vf3_u003b_f1_u003b(color: ptr<function, vec3<f32>>, size: ptr<function, f32>) -> vec3<f32> {
@@ -11004,10 +11004,10 @@ fn main_1() {
     var fromCentre_1: vec2<f32>;
     var aspect: f32;
     var radius: f32;
-    var grain: f32;
-    var param_12: vec2<f32>;
     var encoded: vec3<f32>;
-    var param_13: vec3<f32>;
+    var param_12: vec3<f32>;
+    var grain: f32;
+    var param_13: vec2<f32>;
     var dither: f32;
     var param_14: vec2<f32>;
 
@@ -11167,21 +11167,21 @@ fn main_1() {
         let _e401 = color_8;
         color_8 = (_e401 * mix(1f, (1f - _e396), clamp(_e398, 0f, 1f)));
     }
-    let _e405 = composite_info.look_more[2u];
-    grain = _e405;
-    let _e406 = grain;
-    if (_e406 > 0f) {
-        let _e408 = gl_FragCoord_1;
-        param_12 = _e408.xy;
-        let _e410 = Hash_u0028_vf2_u003b((&param_12));
-        let _e412 = grain;
-        let _e415 = color_8;
-        color_8 = (_e415 + vec3(((_e410 - 0.5f) * _e412)));
+    let _e403 = color_8;
+    param_12 = max(_e403, vec3<f32>(0f, 0f, 0f));
+    let _e405 = LinearToSrgb_u0028_vf3_u003b((&param_12));
+    encoded = _e405;
+    let _e408 = composite_info.look_more[2u];
+    grain = _e408;
+    let _e409 = grain;
+    if (_e409 > 0f) {
+        let _e411 = gl_FragCoord_1;
+        param_13 = _e411.xy;
+        let _e413 = Hash_u0028_vf2_u003b((&param_13));
+        let _e415 = grain;
+        let _e418 = encoded;
+        encoded = (_e418 + vec3(((_e413 - 0.5f) * _e415)));
     }
-    let _e417 = color_8;
-    param_13 = max(_e417, vec3<f32>(0f, 0f, 0f));
-    let _e419 = LinearToSrgb_u0028_vf3_u003b((&param_13));
-    encoded = _e419;
     let _e422 = composite_info.output_encode[0u];
     dither = _e422;
     let _e423 = dither;
