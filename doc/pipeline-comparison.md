@@ -222,14 +222,23 @@ The completeness critic went through the pinned tree against ours and found six
 subsystems that fell between the ten dimensions. Three are places where we have
 nothing at all.
 
-**Profiling and frame capture.** Theirs: always-on per-view and per-pass
-counters, a one-frame graph capture that copies every texture each pass wrote
-so transient reuse cannot overwrite the evidence, a debug view, a wireframe
-overlay, a 3D performance overlay, and an editor panel consuming all of it.
-Ours: counters that are pass-local and never aggregated, and gizmo drawing.
-This is why the frame-graph refuter could ask "nobody counted textures" and
-nobody had. We have no instrument to count with, which quietly makes half the
-performance arguments in this document unmeasurable from our side.
+**Frame capture, though not counters, and the critic got this one wrong.**
+The completeness critic reported that our counters are pass-local and never
+aggregated, and that we have no instrument to count with. That is false, and
+it is false because the critic grepped for their names: `RenderStats`,
+`frameStats`, `GpuTimer`. We have `FrameResult.passes`, a record per graph
+node carrying time, draws, triangles and pipeline switches, filled by
+differencing counters either side of every `node.execute` at
+`renderer.dart:3095`, plus a `MetricsOverlay` in the modeller that lists them.
+`gfx-01n` built it and its own row records the three wrong numbers it found on
+its first run.
+
+What we do lack is the other half. Theirs has a one-frame graph capture that
+copies every texture each pass wrote, so transient reuse cannot overwrite the
+evidence, and an editor panel that shows it; ours reports times and counts and
+no pixels. It also has a `TODO(gpu-timing)` naming a Flutter issue for
+timestamp queries, which neither side has. So the gap is capture and GPU
+timing, not counting.
 
 **Memory pressure.** Theirs wires `releaseTransientRenderTargets()` to platform
 memory pressure and documents that the pool otherwise settles at the high-water
@@ -304,25 +313,32 @@ stacks; "four backends" as a portability win, given the per-backend
 every lighting or shadow row scored ours, given what section 4 puts on the
 table.
 
-## 7. Rows worth opening
+## 7. What the plan does about it
 
-Ordered by what a person notices first rather than by what is cheapest.
+`doc/model-editor-plan.md` carries 25 rows from this survey, as phases G4 and
+G5 of the `gfx-` track. The owner's decision on 2026-09-18 was to fix what is
+broken and lift the two ceilings, and not to chase feature breadth, because
+verification is where this engine is ahead and a second copy of theirs would be
+worse at both.
 
-1. **Alpha-masked shadow casters.** A mask sampler and a discard in two
-   shaders. Visible in the first screenshot of any scene with foliage.
-2. **Cull against the AABB we already maintain**, and read the BVH below 2048
-   meshes. Both are already-paid-for work being thrown away.
-3. **Shadow caster culling against the tile being filled.**
-4. **A frame report and a graph capture.** Without it, most of section 3's
-   performance claims cannot be measured on our side, which means they cannot
-   be closed and proven closed.
-5. **Memory pressure shedding.** One handler, and it removes a crash class.
-6. **Skinning computed once per skeleton per frame**, not once per primitive
-   per pass.
-7. **A vertex-stage seam for materials.** The largest ceiling, and the one that
-   decides whether somebody can write an ocean without forking the engine.
-8. **Clustered lighting.** The largest single feature gap, and the one that
-   stops eight-light scenes being the shape of everything we draw.
+G4 is the cycle. It opens with ten rows that need no new machinery, because
+they are work we already do and discard: `gfx-60n` alpha-masked shadow casters,
+`gfx-61n` culling against the AABB `_refreshBounds` already fills, `gfx-62n`
+the BVH at every scene size with a refit, `gfx-63n` caster culling inside the
+shadow passes, `gfx-64n` skinning once per skeleton per frame, `gfx-65n` a
+world transform that does not walk to the root on every read, `gfx-66n` subtree
+bounds, `gfx-67n` cross-node batching, `gfx-68n` a static tile for the
+directional cascades, and `gfx-69n` an asset build that compresses and writes a
+mip chain.
 
-Items 1 to 6 are machinery we already have and are not using. Items 7 and 8 are
-real projects.
+Then the instruments and the reach: `gfx-70n` a frame capture with pixels in
+it, `gfx-71n` shedding transient targets under memory pressure, `gfx-72n` a CI
+lane that renders, `gfx-73n` Windows and Linux. Then the two ceilings,
+clustered lighting first: `gfx-74n` and `gfx-75n`.
+
+G5 holds the breadth rows anyway, ordered after the ceilings. Four of them were
+proposed for declining and kept by owner decision, which is the better outcome:
+a declined row somebody can read beats an absence somebody has to notice.
+`gfx-80n` Gaussian splats, `gfx-81n` a runtime irradiance field, `gfx-82n`
+Draco and `gfx-84n` the material language each carry the reason they were
+nearly dropped.
