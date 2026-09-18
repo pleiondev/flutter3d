@@ -466,6 +466,17 @@ extension _MeshEncode on Renderer {
         'forward': _forwardData,
       });
 
+      // **Every lit draw, both halves — `gfx-74n`.** A draw with no tail binds
+      // a count of nought and a one-by-one stand-in it never samples, because a
+      // declared sampler nobody binds is a native crash on Metal and a declared
+      // block nobody writes is the other way this repository has drawn a wrong
+      // picture with no error anywhere.
+      _bindLightList(
+        encoder,
+        fragmentShader,
+        drawLights,
+        _buildLightList(lights),
+      );
       encoder.bindUniformBlock(fragmentShader, _kFragInfoBlock, {
         // Whole arrays written from their reflected base offset. A backend
         // reflects the array, not its elements — `lights[0]` comes back

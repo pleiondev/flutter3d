@@ -59,6 +59,21 @@ List<LightNode> _corridor() => <LightNode>[
       ..setPosition(i.toDouble() - 19.5, 1.6, 0.0),
 ];
 
+/// Eighty lamps a metre apart, each reaching far enough that more of them than
+/// a draw can hold compete for its places — `gfx-74n`.
+///
+/// [_corridor] above reaches about thirteen lamps, which filled eight slots
+/// with five to spare; with the light list carrying twenty-four more, that
+/// corridor turns nothing away and has no water line at all. This one keeps the
+/// same shape — an object standing *on* a lamp, so the pair either side of any
+/// boundary scores exactly alike — and stretches it until the boundary is the
+/// end of the list rather than the end of the slots.
+List<LightNode> _longCorridor() => <LightNode>[
+  for (var i = 0; i < 80; i++)
+    LightNode(type: LightType.point, intensity: 4.0, range: 25.0)
+      ..setPosition(i.toDouble() - 39.5, 1.6, 0.0),
+];
+
 /// A plank walking down a corridor, seen from above, with two far lamps
 /// fighting over the eighth slot — the frame at position [at], as RGBA.
 ///
@@ -100,10 +115,25 @@ Future<Uint8List> _frameAt(double at, {required double fadeBand}) async {
       name: 'plank',
     )..setPosition(at, 0.0, 0.0),
   );
-  for (var i = 0; i < 7; i++) {
+  // **Thirty-one rather than seven, and at a fifth of a metre — `gfx-74n`.**
+  // The cliff this fixture exists to contain is where a light stops
+  // contributing, and that used to be the eighth slot. It is the end of the
+  // light list now: eight slots and twenty-four rows, so thirty-one lamps hold
+  // every place but one and the two bright ones at the ends compete for it.
+  //
+  // The spacing is the part that had to be measured rather than guessed. A lamp
+  // scores by attenuation to the *surface* of the object's sphere, so one
+  // directly over the plank scores its ceiling and one out past the sphere's
+  // radius — 4.12 metres here — falls off a cliff of its own. At a spacing of
+  // 0.3 the outer lamps of the row land beyond it, score below the two bright
+  // ones, and both bright lamps stay in the top thirty-two: no hand-over, and
+  // the walk measured 0.02% with the hard edge. At 0.2 every lamp of the row is
+  // inside the sphere, the two bright ones are the weakest, and exactly one of
+  // them is turned away — which is the hand-over this file is about.
+  for (var i = 0; i < 31; i++) {
     scene.add(
       LightNode(type: LightType.point, intensity: 0.08, range: 20.0)
-        ..setPosition(at + (i - 3) * 1.2, 2.0, 0.0),
+        ..setPosition(at + (i - 15) * 0.2, 2.0, 0.0),
     );
   }
   for (final x in <double>[-10.0, 10.0]) {
@@ -207,18 +237,36 @@ void main() {
       // away, at the origin, the eighth chosen sits comfortably above the
       // water line and this same band leaves it alone. A fade that is doing
       // its job is invisible most of the time.
-      final table = LightBuffer()..gather(_corridor());
+      // **A longer corridor with a longer reach — `gfx-74n`.** The tie this
+      // test is built on is the pair straddling the last place, and that place
+      // is the thirty-second now rather than the eighth: the pair sits sixteen
+      // lamps out either side, which a range of six never reached. Eighty lamps
+      // at a range of twenty-five put fifty-one of them within reach, so
+      // thirty-two are kept and the pair at sixteen metres is split.
+      final table = LightBuffer()..gather(_longCorridor());
       final buffer = LightBuffer()
         ..gatherNearFrom(table, Vector3(0.5, 0.0, 0.0), 0.6, fadeBand: 1.0);
 
+      // **The slots are not where the fade lives any more — `gfx-74n`.** A
+      // light turned away from them goes into the tail and is still lit, so
+      // the eight here are all comfortably above the water line and none of
+      // them is dimmed. The light *at* the line is the weakest the tail kept,
+      // and its scale is what the shader multiplies its intensity by.
       final intensities = <double>[
         for (var i = 0; i < buffer.count; i++) buffer.colors[i * 4 + 3],
       ];
       expect(intensities.reduce(math.max), closeTo(4.0, 1e-6));
+      expect(intensities.reduce(math.min), closeTo(4.0, 1e-6));
+
+      final scales = <double>[
+        for (var i = 0; i < buffer.extraCount; i++) buffer.extraScales[i],
+      ];
+      expect(scales, isNotEmpty, reason: 'nothing reached the tail');
+      expect(scales.reduce(math.max), closeTo(1.0, 1e-6));
       // Nothing, not merely less: a light tied with the best one left out is
       // exactly at the water line, and the whole point is that swapping the
       // two shows nothing.
-      expect(intensities.reduce(math.min), closeTo(0.0, 1e-6));
+      expect(scales.reduce(math.min), closeTo(0.0, 1e-6));
     });
 
     test('a list nowhere near its water line is not touched at all', () {
