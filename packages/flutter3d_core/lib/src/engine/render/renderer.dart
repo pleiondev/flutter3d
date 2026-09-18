@@ -78,6 +78,9 @@ const String _kProbeInfoBlock = 'ProbeInfo';
 
 /// Texture slots, unlike uniform blocks, are reflected under the variable name.
 const String _kAlbedoTextureSlot = 'base_color_texture';
+
+/// `gfx-60n`: the cutoff and the base alpha a cut-out shadow stage reads.
+const String _kShadowMaskBlock = 'MaskInfo';
 const String _kNormalTextureSlot = 'normal_texture';
 const String _kMetallicRoughnessTextureSlot = 'metallic_roughness_texture';
 const String _kOcclusionTextureSlot = 'occlusion_texture';
@@ -633,6 +636,12 @@ final class Renderer implements RenderServices {
     _shadowPipeline = null;
     _skinnedShadowPipeline = null;
     _instancedShadowPipeline = null;
+    _maskedShadowPipeline = null;
+    _skinnedMaskedShadowPipeline = null;
+    _instancedMaskedShadowPipeline = null;
+    _maskedCubeShadowPipeline = null;
+    _skinnedMaskedCubeShadowPipeline = null;
+    _instancedMaskedCubeShadowPipeline = null;
     _bloomUpsamplePipeline = null;
     _compositePipeline = null;
     _skyPipeline = null;
@@ -762,6 +771,21 @@ final class Renderer implements RenderServices {
 
   PipelineHandle? _shadowPipeline;
   PipelineHandle? _skinnedShadowPipeline;
+
+  /// `gfx-60n`: the same three again, against the cut-out shadow stages.
+  ///
+  /// Separate handles rather than a flag on the three above, because a
+  /// pipeline is a shader pair and these pair a different fragment stage. A
+  /// scene with no cut-out caster never builds them.
+  PipelineHandle? _maskedShadowPipeline;
+  PipelineHandle? _skinnedMaskedShadowPipeline;
+  PipelineHandle? _instancedMaskedShadowPipeline;
+  PipelineHandle? _maskedCubeShadowPipeline;
+  PipelineHandle? _skinnedMaskedCubeShadowPipeline;
+  PipelineHandle? _instancedMaskedCubeShadowPipeline;
+
+  /// `gfx-60n`: the cutoff and the base alpha, packed for the shadow stages.
+  final Float32List _shadowMask = Float32List(4);
   PipelineHandle? _instancedShadowPipeline;
   PipelineHandle? _bloomUpsamplePipeline;
   PipelineHandle? _compositePipeline;

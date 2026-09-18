@@ -42,6 +42,39 @@ CullMode _casterCull(ShadowCasterFaces faces) => switch (faces) {
 /// The pass that draws what the sun cannot see, and the one that draws what a
 /// lamp cannot.
 extension _ShadowPasses on Renderer {
+  /// Whether [node] casts through the cut-out shadow stages — `gfx-60n`.
+  ///
+  /// glTF's MASK mode and nothing else. A blended material is a different
+  /// question that a shadow map cannot answer, since it holds one depth per
+  /// texel and a half-transparent caster has no single depth to record; an
+  /// opaque one has nothing to cut out. So this is exactly the mode whose own
+  /// definition is a threshold.
+  bool _castsMasked(MeshNode node) {
+    final material = node.material;
+    return material.alphaMode == MaterialAlphaMode.mask &&
+        material.albedo != null;
+  }
+
+  /// Binds what a cut-out shadow stage reads: the map and the two numbers.
+  ///
+  /// The base colour's own alpha rides beside the cutoff because glTF
+  /// multiplies the two, so a material faded to nothing casts nothing rather
+  /// than casting its texture.
+  void _bindShadowMask(
+    PassEncoder pass,
+    ShaderHandle stage,
+    Material material,
+  ) {
+    final texture = material.albedo;
+    if (texture == null) return;
+    pass.bindTexture(stage, _kAlbedoTextureSlot, texture);
+    _shadowMask[0] = material.alphaCutoff;
+    _shadowMask[1] = material.baseColor.w;
+    pass.bindUniformBlock(stage, _kShadowMaskBlock, <String, Float32List>{
+      'mask': _shadowMask,
+    });
+  }
+
   /// Draws [slotCount] lights' cube faces into one atlas, in one pass.
   ///
   /// Every row at once, and not one call per light, because a pass clears its
@@ -73,6 +106,9 @@ extension _ShadowPasses on Renderer {
 
     final shader = shaders['ShadowDistance'];
     if (shader == null) return false;
+    // `gfx-60n`, and the same fallback the cascade pass takes: a bundle
+    // without the cut-out stage draws the shadow it used to.
+    final maskedShader = shaders['ShadowDistanceMasked'] ?? shader;
     final resetShader = shaders['ShadowTileReset'];
     final resetVertexShader = shaders['ShadowTileResetVertex'];
     if (resetShader == null || resetVertexShader == null) return false;
@@ -272,23 +308,46 @@ extension _ShadowPasses on Renderer {
             everyFace = wantsEveryFace;
           }
 
+          // `gfx-60n`. A cut-out caster draws through a stage with a sampler
+          // in it, and a point light is where the omission showed worst: a
+          // cube face is a ninety-degree frustum with the caster close to it,
+          // so a foliage quad's slab fills far more of the tile than it would
+          // in a cascade.
+          final masked = maskedShader != shader && _castsMasked(node);
+          final fragment = masked ? maskedShader : shader;
           pass.bindPipeline(
             instanced != null
-                ? (_instancedCubeShadowPipeline ??= device.createPipeline(
-                    instancedVertexShader,
-                    shader,
-                    layout: _kInstancedLayout,
-                  ))
+                ? masked
+                      ? (_instancedMaskedCubeShadowPipeline ??= device
+                            .createPipeline(
+                              instancedVertexShader,
+                              fragment,
+                              layout: _kInstancedLayout,
+                            ))
+                      : (_instancedCubeShadowPipeline ??= device.createPipeline(
+                          instancedVertexShader,
+                          fragment,
+                          layout: _kInstancedLayout,
+                        ))
                 : skinned
-                ? (_skinnedCubeShadowPipeline ??= device.createPipeline(
-                    skinnedVertexShader,
-                    shader,
+                ? masked
+                      ? (_skinnedMaskedCubeShadowPipeline ??= device
+                            .createPipeline(skinnedVertexShader, fragment))
+                      : (_skinnedCubeShadowPipeline ??= device.createPipeline(
+                          skinnedVertexShader,
+                          fragment,
+                        ))
+                : masked
+                ? (_maskedCubeShadowPipeline ??= device.createPipeline(
+                    vertexShader,
+                    fragment,
                   ))
                 : (_cubeShadowPipeline ??= device.createPipeline(
                     vertexShader,
-                    shader,
+                    fragment,
                   )),
           );
+          if (masked) _bindShadowMask(pass, maskedShader, node.material);
           final stage = instanced != null
               ? instancedVertexShader
               : skinned
@@ -610,6 +669,10 @@ extension _ShadowPasses on Renderer {
       developer.Timeline.finishSync();
       return false;
     }
+    // `gfx-60n`. Falls back to the plain stage in a bundle that predates the
+    // row, which is the shadow a cut-out caster used to get rather than no
+    // shadow at all, and `masked` below then never fires.
+    final maskedShadowShader = shaders['ShadowDepthMasked'] ?? shadowShader;
     // Two pipelines, for the same reason the main pass has two: a skinned mesh
     // has a different vertex layout, so it needs the skinned stage here too.
     // Drawing it with the static one would read joints and weights as position
@@ -684,29 +747,52 @@ extension _ShadowPasses on Renderer {
 
         final skeleton = node.skeleton;
         final skinned = skeleton != null;
-        final kind = instanced != null
-            ? 2
-            : skinned
-            ? 1
-            : 0;
+        // `gfx-60n`. A cut-out caster goes through a stage with a sampler in
+        // it; everything else keeps the stage it has always had, which is why
+        // the masked half costs the common path nothing and why forty-four
+        // goldens recorded against the plain stage cannot move.
+        final masked =
+            maskedShadowShader != shadowShader && _castsMasked(node);
+        final kind =
+            (instanced != null
+                ? 2
+                : skinned
+                ? 1
+                : 0) +
+            (masked ? 3 : 0);
         if (boundKind != kind) {
+          final fragment = masked ? maskedShadowShader : shadowShader;
           pass.bindPipeline(switch (kind) {
+            5 => _instancedMaskedShadowPipeline ??= device.createPipeline(
+              instancedVertexShader,
+              fragment,
+              layout: _kInstancedLayout,
+            ),
+            4 => _skinnedMaskedShadowPipeline ??= device.createPipeline(
+              skinnedVertexShader,
+              fragment,
+            ),
+            3 => _maskedShadowPipeline ??= device.createPipeline(
+              vertexShader,
+              fragment,
+            ),
             2 => _instancedShadowPipeline ??= device.createPipeline(
               instancedVertexShader,
-              shadowShader,
+              fragment,
               layout: _kInstancedLayout,
             ),
             1 => _skinnedShadowPipeline ??= device.createPipeline(
               skinnedVertexShader,
-              shadowShader,
+              fragment,
             ),
             _ => _shadowPipeline ??= device.createPipeline(
               vertexShader,
-              shadowShader,
+              fragment,
             ),
           });
           boundKind = kind;
         }
+        if (masked) _bindShadowMask(pass, maskedShadowShader, node.material);
 
         pass.setWindingOrder(
           node.worldIsMirrored

@@ -57,6 +57,8 @@ const List<RequiredShader> kRequiredShaders = <RequiredShader>[
   (name: 'ViewportShade', fragment: true),
   (name: 'ShadowDepth', fragment: true),
   (name: 'ShadowDistance', fragment: true),
+  (name: 'ShadowDepthMasked', fragment: true),
+  (name: 'ShadowDistanceMasked', fragment: true),
   (name: 'ShadowTileReset', fragment: true),
   (name: 'ShadowTileResetVertex', fragment: false),
   (name: 'Sky', fragment: true),

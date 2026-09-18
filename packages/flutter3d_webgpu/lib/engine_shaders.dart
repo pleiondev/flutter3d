@@ -14229,6 +14229,206 @@ fn main(@location(6) v_world_position: vec3<f32>, @location(2) v_normal: vec3<f3
       ],
       samplers: <WebGpuSampler>[],
     ),
+    'ShadowDepthMasked': WebGpuStage(
+      wgsl: r'''
+struct MaskInfo {
+    mask: vec4<f32>,
+}
+
+var<private> g_debug_surface: vec3<f32>;
+var<private> g_debug_surface_on: bool;
+@group(1) @binding(1) 
+var base_color_texture_tex: texture_2d<f32>;
+@group(1) @binding(2) 
+var base_color_texture_smp: sampler;
+var<private> v_texcoord_1: vec2<f32>;
+@group(1) @binding(0) 
+var<uniform> mask_info: MaskInfo;
+var<private> frag_color: vec4<f32>;
+var<private> gl_FragCoord_1: vec4<f32>;
+var<private> v_world_position_1: vec3<f32>;
+var<private> v_normal_1: vec3<f32>;
+var<private> v_tangent_1: vec4<f32>;
+var<private> v_color_1: vec4<f32>;
+var<private> v_lightmap_uv_1: vec2<f32>;
+
+fn main_1() {
+    var alpha: f32;
+
+    g_debug_surface = vec3<f32>(0f, 0f, 0f);
+    g_debug_surface_on = false;
+    let _e24 = v_texcoord_1;
+    let _e25 = textureSample(base_color_texture_tex, base_color_texture_smp, _e24);
+    let _e29 = mask_info.mask[1u];
+    alpha = (_e25.w * _e29);
+    let _e31 = alpha;
+    let _e34 = mask_info.mask[0u];
+    if (_e31 < _e34) {
+        discard;
+    }
+    let _e37 = gl_FragCoord_1[2u];
+    frag_color = vec4<f32>(_e37, 0f, 0f, 1f);
+    return;
+}
+
+@fragment 
+fn main(@location(4) v_texcoord: vec2<f32>, @builtin(position) gl_FragCoord: vec4<f32>, @location(6) v_world_position: vec3<f32>, @location(2) v_normal: vec3<f32>, @location(3) v_tangent: vec4<f32>, @location(0) v_color: vec4<f32>, @location(1) v_lightmap_uv: vec2<f32>) -> @location(0) vec4<f32> {
+    v_texcoord_1 = v_texcoord;
+    gl_FragCoord_1 = gl_FragCoord;
+    v_world_position_1 = v_world_position;
+    v_normal_1 = v_normal;
+    v_tangent_1 = v_tangent;
+    v_color_1 = v_color;
+    v_lightmap_uv_1 = v_lightmap_uv;
+    main_1();
+    let _e15 = frag_color;
+    return _e15;
+}
+''',
+      attributes: <WebGpuAttribute>[],
+      blocks: <WebGpuBlock>[
+        WebGpuBlock(
+          name: 'MaskInfo',
+          group: 1,
+          binding: 0,
+          sizeInBytes: 16,
+          members: <WebGpuBlockMember>[
+            WebGpuBlockMember(name: 'mask', offsetInBytes: 0, sizeInBytes: 16),
+          ],
+        ),
+      ],
+      samplers: <WebGpuSampler>[
+        WebGpuSampler(
+          name: 'base_color_texture',
+          group: 1,
+          textureBinding: 1,
+          samplerBinding: 2,
+          dimension: WebGpuTextureDimension.twoDimensional,
+        ),
+      ],
+    ),
+    'ShadowDistanceMasked': WebGpuStage(
+      wgsl: r'''
+struct MaskInfo {
+    mask: vec4<f32>,
+}
+
+struct ShadowLight {
+    light: vec4<f32>,
+}
+
+struct FogInfo {
+    fog: vec4<f32>,
+    eye: vec4<f32>,
+    forward: vec4<f32>,
+}
+
+var<private> g_debug_surface: vec3<f32>;
+var<private> g_debug_surface_on: bool;
+@group(1) @binding(3) 
+var base_color_texture_tex: texture_2d<f32>;
+@group(1) @binding(4) 
+var base_color_texture_smp: sampler;
+var<private> v_texcoord_1: vec2<f32>;
+@group(1) @binding(1) 
+var<uniform> mask_info: MaskInfo;
+@group(1) @binding(2) 
+var<uniform> shadow_light: ShadowLight;
+var<private> v_world_position_1: vec3<f32>;
+var<private> frag_color: vec4<f32>;
+var<private> v_normal_1: vec3<f32>;
+var<private> v_tangent_1: vec4<f32>;
+var<private> v_color_1: vec4<f32>;
+var<private> v_lightmap_uv_1: vec2<f32>;
+@group(1) @binding(0) 
+var<uniform> fog_info: FogInfo;
+
+fn main_1() {
+    var alpha: f32;
+    var range: f32;
+    var distance_: f32;
+
+    g_debug_surface = vec3<f32>(0f, 0f, 0f);
+    g_debug_surface_on = false;
+    let _e27 = v_texcoord_1;
+    let _e28 = textureSample(base_color_texture_tex, base_color_texture_smp, _e27);
+    let _e32 = mask_info.mask[1u];
+    alpha = (_e28.w * _e32);
+    let _e34 = alpha;
+    let _e37 = mask_info.mask[0u];
+    if (_e34 < _e37) {
+        discard;
+    }
+    let _e41 = shadow_light.light[3u];
+    range = max(_e41, 0.0001f);
+    let _e43 = v_world_position_1;
+    let _e45 = shadow_light.light;
+    distance_ = length((_e43 - _e45.xyz));
+    let _e49 = distance_;
+    let _e50 = range;
+    frag_color = vec4<f32>(clamp((_e49 / _e50), 0f, 1f), 0f, 0f, 1f);
+    return;
+}
+
+@fragment 
+fn main(@location(4) v_texcoord: vec2<f32>, @location(6) v_world_position: vec3<f32>, @location(2) v_normal: vec3<f32>, @location(3) v_tangent: vec4<f32>, @location(0) v_color: vec4<f32>, @location(1) v_lightmap_uv: vec2<f32>) -> @location(0) vec4<f32> {
+    v_texcoord_1 = v_texcoord;
+    v_world_position_1 = v_world_position;
+    v_normal_1 = v_normal;
+    v_tangent_1 = v_tangent;
+    v_color_1 = v_color;
+    v_lightmap_uv_1 = v_lightmap_uv;
+    main_1();
+    let _e13 = frag_color;
+    return _e13;
+}
+''',
+      attributes: <WebGpuAttribute>[],
+      blocks: <WebGpuBlock>[
+        WebGpuBlock(
+          name: 'FogInfo',
+          group: 1,
+          binding: 0,
+          sizeInBytes: 48,
+          members: <WebGpuBlockMember>[
+            WebGpuBlockMember(name: 'fog', offsetInBytes: 0, sizeInBytes: 16),
+            WebGpuBlockMember(name: 'eye', offsetInBytes: 16, sizeInBytes: 16),
+            WebGpuBlockMember(
+              name: 'forward',
+              offsetInBytes: 32,
+              sizeInBytes: 16,
+            ),
+          ],
+        ),
+        WebGpuBlock(
+          name: 'MaskInfo',
+          group: 1,
+          binding: 1,
+          sizeInBytes: 16,
+          members: <WebGpuBlockMember>[
+            WebGpuBlockMember(name: 'mask', offsetInBytes: 0, sizeInBytes: 16),
+          ],
+        ),
+        WebGpuBlock(
+          name: 'ShadowLight',
+          group: 1,
+          binding: 2,
+          sizeInBytes: 16,
+          members: <WebGpuBlockMember>[
+            WebGpuBlockMember(name: 'light', offsetInBytes: 0, sizeInBytes: 16),
+          ],
+        ),
+      ],
+      samplers: <WebGpuSampler>[
+        WebGpuSampler(
+          name: 'base_color_texture',
+          group: 1,
+          textureBinding: 3,
+          samplerBinding: 4,
+          dimension: WebGpuTextureDimension.twoDimensional,
+        ),
+      ],
+    ),
     'ShadowTileReset': WebGpuStage(
       wgsl: r'''
 var<private> frag_color: vec4<f32>;

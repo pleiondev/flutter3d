@@ -12098,6 +12098,616 @@ void main() {
 }
 
 ''',
+    'ShadowDepthMasked': r'''#version 300 es
+precision highp float;
+precision highp int;
+precision highp sampler2D;
+precision highp samplerCube;
+
+// The shadow pass for a cut-out caster: write depth, or write nothing —
+// `gfx-60n`.
+//
+// **A separate stage rather than a branch in `shadow_depth.frag`.** Every
+// caster that is not cut out keeps the stage it has always had, which is a
+// pipeline with no sampler in it and no texture bound per draw. That is worth
+// a second entry point twice over: the common path pays nothing, and the
+// forty-four golden frames recorded against the old stage cannot move, because
+// the old stage is still the one they go through. It is also what
+// flutter_scene does, and for the same reason.
+//
+// **Why the shadow pass has to know about alpha at all.** A leaf card is a
+// quad with a texture that is transparent almost everywhere. Depth-only, that
+// quad is opaque, so a tree casts the shadow of its bounding rectangles — a
+// stack of dark slabs where the eye expects dappled light. Nothing about the
+// lit pass can repair it, because by then the shadow map already says the
+// ground is in shadow.
+//
+// The threshold is the material's own `alphaCutoff` and the comparison is the
+// same one glTF's MASK mode specifies: alpha below the cutoff is not drawn,
+// alpha at or above it is fully drawn. There is no partial coverage here on
+// purpose; a shadow map holds one depth per texel, so a half-transparent
+// fragment either records or does not.
+
+#define F3D_NO_SURFACE_BUFFER
+#define F3D_NO_FOG
+// --- lib/color.glsl ---
+// Colour space helpers and the fragment output interface.
+//
+// Split out of surface.glsl so a shader that needs no material inputs — the
+// normals debug view — can avoid DECLARING the FragInfo uniform block at all.
+// That matters more than it looks: reflection metadata reports a block as
+// present merely because it was declared, even when the compiled shader binds
+// no such buffer, so a declared-but-unused block is indistinguishable from a
+// used one until Metal crashes on the bind.
+
+#ifndef COLOR_GLSL_
+#define COLOR_GLSL_
+
+precision highp float;
+
+const float kPi = 3.14159265359;
+
+// One varying set shared by every fragment shader, matching mesh.vert.
+//
+// All five are declared here, including the two the debug models never read: a
+// fragment shader whose `in` block disagrees with the vertex shader's `out`
+// block fails to link, and there is no partial-match rule to lean on.
+in vec3 v_world_position;
+in vec3 v_normal;
+in vec2 v_texcoord;
+in vec4 v_tangent;
+in vec4 v_color;
+
+/// Where this fragment is in the level's lightmap. Zero from every vertex
+/// stage but `mesh_lightmapped.vert`, and read only by the lit models, which
+/// sample a one-texel black there when a material has no map.
+in vec2 v_lightmap_uv;
+
+layout(location = 0) out vec4 frag_color;
+
+// The second attachment: what a screen-space effect needs to know about the
+// surface it is looking at. World-space normal in rgb, and in a the depth along
+// the view axis in world metres — not a window depth; `WriteSurfaceGeometry`
+// says at length why not.
+//
+// Depth travels here rather than in a depth texture because flutter_gpu cannot
+// sample one — the same reason the shadow pass writes its depth into a colour
+// target. See ARCHITECTURE.md §2.
+//
+// Guarded, because not every stage that includes this header draws into a
+// two-attachment target. The shadow pass draws into one, and a pipeline
+// declaring an output its target has no slot for is a mismatch worth avoiding
+// rather than discovering.
+#ifndef F3D_NO_SURFACE_BUFFER
+layout(location = 1) out vec4 frag_surface;
+#endif
+
+/// Octahedral encoding: a unit vector in two channels instead of three.
+///
+/// Worth the arithmetic because the fourth channel is already spent on depth,
+/// and without a free channel there is nowhere to put roughness — which is the
+/// difference between a reflection that knows stone from a mirror and one that
+/// does not. The error is well under a degree, far below anything a reflection
+/// off rough stone would show.
+vec2 EncodeOctahedral(vec3 n) {
+  n /= abs(n.x) + abs(n.y) + abs(n.z);
+  vec2 e = n.xy;
+  if (n.z < 0.0) {
+    e = (1.0 - abs(n.yx)) * vec2(n.x >= 0.0 ? 1.0 : -1.0,
+                                 n.y >= 0.0 ? 1.0 : -1.0);
+  }
+  return e * 0.5 + 0.5;
+}
+
+/// Where a debug pass leaves the picture it wants shown instead of the normal.
+///
+/// Declared here, in the header every lit shader includes **first**, and
+/// written from surface.glsl, which is included after. The alternative was a
+/// new member on a shared uniform block; a global costs nothing and moves no
+/// offsets. It is read at the moment the surface buffer is written, which
+/// happens after the lighting loop has run, so the value is there by then.
+vec3 g_debug_surface = vec3(0.0);
+bool g_debug_surface_on = false;
+
+// **A stage that needs none of this must be able to declare none of it.** On
+// Vulkan both stages' descriptors are merged into one set layout, and two
+// bindings with the same number in it is not a layout the specification
+// allows. A driver may accept it anyway; a Galaxy A55's refuses the pipeline
+// with `ErrorUnknown` and no other word, which is how the shadow pass came to
+// build everywhere except there — its only uniform block was this one, and it
+// landed on the same binding as the vertex stage's first.
+#ifndef F3D_NO_FOG
+
+/// Distance fog, in its own block rather than folded into FragInfo.
+///
+/// Its own because color.glsl is included before FragInfo is declared, and
+/// because appending to a block that half a dozen shaders already share is a
+/// way to move offsets nobody expected to move. Three vec4s is a cheap price
+/// for not touching any of that.
+layout(std140) uniform FogInfo {
+  /// rgb: linear fog colour. w: density per metre, zero for no fog.
+  vec4 fog;
+
+  /// xyz: camera position in world space. Duplicated from FragInfo so this
+  /// block stands alone; a vec3 is cheaper than a coupling.
+  vec4 eye;
+
+  /// xyz: the direction the camera looks, as a unit vector in world space.
+  /// w unused.
+  ///
+  /// Here rather than in a block of its own because it answers the same
+  /// question [eye] does — where the camera is and which way it faces — and
+  /// this is the block `color.glsl` can see.
+  vec4 forward;
+}
+fog_info;
+
+/// How far this fragment is from the eye, in world metres.
+///
+/// What the fog fades by. Distance rather than depth, because fog is a
+/// property of the air between two points and does not care which way the
+/// camera happens to face.
+float EyeDistance() { return distance(v_world_position, fog_info.eye.xyz); }
+
+/// How far this fragment is *along the view axis*, in world metres.
+///
+/// What the surface buffer's alpha holds. Depth rather than distance, and the
+/// difference only shows on an orthographic camera — where the rays through
+/// the pixels are parallel instead of meeting at the eye, so a distance from
+/// the eye names a sphere that the pixel's ray crosses somewhere the reader
+/// cannot solve for. A depth along the axis names a plane, which every ray
+/// crosses exactly once. See `WorldAtDepth` in `post/ssao.frag` for the
+/// reconstruction both projections share.
+float ViewDepth() {
+  return dot(v_world_position - fog_info.eye.xyz, fog_info.forward.xyz);
+}
+
+#else  // F3D_NO_FOG
+
+// The same two questions, answered without the block: a stage that declares no
+// fog has no eye position to measure from either. Stubs rather than a guard at
+// every call site, so that what includes this file reads the same whichever
+// way it was compiled.
+float EyeDistance() { return 0.0; }
+float ViewDepth() { return 0.0; }
+
+#endif  // F3D_NO_FOG
+
+/// Records the geometry of this fragment for whatever runs after the scene.
+///
+/// Called from the same place that writes colour, so a surface cannot be lit
+/// into the frame without also describing itself — which is the failure that
+/// leaves a screen-space effect reflecting whatever was in the buffer before.
+///
+/// rg: octahedral normal. b: perceptual roughness. a: **depth along the view
+/// axis, in world metres** — see [ViewDepth].
+///
+/// **Not `gl_FragCoord.z`, and that is a defect this channel carried until it
+/// was looked at.** Window depth crowds every distant surface into the top of
+/// its range — with a near plane of a tenth of a metre, everything past twenty
+/// metres lives in the last half a hundredth of `[0, 1]` — and this attachment
+/// is a half float, whose steps up there are about five ten-thousandths. So two
+/// surfaces half a metre apart at twenty metres stored the *same* number, and
+/// every screen-space pass that compares against this channel decided whole
+/// bands of pixels by rounding. The occlusion pass drew them: vertical stripes
+/// along the lines of constant depth on any wall receding from the camera, on
+/// both GPU backends. The software rasteriser kept the channel at full
+/// precision and drew the effect correctly, so it was the one that looked
+/// wrong against the other two.
+///
+/// A depth in metres has none of that: the exponent carries the range and the
+/// mantissa carries the same relative precision everywhere, which at twenty
+/// metres is a centimetre. Both numbers are measured in
+/// `flutter3d/test/surface_depth_test.dart`.
+///
+/// Zero still means nothing was drawn. The attachment is cleared to zero and
+/// nothing is drawn in front of the near plane.
+void WriteSurfaceGeometry(float roughness) {
+#ifndef F3D_NO_SURFACE_BUFFER
+  // A debug pass takes the buffer over rather than getting one of its own.
+  // The surface buffer already has an attachment, a viewer and a golden; a
+  // second one would need all three built before it could answer anything.
+  if (g_debug_surface_on) {
+    frag_surface = vec4(g_debug_surface, ViewDepth());
+    return;
+  }
+  frag_surface = vec4(EncodeOctahedral(normalize(v_normal)),
+                      clamp(roughness, 0.0, 1.0), ViewDepth());
+#endif
+}
+
+/// Fades [color] toward the fog with distance from the eye.
+///
+/// Exponential rather than linear, because linear fog has a visible plane
+/// where it starts and a dungeon corridor is exactly where that shows.
+vec3 ApplyFog(vec3 color) {
+#ifdef F3D_NO_FOG
+  return color;
+#else
+  float density = fog_info.fog.w;
+  if (density <= 0.0) return color;
+  float d = EyeDistance();
+  return mix(fog_info.fog.rgb, color, clamp(exp(-density * d), 0.0, 1.0));
+#endif
+}
+
+/// sRGB to linear. Textures are authored in sRGB, but lighting is only correct
+/// in linear space; skipping this is what makes naive renderers look muddy.
+vec3 SrgbToLinear(vec3 srgb) {
+  return mix(
+      srgb / 12.92,
+      pow((srgb + vec3(0.055)) / 1.055, vec3(2.4)),
+      step(vec3(0.04045), srgb));
+}
+
+/// Linear to sRGB. The render target is a plain UNorm format rather than an
+/// sRGB one, so the encode has to happen here.
+vec3 LinearToSrgb(vec3 linear) {
+  return mix(
+      linear * 12.92,
+      1.055 * pow(linear, vec3(1.0 / 2.4)) - vec3(0.055),
+      step(vec3(0.0031308), linear));
+}
+
+/// Writes scene-referred linear light into the HDR target.
+///
+/// No tone map and no sRGB encode: those moved into the composite pass, which
+/// is the entire point of rendering into `r16g16b16a16Float` first. Applying
+/// them here meant every model wrote display-referred colour into an 8-bit
+/// buffer, so anything above display white was gone before post-processing
+/// could see it — and bloom is a function of exactly that.
+///
+/// Exposure moved with them, for the same reason: it belongs on the same side
+/// of the display transform as the tone map.
+void WriteSurface(vec3 linearColor, float alpha, float roughness) {
+  frag_color = vec4(ApplyFog(linearColor), alpha);
+  WriteSurfaceGeometry(roughness);
+}
+
+/// For a stage with no material to speak of.
+///
+/// Fully rough, which is the honest default: a surface that cannot say how
+/// polished it is should not be reflected off.
+void WriteSurface(vec3 linearColor, float alpha) {
+  WriteSurface(linearColor, alpha, 1.0);
+}
+
+/// Writes a value that is already display-referred.
+///
+/// For debug output, where the colour is not a light value at all: a normal
+/// encoded as RGB means nothing after a tone curve. Converting to linear here
+/// means the composite pass's sRGB encode hands the original back unchanged,
+/// provided the view also turns tone mapping and exposure off — which is what
+/// `RenderSettings.tonemap` is for.
+void WriteDisplayColor(vec3 displayColor, float alpha) {
+  frag_color = vec4(SrgbToLinear(displayColor), alpha);
+  WriteSurfaceGeometry(1.0);
+}
+
+#endif  // COLOR_GLSL_
+
+
+/// The base colour map, whose alpha is the mask. The same texture and the same
+/// slot name the lit stages bind, so a caller that has one has it already.
+uniform sampler2D base_color_texture;
+
+layout(std140) uniform MaskInfo {
+  // x: the cutoff, from `Material.alphaCutoff`. y: the base colour's own
+  // alpha, which glTF multiplies the texture's by, so a material faded to
+  // nothing casts nothing. z, w: unused.
+  vec4 mask;
+}
+mask_info;
+
+void main() {
+  float alpha = texture(base_color_texture, v_texcoord).a * mask_info.mask.y;
+  if (alpha < mask_info.mask.x) discard;
+  frag_color = vec4(gl_FragCoord.z, 0.0, 0.0, 1.0);
+}
+
+''',
+    'ShadowDistanceMasked': r'''#version 300 es
+precision highp float;
+precision highp int;
+precision highp sampler2D;
+precision highp samplerCube;
+
+// The point-light depth pass for a cut-out caster — `gfx-60n`.
+//
+// `shadow_distance.frag` with the same mask test `shadow_depth_masked.frag`
+// carries, and a separate stage for the same reason: a caster that is not cut
+// out keeps a pipeline with no sampler in it.
+//
+// Both stages exist because both shadow paths record a caster, and a leaf card
+// lit by a torch is exactly as wrong as one lit by the sun. Point lights are
+// where it shows worst, in fact: a cube face is a ninety-degree frustum with a
+// caster close to it, so the slab of a foliage quad fills much more of the
+// tile than it would in a cascade.
+
+#define F3D_NO_SURFACE_BUFFER
+// --- lib/color.glsl ---
+// Colour space helpers and the fragment output interface.
+//
+// Split out of surface.glsl so a shader that needs no material inputs — the
+// normals debug view — can avoid DECLARING the FragInfo uniform block at all.
+// That matters more than it looks: reflection metadata reports a block as
+// present merely because it was declared, even when the compiled shader binds
+// no such buffer, so a declared-but-unused block is indistinguishable from a
+// used one until Metal crashes on the bind.
+
+#ifndef COLOR_GLSL_
+#define COLOR_GLSL_
+
+precision highp float;
+
+const float kPi = 3.14159265359;
+
+// One varying set shared by every fragment shader, matching mesh.vert.
+//
+// All five are declared here, including the two the debug models never read: a
+// fragment shader whose `in` block disagrees with the vertex shader's `out`
+// block fails to link, and there is no partial-match rule to lean on.
+in vec3 v_world_position;
+in vec3 v_normal;
+in vec2 v_texcoord;
+in vec4 v_tangent;
+in vec4 v_color;
+
+/// Where this fragment is in the level's lightmap. Zero from every vertex
+/// stage but `mesh_lightmapped.vert`, and read only by the lit models, which
+/// sample a one-texel black there when a material has no map.
+in vec2 v_lightmap_uv;
+
+layout(location = 0) out vec4 frag_color;
+
+// The second attachment: what a screen-space effect needs to know about the
+// surface it is looking at. World-space normal in rgb, and in a the depth along
+// the view axis in world metres — not a window depth; `WriteSurfaceGeometry`
+// says at length why not.
+//
+// Depth travels here rather than in a depth texture because flutter_gpu cannot
+// sample one — the same reason the shadow pass writes its depth into a colour
+// target. See ARCHITECTURE.md §2.
+//
+// Guarded, because not every stage that includes this header draws into a
+// two-attachment target. The shadow pass draws into one, and a pipeline
+// declaring an output its target has no slot for is a mismatch worth avoiding
+// rather than discovering.
+#ifndef F3D_NO_SURFACE_BUFFER
+layout(location = 1) out vec4 frag_surface;
+#endif
+
+/// Octahedral encoding: a unit vector in two channels instead of three.
+///
+/// Worth the arithmetic because the fourth channel is already spent on depth,
+/// and without a free channel there is nowhere to put roughness — which is the
+/// difference between a reflection that knows stone from a mirror and one that
+/// does not. The error is well under a degree, far below anything a reflection
+/// off rough stone would show.
+vec2 EncodeOctahedral(vec3 n) {
+  n /= abs(n.x) + abs(n.y) + abs(n.z);
+  vec2 e = n.xy;
+  if (n.z < 0.0) {
+    e = (1.0 - abs(n.yx)) * vec2(n.x >= 0.0 ? 1.0 : -1.0,
+                                 n.y >= 0.0 ? 1.0 : -1.0);
+  }
+  return e * 0.5 + 0.5;
+}
+
+/// Where a debug pass leaves the picture it wants shown instead of the normal.
+///
+/// Declared here, in the header every lit shader includes **first**, and
+/// written from surface.glsl, which is included after. The alternative was a
+/// new member on a shared uniform block; a global costs nothing and moves no
+/// offsets. It is read at the moment the surface buffer is written, which
+/// happens after the lighting loop has run, so the value is there by then.
+vec3 g_debug_surface = vec3(0.0);
+bool g_debug_surface_on = false;
+
+// **A stage that needs none of this must be able to declare none of it.** On
+// Vulkan both stages' descriptors are merged into one set layout, and two
+// bindings with the same number in it is not a layout the specification
+// allows. A driver may accept it anyway; a Galaxy A55's refuses the pipeline
+// with `ErrorUnknown` and no other word, which is how the shadow pass came to
+// build everywhere except there — its only uniform block was this one, and it
+// landed on the same binding as the vertex stage's first.
+#ifndef F3D_NO_FOG
+
+/// Distance fog, in its own block rather than folded into FragInfo.
+///
+/// Its own because color.glsl is included before FragInfo is declared, and
+/// because appending to a block that half a dozen shaders already share is a
+/// way to move offsets nobody expected to move. Three vec4s is a cheap price
+/// for not touching any of that.
+layout(std140) uniform FogInfo {
+  /// rgb: linear fog colour. w: density per metre, zero for no fog.
+  vec4 fog;
+
+  /// xyz: camera position in world space. Duplicated from FragInfo so this
+  /// block stands alone; a vec3 is cheaper than a coupling.
+  vec4 eye;
+
+  /// xyz: the direction the camera looks, as a unit vector in world space.
+  /// w unused.
+  ///
+  /// Here rather than in a block of its own because it answers the same
+  /// question [eye] does — where the camera is and which way it faces — and
+  /// this is the block `color.glsl` can see.
+  vec4 forward;
+}
+fog_info;
+
+/// How far this fragment is from the eye, in world metres.
+///
+/// What the fog fades by. Distance rather than depth, because fog is a
+/// property of the air between two points and does not care which way the
+/// camera happens to face.
+float EyeDistance() { return distance(v_world_position, fog_info.eye.xyz); }
+
+/// How far this fragment is *along the view axis*, in world metres.
+///
+/// What the surface buffer's alpha holds. Depth rather than distance, and the
+/// difference only shows on an orthographic camera — where the rays through
+/// the pixels are parallel instead of meeting at the eye, so a distance from
+/// the eye names a sphere that the pixel's ray crosses somewhere the reader
+/// cannot solve for. A depth along the axis names a plane, which every ray
+/// crosses exactly once. See `WorldAtDepth` in `post/ssao.frag` for the
+/// reconstruction both projections share.
+float ViewDepth() {
+  return dot(v_world_position - fog_info.eye.xyz, fog_info.forward.xyz);
+}
+
+#else  // F3D_NO_FOG
+
+// The same two questions, answered without the block: a stage that declares no
+// fog has no eye position to measure from either. Stubs rather than a guard at
+// every call site, so that what includes this file reads the same whichever
+// way it was compiled.
+float EyeDistance() { return 0.0; }
+float ViewDepth() { return 0.0; }
+
+#endif  // F3D_NO_FOG
+
+/// Records the geometry of this fragment for whatever runs after the scene.
+///
+/// Called from the same place that writes colour, so a surface cannot be lit
+/// into the frame without also describing itself — which is the failure that
+/// leaves a screen-space effect reflecting whatever was in the buffer before.
+///
+/// rg: octahedral normal. b: perceptual roughness. a: **depth along the view
+/// axis, in world metres** — see [ViewDepth].
+///
+/// **Not `gl_FragCoord.z`, and that is a defect this channel carried until it
+/// was looked at.** Window depth crowds every distant surface into the top of
+/// its range — with a near plane of a tenth of a metre, everything past twenty
+/// metres lives in the last half a hundredth of `[0, 1]` — and this attachment
+/// is a half float, whose steps up there are about five ten-thousandths. So two
+/// surfaces half a metre apart at twenty metres stored the *same* number, and
+/// every screen-space pass that compares against this channel decided whole
+/// bands of pixels by rounding. The occlusion pass drew them: vertical stripes
+/// along the lines of constant depth on any wall receding from the camera, on
+/// both GPU backends. The software rasteriser kept the channel at full
+/// precision and drew the effect correctly, so it was the one that looked
+/// wrong against the other two.
+///
+/// A depth in metres has none of that: the exponent carries the range and the
+/// mantissa carries the same relative precision everywhere, which at twenty
+/// metres is a centimetre. Both numbers are measured in
+/// `flutter3d/test/surface_depth_test.dart`.
+///
+/// Zero still means nothing was drawn. The attachment is cleared to zero and
+/// nothing is drawn in front of the near plane.
+void WriteSurfaceGeometry(float roughness) {
+#ifndef F3D_NO_SURFACE_BUFFER
+  // A debug pass takes the buffer over rather than getting one of its own.
+  // The surface buffer already has an attachment, a viewer and a golden; a
+  // second one would need all three built before it could answer anything.
+  if (g_debug_surface_on) {
+    frag_surface = vec4(g_debug_surface, ViewDepth());
+    return;
+  }
+  frag_surface = vec4(EncodeOctahedral(normalize(v_normal)),
+                      clamp(roughness, 0.0, 1.0), ViewDepth());
+#endif
+}
+
+/// Fades [color] toward the fog with distance from the eye.
+///
+/// Exponential rather than linear, because linear fog has a visible plane
+/// where it starts and a dungeon corridor is exactly where that shows.
+vec3 ApplyFog(vec3 color) {
+#ifdef F3D_NO_FOG
+  return color;
+#else
+  float density = fog_info.fog.w;
+  if (density <= 0.0) return color;
+  float d = EyeDistance();
+  return mix(fog_info.fog.rgb, color, clamp(exp(-density * d), 0.0, 1.0));
+#endif
+}
+
+/// sRGB to linear. Textures are authored in sRGB, but lighting is only correct
+/// in linear space; skipping this is what makes naive renderers look muddy.
+vec3 SrgbToLinear(vec3 srgb) {
+  return mix(
+      srgb / 12.92,
+      pow((srgb + vec3(0.055)) / 1.055, vec3(2.4)),
+      step(vec3(0.04045), srgb));
+}
+
+/// Linear to sRGB. The render target is a plain UNorm format rather than an
+/// sRGB one, so the encode has to happen here.
+vec3 LinearToSrgb(vec3 linear) {
+  return mix(
+      linear * 12.92,
+      1.055 * pow(linear, vec3(1.0 / 2.4)) - vec3(0.055),
+      step(vec3(0.0031308), linear));
+}
+
+/// Writes scene-referred linear light into the HDR target.
+///
+/// No tone map and no sRGB encode: those moved into the composite pass, which
+/// is the entire point of rendering into `r16g16b16a16Float` first. Applying
+/// them here meant every model wrote display-referred colour into an 8-bit
+/// buffer, so anything above display white was gone before post-processing
+/// could see it — and bloom is a function of exactly that.
+///
+/// Exposure moved with them, for the same reason: it belongs on the same side
+/// of the display transform as the tone map.
+void WriteSurface(vec3 linearColor, float alpha, float roughness) {
+  frag_color = vec4(ApplyFog(linearColor), alpha);
+  WriteSurfaceGeometry(roughness);
+}
+
+/// For a stage with no material to speak of.
+///
+/// Fully rough, which is the honest default: a surface that cannot say how
+/// polished it is should not be reflected off.
+void WriteSurface(vec3 linearColor, float alpha) {
+  WriteSurface(linearColor, alpha, 1.0);
+}
+
+/// Writes a value that is already display-referred.
+///
+/// For debug output, where the colour is not a light value at all: a normal
+/// encoded as RGB means nothing after a tone curve. Converting to linear here
+/// means the composite pass's sRGB encode hands the original back unchanged,
+/// provided the view also turns tone mapping and exposure off — which is what
+/// `RenderSettings.tonemap` is for.
+void WriteDisplayColor(vec3 displayColor, float alpha) {
+  frag_color = vec4(SrgbToLinear(displayColor), alpha);
+  WriteSurfaceGeometry(1.0);
+}
+
+#endif  // COLOR_GLSL_
+
+
+layout(std140) uniform ShadowLight {
+  /// xyz: the light's world position. w: its range in metres.
+  vec4 light;
+}
+shadow_light;
+
+/// The base colour map, whose alpha is the mask.
+uniform sampler2D base_color_texture;
+
+layout(std140) uniform MaskInfo {
+  // x: the cutoff, from `Material.alphaCutoff`. y: the base colour's own
+  // alpha. z, w: unused.
+  vec4 mask;
+}
+mask_info;
+
+void main() {
+  float alpha = texture(base_color_texture, v_texcoord).a * mask_info.mask.y;
+  if (alpha < mask_info.mask.x) discard;
+
+  float range = max(shadow_light.light.w, 1e-4);
+  float distance = length(v_world_position - shadow_light.light.xyz);
+  frag_color = vec4(clamp(distance / range, 0.0, 1.0), 0.0, 0.0, 1.0);
+}
+
+''',
     'ShadowTileReset': r'''#version 300 es
 precision highp float;
 precision highp int;
