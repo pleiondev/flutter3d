@@ -1736,6 +1736,48 @@ class AppLocalizationsRu extends AppLocalizations {
   }
 
   @override
+  String get captureTitle => 'Снимок кадра';
+
+  @override
+  String get captureTake => 'Снять кадр';
+
+  @override
+  String get captureWaiting => 'Снимаем…';
+
+  @override
+  String get captureEmpty => 'Снимков ещё нет';
+
+  @override
+  String capturePassLine(String name, String images) {
+    return '$name · изображений: $images';
+  }
+
+  @override
+  String captureInactive(String name) {
+    return '$name · не выполнялся';
+  }
+
+  @override
+  String captureReads(String names) {
+    return 'читает $names';
+  }
+
+  @override
+  String captureWrites(String names) {
+    return 'пишет $names';
+  }
+
+  @override
+  String captureBlack(String name) {
+    return '$name вернулся чёрным';
+  }
+
+  @override
+  String captureRefused(String name, String reason) {
+    return '$name: $reason';
+  }
+
+  @override
   String galleryUnreachable(String names) {
     return 'Не удалось достучаться: $names; всё остальное на месте';
   }

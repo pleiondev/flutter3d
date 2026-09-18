@@ -1728,6 +1728,48 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String get captureTitle => 'Frame capture';
+
+  @override
+  String get captureTake => 'Capture a frame';
+
+  @override
+  String get captureWaiting => 'Capturing…';
+
+  @override
+  String get captureEmpty => 'Nothing captured yet';
+
+  @override
+  String capturePassLine(String name, String images) {
+    return '$name · $images images';
+  }
+
+  @override
+  String captureInactive(String name) {
+    return '$name · did not run';
+  }
+
+  @override
+  String captureReads(String names) {
+    return 'reads $names';
+  }
+
+  @override
+  String captureWrites(String names) {
+    return 'writes $names';
+  }
+
+  @override
+  String captureBlack(String name) {
+    return '$name came back black';
+  }
+
+  @override
+  String captureRefused(String name, String reason) {
+    return '$name: $reason';
+  }
+
+  @override
   String galleryUnreachable(String names) {
     return '$names could not be reached; everything else is still here';
   }
