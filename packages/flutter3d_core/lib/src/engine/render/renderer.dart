@@ -43,6 +43,7 @@ import 'static_bake_key.dart';
 // being the one place that decides what a consumer reaches through.
 export 'render_settings.dart';
 
+part 'renderer_batch.dart';
 part 'renderer_frame_nodes.dart';
 part 'renderer_mesh_encode.dart';
 part 'renderer_pick_pass.dart';
@@ -2051,6 +2052,21 @@ final class Renderer implements RenderServices {
   final vm.Matrix4 _cubeDrawMatrix = vm.Matrix4.identity();
   final Float32List _cubeLight = Float32List(4);
 
+  /// One reusable batch per mesh-and-material pair — `gfx-67n`.
+  ///
+  /// Held across frames on purpose: a scene whose runs are the same every frame
+  /// refills the same buffers rather than allocating a node and a typed list per
+  /// run per frame, which would cost more than the draw calls it saves.
+  final Map<_BatchKey, InstancedMeshNode> _batchPool =
+      <_BatchKey, InstancedMeshNode>{};
+
+  /// How many individual draws the last frame's batching replaced.
+  ///
+  /// The reading the row is about: a hundred identical meshes drawn in one call
+  /// and a hundred drawn in a hundred look the same, so the saving needs a
+  /// number. Reset at the top of each frame.
+  int _batchedDraws = 0;
+
   /// The volume of the cube face currently being filled — `gfx-63n`.
   ///
   /// One object reused across faces rather than one per face: there are up to
@@ -2756,6 +2772,7 @@ final class Renderer implements RenderServices {
     // just switched off.
     _shadowParams[3] = 0.0;
     _shadowCasters = 0;
+    _batchedDraws = 0;
     // One cascade until a pass says otherwise, so a shader reading these
     // between frames sees the arrangement it has always seen.
     _shadowCascades[2] = 1.0;
@@ -3252,6 +3269,7 @@ final class Renderer implements RenderServices {
       pipelines: _pipelineCache.length,
       shadowCasters: _shadowCasters,
       shadowsDenied: _shadowsDenied,
+      batchedDraws: _batchedDraws,
       skinnedDraws: passState.skinnedDraws,
       exposure: _lastExposure,
       passes: passTimings,

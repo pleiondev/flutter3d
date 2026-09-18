@@ -110,6 +110,7 @@ final class FrameResult {
     required this.shadowCasters,
     required this.skinnedDraws,
     this.shadowsDenied = 0,
+    this.batchedDraws = 0,
     this.wireframeDeclined = false,
     this.exposure = RenderSettings.defaultExposure,
     this.passes = const <FramePass>[],
@@ -120,6 +121,14 @@ final class FrameResult {
       msaaDeclined: null,
     ),
   });
+
+  /// How many individual draws the automatic batcher replaced — `gfx-67n`.
+  ///
+  /// Zero unless `RenderSettings.batchIdenticalDraws` asked for it. A hundred
+  /// identical meshes drawn in one call look exactly like a hundred drawn in a
+  /// hundred, so the saving needs a number: this is `100` for that frame, and
+  /// `drawCalls` is the figure it came off.
+  final int batchedDraws;
 
   /// What actually smoothed the edges — `gfx-20n`.
   ///

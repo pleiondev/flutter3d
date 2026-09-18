@@ -204,9 +204,16 @@ base class MeshNode extends SceneNode {
   /// Advances [SceneNode.changeEpoch] as well, because a reader holding an
   /// epoch is asking "is anything I derived from bounds stale?", and this is
   /// the one way bounds go stale without a transform saying so.
+  ///
+  /// **Only while the node is in a scene**, which is not a nicety. Nothing
+  /// derives anything from a node no scene holds, and `gfx-67n`'s batcher fills
+  /// a detached node once per run per frame: advancing the epoch there would
+  /// invalidate every cached world transform in the scene halfway through
+  /// encoding it, which is the whole of `gfx-65n` undone by a node that is not
+  /// even being drawn as itself.
   void markBoundsDirty() {
     _boundsVersion = -1;
-    SceneNode.noteChange();
+    if (scene != null) SceneNode.noteChange();
   }
 
   /// World-space axis-aligned bounds, recomputed only when the transform changes.

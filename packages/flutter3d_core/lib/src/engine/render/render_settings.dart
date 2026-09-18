@@ -569,6 +569,7 @@ final class RenderSettings {
     this.exposure = defaultExposure,
     this.wireframe = false,
     this.backfaceCulling = true,
+    this.batchIdenticalDraws = false,
     this.debug = const DebugDrawOptions(),
     this.highlighted = const <SceneNode>[],
     this.tonemap = true,
@@ -689,6 +690,41 @@ final class RenderSettings {
   /// in this package rather than a translation in a backend.
   final bool wireframe;
   final bool backfaceCulling;
+
+  /// Whether a run of identical opaque draws is merged into one instanced call
+  /// — `gfx-67n`.
+  ///
+  /// A hundred `MeshNode`s sharing one geometry and one material are a hundred
+  /// pipeline binds, six hundred uniform writes and a hundred draws. The sort
+  /// already groups by material, so the run is there to be found: the scene
+  /// pass walks the sorted opaque half, collects each run whose members share a
+  /// mesh, a material, a mirroring and a reflection probe and carry no skeleton,
+  /// no morph and no lightmap, and draws it through the instanced stage with
+  /// each member's world transform as an instance.
+  ///
+  /// **Off by default, and the reason is what cannot be measured here rather
+  /// than what was.** The two vertex stages compute different expressions: a
+  /// plain mesh clips with `(viewProjection * model) * position` and a batch
+  /// with `viewProjection * (instance * position)`, because the instance
+  /// transform is where the node's own matrix went, and the normal takes a
+  /// `normalize` on the instanced side that the plain side does not. On the
+  /// software rasteriser, which computes in Dart doubles, both carry to the same
+  /// eight-bit answer — `auto_batch_test.dart` holds a hundred cubes, turned and
+  /// scaled, to byte equality. Impeller, WebGL and WebGPU compute in 32-bit
+  /// floats, where those expressions have far less room before they part, and
+  /// nothing headless can run them. So the forty-four goldens keep the frame
+  /// they have, and an application that wants the draw calls back asks.
+  ///
+  /// Shadows and picking are unaffected: both walk the scene themselves and
+  /// still draw a node at a time.
+  final bool batchIdenticalDraws;
+
+  /// How many identical draws it takes before merging them is worth a pipeline
+  /// switch on either side of the batch.
+  ///
+  /// Four rather than two, because a batch costs the instanced pipeline coming
+  /// in and the plain one going out, and two draws do not pay for that.
+  static const int batchRunMinimum = 4;
 
   /// Which debug overlays to draw on top of the scene.
   final DebugDrawOptions debug;
@@ -914,6 +950,7 @@ final class RenderSettings {
     double? exposure,
     bool? wireframe,
     bool? backfaceCulling,
+    bool? batchIdenticalDraws,
     DebugDrawOptions? debug,
     List<SceneNode>? highlighted,
     bool? tonemap,
@@ -945,6 +982,7 @@ final class RenderSettings {
     exposure: exposure ?? this.exposure,
     wireframe: wireframe ?? this.wireframe,
     backfaceCulling: backfaceCulling ?? this.backfaceCulling,
+    batchIdenticalDraws: batchIdenticalDraws ?? this.batchIdenticalDraws,
     debug: debug ?? this.debug,
     highlighted: highlighted ?? this.highlighted,
     tonemap: tonemap ?? this.tonemap,
