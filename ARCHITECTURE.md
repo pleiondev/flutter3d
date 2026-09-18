@@ -874,6 +874,16 @@ makes the highlight a streak with the panel's shape. The rectangle's two edge
 vectors ride in the arrays a punctual light uses for the direction it points and
 its cone, so a fourth type cost no bytes per draw.
 
+Indirect diffuse light can come from a grid of probes instead of from a flat
+colour or an environment's roughest level. `IrradianceField` holds one: each
+probe stores what a surface facing each direction receives, as an octahedral
+tile with a gutter, plus two moments of depth so that Chebyshev's inequality can
+refuse light that would cross a wall. It is filled by casting rays through the
+scene's own raycaster — one bounce — and probes that turn out to be inside
+geometry are detected and skipped. A scene reads it through the ambient uniform
+that already exists, sampled once facing up and once facing down per object, so
+it costs no new binding and a scene without one draws exactly as before.
+
 Image-based lighting is a prefiltered specular chain plus a diffuse level, built
 by `EnvironmentMap.prefilter` from a cube map or from sky settings. The
 convolution walks a fixed golden-angle spiral with no randomness in it, which is
@@ -1918,7 +1928,7 @@ entities a game defines.
 |---|---|
 | Style | `dart format` |
 | Analysis | `flutter analyze` clean across the workspace, no warnings |
-| Unit tests | **9374 tests** across 36 packages and 8 applications |
+| Unit tests | **9386 tests** across 36 packages and 8 applications |
 | Structure rules | 35, `dart run tool/structure.dart`, the first CI step |
 | CI | GitHub Actions over `tool/ci.sh`, on `ubuntu-latest`, with no graphics card |
 

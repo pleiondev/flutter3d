@@ -4,6 +4,7 @@ import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:vector_math/vector_math.dart';
 
 import 'camera_node.dart';
+import 'irradiance_field.dart';
 import 'light_node.dart';
 import 'lod_group.dart';
 import 'mesh_node.dart';
@@ -110,6 +111,21 @@ final class Scene {
   double ambientIntensity = 0.06;
 
   Vector3 ambientColor = Vector3(1.0, 1.0, 1.0);
+
+  /// Indirect light measured in the room rather than assumed — `gfx-81n`.
+  ///
+  /// **Null by default, and null is not a degraded mode.** Without one the
+  /// ambient term is what it has always been: a flat colour, or an
+  /// environment's roughest level, neither of which knows that the wall it is
+  /// lighting stands opposite a red one. With a field, each drawn object reads
+  /// the probes around it, so the bounce is the colour of what is actually
+  /// nearby and moving a lamp changes it.
+  ///
+  /// It is filled by `gather` in `irradiance_gather.dart` and not by the
+  /// renderer: what a probe holds is a property of the scene rather than of a
+  /// frame, and a field rebuilt every frame would be a bake nobody asked for
+  /// running sixty times a second.
+  IrradianceField? irradianceField;
 
   /// A prefiltered environment cube: what a physical surface reflects.
   ///

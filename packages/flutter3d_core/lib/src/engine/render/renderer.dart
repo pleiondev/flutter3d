@@ -1524,6 +1524,12 @@ final class Renderer implements RenderServices {
 
   /// What a surface facing up, and one facing down, receive from the
   /// environment. Recomputed once a frame — see [_updateAmbient].
+  /// Scratch for the two irradiance samples a draw takes — `gfx-81n`. Kept
+  /// here for the reason every other staging buffer is: a draw must allocate
+  /// nothing, and a scene with a field takes two of these per object.
+  final vm.Vector3 _irradianceUp = vm.Vector3.zero();
+  final vm.Vector3 _irradianceDown = vm.Vector3.zero();
+
   final Float32List _ambientSky = Float32List(4);
   final Float32List _ambientGround = Float32List(4);
 

@@ -101,6 +101,8 @@ export 'src/engine/scene/bvh.dart';
 export 'src/engine/scene/camera_node.dart';
 export 'src/engine/scene/free_look.dart';
 export 'src/engine/scene/instanced_mesh_node.dart';
+export 'src/engine/scene/irradiance_field.dart';
+export 'src/engine/scene/irradiance_gather.dart';
 export 'src/engine/scene/light_buffer.dart';
 export 'src/engine/scene/light_node.dart';
 export 'src/engine/scene/lod_group.dart';
