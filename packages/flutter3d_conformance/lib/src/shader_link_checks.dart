@@ -103,6 +103,7 @@ Future<void> checkLinking(GraphicsDevice device) async {
       'BloomUpsample',
       'Reflections',
       'Ssao',
+      'SsaoBlur',
       'MrtProbe',
     ])
       ('FullscreenVertex', post),

@@ -188,6 +188,54 @@ extension _PostPasses on Renderer {
     );
   }
 
+  /// `gfx-32n`: smooths the occlusion buffer without crossing a silhouette.
+  ///
+  /// Draws into a transient of the same shape and hands it back under the
+  /// same name, the way `_encodeReflections` does: a texture cannot be
+  /// sampled and written in one pass, so a blur over a buffer needs a second
+  /// one to land in, and the graph's versioning is what lets both be called
+  /// `ao`.
+  void _encodeSsaoBlur({
+    required TextureHandle source,
+    required TextureHandle surface,
+    required AmbientOcclusionSettings options,
+    required FrameResources resources,
+  }) {
+    developer.Timeline.startSync('Renderer.ssaoBlur');
+    final target = resources.transient(
+      RenderTargetSpec(
+        width: source.width,
+        height: source.height,
+        format: source.format,
+      ),
+    );
+
+    _ssaoBlurParams[0] = 1.0 / math.max(source.width, 1);
+    _ssaoBlurParams[1] = 1.0 / math.max(source.height, 1);
+    _ssaoBlurParams[2] = options.blurTaps.clamp(0, 8).toDouble();
+    _ssaoBlurParams[3] = math.max(options.blurDepthFalloff, 1e-4);
+
+    drawFullscreen(
+      FullscreenDraw(
+        target: target,
+        fragment: ssaoBlurShader,
+        textures: <String, TextureHandle>{
+          'ao_texture': source,
+          'surface_texture': surface,
+        },
+        uniforms: <String, Map<String, Float32List>>{
+          'SsaoBlurInfo': <String, Float32List>{'params': _ssaoBlurParams},
+        },
+      ),
+    );
+    developer.Timeline.finishSync();
+
+    // The pass wrote a *different* texture from the one it read, so the
+    // version it produced has to be told which texture that is — the same
+    // hand-off `_ReflectionsNode` makes for the lit colour.
+    resources.provide(FrameResourceIds.ao, target);
+  }
+
   /// Draws ambient occlusion into [target] from the surface buffer.
   ///
   /// A node that *produces* a resource, the way bloom does, rather than one

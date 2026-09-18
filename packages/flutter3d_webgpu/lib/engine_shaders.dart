@@ -12744,6 +12744,177 @@ fn main(@location(5) v_uv: vec2<f32>) -> @location(0) vec4<f32> {
         ),
       ],
     ),
+    'SsaoBlur': WebGpuStage(
+      wgsl: r'''
+struct SsaoBlurInfo {
+    params: vec4<f32>,
+}
+
+@group(1) @binding(0) 
+var<uniform> blur_info: SsaoBlurInfo;
+@group(1) @binding(1) 
+var ao_texture_tex: texture_2d<f32>;
+@group(1) @binding(2) 
+var ao_texture_smp: sampler;
+var<private> v_uv_1: vec2<f32>;
+var<private> frag_color: vec4<f32>;
+@group(1) @binding(3) 
+var surface_texture_tex: texture_2d<f32>;
+@group(1) @binding(4) 
+var surface_texture_smp: sampler;
+
+fn main_1() {
+    var taps: f32;
+    var centre: f32;
+    var centreDepth: f32;
+    var falloff: f32;
+    var total: f32;
+    var weightSum: f32;
+    var i: i32;
+    var offset: f32;
+    var steps: array<vec2<f32>, 4>;
+    var s: i32;
+    var at: vec2<f32>;
+    var depth: f32;
+    var closeness: f32;
+    var weight: f32;
+    var blurred: f32;
+
+    let _e38 = blur_info.params[2u];
+    taps = _e38;
+    let _e39 = v_uv_1;
+    let _e40 = textureSample(ao_texture_tex, ao_texture_smp, _e39);
+    centre = _e40.x;
+    let _e42 = taps;
+    if (_e42 < 1f) {
+        let _e44 = centre;
+        frag_color = vec4<f32>(_e44, _e44, _e44, 1f);
+        return;
+    }
+    let _e46 = v_uv_1;
+    let _e47 = textureSample(surface_texture_tex, surface_texture_smp, _e46);
+    centreDepth = _e47.w;
+    let _e51 = blur_info.params[3u];
+    falloff = max(_e51, 0.0001f);
+    let _e53 = centre;
+    total = _e53;
+    weightSum = 1f;
+    i = 1i;
+    loop {
+        let _e54 = i;
+        if (_e54 <= 8i) {
+            let _e56 = i;
+            let _e58 = taps;
+            if (f32(_e56) > _e58) {
+                break;
+            }
+            let _e60 = i;
+            offset = f32(_e60);
+            let _e64 = blur_info.params[0u];
+            let _e65 = offset;
+            steps[0i] = vec2<f32>((_e64 * _e65), 0f);
+            let _e71 = blur_info.params[0u];
+            let _e73 = offset;
+            steps[1i] = vec2<f32>((-(_e71) * _e73), 0f);
+            let _e79 = blur_info.params[1u];
+            let _e80 = offset;
+            steps[2i] = vec2<f32>(0f, (_e79 * _e80));
+            let _e86 = blur_info.params[1u];
+            let _e88 = offset;
+            steps[3i] = vec2<f32>(0f, (-(_e86) * _e88));
+            s = 0i;
+            loop {
+                let _e92 = s;
+                if (_e92 < 4i) {
+                    let _e94 = v_uv_1;
+                    let _e95 = s;
+                    let _e97 = steps[_e95];
+                    at = (_e94 + _e97);
+                    let _e99 = at;
+                    let _e100 = textureSample(surface_texture_tex, surface_texture_smp, _e99);
+                    depth = _e100.w;
+                    let _e102 = depth;
+                    let _e103 = centreDepth;
+                    let _e107 = falloff;
+                    closeness = exp((-(abs((_e102 - _e103))) / _e107));
+                    let _e110 = closeness;
+                    let _e111 = offset;
+                    weight = (_e110 / _e111);
+                    let _e113 = at;
+                    let _e114 = textureSample(ao_texture_tex, ao_texture_smp, _e113);
+                    let _e116 = weight;
+                    let _e118 = total;
+                    total = (_e118 + (_e114.x * _e116));
+                    let _e120 = weight;
+                    let _e121 = weightSum;
+                    weightSum = (_e121 + _e120);
+                    continue;
+                } else {
+                    break;
+                }
+                continuing {
+                    let _e123 = s;
+                    s = (_e123 + 1i);
+                }
+            }
+            continue;
+        } else {
+            break;
+        }
+        continuing {
+            let _e125 = i;
+            i = (_e125 + 1i);
+        }
+    }
+    let _e127 = total;
+    let _e128 = weightSum;
+    blurred = (_e127 / _e128);
+    let _e130 = blurred;
+    frag_color = vec4<f32>(_e130, _e130, _e130, 1f);
+    return;
+}
+
+@fragment 
+fn main(@location(5) v_uv: vec2<f32>) -> @location(0) vec4<f32> {
+    v_uv_1 = v_uv;
+    main_1();
+    let _e3 = frag_color;
+    return _e3;
+}
+''',
+      attributes: <WebGpuAttribute>[],
+      blocks: <WebGpuBlock>[
+        WebGpuBlock(
+          name: 'SsaoBlurInfo',
+          group: 1,
+          binding: 0,
+          sizeInBytes: 16,
+          members: <WebGpuBlockMember>[
+            WebGpuBlockMember(
+              name: 'params',
+              offsetInBytes: 0,
+              sizeInBytes: 16,
+            ),
+          ],
+        ),
+      ],
+      samplers: <WebGpuSampler>[
+        WebGpuSampler(
+          name: 'ao_texture',
+          group: 1,
+          textureBinding: 1,
+          samplerBinding: 2,
+          dimension: WebGpuTextureDimension.twoDimensional,
+        ),
+        WebGpuSampler(
+          name: 'surface_texture',
+          group: 1,
+          textureBinding: 3,
+          samplerBinding: 4,
+          dimension: WebGpuTextureDimension.twoDimensional,
+        ),
+      ],
+    ),
     'ProbePrefilter': WebGpuStage(
       wgsl: r'''
 struct ProbeInfo {

@@ -722,6 +722,56 @@ final class _SsaoNode extends RenderNode {
 ///
 /// Switching bloom off is [isActive], not a null return: nothing produces the
 /// glow, so the node is culled and costs no pass, no texture and no branch.
+/// `gfx-32n`'s depth-aware blur, as a link in the occlusion chain.
+///
+/// **Reads `ao` and writes `ao`, which is what makes it skippable for free.**
+/// A node that consumed the occlusion and produced something else would make
+/// the composite's read conditional on whether the blur ran. As a
+/// read-modify-write link it produces the next version of the same name, so
+/// switching it off leaves the composite bound to the version before it with
+/// nothing to branch on — the semantics `frame_graph_compile.dart` argues for
+/// and `frame_graph_test.dart` holds.
+///
+/// It reads the surface buffer too, which is where the depth comes from. That
+/// read costs nothing extra: the occlusion pass already declared it, so the
+/// buffer is attached either way.
+final class _SsaoBlurNode extends RenderNode {
+  _SsaoBlurNode(this._renderer, this._settings);
+
+  final Renderer _renderer;
+  final RenderSettings _settings;
+
+  @override
+  String get name => 'ssao blur';
+
+  @override
+  bool get isActive =>
+      _settings.ambientOcclusion.enabled &&
+      _settings.ambientOcclusion.strength > 0.0 &&
+      _settings.ambientOcclusion.blurTaps > 0;
+
+  @override
+  List<ResourceId> get reads => const <ResourceId>[
+    FrameResourceIds.ao,
+    FrameResourceIds.surfaceBuffer,
+  ];
+
+  @override
+  List<ResourceId> get writes => const <ResourceId>[FrameResourceIds.ao];
+
+  @override
+  void execute(NodeFrame frame) {
+    final surface = frame.resources.tryTexture(FrameResourceIds.surfaceBuffer);
+    if (surface == null) return;
+    _renderer._encodeSsaoBlur(
+      source: frame.resources.texture(FrameResourceIds.ao),
+      surface: surface,
+      options: _settings.ambientOcclusion,
+      resources: frame.resources,
+    );
+  }
+}
+
 final class _BloomNode extends RenderNode {
   _BloomNode(this._renderer, this._settings);
 
