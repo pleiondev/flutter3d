@@ -66,6 +66,10 @@ export 'src/formats/ktx2/universal/universal_block.dart'
 export 'src/formats/lighting_model.dart';
 export 'src/formats/material_document.dart';
 export 'src/formats/material_hint.dart';
+export 'src/formats/material_language/material_ast.dart';
+export 'src/formats/material_language/material_eval.dart';
+export 'src/formats/material_language/material_glsl.dart';
+export 'src/formats/material_language/material_parser.dart';
 export 'src/formats/model_document.dart';
 export 'src/formats/model_loader.dart';
 export 'src/formats/model_node.dart';
