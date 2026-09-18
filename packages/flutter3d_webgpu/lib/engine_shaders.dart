@@ -13405,6 +13405,209 @@ fn main(@location(5) v_uv: vec2<f32>, @builtin(position) gl_FragCoord: vec4<f32>
         ),
       ],
     ),
+    'DepthOfField': WebGpuStage(
+      wgsl: r'''
+struct DofInfo {
+    lens: vec4<f32>,
+    params: vec4<f32>,
+}
+
+@group(1) @binding(0) 
+var<uniform> dof_info: DofInfo;
+@group(1) @binding(1) 
+var scene_texture_tex: texture_2d<f32>;
+@group(1) @binding(2) 
+var scene_texture_smp: sampler;
+var<private> v_uv_1: vec2<f32>;
+var<private> frag_color: vec4<f32>;
+@group(1) @binding(3) 
+var surface_texture_tex: texture_2d<f32>;
+@group(1) @binding(4) 
+var surface_texture_smp: sampler;
+
+fn CircleAt_u0028_f1_u003b(depth: ptr<function, f32>) -> f32 {
+    var focus: f32;
+    var focal: f32;
+    var fnumber: f32;
+    var denominator: f32;
+    var diameter: f32;
+
+    let _e29 = dof_info.lens[0u];
+    focus = max(_e29, 0.001f);
+    let _e33 = dof_info.lens[1u];
+    focal = max(_e33, 0.0001f);
+    let _e37 = dof_info.lens[2u];
+    fnumber = max(_e37, 0.001f);
+    let _e39 = (*depth);
+    if (_e39 <= 0f) {
+        return 0f;
+    }
+    let _e41 = fnumber;
+    let _e42 = focus;
+    let _e43 = focal;
+    denominator = max((_e41 * (_e42 - _e43)), 0.000001f);
+    let _e47 = (*depth);
+    let _e48 = focus;
+    let _e51 = (*depth);
+    let _e53 = focal;
+    let _e54 = focal;
+    let _e57 = denominator;
+    diameter = (((abs((_e47 - _e48)) / _e51) * (_e53 * _e54)) / _e57);
+    let _e59 = diameter;
+    let _e63 = dof_info.params[3u];
+    let _e67 = dof_info.params[2u];
+    return min(((_e59 * 0.5f) * _e63), max(_e67, 0f));
+}
+
+fn main_1() {
+    var centre: vec4<f32>;
+    var samples: i32;
+    var centreDepth: f32;
+    var radius: f32;
+    var param: f32;
+    var total: vec3<f32>;
+    var weight: f32;
+    var i: i32;
+    var t: f32;
+    var r: f32;
+    var angle: f32;
+    var at: vec2<f32>;
+    var tap: vec4<f32>;
+    var tapDepth: f32;
+    var tapRadius: f32;
+    var param_1: f32;
+    var reach: f32;
+
+    let _e38 = v_uv_1;
+    let _e39 = textureSample(scene_texture_tex, scene_texture_smp, _e38);
+    centre = _e39;
+    let _e42 = dof_info.lens[3u];
+    samples = i32((_e42 + 0.5f));
+    let _e45 = samples;
+    if (_e45 < 1i) {
+        let _e47 = centre;
+        frag_color = _e47;
+        return;
+    }
+    let _e48 = v_uv_1;
+    let _e49 = textureSample(surface_texture_tex, surface_texture_smp, _e48);
+    centreDepth = _e49.w;
+    let _e51 = centreDepth;
+    param = _e51;
+    let _e52 = CircleAt_u0028_f1_u003b((&param));
+    radius = _e52;
+    let _e53 = radius;
+    if (_e53 < 0.5f) {
+        let _e55 = centre;
+        frag_color = _e55;
+        return;
+    }
+    let _e56 = centre;
+    total = _e56.xyz;
+    weight = 1f;
+    i = 1i;
+    loop {
+        let _e58 = i;
+        if (_e58 <= 64i) {
+            let _e60 = i;
+            let _e61 = samples;
+            if (_e60 > _e61) {
+                break;
+            }
+            let _e63 = i;
+            let _e65 = samples;
+            t = (f32(_e63) / f32(_e65));
+            let _e68 = t;
+            let _e70 = radius;
+            r = (sqrt(_e68) * _e70);
+            let _e72 = i;
+            angle = (f32(_e72) * 2.3999631f);
+            let _e75 = v_uv_1;
+            let _e76 = angle;
+            let _e78 = angle;
+            let _e81 = r;
+            let _e84 = dof_info.params;
+            at = (_e75 + ((vec2<f32>(cos(_e76), sin(_e78)) * _e81) * _e84.xy));
+            let _e88 = at;
+            let _e89 = textureSample(scene_texture_tex, scene_texture_smp, _e88);
+            tap = _e89;
+            let _e90 = at;
+            let _e91 = textureSample(surface_texture_tex, surface_texture_smp, _e90);
+            tapDepth = _e91.w;
+            let _e93 = tapDepth;
+            param_1 = _e93;
+            let _e94 = CircleAt_u0028_f1_u003b((&param_1));
+            tapRadius = _e94;
+            let _e95 = r;
+            let _e96 = tapRadius;
+            let _e97 = radius;
+            reach = select(0f, 1f, (_e95 <= max(_e96, _e97)));
+            let _e101 = tap;
+            let _e103 = reach;
+            let _e105 = total;
+            total = (_e105 + (_e101.xyz * _e103));
+            let _e107 = reach;
+            let _e108 = weight;
+            weight = (_e108 + _e107);
+            continue;
+        } else {
+            break;
+        }
+        continuing {
+            let _e110 = i;
+            i = (_e110 + 1i);
+        }
+    }
+    let _e112 = total;
+    let _e113 = weight;
+    let _e115 = (_e112 / vec3(_e113));
+    let _e117 = centre[3u];
+    frag_color = vec4<f32>(_e115.x, _e115.y, _e115.z, _e117);
+    return;
+}
+
+@fragment 
+fn main(@location(5) v_uv: vec2<f32>) -> @location(0) vec4<f32> {
+    v_uv_1 = v_uv;
+    main_1();
+    let _e3 = frag_color;
+    return _e3;
+}
+''',
+      attributes: <WebGpuAttribute>[],
+      blocks: <WebGpuBlock>[
+        WebGpuBlock(
+          name: 'DofInfo',
+          group: 1,
+          binding: 0,
+          sizeInBytes: 32,
+          members: <WebGpuBlockMember>[
+            WebGpuBlockMember(name: 'lens', offsetInBytes: 0, sizeInBytes: 16),
+            WebGpuBlockMember(
+              name: 'params',
+              offsetInBytes: 16,
+              sizeInBytes: 16,
+            ),
+          ],
+        ),
+      ],
+      samplers: <WebGpuSampler>[
+        WebGpuSampler(
+          name: 'scene_texture',
+          group: 1,
+          textureBinding: 1,
+          samplerBinding: 2,
+          dimension: WebGpuTextureDimension.twoDimensional,
+        ),
+        WebGpuSampler(
+          name: 'surface_texture',
+          group: 1,
+          textureBinding: 3,
+          samplerBinding: 4,
+          dimension: WebGpuTextureDimension.twoDimensional,
+        ),
+      ],
+    ),
     'ProbePrefilter': WebGpuStage(
       wgsl: r'''
 struct ProbeInfo {

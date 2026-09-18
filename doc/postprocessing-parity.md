@@ -394,6 +394,15 @@ device, or a deterministic CPU reference.
 - `gfx-32n` — the acceptance line gets exact with `gfx-42n`.
 - `gfx-33n` — add a precondition readback and a second mode, or the row
   copies flutter_scene's refusal along with their shader.
+- `gfx-34n` — honest downgrade on the effect, and a claim that survives on
+  the numbers it takes. They ship depth of field, so the effect is catch-up.
+  What is not catch-up is that the three numbers are a focus distance, a
+  focal length and an f-number against a stated sensor width, so the circle
+  of confusion is the thin-lens formula rather than a curve: `f/1.4` behaves
+  like `f/1.4`, doubling the focal length quadruples the circle, and
+  `depth_of_field_test.dart` checks the arithmetic against the equation
+  instead of against a recorded picture. A blur-strength slider cannot be
+  checked against anything. Landed 2026-09-18.
 - `gfx-35n`/`gfx-36n` — honest downgrade: they ship `RenderQualityTier`,
   `RenderQualitySettings` and an `AdaptiveQualityController`.
 

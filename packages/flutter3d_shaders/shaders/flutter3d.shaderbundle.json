@@ -119,6 +119,10 @@
     "type": "fragment",
     "file": "shaders/post/light_shafts.frag"
   },
+  "DepthOfField": {
+    "type": "fragment",
+    "file": "shaders/post/depth_of_field.frag"
+  },
   "ProbePrefilter": {
     "type": "fragment",
     "file": "shaders/post/probe_prefilter.frag"

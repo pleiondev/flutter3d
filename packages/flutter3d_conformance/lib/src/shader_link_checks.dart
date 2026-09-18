@@ -105,6 +105,7 @@ Future<void> checkLinking(GraphicsDevice device) async {
       'Ssao',
       'SsaoBlur',
       'LightShafts',
+      'DepthOfField',
       'MrtProbe',
     ])
       ('FullscreenVertex', post),

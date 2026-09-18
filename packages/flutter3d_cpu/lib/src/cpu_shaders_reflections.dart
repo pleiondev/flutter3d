@@ -237,3 +237,100 @@ final class LightShaftsShader implements CpuFragmentShader {
     );
   }
 }
+
+/// `depth_of_field.frag`: a thin lens and a gather — `gfx-34n`.
+///
+/// Mirrors the GLSL operation for operation, the contract every shader in
+/// this package keeps. The golden angle and the `sqrt` on the radius are
+/// carried across literally: change either and the same picture stops coming
+/// out of the two implementations, which is the only thing keeping this one
+/// honest.
+final class DepthOfFieldShader implements CpuFragmentShader {
+  const DepthOfFieldShader();
+
+  /// `kGolden` from the shader.
+  static const double _golden = 2.39996323;
+
+  /// `CircleAt` from the shader: the circle of confusion at [depth] metres,
+  /// as a radius in texels.
+  ///
+  /// **Public so a test can hold it against the thin-lens equation rather
+  /// than against a recorded picture.** It is not a second implementation —
+  /// it is this one, reachable: the arithmetic the CPU backend actually runs,
+  /// and the conformance set is what holds it level with the GLSL.
+  static double circleOfConfusion(
+    double depth, {
+    required double focusDistance,
+    required double focalLength,
+    required double aperture,
+    required double maxRadius,
+    required double texelsPerMetre,
+  }) {
+    if (depth <= 0.0) return 0.0;
+    final focus = math.max(focusDistance, 1e-3);
+    final focal = math.max(focalLength, 1e-4);
+    final fnumber = math.max(aperture, 1e-3);
+    final denominator = math.max(fnumber * (focus - focal), 1e-6);
+    final diameter =
+        (depth - focus).abs() / depth * (focal * focal) / denominator;
+    return math.min(diameter * 0.5 * texelsPerMetre, math.max(maxRadius, 0.0));
+  }
+
+  @override
+  Vector4? run(Float32List v, ShaderBindings b, FragmentContext c) {
+    final sceneTexture = b.textures['scene_texture'];
+    if (sceneTexture == null) return Vector4(0.0, 0.0, 0.0, 1.0);
+    final centre = sceneTexture.sample(v[0], v[1]);
+
+    final lens = b.vec4('DofInfo', 'lens', Vector4.zero());
+    final samples = (lens.w + 0.5).floor();
+    if (samples < 1) return centre;
+
+    final surfaceTexture = b.textures['surface_texture'];
+    if (surfaceTexture == null) return centre;
+
+    final params = b.vec4('DofInfo', 'params', Vector4.zero());
+
+    double circleAt(double depth) => circleOfConfusion(
+      depth,
+      focusDistance: lens.x,
+      focalLength: lens.y,
+      aperture: lens.z,
+      maxRadius: params.z,
+      texelsPerMetre: params.w,
+    );
+
+    final centreDepth = surfaceTexture.sample(v[0], v[1]).w;
+    final radius = circleAt(centreDepth);
+    // Inside half a texel the disc is smaller than the pixel it lands on,
+    // which is what "in focus" means.
+    if (radius < 0.5) return centre;
+
+    var totalX = centre.x;
+    var totalY = centre.y;
+    var totalZ = centre.z;
+    var weight = 1.0;
+
+    for (var i = 1; i <= samples && i <= 64; i++) {
+      final t = i / samples;
+      final r = math.sqrt(t) * radius;
+      final angle = i * _golden;
+      final atU = v[0] + math.cos(angle) * r * params.x;
+      final atV = v[1] + math.sin(angle) * r * params.y;
+
+      final tap = sceneTexture.sample(atU, atV);
+      final tapDepth = surfaceTexture.sample(atU, atV).w;
+      final tapRadius = circleAt(tapDepth);
+
+      // Would this sample's own disc have reached here? A sharp background
+      // pixel behind a blurred foreground says no.
+      if (r > math.max(tapRadius, radius)) continue;
+      totalX += tap.x;
+      totalY += tap.y;
+      totalZ += tap.z;
+      weight += 1.0;
+    }
+
+    return Vector4(totalX / weight, totalY / weight, totalZ / weight, centre.w);
+  }
+}
