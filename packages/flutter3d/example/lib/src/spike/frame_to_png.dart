@@ -24,8 +24,8 @@ import 'png.dart';
 ///   --dart-define=FLUTTER3D_DEBUG_DRAW=bounds,normals,lights,axes \
 ///   --dart-define=FLUTTER3D_SOURCE=obj:%20Teapot
 /// ```
-final class FrameCapture {
-  FrameCapture._(this.path, this.atFrame);
+final class FrameToPng {
+  FrameToPng._(this.path, this.atFrame);
 
   static const String _pathKey = 'FLUTTER3D_CAPTURE';
   static const String _frameKey = 'FLUTTER3D_CAPTURE_FRAME';
@@ -40,11 +40,11 @@ final class FrameCapture {
   bool _done = false;
 
   /// Null unless `FLUTTER3D_CAPTURE` was defined.
-  static FrameCapture? fromEnvironment() {
+  static FrameToPng? fromEnvironment() {
     const path = String.fromEnvironment(_pathKey);
     if (path.isEmpty) return null;
     const frame = int.fromEnvironment(_frameKey, defaultValue: 120);
-    return FrameCapture._(_resolve(path), frame);
+    return FrameToPng._(_resolve(path), frame);
   }
 
   /// A relative name lands in the app's temp directory.

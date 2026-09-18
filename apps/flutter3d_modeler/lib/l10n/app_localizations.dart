@@ -3229,6 +3229,66 @@ abstract class AppLocalizations {
     String triangles,
   );
 
+  /// Заголовок панели снимка кадра — gfx-70n.
+  ///
+  /// In ru, this message translates to:
+  /// **'Снимок кадра'**
+  String get captureTitle;
+
+  /// Кнопка, снимающая следующий кадр — gfx-70n.
+  ///
+  /// In ru, this message translates to:
+  /// **'Снять кадр'**
+  String get captureTake;
+
+  /// Снимок запрошен, ответа ещё нет — gfx-70n.
+  ///
+  /// In ru, this message translates to:
+  /// **'Снимаем…'**
+  String get captureWaiting;
+
+  /// Панель открыта, снимков не делали — gfx-70n.
+  ///
+  /// In ru, this message translates to:
+  /// **'Снимков ещё нет'**
+  String get captureEmpty;
+
+  /// Строка прохода в снимке — gfx-70n.
+  ///
+  /// In ru, this message translates to:
+  /// **'{name} · изображений: {images}'**
+  String capturePassLine(String name, String images);
+
+  /// Проход был в графе, но сказал, что делать нечего — gfx-70n.
+  ///
+  /// In ru, this message translates to:
+  /// **'{name} · не выполнялся'**
+  String captureInactive(String name);
+
+  /// Что проход читает, по именам ресурсов графа — gfx-70n.
+  ///
+  /// In ru, this message translates to:
+  /// **'читает {names}'**
+  String captureReads(String names);
+
+  /// Что проход пишет, по именам ресурсов графа — gfx-70n.
+  ///
+  /// In ru, this message translates to:
+  /// **'пишет {names}'**
+  String captureWrites(String names);
+
+  /// Ресурс, который проход оставил полностью чёрным — gfx-70n.
+  ///
+  /// In ru, this message translates to:
+  /// **'{name} вернулся чёрным'**
+  String captureBlack(String name);
+
+  /// Почему у ресурса нет пикселей — gfx-70n.
+  ///
+  /// In ru, this message translates to:
+  /// **'{name}: {reason}'**
+  String captureRefused(String name, String reason);
+
   /// Галерея — ux-22.
   ///
   /// In ru, this message translates to:

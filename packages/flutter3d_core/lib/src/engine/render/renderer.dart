@@ -23,6 +23,7 @@ import 'composite_mix.dart';
 import 'debug_draw.dart';
 import 'debug_draw_gizmos.dart';
 import 'empty_frame.dart';
+import 'frame_capture.dart';
 import 'frame_graph.dart';
 import 'frame_plan.dart';
 import 'frame_resources.dart';
@@ -2075,6 +2076,50 @@ final class Renderer implements RenderServices {
   final vm.Matrix4 _cubeDrawMatrix = vm.Matrix4.identity();
   final Float32List _cubeLight = Float32List(4);
 
+  /// The capture being filled, or null — `gfx-70n`.
+  FrameCaptureBuilder? _capture;
+
+  /// Records the next frame pass by pass, with the pixels each one wrote.
+  ///
+  /// **A one-shot rather than a setting**, because that is what a capture is:
+  /// something is wrong now, and the readback of every pass's output is far too
+  /// expensive to leave on. The returned future answers when the frame's
+  /// readbacks have, which on a hardware backend is a frame or two later.
+  ///
+  /// ```dart
+  /// final capture = renderer.captureNextFrame();
+  /// renderer.render(/* … */);
+  /// final frame = await capture;
+  /// print(frame.firstBlack('hdr colour')?.name);
+  /// ```
+  ///
+  /// Asking twice before a frame runs replaces the first request: there is one
+  /// next frame.
+  Future<FrameCapture> captureNextFrame() {
+    final completer = Completer<FrameCapture>();
+    _captureWanted = completer;
+    return completer.future;
+  }
+
+  Completer<FrameCapture>? _captureWanted;
+
+  /// Hands [wanted] the capture this frame built, and clears the builder.
+  ///
+  /// Called on both ways out of the graph loop, because a frame that threw is
+  /// exactly the frame somebody captured.
+  void _completeCapture(Completer<FrameCapture>? wanted) {
+    final builder = _capture;
+    _capture = null;
+    if (wanted == null || wanted.isCompleted) return;
+    if (builder == null) {
+      wanted.completeError(
+        StateError('The frame ran without building a capture.'),
+      );
+      return;
+    }
+    wanted.complete(builder.build());
+  }
+
   /// What the directional atlas currently holds, as the key that drew it —
   /// `gfx-68n`. Null until a first pass.
   ({int matrices, int epoch, int generation, int faces, int casters})?
@@ -3124,6 +3169,13 @@ final class Renderer implements RenderServices {
     // thing likely to use it.
     final passTimings = <FramePass>[];
     _frameCounters = passState;
+    // Taken at the top of the frame and cleared here, so a request made while
+    // this frame is encoding is the *next* frame's — `gfx-70n`.
+    final capturing = _captureWanted;
+    _captureWanted = null;
+    _capture = capturing == null
+        ? null
+        : FrameCaptureBuilder(width: width, height: height);
     try {
       for (var i = 0; i < frameGraph.order.length; i++) {
         resources.beginNode(i);
@@ -3171,6 +3223,12 @@ final class Renderer implements RenderServices {
           triangles: passState.triangles - trianglesBefore,
           pipelineSwitches: passState.pipelineSwitches - switchesBefore,
         ));
+        // **Before `endNode`, which is the whole point** — `gfx-70n`. That call
+        // is where a version whose last reader has passed goes back to the
+        // pool, and the next pass draws over it. A capture taken after the
+        // frame would hold whatever the last pass to borrow that shape left
+        // there, attributed to whichever pass wrote it first.
+        _capture?.record(node, device: device, lookup: resources.tryTexture);
         resources.endNode(i);
       }
     } catch (error, stack) {
@@ -3187,6 +3245,11 @@ final class Renderer implements RenderServices {
       // frame it belongs to did not happen — which is why the readback's own
       // answer checks before it completes.
       _failPicks(picks, error, stack);
+
+      // A capture of a frame that threw is exactly the capture somebody wanted,
+      // so it is handed over rather than dropped — it holds every pass up to
+      // the one that broke, which is where the reader is going to look.
+      _completeCapture(capturing);
 
       // **And the counter has to move, or the deferral this frame just relied
       // on is a frame that never happened.** Releases go into slot
@@ -3206,6 +3269,7 @@ final class Renderer implements RenderServices {
       // the number would land in a report nobody is reading any more.
       _frameCounters = null;
     }
+    _completeCapture(capturing);
 
     // Out of the nodes rather than out of the calls, which is the shape of
     // every one of these: the frame reports what its passes counted. The draws

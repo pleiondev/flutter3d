@@ -660,6 +660,16 @@
   "metricsBones": "{count} костей",
   "metricsPasses": "Проходы кадра",
   "metricsPassLine": "{name} · {ms} мс · {draws} выз. · {triangles} тр.",
+  "captureTitle": "Снимок кадра",
+  "captureTake": "Снять кадр",
+  "captureWaiting": "Снимаем…",
+  "captureEmpty": "Снимков ещё нет",
+  "capturePassLine": "{name} · изображений: {images}",
+  "captureInactive": "{name} · не выполнялся",
+  "captureReads": "читает {names}",
+  "captureWrites": "пишет {names}",
+  "captureBlack": "{name} вернулся чёрным",
+  "captureRefused": "{name}: {reason}",
   "@previewLights": {
     "description": "Превью — ux-22.",
     "placeholders": {
@@ -749,6 +759,72 @@
         "type": "String"
       },
       "triangles": {
+        "type": "String"
+      }
+    }
+  },
+  "@captureTitle": {
+    "description": "Заголовок панели снимка кадра — gfx-70n."
+  },
+  "@captureTake": {
+    "description": "Кнопка, снимающая следующий кадр — gfx-70n."
+  },
+  "@captureWaiting": {
+    "description": "Снимок запрошен, ответа ещё нет — gfx-70n."
+  },
+  "@captureEmpty": {
+    "description": "Панель открыта, снимков не делали — gfx-70n."
+  },
+  "@capturePassLine": {
+    "description": "Строка прохода в снимке — gfx-70n.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "images": {
+        "type": "String"
+      }
+    }
+  },
+  "@captureInactive": {
+    "description": "Проход был в графе, но сказал, что делать нечего — gfx-70n.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "@captureReads": {
+    "description": "Что проход читает, по именам ресурсов графа — gfx-70n.",
+    "placeholders": {
+      "names": {
+        "type": "String"
+      }
+    }
+  },
+  "@captureWrites": {
+    "description": "Что проход пишет, по именам ресурсов графа — gfx-70n.",
+    "placeholders": {
+      "names": {
+        "type": "String"
+      }
+    }
+  },
+  "@captureBlack": {
+    "description": "Ресурс, который проход оставил полностью чёрным — gfx-70n.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "@captureRefused": {
+    "description": "Почему у ресурса нет пикселей — gfx-70n.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "reason": {
         "type": "String"
       }
     }
