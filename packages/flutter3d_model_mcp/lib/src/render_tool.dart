@@ -12,6 +12,7 @@
 /// one tool that actually draws.
 library;
 
+import 'dart:io';
 import 'dart:math' as math;
 
 import 'package:dart_mcp/server.dart';
@@ -327,6 +328,16 @@ final ModelPictureTool renderSnapshotTool = ModelPictureTool(
         tilesY: tiles,
       ),
       tileDevice: _cpuDevice,
+      // **The agent is waiting on this one**, which is what makes the cores
+      // worth spending: `render` is a tool call, and a tool call that takes
+      // three seconds instead of one is three seconds of somebody's session.
+      // Measured on an 11-core machine, 1024x1024 in a 4x4 grid: 3283 ms on
+      // one worker against 993 on eight.
+      //
+      // `Platform.numberOfProcessors` is reachable here and not inside
+      // `flutter3d_model_core`, which is a flat Dart package that a `dart:io`
+      // import would take off the web with it. This is a server; it has io.
+      concurrency: Platform.numberOfProcessors,
     ).run();
     return (
       did: true,

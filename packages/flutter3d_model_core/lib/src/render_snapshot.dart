@@ -143,13 +143,41 @@ final class RenderPreset {
 /// A snapshot of [project] at [preset], each tile rendered on a device of its
 /// own from [tileDevice].
 final class RenderSnapshotJob {
-  RenderSnapshotJob(this.project, this.preset, {required this.tileDevice});
+  RenderSnapshotJob(
+    this.project,
+    this.preset, {
+    required this.tileDevice,
+    this.concurrency = 1,
+  }) : assert(concurrency >= 1, 'a grid is drawn by at least one worker');
 
   final ModelProject project;
   final RenderPreset preset;
 
   /// Where each tile is drawn. See [TileDevice] for why it is a function.
   final TileDevice tileDevice;
+
+  /// How many tiles are drawn at once, each in an isolate of its own.
+  ///
+  /// **One by default, which is what this did before and is not a placeholder
+  /// for a better default.** The number that belongs here is the machine's
+  /// core count, and this package cannot ask: it is a flat Dart package, so
+  /// `dart:io`'s `Platform.numberOfProcessors` would take the web build with
+  /// it. The application knows, and passes it.
+  ///
+  /// Above one, each tile crosses into `Isolate.run` with the project, the
+  /// preset, its index and the [TileDevice] tear-off, and its pixels come back
+  /// through a `TransferableTypedData` — which moves the buffer rather than
+  /// copying it, the reason `editInIsolate` uses one for a mesh.
+  ///
+  /// **It changes no pixel.** Tiles already render independently — each builds
+  /// its own device, its own scene and its own camera, and writes only its own
+  /// share of the frame — so which thread draws one cannot be visible in the
+  /// result. `a 2x2 tile grid stitches to the same frame as one tile` held
+  /// that before any of this, and holds it still.
+  ///
+  /// Ignored on the web, where there are no isolates and the grid is stepped
+  /// one tile at a time with a yield between them.
+  final int concurrency;
 
   /// One chunk per tile of [RenderPreset.tilesX] × [RenderPreset.tilesY] — the
   /// grid a caller stepping through chunks on the web draws one tile per frame
@@ -162,6 +190,17 @@ final class RenderSnapshotJob {
   /// on the web after every tile, on native once, when the whole grid finishes
   /// inside its own isolate.
   Future<Uint8List> run({void Function(double progress)? onProgress}) async {
+    if (!meshWorkStaysHere && concurrency > 1) {
+      final bytes = await _renderTilesInParallel(
+        project,
+        preset,
+        tileDevice,
+        concurrency,
+        onProgress,
+      );
+      return bytes;
+    }
+
     if (!meshWorkStaysHere) {
       final TileDevice device = tileDevice;
       final bytes = await Isolate.run(
@@ -205,6 +244,95 @@ final class RenderSnapshotJob {
   }
 }
 
+/// The grid, [concurrency] tiles at a time, each in an isolate of its own.
+///
+/// **A bounded pool rather than one isolate per tile.** A 4x4 grid is sixteen
+/// tiles and a machine has eight cores; spawning sixteen isolates would pay
+/// sixteen times for building a shader library and a scene, to run eight at a
+/// time anyway. The pool keeps at most [concurrency] in flight and starts the
+/// next as one lands.
+///
+/// **The pixels come back through a `TransferableTypedData`.** That is the
+/// one direction it fits: `materialize()` may be called once and the buffer
+/// moves rather than copying, which is exactly a tile handing its frame back.
+/// It does not fit the other direction — the project goes *to* each worker as
+/// an ordinary copy, because a transferable is single-use and could not be
+/// sent to a second worker at all. The project is a document and small; the
+/// pixels are the large thing, and they are the ones that move.
+Future<Uint8List> _renderTilesInParallel(
+  ModelProject project,
+  RenderPreset preset,
+  TileDevice tileDevice,
+  int concurrency,
+  void Function(double progress)? onProgress,
+) async {
+  final buffer = _SnapshotBuffer(preset, tileDevice);
+  final count = preset.tilesX * preset.tilesY;
+  final tileWidth = buffer.tileWidth;
+  final tileHeight = buffer.tileHeight;
+
+  var next = 0;
+  var landed = 0;
+
+  Future<void> worker() async {
+    while (true) {
+      // Read and advance in one turn: this is an event loop rather than
+      // threads, so nothing runs between these two lines and no two workers
+      // can take the same tile.
+      final index = next;
+      if (index >= count) return;
+      next = index + 1;
+
+      final sent = await Isolate.run(
+        () => _drawTileForTransfer(
+          project,
+          preset,
+          index,
+          tileDevice,
+          tileWidth,
+          tileHeight,
+        ),
+      );
+      buffer.blitTile(
+        sent.materialize().asUint8List(),
+        tileX: index % preset.tilesX,
+        tileY: index ~/ preset.tilesX,
+      );
+      landed++;
+      onProgress?.call(landed / count);
+    }
+  }
+
+  await Future.wait(<Future<void>>[
+    for (var i = 0; i < (concurrency < count ? concurrency : count); i++)
+      worker(),
+  ]);
+  return buffer.finish();
+}
+
+/// [drawTile], wrapped so the bytes move rather than copy on the way back.
+///
+/// Top-level for the reason [drawTile] is: what `Isolate.run`'s closure
+/// carries has to be sendable, and a tear-off plus plain values is.
+Future<TransferableTypedData> _drawTileForTransfer(
+  ModelProject project,
+  RenderPreset preset,
+  int index,
+  TileDevice tileDevice,
+  int tileWidth,
+  int tileHeight,
+) async {
+  final tile = await drawTile(
+    project,
+    preset,
+    index,
+    tileDevice,
+    tileWidth: tileWidth,
+    tileHeight: tileHeight,
+  );
+  return TransferableTypedData.fromList(<Uint8List>[tile]);
+}
+
 /// The whole grid, off this isolate — [Isolate.run]'s own computation on
 /// native. Top-level so the closure [RenderSnapshotJob.run] builds carries
 /// only [project], [preset] and [tileDevice].
@@ -240,70 +368,39 @@ final class _SnapshotBuffer {
   final int tileHeight;
   final Uint8List _pixels;
 
-  /// Renders tile [index] on its own fresh device and blits it into the
-  /// supersampled frame — the same eye and look-at as every other tile, with
-  /// [TiledProjection] cropping this one's share of the frustum, the shape
-  /// `packages/flutter3d/test/tiled_projection_stitch_test.dart` proves
-  /// stitches back byte for byte.
+  /// Renders tile [index] and blits it into the supersampled frame.
+  ///
+  /// The drawing itself is [drawTile], a top-level function: a tile is one
+  /// picture computed from plain values, so it can be computed anywhere — on
+  /// this thread, or in an isolate of its own. This method is the half that
+  /// owns the shared buffer, and it is the half that cannot cross.
   Future<void> renderTile(
     ModelProject project,
     RenderPreset preset,
     int index,
   ) async {
-    final tileX = index % preset.tilesX;
-    final tileY = index ~/ preset.tilesX;
-
-    final device = tileDevice(tileWidth, tileHeight);
-    final renderer = Renderer.create(
-      device: device,
-      fallbackAlbedo: _texel(device, const <int>[255, 255, 255, 255]),
-      fallbackNormal: _texel(device, const <int>[128, 128, 255, 255]),
+    _blit(
+      await drawTile(
+        project,
+        preset,
+        index,
+        tileDevice,
+        tileWidth: tileWidth,
+        tileHeight: tileHeight,
+      ),
+      tileX: index % preset.tilesX,
+      tileY: index ~/ preset.tilesX,
     );
-
-    final scene = sceneFromProject(project, device);
-    final wholeFrame = preset.camera.projection;
-    final camera =
-        CameraNode(
-          name: 'snapshot',
-          projection: (preset.tilesX == 1 && preset.tilesY == 1)
-              ? wholeFrame
-              : TiledProjection(
-                  wholeFrame,
-                  tileX: tileX,
-                  tileY: tileY,
-                  tilesX: preset.tilesX,
-                  tilesY: preset.tilesY,
-                ),
-        )..setPosition(
-          preset.camera.position.x,
-          preset.camera.position.y,
-          preset.camera.position.z,
-        );
-    camera.lookAt(preset.camera.target, up: preset.camera.up);
-    scene.add(camera);
-
-    final result = renderer.render(
-      width: tileWidth,
-      height: tileHeight,
-      scene: scene,
-      views: <RenderView>[
-        RenderView(
-          camera: camera,
-          clearColor: preset.clearColor ?? Vector4(0.0, 0.0, 0.0, 1.0),
-        ),
-      ],
-      settings: preset.settings,
-    );
-
-    final tile = await device.readPixels(result.frame);
-    if (tile == null) {
-      throw StateError(
-        'tile $tileX,$tileY could not be read back from the device it was '
-        'drawn on',
-      );
-    }
-    _blit(tile.buffer.asUint8List(), tileX: tileX, tileY: tileY);
   }
+
+  /// Writes one tile's pixels into its own share of the frame.
+  ///
+  /// Public to this library because a tile drawn in an isolate comes back as
+  /// bytes with nowhere to put itself — the pool hands them here. Safe to call
+  /// from several futures in turn for the same reason the grid is tiled at
+  /// all: a tile's rows are its own, so no two calls touch the same byte.
+  void blitTile(Uint8List tile, {required int tileX, required int tileY}) =>
+      _blit(tile, tileX: tileX, tileY: tileY);
 
   void _blit(Uint8List tile, {required int tileX, required int tileY}) {
     for (var row = 0; row < tileHeight; row++) {
@@ -367,4 +464,79 @@ Uint8List _downsample(Uint8List src, int srcWidth, int srcHeight, int factor) {
     }
   }
   return out;
+}
+
+/// One tile of a snapshot, drawn on a device of its own, as raw RGBA bytes.
+///
+/// **Top-level and taking only plain values, so a tile can be drawn anywhere.**
+/// Everything it needs — the project, the preset, which tile, and a tear-off
+/// that makes a device — crosses an isolate; a method on a buffer holding the
+/// whole frame does not. That is the split: this computes a picture, and
+/// `_SnapshotBuffer` owns the one place every picture is written to.
+///
+/// The same eye and look-at as every other tile, with [TiledProjection]
+/// cropping this one's share of the frustum — the shape
+/// `packages/flutter3d/test/tiled_projection_stitch_test.dart` proves stitches
+/// back byte for byte.
+Future<Uint8List> drawTile(
+  ModelProject project,
+  RenderPreset preset,
+  int index,
+  TileDevice tileDevice, {
+  required int tileWidth,
+  required int tileHeight,
+}) async {
+  final tileX = index % preset.tilesX;
+  final tileY = index ~/ preset.tilesX;
+
+  final device = tileDevice(tileWidth, tileHeight);
+  final renderer = Renderer.create(
+    device: device,
+    fallbackAlbedo: _texel(device, const <int>[255, 255, 255, 255]),
+    fallbackNormal: _texel(device, const <int>[128, 128, 255, 255]),
+  );
+
+  final scene = sceneFromProject(project, device);
+  final wholeFrame = preset.camera.projection;
+  final camera =
+      CameraNode(
+        name: 'snapshot',
+        projection: (preset.tilesX == 1 && preset.tilesY == 1)
+            ? wholeFrame
+            : TiledProjection(
+                wholeFrame,
+                tileX: tileX,
+                tileY: tileY,
+                tilesX: preset.tilesX,
+                tilesY: preset.tilesY,
+              ),
+      )..setPosition(
+        preset.camera.position.x,
+        preset.camera.position.y,
+        preset.camera.position.z,
+      );
+  camera.lookAt(preset.camera.target, up: preset.camera.up);
+  scene.add(camera);
+
+  final result = renderer.render(
+    width: tileWidth,
+    height: tileHeight,
+    scene: scene,
+    views: <RenderView>[
+      RenderView(
+        camera: camera,
+        clearColor: preset.clearColor ?? Vector4(0.0, 0.0, 0.0, 1.0),
+      ),
+    ],
+    settings: preset.settings,
+  );
+
+  final tile = await device.readPixels(result.frame);
+  if (tile == null) {
+    throw StateError(
+      'tile $tileX,$tileY could not be read back from the device it was '
+      'drawn on',
+    );
+  }
+  return tile.buffer.asUint8List();
 }
