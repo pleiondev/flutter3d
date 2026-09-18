@@ -115,6 +115,10 @@
     "type": "fragment",
     "file": "shaders/post/ssao_blur.frag"
   },
+  "LightShafts": {
+    "type": "fragment",
+    "file": "shaders/post/light_shafts.frag"
+  },
   "ProbePrefilter": {
     "type": "fragment",
     "file": "shaders/post/probe_prefilter.frag"

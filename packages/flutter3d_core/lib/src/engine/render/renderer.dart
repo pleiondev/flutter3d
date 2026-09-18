@@ -132,6 +132,7 @@ final class Renderer implements RenderServices {
     required this.reflectionShader,
     required this.ssaoShader,
     required this.ssaoBlurShader,
+    required this.lightShaftsShader,
     required TextureHandle fallbackAlbedo,
     required TextureHandle fallbackNormal,
     required TextureHandle fallbackBlack,
@@ -258,6 +259,9 @@ final class Renderer implements RenderServices {
 
   /// `gfx-32n`'s depth-aware blur over what that pass produced.
   final ShaderHandle ssaoBlurShader;
+
+  /// `gfx-33n`'s volumetric shafts through the directional shadow map.
+  final ShaderHandle lightShaftsShader;
 
   /// 1x1 opaque white, bound when a material has no base-colour texture.
   ///
@@ -847,6 +851,15 @@ final class Renderer implements RenderServices {
   /// `gfx-32n`: one texel of the occlusion buffer, the tap count, and how
   /// fast a tap's weight falls off with depth.
   final Float32List _ssaoBlurParams = Float32List(4);
+
+  /// `gfx-33n`'s own four vectors. The three matrices it also needs are the
+  /// shadow pass's, reused rather than recomputed.
+  final Float32List _shaftCamera = Float32List(4);
+  final Float32List _shaftForward = Float32List(4);
+  final Float32List _shaftScatter = Float32List(4);
+  final Float32List _shaftCascades = Float32List(4);
+  final vm.Vector3 _shaftCameraVec = vm.Vector3.zero();
+  final vm.Vector3 _shaftForwardVec = vm.Vector3.zero();
   final Float32List _compositeParams = Float32List(4);
   final Float32List _compositeAoTexel = Float32List(4);
   final Float32List _luminanceParams = Float32List(4);
@@ -1031,6 +1044,7 @@ final class Renderer implements RenderServices {
       reflectionShader: require('Reflections'),
       ssaoShader: require('Ssao'),
       ssaoBlurShader: require('SsaoBlur'),
+      lightShaftsShader: require('LightShafts'),
       fallbackAlbedo: fallbackAlbedo ?? SolidColorTexture.white.upload(device),
       fallbackNormal:
           fallbackNormal ?? SolidColorTexture.flatNormal.upload(device),
@@ -1794,6 +1808,10 @@ final class Renderer implements RenderServices {
     // the occlusion pass left — the version-skip the graph already does for
     // every other optional link.
     graph.addNode(_SsaoBlurNode(this, s));
+    // `gfx-33n`. After the occlusion and before bloom: a shaft is light in
+    // the air, so it should glow the way any other light does, and it is not
+    // a surface so the occlusion has nothing to say about it.
+    graph.addNode(_LightShaftsNode(this, view, s));
     // Then bloom, so it reads the scene as everything before it left it — the
     // registration order *is* the version chain — and the composite last, so it
     // reads the end of that chain and the glow taken from it.

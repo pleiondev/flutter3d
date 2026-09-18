@@ -169,6 +169,75 @@ final class AmbientOcclusionSettings {
   final double bias;
 }
 
+/// Volumetric light shafts, marched through the directional shadow map —
+/// `gfx-33n`.
+///
+/// **Not the radial smear, and the difference is what it can draw.** The
+/// cheap version takes bright pixels and streaks them away from the sun's
+/// position on screen: it needs the sun in frame, it brightens anything else
+/// that happens to be bright, and it knows nothing about what is casting.
+/// This marches the view ray and asks the shadow map whether each point in
+/// the air is lit, so a beam through a doorway is the doorway's shape — and
+/// with the caster's shadow switched off there is nothing to draw at all,
+/// which is the check the row is held to.
+///
+/// **It needs a shadow-casting directional light**, because the shadow map is
+/// where the shape comes from. A scene with no caster gets nothing, silently:
+/// that is the honest answer rather than an error, since a light being added
+/// later is the ordinary case.
+final class LightShaftSettings {
+  const LightShaftSettings({
+    this.enabled = false,
+    this.steps = 16,
+    this.distance = 40.0,
+    this.strength = 0.15,
+    this.color,
+  });
+
+  /// Off by default. It is a full-screen pass with sixteen shadow lookups a
+  /// pixel, which is a real cost for an effect a scene either wants badly or
+  /// not at all.
+  final bool enabled;
+
+  /// Samples along each view ray. Bounded at sixty-four in the shader, the
+  /// same rule every marching loop in this engine keeps — a loop a uniform
+  /// can lengthen without limit is a hang rather than a slow frame.
+  ///
+  /// Sixteen reads as a beam because each pixel starts a fraction of a step
+  /// further along, from an ordered cell; without that offset sixteen steps
+  /// read as sixteen bands.
+  final int steps;
+
+  /// How far along the ray to march, in world metres. Shorter spends the
+  /// samples where the air is closest and gives up the far end of a long
+  /// shaft; longer spreads them and softens it.
+  final double distance;
+
+  /// How much the air scatters, 0 to about 1. Multiplied into [color] before
+  /// it reaches the shader, so "off" is a colour of exactly zero rather than
+  /// a branch.
+  final double strength;
+
+  /// What the air scatters, or null for white. The colour of the light
+  /// rather than of the fog: a shaft is the light you can see because
+  /// something is in the way of it.
+  final vm.Vector3? color;
+
+  LightShaftSettings copyWith({
+    bool? enabled,
+    int? steps,
+    double? distance,
+    double? strength,
+    vm.Vector3? color,
+  }) => LightShaftSettings(
+    enabled: enabled ?? this.enabled,
+    steps: steps ?? this.steps,
+    distance: distance ?? this.distance,
+    strength: strength ?? this.strength,
+    color: color ?? this.color,
+  );
+}
+
 /// Distance fog.
 ///
 /// Exponential per metre, which is what the level format already stores. A
@@ -278,6 +347,7 @@ final class RenderSettings {
     this.xray = const XraySettings(),
     this.disabledPasses = const <String>{},
     this.renderScale = 1.0,
+    this.lightShafts = const LightShaftSettings(),
   }) : assert(anisotropy >= 1, 'anisotropy is a count of taps, one or more'),
        assert(lightFadeBand >= 0.0, 'a fade band is a width, not a direction');
 
@@ -430,6 +500,9 @@ final class RenderSettings {
 
   /// Darkens the ambient term where a surface cannot see the sky.
   final AmbientOcclusionSettings ambientOcclusion;
+
+  /// `gfx-33n`'s volumetric shafts through the directional shadow map.
+  final LightShaftSettings lightShafts;
 
   final FogSettings fog;
 
@@ -609,6 +682,7 @@ final class RenderSettings {
     XraySettings? xray,
     Set<String>? disabledPasses,
     double? renderScale,
+    LightShaftSettings? lightShafts,
   }) => RenderSettings(
     specular: specular ?? this.specular,
     exposure: exposure ?? this.exposure,
@@ -637,6 +711,7 @@ final class RenderSettings {
     xray: xray ?? this.xray,
     disabledPasses: disabledPasses ?? this.disabledPasses,
     renderScale: renderScale ?? this.renderScale,
+    lightShafts: lightShafts ?? this.lightShafts,
   );
 
   /// These settings with the effects a stereo pair cannot have taken out.

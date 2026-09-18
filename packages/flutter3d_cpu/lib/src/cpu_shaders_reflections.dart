@@ -132,3 +132,108 @@ final class ReflectionsShader implements CpuFragmentShader {
     return done(debugOnly ? reflection : scene + reflection);
   }
 }
+
+/// `light_shafts.frag`: volumetric shafts marched through the shadow map —
+/// `gfx-33n`.
+///
+/// Mirrors the GLSL operation for operation, the contract every shader in
+/// this package keeps.
+final class LightShaftsShader implements CpuFragmentShader {
+  const LightShaftsShader();
+
+  /// `BayerCell` from the shader, in [0, 1).
+  static double _bayer(double x, double y) {
+    const table = <int>[0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5];
+    final cx = x.floor() % 4;
+    final cy = y.floor() % 4;
+    final index = ((cy < 0 ? cy + 4 : cy) * 4) + (cx < 0 ? cx + 4 : cx);
+    return table[index] / 16.0;
+  }
+
+  @override
+  Vector4? run(Float32List v, ShaderBindings b, FragmentContext c) {
+    final sceneTexture = b.textures['scene_texture'];
+    if (sceneTexture == null) return Vector4(0.0, 0.0, 0.0, 1.0);
+    final scene = sceneTexture.sample(v[0], v[1]);
+
+    final forward = b.vec4('ShaftInfo', 'forward', Vector4.zero());
+    final steps = (forward.w + 0.5).floor();
+    if (steps < 1) return scene;
+
+    final surfaceTexture = b.textures['surface_texture'];
+    final shadow = b.textures['shadow_texture'];
+    if (surfaceTexture == null || shadow == null) return scene;
+
+    final inverse = b.mat4('ShaftInfo', 'inverse_view_projection');
+    final camera = b.vec4('ShaftInfo', 'camera', Vector4.zero());
+    final scatter = b.vec4('ShaftInfo', 'scatter', Vector4.zero());
+    final cascades = b.vec4('ShaftInfo', 'cascades', Vector4.zero());
+
+    final ndcX = v[0] * 2.0 - 1.0;
+    final ndcY = 1.0 - v[1] * 2.0;
+    final nearH = inverse.transformed(Vector4(ndcX, ndcY, 0.0, 1.0));
+    final farH = inverse.transformed(Vector4(ndcX, ndcY, 1.0, 1.0));
+    final origin = Vector3(nearH.x, nearH.y, nearH.z)..scale(1.0 / nearH.w);
+    final farPoint = Vector3(farH.x, farH.y, farH.z)..scale(1.0 / farH.w);
+    final along = (farPoint - origin)..normalize();
+
+    final axis = Vector3(forward.x, forward.y, forward.z);
+    final surfaceDepth = surfaceTexture.sample(v[0], v[1]).w;
+    final cosine = math.max(along.dot(axis), 1e-4);
+    final toSurface = surfaceDepth > 0.0 ? surfaceDepth / cosine : 1e9;
+    final distance = math.min(camera.w, toSurface);
+    if (distance <= 0.0) return scene;
+
+    final stride = distance / steps;
+    final offset = _bayer(c.coord.x, c.coord.y) * stride;
+
+    final matrices = <Matrix4>[
+      b.mat4('ShaftInfo', 'shadow_matrix'),
+      b.mat4('ShaftInfo', 'shadow_matrix_far'),
+      b.mat4('ShaftInfo', 'shadow_matrix_farthest'),
+    ];
+    final cascadeCount = (cascades.z + 0.5).floor();
+
+    double litAt(Vector3 world, double viewDistance) {
+      var cascade = 0;
+      if (cascadeCount > 1 && viewDistance > cascades.x) cascade = 1;
+      if (cascadeCount > 2 && viewDistance > cascades.y) cascade = 2;
+
+      for (var attempt = 0; attempt < 3; attempt++) {
+        final which = cascade + attempt;
+        if (which >= cascadeCount) break;
+        final lightSpace = matrices[which].transformed(
+          Vector4(world.x, world.y, world.z, 1.0),
+        );
+        if (lightSpace.w <= 0.0) continue;
+        final candidate = Vector3(lightSpace.x, lightSpace.y, lightSpace.z)
+          ..scale(1.0 / lightSpace.w);
+        final tileX = candidate.x * 0.5 + 0.5;
+        final tileY = 0.5 - candidate.y * 0.5;
+        if (tileX < 0.0 || tileX > 1.0 || tileY < 0.0 || tileY > 1.0) continue;
+        if (candidate.z > 1.0) continue;
+        final stored = shadow.sample((tileX + which) / cascadeCount, tileY).x;
+        return candidate.z - cascades.w > stored ? 0.0 : 1.0;
+      }
+      // Outside the map is lit: a point with nothing recorded about it is not
+      // in shadow, and calling it shadow would put a wall of darkness across
+      // the far half of every shaft.
+      return 1.0;
+    }
+
+    var lit = 0.0;
+    for (var i = 0; i < steps && i < 64; i++) {
+      final travelled = offset + i * stride;
+      final at = origin + along * travelled;
+      lit += litAt(at, travelled * cosine);
+    }
+
+    final share = lit / steps;
+    return Vector4(
+      scene.x + scatter.x * share,
+      scene.y + scatter.y * share,
+      scene.z + scatter.z * share,
+      scene.w,
+    );
+  }
+}

@@ -12926,6 +12926,485 @@ fn main(@location(5) v_uv: vec2<f32>) -> @location(0) vec4<f32> {
         ),
       ],
     ),
+    'LightShafts': WebGpuStage(
+      wgsl: r'''
+struct ShaftInfo {
+    inverse_view_projection: mat4x4<f32>,
+    shadow_matrix: mat4x4<f32>,
+    shadow_matrix_far: mat4x4<f32>,
+    shadow_matrix_farthest: mat4x4<f32>,
+    camera: vec4<f32>,
+    forward: vec4<f32>,
+    scatter: vec4<f32>,
+    cascades: vec4<f32>,
+}
+
+@group(1) @binding(0) 
+var<uniform> shaft_info: ShaftInfo;
+@group(1) @binding(3) 
+var shadow_texture_tex: texture_2d<f32>;
+@group(1) @binding(4) 
+var shadow_texture_smp: sampler;
+@group(1) @binding(1) 
+var scene_texture_tex: texture_2d<f32>;
+@group(1) @binding(2) 
+var scene_texture_smp: sampler;
+var<private> v_uv_1: vec2<f32>;
+var<private> frag_color: vec4<f32>;
+@group(1) @binding(5) 
+var surface_texture_tex: texture_2d<f32>;
+@group(1) @binding(6) 
+var surface_texture_smp: sampler;
+var<private> gl_FragCoord_1: vec4<f32>;
+
+fn LitAt_u0028_vf3_u003b_f1_u003b(world: ptr<function, vec3<f32>>, viewDistance: ptr<function, f32>) -> f32 {
+    var cascadeCount: i32;
+    var cascade: i32;
+    var attempt: i32;
+    var which: i32;
+    var matrix: mat4x4<f32>;
+    var local: mat4x4<f32>;
+    var local_1: mat4x4<f32>;
+    var lightSpace: vec4<f32>;
+    var candidate: vec3<f32>;
+    var inTile: vec2<f32>;
+    var uv: vec2<f32>;
+    var stored: f32;
+    var phi_176_: bool;
+    var phi_187_: bool;
+    var phi_273_: bool;
+    var phi_280_: bool;
+    var phi_287_: bool;
+
+    let _e66 = shaft_info.cascades[2u];
+    cascadeCount = i32((_e66 + 0.5f));
+    cascade = 0i;
+    let _e69 = cascadeCount;
+    let _e70 = (_e69 > 1i);
+    phi_176_ = _e70;
+    if _e70 {
+        let _e71 = (*viewDistance);
+        let _e74 = shaft_info.cascades[0u];
+        phi_176_ = (_e71 > _e74);
+    }
+    let _e77 = phi_176_;
+    if _e77 {
+        cascade = 1i;
+    }
+    let _e78 = cascadeCount;
+    let _e79 = (_e78 > 2i);
+    phi_187_ = _e79;
+    if _e79 {
+        let _e80 = (*viewDistance);
+        let _e83 = shaft_info.cascades[1u];
+        phi_187_ = (_e80 > _e83);
+    }
+    let _e86 = phi_187_;
+    if _e86 {
+        cascade = 2i;
+    }
+    attempt = 0i;
+    loop {
+        let _e87 = attempt;
+        if (_e87 < 3i) {
+            let _e89 = cascade;
+            let _e90 = attempt;
+            which = (_e89 + _e90);
+            let _e92 = which;
+            let _e93 = cascadeCount;
+            if (_e92 >= _e93) {
+                break;
+            }
+            let _e95 = which;
+            if (_e95 == 0i) {
+                let _e98 = shaft_info.shadow_matrix;
+                local = _e98;
+            } else {
+                let _e99 = which;
+                if (_e99 == 1i) {
+                    let _e102 = shaft_info.shadow_matrix_far;
+                    local_1 = _e102;
+                } else {
+                    let _e104 = shaft_info.shadow_matrix_farthest;
+                    local_1 = _e104;
+                }
+                let _e105 = local_1;
+                local = _e105;
+            }
+            let _e106 = local;
+            matrix = _e106;
+            let _e107 = matrix;
+            let _e108 = (*world);
+            lightSpace = (_e107 * vec4<f32>(_e108.x, _e108.y, _e108.z, 1f));
+            let _e115 = lightSpace[3u];
+            if (_e115 <= 0f) {
+                continue;
+            }
+            let _e117 = lightSpace;
+            let _e120 = lightSpace[3u];
+            candidate = (_e117.xyz / vec3(_e120));
+            let _e124 = candidate[0u];
+            let _e128 = candidate[1u];
+            inTile = vec2<f32>(((_e124 * 0.5f) + 0.5f), (0.5f - (_e128 * 0.5f)));
+            let _e133 = inTile[0u];
+            let _e134 = (_e133 < 0f);
+            phi_273_ = _e134;
+            if !(_e134) {
+                let _e137 = inTile[0u];
+                phi_273_ = (_e137 > 1f);
+            }
+            let _e140 = phi_273_;
+            phi_280_ = _e140;
+            if !(_e140) {
+                let _e143 = inTile[1u];
+                phi_280_ = (_e143 < 0f);
+            }
+            let _e146 = phi_280_;
+            phi_287_ = _e146;
+            if !(_e146) {
+                let _e149 = inTile[1u];
+                phi_287_ = (_e149 > 1f);
+            }
+            let _e152 = phi_287_;
+            if _e152 {
+                continue;
+            }
+            let _e154 = candidate[2u];
+            if (_e154 > 1f) {
+                continue;
+            }
+            let _e157 = inTile[0u];
+            let _e158 = which;
+            let _e161 = cascadeCount;
+            let _e165 = inTile[1u];
+            uv = vec2<f32>(((_e157 + f32(_e158)) / f32(_e161)), _e165);
+            let _e167 = uv;
+            let _e168 = textureSample(shadow_texture_tex, shadow_texture_smp, _e167);
+            stored = _e168.x;
+            let _e171 = candidate[2u];
+            let _e174 = shaft_info.cascades[3u];
+            let _e176 = stored;
+            return select(1f, 0f, ((_e171 - _e174) > _e176));
+        } else {
+            break;
+        }
+        continuing {
+            let _e179 = attempt;
+            attempt = (_e179 + 1i);
+        }
+    }
+    return 1f;
+}
+
+fn BayerCell_u0028_vf2_u003b(at: ptr<function, vec2<f32>>) -> f32 {
+    var x: i32;
+    var y: i32;
+    var index: i32;
+    var value: f32;
+
+    let _e56 = (*at)[0u];
+    x = i32((_e56 - (floor((_e56 / 4f)) * 4f)));
+    let _e63 = (*at)[1u];
+    y = i32((_e63 - (floor((_e63 / 4f)) * 4f)));
+    let _e69 = y;
+    let _e71 = x;
+    index = ((_e69 * 4i) + _e71);
+    value = 0f;
+    let _e73 = index;
+    if (_e73 == 0i) {
+        value = 0f;
+    } else {
+        let _e75 = index;
+        if (_e75 == 1i) {
+            value = 8f;
+        } else {
+            let _e77 = index;
+            if (_e77 == 2i) {
+                value = 2f;
+            } else {
+                let _e79 = index;
+                if (_e79 == 3i) {
+                    value = 10f;
+                } else {
+                    let _e81 = index;
+                    if (_e81 == 4i) {
+                        value = 12f;
+                    } else {
+                        let _e83 = index;
+                        if (_e83 == 5i) {
+                            value = 4f;
+                        } else {
+                            let _e85 = index;
+                            if (_e85 == 6i) {
+                                value = 14f;
+                            } else {
+                                let _e87 = index;
+                                if (_e87 == 7i) {
+                                    value = 6f;
+                                } else {
+                                    let _e89 = index;
+                                    if (_e89 == 8i) {
+                                        value = 3f;
+                                    } else {
+                                        let _e91 = index;
+                                        if (_e91 == 9i) {
+                                            value = 11f;
+                                        } else {
+                                            let _e93 = index;
+                                            if (_e93 == 10i) {
+                                                value = 1f;
+                                            } else {
+                                                let _e95 = index;
+                                                if (_e95 == 11i) {
+                                                    value = 9f;
+                                                } else {
+                                                    let _e97 = index;
+                                                    if (_e97 == 12i) {
+                                                        value = 15f;
+                                                    } else {
+                                                        let _e99 = index;
+                                                        if (_e99 == 13i) {
+                                                            value = 7f;
+                                                        } else {
+                                                            let _e101 = index;
+                                                            if (_e101 == 14i) {
+                                                                value = 13f;
+                                                            } else {
+                                                                value = 5f;
+                                                            }
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    let _e103 = value;
+    return (_e103 / 16f);
+}
+
+fn main_1() {
+    var scene: vec4<f32>;
+    var steps: i32;
+    var xy: vec2<f32>;
+    var nearH: vec4<f32>;
+    var farH: vec4<f32>;
+    var origin: vec3<f32>;
+    var along: vec3<f32>;
+    var surfaceDepth: f32;
+    var cosine: f32;
+    var toSurface: f32;
+    var local_2: f32;
+    var distance_: f32;
+    var stride: f32;
+    var offset: f32;
+    var param: vec2<f32>;
+    var lit: f32;
+    var i: i32;
+    var travelled: f32;
+    var at_1: vec3<f32>;
+    var param_1: vec3<f32>;
+    var param_2: f32;
+    var shaft: vec3<f32>;
+
+    let _e72 = v_uv_1;
+    let _e73 = textureSample(scene_texture_tex, scene_texture_smp, _e72);
+    scene = _e73;
+    let _e76 = shaft_info.forward[3u];
+    steps = i32((_e76 + 0.5f));
+    let _e79 = steps;
+    if (_e79 < 1i) {
+        let _e81 = scene;
+        frag_color = _e81;
+        return;
+    }
+    let _e83 = v_uv_1[0u];
+    let _e87 = v_uv_1[1u];
+    xy = vec2<f32>(((_e83 * 2f) - 1f), (1f - (_e87 * 2f)));
+    let _e92 = shaft_info.inverse_view_projection;
+    let _e93 = xy;
+    nearH = (_e92 * vec4<f32>(_e93.x, _e93.y, 0f, 1f));
+    let _e99 = shaft_info.inverse_view_projection;
+    let _e100 = xy;
+    farH = (_e99 * vec4<f32>(_e100.x, _e100.y, 1f, 1f));
+    let _e105 = nearH;
+    let _e108 = nearH[3u];
+    origin = (_e105.xyz / vec3(_e108));
+    let _e111 = farH;
+    let _e114 = farH[3u];
+    let _e117 = origin;
+    along = normalize(((_e111.xyz / vec3(_e114)) - _e117));
+    let _e120 = v_uv_1;
+    let _e121 = textureSample(surface_texture_tex, surface_texture_smp, _e120);
+    surfaceDepth = _e121.w;
+    let _e123 = along;
+    let _e125 = shaft_info.forward;
+    cosine = max(dot(_e123, _e125.xyz), 0.0001f);
+    let _e129 = surfaceDepth;
+    if (_e129 > 0f) {
+        let _e131 = surfaceDepth;
+        let _e132 = cosine;
+        local_2 = (_e131 / _e132);
+    } else {
+        local_2 = 1000000000f;
+    }
+    let _e134 = local_2;
+    toSurface = _e134;
+    let _e137 = shaft_info.camera[3u];
+    let _e138 = toSurface;
+    distance_ = min(_e137, _e138);
+    let _e140 = distance_;
+    if (_e140 <= 0f) {
+        let _e142 = scene;
+        frag_color = _e142;
+        return;
+    }
+    let _e143 = distance_;
+    let _e144 = steps;
+    stride = (_e143 / f32(_e144));
+    let _e147 = gl_FragCoord_1;
+    param = _e147.xy;
+    let _e149 = BayerCell_u0028_vf2_u003b((&param));
+    let _e150 = stride;
+    offset = (_e149 * _e150);
+    lit = 0f;
+    i = 0i;
+    loop {
+        let _e152 = i;
+        if (_e152 < 64i) {
+            let _e154 = i;
+            let _e155 = steps;
+            if (_e154 >= _e155) {
+                break;
+            }
+            let _e157 = offset;
+            let _e158 = i;
+            let _e160 = stride;
+            travelled = (_e157 + (f32(_e158) * _e160));
+            let _e163 = origin;
+            let _e164 = along;
+            let _e165 = travelled;
+            at_1 = (_e163 + (_e164 * _e165));
+            let _e168 = travelled;
+            let _e169 = cosine;
+            let _e171 = at_1;
+            param_1 = _e171;
+            param_2 = (_e168 * _e169);
+            let _e172 = LitAt_u0028_vf3_u003b_f1_u003b((&param_1), (&param_2));
+            let _e173 = lit;
+            lit = (_e173 + _e172);
+            continue;
+        } else {
+            break;
+        }
+        continuing {
+            let _e175 = i;
+            i = (_e175 + 1i);
+        }
+    }
+    let _e178 = shaft_info.scatter;
+    let _e180 = lit;
+    let _e181 = steps;
+    shaft = (_e178.xyz * (_e180 / f32(_e181)));
+    let _e185 = scene;
+    let _e187 = shaft;
+    let _e188 = (_e185.xyz + _e187);
+    let _e190 = scene[3u];
+    frag_color = vec4<f32>(_e188.x, _e188.y, _e188.z, _e190);
+    return;
+}
+
+@fragment 
+fn main(@location(5) v_uv: vec2<f32>, @builtin(position) gl_FragCoord: vec4<f32>) -> @location(0) vec4<f32> {
+    v_uv_1 = v_uv;
+    gl_FragCoord_1 = gl_FragCoord;
+    main_1();
+    let _e5 = frag_color;
+    return _e5;
+}
+''',
+      attributes: <WebGpuAttribute>[],
+      blocks: <WebGpuBlock>[
+        WebGpuBlock(
+          name: 'ShaftInfo',
+          group: 1,
+          binding: 0,
+          sizeInBytes: 320,
+          members: <WebGpuBlockMember>[
+            WebGpuBlockMember(
+              name: 'inverse_view_projection',
+              offsetInBytes: 0,
+              sizeInBytes: 64,
+            ),
+            WebGpuBlockMember(
+              name: 'shadow_matrix',
+              offsetInBytes: 64,
+              sizeInBytes: 64,
+            ),
+            WebGpuBlockMember(
+              name: 'shadow_matrix_far',
+              offsetInBytes: 128,
+              sizeInBytes: 64,
+            ),
+            WebGpuBlockMember(
+              name: 'shadow_matrix_farthest',
+              offsetInBytes: 192,
+              sizeInBytes: 64,
+            ),
+            WebGpuBlockMember(
+              name: 'camera',
+              offsetInBytes: 256,
+              sizeInBytes: 16,
+            ),
+            WebGpuBlockMember(
+              name: 'forward',
+              offsetInBytes: 272,
+              sizeInBytes: 16,
+            ),
+            WebGpuBlockMember(
+              name: 'scatter',
+              offsetInBytes: 288,
+              sizeInBytes: 16,
+            ),
+            WebGpuBlockMember(
+              name: 'cascades',
+              offsetInBytes: 304,
+              sizeInBytes: 16,
+            ),
+          ],
+        ),
+      ],
+      samplers: <WebGpuSampler>[
+        WebGpuSampler(
+          name: 'scene_texture',
+          group: 1,
+          textureBinding: 1,
+          samplerBinding: 2,
+          dimension: WebGpuTextureDimension.twoDimensional,
+        ),
+        WebGpuSampler(
+          name: 'shadow_texture',
+          group: 1,
+          textureBinding: 3,
+          samplerBinding: 4,
+          dimension: WebGpuTextureDimension.twoDimensional,
+        ),
+        WebGpuSampler(
+          name: 'surface_texture',
+          group: 1,
+          textureBinding: 5,
+          samplerBinding: 6,
+          dimension: WebGpuTextureDimension.twoDimensional,
+        ),
+      ],
+    ),
     'ProbePrefilter': WebGpuStage(
       wgsl: r'''
 struct ProbeInfo {
