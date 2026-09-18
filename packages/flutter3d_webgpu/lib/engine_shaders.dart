@@ -13629,6 +13629,86 @@ fn main(@location(5) v_uv: vec2<f32>, @location(6) v_world_position: vec3<f32>, 
         ),
       ],
     ),
+    'Splat': WebGpuStage(
+      wgsl: r'''
+struct FogInfo {
+    fog: vec4<f32>,
+    eye: vec4<f32>,
+}
+
+var<private> v_uv_1: vec2<f32>;
+var<private> v_color_1: vec4<f32>;
+@group(1) @binding(0) 
+var<uniform> fog_info: FogInfo;
+var<private> v_world_position_1: vec3<f32>;
+var<private> frag_color: vec4<f32>;
+
+fn main_1() {
+    var power: f32;
+    var alpha: f32;
+    var colour: vec3<f32>;
+    var visibility: f32;
+
+    let _e17 = v_uv_1;
+    let _e18 = v_uv_1;
+    power = (-0.5f * dot(_e17, _e18));
+    let _e21 = power;
+    if (_e21 < -4.5f) {
+        discard;
+    }
+    let _e24 = v_color_1[3u];
+    let _e25 = power;
+    alpha = (_e24 * exp(_e25));
+    let _e28 = alpha;
+    if (_e28 < 0.003921569f) {
+        discard;
+    }
+    let _e30 = v_color_1;
+    colour = _e30.xyz;
+    let _e34 = fog_info.fog[3u];
+    if (_e34 > 0f) {
+        let _e38 = fog_info.fog[3u];
+        let _e40 = v_world_position_1;
+        let _e42 = fog_info.eye;
+        visibility = clamp(exp((-(_e38) * distance(_e40, _e42.xyz))), 0f, 1f);
+        let _e49 = fog_info.fog;
+        let _e51 = colour;
+        let _e52 = visibility;
+        colour = mix(_e49.xyz, _e51, vec3(_e52));
+    }
+    let _e55 = colour;
+    let _e56 = alpha;
+    let _e57 = (_e55 * _e56);
+    let _e58 = alpha;
+    frag_color = vec4<f32>(_e57.x, _e57.y, _e57.z, _e58);
+    return;
+}
+
+@fragment 
+fn main(@location(5) v_uv: vec2<f32>, @location(0) v_color: vec4<f32>, @location(6) v_world_position: vec3<f32>) -> @location(0) vec4<f32> {
+    v_uv_1 = v_uv;
+    v_color_1 = v_color;
+    v_world_position_1 = v_world_position;
+    main_1();
+    let _e7 = frag_color;
+    return _e7;
+}
+''',
+      attributes: <WebGpuAttribute>[],
+      blocks: <WebGpuBlock>[
+        WebGpuBlock(
+          name: 'FogInfo',
+          group: 1,
+          binding: 0,
+          sizeInBytes: 32,
+          members: <WebGpuBlockMember>[
+            WebGpuBlockMember(name: 'fog', offsetInBytes: 0, sizeInBytes: 16),
+            WebGpuBlockMember(name: 'eye', offsetInBytes: 16, sizeInBytes: 16),
+          ],
+        ),
+      ],
+      samplers: <WebGpuSampler>[],
+    ),
     'ParticleMesh': WebGpuStage(
       wgsl: r'''
 struct FogInfo {
