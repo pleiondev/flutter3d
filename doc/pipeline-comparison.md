@@ -96,6 +96,20 @@ count, so under clustering there is no per-object cap at all. A search for
 `froxel|clustered|forward+|tiled light` in our Dart outside tests finds one
 aspirational comment.
 
+**Corrected 2026-09-18, on the way into `gfx-74n`.** "Eight lights" is the cap
+on *one draw* and was read here as the cap on a scene, which it is not:
+`gfx-12n` already picks the eight that reach each object, so a night map may
+carry two hundred torches and every object is lit by its own eight. What the
+cap actually costs is written down in `Renderer._drawLightsFor` and is narrower
+and sharper than this paragraph says: a surface large enough to touch many
+lights at once — a ground plane whose bounding sphere reaches every torch —
+scores them all at distance zero and keeps the eight brightest, and an
+instanced crowd spread across a map shares one list chosen for the whole batch.
+`RenderSettings.lightFadeBand` exists because the eight that reach an object
+change as it moves. So the gap is real and it is not "the picture cannot
+contain more than eight lights"; this is the second premise in this document
+that named a missing feature we had, after the frame instrument below.
+
 Three light types against their four: theirs adds `RectAreaLight`, integrated
 with linearly-transformed cosines off the `ltc.bin` they ship.
 
