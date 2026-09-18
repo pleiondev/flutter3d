@@ -46,6 +46,7 @@ export 'src/diagnostics/issues.dart';
 export 'src/level/level_loader.dart';
 export 'src/level/shared_meshes.dart';
 export 'src/level/surface_mesh.dart';
+export 'src/level/terrain_tiles.dart';
 export 'src/level/visibility_culler.dart';
 export 'src/storage/storage.dart';
 export 'src/surface/did_not_start.dart';
