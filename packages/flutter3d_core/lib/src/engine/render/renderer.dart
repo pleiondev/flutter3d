@@ -878,6 +878,16 @@ final class Renderer implements RenderServices {
   /// the setting's number and a second climb.
   ExposureAdapter? _autoExposure;
 
+  /// One adapter per view, for `gfx-22n`'s per-view metering.
+  ///
+  /// Beside [_autoExposure] rather than replacing it: with per-view metering
+  /// off there is one exposure for the frame and this stays empty, which is
+  /// what keeps a stereo pair — and every golden — on the path it has always
+  /// taken. Indexed by the view's place in the ordered list, so a frame that
+  /// gains a view gains an adapter starting where the frame's own exposure is
+  /// rather than at the setting's number and a fresh climb.
+  final List<ExposureAdapter> _viewExposure = <ExposureAdapter>[];
+
   /// Readbacks of the luminance target that came back as an error. Diagnostic:
   /// a meter that has stopped hearing from the device holds its last answer,
   /// which looks like a meter that has settled, and this is what tells the
@@ -968,6 +978,22 @@ final class Renderer implements RenderServices {
   double _exposureFor(RenderSettings settings) => settings.autoExposure.enabled
       ? _autoExposure?.value ?? settings.exposure
       : settings.exposure;
+
+  /// What the composite exposes view [index] with — `gfx-22n`.
+  ///
+  /// The frame's own exposure unless per-view metering is on and this view has
+  /// an adapter, which is what makes the single-view case the case it always
+  /// was: one view meters the whole histogram, so its answer and the frame's
+  /// are the same number arrived at the same way.
+  double _exposureForView(RenderSettings settings, int index) {
+    if (!settings.autoExposure.enabled || !settings.autoExposure.perView) {
+      return _exposureFor(settings);
+    }
+    if (index < 0 || index >= _viewExposure.length) {
+      return _exposureFor(settings);
+    }
+    return _viewExposure[index].value;
+  }
 
   /// The look, packed for the composite's uniform block.
   ///
@@ -2601,7 +2627,7 @@ final class Renderer implements RenderServices {
       ),
       bloom: _BloomNode(this, settings.bloom),
       composite: _CompositeNode(this, scene, ordered, settings),
-      luminance: _LuminanceNode(this, settings.autoExposure),
+      luminance: _LuminanceNode(this, settings.autoExposure, ordered),
       // No questions, because a plan asks none — see the note above.
       objectIds: _ObjectIdNode(
         this,
@@ -2802,6 +2828,28 @@ final class Renderer implements RenderServices {
       (_autoExposure ??= ExposureAdapter(
         initial: settings.exposure,
       )).step(dt, settings.autoExposure);
+      // `gfx-22n`. One adapter per view, stepped by the same clock. A view
+      // that has just appeared starts at the frame's own exposure rather than
+      // at the setting's, so a second player joining does not arrive to a
+      // climb from a number nothing on screen was drawn with.
+      if (settings.autoExposure.perView) {
+        while (_viewExposure.length < views.length) {
+          _viewExposure.add(
+            ExposureAdapter(initial: _autoExposure?.value ?? settings.exposure),
+          );
+        }
+        while (_viewExposure.length > views.length) {
+          _viewExposure.removeLast();
+        }
+        for (final adapter in _viewExposure) {
+          adapter.step(dt, settings.autoExposure);
+        }
+      } else if (_viewExposure.isNotEmpty) {
+        // Switched off again: the adapters go, so switching it back on starts
+        // from the frame's exposure rather than from what each view thought
+        // several seconds of scene ago.
+        _viewExposure.clear();
+      }
     }
     _lastExposure = _exposureFor(settings);
 
@@ -2892,7 +2940,7 @@ final class Renderer implements RenderServices {
       );
       final bloomNode = _BloomNode(this, settings.bloom);
       compositeNode = _CompositeNode(this, scene, ordered, settings);
-      final luminanceNode = _LuminanceNode(this, settings.autoExposure);
+      final luminanceNode = _LuminanceNode(this, settings.autoExposure, ordered);
       final objectIdNode = _ObjectIdNode(
         this,
         scene: scene,

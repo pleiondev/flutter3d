@@ -1071,7 +1071,7 @@ final class _CompositeNode extends RenderNode {
     // Before the draw, so anything reading `frame` after this node finds the
     // picture rather than nothing.
     frame.resources.provide(FrameResourceIds.frame, target);
-    overlayLines = _renderer._encodeComposite(
+    final composited = _renderer._encodeComposite(
       target: target,
       scene: frame.resources.texture(FrameResourceIds.hdrColour),
       bloom: frame.resources.tryTexture(FrameResourceIds.bloom),
@@ -1100,8 +1100,10 @@ final class _CompositeNode extends RenderNode {
       width: frame.width,
       height: frame.height,
     );
-    // The composite is a draw, and so is the overlay batch.
-    frame.state.drawCalls += 1 + (overlayLines > 0 ? 1 : 0);
+    overlayLines = composited.lines;
+    // The composite's own draws — one, or one per view — and the overlay
+    // batch, which is one more when it drew anything.
+    frame.state.drawCalls += composited.draws + (overlayLines > 0 ? 1 : 0);
     developer.Timeline.finishSync();
   }
 }
@@ -1162,10 +1164,15 @@ final class _FxaaNode extends RenderNode {
 /// The consumer is the readback, which the graph cannot see, exactly as an
 /// application reading the surface buffer is a consumer it cannot see.
 final class _LuminanceNode extends RenderNode {
-  _LuminanceNode(this._renderer, this._settings);
+  _LuminanceNode(this._renderer, this._settings, [this._views = const <RenderView>[]]);
 
   final Renderer _renderer;
   final AutoExposureSettings _settings;
+
+  /// The frame's views, for `gfx-22n`: each meters its own rectangle of the
+  /// one readback this node asks for. Empty is the frame metering itself,
+  /// which is what a single-view frame and every frame before this row did.
+  final List<RenderView> _views;
 
   @override
   String get name => 'luminance';
@@ -1186,7 +1193,7 @@ final class _LuminanceNode extends RenderNode {
       target: target,
       scene: frame.resources.texture(FrameResourceIds.hdrColour),
     );
-    _renderer._meterExposure(target, _settings);
+    _renderer._meterExposure(target, _settings, views: _views);
     frame.state.drawCalls++;
   }
 }
