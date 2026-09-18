@@ -842,6 +842,13 @@ final class RenderSettings {
   /// eyes rather than two that disagree while the head turns. Shadows are drawn
   /// once for the frame and sampled per view.
   ///
+  /// **`gfx-22n` gave the meter a per-view mode and this method leaves it
+  /// off**, which is a decision rather than an omission: per-view metering
+  /// exists for split screen, where two players in two rooms metered together
+  /// means the darker room is the one nobody can see. A stereo pair is the
+  /// case it is wrong for, and it is off by default, so a pair that never asks
+  /// gets the right answer without this method having to take it away.
+  ///
   /// Effects are turned off by replacing their settings with the defaults,
   /// which are already off, rather than by clearing one flag: a tuned radius
   /// kept beside a disabled effect is a value that lies about what the frame

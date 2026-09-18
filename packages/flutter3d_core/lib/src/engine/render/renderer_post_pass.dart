@@ -613,7 +613,14 @@ extension _PostPasses on Renderer {
   /// pass that wrote the target has run either way; what is skipped is the
   /// copy and the download behind it, and the frame is metered again the
   /// frame after the answer lands.
-  void _meterExposure(TextureHandle target, AutoExposureSettings settings) {
+  /// [views] is what each per-view adapter meters its own rectangle of —
+  /// `gfx-22n`. Empty, or per-view metering switched off, and there is one
+  /// adapter reading the whole histogram, as there always was.
+  void _meterExposure(
+    TextureHandle target,
+    AutoExposureSettings settings, {
+    List<RenderView> views = const <RenderView>[],
+  }) {
     final adapter = _autoExposure;
     if (adapter == null || _meterInFlight) return;
     _meterInFlight = true;
@@ -630,11 +637,35 @@ extension _PostPasses on Renderer {
     // the meter would never ask the device again.
     Future<ByteData>.sync(() => device.readback(target))
         .then(
-          (ByteData bytes) => adapter.meter(bytes, settings),
+          (ByteData bytes) {
+            // The frame's own exposure first: it is what a single-view frame
+            // uses, what `FrameResult.exposure` reports, and where a view
+            // joining later starts from.
+            adapter.meter(bytes, settings);
+            if (!settings.perView) return;
+            // Then each view's own rectangle of the same bytes. One readback,
+            // several histograms — see `ExposureMeter._histogram`, which is
+            // why this costs no extra pass and no extra download.
+            for (var i = 0; i < _viewExposure.length && i < views.length; i++) {
+              final rect = views[i].viewportFraction;
+              _viewExposure[i].meter(
+                bytes,
+                settings,
+                within: (
+                  x: rect.x,
+                  y: rect.y,
+                  width: rect.width,
+                  height: rect.height,
+                ),
+              );
+            }
+          },
           // A refused copy leaves the exposure where it was, which is the
           // right picture for a frame, and is counted rather than swallowed
           // so a meter that has stopped hearing back is visible as a number.
-          onError: (Object _, StackTrace _) => _meterFailures++,
+          onError: (Object _, StackTrace _) {
+            _meterFailures++;
+          },
         )
         .whenComplete(() => _meterInFlight = false);
   }
@@ -645,8 +676,12 @@ extension _PostPasses on Renderer {
   /// but must not be a separate render target — and because keeping the pass
   /// open is free, while a second one would reload the attachment.
   ///
-  /// Returns the number of overlay line segments drawn.
-  int _encodeComposite({
+  /// Returns the number of overlay line segments drawn, and how many draws
+  /// the composite itself made — one, or one per view when `gfx-22n`'s
+  /// per-view exposure is on. Counted rather than assumed: the node used to
+  /// add a hardcoded one, which was true for as long as there was one draw
+  /// and silently wrong the moment there were two.
+  ({int lines, int draws}) _encodeComposite({
     required TextureHandle target,
     required TextureHandle scene,
     required TextureHandle? bloom,
@@ -671,6 +706,16 @@ extension _PostPasses on Renderer {
     pass.setState(
       Renderer._kFullscreenState.copyWith(viewport: full, scissor: full),
     );
+
+    // `gfx-22n`. One draw covering everything, unless each view is exposing
+    // itself — then one draw per view, scissored to its own rectangle, so the
+    // exposure in the uniform is the one that view metered. With per-view
+    // metering off, or with a single view, this is the one full-frame draw it
+    // has always been and the bytes are the bytes forty-four goldens hold.
+    final perView =
+        settings.autoExposure.enabled &&
+        settings.autoExposure.perView &&
+        views.length > 1;
 
     final mix = CompositeMix(
       showSurfaceBuffer: settings.showSurfaceBuffer,
@@ -792,7 +837,10 @@ extension _PostPasses on Renderer {
     _compositeGain[1] = gain?.y ?? 1.0;
     _compositeGain[2] = gain?.z ?? 1.0;
 
-    pass.bindUniformBlock(compositeShader, _kCompositeInfoBlock, {
+    // The whole block, in one map, because a bind replaces the block rather
+    // than patching it: rebinding with `params` alone would leave a per-view
+    // frame with no look, no grade and an occlusion texel of zero.
+    final block = <String, Float32List>{
       'params': _compositeParams,
       'ao_texel': _compositeAoTexel,
       'look': _compositeLook,
@@ -801,12 +849,43 @@ extension _PostPasses on Renderer {
       'lift': _compositeLift,
       'gamma': _compositeGamma,
       'gain': _compositeGain,
-    });
-    pass.draw();
+    };
+    pass.bindUniformBlock(compositeShader, _kCompositeInfoBlock, block);
+    var draws = 1;
+    if (!perView) {
+      pass.draw();
+    } else {
+      draws = views.length;
+      for (var i = 0; i < views.length; i++) {
+        final fraction = views[i].viewportFraction;
+        final rect = ScreenRect(
+          x: (fraction.x * width).round(),
+          y: (fraction.y * height).round(),
+          width: math.max(1, (fraction.width * width).round()),
+          height: math.max(1, (fraction.height * height).round()),
+        );
+        // The scissor as well as the viewport: the covering triangle is
+        // oversized on purpose, so a viewport alone would leave each draw
+        // painting the whole attachment with that view's exposure and the
+        // last one would win.
+        pass
+          ..setViewport(rect)
+          ..setScissor(rect);
+        _compositeParams[0] = _exposureForView(settings, i);
+        pass
+          ..bindUniformBlock(compositeShader, _kCompositeInfoBlock, block)
+          ..draw();
+      }
+      // Back to the whole frame, because the overlay loop below sets its own
+      // viewport and trusts the scissor to be the pass's.
+      pass
+        ..setViewport(full)
+        ..setScissor(full);
+    }
 
     if (!settings.debug.anyEnabled && settings.highlighted.isEmpty) {
       pass.submit();
-      return 0;
+      return (lines: 0, draws: draws);
     }
 
     var lines = 0;
@@ -837,6 +916,6 @@ extension _PostPasses on Renderer {
       }
     }
     pass.submit();
-    return lines;
+    return (lines: lines, draws: draws);
   }
 }
