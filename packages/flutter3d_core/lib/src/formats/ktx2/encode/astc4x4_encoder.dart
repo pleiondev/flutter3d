@@ -19,43 +19,24 @@ import 'rgba8_image.dart';
 /// accepts this shape as valid ASTC, since single-partition/single-plane is
 /// one legal point in the format, not a reduced dialect of it.
 ///
-/// **The block-mode field is this port's own layout, not the specification's
-/// row-selection table.** ASTC's actual 11-bit block-mode field encodes
-/// weight-grid width and height through a branching table with special cases
-/// for widths/heights up to 12 and for dual-plane blocks — reproducing it
-/// bit-for-bit from the specification text without a reference decoder to
-/// check against risks a block that looks self-consistent and is not, the
-/// exact failure mode a corrupted or misread field is hardest to catch. This
-/// encoder instead writes its own fixed, documented bit layout into the same
-/// 16-byte container (partition count and colour-endpoint mode use the
-/// specification's real field widths and the real `LDR RGB Direct` CEM
-/// value, 8) and reads it back with a matching test decoder in this
-/// package's own test suite — proved by decode-and-compare and by PSNR
-/// against a real texture, the same bar `fmt-22`'s own BC1/BC3/ETC2 encoders
-/// were held to.
-/// **That gap has now been exercised, and it is real — `gfx-88n`, 2026-09-18.**
-/// This comment used to end by naming a risk nobody had measured, because there
-/// was no reference decoder to measure it with. There is one: ARM's own
-/// `astcenc` installs from npm. Fed a file this encoder wrote, it returns
-/// `(255, 0, 255)` for every block — ASTC's error colour — because an all-zero
-/// block-mode field is not a 4×4 weight grid, it is a reserved encoding. So
-/// what this writes is a 16-byte-per-block container that only this package can
-/// read, and a real GPU would draw magenta.
-///
-/// Nothing ships magenta today: `texture_encode.dart` switches on `bc` and
-/// `etc2` and returns the image untouched for anything else, so no build can
-/// select this. What it does mean is that the function is exported and cannot
-/// be used for what its name promises. `gfx-88n` is the row that makes it
-/// conformant, and it now starts with the oracle that was missing — the correct
-/// mode for this configuration is `0x242`, read out of `decode_block_mode_2d`
-/// in the reference encoder rather than guessed.
+/// **The block-mode field is the specification's, checked against ARM's own
+/// decoder — `gfx-88n`, 2026-09-18.** Until that row this file wrote eleven
+/// zero bits there and said so in this comment, calling the layout its own
+/// because reproducing the real row-selection table with nothing to check
+/// against risked a block that looks self-consistent and is not. The risk was
+/// real and the check was a package away: `astcenc` installs from npm, and fed
+/// a file this encoder wrote it returned `(255, 0, 255)` — ASTC's error colour
+/// — for every block, because eleven zeros is a reserved encoding rather than
+/// a 4×4 weight grid. What is written now is [_kBlockMode], read out of
+/// `decode_block_mode_2d`, and `astc_conformance_test.dart` pins both the bytes
+/// `astcenc` was handed and what it gave back.
 ///
 /// **Endpoints from the same principal-axis fit [encodeBc1Block] uses, one
 /// weight per texel from an exhaustive nearest-level search against the
 /// endpoint line** — not the two-endpoint interpolation table BC1 is stuck
-/// with: a 4-bit (sixteen-level) independent weight per texel is far finer
-/// than BC1's four-entry palette, which is where ASTC's real quality
-/// advantage over block formats from the same era actually comes from.
+/// with: eight independent levels per texel against BC1's four-entry palette,
+/// which is where ASTC's quality advantage over block formats from the same era
+/// actually comes from.
 Uint8List encodeAstc4x4(Rgba8Image image) {
   requireWholeBlocks(image, 'encodeAstc4x4');
   final blocksX = image.width ~/ 4;
@@ -107,13 +88,12 @@ const int _kBlockMode = 0x53;
 /// shape [encodeBc1Block]'s colour half and [encodeEtc2Rgb8Block] both are.
 const int _kCemLdrRgbDirect = 8;
 
-/// Encodes one 4×4 block (row-major, alpha ignored) as sixteen bytes: an
-/// 11-bit header this port does not itself interpret past its own decoder
-/// (see the library doc comment), a 2-bit partition count of zero (one
-/// partition), a 4-bit CEM of [_kCemLdrRgbDirect], six [_kColorBits]-wide
-/// endpoint channel values, then sixteen [_kWeightBits]-wide per-texel
-/// weights packed from the end of the block backward — 17 + 42 + 64 = 123 of
-/// the block's 128 bits, the rest zero.
+/// Encodes one 4×4 block (row-major, alpha ignored) as sixteen bytes: the
+/// 11-bit [_kBlockMode], a 2-bit partition count of zero (one partition), a
+/// 4-bit CEM of [_kCemLdrRgbDirect], six [_kColorBits]-wide endpoint channel
+/// values, then sixteen [_kWeightBits]-wide per-texel weights packed downward
+/// from bit 127 — 17 + 48 from the bottom and 48 from the top, leaving the
+/// fifteen bits between them zero.
 Uint8List encodeAstc4x4Block(List<(int, int, int, int)> pixels) {
   final rgb = <(double, double, double)>[
     for (final (r, g, b, _) in pixels)
@@ -200,7 +180,11 @@ Uint8List encodeAstc4x4Block(List<(int, int, int, int)> pixels) {
     var bestWeight = 0;
     var bestError = double.infinity;
     for (var w = 0; w <= _kWeightMax; w++) {
-      final (dr, dg, db) = _lerpColor(lowExpanded, highExpanded, w / _kWeightMax);
+      final (dr, dg, db) = _lerpColor(
+        lowExpanded,
+        highExpanded,
+        w / _kWeightMax,
+      );
       final errR = er - dr, errG = eg - dg, errB = eb - db;
       final error = errR * errR + errG * errG + errB * errB;
       if (error < bestError) {
@@ -291,12 +275,8 @@ double _sqrt(double x) {
   return guess;
 }
 
-/// Writes [value]'s low [numBits] bits into [block] starting at bit
-/// [bitOffset] (bit 0 is the LSB of byte 0, rising through each byte then
-/// into the next), and returns `bitOffset + numBits` — the next field's
-/// offset, so a run of fields can chain calls without recomputing cursors.
 /// The bits of one byte, back to front — what the weight stream's placement
-/// needs. A table rather than a loop: it is called sixteen times per block.
+/// needs.
 int _reverseByte(int value) {
   var out = 0;
   for (var i = 0; i < 8; i++) {
@@ -305,6 +285,10 @@ int _reverseByte(int value) {
   return out;
 }
 
+/// Writes [value]'s low [numBits] bits into [block] starting at bit
+/// [bitOffset] (bit 0 is the LSB of byte 0, rising through each byte then
+/// into the next), and returns `bitOffset + numBits` — the next field's
+/// offset, so a run of fields can chain calls without recomputing cursors.
 int _setBits(Uint8List block, int bitOffset, int numBits, int value) {
   for (var i = 0; i < numBits; i++) {
     if (((value >> i) & 1) != 0) {
