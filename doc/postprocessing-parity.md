@@ -366,6 +366,26 @@ Land first, in this order, because each is a precondition of the next:
 | `gfx-44n` | Depth and normal edge outline, as a second branch of that shader | M |
 | `gfx-45n` | Curvature and cavity, as the third branch | S |
 
+**`gfx-43n`/`44n`/`45n` landed 2026-09-18, in one commit**, because the three
+are branches of one stage and the expensive halves — the GLSL, the CPU
+transcription, the four generated paths — are shared. `ViewportShading` names
+five modes, `ViewportShadingSettings` carries their knobs, and the pass reads
+the surface buffer *optionally*, so a device that cannot attach it hands the
+lit picture through rather than shading from a texture nobody filled.
+
+The row's own claim is what the tests hold: nothing about the subject is
+modified, so a mode switched off leaves the frame that was always drawn. With
+the material-swap approach that could not be checked at all — the subject
+*had* been modified and put back, so an equal frame only ever meant the
+putting back had worked that time.
+
+**And it found the gap `gfx-50n` had left.** Hard readers of the surface
+buffer are culled where the device cannot attach it; an optional reader is
+never culled, by definition, and `isConsumed` counted it — so a frame with a
+shading mode on a one-attachment device asked for an attachment the device
+refuses, and `gfx-50n`'s own refusal turned that into a throw. The scene pass
+now attaches what the device can open.
+
 `gfx-39n`, `gfx-41n` and `gfx-42n` are the three rows nobody else can write:
 each needs the toggle *and* something flutter_scene does not have — a
 compile that records why, a graph that survives being compiled without a

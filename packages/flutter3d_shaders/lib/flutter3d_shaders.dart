@@ -54,6 +54,7 @@ const List<RequiredShader> kRequiredShaders = <RequiredShader>[
   (name: 'SsaoBlur', fragment: true),
   (name: 'LightShafts', fragment: true),
   (name: 'DepthOfField', fragment: true),
+  (name: 'ViewportShade', fragment: true),
   (name: 'ShadowDepth', fragment: true),
   (name: 'ShadowDistance', fragment: true),
   (name: 'ShadowTileReset', fragment: true),

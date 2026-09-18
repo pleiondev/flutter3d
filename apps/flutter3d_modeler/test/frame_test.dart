@@ -236,7 +236,8 @@ void main() {
     // face whose normal is exactly +Y and the answer is a number rather than a
     // range.
     lookFrom(stage.orbit, StandardView.top, seconds: 0.0);
-    SurfaceShading().apply(stage.subject, ShadingMode.normals);
+    // `gfx-43n`: no swap. The mode is in the settings below, and the normal
+    // it shows comes out of the buffer the scene pass writes.
 
     final rgba = await _drawWith(
       it.device,

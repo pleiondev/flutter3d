@@ -139,8 +139,15 @@ void useLens(CameraNode camera, ViewLens lens, OrbitController orbit) {
 /// only when the exposure is neutral as well. The difference between the first
 /// two and the third is a face nobody can tell from one leaning a few degrees.
 ///
-/// The rest of a display mode is the materials' business, which is
-/// [SurfaceShading]'s.
+/// **The rest of a display mode used to be the materials' business**, and
+/// `gfx-43n` is what ended that. A normals view was drawn by walking the
+/// subject, swapping every mesh's material for a debug one and remembering
+/// what each had so it could be put back — a class whose own docstring
+/// documented the two ways the remembering had already failed. The scene pass
+/// writes the interpolated normal into its second attachment for reflections
+/// and occlusion to read, and that is the same normal `normals.frag` showed,
+/// so the view is now a setting over a buffer that exists. Nothing is
+/// modified and there is nothing to restore.
 ///
 /// [edgesDrawn] says the overlay is already drawing the mesh's own edges, in
 /// which case the renderer is asked for no wireframe of its own — `ux-31`.
@@ -171,101 +178,21 @@ RenderSettings settingsFor(
     wireframe: mode == ShadingMode.wireframe && !edgesDrawn,
   );
   return mode == ShadingMode.normals
-      ? base.forMeasurement()
+      // `gfx-43n`. The normal comes out of the surface buffer now, through a
+      // pass that writes into the *finished* picture — so the colour a person
+      // reads off a face is the number the buffer holds, with nothing after
+      // it to change it. `forMeasurement` stays: exposure, the curve and the
+      // glow no longer reach the shaded pixels, but a frame that draws a
+      // bloom chain nobody sees is a frame paying for nothing.
+      ? base.forMeasurement().copyWith(
+          viewportShading: const ViewportShadingSettings(
+            mode: ViewportShading.normals,
+          ),
+        )
       // **`tonemap: true` rather than whatever arrived**, which is what this
       // did before `forMeasurement` existed and is not incidental: leaving a
       // caller's `tonemap: false` in place would carry a debug frame's
       // settings into the lit view, and the first version of this change did
       // exactly that. Two mode screenshots moved before anything caught it.
       : base.copyWith(tonemap: true);
-}
-
-/// Swaps the subject's materials for a debug one and back.
-///
-/// **It remembers, and that is the whole class.** The obvious way to show
-/// normals is to walk the subject and assign a normals material to every mesh
-/// under it; the obvious way back is to assign the original — and by then there
-/// is no original, because it was overwritten by the walk. A person who
-/// switched to normals to check one face and switched back would find their
-/// model had turned grey, permanently, with the undo stack unable to explain
-/// it. So the first swap records what each node had.
-///
-/// Recorded per node rather than per material, because two nodes sharing one
-/// material is the normal case — glTF splits a mesh at material boundaries and
-/// the halves point at the same object — and the map has to put back what each
-/// node was drawn with, not what the material was.
-final class SurfaceShading {
-  /// What each node was drawn with before anything was swapped.
-  ///
-  /// An identity map: two `Material` values that compare equal are still two
-  /// materials as far as putting one back is concerned, and `SceneNode` has no
-  /// equality of its own, so this is the default `Map` behaviour and is stated
-  /// here so it is not "simplified" into something keyed by name.
-  final Map<MeshNode, Material> _own = <MeshNode, Material>{};
-
-  /// The one material every normals view is drawn with.
-  ///
-  /// Shared rather than one per node: the stage it selects reads the surface
-  /// normal and nothing else, so every field but [Material.lighting] is
-  /// ignored, and a fresh instance per node would only cost the render list a
-  /// sort key it cannot use.
-  static final Material normals = Material(
-    name: 'normals',
-    lighting: LightingModel.normals,
-  );
-
-  /// What [apply] was last asked for, which is what the chips read to know
-  /// which of them is lit.
-  ShadingMode get mode => _mode;
-  ShadingMode _mode = ShadingMode.material;
-
-  /// Draws everything under [subject] the way [mode] asks.
-  ///
-  /// Idempotent, and walked every time rather than skipped when the mode has
-  /// not changed: a viewport calls this every frame rather than remembering to
-  /// call it when a chip is pressed, and a model opened while the normals view
-  /// is on brings nodes this has never seen. Skipping the walk would leave
-  /// those drawn with their own material in a view that is meant to show
-  /// normals — and, worse, leave them unrecorded, so switching back would be
-  /// the first thing that ever assigned them anything.
-  ///
-  /// **The memory lasts exactly as long as the swap does, and it used not
-  /// to.** What was recorded the first time a node was seen was then written
-  /// back over it on every frame the normals view was off — so a material
-  /// edited afterwards, by a person in the panel or by an agent over MCP,
-  /// reached the node through `SceneSync` and was painted over again before
-  /// anybody saw it. The model in the viewport stayed the colour it was when
-  /// the document opened while the swatch beside it showed the new one. So
-  /// the entry is dropped the moment it is put back: away from the normals
-  /// view a node's own material is whatever the scene last wrote onto it, and
-  /// a memory of an older one is only a way to undo an edit.
-  void apply(SceneNode subject, ShadingMode mode) {
-    _mode = mode;
-    if (mode != ShadingMode.normals) {
-      for (final MapEntry<MeshNode, Material> each in _own.entries) {
-        each.key.material = each.value;
-      }
-      _own.clear();
-      return;
-    }
-    subject.traverse((SceneNode node) {
-      if (node is! MeshNode) return;
-      // Already swapped, and [normals] is one shared instance — so this is
-      // "has this node been recorded yet", asked of the node rather than of
-      // the map, and it keeps a material `SceneSync` wrote *during* a normals
-      // session from being lost: the next walk records that one instead.
-      if (identical(node.material, normals)) return;
-      _own[node] = node.material;
-      node.material = normals;
-    });
-  }
-
-  /// Forgets everything, for a subject that has been replaced.
-  ///
-  /// Without it the map holds every node of every model ever opened, and the
-  /// scene graph they belong to cannot be collected.
-  void forget() {
-    _own.clear();
-    _mode = ShadingMode.material;
-  }
 }

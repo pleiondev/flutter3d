@@ -334,3 +334,117 @@ final class DepthOfFieldShader implements CpuFragmentShader {
     return Vector4(totalX / weight, totalY / weight, totalZ / weight, centre.w);
   }
 }
+
+/// `viewport_shade.frag`: shading read out of the surface buffer —
+/// `gfx-43n`, `gfx-44n` and `gfx-45n`.
+///
+/// Mirrors the GLSL branch for branch, the contract every shader in this
+/// package keeps. Four modes and a no-op, decided by `params.x` — a number
+/// rather than an enum for the same reason the GLSL has one: it is part of a
+/// uniform layout four backends read.
+final class ViewportShadeShader implements CpuFragmentShader {
+  const ViewportShadeShader();
+
+  @override
+  Vector4? run(Float32List v, ShaderBindings b, FragmentContext c) {
+    final sceneTexture = b.textures['scene_texture'];
+    if (sceneTexture == null) return Vector4(0.0, 0.0, 0.0, 1.0);
+    final scene = sceneTexture.sample(v[0], v[1]);
+
+    final params = b.vec4('ShadeInfo', 'params', Vector4.zero());
+    final mode = (params.x + 0.5).floor();
+    final amount = params.y.clamp(0.0, 1.0);
+    if (mode < 1 || amount <= 0.0) return scene;
+
+    final surfaceTexture = b.textures['surface_texture'];
+    if (surfaceTexture == null) return scene;
+
+    final surface = surfaceTexture.sample(v[0], v[1]);
+    final depth = surface.w;
+    // Nothing was drawn here, so there is no surface to shade: the background
+    // keeps what the scene left. Every mode is a shading of the subject.
+    if (depth <= 0.0) return scene;
+
+    final screen = b.vec4('ShadeInfo', 'screen', Vector4.zero());
+    final normal = decodeOctahedral(surface.x, surface.y);
+    var shaded = Vector3(scene.x, scene.y, scene.z);
+
+    if (mode == 1) {
+      shaded = Vector3(
+        normal.x * 0.5 + 0.5,
+        normal.y * 0.5 + 0.5,
+        normal.z * 0.5 + 0.5,
+      );
+    } else if (mode == 2) {
+      final ambient = params.z.clamp(0.0, 1.0);
+      final light = b.vec4('ShadeInfo', 'light', Vector4.zero());
+      final aim = Vector3(light.x, light.y, light.z);
+      if (aim.length2 > 0.0) aim.normalize();
+      final lambert = math.max(normal.dot(aim), 0.0);
+      final value = ambient + (1.0 - ambient) * lambert;
+      shaded = Vector3(value, value, value);
+    } else if (mode == 3) {
+      final width = math.max(screen.z, 1.0);
+      final tx = screen.x * width;
+      final ty = screen.y * width;
+      var depthEdge = 0.0;
+      var normalEdge = 0.0;
+      const count = 4;
+      for (var i = 0; i < count; i++) {
+        final ou = switch (i) {
+          0 => tx,
+          1 => -tx,
+          _ => 0.0,
+        };
+        final ov = switch (i) {
+          2 => ty,
+          3 => -ty,
+          _ => 0.0,
+        };
+        final tap = surfaceTexture.sample(v[0] + ou, v[1] + ov);
+        if (tap.w <= 0.0) {
+          // Against the background: a silhouette, the strongest edge there is.
+          depthEdge = 1.0;
+          continue;
+        }
+        depthEdge = math.max(depthEdge, (tap.w - depth).abs());
+        normalEdge = math.max(
+          normalEdge,
+          1.0 - decodeOctahedral(tap.x, tap.y).dot(normal),
+        );
+      }
+      final depthHit = depthEdge >= math.max(params.z, 1e-4) ? 1.0 : 0.0;
+      final normalHit = normalEdge >= math.max(params.w, 1e-4) ? 1.0 : 0.0;
+      final edge = math.max(depthHit, normalHit);
+      shaded = Vector3(
+        scene.x * (1.0 - edge),
+        scene.y * (1.0 - edge),
+        scene.z * (1.0 - edge),
+      );
+    } else if (mode == 4) {
+      Vector3 at(double du, double dv) {
+        final tap = surfaceTexture.sample(v[0] + du, v[1] + dv);
+        return decodeOctahedral(tap.x, tap.y);
+      }
+
+      final right = at(screen.x, 0.0);
+      final left = at(-screen.x, 0.0);
+      final down = at(0.0, screen.y);
+      final up = at(0.0, -screen.y);
+      final curvature =
+          ((right.x - left.x) + (down.y - up.y)) * math.max(params.z, 0.0);
+      final cavity =
+          (-curvature).clamp(0.0, 1.0) * params.w.clamp(0.0, 1.0);
+      final ridge = curvature.clamp(0.0, 1.0);
+      final value = (0.5 + ridge * 0.5 - cavity).clamp(0.0, 1.0);
+      shaded = Vector3(value, value, value);
+    }
+
+    return Vector4(
+      scene.x + (shaded.x - scene.x) * amount,
+      scene.y + (shaded.y - scene.y) * amount,
+      scene.z + (shaded.z - scene.z) * amount,
+      scene.w,
+    );
+  }
+}
