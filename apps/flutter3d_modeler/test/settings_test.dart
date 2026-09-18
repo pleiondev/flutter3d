@@ -19,6 +19,8 @@ import 'package:flutter3d_modeler/src/settings.dart';
 import 'package:flutter3d_modeler/src/ui/settings_screen.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'support/fake_graphics_backend.dart';
+
 /// A storage kept in a map, so a round trip can be driven without a disk.
 final class FakeStorage implements Storage {
   final Map<String, String> documents = <String, String>{};
@@ -39,6 +41,13 @@ final class FakeStorage implements Storage {
 }
 
 void main() {
+  // Under `flutter test` there is no Impeller, so a device opened here would
+  // fall through to the software rasteriser and rasterise the whole viewport
+  // in Dart — measured at 19 seconds for this file's two tests against 3 with
+  // the fake. Nothing below reads a pixel. See
+  // `support/fake_graphics_backend.dart`.
+  setUp(useFakeGraphicsBackend);
+
   group('the document', () {
     test('a first launch is the defaults, not a failure', () {
       final store = SettingsStore(storage: FakeStorage());

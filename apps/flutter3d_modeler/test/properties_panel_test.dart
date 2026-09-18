@@ -9,7 +9,6 @@ library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter3d_core/formats.dart' show SurfaceMaterial;
-import 'package:flutter3d_cpu/testing.dart';
 import 'package:flutter3d_mesh/flutter3d_mesh.dart' show EditMesh;
 import 'package:flutter3d_model_core/flutter3d_model_core.dart' hide Outcome;
 import 'package:flutter3d_modeler/l10n/app_localizations.dart';
@@ -29,6 +28,8 @@ import 'package:flutter_test/flutter_test.dart';
 // Prefixed for the same reason `main.dart`'s own import is: `material.dart`
 // and `vector_math` disagree about which `Matrix4` a bare reference means.
 import 'package:vector_math/vector_math.dart' as vm show Matrix4;
+
+import 'support/fake_graphics_backend.dart';
 
 /// A project with [lightCount] identical directional lights and nothing
 /// else — enough for `sceneStatus`/the four panels, and light on everything
@@ -70,7 +71,7 @@ Future<void> _pump(
     ..physicalSize = const Size(800, 2400)
     ..devicePixelRatio = 1.0;
   addTearDown(tester.view.reset);
-  final it = cpuTestDevice(width: 8, height: 8);
+  final it = fakeTestDevice(width: 8, height: 8);
   final held = project ?? const ModelProject();
   final stage = ModelerStage.fromProject(device: it.device, project: held);
   // The platform is pinned for `ux-21`'s own sake: `ThemeData` derives

@@ -16,7 +16,6 @@ import 'dart:ui' as ui;
 import 'package:flutter/material.dart' hide Material;
 import 'package:flutter3d/flutter3d.dart' hide Material;
 import 'package:flutter3d/flutter3d.dart' as engine show Material;
-import 'package:flutter3d_cpu/testing.dart';
 import 'package:flutter3d_modeler/l10n/app_localizations.dart';
 import 'package:flutter3d_modeler/src/ui/lathe_dialog.dart';
 import 'package:flutter3d_modeler/src/ui/material_studio_dialog.dart';
@@ -29,8 +28,10 @@ import 'package:flutter3d_modeler/src/ui/tools.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vector_math/vector_math.dart' show Vector4;
 
+import 'support/fake_graphics_backend.dart';
+
 Renderer testRenderer() {
-  final it = cpuTestDevice();
+  final it = fakeTestDevice();
   return Renderer.create(
     device: it.device,
     fallbackAlbedo: it.albedo,

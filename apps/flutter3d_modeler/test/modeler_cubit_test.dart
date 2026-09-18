@@ -12,7 +12,6 @@ library;
 import 'dart:typed_data';
 
 import 'package:flutter3d/flutter3d.dart' hide Material;
-import 'package:flutter3d_cpu/testing.dart';
 import 'package:flutter3d_mesh/flutter3d_mesh.dart';
 import 'package:flutter3d_model_core/flutter3d_model_core.dart';
 import 'package:flutter3d_modeler/src/console_log.dart';
@@ -27,6 +26,8 @@ import 'package:vector_math/vector_math.dart';
 // `ux-02`'s own refusing device, declared beside the sync tests it was
 // written for rather than copied.
 import 'scene_sync_test.dart' show RefusingDevice;
+
+import 'support/fake_graphics_backend.dart';
 
 /// A project of [count] cubes, named `a`, `b`, …
 ModelProject cubes(int count) {
@@ -147,7 +148,7 @@ ProjectClip poseClip(int childId) => ProjectClip(
     openedWith(cubes(count));
 
 ({ModelerCubit cubit, ModelerStage stage}) openedWith(ModelProject project) {
-  final it = cpuTestDevice(width: 8, height: 8);
+  final it = fakeTestDevice(width: 8, height: 8);
   final history = ModelHistory(project);
   final stage = ModelerStage.fromProject(
     device: it.device,
@@ -948,7 +949,7 @@ void main() {
 
   group('ux-02: an object the device will not take', () {
     ({ModelerCubit cubit, RefusingDevice device}) openedOnRefusingDevice() {
-      final it = cpuTestDevice(width: 8, height: 8);
+      final it = fakeTestDevice(width: 8, height: 8);
       final device = RefusingDevice(it.device, refuseFirst: 0);
       final history = ModelHistory(cubes(1));
       // The refusing device stands only where a geometry upload happens —

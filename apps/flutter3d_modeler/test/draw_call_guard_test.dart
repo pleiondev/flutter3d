@@ -34,12 +34,13 @@
 library;
 
 import 'package:flutter3d/flutter3d.dart';
-import 'package:flutter3d_cpu/testing.dart';
 import 'package:flutter3d_mesh/flutter3d_mesh.dart';
 import 'package:flutter3d_modeler/src/ground_grid.dart';
 import 'package:flutter3d_modeler/src/mesh_overlay_builder.dart';
 import 'package:flutter3d_modeler/src/staging.dart';
 import 'package:flutter_test/flutter_test.dart';
+
+import 'support/fake_graphics_backend.dart';
 
 const int _width = 160;
 const int _height = 100;
@@ -101,7 +102,7 @@ const int kOverlayBatches = 3;
 
 void main() {
   test('object mode is the objects, and nothing else', () {
-    final it = cpuTestDevice(width: _width, height: _height);
+    final it = fakeTestDevice(width: _width, height: _height);
     final renderer = Renderer.create(device: it.device);
     final stage = ModelerStage.build(device: it.device)..frameSubject();
 
@@ -111,7 +112,7 @@ void main() {
   });
 
   test('an overlay with nothing in it is not drawn', () {
-    final it = cpuTestDevice(width: _width, height: _height);
+    final it = fakeTestDevice(width: _width, height: _height);
     final renderer = Renderer.create(device: it.device);
     final stage = ModelerStage.build(device: it.device)..frameSubject();
     final bare = _count(renderer, stage).drawCalls;
@@ -125,7 +126,7 @@ void main() {
   });
 
   test('the grid is one draw however many lines are in it', () {
-    final it = cpuTestDevice(width: _width, height: _height);
+    final it = fakeTestDevice(width: _width, height: _height);
     final renderer = Renderer.create(device: it.device);
     final stage = ModelerStage.build(device: it.device)..frameSubject();
     final bare = _count(renderer, stage).drawCalls;
@@ -145,7 +146,7 @@ void main() {
   });
 
   test('the wire shares the grid\'s line draw rather than adding one', () {
-    final it = cpuTestDevice(width: _width, height: _height);
+    final it = fakeTestDevice(width: _width, height: _height);
     final renderer = Renderer.create(device: it.device);
     final stage = ModelerStage.build(device: it.device)..frameSubject();
     final (:overlay, :view) = _overlayFor(renderer, stage);
@@ -170,7 +171,7 @@ void main() {
   });
 
   test('a mesh-mode viewport never exceeds N and three', () {
-    final it = cpuTestDevice(width: _width, height: _height);
+    final it = fakeTestDevice(width: _width, height: _height);
     final renderer = Renderer.create(device: it.device);
     final stage = ModelerStage.build(device: it.device)..frameSubject();
     final (:overlay, :view) = _overlayFor(renderer, stage);
@@ -200,7 +201,7 @@ void main() {
   });
 
   test('a second object is one more draw, not one more pipeline', () {
-    final it = cpuTestDevice(width: _width, height: _height);
+    final it = fakeTestDevice(width: _width, height: _height);
     final renderer = Renderer.create(device: it.device);
     final one = ModelerStage.build(
       device: it.device,

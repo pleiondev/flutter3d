@@ -15,6 +15,12 @@
 /// small mesh between the camera and the cube and tags it the way the gizmo
 /// will be tagged, which is the whole of what the exclusion rule sees. When
 /// view-12 lands, this stops building it and asks the stage for it.
+// **Stays on the software rasteriser, and must.** Picking reads the picture:
+// the id buffer this test clicks into is drawn, not computed, so a backend
+// that draws nothing answers "nothing was drawn in the middle" — which is
+// exactly what it said when this file was swapped to a fake along with the
+// twenty-eight that could take one.
+@Tags(<String>['golden'])
 library;
 
 import 'package:flutter3d/flutter3d.dart';

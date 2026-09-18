@@ -11,7 +11,6 @@ import 'dart:ui' show Offset, Size;
 
 import 'package:flutter/services.dart' show LogicalKeyboardKey;
 import 'package:flutter3d/flutter3d.dart';
-import 'package:flutter3d_cpu/testing.dart';
 import 'package:flutter3d_mesh/flutter3d_mesh.dart';
 import 'package:flutter3d_model_core/flutter3d_model_core.dart' hide Outcome;
 import 'package:flutter3d_modeler/src/element_picking.dart' show PickingView;
@@ -22,6 +21,8 @@ import 'package:flutter3d_modeler/src/transform_modal.dart';
 import 'package:flutter3d_modeler/src/transform_session.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vector_math/vector_math.dart';
+
+import 'support/fake_graphics_backend.dart';
 
 /// [count] cubes, spaced four metres apart along X so their positions are
 /// never mistaken for one another.
@@ -45,7 +46,7 @@ ModelProject cubes(int count) {
 ({ModelerCubit cubit, TransformSession session}) openedWith(
   ModelProject project,
 ) {
-  final it = cpuTestDevice(width: 8, height: 8);
+  final it = fakeTestDevice(width: 8, height: 8);
   final history = ModelHistory(project);
   final stage = ModelerStage.fromProject(
     device: it.device,

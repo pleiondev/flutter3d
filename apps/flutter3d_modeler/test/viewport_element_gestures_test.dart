@@ -14,7 +14,7 @@ import 'package:flutter/gestures.dart' hide Matrix4;
 import 'package:flutter/material.dart' hide Material, Matrix4;
 import 'package:flutter/services.dart' hide Matrix4;
 import 'package:flutter3d/flutter3d.dart' hide Material;
-import 'package:flutter3d_cpu/testing.dart';
+import 'package:flutter3d_hardware/testing.dart';
 import 'package:flutter3d_mesh/flutter3d_mesh.dart';
 import 'package:flutter3d_model_core/flutter3d_model_core.dart';
 import 'package:flutter3d_modeler/src/element_picking.dart';
@@ -24,6 +24,8 @@ import 'package:flutter3d_modeler/src/selection_rules.dart';
 import 'package:flutter3d_modeler/src/staging.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vector_math/vector_math.dart' show Matrix4;
+
+import 'support/fake_graphics_backend.dart';
 
 ModelProject oneCube() => const ModelProject().added(
   (int id) => ModelObject(
@@ -43,9 +45,14 @@ final class Heard {
 
 Future<Heard> pumpViewport(WidgetTester tester, {bool lasso = false}) async {
   final heard = Heard();
-  final it = cpuTestDevice(width: 64, height: 64);
+  // A fake device rather than the software rasteriser: `ModelerViewport`
+  // renders at its widget's constraints, not at the size the device was made
+  // with, so the 64x64 here bought nothing and every rebuild rasterised the
+  // whole box in debug Dart. Nothing in this file reads a pixel — these are
+  // pointer tests. See `support/fake_graphics_backend.dart`.
+  final device = FakeBackend();
   final ModelerStage stage = ModelerStage.fromProject(
-    device: it.device,
+    device: device,
     project: oneCube(),
   );
   await tester.pumpWidget(
@@ -55,7 +62,7 @@ Future<Heard> pumpViewport(WidgetTester tester, {bool lasso = false}) async {
           width: 400,
           height: 400,
           child: ModelerViewport(
-            renderer: Renderer.create(device: it.device),
+            renderer: Renderer.create(device: device),
             stage: stage,
             onFrame: () {},
             lassoSelect: lasso,
@@ -97,6 +104,13 @@ Future<void> clickWith(
 }
 
 void main() {
+  // Under `flutter test` there is no Impeller, so a device opened here would
+  // fall through to the software rasteriser and rasterise the whole viewport
+  // in Dart — measured at 19 seconds for this file's two tests against 3 with
+  // the fake. Nothing below reads a pixel. See
+  // `support/fake_graphics_backend.dart`.
+  setUp(useFakeGraphicsBackend);
+
   group('ux-28: what a click reports', () {
     testWidgets('nothing held is the plain pick', (WidgetTester tester) async {
       final Heard heard = await pumpViewport(tester);

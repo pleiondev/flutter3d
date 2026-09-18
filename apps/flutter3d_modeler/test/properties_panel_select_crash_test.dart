@@ -11,7 +11,6 @@
 library;
 
 import 'package:flutter/material.dart';
-import 'package:flutter3d_cpu/testing.dart';
 import 'package:flutter3d_model_core/flutter3d_model_core.dart' hide Outcome;
 import 'package:flutter3d_model_mcp/flutter3d_model_mcp.dart';
 import 'package:flutter3d_modeler/l10n/app_localizations.dart';
@@ -21,6 +20,8 @@ import 'package:flutter3d_modeler/src/ui/properties/properties_panel.dart';
 import 'package:flutter3d_modeler/src/ui/theme.dart';
 import 'package:flutter3d_modeler/src/ui/tools.dart';
 import 'package:flutter_test/flutter_test.dart';
+
+import 'support/fake_graphics_backend.dart';
 
 ModelTool _toolNamed(String name) =>
     modelTools.firstWhere((ModelTool tool) => tool.name == name);
@@ -145,7 +146,7 @@ void main() {
       ..devicePixelRatio = 1.0;
     addTearDown(tester.view.reset);
 
-    final it = cpuTestDevice(width: 8, height: 8);
+    final it = fakeTestDevice(width: 8, height: 8);
     final history = ModelHistory(const ModelProject());
     final stage = ModelerStage.fromProject(
       device: it.device,

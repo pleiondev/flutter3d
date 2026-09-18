@@ -12,11 +12,12 @@ library;
 import 'dart:math' as math;
 
 import 'package:flutter3d/flutter3d.dart';
-import 'package:flutter3d_cpu/testing.dart';
 import 'package:flutter3d_modeler/src/display_modes.dart';
 import 'package:flutter3d_modeler/src/staging.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vector_math/vector_math.dart';
+
+import 'support/fake_graphics_backend.dart';
 
 /// Where the camera ends up once [view] has been asked for and the turn has
 /// finished, relative to the point it is orbiting.
@@ -158,7 +159,7 @@ void main() {
     });
 
     test('normals can be switched back', () {
-      final it = cpuTestDevice(width: 8, height: 8);
+      final it = fakeTestDevice(width: 8, height: 8);
       final stage = ModelerStage.build(device: it.device);
       final shading = SurfaceShading();
       final MeshNode node = stage.subject as MeshNode;
@@ -177,7 +178,7 @@ void main() {
     });
 
     test('a node that arrives late is swapped too', () {
-      final it = cpuTestDevice(width: 8, height: 8);
+      final it = fakeTestDevice(width: 8, height: 8);
       final stage = ModelerStage.build(device: it.device);
       final shading = SurfaceShading()
         ..apply(stage.subject, ShadingMode.normals);
@@ -201,7 +202,7 @@ void main() {
     });
 
     test('a material painted on afterwards is not painted back over', () {
-      final it = cpuTestDevice(width: 8, height: 8);
+      final it = fakeTestDevice(width: 8, height: 8);
       final stage = ModelerStage.build(device: it.device);
       final shading = SurfaceShading();
       final MeshNode node = stage.subject as MeshNode;
@@ -226,7 +227,7 @@ void main() {
     });
 
     test('and an edit during a normals session survives the way back', () {
-      final it = cpuTestDevice(width: 8, height: 8);
+      final it = fakeTestDevice(width: 8, height: 8);
       final stage = ModelerStage.build(device: it.device);
       final shading = SurfaceShading();
       final MeshNode node = stage.subject as MeshNode;
@@ -244,7 +245,7 @@ void main() {
     });
 
     test('forgetting lets a replaced subject go', () {
-      final it = cpuTestDevice(width: 8, height: 8);
+      final it = fakeTestDevice(width: 8, height: 8);
       final stage = ModelerStage.build(device: it.device);
       final shading = SurfaceShading()
         ..apply(stage.subject, ShadingMode.normals)

@@ -44,6 +44,8 @@ import 'package:flutter_test/flutter_test.dart';
 // `main.dart`'s own `as vm` already sidesteps.
 import 'package:vector_math/vector_math.dart' as vm;
 
+import 'support/fake_graphics_backend.dart';
+
 /// `main_recovery_test.dart`'s own `FakeBinaryStorage`, repeated here since
 /// it is private to that file.
 final class _FakeBinaryStorage implements BinaryStorage {
@@ -188,6 +190,13 @@ Future<void> _pumpPastRecovery(
 }
 
 void main() {
+  // Under `flutter test` there is no Impeller, so a device opened here would
+  // fall through to the software rasteriser and rasterise the whole viewport
+  // in Dart — measured at 19 seconds for this file's two tests against 3 with
+  // the fake. Nothing below reads a pixel. See
+  // `support/fake_graphics_backend.dart`.
+  setUp(useFakeGraphicsBackend);
+
   group('the preview capturer is only ever asked when tut-19\'s own four '
       'conditions all hold', () {
     testWidgets(

@@ -55,14 +55,33 @@ lens flare, no SMAA or TAA, no velocity buffer, no GTAO, no AO denoiser, no
 dither, no sharpen, no render scale, and a grade of three scalars against
 their lift/gamma/gain plus white balance.
 
-**And the same golden set that makes us more trustworthy is what makes
-catching up expensive.** A new post effect costs one GLSL stage, a WebGL
-transpile, a WGSL translation, a hand-written Dart transcription for the CPU
-rasteriser, and a new golden scene whose three GPU sets cannot be recorded on
-this machine. Roughly five implementations per effect, where flutter_scene
-pays one. Their `render_pass_compat.dart` is a `try`/`NoSuchMethodError` shim
-in a published package, so a new engine API costs them one implementation and
-no SDK floor bump.
+**Catching up is cheaper than this document first said, and the correction
+matters.** The paragraph here used to read "roughly five implementations per
+effect — one GLSL stage, a WebGL transpile, a WGSL translation, a Dart
+transcription, and a golden scene". That was written from the survey and is
+wrong by three. **A post effect costs two hand-written implementations**: the
+GLSL source in `flutter3d_shaders`, and its Dart transcription for the CPU
+rasteriser, which has no shaders at all. WebGL and WebGPU are not transpiled
+by hand — `flutter3d_webgl/lib/src/glsl_translate.dart` and
+`flutter3d_webgpu/lib/src/glsl_to_wgsl.dart` are general translators driven by
+`tool/generate_shaders.dart`, and a new uniform or a new branch goes through
+them untouched.
+
+Measured rather than assumed, while landing `gfx-26n`: editing
+`composite.frag` and re-running both generators regenerated every stage, **40
+of 40 through glslang and naga**, and `impellerc` — which the SDK ships at
+`bin/cache/artifacts/engine/<platform>/impellerc`, and which is stricter than
+glslang — built the bundle. All four backend paths from one edit. The whole
+toolchain is present on this machine.
+
+What stays expensive is the golden set: a new effect still wants a scene, and
+three of its four sets cannot be recorded here. That is the real constraint,
+and it is a recording problem rather than an implementation one.
+
+flutter_scene still pays less per effect, for a different reason:
+`render_pass_compat.dart` is a `try`/`NoSuchMethodError` shim in a published
+package, so a new engine API costs them one implementation and no SDK floor
+bump.
 
 ## 3. Can a render-graph step be switched off by name? Yes, in one line
 
@@ -352,6 +371,15 @@ device, or a deterministic CPU reference.
   for the whole scene pass.
 - `gfx-24n` — drop the differentiation claim; it was refuted. The row
   survives on its own merits, which are better anyway.
+- `gfx-26n` — **the acceptance line was wrong and is now measured.** It asked
+  that a colour come through the rotation "within 5 degrees of the input
+  hue". Nothing with these matrices does that, and the row's worked example —
+  `(0, 0, 4)` — could never have shown anything either way, because red and
+  green are equal there and the *bare* curve holds that hue exactly. What the
+  rotation actually buys, over ten saturated colours above display white, is
+  a mean hue error of 17.0 degrees against the bare curve's 26.2, better on
+  every single sample: about a third off, everywhere. That is worth a fifth
+  curve and is what `tonemap_curve_test.dart` now pins. Landed 2026-09-18.
 - `gfx-25n` — this is where the *blanket* disable belongs, not the per-step
   toggle.
 - `gfx-28n` — the custom-effect wrapper carries a stable `name` and an
@@ -385,3 +413,13 @@ The pattern: claims about what exists held up; claims about what would be
 easy, and claims about what a competitor lacks, did not. Both of those are
 claims about absence, and absence is what a reader confirms by not finding
 something — which is also what happens when they look in the wrong place.
+
+**A fourth kind showed up once the rows started landing: the invented
+number.** `gfx-26n`'s "within 5 degrees" was not refuted by anybody, because
+nothing in the survey could refute it — no agent ran the curve. It survived
+every check this process has and was simply false, and the only thing that
+caught it was implementing the row and measuring. The same happened one level
+down, inside the fix: the first replacement threshold was measured over
+eleven samples and asserted over ten, which is the same mistake in
+miniature. An acceptance line that nobody has run is a wish with a number
+in it.

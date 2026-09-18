@@ -16,7 +16,6 @@ library;
 import 'package:flutter/gestures.dart' hide Matrix4;
 import 'package:flutter/material.dart' hide Material, Matrix4;
 import 'package:flutter3d/flutter3d.dart' hide Material;
-import 'package:flutter3d_cpu/testing.dart';
 import 'package:flutter3d_mesh/flutter3d_mesh.dart';
 import 'package:flutter3d_model_core/flutter3d_model_core.dart';
 import 'package:flutter3d_modeler/src/element_picking.dart';
@@ -27,6 +26,8 @@ import 'package:flutter3d_modeler/src/transform_gizmo.dart';
 import 'package:flutter3d_modeler/src/transform_modal.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vector_math/vector_math.dart' hide Colors;
+
+import 'support/fake_graphics_backend.dart';
 
 /// One cube at the origin, which is also where the gizmo goes.
 ModelProject oneCube() => const ModelProject().added(
@@ -49,9 +50,16 @@ final class Reported {
 }
 
 void main() {
+  // Under `flutter test` there is no Impeller, so a device opened here would
+  // fall through to the software rasteriser and rasterise the whole viewport
+  // in Dart — measured at 19 seconds for this file's two tests against 3 with
+  // the fake. Nothing below reads a pixel. See
+  // `support/fake_graphics_backend.dart`.
+  setUp(useFakeGraphicsBackend);
+
   testWidgets('a press on an arm, fifty pixels of travel, and a release: '
       'one drag, one done, no pick', (WidgetTester tester) async {
-    final it = cpuTestDevice(width: 64, height: 64);
+    final it = fakeTestDevice(width: 64, height: 64);
     final project = oneCube();
     final stage = ModelerStage.fromProject(device: it.device, project: project);
     final reported = Reported();
@@ -113,7 +121,7 @@ void main() {
   testWidgets('a press on nothing takes hold of nothing', (
     WidgetTester tester,
   ) async {
-    final it = cpuTestDevice(width: 64, height: 64);
+    final it = fakeTestDevice(width: 64, height: 64);
     final stage = ModelerStage.fromProject(
       device: it.device,
       project: oneCube(),

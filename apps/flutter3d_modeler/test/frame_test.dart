@@ -16,6 +16,14 @@
 /// somebody moves the fill light by five degrees and teaches nothing; what is
 /// asserted here is that the subject was drawn, that it is lit from one side,
 /// and that framing it put it in front of the camera.
+// Draws real pixels: a scene through the software rasteriser, a reference
+// picture, or both. Tagged so a run that only wants the logic skips the whole
+// slow class at once:
+//
+//     very_good test -x golden
+//
+// Not optional in CI, which runs the suite without the flag.
+@Tags(<String>['golden'])
 library;
 
 import 'dart:io';

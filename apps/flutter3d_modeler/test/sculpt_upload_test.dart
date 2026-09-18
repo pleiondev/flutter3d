@@ -7,11 +7,12 @@ library;
 import 'dart:typed_data';
 
 import 'package:flutter3d/flutter3d.dart' hide Material;
-import 'package:flutter3d_cpu/testing.dart';
 import 'package:flutter3d_mesh/flutter3d_mesh.dart';
 import 'package:flutter3d_modeler/src/sculpt_upload.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vector_math/vector_math.dart' show Vector3;
+
+import 'support/fake_graphics_backend.dart';
 
 /// A grid big enough to sit in several chunks — a chunk is 1024 vertices,
 /// so 64×64 is four of them and a brush lands in one or two.
@@ -49,7 +50,7 @@ DeviceMesh _positionOnly(GraphicsDevice device, SculptMesh mesh) =>
 
 void main() {
   test('a stroke uploads its own chunks and no others', () {
-    final it = cpuTestDevice(width: 8, height: 8);
+    final it = fakeTestDevice(width: 8, height: 8);
     final SculptMesh mesh = _grid();
     final DeviceMesh gpu = _positionOnly(it.device, mesh);
     final upload = SculptUpload(device: it.device);
@@ -76,7 +77,7 @@ void main() {
   });
 
   test('and a second call in the same frame does nothing', () {
-    final it = cpuTestDevice(width: 8, height: 8);
+    final it = fakeTestDevice(width: 8, height: 8);
     final SculptMesh mesh = _grid();
     final DeviceMesh gpu = _positionOnly(it.device, mesh);
     final upload = SculptUpload(device: it.device);
@@ -107,7 +108,7 @@ void main() {
   });
 
   test('a mesh with normals in it is rebuilt rather than patched', () {
-    final it = cpuTestDevice(width: 8, height: 8);
+    final it = fakeTestDevice(width: 8, height: 8);
     final SculptMesh mesh = _grid();
     final DeviceMesh gpu = _positionOnly(it.device, mesh);
     final upload = SculptUpload(device: it.device);
@@ -135,7 +136,7 @@ void main() {
   });
 
   test('nothing to upload is not an upload', () {
-    final it = cpuTestDevice(width: 8, height: 8);
+    final it = fakeTestDevice(width: 8, height: 8);
     final SculptMesh mesh = _grid();
     final DeviceMesh gpu = _positionOnly(it.device, mesh);
     final upload = SculptUpload(device: it.device);

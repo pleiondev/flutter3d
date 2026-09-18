@@ -20,6 +20,8 @@ import 'package:flutter3d_modeler/src/app_config.dart' show kOpeningReportFor;
 import 'package:flutter3d_modeler/src/settings.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'support/fake_graphics_backend.dart';
+
 /// Settings in memory, already past Quick Setup — a first launch would open
 /// that over the editor and this test is about what is underneath it.
 final class _Settled implements Storage {
@@ -58,8 +60,13 @@ final class _NoAutosave implements BinaryStorage {
 }
 
 void main() {
-  /// Launches the editor and waits for the device the software rasteriser
-  /// stands in for — real asynchronous work, hence `runAsync`.
+  // This test reads text and never a pixel, so the software rasteriser it
+  // would otherwise fall back to is 1400x900 pixels of work per frame, in
+  // Dart, for nothing. See `support/fake_graphics_backend.dart`.
+  setUp(useFakeGraphicsBackend);
+
+  /// Launches the editor and waits for the device the fake backend stands in
+  /// for — real asynchronous work, hence `runAsync`.
   Future<void> launch(WidgetTester tester) async {
     tester.view.physicalSize = const Size(1400, 900);
     tester.view.devicePixelRatio = 1.0;

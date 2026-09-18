@@ -25,6 +25,8 @@ import 'package:flutter3d_modeler/src/cabinet_link.dart';
 import 'package:flutter3d_modeler/src/files/cabinet_save_outcome.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'support/fake_graphics_backend.dart';
+
 /// Answers every read with nothing and every write as if it landed —
 /// `file_drop_io_test.dart`'s own `_NullBinaryStorage`, repeated here since
 /// it is private to that file.
@@ -77,6 +79,13 @@ Future<void> _pumpReady(
 }
 
 void main() {
+  // Under `flutter test` there is no Impeller, so a device opened here would
+  // fall through to the software rasteriser and rasterise the whole viewport
+  // in Dart — measured at 19 seconds for this file's two tests against 3 with
+  // the fake. Nothing below reads a pixel. See
+  // `support/fake_graphics_backend.dart`.
+  setUp(useFakeGraphicsBackend);
+
   group('the "Save to cabinet" button only appears when it could succeed', () {
     testWidgets('hidden on an ordinary launch — no cabinet id at all', (
       WidgetTester tester,

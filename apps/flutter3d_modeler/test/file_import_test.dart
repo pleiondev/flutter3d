@@ -34,6 +34,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:plugin_platform_interface/plugin_platform_interface.dart';
 import 'package:vector_math/vector_math.dart';
 
+import 'support/fake_graphics_backend.dart';
+
 /// A picker that never opens a real dialog — it hands back an in-memory
 /// [XFile] built from [bytes]/[name], the way a person choosing a real file
 /// in a real dialog would end up handing `openModel` the same two things.
@@ -82,6 +84,13 @@ Uint8List _f3dBytesNamed(String objectName) {
 }
 
 void main() {
+  // Under `flutter test` there is no Impeller, so a device opened here would
+  // fall through to the software rasteriser and rasterise the whole viewport
+  // in Dart — measured at 19 seconds for this file's two tests against 3 with
+  // the fake. Nothing below reads a pixel. See
+  // `support/fake_graphics_backend.dart`.
+  setUp(useFakeGraphicsBackend);
+
   TestWidgetsFlutterBinding.ensureInitialized();
 
   final storage = _NullBinaryStorage();

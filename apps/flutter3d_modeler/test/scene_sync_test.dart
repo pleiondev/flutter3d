@@ -6,12 +6,19 @@
 /// checked by looking at the scene graph; the number that matters is how many
 /// buffers were rebuilt, because that is the difference between a drag at sixty
 /// frames a second and a drag that stutters on a model of any size.
+// Draws real pixels: a scene through the software rasteriser, a reference
+// picture, or both. Tagged so a run that only wants the logic skips the whole
+// slow class at once:
+//
+//     very_good test -x golden
+//
+// Not optional in CI, which runs the suite without the flag.
+@Tags(<String>['golden'])
 library;
 
 import 'dart:typed_data';
 
 import 'package:flutter3d/flutter3d.dart';
-import 'package:flutter3d_cpu/flutter3d_cpu.dart' show CpuDevice;
 import 'package:flutter3d_cpu/testing.dart';
 import 'package:flutter3d_mesh/flutter3d_mesh.dart';
 import 'package:flutter3d_model_core/flutter3d_model_core.dart';
@@ -35,7 +42,11 @@ import 'package:vector_math/vector_math.dart';
 final class RefusingDevice implements GraphicsDevice {
   RefusingDevice(this.inner, {this.refuseFirst = 1});
 
-  final CpuDevice inner;
+  /// A `GraphicsDevice` rather than a `CpuDevice`: what this stands in front
+  /// of is the upload, and it forwards everything else untouched, so the
+  /// backend underneath is the caller's business. Narrowing it to the
+  /// software rasteriser meant a test could not wrap a fake one.
+  final GraphicsDevice inner;
   final int refuseFirst;
   int uploads = 0;
 

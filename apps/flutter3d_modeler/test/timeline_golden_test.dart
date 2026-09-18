@@ -18,6 +18,14 @@
 /// exactly the cross-platform fragility this repository's own 3D goldens
 /// were built to avoid; capturing only the glyph-free half keeps this one
 /// honestly comparable to the same pipeline's own no-GPU-no-font promise.
+// A reference picture, held against a committed PNG. Tagged so a run that
+// only wants the logic can skip every one of them at once:
+//
+//     very_good test -x golden
+//
+// Kept as a tag rather than a flag a test reads, because the decision belongs
+// to whoever starts the run and not to the test.
+@Tags(<String>['golden'])
 library;
 
 import 'dart:typed_data';
