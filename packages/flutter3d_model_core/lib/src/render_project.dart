@@ -314,17 +314,22 @@ Future<Uint8List> renderProject(
       .copyWith(debug: const DebugDrawOptions());
   // `tut-11`'s own fix: a vertex colour named by hex is not scene-referred
   // light, and only reads back as that hex with tonemapping and exposure
-  // out of the way — the identical pair `weight_gradient.dart`'s own
-  // `weightGradientSettings` gives the live viewport's weights view, for
-  // the same reason `ShadingMode.normals` gets it there too.
-  // The wireframe wants the same pair for the same reason: both of its
-  // colours are named by hand — a pale ground and a near-black wire — and
-  // a tonemap would lift the wire off the black it was chosen to be and
+  // out of the way. The wireframe wants the same for the same reason: both
+  // of its colours are named by hand — a pale ground and a near-black wire —
+  // and a tonemap would lift the wire off the black it was chosen to be and
   // pull the ground off the white, which is the contrast the mode is.
+  //
+  // `gfx-40n` replaced the hand-built `tonemap: false, exposure: 1.0` here
+  // with `forMeasurement`, which is the same request said completely. The
+  // pair was never the whole of it: bloom is on by default, so an agent
+  // asking for the weights of a bright model got the gradient with a glow
+  // over it and read back a colour no material had written. Three places
+  // built that same incomplete pair and the engine's own `CompositeMix`
+  // built the complete one, which is how the gap stayed invisible.
   final RenderSettings settings =
       request.shading == RenderShading.weights ||
           request.shading == RenderShading.wireframe
-      ? lit.copyWith(tonemap: false, exposure: 1.0)
+      ? lit.forMeasurement()
       : lit;
 
   final frame = renderer.render(

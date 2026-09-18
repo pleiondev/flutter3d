@@ -9408,6 +9408,16 @@ layout(std140) uniform CompositeInfo {
   /// The look, the rest. x: vignette, y: vignette roundness, z: grain,
   /// w: the target's aspect, width over height.
   vec4 look_more;
+
+  /// x: dither amount, in display units — 1/255 is one 8-bit step, and 0 is
+  /// off exactly. y, z, w: unclaimed.
+  ///
+  /// **A fifth block rather than a spare component of a fourth**, because the
+  /// other four are full and because a number that means "one output step"
+  /// does not belong beside three that mean "a look". Neutral is
+  /// (0, 0, 0, 0) and must stay exactly that: every golden in the repository
+  /// goes through this block.
+  vec4 output_encode;
 }
 composite_info;
 
@@ -9421,6 +9431,42 @@ float Luma(vec3 color) { return dot(color, vec3(0.2126, 0.7152, 0.0722)); }
 /// `LookSettings.grain`, which says the same thing from the other side.
 float Hash(vec2 at) {
   return fract(sin(dot(at, vec2(12.9898, 78.233))) * 43758.5453);
+}
+
+/// One cell of a 4x4 Bayer matrix, as a value in [-0.5, 0.5).
+///
+/// **Ordered rather than random, and that is the whole choice.** The grain
+/// above already uses a hash, and a hash here would work — but blue-ish noise
+/// on a flat gradient reads as noise, where an ordered matrix reads as a
+/// gradient. The pattern repeats every four pixels and is fixed to screen
+/// position, so it is as golden-stable as the grain is and for the same
+/// reason: nothing here is a function of time.
+///
+/// The matrix is the standard recursive one, written out because computing it
+/// costs more than reading it.
+float BayerCell(vec2 at) {
+  int x = int(mod(at.x, 4.0));
+  int y = int(mod(at.y, 4.0));
+  int index = y * 4 + x;
+  // 0, 8, 2, 10 / 12, 4, 14, 6 / 3, 11, 1, 9 / 15, 7, 13, 5
+  float value = 0.0;
+  if (index == 0) value = 0.0;
+  else if (index == 1) value = 8.0;
+  else if (index == 2) value = 2.0;
+  else if (index == 3) value = 10.0;
+  else if (index == 4) value = 12.0;
+  else if (index == 5) value = 4.0;
+  else if (index == 6) value = 14.0;
+  else if (index == 7) value = 6.0;
+  else if (index == 8) value = 3.0;
+  else if (index == 9) value = 11.0;
+  else if (index == 10) value = 1.0;
+  else if (index == 11) value = 9.0;
+  else if (index == 12) value = 15.0;
+  else if (index == 13) value = 7.0;
+  else if (index == 14) value = 13.0;
+  else value = 5.0;
+  return value / 16.0 - 0.5;
 }
 
 vec3 LinearToSrgb(vec3 linear) {
@@ -9529,6 +9575,55 @@ vec3 TonemapAgx(vec3 color) {
   return mix(vec3(luma), v, 0.84);
 }
 
+/// AgX with the rotation this pass used to have nowhere to keep — `gfx-26n`.
+///
+/// **What the two matrices buy, and it is one specific thing.** [TonemapAgx]
+/// compresses each channel on its own, so a channel that clips takes its hue
+/// with it: a deep blue four stops over white loses blue last and arrives at
+/// the display having drifted through purple, because red and green were
+/// driven up towards it while blue was already at the ceiling. The inset
+/// matrix mixes a little of each channel into the others *before* the curve,
+/// which means no channel is ever compressed alone, and the outset matrix —
+/// its inverse — takes the mixing back out afterwards. The hue that comes out
+/// is the hue that went in. That is the whole of the rotation, and it is why
+/// the comment on [TonemapAgx] named the absence rather than implying the
+/// curve was the transform.
+///
+/// **A fifth curve rather than a correction to the fourth.** Every golden in
+/// this repository that names a curve names one of the four codes, and 18%
+/// grey lands in a different place through the rotation than through the bare
+/// sigmoid — so quietly improving `agx` would move pictures somebody recorded
+/// on purpose. `agx` stays exactly the curve it was, and this is the one to
+/// reach for when a hue has to survive being over-bright.
+///
+/// The matrices are the published AgX ones, written out rather than derived,
+/// and they are inverses to about six decimal places — checked as arithmetic
+/// in `tonemap_curve_test.dart` rather than trusted, because a transposed row
+/// here would look like a subtle grade rather than like a bug.
+vec3 TonemapAgxFull(vec3 color) {
+  // The published pair, written in the same layout and used in the same order
+  // as the reference implementation — `M * v`, with the literals as that
+  // implementation lists them. Taken as a matched pair on purpose: an inset
+  // from one variant beside an outset from another is a matrix product that is
+  // *nearly* the identity, which reads as a grade nobody asked for rather than
+  // as a mistake.
+  const mat3 kInset = mat3(
+      0.842479062253094, 0.0423282422610123, 0.0423756549057051,
+      0.0784335999999992, 0.878468636469772, 0.0784336,
+      0.0792237451477643, 0.0791661274605434, 0.879142973793104);
+  const mat3 kOutset = mat3(
+      1.19687900512017, -0.0528968517574562, -0.0529716355144438,
+      -0.0980208811401368, 1.15190312990417, -0.0980434501171241,
+      -0.0990297440797205, -0.0989611768448433, 1.15107367264116);
+
+  vec3 v = kInset * color;
+  v = TonemapAgx(v);
+  // Out of the wider gamut, then clamped: the outset can push a channel a
+  // little past one or a little below zero on a colour that was already at
+  // the edge, and anything above display white is display white.
+  return clamp(kOutset * v, vec3(0.0), vec3(1.0));
+}
+
 /// Reinhard, extended so that white maps to white.
 ///
 /// The plain `c / (1 + c)` never reaches one, so a sky that should clip to
@@ -9594,6 +9689,7 @@ vec3 TonemapBy(vec3 color, int curve) {
   if (curve == 2) return TonemapAces(color);
   if (curve == 3) return TonemapAgx(color);
   if (curve == 4) return TonemapReinhard(color);
+  if (curve == 5) return TonemapAgxFull(color);
   return color;
 }
 
@@ -9704,7 +9800,18 @@ void main() {
   // where film grain lives.
   if (grain > 0.0) color += vec3((Hash(gl_FragCoord.xy) - 0.5) * grain);
 
-  frag_color = vec4(LinearToSrgb(max(color, vec3(0.0))), scene.a);
+  // **Dither is the last thing that happens, and it happens after the sRGB
+  // encode on purpose.** Banding is a quantisation artefact of the 8-bit
+  // target, so the noise that breaks it up has to be the size of one output
+  // step — which is a fixed distance in display space and a wildly varying
+  // one in linear space, where a step near black is a thousandth of a step
+  // near white. Dithering before the encode would put most of the noise where
+  // the banding is not.
+  vec3 encoded = LinearToSrgb(max(color, vec3(0.0)));
+  float dither = composite_info.output_encode.x;
+  if (dither > 0.0) encoded += vec3(BayerCell(gl_FragCoord.xy) * dither);
+
+  frag_color = vec4(encoded, scene.a);
 }
 
 ''',

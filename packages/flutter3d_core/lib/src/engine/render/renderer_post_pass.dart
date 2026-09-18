@@ -540,11 +540,18 @@ extension _PostPasses on Renderer {
     // not — without this the falloff is an ellipse on screen.
     _compositeLookMore[3] = height <= 0 ? 1.0 : width / height;
 
+    // `gfx-24n`. Zero exactly, and every golden depends on it: the shader
+    // skips the whole branch at zero rather than adding a noise that rounds
+    // to nothing, because "rounds to nothing" is a claim about the target's
+    // bit depth and not about the arithmetic.
+    _compositeOutputEncode[0] = math.max(look.dither, 0.0);
+
     pass.bindUniformBlock(compositeShader, _kCompositeInfoBlock, {
       'params': _compositeParams,
       'ao_texel': _compositeAoTexel,
       'look': _compositeLook,
       'look_more': _compositeLookMore,
+      'output_encode': _compositeOutputEncode,
     });
     pass.draw();
 

@@ -54,7 +54,28 @@ final class FrameGraph {
   /// produces, a cycle, a requested output that does not exist. All of it at
   /// compile rather than mid-frame, which is the difference between a message
   /// naming two passes and a blank screen.
-  CompiledFrameGraph compile({required List<ResourceId> outputs}) {
+  /// Node names this graph refuses to switch off, and why each one.
+  ///
+  /// Not a matter of taste: every other node degrades correctly when it is
+  /// suppressed, and these four do not. `scene` and `composite` are the sole
+  /// producers of the frame itself, and the renderer's own fallback would hand
+  /// a caller a texture holding whatever was in it last rather than an error.
+  /// `object ids` answers picks that have already been taken off the queue, so
+  /// suppressing it leaves a click awaiting an answer that will never come.
+  ///
+  /// A caller that wants a frame without the composite wants `tonemap: false`
+  /// and an exposure of one — `RenderSettings.forMeasurement` is that request
+  /// said properly — not a graph with a hole where the picture was.
+  static const Set<String> undisableable = <String>{
+    'scene',
+    'composite',
+    'object ids',
+  };
+
+  CompiledFrameGraph compile({
+    required List<ResourceId> outputs,
+    Set<String> disabled = const <String>{},
+  }) {
     // Known at all, whether or not it runs this frame. The difference between
     // this and the active set is the difference between a misspelled name and
     // a feature somebody switched off, and those must not report the same way.
@@ -93,13 +114,47 @@ final class FrameGraph {
       throw FrameGraphError('the frame asks for "$id", which nothing produces');
     }
 
+    // A name nobody carries, checked here for the same reason a misspelled
+    // resource is: at runtime the two are identical pictures. A caller who
+    // typed 'fxaa' for the node called 'antialias' would otherwise get exactly
+    // the frame they asked to change, and conclude the switch does nothing.
+    //
+    // Registration order, not the disabled set's order, so the message is
+    // stable enough to assert on.
+    final registered = <String>{for (final node in _nodes) node.name};
+    for (final name in disabled) {
+      if (registered.contains(name)) continue;
+      throw FrameGraphError(
+        'nothing registered is called "$name", so switching it off would '
+        'change nothing and look like it worked. Registered this frame: '
+        '${(registered.toList()..sort()).join(", ")}',
+      );
+    }
+    for (final name in disabled) {
+      if (!undisableable.contains(name)) continue;
+      throw FrameGraphError(
+        '"$name" cannot be switched off: it is the only thing that produces '
+        'the frame, or the only thing that answers a request already taken. '
+        'For a frame whose bytes are the numbers rather than a photograph of '
+        'them, ask for that instead — see RenderSettings.forMeasurement',
+      );
+    }
+
     // A node that is switched off does not consume a version, which is the one
     // place this departs from a literal reading of "versions are assigned in
     // registration order". It has to: a chain of read-modify-write passes with
     // an inactive link in the middle would otherwise leave every pass after it
     // reading a version nobody produces, and the whole chain would be culled
     // because one optional effect was off.
-    final active = _nodes.where((n) => n.isActive).toList();
+    // `gfx-37n` adds the second clause, and it belongs exactly here rather
+    // than at `addNode`: `known` above is built over every registered node
+    // including the inactive ones, so a suppressed producer keeps its name
+    // known and a read of it still compiles. Unregistering instead would make
+    // the reader's own declaration conditional — the branch moved rather than
+    // deleted, which is the thing the registration block argues against.
+    final active = _nodes
+        .where((n) => n.isActive && !disabled.contains(n.name))
+        .toList();
 
     // Versions, in registration order rather than in the order the frame turns
     // out to run. Nothing else would be stable: the order is derived from these
@@ -260,6 +315,36 @@ final class FrameGraph {
         if (!survived.contains(node)) node,
     ];
 
+    // `gfx-39n`. Every one of these four facts was already computed above and
+    // then discarded; this reads them back off the same structures rather than
+    // deriving anything a second time, so a reason cannot disagree with the
+    // frame it describes. The order of the tests is the order of causes: a
+    // node named by a caller is disabled even though `isActive` was never
+    // asked, and a starved node is reported as starved rather than as
+    // unconsumed, because the two answers send a reader to different places.
+    final activeIndex = <FrameGraphNode, int>{
+      for (var i = 0; i < active.length; i++) active[i]: i,
+    };
+    final skipped = <SkippedPass>[
+      for (final node in culled)
+        (
+          name: node.name,
+          reason: switch (activeIndex[node]) {
+            null =>
+              disabled.contains(node.name)
+                  ? PassSkip.disabled
+                  : PassSkip.settings,
+            final i when !runnable[i] => PassSkip.starved,
+            final i when !keep.contains(i) => PassSkip.unconsumed,
+            // Runnable, kept, and yet not in `order` — unreachable unless the
+            // walk itself dropped a node, which would be a bug in `visit`
+            // rather than a decision about this frame. Reported as starved
+            // because that is the reading that sends somebody upstream.
+            _ => PassSkip.starved,
+          },
+        ),
+    ];
+
     final bindings = <_NodeBindings>[];
     final lastUse = <ResourceVersion, int>{};
     for (var position = 0; position < order.length; position++) {
@@ -292,6 +377,7 @@ final class FrameGraph {
       order: order,
       culled: culled,
       outputs: List<ResourceId>.unmodifiable(outputs),
+      skipped: List<SkippedPass>.unmodifiable(skipped),
     );
   }
 

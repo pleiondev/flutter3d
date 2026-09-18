@@ -226,8 +226,11 @@ final Material kWeightGradientMaterial = Material(
 /// gives `ShadingMode.normals` this exact pair for this exact reason, down to
 /// the neutral exposure: a colour named by hex is not scene-referred light,
 /// and only reads back as that hex once both are out of the way.
+/// `gfx-40n`: `forMeasurement` rather than the pair this used to build by
+/// hand. The pair was incomplete — it left bloom and the occlusion running
+/// over a buffer whose bytes are meant to be the gradient's own numbers.
 RenderSettings weightGradientSettings(RenderSettings over) =>
-    over.copyWith(tonemap: false, exposure: 1.0);
+    over.forMeasurement();
 
 /// Swaps every mesh under a subject for [kWeightGradientMaterial] and back —
 /// `SurfaceShading`'s own shape in `display_modes.dart`, repeated here rather

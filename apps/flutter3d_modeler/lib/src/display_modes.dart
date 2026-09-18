@@ -154,15 +154,31 @@ void useLens(CameraNode camera, ViewLens lens, OrbitController orbit) {
 /// Where there is no `EditMesh` to walk (an imported surface, a shape that
 /// still knows its own parameters) the renderer's own is still better than
 /// nothing, and that is what [edgesDrawn] false leaves in place.
+/// **`gfx-40n` fixed a bug here rather than tidying the call.** This used to
+/// set `tonemap` and `exposure` and touch nothing else, so a normals view over
+/// a viewport with bloom switched on returned a glowing debug buffer: the
+/// colour a person read off a face was not the normal that face had. The
+/// engine's own `CompositeMix` had the complete answer all along — it forces
+/// exposure, tone mapping *and* bloom off, because a debug buffer is data
+/// rather than light and any of the three would misreport it — and this was
+/// one of three places that reproduced two thirds of it.
 RenderSettings settingsFor(
   ShadingMode mode,
   RenderSettings over, {
   bool edgesDrawn = false,
-}) => over.copyWith(
-  wireframe: mode == ShadingMode.wireframe && !edgesDrawn,
-  tonemap: mode != ShadingMode.normals,
-  exposure: mode == ShadingMode.normals ? 1.0 : over.exposure,
-);
+}) {
+  final base = over.copyWith(
+    wireframe: mode == ShadingMode.wireframe && !edgesDrawn,
+  );
+  return mode == ShadingMode.normals
+      ? base.forMeasurement()
+      // **`tonemap: true` rather than whatever arrived**, which is what this
+      // did before `forMeasurement` existed and is not incidental: leaving a
+      // caller's `tonemap: false` in place would carry a debug frame's
+      // settings into the lit view, and the first version of this change did
+      // exactly that. Two mode screenshots moved before anything caught it.
+      : base.copyWith(tonemap: true);
+}
 
 /// Swaps the subject's materials for a debug one and back.
 ///
