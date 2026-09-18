@@ -346,10 +346,19 @@ This survey adds `gfx-37n`..`gfx-45n` (the toggle and what it enables) and
 `gfx-50n`..`gfx-58n` (our own gates plus the upstream ledger — see
 `doc/upstream.md`).
 
-**These are not in `doc/model-editor-plan.md` yet.** Adding 27 rows moves the
-row counts, the `plan-status.json` entries and the dashboard, and that is a
-decision about scope rather than a finding. Lifting them in is one edit when
-the call is made.
+**Lifted into `doc/model-editor-plan.md` on 2026-09-18.** Thirty rows went in
+— `gfx-19n`..`gfx-45n`, which is the 27 this paragraph used to count, plus the
+three of `gfx-50n`..`gfx-58n` that were ever written down. `plan-status.json`
+carries twenty-eight of them as `done`, `gfx-30n` as `partial` (halation built,
+lens flare not) and `gfx-25n` with no entry at all, which the verifier reads as
+not started. `tool/verify_plan.dart` checks 490 of 517 items and everything the
+finished ones name is in the tree.
+
+**Six of the reserved numbers were never filled.** `gfx-52n`..`gfx-57n` have no
+text anywhere: §9 reserved the range as "our own gates plus the upstream
+ledger", and the ledger turned out to state three rules, of which one —
+`gfx-58n` — is a gate and the other two are operating instructions about how to
+chase five open pull requests. Numbers were not invented to fill the gap.
 
 Land first, in this order, because each is a precondition of the next:
 
