@@ -49,28 +49,41 @@ final class _CacheEntry {
     required this.hash,
     required this.formatVersion,
     required this.pipelineVersion,
+    required this.textures,
   });
 
   final String hash;
   final int formatVersion;
   final int pipelineVersion;
 
+  /// Which compression family the cached output was written with — `gfx-69n`.
+  ///
+  /// The source bytes and the pipeline version say nothing about it, so a build
+  /// that changed family would otherwise find every file "unchanged" and ship
+  /// the previous family's textures. Defaulted when absent so a cache written
+  /// before this field is read rather than thrown away — it then mismatches
+  /// once, which is the right amount of rebuilding.
+  final String textures;
+
   factory _CacheEntry.fromJson(Map<String, Object?> json) => _CacheEntry(
     hash: json['hash']! as String,
     formatVersion: json['formatVersion']! as int,
     pipelineVersion: json['pipelineVersion']! as int,
+    textures: json['textures'] as String? ?? '(unrecorded)',
   );
 
   Map<String, Object?> toJson() => <String, Object?>{
     'hash': hash,
     'formatVersion': formatVersion,
     'pipelineVersion': pipelineVersion,
+    'textures': textures,
   };
 
   bool matches(_CacheEntry other) =>
       hash == other.hash &&
       formatVersion == other.formatVersion &&
-      pipelineVersion == other.pipelineVersion;
+      pipelineVersion == other.pipelineVersion &&
+      textures == other.textures;
 }
 
 String _cachePath(AssetLayout layout) =>
@@ -113,6 +126,7 @@ void _writeCache(String path, Map<String, _CacheEntry> cache) {
 Future<AssetBuildReport> runAssetBuild(
   Directory projectRoot, {
   IOSink? log,
+  TextureFamily textures = TextureFamily.auto,
 }) async {
   final layout = AssetLayout(projectRoot: projectRoot);
   final plan = layout.plan();
@@ -130,6 +144,7 @@ Future<AssetBuildReport> runAssetBuild(
       hash: sha256.convert(bytes).toString(),
       formatVersion: kF3dVersion,
       pipelineVersion: kAssetPipelineVersion,
+      textures: textures.name,
     );
     next[job.source] = entry;
 
@@ -139,7 +154,13 @@ Future<AssetBuildReport> runAssetBuild(
       continue;
     }
 
-    final ok = await convertOne(job.source, job.destination, sink, sink);
+    final ok = await convertOne(
+      job.source,
+      job.destination,
+      sink,
+      sink,
+      textures: textures,
+    );
     if (ok) converted.add(job.source);
   }
 
@@ -182,7 +203,24 @@ Future<void> buildAssets(BuildInput input, BuildOutputBuilder output) async {
     root.endsWith('/') ? root.substring(0, root.length - 1) : root,
   );
 
-  final report = await runAssetBuild(projectRoot);
+  // **Which family, and why the hook still asks rather than decides —
+  // `gfx-69n`.** The row's other half is that the application path never
+  // reached `--textures`, and it does now: a project says `textures: bc` (or
+  // `etc2`, or `none`) under this package's key in its `hook_user_defines`, and
+  // the build passes it through.
+  //
+  // What is deliberately *not* here is a default other than `auto`. Choosing
+  // one means guessing which formats the device sampling the texture supports,
+  // and a device that cannot sample the family it was handed does not draw a
+  // slower picture, it draws no picture. That guess belongs to `ap-09`, which
+  // resolves the family per target and keeps both sets for the web, and which
+  // is not built.
+  final requested = input.userDefines['textures'];
+  final textures = requested is String
+      ? TextureFamily.parse(requested) ?? TextureFamily.auto
+      : TextureFamily.auto;
+
+  final report = await runAssetBuild(projectRoot, textures: textures);
   for (final source in report.dependencies) {
     output.dependencies.add(Uri.file(source));
   }
