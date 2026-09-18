@@ -9,6 +9,14 @@
 /// pass and drawn inside an opaque cube. What decides that is the depth
 /// state, and the only thing that can be asked about a depth state is a
 /// rendered pixel.
+// Draws real pixels: a scene through the software rasteriser, a reference
+// picture, or both. Tagged so a run that only wants the logic skips the whole
+// slow class at once:
+//
+//     very_good test -x golden
+//
+// Not optional in CI, which runs the suite without the flag.
+@Tags(<String>['golden'])
 library;
 
 import 'dart:typed_data';

@@ -8,13 +8,14 @@ library;
 import 'dart:typed_data';
 
 import 'package:flutter3d/flutter3d.dart';
-import 'package:flutter3d_cpu/testing.dart';
 import 'package:flutter3d_mesh/flutter3d_mesh.dart';
 import 'package:flutter3d_model_core/flutter3d_model_core.dart';
 import 'package:flutter3d_modeler/src/staging.dart';
 import 'package:flutter3d_modeler/src/timeline_playback.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vector_math/vector_math.dart';
+
+import 'support/fake_graphics_backend.dart';
 
 /// One clip, one second long at 30fps, translating node 0 from the origin to
 /// (1, 0, 0).
@@ -296,7 +297,7 @@ void main() {
       'the real scene node the project\'s own cube got moves, not a copy',
       () {
         final (project, cubeId) = walkingCube();
-        final it = cpuTestDevice(width: 8, height: 8);
+        final it = fakeTestDevice(width: 8, height: 8);
         final stage = ModelerStage.fromProject(
           device: it.device,
           project: project,
@@ -313,7 +314,7 @@ void main() {
     );
 
     test('an object with no clip is simply not among the targets', () {
-      final it = cpuTestDevice(width: 8, height: 8);
+      final it = fakeTestDevice(width: 8, height: 8);
       final project = const ModelProject().added(
         (int i) => ModelObject(
           id: i,

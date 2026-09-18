@@ -4,13 +4,14 @@
 ///     flutter test test/play_session_test.dart
 library;
 
-import 'package:flutter3d_cpu/testing.dart';
 import 'package:flutter3d_mesh/flutter3d_mesh.dart';
 import 'package:flutter3d_model_core/flutter3d_model_core.dart' hide Outcome;
 import 'package:flutter3d_modeler/src/play/play_session.dart';
 import 'package:flutter3d_modeler/src/play/play_template.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vector_math/vector_math.dart' show Matrix4, Vector2, Vector3;
+
+import 'support/fake_graphics_backend.dart';
 
 /// A project of one box, which is the document Play is standing in.
 ModelProject _one() => const ModelProject().added(
@@ -41,7 +42,7 @@ void _walk(
 
 void main() {
   test('the body stands on the floor rather than falling through it', () {
-    final it = cpuTestDevice(width: 8, height: 8);
+    final it = fakeTestDevice(width: 8, height: 8);
     final PlaySession session = PlaySession.start(
       device: it.device,
       project: _one(),
@@ -56,7 +57,7 @@ void main() {
   });
 
   test('forward is where the look points, and sprint is faster', () {
-    final it = cpuTestDevice(width: 8, height: 8);
+    final it = fakeTestDevice(width: 8, height: 8);
     PlaySession fresh() =>
         PlaySession.start(device: it.device, project: _one());
 
@@ -83,7 +84,7 @@ void main() {
   test(
     'the character template carries the document, the prop one does not',
     () {
-      final it = cpuTestDevice(width: 8, height: 8);
+      final it = fakeTestDevice(width: 8, height: 8);
 
       final PlaySession character = PlaySession.start(
         device: it.device,
@@ -109,7 +110,7 @@ void main() {
   );
 
   test('an edit to the document reaches the running game', () {
-    final it = cpuTestDevice(width: 8, height: 8);
+    final it = fakeTestDevice(width: 8, height: 8);
     final ModelHistory history = ModelHistory(_one());
     final PlaySession session = PlaySession.start(
       device: it.device,
@@ -140,7 +141,7 @@ void main() {
   });
 
   test('ux-51: Reload keeps the walk the player already made', () {
-    final it = cpuTestDevice(width: 8, height: 8);
+    final it = fakeTestDevice(width: 8, height: 8);
     final ModelHistory history = ModelHistory(_one());
     final PlaySession session = PlaySession.start(
       device: it.device,

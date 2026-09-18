@@ -12,6 +12,23 @@
 /// a real drag, from the listener's own point of view. `ui-31n`'s own row
 /// asks for exactly this.
 @TestOn('browser')
+// **And a second annotation saying the same thing to a different reader.**
+// `@TestOn` is enough for `flutter test`, which compiles each file and skips
+// this one on the VM. It is not enough for `very_good test`, whose optimizer
+// concatenates every test file into one entry point before any of them runs
+// and so pulls `dart:js_interop` into a VM compile that cannot have it — the
+// whole package then fails to build, with an error naming a library rather
+// than a platform.
+//
+// Without this the only way to run the suite through that tool is
+// `--no-optimization`, which compiles each file separately and turns a
+// two-second run into minutes.
+// Written without a `<String>` type argument on purpose. `very_good test`
+// finds this tag with a regular expression that reads `@Tags\s*\(\s*\[`, so
+// `@Tags(<String>[...])` — the form the analyser would otherwise prefer — is
+// not matched and the file goes into the optimizer anyway.
+// ignore: always_specify_types
+@Tags(['skip_very_good_optimization'])
 library;
 
 import 'dart:js_interop';

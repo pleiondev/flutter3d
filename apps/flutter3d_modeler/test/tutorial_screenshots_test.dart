@@ -21,6 +21,19 @@
 ///
 /// Everything shared between the two lives in
 /// `tutorial_screenshots_support.dart`.
+// A reference picture, held against a committed PNG. Tagged so a run that
+// only wants the logic can skip every one of them at once:
+//
+//     very_good test -x golden
+//
+// Kept as a tag rather than a flag a test reads, because the decision belongs
+// to whoever starts the run and not to the test.
+// The second tag is read by `very_good test`, whose optimizer replaces the
+// golden comparator with a wrapper `useTolerantGoldens` cannot cast. Written
+// without a `<String>` argument because that tool finds it by a regular
+// expression reading `@Tags\s*\(\s*\[`.
+// ignore: always_specify_types
+@Tags(['golden', 'skip_very_good_optimization'])
 library;
 
 import 'package:flutter3d_modeler/src/ui/tools.dart';

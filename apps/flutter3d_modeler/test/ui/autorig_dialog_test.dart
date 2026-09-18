@@ -10,7 +10,6 @@ import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart' hide Material, Matrix4;
 import 'package:flutter3d/flutter3d.dart' hide Material;
-import 'package:flutter3d_cpu/testing.dart';
 import 'package:flutter3d_mesh/flutter3d_mesh.dart';
 import 'package:flutter3d_model_core/flutter3d_model_core.dart';
 import 'package:flutter3d_modeler/l10n/app_localizations.dart';
@@ -21,8 +20,10 @@ import 'package:flutter3d_modeler/src/ui/theme.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vector_math/vector_math.dart' show Matrix4;
 
+import '../support/fake_graphics_backend.dart';
+
 Renderer _testRenderer() {
-  final it = cpuTestDevice();
+  final it = fakeTestDevice();
   return Renderer.create(
     device: it.device,
     fallbackAlbedo: it.albedo,

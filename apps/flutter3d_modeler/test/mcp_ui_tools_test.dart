@@ -7,6 +7,17 @@
 /// side of that difference.
 ///
 ///     flutter test test/mcp_ui_tools_test.dart
+// Starts a real socket server and writes a session file, which is global
+// state that one process can only hold one of. `very_good test` bundles a
+// package's whole suite into a single process, so these run beside 1700 other
+// tests and the second server to start finds the first one's state — a null
+// check on a session that is not theirs. They pass alone and under plain
+// `flutter test`, which gives each file its own process.
+//
+// Written without a `<String>` argument because that tool finds the tag with
+// a regular expression reading `@Tags\s*\(\s*\[`.
+// ignore: always_specify_types
+@Tags(['skip_very_good_optimization'])
 library;
 
 import 'dart:convert';

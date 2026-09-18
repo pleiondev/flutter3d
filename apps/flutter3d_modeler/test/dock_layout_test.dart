@@ -6,7 +6,6 @@ library;
 
 import 'package:flutter/material.dart' hide Material;
 import 'package:flutter3d/flutter3d.dart' hide Material;
-import 'package:flutter3d_cpu/testing.dart';
 import 'package:flutter3d_mesh/flutter3d_mesh.dart';
 import 'package:flutter3d_model_core/flutter3d_model_core.dart' hide Outcome;
 import 'package:flutter3d_modeler/src/settings.dart';
@@ -17,6 +16,8 @@ import 'package:flutter3d_modeler/src/ui/theme.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:multi_split_view/multi_split_view.dart';
 import 'package:vector_math/vector_math.dart' as vm show Matrix4;
+
+import 'support/fake_graphics_backend.dart';
 
 ModelProject _one() => const ModelProject().added(
   (int id) => ModelObject(
@@ -107,7 +108,7 @@ void main() {
   testWidgets('two viewports draw one document from two cameras', (
     WidgetTester tester,
   ) async {
-    final it = cpuTestDevice(width: 32, height: 32);
+    final it = fakeTestDevice(width: 32, height: 32);
     final Renderer renderer = Renderer.create(device: it.device);
     final ModelerStage stage = ModelerStage.fromProject(
       device: it.device,

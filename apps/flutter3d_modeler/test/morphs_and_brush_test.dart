@@ -10,7 +10,6 @@ import 'package:flutter/gestures.dart' show PointerDeviceKind;
 import 'package:flutter/material.dart' hide Material;
 import 'package:flutter/services.dart';
 import 'package:flutter3d/flutter3d.dart' hide Material;
-import 'package:flutter3d_cpu/testing.dart';
 import 'package:flutter3d_mesh/flutter3d_mesh.dart';
 import 'package:flutter3d_model_core/flutter3d_model_core.dart' hide Outcome;
 import 'package:flutter3d_modeler/src/modeler_viewport.dart';
@@ -23,6 +22,8 @@ import 'package:flutter3d_modeler/src/ui/theme.dart';
 import 'package:flutter3d_modeler/src/ui/tools.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vector_math/vector_math.dart' as vm show Matrix4, Vector3;
+
+import 'support/fake_graphics_backend.dart';
 
 /// A cube, and one shape key over it that lifts every vertex a metre.
 ({EditMesh mesh, ShapeKey key}) _cubeAndKey() {
@@ -64,6 +65,13 @@ double _topOf(MeshData data) {
 }
 
 void main() {
+  // Under `flutter test` there is no Impeller, so a device opened here would
+  // fall through to the software rasteriser and rasterise the whole viewport
+  // in Dart — measured at 19 seconds for this file's two tests against 3 with
+  // the fake. Nothing below reads a pixel. See
+  // `support/fake_graphics_backend.dart`.
+  setUp(useFakeGraphicsBackend);
+
   group('ux-24: a shape key moves the model', () {
     test('at weight one the buffer is where the key puts it', () {
       final ({EditMesh mesh, ShapeKey key}) it = _cubeAndKey();
@@ -116,7 +124,7 @@ void main() {
 
     test('a weight that moves re-uploads, and one that does not costs '
         'nothing', () {
-      final it = cpuTestDevice(width: 8, height: 8);
+      final it = fakeTestDevice(width: 8, height: 8);
       final Scene scene = Scene();
       final SceneNode root = SceneNode(name: 'root');
       scene.root.add(root);
@@ -155,7 +163,7 @@ void main() {
       double? radius,
       bool inverting = false,
     }) async {
-      final it = cpuTestDevice(width: 64, height: 64);
+      final it = fakeTestDevice(width: 64, height: 64);
       await tester.pumpWidget(
         MaterialApp(
           theme: modelerTheme(),

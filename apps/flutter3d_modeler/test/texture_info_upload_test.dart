@@ -14,9 +14,10 @@ library;
 import 'dart:io';
 
 import 'package:flutter3d/flutter3d.dart';
-import 'package:flutter3d_cpu/testing.dart';
 import 'package:flutter3d_model_core/flutter3d_model_core.dart';
 import 'package:flutter_test/flutter_test.dart';
+
+import 'support/fake_graphics_backend.dart';
 
 void main() {
   test(
@@ -37,7 +38,7 @@ void main() {
       final info = textureInfo(bytes);
       expect(info, isNotNull, reason: 'a real KTX2 file should read a header');
 
-      final it = cpuTestDevice();
+      final it = fakeTestDevice();
       final handle = await uploadEncodedImage(
         it.device,
         bytes,

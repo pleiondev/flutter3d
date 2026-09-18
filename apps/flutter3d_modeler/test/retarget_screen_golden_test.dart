@@ -9,6 +9,14 @@
 ///
 ///     flutter test test/retarget_screen_golden_test.dart
 ///     flutter test test/retarget_screen_golden_test.dart --update-goldens
+// A reference picture, held against a committed PNG. Tagged so a run that
+// only wants the logic can skip every one of them at once:
+//
+//     very_good test -x golden
+//
+// Kept as a tag rather than a flag a test reads, because the decision belongs
+// to whoever starts the run and not to the test.
+@Tags(<String>['golden'])
 library;
 
 import 'package:flutter/material.dart';

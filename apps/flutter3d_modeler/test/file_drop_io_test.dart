@@ -31,7 +31,16 @@ import 'package:flutter3d_modeler/src/files/file_drop_io.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vector_math/vector_math.dart';
 
+import 'support/fake_graphics_backend.dart';
+
 void main() {
+  // Under `flutter test` there is no Impeller, so a device opened here would
+  // fall through to the software rasteriser and rasterise the whole viewport
+  // in Dart — measured at 19 seconds for this file's two tests against 3 with
+  // the fake. Nothing below reads a pixel. See
+  // `support/fake_graphics_backend.dart`.
+  setUp(useFakeGraphicsBackend);
+
   // Before anything below reaches for a binary messenger — the same order
   // `android_test.dart`'s own channel group already needs it in.
   TestWidgetsFlutterBinding.ensureInitialized();

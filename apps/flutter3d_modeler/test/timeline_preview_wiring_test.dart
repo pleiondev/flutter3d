@@ -7,7 +7,6 @@ library;
 import 'dart:typed_data';
 
 import 'package:flutter3d/flutter3d.dart';
-import 'package:flutter3d_cpu/testing.dart';
 import 'package:flutter3d_mesh/flutter3d_mesh.dart';
 import 'package:flutter3d_model_core/flutter3d_model_core.dart';
 import 'package:flutter3d_modeler/src/staging.dart';
@@ -15,10 +14,12 @@ import 'package:flutter3d_modeler/src/timeline_preview_wiring.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vector_math/vector_math.dart';
 
+import 'support/fake_graphics_backend.dart';
+
 /// One cube, with a clip translating it from the origin to (1, 0, 0) over a
 /// second.
 ({ModelProject project, ModelerStage stage, int objectId}) rigged() {
-  final it = cpuTestDevice(width: 8, height: 8);
+  final it = fakeTestDevice(width: 8, height: 8);
   var project = const ModelProject().added(
     (int id) => ModelObject(
       id: id,

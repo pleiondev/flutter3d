@@ -12,6 +12,14 @@
 /// them. Through `staging.dart`'s own `ModelerStage.build`, because `no test
 /// builds its own world` in `tool/structure.dart` says so — only the second
 /// cube and the paint are this test's own.
+// Draws real pixels: a scene through the software rasteriser, a reference
+// picture, or both. Tagged so a run that only wants the logic skips the whole
+// slow class at once:
+//
+//     very_good test -x golden
+//
+// Not optional in CI, which runs the suite without the flag.
+@Tags(<String>['golden'])
 library;
 
 import 'package:flutter3d/flutter3d.dart';

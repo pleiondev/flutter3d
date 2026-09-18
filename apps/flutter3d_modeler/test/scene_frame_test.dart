@@ -15,6 +15,14 @@
 /// any light in it, so the picture also carries the marker/arrow/cone gizmo
 /// `mat-25` already built — a scene with lights but no way to see where they
 /// are would not be what "источники как пикаемые маркеры" is asking for.
+// Draws real pixels: a scene through the software rasteriser, a reference
+// picture, or both. Tagged so a run that only wants the logic skips the whole
+// slow class at once:
+//
+//     very_good test -x golden
+//
+// Not optional in CI, which runs the suite without the flag.
+@Tags(<String>['golden'])
 library;
 
 import 'package:flutter3d/flutter3d.dart';

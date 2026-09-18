@@ -13,7 +13,7 @@ import 'package:flutter/gestures.dart' hide Matrix4;
 import 'package:flutter/material.dart' hide Material, Matrix4;
 import 'package:flutter/services.dart' hide Matrix4;
 import 'package:flutter3d/flutter3d.dart' hide Material;
-import 'package:flutter3d_cpu/testing.dart';
+import 'package:flutter3d_hardware/testing.dart';
 import 'package:flutter3d_mesh/flutter3d_mesh.dart';
 import 'package:flutter3d_model_core/flutter3d_model_core.dart';
 import 'package:flutter3d_modeler/src/element_picking.dart';
@@ -22,6 +22,8 @@ import 'package:flutter3d_modeler/src/settings.dart' show NavigationScheme;
 import 'package:flutter3d_modeler/src/staging.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vector_math/vector_math.dart' hide Colors;
+
+import 'support/fake_graphics_backend.dart';
 
 ModelProject oneCube() => const ModelProject().added(
   (int id) => ModelObject(
@@ -53,9 +55,22 @@ Future<ModelerStage> pumpViewport(
   VoidCallback? onToolCancel,
 }) async {
   repaint.value = 0;
-  final it = cpuTestDevice(width: 64, height: 64);
+  // **A fake device, not the software rasteriser, and the size is why.**
+  // `ModelerViewport` renders at its *widget's* constraints rather than at
+  // whatever size the device was made with — see the `LayoutBuilder` in
+  // `modeler_viewport.dart`, which passes `constraints` straight to
+  // `render()`. So `fakeTestDevice(width: 64, height: 64)` here bought
+  // nothing: every rebuild rasterised the 400x400 box below, 160,000 pixels
+  // at a time, in debug Dart. Measured: 3.3 seconds per frame in which the
+  // camera moved, and 51 of this file's 78 seconds in the two walk tests
+  // alone.
+  //
+  // Nothing here reads a pixel — these are input tests, and they assert on
+  // where the camera ended up. The presenter `useFakeGraphicsBackend`
+  // registers is what stands in for the picture.
+  final device = FakeBackend();
   final ModelerStage stage = ModelerStage.fromProject(
-    device: it.device,
+    device: device,
     project: oneCube(),
   );
   await tester.pumpWidget(
@@ -68,7 +83,7 @@ Future<ModelerStage> pumpViewport(
             valueListenable: repaint,
             builder: (BuildContext context, int _, Widget? _) =>
                 ModelerViewport(
-                  renderer: Renderer.create(device: it.device),
+                  renderer: Renderer.create(device: device),
                   stage: stage,
                   onFrame: () {},
                   navigation: navigation,
@@ -93,6 +108,13 @@ Future<ModelerStage> pumpViewport(
 Vector3 eyeOf(ModelerStage stage) => stage.camera.readWorldPosition();
 
 void main() {
+  // Under `flutter test` there is no Impeller, so a device opened here would
+  // fall through to the software rasteriser and rasterise the whole viewport
+  // in Dart — measured at 19 seconds for this file's two tests against 3 with
+  // the fake. Nothing below reads a pixel. See
+  // `support/fake_graphics_backend.dart`.
+  setUp(useFakeGraphicsBackend);
+
   group('ux-04: the right button is free-look', () {
     testWidgets('it turns the head and leaves the camera where it stands', (
       WidgetTester tester,

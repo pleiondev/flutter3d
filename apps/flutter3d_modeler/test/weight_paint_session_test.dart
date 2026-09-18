@@ -10,7 +10,6 @@ library;
 import 'dart:ui' show Offset, Size;
 
 import 'package:flutter3d/flutter3d.dart';
-import 'package:flutter3d_cpu/testing.dart';
 import 'package:flutter3d_mesh/flutter3d_mesh.dart';
 import 'package:flutter3d_model_core/flutter3d_model_core.dart' hide Outcome;
 import 'package:flutter3d_modeler/src/element_picking.dart' show PickingView;
@@ -19,6 +18,8 @@ import 'package:flutter3d_modeler/src/staging.dart';
 import 'package:flutter3d_modeler/src/weight_paint_session.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vector_math/vector_math.dart';
+
+import 'support/fake_graphics_backend.dart';
 
 /// A cuboid fully bound to the first of two joints — a stroke painting onto
 /// the *second* has somewhere real to move weight from, which a mesh with
@@ -49,7 +50,7 @@ EditMesh _boundCuboid() {
   int jointId,
 })
 openedWith() {
-  final it = cpuTestDevice(width: 8, height: 8);
+  final it = fakeTestDevice(width: 8, height: 8);
   final mesh = _boundCuboid();
   final project = ModelProject(
     objects: <ModelObject>[

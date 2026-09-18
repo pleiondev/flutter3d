@@ -10,7 +10,6 @@ import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart' hide Material;
 import 'package:flutter3d/flutter3d.dart' hide Material;
-import 'package:flutter3d_cpu/testing.dart';
 import 'package:flutter3d_model_core/flutter3d_model_core.dart' hide Key;
 import 'package:flutter3d_modeler/l10n/app_localizations.dart';
 import 'package:flutter3d_modeler/src/staging.dart';
@@ -22,8 +21,10 @@ import 'package:flutter3d_modeler/src/ui/theme.dart';
 import 'package:flutter3d_modeler/src/ui/transport_bar.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import '../support/fake_graphics_backend.dart';
+
 Renderer _testRenderer() {
-  final it = cpuTestDevice();
+  final it = fakeTestDevice();
   return Renderer.create(
     device: it.device,
     fallbackAlbedo: it.albedo,
@@ -81,6 +82,13 @@ Future<void> _open(WidgetTester tester, {VoidCallback? onPlayPause}) async {
 }
 
 void main() {
+  // Under `flutter test` there is no Impeller, so a device opened here would
+  // fall through to the software rasteriser and rasterise the whole viewport
+  // in Dart — measured at 19 seconds for this file's two tests against 3 with
+  // the fake. Nothing below reads a pixel. See
+  // `support/fake_graphics_backend.dart`.
+  setUp(useFakeGraphicsBackend);
+
   Future<void> withScreen(
     WidgetTester tester,
     Future<void> Function() body,

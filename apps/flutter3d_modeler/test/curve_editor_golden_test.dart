@@ -12,6 +12,14 @@
 /// `Text`. Capturing only the glyph-free half keeps this golden independent
 /// of whichever font the machine running the test has installed, the same
 /// promise `timeline_golden_test.dart` already keeps for the timeline.
+// A reference picture, held against a committed PNG. Tagged so a run that
+// only wants the logic can skip every one of them at once:
+//
+//     very_good test -x golden
+//
+// Kept as a tag rather than a flag a test reads, because the decision belongs
+// to whoever starts the run and not to the test.
+@Tags(<String>['golden'])
 library;
 
 import 'dart:typed_data';
