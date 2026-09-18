@@ -138,6 +138,28 @@ abstract base class FrameGraphNode {
   /// no pass setup — and so its outputs count as unproduced, which correctly
   /// culls anything that existed only to consume them.
   bool get isActive => true;
+
+  /// Whether the device this frame is drawn on can run the pass at all —
+  /// `gfx-50n`.
+  ///
+  /// **Separate from [isActive] because the two answer different questions,
+  /// and a caller needs to tell them apart.** An inactive pass is a pass the
+  /// frame was told not to run; an unsupported one is a pass this device
+  /// cannot run whatever anybody asks. The first is answered by changing a
+  /// setting and the second is not answered at all, so reporting them the
+  /// same way sends somebody looking through their own configuration for a
+  /// limit that belongs to their hardware.
+  ///
+  /// What it exists for so far: a pass that reads the surface buffer needs a
+  /// second colour attachment, and `GraphicsDevice.maxColorAttachments` is
+  /// one on Impeller's OpenGL ES path — where opening one aborts the process
+  /// rather than failing. The buffer is still declared and the scene pass
+  /// still writes it where it can; what this decides is whether the reader is
+  /// in the frame.
+  ///
+  /// Asked once at compile, beside [isActive], and reported as
+  /// [PassSkip.unsupported].
+  bool get supported => true;
 }
 
 /// Why a pass that was registered did not run — `gfx-39n`.
@@ -161,12 +183,12 @@ abstract base class FrameGraphNode {
 /// A [starved] pass is the one to read first when a frame is wrong, because
 /// it names a consequence and some other pass is the cause.
 /// **A final class with const instances rather than an enum**, which
-/// `tool/structure.dart` insists on for a published package and is right to:
-/// a fifth reason is a thing this engine may well grow — a pass refused for a
-/// capability the device lacks is the obvious candidate — and adding a value
-/// to an enum breaks every exhaustive `switch` an application has written
-/// against it. `TonemapCurve` and `LightingModel` have the same shape for the
-/// same reason.
+/// `tool/structure.dart` insists on for a published package and is right to.
+/// The fifth reason arrived — [unsupported], a pass refused for a capability
+/// the device lacks, which is exactly the candidate this note named before it
+/// existed — and it arrived without breaking an exhaustive `switch` anybody
+/// had written, which is the whole of the argument. `TonemapCurve` and
+/// `LightingModel` have the same shape for the same reason.
 final class PassSkip {
   const PassSkip._(this.name);
 
@@ -187,13 +209,29 @@ final class PassSkip {
   /// could not run. The cause is upstream; this is the effect.
   static const PassSkip starved = PassSkip._('starved');
 
+  /// The device cannot run it — `gfx-50n`, and the fifth reason the note
+  /// above predicted.
+  ///
+  /// **The only one of the five that no setting will change.** The other four
+  /// describe a decision about this frame; this describes the machine. A
+  /// caller who gets it should stop looking through their configuration: the
+  /// pass is absent on this device and will be absent on the next frame too.
+  ///
+  /// So far it means one thing — the pass reads the surface buffer and the
+  /// device opens a single colour attachment. See
+  /// `GraphicsDevice.maxColorAttachments`, whose documentation says what
+  /// happens on the backend where the answer is one and why it is not a
+  /// probe.
+  static const PassSkip unsupported = PassSkip._('unsupported');
+
   /// All of them, in the order a reader should try them: the two a caller
-  /// asked for, then the two the frame decided.
+  /// asked for, then the two the frame decided, then the one the device did.
   static const List<PassSkip> values = <PassSkip>[
     settings,
     disabled,
     unconsumed,
     starved,
+    unsupported,
   ];
 
   @override

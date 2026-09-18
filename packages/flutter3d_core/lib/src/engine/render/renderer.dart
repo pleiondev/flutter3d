@@ -1860,7 +1860,15 @@ final class Renderer implements RenderServices {
         // declares, so it is a frame output. Without this, `surfaceBuffer` on its
         // own would leave the buffer unread, the scene would not attach it, and
         // the application would read whatever the texture held last.
-        if (s.surfaceBuffer) FrameResourceIds.surfaceBuffer,
+        // `gfx-50n` adds the second half of that condition, and it is the one
+        // place the device has to be asked outside a node. An output is a
+        // consumer the graph cannot see, so naming the buffer here makes the
+        // scene pass attach it — on a device that opens one attachment that
+        // is the pass that aborts. A caller asking for the buffer on such a
+        // device gets a frame without one, which is the same "nobody filled
+        // it" the flag has always had to handle.
+        if (s.surfaceBuffer && device.maxColorAttachments > 1)
+          FrameResourceIds.surfaceBuffer,
         // Both read back rather than read by a node, which is a consumer the
         // graph cannot see, so both are outputs while their node is active or
         // the node is culled for producing something nobody wants.
@@ -3190,6 +3198,20 @@ final class Renderer implements RenderServices {
   Future<String> probeMultipleRenderTargets() async {
     final probe = shaders['MrtProbe'];
     if (probe == null) return 'MRT probe: the bundle has no MrtProbe entry.';
+
+    // `gfx-50n`. **This is the line the probe was missing, and its absence
+    // was the joke in it**: the diagnostic that exists to find out whether a
+    // second attachment works used to find out by opening one, which on the
+    // backend where the answer is no ends the process. A diagnostic that
+    // cannot survive its own bad news is not a diagnostic. The device is
+    // asked first, and a device that says one is reported rather than tried.
+    if (device.maxColorAttachments < 2) {
+      return 'MRT probe: this device opens at most '
+          '${device.maxColorAttachments} colour attachment, so the probe was '
+          'not run — see GraphicsDevice.maxColorAttachments. Every pass that '
+          'reads the surface buffer is culled on this device and reported as '
+          'starved.';
+    }
 
     const size = 4;
     TextureHandle makeTarget() => device.createTexture(

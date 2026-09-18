@@ -212,6 +212,21 @@ names hardcoded in 2026 that no later effect joins.
 Found by trying things, not by reading. All three verified directly here, not
 taken from an agent's report.
 
+**Closed 2026-09-18 by `gfx-50n`.** `GraphicsDevice.maxColorAttachments` is
+published and every backend answers it; `RenderPassDescriptor.checkAttachmentLimit`
+refuses a pass past the limit on the way into `beginRenderPass`, so the failure
+is a throw rather than an abort. The five nodes that read the surface buffer
+carry `supported`, and a device that answers one culls them and reports
+`PassSkip.unsupported` — the fifth skip reason, which that type's own
+documentation had named as the likely candidate before it existed. The probe
+asks the device before opening anything.
+
+What the Impeller backend answers is **inferred rather than queried**, and that
+is the part worth reading twice: flutter_gpu publishes no MRT capability and no
+backend name, and the probe that would settle it is the call that ends the
+process. `supportsRenderToMip` splits on the same platform boundary, so it
+stands in.
+
 **A second colour attachment with no gate, on a backend that aborts.**
 `_toRenderTarget` (`gpu_device.dart:801`) loops over `descriptor.colors` with
 no count check. `renderer_scene_pass.dart:83` opens a second attachment in

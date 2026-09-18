@@ -152,8 +152,11 @@ final class FrameGraph {
     // known and a read of it still compiles. Unregistering instead would make
     // the reader's own declaration conditional — the branch moved rather than
     // deleted, which is the thing the registration block argues against.
+    // `gfx-50n` adds the third clause, beside rather than inside `isActive`:
+    // a pass this device cannot run is dropped the same way, and the reason
+    // it is reported by is the one thing about it a caller cannot fix.
     final active = _nodes
-        .where((n) => n.isActive && !disabled.contains(n.name))
+        .where((n) => n.isActive && n.supported && !disabled.contains(n.name))
         .toList();
 
     // Versions, in registration order rather than in the order the frame turns
@@ -330,10 +333,16 @@ final class FrameGraph {
         (
           name: node.name,
           reason: switch (activeIndex[node]) {
-            null =>
-              disabled.contains(node.name)
-                  ? PassSkip.disabled
-                  : PassSkip.settings,
+            // The order inside this arm is the order of causes too. A caller
+            // who named a pass gets told so even on a device that could not
+            // have run it, because that is the answer about what they did;
+            // `unsupported` comes next, ahead of `settings`, since a device
+            // that cannot run a pass makes its settings beside the point.
+            null => switch (node) {
+              _ when disabled.contains(node.name) => PassSkip.disabled,
+              _ when !node.supported => PassSkip.unsupported,
+              _ => PassSkip.settings,
+            },
             final i when !runnable[i] => PassSkip.starved,
             final i when !keep.contains(i) => PassSkip.unconsumed,
             // Runnable, kept, and yet not in `order` — unreachable unless the
