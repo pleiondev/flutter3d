@@ -946,6 +946,7 @@ final class AntiAliasSettings {
     this.enabled = false,
     this.contrastThreshold = 0.125,
     this.blend = 0.75,
+    this.sharpen = 0.0,
   });
 
   final bool enabled;
@@ -963,14 +964,38 @@ final class AntiAliasSettings {
   /// whole neighbour, which over-blurs; 0.75 keeps a silhouette crisp.
   final double blend;
 
+  /// Contrast-adaptive sharpening on the finished picture — `gfx-29n`. 0 is
+  /// off exactly, and is the default.
+  ///
+  /// **It lives on the anti-aliasing settings because it lives in that pass**,
+  /// and it lives in that pass because the four neighbours it needs are the
+  /// four the smoothing already fetches. A pass of its own would be a second
+  /// full-screen draw for the same answer.
+  ///
+  /// **Sharpening is what normally follows a smoothed image**, and this
+  /// engine had neither it nor any unsharp path, while `fxaa.frag` documents
+  /// that it is the only anti-aliasing left once the surface buffer is in use
+  /// — so a frame with ambient occlusion on was softened with nothing to put
+  /// the edge back.
+  ///
+  /// Adaptive rather than a plain unsharp mask: the amplitude comes from how
+  /// much headroom the neighbourhood leaves, so a pixel already against the
+  /// ceiling is not pushed past it. That is what separates sharpening from
+  /// the bright halo along every hard edge that reads as a cheap filter.
+  /// 0.5 is visible without announcing itself; 1 is the most the kernel
+  /// offers.
+  final double sharpen;
+
   AntiAliasSettings copyWith({
     bool? enabled,
     double? contrastThreshold,
     double? blend,
+    double? sharpen,
   }) => AntiAliasSettings(
     enabled: enabled ?? this.enabled,
     contrastThreshold: contrastThreshold ?? this.contrastThreshold,
     blend: blend ?? this.blend,
+    sharpen: sharpen ?? this.sharpen,
   );
 }
 

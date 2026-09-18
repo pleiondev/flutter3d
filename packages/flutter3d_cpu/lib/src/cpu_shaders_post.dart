@@ -271,10 +271,17 @@ final class FxaaShader implements CpuFragmentShader {
     final middle = source.sample(v[0], v[1]);
     final mid = _weight(middle);
 
-    final north = _weight(source.sample(v[0], v[1] - params.y));
-    final south = _weight(source.sample(v[0], v[1] + params.y));
-    final west = _weight(source.sample(v[0] - params.x, v[1]));
-    final east = _weight(source.sample(v[0] + params.x, v[1]));
+    // Colours kept rather than only their weights: `Sharpen` below needs the
+    // neighbourhood, and these are the same four taps either way.
+    final northRgb = source.sample(v[0], v[1] - params.y);
+    final southRgb = source.sample(v[0], v[1] + params.y);
+    final westRgb = source.sample(v[0] - params.x, v[1]);
+    final eastRgb = source.sample(v[0] + params.x, v[1]);
+    final north = _weight(northRgb);
+    final south = _weight(southRgb);
+    final west = _weight(westRgb);
+    final east = _weight(eastRgb);
+    final sharpen = bindings.vec4('FxaaInfo', 'sharpen', Vector4.zero()).x;
 
     final lowest = math.min(
       mid,
@@ -286,7 +293,7 @@ final class FxaaShader implements CpuFragmentShader {
     );
     final contrast = highest - lowest;
     if (contrast < math.max(0.0312, highest * params.z)) {
-      return Vector4(middle.x, middle.y, middle.z, 1.0);
+      return _sharpen(middle, northRgb, southRgb, westRgb, eastRgb, sharpen);
     }
 
     final vertical = (north + south - 2.0 * mid).abs();
@@ -308,8 +315,58 @@ final class FxaaShader implements CpuFragmentShader {
     final out = horizontalEdge
         ? source.sample(v[0], v[1] + stepLength * blend)
         : source.sample(v[0] + stepLength * blend, v[1]);
-    return Vector4(out.x, out.y, out.z, 1.0);
+    return _sharpen(out, northRgb, southRgb, westRgb, eastRgb, sharpen);
   }
+}
+
+/// `Sharpen` from `fxaa.frag`, operation for operation — `gfx-29n`.
+///
+/// The centre pushed away from its neighbourhood average — no denominator, so
+/// a flat neighbourhood returns the centre untouched by construction. See the
+/// shader for the normalised form this replaced and the flat grey frame that
+/// came back white.
+Vector4 _sharpen(
+  Vector4 centre,
+  Vector4 n,
+  Vector4 s,
+  Vector4 w,
+  Vector4 e,
+  double strength,
+) {
+  if (strength <= 0.0) return Vector4(centre.x, centre.y, centre.z, 1.0);
+
+  double lowestOf(double a, double b, double cc, double d, double f) =>
+      math.min(a, math.min(math.min(b, cc), math.min(d, f)));
+  double highestOf(double a, double b, double cc, double d, double f) =>
+      math.max(a, math.max(math.max(b, cc), math.max(d, f)));
+
+  double roomOf(double lo, double hi) =>
+      math.min(lo, 1.0 - hi) / math.max(hi, 1e-5);
+
+  final roomR = roomOf(
+    lowestOf(centre.x, n.x, s.x, w.x, e.x),
+    highestOf(centre.x, n.x, s.x, w.x, e.x),
+  );
+  final roomG = roomOf(
+    lowestOf(centre.y, n.y, s.y, w.y, e.y),
+    highestOf(centre.y, n.y, s.y, w.y, e.y),
+  );
+  final roomB = roomOf(
+    lowestOf(centre.z, n.z, s.z, w.z, e.z),
+    highestOf(centre.z, n.z, s.z, w.z, e.z),
+  );
+  final room = math.min(roomR, math.min(roomG, roomB)).clamp(0.0, 1.0);
+  final amount = math.sqrt(room).clamp(0.0, 1.0);
+
+  double blend(double cc, double a, double b, double d, double f) =>
+      cc + (cc - (a + b + d + f) * 0.25) * amount * strength;
+
+  return Vector4(
+    blend(centre.x, n.x, s.x, w.x, e.x),
+    blend(centre.y, n.y, s.y, w.y, e.y),
+    blend(centre.z, n.z, s.z, w.z, e.z),
+    1.0,
+  );
 }
 
 /// `SampleLut` from `composite.frag`, operation for operation.
