@@ -545,6 +545,26 @@ extension _PostPasses on Renderer {
     // to nothing, because "rounds to nothing" is a claim about the target's
     // bit depth and not about the arithmetic.
     _compositeOutputEncode[0] = math.max(look.dither, 0.0);
+    _compositeOutputEncode[1] = look.whiteBalance.clamp(-1.0, 1.0);
+    _compositeOutputEncode[2] = look.tint.clamp(-1.0, 1.0);
+
+    // `gfx-27n`. Written every frame rather than only when set, because the
+    // buffers are reused across frames and a grade left in one would apply to
+    // the next scene that did not ask for it.
+    final lift = look.lift;
+    _compositeLift[0] = lift?.x ?? 0.0;
+    _compositeLift[1] = lift?.y ?? 0.0;
+    _compositeLift[2] = lift?.z ?? 0.0;
+    final gamma = look.gamma;
+    // Guarded away from zero: the shader raises to one over this, and an
+    // exponent of infinity is a black frame rather than a loud failure.
+    _compositeGamma[0] = math.max(gamma?.x ?? 1.0, 1e-3);
+    _compositeGamma[1] = math.max(gamma?.y ?? 1.0, 1e-3);
+    _compositeGamma[2] = math.max(gamma?.z ?? 1.0, 1e-3);
+    final gain = look.gain;
+    _compositeGain[0] = gain?.x ?? 1.0;
+    _compositeGain[1] = gain?.y ?? 1.0;
+    _compositeGain[2] = gain?.z ?? 1.0;
 
     pass.bindUniformBlock(compositeShader, _kCompositeInfoBlock, {
       'params': _compositeParams,
@@ -552,6 +572,9 @@ extension _PostPasses on Renderer {
       'look': _compositeLook,
       'look_more': _compositeLookMore,
       'output_encode': _compositeOutputEncode,
+      'lift': _compositeLift,
+      'gamma': _compositeGamma,
+      'gain': _compositeGain,
     });
     pass.draw();
 

@@ -9410,7 +9410,8 @@ layout(std140) uniform CompositeInfo {
   vec4 look_more;
 
   /// x: dither amount, in display units — 1/255 is one 8-bit step, and 0 is
-  /// off exactly. y, z, w: unclaimed.
+  /// off exactly. y: white balance, warm above zero. z: tint, green against
+  /// magenta. w: unclaimed.
   ///
   /// **A fifth block rather than a spare component of a fourth**, because the
   /// other four are full and because a number that means "one output step"
@@ -9418,6 +9419,18 @@ layout(std140) uniform CompositeInfo {
   /// (0, 0, 0, 0) and must stay exactly that: every golden in the repository
   /// goes through this block.
   vec4 output_encode;
+
+  /// Lift, in xyz — what is added, so it moves the shadows and leaves white
+  /// where it was. w: unclaimed. Neutral is (0, 0, 0, 0).
+  vec4 lift;
+
+  /// Gamma, in xyz — the exponent, so it moves the midtones and leaves both
+  /// ends. w: unclaimed. Neutral is (1, 1, 1, 0).
+  vec4 gamma;
+
+  /// Gain, in xyz — what is multiplied, so it moves the highlights and leaves
+  /// black where it was. w: unclaimed. Neutral is (1, 1, 1, 0).
+  vec4 gain;
 }
 composite_info;
 
@@ -9762,7 +9775,50 @@ void main() {
   color = mix(vec3(Luma(color)), color, saturation);
   // A gain on the ends against the middle. Not a white-balance conversion —
   // a scene lit at the wrong temperature is fixed at the light, not here.
+  // `white_balance` below is the conversion, and the two are deliberately
+  // separate: this one is a look, that one is a correction.
   color *= vec3(1.0 + temperature * 0.1, 1.0, 1.0 - temperature * 0.1);
+
+  // **Lift, gamma, gain — `gfx-27n`, and the three ranges a colourist
+  // actually reaches for.** Contrast and saturation move the whole picture at
+  // once; these move one end of it. Lift adds, so it raises the shadows and
+  // leaves white alone. Gain multiplies, so it moves the highlights and
+  // leaves black alone. Gamma is the exponent between them, so it moves the
+  // midtones and leaves both ends. Applied in that order, which is the order
+  // they are named in and the order a grading panel applies them.
+  //
+  // Each is a vec3, not a scalar: the whole reason to have them is a warm
+  // highlight over a cool shadow, which one number per stage cannot say.
+  vec3 lift = composite_info.lift.xyz;
+  vec3 gammaCurve = composite_info.gamma.xyz;
+  vec3 gain = composite_info.gain.xyz;
+  color = color + lift;
+  // Guarded, because a channel at zero under a fractional exponent is a
+  // divide by zero on some drivers and a black pixel on others, and the
+  // defaults have to be an exact identity rather than nearly one.
+  color = max(color, vec3(0.0));
+  if (gammaCurve != vec3(1.0)) color = pow(color, vec3(1.0) / gammaCurve);
+  color *= gain;
+
+  // **White balance, which the temperature above is not.** A gain on red
+  // against blue is a look; this is the correction — a shift along the
+  // warm-to-cool axis with a green-magenta tint across it, the pair every
+  // camera and every grading panel offers together. Approximated in the
+  // display space rather than converted through a chromatic adaptation
+  // matrix: the exact transform wants the scene's own white point, and this
+  // pass has the picture rather than the light that made it.
+  float balance = composite_info.output_encode.y;
+  float tint = composite_info.output_encode.z;
+  if (balance != 0.0 || tint != 0.0) {
+    color *= vec3(
+        1.0 + balance * 0.20,
+        1.0 + tint * 0.15,
+        1.0 - balance * 0.20);
+    // The tint takes its green out of the other two rather than adding light,
+    // so a tint alone changes the hue and not the level.
+    color.r -= tint * 0.075;
+    color.b -= tint * 0.075;
+  }
 
   // **The table goes after the grade and before the barrel**, which is where
   // a grading suite puts it: a LUT is somebody's finished look, so it should

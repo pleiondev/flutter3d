@@ -947,9 +947,16 @@ final class Renderer implements RenderServices {
   final Float32List _compositeLook = Float32List(4);
   final Float32List _compositeLookMore = Float32List(4);
 
-  /// `gfx-24n`'s fifth block: x is the dither amount, the rest unclaimed.
-  /// Allocated once and zero on every frame that does not ask for it.
+  /// `gfx-24n`'s fifth block: x is the dither amount, y and z the white
+  /// balance pair `gfx-27n` added. Allocated once and zero on every frame
+  /// that does not ask for any of them.
   final Float32List _compositeOutputEncode = Float32List(4);
+
+  /// `gfx-27n`'s three ranges. Neutral is (0,0,0) for the lift and (1,1,1)
+  /// for the other two, which is what the composite reads as "do nothing".
+  final Float32List _compositeLift = Float32List(4);
+  final Float32List _compositeGamma = Float32List(4);
+  final Float32List _compositeGain = Float32List(4);
 
   /// Builds a renderer on [device].
   ///
