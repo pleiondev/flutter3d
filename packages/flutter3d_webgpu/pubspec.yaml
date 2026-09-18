@@ -44,6 +44,13 @@ dev_dependencies:
   # flutter3d_conformance, and `test/conformance_test.dart` for what this
   # backend declines and why.
   flutter3d_conformance: ^0.7.0
+  # For `kRequiredShaders` in `engine_shaders_test.dart`, which is the list the
+  # bundle manifest is generated from. The counts in that test were literals and
+  # went stale the moment a row added a pass; holding the committed table to the
+  # manifest instead needs the manifest readable from here. A dev dependency,
+  # like the rest: nothing in `lib/` reaches it, and the generator in `tool/`
+  # already did through the workspace.
+  flutter3d_shaders: ^0.6.0
   # For `resolveIncludes` in `glsl_translate.dart`, and for nothing else. The
   # WebGL2 backend already answers "which headers does this shader really pull
   # in", and a second answer to that question is how two backends drift apart in

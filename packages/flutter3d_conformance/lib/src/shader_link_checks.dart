@@ -108,6 +108,7 @@ Future<void> checkLinking(GraphicsDevice device) async {
       'Reflections',
       'Ssao',
       'SsaoBlur',
+      'ContactShadow',
       'LightShafts',
       'DepthOfField',
       'ViewportShade',

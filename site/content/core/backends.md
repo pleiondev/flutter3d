@@ -19,7 +19,7 @@ What could **not** be written from the contract is the shaders. That limit is re
 <li>What <code>GraphicsDevice</code>, <code>CommandEncoder</code> and <code>PassEncoder</code> require of you</li>
 <li>Ten semantics that are part of the contract and appear in no signature</li>
 <li>The conformance suite, and how to run it before you have a single shader</li>
-<li>The forty-six shader entry points your bundle must answer to</li>
+<li>The forty-seven shader entry points your bundle must answer to</li>
 </ul>
 </div>
 
@@ -347,7 +347,7 @@ Thirty-seven entry points. `kRequiredShaders` and the bundle manifest are kept i
 | Vertex | `MeshVertex`, `MeshSkinnedVertex`, `MeshInstancedVertex`, `MeshLightmappedVertex`, `FullscreenVertex`, `DebugLineVertex`, `ParticleVertex`, `ParticleMeshVertex`, `ShadowTileResetVertex`, `SkyVertex`, `SkyCubeVertex` |
 | Lighting | `Unlit`, `Lambert`, `BlinnPhong`, `Pbr`, `Toon`, `Normals` |
 | Shadows | `ShadowDepth`, `ShadowDistance`, `ShadowDepthMasked`, `ShadowDistanceMasked`, `ShadowTileReset` |
-| Post | `BloomThreshold`, `BloomDownsample`, `BloomUpsample`, `Composite`, `Fxaa`, `Reflections`, `Ssao`, `SsaoBlur`, `LightShafts`, `DepthOfField`, `ViewportShade`, `Luminance`, `ProbePrefilter` |
+| Post | `BloomThreshold`, `BloomDownsample`, `BloomUpsample`, `Composite`, `Fxaa`, `Reflections`, `Ssao`, `SsaoBlur`, `ContactShadow`, `LightShafts`, `DepthOfField`, `ViewportShade`, `Luminance`, `ProbePrefilter` |
 | Particles | `Particle`, `ParticleTextured`, `ParticleMesh` |
 | Sky | `Sky`, `SkyCube` |
 | Debug | `DebugLine`, `MrtProbe`, `ObjectId`, `Xray` |

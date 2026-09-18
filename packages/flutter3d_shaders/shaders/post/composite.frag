@@ -27,6 +27,12 @@ uniform sampler2D bloom_texture;
 /// nothing and removes the branch.
 uniform sampler2D ao_texture;
 
+/// The contact shadow's own factor — `gfx-76n`. Bound on every frame with a
+/// white stand-in when the pass did not run, the same rule `ao_texture` above
+/// follows and for the same reason: a declared sampler nobody binds is a native
+/// crash on Metal rather than a black texture.
+uniform sampler2D contact_shadow_texture;
+
 /// The colour table, as a strip: N slices of N×N laid out left to right, so
 /// the image is N² wide and N tall. Bound to whatever the engine has when no
 /// table is set — the strength is zero then and nothing samples it, but a
@@ -85,6 +91,15 @@ uniform CompositeInfo {
   /// Gain, in xyz — what is multiplied, so it moves the highlights and leaves
   /// black where it was. w: unclaimed. Neutral is (1, 1, 1, 0).
   vec4 gain;
+
+  /// x: how much of the contact shadow reaches the picture, nought to one —
+  /// `gfx-76n`. y, z, w unclaimed.
+  ///
+  /// Appended after everything else, the way this block has grown before: a
+  /// std140 block is laid out in declaration order, so adding here leaves every
+  /// offset above unchanged and the four backends do not have to agree about
+  /// anything they had not already agreed on.
+  vec4 contact;
 }
 composite_info;
 
@@ -396,6 +411,20 @@ void main() {
   // nothing — every golden in the repository depends on that being exact rather
   // than nearly so.
   ao = mix(1.0, ao, clamp(composite_info.params.w, 0.0, 1.0));
+
+  // **The contact shadow, folded into the same multiplier — `gfx-76n`.** Its
+  // own strength, because it answers a different question from the occlusion:
+  // one is how enclosed a point is and the other is whether the sun reaches
+  // it, and a scene wants them at different amounts. Its own `mix` for the
+  // reason the line above has one — "off" has to be a multiplier of exactly
+  // one, which every golden in this repository depends on.
+  //
+  // Full resolution rather than the occlusion's half, so no four-tap average:
+  // the whole point of a contact shadow is the first few centimetres at the
+  // join, and a half-resolution one is the seam it exists to draw, blurred
+  // away.
+  float contact = texture(contact_shadow_texture, v_uv).r;
+  ao *= mix(1.0, contact, clamp(composite_info.contact.x, 0.0, 1.0));
 
   // Applied to the scene and **not** to the bloom, which is the whole reason
   // this lives in the composite rather than in a pass that reads and rewrites

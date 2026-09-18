@@ -48,6 +48,7 @@ import 'package:vector_math/vector_math.dart';
 
 import 'cpu_shader.dart';
 import 'cpu_shaders_bloom.dart';
+import 'cpu_shaders_contact_shadow.dart';
 import 'cpu_shaders_debug.dart';
 import 'cpu_shaders_lit.dart';
 import 'cpu_shaders_mesh_vertex.dart';
@@ -62,6 +63,7 @@ import 'cpu_shaders_vertex_probe.dart';
 
 export 'cpu_shaders_bloom.dart';
 export 'cpu_shaders_color.dart';
+export 'cpu_shaders_contact_shadow.dart';
 export 'cpu_shaders_debug.dart';
 export 'cpu_shaders_layout.dart';
 export 'cpu_shaders_lighting.dart';
@@ -153,6 +155,7 @@ Map<String, CpuStage> builtinCpuShaders() {
     'Particle': const CpuStage.fragment(ParticleShader()),
     'Reflections': const CpuStage.fragment(ReflectionsShader()),
     'Ssao': const CpuStage.fragment(SsaoShader()),
+    'ContactShadow': const CpuStage.fragment(ContactShadowShader()),
     'SsaoBlur': const CpuStage.fragment(SsaoBlurShader()),
     'LightShafts': const CpuStage.fragment(LightShaftsShader()),
     'DepthOfField': const CpuStage.fragment(DepthOfFieldShader()),

@@ -115,6 +115,10 @@
     "type": "fragment",
     "file": "shaders/post/ssao_blur.frag"
   },
+  "ContactShadow": {
+    "type": "fragment",
+    "file": "shaders/post/contact_shadow.frag"
+  },
   "LightShafts": {
     "type": "fragment",
     "file": "shaders/post/light_shafts.frag"

@@ -1908,7 +1908,7 @@ entities a game defines.
 |---|---|
 | Style | `dart format` |
 | Analysis | `flutter analyze` clean across the workspace, no warnings |
-| Unit tests | **9302 tests** across 36 packages and 8 applications |
+| Unit tests | **9305 tests** across 36 packages and 8 applications |
 | Structure rules | 35, `dart run tool/structure.dart`, the first CI step |
 | CI | GitHub Actions over `tool/ci.sh`, on `ubuntu-latest`, with no graphics card |
 
@@ -2519,9 +2519,9 @@ a model imported from glTF is culled by the frustum alone.
 The absent antialiasing costs more than it sounds like, because of what the
 screen-space effects require: filling the surface buffer turns MSAA off for the
 whole scene pass — the average of two octahedral normals is the encoding of no
-normal — so switching on ambient occlusion or reflections switches off the
-antialiasing of the entire frame, and there is nothing to put in its place. A
-post-pass FXAA is the piece that would let a game have both.
+normal — so switching on ambient occlusion, reflections or contact shadows
+switches off the antialiasing of the entire frame, and there is nothing to put in
+its place. A post-pass FXAA is the piece that would let a game have both.
 
 Those two effects are off by default and are pinned by a picture on every
 backend: `ambient-occlusion-corner` and `screen-space-reflections` are golden

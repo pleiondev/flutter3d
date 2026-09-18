@@ -127,7 +127,10 @@ something else.
 No contact shadows. Theirs marches eight steps toward the light against a
 linear-depth buffer. The word "contact" in our shaders means contact
 *hardening*, the PCSS blocker search, which is a different thing. It is exactly
-the kind of grep hit that makes a survey of our own side flatter us.
+the kind of grep hit that makes a survey of our own side flatter us. *Built
+since, as `gfx-76n`: `post/contact_shadow.frag` and a resource of its own, with
+its own strength in the composite so the occlusion being off does not decide for
+it.*
 
 **No alpha-masked shadow casters**, which is the one a reader will see first.
 `shadow_depth.frag` ends in `frag_color = vec4(gl_FragCoord.z, 0.0, 0.0, 1.0)`
