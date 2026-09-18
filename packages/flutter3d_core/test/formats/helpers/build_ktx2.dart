@@ -39,6 +39,11 @@ Uint8List buildKtx2({
   List<List<int>> levels = const [
     [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16],
   ],
+
+  /// What each level decompresses to, when [levels] holds compressed bytes —
+  /// `gfx-78n`. Null means the levels are stored as they are, which is what
+  /// every caller before supercompression wanted and stays the default.
+  List<int>? uncompressedLengths,
 }) {
   final levelCount = levels.length;
   var cursor = kKtx2LevelIndexOffset + levelCount * kKtx2LevelIndexEntryBytes;
@@ -111,7 +116,11 @@ Uint8List buildKtx2({
     view.setUint32(entry + 4, 0, Endian.little);
     view.setUint32(entry + 8, levels[i].length, Endian.little);
     view.setUint32(entry + 12, 0, Endian.little);
-    view.setUint32(entry + 16, levels[i].length, Endian.little);
+    view.setUint32(
+      entry + 16,
+      uncompressedLengths?[i] ?? levels[i].length,
+      Endian.little,
+    );
     view.setUint32(entry + 20, 0, Endian.little);
     bytes.setRange(
       payloadOffsets[i],

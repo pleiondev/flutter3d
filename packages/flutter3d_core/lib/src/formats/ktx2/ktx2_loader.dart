@@ -1,7 +1,17 @@
 import 'dart:typed_data';
 
+import '../image/inflate.dart';
 import 'basis_universal/etc1s_transcoder.dart';
 import 'ktx2_format.dart';
+import 'zstd.dart';
+
+/// `zlibInflate` in the shape the level loop wants — `gfx-78n`.
+///
+/// The inflate one directory over already reads a zlib wrapper, which is what
+/// KTX2's ZLIB supercompression is; it just does not take a size hint, because
+/// PNG's `IDAT` never knows one in advance.
+Uint8List? _inflateLevel(Uint8List bytes, {int? sizeHint}) =>
+    zlibInflate(bytes);
 
 /// A KTX2 file, read down to what a texture upload needs: dimensions, the
 /// raw [vkFormat] its mip bytes are in, and each level's bytes.
@@ -110,15 +120,20 @@ final class Ktx2Texture {
     // global data below, not in this field.
     if (vkFormat == VkFormat.undefined) {
       if (supercompressionScheme != Ktx2SupercompressionScheme.basisLZ) {
-        // Naming UASTC because that is what this almost always is: `toktx
-        // --uastc` writes an undefined vkFormat with no supercompression,
-        // and the only Basis half transcoded here is ETC1S.
+        // **What is refused here is the payload, not the wrapper — `gfx-78n`
+        // changed which of the two this is.** Zstandard and ZLIB are unpacked
+        // now, so a file arriving here has pixels this build cannot read
+        // rather than a compression it cannot undo. Naming UASTC because that
+        // is what an undefined `vkFormat` outside Basis-LZ almost always is:
+        // `toktx --uastc` writes exactly that, and the only Basis half
+        // transcoded here is ETC1S.
         throw Ktx2FormatException(
           'vkFormat is undefined, so the pixels are Basis Universal, but the '
           'supercompression scheme is $supercompressionScheme '
           '(${_supercompressionName(supercompressionScheme)}), not Basis-LZ. '
           'That is what a UASTC file looks like, and only the ETC1S half of '
-          'Basis Universal is transcoded here — re-encode with ETC1S '
+          'Basis Universal is transcoded here — the supercompression is not '
+          'the problem, the block format is. Re-encode with ETC1S '
           '(`toktx --encode etc1s`) or to an explicit vkFormat.',
         );
       }
@@ -131,13 +146,22 @@ final class Ktx2Texture {
       return _parseBasisEtc1s(bytes, view, pixelWidth, pixelHeight, levelCount);
     }
 
-    if (supercompressionScheme != Ktx2SupercompressionScheme.none) {
-      throw Ktx2FormatException(
+    // **Zstandard and ZLIB are unpacked here — `gfx-78n`.** Both wrap the
+    // ordinary level index rather than changing it: each level's bytes are a
+    // compressed stream and the index's third field says what it decompresses
+    // to, so the whole of the difference is one call per level. Anything else,
+    // including a vendor number above the range Khronos reserves, is still
+    // refused by name.
+    final decompress = switch (supercompressionScheme) {
+      Ktx2SupercompressionScheme.none => null,
+      Ktx2SupercompressionScheme.zstandard => zstdDecode,
+      Ktx2SupercompressionScheme.zlib => _inflateLevel,
+      _ => throw Ktx2FormatException(
         'Unsupported supercompression scheme $supercompressionScheme '
         '(${_supercompressionName(supercompressionScheme)}) — not '
         'implemented yet.',
-      );
-    }
+      ),
+    };
     if (levelCount == 0) {
       throw const Ktx2FormatException(
         'levelCount is 0, which asks the loader to generate mip levels at '
@@ -169,11 +193,45 @@ final class Ktx2Texture {
           'end of a ${bytes.lengthInBytes}-byte file.',
         );
       }
+      final stored = ByteData.view(
+        bytes.buffer,
+        bytes.offsetInBytes + byteOffset,
+        byteLength,
+      );
+      if (decompress == null) {
+        levels.add(stored);
+        continue;
+      }
+
+      final uncompressed = _readOffsetOrLength(
+        view,
+        entry + 16,
+        'level $i uncompressed length',
+      );
+      final unpacked = decompress(
+        Uint8List.view(stored.buffer, stored.offsetInBytes, byteLength),
+        sizeHint: uncompressed,
+      );
+      if (unpacked == null) {
+        throw Ktx2FormatException(
+          'Level $i did not decompress as '
+          '${_supercompressionName(supercompressionScheme)}.',
+        );
+      }
+      // The index's own claim, held to: a level that unpacks to a different
+      // size is a file whose mip dimensions and whose pixels disagree, and
+      // uploading it would read past the end of one of them.
+      if (unpacked.length != uncompressed) {
+        throw Ktx2FormatException(
+          'Level $i decompressed to ${unpacked.length} bytes where the level '
+          'index says $uncompressed.',
+        );
+      }
       levels.add(
         ByteData.view(
-          bytes.buffer,
-          bytes.offsetInBytes + byteOffset,
-          byteLength,
+          unpacked.buffer,
+          unpacked.offsetInBytes,
+          unpacked.lengthInBytes,
         ),
       );
     }
