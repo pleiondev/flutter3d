@@ -22,7 +22,7 @@ dev_dependencies:
   flutter_lints: ^6.0.0
   # A second PNG reader the formats library's own codecs are checked against
   # (`test/formats/helpers/load_png.dart`).
-  image: ^4.9.2
+  image: ^4.10.1
 
 # **The Flutter-free half of `flutter3d`, mcp-03n's own split.** `flutter3d`
 # named Flutter in five files out of eighty-nine, all of them in
