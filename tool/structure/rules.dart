@@ -83,6 +83,14 @@ List<Rule> get allRules => <Rule>[
     name: 'the compiled shader bundle is not older than its sources',
     run: _shaderBundleIsCurrent,
   ),
+  (
+    name: 'no vertex stage reaches for texelFetch',
+    run: _noTexelFetchInVertexStages,
+  ),
+  (
+    name: 'the surface buffer keeps carrying depth in metres',
+    run: _surfaceDepthStays,
+  ),
   (name: 'a step asks no machine for an answer', run: _portableStepArithmetic),
   (name: 'every skill is named for its package', run: _skillNames),
 ];
@@ -3016,4 +3024,123 @@ String? _frontmatterValue(String text, String key) {
     return line.substring(colon + 1).trim();
   }
   return null;
+}
+
+/// `gfx-51n`: no vertex stage reaches for `texelFetch`.
+///
+/// **Bisected rather than assumed, and the account is in the shader that went
+/// the long way round.** `lib/morph.glsl` records it: impellerc crashes on
+/// `texelFetch` in a *vertex* stage — SIGABRT, no diagnostic, exit 134 —
+/// while the same call in a fragment stage compiles, `gl_VertexIndex` alone
+/// compiles, and `texture()` in a vertex stage compiles. It is that one
+/// combination.
+///
+/// The survey this row came from said something wider — that `texelFetch`
+/// aborts at the default GLES target and needs
+/// `--gles-language-version=300` — and the bundle builds today with three
+/// fragment stages that would have contradicted it. The narrower claim is the
+/// one with a bisection behind it, so it is the one enforced.
+///
+/// So a vertex stage that wants an exact texel builds the coordinate by hand,
+/// `(index + 0.5) / size`, with a nearest clamped sampler and the size passed
+/// down in a uniform rather than read from `textureSize`. This rule is what
+/// says so at a moment somebody can act on: the failure it prevents is an
+/// abort with no line number during a bundle build, on the one backend whose
+/// build a shader author may not be running.
+///
+/// Comments do not count, and that is not a detail — the file carrying the
+/// clearest account of this constraint is the one that names `texelFetch`
+/// most often, and a rule that flagged it would punish the documentation.
+List<Finding> _noTexelFetchInVertexStages() {
+  final sources = packages['flutter3d_shaders'];
+  if (sources == null) {
+    return <Finding>[const Finding('flutter3d_shaders', 'is not there')];
+  }
+  final dir = Directory('${sources.path}/shaders');
+  if (!dir.existsSync()) {
+    return <Finding>[
+      const Finding('flutter3d_shaders/shaders', 'is not there'),
+    ];
+  }
+
+  return <Finding>[
+    for (final file in dir.listSync(recursive: true).whereType<File>())
+      // `.vert` is a vertex stage outright; a `.glsl` may be included by one,
+      // and `lib/morph.glsl` is exactly that case.
+      if (file.path.endsWith('.vert') || file.path.endsWith('.glsl'))
+        if (_withoutComments(file.readAsStringSync()).contains('texelFetch'))
+          Finding(
+            'flutter3d_shaders/${relative(file, sources)}',
+            'reaches for texelFetch where a vertex stage can see it, which '
+                'impellerc aborts on with exit 134 and no diagnostic. Build '
+                'the coordinate by hand and sample with a nearest clamped '
+                'sampler, the way lib/morph.glsl does and says why',
+          ),
+  ];
+}
+
+
+/// `gfx-58n`: the surface buffer keeps carrying depth, whatever upstream does.
+///
+/// **A gate with an argument attached, and the argument is the whole row.**
+/// `#192449` — no way to sample a depth texture — is the most defensible
+/// filing in `doc/upstream.md` on merit, and it is the one that would do the
+/// most damage if it landed and nobody thought about it: the temptation would
+/// be to throw away `surface.a` and read a depth attachment instead.
+///
+/// `surface.a` is view-axis depth **in metres**, which is not what a depth
+/// attachment holds. The thin-lens circle of confusion in
+/// `depth_of_field.frag` needs metres; the shafts convert along the ray with
+/// it; the occlusion and reflection marches unproject with it. A window depth
+/// would make all four mean different things near and far. So the channel
+/// stays whether or not the filing lands, and this is what says so in a place
+/// that fails rather than in a paragraph nobody reads.
+List<Finding> _surfaceDepthStays() {
+  final sources = packages['flutter3d_shaders'];
+  if (sources == null) {
+    return <Finding>[const Finding('flutter3d_shaders', 'is not there')];
+  }
+  final found = <Finding>[];
+
+  // The write, which everything else depends on.
+  final color = File('${sources.path}/shaders/lib/color.glsl');
+  if (!color.existsSync()) {
+    found.add(
+      const Finding('flutter3d_shaders/shaders/lib/color.glsl', 'is not there'),
+    );
+  } else if (!color.readAsStringSync().contains('ViewDepth()')) {
+    found.add(
+      const Finding(
+        'flutter3d_shaders/shaders/lib/color.glsl',
+        'no longer writes ViewDepth() into the surface buffer. Four passes '
+            'read that channel as metres along the view axis — see gfx-58n '
+            'in doc/upstream.md, which is why the channel outlives #192449 '
+            'either way',
+      ),
+    );
+  }
+
+  // And no shader declaring a depth sampler, which is the shape the
+  // temptation would arrive in.
+  final dir = Directory('${sources.path}/shaders');
+  if (dir.existsSync()) {
+    for (final file in dir.listSync(recursive: true).whereType<File>()) {
+      if (!file.path.endsWith('.frag') && !file.path.endsWith('.glsl')) {
+        continue;
+      }
+      final text = file.readAsStringSync();
+      if (text.contains('sampler2DShadow') ||
+          text.contains('texture2DShadow')) {
+        found.add(
+          Finding(
+            'flutter3d_shaders/${relative(file, sources)}',
+            'declares a depth sampler. flutter_gpu cannot sample one — '
+                '#192449 — and the engine reads depth out of the surface '
+                'buffer instead, in metres. See gfx-58n',
+          ),
+        );
+      }
+    }
+  }
+  return found;
 }

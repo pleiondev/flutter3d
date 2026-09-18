@@ -68,6 +68,23 @@ a thin-lens circle-of-confusion needs. Every post row keeps reading
 `surface.a`. This is recorded as a row (`gfx-58n`) so the temptation has an
 answer attached.
 
+**`gfx-58n` landed 2026-09-18, as a rule rather than a paragraph.** "The
+surface buffer keeps carrying depth in metres" is one of the thirty-five
+checks `tool/structure.dart` runs: it fails if `lib/color.glsl` stops writing
+`ViewDepth()` into the channel, and it fails if any shader declares a depth
+sampler. A rule can be read by somebody who never opened this document, which
+is the difference between an answer attached and an answer written down.
+
+**`gfx-51n` landed with it, and the survey's version of the fact was wrong.**
+The row was recorded as "`texelFetch` aborts impellerc at the default GLES
+target and compiles only with `--gles-language-version=300`". The bundle
+builds today with fragment stages that would have contradicted that, and
+`lib/morph.glsl` carries the bisected account: impellerc crashes on
+`texelFetch` in a *vertex* stage — SIGABRT, exit 134, no diagnostic — while a
+fragment stage compiles it. The rule enforces the narrower claim, which is the
+one with evidence behind it, and it ignores comments so that the file
+documenting the constraint is not the file it flags.
+
 ## Why a runtime engine patch cannot be a feature of our packages
 
 A `flutter_gpu` or Impeller runtime change compiles into
