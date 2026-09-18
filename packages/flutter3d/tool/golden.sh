@@ -113,13 +113,38 @@ if [[ ! -f "$LOADABLE" ]]; then
   exit 2
 fi
 
-APP='flutter3d.app/Contents/MacOS/flutter3d'
-APP_BIN="$EXAMPLE_DIR/build/macos/Build/Products/Debug/$APP"
+# **Two desktops, because one of them has no GPU and that is the point** —
+# `gfx-72n`. The Impeller half of this set needs a real device and always will;
+# the software half does not, and a Linux runner under Xvfb is how a pull
+# request that moves a golden goes red in CI rather than on somebody's machine
+# days later. The only things that differ are the build command and where the
+# binary lands: the launch below is `exec "$APP_BIN"` either way, and every
+# scene, every comparison and every exit code is shared.
+#
+# The build directory carries the architecture, which this reads rather than
+# assumes — a runner may be x64 or arm64 and neither is this script's business.
+case "$(uname -s)" in
+  Linux)
+    HOST='Linux'
+    BUILD_ARGS=(linux --debug)
+    APP_BIN="$(echo "$EXAMPLE_DIR"/build/linux/*/debug/bundle/flutter3d)"
+    ;;
+  *)
+    HOST='macOS'
+    BUILD_ARGS=(macos --debug)
+    APP_BIN="$EXAMPLE_DIR/build/macos/Build/Products/Debug/flutter3d.app/Contents/MacOS/flutter3d"
+    ;;
+esac
 
 if [[ "$BUILD" == true ]]; then
-  echo "building the example for macOS…"
-  (cd "$EXAMPLE_DIR" && flutter build macos --debug \
+  echo "building the example for $HOST…"
+  (cd "$EXAMPLE_DIR" && flutter build "${BUILD_ARGS[@]}" \
     ${BACKEND_DEFINE[@]+"${BACKEND_DEFINE[@]}"})
+  # Re-read it: the glob above ran before the build existed, so on a first
+  # Linux build it matched nothing and stayed as the pattern.
+  if [[ "$HOST" == 'Linux' ]]; then
+    APP_BIN="$(echo "$EXAMPLE_DIR"/build/linux/*/debug/bundle/flutter3d)"
+  fi
 fi
 
 if [[ ! -x "$APP_BIN" ]]; then

@@ -176,6 +176,60 @@ jobs:
   # one `flutter pub get` at the root is what resolves the workspace, and a
   # bare `dart pub get` there cannot, which is the whole subject of the
   # `flat-dart` job above.
+  # **A lane that renders** — `gfx-72n`. The four jobs above run every test in
+  # the repository, and none of them redraws a golden: `cross_backend_test.dart`
+  # compares two *committed* reference sets against each other, and the pass
+  # that actually re-renders lives in `packages/flutter3d/tool/golden.sh`, which
+  # needs a built desktop application. So a golden that moved was caught when
+  # somebody ran that script by hand, which is to say days later.
+  #
+  # The software rasteriser is what makes this affordable without a GPU: it
+  # draws the same forty-four scenes as Impeller, deterministically, and has its
+  # own committed reference set in `flutter3d_cpu/test/goldens`. The Impeller
+  # half still needs a real device and always will.
+  #
+  # Under Xvfb because a Flutter desktop binary opens a window even when the
+  # frame it draws is read back rather than shown. The GPU is not wanted here
+  # and not used: `--cpu` hands the example the software backend.
+  #
+  # A job of its own for the reason the `godot` job gives: `check` is already
+  # seventeen minutes and is what a push waits for, and this brings a desktop
+  # toolchain with it.
+  render:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.47.0'
+          channel: stable
+          cache: true
+
+      # What a Flutter Linux desktop build links against, plus the display the
+      # binary opens a window on. `xvfb` rather than a headless flag, because
+      # there is no headless flag: the engine wants a surface, and whether
+      # anybody looks at it is a separate question.
+      - name: linux desktop toolchain
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clang cmake ninja-build pkg-config \
+            libgtk-3-dev liblzma-dev libstdc++-12-dev xvfb
+
+      - run: flutter pub get
+
+      # impellerc lives in the engine artifacts, and both shader bundles are
+      # built rather than committed.
+      - run: flutter precache --linux
+      - run: cd packages/flutter3d_impeller && dart run bin/build_shader_bundle.dart
+      - run: cd packages/flutter3d/example && ./tool/build_shaders.sh
+
+      # The comparison, not a recording: `--update` is what records, and a lane
+      # that recorded would agree with itself for ever.
+      - name: golden scenes, software backend
+        run: xvfb-run -a packages/flutter3d/tool/golden.sh --cpu
+
   godot:
     runs-on: ubuntu-latest
     timeout-minutes: 20
