@@ -722,6 +722,70 @@ final class _SsaoNode extends RenderNode {
 ///
 /// Switching bloom off is [isActive], not a null return: nothing produces the
 /// glow, so the node is culled and costs no pass, no texture and no branch.
+/// `gfx-33n`'s volumetric shafts, as a link in the lit-colour chain.
+///
+/// **Reads the shadow map optionally, which is the whole of how it declines.**
+/// The shafts are a shadow-map product: with no caster there is no map, the
+/// optional read comes back null, and the node returns having drawn nothing.
+/// That is the honest answer rather than an error — a light being added later
+/// is the ordinary case, and a frame that threw because a scene had no
+/// directional caster would be a worse engine.
+///
+/// Reads the surface buffer too, for how far along each ray there is still
+/// air. Declaring it is what attaches the buffer, the same way the occlusion
+/// pass's own declaration does.
+final class _LightShaftsNode extends RenderNode {
+  _LightShaftsNode(this._renderer, this._view, this._settings);
+
+  final Renderer _renderer;
+  final RenderView _view;
+  final RenderSettings _settings;
+
+  @override
+  String get name => 'light shafts';
+
+  @override
+  bool get isActive =>
+      _settings.lightShafts.enabled &&
+      _settings.lightShafts.strength > 0.0 &&
+      _settings.lightShafts.steps > 0;
+
+  @override
+  List<ResourceId> get reads => const <ResourceId>[
+    FrameResourceIds.hdrColour,
+    FrameResourceIds.surfaceBuffer,
+  ];
+
+  @override
+  List<ResourceId> get optionalReads => const <ResourceId>[
+    FrameResourceIds.shadowMap,
+  ];
+
+  @override
+  List<ResourceId> get writes => const <ResourceId>[FrameResourceIds.hdrColour];
+
+  @override
+  void execute(NodeFrame frame) {
+    final surface = frame.resources.tryTexture(FrameResourceIds.surfaceBuffer);
+    final shadow = frame.resources.tryTexture(FrameResourceIds.shadowMap);
+    if (surface == null || shadow == null) return;
+    final lit = _renderer._encodeLightShafts(
+      scene: frame.resources.texture(FrameResourceIds.hdrColour),
+      surface: surface,
+      shadow: shadow,
+      settings: _settings.lightShafts,
+      view: _view,
+      resources: frame.resources,
+      width: frame.width,
+      height: frame.height,
+    );
+    // A different texture from the one it read — a pass cannot sample and
+    // write one — so the version it produced is told which texture it is, the
+    // hand-off `_ReflectionsNode` makes for the same reason.
+    frame.resources.provide(FrameResourceIds.hdrColour, lit);
+  }
+}
+
 /// `gfx-32n`'s depth-aware blur, as a link in the occlusion chain.
 ///
 /// **Reads `ao` and writes `ao`, which is what makes it skippable for free.**

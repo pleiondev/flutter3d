@@ -339,6 +339,99 @@ extension _PostPasses on Renderer {
   /// Its own target rather than in place: the pass samples the scene while it
   /// writes, and a texture cannot be both. Returns [scene] untouched when the
   /// effect is off, so the chain downstream never branches.
+  /// `gfx-33n`: adds volumetric shafts into the lit colour.
+  ///
+  /// Reuses the shadow pass's own matrices and splits rather than recomputing
+  /// them — they describe the map this is about to sample, so a second
+  /// derivation is a second thing to disagree with the map.
+  TextureHandle _encodeLightShafts({
+    required TextureHandle scene,
+    required TextureHandle surface,
+    required TextureHandle shadow,
+    required LightShaftSettings settings,
+    required RenderView view,
+    required FrameResources resources,
+    required int width,
+    required int height,
+  }) {
+    developer.Timeline.startSync('Renderer.lightShafts');
+    // A transient of the scene's own shape: a pass cannot sample and write
+    // one texture, and nothing outside this frame wants the intermediate.
+    final target = resources.transient(
+      RenderTargetSpec(
+        width: scene.width,
+        height: scene.height,
+        format: scene.format,
+      ),
+    );
+
+    final aspect = height == 0 ? 1.0 : width / height;
+    // Origin-adjusted and not depth-range adjusted, for the reason
+    // `_encodeReflections` writes out at length: the shader inverts this to
+    // find the ray through a pixel, and the other convention puts the far
+    // corner somewhere else.
+    final viewProjection = toFramebufferOrigin(
+      view.camera.viewProjection(aspect),
+      device.framebufferOrigin,
+    );
+    final inverse = vm.Matrix4.copy(viewProjection)..invert();
+
+    view.camera.readWorldPosition(_shaftCameraVec);
+    _shaftCamera[0] = _shaftCameraVec.x;
+    _shaftCamera[1] = _shaftCameraVec.y;
+    _shaftCamera[2] = _shaftCameraVec.z;
+    _shaftCamera[3] = math.max(settings.distance, 0.0);
+
+    view.camera.readForward(_shaftForwardVec);
+    _shaftForward[0] = _shaftForwardVec.x;
+    _shaftForward[1] = _shaftForwardVec.y;
+    _shaftForward[2] = _shaftForwardVec.z;
+    _shaftForward[3] = settings.steps.clamp(0, 64).toDouble();
+
+    // The strength is folded into the colour here, so the shader adds a
+    // vector that is exactly zero when nobody asked rather than branching on
+    // a separate number.
+    final colour = settings.color;
+    final strength = math.max(settings.strength, 0.0);
+    _shaftScatter[0] = (colour?.x ?? 1.0) * strength;
+    _shaftScatter[1] = (colour?.y ?? 1.0) * strength;
+    _shaftScatter[2] = (colour?.z ?? 1.0) * strength;
+
+    _shaftCascades[0] = _shadowCascades[0];
+    _shaftCascades[1] = _shadowCascades[1];
+    _shaftCascades[2] = _shadowCascades[2];
+    // The same bias the surface lookup uses. A point in the air has no
+    // surface to lift off, so this is the only guard against a shaft
+    // shadowing itself along the map's own quantisation.
+    _shaftCascades[3] = _shadowParams[1];
+
+    drawFullscreen(
+      FullscreenDraw(
+        target: target,
+        fragment: lightShaftsShader,
+        textures: <String, TextureHandle>{
+          'scene_texture': scene,
+          'surface_texture': surface,
+          'shadow_texture': shadow,
+        },
+        uniforms: <String, Map<String, Float32List>>{
+          'ShaftInfo': <String, Float32List>{
+            'inverse_view_projection': inverse.storage,
+            'shadow_matrix': _shadowMatrix.storage,
+            'shadow_matrix_far': _shadowMatrixFar.storage,
+            'shadow_matrix_farthest': _shadowMatrixFarthest.storage,
+            'camera': _shaftCamera,
+            'forward': _shaftForward,
+            'scatter': _shaftScatter,
+            'cascades': _shaftCascades,
+          },
+        },
+      ),
+    );
+    developer.Timeline.finishSync();
+    return target;
+  }
+
   TextureHandle _encodeReflections({
     required TextureHandle scene,
     required RenderSettings settings,
