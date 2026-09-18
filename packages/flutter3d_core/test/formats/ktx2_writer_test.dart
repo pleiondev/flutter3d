@@ -115,6 +115,60 @@ void main() {
     },
   );
 
+  test('key/value entries survive the round trip past the level data', () {
+    // **The section sits between the level index and the levels**, so writing
+    // one moves every level offset — a writer that added the bytes without
+    // moving them would produce a file whose own index points into the
+    // key/value data. Two entries of different lengths, because each pads to a
+    // multiple of four independently and an entry that starts on the wrong
+    // boundary reads the one before it as its own key.
+    final level = Uint8List.fromList(List<int>.generate(8, (i) => i + 1));
+    final bytes = writeKtx2(
+      vkFormat: VkFormat.bc1RgbaUNormBlock,
+      pixelWidth: 4,
+      pixelHeight: 4,
+      levels: <Uint8List>[level],
+      keyValues: const <String, String>{
+        'KTXorientation': 'rd',
+        'f3dSomethingLonger': 'a value that does not divide by four',
+      },
+    );
+
+    final texture = Ktx2Texture.parse(bytes);
+    expect(
+      Uint8List.sublistView(
+        texture.levels.single.buffer.asUint8List(),
+        texture.levels.single.offsetInBytes,
+        texture.levels.single.offsetInBytes + 8,
+      ),
+      level,
+    );
+  });
+
+  test('a key the loader refuses is refused from a file this wrote', () {
+    // The writer does not police what goes in the section; the reader does,
+    // and this is the one pairing that proves the bytes it writes are the
+    // bytes that reader reads.
+    expect(
+      () => Ktx2Texture.parse(
+        writeKtx2(
+          vkFormat: VkFormat.bc1RgbaUNormBlock,
+          pixelWidth: 4,
+          pixelHeight: 4,
+          levels: <Uint8List>[Uint8List(8)],
+          keyValues: const <String, String>{'KTXorientation': 'ru'},
+        ),
+      ),
+      throwsA(
+        isA<Ktx2FormatException>().having(
+          (e) => e.message,
+          'message',
+          contains('KTXorientation'),
+        ),
+      ),
+    );
+  });
+
   test('at least one level is required', () {
     expect(
       () => writeKtx2(

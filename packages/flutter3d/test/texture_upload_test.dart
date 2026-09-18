@@ -256,6 +256,82 @@ void main() {
     expect(at(7, 7), rgba(255, 255, 2));
   });
 
+  group(
+    'a universal-block file becomes the device\'s own format — gfx-83n',
+    () {
+      /// A 4×4 red-to-blue ramp, cooked once and reused by every case below —
+      /// the point of the row is that these are the *same* bytes.
+      final cooked = writeKtx2(
+        vkFormat: VkFormat.undefined,
+        pixelWidth: 4,
+        pixelHeight: 4,
+        levels: <Uint8List>[
+          encodeUniversalBlocks(
+            Rgba8Image(
+              width: 4,
+              height: 4,
+              pixels: Uint8List.fromList(<int>[
+                for (var i = 0; i < 16; i++) ...<int>[
+                  i * 16,
+                  40,
+                  255 - i * 16,
+                  255,
+                ],
+              ]),
+            ),
+          ),
+        ],
+        keyValues: const <String, String>{
+          kUniversalBlockKey: kUniversalBlockRgb,
+        },
+      );
+
+      for (final (name, unsupported, expected)
+          in <(String, Set<TextureFormat>, TextureFormat)>[
+            ('a desktop', <TextureFormat>{}, TextureFormat.bc1RGBAUNormInt),
+            (
+              'a phone with ASTC',
+              <TextureFormat>{TextureFormat.bc1RGBAUNormInt},
+              TextureFormat.astc4x4LDR,
+            ),
+            (
+              'an older phone with ETC2',
+              <TextureFormat>{
+                TextureFormat.bc1RGBAUNormInt,
+                TextureFormat.astc4x4LDR,
+              },
+              TextureFormat.etc2RGB8UNormInt,
+            ),
+            (
+              'a device with no block format at all',
+              <TextureFormat>{
+                TextureFormat.bc1RGBAUNormInt,
+                TextureFormat.astc4x4LDR,
+                TextureFormat.etc2RGB8UNormInt,
+              },
+              TextureFormat.r8g8b8a8UNormInt,
+            ),
+          ]) {
+        test('$name uploads ${expected.name}', () async {
+          final device = FakeBackend(unsupportedFormats: unsupported);
+          final reports = <String>[];
+
+          final handle = await uploadEncodedImage(
+            device,
+            cooked,
+            decodeImage: _neverDecodes,
+            report: reports.add,
+          );
+
+          expect(handle, isNotNull);
+          expect(reports, isEmpty);
+          expect(device.uploadedTextures.single.format, expected);
+          expect(device.uploadedTextures.single.width, 4);
+        });
+      }
+    },
+  );
+
   test('empty bytes upload nothing', () async {
     final device = FakeBackend();
     expect(

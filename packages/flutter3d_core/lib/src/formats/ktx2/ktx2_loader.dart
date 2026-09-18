@@ -3,6 +3,7 @@ import 'dart:typed_data';
 import '../image/inflate.dart';
 import 'basis_universal/etc1s_transcoder.dart';
 import 'ktx2_format.dart';
+import 'universal/universal_block.dart';
 import 'zstd.dart';
 
 /// `zlibInflate` in the shape the level loop wants — `gfx-78n`.
@@ -60,7 +61,17 @@ final class Ktx2Texture {
   /// Throws [Ktx2FormatException] rather than returning null: a caller that
   /// picked this decoder has already decided the bytes are a `.ktx2`, and a
   /// silent null would surface later as a missing texture with no reason.
-  factory Ktx2Texture.parse(Uint8List bytes) {
+  ///
+  /// [universalTarget] is the GPU format a universal-block file is turned
+  /// into on the way past — `gfx-83n`. It is required for such a file and
+  /// ignored for every other, because the choice is the device's and this
+  /// package cannot see one: [universalBlockFormat] answers whether a file
+  /// needs it, and the engine's own wrapper picks the target from what the
+  /// device says it samples.
+  factory Ktx2Texture.parse(
+    Uint8List bytes, {
+    UniversalTarget? universalTarget,
+  }) {
     if (bytes.lengthInBytes < kKtx2LevelIndexOffset) {
       throw Ktx2FormatException(
         'File is ${bytes.lengthInBytes} bytes, too short for a KTX2 header.',
@@ -113,12 +124,38 @@ final class Ktx2Texture {
         'Cube maps (faceCount=$faceCount) are not supported yet.',
       );
     }
-    _checkKeyValues(bytes, view);
+    final keyValues = _checkKeyValues(bytes, view);
 
     // `vkFormat == 0` (VK_FORMAT_UNDEFINED) is how a KTX2 file says "this is
     // Basis Universal" — the real format then lives in the supercompression
     // global data below, not in this field.
     if (vkFormat == VkFormat.undefined) {
+      final universal = keyValues[kUniversalBlockKey];
+      if (universal != null) {
+        if (levelCount == 0) {
+          throw const Ktx2FormatException(
+            'levelCount is 0, which asks the loader to generate mip levels at '
+            'load time — not implemented yet.',
+          );
+        }
+        if (supercompressionScheme != Ktx2SupercompressionScheme.none) {
+          throw Ktx2FormatException(
+            'A universal-block file is ${_supercompressionName(supercompressionScheme)}-'
+            'compressed, and only an uncompressed one is read here — the '
+            'transcode and the decompression would both have to run on the '
+            'load, and nothing writes this combination yet.',
+          );
+        }
+        return _parseUniversal(
+          bytes,
+          view,
+          pixelWidth,
+          pixelHeight,
+          levelCount,
+          universal,
+          universalTarget,
+        );
+      }
       if (supercompressionScheme != Ktx2SupercompressionScheme.basisLZ) {
         // **What is refused here is the payload, not the wrapper — `gfx-78n`
         // changed which of the two this is.** Zstandard and ZLIB are unpacked
@@ -420,8 +457,103 @@ Ktx2Texture _parseBasisEtc1s(
   return Ktx2Texture._(pixelWidth, pixelHeight, VkFormat.r8g8b8a8UNorm, levels);
 }
 
-/// Refuses a file whose key/value data asks for something the upload does
-/// not do.
+/// The universal-block path — `gfx-83n`: every level's blocks turned into
+/// [target] on the way past.
+///
+/// **The target is the caller's, and it has to be**, which is the whole point
+/// of the format. This package cannot ask a device what it samples without
+/// taking on the dependency `ap-01` moved out of it, so the choice arrives
+/// from the engine's own wrapper and the refusal for a missing one names that
+/// rather than guessing a format.
+Ktx2Texture _parseUniversal(
+  Uint8List bytes,
+  ByteData view,
+  int pixelWidth,
+  int pixelHeight,
+  int levelCount,
+  String marker,
+  UniversalTarget? target,
+) {
+  final hasAlpha = switch (marker) {
+    kUniversalBlockRgba => true,
+    kUniversalBlockRgb => false,
+    _ => throw Ktx2FormatException(
+      '$kUniversalBlockKey is "$marker", which is not a block layout this '
+      'build reads — "$kUniversalBlockRgb" and "$kUniversalBlockRgba" are.',
+    ),
+  };
+  if (target == null) {
+    throw const Ktx2FormatException(
+      'This file holds universal blocks, which are not a GPU format: the '
+      'caller has to name the one the device samples. Parse it again with a '
+      'universalTarget.',
+    );
+  }
+  if (hasAlpha && !target.carriesAlpha) {
+    throw Ktx2FormatException(
+      'This texture carries alpha and ${target.name} does not, so the '
+      'transcode would drop it silently.',
+    );
+  }
+
+  final levels = <ByteData>[];
+  for (var i = 0; i < levelCount; i++) {
+    final entry = kKtx2LevelIndexOffset + i * kKtx2LevelIndexEntryBytes;
+    final byteOffset = _readOffsetOrLength(view, entry, 'level $i offset');
+    final byteLength = _readOffsetOrLength(view, entry + 8, 'level $i length');
+    if (byteOffset + byteLength > bytes.lengthInBytes) {
+      throw Ktx2FormatException(
+        'Level $i runs from $byteOffset for $byteLength bytes, past the end '
+        'of a ${bytes.lengthInBytes}-byte file.',
+      );
+    }
+    final width = pixelWidth >> i;
+    final height = pixelHeight >> i;
+    final blocks = Uint8List.view(
+      bytes.buffer,
+      bytes.offsetInBytes + byteOffset,
+      byteLength,
+    );
+    final transcoded = transcodeUniversal(
+      blocks,
+      target,
+      width: width < 1 ? 1 : width,
+      height: height < 1 ? 1 : height,
+    );
+    levels.add(ByteData.sublistView(transcoded));
+  }
+
+  return Ktx2Texture._(pixelWidth, pixelHeight, target.vkFormat, levels);
+}
+
+/// Whether [bytes] is a universal-block file and whether it carries alpha, or
+/// null when it is an ordinary KTX2.
+///
+/// Asked before [Ktx2Texture.parse] by a caller that has to pick a target: on
+/// the engine's side the device knows what it samples and the isolate the
+/// transcode runs on does not, so the choice is made here and carried in.
+({bool hasAlpha})? universalBlockFormat(Uint8List bytes) {
+  // Long enough for the header and the index that points at the key/value
+  // section — this is asked *before* the parse, of bytes nothing has checked,
+  // so a file too short to hold the question is a no rather than a throw. The
+  // parse that follows is what reports the truncation.
+  if (bytes.lengthInBytes < kKtx2LevelIndexOffset) return null;
+  if (!isBasisUniversalKtx2(bytes)) return null;
+  final view = ByteData.view(
+    bytes.buffer,
+    bytes.offsetInBytes,
+    bytes.lengthInBytes,
+  );
+  final marker = _checkKeyValues(bytes, view)[kUniversalBlockKey];
+  return switch (marker) {
+    kUniversalBlockRgba => (hasAlpha: true),
+    kUniversalBlockRgb => (hasAlpha: false),
+    _ => null,
+  };
+}
+
+/// Reads the key/value section, and refuses a file whose entries ask for
+/// something the upload does not do.
 ///
 /// The section was skipped entirely until this, and skipping it is not free:
 /// its three interesting keys each describe pixels the upload would then get
@@ -444,7 +576,8 @@ Ktx2Texture _parseBasisEtc1s(
 /// knows is wrong is the one thing it must not return. Honouring any of the
 /// three later is additive — a flip, a swizzle in the sampler, an unmultiply
 /// — and each turns a refusal into a load.
-void _checkKeyValues(Uint8List bytes, ByteData view) {
+Map<String, String> _checkKeyValues(Uint8List bytes, ByteData view) {
+  final entries = <String, String>{};
   final kvdByteOffset = view.getUint32(
     kKtx2IndexOffset + Ktx2IndexField.kvdByteOffset,
     Endian.little,
@@ -453,7 +586,7 @@ void _checkKeyValues(Uint8List bytes, ByteData view) {
     kKtx2IndexOffset + Ktx2IndexField.kvdByteLength,
     Endian.little,
   );
-  if (kvdByteLength == 0) return;
+  if (kvdByteLength == 0) return entries;
   if (kvdByteOffset + kvdByteLength > bytes.lengthInBytes) {
     throw Ktx2FormatException(
       'Key/value data runs from $kvdByteOffset for $kvdByteLength bytes, '
@@ -510,9 +643,11 @@ void _checkKeyValues(Uint8List bytes, ByteData view) {
           'the translucent texels would be darkened twice.',
         );
     }
+    entries[key] = value;
     at += length;
     at = (at + 3) & ~3;
   }
+  return entries;
 }
 
 /// Reads one of the format's 64-bit fields as a Dart `int`.

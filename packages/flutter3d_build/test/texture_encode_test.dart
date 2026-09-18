@@ -197,6 +197,70 @@ void main() {
     expect((first >> 5) & 0x3F, inInclusiveRange(30, 34));
   });
 
+  group('the universal family — gfx-83n', () {
+    test('writes no vkFormat, and says so in the key/value data', () async {
+      final document = PlainModelDocument(
+        images: [_image(_pngOf(alpha: false))],
+      );
+      final result = await encodeDocumentTextures(
+        document,
+        TextureFamily.universal,
+      );
+
+      final bytes = result.images.single.bytes;
+      expect(isKtx2File(bytes), isTrue);
+      // The header cannot name the format because the blocks are not one —
+      // the key is what a loader reads instead.
+      expect(universalBlockFormat(bytes)?.hasAlpha, isFalse);
+      expect(
+        Ktx2Texture.parse(bytes, universalTarget: UniversalTarget.bc1).vkFormat,
+        VkFormat.bc1RgbaUNormBlock,
+      );
+    });
+
+    test('an image with alpha is cooked rather than refused', () async {
+      // The one place `universal` differs from `etc2` in what it accepts: ETC2
+      // has no alpha block here and leaves such an image as it arrived, and
+      // the intermediate carries alpha whether or not the device's eventual
+      // format does.
+      final document = PlainModelDocument(
+        images: [_image(_pngOf(alpha: true))],
+      );
+      final result = await encodeDocumentTextures(
+        document,
+        TextureFamily.universal,
+      );
+      expect(
+        universalBlockFormat(result.images.single.bytes)?.hasAlpha,
+        isTrue,
+      );
+    });
+
+    test('one cooked file becomes each device family\'s own format', () async {
+      // The row's own acceptance, at the level the converter can state it: the
+      // same bytes, parsed three ways, come back as three different formats.
+      final document = PlainModelDocument(
+        images: [_image(_pngOf(alpha: false, size: 16))],
+      );
+      final result = await encodeDocumentTextures(
+        document,
+        TextureFamily.universal,
+      );
+      final bytes = result.images.single.bytes;
+
+      for (final (target, vkFormat) in <(UniversalTarget, int)>[
+        (UniversalTarget.bc1, VkFormat.bc1RgbaUNormBlock),
+        (UniversalTarget.astc4x4, VkFormat.astc4x4UNormBlock),
+        (UniversalTarget.etc2Rgb8, VkFormat.etc2R8g8b8UNormBlock),
+      ]) {
+        final texture = Ktx2Texture.parse(bytes, universalTarget: target);
+        expect(texture.vkFormat, vkFormat, reason: target.name);
+        expect(texture.pixelWidth, 16);
+        expect(texture.levels, hasLength(3));
+      }
+    });
+  });
+
   test('every other field of the document survives untouched', () async {
     final document = PlainModelDocument(
       images: [_image(_pngOf(alpha: false))],
