@@ -1168,9 +1168,16 @@ final class Renderer implements RenderServices {
   /// Only a directional light casts today: it is the one whose shadow volume is
   /// a box rather than a frustum or a cube, so it needs neither cascades nor six
   /// faces to be useful.
-  int _firstDirectionalIndex() {
-    for (var i = 0; i < lights.count; i++) {
-      if (lights.positions[i * 4 + 3] == ShaderLightType.directional) return i;
+  int _firstDirectionalIndex() => _directionalIndexIn(lights);
+
+  /// The same question asked of a buffer that is not this renderer's.
+  ///
+  /// `gfx-41n` needs it: a plan gathers the scene's lights into a buffer of
+  /// its own so that asking what a frame *would* do cannot disturb what the
+  /// last frame did.
+  static int _directionalIndexIn(LightBuffer buffer) {
+    for (var i = 0; i < buffer.count; i++) {
+      if (buffer.positions[i * 4 + 3] == ShaderLightType.directional) return i;
     }
     return -1;
   }
@@ -1527,8 +1534,16 @@ final class Renderer implements RenderServices {
   /// Relevance is measured from the view drawn first — the main camera. A row
   /// chosen for a rear-view mirror would be a row spent on a shadow nobody is
   /// looking at.
-  void _collectShadowCandidates(Scene scene, List<RenderView> views) {
-    _shadowCandidates.clear();
+  /// [into] is where the candidates land — this renderer's own list for a
+  /// frame, and a list of its own for `gfx-41n`'s plan, so asking what a frame
+  /// would do cannot disturb the scratch the last frame left.
+  void _collectShadowCandidates(
+    Scene scene,
+    List<RenderView> views, {
+    List<ShadowCandidate>? into,
+  }) {
+    final candidates = into ?? _shadowCandidates;
+    candidates.clear();
     if (views.isEmpty) return;
 
     var primary = views.first;
@@ -1565,7 +1580,7 @@ final class Renderer implements RenderServices {
       }
 
       light.readDirection(_shadowAim);
-      _shadowCandidates.add(
+      candidates.add(
         ShadowCandidate(
           light: light,
           priority: priority,
@@ -2473,6 +2488,129 @@ final class Renderer implements RenderServices {
   /// One on a backend that finishes before it returns, and as many as the
   /// display and the queue between them keep in the air on one that does not.
   int get framesInFlight => _ldrFrames.length;
+
+  /// What a frame of [scene] under [settings] would do, worked out without
+  /// drawing it — `gfx-41n`.
+  ///
+  /// **The same nodes and the same compile as a real frame, and no device
+  /// touched.** The answer comes back as a [CompiledFrameGraph]: which passes
+  /// would run, in what order, and — through `skipped` — which would not and
+  /// why, with the same five reasons a drawn frame reports. It is the *graph*
+  /// this asks, not a second implementation of the graph's rules, which is
+  /// the whole reason to trust it: a dry run computed by a copy of the
+  /// scheduling logic would answer for the copy.
+  ///
+  /// **What it costs, and what that buys.** The plan gathers the scene's
+  /// lights into a buffer of its own and runs its own shadow-slot allocator,
+  /// rather than reading this renderer's. That is an allocation per call and
+  /// it is the point: asking what a frame *would* do cannot be allowed to
+  /// disturb what the last frame did, and an allocator shared with the real
+  /// path would hand out rows to a frame that is never drawn.
+  ///
+  /// **What it does not promise**, said plainly because a diagnostic that
+  /// overstates itself is worse than none:
+  ///
+  ///  * it plans no picks, so `object ids` is reported as it would be for a
+  ///    frame nobody asked a question of;
+  ///  * it bakes nothing, so the static atlas is planned as clean — a real
+  ///    frame that decides to re-bake runs the same node either way, so the
+  ///    answer about *which passes* stands;
+  ///  * the auto-exposure meter is not stepped, because stepping it is a
+  ///    change to the picture rather than a question about it.
+  ///
+  /// Where it is worth calling: before a frame, to find out whether an effect
+  /// a caller switched on will actually run — and on a device that cannot draw
+  /// at all, which is how an application can answer "would this scene get
+  /// occlusion here" during start-up rather than after the first frame.
+  CompiledFrameGraph planFrame({
+    required Scene scene,
+    required List<RenderView> views,
+    RenderSettings settings = const RenderSettings(),
+  }) {
+    if (views.isEmpty) {
+      throw ArgumentError('At least one RenderView is required.');
+    }
+
+    // This plan's own lights, gathered the way a frame gathers them — a
+    // default light included, because a scene with none is lit by one and a
+    // plan that said otherwise would be planning a different picture.
+    final planLights = LightBuffer()..gather(scene.lights);
+    if (planLights.count == 0) planLights.useDefaultLight();
+    final shadowCaster = _directionalIndexIn(planLights);
+
+    // This plan's own allocator. A fresh one assigns rows by the same rule
+    // from an empty state, which is what a plan can honestly say: how many
+    // rows this scene *wants*, not which rows the running frame happens to
+    // have handed out.
+    final candidates = <ShadowCandidate>[];
+    _collectShadowCandidates(scene, views, into: candidates);
+    final assignment = ShadowSlotAllocator(
+      slotCount: kShadowedLights,
+    ).assign(candidates);
+    var slot = 0;
+    for (var row = 0; row < assignment.owners.length; row++) {
+      if (assignment.owners[row] is LightNode) slot = math.max(slot, row + 1);
+    }
+
+    final ordered = List<RenderView>.of(views)
+      ..sort((a, b) => a.priority.compareTo(b.priority));
+
+    return _compileFrameGraph(
+      views.first,
+      settings,
+      cubeStatic: _CubeShadowStaticNode(
+        this,
+        scene: scene,
+        settings: settings.shadows,
+        slotCount: slot,
+        // Nothing is baked by a plan, so the bake is planned as clean. Both
+        // answers run the same node, so what passes would run is unaffected.
+        staticDirty: false,
+      ),
+      cube: _CubeShadowNode(
+        this,
+        scene: scene,
+        settings: settings.shadows,
+        slotCount: slot,
+      ),
+      shadow: _ShadowMapNode(
+        this,
+        scene: scene,
+        settings: settings.shadows,
+        casterIndex: shadowCaster,
+        camera: ordered.isEmpty ? null : ordered.first.camera,
+      ),
+      probes: <_ReflectionProbeNode>[
+        for (var i = 0; i < scene.probes.length; i++)
+          _ReflectionProbeNode(
+            this,
+            scene: scene,
+            probe: scene.probes[i],
+            index: i,
+            shadowCaster: shadowCaster,
+            clearColor: ordered.first.clearColor,
+          ),
+      ],
+      scene: _SceneNode(
+        this,
+        scene: scene,
+        ordered: ordered,
+        contributors: contributors.active.toList(growable: false),
+        shadowCaster: shadowCaster,
+        lightOverflow: planLights.overflow,
+      ),
+      bloom: _BloomNode(this, settings.bloom),
+      composite: _CompositeNode(this, scene, ordered, settings),
+      luminance: _LuminanceNode(this, settings.autoExposure),
+      // No questions, because a plan asks none — see the note above.
+      objectIds: _ObjectIdNode(
+        this,
+        scene: scene,
+        ordered: ordered,
+        picks: const <_PickRequest>[],
+      ),
+    );
+  }
 
   FrameResult render({
     required int width,
