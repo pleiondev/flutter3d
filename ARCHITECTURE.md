@@ -864,6 +864,16 @@ smooth cone ramp. Up to eight are packed into `vec4[8]` uniform arrays with the
 count as a uniform, so switching a light on or off never rebuilds a pipeline.
 Intensities are unitless multipliers rather than lumens.
 
+A fourth kind is a rectangle, and it is the one that is not punctual: what
+reaches a surface is an integral over the panel rather than a value at a point.
+The diffuse half of that integral is closed-form — Lambert's polygon form
+factor, four `acos` calls, exact and checked against a brute-force quadrature
+rather than against a shipped table — and the specular half is the
+representative point on the panel nearest the mirror direction, which is what
+makes the highlight a streak with the panel's shape. The rectangle's two edge
+vectors ride in the arrays a punctual light uses for the direction it points and
+its cone, so a fourth type cost no bytes per draw.
+
 Image-based lighting is a prefiltered specular chain plus a diffuse level, built
 by `EnvironmentMap.prefilter` from a cube map or from sky settings. The
 convolution walks a fixed golden-angle spiral with no randomness in it, which is
@@ -1908,7 +1918,7 @@ entities a game defines.
 |---|---|
 | Style | `dart format` |
 | Analysis | `flutter analyze` clean across the workspace, no warnings |
-| Unit tests | **9305 tests** across 36 packages and 8 applications |
+| Unit tests | **9313 tests** across 36 packages and 8 applications |
 | Structure rules | 35, `dart run tool/structure.dart`, the first CI step |
 | CI | GitHub Actions over `tool/ci.sh`, on `ubuntu-latest`, with no graphics card |
 

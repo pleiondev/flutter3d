@@ -324,6 +324,99 @@ float PunctualAttenuation(float distance, float range) {
   return attenuation;
 }
 
+/// How much of [s]'s sky a rectangle covers, weighted by the cosine —
+/// `gfx-77n`.
+///
+/// **Exact, not fitted.** This is Lambert's own form factor for a polygon, from
+/// 1760: for each edge, the angle it subtends at the shading point times how
+/// much the edge's plane leans into the surface normal. Summed over four edges
+/// and halved, it *is* the integral of `cos θ` over the rectangle's projection
+/// on the hemisphere — the quantity a punctual light approximates with a single
+/// `n · l`. So there is no table to ship and nothing to fit: the usual
+/// linearly-transformed-cosine approach exists to make the *specular* lobe
+/// tractable, and buys nothing here, where the diffuse answer is a closed form
+/// four `acos` calls long.
+///
+/// Returns irradiance over radiance, so a surface facing a rectangle that fills
+/// its whole sky gets π, the same as a uniform hemisphere. [corners] are the
+/// four vertices in order, relative to the shading point.
+///
+/// **The rectangle emits along `cross(halfWidth, halfHeight)`**, and with the
+/// corners wound as `SampleLight` winds them the sum comes out *negative* on
+/// that side, so the negation below is the convention rather than a fix. It was
+/// measured rather than derived: the first version returned `+total * 0.5`, and
+/// against the reference integration it read nought where the answer was 0.349
+/// and 1.02 where the answer was nought — the two failures a flipped winding
+/// produces, and between them they name the sign with no room left to argue.
+float RectangleFormFactor(vec3 corners[4], vec3 n) {
+  float total = 0.0;
+  for (int i = 0; i < 4; i++) {
+    vec3 a = normalize(corners[i]);
+    vec3 b = normalize(corners[(i + 1) & 3]);
+    // Clamped before the `acos`: two nearly parallel edge directions can give a
+    // dot a hair past one through rounding alone, and `acos` of that is a NaN
+    // that spreads to the whole pixel and then to the bloom.
+    float angle = acos(clamp(dot(a, b), -1.0, 1.0));
+    vec3 axis = cross(a, b);
+    float len = length(axis);
+    // A degenerate edge — the shading point lies on the line through it —
+    // subtends nothing, and normalising a zero vector is the other way to get
+    // that NaN.
+    if (len > 1e-6) total += angle * dot(axis / len, n);
+  }
+  // Clamped rather than tested separately: a surface on the panel's dark side,
+  // or facing away from it, comes out with the sign reversed, so "one-sided" is
+  // a property of the arithmetic instead of a flag somebody has to remember.
+  return max(-total * 0.5, 0.0);
+}
+
+/// Where on the rectangle the specular lobe is really looking — `gfx-77n`.
+///
+/// **The representative point, which is an approximation, unlike the diffuse
+/// above.** The mirror direction leaves the surface and either hits the panel
+/// or misses it; the closest point of the panel to that ray is treated as a
+/// punctual light standing in for the whole rectangle. It is the standard
+/// cheap answer and its one visible property is the one the row asked for: as
+/// the view moves the closest point slides along the panel, so the highlight
+/// is a streak with the panel's own shape and orientation rather than a dot.
+///
+/// What it does not do is widen the lobe by the panel's solid angle, so a
+/// rough surface under a large panel is a little darker than a full integration
+/// would make it. That is a known error of this method and not a bug in this
+/// transcription; the fix is the fitted table this function exists to avoid.
+vec3 RectangleClosestPoint(vec3 centre, vec3 halfWidth, vec3 halfHeight,
+                           vec3 world, vec3 mirror) {
+  vec3 n = cross(halfWidth, halfHeight);
+  float nLen = length(n);
+  // A panel with no area has no surface to find a point on; its centre is the
+  // only answer that is not a division by zero.
+  if (nLen < 1e-12) return centre;
+  n /= nLen;
+
+  vec3 toPlane = centre - world;
+  float denom = dot(mirror, n);
+  vec3 onPlane;
+  // Parallel to the panel, or pointing away from it: the ray never lands, so
+  // the nearest thing to it is the centre projected back, which keeps the
+  // highlight on the panel instead of sending it to infinity.
+  if (abs(denom) < 1e-5) {
+    onPlane = toPlane - n * dot(toPlane, n);
+  } else {
+    float t = dot(toPlane, n) / denom;
+    onPlane = t > 0.0 ? mirror * t : toPlane - n * dot(toPlane, n);
+  }
+
+  // Clamped into the rectangle in its own axes. Dividing by the squared length
+  // turns a projection into a coordinate in units of the half-extent, so the
+  // clamp is against one either way round.
+  vec3 offset = onPlane - toPlane;
+  float wLen2 = max(dot(halfWidth, halfWidth), 1e-12);
+  float hLen2 = max(dot(halfHeight, halfHeight), 1e-12);
+  float u = clamp(dot(offset, halfWidth) / wLen2, -1.0, 1.0);
+  float v = clamp(dot(offset, halfHeight) / hLen2, -1.0, 1.0);
+  return centre + halfWidth * u + halfHeight * v;
+}
+
 /// Resolves light [index] against the surface.
 ///
 /// Returns `n_dot_l == 0` for anything that contributes nothing — behind the
@@ -358,6 +451,60 @@ LightSample SampleLight(int index, Surface s) {
   }
 
   float type = position.w;
+
+  // **The rectangle leaves before `aim` is taken — `gfx-77n`.** For every other
+  // kind `direction.xyz` is a unit vector saying which way the light points;
+  // for this one it is an edge of the panel, with its length carrying half the
+  // width, and normalising it here would quietly throw the size away.
+  if (type > 2.5) {
+    vec3 halfWidth = direction.xyz;
+    vec3 halfHeight = cone.xyz;
+    vec3 toCentre = position.xyz - v_world_position;
+
+    vec3 corners[4];
+    corners[0] = toCentre - halfWidth - halfHeight;
+    corners[1] = toCentre + halfWidth - halfHeight;
+    corners[2] = toCentre + halfWidth + halfHeight;
+    corners[3] = toCentre - halfWidth + halfHeight;
+
+    // The cosine-weighted solid angle, which takes the place `n · l` holds for
+    // a punctual light: the loop multiplies the shading by `n_dot_l`, so
+    // putting the exact integral here makes the diffuse term exact rather than
+    // sampled. See [RectangleFormFactor].
+    float formFactor = RectangleFormFactor(corners, s.n);
+
+    // Radiance rather than intensity: `intensity` means the same thing for
+    // every kind of light, so a panel's is spread over its own area here.
+    // Enlarging a window at a fixed rating then dims it per square metre and
+    // leaves the room as bright, which is what the number is supposed to mean.
+    float area = length(cross(halfWidth, halfHeight)) * 4.0;
+    float radiance = area > 1e-9 ? 1.0 / area : 0.0;
+
+    // The range window only. A punctual light needs the inverse square as
+    // well; the form factor already contains it, because a panel twice as far
+    // away subtends a quarter of the sky.
+    float distance = length(toCentre);
+    if (direction.w > 0.0) {
+      float ratio = distance / direction.w;
+      float window = clamp(1.0 - ratio * ratio * ratio * ratio, 0.0, 1.0);
+      radiance *= window * window;
+    }
+
+    vec3 mirror = reflect(-s.v, s.n);
+    vec3 representative = RectangleClosestPoint(
+        position.xyz, halfWidth, halfHeight, v_world_position, mirror);
+    vec3 toPoint = representative - v_world_position;
+    float pointDistance = length(toPoint);
+    light.l = pointDistance > 1e-6 ? toPoint / pointDistance : s.n;
+
+    light.h = normalize(light.l + s.v);
+    light.n_dot_l = formFactor;
+    light.n_dot_h = max(dot(s.n, light.h), 0.0);
+    light.v_dot_h = max(dot(s.v, light.h), 0.0);
+    light.radiance = color.rgb * color.w * radiance;
+    return light;
+  }
+
   vec3 aim = normalize(direction.xyz);
   float attenuation = 1.0;
 
