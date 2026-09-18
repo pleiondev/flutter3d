@@ -1096,6 +1096,7 @@ final class BloomSettings {
     this.levels = 5,
     this.filterRadius = 1.0,
     this.referenceHeight = 0,
+    this.halation = 0.0,
   });
 
   final bool enabled;
@@ -1118,6 +1119,25 @@ final class BloomSettings {
 
   /// Tent-filter radius, in source texels, used on the way back up.
   final double filterRadius;
+
+  /// How red the broad part of the glow goes — `gfx-30n`. 0 is off exactly,
+  /// and is the default.
+  ///
+  /// **What it is, and why it is not a tint on the whole bloom.** On film the
+  /// halo around a highlight is warm: light that gets through the emulsion
+  /// scatters off the backing and comes back, and the red layer sits deepest
+  /// so it catches the most of it. What makes that read as light rather than
+  /// as a colour cast is that only the *wide* part is warm — the tight core
+  /// around the highlight stays the colour of the highlight.
+  ///
+  /// So this is applied per level of the chain, on the way back up, where the
+  /// levels still exist as separate pictures. The composite sees one glow and
+  /// could not tell the core from the skirt.
+  ///
+  /// It costs nothing new: the pyramid is the expensive half and bloom has
+  /// already paid for it. 0.5 is visible as warmth without reading as a
+  /// filter.
+  final double halation;
 
   /// The frame height [levels] was chosen at, or 0 to leave it alone —
   /// `gfx-31n`.
@@ -1147,6 +1167,7 @@ final class BloomSettings {
     int? levels,
     double? filterRadius,
     int? referenceHeight,
+    double? halation,
   }) => BloomSettings(
     enabled: enabled ?? this.enabled,
     threshold: threshold ?? this.threshold,
@@ -1155,5 +1176,6 @@ final class BloomSettings {
     levels: levels ?? this.levels,
     filterRadius: filterRadius ?? this.filterRadius,
     referenceHeight: referenceHeight ?? this.referenceHeight,
+    halation: halation ?? this.halation,
   );
 }
