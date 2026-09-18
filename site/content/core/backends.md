@@ -106,6 +106,15 @@ final class MyDevice implements GraphicsDevice {
   /// request above this is clamped by the backend, never refused.
   @override
   int get maxAnisotropy => 16;
+
+  /// Colour attachments one pass may open. One is an honest answer and the
+  /// engine handles it: every pass that reads the surface buffer is left out
+  /// of the frame and reported as `PassSkip.unsupported`. Unlike the
+  /// anisotropy above, a request past this is **refused** rather than
+  /// clamped — call `descriptor.checkAttachmentLimit` on the way into
+  /// `beginRenderPass`, as every backend here does.
+  @override
+  int get maxColorAttachments => 4;
 }
 ```
 

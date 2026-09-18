@@ -509,6 +509,16 @@ final class _SceneNode extends RenderNode {
       FrameResourceIds.reflectionProbe(i),
   ];
 
+  /// **Both names always, including on a device that cannot attach the
+  /// second** — `gfx-50n`.
+  ///
+  /// Withholding `surface_buffer` here was tried and is wrong: the graph
+  /// refuses a read of a name nothing declares, deliberately, because a name
+  /// nothing writes is a misspelling or a missing pass and both look
+  /// identical at runtime. A device that cannot open a second attachment is
+  /// neither — the pass exists and the name is spelled right — so the refusal
+  /// belongs on the *consumers*, where it is one more reason a pass did not
+  /// run. See `RenderNode.supported` and `PassSkip.unsupported`.
   @override
   List<ResourceId> get writes => const <ResourceId>[
     FrameResourceIds.hdrColour,
@@ -623,8 +633,32 @@ final class _SceneNode extends RenderNode {
 /// wrong frame — it produced a node that could not be addressed. A caller
 /// asking why reflections did not run got no answer, because with the
 /// setting off there was no node to have an answer about.
-final class _ReflectionsNode extends RenderNode {
+/// A pass that cannot run without the surface buffer — `gfx-50n`.
+///
+/// **Five nodes read that buffer unconditionally, and every one of them needs
+/// the same sentence**: the buffer is the scene pass's second colour
+/// attachment, and a device that opens one attachment cannot have it. Written
+/// once here rather than five times, so a sixth reader joins by mixing this in
+/// and cannot join by forgetting.
+///
+/// The refusal is [FrameGraphNode.supported] rather than
+/// [FrameGraphNode.isActive], because a caller who switched occlusion on and
+/// got nothing deserves to be told that their device cannot, rather than to go
+/// looking through settings they already set correctly.
+base mixin _NeedsSurfaceBuffer on RenderNode {
+  /// The renderer whose device this asks. Each node already holds one
+  /// privately; this is the one line that makes it reachable from here.
+  Renderer get owner;
+
+  @override
+  bool get supported => owner.device.maxColorAttachments > 1;
+}
+
+final class _ReflectionsNode extends RenderNode with _NeedsSurfaceBuffer {
   _ReflectionsNode(this._renderer, this._view, this._settings);
+
+  @override
+  Renderer get owner => _renderer;
 
   final Renderer _renderer;
   final RenderView _view;
@@ -672,8 +706,11 @@ final class _ReflectionsNode extends RenderNode {
 /// graph was built for and the first place it has paid for itself twice: the
 /// same declaration also turns MSAA off for the scene pass, because the two are
 /// the same decision.
-final class _SsaoNode extends RenderNode {
+final class _SsaoNode extends RenderNode with _NeedsSurfaceBuffer {
   _SsaoNode(this._renderer, this._view, this._settings);
+
+  @override
+  Renderer get owner => _renderer;
 
   final Renderer _renderer;
   final RenderView _view;
@@ -724,8 +761,11 @@ final class _SsaoNode extends RenderNode {
 /// Reads the surface buffer too, for how far along each ray there is still
 /// air. Declaring it is what attaches the buffer, the same way the occlusion
 /// pass's own declaration does.
-final class _LightShaftsNode extends RenderNode {
+final class _LightShaftsNode extends RenderNode with _NeedsSurfaceBuffer {
   _LightShaftsNode(this._renderer, this._view, this._settings);
+
+  @override
+  Renderer get owner => _renderer;
 
   final Renderer _renderer;
   final RenderView _view;
@@ -790,8 +830,11 @@ final class _LightShaftsNode extends RenderNode {
 /// Reads the surface buffer for depth, which is what the circle of confusion
 /// is computed from. Declaring it is what attaches the buffer, the same way
 /// the occlusion pass's declaration does.
-final class _DepthOfFieldNode extends RenderNode {
+final class _DepthOfFieldNode extends RenderNode with _NeedsSurfaceBuffer {
   _DepthOfFieldNode(this._renderer, this._settings);
+
+  @override
+  Renderer get owner => _renderer;
 
   final Renderer _renderer;
   final RenderSettings _settings;
@@ -848,8 +891,11 @@ final class _DepthOfFieldNode extends RenderNode {
 /// It reads the surface buffer too, which is where the depth comes from. That
 /// read costs nothing extra: the occlusion pass already declared it, so the
 /// buffer is attached either way.
-final class _SsaoBlurNode extends RenderNode {
+final class _SsaoBlurNode extends RenderNode with _NeedsSurfaceBuffer {
   _SsaoBlurNode(this._renderer, this._settings);
+
+  @override
+  Renderer get owner => _renderer;
 
   final Renderer _renderer;
   final RenderSettings _settings;
