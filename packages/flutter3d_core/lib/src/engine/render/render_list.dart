@@ -45,15 +45,21 @@ final class RenderList {
   /// 3.13.0 AOT, Apple M3 Pro, macOS 27 — timing the whole render list, which
   /// is the thing being decided, rather than a bare sphere test:
   ///
-  /// | meshes | on screen | linear | tree |
+  /// | meshes | on screen | walk | tree |
   /// |---|---|---|---|
-  /// | 128 | all | 5.8 us | 6.5 us |
-  /// | 128 | a tenth | 4.4 us | 5.5 us |
-  /// | 256 | all | 11.6 us | 14.0 us |
-  /// | 256 | a tenth | 9.7 us | 9.0 us |
-  /// | 1024 | a tenth | 38 us | 28 us |
-  /// | 4096 | a tenth | 140 us | 65 us |
-  /// | 50 000 | a tenth | 2761 us | 686 us |
+  /// | 128 | all | 7.0 us | 6.5 us |
+  /// | 128 | a tenth | 5.4 us | 5.4 us |
+  /// | 256 | all | 13.3 us | 13.8 us |
+  /// | 256 | a tenth | 11.6 us | 8.8 us |
+  /// | 1024 | a tenth | 42 us | 29 us |
+  /// | 4096 | a tenth | 162 us | 70 us |
+  /// | 50 000 | a tenth | 4646 us | 896 us |
+  ///
+  /// The scene there is flat — every mesh hangs off the root — which is the
+  /// walk's worst case since `gfx-66n`, because there is no branch to reject
+  /// and it pays the descent anyway: about 6.6 ns a node at these sizes, so at
+  /// most a microsecond and a half below the threshold. A scene with rooms or
+  /// vehicles in it is the case the walk exists for and does not appear here.
   ///
   /// The day is written down because these numbers decide a threshold and
   /// nothing else recounts them: without it there is no telling a figure that
@@ -62,19 +68,22 @@ final class RenderList {
   /// **A tree only pays when it can reject**, and that is the whole shape of
   /// the table. With most of the scene off screen it wins from 256 meshes and
   /// keeps winning by more, because a mesh the tree never visits costs nothing,
-  /// while the loop pays for the visibility flags, the layer mask and a bounds
+  /// while the walk pays for the visibility flags, the layer mask and a bounds
   /// refresh before it can reject anything. With everything on screen it loses
-  /// by about a fifth at every size, and that is the trade taken here: a scene
-  /// with four thousand meshes all on screen is GPU-bound on the draw calls
-  /// long before fifty microseconds of culling matters, while the same scene
-  /// seen from inside saves seventy-five.
+  /// by about a fifth from a thousand meshes up, and that is the trade taken
+  /// here: a scene with four thousand meshes all on screen is GPU-bound on the
+  /// draw calls long before fifty microseconds of culling matters, while the
+  /// same scene seen from inside saves ninety.
   ///
-  /// `gfx-62n` asked for a hundred and the number is 256, because at 128 the
-  /// loop still wins both columns. Two changes moved it down from 2048. The
-  /// tree is refitted rather than rebuilt when things merely move, so the
-  /// figure to clear is traversal rather than a 23 ms rebuild; and a node the
-  /// frustum fully contains now hands over its whole subtree as one flat range,
-  /// which is what stopped the all-on-screen column being a rout.
+  /// `gfx-62n` asked for a hundred. Three changes moved the number down from
+  /// 2048: the tree is refitted rather than rebuilt when things merely move, so
+  /// the figure to clear is traversal rather than a 23 ms rebuild; a node the
+  /// frustum fully contains hands over its whole subtree as one flat range,
+  /// which is what stopped the all-on-screen column being a rout; and
+  /// `gfx-66n`'s hierarchy walk gave the other side a small cost of its own. By
+  /// 128 the two are within noise of each other and 256 is where the tree wins
+  /// outright, so 256 is the number rather than the hundred the row asked for —
+  /// a threshold set where one side clearly wins, not where they are level.
   static const int defaultBvhThreshold = 256;
 
   /// Above this many meshes, culling goes through the tree.
@@ -92,6 +101,15 @@ final class RenderList {
 
   /// Whether the last [build] went through the tree.
   bool usedBvh = false;
+
+  /// How many meshes the last [build] looked at one at a time.
+  ///
+  /// The reading `gfx-66n` is about, and it needs a number because a branch
+  /// rejected whole and a branch rejected mesh by mesh draw the same picture.
+  /// Against `scene.meshes.length` it says what the cull skipped: the tree's
+  /// candidates on the accelerated path, and the meshes under branches the
+  /// frustum kept on the other.
+  int considered = 0;
 
   final Aabb3 _bvhScratch = Aabb3();
   Float32List _bvhSpheres = Float32List(0);
@@ -117,6 +135,7 @@ final class RenderList {
 
   void reset() {
     _used = 0;
+    considered = 0;
     opaque.clear();
     transparent.clear();
   }
@@ -150,6 +169,7 @@ final class RenderList {
     /// makes "the tree returns the same visible set" a property rather than a
     /// hope.
     void consider(MeshNode node) {
+      considered++;
       if (!node.visibleInHierarchy) return;
       // A proxy occluder casts and is never seen. Filtered here rather than in
       // the shadow pass because this is the pass it is absent from: the shadow
@@ -234,10 +254,44 @@ final class RenderList {
       return;
     }
 
-    for (var i = 0; i < meshes.length; i++) {
-      consider(meshes[i]);
+    // **Down the hierarchy rather than along the registry — `gfx-66n`.** The
+    // registry is flat and that is what made it fast; what it cannot do is
+    // reject a branch. A room, a vehicle or a character is one node holding
+    // dozens or hundreds, and every one of them was a frustum test even with
+    // the whole room behind the camera.
+    //
+    // **The order is the same order**, which is the part that had to be true
+    // before this could land. `SortMode.manual` and every tie in the other
+    // modes fall back to the order draws were claimed in, and the registry is
+    // filled by `onAttachedToScene`, which a subtree reaches in pre-order —
+    // the order this walk visits in.
+    //
+    // An explicit stack, pushed in reverse so children come off it in order.
+    _walk
+      ..clear()
+      ..add(scene.root);
+    while (_walk.isNotEmpty) {
+      final node = _walk.removeLast();
+      if (!node.visible) continue;
+
+      final children = node.childrenView;
+      if (children.isNotEmpty) {
+        final box = node.subtreeBounds;
+        if (box == null) continue;
+        if (!node.subtreeAlwaysDrawn && !frustum.intersectsWithAabb3(box)) {
+          continue;
+        }
+      }
+
+      if (node is MeshNode) consider(node);
+      for (var i = children.length - 1; i >= 0; i--) {
+        _walk.add(children[i]);
+      }
     }
   }
+
+  /// The hierarchy walk's stack, kept between frames so a cull allocates none.
+  final List<SceneNode> _walk = <SceneNode>[];
 
   /// Sorts both halves according to the view's sort modes.
   void sort(RenderView view) {

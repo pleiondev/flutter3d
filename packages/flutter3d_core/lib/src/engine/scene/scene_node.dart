@@ -438,6 +438,83 @@ base class SceneNode implements AnimationTarget {
     return false;
   }
 
+  /// What this node and everything under it occupies, or null when the subtree
+  /// draws nothing.
+  ///
+  /// **A branch rejected whole — `gfx-66n`.** A node holding a thousand meshes
+  /// was a thousand frustum tests, because the only bound in the engine was a
+  /// mesh's own. This is the union over the subtree, cached on
+  /// [changeEpoch] like every other derived quantity here, so a scene that
+  /// nobody touched computes it once and a scene that moved computes it once
+  /// more.
+  ///
+  /// Recursive rather than iterative on purpose: the recursion reads
+  /// `subtreeBounds` on each child, so every node on the way down caches its
+  /// own answer and the whole tree costs one pass rather than one per node. A
+  /// hierarchy deep enough to overflow a stack here is one whose transforms
+  /// would have overflowed it first.
+  ///
+  /// The box is in world space and it is grown by whatever
+  /// [MeshNode.frustumCulled] refuses: a subtree holding a node that opted out
+  /// of culling answers [subtreeAlwaysDrawn], and a caller that rejects on this
+  /// box has to honour that or a sky dome disappears.
+  Aabb3? get subtreeBounds {
+    if (_subtreeEpoch == _dirtyEpoch) return _subtreeBounds;
+    _subtreeEpoch = _dirtyEpoch;
+    _subtreeAlwaysDrawn = false;
+
+    Aabb3? box = ownBounds;
+    if (box != null) {
+      // A fresh box rather than the node's own: the union below writes into it,
+      // and a `MeshNode`'s world bounds are the cache the whole engine reads.
+      box = Aabb3.copy(box);
+      _subtreeAlwaysDrawn = !ownBoundsAreCullable;
+    }
+
+    for (var i = 0; i < _children.length; i++) {
+      final child = _children[i];
+      final childBox = child.subtreeBounds;
+      if (child._subtreeAlwaysDrawn) _subtreeAlwaysDrawn = true;
+      if (childBox == null) continue;
+      if (box == null) {
+        box = Aabb3.copy(childBox);
+      } else {
+        box.hull(childBox);
+      }
+    }
+
+    return _subtreeBounds = box;
+  }
+
+  /// Whether anything in this subtree has opted out of frustum culling.
+  ///
+  /// Reading it resolves [subtreeBounds], which is what computes it.
+  bool get subtreeAlwaysDrawn {
+    subtreeBounds;
+    return _subtreeAlwaysDrawn;
+  }
+
+  /// This node's own contribution to [subtreeBounds], or null when it draws
+  /// nothing.
+  ///
+  /// For `MeshNode` to override, and for nothing else to call: it is the one
+  /// piece of "what does this node occupy" that a subclass knows and this class
+  /// does not. A plain node occupies nothing — it is a transform with children
+  /// under it — which is why the default is null rather than a point at the
+  /// origin, a box that would drag every subtree's bound out to meet it.
+  Aabb3? get ownBounds => null;
+
+  /// Whether [ownBounds] may be culled.
+  ///
+  /// For `MeshNode` to override from its own `frustumCulled`, so that a subtree
+  /// holding a sky dome or a held weapon cannot be rejected whole. Nothing else
+  /// calls it; [subtreeAlwaysDrawn] is the reading a caller wants.
+  bool get ownBoundsAreCullable => true;
+
+  Aabb3? _subtreeBounds;
+  int _subtreeEpoch = 0;
+  bool _subtreeAlwaysDrawn = false;
+
   /// Walks this node and its descendants.
   ///
   /// Convenient for scene code, but the renderer never uses it: per-frame work

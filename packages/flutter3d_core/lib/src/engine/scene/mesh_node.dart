@@ -215,6 +215,13 @@ base class MeshNode extends SceneNode {
     return _worldBounds;
   }
 
+  /// What a subtree bound has to contain on this node's account — `gfx-66n`.
+  @override
+  Aabb3? get ownBounds => worldBounds;
+
+  @override
+  bool get ownBoundsAreCullable => frustumCulled;
+
   /// Centre of the world bounding sphere used for the cheap culling test.
   Vector3 get worldBoundsCentre {
     _refreshBounds();
