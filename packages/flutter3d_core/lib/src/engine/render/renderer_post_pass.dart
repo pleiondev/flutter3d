@@ -161,13 +161,20 @@ extension _PostPasses on Renderer {
     _fxaaParams[1] = 1.0 / math.max(source.height, 1);
     _fxaaParams[2] = settings.contrastThreshold.clamp(0.0, 1.0);
     _fxaaParams[3] = settings.blend.clamp(0.0, 1.0);
+    // `gfx-29n`. Zero exactly when nobody asked: the shader returns the
+    // centre untouched at zero rather than running a kernel that rounds to
+    // nothing, and forty-four goldens depend on that being the same bytes.
+    _fxaaSharpen[0] = settings.sharpen.clamp(0.0, 1.0);
     drawFullscreen(
       FullscreenDraw(
         target: target,
         fragment: fxaaShader,
         textures: <String, TextureHandle>{_kPostSourceSlot: source},
         uniforms: <String, Map<String, Float32List>>{
-          _kFxaaInfoBlock: <String, Float32List>{'params': _fxaaParams},
+          _kFxaaInfoBlock: <String, Float32List>{
+            'params': _fxaaParams,
+            'sharpen': _fxaaSharpen,
+          },
         },
       ),
     );

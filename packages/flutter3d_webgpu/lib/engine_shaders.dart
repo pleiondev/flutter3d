@@ -11275,6 +11275,7 @@ fn main(@location(5) v_uv: vec2<f32>, @builtin(position) gl_FragCoord: vec4<f32>
       wgsl: r'''
 struct FxaaInfo {
     params: vec4<f32>,
+    sharpen: vec4<f32>,
 }
 
 @group(1) @binding(0) 
@@ -11286,27 +11287,92 @@ var source_texture_smp: sampler;
 var<private> v_uv_1: vec2<f32>;
 var<private> frag_color: vec4<f32>;
 
+fn MinChannel_u0028_vf3_u003b(v: ptr<function, vec3<f32>>) -> f32 {
+    let _e25 = (*v)[0u];
+    let _e27 = (*v)[1u];
+    let _e29 = (*v)[2u];
+    return min(_e25, min(_e27, _e29));
+}
+
+fn Sharpen_u0028_vf3_u003b_vf3_u003b_vf3_u003b_vf3_u003b_vf3_u003b(centre: ptr<function, vec3<f32>>, n: ptr<function, vec3<f32>>, s: ptr<function, vec3<f32>>, w: ptr<function, vec3<f32>>, e: ptr<function, vec3<f32>>) -> vec3<f32> {
+    var strength: f32;
+    var lowest: vec3<f32>;
+    var highest: vec3<f32>;
+    var room: vec3<f32>;
+    var amount: f32;
+    var param: vec3<f32>;
+    var average: vec3<f32>;
+
+    let _e37 = fxaa_info.sharpen[0u];
+    strength = _e37;
+    let _e38 = strength;
+    if (_e38 <= 0f) {
+        let _e40 = (*centre);
+        return _e40;
+    }
+    let _e41 = (*centre);
+    let _e42 = (*n);
+    let _e43 = (*s);
+    let _e45 = (*w);
+    let _e46 = (*e);
+    lowest = min(_e41, min(min(_e42, _e43), min(_e45, _e46)));
+    let _e50 = (*centre);
+    let _e51 = (*n);
+    let _e52 = (*s);
+    let _e54 = (*w);
+    let _e55 = (*e);
+    highest = max(_e50, max(max(_e51, _e52), max(_e54, _e55)));
+    let _e59 = lowest;
+    let _e60 = highest;
+    let _e63 = highest;
+    room = (min(_e59, (vec3<f32>(1f, 1f, 1f) - _e60)) / max(_e63, vec3<f32>(0.00001f, 0.00001f, 0.00001f)));
+    let _e66 = room;
+    param = _e66;
+    let _e67 = MinChannel_u0028_vf3_u003b((&param));
+    amount = clamp(sqrt(clamp(_e67, 0f, 1f)), 0f, 1f);
+    let _e71 = (*n);
+    let _e72 = (*s);
+    let _e74 = (*w);
+    let _e76 = (*e);
+    average = ((((_e71 + _e72) + _e74) + _e76) * 0.25f);
+    let _e79 = (*centre);
+    let _e80 = (*centre);
+    let _e81 = average;
+    let _e83 = amount;
+    let _e85 = strength;
+    return (_e79 + (((_e80 - _e81) * _e83) * _e85));
+}
+
 fn Weight_u0028_vf3_u003b(color: ptr<function, vec3<f32>>) -> f32 {
-    let _e21 = (*color);
-    return dot(_e21, vec3<f32>(0.299f, 0.587f, 0.114f));
+    let _e24 = (*color);
+    return dot(_e24, vec3<f32>(0.299f, 0.587f, 0.114f));
 }
 
 fn main_1() {
     var texel: vec2<f32>;
     var middle: vec3<f32>;
     var mid: f32;
-    var param: vec3<f32>;
-    var north: f32;
     var param_1: vec3<f32>;
-    var south: f32;
+    var northRgb: vec3<f32>;
+    var southRgb: vec3<f32>;
+    var westRgb: vec3<f32>;
+    var eastRgb: vec3<f32>;
+    var north: f32;
     var param_2: vec3<f32>;
-    var west: f32;
+    var south: f32;
     var param_3: vec3<f32>;
-    var east: f32;
+    var west: f32;
     var param_4: vec3<f32>;
-    var lowest: f32;
-    var highest: f32;
+    var east: f32;
+    var param_5: vec3<f32>;
+    var lowest_1: f32;
+    var highest_1: f32;
     var contrast: f32;
+    var param_6: vec3<f32>;
+    var param_7: vec3<f32>;
+    var param_8: vec3<f32>;
+    var param_9: vec3<f32>;
+    var param_10: vec3<f32>;
     var vertical: f32;
     var horizontal: f32;
     var horizontalEdge: bool;
@@ -11316,148 +11382,183 @@ fn main_1() {
     var local_1: f32;
     var step_length: f32;
     var local_2: f32;
-    var average: f32;
+    var average_1: f32;
     var blend: f32;
     var offset: vec2<f32>;
     var local_3: vec2<f32>;
+    var smoothed: vec3<f32>;
+    var param_11: vec3<f32>;
+    var param_12: vec3<f32>;
+    var param_13: vec3<f32>;
+    var param_14: vec3<f32>;
+    var param_15: vec3<f32>;
 
-    let _e49 = fxaa_info.params;
-    texel = _e49.xy;
-    let _e51 = v_uv_1;
-    let _e52 = textureSample(source_texture_tex, source_texture_smp, _e51);
-    middle = _e52.xyz;
-    let _e54 = middle;
-    param = _e54;
-    let _e55 = Weight_u0028_vf3_u003b((&param));
-    mid = _e55;
-    let _e56 = v_uv_1;
-    let _e58 = texel[1u];
-    let _e62 = textureSample(source_texture_tex, source_texture_smp, (_e56 + vec2<f32>(0f, -(_e58))));
-    param_1 = _e62.xyz;
-    let _e64 = Weight_u0028_vf3_u003b((&param_1));
-    north = _e64;
-    let _e65 = v_uv_1;
-    let _e67 = texel[1u];
-    let _e70 = textureSample(source_texture_tex, source_texture_smp, (_e65 + vec2<f32>(0f, _e67)));
-    param_2 = _e70.xyz;
-    let _e72 = Weight_u0028_vf3_u003b((&param_2));
-    south = _e72;
-    let _e73 = v_uv_1;
-    let _e75 = texel[0u];
-    let _e79 = textureSample(source_texture_tex, source_texture_smp, (_e73 + vec2<f32>(-(_e75), 0f)));
-    param_3 = _e79.xyz;
-    let _e81 = Weight_u0028_vf3_u003b((&param_3));
-    west = _e81;
+    let _e67 = fxaa_info.params;
+    texel = _e67.xy;
+    let _e69 = v_uv_1;
+    let _e70 = textureSample(source_texture_tex, source_texture_smp, _e69);
+    middle = _e70.xyz;
+    let _e72 = middle;
+    param_1 = _e72;
+    let _e73 = Weight_u0028_vf3_u003b((&param_1));
+    mid = _e73;
+    let _e74 = v_uv_1;
+    let _e76 = texel[1u];
+    let _e80 = textureSample(source_texture_tex, source_texture_smp, (_e74 + vec2<f32>(0f, -(_e76))));
+    northRgb = _e80.xyz;
     let _e82 = v_uv_1;
-    let _e84 = texel[0u];
-    let _e87 = textureSample(source_texture_tex, source_texture_smp, (_e82 + vec2<f32>(_e84, 0f)));
-    param_4 = _e87.xyz;
-    let _e89 = Weight_u0028_vf3_u003b((&param_4));
-    east = _e89;
-    let _e90 = mid;
-    let _e91 = north;
-    let _e92 = south;
-    let _e94 = west;
-    let _e95 = east;
-    lowest = min(_e90, min(min(_e91, _e92), min(_e94, _e95)));
-    let _e99 = mid;
-    let _e100 = north;
-    let _e101 = south;
-    let _e103 = west;
-    let _e104 = east;
-    highest = max(_e99, max(max(_e100, _e101), max(_e103, _e104)));
-    let _e108 = highest;
-    let _e109 = lowest;
-    contrast = (_e108 - _e109);
-    let _e111 = contrast;
-    let _e112 = highest;
-    let _e115 = fxaa_info.params[2u];
-    if (_e111 < max(0.0312f, (_e112 * _e115))) {
-        let _e119 = middle;
-        frag_color = vec4<f32>(_e119.x, _e119.y, _e119.z, 1f);
+    let _e84 = texel[1u];
+    let _e87 = textureSample(source_texture_tex, source_texture_smp, (_e82 + vec2<f32>(0f, _e84)));
+    southRgb = _e87.xyz;
+    let _e89 = v_uv_1;
+    let _e91 = texel[0u];
+    let _e95 = textureSample(source_texture_tex, source_texture_smp, (_e89 + vec2<f32>(-(_e91), 0f)));
+    westRgb = _e95.xyz;
+    let _e97 = v_uv_1;
+    let _e99 = texel[0u];
+    let _e102 = textureSample(source_texture_tex, source_texture_smp, (_e97 + vec2<f32>(_e99, 0f)));
+    eastRgb = _e102.xyz;
+    let _e104 = northRgb;
+    param_2 = _e104;
+    let _e105 = Weight_u0028_vf3_u003b((&param_2));
+    north = _e105;
+    let _e106 = southRgb;
+    param_3 = _e106;
+    let _e107 = Weight_u0028_vf3_u003b((&param_3));
+    south = _e107;
+    let _e108 = westRgb;
+    param_4 = _e108;
+    let _e109 = Weight_u0028_vf3_u003b((&param_4));
+    west = _e109;
+    let _e110 = eastRgb;
+    param_5 = _e110;
+    let _e111 = Weight_u0028_vf3_u003b((&param_5));
+    east = _e111;
+    let _e112 = mid;
+    let _e113 = north;
+    let _e114 = south;
+    let _e116 = west;
+    let _e117 = east;
+    lowest_1 = min(_e112, min(min(_e113, _e114), min(_e116, _e117)));
+    let _e121 = mid;
+    let _e122 = north;
+    let _e123 = south;
+    let _e125 = west;
+    let _e126 = east;
+    highest_1 = max(_e121, max(max(_e122, _e123), max(_e125, _e126)));
+    let _e130 = highest_1;
+    let _e131 = lowest_1;
+    contrast = (_e130 - _e131);
+    let _e133 = contrast;
+    let _e134 = highest_1;
+    let _e137 = fxaa_info.params[2u];
+    if (_e133 < max(0.0312f, (_e134 * _e137))) {
+        let _e141 = middle;
+        param_6 = _e141;
+        let _e142 = northRgb;
+        param_7 = _e142;
+        let _e143 = southRgb;
+        param_8 = _e143;
+        let _e144 = westRgb;
+        param_9 = _e144;
+        let _e145 = eastRgb;
+        param_10 = _e145;
+        let _e146 = Sharpen_u0028_vf3_u003b_vf3_u003b_vf3_u003b_vf3_u003b_vf3_u003b((&param_6), (&param_7), (&param_8), (&param_9), (&param_10));
+        frag_color = vec4<f32>(_e146.x, _e146.y, _e146.z, 1f);
         return;
     }
-    let _e124 = north;
-    let _e125 = south;
-    let _e127 = mid;
-    vertical = abs(((_e124 + _e125) - (2f * _e127)));
-    let _e131 = west;
-    let _e132 = east;
-    let _e134 = mid;
-    horizontal = abs(((_e131 + _e132) - (2f * _e134)));
-    let _e138 = vertical;
-    let _e139 = horizontal;
-    horizontalEdge = (_e138 >= _e139);
-    let _e141 = horizontalEdge;
-    if _e141 {
-        let _e142 = south;
-        let _e143 = mid;
-        local = (_e142 - _e143);
+    let _e151 = north;
+    let _e152 = south;
+    let _e154 = mid;
+    vertical = abs(((_e151 + _e152) - (2f * _e154)));
+    let _e158 = west;
+    let _e159 = east;
+    let _e161 = mid;
+    horizontal = abs(((_e158 + _e159) - (2f * _e161)));
+    let _e165 = vertical;
+    let _e166 = horizontal;
+    horizontalEdge = (_e165 >= _e166);
+    let _e168 = horizontalEdge;
+    if _e168 {
+        let _e169 = south;
+        let _e170 = mid;
+        local = (_e169 - _e170);
     } else {
-        let _e145 = east;
-        let _e146 = mid;
-        local = (_e145 - _e146);
+        let _e172 = east;
+        let _e173 = mid;
+        local = (_e172 - _e173);
     }
-    let _e148 = local;
-    towards = _e148;
-    let _e149 = horizontalEdge;
-    if _e149 {
-        let _e150 = north;
-        let _e151 = mid;
-        local_1 = (_e150 - _e151);
+    let _e175 = local;
+    towards = _e175;
+    let _e176 = horizontalEdge;
+    if _e176 {
+        let _e177 = north;
+        let _e178 = mid;
+        local_1 = (_e177 - _e178);
     } else {
-        let _e153 = west;
-        let _e154 = mid;
-        local_1 = (_e153 - _e154);
+        let _e180 = west;
+        let _e181 = mid;
+        local_1 = (_e180 - _e181);
     }
-    let _e156 = local_1;
-    away = _e156;
-    let _e157 = horizontalEdge;
-    if _e157 {
-        let _e159 = texel[1u];
-        local_2 = _e159;
+    let _e183 = local_1;
+    away = _e183;
+    let _e184 = horizontalEdge;
+    if _e184 {
+        let _e186 = texel[1u];
+        local_2 = _e186;
     } else {
-        let _e161 = texel[0u];
-        local_2 = _e161;
+        let _e188 = texel[0u];
+        local_2 = _e188;
     }
-    let _e162 = local_2;
-    step_length = _e162;
-    let _e163 = away;
-    let _e165 = towards;
-    if (abs(_e163) > abs(_e165)) {
-        let _e168 = step_length;
-        step_length = -(_e168);
+    let _e189 = local_2;
+    step_length = _e189;
+    let _e190 = away;
+    let _e192 = towards;
+    if (abs(_e190) > abs(_e192)) {
+        let _e195 = step_length;
+        step_length = -(_e195);
     }
-    let _e170 = north;
-    let _e171 = south;
-    let _e173 = west;
-    let _e175 = east;
-    average = ((((_e170 + _e171) + _e173) + _e175) * 0.25f);
-    let _e178 = average;
-    let _e179 = mid;
-    let _e182 = contrast;
-    blend = clamp((abs((_e178 - _e179)) / max(_e182, 0.00001f)), 0f, 1f);
-    let _e186 = blend;
-    let _e187 = blend;
-    let _e191 = fxaa_info.params[3u];
-    blend = ((_e186 * _e187) * _e191);
-    let _e193 = horizontalEdge;
-    if _e193 {
-        let _e194 = step_length;
-        let _e195 = blend;
-        local_3 = vec2<f32>(0f, (_e194 * _e195));
+    let _e197 = north;
+    let _e198 = south;
+    let _e200 = west;
+    let _e202 = east;
+    average_1 = ((((_e197 + _e198) + _e200) + _e202) * 0.25f);
+    let _e205 = average_1;
+    let _e206 = mid;
+    let _e209 = contrast;
+    blend = clamp((abs((_e205 - _e206)) / max(_e209, 0.00001f)), 0f, 1f);
+    let _e213 = blend;
+    let _e214 = blend;
+    let _e218 = fxaa_info.params[3u];
+    blend = ((_e213 * _e214) * _e218);
+    let _e220 = horizontalEdge;
+    if _e220 {
+        let _e221 = step_length;
+        let _e222 = blend;
+        local_3 = vec2<f32>(0f, (_e221 * _e222));
     } else {
-        let _e198 = step_length;
-        let _e199 = blend;
-        local_3 = vec2<f32>((_e198 * _e199), 0f);
+        let _e225 = step_length;
+        let _e226 = blend;
+        local_3 = vec2<f32>((_e225 * _e226), 0f);
     }
-    let _e202 = local_3;
-    offset = _e202;
-    let _e203 = v_uv_1;
-    let _e204 = offset;
-    let _e206 = textureSample(source_texture_tex, source_texture_smp, (_e203 + _e204));
-    let _e207 = _e206.xyz;
-    frag_color = vec4<f32>(_e207.x, _e207.y, _e207.z, 1f);
+    let _e229 = local_3;
+    offset = _e229;
+    let _e230 = v_uv_1;
+    let _e231 = offset;
+    let _e233 = textureSample(source_texture_tex, source_texture_smp, (_e230 + _e231));
+    smoothed = _e233.xyz;
+    let _e235 = smoothed;
+    param_11 = _e235;
+    let _e236 = northRgb;
+    param_12 = _e236;
+    let _e237 = southRgb;
+    param_13 = _e237;
+    let _e238 = westRgb;
+    param_14 = _e238;
+    let _e239 = eastRgb;
+    param_15 = _e239;
+    let _e240 = Sharpen_u0028_vf3_u003b_vf3_u003b_vf3_u003b_vf3_u003b_vf3_u003b((&param_11), (&param_12), (&param_13), (&param_14), (&param_15));
+    frag_color = vec4<f32>(_e240.x, _e240.y, _e240.z, 1f);
     return;
 }
 
@@ -11475,11 +11576,16 @@ fn main(@location(5) v_uv: vec2<f32>) -> @location(0) vec4<f32> {
           name: 'FxaaInfo',
           group: 1,
           binding: 0,
-          sizeInBytes: 16,
+          sizeInBytes: 32,
           members: <WebGpuBlockMember>[
             WebGpuBlockMember(
               name: 'params',
               offsetInBytes: 0,
+              sizeInBytes: 16,
+            ),
+            WebGpuBlockMember(
+              name: 'sharpen',
+              offsetInBytes: 16,
               sizeInBytes: 16,
             ),
           ],

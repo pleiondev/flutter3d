@@ -836,6 +836,9 @@ final class Renderer implements RenderServices {
   /// nobody asked for.
   final Float32List _bloomParams = Float32List(4);
   final Float32List _fxaaParams = Float32List(4);
+
+  /// `gfx-29n`: x is the sharpening amount, the rest unclaimed.
+  final Float32List _fxaaSharpen = Float32List(4);
   final Float32List _compositeParams = Float32List(4);
   final Float32List _compositeAoTexel = Float32List(4);
   final Float32List _luminanceParams = Float32List(4);
