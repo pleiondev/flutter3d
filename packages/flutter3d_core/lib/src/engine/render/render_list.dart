@@ -5,6 +5,7 @@ import 'package:vector_math/vector_math.dart';
 import '../scene/bvh.dart';
 import '../scene/mesh_node.dart';
 import '../scene/scene.dart';
+import '../scene/scene_node.dart';
 import '../scene/scene_spheres.dart';
 import 'key_sort.dart';
 import 'material.dart';
@@ -37,30 +38,53 @@ final class RenderList {
   /// place they are used.
   final MaterialSortIds materialIds = MaterialSortIds();
 
-  /// Above this many meshes, culling goes through the tree.
+  /// Where [bvhThreshold] starts.
   ///
-  /// Set from measurement rather than taste, and the measurement is not
-  /// flattering. `tool/bench/bench_frame_math.dart` on 200 000 spheres, on
-  /// 2026-09-04 — Dart 3.13.0 AOT, Apple M3 Pro, macOS 27, which is the same
-  /// run the sorting figures on `sortPackedKeys` come from:
+  /// Set from measurement rather than taste, and the measurement moved when the
+  /// tree learned to refit. `tool/bench_scene_bvh.dart` on 2026-09-18 — Dart
+  /// 3.13.0 AOT, Apple M3 Pro, macOS 27 — timing the whole render list, which
+  /// is the thing being decided, rather than a bare sphere test:
   ///
-  /// | case | linear | BVH |
-  /// |---|---|---|
-  /// | everything on screen | 2.5 ms | 4.7 ms |
-  /// | nothing on screen | 1.6 ms | 0.0 ms |
+  /// | meshes | on screen | linear | tree |
+  /// |---|---|---|---|
+  /// | 128 | all | 5.8 us | 6.5 us |
+  /// | 128 | a tenth | 4.4 us | 5.5 us |
+  /// | 256 | all | 11.6 us | 14.0 us |
+  /// | 256 | a tenth | 9.7 us | 9.0 us |
+  /// | 1024 | a tenth | 38 us | 28 us |
+  /// | 4096 | a tenth | 140 us | 65 us |
+  /// | 50 000 | a tenth | 2761 us | 686 us |
   ///
-  /// The day is written down because these four numbers decide a threshold and
+  /// The day is written down because these numbers decide a threshold and
   /// nothing else recounts them: without it there is no telling a figure that
   /// still holds from one taken on an SDK the repository has since left.
   ///
-  /// A tree only pays when it can reject. With every object visible it adds
-  /// traversal on top of the same leaf tests and loses outright — and a rebuild
-  /// of that scene costs 92 ms, which no frame can absorb. So the threshold is
-  /// high, the rebuild is skipped unless a transform actually changed, and a
-  /// scene that both is large and moves constantly is still better served by
-  /// the linear pass. Getting past that is what clustered culling and a
-  /// refittable tree are for; neither is here yet.
-  static const int bvhThreshold = 2048;
+  /// **A tree only pays when it can reject**, and that is the whole shape of
+  /// the table. With most of the scene off screen it wins from 256 meshes and
+  /// keeps winning by more, because a mesh the tree never visits costs nothing,
+  /// while the loop pays for the visibility flags, the layer mask and a bounds
+  /// refresh before it can reject anything. With everything on screen it loses
+  /// by about a fifth at every size, and that is the trade taken here: a scene
+  /// with four thousand meshes all on screen is GPU-bound on the draw calls
+  /// long before fifty microseconds of culling matters, while the same scene
+  /// seen from inside saves seventy-five.
+  ///
+  /// `gfx-62n` asked for a hundred and the number is 256, because at 128 the
+  /// loop still wins both columns. Two changes moved it down from 2048. The
+  /// tree is refitted rather than rebuilt when things merely move, so the
+  /// figure to clear is traversal rather than a 23 ms rebuild; and a node the
+  /// frustum fully contains now hands over its whole subtree as one flat range,
+  /// which is what stopped the all-on-screen column being a rout.
+  static const int defaultBvhThreshold = 256;
+
+  /// Above this many meshes, culling goes through the tree.
+  ///
+  /// A field rather than a constant because [defaultBvhThreshold] is one
+  /// machine's answer, and an application that knows its own scenes — a viewer
+  /// where nothing ever moves, a simulation where everything does — has better
+  /// information than a number measured here. It is also what lets the
+  /// benchmark run both paths over the same scene.
+  int bvhThreshold = defaultBvhThreshold;
 
   /// Shared with the raycaster, so the tree is built once per frame rather than
   /// once per consumer.
@@ -71,6 +95,11 @@ final class RenderList {
 
   final Aabb3 _bvhScratch = Aabb3();
   Float32List _bvhSpheres = Float32List(0);
+
+  /// [SceneNode.changeEpoch] and the mesh count as of the last pack, so a frame
+  /// where nothing was touched skips it. -1 is "never packed".
+  int _bvhEpoch = -1;
+  int _bvhCount = -1;
 
   final List<DrawItem> _pool = <DrawItem>[];
   int _used = 0;
@@ -112,7 +141,6 @@ final class RenderList {
     final meshes = scene.meshes;
     final viewRow = viewMatrix.storage;
     final centre = Vector3.zero();
-    final sphere = Sphere.centerRadius(Vector3.zero(), 1.0);
 
     /// The per-mesh work, identical whichever way the candidates arrived.
     ///
@@ -130,13 +158,23 @@ final class RenderList {
       if ((node.layerMask & view.layerMask) == 0) return;
       if (node.mesh.indexCount == 0) return;
 
+      // The centre is still wanted for the depth sort below, and reading it
+      // is what refreshes the bounds the cull then tests.
       centre.setFrom(node.worldBoundsCentre);
-      final radius = node.worldBoundsRadius;
 
       if (node.frustumCulled) {
-        sphere.center.setFrom(centre);
-        sphere.radius = radius;
-        if (!frustum.intersectsWithSphere(sphere)) return;
+        // **The box, not the sphere around it — `gfx-61n`.**
+        // `MeshNode._refreshBounds` fills both in one call, and the two reads
+        // above have already triggered it, so the exact world AABB is sitting
+        // there costing nothing extra. Testing the sphere instead threw that
+        // away: a sphere around a box has up to `sqrt(3)` times its half
+        // extent, so a long thin mesh — a wall, a corridor floor, a fence —
+        // reads as a ball the length of its longest side and survives the
+        // frustum from well outside it.
+        //
+        // The sphere is still what the BVH is built over, which is `gfx-62n`'s
+        // row rather than this one.
+        if (!frustum.intersectsWithAabb3(node.worldBounds)) return;
       }
 
       // Eye-space depth is the third row of the view matrix applied to the
@@ -167,12 +205,27 @@ final class RenderList {
 
     usedBvh = meshes.length >= bvhThreshold;
     if (usedBvh) {
-      _bvhSpheres = ensureSphereCapacity(_bvhSpheres, meshes.length);
-      bvh.refresh(
-        _bvhSpheres,
-        meshes.length,
-        packSceneSpheres(meshes, _bvhSpheres),
-      );
+      // **A frame where nothing was touched packs nothing — `gfx-62n`.**
+      // Repacking is how the tree found out whether anything had moved, and it
+      // is a full pass over every mesh with three version-checked getters
+      // apiece: measured at 3.3 ms on 50 000 meshes, which is the whole cost of
+      // the linear cull it exists to avoid. So the tree could not win at any
+      // size, and no threshold was going to fix that.
+      //
+      // `changeEpoch` answers the same question in one comparison. It
+      // over-reports — a node set to the position it already had advances
+      // it — which costs a frame of repacking and can never miss a move.
+      final epoch = SceneNode.changeEpoch;
+      if (epoch != _bvhEpoch || meshes.length != _bvhCount) {
+        _bvhSpheres = ensureSphereCapacity(_bvhSpheres, meshes.length);
+        bvh.refresh(
+          _bvhSpheres,
+          meshes.length,
+          packSceneSpheres(meshes, _bvhSpheres),
+        );
+        _bvhEpoch = epoch;
+        _bvhCount = meshes.length;
+      }
       bvh.queryFrustum(
         frustum,
         (index) => consider(meshes[index]),

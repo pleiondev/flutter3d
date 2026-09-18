@@ -35,6 +35,43 @@ base class SceneNode implements AnimationTarget {
   /// Monotonic source of version stamps, shared by every node.
   static int _versionCounter = 0;
 
+  /// The counter as a public reading: "has anything anywhere changed since?"
+  ///
+  /// **What it is for — `gfx-62n`.** The lazy scheme above has one gap that
+  /// only shows at scale: there is no way to ask whether a frame needs to
+  /// redo work derived from transforms, short of reading every transform,
+  /// which is the work. `RenderList` hit this exactly. Keeping its spatial
+  /// tree meant repacking every mesh's bounding sphere each frame to find out
+  /// whether any had moved, and at 50 000 meshes that pack cost 3.3 ms —
+  /// as much as the cull it was there to make unnecessary, so the tree could
+  /// not win at any size.
+  ///
+  /// So the counter advances when dirt is *introduced* as well as when a
+  /// matrix is recomputed. A reader that holds a previous value and finds it
+  /// unchanged knows no node was touched: not moved, not reparented, not
+  /// added, not removed, and no mesh's own bounds invalidated.
+  ///
+  /// It over-reports on purpose. Setting a node to the position it already
+  /// holds advances it, and so does a move that nothing derived from
+  /// transforms cares about, because the alternative is comparing values on
+  /// every setter and paying for the comparison always to save a frame
+  /// rarely. Over-reporting costs a frame of redone work; under-reporting
+  /// draws the wrong picture.
+  static int get changeEpoch => _versionCounter;
+
+  /// Advances [changeEpoch] for a change the graph itself cannot see.
+  ///
+  /// The one caller is `MeshNode.markBoundsDirty`, which is the only way
+  /// something a reader derived from the graph goes stale without a transform
+  /// being touched.
+  static void noteChange() => _versionCounter++;
+
+  /// Records that this node's local transform no longer matches its matrix.
+  void _markLocalDirty() {
+    _localDirty = true;
+    _versionCounter++;
+  }
+
   SceneNode? _parent;
   final List<SceneNode> _children = <SceneNode>[];
   Scene? _scene;
@@ -97,34 +134,34 @@ base class SceneNode implements AnimationTarget {
   @override
   void setPosition(double x, double y, double z) {
     _position.setValues(x, y, z);
-    _localDirty = true;
+    _markLocalDirty();
   }
 
   void setPositionFrom(Vector3 value) => setPosition(value.x, value.y, value.z);
 
   void translate(double dx, double dy, double dz) {
     _position.setValues(_position.x + dx, _position.y + dy, _position.z + dz);
-    _localDirty = true;
+    _markLocalDirty();
   }
 
   @override
   void setRotation(Quaternion value) {
     _rotation.setFrom(value);
     _rotation.normalize();
-    _localDirty = true;
+    _markLocalDirty();
   }
 
   /// Yaw about Y, then pitch about X, then roll about Z — the order that reads
   /// naturally for cameras and turntables.
   void setRotationYawPitchRoll(double yaw, double pitch, double roll) {
     _rotation.setEuler(yaw, pitch, roll);
-    _localDirty = true;
+    _markLocalDirty();
   }
 
   @override
   void setScale(double x, double y, double z) {
     _scale.setValues(x, y, z);
-    _localDirty = true;
+    _markLocalDirty();
   }
 
   void setUniformScale(double value) => setScale(value, value, value);
@@ -231,6 +268,7 @@ base class SceneNode implements AnimationTarget {
   /// Forces the next [worldMatrix] read to recompute, used on reparenting.
   void _invalidateWorld() {
     _seenParentVersion = -1;
+    _versionCounter++;
   }
 
   /// Aims the node's local -Z along [direction], expressed in the parent's space.

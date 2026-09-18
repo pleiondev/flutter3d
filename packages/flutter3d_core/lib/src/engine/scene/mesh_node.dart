@@ -200,7 +200,14 @@ base class MeshNode extends SceneNode {
   ///
   /// For a subclass whose [localBounds] can change without the transform or
   /// the mesh changing, which are the two things the cache is keyed on.
-  void markBoundsDirty() => _boundsVersion = -1;
+  ///
+  /// Advances [SceneNode.changeEpoch] as well, because a reader holding an
+  /// epoch is asking "is anything I derived from bounds stale?", and this is
+  /// the one way bounds go stale without a transform saying so.
+  void markBoundsDirty() {
+    _boundsVersion = -1;
+    SceneNode.noteChange();
+  }
 
   /// World-space axis-aligned bounds, recomputed only when the transform changes.
   Aabb3 get worldBounds {
