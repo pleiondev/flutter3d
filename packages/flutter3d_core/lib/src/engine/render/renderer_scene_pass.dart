@@ -261,13 +261,19 @@ extension _ScenePasses on Renderer {
       // above is null whenever the surface buffer is attached, and that is
       // the case a caller cannot otherwise see.
       msaaSamples: msaa == null ? 1 : device.preferredSampleCount,
+      // **The device first, and the order is the point.** A device that
+      // cannot multisample at all is the cause whatever else is true, and
+      // blaming the surface buffer there would send somebody to remove an
+      // effect that was never the reason. The buffer is named only where
+      // multisampling was available and this frame gave it up.
       msaaDeclined: msaa != null
           ? null
-          : (surfaceIsRead
-                ? 'a pass in this frame reads the surface buffer, and '
-                      'attachments in one target must agree on sample count'
-                : (!device.supportsOffscreenMsaa
-                      ? 'this device has no multisampled offscreen target'
+          : (!device.supportsOffscreenMsaa
+                ? 'this device has no multisampled offscreen target'
+                : (surfaceIsRead
+                      ? 'a pass in this frame reads the surface buffer, and '
+                            'attachments in one target must agree on sample '
+                            'count'
                       : null)),
     );
   }

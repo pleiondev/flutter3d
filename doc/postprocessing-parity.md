@@ -376,14 +376,39 @@ device, or a deterministic CPU reference.
 - `gfx-19n` — the published order stops being a doc and becomes the *key
   space* `gfx-37n` and `gfx-40n` read. It must publish exact node-name
   strings, not prose names, and say which are stable and which are computed:
-  `'point shadows (static)'` carries spaces and parentheses.
+  `'point shadows (static)'` carries spaces and parentheses. Landed
+  2026-09-18 as `RenderSettings.passOrder`, with `undisablePasses` beside it
+  and `probePassName` for the one name that carries an index; the test
+  compiles a frame and compares both directions, so a pass added without
+  joining the list fails somewhere.
 - `gfx-20n` — land first, but stop treating it as a one-off.
   `FrameResult.antiAliasing` is the first instance of "asked for X, got Y"
-  and `gfx-39n`'s `skipped` is the general form.
+  and `gfx-39n`'s `skipped` is the general form. Landed 2026-09-18, and the
+  case it earns its place on is the one nobody would guess: consuming the
+  surface buffer takes multisampling off the whole scene pass, so switching
+  occlusion on makes every edge worse and nothing said why.
 - `gfx-23n` — the anchor identity test needs a fifth fixture, because
   `gfx-43n`/`44n`/`45n` each declare an optional surface-buffer read, and
   declaring it is what attaches the second attachment and switches MSAA off
   for the whole scene pass.
+
+  **Landed 2026-09-18, and the amendment's prediction is what the fixture
+  holds.** Four anchors hold — the same settings twice, a default left alone
+  against a default passed, off by a flag against off by name, and a node
+  registered-and-disabled against a node never registered. The fifth does
+  not: a node that declares the optional read and draws nothing takes the
+  multisampling off the whole scene pass. Since the picture cannot say so on
+  the software rasteriser — which multisamples nothing anyway — what the
+  fixture pins is that the frame *reports* it, through the field `gfx-20n`
+  added. Two of these found real defects: the composite was adding a
+  hardcoded draw count, and `msaaDeclined` named the surface buffer on a
+  device that could not multisample at all, sending a reader to remove an
+  effect that was never the reason.
+
+  **The row's original text is not in this repository** — only this
+  amendment — so what landed is what the amendment's own sentence asks for
+  rather than a reconstruction of the row. If the first survey's report
+  turns up and asked for something else, this is the paragraph to correct.
 - `gfx-24n` — drop the differentiation claim; it was refuted. The row
   survives on its own merits, which are better anyway.
 - `gfx-26n` — **the acceptance line was wrong and is now measured.** It asked
@@ -398,7 +423,10 @@ device, or a deterministic CPU reference.
 - `gfx-25n` — this is where the *blanket* disable belongs, not the per-step
   toggle.
 - `gfx-28n` — the custom-effect wrapper carries a stable `name` and an
-  `enabled` from day one, joining `gfx-37n`'s key space.
+  `enabled` from day one, joining `gfx-37n`'s key space. Landed 2026-09-18 as
+  `FullscreenEffect`, in two constructors rather than with a phase argument:
+  the phase decides which version the effect reads, and an argument left off
+  is how a grade ends up where there is nothing graded yet.
 - `gfx-29n` — keep and state more firmly: neither flutter_scene nor Filament
   nor Godot ships output sharpening, and folding it into taps `fxaa.frag`
   already fetches costs no new pass. One of only two surviving
