@@ -240,13 +240,22 @@ extension _MeshEncode on Renderer {
     if (instanced != null) {
       encoder.bindVertexData(instanced.instanceBytes, instanced.count, slot: 1);
     }
+    // **The stage the pipeline was built with, including one a material
+    // brought — `gfx-86n`.** This used to pick among the engine's own four
+    // and bind `FrameInfo` through `MeshVertex` even when the pipeline's vertex
+    // stage was somebody else's. The software backend binds a block by name
+    // for the whole pass and never noticed; a backend that resolves the slot
+    // through the handle it was given was writing into the engine's stage's
+    // layout and landing in the right place only because a stage that copies
+    // `FrameInfo` from `mesh.vert` puts it at the same index. A stage that
+    // declares a block of its own — the polyline's viewport — would not.
     final activeVertexShader = batched
         ? instancedVertexShader
-        : skinned
-        ? skinnedVertexShader
-        : lightmapped
-        ? lightmappedVertexShader
-        : vertexShader;
+        : _vertexShaderFor(
+            material.lighting,
+            skinned: skinned,
+            lightmapped: lightmapped,
+          );
     // Typed, because `Matrix4.operator*` returns `dynamic`: without the
     // annotation `.storage` here is an unchecked call on an untyped value,
     // and a typo in it would compile and fail at the draw.
@@ -266,10 +275,28 @@ extension _MeshEncode on Renderer {
       // the mesh node's own world transform, which is exactly what the
       // renderer is holding at this point.
       skeleton.update(modelMatrix);
-      encoder.bindUniformBlock(skinnedVertexShader, _kSkinInfoBlock, {
+      encoder.bindUniformBlock(activeVertexShader, _kSkinInfoBlock, {
         'joint_matrices': skeleton.matrices,
       });
       state.skinnedDraws++;
+    }
+
+    // **A material's own vertex stage reads its parameters too — `gfx-86n`.**
+    // They were bound to the fragment stage alone, which is where every stage
+    // a material could supply used to be; since `gfx-75n` a material can bring
+    // the vertex half as well, and a vertex stage has things to be told — a
+    // wave height, a wind, the viewport a line is widened against. Only a
+    // stage the material brought: the engine's own read `FrameInfo` and
+    // nothing else, and a material naming no vertex stage draws exactly as it
+    // did, which is why no golden could move.
+    if (material.parameters.isNotEmpty &&
+        material.lighting.vertexShaderName != null &&
+        !batched) {
+      encoder.bindUniformBlock(
+        activeVertexShader,
+        material.parameterBlock,
+        material.parameters,
+      );
     }
 
     final fragmentShader = _fragmentShaderFor(material.lighting);

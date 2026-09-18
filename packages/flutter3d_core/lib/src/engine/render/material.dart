@@ -77,6 +77,49 @@ final class Material {
        baseColor = baseColor ?? Vector4(1.0, 1.0, 1.0, 1.0),
        emissive = emissive ?? Vector3.zero();
 
+  /// The material a `buildPolyline` mesh is drawn with — `gfx-86n`.
+  ///
+  /// [viewportWidth] and [viewportHeight] are the render target in pixels, the
+  /// same pixels the line's width was given in. They are the one thing the
+  /// vertex stage needs that no engine block carries, so they travel as this
+  /// material's own parameter; on a resize, write the new size into
+  /// [polylineViewport] rather than rebuilding anything.
+  ///
+  /// **Double-sided, and not as a preference.** Which way a band's triangles
+  /// wind on screen depends on which way the line is heading relative to the
+  /// camera, so half of any route faces away and back-face culling would
+  /// delete it segment by segment as the camera turned.
+  ///
+  /// **No depth bias.** A line behind a hill is hidden by the hill, which is
+  /// what the depth test does by itself; an overlay that pushes towards the
+  /// eye, the way `MeshOverlay.biasPixels` does so an edge sits on its own
+  /// face, would draw a route through the mountain. A line laid exactly on the
+  /// ground it follows will fight that ground for depth, and the answer there
+  /// is to lift the points, not to bias the pass.
+  factory Material.polyline({
+    String? name,
+    required double viewportWidth,
+    required double viewportHeight,
+  }) => Material(
+    name: name,
+    lighting: LightingModel.polyline,
+    doubleSided: true,
+    parameters: <String, Float32List>{
+      'viewport': Float32List.fromList(<double>[
+        viewportWidth,
+        viewportHeight,
+        0,
+        0,
+      ]),
+    },
+  );
+
+  /// The render target size a [Material.polyline] widens its line against, as
+  /// the list the renderer binds — so writing to it takes effect on the next
+  /// frame, with nothing rebuilt. Null for any other material.
+  Float32List? get polylineViewport =>
+      lighting == LightingModel.polyline ? parameters['viewport'] : null;
+
   final String? name;
 
   /// The uniform block an application's own shader reads its parameters from.

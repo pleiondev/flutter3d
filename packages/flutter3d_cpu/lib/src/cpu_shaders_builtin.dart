@@ -53,6 +53,7 @@ import 'cpu_shaders_debug.dart';
 import 'cpu_shaders_lit.dart';
 import 'cpu_shaders_mesh_vertex.dart';
 import 'cpu_shaders_particles.dart';
+import 'cpu_shaders_polyline.dart';
 import 'cpu_shaders_post.dart';
 import 'cpu_shaders_probe.dart';
 import 'cpu_shaders_reflections.dart';
@@ -143,6 +144,7 @@ Map<String, CpuStage> builtinCpuShaders() {
       MeshLightmappedVertexShader(),
     ),
     'DebugLineVertex': const CpuStage.vertex(DebugLineVertexShader()),
+    'PolylineVertex': const CpuStage.vertex(PolylineVertexShader()),
     'VertexTextureProbeVertex': const CpuStage.vertex(
       VertexTextureProbeVertexShader(),
     ),

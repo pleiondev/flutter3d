@@ -83,6 +83,10 @@
     "type": "vertex",
     "file": "shaders/mesh_lightmapped.vert"
   },
+  "PolylineVertex": {
+    "type": "vertex",
+    "file": "shaders/polyline.vert"
+  },
   "ParticleVertex": {
     "type": "vertex",
     "file": "shaders/particle.vert"

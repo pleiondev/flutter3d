@@ -75,6 +75,29 @@ final class LightingModel {
     usesMetallicRoughnessMap: false,
     usesMaterialParameters: false,
   );
+
+  /// A line of constant screen width — `gfx-86n`: [unlit]'s fragment stage
+  /// behind the engine's own `PolylineVertex`, which widens `buildPolyline`'s
+  /// geometry by the number of pixels each point carries.
+  ///
+  /// **Unlit on purpose.** A route drawn over terrain is a mark on a map
+  /// rather than a surface in the world, and a lit band would darken where the
+  /// ground turns away from the sun — the gradient an application draws with
+  /// per-point colour would come back as that colour times a shadow term
+  /// nobody asked for. The vertex colour is multiplied into the albedo by
+  /// `ReadSurface`, so the colour at each point is the colour on screen.
+  ///
+  /// Absent from [builtIn] for the reason [xray] is: it is not a way to light
+  /// a model, and a picker offering it would offer to draw a cube as a line.
+  static const LightingModel polyline = LightingModel(
+    'Polyline',
+    'Unlit',
+    vertexShaderName: 'PolylineVertex',
+    usesMaterialMaps: false,
+    usesMetallicRoughnessMap: false,
+    usesMaterialParameters: false,
+  );
+
   static const LightingModel lambert = LightingModel(
     'Lambert',
     'Lambert',

@@ -76,9 +76,9 @@ void main() {
   test('the emitted shader is the shape the build already compiles', () {
     expect(glsl, startsWith('#version 460 core'));
     expect(glsl, contains('#include <lib/surface.glsl>'));
-    // A material must not reach for either of these: the engine's uniform
-    // blocks are frozen by offset agreement across four backends, and
-    // `surface.glsl` already declares the samplers the engine binds.
+    // Neither of these belongs in the emitted text: its parameters are folded
+    // constants, so it has no block to declare, and `surface.glsl` already
+    // declares the samplers the engine binds.
     expect(glsl, isNot(contains('uniform ')));
     expect(glsl, contains('Surface s = ReadSurface();'));
     expect(glsl, contains('WriteSurface(result.rgb, result.a);'));
