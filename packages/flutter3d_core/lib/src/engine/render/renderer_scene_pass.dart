@@ -173,25 +173,34 @@ extension _ScenePasses on Renderer {
       _forwardData[2] = _forward.z;
 
       developer.Timeline.startSync('Renderer.encodeDraws');
+      void encodeOne(MeshNode node) => _encodeNode(
+        encoder: pass,
+        node: node,
+        scene: scene,
+        settings: settings,
+        viewProjection: viewProjection,
+        shadows: shadows,
+        probes: probes,
+        lights: lights,
+        shadowSlots: _shadowSlots,
+        state: passState,
+      );
+
       void encodeHalf(List<int> indices) {
         for (var i = 0; i < indices.length; i++) {
-          final node = _renderList.itemAt(indices[i]).requireNode;
-          _encodeNode(
-            encoder: pass,
-            node: node,
-            scene: scene,
-            settings: settings,
-            viewProjection: viewProjection,
-            shadows: shadows,
-            probes: probes,
-            lights: lights,
-            shadowSlots: _shadowSlots,
-            state: passState,
-          );
+          encodeOne(_renderList.itemAt(indices[i]).requireNode);
         }
       }
 
-      encodeHalf(_renderList.opaque);
+      if (settings.batchIdenticalDraws) {
+        _encodeBatchedOpaque(
+          indices: _renderList.opaque,
+          probes: probes,
+          encode: encodeOne,
+        );
+      } else {
+        encodeHalf(_renderList.opaque);
+      }
       // Between the two halves, which is the one place it can go. After the
       // opaque half, so every pixel already covered by geometry fails the depth
       // test before the sky's fragment stage runs — the software rasteriser
