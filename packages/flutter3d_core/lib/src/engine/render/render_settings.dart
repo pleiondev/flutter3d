@@ -115,6 +115,8 @@ final class AmbientOcclusionSettings {
     this.samples = 12,
     this.strength = 0.8,
     this.bias = 0.02,
+    this.blurTaps = 0,
+    this.blurDepthFalloff = 0.1,
   });
 
   final bool enabled;
@@ -133,6 +135,31 @@ final class AmbientOcclusionSettings {
 
   /// How dark a fully enclosed corner goes, where 1 is black.
   final double strength;
+
+  /// Taps to each side in the depth-aware blur over the occlusion buffer,
+  /// 0 for no blur — `gfx-32n`. Bounded at eight whatever this says.
+  ///
+  /// **The composite's own 2x2 is not this, and widening it would not do.**
+  /// That average exists to cancel the kernel rotation this pass applies by
+  /// the parity of the pixel, and it is sized to that artefact rather than
+  /// tuned for quality — widen it and the contact shadows smear. So the
+  /// smoothing has to be a pass of its own, and this is how many taps it
+  /// takes. Twelve is where a flat wall stops showing the sampling pattern.
+  ///
+  /// Off by default. A blur is a second full-screen pass over a signal that
+  /// is already off by default, so nothing pays for it until two things are
+  /// switched on.
+  final int blurTaps;
+
+  /// How much difference in depth, in world metres, halves a tap's weight in
+  /// that blur.
+  ///
+  /// The number that decides whether occlusion bleeds past a silhouette. Too
+  /// large and the dark of a corner spreads out over whatever is in front of
+  /// it, which is the halo that makes people switch ambient occlusion off;
+  /// too small and a curved surface loses the smoothing the blur is for,
+  /// because its own depth changes faster than the falloff allows.
+  final double blurDepthFalloff;
 
   /// How far, in metres, the sample origin is lifted off its own surface.
   ///

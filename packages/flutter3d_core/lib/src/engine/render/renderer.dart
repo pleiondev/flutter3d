@@ -131,6 +131,7 @@ final class Renderer implements RenderServices {
     required this.fxaaShader,
     required this.reflectionShader,
     required this.ssaoShader,
+    required this.ssaoBlurShader,
     required TextureHandle fallbackAlbedo,
     required TextureHandle fallbackNormal,
     required TextureHandle fallbackBlack,
@@ -254,6 +255,9 @@ final class Renderer implements RenderServices {
 
   /// The ambient occlusion pass.
   final ShaderHandle ssaoShader;
+
+  /// `gfx-32n`'s depth-aware blur over what that pass produced.
+  final ShaderHandle ssaoBlurShader;
 
   /// 1x1 opaque white, bound when a material has no base-colour texture.
   ///
@@ -839,6 +843,10 @@ final class Renderer implements RenderServices {
 
   /// `gfx-29n`: x is the sharpening amount, the rest unclaimed.
   final Float32List _fxaaSharpen = Float32List(4);
+
+  /// `gfx-32n`: one texel of the occlusion buffer, the tap count, and how
+  /// fast a tap's weight falls off with depth.
+  final Float32List _ssaoBlurParams = Float32List(4);
   final Float32List _compositeParams = Float32List(4);
   final Float32List _compositeAoTexel = Float32List(4);
   final Float32List _luminanceParams = Float32List(4);
@@ -1022,6 +1030,7 @@ final class Renderer implements RenderServices {
       fxaaShader: require('Fxaa'),
       reflectionShader: require('Reflections'),
       ssaoShader: require('Ssao'),
+      ssaoBlurShader: require('SsaoBlur'),
       fallbackAlbedo: fallbackAlbedo ?? SolidColorTexture.white.upload(device),
       fallbackNormal:
           fallbackNormal ?? SolidColorTexture.flatNormal.upload(device),
@@ -1779,6 +1788,12 @@ final class Renderer implements RenderServices {
     // the reason bloom is: a name has to be known for a read of it to compile,
     // and the composite reads the occlusion.
     graph.addNode(_SsaoNode(this, view, s));
+    // `gfx-32n`. A link in the occlusion chain rather than a second producer:
+    // it reads `ao` and writes the next version of it, so with the blur off
+    // the node is inactive, consumes no version, and the composite binds what
+    // the occlusion pass left — the version-skip the graph already does for
+    // every other optional link.
+    graph.addNode(_SsaoBlurNode(this, s));
     // Then bloom, so it reads the scene as everything before it left it — the
     // registration order *is* the version chain — and the composite last, so it
     // reads the end of that chain and the glow taken from it.
