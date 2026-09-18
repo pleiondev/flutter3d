@@ -657,6 +657,13 @@ final class Renderer implements RenderServices {
 
   final Map<String, ShaderHandle> _fragmentShaders = <String, ShaderHandle>{};
 
+  /// Vertex stages a material brought with it, by entry point — `gfx-75n`.
+  ///
+  /// Beside [_fragmentShaders] and for its reason: the lookup throws when the
+  /// name is not there, and a throw per draw would be a throw per frame.
+  final Map<String, ShaderHandle> _materialVertexShaders =
+      <String, ShaderHandle>{};
+
   /// Textures reused across frames and across bloom levels.
   ///
   /// The device is the allocator: one rule for every texture in the engine,
