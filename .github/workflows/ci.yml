@@ -230,6 +230,58 @@ jobs:
       - name: golden scenes, software backend
         run: xvfb-run -a packages/flutter3d/tool/golden.sh --cpu
 
+  # **Windows and Linux** — `gfx-73n`. The pubspec declared four platform
+  # folders across ten applications and neither desktop was among them, so a
+  # reader asking "which platforms can I ship" got a backend count for an
+  # answer. The Impeller backend has no platform-specific code, so this is a
+  # build target and a lane rather than an engine change — and a lane is the
+  # only honest way to say it: the runners were generated from the SDK's own
+  # templates on a machine that cannot compile either of them.
+  #
+  # The dungeon demo because that is the row's own subject, and a build rather
+  # than a run because a first frame needs a display and, on Windows, a runner
+  # this workflow has no way to drive. What a build proves is the half that
+  # actually breaks: the CMake, the plugin registration, and every package in
+  # the graph compiling for a platform none of them had been asked about.
+  desktop:
+    strategy:
+      # Both, whichever fails: a matrix that stops at the first failure hides
+      # whether the other one was ever going to work.
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            target: linux
+          - os: windows-latest
+            target: windows
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.47.0'
+          channel: stable
+          cache: true
+
+      - name: linux desktop toolchain
+        if: matrix.target == 'linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clang cmake ninja-build pkg-config \
+            libgtk-3-dev liblzma-dev libstdc++-12-dev
+
+      - run: flutter pub get
+
+      # The shader bundle is built rather than committed, and every application
+      # that draws loads it.
+      - run: flutter precache --${{ matrix.target }}
+      - run: cd packages/flutter3d_impeller && dart run bin/build_shader_bundle.dart
+
+      - name: build the dungeon demo
+        run: cd apps/flutter3d_demo_dungeon && flutter build ${{ matrix.target }} --debug
+
   godot:
     runs-on: ubuntu-latest
     timeout-minutes: 20
