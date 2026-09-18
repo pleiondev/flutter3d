@@ -15,10 +15,17 @@ abstract final class ShaderLightType {
   static const double point = 1.0;
   static const double spot = 2.0;
 
+  /// `gfx-77n`. Last on purpose: the shader classifies with `<` tests in this
+  /// order, so a fourth kind appended costs the three that came before it
+  /// nothing, and every scene that has no rectangle in it takes the identical
+  /// path it always did.
+  static const double area = 3.0;
+
   static double of(LightType type) => switch (type) {
     LightType.directional => directional,
     LightType.point => point,
     LightType.spot => spot,
+    LightType.area => area,
   };
 }
 
@@ -52,6 +59,17 @@ abstract final class ShaderLightType {
 /// | `colors` | linear RGB | intensity |
 /// | `directions` | the direction it points, its local -Z | range, 0 for unbounded |
 /// | `cones` | x: cos(inner), y: cos(outer) | unused |
+///
+/// A rectangle reads the last two rows differently, and nothing else changes —
+/// `gfx-77n`:
+///
+/// | Array | xyz | w |
+/// |---|---|---|
+/// | `directions` | half-width vector, world space | range |
+/// | `cones` | half-height vector, world space | unused |
+///
+/// Its normal is `cross(halfWidth, halfHeight)` normalised, so the panel's
+/// facing is derived rather than stored and cannot disagree with its shape.
 final class LightBuffer {
   /// The shader declares arrays of this length, so it is a compile-time
   /// constant on both sides. Raising it means rebuilding the bundle.
@@ -160,6 +178,12 @@ final class LightBuffer {
 
   final Vector3 _direction = Vector3.zero();
   final Vector3 _position = Vector3.zero();
+
+  /// A rectangle's two edge vectors while it is being packed — `gfx-77n`.
+  /// Kept here for the reason the two above are: gathering lights runs every
+  /// frame and must allocate nothing.
+  final Vector3 _halfWidth = Vector3.zero();
+  final Vector3 _halfHeight = Vector3.zero();
 
   /// The scene's live lights, in scene order, as [collect] last found them.
   final List<LightNode> candidates = <LightNode>[];
@@ -628,6 +652,46 @@ final class LightBuffer {
     colors[slot + 1] = light.color.y;
     colors[slot + 2] = light.color.z;
     colors[slot + 3] = light.intensity * scale;
+
+    // **A rectangle takes over the two arrays it has no punctual use for —
+    // `gfx-77n`.** It needs six numbers nothing else does: two edge vectors,
+    // which between them carry the panel's size *and* its roll about its own
+    // normal, and a number cannot carry a roll. Widening the block by a fifth
+    // `vec4[8]` would have cost 128 bytes on every draw in every scene, most
+    // of which hold no rectangle at all — the objection `gfx-74n` raised
+    // against widening these arrays, at a smaller size but the same shape. So
+    // the half-width goes where a punctual light keeps the direction it points
+    // and the half-height where a spot keeps its cone, and the normal is the
+    // cross product of the two, which is a multiply the shader was going to do
+    // anyway. Nothing grew.
+    if (light.type == LightType.area) {
+      light.readHalfWidth(_halfWidth);
+      light.readHalfHeight(_halfHeight);
+
+      directions[slot] = _halfWidth.x;
+      directions[slot + 1] = _halfWidth.y;
+      directions[slot + 2] = _halfWidth.z;
+      directions[slot + 3] = math.max(light.range, 0.0);
+
+      // **Negated, and that is the whole of how a window aims like everything
+      // else.** The shader takes the panel's facing as
+      // `cross(halfWidth, halfHeight)`, which is the plain reading of two edge
+      // vectors and needs no minus sign anywhere in the inner loop. The node's
+      // own axes give `cross(+X, +Y) = +Z`, and every light in this engine
+      // points down its local −Z — a spot, a directional, and the camera that
+      // [SceneNode.lookAt] was written for. Flipping the height axis here makes
+      // the cross product come out −Z, so a window aimed with `lookAt` lights
+      // what it was aimed at instead of the wall behind it. It costs nothing
+      // visible: a rectangle is symmetric about its centre, so which way its
+      // height runs cannot be seen.
+      cones[slot] = -_halfHeight.x;
+      cones[slot + 1] = -_halfHeight.y;
+      cones[slot + 2] = -_halfHeight.z;
+      cones[slot + 3] = 0.0;
+
+      _count++;
+      return;
+    }
 
     directions[slot] = _direction.x;
     directions[slot + 1] = _direction.y;

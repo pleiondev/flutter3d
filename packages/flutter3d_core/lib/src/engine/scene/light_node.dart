@@ -5,7 +5,16 @@ import 'package:vector_math/vector_math.dart';
 import 'scene.dart';
 import 'scene_node.dart';
 
-enum LightType { directional, point, spot }
+/// What shape a light is, which decides how its contribution is integrated.
+///
+/// The first three are *punctual*: light leaves one point, so the direction to
+/// it is a single vector and the integral over the surface's hemisphere is one
+/// cosine. [area] is not, and that is the whole of what makes it worth a fourth
+/// entry — `gfx-77n`. A rectangle has extent, so what reaches a surface is an
+/// integral over the rectangle rather than a value at a point, and that is what
+/// makes an interior read as lit by a window instead of by a bright dot with a
+/// window painted behind it.
+enum LightType { directional, point, spot, area }
 
 /// A light placed in the scene graph.
 ///
@@ -92,6 +101,44 @@ final class LightNode extends SceneNode {
 
   double innerConeAngle;
   double outerConeAngle;
+
+  /// How wide the rectangle is, in world metres, along the node's local +X —
+  /// `gfx-77n`. Ignored by every other kind.
+  double width = 1.0;
+
+  /// How tall it is, along the node's local +Y.
+  ///
+  /// The rectangle faces the node's local −Z, the same forward axis a spot
+  /// light aims down and a camera looks along, so [SceneNode.lookAt] aims a
+  /// window at what it should be lighting exactly as it aims everything else.
+  double height = 1.0;
+
+  /// The rectangle's half-width vector in world space, i.e. local +X scaled by
+  /// half of [width]. Mutates and returns [out].
+  ///
+  /// A vector rather than a scalar, because the shader needs the rectangle's
+  /// *roll* around its own normal and a number cannot carry it. The pair of
+  /// these plus the centre is the whole rectangle: its corners are the centre
+  /// plus and minus each of them.
+  Vector3 readHalfWidth([Vector3? out]) {
+    final result = out ?? Vector3.zero();
+    final m = worldMatrix.storage;
+    result.setValues(m[0], m[1], m[2]);
+    // Normalised and then scaled, so a node scaled by its parent does not
+    // multiply the panel twice: the size is the light's own property and the
+    // matrix is only being asked which way its axes point.
+    if (result.length2 > 0.0) result.normalize();
+    return result..scale(width * 0.5);
+  }
+
+  /// The half-height vector, local +Y scaled by half of [height].
+  Vector3 readHalfHeight([Vector3? out]) {
+    final result = out ?? Vector3.zero();
+    final m = worldMatrix.storage;
+    result.setValues(m[4], m[5], m[6]);
+    if (result.length2 > 0.0) result.normalize();
+    return result..scale(height * 0.5);
+  }
 
   /// World-space direction the light points, i.e. the node's local -Z.
   ///
@@ -186,6 +233,13 @@ abstract final class Photometric {
     LightType.directional => fromLux(lumens),
     LightType.point => fromCandela(lumens / (4.0 * math.pi)),
     LightType.spot => fromCandela(lumens / _coneSteradians(outerConeAngle)),
+    // A rectangle emits from one face into the hemisphere in front of it, so
+    // its flux is spread over 2π rather than 4π — `gfx-77n`. The panel's own
+    // area does not appear here and should not: [LightNode.intensity] means
+    // the same thing for every kind, and the shader divides by the area itself
+    // so that a window enlarged at a fixed lumen rating gets dimmer per square
+    // metre rather than brighter overall.
+    LightType.area => fromCandela(lumens / (2.0 * math.pi)),
   };
 
   /// [intensity] back in lux, for a panel that shows what a light is set to.
@@ -204,6 +258,7 @@ abstract final class Photometric {
     LightType.directional => toLux(intensity),
     LightType.point => toCandela(intensity) * 4.0 * math.pi,
     LightType.spot => toCandela(intensity) * _coneSteradians(outerConeAngle),
+    LightType.area => toCandela(intensity) * 2.0 * math.pi,
   };
 
   /// The solid angle of a cone of half-angle [outerConeAngle], in steradians.
