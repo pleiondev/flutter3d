@@ -257,6 +257,18 @@ extension _ScenePasses on Renderer {
       debugLines: debugLines,
       lightOverflow: lightOverflow,
       submitMicros: stopwatch.elapsedMicroseconds,
+      // `gfx-20n`. What the pass drew with, not what was asked for: `msaa`
+      // above is null whenever the surface buffer is attached, and that is
+      // the case a caller cannot otherwise see.
+      msaaSamples: msaa == null ? 1 : device.preferredSampleCount,
+      msaaDeclined: msaa != null
+          ? null
+          : (surfaceIsRead
+                ? 'a pass in this frame reads the surface buffer, and '
+                      'attachments in one target must agree on sample count'
+                : (!device.supportsOffscreenMsaa
+                      ? 'this device has no multisampled offscreen target'
+                      : null)),
     );
   }
 }

@@ -852,6 +852,71 @@ final class RenderSettings {
     ambientOcclusion: const AmbientOcclusionSettings(),
   );
 
+  /// Every pass the engine registers, in the order it registers them —
+  /// `gfx-19n`.
+  ///
+  /// **The key space [disabledPasses] is typed against, published as data
+  /// rather than described in prose.** A name here is what a caller types,
+  /// character for character: `'point shadows (static)'` carries spaces and
+  /// parentheses, `'antialias'` is not spelled `fxaa`, and the graph rejects
+  /// anything else rather than silently changing nothing. Prose cannot be
+  /// typed into a set, and a document that drifted from the strings would be
+  /// worse than no document — which is why `pass_order_test.dart` compiles a
+  /// frame and compares.
+  ///
+  /// The order is the *version chain*: each pass reads what the ones before
+  /// it left. That is why it is a list rather than a set, and why reading it
+  /// answers questions the names alone cannot — occlusion is registered
+  /// before bloom, so a glow is taken from a picture that is already
+  /// occluded.
+  ///
+  /// **Not every registered pass is here, and the exception is stated rather
+  /// than hidden.** A reflection probe's name carries its index —
+  /// `'reflection probe 0'` — so the set of them is a property of the scene
+  /// and not of the engine. [probePassName] builds one. Everything else is a
+  /// fixed string.
+  ///
+  /// Three of these cannot be switched off at all; ask [undisablePasses].
+  static const List<String> passOrder = <String>[
+    'point shadows (static)',
+    'point shadows',
+    'directional shadows',
+    // Reflection probes are registered here, one per probe in the scene, and
+    // are named by index rather than by a constant — see [probePassName].
+    'scene',
+    'object ids',
+    'reflections',
+    'luminance',
+    'ssao',
+    'ssao blur',
+    'light shafts',
+    'depth of field',
+    'bloom',
+    'composite',
+    'antialias',
+  ];
+
+  /// What a reflection probe's pass is called, for probe [index].
+  ///
+  /// A function rather than a list entry because the count belongs to the
+  /// scene: a level with nine probes registers nine of these, and an engine
+  /// that published a fixed set of names would be publishing a guess about
+  /// somebody else's world.
+  static String probePassName(int index) => 'reflection probe $index';
+
+  /// The three names [disabledPasses] refuses — `gfx-19n` publishing what the
+  /// graph already enforced.
+  ///
+  /// Switching any of them off would leave no frame at all, so the graph
+  /// throws rather than drawing nothing. Published so a caller building a set
+  /// out of [passOrder] can subtract them instead of discovering the rule
+  /// from an exception.
+  static const Set<String> undisablePasses = <String>{
+    'scene',
+    'composite',
+    'object ids',
+  };
+
   /// Node names a measurement frame leaves out — see [forMeasurement].
   ///
   /// Published rather than inlined so a caller building their own variant is

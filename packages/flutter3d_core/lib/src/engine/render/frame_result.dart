@@ -44,6 +44,54 @@ typedef FramePass = ({
   int pipelineSwitches,
 });
 
+/// What smoothed the edges of a frame, as opposed to what was asked for —
+/// `gfx-20n`.
+///
+/// **Two mechanisms that a caller thinks of as one setting, and one of them
+/// turns itself off.** Multisampling belongs to the scene pass's attachments;
+/// the post-process pass is a node in the graph. They are asked for
+/// separately and they interact: attachments in one target must agree on
+/// sample count, so the moment anything consumes the surface buffer the scene
+/// pass stops multisampling — switch occlusion on and the edges get worse,
+/// with nothing anywhere saying why.
+///
+/// That is the readback this type exists for. [msaaDeclined] names the reason
+/// rather than leaving a caller to compare a sample count against a setting
+/// and guess.
+final class EffectiveAntiAliasing {
+  const EffectiveAntiAliasing({
+    required this.msaaSamples,
+    required this.fxaa,
+    required this.msaaDeclined,
+  });
+
+  /// Samples the scene pass actually drew with. One means none.
+  final int msaaSamples;
+
+  /// Whether the post-process pass ran.
+  ///
+  /// Derivable from `FrameResult.passes`, and stated here anyway: a caller
+  /// asking "what smoothed my edges" should get one answer rather than a
+  /// number and a list to search.
+  final bool fxaa;
+
+  /// Why multisampling was not used, or null when it was — or when nobody
+  /// asked for it.
+  ///
+  /// A sentence rather than a code, because there are exactly two reasons and
+  /// both are things a caller can act on: the device has no multisampled
+  /// offscreen target, or something in this frame reads the surface buffer.
+  final String? msaaDeclined;
+
+  /// Whether the frame got no anti-aliasing at all.
+  bool get none => msaaSamples <= 1 && !fxaa;
+
+  @override
+  String toString() =>
+      'EffectiveAntiAliasing(msaa $msaaSamples, fxaa $fxaa'
+      '${msaaDeclined == null ? "" : ", msaa declined: $msaaDeclined"})';
+}
+
 /// One rendered frame.
 final class FrameResult {
   const FrameResult({
@@ -66,7 +114,19 @@ final class FrameResult {
     this.exposure = RenderSettings.defaultExposure,
     this.passes = const <FramePass>[],
     this.skipped = const <SkippedPass>[],
+    this.antiAliasing = const EffectiveAntiAliasing(
+      msaaSamples: 1,
+      fxaa: false,
+      msaaDeclined: null,
+    ),
   });
+
+  /// What actually smoothed the edges — `gfx-20n`.
+  ///
+  /// Beside [skipped] rather than folded into it, because multisampling is
+  /// not a pass: it is a property of the scene pass's attachments, and a
+  /// frame that quietly stopped multisampling has no node to report.
+  final EffectiveAntiAliasing antiAliasing;
 
   /// Every registered pass that did not run this frame, and why — `gfx-39n`.
   ///
