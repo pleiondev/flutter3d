@@ -489,6 +489,93 @@ extension _PostPasses on Renderer {
     return target;
   }
 
+  /// `gfx-43n`/`44n`/`45n`: shades the picture from the surface buffer.
+  ///
+  /// [surface] is nullable and a null is not an error: the buffer is an
+  /// *optional* read, so a frame that could not produce one — a device with a
+  /// single colour attachment, per `gfx-50n` — gets the lit picture back
+  /// untouched rather than a mode that silently did nothing.
+  TextureHandle _encodeViewportShade({
+    required TextureHandle scene,
+    required TextureHandle? surface,
+    required ViewportShadingSettings settings,
+    required RenderView view,
+    required FrameResources resources,
+  }) {
+    if (surface == null) return scene;
+    developer.Timeline.startSync('Renderer.viewportShade');
+    final target = resources.transient(
+      RenderTargetSpec(
+        width: scene.width,
+        height: scene.height,
+        format: scene.format,
+      ),
+    );
+
+    _shadeParams[0] = settings.mode.code;
+    _shadeParams[1] = settings.amount.clamp(0.0, 1.0);
+    // Two meanings per slot, by mode, which is what keeps this to one block —
+    // see the shader, where the same comment is the contract.
+    _shadeParams[2] = switch (settings.mode) {
+      ViewportShading.clay => settings.ambient.clamp(0.0, 1.0),
+      ViewportShading.outline => math.max(settings.depthEdge, 1e-4),
+      ViewportShading.curvature => math.max(settings.curvatureGain, 0.0),
+      _ => 0.0,
+    };
+    _shadeParams[3] = switch (settings.mode) {
+      ViewportShading.outline => settings.normalEdge.clamp(0.0, 2.0),
+      ViewportShading.curvature => settings.cavity.clamp(0.0, 1.0),
+      _ => 0.0,
+    };
+
+    _shadeScreen[0] = scene.width == 0 ? 0.0 : 1.0 / scene.width;
+    _shadeScreen[1] = scene.height == 0 ? 0.0 : 1.0 / scene.height;
+    _shadeScreen[2] = math.max(settings.outlineWidth, 1.0);
+
+    // Over the camera's shoulder unless the caller said otherwise: a studio
+    // light behind the viewer is the one arrangement where every surface a
+    // modeller can see is lit, which is what clay is for.
+    final aim = settings.lightDirection;
+    if (aim == null) {
+      view.camera.readForward(_shadeLightVec);
+      _shadeLight[0] = -_shadeLightVec.x;
+      _shadeLight[1] = -_shadeLightVec.y;
+      _shadeLight[2] = -_shadeLightVec.z;
+    } else {
+      _shadeLight[0] = aim.x;
+      _shadeLight[1] = aim.y;
+      _shadeLight[2] = aim.z;
+    }
+
+    drawFullscreen(
+      FullscreenDraw(
+        target: target,
+        fragment: viewportShadeShader,
+        textures: <String, TextureHandle>{
+          'scene_texture': scene,
+          'surface_texture': surface,
+        },
+        uniforms: <String, Map<String, Float32List>>{
+          'ShadeInfo': <String, Float32List>{
+            'params': _shadeParams,
+            'screen': _shadeScreen,
+            'light': _shadeLight,
+          },
+        },
+        // **Nearest on the surface buffer, for the reason the occlusion pass
+        // gives at length**: a filtered tap at a silhouette averages a
+        // foreground normal with the cleared background and decodes to a
+        // direction belonging to neither, which an outline would draw as a
+        // second edge just inside the first.
+        samplers: const <String, SamplerOptions>{
+          'surface_texture': SamplerOptions.nearestClamp,
+        },
+      ),
+    );
+    developer.Timeline.finishSync();
+    return target;
+  }
+
   /// Adds screen-space reflections, returning the texture the rest of the
   /// chain should treat as the scene.
   ///

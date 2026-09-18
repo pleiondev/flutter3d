@@ -34,10 +34,11 @@ extension _FileHandling on _ModelerScreenState {
     required bool forgetSurfaces,
   }) {
     stage.frameSubject();
-    if (forgetSurfaces) {
-      _surfaces.forget();
-      _weightGradientShading.forget();
-    }
+    // `gfx-43n` took the other half of this away: the normals view no longer
+    // remembers anything, because it no longer swaps anything. What is left
+    // is the weight gradient, which still tints materials and still has to
+    // put them back.
+    if (forgetSurfaces) _weightGradientShading.forget();
     _cubit.opened(
       history,
       renderer: (_state as ModelerReady).renderer,

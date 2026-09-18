@@ -13608,6 +13608,313 @@ fn main(@location(5) v_uv: vec2<f32>) -> @location(0) vec4<f32> {
         ),
       ],
     ),
+    'ViewportShade': WebGpuStage(
+      wgsl: r'''
+struct ShadeInfo {
+    params: vec4<f32>,
+    screen: vec4<f32>,
+    light: vec4<f32>,
+}
+
+@group(1) @binding(1) 
+var scene_texture_tex: texture_2d<f32>;
+@group(1) @binding(2) 
+var scene_texture_smp: sampler;
+var<private> v_uv_1: vec2<f32>;
+@group(1) @binding(0) 
+var<uniform> shade_info: ShadeInfo;
+var<private> frag_color: vec4<f32>;
+@group(1) @binding(3) 
+var surface_texture_tex: texture_2d<f32>;
+@group(1) @binding(4) 
+var surface_texture_smp: sampler;
+
+fn DecodeOctahedral_u0028_vf2_u003b(e: ptr<function, vec2<f32>>) -> vec3<f32> {
+    var n: vec3<f32>;
+    var t: f32;
+    var local: f32;
+    var local_1: f32;
+
+    let _e27 = (*e);
+    (*e) = ((_e27 * 2f) - vec2(1f));
+    let _e31 = (*e);
+    let _e33 = (*e)[0u];
+    let _e37 = (*e)[1u];
+    n = vec3<f32>(_e31.x, _e31.y, ((1f - abs(_e33)) - abs(_e37)));
+    let _e44 = n[2u];
+    t = max(-(_e44), 0f);
+    let _e48 = n[0u];
+    if (_e48 >= 0f) {
+        let _e50 = t;
+        local = -(_e50);
+    } else {
+        let _e52 = t;
+        local = _e52;
+    }
+    let _e53 = local;
+    let _e55 = n[0u];
+    n[0u] = (_e55 + _e53);
+    let _e59 = n[1u];
+    if (_e59 >= 0f) {
+        let _e61 = t;
+        local_1 = -(_e61);
+    } else {
+        let _e63 = t;
+        local_1 = _e63;
+    }
+    let _e64 = local_1;
+    let _e66 = n[1u];
+    n[1u] = (_e66 + _e64);
+    let _e69 = n;
+    return normalize(_e69);
+}
+
+fn main_1() {
+    var scene: vec4<f32>;
+    var mode: i32;
+    var mix_amount: f32;
+    var surface: vec4<f32>;
+    var depth: f32;
+    var normal: vec3<f32>;
+    var param: vec2<f32>;
+    var shaded: vec3<f32>;
+    var ambient: f32;
+    var lambert: f32;
+    var texel: vec2<f32>;
+    var depthEdge: f32;
+    var normalEdge: f32;
+    var offsets: array<vec2<f32>, 4>;
+    var i: i32;
+    var tap: vec4<f32>;
+    var param_1: vec2<f32>;
+    var depthHit: f32;
+    var normalHit: f32;
+    var edge: f32;
+    var texel_1: vec2<f32>;
+    var right: vec3<f32>;
+    var param_2: vec2<f32>;
+    var left: vec3<f32>;
+    var param_3: vec2<f32>;
+    var down: vec3<f32>;
+    var param_4: vec2<f32>;
+    var up: vec3<f32>;
+    var param_5: vec2<f32>;
+    var curvature: f32;
+    var cavity: f32;
+    var ridge: f32;
+
+    let _e54 = v_uv_1;
+    let _e55 = textureSample(scene_texture_tex, scene_texture_smp, _e54);
+    scene = _e55;
+    let _e58 = shade_info.params[0u];
+    mode = i32((_e58 + 0.5f));
+    let _e63 = shade_info.params[1u];
+    mix_amount = clamp(_e63, 0f, 1f);
+    let _e65 = mode;
+    let _e67 = mix_amount;
+    if ((_e65 < 1i) || (_e67 <= 0f)) {
+        let _e70 = scene;
+        frag_color = _e70;
+        return;
+    }
+    let _e71 = v_uv_1;
+    let _e72 = textureSample(surface_texture_tex, surface_texture_smp, _e71);
+    surface = _e72;
+    let _e74 = surface[3u];
+    depth = _e74;
+    let _e75 = depth;
+    if (_e75 <= 0f) {
+        let _e77 = scene;
+        frag_color = _e77;
+        return;
+    }
+    let _e78 = surface;
+    param = _e78.xy;
+    let _e80 = DecodeOctahedral_u0028_vf2_u003b((&param));
+    normal = _e80;
+    let _e81 = scene;
+    shaded = _e81.xyz;
+    let _e83 = mode;
+    if (_e83 == 1i) {
+        let _e85 = normal;
+        shaded = ((_e85 * 0.5f) + vec3(0.5f));
+    } else {
+        let _e89 = mode;
+        if (_e89 == 2i) {
+            let _e93 = shade_info.params[2u];
+            ambient = clamp(_e93, 0f, 1f);
+            let _e95 = normal;
+            let _e97 = shade_info.light;
+            lambert = max(dot(_e95, normalize(_e97.xyz)), 0f);
+            let _e102 = ambient;
+            let _e103 = ambient;
+            let _e105 = lambert;
+            shaded = vec3((_e102 + ((1f - _e103) * _e105)));
+        } else {
+            let _e109 = mode;
+            if (_e109 == 3i) {
+                let _e112 = shade_info.screen;
+                let _e116 = shade_info.screen[2u];
+                texel = (_e112.xy * max(_e116, 1f));
+                depthEdge = 0f;
+                normalEdge = 0f;
+                let _e120 = texel[0u];
+                let _e123 = texel[0u];
+                let _e127 = texel[1u];
+                let _e130 = texel[1u];
+                offsets = array<vec2<f32>, 4>(vec2<f32>(_e120, 0f), vec2<f32>(-(_e123), 0f), vec2<f32>(0f, _e127), vec2<f32>(0f, -(_e130)));
+                i = 0i;
+                loop {
+                    let _e134 = i;
+                    if (_e134 < 4i) {
+                        let _e136 = v_uv_1;
+                        let _e137 = i;
+                        let _e139 = offsets[_e137];
+                        let _e141 = textureSample(surface_texture_tex, surface_texture_smp, (_e136 + _e139));
+                        tap = _e141;
+                        let _e143 = tap[3u];
+                        if (_e143 <= 0f) {
+                            depthEdge = 1f;
+                            continue;
+                        }
+                        let _e145 = depthEdge;
+                        let _e147 = tap[3u];
+                        let _e148 = depth;
+                        depthEdge = max(_e145, abs((_e147 - _e148)));
+                        let _e152 = normalEdge;
+                        let _e153 = tap;
+                        param_1 = _e153.xy;
+                        let _e155 = DecodeOctahedral_u0028_vf2_u003b((&param_1));
+                        let _e156 = normal;
+                        normalEdge = max(_e152, (1f - dot(_e155, _e156)));
+                        continue;
+                    } else {
+                        break;
+                    }
+                    continuing {
+                        let _e160 = i;
+                        i = (_e160 + 1i);
+                    }
+                }
+                let _e164 = shade_info.params[2u];
+                let _e166 = depthEdge;
+                depthHit = step(max(_e164, 0.0001f), _e166);
+                let _e170 = shade_info.params[3u];
+                let _e172 = normalEdge;
+                normalHit = step(max(_e170, 0.0001f), _e172);
+                let _e174 = depthHit;
+                let _e175 = normalHit;
+                edge = max(_e174, _e175);
+                let _e177 = scene;
+                let _e179 = edge;
+                shaded = (_e177.xyz * (1f - _e179));
+            } else {
+                let _e182 = mode;
+                if (_e182 == 4i) {
+                    let _e185 = shade_info.screen;
+                    texel_1 = _e185.xy;
+                    let _e187 = v_uv_1;
+                    let _e189 = texel_1[0u];
+                    let _e192 = textureSample(surface_texture_tex, surface_texture_smp, (_e187 + vec2<f32>(_e189, 0f)));
+                    param_2 = _e192.xy;
+                    let _e194 = DecodeOctahedral_u0028_vf2_u003b((&param_2));
+                    right = _e194;
+                    let _e195 = v_uv_1;
+                    let _e197 = texel_1[0u];
+                    let _e200 = textureSample(surface_texture_tex, surface_texture_smp, (_e195 - vec2<f32>(_e197, 0f)));
+                    param_3 = _e200.xy;
+                    let _e202 = DecodeOctahedral_u0028_vf2_u003b((&param_3));
+                    left = _e202;
+                    let _e203 = v_uv_1;
+                    let _e205 = texel_1[1u];
+                    let _e208 = textureSample(surface_texture_tex, surface_texture_smp, (_e203 + vec2<f32>(0f, _e205)));
+                    param_4 = _e208.xy;
+                    let _e210 = DecodeOctahedral_u0028_vf2_u003b((&param_4));
+                    down = _e210;
+                    let _e211 = v_uv_1;
+                    let _e213 = texel_1[1u];
+                    let _e216 = textureSample(surface_texture_tex, surface_texture_smp, (_e211 - vec2<f32>(0f, _e213)));
+                    param_5 = _e216.xy;
+                    let _e218 = DecodeOctahedral_u0028_vf2_u003b((&param_5));
+                    up = _e218;
+                    let _e220 = right[0u];
+                    let _e222 = left[0u];
+                    let _e225 = down[1u];
+                    let _e227 = up[1u];
+                    let _e232 = shade_info.params[2u];
+                    curvature = (((_e220 - _e222) + (_e225 - _e227)) * max(_e232, 0f));
+                    let _e235 = curvature;
+                    let _e240 = shade_info.params[3u];
+                    cavity = (clamp(-(_e235), 0f, 1f) * clamp(_e240, 0f, 1f));
+                    let _e243 = curvature;
+                    ridge = clamp(_e243, 0f, 1f);
+                    let _e245 = ridge;
+                    let _e248 = cavity;
+                    shaded = vec3(clamp(((0.5f + (_e245 * 0.5f)) - _e248), 0f, 1f));
+                }
+            }
+        }
+    }
+    let _e252 = scene;
+    let _e254 = shaded;
+    let _e255 = mix_amount;
+    let _e257 = mix(_e252.xyz, _e254, vec3(_e255));
+    let _e259 = scene[3u];
+    frag_color = vec4<f32>(_e257.x, _e257.y, _e257.z, _e259);
+    return;
+}
+
+@fragment 
+fn main(@location(5) v_uv: vec2<f32>) -> @location(0) vec4<f32> {
+    v_uv_1 = v_uv;
+    main_1();
+    let _e3 = frag_color;
+    return _e3;
+}
+''',
+      attributes: <WebGpuAttribute>[],
+      blocks: <WebGpuBlock>[
+        WebGpuBlock(
+          name: 'ShadeInfo',
+          group: 1,
+          binding: 0,
+          sizeInBytes: 48,
+          members: <WebGpuBlockMember>[
+            WebGpuBlockMember(
+              name: 'params',
+              offsetInBytes: 0,
+              sizeInBytes: 16,
+            ),
+            WebGpuBlockMember(
+              name: 'screen',
+              offsetInBytes: 16,
+              sizeInBytes: 16,
+            ),
+            WebGpuBlockMember(
+              name: 'light',
+              offsetInBytes: 32,
+              sizeInBytes: 16,
+            ),
+          ],
+        ),
+      ],
+      samplers: <WebGpuSampler>[
+        WebGpuSampler(
+          name: 'scene_texture',
+          group: 1,
+          textureBinding: 1,
+          samplerBinding: 2,
+          dimension: WebGpuTextureDimension.twoDimensional,
+        ),
+        WebGpuSampler(
+          name: 'surface_texture',
+          group: 1,
+          textureBinding: 3,
+          samplerBinding: 4,
+          dimension: WebGpuTextureDimension.twoDimensional,
+        ),
+      ],
+    ),
     'ProbePrefilter': WebGpuStage(
       wgsl: r'''
 struct ProbeInfo {

@@ -123,6 +123,10 @@
     "type": "fragment",
     "file": "shaders/post/depth_of_field.frag"
   },
+  "ViewportShade": {
+    "type": "fragment",
+    "file": "shaders/post/viewport_shade.frag"
+  },
   "ProbePrefilter": {
     "type": "fragment",
     "file": "shaders/post/probe_prefilter.frag"

@@ -564,9 +564,18 @@ final class _SceneNode extends RenderNode {
     // `RenderSettings`. It decides both whether the second attachment is
     // present and whether the pass may multisample — attachments in one target
     // must agree on sample count — so a wrong answer here is silent.
-    final surfaceIsRead = resources.graph.isConsumed(
-      FrameResourceIds.surfaceBuffer,
-    );
+    //
+    // **And of the device, which `gfx-50n` did not finish.** Hard readers of
+    // the buffer are culled where the device cannot attach it, so they cannot
+    // reach here — but an *optional* reader is never culled, by definition,
+    // and `isConsumed` counts it. A frame with a viewport-shading mode on a
+    // one-attachment device therefore asked for an attachment the device
+    // refuses, which the refusal turned into a throw. The pass attaches what
+    // the device can open; the optional reader gets null and declines, which
+    // is what optional means.
+    final surfaceIsRead =
+        resources.graph.isConsumed(FrameResourceIds.surfaceBuffer) &&
+        _renderer.device.maxColorAttachments > 1;
 
     // Every map this pass samples, taken from the frame rather than from the
     // renderer, and every one of them is declared above. The directional map is
@@ -875,6 +884,68 @@ final class _DepthOfFieldNode extends RenderNode with _NeedsSurfaceBuffer {
     // A different texture from the one it read — a pass cannot sample and
     // write one — so the version it produced is told which texture it is.
     frame.resources.provide(FrameResourceIds.hdrColour, focused);
+  }
+}
+
+/// `gfx-43n`/`44n`/`45n`'s viewport shading, as a link in the finished
+/// picture.
+///
+/// **After the composite, and the first draft of this had it before —
+/// wrongly.** A normal mapped into `[0, 1]` is not a quantity of light, and
+/// the engine already says so: `normals.frag` writes through
+/// `WriteDisplayColor`, and `display_modes.dart` carries the sentence "a
+/// normals view is not a picture of light, and the composite has to be told".
+/// Registered before the composite, every mode here would have been exposed,
+/// tone mapped and graded — a pale blue pushed through a filmic shoulder is
+/// not the pale blue anybody recognises. So it reads and writes `frame`, in
+/// the phase whose own documentation asks for exactly this: things that are
+/// honestly about the finished image.
+///
+/// **It reads the surface buffer optionally**, and that is what makes a mode
+/// degrade rather than break: on a device that cannot attach the buffer the
+/// read comes back null and the pass hands the picture straight through. The
+/// cost of the declaration is a frame the scene pass did not multisample —
+/// see `anchor_identity_test.dart`, where that trade is pinned, and
+/// `FrameResult.antiAliasing`, which reports it.
+final class _ViewportShadeNode extends RenderNode {
+  _ViewportShadeNode(this._renderer, this._view, this._settings);
+
+  final Renderer _renderer;
+  final RenderView _view;
+  final RenderSettings _settings;
+
+  @override
+  String get name => 'viewport shading';
+
+  @override
+  FramePhase get preferredPhase => FramePhase.present;
+
+  @override
+  bool get isActive =>
+      _settings.viewportShading.mode != ViewportShading.off &&
+      _settings.viewportShading.amount > 0.0;
+
+  @override
+  List<ResourceId> get reads => const <ResourceId>[FrameResourceIds.frame];
+
+  @override
+  List<ResourceId> get optionalReads => const <ResourceId>[
+    FrameResourceIds.surfaceBuffer,
+  ];
+
+  @override
+  List<ResourceId> get writes => const <ResourceId>[FrameResourceIds.frame];
+
+  @override
+  void execute(NodeFrame frame) {
+    final shaded = _renderer._encodeViewportShade(
+      scene: frame.resources.texture(FrameResourceIds.frame),
+      surface: frame.resources.tryTexture(FrameResourceIds.surfaceBuffer),
+      settings: _settings.viewportShading,
+      view: _view,
+      resources: frame.resources,
+    );
+    frame.resources.provide(FrameResourceIds.frame, shaded);
   }
 }
 

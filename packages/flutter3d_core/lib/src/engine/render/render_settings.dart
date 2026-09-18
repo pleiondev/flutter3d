@@ -337,6 +337,152 @@ final class DepthOfFieldSettings {
   );
 }
 
+/// Which viewport shading a frame is drawn with — `gfx-43n`, `44n`, `45n`.
+///
+/// **A final class with const instances rather than an enum**, the shape
+/// `TonemapCurve` and `PassSkip` have and the one `tool/structure.dart`'s "an
+/// enum in a published package is machinery or is not an enum" rule asks for:
+/// the [code] is part of a uniform layout four backends read, so it is a
+/// number this type owns rather than an ordinal the language happens to
+/// assign.
+final class ViewportShading {
+  const ViewportShading._(this.name, this.code);
+
+  /// The name it is written down as.
+  final String name;
+
+  /// What goes into `ShadeInfo.params.x`. Part of the shader contract.
+  final double code;
+
+  /// The lit picture, untouched — the default, and an exact no-op.
+  static const ViewportShading off = ViewportShading._('off', 0.0);
+
+  /// The world normal as colour, which is the mode the material swap in
+  /// `apps/flutter3d_modeler` existed for.
+  static const ViewportShading normals = ViewportShading._('normals', 1.0);
+
+  /// One studio light over a neutral surface: a form with its albedo taken
+  /// away, which is what a sculptor turns on to read shape.
+  static const ViewportShading clay = ViewportShading._('clay', 2.0);
+
+  /// A dark line where depth or normal steps — `gfx-44n`.
+  static const ViewportShading outline = ViewportShading._('outline', 3.0);
+
+  /// Ridges lit and creases darkened, from how fast the normal field turns —
+  /// `gfx-45n`.
+  static const ViewportShading curvature = ViewportShading._('curvature', 4.0);
+
+  /// All of them, off first.
+  static const List<ViewportShading> values = <ViewportShading>[
+    off,
+    normals,
+    clay,
+    outline,
+    curvature,
+  ];
+
+  @override
+  String toString() => 'ViewportShading.$name';
+}
+
+/// Shading read out of the surface buffer instead of out of the materials —
+/// `gfx-43n`, `gfx-44n` and `gfx-45n`.
+///
+/// **What this replaces is a traversal, and that is the point.** A normals
+/// view built by walking the subject and swapping every material has to
+/// remember what it swapped and put it back; the modeller's own docstring
+/// documents what happens when the remembering fails. The scene pass already
+/// wrote a world normal and a view-axis depth into its second attachment, so
+/// every mode here is arithmetic on a buffer that exists — nothing is
+/// modified and there is nothing to restore.
+///
+/// **It costs the frame its multisampling**, and that is said here rather
+/// than found later: reading the surface buffer attaches the second colour
+/// attachment, attachments in one target must agree on sample count, so a
+/// frame with a mode on is a frame the scene pass did not multisample.
+/// `FrameResult.antiAliasing.msaaDeclined` reports it.
+final class ViewportShadingSettings {
+  const ViewportShadingSettings({
+    this.mode = ViewportShading.off,
+    this.amount = 1.0,
+    this.ambient = 0.25,
+    this.depthEdge = 0.05,
+    this.normalEdge = 0.15,
+    this.outlineWidth = 1.0,
+    this.curvatureGain = 4.0,
+    this.cavity = 1.0,
+    this.lightDirection,
+  });
+
+  /// Which mode. [ViewportShading.off] is the default and an exact no-op.
+  final ViewportShading mode;
+
+  /// How much of the shaded result is mixed over the lit picture.
+  ///
+  /// One is the mode alone. Below one is the mode *over* the render, which is
+  /// what an outline is usually wanted as — the shading a modeller was
+  /// already looking at, with the edges drawn on top.
+  final double amount;
+
+  /// How much ambient sits under the studio light in [ViewportShading.clay].
+  ///
+  /// Not zero by default: clay with no ambient puts everything facing away
+  /// from the light at black, and a sculptor reading a form needs the far
+  /// side to have a shape too.
+  final double ambient;
+
+  /// How far apart in metres two depths must be to count as an edge.
+  final double depthEdge;
+
+  /// How far apart two normals must be, as one minus their dot product: 0.15
+  /// is about thirty-two degrees.
+  ///
+  /// **Both thresholds, because either alone misses half the edges.** A depth
+  /// step finds a silhouette and misses a crease in a flat wall; a normal
+  /// step finds the crease and misses two surfaces at the same angle one
+  /// behind the other.
+  final double normalEdge;
+
+  /// How wide the outline's neighbour taps reach, in pixels.
+  final double outlineWidth;
+
+  /// The gain on the curvature estimate, which is a screen-space divergence
+  /// and therefore a small number before it is scaled.
+  final double curvatureGain;
+
+  /// How much of the concave half is darkened, 0 to 1 — the cavity in a
+  /// cavity map.
+  final double cavity;
+
+  /// Which way the clay light points, or null for over the camera's shoulder.
+  ///
+  /// A direction rather than a position: clay is a studio light at infinity,
+  /// so a distance would be a number with nothing to do.
+  final vm.Vector3? lightDirection;
+
+  ViewportShadingSettings copyWith({
+    ViewportShading? mode,
+    double? amount,
+    double? ambient,
+    double? depthEdge,
+    double? normalEdge,
+    double? outlineWidth,
+    double? curvatureGain,
+    double? cavity,
+    vm.Vector3? lightDirection,
+  }) => ViewportShadingSettings(
+    mode: mode ?? this.mode,
+    amount: amount ?? this.amount,
+    ambient: ambient ?? this.ambient,
+    depthEdge: depthEdge ?? this.depthEdge,
+    normalEdge: normalEdge ?? this.normalEdge,
+    outlineWidth: outlineWidth ?? this.outlineWidth,
+    curvatureGain: curvatureGain ?? this.curvatureGain,
+    cavity: cavity ?? this.cavity,
+    lightDirection: lightDirection ?? this.lightDirection,
+  );
+}
+
 /// Distance fog.
 ///
 /// Exponential per metre, which is what the level format already stores. A
@@ -448,6 +594,7 @@ final class RenderSettings {
     this.renderScale = 1.0,
     this.lightShafts = const LightShaftSettings(),
     this.depthOfField = const DepthOfFieldSettings(),
+    this.viewportShading = const ViewportShadingSettings(),
   }) : assert(anisotropy >= 1, 'anisotropy is a count of taps, one or more'),
        assert(lightFadeBand >= 0.0, 'a fade band is a width, not a direction');
 
@@ -607,6 +754,10 @@ final class RenderSettings {
   /// `gfx-34n`'s lens, which decides what is sharp and by how much the rest
   /// is not.
   final DepthOfFieldSettings depthOfField;
+
+  /// `gfx-43n`/`44n`/`45n`'s shading read out of the surface buffer rather
+  /// than out of the materials.
+  final ViewportShadingSettings viewportShading;
 
   final FogSettings fog;
 
@@ -788,6 +939,7 @@ final class RenderSettings {
     double? renderScale,
     LightShaftSettings? lightShafts,
     DepthOfFieldSettings? depthOfField,
+    ViewportShadingSettings? viewportShading,
   }) => RenderSettings(
     specular: specular ?? this.specular,
     exposure: exposure ?? this.exposure,
@@ -818,6 +970,7 @@ final class RenderSettings {
     renderScale: renderScale ?? this.renderScale,
     lightShafts: lightShafts ?? this.lightShafts,
     depthOfField: depthOfField ?? this.depthOfField,
+    viewportShading: viewportShading ?? this.viewportShading,
   );
 
   /// These settings with the effects a stereo pair cannot have taken out.
@@ -901,6 +1054,9 @@ final class RenderSettings {
     'bloom',
     'composite',
     'antialias',
+    // `gfx-43n`/`44n`/`45n`, last: a mode here is about the finished picture,
+    // so it runs after the tone map and after the edges are smoothed.
+    'viewport shading',
   ];
 
   /// What a reflection probe's pass is called, for probe [index].

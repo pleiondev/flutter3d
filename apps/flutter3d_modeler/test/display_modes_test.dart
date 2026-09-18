@@ -158,102 +158,36 @@ void main() {
       );
     });
 
-    test('normals can be switched back', () {
+    test('a normals view is a setting rather than a swap', () {
+      // `gfx-43n`. Five tests used to stand here, and every one of them was
+      // about a class that no longer exists: what each node had been drawn
+      // with, whether a node arriving late was swapped too, whether a
+      // material painted on afterwards was painted back over. All of it was
+      // bookkeeping for a traversal, and the traversal is gone — the normal
+      // is read out of the surface buffer the scene pass already writes.
+      //
+      // What is left to check is that the mode reaches the renderer, and
+      // that nothing else does: the settings say which shading, and no node
+      // is touched to say it.
       final it = fakeTestDevice(width: 8, height: 8);
       final stage = ModelerStage.build(device: it.device);
-      final shading = SurfaceShading();
       final MeshNode node = stage.subject as MeshNode;
       final Material own = node.material;
 
-      shading.apply(stage.subject, ShadingMode.normals);
-      expect(node.material.lighting, LightingModel.normals);
+      const base = RenderSettings();
+      final normals = settingsFor(ShadingMode.normals, base);
 
-      shading.apply(stage.subject, ShadingMode.material);
-      // Mutation: put back `SurfaceShading.normals` instead of the recorded
-      // material — or record the material inside the swap, after it has already
-      // been overwritten — and a person who looked at the normals once finds
-      // their model grey for the rest of the session, with nothing in the undo
-      // stack to explain it.
-      expect(identical(node.material, own), isTrue);
-    });
-
-    test('a node that arrives late is swapped too', () {
-      final it = fakeTestDevice(width: 8, height: 8);
-      final stage = ModelerStage.build(device: it.device);
-      final shading = SurfaceShading()
-        ..apply(stage.subject, ShadingMode.normals);
-
-      final arrived = MeshNode(
-        (stage.subject as MeshNode).mesh,
-        Material(name: 'late'),
-        name: 'late',
+      expect(normals.viewportShading.mode, ViewportShading.normals);
+      expect(
+        settingsFor(ShadingMode.material, base).viewportShading.mode,
+        ViewportShading.off,
       );
-      stage.subject.add(arrived);
-      shading.apply(stage.subject, ShadingMode.normals);
-
-      // Mutation: return early from `apply` when the mode has not changed,
-      // which is the obvious way to save the walk — and a model opened while
-      // the normals view is on is drawn with its own materials in a view that
-      // exists to show normals.
-      expect(arrived.material.lighting, LightingModel.normals);
-
-      shading.apply(stage.subject, ShadingMode.material);
-      expect(arrived.material.name, 'late');
-    });
-
-    test('a material painted on afterwards is not painted back over', () {
-      final it = fakeTestDevice(width: 8, height: 8);
-      final stage = ModelerStage.build(device: it.device);
-      final shading = SurfaceShading();
-      final MeshNode node = stage.subject as MeshNode;
-
-      // One frame in the material view, which is what a viewport does before
-      // anybody touches anything.
-      shading.apply(stage.subject, ShadingMode.material);
-
-      // Then an edit lands: `SceneSync` writes the rebuilt material onto the
-      // node, the way it does after a colour changes in the panel or an agent
-      // calls `setMaterialField`.
-      final Material edited = Material(name: 'edited');
-      node.material = edited;
-      shading.apply(stage.subject, ShadingMode.material);
-
-      // Mutation: record what a node was drawn with the first time it is seen
-      // and write that back on every frame — which is what this did. The
-      // document, the material list and the swatch beside it all show the new
-      // colour, and the model in the viewport keeps the one it had when the
-      // file was opened.
-      expect(identical(node.material, edited), isTrue);
-    });
-
-    test('and an edit during a normals session survives the way back', () {
-      final it = fakeTestDevice(width: 8, height: 8);
-      final stage = ModelerStage.build(device: it.device);
-      final shading = SurfaceShading();
-      final MeshNode node = stage.subject as MeshNode;
-
-      shading.apply(stage.subject, ShadingMode.normals);
-      // `SceneSync` runs before the shading does, so an edit made while the
-      // normals view is on reaches the node between two walks.
-      final Material edited = Material(name: 'edited');
-      node.material = edited;
-      shading.apply(stage.subject, ShadingMode.normals);
-      expect(node.material.lighting, LightingModel.normals);
-
-      shading.apply(stage.subject, ShadingMode.material);
-      expect(identical(node.material, edited), isTrue);
-    });
-
-    test('forgetting lets a replaced subject go', () {
-      final it = fakeTestDevice(width: 8, height: 8);
-      final stage = ModelerStage.build(device: it.device);
-      final shading = SurfaceShading()
-        ..apply(stage.subject, ShadingMode.normals)
-        ..forget();
-
-      // Back to where a fresh one starts, so the next model is asked about from
-      // scratch rather than measured against the last one's answer.
-      expect(shading.mode, ShadingMode.material);
+      expect(
+        node.material,
+        same(own),
+        reason: 'asking for the normals view modified the subject, which is '
+            'the whole bug class this row deleted',
+      );
     });
   });
 }

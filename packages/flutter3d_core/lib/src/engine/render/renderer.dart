@@ -134,6 +134,7 @@ final class Renderer implements RenderServices {
     required this.ssaoBlurShader,
     required this.lightShaftsShader,
     required this.depthOfFieldShader,
+    required this.viewportShadeShader,
     required TextureHandle fallbackAlbedo,
     required TextureHandle fallbackNormal,
     required TextureHandle fallbackBlack,
@@ -266,6 +267,9 @@ final class Renderer implements RenderServices {
 
   /// `gfx-34n`'s thin lens and its gather.
   final ShaderHandle depthOfFieldShader;
+
+  /// `gfx-43n`/`44n`/`45n`'s three branches over the surface buffer.
+  final ShaderHandle viewportShadeShader;
 
   /// 1x1 opaque white, bound when a material has no base-colour texture.
   ///
@@ -866,6 +870,10 @@ final class Renderer implements RenderServices {
   final vm.Vector3 _shaftForwardVec = vm.Vector3.zero();
   final Float32List _dofLens = Float32List(4);
   final Float32List _dofParams = Float32List(4);
+  final Float32List _shadeParams = Float32List(4);
+  final Float32List _shadeScreen = Float32List(4);
+  final Float32List _shadeLight = Float32List(4);
+  final vm.Vector3 _shadeLightVec = vm.Vector3.zero();
   final Float32List _compositeParams = Float32List(4);
   final Float32List _compositeAoTexel = Float32List(4);
   final Float32List _luminanceParams = Float32List(4);
@@ -1078,6 +1086,7 @@ final class Renderer implements RenderServices {
       ssaoBlurShader: require('SsaoBlur'),
       lightShaftsShader: require('LightShafts'),
       depthOfFieldShader: require('DepthOfField'),
+      viewportShadeShader: require('ViewportShade'),
       fallbackAlbedo: fallbackAlbedo ?? SolidColorTexture.white.upload(device),
       fallbackNormal:
           fallbackNormal ?? SolidColorTexture.flatNormal.upload(device),
@@ -1882,7 +1891,12 @@ final class Renderer implements RenderServices {
       // finished picture — `gfx-04n`. Registered whether or not it is on, for
       // the same reason bloom is: registration order is the version chain, and
       // an inactive node is culled rather than branched around.
-      ..addNode(_FxaaNode(this, s.antiAlias));
+      ..addNode(_FxaaNode(this, s.antiAlias))
+      // `gfx-43n`/`44n`/`45n`, last: a mode here is about the finished
+      // picture, so it goes after the tone map and after the edges are
+      // smoothed. Before the antialias it would have had its own outline
+      // blurred, which is the one thing an outline must not be.
+      ..addNode(_ViewportShadeNode(this, view, s));
 
     // After the composite, which is the whole of what [FramePhase.present]
     // means: registration order is the version chain, so a node here reads the

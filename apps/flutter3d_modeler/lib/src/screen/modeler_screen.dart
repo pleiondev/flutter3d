@@ -419,9 +419,6 @@ class _ModelerScreenState extends State<ModelerScreen>
   /// `ValueListenableBuilder` instead — see `ui/animation_bottom.dart`.
   final ValueNotifier<int> _frame = ValueNotifier<int>(0);
 
-  /// Remembers what the materials were, so the normals view can be left.
-  final SurfaceShading _surfaces = SurfaceShading();
-
   /// `ux-47`: every `.fmat` this project links to, watched.
   ///
   /// **A file linked once is a snapshot, and that is what the row fixes.**
@@ -738,7 +735,6 @@ class _ModelerScreenState extends State<ModelerScreen>
       :final animationSubmode,
     )) {
       stage.orbit.advance(seconds);
-      _surfaces.apply(stage.subject, _shading);
       // Reasserted every frame rather than only when a chip is pressed: the
       // lens and the shading are two of the three things a newly opened model
       // has to inherit, and a state that is reasserted cannot be got out of
