@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'dart:typed_data';
 
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
@@ -941,6 +942,29 @@ final class LookSettings {
 /// default *with* the surface buffer would be a reasonable policy and is
 /// deliberately not taken here — the renderer does not turn passes on behind
 /// a caller's back.
+/// How many halvings the bloom chain does on a frame [frameHeight] tall —
+/// `gfx-31n`.
+///
+/// **A function rather than a method, so it can be checked without a frame.**
+/// The arithmetic is where the row's whole claim lives — that identical
+/// settings cover the same fraction of the picture at two resolutions — and a
+/// claim about arithmetic should be testable as arithmetic rather than by
+/// rendering two frames and comparing glows.
+///
+/// With [BloomSettings.referenceHeight] at zero this is
+/// [BloomSettings.levels] unchanged. Otherwise it is that count plus the
+/// doublings between the reference height and the real one, rounded to the
+/// nearest whole halving: the chain can only be lengthened by whole levels,
+/// so a frame 1.5x taller gets one more rather than half of one.
+int bloomLevelsFor(BloomSettings settings, {required int frameHeight}) {
+  final reference = settings.referenceHeight;
+  if (reference <= 0 || frameHeight <= 0) return settings.levels;
+  // log2 of the ratio: each doubling of the frame wants one more halving for
+  // the glow to reach the same share of it.
+  final doublings = math.log(frameHeight / reference) / math.ln2;
+  return settings.levels + doublings.round();
+}
+
 final class AntiAliasSettings {
   const AntiAliasSettings({
     this.enabled = false,
@@ -1044,6 +1068,7 @@ final class BloomSettings {
     this.intensity = 0.06,
     this.levels = 5,
     this.filterRadius = 1.0,
+    this.referenceHeight = 0,
   });
 
   final bool enabled;
@@ -1067,6 +1092,26 @@ final class BloomSettings {
   /// Tent-filter radius, in source texels, used on the way back up.
   final double filterRadius;
 
+  /// The frame height [levels] was chosen at, or 0 to leave it alone —
+  /// `gfx-31n`.
+  ///
+  /// **What it fixes: the same settings glowing differently at two
+  /// resolutions.** [levels] is a count of halvings, and each halving doubles
+  /// the glow's reach *in pixels* — so a chain of five reaches a fixed number
+  /// of pixels, which is a different fraction of the picture at 512 than it
+  /// is at 1024. Export the frame at twice the size and the bloom covers half
+  /// as much of it, from settings nobody touched.
+  ///
+  /// Given a height, the chain is lengthened or shortened by the doublings
+  /// between that height and the real one, so the reach stays a fraction of
+  /// the frame rather than a number of pixels. At 0 — the default — nothing
+  /// is recomputed and [levels] means exactly what it always did, which is
+  /// what keeps every recorded frame where it was.
+  ///
+  /// The count is still clamped to the chain the frame can actually hold: a
+  /// level whose target is one pixel has nothing left to halve.
+  final int referenceHeight;
+
   BloomSettings copyWith({
     bool? enabled,
     double? threshold,
@@ -1074,6 +1119,7 @@ final class BloomSettings {
     double? intensity,
     int? levels,
     double? filterRadius,
+    int? referenceHeight,
   }) => BloomSettings(
     enabled: enabled ?? this.enabled,
     threshold: threshold ?? this.threshold,
@@ -1081,5 +1127,6 @@ final class BloomSettings {
     intensity: intensity ?? this.intensity,
     levels: levels ?? this.levels,
     filterRadius: filterRadius ?? this.filterRadius,
+    referenceHeight: referenceHeight ?? this.referenceHeight,
   );
 }
