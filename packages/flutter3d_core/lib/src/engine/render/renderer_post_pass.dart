@@ -35,7 +35,15 @@ extension _PostPasses on Renderer {
     required TextureHandle top,
     required BloomSettings settings,
   }) {
-    final levels = settings.levels.clamp(1, 8);
+    // `gfx-31n`: the chain is a count of halvings, so its reach is a number
+    // of pixels rather than a fraction of the frame. Scaled against the
+    // height the count was chosen at, the glow covers the same share of the
+    // picture at any resolution. Zero leaves it alone, which is what keeps
+    // every frame recorded before this where it was.
+    final levels = bloomLevelsFor(
+      settings,
+      frameHeight: scene.height,
+    ).clamp(1, 8);
     final chain = <TextureHandle>[];
 
     var sourceWidth = scene.width;
