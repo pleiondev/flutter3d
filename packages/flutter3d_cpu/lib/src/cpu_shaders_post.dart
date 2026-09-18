@@ -193,20 +193,10 @@ final class CompositeShader implements CpuFragmentShader {
       colour.scale(1.0 - lookMore.x * radius);
     }
 
-    if (lookMore.z > 0.0) {
-      // **Not bit-identical to the GPU's, and it cannot be.** The hash is a
-      // sine of a large product, so single and double precision diverge in the
-      // fraction this keeps. The two golden sets are independent for exactly
-      // this class of difference; what has to match is the shape of the noise,
-      // not the bits.
-      final noise = _hash(c.coord.x, c.coord.y) - 0.5;
-      final amount = noise * lookMore.z;
-      colour = Vector3(colour.x + amount, colour.y + amount, colour.z + amount);
-    }
-
-    // `gfx-24n`: after the encode, because banding is an artefact of the
-    // 8-bit target and one output step is a fixed distance in display space
-    // and a wildly varying one in linear space.
+    // `gfx-24n`, and the grain below it: both are applied after the encode,
+    // because banding is an artefact of the 8-bit target and one output step
+    // is a fixed distance in display space and a wildly varying one in linear
+    // space.
     final outputEncode = bindings.vec4(
       'CompositeInfo',
       'output_encode',
@@ -217,6 +207,25 @@ final class CompositeShader implements CpuFragmentShader {
       toSrgb(math.max(colour.y, 0.0)),
       toSrgb(math.max(colour.z, 0.0)),
     );
+
+    if (lookMore.z > 0.0) {
+      // **Moved out of linear light, where its own comment was wrong.** The
+      // noise is symmetric either way, but in linear the clamp took the
+      // negative half and the encode stretched the rest, so black rose. See
+      // `composite.frag`, which carries the measurement.
+      //
+      // **Not bit-identical to the GPU's, and it cannot be.** The hash is a
+      // sine of a large product, so single and double precision diverge in
+      // the fraction this keeps. The two golden sets are independent for
+      // exactly this class of difference; what has to match is the shape of
+      // the noise, not the bits.
+      final amount = (_hash(c.coord.x, c.coord.y) - 0.5) * lookMore.z;
+      encoded = Vector3(
+        encoded.x + amount,
+        encoded.y + amount,
+        encoded.z + amount,
+      );
+    }
     if (outputEncode.x > 0.0) {
       // **Bit-identical to the GPU's, unlike the grain above.** The Bayer cell
       // is an integer table and a divide, so there is no precision to lose —
