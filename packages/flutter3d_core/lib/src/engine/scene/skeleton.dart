@@ -69,6 +69,26 @@ final class Skeleton {
   final Matrix4 _scratch = Matrix4.identity();
   final Matrix4 _measure = Matrix4.identity();
 
+  /// One matrix reused for every joint, rather than one allocated per joint per
+  /// call — `gfx-64n`. A sixty-four joint character reached by four primitives
+  /// across three passes was allocating seven hundred and sixty-eight of these
+  /// a frame, in a class whose own [matrices] comment says the array exists to
+  /// avoid exactly that.
+  final Matrix4 _joint = Matrix4.identity();
+
+  /// The pose and the mesh transform [matrices] was last computed for.
+  int _posedVersion = -1;
+  final Matrix4 _posedMeshWorld = Matrix4.zero();
+
+  int _updates = 0;
+
+  /// How many times [update] has done the work, as against been asked to.
+  ///
+  /// Here because the saving is invisible otherwise: a character split across
+  /// four materials looks identical whether its pose is computed once or twelve
+  /// times, and a count is what a test can hold.
+  int get updateCount => _updates;
+
   /// How far one unit of the mesh's own space reaches once it is skinned.
   ///
   /// **A skinned mesh's vertex positions are not in metres.** A rig exported
@@ -114,16 +134,33 @@ final class Skeleton {
   /// since moved; `inverse(meshWorld)` returns it to the mesh's own space,
   /// because the renderer is about to apply that transform again. Drop the last
   /// term and a skinned model is placed twice.
+  /// **Once per skeleton per frame — `gfx-64n`.** The call is reached from mesh
+  /// encoding, the pick pass and both shadow passes, once per primitive in
+  /// each, so a character split across four materials recomputed and re-uploaded
+  /// the same sixty-four matrices a dozen times for one pose. The guard is the
+  /// pose stamp plus the mesh transform, which together are everything the
+  /// result depends on; the cube shadow pass had a version of it as a set of
+  /// nodes, and this is that generalised to every caller at once.
+  ///
+  /// Two skinned nodes sharing one skeleton at different transforms will fall
+  /// through it in turn, which is correct and no worse than before.
   void update(Matrix4 meshWorld) {
+    final version = poseVersion;
+    if (version == _posedVersion && _posedMeshWorld == meshWorld) return;
+    _posedVersion = version;
+    _posedMeshWorld.setFrom(meshWorld);
+    _updates++;
+
     _scratch.setFrom(meshWorld);
     _scratch.invert();
 
     for (var i = 0; i < joints.length; i++) {
-      final joint = Matrix4.copy(_scratch);
-      joint.multiply(joints[i].worldMatrix);
-      joint.multiply(_inverseBind[i]);
+      _joint
+        ..setFrom(_scratch)
+        ..multiply(joints[i].worldMatrix)
+        ..multiply(_inverseBind[i]);
 
-      final storage = joint.storage;
+      final storage = _joint.storage;
       final base = i * 16;
       for (var e = 0; e < 16; e++) {
         matrices[base + e] = storage[e];

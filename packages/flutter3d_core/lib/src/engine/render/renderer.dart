@@ -2007,16 +2007,6 @@ final class Renderer implements RenderServices {
   PipelineHandle? _instancedCubeShadowPipeline;
   PipelineHandle? _cubeShadowResetPipeline;
 
-  /// Skinned casters whose pose has already been evaluated in the pass now
-  /// being encoded.
-  ///
-  /// Held on the renderer rather than allocated per pass so that a frame with
-  /// no skinned casters — which is most frames in most scenes — costs one
-  /// `clear` of an empty set. Identity is the right key: the same node twice
-  /// means the same world matrix and the same joints, and two nodes sharing one
-  /// skeleton at different transforms genuinely need two evaluations.
-  final Set<MeshNode> _cubeShadowPosed = <MeshNode>{};
-
   /// Whether each atlas has been cleared since it was allocated.
   bool _cubeShadowCleared = false;
   bool _cubeShadowStaticCleared = false;
@@ -2060,6 +2050,13 @@ final class Renderer implements RenderServices {
   /// [_cubeMatrix] in the backend's clip space, for drawing a face with.
   final vm.Matrix4 _cubeDrawMatrix = vm.Matrix4.identity();
   final Float32List _cubeLight = Float32List(4);
+
+  /// The volume of the cube face currently being filled — `gfx-63n`.
+  ///
+  /// One object reused across faces rather than one per face: there are up to
+  /// thirty-six of them in a frame, and a `Frustum` is six planes with a vector
+  /// each.
+  final vm.Frustum _faceFrustum = vm.Frustum();
 
   /// How far this camera sees, for dividing between cascades.
   ///
@@ -2978,7 +2975,11 @@ final class Renderer implements RenderServices {
       );
       final bloomNode = _BloomNode(this, settings.bloom);
       compositeNode = _CompositeNode(this, scene, ordered, settings);
-      final luminanceNode = _LuminanceNode(this, settings.autoExposure, ordered);
+      final luminanceNode = _LuminanceNode(
+        this,
+        settings.autoExposure,
+        ordered,
+      );
       final objectIdNode = _ObjectIdNode(
         this,
         scene: scene,
