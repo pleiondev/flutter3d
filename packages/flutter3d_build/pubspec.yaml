@@ -28,6 +28,15 @@ dependencies:
   # than the data-asset API that formalises that same act).
   hooks: ^2.0.0
 
+  # **Only to read which platform is being built for** — `gfx-69n`. A
+  # compression family is not a taste: block formats are guaranteed by the
+  # platform, so desktop takes BC and Android and iOS take ETC2, and picking
+  # wrong means the uploader refuses the texture by name rather than drawing a
+  # worse one. This package builds no code assets and never will; `code_assets`
+  # is where `HookConfig.code.targetOS` lives, and `buildCodeAssets` is the
+  # guard that says whether the invoker is offering it at all.
+  code_assets: ^1.2.0
+
   # `ap-04`'s manifest: `glob` matches a rule's pattern against a source
   # path, `yaml` parses `flutter3d_assets.yaml` as a node tree rather than a
   # plain `Map` so a bad key or a bad glob can name the line it came from.
