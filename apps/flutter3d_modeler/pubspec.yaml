@@ -91,7 +91,7 @@ dependencies:
   # `autosaving_test.dart` can drive it through `FakeAsync` at test speed —
   # `FakeAsync` overrides this package's clock and nothing reads
   # `DateTime.now()` directly.
-  clock: ^1.1.1
+  clock: ^1.1.3
 
   # Opening the tutorial link (`ui-32n`) in the system browser. Unlike the
   # file picker above, "open this URL" has no honest ten-line native answer —
