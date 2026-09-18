@@ -79,6 +79,7 @@ export 'src/engine/render/environment_map.dart';
 export 'src/engine/render/frame_graph.dart';
 export 'src/engine/render/frame_plan.dart';
 export 'src/engine/render/frame_resources.dart';
+export 'src/engine/render/fullscreen_effect.dart';
 export 'src/engine/render/key_sort.dart';
 export 'src/engine/render/material.dart';
 export 'src/engine/render/mesh_overlay.dart';

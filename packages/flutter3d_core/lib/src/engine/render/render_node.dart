@@ -79,6 +79,18 @@ abstract base class RenderNode extends FrameGraphNode {
   /// never asked, which is the difference between an effect that is switched
   /// off and an effect that costs a pass and is then discarded.
   void execute(NodeFrame frame);
+
+  /// Where this node belongs, when whoever registers it does not say —
+  /// `gfx-28n`.
+  ///
+  /// [FramePhase.overlay] for anything that does not know better, which is
+  /// what every node registered before this existed was getting anyway. What
+  /// it buys is that a node built for the *finished* picture can say so once,
+  /// in its own constructor, instead of relying on every caller to pass an
+  /// argument they have no way of knowing is load-bearing — and the failure
+  /// when they do not is the one [FramePhase.present] was added to fix: a
+  /// pass that runs, costs its time, and is overwritten.
+  FramePhase get preferredPhase => FramePhase.overlay;
 }
 
 /// Where in the frame an application's node is registered.
@@ -138,9 +150,16 @@ final class RenderNodeRegistry {
 
   int get length => _nodes.length;
 
-  T add<T extends RenderNode>(T node, {FramePhase phase = FramePhase.overlay}) {
+  /// Registers [node], in [phase] or in the one the node asks for.
+  ///
+  /// `gfx-28n` made the argument optional rather than defaulted: it used to
+  /// default to [FramePhase.overlay], which is still what a node that says
+  /// nothing gets, and now a node that knows where it belongs is not
+  /// overridden by a caller who left the argument off. Passing one explicitly
+  /// still wins, because a caller who names a phase means it.
+  T add<T extends RenderNode>(T node, {FramePhase? phase}) {
     _nodes.add(node);
-    _phases[node] = phase;
+    _phases[node] = phase ?? node.preferredPhase;
     return node;
   }
 
