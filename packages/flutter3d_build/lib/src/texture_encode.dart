@@ -77,6 +77,14 @@ EncodedImage _encodeOne(
 
   final int vkFormat;
   final Uint8List Function(Rgba8Image) encode;
+  // **The universal family writes no `vkFormat` at all — `gfx-83n`.** Its
+  // blocks are not a GPU format, so the header says undefined and a key/value
+  // entry says which layout they are; the load picks the real format from the
+  // device. Handled before the switch because it is the one family whose
+  // levels and header are written differently rather than encoded differently.
+  if (family == TextureFamily.universal) {
+    return _encodeUniversal(image, source, hasAlpha, label, report);
+  }
   switch (family) {
     case TextureFamily.bc:
       if (hasAlpha) {
@@ -101,28 +109,7 @@ EncodedImage _encodeOne(
       return image;
   }
 
-  // **A chain, not a level — `gfx-69n`.** One level was the case where
-  // compressing makes the picture *worse*: a minified surface has nothing to
-  // fall back to, so it samples the base at a stride and shimmers, and the
-  // block artefacts shimmer with it. The uploader has always taken
-  // `levels.sublist(1)` as the chain; nothing was giving it one.
-  //
-  // The alpha question is settled once, on the base, because a chain is one
-  // format: a level whose own downsample happened to lose the last translucent
-  // texel cannot become BC1 halfway down.
-  final levels = <Uint8List>[];
-  var level = source;
-  while (true) {
-    levels.add(encode(level));
-    // Four is the block, so a level below it cannot be encoded at all, and a
-    // level that is not whole blocks is where the chain stops for the same
-    // reason the base would have been refused: 96x96 goes 48, 24, 12, and then
-    // 6 is not blocks, so the chain is four levels rather than an error.
-    if (level.width <= 4 || level.height <= 4) break;
-    final smaller = _halve(level);
-    if (smaller.width % 4 != 0 || smaller.height % 4 != 0) break;
-    level = smaller;
-  }
+  final levels = _encodeLevels(source, encode);
   if (levels.length > 1) {
     report?.call(
       '$label: ${source.width}x${source.height}, ${levels.length} levels',
@@ -141,6 +128,70 @@ EncodedImage _encodeOne(
     mimeType: 'image/ktx2',
     sourceUri: image.sourceUri,
   );
+}
+
+/// The `universal` family — `gfx-83n`.
+///
+/// The header carries no format, because the blocks are not one: `vkFormat`
+/// is undefined and [kUniversalBlockKey] says which layout they are and
+/// whether alpha is meaningful in them. The alpha question is answered on the
+/// base level here the same way it is for BC, and for the same reason: a
+/// chain is one thing, and a level whose downsample happened to lose the last
+/// translucent texel cannot change what the file says halfway down.
+EncodedImage _encodeUniversal(
+  EncodedImage image,
+  Rgba8Image source,
+  bool hasAlpha,
+  String label,
+  void Function(String message)? report,
+) {
+  final levels = _encodeLevels(source, encodeUniversalBlocks);
+  report?.call(
+    '$label: ${source.width}x${source.height}, ${levels.length} '
+    'level${levels.length == 1 ? '' : 's'} of universal blocks '
+    '(${hasAlpha ? 'with' : 'without'} alpha)',
+  );
+  return EncodedImage(
+    bytes: writeKtx2(
+      vkFormat: VkFormat.undefined,
+      pixelWidth: source.width,
+      pixelHeight: source.height,
+      levels: levels,
+      keyValues: <String, String>{
+        kUniversalBlockKey: hasAlpha ? kUniversalBlockRgba : kUniversalBlockRgb,
+      },
+    ),
+    name: image.name,
+    mimeType: 'image/ktx2',
+    sourceUri: image.sourceUri,
+  );
+}
+
+/// Every mip level of [source], each through [encode].
+///
+/// **A chain, not a level — `gfx-69n`.** One level was the case where
+/// compressing makes the picture *worse*: a minified surface has nothing to
+/// fall back to, so it samples the base at a stride and shimmers, and the
+/// block artefacts shimmer with it. The uploader has always taken
+/// `levels.sublist(1)` as the chain; nothing was giving it one.
+List<Uint8List> _encodeLevels(
+  Rgba8Image source,
+  Uint8List Function(Rgba8Image) encode,
+) {
+  final levels = <Uint8List>[];
+  var level = source;
+  while (true) {
+    levels.add(encode(level));
+    // Four is the block, so a level below it cannot be encoded at all, and a
+    // level that is not whole blocks is where the chain stops for the same
+    // reason the base would have been refused: 96x96 goes 48, 24, 12, and then
+    // 6 is not blocks, so the chain is four levels rather than an error.
+    if (level.width <= 4 || level.height <= 4) break;
+    final smaller = _halve(level);
+    if (smaller.width % 4 != 0 || smaller.height % 4 != 0) break;
+    level = smaller;
+  }
+  return levels;
 }
 
 /// [image] at half its size, each texel the average of the four it replaces.

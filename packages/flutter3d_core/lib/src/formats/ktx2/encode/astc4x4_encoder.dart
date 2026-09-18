@@ -1,5 +1,6 @@
 import 'dart:typed_data';
 
+import 'principal_axis.dart';
 import 'rgba8_image.dart';
 
 /// Encodes [image] as ASTC 4×4 LDR (`vkFormat.astc4x4UNormBlock`): one
@@ -95,112 +96,116 @@ const int _kCemLdrRgbDirect = 8;
 /// from bit 127 — 17 + 48 from the bottom and 48 from the top, leaving the
 /// fifteen bits between them zero.
 Uint8List encodeAstc4x4Block(List<(int, int, int, int)> pixels) {
-  final rgb = <(double, double, double)>[
-    for (final (r, g, b, _) in pixels)
-      (r.toDouble(), g.toDouble(), b.toDouble()),
+  final fit = blockEndpoints(pixels);
+
+  // The weights are chosen against the endpoints as the block will *store*
+  // them, which is why the ordering happens first and the search reads the
+  // pair back out of it.
+  final ordered = orderAstc4x4Endpoints(
+    _quantizeColor(fit.high),
+    _quantizeColor(fit.low),
+  );
+  final lowExpanded = _expandColor(ordered.low);
+  final highExpanded = _expandColor(ordered.high);
+
+  final weights = <int>[
+    for (final (er, eg, eb, _) in pixels)
+      _nearestWeight(er, eg, eb, lowExpanded, highExpanded),
   ];
+  return packAstc4x4Block(
+    endpoint0: ordered.low,
+    endpoint1: ordered.high,
+    weights: weights,
+  );
+}
 
-  var meanR = 0.0, meanG = 0.0, meanB = 0.0;
-  for (final (r, g, b) in rgb) {
-    meanR += r;
-    meanG += g;
-    meanB += b;
-  }
-  meanR /= 16;
-  meanG /= 16;
-  meanB /= 16;
-
-  final (axisR, axisG, axisB) = _principalAxis(rgb, meanR, meanG, meanB);
-
-  var minT = double.infinity, maxT = -double.infinity;
-  var minIndex = 0, maxIndex = 0;
-  for (var i = 0; i < 16; i++) {
-    final (r, g, b) = rgb[i];
-    final t = (r - meanR) * axisR + (g - meanG) * axisG + (b - meanB) * axisB;
-    if (t < minT) {
-      minT = t;
-      minIndex = i;
+/// Which of the [_kWeightMax] + 1 levels along the endpoint line is closest to
+/// one texel.
+int _nearestWeight(
+  int r,
+  int g,
+  int b,
+  (double, double, double) low,
+  (double, double, double) high,
+) {
+  var bestWeight = 0;
+  var bestError = double.infinity;
+  for (var w = 0; w <= _kWeightMax; w++) {
+    final (dr, dg, db) = _lerpColor(low, high, w / _kWeightMax);
+    final errR = r - dr, errG = g - dg, errB = b - db;
+    final error = errR * errR + errG * errG + errB * errB;
+    if (error < bestError) {
+      bestError = error;
+      bestWeight = w;
     }
-    if (t > maxT) {
-      maxT = t;
-      maxIndex = i;
-    }
   }
+  return bestWeight;
+}
 
-  // Endpoint 0 is the block's brightest-along-the-axis pixel, endpoint 1 its
-  // dimmest — a flat block (every projection equal) puts both at the same
-  // pixel, which decodes solid regardless of which weight a texel picks.
-  final e0 = rgb[maxIndex];
-  final e1 = minIndex == maxIndex ? e0 : rgb[minIndex];
+/// The two endpoints in the order `LDR RGB Direct` reads them, and whether
+/// that meant swapping the pair.
+///
+/// **The second endpoint must not be the darker one.** The decoder compares
+/// the two channel sums and, when the first is the larger, reads the pair
+/// swapped *and* blue-contracted — a different colour entirely. A caller that
+/// swaps must mirror its weights to match, which is what [swapped] is for.
+({(int, int, int) low, (int, int, int) high, bool swapped})
+orderAstc4x4Endpoints((int, int, int) e0, (int, int, int) e1) {
+  final sum0 = e0.$1 + e0.$2 + e0.$3;
+  final sum1 = e1.$1 + e1.$2 + e1.$3;
+  return sum1 < sum0
+      ? (low: e1, high: e0, swapped: true)
+      : (low: e0, high: e1, swapped: false);
+}
 
-  final (r0q, g0q, b0q) = _quantizeColor(e0);
-  final (r1q, g1q, b1q) = _quantizeColor(e1);
-
+/// The sixteen bytes of one block, given endpoints already in
+/// [orderAstc4x4Endpoints]' order and one weight per texel in `0..7`.
+///
+/// Split out of [encodeAstc4x4Block] for `gfx-83n`: the universal-block
+/// transcoder arrives with endpoints and weights already decided and needs the
+/// same packing, and this is the packing `astc_conformance_test.dart` holds to
+/// what ARM's decoder accepts. Two copies of it would be two things to keep
+/// conformant.
+Uint8List packAstc4x4Block({
+  required (int, int, int) endpoint0,
+  required (int, int, int) endpoint1,
+  required List<int> weights,
+}) {
   final block = Uint8List(16);
   _setBits(block, 0, 11, _kBlockMode);
   _setBits(block, 11, 2, 0); // one partition
   _setBits(block, 13, 4, _kCemLdrRgbDirect);
 
-  // **The second endpoint must not be the darker one.** For `LDR RGB Direct`
-  // the decoder compares the two sums and, when the first is the larger, reads
-  // the pair swapped *and* blue-contracted — a different colour entirely. So
-  // the encoder orders them and inverts the weights to match, rather than
-  // letting a block whose endpoints happen to come out that way round decode
-  // as something else.
-  var (ra, ga, ba) = (r0q, g0q, b0q);
-  var (rb, gb, bb) = (r1q, g1q, b1q);
-  final swapped = rb + gb + bb < ra + ga + ba;
-  if (swapped) {
-    final tr = ra, tg = ga, tb = ba;
-    ra = rb;
-    ga = gb;
-    ba = bb;
-    rb = tr;
-    gb = tg;
-    bb = tb;
-  }
-
   var cursor = 17;
-  for (final value in <int>[ra, rb, ga, gb, ba, bb]) {
+  final channels = <int>[
+    endpoint0.$1, endpoint1.$1, //
+    endpoint0.$2, endpoint1.$2,
+    endpoint0.$3, endpoint1.$3,
+  ];
+  for (final value in channels) {
     cursor = _setBits(block, cursor, _kColorBits, value);
   }
-
-  final lowExpanded = _expandColor(ra, ga, ba);
-  final highExpanded = _expandColor(rb, gb, bb);
 
   // **The weights live at the top of the block, reversed.** ASTC stores the
   // weight stream growing downward from bit 127, with the bit order flipped —
   // so it is built here in an ordinary buffer and then folded in byte by byte,
   // each byte reversed and taken from the other end. Written forwards, as this
   // file did before `gfx-88n`, every weight lands somewhere else.
-  final weights = Uint8List(16);
+  final packed = Uint8List(16);
   var weightCursor = 0;
-  for (var i = 0; i < 16; i++) {
-    final (er, eg, eb, _) = pixels[i];
-    var bestWeight = 0;
-    var bestError = double.infinity;
-    for (var w = 0; w <= _kWeightMax; w++) {
-      final (dr, dg, db) = _lerpColor(
-        lowExpanded,
-        highExpanded,
-        w / _kWeightMax,
-      );
-      final errR = er - dr, errG = eg - dg, errB = eb - db;
-      final error = errR * errR + errG * errG + errB * errB;
-      if (error < bestError) {
-        bestError = error;
-        bestWeight = w;
-      }
-    }
-    weightCursor = _setBits(weights, weightCursor, _kWeightBits, bestWeight);
+  for (final weight in weights) {
+    weightCursor = _setBits(packed, weightCursor, _kWeightBits, weight);
   }
-
   for (var i = 0; i < 16; i++) {
-    block[i] |= _reverseByte(weights[15 - i]);
+    block[i] |= _reverseByte(packed[15 - i]);
   }
-
   return block;
 }
+
+/// How many levels a weight written by [packAstc4x4Block] has — eight, so the
+/// caller's weights run `0..7`. Named for the transcoder, which has to spread
+/// its own four levels across them.
+const int kAstc4x4WeightLevels = _kWeightMax + 1;
 
 (int, int, int) _quantizeColor((double, double, double) rgb) {
   final (r, g, b) = rgb;
@@ -208,9 +213,9 @@ Uint8List encodeAstc4x4Block(List<(int, int, int, int)> pixels) {
   return (q(r), q(g), q(b));
 }
 
-(double, double, double) _expandColor(int r, int g, int b) {
+(double, double, double) _expandColor((int, int, int) rgb) {
   double e(int v) => v * 255 / _kColorMax;
-  return (e(r), e(g), e(b));
+  return (e(rgb.$1), e(rgb.$2), e(rgb.$3));
 }
 
 (double, double, double) _lerpColor(
@@ -221,58 +226,6 @@ Uint8List encodeAstc4x4Block(List<(int, int, int, int)> pixels) {
   final (r0, g0, b0) = e0;
   final (r1, g1, b1) = e1;
   return (r0 + (r1 - r0) * t, g0 + (g1 - g0) * t, b0 + (b1 - b0) * t);
-}
-
-/// The same power-iteration principal-axis fit [encodeBc1Block] uses —
-/// duplicated rather than shared, since Dart's library privacy keeps
-/// `bc1_encoder.dart`'s own copy out of reach from here, and the fit is
-/// small enough that sharing it would cost an export neither encoder's
-/// public API otherwise needs.
-(double, double, double) _principalAxis(
-  List<(double, double, double)> rgb,
-  double meanR,
-  double meanG,
-  double meanB,
-) {
-  var cRR = 0.0, cRG = 0.0, cRB = 0.0, cGG = 0.0, cGB = 0.0, cBB = 0.0;
-  for (final (r, g, b) in rgb) {
-    final dr = r - meanR, dg = g - meanG, db = b - meanB;
-    cRR += dr * dr;
-    cRG += dr * dg;
-    cRB += dr * db;
-    cGG += dg * dg;
-    cGB += dg * db;
-    cBB += db * db;
-  }
-
-  var vr = cRR + cRG + cRB;
-  var vg = cRG + cGG + cGB;
-  var vb = cRB + cGB + cBB;
-  if (vr == 0 && vg == 0 && vb == 0) return (1, 0, 0); // a flat block
-
-  for (var i = 0; i < 8; i++) {
-    final nr = cRR * vr + cRG * vg + cRB * vb;
-    final ng = cRG * vr + cGG * vg + cGB * vb;
-    final nb = cRB * vr + cGB * vg + cBB * vb;
-    final length = _length(nr, ng, nb);
-    if (length == 0) break;
-    vr = nr / length;
-    vg = ng / length;
-    vb = nb / length;
-  }
-  final length = _length(vr, vg, vb);
-  return length == 0 ? (1, 0, 0) : (vr / length, vg / length, vb / length);
-}
-
-double _length(double x, double y, double z) => _sqrt(x * x + y * y + z * z);
-
-double _sqrt(double x) {
-  if (x <= 0) return 0;
-  var guess = x;
-  for (var i = 0; i < 12; i++) {
-    guess = 0.5 * (guess + x / guess);
-  }
-  return guess;
 }
 
 /// The bits of one byte, back to front — what the weight stream's placement

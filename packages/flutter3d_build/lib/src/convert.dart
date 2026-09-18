@@ -33,10 +33,16 @@ final class TextureFamily {
   static const TextureFamily etc2 = TextureFamily._('etc2');
   static const TextureFamily none = TextureFamily._('none');
 
+  /// One cooked texture for every device family — `gfx-83n`. Not a GPU
+  /// format: a 4×4 block intermediate the load turns into BC, ASTC, ETC2 or
+  /// RGBA8 against what the device reports sampling.
+  static const TextureFamily universal = TextureFamily._('universal');
+
   static const List<TextureFamily> values = <TextureFamily>[
     auto,
     bc,
     etc2,
+    universal,
     none,
   ];
 
@@ -64,15 +70,20 @@ Options:
                              input: the output directory, mirroring the
                              input's own relative paths (default: alongside
                              each source file).
-  --textures <family>       auto | bc | etc2 | none (default: auto). Chooses
-                             which compressed texture family a converted
-                             image targets. `bc` picks BC1 for an opaque
-                             image and BC3 for one with alpha; `etc2` refuses
-                             (and leaves the source image as it arrived)
-                             an image with alpha, since the EAC alpha block
-                             is not encoded yet. `auto` is unresolved until
-                             ap-09 picks a family per target device rather
-                             than per conversion — it behaves like `none`.
+  --textures <family>       auto | bc | etc2 | universal | none (default:
+                             auto). Chooses which compressed texture family a
+                             converted image targets. `bc` picks BC1 for an
+                             opaque image and BC3 for one with alpha; `etc2`
+                             refuses (and leaves the source image as it
+                             arrived) an image with alpha, since the EAC alpha
+                             block is not encoded yet. `universal` writes a
+                             4x4 block intermediate that is not a GPU format:
+                             the load turns it into BC, ASTC, ETC2 or RGBA8
+                             against what the device samples, so one cooked
+                             file serves every device family at sixteen bytes
+                             a block. `auto` is unresolved until ap-09 picks a
+                             family per target device rather than per
+                             conversion — it behaves like `none`.
   --no-mips                 Skip generating a mip chain for textures.
                              Accepted, but there is no mip generator wired
                              in here yet (ap-08 exists in flutter3d_formats;

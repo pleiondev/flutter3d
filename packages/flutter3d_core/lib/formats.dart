@@ -53,6 +53,16 @@ export 'src/formats/ktx2/encode/ktx2_writer.dart' show writeKtx2;
 export 'src/formats/ktx2/encode/mip_chain.dart' show buildMipChain;
 export 'src/formats/ktx2/encode/rgba8_image.dart' show Rgba8Image;
 export 'src/formats/ktx2/ktx2.dart';
+export 'src/formats/ktx2/universal/universal_block.dart'
+    show
+        UniversalTarget,
+        decodeUniversalBlock,
+        encodeUniversalBlock,
+        encodeUniversalBlocks,
+        kUniversalBlockKey,
+        kUniversalBlockRgb,
+        kUniversalBlockRgba,
+        transcodeUniversal;
 export 'src/formats/lighting_model.dart';
 export 'src/formats/material_document.dart';
 export 'src/formats/material_hint.dart';
