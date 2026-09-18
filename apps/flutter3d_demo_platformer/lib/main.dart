@@ -1099,31 +1099,45 @@ class _GameScreenState extends State<GameScreen>
           child: Stack(
             fit: StackFit.expand,
             children: <Widget>[
-              SceneSurface(
+              // **`gfx-71n`.** This build ships to Android and iOS, and the
+              // pool it draws through settles at the high-water mark of every
+              // attachment shape any frame has needed — which here includes a
+              // 6144 x 2048 shadow atlas and bloom's five levels. On a phone
+              // that is the difference between a slow frame and the operating
+              // system killing the process, so the platform's own warning is
+              // wired to giving the pooled ones back.
+              MemoryPressureRelease(
                 renderer: renderer,
-                scene: scene,
-                view: _view,
-                onBeforeFrame: () {},
-                settings: () => RenderSettings(
-                  fog: FogSettings(
-                    color: _loaded?.level.fogColor ?? Vector3(0.05, 0.07, 0.12),
-                    density: _loaded?.level.fogDensity ?? 0.0,
+                child: SceneSurface(
+                  renderer: renderer,
+                  scene: scene,
+                  view: _view,
+                  onBeforeFrame: () {},
+                  settings: () => RenderSettings(
+                    fog: FogSettings(
+                      color:
+                          _loaded?.level.fogColor ?? Vector3(0.05, 0.07, 0.12),
+                      density: _loaded?.level.fogDensity ?? 0.0,
+                    ),
+                    // Three cascades, because this level is a hundred and twenty
+                    // metres by two hundred and sixty and one map over that is
+                    // fourteen centimetres of world per texel — which drew the
+                    // runner's own shadow as a blurred slab beside them, and was
+                    // reported as the character being drawn twice.
+                    //
+                    // 2048 rather than the default 1024, which is a real cost:
+                    // the atlas is `resolution × cascades` wide, so this is
+                    // 6144 × 2048. What it buys is the character's own shadow
+                    // reading as soft rather than as a staircase — at 1024 the
+                    // near cascade is 1.9 cm of world per texel and the penguin's
+                    // shadow is a visible flight of steps beside it.
+                    shadows: const ShadowSettings(
+                      cascades: 3,
+                      resolution: 2048,
+                    ),
                   ),
-                  // Three cascades, because this level is a hundred and twenty
-                  // metres by two hundred and sixty and one map over that is
-                  // fourteen centimetres of world per texel — which drew the
-                  // runner's own shadow as a blurred slab beside them, and was
-                  // reported as the character being drawn twice.
-                  //
-                  // 2048 rather than the default 1024, which is a real cost:
-                  // the atlas is `resolution × cascades` wide, so this is
-                  // 6144 × 2048. What it buys is the character's own shadow
-                  // reading as soft rather than as a staircase — at 1024 the
-                  // near cascade is 1.9 cm of world per texel and the penguin's
-                  // shadow is a visible flight of steps beside it.
-                  shadows: const ShadowSettings(cascades: 3, resolution: 2048),
+                  presentFrame: presentFrame,
                 ),
-                presentFrame: presentFrame,
               ),
               // The web build draws into a platform view, and a platform view
               // takes every pointer event over it — the `Listener` outside this
