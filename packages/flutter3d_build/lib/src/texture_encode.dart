@@ -76,15 +76,15 @@ EncodedImage _encodeOne(
   final hasAlpha = _hasAlpha(source);
 
   final int vkFormat;
-  final Uint8List encoded;
+  final Uint8List Function(Rgba8Image) encode;
   switch (family) {
     case TextureFamily.bc:
       if (hasAlpha) {
         vkFormat = VkFormat.bc3UNormBlock;
-        encoded = encodeBc3(source);
+        encode = encodeBc3;
       } else {
         vkFormat = VkFormat.bc1RgbaUNormBlock;
-        encoded = encodeBc1(source);
+        encode = encodeBc1;
       }
     case TextureFamily.etc2:
       if (hasAlpha) {
@@ -95,17 +95,45 @@ EncodedImage _encodeOne(
         return image;
       }
       vkFormat = VkFormat.etc2R8g8b8UNormBlock;
-      encoded = encodeEtc2Rgb8(source);
+      encode = encodeEtc2Rgb8;
     default:
       // Unreachable: `none`/`auto` return before this function is called.
       return image;
+  }
+
+  // **A chain, not a level — `gfx-69n`.** One level was the case where
+  // compressing makes the picture *worse*: a minified surface has nothing to
+  // fall back to, so it samples the base at a stride and shimmers, and the
+  // block artefacts shimmer with it. The uploader has always taken
+  // `levels.sublist(1)` as the chain; nothing was giving it one.
+  //
+  // The alpha question is settled once, on the base, because a chain is one
+  // format: a level whose own downsample happened to lose the last translucent
+  // texel cannot become BC1 halfway down.
+  final levels = <Uint8List>[];
+  var level = source;
+  while (true) {
+    levels.add(encode(level));
+    // Four is the block, so a level below it cannot be encoded at all, and a
+    // level that is not whole blocks is where the chain stops for the same
+    // reason the base would have been refused: 96x96 goes 48, 24, 12, and then
+    // 6 is not blocks, so the chain is four levels rather than an error.
+    if (level.width <= 4 || level.height <= 4) break;
+    final smaller = _halve(level);
+    if (smaller.width % 4 != 0 || smaller.height % 4 != 0) break;
+    level = smaller;
+  }
+  if (levels.length > 1) {
+    report?.call(
+      '$label: ${source.width}x${source.height}, ${levels.length} levels',
+    );
   }
 
   final ktx2 = writeKtx2(
     vkFormat: vkFormat,
     pixelWidth: source.width,
     pixelHeight: source.height,
-    levels: [encoded],
+    levels: levels,
   );
   return EncodedImage(
     bytes: ktx2,
@@ -113,6 +141,37 @@ EncodedImage _encodeOne(
     mimeType: 'image/ktx2',
     sourceUri: image.sourceUri,
   );
+}
+
+/// [image] at half its size, each texel the average of the four it replaces.
+///
+/// A box filter rather than anything cleverer, and the reason is what a mip
+/// level is for: it is the value a bilinear tap would have found had it been
+/// able to read four texels at once, which is the average, exactly. A sharper
+/// kernel makes a level that is not what the minified surface is showing, which
+/// is aliasing put back by hand.
+///
+/// Averaged in the channel's own stored values, which is wrong for colour and
+/// deliberately so: the engine's colour textures are uploaded as sRGB and the
+/// hardware does the same thing between mip levels, so a gamma-correct average
+/// here would disagree with the hardware's own between levels 0 and 1.
+Rgba8Image _halve(Rgba8Image image) {
+  final width = image.width ~/ 2;
+  final height = image.height ~/ 2;
+  final pixels = Uint8List(width * height * 4);
+  for (var y = 0; y < height; y++) {
+    for (var x = 0; x < width; x++) {
+      final out = (y * width + x) * 4;
+      for (var c = 0; c < 4; c++) {
+        final a = image.pixels[((y * 2) * image.width + x * 2) * 4 + c];
+        final b = image.pixels[((y * 2) * image.width + x * 2 + 1) * 4 + c];
+        final d = image.pixels[((y * 2 + 1) * image.width + x * 2) * 4 + c];
+        final e = image.pixels[((y * 2 + 1) * image.width + x * 2 + 1) * 4 + c];
+        pixels[out + c] = (a + b + d + e + 2) ~/ 4;
+      }
+    }
+  }
+  return Rgba8Image(width: width, height: height, pixels: pixels);
 }
 
 Rgba8Image _toRgba8(img.Image decoded) {
