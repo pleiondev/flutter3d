@@ -108,6 +108,83 @@ final class ReflectionSettings {
 ///
 /// The `ambient-occlusion-corner` golden closes that: one frame, recorded on
 /// three backends, of a corner this pass has something to darken.
+/// Contact shadows: a short march toward the light, in screen space —
+/// `gfx-76n`.
+///
+/// **What a shadow map cannot do at any resolution.** A box resting on a plane
+/// meets it along a line, and the shadow that belongs there is a texel wide or
+/// less. Raising the map's resolution moves the line closer to right without
+/// arriving; raising the bias enough to stop the acne a tight contact produces
+/// detaches the shadow from the object, which is the familiar look of a prop
+/// floating a centimetre above the floor.
+///
+/// **Not contact *hardening*.** `shadow.glsl` already sizes its penumbra from
+/// the blockers it finds, so a shadow is sharp where its caster is close. That
+/// is a different thing with a confusingly similar name.
+///
+/// Off by default, and [strength] at nought multiplies by exactly one — the
+/// same construction the occlusion above uses, and what lets this ship without
+/// moving a recorded frame.
+final class ContactShadowSettings {
+  const ContactShadowSettings({
+    this.enabled = false,
+    this.length = 0.25,
+    this.steps = 8,
+    this.thickness = 0.15,
+    this.bias = 0.01,
+    this.strength = 1.0,
+  });
+
+  final bool enabled;
+
+  /// How far the march reaches, in world metres.
+  ///
+  /// A quarter of a metre: the gap a shadow map leaves is the first few
+  /// centimetres, and a march long enough to replace the map would be a march
+  /// whose cost is the map's without its coverage.
+  final double length;
+
+  /// How many steps, one to sixteen — `kContactSteps` in the shader bounds the
+  /// loop, and this is the count it breaks at.
+  final int steps;
+
+  /// How thick an occluder is assumed to be, in metres.
+  ///
+  /// A surface nearer to the eye than the ray by more than this is something
+  /// else standing in front rather than the thing casting. Without it a wall
+  /// four metres nearer than the floor shadows everything the ray crosses,
+  /// which is the halo the occlusion's own range check exists to stop.
+  final double thickness;
+
+  /// How far the ray is lifted along the surface normal, in metres, so a flat
+  /// surface does not shadow itself. Metres and not window depth, for
+  /// `ssao.frag`'s reason: a bias in window depth is a different number of
+  /// millimetres at every distance from the camera.
+  final double bias;
+
+  /// How much of the result reaches the picture, nought to one.
+  ///
+  /// Applied in the composite and nowhere else, so "off" is a multiplier of
+  /// exactly one rather than nearly one.
+  final double strength;
+
+  ContactShadowSettings copyWith({
+    bool? enabled,
+    double? length,
+    int? steps,
+    double? thickness,
+    double? bias,
+    double? strength,
+  }) => ContactShadowSettings(
+    enabled: enabled ?? this.enabled,
+    length: length ?? this.length,
+    steps: steps ?? this.steps,
+    thickness: thickness ?? this.thickness,
+    bias: bias ?? this.bias,
+    strength: strength ?? this.strength,
+  );
+}
+
 final class AmbientOcclusionSettings {
   const AmbientOcclusionSettings({
     this.enabled = false,
@@ -585,6 +662,7 @@ final class RenderSettings {
     this.showPointShadowDebug = false,
     this.reflections = const ReflectionSettings(),
     this.ambientOcclusion = const AmbientOcclusionSettings(),
+    this.contactShadows = const ContactShadowSettings(),
     this.fog = const FogSettings(),
     this.sky = const SkySettings(),
     this.anisotropy = 1,
@@ -784,6 +862,9 @@ final class RenderSettings {
   /// Darkens the ambient term where a surface cannot see the sky.
   final AmbientOcclusionSettings ambientOcclusion;
 
+  /// The short march toward the light — `gfx-76n`.
+  final ContactShadowSettings contactShadows;
+
   /// `gfx-33n`'s volumetric shafts through the directional shadow map.
   final LightShaftSettings lightShafts;
 
@@ -966,6 +1047,7 @@ final class RenderSettings {
     bool? showPointShadowDebug,
     ReflectionSettings? reflections,
     AmbientOcclusionSettings? ambientOcclusion,
+    ContactShadowSettings? contactShadows,
     FogSettings? fog,
     SkySettings? sky,
     int? anisotropy,
@@ -998,6 +1080,7 @@ final class RenderSettings {
     showPointShadowDebug: showPointShadowDebug ?? this.showPointShadowDebug,
     reflections: reflections ?? this.reflections,
     ambientOcclusion: ambientOcclusion ?? this.ambientOcclusion,
+    contactShadows: contactShadows ?? this.contactShadows,
     fog: fog ?? this.fog,
     sky: sky ?? this.sky,
     anisotropy: anisotropy ?? this.anisotropy,
@@ -1087,6 +1170,9 @@ final class RenderSettings {
     'luminance',
     'ssao',
     'ssao blur',
+    // Beside the occlusion because it reads the same buffer and its result is
+    // applied in the same place — `gfx-76n`.
+    'contact shadows',
     'light shafts',
     'depth of field',
     'bloom',

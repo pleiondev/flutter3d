@@ -758,6 +758,71 @@ final class _SsaoNode extends RenderNode with _NeedsSurfaceBuffer {
   }
 }
 
+/// `gfx-76n`'s short march toward the sun, as a producer of one resource.
+///
+/// **A second producer rather than a link in the occlusion chain**, although
+/// the composite ends up multiplying both into the same ambient term. The
+/// occlusion has a strength of its own, and folding the contact shadow into
+/// `ao` would mean a scene with occlusion switched off — strength zero, node
+/// culled, buffer at one — has nowhere to put a contact shadow. Two resources
+/// and two strengths is what lets either be off without deciding for the other.
+///
+/// Declines the same way the shafts do: with no directional light there is
+/// nothing to march toward, and the node is inactive rather than marching
+/// toward a direction it made up.
+final class _ContactShadowNode extends RenderNode with _NeedsSurfaceBuffer {
+  _ContactShadowNode(this._renderer, this._view, this._settings, this._toLight);
+
+  @override
+  Renderer get owner => _renderer;
+
+  final Renderer _renderer;
+  final RenderView _view;
+  final RenderSettings _settings;
+
+  /// Which way the sun lies from a surface, or null for a scene with no
+  /// directional light.
+  final vm.Vector3? _toLight;
+
+  @override
+  String get name => 'contact shadows';
+
+  @override
+  bool get isActive =>
+      _settings.contactShadows.enabled &&
+      _settings.contactShadows.strength > 0.0 &&
+      _settings.contactShadows.length > 0.0 &&
+      _settings.contactShadows.steps > 0 &&
+      _toLight != null;
+
+  @override
+  List<ResourceId> get reads => const <ResourceId>[
+    FrameResourceIds.surfaceBuffer,
+  ];
+
+  @override
+  List<ResourceId> get writes => const <ResourceId>[
+    FrameResourceIds.contactShadow,
+  ];
+
+  @override
+  void execute(NodeFrame frame) {
+    final surface = frame.resources.tryTexture(FrameResourceIds.surfaceBuffer);
+    final toLight = _toLight;
+    // Both are hard conditions of the node running at all, so neither should
+    // happen — and a march over stale pixels would draw plausible seams where
+    // nothing meets, which is the kind of wrong that survives review.
+    if (surface == null || toLight == null) return;
+    _renderer._encodeContactShadow(
+      target: frame.resources.texture(FrameResourceIds.contactShadow),
+      surface: surface,
+      options: _settings.contactShadows,
+      view: _view,
+      toLight: toLight,
+    );
+  }
+}
+
 /// `gfx-33n`'s volumetric shafts, as a link in the lit-colour chain.
 ///
 /// **Reads the shadow map optionally, which is the whole of how it declines.**
@@ -1085,6 +1150,10 @@ final class _CompositeNode extends RenderNode {
     // nobody produced is what `optionalReads` is for. Gating it here as
     // well would put the same switch in two places.
     FrameResourceIds.ao,
+    // And the contact shadow beside it, for the same reason and with the same
+    // unconditional read: its node knows whether it is on, and the graph
+    // answering null is what "nobody produced it" looks like — `gfx-76n`.
+    FrameResourceIds.contactShadow,
     // Only when it is going to show it. An unconditional read would make
     // the buffer look wanted on every frame, and what wants it is what
     // decides whether the scene pass attaches it at all.
@@ -1150,6 +1219,7 @@ final class _CompositeNode extends RenderNode {
       // produced it, and the graph answering null is a fact it derived rather
       // than a flag this pass was handed.
       ao: frame.resources.tryTexture(FrameResourceIds.ao),
+      contactShadow: frame.resources.tryTexture(FrameResourceIds.contactShadow),
       surface: _showsSurface
           ? frame.resources.tryTexture(FrameResourceIds.surfaceBuffer)
           : null,
@@ -1235,7 +1305,11 @@ final class _FxaaNode extends RenderNode {
 /// The consumer is the readback, which the graph cannot see, exactly as an
 /// application reading the surface buffer is a consumer it cannot see.
 final class _LuminanceNode extends RenderNode {
-  _LuminanceNode(this._renderer, this._settings, [this._views = const <RenderView>[]]);
+  _LuminanceNode(
+    this._renderer,
+    this._settings, [
+    this._views = const <RenderView>[],
+  ]);
 
   final Renderer _renderer;
   final AutoExposureSettings _settings;

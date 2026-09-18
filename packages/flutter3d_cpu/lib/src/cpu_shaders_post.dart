@@ -84,6 +84,7 @@ final class CompositeShader implements CpuFragmentShader {
     // corner that should not dim.
     final ao = bindings.textures['ao_texture'];
     final strength = params.w.clamp(0.0, 1.0);
+    var shade = 1.0;
     if (ao != null && strength > 0.0) {
       final texel = bindings.vec4('CompositeInfo', 'ao_texel', Vector4.zero());
       final hx = texel.x * 0.5;
@@ -94,8 +95,30 @@ final class CompositeShader implements CpuFragmentShader {
               ao.sample(v[0] - hx, v[1] + hy).x +
               ao.sample(v[0] + hx, v[1] - hy).x +
               ao.sample(v[0] - hx, v[1] - hy).x);
-      colour.scale(1.0 + (occlusion - 1.0) * strength);
+      shade = 1.0 + (occlusion - 1.0) * strength;
     }
+
+    // `gfx-76n`, into the same multiplier and with a strength of its own: the
+    // occlusion says how enclosed a point is, this says whether the sun reaches
+    // it, and a scene wants them at different amounts. One tap rather than the
+    // 2×2 above, because the march runs at the frame's own resolution and there
+    // is no rotated kernel to average away — see `composite.frag`, which this
+    // mirrors operation for operation.
+    final contactMap = bindings.textures['contact_shadow_texture'];
+    final contactStrength = bindings
+        .vec4('CompositeInfo', 'contact', Vector4.zero())
+        .x
+        .clamp(0.0, 1.0);
+    if (contactMap != null && contactStrength > 0.0) {
+      final contact = contactMap.sample(v[0], v[1]).x;
+      shade *= 1.0 + (contact - 1.0) * contactStrength;
+    }
+
+    // Skipped at exactly one, which is what both settings off comes to: a
+    // multiply by one is exact, so this is a shortcut rather than a difference,
+    // and it keeps the frames forty-four goldens hold untouched by arithmetic
+    // they never used to go through.
+    if (shade != 1.0) colour.scale(shade);
 
     // Additive, and unconditional: the engine binds a black texture when bloom
     // is off rather than leaving the sampler unbound, so there is no branch to

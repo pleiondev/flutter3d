@@ -71,6 +71,9 @@ const String _kFragInfoBlock = 'FragInfo';
 
 /// The per-draw half of the light list — `gfx-74n`.
 const String _kLightListBlock = 'LightListInfo';
+
+/// The contact shadow's own block — `gfx-76n`.
+const String _kContactShadowBlock = 'ContactShadowInfo';
 const String _kFogInfoBlock = 'FogInfo';
 const String _kMorphInfoBlock = 'MorphInfo';
 const String _kMorphInstanceInfoBlock = 'MorphInstanceInfo';
@@ -100,6 +103,7 @@ const String _kSceneTextureSlot = 'scene_texture';
 const String _kBloomTextureSlot = 'bloom_texture';
 const String _kAoTextureSlot = 'ao_texture';
 const String _kLutTextureSlot = 'lut_texture';
+const String _kContactShadowTextureSlot = 'contact_shadow_texture';
 
 /// Draws a [Scene] through one or more [RenderView]s.
 ///
@@ -141,6 +145,7 @@ final class Renderer implements RenderServices {
     required this.fxaaShader,
     required this.reflectionShader,
     required this.ssaoShader,
+    required this.contactShadowShader,
     required this.ssaoBlurShader,
     required this.lightShaftsShader,
     required this.depthOfFieldShader,
@@ -268,6 +273,9 @@ final class Renderer implements RenderServices {
 
   /// The ambient occlusion pass.
   final ShaderHandle ssaoShader;
+
+  /// The short march toward the light — `gfx-76n`. See `post/contact_shadow.frag`.
+  final ShaderHandle contactShadowShader;
 
   /// `gfx-32n`'s depth-aware blur over what that pass produced.
   final ShaderHandle ssaoBlurShader;
@@ -1082,6 +1090,13 @@ final class Renderer implements RenderServices {
   final Float32List _compositeGamma = Float32List(4);
   final Float32List _compositeGain = Float32List(4);
 
+  /// `gfx-76n`'s strength, in x. Neutral is zero, which the composite reads as
+  /// a multiplier of exactly one — the same arrangement the occlusion's
+  /// strength has, and for the same reason: forty-four goldens go through this
+  /// block and "off" has to be a number the shader cancels, not one it nearly
+  /// cancels.
+  final Float32List _compositeContact = Float32List(4);
+
   /// Builds a renderer on [device].
   ///
   /// The backend arrives as a value rather than being reached for, which is the
@@ -1143,6 +1158,7 @@ final class Renderer implements RenderServices {
       fxaaShader: require('Fxaa'),
       reflectionShader: require('Reflections'),
       ssaoShader: require('Ssao'),
+      contactShadowShader: require('ContactShadow'),
       ssaoBlurShader: require('SsaoBlur'),
       lightShaftsShader: require('LightShafts'),
       depthOfFieldShader: require('DepthOfField'),
@@ -1275,6 +1291,26 @@ final class Renderer implements RenderServices {
       if (buffer.positions[i * 4 + 3] == ShaderLightType.directional) return i;
     }
     return -1;
+  }
+
+  /// Which way the sun lies *from* a surface, or null when nothing directional
+  /// lights the scene — `gfx-76n`.
+  ///
+  /// The buffer holds the direction a light points; a march goes the other way.
+  /// Taken from the same buffer and the same index the shadow map's caster comes
+  /// from, so a frame cannot march toward one sun and shadow from another.
+  static vm.Vector3? _toLightIn(LightBuffer buffer, int index) {
+    if (index < 0) return null;
+    final at = index * 4;
+    final direction = vm.Vector3(
+      buffer.directions[at],
+      buffer.directions[at + 1],
+      buffer.directions[at + 2],
+    );
+    // A directional light with no direction is not a light this pass can march
+    // toward, and normalising a zero vector is how you get a frame of NaN.
+    if (direction.length2 == 0.0) return null;
+    return -direction.normalized();
   }
 
   /// Restates this frame's atlas assignment in the slot order [buffer] packed.
@@ -1860,6 +1896,7 @@ final class Renderer implements RenderServices {
     required _CompositeNode composite,
     required _LuminanceNode luminance,
     required _ObjectIdNode objectIds,
+    required vm.Vector3? sunToLight,
   }) {
     final graph = FrameGraph()
       // The atlas before the directional map, which is the order they were
@@ -1925,6 +1962,12 @@ final class Renderer implements RenderServices {
     // the occlusion pass left — the version-skip the graph already does for
     // every other optional link.
     graph.addNode(_SsaoBlurNode(this, s));
+    // `gfx-76n`, beside the occlusion rather than in it: the composite
+    // multiplies both into the ambient term, but each has its own strength, so
+    // either can be off without the other having to be. Registration order does
+    // not matter here — it writes a name nothing else writes — and this is
+    // simply where the pass it belongs next to is.
+    graph.addNode(_ContactShadowNode(this, view, s, sunToLight));
     // `gfx-33n`. After the occlusion and before bloom: a shaft is light in
     // the air, so it should glow the way any other light does, and it is not
     // a surface so the occlusion has nothing to say about it.
@@ -2098,6 +2141,12 @@ final class Renderer implements RenderServices {
   final Float32List _lightListParams = Float32List(4);
   final Float32List _lightListIndices = Float32List(LightBuffer.maxExtraLights);
   final Float32List _lightListScales = Float32List(LightBuffer.maxExtraLights);
+
+  /// Staging for the contact shadow's block — `gfx-76n`.
+  final Float32List _contactParams = Float32List(4);
+  final Float32List _contactCamera = Float32List(4);
+  final Float32List _contactForward = Float32List(4);
+  final Float32List _contactLight = Float32List(4);
 
   /// The capture being filled, or null — `gfx-70n`.
   FrameCaptureBuilder? _capture;
@@ -2735,6 +2784,10 @@ final class Renderer implements RenderServices {
     return _compileFrameGraph(
       views.first,
       settings,
+      // From this plan's own buffer, not the running frame's: a plan that asked
+      // the live lights whether a sun exists would answer about a different
+      // scene.
+      sunToLight: _toLightIn(planLights, shadowCaster),
       cubeStatic: _CubeShadowStaticNode(
         this,
         scene: scene,
@@ -3124,6 +3177,9 @@ final class Renderer implements RenderServices {
         composite: compositeNode,
         luminance: luminanceNode,
         objectIds: objectIdNode,
+        // The same light the shadow map casts from, so the seam the march draws
+        // continues the shadow the map drew rather than crossing it.
+        sunToLight: _toLightIn(lights, shadowCaster),
       );
 
       // The frame's own resources: the graph names the lit scene and each
@@ -3163,6 +3219,17 @@ final class Renderer implements RenderServices {
                 id: FrameResourceIds.ao,
                 format: hdrFormat,
                 size: const FrameFraction(2),
+              ),
+            )
+            // The frame's own size, unlike the occlusion beside it: the seam a
+            // contact shadow draws is a few pixels wide, and half of a few
+            // pixels is a stair. Same format for the same reason as the
+            // occlusion — HDR is what all three backends are known to render
+            // into — and the pass writes its one number four times over.
+            ..declare(
+              ResourceDesc(
+                id: FrameResourceIds.contactShadow,
+                format: hdrFormat,
               ),
             )
             // A fixed small square of bytes, whatever the window does: the
@@ -3539,6 +3606,10 @@ final class Renderer implements RenderServices {
       scene: hdr,
       bloom: bloom,
       ao: null,
+      // No scene and so no surface buffer to march through: this path composites
+      // an HDR image somebody handed in, and a contact shadow is a fact about
+      // geometry rather than about a picture.
+      contactShadow: null,
       surface: null,
       shadowView: null,
       sceneGraph: Scene(),

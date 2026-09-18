@@ -243,6 +243,80 @@ extension _PostPasses on Renderer {
     resources.provide(FrameResourceIds.ao, target);
   }
 
+  /// The contact shadow's own march — `gfx-76n`.
+  ///
+  /// Everything about the reconstruction is `_encodeSsao`'s below, and for its
+  /// reasons: the matrix comes from the surface buffer's own shape, carries the
+  /// framebuffer origin and is *not* depth-range adjusted, and the camera's
+  /// position and forward axis come with it because the buffer holds metres
+  /// along that axis rather than a window depth.
+  ///
+  /// What differs is one direction instead of a hemisphere, and the target's
+  /// size: full resolution rather than the occlusion's half, because the seam
+  /// at a join is exactly the detail a half-resolution pass loses.
+  void _encodeContactShadow({
+    required TextureHandle target,
+    required TextureHandle surface,
+    required ContactShadowSettings options,
+    required RenderView view,
+    required vm.Vector3 toLight,
+  }) {
+    developer.Timeline.startSync('Renderer.contactShadow');
+
+    final aspect = surface.height == 0 ? 1.0 : surface.width / surface.height;
+    final viewProjection = toFramebufferOrigin(
+      view.camera.viewProjection(aspect),
+      device.framebufferOrigin,
+    );
+    final inverse = vm.Matrix4.copy(viewProjection)..invert();
+
+    view.camera.readWorldPosition(_ssaoCamera);
+    _contactCamera[0] = _ssaoCamera.x;
+    _contactCamera[1] = _ssaoCamera.y;
+    _contactCamera[2] = _ssaoCamera.z;
+    view.camera.readForward(_ssaoForward);
+    _contactForward[0] = _ssaoForward.x;
+    _contactForward[1] = _ssaoForward.y;
+    _contactForward[2] = _ssaoForward.z;
+
+    _contactLight[0] = toLight.x;
+    _contactLight[1] = toLight.y;
+    _contactLight[2] = toLight.z;
+
+    _contactParams[0] = math.max(options.length, 1e-4);
+    _contactParams[1] = options.steps.clamp(1, 16).toDouble();
+    _contactParams[2] = math.max(options.thickness, 1e-4);
+    // The strength is the composite's, for the reason the occlusion's is: "off"
+    // has to be a multiplier of exactly one, and that is a property of one
+    // `mix` rather than of arithmetic in two places.
+    _contactParams[3] = options.bias;
+
+    drawFullscreen(
+      FullscreenDraw(
+        target: target,
+        fragment: contactShadowShader,
+        textures: <String, TextureHandle>{'surface_texture': surface},
+        uniforms: <String, Map<String, Float32List>>{
+          _kContactShadowBlock: <String, Float32List>{
+            'inverse_view_projection': inverse.storage,
+            'view_projection': viewProjection.storage,
+            'params': _contactParams,
+            'camera': _contactCamera,
+            'forward': _contactForward,
+            'to_light': _contactLight,
+          },
+        },
+        // Unfiltered, for `_encodeSsao`'s measured reason below: a filtered tap
+        // across a silhouette averages a foreground depth with the cleared
+        // background and lands at a depth where nothing stands. Here that reads
+        // as an occluder in front of the ray, so every silhouette in the frame
+        // would grow its own thin dark outline.
+        sampler: SamplerOptions.nearestClamp,
+      ),
+    );
+    developer.Timeline.finishSync();
+  }
+
   /// Draws ambient occlusion into [target] from the surface buffer.
   ///
   /// A node that *produces* a resource, the way bloom does, rather than one
@@ -773,6 +847,7 @@ extension _PostPasses on Renderer {
     required TextureHandle scene,
     required TextureHandle? bloom,
     required TextureHandle? ao,
+    required TextureHandle? contactShadow,
     required TextureHandle? surface,
     required TextureHandle? shadowView,
     required Scene sceneGraph,
@@ -866,6 +941,25 @@ extension _PostPasses on Renderer {
       occlusion ?? fallbackAlbedo,
       sampler: Renderer._clampSampler,
     );
+    // `gfx-76n`, the same pairing once more: unoccluded is white, the 1×1 white
+    // stands in when the node was culled, and the strength is zeroed beside it
+    // so the stand-in is multiplied out rather than trusted. Its own strength
+    // and not the occlusion's — a scene may want a seam at a join without
+    // wanting ambient occlusion, and folding the two would make one of those
+    // settings silently govern the other.
+    final contact = contactShadow != null && settings.contactShadows.enabled
+        ? contactShadow
+        : null;
+    _compositeContact[0] = contact == null
+        ? 0.0
+        : settings.contactShadows.strength.clamp(0.0, 1.0);
+    pass.bindTexture(
+      compositeShader,
+      _kContactShadowTextureSlot,
+      contact ?? fallbackAlbedo,
+      sampler: Renderer._clampSampler,
+    );
+
     // The colour table, or nothing — `gfx-18n`. The same pairing as the two
     // samplers above: a texture is always bound because a declared sampler
     // with nothing in it is a native crash on Metal, and the strength is
@@ -936,6 +1030,7 @@ extension _PostPasses on Renderer {
       'lift': _compositeLift,
       'gamma': _compositeGamma,
       'gain': _compositeGain,
+      'contact': _compositeContact,
     };
     pass.bindUniformBlock(compositeShader, _kCompositeInfoBlock, block);
     var draws = 1;

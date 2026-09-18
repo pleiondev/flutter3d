@@ -52,6 +52,7 @@ const List<RequiredShader> kRequiredShaders = <RequiredShader>[
   (name: 'Reflections', fragment: true),
   (name: 'Ssao', fragment: true),
   (name: 'SsaoBlur', fragment: true),
+  (name: 'ContactShadow', fragment: true),
   (name: 'LightShafts', fragment: true),
   (name: 'DepthOfField', fragment: true),
   (name: 'ViewportShade', fragment: true),
