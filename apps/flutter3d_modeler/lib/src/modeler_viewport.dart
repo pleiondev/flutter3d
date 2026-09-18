@@ -25,7 +25,8 @@ import 'package:flutter/material.dart' hide Material;
 import 'package:flutter/scheduler.dart' show SchedulerBinding;
 import 'package:flutter/services.dart';
 import 'package:flutter3d/flutter3d.dart' hide Material;
-import 'package:flutter3d_app/flutter3d_app.dart' show presentFrame;
+import 'package:flutter3d_app/flutter3d_app.dart'
+    show SceneAnnouncement, SceneSemantics, presentFrame, semanticObjectsFor;
 import 'package:flutter3d_mesh/flutter3d_mesh.dart';
 import 'package:vector_math/vector_math.dart' show Vector3, Vector4;
 
@@ -159,6 +160,7 @@ class ModelerViewport extends StatefulWidget {
     this.shapeMarkers = const <ShapeMarker>[],
     this.shapeMarkerColour,
     this.shapeMarkerActiveColour,
+    this.announcements = const <SceneAnnouncement>[],
     this.overlay = true,
   });
 
@@ -199,6 +201,16 @@ class ModelerViewport extends StatefulWidget {
   final Selection? elements;
   final int meshVersion;
   final int elementsVersion;
+
+  /// What a screen reader is told is in the viewport — `gfx-79n`.
+  ///
+  /// **Empty by default, which is the state every caller before this row was
+  /// in.** A viewport is one texture to the platform, so everything in the
+  /// scene was invisible to the accessibility layer; passing a list makes each
+  /// entry a node the platform can read out, focus and activate. The
+  /// rectangles are computed here rather than by the caller, because only this
+  /// widget knows how big the viewport turned out to be.
+  final List<SceneAnnouncement> announcements;
 
   /// Where the gizmo stands, or null when nothing is selected and it is not
   /// drawn at all. The middle of the selection, decided by the caller: the
@@ -953,47 +965,63 @@ class _ModelerViewportState extends State<ModelerViewport> {
               // `ux-24`: the brush's own reach, where the pointer is.
               final bool showBrush =
                   widget.brushRadius != null && _pointerAt != null;
+              // `gfx-79n`: what a screen reader is told is here. Wrapped
+              // around whatever the viewport turned out to be — the bare
+              // picture or the whole stack — because the accessibility layer
+              // is about the viewport rather than about which overlays this
+              // frame happens to carry, and computed here because this is
+              // where the size is known.
+              Widget announced(Widget inner) => SceneSemantics(
+                objects: semanticObjectsFor(
+                  widget.announcements,
+                  camera: widget.stage.camera,
+                  size: Size(constraints.maxWidth, constraints.maxHeight),
+                ),
+                child: inner,
+              );
               if (!showBox &&
                   snapScreen == null &&
                   !showReadout &&
                   !showBrush) {
-                return picture;
+                return announced(picture);
               }
-              return Stack(
-                children: <Widget>[
-                  Positioned.fill(child: picture),
-                  if (showBrush)
-                    Positioned.fill(
-                      child: IgnorePointer(
-                        child: CustomPaint(
-                          painter: _BrushPainter(
-                            at: _pointerAt!,
-                            radius: widget.brushRadius!,
-                            inverting: widget.brushInverting,
+              return announced(
+                Stack(
+                  children: <Widget>[
+                    Positioned.fill(child: picture),
+                    if (showBrush)
+                      Positioned.fill(
+                        child: IgnorePointer(
+                          child: CustomPaint(
+                            painter: _BrushPainter(
+                              at: _pointerAt!,
+                              radius: widget.brushRadius!,
+                              inverting: widget.brushInverting,
+                            ),
                           ),
                         ),
                       ),
-                    ),
-                  if (showBox)
-                    Positioned.fill(
-                      child: IgnorePointer(
-                        child: CustomPaint(painter: _BoxPainter(box)),
+                    if (showBox)
+                      Positioned.fill(
+                        child: IgnorePointer(
+                          child: CustomPaint(painter: _BoxPainter(box)),
+                        ),
                       ),
-                    ),
-                  if (snapScreen != null)
-                    Positioned.fill(
-                      child: IgnorePointer(
-                        child: CustomPaint(painter: _SnapPainter(snapScreen)),
+                    if (snapScreen != null)
+                      Positioned.fill(
+                        child: IgnorePointer(
+                          child: CustomPaint(painter: _SnapPainter(snapScreen)),
+                        ),
                       ),
-                    ),
-                  if (showReadout)
-                    TransformReadout(
-                      readout: readout,
-                      hints: widget.transformHints,
-                      at: labelAt,
-                      within: _viewport,
-                    ),
-                ],
+                    if (showReadout)
+                      TransformReadout(
+                        readout: readout,
+                        hints: widget.transformHints,
+                        at: labelAt,
+                        within: _viewport,
+                      ),
+                  ],
+                ),
               );
             },
           ),

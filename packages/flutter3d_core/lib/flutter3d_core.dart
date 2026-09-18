@@ -114,6 +114,7 @@ export 'src/engine/scene/scene.dart';
 export 'src/engine/scene/scene_graph.dart';
 export 'src/engine/scene/scene_node.dart';
 export 'src/engine/scene/scene_spheres.dart';
+export 'src/engine/scene/screen_bounds.dart';
 export 'src/engine/scene/skeleton.dart';
 export 'src/engine/scene/sky.dart';
 export 'src/engine/scene/sky_gradient.dart';
