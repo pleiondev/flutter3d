@@ -11,9 +11,11 @@
 /// the picture an agent asks for are the same picture.
 library;
 
+import 'dart:io' show Platform;
 import 'dart:math' as math;
 import 'dart:typed_data';
 
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter3d_core/flutter3d_core.dart' show PerspectiveProjection;
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
@@ -51,6 +53,13 @@ Future<Uint8List> renderSnapshotOf(
       tilesY: grid,
     ),
     tileDevice: _cpuDevice,
+    // One tile per core, which is also what gives the progress bar something
+    // to report: the single-isolate native path cannot say anything until the
+    // whole grid finishes, and the pool has a tile landing at a time.
+    //
+    // `kIsWeb` rather than a `dart:io` import guarded by hand — the web build
+    // has no isolates and `RenderSnapshotJob` steps the grid itself there.
+    concurrency: kIsWeb ? 1 : Platform.numberOfProcessors,
   ).run(onProgress: onProgress);
 }
 
