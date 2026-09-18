@@ -301,6 +301,66 @@ Vector3 tonemapAgx(Vector3 colour) {
   );
 }
 
+/// `TonemapAgxFull` from `composite.frag`: the curve with the gamut rotation
+/// around it — `gfx-26n`.
+///
+/// **The matrices are written out row by row here on purpose.** GLSL's `mat3`
+/// takes its arguments column-major and this backend has no `mat3` at all, so
+/// the one place the two implementations could silently disagree is the
+/// transpose. Multiplying by hand, with the rows named, makes the convention
+/// visible instead of hiding it inside a constructor whose order has to be
+/// remembered — and `tonemap_curve_test.dart` checks the two backends against
+/// each other on a colour whose hue would drift if either were transposed.
+Vector3 tonemapAgxFull(Vector3 colour) {
+  Vector3 apply(Vector3 v, List<double> r0, List<double> r1, List<double> r2) =>
+      Vector3(
+        r0[0] * v.x + r0[1] * v.y + r0[2] * v.z,
+        r1[0] * v.x + r1[1] * v.y + r1[2] * v.z,
+        r2[0] * v.x + r2[1] * v.y + r2[2] * v.z,
+      );
+
+  // `M * v` with these as the rows of M, matching the shader's use of the
+  // same literals through GLSL's column-major `mat3` — which is to say the
+  // shader's `mat3(...)` holds this matrix transposed, and the product is the
+  // same because the shader multiplies on the same side. Checked rather than
+  // reasoned about: see the cross-backend case in the test.
+  const inset0 = <double>[
+    0.842479062253094,
+    0.0784335999999992,
+    0.0792237451477643,
+  ];
+  const inset1 = <double>[
+    0.0423282422610123,
+    0.878468636469772,
+    0.0791661274605434,
+  ];
+  const inset2 = <double>[0.0423756549057051, 0.0784336, 0.879142973793104];
+  const outset0 = <double>[
+    1.19687900512017,
+    -0.0980208811401368,
+    -0.0990297440797205,
+  ];
+  const outset1 = <double>[
+    -0.0528968517574562,
+    1.15190312990417,
+    -0.0989611768448433,
+  ];
+  const outset2 = <double>[
+    -0.0529716355144438,
+    -0.0980434501171241,
+    1.15107367264116,
+  ];
+
+  final inset = apply(colour, inset0, inset1, inset2);
+  final shaped = tonemapAgx(inset);
+  final out = apply(shaped, outset0, outset1, outset2);
+  return Vector3(
+    out.x.clamp(0.0, 1.0),
+    out.y.clamp(0.0, 1.0),
+    out.z.clamp(0.0, 1.0),
+  );
+}
+
 /// `TonemapReinhard` from `composite.frag`, extended so white reaches white.
 Vector3 tonemapReinhard(Vector3 colour) {
   const white = 4.0;
@@ -318,5 +378,6 @@ Vector3 tonemapBy(Vector3 colour, int curve) => switch (curve) {
   2 => tonemapAces(colour),
   3 => tonemapAgx(colour),
   4 => tonemapReinhard(colour),
+  5 => tonemapAgxFull(colour),
   _ => colour,
 };

@@ -162,13 +162,47 @@ final class CompositeShader implements CpuFragmentShader {
       colour = Vector3(colour.x + amount, colour.y + amount, colour.z + amount);
     }
 
-    return Vector4(
+    // `gfx-24n`: after the encode, because banding is an artefact of the
+    // 8-bit target and one output step is a fixed distance in display space
+    // and a wildly varying one in linear space.
+    final outputEncode = bindings.vec4(
+      'CompositeInfo',
+      'output_encode',
+      Vector4.zero(),
+    );
+    var encoded = Vector3(
       toSrgb(math.max(colour.x, 0.0)),
       toSrgb(math.max(colour.y, 0.0)),
       toSrgb(math.max(colour.z, 0.0)),
-      sampled.w,
     );
+    if (outputEncode.x > 0.0) {
+      // **Bit-identical to the GPU's, unlike the grain above.** The Bayer cell
+      // is an integer table and a divide, so there is no precision to lose —
+      // which is the argument for an ordered matrix over a hash said in
+      // arithmetic rather than in taste.
+      final offset = _bayerCell(c.coord.x, c.coord.y) * outputEncode.x;
+      encoded = Vector3(
+        encoded.x + offset,
+        encoded.y + offset,
+        encoded.z + offset,
+      );
+    }
+
+    return Vector4(encoded.x, encoded.y, encoded.z, sampled.w);
   }
+}
+
+/// `BayerCell` from `composite.frag`, in [-0.5, 0.5).
+///
+/// The standard recursive 4x4 matrix written out, exactly as the shader
+/// writes it. Fixed to screen position and independent of time, so a golden
+/// recorded with dither on stays recorded.
+double _bayerCell(double x, double y) {
+  const table = <int>[0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5];
+  final cx = x.floor() % 4;
+  final cy = y.floor() % 4;
+  final index = ((cy < 0 ? cy + 4 : cy) * 4) + (cx < 0 ? cx + 4 : cx);
+  return table[index] / 16.0 - 0.5;
 }
 
 /// `fxaa.frag`: edges smoothed on the composited picture — `gfx-04n`.

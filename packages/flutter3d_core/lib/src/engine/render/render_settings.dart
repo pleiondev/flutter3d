@@ -248,6 +248,7 @@ final class RenderSettings {
     this.lightFadeBand = 0.0,
     this.autoExposure = const AutoExposureSettings(),
     this.xray = const XraySettings(),
+    this.disabledPasses = const <String>{},
   }) : assert(anisotropy >= 1, 'anisotropy is a count of taps, one or more'),
        assert(lightFadeBand >= 0.0, 'a fade band is a width, not a direction');
 
@@ -412,6 +413,40 @@ final class RenderSettings {
   /// Silhouettes of the nodes on a layer, drawn where something hides them.
   final XraySettings xray;
 
+  /// Frame-graph nodes to leave out of this frame, by name — `gfx-37n`.
+  ///
+  /// The name is the node's own [FrameGraphNode.name], exactly as
+  /// `FrameResult.passes` already reports it, which is what makes this
+  /// addressable at all: an application can list what ran, hand a name back,
+  /// and get a frame without it.
+  ///
+  /// **Data rather than a predicate, deliberately.** A `bool Function(String)`
+  /// would be one character shorter at the call site and would cost the rest
+  /// of this class: every pixel test in this repository is driven from a
+  /// `RenderSettings`, and a frame with a closure applied is a frame no golden
+  /// can describe. A set can also be written into a project file, put in a bug
+  /// report, and diffed to see what an editor changed; and a name no node
+  /// carries is rejected at compile with the name in the message, which a
+  /// predicate matching nothing cannot be told apart from a misspelling.
+  ///
+  /// **What happens to a reader of a suppressed node is already decided**, and
+  /// three of the four answers needed no new code. An optional read comes back
+  /// null and the reader degrades — that is how the composite already treats
+  /// bloom and the occlusion. A hard read cannot be satisfied, so the reader is
+  /// culled with it, transitively, without an error. A suppressed *link* in a
+  /// read-modify-write chain is free: it consumes no version, so the next pass
+  /// binds the version before it, which is what "skip this step and keep
+  /// everything after it" has to mean.
+  ///
+  /// The fourth is the sole producer of something the frame asked for, and four
+  /// names are refused rather than honoured, each for its own reason:
+  /// `composite` and `scene`, because the frame has no picture without them and
+  /// the fallback would hand back a stale texture; `object ids`, because a pick
+  /// already taken off the queue would never be answered and a click would
+  /// await forever; and the computed `reflection probe N`, because it exists
+  /// only on frames with that many probes.
+  final Set<String> disabledPasses;
+
   /// Composites the shadow map instead of the scene.
   ///
   /// A shadow map is the one buffer in the renderer that nothing has ever
@@ -520,6 +555,7 @@ final class RenderSettings {
     double? lightFadeBand,
     AutoExposureSettings? autoExposure,
     XraySettings? xray,
+    Set<String>? disabledPasses,
   }) => RenderSettings(
     specular: specular ?? this.specular,
     exposure: exposure ?? this.exposure,
@@ -546,6 +582,7 @@ final class RenderSettings {
     lightFadeBand: lightFadeBand ?? this.lightFadeBand,
     autoExposure: autoExposure ?? this.autoExposure,
     xray: xray ?? this.xray,
+    disabledPasses: disabledPasses ?? this.disabledPasses,
   );
 
   /// These settings with the effects a stereo pair cannot have taken out.
@@ -578,6 +615,59 @@ final class RenderSettings {
     bloom: bloom.copyWith(enabled: false),
     reflections: const ReflectionSettings(),
     ambientOcclusion: const AmbientOcclusionSettings(),
+  );
+
+  /// Node names a measurement frame leaves out — see [forMeasurement].
+  ///
+  /// Published rather than inlined so a caller building their own variant is
+  /// not guessing at strings, and so a new post pass has one obvious list to
+  /// join. Every name here is a pass that changes a pixel away from the
+  /// number the material wrote; `scene` and `composite` are deliberately
+  /// absent, because a measurement frame still needs a picture and the
+  /// composite is where `tonemap: false` is honoured.
+  static const Set<String> pixelAlteringPasses = <String>{
+    'bloom',
+    'ssao',
+    'reflections',
+    'antialias',
+    'luminance',
+  };
+
+  /// These settings, arranged so the frame's bytes are the numbers the
+  /// material wrote rather than a photograph of them — `gfx-40n`.
+  ///
+  /// **This existed four times before it existed once.** `render_project.dart`
+  /// built `tonemap: false, exposure: 1.0` for the agent's weights and
+  /// wireframe modes; `display_modes.dart`'s `settingsFor` built the same pair
+  /// for the viewport's normals chip; `weight_gradient.dart` built it a third
+  /// time; and `CompositeMix` built a fourth inside the engine, forcing
+  /// exposure, tone mapping **and** bloom off because — in its own words — a
+  /// debug buffer is data rather than light and any of the three would
+  /// misreport it.
+  ///
+  /// **The four did not agree, and that was a bug rather than four styles.**
+  /// `CompositeMix` was right and the other three were incomplete: they
+  /// touched neither bloom nor the occlusion, so a normals view over a
+  /// viewport with bloom switched on returned a glowing debug buffer and
+  /// nothing caught it. The number a caller read back was not the number the
+  /// material wrote, which is the one promise the mode makes.
+  ///
+  /// Auto exposure is turned off rather than left to [exposure], because with
+  /// the meter running it is the meter and not this setting that decides what
+  /// the composite uses, and a pinned exposure beside a running meter is a
+  /// value that lies about what the frame did — the argument [forStereo]
+  /// makes about a tuned radius beside a disabled effect.
+  ///
+  /// The passes go through [disabledPasses] rather than through each effect's
+  /// own settings object, which is what `gfx-37n` bought: one list to read,
+  /// and `FrameResult.skipped` afterwards reporting `PassSkip.disabled` for
+  /// each — so a caller who gets an unexpected picture can see that this
+  /// method is why, rather than wondering which of six flags did it.
+  RenderSettings forMeasurement() => copyWith(
+    tonemap: false,
+    exposure: 1.0,
+    autoExposure: const AutoExposureSettings(),
+    disabledPasses: <String>{...disabledPasses, ...pixelAlteringPasses},
   );
 }
 
@@ -633,12 +723,23 @@ final class TonemapCurve {
   /// Reinhard, extended so white reaches white.
   static const TonemapCurve reinhard = TonemapCurve._('reinhard', 4.0);
 
+  /// AgX with the gamut rotation, so a hue survives being over-bright —
+  /// `gfx-26n`.
+  ///
+  /// A fifth member rather than a fix to [agx], because 18% grey lands
+  /// somewhere else through the rotation and every golden that names `agx`
+  /// names the bare curve on purpose. Reach for this when a deep blue or a
+  /// saturated lamp has to keep its hue four stops over white; reach for
+  /// [agx] when the recorded look is the one that matters.
+  static const TonemapCurve agxFull = TonemapCurve._('agxFull', 5.0);
+
   /// All of them, in the order their codes run.
   static const List<TonemapCurve> values = <TonemapCurve>[
     neutral,
     aces,
     agx,
     reinhard,
+    agxFull,
   ];
 
   @override
@@ -654,6 +755,7 @@ final class LookSettings {
     this.vignetteRoundness = 1.0,
     this.grain = 0.0,
     this.chromaticAberration = 0.0,
+    this.dither = 0.0,
     this.lut,
     this.lutStrength = 1.0,
   });
@@ -688,6 +790,27 @@ final class LookSettings {
   /// Radial colour dispersion, in screen widths at the corner. 0.005 is
   /// visible without reading as a fault.
   final double chromaticAberration;
+
+  /// Ordered noise added after the sRGB encode, in output steps — `gfx-24n`.
+  ///
+  /// `1 / 255` is one 8-bit step and is the value to reach for; 0 is off,
+  /// exactly, and is the default because every golden was recorded without it.
+  ///
+  /// **What it is for: a dark gradient that arrives in six flat bands.** The
+  /// frame is computed in floating point and written to an 8-bit target, and
+  /// near black the sRGB curve is at its steepest, so a long shallow ramp —
+  /// a shadowed corridor wall, a vignette, a soft key light falling off —
+  /// quantises to a handful of distinct values with visible edges between
+  /// them. Adding less than one step of ordered noise before the value is
+  /// rounded turns each edge into a dither pattern the eye integrates back
+  /// into a gradient.
+  ///
+  /// Ordered rather than random: a hash gives the same result numerically and
+  /// reads as noise on a flat surface, where a 4x4 Bayer cell reads as a
+  /// gradient. Both are fixed to screen position and neither moves with time,
+  /// which is what keeps a golden stable — the same constraint [grain]
+  /// documents from the other side.
+  final double dither;
 
   /// A colour table, as a strip of N slices of N×N — `gfx-18n`'s own row.
   ///
@@ -732,6 +855,7 @@ final class LookSettings {
     double? vignetteRoundness,
     double? grain,
     double? chromaticAberration,
+    double? dither,
     TextureHandle? lut,
     double? lutStrength,
   }) => LookSettings(
@@ -742,6 +866,7 @@ final class LookSettings {
     vignetteRoundness: vignetteRoundness ?? this.vignetteRoundness,
     grain: grain ?? this.grain,
     chromaticAberration: chromaticAberration ?? this.chromaticAberration,
+    dither: dither ?? this.dither,
     lut: lut ?? this.lut,
     lutStrength: lutStrength ?? this.lutStrength,
   );

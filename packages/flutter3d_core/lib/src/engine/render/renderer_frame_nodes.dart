@@ -612,14 +612,29 @@ final class _SceneNode extends RenderNode {
 /// consumer of one — and it reads the surface buffer, which is what makes the
 /// buffer get attached at all. That read is the whole of what
 /// `RenderSettings.needsSurfaceBuffer` used to compute by hand.
+///
+/// **Switched off through [isActive], like every other post node, and it was
+/// the last one that was not.** Until `gfx-38n` the renderer registered this
+/// node inside `if (s.reflections.enabled)`, which is the branch the
+/// registration block beside it argues against twice: a name has to be known
+/// for a read of it to compile, and leaving the node out when the setting is
+/// off moves the branch rather than deleting it. Nothing read `hdrColour`
+/// *conditionally* on reflections, so the inconsistency never produced a
+/// wrong frame — it produced a node that could not be addressed. A caller
+/// asking why reflections did not run got no answer, because with the
+/// setting off there was no node to have an answer about.
 final class _ReflectionsNode extends RenderNode {
-  _ReflectionsNode(this._renderer, this._view);
+  _ReflectionsNode(this._renderer, this._view, this._settings);
 
   final Renderer _renderer;
   final RenderView _view;
+  final RenderSettings _settings;
 
   @override
   String get name => 'reflections';
+
+  @override
+  bool get isActive => _settings.reflections.enabled;
 
   @override
   List<ResourceId> get reads => const <ResourceId>[
@@ -648,16 +663,6 @@ final class _ReflectionsNode extends RenderNode {
   }
 }
 
-/// The bloom pyramid, as a graph node.
-///
-/// The first pass in the frame whose output the graph **allocates**: everything
-/// before it was handed a texture the renderer already owned. `bloom` is
-/// declared as half the frame in the HDR format, the chain's top level is that
-/// texture, and the levels below it are scratch — see
-/// [FrameResources.transient].
-///
-/// Switching bloom off is [isActive], not a null return: nothing produces the
-/// glow, so the node is culled and costs no pass, no texture and no branch.
 /// Ambient occlusion, as a producer of one resource.
 ///
 /// `reads: [surfaceBuffer]` is doing more work than it looks. The scene pass
@@ -707,6 +712,16 @@ final class _SsaoNode extends RenderNode {
   }
 }
 
+/// The bloom pyramid, as a graph node.
+///
+/// The first pass in the frame whose output the graph **allocates**: everything
+/// before it was handed a texture the renderer already owned. `bloom` is
+/// declared as half the frame in the HDR format, the chain's top level is that
+/// texture, and the levels below it are scratch — see
+/// [FrameResources.transient].
+///
+/// Switching bloom off is [isActive], not a null return: nothing produces the
+/// glow, so the node is culled and costs no pass, no texture and no branch.
 final class _BloomNode extends RenderNode {
   _BloomNode(this._renderer, this._settings);
 

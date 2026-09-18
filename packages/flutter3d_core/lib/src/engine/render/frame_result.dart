@@ -11,6 +11,7 @@ library;
 
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 
+import 'frame_graph.dart' show PassSkip, SkippedPass;
 import 'render_settings.dart' show RenderSettings;
 
 /// What one node of the frame graph cost — `gfx-01n`'s own row.
@@ -64,7 +65,37 @@ final class FrameResult {
     this.wireframeDeclined = false,
     this.exposure = RenderSettings.defaultExposure,
     this.passes = const <FramePass>[],
+    this.skipped = const <SkippedPass>[],
   });
+
+  /// Every registered pass that did not run this frame, and why — `gfx-39n`.
+  ///
+  /// [passes] says what ran and what each cost. This says what did not, which
+  /// is the harder question and the one that actually gets asked: a frame
+  /// missing its occlusion looks exactly like a frame whose occlusion did
+  /// nothing, and [culled] only counts them.
+  ///
+  /// It joins [shadowsDenied], [wireframeDeclined] and [exposure] rather than
+  /// starting a new convention — this class already answers "you asked for
+  /// something and here is what you actually got" three times, and those three
+  /// each needed their own field because there was no general form. This is
+  /// the general form.
+  final List<SkippedPass> skipped;
+
+  /// Why [name] did not run this frame, or null if it ran or was never
+  /// registered.
+  ///
+  /// The two nulls are deliberately one: a caller holding a name from
+  /// [passes] is asking about a pass that ran, and a caller holding a name
+  /// from nowhere has a question this frame cannot answer. Telling those
+  /// apart is `FrameGraphError`'s job, at compile, where a name nothing
+  /// carries is refused outright.
+  PassSkip? skipReasonOf(String name) {
+    for (final entry in skipped) {
+      if (entry.name == name) return entry.reason;
+    }
+    return null;
+  }
 
   /// The exposure the composite used: the setting's, or — with auto exposure
   /// on — what the meter had adapted to by this frame.

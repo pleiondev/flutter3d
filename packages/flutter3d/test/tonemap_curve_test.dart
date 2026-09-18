@@ -15,6 +15,8 @@
 /// almost nothing about that.
 library;
 
+import 'dart:math' as math;
+
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -216,6 +218,7 @@ void main() {
         TonemapCurve.aces,
         TonemapCurve.agx,
         TonemapCurve.reinhard,
+        TonemapCurve.agxFull,
       ]) {
         expect(
           await draw(curve),
@@ -224,6 +227,169 @@ void main() {
               '${curve.name} drew the same frame as neutral, so the '
               'uniform never reached the shader',
         );
+      }
+    });
+  });
+
+  group('AgX with the rotation — gfx-26n', () {
+    /// The hue of [c] on the colour wheel, in degrees, or null for a grey.
+    ///
+    /// Hue rather than the channels themselves, because the claim is about hue
+    /// and nothing else: the rotation is allowed to change how bright and how
+    /// saturated a highlight comes out, and is not allowed to change what
+    /// colour it is.
+    double? hue(Vector3 c) {
+      final max = math.max(c.x, math.max(c.y, c.z));
+      final min = math.min(c.x, math.min(c.y, c.z));
+      final chroma = max - min;
+      if (chroma < 1e-6) return null;
+      final double h;
+      if (max == c.x) {
+        h = 60.0 * (((c.y - c.z) / chroma) % 6.0);
+      } else if (max == c.y) {
+        h = 60.0 * ((c.z - c.x) / chroma + 2.0);
+      } else {
+        h = 60.0 * ((c.x - c.y) / chroma + 4.0);
+      }
+      return (h + 360.0) % 360.0;
+    }
+
+    /// The shorter way round the wheel between two hues.
+    double hueGap(double a, double b) {
+      final d = (a - b).abs() % 360.0;
+      return d > 180.0 ? 360.0 - d : d;
+    }
+
+    /// Saturated colours over display white, where per-channel compression has
+    /// something to get wrong. A grey has no hue and a dim colour barely moves,
+    /// so neither would test anything.
+    final overBright = <Vector3>[
+      Vector3(0.2, 0.05, 4.0),
+      Vector3(4.0, 0.8, 0.1),
+      Vector3(4.0, 2.0, 0.2),
+      Vector3(0.1, 4.0, 0.4),
+      Vector3(4.0, 0.2, 2.0),
+      Vector3(8.0, 1.0, 0.05),
+      Vector3(0.05, 1.0, 8.0),
+      Vector3(16.0, 3.0, 0.5),
+      Vector3(1.0, 0.3, 0.05),
+      Vector3(0.4, 0.1, 0.02),
+    ];
+
+    test('the rotation holds a hue better than the bare curve, on every '
+        'saturated sample', () {
+      // **These numbers were measured before they were asserted, and the first
+      // version of this test asserted something false.** It claimed the
+      // rotation brings a hue within five degrees, because the plan row
+      // claimed it. It does not and cannot with these matrices: over the
+      // spread below the best sample lands at 7.4 degrees and the worst at
+      // 24.8. What the rotation buys is a little over a third off the error,
+      // everywhere — worth a curve, and not what was written down.
+      //
+      // The first version also chose (0, 0, 4) as its example, where red and
+      // green are equal and the bare curve therefore holds the hue *exactly*,
+      // so the comparison could never have shown anything either way. Only a
+      // colour with three different channels asks this question.
+      for (final Vector3 input in overBright) {
+        final wanted = hue(input)!;
+        final bare = hue(_through(TonemapCurve.agx, input.clone()));
+        final full = hue(_through(TonemapCurve.agxFull, input.clone()));
+        expect(bare, isNotNull);
+        expect(full, isNotNull);
+        expect(
+          hueGap(full!, wanted),
+          lessThan(hueGap(bare!, wanted)),
+          reason:
+              '$input: the rotation is meant to help everywhere and cost '
+              'nothing; here it helped nowhere',
+        );
+      }
+    });
+
+    test('it takes about a third off the hue error across that spread', () {
+      // The size of the win, pinned so a later change to a matrix or to the
+      // curve cannot quietly hand it back. Measured over exactly the ten
+      // samples above: 26.21 mean degrees bare, 17.04 with the rotation, a
+      // ratio of 0.65.
+      //
+      // The first numbers written here were 23.83 and 15.49, which were
+      // measured over a *different* set — the same ten plus (0, 0, 4), whose
+      // error is zero through both curves and which dragged both means down.
+      // Asserting a number measured on one set against another is how a
+      // threshold ends up being fitted to whatever the code happens to do.
+      var bareTotal = 0.0;
+      var fullTotal = 0.0;
+      for (final Vector3 input in overBright) {
+        final wanted = hue(input)!;
+        bareTotal += hueGap(
+          hue(_through(TonemapCurve.agx, input.clone()))!,
+          wanted,
+        );
+        fullTotal += hueGap(
+          hue(_through(TonemapCurve.agxFull, input.clone()))!,
+          wanted,
+        );
+      }
+      final bareMean = bareTotal / overBright.length;
+      final fullMean = fullTotal / overBright.length;
+
+      expect(bareMean, greaterThan(26.0));
+      expect(fullMean, lessThan(17.5));
+      expect(
+        fullMean,
+        lessThan(bareMean * 0.7),
+        reason: 'the rotation stopped earning its two matrices',
+      );
+    });
+
+    test('the two matrices are inverses, so a mid grey is not re-graded', () {
+      // The transpose and mismatched-pair check. An inset from one published
+      // variant beside an outset from another is a product that is *nearly*
+      // the identity, which reads as a grade nobody asked for; running a grey
+      // through both and comparing against the bare curve catches it, because
+      // a grey is the one input the rotation must leave exactly alone.
+      final grey = Vector3(0.18, 0.18, 0.18);
+      final bare = _through(TonemapCurve.agx, grey.clone());
+      final full = _through(TonemapCurve.agxFull, grey.clone());
+
+      expect((full.x - bare.x).abs(), lessThan(1e-4));
+      expect((full.y - bare.y).abs(), lessThan(1e-4));
+      expect((full.z - bare.z).abs(), lessThan(1e-4));
+    });
+
+    test('it is a fifth curve and the fourth is untouched', () {
+      // Every golden that names `agx` names the bare curve deliberately. If
+      // this row had improved `agx` in place, those pictures would move for a
+      // reason nobody would connect to a tone curve — which is the mistake
+      // `gfx-17n` already documents at the top of this file.
+      expect(TonemapCurve.agxFull.code, 5.0);
+      expect(TonemapCurve.values.length, 5);
+      for (final Vector3 sample in <Vector3>[
+        Vector3(0.18, 0.18, 0.18),
+        Vector3(4.0, 2.0, 1.0),
+        Vector3(0.0, 0.0, 4.0),
+      ]) {
+        final was = tonemapAgx(sample.clone());
+        final now = _through(TonemapCurve.agx, sample.clone());
+        expect(now.x, was.x);
+        expect(now.y, was.y);
+        expect(now.z, was.z);
+      }
+    });
+
+    test('it brings an over-bright colour inside the display range', () {
+      // The outset can push a channel past one on a colour that was already
+      // at the edge of the gamut, which is what the clamp is for.
+      for (final Vector3 sample in <Vector3>[
+        Vector3(40.0, 0.0, 0.0),
+        Vector3(0.0, 40.0, 0.0),
+        Vector3(0.0, 0.0, 40.0),
+        Vector3(40.0, 40.0, 40.0),
+      ]) {
+        final out = _through(TonemapCurve.agxFull, sample.clone());
+        for (final double channel in <double>[out.x, out.y, out.z]) {
+          expect(channel, inInclusiveRange(0.0, 1.0));
+        }
       }
     });
   });

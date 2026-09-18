@@ -947,6 +947,10 @@ final class Renderer implements RenderServices {
   final Float32List _compositeLook = Float32List(4);
   final Float32List _compositeLookMore = Float32List(4);
 
+  /// `gfx-24n`'s fifth block: x is the dither amount, the rest unclaimed.
+  /// Allocated once and zero on every frame that does not ask for it.
+  final Float32List _compositeOutputEncode = Float32List(4);
+
   /// Builds a renderer on [device].
   ///
   /// The backend arrives as a value rather than being reached for, which is the
@@ -1750,9 +1754,11 @@ final class Renderer implements RenderServices {
     for (final node in nodes.of(FramePhase.overlay)) {
       graph.addNode(node);
     }
-    if (s.reflections.enabled) {
-      graph.addNode(_ReflectionsNode(this, view));
-    }
+    // Registered whether or not it is switched on, for the reason bloom and
+    // the occlusion are: a name has to be known for a read of it to compile,
+    // and a node left out when its setting is off cannot be reported on.
+    // `gfx-38n` — this was the last post node still registered inside an `if`.
+    graph.addNode(_ReflectionsNode(this, view, s));
     // After reflections and before bloom: the meter reads the scene as the
     // composite will, glow not yet added. Registered whether or not it is on,
     // for the reason every other node is — a name has to be known — and
@@ -1792,6 +1798,7 @@ final class Renderer implements RenderServices {
     }
 
     return graph.compile(
+      disabled: s.disabledPasses,
       outputs: <ResourceId>[
         FrameResourceIds.frame,
         // An application that asked for the surface buffer is a consumer no node
@@ -2941,6 +2948,10 @@ final class Renderer implements RenderServices {
       skinnedDraws: passState.skinnedDraws,
       exposure: _lastExposure,
       passes: passTimings,
+      // Read off the compiled graph rather than recomputed here: the reasons
+      // are the compile's own answers, and a second derivation is a second
+      // thing to disagree with the frame.
+      skipped: frameGraph.skipped,
     );
   }
 
@@ -2993,8 +3004,21 @@ final class Renderer implements RenderServices {
     final graph = FrameGraph()
       ..addExternal(FrameResourceIds.hdrColour)
       ..addNode(bloomNode);
+    // The same `disabledPasses` the full frame honours, narrowed to the one
+    // node this graph has. Without the narrowing a perfectly good set — the
+    // one a caller uses for their full frames, naming `ssao` or `antialias` —
+    // would be rejected here as a misspelling, because this graph genuinely
+    // does not have those nodes. Narrowed rather than validated, then: the
+    // typo check belongs to the frame that has all the names, and this path
+    // deliberately has one.
+    final postDisabled = settings.disabledPasses
+        .where((name) => name == bloomNode.name)
+        .toSet();
     final compiled = graph.compile(
-      outputs: <ResourceId>[if (bloomNode.isActive) FrameResourceIds.bloom],
+      disabled: postDisabled,
+      outputs: <ResourceId>[
+        if (bloomNode.isActive && postDisabled.isEmpty) FrameResourceIds.bloom,
+      ],
     );
 
     final resources =
