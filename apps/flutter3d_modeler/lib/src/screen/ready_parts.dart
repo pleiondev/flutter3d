@@ -617,6 +617,19 @@ extension _ReadyParts on _ModelerScreenState {
                           child: ModelerViewport(
                             renderer: renderer,
                             stage: stage,
+                            // `gfx-79n`: what the platform's accessibility
+                            // layer is told is in this viewport. One entry, the
+                            // thing being edited, named after the document —
+                            // which is what a person arriving here with a
+                            // screen reader wants to hear first, and is the
+                            // whole of what this viewport shows.
+                            announcements: <SceneAnnouncement>[
+                              SceneAnnouncement(
+                                id: 'subject',
+                                label: state.documentName,
+                                node: stage.subject,
+                              ),
+                            ],
                             onFrame: () {},
                             onRendered: (FrameResult result) =>
                                 _lastRenderMicros = result.cpuMicros,

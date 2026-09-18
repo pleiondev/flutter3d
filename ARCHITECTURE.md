@@ -215,7 +215,7 @@ point of §3.3.
 | `flutter3d_game_racing` | Racing rules: cars, circuits, laps, ghosts |
 | `flutter3d_game_strategy` | Strategy rules: ground made of samples, a crowd that takes orders, flow fields shared by destination, an economy, a policy that plays a side, fog each side has to walk into |
 | `flutter3d_audio` | Loading, streaming, 3D positioning, voice limits, mix buses |
-| `flutter3d_app` | What any application on the engine is assembled from: which backend a build draws through, the surface a frame reaches Flutter through, widgets in the scene, a level loaded into a scene, and storage. The modeller, the editor and the lessons use it and nothing above it |
+| `flutter3d_app` | What any application on the engine is assembled from: which backend a build draws through, the surface a frame reaches Flutter through, widgets in the scene, a level loaded into a scene, the scene published to the platform's accessibility layer, and storage. The modeller, the editor and the lessons use it and nothing above it |
 | `flutter3d_editor_core` | The headless half of a level editor: the document being changed and undone, the handles a pointer hits, the palette a level builds out of itself, the project a template becomes. Plain Dart |
 | `flutter3d_editor_widgets` | Editor controls the modeller and the level editor share instead of each keeping its own copy — `ui-27`'s own package: `SectionLabel`, `NumberField`, `ColorField`, `RangeSliderField`, `EnumField`, `TextureSlotRow`, `TexturePathField`, `ColorSwatchField`, `HintTextBox`/`NumbersRow`, `FieldRow` and `EditorWidgetsTheme` so far |
 | `flutter3d_editor_mcp` | The same editor offered to an agent: `EditorCommand` as a table of MCP tools over stdio, one document per process, plus the two verbs a caller with no screen needs — a flat listing, and the validator. Plain Dart |
@@ -1918,7 +1918,7 @@ entities a game defines.
 |---|---|
 | Style | `dart format` |
 | Analysis | `flutter analyze` clean across the workspace, no warnings |
-| Unit tests | **9327 tests** across 36 packages and 8 applications |
+| Unit tests | **9345 tests** across 36 packages and 8 applications |
 | Structure rules | 35, `dart run tool/structure.dart`, the first CI step |
 | CI | GitHub Actions over `tool/ci.sh`, on `ubuntu-latest`, with no graphics card |
 
