@@ -161,6 +161,20 @@ void main() {
       expect(body, containsPair('release', '0.7.0'));
     });
 
+    test('the page is also at /index.html', () async {
+      final response = await send('GET', '/index.html');
+      expect(response.statusCode, HttpStatus.ok);
+      expect(await utf8.decodeStream(response), contains('page'));
+    });
+
+    test('an unknown path says where the page is', () async {
+      final response = await send('GET', '/nowhere');
+      expect(response.statusCode, HttpStatus.notFound);
+      final body = await utf8.decodeStream(response);
+      expect(body, contains('/nowhere'));
+      expect(body, contains('release dashboard'));
+    });
+
     test('a POST without the header is refused and runs nothing', () async {
       final response = await send('POST', '/api/run/slow');
       await response.drain<void>();

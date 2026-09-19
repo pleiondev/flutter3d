@@ -54,7 +54,7 @@ Future<HttpServer> serveDashboard(
 
       final path = request.uri.path;
       switch ((request.method, path)) {
-        case ('GET', '/'):
+        case ('GET', '/' || '/index.html'):
           response.headers.contentType = ContentType.html;
           response.headers.set('cache-control', 'no-store');
           response.write(page.readAsStringSync());
@@ -117,7 +117,15 @@ Future<HttpServer> serveDashboard(
           await response.close();
 
         default:
+          // Not an empty body: a browser prints "Not found" and nothing else,
+          // which says neither what this server is nor where the page is.
           response.statusCode = HttpStatus.notFound;
+          response.headers.contentType = ContentType.text;
+          response.write(
+            'Not found: ${request.method} $path\n'
+            'This is the release dashboard. The page is at '
+            'http://${request.headers.host}:${server.port}/\n',
+          );
           await response.close();
       }
     } on Object {
