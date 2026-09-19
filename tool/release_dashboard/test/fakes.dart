@@ -57,6 +57,12 @@ final class FakeSources implements Sources {
   Future<CiSnapshot> ci(String branch) async => const CiSnapshot.unknown();
 
   @override
+  ShowcaseSnapshot showcase() => const ShowcaseSnapshot.absent();
+
+  @override
+  Future<bool?> showcaseLive() async => null;
+
+  @override
   Future<Ran> run(Gate gate) async {
     ran.add(gate.id);
     await release?.future;

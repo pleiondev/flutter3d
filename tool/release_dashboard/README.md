@@ -27,10 +27,13 @@ the Claude session doing the release, on a schedule, with `ArtifactData`.
 
 ## What the page shows
 
-- **Five stages**, in the order the work goes: stabilise the branch, finish what
-  was started, prepare the shelf, publish the modeller, publish the packages.
-  Each row is done, broken, running, waiting or not measured, with one sentence
-  of what was found.
+- **Six stages**, in the order the work goes: stabilise the branch, finish what
+  was started, prepare the shelf, publish the modeller, publish the packages,
+  and the showcase. Each row is done, broken, running, waiting or not measured,
+  with one sentence of what was found. The showcase stage has a row for each
+  step of its plan, and one for every set of pages: each is measured against the
+  rows of its table in `apps/flutter3d_showcase/coverage.md`, so the number a set
+  is waiting for is the list the pages are written from.
 - **Checks**: the repository's own scripts (`dart format`, `tool/structure.dart`,
   `tool/verify_plan.dart`, `flutter analyze`, `tool/publish_check.sh`, the web
   build, `tool/ci.sh`), with the last verdict, how long ago, and whether the tree

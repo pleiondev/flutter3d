@@ -379,6 +379,63 @@ final class ProbeResult {
   final String detail;
 }
 
+/// One set of showcase pages: a group of categories one worker writes at once.
+final class ShowcaseSet {
+  const ShowcaseSet({
+    required this.id,
+    required this.title,
+    required this.categories,
+    required this.expected,
+    required this.pages,
+    required this.catalogRows,
+  });
+
+  /// `a` to `i`, as `apps/flutter3d_showcase/coverage.md` names them.
+  final String id;
+  final String title;
+  final List<String> categories;
+
+  /// How many pages the coverage list says the set has.
+  final int expected;
+
+  /// Pages that have both their file and their guide.
+  final int pages;
+
+  /// Rows the set's catalog files hold. A page with no row would not be in the
+  /// app, and a row with no page would not open, so the two are counted apart.
+  final int catalogRows;
+}
+
+/// How far the showcase app has got, read from its files.
+final class ShowcaseSnapshot {
+  const ShowcaseSnapshot({
+    required this.sets,
+    required this.live,
+    this.coverageFilled = false,
+  });
+
+  /// Nothing yet: the app does not exist in this tree.
+  const ShowcaseSnapshot.absent()
+    : sets = const <ShowcaseSet>[],
+      live = null,
+      coverageFilled = false;
+
+  final List<ShowcaseSet> sets;
+
+  /// Whether the 0.7.0 audit in `coverage.md` has been written out.
+  final bool coverageFilled;
+
+  /// Whether the published showcase answers; null when it was not asked or the
+  /// host would not say (it is behind a login).
+  final bool? live;
+
+  ShowcaseSnapshot withLive(bool? answer) => ShowcaseSnapshot(
+    sets: sets,
+    live: answer,
+    coverageFilled: coverageFilled,
+  );
+}
+
 /// Everything the checklist is judged from, taken at one moment.
 final class Snapshots {
   const Snapshots({
@@ -390,8 +447,10 @@ final class Snapshots {
     required this.pubdev,
     required this.sites,
     required this.ci,
+    this.showcase = const ShowcaseSnapshot.absent(),
   });
 
+  final ShowcaseSnapshot showcase;
   final GitSnapshot? git;
   final PackagesSnapshot? packages;
   final PlanSnapshot plan;

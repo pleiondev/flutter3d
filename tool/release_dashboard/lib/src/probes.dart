@@ -160,4 +160,44 @@ Map<String, Probe> releaseProbes() => <String, Probe>{
     RegExp(r'learnDirectory'),
     what: 'the tutorial reaches the server it is served from',
   ),
+  // --- The showcase ------------------------------------------------------
+  'showcase-lod': allOf(<Probe>[
+    fileMatches(
+      'packages/flutter3d_model_core/lib/src/project_document.dart',
+      RegExp(r'convertedTo\(base\.layout\)'),
+      what: 'the levels a project exports keep the layout of their object',
+    ),
+    fileMatches(
+      'packages/flutter3d_model_core/lib/src/lod_cache.dart',
+      RegExp(r'convertedTo\(base\.layout\)'),
+      what: 'the levels its screen shows keep it too',
+    ),
+  ]),
+  'showcase-platform': allOf(<Probe>[
+    fileExists('apps/flutter3d_showcase/pubspec.yaml'),
+    fileMatches(
+      'pubspec.yaml',
+      RegExp(r'apps/flutter3d_showcase'),
+      what: 'the app is in the workspace',
+    ),
+    fileMatches(
+      'tool/structure/repository.dart',
+      RegExp(r"'flutter3d_showcase'"),
+      what: 'the structure rules know the app',
+    ),
+    fileMatches(
+      'apps/flutter3d_showcase/macos/Runner/Info.plist',
+      RegExp(r'FLTEnableFlutterGPU'),
+      what: 'macOS asks for the GPU',
+    ),
+    fileExists('apps/flutter3d_showcase/lib/src/demo/demo.dart'),
+  ]),
+  'showcase-site': allOf(<Probe>[
+    fileMatches(
+      'site/tool/build.mjs',
+      RegExp('showcase'),
+      what: 'the site build knows the showcase',
+    ),
+    fileExists('site/tool/showcase.sh'),
+  ]),
 };

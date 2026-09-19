@@ -25,6 +25,7 @@ import 'plan.dart';
 import 'probes.dart';
 import 'remote.dart';
 import 'shell.dart';
+import 'showcase.dart';
 
 /// Where the dashboard's facts come from. Real ones read the repository and the
 /// network; a test supplies its own.
@@ -37,6 +38,8 @@ abstract interface class Sources {
   Future<PubDevSnapshot> pubdev(List<String> names);
   Future<SitesSnapshot> sites();
   Future<CiSnapshot> ci(String branch);
+  ShowcaseSnapshot showcase();
+  Future<bool?> showcaseLive();
   Future<Ran> run(Gate gate);
 }
 
@@ -82,6 +85,13 @@ final class LocalSources implements Sources {
   Future<CiSnapshot> ci(String branch) => readCi(root, branch);
 
   @override
+  ShowcaseSnapshot showcase() => readShowcase(root);
+
+  @override
+  Future<bool?> showcaseLive() =>
+      readShowcaseLive(_fetch, origin: 'https://flutter3d.pleion.dev');
+
+  @override
   Future<Ran> run(Gate gate) => runCommand(
     gate.command,
     workingDirectory: root.path,
@@ -117,6 +127,8 @@ final class Dashboard {
   SitesSnapshot _sites = const SitesSnapshot.unknown();
   CiSnapshot _ci = const CiSnapshot.unknown();
   List<AgentWorktree> _agents = const <AgentWorktree>[];
+  ShowcaseSnapshot _showcase = const ShowcaseSnapshot.absent();
+  bool? _showcaseLive;
 
   final Map<String, GateResult> _results = <String, GateResult>{};
   final List<String> _queue = <String>[];
@@ -152,6 +164,7 @@ final class Dashboard {
     _packages = await sources.packages();
     _plan = sources.plan();
     _probes = sources.probes();
+    _showcase = sources.showcase();
     _agents = await sources.agents(_git?.branch ?? '');
     _scheduleAutoGates();
   }
@@ -166,6 +179,7 @@ final class Dashboard {
     final branch = _git?.branch;
     if (branch != null && branch.isNotEmpty) _ci = await sources.ci(branch);
     _sites = await sources.sites();
+    _showcaseLive = await sources.showcaseLive();
   }
 
   Future<void> _refreshPubDev() async {
@@ -251,6 +265,7 @@ final class Dashboard {
     pubdev: _pubdev,
     sites: _sites,
     ci: _ci,
+    showcase: _showcase.withLive(_showcaseLive),
   );
 
   /// The whole state, as it is now.
