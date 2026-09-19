@@ -155,4 +155,35 @@ const List<Feature> animationFeatures = <Feature>[
       'packages/flutter3d_core/lib/src/engine/animation/inverse_kinematics.dart',
     ],
   ),
+  Feature(
+    id: 'pose-sampling',
+    title: 'A pose with no scene',
+    category: Category.animation,
+    summary:
+        'A hierarchy of local transforms sampled straight from a clip, with '
+        'no scene node anywhere in the arithmetic.',
+    since: '0.7.0',
+    evidence:
+        '`Pose`, `SkinBlend`, `TwoBoneIk` and `FabrikIk` with no scene '
+        'behind them',
+    keywords: <String>['no scene behind them'],
+    engineFiles: <String>[
+      'packages/flutter3d_core/lib/src/engine/animation/pose.dart',
+    ],
+  ),
+  Feature(
+    id: 'skeleton-debug',
+    title: 'The skeleton drawn',
+    category: Category.animation,
+    summary:
+        'The joints under a skinned mesh, drawn as a bone per pair and a '
+        'cross at every joint with no child.',
+    since: '0.7.0',
+    evidence: '`DebugDrawOptions.skeletons`',
+    keywords: <String>['DebugDrawOptions.skeletons'],
+    engineFiles: <String>[
+      'packages/flutter3d_core/lib/src/engine/render/debug_draw.dart',
+      'packages/flutter3d_core/lib/src/engine/render/debug_draw_gizmos.dart',
+    ],
+  ),
 ];
