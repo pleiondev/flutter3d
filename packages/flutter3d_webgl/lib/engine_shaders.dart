@@ -2205,10 +2205,15 @@ LightSample SampleLight(int index, Surface s) {
     int slot = index - kMaxLights;
     float v = (LightListRow(slot) + 0.5) * light_list_info.list.z;
     float u = light_list_info.list.y;
-    position = texture(light_list_texture, vec2(0.5 * u, v));
-    color = texture(light_list_texture, vec2(1.5 * u, v));
-    direction = texture(light_list_texture, vec2(2.5 * u, v));
-    cone = texture(light_list_texture, vec2(3.5 * u, v));
+    // `textureLod` and not `texture`, for `shadow.glsl`'s own reason: `index`
+    // reaches this branch through a function parameter, so a WGSL backend
+    // cannot see that every invocation of a draw walks the same light count
+    // and refuses the implicit derivative as possibly non-uniform. The atlas
+    // has one level, so naming it directly changes no pixel.
+    position = textureLod(light_list_texture, vec2(0.5 * u, v), 0.0);
+    color = textureLod(light_list_texture, vec2(1.5 * u, v), 0.0);
+    direction = textureLod(light_list_texture, vec2(2.5 * u, v), 0.0);
+    cone = textureLod(light_list_texture, vec2(3.5 * u, v), 0.0);
     // The intensity and not the colour, for `LightBuffer._pack`'s own reason:
     // the same multiply here, and only one of them is a number nobody authored.
     color.w *= LightListScale(slot);
@@ -3511,10 +3516,15 @@ LightSample SampleLight(int index, Surface s) {
     int slot = index - kMaxLights;
     float v = (LightListRow(slot) + 0.5) * light_list_info.list.z;
     float u = light_list_info.list.y;
-    position = texture(light_list_texture, vec2(0.5 * u, v));
-    color = texture(light_list_texture, vec2(1.5 * u, v));
-    direction = texture(light_list_texture, vec2(2.5 * u, v));
-    cone = texture(light_list_texture, vec2(3.5 * u, v));
+    // `textureLod` and not `texture`, for `shadow.glsl`'s own reason: `index`
+    // reaches this branch through a function parameter, so a WGSL backend
+    // cannot see that every invocation of a draw walks the same light count
+    // and refuses the implicit derivative as possibly non-uniform. The atlas
+    // has one level, so naming it directly changes no pixel.
+    position = textureLod(light_list_texture, vec2(0.5 * u, v), 0.0);
+    color = textureLod(light_list_texture, vec2(1.5 * u, v), 0.0);
+    direction = textureLod(light_list_texture, vec2(2.5 * u, v), 0.0);
+    cone = textureLod(light_list_texture, vec2(3.5 * u, v), 0.0);
     // The intensity and not the colour, for `LightBuffer._pack`'s own reason:
     // the same multiply here, and only one of them is a number nobody authored.
     color.w *= LightListScale(slot);
@@ -4807,10 +4817,15 @@ LightSample SampleLight(int index, Surface s) {
     int slot = index - kMaxLights;
     float v = (LightListRow(slot) + 0.5) * light_list_info.list.z;
     float u = light_list_info.list.y;
-    position = texture(light_list_texture, vec2(0.5 * u, v));
-    color = texture(light_list_texture, vec2(1.5 * u, v));
-    direction = texture(light_list_texture, vec2(2.5 * u, v));
-    cone = texture(light_list_texture, vec2(3.5 * u, v));
+    // `textureLod` and not `texture`, for `shadow.glsl`'s own reason: `index`
+    // reaches this branch through a function parameter, so a WGSL backend
+    // cannot see that every invocation of a draw walks the same light count
+    // and refuses the implicit derivative as possibly non-uniform. The atlas
+    // has one level, so naming it directly changes no pixel.
+    position = textureLod(light_list_texture, vec2(0.5 * u, v), 0.0);
+    color = textureLod(light_list_texture, vec2(1.5 * u, v), 0.0);
+    direction = textureLod(light_list_texture, vec2(2.5 * u, v), 0.0);
+    cone = textureLod(light_list_texture, vec2(3.5 * u, v), 0.0);
     // The intensity and not the colour, for `LightBuffer._pack`'s own reason:
     // the same multiply here, and only one of them is a number nobody authored.
     color.w *= LightListScale(slot);
@@ -6399,10 +6414,15 @@ LightSample SampleLight(int index, Surface s) {
     int slot = index - kMaxLights;
     float v = (LightListRow(slot) + 0.5) * light_list_info.list.z;
     float u = light_list_info.list.y;
-    position = texture(light_list_texture, vec2(0.5 * u, v));
-    color = texture(light_list_texture, vec2(1.5 * u, v));
-    direction = texture(light_list_texture, vec2(2.5 * u, v));
-    cone = texture(light_list_texture, vec2(3.5 * u, v));
+    // `textureLod` and not `texture`, for `shadow.glsl`'s own reason: `index`
+    // reaches this branch through a function parameter, so a WGSL backend
+    // cannot see that every invocation of a draw walks the same light count
+    // and refuses the implicit derivative as possibly non-uniform. The atlas
+    // has one level, so naming it directly changes no pixel.
+    position = textureLod(light_list_texture, vec2(0.5 * u, v), 0.0);
+    color = textureLod(light_list_texture, vec2(1.5 * u, v), 0.0);
+    direction = textureLod(light_list_texture, vec2(2.5 * u, v), 0.0);
+    cone = textureLod(light_list_texture, vec2(3.5 * u, v), 0.0);
     // The intensity and not the colour, for `LightBuffer._pack`'s own reason:
     // the same multiply here, and only one of them is a number nobody authored.
     color.w *= LightListScale(slot);
@@ -8006,10 +8026,15 @@ LightSample SampleLight(int index, Surface s) {
     int slot = index - kMaxLights;
     float v = (LightListRow(slot) + 0.5) * light_list_info.list.z;
     float u = light_list_info.list.y;
-    position = texture(light_list_texture, vec2(0.5 * u, v));
-    color = texture(light_list_texture, vec2(1.5 * u, v));
-    direction = texture(light_list_texture, vec2(2.5 * u, v));
-    cone = texture(light_list_texture, vec2(3.5 * u, v));
+    // `textureLod` and not `texture`, for `shadow.glsl`'s own reason: `index`
+    // reaches this branch through a function parameter, so a WGSL backend
+    // cannot see that every invocation of a draw walks the same light count
+    // and refuses the implicit derivative as possibly non-uniform. The atlas
+    // has one level, so naming it directly changes no pixel.
+    position = textureLod(light_list_texture, vec2(0.5 * u, v), 0.0);
+    color = textureLod(light_list_texture, vec2(1.5 * u, v), 0.0);
+    direction = textureLod(light_list_texture, vec2(2.5 * u, v), 0.0);
+    cone = textureLod(light_list_texture, vec2(3.5 * u, v), 0.0);
     // The intensity and not the colour, for `LightBuffer._pack`'s own reason:
     // the same multiply here, and only one of them is a number nobody authored.
     color.w *= LightListScale(slot);
@@ -9706,10 +9731,15 @@ LightSample SampleLight(int index, Surface s) {
     int slot = index - kMaxLights;
     float v = (LightListRow(slot) + 0.5) * light_list_info.list.z;
     float u = light_list_info.list.y;
-    position = texture(light_list_texture, vec2(0.5 * u, v));
-    color = texture(light_list_texture, vec2(1.5 * u, v));
-    direction = texture(light_list_texture, vec2(2.5 * u, v));
-    cone = texture(light_list_texture, vec2(3.5 * u, v));
+    // `textureLod` and not `texture`, for `shadow.glsl`'s own reason: `index`
+    // reaches this branch through a function parameter, so a WGSL backend
+    // cannot see that every invocation of a draw walks the same light count
+    // and refuses the implicit derivative as possibly non-uniform. The atlas
+    // has one level, so naming it directly changes no pixel.
+    position = textureLod(light_list_texture, vec2(0.5 * u, v), 0.0);
+    color = textureLod(light_list_texture, vec2(1.5 * u, v), 0.0);
+    direction = textureLod(light_list_texture, vec2(2.5 * u, v), 0.0);
+    cone = textureLod(light_list_texture, vec2(3.5 * u, v), 0.0);
     // The intensity and not the colour, for `LightBuffer._pack`'s own reason:
     // the same multiply here, and only one of them is a number nobody authored.
     color.w *= LightListScale(slot);
@@ -11758,7 +11788,13 @@ float Weight(vec3 color) { return dot(color, vec3(0.299, 0.587, 0.114)); }
 void main() {
   vec2 texel = fxaa_info.params.xy;
 
-  vec3 middle = texture(source_texture, v_uv).rgb;
+  // `textureLod` throughout this pass, for `shadow.glsl`'s own reason: the
+  // last of these six taps sits after the early return below, so a WGSL
+  // backend sees a sample that need not be reached by every invocation of a
+  // quad and refuses the implicit derivative as possibly non-uniform. The
+  // composited frame is read at its native size with no mipmap of its own, so
+  // naming level zero directly changes no pixel.
+  vec3 middle = textureLod(source_texture, v_uv, 0.0).rgb;
   float mid = Weight(middle);
 
   // The four edge neighbours. Diagonals are deliberately left out: they cost
@@ -11767,10 +11803,10 @@ void main() {
   // The colours are kept, not just their weights: the sharpening at the end
   // needs the neighbourhood itself, and these are the same four taps either
   // way. Discarding the colour and re-fetching it would be four more.
-  vec3 northRgb = texture(source_texture, v_uv + vec2(0.0, -texel.y)).rgb;
-  vec3 southRgb = texture(source_texture, v_uv + vec2(0.0, texel.y)).rgb;
-  vec3 westRgb = texture(source_texture, v_uv + vec2(-texel.x, 0.0)).rgb;
-  vec3 eastRgb = texture(source_texture, v_uv + vec2(texel.x, 0.0)).rgb;
+  vec3 northRgb = textureLod(source_texture, v_uv + vec2(0.0, -texel.y), 0.0).rgb;
+  vec3 southRgb = textureLod(source_texture, v_uv + vec2(0.0, texel.y), 0.0).rgb;
+  vec3 westRgb = textureLod(source_texture, v_uv + vec2(-texel.x, 0.0), 0.0).rgb;
+  vec3 eastRgb = textureLod(source_texture, v_uv + vec2(texel.x, 0.0), 0.0).rgb;
   float north = Weight(northRgb);
   float south = Weight(southRgb);
   float west = Weight(westRgb);
@@ -11821,7 +11857,7 @@ void main() {
 
   vec2 offset = horizontalEdge ? vec2(0.0, step_length * blend)
                                : vec2(step_length * blend, 0.0);
-  vec3 smoothed = texture(source_texture, v_uv + offset).rgb;
+  vec3 smoothed = textureLod(source_texture, v_uv + offset, 0.0).rgb;
   frag_color =
       vec4(Sharpen(smoothed, northRgb, southRgb, westRgb, eastRgb), 1.0);
 }
@@ -13351,7 +13387,11 @@ float LitAt(vec3 world, float viewDistance) {
     if (candidate.z > 1.0) continue;
 
     vec2 uv = vec2((inTile.x + float(which)) / float(cascadeCount), inTile.y);
-    float stored = texture(shadow_texture, uv).r;
+    // `textureLod`, for `shadow.glsl`'s own reason: the cascade search above
+    // continues and breaks on values computed per fragment, so a WGSL backend
+    // refuses the implicit derivative here as possibly non-uniform. One level,
+    // so naming it directly changes no pixel.
+    float stored = textureLod(shadow_texture, uv, 0.0).r;
     // Outside the map is lit rather than dark: a point beyond the shadow
     // volume has nothing recorded about it, and calling that shadow would
     // put a wall of darkness across the far half of every shaft.
@@ -13488,14 +13528,19 @@ float CircleAt(float depth) {
 }
 
 void main() {
-  vec4 centre = texture(scene_texture, v_uv);
+  // `textureLod` throughout this pass, for `shadow.glsl`'s own reason: the
+  // gather below sits behind two early returns keyed on a per-fragment circle
+  // of confusion, so a WGSL backend refuses the implicit derivative as
+  // possibly non-uniform. Both textures are read at native size with no
+  // mipmap of their own, so naming level zero directly changes no pixel.
+  vec4 centre = textureLod(scene_texture, v_uv, 0.0);
   int samples = int(dof_info.lens.w + 0.5);
   if (samples < 1) {
     frag_color = centre;
     return;
   }
 
-  float centreDepth = texture(surface_texture, v_uv).a;
+  float centreDepth = textureLod(surface_texture, v_uv, 0.0).a;
   float radius = CircleAt(centreDepth);
   if (radius < 0.5) {
     // Inside half a texel there is nothing to gather: the disc this point
@@ -13519,8 +13564,8 @@ void main() {
     float angle = float(i) * kGolden;
     vec2 at = v_uv + vec2(cos(angle), sin(angle)) * r * dof_info.params.xy;
 
-    vec4 tap = texture(scene_texture, at);
-    float tapDepth = texture(surface_texture, at).a;
+    vec4 tap = textureLod(scene_texture, at, 0.0);
+    float tapDepth = textureLod(surface_texture, at, 0.0).a;
     float tapRadius = CircleAt(tapDepth);
 
     // Would this sample's own disc have reached here? A sharp background
@@ -13605,7 +13650,14 @@ vec3 DecodeOctahedral(vec2 e) {
 }
 
 void main() {
-  vec4 scene = texture(scene_texture, v_uv);
+  // `textureLod` throughout this pass, for `shadow.glsl`'s own reason: modes 3
+  // and 4 read the surface buffer again behind the early return below, which
+  // is keyed on a per-fragment depth rather than on the uniform `mode` the
+  // docstring above talks about — so a WGSL backend refuses the implicit
+  // derivative there as possibly non-uniform. Both textures are read at native
+  // size with no mipmap of their own, so naming level zero directly changes no
+  // pixel.
+  vec4 scene = textureLod(scene_texture, v_uv, 0.0);
   int mode = int(shade_info.params.x + 0.5);
   float mix_amount = clamp(shade_info.params.y, 0.0, 1.0);
   if (mode < 1 || mix_amount <= 0.0) {
@@ -13613,7 +13665,7 @@ void main() {
     return;
   }
 
-  vec4 surface = texture(surface_texture, v_uv);
+  vec4 surface = textureLod(surface_texture, v_uv, 0.0);
   float depth = surface.a;
   // Nothing was drawn here: the buffer is cleared to zero and a normal
   // decoded from that is a direction pointing nowhere. The background keeps
@@ -13655,7 +13707,7 @@ void main() {
         vec2(texel.x, 0.0), vec2(-texel.x, 0.0),
         vec2(0.0, texel.y), vec2(0.0, -texel.y));
     for (int i = 0; i < 4; i++) {
-      vec4 tap = texture(surface_texture, v_uv + offsets[i]);
+      vec4 tap = textureLod(surface_texture, v_uv + offsets[i], 0.0);
       if (tap.a <= 0.0) {
         // Against the background: that is a silhouette, and the strongest
         // edge there is.
@@ -13685,13 +13737,13 @@ void main() {
     // at any distance.
     vec2 texel = shade_info.screen.xy;
     vec3 right = DecodeOctahedral(
-        texture(surface_texture, v_uv + vec2(texel.x, 0.0)).rg);
+        textureLod(surface_texture, v_uv + vec2(texel.x, 0.0), 0.0).rg);
     vec3 left = DecodeOctahedral(
-        texture(surface_texture, v_uv - vec2(texel.x, 0.0)).rg);
+        textureLod(surface_texture, v_uv - vec2(texel.x, 0.0), 0.0).rg);
     vec3 down = DecodeOctahedral(
-        texture(surface_texture, v_uv + vec2(0.0, texel.y)).rg);
+        textureLod(surface_texture, v_uv + vec2(0.0, texel.y), 0.0).rg);
     vec3 up = DecodeOctahedral(
-        texture(surface_texture, v_uv - vec2(0.0, texel.y)).rg);
+        textureLod(surface_texture, v_uv - vec2(0.0, texel.y), 0.0).rg);
 
     // The x component of the horizontal change plus the y of the vertical:
     // the screen-space divergence, which is positive on a ridge and negative
