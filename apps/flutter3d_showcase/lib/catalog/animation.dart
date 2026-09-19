@@ -81,4 +81,78 @@ const List<Feature> animationFeatures = <Feature>[
       'packages/flutter3d_core/lib/src/engine/scene/instanced_mesh_node.dart',
     ],
   ),
+  Feature(
+    id: 'animation-layers',
+    title: 'Layers and masks',
+    category: Category.animation,
+    summary:
+        'A second clip over part of a skeleton, while the base keeps '
+        'playing over the rest of it.',
+    since: '0.5.2',
+    evidence:
+        'Animation layers: a clip over part of a skeleton while the base '
+        'plays over all of it.',
+    keywords: <String>['AnimationLayer', 'AnimationMask'],
+    engineFiles: <String>[
+      'packages/flutter3d_core/lib/src/engine/animation/animation_layer.dart',
+      'packages/flutter3d_core/lib/src/formats/animation/animation_mask.dart',
+    ],
+  ),
+  Feature(
+    id: 'additive-blend',
+    title: 'Additive layers',
+    category: Category.animation,
+    summary:
+        'A layer that adds its own clip\'s distance from its rest frame on '
+        'top of the base, instead of replacing the base outright.',
+    since: '0.7.0',
+    evidence: '`AnimationPlayer.rootMotionDelta` and additive layers',
+    keywords: <String>['AnimationBlend.additive', 'referenceTime'],
+    engineFiles: <String>[
+      'packages/flutter3d_core/lib/src/engine/animation/animation_layer.dart',
+      'packages/flutter3d_core/lib/src/formats/animation/animation_clip.dart',
+    ],
+  ),
+  Feature(
+    id: 'root-motion',
+    title: 'Root motion',
+    category: Category.animation,
+    summary:
+        'The forward step a walk cycle already had, extracted out of its '
+        'own track and handed back a frame at a time.',
+    since: '0.7.0',
+    evidence: '`AnimationPlayer.rootMotionDelta`',
+    keywords: <String>['kRootMotionExtra', 'flutter3dRootMotion'],
+    engineFiles: <String>[
+      'packages/flutter3d_core/lib/src/engine/animation/animation_player.dart',
+    ],
+  ),
+  Feature(
+    id: 'two-bone-ik',
+    title: 'Two-bone IK',
+    category: Category.animation,
+    summary:
+        'An arm or a leg bent so its tip reaches a point, solved on a pose '
+        'with no scene behind it.',
+    since: '0.7.0',
+    evidence: '`TwoBoneIk` and `FabrikIk` with no scene behind them',
+    keywords: <String>['no scene behind them'],
+    engineFiles: <String>[
+      'packages/flutter3d_core/lib/src/engine/animation/inverse_kinematics.dart',
+    ],
+  ),
+  Feature(
+    id: 'fabrik-ik',
+    title: 'A chain of any length',
+    category: Category.animation,
+    summary:
+        'A rope or a tail bent to reach a point, solved by walking the '
+        'chain backward and forward until it does.',
+    since: '0.7.0',
+    evidence: '`TwoBoneIk` and `FabrikIk` with no scene behind them',
+    keywords: <String>['FABRIK', 'Aristidou'],
+    engineFiles: <String>[
+      'packages/flutter3d_core/lib/src/engine/animation/inverse_kinematics.dart',
+    ],
+  ),
 ];
