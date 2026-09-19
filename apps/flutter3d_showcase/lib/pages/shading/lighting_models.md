@@ -1,44 +1,49 @@
 # The six lighting models
 
-A lighting model is the recipe a surface uses to answer light. The engine ships
-six of them, and each is one pre-built shader. This page draws the same sphere
-six times, once per model, so you can see what each recipe does with the same
-colour and the same sun.
+A lighting model decides how a surface answers light. The engine ships six, and a
+material picks one by name. This page puts the same orange colour under each of
+them so you can see what the choice changes.
 
-## Step 1: One material per model
+Read the spheres in reading order: Unlit, Lambert and Blinn-Phong on the top row,
+then PBR, Toon and Normals below.
 
-`LightingModel.builtIn` is the list of everything that came with the engine, in
-the order a picker would show it: unlit, Lambert, Blinn-Phong, PBR, toon and
-normals. A `Material` names its model in `lighting`, and that is the only change
-between the six materials here.
+## Step 1: Take one material per model
+
+`LightingModel.builtIn` lists the six in the order a picker would show them. The
+loop makes one `Material` for each, with the same colour and roughness, so the only
+thing that differs between the spheres is the model.
 
 {{code models}}
 
-> **Note.** The list is not closed. An application that builds its own shader
-> bundle can describe a seventh model and use it the same way.
+Each model is a fragment shader compiled ahead of time. Choosing a model is
+choosing a shader, and the renderer keeps one pipeline for each.
 
-## Step 2: Put them on a grid
+## Step 2: Lay them out in a grid
 
-One sphere mesh is uploaded once and six nodes draw it, each with its own
-material. Two rows of three keep every model in view at the same time.
+One `DeviceMesh` is uploaded once and shared by six `MeshNode`s. Each node pairs it
+with its own material and moves to a cell of a three by two grid.
 
-{{code grid}}
+{{code row}}
 
-## Step 3: Light the scene
+## Step 3: Add a light
 
-A single directional light is enough. Look at the top left sphere first: the unlit
-model ignores the sun and shows its plain colour. The last sphere, the normals
-model, ignores it too and paints the surface direction as colour.
+Without a light a lit model is black. A single directional `LightNode` is enough
+here. Unlit ignores it and draws the flat colour, Normals ignores it and paints the
+direction each point faces, and the other four use it.
 
 {{code light}}
 
-## Step 4: Turn the two sliders
+Drag the view around. Unlit and Normals look the same from every side, while the
+lit spheres change as you move.
 
-Drag Roughness. Lambert is purely diffuse, so it does not move at all. Blinn-Phong
-and PBR change their highlight, and toon keeps its hard bands. Drag Sun to zero
-and only the two models that do not need a light stay visible.
+## Step 4: Move the sliders
+
+Roughness is read by Blinn-Phong, PBR and Toon, and each reads it differently.
+Blinn-Phong turns it into the sharpness of the highlight, PBR spreads the highlight
+over more of the sphere, and Toon uses it to choose how many bands of shade to draw.
+Lambert has no highlight and does not read it, so its sphere stays put.
 
 {{code live}}
 
-Every change here is a plain field write. Nothing is rebuilt, because each model
-was a pipeline the first frame already linked.
+> **Note.** Setting a field is enough. The next frame draws with the new value and
+> nothing is rebuilt.
