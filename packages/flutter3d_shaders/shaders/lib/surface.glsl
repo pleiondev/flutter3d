@@ -441,10 +441,15 @@ LightSample SampleLight(int index, Surface s) {
     int slot = index - kMaxLights;
     float v = (LightListRow(slot) + 0.5) * light_list_info.list.z;
     float u = light_list_info.list.y;
-    position = texture(light_list_texture, vec2(0.5 * u, v));
-    color = texture(light_list_texture, vec2(1.5 * u, v));
-    direction = texture(light_list_texture, vec2(2.5 * u, v));
-    cone = texture(light_list_texture, vec2(3.5 * u, v));
+    // `textureLod` and not `texture`, for `shadow.glsl`'s own reason: `index`
+    // reaches this branch through a function parameter, so a WGSL backend
+    // cannot see that every invocation of a draw walks the same light count
+    // and refuses the implicit derivative as possibly non-uniform. The atlas
+    // has one level, so naming it directly changes no pixel.
+    position = textureLod(light_list_texture, vec2(0.5 * u, v), 0.0);
+    color = textureLod(light_list_texture, vec2(1.5 * u, v), 0.0);
+    direction = textureLod(light_list_texture, vec2(2.5 * u, v), 0.0);
+    cone = textureLod(light_list_texture, vec2(3.5 * u, v), 0.0);
     // The intensity and not the colour, for `LightBuffer._pack`'s own reason:
     // the same multiply here, and only one of them is a number nobody authored.
     color.w *= LightListScale(slot);

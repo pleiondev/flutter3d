@@ -97,7 +97,13 @@ float Weight(vec3 color) { return dot(color, vec3(0.299, 0.587, 0.114)); }
 void main() {
   vec2 texel = fxaa_info.params.xy;
 
-  vec3 middle = texture(source_texture, v_uv).rgb;
+  // `textureLod` throughout this pass, for `shadow.glsl`'s own reason: the
+  // last of these six taps sits after the early return below, so a WGSL
+  // backend sees a sample that need not be reached by every invocation of a
+  // quad and refuses the implicit derivative as possibly non-uniform. The
+  // composited frame is read at its native size with no mipmap of its own, so
+  // naming level zero directly changes no pixel.
+  vec3 middle = textureLod(source_texture, v_uv, 0.0).rgb;
   float mid = Weight(middle);
 
   // The four edge neighbours. Diagonals are deliberately left out: they cost
@@ -106,10 +112,10 @@ void main() {
   // The colours are kept, not just their weights: the sharpening at the end
   // needs the neighbourhood itself, and these are the same four taps either
   // way. Discarding the colour and re-fetching it would be four more.
-  vec3 northRgb = texture(source_texture, v_uv + vec2(0.0, -texel.y)).rgb;
-  vec3 southRgb = texture(source_texture, v_uv + vec2(0.0, texel.y)).rgb;
-  vec3 westRgb = texture(source_texture, v_uv + vec2(-texel.x, 0.0)).rgb;
-  vec3 eastRgb = texture(source_texture, v_uv + vec2(texel.x, 0.0)).rgb;
+  vec3 northRgb = textureLod(source_texture, v_uv + vec2(0.0, -texel.y), 0.0).rgb;
+  vec3 southRgb = textureLod(source_texture, v_uv + vec2(0.0, texel.y), 0.0).rgb;
+  vec3 westRgb = textureLod(source_texture, v_uv + vec2(-texel.x, 0.0), 0.0).rgb;
+  vec3 eastRgb = textureLod(source_texture, v_uv + vec2(texel.x, 0.0), 0.0).rgb;
   float north = Weight(northRgb);
   float south = Weight(southRgb);
   float west = Weight(westRgb);
@@ -160,7 +166,7 @@ void main() {
 
   vec2 offset = horizontalEdge ? vec2(0.0, step_length * blend)
                                : vec2(step_length * blend, 0.0);
-  vec3 smoothed = texture(source_texture, v_uv + offset).rgb;
+  vec3 smoothed = textureLod(source_texture, v_uv + offset, 0.0).rgb;
   frag_color =
       vec4(Sharpen(smoothed, northRgb, southRgb, westRgb, eastRgb), 1.0);
 }

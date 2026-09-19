@@ -73,14 +73,19 @@ float CircleAt(float depth) {
 }
 
 void main() {
-  vec4 centre = texture(scene_texture, v_uv);
+  // `textureLod` throughout this pass, for `shadow.glsl`'s own reason: the
+  // gather below sits behind two early returns keyed on a per-fragment circle
+  // of confusion, so a WGSL backend refuses the implicit derivative as
+  // possibly non-uniform. Both textures are read at native size with no
+  // mipmap of their own, so naming level zero directly changes no pixel.
+  vec4 centre = textureLod(scene_texture, v_uv, 0.0);
   int samples = int(dof_info.lens.w + 0.5);
   if (samples < 1) {
     frag_color = centre;
     return;
   }
 
-  float centreDepth = texture(surface_texture, v_uv).a;
+  float centreDepth = textureLod(surface_texture, v_uv, 0.0).a;
   float radius = CircleAt(centreDepth);
   if (radius < 0.5) {
     // Inside half a texel there is nothing to gather: the disc this point
@@ -104,8 +109,8 @@ void main() {
     float angle = float(i) * kGolden;
     vec2 at = v_uv + vec2(cos(angle), sin(angle)) * r * dof_info.params.xy;
 
-    vec4 tap = texture(scene_texture, at);
-    float tapDepth = texture(surface_texture, at).a;
+    vec4 tap = textureLod(scene_texture, at, 0.0);
+    float tapDepth = textureLod(surface_texture, at, 0.0).a;
     float tapRadius = CircleAt(tapDepth);
 
     // Would this sample's own disc have reached here? A sharp background
