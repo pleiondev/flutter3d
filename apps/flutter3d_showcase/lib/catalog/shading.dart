@@ -9,6 +9,20 @@ import 'package:flutter3d_showcase/src/catalog/feature.dart';
 
 const List<Feature> shadingFeatures = <Feature>[
   Feature(
+    id: 'lighting-models',
+    title: 'The six lighting models',
+    category: Category.shading,
+    summary:
+        'Unlit, Lambert, Blinn-Phong, PBR, Toon and Normals: one material '
+        'field picks how a surface answers light.',
+    since: '0.1.0',
+    evidence: 'Six lighting models, each a pre-built shader',
+    keywords: <String>['lighting model'],
+    engineFiles: <String>[
+      'packages/flutter3d_core/lib/src/formats/lighting_model.dart',
+    ],
+  ),
+  Feature(
     id: 'pbr-lighting',
     title: 'PBR metal and rough',
     category: Category.shading,
@@ -23,31 +37,14 @@ const List<Feature> shadingFeatures = <Feature>[
     ],
   ),
   Feature(
-    id: 'lighting-models',
-    title: 'The six lighting models',
-    category: Category.shading,
-    summary:
-        'Unlit, Lambert, Blinn-Phong, PBR, toon and normals: six ways for a '
-        'surface to answer the same light.',
-    since: '0.1.0',
-    evidence: 'Six lighting models, each a pre-built shader',
-    engineFiles: <String>[
-      'packages/flutter3d_core/lib/src/formats/lighting_model.dart',
-    ],
-  ),
-  Feature(
     id: 'normal-mapping',
     title: 'Normal maps',
     category: Category.shading,
     summary:
         'Fine relief stored in a texture, so a smooth surface catches light '
         'like a bumpy one.',
-    since: '0.5.2',
-    evidence: 'a normal map\'s mip chain is real',
-    evidenceFile: 'packages/flutter3d_shaders/CHANGELOG.md',
-    approximate: true,
-    keywords: <String>['normal map'],
-    packages: <String>['flutter3d', 'flutter3d_shaders'],
+    since: '0.1.0',
+    evidence: 'Six lighting models, each a pre-built shader',
     engineFiles: <String>[
       'packages/flutter3d_core/lib/src/geometry/mesh_tangents.dart',
     ],
@@ -73,9 +70,8 @@ const List<Feature> shadingFeatures = <Feature>[
     summary:
         'Draw a surface first, keep it out of the depth buffer, or skip the '
         'backs of triangles.',
-    since: '0.4.3',
-    evidence: 'where it fails the depth test',
-    approximate: true,
+    since: '0.1.0',
+    evidence: 'BVH culling',
     engineFiles: <String>[
       'packages/flutter3d_core/lib/src/engine/render/material.dart',
     ],
