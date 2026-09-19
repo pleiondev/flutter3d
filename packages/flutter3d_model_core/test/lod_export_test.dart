@@ -67,6 +67,26 @@ void main() {
       );
     });
 
+    test('each is in the layout of the mesh it was cut from', () {
+      // Mutation: hand the simplifier's own answer over as it comes. It
+      // carries position, normal and UV and nothing else, eight floats a
+      // vertex, and the renderer's vertex stage reads a tangent past the end
+      // of it (`RangeError` on the software backend).
+      final document = toModelDocument(_sphere(), withLods: true);
+      final base = document.surfaces[0].mesh;
+
+      for (final surface in document.surfaces.skip(1)) {
+        expect(
+          surface.mesh.layout.floatsPerVertex,
+          base.layout.floatsPerVertex,
+        );
+        expect(
+          surface.mesh.vertices.length,
+          surface.mesh.vertexCount * base.layout.floatsPerVertex,
+        );
+      }
+    });
+
     test('each is coarser than the one before, by about what was asked', () {
       final document = toModelDocument(_sphere(), withLods: true);
       final full = document.surfaces[0].mesh.triangleCount;
