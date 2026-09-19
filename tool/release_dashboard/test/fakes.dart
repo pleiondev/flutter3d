@@ -87,10 +87,10 @@ List<Gate> fakeGates() => <Gate>[
   ),
 ];
 
-Dashboard dashboardOver(FakeSources sources, {Duration? quiet}) => Dashboard(
+Dashboard dashboardOver(FakeSources sources, {File? memory}) => Dashboard(
   root: Directory.systemTemp,
   config: const ReleaseConfig(),
   sources: sources,
   gates: fakeGates(),
-  quietPeriod: quiet ?? const Duration(milliseconds: 50),
+  memory: memory,
 );
