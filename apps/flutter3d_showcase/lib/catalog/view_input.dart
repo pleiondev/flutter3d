@@ -93,4 +93,87 @@ const List<Feature> viewInputFeatures = <Feature>[
       'packages/flutter3d_core/lib/src/engine/scene/raycaster.dart',
     ],
   ),
+  Feature(
+    id: 'pixel-picking',
+    title: 'Picking by pixel',
+    category: Category.viewInput,
+    summary:
+        'Asking the renderer which mesh is drawn at a point, exact by '
+        'construction because the rasteriser already decided.',
+    since: '0.4.3',
+    evidence: 'Picking by pixel',
+    keywords: <String>['pickpixel'],
+    engineFiles: <String>[
+      'packages/flutter3d_core/lib/src/engine/render/renderer_pick_pass.dart',
+    ],
+  ),
+  Feature(
+    id: 'screen-bounds',
+    title: 'Screen-space bounds',
+    category: Category.viewInput,
+    summary:
+        'The rectangle a box in the world covers on the glass, for a focus '
+        'ring, a tooltip or a label to use.',
+    since: '0.7.0',
+    evidence: 'screenBoundsOfBox',
+    keywords: <String>['screenboundsofbox'],
+    engineFiles: <String>[
+      'packages/flutter3d_core/lib/src/engine/scene/screen_bounds.dart',
+    ],
+  ),
+  Feature(
+    id: 'gamepad',
+    title: 'Gamepad',
+    category: Category.viewInput,
+    summary:
+        'A gamepad read as a snapshot once a frame, with a dead zone '
+        'applied before a game ever sees the number.',
+    since: '0.2.0',
+    evidence:
+        'A gamepad read as a snapshot once per frame, with a dead zone '
+        'applied and no opinion about what any button means',
+    evidenceFile: 'packages/pad_input/CHANGELOG.md',
+    packages: <String>['pad_input'],
+  ),
+  Feature(
+    id: 'pointer-lock',
+    title: 'Pointer lock',
+    category: Category.viewInput,
+    summary:
+        'A cursor that never runs out of room: relative motion instead of a '
+        'position bounded by the edge of the window.',
+    since: '0.2.0',
+    evidence:
+        'Relative mouse deltas, which Flutter offers on no desktop platform',
+    evidenceFile: 'packages/pointer_lock/CHANGELOG.md',
+    packages: <String>['pointer_lock'],
+  ),
+  Feature(
+    id: 'input-bindings',
+    title: 'Bindings and rebinding',
+    category: Category.viewInput,
+    summary:
+        'Mapping an action to a key, and letting a player replace that '
+        'mapping while the game keeps running.',
+    since: '0.7.0',
+    evidence:
+        'rebinding, `SaveFile`/`SettingsFile`/`DemoFile`, volumes, credits, '
+        '`AutomapView`, `DragLook`',
+    evidenceFile: 'packages/flutter3d_game/CHANGELOG.md',
+    packages: <String>['flutter3d_game'],
+    keywords: <String>['rebinding', 'draglook'],
+  ),
+  Feature(
+    id: 'touch-controls',
+    title: 'Touch controls',
+    category: Category.viewInput,
+    summary:
+        'An on-screen stick and button for a touch device, feeding the same '
+        'input state a key or a gamepad axis does.',
+    since: '0.4.0',
+    evidence: 'A touch control lets go when it leaves',
+    evidenceFile: 'packages/flutter3d_game/CHANGELOG.md',
+    packages: <String>['flutter3d_game'],
+    keywords: <String>['touch stick', 'touch button'],
+  ),
 ];
