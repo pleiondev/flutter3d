@@ -96,4 +96,56 @@ const List<Feature> formatsFeatures = <Feature>[
       'packages/flutter3d_core/lib/src/formats/obj/obj_writer.dart',
     ],
   ),
+  Feature(
+    id: 'stl',
+    title: 'STL',
+    category: Category.formats,
+    summary:
+        'A flat triangle soup with no shared vertices, told apart from '
+        'ASCII by the file\'s own size arithmetic.',
+    since: '0.7.0',
+    evidenceFile: 'packages/flutter3d_core/CHANGELOG.md',
+    evidence:
+        '`StlLoader` reads both dialects and tells them apart by the '
+        "file's own size arithmetic, since a binary header often begins "
+        'with `solid`',
+    engineFiles: <String>[
+      'packages/flutter3d_core/lib/src/formats/stl/stl_loader.dart',
+      'packages/flutter3d_core/lib/src/formats/stl/stl_writer.dart',
+    ],
+  ),
+  Feature(
+    id: 'usdz',
+    title: 'USDZ export',
+    category: Category.formats,
+    summary:
+        'Geometry written into the ZIP archive Quick Look opens, one '
+        'Mesh prim a surface, no materials yet.',
+    since: '0.7.0',
+    evidenceFile: 'packages/flutter3d_core/CHANGELOG.md',
+    evidence:
+        '`UsdzWriter` writes geometry only, one `Mesh` prim per surface, '
+        'in an archive macOS identifies as USDZ',
+    engineFiles: <String>[
+      'packages/flutter3d_core/lib/src/formats/usdz/usdz_writer.dart',
+      'packages/flutter3d_core/lib/src/formats/usdz/usdz_zip.dart',
+    ],
+  ),
+  Feature(
+    id: 'f3d',
+    title: 'The .f3d container',
+    category: Category.formats,
+    summary:
+        "The engine's own container, converted offline so loading it is "
+        'almost no work at all.',
+    since: '0.1.0',
+    evidence:
+        'glTF 2.0 / GLB and Wavefront OBJ behind one document abstraction, '
+        'plus `.f3d`, the engine\'s own container',
+    engineFiles: <String>[
+      'packages/flutter3d_core/lib/src/formats/f3d/f3d_loader.dart',
+      'packages/flutter3d_core/lib/src/formats/f3d/f3d_writer.dart',
+      'packages/flutter3d_core/lib/src/formats/f3d/f3d_format.dart',
+    ],
+  ),
 ];
