@@ -28,5 +28,5 @@ object on top of it.
 {{code overlay}}
 
 The left wheel projects to the left of the right one, because the camera
-sits in front of them looking down -Z the way every camera in this engine
+sits in front of them looking down `-Z` the way every camera in this engine
 does.

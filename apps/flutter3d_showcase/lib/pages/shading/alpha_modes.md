@@ -1,7 +1,7 @@
 # Alpha modes
 
 A material can be see-through, and there is more than one way to decide what that
-means. `MaterialAlphaMode` has four answers: opaque, mask, blend and hashed. This
+means. `MaterialAlphaMode` has four answers: `opaque`, `mask`, `blend` and `hashed`. This
 page draws the same soft disc four times, one per mode, in front of a blue wall,
 from left to right in that order.
 
@@ -15,10 +15,10 @@ at the rim. Every mode reads that alpha, multiplied by the alpha of the material
 
 ## Step 2: Four materials, one for each mode
 
-The four materials are identical except for `alphaMode`. Opaque ignores alpha
-altogether, so the leftmost panel stays a solid square. Mask keeps a pixel or
-drops it against `alphaCutoff`. Blend mixes the panel with what is behind it.
-Hashed keeps a share of the pixels equal to the opacity, chosen by a noise
+The four materials are identical except for `alphaMode`. `opaque` ignores alpha
+altogether, so the leftmost panel stays a solid square. `mask` keeps a pixel or
+drops it against `alphaCutoff`. `blend` mixes the panel with what is behind it.
+`hashed` keeps a share of the pixels equal to the opacity, chosen by a noise
 pattern fixed to world position.
 
 {{code materials}}
@@ -30,8 +30,8 @@ blue wall behind them is what makes blending and cutting visible.
 
 {{code panels}}
 
-> **Note.** Blend has to draw after everything opaque and be sorted by distance,
-> which costs a sort every frame. Hashed is drawn with the opaque surfaces and
+> **Note.** `blend` has to draw after everything opaque and be sorted by distance,
+> which costs a sort every frame. `hashed` is drawn with the opaque surfaces and
 > needs no sort, at the price of visible noise.
 
 ## Step 4: Move the numbers

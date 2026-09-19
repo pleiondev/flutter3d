@@ -15,9 +15,9 @@ cube, so they compete for the same joint rather than moving different parts.
 ## Step 2: Play one, then fade to the other
 
 `AnimationPlayer` needs the clips and the list of targets they can address,
-index-aligned. `play(0)` starts the spin. `crossFadeTo(1, duration: 0.4)`
-does not cut to the nod: it keeps the spin playing while the nod's own pose
-is mixed in over four tenths of a second, so the cube's rotation moves
+index-aligned. `play(0)` starts the `spin`. `crossFadeTo(1, duration: 0.4)`
+does not cut to the `nod`: it keeps the `spin` playing while the `nod`'s own
+pose is mixed in over four tenths of a second, so the cube's rotation moves
 smoothly from one performance to the other instead of jumping.
 
 {{code player}}
@@ -31,7 +31,7 @@ that passed and writes the resulting pose onto the cube.
 
 ## Speed and wrap
 
-The Speed slider multiplies how fast the playhead moves: low and the spin
+The Speed slider multiplies how fast the playhead moves: low and the `spin`
 crawls, high and it races. Wrap decides what happens when a clip reaches its
 end: Loop starts over, Once holds the last pose, and Ping-pong plays
 backwards to the start and forwards again. Change Wrap while the cube is
