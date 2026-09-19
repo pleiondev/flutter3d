@@ -132,30 +132,60 @@ void main() {
           isNotNull,
           reason: '${f.evidenceFile} has no "## ${f.since}"',
         );
-        expect(
-          _squash(own!.$2).contains(_squash(f.evidence)),
-          isTrue,
-          reason: 'the evidence "${f.evidence}" is not under ## ${f.since}',
-        );
 
+        // A precise tag quotes the record: `evidence` is words the section
+        // actually has. An approximate one names a bound instead, so its
+        // `evidence` is the reason there is no better date, not a quote —
+        // nothing in a CHANGELOG says "no explicit origin" about itself, and
+        // asking for both would make the flag impossible to use honestly.
+        // What still has to be true of a bound is the same claim `!approximate`
+        // makes of a date: nothing older mentions it. So it is checked instead
+        // by requiring the section itself to hold a keyword (it is somewhere in
+        // the story) and no earlier section to.
         if (!f.approximate) {
-          for (final String word in f.keywords) {
-            final Iterable<String> earlier = <String>[
-              for (final (String, String) s in sections)
-                if (compareVersions(s.$1, f.since) < 0 &&
-                    _squash(s.$2).contains(word.toLowerCase()))
-                  s.$1,
-            ];
-            expect(
-              earlier,
-              isEmpty,
-              reason:
-                  '"$word" is already mentioned in ${earlier.join(', ')}; '
-                  'the page is tagged ${f.since}',
-            );
-          }
+          expect(
+            _squash(own!.$2).contains(_squash(f.evidence)),
+            isTrue,
+            reason: 'the evidence "${f.evidence}" is not under ## ${f.since}',
+          );
         } else {
-          expect(f.evidence.toLowerCase(), contains('no explicit origin'));
+          expect(
+            f.evidence.toLowerCase(),
+            contains('no explicit origin'),
+            reason: '${f.id}: approximate rows explain the bound, not quote it',
+          );
+          expect(
+            f.keywords,
+            isNotEmpty,
+            reason: '${f.id}: an approximate row needs a keyword to bound',
+          );
+        }
+
+        for (final String word in f.keywords) {
+          final Iterable<String> earlier = <String>[
+            for (final (String, String) s in sections)
+              if (compareVersions(s.$1, f.since) < 0 &&
+                  _squash(s.$2).contains(word.toLowerCase()))
+                s.$1,
+          ];
+          expect(
+            earlier,
+            isEmpty,
+            reason:
+                '"$word" is already mentioned in ${earlier.join(', ')}; '
+                'the page is tagged ${f.since}',
+          );
+        }
+        if (f.approximate) {
+          expect(
+            f.keywords.any(
+              (String word) => _squash(own!.$2).contains(word.toLowerCase()),
+            ),
+            isTrue,
+            reason:
+                '${f.id}: none of ${f.keywords} is mentioned under '
+                '## ${f.since} either, so that is not where the bound comes from',
+          );
         }
 
         expect(compareVersions(f.since, appVersion), lessThanOrEqualTo(0));
