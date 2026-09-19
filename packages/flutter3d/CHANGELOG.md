@@ -11,6 +11,21 @@
   draws untransformed and is still a warning. The modeller's own viewport does
   not do this yet: it draws from the project, which keeps the transform with
   the material.
+* **A model answers to the name a person actually gave it.**
+  `loadModelAsset('assets_src/models/chair.glb')` (`ap-11`) reads the build
+  hook's own converted `.f3d` instead of the source, because that is what
+  every build after the first `dart run flutter3d_build:init` (`ap-10`)
+  actually ships. Missing it means two different things on purpose: in
+  debug it decodes the source directly and warns once per path rather than
+  once per call; outside debug it is a `StateError` naming
+  `flutter3d_build:init`, since a release build shipped without its own
+  hook running is a real problem, not something to paper over silently.
+  Web has no fallback — no `dart:io` there — so a missing generated file
+  is the release error in every build mode on that platform. There is one
+  generated file per source and no variant to pick between: a build for one
+  platform carries that platform's family, and a project that ships to several
+  from one build cooks `universal`, which the upload turns into whatever the
+  device samples.
 
 ## 0.6.0
 
