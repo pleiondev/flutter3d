@@ -237,4 +237,67 @@ const List<Feature> shadingFeatures = <Feature>[
       'packages/flutter3d_core/lib/src/engine/scene/light_buffer.dart',
     ],
   ),
+  Feature(
+    id: 'many-lights',
+    title: 'Thirty-two lights and the fade band',
+    category: Category.shading,
+    summary:
+        'Eight lights in the shader\'s own slots and twenty-four more '
+        'through a light list, with a ramp instead of a cliff where the '
+        'list ends.',
+    since: '0.7.0',
+    evidence:
+        'Up to thirty-two lights on one draw, the last twenty-four without '
+        'shadows, `lightFadeBand`',
+    keywords: <String>['thirty-two lights'],
+    engineFiles: <String>[
+      'packages/flutter3d_core/lib/src/engine/scene/light_buffer.dart',
+      'packages/flutter3d_core/lib/src/engine/render/renderer_light_list.dart',
+    ],
+  ),
+  Feature(
+    id: 'ambient-light',
+    title: 'Ambient light',
+    category: Category.shading,
+    summary:
+        'The flat colour and strength a surface falls back to wherever no '
+        'direct light reaches it.',
+    since: '0.4.3',
+    evidence:
+        '`Scene.ambientIntensity`, which the sky environment shares with '
+        'the flat',
+    engineFiles: <String>[
+      'packages/flutter3d_core/lib/src/engine/scene/scene.dart',
+    ],
+  ),
+  Feature(
+    id: 'fmat-files',
+    title: '.fmat material files',
+    category: Category.shading,
+    summary:
+        'A material as a file of its own: an artist\'s unit of work, worn by '
+        'every mesh that shares the look.',
+    since: '0.3.0',
+    evidence: 'a material as a file of its own, with `MaterialDecoder`',
+    engineFiles: <String>[
+      'packages/flutter3d_core/lib/src/formats/fmat/fmat.dart',
+      'packages/flutter3d_core/lib/src/formats/material_document.dart',
+    ],
+  ),
+  Feature(
+    id: 'material-language',
+    title: 'The material expression language',
+    category: Category.shading,
+    summary:
+        'A small GLSL-flavoured source, parsed once into a tree that either '
+        'emits a fragment shader or is evaluated directly.',
+    since: '0.7.0',
+    evidence: 'a material source language behind',
+    keywords: <String>['material source language'],
+    engineFiles: <String>[
+      'packages/flutter3d_core/lib/src/formats/material_language/material_parser.dart',
+      'packages/flutter3d_core/lib/src/formats/material_language/material_eval.dart',
+      'packages/flutter3d_core/lib/src/formats/material_language/material_glsl.dart',
+    ],
+  ),
 ];
