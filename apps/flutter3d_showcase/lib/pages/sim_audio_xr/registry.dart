@@ -6,4 +6,20 @@ library;
 
 import 'package:flutter3d_showcase/src/demo/demo.dart';
 
-final Map<String, DemoBuilder> simAudioXrDemos = <String, DemoBuilder>{};
+import 'ecs_world.dart';
+import 'fixed_step.dart';
+import 'headless_run.dart';
+import 'portable_math.dart';
+import 'replay_digest.dart';
+import 'rewind.dart';
+import 'step_systems.dart';
+
+final Map<String, DemoBuilder> simAudioXrDemos = <String, DemoBuilder>{
+  'fixed-step': FixedStepDemo.new,
+  'ecs-world': EcsWorldDemo.new,
+  'step-systems': StepSystemsDemo.new,
+  'replay-digest': ReplayDigestDemo.new,
+  'portable-math': PortableMathDemo.new,
+  'rewind': RewindDemo.new,
+  'headless-run': HeadlessRunDemo.new,
+};
