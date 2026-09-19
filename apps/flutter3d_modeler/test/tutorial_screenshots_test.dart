@@ -37,6 +37,7 @@
 library;
 
 import 'package:flutter/foundation.dart' show ValueKey;
+import 'package:flutter3d_modeler/src/ui/properties/object_row.dart';
 import 'package:flutter3d_modeler/src/ui/tools.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -92,6 +93,21 @@ void main() {
       await tester.tap(find.byKey(const ValueKey<String>('uvUnwrap')));
       await settleFrames(tester);
       await shootWindow(tester, 'uv-unwrapped');
+    });
+
+    // Screen 17: not a mode and not a sub-mode, but a view of the held
+    // object that Object mode opens over itself — and, like the UV picture
+    // above, one a launch cannot show, since a fresh cube has no levels.
+    testWidgets('object · levels of detail', (WidgetTester tester) async {
+      await launchModeller(tester, fonts: fonts);
+      await tester.tap(find.byType(ObjectRow).first);
+      await settleFrames(tester);
+      await openLodScreen(tester);
+      for (var level = 0; level < 2; level++) {
+        await tester.tap(find.byKey(const ValueKey<String>('lodAddLevel')));
+        await settleFrames(tester);
+      }
+      await shootWindow(tester, 'object-lods');
     });
 
     for (final AnimationSubmode submode in AnimationSubmode.values) {

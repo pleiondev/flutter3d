@@ -76,6 +76,7 @@ class PropertiesPanel extends StatelessWidget {
     this.materialPreviewRenderer,
     this.onOpenLinkedFile,
     this.onReimport,
+    this.onOpenLods,
     this.onChoosePanorama,
     this.onClearPanorama,
     required this.onSetMaterialField,
@@ -242,6 +243,12 @@ class PropertiesPanel extends StatelessWidget {
   /// transform, materials and modifiers. Null where there is no filesystem
   /// to read one from, and the row does not appear.
   final void Function(int id)? onReimport;
+
+  /// `pro-lod-04`: opens screen 17 for the held object — its levels of
+  /// detail, side by side. Null hides the section: a panel pumped on its own
+  /// has no screen to open, and a row whose button goes nowhere is worse
+  /// than no row.
+  final void Function(int id)? onOpenLods;
 
   /// `ux-47`: hands the active material's linked `.fmat` to the system's
   /// own editor. Null where there is none — see `MaterialPanel`.
@@ -671,6 +678,32 @@ class PropertiesPanel extends StatelessWidget {
                     ).triangleCount,
                     _ => null,
                   },
+          ),
+        ],
+        // `pro-lod-04`: under the modifier stack, because a level of detail
+        // is the last thing done to a shape — after whatever the stack folds
+        // into it. One row that says how many there are and opens the screen
+        // they are compared on; the levels themselves are not edited here,
+        // since a ratio is judged by looking at what it did to the model and
+        // this panel has no room to show that.
+        if (held != null &&
+            onOpenLods != null &&
+            sections.contains(PropertiesSection.modifiers)) ...<Widget>[
+          SectionLabel(l.propLods),
+          Row(
+            children: <Widget>[
+              Expanded(
+                child: Text(
+                  l.propLodsCount(held.lods.length),
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+              ),
+              TextButton(
+                key: const ValueKey<String>('openLods'),
+                onPressed: () => onOpenLods!(held.id),
+                child: Text(l.propLodsOpen),
+              ),
+            ],
           ),
         ],
         if (held != null &&

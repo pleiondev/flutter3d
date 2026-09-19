@@ -73,6 +73,8 @@ import '../ground_grid.dart';
 import '../import_plan.dart';
 import '../input_policy.dart';
 import '../local_data.dart';
+import '../lod_panel_state.dart';
+import '../lod_screen_fraction.dart';
 import '../material_editing.dart';
 import '../material_pool.dart' show clay;
 import '../mcp_bootstrap.dart';
@@ -127,6 +129,9 @@ import '../ui/keymap.dart';
 import '../ui/lathe_dialog.dart';
 import '../ui/layout_class.dart';
 import '../ui/legal_screen.dart';
+import '../ui/lod_level_viewport.dart';
+import '../ui/lod_panel.dart';
+import '../ui/lod_screen.dart';
 import '../ui/material_studio_dialog.dart';
 import '../ui/measurement_report_overlay.dart';
 import '../ui/modeler_keys.dart';
@@ -174,6 +179,7 @@ part 'device.dart';
 part 'files.dart';
 part 'game_preview_wiring.dart';
 part 'interactions.dart';
+part 'lod_wiring.dart';
 part 'morphs_wiring.dart';
 part 'pro_modes_wiring.dart';
 part 'ready_parts.dart';
@@ -372,6 +378,10 @@ class _ModelerScreenState extends State<ModelerScreen>
   /// `pro-uv-07`'s own panel state, and the last reading of the mesh — see
   /// [UvPanelState] and `screen/uv_wiring.dart`.
   final UvPanelState _uv = UvPanelState();
+
+  /// `pro-lod-04`: whether screen 17 is up, and the simplified meshes it
+  /// draws — see [LodPanelState] and `screen/lod_wiring.dart`.
+  final LodPanelState _lod = LodPanelState();
 
   /// `pro-rt-07`'s own panel state — see [RetopoPanelState].
   final RetopoPanelState _retopo = RetopoPanelState();

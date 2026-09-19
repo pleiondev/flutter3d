@@ -100,4 +100,36 @@ void main() {
       expect(back, closeTo(diameter, 1e-9));
     });
   });
+
+  group('lodLevelAt', () {
+    test('takes the coarsest level the size still allows', () {
+      // Thresholds at a half and a quarter of the screen: an object at a
+      // fifth is under both, and the engine draws the one with the smaller
+      // threshold — the coarser mesh. Mutation: take the first that
+      // qualifies. A distant object is then drawn with the finer level for
+      // as long as it is on screen, which is the cost LODs exist to avoid.
+      expect(lodLevelAt(const <double>[0.5, 0.25], 0.2), 1);
+      expect(lodLevelAt(const <double>[0.5, 0.25], 0.3), 0);
+    });
+
+    test('an object bigger than every threshold is the full mesh', () {
+      // Mutation: answer the largest threshold's level instead, which is
+      // what `LodGroup.select` does over *its* list — but its list has the
+      // full mesh in it, and a project's levels do not: they are extra
+      // surfaces beside the base.
+      expect(lodLevelAt(const <double>[0.5, 0.25], 0.8), isNull);
+      expect(lodLevelAt(const <double>[], 0.1), isNull);
+    });
+
+    test('does not need the levels in order', () {
+      // `AddLod` appends in whatever order a person adds.
+      expect(lodLevelAt(const <double>[0.1, 0.5, 0.25], 0.2), 2);
+    });
+
+    test('a threshold is inclusive, the way the engine reads it', () {
+      // `LodGroup.select` breaks on `fraction > threshold`, so exactly on
+      // the line is still the coarser side of it.
+      expect(lodLevelAt(const <double>[0.25], 0.25), 0);
+    });
+  });
 }
