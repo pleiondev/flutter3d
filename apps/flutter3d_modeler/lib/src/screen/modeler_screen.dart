@@ -49,6 +49,7 @@ import 'package:vector_math/vector_math.dart' as vm;
 import '../../l10n/app_localizations.dart';
 import '../animation_wiring.dart';
 import '../app_config.dart';
+import '../app_version.dart';
 import '../autosaving.dart';
 import '../cabinet_link.dart';
 import '../churn_run.dart';

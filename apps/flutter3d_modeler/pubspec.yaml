@@ -1,7 +1,7 @@
 name: flutter3d_modeler
 description: "A modeller for flutter3d: open a model, edit its mesh and materials, export what a game can load."
 publish_to: 'none'
-version: 0.1.0+1
+version: 0.7.0+1
 resolution: workspace
 
 environment:

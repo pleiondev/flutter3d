@@ -15,6 +15,7 @@ library;
 import 'package:flutter/material.dart';
 
 import '../../../l10n/app_localizations.dart';
+import '../app_version.dart';
 import '../legal/legal_document.dart';
 import '../legal/legal_library.dart';
 import '../legal/legal_view.dart';
@@ -165,7 +166,24 @@ class _Body extends StatelessWidget {
                 : Row(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: <Widget>[
-                      SizedBox(width: 240, child: list),
+                      // The version is under the list rather than in it: a
+                      // list that scrolls takes its last row out of the
+                      // tree, and "which build is this" is the row a
+                      // person opens the screen for while holding a bug.
+                      SizedBox(
+                        width: 240,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: <Widget>[
+                            Expanded(child: list),
+                            const Divider(height: 1),
+                            const Padding(
+                              padding: EdgeInsets.fromLTRB(16, 8, 12, 8),
+                              child: _VersionLine(),
+                            ),
+                          ],
+                        ),
+                      ),
                       const VerticalDivider(width: 1),
                       Expanded(child: text),
                     ],
@@ -218,6 +236,8 @@ class _Chooser extends StatelessWidget {
             ),
             const SizedBox(height: 8),
             const _ThirdPartyButton(),
+            const SizedBox(height: 8),
+            const _VersionLine(),
           ],
         ),
       );
@@ -267,7 +287,29 @@ class _ThirdPartyButton extends StatelessWidget {
       onPressed: () => showLicensePage(
         context: context,
         applicationName: 'flutter3d Modeler',
+        applicationVersion: kModelerVersion,
         applicationLegalese: '© 2026 Dmitrii Zolotov. MIT licence.',
+      ),
+    );
+  }
+}
+
+/// "Version 0.7.0+1" — the build a person is looking at, on the one screen
+/// that is about what this build is.
+///
+/// Plain text: the bug report already carries the version without being
+/// asked to, so nothing here needs to be copied out.
+class _VersionLine extends StatelessWidget {
+  const _VersionLine();
+
+  @override
+  Widget build(BuildContext context) {
+    final ThemeData theme = Theme.of(context);
+    return Text(
+      AppLocalizations.of(context).aboutVersion(kModelerVersion),
+      key: const ValueKey<String>('aboutVersion'),
+      style: theme.textTheme.bodySmall?.copyWith(
+        color: theme.colorScheme.onSurfaceVariant,
       ),
     );
   }

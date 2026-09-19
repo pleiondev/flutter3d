@@ -13,6 +13,7 @@ import 'package:flutter3d_app/flutter3d_app.dart' show BinaryStorage, Storage;
 import 'package:flutter3d_model_core/flutter3d_model_core.dart'
     show recoveryPathFor;
 import 'package:flutter3d_modeler/l10n/app_localizations.dart';
+import 'package:flutter3d_modeler/src/app_version.dart';
 import 'package:flutter3d_modeler/src/legal/legal_document.dart';
 import 'package:flutter3d_modeler/src/legal/legal_library.dart';
 import 'package:flutter3d_modeler/src/legal/legal_view.dart';
@@ -262,6 +263,37 @@ void main() {
       // the only way to reach five of the six.
       expect(find.text('Privacy Policy'), findsOneWidget);
       expect(find.text('End User Licence Agreement'), findsNothing);
+    });
+
+    testWidgets('says which build this is, in both shapes and both languages', (
+      WidgetTester tester,
+    ) async {
+      addTearDown(tester.view.reset);
+      Future<void> pump(Size size, Locale locale) async {
+        tester.view
+          ..physicalSize = size
+          ..devicePixelRatio = 1.0;
+        await tester.pumpWidget(
+          MaterialApp(
+            locale: locale,
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
+            home: Scaffold(body: LegalScreen(bundle: _Bundle())),
+          ),
+        );
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 50));
+      }
+
+      // Mutation: leave the line out of the stacked layout, which is the one
+      // a phone gets. The version is then on a desktop and nowhere a person
+      // holding the thing that has the bug can read it.
+      await pump(const Size(1400, 900), const Locale('en'));
+      expect(find.text('Version $kModelerVersion'), findsOneWidget);
+      await pump(const Size(400, 800), const Locale('en'));
+      expect(find.text('Version $kModelerVersion'), findsOneWidget);
+      await pump(const Size(1400, 900), const Locale('ru'));
+      expect(find.text('Версия $kModelerVersion'), findsOneWidget);
     });
 
     testWidgets('a link is handed out rather than followed', (
