@@ -108,6 +108,12 @@ restores an undo stack a file carries.
 calls. `modelling_strategy` is the one prompt, with no arguments. The server
 offers no resources.
 
+**The server says the version it is.** `modelMcpVersion`, which a client sees
+in the handshake and a log quotes back, was the constant `'0.1.0'` while the
+package carried 0.6.0 and then 0.7.0. It is `'0.7.0'`, and a test reads the
+pubspec and holds the two together. `inspect`'s description ended "No picture
+yet", which stopped being true when `render` arrived; it points at `render`.
+
 **Still Dart only.** Dependencies are `flutter3d_model_core`,
 `flutter3d_core`, `flutter3d_mesh`, `flutter3d_cpu`, `flutter3d_hardware` and
 `flutter3d_mcp_kit` at `^0.7.0`, with `dart_mcp`, `stream_channel` and

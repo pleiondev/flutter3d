@@ -6,8 +6,13 @@ import 'model_session.dart';
 import 'model_tools.dart';
 import 'render_tool.dart';
 
-/// The version this server tells a client it is. Kept beside the pubspec's.
-const String modelMcpVersion = '0.1.0';
+/// The version this server tells a client it is: the pubspec's.
+///
+/// A constant, because a compiled server has no pubspec to read. It said
+/// 0.1.0 while the package moved through 0.6.0 to 0.7.0, since "kept beside
+/// the pubspec's" was a comment and nothing checked it;
+/// `server_version_test.dart` does now.
+const String modelMcpVersion = '0.7.0';
 
 /// [tool]'s own [Answer], carried into a [PictureAnswer] with a null `png` —
 /// every tool in [modelTools] answers this way; [renderTool] (`mcp-06n`) is
