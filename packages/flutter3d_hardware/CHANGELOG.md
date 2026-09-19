@@ -65,6 +65,11 @@ unaffected.
 makes, takes `maxColorAttachments` in its constructor with a default of 2, and
 `supportsOffscreenMsaa` is a field a test can set to false.
 
+**The archive carries a skill.** `skills/flutter3d-hardware-backend-contract/`
+is a `SKILL.md` for a coding agent that writes a backend or calls
+`GraphicsDevice` directly. A project depending on this package installs it
+with `dart run skills@ get`.
+
 ## 0.6.0
 
 * **Nothing of its own changed.** Every file under `lib/` is byte for byte what

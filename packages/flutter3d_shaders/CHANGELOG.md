@@ -48,6 +48,10 @@
   had and is what the engine sends by default.
 * `post/bloom_upsample.frag` tints its wide levels and leaves the core the
   colour of the highlight.
+* The archive carries a skill for a coding agent,
+  `skills/flutter3d-shaders-one-copy/`, about the manifest as the contract and
+  the three rules the sources are written under. `dart run skills@ get`
+  installs it.
 
 ## 0.6.0
 

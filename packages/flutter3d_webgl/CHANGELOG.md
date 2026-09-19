@@ -27,6 +27,11 @@ throws `UnsupportedError` from `beginRenderPass`.
 `Splat` and `PolylineVertex`, and the regenerated `Composite`, `BloomUpsample`,
 shadow and surface stages. No Dart in the device changed for them.
 
+**The archive carries a skill**, `skills/flutter3d-webgl-browser-backend/`,
+about opening the device, the generated shader map, browser tests and the
+bugs that only show up in a browser. `dart run skills@ get` installs it for a
+coding agent.
+
 ## 0.6.0
 
 * **The generated shader table is rebuilt against `flutter3d_shaders` 0.6.0.**

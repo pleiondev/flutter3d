@@ -41,7 +41,15 @@ than the answer throws `UnsupportedError` from `beginRenderPass` instead.
 
 **The bundle holds the engine's ten new stages** and the changed `Composite`,
 `BloomUpsample`, shadow and surface sources, compiled from `flutter3d_shaders`
-0.7.0. No Dart in this package changed for them.
+0.7.0. No Dart in this package changed for them. One of those sources is a
+fix that matters on this backend alone: `shadow_depth.frag` no longer
+declares `FogInfo`, a block it never read, which on Vulkan collided with the
+vertex stage's first binding and had a Galaxy A55 refuse the pipeline.
+
+**The archive carries two skills** for a coding agent,
+`skills/flutter3d-impeller-shader-bundle/` and
+`skills/flutter3d-impeller-driver-crash/`, the second about a build that dies
+on one device and not the others. `dart run skills@ get` installs them.
 
 ## 0.6.0
 

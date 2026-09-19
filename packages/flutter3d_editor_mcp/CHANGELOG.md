@@ -16,6 +16,11 @@ The same seventeen tools, on the server the other two share.
   their schemas and their sentences, and a refusal is still an error result
   and not a thrown exception. This server passes the kit no `refusal`, so
   argument checking is `dart_mcp`'s own as before.
+* **The three skills are renamed.** `editing-order`, `level-document` and
+  `what-it-refuses` under `skills/` each gained the prefix
+  `flutter3d-editor-mcp-`. `dart run skills@ get` skips a skill whose directory
+  does not start with its package's name, and a project that depends on
+  several packages can tell whose `editing-order` it is looking at.
 * `flutter3d_mcp_kit` `^0.7.0` is a new dependency; the floors on
   `flutter3d_editor_core` and `flutter3d_sim` are `^0.7.0`. Still plain Dart,
   and `dart run flutter3d_editor_mcp:editor_mcp <level.json>` still resolves

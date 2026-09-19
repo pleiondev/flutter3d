@@ -36,6 +36,11 @@ declined check already did. Headless Chrome on a CI runner has `navigator.gpu`
 and hands out no adapter, which is nothing a check could have been asked
 about. Any other exception from the factory is still a failure.
 
+**The archive carries a skill** for a coding agent,
+`skills/flutter3d-conformance-running-the-suite/`, about the suite that says a
+backend is finished and how declining differs from passing.
+`dart run skills@ get` installs it.
+
 ## 0.6.0
 
 * **A device factory may now answer with a `Future`.** `DeviceFactory` returns

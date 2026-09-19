@@ -37,6 +37,10 @@ shadow and surface stages. `engine_shaders_test.dart` now holds the table to
 `kRequiredShaders` instead of to counts written as literals, which had gone
 stale the first time a pass was added.
 
+**The archive carries a skill**, `skills/flutter3d-webgpu-two-barrels/`, about
+which of the two libraries to import, the shader toolchain flags and what the
+device declines. `dart run skills@ get` installs it for a coding agent.
+
 ## 0.6.0
 
 **The first release, and it takes the set's number rather than a first number of
