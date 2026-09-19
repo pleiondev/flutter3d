@@ -169,7 +169,7 @@ copy, and is the bridge into the widget tree.
 
 ## 3. The package map
 
-Thirty-six packages and eight applications in one pub workspace — one
+Thirty-six packages and nine applications in one pub workspace — one
 `flutter pub get` for the repository.
 
 ### 3.1 The layering rule
@@ -234,7 +234,7 @@ Applications: `apps/flutter3d_demo_dungeon` (shooter),
 `apps/flutter3d_demo_strategy`, `apps/flutter3d_editor` (level editor),
 `apps/flutter3d_modeler` (the modeller), and `apps/flutter3d_lesson_viewer`,
 `apps/flutter3d_stereo_lesson_viewer` and `apps/flutter3d_lab_pendulum` (the
-lessons) — eight applications, which is the count the workspace list is held
+lessons) — nine applications, which is the count the workspace list is held
 to. A new project starts from a package's example rather than an application of
 its own: `packages/flutter3d_app/example` is an application on the engine and
 nothing else, `packages/flutter3d_game/example` is a level to walk around and is
@@ -1928,7 +1928,7 @@ entities a game defines.
 |---|---|
 | Style | `dart format` |
 | Analysis | `flutter analyze` clean across the workspace, no warnings |
-| Unit tests | **9464 tests** across 36 packages and 8 applications |
+| Unit tests | **9464 tests** across 36 packages and 9 applications |
 | Structure rules | 35, `dart run tool/structure.dart`, the first CI step |
 | CI | GitHub Actions over `tool/ci.sh`, on `ubuntu-latest`, with no graphics card |
 
@@ -2760,7 +2760,29 @@ went to pub.dev at 0.4.0 under the
 internet" — came out of the packages that day; the workspace root, the
 applications and the example apps keep theirs, being repository-only by design.
 
-**0.6.0 is the shelf, not the list of packages that happened to change**, and
+**0.7.0 is the shelf the tree carries, and it is not on pub.dev yet.** Thirty-three
+of the thirty-six packages are 0.7.0 and every constraint one of them puts on
+another is `^0.7.0`. What changed since 0.6.0 is which packages there are, more
+than what is in them: seven were folded into others, four names that pub.dev has
+at 0.6.0 no longer have code behind them (`flutter3d_backend`,
+`flutter3d_screens`, `flutter3d_session`, `flutter3d_bridge`) and are marked
+`discontinued` with a `replaced_by` on the day of publication, and thirteen go
+out for the first time. [`doc/boundary-0.7.0.md`](doc/boundary-0.7.0.md) is the
+account of all of it, import line by import line.
+
+Four of the thirteen carried 0.1.0, 0.1.1 or 0.3.0 and take 0.7.0 with the rest,
+for the reason the next paragraph gives for 0.6.0: a constraint has to cover what
+the sibling declares, twelve packages had `^0.1.0` on `flutter3d_core`, and a
+shelf at four numbers names no combination anything ever resolved.
+
+**Prepared and published are two days, on purpose.** `rel-06`, the publication,
+is held behind `rel-16`, five to ten people walking the modeller's tutorial
+against a clock, and the owner kept that gate on 2026-09-19. The modeller goes to
+`models.pleion.dev` first, because that is where the cohort walks it; the tiers
+below go out after, and the tag `v0.7.0` is put on the commit that was published
+rather than on the one that was ready.
+
+**0.6.0 was the shelf, not the list of packages that happened to change**, and
 the reason is mechanical before it is aesthetic. `every package agrees about
 versions with the workspace` requires a constraint to *cover* what the sibling
 declares, and `^0.5.2` does not reach 0.6.0 — so a single package moving forces
@@ -2785,13 +2807,12 @@ script and two reference pictures; `flutter3d_cpu`'s two pictures;
 `flutter3d_game_racing`'s determinism note), and fourteen are byte for byte what
 pub.dev already has and move so that one number names one tree.
 
-**`flutter3d_game_strategy` carries 0.6.0 in this checkout and does not go out.**
-Its stockpile and its delivery count were lists of exactly two, one per side, so
-its types encoded how many sides a game may have; that is fixed, and what it
-waits for now is its own acceptance rather than a release. Being in the
-publishing order and being published are different things, and this is the entry
-that makes the difference visible. After 0.6.0 it is the one package of
-twenty-eight that is not on pub.dev.
+**`flutter3d_game_strategy` sat out 0.6.0 and goes out with 0.7.0.** Its
+stockpile and its delivery count were lists of exactly two, one per side, so its
+types encoded how many sides a game may have. That was fixed before 0.6.0 and
+the package was held for its own acceptance, which made it the entry showing
+that being in the publishing order and being published are different things. It
+is one of the thirteen now.
 
 **Three packages keep lines of their own, and it is not an oversight.**
 `pad_input` and `pointer_lock` are plugins this repository vendors: neither
@@ -2806,7 +2827,7 @@ what went out at 0.4.2.
 - **Licence: MIT**, `Copyright (c) 2026 Dmitrii Zolotov`. One `LICENSE` at the root
   and a copy in every package, because pub wants the file inside the archive.
 - `LICENSE`, `CHANGELOG.md`, `README.md`, `repository:` and `homepage:` in all
-  twenty-eight packages, the four unpublished ones included — `pub publish
+  thirty-six packages, the thirteen unpublished ones included — `pub publish
   --dry-run` is what `tool/publish_check.sh` asks of every one of them, so a
   package is ready on the day it is written rather than on release day.
 - **`dart format` is a CI step**, second in the order and reported by
@@ -2870,8 +2891,8 @@ floor `ui-27`'s first step had already promised ahead of time, precisely so
 this dependency would land without moving the package once it did.
 
 **The applications are not packages.** `apps/` keeps its path dependencies: four
-demo games, an editor and a template are things to clone, not things to depend
-on.
+demo games, two editors and three lesson viewers are things to clone, not things
+to depend on.
 
 **Most packages have no `example/`.** pub scores a package higher with one, and an
 example nobody runs is worse than none. `packages/pad_input/example` exists because
