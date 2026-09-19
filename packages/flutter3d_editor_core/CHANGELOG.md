@@ -33,7 +33,9 @@
   every binding an `edu_step` declares, keyed by target, as `ActiveBinding`s,
   which is what an inspector needs to know before it draws a property as
   read-only because a data source will overwrite it.
-* Still plain Dart. The floor on `flutter3d_sim` is `^0.7.0`.
+* Still plain Dart. The floor on `flutter3d_sim` is `^0.7.0`. The archive
+  carries `skills/flutter3d-editor-core-editing-a-level/` for a coding agent,
+  installed with `dart run skills@ get`.
 
 ## 0.6.0
 

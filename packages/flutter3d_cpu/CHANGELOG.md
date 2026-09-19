@@ -55,6 +55,10 @@ widen a directional shadow's edge with the distance to its caster. The engine
 leaves each of these off or at zero by default, and the default tone curve is
 the one 0.6.0 had.
 
+**The archive carries a skill**, `skills/flutter3d-cpu-rendering-in-a-test/`,
+about drawing a frame with no GPU through `CpuDevice`, `encodePng` and
+`compareFrames`. `dart run skills@ get` installs it for a coding agent.
+
 ## 0.6.0
 
 * **Two reference pictures, and no code.** `cube-shadow-crowded` and

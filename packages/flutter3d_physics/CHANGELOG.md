@@ -23,7 +23,9 @@ give the same output.
 
 **Nothing else moved.** Shapes, the broadphase, queries and the character
 controller are byte for byte 0.6.0's, and the package still depends on
-`vector_math` and no sibling.
+`vector_math` and no sibling. The archive carries a skill for a coding agent,
+`skills/flutter3d-physics-walking-and-queries/`, installed with
+`dart run skills@ get`.
 
 ## 0.6.0
 
