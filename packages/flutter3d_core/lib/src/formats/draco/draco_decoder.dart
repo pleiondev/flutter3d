@@ -234,19 +234,35 @@ _Connectivity _decodeSequentialConnectivity(DracoBuffer buffer) {
 }
 
 /// Draco's `DataType`, as far as an attribute can have one.
-enum _DataType {
-  int8(1, integral: true),
-  uint8(1, integral: true),
-  int16(2, integral: true),
-  uint16(2, integral: true),
-  int32(4, integral: true),
-  uint32(4, integral: true),
-  float32(4, integral: false);
+///
+/// Const instances that each know how to read themselves, rather than an enum
+/// and a `switch` somewhere else: the only thing ever asked of a data type is
+/// "how wide, and what is the value at this offset".
+final class _DataType {
+  const _DataType._(this.bytes, this.read, {required this.integral});
 
-  const _DataType(this.bytes, {required this.integral});
+  static const int8 = _DataType._(1, _int8, integral: true);
+  static const uint8 = _DataType._(1, _uint8, integral: true);
+  static const int16 = _DataType._(2, _int16, integral: true);
+  static const uint16 = _DataType._(2, _uint16, integral: true);
+  static const int32 = _DataType._(4, _int32, integral: true);
+  static const uint32 = _DataType._(4, _uint32, integral: true);
+  static const float32 = _DataType._(4, _float32, integral: false);
 
   final int bytes;
   final bool integral;
+
+  /// The value at a byte offset of a raw, little-endian attribute buffer.
+  final num Function(ByteData raw, int at) read;
+
+  static num _int8(ByteData raw, int at) => raw.getInt8(at);
+  static num _uint8(ByteData raw, int at) => raw.getUint8(at);
+  static num _int16(ByteData raw, int at) => raw.getInt16(at, Endian.little);
+  static num _uint16(ByteData raw, int at) => raw.getUint16(at, Endian.little);
+  static num _int32(ByteData raw, int at) => raw.getInt32(at, Endian.little);
+  static num _uint32(ByteData raw, int at) => raw.getUint32(at, Endian.little);
+  static num _float32(ByteData raw, int at) =>
+      raw.getFloat32(at, Endian.little);
 
   static _DataType fromCode(int code) => switch (code) {
     1 => int8,
@@ -268,26 +284,40 @@ enum _DataType {
 
 /// Draco's `SequentialAttributeEncoderType`: how an attribute's values were
 /// turned into the integers the stream stores.
-enum _Coding {
-  /// Not turned into anything: raw little-endian values.
-  generic,
-
-  /// Integers already, stored as they are.
-  integer,
-
-  /// Floats, fitted into a box and rounded to so many bits.
-  quantization,
-
-  /// Unit vectors, as two octahedral coordinates.
-  normals;
+///
+/// Sealed, so that the three places that branch on it — reading the values,
+/// reading the transform's parameters, undoing the transform — are each held
+/// to all four by the compiler.
+sealed class _Coding {
+  const _Coding();
 
   static _Coding fromCode(int code) => switch (code) {
-    0 => generic,
-    1 => integer,
-    2 => quantization,
-    3 => normals,
+    0 => const _Generic(),
+    1 => const _Integer(),
+    2 => const _Quantization(),
+    3 => const _Normals(),
     _ => _fail('attribute decoder type $code is not decoded here'),
   };
+}
+
+/// Not turned into anything: raw little-endian values.
+final class _Generic extends _Coding {
+  const _Generic();
+}
+
+/// Integers already, stored as they are.
+final class _Integer extends _Coding {
+  const _Integer();
+}
+
+/// Floats, fitted into a box and rounded to so many bits.
+final class _Quantization extends _Coding {
+  const _Quantization();
+}
+
+/// Unit vectors, as two octahedral coordinates.
+final class _Normals extends _Coding {
+  const _Normals();
 }
 
 /// One attribute, from its descriptor to its integers.
@@ -313,7 +343,7 @@ final class _Attribute {
   /// [portableComponents] per stored value.
   late final Int32List portable;
 
-  /// Raw values, for [_Coding.generic] only.
+  /// Raw values, for [_Generic] only.
   late final ByteData raw;
 
   /// Quantisation, read after every attribute's integers — the stream puts
@@ -324,7 +354,7 @@ final class _Attribute {
 
   /// How many integers a stored value takes, which is *not* how many floats it
   /// becomes: a normal is two octahedral coordinates and three components.
-  int get portableComponents => coding == _Coding.normals ? 2 : components;
+  int get portableComponents => coding is _Normals ? 2 : components;
 }
 
 /// Where one attribute decoder's values go — the order they are stored in and
@@ -459,7 +489,7 @@ Map<int, DracoAttribute> _decodeAttributes(
       for (var i = 0; i < decoders[d].length; i++)
         if (decoders[d][i].type == DracoAttributeType.position &&
             decoders[d][i].components == 3 &&
-            decoders[d][i].coding != _Coding.generic)
+            decoders[d][i].coding is! _Generic)
           (d, i),
   ].firstOrNull;
 
@@ -533,7 +563,7 @@ void _decodeValues(
   _Layout layout,
   ParentPositions? positions,
 ) {
-  if (attribute.coding == _Coding.generic) {
+  if (attribute.coding is _Generic) {
     // `SequentialAttributeDecoder::DecodeValues`: no integers, no prediction,
     // the attribute's own bytes one value after another.
     final size =
@@ -641,7 +671,7 @@ void _checkScheme(
 ) {
   if (method == _predictionNone) return;
 
-  final isNormal = attribute.coding == _Coding.normals;
+  final isNormal = attribute.coding is _Normals;
   if (transformType !=
       (isNormal ? _transformNormalOctahedronCanonicalized : _transformWrap)) {
     throw DracoException(
@@ -709,10 +739,10 @@ void _checkScheme(
 
 void _decodeTransformData(DracoBuffer buffer, _Attribute attribute) {
   switch (attribute.coding) {
-    case _Coding.generic || _Coding.integer:
+    case _Generic() || _Integer():
       return;
     // Quantisation: the box the values were fitted into, then how finely.
-    case _Coding.quantization:
+    case _Quantization():
       attribute
         ..minValues = Float32List.fromList(<double>[
           for (var i = 0; i < attribute.components; i++) buffer.readFloat32(),
@@ -723,7 +753,7 @@ void _decodeTransformData(DracoBuffer buffer, _Attribute attribute) {
         _fail('${attribute.quantizationBits}-bit quantisation');
       }
     // Normals: one byte saying how finely the octahedron was divided.
-    case _Coding.normals:
+    case _Normals():
       attribute.quantizationBits = buffer.readUint8();
       if (attribute.quantizationBits < 2 || attribute.quantizationBits > 30) {
         _fail('${attribute.quantizationBits}-bit octahedral quantisation');
@@ -768,26 +798,18 @@ DracoAttribute _toPoints(_Attribute attribute, _Layout layout, int pointCount) {
 List<num> _storedValues(_Attribute attribute, int entries) {
   final components = attribute.components;
   switch (attribute.coding) {
-    case _Coding.generic:
+    case _Generic():
       final raw = attribute.raw;
       final type = attribute.dataType;
       return <num>[
         for (var i = 0; i < entries * components; i++)
-          switch (type) {
-            _DataType.int8 => raw.getInt8(i),
-            _DataType.uint8 => raw.getUint8(i),
-            _DataType.int16 => raw.getInt16(i * 2, Endian.little),
-            _DataType.uint16 => raw.getUint16(i * 2, Endian.little),
-            _DataType.int32 => raw.getInt32(i * 4, Endian.little),
-            _DataType.uint32 => raw.getUint32(i * 4, Endian.little),
-            _DataType.float32 => raw.getFloat32(i * 4, Endian.little),
-          },
+          type.read(raw, i * type.bytes),
       ];
 
-    case _Coding.integer:
+    case _Integer():
       return attribute.portable;
 
-    case _Coding.quantization:
+    case _Quantization():
       // `maxQuantized` steps across `range`, from the box's minimum corner.
       final out = Float32List(entries * components);
       final step = attribute.range / ((1 << attribute.quantizationBits) - 1);
@@ -797,7 +819,7 @@ List<num> _storedValues(_Attribute attribute, int entries) {
       }
       return out;
 
-    case _Coding.normals:
+    case _Normals():
       // Normals leave octahedral space here, which is where two integers
       // become three floats.
       final box = OctahedronToolBox(attribute.quantizationBits);
