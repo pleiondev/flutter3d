@@ -7,8 +7,12 @@ library;
 import 'package:flutter3d_showcase/src/demo/demo.dart';
 
 import 'actors.dart';
+import 'audio_buses.dart';
+import 'audio_occlusion.dart';
+import 'audio_rolloff.dart';
 import 'automap.dart';
 import 'baked_visibility.dart';
+import 'blended_engine_loop.dart';
 import 'camera_shake.dart';
 import 'difficulty.dart';
 import 'ecs_world.dart';
@@ -21,11 +25,13 @@ import 'light_fixtures.dart';
 import 'lightmap_bake.dart';
 import 'nav_grid.dart';
 import 'portable_math.dart';
+import 'positional_audio.dart';
 import 'replay_digest.dart';
 import 'rewind.dart';
 import 'splines.dart';
 import 'step_systems.dart';
 import 'terrain_tiles.dart';
+import 'voice_limit.dart';
 
 final Map<String, DemoBuilder> simAudioXrDemos = <String, DemoBuilder>{
   'fixed-step': FixedStepDemo.new,
@@ -48,4 +54,10 @@ final Map<String, DemoBuilder> simAudioXrDemos = <String, DemoBuilder>{
   'actors': ActorsDemo.new,
   'camera-shake': CameraShakeDemo.new,
   'difficulty': DifficultyDemo.new,
+  'positional-audio': PositionalAudioDemo.new,
+  'audio-rolloff': AudioRolloffDemo.new,
+  'audio-buses': AudioBusesDemo.new,
+  'voice-limit': VoiceLimitDemo.new,
+  'audio-occlusion': AudioOcclusionDemo.new,
+  'blended-engine-loop': BlendedEngineLoopDemo.new,
 };
