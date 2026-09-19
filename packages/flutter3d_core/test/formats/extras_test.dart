@@ -1,8 +1,8 @@
 /// `fmt-19`: `extras` on node/material/skin/clip/document, and
 /// `TextureBinding.transform` from `KHR_texture_transform` — carried
-/// through a decode → write → decode round trip, not applied to anything
-/// that draws (the existing "not applied" warning stays exactly where it
-/// was).
+/// through a decode → write → decode round trip. The decoder applies nothing;
+/// whoever draws the surface moves its coordinates, and the tests for that are
+/// in `texture_transform_bake_test.dart`.
 ///
 ///     dart test test/extras_test.dart
 library;
@@ -199,81 +199,80 @@ void main() {
   });
 
   group('TextureBinding.transform from KHR_texture_transform', () {
-    test('is carried through, and the "not applied" warning stays', () async {
-      final source = await GltfLoader().load(_sample('BoxTextured.glb'));
-      final material = source.materials.first;
-      final texture = material.baseColorTexture!;
+    test(
+      'is carried through, and one a consumer can honour is no warning',
+      () async {
+        final source = await GltfLoader().load(_sample('BoxTextured.glb'));
+        final material = source.materials.first;
+        final texture = material.baseColorTexture!;
 
-      final transformedTexture = TextureBinding(
-        imageIndex: texture.imageIndex,
-        texCoordSet: texture.texCoordSet,
-        sampling: texture.sampling,
-        transform: TextureTransform(
-          offset: Vector2(0.25, 0.5),
-          scale: Vector2(2.0, 3.0),
-          rotation: 0.7853981633974483, // pi/4
-        ),
-      );
-      final withTransform = SurfaceMaterial(
-        name: material.name,
-        baseColor: material.baseColor,
-        metallic: material.metallic,
-        roughness: material.roughness,
-        baseColorTexture: transformedTexture,
-        metallicRoughnessTexture: material.metallicRoughnessTexture,
-        normalTexture: material.normalTexture,
-        normalScale: material.normalScale,
-        occlusionTexture: material.occlusionTexture,
-        occlusionStrength: material.occlusionStrength,
-        emissiveTexture: material.emissiveTexture,
-        emissive: material.emissive,
-        emissiveStrength: material.emissiveStrength,
-        alphaMode: material.alphaMode,
-        alphaCutoff: material.alphaCutoff,
-        doubleSided: material.doubleSided,
-        unlit: material.unlit,
-      );
+        final transformedTexture = TextureBinding(
+          imageIndex: texture.imageIndex,
+          texCoordSet: texture.texCoordSet,
+          sampling: texture.sampling,
+          transform: TextureTransform(
+            offset: Vector2(0.25, 0.5),
+            scale: Vector2(2.0, 3.0),
+            rotation: 0.7853981633974483, // pi/4
+          ),
+        );
+        final withTransform = SurfaceMaterial(
+          name: material.name,
+          baseColor: material.baseColor,
+          metallic: material.metallic,
+          roughness: material.roughness,
+          baseColorTexture: transformedTexture,
+          metallicRoughnessTexture: material.metallicRoughnessTexture,
+          normalTexture: material.normalTexture,
+          normalScale: material.normalScale,
+          occlusionTexture: material.occlusionTexture,
+          occlusionStrength: material.occlusionStrength,
+          emissiveTexture: material.emissiveTexture,
+          emissive: material.emissive,
+          emissiveStrength: material.emissiveStrength,
+          alphaMode: material.alphaMode,
+          alphaCutoff: material.alphaCutoff,
+          doubleSided: material.doubleSided,
+          unlit: material.unlit,
+        );
 
-      final annotated = PlainModelDocument(
-        surfaces: source.surfaces,
-        materials: <SurfaceMaterial>[
-          withTransform,
-          ...source.materials.skip(1),
-        ],
-        images: source.images,
-        nodes: source.nodes,
-      );
+        final annotated = PlainModelDocument(
+          surfaces: source.surfaces,
+          materials: <SurfaceMaterial>[
+            withTransform,
+            ...source.materials.skip(1),
+          ],
+          images: source.images,
+          nodes: source.nodes,
+        );
 
-      final bytes = GltfWriter(annotated).writeGlb();
-      final readBack = await GltfLoader().load(bytes);
+        final bytes = GltfWriter(annotated).writeGlb();
+        final readBack = await GltfLoader().load(bytes);
 
-      final readTransform =
-          readBack.materials.first.baseColorTexture!.transform;
-      expect(readTransform, isNotNull);
-      // Mutation: read `offset`/`scale` swapped, or drop `rotation` — any of
-      // these three numbers wrong is exactly what this line catches.
-      expect(readTransform!.offset.x, closeTo(0.25, 1e-6));
-      expect(readTransform.offset.y, closeTo(0.5, 1e-6));
-      expect(readTransform.scale.x, closeTo(2.0, 1e-6));
-      expect(readTransform.scale.y, closeTo(3.0, 1e-6));
-      expect(readTransform.rotation, closeTo(0.7853981633974483, 1e-9));
+        final readTransform =
+            readBack.materials.first.baseColorTexture!.transform;
+        expect(readTransform, isNotNull);
+        // Mutation: read `offset`/`scale` swapped, or drop `rotation` — any of
+        // these three numbers wrong is exactly what this line catches.
+        expect(readTransform!.offset.x, closeTo(0.25, 1e-6));
+        expect(readTransform.offset.y, closeTo(0.5, 1e-6));
+        expect(readTransform.scale.x, closeTo(2.0, 1e-6));
+        expect(readTransform.scale.y, closeTo(3.0, 1e-6));
+        expect(readTransform.rotation, closeTo(0.7853981633974483, 1e-9));
 
-      // The row's own second acceptance line: the warning stays, because
-      // nothing anywhere samples through this transform yet.
-      //
-      // Mutation: delete the warning now that the data is carried — reads
-      // as "fixed" until a renderer actually applies it, which is not this
-      // row.
-      expect(
-        readBack.warnings.any(
-          (w) =>
-              w.contains('KHR_texture_transform') &&
-              w.contains('no offset, scale or rotation is applied'),
-        ),
-        isTrue,
-        reason: readBack.warnings.join('\n'),
-      );
-    });
+        // This row's second acceptance line used to be that a warning stayed,
+        // because nothing sampled through the transform. Something does now:
+        // `ModelAsset` moves the coordinates of a surface whose material
+        // gives every texture one transform, which this material does, having
+        // one texture. The warning that remains is for textures that
+        // disagree, and `gltf_test.dart` holds that one.
+        expect(
+          readBack.warnings.where((w) => w.contains('KHR_texture_transform')),
+          isEmpty,
+          reason: readBack.warnings.join('\n'),
+        );
+      },
+    );
 
     test('a texture with none of this reads back with a null transform, '
         'and the file gains no unasked-for extension', () async {

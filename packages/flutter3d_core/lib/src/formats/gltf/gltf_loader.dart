@@ -8,6 +8,7 @@ import '../animation/animation_track.dart';
 import '../asset_resolver.dart';
 import '../model_document.dart';
 import '../model_loader.dart';
+import '../texture_transform_bake.dart';
 import 'glb_container.dart';
 import 'gltf_accessor.dart';
 import 'gltf_asset.dart';
@@ -162,8 +163,11 @@ final class GltfLoader implements ModelDecoder {
     // was on this list and nothing anywhere applied a transform: an
     // atlas-packed model — the export that needs it — passed the gate and
     // then drew every material sampling the whole atlas. A file that requires
-    // it is refused here, and one that merely uses it gets a warning where
-    // its texture is read, in `_decodeMaterials`.
+    // it is still refused here, because requiring it promises every transform
+    // in the file and only some can be kept: one shared by a material's
+    // textures is honoured in the coordinates by whoever draws the surface,
+    // and textures that disagree are not, which `_decodeMaterials` warns
+    // about. A file that merely uses it loads.
     const supported = <String>{
       'KHR_materials_unlit',
       'KHR_materials_emissive_strength',

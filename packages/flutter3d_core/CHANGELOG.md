@@ -1,5 +1,15 @@
 ## Unreleased
 
+- **`KHR_texture_transform` can be honoured, in the coordinates.**
+  `sharedTextureTransform` names the one transform every texture of a material
+  asks for, and `withTextureTransform` gives a mesh with that transform applied
+  to its texture coordinates, tangents turned and mirrored with them. That is
+  the case an atlas export writes, and it needs no matrix at the sampler. The
+  decoder still applies nothing, so a document written out again is the file
+  that was read. Its warning changes: it no longer fires for every texture that
+  names the extension, only for a material whose textures name different
+  transforms, which one set of coordinates cannot satisfy. A file that lists
+  the extension under `extensionsRequired` is still refused.
 - **Accepted `flutter3d_geometry`, `flutter3d_formats` and `flutter3d_fbx`.**
   They are `package:flutter3d_core/geometry.dart` and
   `package:flutter3d_core/formats.dart` now, each importable on its own and
