@@ -26,6 +26,12 @@
   platform carries that platform's family, and a project that ships to several
   from one build cooks `universal`, which the upload turns into whatever the
   device samples.
+* **`loadModelByPath`, for a path somebody else wrote.** A level document
+  names its models by path, and a project halfway onto the pipeline has both
+  kinds: a source under `assets_src/` goes through `loadModelAsset`, and any
+  other path is read from the bundle as it stands — handing
+  `assets/models/pickup.glb` to `loadModelAsset` would ask for a converted
+  file nobody asked the hook to write.
 
 ## 0.6.0
 

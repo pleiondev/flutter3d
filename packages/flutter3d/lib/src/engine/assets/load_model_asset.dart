@@ -85,6 +85,28 @@ Future<ModelDocument> loadModelAsset(
   }
 }
 
+/// A model named by a path somebody else wrote — a level document, a
+/// vocabulary file — whichever of the two kinds of path it is.
+///
+/// A path under `assets_src/` is a source, and goes through [loadModelAsset]
+/// to the file the build hook converted it into. Any other path is already
+/// the thing to read: a level written before its project moved onto the
+/// pipeline names `assets/models/pickup.glb`, which is bundled exactly as it
+/// stands, and handing that to [loadModelAsset] would ask for a converted
+/// file nobody ever asked the hook to write. **One function rather than the
+/// same prefix test in every loader that reads a level** — the fixtures and
+/// the actors of `flutter3d_game` both do, and two copies of one decision
+/// are what comes apart at the next edit.
+///
+/// [bundleSource] is what reads the bundle in both cases; a test stands a
+/// file in for it, for the reason [loadModelAsset]'s own factories give.
+Future<ModelDocument> loadModelByPath(
+  String path, {
+  AssetSource Function(String path) bundleSource = BundleAssetSource.new,
+}) => path.startsWith(_sourceDirPrefix)
+    ? loadModelAsset(path, generatedSource: bundleSource)
+    : decodeModelInIsolate(ModelLoadRequest(source: bundleSource(path)));
+
 Future<ModelDocument> _fallback(
   String sourcePath,
   String generatedPath,
