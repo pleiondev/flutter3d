@@ -85,17 +85,15 @@ final class GltfWriter {
   /// decoding is already a property of `GltfComponentType.readDouble`, not
   /// something new.
   ///
-  /// **`EXT_meshopt_compression` — the actual meshopt bitstream (delta-coded,
-  /// byte-transposed blocks, then a byte-oriented entropy coder) — is not
-  /// implemented.** No pure-Dart implementation or port exists to depend on
-  /// (checked against pub.dev while this row was worked), and nothing in this
-  /// repository can decode a real one to check a from-scratch encoder
-  /// against — an encoder and decoder written by the same hand, with no
-  /// third party to disagree with, can share one mistake and still
-  /// round-trip clean through this package's own `GltfLoader` while still
-  /// being wrong. `GltfLoader`'s own `extensionsRequired` gate already lets
-  /// `KHR_mesh_quantization` through instead, the real, narrower Khronos
-  /// extension this row uses in its place.
+  /// **`EXT_meshopt_compression` is written through this package's own
+  /// vertex and index codecs** (`encodeMeshoptVertexBufferV0`,
+  /// `encodeMeshoptIndexBuffer` — see `_compressedVertexBufferView` and
+  /// `_compressedIndexBufferView` below), and `GltfLoader` decodes what this
+  /// writes back. `KHR_mesh_quantization` is written alongside it, on the one
+  /// attribute the meshopt codec cannot reach (`_quantizedOrFloatAccessor`'s
+  /// own doc comment says which and why); the two extensions cover different
+  /// attributes of the same primitive rather than one standing in for the
+  /// other.
   final bool compressGeometry;
 
   /// Whether [compressGeometry] actually quantized anything — some documents
