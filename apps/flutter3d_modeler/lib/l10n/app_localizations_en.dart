@@ -2155,11 +2155,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get retopoMissed => 'That click missed the high mesh';
 
   @override
-  String retopoTargetNoMesh(String name) {
-    return '“$name” has no mesh to draw onto — convert it to a mesh first';
-  }
-
-  @override
   String aboutVersion(String version) {
     return 'Version $version';
   }

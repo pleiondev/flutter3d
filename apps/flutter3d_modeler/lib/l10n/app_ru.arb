@@ -1170,15 +1170,6 @@
   },
   "retopoNeedsTwo": "Выберите исходную модель, затем с Shift — сетку, на которую ложатся квады",
   "retopoMissed": "Клик не попал в исходную модель",
-  "retopoTargetNoMesh": "У «{name}» нет сетки, на которую можно рисовать, — сначала преобразуйте его в сетку",
-  "@retopoTargetNoMesh": {
-    "description": "Почему квад не рисуется.",
-    "placeholders": {
-      "name": {
-        "type": "String"
-      }
-    }
-  },
   "aboutVersion": "Версия {version}",
   "@aboutVersion": {
     "description": "Номер версии приложения на экране «Юридическое».",

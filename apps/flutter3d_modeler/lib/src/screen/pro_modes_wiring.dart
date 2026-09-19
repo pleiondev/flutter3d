@@ -95,6 +95,138 @@ extension _ProModesWiring on _ModelerScreenState {
 
   void _cancelBake() => setState(() => _retopo.baking = null);
 
+  /// `pro-rt-03`: which two objects a quad is drawn between right now, or
+  /// null — `RetopoDraw.pairFor`'s own rule, asked of the live selection.
+  RetopoPair? _retopoPairOf(ModelerReady state) => _retopoDraw.pairFor(
+    state.selection.objects,
+    (int id) => state.project[id] != null,
+  );
+
+  /// What `RetopoOverlay` paints over a viewport [size] big: the target's
+  /// faces as the grid, the corners placed so far as the quad in progress.
+  ///
+  /// **Projected here, every frame, through the viewport's own camera** —
+  /// the painter is handed screen points because that is what a painter
+  /// draws, and the camera moves between frames. The screen already rebuilds
+  /// on every tick, so "every frame" costs nothing extra to arrange.
+  ///
+  /// `sourceAlpha` is carried for the day the viewport can draw one object
+  /// faint: the painter's own doc comment says the source is dimmed by the
+  /// viewport and not by it, and nothing in `SceneSync` dims an object yet.
+  /// What it is set to is already right — faint while a quad is open, clear
+  /// while the grid is being judged — so that day is one line.
+  RetopoOverlay _retopoOverlayOf(
+    ModelerReady state,
+    RetopoPair pair,
+    Size size,
+  ) {
+    final EditMesh? target = switch (state.project[pair.targetId]?.geometry) {
+      EditedGeometry(:final mesh) => mesh,
+      _ => null,
+    };
+    if (target == null || size.isEmpty) {
+      return const RetopoOverlay(
+        quads: <ScreenQuad>[],
+        sourceAlpha: kSourceClear,
+      );
+    }
+    final PickingView view = PickingView(
+      camera: state.stage.camera,
+      size: size,
+    );
+    final List<Offset> open = retopoCornersOnScreen(
+      _retopoDraw.corners,
+      view.project,
+    );
+    return RetopoOverlay(
+      quads: retopoFacesOnScreen(
+        target,
+        worldTransformOf(state.project, pair.targetId),
+        view.project,
+      ),
+      active: open.isEmpty ? null : open,
+      sourceAlpha: open.isEmpty ? kSourceClear : kSourceFaint,
+    );
+  }
+
+  /// A click in the viewport while `retopo.quad` is armed and a pair is
+  /// selected: one more corner, and on the fourth a `DrawQuad`.
+  ///
+  /// **Arrives through `ModelerViewport.onElementPick`**, which is the
+  /// callback that hands over a camera and a point rather than asking the
+  /// renderer what node was drawn there — and a camera and a point is what
+  /// a corner is made from. The intent it carries is ignored: shift, alt and
+  /// control mean something about a selection, and this is not one.
+  ///
+  /// **The corner is where the ray meets the high mesh, in world space, and
+  /// the command is handed it in the target's.** `DrawQuad` then does what
+  /// its own doc comment says — welds a corner to a vertex the new mesh
+  /// already has within its snap, and otherwise pulls it onto the source —
+  /// so the second quad shares an edge with the first rather than sitting a
+  /// hair from it. One caveat is the command's and not this file's: it
+  /// compares the two meshes in their own spaces with no transform between
+  /// them, so a target that has been moved off the source is projected as if
+  /// it had not been. Two objects at one transform — which is what a
+  /// retopology started on top of its source is — are exact.
+  ///
+  /// Four corners are one command and one step of undo. A refusal — two
+  /// corners welded to one vertex is the likely one — is the command's own
+  /// sentence in the status line, and the corners are dropped either way:
+  /// a quad that refused is started again, not repaired.
+  void _retopoClicked(
+    PickingView view,
+    Offset at,
+    PointerDeviceKind pointer, {
+    required ElementPickIntent intent,
+  }) {
+    final state = _state;
+    if (state is! ModelerReady) return;
+    final AppLocalizations l = AppLocalizations.of(context);
+    final RetopoPair? pair = _retopoPairOf(state);
+    if (pair == null) {
+      _cubit.say(l.retopoNeedsTwo, important: true, refusal: true);
+      return;
+    }
+    final ModelObject source = state.project[pair.sourceId]!;
+    final ModelObject target = state.project[pair.targetId]!;
+    for (final ModelObject each in <ModelObject>[source, target]) {
+      if (each.geometry is! EditedGeometry) {
+        _cubit.say(
+          l.uvRefusalNoMesh(each.name),
+          important: true,
+          refusal: true,
+        );
+        return;
+      }
+    }
+    final hit = _retopoDraw
+        .surfaceFor(
+          (source.geometry as EditedGeometry).mesh,
+          worldTransformOf(state.project, source.id),
+          source.version,
+        )
+        .raycast(view.rayThrough(at));
+    if (hit == null) {
+      _cubit.say(l.retopoMissed, refusal: true);
+      return;
+    }
+
+    setState(() => _retopoDraw.corners.add(vm.Vector3.copy(hit.point)));
+    if (_retopoDraw.corners.length < 4) return;
+
+    final vm.Matrix4 toTarget = vm.Matrix4.inverted(
+      worldTransformOf(state.project, target.id),
+    );
+    final List<vm.Vector3> points = <vm.Vector3>[
+      for (final vm.Vector3 corner in _retopoDraw.corners)
+        toTarget.transformed3(corner),
+    ];
+    setState(_retopoDraw.corners.clear);
+    _cubit.ran(
+      DrawQuad(objectId: target.id, points: points, sourceId: source.id),
+    );
+  }
+
   // ------------------------------------------------------------------ paint
 
   void _setPaintLayer(int to) => setState(() => _paint.layer = to);

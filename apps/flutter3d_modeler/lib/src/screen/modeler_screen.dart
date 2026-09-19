@@ -97,6 +97,7 @@ import '../pro_panel_state.dart';
 import '../recent_projects.dart';
 import '../render_snapshot_run.dart';
 import '../report_problem.dart';
+import '../retopo_draw.dart';
 import '../sculpt_brush.dart';
 import '../sculpt_session.dart';
 import '../selection_box.dart';
@@ -145,6 +146,7 @@ import '../ui/render_panel.dart';
 import '../ui/restore_autosave_dialog.dart';
 import '../ui/retarget_panel.dart';
 import '../ui/retarget_viewports.dart';
+import '../ui/retopo_overlay.dart';
 import '../ui/save_as_dialog.dart';
 import '../ui/screen_parts.dart';
 import '../ui/sculpt_panel.dart';
@@ -385,6 +387,10 @@ class _ModelerScreenState extends State<ModelerScreen>
 
   /// `pro-rt-07`'s own panel state — see [RetopoPanelState].
   final RetopoPanelState _retopo = RetopoPanelState();
+
+  /// `pro-rt-03`: the quad being drawn by hand, and the two objects it is
+  /// drawn between — see [RetopoDraw].
+  final RetopoDraw _retopoDraw = RetopoDraw();
 
   /// `pro-pt-05`'s own painting brush — see [PaintBrush], which is where its
   /// settings and the panel's canvas went.

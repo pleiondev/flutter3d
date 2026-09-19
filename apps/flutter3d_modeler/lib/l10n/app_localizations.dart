@@ -3931,12 +3931,6 @@ abstract class AppLocalizations {
   /// **'Клик не попал в исходную модель'**
   String get retopoMissed;
 
-  /// Почему квад не рисуется.
-  ///
-  /// In ru, this message translates to:
-  /// **'У «{name}» нет сетки, на которую можно рисовать, — сначала преобразуйте его в сетку'**
-  String retopoTargetNoMesh(String name);
-
   /// Номер версии приложения на экране «Юридическое».
   ///
   /// In ru, this message translates to:
