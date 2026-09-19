@@ -3,11 +3,12 @@
 #
 #   tool/publish_check.sh
 #
-# Every pubspec here carries `publish_to: none` while publishing is not yet a
-# decision anybody has acted on, and that line also stops `--dry-run` from
-# saying anything useful. So this takes it off, asks, and puts it back — which
-# is why it leaves the tree exactly as it found it and why it must never be
-# extended into an actual publish.
+# No package carries `publish_to: none` any more: the line came off all of them
+# at 0.4.0, when publishing became something that happens. The handling of it
+# below stays, because a package held back again would bring the line back, and
+# `--dry-run` says nothing useful through it. So where the line exists this
+# takes it off, asks, and puts it back — which is why it leaves the tree exactly
+# as it found it and why it must never be extended into an actual publish.
 #
 # **It could not fail on the things it exists to catch, and it edited the tree
 # with no way back.** `tool/ci.sh` says this step "is the only thing that

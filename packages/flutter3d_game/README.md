@@ -4,9 +4,9 @@ What a game on flutter3d adds to an application: the devices it is played with,
 the run being played, the screens a player uses that are not the game, and what
 a level's simulation moves, drawn.
 
-It stands on [`flutter3d_app`](../flutter3d_app) — the surface, storage and
+It stands on [`flutter3d_app`](https://pub.dev/packages/flutter3d_app) — the surface, storage and
 level loading every application shares — and on
-[`flutter3d_sim`](../flutter3d_sim), the fixed step, levels, actors and saves,
+[`flutter3d_sim`](https://pub.dev/packages/flutter3d_sim), the fixed step, levels, actors and saves,
 and re-exports neither. The simulation is plain Dart and lives there.
 
 ## What is in it
@@ -55,8 +55,8 @@ rasteriser. glTF, OBJ and `.f3d` loading, six lighting models, shadows, bloom,
 skinning, animation, BVH culling and picking; a deterministic fixed-step game
 layer with collision, navigation, positional audio, and gamepad and touch
 input. Three example games — shooter, platformer, racing — each built on its
-genre package: [`flutter3d_game_shooter`](../flutter3d_game_shooter),
-[`flutter3d_game_platformer`](../flutter3d_game_platformer),
-[`flutter3d_game_racing`](../flutter3d_game_racing). A new game starts from the
+genre package: [`flutter3d_game_shooter`](https://pub.dev/packages/flutter3d_game_shooter),
+[`flutter3d_game_platformer`](https://pub.dev/packages/flutter3d_game_platformer),
+[`flutter3d_game_racing`](https://pub.dev/packages/flutter3d_game_racing). A new game starts from the
 editor's scaffold, which writes one from a template: <https://flutter3d.pleion.dev/first-project/>.
 Documentation: <https://flutter3d.pleion.dev>.

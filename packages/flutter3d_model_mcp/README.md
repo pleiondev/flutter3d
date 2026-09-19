@@ -80,7 +80,7 @@ nothing silently.
 
 ## Plain Dart
 
-`packages/flutter3d_formats` and `packages/flutter3d_model_core` are both flat
+`packages/flutter3d_core` and `packages/flutter3d_model_core` are both flat
 Dart packages, so `ModelSession`'s export and import verbs go through the same
 `ModelDocument`/`F3dWriter`/`ObjWriter`/`decodeModel` abstractions the rest of
 the engine does, with a small `AssetSource` of this package's own reading

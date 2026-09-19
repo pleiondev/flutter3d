@@ -55,6 +55,17 @@ lens flare, no SMAA or TAA, no velocity buffer, no GTAO, no AO denoiser, no
 dither, no sharpen, no render scale, and a grade of three scalars against
 their lift/gamma/gain plus white balance.
 
+*Read against the tree again on 2026-09-19, and six of those have landed
+since the survey:* depth of field (`DepthOfFieldSettings`,
+`post/depth_of_field.frag`), light shafts marched through the directional
+shadow map (`LightShaftSettings`, `post/light_shafts.frag`), ordered dither
+and sharpen (`LookSettings.dither`, `AntiAliasSettings.sharpen`), render scale
+with an adaptive policy over it (`RenderSettings.renderScale`,
+`adaptive_scale.dart`), and white balance and tint in the grade. FXAA is there
+as well (`post/fxaa.frag`). Still missing: lens flare (`BloomSettings.halation`
+is the nearest thing), SMAA and TAA, a velocity buffer, GTAO, and
+lift/gamma/gain.
+
 **Catching up is cheaper than this document first said, and the correction
 matters.** The paragraph here used to read "roughly five implementations per
 effect — one GLSL stage, a WebGL transpile, a WGSL translation, a Dart

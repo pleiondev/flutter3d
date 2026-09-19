@@ -2532,16 +2532,21 @@ second of which is this stale row plus the arrangement — and a pass of
 `flutter3d/tool/golden.sh --update` and `flutter3d_webgl/tool/golden_web.sh
 --update` over the two names takes both to zero.
 
-**No occlusion culling for anything but a brush level, and no FXAA or TAA.**
+**No occlusion culling for anything but a brush level, and no TAA.**
 A brush level has the precomputed visibility of [§4.6](#46-precomputed-visibility);
 a model imported from glTF is culled by the frustum alone.
 
-The absent antialiasing costs more than it sounds like, because of what the
-screen-space effects require: filling the surface buffer turns MSAA off for the
-whole scene pass — the average of two octahedral normals is the encoding of no
-normal — so switching on ambient occlusion, reflections or contact shadows
-switches off the antialiasing of the entire frame, and there is nothing to put in
-its place. A post-pass FXAA is the piece that would let a game have both.
+The antialiasing there is has a hole in it, because of what the screen-space
+effects require: filling the surface buffer turns MSAA off for the whole scene
+pass — the average of two octahedral normals is the encoding of no normal — so
+switching on ambient occlusion, reflections, contact shadows or viewport shading
+switches off the multisampling of the entire frame, and `FrameResult` says so in
+`antiAliasing.msaaDeclined`. What goes in its place is the post-pass FXAA of
+`AntiAliasSettings` (`post/fxaa.frag`), which this paragraph used to name as the
+missing piece. It lets a game have both, and it is not the same thing: FXAA
+softens an edge it finds in the finished picture and cannot recover a wire or a
+railing thinner than a pixel, which is what a temporal resolve would do and what
+is still absent.
 
 Those two effects are off by default and are pinned by a picture on every
 backend: `ambient-occlusion-corner` and `screen-space-reflections` are golden

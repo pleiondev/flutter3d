@@ -18,7 +18,7 @@ final drawable = step.toMeshData(); // what the engine draws
 
 ## Why it is not `MeshData`
 
-`flutter3d_geometry` describes a mesh that is finished: vertices in the order a
+`flutter3d_core`'s geometry library describes a mesh that is finished: vertices in the order a
 GPU wants them, with a corner duplicated once per face normal that meets there.
 Every question a modeller asks is about what that arrangement threw away — which
 faces share this edge, what ring does this edge belong to, what is the loop
