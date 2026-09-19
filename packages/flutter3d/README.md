@@ -223,11 +223,13 @@ What is supported:
 | Animations | all samplers and channels; `STEP`, `LINEAR` and `CUBICSPLINE`; translation, rotation, scale and weights |
 | Morph targets | POSITION, NORMAL and TANGENT deltas, packed into a texture the vertex stage samples; a node's or mesh's rest weights; up to eight targets blended at once |
 
-Not there: cameras, Draco and meshopt (reported in `warnings`),
-TEXCOORD_1 and up. KTX2 is read — `KHR_texture_basisu`'s Basis ETC1S files
-transcode to RGBA8, and a file's own BC, ETC2 or ASTC blocks upload as they
-are where the device samples them — with UASTC and Zstandard still refused by
-name.
+Compressed geometry is decoded — `KHR_draco_mesh_compression` and
+`EXT_meshopt_compression` — and a Draco payload that does not decode costs
+that primitive, with the reason in `warnings`. KTX2 is read:
+`KHR_texture_basisu`'s Basis Universal files, ETC1S and UASTC LDR, unpack to
+RGBA8 with or without Zstandard, and a file's own BC, ETC2 or ASTC blocks
+upload as they are where the device samples them. Not there: TEXCOORD_1 and
+up.
 
 Non-fatal decoding problems land in `warnings` and are surfaced in the UI — a
 skipped primitive or an ignored extension explains a model that looks odd but
