@@ -116,7 +116,11 @@ float LitAt(vec3 world, float viewDistance) {
     if (candidate.z > 1.0) continue;
 
     vec2 uv = vec2((inTile.x + float(which)) / float(cascadeCount), inTile.y);
-    float stored = texture(shadow_texture, uv).r;
+    // `textureLod`, for `shadow.glsl`'s own reason: the cascade search above
+    // continues and breaks on values computed per fragment, so a WGSL backend
+    // refuses the implicit derivative here as possibly non-uniform. One level,
+    // so naming it directly changes no pixel.
+    float stored = textureLod(shadow_texture, uv, 0.0).r;
     // Outside the map is lit rather than dark: a point beyond the shadow
     // volume has nothing recorded about it, and calling that shadow would
     // put a wall of darkness across the far half of every shaft.

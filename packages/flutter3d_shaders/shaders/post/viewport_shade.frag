@@ -64,7 +64,14 @@ vec3 DecodeOctahedral(vec2 e) {
 }
 
 void main() {
-  vec4 scene = texture(scene_texture, v_uv);
+  // `textureLod` throughout this pass, for `shadow.glsl`'s own reason: modes 3
+  // and 4 read the surface buffer again behind the early return below, which
+  // is keyed on a per-fragment depth rather than on the uniform `mode` the
+  // docstring above talks about — so a WGSL backend refuses the implicit
+  // derivative there as possibly non-uniform. Both textures are read at native
+  // size with no mipmap of their own, so naming level zero directly changes no
+  // pixel.
+  vec4 scene = textureLod(scene_texture, v_uv, 0.0);
   int mode = int(shade_info.params.x + 0.5);
   float mix_amount = clamp(shade_info.params.y, 0.0, 1.0);
   if (mode < 1 || mix_amount <= 0.0) {
@@ -72,7 +79,7 @@ void main() {
     return;
   }
 
-  vec4 surface = texture(surface_texture, v_uv);
+  vec4 surface = textureLod(surface_texture, v_uv, 0.0);
   float depth = surface.a;
   // Nothing was drawn here: the buffer is cleared to zero and a normal
   // decoded from that is a direction pointing nowhere. The background keeps
@@ -114,7 +121,7 @@ void main() {
         vec2(texel.x, 0.0), vec2(-texel.x, 0.0),
         vec2(0.0, texel.y), vec2(0.0, -texel.y));
     for (int i = 0; i < 4; i++) {
-      vec4 tap = texture(surface_texture, v_uv + offsets[i]);
+      vec4 tap = textureLod(surface_texture, v_uv + offsets[i], 0.0);
       if (tap.a <= 0.0) {
         // Against the background: that is a silhouette, and the strongest
         // edge there is.
@@ -144,13 +151,13 @@ void main() {
     // at any distance.
     vec2 texel = shade_info.screen.xy;
     vec3 right = DecodeOctahedral(
-        texture(surface_texture, v_uv + vec2(texel.x, 0.0)).rg);
+        textureLod(surface_texture, v_uv + vec2(texel.x, 0.0), 0.0).rg);
     vec3 left = DecodeOctahedral(
-        texture(surface_texture, v_uv - vec2(texel.x, 0.0)).rg);
+        textureLod(surface_texture, v_uv - vec2(texel.x, 0.0), 0.0).rg);
     vec3 down = DecodeOctahedral(
-        texture(surface_texture, v_uv + vec2(0.0, texel.y)).rg);
+        textureLod(surface_texture, v_uv + vec2(0.0, texel.y), 0.0).rg);
     vec3 up = DecodeOctahedral(
-        texture(surface_texture, v_uv - vec2(0.0, texel.y)).rg);
+        textureLod(surface_texture, v_uv - vec2(0.0, texel.y), 0.0).rg);
 
     // The x component of the horizontal change plus the y of the vertical:
     // the screen-space divergence, which is positive on a ridge and negative
