@@ -760,14 +760,14 @@ void main() {
         GltfLoader().load(
           buildGlb(<String, Object?>{
             'asset': {'version': '2.0'},
-            'extensionsRequired': <Object?>['KHR_draco_mesh_compression'],
+            'extensionsRequired': <Object?>['KHR_materials_transmission'],
           }),
         ),
         throwsA(
           isA<FormatException>().having(
             (e) => e.message,
             'message',
-            contains('KHR_draco_mesh_compression'),
+            contains('KHR_materials_transmission'),
           ),
         ),
       );
