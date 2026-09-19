@@ -62,6 +62,13 @@ ModelCommand? commandFor(
   'mesh.normals' => const RecalculateNormals(),
   'mesh.flip' => const RecalculateNormals(flip: true),
   'mesh.delete' => const DeleteElements(),
+  // `pro-uv-07`: one command both ways round, which is `MarkSeam.on`'s own
+  // doc comment — "a caller choosing between a mark and a clear is choosing
+  // this, not two different commands". `uv.unwrap` and `uv.pack` are not
+  // here: each reads a margin off the panel, and this function is handed
+  // what is selected and nothing else. `uv_wiring.dart` answers both.
+  'uv.markSeam' => const MarkSeam(),
+  'uv.clearSeam' => const MarkSeam(on: false),
   _ => null,
 };
 

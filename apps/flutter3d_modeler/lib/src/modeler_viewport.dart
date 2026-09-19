@@ -45,6 +45,7 @@ import 'staging.dart';
 import 'transform_gizmo.dart';
 import 'transform_modal.dart';
 import 'ui/transform_readout.dart';
+import 'uv_seam_overlay.dart';
 
 /// Where a [StrokeEvent] sits in the pointer's own lifetime.
 enum StrokePhase {
@@ -160,6 +161,8 @@ class ModelerViewport extends StatefulWidget {
     this.shapeMarkers = const <ShapeMarker>[],
     this.shapeMarkerColour,
     this.shapeMarkerActiveColour,
+    this.uvSeams,
+    this.uvSeamColour,
     this.announcements = const <SceneAnnouncement>[],
     this.overlay = true,
   });
@@ -462,6 +465,25 @@ class ModelerViewport extends StatefulWidget {
   final Vector4? shapeMarkerColour;
   final Vector4? shapeMarkerActiveColour;
 
+  /// `pro-uv-07`: one half-edge of [editMesh] per UV seam, drawn over the
+  /// wireframe as a ribbon — `uv_seam_overlay.dart`'s own `uvSeamEdges`,
+  /// found by the caller once per version of the mesh rather than here once
+  /// per frame. Null in every mode but UV, which draws nothing and builds no
+  /// overlay for it, the same "absent rather than empty" [shapeMarkers]
+  /// already gets.
+  ///
+  /// **On top of the wireframe's own blue, not instead of it.** The builder
+  /// tints an [EdgeFlags.seam] edge wherever a wireframe is drawn, a pixel
+  /// wide; this is the mode that is *about* seams, where the hand-over asks
+  /// for them three and a half wide in its second colour, and where a seam
+  /// nobody flagged — two faces disagreeing about a corner's place on the
+  /// texture — counts as one too.
+  final List<int>? uvSeams;
+
+  /// What [uvSeams] are drawn in. Null falls back to
+  /// [MeshOverlayColours.seam], `emitUvSeamOverlay`'s own default.
+  final Vector4? uvSeamColour;
+
   @override
   State<ModelerViewport> createState() => _ModelerViewportState();
 }
@@ -600,6 +622,11 @@ class _ModelerViewportState extends State<ModelerViewport> {
   /// order the gizmo itself already gets over the wireframe.
   MeshOverlay? _shapePoints;
 
+  /// Registered fifth, and only once the UV mode has asked for it — see
+  /// [_buildUvSeams]. Over the wireframe and under nothing that matters: the
+  /// UV mode arms no gizmo and places no shape markers.
+  MeshOverlay? _uvSeams;
+
   /// The arm the pointer is on, from the last move. Null when it is on none.
   ///
   /// Kept rather than recomputed in `build`, because the answer comes from a
@@ -638,6 +665,7 @@ class _ModelerViewportState extends State<ModelerViewport> {
       _mesh,
       _gizmo,
       _shapePoints,
+      _uvSeams,
     ]) {
       if (overlay != null) widget.renderer.removeContributor(overlay);
     }
@@ -692,6 +720,43 @@ class _ModelerViewportState extends State<ModelerViewport> {
 
     _buildGizmo(renderer, look);
     _buildShapePoints(renderer, look);
+    _buildUvSeams(renderer, look, edit);
+  }
+
+  /// `pro-uv-07`: the seams, as ribbons, or nothing at all outside the UV
+  /// mode — [ModelerViewport.uvSeams] is null in every other one, so this
+  /// clears whatever the overlay drew last rather than leaving a seam from a
+  /// mode the person has since left, the same bargain [_buildShapePoints]
+  /// makes.
+  ///
+  /// **Refilled every frame, from a list that is not.** A ribbon is a quad
+  /// turned to face the camera and sized in pixels, so it is stale the moment
+  /// the camera moves; which edges are seams moves only when a command
+  /// lands. The walk that finds them is the caller's, once per version of the
+  /// mesh, and what is left here is a few dozen quads.
+  void _buildUvSeams(Renderer renderer, MeshOverlayView look, EditMesh? edit) {
+    final List<int>? seams = widget.uvSeams;
+    if (seams == null || seams.isEmpty || edit == null) {
+      _uvSeams?.clear();
+      return;
+    }
+    final MeshOverlay overlay = _uvSeams ??= _newOverlay(renderer);
+    overlay
+      ..clear()
+      ..lookFrom(
+        eye: look.eye,
+        right: look.right,
+        up: look.up,
+        pixel: look.pixel,
+        perspective: look.perspective,
+      );
+    emitUvSeamOverlay(
+      overlay,
+      edit,
+      colour: widget.uvSeamColour,
+      edges: seams,
+      width: kUvSeamRibbonWidth,
+    );
   }
 
   /// The gizmo, when there is a selection to put one on.

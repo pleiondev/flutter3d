@@ -36,6 +36,7 @@
 @Tags(['golden', 'skip_very_good_optimization'])
 library;
 
+import 'package:flutter/foundation.dart' show ValueKey;
 import 'package:flutter3d_modeler/src/ui/tools.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -77,6 +78,21 @@ void main() {
         await shootWindow(tester, 'mesh-${submode.name}');
       });
     }
+
+    // **The UV mode's own second picture, and not a sub-mode of it.** The
+    // loop above photographs every mode as a launch finds it, and a launch
+    // finds this one with nothing unwrapped: an empty square and an empty
+    // island list, which is a true picture and says nothing about what the
+    // mode is for. This is the same mode a minute later — the cube held, cut
+    // along its edges and unwrapped — with the seams on the model, the
+    // islands in the square and the fill in the status line.
+    testWidgets('uv · a cube cut and unwrapped', (WidgetTester tester) async {
+      await openUvModeOnTheCube(tester, fonts: fonts);
+      await cutEveryEdge(tester);
+      await tester.tap(find.byKey(const ValueKey<String>('uvUnwrap')));
+      await settleFrames(tester);
+      await shootWindow(tester, 'uv-unwrapped');
+    });
 
     for (final AnimationSubmode submode in AnimationSubmode.values) {
       testWidgets('animation · ${submode.name}', (WidgetTester tester) async {

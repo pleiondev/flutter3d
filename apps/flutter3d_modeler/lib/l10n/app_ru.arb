@@ -1018,5 +1018,174 @@
   "envNone": "Нет",
   "envStudio": "Студия",
   "envDaylight": "Дневной свет",
-  "envSunset": "Закат"
+  "envSunset": "Закат",
+  "toolUvSelectLabel": "Выделение",
+  "toolUvSelectAbout": "Клик по рёбрам, вдоль которых пойдёт шов; с Shift ребро добавляется к уже выбранным.",
+  "toolUvMarkSeamLabel": "Пометить шов",
+  "toolUvMarkSeamAbout": "Разрезает развёртку по выбранным рёбрам — так кроят выкройку, чтобы ткань легла плоско.",
+  "toolUvClearSeamLabel": "Снять шов",
+  "toolUvClearSeamAbout": "Сшивает развёртку обратно по выбранным рёбрам.",
+  "toolUvUnwrapLabel": "Развернуть",
+  "toolUvUnwrapAbout": "Раскладывает выбранные грани на плоскости — всю сетку, если грани не выбраны, — разрезая острова по швам.",
+  "toolUvPackLabel": "Упаковать в один атлас",
+  "toolUvPackAbout": "Укладывает развёртки выбранных объектов в один общий квадрат, чтобы у них была одна текстура и один вызов отрисовки.",
+  "uvAutoPack": "Упаковать автоматически",
+  "uvUnwrap": "Развернуть",
+  "uvSeamCount": "Швы · рёбер: {count}",
+  "@uvSeamCount": {
+    "description": "Плашка над 3D-видом в режиме UV — pro-uv-07, экран 06.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "uvStatus": "Заполнение развёртки {percent} % · островов: {islands}",
+  "@uvStatus": {
+    "description": "Строка статуса режима UV — экран 06.",
+    "placeholders": {
+      "percent": {
+        "type": "int"
+      },
+      "islands": {
+        "type": "int"
+      }
+    }
+  },
+  "uvLayoutSemantics": "Развёртка UV, островов: {islands}",
+  "@uvLayoutSemantics": {
+    "description": "Что экранный диктор говорит о квадрате развёртки.",
+    "placeholders": {
+      "islands": {
+        "type": "int"
+      }
+    }
+  },
+  "uvLayoutTitle": "Развёртка",
+  "uvLegendNormal": "норма",
+  "uvLegendStretched": "растяжение",
+  "uvRefusalNoObject": "Выберите объект, чтобы его развернуть",
+  "uvRefusalNoMesh": "У «{name}» ещё нет сетки — сначала преобразуйте его в сетку",
+  "@uvRefusalNoMesh": {
+    "description": "Почему кнопка «Развернуть» выключена.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "uvUnwrapFlat": "Развёртка вышла без площади: замкнутую форму не разложить на плоскости, пока она не разрезана. Пометьте швы по рёбрам и разверните снова",
+  "uvPackNeedsTwo": "Атлас — общий: выберите два или больше развёрнутых объекта",
+  "propLods": "Уровни детализации",
+  "propLodsCount": "Уровней: {count}",
+  "@propLodsCount": {
+    "description": "Секция инспектора объекта — pro-lod-04, экран 17.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "propLodsOpen": "Открыть…",
+  "lodLevel": "LOD {index}",
+  "@lodLevel": {
+    "description": "Заголовок карточки уровня — экран 17.",
+    "placeholders": {
+      "index": {
+        "type": "int"
+      }
+    }
+  },
+  "lodRatio": "Оставить",
+  "lodTriangles": "Треугольников: {count}",
+  "@lodTriangles": {
+    "description": "Сколько треугольников в упрощённой сетке уровня.",
+    "placeholders": {
+      "count": {
+        "type": "String"
+      }
+    }
+  },
+  "lodUpTo": "рисуется, пока объект меньше {percent} % экрана",
+  "@lodUpTo": {
+    "description": "Порог уровня как доля высоты экрана.",
+    "placeholders": {
+      "percent": {
+        "type": "int"
+      }
+    }
+  },
+  "lodAddLevel": "Добавить уровень",
+  "lodRegenerate": "Пересчитать",
+  "lodClose": "Вернуться к объекту",
+  "lodNoLevels": "Уровней ещё нет. Первый добавленный оставит половину треугольников и включится, когда объект займёт меньше четверти экрана.",
+  "lodNow": "Сейчас: {percent} % экрана — LOD {index}",
+  "@lodNow": {
+    "description": "Какую долю экрана объект занимает в основном вьюпорте и какой уровень этому отвечает.",
+    "placeholders": {
+      "percent": {
+        "type": "int"
+      },
+      "index": {
+        "type": "int"
+      }
+    }
+  },
+  "lodNowBase": "Сейчас: {percent} % экрана — полная сетка",
+  "@lodNowBase": {
+    "description": "То же, когда ни один уровень ещё не включился.",
+    "placeholders": {
+      "percent": {
+        "type": "int"
+      }
+    }
+  },
+  "lodPaneEmpty": "Уровня LOD {index} ещё нет",
+  "@lodPaneEmpty": {
+    "description": "Треть экрана 17, для которой уровень не задан.",
+    "placeholders": {
+      "index": {
+        "type": "int"
+      }
+    }
+  },
+  "lodRefusalNoMesh": "У «{name}» нет сетки для упрощения — сначала преобразуйте его в сетку",
+  "@lodRefusalNoMesh": {
+    "description": "Почему уровень добавить нельзя.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "lodThresholdFixed": "Порог уровня задаётся при добавлении: команды, которая сдвигает его потом, в этой сборке нет",
+  "retopoCorners": "Квад · точек: {count} из 4",
+  "@retopoCorners": {
+    "description": "Плашка над вьюпортом, пока рисуется квад — pro-rt-03.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "retopoNeedsTwo": "Выберите исходную модель, затем с Shift — сетку, на которую ложатся квады",
+  "retopoMissed": "Клик не попал в исходную модель",
+  "retopoTargetNoMesh": "У «{name}» нет сетки, на которую можно рисовать, — сначала преобразуйте его в сетку",
+  "@retopoTargetNoMesh": {
+    "description": "Почему квад не рисуется.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "aboutVersion": "Версия {version}",
+  "@aboutVersion": {
+    "description": "Номер версии приложения на экране «Юридическое».",
+    "placeholders": {
+      "version": {
+        "type": "String"
+      }
+    }
+  }
 }

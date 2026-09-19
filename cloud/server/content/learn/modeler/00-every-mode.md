@@ -1,6 +1,6 @@
 ---
 title: Every mode, once
-summary: A photograph of each of the editor's ten modes and the three screens it sends you to, with what each one is for and what it refuses.
+summary: A photograph of each of the editor's eleven modes and the three screens it sends you to, with what each one is for and what it refuses.
 ---
 
 # Every mode, once
@@ -14,11 +14,11 @@ Every picture here is a photograph of the real editor, taken headlessly by
 golden — if a panel moves, the test fails and the picture is retaken. None of
 them is a mock-up.
 
-**The switcher offers ten modes in the Full workspace and three in
+**The switcher offers eleven modes in the Full workspace and three in
 Essential.** Essential is Object, Material and Scene: "open a model, paint
 it, export it" is what most people who open a modeller are doing, and a
-switcher with ten icons asks them to decide what Retopo mode is before they
-have done anything. Settings turns the rest on.
+switcher with eleven icons asks them to decide what Retopo mode is before
+they have done anything. Settings turns the rest on.
 
 ## Object
 
@@ -50,6 +50,37 @@ change between them.
 
 What a surface looks like — base colour, metallic, roughness, the five
 texture slots, and the node compositor that bakes into them.
+
+## UV
+
+![UV mode as it opens: the mesh on the left, an empty 400-pixel square beside it, and the method, margin and island list on the right.](/assets/learn/modeler/modes/uv-mode.png)
+
+Where a mesh gets the layout a texture is painted through. Three columns: the
+model, the square the layout is drawn in, and the three settings an unwrap
+reads — the method, the gap between islands, and whether they are packed into
+one square afterwards.
+
+**A seam is an edge selection, and it is the mesh mode's own.** Pick the
+object in Object mode, come here, select the edges a cut should run along —
+the vertex/edge/face switch is the same one — and press Mark a seam. The
+seams are drawn over the model in the second colour, and the card in the
+corner counts them.
+
+![The same mode a minute later: a cube cut along its edges and unwrapped, the seams on the model, the islands in the square, and the fill in the status line.](/assets/learn/modeler/modes/uv-unwrapped.png)
+
+Unwrap lays out the selected faces, or the whole mesh when none is selected.
+Each island is tinted by how stretched it came out, and a row in the list and
+a tap on the square light the same island. Every one of these — a seam, an
+unwrap, a pack — is one ⌘Z.
+
+**A closed shape with no seam on it does not unwrap.** A cube with nothing
+cut cannot lie flat any more than the skin of an orange can before a knife
+has been through it; the unwrap lands with no area, and the status line says
+to mark seams rather than leaving an empty square to explain itself.
+
+Pack into one atlas is for several objects at once: it fits their layouts
+into one shared square so they can share a texture and a draw call, and with
+one object selected it says so instead of doing nothing.
 
 ## Sculpt
 

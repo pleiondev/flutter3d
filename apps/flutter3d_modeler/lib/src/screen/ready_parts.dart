@@ -217,6 +217,19 @@ extension _ReadyParts on _ModelerScreenState {
               ];
               final ModelObject? forStatus =
                   state.project[state.selection.activeObject ?? -1];
+              // `pro-uv-07`: the held mesh's islands, seams and fill, read
+              // once per version of it — `UvPanelState.readingOf` says why
+              // a screen that rebuilds every tick cannot afford to ask the
+              // mesh itself. Asked with no mesh outside the mode, which
+              // drops the reading: a version number can come round again
+              // after an undo and a different edit, and a reading kept
+              // across a trip through another mode could answer for the
+              // wrong one.
+              final bool uvView = state.mode == ModelerMode.uv;
+              final UvReading uvReading = _uv.readingOf(
+                uvView ? _editMesh : null,
+                forStatus?.version ?? 0,
+              );
               // `S6`'s own row: whether the held object's own `weights`
               // track carries a key on the timeline's current frame — one
               // boolean `MorphsPanel` reads for every shape row alike, see
@@ -275,6 +288,16 @@ extension _ReadyParts on _ModelerScreenState {
                             0,
                         actions: state.project.clips.length,
                         maxInfluences: state.project.profile.maxInfluences,
+                      )
+                    // Screen 06's own row: "unwrap fill N % · islands N".
+                    // Only once there is an unwrap to measure — a mesh with
+                    // no UVs keeps the ordinary counts rather than reading
+                    // "0 % · 0 islands", which is a complaint about work
+                    // nobody has started.
+                    : uvView && uvReading.islands.isNotEmpty
+                    ? AppLocalizations.of(context).uvStatus(
+                        (uvReading.fill * 100).round(),
+                        uvReading.islands.length,
                       )
                     : null,
                 micros: _lastRenderMicros,
@@ -565,6 +588,14 @@ extension _ReadyParts on _ModelerScreenState {
               final bool retargetView =
                   state.mode == ModelerMode.animation &&
                   state.animationSubmode == AnimationSubmode.retarget;
+              // `pro-uv-07`: the UV mode's 3D half is the mesh mode's own
+              // picture — the wireframe, a click answered by an element
+              // rather than by an object, the hover that shows which one —
+              // because a seam is marked on "the same edge selection Mesh
+              // mode has", the hand-over's own sentence for screen 06. One
+              // name for the two, so the six conditions below cannot come to
+              // disagree about which modes pick elements.
+              final bool elementsView = _mode == ModelerMode.mesh || uvView;
               final List<ShapeMarker> shapeMarkers =
                   !morphsView || forStatus == null
                   ? const <ShapeMarker>[]
@@ -648,21 +679,17 @@ extension _ReadyParts on _ModelerScreenState {
                             // question about this mesh's elements and is answered on the
                             // CPU, and asking the renderer for a node as well would cost a
                             // whole frame to answer a question nobody asked.
-                            onPick: _mode == ModelerMode.mesh ? null : _picked,
-                            onElementPick:
-                                _mode == ModelerMode.mesh && _editMesh != null
+                            onPick: elementsView ? null : _picked,
+                            onElementPick: elementsView && _editMesh != null
                                 ? _pickedElement
                                 : null,
                             // `ux-28`: the same question a click asks, asked
                             // while nothing is pressed, so the answer can be
                             // shown before the click rather than after it.
-                            onElementHover:
-                                _mode == ModelerMode.mesh && _editMesh != null
+                            onElementHover: elementsView && _editMesh != null
                                 ? _hoveredElement
                                 : null,
-                            hovered: _mode == ModelerMode.mesh
-                                ? _hoveredElements
-                                : null,
+                            hovered: elementsView ? _hoveredElements : null,
                             // `ux-26`: while the right button is held the
                             // strip says the buttons mean something else.
                             onLookingChanged: (bool looking) =>
@@ -779,9 +806,17 @@ extension _ReadyParts on _ModelerScreenState {
                             // triangles it was handed, which is a different
                             // shape and not the one being edited.
                             editMesh:
-                                _mode == ModelerMode.mesh ||
+                                elementsView ||
                                     _shading == ShadingMode.wireframe
                                 ? _editMesh
+                                : null,
+                            // `pro-uv-07`: screen 06's own seams, in the
+                            // hand-over's second colour and three and a
+                            // half pixels wide, over the wireframe the line
+                            // above turns on. Null outside the mode.
+                            uvSeams: uvView ? uvReading.seams : null,
+                            uvSeamColour: uvView
+                                ? colourAsVector4(kModelerScheme.secondary)
                                 : null,
                             elements: _history.selection.asMeshSelection,
                             meshVersion:
@@ -824,7 +859,10 @@ extension _ReadyParts on _ModelerScreenState {
                         // wireframe, no handles — and the review found
                         // people taking that for a broken window rather
                         // than for a shape that has not been converted.
-                        if (_mode == ModelerMode.mesh && _editMesh == null)
+                        // `pro-uv-07`: the UV mode too — a shape with no
+                        // topology has no edges to cut a seam along, and
+                        // the same two ways out.
+                        if (elementsView && _editMesh == null)
                           Positioned(
                             left: 12,
                             top: 12,
@@ -834,6 +872,25 @@ extension _ReadyParts on _ModelerScreenState {
                               onConvert: _ranTool,
                               onBuildTopology: (int id) =>
                                   _cubit.ran(BuildTopology(id: id)),
+                            ),
+                          ),
+                        // Screen 06's own "Seams · 4 edges", in the corner
+                        // the banner above would otherwise have: the two
+                        // are never both up, since a seam needs a mesh.
+                        if (uvView && _editMesh != null)
+                          Positioned(
+                            left: 12,
+                            top: 12,
+                            // A label, not a control: a box dragged from
+                            // this corner starts on the picture under it.
+                            // `uv_mode_test.dart` found the press going to
+                            // the card instead.
+                            child: IgnorePointer(
+                              child: ViewportChip(
+                                AppLocalizations.of(
+                                  context,
+                                ).uvSeamCount(uvReading.seams.length),
+                              ),
                             ),
                           ),
                         Positioned(
@@ -893,6 +950,38 @@ extension _ReadyParts on _ModelerScreenState {
                       result: _render.result,
                       tilesDone: _render.tilesDone,
                       tilesTotal: _render.tilesTotal,
+                    )
+                  // `pro-uv-07`: screen 06 takes the viewport's place the
+                  // way the retarget pair does, and carries its own panel.
+                  //
+                  // **Not through `proPanel`, which is how the four modes
+                  // above dock theirs.** The hand-over draws three columns
+                  // — the model, a 400-pixel square, a 250-wide panel —
+                  // and `proPanel` has one slot: it could take the panel
+                  // and would leave the square nowhere to go but inside the
+                  // picture, under the same splitter that resizes the
+                  // properties. And `UvScreen` exists to make one promise
+                  // — a tap on the layout and a tap on the island list
+                  // report through one callback — which it can only keep
+                  // while both are its own children. So it is handed the
+                  // whole area, and the desktop shell folds its own panel
+                  // away below for the reason it does while sculpting: the
+                  // model would otherwise be the narrowest thing on screen.
+                  : uvView
+                  ? UvScreen(
+                      viewport: docked,
+                      islands: uvReading.islands,
+                      methods: kUnwrapMethods,
+                      method: _uv.method,
+                      onMethodChanged: _setUnwrapMethod,
+                      margin: _uv.margin,
+                      onMarginChanged: _setUnwrapMargin,
+                      selectedIslandId: _uv.selectedIsland,
+                      onIslandSelected: _selectUvIsland,
+                      autoPack: _uv.autoPack,
+                      onAutoPackChanged: _setUnwrapAutoPack,
+                      onUnwrap: _unwrapUv,
+                      unwrapRefusal: _unwrapRefusal(state),
                     )
                   : !sculptView
                   ? docked
@@ -1004,7 +1093,10 @@ extension _ReadyParts on _ModelerScreenState {
                 // `ui-29`: no Rail and no Properties in the sculpting
                 // mode, whatever this session's own two folds say — the
                 // layout is the row's own acceptance, not a preference.
-                foldedPanel: _foldedPanel || sculptView,
+                // `pro-uv-07`: nor a Properties in the UV mode, whose panel
+                // is inside `UvScreen` — see where `staged` builds it. The
+                // rail stays: it is where the seams are marked.
+                foldedPanel: _foldedPanel || sculptView || uvView,
                 foldedRail: _foldedRail || sculptView,
                 // `ux-23`: the lights, in the mode that is about them. The
                 // panel lists them too — it has room for their settings —

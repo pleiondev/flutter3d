@@ -76,11 +76,11 @@ const Set<String> kStrokeTools = <String>{
 
 /// What the modeller is being used for.
 ///
-/// **Eleven, and ten of them work.** A person opening this should be able to
-/// see what the thing is going to be, so a mode that is not built yet is
-/// shown disabled with the phase it arrives in rather than left out
-/// entirely — see [ModelerMode.phase]. UV is the one still waiting: `ui-28`
-/// built the screen and nothing switches into it yet.
+/// **Eleven, and all eleven work.** UV was the last one waiting: `pro-uv-07`
+/// built its screen and nothing switched into it, so the switcher left it
+/// out — `modesFor` drops whatever is not [ModelerMode.ready]. It is wired
+/// now (`screen/uv_wiring.dart`), and [ModelerMode.ready] stays on the enum
+/// for the next mode that is drawn before it is reachable.
 enum ModelerMode {
   object('Object', Icons.category_outlined, 1, ready: true, inEssential: true),
   mesh('Mesh', Icons.hexagon_outlined, 1, ready: true),
@@ -91,7 +91,11 @@ enum ModelerMode {
     ready: true,
     inEssential: true,
   ),
-  uv('UV', Icons.grid_on_outlined, 4, ready: false),
+  // `pro-uv-07`: screen 06. A mode of its own rather than the sub-mode of
+  // Mesh the hand-over draws it as, for the reason the four below are: the
+  // rail, the panel and the picture are all replaced, and a sub-mode here
+  // changes the element level and nothing else.
+  uv('UV', Icons.grid_on_outlined, 4, ready: true),
   sculpt('Sculpt', Icons.brush_outlined, 4, ready: true),
   // `pro-rt-03`/`pro-rt-07`, `pro-pt-05`, `pro-sim-06`, `pro-rn-04`: the
   // four screens whose panels were built before a mode switch could reach
@@ -125,16 +129,16 @@ enum ModelerMode {
 
   final IconData icon;
 
-  /// Which phase of the plan brings this mode to life — shown in the tooltip
-  /// of a mode that is not [ready] yet. No longer what gates the switcher:
-  /// every phase-four mode but UV is ready now, so the number alone cannot
-  /// answer it any more.
+  /// Which phase of the plan brings this mode to life — what an agent asking
+  /// for a mode that is not [ready] is told it is waiting for. Not what
+  /// gates the switcher: every phase-four mode is ready now, so the number
+  /// alone cannot answer it.
   final int phase;
 
   /// Whether this mode's panel is built and wired up, so the switcher should
   /// actually let a person choose it, regardless of its [phase] — `ui-39d`'s
-  /// own rule. UV is the one false: its screen exists (`ui-28`) and nothing
-  /// switches into it.
+  /// own rule. True for all eleven today; a mode added ahead of its wiring
+  /// starts false and `modesFor` keeps it off the bar until it is not.
   final bool ready;
 }
 
@@ -764,6 +768,62 @@ List<ModelerTool> toolsFor(
       ),
     ],
   },
+  // `pro-uv-07`: screen 06's own rail. Seams are marked on whatever is
+  // selected — "the same edge selection Mesh mode has", the hand-over's own
+  // sentence — so the first tool is that selection and the two after it are
+  // `MarkSeam` both ways round. Unwrap and Pack read the panel's own method
+  // and margin, which is why `commandFor` answers the first two and
+  // `uv_wiring.dart` the last two.
+  ModelerMode.uv => const <ModelerTool>[
+    ModelerTool(
+      id: 'uv.select',
+      label: 'Select',
+      about:
+          'Click the edges a seam should run along; shift-click adds to what '
+          'is already picked.',
+      icon: Icons.near_me_outlined,
+      shortcut: LogicalKeyboardKey.keyQ,
+      group: 'select',
+    ),
+    ModelerTool(
+      id: 'uv.markSeam',
+      label: 'Mark a seam',
+      about:
+          'Cuts the unwrap along the selected edges, the way a pattern is cut '
+          'so that cloth lies flat.',
+      icon: Icons.content_cut_outlined,
+      shortcut: LogicalKeyboardKey.keyM,
+      group: 'seams',
+    ),
+    ModelerTool(
+      id: 'uv.clearSeam',
+      label: 'Clear the seam',
+      about: 'Joins the unwrap back up along the selected edges.',
+      icon: Icons.healing_outlined,
+      shortcut: LogicalKeyboardKey.keyC,
+      group: 'seams',
+    ),
+    ModelerTool(
+      id: 'uv.unwrap',
+      label: 'Unwrap',
+      about:
+          'Lays the selected faces out flat — the whole mesh when no face is '
+          'selected — cutting islands apart at the seams.',
+      icon: Icons.unfold_more_outlined,
+      shortcut: LogicalKeyboardKey.keyU,
+      group: 'layout',
+    ),
+    ModelerTool(
+      id: 'uv.pack',
+      label: 'Pack into one atlas',
+      about:
+          'Fits the selected objects\' layouts into one shared square, so '
+          'they can share one texture and one draw call.',
+      icon: Icons.grid_view_outlined,
+      shortcut: LogicalKeyboardKey.keyP,
+      group: 'layout',
+    ),
+  ],
   // `pro-sc-08`: the eight brushes, one rail tool each. The sculpting layout
   // has no rail on it — `SculptChrome`'s own palette is where these are
   // pressed — but they are rail tools all the same, because the armed tool
@@ -957,8 +1017,9 @@ List<ModelerTool> toolsFor(
       group: 'render',
     ),
   ],
-  // Every mode past phase one is drawn on the bar and refused, so there is
-  // nothing to offer. Returning an empty list rather than throwing, because a
-  // rail asking a disabled mode what it holds is not a bug.
+  // Material and Scene: their work is numbers and slots in the properties
+  // panel, and a rail of one tool called "select" would say a mode is
+  // emptier than it is. Returning an empty list rather than throwing,
+  // because a rail asking such a mode what it holds is not a bug.
   _ => const <ModelerTool>[],
 };

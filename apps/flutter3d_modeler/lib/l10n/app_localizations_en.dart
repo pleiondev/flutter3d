@@ -1994,4 +1994,173 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get envSunset => 'Sunset';
+
+  @override
+  String get toolUvSelectLabel => 'Select';
+
+  @override
+  String get toolUvSelectAbout =>
+      'Click the edges a seam should run along; shift-click adds to what is already picked.';
+
+  @override
+  String get toolUvMarkSeamLabel => 'Mark a seam';
+
+  @override
+  String get toolUvMarkSeamAbout =>
+      'Cuts the unwrap along the selected edges, the way a pattern is cut so that cloth lies flat.';
+
+  @override
+  String get toolUvClearSeamLabel => 'Clear the seam';
+
+  @override
+  String get toolUvClearSeamAbout =>
+      'Joins the unwrap back up along the selected edges.';
+
+  @override
+  String get toolUvUnwrapLabel => 'Unwrap';
+
+  @override
+  String get toolUvUnwrapAbout =>
+      'Lays the selected faces out flat — the whole mesh when no face is selected — cutting islands apart at the seams.';
+
+  @override
+  String get toolUvPackLabel => 'Pack into one atlas';
+
+  @override
+  String get toolUvPackAbout =>
+      'Fits the selected objects\' layouts into one shared square, so they can share one texture and one draw call.';
+
+  @override
+  String get uvAutoPack => 'Pack automatically';
+
+  @override
+  String get uvUnwrap => 'Unwrap';
+
+  @override
+  String uvSeamCount(int count) {
+    return 'Seams · $count edges';
+  }
+
+  @override
+  String uvStatus(int percent, int islands) {
+    return 'Unwrap fill $percent% · $islands islands';
+  }
+
+  @override
+  String uvLayoutSemantics(int islands) {
+    return 'UV layout, $islands islands';
+  }
+
+  @override
+  String get uvLayoutTitle => 'Unwrap';
+
+  @override
+  String get uvLegendNormal => 'normal';
+
+  @override
+  String get uvLegendStretched => 'stretched';
+
+  @override
+  String get uvRefusalNoObject => 'Select an object to unwrap';
+
+  @override
+  String uvRefusalNoMesh(String name) {
+    return '“$name” has no mesh yet — convert it to a mesh first';
+  }
+
+  @override
+  String get uvUnwrapFlat =>
+      'The unwrap came out with no area: a closed shape cannot lie flat until it is cut. Mark seams along some edges and unwrap again';
+
+  @override
+  String get uvPackNeedsTwo =>
+      'An atlas is shared: select two or more unwrapped objects to pack';
+
+  @override
+  String get propLods => 'Levels of detail';
+
+  @override
+  String propLodsCount(int count) {
+    return 'Levels: $count';
+  }
+
+  @override
+  String get propLodsOpen => 'Open…';
+
+  @override
+  String lodLevel(int index) {
+    return 'LOD $index';
+  }
+
+  @override
+  String get lodRatio => 'Keep';
+
+  @override
+  String lodTriangles(String count) {
+    return '$count triangles';
+  }
+
+  @override
+  String lodUpTo(int percent) {
+    return 'drawn up to $percent% of the screen';
+  }
+
+  @override
+  String get lodAddLevel => 'Add a level';
+
+  @override
+  String get lodRegenerate => 'Regenerate';
+
+  @override
+  String get lodClose => 'Back to the object';
+
+  @override
+  String get lodNoLevels =>
+      'No levels yet. The first one added halves the triangles and takes over below a quarter of the screen.';
+
+  @override
+  String lodNow(int percent, int index) {
+    return 'Now: $percent% of the screen — LOD $index';
+  }
+
+  @override
+  String lodNowBase(int percent) {
+    return 'Now: $percent% of the screen — the full mesh';
+  }
+
+  @override
+  String lodPaneEmpty(int index) {
+    return 'No LOD $index yet';
+  }
+
+  @override
+  String lodRefusalNoMesh(String name) {
+    return '“$name” has no mesh to simplify — convert it to a mesh first';
+  }
+
+  @override
+  String get lodThresholdFixed =>
+      'A level\'s threshold is set when it is added; this build has no command that moves one afterwards';
+
+  @override
+  String retopoCorners(int count) {
+    return 'Quad · $count of 4 points';
+  }
+
+  @override
+  String get retopoNeedsTwo =>
+      'Select the high mesh, then shift-click the mesh the quads go onto';
+
+  @override
+  String get retopoMissed => 'That click missed the high mesh';
+
+  @override
+  String retopoTargetNoMesh(String name) {
+    return '“$name” has no mesh to draw onto — convert it to a mesh first';
+  }
+
+  @override
+  String aboutVersion(String version) {
+    return 'Version $version';
+  }
 }
