@@ -11,6 +11,7 @@ import 'package:shelf/shelf.dart';
 import 'package:shelf_router/shelf_router.dart';
 
 import '../auth/accounts.dart';
+import '../content/learn_content.dart';
 import '../db/models_repository.dart';
 import '../db/rate_limit.dart';
 import '../db/sessions_repository.dart';
@@ -124,7 +125,12 @@ Handler buildHandler(Services services) {
         ),
       );
     })
-    ..mount('/learn/modeler/', learnRoutes());
+    ..mount(
+      '/learn/modeler/',
+      learnRoutes(
+        cases: loadLearnCases(directory: services.config.learnDirectory),
+      ),
+    );
 
   // --- registration ------------------------------------------------------------
 

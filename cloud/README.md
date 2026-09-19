@@ -16,7 +16,8 @@ and `tool/structure.dart` keep are counts of packages.
 |---|---|
 | `server/` | One Dart process: shelf for the routes, jaspr to render every page on the server |
 | `server/lib/src/db/migrations/` | The schema, as numbered SQL. `tool/embed_migrations.dart` turns it into the Dart file the binary carries |
-| `server/web/assets/` | The stylesheet and two scripts: uploading, and opening a model in 3D |
+| `server/web/assets/` | The stylesheet and two scripts: uploading, and opening a model in 3D. The tutorial's pictures are under `learn/modeler/` here |
+| `server/content/learn/modeler/` | The modeller's tutorial, one Markdown file a case, served at `/learn/modeler/`. Read from disk at start, so it is deployed beside the executable and not inside it |
 | `tool/` | Building the executable, building the viewer, deploying both |
 | `deploy/` | The systemd units, the nginx vhost, the tunnel config and an example environment |
 | `docker-compose.yml` | Postgres for development and the integration test |
@@ -58,6 +59,7 @@ names of everything that is missing.
 | `MODELS_UPLOAD_LIMIT` | Bytes; default 100 MB, which is what a free Cloudflare tunnel passes |
 | `MODELS_ASSETS_DIR` | Default `web/assets` |
 | `MODELS_VIEWER_DIR` | Optional; serves the viewer at `/app/` when set |
+| `MODELS_LEARN_DIR` | Default `content/learn/modeler`, which is right in a checkout and nowhere else. A directory with no case in it is an empty tutorial and one line in the log, not a failed start |
 
 ## Tests
 
@@ -106,6 +108,12 @@ Done once, by hand, because each step creates something outside this repository.
 
 4. **Service** — `deploy/flutter3d-models.service` to `/etc/systemd/system/`,
    `systemctl enable flutter3d-models`, then run `tool/deploy.sh`.
+
+   The unit is copied by hand and `tool/deploy.sh` does not touch it, so a
+   setting added to it later is not on the server until it is copied again and
+   `systemctl daemon-reload` is run. The script checks the one setting it
+   depends on, `MODELS_LEARN_DIR`, before it replaces anything, and stops with
+   these two steps in its message when the unit does not have it.
 
 5. **nginx** — `deploy/nginx-models.pleion.dev.conf` to `sites-available`,
    linked into `sites-enabled`, `nginx -t && systemctl reload nginx`.
