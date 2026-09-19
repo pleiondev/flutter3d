@@ -177,7 +177,16 @@ final class ProjectModelDocument extends ModelDocument {
         final target = (base.triangleCount * object.lods[level].ratio)
             .round()
             .clamp(1, base.triangleCount);
-        return simplifyMeshWithAttributes(base, targetTriangleCount: target);
+        // **Back into the layout the base is in.** The simplifier answers
+        // with the attributes it reads (position, normal, UV, skin) and
+        // nothing else, but a mesh node draws every mesh through one vertex
+        // layout: a level of eight floats a vertex reads past its own end
+        // the moment a pass asks for a tangent. The tangents and colours it
+        // gains here are the neutral ones.
+        return simplifyMeshWithAttributes(
+          base,
+          targetTriangleCount: target,
+        ).convertedTo(base.layout);
       });
 
   /// [object]'s own mesh with the export-bound modifiers run over it, or null
