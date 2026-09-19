@@ -13,6 +13,7 @@ import 'package:flutter3d_modeler/src/ui/bake_panel.dart';
 import 'package:flutter3d_modeler/src/ui/paint_panel.dart';
 import 'package:flutter3d_modeler/src/ui/render_panel.dart';
 import 'package:flutter3d_modeler/src/ui/retopo_overlay.dart';
+import 'package:flutter3d_modeler/src/ui/simulation_cache_strip.dart';
 import 'package:flutter3d_modeler/src/ui/simulation_panel.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -195,10 +196,16 @@ void main() {
         tester.getSize(find.byType(SimulationBar)).height,
         kSimulationBarHeight,
       );
-      final LinearProgressIndicator bar = tester.widget(
+      // `pro-sim-03`'s own strip, handed the two counts apart rather than a
+      // ratio: forty of a hundred, which is what its tooltip and its
+      // semantics say. Mutation: hand it `frames` for both. The strip reads
+      // full over a cache that is sixty frames short.
+      final SimulationCacheStrip bar = tester.widget(
         find.byKey(const ValueKey<String>('simCacheBar')),
       );
-      expect(bar.value, closeTo(0.4, 1e-9));
+      expect(bar.bakedFrameCount, 40);
+      expect(bar.targetFrameCount, 100);
+      expect(find.byTooltip('40 / 100 frames cached'), findsOneWidget);
       expect(find.text('10 / 100'), findsOneWidget);
     });
 

@@ -15,6 +15,7 @@ import 'package:flutter3d_modeler/l10n/app_localizations.dart';
 import 'package:flutter3d_modeler/src/staging.dart';
 import 'package:flutter3d_modeler/src/timeline_playback.dart';
 import 'package:flutter3d_modeler/src/ui/budget_bars.dart';
+import 'package:flutter3d_modeler/src/ui/frame_capture_panel.dart';
 import 'package:flutter3d_modeler/src/ui/game_preview_screen.dart';
 import 'package:flutter3d_modeler/src/ui/metrics_overlay.dart';
 import 'package:flutter3d_modeler/src/ui/theme.dart';
@@ -135,6 +136,50 @@ void main() {
       await _settle(tester);
 
       expect(pressed, 1);
+    });
+  });
+
+  testWidgets('the capture panel sits under the metrics card, and its button '
+      'asks the renderer for the next frame', (tester) async {
+    await withScreen(tester, () async {
+      await _open(tester);
+
+      // `gfx-70n`: the panel was built, tested and shown nowhere. Mutation:
+      // take it back out of the column. The card that says which pass is
+      // slow is on screen and the one that says which pass wrote nothing is
+      // not.
+      expect(find.byType(FrameCapturePanel), findsOneWidget);
+      expect(find.text('Nothing captured yet'), findsOneWidget);
+      expect(
+        tester.getTopLeft(find.byType(FrameCapturePanel)).dy,
+        greaterThan(tester.getBottomLeft(find.byType(MetricsOverlay)).dy),
+      );
+
+      await tester.tap(find.text('Capture a frame'));
+      await tester.pump();
+      // Asked for, not yet answered: the button says so and cannot be
+      // pressed twice. Mutation: hand the panel a callback that does not
+      // reach `captureNextFrame`. `waiting` never goes true.
+      expect(
+        tester
+            .widget<FrameCapturePanel>(find.byType(FrameCapturePanel))
+            .waiting,
+        isTrue,
+      );
+
+      // The ticker draws the next frame, the capture answers with it, and
+      // the panel lists what it caught instead of saying it has nothing.
+      await tester.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 50)),
+      );
+      await _settle(tester);
+      final FrameCapturePanel after = tester.widget(
+        find.byType(FrameCapturePanel),
+      );
+      expect(after.waiting, isFalse);
+      expect(after.capture, isNotNull);
+      expect(after.capture!.passes, isNotEmpty);
+      expect(find.text('Nothing captured yet'), findsNothing);
     });
   });
 

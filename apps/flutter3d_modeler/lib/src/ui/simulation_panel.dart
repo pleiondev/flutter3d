@@ -22,6 +22,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter3d_editor_widgets/flutter3d_editor_widgets.dart';
 
 import '../../l10n/app_localizations.dart';
+import 'simulation_cache_strip.dart';
 
 /// The transport strip's own height — `pro-sim-06`'s own 150.
 const double kSimulationBarHeight = 150;
@@ -225,9 +226,16 @@ class SimulationBar extends StatelessWidget {
             // simulation half baked is a scrub bar that runs out halfway,
             // and saying so before somebody drags into the empty half is
             // cheaper than explaining it afterwards.
-            LinearProgressIndicator(
+            //
+            // `pro-sim-03`'s own strip rather than the progress indicator
+            // that stood in for it: the same fill, and the two things an
+            // indicator has not got — a tooltip with the two counts in it,
+            // and a sentence for a screen reader, which otherwise meets a
+            // bar of unexplained progress in the middle of a transport.
+            SimulationCacheStrip(
               key: const ValueKey<String>('simCacheBar'),
-              value: cache.frames == 0 ? 0 : cache.baked / cache.frames,
+              bakedFrameCount: cache.baked,
+              targetFrameCount: cache.frames,
             ),
             const SizedBox(height: 8),
             Row(
