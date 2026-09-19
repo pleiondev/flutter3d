@@ -1,14 +1,16 @@
-/// A live page over the state of a release.
+/// One look at the state of a release, printed as JSON.
 ///
-///     dart run tool/release_dashboard/bin/release_dashboard.dart
-///     dart run release_dashboard:release_dashboard --port 9000
+///     dart run tool/release_dashboard/bin/release_dashboard.dart --out state.json
+///     dart run release_dashboard:release_dashboard --run publish,web
 ///
-/// Open the address it prints. Nothing is installed and nothing is written: it
-/// reads the tree, runs the repository's own scripts on request and on change,
-/// and asks git, GitHub, pub.dev and the modeller's own server what they say.
+/// It reads the tree, asks git, GitHub, pub.dev and the modeller's server what
+/// they say, runs the quick checks that have not judged this tree and prints
+/// what it found. It stays running for as long as that takes and no longer, and
+/// it opens no port: the page that shows the result is `page.html`, published
+/// as an artifact, and whoever publishes the state is the one that ran this.
 library;
 
-import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:release_dashboard/release_dashboard.dart';
@@ -16,11 +18,13 @@ import 'package:release_dashboard/release_dashboard.dart';
 const String _usage = '''
 Usage: dart run release_dashboard:release_dashboard [options]
 
-  --port <n>        Where to listen, on 127.0.0.1 only (default 8765).
-  --root <path>     The repository (default: found from the current directory).
-  --release <x.y.z> The version the shelf is meant to carry (default 0.7.0).
-  --no-auto         Do not run the quick checks when the tree changes.
-  -h, --help        This text.
+  --out <file>       Write the JSON there instead of printing it.
+  --run <id,id>      Also run these checks, whatever they last said. The ids
+                     are format, structure, plan, analyze, publish, web, ci.
+  --root <path>      The repository (default: found from the current directory).
+  --release <x.y.z>  The version the shelf is meant to carry (default 0.7.0).
+  --no-auto          Do not run the quick checks that are out of date.
+  -h, --help         This text.
 ''';
 
 /// The nearest directory at or above [start] that is this repository's root:
@@ -36,18 +40,21 @@ Directory? _findRoot(Directory start) {
 }
 
 Future<void> main(List<String> arguments) async {
-  var port = 8765;
+  String? out;
   String? rootPath;
   var release = '0.7.0';
   var auto = true;
+  final run = <String>{};
 
   for (var i = 0; i < arguments.length; i++) {
     switch (arguments[i]) {
       case '-h' || '--help':
         stdout.write(_usage);
         return;
-      case '--port':
-        port = int.tryParse(arguments[++i]) ?? port;
+      case '--out':
+        out = arguments[++i];
+      case '--run':
+        run.addAll(arguments[++i].split(',').where((id) => id.isNotEmpty));
       case '--root':
         rootPath = arguments[++i];
       case '--release':
@@ -77,29 +84,26 @@ Future<void> main(List<String> arguments) async {
   final gates = defaultGates(
     root,
   ).map((gate) => auto ? gate : gate.withoutAuto()).toList();
+  final unknown = run.where((id) => !gates.any((g) => g.id == id));
+  if (unknown.isNotEmpty) {
+    stderr.writeln('No such check: ${unknown.join(', ')}');
+    exitCode = 64;
+    return;
+  }
+
   final dashboard = Dashboard(
     root: root,
     config: config,
     sources: LocalSources(root, config),
     gates: gates,
+    memory: File('${root.path}/.dart_tool/release_dashboard/results.json'),
   );
 
-  final page = File.fromUri(Platform.script.resolve('../web/index.html'));
-  if (!page.existsSync()) {
-    stderr.writeln('The page is missing: ${page.path}');
-    exitCode = 66;
-    return;
+  final json = jsonEncode(await dashboard.look(run: run));
+  if (out == null) {
+    stdout.writeln(json);
+  } else {
+    File(out).writeAsStringSync(json);
+    stderr.writeln('Wrote $out');
   }
-
-  final server = await serveDashboard(dashboard, page: page, port: port);
-  stdout.writeln(
-    'Release $release, in ${root.path}\n'
-    'http://127.0.0.1:${server.port}/   (Ctrl-C to stop)',
-  );
-
-  await dashboard.start();
-
-  await ProcessSignal.sigint.watch().first;
-  await dashboard.close();
-  await server.close(force: true);
 }

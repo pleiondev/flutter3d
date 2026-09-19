@@ -80,6 +80,41 @@ final class GateResult {
       duration = null,
       fingerprint = null;
 
+  /// Reads what [toJson] wrote. A file that says something else is not an
+  /// error: the gate is simply reported as not run, and runs again.
+  static GateResult? fromJson(Object? json) {
+    if (json is! Map<String, Object?>) return null;
+    final level = Level.values.asNameMap()[json['level']];
+    final summary = json['summary'];
+    if (level == null || summary is! String) return null;
+    final ranAt = json['ranAt'];
+    final seconds = json['seconds'];
+    return GateResult(
+      level: level,
+      summary: summary,
+      brokenRules: <String>[
+        for (final rule in json['brokenRules'] as List<Object?>? ?? const [])
+          '$rule',
+      ],
+      tail: <String>[
+        for (final line in json['tail'] as List<Object?>? ?? const []) '$line',
+      ],
+      ranAt: ranAt is String ? DateTime.tryParse(ranAt) : null,
+      duration: seconds is int ? Duration(seconds: seconds) : null,
+      fingerprint: json['fingerprint'] as String?,
+    );
+  }
+
+  Map<String, Object?> toJson() => <String, Object?>{
+    'level': level.name,
+    'summary': summary,
+    'brokenRules': brokenRules,
+    'tail': tail,
+    'ranAt': ranAt?.toIso8601String(),
+    'seconds': duration?.inSeconds,
+    'fingerprint': fingerprint,
+  };
+
   final Level level;
   final String summary;
 

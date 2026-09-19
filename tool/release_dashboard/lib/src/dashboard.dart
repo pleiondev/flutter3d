@@ -1,15 +1,15 @@
-/// The state of the release, kept current.
+/// The state of the release, taken in one look.
 ///
-/// **One object owns what is known and when it changes.** Sources answer, this
-/// keeps the latest answer of each, builds the checklist from them and tells
-/// whoever is listening when the picture is different. Nothing else holds a
-/// result, so the page cannot show something the checklist was not judged from.
+/// **One object owns what is known.** Sources answer, this keeps the latest
+/// answer of each and builds the checklist from them, so nothing shows
+/// something the checklist was not judged from.
 ///
-/// **Slow checks run one at a time.** The gates are the repository's own
-/// scripts, each of which takes the pub lock or the whole CPU; run together they
-/// would slow each other and, worse, disagree about a tree that is changing
-/// under them. So there is a queue, and a change to the tree schedules the quick
-/// gates again after it has stopped changing.
+/// **Checks run one at a time.** The gates are the repository's own scripts,
+/// each of which takes the pub lock or the whole CPU; run together they would
+/// slow each other and, worse, disagree about a tree that is changing under
+/// them. A quick gate runs again only when the tree is different from the one
+/// it last judged, and every result is kept in a file, so a look that finds
+/// nothing changed costs no scripts at all.
 library;
 
 import 'dart:async';
@@ -89,39 +89,25 @@ final class LocalSources implements Sources {
   );
 }
 
-/// One line of what has happened since the page was opened.
-final class DashboardEvent {
-  const DashboardEvent(this.at, this.text, this.level);
-
-  final DateTime at;
-  final String text;
-  final Level level;
-
-  Map<String, Object?> toJson() => <String, Object?>{
-    'at': at.toIso8601String(),
-    'text': text,
-    'level': level.name,
-  };
-}
-
-/// The live state, and the only way to change it.
+/// The state of the release, and the only way to change it.
 final class Dashboard {
   Dashboard({
     required this.root,
     required this.config,
     required this.sources,
     required List<Gate> gates,
-    this.quietPeriod = const Duration(seconds: 4),
-  }) : gates = List<Gate>.unmodifiable(gates);
+    this.memory,
+  }) : gates = List<Gate>.unmodifiable(gates) {
+    _remember();
+  }
 
   final Directory root;
   final ReleaseConfig config;
   final Sources sources;
   final List<Gate> gates;
 
-  /// How long the tree must stay unchanged before the quick gates run again.
-  /// An editor saving twenty files should cost one run, not twenty.
-  final Duration quietPeriod;
+  /// Where results are kept between looks; null keeps them in memory only.
+  final File? memory;
 
   GitSnapshot? _git;
   PackagesSnapshot? _packages;
@@ -136,55 +122,38 @@ final class Dashboard {
   final List<String> _queue = <String>[];
   String? _running;
 
-  final List<DashboardEvent> _events = <DashboardEvent>[];
-  Map<String, Level> _lastLevels = const <String, Level>{};
-  String? _lastStable;
+  // --- Looking ----------------------------------------------------------
 
-  String? _autoRanFor;
-  String? _changeSeen;
-  DateTime? _changeSeenAt;
-
-  final StreamController<String> _out = StreamController<String>.broadcast();
-  final List<Timer> _timers = <Timer>[];
-  bool _closed = false;
-
-  /// Full state as JSON, whenever it has changed or on the heartbeat.
-  Stream<String> get updates => _out.stream;
-
-  // --- Lifecycle --------------------------------------------------------
-
-  /// Reads everything once, then keeps reading on a schedule.
-  Future<void> start() async {
+  /// One look at everything: reads every source, runs the quick gates that
+  /// have not judged this tree, runs the gates in [run] whatever they judged,
+  /// waits for the queue to empty and returns the state.
+  Future<Map<String, Object?>> look({
+    Set<String> run = const <String>{},
+  }) async {
     await refreshLocal();
-    unawaited(refreshRemote());
-    _timers.addAll(<Timer>[
-      Timer.periodic(const Duration(seconds: 5), (_) => refreshLocal()),
-      Timer.periodic(const Duration(seconds: 60), (_) => _refreshCiAndSites()),
-      Timer.periodic(const Duration(minutes: 10), (_) => _refreshPubDev()),
-      Timer.periodic(const Duration(seconds: 10), (_) => _publish(force: true)),
-    ]);
+    await refreshRemote();
+    run.forEach(runGate);
+    await idle();
+    return state();
   }
 
-  Future<void> close() async {
-    _closed = true;
-    for (final timer in _timers) {
-      timer.cancel();
+  /// Completes once no gate is running or waiting.
+  Future<void> idle() async {
+    while (_draining || _queue.isNotEmpty) {
+      await Future<void>.delayed(const Duration(milliseconds: 50));
     }
-    await _out.close();
   }
 
   // --- Reading ----------------------------------------------------------
 
   /// The sources that are cheap: files and git, no network.
   Future<void> refreshLocal() async {
-    if (_closed) return;
     _git = await sources.git();
     _packages = await sources.packages();
     _plan = sources.plan();
     _probes = sources.probes();
     _agents = await sources.agents(_git?.branch ?? '');
     _scheduleAutoGates();
-    _publish();
   }
 
   /// The sources that need the network.
@@ -194,44 +163,27 @@ final class Dashboard {
   }
 
   Future<void> _refreshCiAndSites() async {
-    if (_closed) return;
     final branch = _git?.branch;
     if (branch != null && branch.isNotEmpty) _ci = await sources.ci(branch);
     _sites = await sources.sites();
-    _publish();
   }
 
   Future<void> _refreshPubDev() async {
-    if (_closed) return;
     final names = <String>[
       for (final row in _packages?.rows ?? const <PackageRow>[]) row.name,
     ];
     _pubdev = await sources.pubdev(names);
-    _publish();
   }
 
   // --- Gates ------------------------------------------------------------
 
-  /// Puts the quick gates in the queue once the tree has stopped changing.
+  /// Queues the quick gates that have not judged this tree: never run, or run
+  /// against a tree that has since changed.
   void _scheduleAutoGates() {
     final fingerprint = _git?.fingerprint;
-    if (fingerprint == null || fingerprint == _autoRanFor) return;
-
-    // The very first look at a tree has nothing to wait for. Every later change
-    // does: it is run once the fingerprint has held still for [quietPeriod].
-    if (_autoRanFor != null) {
-      if (fingerprint != _changeSeen) {
-        _changeSeen = fingerprint;
-        _changeSeenAt = DateTime.now();
-        return;
-      }
-      final since = DateTime.now().difference(_changeSeenAt!);
-      if (since < quietPeriod) return;
-    }
-
-    _autoRanFor = fingerprint;
+    if (fingerprint == null) return;
     for (final gate in gates.where((Gate g) => g.auto)) {
-      _enqueue(gate.id);
+      if (_results[gate.id]?.fingerprint != fingerprint) _enqueue(gate.id);
     }
   }
 
@@ -245,7 +197,6 @@ final class Dashboard {
   bool _enqueue(String id) {
     if (_running == id || _queue.contains(id)) return false;
     _queue.add(id);
-    _publish();
     unawaited(_drain());
     return true;
   }
@@ -256,11 +207,10 @@ final class Dashboard {
     if (_draining) return;
     _draining = true;
     try {
-      while (_queue.isNotEmpty && !_closed) {
+      while (_queue.isNotEmpty) {
         final id = _queue.removeAt(0);
         final gate = gates.firstWhere((Gate g) => g.id == id);
         _running = id;
-        _publish();
 
         final fingerprint = _git?.fingerprint;
         final ran = await sources.run(gate);
@@ -275,12 +225,7 @@ final class Dashboard {
           fingerprint: fingerprint,
         );
         _running = null;
-        _remember(
-          '${gate.title}: ${judged.summary} '
-          '(${ran.duration.inSeconds} s)',
-          judged.level,
-        );
-        _publish();
+        _keep();
       }
     } finally {
       _draining = false;
@@ -308,36 +253,11 @@ final class Dashboard {
     ci: _ci,
   );
 
-  void _remember(String text, Level level) {
-    _events.insert(0, DashboardEvent(DateTime.now(), text, level));
-    if (_events.length > 80) _events.removeRange(80, _events.length);
-  }
-
   /// The whole state, as it is now.
   Map<String, Object?> state() {
     final snapshots = _snapshots();
     final stages = buildChecklist(snapshots, config);
     final progress = progressOf(stages);
-
-    // What turned since the last look is news; what stayed is not.
-    final levels = <String, Level>{
-      for (final stage in stages)
-        for (final item in stage.items) item.id: item.level,
-    };
-    if (_lastLevels.isNotEmpty) {
-      for (final stage in stages) {
-        for (final item in stage.items) {
-          final before = _lastLevels[item.id];
-          if (before != null && before != item.level) {
-            _remember(
-              '${item.title}: ${before.name} to ${item.level.name}',
-              item.level,
-            );
-          }
-        }
-      }
-    }
-    _lastLevels = levels;
 
     return <String, Object?>{
       'generatedAt': DateTime.now().toIso8601String(),
@@ -399,7 +319,6 @@ final class Dashboard {
         'error': _pubdev.error,
         'fetchedAt': _pubdev.fetchedAt?.toIso8601String(),
       },
-      'events': <Object?>[for (final e in _events) e.toJson()],
     };
   }
 
@@ -422,25 +341,40 @@ final class Dashboard {
             result.fingerprint != _git!.fingerprint,
       };
 
-  /// Sends the state to listeners if it differs from what they last had, or
-  /// unconditionally on the heartbeat, so a page that missed a change and the
-  /// "asked N s ago" beside each remote source are never stale for long.
-  void _publish({bool force = false}) {
-    if (_closed || _out.isClosed) return;
-    final current = state();
-    final stable = jsonEncode(_withoutTimes(current));
-    if (!force && stable == _lastStable) return;
-    _lastStable = stable;
-    _out.add(jsonEncode(current));
+  // --- Memory -----------------------------------------------------------
+
+  /// Reads the results kept by an earlier look. Anything unreadable is
+  /// dropped: a gate with no result simply runs.
+  void _remember() {
+    final file = memory;
+    if (file == null || !file.existsSync()) return;
+    try {
+      final json = jsonDecode(file.readAsStringSync());
+      if (json is! Map<String, Object?>) return;
+      for (final gate in gates) {
+        final result = GateResult.fromJson(json[gate.id]);
+        if (result != null && result.level != Level.running) {
+          _results[gate.id] = result;
+        }
+      }
+    } on Object {
+      // A damaged file is the same as no file.
+    }
   }
 
-  static Object? _withoutTimes(Object? node) => switch (node) {
-    Map<String, Object?>() => <String, Object?>{
-      for (final MapEntry(:key, :value) in node.entries)
-        if (key != 'generatedAt' && key != 'fetchedAt')
-          key: _withoutTimes(value),
-    },
-    List<Object?>() => <Object?>[for (final item in node) _withoutTimes(item)],
-    _ => node,
-  };
+  void _keep() {
+    final file = memory;
+    if (file == null) return;
+    try {
+      file.parent.createSync(recursive: true);
+      file.writeAsStringSync(
+        jsonEncode(<String, Object?>{
+          for (final MapEntry(:key, :value) in _results.entries)
+            key: value.toJson(),
+        }),
+      );
+    } on FileSystemException {
+      // Losing the memory costs a rerun, not the look.
+    }
+  }
 }

@@ -106,7 +106,6 @@ Map<String, Probe> releaseProbes() => <String, Probe>{
     'uv_screen',
     'lod_screen',
     'retopo_overlay',
-    'animation_screen',
     'frame_capture_panel',
     'simulation_cache_strip',
   ]),
