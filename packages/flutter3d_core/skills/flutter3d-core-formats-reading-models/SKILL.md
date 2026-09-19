@@ -90,5 +90,10 @@ de-indexes the mesh. An absent OBJ `vn` produces smooth ones, because the format
 prescribes nothing, files routinely omit them, and flat normals on a teapot look
 broken.
 
-Refused by name: Draco, meshopt, cameras, `TEXCOORD_1` and up, and KTX2's UASTC
-and Zstandard.
+Compressed glTF is decoded: `KHR_draco_mesh_compression` (edgebreaker and
+sequential; a payload that does not decode costs that primitive and the warning
+says why) and `EXT_meshopt_compression`. A KTX2 texture may be Basis Universal
+ETC1S or UASTC LDR, with or without Zstandard; both unpack to RGBA8.
+
+Refused by name: `TEXCOORD_1` and up, UASTC HDR, Draco point clouds and
+bitstreams older than 2.2.
