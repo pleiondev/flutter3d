@@ -4,9 +4,37 @@
 import, come from `package:test` instead of `flutter_test` — the same two
 symbols, so no check changes. Nothing else here ever named Flutter directly;
 the import outlived the reason for it, from before `flutter3d_hardware` had a
-`dart:ui`-free `GraphicsDevice` of its own to test. Still resolves the
-Flutter SDK transitively through `flutter3d_shaders`, which is unrelated and
-unchanged. Floors to `flutter3d_hardware` `^0.7.0`.
+`dart:ui`-free `GraphicsDevice` of its own to test. `flutter3d_shaders` dropped
+its own `flutter: sdk` dependency in the same release, so this package no
+longer resolves the Flutter SDK through it either, and a backend's
+`conformance_test.dart` runs under `dart test`. Floors to `flutter3d_hardware`
+`^0.7.0` and `flutter3d_shaders` `^0.7.0`.
+
+**Four new checks, thirty-seven in all, and twenty-eight of them need the
+shader pipeline.** `a texture region overwrite lands only where it was aimed`
+patches a 2x2 corner of a 4x4 texture through `overwriteTexture` and reads all
+sixteen texels back. `a geometry overwrite draws what a fresh upload draws` and
+`a geometry overwrite leaves its neighbours untouched` hold
+`overwriteGeometry` to the picture and to the bytes either side of the write,
+and expect a write past the end to be refused. `the colour attachment limit is
+honoured in both directions` asks for a second attachment that receives its
+own output and for a pass past `maxColorAttachments` that throws. A backend
+that answers one declines the first half and is still held to the second. A
+backend written against 0.6.0 meets all four as failures until it implements
+the three new `GraphicsDevice` members.
+
+**The link check covers the stages the engine added.** `ShadowDepthMasked` and
+`ShadowDistanceMasked` link against each of the four mesh vertex stages,
+`SsaoBlur`, `ContactShadow`, `LightShafts`, `DepthOfField` and `ViewportShade`
+against the fullscreen one, and two pairs are new: `PolylineVertex` with
+`Unlit`, and `ParticleVertex` with `Splat`. `Fxaa` is in `kRequiredShaders`
+and is not in this list.
+
+**A device factory may decline.** A `ConformanceDeclined` thrown while
+`makeDevice` runs skips the check with the sentence it carries, the way a
+declined check already did. Headless Chrome on a CI runner has `navigator.gpu`
+and hands out no adapter, which is nothing a check could have been asked
+about. Any other exception from the factory is still a failure.
 
 ## 0.6.0
 
