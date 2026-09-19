@@ -1,7 +1,7 @@
 # flutter3d
 
 An **independent implementation** of a 3D engine on Flutter GPU, a game engine
-on top of it, and **three games of different genres** built from both — which is
+on top of it, and **four games of different genres** built from both — which is
 the only honest test that the engine is one. It is not a fork, a binding or a
 wrapper around another engine, and it is not affiliated with the Flutter team.
 
@@ -10,24 +10,28 @@ wrapper around another engine, and it is not affiliated with the Flutter team.
 
 On pub.dev: twenty-seven packages, published by
 [pleion.dev](https://pub.dev/publishers/pleion.dev/packages) — start with
-[`flutter3d`](https://pub.dev/packages/flutter3d) and a backend. The workspace
-holds thirty-six; `flutter3d_game_strategy` is the one that is not published,
-because its types still encode how many sides a match may have, and
-the packages written after the set went out — `flutter3d_core` and the
-modeller's among them — go with the next one, so the counts differ. The set is **0.6.0**, twenty-five packages at one number,
-so a pubspec that names them all names one tree —
+[`flutter3d`](https://pub.dev/packages/flutter3d) and a backend. What is there
+is the **0.6.0** set, twenty-five packages at one number, so a pubspec that names
+them all names one tree —
 [`pad_input`](https://pub.dev/packages/pad_input) and
 [`pointer_lock`](https://pub.dev/packages/pointer_lock) keep a line of their own
 at 0.4.1, and [`flutter3d_samples`](https://pub.dev/packages/flutter3d_samples)
-keeps its at 0.4.2. Newest out are the three that had never been out:
-[`flutter3d_webgpu`](https://pub.dev/packages/flutter3d_webgpu), the second
-browser backend, and the editor's document layer with the server that offers it
-to an agent. Or build it
-from this repository — see [Running](#running),
+keeps its at 0.4.2.
+
+This tree is **0.7.0**, prepared and not published yet. The workspace holds
+thirty-six packages, thirty-three of them at the one number. Thirteen go out for
+the first time, `flutter3d_core` and the modeller's among them, and four names
+pub.dev has are folded into `flutter3d_app` and `flutter3d_game`, so an importer
+of 0.6.0 changes import lines:
+[`doc/boundary-0.7.0.md`](doc/boundary-0.7.0.md) lists which. It goes out after
+the modeller's tutorial has been walked by people other than its author. Until
+then, build it from this repository — see [Running](#running),
 [CONTRIBUTING.md](CONTRIBUTING.md) and [SECURITY.md](SECURITY.md).
 
-Documentation: <https://flutter3d.pleion.dev> — guides, tutorials for all three
-genres, and the generated API reference.
+Documentation: <https://flutter3d.pleion.dev> — guides, tutorials for three of
+the four genres, and the generated API reference. The model editor runs in a
+browser at <https://models.pleion.dev>, with its own
+[tutorial](https://models.pleion.dev/learn/modeler/).
 
 ## What is here
 
@@ -62,13 +66,19 @@ genres, and the generated API reference.
 | [`packages/flutter3d_mcp_kit`](packages/flutter3d_mcp_kit) | What every MCP server here shares: a tool paired with its handler, a server that is a list of them over one session, answers that refuse without failing, and a loopback HTTP transport. Plain Dart |
 | [`packages/flutter3d_mesh`](packages/flutter3d_mesh) | The mesh a modeller edits, with the topology still in it: faces of any valency, half-edges that know their twin, and the operations that change them. Plain Dart. [README](packages/flutter3d_mesh/README.md) |
 | [`packages/flutter3d_model_core`](packages/flutter3d_model_core) | The headless half of the model editor: the project of objects, the sealed command every edit is one of, the history that takes them back, what it refuses to export, and the rig algorithms it runs — bone-name mapping, retargeting with a foot lock, automatic skin weights |
-| [`packages/flutter3d_model_mcp`](packages/flutter3d_model_mcp) | The same modeller offered to an agent, over MCP on stdio. An entry point today; the tools follow the document layer |
+| [`packages/flutter3d_model_mcp`](packages/flutter3d_model_mcp) | The same modeller offered to an agent, over MCP on stdio: 147 editing tools, each one of the editor's own commands, and `render`, which hands the agent a picture of what it did |
+| [`packages/flutter3d_sim_mcp`](packages/flutter3d_sim_mcp) | A level an agent can play without seeing it, and a second server that says why a frame is wrong: one pixel's HDR value, the passes that ran, a scan for NaN |
+| [`packages/flutter3d_sim`](packages/flutter3d_sim) | The simulation with no Flutter in it: the fixed step, the level format, entities, navigation, saves, replays and the portable arithmetic that makes a run reproduce on another machine |
+| [`packages/flutter3d_net`](packages/flutter3d_net), [`flutter3d_net_webrtc`](packages/flutter3d_net_webrtc) | Rollback netcode for two peers over `flutter3d_sim`, with the network behind one interface, and that interface over a WebRTC data channel |
+| [`packages/flutter3d_build`](packages/flutter3d_build) | The build hook: model and texture sources converted into what the engine loads, on every build, with a content-hash cache |
+| [`packages/flutter3d_lab`](packages/flutter3d_lab) | Virtual laboratory simulations a server can replay with no Flutter SDK. The pendulum is the first |
 | [`apps/flutter3d_demo_dungeon`](apps/flutter3d_demo_dungeon) | The shooter, and a headless test that plays it to the exit. Desktop, web, Android and iOS |
 | [`apps/flutter3d_demo_platformer`](apps/flutter3d_demo_platformer) | The second game: third person, two jumps and a dash, and no line of the engine changed to allow it. Desktop, web, Android and iOS |
 | [`apps/flutter3d_demo_racing`](apps/flutter3d_demo_racing) | The third game: a circuit, three rivals and the lap you drove before, drawn beside the one you are driving |
 | [`apps/flutter3d_demo_strategy`](apps/flutter3d_demo_strategy) | A map, two sides and a match played to a finish, with a headless test that plays the recording back. Desktop, web, Android and iOS |
 | [`apps/flutter3d_editor`](apps/flutter3d_editor) | A level editor that reads the same documents the games do, and writes projects from templates |
-| [`apps/flutter3d_modeler`](apps/flutter3d_modeler) | A modeller for the meshes the games draw: a document of objects, a rail of tools that edit one, undo across both, and the beginnings of a file. What is still ahead of it is planned on the [`modeler`](https://github.com/pleiondev/flutter3d/tree/modeler) branch |
+| [`apps/flutter3d_modeler`](apps/flutter3d_modeler) | The model editor: mesh editing, materials and a texture graph, UV, sculpting, retopology, texture painting, rigging and animation, simulation and LOD over one project document, with undo that records who made each change. On macOS and in a browser, where it is <https://models.pleion.dev> |
+| [`apps/flutter3d_lesson_viewer`](apps/flutter3d_lesson_viewer), [`flutter3d_stereo_lesson_viewer`](apps/flutter3d_stereo_lesson_viewer), [`flutter3d_lab_pendulum`](apps/flutter3d_lab_pendulum) | The lessons: a level document with steps in it, played flat or as a stereo pair, and the pendulum laboratory a student runs |
 | [`packages/flutter3d_app/example`](packages/flutter3d_app/example) | The smallest application on the engine: a lit cube you can turn. What a project that is not a game starts from |
 | [`packages/flutter3d_game/example`](packages/flutter3d_game/example) | A level you can walk around, with no genre in it: what a new game starts as, and the source the editor's templates are generated from |
 | [`packages/flutter3d/example`](packages/flutter3d/example) | The engine's own demo: a model browser with every feature switchable |
@@ -155,7 +165,7 @@ Or one package at a time:
 (cd packages/flutter3d_physics && dart test)   # plain Dart, no Flutter needed
 ```
 
-9464 tests across thirty-six packages and eight applications, and the only
+9464 tests across thirty-six packages and nine applications, and the only
 ones that need a GPU are the
 Impeller half of the golden set. The other half is rendered by the software
 backend, which is what makes 43 scenes checkable in a headless run.

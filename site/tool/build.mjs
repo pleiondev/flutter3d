@@ -187,6 +187,17 @@ const NAV = [
     ],
   },
   {
+    // One page, where the three genres above have three. The strategy game
+    // has a demo and a package and no tutorial yet, and its demo was built by
+    // `demos.sh` and linked from nowhere.
+    section: 'Strategy',
+    slug: 'strategy',
+    badge: 'genre',
+    pages: [
+      { file: 'strategy/demo.md', url: '/strategy/demo/', title: 'Playable demo', kind: 'demo' },
+    ],
+  },
+  {
     section: 'Reference',
     slug: 'reference',
     pages: [
