@@ -6,6 +6,7 @@ import 'package:vector_math/vector_math.dart';
 import '../animation/animation_clip.dart';
 import '../animation/animation_track.dart';
 import '../asset_resolver.dart';
+import '../draco/draco.dart';
 import '../model_document.dart';
 import '../model_loader.dart';
 import '../texture_transform_bake.dart';
@@ -47,9 +48,14 @@ part 'gltf_loader_skins.dart';
 /// [GltfAsset.warnings] rather than silently, the same channel every other
 /// non-fatal gap in this loader already reports through.
 ///
-/// Compressed extensions (`KHR_draco_mesh_compression`, `EXT_meshopt_compression`)
-/// are not supported and are reported through [GltfAsset.warnings] rather than
-/// throwing, so a file that merely *offers* a compressed variant still loads.
+/// **Compressed geometry is decoded, both kinds.** `EXT_meshopt_compression`
+/// lives on a buffer view and is undone by [GltfAccessorReader] before an
+/// accessor reads a byte. `KHR_draco_mesh_compression` lives on a primitive and
+/// is undone in `gltf_loader_mesh.dart`, which puts the decoded values behind
+/// the primitive's own accessors. A payload that does not decode is reported
+/// through [GltfAsset.warnings] with the decoder's reason rather than thrown,
+/// so one bad primitive — or a file that merely *offers* a compressed variant
+/// beside an uncompressed one — still loads.
 final class GltfLoader implements ModelDecoder {
   GltfLoader({
     this.layout = VertexLayout.standard,
@@ -193,6 +199,13 @@ final class GltfLoader implements ModelDecoder {
       // an accessor ever reads a byte, so a file naming this as required
       // reads exactly as it would uncompressed.
       'EXT_meshopt_compression',
+      // `gfx-82n`: `_supplyDraco` decodes the payload — both connectivity
+      // methods, every prediction scheme a current encoder writes — and a
+      // stream it refuses costs the one primitive, with the reason in a
+      // warning. Every Draco file names this as required, since its accessors
+      // have no buffer views to fall back on; refusing the extension here
+      // refused all of them.
+      'KHR_draco_mesh_compression',
     };
     final unsupported = required.whereType<String>().where(
       (e) => !supported.contains(e),

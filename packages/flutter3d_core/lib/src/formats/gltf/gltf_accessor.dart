@@ -70,6 +70,59 @@ final class GltfAccessorReader {
   bool hasBufferView(int accessorIndex) =>
       _accessor(accessorIndex)['bufferView'] is int;
 
+  /// Whether reading accessors[accessorIndex] reads *something* — a buffer
+  /// view of its own, or data handed to [supplyDecoded].
+  bool hasData(int accessorIndex) =>
+      _supplied.containsKey(accessorIndex) || hasBufferView(accessorIndex);
+
+  /// The bytes `bufferViews[index]` spans — for an extension that points at a
+  /// buffer view directly rather than through an accessor, which is how
+  /// `KHR_draco_mesh_compression` names its payload.
+  Uint8List bytesOfBufferView(int index) {
+    if (index < 0 || index >= _bufferViews.length) {
+      throw FormatException('bufferViews[$index] does not exist.');
+    }
+    final data = _resolveView(index, -1).data;
+    return Uint8List.sublistView(data);
+  }
+
+  /// Gives accessors[accessorIndex] its elements from outside the buffers.
+  ///
+  /// **The accessor still says what the data is; this says where it came
+  /// from.** `KHR_draco_mesh_compression` leaves a primitive's accessors in
+  /// place — count, type, component type, min and max all describe the
+  /// *decoded* mesh — and takes away only their buffer views, because the
+  /// bytes are inside the compressed payload. Putting the decoded values back
+  /// behind the same accessor index is the extension's own model, and it
+  /// means nothing downstream — morph targets counting vertices, the writer
+  /// reading ranges — needs to know the primitive was ever compressed.
+  ///
+  /// [integers], when the decoder has them, are the values as stored; they are
+  /// what [readAsUint32] returns, and what [readAsFloats] normalizes by the
+  /// accessor's own rule — a colour kept as bytes is 255 to Draco and 1.0 to
+  /// glTF. [floats] are used as they are. The length is checked against what
+  /// the accessor declares, since a decoded mesh with a different vertex count
+  /// from the one the file promised would index past the end of something.
+  void supplyDecoded(
+    int accessorIndex, {
+    Float32List? floats,
+    List<int>? integers,
+  }) {
+    final expected =
+        countOf(accessorIndex) * typeOf(accessorIndex).componentCount;
+    final actual = integers?.length ?? floats?.length;
+    if (actual != expected) {
+      throw FormatException(
+        'accessors[$accessorIndex] declares $expected components and the '
+        'decoded data has $actual.',
+      );
+    }
+    _supplied[accessorIndex] = (floats: floats, integers: integers);
+  }
+
+  final Map<int, ({Float32List? floats, List<int>? integers})> _supplied =
+      <int, ({Float32List? floats, List<int>? integers})>{};
+
   /// Reads an accessor as floats, applying the normalization rule when set.
   ///
   /// The result is tightly packed: `count * componentCount` floats.
@@ -80,6 +133,25 @@ final class GltfAccessorReader {
     final count = countOf(accessorIndex);
     final normalized = accessor['normalized'] == true;
     final components = type.componentCount;
+
+    // Supplied data first. Floats are what a float accessor wants; an integer
+    // accessor wants the integers, read by its own normalization rule.
+    final supplied = _supplied[accessorIndex];
+    if (supplied != null) {
+      return switch (supplied) {
+        (:final floats?, integers: _)
+            when componentType == GltfComponentType.float =>
+          floats,
+        (floats: _, :final integers?) => Float32List.fromList(<double>[
+          for (final v in integers)
+            normalized ? componentType.normalize(v) : v.toDouble(),
+        ]),
+        (:final floats?, integers: null) => floats,
+        (floats: null, integers: null) => throw FormatException(
+          'accessors[$accessorIndex] was supplied no data.',
+        ),
+      };
+    }
 
     final out = Float32List(count * components);
     _forEachElement(accessorIndex, (elementIndex, data, byteOffset) {
@@ -105,6 +177,14 @@ final class GltfAccessorReader {
     if (componentType == GltfComponentType.float) {
       throw FormatException(
         'accessors[$accessorIndex] is float but was read as integers.',
+      );
+    }
+
+    final supplied = _supplied[accessorIndex];
+    if (supplied != null) {
+      return Uint32List.fromList(
+        supplied.integers ??
+            <int>[for (final v in supplied.floats ?? Float32List(0)) v.round()],
       );
     }
 
