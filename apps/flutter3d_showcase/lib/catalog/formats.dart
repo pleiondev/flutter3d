@@ -148,4 +148,53 @@ const List<Feature> formatsFeatures = <Feature>[
       'packages/flutter3d_core/lib/src/formats/f3d/f3d_format.dart',
     ],
   ),
+  Feature(
+    id: 'ktx2',
+    title: 'KTX2 and Basis textures',
+    category: Category.formats,
+    summary:
+        'A compressed-texture container, including Basis Universal '
+        'files transcoded to plain RGBA8 at load time.',
+    since: '0.4.2',
+    evidence: 'KTX2 is read.',
+    engineFiles: <String>[
+      'packages/flutter3d_core/lib/src/formats/ktx2/ktx2_loader.dart',
+      'packages/flutter3d_core/lib/src/formats/ktx2/basis_universal/etc1s_transcoder.dart',
+    ],
+  ),
+  Feature(
+    id: 'texture-compression',
+    title: 'Compressing a texture',
+    category: Category.formats,
+    summary:
+        'Four block encoders, a mip chain, and a KTX2 container to write '
+        'the result into.',
+    since: '0.7.0',
+    evidenceFile: 'packages/flutter3d_core/CHANGELOG.md',
+    evidence:
+        '`encodeBc1`, `encodeBc3`, `encodeEtc2Rgb8` and `encodeAstc4x4` '
+        'encode, `buildMipChain` halves with a box filter, and `writeKtx2` '
+        'writes the container',
+    engineFiles: <String>[
+      'packages/flutter3d_core/lib/src/formats/ktx2/encode/bc1_encoder.dart',
+      'packages/flutter3d_core/lib/src/formats/ktx2/encode/mip_chain.dart',
+      'packages/flutter3d_core/lib/src/formats/ktx2/encode/ktx2_writer.dart',
+    ],
+  ),
+  Feature(
+    id: 'draco',
+    title: 'Draco meshes',
+    category: Category.formats,
+    summary:
+        'A compressed mesh format read all the way, both connectivity '
+        'methods and every prediction scheme a current encoder writes.',
+    since: '0.7.0',
+    evidenceFile: 'packages/flutter3d_core/CHANGELOG.md',
+    evidence:
+        '`decodeDraco` now reads edgebreaker connectivity, which is what '
+        'every encoder writes unless told otherwise',
+    engineFiles: <String>[
+      'packages/flutter3d_core/lib/src/formats/draco/draco_decoder.dart',
+    ],
+  ),
 ];
