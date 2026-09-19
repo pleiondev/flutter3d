@@ -103,4 +103,80 @@ const List<Feature> shadingFeatures = <Feature>[
       'packages/flutter3d_core/lib/src/engine/render/render_settings.dart',
     ],
   ),
+  Feature(
+    id: 'specular-scale',
+    title: 'Specular strength',
+    category: Category.shading,
+    summary:
+        'One scalar turns the whole frame\'s specular response up or down '
+        'without touching a single material.',
+    since: '0.1.0',
+    approximate: true,
+    evidence:
+        'no explicit origin: no CHANGELOG names `RenderSettings.specular`. '
+        'The nearest the record comes is the HDR pipeline with tone mapping '
+        'that `RenderSettings` has carried since the beginning, which is the '
+        'earliest version this scene-wide knob could have arrived in.',
+    keywords: <String>['tone mapping'],
+    engineFiles: <String>[
+      'packages/flutter3d_core/lib/src/engine/render/render_settings.dart',
+    ],
+  ),
+  Feature(
+    id: 'exposure',
+    title: 'Manual exposure',
+    category: Category.shading,
+    summary:
+        'The linear multiplier the composite applies before the tone curve, '
+        'set by hand instead of metered.',
+    since: '0.1.0',
+    approximate: true,
+    evidence:
+        'no explicit origin: no CHANGELOG names `RenderSettings.exposure`. '
+        'Every mention of exposure is the later auto-exposure meter, which '
+        'reads this field rather than introducing it. The nearest the record '
+        'comes is the HDR pipeline with tone mapping this scalar feeds, '
+        'which is the earliest version it could have arrived in.',
+    keywords: <String>['tone mapping'],
+    engineFiles: <String>[
+      'packages/flutter3d_core/lib/src/engine/render/render_settings.dart',
+    ],
+  ),
+  Feature(
+    id: 'wireframe',
+    title: 'Wireframe',
+    category: Category.shading,
+    summary:
+        'Draws the scene\'s triangles as lines, on the one backend that has a '
+        'polygon mode for it.',
+    since: '0.1.0',
+    approximate: true,
+    evidence:
+        'no explicit origin: no CHANGELOG names `RenderSettings.wireframe` '
+        'or `FrameResult.wireframeDeclined`. The nearest the record comes is '
+        'the HDR pipeline with tone mapping that `RenderSettings` has '
+        'carried since the beginning, which is the earliest version this '
+        'setting could have arrived in.',
+    keywords: <String>['tone mapping'],
+    needs: <Need>{Need.wireframe},
+    engineFiles: <String>[
+      'packages/flutter3d_core/lib/src/engine/render/render_settings.dart',
+      'packages/flutter3d_core/lib/src/engine/render/frame_result.dart',
+    ],
+  ),
+  Feature(
+    id: 'draw-batching',
+    title: 'Identical-draw batching',
+    category: Category.shading,
+    summary:
+        'A run of nodes sharing a mesh and a material collapses into one '
+        'instanced call instead of one draw each.',
+    since: '0.7.0',
+    evidence: '`RenderSettings.batchIdenticalDraws`',
+    keywords: <String>['batchidenticaldraws'],
+    engineFiles: <String>[
+      'packages/flutter3d_core/lib/src/engine/render/render_settings.dart',
+      'packages/flutter3d_core/lib/src/engine/render/renderer_batch.dart',
+    ],
+  ),
 ];
