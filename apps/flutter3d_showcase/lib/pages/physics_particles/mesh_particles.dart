@@ -11,9 +11,15 @@ import 'package:vector_math/vector_math.dart';
 
 final class MeshParticlesDemo extends ShowcaseDemo {
   late final ParticleSystem _particles;
+  late final ParticleEffect _debrisEffect;
   late final MeshParticleContributor _contributor;
 
   static const int _count = 40;
+
+  // Debris that fell once and lay still would leave nothing moving to look
+  // at once gravity settled it below the frame.
+  static const double _pause = 1.0;
+  double _cooldown = 0.0;
 
   @override
   void configureView(DemoContext context) {
@@ -36,7 +42,7 @@ final class MeshParticlesDemo extends ShowcaseDemo {
     // #endregion mesh
 
     _particles = ParticleSystem(capacity: _count, seed: 808);
-    final ParticleEffect debris = ParticleEffect(
+    _debrisEffect = ParticleEffect(
       count: _count,
       emitter: const SphereEmitter(speed: Range(1.0, 2.5)),
       lifetime: const Range(1.0, 1.8),
@@ -44,7 +50,7 @@ final class MeshParticlesDemo extends ShowcaseDemo {
       color: Vector4(0.8, 0.75, 0.7, 1.0),
       affectors: <ParticleAffector>[const ParticleGravity(-3.0)],
     );
-    _particles.burst(debris, Vector3.zero());
+    _particles.burst(_debrisEffect, Vector3.zero());
 
     // #region contributor
     _contributor = context.renderer.addContributor(
@@ -61,6 +67,14 @@ final class MeshParticlesDemo extends ShowcaseDemo {
   @override
   void update(DemoContext context, double dt) {
     _particles.advance(dt);
+
+    if (_particles.aliveCount == 0) {
+      _cooldown -= dt;
+      if (_cooldown <= 0.0) {
+        _particles.burst(_debrisEffect, Vector3.zero());
+        _cooldown = _pause;
+      }
+    }
   }
 
   @override

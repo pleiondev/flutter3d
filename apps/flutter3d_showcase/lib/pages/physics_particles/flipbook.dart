@@ -14,11 +14,17 @@ import 'package:vector_math/vector_math.dart';
 
 final class FlipbookDemo extends ShowcaseDemo {
   late final ParticleSystem _particles;
+  late final ParticleEffect _sparksEffect;
   late final Flipbook _flipbook;
 
   static const int _cellSize = 16;
   static const int _frames = 4;
   static const int _count = 40;
+
+  // The sheet only plays across a particle's own life, so a burst that never
+  // repeated would leave the sheet on its last, darkest frame forever.
+  static const double _pause = 1.0;
+  double _cooldown = 0.0;
 
   @override
   void configureView(DemoContext context) {
@@ -70,14 +76,18 @@ final class FlipbookDemo extends ShowcaseDemo {
     // #endregion flipbook
 
     _particles = ParticleSystem(capacity: _count, seed: 606);
-    final ParticleEffect sparks = ParticleEffect(
+    _sparksEffect = ParticleEffect(
       count: _count,
       emitter: const ConeEmitter(speed: Range(1.0, 2.2), halfAngleDegrees: 20),
       lifetime: const Range(0.8, 1.2),
       size: const Range(0.09, 0.13),
       color: Vector4(1.0, 1.0, 1.0, 1.0),
     );
-    _particles.burst(sparks, Vector3.zero(), direction: Vector3(0.0, 1.0, 0.0));
+    _particles.burst(
+      _sparksEffect,
+      Vector3.zero(),
+      direction: Vector3(0.0, 1.0, 0.0),
+    );
 
     context.renderer.addContributor(
       ParticleContributor(_particles, texture: atlas, flipbook: _flipbook),
@@ -92,6 +102,18 @@ final class FlipbookDemo extends ShowcaseDemo {
   @override
   void update(DemoContext context, double dt) {
     _particles.advance(dt);
+
+    if (_particles.aliveCount == 0) {
+      _cooldown -= dt;
+      if (_cooldown <= 0.0) {
+        _particles.burst(
+          _sparksEffect,
+          Vector3.zero(),
+          direction: Vector3(0.0, 1.0, 0.0),
+        );
+        _cooldown = _pause;
+      }
+    }
   }
 
   @override

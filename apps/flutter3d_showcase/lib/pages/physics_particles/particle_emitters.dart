@@ -12,8 +12,15 @@ import 'package:vector_math/vector_math.dart';
 final class ParticleEmittersDemo extends ShowcaseDemo {
   late final ParticleSystem _particles;
   late final ParticleContributor _contributor;
+  late final List<(Vector3, ParticleEmitter)> _shapes;
 
   static const int _perBurst = 40;
+
+  // Four separate bursts that each ran once would leave three of the four
+  // shapes dead within a couple of seconds while the smoke of the fourth
+  // drifted on alone.
+  static const double _pause = 1.0;
+  double _cooldown = 0.0;
 
   @override
   void configureView(DemoContext context) {
@@ -31,6 +38,16 @@ final class ParticleEmittersDemo extends ShowcaseDemo {
     color: Vector4(0.8, 0.85, 1.0, 1.0),
   );
 
+  void _burstAll() {
+    for (final (Vector3 origin, ParticleEmitter emitter) in _shapes) {
+      _particles.burst(
+        _effect(emitter),
+        origin,
+        direction: Vector3(0.0, 1.0, 0.0),
+      );
+    }
+  }
+
   @override
   Scene build(DemoContext context) {
     _particles = ParticleSystem(capacity: _perBurst * 4, seed: 314159);
@@ -40,38 +57,28 @@ final class ParticleEmittersDemo extends ShowcaseDemo {
     // A cone narrows that spread around one axis: a muzzle flash, sparks off
     // a wall. A box fills a volume rather than starting at a point: rain over
     // an area. A drift barely moves outward at all: smoke.
-    final List<(Vector3, ParticleEmitter)> shapes =
-        <(Vector3, ParticleEmitter)>[
-          (
-            Vector3(-3.0, 0.0, 0.0),
-            const SphereEmitter(speed: Range(1.0, 2.5)),
-          ),
-          (
-            Vector3(-1.0, 0.0, 0.0),
-            const ConeEmitter(speed: Range(2.0, 4.0), halfAngleDegrees: 18.0),
-          ),
-          (
-            Vector3(1.0, 0.0, 0.0),
-            // #region along
-            BoxEmitter(
-              halfExtents: Vector3(0.6, 0.05, 0.6),
-              speed: const Range(0.3, 0.6),
-              along: Vector3(0, 1, 0),
-            ),
-            // #endregion along
-          ),
-          (Vector3(3.0, 0.0, 0.0), const DriftEmitter()),
-        ];
+    _shapes = <(Vector3, ParticleEmitter)>[
+      (Vector3(-3.0, 0.0, 0.0), const SphereEmitter(speed: Range(1.0, 2.5))),
+      (
+        Vector3(-1.0, 0.0, 0.0),
+        const ConeEmitter(speed: Range(2.0, 4.0), halfAngleDegrees: 18.0),
+      ),
+      (
+        Vector3(1.0, 0.0, 0.0),
+        // #region along
+        BoxEmitter(
+          halfExtents: Vector3(0.6, 0.05, 0.6),
+          speed: const Range(0.3, 0.6),
+          along: Vector3(0, 1, 0),
+        ),
+        // #endregion along
+      ),
+      (Vector3(3.0, 0.0, 0.0), const DriftEmitter()),
+    ];
     // #endregion shapes
 
     // #region burst
-    for (final (Vector3 origin, ParticleEmitter emitter) in shapes) {
-      _particles.burst(
-        _effect(emitter),
-        origin,
-        direction: Vector3(0.0, 1.0, 0.0),
-      );
-    }
+    _burstAll();
     _contributor = context.renderer.addContributor(
       ParticleContributor(_particles),
     );
@@ -86,6 +93,14 @@ final class ParticleEmittersDemo extends ShowcaseDemo {
   @override
   void update(DemoContext context, double dt) {
     _particles.advance(dt);
+
+    if (_particles.aliveCount == 0) {
+      _cooldown -= dt;
+      if (_cooldown <= 0.0) {
+        _burstAll();
+        _cooldown = _pause;
+      }
+    }
   }
 
   @override
