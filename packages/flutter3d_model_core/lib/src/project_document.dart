@@ -83,8 +83,11 @@ import 'project_morphs.dart';
 /// changes — a session behind an MCP `export` tool, an editor's "save" button —
 /// should keep one [ProjectModelDocument] instead and call [ProjectModelDocument.of]
 /// on it each time.
-ModelDocument toModelDocument(ModelProject project) =>
-    ProjectModelDocument().of(project);
+///
+/// [withLods] is [ProjectModelDocument.of]'s own, and off for the reason given
+/// there.
+ModelDocument toModelDocument(ModelProject project, {bool withLods = false}) =>
+    ProjectModelDocument().of(project, withLods: withLods);
 
 /// A [ModelProject] seen as a [ModelDocument], with a cache that survives
 /// repeated conversions of the project as it changes.
@@ -156,6 +159,27 @@ final class ProjectModelDocument extends ModelDocument {
         return _meshOf(object.geometry, object.shapeSet);
       });
 
+  final Map<(int, int, int), MeshData> _lodCache =
+      <(int, int, int), MeshData>{};
+
+  /// Level [level] of [object], simplified from [base] — the mesh the file
+  /// carries for it, once per `(id, version, level)`.
+  ///
+  /// **From the mesh that is written, not from the one the LOD screen shows.**
+  /// `LodMeshCache` simplifies an object's raw geometry, which is right for a
+  /// viewport that draws raw geometry. A file carries the mesh with the
+  /// export-bound modifiers folded in, and a level cut from the raw one would
+  /// be half of a mirrored object: the near level a whole chair, the far one
+  /// its left side. For an object with no such modifiers the two are the same
+  /// mesh run through the same function with the same target.
+  MeshData _lodMeshFor(ModelObject object, MeshData base, int level) =>
+      _lodCache.putIfAbsent((object.id, object.version, level), () {
+        final target = (base.triangleCount * object.lods[level].ratio)
+            .round()
+            .clamp(1, base.triangleCount);
+        return simplifyMeshWithAttributes(base, targetTriangleCount: target);
+      });
+
   /// [object]'s own mesh with the export-bound modifiers run over it, or null
   /// where there are none to run — which is almost every object.
   ///
@@ -184,7 +208,21 @@ final class ProjectModelDocument extends ModelDocument {
   /// watch [project] for changes, and calling it twice on the identical
   /// project is exactly the case the cache is for: nothing has a different
   /// version, so nothing rebuilds.
-  ModelDocument of(ModelProject project) {
+  ///
+  /// **[withLods] writes each object's levels of detail, and is off unless a
+  /// caller asks.** A level is one more surface, named by its node's
+  /// [ModelNode.lods] and by no node's `surfaces`. A reader that knows levels
+  /// draws one of them at a time; a writer that does not — OBJ, STL, USDZ —
+  /// walks every surface in the document and would write all of them into the
+  /// same place, a chair with two coarser chairs inside it. So the levels go in
+  /// only for a caller that says its destination can tell them apart, and
+  /// `.f3d` and `.glb` can.
+  ///
+  /// Before this an object's [ModelObject.lods] went nowhere at all: the LOD
+  /// commands, their cache and their screen produced levels that stayed in the
+  /// project file, and the only models the engine ever drew with a `LodGroup`
+  /// were ones some other tool had made.
+  ModelDocument of(ModelProject project, {bool withLods = false}) {
     final objects = project.objects;
     final indexOfId = <int, int>{
       for (var i = 0; i < objects.length; i++) objects[i].id: i,
@@ -274,36 +312,55 @@ final class ProjectModelDocument extends ModelDocument {
       final mesh = _meshFor(project, object);
 
       final surfaceIndex = mesh.vertexCount == 0 ? null : surfaces.length;
+      final levels = <ModelLod>[];
       if (surfaceIndex != null) {
         // A skinned surface's vertices are already in the skin's own space,
         // so the placement must not be baked in a second time — the joints
         // place it. This is the identical rule `gltf_loader_scene.dart`'s
         // own scene walk follows for the same reason, stated there in full.
         final skinIndex = _skeletonIndexOf(object, project.skeletons.length);
-        surfaces.add(
-          ModelSurface(
-            name: object.name,
-            mesh: mesh,
-            transform: skinIndex == null
-                ? placement.clone()
-                : Matrix4.identity(),
-            // The slot names a row of the project's table, and the table is
-            // written across whole — so two objects painted the same steel come
-            // out pointing at one material rather than at two copies of it. A
-            // slot pointing past the end of the table is dropped rather than
-            // written: an index no material answers to is a dangling reference
-            // in the file, and a reader given one either guesses or refuses.
-            materialIndex: _slotOf(object, project.materials.length),
-            skinIndex: skinIndex,
-            // A mirrored object — a scale of −1 on one axis, which is how a
-            // modeller makes the other glove — reverses on-screen winding, and
-            // backface culling then discards exactly the faces meant to be seen.
-            // The renderer flips for it when the surface says so — except for
-            // a skinned one, where the joints (not this placement) decide it.
-            flipWinding: skinIndex == null && placement.determinant() < 0.0,
-            morphWeights: object.shapeSet.weights,
-          ),
+        ModelSurface surfaceOf(MeshData drawn, {String? name}) => ModelSurface(
+          name: name ?? object.name,
+          mesh: drawn,
+          transform: skinIndex == null ? placement.clone() : Matrix4.identity(),
+          // The slot names a row of the project's table, and the table is
+          // written across whole — so two objects painted the same steel come
+          // out pointing at one material rather than at two copies of it. A
+          // slot pointing past the end of the table is dropped rather than
+          // written: an index no material answers to is a dangling reference
+          // in the file, and a reader given one either guesses or refuses.
+          materialIndex: _slotOf(object, project.materials.length),
+          skinIndex: skinIndex,
+          // A mirrored object — a scale of −1 on one axis, which is how a
+          // modeller makes the other glove — reverses on-screen winding, and
+          // backface culling then discards exactly the faces meant to be seen.
+          // The renderer flips for it when the surface says so — except for
+          // a skinned one, where the joints (not this placement) decide it.
+          flipWinding: skinIndex == null && placement.determinant() < 0.0,
+          morphWeights: object.shapeSet.weights,
         );
+
+        surfaces.add(surfaceOf(mesh));
+        // Each level is the same surface with fewer triangles: the same place,
+        // the same material, the same skin. Only the node's `lods` names it,
+        // so a reader walking `nodes[].surfaces` draws the full mesh and
+        // nothing twice.
+        if (withLods) {
+          for (var level = 0; level < object.lods.length; level++) {
+            levels.add(
+              ModelLod(
+                surfaceIndices: <int>[surfaces.length],
+                maxScreenFraction: object.lods[level].maxScreenFraction,
+              ),
+            );
+            surfaces.add(
+              surfaceOf(
+                _lodMeshFor(object, mesh, level),
+                name: '${object.name} lod ${level + 1}',
+              ),
+            );
+          }
+        }
       }
 
       // The node carries the object's *local* transform and the surface the
@@ -335,6 +392,7 @@ final class ProjectModelDocument extends ModelDocument {
           scale: scale.clone(),
           children: children[i],
           surfaces: surfaceIndex == null ? <int>[] : <int>[surfaceIndex],
+          lods: levels,
         ),
       );
     }

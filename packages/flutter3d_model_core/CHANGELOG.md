@@ -1,5 +1,17 @@
 ## Unreleased
 
+**An object's levels of detail are in the file it is exported to.**
+`ModelObject.lods` was edited by three commands, turned into meshes by a cache
+and shown on a screen, and the converter to a `ModelDocument` never read it, so
+`.f3d`'s section for levels and `.glb`'s `MSFT_lod` were always written empty.
+`ProjectModelDocument.of` and `toModelDocument` take `withLods`, and
+`planExport` passes it for the formats whose `ExportFormat.carriesLods` is
+true, `.f3d` and `.glb`. Each level is cut from the mesh the file carries, with
+the export-bound modifiers folded in, and is cached per object version. OBJ,
+STL and USDZ are given the one mesh, because their writers walk every surface
+and would put every level in the same place. `withLods` defaults to false for
+the same reason.
+
 **Accepted `flutter3d_rig`, because this package and the server above it were
 its only callers.** Bone-name mapping, rest-relative retargeting with a
 two-bone-IK foot lock and automatic skin weights now live under `lib/src/rig/`
