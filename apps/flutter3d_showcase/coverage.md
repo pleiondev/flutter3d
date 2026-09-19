@@ -265,8 +265,96 @@ on the netcode page.
 
 ## The 0.7.0 audit
 
-To be filled in before set work starts: every `## 0.7.0` entry of the CHANGELOGs of
-`flutter3d`, `flutter3d_shaders`, `flutter3d_particles`, `flutter3d_physics`,
-`flutter3d_sim`, `flutter3d_stereo`, `flutter3d_webgpu`, `flutter3d_app`, each with the
-id of the page that shows it or the reason no page can (for example, "an internal
-optimisation"). `test/coverage_test.dart` fails on an entry with neither.
+Every `## 0.7.0` entry of the CHANGELOGs of `flutter3d`, `flutter3d_shaders`,
+`flutter3d_particles`, `flutter3d_physics` (no entry), `flutter3d_sim`,
+`flutter3d_stereo`, `flutter3d_webgpu` (no entry) and `flutter3d_app`, each with the
+page that shows it or the reason no page does. Written after all nine sets landed, by
+reading every bullet and checking it against the finished catalog rather than against
+the plan, since a page's actual scope sometimes moved from what its coverage row named.
+
+### `packages/flutter3d/CHANGELOG.md`
+
+| Entry (first words) | Page(s) or reason |
+|---|---|
+| Breaking. The engine is `flutter3d_core`… | no page: a package boundary, not a capability |
+| Breaking. `uploadEncodedImage` requires `decodeImage`… | image-decode |
+| Breaking. `GraphicsDevice.present` is gone… | scene-surface |
+| Breaking for an exhaustive `switch`… (`LightType.area`, `MaterialAlphaMode.hashed`, `ModelFormat.stl`) | area-lights, alpha-modes, stl |
+| An atlas-packed model samples its own corner… (`KHR_texture_transform`) | texture-transform |
+| A model answers to the name a person actually gave it… (`loadModelAsset` and the build hook) | model-asset |
+| `loadModelByPath`, for a path somebody else wrote… | model-asset |
+| `bindSurfaceMaterial`, and a material that names its lighting model… | model-asset, material-language |
+| A model's levels of detail pick themselves… | level-of-detail |
+| The rest of this list is `flutter3d_core`'s… | no page: a pointer to the next CHANGELOG, not an entry of its own |
+| The frame reports on itself and answers to pass names… | frame-stats, frame-graph |
+| Culling and frame cost… | culling |
+| Light and shadow… (32 lights, cascades, contact shadows) | many-lights, cascaded-shadows, point-light-shadows, contact-shadows, soft-shadows, masked-shadow-casters, static-shadow-cache |
+| The composite and the passes around it… (tone curves, LUT, grade) | tone-mapping, color-grading, lut-grading |
+| Materials and what is drawn… | material-language, alpha-modes, draw-batching, draw-state |
+| Cameras, animation and picking… | projections, off-axis-projection, tiled-render, two-bone-ik, fabrik-ik, pose-sampling, root-motion, additive-blend, raycast |
+| Formats… (Draco, meshopt, UASTC) | draco, meshopt, ktx2, texture-compression, gltf-write |
+
+### `packages/flutter3d_shaders/CHANGELOG.md`
+
+| Entry | Page(s) or reason |
+|---|---|
+| Not a Flutter package any more… | no page: how the package resolves, not a capability |
+| The shadow pass no longer declares a block it never reads… | no page: an internal cleanup, nothing a page could show differently |
+| Ten new entry points in `kRequiredShaders`… (Fxaa, DoF, …) | anti-aliasing, depth-of-field, light-shafts, viewport-shading, contact-shadows, polylines, gaussian-splats |
+| `post/composite.frag` has five tone curves… | tone-mapping, color-grading, lut-grading |
+| `lib/surface.glsl` reads lights past the eighth… | many-lights |
+| `lib/shadow.glsl` can widen an edge with distance… | soft-shadows |
+
+### `packages/flutter3d_particles/CHANGELOG.md`
+
+| Entry | Page(s) or reason |
+|---|---|
+| A burst can light something… | burst-light |
+| `flutter3d_particles_core` is back inside… | no page: a package boundary, not a capability |
+| The pubspec follows… | no page: a dependency bump |
+
+### `packages/flutter3d_physics/CHANGELOG.md`
+
+No `## 0.7.0` entry; its rows in Set H cite earlier headings, checked there.
+
+### `packages/flutter3d_sim/CHANGELOG.md`
+
+| Entry | Page(s) or reason |
+|---|---|
+| Breaking. A `Demo` carries what a replay is verified against… | replay-digest |
+| A level's ground is in its collision world… | heightfield-collision |
+| Ground in tiles, at a level of detail chosen by distance… | terrain-tiles |
+| `HeadlessGame` and `HeadlessRun`… | headless-run |
+| A value from outside the simulation is an input to the step that read it… (`EduDataSource`, `SamplerDataSource`, `DataSourceRegistry`, `resolveBindings`) | **no page yet** — not in the original inventory; a follow-up row |
+| `StepTimeTrace`: what each step cost… | rewind |
+| `remapEntitySave` carries an `EcsWorld` save across an edited level… | ecs-world |
+| An entity with no position stops gaining one on save… | ecs-world |
+
+### `packages/flutter3d_webgpu/CHANGELOG.md`
+
+No `## 0.7.0` entry; the backend-webgpu page cites `## 0.6.0`, its real first appearance.
+
+### `packages/flutter3d_stereo/CHANGELOG.md`
+
+| Entry | Page(s) or reason |
+|---|---|
+| The first publication, and the number skips from 0.1.1… | no page: how the package is numbered, not a capability |
+| A lesson plays through the rig… (`applyLessonStep`, `LessonPlayer`, `LessonStereoView`) | stereo-lesson |
+| `LessonStereoView.onTick`… | stereo-lesson |
+
+### `packages/flutter3d_app/CHANGELOG.md`
+
+One entry, a package-boundary bullet folding in `flutter3d_session`, `flutter3d_bridge`
+and `flutter3d_screens`. Every capability it lists has a page: `SceneSurface`,
+`FrameClock`, `FrameTimingLog`, `DidNotStart`, `WidgetSurface` → scene-surface,
+diagnostics, widget-surface; the status screens and `Storage`/`BinaryStorage` →
+scene-surface, storage; `LevelLoader`, `LoadedLevel`, `SharedMeshes`, `SurfaceMesh`,
+`VisibilityCuller` → level-loader; `Issue`/`IssueLog` → diagnostics.
+
+### The one real gap
+
+**`sim-data-sources`** (`EduDataSource`, `SamplerDataSource`, `DataSourceRegistry`,
+`resolveBindings` — `packages/flutter3d_sim/lib/src/...`) has no page. It surfaced only
+by reading the CHANGELOG line by line for this audit, after all nine sets were built
+against the original inventory, which never named it. Left for a later pass rather than
+rushed in at the end of a release.
