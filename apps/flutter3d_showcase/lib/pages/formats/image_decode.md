@@ -10,7 +10,7 @@ not borrowed from Flutter. This page runs all three.
 This is a real, quality-100 JPEG of a flat colour, one 8x8 block, the
 smallest a baseline JPEG can be.
 
-{{code jpegSource}}
+{{code jpeg-source}}
 
 ## Step 2: Encode a PNG, and decode it back
 

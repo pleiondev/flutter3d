@@ -245,4 +245,52 @@ const List<Feature> formatsFeatures = <Feature>[
       'packages/flutter3d_core/lib/src/formats/image/hdr_decoder.dart',
     ],
   ),
+  Feature(
+    id: 'custom-decoder',
+    title: 'A decoder of your own',
+    category: Category.formats,
+    summary:
+        "A studio's own format, read through the same plugin boundary a "
+        'built-in reader goes through.',
+    since: '0.5.0',
+    approximate: true,
+    evidence: 'no explicit origin',
+    keywords: <String>['ModelLoadRequest'],
+    engineFiles: <String>[
+      'packages/flutter3d_core/lib/src/formats/model_loader.dart',
+    ],
+  ),
+  Feature(
+    id: 'model-asset',
+    title: 'Loading into a scene',
+    category: Category.formats,
+    summary:
+        'A decoded document uploaded once and placed as many times as a '
+        'scene wants, whatever format it came from.',
+    since: '0.4.0',
+    approximate: true,
+    evidence: 'no explicit origin',
+    keywords: <String>['ModelAsset'],
+    engineFiles: <String>[
+      'packages/flutter3d/lib/src/engine/assets/model_asset.dart',
+      'packages/flutter3d/lib/src/engine/assets/model_instance.dart',
+    ],
+  ),
+  Feature(
+    id: 'texture-transform',
+    title: 'Texture transform',
+    category: Category.formats,
+    summary:
+        "A material's texture coordinates, scaled, rotated or moved "
+        'without touching the texture itself.',
+    since: '0.7.0',
+    evidenceFile: 'packages/flutter3d_core/CHANGELOG.md',
+    evidence:
+        '`withTextureTransform` gives a mesh with that transform applied '
+        'to its texture coordinates, tangents turned and mirrored with '
+        'them',
+    engineFiles: <String>[
+      'packages/flutter3d_core/lib/src/formats/texture_transform_bake.dart',
+    ],
+  ),
 ];

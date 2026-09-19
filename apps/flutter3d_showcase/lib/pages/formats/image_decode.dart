@@ -16,7 +16,7 @@ final class ImageDecodeDemo extends ShowcaseDemo {
   late final DecodedImage _jpeg;
   late final HdrImage _hdr;
 
-  // #region jpegSource
+  // #region jpeg-source
   // A real JPEG, one 8x8 MCU encoded at quality 100 from a flat
   // (200, 100, 50) fill, the same fixture the decoder's own test checks
   // against that exact colour.
@@ -33,7 +33,7 @@ final class ImageDecodeDemo extends ShowcaseDemo {
       'NOEl8RcYGRomJygpKjU2Nzg5OkNERUZHSElKU1RVVldYWVpjZGVmZ2hpanN0dXZ3eHl6goOE'
       'hYaHiImKkpOUlZaXmJmaoqOkpaanqKmqsrO0tba3uLm6wsPExcbHyMnK0tPU1dbX2Nna4uPk'
       '5ebn6Onq8vP09fb3+Pn6/9oADAMBAAIRAxEAPwDn6/yvP9sD/9k=';
-  // #endregion jpegSource
+  // #endregion jpeg-source
 
   @override
   Scene build(DemoContext context) {
