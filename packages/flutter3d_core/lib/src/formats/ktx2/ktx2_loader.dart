@@ -2,6 +2,7 @@ import 'dart:typed_data';
 
 import '../image/inflate.dart';
 import 'basis_universal/etc1s_transcoder.dart';
+import 'basis_universal/uastc_decoder.dart';
 import 'ktx2_format.dart';
 import 'universal/universal_block.dart';
 import 'zstd.dart';
@@ -47,10 +48,10 @@ final class Ktx2Texture {
   final int pixelHeight;
 
   /// The Khronos `VkFormat` number the mip bytes are in — see [VkFormat] for
-  /// the subset this container ever carries. A Basis Universal (ETC1S) file
-  /// transcodes to plain RGBA8 here, so this is [VkFormat.r8g8b8a8UNorm] for
-  /// that path too: one vocabulary for "what format are these bytes in",
-  /// whichever path produced them.
+  /// the subset this container ever carries. A Basis Universal file, ETC1S or
+  /// UASTC, comes out of here as plain RGBA8, so this is
+  /// [VkFormat.r8g8b8a8UNorm] for those paths too: one vocabulary for "what
+  /// format are these bytes in", whichever path produced them.
   final int vkFormat;
 
   /// Level 0 (the base, largest image) first.
@@ -156,22 +157,38 @@ final class Ktx2Texture {
           universalTarget,
         );
       }
-      if (supercompressionScheme != Ktx2SupercompressionScheme.basisLZ) {
-        // **What is refused here is the payload, not the wrapper — `gfx-78n`
-        // changed which of the two this is.** Zstandard and ZLIB are unpacked
-        // now, so a file arriving here has pixels this build cannot read
-        // rather than a compression it cannot undo. Naming UASTC because that
-        // is what an undefined `vkFormat` outside Basis-LZ almost always is:
-        // `toktx --uastc` writes exactly that, and the only Basis half
-        // transcoded here is ETC1S.
+      // **Which Basis Universal, from the data format descriptor — `gfx-78n`.**
+      // An undefined `vkFormat` says "Basis" and nothing more. The
+      // supercompression scheme used to stand in for the rest — Basis-LZ
+      // means ETC1S, anything else must be UASTC — which was only ever a
+      // guess, and the descriptor's colour model is the field that says. A
+      // file with no descriptor at all still gets the old inference for
+      // Basis-LZ, which cannot be anything but ETC1S: the codebooks it names
+      // are ETC1S's.
+      final colorModel = _colorModelOf(bytes, view);
+      if (colorModel == Ktx2ColorModel.uastc) {
+        return _parseUastc(
+          bytes,
+          view,
+          pixelWidth,
+          pixelHeight,
+          levelCount,
+          supercompressionScheme,
+        );
+      }
+      if ((colorModel != null && colorModel != Ktx2ColorModel.etc1s) ||
+          supercompressionScheme != Ktx2SupercompressionScheme.basisLZ) {
+        final named = colorModel == null
+            ? 'there is no descriptor'
+            : 'it names colour model $colorModel '
+                  '(${Ktx2ColorModel.nameOf(colorModel)})';
         throw Ktx2FormatException(
-          'vkFormat is undefined, so the pixels are Basis Universal, but the '
-          'supercompression scheme is $supercompressionScheme '
-          '(${_supercompressionName(supercompressionScheme)}), not Basis-LZ. '
-          'That is what a UASTC file looks like, and only the ETC1S half of '
-          'Basis Universal is transcoded here — the supercompression is not '
-          'the problem, the block format is. Re-encode with ETC1S '
-          '(`toktx --encode etc1s`) or to an explicit vkFormat.',
+          'vkFormat is undefined, so the pixels are Basis Universal and the '
+          'data format descriptor says which kind: $named, under '
+          'supercompression scheme $supercompressionScheme '
+          '(${_supercompressionName(supercompressionScheme)}). What is read '
+          'here is ETC1S under Basis-LZ, and UASTC LDR 4x4 under none, '
+          'Zstandard or ZLIB.',
         );
       }
       if (levelCount == 0) {
@@ -183,98 +200,170 @@ final class Ktx2Texture {
       return _parseBasisEtc1s(bytes, view, pixelWidth, pixelHeight, levelCount);
     }
 
-    // **Zstandard and ZLIB are unpacked here — `gfx-78n`.** Both wrap the
-    // ordinary level index rather than changing it: each level's bytes are a
-    // compressed stream and the index's third field says what it decompresses
-    // to, so the whole of the difference is one call per level. Anything else,
-    // including a vendor number above the range Khronos reserves, is still
-    // refused by name.
-    final decompress = switch (supercompressionScheme) {
-      Ktx2SupercompressionScheme.none => null,
-      Ktx2SupercompressionScheme.zstandard => zstdDecode,
-      Ktx2SupercompressionScheme.zlib => _inflateLevel,
-      _ => throw Ktx2FormatException(
-        'Unsupported supercompression scheme $supercompressionScheme '
-        '(${_supercompressionName(supercompressionScheme)}) — not '
-        'implemented yet.',
-      ),
-    };
-    if (levelCount == 0) {
-      throw const Ktx2FormatException(
-        'levelCount is 0, which asks the loader to generate mip levels at '
-        'load time — not implemented yet.',
-      );
-    }
-
-    final levelIndexEnd =
-        kKtx2LevelIndexOffset + levelCount * kKtx2LevelIndexEntryBytes;
-    if (levelIndexEnd > bytes.lengthInBytes) {
-      throw Ktx2FormatException(
-        'Level index claims $levelCount entries, which runs past the end of '
-        'a ${bytes.lengthInBytes}-byte file.',
-      );
-    }
-
-    final levels = <ByteData>[];
-    for (var i = 0; i < levelCount; i++) {
-      final entry = kKtx2LevelIndexOffset + i * kKtx2LevelIndexEntryBytes;
-      final byteOffset = _readOffsetOrLength(view, entry, 'level $i offset');
-      final byteLength = _readOffsetOrLength(
-        view,
-        entry + 8,
-        'level $i length',
-      );
-      if (byteOffset + byteLength > bytes.lengthInBytes) {
-        throw Ktx2FormatException(
-          'Level $i runs from $byteOffset for $byteLength bytes, past the '
-          'end of a ${bytes.lengthInBytes}-byte file.',
-        );
-      }
-      final stored = ByteData.view(
-        bytes.buffer,
-        bytes.offsetInBytes + byteOffset,
-        byteLength,
-      );
-      if (decompress == null) {
-        levels.add(stored);
-        continue;
-      }
-
-      final uncompressed = _readOffsetOrLength(
-        view,
-        entry + 16,
-        'level $i uncompressed length',
-      );
-      final unpacked = decompress(
-        Uint8List.view(stored.buffer, stored.offsetInBytes, byteLength),
-        sizeHint: uncompressed,
-      );
-      if (unpacked == null) {
-        throw Ktx2FormatException(
-          'Level $i did not decompress as '
-          '${_supercompressionName(supercompressionScheme)}.',
-        );
-      }
-      // The index's own claim, held to: a level that unpacks to a different
-      // size is a file whose mip dimensions and whose pixels disagree, and
-      // uploading it would read past the end of one of them.
-      if (unpacked.length != uncompressed) {
-        throw Ktx2FormatException(
-          'Level $i decompressed to ${unpacked.length} bytes where the level '
-          'index says $uncompressed.',
-        );
-      }
-      levels.add(
-        ByteData.view(
-          unpacked.buffer,
-          unpacked.offsetInBytes,
-          unpacked.lengthInBytes,
-        ),
-      );
-    }
-
-    return Ktx2Texture._(pixelWidth, pixelHeight, vkFormat, levels);
+    return Ktx2Texture._(
+      pixelWidth,
+      pixelHeight,
+      vkFormat,
+      _readLevels(bytes, view, levelCount, supercompressionScheme),
+    );
   }
+}
+
+/// Every level's bytes, through the level index and out of whatever
+/// supercompression wraps them.
+///
+/// **Zstandard and ZLIB are unpacked here — `gfx-78n`.** Both wrap the
+/// ordinary level index rather than changing it: each level's bytes are a
+/// compressed stream and the index's third field says what it decompresses
+/// to, so the whole of the difference is one call per level. Anything else,
+/// including a vendor number above the range Khronos reserves, is still
+/// refused by name. Shared by the plain formats and by UASTC, whose blocks a
+/// current encoder Zstandard-compresses unless told not to.
+List<ByteData> _readLevels(
+  Uint8List bytes,
+  ByteData view,
+  int levelCount,
+  int supercompressionScheme,
+) {
+  final decompress = switch (supercompressionScheme) {
+    Ktx2SupercompressionScheme.none => null,
+    Ktx2SupercompressionScheme.zstandard => zstdDecode,
+    Ktx2SupercompressionScheme.zlib => _inflateLevel,
+    _ => throw Ktx2FormatException(
+      'Unsupported supercompression scheme $supercompressionScheme '
+      '(${_supercompressionName(supercompressionScheme)}) — not '
+      'implemented yet.',
+    ),
+  };
+  if (levelCount == 0) {
+    throw const Ktx2FormatException(
+      'levelCount is 0, which asks the loader to generate mip levels at '
+      'load time — not implemented yet.',
+    );
+  }
+
+  final levelIndexEnd =
+      kKtx2LevelIndexOffset + levelCount * kKtx2LevelIndexEntryBytes;
+  if (levelIndexEnd > bytes.lengthInBytes) {
+    throw Ktx2FormatException(
+      'Level index claims $levelCount entries, which runs past the end of '
+      'a ${bytes.lengthInBytes}-byte file.',
+    );
+  }
+
+  final levels = <ByteData>[];
+  for (var i = 0; i < levelCount; i++) {
+    final entry = kKtx2LevelIndexOffset + i * kKtx2LevelIndexEntryBytes;
+    final byteOffset = _readOffsetOrLength(view, entry, 'level $i offset');
+    final byteLength = _readOffsetOrLength(view, entry + 8, 'level $i length');
+    if (byteOffset + byteLength > bytes.lengthInBytes) {
+      throw Ktx2FormatException(
+        'Level $i runs from $byteOffset for $byteLength bytes, past the '
+        'end of a ${bytes.lengthInBytes}-byte file.',
+      );
+    }
+    final stored = ByteData.view(
+      bytes.buffer,
+      bytes.offsetInBytes + byteOffset,
+      byteLength,
+    );
+    if (decompress == null) {
+      levels.add(stored);
+      continue;
+    }
+
+    final uncompressed = _readOffsetOrLength(
+      view,
+      entry + 16,
+      'level $i uncompressed length',
+    );
+    final unpacked = decompress(
+      Uint8List.view(stored.buffer, stored.offsetInBytes, byteLength),
+      sizeHint: uncompressed,
+    );
+    if (unpacked == null) {
+      throw Ktx2FormatException(
+        'Level $i did not decompress as '
+        '${_supercompressionName(supercompressionScheme)}.',
+      );
+    }
+    // The index's own claim, held to: a level that unpacks to a different
+    // size is a file whose mip dimensions and whose pixels disagree, and
+    // uploading it would read past the end of one of them.
+    if (unpacked.length != uncompressed) {
+      throw Ktx2FormatException(
+        'Level $i decompressed to ${unpacked.length} bytes where the level '
+        'index says $uncompressed.',
+      );
+    }
+    levels.add(
+      ByteData.view(
+        unpacked.buffer,
+        unpacked.offsetInBytes,
+        unpacked.lengthInBytes,
+      ),
+    );
+  }
+  return levels;
+}
+
+/// The colour model byte of the first block of the data format descriptor.
+///
+/// The descriptor is a `u32` total size, then blocks; a basic block opens with
+/// eight bytes of vendor, type, version and size, and the colour model is the
+/// byte after them. Every Basis Universal file has exactly this shape, since
+/// the descriptor is the only place the file can say which Basis it is. Null
+/// when the file has no descriptor to read.
+int? _colorModelOf(Uint8List bytes, ByteData view) {
+  final offset = view.getUint32(
+    kKtx2IndexOffset + Ktx2IndexField.dfdByteOffset,
+    Endian.little,
+  );
+  final length = view.getUint32(
+    kKtx2IndexOffset + Ktx2IndexField.dfdByteLength,
+    Endian.little,
+  );
+  const colorModelAt = 4 + 8;
+  if (length == 0) return null;
+  if (length <= colorModelAt || offset + length > bytes.lengthInBytes) {
+    throw Ktx2FormatException(
+      'The data format descriptor is $length bytes at $offset in a '
+      '${bytes.lengthInBytes}-byte file, which cannot hold a colour model.',
+    );
+  }
+  return bytes[offset + colorModelAt];
+}
+
+/// The UASTC path — `gfx-78n`: every level's blocks unpacked to RGBA8.
+///
+/// No global data and no slices — a UASTC level is nothing but its blocks,
+/// which is why this is a fraction of [_parseBasisEtc1s]. What it shares with
+/// the plain formats is the supercompression, and that is [_readLevels].
+Ktx2Texture _parseUastc(
+  Uint8List bytes,
+  ByteData view,
+  int pixelWidth,
+  int pixelHeight,
+  int levelCount,
+  int supercompressionScheme,
+) {
+  final stored = _readLevels(bytes, view, levelCount, supercompressionScheme);
+  int extent(int size, int level) => size >> level < 1 ? 1 : size >> level;
+  return Ktx2Texture._(
+    pixelWidth,
+    pixelHeight,
+    VkFormat.r8g8b8a8UNorm,
+    <ByteData>[
+      for (final (level, blocks) in stored.indexed)
+        ByteData.sublistView(
+          decodeUastcToRgba8(
+            Uint8List.sublistView(blocks),
+            width: extent(pixelWidth, level),
+            height: extent(pixelHeight, level),
+          ),
+        ),
+    ],
+  );
 }
 
 /// The Basis Universal (ETC1S, `supercompressionScheme == basisLZ`) path:
@@ -671,12 +760,11 @@ int _readOffsetOrLength(ByteData view, int byteOffset, String what) {
 
 /// What to call a `supercompressionScheme` in a refusal.
 ///
-/// `none` is here because it is the value a refused file most often carries:
-/// UASTC leaves `vkFormat` undefined the way ETC1S does and then does not
-/// supercompress at all, so the branch that expects Basis-LZ reads a nought.
-/// Calling that a vendor scheme — the fallback's old job for everything
-/// unnamed — told the one person most likely to see this message that the
-/// spec's own value was somebody's extension.
+/// `none` is here because it is a value a refused file can well carry: an
+/// undefined `vkFormat` with a colour model this does not read — UASTC HDR,
+/// say — and no supercompression at all. Calling that a vendor scheme — the
+/// fallback's old job for everything unnamed — told the one person most likely
+/// to see this message that the spec's own value was somebody's extension.
 String _supercompressionName(int scheme) => switch (scheme) {
   Ktx2SupercompressionScheme.none => 'none',
   Ktx2SupercompressionScheme.basisLZ => 'Basis-LZ',

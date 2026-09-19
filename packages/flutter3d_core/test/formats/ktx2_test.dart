@@ -114,14 +114,17 @@ void main() {
     );
   });
 
-  // An undefined vkFormat with no supercompression is not a curiosity: it is
-  // precisely a UASTC file out of `toktx --uastc`, the likeliest non-ETC1S
-  // thing anyone hands this reader. The message has to name it, and has to
-  // call scheme 0 what the spec calls it. Mutation: dropping the
+  // An undefined vkFormat says "Basis Universal" and leaves the kind to the
+  // data format descriptor. This file has none, so nothing says — it used to
+  // be *guessed* to be UASTC and refused as such; UASTC is read now
+  // (`uastc_test.dart`), and what is left to refuse is the file that does not
+  // say. The message has to name what would have been read, and has to call
+  // scheme 0 what the spec calls it. Mutation: dropping the
   // `Ktx2SupercompressionScheme.none` case from `_supercompressionName`
   // sends it back down the fallback, which reports `vendor scheme 0`, and
   // both the `none` and the `not vendor` expectations report false.
-  test('a UASTC file names UASTC and calls supercompression 0 none', () {
+  test('an undefined vkFormat with no descriptor says what it would have '
+      'read, and calls supercompression 0 none', () {
     final bytes = buildKtx2(
       vkFormat: VkFormat.undefined,
       supercompressionScheme: Ktx2SupercompressionScheme.none,

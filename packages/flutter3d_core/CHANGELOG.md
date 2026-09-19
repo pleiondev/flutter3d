@@ -1,5 +1,22 @@
 ## Unreleased
 
+- **A UASTC KTX2 opens (`gfx-78n`).** What `toktx --uastc`,
+  `gltf-transform uastc` and `basisu -uastc` write was refused by name — and
+  by guess, since any undefined `vkFormat` outside Basis-LZ was taken to be
+  one. `Ktx2Texture.parse` now
+  reads the data format descriptor's colour model to learn *which* Basis
+  Universal a file holds instead of inferring it from the supercompression
+  scheme, and unpacks UASTC LDR 4×4 — all nineteen modes — to RGBA8 in
+  `uastc_decoder.dart`, through the same Zstandard and ZLIB unwrapping the plain
+  formats use, since a current encoder Zstandard-compresses UASTC unless told
+  not to. Unpacked rather than repacked to BC7 or ASTC: every file opens on
+  every device, at four bytes a texel. A glTF that ships only a
+  `KHR_texture_basisu` UASTC texture keeps it. UASTC HDR and the newer
+  intermediate colour models are refused by name. Tables transcribed from the
+  Basis Universal reference transcoder, and checked against it the only way
+  worth having: files its own encoder wrote, chosen until every mode appears
+  in them, compared **byte for byte** with its own RGBA32 output.
+
 - **A Draco-compressed glTF opens (`gfx-82n`).** `KHR_draco_mesh_compression`
   was detected, warned about and skipped, so a compressed file opened as a
   model with holes in it — and since every such file names the extension as
