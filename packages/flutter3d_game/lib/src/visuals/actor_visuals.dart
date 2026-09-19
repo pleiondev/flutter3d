@@ -190,9 +190,9 @@ final class ActorVisuals {
 
   Future<ModelAsset?> _load(String path) async {
     try {
-      final document = await decodeModelInIsolate(
-        ModelLoadRequest(source: BundleAssetSource(path)),
-      );
+      // The same door the fixtures load through, so an actor's model may be
+      // named by its `assets_src/` source too — see [loadModelByPath].
+      final document = await loadModelByPath(path);
       return await ModelAsset.fromDocument(
         document,
         device: _device,

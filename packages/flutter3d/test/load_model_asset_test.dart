@@ -49,6 +49,41 @@ void main() {
     });
   });
 
+  group('loadModelByPath', () {
+    test('a source path is read from where the hook converted it to', () async {
+      // Mutation: drop the prefix test and read every path as it stands —
+      // the bundle is asked for `assets_src/…`, which no project declares.
+      final asked = <String>[];
+      final document = await loadModelByPath(
+        'assets_src/models/coin.glb',
+        bundleSource: (path) {
+          asked.add(path);
+          return const FileAssetSource('$kSamples/Box.glb');
+        },
+      );
+
+      expect(asked, <String>['flutter3d_generated/models/coin.f3d']);
+      expect(document.surfaces, isNotEmpty);
+    });
+
+    test('any other path is already the thing to read', () async {
+      // Mutation: send every path through `loadModelAsset` — a level written
+      // before its project had a build hook asks for a converted
+      // `flutter3d_generated/assets/models/pickup.f3d` nobody ever wrote.
+      final asked = <String>[];
+      final document = await loadModelByPath(
+        'assets/models/pickup.glb',
+        bundleSource: (path) {
+          asked.add(path);
+          return const FileAssetSource('$kSamples/Box.glb');
+        },
+      );
+
+      expect(asked, <String>['assets/models/pickup.glb']);
+      expect(document.surfaces, isNotEmpty);
+    });
+  });
+
   group('loadModelAsset', () {
     late Directory scratch;
 

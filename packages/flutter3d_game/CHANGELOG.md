@@ -18,6 +18,12 @@
   `main.dart`: a body that walks a level, turns where it is dragged and carries
   a camera at eye height, and a registry that accepts every type a level names
   before a game has taught it any.
+* **A level names a model by either kind of path.** `FixtureVisuals` and
+  `ActorVisuals` load through the engine's `loadModelByPath`: a model a level
+  names under `assets_src/` is read from the `.f3d` the build hook converted
+  it into, and any other path from the bundle exactly as before, so a project
+  that has run `dart run flutter3d_build:init` and one that has not both load
+  through the same two classes.
 
 ## 0.6.0
 
