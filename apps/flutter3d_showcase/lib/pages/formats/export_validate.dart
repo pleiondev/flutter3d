@@ -24,6 +24,12 @@ final class ExportValidateDemo extends ShowcaseDemo {
     materials: <SurfaceMaterial>[
       SurfaceMaterial(baseColor: Vector4(0.5, 0.7, 0.9, 1.0)),
     ],
+    // `GltfWriter` places a surface through the node graph alone, never
+    // through its own transform, so a document meant to be written as glTF
+    // needs at least one node naming it.
+    nodes: <ModelNode>[
+      ModelNode(surfaces: <int>[0]),
+    ],
   );
 
   @override

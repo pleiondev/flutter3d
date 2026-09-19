@@ -34,6 +34,9 @@ final class GltfWriteDemo extends ShowcaseDemo {
           roughness: 0.5,
         ),
       ],
+      nodes: <ModelNode>[
+        ModelNode(surfaces: <int>[0]),
+      ],
     );
     // #endregion document
 
