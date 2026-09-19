@@ -151,7 +151,7 @@ void main() {
       },
     );
 
-    testWidgets('a mode past phase one is not on the bar at all', (
+    testWidgets('the bar offers the ready modes, and only those', (
       WidgetTester tester,
     ) async {
       final asked = <ModelerMode>[];
@@ -165,14 +165,47 @@ void main() {
       // roadmap belongs on the site, not in the one control a person uses
       // every minute.
       //
-      // Mutation: put the disabled segments back. `uv` is on the bar again
-      // and this finds it.
-      expect(find.byIcon(ModelerMode.uv.icon), findsNothing);
+      // `uv` was the mode this named while it waited for its wiring
+      // (`pro-uv-07`); every mode is ready now, so the rule is stated over
+      // the enum and holds for the next one drawn before it is reachable.
+      //
+      // Mutation: build the segments from `ModelerMode.values` and disable
+      // the unready ones. A mode with `ready: false` is on the bar again and
+      // this finds it.
+      Finder onTheBar(ModelerMode mode) => find.descendant(
+        of: find.byType(SegmentedButton<ModelerMode>),
+        matching: find.byIcon(mode.icon),
+      );
+      for (final ModelerMode mode in ModelerMode.values) {
+        expect(
+          onTheBar(mode),
+          mode.ready ? findsOneWidget : findsNothing,
+          reason: mode.label,
+        );
+      }
 
-      // And the mesh mode, which is ready, is there and answers.
-      await tester.tap(find.byIcon(ModelerMode.mesh.icon));
+      // And UV, the last to arrive, is there and answers — as the mesh mode
+      // beside it always has.
+      await tester.tap(onTheBar(ModelerMode.uv));
       await tester.pump();
-      expect(asked, <ModelerMode>[ModelerMode.mesh]);
+      await tester.tap(onTheBar(ModelerMode.mesh));
+      await tester.pump();
+      expect(asked, <ModelerMode>[ModelerMode.uv, ModelerMode.mesh]);
+    });
+
+    testWidgets('the UV mode shows the element level, as the mesh mode does', (
+      WidgetTester tester,
+    ) async {
+      // A seam is an edge selection and a patch to unwrap is a face
+      // selection, so the level switch is as live in this mode as in Mesh.
+      // Mutation: leave the switcher's condition at `mode == mesh`. A person
+      // in UV mode has then no way to say "edges" but the digit row, which a
+      // tablet does not have.
+      await pumpShell(tester, mode: ModelerMode.uv);
+      expect(find.byType(SegmentedButton<MeshSubmode>), findsOneWidget);
+
+      await pumpShell(tester, mode: ModelerMode.material);
+      expect(find.byType(SegmentedButton<MeshSubmode>), findsNothing);
     });
 
     testWidgets('material, animation and scene are enabled (ui-39d)', (
@@ -198,31 +231,13 @@ void main() {
       }
     });
 
-    testWidgets('a mode that is not ready is unreachable (ui-39d, ux-07)', (
-      WidgetTester tester,
-    ) async {
-      // Read off `ready` rather than named here: this test listed `uv`,
-      // `sculpt` and `render` when it was written, and the phase-four work
-      // built two of the three. A list of names would have had to be edited
-      // to stay true, which is the same as not checking.
-      //
-      // One assertion per mode rather than one shared sweep: a switcher that
-      // hid one and left another would pass a check that only looked for the
-      // first.
-      final refused = ModelerMode.values.where((m) => !m.ready);
-      expect(refused, isNotEmpty, reason: 'nothing left to check otherwise');
-      for (final ModelerMode target in refused) {
-        final asked = <ModelerMode>[];
-        await pumpShell(tester, onMode: asked.add);
-
-        expect(
-          find.byIcon(target.icon),
-          findsNothing,
-          reason: '${target.label} is not built and should not be offered',
-        );
-        expect(asked, isEmpty);
-      }
-    });
+    // **"A mode that is not ready is unreachable" stood here, and insisted
+    // there be one to check** — it read `ModelerMode.values.where(!ready)`
+    // and failed on an empty answer, so that it could not pass by checking
+    // nothing. `pro-uv-07` made the answer empty for good: `uv` was the last.
+    // The rule itself is held by "the bar offers the ready modes, and only
+    // those" above, per mode over the whole enum, which is the same
+    // assertion with nothing to go stale when the last unready mode lands.
 
     testWidgets(
       'the element level is shown in the mesh mode and nowhere else',
@@ -376,11 +391,12 @@ void main() {
       // and slots in the properties panel, and a rail of one tool called
       // "select" would say a mode is emptier than it is. Animation answers
       // empty until a sub-mode is picked, since its four sub-modes have four
-      // different rails (`toolsFor`'s own doc comment). UV has none because
-      // nothing switches into it yet.
+      // different rails (`toolsFor`'s own doc comment). UV has one since
+      // `pro-uv-07`: a seam is marked by pointing at an edge.
       const withTools = <ModelerMode>{
         ModelerMode.object,
         ModelerMode.mesh,
+        ModelerMode.uv,
         ModelerMode.sculpt,
         ModelerMode.retopo,
         ModelerMode.paint,

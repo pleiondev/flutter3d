@@ -169,7 +169,9 @@ class ModelerKeys extends StatelessWidget {
             ])
               for (final ShortcutActivator key in keymap.forAction(view))
                 key: _typingSafe(() => look(view)),
-          if (mode == ModelerMode.mesh)
+          // `pro-uv-07`: the UV mode too, which shows the same level switch
+          // — see `ModelerModeSwitcher`.
+          if (mode == ModelerMode.mesh || mode == ModelerMode.uv)
             for (final MeshSubmode level in MeshSubmode.values)
               SingleActivator(level.shortcut): _typingSafe(
                 () => onLevel(level),

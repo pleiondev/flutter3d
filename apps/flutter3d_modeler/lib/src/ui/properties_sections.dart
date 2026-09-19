@@ -102,6 +102,17 @@ Set<PropertiesSection> sectionsFor(
       PropertiesSection.selection,
       PropertiesSection.mesh,
     },
+    // `pro-uv-07`: a seam is an edge selection, so the two sections that
+    // say what is selected and what the mesh is made of. **Not the unwrap's
+    // own method, margin and island list** — those ride inside `UvScreen`
+    // beside the layout they describe, and the desktop shell folds this
+    // panel away while that screen is up (`ready_parts.dart` says why). This
+    // is what the tablet's and the phone's own sheets show, which have no
+    // fold and would otherwise open on Display, View and Budget alone.
+    ModelerMode.uv => const <PropertiesSection>{
+      PropertiesSection.selection,
+      PropertiesSection.mesh,
+    },
     ModelerMode.animation => switch (animation ?? AnimationSubmode.pose) {
       AnimationSubmode.pose => const <PropertiesSection>{
         PropertiesSection.animation,

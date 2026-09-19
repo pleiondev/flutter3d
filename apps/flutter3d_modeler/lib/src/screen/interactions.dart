@@ -206,6 +206,20 @@ extension _Interactions on _ModelerScreenState {
       unawaited(_openAutorigDialog());
       return;
     }
+    // `pro-uv-07`'s own two: each is a plain command, but one that reads the
+    // UV panel's own margin — which `commandFor` is not handed, and should
+    // not be: it answers from what is selected and nothing else, and that is
+    // what keeps it testable without a screen. `uv_wiring.dart` builds both.
+    if (id == 'uv.unwrap') {
+      _cubit.tool(id);
+      _unwrapUv();
+      return;
+    }
+    if (id == 'uv.pack') {
+      _cubit.tool(id);
+      _packUvAtlas();
+      return;
+    }
     final ModelCommand? command = commandFor(
       id,
       activeObject: _history.selection.activeObject,

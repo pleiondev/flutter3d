@@ -9,14 +9,17 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 
-import 'package:flutter/gestures.dart' show kDoubleTapTimeout;
+import 'package:flutter/gestures.dart'
+    show PointerDeviceKind, kDoubleTapTimeout;
 import 'package:flutter/material.dart' hide Matrix4;
 import 'package:flutter/services.dart' show FontLoader;
 import 'package:flutter3d_app/flutter3d_app.dart';
 import 'package:flutter3d_modeler/l10n/app_localizations.dart';
 import 'package:flutter3d_modeler/main.dart' hide main;
 import 'package:flutter3d_modeler/src/app_config.dart' show kOpeningReportFor;
+import 'package:flutter3d_modeler/src/modeler_viewport.dart';
 import 'package:flutter3d_modeler/src/settings.dart';
+import 'package:flutter3d_modeler/src/ui/properties/object_row.dart';
 import 'package:flutter3d_modeler/src/ui/theme.dart';
 import 'package:flutter3d_modeler/src/ui/tools.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -295,6 +298,50 @@ Future<void> switchMeshSubmode(WidgetTester tester, MeshSubmode submode) async {
   await tester.ensureVisible(segment);
   await settleFrames(tester);
   await tester.tap(segment);
+  await settleFrames(tester);
+}
+
+/// The editor, in the UV mode, with the cube a launch opens on held.
+///
+/// **Picked in Object mode first, which is where a person picks it.** A
+/// launch selects nothing, and the UV mode — like Mesh, whose picture it
+/// borrows — answers a click with an element of the held mesh rather than
+/// with an object, so there is nothing in it to pick one *with*.
+Future<void> openUvModeOnTheCube(
+  WidgetTester tester, {
+  required bool fonts,
+}) async {
+  await launchModeller(tester, fonts: fonts);
+  await tester.tap(find.byType(ObjectRow).first);
+  await settleFrames(tester);
+  await switchMode(tester, ModelerMode.uv);
+}
+
+/// Marks every edge of the held mesh as a seam, the way a person would:
+/// the Edge level, a box dragged round the whole picture, the rail's
+/// scissors.
+///
+/// Every edge rather than a chosen few, because aiming a click at one edge
+/// of a rasterised cube is a test of the picker and nothing that calls this
+/// is about the picker. Twelve loose triangles is a poor unwrap and a
+/// perfectly good one to count and to photograph.
+Future<void> cutEveryEdge(WidgetTester tester) async {
+  await switchMeshSubmode(tester, MeshSubmode.edge);
+  final Rect picture = tester.getRect(find.byType(ModelerViewport));
+  // From the corner the seam count is pinned to, on purpose: the card is a
+  // label and the drag has to start on the picture under it. Mutation: take
+  // the `IgnorePointer` off it in `ready_parts.dart`. The press goes to the
+  // card, no box is drawn, and nothing is selected for the scissors to cut.
+  final TestGesture drag = await tester.startGesture(
+    picture.topLeft + const Offset(24, 24),
+    kind: PointerDeviceKind.mouse,
+  );
+  await tester.pump();
+  await drag.moveTo(picture.bottomRight - const Offset(24, 24));
+  await tester.pump();
+  await drag.up();
+  await settleFrames(tester);
+  await tester.tap(find.byIcon(Icons.content_cut_outlined));
   await settleFrames(tester);
 }
 

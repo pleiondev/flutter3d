@@ -482,10 +482,11 @@ class ModelerModeSwitcher extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => SingleChildScrollView(
-    // **It scrolls, because ten modes do not fit a laptop's top bar.**
-    // `pro-sc-08` and the four phase-four screens took the Full workspace
-    // from five modes to ten, and a `Row` that does not fit overflows with a
-    // stripe rather than hiding the last segment politely. Scrolling keeps
+    // **It scrolls, because eleven modes do not fit a laptop's top bar.**
+    // `pro-sc-08`, the four phase-four screens and `pro-uv-07` took the Full
+    // workspace from five modes to eleven, and a `Row` that does not fit
+    // overflows with a stripe rather than hiding the last segment politely.
+    // Scrolling keeps
     // every mode reachable at every width and costs nothing where they all
     // fit, which is most of the time.
     scrollDirection: Axis.horizontal,
@@ -528,11 +529,15 @@ class ModelerModeSwitcher extends StatelessWidget {
           onSelectionChanged: (Set<ModelerMode> picked) => onMode(picked.first),
         ),
         const SizedBox(width: 12),
-        // The sub-mode belongs to the mesh mode and to nothing else, so
-        // it is absent rather than disabled elsewhere: a control that is
-        // permanently grey in seven modes out of eight is a control
-        // people stop seeing.
-        if (mode == ModelerMode.mesh)
+        // The element level belongs to the modes that pick elements and to
+        // nothing else, so it is absent rather than disabled elsewhere: a
+        // control that is permanently grey in nine modes out of eleven is a
+        // control people stop seeing.
+        //
+        // `pro-uv-07`: and to the UV mode, which marks its seams on the mesh
+        // mode's own selection — edges for where a cut runs, faces for which
+        // patch to unwrap — so the level is as live there as it is here.
+        if (mode == ModelerMode.mesh || mode == ModelerMode.uv)
           SegmentedButton<MeshSubmode>(
             showSelectedIcon: false,
             segments: <ButtonSegment<MeshSubmode>>[

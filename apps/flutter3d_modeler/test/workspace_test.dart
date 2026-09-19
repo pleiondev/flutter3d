@@ -61,6 +61,8 @@ void main() {
         ModelerMode.object,
         ModelerMode.mesh,
         ModelerMode.material,
+        // `pro-uv-07`: the last of the eleven to be switched into.
+        ModelerMode.uv,
         // `pro-sc-08`: sculpting is built now, and Full is the workspace
         // that offers what is built.
         ModelerMode.sculpt,

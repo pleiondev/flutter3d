@@ -2004,4 +2004,173 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get envSunset => 'Закат';
+
+  @override
+  String get toolUvSelectLabel => 'Выделение';
+
+  @override
+  String get toolUvSelectAbout =>
+      'Клик по рёбрам, вдоль которых пойдёт шов; с Shift ребро добавляется к уже выбранным.';
+
+  @override
+  String get toolUvMarkSeamLabel => 'Пометить шов';
+
+  @override
+  String get toolUvMarkSeamAbout =>
+      'Разрезает развёртку по выбранным рёбрам — так кроят выкройку, чтобы ткань легла плоско.';
+
+  @override
+  String get toolUvClearSeamLabel => 'Снять шов';
+
+  @override
+  String get toolUvClearSeamAbout =>
+      'Сшивает развёртку обратно по выбранным рёбрам.';
+
+  @override
+  String get toolUvUnwrapLabel => 'Развернуть';
+
+  @override
+  String get toolUvUnwrapAbout =>
+      'Раскладывает выбранные грани на плоскости — всю сетку, если грани не выбраны, — разрезая острова по швам.';
+
+  @override
+  String get toolUvPackLabel => 'Упаковать в один атлас';
+
+  @override
+  String get toolUvPackAbout =>
+      'Укладывает развёртки выбранных объектов в один общий квадрат, чтобы у них была одна текстура и один вызов отрисовки.';
+
+  @override
+  String get uvAutoPack => 'Упаковать автоматически';
+
+  @override
+  String get uvUnwrap => 'Развернуть';
+
+  @override
+  String uvSeamCount(int count) {
+    return 'Швы · рёбер: $count';
+  }
+
+  @override
+  String uvStatus(int percent, int islands) {
+    return 'Заполнение развёртки $percent % · островов: $islands';
+  }
+
+  @override
+  String uvLayoutSemantics(int islands) {
+    return 'Развёртка UV, островов: $islands';
+  }
+
+  @override
+  String get uvLayoutTitle => 'Развёртка';
+
+  @override
+  String get uvLegendNormal => 'норма';
+
+  @override
+  String get uvLegendStretched => 'растяжение';
+
+  @override
+  String get uvRefusalNoObject => 'Выберите объект, чтобы его развернуть';
+
+  @override
+  String uvRefusalNoMesh(String name) {
+    return 'У «$name» ещё нет сетки — сначала преобразуйте его в сетку';
+  }
+
+  @override
+  String get uvUnwrapFlat =>
+      'Развёртка вышла без площади: замкнутую форму не разложить на плоскости, пока она не разрезана. Пометьте швы по рёбрам и разверните снова';
+
+  @override
+  String get uvPackNeedsTwo =>
+      'Атлас — общий: выберите два или больше развёрнутых объекта';
+
+  @override
+  String get propLods => 'Уровни детализации';
+
+  @override
+  String propLodsCount(int count) {
+    return 'Уровней: $count';
+  }
+
+  @override
+  String get propLodsOpen => 'Открыть…';
+
+  @override
+  String lodLevel(int index) {
+    return 'LOD $index';
+  }
+
+  @override
+  String get lodRatio => 'Оставить';
+
+  @override
+  String lodTriangles(String count) {
+    return 'Треугольников: $count';
+  }
+
+  @override
+  String lodUpTo(int percent) {
+    return 'рисуется, пока объект меньше $percent % экрана';
+  }
+
+  @override
+  String get lodAddLevel => 'Добавить уровень';
+
+  @override
+  String get lodRegenerate => 'Пересчитать';
+
+  @override
+  String get lodClose => 'Вернуться к объекту';
+
+  @override
+  String get lodNoLevels =>
+      'Уровней ещё нет. Первый добавленный оставит половину треугольников и включится, когда объект займёт меньше четверти экрана.';
+
+  @override
+  String lodNow(int percent, int index) {
+    return 'Сейчас: $percent % экрана — LOD $index';
+  }
+
+  @override
+  String lodNowBase(int percent) {
+    return 'Сейчас: $percent % экрана — полная сетка';
+  }
+
+  @override
+  String lodPaneEmpty(int index) {
+    return 'Уровня LOD $index ещё нет';
+  }
+
+  @override
+  String lodRefusalNoMesh(String name) {
+    return 'У «$name» нет сетки для упрощения — сначала преобразуйте его в сетку';
+  }
+
+  @override
+  String get lodThresholdFixed =>
+      'Порог уровня задаётся при добавлении: команды, которая сдвигает его потом, в этой сборке нет';
+
+  @override
+  String retopoCorners(int count) {
+    return 'Квад · точек: $count из 4';
+  }
+
+  @override
+  String get retopoNeedsTwo =>
+      'Выберите исходную модель, затем с Shift — сетку, на которую ложатся квады';
+
+  @override
+  String get retopoMissed => 'Клик не попал в исходную модель';
+
+  @override
+  String retopoTargetNoMesh(String name) {
+    return 'У «$name» нет сетки, на которую можно рисовать, — сначала преобразуйте его в сетку';
+  }
+
+  @override
+  String aboutVersion(String version) {
+    return 'Версия $version';
+  }
 }

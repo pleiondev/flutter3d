@@ -156,8 +156,11 @@ import '../ui/tools.dart';
 import '../ui/top_bar_actions.dart';
 import '../ui/transport_bar.dart';
 import '../ui/unsaved_changes_dialog.dart';
+import '../ui/uv_screen.dart';
+import '../ui/viewport_chip.dart';
 import '../ui/weight_legend.dart';
 import '../ui/window_chrome.dart';
+import '../uv_panel_state.dart';
 import '../value_drag.dart';
 import '../viewport_metrics.dart';
 import '../weight_gradient.dart';
@@ -176,6 +179,7 @@ part 'pro_modes_wiring.dart';
 part 'ready_parts.dart';
 part 'retarget_wiring.dart';
 part 'sculpt_wiring.dart';
+part 'uv_wiring.dart';
 part 'weight_paint_wiring.dart';
 
 /// `ui-30n`: wires an exception nobody caught to the same response wherever
@@ -364,6 +368,10 @@ class _ModelerScreenState extends State<ModelerScreen>
   /// `pro-sc-08`'s own sculpting brush — see [SculptBrush], which is where
   /// its four settings went and why.
   final SculptBrush _sculpt = SculptBrush();
+
+  /// `pro-uv-07`'s own panel state, and the last reading of the mesh — see
+  /// [UvPanelState] and `screen/uv_wiring.dart`.
+  final UvPanelState _uv = UvPanelState();
 
   /// `pro-rt-07`'s own panel state — see [RetopoPanelState].
   final RetopoPanelState _retopo = RetopoPanelState();

@@ -3684,6 +3684,264 @@ abstract class AppLocalizations {
   /// In ru, this message translates to:
   /// **'Закат'**
   String get envSunset;
+
+  /// No description provided for @toolUvSelectLabel.
+  ///
+  /// In ru, this message translates to:
+  /// **'Выделение'**
+  String get toolUvSelectLabel;
+
+  /// No description provided for @toolUvSelectAbout.
+  ///
+  /// In ru, this message translates to:
+  /// **'Клик по рёбрам, вдоль которых пойдёт шов; с Shift ребро добавляется к уже выбранным.'**
+  String get toolUvSelectAbout;
+
+  /// No description provided for @toolUvMarkSeamLabel.
+  ///
+  /// In ru, this message translates to:
+  /// **'Пометить шов'**
+  String get toolUvMarkSeamLabel;
+
+  /// No description provided for @toolUvMarkSeamAbout.
+  ///
+  /// In ru, this message translates to:
+  /// **'Разрезает развёртку по выбранным рёбрам — так кроят выкройку, чтобы ткань легла плоско.'**
+  String get toolUvMarkSeamAbout;
+
+  /// No description provided for @toolUvClearSeamLabel.
+  ///
+  /// In ru, this message translates to:
+  /// **'Снять шов'**
+  String get toolUvClearSeamLabel;
+
+  /// No description provided for @toolUvClearSeamAbout.
+  ///
+  /// In ru, this message translates to:
+  /// **'Сшивает развёртку обратно по выбранным рёбрам.'**
+  String get toolUvClearSeamAbout;
+
+  /// No description provided for @toolUvUnwrapLabel.
+  ///
+  /// In ru, this message translates to:
+  /// **'Развернуть'**
+  String get toolUvUnwrapLabel;
+
+  /// No description provided for @toolUvUnwrapAbout.
+  ///
+  /// In ru, this message translates to:
+  /// **'Раскладывает выбранные грани на плоскости — всю сетку, если грани не выбраны, — разрезая острова по швам.'**
+  String get toolUvUnwrapAbout;
+
+  /// No description provided for @toolUvPackLabel.
+  ///
+  /// In ru, this message translates to:
+  /// **'Упаковать в один атлас'**
+  String get toolUvPackLabel;
+
+  /// No description provided for @toolUvPackAbout.
+  ///
+  /// In ru, this message translates to:
+  /// **'Укладывает развёртки выбранных объектов в один общий квадрат, чтобы у них была одна текстура и один вызов отрисовки.'**
+  String get toolUvPackAbout;
+
+  /// No description provided for @uvAutoPack.
+  ///
+  /// In ru, this message translates to:
+  /// **'Упаковать автоматически'**
+  String get uvAutoPack;
+
+  /// No description provided for @uvUnwrap.
+  ///
+  /// In ru, this message translates to:
+  /// **'Развернуть'**
+  String get uvUnwrap;
+
+  /// Плашка над 3D-видом в режиме UV — pro-uv-07, экран 06.
+  ///
+  /// In ru, this message translates to:
+  /// **'Швы · рёбер: {count}'**
+  String uvSeamCount(int count);
+
+  /// Строка статуса режима UV — экран 06.
+  ///
+  /// In ru, this message translates to:
+  /// **'Заполнение развёртки {percent} % · островов: {islands}'**
+  String uvStatus(int percent, int islands);
+
+  /// Что экранный диктор говорит о квадрате развёртки.
+  ///
+  /// In ru, this message translates to:
+  /// **'Развёртка UV, островов: {islands}'**
+  String uvLayoutSemantics(int islands);
+
+  /// No description provided for @uvLayoutTitle.
+  ///
+  /// In ru, this message translates to:
+  /// **'Развёртка'**
+  String get uvLayoutTitle;
+
+  /// No description provided for @uvLegendNormal.
+  ///
+  /// In ru, this message translates to:
+  /// **'норма'**
+  String get uvLegendNormal;
+
+  /// No description provided for @uvLegendStretched.
+  ///
+  /// In ru, this message translates to:
+  /// **'растяжение'**
+  String get uvLegendStretched;
+
+  /// No description provided for @uvRefusalNoObject.
+  ///
+  /// In ru, this message translates to:
+  /// **'Выберите объект, чтобы его развернуть'**
+  String get uvRefusalNoObject;
+
+  /// Почему кнопка «Развернуть» выключена.
+  ///
+  /// In ru, this message translates to:
+  /// **'У «{name}» ещё нет сетки — сначала преобразуйте его в сетку'**
+  String uvRefusalNoMesh(String name);
+
+  /// No description provided for @uvUnwrapFlat.
+  ///
+  /// In ru, this message translates to:
+  /// **'Развёртка вышла без площади: замкнутую форму не разложить на плоскости, пока она не разрезана. Пометьте швы по рёбрам и разверните снова'**
+  String get uvUnwrapFlat;
+
+  /// No description provided for @uvPackNeedsTwo.
+  ///
+  /// In ru, this message translates to:
+  /// **'Атлас — общий: выберите два или больше развёрнутых объекта'**
+  String get uvPackNeedsTwo;
+
+  /// No description provided for @propLods.
+  ///
+  /// In ru, this message translates to:
+  /// **'Уровни детализации'**
+  String get propLods;
+
+  /// Секция инспектора объекта — pro-lod-04, экран 17.
+  ///
+  /// In ru, this message translates to:
+  /// **'Уровней: {count}'**
+  String propLodsCount(int count);
+
+  /// No description provided for @propLodsOpen.
+  ///
+  /// In ru, this message translates to:
+  /// **'Открыть…'**
+  String get propLodsOpen;
+
+  /// Заголовок карточки уровня — экран 17.
+  ///
+  /// In ru, this message translates to:
+  /// **'LOD {index}'**
+  String lodLevel(int index);
+
+  /// No description provided for @lodRatio.
+  ///
+  /// In ru, this message translates to:
+  /// **'Оставить'**
+  String get lodRatio;
+
+  /// Сколько треугольников в упрощённой сетке уровня.
+  ///
+  /// In ru, this message translates to:
+  /// **'Треугольников: {count}'**
+  String lodTriangles(String count);
+
+  /// Порог уровня как доля высоты экрана.
+  ///
+  /// In ru, this message translates to:
+  /// **'рисуется, пока объект меньше {percent} % экрана'**
+  String lodUpTo(int percent);
+
+  /// No description provided for @lodAddLevel.
+  ///
+  /// In ru, this message translates to:
+  /// **'Добавить уровень'**
+  String get lodAddLevel;
+
+  /// No description provided for @lodRegenerate.
+  ///
+  /// In ru, this message translates to:
+  /// **'Пересчитать'**
+  String get lodRegenerate;
+
+  /// No description provided for @lodClose.
+  ///
+  /// In ru, this message translates to:
+  /// **'Вернуться к объекту'**
+  String get lodClose;
+
+  /// No description provided for @lodNoLevels.
+  ///
+  /// In ru, this message translates to:
+  /// **'Уровней ещё нет. Первый добавленный оставит половину треугольников и включится, когда объект займёт меньше четверти экрана.'**
+  String get lodNoLevels;
+
+  /// Какую долю экрана объект занимает в основном вьюпорте и какой уровень этому отвечает.
+  ///
+  /// In ru, this message translates to:
+  /// **'Сейчас: {percent} % экрана — LOD {index}'**
+  String lodNow(int percent, int index);
+
+  /// То же, когда ни один уровень ещё не включился.
+  ///
+  /// In ru, this message translates to:
+  /// **'Сейчас: {percent} % экрана — полная сетка'**
+  String lodNowBase(int percent);
+
+  /// Треть экрана 17, для которой уровень не задан.
+  ///
+  /// In ru, this message translates to:
+  /// **'Уровня LOD {index} ещё нет'**
+  String lodPaneEmpty(int index);
+
+  /// Почему уровень добавить нельзя.
+  ///
+  /// In ru, this message translates to:
+  /// **'У «{name}» нет сетки для упрощения — сначала преобразуйте его в сетку'**
+  String lodRefusalNoMesh(String name);
+
+  /// No description provided for @lodThresholdFixed.
+  ///
+  /// In ru, this message translates to:
+  /// **'Порог уровня задаётся при добавлении: команды, которая сдвигает его потом, в этой сборке нет'**
+  String get lodThresholdFixed;
+
+  /// Плашка над вьюпортом, пока рисуется квад — pro-rt-03.
+  ///
+  /// In ru, this message translates to:
+  /// **'Квад · точек: {count} из 4'**
+  String retopoCorners(int count);
+
+  /// No description provided for @retopoNeedsTwo.
+  ///
+  /// In ru, this message translates to:
+  /// **'Выберите исходную модель, затем с Shift — сетку, на которую ложатся квады'**
+  String get retopoNeedsTwo;
+
+  /// No description provided for @retopoMissed.
+  ///
+  /// In ru, this message translates to:
+  /// **'Клик не попал в исходную модель'**
+  String get retopoMissed;
+
+  /// Почему квад не рисуется.
+  ///
+  /// In ru, this message translates to:
+  /// **'У «{name}» нет сетки, на которую можно рисовать, — сначала преобразуйте его в сетку'**
+  String retopoTargetNoMesh(String name);
+
+  /// Номер версии приложения на экране «Юридическое».
+  ///
+  /// In ru, this message translates to:
+  /// **'Версия {version}'**
+  String aboutVersion(String version);
 }
 
 class _AppLocalizationsDelegate
