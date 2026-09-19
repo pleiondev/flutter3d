@@ -244,3 +244,4 @@ batch.setMorphWeights(7, [0.6, 0.0]);    // one copy in a batch
 - [Simulation layer](/core/simulation/): the fixed step the animation is not tied to
 - [Scene graph](/core/scene/), where an instantiated model lands
 - [Tutorial: first scene](/core/tutorial/): loading a model end to end
+- [The asset pipeline](/reference/asset-pipeline/): converting a project's own sources into what this page's decoders read, on every build

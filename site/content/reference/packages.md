@@ -256,7 +256,7 @@ A hundred and forty-seven editing tools, each one of the editor's own commands u
 Two servers. `SimMcpServer` is a level an agent can play without seeing it: open a level, step it with input, read positions and health back in words, capture a headless frame, and write the run out as a `.f3drun`. `DiagnosticMcpServer` answers why a frame is wrong: a debug view of normals and depth, the HDR value of one pixel, the passes the frame graph ran, a scan for NaN.
 
 ### `flutter3d_build`
-The build hook behind `dart run flutter3d:init`. It converts model and texture sources into what the engine loads on every build, from the rules in `flutter3d_assets.yaml`, with a content-hash cache so an unchanged source costs nothing. Textures are cooked once into a block format the device turns into BC, ASTC, ETC2 or RGBA8 when it loads them. Plain Dart, because the Flutter tool starts a hook as a separate process with no SDK to resolve inside it.
+The build hook `dart run flutter3d_build:init` wires into a project. It converts model and texture sources into what the engine loads on every build, from the rules in `flutter3d_assets.yaml`, with a content-hash cache so an unchanged source costs nothing. Textures are cooked once into a block format the device turns into BC, ASTC, ETC2 or RGBA8 when it loads them. Plain Dart, because the Flutter tool starts a hook as a separate process with no SDK to resolve inside it. See [The asset pipeline](/reference/asset-pipeline/) for `init`, the manifest, the families, and what a failed hook actually says.
 
 ### `flutter3d_editor_widgets`
 The controls the modeller and the level editor share, so neither keeps its own copy: number, colour, range, enum and texture fields and the row they assemble into, over one theme.
