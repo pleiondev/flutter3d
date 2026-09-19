@@ -36,6 +36,31 @@ const List<Feature> postFeatures = <Feature>[
     engineFiles: <String>[_settings],
   ),
   Feature(
+    id: 'color-grading',
+    title: 'Colour grade',
+    category: Category.post,
+    summary:
+        'Contrast, saturation and warmth for the whole picture, separate '
+        'tints for the shadows and the highlights, and the marks a lens '
+        'leaves.',
+    since: '0.3.0',
+    evidence: 'colour grading, vignette, grain and chromatic aberration',
+    keywords: <String>['vignette', 'chromatic aberration'],
+    engineFiles: <String>[_settings],
+  ),
+  Feature(
+    id: 'lut-grading',
+    title: 'Grade through a LUT',
+    category: Category.post,
+    summary:
+        'A grade written down as a small texture: every colour that comes '
+        'in has one colour it comes out as.',
+    since: '0.7.0',
+    evidence: 'LookSettings.lut',
+    keywords: <String>['looksettings.lut'],
+    engineFiles: <String>[_settings],
+  ),
+  Feature(
     id: 'render-post',
     title: 'Post effects on your own image',
     category: Category.post,
@@ -60,5 +85,35 @@ const List<Feature> postFeatures = <Feature>[
     evidence: 'against the published `passOrder`',
     keywords: <String>['disabledpasses'],
     engineFiles: <String>[_settings],
+  ),
+  Feature(
+    id: 'msaa',
+    title: 'Automatic multisampling',
+    category: Category.post,
+    summary:
+        'The scene pass smooths its own edges when the device offers it and '
+        'nothing in the frame needs the picture read back first.',
+    since: '0.7.0',
+    evidence: 'antiAliasing',
+    keywords: <String>['antialiasing'],
+    needs: <Need>{Need.offscreenMsaa},
+    engineFiles: <String>[
+      'packages/flutter3d_core/lib/src/engine/render/renderer_scene_pass.dart',
+    ],
+  ),
+  Feature(
+    id: 'xray',
+    title: 'X-ray silhouettes',
+    category: Category.post,
+    summary:
+        'The outline of whatever a wall hides, painted flat over the wall, '
+        'while the visible part stays lit.',
+    since: '0.4.3',
+    evidence: 'X-ray silhouettes',
+    keywords: <String>['xray'],
+    needs: <Need>{Need.stencil},
+    engineFiles: <String>[
+      'packages/flutter3d_core/lib/src/engine/render/renderer_xray_pass.dart',
+    ],
   ),
 ];
