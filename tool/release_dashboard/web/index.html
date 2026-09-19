@@ -1,0 +1,336 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Release dashboard</title>
+<style>
+  :root {
+    --bg: #f6f7f9; --panel: #ffffff; --ink: #1b1f24; --dim: #5b6570;
+    --line: #dde1e6; --pass: #1a7f37; --fail: #cf222e; --run: #9a6700;
+    --pend: #6e7781; --unk: #8250df; --accent: #0969da;
+    --mono: ui-monospace, SFMono-Regular, Menlo, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0d1117; --panel: #161b22; --ink: #e6edf3; --dim: #8b949e;
+      --line: #30363d; --pass: #3fb950; --fail: #f85149; --run: #d29922;
+      --pend: #8b949e; --unk: #a371f7; --accent: #58a6ff;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink);
+    font: 14px/1.45 system-ui, -apple-system, sans-serif; }
+  header { display: flex; flex-wrap: wrap; gap: 20px; align-items: center;
+    padding: 18px 24px; border-bottom: 1px solid var(--line); background: var(--panel); }
+  .ring { position: relative; width: 84px; height: 84px; flex: none; }
+  .ring svg { transform: rotate(-90deg); }
+  .ring b { position: absolute; inset: 0; display: grid; place-items: center; font-size: 20px; }
+  .head h1 { margin: 0 0 2px; font-size: 18px; }
+  .head p { margin: 0; color: var(--dim); }
+  .head code, td code, .cmd { font-family: var(--mono); font-size: 12px; }
+  .tally { display: flex; gap: 14px; margin-top: 6px; flex-wrap: wrap; }
+  .tally span::before { content: ""; display: inline-block; width: 9px; height: 9px;
+    border-radius: 50%; margin-right: 5px; background: currentColor; }
+  .conn { margin-left: auto; font-size: 12px; color: var(--dim); text-align: right; }
+  .conn .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%;
+    margin-right: 6px; background: var(--fail); }
+  .conn.live .dot { background: var(--pass); }
+  main { display: grid; gap: 16px; padding: 16px 24px 40px;
+    grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); }
+  section { background: var(--panel); border: 1px solid var(--line); border-radius: 8px;
+    padding: 14px 16px; min-width: 0; }
+  section.wide { grid-column: 1 / -1; }
+  h2 { margin: 0 0 10px; font-size: 13px; letter-spacing: .04em; text-transform: uppercase;
+    color: var(--dim); display: flex; justify-content: space-between; gap: 8px; }
+  h2 small { text-transform: none; letter-spacing: 0; font-weight: 400; }
+  .pass { color: var(--pass); } .fail { color: var(--fail); } .running { color: var(--run); }
+  .pending { color: var(--pend); } .unknown { color: var(--unk); }
+  .row { display: grid; grid-template-columns: 18px 1fr; gap: 8px; padding: 4px 0; }
+  .row .mark { font-weight: 700; text-align: center; }
+  .row .detail { color: var(--dim); font-size: 12px; overflow-wrap: anywhere; }
+  .row.running .mark { animation: pulse 1s ease-in-out infinite; }
+  @keyframes pulse { 50% { opacity: .3; } }
+  .bar { height: 6px; border-radius: 3px; background: var(--line); overflow: hidden;
+    display: flex; margin: 0 0 8px; }
+  .bar i { display: block; height: 100%; }
+  .bar .pass { background: var(--pass); } .bar .fail { background: var(--fail); }
+  .bar .running { background: var(--run); } .bar .unknown { background: var(--unk); }
+  button { font: inherit; padding: 2px 10px; border-radius: 6px; cursor: pointer;
+    border: 1px solid var(--line); background: var(--bg); color: var(--ink); }
+  button:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
+  button:disabled { opacity: .5; cursor: default; }
+  .gate { padding: 6px 0; border-top: 1px solid var(--line); }
+  .gate:first-of-type { border-top: 0; }
+  .gate .top { display: flex; gap: 8px; align-items: center; }
+  .gate .top .name { flex: 1; min-width: 0; }
+  .tag { font-size: 11px; padding: 0 6px; border-radius: 9px; border: 1px solid var(--line);
+    color: var(--dim); }
+  pre { margin: 6px 0 0; padding: 8px; background: var(--bg); border-radius: 6px;
+    font: 12px/1.4 var(--mono); overflow: auto; max-height: 240px; white-space: pre-wrap; }
+  table { border-collapse: collapse; width: 100%; }
+  th, td { text-align: left; padding: 3px 8px 3px 0; border-top: 1px solid var(--line);
+    vertical-align: top; }
+  th { font-weight: 600; color: var(--dim); border-top: 0; font-size: 12px; }
+  label { color: var(--dim); font-size: 12px; font-weight: 400; cursor: pointer; }
+  ul { list-style: none; margin: 0; padding: 0; }
+  li { padding: 3px 0; overflow-wrap: anywhere; }
+  li time { color: var(--dim); font: 11px var(--mono); margin-right: 8px; }
+  a { color: var(--accent); }
+  .empty { color: var(--dim); }
+</style>
+</head>
+<body>
+<header>
+  <div class="ring" id="ring"></div>
+  <div class="head">
+    <h1 id="title">Release</h1>
+    <p id="git"></p>
+    <div class="tally" id="tally"></div>
+  </div>
+  <div class="conn" id="conn"><span class="dot"></span><span id="connText">connecting</span><br>
+    <button id="refresh" type="button">Refresh now</button></div>
+</header>
+<main id="main"></main>
+
+<script>
+'use strict';
+
+const MARK = { pass: '✓', fail: '✗', running: '●', pending: '○', unknown: '?' };
+const NS = 'http://www.w3.org/2000/svg';
+
+let state = null;
+let live = false;
+let lastFrame = 0;
+const open = new Set();
+let onlyProblems = false;
+
+// Every string the server sent goes in through textContent, never as markup: a
+// commit subject or a CHANGELOG heading is data, not something to interpret.
+function h(tag, props, ...kids) {
+  const el = document.createElement(tag);
+  for (const [k, v] of Object.entries(props || {})) {
+    if (k === 'class') el.className = v;
+    else if (k === 'on') for (const [ev, fn] of Object.entries(v)) el.addEventListener(ev, fn);
+    else if (v !== false && v != null) el.setAttribute(k, v === true ? '' : v);
+  }
+  for (const kid of kids.flat()) {
+    if (kid == null || kid === false) continue;
+    el.append(kid instanceof Node ? kid : document.createTextNode(String(kid)));
+  }
+  return el;
+}
+
+function ago(iso) {
+  if (!iso) return 'never';
+  const s = Math.max(0, Math.round((Date.now() - new Date(iso)) / 1000));
+  if (s < 60) return s + ' s ago';
+  if (s < 3600) return Math.floor(s / 60) + ' min ago';
+  return Math.floor(s / 3600) + ' h ago';
+}
+
+function clock(iso) {
+  return new Date(iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+}
+
+function mark(level) { return h('span', { class: 'mark ' + level }, MARK[level] || '?'); }
+
+function ring(p) {
+  const r = 34, c = 2 * Math.PI * r;
+  const svg = document.createElementNS(NS, 'svg');
+  svg.setAttribute('width', 84); svg.setAttribute('height', 84); svg.setAttribute('viewBox', '0 0 84 84');
+  let offset = 0;
+  const arc = (frac, cls) => {
+    if (frac <= 0) return;
+    const el = document.createElementNS(NS, 'circle');
+    el.setAttribute('cx', 42); el.setAttribute('cy', 42); el.setAttribute('r', r);
+    el.setAttribute('fill', 'none'); el.setAttribute('stroke-width', 9);
+    el.setAttribute('stroke', `var(--${cls})`);
+    el.setAttribute('stroke-dasharray', `${frac * c} ${c}`);
+    el.setAttribute('stroke-dashoffset', -offset * c);
+    svg.append(el);
+    offset += frac;
+  };
+  const base = document.createElementNS(NS, 'circle');
+  base.setAttribute('cx', 42); base.setAttribute('cy', 42); base.setAttribute('r', r);
+  base.setAttribute('fill', 'none'); base.setAttribute('stroke-width', 9);
+  base.setAttribute('stroke', 'var(--line)');
+  svg.append(base);
+  const t = p.total || 1;
+  arc(p.passed / t, 'pass'); arc(p.running / t, 'run'); arc(p.failed / t, 'fail'); arc(p.unknown / t, 'unk');
+  return [svg, h('b', {}, p.percent + '%')];
+}
+
+async function post(path) {
+  try {
+    await fetch(path, { method: 'POST', headers: { 'x-dashboard': '1' } });
+  } catch (_) { /* the connection indicator already says so */ }
+}
+
+function stageCard(stage) {
+  const n = stage.items.length;
+  const count = (l) => stage.items.filter((i) => i.level === l).length;
+  const bar = h('div', { class: 'bar' },
+    ['pass', 'running', 'fail', 'unknown'].map((l) =>
+      h('i', { class: l, style: `width:${(count(l) / n) * 100}%` })));
+  return h('section', {},
+    h('h2', {}, stage.title, h('small', {}, `${count('pass')}/${n}`)),
+    bar,
+    stage.items.map((item) =>
+      h('div', { class: 'row ' + item.level }, mark(item.level),
+        h('div', {}, item.title, item.detail && h('div', { class: 'detail' }, item.detail)))));
+}
+
+function gatesCard(gates) {
+  return h('section', {},
+    h('h2', {}, 'Checks', h('small', {}, 'the repository’s own scripts')),
+    gates.map((g) => {
+      const busy = g.level === 'running' || g.queued;
+      const key = 'gate:' + g.id;
+      const body = [];
+      if (g.brokenRules.length) body.push(h('pre', {}, g.brokenRules.map((r) => '✗ ' + r).join('\n')));
+      if (g.tail.length && open.has(key)) body.push(h('pre', {}, g.tail.join('\n')));
+      return h('div', { class: 'gate' },
+        h('div', { class: 'top' }, mark(g.level),
+          h('div', { class: 'name' }, g.title,
+            h('div', { class: 'detail' },
+              g.summary, g.seconds != null && ` · ${g.seconds} s`,
+              g.ranAt && ` · ${ago(g.ranAt)}`, g.stale && ' · before the last edit')),
+          g.auto && h('span', { class: 'tag' }, 'auto'),
+          g.tail.length > 0 && h('button', { type: 'button', on: { click: () => {
+            open.has(key) ? open.delete(key) : open.add(key); render(); } } },
+            open.has(key) ? 'Hide' : 'Output'),
+          h('button', { type: 'button', disabled: busy,
+            on: { click: () => post('/api/run/' + g.id) } },
+            g.level === 'running' ? 'Running' : g.queued ? 'Queued' : 'Run')),
+        h('div', { class: 'cmd detail' }, g.command),
+        body);
+    }));
+}
+
+function packagesCard(list) {
+  const rows = onlyProblems ? list.filter((p) => p.problems.length) : list;
+  const bad = list.filter((p) => p.problems.length).length;
+  const box = h('input', { type: 'checkbox', checked: onlyProblems,
+    on: { change: (e) => { onlyProblems = e.target.checked; render(); } } });
+  return h('section', { class: 'wide' },
+    h('h2', {}, `Packages (${list.length}, ${bad} with problems)`,
+      h('label', {}, box, ' only problems')),
+    rows.length === 0 ? h('div', { class: 'empty' }, 'Nothing to show.') :
+    h('table', {},
+      h('tr', {}, h('th', {}, 'Package'), h('th', {}, 'Version'), h('th', {}, 'CHANGELOG'),
+        h('th', {}, 'pub.dev'), h('th', {}, 'Problems')),
+      rows.map((p) => h('tr', {},
+        h('td', {}, p.name, p.ownLine && h('span', { class: 'tag' }, ' own line')),
+        h('td', {}, h('code', {}, p.version)),
+        h('td', {}, h('code', {}, p.changelog || '—')),
+        h('td', {}, h('code', {}, p.pubdev === undefined || p.pubdev === null ? '—' : p.pubdev)),
+        h('td', { class: p.problems.length ? 'fail' : 'pass' },
+          p.problems.length ? p.problems.join('; ') : '✓')))));
+}
+
+function ciCard(ci, sites, pubdev) {
+  const level = { success: 'pass', failure: 'fail', in_progress: 'running', queued: 'running' };
+  const src = (name, when, err) => h('div', { class: 'detail' },
+    `${name}: `, err ? `${err}` : `asked ${ago(when)}`);
+  return h('section', {},
+    h('h2', {}, 'Remote', h('small', {}, 'GitHub, pub.dev, models.pleion.dev')),
+    h('div', { class: 'row ' + (ci.pushed ? 'pass' : ci.pushed === false ? 'fail' : 'unknown') },
+      mark(ci.pushed ? 'pass' : ci.pushed === false ? 'fail' : 'unknown'),
+      h('div', {}, ci.pushed ? 'Branch is on the remote' : ci.pushed === false ? 'Branch is not pushed' : 'Push state unknown')),
+    h('div', { class: 'row ' + (level[ci.state] || 'unknown') },
+      mark(level[ci.state] || 'unknown'),
+      h('div', {}, 'CI: ' + ci.state, ci.url && [' · ', h('a', { href: ci.url, target: '_blank', rel: 'noopener' }, 'run')])),
+    ci.jobs.map((j) => h('div', { class: 'row ' + (level[j.state] || 'pending') },
+      mark(level[j.state] || 'pending'), h('div', { class: 'detail' }, `${j.name}: ${j.state}`))),
+    src('GitHub', ci.fetchedAt, ci.error),
+    h('div', { class: 'row ' + (sites.healthy ? 'pass' : sites.healthy === false ? 'fail' : 'unknown') },
+      mark(sites.healthy ? 'pass' : sites.healthy === false ? 'fail' : 'unknown'),
+      h('div', {}, 'models.pleion.dev', sites.healthy != null && (sites.healthy ? ' answers' : ' does not answer'),
+        sites.learnCases != null && ` · ${sites.learnCases} tutorial cases`)),
+    src('models.pleion.dev', sites.fetchedAt, sites.error),
+    src('pub.dev', pubdev.fetchedAt, pubdev.error));
+}
+
+function workCard(s) {
+  const p = s.plan;
+  const rel = Object.entries(p.release).sort();
+  return h('section', {},
+    h('h2', {}, 'Plan and worktrees'),
+    h('div', { class: 'detail' }, `${p.done} done, ${p.partial} partial, ${p.todo} to do, of ${p.total} rows`),
+    rel.length > 0 && h('div', { class: 'detail' },
+      'release rows: ', rel.map(([id, st]) => `${id} ${st}`).join(', ')),
+    h('h2', { style: 'margin-top:12px' }, 'Agents'),
+    s.agents.length === 0 ? h('div', { class: 'empty' }, 'No agent worktrees.') :
+    s.agents.map((a) => h('div', { class: 'row ' + (a.dirty || a.ahead ? 'running' : 'pending') },
+      mark(a.dirty || a.ahead ? 'running' : 'pending'),
+      h('div', {}, a.name, a.locked && ' 🔒',
+        h('div', { class: 'detail' }, `${a.ahead} ahead, ${a.dirty} dirty · ${a.subject}`)))));
+}
+
+function eventsCard(events) {
+  return h('section', { class: 'wide' },
+    h('h2', {}, 'Since the page opened'),
+    events.length === 0 ? h('div', { class: 'empty' }, 'Nothing has changed yet.') :
+    h('ul', {}, events.slice(0, 40).map((e) =>
+      h('li', { class: e.level }, h('time', {}, clock(e.at)), e.text))));
+}
+
+function renderConn() {
+  const conn = document.getElementById('conn');
+  conn.className = 'conn' + (live ? ' live' : '');
+  document.getElementById('connText').textContent = live
+    ? 'live · updated ' + ago(state && state.generatedAt) : 'reconnecting…';
+}
+
+function render() {
+  renderConn();
+  if (!state) return;
+
+  document.title = `${state.progress.percent}% · release ${state.release}`;
+  document.getElementById('title').textContent = `Release ${state.release}`;
+  document.getElementById('ring').replaceChildren(...ring(state.progress));
+  const g = state.git;
+  document.getElementById('git').replaceChildren(
+    g ? [h('code', {}, g.branch), ` @ ${g.head} · ${g.aheadOfMain} ahead of main · `,
+         g.dirty ? `${g.dirty} uncommitted` : 'clean', g.tags.length > 0 && ` · ${g.tags.join(', ')}`]
+      : 'reading git…');
+  const p = state.progress;
+  document.getElementById('tally').replaceChildren(
+    h('span', { class: 'pass' }, `${p.passed} done`),
+    h('span', { class: 'fail' }, `${p.failed} broken`),
+    h('span', { class: 'running' }, `${p.running} running`),
+    h('span', { class: 'pending' }, `${p.pending} waiting`),
+    h('span', { class: 'unknown' }, `${p.unknown} unknown`));
+
+  document.getElementById('main').replaceChildren(
+    ...state.stages.map(stageCard),
+    gatesCard(state.gates),
+    ciCard(state.ci, state.sites, state.pubdev),
+    workCard(state),
+    packagesCard(state.packages),
+    eventsCard(state.events));
+}
+
+function connect() {
+  const es = new EventSource('/events');
+  es.addEventListener('state', (e) => {
+    state = JSON.parse(e.data);
+    live = true;
+    lastFrame = Date.now();
+    render();
+  });
+  es.onerror = () => { live = false; render(); };
+}
+
+document.getElementById('refresh').addEventListener('click', () => post('/api/refresh'));
+// The stream sends a frame at least every ten seconds; silence for much longer
+// means the server is gone even if the browser has not noticed yet.
+setInterval(() => {
+  if (live && Date.now() - lastFrame > 25000) live = false;
+  renderConn();
+}, 1000);
+connect();
+</script>
+</body>
+</html>

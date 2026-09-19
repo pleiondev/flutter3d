@@ -256,6 +256,11 @@ step "pub get cloud/lessons/server" in_dir cloud/lessons/server dart pub get
 step "analyze cloud/lessons/server" in_dir cloud/lessons/server dart analyze --fatal-infos
 step "test cloud/lessons/server" in_dir cloud/lessons/server dart test
 
+# **The release dashboard judges the same scripts this one runs**, so a change
+# to how it reads a result is a change to what "green" means on its page.
+step "analyze tool/release_dashboard" in_dir tool/release_dashboard dart analyze --fatal-infos
+step "test tool/release_dashboard" in_dir tool/release_dashboard dart test
+
 # **Five test files that nothing had ever run.** `flutter3d_webgl` marks them
 # `@TestOn('browser')` — the conformance suite, the parity comparison against
 # Impeller, a whole engine frame — so the loop above skips every one of them and
