@@ -619,6 +619,20 @@ extension _ReadyParts on _ModelerScreenState {
               // name for the two, so the six conditions below cannot come to
               // disagree about which modes pick elements.
               final bool elementsView = _mode == ModelerMode.mesh || uvView;
+              // `pro-rt-03`: drawing a retopology by hand. The overlay is up
+              // whenever the mode has a pair to draw between; a click places
+              // a corner only while `retopo.quad` is the armed tool as well.
+              // **With no pair a click still picks objects**, which is how a
+              // person makes one without leaving the mode — and arming one
+              // of the other two tools gets that back once there is.
+              final RetopoPair? retopoPair = state.mode == ModelerMode.retopo
+                  ? _retopoPairOf(state)
+                  : null;
+              if (state.mode != ModelerMode.retopo) _retopoDraw.reset();
+              final bool retopoQuadArmed =
+                  state.mode == ModelerMode.retopo &&
+                  state.tool == 'retopo.quad';
+              final bool retopoDrawing = retopoQuadArmed && retopoPair != null;
               final List<ShapeMarker> shapeMarkers =
                   !morphsView || forStatus == null
                   ? const <ShapeMarker>[]
@@ -702,8 +716,15 @@ extension _ReadyParts on _ModelerScreenState {
                             // question about this mesh's elements and is answered on the
                             // CPU, and asking the renderer for a node as well would cost a
                             // whole frame to answer a question nobody asked.
-                            onPick: elementsView ? null : _picked,
-                            onElementPick: elementsView && _editMesh != null
+                            onPick: elementsView || retopoDrawing
+                                ? null
+                                : _picked,
+                            // `pro-rt-03` rides the same callback: it hands
+                            // over a camera and a point, which is what a
+                            // corner of a quad is made from.
+                            onElementPick: retopoDrawing
+                                ? _retopoClicked
+                                : elementsView && _editMesh != null
                                 ? _pickedElement
                                 : null,
                             // `ux-28`: the same question a click asks, asked
@@ -816,7 +837,15 @@ extension _ReadyParts on _ModelerScreenState {
                             // there is no `G` key on an iPad, so this is not a second path
                             // to the same place — on three of the five platforms phase 1
                             // ships to it is the path.
-                            gizmoPivot: _transformSession.gizmoPivot,
+                            // `pro-rt-03`: none while a quad is being drawn. A handle
+                            // stood on the pivot takes a press ahead of the
+                            // element pick, and a press that begins a gizmo
+                            // drag opens a history transaction the corner's
+                            // `DrawQuad` is then folded into — `retopo_mode_test`
+                            // found the quad landing with no step of its own.
+                            gizmoPivot: retopoDrawing
+                                ? null
+                                : _transformSession.gizmoPivot,
                             gizmoKind: _transformSession.gizmoKind,
                             // `ux-04`: whichever scheme Settings holds.
                             navigation: _settings.navigation,
@@ -895,6 +924,52 @@ extension _ReadyParts on _ModelerScreenState {
                               onConvert: _ranTool,
                               onBuildTopology: (int id) =>
                                   _cubit.ran(BuildTopology(id: id)),
+                            ),
+                          ),
+                        // `pro-rt-03`: the retopology as it stands and the
+                        // quad being placed, painted over the picture.
+                        // Under the cards and the dial, and deaf to the
+                        // pointer: it is a drawing of the document, and the
+                        // click it would otherwise swallow is the next
+                        // corner.
+                        if (retopoPair != null)
+                          Positioned.fill(
+                            child: IgnorePointer(
+                              child: LayoutBuilder(
+                                builder:
+                                    (
+                                      BuildContext context,
+                                      BoxConstraints box,
+                                    ) => CustomPaint(
+                                      painter: _retopoOverlayOf(
+                                        state,
+                                        retopoPair,
+                                        box.biggest,
+                                      ),
+                                    ),
+                              ),
+                            ),
+                          ),
+                        // And what the next click will do, in the corner —
+                        // how many of the four corners are down, or, with
+                        // the tool armed and nothing to draw between, which
+                        // two things to select.
+                        if (retopoQuadArmed)
+                          Positioned(
+                            left: 12,
+                            top: 12,
+                            child: IgnorePointer(
+                              child: ViewportChip(
+                                retopoPair == null
+                                    ? AppLocalizations.of(
+                                        context,
+                                      ).retopoNeedsTwo
+                                    : AppLocalizations.of(
+                                        context,
+                                      ).retopoCorners(
+                                        _retopoDraw.corners.length,
+                                      ),
+                              ),
                             ),
                           ),
                         // Screen 06's own "Seams · 4 edges", in the corner

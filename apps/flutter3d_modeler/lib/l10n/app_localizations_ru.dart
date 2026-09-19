@@ -2165,11 +2165,6 @@ class AppLocalizationsRu extends AppLocalizations {
   String get retopoMissed => 'Клик не попал в исходную модель';
 
   @override
-  String retopoTargetNoMesh(String name) {
-    return 'У «$name» нет сетки, на которую можно рисовать, — сначала преобразуйте его в сетку';
-  }
-
-  @override
   String aboutVersion(String version) {
     return 'Версия $version';
   }

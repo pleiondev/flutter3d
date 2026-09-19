@@ -689,6 +689,5 @@
   "retopoCorners": "Quad · {count} of 4 points",
   "retopoNeedsTwo": "Select the high mesh, then shift-click the mesh the quads go onto",
   "retopoMissed": "That click missed the high mesh",
-  "retopoTargetNoMesh": "“{name}” has no mesh to draw onto — convert it to a mesh first",
   "aboutVersion": "Version {version}"
 }
