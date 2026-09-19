@@ -31,7 +31,7 @@ That is how a sky dome or a backdrop works.
 
 Turn Panel writes depth on. The panel now records how near it is, the box fails
 the test against it, and the box disappears. Move Panel draw bucket to 0 and the
-renderer's own sorting takes over again. Change Panel depth test to always and the
+renderer's own sorting takes over again. Change Panel depth test to `always` and the
 panel is drawn over anything drawn before it.
 
 {{code live}}

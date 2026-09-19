@@ -32,7 +32,7 @@ camera, down the node's own local `-Z`.
 
 ## Step 4: Move the sliders
 
-The point light's range and the spot's cone angle are read back into the
+The point light's `range` and the spot's cone angle are read back into the
 lights every frame, so the sliders change what each light actually does
 rather than a copy of it.
 

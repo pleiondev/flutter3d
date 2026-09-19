@@ -23,7 +23,7 @@ them is easy to read.
 
 ## Step 3: Resize the window
 
-Width and height are written back into the light every frame, so the
+The sliders' `width` and `height` are written back into the light every frame, so the
 sliders change the panel a person can see rather than a copy nothing reads.
 
 {{code live}}
