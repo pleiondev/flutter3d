@@ -1,3 +1,40 @@
+## 0.7.0
+
+* **`scaffold` writes a project against the packages that exist now.** The
+  pubspec it generates names `flutter3d`, `flutter3d_game`, `flutter3d_sim`,
+  `flutter3d_app` and `flutter3d_audio` at `^0.7.0`. 0.6.0 wrote
+  `flutter3d_bridge` and `flutter3d_session` into it, which are discontinued
+  as of this release, and did not name `flutter3d_sim`, which
+  `flutter3d_game` no longer re-exports. A project scaffolded by 0.6.0 keeps
+  resolving against 0.6.0; `doc/boundary-0.7.0.md` lists which import lines
+  move when it is brought up.
+* **`isDirty` compares documents, not depths.** After an undo or a redo it was
+  whether the undo stack's length differed from its length at the last
+  `saved()`. Save, undo one step, make a different edit, undo that and redo
+  it: the stack is as deep as it was at the save, and 0.6.0 read clean over a
+  document that was never written. Every new document now gets a token, undo
+  and redo carry theirs with them, and `isDirty` is whether the current token
+  is the saved one. Undoing back to the saved document still reads clean.
+* **A `.fmat` is edited through a gate, and the gate is here.**
+  `materialWith(document, key, value)` returns the `MaterialDocument` with one
+  field changed, or null when the result is not a file `readFmat` takes as
+  written: the value does not fit the hint's shape, reading it back warns
+  about something new, or the value comes back different. A value outside a
+  range hint's ends is not refused, because a hint describes a control and
+  does not constrain the reader. `materialDocumentFields` and
+  `materialDocumentHint` came with it. They were private to the model editor's
+  material panel and could move once `MaterialDocument` was in a plain Dart
+  library, so `flutter3d_core` `^0.7.0` is a dependency now, for
+  `package:flutter3d_core/formats.dart`.
+* **What a lesson's step panel computes, without the panel.** `orderedSteps`,
+  `mergedOffsets`, `movedStep`, `freshName` and `indexOfNamed` produce the
+  values `Place` and `SetField` are handed for an `edu_sequence` and its
+  `edu_step`s; none of them is a new `EditorCommand`. `bindingsInLevel` returns
+  every binding an `edu_step` declares, keyed by target, as `ActiveBinding`s,
+  which is what an inspector needs to know before it draws a property as
+  read-only because a data source will overwrite it.
+* Still plain Dart. The floor on `flutter3d_sim` is `^0.7.0`.
+
 ## 0.6.0
 
 **The first release. It takes the set's number rather than a first number of its
