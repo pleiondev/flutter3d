@@ -18,10 +18,10 @@ and a second build with nothing changed converts nothing. A
 **The hook compresses textures for the platform it is building for** — BC for
 a desktop target, ETC2 for Android and iOS — because a block format is a fact
 about the platform rather than a guess about a device. A web build names no
-target and is left alone; `textures:` under this package's key in the
-project's hook user defines overrides either, and `universal` there is the
-one family every device can load, turned into BC, ASTC, ETC2 or RGBA8 when
-the texture is uploaded.
+target and is left alone; `textures:` under the project's own name in its
+`hooks: user_defines:` overrides either, and `universal` there is the one
+family every device can load, turned into BC, ASTC, ETC2 or RGBA8 when the
+texture is uploaded.
 
 The same converter runs by hand:
 
