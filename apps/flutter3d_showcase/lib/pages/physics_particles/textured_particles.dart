@@ -14,10 +14,16 @@ import 'package:vector_math/vector_math.dart';
 
 final class TexturedParticlesDemo extends ShowcaseDemo {
   late final ParticleSystem _particles;
+  late final ParticleEffect _sparksEffect;
   late final ParticleContributor _contributor;
 
   static const int _size = 32;
   static const int _count = 50;
+
+  // The sprite is the whole point of the page; a burst that never repeated
+  // would leave nothing wearing it after the first second.
+  static const double _pause = 1.0;
+  double _cooldown = 0.0;
 
   @override
   void configureView(DemoContext context) {
@@ -62,14 +68,14 @@ final class TexturedParticlesDemo extends ShowcaseDemo {
     // #endregion texture
 
     _particles = ParticleSystem(capacity: _count, seed: 909);
-    final ParticleEffect sparks = ParticleEffect(
+    _sparksEffect = ParticleEffect(
       count: _count,
       emitter: const SphereEmitter(speed: Range(1.0, 2.0)),
       lifetime: const Range(0.8, 1.4),
       size: const Range(0.1, 0.16),
       color: Vector4(1.0, 1.0, 1.0, 1.0),
     );
-    _particles.burst(sparks, Vector3.zero());
+    _particles.burst(_sparksEffect, Vector3.zero());
 
     // #region contributor
     _contributor = context.renderer.addContributor(
@@ -86,6 +92,14 @@ final class TexturedParticlesDemo extends ShowcaseDemo {
   @override
   void update(DemoContext context, double dt) {
     _particles.advance(dt);
+
+    if (_particles.aliveCount == 0) {
+      _cooldown -= dt;
+      if (_cooldown <= 0.0) {
+        _particles.burst(_sparksEffect, Vector3.zero());
+        _cooldown = _pause;
+      }
+    }
   }
 
   @override

@@ -11,11 +11,18 @@ import 'package:vector_math/vector_math.dart';
 
 final class ParticleCurvesDemo extends ShowcaseDemo {
   late final ParticleSystem _particles;
+  late final ParticleEffect _smokeEffect;
   late final ParticleContributor _contributor;
   late final ParticleCurve _size;
   late final ParticleGradient _color;
 
   static const int _count = 60;
+
+  // The curve and the gradient are the whole point of this page, and both
+  // finish fading to nothing by the end of a particle's life — a burst that
+  // never repeated would leave nothing on screen to read them from.
+  static const double _pause = 1.0;
+  double _cooldown = 0.0;
 
   @override
   void configureView(DemoContext context) {
@@ -49,7 +56,7 @@ final class ParticleCurvesDemo extends ShowcaseDemo {
     // #endregion gradient
 
     // #region effect
-    final ParticleEffect smoke = ParticleEffect(
+    _smokeEffect = ParticleEffect(
       count: _count,
       emitter: const DriftEmitter(speed: Range(0.4, 0.9)),
       lifetime: const Range(1.2, 2.0),
@@ -62,7 +69,7 @@ final class ParticleCurvesDemo extends ShowcaseDemo {
     );
     // #endregion effect
 
-    _particles.burst(smoke, Vector3.zero());
+    _particles.burst(_smokeEffect, Vector3.zero());
     _contributor = context.renderer.addContributor(
       ParticleContributor(_particles),
     );
@@ -76,6 +83,14 @@ final class ParticleCurvesDemo extends ShowcaseDemo {
   @override
   void update(DemoContext context, double dt) {
     _particles.advance(dt);
+
+    if (_particles.aliveCount == 0) {
+      _cooldown -= dt;
+      if (_cooldown <= 0.0) {
+        _particles.burst(_smokeEffect, Vector3.zero());
+        _cooldown = _pause;
+      }
+    }
   }
 
   @override

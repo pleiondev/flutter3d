@@ -13,9 +13,17 @@ final class _Flash with LightEmitter {}
 
 final class BurstLightDemo extends ShowcaseDemo {
   late final ParticleSystem _particles;
+  late final ParticleEffect _flashEffect;
   late final LightNode _glow;
 
   final _Flash _flash = _Flash();
+
+  // A muzzle flash that fired once and went dark would be a demo you had to
+  // catch. A second's pause between bursts reads as a repeating flash rather
+  // than a machine gun, and only starts once the particles from the last one
+  // are gone, so it never overlaps a burst still lighting the room.
+  static const double _pause = 1.0;
+  double _cooldown = 0.0;
 
   @override
   void configureView(DemoContext context) {
@@ -33,14 +41,14 @@ final class BurstLightDemo extends ShowcaseDemo {
     // Nothing above this differs from an ordinary burst. `source` is the
     // whole of what makes it a light: a `LightEmitter` passed here has its
     // glow fed by exactly these particles, for as long as they live.
-    final ParticleEffect flash = ParticleEffect(
+    _flashEffect = ParticleEffect(
       count: 60,
       emitter: const SphereEmitter(speed: Range(2.0, 5.0)),
       lifetime: const Range(0.2, 0.4),
       size: const Range(0.05, 0.09),
       color: Vector4(1.0, 0.85, 0.5, 1.0),
     );
-    _particles.burst(flash, Vector3.zero(), source: _flash);
+    _particles.burst(_flashEffect, Vector3.zero(), source: _flash);
     // #endregion source
 
     context.renderer.addContributor(ParticleContributor(_particles));
@@ -60,6 +68,14 @@ final class BurstLightDemo extends ShowcaseDemo {
       _glow.intensity = glow.power * 0.6;
     }
     // #endregion follow
+
+    if (_particles.aliveCount == 0) {
+      _cooldown -= dt;
+      if (_cooldown <= 0.0) {
+        _particles.burst(_flashEffect, Vector3.zero(), source: _flash);
+        _cooldown = _pause;
+      }
+    }
   }
 
   @override

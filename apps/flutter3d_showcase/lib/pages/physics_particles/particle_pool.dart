@@ -11,10 +11,16 @@ import 'package:vector_math/vector_math.dart';
 
 final class ParticlePoolDemo extends ShowcaseDemo {
   late final ParticleSystem _particles;
+  late final ParticleEffect _sprayEffect;
   late final ParticleContributor _contributor;
 
   static const int _capacity = 512;
   static const int _burstCount = 120;
+
+  // The point of the page is a pool that outlives any one burst; a burst
+  // that never repeated would never show it being reused.
+  static const double _pause = 1.0;
+  double _cooldown = 0.0;
 
   @override
   void configureView(DemoContext context) {
@@ -34,7 +40,7 @@ final class ParticlePoolDemo extends ShowcaseDemo {
     // #endregion system
 
     // #region effect
-    final ParticleEffect spray = ParticleEffect(
+    _sprayEffect = ParticleEffect(
       count: _burstCount,
       emitter: const SphereEmitter(speed: Range(1.5, 3.0)),
       lifetime: const Range(0.8, 1.6),
@@ -44,7 +50,7 @@ final class ParticlePoolDemo extends ShowcaseDemo {
     // #endregion effect
 
     // #region burst
-    _particles.burst(spray, Vector3.zero());
+    _particles.burst(_sprayEffect, Vector3.zero());
     _contributor = context.renderer.addContributor(
       ParticleContributor(_particles),
     );
@@ -61,6 +67,14 @@ final class ParticlePoolDemo extends ShowcaseDemo {
     // #region advance
     _particles.advance(dt);
     // #endregion advance
+
+    if (_particles.aliveCount == 0) {
+      _cooldown -= dt;
+      if (_cooldown <= 0.0) {
+        _particles.burst(_sprayEffect, Vector3.zero());
+        _cooldown = _pause;
+      }
+    }
   }
 
   @override

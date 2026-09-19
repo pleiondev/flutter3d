@@ -11,10 +11,16 @@ import 'package:vector_math/vector_math.dart';
 
 final class ParticleModifiersDemo extends ShowcaseDemo {
   late final ParticleSystem _particles;
+  late final ParticleEffect _debrisEffect;
   late final ParticleContributor _contributor;
   late final List<ParticleAffector> _affectors;
 
   static const int _count = 80;
+
+  // Turbulence and wind are easiest to read while the debris is still
+  // moving, not once it has settled and stopped.
+  static const double _pause = 1.0;
+  double _cooldown = 0.0;
 
   @override
   void configureView(DemoContext context) {
@@ -39,7 +45,7 @@ final class ParticleModifiersDemo extends ShowcaseDemo {
     // #endregion affectors
 
     // #region effect
-    final ParticleEffect debris = ParticleEffect(
+    _debrisEffect = ParticleEffect(
       count: _count,
       emitter: const ConeEmitter(speed: Range(1.5, 3.0), halfAngleDegrees: 30),
       lifetime: const Range(1.5, 2.5),
@@ -50,7 +56,11 @@ final class ParticleModifiersDemo extends ShowcaseDemo {
     // #endregion effect
 
     // #region burst
-    _particles.burst(debris, Vector3.zero(), direction: Vector3(0.0, 1.0, 0.0));
+    _particles.burst(
+      _debrisEffect,
+      Vector3.zero(),
+      direction: Vector3(0.0, 1.0, 0.0),
+    );
     _contributor = context.renderer.addContributor(
       ParticleContributor(_particles),
     );
@@ -67,6 +77,18 @@ final class ParticleModifiersDemo extends ShowcaseDemo {
     // #region advance
     _particles.advance(dt);
     // #endregion advance
+
+    if (_particles.aliveCount == 0) {
+      _cooldown -= dt;
+      if (_cooldown <= 0.0) {
+        _particles.burst(
+          _debrisEffect,
+          Vector3.zero(),
+          direction: Vector3(0.0, 1.0, 0.0),
+        );
+        _cooldown = _pause;
+      }
+    }
   }
 
   @override
