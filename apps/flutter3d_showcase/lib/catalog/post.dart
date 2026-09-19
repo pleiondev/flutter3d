@@ -87,6 +87,44 @@ const List<Feature> postFeatures = <Feature>[
     engineFiles: <String>[_settings],
   ),
   Feature(
+    id: 'auto-exposure',
+    title: 'Auto exposure',
+    category: Category.post,
+    summary:
+        'A meter reads the frame\'s own brightness and moves the exposure '
+        'toward a chosen grey, the way a camera\'s own metering does.',
+    since: '0.4.3',
+    evidence: 'Auto exposure',
+    keywords: <String>['autoexposuresettings'],
+    engineFiles: <String>[
+      'packages/flutter3d_core/lib/src/engine/render/auto_exposure.dart',
+    ],
+  ),
+  Feature(
+    id: 'screen-space-reflections',
+    title: 'Screen-space reflections',
+    category: Category.post,
+    summary:
+        'A ray marched through the picture already drawn, so a polished '
+        'floor shows what stands on it.',
+    since: '0.2.0',
+    evidence: 'screen-space reflections',
+    keywords: <String>['reflectionsettings'],
+    engineFiles: <String>[_settings],
+  ),
+  Feature(
+    id: 'ambient-occlusion',
+    title: 'Ambient occlusion',
+    category: Category.post,
+    summary:
+        'The ambient term darkened wherever a surface cannot see much of the '
+        'sky, from nothing but the shapes already in the frame.',
+    since: '0.2.0',
+    evidence: 'ambient occlusion',
+    keywords: <String>['ambientocclusionsettings'],
+    engineFiles: <String>[_settings],
+  ),
+  Feature(
     id: 'msaa',
     title: 'Automatic multisampling',
     category: Category.post,
