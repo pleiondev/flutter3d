@@ -500,9 +500,10 @@ final class ModelObject {
   final List<int> materialSlots;
 
   /// The modifier stack, top of the list evaluated first — see
-  /// `ModifierEvaluationCache` for what actually runs it. Empty for almost
-  /// every object today, since nothing yet writes to this list; `doc-23`'s
-  /// commands are what will.
+  /// `ModifierEvaluationCache` for what actually runs it. Edited by
+  /// `AddModifier` and its six siblings, folded into an export by
+  /// `ProjectModelDocument` for the slots marked `inExport`, and written to
+  /// the project file for an object that has one.
   final List<ModifierSlot> modifiers;
 
   /// Which of [ModelProject.skeletons] this object's own mesh is skinned
@@ -659,10 +660,11 @@ final class ModelProject implements ModelProjectView {
   final List<ProjectClip> clips;
 
   /// The project's own lights, environment, ambient level, shadow request
-  /// and post-processing — `mat-23`'s own row. Not written to the file
-  /// format yet: a project saved and reopened comes back with the default
-  /// (no lights, no environment), the same honest gap `fromModelDocument`'s
-  /// own doc comment already keeps for [profile].
+  /// and post-processing — `mat-23`'s own row. Written to the file when it is
+  /// not the default, and into each step of a saved history that changed it,
+  /// so a project reopened is lit the way it was closed and an undo after
+  /// reopening puts back the lighting of that step. This comment said for a
+  /// while that it was not written at all, which was true.
   final SceneLighting lighting;
 
   /// In the order they were added, which is the order the outliner shows and
