@@ -1,3 +1,54 @@
+## 0.7.0
+
+* **Not a Flutter package any more.** The pubspec carried `flutter: sdk` and
+  `flutter_test` since the split from `flutter3d_impeller`, and nothing needed
+  either: `kRequiredShaders` is a plain `const` list and `manifest_test.dart`
+  uses `test` and `expect`, which `package:test` gives. This was the one edge
+  through which `flutter3d_conformance`, and every backend's
+  `conformance_test.dart` with it, resolved the Flutter SDK.
+* **The shadow pass no longer declares a block it never reads.**
+  `shadow_depth.frag` includes `lib/color.glsl` for its varyings and got
+  `FogInfo` with them. On Vulkan the descriptors of both stages merge into one
+  set layout, and a fragment stage whose only block is that one lands on the
+  vertex stage's first binding. A Galaxy A55 refused the pipeline with
+  `ErrorUnknown` and the process died inside the driver a few passes later.
+  `#define F3D_NO_FOG` before the include leaves the block out and turns
+  `EyeDistance`, `ViewDepth` and `ApplyFog` into stubs, so a caller reads the
+  same either way.
+* **Ten new entry points in `kRequiredShaders` and the manifest.** `Fxaa`,
+  `SsaoBlur`, `ContactShadow`, `LightShafts`, `DepthOfField` and
+  `ViewportShade` under `post/`; `ShadowDepthMasked`, `ShadowDistanceMasked`
+  and `Splat` under `lighting/`; and one vertex stage, `PolylineVertex`. A
+  bundle built against 0.6.0 is missing all ten, and the conformance suite's
+  name check says which. The two masked shadow stages are separate stages and
+  not a branch in the plain ones, so a caster that is not cut out keeps a
+  pipeline with no sampler in it.
+* **`post/composite.frag` has five tone curves, a colour table and a three-way
+  grade.** `TonemapBy` selects among the neutral curve, `TonemapAces`,
+  `TonemapAgx`, `TonemapReinhard` and `TonemapAgxFull`; the neutral one is
+  numbered 1 so that a scene recorded against the old on/off flag reads the
+  same. `SampleLut` reads `lut_texture`, a strip of N slices of N by N, after
+  the grade and before the vignette, and a strength of zero branches past the
+  sample. Lift, gamma and gain are a colour each. Grain moved to after the
+  sRGB encode, beside the dither: before it, `max(color, 0.0)` clipped the
+  negative half and 0.08 of grain on black encoded to 56 of 255. The stage
+  also declares `contact_shadow_texture`.
+* **`lib/surface.glsl` reads lights past the eighth.** `kMaxLights` is still 8
+  and `kExtraLights` is 24. The extra ones come from `light_list_texture`, four
+  texels a light, addressed through the new `LightListInfo` block, and carry no
+  shadow: `LightHasShadow` is `index < kMaxLights`. The four light arrays in
+  `FragInfo` did not widen, so no offset in that block moved. The same file
+  gains `RectangleFormFactor` and `RectangleClosestPoint` for a rectangular
+  area light, and the hashed alpha mode, which rides in `material2.x` below
+  -1.5.
+* **`lib/shadow.glsl` can widen an edge with the distance to the caster.** A
+  radius above zero searches for the blocker on the five points of
+  `kShadowDisc` and filters with five more at a radius taken from how far away
+  it was. The number rides in `ambient_ground.w`. Zero is the 3x3 kernel 0.6.0
+  had and is what the engine sends by default.
+* `post/bloom_upsample.frag` tints its wide levels and leaves the core the
+  colour of the highlight.
+
 ## 0.6.0
 
 * **Six samples taken under a branch ask for a mip level by name.** `texture`

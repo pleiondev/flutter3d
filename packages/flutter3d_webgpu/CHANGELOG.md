@@ -10,6 +10,33 @@ widget doing it externally. The new `WebGpuFramePresenter` widget calls both;
 `presentFrame` in `flutter3d_app` builds one. Floors to `flutter3d_hardware`
 `^0.7.0` and `flutter3d_conformance` `^0.7.0`.
 
+**The canvas takes the size of the frame it is handed.** A surface renders at
+its layout size times the device pixel ratio, and the canvas was made once, at
+whatever `openDevice` was given. A texture-to-texture copy cannot scale, so on
+a display with a ratio above one 0.6.0 presented the frame's top-left corner
+and CSS stretched it over the element: a magnified crop whose centre sat below
+and to the right of the middle of the screen. `copyToCanvas` resizes the
+canvas to the frame when the two differ, compared before assigning because
+writing either dimension resets the drawing buffer, and the scaling is left to
+`objectFit`. The reference pictures could not have caught it. They compare
+rendered textures, and this was the step after.
+
+**`overwriteGeometry` and `overwriteTexture`.** `queue.writeBuffer` and
+`queue.writeTexture`, both complete in the same turn. The byte layout of an
+RGBA8 region is computed directly. Nothing about it is a compressed block, so
+the helper the compressed upload path uses does not apply.
+
+**`maxColorAttachments` answers 4**, a constant, and a pass that asks for more
+throws `UnsupportedError` from `beginRenderPass`.
+
+**The generated WGSL table is rebuilt against `flutter3d_shaders` 0.7.0.**
+`engine_shaders.dart` gains `Fxaa`, `SsaoBlur`, `ContactShadow`, `LightShafts`,
+`DepthOfField`, `ViewportShade`, `ShadowDepthMasked`, `ShadowDistanceMasked`,
+`Splat` and `PolylineVertex`, and the regenerated `Composite`, `BloomUpsample`,
+shadow and surface stages. `engine_shaders_test.dart` now holds the table to
+`kRequiredShaders` instead of to counts written as literals, which had gone
+stale the first time a pass was added.
+
 ## 0.6.0
 
 **The first release, and it takes the set's number rather than a first number of
