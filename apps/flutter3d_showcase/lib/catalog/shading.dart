@@ -179,4 +179,62 @@ const List<Feature> shadingFeatures = <Feature>[
       'packages/flutter3d_core/lib/src/engine/render/renderer_batch.dart',
     ],
   ),
+  Feature(
+    id: 'punctual-lights',
+    title: 'Directional, point and spot lights',
+    category: Category.shading,
+    summary:
+        'The three light shapes that leave a single point, so the direction '
+        'to them is one vector and the falloff is glTF\'s own attenuation.',
+    since: '0.2.0',
+    evidence:
+        'Cascaded directional shadows, cube shadows for point and spot '
+        'lights into an atlas',
+    engineFiles: <String>[
+      'packages/flutter3d_core/lib/src/engine/scene/light_node.dart',
+    ],
+  ),
+  Feature(
+    id: 'area-lights',
+    title: 'Rectangle area lights',
+    category: Category.shading,
+    summary:
+        'A rectangle with width and height, so an interior reads as lit by a '
+        'window instead of by a bright dot behind one.',
+    since: '0.7.0',
+    evidence: '`LightType.area`, `Photometric`, masked shadow casters',
+    keywords: <String>['lighttype.area'],
+    engineFiles: <String>[
+      'packages/flutter3d_core/lib/src/engine/scene/light_node.dart',
+    ],
+  ),
+  Feature(
+    id: 'photometric-units',
+    title: 'Lights in lumens and lux',
+    category: Category.shading,
+    summary:
+        'A lamp off a datasheet, in lumens or lux, converted into the '
+        'engine\'s own light intensity instead of tuned by eye.',
+    since: '0.7.0',
+    evidence: '`Photometric`, masked shadow casters',
+    keywords: <String>['photometric'],
+    engineFiles: <String>[
+      'packages/flutter3d_core/lib/src/engine/scene/light_node.dart',
+    ],
+  ),
+  Feature(
+    id: 'light-channels',
+    title: 'Light channels',
+    category: Category.shading,
+    summary:
+        'A bit mask a light and an object meet on: a light reaches an object '
+        'only when they share a bit.',
+    since: '0.7.0',
+    evidence: '`LightNode.channels` against',
+    keywords: <String>['lightnode.channels'],
+    engineFiles: <String>[
+      'packages/flutter3d_core/lib/src/engine/scene/light_node.dart',
+      'packages/flutter3d_core/lib/src/engine/scene/light_buffer.dart',
+    ],
+  ),
 ];
