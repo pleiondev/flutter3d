@@ -21,6 +21,23 @@ extension _SculptWiring on _ModelerScreenState {
 
     switch (event.phase) {
       case StrokePhase.start:
+        // `pro-sc-09`: a browser sculpts up to a measured number of
+        // triangles, because it builds the surface tree on the one thread
+        // that also paints. Said here, at the press, with both numbers in
+        // it — `overSculptLimit` is false everywhere but the web, so a
+        // desktop build never reaches the sentence. A refused press opens no
+        // stroke, and the moves and the release that follow it find none
+        // open and do nothing.
+        final Geometry? held = state.project[objectId]?.geometry;
+        if (held is EditedGeometry &&
+            overSculptLimit(state.project.profile, held.triangleCount)) {
+          _cubit.say(
+            sculptLimitRefusal(state.project.profile, held.triangleCount),
+            important: true,
+            refusal: true,
+          );
+          return;
+        }
         _sculptSession.pointerDown(
           view: event.view,
           at: event.at,
