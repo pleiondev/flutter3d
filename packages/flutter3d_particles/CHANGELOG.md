@@ -1,5 +1,12 @@
 ## Unreleased
 
+* **A burst can light something.** `ParticleSystem.burst` takes an optional
+  `source`, and a `LightEmitter` passed there has its glow fed by the burst's
+  particles, then fades and leaves the measured set on its own. Before this a
+  burst's particles were born belonging to nobody, so a muzzle flash or an
+  explosion cast no light however bright its colour was, while the skill in
+  this package said it did. Existing calls are unchanged.
+
 * **`flutter3d_particles_core` is back inside, and Flutter is out.** The
   simulation had been split off so a headless caller could bake a
   `ParticleSystem`; the two contributors stayed here because they imported
