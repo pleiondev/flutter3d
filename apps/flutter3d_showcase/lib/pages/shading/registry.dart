@@ -4,9 +4,19 @@
 /// opened, so a demo's own state never survives a visit.
 library;
 
+import 'package:flutter3d_showcase/pages/shading/alpha_modes.dart';
+import 'package:flutter3d_showcase/pages/shading/draw_state.dart';
+import 'package:flutter3d_showcase/pages/shading/lighting_models.dart';
+import 'package:flutter3d_showcase/pages/shading/normal_mapping.dart';
 import 'package:flutter3d_showcase/pages/shading/pbr_lighting.dart';
+import 'package:flutter3d_showcase/pages/shading/texture_filtering.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
 
 final Map<String, DemoBuilder> shadingDemos = <String, DemoBuilder>{
+  'lighting-models': LightingModelsDemo.new,
   'pbr-lighting': PbrLightingDemo.new,
+  'normal-mapping': NormalMappingDemo.new,
+  'alpha-modes': AlphaModesDemo.new,
+  'draw-state': DrawStateDemo.new,
+  'texture-filtering': TextureFilteringDemo.new,
 };
