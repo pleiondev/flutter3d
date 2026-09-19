@@ -293,4 +293,23 @@ const List<Feature> formatsFeatures = <Feature>[
       'packages/flutter3d_core/lib/src/formats/texture_transform_bake.dart',
     ],
   ),
+  Feature(
+    id: 'build-convert',
+    title: 'The build-time converter',
+    category: Category.formats,
+    summary:
+        'The command line tool that turns a glTF, OBJ or STL model into '
+        'this engine\'s own .f3d container ahead of time.',
+    since: '0.7.0',
+    evidenceFile: 'packages/flutter3d_build/CHANGELOG.md',
+    evidence:
+        "Converts a glTF, GLB, OBJ or STL model into the engine's `.f3d` "
+        'container, and a directory converts every recognised model under '
+        'it',
+    packages: <String>['flutter3d_build'],
+    engineFiles: <String>[
+      'packages/flutter3d_build/bin/convert.dart',
+      'packages/flutter3d_build/bin/init.dart',
+    ],
+  ),
 ];
