@@ -5,12 +5,16 @@
 library;
 
 import 'package:flutter3d_showcase/pages/shading/alpha_modes.dart';
+import 'package:flutter3d_showcase/pages/shading/area_lights.dart';
 import 'package:flutter3d_showcase/pages/shading/draw_batching.dart';
 import 'package:flutter3d_showcase/pages/shading/draw_state.dart';
 import 'package:flutter3d_showcase/pages/shading/exposure.dart';
+import 'package:flutter3d_showcase/pages/shading/light_channels.dart';
 import 'package:flutter3d_showcase/pages/shading/lighting_models.dart';
 import 'package:flutter3d_showcase/pages/shading/normal_mapping.dart';
 import 'package:flutter3d_showcase/pages/shading/pbr_lighting.dart';
+import 'package:flutter3d_showcase/pages/shading/photometric_units.dart';
+import 'package:flutter3d_showcase/pages/shading/punctual_lights.dart';
 import 'package:flutter3d_showcase/pages/shading/specular_scale.dart';
 import 'package:flutter3d_showcase/pages/shading/texture_filtering.dart';
 import 'package:flutter3d_showcase/pages/shading/wireframe.dart';
@@ -27,4 +31,8 @@ final Map<String, DemoBuilder> shadingDemos = <String, DemoBuilder>{
   'exposure': ExposureDemo.new,
   'wireframe': WireframeDemo.new,
   'draw-batching': DrawBatchingDemo.new,
+  'punctual-lights': PunctualLightsDemo.new,
+  'area-lights': AreaLightsDemo.new,
+  'photometric-units': PhotometricUnitsDemo.new,
+  'light-channels': LightChannelsDemo.new,
 };
