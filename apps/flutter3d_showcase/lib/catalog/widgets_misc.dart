@@ -56,4 +56,28 @@ const List<Feature> widgetsMiscFeatures = <Feature>[
     evidenceFile: 'packages/flutter3d_app/CHANGELOG.md',
     packages: <String>['flutter3d_app', 'flutter3d_sim'],
   ),
+  Feature(
+    id: 'storage',
+    title: 'Storage on every platform',
+    category: Category.widgetsMisc,
+    summary:
+        'Small documents a player\'s choices live in, kept the right way on '
+        'whichever platform is running, and never throwing.',
+    since: '0.7.0',
+    evidence: 'for a document that is bytes and may be megabytes',
+    evidenceFile: 'packages/flutter3d_app/CHANGELOG.md',
+    packages: <String>['flutter3d_app'],
+  ),
+  Feature(
+    id: 'diagnostics',
+    title: 'Frame timing and memory pressure',
+    category: Category.widgetsMisc,
+    summary:
+        'How long the last frame took, what a window of frames cost, and '
+        'giving pooled render targets back when memory runs short.',
+    since: '0.7.0',
+    evidence: 'FrameClock',
+    evidenceFile: 'packages/flutter3d_app/CHANGELOG.md',
+    packages: <String>['flutter3d_app'],
+  ),
 ];
