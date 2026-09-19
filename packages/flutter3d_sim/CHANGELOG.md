@@ -1,3 +1,13 @@
+## Unreleased
+
+* **A level's ground is in its collision world.** `Level.addTo` adds the
+  level's `Heightfield` as one static `CollisionHeightfield`, placed so that a
+  ray fired down lands where `heightAt` says the surface is. It added the
+  brushes and nothing else before, so a level whose ground was a field drew a
+  hill that a body fell through. A level with no field gets what it always
+  got. `Heightfield.copyOfSamples` is new and is how the shape gets its
+  numbers without sharing a list with a field that may be edited.
+
 ## 0.6.0
 
 * **A floor, and no code.** The step, the ECS, levels, navigation, saves and

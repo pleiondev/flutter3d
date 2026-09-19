@@ -2,6 +2,7 @@ import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'package:vector_math/vector_math.dart';
 
 import '../physics/layers.dart';
+import 'heightfield.dart';
 import 'level.dart';
 import 'level_validator.dart';
 import 'spawn_context.dart';
@@ -20,7 +21,14 @@ extension LevelCollision on Level {
   /// The collider's `userData` is the [Brush], so a query can trace a contact
   /// back to what was authored — which is what the editor's "what did I just
   /// click" needs, and what a footstep sound needs to know it is stone.
+  ///
+  /// **The ground goes in too.** A level's field of heights was drawn and
+  /// walked on by nothing: this added the brushes and stopped, so a body on a
+  /// level that had only a field fell through the picture of a hill. The shape
+  /// for it had existed for some time, tested against this same field's
+  /// diagonal, and no caller ever built one.
   void addTo(CollisionWorld world) {
+    if (heightfield case final ground?) world.add(_groundCollider(ground));
     for (final brush in brushes) {
       if (!brush.solid) continue;
       final ramp = brush.ramp;
@@ -42,6 +50,43 @@ extension LevelCollision on Level {
         ),
       );
     }
+  }
+
+  /// The ground as one static collider, standing where it is drawn.
+  ///
+  /// **The field is described from a corner and the shape from its middle**,
+  /// and this is the one place the two are reconciled. `CollisionHeightfield`
+  /// is centred on its collider, for the broadphase's sake, and lifts its
+  /// samples so that the middle of their range sits at the collider's height.
+  /// Putting the collider at the field's centre in X and Z, and at the middle
+  /// of the samples' range in Y, therefore gives every sample back its own
+  /// number as a world height, which is what [Heightfield.heightAt] and the
+  /// drawn mesh both take it to be.
+  ///
+  /// **`origin.y` is left out on purpose**, because those two leave it out:
+  /// neither adds it to a sample, so a field lifted by its origin would be a
+  /// ground the body stands above. If the format ever starts honouring it, the
+  /// three change together.
+  ///
+  /// The collider's `userData` is the [Heightfield], for the reason a brush's
+  /// is the [Brush].
+  Collider _groundCollider(Heightfield ground) {
+    final shape = CollisionHeightfield(
+      columns: ground.columns,
+      rows: ground.rows,
+      cellSize: ground.cellSize,
+      heights: ground.copyOfSamples(),
+    );
+    return Collider(
+      shape: shape,
+      position: Vector3(
+        ground.origin.x + ground.width * 0.5,
+        (shape.highest + shape.lowest) * 0.5,
+        ground.origin.z + ground.depth * 0.5,
+      ),
+      layer: CollisionLayers.world,
+      userData: ground,
+    );
   }
 
   /// Turns every entity into whatever its kind says it is.
