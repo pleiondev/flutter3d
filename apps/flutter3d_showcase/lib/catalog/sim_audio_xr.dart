@@ -267,4 +267,80 @@ const List<Feature> simAudioXrFeatures = <Feature>[
     evidenceFile: 'packages/flutter3d_sim/CHANGELOG.md',
     packages: <String>['flutter3d_sim'],
   ),
+  Feature(
+    id: 'positional-audio',
+    title: 'Positional audio',
+    category: Category.simAudioXr,
+    summary:
+        'A sound placed in the world, heard louder or softer and panned '
+        'left or right depending on the listener\'s position and facing.',
+    since: '0.1.0',
+    evidence: 'Positional audio: attenuation, panning and voice limiting',
+    evidenceFile: 'packages/flutter3d_audio/CHANGELOG.md',
+    packages: <String>['flutter3d_audio'],
+  ),
+  Feature(
+    id: 'audio-rolloff',
+    title: 'Distance rolloff',
+    category: Category.simAudioXr,
+    summary:
+        'Three curves for how a sound gets quieter with distance, and a '
+        'shared distance past which it is silent.',
+    since: '0.1.0',
+    evidence: 'attenuation',
+    evidenceFile: 'packages/flutter3d_audio/CHANGELOG.md',
+    packages: <String>['flutter3d_audio'],
+  ),
+  Feature(
+    id: 'audio-buses',
+    title: 'Mixer buses',
+    category: Category.simAudioXr,
+    summary:
+        'A group of sounds a player can turn down as one, read against a '
+        'shared master every frame.',
+    since: '0.2.0',
+    evidence: 'Mix buses opened like',
+    evidenceFile: 'packages/flutter3d_audio/CHANGELOG.md',
+    packages: <String>['flutter3d_audio'],
+  ),
+  Feature(
+    id: 'voice-limit',
+    title: 'Voice limiting',
+    category: Category.simAudioXr,
+    summary:
+        'How many sounds may play at once, and which ones win when more '
+        'than that are asking to be heard.',
+    since: '0.1.0',
+    evidence: 'voice limiting',
+    evidenceFile: 'packages/flutter3d_audio/CHANGELOG.md',
+    packages: <String>['flutter3d_audio'],
+  ),
+  Feature(
+    id: 'audio-occlusion',
+    title: 'Occlusion',
+    category: Category.simAudioXr,
+    summary:
+        'What the world does to a sound between there and here, as a '
+        'callback the scene asks and never a wall test of its own.',
+    since: '0.1.0',
+    approximate: true,
+    evidence: 'no explicit origin',
+    evidenceFile: 'packages/flutter3d_audio/CHANGELOG.md',
+    keywords: <String>['attenuation'],
+    packages: <String>['flutter3d_audio'],
+  ),
+  Feature(
+    id: 'blended-engine-loop',
+    title: 'A blended engine loop',
+    category: Category.simAudioXr,
+    summary:
+        'Several loops of the same engine, recorded at different revs, '
+        'crossfaded by one number so the seams do not show.',
+    since: '0.1.0',
+    approximate: true,
+    evidence: 'no explicit origin',
+    evidenceFile: 'packages/flutter3d_audio/CHANGELOG.md',
+    keywords: <String>['attenuation'],
+    packages: <String>['flutter3d_audio'],
+  ),
 ];
