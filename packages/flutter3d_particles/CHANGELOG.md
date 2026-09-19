@@ -1,4 +1,4 @@
-## Unreleased
+## 0.7.0
 
 * **A burst can light something.** `ParticleSystem.burst` takes an optional
   `source`, and a `LightEmitter` passed there has its glow fed by the burst's
@@ -16,6 +16,13 @@
   `flutter3d_model_core` depends on it directly. The public API is the same;
   an importer of `package:flutter3d_particles_core` names
   `package:flutter3d_particles/flutter3d_particles.dart` instead.
+
+* **The pubspec follows.** `flutter: sdk` and the dependency on `flutter3d`
+  are gone, and the package depends on `flutter3d_core` `^0.7.0` and
+  `flutter3d_hardware` `^0.7.0`. An application that reached `flutter3d` only
+  because this package brought it has to name it itself. The tests run under
+  `dart test`. The archive carries `skills/flutter3d-particles-one-draw-call/`
+  for a coding agent, installed with `dart run skills@ get`.
 
 ## 0.6.0
 
