@@ -11,6 +11,9 @@ import 'package:flutter3d_showcase/pages/formats/gltf_write.dart';
 import 'package:flutter3d_showcase/pages/formats/obj.dart';
 import 'package:flutter3d_showcase/pages/formats/stl.dart';
 import 'package:flutter3d_showcase/pages/formats/f3d.dart';
+import 'package:flutter3d_showcase/pages/formats/draco.dart';
+import 'package:flutter3d_showcase/pages/formats/ktx2.dart';
+import 'package:flutter3d_showcase/pages/formats/texture_compression.dart';
 import 'package:flutter3d_showcase/pages/formats/usdz.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
 
@@ -23,4 +26,7 @@ final Map<String, DemoBuilder> formatsDemos = <String, DemoBuilder>{
   'stl': StlDemo.new,
   'usdz': UsdzDemo.new,
   'f3d': F3dDemo.new,
+  'ktx2': Ktx2Demo.new,
+  'texture-compression': TextureCompressionDemo.new,
+  'draco': DracoDemo.new,
 };
