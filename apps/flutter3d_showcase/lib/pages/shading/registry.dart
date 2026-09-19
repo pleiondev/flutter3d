@@ -5,11 +5,23 @@
 library;
 
 import 'package:flutter3d_showcase/pages/shading/alpha_modes.dart';
+import 'package:flutter3d_showcase/pages/shading/ambient_light.dart';
+import 'package:flutter3d_showcase/pages/shading/area_lights.dart';
+import 'package:flutter3d_showcase/pages/shading/draw_batching.dart';
 import 'package:flutter3d_showcase/pages/shading/draw_state.dart';
+import 'package:flutter3d_showcase/pages/shading/exposure.dart';
+import 'package:flutter3d_showcase/pages/shading/fmat_files.dart';
+import 'package:flutter3d_showcase/pages/shading/light_channels.dart';
 import 'package:flutter3d_showcase/pages/shading/lighting_models.dart';
+import 'package:flutter3d_showcase/pages/shading/many_lights.dart';
+import 'package:flutter3d_showcase/pages/shading/material_language.dart';
 import 'package:flutter3d_showcase/pages/shading/normal_mapping.dart';
 import 'package:flutter3d_showcase/pages/shading/pbr_lighting.dart';
+import 'package:flutter3d_showcase/pages/shading/photometric_units.dart';
+import 'package:flutter3d_showcase/pages/shading/punctual_lights.dart';
+import 'package:flutter3d_showcase/pages/shading/specular_scale.dart';
 import 'package:flutter3d_showcase/pages/shading/texture_filtering.dart';
+import 'package:flutter3d_showcase/pages/shading/wireframe.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
 
 final Map<String, DemoBuilder> shadingDemos = <String, DemoBuilder>{
@@ -19,4 +31,16 @@ final Map<String, DemoBuilder> shadingDemos = <String, DemoBuilder>{
   'alpha-modes': AlphaModesDemo.new,
   'draw-state': DrawStateDemo.new,
   'texture-filtering': TextureFilteringDemo.new,
+  'specular-scale': SpecularScaleDemo.new,
+  'exposure': ExposureDemo.new,
+  'wireframe': WireframeDemo.new,
+  'draw-batching': DrawBatchingDemo.new,
+  'punctual-lights': PunctualLightsDemo.new,
+  'area-lights': AreaLightsDemo.new,
+  'photometric-units': PhotometricUnitsDemo.new,
+  'light-channels': LightChannelsDemo.new,
+  'many-lights': ManyLightsDemo.new,
+  'ambient-light': AmbientLightDemo.new,
+  'fmat-files': FmatFilesDemo.new,
+  'material-language': MaterialLanguageDemo.new,
 };
