@@ -11,6 +11,12 @@ host="${FLUTTER3D_SITE_HOST:-bob}"
 target="${FLUTTER3D_SITE_PATH:-/opt/flutter3d}"
 
 cd "$here"
+# **The showcase's guides are written by the app's own tool before the site is
+# built**, because the site never reads a page or a guide itself: it reads this
+# bundle, which is made with the same functions the app draws them with. A guide
+# that points at a region that is not there stops here, not on a reader's screen.
+(cd "$here/../apps/flutter3d_showcase" && dart run tool/showcase_bundle.dart --out "$here/.generated/showcase")
+
 npm run build
 
 # **The games are part of the site now.** `npm run build` wipes dist/, so they
@@ -20,6 +26,9 @@ npm run build
 # rebuild of an unchanged game about twenty seconds rather than a cold minute,
 # and a demo quietly older than the engine it documents is worse than the wait.
 tool/demos.sh
+
+# The showcase app, into dist/showcase beside the guides `npm run build` wrote.
+tool/showcase.sh
 
 # --delete, because a page removed from the nav must stop being reachable.
 # The generated API reference still lives beside the site rather than inside

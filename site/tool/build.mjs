@@ -12,6 +12,8 @@ import anchor from 'markdown-it-anchor';
 import attrs from 'markdown-it-attrs';
 import hljs from 'highlight.js';
 
+import { buildShowcasePages, indexMarkdown, readBundle } from './showcase.mjs';
+
 const here = dirname(fileURLToPath(import.meta.url));
 const root = join(here, '..');
 const contentDir = join(root, 'content');
@@ -198,6 +200,14 @@ const NAV = [
     ],
   },
   {
+    section: 'Showcase',
+    slug: 'showcase',
+    badge: 'engine',
+    pages: [
+      { file: 'showcase/index.md', url: '/showcase/learn/', title: 'Guides by capability', kind: 'guide' },
+    ],
+  },
+  {
     section: 'Reference',
     slug: 'reference',
     pages: [
@@ -343,7 +353,7 @@ function sidebar(current) {
   }).join('\n');
 }
 
-function layout({ page, html, toc, index }) {
+function layout({ page, html, toc, index, pager: pagerOverride }) {
   const prev = index > 0 ? flat[index - 1] : null;
   const next = index < flat.length - 1 ? flat[index + 1] : null;
   // Absolute asset paths: the site is served at the domain root, and a
@@ -357,12 +367,12 @@ function layout({ page, html, toc, index }) {
        </nav>`
     : '<div class="toc"></div>';
 
-  const pager = (prev || next)
+  const pager = pagerOverride ?? ((prev || next)
     ? `<nav class="pager">
         ${prev ? `<a class="pager-prev" href="${prev.url}"><span>Previous</span><strong>${prev.title}</strong></a>` : '<span></span>'}
         ${next ? `<a class="pager-next" href="${next.url}"><span>Next</span><strong>${next.title}</strong></a>` : '<span></span>'}
        </nav>`
-    : '';
+    : '');
 
   const isHome = page.url === '/';
 
@@ -450,6 +460,9 @@ gtag('config', 'G-6F6VZ4H7CF');
 if (existsSync(distDir)) rmSync(distDir, { recursive: true });
 mkdirSync(distDir, { recursive: true });
 
+// The showcase's guides, if the bundle has been generated; see showcase.mjs.
+const showcaseBundle = readBundle(root);
+
 let built = 0;
 // What each page said about itself, collected while it is being built rather
 // than by reading the tree a second time afterwards. The second read is where
@@ -457,7 +470,8 @@ let built = 0;
 const catalog = [];
 flat.forEach((page, index) => {
   const source = readFileSync(sourceOf(page), 'utf8');
-  const { data, body } = frontMatter(source);
+  const { data, body: written } = frontMatter(source);
+  const body = written.replace('{{showcase-index}}', () => indexMarkdown(showcaseBundle));
   catalog.push({
     url: page.url,
     title: page.title,
@@ -478,6 +492,26 @@ flat.forEach((page, index) => {
   writeFileSync(target, out);
   built += 1;
 });
+
+// The showcase's guides and source, one page each, under /showcase/. The live
+// app is copied into the same directory afterwards by tool/showcase.sh.
+if (showcaseBundle) {
+  const written = buildShowcasePages({
+    bundle: showcaseBundle,
+    root,
+    distDir,
+    github: GITHUB,
+    layout,
+    render(markdown) {
+      slugs.clear();
+      const html = md.render(markdown);
+      return { html, toc: tocFrom(html) };
+    },
+  });
+  built += written.length;
+} else {
+  console.warn('showcase: no bundle in site/.generated/showcase, its pages are not built');
+}
 
 // A 404 that looks like the rest of the site rather than like nginx.
 writeFileSync(
@@ -671,7 +705,7 @@ const missingAssets = [];
 let checkedAssets = 0;
 for (const page of builtPages(distDir)) {
   const html = readFileSync(page, 'utf8');
-  for (const [, url] of html.matchAll(/(?:src|href)="(\/(?:assets|goldens|demo)\/[^"#?]+)"/g)) {
+  for (const [, url] of html.matchAll(/(?:src|href)="(\/(?:assets|goldens|demo|showcase\/learn\/img)\/[^"#?]+)"/g)) {
     if (url.endsWith('/')) continue;
     checkedAssets += 1;
     if (!existsSync(join(distDir, url.slice(1)))) {
