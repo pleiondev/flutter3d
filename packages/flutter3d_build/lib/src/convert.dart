@@ -80,7 +80,7 @@ Options:
                              4x4 block intermediate that is not a GPU format:
                              the load turns it into BC, ASTC, ETC2 or RGBA8
                              against what the device samples, so one cooked
-                             file serves every device family at sixteen bytes
+                             file serves every device family at twenty bytes
                              a block. `auto` behaves like `none` here: the
                              machine converting a texture is not the one that
                              loads it, so only a build hook, which is told its
