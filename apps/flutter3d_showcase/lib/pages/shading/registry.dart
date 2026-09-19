@@ -5,12 +5,16 @@
 library;
 
 import 'package:flutter3d_showcase/pages/shading/alpha_modes.dart';
+import 'package:flutter3d_showcase/pages/shading/ambient_light.dart';
 import 'package:flutter3d_showcase/pages/shading/area_lights.dart';
 import 'package:flutter3d_showcase/pages/shading/draw_batching.dart';
 import 'package:flutter3d_showcase/pages/shading/draw_state.dart';
 import 'package:flutter3d_showcase/pages/shading/exposure.dart';
+import 'package:flutter3d_showcase/pages/shading/fmat_files.dart';
 import 'package:flutter3d_showcase/pages/shading/light_channels.dart';
 import 'package:flutter3d_showcase/pages/shading/lighting_models.dart';
+import 'package:flutter3d_showcase/pages/shading/many_lights.dart';
+import 'package:flutter3d_showcase/pages/shading/material_language.dart';
 import 'package:flutter3d_showcase/pages/shading/normal_mapping.dart';
 import 'package:flutter3d_showcase/pages/shading/pbr_lighting.dart';
 import 'package:flutter3d_showcase/pages/shading/photometric_units.dart';
@@ -35,4 +39,8 @@ final Map<String, DemoBuilder> shadingDemos = <String, DemoBuilder>{
   'area-lights': AreaLightsDemo.new,
   'photometric-units': PhotometricUnitsDemo.new,
   'light-channels': LightChannelsDemo.new,
+  'many-lights': ManyLightsDemo.new,
+  'ambient-light': AmbientLightDemo.new,
+  'fmat-files': FmatFilesDemo.new,
+  'material-language': MaterialLanguageDemo.new,
 };
