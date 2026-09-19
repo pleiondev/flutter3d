@@ -7,4 +7,93 @@ library;
 
 import 'package:flutter3d_showcase/src/catalog/feature.dart';
 
-const List<Feature> formatsFeatures = <Feature>[];
+const List<Feature> formatsFeatures = <Feature>[
+  Feature(
+    id: 'gltf-load',
+    title: 'glTF and GLB',
+    category: Category.formats,
+    summary:
+        'The format most tools export to, read down to meshes and '
+        'materials this engine can draw.',
+    since: '0.1.0',
+    evidence:
+        'glTF 2.0 / GLB and Wavefront OBJ behind one document abstraction, '
+        'plus `.f3d`, the engine\'s own container',
+    engineFiles: <String>[
+      'packages/flutter3d_core/lib/src/formats/gltf/gltf_loader.dart',
+      'packages/flutter3d_core/lib/src/formats/gltf/gltf_asset.dart',
+    ],
+  ),
+  Feature(
+    id: 'gltf-cameras-lights',
+    title: 'Cameras and lights from a file',
+    category: Category.formats,
+    summary:
+        'A camera and a punctual light, held on a document the same way a '
+        'mesh is, written into a GLB and read back.',
+    since: '0.7.0',
+    evidenceFile: 'packages/flutter3d_core/CHANGELOG.md',
+    evidence:
+        'lights through `KHR_lights_punctual`, cameras, `extras` on five '
+        'kinds of object',
+    engineFiles: <String>[
+      'packages/flutter3d_core/lib/src/formats/model_camera.dart',
+      'packages/flutter3d_core/lib/src/formats/model_light.dart',
+    ],
+  ),
+  Feature(
+    id: 'gltf-write',
+    title: 'Writing GLB',
+    category: Category.formats,
+    summary:
+        'Any decoded document, written out as a self-contained GLB, '
+        'optionally quantized and reordered for a smaller file.',
+    since: '0.7.0',
+    evidenceFile: 'packages/flutter3d_core/CHANGELOG.md',
+    evidence:
+        '`GltfWriter` writes a self-contained GLB: geometry, materials and '
+        'samplers, skins, animation channels in all three interpolations, '
+        'morph targets with their names, lights through '
+        '`KHR_lights_punctual`, cameras, `extras` on five kinds of object',
+    engineFiles: <String>[
+      'packages/flutter3d_core/lib/src/formats/gltf/gltf_writer.dart',
+    ],
+  ),
+  Feature(
+    id: 'export-validate',
+    title: 'Export, read back, compare',
+    category: Category.formats,
+    summary:
+        'Write a document, read the file back, and report what a real '
+        'round trip changed or could not carry.',
+    since: '0.7.0',
+    evidenceFile: 'packages/flutter3d_core/CHANGELOG.md',
+    evidence:
+        '`exportToGlb`, `exportToObj`, `exportToStl` and `exportToF3d` '
+        'answer an `ExportReport` with the files, the warnings and the '
+        'differences `compareModelDocuments` found on reading the file '
+        'back, morph targets included. `validateGltfExport` checks each '
+        "accessor's declared bounds against its data",
+    engineFiles: <String>[
+      'packages/flutter3d_core/lib/src/formats/export_report.dart',
+      'packages/flutter3d_core/lib/src/formats/document_compare.dart',
+      'packages/flutter3d_core/lib/src/formats/gltf/gltf_validate.dart',
+    ],
+  ),
+  Feature(
+    id: 'obj',
+    title: 'OBJ and MTL',
+    category: Category.formats,
+    summary:
+        'Plain-text geometry, older than glTF, with normals filled in '
+        'when the file leaves them out.',
+    since: '0.1.0',
+    evidence:
+        'glTF 2.0 / GLB and Wavefront OBJ behind one document abstraction, '
+        'plus `.f3d`, the engine\'s own container',
+    engineFiles: <String>[
+      'packages/flutter3d_core/lib/src/formats/obj/obj_loader.dart',
+      'packages/flutter3d_core/lib/src/formats/obj/obj_writer.dart',
+    ],
+  ),
+];
