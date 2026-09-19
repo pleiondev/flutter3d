@@ -77,12 +77,12 @@ Future<List<int>> _frame({
     )
     ..add(
       MeshNode(
-        DeviceMesh.upload(
-          device,
-          CuboidShape(size: Vector3(2, 0.05, 2)).build(),
-        ),
-        caster,
-      )
+          DeviceMesh.upload(
+            device,
+            CuboidShape(size: Vector3(2, 0.05, 2)).build(),
+          ),
+          caster,
+        )
         ..setPosition(0.0, 1.0, 0.0)
         ..shadowCasting = casting
             ? ShadowCastingMode.on

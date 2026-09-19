@@ -230,9 +230,11 @@ abstract final class ExposureMeter {
 
     final x0 = (within.x * side).floor().clamp(0, side - 1);
     final y0 = (within.y * side).floor().clamp(0, side - 1);
-    final x1 = math.max(x0 + 1, ((within.x + within.width) * side).ceil())
+    final x1 = math
+        .max(x0 + 1, ((within.x + within.width) * side).ceil())
         .clamp(x0 + 1, side);
-    final y1 = math.max(y0 + 1, ((within.y + within.height) * side).ceil())
+    final y1 = math
+        .max(y0 + 1, ((within.y + within.height) * side).ceil())
         .clamp(y0 + 1, side);
 
     var counted = 0;
