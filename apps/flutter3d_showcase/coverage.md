@@ -79,7 +79,7 @@ statement (see `test/coverage_test.dart`).
 | anti-aliasing | FXAA and sharpen | `AntiAliasSettings`, `FrameResult.antiAliasing` | F3D 0.7.0 |
 | msaa | Automatic multisampling | `device.preferredSampleCount`, `msaaDeclined` (needs offscreen MSAA) | unknown |
 | depth-of-field | Depth of field | `DepthOfFieldSettings` | F3D 0.7.0 |
-| user-post-effect | Your own post effect | `FullscreenEffect.overlay/present` | F3D 0.7.0 |
+| user-post-effect | Your own post effect | `FullscreenEffect.overlay/present` | F3D 0.7.0 — **no page**: the engine's own proof of it (`flutter3d/test/fullscreen_effect_test.dart`) uses a shader written only for the CPU rasteriser; a real page needs a shader shipped for all four backends, which is asset-pipeline work, not a page under `lib/pages/post/` |
 | viewport-shading | Viewport shading | `ViewportShadingSettings` normals/clay/outline/curvature | F3D 0.7.0 |
 | surface-buffer | The surface buffer | `RenderSettings.surfaceBuffer`, `showSurfaceBuffer` | unknown |
 | adaptive-resolution | Adaptive resolution | `RenderSettings.renderScale`, `AdaptiveScale` (the caller feeds it frame time) | F3D 0.7.0 |
