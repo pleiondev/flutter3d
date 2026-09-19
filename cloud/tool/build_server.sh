@@ -27,9 +27,20 @@ docker run --rm --platform linux/amd64 \
   "$image" bash -euo pipefail -c '
     mkdir -p /work/cloud /work/packages
     cp -r /src/cloud/server /work/cloud/
-    # The four engine packages the service depends on by path until they are
-    # published. Nothing else from the repository goes in.
-    for package in flutter3d_geometry flutter3d_formats flutter3d_mesh flutter3d_model_core; do
+    # The engine packages the service depends on by path until they are
+    # published — see the dependency_overrides in cloud/server/pubspec.yaml for
+    # why each one is here. Nothing else from the repository goes in.
+    #
+    # The list is read from that pubspec rather than kept here: a second copy
+    # went stale twice, each time after a package merge renamed what the
+    # overrides point at, and the first sign was `pub get` failing in the
+    # container on the day of a deploy.
+    packages=$(sed -n "s|^ *path: \.\./\.\./packages/||p" /src/cloud/server/pubspec.yaml | sort -u)
+    if [ -z "$packages" ]; then
+      echo "no path overrides found in cloud/server/pubspec.yaml" >&2
+      exit 1
+    fi
+    for package in $packages; do
       cp -r "/src/packages/$package" /work/packages/
     done
     rm -rf /work/cloud/server/.dart_tool /work/cloud/server/build /work/packages/*/.dart_tool
