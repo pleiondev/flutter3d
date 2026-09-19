@@ -106,4 +106,28 @@ const List<Feature> widgetsMiscFeatures = <Feature>[
     evidenceFile: 'packages/flutter3d_game/CHANGELOG.md',
     packages: <String>['flutter3d_game'],
   ),
+  Feature(
+    id: 'run-timeline',
+    title: 'Pausing and stepping a running game',
+    category: Category.widgetsMisc,
+    summary:
+        'Pause, step one fixed frame at a time, preview a rewind and '
+        'release into the past so the run continues from there.',
+    since: '0.7.0',
+    evidence: 'a running game paused, stepped and rewound from outside',
+    evidenceFile: 'packages/flutter3d_game/CHANGELOG.md',
+    packages: <String>['flutter3d_game', 'flutter3d_sim'],
+  ),
+  Feature(
+    id: 'rollback-netcode',
+    title: 'Rollback netcode over a loopback',
+    category: Category.widgetsMisc,
+    summary:
+        'Two players\' worth of a fixed-step simulation kept in step across '
+        'a delayed, lossy connection, with prediction and rollback.',
+    since: '0.6.0',
+    evidence: 'prediction by the last frame that arrived',
+    evidenceFile: 'packages/flutter3d_net/CHANGELOG.md',
+    packages: <String>['flutter3d_net', 'flutter3d_sim'],
+  ),
 ];
