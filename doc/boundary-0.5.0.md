@@ -173,3 +173,37 @@ several behaviour sets; everything it would be assembled from already exists
 walkthrough is a level and its own messages. A template that shipped its own
 boss would be forcing a specific object onto everyone — exactly what this is
 built to avoid.
+
+**The six left, checked on 2026-09-15 against the code rather than from
+memory: four were already there, two were not.**
+
+- **Reloading** — there (`weapon.dart`/`weapon_def.dart` in
+  `flutter3d_game_shooter`).
+- **Water and gliding** — there (`water.dart` in
+  `flutter3d_game_platformer`).
+- **Restarting** — there in all three games (the R key or a button; racing's
+  is `_startOver`).
+- **Run statistics** — there: `SeasonEnding` in
+  `apps/flutter3d_demo_racing/lib/src/ending.dart`, the same shape the
+  platformer and the dungeon have, by the file's own doc comment.
+- **Starting-grid order** — done in that pass. `stage()` in
+  `apps/flutter3d_demo_racing/lib/src/staging.dart` takes an optional
+  `gridOrder` (left out, car `i` starts in slot `i`, as it always did);
+  `main.dart`'s `_finishedHere` computes it from the circuit that just ended
+  through a new `gridOrderFrom(RaceState)`, which sorts the cars by
+  `RaceState.positionOf` — the same place number the HUD already reads,
+  nothing recomputed. **The rule chosen is pole to the winner, not a reversed
+  grid**: both are real racing formats, and this is the one that needs no new
+  idea to explain — "the front stays the front until somebody takes it" —
+  where a reversed grid would be a second feature (a comeback mechanic)
+  wearing this item's name. Which car is the player's is not confused with
+  where it starts: `gridOrder` moves slots only, and `Staged.cars[0]` is the
+  player on any grid. Five tests in
+  `apps/flutter3d_demo_racing/test/staging_test.dart`: an identity order
+  changes nothing, a named order puts a car on the slot named for it (by
+  comparison with `stage()`'s own default layout rather than a second call to
+  `startSlot` — the structure rule `no test builds its own world` caught the
+  first version of the file, which called it itself), and three cases of
+  `gridOrderFrom`: the winner on pole, a finished car ahead of those still
+  racing wherever they are on the track, and a field that finished in grid
+  order left alone.
