@@ -88,6 +88,17 @@ enum ExportFormat {
 
   /// One line for a menu, in the words a person recognises.
   String get says => writer.says;
+
+  /// Whether a file of this kind can say that one surface stands in for
+  /// another at a distance.
+  ///
+  /// `.f3d` has a section for it and `.glb` writes `MSFT_lod`. The others
+  /// write every surface they are given into the same place, so an object's
+  /// levels of detail are left out of what they are given.
+  bool get carriesLods => switch (this) {
+    f3d || glb => true,
+    obj || stl || stlAscii || usdz => false,
+  };
 }
 
 /// How a texture's pixels are written — mat-30's own row: "an encoder …, an
@@ -283,7 +294,10 @@ ExportResult planExport(
     for (final ExportIssue issue in readiness.issues) issue.message,
   ];
 
-  final ModelDocument document = toModelDocument(project);
+  final ModelDocument document = toModelDocument(
+    project,
+    withLods: format.carriesLods,
+  );
   // The converter's own complaints — a parent that is not there, a transform
   // that is not a translate, rotate and scale. They belong beside readiness
   // rather than under it: readiness is about the model, these are about the
