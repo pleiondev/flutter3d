@@ -77,7 +77,11 @@ jobs:
         run: |
           curl -fsSL https://github.com/KhronosGroup/glTF-Validator/releases/download/2.0.0-dev.3.10/gltf_validator-2.0.0-dev.3.10-linux64.tar.xz \
             | sudo tar -xJ -C /usr/local/bin gltf_validator
-          gltf_validator --help >/dev/null
+          # `--help` prints the usage and exits 1, so its status says nothing
+          # and under `-e` it stopped the job before a single file was
+          # validated. What this line is for is knowing the binary unpacked
+          # and runs on this machine, and the banner answers that.
+          (gltf_validator --help 2>&1 || true) | grep -q 'glTF 2.0 Validator'
 
       # naga has no package anywhere, so it is built once and kept. The cache
       # key is the version, which means a bump here fetches a fresh build
@@ -383,6 +387,14 @@ jobs:
       # precache` and a resolved workspace from `flutter pub get`, both of which
       # are above it; it brings nothing else with it.
       - run: (cd packages/flutter3d/example && ./tool/build_shaders.sh)
+
+      # `flutter analyze` at the root walks into `cloud/`, and the two services
+      # there are not workspace members — they resolve on their own, which
+      # `tool/ci.sh` does for the ubuntu job and nothing did here. Unresolved,
+      # every import of shelf, jaspr and postgres is an error: 752 of them, all
+      # under `cloud/`, and none of them about the code.
+      - run: (cd cloud/server && dart pub get)
+      - run: (cd cloud/lessons/server && dart pub get)
 
       - run: flutter analyze
       - run: dart run tool/structure.dart
