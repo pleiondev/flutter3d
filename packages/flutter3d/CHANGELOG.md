@@ -1,3 +1,17 @@
+## Unreleased
+
+* **An atlas-packed model samples its own corner of the atlas.** `ModelAsset`
+  moves the texture coordinates of each surface it uploads by the
+  `KHR_texture_transform` its material's textures share. The extension was
+  decoded and read by nothing, so a model whose materials had been packed into
+  one image drew every surface with the whole image on it, and said so only in
+  a warning. One mesh drawn with two such materials is uploaded once for each.
+  The document is not changed, so writing it out again does not apply the
+  transform twice. A material whose textures name different transforms still
+  draws untransformed and is still a warning. The modeller's own viewport does
+  not do this yet: it draws from the project, which keeps the transform with
+  the material.
+
 ## 0.6.0
 
 * **The engine's own code is unchanged, and the version moves anyway.** Every
