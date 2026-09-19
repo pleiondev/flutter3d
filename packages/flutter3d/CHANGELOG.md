@@ -1,5 +1,42 @@
-## Unreleased
+## 0.7.0
 
+* **Breaking. The engine is `flutter3d_core`, and this package is the Flutter
+  shell over it.** The scene graph, the render graph, animation, geometry and
+  the model formats moved to `flutter3d_core`, published for the first time
+  with this release, which resolves with no Flutter SDK (`mcp-03n`). What is
+  left here is what names `rootBundle` or `dart:ui`: `ModelAsset`,
+  `bindMaterial`, `loadMaterial`, `bindSurfaceMaterial`, `loadMaterialDocument`,
+  `BundleAssetSource`, `assetUriResolver`, `defaultImageDecoder`,
+  `loadModelAsset` and `loadModelByPath`. This library no longer exports
+  geometry and formats libraries of its own. They are
+  `package:flutter3d_core/geometry.dart` and
+  `package:flutter3d_core/formats.dart`, and they arrive here through the one
+  line `export 'package:flutter3d_core/flutter3d_core.dart'`, so a file that
+  imports `package:flutter3d/flutter3d.dart` keeps `MeshData`, `CuboidShape`,
+  `ModelDocument`, `GltfLoader` and the rest. What does change: every
+  `package:flutter3d/src/...` path; this package's dependency list, which
+  beside the Flutter SDK is `flutter3d_core`, `flutter3d_hardware` and
+  `vector_math`; and what a program with no Flutter SDK imports, which is one
+  of the three `flutter3d_core` libraries in place of this package.
+  `doc/boundary-0.7.0.md` has the whole list of packages that moved for this
+  release.
+* **Breaking. `uploadEncodedImage` requires `decodeImage`.** It lives in
+  `flutter3d_core`, which cannot call `dart:ui`, so it takes an `ImageDecoder`
+  that answers an `Rgba8Image`. `defaultImageDecoder` in this package is the
+  `dart:ui` decode the function used to make itself, and `ModelAsset` and
+  `bindMaterial` default to it, so a caller of those two changes nothing. A
+  direct caller adds `decodeImage: defaultImageDecoder`.
+* **Breaking. `GraphicsDevice.present` is gone.** It was the one member of
+  `flutter3d_hardware`, which this library re-exports, that returned a Flutter
+  `Widget`. A frame is shown with `presentFrame(device, frame)` from
+  `flutter3d_app`, and `SceneSurface` there takes it as an argument. A class
+  that implements `GraphicsDevice` also answers three new members,
+  `overwriteGeometry`, `overwriteTexture` and `maxColorAttachments`;
+  `flutter3d_hardware`'s changelog has both.
+* **Breaking for an exhaustive `switch`.** Three enums gained a value:
+  `LightType.area`, `MaterialAlphaMode.hashed` and `ModelFormat.stl`.
+  `SceneNode.visible` is a getter and a setter where it was a field; code that
+  reads and assigns it compiles as it did.
 * **An atlas-packed model samples its own corner of the atlas.** `ModelAsset`
   moves the texture coordinates of each surface it uploads by the
   `KHR_texture_transform` its material's textures share. The extension was
@@ -32,6 +69,68 @@
   other path is read from the bundle as it stands — handing
   `assets/models/pickup.glb` to `loadModelAsset` would ask for a converted
   file nobody asked the hook to write.
+* **`bindSurfaceMaterial`, and a material that names its lighting model.** The
+  conversion from a decoded `SurfaceMaterial` to a drawable `Material` came out
+  of `ModelAsset` and is a public function with two callers. It and
+  `bindMaterial` prefer `SurfaceMaterial.lightingModel`, one of the six models
+  by shader name, over the older unlit flag. `.fmat` carries the field; glTF,
+  OBJ and `.f3d` do not (`mat-04`).
+* **A model's levels of detail pick themselves.** `ModelNode.lods` is read from
+  `.f3d` and from glTF's `MSFT_lod`, and instantiating a `ModelAsset` builds a
+  `LodGroup` for a node that has them when the base and every level are one
+  surface each. A node split across materials at any level draws through the
+  ordinary path at full detail.
+* **The rest of this list is `flutter3d_core`'s, reached through this
+  library.** Its `CHANGELOG.md` has each of these with its names and its
+  measurements; what follows is one entry per area.
+* **The frame reports on itself and answers to pass names.**
+  `FrameResult.passes` with a time, draws, triangles and pipeline switches per
+  pass, `skipped` with a `PassSkip` reason, `antiAliasing`, `triangles`,
+  `instances` and `batchedDraws`; `RenderSettings.disabledPasses` against the
+  published `passOrder`; `Renderer.planFrame`, `captureNextFrame` with a
+  `FrameCapture` of what every pass wrote, `contributionBetween`,
+  `FullscreenEffect` for a caller's own post pass and `renderPost` over a
+  buffer from outside. `drawCalls` now counts the shadow map and the bloom
+  chain, which it never had.
+* **Culling and frame cost.** Box culling in place of spheres, a `SceneBvh`
+  that refits when a scene only moved, `SceneNode.subtreeBounds`, shadow
+  casters culled per cascade and per cube face, a directional shadow pass
+  cached while nothing changed, `RenderSettings.batchIdenticalDraws`,
+  `renderScale` with `AdaptiveScale`, and `Renderer.releaseTransientTargets`.
+  The forty-four golden scenes did not move.
+* **Light and shadow.** Up to thirty-two lights on one draw, the last
+  twenty-four without shadows, `lightFadeBand`, `LightNode.channels` against
+  `SceneNode.lightChannels`, `LightType.area`, `Photometric`, masked shadow
+  casters, `ShadowSettings.directionalLightRadius` for a penumbra that widens
+  with distance, `ContactShadowSettings`, `IrradianceField` for one bounce of
+  diffuse light, and shadow atlases that own their depth buffer, which fixes a
+  crash and a silently wrong shadow map on Impeller's Vulkan backend.
+* **The composite and the passes around it.** `TonemapCurve` with five curves,
+  `LookSettings.lut`, `lift`, `gamma`, `gain`, `whiteBalance`, `tint` and
+  `dither`, `AntiAliasSettings` with FXAA and `sharpen`, a depth-aware blur for
+  ambient occlusion, `BloomSettings.referenceHeight` and `halation`,
+  `DepthOfFieldSettings`, `LightShaftSettings`, `AutoExposureSettings.perView`,
+  and `ViewportShadingSettings` for normals, clay, outline and curvature. Each
+  is off or an identity by default.
+* **Materials and what is drawn.** `LightingModel.vertexShaderName`,
+  `MaterialAlphaMode.hashed`, a material source language behind
+  `parseMaterial`, `buildPolyline` with `Material.polyline`, Gaussian splats
+  through `parseSplatPly` and `SplatContributor`, `MeshOverlay` for a modeller's
+  edges, handles and face wash, and `DebugDrawOptions.skeletons`.
+* **Cameras, animation and picking.** `OffAxisProjection`, `TiledProjection`,
+  `RenderSettings.forStereo()`, an `OrbitController` with an orthographic
+  height and `animateTo`, `FreeLook`; `Pose`, `SkinBlend`, `TwoBoneIk` and
+  `FabrikIk` with no scene behind them, `AnimationPlayer.rootMotionDelta` and
+  additive layers; a `Raycaster` that hits a skinned mesh where its pose puts
+  it, `TriangleBvh`, `screenBoundsOfBox` and
+  `DeviceMesh.overwriteVertices`.
+* **Formats.** Draco, `EXT_meshopt_compression`, UASTC and supercompressed
+  KTX2 are read, and STL is read and written. `GltfWriter` writes a GLB with
+  its rig, lights and cameras, and with `compressGeometry` measured 3.60 times
+  smaller. `ObjWriter`, `UsdzWriter` for geometry, `ExportReport`, BC1, BC3,
+  ETC2 and ASTC encoders, a `universal` cooked texture the upload transcodes
+  for the device, a Radiance `.hdr` reader with `EnvironmentMap.fromPanorama`,
+  and PNG and JPEG decoders that need no `dart:ui`.
 
 ## 0.6.0
 

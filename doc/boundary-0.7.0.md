@@ -67,18 +67,35 @@ the same reason at 0.6.0 and the rule is unchanged.
 
 ## What breaks for an importer of 0.6.0
 
-- **Re-exports are gone, and that is most of it.** `flutter3d` no longer
-  re-exports the geometry and formats libraries; `flutter3d_app` no longer
-  re-exports `flutter3d_session`, `pad_input` and `pointer_lock`;
+- **Re-exports are gone, and that is most of it.** `flutter3d_app` no longer
+  re-exports `flutter3d_session`, `pad_input` and `pointer_lock`, and
   `flutter3d_game` no longer re-exports `flutter3d_sim`. A file that used a
   name through one of those imports the package that owns it.
+- **`flutter3d` still hands over the geometry and the formats, from somewhere
+  else.** `package:flutter3d/flutter3d.dart` exports `flutter3d_core.dart`,
+  which exports both libraries, so `MeshData` or `GltfLoader` through the one
+  import resolves as it did. What changed is where they live: a file that
+  reached into `package:flutter3d/src/...` for them, or depended on
+  `flutter3d_geometry` or `flutter3d_formats` by name, names
+  `package:flutter3d_core/geometry.dart` or `formats.dart` instead.
 - **A genre's widgets are in its `bridge.dart`.** The shooter, the platformer
   and racing each kept HUD widgets in their main library, which made a
   simulation's barrel name Flutter. `package:flutter3d_game_shooter/bridge.dart`
-  and its two siblings hold them now, and the main library resolves on a
-  machine with `dart` and no `flutter`.
+  and its two siblings hold them now, and the main library names no Flutter.
+  The package still depends on the SDK, for that `bridge.dart`, so it is not
+  one of the plain Dart packages and a bare `dart pub get` does not resolve it.
 - **`RenderSnapshotJob` takes its device.** It built a `CpuDevice` by default,
   which is why a Flutter-free package depended on the software rasteriser.
+- **A backend has more to implement.** `GraphicsDevice.present` is gone, and
+  the interface gained `overwriteGeometry`, `overwriteTexture` and
+  `maxColorAttachments` as abstract members. `SceneSurface` takes a required
+  `presentFrame`, and `uploadEncodedImage` a required `decodeImage`.
+- **Three lists grew, which breaks an exhaustive `switch` over them**:
+  `LightType.area`, `MaterialAlphaMode.hashed` and `ModelFormat.stl`.
+- **A recorded run from 0.6.0 does not open.** `Demo` requires `levelHash`,
+  `buildStamp` and `checkpoints`, so that a replay can be checked against the
+  level and the run it claims to repeat. `formatVersion` is still 1, so the
+  refusal says the file names no level hash and not that it is old.
 - **The four ended names above.** Each line of an import moves to the package
   in the fourth column.
 
@@ -96,9 +113,11 @@ Each package's own `CHANGELOG.md` says this for that package.
   why this release rewrote sixty-two constraints at once: `^0.6.0` does not
   admit 0.7.0, and neither did the `^0.1.0` twelve packages had on
   `flutter3d_core`.
-- **`the simulation names no Flutter`**, with `tool/flat_dart_check.sh` behind
-  it, is what the `bridge.dart` split is held by. The check resolves every plain
-  package with a bare `dart pub get` in a directory with no workspace above it.
+- **`the simulation names no Flutter`** is what the `bridge.dart` split is held
+  by: it reads a genre's simulation files for an import that reaches Flutter.
+  `tool/flat_dart_check.sh` is the stronger check and covers the fifteen plain
+  Dart packages, resolving each with a bare `dart pub get` in a directory with
+  no workspace above it. The genres are not among the fifteen.
 - **The enum rule of 0.5.0 already reads the thirteen new packages.** Every
   enum in them has its reason in `boundaryEnumExempt`, so publishing them opens
   no closed list to somebody else's `switch` that was not argued for first.

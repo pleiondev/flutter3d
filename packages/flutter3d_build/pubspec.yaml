@@ -1,5 +1,5 @@
 name: flutter3d_build
-description: "The build hook behind `dart run flutter3d:init`: converts model and texture sources into what the engine loads, on every build rather than as a step somebody remembers to run."
+description: "The build hook behind `dart run flutter3d_build:init`: converts model and texture sources into what the engine loads, on every build rather than as a step somebody remembers to run."
 version: 0.7.0
 repository: https://github.com/pleiondev/flutter3d
 homepage: https://flutter3d.pleion.dev

@@ -63,9 +63,9 @@ final class FbxDecoder implements ModelDecoder {
     AssetUriResolver resolveUri,
   ) async {
     throw const FormatException(
-      'FBX files are recognised but not yet read — flutter3d_fbx is a '
-      'skeleton (fmt-29d); the reader (fmt-24/25) has not landed. Re-export '
-      'as glTF/GLB in the meantime.',
+      'FBX files are recognised but not yet read: this decoder is a '
+      'skeleton (fmt-29d), and the reader (fmt-24/25) has not landed. '
+      'Re-export as glTF/GLB in the meantime.',
     );
   }
 }
