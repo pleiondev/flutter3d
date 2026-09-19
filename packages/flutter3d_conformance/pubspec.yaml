@@ -24,7 +24,7 @@ dependencies:
   flutter3d_hardware: ^0.7.0
   vector_math: ^2.2.0
   # The list of entry points a bundle must answer to.
-  flutter3d_shaders: ^0.6.0
+  flutter3d_shaders: ^0.7.0
 
 dev_dependencies:
   flutter_lints: ^6.0.0

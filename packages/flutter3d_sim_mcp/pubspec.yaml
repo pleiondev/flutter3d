@@ -1,6 +1,6 @@
 name: flutter3d_sim_mcp
 description: "A level an agent can play blind, of whatever game a host hands it — ai-00 — and why a frame of it is wrong: a debug view of normals and depth, the HDR value of one pixel, the passes the frame graph ran — par-02."
-version: 0.6.0
+version: 0.7.0
 repository: https://github.com/pleiondev/flutter3d
 homepage: https://flutter3d.pleion.dev
 issue_tracker: https://github.com/pleiondev/flutter3d/issues
@@ -21,20 +21,20 @@ dependencies:
 
   # The simulation every game steps through, and `HeadlessGame`/`HeadlessRun`
   # — what this server asks of a game. No genre: a host hands one in.
-  flutter3d_sim: ^0.6.0
+  flutter3d_sim: ^0.7.0
 
   # A level's own scene, a device with no GPU behind it, and the debug views
   # `RenderSettings` already carries — `showSurfaceBuffer`, `showShadowMap` —
   # for `DiagnosticRenderer`, which draws both `frame`'s picture and the
   # diagnostic server's views. They were two packages, and a picture from the
   # sim server was already the diagnostic server's `lit` frame.
-  flutter3d: ^0.6.0
+  flutter3d: ^0.7.0
   flutter3d_app: ^0.7.0
   flutter3d_cpu: ^0.7.0
 
   # The tool table, the answers and the server underneath this one — what
   # every server here shares.
-  flutter3d_mcp_kit: ^0.6.0
+  flutter3d_mcp_kit: ^0.7.0
 
   vector_math: ^2.2.0
 
