@@ -7,9 +7,11 @@ library;
 import 'package:flutter3d_showcase/pages/formats/draco.dart';
 import 'package:flutter3d_showcase/pages/formats/export_validate.dart';
 import 'package:flutter3d_showcase/pages/formats/f3d.dart';
+import 'package:flutter3d_showcase/pages/formats/fbx_refusal.dart';
 import 'package:flutter3d_showcase/pages/formats/gltf_cameras_lights.dart';
 import 'package:flutter3d_showcase/pages/formats/gltf_load.dart';
 import 'package:flutter3d_showcase/pages/formats/gltf_write.dart';
+import 'package:flutter3d_showcase/pages/formats/image_decode.dart';
 import 'package:flutter3d_showcase/pages/formats/ktx2.dart';
 import 'package:flutter3d_showcase/pages/formats/meshopt.dart';
 import 'package:flutter3d_showcase/pages/formats/obj.dart';
@@ -31,4 +33,6 @@ final Map<String, DemoBuilder> formatsDemos = <String, DemoBuilder>{
   'texture-compression': TextureCompressionDemo.new,
   'draco': DracoDemo.new,
   'meshopt': MeshoptDemo.new,
+  'fbx-refusal': FbxRefusalDemo.new,
+  'image-decode': ImageDecodeDemo.new,
 };

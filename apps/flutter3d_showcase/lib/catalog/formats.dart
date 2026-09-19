@@ -213,4 +213,36 @@ const List<Feature> formatsFeatures = <Feature>[
       'packages/flutter3d_core/lib/src/formats/gltf/gltf_writer.dart',
     ],
   ),
+  Feature(
+    id: 'fbx-refusal',
+    title: 'An FBX, refused with a reason',
+    category: Category.formats,
+    summary:
+        'Recognised by its magic and refused with a message naming what '
+        'to do instead, since no reader is written yet.',
+    since: '0.7.0',
+    evidenceFile: 'packages/flutter3d_core/CHANGELOG.md',
+    evidence:
+        '`FbxDecoder` recognises an FBX file by its magic or its extension '
+        'and refuses every one with a `FormatException` that says to '
+        'export glTF; the reader is not written',
+    engineFiles: <String>[
+      'packages/flutter3d_core/lib/src/formats/fbx/fbx_decoder.dart',
+    ],
+  ),
+  Feature(
+    id: 'image-decode',
+    title: 'Image decoding without dart:ui',
+    category: Category.formats,
+    summary:
+        'PNG, JPEG and Radiance .hdr, each read by a decoder that needs '
+        'no window and no Flutter binding.',
+    since: '0.7.0',
+    evidence: 'PNG and JPEG decoders that need no `dart:ui`',
+    engineFiles: <String>[
+      'packages/flutter3d_core/lib/src/formats/image/png_decoder.dart',
+      'packages/flutter3d_core/lib/src/formats/image/jpeg_decoder.dart',
+      'packages/flutter3d_core/lib/src/formats/image/hdr_decoder.dart',
+    ],
+  ),
 ];
