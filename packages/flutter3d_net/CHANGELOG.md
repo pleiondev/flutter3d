@@ -1,3 +1,29 @@
+## 0.7.0
+
+* **The first publication.** The 0.6.0 below was a number this package carried
+  inside the workspace; it never reached pub.dev. The whole shelf goes out on
+  one number so that one number names one tree, and `^0.7.0` on any
+  `flutter3d_*` package resolves against every other. `doc/boundary-0.7.0.md`
+  lists the thirteen packages that begin at this release.
+* **Two things the entry below leaves out, both here since the first commit.**
+  `diffRuns` takes two `DigestTrace`s and a function per side that answers with
+  the saved state at a step. `DigestTrace.divergenceFromHex` finds the first
+  checkpoint that disagrees from the hex digests a `.f3drun` already carries,
+  and `diffRuns` compares the two JSON trees at that one step and returns a
+  `SnapshotDivergence`: the step, a dotted path such as `entities.7.health`,
+  and the two values. It replays nothing itself, because only a genre's own
+  package knows how to step its simulation. `WebSocketTransport` is the
+  `NetTransport` over the relay for a platform or a NAT that a WebRTC data
+  channel did not get through. It is built on `web_socket_channel` and not on
+  `dart:io`, so the same class compiles for a browser, and while it is in use
+  every game frame rides the relay.
+* **The relay can be deployed from the package.** `deploy/Dockerfile` runs
+  `bin/relay.dart` on port 8790 and is built from the repository root, since
+  the package resolves `flutter3d_sim` inside the workspace.
+  `deploy/flutter3d-net-relay.service` is a systemd unit for the same process.
+* No code changed since 0.6.0 was written beyond what the formatter did. The
+  floor on `flutter3d_sim` is `^0.7.0`.
+
 ## 0.6.0
 
 * **`net-01` in `doc/tooling-plan.md`.** `NetSession`: input frames per step,

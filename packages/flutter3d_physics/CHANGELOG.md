@@ -9,6 +9,22 @@ through this package's own barrel; `flutter3d_cloth` itself is gone from the
 workspace. It was never published, so there is nothing to discontinue on
 pub.dev.
 
+**What that is, for a reader who never saw the other package.**
+`stepCloth(mesh, settings, dt, obstacles:)` advances a `ClothMesh` in place by
+`ClothSettings.substeps` XPBD substeps, 8 by default: gravity, `WindSettings`
+and damping go into a predicted position, the structural and bending
+constraints are solved against it with multipliers reset each substep, and
+particles are pushed out of each `ClothObstacle`. `ClothMesh.grid` builds a
+rectangular sheet. An obstacle is a `CollisionShape` and a position, tested
+through `expandedPlanes`, which is right for a box, a sphere, a capsule and a
+wedge and gives a `CollisionHeightfield` its bounding box and not its surface.
+Every loop walks a typed array by index, so the same state, settings and `dt`
+give the same output.
+
+**Nothing else moved.** Shapes, the broadphase, queries and the character
+controller are byte for byte 0.6.0's, and the package still depends on
+`vector_math` and no sibling.
+
 ## 0.6.0
 
 * **No code, and no floor to move.** `lib/` is byte for byte 0.5.1's — the
