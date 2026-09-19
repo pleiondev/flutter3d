@@ -38,7 +38,8 @@ class LearnCase {
 /// `01-hello.md` lists and links before `02-onward.md`.
 ///
 /// An absent directory reads as no cases rather than an error: the tutorial
-/// route exists before the first case is written.
+/// route exists before the first case is written. What that silence costs is
+/// [learnDirectoryProblem]'s to say.
 List<LearnCase> loadLearnCases({String directory = 'content/learn/modeler'}) {
   final dir = Directory(directory);
   if (!dir.existsSync()) return const [];
@@ -50,6 +51,32 @@ List<LearnCase> loadLearnCases({String directory = 'content/learn/modeler'}) {
           .toList()
         ..sort((a, b) => a.path.compareTo(b.path));
   return [for (final file in files) _read(file)];
+}
+
+/// What is wrong with [directory] as a place to read the tutorial from, in a
+/// sentence for the log, or null when it holds at least one case.
+///
+/// **Said once at start, because nothing else will say it.** An empty tutorial
+/// is a working page: the index renders, answers 200 and tells a visitor
+/// nothing is published yet. That is right before the first case is written
+/// and wrong on a server whose cases were never copied to it, and from the
+/// outside the two look the same. The service does not refuse to start over
+/// it — accounts and models do not depend on a tutorial — but the journal
+/// names the directory it looked in, which is the whole of what somebody needs
+/// to see that `MODELS_LEARN_DIR` points nowhere.
+String? learnDirectoryProblem(String directory) {
+  final dir = Directory(directory);
+  if (!dir.existsSync()) {
+    return 'no tutorial: ${dir.absolute.path} does not exist, so '
+        '/learn/modeler/ is an empty index. Set MODELS_LEARN_DIR.';
+  }
+  final hasCase = dir.listSync().whereType<File>().any(
+    (file) => file.path.endsWith('.md'),
+  );
+  return hasCase
+      ? null
+      : 'no tutorial: ${dir.absolute.path} holds no .md file, so '
+            '/learn/modeler/ is an empty index.';
 }
 
 LearnCase _read(File file) {
