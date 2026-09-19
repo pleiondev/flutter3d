@@ -870,3 +870,311 @@ loss on blocks with a sharp single-color spot or a smooth diagonal gradient
 that the individual/differential modes don't catch as well; `flip = 1`
 (a column-wise cut) is never tried, only `flip = 0`; Impeller/Metal wasn't
 empirically checked, only WebGL2.
+
+### ap-08: a mip chain — closed by the letter of its acceptance
+
+Closed 2026-09-13; this record was written on 2026-09-15, when the code and
+both of its test files turned out to be in the tree already (since
+`80c11976`) with no entry here. `packages/flutter3d_core/lib/src/formats/
+ktx2/encode/mip_chain.dart`: `buildMipChain(base, {srgb, isNormalMap,
+alphaTestThreshold})` builds the full chain from the base level down to 1×1,
+each level a separate pass of a separable (rows, then columns) Kaiser filter
+(`beta = 4`, three lobes) rather than a box average.
+
+**Three kinds of channel, three filtering spaces — exactly what the row
+asks for.** `srgb`: RGB is decoded to linear before the filter and encoded
+back after, which avoids the textbook artefact (bytes 0 and 255 average to
+128, where a linear-light average of black and white is about 188).
+`isNormalMap`: R/G/B are read as vector components in `-1..1`, filtered as
+vectors, and every output texel is renormalised to unit length — "at each
+level", as `ap-08` asks, not only the first. `alphaTestThreshold`: alpha is
+not filtered naively (which shrinks the share of texels above the threshold
+at every level and visibly thins foliage with distance) but scaled by
+Castaño's coverage-preserving technique — a binary search for the scale
+around the threshold, since "the same coverage as the base level" is an
+equation with no closed form.
+
+**The acceptance is checked literally, but not with a scene.** The row asks
+for "a golden frame on the CPU backend with a distant model differs from the
+frame with no mips by less than the noise threshold";
+`packages/flutter3d_cpu/test/mip_chain_quality_test.dart` gives that at the
+level of texture sampling rather than a rendered scene, and its own doc
+comment says why: a checkerboard (what "a frame with a model" would give)
+averages to the same half wherever a sample lands, and would pass with no
+real mip chain at all. The test builds a noise image (`Random(42)`) instead
+and compares a point sample at `du = dv = 1.0` — the whole texture in one
+texel, the furthest view there is — with the image's true average: with the
+chain the difference is under 12 of 255 per channel, and without it
+(`mipLevels` not handed to `createTextureFromPixels`) it is over the same
+threshold on the same image, so the test proves "bad without" as well as
+"good with". The second condition — "normals on mips are unit length" — is
+`packages/flutter3d_core/test/formats/mip_chain_test.dart`'s `every level's
+normals stay unit length`, at every level including 1×1, with `0.02` allowed
+for byte rounding.
+
+Not wired into the converter, then or now — and by decision rather than
+by omission. The chain the converter writes (`gfx-69n`, `_encodeLevels` in
+`packages/flutter3d_build/lib/src/texture_encode.dart`) is a box filter in the
+channel's stored values, on purpose: a mip level is the value a bilinear tap
+would have found had it read four texels at once, and averaging sRGB bytes as
+they stand agrees with what the hardware does between levels, where a
+gamma-correct average would disagree with it between levels 0 and 1.
+`buildMipChain` stays what this item asked for — a tested function in
+`flutter3d_core` — for a caller that wants renormalised normals or preserved
+alpha coverage and uploads the levels itself.
+
+### ap-09: a per-target compression family — closed by three other items, and by one flag here
+
+The row was answered twice. On the `edu-track` branch (2026-09-15) by a
+`BuildTarget` type and a `--target` flag on the converter, two output files
+for the web (`chair.f3d`, `chair.etc2.f3d`), and a `preferredTextureFamily` in
+`flutter3d_webgl` that read the context's extensions. In this tree by three
+items of `doc/model-editor-plan.md`, which between them leave nothing for
+that design to do, so it was not carried over:
+
+- **The hook is told its target (`gfx-69n`).** `buildAssets` reads
+  `input.config.code.targetOS` behind `buildCodeAssets`, and
+  `familyForTargetOS` maps macOS, Windows and Linux to BC, Android and iOS to
+  ETC2, and anything else — the web, or a build that names no target — to
+  `auto`. A block format is a fact about the platform, not a guess about a
+  device. The branch had concluded a hook *cannot* learn its platform, having
+  ruled `package:code_assets` out; its three demos measured larger after
+  moving onto the pipeline for exactly that reason (`ap-12`). A project's own
+  word still wins, through `textures:` in its hook user defines.
+- **One cooked file for every family (`gfx-83n`).** `TextureFamily.universal`
+  is a 4×4 block intermediate, not a GPU format; the upload turns it into BC,
+  ASTC, ETC2 or RGBA8 against what the device samples. That is the row's
+  "web — both sets, chosen at load time" without a second file and without a
+  loader that has to pick between two — the part `ap-11` had left open.
+- **The question a loader asks is in the HAL.**
+  `GraphicsDevice.supportsTextureFormat` answers per format on every backend,
+  where `preferredTextureFamily` was a WebGL-only reading of extension names.
+
+A `--target` on the command line would be a second spelling of `--textures
+bc` or `--textures etc2`: the machine running the converter is not the one
+that loads the texture, only a build knows its target, and a build does not
+go through the command line.
+
+**What did come across: `--no-mips` skips something.** The flag was accepted
+and answered with a note, because when it was added nothing generated a chain
+to skip. `convertOne` and `encodeDocumentTextures` take `mips:`, and with it
+false every family — `universal` included, which writes its levels and header
+differently from the rest — keeps the base level alone. `convert_test.dart`
+asserts the byte sizes of an 8×8 texture's BC1 levels, `[32, 8]` by default
+and `[32]` with the flag; `texture_encode_test.dart` holds all three families
+to one level.
+
+Not done, honestly: **only a manifest rule's `exclude` reaches the hook.** The
+manifest parses `textures`, `mips` and `objNormals`, `AssetLayout.plan`
+carries the matching rule with every file it plans, and `runAssetBuild`
+converts each one with the build's family and the converter's defaults. The
+web build still compresses nothing unless the project says `universal`
+itself: a web build names no target, which is also what an asset-only
+invocation looks like, and the hook does not invent one. A real phone.
+
+### ap-10: `dart run flutter3d_build:init` — closed
+
+Closed 2026-09-15. **The real name is `flutter3d_build:init`, not
+`flutter3d:init`** — the same way `ap-03`'s converter is
+`flutter3d_build:convert`. `tool/init/` (`tpl-01`) says in its own words
+that this package did not exist when it was written; it does now, and
+`tpl-01` has not been moved onto it — it has its own item and its own turn.
+
+**Four steps, each idempotent and checkable on its own.**
+`packages/flutter3d_build/lib/src/init.dart`'s `planInit(projectRoot)`
+answers "what would change" and writes nothing — the one answer `--check`
+prints and a real run carries out, so the two cannot disagree about what
+"already set up" means.
+
+1. `hook/build.dart` — written if absent; left alone if it matches; if it
+   exists and differs, a blocked step, refused without `--force`, in the
+   same words under `--check` and in a real run.
+2. `dev_dependencies: flutter3d_build:` — added only if the block holds no
+   `flutter3d_build:` line at all; a constraint a person pinned is theirs.
+3. `flutter: assets:` — the active key is looked for apart from the
+   commented-out example `flutter create` writes, which the tool that reads
+   this file never reads and `init` therefore treats as absent.
+4. `.gitignore`'s `/flutter3d_generated/`.
+
+**Line-based, not parse-and-re-emit.** `_topLevelKey`/`_blockEnd`/
+`_insertAtEndOfBlock` find and edit exactly one block by indentation and
+touch nothing outside it; `package:yaml` cannot print a parsed tree back
+with its formatting and comments, and a fresh `pubspec.yaml` is mostly
+comments.
+
+**Checked end to end at the time**, on the branch this was written on: a
+real `flutter create --platforms=web` in a temp directory, a real `dart run
+flutter3d_build:init` from inside that project, and a real `flutter build
+web` — `flutter3d_generated/.flutter3d_cache.json` appeared, and only
+`runAssetBuild` writes that file. A second `init` said "already up to date".
+That run has not been repeated since the package merges; the unit tests
+have.
+
+**A correction the same day, found by `ap-12`: one `- flutter3d_generated/`
+line was not enough.** `flutter_tools`' `_parseAssetsFromFolder` lists a
+declared directory with a plain `listSync()`, no `recursive: true`, so one
+line bundles what sits directly in it and never a subdirectory.
+`AssetLayout.plan` keeps a source's relative directory in its destination
+(`assets_src/models/chair.glb` → `flutter3d_generated/models/chair.f3d`), so
+every project with sources in a subdirectory got a hook, a `.gitignore` and
+a clean `--check`, and a real build that packed the cache file and not one
+converted model. The end-to-end check above missed it because its one model
+sat directly in `assets_src/`. `_generatedAssetEntries(layout)` now reads
+the plan and declares one entry per subdirectory that really holds a
+converted file.
+
+New when this was brought onto the merged packages: a test that holds
+`kFlutter3dBuildVersionConstraint` to the version this package's own
+`pubspec.yaml` names, since a release that bumps one without the other
+points every project `init` touches afterwards at the wrong version.
+
+Not done: `tool/init/` still copies a static `hook/build.dart` from the
+template rather than calling `planInit`; no real phone.
+
+### ap-11: `loadModelAsset` — closed
+
+Closed 2026-09-15. **The package is the engine (`flutter3d`), not
+`flutter3d_build`**: an application calls this at runtime, and
+`flutter3d_build` is deliberately no dependency of the engine.
+`generatedAssetPathFor` (`packages/flutter3d/lib/src/engine/assets/
+load_model_asset.dart`) is the same mapping `AssetLayout.plan` computes,
+rewritten in three lines rather than imported.
+
+**Two different answers to a missing file, both explicit.** In `debugMode`
+(default `kDebugMode`) a missing `.f3d` decodes the source directly and
+warns once per path (`_warnedMissingGenerated` is a set, not a counter).
+Outside it, a `StateError` naming `dart run flutter3d_build:init`.
+`FlutterError` and `FileSystemException` are caught apart from any other
+error: a corrupt but present `.f3d` fails as itself, because "no file" and
+"a file that does not read" are different things — its own test.
+
+**An honest boundary: the fallback reads the disk, not the bundle, and so
+does not work on the web.** `assets_src/` is deliberately not declared under
+`assets:`, so there is nothing bundled at that path; `FileAssetSource`
+reaches the checkout, which exists during `flutter run`/`flutter test` from
+a source tree and never in a shipped build. On the web (no `dart:io`) a
+missing generated file is the release error in every build mode.
+
+**`generatedSource`/`fallbackSource` are a seam for a test, not an
+architecture.** The engine's own `pubspec.yaml` declares no assets, and a
+fixture added there for one test would ship in every application that
+depends on the package. The acceptance says "a test with a bundle fixture";
+what is here is a fixture standing where the bundle's answer would be, and
+it says so.
+
+**`loadModelByPath`, added when this was brought onto the merged
+packages.** A level document names its models by path, and a project partly
+on the pipeline has both kinds: `assets_src/…` goes to `loadModelAsset`,
+anything else is read from the bundle as it stands — `loadModelAsset` turns
+any path into `flutter3d_generated/…`, which for `assets/models/pickup.glb`
+is a file nobody asked the hook to write. `FixtureVisuals` and
+`ActorVisuals` in `flutter3d_game` both load through it; on the branch this
+came from the same prefix test was written once in each.
+
+What the branch left open — choosing `chair.f3d` or `chair.etc2.f3d` on the
+web — does not arise here. There is one generated file per source: a build
+for one platform carries that platform's family, and a build for several
+cooks `universal`, which the upload resolves (`ap-09`).
+
+### ap-12: the template and four demos on the pipeline — tried on a branch, not carried over
+
+On 2026-09-15 the three games with real models — platformer (3), dungeon
+(10), racing (5) — were moved onto the pipeline on the `edu-track` branch:
+`assets/models/` → `assets_src/models/`, a `hook/build.dart` each, a `path:`
+dev dependency on `flutter3d_build`, `flutter3d_generated/` and
+`flutter3d_generated/models/` under `assets:`, `hook/**` excluded from
+analysis. The template and strategy have no models to move. **That move is
+not in this tree**, and what it found is worth more than the move:
+
+- **The measured size went up, not down.** Web builds, before → after:
+  platformer 49 720 → 49 972 KiB, dungeon 59 108 → 59 684 KiB, racing
+  56 196 → 57 100 KiB. The first day's numbers showed a saving, and the
+  saving was the three models that had silently dropped out of the bundle —
+  the non-recursive `assets:` finding recorded under `ap-10`. The honest
+  reason for no saving was that the branch's hook named no target and so
+  compressed nothing. That reason is gone in this tree (`gfx-69n`, under
+  `ap-09`), so for a desktop or a phone build the measurement would have to
+  be taken again before it says anything; for the web it still stands until
+  a project asks for `universal`.
+- **Level textures are outside the pipeline by construction.** A level's BSP
+  materials name `assets/textures/*.png` directly in the level document,
+  read by `LevelLoader` with no `ModelDocument` in between; every stage here
+  classifies an image by the model material that references it, and a level
+  material references nothing this pipeline reads.
+- **`flutter analyze` cannot see a `dev_dependency` from `hook/build.dart`**,
+  which sits outside `test/` — hence the `hook/**` exclusion.
+- **A hook-providing dependency added after the last build needs `flutter
+  clean`**: the incremental cache remembers "no hooks" (`Skipping target:
+  build_hooks`).
+- **`flutter test` does not run build hooks**, so the games' tests went
+  through `ap-11`'s debug fallback, and `flutter analyze` on a fresh
+  checkout reports `asset_directory_does_not_exist` for the generated
+  directory until a first real build creates it.
+
+What a correct move still needs, none of which the branch had: the level
+generators (`levelkit.py`, `cryptkit.py`) and `tool/make_models.py` writing
+the new paths, or the "levels" and "models" steps of `tool/ci.sh` regenerate
+the old ones and fail; `apps/flutter3d_demo_dungeon/assets/editor.json`,
+which names the same models for the editor; a CI step that creates the
+generated directories before `flutter analyze`, the way `ap-06` does for the
+shader bundle; and re-recording `site/assets/samples/*.f3drun`, whose
+`levelHash` changes with every level document that names a model. The
+loaders are ready for it — `loadModelByPath`, under `ap-11`.
+
+### ap-13: CI and measurements — the checkable half is closed
+
+2026-09-15. **"Converted equals original" on the Khronos set.**
+`packages/flutter3d_build/test/khronos_roundtrip_test.dart`: the eleven
+files `flutter3d_samples/assets/ATTRIBUTION.md` credits to
+`KhronosGroup/glTF-Sample-Assets` directly (not `RobotExpressive.glb`, a
+different source; not the teapot, not glTF at all) — `Box`, `BoxTextured`,
+`BoxVertexColors`, `Triangle`, `BoxAnimated`, `InterpolationTest`,
+`NormalTangentTest`, `NormalTangentMirrorTest`, `RiggedSimple`,
+`RiggedFigure`, `AnimatedMorphCube`. Each goes through `convertOne` — the
+hook's own code — both ends are decoded back, and `compareModelDocuments`
+finds nothing on all eleven, animation, skinning and morph targets included.
+Read by a sibling path, since `flutter3d_samples` needs the Flutter SDK and
+this package must stay flat.
+
+**A second build converts nothing** was already proven:
+`build_assets_test.dart`'s `the acceptance line: a second build with nothing
+changed converts nothing` (`ap-05`).
+
+Not done, and not for want of time: "four green CI jobs" needs real macOS,
+browser, Android and iOS runners, and editing `.github/workflows/ci.yml`
+with no way to watch the result is a bigger risk than an unfinished item —
+the same call `ap-06` made for its Android path. **"Install-to-first-frame
+re-measured with the script from the Measurement section" is unreachable as
+written: the script does not exist.** That ROADMAP section is a goal, not a
+report, and nothing in the tree carries the name.
+
+### ap-14: documentation — closed
+
+2026-09-15. **A new page, `site/content/reference/asset-pipeline.md`** — not
+`core/assets.md`, which already existed and covers the runtime side, and now
+links across. The page: `assets_src/`, `init`, the manifest, texture
+families, `loadModelAsset` and `loadModelByPath`, and a "when the hook
+fails" table of four symptoms each really met rather than listed in advance.
+**The site builder has no directory scan** — `site/tool/build.mjs` reads an
+explicit array, and a page with no entry there is absent from `dist/` with
+no error at all, which is how the first build went.
+
+**Quickstart keeps only the shader step still true.** Checked in a detached
+worktree at the time: `packages/flutter3d/example` builds without
+`flutter3d_impeller`'s `build_shaders.sh`, the canonical bundle appearing
+through `ap-06`'s hook, and fails without the example's own separate script
+("No file or variants found for asset: assets/shaders/example.f3dshaders") —
+the bundle `ap-06` never covered. The three games only ever linked the
+canonical one, so for them there is no shader step at all.
+
+`site/content/reference/packages.md`'s entry for `flutter3d_build` names the
+command by its real name and links the page. CHANGELOG entries where code
+really changed: `flutter3d_build`, `flutter3d`, `flutter3d_game`.
+
+Rewritten where this tree had moved on from the branch the page was written
+on: the families section describes the hook taking its family from the
+platform it is told it is building for, the user-defines override — under the
+project's own package name, since the hook is the project's — and
+`universal`, in place of a `--target` table and a warning that the hook
+cannot compress. It says only a rule's `exclude` reaches the hook, and that
+the three shipped games still bundle their models directly.
