@@ -8,6 +8,15 @@ quarter it describes closes on 27 December 2026. Those dates are when this file
 is rewritten, not when the work is due: a plan that is only rewritten when it
 succeeds is a plan nobody can read.
 
+Touched on 19 September as well, and only in *Where it stands*: three
+paragraphs there described a tree that has moved, and a roadmap wrong about
+the present is not worth reading about the future. *Committed* is as the
+11 September revision left it and is rewritten on the 28th, when most of it
+will be found finished. What comes after it is written down already, as
+[`doc/engine-gap-analysis.md`](doc/engine-gap-analysis.md): what the engine
+lacks for a space game, a ski slalom and an open world, in the order the owner
+chose on 19 September.
+
 **What has already shipped is not here.** It is in each package's
 `CHANGELOG.md`, beside the version that carries it, which is the one place it
 cannot drift — a roadmap that also tried to be a history would end up wrong
@@ -28,14 +37,28 @@ quietly.
 - [flutter3d.pleion.dev](https://flutter3d.pleion.dev) — guides, tutorials for
   each genre, and the generated API reference.
 
-The engine renders through three backends behind one hardware contract, three
-games of different genres run on it, and the structural scans that hold the
-layer rules pass. A fourth genre — strategy — exists as a package with a bot
-and a match that plays itself, and is not yet a game.
+The engine renders through four backends behind one hardware contract —
+Impeller, WebGL2, WebGPU and a software rasteriser — four games of different
+genres run on it, and the structural scans that hold the layer rules pass.
+Strategy, which was a package with a bot and a match that plays itself, is a
+game with a demo in a browser. The model editor runs at
+[models.pleion.dev](https://models.pleion.dev).
+
+**0.7.0 is prepared and not published.** Thirty-three packages carry the
+number; [`doc/boundary-0.7.0.md`](doc/boundary-0.7.0.md) says which names end,
+which begin and which import lines change. Publication is held, by the owner's
+decision, until five to ten people have walked the modeller's tutorial against
+a clock.
 
 **`main` has been red, and the badge in the README is telling the truth.**
-Three causes are named, and all three are being fixed in the same wave of work
-this file was written in. The track generator wrote a lap length with the full
+It was red for the three causes below, and after they were fixed it stayed red
+for three more, none of them in the code either: a check for plain Dart packages
+that handed every one of them a Flutter plugin through an override, a job that
+stopped at `gltf_validator --help` because that prints its usage and exits 1,
+and an analysis of the two services under `cloud/` that nobody had resolved on
+that runner. Those are fixed on the release branch, and no run has confirmed it
+yet, so the sentence at the end of this paragraph still holds. The first three
+were named when this file was written, and were fixed in that wave of work. The track generator wrote a lap length with the full
 mantissa, so regenerating the file did not reproduce the committed one. The
 macOS job never built the example's shader bundle, so a job that had all the
 code failed for want of one script. And a table of libm's known answers was
@@ -105,11 +128,11 @@ set, and exported as something a game here loads without a warning — and an MC
 server offering the same commands to an agent, the way the level editor already
 does for levels.
 
-The vocabulary it needs came out of the engine first: `flutter3d_geometry` and
-`flutter3d_formats` hold `MeshData`, the shape generators, `ModelDocument` and
-the decoders with no Flutter SDK behind them, because a tool a host starts with
-`dart run` cannot resolve one. `flutter3d` exports both, so nothing above the
-split noticed. Above them sit `flutter3d_mesh` — half-edge topology, which is
+The vocabulary it needs came out of the engine first: `flutter3d_core`'s
+geometry and formats libraries hold `MeshData`, the shape generators,
+`ModelDocument` and the decoders with no Flutter SDK behind them, because a tool
+a host starts with `dart run` cannot resolve one. They were two packages of
+their own when this was written and were folded into the core since. Above them sit `flutter3d_mesh` — half-edge topology, which is
 what a `MeshData` has already thrown away — a document layer with a command per
 edit, and the application.
 
