@@ -25,7 +25,7 @@ dependencies:
 
   # The renderer: the `Scene` and `RenderSettings` a surface hands over, and
   # the mesh nodes, lights and probes a level becomes.
-  flutter3d: ^0.6.0
+  flutter3d: ^0.7.0
 
   # The vocabulary the backend choice is made in. Neither backend appears in
   # any signature here — `openDevice` returns a `GraphicsDevice`.
@@ -47,7 +47,7 @@ dependencies:
   # The level document `LevelLoader` reads, and the collision world it builds.
   # Plain Dart, so an application that loads no level pays a resolve for it
   # and nothing else.
-  flutter3d_sim: ^0.6.0
+  flutter3d_sim: ^0.7.0
 
   # The wall clock `FrameClock.tick` reads. Not a `Stopwatch`: this one is
   # what `flutter_test` fakes, so a widget test's `pump` advances the frame
@@ -73,4 +73,4 @@ dev_dependencies:
   # written in the material language, and `MaterialProgramStage` is what lets
   # the software backend draw one. Not a real dependency: nothing in `lib/`
   # reaches it.
-  flutter3d_testing: ^0.6.0
+  flutter3d_testing: ^0.7.0

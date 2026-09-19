@@ -1,6 +1,6 @@
 name: flutter3d_build
 description: "The build hook behind `dart run flutter3d:init`: converts model and texture sources into what the engine loads, on every build rather than as a step somebody remembers to run."
-version: 0.6.0
+version: 0.7.0
 repository: https://github.com/pleiondev/flutter3d
 homepage: https://flutter3d.pleion.dev
 issue_tracker: https://github.com/pleiondev/flutter3d/issues
@@ -18,7 +18,7 @@ dependencies:
   # (`ap-03`) — and neither needs the Flutter SDK to read a source file, which
   # is the whole reason this package can be a hook in the first place: `dart
   # pub get` inside a `hook/build.dart` process has no window to ask for.
-  flutter3d_core: ^0.1.0
+  flutter3d_core: ^0.7.0
 
   # `hook/build.dart`'s own contract — `ap-00`'s spike proved this is the half
   # of the build-hook feature that is stable on Flutter 3.47/Dart 3.13; the

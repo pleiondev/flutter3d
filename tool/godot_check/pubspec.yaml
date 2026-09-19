@@ -14,7 +14,7 @@ environment:
 dependencies:
   # `decodeModel` and `ModelDocument` — the numbers Godot's are compared
   # against are this repository's own loader's, read from the same file.
-  flutter3d_core: ^0.1.0
+  flutter3d_core: ^0.7.0
 
 dev_dependencies:
   test: ^1.24.0

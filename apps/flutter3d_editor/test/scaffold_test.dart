@@ -261,8 +261,8 @@ void main() {
       // true only on the machine that made the project.
       final pubspec = _text(_project(), 'pubspec.yaml');
 
-      expect(pubspec, contains('flutter3d: ^0.6.0'));
-      expect(pubspec, contains('flutter3d_game: ^0.6.0'));
+      expect(pubspec, contains('flutter3d: ^0.7.0'));
+      expect(pubspec, contains('flutter3d_game: ^0.7.0'));
       expect(pubspec, isNot(contains('path:')));
     });
 
