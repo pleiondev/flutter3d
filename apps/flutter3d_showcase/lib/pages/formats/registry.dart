@@ -4,6 +4,7 @@
 /// opened, so a demo's own state never survives a visit.
 library;
 
+import 'package:flutter3d_showcase/pages/formats/custom_decoder.dart';
 import 'package:flutter3d_showcase/pages/formats/draco.dart';
 import 'package:flutter3d_showcase/pages/formats/export_validate.dart';
 import 'package:flutter3d_showcase/pages/formats/f3d.dart';
@@ -14,9 +15,11 @@ import 'package:flutter3d_showcase/pages/formats/gltf_write.dart';
 import 'package:flutter3d_showcase/pages/formats/image_decode.dart';
 import 'package:flutter3d_showcase/pages/formats/ktx2.dart';
 import 'package:flutter3d_showcase/pages/formats/meshopt.dart';
+import 'package:flutter3d_showcase/pages/formats/model_asset.dart';
 import 'package:flutter3d_showcase/pages/formats/obj.dart';
 import 'package:flutter3d_showcase/pages/formats/stl.dart';
 import 'package:flutter3d_showcase/pages/formats/texture_compression.dart';
+import 'package:flutter3d_showcase/pages/formats/texture_transform.dart';
 import 'package:flutter3d_showcase/pages/formats/usdz.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
 
@@ -35,4 +38,7 @@ final Map<String, DemoBuilder> formatsDemos = <String, DemoBuilder>{
   'meshopt': MeshoptDemo.new,
   'fbx-refusal': FbxRefusalDemo.new,
   'image-decode': ImageDecodeDemo.new,
+  'custom-decoder': CustomDecoderDemo.new,
+  'model-asset': ModelAssetDemo.new,
+  'texture-transform': TextureTransformDemo.new,
 };
