@@ -6,6 +6,7 @@ library;
 
 import 'package:flutter3d_showcase/pages/animation/additive_blend.dart';
 import 'package:flutter3d_showcase/pages/animation/animation_layers.dart';
+import 'package:flutter3d_showcase/pages/animation/baked_crowd.dart';
 import 'package:flutter3d_showcase/pages/animation/clip_playback.dart';
 import 'package:flutter3d_showcase/pages/animation/fabrik_ik.dart';
 import 'package:flutter3d_showcase/pages/animation/instanced_morphs.dart';
@@ -31,4 +32,5 @@ final Map<String, DemoBuilder> animationDemos = <String, DemoBuilder>{
   'fabrik-ik': FabrikIkDemo.new,
   'pose-sampling': PoseSamplingDemo.new,
   'skeleton-debug': SkeletonDebugDemo.new,
+  'baked-crowd': BakedCrowdDemo.new,
 };
