@@ -6,18 +6,24 @@ library;
 
 import 'package:flutter3d_showcase/src/demo/demo.dart';
 
+import 'actors.dart';
 import 'automap.dart';
 import 'baked_visibility.dart';
+import 'camera_shake.dart';
+import 'difficulty.dart';
 import 'ecs_world.dart';
 import 'fixed_step.dart';
 import 'flow_field.dart';
 import 'headless_run.dart';
 import 'level_format.dart';
+import 'level_mechanisms.dart';
+import 'light_fixtures.dart';
 import 'lightmap_bake.dart';
 import 'nav_grid.dart';
 import 'portable_math.dart';
 import 'replay_digest.dart';
 import 'rewind.dart';
+import 'splines.dart';
 import 'step_systems.dart';
 import 'terrain_tiles.dart';
 
@@ -35,5 +41,11 @@ final Map<String, DemoBuilder> simAudioXrDemos = <String, DemoBuilder>{
   'lightmap-bake': LightmapBakeDemo.new,
   'baked-visibility': BakedVisibilityDemo.new,
   'terrain-tiles': TerrainTilesDemo.new,
+  'splines': SplinesDemo.new,
   'level-format': LevelFormatDemo.new,
+  'level-mechanisms': LevelMechanismsDemo.new,
+  'light-fixtures': LightFixturesDemo.new,
+  'actors': ActorsDemo.new,
+  'camera-shake': CameraShakeDemo.new,
+  'difficulty': DifficultyDemo.new,
 };

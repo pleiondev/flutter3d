@@ -185,4 +185,86 @@ const List<Feature> simAudioXrFeatures = <Feature>[
     evidenceFile: 'packages/flutter3d_sim/CHANGELOG.md',
     packages: <String>['flutter3d_sim'],
   ),
+  Feature(
+    id: 'level-mechanisms',
+    title: 'Doors, lifts and buttons',
+    category: Category.simAudioXr,
+    summary:
+        'One machine that travels between two places, and a switch that '
+        'relays an activation to it by name.',
+    since: '0.4.0',
+    approximate: true,
+    evidence: 'no explicit origin',
+    evidenceFile: 'packages/flutter3d_sim/CHANGELOG.md',
+    keywords: <String>['world logic'],
+    packages: <String>['flutter3d_sim'],
+  ),
+  Feature(
+    id: 'light-fixtures',
+    title: 'Flickering lights',
+    category: Category.simAudioXr,
+    summary:
+        'A light that flickers like fire or pulses like something magical, '
+        'with one brightness number driving both the glow and the light.',
+    since: '0.4.0',
+    approximate: true,
+    evidence: 'no explicit origin',
+    evidenceFile: 'packages/flutter3d_sim/CHANGELOG.md',
+    keywords: <String>['world logic'],
+    packages: <String>['flutter3d_sim'],
+  ),
+  Feature(
+    id: 'actors',
+    title: 'Actors, brains and health',
+    category: Category.simAudioXr,
+    summary:
+        'A thin handle onto an entity\'s components: health that can run '
+        'out, and a brain a game writes for itself.',
+    since: '0.4.0',
+    approximate: true,
+    evidence: 'no explicit origin',
+    evidenceFile: 'packages/flutter3d_sim/CHANGELOG.md',
+    keywords: <String>['world logic'],
+    packages: <String>['flutter3d_sim'],
+  ),
+  Feature(
+    id: 'camera-shake',
+    title: 'The shared camera rig',
+    category: Category.simAudioXr,
+    summary:
+        'Easing towards where a chasing view should be, carrying a knock or '
+        'a shake that fades, and staying out of the walls.',
+    since: '0.4.0',
+    approximate: true,
+    evidence: 'no explicit origin',
+    evidenceFile: 'packages/flutter3d_sim/CHANGELOG.md',
+    keywords: <String>['camera rig'],
+    packages: <String>['flutter3d_sim'],
+  ),
+  Feature(
+    id: 'splines',
+    title: 'A Catmull-Rom path',
+    category: Category.simAudioXr,
+    summary:
+        'A smooth closed curve through a list of points, measured once so '
+        'everything after that can ask for a point by distance in metres.',
+    since: '0.4.0',
+    approximate: true,
+    evidence: 'no explicit origin',
+    evidenceFile: 'packages/flutter3d_sim/CHANGELOG.md',
+    keywords: <String>['the maths'],
+    packages: <String>['flutter3d_sim'],
+  ),
+  Feature(
+    id: 'difficulty',
+    title: 'Difficulty axes',
+    category: Category.simAudioXr,
+    summary:
+        'Four numbers a genre applies where it decides, instead of a name it '
+        'has to interpret.',
+    since: '0.5.0',
+    evidence: 'four axes a genre applies where it decides',
+    evidenceFile: 'packages/flutter3d_sim/CHANGELOG.md',
+    packages: <String>['flutter3d_sim'],
+  ),
 ];
