@@ -343,4 +343,64 @@ const List<Feature> simAudioXrFeatures = <Feature>[
     keywords: <String>['attenuation'],
     packages: <String>['flutter3d_audio'],
   ),
+  Feature(
+    id: 'pendulum-lab',
+    title: 'The virtual pendulum lab',
+    category: Category.simAudioXr,
+    summary:
+        'A worked example small enough that one changed number visibly '
+        'changes a run, and a digest that finds exactly where two runs part.',
+    since: '0.7.0',
+    evidence: 'is a damped pendulum stepped with',
+    evidenceFile: 'packages/flutter3d_lab/CHANGELOG.md',
+    packages: <String>['flutter3d_sim'],
+  ),
+  Feature(
+    id: 'stereo-rig',
+    title: 'The stereo rig',
+    category: Category.simAudioXr,
+    summary:
+        'Two cameras under a head, under a stage the application moves, '
+        'drawn side by side into one frame.',
+    since: '0.1.0',
+    evidence: 'places two eyes under a head under a stage',
+    evidenceFile: 'packages/flutter3d_stereo/CHANGELOG.md',
+    packages: <String>['flutter3d_stereo'],
+  ),
+  Feature(
+    id: 'viewer-profiles',
+    title: 'Cardboard viewer profiles',
+    category: Category.simAudioXr,
+    summary:
+        'The numbers a folded holder and a moulded one differ by, turned '
+        'into an off-centre frustum per eye.',
+    since: '0.1.0',
+    evidence: 'carries the numbers holders differ by',
+    evidenceFile: 'packages/flutter3d_stereo/CHANGELOG.md',
+    packages: <String>['flutter3d_stereo'],
+  ),
+  Feature(
+    id: 'stereo-lesson',
+    title: 'A lesson through the rig',
+    category: Category.simAudioXr,
+    summary:
+        'The same lesson document a step panel authors, played back through '
+        'a stereo rig with a button instead of a keyboard.',
+    since: '0.7.0',
+    evidence: 'holds which step of an',
+    evidenceFile: 'packages/flutter3d_stereo/CHANGELOG.md',
+    packages: <String>['flutter3d_stereo', 'flutter3d_sim'],
+  ),
+  Feature(
+    id: 'head-tracking',
+    title: 'Head tracking',
+    category: Category.simAudioXr,
+    summary:
+        'A pose that says which way the head is turned, fed to the rig '
+        'every frame, from a sensor or from a mouse-driven stand-in.',
+    since: '0.1.0',
+    evidence: "points the head with the device's own rotation sensor",
+    evidenceFile: 'packages/flutter3d_stereo/CHANGELOG.md',
+    packages: <String>['flutter3d_stereo'],
+  ),
 ];
