@@ -333,12 +333,7 @@ final class ParticleSystem {
 
   final Map<Object, double> _owed = <Object, double>{};
 
-  /// Emits one burst of [effect] at [origin].
-  ///
-  /// [direction] matters only to emitters that use it; it is normalised here so
-  /// callers can pass a surface normal or a velocity without thinking about it.
-  ///
-  /// Returns how many particles were actually emitted.
+  /// One particle of [effect] from [source], or none when the pool is full.
   int _emitOne(
     ParticleEffect effect,
     Vector3 origin,
@@ -358,10 +353,31 @@ final class ParticleSystem {
     return 1;
   }
 
-  int burst(ParticleEffect effect, Vector3 origin, {Vector3? direction}) {
+  /// Emits one burst of [effect] at [origin].
+  ///
+  /// [direction] matters only to emitters that use it; it is normalised here so
+  /// callers can pass a surface normal or a velocity without thinking about it.
+  ///
+  /// [source] is who the burst belongs to, and it is how a muzzle flash lights
+  /// the wall: pass a [LightEmitter] and its [ParticleGlow] is fed by these
+  /// particles for as long as they live, then fades and drops out of the walk
+  /// on its own, the way a torch that has been put out does. Without one the
+  /// burst belongs to nobody and lights nothing, which is what a puff of dust
+  /// wants. It was the only answer this method had, so every flash and every
+  /// explosion in the three games was dark however bright it was painted.
+  ///
+  /// Returns how many particles were actually emitted.
+  int burst(
+    ParticleEffect effect,
+    Vector3 origin, {
+    Vector3? direction,
+    Object? source,
+  }) {
     final axis = direction == null || direction.length2 < 1e-12
         ? Vector3(0.0, 1.0, 0.0)
         : direction.normalized();
+    // Only what asked to be measured. See [LightEmitter].
+    if (source is LightEmitter) _emitters.add(source);
 
     var emitted = 0;
     for (var i = 0; i < effect.count; i++) {
@@ -371,6 +387,7 @@ final class ParticleSystem {
         break;
       }
       _initialise(particle, effect, origin, axis);
+      particle.source = source;
       emitted++;
     }
     return emitted;
@@ -400,7 +417,7 @@ final class ParticleSystem {
       // burst landing in a slot a torch's flame had just vacated inherited the
       // torch, and `step` fed the burst's particles into that torch's
       // [ParticleGlow]. A rocket going off near a wall brightened the torch on
-      // it. [_emitOne] assigns the real source after this returns.
+      // it. [_emitOne] and [burst] assign the real source after this returns.
       ..source = null
       ..age = 0.0
       ..lifetime = effect.lifetime.sample(_random)
