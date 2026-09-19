@@ -207,3 +207,22 @@ memory: four were already there, two were not.**
   `gridOrderFrom`: the winner on pole, a finished car ahead of those still
   racing wherever they are on the track, and a field that finished in grid
   order left alone.
+- **Score and streaks** — half was already there, and the first check missed
+  it by looking for a formula. The shooter already counts its score:
+  `Crawl.kills` in `apps/flutter3d_demo_dungeon/lib/src/run_cubit.dart`, on
+  the screen at the end of a run (`CryptEnding`), one kill one point —
+  nothing to invent. What was genuinely missing was the streak, and it is
+  there now: `Crawl.streak` (kills since the player was last hurt) and
+  `Crawl.bestStreak` (the longest one of the run). Both read off the two
+  event checks `_step` already made — `ActorDied` for the kill count,
+  `PlayerHurt` for the screen flash — so nothing new is asked of the
+  simulation. A hit overrides the same step's kills rather than following
+  them: a monster whose last swing and whose death land on one step ends the
+  streak instead of buying it back with that kill. `CryptEnding` shows a
+  fourth number, "best streak", through the same `_Tally` as the other
+  three; `test/ending_test.dart` covers the arithmetic, the same-step case
+  and the number on the screen.
+
+  **A live "five in a row!" toast is not built, and that is a decision.** It
+  would need a threshold nothing in this repository names, and picking one is
+  the plan's author's call, not a wiring gap.

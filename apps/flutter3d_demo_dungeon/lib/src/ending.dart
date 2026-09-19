@@ -41,6 +41,7 @@ class CryptEnding extends StatelessWidget {
     required this.kills,
     required this.seconds,
     required this.levels,
+    required this.bestStreak,
     this.touch = false,
   });
 
@@ -54,6 +55,10 @@ class CryptEnding extends StatelessWidget {
   /// Levels of the crypt this crawl stood in — see `Crawl.levels`, and the
   /// note there about a run resumed from disk.
   final int levels;
+
+  /// The longest run of kills this crawl made without being hurt in between.
+  /// See `Crawl.streak` for what breaks one.
+  final int bestStreak;
 
   /// Whether the player has fingers rather than a keyboard.
   ///
@@ -101,6 +106,7 @@ class CryptEnding extends StatelessWidget {
                     label: levels == 1 ? 'level' : 'levels',
                     value: '$levels',
                   ),
+                  _Tally(label: 'best streak', value: '$bestStreak'),
                 ],
               ),
               const SizedBox(height: 26),
