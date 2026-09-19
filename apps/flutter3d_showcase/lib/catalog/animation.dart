@@ -186,4 +186,25 @@ const List<Feature> animationFeatures = <Feature>[
       'packages/flutter3d_core/lib/src/engine/render/debug_draw_gizmos.dart',
     ],
   ),
+  Feature(
+    id: 'baked-crowd',
+    title: 'A crowd from a baked clip',
+    category: Category.animation,
+    summary:
+        'Every clip a crowd wears sampled once into a table, so an instance '
+        'needs only which clip and how far into it.',
+    since: '0.7.0',
+    evidenceFile: 'packages/flutter3d_core/CHANGELOG.md',
+    approximate: true,
+    evidence:
+        'no explicit origin: `flutter3d_core`\'s own record, the only one '
+        '`BakedPoses` could be in (it was never published before 0.7.0), '
+        'never names it. The nearest it comes is the bullet on `Pose`, '
+        'skinning and IK without a scene, which is where a skeleton is '
+        'mentioned at all.',
+    keywords: <String>['skeleton'],
+    engineFiles: <String>[
+      'packages/flutter3d_core/lib/src/engine/animation/baked_poses.dart',
+    ],
+  ),
 ];
