@@ -20,6 +20,7 @@ import 'package:flutter3d_modeler/src/app_config.dart' show kOpeningReportFor;
 import 'package:flutter3d_modeler/src/modeler_viewport.dart';
 import 'package:flutter3d_modeler/src/settings.dart';
 import 'package:flutter3d_modeler/src/ui/properties/object_row.dart';
+import 'package:flutter3d_modeler/src/ui/properties/properties_panel.dart';
 import 'package:flutter3d_modeler/src/ui/theme.dart';
 import 'package:flutter3d_modeler/src/ui/tools.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -315,6 +316,31 @@ Future<void> openUvModeOnTheCube(
   await tester.tap(find.byType(ObjectRow).first);
   await settleFrames(tester);
   await switchMode(tester, ModelerMode.uv);
+}
+
+/// Scrolls the inspector to the held object's own "Levels of detail" row.
+///
+/// The panel is a lazy list and the row sits under the modifier stack, so on
+/// a 900-tall window it is not merely off screen but not built.
+Future<void> scrollToLodsRow(WidgetTester tester) async {
+  await tester.scrollUntilVisible(
+    find.byKey(const ValueKey<String>('openLods')),
+    120,
+    scrollable: find
+        .descendant(
+          of: find.byType(PropertiesPanel),
+          matching: find.byType(Scrollable),
+        )
+        .first,
+  );
+  await settleFrames(tester);
+}
+
+/// Presses the inspector's own "Open…" — screen 17 for whatever is held.
+Future<void> openLodScreen(WidgetTester tester) async {
+  await scrollToLodsRow(tester);
+  await tester.tap(find.byKey(const ValueKey<String>('openLods')));
+  await settleFrames(tester);
 }
 
 /// Marks every edge of the held mesh as a seam, the way a person would:

@@ -29,6 +29,18 @@ duplicated here, and this is the only mode that adds a new one. The
 properties panel is the document: the outliner above, the selected object's
 transform, modifiers and material below.
 
+![Levels of detail: the same object three times at three levels, the zone bar under them, and a card per level on the right.](/assets/learn/modeler/modes/object-lods.png)
+
+Under the modifiers, an object says how many levels of detail it has and
+opens them side by side. Add a level and it keeps half the triangles of the
+coarsest so far and takes over at half its size on screen; a card's slider
+changes how much it keeps, and the marker on the strip under the pictures
+places where it takes over. **The marker moves the level you have just
+added**, by adjusting that step rather than adding another — a level made
+earlier says its threshold is fixed, because nothing in the document moves
+one yet. The line at the top reads what the object covers in the main
+viewport right now, and which level that would draw.
+
 ## Mesh
 
 ![Mesh mode, with the element rail and the vertex/edge/face switch.](/assets/learn/modeler/modes/mesh-mode.png)

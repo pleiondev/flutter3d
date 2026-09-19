@@ -473,6 +473,8 @@ extension _ReadyParts on _ModelerScreenState {
                     ? null
                     : state.history.journal.last,
                 onAmend: _amend,
+                // `pro-lod-04`: the held object's own way into screen 17.
+                onOpenLods: _openLods,
                 shading: _shading,
                 onShading: (ShadingMode mode) =>
                     setState(() => _shading = mode),
@@ -487,59 +489,80 @@ extension _ReadyParts on _ModelerScreenState {
               // slot is already resizable and remembered per workspace
               // (`ux-38`), so a person who wants a wider bake panel gets
               // one for free.
-              final Widget? proPanel = switch (state.mode) {
-                ModelerMode.retopo => BakePanel(
-                  targetQuads: _retopo.quads,
-                  onTargetQuads: _setRetopoQuads,
-                  onRetopologize: _retopologize,
-                  maps: _retopo.bakeMaps,
-                  onMap: _setBakeMap,
-                  resolution: _retopo.bakeResolution,
-                  onResolution: _setBakeResolution,
-                  onBake: _bakeTheMaps,
-                  running: _retopo.baking,
-                  onCancel: _cancelBake,
-                  refusal: _bakeRefusal(state),
-                ),
-                ModelerMode.paint => PaintPanel(
-                  layers: _paintLayersOf(state),
-                  selectedLayer: _paint.layer,
-                  onSelectLayer: _setPaintLayer,
-                  onAddLayer: _addPaintLayer,
-                  colour: _paint.colour,
-                  onColour: _setPaintColour,
-                  radius: _paint.diameter,
-                  onRadius: _setPaintRadius,
-                  strength: _paint.strength,
-                  onStrength: _setPaintStrength,
-                  masks: _paintMasksOf(state),
-                  mask: _paint.mask,
-                  onMask: _setPaintMask,
-                  canvas: _paint.canvas,
-                  refusal: _paintRefusal(state),
-                ),
-                ModelerMode.simulation => SimulationPanel(
-                  kind: _sim.kind,
-                  onKind: _setSimKind,
-                  parameters: _sim.parameters,
-                  onParameter: _setSimParameter,
-                  colliders: _simCollidersOf(state),
-                  onCollider: _setSimCollider,
-                  pinnedCount: _sim.pinned.length,
-                  selectedCount: state.selection.elements.length,
-                  onPinSelection: () => _pinSimSelection(state),
-                  onClearPins: _clearSimPins,
-                ),
-                ModelerMode.render => RenderPanel(
-                  passes: _render.passes,
-                  onPass: _setRenderPass,
-                  onRender: _renderSnapshot,
-                  tilesDone: _render.tilesDone,
-                  tilesTotal: _render.tilesTotal,
-                  onCancel: _cancelRender,
-                ),
-                _ => null,
-              };
+              //
+              // `pro-lod-04`: and screen 17, which is not a mode. It is a
+              // view of the held object reached from that object's own
+              // inspector — the hand-over's own way in — so it is asked
+              // first and only in Object mode, and an object deselected or
+              // deleted while it is up simply puts the inspector back.
+              final ModelObject? lodObject =
+                  _lod.open && state.mode == ModelerMode.object
+                  ? forStatus
+                  : null;
+              final Widget? proPanel = lodObject != null
+                  ? LodPanel(
+                      objectName: lodObject.name,
+                      levels: _lodRowsOf(lodObject),
+                      onRatio: _setLodRatio,
+                      onAddLevel: _addLod,
+                      onRegenerate: _regenerateLods,
+                      onClose: _closeLods,
+                      now: _lodNowOf(state, lodObject),
+                      refusal: _lodRefusal(lodObject),
+                    )
+                  : switch (state.mode) {
+                      ModelerMode.retopo => BakePanel(
+                        targetQuads: _retopo.quads,
+                        onTargetQuads: _setRetopoQuads,
+                        onRetopologize: _retopologize,
+                        maps: _retopo.bakeMaps,
+                        onMap: _setBakeMap,
+                        resolution: _retopo.bakeResolution,
+                        onResolution: _setBakeResolution,
+                        onBake: _bakeTheMaps,
+                        running: _retopo.baking,
+                        onCancel: _cancelBake,
+                        refusal: _bakeRefusal(state),
+                      ),
+                      ModelerMode.paint => PaintPanel(
+                        layers: _paintLayersOf(state),
+                        selectedLayer: _paint.layer,
+                        onSelectLayer: _setPaintLayer,
+                        onAddLayer: _addPaintLayer,
+                        colour: _paint.colour,
+                        onColour: _setPaintColour,
+                        radius: _paint.diameter,
+                        onRadius: _setPaintRadius,
+                        strength: _paint.strength,
+                        onStrength: _setPaintStrength,
+                        masks: _paintMasksOf(state),
+                        mask: _paint.mask,
+                        onMask: _setPaintMask,
+                        canvas: _paint.canvas,
+                        refusal: _paintRefusal(state),
+                      ),
+                      ModelerMode.simulation => SimulationPanel(
+                        kind: _sim.kind,
+                        onKind: _setSimKind,
+                        parameters: _sim.parameters,
+                        onParameter: _setSimParameter,
+                        colliders: _simCollidersOf(state),
+                        onCollider: _setSimCollider,
+                        pinnedCount: _sim.pinned.length,
+                        selectedCount: state.selection.elements.length,
+                        onPinSelection: () => _pinSimSelection(state),
+                        onClearPins: _clearSimPins,
+                      ),
+                      ModelerMode.render => RenderPanel(
+                        passes: _render.passes,
+                        onPass: _setRenderPass,
+                        onRender: _renderSnapshot,
+                        tilesDone: _render.tilesDone,
+                        tilesTotal: _render.tilesTotal,
+                        onCancel: _cancelRender,
+                      ),
+                      _ => null,
+                    };
 
               // `S5`'s own row: the weights sub-mode's own view — the brush
               // routes to `InputPolicy` rather than the drag/box branches,
@@ -951,6 +974,30 @@ extension _ReadyParts on _ModelerScreenState {
                       tilesDone: _render.tilesDone,
                       tilesTotal: _render.tilesTotal,
                     )
+                  // `pro-lod-04`: screen 17 — three thirds of the held
+                  // object and the zone bar under them — takes the
+                  // viewport's place the same way, and its panel is the
+                  // `proPanel` above. Each third is a real viewport over a
+                  // stage of its own (`LodLevelViewport` says why), turning
+                  // with the document's own camera so the three stay one
+                  // comparison.
+                  : lodObject != null
+                  ? LodScreen(
+                      object: lodObject,
+                      cache: _lod.cache,
+                      viewportBuilder:
+                          (
+                            BuildContext context,
+                            int lodIndex,
+                            MeshData? mesh,
+                          ) => LodLevelViewport(
+                            renderer: renderer,
+                            lodIndex: lodIndex,
+                            mesh: mesh,
+                            leader: stage.orbit,
+                          ),
+                      onThresholdChanged: _moveLodThreshold,
+                    )
                   // `pro-uv-07`: screen 06 takes the viewport's place the
                   // way the retarget pair does, and carries its own panel.
                   //
@@ -1011,6 +1058,10 @@ extension _ReadyParts on _ModelerScreenState {
                 // on the remembered sub-mode, the same as the rail already
                 // reads `state.animationSubmode` for it.
                 final tools = toolsFor(mode, animation: state.animationSubmode);
+                // `pro-lod-04`: leaving Object mode closes screen 17, so
+                // coming back finds the inspector a person left from rather
+                // than a screen they had stopped looking at.
+                if (_lod.open) _closeLods();
                 _cubit
                   ..mode(mode)
                   // The armed tool belongs to the mode it came from, so a mode change
