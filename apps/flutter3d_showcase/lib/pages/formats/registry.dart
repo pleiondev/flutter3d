@@ -4,6 +4,7 @@
 /// opened, so a demo's own state never survives a visit.
 library;
 
+import 'package:flutter3d_showcase/pages/formats/build_convert.dart';
 import 'package:flutter3d_showcase/pages/formats/custom_decoder.dart';
 import 'package:flutter3d_showcase/pages/formats/draco.dart';
 import 'package:flutter3d_showcase/pages/formats/export_validate.dart';
@@ -41,4 +42,5 @@ final Map<String, DemoBuilder> formatsDemos = <String, DemoBuilder>{
   'custom-decoder': CustomDecoderDemo.new,
   'model-asset': ModelAssetDemo.new,
   'texture-transform': TextureTransformDemo.new,
+  'build-convert': BuildConvertDemo.new,
 };
