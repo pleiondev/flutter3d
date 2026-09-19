@@ -1,0 +1,9 @@
+tags:
+  # A test that draws real pixels: a reference picture held against a
+  # committed PNG, or a page rendered on the software rasteriser. Skipped by
+  # `very_good test -x golden` for a quick run; CI runs everything.
+  golden:
+
+  # Tests that touch `dart:js_interop` or draw cannot be rewritten by
+  # very_good's test optimizer into one file.
+  skip_very_good_optimization:

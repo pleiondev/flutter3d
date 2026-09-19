@@ -1,0 +1,80 @@
+name: flutter3d_showcase
+description: "Every capability of the flutter3d engine on a page of its own, with the version it appeared in and a step-by-step guide."
+publish_to: 'none'
+version: 0.7.0+1
+resolution: workspace
+
+environment:
+  sdk: ^3.12.2
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # The backend chooser with its software fallback: this application says
+  # `openDevice()` rather than naming Impeller or WebGL, so the same code opens
+  # on macOS and in a browser.
+  flutter3d_app:
+    path: ../../packages/flutter3d_app
+
+  flutter3d:
+    path: ../../packages/flutter3d
+  flutter3d_core:
+    path: ../../packages/flutter3d_core
+  flutter3d_hardware:
+    path: ../../packages/flutter3d_hardware
+
+  # What the pages show. They are listed here, all of them, so that a page
+  # added later never has to edit this file: the pages are written in parallel
+  # and a pubspec is the one file they would all conflict on.
+  flutter3d_audio:
+    path: ../../packages/flutter3d_audio
+  flutter3d_mesh:
+    path: ../../packages/flutter3d_mesh
+  flutter3d_particles:
+    path: ../../packages/flutter3d_particles
+  flutter3d_physics:
+    path: ../../packages/flutter3d_physics
+  flutter3d_samples:
+    path: ../../packages/flutter3d_samples
+  flutter3d_sim:
+    path: ../../packages/flutter3d_sim
+  flutter3d_stereo:
+    path: ../../packages/flutter3d_stereo
+
+  vector_math: ^2.2.0
+
+  # The links from a page to its guide on the documentation site.
+  url_launcher: ^6.3.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+
+  # A device that draws with no window and no GPU, so a page can be built and
+  # rendered in a test.
+  flutter3d_cpu:
+    path: ../../packages/flutter3d_cpu
+
+  flutter_lints: ^6.0.0
+
+flutter:
+  uses-material-design: true
+
+  # **A directory is not searched below itself**, so each category of pages is
+  # named here. What is in one is the page (`.dart`, run in the viewport and
+  # shown in the Source tab) and its guide (`.md`, the Step by step tab), which
+  # sit side by side so that neither can be added without the other.
+  assets:
+    - lib/pages/shading/
+    - lib/pages/environment/
+    - lib/pages/shadows/
+    - lib/pages/post/
+    - lib/pages/scene/
+    - lib/pages/animation/
+    - lib/pages/view_input/
+    - lib/pages/formats/
+    - lib/pages/backends/
+    - lib/pages/physics_particles/
+    - lib/pages/sim_audio_xr/
+    - lib/pages/widgets_misc/

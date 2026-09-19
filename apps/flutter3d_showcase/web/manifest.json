@@ -1,0 +1,35 @@
+{
+    "name": "flutter3d Showcase",
+    "short_name": "Showcase",
+    "start_url": ".",
+    "display": "standalone",
+    "background_color": "#0E1112",
+    "theme_color": "#0E1112",
+    "description": "Every capability of the flutter3d engine on its own page, with the version it appeared in and a step-by-step guide.",
+    "orientation": "any",
+    "prefer_related_applications": false,
+    "icons": [
+        {
+            "src": "icons/Icon-192.png",
+            "sizes": "192x192",
+            "type": "image/png"
+        },
+        {
+            "src": "icons/Icon-512.png",
+            "sizes": "512x512",
+            "type": "image/png"
+        },
+        {
+            "src": "icons/Icon-maskable-192.png",
+            "sizes": "192x192",
+            "type": "image/png",
+            "purpose": "maskable"
+        },
+        {
+            "src": "icons/Icon-maskable-512.png",
+            "sizes": "512x512",
+            "type": "image/png",
+            "purpose": "maskable"
+        }
+    ]
+}
