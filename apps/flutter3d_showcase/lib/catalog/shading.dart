@@ -44,7 +44,13 @@ const List<Feature> shadingFeatures = <Feature>[
         'Fine relief stored in a texture, so a smooth surface catches light '
         'like a bumpy one.',
     since: '0.1.0',
-    evidence: 'Six lighting models, each a pre-built shader',
+    approximate: true,
+    evidence:
+        'no explicit origin: no CHANGELOG names `Material.normal` or '
+        '`normalScale`. The nearest the record comes is the six lighting '
+        'models a normal map shades against, which is the shading system '
+        'this belongs to and the earliest version it could have arrived in.',
+    keywords: <String>['lighting model'],
     engineFiles: <String>[
       'packages/flutter3d_core/lib/src/geometry/mesh_tangents.dart',
     ],
@@ -71,7 +77,13 @@ const List<Feature> shadingFeatures = <Feature>[
         'Draw a surface first, keep it out of the depth buffer, or skip the '
         'backs of triangles.',
     since: '0.1.0',
-    evidence: 'BVH culling',
+    approximate: true,
+    evidence:
+        'no explicit origin: no CHANGELOG names `drawBucket`, `depthWrite`, '
+        '`depthCompare` or `backfaceCulling`. The nearest the record comes is '
+        'the six lighting models the same `Material` and render pipeline '
+        'carry, the earliest version this draw state could have arrived in.',
+    keywords: <String>['lighting model'],
     engineFiles: <String>[
       'packages/flutter3d_core/lib/src/engine/render/material.dart',
     ],
