@@ -1,3 +1,50 @@
+## 0.7.0
+
+- **The first publication, and the number skips.** 0.1.0, 0.2.0 and 0.3.0
+  below were numbers this package carried inside the workspace; none of them
+  reached pub.dev, so nobody outside saw the ones passed over. It goes out at
+  0.7.0 with the rest of the shelf so that one number names one tree and
+  `^0.7.0` on any `flutter3d_*` package resolves against every other.
+  `doc/boundary-0.7.0.md` has the list of the thirteen that begin here.
+- **`flutter3d_formats` is `flutter3d_core`.** The package the hints come from
+  was folded into `flutter3d_core`, which is the dependency now, at `^0.7.0`.
+  `RangeHint`, `ColorHint`, `TextureHint` and `EnumHint` are imported from
+  `package:flutter3d_core/formats.dart`. The invariant stands: never
+  `flutter3d_editor_core`, never `flutter3d_model_core`.
+- **`NumberField` reads arithmetic and units.** `evaluateNumber(text, unit:)`
+  takes the four operators, brackets and `pi`, and a `NumberUnit` of `plain`,
+  `metres` or `degrees`. Under `metres` a suffix of `mm`, `cm`, `dm`, `m`,
+  `km`, `in` or `ft` converts to metres; under `degrees`, `deg`, `rad` and
+  `turn` convert to degrees; `plain` refuses every suffix, and an unknown one
+  answers null. A comma is still read as a decimal point and a result that is
+  not finite is refused. `NumberField` takes `unit`, and `NumberField.parse`
+  takes it as a named parameter, so `parse('1/3')` now returns a value.
+- **`NumberField` can be nudged.** Up and Down move the value by `step`, 0.1 by
+  default, Shift multiplies that by ten and Ctrl or Cmd by a tenth, and the
+  label is a horizontal scrub handle at one step a pixel. `labelWidth` is a
+  parameter, default 18.
+- **`NumberField.show` stops printing a small number as zero.** It used three
+  decimal places for everything, so an STL read at a scale of 0.001 displayed
+  `0`. A magnitude of 0.01 and above still gets three places, one of 0.0001
+  and above gets six, anything smaller eight.
+- **A dense row gets a dense field.** `EditorWidgetsTheme.denseFields` is true
+  when `rowHeight` is under 40, and `fieldPadding()` answers 6 pixels of
+  vertical padding then and `(rowHeight - 24) / 2` otherwise. The text boxes
+  in `NumberField`, `ColorField` and `RangeSliderField` take `isDense` and
+  their `contentPadding` from the two. The theme's defaults are unchanged.
+- **`RangeSliderField` puts its label above the slider in a narrow row.** When
+  the row is narrower than the label, the value box and `kLabelBesideFrom`,
+  150 pixels, the label is stacked and the slider keeps its length. The
+  constructor is unchanged.
+- **Sliders and `SectionLabel` take their look from outside.**
+  `RangeSliderField` and `ColorField` no longer wrap themselves in a
+  `SliderTheme` with a 3-pixel track and a 6-pixel thumb; they draw with the
+  ambient `sliderTheme`. `SectionLabel`'s default style is 11 points, weight
+  400, letter spacing 0.88 in `colorScheme.outline`, where it was
+  `labelMedium` in `onSurfaceVariant` at 0.6. An application that relied on
+  either default sees a different picture and sets the theme or passes
+  `style`.
+
 ## 0.3.0
 
 - **`TexturePathField`, `ColorSwatchField`, `HintTextBox`/`NumbersRow` and

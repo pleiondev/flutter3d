@@ -1,5 +1,17 @@
-## Unreleased
+## 0.7.0
 
+* **Breaking. A `Demo` carries what a replay is verified against.** The
+  constructor requires `levelHash`, `buildStamp` and `checkpoints`, a
+  `DigestTrace`, beside the level name, the start and the tape, and takes
+  `platform`, `recordedBy` and `dataSources` as optional. `Demo.fromJson`
+  throws `DemoFormatException` for a file without the first three, so a demo
+  written by 0.6.0 does not open; `formatVersion` is still 1. With them a
+  reader can tell that the level changed since the recording, and a replay can
+  be compared checkpoint by checkpoint against the run it claims to repeat.
+  `Demo.fileExtension` is `.f3drun`.
+  `DigestTrace` gained `toJson` and `fromJson` for this, with
+  `DigestTraceFormatException`, and `Level.digestHex` and `contentDigestHex`
+  produce the eight hex digits a `levelHash` holds.
 * **A level's ground is in its collision world.** `Level.addTo` adds the
   level's `Heightfield` as one static `CollisionHeightfield`, placed so that a
   ray fired down lands where `heightAt` says the surface is. It added the
@@ -7,6 +19,55 @@
   hill that a body fell through. A level with no field gets what it always
   got. `Heightfield.copyOfSamples` is new and is how the shape gets its
   numbers without sharing a list with a field that may be edited.
+* **Ground in tiles, at a level of detail chosen by distance.**
+  `HeightfieldTiles(field, tileCells:, levels:)` cuts a `Heightfield` into
+  tiles a power of two cells wide and builds any tile at any level as a
+  `BrushSurface`, level `l` keeping every `2^l`-th sample. Seams are closed
+  with skirts: each tile edge is copied straight down, so a tile's triangles
+  never depend on its neighbours and a gap two levels open has ground behind
+  it. The skirt depth is measured, the furthest any level's edge strays from
+  the full-resolution line, doubled. Normals come from the full-resolution
+  field at every level, so a seam does not show as a change of shade.
+  `TileLevelChooser` gives level `l` out to `nearest * 2^l` metres with a band
+  of 0.15 either side of each threshold, and keeps what a tile had inside the
+  band. Not built: geomorphing between levels and tile streaming.
+* **`HeadlessGame` and `HeadlessRun`: a game as a tool that plays it blind
+  needs one.** A run answers `step`, `save`, `outcome`, `position`, `eye`,
+  `aim`, a one-sentence `summary` and a `reading` as data; a game names its
+  `buttons`, its `registry()` and how to `start` a level. They sit here,
+  beside `RunOutcome`, because the tools live above the genres and a genre
+  package depends on neither a tool nor anything that draws. Before this a
+  tool imported one genre and called its types.
+* **A value from outside the simulation is an input to the step that read
+  it.** `EduDataSource.sample(step)` is a named stream sampled once per fixed
+  step, `SamplerDataSource` is the deterministic one this package can prove
+  without a socket, and `DataSourceRegistry.replace` swaps a source under the
+  same name from that call on. `resolveBindings` reads an entity's `bindings`
+  against the registry and answers target path to value; what a target means
+  is the host's decision. `DataSourceTrace` records those values a step at a
+  time the way `InputTape` records a controller, rides in `Demo.dataSources`,
+  and `firstStepWhere(path, test)` finds the first step a recorded reading
+  satisfies a condition.
+* **`StepTimeTrace`: what each step cost, keyed by step number.** `record`
+  times one call with a `Stopwatch` and `observe` takes a duration measured
+  elsewhere; `every` defaults to 1. A step number survives a replay on another
+  machine and a timestamp does not, which is why `DigestTrace` is keyed the
+  same way.
+* **`remapEntitySave` carries an `EcsWorld` save across an edited level.** It
+  rewrites a `save()` document from the entity indices it was written at to
+  the ones a reloaded level hands out, matching by name, and reports the names
+  it could not place in `dropped`. `EcsWorld` is unchanged, since `restore`
+  already reads any document shaped like its own save. `Actor.name`,
+  `ActorSystem.spawn(name:)`, `ActorSystem.byName` and
+  `ActorSystem.nameList()` are where the names come from.
+* **An entity with no position stops gaining one on save.** `EntityDef.toJson`
+  wrote `at` unconditionally, and four level documents with a non-spatial
+  entity came back from a round trip with an invented `[0, 0, 0]`. It is
+  written when the source had it or when the position is not zero, the way
+  `yaw` and `name` beside it already were.
+* Still plain Dart. The floor on `flutter3d_physics` is `^0.7.0`. The archive
+  carries `skills/flutter3d-sim-fixed-step/` for a coding agent, installed
+  with `dart run skills@ get`.
 
 ## 0.6.0
 
