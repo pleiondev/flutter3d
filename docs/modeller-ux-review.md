@@ -1,6 +1,11 @@
 # The modeller — a combined UX and usability review
 
 Date: 2026-09-15. Branch `modeler-ui`, commit `32874bd6`.
+
+*Read this as the review it was on that day. All 54 `ux-NN` rows it produced
+are done in `doc/plan-status.json` as of 2026-09-18, so a finding below is a
+description of that commit and not of the tree: the tool count it gives, 131,
+is 147 now, and most `path:line` references have moved.*
 The third document next to `docs/modeller.md` (what exists) and
 `docs/modeller-ux.md` (why it is that way): this one is about how comfortable
 it is to use, for whom, and what to change first.

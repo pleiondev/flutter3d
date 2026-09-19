@@ -7,8 +7,8 @@ step somebody remembers to run.
 
 **Plain Dart.** `hook/build.dart` is started by the Flutter tool as a
 separate process with no window and no Flutter SDK to resolve inside
-it — this package depends only on `flutter3d_formats`, `flutter3d_geometry`
-and `package:hooks`, none of which name Flutter, so a hook that needed
+it — this package depends only on `flutter3d_core`, for its formats and geometry
+libraries, and `package:hooks`, neither of which names Flutter, so a hook that needed
 the SDK would not start on any machine that has not got it.
 
 This is `ap-02`'s own scaffold: the package exists, `dart pub get`

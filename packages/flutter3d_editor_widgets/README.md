@@ -55,12 +55,12 @@ side, rather than forced through a shared signature that would have had to
 take a rounding policy as a parameter for one caller and ignore it for the
 other.
 
-## Depends on `flutter` and `flutter3d_formats`
+## Depends on `flutter` and `flutter3d_core`
 
 `RangeSliderField`'s own `step`, `EnumField`'s own `options`, and
 `TexturePathField`/`ColorSwatchField`/`FieldRow`'s own hints read
 `RangeHint`/`EnumHintValue`/`TextureHint`/`ColorHint`/`MaterialHint` off
-`flutter3d_formats` — never `flutter3d_editor_core` (the `.fmat` gate stays
+`package:flutter3d_core/formats.dart` — never `flutter3d_editor_core` (the `.fmat` gate stays
 there) and never `flutter3d_model_core` (its own `ParamHint`/`EnumHint` name
 a different type than anything here reads). A widget that seems to need
 either of those two is a widget that needs a parameter or a callback added to

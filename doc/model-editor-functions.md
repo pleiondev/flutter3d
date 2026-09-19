@@ -536,35 +536,35 @@ macOS-sandbox spike (p0-13n).
 
 ## What's next
 
-**Big blocks left entirely unresolved:**
-1. **Phase 3 — the character pipeline** (rigging, skinning, IK, retargeting,
-   morph drivers, the animation timeline) — only the FK measurement is done.
-   This is the only section of the plan where nothing functional has
-   started at all.
-2. **Phase 4 — professional modes** (sculpting, retopology, UV, cloth
-   simulation, offline rendering, texture painting, LOD) — not started at
-   all; the phase itself is flagged in the plan as "the least precise," and
-   the L-sized estimates inside it could double once implemented.
-3. **The "an agent that can see the model" track (mcp-*)** — today the agent
-   works blind: MCP tools give readiness numbers, not a picture. Needs
-   separate engine groundwork (`GraphicsDevice.present()` stops naming
-   Flutter, the rendering core becomes a flat package) before a `render`
-   tool can be added.
-4. **The game-graphics track (gfx-*)** — engine fixes running alongside the
-   editor (a frame profiler, light-source culling with no "pop," contact
-   shadows, FXAA); not started, moves through its own G1–G3 phases rather
-   than the editor's phases.
-5. **The two remaining phase-2 items**: wrapping a boolean operation as a
-   stack modifier (mesh-48) and phase-2 golden frames (mesh-49) — the core
-   is done, the thin wrapper and the frames are not.
-6. **Phase-2 materials and modifiers beyond the basic set**: a full material
-   panel, a texture compositor (node graph), a material studio, a "Scene"
-   mode with light, a modifier stack in the UI — the core (`mat-18`,
-   `mat-19`, `mat-28`) is done, the whole user-facing layer and the texture
-   graph are not started.
-7. **Formats**: a dedicated FBX reader (two L-sized items), an offline
-   texture encoder into compressed formats, USDZ, light/cameras in the
-   format's own dictionary — none started.
+**This section listed seven big blocks as "left entirely unresolved" on
+2026-09-11, and six of them have been built since.** The statuses in the
+sections above are that day's too. `doc/plan-status.json`, checked on
+2026-09-18, has 517 of 526 rows done and none open, and the audit under
+[What is left](#what-is-left-and-what-each-piece-is-waiting-for) below is the
+current account of the rest. What became of the seven:
+
+1. **Phase 3, the character pipeline** — built: rigging with an auto-rig,
+   skinning and weight painting, two-bone IK and look-at constraints,
+   retargeting, shape keys with drivers, the timeline and curve editor. All 36
+   `anim-*` rows are done.
+2. **Phase 4, the professional modes** — built: sculpting with multires,
+   retopology and baking, UV unwrap and packing, cloth, rigid-body and particle
+   simulation with baking, offline tiled rendering, texture painting, LOD. All
+   58 `pro-*` rows are done. The UV, LOD and retopology screens were built and
+   left unreachable from the application; connecting them is part of the 0.7.0
+   release work.
+3. **An agent that can see the model (`mcp-*`)** — built: the rendering core
+   is a flat package, and `flutter3d_model_mcp` has `render` and `renderSheet`
+   (`render_tool.dart`) beside the 147 editing tools of `model_tools.dart`.
+4. **The game-graphics track (`gfx-*`)** — 68 rows done and 5 partial, FXAA and
+   contact shadows among the done. The five are in the audit below.
+5. **The two phase-2 items** — done: `BooleanModifier` is a stack modifier and
+   the golden frames exist.
+6. **Phase-2 materials and modifiers** — done: the material panel and studio,
+   the texture graph, the Scene mode with lights, the modifier stack in the UI.
+7. **Formats** — the offline texture encoder and lights and cameras in the
+   format are done, USDZ is partial (`fmt-27`), and the FBX reader is the one
+   block still not started (`fmt-24`, `fmt-25`), by the plan's own sequencing.
 
 **Open design questions (plan §8), not yet closed by an owner decision**
 (the questions closed on 2026-09-09 are already reflected in the statuses

@@ -5,6 +5,10 @@ own findings and the `ux-NN` backlog; this document covers where we stand
 relative to others and what is worth adopting). References to code and to
 `ux-NN` point to the same places.
 
+*A comparison made on that day. The `ux-NN` rows it fed are all done in
+`doc/plan-status.json` as of 2026-09-18, so where this says the modeller lacks
+something it adopted from the list below, check the tree before believing it.*
+
 ## 0. The frame of comparison
 
 The five tools belong to three different classes, and an honest comparison is

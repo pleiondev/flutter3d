@@ -1,6 +1,6 @@
 ---
 name: flutter3d-core-formats-reading-models
-description: Use when reading or writing a 3D model with flutter3d_formats — glTF/GLB, OBJ, .f3d and .fmat behind one ModelDocument, the sibling-file resolver, and custom decoders.
+description: Use when reading or writing a 3D model with package:flutter3d_core/formats.dart — glTF/GLB, OBJ, .f3d and .fmat behind one ModelDocument, the sibling-file resolver, and custom decoders.
 ---
 
 # One document, four readers, no Flutter
