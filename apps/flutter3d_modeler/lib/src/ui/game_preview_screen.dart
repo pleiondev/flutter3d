@@ -38,6 +38,8 @@
 /// editor's own ticker already makes rather than a second copy of it.
 library;
 
+import 'dart:async' show unawaited;
+
 import 'package:flutter/foundation.dart' show ValueListenable;
 import 'package:flutter/material.dart' hide Material;
 import 'package:flutter/scheduler.dart' show Ticker;
@@ -52,6 +54,7 @@ import '../scene_mode.dart';
 import '../staging.dart';
 import '../timeline_playback.dart';
 import 'budget_bars.dart';
+import 'frame_capture_panel.dart';
 import 'metrics_overlay.dart';
 import 'theme.dart';
 import 'transport_bar.dart';
@@ -134,10 +137,39 @@ class _GamePreviewScreenState extends State<GamePreviewScreen>
   /// there.
   FrameResult? _lastFrame;
 
+  /// `gfx-70n`: the last frame captured pass by pass, and whether one has
+  /// been asked for and has not answered — `FrameCapturePanel`'s own two
+  /// inputs. Here rather than on the document's screen because this is the
+  /// screen that already owns the per-pass card the panel sits beside, and
+  /// the one a person is on when the picture they are judging comes out
+  /// black.
+  FrameCapture? _capture;
+  bool _capturing = false;
+
   @override
   void initState() {
     super.initState();
     _ticker = createTicker(_tick)..start();
+  }
+
+  /// The panel's own button: `Renderer.captureNextFrame`, which is a
+  /// one-shot by design — a readback of every pass's output is far too
+  /// expensive to leave on — and answers once the frame it caught has.
+  ///
+  /// The ticker above asks for a frame on every tick, so "the next frame" is
+  /// never more than one away and nothing here has to request one. A capture
+  /// that throws leaves the last good one on the panel rather than clearing
+  /// it: the reason a person reached for this is a frame that went wrong, and
+  /// that is exactly when a capture is likeliest to.
+  Future<void> _takeCapture() async {
+    if (_capturing) return;
+    setState(() => _capturing = true);
+    try {
+      final FrameCapture taken = await widget.renderer.captureNextFrame();
+      if (mounted) setState(() => _capture = taken);
+    } finally {
+      if (mounted) setState(() => _capturing = false);
+    }
   }
 
   void _tick(Duration elapsed) {
@@ -219,15 +251,41 @@ class _GamePreviewScreenState extends State<GamePreviewScreen>
                             scene: scene,
                           ),
                         ),
+                        // `gfx-70n`: the capture panel under the metrics
+                        // card it shares a background with. The card says
+                        // which pass is slow; the panel says which pass
+                        // wrote nothing, which no amount of timing can.
+                        //
+                        // One column, pinned between the top and the
+                        // transport strip and scrolling inside that: a
+                        // capture lists every pass with what it read and
+                        // wrote, and a frame of fourteen passes is taller
+                        // than the picture it is drawn over.
                         Positioned(
                           right: 12,
                           top: 12,
-                          child: MetricsOverlay(
-                            fps: _fps,
-                            drawCalls: _lastFrame?.drawCalls ?? 0,
-                            triangles: _lastFrame?.triangles ?? 0,
-                            bones: report.joints.used,
-                            passes: _lastFrame?.passes ?? const <FramePass>[],
+                          bottom: ModelerMetrics.transport + 12,
+                          child: SingleChildScrollView(
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              crossAxisAlignment: CrossAxisAlignment.end,
+                              children: <Widget>[
+                                MetricsOverlay(
+                                  fps: _fps,
+                                  drawCalls: _lastFrame?.drawCalls ?? 0,
+                                  triangles: _lastFrame?.triangles ?? 0,
+                                  bones: report.joints.used,
+                                  passes:
+                                      _lastFrame?.passes ?? const <FramePass>[],
+                                ),
+                                const SizedBox(height: 8),
+                                FrameCapturePanel(
+                                  capture: _capture,
+                                  waiting: _capturing,
+                                  onCapture: () => unawaited(_takeCapture()),
+                                ),
+                              ],
+                            ),
                           ),
                         ),
                         Positioned(
