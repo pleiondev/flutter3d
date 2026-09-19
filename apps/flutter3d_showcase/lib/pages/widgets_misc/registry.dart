@@ -6,7 +6,9 @@ library;
 
 import 'package:flutter3d_showcase/src/demo/demo.dart';
 
+import 'accommodations.dart';
 import 'diagnostics.dart';
+import 'game_settings.dart';
 import 'level_loader.dart';
 import 'scene_semantics.dart';
 import 'scene_surface.dart';
@@ -20,4 +22,6 @@ final Map<String, DemoBuilder> widgetsMiscDemos = <String, DemoBuilder>{
   'level-loader': LevelLoaderDemo.new,
   'storage': StorageDemo.new,
   'diagnostics': DiagnosticsDemo.new,
+  'accommodations': AccommodationsDemo.new,
+  'game-settings': GameSettingsDemo.new,
 };

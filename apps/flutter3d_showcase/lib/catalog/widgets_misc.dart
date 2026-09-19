@@ -80,4 +80,30 @@ const List<Feature> widgetsMiscFeatures = <Feature>[
     evidenceFile: 'packages/flutter3d_app/CHANGELOG.md',
     packages: <String>['flutter3d_app'],
   ),
+  Feature(
+    id: 'accommodations',
+    title: 'Reduce motion',
+    category: Category.widgetsMisc,
+    summary:
+        'What the player has already told the operating system, read as a '
+        'default for a camera\'s own involuntary movement.',
+    since: '0.7.0',
+    approximate: true,
+    evidence: 'no explicit origin',
+    evidenceFile: 'packages/flutter3d_game/CHANGELOG.md',
+    keywords: <String>['GameConfig'],
+    packages: <String>['flutter3d_game'],
+  ),
+  Feature(
+    id: 'game-settings',
+    title: 'Settings, config and saves',
+    category: Category.widgetsMisc,
+    summary:
+        'What a player has changed about how the game behaves for them, and '
+        'where a run in progress is kept between launches.',
+    since: '0.7.0',
+    evidence: 'the settings overlay and panel, rebinding',
+    evidenceFile: 'packages/flutter3d_game/CHANGELOG.md',
+    packages: <String>['flutter3d_game'],
+  ),
 ];
