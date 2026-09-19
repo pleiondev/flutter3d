@@ -71,6 +71,12 @@ final class DracoBuffer {
     return value;
   }
 
+  int readInt32() {
+    final value = _view.getInt32(position, Endian.little);
+    position += 4;
+    return value;
+  }
+
   double readFloat32() {
     final value = _view.getFloat32(position, Endian.little);
     position += 4;
@@ -240,15 +246,29 @@ final class RAnsDecoder {
     }
   }
 
-  /// One symbol.
   /// Whether the stream ended exactly where the encoder left it.
   ///
   /// **Worth keeping, because it is the one self-check rANS offers.** A decode
   /// that drifted still produces symbols; it simply produces the wrong ones and
   /// runs out early. This came back false while the state base was wrong, and
   /// that was the whole diagnosis.
-  bool get endedCleanly => _state == _lRansBase;
+  ///
+  /// **Renormalised first, or it refuses streams that are fine.** [read] pulls
+  /// bytes in *before* each symbol, so after the last one the state is wherever
+  /// that symbol left it — and if the encoder had to shift bytes out before
+  /// coding its very first symbol, which it does whenever that symbol is rare,
+  /// those bytes are still unread and the state is still short of the base.
+  /// Comparing without pulling them in passed the first fixtures by their
+  /// first symbols happening to be common, and refused the default encoding of
+  /// a thousand-face mesh whose tag stream opened with a rare one.
+  bool get endedCleanly {
+    while (_state < _lRansBase && _bufferOffset > 0) {
+      _state = _state * _ioBase + _buffer[--_bufferOffset];
+    }
+    return _state == _lRansBase;
+  }
 
+  /// One symbol.
   int read() {
     // Renormalise first: pull bytes back in until the state is large enough to
     // carry a symbol out of it.
@@ -260,6 +280,75 @@ final class RAnsDecoder {
     final symbol = _lut[remainder];
     _state = quotient * _probability[symbol] + remainder - _cumulative[symbol];
     return symbol;
+  }
+}
+
+/// The binary coder of `ans.h` — `RAnsBitDecoder` in the reference.
+///
+/// **A different coder from [RAnsDecoder], with a different base.** This one
+/// codes single bits against one probability — the chance of a zero, out of
+/// 256 — and it is the one `DRACO_ANS_L_BASE` of 4096 actually belongs to: the
+/// constant [RAnsDecoder] was wrong to borrow is right here. The edgebreaker
+/// path is made of these: whether a component started on an interior face,
+/// whether an edge is an attribute seam, whether a parallelogram crosses a
+/// crease, which way a predicted normal faces.
+///
+/// No `endedCleanly` here, deliberately. The symbol coder ends on its base
+/// because the encoder flushes exactly what it wrote; the bit coder is asked
+/// for a number of bits the *caller* knows, and the reference encoder pads, so
+/// the final state says nothing a caller could check.
+final class RAnsBitDecoder {
+  /// Reads the probability and the length-prefixed stream from [buffer], and
+  /// leaves [buffer] after it.
+  RAnsBitDecoder(DracoBuffer buffer) : _probabilityOfZero = buffer.readUint8() {
+    final size = buffer.readVarUint();
+    if (size > buffer.remaining) _fail('rANS bit stream runs past the end');
+    final data = buffer.readBytes(size);
+    if (size < 1) _fail('empty rANS bit stream');
+    // The top two bits of the last byte say how wide the initial state is.
+    // Three is not a width this coder has — the symbol coder's fourth case
+    // does not exist here, and a stream that claims it is not one.
+    final (int offset, int state) = switch (data[size - 1] >> 6) {
+      0 => (size - 1, data[size - 1] & 0x3F),
+      1 when size >= 2 => (
+        size - 2,
+        (data[size - 2] | (data[size - 1] << 8)) & 0x3FFF,
+      ),
+      2 when size >= 3 => (
+        size - 3,
+        (data[size - 3] | (data[size - 2] << 8) | (data[size - 1] << 16)) &
+            0x3FFFFF,
+      ),
+      _ => _fail('rANS bit stream has no valid initial state'),
+    };
+    _data = data;
+    _offset = offset;
+    _state = state + _lBase;
+    if (_state >= _lBase * _ioBase) {
+      _fail('rANS bit stream initial state out of range');
+    }
+  }
+
+  static const int _lBase = 4096;
+  static const int _ioBase = 256;
+  static const int _precision = 256;
+
+  final int _probabilityOfZero;
+  late final Uint8List _data;
+  int _offset = 0;
+  int _state = 0;
+
+  /// One bit — `rabs_desc_read`.
+  bool readBit() {
+    final p = _precision - _probabilityOfZero;
+    if (_state < _lBase && _offset > 0) {
+      _state = _state * _ioBase + _data[--_offset];
+    }
+    final quotient = _state ~/ _precision;
+    final remainder = _state % _precision;
+    final one = remainder < p;
+    _state = one ? quotient * p + remainder : _state - quotient * p - p;
+    return one;
   }
 }
 

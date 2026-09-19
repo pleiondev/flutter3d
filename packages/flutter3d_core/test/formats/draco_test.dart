@@ -25,6 +25,8 @@ import 'dart:typed_data';
 import 'package:flutter3d_core/formats.dart';
 import 'package:test/test.dart';
 
+import 'helpers/triangle_match.dart';
+
 const String _fixtures = 'test/formats/fixtures/draco';
 
 Uint8List _fixture(String name) => File('$_fixtures/$name').readAsBytesSync();
@@ -104,23 +106,117 @@ void main() {
     }
   });
 
+  test('an edgebreaker mesh decodes to the same triangles as its twin', () {
+    // **The same model, encoded the way the tool does by default** — and until
+    // the second half of this row, refused by name. Edgebreaker stores no
+    // indices and no vertex order: the faces come back in the order the
+    // encoder's walk left them and the vertices in the order a second walk
+    // reaches them, so neither can be compared by position in a list. What can
+    // is the *set of triangles*: every one the uncompressed file has must be
+    // here, once, wound the same way.
+    final mesh = decodeDraco(_fixture('monster_edgebreaker.drc'));
+    expect(mesh.indices.length, 180);
+
+    final position = mesh.attributes.values.firstWhere(
+      (a) => a.type == DracoAttributeType.position,
+    );
+    expect(position.values.length, mesh.pointCount * 3);
+
+    final decoded = Float32List(180 * 3);
+    for (var corner = 0; corner < 180; corner++) {
+      decoded.setRange(
+        corner * 3,
+        corner * 3 + 3,
+        position.values,
+        mesh.indices[corner] * 3,
+      );
+    }
+    expect(
+      unmatchedTriangles(_expectedCorners(), decoded, const <double>[
+        3.0e-5,
+        3.0e-5,
+        3.0e-5,
+      ]),
+      isEmpty,
+      reason: 'triangles of the original with no twin in the decoded mesh',
+    );
+  });
+
   group('what is refused, and the message says which', () {
-    test('an edgebreaker mesh is refused by name', () {
-      // **The half of this row that is not built.** The same model, encoded the
-      // way the tool does by default. Refusing it by name is the honest answer:
-      // a decoder that guessed at the connectivity would produce a mesh with
-      // the right vertex count and the wrong faces, which draws as a knot.
+    /// The edgebreaker fixture with one byte of its header changed.
+    Uint8List edgebreakerWith(int offset, int value) =>
+        Uint8List.fromList(_fixture('monster_edgebreaker.drc'))
+          ..[offset] = value;
+
+    test('the retired predictive traversal', () {
+      // Byte 11 is the first after the header: which of the three traversals
+      // stored the symbols. The fixture says 0; 1 was retired before 2.2, and
+      // a decoder that read it as either of the others would build a mesh out
+      // of whatever those bits happened to spell.
       expect(
-        () => decodeDraco(_fixture('monster_edgebreaker.drc')),
+        () => decodeDraco(edgebreakerWith(11, 1)),
         throwsA(
           isA<DracoException>().having(
             (e) => e.message,
             'message',
-            contains('edgebreaker'),
+            contains('predictive'),
           ),
         ),
       );
     });
+
+    test('edgebreaker from before bitstream 2.2', () {
+      // Byte 6 is the minor version. 2.1 orders the connectivity sections
+      // differently, so the same bytes mean something else.
+      expect(
+        () => decodeDraco(edgebreakerWith(6, 1)),
+        throwsA(
+          isA<DracoException>().having(
+            (e) => e.message,
+            'message',
+            contains('only 2.2'),
+          ),
+        ),
+      );
+    });
+
+    test('an edgebreaker stream cut anywhere', () {
+      // Every prefix, because this decoder follows counts it has just read
+      // into arrays it has just sized, and the only acceptable failure is the
+      // one exception the caller was promised — never a RangeError from
+      // somewhere inside a corner table.
+      final whole = _fixture('monster_edgebreaker.drc');
+      for (var length = 0; length < whole.length; length++) {
+        expect(
+          () => decodeDraco(Uint8List.sublistView(whole, 0, length)),
+          throwsA(isA<DracoException>()),
+          reason: 'cut to $length bytes',
+        );
+      }
+    });
+
+    test('an edgebreaker stream with any one byte damaged', () {
+      // Damage is worse than truncation: the counts still add up and the
+      // symbols still decode, into a surface that may fold back on itself —
+      // and half of this decoder is loops that walk round a vertex until they
+      // come back to where they started. Each byte, flipped two ways, must end
+      // in a mesh or in the one exception; a hang fails the test by timeout
+      // and anything else fails it by type.
+      final whole = _fixture('monster_edgebreaker.drc');
+      for (var at = 0; at < whole.length; at++) {
+        for (final mask in const <int>[0xFF, 0x01]) {
+          final damaged = Uint8List.fromList(whole)..[at] ^= mask;
+          try {
+            final mesh = decodeDraco(damaged);
+            for (final index in mesh.indices) {
+              expect(index, lessThan(mesh.pointCount));
+            }
+          } on DracoException {
+            // Refused by name, which is the other acceptable ending.
+          }
+        }
+      }
+    }, timeout: const Timeout(Duration(seconds: 60)));
 
     test('a file that is not Draco at all', () {
       expect(

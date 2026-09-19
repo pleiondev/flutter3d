@@ -105,6 +105,60 @@ final class OctahedronToolBox {
     return x;
   }
 
+  /// Scales an integer vector onto the octahedron: afterwards the absolute
+  /// values of its three components sum to exactly [centerValue].
+  ///
+  /// `CanonicalizeIntegerVector`. The third component is *derived* rather than
+  /// scaled, so that the sum is exact whatever the two truncating divisions
+  /// lost — the geometric normal predictor feeds this straight into
+  /// [integerVectorToOctahedralCoords], which assumes it.
+  void canonicalizeIntegerVector(Int32List vector) {
+    final absSum = vector[0].abs() + vector[1].abs() + vector[2].abs();
+    if (absSum == 0) {
+      vector[0] = centerValue;
+      return;
+    }
+    vector[0] = (vector[0] * centerValue) ~/ absSum;
+    vector[1] = (vector[1] * centerValue) ~/ absSum;
+    final rest = centerValue - vector[0].abs() - vector[1].abs();
+    vector[2] = vector[2] >= 0 ? rest : -rest;
+  }
+
+  /// Where a canonicalized integer vector sits on the unwrapped square —
+  /// `IntegerVectorToQuantizedOctahedralCoords`, written into [out].
+  ///
+  /// The right hemisphere maps straight onto the inner diamond; the left one
+  /// is folded out into the four corners. The last step moves the handful of
+  /// points that have two names — the corners of the square are all the same
+  /// pole — onto the one the encoder uses.
+  void integerVectorToOctahedralCoords(Int32List vector, Int32List out) {
+    final x = vector[0], y = vector[1], z = vector[2];
+    final (int s, int t) = x >= 0
+        ? (y + centerValue, z + centerValue)
+        : (
+            y < 0 ? z.abs() : maxValue - z.abs(),
+            z < 0 ? y.abs() : maxValue - y.abs(),
+          );
+    final (int cs, int ct) = switch ((s, t)) {
+      (0, 0) => (maxValue, maxValue),
+      (0, final t) when t == maxValue => (maxValue, maxValue),
+      (final s, 0) when s == maxValue => (maxValue, maxValue),
+      (0, final t) when t > centerValue => (0, centerValue - (t - centerValue)),
+      (final s, final t) when s == maxValue && t < centerValue => (
+        s,
+        centerValue + (centerValue - t),
+      ),
+      (final s, final t) when t == maxValue && s < centerValue => (
+        centerValue + (centerValue - s),
+        t,
+      ),
+      (final s, 0) when s > centerValue => (centerValue - (s - centerValue), 0),
+      _ => (s, t),
+    };
+    out[0] = cs;
+    out[1] = ct;
+  }
+
   /// The unit vector `(s, t)` stands for, written into [out] at [at].
   void toUnitVector(int s, int t, Float32List out, int at) {
     var y = s * dequantizationScale - 1.0;
