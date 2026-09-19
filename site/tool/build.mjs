@@ -195,6 +195,7 @@ const NAV = [
       { file: 'reference/pitfalls.md', url: '/reference/pitfalls/', title: 'Pitfalls' },
       { file: 'reference/testing.md', url: '/reference/testing/', title: 'Testing' },
       { file: 'reference/packages.md', url: '/reference/packages/', title: 'Package index' },
+      { file: 'reference/comparison.md', url: '/reference/comparison/', title: 'vs. Flutter Scene' },
     ],
   },
   {
