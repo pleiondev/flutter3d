@@ -100,6 +100,7 @@ import '../render_snapshot_run.dart';
 import '../report_problem.dart';
 import '../retopo_draw.dart';
 import '../sculpt_brush.dart';
+import '../sculpt_budget.dart';
 import '../sculpt_session.dart';
 import '../selection_box.dart';
 import '../selection_rules.dart';
