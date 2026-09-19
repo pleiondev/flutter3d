@@ -20,14 +20,39 @@ final class GltfLoadDemo extends ShowcaseDemo {
 
   @override
   Future<void> prepare(DemoContext context) async {
-    // #region load
-    // A self-contained GLB from the sample set: one mesh, one material, no
-    // sibling files to resolve. `GltfLoader.load` reads the binary container,
-    // its accessors and its materials, and hands back a `GltfAsset`.
-    const AssetSource source = BundleAssetSource(
-      'packages/flutter3d_samples/assets/Box.glb',
+    // #region write
+    // A real GLB, written by this engine's own `GltfWriter` so this page
+    // needs no bundled asset to read: two surfaces, one material each.
+    final source = PlainModelDocument(
+      surfaces: <ModelSurface>[
+        ModelSurface(
+          mesh: CuboidShape(size: Vector3.all(0.9)).build(),
+          materialIndex: 0,
+        ),
+        ModelSurface(
+          mesh: SphereShape(segments: 32, rings: 16).build(),
+          materialIndex: 1,
+        ),
+      ],
+      materials: <SurfaceMaterial>[
+        SurfaceMaterial(baseColor: Vector4(0.8, 0.4, 0.3, 1.0)),
+        SurfaceMaterial(
+          baseColor: Vector4(0.3, 0.6, 0.8, 1.0),
+          metallic: 0.8,
+          roughness: 0.3,
+        ),
+      ],
+      nodes: <ModelNode>[
+        ModelNode(surfaces: <int>[0]),
+        ModelNode(surfaces: <int>[1], translation: Vector3(1.6, 0.0, 0.0)),
+      ],
     );
-    final bytes = await source.read();
+    final bytes = GltfWriter(source).writeGlb();
+    // #endregion write
+
+    // #region load
+    // `GltfLoader.load` reads the container, walks its accessors and
+    // materials, and hands back a `GltfAsset`, whatever wrote the file.
     _asset = await GltfLoader().load(bytes);
     // #endregion load
   }
@@ -35,27 +60,32 @@ final class GltfLoadDemo extends ShowcaseDemo {
   @override
   Scene build(DemoContext context) {
     // #region upload
-    // `GltfAsset` is a `ModelDocument`: a list of surfaces, each a mesh in
-    // its own local space plus an index into the document's materials. This
-    // page uploads each surface by hand rather than through `ModelAsset`, to
-    // keep the loader itself the whole story; `model-asset` is the page that
-    // shows the upload path a real application uses, textures included.
+    // `GltfAsset` is a `ModelDocument`: a list of surfaces, each with an
+    // index into the document's materials, plus a node hierarchy that
+    // places them. This page uploads each surface by hand rather than
+    // through `ModelAsset`, to keep the loader itself the whole story; the
+    // `model-asset` page shows the upload path a real application uses,
+    // textures included.
     final scene = Scene();
-    for (final ModelSurface surface in _asset.surfaces) {
-      final SurfaceMaterial? material = surface.materialIndex == null
-          ? null
-          : _asset.materials[surface.materialIndex!];
-      final mesh = MeshNode(
-        DeviceMesh.upload(context.device, surface.mesh),
-        Material(
-          name: material?.name,
-          baseColor: material?.baseColor ?? Vector4(0.8, 0.8, 0.8, 1.0),
-          metallic: material?.metallic ?? 0.0,
-          roughness: material?.roughness ?? 0.6,
-        ),
-        name: surface.name,
-      )..setLocalMatrix(surface.transform);
-      scene.add(mesh);
+    for (final ModelNode node in _asset.nodes) {
+      for (final int surfaceIndex in node.surfaces) {
+        final ModelSurface surface = _asset.surfaces[surfaceIndex];
+        final SurfaceMaterial? material = surface.materialIndex == null
+            ? null
+            : _asset.materials[surface.materialIndex!];
+        scene.add(
+          MeshNode(
+            DeviceMesh.upload(context.device, surface.mesh),
+            Material(
+              name: material?.name,
+              baseColor: material?.baseColor ?? Vector4(0.8, 0.8, 0.8, 1.0),
+              metallic: material?.metallic ?? 0.0,
+              roughness: material?.roughness ?? 0.6,
+            ),
+            name: surface.name,
+          )..setPositionFrom(node.translation),
+        );
+      }
     }
     // #endregion upload
 
@@ -69,14 +99,14 @@ final class GltfLoadDemo extends ShowcaseDemo {
   @override
   void verify(Scene scene, FrameResult frame) {
     // #region check
-    if (_asset.surfaces.isEmpty) {
-      throw StateError('the GLB decoded to no surfaces');
+    if (_asset.surfaces.length != 2) {
+      throw StateError('the GLB decoded to the wrong number of surfaces');
     }
     if (_asset.vertexCount == 0) {
       throw StateError('the decoded mesh has no vertices');
     }
-    if (frame.drawCalls < 1) {
-      throw StateError('the loaded mesh was not drawn');
+    if (frame.drawCalls < 2) {
+      throw StateError('both surfaces were not drawn');
     }
     // #endregion check
   }

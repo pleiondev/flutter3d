@@ -107,8 +107,8 @@ const List<Feature> formatsFeatures = <Feature>[
     evidenceFile: 'packages/flutter3d_core/CHANGELOG.md',
     evidence:
         '`StlLoader` reads both dialects and tells them apart by the '
-        "file's own size arithmetic, since a binary header often begins "
-        'with `solid`',
+        "file's size arithmetic, since a binary header often begins with "
+        '`solid`',
     engineFiles: <String>[
       'packages/flutter3d_core/lib/src/formats/stl/stl_loader.dart',
       'packages/flutter3d_core/lib/src/formats/stl/stl_writer.dart',
@@ -195,6 +195,22 @@ const List<Feature> formatsFeatures = <Feature>[
         'every encoder writes unless told otherwise',
     engineFiles: <String>[
       'packages/flutter3d_core/lib/src/formats/draco/draco_decoder.dart',
+    ],
+  ),
+  Feature(
+    id: 'meshopt',
+    title: 'Meshopt compression',
+    category: Category.formats,
+    summary:
+        "A mesh's vertex and index buffers, packed by "
+        '`EXT_meshopt_compression` and decoded again on the way back in.',
+    since: '0.7.0',
+    evidenceFile: 'packages/flutter3d_core/CHANGELOG.md',
+    evidence: '`EXT_meshopt_compression`, which the reader decodes too',
+    engineFiles: <String>[
+      'packages/flutter3d_core/lib/src/formats/meshopt/meshopt_vertex_codec.dart',
+      'packages/flutter3d_core/lib/src/formats/meshopt/meshopt_index_codec.dart',
+      'packages/flutter3d_core/lib/src/formats/gltf/gltf_writer.dart',
     ],
   ),
 ];
