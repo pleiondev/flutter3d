@@ -71,3 +71,4 @@ workspace:
   - tool/init
   - tool/tutorial
   - tool/godot_check
+  - tool/release_dashboard
