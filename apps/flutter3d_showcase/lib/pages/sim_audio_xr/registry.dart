@@ -18,19 +18,24 @@ import 'difficulty.dart';
 import 'ecs_world.dart';
 import 'fixed_step.dart';
 import 'flow_field.dart';
+import 'head_tracking.dart';
 import 'headless_run.dart';
 import 'level_format.dart';
 import 'level_mechanisms.dart';
 import 'light_fixtures.dart';
 import 'lightmap_bake.dart';
 import 'nav_grid.dart';
+import 'pendulum_lab.dart';
 import 'portable_math.dart';
 import 'positional_audio.dart';
 import 'replay_digest.dart';
 import 'rewind.dart';
 import 'splines.dart';
 import 'step_systems.dart';
+import 'stereo_lesson.dart';
+import 'stereo_rig.dart';
 import 'terrain_tiles.dart';
+import 'viewer_profiles.dart';
 import 'voice_limit.dart';
 
 final Map<String, DemoBuilder> simAudioXrDemos = <String, DemoBuilder>{
@@ -60,4 +65,9 @@ final Map<String, DemoBuilder> simAudioXrDemos = <String, DemoBuilder>{
   'voice-limit': VoiceLimitDemo.new,
   'audio-occlusion': AudioOcclusionDemo.new,
   'blended-engine-loop': BlendedEngineLoopDemo.new,
+  'pendulum-lab': PendulumLabDemo.new,
+  'stereo-rig': StereoRigDemo.new,
+  'viewer-profiles': ViewerProfilesDemo.new,
+  'stereo-lesson': StereoLessonDemo.new,
+  'head-tracking': HeadTrackingDemo.new,
 };
