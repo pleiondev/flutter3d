@@ -146,6 +146,35 @@ void main() {
     }
   });
 
+  test('and a caller who asks for no chain gets the base alone', () async {
+    // Every family, the universal one included: it writes its levels and its
+    // header differently from the rest, and would be the one to forget.
+    //
+    // Mutation: drop `mips:` from either `_encodeLevels` call — that family
+    // comes back with five levels.
+    final document = PlainModelDocument(
+      images: [_image(_pngOf(alpha: false, size: 64))],
+    );
+    for (final family in <TextureFamily>[
+      TextureFamily.bc,
+      TextureFamily.etc2,
+      TextureFamily.universal,
+    ]) {
+      final result = await encodeDocumentTextures(
+        document,
+        family,
+        mips: false,
+      );
+      // A target is what a universal file cannot be parsed without, and what
+      // any other is parsed without noticing.
+      final texture = Ktx2Texture.parse(
+        result.images.single.bytes,
+        universalTarget: UniversalTarget.bc1,
+      );
+      expect(texture.levels, hasLength(1), reason: '$family');
+    }
+  });
+
   test('the chain stops where the blocks stop', () async {
     // 12 halves to 6, which is not whole 4x4 blocks and cannot be encoded at
     // all — so the chain is the base alone rather than an error, on the same
