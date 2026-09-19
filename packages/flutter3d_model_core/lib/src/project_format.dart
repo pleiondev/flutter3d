@@ -74,11 +74,13 @@ import 'command.dart';
 import 'history.dart';
 import 'lod_spec.dart';
 import 'material.dart';
+import 'modifier_slot.dart';
 import 'paint_layer.dart';
 import 'parametric_json.dart';
 import 'project.dart';
 import 'project_animation.dart';
 import 'project_morphs.dart';
+import 'scene_lighting.dart';
 import 'selection.dart';
 import 'shape_driver.dart';
 import 'simulation_cache.dart';
@@ -463,6 +465,16 @@ Uint8List writeProject(
         // `pro-lod-03`, younger still — absent reads back as `<LodSpec>[]`,
         // the ordinary case of an object nobody has asked to simplify.
         'lods': _lodsJson(object.lods),
+        // The modifier stack, and written only for an object that has one.
+        // It was not written at all: `ModifierSlot` had a `toJson` and a
+        // `fromJson` from the day the stack existed and nothing here called
+        // either, so a mirror, an array or a boolean lasted until the file
+        // was closed. Absent reads back as no stack, which is what every
+        // file written before this says and what it meant.
+        if (object.modifiers.isNotEmpty)
+          'modifiers': <Object?>[
+            for (final ModifierSlot slot in object.modifiers) slot.toJson(),
+          ],
         // `pro-doc-01`, and written only for an object somebody has baked:
         // the row addresses the frames in
         // `ProjectSection.simulationCaches`, and the two counts here are
@@ -593,6 +605,15 @@ Uint8List writeProject(
         'clips': <Object?>[
           for (final ProjectClip each in project.clips) _clipJson(each),
         ],
+        // The lights, the environment, the exposure and the rest of
+        // `SceneLighting`, and written only when somebody has changed one of
+        // them. `ModelProject.lighting` said for some time that a project
+        // reopened comes back with the default; that was true and it was a
+        // person's lamps gone when the file closed. Absent reads as the
+        // default, which is what every file written before this says, and a
+        // project nobody has lit writes the bytes it always wrote.
+        if (!_isDefaultLighting(project.lighting))
+          'lighting': _lightingJson(project.lighting),
         'objects': objects,
       }),
     ),
@@ -986,10 +1007,17 @@ ProjectRead readProject(Uint8List bytes) {
         arrived,
         pool,
         simulationChunks: simulationChunks,
+        warnings: warnings,
       );
       if (refusal != null) return ProjectRefused(refusal);
       objects.add(object!);
     }
+
+    final SceneLighting lighting = _readLighting(
+      document['lighting'],
+      warnings,
+      imageCount: images.length,
+    );
 
     final (List<HistoryStep> history, String? historyRefusal) = _readHistory(
       bytes,
@@ -1002,6 +1030,7 @@ ProjectRead readProject(Uint8List bytes) {
       images: images,
       skeletons: skeletons,
       clips: clips,
+      lighting: lighting,
       nextId: nextId,
       warnings: warnings,
       simulationChunks: simulationChunks,
@@ -1016,6 +1045,7 @@ ProjectRead readProject(Uint8List bytes) {
         images: images,
         skeletons: skeletons,
         clips: clips,
+        lighting: lighting,
         nextId: nextId,
       ),
       warnings: warnings,
@@ -1057,6 +1087,7 @@ ProjectRead readProject(Uint8List bytes) {
   required List<EncodedImage> images,
   required List<ProjectSkeleton> skeletons,
   required List<ProjectClip> clips,
+  required SceneLighting lighting,
   required int nextId,
   required List<String> warnings,
   List<Uint8List> simulationChunks = const <Uint8List>[],
@@ -1107,6 +1138,7 @@ ProjectRead readProject(Uint8List bytes) {
   var carriedImages = images;
   var carriedSkeletons = skeletons;
   var carriedClips = clips;
+  var carriedLighting = lighting;
   final noticed = <String>[];
 
   final steps = List<HistoryStep?>.filled(entries.length, null);
@@ -1221,6 +1253,15 @@ ProjectRead readProject(Uint8List bytes) {
         }
         carriedClips = read;
       }
+      if (step.containsKey('lighting')) {
+        // The images as this step's own state has them, since the panorama
+        // is an index into that table and not into the live one.
+        carriedLighting = _readLighting(
+          step['lighting'],
+          noticed,
+          imageCount: carriedImages.length,
+        );
+      }
       steps[i] = HistoryStep(
         command: command,
         before: ModelProject(
@@ -1230,6 +1271,7 @@ ProjectRead readProject(Uint8List bytes) {
           images: carriedImages,
           skeletons: carriedSkeletons,
           clips: carriedClips,
+          lighting: carriedLighting,
           nextId: carriedNextId,
         ),
         selectionBefore: selection,
@@ -1489,7 +1531,145 @@ Map<String, Object?> _stepJson(
       'clips': <Object?>[
         for (final ProjectClip each in before.clips) _clipJson(each),
       ],
+    // Always written when the step changed it, default or not: this is what
+    // an undo puts back, and "back to the default" is a thing to put back.
+    if (!identical(before.lighting, after.lighting))
+      'lighting': _lightingJson(before.lighting),
   };
+}
+
+/// Whether [lighting] is what a project nobody has lit holds.
+bool _isDefaultLighting(SceneLighting lighting) {
+  const untouched = SceneLighting();
+  return lighting.lights.isEmpty &&
+      lighting.environment == untouched.environment &&
+      lighting.ambientIntensity == untouched.ambientIntensity &&
+      lighting.shadows == untouched.shadows &&
+      lighting.exposure == untouched.exposure &&
+      lighting.post.bloomEnabled == untouched.post.bloomEnabled &&
+      lighting.panorama == null;
+}
+
+Map<String, Object?> _lightingJson(SceneLighting lighting) => <String, Object?>{
+  'lights': <Object?>[
+    for (final ProjectLight light in lighting.lights)
+      <String, Object?>{
+        'type': light.type.name,
+        'color': <double>[light.color.x, light.color.y, light.color.z],
+        'intensity': light.intensity,
+        'range': light.range,
+        'castsShadow': light.castsShadow,
+        'innerConeAngle': light.innerConeAngle,
+        'outerConeAngle': light.outerConeAngle,
+        'transform': <double>[...light.transform.storage],
+      },
+  ],
+  'environment': lighting.environment.name,
+  'ambientIntensity': lighting.ambientIntensity,
+  'shadows': lighting.shadows,
+  'exposure': lighting.exposure,
+  'bloom': lighting.post.bloomEnabled,
+  if (lighting.panorama case final int image) 'panorama': image,
+};
+
+/// [json] as a [SceneLighting], with anything it cannot read left at its
+/// default and said in [warnings].
+///
+/// **Never a reason to refuse the file.** A light whose kind a newer build
+/// added, or an environment this one has no name for, is a scene that opens a
+/// little darker than it was saved, with a sentence saying what was dropped.
+/// That is the rule the rest of this reader follows for a name it does not
+/// know, and lights are the last thing worth losing a model over.
+///
+/// [imageCount] bounds the panorama, which is an index into the project's
+/// images: one that points past the table is dropped, since a renderer handed
+/// it would be reading an image that is not there.
+SceneLighting _readLighting(
+  Object? json,
+  List<String> warnings, {
+  required int imageCount,
+}) {
+  if (json is! Map<String, Object?>) return const SceneLighting();
+  const untouched = SceneLighting();
+
+  void noticed(String what) {
+    final said = 'The scene lighting $what; left at its default.';
+    if (!warnings.contains(said)) warnings.add(said);
+  }
+
+  ProjectLight? lightFrom(Object? entry) {
+    if (entry case {
+      'type': final String typeName,
+      'color': [final num r, final num g, final num b],
+      'intensity': final num intensity,
+      'transform': final List<Object?> transform,
+    } when transform.length == 16 && transform.every((v) => v is num)) {
+      final type = ProjectLightType.values
+          .where((ProjectLightType each) => each.name == typeName)
+          .firstOrNull;
+      if (type == null) return null;
+      return ProjectLight(
+        type: type,
+        color: Vector3(r.toDouble(), g.toDouble(), b.toDouble()),
+        intensity: intensity.toDouble(),
+        range: (entry['range'] as num?)?.toDouble() ?? 0.0,
+        castsShadow: entry['castsShadow'] == true,
+        innerConeAngle: (entry['innerConeAngle'] as num?)?.toDouble() ?? 0.0,
+        outerConeAngle:
+            (entry['outerConeAngle'] as num?)?.toDouble() ??
+            ProjectLight().outerConeAngle,
+        transform: Matrix4.fromList(<double>[
+          for (final Object? value in transform) (value! as num).toDouble(),
+        ]),
+      );
+    }
+    return null;
+  }
+
+  final entries = switch (json['lights']) {
+    final List<Object?> list => list,
+    _ => const <Object?>[],
+  };
+  final lights = <ProjectLight>[
+    for (final Object? entry in entries) ?lightFrom(entry),
+  ];
+  if (lights.length != entries.length) {
+    noticed(
+      'had ${entries.length - lights.length} of its ${entries.length} lights '
+      'dropped, which this build cannot read',
+    );
+  }
+
+  final environment = switch (json['environment']) {
+    final String name =>
+      SceneEnvironmentPreset.values
+          .where((SceneEnvironmentPreset each) => each.name == name)
+          .firstOrNull,
+    _ => null,
+  };
+  if (json['environment'] != null && environment == null) {
+    noticed('names an environment this build does not have');
+  }
+
+  final panorama = switch (json['panorama']) {
+    final int image when image >= 0 && image < imageCount => image,
+    _ => null,
+  };
+  if (json['panorama'] != null && panorama == null) {
+    noticed('names a panorama that is not among the project\'s images');
+  }
+
+  return SceneLighting(
+    lights: lights,
+    environment: environment ?? untouched.environment,
+    ambientIntensity:
+        (json['ambientIntensity'] as num?)?.toDouble() ??
+        untouched.ambientIntensity,
+    shadows: json['shadows'] == true,
+    exposure: (json['exposure'] as num?)?.toDouble() ?? untouched.exposure,
+    post: ScenePostSettings(bloomEnabled: json['bloom'] != false),
+    panorama: panorama,
+  );
 }
 
 Map<String, Object?> _profileJson(ProjectProfile profile) => <String, Object?>{
@@ -2551,6 +2731,40 @@ VertexLayout? _layoutFrom(Object? json, Map<String, String> pool) {
   return (lods, null);
 }
 
+/// [json] as a modifier stack, or the sentence that stops the file —
+/// `(null, null)` for the ordinary absent case, an object with no stack.
+///
+/// **A slot this build cannot read is dropped with a warning, and the file
+/// still opens.** That is [ModifierSlot.fromJson]'s own rule and the reason it
+/// answers null: a stack written by a build with a modifier kind this one has
+/// not got is still a model worth opening, and the person is told which object
+/// lost what. A `modifiers` entry that is not a list at all is a different
+/// matter, a damaged file, and stops it the way [_readLods] does.
+(List<ModifierSlot>?, String?) _readModifiers(
+  Object? json,
+  int index,
+  String name,
+  List<String>? warnings,
+) {
+  if (json == null) return (null, null);
+  if (json is! List<Object?>) {
+    return (
+      null,
+      'Object $index ("$name") has a modifiers entry that is not a list.',
+    );
+  }
+  final slots = <ModifierSlot>[
+    for (final Object? each in json) ?ModifierSlot.fromJson(each),
+  ];
+  if (slots.length != json.length) {
+    warnings?.add(
+      'Object $index ("$name") had ${json.length - slots.length} of its '
+      '${json.length} modifiers dropped: this build cannot read them.',
+    );
+  }
+  return (slots, null);
+}
+
 /// [json] as a list of [ShapeDriver], or the sentence that stops the file —
 /// `(null, null)` for the ordinary absent case, an object no driver has
 /// ever been added to (every project saved before `anim-34d`, among
@@ -2814,6 +3028,7 @@ VertexLayout? _layoutFrom(Object? json, Map<String, String> pool) {
   List<MeshData> arrived,
   Map<String, String> pool, {
   List<Uint8List> simulationChunks = const <Uint8List>[],
+  List<String>? warnings,
 }) {
   if (entry case {
     'id': final int id,
@@ -2865,6 +3080,10 @@ VertexLayout? _layoutFrom(Object? json, Map<String, String> pool) {
     );
     if (lodsRefusal != null) return (null, lodsRefusal);
 
+    final (List<ModifierSlot>? modifiers, String? modifiersRefusal) =
+        _readModifiers(entry['modifiers'], index, name, warnings);
+    if (modifiersRefusal != null) return (null, modifiersRefusal);
+
     final (SimulationCache? cache, String? cacheRefusal) = _readSimulationCache(
       entry['simulationCache'],
       simulationChunks,
@@ -2892,6 +3111,7 @@ VertexLayout? _layoutFrom(Object? json, Map<String, String> pool) {
         shapeSet: shapeSet ?? const ShapeSet(),
         shapeDrivers: shapeDrivers ?? const <ShapeDriver>[],
         lods: lods ?? const <LodSpec>[],
+        modifiers: modifiers ?? const <ModifierSlot>[],
         // `pro-doc-01`. Absent is an object nobody has baked, which is what
         // every file written before the section existed says.
         simulationCache: cache,

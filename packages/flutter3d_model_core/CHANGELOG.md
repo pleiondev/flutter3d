@@ -44,9 +44,14 @@ read, so a file written at any point of this package's history opens. The
 reader refuses a newer version and a missing required field, and turns an
 unknown enum name into a default with a warning in `ProjectOpened.warnings`.
 The undo history is written only on request and trimmed to `maxHistoryBytes`,
-4 MiB by default, since it measured about nine times the file. Not written
-yet: an object's modifier stack and the project's `SceneLighting`, which a
-reopened project gets at their defaults.
+4 MiB by default, since it measured about nine times the file. An object's
+modifier stack and the project's `SceneLighting` are written when they are not
+the default, and lighting is carried through a saved history the way the
+material table is, so an undo after reopening puts back that step's lamps. For
+most of this package's life neither was written: `ModifierSlot` had a `toJson`
+the format never called, and a mirror or three lights lasted until the file
+was closed. A slot or a light this build cannot read is dropped with a warning
+and the file still opens.
 
 **Objects.** `AddPrimitive`, `AddLathe`, `AddSocket`, `SetParametric`,
 `BakeToMesh`, `BuildTopology`, `DuplicateObjects`, `DeleteObjects`, `Rename`,

@@ -99,13 +99,20 @@ void runCase3Scenario(ModelSession session) {
   }
 
   // The gizmo and its pivot: pick the box up by its own origin
-  // (`TransformPivot.individual` — the vase is not part of this selection,
+  // (`TransformPivot.individual` — the vases are not part of this selection,
   // so `median` would land in the same place, but naming the pivot the
   // corner actually wants is the point of this step) and carry it into the
-  // corner beside the vase, then turn it to face into that corner.
+  // corner beside the shelf, then turn it to face into that corner.
+  //
+  // **Past the end of the shelf, at x = 3.** Case 2's array puts three vases
+  // at 0, 0.9 and 1.8, and this used to move the box to 1.3, between the
+  // second and the third. Nobody saw it, because the project file did not
+  // carry a modifier stack: case 2 saved a shelf, this case opened one vase,
+  // and the box sat beside it in every picture. The file carries the stack
+  // now, so this case opens what case 2 says it saved.
   must(session.select(objects: <int>[case3BoxId]), 'select the box');
   must(
-    session.run(MoveBy(Vector3(1.3, 0.5, -0.4))),
+    session.run(MoveBy(Vector3(3.0, 0.5, -0.4))),
     'move the box into the corner',
   );
   must(
@@ -127,7 +134,8 @@ void runCase3Scenario(ModelSession session) {
     session.run(
       SetLightTransform(
         index: 0,
-        to: Matrix4.translation(Vector3(0.6, 1.4, 0.9)),
+        // Between the last vase and the box, where it lights both.
+        to: Matrix4.translation(Vector3(2.4, 1.4, 0.9)),
       ),
     ),
     'setLightTransform',

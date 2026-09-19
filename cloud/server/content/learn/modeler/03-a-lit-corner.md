@@ -7,8 +7,8 @@ summary: A second asset imported into an existing project, placed with the gizmo
 
 **What you have:** case 2's own saved vase project, and a second file,
 `BoxTextured.glb`. **What you want:** both in one scene, the box moved into
-a corner beside the vase, a light staged over them with shadows on, and one
-GLB out that carries both as nodes.
+a corner beside the shelf of vases, a light staged over them with shadows on,
+and one GLB out that carries both as nodes.
 
 Where case 2 built a single object from nothing, this case is about a
 *second* object joining a project that already has one — the gizmo and its
@@ -17,8 +17,11 @@ environment, post.
 
 ## 1. Import into the existing project
 
-Open case 2's own `.f3dproj` — the vase is already there, object 1. What
-this step needs next is a second file merged *alongside* it rather than
+Open case 2's own `.f3dproj` — the vase is already there, object 1, and it
+opens as the shelf of three that case 2 saved: one object, with its mirror and
+its array still on it. For a while it did not. The project file had nowhere to
+write a modifier stack, so case 2 saved a shelf and this case opened a single
+vase, and every picture on this page showed one. What this step needs next is a second file merged *alongside* it rather than
 replacing it — `ImportInto` (`doc-11a-n`) exists exactly for this: it merges
 a document's own objects, materials and images into a project's existing
 tables, deduplicating anything that matches by content rather than doubling
@@ -56,8 +59,10 @@ parent" rule the renderer itself already follows.
 
 ## 2. The gizmo and its pivot
 
-Grab the move gizmo and drag the box into a corner beside the vase:
-`MoveBy((1.3, 0.5, -0.4))` answers **"move — object 2"**. Then the rotate
+Grab the move gizmo and drag the box past the end of the shelf, into the
+corner beside the third vase: `MoveBy((3.0, 0.5, -0.4))` answers
+**"move — object 2"**. The array puts the vases at 0, 0.9 and 1.8 along X, so
+anything short of 2.5 lands the box inside one of them. Then the rotate
 gizmo, turning it to face into that corner: `RotateBy(axis: (0, 1, 0),
 radians: 0.6, pivot: individual)`.
 
@@ -78,7 +83,8 @@ Switch to Scene mode. Its four panels each set one part of the project's own
 
 - **Sources** — the panel's own **Add** button, with **Point** picked from
   its light-type dropdown, calls `AddLight(type: point)`. The gizmo then
-  places it (`SetLightTransform`) up and to the side of the corner, the
+  places it (`SetLightTransform`, to `(2.4, 1.4, 0.9)`) up and between the
+  last vase and the box, the
   panel's own colour and intensity fields warm it slightly and raise it
   (`SetLightField('color', (1.0, 0.92, 0.78))`,
   `SetLightField('intensity', 4.5)`), and this same panel's own **Casts
@@ -113,7 +119,7 @@ Switch to Scene mode. Its four panels each set one part of the project's own
 > "Studio" has no baked environment map behind it at all yet — both stay a
 > real, separate, narrower gap than the one this step used to name.
 
-![The vase and the imported, moved and turned box, lit by the point light this step just set on the project — its own colour, its own shadow request, additive over the viewport's fixed key/fill pair (tut-07). The environment preset and the ambient level do not reach this picture yet.](/assets/learn/modeler/a-lit-corner/03-lit-corner.png)
+![The shelf of three vases and the imported, moved and turned box, lit by the point light this step just set on the project — its own colour, its own shadow request, additive over the viewport's fixed key/fill pair (tut-07). The environment preset and the ambient level do not reach this picture yet.](/assets/learn/modeler/a-lit-corner/03-lit-corner.png)
 
 ## 4. Export, with both nodes
 
@@ -132,8 +138,10 @@ export proceeds. Decoding the written GLB back:
 
 - **3 nodes** — the vase, the box's own empty root at its moved-and-turned
   transform, and the box's mesh as that root's child.
-- **2 surfaces** — the vase and the box mesh, each a node with real
-  geometry; the empty root carries none of its own.
+- **2 surfaces** — the vases and the box mesh, each a node with real
+  geometry; the empty root carries none of its own. The three vases are one
+  surface, because they are one object: the export folds its mirror and its
+  array into the mesh it writes.
 - **2 materials** — the vase's own "glazed clay" and the box's own
   textured material from `BoxTextured.glb`. They do not match, so both
   stay in the export table rather than being folded into one — `ImportInto`

@@ -1,8 +1,8 @@
 {"name":"selectElements","objects":[2],"author":"agent"}
-{"name":"moveBy","by":[1.2999999523162842,0.5,-0.4000000059604645],"author":"agent"}
+{"name":"moveBy","by":[3.0,0.5,-0.4000000059604645],"author":"agent"}
 {"name":"rotateBy","axis":[0.0,1.0,0.0],"radians":0.6,"pivot":"individual","space":"global","author":"agent"}
 {"name":"addLight","type":"point","author":"agent"}
-{"name":"setLightTransform","index":0,"to":[1.0,0.0,0.0,0.0,0.0,1.0,0.0,0.0,0.0,0.0,1.0,0.0,0.6000000238418579,1.399999976158142,0.8999999761581421,1.0],"author":"agent"}
+{"name":"setLightTransform","index":0,"to":[1.0,0.0,0.0,0.0,0.0,1.0,0.0,0.0,0.0,0.0,1.0,0.0,2.4000000953674316,1.399999976158142,0.8999999761581421,1.0],"author":"agent"}
 {"name":"setLightField","index":0,"field":"color","value":[1.0,0.92,0.78],"author":"agent"}
 {"name":"setLightField","index":0,"field":"intensity","value":4.5,"author":"agent"}
 {"name":"setLightField","index":0,"field":"castsShadow","value":true,"author":"agent"}
