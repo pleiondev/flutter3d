@@ -97,4 +97,92 @@ const List<Feature> simAudioXrFeatures = <Feature>[
     evidenceFile: 'packages/flutter3d_sim/CHANGELOG.md',
     packages: <String>['flutter3d_sim'],
   ),
+  Feature(
+    id: 'nav-grid',
+    title: 'Path-finding',
+    category: Category.simAudioXr,
+    summary:
+        'Where an agent can stand, baked once from the level into a lattice '
+        'a step can query in one array lookup.',
+    since: '0.4.1',
+    evidence: 'finds the gaps and ledges a',
+    evidenceFile: 'packages/flutter3d_sim/CHANGELOG.md',
+    packages: <String>['flutter3d_sim'],
+  ),
+  Feature(
+    id: 'flow-field',
+    title: 'A flow field',
+    category: Category.simAudioXr,
+    summary:
+        'One sweep from a goal, read by every agent as the direction to walk '
+        'from wherever it stands.',
+    since: '0.4.1',
+    approximate: true,
+    evidence: 'no explicit origin',
+    evidenceFile: 'packages/flutter3d_sim/CHANGELOG.md',
+    keywords: <String>['FlowField'],
+    packages: <String>['flutter3d_sim'],
+  ),
+  Feature(
+    id: 'automap',
+    title: 'An automap',
+    category: Category.simAudioXr,
+    summary:
+        'The level as the player has seen it, floor where they walked and '
+        'walls where it stopped, built over the same grid the monsters use.',
+    since: '0.4.1',
+    approximate: true,
+    evidence: 'no explicit origin',
+    evidenceFile: 'packages/flutter3d_sim/CHANGELOG.md',
+    keywords: <String>['NavGrid'],
+    packages: <String>['flutter3d_sim'],
+  ),
+  Feature(
+    id: 'lightmap-bake',
+    title: 'Baking a lightmap',
+    category: Category.simAudioXr,
+    summary:
+        'Unwrapping a level\'s brush faces onto an atlas, then gathering the '
+        'light the walls throw on each other into it.',
+    since: '0.4.1',
+    evidence: 'unwraps every visible brush face onto a',
+    evidenceFile: 'packages/flutter3d_sim/CHANGELOG.md',
+    packages: <String>['flutter3d_sim'],
+  ),
+  Feature(
+    id: 'baked-visibility',
+    title: 'Baked visibility',
+    category: Category.simAudioXr,
+    summary:
+        'Which parts of a brush level can be seen from where, baked once and '
+        'applied every frame by hiding what the eye cannot see.',
+    since: '0.7.0',
+    evidence: 'VisibilityCuller',
+    evidenceFile: 'packages/flutter3d_app/CHANGELOG.md',
+    packages: <String>['flutter3d_sim', 'flutter3d_app'],
+  ),
+  Feature(
+    id: 'terrain-tiles',
+    title: 'Terrain in tiles',
+    category: Category.simAudioXr,
+    summary:
+        'Ground cut into tiles buildable at more than one resolution, and a '
+        'level chosen by distance, with a skirt closing the seam.',
+    since: '0.7.0',
+    evidence: 'Ground in tiles, at a level of detail chosen by distance',
+    evidenceFile: 'packages/flutter3d_sim/CHANGELOG.md',
+    packages: <String>['flutter3d_sim'],
+  ),
+  Feature(
+    id: 'level-format',
+    title: 'The level format',
+    category: Category.simAudioXr,
+    summary:
+        'A level as a document: brushes, entities and lights, round-tripped '
+        'through JSON and checked by a validator before anyone plays it.',
+    since: '0.4.2',
+    evidence: 'A brush can say how it casts, not only whether',
+    evidenceFile: 'packages/flutter3d_sim/CHANGELOG.md',
+    packages: <String>['flutter3d_sim'],
+  ),
 ];
