@@ -56,4 +56,55 @@ const List<Feature> environmentFeatures = <Feature>[
       'packages/flutter3d_core/lib/src/engine/render/environment_map.dart',
     ],
   ),
+  Feature(
+    id: 'reflection-probes',
+    title: 'Reflection probes',
+    category: Category.environment,
+    summary:
+        'A mirror finish that shows the room it stands in: the scene '
+        'captured into a cube from one point and blurred once per '
+        'roughness on the device.',
+    since: '0.4.3',
+    evidence: 'Reflection probes',
+    keywords: <String>['reflectionprobenode'],
+    needs: <Need>{Need.cubeTextures, Need.renderToMip},
+    engineFiles: <String>[
+      'packages/flutter3d_core/lib/src/engine/scene/reflection_probe_node.dart',
+      'packages/flutter3d_core/lib/src/engine/render/renderer_probe_pass.dart',
+    ],
+  ),
+  Feature(
+    id: 'irradiance-field',
+    title: 'One bounce of diffuse light',
+    category: Category.environment,
+    summary:
+        'A grid of probes, each filled by casting rays out from it and '
+        'recording what colour comes back, so a red wall tints the light '
+        'reaching what faces it.',
+    since: '0.7.0',
+    evidence: '`IrradianceField` for one bounce of diffuse light',
+    keywords: <String>['irradiancefield'],
+    engineFiles: <String>[
+      'packages/flutter3d_core/lib/src/engine/scene/irradiance_field.dart',
+      'packages/flutter3d_core/lib/src/engine/scene/irradiance_gather.dart',
+    ],
+  ),
+  Feature(
+    id: 'lightmaps',
+    title: 'Lightmaps',
+    category: Category.environment,
+    summary:
+        'Indirect light baked into a texture ahead of time and read '
+        'through a second coordinate the vertex colour carries.',
+    since: '0.4.2',
+    evidence:
+        '`MeshNode.lightmapped` picks a vertex stage that reads the '
+        'colour attribute as a place in `Material.lightmap`',
+    keywords: <String>['lightmapped'],
+    engineFiles: <String>[
+      'packages/flutter3d_core/lib/src/engine/scene/mesh_node.dart',
+      'packages/flutter3d_core/lib/src/engine/render/material.dart',
+      'packages/flutter3d_shaders/shaders/mesh_lightmapped.vert',
+    ],
+  ),
 ];
