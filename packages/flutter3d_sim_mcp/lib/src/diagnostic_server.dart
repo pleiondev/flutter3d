@@ -3,8 +3,12 @@ import 'package:flutter3d_mcp_kit/flutter3d_mcp_kit.dart';
 import 'diagnostic_session.dart';
 import 'diagnostic_tools.dart';
 
-/// The version this server tells a client it is. Kept beside the pubspec's.
-const String renderMcpVersion = '0.1.0';
+/// The version this server tells a client it is: the pubspec's.
+///
+/// A constant, because a compiled server has no pubspec to read. It said
+/// 0.1.0 while the package moved on, since "kept beside the pubspec's" was a
+/// comment and nothing checked it; `server_version_test.dart` does now.
+const String renderMcpVersion = '0.7.0';
 
 /// A rendered frame, offered to an agent as a table of tools — `par-02`.
 ///

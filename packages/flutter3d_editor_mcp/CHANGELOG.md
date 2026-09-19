@@ -21,6 +21,10 @@ The same seventeen tools, on the server the other two share.
   `flutter3d-editor-mcp-`. `dart run skills@ get` skips a skill whose directory
   does not start with its package's name, and a project that depends on
   several packages can tell whose `editing-order` it is looking at.
+* **The server says the version it is.** `editorMcpVersion`, which a client
+  sees in the handshake, was the constant `'0.1.0'` while the package went out
+  at 0.6.0. It is `'0.7.0'`, and a test reads the pubspec and holds the two
+  together.
 * `flutter3d_mcp_kit` `^0.7.0` is a new dependency; the floors on
   `flutter3d_editor_core` and `flutter3d_sim` are `^0.7.0`. Still plain Dart,
   and `dart run flutter3d_editor_mcp:editor_mcp <level.json>` still resolves

@@ -3233,7 +3233,7 @@ List<ModelTool> get modelTools => <ModelTool>[
       description:
           'Metrics (object, vertex and face counts) and issues in '
           'one call — list and check together, for a quick read on what '
-          'was just built. No picture yet.',
+          'was just built. Numbers only; `render` is the picture.',
       inputSchema: ObjectSchema(),
     ),
     _sync(
