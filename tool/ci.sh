@@ -181,6 +181,14 @@ step "analyze" flutter analyze
 # possible moment otherwise.
 step "publish check" bash tool/publish_check.sh
 
+# The modeller's pictures, as the tutorial and the documentation site show them,
+# against the ones its own golden tests hold. `--check` was written for this
+# line and nothing ever called it: the first time it was run by hand it found
+# `animation-weights.png` published in two places and drawn differently by the
+# editor, with every test green. A picture of a panel that has since moved is
+# a tutorial step a reader cannot follow.
+step "modeller screenshots" dart run tool/publish_modeler_screenshots.dart --check
+
 # **Which packages are plain Dart is not this script's knowledge.** It named
 # four of them here and `tool/structure/repository.dart` named the same four,
 # and the two lists were free to disagree: a fifth plain package added there
