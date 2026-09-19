@@ -534,5 +534,90 @@ List<Stage> buildChecklist(Snapshots s, ReleaseConfig c) {
     ],
   );
 
-  return <Stage>[a, b, cStage, d, e];
+  // --- F. The showcase ---------------------------------------------------
+  final show = s.showcase;
+
+  CheckItem setItem(ShowcaseSet set) {
+    final id = 'f-set-${set.id}';
+    final title = 'Set ${set.id.toUpperCase()}: ${set.title}';
+    if (set.expected == 0) {
+      return _item(
+        id,
+        title,
+        Level.unknown,
+        'the coverage list names no pages',
+      );
+    }
+    final counts = '${set.pages} of ${set.expected} pages';
+    final rows = set.catalogRows == set.pages
+        ? ''
+        : '; ${set.catalogRows} catalog rows for ${set.pages} pages';
+    if (set.pages == 0) {
+      return _item(id, title, Level.pending, 'not started: $counts');
+    }
+    if (set.pages < set.expected) {
+      return _item(id, title, Level.running, '$counts$rows');
+    }
+    return rows.isEmpty
+        ? _item(id, title, Level.pass, counts)
+        : _item(id, title, Level.fail, '$counts$rows');
+  }
+
+  final f = Stage(
+    id: 'f',
+    title: 'F. The showcase',
+    items: <CheckItem>[
+      _probeItem(
+        'f-lod',
+        'A model with levels of detail draws in the game',
+        s,
+        const <String>['showcase-lod'],
+      ),
+      _probeItem(
+        'f-platform',
+        'The app and its platform exist',
+        s,
+        const <String>['showcase-platform'],
+      ),
+      if (show.sets.isEmpty)
+        _item(
+          'f-sets',
+          'The pages of each set',
+          Level.pending,
+          'no coverage list yet',
+        )
+      else
+        for (final set in show.sets) setItem(set),
+      _item(
+        'f-coverage',
+        'Every 0.7.0 entry has a page or a reason',
+        show.coverageFilled ? Level.pass : Level.pending,
+        show.coverageFilled ? '' : 'the audit in coverage.md is not written',
+      ),
+      _probeItem(
+        'f-site',
+        'The site builds the guides and the source',
+        s,
+        const <String>['showcase-site'],
+      ),
+      _gateItem('f-tests', 'The showcase tests pass', s, 'showcase-tests'),
+      _gateItem('f-web', 'The showcase web build compiles', s, 'showcase-web'),
+      _item(
+        'f-deployed',
+        'The showcase is published',
+        switch (show.live) {
+          true => Level.pass,
+          false => Level.fail,
+          null => Level.unknown,
+        },
+        switch (show.live) {
+          true => 'flutter3d.pleion.dev/showcase/ answers',
+          false => 'flutter3d.pleion.dev/showcase/ answers with something else',
+          null => 'not measured: not published, or the host is behind a login',
+        },
+      ),
+    ],
+  );
+
+  return <Stage>[a, b, cStage, d, e, f];
 }

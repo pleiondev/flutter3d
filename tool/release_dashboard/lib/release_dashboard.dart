@@ -13,3 +13,4 @@ export 'src/plan.dart';
 export 'src/probes.dart';
 export 'src/remote.dart';
 export 'src/shell.dart';
+export 'src/showcase.dart';

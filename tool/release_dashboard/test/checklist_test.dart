@@ -24,7 +24,7 @@ void main() {
 
   test('nothing has been measured, so nothing is green', () {
     final stages = buildChecklist(snapshots(), config);
-    expect(stages.map((s) => s.id), <String>['a', 'b', 'c', 'd', 'e']);
+    expect(stages.map((s) => s.id), <String>['a', 'b', 'c', 'd', 'e', 'f']);
     expect(item(stages, 'a-format').level, Level.unknown);
     expect(progressOf(stages).passed, 0);
   });

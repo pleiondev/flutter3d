@@ -149,6 +149,11 @@ const String _webBuild =
     '--base-href=/app/ --no-web-resources-cdn '
     '--dart-define=FLUTTER3D_WEBGPU=true';
 
+const String _showcaseWeb =
+    'cd apps/flutter3d_showcase && flutter build web --release '
+    '--base-href=/showcase/ --no-web-resources-cdn '
+    '--dart-define=FLUTTER3D_WEBGPU=true';
+
 /// The gates, in the order the page lists them.
 List<Gate> defaultGates(Directory root) => <Gate>[
   const Gate(
@@ -202,6 +207,27 @@ List<Gate> defaultGates(Directory root) => <Gate>[
     command: const <String>['bash', '-c', _webBuild],
     judge: _judgeExit('dart2js built the modeller', 'web build failed'),
     timeout: Duration(minutes: 15),
+  ),
+  Gate(
+    id: 'showcase-web',
+    title: 'showcase web build',
+    command: const <String>['bash', '-c', _showcaseWeb],
+    judge: _judgeExit(
+      'dart2js built the showcase',
+      'showcase web build failed',
+    ),
+    timeout: Duration(minutes: 15),
+  ),
+  Gate(
+    id: 'showcase-tests',
+    title: 'showcase tests',
+    command: const <String>[
+      'bash',
+      '-c',
+      'cd apps/flutter3d_showcase && flutter test',
+    ],
+    judge: _judgeExit('the showcase tests pass', 'showcase tests failed'),
+    timeout: Duration(minutes: 20),
   ),
   Gate(
     id: 'ci',
