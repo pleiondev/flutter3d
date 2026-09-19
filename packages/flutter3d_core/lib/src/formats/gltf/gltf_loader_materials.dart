@@ -29,9 +29,10 @@ extension _GltfMaterials on GltfLoader {
       }
       final texture = textures[textureIndex];
       // The core image first, when there is one. `KHR_texture_basisu` says a
-      // reader that supports it should prefer its KTX2 over the core PNG, and
-      // this reader supports a third of it: Basis ETC1S, not UASTC and not a
-      // zstd-wrapped file. A PNG beside it always decodes, so the PNG wins
+      // reader that supports it should prefer its KTX2 over the core PNG. This
+      // reader does support it — ETC1S and, since `gfx-78n`, UASTC with its
+      // Zstandard wrapper — but both are *unpacked* to RGBA8, so beside a PNG
+      // the KTX2 buys no memory and is the lossier of the two. The PNG wins
       // while it exists, and the extension's source is what a file that ships
       // only the KTX2 falls back to — which is the file that used to lose its
       // texture here with a one-line warning.

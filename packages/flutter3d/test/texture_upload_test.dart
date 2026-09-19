@@ -256,6 +256,42 @@ void main() {
     expect(at(7, 7), rgba(255, 255, 2));
   });
 
+  test(
+    'a UASTC KTX2 file uploads as RGBA8, with its mip chain — gfx-78n',
+    () async {
+      // The other half of Basis Universal, Zstandard-free here and with seven
+      // levels. `flutter3d_core`'s `uastc_test.dart` holds the decoder to the
+      // reference transcoder byte for byte; this is that the engine's own route
+      // to a device reaches it — the isolate hop `isBasisUniversalKtx2` asks
+      // for included — and hands over every level rather than the first.
+      const fixtures = '../flutter3d_core/test/formats/fixtures/ktx2';
+      final device = FakeBackend();
+      final reports = <String>[];
+
+      final handle = await uploadEncodedImage(
+        device,
+        File('$fixtures/uastc_alpha_mips.ktx2').readAsBytesSync(),
+        decodeImage: _neverDecodes,
+        report: reports.add,
+      );
+
+      expect(reports, isEmpty);
+      expect(handle, isNotNull);
+      final spec = device.uploadedTextures.single;
+      expect(spec.width, 64);
+      expect(spec.height, 64);
+      expect(spec.format, TextureFormat.r8g8b8a8UNormInt);
+      // Six below the base: `uploadedMipLevels` is the chain after level 0.
+      expect(device.uploadedMipLevels.single, hasLength(6));
+      expect(
+        Uint8List.sublistView(device.uploadedPixels.single),
+        orderedEquals(
+          File('$fixtures/uastc_alpha_mips_level_0.rgba').readAsBytesSync(),
+        ),
+      );
+    },
+  );
+
   group(
     'a universal-block file becomes the device\'s own format — gfx-83n',
     () {

@@ -177,9 +177,10 @@ final class GltfLoader implements ModelDecoder {
     const supported = <String>{
       'KHR_materials_unlit',
       'KHR_materials_emissive_strength',
-      // Supported as far as the KTX2 reader goes — Basis ETC1S, and a file's
-      // own BC/ETC2/ASTC where the device samples them. A UASTC texture in
-      // such a file is refused by name at upload and becomes a warning on the
+      // Supported as far as the KTX2 reader goes — both Basis Universal
+      // encodings, ETC1S and UASTC LDR, and a file's own BC/ETC2/ASTC where the
+      // device samples them. A texture the reader still refuses (UASTC HDR, a
+      // cube map) is refused by name at upload and becomes a warning on the
       // material rather than a refusal of the whole file, since the geometry
       // and every other texture are still worth having.
       'KHR_texture_basisu',

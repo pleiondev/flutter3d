@@ -46,27 +46,31 @@
 /// ## What this stage reads, and what it refuses
 ///
 /// One 2D texture, no array layers, no cube faces, no depth — that much is
-/// common to both shapes it takes. Within it there are two:
+/// common to every shape it takes. Within it there are three:
 ///
 ///  * **A plain format.** An explicit `vkFormat` from the subset
-///    [VkFormat] lists, with `supercompressionScheme` none: the mip bytes
-///    *are* the texture bytes, and reading the file is finding them.
+///    [VkFormat] lists: the mip bytes *are* the texture bytes, once any
+///    Zstandard or ZLIB supercompression is undone, and reading the file is
+///    finding them.
 ///  * **Basis Universal ETC1S.** `vkFormat` `0`/undefined — how a KTX2 file
 ///    says its real format lives elsewhere — with `supercompressionScheme`
 ///    Basis-LZ. Every mip level is transcoded to RGBA8 on the CPU by
 ///    `basis_universal/etc1s_transcoder.dart`, which is why the loader reads
 ///    the supercompression global data below and why a `.ktx2` can cost real
 ///    time to open.
+///  * **Basis Universal UASTC LDR 4×4.** `vkFormat` undefined again, and the
+///    data format descriptor's colour model — [Ktx2ColorModel] — saying which
+///    Basis it is. Plain sixteen-byte blocks, usually Zstandard-compressed,
+///    unpacked to RGBA8 by `basis_universal/uastc_decoder.dart`. What
+///    `toktx --uastc`, `gltf-transform uastc` and `basisu -uastc` write.
 ///
 /// Everything else is refused with [Ktx2FormatException] naming what was
-/// found, not attempted: Zstandard or ZLIB supercompression, UASTC (an
-/// undefined `vkFormat` under any scheme but Basis-LZ — what `toktx --uastc`
-/// writes), texture arrays, cube maps, 3D textures, runtime-generated mip
-/// chains (`levelCount == 0`). Each is a real feature with its own cost (a
-/// decompressor, a second transcoder, a six-face upload path, a mip
-/// generator) and none of this repository's three games needs one yet; the
-/// point of refusing loudly is that adding one later is additive; guessing
-/// wrong quietly is not.
+/// found, not attempted: the HDR and intermediate Basis colour models, texture
+/// arrays, cube maps, 3D textures, runtime-generated mip chains
+/// (`levelCount == 0`). Each is a real feature with its own cost (another
+/// transcoder, a six-face upload path, a mip generator) and none of this
+/// repository's three games needs one yet; the point of refusing loudly is
+/// that adding one later is additive; guessing wrong quietly is not.
 ///
 /// The key/value section is read for the same reason, and only for the three
 /// keys that describe pixels rather than provenance: a bottom-up
@@ -210,6 +214,31 @@ abstract final class Ktx2SupercompressionScheme {
   static const int basisLZ = 1;
   static const int zstandard = 2;
   static const int zlib = 3;
+}
+
+/// The data format descriptor's `colorModel`, for the values that matter when
+/// `vkFormat` is undefined — `gfx-78n`.
+///
+/// An undefined `vkFormat` only says the pixels are in some Basis Universal
+/// encoding; this byte is where the file says which. Numbers are Khronos's
+/// `KHR_DF_MODEL_*`, as the reference transcoder's `basisu_transcoder.h` lists
+/// them.
+abstract final class Ktx2ColorModel {
+  static const int etc1s = 163;
+  static const int uastc = 166;
+
+  /// What to call a colour model in a refusal, including the ones a current
+  /// `basisu` can write and this does not read.
+  static String nameOf(int model) => switch (model) {
+    etc1s => 'ETC1S',
+    uastc => 'UASTC LDR 4x4',
+    162 => 'ASTC',
+    167 => 'UASTC HDR 4x4',
+    168 => 'UASTC HDR 6x6 intermediate',
+    169 => 'XUASTC LDR intermediate',
+    170 => 'XUBC7',
+    _ => 'not a Basis Universal model',
+  };
 }
 
 /// The subset of Vulkan's `VkFormat` this loader maps to a [TextureFormat].
