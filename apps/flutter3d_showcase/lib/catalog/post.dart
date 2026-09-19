@@ -140,6 +140,79 @@ const List<Feature> postFeatures = <Feature>[
     ],
   ),
   Feature(
+    id: 'light-shafts',
+    title: 'Light shafts',
+    category: Category.post,
+    summary:
+        'A view ray marched through the sun\'s own shadow map, so a beam '
+        'through a doorway keeps the doorway\'s shape.',
+    since: '0.7.0',
+    evidence: 'LightShaftSettings',
+    keywords: <String>['lightshaftsettings'],
+    engineFiles: <String>[_settings],
+  ),
+  Feature(
+    id: 'anti-aliasing',
+    title: 'FXAA and sharpen',
+    category: Category.post,
+    summary:
+        'One pass over the finished picture that softens a hard contrast '
+        'step, with a sharpen riding the same taps.',
+    since: '0.7.0',
+    evidence: 'AntiAliasSettings` with FXAA and `sharpen',
+    keywords: <String>['antialiassettings'],
+    engineFiles: <String>[_settings],
+  ),
+  Feature(
+    id: 'depth-of-field',
+    title: 'Depth of field',
+    category: Category.post,
+    summary:
+        'A thin-lens blur from a focus distance, a focal length and an '
+        'f-number, the numbers a photographer already knows.',
+    since: '0.7.0',
+    evidence: 'DepthOfFieldSettings',
+    keywords: <String>['depthoffieldsettings'],
+    engineFiles: <String>[_settings],
+  ),
+  Feature(
+    id: 'viewport-shading',
+    title: 'Viewport shading',
+    category: Category.post,
+    summary:
+        'Normals, clay, outline and curvature, each read out of the second '
+        'buffer the scene pass already writes.',
+    since: '0.7.0',
+    evidence:
+        'ViewportShadingSettings` for normals, clay, outline and curvature',
+    keywords: <String>['viewportshadingsettings'],
+    engineFiles: <String>[_settings],
+  ),
+  Feature(
+    id: 'surface-buffer',
+    title: 'The surface buffer',
+    category: Category.post,
+    summary:
+        'The world normal and view-axis depth the scene pass writes once, '
+        'for every screen-space effect to share, seen raw.',
+    since: '0.4.3',
+    evidence: 'Neither extra draw writes the surface buffer',
+    keywords: <String>['surface buffer'],
+    engineFiles: <String>[_settings],
+  ),
+  Feature(
+    id: 'adaptive-resolution',
+    title: 'Adaptive resolution',
+    category: Category.post,
+    summary:
+        'The whole frame drawn smaller when nothing else is left to trade, '
+        'at a scale a plain object works out from recent frame costs.',
+    since: '0.7.0',
+    evidence: 'renderScale` with `AdaptiveScale',
+    keywords: <String>['adaptivescale'],
+    engineFiles: <String>[_settings],
+  ),
+  Feature(
     id: 'xray',
     title: 'X-ray silhouettes',
     category: Category.post,
