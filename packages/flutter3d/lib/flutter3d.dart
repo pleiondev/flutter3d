@@ -55,6 +55,7 @@ export 'package:flutter3d_hardware/flutter3d_hardware.dart';
 export 'src/engine/assets/bundle_asset_source.dart';
 export 'src/engine/assets/default_image_decoder.dart';
 export 'src/engine/assets/gltf_resolvers.dart';
+export 'src/engine/assets/load_model_asset.dart';
 export 'src/engine/assets/material_loader.dart';
 export 'src/engine/assets/model_asset.dart';
 
