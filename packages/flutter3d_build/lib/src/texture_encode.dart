@@ -20,12 +20,19 @@ import 'convert.dart';
 /// is actually loaded on — `ap-09`'s own row is the one that resolves this
 /// per target, and nothing here pre-empts it.
 ///
+/// [mips] false keeps the base level alone — what `--no-mips` asks for, for a
+/// caller measuring the difference or a texture that is only ever drawn at its
+/// own size. The default is the chain `gfx-69n` added, since a compressed
+/// texture with one level is the case where compressing makes the picture
+/// worse.
+///
 /// [report] hears why a specific image was left as it arrived — every
 /// refusal here is a real, named gap (an odd size, an alpha channel `etc2`
 /// cannot carry yet), never a silent skip.
 Future<ModelDocument> encodeDocumentTextures(
   ModelDocument document,
   TextureFamily family, {
+  bool mips = true,
   void Function(String message)? report,
 }) async {
   if (family == TextureFamily.none || family == TextureFamily.auto) {
@@ -33,7 +40,8 @@ Future<ModelDocument> encodeDocumentTextures(
   }
 
   final images = <EncodedImage>[
-    for (final image in document.images) _encodeOne(image, family, report),
+    for (final image in document.images)
+      _encodeOne(image, family, mips, report),
   ];
 
   return PlainModelDocument(
@@ -53,6 +61,7 @@ Future<ModelDocument> encodeDocumentTextures(
 EncodedImage _encodeOne(
   EncodedImage image,
   TextureFamily family,
+  bool mips,
   void Function(String message)? report,
 ) {
   if (image.isEmpty || isKtx2File(image.bytes)) return image;
@@ -83,7 +92,7 @@ EncodedImage _encodeOne(
   // device. Handled before the switch because it is the one family whose
   // levels and header are written differently rather than encoded differently.
   if (family == TextureFamily.universal) {
-    return _encodeUniversal(image, source, hasAlpha, label, report);
+    return _encodeUniversal(image, source, hasAlpha, mips, label, report);
   }
   switch (family) {
     case TextureFamily.bc:
@@ -109,7 +118,7 @@ EncodedImage _encodeOne(
       return image;
   }
 
-  final levels = _encodeLevels(source, encode);
+  final levels = _encodeLevels(source, encode, mips: mips);
   if (levels.length > 1) {
     report?.call(
       '$label: ${source.width}x${source.height}, ${levels.length} levels',
@@ -142,10 +151,11 @@ EncodedImage _encodeUniversal(
   EncodedImage image,
   Rgba8Image source,
   bool hasAlpha,
+  bool mips,
   String label,
   void Function(String message)? report,
 ) {
-  final levels = _encodeLevels(source, encodeUniversalBlocks);
+  final levels = _encodeLevels(source, encodeUniversalBlocks, mips: mips);
   report?.call(
     '$label: ${source.width}x${source.height}, ${levels.length} '
     'level${levels.length == 1 ? '' : 's'} of universal blocks '
@@ -174,10 +184,15 @@ EncodedImage _encodeUniversal(
 /// fall back to, so it samples the base at a stride and shimmers, and the
 /// block artefacts shimmer with it. The uploader has always taken
 /// `levels.sublist(1)` as the chain; nothing was giving it one.
+///
+/// [mips] false is the base level and nothing under it: the one place
+/// `--no-mips` lands, so every family skips its chain the same way.
 List<Uint8List> _encodeLevels(
   Rgba8Image source,
-  Uint8List Function(Rgba8Image) encode,
-) {
+  Uint8List Function(Rgba8Image) encode, {
+  required bool mips,
+}) {
+  if (!mips) return <Uint8List>[encode(source)];
   final levels = <Uint8List>[];
   var level = source;
   while (true) {
