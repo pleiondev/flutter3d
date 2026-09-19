@@ -113,10 +113,18 @@ void main() {
         maxColorAttachments: 1,
       );
       final one = device.createTexture(
-        RenderTargetSpec(width: 4, height: 4, format: device.defaultColorFormat),
+        RenderTargetSpec(
+          width: 4,
+          height: 4,
+          format: device.defaultColorFormat,
+        ),
       );
       final two = device.createTexture(
-        RenderTargetSpec(width: 4, height: 4, format: device.defaultColorFormat),
+        RenderTargetSpec(
+          width: 4,
+          height: 4,
+          format: device.defaultColorFormat,
+        ),
       );
 
       expect(
@@ -142,7 +150,11 @@ void main() {
         maxColorAttachments: 1,
       );
       final one = device.createTexture(
-        RenderTargetSpec(width: 4, height: 4, format: device.defaultColorFormat),
+        RenderTargetSpec(
+          width: 4,
+          height: 4,
+          format: device.defaultColorFormat,
+        ),
       );
 
       expect(

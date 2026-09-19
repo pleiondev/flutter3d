@@ -3079,7 +3079,6 @@ List<Finding> _noTexelFetchInVertexStages() {
   ];
 }
 
-
 /// `gfx-58n`: the surface buffer keeps carrying depth, whatever upstream does.
 ///
 /// **A gate with an argument attached, and the argument is the whole row.**

@@ -433,8 +433,7 @@ final class ViewportShadeShader implements CpuFragmentShader {
       final up = at(0.0, -screen.y);
       final curvature =
           ((right.x - left.x) + (down.y - up.y)) * math.max(params.z, 0.0);
-      final cavity =
-          (-curvature).clamp(0.0, 1.0) * params.w.clamp(0.0, 1.0);
+      final cavity = (-curvature).clamp(0.0, 1.0) * params.w.clamp(0.0, 1.0);
       final ridge = curvature.clamp(0.0, 1.0);
       final value = (0.5 + ridge * 0.5 - cavity).clamp(0.0, 1.0);
       shaded = Vector3(value, value, value);

@@ -139,24 +139,27 @@ void main() {
     expect(off.result.skipReasonOf('flat'), PassSkip.disabled);
   });
 
-  test('switched off by its own flag it reports the settings instead', () async {
-    // Two ways to be off and two different answers, which is the whole of
-    // `gfx-39n` applied to somebody else's pass: 'disabled' means a caller
-    // named it and 'settings' means the node said there was nothing to do.
-    final plain = await _frame();
-    final off = await _frame(
-      effects: (shaders) => <FullscreenEffect>[
-        FullscreenEffect.present(
-          name: 'flat',
-          shader: shaders['Flat']!,
-          enabled: false,
-        ),
-      ],
-    );
+  test(
+    'switched off by its own flag it reports the settings instead',
+    () async {
+      // Two ways to be off and two different answers, which is the whole of
+      // `gfx-39n` applied to somebody else's pass: 'disabled' means a caller
+      // named it and 'settings' means the node said there was nothing to do.
+      final plain = await _frame();
+      final off = await _frame(
+        effects: (shaders) => <FullscreenEffect>[
+          FullscreenEffect.present(
+            name: 'flat',
+            shader: shaders['Flat']!,
+            enabled: false,
+          ),
+        ],
+      );
 
-    expect(off.pixels, plain.pixels);
-    expect(off.result.skipReasonOf('flat'), PassSkip.settings);
-  });
+      expect(off.pixels, plain.pixels);
+      expect(off.result.skipReasonOf('flat'), PassSkip.settings);
+    },
+  );
 
   test('an overlay effect is registered before the composite', () async {
     // The phase decides which version it reads, and the node says which

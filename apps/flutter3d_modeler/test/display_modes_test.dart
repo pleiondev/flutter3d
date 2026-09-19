@@ -185,7 +185,8 @@ void main() {
       expect(
         node.material,
         same(own),
-        reason: 'asking for the normals view modified the subject, which is '
+        reason:
+            'asking for the normals view modified the subject, which is '
             'the whole bug class this row deleted',
       );
     });
