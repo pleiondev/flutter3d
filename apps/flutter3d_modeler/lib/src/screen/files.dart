@@ -1212,7 +1212,9 @@ extension _FileHandling on _ModelerScreenState {
   void _reportProblem() {
     unawaited(
       launchUrl(
-        reportProblemUrl(environment: 'Flutter, ${environmentSummary()}'),
+        reportProblemUrl(
+          environment: reportEnvironmentFor(environmentSummary()),
+        ),
       ),
     );
   }

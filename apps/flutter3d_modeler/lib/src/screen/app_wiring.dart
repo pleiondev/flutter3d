@@ -19,7 +19,7 @@ Future<void> _onUncaughtError(Object error, StackTrace stackTrace) =>
       cubit: _liveCrashScreen?._cubit,
       storage: _liveCrashScreen?._autosave?.storage,
       sessionId: _kAutosaveSessionId,
-      environment: 'Flutter, ${environmentSummary()}',
+      environment: reportEnvironmentFor(environmentSummary()),
       dialogContext: () => _rootNavigatorKey.currentContext,
     );
 
