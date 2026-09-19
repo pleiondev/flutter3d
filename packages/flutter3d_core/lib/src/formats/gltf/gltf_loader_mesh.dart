@@ -542,8 +542,8 @@ List<MorphTarget> _readMorphTargets({
 }) {
   if (split || builtVertexCount != sourceVertexCount) {
     warnings.add(
-      '\$label has \${targets.length} morph target(s) and was rebuilt with '
-      '\$builtVertexCount vertices from \$sourceVertexCount, so the deltas no '
+      '$label has ${targets.length} morph target(s) and was rebuilt with '
+      '$builtVertexCount vertices from $sourceVertexCount, so the deltas no '
       'longer line up with the vertices; the base shape is drawn. A primitive '
       'with NORMAL is not rebuilt.',
     );
@@ -559,13 +559,13 @@ List<MorphTarget> _readMorphTargets({
       // glTF allows a target that morphs only normals. Nothing this engine
       // draws is authored that way, and reading one would mean carrying a
       // target with no positions through every layer below.
-      warnings.add('\$label morph target \$i has no POSITION and was skipped.');
+      warnings.add('$label morph target $i has no POSITION and was skipped.');
       continue;
     }
     if (reader.countOf(positionAccessor) != sourceVertexCount) {
       warnings.add(
-        '\$label morph target \$i covers \${reader.countOf(positionAccessor)} '
-        'vertices and the primitive has \$sourceVertexCount; skipped.',
+        '$label morph target $i covers ${reader.countOf(positionAccessor)} '
+        'vertices and the primitive has $sourceVertexCount; skipped.',
       );
       continue;
     }

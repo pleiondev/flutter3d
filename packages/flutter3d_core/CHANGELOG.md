@@ -1,5 +1,10 @@
 ## Unreleased
 
+- **A morph-target warning names its primitive.** The three warnings the glTF
+  loader adds when it drops a morph target had their interpolations escaped,
+  so each said, literally, `$label has ${targets.length} morph target(s)`.
+  Nothing failed because nothing reads a warning but a person.
+
 - **A UASTC KTX2 opens (`gfx-78n`).** What `toktx --uastc`,
   `gltf-transform uastc` and `basisu -uastc` write was refused by name — and
   by guess, since any undefined `vkFormat` outside Basis-LZ was taken to be
