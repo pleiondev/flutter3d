@@ -1,3 +1,16 @@
+## 0.7.0
+
+* **A number, and no code.** The one line under `lib/` that differs from 0.6.0
+  is a doc comment in `soloud_backend.dart` that named `flutter3d_screens`,
+  which is folded away, and names `flutter3d_app` now. This package still
+  depends on no sibling, so there was no floor to move either.
+* **The archive carries a skill.** `skills/flutter3d-audio-positional-mix/` is
+  a `SKILL.md` for a coding agent, about `AudioScene`, moving emitters,
+  attenuation, voice limiting and the silent backend for tests. A project that
+  depends on this package installs it with `dart run skills@ get`. The README's
+  links to the genre packages point at pub.dev where they were relative paths
+  that did not resolve there.
+
 ## 0.6.0
 
 * **No changes of its own.** Attenuation, panning, voice limiting and the

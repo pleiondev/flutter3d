@@ -1,3 +1,35 @@
+## 0.7.0
+
+* **Breaking for code that builds a `RenderedFrame` by hand.** The record
+  gained a fourth field, `drawCalls`, read off the `FrameResult` every render
+  already produced. `renderFrame` fills it, and a test can now assert how many
+  draws a scene cost as well as what it looked like. Code that only reads
+  `pixels`, `width` and `height` is unaffected; a literal
+  `(pixels:, width:, height:)` passed where a `RenderedFrame` is wanted no
+  longer has the type.
+* **`replayGolden`: a recorded run, replayed to one step, held to a picture.**
+  It drives an `InputState` from a `Demo`'s tape, calls the caller's `onStep`
+  once per entry, draws the caller's `frame` at `atStep` through `renderFrame`
+  and compares with `expectMatchesGolden`. A `DigestTrace` already says
+  whether a replay reached the same numbers; this is for a renderer that
+  changed under numbers that did not. The step is the caller's because a
+  genre's simulation is not this package's to know. A tape that ends before
+  `atStep` throws `StateError`, so a short recording is not reported as a
+  wrong picture. `flutter3d_sim` `^0.7.0` is a dependency for it.
+* **`MaterialProgramStage` draws a material written as source on the software
+  backend.** It implements `flutter3d_cpu`'s `CpuFragmentShader` over a
+  `MaterialProgram` from `package:flutter3d_core/formats.dart` that has been
+  through `specialiseMaterial`, and evaluates the same tree the GLSL emitter
+  writes from. It lives here because `flutter3d_cpu`'s
+  `lib/` may not reach the engine and the engine may not reach a backend.
+  `flutter3d_core` `^0.7.0` is a dependency for it.
+* The archive carries a skill for a coding agent,
+  `skills/flutter3d-testing-pixel-regression/`, which a project depending on
+  this package installs with `dart run skills@ get`.
+* The floors on `flutter3d`, `flutter3d_cpu` and `flutter3d_hardware` are
+  `^0.7.0`. `renderFrame`, `expectMatchesGolden` and the tolerance of zero are
+  unchanged.
+
 ## 0.6.0
 
 * **Floors, and no code.** Drawing a frame through the software backend and
