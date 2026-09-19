@@ -10,6 +10,8 @@ import 'accommodations.dart';
 import 'diagnostics.dart';
 import 'game_settings.dart';
 import 'level_loader.dart';
+import 'rollback_netcode.dart';
+import 'run_timeline.dart';
 import 'scene_semantics.dart';
 import 'scene_surface.dart';
 import 'storage.dart';
@@ -24,4 +26,6 @@ final Map<String, DemoBuilder> widgetsMiscDemos = <String, DemoBuilder>{
   'diagnostics': DiagnosticsDemo.new,
   'accommodations': AccommodationsDemo.new,
   'game-settings': GameSettingsDemo.new,
+  'run-timeline': RunTimelineDemo.new,
+  'rollback-netcode': RollbackNetcodeDemo.new,
 };
