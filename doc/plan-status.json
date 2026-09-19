@@ -1,6 +1,6 @@
 {
   "note": "Состояние пунктов плана. Читается tool/verify_plan.dart и сайтом прогресса. \"absent\" — имена, которых в дереве нет намеренно; каждое с причиной, потому что молчаливое исключение в проверке ничем не отличается от сломанной проверки.",
-  "checked": "2026-09-18",
+  "checked": "2026-09-19",
   "status": {
     "anim-01": "done",
     "anim-02": "done",
@@ -518,16 +518,17 @@
     "gfx-73n": "done",
     "gfx-76n": "done",
     "gfx-77n": "done",
-    "gfx-78n": "partial",
+    "gfx-78n": "done",
     "gfx-79n": "done",
     "gfx-80n": "done",
     "gfx-81n": "done",
-    "gfx-82n": "partial",
+    "gfx-82n": "done",
     "gfx-83n": "done",
     "gfx-84n": "done",
     "gfx-86n": "done",
     "gfx-87n": "done",
-    "gfx-88n": "done"
+    "gfx-88n": "done",
+    "rel-05": "partial"
   },
   "absent": {
     "view-27d": {
