@@ -254,10 +254,10 @@ Map<String, Object?> surfaceMaterialToJson(SurfaceMaterial surface) =>
     <String, Object?>{
       if (surface.name != null) 'name': surface.name,
       'baseColor': <double>[
-        surface.baseColor.r,
-        surface.baseColor.g,
-        surface.baseColor.b,
-        surface.baseColor.a,
+        _cleanFloat32(surface.baseColor.r),
+        _cleanFloat32(surface.baseColor.g),
+        _cleanFloat32(surface.baseColor.b),
+        _cleanFloat32(surface.baseColor.a),
       ],
       if (surface.metallic != 0.0) 'metallic': surface.metallic,
       if (surface.roughness != 0.5) 'roughness': surface.roughness,
@@ -266,9 +266,9 @@ Map<String, Object?> surfaceMaterialToJson(SurfaceMaterial surface) =>
         'occlusionStrength': surface.occlusionStrength,
       if (surface.emissive.length2 != 0.0)
         'emissive': <double>[
-          surface.emissive.r,
-          surface.emissive.g,
-          surface.emissive.b,
+          _cleanFloat32(surface.emissive.r),
+          _cleanFloat32(surface.emissive.g),
+          _cleanFloat32(surface.emissive.b),
         ],
       if (surface.emissiveStrength != 1.0)
         'emissiveStrength': surface.emissiveStrength,
@@ -541,6 +541,28 @@ SurfaceAlphaMode _alphaMode(Object? value, List<String> warnings) =>
 
 double _number(Object? value, double fallback) =>
     value is num ? value.toDouble() : fallback;
+
+/// [v] came out of a [Vector4]/[Vector3] component, so it is already a
+/// float32 value widened to a double — `0.55` written in comes back as
+/// `0.550000011920929`, float32's honest opinion of it. Writing that verbatim
+/// would defeat the doc comment above [writeFmat]: a `.fmat` an artist edits
+/// and diffs should show the number they typed, not the bits it landed on.
+///
+/// Picks the shortest decimal of up to nine significant digits whose own
+/// float32 rounding lands on the same bits as [v], so the file keeps
+/// exactly the precision the format already only carries.
+double _cleanFloat32(double v) {
+  if (!v.isFinite) return v;
+  final Float32List probe = Float32List(1);
+  probe[0] = v;
+  final double target = probe[0];
+  for (var digits = 1; digits <= 9; digits++) {
+    final double candidate = double.parse(v.toStringAsPrecision(digits));
+    probe[0] = candidate;
+    if (probe[0] == target) return candidate;
+  }
+  return v;
+}
 
 Float32List _floats(Object? value) {
   if (value is num) return Float32List.fromList(<double>[value.toDouble()]);
