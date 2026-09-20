@@ -132,7 +132,19 @@ final class LightBuffer {
     for (var i = 1; i < maxExtraLights; i++) {
       if (_extraScore[i] < _extraScore[weakest]) weakest = i;
     }
-    if (score <= _extraScore[weakest]) return score;
+    if (score <= _extraScore[weakest]) {
+      // A tie raises no water line. The incumbent kept its row only by
+      // arriving first — see the tie-break above — not because this
+      // candidate scored any weaker, and treating an exact tie as "lost"
+      // is what let a symmetric scene fade to black: a ring of torches
+      // equidistant from a floor's own centre all score identically, so
+      // the one turned away by scene order alone set the water line at
+      // the same value as every torch that made it in, and `_edgeFade`
+      // reads "at the water line" as "contributes nothing" for all of
+      // them at once. A strictly weaker candidate still raises it exactly
+      // as before.
+      return score < _extraScore[weakest] ? score : 0.0;
+    }
     final evicted = _extraScore[weakest];
     extraIndices[weakest] = candidate;
     _extraScore[weakest] = score;
