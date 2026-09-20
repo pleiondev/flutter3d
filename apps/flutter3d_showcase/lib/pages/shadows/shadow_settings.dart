@@ -31,6 +31,7 @@ final class ShadowSettingsDemo extends ShowcaseDemo {
       name: 'stone',
       baseColor: Vector4(0.75, 0.73, 0.68, 1.0),
       roughness: 0.9,
+      doubleSided: true,
     );
     final Scene scene = Scene()
       ..add(

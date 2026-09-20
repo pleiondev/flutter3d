@@ -41,6 +41,7 @@ final class PostStage {
         name: 'floor',
         baseColor: Vector4(0.62, 0.6, 0.56, 1.0),
         roughness: 0.9,
+        doubleSided: true,
       ),
       name: 'floor',
     );

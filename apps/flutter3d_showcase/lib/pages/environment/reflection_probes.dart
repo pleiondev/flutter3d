@@ -34,11 +34,13 @@ final class ReflectionProbesDemo extends ShowcaseDemo {
       name: 'floor',
       baseColor: Vector4(0.5, 0.5, 0.53, 1.0),
       roughness: 0.9,
+      doubleSided: true,
     );
     final Material wall = Material(
       name: 'wall',
       baseColor: Vector4(0.82, 0.18, 0.14, 1.0),
       roughness: 0.9,
+      doubleSided: true,
     );
     // #region ball
     final Material ball = _ball = Material(

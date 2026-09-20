@@ -48,6 +48,7 @@ final class XrayDemo extends ShowcaseDemo {
         name: 'floor',
         baseColor: Vector4(0.5, 0.5, 0.52, 1.0),
         roughness: 0.9,
+        doubleSided: true,
       ),
       name: 'floor',
     );

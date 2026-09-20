@@ -54,7 +54,11 @@ final class InstancedMorphsDemo extends ShowcaseDemo {
     // #region batch
     final InstancedMeshNode faces = InstancedMeshNode(
       DeviceMesh.upload(context.device, withBump),
-      Material(name: 'faces', baseColor: Vector4(0.8, 0.8, 0.85, 1.0)),
+      Material(
+        name: 'faces',
+        baseColor: Vector4(0.8, 0.8, 0.85, 1.0),
+        doubleSided: true,
+      ),
       capacity: _count,
       name: 'faces',
     );

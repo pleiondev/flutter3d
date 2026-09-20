@@ -35,7 +35,11 @@ final class ManyLightsDemo extends ShowcaseDemo {
         context.device,
         const PlaneShape(width: 20, depth: 20).build(),
       ),
-      Material(baseColor: Vector4(0.5, 0.5, 0.55, 1.0), roughness: 0.85),
+      Material(
+        baseColor: Vector4(0.5, 0.5, 0.55, 1.0),
+        roughness: 0.85,
+        doubleSided: true,
+      ),
       name: 'floor',
     );
     // #endregion floor

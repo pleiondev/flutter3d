@@ -37,6 +37,7 @@ final class AreaLightsDemo extends ShowcaseDemo {
       name: 'wall',
       baseColor: Vector4(0.85, 0.83, 0.78, 1.0),
       roughness: 0.9,
+      doubleSided: true,
     );
     final MeshNode backWall = MeshNode(
       DeviceMesh.upload(

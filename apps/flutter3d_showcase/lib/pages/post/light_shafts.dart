@@ -30,6 +30,7 @@ final class LightShaftsDemo extends ShowcaseDemo {
       baseColor: Vector4(0.35, 0.33, 0.3, 1.0),
       roughness: 0.9,
     );
+    final Material floorStone = stone.copy()..doubleSided = true;
 
     // #region doorway
     final DeviceMesh pillar = DeviceMesh.upload(
@@ -65,7 +66,7 @@ final class LightShaftsDemo extends ShowcaseDemo {
             device,
             const PlaneShape(width: 20, depth: 20).build(),
           ),
-          stone,
+          floorStone,
           name: 'floor',
         ),
       )

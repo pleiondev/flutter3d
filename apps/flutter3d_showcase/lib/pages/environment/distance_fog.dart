@@ -43,7 +43,7 @@ final class DistanceFogDemo extends ShowcaseDemo {
             context.device,
             const PlaneShape(width: 120, depth: 120).build(),
           ),
-          stone,
+          stone.copy()..doubleSided = true,
           name: 'floor',
         ),
       )

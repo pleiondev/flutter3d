@@ -47,6 +47,7 @@ final class TextureFilteringDemo extends ShowcaseDemo {
       albedo: checks,
       albedoSampler: SamplerOptions.trilinearRepeat,
       roughness: 0.9,
+      doubleSided: true,
     );
     final MeshNode ground = MeshNode(
       DeviceMesh.upload(

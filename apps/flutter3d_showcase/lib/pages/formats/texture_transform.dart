@@ -52,7 +52,7 @@ final class TextureTransformDemo extends ShowcaseDemo {
       ..add(
         MeshNode(
           DeviceMesh.upload(context.device, _moved),
-          Material(albedo: albedo, roughness: 0.8),
+          Material(albedo: albedo, roughness: 0.8, doubleSided: true),
           name: 'floor',
         ),
       )
