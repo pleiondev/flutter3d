@@ -3,13 +3,14 @@
 ///
 /// **Written once and then left alone.** The pages of a category are added to
 /// that category's own file under `lib/catalog/`; this file only joins the
-/// twelve, so adding a page never edits it and a dozen people adding pages
+/// thirteen, so adding a page never edits it and a dozen people adding pages
 /// never conflict here.
 library;
 
 import 'package:flutter3d_showcase/catalog/animation.dart';
 import 'package:flutter3d_showcase/catalog/backends.dart';
 import 'package:flutter3d_showcase/catalog/environment.dart';
+import 'package:flutter3d_showcase/catalog/flame.dart';
 import 'package:flutter3d_showcase/catalog/formats.dart';
 import 'package:flutter3d_showcase/catalog/physics_particles.dart';
 import 'package:flutter3d_showcase/catalog/post.dart';
@@ -34,6 +35,7 @@ const List<Feature> kCatalog = <Feature>[
   ...physicsParticlesFeatures,
   ...simAudioXrFeatures,
   ...widgetsMiscFeatures,
+  ...flameFeatures,
 ];
 
 /// The feature with [id], or null.

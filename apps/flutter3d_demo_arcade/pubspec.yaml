@@ -1,0 +1,37 @@
+name: flutter3d_demo_arcade
+description: "A ship, a yard, and five bridges doing real work at once."
+publish_to: none
+version: 0.7.0
+resolution: workspace
+
+environment:
+  sdk: ^3.12.2
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  flutter3d: ^0.7.0
+  flutter3d_app: ^0.7.0
+  flutter3d_flame: ^0.7.0
+  flutter3d_sim: ^0.7.0
+  flutter3d_physics: ^0.7.0
+
+  # `Bindings`, the same table `DesktopInput`/`PadInput` write into — see
+  # `FlameInputBridge`'s own doc comment for why this app reuses it rather
+  # than inventing a second input model.
+  flutter3d_game: ^0.7.0
+
+  flame: ^1.38.2
+  vector_math: ^2.2.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+
+  # A device with no GPU behind it, for the frame test.
+  flutter3d_cpu: ^0.7.0
+  flutter_lints: ^6.0.0
+
+flutter:
+  uses-material-design: true

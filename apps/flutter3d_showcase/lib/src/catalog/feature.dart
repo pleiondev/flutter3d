@@ -21,7 +21,8 @@ enum Category {
   backends('backends', 'Backends'),
   physicsParticles('physics_particles', 'Physics and particles'),
   simAudioXr('sim_audio_xr', 'Simulation, audio and XR'),
-  widgetsMisc('widgets_misc', 'Widgets and the rest');
+  widgetsMisc('widgets_misc', 'Widgets and the rest'),
+  flame('flame', 'The Flame bridge');
 
   const Category(this.dir, this.title);
 

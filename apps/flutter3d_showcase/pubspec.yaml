@@ -42,6 +42,14 @@ dependencies:
   flutter3d_stereo:
     path: ../../packages/flutter3d_stereo
 
+  # The Flame bridge's own pages: a mechanism each, alongside every other
+  # capability.
+  flame: ^1.38.2
+  flutter3d_flame:
+    path: ../../packages/flutter3d_flame
+  flutter3d_game:
+    path: ../../packages/flutter3d_game
+
   vector_math: ^2.2.0
 
   # The links from a page to its guide on the documentation site.
@@ -78,3 +86,4 @@ flutter:
     - lib/pages/physics_particles/
     - lib/pages/sim_audio_xr/
     - lib/pages/widgets_misc/
+    - lib/pages/flame/

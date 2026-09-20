@@ -33,6 +33,7 @@ const List<String> genrePackages = <String>[
 /// new project starts from is not here: it is two package examples,
 /// `flutter3d_app`'s for an application and `flutter3d_game`'s for a game.
 const List<String> applications = <String>[
+  'flutter3d_demo_arcade',
   'flutter3d_demo_dungeon',
   'flutter3d_demo_platformer',
   'flutter3d_demo_racing',
@@ -233,6 +234,11 @@ const Map<String, String> notARigCamera = <String, String>{
       'subject, no impulse and no wall — the smoothing and the pull-out '
       'CameraRig gives a followed subject would be a second opinion about '
       'where the camera already, definitionally, is',
+  'flutter3d_showcase/lib/pages/flame/flame_camera_bridge.dart':
+      'demonstrates that same mirror, not a rig: the camera it builds is '
+      'the one CameraSyncController reads from or writes to directly, with '
+      'no subject to follow — a CameraRig here would be steering a camera '
+      'the demo is using to test the opposite direction of sync',
 };
 
 /// Packages the repeatable-step rule does **not** apply to, and why.
