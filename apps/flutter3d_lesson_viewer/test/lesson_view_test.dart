@@ -17,8 +17,11 @@ import 'package:flutter3d_session/flutter3d_session.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vector_math/vector_math.dart' hide Colors;
 
-GraphicsDevice _device() =>
-    CpuDevice(width: 16, height: 8, shaders: CpuShaderLibrary(builtinCpuShaders()));
+GraphicsDevice _device() => CpuDevice(
+  width: 16,
+  height: 8,
+  shaders: CpuShaderLibrary(builtinCpuShaders()),
+);
 
 List<EntityDef> _steps() => <EntityDef>[
   EntityDef(
@@ -75,7 +78,12 @@ void main() {
 
       await tester.pumpWidget(
         MaterialApp(
-          home: LessonView(renderer: renderer, scene: scene, camera: camera, player: player),
+          home: LessonView(
+            renderer: renderer,
+            scene: scene,
+            camera: camera,
+            player: player,
+          ),
         ),
       );
       await tester.pump();
@@ -89,6 +97,54 @@ void main() {
 
       expect(tester.takeException(), isNull);
       expect(find.text('Верно.'), findsOneWidget);
+    },
+  );
+
+  testWidgets(
+    'onCheckResult is called with the step that carried the check and '
+    'whether the answer was right — `lti-04`\'s own wire',
+    (tester) async {
+      final device = _device();
+      final renderer = Renderer.create(device: device);
+      final scene = Scene();
+      final camera = CameraNode(name: 'eye');
+      scene.add(camera);
+      final player = LessonPlayer(<EntityDef>[
+        EntityDef(
+          type: 'edu_step',
+          name: 'quiz',
+          position: Vector3(0.0, 1.6, 3.0),
+          properties: <String, Object?>{
+            'caption': 'Quiz',
+            'check': <String, Object?>{
+              'question': 'Q',
+              'answers': <String>['a'],
+              'attempts': 1,
+            },
+          },
+        ),
+      ]);
+      final reported = <(String?, bool)>[];
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: LessonView(
+            renderer: renderer,
+            scene: scene,
+            camera: camera,
+            player: player,
+            onCheckResult: (step, correct) =>
+                reported.add((step.name, correct)),
+          ),
+        ),
+      );
+      await tester.pump();
+
+      await tester.enterText(find.byType(TextField), 'a');
+      await tester.tap(find.byTooltip('Submit answer'));
+      await tester.pump();
+
+      expect(reported, <(String?, bool)>[('quiz', true)]);
     },
   );
 
@@ -142,7 +198,12 @@ void main() {
 
       await tester.pumpWidget(
         MaterialApp(
-          home: LessonView(renderer: renderer, scene: scene, camera: camera, player: player),
+          home: LessonView(
+            renderer: renderer,
+            scene: scene,
+            camera: camera,
+            player: player,
+          ),
         ),
       );
       await tester.pump();
@@ -184,7 +245,12 @@ void main() {
 
       await tester.pumpWidget(
         MaterialApp(
-          home: LessonView(renderer: renderer, scene: scene, camera: camera, player: player),
+          home: LessonView(
+            renderer: renderer,
+            scene: scene,
+            camera: camera,
+            player: player,
+          ),
         ),
       );
       await tester.pump();

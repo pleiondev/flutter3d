@@ -617,6 +617,16 @@ Iterable<String> _importedUris(String source) => RegExp(
 ).allMatches(source).map((RegExpMatch m) => m.group(1)!);
 
 /// Where an import URI lands on disk, or null when it leaves the workspace.
+///
+/// **Normalised, not just absolute.** `File(...).absolute.path` prepends a
+/// root without collapsing `..` — so a package with sibling directories that
+/// import each other (`f3d/` reaching `gltf/../stl/../gltf/x.dart`) hands
+/// [_pathToFlutter] a different-looking string for the same file on every
+/// hop through the cycle. `seen` is a set of strings, so it never recognised
+/// the repeat, and the walk that is supposed to visit each file once grew
+/// its queue forever — the whole run of every rule sat behind that one BFS
+/// for as long as anybody let it. `Uri.normalizePath` collapses the `..`
+/// segments the same way a shell would, so the two spellings become one key.
 String? _resolveImport(String uri, String from, Map<String, String> roots) {
   if (uri.startsWith('dart:')) return null;
   if (uri.startsWith('package:')) {
@@ -624,9 +634,14 @@ String? _resolveImport(String uri, String from, Map<String, String> roots) {
     final slash = rest.indexOf('/');
     if (slash < 0) return null;
     final root = roots[rest.substring(0, slash)];
-    return root == null ? null : '$root/${rest.substring(slash + 1)}';
+    if (root == null) return null;
+    return Uri.file(
+      '$root/${rest.substring(slash + 1)}',
+    ).normalizePath().toFilePath();
   }
-  return File('${File(from).parent.path}/$uri').absolute.path;
+  return Uri.file(
+    File('${File(from).parent.path}/$uri').absolute.path,
+  ).normalizePath().toFilePath();
 }
 
 // ------------------------------------------------------------ one assembly
@@ -1530,6 +1545,8 @@ List<Finding> _testCount() {
     'forty-five',
     // And the day `flutter3d_mcp_kit` became the forty-sixth.
     'forty-six',
+    // And the day `flutter3d_lti` became the forty-seventh.
+    'forty-seven',
   ];
   final readme = File('${root.path}/README.md').readAsStringSync();
   final saidInProse = RegExp(

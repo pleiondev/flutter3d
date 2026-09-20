@@ -30,9 +30,8 @@ final class ViewerTourController {
 
   void next() => index.value = (index.value + 1) % captions.value.length;
 
-  void previous() =>
-      index.value =
-          (index.value - 1 + captions.value.length) % captions.value.length;
+  void previous() => index.value =
+      (index.value - 1 + captions.value.length) % captions.value.length;
 }
 
 Widget _viewerCaptionWidget(ViewerTourController tour) =>
@@ -67,21 +66,28 @@ Widget _viewerCaptionWidget(ViewerTourController tour) =>
 
 /// The configurator's own state: which of a fixed set of options is picked.
 ///
-/// **Retints the panel's own display, not the product's mesh.** A brush
-/// carries no `name` (`packages/flutter3d_sim/lib/src/level/brush.dart`), so
-/// there is no way to address "this one box" in `scene.meshes` the way a
-/// `widget_surface`'s own node already can be — see `doc/tooling-plan.md`'s
-/// `### tpl-04` for the honest boundary this leaves.
+/// **Retints the product's own mesh, not only the panel's display.**
+/// `edu-07a` closed the gap this class's own doc comment used to name here
+/// (a brush carries no name, so there was no way to address "this one box"
+/// — `packages/flutter3d_sim/lib/src/level/brush.dart`): `configurator.json`
+/// now places the product as a `prop` (`PropVisuals`), which does have a
+/// name and a live-mutable material. This class stays engine-free on
+/// purpose — it only names which material each option wants — and
+/// `main.dart`'s own listener on [index] is what actually calls
+/// `PropVisuals.setMaterial`, the same split [TwinWhatIfController] keeps
+/// between "what changed" and "what draws/applies it".
 final class ConfiguratorController {
-  static const List<(String, double)> options = <(String, double)>[
-    ('Red', 199.0),
-    ('Blue', 219.0),
-    ('Green', 209.0),
-  ];
+  static const List<(String label, double price, String material)> options =
+      <(String, double, String)>[
+        ('Red', 199.0, 'product-red'),
+        ('Blue', 219.0, 'product-blue'),
+        ('Green', 209.0, 'product-green'),
+      ];
 
   final ValueNotifier<int> index = ValueNotifier<int>(0);
 
-  (String, double) get current => options[index.value];
+  (String label, double price, String material) get current =>
+      options[index.value];
 
   void cycle() => index.value = (index.value + 1) % options.length;
 }
@@ -90,7 +96,7 @@ Widget _configuratorPanelWidget(ConfiguratorController controller) =>
     ValueListenableBuilder<int>(
       valueListenable: controller.index,
       builder: (context, value, _) {
-        final (name, price) = ConfiguratorController.options[value];
+        final (name, price, _) = ConfiguratorController.options[value];
         return GestureDetector(
           onTap: controller.cycle,
           child: ColoredBox(

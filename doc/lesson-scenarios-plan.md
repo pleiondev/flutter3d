@@ -84,11 +84,76 @@
 
 | id | Сценарий | Формат | Зависит | р. | Приёмка |
 |---|---|---|---|---|---|
-| ls-e-00 | **Разборка двигателя за пять шагов.** ⇢ приёмка `edu-01` из tooling-plan.md — не отдельная работа, а первый настоящий контент на авторинге: преподаватель собирает разборку в браузере без кода и получает ссылку | шаги, разборка по слоям, аннотации | edu-01, prep-00 | S | ссылка открывается у второго человека без объяснений; пять шагов проходятся по порядку, каждый называет деталь |
-| ls-e-01 | **Виртуальная лабораторная — маятник.** ⇢ приёмка `edu-04`: студент меняет длину нитки через `WidgetSurface`-панель параметров, результат воспроизводим на слабом ноутбуке, преподаватель открывает прогон студента в `rp-02` | панель данных, привязка свойств, прогон | edu-04, rp-02, prep-02 | S | преподаватель видит на шкале rp-02, на каком шаге студент выставил длину, отличную от задания |
+| ls-e-00 | **(рендер разборки по слоям готов 2026-09-15, контента и загрузки модели ещё нет — см. ниже) Разборка двигателя за пять шагов.** ⇢ приёмка `edu-01` из tooling-plan.md — не отдельная работа, а первый настоящий контент на авторинге: преподаватель собирает разборку в браузере без кода и получает ссылку | шаги, разборка по слоям, аннотации | edu-01, prep-00 | S | ссылка открывается у второго человека без объяснений; пять шагов проходятся по порядку, каждый называет деталь |
+| ls-e-01 | **(закрыт 2026-09-15 — см. ниже) Виртуальная лабораторная — маятник.** ⇢ приёмка `edu-04`: студент меняет длину нитки через `WidgetSurface`-панель параметров, результат воспроизводим на слабом ноутбуке, преподаватель открывает прогон студента в `rp-02` | панель данных, привязка свойств, прогон | edu-04, rp-02, prep-02 | S | преподаватель видит на шкале rp-02, на каком шаге студент выставил длину, отличную от задания |
 | ls-e-02 | **Урок с проверкой: строение клетки или похожий предмет по выбору биологии/анатомии** — второй предметный вертикаль после техники, слои и аннотации вместо разборки механизма, с вопросом на каждом шаге | шаги, слои, вопрос с проверкой | edu-01, prep-02 | S | студент проходит урок с трёх попыток на вопрос, результат виден преподавателю через `edu-03` |
 | ls-e-03 | **Тот же урок в LMS.** `ls-e-00` или `ls-e-01` запускается из тестового Moodle через LTI, ответы на вопросы шага уходят в журнал курса как xAPI | LTI/xAPI (⇢ `edu-03`) | edu-02, edu-03 | S | оценка за вопрос из `ls-e-02` видна в журнале тестового Moodle |
 | ls-e-04 | **Корпоративное обучение технике безопасности.** Разборка реального оборудования (общий контент с `ls-i-03`) с аннотациями «опасно» на шаге, встроена в корпоративный портал через `edu-02` embed | шаги, аннотации, embed | edu-01, edu-02 | S | интерактив встраивается в тестовую внутреннюю страницу через iframe без кода |
+
+**`ls-e-00`/`ls-e-04`/`ls-i-03` — общий блокер, найденный 2026-09-15.** Все
+три требуют «разборки по слоям» настоящей модели. Функция, которая её
+рисует (`applyLessonStepToCamera`'s `restPositions`,
+`packages/flutter3d_bridge/lib/src/lesson_player.dart`), написана и
+протестирована. Но `LevelLoader` (`packages/flutter3d_bridge/lib/src/
+level_loader.dart`) не читает сущность `type: "model"` (внешний glTF/`.f3d`)
+вообще — только браши/светы/`reflection_probe` — и модельная загрузка в этом
+дереве идёт через отдельный, изолят-безопасный путь (`ModelAsset.
+instantiate`), а не тривиальную функцию, которую можно вызвать в лоб.
+Значит: рендер готов, а связать его с настоящей моделью (плюс `prep-00` —
+выбрать реальный узел с 5–8 естественными шагами) — отдельная задача
+(`edu-07b`).
+
+**Обновление того же дня: путь (б) закрыт (`edu-07a`).** Вместо ожидания
+`type: "model"` — новая сущность `type: "prop"` (`PropVisuals`,
+`packages/flutter3d_bridge/lib/src/prop_visuals.dart`): одна именованная
+`MeshNode` на сущность (box/sphere/cylinder), не батчится с брашами,
+адресуема как `widget_surface` уже адресуем. Подключено взаправду в
+`flutter3d_lesson_viewer` — новый урок `assets/levels/teardown-demo.json`
+реально двигает деталь между шагами через `offsets` в настоящем `LessonView`
+(проверено `tester.tap` по кнопке «Next», не только вызовом функции напрямую).
+`setMaterial` меняет материал узла живьём — то же самое, что нужно
+`ls-i-01`'s «аннотация красит продукт». Это плейсхолдерная геометрия
+(коробка вместо клапанной крышки), не замена настоящей модели — механика
+(что двигается, что красится, как) у `ls-e-00`/`ls-e-04`/`ls-i-01`/`ls-i-03`
+теперь общая и работает.
+
+**Обновление того же дня: путь (а) тоже закрыт на уровне механизма
+(`edu-07b`).** `ModelVisuals` (`packages/flutter3d_bridge/lib/src/model_visuals.dart`)
+читает `type: "model"` через тот же изолят-безопасный путь, которым уже
+грузится любая модель в этом дереве — `decodeModelInIsolate` +
+`ModelAsset.fromDocument` (`fixture_visuals.dart`'s собственный `_load`),
+дожидается загрузки (не «выстрелил и забыл», как `FixtureVisuals`, потому
+что шаг урока читает положение узла в момент открытия уровня, а не двумя
+кадрами позже) и инстанцирует настоящую декодированную иерархию, а не одну
+процедурную `MeshNode`. Именованные узлы ВНУТРИ модели адресуемы как
+`"entity#node"` — путь, которым §6 формата уже называет
+`"engine-body#valve_cover"` — так что `offsets`/`edu_annotation`'s `attachTo`
+работают на модели точно так же, как на `prop`. Проверено и headless на
+реальном файле (`packages/flutter3d_bridge/test/model_visuals_test.dart`,
+семь тестов, `FileAssetSource` вместо подделки бандла Flutter), и через
+настоящий `LessonView` (`apps/flutter3d_lesson_viewer/test/model_offsets_test.dart`)
+— `tester.tap` по «Next»/«Previous» реально двигает корень декодированной
+модели между шагами. `apps/flutter3d_lesson_viewer/lib/main.dart` строит
+`props` и `models` вместе, ждёт (`await Future.wait`) каждую модель до
+`LessonReady`, и объединяет обе карты узлов для `edu_annotation`'s
+`attachTo` и для `LessonView`. Не сделано: настоящий контент —
+`prep-00` (выбор реального узла для разборки) остаётся отдельной, ничем не
+закрытой предметной задачей; `ls-e-00`'s буквальная приёмка («деталь
+настоящей модели, не коробка-плейсхолдер») ждёт именно её, не кода.
+
+
+**`ls-e-01` — упрощение относительно исходной формулировки.** «Преподаватель
+открывает прогон студента в `rp-02`» читалось как интеграция со шкалой
+`apps/flutter3d_editor`'s собственного rp-02-скраббера — которая тянет
+зависимость лабораторного приложения на редактор. Сделано проще и без этой
+зависимости: `packages/flutter3d_lab/lib/src/lab_review.dart`'s
+`firstLabDivergence` сравнивает `DataSourceTrace` студента с эталонным
+заданием напрямую (не через `DigestTrace.divergenceFrom`, который называет
+шаг РАСХОЖДЕНИЯ ФИЗИКИ, на шаг позже входа, который его вызвал) и
+`apps/flutter3d_lab_pendulum`'s `LabReviewPanel` показывает результат —
+номер шага, время, оба значения — как диалог, а не как скраббер. Приёмка
+выполнена по букве (шаг расхождения виден), не по названному ранее
+конкретному UI.
 
 ---
 
@@ -96,10 +161,77 @@
 
 | id | Сценарий | Формат | Зависит | р. | Приёмка |
 |---|---|---|---|---|---|
-| ls-i-00 | **Двойник устройства с «что если».** ⇢ приёмка `edu-05`: станок из шаблона `tpl-04` показывает температуру с брокера (реального или сэмплера), «что если» — ветка от текущего шага с подменённым значением | привязка свойств к данным, ветвление | edu-05, tpl-04, prep-01 | M | температура на панели двигается вслед за источником; смена значения создаёт видимую ветку, а не перезаписывает историю |
-| ls-i-01 | **Конфигуратор товара.** Неигровой шаблон `tpl-04` («просмотрщик, конфигуратор, двойник устройства») с конкретным изделием: аннотация на шаге меняет цвет или материал и показывает цену/спецификацию рядом | шаги, аннотации, привязка свойств | tpl-04, wg-01 | S | покупатель меняет вариант через аннотацию, а не через отдельное меню, и видит обновлённую спецификацию |
-| ls-i-02 | **Разбор инцидента на панели оператора.** ⇢ демо `wg-02` («панель оператора у станка»), доведённое до полноценного урока: инженер отматывает по `rp-02` к моменту сбоя, записанному `edu-05` как входная лента, и проходит шаги «что показывал датчик → что сделал оператор → что случилось» | прогон, шкала времени, шаги | wg-02, edu-05, rp-02 | M | инженер открывает записанный сбой по ссылке и доматывает шкалу до момента, который назвал урок |
+| ls-i-00 | **(закрыт 2026-09-15, `apps/flutter3d_lab_twin` — см. ниже) Двойник устройства с «что если».** ⇢ приёмка `edu-05`: станок показывает температуру с сэмплера, «что если» — ветка от текущего шага с подменённым значением | привязка свойств к данным, ветвление | edu-05, tpl-04, prep-01 | M | температура на панели двигается вслед за источником; смена значения создаёт видимую ветку, а не перезаписывает историю |
+| ls-i-01 | **(закрыт 2026-09-15 — `edu-07a` + `edu_annotation`, см. ниже) Конфигуратор товара.** Неигровой шаблон `tpl-04` («просмотрщик, конфигуратор, двойник устройства») с конкретным изделием: аннотация на шаге меняет цвет или материал и показывает цену/спецификацию рядом | шаги, аннотации, привязка свойств | tpl-04, wg-01 | S | покупатель меняет вариант через аннотацию, а не через отдельное меню, и видит обновлённую спецификацию |
+| ls-i-02 | **(закрыт 2026-09-15 — `apps/flutter3d_lab_incident`, см. ниже, буквально а не через редакторский `rp-02` — см. ниже) Разбор инцидента на панели оператора.** ⇢ демо `wg-02` («панель оператора у станка»), доведённое до полноценного урока: инженер отматывает по `rp-02` к моменту сбоя, записанному `edu-05` как входная лента, и проходит шаги «что показывал датчик → что сделал оператор → что случилось» | прогон, шкала времени, шаги | wg-02, edu-05, rp-02 | M | инженер открывает записанный сбой по ссылке и доматывает шкалу до момента, который назвал урок |
 | ls-i-03 | **Инструкция по обслуживанию.** Разборка кожуха реального узла (общий контент с `ls-e-04`) для полевого техника: срез показывает внутренности, шаги — порядок разборки/сборки | срез, шаги, разборка по слоям | edu-01, prep-00 | S | техник проходит разборку и сборку в правильном порядке на планшете без сети |
+
+**`ls-i-01` — закрыт по букве (2026-09-15).** `configurator.json`'s товар
+стал `prop` вместо браша (`edu-07a`); `ConfiguratorController.cycle()` через
+`PropVisuals.setMaterial` реально красит меш товара, не только текст на
+панели — доказано на уровне `LevelCubit` (`test/level_cubit_test.dart`):
+цвет узла `product` меняется с красного на синий тем же вызовом, что дёрнет
+настоящий тап. Панель сама — теперь `edu_annotation`, прикреплённая к товару
+через `attachTo`/`offset` (`doc/edu-00-interactive-format.md` §7), а не
+свободный `widget_surface` со своими `at`/`yaw`: `WidgetSurfaceVisuals.add`
+дважды диспетчерит на тип сущности (`packages/flutter3d_bridge/lib/src/widget_surface_visuals.dart`),
+разрешает `attachTo` через карту узлов, которую строит `PropVisuals`, и
+делает построенную поверхность ребёнком найденного узла — так что панель
+едет вместе с товаром, если тот когда-нибудь получит `offsets`. Проверено и
+на уровне `WidgetSurfaceVisuals` изолированно (resolve/`attachTo`
+неизвестен/виджет неизвестен/движение вместе с якорем —
+`test/widget_surface_visuals_test.dart`), и на уровне документа
+(`tpl04_levels_test.dart` считает ровно одну `edu_annotation`, привязанную
+к `product`).
+
+**Отход от исходного текста `ls-i-00`: своё приложение, не `tpl-04`'s собственный шаблон.**
+Формулировка выше писалась до кода и предполагала «станок из шаблона `tpl-04`» —
+то есть логику ветвления внутри `flutter3d_template_app`, шаблона, с которого
+стартует любой новый проект. Первая попытка реализации так и сделала (контроллер
+ветвления прямо в `template_widgets.dart`), и это было указано как ошибка
+архитектуры на месте: generic-шаблон не должен нести логику одного конкретного
+индустриального сценария — это кандидат на свой собственный шаблон/приложение.
+`tpl-04`'s собственный `twin.json` (формат: `edu_data_source`/`edu_step.bindings`)
+остаётся как есть — он доказывает половину формата, которую разделяет любой
+неигровой шаблон. Ветвление «что если» — сценарная фича `ls-i-00`, и она живёт
+в новом `apps/flutter3d_lab_twin`, тем же способом, каким `ls-e-01` живёт в
+`apps/flutter3d_lab_pendulum`, а не в `flutter3d_template_app`.
+
+**`ls-i-02` — закрыт (2026-09-15), но «шкала» — не редакторский `rp-02`, а
+`edu_step`'s собственная навигация.** Формулировка выше читалась как
+интеграция с `apps/flutter3d_editor`'s собственным rp-02-скраббером —
+`rp-02: закрыт` в `doc/tooling-plan.md`, но это скраббер `.f3drun`'а внутри
+самого редактора, а не что-то, что урок может открыть у себя. Сделано
+буквально по смыслу приёмки, не по названному ранее конкретному UI, тем же
+упрощением `ls-e-01`'s собственная запись выше уже объясняет для `rp-02` в
+том сценарии: `edu-05`'s собственный `DataSourceTrace` — плотная запись «шаг
+→ показание» — читается через `valueAt(шаг)`, и «шкала» — это Next/Previous
+между именованными моментами инцидента, тот же UI, которым любой урок в этом
+дереве уже листает шаги.
+
+`apps/flutter3d_lab_incident` — новое приложение, не режим
+`flutter3d_template_app` (`ls-i-00`'s собственная причина выше применяется
+буквально так же). `src/incident_scenario.dart` — чистый Dart, без Flutter:
+`recordSpindleOverheatIncident()` пишет замкнутую кривую температуры
+шпинделя (нормальная работа → рост → ответ оператора → норма) в настоящий
+`DataSourceTrace` через `record()`, один раз при старте, не тиком — инцидент,
+который уже случился, читается назад, а не сэмплируется живьём.
+`spindleOverheatMoments` называет четыре момента (шаг + подпись), ровно
+«что показывал датчик → что сделал оператор → что случилось» из приёмки.
+`IncidentReplayController` (`src/incident_panel.dart`) — `next`/`previous`/
+`jumpTo`, `jumpTo` вне списка отказывает, а не подрезает к границе. Панель —
+`wg-02`'s собственный `OperatorPanel` (`apps/flutter3d_demo_dungeon`) не
+переиспользован буквально (не пакет, к которому другое приложение может
+обратиться), а его же форма — число + подпись — воспроизведена заново на
+настоящем `WidgetSurface`, тем же способом `flutter3d_lab_twin`'s собственная
+панель уже показала. `?moment=N` в URL — «инженер открывает записанный сбой
+по ссылке» буквально, та же дверь `?level=`/`?stereo=`/`?launch=` уже держат
+открытой везде в этом дереве. Синтетическое, честно названное так: температура
+шпинделя — та же выдуманная величина, что `ls-i-00`'s собственный `spindle-temp`
+уже был, не претензия на реальный завод. 13 новых тестов
+(`test/incident_panel_test.dart`) — плотность трассы, каждый момент называет
+записанный шаг, порядок моментов, каждый метод контроллера отдельно, включая
+отказ `jumpTo` вне диапазона.
 
 ---
 
@@ -107,10 +239,84 @@
 
 | id | Сценарий | Формат | Зависит | р. | Приёмка |
 |---|---|---|---|---|---|
-| ls-x-00 | **Разборка двигателя в Cardboard.** ⇢ приёмка `edu-06`: тот же документ, что `ls-e-00`, открыт `StereoViewer`'ом, переключение шагов кнопкой на боковой панели картонных очков | тот же документ `ls-e-00` | edu-06, ls-e-00 | S | разборка проходится в Cardboard на телефоне студента с переключением шагов одной кнопкой |
+| ls-x-00 | **(закрыт 2026-09-15 — см. ниже) Разборка двигателя в Cardboard.** ⇢ приёмка `edu-06`: тот же документ, что `ls-e-00`, открыт `StereoViewer`'ом, переключение шагов кнопкой на боковой панели картонных очков | тот же документ `ls-e-00` | edu-06, ls-e-00 | S | разборка проходится в Cardboard на телефоне студента с переключением шагов одной кнопкой |
 | ls-x-01 | **Конфигуратор товара в стерео.** `ls-i-01` открыт в `StereoViewer` — «прежде чем купить» в VR, тот же документ и та же привязка свойств | тот же документ `ls-i-01` | edu-06, ls-i-01 | S | тот же конфигуратор проходится в очках, аннотация работает через тот же ввод, что в `wg-00` измерил на телефоне |
-| ls-x-02 | **Гонки от первого лица в стерео с HUD-виджетами.** Демо гонок в `StereoViewer`, HUD (позиция, круг, состояние машины) нарисован виджетами на поверхности внутри шлема — витрина второй ставки tooling-plan.md (Flutter-виджеты на 3D-поверхностях) в самом требовательном контексте по вводу и перерисовке | виджет на поверхности | wg-01, flutter3d_stereo | M | HUD читается в очках без рывков; замер cost перерисовки в стерео добавлен к таблице `wg-00` в §8 tooling-plan.md |
-| ls-x-03 | **Удалённое обучение на двойнике.** `ls-i-00` открыт в `StereoViewer` для дистанционного инструктажа: тот же станок, та же лента данных, вид от первого лица вместо экрана | тот же документ `ls-i-00` | edu-06, ls-i-00 | S | тот же «что если» из `ls-i-00` воспроизводится в очках, ветка видна так же |
+| ls-x-02 | **(механизм собран 2026-09-15, замер cost не сделан — см. ниже) Гонки от первого лица в стерео с HUD-виджетами.** Демо гонок в `StereoViewer`, HUD (позиция, круг, состояние машины) нарисован виджетами на поверхности внутри шлема — витрина второй ставки tooling-plan.md (Flutter-виджеты на 3D-поверхностях) в самом требовательном контексте по вводу и перерисовке | виджет на поверхности | wg-01, flutter3d_stereo | M | HUD читается в очках без рывков; замер cost перерисовки в стерео добавлен к таблице `wg-00` в §8 tooling-plan.md |
+| ls-x-03 | **(закрыт 2026-09-15 — см. ниже) Удалённое обучение на двойнике.** `ls-i-00` открыт в `StereoViewer` для дистанционного инструктажа: тот же станок, та же лента данных, вид от первого лица вместо экрана | тот же документ `ls-i-00` | edu-06, ls-i-00 | S | тот же «что если» из `ls-i-00` воспроизводится в очках, ветка видна так же |
+
+**`ls-x-00` — закрыт (2026-09-15).** `apps/flutter3d_lesson_viewer` — the
+generic flat player — now opens the identical document in
+`flutter3d_stereo`'s `LessonStereoView` behind `?stereo=1`, next to the
+`?level=` door it already answered: `LessonCubit.open(asStereo: true)` builds
+a `StereoRig` and `flutter3d_stereo`'s own `LessonPlayer` instead of a
+`CameraNode` and `flutter3d_bridge`'s, and `LessonReady` carries exactly one
+of the two pairs (`camera`/`player` or `rig`/`stereoPlayer` — an assertion
+enforces it never carries both or neither). Everything that does not touch
+the camera — `props`/`models`/`widgetSurfaces`/`dataSources`, the per-frame
+`applyLessonStepBindings` tick — is untouched code, shared as-is between both
+modes, since none of it ever read the camera to begin with. No `check`
+prompt in stereo yet: none of `ls-x-00`/`01`/`03`'s own acceptance lines name
+one, and where a prompt would even draw in a headset is a UI question this
+change does not answer. Proven by `test/lesson_cubit_test.dart`'s own new
+case: `asStereo: true` against the shipped `tour.json` (`ls-e-00`'s own
+document) resolves the same four steps through `stereoPlayer` with `camera`/
+`player` both null.
+
+**`ls-x-01` is not a free ride off this and stays open — tried, reverted,
+and the real blocker is narrower than it first looked.** It names "the same
+document" as `ls-i-01`, but that document is not a plain `edu-00` document a
+generic viewer can just open: `configurator.json`'s panel draws through
+`ConfiguratorController`, a `WidgetBuilder` registered in
+`flutter3d_template_app` itself. Pointing `flutter3d_lesson_viewer` at that
+JSON with `?stereo=1` loads the scene but not the interaction — confirmed by
+this session's own test run, which reported the missing widget registration
+rather than rendering the panel.
+
+The mechanical `?stereo=1` swap (`stereo.StereoRig` for `_camera`,
+`stereo.StereoSurface` for `SceneSurface`, `_place()` moving whichever stage
+is active) went into `flutter3d_template_app/lib/main.dart` exactly the way
+it went into `flutter3d_lab_twin`, analyzed clean, kept every existing test
+green — and then failed a *different* test one level up:
+`apps/flutter3d_editor/test/scaffold_test.dart`'s "the pubspec names every
+package that file imports". The reason is not the architecture question this
+entry used to raise (whether the configurator belongs in its own app,
+mirroring `ls-i-00`'s move into `flutter3d_lab_twin` — that ship, it turns
+out, already sailed: this same file already carries `ConfiguratorController`
+into all four scaffolded games regardless of relevance, and adding one more
+optional, off-by-default branch is not a new kind of pollution). The real
+reason is smaller and harder: `flutter3d_editor_core/lib/src/
+scaffold_templates.dart`'s `pubspecFor` writes a **hosted** `pubspec.yaml`
+for every project scaffolded through the editor — `flutter3d: ^0.6.0` and
+the rest, resolved from pub.dev, because a scaffolded project is a checkout
+of its own with no path back into this repository. `flutter3d_stereo` is not
+on pub.dev (`pub.dev/packages/flutter3d_stereo` → 404, checked live), so a
+`pubspec.yaml` naming it would resolve nowhere and every new project the
+editor scaffolds would fail `flutter pub get` on the strength of an import
+`flutter3d_template_app`'s own dev copy can see fine locally through its
+`path:` dependency. Reverted in full — `main.dart`, `pubspec.yaml`, all four
+`app.main.dart.txt` copies — rather than left half in with a failing test.
+
+**So the actual order is: publish `flutter3d_stereo` first, then repeat this
+exact change.** Nothing about the Dart code needs to change when that
+happens — the diff this entry describes is sitting in this session's own
+history, byte-for-byte reusable, waiting on one line in `pubspecFor` (and a
+version number) rather than on a design decision.
+
+**`ls-x-03` — closed (2026-09-15).** `apps/flutter3d_lab_twin` — already its
+own app, not the shared scaffold `ls-x-01` is stuck behind — answers the same
+`?stereo=1` door `ls-x-00` opened: `_DeviceTwinScreenState._open()` builds a
+`stereo.StereoRig` and adds `rig.stage` in place of the flat `CameraNode`
+when the URL asks for it, and `build()` draws through `stereo.StereoSurface`
+instead of `SceneSurface`. The machine, the light, the floor and — the whole
+point of the scenario — `TwinDashboardPanel`'s live trace and its what-if
+branch are exactly the same `WidgetSurface` and the same `TwinWhatIfController`
+either way; nothing about the twin itself is stereo-aware. What did not come
+along: tapping the panel to inject a what-if value, which needs a single
+`CameraNode` to raycast from and has none in stereo — an honest scope line,
+not an oversight, the same shape `ls-x-00`'s own "no `check` prompt in stereo
+yet" already drew. Reading the branch from inside the headset is what
+`ls-x-03`'s own acceptance line actually asks for; setting one from inside it
+is `ls-x-02`'s territory (input inside a helmet), not this scenario's.
 
 ---
 
@@ -155,3 +361,84 @@
 - **Локализация текста уроков** — первый проход на одном языке на сценарий;
   второй язык добавляется тем же способом, что и остальной контент сайта, не
   этим планом.
+
+---
+
+## 9. Состояние на 2026-09-15, честно по трём причинам блокировки
+
+Шесть сценариев закрыты: `ls-e-01`, `ls-i-00`, `ls-i-01`, `ls-i-02`,
+`ls-x-00`, `ls-x-03` (даты и подробности — в записях выше и в
+`doc/tooling-plan.md`). `ls-i-02` — самый свежий: то, что читалось ниже как
+«архитектурная, размера M» (см. предыдущую версию этой записи), оказалось на
+поверку тем же видом работы, что `ls-x-00`/`ls-x-03` — сборка уже готовых
+кусков в новое маленькое приложение, а не решение, меняющее форму будущего
+кода. Урок из этого: не всё, что выглядит как решение до того, как его
+попробовали, остаётся им после.
+
+Остальные шесть не закрыты не потому, что забыты, а по одной из нескольких
+РАЗНЫХ причин, которые эта таблица не путает — включая `ls-x-02`, у которого
+причина той же породы, что у `ls-e-03` (нужно то, чего в этой среде нет), но
+уже, чем целый сценарий: только одна строка его приёмки, не весь механизм:
+
+| id | Причина | Что именно ждёт |
+|---|---|---|
+| `ls-e-00`, `ls-e-04`, `ls-i-03` | **Предметная.** Механизм готов (`edu-07a`/`edu-07b`, §5 выше) целиком | `prep-00`: выбор реального узла с 5–8 естественными шагами — решение владельца контента, не код |
+| `ls-e-02` | **Предметная.** Формат и авторинг готовы | `prep-02`: выбор второго предметного вертикаля (биология/анатомия) и текст вопросов |
+| `ls-e-03` | **Инфраструктурная, вне этой среды.** `cloud/lti`'s сервер написан и протестирован (`doc/edu-03-lti-plan.md`) | живой браузер для регистрации инструмента в тестовом Moodle — расширение Chrome не подключено в этой среде ни разу за сессию |
+| `ls-x-01` | **Конкретная, не архитектурная — найдено и записано 2026-09-15.** Механический перенос (`StereoRig` вместо `_camera`, `StereoSurface` вместо `SceneSurface`) написан, проанализирован чисто, не сломал ни одного существующего теста | `flutter3d_stereo` не опубликован на pub.dev (`pub.dev/packages/flutter3d_stereo` → 404, проверено вживую) — `flutter3d_editor_core`'s `pubspecFor` пишет только хостед-зависимости для любого проекта, который собирает редактор, так что этот же дифф ломает `flutter pub get` каждому новому проекту, пока пакет не опубликован. Диф отменён целиком, а не оставлен наполовину |
+| `ls-x-02` | **Механизм собран 2026-09-15 (`apps/flutter3d_demo_racing`, см. ниже) — приёмка сама называет измерение, которое эта среда не может произвести** | реальное железо, чтобы измерить cost перерисовки в стерео и записать число в таблицу `wg-00` §8 tooling-plan.md — не код, весь код уже написан |
+
+**Второй проход в тот же день исправил первый.** Первая запись этого дня
+(ещё выше, до этой правки) назвала три вещи: ввод в шлеме, переменное поле
+зрения и «HUD, приклеенный к камере — механизм, ни разу не построенный в
+этом дереве». Первые два уже были сняты в той же записи (руль остаётся
+клавиатурой, `StereoRig.fitToViewport(verticalFieldOfView: ...)` пересчитывает
+поле зрения каждый кадр). Третье оказалось неправдой при более внимательном
+чтении: `packages/flutter3d_bridge/test/widget_surface_visuals_test.dart`'s
+собственный тест «moves with its anchor node» уже доказывает ровно этот
+механизм — `WidgetSurface`'s узел, сделанный ребёнком ЛЮБОГО `SceneNode`
+(включая `StereoRig.stage`, который тоже просто `SceneNode`), читает мировую
+позицию, которая двигается вместе с родителем. Ни один из трёх пунктов не
+пережил второе чтение — та же ошибка, что `ls-i-02`/`ls-x-01` уже поймали
+дважды за этот день: судить о трудности до того, как код прочитан, а не
+после.
+
+**Механизм собран в тот же день, вторым проходом.** `apps/flutter3d_demo_racing/
+lib/main.dart` — `_rig` (`stereo.StereoRig(near: _lens.near, far: _lens.far)`,
+именно `_lens`'s собственные 0.3/1600.0, не риг'а дефолтные 0.05/500.0,
+которые обрезали бы трассу) строится за `?stereo=1`, `_stage` (`_rig?.stage ??
+_camera`) — единая точка, которую обе пересборки сцены (`_loadCircuit` и
+`_leaveCircuit`'s пустая сцена между кругами) добавляют одинаково.
+`chase.follow` двигает `_stage`, а не `_camera` напрямую; переменное поле
+зрения идёт в `StereoSurface`'s собственный `verticalFieldOfView: _chase?.fov`
+вместо `.projection` (которое есть только у `_camera`) — решение "оставить
+пульсацию или отключить" разрешено буквально в пользу "оставить", раз риг
+читает её тем же путём. `RaceHud` — тот же виджет без единой правки, обёрнутый
+новым `StereoHud` (`ValueListenableBuilder` поверх `ValueNotifier<RaceReadout?>`,
+поскольку `WidgetSurfacePipeline`'s собственный `child` фиксирован при
+постройке и не может быть заменён — только перерисован) на `WidgetSurface`,
+ребёнок `rig.stage` с локальным смещением вперёд-вниз. `_hudPanel`
+`dispose()`d в `_leaveCircuit` наравне с голосами машин, чтобы смена трассы не
+оставляла второй `WidgetSurfacePipeline` рядом с новым. Все существующие 153
+теста (157 после нового файла) прошли без единой правки, `flutter analyze`
+чист. Новый `test/stereo_hud_panel_test.dart` (4 теста) проверяет виджет
+изолированно — пусто без чтения, тот же `RaceHud` при первом чтении, реально
+перерисовывается при смене, `issue` читается заново, а не один раз.
+
+**То, что действительно осталось — не механизм, а измерение, которого здесь
+нет чем произвести.** Приёмка сценария буквально называет результат: «замер
+cost перерисовки в стерео добавлен к таблице `wg-00` в §8 tooling-plan.md».
+Число в этой таблице — то, сколько реально стоит перерисовать `WidgetSurface`
+внутри стерео-пары на настоящем прогоне; здесь нет GPU и нет браузера,
+которые могли бы его дать, той же категории пробел, что уже держит
+`edu_clip_plane` (нужен реальный GPU, не код) и живую регистрацию в Moodle
+(нужен реальный браузер, не код) закрытыми не по недосмотру. Написано честно,
+а не сделан вид, что число есть — тот же выбор `LessonStereoView`'s
+собственный doc comment уже делает для линз Cardboard: «the rig, the lesson
+and the button are proven; the lens numbers are unverified against glass».
+Сценарий не закрыт по букве приёмки — единственная строка, которую держит не
+код, а отсутствующее железо.
+
+**Раздел §8 выше уже отвечает на «а стриминг, а совместное редактирование»
+до того, как кто-то спросил** — оба явно отложены самим владельцем плана
+(tooling-plan.md §7), не пропущены по недосмотру.

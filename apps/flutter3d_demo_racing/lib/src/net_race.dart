@@ -97,10 +97,7 @@ final class NetRace {
   bool get connected => _connected;
   bool _connected = false;
 
-  void _applyAndStep(
-    Map<String, Object?> local,
-    Map<String, Object?> remote,
-  ) {
+  void _applyAndStep(Map<String, Object?> local, Map<String, Object?> remote) {
     // **Symmetric on purpose, found the hard way.** `local` reads empty for
     // the first `inputDelay` steps too — nothing has been captured long
     // enough ago yet to apply — and an earlier version ghosted only the

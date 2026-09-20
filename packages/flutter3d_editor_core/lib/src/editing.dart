@@ -6,6 +6,7 @@ import 'package:vector_math/vector_math.dart';
 
 import 'editor_history.dart';
 import 'gizmos.dart';
+import 'lesson_authoring.dart';
 import 'palette_items.dart';
 
 /// A level document, open and being changed.
@@ -46,6 +47,22 @@ final class Editing {
   /// most of what a level *is* once its walls are up.
   Piece? kind;
   int? selected;
+
+  /// `edu-01`'s "разборка перетаскиванием" — which `edu_step`, if any, a
+  /// nudge writes into instead of moving the selection.
+  ///
+  /// **A UI mode, not a document field.** Toggling it changes nothing in
+  /// [level] by itself — an MCP caller reaches the identical result through
+  /// a plain `setField('offsets', ...)`, the same as [nudgeOffset] ends up
+  /// calling. This field only decides which entity the *keyboard* is
+  /// presently talking to — a fact about the session, gone the moment the
+  /// document reopens, the same as [grid]. What *is* new is [NudgeOffset]
+  /// (`editor_command.dart`) — one more command, not the "no new
+  /// architecture" this comment used to claim: a keystroke or a tool server
+  /// has to reach [nudgeOffset] through [EditorHistory.run] like every other
+  /// change, and that needs a name in the sealed hierarchy the same as the
+  /// ten before it.
+  String? activeStepForOffsets;
 
   /// What is selected, whatever kind it is, or null.
   Object? get piece => switch (kind) {
@@ -186,6 +203,58 @@ final class Editing {
     if (at == null) return;
     _remember('move');
     at.setValues(_snap(at.x + by.x), _snap(at.y + by.y), _snap(at.z + by.z));
+  }
+
+  /// `edu-01`'s "разборка перетаскиванием": adds [by] to whatever
+  /// [activeStepForOffsets] already has recorded for the *selected* entity,
+  /// and writes the sum back into that step's own `offsets` — [mergedOffsets]
+  /// (`lesson_authoring.dart`) does the merge, this does the reading and the
+  /// selection round trip `setField` needs to reach a different entity than
+  /// the one on screen.
+  ///
+  /// A no-op — same as [nudge] on nothing selected — when no step is active,
+  /// nothing is selected, the selection has no name to key `offsets` by, or
+  /// the selection *is* the active step: nudging a step is what [nudge]
+  /// already means (the step's own camera position), not a part's offset.
+  bool nudgeOffset(Vector3 by) {
+    final stepName = activeStepForOffsets;
+    final node = entity;
+    final nodeName = node?.name;
+    if (stepName == null || nodeName == null || nodeName == stepName) {
+      return false;
+    }
+    final stepIndex = indexOfNamed(level, stepName);
+    if (stepIndex == null) return false;
+    final step = level.entities[stepIndex];
+    if (step.type != 'edu_step') return false;
+
+    final current = _offsetOf(step, nodeName) ?? Vector3.zero();
+    final merged = mergedOffsets(step, nodeName, current + by);
+
+    final savedKind = kind;
+    final savedSelected = selected;
+    select(Piece.entity, stepIndex);
+    final wrote = setField('offsets', merged);
+    select(savedKind, savedSelected);
+    return wrote;
+  }
+
+  /// [step]'s own recorded offset for [nodePath], or null — the read half of
+  /// [mergedOffsets], which only ever writes. Parses the same `[x, y, z]`
+  /// shape `flutter3d_bridge`'s own `_offsetVector` reads at playback time;
+  /// malformed or absent is null rather than a thrown format error, the
+  /// reading side of the same forgiveness `mergedOffsets` already extends to
+  /// writing.
+  static Vector3? _offsetOf(EntityDef step, String nodePath) {
+    final offsets = step.properties['offsets'];
+    if (offsets is! Map) return null;
+    final raw = offsets[nodePath];
+    if (raw is! List || raw.length < 3) return null;
+    final x = raw[0];
+    final y = raw[1];
+    final z = raw[2];
+    if (x is! num || y is! num || z is! num) return null;
+    return Vector3(x.toDouble(), y.toDouble(), z.toDouble());
   }
 
   /// Grows or shrinks the selected brush about its own centre.
@@ -481,27 +550,50 @@ final class Editing {
   /// A value that the format cannot read is refused rather than written: it
   /// would be a document that will not load, produced by the tool whose job is
   /// producing documents that will.
+  ///
+  /// **Copies the list and the row before touching either.** `Level.toJson`
+  /// hands back the *original* decoded objects, unchanged, for anything that
+  /// still reads the same as when the document was opened
+  /// (`writeThrough`'s own diff-minimising rule) — so the list this reads and
+  /// the row inside it are, the first time either is touched, the very same
+  /// objects an earlier snapshot (a transaction's own, taken on the way in)
+  /// is holding onto. Writing into either object in place therefore also
+  /// rewrites that snapshot, and an undo restores the document already
+  /// carrying the change it was supposed to remove. A fresh list and a fresh
+  /// row are cheap next to that.
   bool setField(String key, Object? value) {
     if (piece == null) return false;
     final document = level.toJson();
-    final row = _rowOf(document);
-    if (row == null) return false;
+    final at = selected;
+    final listKey = switch (kind!) {
+      Piece.brush => 'brushes',
+      Piece.light => 'lights',
+      Piece.entity => 'entities',
+    };
+    final rawList = document[listKey];
+    if (at == null || rawList is! List || at < 0 || at >= rawList.length) {
+      return false;
+    }
+    final rawRow = rawList[at];
+    if (rawRow is! Map<String, Object?>) return false;
 
-    final before = Map<String, Object?>.from(row);
+    final list = List<Object?>.of(rawList);
+    document[listKey] = list;
+    final row = Map<String, Object?>.of(rawRow);
     if (value == null) {
       row.remove(key);
     } else {
       row[key] = value;
     }
+    list[at] = row;
 
     final Level rebuilt;
     try {
       rebuilt = Level.fromJson(document);
     } catch (_) {
-      // Put the row back so the caller's document is untouched, and say no.
-      row
-        ..clear()
-        ..addAll(before);
+      // `document`, `list` and `row` are all copies nothing else holds, so
+      // there is nothing to put back — the caller's document was never
+      // touched.
       return false;
     }
 
@@ -511,9 +603,6 @@ final class Editing {
   }
 
   /// The selected thing's own row inside [document], or null.
-  ///
-  /// Live rather than a copy: [setField] edits it in place and hands the whole
-  /// document back to `Level.fromJson`.
   Map<String, Object?>? _rowOf(Map<String, Object?> document) {
     final at = selected;
     if (at == null || kind == null) return null;

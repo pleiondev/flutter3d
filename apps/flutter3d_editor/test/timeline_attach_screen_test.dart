@@ -174,8 +174,7 @@ void main() {
 
   testWidgets('Release calls releaseAtStep with the previewed step and '
       'refreshes the history', (tester) async {
-    final client = _FakeTimelineClient()
-      ..nextPreview = (found: true, step: 42);
+    final client = _FakeTimelineClient()..nextPreview = (found: true, step: 42);
     await _pump(tester, client);
     await tester.tap(find.text('Preview'));
     await tester.pumpAndSettle();
@@ -184,7 +183,11 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(client.commands, <String>['branched:42']);
-    expect(find.text('branched:42'), findsOneWidget, reason: 'the history list should show it');
+    expect(
+      find.text('branched:42'),
+      findsOneWidget,
+      reason: 'the history list should show it',
+    );
   });
 
   testWidgets('an error from the client is shown rather than swallowed', (
@@ -212,7 +215,10 @@ void main() {
 
   testWidgets('draws one tappable bar per reported step', (tester) async {
     final client = _FakeTimelineClient()
-      ..nextFrameTimes = (steps: <int>[1, 2, 3], millis: <double>[1.0, 4.0, 2.0]);
+      ..nextFrameTimes = (
+        steps: <int>[1, 2, 3],
+        millis: <double>[1.0, 4.0, 2.0],
+      );
     await _pump(tester, client);
 
     expect(find.text('no frame times yet'), findsNothing);

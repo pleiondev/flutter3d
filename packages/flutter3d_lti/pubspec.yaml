@@ -1,0 +1,43 @@
+name: flutter3d_lti
+description: "LTI 1.3 launch and xAPI reporting: OIDC login, id_token verification against a platform's JWKS, an Assignment and Grade Services client, and an xAPI statement client — no shelf, no jaspr, no Flutter."
+version: 0.1.0
+resolution: workspace
+repository: https://github.com/pleiondev/flutter3d
+homepage: https://flutter3d.pleion.dev
+issue_tracker: https://github.com/pleiondev/flutter3d/issues
+topics:
+  - lti
+  - xapi
+  - education
+
+environment:
+  sdk: ^3.12.2
+
+dependencies:
+  # RS256 verification of a platform's `id_token` against its JWKS, and
+  # signing this tool's own client-credentials assertion for AGS (lti-01).
+  # Builds on `pointycastle`, already in the resolved graph transitively, but
+  # a hand-rolled JWS/JWK parser is exactly the kind of code a security bug
+  # hides in — this is a maintained implementation instead of a new one.
+  dart_jsonwebtoken: ^3.4.1
+
+  # Turning a JWKS entry's bare `n`/`e` into the key type
+  # `dart_jsonwebtoken` verifies with (`RSAPublicKey.raw`) — see
+  # `lib/src/jwk.dart`'s doc comment for why that one conversion is this
+  # package's own rather than `dart_jsonwebtoken`'s.
+  pointycastle: ^4.0.0
+
+  # Fetching a platform's JWKS and posting to its token/AGS endpoints, and
+  # PUTting xAPI statements to an LRS. Same version `cloud/server` already
+  # resolves to.
+  http: ^1.2.0
+
+dev_dependencies:
+  test: ^1.25.0
+  lints: ^6.0.0
+
+# **A plain Dart package, same reasoning as `flutter3d_net`.** An LTI launch
+# is a server-side redirect and a JWT, an AGS score is an HTTP POST, an xAPI
+# statement is a JSON document — none of it draws a frame or needs the
+# Flutter SDK, and a `cloud/lti` service or a standalone script should be
+# able to depend on this without pulling Flutter in to do it.

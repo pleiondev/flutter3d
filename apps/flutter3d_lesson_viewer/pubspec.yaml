@@ -37,9 +37,19 @@ dependencies:
   flutter3d_session:
     path: ../../packages/flutter3d_session
 
+  # `ls-x-00`/`ls-x-01`/`ls-x-03`: the same document, opened in
+  # `StereoViewer` instead of on a flat screen, behind `?stereo=1`.
+  flutter3d_stereo:
+    path: ../../packages/flutter3d_stereo
+
   vector_math: ^2.2.0
 
   flutter_bloc: ^9.1.1
+
+  # `lti-04`'s own POST from a `check` result to `cloud/lti`'s
+  # `/launch/<token>/check-result` — only reached when the page's own URL
+  # names a `launch` token, an LTI launch's own doing.
+  http: ^1.2.0
 
 dev_dependencies:
   flutter_test:

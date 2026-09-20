@@ -131,8 +131,8 @@ final class VmServiceTimelineClient implements TimelineClient {
   @override
   Future<bool> releaseAtStep(int step) async =>
       (await _call('releaseAtStep', <String, String>{
-        'step': '$step',
-      }))['released']!
+            'step': '$step',
+          }))['released']!
           as bool;
 
   @override

@@ -32,8 +32,10 @@ import 'package:flutter/material.dart'
     show Material, MaterialType;
 import 'package:flutter3d/flutter3d.dart' hide Material;
 import 'package:flutter3d_bridge/flutter3d_bridge.dart' show LessonPlayer;
+import 'package:flutter3d_game/flutter3d_game.dart' show EntityDef;
 import 'package:flutter3d_session/flutter3d_session.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:vector_math/vector_math.dart' show Vector3;
 
 import 'check_prompt.dart';
 import 'orbit_cubit.dart';
@@ -49,6 +51,8 @@ class LessonView extends StatefulWidget {
     required this.camera,
     required this.player,
     this.nodes = const <String, SceneNode>{},
+    this.restPositions = const <String, Vector3>{},
+    this.onCheckResult,
   });
 
   final Renderer renderer;
@@ -56,11 +60,23 @@ class LessonView extends StatefulWidget {
   final CameraNode camera;
   final LessonPlayer player;
 
-  /// Named scene nodes a step's `visible`/`hidden` list can reach — empty
-  /// for a lesson (like the shipped tour) that names none. Resolving level
-  /// entity names to nodes is left to the caller, the same split
+  /// Called once a `check`'s own [CheckPrompt] settles — the step it
+  /// answered, and `true`/`false` for correct/attempts-exhausted. Null for
+  /// a caller with nowhere to send it (the same "local only" default
+  /// `check_prompt.dart`'s own doc comment names); `main.dart` wires this to
+  /// `lti-04`'s `check-result` POST when a launch token is present.
+  final void Function(EntityDef step, bool correct)? onCheckResult;
+
+  /// Named scene nodes a step's `visible`/`hidden`/`offsets` can reach —
+  /// empty for a lesson that names no `prop`/`widget_surface`. Resolving
+  /// level entity names to nodes is left to the caller, the same split
   /// `LessonStereoView`'s own doc comment already draws.
   final Map<String, SceneNode> nodes;
+
+  /// Where each of [nodes] stood as authored — `edu-00` §6's layered
+  /// teardown, `PropVisuals.restPositions` in `main.dart`. Empty for a
+  /// lesson with no `prop`, the same as [nodes].
+  final Map<String, Vector3> restPositions;
 
   @override
   State<LessonView> createState() => _LessonViewState();
@@ -80,7 +96,11 @@ class _LessonViewState extends State<LessonView> {
   void initState() {
     super.initState();
     _orbit = OrbitCubit(OrbitController(widget.camera))
-      ..resetFromStep(widget.player.current, nodes: widget.nodes);
+      ..resetFromStep(
+        widget.player.current,
+        nodes: widget.nodes,
+        restPositions: widget.restPositions,
+      );
   }
 
   @override
@@ -92,7 +112,11 @@ class _LessonViewState extends State<LessonView> {
   void _step(void Function() advance) {
     setState(() {
       advance();
-      _orbit.resetFromStep(widget.player.current, nodes: widget.nodes);
+      _orbit.resetFromStep(
+        widget.player.current,
+        nodes: widget.nodes,
+        restPositions: widget.restPositions,
+      );
     });
   }
 
@@ -260,6 +284,10 @@ class _LessonViewState extends State<LessonView> {
                     child: CheckPrompt(
                       key: ValueKey(currentStep!.name),
                       spec: checkSpec,
+                      onResult: widget.onCheckResult == null
+                          ? null
+                          : (correct) =>
+                                widget.onCheckResult!(currentStep, correct),
                     ),
                   ),
                 Row(

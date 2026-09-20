@@ -18,8 +18,10 @@ import 'package:flutter/scheduler.dart';
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_app/flutter3d_app.dart';
 import 'package:flutter3d_lab/flutter3d_lab.dart';
+import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:vector_math/vector_math.dart' hide Colors;
 
+import 'src/lab_review_panel.dart';
 import 'src/pendulum_lab_panel.dart';
 
 void main() {
@@ -55,12 +57,22 @@ class _PendulumLabScreenState extends State<PendulumLabScreen>
   // that never moves needs to avoid.
   static Vector3 get _pivot => Vector3(0.0, 2.0, 0.0);
 
+  static const double _assignedLength = 1.2;
+
   final PendulumSimulation _pendulum = PendulumSimulation(
-    lengthMeters: 1.2,
+    lengthMeters: _assignedLength,
     startAngle: 0.9,
   );
-  final ValueNotifier<double> _length = ValueNotifier<double>(1.2);
+  final ValueNotifier<double> _length = ValueNotifier<double>(_assignedLength);
   final Raycaster _raycaster = Raycaster();
+
+  /// `ls-e-01`'s own recording — the length this run actually held at every
+  /// fixed step, the same `DataSourceTrace` `pendulum_lab_panel_test.dart`
+  /// already proved records a tap at the step it happened rather than
+  /// before, now kept for real rather than only under a test.
+  final DataSourceTrace _lengths = DataSourceTrace();
+  double _stepAccumulator = 0.0;
+  int _step = 0;
 
   Renderer? _renderer;
   Object? _initError;
@@ -109,14 +121,21 @@ class _PendulumLabScreenState extends State<PendulumLabScreen>
 
     final pivotMesh = MeshNode(
       DeviceMesh.upload(device, const SphereShape(radius: 0.06).build()),
-      Material(lighting: LightingModel.unlit, baseColor: Vector4(0.6, 0.62, 0.66, 1.0)),
+      Material(
+        lighting: LightingModel.unlit,
+        baseColor: Vector4(0.6, 0.62, 0.66, 1.0),
+      ),
       name: 'pivot',
     )..setPositionFrom(_pivot);
     scene.add(pivotMesh);
 
     final bob = MeshNode(
       DeviceMesh.upload(device, const SphereShape(radius: 0.16).build()),
-      Material(lighting: LightingModel.pbr, baseColor: Vector4(0.86, 0.71, 0.32, 1.0), roughness: 0.4),
+      Material(
+        lighting: LightingModel.pbr,
+        baseColor: Vector4(0.86, 0.71, 0.32, 1.0),
+        roughness: 0.4,
+      ),
       name: 'bob',
     );
     scene.add(bob);
@@ -128,9 +147,18 @@ class _PendulumLabScreenState extends State<PendulumLabScreen>
     final string = MeshNode(
       DeviceMesh.upload(
         device,
-        const CylinderShape(radiusTop: 0.012, radiusBottom: 0.012, height: 1.0, segments: 8, capped: false).build(),
+        const CylinderShape(
+          radiusTop: 0.012,
+          radiusBottom: 0.012,
+          height: 1.0,
+          segments: 8,
+          capped: false,
+        ).build(),
       ),
-      Material(lighting: LightingModel.unlit, baseColor: Vector4(0.75, 0.75, 0.72, 1.0)),
+      Material(
+        lighting: LightingModel.unlit,
+        baseColor: Vector4(0.75, 0.75, 0.72, 1.0),
+      ),
       name: 'string',
     );
     scene.add(string);
@@ -213,7 +241,9 @@ class _PendulumLabScreenState extends State<PendulumLabScreen>
       // The cylinder's own local +Y is its long axis (`CylinderShape`'s own
       // doc comment); this is the rotation that takes that axis to wherever
       // the bob actually is, not a yaw/pitch pair guessed and checked.
-      ..setRotation(Quaternion.fromTwoVectors(Vector3(0.0, 1.0, 0.0), delta.normalized()))
+      ..setRotation(
+        Quaternion.fromTwoVectors(Vector3(0.0, 1.0, 0.0), delta.normalized()),
+      )
       ..setPositionFrom(pivot + delta.scaled(0.5));
   }
 
@@ -223,7 +253,20 @@ class _PendulumLabScreenState extends State<PendulumLabScreen>
     // The first callback's `elapsed` is already nonzero (a ticker's clock
     // starts when the scheduler binding did, not when this one started), so
     // clamping is what stands in for "skip the first frame" without a bool.
-    _pendulum.step(dt.clamp(0.0, 0.05));
+    //
+    // Fixed steps of `labFixedDt`, not the raw frame `dt`: `_lengths`'s own
+    // step numbers are what `LabReviewPanel` shows a teacher, and a step
+    // that means a different amount of real time on every frame would make
+    // "diverged at step 40" say nothing a teacher could act on.
+    _stepAccumulator += dt.clamp(0.0, 0.05);
+    while (_stepAccumulator >= labFixedDt) {
+      _stepAccumulator -= labFixedDt;
+      _lengths.record(_step, <String, Object?>{
+        'length': _pendulum.lengthMeters,
+      });
+      _pendulum.step(labFixedDt);
+      _step++;
+    }
     _placeBob();
     _placeString();
     unawaited(_panel.tick());
@@ -237,7 +280,13 @@ class _PendulumLabScreenState extends State<PendulumLabScreen>
     final size = context.size;
     if (size == null || size.width <= 0.0 || size.height <= 0.0) return false;
     final hit = _raycaster
-        .setFromScreen(_camera, local.dx, local.dy, width: size.width, height: size.height)
+        .setFromScreen(
+          _camera,
+          local.dx,
+          local.dy,
+          width: size.width,
+          height: size.height,
+        )
         .intersectScene(_scene);
     if (hit == null || hit.node != _panel.node) return false;
     final surfaceUv = _panel.uvAt(hit.point);
@@ -257,8 +306,14 @@ class _PendulumLabScreenState extends State<PendulumLabScreen>
 
     const pointer = 9001;
     _panel.pipeline.announcePointer(pointer, added: true);
-    _panel.pipeline.dispatchAtUv(uv, (local) => PointerDownEvent(pointer: pointer, position: local));
-    _panel.pipeline.dispatchAtUv(uv, (local) => PointerUpEvent(pointer: pointer, position: local));
+    _panel.pipeline.dispatchAtUv(
+      uv,
+      (local) => PointerDownEvent(pointer: pointer, position: local),
+    );
+    _panel.pipeline.dispatchAtUv(
+      uv,
+      (local) => PointerUpEvent(pointer: pointer, position: local),
+    );
     _panel.pipeline.announcePointer(pointer, added: false);
     return true;
   }
@@ -289,7 +344,8 @@ class _PendulumLabScreenState extends State<PendulumLabScreen>
     return Scaffold(
       backgroundColor: const Color(0xFF14161A),
       body: Listener(
-        onPointerDown: (PointerDownEvent event) => _tapPanel(event.localPosition),
+        onPointerDown: (PointerDownEvent event) =>
+            _tapPanel(event.localPosition),
         child: SceneSurface(
           renderer: renderer,
           scene: _scene,
@@ -297,6 +353,26 @@ class _PendulumLabScreenState extends State<PendulumLabScreen>
           settings: () => const RenderSettings(),
           onBeforeFrame: () {},
         ),
+      ),
+      floatingActionButton: LabReviewButton(onPressed: _showReview),
+    );
+  }
+
+  /// `ls-e-01`'s teacher screen: names the first fixed step this run's own
+  /// length differs from [_assignedLength], from [_lengths] — the run
+  /// actually recorded, not a re-simulation.
+  void _showReview() {
+    final assignment = DataSourceTrace();
+    for (final step in _lengths.steps) {
+      assignment.record(step, <String, Object?>{'length': _assignedLength});
+    }
+    final divergence = firstLabDivergence(assignment, _lengths, path: 'length');
+    showDialog<void>(
+      context: context,
+      builder: (context) => LabReviewPanel(
+        assignedLength: _assignedLength,
+        divergence: divergence,
+        stepsPerSecond: (1.0 / labFixedDt).round(),
       ),
     );
   }

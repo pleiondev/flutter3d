@@ -14,6 +14,7 @@ import 'package:flutter3d_cpu/flutter3d_cpu.dart';
 import 'package:flutter3d_game/flutter3d_game.dart';
 import 'package:flutter3d_template_app/main.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:vector_math/vector_math.dart' show Vector4;
 
 GraphicsDevice _device() => CpuDevice(
   width: 16,
@@ -38,6 +39,38 @@ void main() {
       reason: 'lifted off the spawn point, not left standing in the floor',
     );
   });
+
+  test(
+    'ls-i-01: the configurator\'s product is a real, retintable prop',
+    () async {
+      final cubit = LevelCubit();
+
+      await cubit.open(
+        _device(),
+        world: CollisionWorld(),
+        camera: CameraNode(),
+        asset: 'assets/levels/configurator.json',
+      );
+
+      final state = cubit.state;
+      expect(state, isA<LevelReady>());
+      final props = (state as LevelReady).props;
+      expect(props, isNotNull);
+      final product = props!.nodes['product'];
+      expect(product, isNotNull, reason: 'the product is a named prop now');
+
+      final startColor = (product! as MeshNode).material.baseColor;
+      expect(startColor, equals(Vector4(0.75, 0.2, 0.2, 1.0)), reason: 'red');
+
+      props.setMaterial('product', 'product-blue');
+
+      expect(
+        (props.nodes['product']! as MeshNode).material.baseColor,
+        equals(Vector4(0.2, 0.32, 0.75, 1.0)),
+        reason: 'setMaterial retints the same prop the panel would cycle to',
+      );
+    },
+  );
 
   test('a level that is not there fails loudly rather than silently', () async {
     // **This used to be a black screen for ever.** The load caught its own

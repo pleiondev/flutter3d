@@ -19,6 +19,7 @@ import 'package:flutter3d/flutter3d.dart' hide Material;
 import 'package:flutter3d_bridge/flutter3d_bridge.dart';
 import 'package:flutter3d_game/flutter3d_game.dart' show EntityDef;
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:vector_math/vector_math.dart' show Vector3;
 
 /// A snapshot of [OrbitController]'s own numbers.
 final class OrbitPose {
@@ -82,9 +83,15 @@ class OrbitCubit extends Cubit<OrbitPose> {
   void resetFromStep(
     EntityDef? step, {
     Map<String, SceneNode> nodes = const <String, SceneNode>{},
+    Map<String, Vector3> restPositions = const <String, Vector3>{},
   }) {
     if (step != null) {
-      applyLessonStepToCamera(orbit.node, step, nodes: nodes);
+      applyLessonStepToCamera(
+        orbit.node,
+        step,
+        nodes: nodes,
+        restPositions: restPositions,
+      );
     }
     final at = orbit.node.readPosition();
     final distance = math.max(at.length, 0.05);

@@ -72,13 +72,17 @@ void main() {
   group('ConfiguratorController', () {
     test('starts on the first option and cycles through all three', () {
       final controller = ConfiguratorController();
-      expect(controller.current, ('Red', 199.0));
+      expect(controller.current, ('Red', 199.0, 'product-red'));
       controller.cycle();
-      expect(controller.current, ('Blue', 219.0));
+      expect(controller.current, ('Blue', 219.0, 'product-blue'));
       controller.cycle();
-      expect(controller.current, ('Green', 209.0));
+      expect(controller.current, ('Green', 209.0, 'product-green'));
       controller.cycle();
-      expect(controller.current, ('Red', 199.0), reason: 'wraps around');
+      expect(controller.current, (
+        'Red',
+        199.0,
+        'product-red',
+      ), reason: 'wraps around');
     });
   });
 

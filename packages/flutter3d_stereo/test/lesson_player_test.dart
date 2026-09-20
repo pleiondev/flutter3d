@@ -79,6 +79,105 @@ void main() {
       expect(block.visible, isTrue, reason: 'step-2 shows it');
       expect(untouched.visible, isFalse, reason: 'step-2 never names it');
     });
+
+    group('offsets — edu-00 §6\'s layered teardown', () {
+      test(
+        'a node named in offsets moves to rest position plus the offset',
+        () {
+          final scene = Scene();
+          final rig = StereoRig();
+          scene.add(rig.stage);
+          final valveCover = SceneNode(name: 'valve_cover')
+            ..setPosition(0.2, 0.5, -0.1);
+          final nodes = <String, SceneNode>{
+            'engine-body#valve_cover': valveCover,
+          };
+          final restPositions = <String, Vector3>{
+            'engine-body#valve_cover': Vector3(0.2, 0.5, -0.1),
+          };
+          final step = EntityDef(
+            type: 'edu_step',
+            name: 'step-2',
+            position: Vector3.zero(),
+            properties: <String, Object?>{
+              'offsets': <String, Object?>{
+                'engine-body#valve_cover': <double>[0.0, 0.35, 0.0],
+              },
+            },
+          );
+
+          applyLessonStep(
+            rig,
+            step,
+            nodes: nodes,
+            restPositions: restPositions,
+          );
+
+          final world = valveCover.readWorldPosition();
+          expect(world.x, closeTo(0.2, 1e-6));
+          expect(
+            world.y,
+            closeTo(0.85, 1e-6),
+            reason: 'rest 0.5 + offset 0.35',
+          );
+          expect(world.z, closeTo(-0.1, 1e-6));
+        },
+      );
+
+      test('a node with no record in this step\'s offsets returns to rest — '
+          'offsets is full state, not a diff', () {
+        final scene = Scene();
+        final rig = StereoRig();
+        scene.add(rig.stage);
+        final valveCover = SceneNode(name: 'valve_cover');
+        final nodes = <String, SceneNode>{
+          'engine-body#valve_cover': valveCover,
+        };
+        final restPositions = <String, Vector3>{
+          'engine-body#valve_cover': Vector3(0.2, 0.5, -0.1),
+        };
+        final disassembled = EntityDef(
+          type: 'edu_step',
+          name: 'step-2',
+          position: Vector3.zero(),
+          properties: <String, Object?>{
+            'offsets': <String, Object?>{
+              'engine-body#valve_cover': <double>[0.0, 0.35, 0.0],
+            },
+          },
+        );
+        final reassembled = EntityDef(
+          type: 'edu_step',
+          name: 'step-3',
+          position: Vector3.zero(),
+          properties: const <String, Object?>{'caption': 'Back together'},
+        );
+
+        applyLessonStep(
+          rig,
+          disassembled,
+          nodes: nodes,
+          restPositions: restPositions,
+        );
+        expect(
+          valveCover.readWorldPosition().y,
+          closeTo(0.85, 1e-6),
+          reason: 'disassembled',
+        );
+
+        applyLessonStep(
+          rig,
+          reassembled,
+          nodes: nodes,
+          restPositions: restPositions,
+        );
+        expect(
+          valveCover.readWorldPosition(),
+          equals(Vector3(0.2, 0.5, -0.1)),
+          reason: 'step-3 names no offset for it, so it is back at rest',
+        );
+      });
+    });
   });
 
   group('LessonPlayer', () {
@@ -122,8 +221,16 @@ void main() {
       // offset, which the "shifts by exactly the stage's move" test below is
       // deliberately not about.
       final steps = <EntityDef>[
-        EntityDef(type: 'edu_step', name: 'a', position: Vector3(0.0, 1.6, 3.0)),
-        EntityDef(type: 'edu_step', name: 'b', position: Vector3(1.0, 1.6, 3.0)),
+        EntityDef(
+          type: 'edu_step',
+          name: 'a',
+          position: Vector3(0.0, 1.6, 3.0),
+        ),
+        EntityDef(
+          type: 'edu_step',
+          name: 'b',
+          position: Vector3(1.0, 1.6, 3.0),
+        ),
       ];
       final player = LessonPlayer(steps);
 

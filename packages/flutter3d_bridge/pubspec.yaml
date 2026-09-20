@@ -48,6 +48,9 @@ dev_dependencies:
   # run in a test — which until now it never was.
   flutter3d_cpu: ^0.6.0
   flutter_lints: ^6.0.0
+  # `kSamplesPath`, so `model_visuals_test.dart` can decode a real glTF file
+  # off disk (`FileAssetSource`) rather than faking Flutter's asset bundle.
+  flutter3d_samples: ^0.4.2
 
 # This is the one package allowed to depend on both. `flutter3d_game` depends on
 # `flutter`, `pointer_lock` and `vector_math` and on nothing else — that is what

@@ -64,10 +64,7 @@ final class StepPanel extends StatelessWidget {
 
   void _addSequenceIfMissing() {
     if (_findSequence(editing.level) != null) return;
-    _run(
-      Place(Piece.entity, 'edu_sequence', Vector3.zero()),
-      'added a lesson',
-    );
+    _run(Place(Piece.entity, 'edu_sequence', Vector3.zero()), 'added a lesson');
     _run(const SetField('name', 'lesson'), 'named the lesson');
     _run(const SetField('steps', <String>[]), 'started an empty lesson');
   }
@@ -123,7 +120,10 @@ final class StepPanel extends StatelessWidget {
     final name = freshName(editing.level, 'note');
     _run(Place(Piece.entity, 'edu_annotation', at), 'added $name');
     _run(SetField('name', name), 'named $name');
-    _run(const SetField('widget', 'unnamed-widget'), 'gave $name a widget name');
+    _run(
+      const SetField('widget', 'unnamed-widget'),
+      'gave $name a widget name',
+    );
 
     _selectByName(stepName);
     final annotations = List<String>.of(
@@ -134,11 +134,38 @@ final class StepPanel extends StatelessWidget {
     _selectByName(name);
   }
 
+  /// `edu-01`'s "разборка перетаскиванием" switch: `null` (off) unless
+  /// [name] is not already the active one, the ordinary toggle a checkbox or
+  /// a radio button already means — pressing the same row's button twice
+  /// turns editing off rather than leaving it stuck on the last step
+  /// somebody touched.
+  void _toggleActiveOffsets(String name) {
+    editing.activeStepForOffsets = editing.activeStepForOffsets == name
+        ? null
+        : name;
+    onChanged(
+      editing.activeStepForOffsets == null
+          ? 'stopped editing $name\'s teardown'
+          : 'editing $name\'s teardown — nudge a selected part to offset it',
+    );
+  }
+
   void _addClipPlane() {
     final at = editing.where ?? Vector3.zero();
     final name = freshName(editing.level, 'cutaway');
     _run(Place(Piece.entity, 'edu_clip_plane', at), 'added $name');
     _run(SetField('name', name), 'named $name');
+    // Entities are "deliberately almost empty" (`Editing.offerable`'s own
+    // doc comment) — nothing offers a field an `edu_clip_plane` has not
+    // already written, so a plane placed with no `normal` at all would
+    // never show one to edit: `doc/edu-00-interactive-format.md` §8 names
+    // `normal` as part of the entity, not an optional extra, and
+    // `_NumbersField` already renders any 3-number list as an editable
+    // direction — this default is what makes that row exist at all.
+    _run(
+      const SetField('normal', <double>[0.0, 0.0, 1.0]),
+      'gave $name a normal',
+    );
     _selectByName(name);
   }
 
@@ -164,8 +191,13 @@ final class StepPanel extends StatelessWidget {
             Row(
               children: <Widget>[
                 Text(
-                  sequence == null ? 'No lesson yet' : (sequence.string('title') ?? sequence.name!),
-                  style: const TextStyle(color: _text, fontWeight: FontWeight.bold),
+                  sequence == null
+                      ? 'No lesson yet'
+                      : (sequence.string('title') ?? sequence.name!),
+                  style: const TextStyle(
+                    color: _text,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
                 const Spacer(),
                 IconButton(
@@ -184,6 +216,7 @@ final class StepPanel extends StatelessWidget {
               _StepRow(
                 step: steps[i],
                 selected: steps[i].name == selectedName,
+                editingOffsets: steps[i].name == editing.activeStepForOffsets,
                 onSelect: () => _selectByName(steps[i].name!),
                 onMoveUp: i == 0
                     ? null
@@ -193,12 +226,16 @@ final class StepPanel extends StatelessWidget {
                     : () => _moveStep(sequence!.name!, i, i + 1),
                 onDelete: () => _deleteStep(steps[i].name!),
                 onAddAnnotation: () => _addAnnotation(steps[i].name!),
+                onToggleOffsets: () => _toggleActiveOffsets(steps[i].name!),
               ),
             const Divider(color: _panelBorder),
             TextButton.icon(
               onPressed: _addClipPlane,
               icon: const Icon(Icons.content_cut, color: _text, size: 16),
-              label: const Text('Add a clip plane', style: TextStyle(color: _text)),
+              label: const Text(
+                'Add a clip plane',
+                style: TextStyle(color: _text),
+              ),
             ),
           ],
         ),
@@ -211,20 +248,28 @@ final class _StepRow extends StatelessWidget {
   const _StepRow({
     required this.step,
     required this.selected,
+    required this.editingOffsets,
     required this.onSelect,
     required this.onMoveUp,
     required this.onMoveDown,
     required this.onDelete,
     required this.onAddAnnotation,
+    required this.onToggleOffsets,
   });
 
   final EntityDef step;
   final bool selected;
+
+  /// Whether nudging a selected part right now writes into this step's own
+  /// `offsets` — `edu-01`'s teardown-editing switch, one row can hold at a
+  /// time (`StepPanel._toggleActiveOffsets` clears any other row's own).
+  final bool editingOffsets;
   final VoidCallback onSelect;
   final VoidCallback? onMoveUp;
   final VoidCallback? onMoveDown;
   final VoidCallback onDelete;
   final VoidCallback onAddAnnotation;
+  final VoidCallback onToggleOffsets;
 
   @override
   Widget build(BuildContext context) {
@@ -244,7 +289,22 @@ final class _StepRow extends StatelessWidget {
                 ),
               ),
               IconButton(
-                icon: const Icon(Icons.sticky_note_2_outlined, color: _dim, size: 16),
+                icon: Icon(
+                  Icons.open_with,
+                  color: editingOffsets ? _text : _dim,
+                  size: 16,
+                ),
+                tooltip: editingOffsets
+                    ? 'Stop editing this step\'s teardown'
+                    : 'Nudge a selected part to offset it on this step',
+                onPressed: onToggleOffsets,
+              ),
+              IconButton(
+                icon: const Icon(
+                  Icons.sticky_note_2_outlined,
+                  color: _dim,
+                  size: 16,
+                ),
                 tooltip: 'Add an annotation to this step',
                 onPressed: onAddAnnotation,
               ),

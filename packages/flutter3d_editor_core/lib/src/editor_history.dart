@@ -154,7 +154,11 @@ final class EditorHistory {
   void undo() {
     if (_undo.isEmpty) return;
     final step = _undo.removeLast();
-    _redo.add((says: step.says, document: editing.level.toJson(), state: _state));
+    _redo.add((
+      says: step.says,
+      document: editing.level.toJson(),
+      state: _state,
+    ));
     _state = step.state;
     _restore(step.document);
   }
@@ -163,7 +167,11 @@ final class EditorHistory {
   void redo() {
     if (_redo.isEmpty) return;
     final step = _redo.removeLast();
-    _undo.add((says: step.says, document: editing.level.toJson(), state: _state));
+    _undo.add((
+      says: step.says,
+      document: editing.level.toJson(),
+      state: _state,
+    ));
     _state = step.state;
     _restore(step.document);
   }

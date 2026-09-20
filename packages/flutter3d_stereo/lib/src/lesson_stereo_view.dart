@@ -4,6 +4,7 @@ library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter3d/flutter3d.dart' hide Material;
+import 'package:vector_math/vector_math.dart' show Vector3;
 
 import 'lesson_player.dart';
 import 'stereo_rig.dart';
@@ -28,6 +29,7 @@ class LessonStereoView extends StatefulWidget {
     required this.rig,
     required this.player,
     this.nodes = const <String, SceneNode>{},
+    this.restPositions = const <String, Vector3>{},
     this.viewer = StereoViewer.cardboardV2,
   });
 
@@ -36,6 +38,12 @@ class LessonStereoView extends StatefulWidget {
   final StereoRig rig;
   final LessonPlayer player;
   final Map<String, SceneNode> nodes;
+
+  /// Where each of [nodes] stood as authored — `edu-00` §6's layered
+  /// teardown, `flutter3d_lesson_viewer`'s own `LessonView.restPositions`
+  /// counterpart. Empty for a lesson with no `prop`/`model`, the same as
+  /// [nodes].
+  final Map<String, Vector3> restPositions;
   final StereoViewer? viewer;
 
   @override
@@ -52,8 +60,11 @@ class _LessonStereoViewState extends State<LessonStereoView> {
           scene: widget.scene,
           rig: widget.rig,
           settings: () => const RenderSettings().forStereo(),
-          onBeforeFrame: () =>
-              widget.player.applyCurrent(widget.rig, nodes: widget.nodes),
+          onBeforeFrame: () => widget.player.applyCurrent(
+            widget.rig,
+            nodes: widget.nodes,
+            restPositions: widget.restPositions,
+          ),
           viewer: widget.viewer,
         ),
         Positioned(

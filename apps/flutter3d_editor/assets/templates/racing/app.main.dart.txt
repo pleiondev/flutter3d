@@ -130,6 +130,7 @@ final class LevelReady extends LevelState {
     required this.yaw,
     required this.level,
     this.widgetSurfaces,
+    this.props,
   });
 
   final Scene scene;
@@ -147,6 +148,11 @@ final class LevelReady extends LevelState {
   /// [level] named none. Ticked once a frame by [LevelScreen] and raycast
   /// against on a tap, the same two calls `wg-02`'s own demo already proved.
   final WidgetSurfaceVisuals? widgetSurfaces;
+
+  /// `edu-07a`'s bridge for this level's `prop` entities — `ls-i-01`'s own
+  /// configurator uses it to retint the product's real mesh, not only the
+  /// panel that names the colour.
+  final PropVisuals? props;
 }
 
 /// The level would not load, and why.
@@ -204,17 +210,26 @@ class LevelCubit extends Cubit<LevelState> {
           .firstOrNull;
       final at = (spawn?.position ?? Vector3.zero()) + Vector3(0.0, 0.9, 0.0);
 
-      // `tpl-04`: every `widget_surface` this document names, resolved
-      // through whatever the caller's own registry knows — a level with none
-      // gets a `WidgetSurfaceVisuals` that never adds a node, not a null
-      // check scattered through the render loop.
+      // Props first: an `edu_annotation`'s `attachTo` may name a prop that
+      // has not been built yet if it were read in document order, so every
+      // `prop` goes into the scene — and into [PropVisuals.nodes] — before
+      // a single `widget_surface`/`edu_annotation` is resolved against it.
+      final props = PropVisuals(loaded.scene, device: device, level: level);
+      for (final entity in level.entities) {
+        props.add(entity);
+      }
+
+      // `tpl-04`: every `widget_surface`/`edu_annotation` this document
+      // names, resolved through whatever the caller's own registry knows —
+      // a level with none gets a `WidgetSurfaceVisuals` that never adds a
+      // node, not a null check scattered through the render loop.
       final widgetSurfaces = WidgetSurfaceVisuals(
         loaded.scene,
         device: device,
         registry: widgetRegistry,
       );
       for (final entity in level.entities) {
-        widgetSurfaces.add(entity);
+        widgetSurfaces.add(entity, nodes: props.nodes);
       }
 
       emit(
@@ -224,6 +239,7 @@ class LevelCubit extends Cubit<LevelState> {
           yaw: spawn?.yaw ?? 0.0,
           level: level,
           widgetSurfaces: widgetSurfaces,
+          props: props,
         ),
       );
     } catch (error) {
@@ -234,7 +250,10 @@ class LevelCubit extends Cubit<LevelState> {
   @override
   Future<void> close() {
     final current = state;
-    if (current is LevelReady) current.widgetSurfaces?.dispose();
+    if (current is LevelReady) {
+      current.widgetSurfaces?.dispose();
+      current.props?.dispose();
+    }
     return super.close();
   }
 }
@@ -286,6 +305,10 @@ class _LevelScreenState extends State<LevelScreen>
   /// open — a level with none of these entities simply never touches them.
   final ViewerTourController _tour = ViewerTourController();
   final ConfiguratorController _configurator = ConfiguratorController();
+
+  /// Set once the level is open, from `LevelReady.props` — `_onConfigChanged`
+  /// reads it to retint the real product prop, not only the panel.
+  PropVisuals? _props;
   final ValueNotifier<Object?> _twinReading = ValueNotifier<Object?>(null);
   final DataSourceRegistry _dataSources = DataSourceRegistry(
     <String, EduDataSource>{
@@ -311,7 +334,20 @@ class _LevelScreenState extends State<LevelScreen>
   void initState() {
     super.initState();
     _ticker = createTicker(_onTick)..start();
+    // `ls-i-01`: fires on every `cycle()`, including the first paint's own
+    // initial index — so the product wears `options[0]`'s material from the
+    // start rather than whatever `add()` gave it from the document, which
+    // would drift the moment `configurator.json`'s own default disagreed
+    // with `ConfiguratorController.options[0]`.
+    _configurator.index.addListener(_onConfiguratorChanged);
     unawaited(_open());
+  }
+
+  void _onConfiguratorChanged() {
+    final props = _props;
+    if (props == null) return;
+    final (_, _, materialName) = _configurator.current;
+    props.setMaterial('product', materialName);
   }
 
   Future<void> _open() async {
@@ -348,6 +384,13 @@ class _LevelScreenState extends State<LevelScreen>
     if (ready is LevelReady) {
       _tour.setCaptions(stepCaptions(ready.level));
       _boundStep = stepWithBindings(ready.level);
+      _props = ready.props;
+      // Applied once, explicitly, rather than left to whatever material
+      // `configurator.json` happened to author the product with — the two
+      // agree today (`options[0]` and the document both name `product-red`)
+      // by design, not by coincidence a future edit to either could break
+      // silently.
+      _onConfiguratorChanged();
     }
   }
 
@@ -471,6 +514,7 @@ class _LevelScreenState extends State<LevelScreen>
 
   @override
   void dispose() {
+    _configurator.index.removeListener(_onConfiguratorChanged);
     _ticker?.dispose();
     _keyboard.dispose();
     unawaited(_keys.dispose());

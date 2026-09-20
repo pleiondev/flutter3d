@@ -107,26 +107,25 @@ void main() {
     await tester.pump();
 
     final sequence = editing.level.named('seq')!;
-    expect(
-      (sequence.properties['steps']! as List).cast<String>(),
-      <String>['step-2', 'step-1'],
-    );
+    expect((sequence.properties['steps']! as List).cast<String>(), <String>[
+      'step-2',
+      'step-1',
+    ]);
   });
 
-  testWidgets(
-    'the first step cannot move up and the last cannot move down',
-    (tester) async {
-      await tester.pumpWidget(_panel(_twoStepLevel()));
-      final upButtons = tester.widgetList<IconButton>(
-        find.widgetWithIcon(IconButton, Icons.arrow_upward),
-      );
-      final downButtons = tester.widgetList<IconButton>(
-        find.widgetWithIcon(IconButton, Icons.arrow_downward),
-      );
-      expect(upButtons.first.onPressed, isNull);
-      expect(downButtons.last.onPressed, isNull);
-    },
-  );
+  testWidgets('the first step cannot move up and the last cannot move down', (
+    tester,
+  ) async {
+    await tester.pumpWidget(_panel(_twoStepLevel()));
+    final upButtons = tester.widgetList<IconButton>(
+      find.widgetWithIcon(IconButton, Icons.arrow_upward),
+    );
+    final downButtons = tester.widgetList<IconButton>(
+      find.widgetWithIcon(IconButton, Icons.arrow_downward),
+    );
+    expect(upButtons.first.onPressed, isNull);
+    expect(downButtons.last.onPressed, isNull);
+  });
 
   testWidgets('deleting a step removes it from the level and the lesson', (
     tester,
@@ -139,10 +138,9 @@ void main() {
 
     expect(editing.level.named('step-1'), isNull);
     final sequence = editing.level.named('seq')!;
-    expect(
-      (sequence.properties['steps']! as List).cast<String>(),
-      <String>['step-2'],
-    );
+    expect((sequence.properties['steps']! as List).cast<String>(), <String>[
+      'step-2',
+    ]);
   });
 
   testWidgets('adding an annotation to a step attaches it by name', (
@@ -162,9 +160,7 @@ void main() {
     expect(annotation.type, 'edu_annotation');
   });
 
-  testWidgets('adding a clip plane creates one and selects it', (
-    tester,
-  ) async {
+  testWidgets('adding a clip plane creates one and selects it', (tester) async {
     final editing = _twoStepLevel();
     await tester.pumpWidget(_panel(editing));
 
@@ -177,4 +173,60 @@ void main() {
       hasLength(1),
     );
   });
+
+  testWidgets(
+    'a new clip plane gets a real normal, not an absent field nothing '
+    'ever offers to add — `Editing.offerable` has nothing for an entity',
+    (tester) async {
+      final editing = _twoStepLevel();
+      await tester.pumpWidget(_panel(editing));
+
+      await tester.tap(find.text('Add a clip plane'));
+      await tester.pump();
+
+      expect(editing.entity!.properties['normal'], <double>[0.0, 0.0, 1.0]);
+    },
+  );
+
+  testWidgets(
+    'tapping a step\'s teardown button turns offset-editing on for it',
+    (tester) async {
+      final editing = _twoStepLevel();
+      String? said;
+      await tester.pumpWidget(_panel(editing, onChanged: (s) => said = s));
+
+      await tester.tap(find.byIcon(Icons.open_with).first);
+      await tester.pump();
+
+      expect(editing.activeStepForOffsets, 'step-1');
+      expect(said, contains('step-1'));
+    },
+  );
+
+  testWidgets('tapping it again turns offset-editing back off', (tester) async {
+    final editing = _twoStepLevel()..activeStepForOffsets = 'step-1';
+    await tester.pumpWidget(_panel(editing));
+
+    await tester.tap(find.byIcon(Icons.open_with).first);
+    await tester.pump();
+
+    expect(editing.activeStepForOffsets, isNull);
+  });
+
+  testWidgets(
+    'tapping a different step\'s teardown button moves it there instead',
+    (tester) async {
+      // Only one row at a time — `StepPanel._toggleActiveOffsets`'s own
+      // doc comment names this as the ordinary meaning a checkbox or a radio
+      // button already has, not two switches somebody has to remember to
+      // turn off by hand.
+      final editing = _twoStepLevel()..activeStepForOffsets = 'step-1';
+      await tester.pumpWidget(_panel(editing));
+
+      await tester.tap(find.byIcon(Icons.open_with).last);
+      await tester.pump();
+
+      expect(editing.activeStepForOffsets, 'step-2');
+    },
+  );
 }

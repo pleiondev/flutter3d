@@ -1,0 +1,36 @@
+# /etc/systemd/system/flutter3d-lti.service
+[Unit]
+Description=lti.pleion.dev (flutter3d LTI launch)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+ExecStart=/opt/flutter3d-lti/lti
+WorkingDirectory=/opt/flutter3d-lti
+EnvironmentFile=/etc/flutter3d-lti.env
+Environment=LTI_PORT=8798
+Restart=on-failure
+RestartSec=5
+TimeoutStopSec=30
+
+# Same confinement as flutter3d-lessons.service.
+DynamicUser=yes
+StateDirectory=flutter3d-lti
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+PrivateDevices=yes
+NoNewPrivileges=yes
+ProtectKernelTunables=yes
+ProtectControlGroups=yes
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+RestrictNamespaces=yes
+LockPersonality=yes
+
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=flutter3d-lti
+
+[Install]
+WantedBy=multi-user.target

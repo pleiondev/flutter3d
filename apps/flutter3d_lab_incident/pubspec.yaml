@@ -1,0 +1,53 @@
+name: flutter3d_lab_incident
+description: "ls-i-02: a recorded incident on the operator's own panel — a DataSourceTrace an engineer scrubs between named moments, not a live feed."
+publish_to: 'none'
+version: 0.1.0
+resolution: workspace
+
+environment:
+  sdk: ^3.12.2
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # The backend chooser with its software fallback, and — via its own
+  # barrel — `flutter3d_session`'s `SceneSurface`/`WidgetSurface`. Same
+  # reasoning `flutter3d_lab_twin`'s own pubspec gives.
+  flutter3d_app:
+    path: ../../packages/flutter3d_app
+
+  # The scene graph this app builds by hand — one machine mesh, one light,
+  # one panel, not a `Level` document: this is one incident, not a place
+  # worth a level format's own generality, `flutter3d_lab_twin`'s own
+  # reasoning for its own one twin.
+  flutter3d:
+    path: ../../packages/flutter3d
+
+  # `DataSourceTrace` — `edu-05`'s own recorded-input-tape mechanism, read
+  # back here rather than branched: an incident that already happened is
+  # scrubbed, not forked.
+  flutter3d_sim:
+    path: ../../packages/flutter3d_sim
+
+  # `WidgetSurface` directly, in the panel's own integration test — the app
+  # itself reaches it through `flutter3d_app`'s barrel, but a test file
+  # importing it needs it named here too.
+  flutter3d_session:
+    path: ../../packages/flutter3d_session
+
+  vector_math: ^2.2.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+
+  # A renderer with no GPU under it, so a test can drive the panel and the
+  # trace without a window.
+  flutter3d_cpu:
+    path: ../../packages/flutter3d_cpu
+
+  flutter_lints: ^6.0.0
+
+flutter:
+  uses-material-design: true

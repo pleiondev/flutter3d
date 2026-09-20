@@ -39,23 +39,28 @@ void main() {
       expect(CheckSpec.fromStep(_stepWithCheck(null)), isNull);
     });
 
-    test('a check missing a question or with no answers is read as absent, not thrown', () {
-      expect(
-        CheckSpec.fromStep(
-          _stepWithCheck(<String, Object?>{'answers': <String>['a']}),
-        ),
-        isNull,
-      );
-      expect(
-        CheckSpec.fromStep(
-          _stepWithCheck(<String, Object?>{
-            'question': 'Q',
-            'answers': <String>[],
-          }),
-        ),
-        isNull,
-      );
-    });
+    test(
+      'a check missing a question or with no answers is read as absent, not thrown',
+      () {
+        expect(
+          CheckSpec.fromStep(
+            _stepWithCheck(<String, Object?>{
+              'answers': <String>['a'],
+            }),
+          ),
+          isNull,
+        );
+        expect(
+          CheckSpec.fromStep(
+            _stepWithCheck(<String, Object?>{
+              'question': 'Q',
+              'answers': <String>[],
+            }),
+          ),
+          isNull,
+        );
+      },
+    );
   });
 
   group('CheckSpec.accepts', () {
@@ -79,11 +84,20 @@ void main() {
   });
 
   group('CheckPrompt', () {
-    Widget host(CheckSpec spec, {Key? key}) =>
-        MaterialApp(home: Scaffold(body: CheckPrompt(key: key, spec: spec)));
+    Widget host(CheckSpec spec, {Key? key}) => MaterialApp(
+      home: Scaffold(
+        body: CheckPrompt(key: key, spec: spec),
+      ),
+    );
 
-    testWidgets('a correct answer says so and stops taking input', (tester) async {
-      const spec = CheckSpec(question: 'Q', answers: <String>['80'], attempts: 3);
+    testWidgets('a correct answer says so and stops taking input', (
+      tester,
+    ) async {
+      const spec = CheckSpec(
+        question: 'Q',
+        answers: <String>['80'],
+        attempts: 3,
+      );
       await tester.pumpWidget(host(spec));
 
       await tester.enterText(find.byType(TextField), '80');
@@ -97,7 +111,11 @@ void main() {
     testWidgets('a wrong answer counts down, and reveals the answer at zero', (
       tester,
     ) async {
-      const spec = CheckSpec(question: 'Q', answers: <String>['80'], attempts: 2);
+      const spec = CheckSpec(
+        question: 'Q',
+        answers: <String>['80'],
+        attempts: 2,
+      );
       await tester.pumpWidget(host(spec));
 
       await tester.enterText(find.byType(TextField), 'nope');
@@ -114,14 +132,74 @@ void main() {
       expect(find.byType(TextField), findsNothing);
     });
 
+    testWidgets('onResult fires once, with true, on a correct answer', (
+      tester,
+    ) async {
+      const spec = CheckSpec(
+        question: 'Q',
+        answers: <String>['80'],
+        attempts: 3,
+      );
+      final results = <bool>[];
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: CheckPrompt(spec: spec, onResult: results.add),
+          ),
+        ),
+      );
+
+      await tester.enterText(find.byType(TextField), '80');
+      await tester.tap(find.byTooltip('Submit answer'));
+      await tester.pump();
+
+      expect(results, <bool>[true]);
+    });
+
+    testWidgets('onResult fires once, with false, only once attempts run out', (
+      tester,
+    ) async {
+      const spec = CheckSpec(
+        question: 'Q',
+        answers: <String>['80'],
+        attempts: 2,
+      );
+      final results = <bool>[];
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: CheckPrompt(spec: spec, onResult: results.add),
+          ),
+        ),
+      );
+
+      await tester.enterText(find.byType(TextField), 'nope');
+      await tester.tap(find.byTooltip('Submit answer'));
+      await tester.pump();
+      expect(results, isEmpty, reason: 'an attempt remains; not settled yet');
+
+      await tester.enterText(find.byType(TextField), 'still nope');
+      await tester.tap(find.byTooltip('Submit answer'));
+      await tester.pump();
+      expect(results, <bool>[false]);
+    });
+
     testWidgets('a fresh key resets the attempt count', (tester) async {
-      const spec = CheckSpec(question: 'Q', answers: <String>['80'], attempts: 1);
+      const spec = CheckSpec(
+        question: 'Q',
+        answers: <String>['80'],
+        attempts: 1,
+      );
       await tester.pumpWidget(host(spec, key: const ValueKey('step-1')));
 
       await tester.enterText(find.byType(TextField), 'nope');
       await tester.tap(find.byTooltip('Submit answer'));
       await tester.pump();
-      expect(find.byType(TextField), findsNothing, reason: 'one attempt, spent');
+      expect(
+        find.byType(TextField),
+        findsNothing,
+        reason: 'one attempt, spent',
+      );
 
       await tester.pumpWidget(host(spec, key: const ValueKey('step-2')));
       expect(

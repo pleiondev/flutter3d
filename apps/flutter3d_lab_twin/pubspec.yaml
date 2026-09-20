@@ -1,0 +1,57 @@
+name: flutter3d_lab_twin
+description: "ls-i-00: a live device twin — a sampled sensor reading on a WidgetSurface dashboard, and a what-if branch of its DataSourceTrace that does not rewrite what already happened."
+publish_to: 'none'
+version: 0.1.0
+resolution: workspace
+
+environment:
+  sdk: ^3.12.2
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # The backend chooser with its software fallback, and — via its own
+  # barrel — `flutter3d_session`'s `SceneSurface`/`WidgetSurface`. Same
+  # reasoning `flutter3d_lab_pendulum`'s own pubspec gives.
+  flutter3d_app:
+    path: ../../packages/flutter3d_app
+
+  # The scene graph this app builds by hand — one machine mesh, one light,
+  # one panel, not a `Level` document: `doc/lesson-scenarios-plan.md`'s
+  # `ls-i-00` is one twin, not a place worth a level format's own generality.
+  flutter3d:
+    path: ../../packages/flutter3d
+
+  # `EduDataSource`/`SamplerDataSource`/`DataSourceRegistry`/
+  # `DataSourceTrace` — `edu-05`'s own mechanism, which this app is the
+  # first to show live rather than only under a test
+  # (`run_timeline_data_source_test.dart`, on a toy class).
+  flutter3d_sim:
+    path: ../../packages/flutter3d_sim
+
+  # `WidgetSurface` directly, in the dashboard panel's own integration test
+  # — the app itself reaches it through `flutter3d_app`'s barrel, but a
+  # test file importing it needs it named here too.
+  flutter3d_session:
+    path: ../../packages/flutter3d_session
+
+  # `ls-x-03`: the same twin, opened in `StereoViewer` behind `?stereo=1`.
+  flutter3d_stereo:
+    path: ../../packages/flutter3d_stereo
+
+  vector_math: ^2.2.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+
+  # A renderer with no GPU under it, so a test can drive the panel and the
+  # data source without a window.
+  flutter3d_cpu:
+    path: ../../packages/flutter3d_cpu
+
+  flutter_lints: ^6.0.0
+
+flutter:
+  uses-material-design: true

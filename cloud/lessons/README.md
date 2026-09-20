@@ -140,15 +140,16 @@ break every embed.
   `offsets` (layered teardown), `edu_clip_plane` rendering, `bindings`/
   `edu_data_source` (live data). See that app's own `lib/main.dart` doc
   comment and `packages/flutter3d_bridge/lib/src/lesson_player.dart`.
-- **`check` (the quiz question)** — `check_prompt.dart` implements and
-  unit-tests it, and the shipped `tour.json` still carries a `quiz-steps`
-  entity with a real question, but it is deliberately left OUT of
-  `edu_sequence.steps`: a real-browser run (not `flutter test`) hit Flutter's
-  default red error screen on that step, root cause not yet found — see
-  `doc/tooling-plan.md`'s `edu-02` entry. Re-add it to `steps` only after
-  someone with a working browser reproduces and fixes the crash.
-- **`edu-03`** (LTI/xAPI) — this service has no notion of a student identity
-  or a grade to report; it depends on this one but has not started.
+- ~~**`check` (the quiz question)** left out of `edu_sequence.steps`~~ — fixed.
+  `LessonView` did not wrap itself in a `Material`, which is why a real
+  browser run hit Flutter's default red error screen on that step where
+  `flutter test` did not; see `doc/tooling-plan.md`'s `edu-02` entry for the
+  found cause and the fix. `tour.json` carries `quiz-steps` in
+  `edu_sequence.steps` again.
+- **`edu-03`** (LTI 1.3/xAPI) — planned in `doc/edu-03-lti-plan.md`, not
+  started in code yet. This service has no notion of a student identity or a
+  grade to report; the plan puts that in a new `cloud/lti`, built on a new
+  `flutter3d_lti` package this one does not depend on.
 - **Uploading a lesson.** The registry is Dart code because nobody has asked
   to publish their own lesson here yet — the same gap `cloud/server`'s own
   README names for its "public catalogue".

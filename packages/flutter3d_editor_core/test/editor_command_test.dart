@@ -78,7 +78,32 @@ List<EditorCommand> _everyCommand() => <EditorCommand>[
   const SetField('solid', false),
   const Brighten(1.25),
   const Turn(0.5),
+  NudgeOffset(Vector3(0.0, 0.25, 0.0)),
 ];
+
+/// A document with one `edu_step` and one other named entity — what
+/// [NudgeOffset] needs and [_document] deliberately does not carry, since
+/// its own three-kind spread is about the ten older commands, not this one.
+String _stepDocument() => jsonEncode(<String, Object?>{
+  'version': 1,
+  'name': 'test',
+  'entities': <Object?>[
+    <String, Object?>{
+      'type': 'model',
+      'name': 'engine-body',
+      'at': <double>[0.0, 0.0, 0.0],
+    },
+    <String, Object?>{
+      'type': 'edu_step',
+      'name': 'step-1',
+      'at': <double>[0.0, 1.6, 0.0],
+      'yaw': 0.0,
+    },
+  ],
+});
+
+Editing _openSteps() =>
+    Editing.parse(_stepDocument(), path: '/levels/test.json');
 
 void main() {
   group('a command is a value', () {
@@ -354,6 +379,80 @@ void main() {
 
       expect(editing.selected, isNull);
       expect(editing.piece, isNull);
+    });
+  });
+
+  group('NudgeOffset', () {
+    test('does nothing with no active step', () {
+      // `edu-01`'s teardown editing is off by default — a plain arrow key on
+      // an ordinary level must still be `MoveBy`, not a silent no-op that
+      // looks like a stuck keyboard.
+      final editing = _openSteps()..select(Piece.entity, 0);
+
+      expect(
+        editing.history.run(NudgeOffset(Vector3(0.0, 0.25, 0.0))),
+        isFalse,
+      );
+      expect(editing.history.canUndo, isFalse);
+    });
+
+    test('does nothing when the selection is the active step itself', () {
+      // Nudging a step is what `MoveBy` already means — the step's own
+      // camera position — not a part's offset on that step.
+      final editing = _openSteps()
+        ..activeStepForOffsets = 'step-1'
+        ..select(Piece.entity, 1); // step-1 itself
+
+      expect(
+        editing.history.run(NudgeOffset(Vector3(0.0, 0.25, 0.0))),
+        isFalse,
+      );
+    });
+
+    test(
+      'writes into the active step\'s offsets and restores the selection',
+      () {
+        final editing = _openSteps()
+          ..activeStepForOffsets = 'step-1'
+          ..select(Piece.entity, 0); // engine-body
+
+        expect(
+          editing.history.run(NudgeOffset(Vector3(0.0, 0.25, 0.0))),
+          isTrue,
+        );
+
+        final step = editing.level.entities.firstWhere(
+          (e) => e.name == 'step-1',
+        );
+        final offsets = step.properties['offsets']! as Map;
+        expect(offsets['engine-body'], <double>[0.0, 0.25, 0.0]);
+
+        // The keyboard is still pointed at the part being torn down, not at
+        // the step `nudgeOffset` had to select in passing to write it.
+        expect(editing.kind, Piece.entity);
+        expect(editing.selected, 0);
+        expect(editing.entity!.name, 'engine-body');
+
+        expect(editing.history.undoSays, 'nudge offset by 0, 0.25, 0');
+        editing.history.undo();
+        final stepAfterUndo = editing.level.entities.firstWhere(
+          (e) => e.name == 'step-1',
+        );
+        expect(stepAfterUndo.properties['offsets'], isNull);
+      },
+    );
+
+    test('merges with an offset a step already carries', () {
+      final editing = _openSteps()
+        ..activeStepForOffsets = 'step-1'
+        ..select(Piece.entity, 0);
+
+      editing.history.run(NudgeOffset(Vector3(0.0, 0.25, 0.0)));
+      editing.history.run(NudgeOffset(Vector3(0.25, 0.0, 0.0)));
+
+      final step = editing.level.entities.firstWhere((e) => e.name == 'step-1');
+      final offsets = step.properties['offsets']! as Map;
+      expect(offsets['engine-body'], <double>[0.25, 0.25, 0.0]);
     });
   });
 }

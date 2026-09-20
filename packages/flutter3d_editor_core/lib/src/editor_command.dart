@@ -121,6 +121,7 @@ sealed class EditorCommand {
       'setField' when key != null => SetField(key, json['value']),
       'brighten' when amount != null => Brighten(amount),
       'turn' when amount != null => Turn(amount),
+      'nudgeOffset' when by != null => NudgeOffset(by),
       _ => null,
     };
   }
@@ -186,6 +187,7 @@ const List<String> editorCommandNames = <String>[
   'setField',
   'brighten',
   'turn',
+  'nudgeOffset',
 ];
 
 /// Moves whatever is selected, by a vector, onto the grid.
@@ -217,6 +219,35 @@ final class MoveBy extends EditorCommand {
     editing.nudge(by);
     return true;
   }
+}
+
+/// `edu-01`'s "разборка перетаскиванием": adds [by] to whatever
+/// `Editing.activeStepForOffsets` already records for the selected entity,
+/// instead of moving the entity itself — [MoveBy]'s own sibling for a step's
+/// `offsets` rather than for an entity's `at`.
+///
+/// One command, not a new state machine: [Editing.nudgeOffset] does the
+/// merge and the selection round trip; this is the wire that lets a
+/// keystroke, and therefore a tool server, reach it the same way every other
+/// change in this file already does.
+final class NudgeOffset extends EditorCommand {
+  NudgeOffset(Vector3 by) : by = by.clone();
+
+  final Vector3 by;
+
+  @override
+  String get name => 'nudgeOffset';
+
+  @override
+  String get says => 'nudge offset by ${EditorCommand._where(by)}';
+
+  @override
+  Map<String, Object?> get arguments => <String, Object?>{
+    'by': EditorCommand._numbers(by),
+  };
+
+  @override
+  bool apply(Editing editing) => editing.nudgeOffset(by);
 }
 
 /// Grows or shrinks the selected brush about its own centre.

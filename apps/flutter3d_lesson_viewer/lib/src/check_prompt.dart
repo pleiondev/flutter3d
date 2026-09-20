@@ -77,9 +77,18 @@ enum CheckOutcome { asking, correct, revealed }
 /// state when something outside it changes" rather than a second field here
 /// to keep in step with the step index.
 class CheckPrompt extends StatefulWidget {
-  const CheckPrompt({super.key, required this.spec});
+  const CheckPrompt({super.key, required this.spec, this.onResult});
 
   final CheckSpec spec;
+
+  /// Called once, the moment this prompt settles — `true` on a correct
+  /// answer, `false` once attempts run out — so a caller can report the
+  /// outcome outward (`lti-04`'s wire to AGS/xAPI) without this widget
+  /// needing to know either exists. Never called twice for one prompt: a
+  /// fresh [CheckSpec] under a fresh `ValueKey` is a fresh widget as far as
+  /// Flutter is concerned, the same reset this class's own doc comment
+  /// already relies on for the attempt counter.
+  final void Function(bool correct)? onResult;
 
   @override
   State<CheckPrompt> createState() => _CheckPromptState();
@@ -100,12 +109,14 @@ class _CheckPromptState extends State<CheckPrompt> {
     if (_outcome != CheckOutcome.asking) return;
     if (widget.spec.accepts(_controller.text)) {
       setState(() => _outcome = CheckOutcome.correct);
+      widget.onResult?.call(true);
       return;
     }
     setState(() {
       _remaining -= 1;
       if (_remaining <= 0) _outcome = CheckOutcome.revealed;
     });
+    if (_outcome == CheckOutcome.revealed) widget.onResult?.call(false);
   }
 
   @override
