@@ -126,7 +126,18 @@
   if (rail) {
     var onLink = rail.querySelector('a.on');
     if (onLink) {
-      onLink.scrollIntoView({ block: 'center' });
+      // Two frames, not zero: this script runs before the page's own layout
+      // has necessarily settled — a web font swapping in or an image
+      // reserving its box still moves things after this line, and
+      // `scrollIntoView` run here centred on where the rail was about to be,
+      // not where it ends up. The first frame lands after that settles; the
+      // second is the one `scrollIntoView` actually runs in, so it reads
+      // positions the browser has already committed to painting.
+      window.requestAnimationFrame(function () {
+        window.requestAnimationFrame(function () {
+          onLink.scrollIntoView({ block: 'center' });
+        });
+      });
     }
   }
 
