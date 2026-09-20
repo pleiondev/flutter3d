@@ -5,6 +5,7 @@ import 'package:flutter3d_app/flutter3d_app.dart';
 import 'package:vector_math/vector_math.dart' show Vector4;
 
 import 'bridge_clock.dart';
+import 'transparent_flame_game.dart';
 
 /// A 3D flutter3d layer and a 2D Flame layer, composited in one `Stack`, one
 /// frame each.
@@ -17,6 +18,14 @@ import 'bridge_clock.dart';
 /// and input layer over a bare `SceneSurface`: on the web the 3D surface is a
 /// platform view that swallows pointer events, so whatever needs raw input —
 /// here, Flame itself — has to sit above it in the tree.
+///
+/// **[game] must not paint an opaque background.** `GameWidget` paints
+/// `game.backgroundColor()` as a `DecoratedBox` behind its own canvas, and
+/// `Game.backgroundColor()` defaults to opaque black — which, sitting on top
+/// of [SceneSurface] the way this widget arranges the two, draws a solid
+/// black rectangle over the whole 3D layer every frame. Extend
+/// [TransparentFlameGame] instead of [FlameGame], or override
+/// `backgroundColor()` the same way it does.
 ///
 /// **One clock.** A [BridgeClock] is added to [game] once it loads, and every
 /// Flame frame — after every other component in [game] has updated — calls

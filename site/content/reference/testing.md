@@ -1,10 +1,10 @@
 ---
-description: Four independent golden sets, mutation-checking every new test, determinism and snapshots, and why only about thirty of 9726 tests need a GPU.
+description: Four independent golden sets, mutation-checking every new test, determinism and snapshots, and why only about thirty of 9728 tests need a GPU.
 ---
 
 # Testing
 
-9726 tests across 37 packages and nine applications, counted the same way the `the document says how many tests there are` rule does: a scan of every `test(`/`testWidgets(` call. The rule holds `ARCHITECTURE.md` §13, the README and this page to the answer — the README went on saying 1242 across thirteen packages for as long as nothing compared it with anything. About thirty need a GPU; the [architecture](/core/architecture/) is what keeps the number that low.
+9728 tests across 37 packages and nine applications, counted the same way the `the document says how many tests there are` rule does: a scan of every `test(`/`testWidgets(` call. The rule holds `ARCHITECTURE.md` §13, the README and this page to the answer — the README went on saying 1242 across thirteen packages for as long as nothing compared it with anything. About thirty need a GPU; the [architecture](/core/architecture/) is what keeps the number that low.
 
 | Package | Tests | | Package | Tests |
 |---|---|---|---|---|
@@ -35,9 +35,9 @@ description: Four independent golden sets, mutation-checking every new test, det
 | `flutter3d_mcp_kit` | 2 | | `flutter3d_build` | 81 |
 | | | | `apps/flutter3d_lesson_viewer` | 39 |
 | | | | `apps/flutter3d_stereo_lesson_viewer` | 6 |
-| `flutter3d_flame` | 45 | | `apps/flutter3d_showcase` | 58 |
+| `flutter3d_flame` | 47 | | `apps/flutter3d_showcase` | 58 |
 
-The rows sum to 9702 rather than 9726: the remaining 24 live in `packages/*/example/test`, which the count includes and this table does not — among them the two seeds a new project starts from, `packages/flutter3d_app/example` and `packages/flutter3d_game/example`.
+The rows sum to 9704 rather than 9728: the remaining 24 live in `packages/*/example/test`, which the count includes and this table does not — among them the two seeds a new project starts from, `packages/flutter3d_app/example` and `packages/flutter3d_game/example`.
 
 `flutter3d_samples` is not in the table and has no `test/` at all — it is test data with two path constants over it, and other packages' decoder tests are what exercise it. `flutter3d_conformance` is missing for a different reason: it is invoked as a script harness rather than through `flutter test`, so it does not surface in a grep of `test(` calls either. See below for what that cost once.
 

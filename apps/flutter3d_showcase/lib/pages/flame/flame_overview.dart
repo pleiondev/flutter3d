@@ -6,7 +6,6 @@
 library;
 
 import 'package:flame/components.dart';
-import 'package:flame/game.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_flame/flutter3d_flame.dart';
@@ -87,7 +86,7 @@ final class FlameOverviewDemo extends ShowcaseDemo {
         LightNode(name: 'sun', intensity: 2.5)
           ..setLocalForward(Vector3(-0.3, -0.6, -0.4)),
       );
-    final game = FlameGame()
+    final game = TransparentFlameGame()
       ..add(
         RectangleComponent(
           position: Vector2(24, 24),
