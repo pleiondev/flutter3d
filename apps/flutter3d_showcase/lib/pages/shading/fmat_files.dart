@@ -7,8 +7,11 @@ library;
 import 'dart:convert';
 import 'dart:typed_data';
 
+import 'package:flutter/gestures.dart';
 import 'package:flutter/widgets.dart';
-import 'package:flutter3d/flutter3d.dart';
+import 'package:flutter3d/flutter3d.dart' hide Material;
+import 'package:flutter3d/flutter3d.dart' as f3d show Material;
+import 'package:flutter3d_app/flutter3d_app.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
 import 'package:vector_math/vector_math.dart';
 
@@ -16,6 +19,14 @@ final class FmatFilesDemo extends ShowcaseDemo {
   late final String _text;
   late final MaterialDocument _roundTripped;
   late final List<String> _typoWarnings;
+  late final Scene _scene;
+
+  @override
+  void configureView(DemoContext context) {
+    context.orbit
+      ..distance = 2.4
+      ..pitch = 0.2;
+  }
 
   @override
   Scene build(DemoContext context) {
@@ -51,14 +62,14 @@ final class FmatFilesDemo extends ShowcaseDemo {
     // #endregion typo
 
     final SurfaceMaterial surface = _roundTripped.surface;
-    return Scene()
+    return _scene = Scene()
       ..add(
         MeshNode(
           DeviceMesh.upload(
             context.device,
             SphereShape(segments: 40, rings: 20).build(),
           ),
-          Material(
+          f3d.Material(
             name: surface.name,
             baseColor: surface.baseColor,
             metallic: surface.metallic,
@@ -80,23 +91,54 @@ final class FmatFilesDemo extends ShowcaseDemo {
       'a file with an unknown key warns: $_typoWarnings';
   // #endregion report
 
+  // A material file is text first — Step 4 of the guide says so, and the
+  // report stays the whole story on the left. But a reader who cannot see
+  // what "metallic: 0.9, roughness: 0.28" looks like is trusting the
+  // numbers on faith, so the sphere those numbers actually shade sits
+  // beside the report rather than instead of it, and drags like every
+  // other page's viewport does.
   @override
-  Widget? customBody(BuildContext buildContext, DemoContext context) =>
-      Container(
-        color: const Color(0xFF14161A),
-        padding: const EdgeInsets.all(24),
-        alignment: Alignment.topLeft,
-        child: SingleChildScrollView(
-          child: DefaultTextStyle(
-            style: const TextStyle(
-              color: Color(0xFFE8E8EC),
-              fontSize: 14,
-              fontFamily: 'monospace',
+  Widget? customBody(BuildContext buildContext, DemoContext context) => Row(
+    children: <Widget>[
+      Expanded(
+        child: Container(
+          color: const Color(0xFF14161A),
+          padding: const EdgeInsets.all(24),
+          alignment: Alignment.topLeft,
+          child: SingleChildScrollView(
+            child: DefaultTextStyle(
+              style: const TextStyle(
+                color: Color(0xFFE8E8EC),
+                fontSize: 14,
+                fontFamily: 'monospace',
+              ),
+              child: Text(_report()),
             ),
-            child: Text(_report()),
           ),
         ),
-      );
+      ),
+      Expanded(
+        child: Listener(
+          onPointerMove: (PointerMoveEvent event) =>
+              context.orbit.rotate(event.delta.dx, event.delta.dy),
+          onPointerSignal: (PointerSignalEvent event) {
+            if (event is PointerScrollEvent) {
+              context.orbit.zoom(event.scrollDelta.dy > 0.0 ? 1.1 : 1.0 / 1.1);
+            }
+          },
+          child: SceneSurface(
+            renderer: context.renderer,
+            scene: _scene,
+            view: context.view,
+            settings: () => const RenderSettings(),
+            onBeforeFrame: () =>
+                context.orbit.syncProjectionDepth(context.camera),
+            presentFrame: presentFrame,
+          ),
+        ),
+      ),
+    ],
+  );
 
   @override
   void verify(Scene scene, FrameResult frame) {
