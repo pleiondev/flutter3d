@@ -45,3 +45,4 @@ flutter:
   # second map is a second file and not a second line here.
   assets:
     - assets/levels/
+    - assets/models/
