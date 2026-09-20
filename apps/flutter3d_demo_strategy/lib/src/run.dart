@@ -123,7 +123,7 @@ final class StrategyRun extends RunSession<Staged> {
   @override
   Future<Staged> open(String asset) async {
     final StrategyMap map = await StrategyMap.load(asset: asset);
-    final Staged staged = stage(device: await openDevice(), map: map);
+    final Staged staged = await stage(device: await openDevice(), map: map);
     onLevelBuilt(asset, map.level.digestHex, staged);
     return staged;
   }
