@@ -51,6 +51,6 @@ dev_dependencies:
   # The Khronos sample models the document decoders read — for the one test
   # that checks a *rendered* round trip rather than a byte one. Not a real
   # dependency: nothing this package ships builds a `ModelDocument`.
-  flutter3d_samples: ^0.4.2
+  flutter3d_samples: ^0.4.3
 
 resolution: workspace
