@@ -1731,28 +1731,28 @@ var<private> color_1: vec4<f32>;
 var<private> v_lightmap_uv: vec2<f32>;
 
 fn ToPixels_u0028_vf4_u003b_vf2_u003b(clip: ptr<function, vec4<f32>>, viewport: ptr<function, vec2<f32>>) -> vec2<f32> {
-    let _e33 = (*clip);
-    let _e36 = (*clip)[3u];
-    let _e39 = (*viewport);
-    return (((_e33.xy / vec2(_e36)) * _e39) * 0.5f);
+    let _e34 = (*clip);
+    let _e37 = (*clip)[3u];
+    let _e40 = (*viewport);
+    return (((_e34.xy / vec2(_e37)) * _e40) * 0.5f);
 }
 
 fn InFront_u0028_vf4_u003b_vf4_u003b(from_: ptr<function, vec4<f32>>, to: ptr<function, vec4<f32>>) -> vec4<f32> {
     var t: f32;
 
-    let _e35 = (*from_)[3u];
-    if (_e35 >= 0.0001f) {
-        let _e37 = (*from_);
-        return _e37;
+    let _e36 = (*from_)[3u];
+    if (_e36 >= 0.0001f) {
+        let _e38 = (*from_);
+        return _e38;
     }
-    let _e39 = (*from_)[3u];
-    let _e42 = (*to)[3u];
-    let _e44 = (*from_)[3u];
-    t = ((0.0001f - _e39) / (_e42 - _e44));
-    let _e47 = (*from_);
-    let _e48 = (*to);
-    let _e49 = t;
-    return mix(_e47, _e48, vec4(clamp(_e49, 0f, 1f)));
+    let _e40 = (*from_)[3u];
+    let _e43 = (*to)[3u];
+    let _e45 = (*from_)[3u];
+    t = ((0.0001f - _e40) / (_e43 - _e45));
+    let _e48 = (*from_);
+    let _e49 = (*to);
+    let _e50 = t;
+    return mix(_e48, _e49, vec4(clamp(_e50, 0f, 1f)));
 }
 
 fn main_1() {
@@ -1784,145 +1784,148 @@ fn main_1() {
     var inDir: vec2<f32>;
     var outDir: vec2<f32>;
     var segmentNormal: vec2<f32>;
-    var along: vec2<f32>;
+    var cosTurn: f32;
+    var cosHalf: f32;
     var miter: vec2<f32>;
     var local_1: vec2<f32>;
     var stretch: f32;
 
-    let _e64 = params.viewport;
-    viewport_1 = _e64.xy;
-    let _e67 = tangent_1[3u];
-    halfWidth = abs(_e67);
-    let _e70 = tangent_1[3u];
-    side = select(1f, -1f, (_e70 < 0f));
-    let _e74 = frame_info.mvp;
-    let _e75 = position_1;
-    here = (_e74 * vec4<f32>(_e75.x, _e75.y, _e75.z, 1f));
-    let _e82 = frame_info.mvp;
-    let _e83 = normal_1;
-    before = (_e82 * vec4<f32>(_e83.x, _e83.y, _e83.z, 1f));
-    let _e90 = frame_info.mvp;
-    let _e91 = tangent_1;
-    let _e92 = _e91.xyz;
-    after = (_e90 * vec4<f32>(_e92.x, _e92.y, _e92.z, 1f));
-    let _e99 = here[3u];
-    if (_e99 < 0.0001f) {
-        let _e102 = after[3u];
-        if (_e102 >= 0.0001f) {
-            let _e104 = here;
-            param = _e104;
-            let _e105 = after;
-            param_1 = _e105;
-            let _e106 = InFront_u0028_vf4_u003b_vf4_u003b((&param), (&param_1));
-            local = _e106;
+    let _e66 = params.viewport;
+    viewport_1 = _e66.xy;
+    let _e69 = tangent_1[3u];
+    halfWidth = abs(_e69);
+    let _e72 = tangent_1[3u];
+    side = select(1f, -1f, (_e72 < 0f));
+    let _e76 = frame_info.mvp;
+    let _e77 = position_1;
+    here = (_e76 * vec4<f32>(_e77.x, _e77.y, _e77.z, 1f));
+    let _e84 = frame_info.mvp;
+    let _e85 = normal_1;
+    before = (_e84 * vec4<f32>(_e85.x, _e85.y, _e85.z, 1f));
+    let _e92 = frame_info.mvp;
+    let _e93 = tangent_1;
+    let _e94 = _e93.xyz;
+    after = (_e92 * vec4<f32>(_e94.x, _e94.y, _e94.z, 1f));
+    let _e101 = here[3u];
+    if (_e101 < 0.0001f) {
+        let _e104 = after[3u];
+        if (_e104 >= 0.0001f) {
+            let _e106 = here;
+            param = _e106;
+            let _e107 = after;
+            param_1 = _e107;
+            let _e108 = InFront_u0028_vf4_u003b_vf4_u003b((&param), (&param_1));
+            local = _e108;
         } else {
-            let _e107 = here;
-            param_2 = _e107;
-            let _e108 = before;
-            param_3 = _e108;
-            let _e109 = InFront_u0028_vf4_u003b_vf4_u003b((&param_2), (&param_3));
-            local = _e109;
+            let _e109 = here;
+            param_2 = _e109;
+            let _e110 = before;
+            param_3 = _e110;
+            let _e111 = InFront_u0028_vf4_u003b_vf4_u003b((&param_2), (&param_3));
+            local = _e111;
         }
-        let _e110 = local;
-        here = _e110;
+        let _e112 = local;
+        here = _e112;
     }
-    let _e111 = before;
-    param_4 = _e111;
-    let _e112 = here;
-    param_5 = _e112;
-    let _e113 = InFront_u0028_vf4_u003b_vf4_u003b((&param_4), (&param_5));
-    before = _e113;
-    let _e114 = after;
-    param_6 = _e114;
-    let _e115 = here;
-    param_7 = _e115;
-    let _e116 = InFront_u0028_vf4_u003b_vf4_u003b((&param_6), (&param_7));
-    after = _e116;
+    let _e113 = before;
+    param_4 = _e113;
+    let _e114 = here;
+    param_5 = _e114;
+    let _e115 = InFront_u0028_vf4_u003b_vf4_u003b((&param_4), (&param_5));
+    before = _e115;
+    let _e116 = after;
+    param_6 = _e116;
     let _e117 = here;
-    param_8 = _e117;
-    let _e118 = viewport_1;
-    param_9 = _e118;
-    let _e119 = ToPixels_u0028_vf4_u003b_vf2_u003b((&param_8), (&param_9));
-    at = _e119;
-    let _e120 = at;
-    let _e121 = before;
-    param_10 = _e121;
-    let _e122 = viewport_1;
-    param_11 = _e122;
-    let _e123 = ToPixels_u0028_vf4_u003b_vf2_u003b((&param_10), (&param_11));
-    incoming = (_e120 - _e123);
-    let _e125 = after;
-    param_12 = _e125;
-    let _e126 = viewport_1;
-    param_13 = _e126;
-    let _e127 = ToPixels_u0028_vf4_u003b_vf2_u003b((&param_12), (&param_13));
-    let _e128 = at;
-    outgoing = (_e127 - _e128);
-    let _e130 = incoming;
-    let _e131 = incoming;
-    if (dot(_e130, _e131) < 0.000000000001f) {
-        let _e134 = outgoing;
-        incoming = _e134;
+    param_7 = _e117;
+    let _e118 = InFront_u0028_vf4_u003b_vf4_u003b((&param_6), (&param_7));
+    after = _e118;
+    let _e119 = here;
+    param_8 = _e119;
+    let _e120 = viewport_1;
+    param_9 = _e120;
+    let _e121 = ToPixels_u0028_vf4_u003b_vf2_u003b((&param_8), (&param_9));
+    at = _e121;
+    let _e122 = at;
+    let _e123 = before;
+    param_10 = _e123;
+    let _e124 = viewport_1;
+    param_11 = _e124;
+    let _e125 = ToPixels_u0028_vf4_u003b_vf2_u003b((&param_10), (&param_11));
+    incoming = (_e122 - _e125);
+    let _e127 = after;
+    param_12 = _e127;
+    let _e128 = viewport_1;
+    param_13 = _e128;
+    let _e129 = ToPixels_u0028_vf4_u003b_vf2_u003b((&param_12), (&param_13));
+    let _e130 = at;
+    outgoing = (_e129 - _e130);
+    let _e132 = incoming;
+    let _e133 = incoming;
+    if (dot(_e132, _e133) < 0.000000000001f) {
+        let _e136 = outgoing;
+        incoming = _e136;
     }
-    let _e135 = outgoing;
-    let _e136 = outgoing;
-    if (dot(_e135, _e136) < 0.000000000001f) {
-        let _e139 = incoming;
-        outgoing = _e139;
+    let _e137 = outgoing;
+    let _e138 = outgoing;
+    if (dot(_e137, _e138) < 0.000000000001f) {
+        let _e141 = incoming;
+        outgoing = _e141;
     }
     offset = vec2<f32>(0f, 0f);
-    let _e140 = incoming;
-    let _e141 = incoming;
-    if (dot(_e140, _e141) >= 0.000000000001f) {
-        let _e144 = incoming;
-        inDir = normalize(_e144);
-        let _e146 = outgoing;
-        outDir = normalize(_e146);
-        let _e149 = inDir[1u];
-        let _e152 = inDir[0u];
-        segmentNormal = vec2<f32>(-(_e149), _e152);
-        let _e154 = inDir;
-        let _e155 = outDir;
-        along = (_e154 + _e155);
-        let _e157 = along;
-        let _e158 = along;
-        if (dot(_e157, _e158) < 0.000000000001f) {
-            let _e161 = segmentNormal;
-            local_1 = _e161;
+    let _e142 = incoming;
+    let _e143 = incoming;
+    if (dot(_e142, _e143) >= 0.000000000001f) {
+        let _e146 = incoming;
+        inDir = normalize(_e146);
+        let _e148 = outgoing;
+        outDir = normalize(_e148);
+        let _e151 = inDir[1u];
+        let _e154 = inDir[0u];
+        segmentNormal = vec2<f32>(-(_e151), _e154);
+        let _e156 = inDir;
+        let _e157 = outDir;
+        cosTurn = dot(_e156, _e157);
+        let _e159 = cosTurn;
+        cosHalf = sqrt(max(0f, ((1f + _e159) * 0.5f)));
+        let _e164 = cosTurn;
+        if (_e164 < -0.999f) {
+            let _e166 = segmentNormal;
+            local_1 = _e166;
         } else {
-            let _e163 = along[1u];
-            let _e166 = along[0u];
-            local_1 = normalize(vec2<f32>(-(_e163), _e166));
+            let _e167 = inDir;
+            let _e168 = outDir;
+            let _e172 = inDir;
+            let _e173 = outDir;
+            local_1 = normalize(vec2<f32>(-((_e167 + _e168).y), (_e172 + _e173).x));
         }
-        let _e169 = local_1;
-        miter = _e169;
-        let _e170 = miter;
-        let _e171 = segmentNormal;
-        stretch = (1f / max(dot(_e170, _e171), 0.25f));
-        let _e175 = miter;
-        let _e176 = halfWidth;
-        let _e178 = stretch;
-        let _e180 = side;
-        offset = (((_e175 * _e176) * _e178) * _e180);
+        let _e178 = local_1;
+        miter = _e178;
+        let _e179 = cosHalf;
+        stretch = (1f / max(_e179, 0.25f));
+        let _e182 = miter;
+        let _e183 = halfWidth;
+        let _e185 = stretch;
+        let _e187 = side;
+        offset = (((_e182 * _e183) * _e185) * _e187);
     }
-    let _e182 = here;
-    let _e184 = offset;
-    let _e185 = viewport_1;
-    let _e189 = here[3u];
-    let _e191 = (_e182.xy + ((_e184 / (_e185 * 0.5f)) * _e189));
-    let _e192 = here;
-    let _e193 = _e192.zw;
-    unnamed.gl_Position = vec4<f32>(_e191.x, _e191.y, _e193.x, _e193.y);
-    let _e201 = frame_info.model;
-    let _e202 = position_1;
-    v_world_position = (_e201 * vec4<f32>(_e202.x, _e202.y, _e202.z, 1f)).xyz;
-    let _e210 = frame_info.normal_matrix;
-    v_normal = normalize((mat3x3<f32>(_e210[0].xyz, _e210[1].xyz, _e210[2].xyz) * vec3<f32>(0f, 1f, 0f)));
-    let _e220 = texcoord_1;
-    v_texcoord = _e220;
+    let _e189 = here;
+    let _e191 = offset;
+    let _e192 = viewport_1;
+    let _e196 = here[3u];
+    let _e198 = (_e189.xy + ((_e191 / (_e192 * 0.5f)) * _e196));
+    let _e199 = here;
+    let _e200 = _e199.zw;
+    unnamed.gl_Position = vec4<f32>(_e198.x, _e198.y, _e200.x, _e200.y);
+    let _e208 = frame_info.model;
+    let _e209 = position_1;
+    v_world_position = (_e208 * vec4<f32>(_e209.x, _e209.y, _e209.z, 1f)).xyz;
+    let _e217 = frame_info.normal_matrix;
+    v_normal = normalize((mat3x3<f32>(_e217[0].xyz, _e217[1].xyz, _e217[2].xyz) * vec3<f32>(0f, 1f, 0f)));
+    let _e227 = texcoord_1;
+    v_texcoord = _e227;
     v_tangent = vec4<f32>(1f, 0f, 0f, 1f);
-    let _e221 = color_1;
-    v_color = _e221;
+    let _e228 = color_1;
+    v_color = _e228;
     v_lightmap_uv = vec2<f32>(0f, 0f);
     return;
 }
