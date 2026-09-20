@@ -5,7 +5,6 @@
 library;
 
 import 'package:flame/components.dart';
-import 'package:flame/game.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_flame/flutter3d_flame.dart';
@@ -122,7 +121,7 @@ final class FlameTransformBridgeDemo extends ShowcaseDemo {
       plane: plane,
       direction: SyncDirection.flameToScene,
     );
-    final game = FlameGame()..add(bridge..add(_Drift(bridge)));
+    final game = TransparentFlameGame()..add(bridge..add(_Drift(bridge)));
     return Flutter3dFlameWidget(
       game: game,
       camera: CameraNode(name: 'transform-preview'),

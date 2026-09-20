@@ -53,7 +53,7 @@ const double cameraHeight = 20.0;
 /// false forever and nothing ever sets its vertical velocity. A flying
 /// enemy in a game built on a walking controller is exactly this: a body
 /// that is airborne on purpose, for good.
-final class ArcadeGame extends FlameGame with KeyboardEvents {
+final class ArcadeGame extends TransparentFlameGame with KeyboardEvents {
   ArcadeGame()
     : collisionWorld = CollisionWorld(),
       inputState = InputState(),
