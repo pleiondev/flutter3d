@@ -25,7 +25,6 @@ final class ReflectionProbesDemo extends ShowcaseDemo {
       ..pitch = 0.18
       ..yaw = 0.7;
     context.orbit.target.setValues(0.0, 0.7, 0.0);
-    context.orbit.apply();
   }
 
   @override

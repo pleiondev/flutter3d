@@ -19,7 +19,6 @@ final class LightShaftsDemo extends ShowcaseDemo {
       ..pitch = 0.15
       ..yaw = 0.0;
     context.orbit.target.setValues(0.0, 1.0, 2.0);
-    context.orbit.apply();
   }
 
   @override

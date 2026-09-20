@@ -34,7 +34,6 @@ final class XrayDemo extends ShowcaseDemo {
       ..pitch = 0.2
       ..yaw = 0.0;
     context.orbit.target.setValues(0.0, 1.0, 0.0);
-    context.orbit.apply();
   }
 
   @override

@@ -105,7 +105,6 @@ final class PostStage {
       ..pitch = 0.32
       ..yaw = 0.35;
     context.orbit.target.setValues(0.0, 0.7, 0.0);
-    context.orbit.apply();
   }
 }
 

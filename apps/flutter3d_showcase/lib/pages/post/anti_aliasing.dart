@@ -18,7 +18,6 @@ final class AntiAliasingDemo extends ShowcaseDemo {
       ..distance = 3.5
       ..pitch = 0.0
       ..yaw = 0.0;
-    context.orbit.apply();
   }
 
   @override

@@ -27,7 +27,6 @@ final class LightmapsDemo extends ShowcaseDemo {
       ..pitch = 0.55
       ..yaw = 0.0;
     context.orbit.target.setValues(0.0, 0.0, 0.0);
-    context.orbit.apply();
   }
 
   @override

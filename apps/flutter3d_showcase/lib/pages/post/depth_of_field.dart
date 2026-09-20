@@ -20,7 +20,6 @@ final class DepthOfFieldDemo extends ShowcaseDemo {
       ..pitch = 0.0
       ..yaw = 0.0;
     context.orbit.target.setValues(0.0, 0.0, -4.0);
-    context.orbit.apply();
   }
 
   @override
