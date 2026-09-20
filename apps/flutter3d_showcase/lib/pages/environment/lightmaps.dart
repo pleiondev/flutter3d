@@ -45,8 +45,11 @@ final class LightmapsDemo extends ShowcaseDemo {
       format: TextureFormat.r8g8b8a8UNormInt,
       pixels: _lightmapPixels,
     )!;
-    _floor = Material(name: 'floor', baseColor: Vector4(0.8, 0.8, 0.8, 1.0))
-      ..lightmap = _lightmap;
+    _floor = Material(
+      name: 'floor',
+      baseColor: Vector4(0.8, 0.8, 0.8, 1.0),
+      doubleSided: true,
+    )..lightmap = _lightmap;
     // #endregion bake
 
     final MeshNode floor = MeshNode(

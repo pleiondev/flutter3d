@@ -35,6 +35,7 @@ final class PointLightShadowsDemo extends ShowcaseDemo {
       baseColor: Vector4(0.78, 0.76, 0.72, 1.0),
       roughness: 0.9,
     );
+    final Material floorStone = stone.copy()..doubleSided = true;
     final Material clay = Material(
       name: 'clay',
       baseColor: Vector4(0.85, 0.45, 0.3, 1.0),
@@ -47,7 +48,7 @@ final class PointLightShadowsDemo extends ShowcaseDemo {
             context.device,
             const PlaneShape(width: 12, depth: 12).build(),
           ),
-          stone,
+          floorStone,
           name: 'floor',
         ),
       )

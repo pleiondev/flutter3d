@@ -38,7 +38,7 @@ final class CascadedShadowsDemo extends ShowcaseDemo {
         context.device,
         const PlaneShape(width: 80, depth: 80).build(),
       ),
-      stone,
+      stone.copy()..doubleSided = true,
       name: 'floor',
     );
     // #endregion floor

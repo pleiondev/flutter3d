@@ -39,7 +39,7 @@ final class ViewModelDemo extends ShowcaseDemo {
             context.device,
             const PlaneShape(width: 20, depth: 20).build(),
           ),
-          stone,
+          stone.copy()..doubleSided = true,
           name: 'floor',
         ),
       )

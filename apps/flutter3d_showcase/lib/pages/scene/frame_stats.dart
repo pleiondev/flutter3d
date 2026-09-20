@@ -42,7 +42,7 @@ final class FrameStatsDemo extends ShowcaseDemo {
             context.device,
             const PlaneShape(width: 8.0, depth: 7.0).build(),
           ),
-          matte,
+          matte.copy()..doubleSided = true,
           name: 'floor',
         )..castsShadow = false,
       )

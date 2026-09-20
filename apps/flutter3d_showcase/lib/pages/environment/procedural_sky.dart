@@ -41,6 +41,7 @@ final class ProceduralSkyDemo extends ShowcaseDemo {
       name: 'ground',
       baseColor: Vector4(0.42, 0.4, 0.36, 1.0),
       roughness: 0.9,
+      doubleSided: true,
     );
     final Material ball = Material(
       name: 'ball',

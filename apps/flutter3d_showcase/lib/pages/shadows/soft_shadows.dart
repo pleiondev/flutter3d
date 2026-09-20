@@ -30,6 +30,7 @@ final class SoftShadowsDemo extends ShowcaseDemo {
       name: 'stone',
       baseColor: Vector4(0.78, 0.76, 0.72, 1.0),
       roughness: 0.9,
+      doubleSided: true,
     );
     final Material clay = Material(
       name: 'clay',

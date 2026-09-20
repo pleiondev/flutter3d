@@ -31,11 +31,13 @@ final class IrradianceFieldDemo extends ShowcaseDemo {
       name: 'floor',
       baseColor: Vector4(0.55, 0.55, 0.55, 1.0),
       roughness: 0.95,
+      doubleSided: true,
     );
     final Material wall = Material(
       name: 'red wall',
       baseColor: Vector4(0.85, 0.08, 0.08, 1.0),
       roughness: 0.95,
+      doubleSided: true,
     );
 
     final MeshNode wallNode =
