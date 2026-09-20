@@ -105,6 +105,52 @@ final class OpenKind extends EntityKind {
   const OpenKind(super.type);
 }
 
+/// [level]'s own `part` entities, as plain boxed [MeshNode]s named after
+/// their own entity — the same mechanism `flutter3d_lesson_viewer`'s own
+/// `_addParts` already proves, brought here for `ls-i-01`'s own remaining
+/// gap: `configurator.json` places one `part` per product variant
+/// (`product-red`/`product-blue`/`product-green`) rather than the single
+/// unnamed brush it used to, since a brush carries no name a live material
+/// swap could ever address — see `ConfiguratorController`'s own doc comment.
+///
+/// **Not collision.** `CollisionWorld` only ever sees what
+/// `loaded.level.addTo(world)` gives it, and a part added here is scenery,
+/// the same trade `flutter3d_lesson_viewer`'s reader makes — this seed's
+/// product configurator was never meant to be walked into.
+void _addParts(Level level, LoadedLevel loaded, GraphicsDevice device) {
+  final meshes = SharedMeshes(device);
+  for (final entity in level.entities) {
+    if (entity.type != 'part') continue;
+    final name = entity.name;
+    if (name == null) continue;
+    final materialName = entity.string('material');
+    final source = materialName == null ? null : level.materials[materialName];
+    final material = LevelLoader.materialFrom(
+      source ?? LevelMaterial(),
+      const <String, TextureHandle?>{},
+      name: materialName,
+    );
+    final size = entity.vector('size') ?? Vector3.all(1.0);
+    final node = MeshNode(meshes.box(size), material, name: name)
+      ..setPositionFrom(entity.position);
+    loaded.scene.add(node);
+  }
+}
+
+/// Shows exactly the `product-<name>` node [ConfiguratorController.options]
+/// names at [index], hiding the rest — the geometry half of the
+/// configurator, called once on load and again every time
+/// [ConfiguratorController.index] changes.
+void _applyProductVariant(Scene scene, int index) {
+  for (var i = 0; i < ConfiguratorController.options.length; i++) {
+    final (name, _) = ConfiguratorController.options[i];
+    final partName = 'product-${name.toLowerCase()}';
+    for (final mesh in scene.meshes) {
+      if (mesh.name == partName) mesh.visible = i == index;
+    }
+  }
+}
+
 /// What the level is doing, as far as the screen is concerned.
 ///
 /// Screen state, and only that — this seed has no restart, no next level and
@@ -197,6 +243,7 @@ class LevelCubit extends Cubit<LevelState> {
         ]),
       );
       loaded.level.addTo(world);
+      _addParts(level, loaded, device);
 
       // Where the author said somebody stands, lifted by half a body: a spawn
       // is authored at the feet, which is the only place an author can see.
@@ -341,6 +388,18 @@ class _LevelScreenState extends State<LevelScreen>
     if (ready is LevelReady) {
       _tour.setCaptions(stepCaptions(ready.level));
       _boundStep = stepWithBindings(ready.level);
+      // `ls-i-01`'s own geometry half: the variant already showing when the
+      // level opens, then kept in step with every tap through the listener
+      // below — `_applyProductVariant` only runs again on a real change.
+      _applyProductVariant(ready.scene, _configurator.index.value);
+      _configurator.index.addListener(_onVariantChanged);
+    }
+  }
+
+  void _onVariantChanged() {
+    final state = _level.state;
+    if (state is LevelReady) {
+      _applyProductVariant(state.scene, _configurator.index.value);
     }
   }
 
@@ -464,6 +523,7 @@ class _LevelScreenState extends State<LevelScreen>
 
   @override
   void dispose() {
+    _configurator.index.removeListener(_onVariantChanged);
     _ticker?.dispose();
     _keyboard.dispose();
     unawaited(_keys.dispose());
