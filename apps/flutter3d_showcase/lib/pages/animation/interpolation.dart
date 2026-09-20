@@ -33,29 +33,39 @@ final class InterpolationDemo extends ShowcaseDemo {
       box,
       Material(name: 'step', baseColor: Vector4(0.85, 0.25, 0.2, 1.0)),
       name: 'step',
-    )..setPosition(-1.4, 0.0, 0.0);
+    );
     _linearCube = MeshNode(
       box,
       Material(name: 'linear', baseColor: Vector4(0.25, 0.75, 0.3, 1.0)),
       name: 'linear',
-    )..setPosition(0.0, 0.0, 0.0);
+    );
     _cubicCube = MeshNode(
       box,
       Material(name: 'cubic', baseColor: Vector4(0.25, 0.4, 0.9, 1.0)),
       name: 'cubic',
-    )..setPosition(1.4, 0.0, 0.0);
+    );
 
     // #region tracks
+    // The player writes a translation track's sampled (x, y, z) straight
+    // through `setPosition`, replacing whatever was there — so the column
+    // each cube stands in has to be baked into the track itself. A
+    // `setPosition` on the node instead would have held for exactly one
+    // frame, until `AnimationPlayer.play` below sampled time zero and
+    // snapped every cube back to x = 0, stacking all three on top of each
+    // other.
     final AnimationTrack stepTrack = _bounceTrack(
       nodeIndex: 0,
+      x: -1.4,
       interpolation: AnimationInterpolation.step,
     );
     final AnimationTrack linearTrack = _bounceTrack(
       nodeIndex: 1,
+      x: 0.0,
       interpolation: AnimationInterpolation.linear,
     );
     final AnimationTrack cubicTrack = _bounceTrack(
       nodeIndex: 2,
+      x: 1.4,
       interpolation: AnimationInterpolation.cubicSpline,
     );
     // #endregion tracks
@@ -88,6 +98,7 @@ final class InterpolationDemo extends ShowcaseDemo {
   /// tangents (zero) are enough to show the ease the other two do not have.
   static AnimationTrack _bounceTrack({
     required int nodeIndex,
+    required double x,
     required AnimationInterpolation interpolation,
   }) {
     final Float32List times = Float32List.fromList(<double>[0.0, 0.5, 1.0]);
@@ -98,8 +109,10 @@ final class InterpolationDemo extends ShowcaseDemo {
     for (var i = 0; i < heights.length; i++) {
       final int base = i * 3 * perKey;
       // For a cubic key the value sits in the middle third; the in and out
-      // tangent thirds stay zero, which is a flat tangent.
+      // tangent thirds stay zero, which is a flat tangent — including x's,
+      // since it never moves and a flat tangent is what "never moves" means.
       final int valueAt = base + (perKey == 3 ? 3 : 0);
+      values[valueAt] = x;
       values[valueAt + 1] = heights[i];
     }
 
@@ -133,17 +146,28 @@ final class InterpolationDemo extends ShowcaseDemo {
 
   @override
   void verify(Scene scene, FrameResult frame) {
-    final double stepY = _stepCube.worldMatrix.getTranslation().y;
-    final double linearY = _linearCube.worldMatrix.getTranslation().y;
-    final double cubicY = _cubicCube.worldMatrix.getTranslation().y;
+    final Vector3 step = _stepCube.worldMatrix.getTranslation();
+    final Vector3 linear = _linearCube.worldMatrix.getTranslation();
+    final Vector3 cubic = _cubicCube.worldMatrix.getTranslation();
 
-    if (stepY.abs() > 1e-6) {
+    // Each track's baked x must survive the player writing translation
+    // through — a track that forgot it would snap every cube to x = 0 and
+    // stack the three on top of each other.
+    if ((step.x - -1.4).abs() > 1e-6 ||
+        linear.x.abs() > 1e-6 ||
+        (cubic.x - 1.4).abs() > 1e-6) {
+      throw StateError(
+        'the three cubes should stand apart at x = -1.4, 0, 1.4; got '
+        '${step.x}, ${linear.x}, ${cubic.x}',
+      );
+    }
+    if (step.y.abs() > 1e-6) {
       throw StateError('step should hold the first key until the next one');
     }
-    if (linearY <= 1e-4) {
+    if (linear.y <= 1e-4) {
       throw StateError('linear should already have left the first key');
     }
-    if (cubicY <= 0.0 || cubicY >= linearY) {
+    if (cubic.y <= 0.0 || cubic.y >= linear.y) {
       throw StateError(
         'cubic should ease away from the first key slower than linear does',
       );
