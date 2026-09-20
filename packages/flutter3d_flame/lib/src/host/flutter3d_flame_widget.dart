@@ -29,6 +29,7 @@ class Flutter3dFlameWidget extends StatefulWidget {
     required this.game,
     required this.camera,
     required this.buildScene,
+    this.existing,
     this.onTick,
     this.clearColor,
     this.settings,
@@ -47,6 +48,14 @@ class Flutter3dFlameWidget extends StatefulWidget {
   /// Builds the 3D scene once a [GraphicsDevice] is open. Called exactly
   /// once, the same contract `flutter3d_app`'s own examples use.
   final Scene Function(GraphicsDevice device) buildScene;
+
+  /// A device and renderer opened by the caller, reused instead of this
+  /// widget opening its own. A host that already has one — a page inside a
+  /// larger application, say, where `DemoContext` hands one out per page —
+  /// opening a second `GraphicsDevice` just to show a bridged demo would be
+  /// two GPU contexts open for one picture. `openDevice` runs only when this
+  /// is null.
+  final ({GraphicsDevice device, Renderer renderer})? existing;
 
   /// Called once a Flame frame, after [game]'s own components have updated,
   /// with that frame's `dt` — the seam a physics step, an actor system step,
@@ -83,7 +92,16 @@ class _Flutter3dFlameWidgetState extends State<Flutter3dFlameWidget> {
   @override
   void initState() {
     super.initState();
-    _open();
+    final existing = widget.existing;
+    if (existing != null) {
+      // Already open: build the scene synchronously rather than through the
+      // async `openDevice` path nothing here needs a second time.
+      final scene = widget.buildScene(existing.device);
+      if (scene.cameras.isEmpty) scene.add(widget.camera);
+      _ready = (renderer: existing.renderer, scene: scene);
+    } else {
+      _open();
+    }
   }
 
   Future<void> _open() async {
