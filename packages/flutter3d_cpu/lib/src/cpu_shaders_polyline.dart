@@ -96,24 +96,25 @@ final class PolylineVertexShader implements CpuVertexShaderByIndex {
       final outDirX = outX / outLength, outDirY = outY / outLength;
       final segmentNormalX = -inDirY, segmentNormalY = inDirX;
 
-      final alongX = inDirX + outDirX, alongY = inDirY + outDirY;
-      final alongLength2 = alongX * alongX + alongY * alongY;
+      // `cosHalf` in the GLSL: the join's stretch, from the half-angle
+      // identity rather than from the bisector's own length — see the GLSL
+      // for why reading it off the bisector was backwards exactly at a
+      // reversal.
+      final cosTurn = inDirX * outDirX + inDirY * outDirY;
+      final cosHalf = math.sqrt(math.max(0.0, (1.0 + cosTurn) * 0.5));
+
       final double miterX, miterY;
-      if (alongLength2 < 1e-12) {
+      if (cosTurn < -0.999) {
         miterX = segmentNormalX;
         miterY = segmentNormalY;
       } else {
-        final alongLength = math.sqrt(alongLength2);
+        final alongX = inDirX + outDirX, alongY = inDirY + outDirY;
+        final alongLength = math.sqrt(alongX * alongX + alongY * alongY);
         miterX = -alongY / alongLength;
         miterY = alongX / alongLength;
       }
 
-      final stretch =
-          1.0 /
-          math.max(
-            miterX * segmentNormalX + miterY * segmentNormalY,
-            1.0 / _kMiterLimit,
-          );
+      final stretch = 1.0 / math.max(cosHalf, 1.0 / _kMiterLimit);
       offsetX = miterX * halfWidth * stretch * side;
       offsetY = miterY * halfWidth * stretch * side;
     }

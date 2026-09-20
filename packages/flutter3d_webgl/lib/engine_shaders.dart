@@ -1093,6 +1093,12 @@ void main() {
 // widths — a turn sharper than about 29 degrees — it is held at four, and the
 // band narrows at the tip of a hairpin rather than spiking across the screen.
 // A bevel would need a third vertex per point, and this layout has two.
+//
+// **Within about two and a half degrees of folding straight back on itself,
+// the bisector stops being the offset's direction.** See the comment at its
+// one use below for the reason and the number; a route this sharp already
+// narrows to the clamp above, and a stable tip that does not rotate with the
+// camera is worth more than one that carries the bisector exactly.
 
 in vec3 position;
 in vec3 normal;
@@ -1180,15 +1186,36 @@ void main() {
     vec2 outDir = normalize(outgoing);
     vec2 segmentNormal = vec2(-inDir.y, inDir.x);
 
-    // The bisector of the two directions, turned a quarter; a line doubling
-    // straight back has none, and there the segment's own normal is the only
-    // answer that is not a division by zero.
-    vec2 along = inDir + outDir;
-    vec2 miter = dot(along, along) < 1e-12
-        ? segmentNormal
-        : normalize(vec2(-along.y, along.x));
+    // How far the turn is from folding straight back on itself, from the
+    // half-angle identity rather than from the bisector's own length.
+    //
+    // **The bisector's length is not what was unstable here — its direction
+    // was, and only the length was being read.** `dot(miter, segmentNormal)`
+    // used to come from a bisector that is the sum of two nearly opposite
+    // unit vectors near a reversal, and a screen-space recompute makes that
+    // sum's *direction* as sensitive to the camera as the cancellation
+    // itself: swept through 180 degrees, the old miter rotated by ninety
+    // degrees inside one degree of turn, and the length read off it collapsed
+    // from the clamp (4) to nothing (1) exactly at the reversal — backwards,
+    // since a reversal is where the join should be at its widest, not its
+    // narrowest. `cosHalf` answers the same question without going through
+    // that vector at all, and is smooth all the way through it.
+    float cosTurn = dot(inDir, outDir);
+    float cosHalf = sqrt(max(0.0, (1.0 + cosTurn) * 0.5));
 
-    float stretch = 1.0 / max(dot(miter, segmentNormal), 1.0 / kMiterLimit);
+    // Within about two and a half degrees of a straight reversal, the
+    // bisector's *direction* — not just its length — is the sum of two
+    // nearly cancelling unit vectors, so which way the residue leans flips
+    // with the camera rather than with the road. `segmentNormal` depends on
+    // `inDir` alone, so past this point it replaces the bisector as the
+    // offset's direction; a route this sharp is already past what a two-
+    // vertex join was ever going to draw as a clean point, and a stable,
+    // correctly clamped tip beats one that spins with the view.
+    vec2 miter = cosTurn < -0.999
+        ? segmentNormal
+        : normalize(vec2(-(inDir + outDir).y, (inDir + outDir).x));
+
+    float stretch = 1.0 / max(cosHalf, 1.0 / kMiterLimit);
     offset = miter * halfWidth * stretch * side;
   }
 
