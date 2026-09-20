@@ -7,12 +7,15 @@ twenty-four light tail is where "thirty-two lights on one draw" in the
 CHANGELOG comes from, and only a torch past that thirty-second one is
 actually left unlit.
 
-## Step 1: A floor and a ring of torches
+## Step 1: A tiled floor and a ring of torches
 
-One plane, one draw, lit by forty point lights arranged in a ring around
-it. The floor's bounding sphere reaches every torch, which is exactly the
-case a per-object selection has to solve, and forty is eight more than the
-thirty-two the draw can carry.
+Forty point lights arranged in a ring, over a floor built as a grid of
+tiles rather than one giant plane. A single draw's bounding sphere wide
+enough to reach every torch would score them all alike — a light *inside*
+an object's sphere scores that object's ceiling no matter where inside it
+sits, so nothing would tell one torch from another. A tile small enough
+that a torch's own range can fall outside it makes "which torches reach
+this one" a real question with a real answer, tile by tile.
 
 {{code floor}}
 
@@ -20,10 +23,14 @@ thirty-two the draw can carry.
 
 ## Step 2: The fade band
 
-Walking past a corridor of lamps, the eighth slot changes hands every few
-metres, and the lamp that just lost its slot goes instantly dark. `lightFadeBand`
-turns that hard edge into a ramp: a light near the cutoff fades out instead
-of disappearing.
+Every tile has more than thirty-two torches within reach, so every one of
+them turns some away — the tile at the very centre of the floor turns away
+the most, being the single farthest point from every torch on the ring at
+once. `lightFadeBand` turns the cliff where a turned-away torch's
+contribution ends into a ramp: drag it up and the centre tile — lit by
+nothing but the weakest of its list — dims towards black, while the ring
+itself, whose nearest torches sit nowhere near that cliff, stays exactly
+as bright.
 
 {{code settings}}
 
