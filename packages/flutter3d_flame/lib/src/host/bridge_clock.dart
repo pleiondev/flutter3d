@@ -14,10 +14,24 @@ import 'package:flame/game.dart';
 ///
 /// [Flutter3dFlameWidget] adds one of these to the [FlameGame] it hosts and
 /// calls [onTick] with every frame's own `dt`, after every other component's
-/// `update` has run — which is what registering it last, the way
-/// [Flutter3dFlameWidget] does, guarantees.
+/// `update` has run.
+///
+/// **That ordering is a priority, not an accident of when [add] was
+/// called.** Flame breaks a tie between equal priorities by insertion order,
+/// and [Flutter3dFlameWidget] adds this component from its first `build` —
+/// which, when it opens its own [GraphicsDevice], happens *before*
+/// `buildScene` returns and the host's own components exist to be tied
+/// with. A [BridgeClock] left at the default priority would then run
+/// *first*, not last, on that path. [priority] is set far past anything a
+/// caller's own game would plausibly use instead, so the order holds
+/// regardless of which of the two ever gets added first.
 final class BridgeClock extends Component {
-  BridgeClock({required this.onTick});
+  BridgeClock({required this.onTick}) : super(priority: _lastPriority);
+
+  /// Larger than any priority a bridged game has reason to set — components
+  /// like `ActorSystemComponent` and `RigidBodyComponent` are stepped early,
+  /// with priorities in the tens or low hundreds, never anywhere near this.
+  static const int _lastPriority = 1 << 20;
 
   /// Called once a frame with the frame's own delta, in seconds — Flame's
   /// own `dt`, not a second measurement of it.

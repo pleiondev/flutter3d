@@ -8,6 +8,7 @@ library;
 import 'package:flutter3d_showcase/pages/animation/registry.dart';
 import 'package:flutter3d_showcase/pages/backends/registry.dart';
 import 'package:flutter3d_showcase/pages/environment/registry.dart';
+import 'package:flutter3d_showcase/pages/flame/registry.dart';
 import 'package:flutter3d_showcase/pages/formats/registry.dart';
 import 'package:flutter3d_showcase/pages/physics_particles/registry.dart';
 import 'package:flutter3d_showcase/pages/post/registry.dart';
@@ -32,4 +33,5 @@ final Map<String, DemoBuilder> kDemos = <String, DemoBuilder>{
   ...shadowsDemos,
   ...simAudioXrDemos,
   ...widgetsMiscDemos,
+  ...flameDemos,
 };
