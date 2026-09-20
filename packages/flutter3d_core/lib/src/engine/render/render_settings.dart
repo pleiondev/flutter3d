@@ -893,8 +893,8 @@ final class RenderSettings {
   /// **The one missing capability class that is not an effect.** Every other
   /// knob in this class trades a look for time; this trades resolution for
   /// it, which is the lever an application reaches for when a frame will not
-  /// fit in its budget and everything else is already off. flutter_scene
-  /// exhausts resolution before it starts switching effects off, and this
+  /// fit in its budget and everything else is already off — the lever most
+  /// engines reach for before they start switching effects off, and this
   /// engine had no way to.
   ///
   /// Applied at the top of `Renderer.render`, so it reaches everything: the

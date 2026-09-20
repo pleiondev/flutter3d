@@ -656,8 +656,8 @@ uniform PointShadow {
 }
 point_shadow;
 
-/// Eight points on a Poisson disk, the same set flutter_scene filters its
-/// cascades with.
+/// Eight points on a Poisson disk, a common set for filtering cascaded
+/// shadows.
 ///
 /// A disk rather than a grid because a grid of taps on a straight shadow edge
 /// lands every sample on the same side at once, and the edge steps between
@@ -837,11 +837,11 @@ float PointShadowFactor(vec3 world, vec3 normal, int lightIndex) {
       2.0 * toLightLength * max(point_shadow.slots[lightIndex].z, 1e-4) *
       point_shadow.params3.y;
   // Both terms are metres. The slope term used to be the kernel radius, which
-  // is a fraction of a tile — a unit error copied across from flutter_scene,
-  // where the softness it borrows genuinely is the right quantity for their
-  // map. Here it meant widening the kernel also lifted the sample off the
-  // surface, by up to ten centimetres at the wider settings, so the softening
-  // and the lift cancelled: tripling the kernel moved 184 pixels of the frame,
+  // is a fraction of a tile — a unit mismatch carried over from an estimate
+  // where a softness radius genuinely was the right quantity. Here it meant
+  // widening the kernel also lifted the sample off the surface, by up to ten
+  // centimetres at the wider settings, so the softening and the lift
+  // cancelled: tripling the kernel moved 184 pixels of the frame,
   // where the kernel alone moves thousands. It is what made contact hardening
   // look inert, and it was hiding in a comparison rather than in the estimate.
   vec3 origin = world + normal * texel * point_shadow.params.w * (1.0 + slope);

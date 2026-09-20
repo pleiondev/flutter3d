@@ -2,8 +2,8 @@
 /// `gfx-86n`.
 ///
 /// See the GLSL for the repacked layout and the reasoning; this is the same
-/// arithmetic in the same order, including the two places it has to decline —
-/// a neighbour behind the eye, and a mitre past four half widths.
+/// arithmetic in the same order, including the one place it has to decline —
+/// a neighbour behind the eye.
 library;
 
 import 'dart:math' as math;
@@ -16,9 +16,6 @@ import 'cpu_shaders_layout.dart';
 
 /// `kNear` in the GLSL.
 const double _kNear = 1e-4;
-
-/// `kMiterLimit` in the GLSL.
-const double _kMiterLimit = 4.0;
 
 /// The polyline vertex stage — `polyline.vert`.
 final class PolylineVertexShader implements CpuVertexShaderByIndex {
@@ -71,53 +68,32 @@ final class PolylineVertexShader implements CpuVertexShaderByIndex {
     before = _inFront(before, here);
     after = _inFront(after, here);
 
-    final atX = here.x / here.w * viewportX * 0.5;
-    final atY = here.y / here.w * viewportY * 0.5;
-    var inX = atX - before.x / before.w * viewportX * 0.5;
-    var inY = atY - before.y / before.w * viewportY * 0.5;
-    var outX = after.x / after.w * viewportX * 0.5 - atX;
-    var outY = after.y / after.w * viewportY * 0.5 - atY;
-
-    if (inX * inX + inY * inY < 1e-12) {
-      inX = outX;
-      inY = outY;
+    // From the point before this one straight to the point after it —
+    // skipping `here` itself, so an end of the line (where one neighbour is
+    // a copy of `here`) reduces to the one direction that neighbour alone
+    // gives, with nothing to fall back from.
+    final dirX =
+        after.x / after.w * viewportX * 0.5 -
+        before.x / before.w * viewportX * 0.5;
+    final dirY =
+        after.y / after.w * viewportY * 0.5 -
+        before.y / before.w * viewportY * 0.5;
+    final dirLength = math.sqrt(dirX * dirX + dirY * dirY);
+    // A pair of coincident points on screen — a true zero-length line, not
+    // just a foreshortened one — has no direction to be wide across; any
+    // perpendicular is as good as any other for the one degenerate pixel it
+    // affects.
+    final double normalX, normalY;
+    if (dirLength > 1e-9) {
+      normalX = -dirY / dirLength;
+      normalY = dirX / dirLength;
+    } else {
+      normalX = 1.0;
+      normalY = 0.0;
     }
-    if (outX * outX + outY * outY < 1e-12) {
-      outX = inX;
-      outY = inY;
-    }
 
-    var offsetX = 0.0;
-    var offsetY = 0.0;
-    if (inX * inX + inY * inY >= 1e-12) {
-      final inLength = math.sqrt(inX * inX + inY * inY);
-      final outLength = math.sqrt(outX * outX + outY * outY);
-      final inDirX = inX / inLength, inDirY = inY / inLength;
-      final outDirX = outX / outLength, outDirY = outY / outLength;
-      final segmentNormalX = -inDirY, segmentNormalY = inDirX;
-
-      // `cosHalf` in the GLSL: the join's stretch, from the half-angle
-      // identity rather than from the bisector's own length — see the GLSL
-      // for why reading it off the bisector was backwards exactly at a
-      // reversal.
-      final cosTurn = inDirX * outDirX + inDirY * outDirY;
-      final cosHalf = math.sqrt(math.max(0.0, (1.0 + cosTurn) * 0.5));
-
-      final double miterX, miterY;
-      if (cosTurn < -0.999) {
-        miterX = segmentNormalX;
-        miterY = segmentNormalY;
-      } else {
-        final alongX = inDirX + outDirX, alongY = inDirY + outDirY;
-        final alongLength = math.sqrt(alongX * alongX + alongY * alongY);
-        miterX = -alongY / alongLength;
-        miterY = alongX / alongLength;
-      }
-
-      final stretch = 1.0 / math.max(cosHalf, 1.0 / _kMiterLimit);
-      offsetX = miterX * halfWidth * stretch * side;
-      offsetY = miterY * halfWidth * stretch * side;
-    }
+    final offsetX = normalX * halfWidth * side;
+    final offsetY = normalY * halfWidth * side;
 
     final Vector4 world =
         model * Vector4(a[kPosition], a[kPosition + 1], a[kPosition + 2], 1.0);

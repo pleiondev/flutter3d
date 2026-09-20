@@ -1085,20 +1085,32 @@ void main() {
 // application already had for its own shaders; the renderer now hands it to a
 // vertex stage the material brought as well, so a resize is one parameter
 // written and not a rebuilt line.
-
-// **Joins are mitred.** The two vertices at an elbow go out along the bisector
-// of the two segments, far enough that both segments keep their full width, so
-// the band turns a corner instead of leaving a wedge of screen between two
-// quads. A mitre grows without bound as the turn tightens, so past four half
-// widths — a turn sharper than about 29 degrees — it is held at four, and the
-// band narrows at the tip of a hairpin rather than spiking across the screen.
-// A bevel would need a third vertex per point, and this layout has two.
 //
-// **Within about two and a half degrees of folding straight back on itself,
-// the bisector stops being the offset's direction.** See the comment at its
-// one use below for the reason and the number; a route this sharp already
-// narrows to the clamp above, and a stable tip that does not rotate with the
-// camera is worth more than one that carries the bisector exactly.
+// **A joint's own width, not a mitre.** Earlier this offset each point by a
+// bisector of its two neighbouring segments, stretched to keep both segments
+// full width through the turn — correct on paper, and unstable in practice:
+// the stretch depends on the *angle* between two independently projected
+// directions, and a projection has no floor on how extreme an angle it will
+// report. A route that turns a modest 30 degrees in three dimensions can
+// still turn near 180 degrees on screen from the right camera angle — most
+// of it looking down the route's own general plane — and at that point the
+// stretch a `stroke-miterlimit`-style clamp allows (four half widths) is
+// already enough for a handful of neighbouring joints to cover a shape that
+// has itself foreshortened to a sliver, which is what a turn's own
+// mathematically-correct mitre looked like exploding into unrelated
+// triangles as the camera swept past that angle.
+//
+// The offset here is instead the perpendicular of one direction per point —
+// the direction from the point before this one to the point after it, which
+// is exactly the *only* direction there is at either end of the line, where
+// one of those two is a copy of this point. No angle between two directions
+// is ever computed, so there is nothing here for an extreme projection to
+// destabilise; the trade is a corner that can pinch inward on a sharp turn
+// rather than one that mitres outward to meet both segments exactly — the
+// same trade a plain averaged-tangent ribbon makes, for the same reason, and
+// the one gfx-86n's original mitre existed to avoid. A pinch is bounded by
+// the line's own half width; the mitre it replaced was not
+// bounded by anything a viewer could see coming.
 
 in vec3 position;
 in vec3 normal;
@@ -1130,11 +1142,6 @@ out vec2 v_lightmap_uv;
 // sends a neighbour to infinity, and dividing by a negative one mirrors it
 // through the centre of the screen — either turns the band sideways.
 const float kNear = 1e-4;
-
-// How long a mitre may get, in half widths. Four is the SVG default for
-// `stroke-miterlimit`, which is where most people's sense of a sharp join
-// comes from.
-const float kMiterLimit = 4.0;
 
 // `from`, moved along the segment towards `to` until it is in front of the eye.
 //
@@ -1171,53 +1178,21 @@ void main() {
   before = InFront(before, here);
   after = InFront(after, here);
 
-  vec2 at = ToPixels(here, viewport);
-  vec2 incoming = at - ToPixels(before, viewport);
-  vec2 outgoing = ToPixels(after, viewport) - at;
+  // From the point before this one straight to the point after it — skipping
+  // `here` itself, so an end of the line (where one neighbour is a copy of
+  // `here`) reduces to the one direction that neighbour alone gives, with
+  // nothing to fall back from.
+  vec2 dir = ToPixels(after, viewport) - ToPixels(before, viewport);
+  float dirLength = length(dir);
+  // A pair of coincident points on screen — a true zero-length line, not
+  // just a foreshortened one — has no direction to be wide across; any
+  // perpendicular is as good as any other for the one degenerate pixel it
+  // affects.
+  vec2 segmentNormal = dirLength > 1e-9
+      ? vec2(-dir.y, dir.x) / dirLength
+      : vec2(1.0, 0.0);
 
-  // The ends of the line have one segment, and the missing one is a copy of
-  // this point, so it has no length: use the other.
-  if (dot(incoming, incoming) < 1e-12) incoming = outgoing;
-  if (dot(outgoing, outgoing) < 1e-12) outgoing = incoming;
-
-  vec2 offset = vec2(0.0);
-  if (dot(incoming, incoming) >= 1e-12) {
-    vec2 inDir = normalize(incoming);
-    vec2 outDir = normalize(outgoing);
-    vec2 segmentNormal = vec2(-inDir.y, inDir.x);
-
-    // How far the turn is from folding straight back on itself, from the
-    // half-angle identity rather than from the bisector's own length.
-    //
-    // **The bisector's length is not what was unstable here — its direction
-    // was, and only the length was being read.** `dot(miter, segmentNormal)`
-    // used to come from a bisector that is the sum of two nearly opposite
-    // unit vectors near a reversal, and a screen-space recompute makes that
-    // sum's *direction* as sensitive to the camera as the cancellation
-    // itself: swept through 180 degrees, the old miter rotated by ninety
-    // degrees inside one degree of turn, and the length read off it collapsed
-    // from the clamp (4) to nothing (1) exactly at the reversal — backwards,
-    // since a reversal is where the join should be at its widest, not its
-    // narrowest. `cosHalf` answers the same question without going through
-    // that vector at all, and is smooth all the way through it.
-    float cosTurn = dot(inDir, outDir);
-    float cosHalf = sqrt(max(0.0, (1.0 + cosTurn) * 0.5));
-
-    // Within about two and a half degrees of a straight reversal, the
-    // bisector's *direction* — not just its length — is the sum of two
-    // nearly cancelling unit vectors, so which way the residue leans flips
-    // with the camera rather than with the road. `segmentNormal` depends on
-    // `inDir` alone, so past this point it replaces the bisector as the
-    // offset's direction; a route this sharp is already past what a two-
-    // vertex join was ever going to draw as a clean point, and a stable,
-    // correctly clamped tip beats one that spins with the view.
-    vec2 miter = cosTurn < -0.999
-        ? segmentNormal
-        : normalize(vec2(-(inDir + outDir).y, (inDir + outDir).x));
-
-    float stretch = 1.0 / max(cosHalf, 1.0 / kMiterLimit);
-    offset = miter * halfWidth * stretch * side;
-  }
+  vec2 offset = segmentNormal * halfWidth * side;
 
   // Back from pixels to clip space, at this point's own w, so the offset is the
   // same number of pixels at every depth.
@@ -2447,8 +2422,8 @@ layout(std140) uniform PointShadow {
 }
 point_shadow;
 
-/// Eight points on a Poisson disk, the same set flutter_scene filters its
-/// cascades with.
+/// Eight points on a Poisson disk, a common set for filtering cascaded
+/// shadows.
 ///
 /// A disk rather than a grid because a grid of taps on a straight shadow edge
 /// lands every sample on the same side at once, and the edge steps between
@@ -2628,11 +2603,11 @@ float PointShadowFactor(vec3 world, vec3 normal, int lightIndex) {
       2.0 * toLightLength * max(point_shadow.slots[lightIndex].z, 1e-4) *
       point_shadow.params3.y;
   // Both terms are metres. The slope term used to be the kernel radius, which
-  // is a fraction of a tile — a unit error copied across from flutter_scene,
-  // where the softness it borrows genuinely is the right quantity for their
-  // map. Here it meant widening the kernel also lifted the sample off the
-  // surface, by up to ten centimetres at the wider settings, so the softening
-  // and the lift cancelled: tripling the kernel moved 184 pixels of the frame,
+  // is a fraction of a tile — a unit mismatch carried over from an estimate
+  // where a softness radius genuinely was the right quantity. Here it meant
+  // widening the kernel also lifted the sample off the surface, by up to ten
+  // centimetres at the wider settings, so the softening and the lift
+  // cancelled: tripling the kernel moved 184 pixels of the frame,
   // where the kernel alone moves thousands. It is what made contact hardening
   // look inert, and it was hiding in a comparison rather than in the estimate.
   vec3 origin = world + normal * texel * point_shadow.params.w * (1.0 + slope);
@@ -3758,8 +3733,8 @@ layout(std140) uniform PointShadow {
 }
 point_shadow;
 
-/// Eight points on a Poisson disk, the same set flutter_scene filters its
-/// cascades with.
+/// Eight points on a Poisson disk, a common set for filtering cascaded
+/// shadows.
 ///
 /// A disk rather than a grid because a grid of taps on a straight shadow edge
 /// lands every sample on the same side at once, and the edge steps between
@@ -3939,11 +3914,11 @@ float PointShadowFactor(vec3 world, vec3 normal, int lightIndex) {
       2.0 * toLightLength * max(point_shadow.slots[lightIndex].z, 1e-4) *
       point_shadow.params3.y;
   // Both terms are metres. The slope term used to be the kernel radius, which
-  // is a fraction of a tile — a unit error copied across from flutter_scene,
-  // where the softness it borrows genuinely is the right quantity for their
-  // map. Here it meant widening the kernel also lifted the sample off the
-  // surface, by up to ten centimetres at the wider settings, so the softening
-  // and the lift cancelled: tripling the kernel moved 184 pixels of the frame,
+  // is a fraction of a tile — a unit mismatch carried over from an estimate
+  // where a softness radius genuinely was the right quantity. Here it meant
+  // widening the kernel also lifted the sample off the surface, by up to ten
+  // centimetres at the wider settings, so the softening and the lift
+  // cancelled: tripling the kernel moved 184 pixels of the frame,
   // where the kernel alone moves thousands. It is what made contact hardening
   // look inert, and it was hiding in a comparison rather than in the estimate.
   vec3 origin = world + normal * texel * point_shadow.params.w * (1.0 + slope);
@@ -5059,8 +5034,8 @@ layout(std140) uniform PointShadow {
 }
 point_shadow;
 
-/// Eight points on a Poisson disk, the same set flutter_scene filters its
-/// cascades with.
+/// Eight points on a Poisson disk, a common set for filtering cascaded
+/// shadows.
 ///
 /// A disk rather than a grid because a grid of taps on a straight shadow edge
 /// lands every sample on the same side at once, and the edge steps between
@@ -5240,11 +5215,11 @@ float PointShadowFactor(vec3 world, vec3 normal, int lightIndex) {
       2.0 * toLightLength * max(point_shadow.slots[lightIndex].z, 1e-4) *
       point_shadow.params3.y;
   // Both terms are metres. The slope term used to be the kernel radius, which
-  // is a fraction of a tile — a unit error copied across from flutter_scene,
-  // where the softness it borrows genuinely is the right quantity for their
-  // map. Here it meant widening the kernel also lifted the sample off the
-  // surface, by up to ten centimetres at the wider settings, so the softening
-  // and the lift cancelled: tripling the kernel moved 184 pixels of the frame,
+  // is a fraction of a tile — a unit mismatch carried over from an estimate
+  // where a softness radius genuinely was the right quantity. Here it meant
+  // widening the kernel also lifted the sample off the surface, by up to ten
+  // centimetres at the wider settings, so the softening and the lift
+  // cancelled: tripling the kernel moved 184 pixels of the frame,
   // where the kernel alone moves thousands. It is what made contact hardening
   // look inert, and it was hiding in a comparison rather than in the estimate.
   vec3 origin = world + normal * texel * point_shadow.params.w * (1.0 + slope);
@@ -6656,8 +6631,8 @@ layout(std140) uniform PointShadow {
 }
 point_shadow;
 
-/// Eight points on a Poisson disk, the same set flutter_scene filters its
-/// cascades with.
+/// Eight points on a Poisson disk, a common set for filtering cascaded
+/// shadows.
 ///
 /// A disk rather than a grid because a grid of taps on a straight shadow edge
 /// lands every sample on the same side at once, and the edge steps between
@@ -6837,11 +6812,11 @@ float PointShadowFactor(vec3 world, vec3 normal, int lightIndex) {
       2.0 * toLightLength * max(point_shadow.slots[lightIndex].z, 1e-4) *
       point_shadow.params3.y;
   // Both terms are metres. The slope term used to be the kernel radius, which
-  // is a fraction of a tile — a unit error copied across from flutter_scene,
-  // where the softness it borrows genuinely is the right quantity for their
-  // map. Here it meant widening the kernel also lifted the sample off the
-  // surface, by up to ten centimetres at the wider settings, so the softening
-  // and the lift cancelled: tripling the kernel moved 184 pixels of the frame,
+  // is a fraction of a tile — a unit mismatch carried over from an estimate
+  // where a softness radius genuinely was the right quantity. Here it meant
+  // widening the kernel also lifted the sample off the surface, by up to ten
+  // centimetres at the wider settings, so the softening and the lift
+  // cancelled: tripling the kernel moved 184 pixels of the frame,
   // where the kernel alone moves thousands. It is what made contact hardening
   // look inert, and it was hiding in a comparison rather than in the estimate.
   vec3 origin = world + normal * texel * point_shadow.params.w * (1.0 + slope);
@@ -8268,8 +8243,8 @@ layout(std140) uniform PointShadow {
 }
 point_shadow;
 
-/// Eight points on a Poisson disk, the same set flutter_scene filters its
-/// cascades with.
+/// Eight points on a Poisson disk, a common set for filtering cascaded
+/// shadows.
 ///
 /// A disk rather than a grid because a grid of taps on a straight shadow edge
 /// lands every sample on the same side at once, and the edge steps between
@@ -8449,11 +8424,11 @@ float PointShadowFactor(vec3 world, vec3 normal, int lightIndex) {
       2.0 * toLightLength * max(point_shadow.slots[lightIndex].z, 1e-4) *
       point_shadow.params3.y;
   // Both terms are metres. The slope term used to be the kernel radius, which
-  // is a fraction of a tile — a unit error copied across from flutter_scene,
-  // where the softness it borrows genuinely is the right quantity for their
-  // map. Here it meant widening the kernel also lifted the sample off the
-  // surface, by up to ten centimetres at the wider settings, so the softening
-  // and the lift cancelled: tripling the kernel moved 184 pixels of the frame,
+  // is a fraction of a tile — a unit mismatch carried over from an estimate
+  // where a softness radius genuinely was the right quantity. Here it meant
+  // widening the kernel also lifted the sample off the surface, by up to ten
+  // centimetres at the wider settings, so the softening and the lift
+  // cancelled: tripling the kernel moved 184 pixels of the frame,
   // where the kernel alone moves thousands. It is what made contact hardening
   // look inert, and it was hiding in a comparison rather than in the estimate.
   vec3 origin = world + normal * texel * point_shadow.params.w * (1.0 + slope);
@@ -9973,8 +9948,8 @@ layout(std140) uniform PointShadow {
 }
 point_shadow;
 
-/// Eight points on a Poisson disk, the same set flutter_scene filters its
-/// cascades with.
+/// Eight points on a Poisson disk, a common set for filtering cascaded
+/// shadows.
 ///
 /// A disk rather than a grid because a grid of taps on a straight shadow edge
 /// lands every sample on the same side at once, and the edge steps between
@@ -10154,11 +10129,11 @@ float PointShadowFactor(vec3 world, vec3 normal, int lightIndex) {
       2.0 * toLightLength * max(point_shadow.slots[lightIndex].z, 1e-4) *
       point_shadow.params3.y;
   // Both terms are metres. The slope term used to be the kernel radius, which
-  // is a fraction of a tile — a unit error copied across from flutter_scene,
-  // where the softness it borrows genuinely is the right quantity for their
-  // map. Here it meant widening the kernel also lifted the sample off the
-  // surface, by up to ten centimetres at the wider settings, so the softening
-  // and the lift cancelled: tripling the kernel moved 184 pixels of the frame,
+  // is a fraction of a tile — a unit mismatch carried over from an estimate
+  // where a softness radius genuinely was the right quantity. Here it meant
+  // widening the kernel also lifted the sample off the surface, by up to ten
+  // centimetres at the wider settings, so the softening and the lift
+  // cancelled: tripling the kernel moved 184 pixels of the frame,
   // where the kernel alone moves thousands. It is what made contact hardening
   // look inert, and it was hiding in a comparison rather than in the estimate.
   vec3 origin = world + normal * texel * point_shadow.params.w * (1.0 + slope);
@@ -14210,8 +14185,8 @@ precision highp samplerCube;
 // pipeline with no sampler in it and no texture bound per draw. That is worth
 // a second entry point twice over: the common path pays nothing, and the
 // forty-four golden frames recorded against the old stage cannot move, because
-// the old stage is still the one they go through. It is also what
-// flutter_scene does, and for the same reason.
+// the old stage is still the one they go through — the same split other
+// engines draw here, for the same reason.
 //
 // **Why the shadow pass has to know about alpha at all.** A leaf card is a
 // quad with a texture that is transparent almost everywhere. Depth-only, that

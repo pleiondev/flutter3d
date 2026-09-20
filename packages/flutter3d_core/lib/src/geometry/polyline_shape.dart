@@ -18,8 +18,8 @@
 ///  * colour — the colour at this point.
 ///
 /// One draw for the whole line, joined: consecutive segments share the two
-/// vertices at the point between them, which is what lets the stage mitre the
-/// elbow instead of leaving the wedge two independent quads leave.
+/// vertices at the point between them, which is what closes the elbow
+/// instead of leaving the gap two independent quads leave.
 library;
 
 import 'dart:typed_data';

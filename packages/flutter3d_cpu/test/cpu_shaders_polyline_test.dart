@@ -1,14 +1,17 @@
-/// `PolylineVertexShader`'s mitre, checked against the vertex stage directly
+/// `PolylineVertexShader`'s join, checked against the vertex stage directly
 /// rather than through a rendered frame.
 ///
-/// A rendered frame confounds two things at an exact reversal: the mitre's
-/// own length, and the fact that the two segments' "side 0"/"side 1" swap
-/// which physical edge of the band they name once the line's own direction
-/// reverses — a property of the vertex format, not of the mitre, and one
-/// that would make a full scene of a there-and-back line hard to read as a
-/// clean band regardless of what the mitre does. Calling the vertex stage
-/// once, at the shared joint vertex, asks only the question this file is
-/// about.
+/// The join used to mitre: bisect the two neighbouring directions and
+/// stretch the offset so both segments kept their full width through the
+/// turn, clamped past four half widths. That stretch read the *angle*
+/// between two independently projected directions, and a projection puts no
+/// floor under how extreme an angle it will report for a turn that is
+/// nowhere near that sharp in three dimensions — which is what let a
+/// handful of ordinary joints explode into unrelated triangles from the
+/// right camera angle. The join now offsets by one direction per point, the
+/// point before to the point after, with no angle and no stretch: the
+/// tests below hold the one invariant that replaces the old ones — the
+/// offset is always exactly the half width, whatever the turn.
 library;
 
 import 'dart:typed_data';
@@ -71,53 +74,83 @@ void main() {
   const shader = PolylineVertexShader();
   final out = Float32List(shader.varyingCount);
 
-  test(
-    'a joint folding straight back on itself mitres to the limit, not to one',
-    () {
-      // Mutation: read the join's length off the old bisector-based
-      // `dot(miter, segmentNormal)` again. At an exact reversal that comes
-      // out as 1.0 rather than the 0.0 the half-angle identity gives, and
-      // the offset below comes out at one half width (4 px) instead of the
-      // mitre limit's four (16 px) — narrower exactly where two segments
-      // pointing directly apart should mitre to their widest.
-      final vertex = _vertex(
-        here: Vector3.zero(),
-        before: Vector3(-1, 0, 0),
-        after: Vector3(-1, 0, 0),
-        sideZero: true,
-      );
-      final clip = shader.runAt(1, 0, vertex, _identityBindings(), out);
-      final offset = _offsetPixels(clip, Vector3.zero());
-
-      expect(
-        offset.x.abs(),
-        lessThan(1e-6),
-        reason: 'a reversal along the x axis should mitre in y, not x',
-      );
-      expect(
-        offset.y.abs(),
-        closeTo(_width / 2 * 4, 1e-6),
-        reason:
-            'half width (${_width / 2}) times the mitre limit (4) is 16; '
-            'got ${offset.y.abs()}',
-      );
-    },
-  );
-
-  test('a straight run mitres to nothing, on either side', () {
-    // The baseline the reversal case is measured against: two collinear
-    // segments need no extension at all, so the offset is exactly the plain
-    // half width.
+  Vector2 offsetFor({
+    required Vector3 before,
+    required Vector3 after,
+    bool sideZero = false,
+  }) {
     final vertex = _vertex(
       here: Vector3.zero(),
-      before: Vector3(-1, 0, 0),
-      after: Vector3(1, 0, 0),
-      sideZero: false,
+      before: before,
+      after: after,
+      sideZero: sideZero,
     );
     final clip = shader.runAt(1, 0, vertex, _identityBindings(), out);
-    final offset = _offsetPixels(clip, Vector3.zero());
+    return _offsetPixels(clip, Vector3.zero());
+  }
 
+  test('a straight run offsets by exactly the half width, on either side', () {
+    final offset = offsetFor(
+      before: Vector3(-1, 0, 0),
+      after: Vector3(1, 0, 0),
+    );
     expect(offset.x.abs(), lessThan(1e-6));
     expect(offset.y, closeTo(_width / 2, 1e-6));
+  });
+
+  test('a right-angle turn still offsets by exactly the half width', () {
+    // Mutation: bring back a stretch keyed on the turn angle — this passes
+    // only because there is none left to key on.
+    final offset = offsetFor(
+      before: Vector3(-1, 0, 0),
+      after: Vector3(0, 1, 0),
+    );
+    expect(offset.length, closeTo(_width / 2, 1e-6));
+  });
+
+  test('a joint folding straight back on itself still offsets by exactly '
+      'the half width', () {
+    // The one case a mitre used to single out for special handling — a
+    // route reversing on itself has no single "outward" side to bisect
+    // towards, and no longer needs one: the offset is the same half width
+    // it is everywhere else, along whichever perpendicular the fold leaves
+    // well defined.
+    final offset = offsetFor(
+      before: Vector3(-1, 0, 0),
+      after: Vector3(-1, 0, 0),
+    );
+    expect(offset.length, closeTo(_width / 2, 1e-6));
+  });
+
+  test('a true end of the line offsets by exactly the half width too', () {
+    // `buildPolyline` marks an end by copying `position` into `normal` (no
+    // point before) or `tangent.xyz` (no point after) — the join's own
+    // "one direction only" case, not a special one.
+    final atStart = offsetFor(before: Vector3.zero(), after: Vector3(1, 0, 0));
+    expect(atStart.length, closeTo(_width / 2, 1e-6));
+
+    final atEnd = offsetFor(before: Vector3(-1, 0, 0), after: Vector3.zero());
+    expect(atEnd.length, closeTo(_width / 2, 1e-6));
+  });
+
+  test('the two sides of the band are opposite, at every turn', () {
+    for (final after in <Vector3>[
+      Vector3(1, 0, 0),
+      Vector3(0, 1, 0),
+      Vector3(-1, 0.3, 0),
+      Vector3(-1, 0, 0),
+    ]) {
+      final left = offsetFor(before: Vector3(-1, 0, 0), after: after);
+      final right = offsetFor(
+        before: Vector3(-1, 0, 0),
+        after: after,
+        sideZero: true,
+      );
+      expect(
+        (left + right).length,
+        lessThan(1e-6),
+        reason: 'the two sides should cancel exactly for $after',
+      );
+    }
   });
 }
