@@ -40,4 +40,9 @@ Turning it off falls back to whatever ambient light the scene already had.
 
 Toggle **Field on** and the room loses its red tint on the side facing the
 wall; drag **Ambient strength** and the tint scales with it, the same knob
-a flat ambient uses.
+a flat ambient uses. That tint only has somewhere to show up because the
+floor beside the wall actually falls into shadow — the shadow pass's own
+default sees straight through a wall this thin, one surface with nothing
+behind it, so the page turns on the setting meant for exactly that.
+
+{{code shadow}}
