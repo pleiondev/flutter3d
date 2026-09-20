@@ -73,10 +73,28 @@ final class _SaveFile {
 
 final class GameSettingsDemo extends ShowcaseDemo {
   late final String _report;
+  late final double _musicVolume;
+  late final double _sfxVolume;
+  late final String? _resumedLevel;
+  late final double? _resumedX;
+  late final bool _clearedSaveIsGone;
 
   @override
   Scene build(DemoContext context) {
-    _report = _run();
+    final (
+      String report,
+      double musicVolume,
+      double sfxVolume,
+      String? resumedLevel,
+      double? resumedX,
+      bool clearedSaveIsGone,
+    ) = _run();
+    _report = report;
+    _musicVolume = musicVolume;
+    _sfxVolume = sfxVolume;
+    _resumedLevel = resumedLevel;
+    _resumedX = resumedX;
+    _clearedSaveIsGone = clearedSaveIsGone;
     final material = Material(
       name: 'panel',
       baseColor: Vector4(0.5, 0.7, 0.5, 1.0),
@@ -93,7 +111,7 @@ final class GameSettingsDemo extends ShowcaseDemo {
       );
   }
 
-  static String _run() {
+  static (String, double, double, String?, double?, bool) _run() {
     // #region use
     final config = _GameConfig()
       ..setVolume('music', 0.6)
@@ -110,10 +128,20 @@ final class GameSettingsDemo extends ShowcaseDemo {
     save.clear();
     final afterClear = save.read();
 
-    return 'music volume: $musicVolume, sfx (never set): $sfxVolume\n'
+    final resumedX = (resumed?.run.data['x'] as num?)?.toDouble();
+    final report =
+        'music volume: $musicVolume, sfx (never set): $sfxVolume\n'
         'camera motion setting: $cameraMotion\n'
-        'resumed at level ${resumed?.level}, x=${resumed?.run.data['x']}\n'
+        'resumed at level ${resumed?.level}, x=$resumedX\n'
         'after clearing the save: $afterClear';
+    return (
+      report,
+      musicVolume,
+      sfxVolume,
+      resumed?.level,
+      resumedX,
+      afterClear == null,
+    );
   }
 
   @override
@@ -133,16 +161,21 @@ final class GameSettingsDemo extends ShowcaseDemo {
     if (frame.drawCalls < 1) {
       throw StateError('the panel marker was not drawn');
     }
-    if (!_report.contains('music volume: 0.6, sfx (never set): 1.0')) {
+    // Compared as numbers, not read back out of `_report`: `sfxVolume`'s
+    // default is a whole-number double, and a web backend prints one of
+    // those without its trailing `.0` — a compiled `1` failing a substring
+    // match against `'sfx (never set): 1.0'` would be this check catching
+    // its own string, not the config.
+    if (_musicVolume != 0.6 || _sfxVolume != 1.0) {
       throw StateError('a bus nobody set should default to full volume');
     }
-    if (!_report.contains('resumed at level levels/one.json, x=4.5')) {
+    if (_resumedLevel != 'levels/one.json' || _resumedX != 4.5) {
       throw StateError(
         'a written save should read back with its own level '
         'and its own state',
       );
     }
-    if (!_report.contains('after clearing the save: null')) {
+    if (!_clearedSaveIsGone) {
       throw StateError('a cleared save should read back as nothing');
     }
   }

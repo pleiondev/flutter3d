@@ -10,6 +10,7 @@
 /// Quoted by `run_timeline.md` and shown whole in the Source tab.
 library;
 
+import 'package:flutter/widgets.dart';
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
@@ -63,10 +64,25 @@ final class _RunTimeline {
 
 final class RunTimelineDemo extends ShowcaseDemo {
   late final String _report;
+  late final double _beforePause;
+  late final double _afterOneStep;
+  late final double _afterRelease;
+  late final bool _timelinePausedAfterRelease;
 
   @override
   Scene build(DemoContext context) {
-    _report = _run();
+    final (
+      String report,
+      double beforePause,
+      double afterOneStep,
+      double afterRelease,
+      bool timelinePausedAfterRelease,
+    ) = _run();
+    _report = report;
+    _beforePause = beforePause;
+    _afterOneStep = afterOneStep;
+    _afterRelease = afterRelease;
+    _timelinePausedAfterRelease = timelinePausedAfterRelease;
     final material = Material(
       name: 'runner',
       baseColor: Vector4(0.6, 0.8, 0.5, 1.0),
@@ -83,7 +99,7 @@ final class RunTimelineDemo extends ShowcaseDemo {
       );
   }
 
-  static String _run() {
+  static (String, double, double, double, bool) _run() {
     var x = 0.0;
     final buffer = RewindBuffer(
       stepsPerSecond: 10,
@@ -123,31 +139,50 @@ final class RunTimelineDemo extends ShowcaseDemo {
     final afterRelease = x;
     // #endregion rewind
 
-    return 'after twenty steps: x=$beforePause\n'
+    final report =
+        'after twenty steps: x=$beforePause\n'
         'paused, then stepped once by hand: x=$afterOneStep\n'
         'rewound one second and released: x=$afterRelease, timeline paused: '
         '${timeline.isPaused}';
+    return (report, beforePause, afterOneStep, afterRelease, timeline.isPaused);
   }
+
+  @override
+  Widget? customBody(BuildContext buildContext, DemoContext context) =>
+      Container(
+        color: const Color(0xFF14161A),
+        padding: const EdgeInsets.all(24),
+        alignment: Alignment.topLeft,
+        child: DefaultTextStyle(
+          style: const TextStyle(color: Color(0xFFE8E8EC), fontSize: 16),
+          child: Text(_report),
+        ),
+      );
 
   @override
   void verify(Scene scene, FrameResult frame) {
     if (frame.drawCalls < 1) {
       throw StateError('the runner marker was not drawn');
     }
-    if (!_report.contains('after twenty steps: x=20.0')) {
+    // Compared as numbers, not read back out of `_report`: each of these is
+    // a whole-number double, and a web backend prints one of those without
+    // its trailing `.0` — a compiled `20` failing a substring match against
+    // `'x=20.0'` would be this check catching its own string, not the
+    // timeline.
+    if (_beforePause != 20.0) {
       throw StateError('twenty recorded steps of one each should reach 20');
     }
-    if (!_report.contains('stepped once by hand: x=21.0')) {
+    if (_afterOneStep != 21.0) {
       throw StateError('a manual step while paused should still advance x');
     }
-    if (!_report.contains('released: x=10.0')) {
+    if (_afterRelease != 10.0) {
       throw StateError(
         'rewinding one second on a ten-steps-a-second buffer should land '
         'on the recorded state ten steps back, discarding the manual step '
         'that was never recorded',
       );
     }
-    if (!_report.contains('timeline paused: false')) {
+    if (_timelinePausedAfterRelease) {
       throw StateError(
         'releasing a rewind point should leave the timeline '
         'running, not paused',
