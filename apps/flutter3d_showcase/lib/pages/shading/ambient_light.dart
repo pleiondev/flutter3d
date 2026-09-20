@@ -15,9 +15,15 @@ final class AmbientLightDemo extends ShowcaseDemo {
 
   @override
   void configureView(DemoContext context) {
+    // Square to the key light's own direction, not merely off to one side:
+    // `yaw = 1.4` looked almost straight down the light's own beam, so the
+    // ball read as fully lit from every frame this page ever drew and the
+    // slider had no side left to brighten. `2.9` looks across the light
+    // instead, which is what puts the terminator in the middle of the
+    // frame — half the ball lit, half carrying nothing but the ambient term.
     context.orbit
       ..distance = 4.5
-      ..yaw = 1.4
+      ..yaw = 2.9
       ..pitch = 0.1;
   }
 

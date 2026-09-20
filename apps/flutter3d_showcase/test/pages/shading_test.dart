@@ -6,6 +6,7 @@ import 'dart:typed_data';
 import 'package:flutter3d/flutter3d.dart' hide Material;
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
 import 'package:flutter3d_showcase/pages/shading/alpha_modes.dart';
+import 'package:flutter3d_showcase/pages/shading/ambient_light.dart';
 import 'package:flutter3d_showcase/pages/shading/draw_state.dart';
 import 'package:flutter3d_showcase/pages/shading/normal_mapping.dart';
 import 'package:flutter3d_showcase/pages/shading/texture_filtering.dart';
@@ -50,6 +51,45 @@ int _differing(Uint8List a, Uint8List b) {
 
 void main() {
   group('shading pages', () {
+    test(
+      'the ambient slider lifts the side the key light never reaches',
+      () async {
+        // `_differing` alone does not catch this one: with the camera
+        // pointed down the key light's own beam, the whole ball reads as
+        // fully lit at every ambient level and only shifts by a few units
+        // per channel across a wide area as the tone mapper responds to the
+        // extra energy — enough rounding noise, spread over enough pixels,
+        // to clear a naive pixel-count threshold while looking, to a reader,
+        // exactly the same. What a reader would actually notice is the dark
+        // side of the ball going from black to lit, so this checks that
+        // directly, at the point the terminator crosses this page's frame.
+        //
+        // Mutation: point the camera back down the key light's own beam
+        // (`yaw = 1.4`) — this point sits on the lit face instead and stays
+        // close to full brightness at both ends of the slider.
+        final Uint8List dim = await _shot(
+          AmbientLightDemo()..ambientIntensity = 0.0,
+        );
+        final Uint8List lit = await _shot(
+          AmbientLightDemo()..ambientIntensity = 1.0,
+        );
+        final (int r0, int g0, int b0) = _at(dim, 168, 68);
+        final (int r1, int g1, int b1) = _at(lit, 168, 68);
+        expect(
+          r0 + g0 + b0,
+          lessThan(40),
+          reason:
+              'this point should start on the side the key light never '
+              'reaches',
+        );
+        expect(
+          (r1 + g1 + b1) - (r0 + g0 + b0),
+          greaterThan(400),
+          reason: 'raising the ambient term should light it up',
+        );
+      },
+    );
+
     test('the normal scale changes the picture', () async {
       // Mutation: read `normalScale` nowhere. Zero and one would then draw the
       // same frame and the slider would do nothing.
