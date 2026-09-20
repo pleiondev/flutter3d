@@ -1,16 +1,16 @@
 ---
-description: Four independent golden sets, mutation-checking every new test, determinism and snapshots, and why only about thirty of 7362 tests need a GPU.
+description: Four independent golden sets, mutation-checking every new test, determinism and snapshots, and why only about thirty of 7366 tests need a GPU.
 ---
 
 # Testing
 
-7362 tests across 46 packages and nine applications, counted the same way the `the document says how many tests there are` rule does: a scan of every `test(`/`testWidgets(` call. The rule holds `ARCHITECTURE.md` §13, the README and this page to the answer — the README went on saying 1242 across thirteen packages for as long as nothing compared it with anything. About thirty need a GPU; the [architecture](/core/architecture/) is what keeps the number that low.
+7366 tests across 46 packages and nine applications, counted the same way the `the document says how many tests there are` rule does: a scan of every `test(`/`testWidgets(` call. The rule holds `ARCHITECTURE.md` §13, the README and this page to the answer — the README went on saying 1242 across thirteen packages for as long as nothing compared it with anything. About thirty need a GPU; the [architecture](/core/architecture/) is what keeps the number that low.
 
 | Package | Tests | | Package | Tests |
 |---|---|---|---|---|
 | `flutter3d` | 958 | | `flutter3d_geometry` | 93 |
 | | | | `flutter3d_bridge` | 74 |
-| | | | `flutter3d_formats` | 287 |
+| | | | `flutter3d_formats` | 290 |
 | | | | `flutter3d_mesh` | 516 |
 | | | | `apps/flutter3d_modeler` | 811 |
 | `flutter3d_sim` | 522 | | `pad_input` | 59 |
@@ -19,7 +19,7 @@ description: Four independent golden sets, mutation-checking every new test, det
 | `flutter3d_game_racing` | 223 | | `flutter3d_webgl` | 58 |
 | `flutter3d_game_platformer` | 221 | | `flutter3d_hardware` | 54 |
 | `apps/flutter3d_demo_platformer` | 198 | | `flutter3d_impeller` | 54 |
-| `flutter3d_cpu` | 214 | | `apps/flutter3d_demo_strategy` | 43 |
+| `flutter3d_cpu` | 215 | | `apps/flutter3d_demo_strategy` | 43 |
 | `apps/flutter3d_editor` | 203 | | `flutter3d_session` | 67 |
 | `apps/flutter3d_demo_racing` | 153 | | `pointer_lock` | 28 |
 | `flutter3d_physics` | 168 | | `flutter3d_webgpu` | 175 |
@@ -38,7 +38,7 @@ description: Four independent golden sets, mutation-checking every new test, det
 | | | | `apps/flutter3d_lesson_viewer` | 19 |
 | `flutter3d_fbx` | 6 | | `flutter3d_particles_core` | 63 |
 
-The rows sum to 7343 rather than 7362: the remaining live in `packages/*/example/test`, which the count includes and this table does not — the usual 19 plus whatever a concurrent session's own in-flight work has added there since this snapshot was taken.
+The rows sum to 7347 rather than 7366: the remaining live in `packages/*/example/test`, which the count includes and this table does not — the usual 19 plus whatever a concurrent session's own in-flight work has added there since this snapshot was taken.
 
 `flutter3d_app` and `flutter3d_samples` are not in the table and have no `test/` at all. One is a barrel of thirty-five `export` lines and the other is test data with two path constants over it; what there is to check about them is structural, and other packages' decoder tests are what exercise the samples. `flutter3d_conformance` is missing for a different reason: it is invoked as a script harness rather than through `flutter test`, so it does not surface in a grep of `test(` calls either. See below for what that cost once.
 

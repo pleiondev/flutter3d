@@ -55,6 +55,7 @@ export 'src/ktx2/encode/etc2_encoder.dart'
     show encodeEtc2Rgb8, encodeEtc2Rgb8Block;
 export 'src/ktx2/encode/ktx2_writer.dart' show writeKtx2;
 export 'src/ktx2/encode/mip_chain.dart' show buildMipChain;
+export 'src/ktx2/encode/mipped_ktx2_writer.dart' show writeKtx2WithMips;
 export 'src/ktx2/encode/rgba8_image.dart' show Rgba8Image;
 export 'src/ktx2/ktx2.dart';
 export 'src/lighting_model.dart';
