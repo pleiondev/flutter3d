@@ -304,6 +304,62 @@ void main() {
       expect(buffer.packed.first.type, LightType.directional);
       expect(buffer.colors[3], 2.0);
     });
+
+    test(
+      'a symmetric ring of lights around a wide object is not faded to black',
+      () {
+        // `many_lights.dart`'s own bug. Forty torches equidistant from a
+        // floor's centre score identically against the floor's own
+        // oversized bounding sphere — every one of them lands inside it, at
+        // the ceiling `_relevanceIn` gives a light with nothing between it
+        // and the object. The candidate that finally overflows the tail
+        // then ties with every light already packed, and treating that tie
+        // as a genuine loss set the water line at the same score as the
+        // whole ring — fading all thirty-two kept torches to nothing
+        // instead of only the eight that do not fit.
+        const int torches = 40;
+        final ring = <LightNode>[
+          for (var i = 0; i < torches; i++)
+            LightNode(type: LightType.point, intensity: 2.5, range: 3.5)
+              ..setPosition(
+                math.cos(i / torches * 2 * math.pi) * 6.0,
+                0.6,
+                math.sin(i / torches * 2 * math.pi) * 6.0,
+              ),
+        ];
+        final table = LightBuffer()..gather(ring);
+        expect(
+          table.overflow,
+          greaterThan(0),
+          reason: 'forty lamps, eight slots',
+        );
+
+        // Wide enough that every torch lands inside its own bounding sphere,
+        // which is what makes every one of them score identically.
+        final buffer = LightBuffer()
+          ..gatherNearFrom(table, Vector3.zero(), 14.0, fadeBand: 0.5);
+
+        expect(buffer.count, LightBuffer.maxLights);
+        for (var i = 0; i < buffer.count; i++) {
+          expect(
+            buffer.colors[i * 4 + 3],
+            2.5,
+            reason:
+                'slot $i faded though nothing about it lost to a '
+                'genuinely stronger light',
+          );
+        }
+        expect(buffer.extraCount, LightBuffer.maxExtraLights);
+        for (var i = 0; i < buffer.extraCount; i++) {
+          expect(
+            buffer.extraScales[i],
+            1.0,
+            reason:
+                'tail light $i faded to the tie that dropped a light past it',
+          );
+        }
+      },
+    );
   });
 
   group("the row's own acceptance: a camera walk gives no jump", () {
