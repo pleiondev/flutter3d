@@ -29,10 +29,22 @@ final class _WaryBrain extends Brain {
 
 final class ActorsDemo extends ShowcaseDemo {
   late final String _report;
+  late final double _currentHealth;
+  late final bool _stillAlive;
+  late final bool _rememberedBeingHurt;
 
   @override
   Scene build(DemoContext context) {
-    _report = _run();
+    final (
+      String report,
+      double currentHealth,
+      bool stillAlive,
+      bool rememberedBeingHurt,
+    ) = _run();
+    _report = report;
+    _currentHealth = currentHealth;
+    _stillAlive = stillAlive;
+    _rememberedBeingHurt = rememberedBeingHurt;
     final material = Material(
       name: 'goblin',
       baseColor: Vector4(0.5, 0.7, 0.3, 1.0),
@@ -49,7 +61,7 @@ final class ActorsDemo extends ShowcaseDemo {
       );
   }
 
-  static String _run() {
+  static (String, double, bool, bool) _run() {
     // #region actor
     final entities = EcsWorld();
     final entity = entities.spawn();
@@ -68,10 +80,12 @@ final class ActorsDemo extends ShowcaseDemo {
     final currentHealth = goblin.health!.current;
     // #endregion hurt
 
-    return 'a fresh goblin is alive: $aliveBefore, has ${goblin.health!.current} '
+    final report =
+        'a fresh goblin is alive: $aliveBefore, has ${goblin.health!.current} '
         'health of ${goblin.health!.maximum}\n'
         'after twelve damage: $currentHealth health, still alive: '
         '${goblin.isAlive}, its brain remembers being hurt: ${brain.everHurt}';
+    return (report, currentHealth, goblin.isAlive, brain.everHurt);
   }
 
   /// A real `ActorSystem` needs a live level; `Brain.onHurt` only needs a
@@ -97,14 +111,17 @@ final class ActorsDemo extends ShowcaseDemo {
     if (frame.drawCalls < 1) {
       throw StateError('the goblin marker was not drawn');
     }
-    if (!_report.contains('18.0 health') ||
-        !_report.contains('still alive: true')) {
+    // Compared as numbers, not read back out of `_report`: a whole-number
+    // double loses its trailing `.0` when a web backend formats it, and a
+    // compiled `18` failing a substring match against `'18.0 health'` would
+    // be this check catching its own string, not the damage arithmetic.
+    if (_currentHealth != 18.0 || !_stillAlive) {
       throw StateError(
         'twelve damage on thirty health should leave the '
         'goblin alive at eighteen',
       );
     }
-    if (!_report.contains('remembers being hurt: true')) {
+    if (!_rememberedBeingHurt) {
       throw StateError('the brain should remember being hurt');
     }
   }

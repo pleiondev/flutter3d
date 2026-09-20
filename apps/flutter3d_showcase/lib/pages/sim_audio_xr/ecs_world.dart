@@ -17,10 +17,15 @@ final class _Position {
 
 final class EcsWorldDemo extends ShowcaseDemo {
   late final String _report;
+  late final double? _goblinX;
+  late final double? _trollX;
 
   @override
   Scene build(DemoContext context) {
-    _report = _run();
+    final (String report, double? goblinX, double? trollX) = _run();
+    _report = report;
+    _goblinX = goblinX;
+    _trollX = trollX;
     final material = Material(
       name: 'entity',
       baseColor: Vector4(0.4, 0.7, 0.9, 1.0),
@@ -37,7 +42,7 @@ final class EcsWorldDemo extends ShowcaseDemo {
       );
   }
 
-  static String _run() {
+  static (String, double?, double?) _run() {
     // #region world
     final world = EcsWorld()
       ..register<_Position>(
@@ -79,7 +84,11 @@ final class EcsWorldDemo extends ShowcaseDemo {
     final goblinX = reloaded.get<_Position>(ids[0])?.x;
     final trollX = reloaded.get<_Position>(ids[2])?.x;
     // #endregion read
-    return 'goblin at x=$goblinX, troll at x=$trollX, dropped: ${remap.dropped}';
+    return (
+      'goblin at x=$goblinX, troll at x=$trollX, dropped: ${remap.dropped}',
+      goblinX,
+      trollX,
+    );
   }
 
   @override
@@ -104,8 +113,12 @@ final class EcsWorldDemo extends ShowcaseDemo {
     if (frame.drawCalls < 1) {
       throw StateError('the entity marker was not drawn');
     }
-    if (!_report.contains('goblin at x=3.0') ||
-        !_report.contains('troll at x=9.0')) {
+    // Compared as numbers, not read back out of `_report`: a double that
+    // survives a JSON-shaped map on the way here is not guaranteed the type
+    // inference a web backend needs to print it with its trailing `.0`, and
+    // a compiled `3` failing a substring match against `'x=3.0'` would be
+    // this check catching its own string, not the remap.
+    if (_goblinX != 3.0 || _trollX != 9.0) {
       throw StateError('the remap should carry each position to its own name');
     }
   }
