@@ -69,11 +69,6 @@ set_target_properties(${BINARY_NAME}
   RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/intermediates_do_not_run"
 )
 
-{{#withPlatformChannelPluginHook}}
-# Enable the test target.
-set(include_flutter3d_demo_dungeon_tests TRUE)
-{{/withPlatformChannelPluginHook}}
-
 # Generated plugin build rules, which manage building the plugins and adding
 # them to the application.
 include(flutter/generated_plugins.cmake)
