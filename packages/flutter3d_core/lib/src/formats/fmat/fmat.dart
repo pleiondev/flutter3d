@@ -222,15 +222,55 @@ String writeFmat(MaterialDocument document) {
   };
 
   final lighting = document.lighting;
-  return '${const JsonEncoder.withIndent('  ').convert(<String, Object?>{
+  final json = const JsonEncoder.withIndent('  ').convert(<String, Object?>{
     'fmat': kFmatVersion,
     if (lighting != null) 'lighting': _writeLighting(lighting),
     ...surfaceMaterialToJson(surface),
     if (textures.isNotEmpty) 'textures': textures,
-    if (document.parameterBlock != 'MaterialParams') 'parameterBlock': document.parameterBlock,
-    if (document.parameters.isNotEmpty) 'parameters': <String, Object?>{for (final entry in document.parameters.entries) entry.key: entry.value.toList()},
+    if (document.parameterBlock != 'MaterialParams')
+      'parameterBlock': document.parameterBlock,
+    if (document.parameters.isNotEmpty)
+      'parameters': <String, Object?>{
+        for (final entry in document.parameters.entries)
+          entry.key: entry.value.toList(),
+      },
     if (document.hints.isNotEmpty) 'hints': _writeHints(document.hints),
-  })}\n';
+  });
+  return '${_ensureFloatLiterals(json)}\n';
+}
+
+/// Every number [writeFmat] writes past `fmat` itself is conceptually a
+/// double — the format declares no schema distinguishing `1` from `1.0` —
+/// and a double that happens to hold a whole number writes as a bare
+/// integer regardless of why: on the Dart VM because `JsonEncoder` checks
+/// `is int` and a whole-number double is not one, and on the web because it
+/// is — `1.0 is int` is `true` there, the one thing JavaScript's single
+/// number type cannot keep apart from Dart's two. A colour with every
+/// channel at full strength would then write three channels with a decimal
+/// point and the fourth without, on the web only, for a reader who would
+/// never see the difference on desktop.
+///
+/// Every field this format reads back already goes through `num.toDouble()`
+/// or `.toInt()` rather than trusting which shape the literal came in as
+/// (`readFmat`'s own `_number` and the version check both do), so appending
+/// `.0` costs nothing to read — including to the handful of fields, like a
+/// colour hint's channel count, that happen to be genuine integers. `fmat`
+/// itself is the one exception worth keeping bare: a version number that
+/// looks like one.
+final RegExp _bareIntegerLine = RegExp(
+  r'^(\s*(?:"[^"]+"\s*:\s*)?)(-?\d+)(,?)\s*$',
+);
+
+String _ensureFloatLiterals(String json) {
+  final lines = json.split('\n');
+  for (var i = 0; i < lines.length; i++) {
+    final line = lines[i];
+    if (line.trimLeft().startsWith('"fmat"')) continue;
+    final match = _bareIntegerLine.firstMatch(line);
+    if (match == null) continue;
+    lines[i] = '${match[1]}${match[2]}.0${match[3]}';
+  }
+  return lines.join('\n');
 }
 
 /// [surface]'s own scalar and colour fields, keyed the way [writeFmat] nests
