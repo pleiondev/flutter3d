@@ -94,7 +94,6 @@ class _NavTreeState extends State<NavTree> {
               category,
             ).any((Feature f) => f.id == _currentId),
             title: Text(category.title),
-            subtitle: Text('${featuresOf(category).length}'),
             children: <Widget>[
               for (final Feature f in featuresOf(category)) _row(f),
             ],
