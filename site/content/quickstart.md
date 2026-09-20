@@ -97,6 +97,10 @@ tool/ci.sh                                  # shaders, analyze, every test
 
 A new app needs three things in its pubspec: the engine, a backend, and whatever else it draws with. The backend is named on purpose. It is the one line an application changes to run on a different graphics API.
 
+<div class="warn">
+<p>The <code>^0.7.0</code> below names the tree this documentation was built from, not what <code>pub get</code> can resolve today: pub.dev's published set is still <strong>0.6.0</strong>, and 0.7.0 goes out once <a href="https://models.pleion.dev">the modeller</a>'s own tutorial has been walked by people other than its author — see the <a href="https://github.com/pleiondev/flutter3d#readme">README</a>'s own note on this. Building against the tree in the meantime means cloning the repository and running it from source, the way <a href="#run-something">Run something</a> above does, or pinning <code>^0.6.0</code> and reading <code>doc/boundary-0.7.0.md</code> for which import lines move.</p>
+</div>
+
 ```yaml
 name: my_game
 publish_to: 'none'

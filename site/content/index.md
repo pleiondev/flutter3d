@@ -29,7 +29,7 @@ flutter3d is a renderer, a game layer, and three finished games of different gen
 |---|---|
 | Channel | Flutter 3.47.0 stable, Dart 3.12.2 |
 | Platforms | macOS and the browser are supported and exercised; Android is played on a real handset (Impeller Vulkan, touch controls); iOS runs clean in the simulator on Metal; Windows and Linux are unverified |
-| Published | Yes — 27 packages on [pub.dev](https://pub.dev/publishers/pleion.dev/packages) under the pleion.dev publisher, at the 0.6.0 set. The workspace holds 36 and carries 0.7.0, which is prepared and not out yet: thirteen packages go up for the first time with it, `flutter3d_game_strategy` and the modeller's among them |
+| Published | Yes — 27 packages on [pub.dev](https://pub.dev/publishers/pleion.dev/packages) under the pleion.dev publisher, at the 0.6.0 set. The workspace holds 37 and carries 0.7.0, which is prepared and not out yet: fourteen packages go up for the first time with it, `flutter3d_game_strategy`, `flutter3d_flame` and the modeller's among them |
 | Stability | Pre-1.0. The graphics HAL carries a written compatibility promise; nothing else does |
 
 ## Where to start
