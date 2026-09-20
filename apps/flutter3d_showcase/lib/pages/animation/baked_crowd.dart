@@ -70,6 +70,10 @@ final class BakedCrowdDemo extends ShowcaseDemo {
     );
     // #endregion bake
 
+    // A capsule-and-sphere silhouette rather than bare boxes — still a rigid
+    // part per joint, which is what lets the table drive a whole mesh with
+    // one matrix (see `{{code read}}`), but one a crowd actually reads as
+    // people rather than furniture.
     final Scene scene = Scene();
     final Material torso = Material(
       name: 'torso',
@@ -79,13 +83,21 @@ final class BakedCrowdDemo extends ShowcaseDemo {
       name: 'arm',
       baseColor: Vector4(0.85, 0.5, 0.3, 1.0),
     );
+    final Material skin = Material(
+      name: 'head',
+      baseColor: Vector4(0.85, 0.68, 0.55, 1.0),
+    );
     final DeviceMesh torsoMesh = DeviceMesh.upload(
       context.device,
-      CuboidShape(size: Vector3(0.5, 1.0, 0.3)).build(),
+      CapsuleShape(radius: 0.22, height: 0.6).build(),
+    );
+    final DeviceMesh headMesh = DeviceMesh.upload(
+      context.device,
+      SphereShape(radius: 0.18, segments: 16, rings: 12).build(),
     );
     final DeviceMesh armMesh = DeviceMesh.upload(
       context.device,
-      CuboidShape(size: Vector3(0.15, 0.8, 0.15)).build(),
+      CapsuleShape(radius: 0.09, height: 0.5).build(),
     );
 
     _phase = <double>[];
@@ -98,6 +110,9 @@ final class BakedCrowdDemo extends ShowcaseDemo {
       final double x = (i - (_people - 1) / 2) * 1.1;
       scene.add(
         MeshNode(torsoMesh, torso, name: 'person $i')..setPosition(x, 0.0, 0.0),
+      );
+      scene.add(
+        MeshNode(headMesh, skin, name: 'head $i')..setPosition(x, 0.68, 0.0),
       );
       final SceneNode shoulderNode = SceneNode(name: 'shoulder $i')
         ..setPosition(x, 0.55, 0.0);
