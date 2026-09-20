@@ -22,7 +22,6 @@ final class IrradianceFieldDemo extends ShowcaseDemo {
       ..pitch = 0.35
       ..yaw = 0.5;
     context.orbit.target.setValues(-0.5, 1.0, 0.0);
-    context.orbit.apply();
   }
 
   @override

@@ -21,7 +21,6 @@ final class ScreenSpaceReflectionsDemo extends ShowcaseDemo {
       ..pitch = 0.28
       ..yaw = 0.5;
     context.orbit.target.setValues(0.0, 0.3, 0.0);
-    context.orbit.apply();
   }
 
   @override

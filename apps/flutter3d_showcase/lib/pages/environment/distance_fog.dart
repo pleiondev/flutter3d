@@ -22,7 +22,6 @@ final class DistanceFogDemo extends ShowcaseDemo {
       ..pitch = 0.08
       ..yaw = 0.0;
     context.orbit.target.setValues(0.0, 1.2, -10.0);
-    context.orbit.apply();
   }
 
   @override

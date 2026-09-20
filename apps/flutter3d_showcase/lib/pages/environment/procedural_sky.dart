@@ -26,7 +26,6 @@ final class ProceduralSkyDemo extends ShowcaseDemo {
       ..pitch = 0.1
       ..yaw = 0.9;
     context.orbit.target.setValues(0.0, 0.8, 0.0);
-    context.orbit.apply();
   }
 
   // The way to the sun for the current height, at a fixed compass bearing.

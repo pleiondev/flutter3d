@@ -40,6 +40,14 @@ final class DemoRun {
       caps: CapabilityReport.of(device),
     );
     demo.configureView(context);
+    // `OrbitController`'s own constructor already called `apply()` once, with
+    // the defaults above — not with whatever a page's `configureView` just
+    // set. Most pages never called it again, so the first frame drew the
+    // camera at the constructor's distance/yaw/pitch, not the page's, and the
+    // two only agreed the moment a drag's own `rotate()` called `apply()`
+    // internally — which is what made the very first pixel of a drag look
+    // like the view jumping to where it should have started.
+    context.orbit.apply();
     await demo.prepare(context);
     final Scene scene = demo.build(context)..add(camera);
     return DemoRun._(demo, context, scene);

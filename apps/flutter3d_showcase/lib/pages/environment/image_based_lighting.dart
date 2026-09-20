@@ -28,7 +28,6 @@ final class ImageBasedLightingDemo extends ShowcaseDemo {
       ..pitch = 0.1
       ..yaw = 0.0;
     context.orbit.target.setValues(0.0, 0.0, 0.0);
-    context.orbit.apply();
   }
 
   @override
