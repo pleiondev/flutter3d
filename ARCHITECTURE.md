@@ -1928,7 +1928,7 @@ entities a game defines.
 |---|---|
 | Style | `dart format` |
 | Analysis | `flutter analyze` clean across the workspace, no warnings |
-| Unit tests | **9464 tests** across 36 packages and 9 applications |
+| Unit tests | **9715 tests** across 37 packages and 9 applications |
 | Structure rules | 35, `dart run tool/structure.dart`, the first CI step |
 | CI | GitHub Actions over `tool/ci.sh`, on `ubuntu-latest`, with no graphics card |
 
@@ -2760,17 +2760,17 @@ went to pub.dev at 0.4.0 under the
 internet" — came out of the packages that day; the workspace root, the
 applications and the example apps keep theirs, being repository-only by design.
 
-**0.7.0 is the shelf the tree carries, and it is not on pub.dev yet.** Thirty-three
-of the thirty-six packages are 0.7.0 and every constraint one of them puts on
+**0.7.0 is the shelf the tree carries, and it is not on pub.dev yet.** Thirty-four
+of the thirty-seven packages are 0.7.0 and every constraint one of them puts on
 another is `^0.7.0`. What changed since 0.6.0 is which packages there are, more
 than what is in them: seven were folded into others, four names that pub.dev has
 at 0.6.0 no longer have code behind them (`flutter3d_backend`,
 `flutter3d_screens`, `flutter3d_session`, `flutter3d_bridge`) and are marked
-`discontinued` with a `replaced_by` on the day of publication, and thirteen go
+`discontinued` with a `replaced_by` on the day of publication, and fourteen go
 out for the first time. [`doc/boundary-0.7.0.md`](doc/boundary-0.7.0.md) is the
 account of all of it, import line by import line.
 
-Four of the thirteen carried 0.1.0, 0.1.1 or 0.3.0 and take 0.7.0 with the rest,
+Four of the fourteen carried 0.1.0, 0.1.1 or 0.3.0 and take 0.7.0 with the rest,
 for the reason the next paragraph gives for 0.6.0: a constraint has to cover what
 the sibling declares, twelve packages had `^0.1.0` on `flutter3d_core`, and a
 shelf at four numbers names no combination anything ever resolved.
@@ -2827,7 +2827,7 @@ what went out at 0.4.2.
 - **Licence: MIT**, `Copyright (c) 2026 Dmitrii Zolotov`. One `LICENSE` at the root
   and a copy in every package, because pub wants the file inside the archive.
 - `LICENSE`, `CHANGELOG.md`, `README.md`, `repository:` and `homepage:` in all
-  thirty-six packages, the thirteen unpublished ones included — `pub publish
+  thirty-seven packages, the fourteen unpublished ones included — `pub publish
   --dry-run` is what `tool/publish_check.sh` asks of every one of them, so a
   package is ready on the day it is written rather than on release day.
 - **`dart format` is a CI step**, second in the order and reported by
@@ -2859,7 +2859,7 @@ what went out at 0.4.2.
 7. `flutter3d_game`, `flutter3d_stereo`, `flutter3d_testing`,
    `flutter3d_editor_mcp`, `flutter3d_model_mcp`, `flutter3d_net_webrtc`
 8. `flutter3d_game_shooter`, `flutter3d_game_platformer`, `flutter3d_game_racing`,
-   `flutter3d_game_strategy`
+   `flutter3d_game_strategy`, `flutter3d_flame`
 9. `flutter3d_sim_mcp`
 
 Several positions are not obvious and so are written down rather than

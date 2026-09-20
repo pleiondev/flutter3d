@@ -19,7 +19,7 @@ at 0.4.1, and [`flutter3d_samples`](https://pub.dev/packages/flutter3d_samples)
 keeps its at 0.4.2.
 
 This tree is **0.7.0**, prepared and not published yet. The workspace holds
-thirty-six packages, thirty-three of them at the one number. Thirteen go out for
+thirty-seven packages, thirty-four of them at the one number. Fourteen go out for
 the first time, `flutter3d_core` and the modeller's among them, and four names
 pub.dev has are folded into `flutter3d_app` and `flutter3d_game`, so an importer
 of 0.6.0 changes import lines:
@@ -165,7 +165,7 @@ Or one package at a time:
 (cd packages/flutter3d_physics && dart test)   # plain Dart, no Flutter needed
 ```
 
-9464 tests across thirty-six packages and nine applications, and the only
+9715 tests across thirty-seven packages and nine applications, and the only
 ones that need a GPU are the
 Impeller half of the golden set. The other half is rendered by the software
 backend, which is what makes 43 scenes checkable in a headless run.
