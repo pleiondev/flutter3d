@@ -16,8 +16,8 @@ library;
 /// recorded surface inside the solid, which cures the acne and instead lets a
 /// thin caster's shadow detach from it.
 enum ShadowCasterFaces {
-  /// Draw the faces turned towards the light. The general-purpose choice, and
-  /// what flutter_scene defaults to; acne is held off by the biases.
+  /// Draw the faces turned towards the light. The general-purpose choice,
+  /// and the common default; acne is held off by the biases.
   front,
 
   /// Draw the faces turned away — "second depth". For solid, closed geometry
@@ -160,8 +160,8 @@ final class ShadowSettings {
   /// Four is measured rather than judged: against an unfiltered edge, a radius
   /// of 2.5 texels moved 69 pixels of the frame and 20 texels moved 4861. The
   /// first is invisible and the second smears a contact shadow, so the default
-  /// sits between them, at about the width flutter_scene gives a spot. This is
-  /// a fixed radius, and with contact hardening on it becomes the *floor* on
+  /// sits between them, at about the width a comparable engine gives a spot.
+  /// This is a fixed radius, and with contact hardening on it becomes the *floor* on
   /// the width rather than the whole story: it is then only how sharp a
   /// contact edge is allowed to get.
   final double pointSoftness;

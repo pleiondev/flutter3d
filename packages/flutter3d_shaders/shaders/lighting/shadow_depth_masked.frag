@@ -8,8 +8,8 @@
 // pipeline with no sampler in it and no texture bound per draw. That is worth
 // a second entry point twice over: the common path pays nothing, and the
 // forty-four golden frames recorded against the old stage cannot move, because
-// the old stage is still the one they go through. It is also what
-// flutter_scene does, and for the same reason.
+// the old stage is still the one they go through — the same split other
+// engines draw here, for the same reason.
 //
 // **Why the shadow pass has to know about alpha at all.** A leaf card is a
 // quad with a texture that is transparent almost everywhere. Depth-only, that

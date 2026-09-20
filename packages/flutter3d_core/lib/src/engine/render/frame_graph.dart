@@ -173,8 +173,8 @@ abstract base class FrameGraphNode {
 /// could not run and this is the consequence rather than the cause.
 ///
 /// **This is the thing no other engine reports.** three.js, Unity URP, Godot,
-/// Bevy, Filament, Unreal and flutter_scene all expose a per-pass switch and
-/// none of them will say what became of it — their `enabled` and `isActive`
+/// Bevy, Filament and Unreal all expose a per-pass switch and none of them
+/// will say what became of it — their `enabled` and `isActive`
 /// read back the input, which answers "did I ask for this" rather than "what
 /// happened". This engine has one caller for whom that is not a nicety: an
 /// agent handed a 256-pixel picture cannot look at it and infer that the
