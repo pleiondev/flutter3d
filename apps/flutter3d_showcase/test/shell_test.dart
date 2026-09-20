@@ -48,4 +48,21 @@ void main() {
     expect(find.text('Step by step'), findsOneWidget);
     expect(find.text('Source'), findsOneWidget);
   });
+
+  testWidgets('opening a page keeps the tree where the reader left it', (
+    tester,
+  ) async {
+    // Mutation: build the tree inside the routed page again, the way a
+    // `pushReplacementNamed` used to tear the whole shell down and hand
+    // back a fresh one — the search text below would come back empty.
+    await open(tester);
+    await tester.enterText(find.byType(TextField), 'pbr');
+    await tester.pump();
+    await tester.tap(find.textContaining('PBR metal and rough').first);
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 50));
+
+    expect(find.text('pbr'), findsOneWidget);
+    expect(find.text('Cascaded shadows'), findsNothing);
+  });
 }
