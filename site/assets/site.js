@@ -119,26 +119,59 @@
   // --- sidebar position ------------------------------------------------------
   // Every page here is a real navigation, not a route change in an app shell,
   // so the browser hands back a fresh `.rail` scrolled to its own top on every
-  // click — the current page's own entry, three sections down a long list, is
-  // off screen until the reader scrolls to find it again. `scrollIntoView`'s
-  // nearest scrollable ancestor is `.rail` itself (`overflow-y: auto`), so this
-  // moves only the sidebar, never the page underneath it.
+  // click. Waiting a fixed couple of frames and computing the centred position
+  // once was not enough: a web font swapping in, or an icon claiming its box,
+  // can still reflow the rail's own items after that one calculation ran, and
+  // the reader watched their place slide back toward the top anyway.
+  //
+  // This keeps the actual pixel offset instead of recomputing a "centre the
+  // current link" position at all: every scroll of the rail is remembered, and
+  // every load re-asserts that number on every single animation frame for
+  // about half a second, which is long enough to outlast whatever reflow was
+  // still going to happen. Reapplying the same number to a rail that has
+  // already stopped moving costs nothing, so there is no need to detect when
+  // it is safe to stop early.
+  var RAIL_STORE = 'flutter3d-rail-scroll';
   if (rail) {
     var onLink = rail.querySelector('a.on');
-    if (onLink) {
-      // Two frames, not zero: this script runs before the page's own layout
-      // has necessarily settled — a web font swapping in or an image
-      // reserving its box still moves things after this line, and
-      // `scrollIntoView` run here centred on where the rail was about to be,
-      // not where it ends up. The first frame lands after that settles; the
-      // second is the one `scrollIntoView` actually runs in, so it reads
-      // positions the browser has already committed to painting.
-      window.requestAnimationFrame(function () {
-        window.requestAnimationFrame(function () {
-          onLink.scrollIntoView({ block: 'center' });
-        });
-      });
-    }
+    var savedTop = null;
+    try {
+      var raw = sessionStorage.getItem(RAIL_STORE);
+      if (raw !== null) savedTop = Number(raw);
+    } catch (e) { /* private mode */ }
+
+    // No remembered offset — a fresh tab, or the first page this session —
+    // so there is nothing to restore. Centre the current page's own entry
+    // instead of leaving the reader to hunt for it, the same fallback the
+    // old `scrollIntoView` gave.
+    var targetTop = function () {
+      if (savedTop !== null) return savedTop;
+      if (!onLink) return rail.scrollTop;
+      var railBox = rail.getBoundingClientRect();
+      var linkBox = onLink.getBoundingClientRect();
+      return (
+        rail.scrollTop +
+        (linkBox.top - railBox.top) -
+        (railBox.height - linkBox.height) / 2
+      );
+    };
+
+    var settleFrames = 0;
+    (function settle() {
+      rail.scrollTop = targetTop();
+      settleFrames += 1;
+      if (settleFrames < 30) window.requestAnimationFrame(settle);
+    })();
+
+    rail.addEventListener(
+      'scroll',
+      function () {
+        try {
+          sessionStorage.setItem(RAIL_STORE, String(rail.scrollTop));
+        } catch (e) { /* private mode */ }
+      },
+      { passive: true },
+    );
   }
 
   // --- table of contents ---------------------------------------------------
