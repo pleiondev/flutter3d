@@ -227,6 +227,12 @@ const Map<String, String> notARigCamera = <String, String>{
       'reads that same data out of glTF JSON; still nothing to follow',
   'flutter3d_core/lib/src/formats/gltf/gltf_writer_lights_cameras.dart':
       'writes it back; still nothing to follow',
+  'flutter3d_flame/lib/src/camera/camera_sync_controller.dart':
+      'a mirror, not a rig: it copies one camera\'s position and zoom onto '
+      'the other\'s, in whichever direction was asked for, and has no '
+      'subject, no impulse and no wall — the smoothing and the pull-out '
+      'CameraRig gives a followed subject would be a second opinion about '
+      'where the camera already, definitionally, is',
 };
 
 /// Packages the repeatable-step rule does **not** apply to, and why.
@@ -962,6 +968,23 @@ boundaryEnumExempt = <String, Map<String, String>>{
         'read it back at all; this enum only names what is already there, '
         'the same reason `RenderSettings.showShadowMap` and its siblings are '
         'booleans and not a growing list',
+  },
+  'flutter3d_flame/lib/src/transform/object3d_component.dart': <String, String>{
+    'SyncDirection':
+        'which of two sides writes a frame\'s transform into the other, and '
+        'there are exactly two sides to a bridge between two engines. A '
+        'third value would not be a third direction — there is nowhere else '
+        'for a write to come from — so the `switch` beside it in the same '
+        'file is exhaustive by the shape of the problem, not by omission',
+  },
+  'flutter3d_flame/lib/src/transform/plane.dart': <String, String>{
+    'PlaneAxis':
+        'which flutter3d axis, Y or Z, a bridge plane holds constant. A '
+        'third case is not a third plane the game genres this package '
+        'targets — top-down and side-scrolling — actually have; it would be '
+        'a plane perpendicular to X, which reads as neither a ground nor a '
+        'backdrop, and adding it is exactly the kind of case this rule '
+        'wants argued for rather than typed. It is not, yet',
   },
 };
 
