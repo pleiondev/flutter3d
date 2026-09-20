@@ -6,6 +6,7 @@
 import { readFileSync, writeFileSync, mkdirSync, cpSync, existsSync, rmSync, readdirSync } from 'node:fs';
 import { dirname, join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { createHash } from 'node:crypto';
 
 import MarkdownIt from 'markdown-it';
 import anchor from 'markdown-it-anchor';
@@ -27,6 +28,20 @@ const distDir = join(root, 'dist');
 const packageCount = readdirSync(join(root, '../packages'), {
   withFileTypes: true,
 }).filter((entry) => entry.isDirectory()).length;
+
+// `/assets/site.js?v=<hash>` rather than a bare path: this file changed six
+// times in one sitting while chasing a scroll-position bug, and every browser
+// that had already loaded the bare path kept answering from cache — so a
+// rebuilt, genuinely fixed script could sit on disk while every open tab went
+// on running the one from before the fix. The hash is of the file's own
+// bytes, not a build timestamp, so a rebuild that changes nothing else does
+// not bust a cache that had nothing wrong with it.
+function assetVersion(relativePath) {
+  const bytes = readFileSync(join(root, 'assets', relativePath));
+  return createHash('sha1').update(bytes).digest('hex').slice(0, 10);
+}
+const siteJsVersion = assetVersion('site.js');
+const siteCssVersion = assetVersion('site.css');
 
 // Pictures come from the golden sets, not from a screenshots folder. A golden
 // is re-recorded with the feature it pins, so a picture drawn from one is
@@ -384,7 +399,7 @@ function layout({ page, html, toc, index, pager: pagerOverride }) {
 <title>${page.title === 'flutter3d' ? 'flutter3d — a 3D engine on Flutter GPU' : `${page.title} · flutter3d`}</title>
 <meta name="description" content="${(page.description || 'A 3D engine on Flutter GPU, a game layer on top of it, and three games built from both.').replace(/"/g, '&quot;')}">
 <link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
-<link rel="stylesheet" href="/assets/site.css">
+<link rel="stylesheet" href="/assets/site.css?v=${siteCssVersion}">
 <!-- Google tag (gtag.js) -->
 <script async src="https://www.googletagmanager.com/gtag/js?id=G-6F6VZ4H7CF"></script>
 <script>
@@ -448,7 +463,7 @@ gtag('config', 'G-6F6VZ4H7CF');
 </div>
 
 <script src="/assets/mermaid.min.js"></script>
-<script src="/assets/site.js"></script>
+<script src="/assets/site.js?v=${siteJsVersion}"></script>
 </body>
 </html>
 `;
@@ -705,10 +720,15 @@ const missingAssets = [];
 let checkedAssets = 0;
 for (const page of builtPages(distDir)) {
   const html = readFileSync(page, 'utf8');
-  for (const [, url] of html.matchAll(/(?:src|href)="(\/(?:assets|goldens|demo|showcase\/learn\/img)\/[^"#?]+)"/g)) {
+  for (const [, url] of html.matchAll(/(?:src|href)="(\/(?:assets|goldens|demo|showcase\/learn\/img)\/[^"#]+)"/g)) {
     if (url.endsWith('/')) continue;
     checkedAssets += 1;
-    if (!existsSync(join(distDir, url.slice(1)))) {
+    // Strip a cache-busting `?v=...` before checking: the query string is not
+    // part of the path on disk, and `site.js?v=<hash>` failing this check
+    // would be this scan complaining about the very versioning that keeps a
+    // browser from running a stale copy of it.
+    const path = url.split('?')[0];
+    if (!existsSync(join(distDir, path.slice(1)))) {
       missingAssets.push(`${relative(distDir, page)} -> ${url}`);
     }
   }
