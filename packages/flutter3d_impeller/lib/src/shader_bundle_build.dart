@@ -10,6 +10,8 @@ library;
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:meta/meta.dart';
+
 /// Thrown on any failure here — `hook/build.dart` wraps it as a
 /// [BuildError][], `bin/build_shader_bundle.dart` prints it and exits
 /// non-zero. Plain rather than a `package:hooks` type, because this file
@@ -187,17 +189,37 @@ File? _findPackageConfig(Directory start) {
 /// at all — it runs under `flutter_tester`, the engine's own headless
 /// embedder, under the same SDK's `bin/cache/artifacts/engine/` as
 /// `impellerc` itself. Both are real, both are checked.
-String _flutterSdkRoot() {
-  final executable = Platform.resolvedExecutable;
+String _flutterSdkRoot() => flutterSdkRootFrom(Platform.resolvedExecutable);
+
+/// The parsing half of [_flutterSdkRoot], taking the executable path rather
+/// than reading [Platform.resolvedExecutable] itself — the only way a test
+/// hands this the Windows shape without running on Windows to get one.
+///
+/// **A third empirical shape, not assumed either.** GitHub's own
+/// `windows-latest` runner exposes a path with backslashes and a `.exe`
+/// suffix on both names — `dart.exe`, `flutter_tester.exe` — that the two
+/// forward-slash markers below never matched, which is a hook that throws on
+/// every Windows build rather than one that occasionally gets the root
+/// wrong. Matched against a slash-normalised copy so one pair of markers
+/// covers every platform this package builds on; the root itself is sliced
+/// out of [executable] unchanged, backslashes and all, since that is the
+/// path this process actually has to join against later.
+@visibleForTesting
+String flutterSdkRootFrom(String executable) {
+  final normalized = executable.replaceAll(r'\', '/');
 
   const dartSuffix = '/bin/cache/dart-sdk/bin/dart';
-  if (executable.endsWith(dartSuffix)) {
-    return executable.substring(0, executable.length - dartSuffix.length);
+  for (final suffix in <String>[dartSuffix, '$dartSuffix.exe']) {
+    if (normalized.endsWith(suffix)) {
+      return executable.substring(0, executable.length - suffix.length);
+    }
   }
 
   const artifactsMarker = '/bin/cache/artifacts/engine/';
-  final markerIndex = executable.indexOf(artifactsMarker);
-  if (markerIndex >= 0 && executable.endsWith('/flutter_tester')) {
+  final markerIndex = normalized.indexOf(artifactsMarker);
+  if (markerIndex >= 0 &&
+      (normalized.endsWith('/flutter_tester') ||
+          normalized.endsWith('/flutter_tester.exe'))) {
     return executable.substring(0, markerIndex);
   }
 
