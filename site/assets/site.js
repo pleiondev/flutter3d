@@ -116,6 +116,20 @@
     });
   }
 
+  // --- sidebar position ------------------------------------------------------
+  // Every page here is a real navigation, not a route change in an app shell,
+  // so the browser hands back a fresh `.rail` scrolled to its own top on every
+  // click — the current page's own entry, three sections down a long list, is
+  // off screen until the reader scrolls to find it again. `scrollIntoView`'s
+  // nearest scrollable ancestor is `.rail` itself (`overflow-y: auto`), so this
+  // moves only the sidebar, never the page underneath it.
+  if (rail) {
+    var onLink = rail.querySelector('a.on');
+    if (onLink) {
+      onLink.scrollIntoView({ block: 'center' });
+    }
+  }
+
   // --- table of contents ---------------------------------------------------
   // Marks the section the reader is actually in, not the last one they passed:
   // the heading nearest the top of the viewport wins.
