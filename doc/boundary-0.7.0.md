@@ -2,7 +2,7 @@
 
 0.5.0 was about which types a game may extend. 0.7.0 is about which packages
 exist. Between 0.6.0 and this release seven packages were folded into others,
-four published names stopped having any code behind them, and thirteen packages
+four published names stopped having any code behind them, and fourteen packages
 go to pub.dev for the first time. An importer of 0.6.0 changes import lines and
 little else; this document is the list of which lines.
 
@@ -46,12 +46,15 @@ Not accepted, and so not in the table: folding `flutter3d_mesh` into
 
 ## Names that begin
 
-Thirteen packages are published for the first time, and all of them at 0.7.0:
+Fourteen packages are published for the first time, and all of them at 0.7.0:
 `flutter3d_core`, `flutter3d_mesh`, `flutter3d_model_core`,
 `flutter3d_model_mcp`, `flutter3d_sim_mcp`, `flutter3d_net`,
 `flutter3d_net_webrtc`, `flutter3d_stereo`, `flutter3d_lab`,
-`flutter3d_mcp_kit`, `flutter3d_build`, `flutter3d_editor_widgets` and
-`flutter3d_game_strategy`.
+`flutter3d_mcp_kit`, `flutter3d_build`, `flutter3d_editor_widgets`,
+`flutter3d_game_strategy` and `flutter3d_flame` — the last of them added to
+the workspace after this document was first written, and a bridge to a
+second engine rather than a genre or an internal split like the rest of the
+list.
 
 Four of them carried 0.1.0, 0.1.1 or 0.3.0 in the tree. A first publication at
 0.7.0 skips numbers nobody outside ever saw, and buys the thing the shelf is
@@ -118,9 +121,10 @@ Each package's own `CHANGELOG.md` says this for that package.
   `tool/flat_dart_check.sh` is the stronger check and covers the fifteen plain
   Dart packages, resolving each with a bare `dart pub get` in a directory with
   no workspace above it. The genres are not among the fifteen.
-- **The enum rule of 0.5.0 already reads the thirteen new packages.** Every
-  enum in them has its reason in `boundaryEnumExempt`, so publishing them opens
-  no closed list to somebody else's `switch` that was not argued for first.
+- **The enum rule of 0.5.0 already reads the fourteen new packages.** Every
+  enum in them has its reason in `boundaryEnumExempt` — `flutter3d_flame`'s
+  `SyncDirection` and `PlaneAxis` among them — so publishing them opens no
+  closed list to somebody else's `switch` that was not argued for first.
 
 ## What does not happen on the day the tree is ready
 
@@ -132,5 +136,14 @@ walks it there; the cohort runs; then the nine tiers go out in the order §16
 gives, the tag `v0.7.0` is put on the commit that was published, and the four
 names above are marked.
 
-Until then the documentation site should not be deployed from this tree. Its
-pages name `^0.7.0`, which resolves nowhere yet.
+**Until then, a deploy from this tree carries one obligation rather than a
+ban.** The site's own quickstart names `^0.7.0` in its pubspec example, which
+resolves nowhere on pub.dev until this tree is published — so that example
+carries its own warning, pointing a reader at `^0.6.0` or at building from
+the repository instead, the same distinction the repository's own README
+already draws.
+flutter3d.pleion.dev was deployed several times before 0.7.0 shipped, to
+carry other work this tree had finished — the Flame bridge, its showcase
+category, `flutter3d_demo_arcade` — and the quickstart warning is what makes
+that safe to have done: the one page that could have misled a reader now
+says plainly that it has not shipped yet.
