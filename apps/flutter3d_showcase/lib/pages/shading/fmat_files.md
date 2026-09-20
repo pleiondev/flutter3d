@@ -29,11 +29,15 @@ loads with it.
 
 {{code typo}}
 
-## Step 4: The report
+## Step 4: The report, beside the material it describes
 
-The page shows the written text and both warning lists directly, in place
-of the usual viewport: a material file is something to read, not something
-to spin around.
+The page shows the written text and both warning lists directly: a material
+file is something to read first, not something to spin around first. But
+`baseColor`, `metallic` and `roughness` are values a reader has intuitions
+about, and the surest way to check those intuitions against what the file
+actually says is to look at the surface those numbers shade — so a sphere
+wearing the round-tripped material sits beside the report, and drags like
+this app's ordinary viewport does.
 
 {{code report}}
 
