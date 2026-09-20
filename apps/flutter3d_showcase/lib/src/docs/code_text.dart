@@ -8,9 +8,17 @@ import 'package:flutter/material.dart';
 import 'package:flutter3d_showcase/src/docs/dart_highlight.dart';
 
 /// The monospace style of code, sized from [context]'s text theme.
+///
+/// **A bundled font, not an OS one.** `Menlo`/`Consolas` are real fonts on a
+/// desktop, and names CanvasKit has nothing to look up on the web — there is
+/// no OS font store to ask, and Flutter's own text engine does not treat
+/// `monospace` as the generic CSS keyword it is in a browser. Every one of
+/// those names silently missed there, and a guide's code fell back to the
+/// app's ordinary proportional font with no error to say so. `RobotoMono`
+/// ships as an asset instead, so it renders the same everywhere this app
+/// runs.
 TextStyle codeStyle(BuildContext context) => TextStyle(
-  fontFamily: 'Menlo',
-  fontFamilyFallback: const <String>['Consolas', 'Courier New', 'monospace'],
+  fontFamily: 'RobotoMono',
   fontSize: 13,
   height: 1.45,
   color: Theme.of(context).colorScheme.onSurface,

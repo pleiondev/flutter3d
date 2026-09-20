@@ -87,3 +87,12 @@ flutter:
     - lib/pages/sim_audio_xr/
     - lib/pages/widgets_misc/
     - lib/pages/flame/
+
+  # `Menlo`/`Consolas` are OS fonts CanvasKit has no way to find on the web,
+  # where every code block and inline span in a guide fell back silently to
+  # the app's ordinary proportional font. Bundled once here, `RobotoMono`
+  # renders the same on every platform this app ships to.
+  fonts:
+    - family: RobotoMono
+      fonts:
+        - asset: assets/fonts/RobotoMono.ttf
