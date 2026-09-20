@@ -30,7 +30,18 @@ before the one frame it draws.
 
 {{code walk}}
 
-## Step 4: What landing means
+## Step 4: A body to actually show
+
+The collider above is invisible on purpose — nothing in this engine draws a
+`CollisionShape`. What a reader sees standing on the floor is
+`RobotExpressive.glb`, loaded the same way any application loads a model and
+scaled to the height the box already claimed.
+
+{{code model}}
+
+{{code body}}
+
+## Step 5: What landing means
 
 `isGrounded` is true once the probe below the feet finds something to stand
 on, and `groundNormal` is the face it found: straight up on a flat floor,
