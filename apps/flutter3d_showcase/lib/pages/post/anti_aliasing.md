@@ -6,10 +6,14 @@ FXAA is the other way: one pass over the finished picture that looks for hard
 contrast steps and softens them, at the cost of never seeing an edge finer than
 a pixel.
 
-## Step 1: A staircase to smooth
+## Step 1: A dozen staircases to smooth
 
-A flat card turned off the axes draws every one of its edges as a diagonal,
-which staircases badly with nothing else on.
+One diagonal edge staircases too, but a single contrast step is barely enough
+to see the pass do anything: FXAA looks like noise until there is more than
+one edge on screen to compare. A dozen thin spokes crossing one centre put
+every angle a staircase can take in the same handful of pixels at once,
+which is where softening one of them into the others actually reads as
+something.
 
 {{code card}}
 
@@ -22,8 +26,9 @@ headroom and leaves an already-bright or already-dark pixel alone.
 
 {{code settings}}
 
-Turn FXAA off and the edges of the card turn to stairs. Turn it back on and
-they soften. Raise Sharpen and the card's edge gets a little crisper again
+Turn FXAA off and the spokes turn to stairs, worst near the centre where
+the most of them cross the fewest pixels. Turn it back on and that cluster
+softens to grey. Raise Sharpen and the spokes get a little crisper again
 without the staircase coming back, because sharpening runs after the
 smoothing.
 
