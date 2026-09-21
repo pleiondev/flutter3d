@@ -46,8 +46,8 @@ void main() {
       // frames come back the same background colour and this fails.
       final Uint8List on = await _shot(AntiAliasingDemo()..enabled = true);
       final Uint8List off = await _shot(AntiAliasingDemo()..enabled = false);
-      final (int rOn, int gOn, int bOn) = _at(on, 136, 66);
-      final (int rOff, int gOff, int bOff) = _at(off, 136, 66);
+      final (int rOn, int gOn, int bOn) = _at(on, 109, 39);
+      final (int rOff, int gOff, int bOff) = _at(off, 109, 39);
       expect(
         (rOn + gOn + bOn) - (rOff + gOff + bOff),
         greaterThan(300),
