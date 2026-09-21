@@ -13,7 +13,7 @@ library;
 
 import 'package:flame/components.dart';
 import 'package:flame/game.dart';
-import 'package:flutter3d_flame/src/host/bridge_clock.dart';
+import 'package:flame_flutter3d/src/host/bridge_clock.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 final class _RecordingComponent extends Component {

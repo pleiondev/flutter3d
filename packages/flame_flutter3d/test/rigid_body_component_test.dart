@@ -2,10 +2,10 @@
 /// both a flutter3d [SceneNode] and its own Flame [position], every frame.
 library;
 
+import 'package:flame_flutter3d/src/physics/rigid_body_component.dart';
+import 'package:flame_flutter3d/src/transform/object3d_component.dart';
+import 'package:flame_flutter3d/src/transform/plane.dart';
 import 'package:flutter3d/flutter3d.dart' hide Material;
-import 'package:flutter3d_flame/src/physics/rigid_body_component.dart';
-import 'package:flutter3d_flame/src/transform/object3d_component.dart';
-import 'package:flutter3d_flame/src/transform/plane.dart';
 import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vector_math/vector_math.dart' hide Plane;

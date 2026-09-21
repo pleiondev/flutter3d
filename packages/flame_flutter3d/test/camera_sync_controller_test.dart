@@ -4,11 +4,11 @@
 library;
 
 import 'package:flame/camera.dart' show Viewfinder;
-import 'package:flutter3d/flutter3d.dart' hide Material;
-import 'package:flutter3d_flame/src/camera/camera_sync_controller.dart';
-import 'package:flutter3d_flame/src/transform/object3d_component.dart'
+import 'package:flame_flutter3d/src/camera/camera_sync_controller.dart';
+import 'package:flame_flutter3d/src/transform/object3d_component.dart'
     show SyncDirection;
-import 'package:flutter3d_flame/src/transform/plane.dart';
+import 'package:flame_flutter3d/src/transform/plane.dart';
+import 'package:flutter3d/flutter3d.dart' hide Material;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vector_math/vector_math.dart' hide Plane;
 

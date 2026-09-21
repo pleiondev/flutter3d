@@ -1,4 +1,4 @@
-# flutter3d_flame
+# flame_flutter3d
 
 A bridge to the [Flame](https://pub.dev/packages/flame) 2D game engine. Flame
 draws its own layer, flutter3d draws its own, and this package keeps the two

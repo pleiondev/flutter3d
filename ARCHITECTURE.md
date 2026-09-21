@@ -2859,7 +2859,7 @@ what went out at 0.4.2.
 7. `flutter3d_game`, `flutter3d_stereo`, `flutter3d_testing`,
    `flutter3d_editor_mcp`, `flutter3d_model_mcp`, `flutter3d_net_webrtc`
 8. `flutter3d_game_shooter`, `flutter3d_game_platformer`, `flutter3d_game_racing`,
-   `flutter3d_game_strategy`, `flutter3d_flame`
+   `flutter3d_game_strategy`, `flame_flutter3d`
 9. `flutter3d_sim_mcp`
 
 Several positions are not obvious and so are written down rather than

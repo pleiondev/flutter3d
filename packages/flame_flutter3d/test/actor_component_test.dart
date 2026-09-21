@@ -2,9 +2,9 @@
 /// flutter3d_sim [Actor] simulates.
 library;
 
+import 'package:flame_flutter3d/src/ecs/actor_component.dart';
+import 'package:flame_flutter3d/src/transform/plane.dart';
 import 'package:flutter3d/flutter3d.dart' hide Material;
-import 'package:flutter3d_flame/src/ecs/actor_component.dart';
-import 'package:flutter3d_flame/src/transform/plane.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vector_math/vector_math.dart' hide Plane;

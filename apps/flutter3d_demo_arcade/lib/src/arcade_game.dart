@@ -5,11 +5,11 @@ library;
 import 'package:flame/components.dart';
 import 'package:flame/events.dart';
 import 'package:flame/game.dart';
+import 'package:flame_flutter3d/flame_flutter3d.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart' show KeyEventResult;
-import 'package:flutter3d/flutter3d.dart' hide Material;
 import 'package:flutter3d/flutter3d.dart' as engine show Material;
-import 'package:flutter3d_flame/flutter3d_flame.dart';
+import 'package:flutter3d/flutter3d.dart' hide Material;
 import 'package:flutter3d_game/flutter3d_game.dart' show Bindings, InputSource;
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 
@@ -239,7 +239,7 @@ final class ShipComponent extends RigidBodyComponent {
 /// [ActorSystemComponent] is the one place the ECS half is driven.
 ///
 /// A plain [Component], not a bridge class this package's own
-/// `flutter3d_flame` exports: nothing here reads or writes a Flame
+/// `flame_flutter3d` exports: nothing here reads or writes a Flame
 /// transform, so there is nothing to bridge — only a shared simulation to
 /// step once, which is this game's responsibility rather than the
 /// package's.
