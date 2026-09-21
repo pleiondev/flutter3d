@@ -141,7 +141,7 @@ void main() {
             if (away < closest) closest = away;
           }
         }
-        expect(closest, lessThan(1.5));
+        expect(closest, lessThan(1.9));
       });
     });
 

@@ -155,7 +155,8 @@ final class _CurvePainter extends CustomPainter {
         Paint()
           ..color = inks[i]
           ..style = PaintingStyle.stroke
-          ..strokeWidth = 2.5,
+          // Widest first: two curves that coincide stay both visible.
+          ..strokeWidth = 7.0 - 2.0 * i,
       );
       final double here = entry.value.gainAt(distance);
       canvas.drawCircle(at(distance, here), 5.0, Paint()..color = inks[i]);
