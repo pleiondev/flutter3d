@@ -143,32 +143,15 @@ Avoid a file name that contains `camera` (structure rule); say `view` or `orbit`
 | raycast | CPU raycasting | `Raycaster`, `TriangleBvh`, `HitResult` | F3D 0.1.0; skinned hits F3D 0.7.0 |
 | pixel-picking | Picking by pixel | `Renderer.pickPixel` | F3D 0.4.3 |
 | screen-bounds | Screen-space bounds | `screenBoundsOfBox` | F3D 0.7.0 |
-| gamepad | Gamepad | `pad_input` `PadSnapshot`, `Deadzone` (needs a gamepad) | own line 0.4.x — page hand-rolls the dead zone, since `pad_input` is not a dependency of the app yet |
-| pointer-lock | Pointer lock | `pointer_lock` (desktop and web) | own line 0.4.x — page hand-rolls capture, since `pointer_lock` is not a dependency of the app yet |
-| input-bindings | Bindings and rebinding | `flutter3d_game` `Bindings`, `Rebinding`, `DragLook` | unknown — page hand-rolls a rebind map, since `flutter3d_game` is not a dependency of the app yet |
-| touch-controls | Touch controls | `TouchStick`, `TouchButton` (a touch device) | flutter3d_game 0.4.0 — page hand-rolls a drag stick, since `flutter3d_game` is not a dependency of the app yet |
 | backend-impeller | Impeller | `flutter3d_impeller` (native only) | 0.1.0 |
 | backend-webgl | WebGL2 | `flutter3d_webgl` | 0.1.0 |
 | backend-webgpu | WebGPU | `flutter3d_webgpu` | 0.6.0 |
 | backend-cpu | The software rasteriser | `flutter3d_cpu` | 0.2.0 |
 | backend-matrix | What differs between them | every `GraphicsDevice.supports*`, live for the running device | n/a |
 
-**Follow-up for a later pass:** `gamepad`, `pointer-lock`, `input-bindings` and
-`touch-controls` demonstrate the concept by hand because the app depends on
-none of `pad_input`, `pointer_lock` or `flutter3d_game`. Adding
-
-    pad_input:
-      path: ../../packages/pad_input
-    pointer_lock:
-      path: ../../packages/pointer_lock
-    flutter3d_game:
-      path: ../../packages/flutter3d_game
-
-under `dependencies:` in `pubspec.yaml`, then rewriting those four pages
-against the real `PadSnapshot`/`Deadzone`, `PointerLock`, `Bindings`/`Rebinding`
-and `TouchStick`/`TouchButton` APIs, would make them the genuine article. Not
-done in this pass, since it costs a `flutter pub get` and page rewrites better
-kept out of the release that is already in flight.
+**Removed pages:** `gamepad`, `pointer-lock`, `input-bindings` and `touch-controls` needed a
+physical gamepad, a locked pointer or a touchscreen to show anything, and
+`fbx-refusal` demonstrated an error message; none of them had a picture to look at.
 
 ## Set G: formats and I/O (`lib/pages/formats/`)
 
@@ -186,7 +169,6 @@ kept out of the release that is already in flight.
 | texture-compression | Compressing a texture | `encodeBc1/Bc3/Etc2Rgb8`, ASTC 4x4, `buildMipChain`, `writeKtx2` | 0.7.0 |
 | draco | Draco meshes | `decodeDraco` | 0.7.0 |
 | meshopt | Meshopt compression | `meshopt_vertex_codec.dart`, `compressGeometry` | 0.7.0 |
-| fbx-refusal | An FBX, refused with a reason | `FbxDecoder` | 0.7.0 |
 | image-decode | PNG, JPEG and HDR without `dart:ui` | `PngDecoder`, `JpegDecoder`, `readHdr` | 0.7.0 |
 | custom-decoder | A decoder of your own | `ModelDecoder`, `ModelLoadRequest(decoders:)` | unknown |
 | model-asset | Loading into a scene | `ModelAsset.fromDocument`, `loadModelAsset`, `ModelInstance` | unknown |
