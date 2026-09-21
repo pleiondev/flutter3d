@@ -228,7 +228,7 @@ const Map<String, String> notARigCamera = <String, String>{
       'reads that same data out of glTF JSON; still nothing to follow',
   'flutter3d_core/lib/src/formats/gltf/gltf_writer_lights_cameras.dart':
       'writes it back; still nothing to follow',
-  'flutter3d_flame/lib/src/camera/camera_sync_controller.dart':
+  'flame_flutter3d/lib/src/camera/camera_sync_controller.dart':
       'a mirror, not a rig: it copies one camera\'s position and zoom onto '
       'the other\'s, in whichever direction was asked for, and has no '
       'subject, no impulse and no wall — the smoothing and the pull-out '
@@ -979,7 +979,7 @@ boundaryEnumExempt = <String, Map<String, String>>{
         'the same reason `RenderSettings.showShadowMap` and its siblings are '
         'booleans and not a growing list',
   },
-  'flutter3d_flame/lib/src/transform/object3d_component.dart': <String, String>{
+  'flame_flutter3d/lib/src/transform/object3d_component.dart': <String, String>{
     'SyncDirection':
         'which of two sides writes a frame\'s transform into the other, and '
         'there are exactly two sides to a bridge between two engines. A '
@@ -987,7 +987,7 @@ boundaryEnumExempt = <String, Map<String, String>>{
         'for a write to come from — so the `switch` beside it in the same '
         'file is exhaustive by the shape of the problem, not by omission',
   },
-  'flutter3d_flame/lib/src/transform/plane.dart': <String, String>{
+  'flame_flutter3d/lib/src/transform/plane.dart': <String, String>{
     'PlaneAxis':
         'which flutter3d axis, Y or Z, a bridge plane holds constant. A '
         'third case is not a third plane the game genres this package '

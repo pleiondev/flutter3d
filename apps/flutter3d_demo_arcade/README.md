@@ -1,7 +1,7 @@
 # Meteor Yard
 
 A top-down ship over a 3D yard, built to exercise every bridge in
-`packages/flutter3d_flame` at once — not a toy that imports the package and
+`packages/flame_flutter3d` at once — not a toy that imports the package and
 does nothing with it.
 
 ```

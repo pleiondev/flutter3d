@@ -13,8 +13,8 @@
 library;
 
 import 'package:flame/game.dart';
+import 'package:flame_flutter3d/flame_flutter3d.dart';
 import 'package:flutter/painting.dart';
-import 'package:flutter3d_flame/flutter3d_flame.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {

@@ -8,9 +8,9 @@ import 'dart:math' as math;
 
 import 'package:flame/camera.dart';
 import 'package:flame/components.dart' show Anchor, CircleComponent, Component;
+import 'package:flame_flutter3d/flame_flutter3d.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter3d/flutter3d.dart';
-import 'package:flutter3d_flame/flutter3d_flame.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
 import 'package:flutter3d_showcase/src/demo/flame_layer.dart';
 import 'package:vector_math/vector_math.dart';

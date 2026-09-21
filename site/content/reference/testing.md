@@ -35,7 +35,7 @@ description: Four independent golden sets, mutation-checking every new test, det
 | `flutter3d_mcp_kit` | 2 | | `flutter3d_build` | 81 |
 | | | | `apps/flutter3d_lesson_viewer` | 39 |
 | | | | `apps/flutter3d_stereo_lesson_viewer` | 6 |
-| `flutter3d_flame` | 47 | | `apps/flutter3d_showcase` | 84 |
+| `flame_flutter3d` | 47 | | `apps/flutter3d_showcase` | 84 |
 
 The rows sum to 9751 rather than 9775: the remaining 24 live in `packages/*/example/test`, which the count includes and this table does not — among them the two seeds a new project starts from, `packages/flutter3d_app/example` and `packages/flutter3d_game/example`.
 

@@ -5,9 +5,9 @@ library;
 
 import 'package:flame/events.dart';
 import 'package:flame/game.dart';
+import 'package:flame_flutter3d/src/input/flame_input_bridge.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter3d_flame/src/input/flame_input_bridge.dart';
 import 'package:flutter3d_game/flutter3d_game.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:flutter_test/flutter_test.dart';

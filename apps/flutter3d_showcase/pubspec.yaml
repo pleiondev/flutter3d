@@ -45,8 +45,8 @@ dependencies:
   # The Flame bridge's own pages: a mechanism each, alongside every other
   # capability.
   flame: ^1.38.2
-  flutter3d_flame:
-    path: ../../packages/flutter3d_flame
+  flame_flutter3d:
+    path: ../../packages/flame_flutter3d
   flutter3d_game:
     path: ../../packages/flutter3d_game
 

@@ -51,7 +51,7 @@ Fourteen packages are published for the first time, and all of them at 0.7.0:
 `flutter3d_model_mcp`, `flutter3d_sim_mcp`, `flutter3d_net`,
 `flutter3d_net_webrtc`, `flutter3d_stereo`, `flutter3d_lab`,
 `flutter3d_mcp_kit`, `flutter3d_build`, `flutter3d_editor_widgets`,
-`flutter3d_game_strategy` and `flutter3d_flame` — the last of them added to
+`flutter3d_game_strategy` and `flame_flutter3d` — the last of them added to
 the workspace after this document was first written, and a bridge to a
 second engine rather than a genre or an internal split like the rest of the
 list.
@@ -122,7 +122,7 @@ Each package's own `CHANGELOG.md` says this for that package.
   Dart packages, resolving each with a bare `dart pub get` in a directory with
   no workspace above it. The genres are not among the fifteen.
 - **The enum rule of 0.5.0 already reads the fourteen new packages.** Every
-  enum in them has its reason in `boundaryEnumExempt` — `flutter3d_flame`'s
+  enum in them has its reason in `boundaryEnumExempt` — `flame_flutter3d`'s
   `SyncDirection` and `PlaneAxis` among them — so publishing them opens no
   closed list to somebody else's `switch` that was not argued for first.
 

@@ -2,8 +2,8 @@
 library;
 
 import 'package:flame/components.dart' show Vector2;
+import 'package:flame_flutter3d/flame_flutter3d.dart';
 import 'package:flutter3d/flutter3d.dart' hide Material;
-import 'package:flutter3d_flame/flutter3d_flame.dart';
 import 'package:flutter3d_showcase/pages/flame/flame_camera_bridge.dart';
 import 'package:flutter3d_showcase/pages/flame/flame_ecs_bridge.dart';
 import 'package:flutter3d_showcase/pages/flame/flame_overview.dart';

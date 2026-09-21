@@ -1,5 +1,5 @@
 /// The game logic underneath the picture, exercised the way
-/// `packages/flutter3d_flame/test/*.dart` exercises the bridges themselves:
+/// `packages/flame_flutter3d/test/*.dart` exercises the bridges themselves:
 /// real objects, `.update(dt)` called directly, no widget tree anywhere.
 library;
 
@@ -75,7 +75,7 @@ void main() {
     final droneBody = drone.actor.body!;
 
     // Put the ship exactly where the drone already is, the same way
-    // `packages/flutter3d_flame/test/collision_bridge_test.dart` places two
+    // `packages/flame_flutter3d/test/collision_bridge_test.dart` places two
     // real colliders on top of each other before asking the world to notice.
     // Dispatched directly, rather than through a full `game.update` frame:
     // a full frame also steps the actor system, whose own

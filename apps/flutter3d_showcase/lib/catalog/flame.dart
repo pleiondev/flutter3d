@@ -17,8 +17,8 @@ const List<Feature> flameFeatures = <Feature>[
         'bridged between them yet.',
     since: '0.7.0',
     evidence: 'composites the two in one',
-    evidenceFile: 'packages/flutter3d_flame/CHANGELOG.md',
-    packages: <String>['flutter3d_flame'],
+    evidenceFile: 'packages/flame_flutter3d/CHANGELOG.md',
+    packages: <String>['flame_flutter3d'],
   ),
   Feature(
     id: 'flame-transform-bridge',
@@ -29,8 +29,8 @@ const List<Feature> flameFeatures = <Feature>[
         'either side free to be the one that moves.',
     since: '0.7.0',
     evidence: 'the same place on one',
-    evidenceFile: 'packages/flutter3d_flame/CHANGELOG.md',
-    packages: <String>['flutter3d_flame'],
+    evidenceFile: 'packages/flame_flutter3d/CHANGELOG.md',
+    packages: <String>['flame_flutter3d'],
   ),
   Feature(
     id: 'flame-ecs-bridge',
@@ -41,8 +41,8 @@ const List<Feature> flameFeatures = <Feature>[
         'that follows it.',
     since: '0.7.0',
     evidence: 'own position across the same seam',
-    evidenceFile: 'packages/flutter3d_flame/CHANGELOG.md',
-    packages: <String>['flutter3d_flame', 'flutter3d_sim'],
+    evidenceFile: 'packages/flame_flutter3d/CHANGELOG.md',
+    packages: <String>['flame_flutter3d', 'flutter3d_sim'],
   ),
   Feature(
     id: 'flame-physics-bridge',
@@ -53,8 +53,8 @@ const List<Feature> flameFeatures = <Feature>[
         'with the floor relayed as a Flame collision callback.',
     since: '0.7.0',
     evidence: "re-fires flutter3d's collision events as flame's own",
-    evidenceFile: 'packages/flutter3d_flame/CHANGELOG.md',
-    packages: <String>['flutter3d_flame', 'flutter3d_physics'],
+    evidenceFile: 'packages/flame_flutter3d/CHANGELOG.md',
+    packages: <String>['flame_flutter3d', 'flutter3d_physics'],
   ),
   Feature(
     id: 'flame-input-bridge',
@@ -66,8 +66,8 @@ const List<Feature> flameFeatures = <Feature>[
     since: '0.7.0',
     evidence:
         'one rebinding UI and one saved binding file, not two input models',
-    evidenceFile: 'packages/flutter3d_flame/CHANGELOG.md',
-    packages: <String>['flutter3d_flame', 'flutter3d_game'],
+    evidenceFile: 'packages/flame_flutter3d/CHANGELOG.md',
+    packages: <String>['flame_flutter3d', 'flutter3d_game'],
   ),
   Feature(
     id: 'flame-camera-bridge',
@@ -80,7 +80,7 @@ const List<Feature> flameFeatures = <Feature>[
     evidence:
         "keeps an orthographic flutter3d camera and flame's own 2d "
         'viewfinder framed the same',
-    evidenceFile: 'packages/flutter3d_flame/CHANGELOG.md',
-    packages: <String>['flutter3d_flame'],
+    evidenceFile: 'packages/flame_flutter3d/CHANGELOG.md',
+    packages: <String>['flame_flutter3d'],
   ),
 ];

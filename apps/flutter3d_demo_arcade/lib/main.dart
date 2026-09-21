@@ -7,7 +7,7 @@
 /// simulation package, the way `packages/flutter3d_game/example` and
 /// `packages/flutter3d_app/example` are self-contained, just bigger. There is
 /// no genre package behind this because there is no genre here to reuse — the
-/// point of this app is `packages/flutter3d_flame`, wired up for real:
+/// point of this app is `packages/flame_flutter3d`, wired up for real:
 ///
 /// * **Transform** — the ship is a `RigidBodyComponent` (`ShipComponent`), so
 ///   its 3D collider is what actually moves and the Flame position is a read
@@ -29,9 +29,9 @@
 library;
 
 import 'package:flame/camera.dart' show Viewfinder;
+import 'package:flame_flutter3d/flame_flutter3d.dart';
 import 'package:flutter/material.dart' hide Material;
 import 'package:flutter3d/flutter3d.dart' hide Material;
-import 'package:flutter3d_flame/flutter3d_flame.dart';
 import 'package:vector_math/vector_math.dart' hide Colors;
 
 import 'src/arcade_game.dart';

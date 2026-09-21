@@ -419,7 +419,7 @@ gtag('config', 'G-6F6VZ4H7CF');
   </a>
   <button class="rail-toggle" aria-expanded="false" aria-controls="rail">Menu</button>
   <div class="topbar-meta">
-    <span class="chip">Flutter 3.47 · Impeller</span>
+    <a class="chip chip-link" href="/showcase/">Showcase</a>
     <a class="chip chip-link" href="/reference/packages/">${packageCount} packages</a>
     <a class="chip chip-link" href="/docs/">API reference</a>
     ${iconLinks()}
@@ -435,7 +435,7 @@ gtag('config', 'G-6F6VZ4H7CF');
     ${html}
     ${pager}
     <footer class="foot">
-      <p>flutter3d documentation. Flutter 3.47.0 stable, Dart 3.12.2.
+      <p>flutter3d documentation.
          Source: <code>${page.file ?? 'site/content'}</code></p>
       <p class="foot-links">
         <a href="${GITHUB}" rel="noopener">GitHub</a> ·

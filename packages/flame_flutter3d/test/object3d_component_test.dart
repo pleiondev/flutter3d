@@ -3,8 +3,8 @@
 library;
 
 import 'package:flame/components.dart';
+import 'package:flame_flutter3d/flame_flutter3d.dart';
 import 'package:flutter3d/flutter3d.dart' hide Material;
-import 'package:flutter3d_flame/flutter3d_flame.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vector_math/vector_math.dart' hide Plane;
 
