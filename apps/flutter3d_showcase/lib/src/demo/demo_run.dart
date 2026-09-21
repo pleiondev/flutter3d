@@ -66,7 +66,7 @@ final class DemoRun {
       width: width,
       height: height,
       scene: scene,
-      views: <RenderView>[context.view],
+      views: demo.views(context),
       settings: demo.settings(context),
     );
   }
