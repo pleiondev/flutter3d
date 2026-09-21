@@ -5,6 +5,7 @@
 library;
 
 import 'dart:async';
+import 'dart:math' as math;
 import 'dart:typed_data';
 import 'dart:ui' as ui;
 
@@ -79,15 +80,24 @@ final class LightmapBakeDemo extends ShowcaseDemo {
       samples: samples.round(),
     ).bake(level, layout: layout);
     // #endregion live
+    // A closet's light is a small number, so the picture is exposed for the
+    // brightest texel in it, the way a photograph would be.
+    var brightest = 1e-6;
+    for (var y = 0; y < lightmap.height; y++) {
+      for (var x = 0; x < lightmap.width; x++) {
+        final Vector3 light = lightmap.irradianceAt(x, y);
+        brightest = math.max(brightest, math.max(light.x, math.max(light.y, light.z)));
+      }
+    }
     final Uint8List rgba = Uint8List(lightmap.texelCount * 4);
     var lit = 0;
     for (var y = 0; y < lightmap.height; y++) {
       for (var x = 0; x < lightmap.width; x++) {
         final Vector3 light = lightmap.irradianceAt(x, y);
         final int at = (y * lightmap.width + x) * 4;
-        rgba[at] = (light.x.clamp(0.0, 1.0) * 255).round();
-        rgba[at + 1] = (light.y.clamp(0.0, 1.0) * 255).round();
-        rgba[at + 2] = (light.z.clamp(0.0, 1.0) * 255).round();
+        rgba[at] = (light.x / brightest * 255).round();
+        rgba[at + 1] = (light.y / brightest * 255).round();
+        rgba[at + 2] = (light.z / brightest * 255).round();
         rgba[at + 3] = 255;
         if (light.x + light.y + light.z > 0.0) lit++;
       }

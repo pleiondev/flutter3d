@@ -201,8 +201,8 @@ final class FlameEcsBridgeDemo extends ShowcaseDemo {
     final double actorX = goblin.body!.position.x;
     final double flameX = actorComponent.position.x;
     return (
-      'the goblin walked to x=$actorX; the bridged Flame position reads '
-          'x=$flameX',
+      'the goblin walked to x=${actorX.toStringAsFixed(2)}; the Flame '
+          'position reads x=${flameX.toStringAsFixed(2)}',
       actorX,
       flameX,
     );

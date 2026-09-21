@@ -130,7 +130,7 @@ final class FlowFieldDemo extends ShowcaseDemo {
         at.addScaled(direction, 3.0 * dt);
       }
       // #endregion follow
-      if ((at.x - gx).abs() + (at.z - gz).abs() < 1.0) {
+      if ((at.x - gx).abs() + (at.z - gz).abs() < 1.8) {
         at.setFrom(_starts[i]);
       }
       _agents[i].setPosition(at.x, 0.75, at.z);

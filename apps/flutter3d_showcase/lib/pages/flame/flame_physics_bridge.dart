@@ -270,7 +270,7 @@ final class FlamePhysicsBridgeDemo extends ShowcaseDemo {
     // #endregion fall
 
     return (
-      'the crate settled at y=${body.position.y}; the bridge heard about '
+      'settled at y=${body.position.y.toStringAsFixed(2)}; the bridge heard '
           'the landing: ${component.collided}',
       body.position.y,
       component.collided,
