@@ -9,10 +9,10 @@ floor by itself.
 
 ## Step 1: A clip whose own track goes nowhere
 
-The track named here has three keys and every one of them is `(0, 0, 0)`.
-The values the walk actually had live in `extras` under
-`flutter3dRootMotion`, one triple per keyframe, which is where an exporter's
-own extraction pass leaves them.
+The track named here bobs up and down and goes nowhere: its keys are all at
+`x = 0, z = 0`. The forward travel the walk actually had lives in `extras`
+under `flutter3dRootMotion`, one triple per keyframe, which is where an
+exporter's own extraction pass leaves it.
 
 {{code clip}}
 
@@ -29,12 +29,17 @@ to move instead.
 
 Each frame asks the player how far the walk would have moved between the
 playhead's last position and its new one, and adds that to the controller.
+The clip only ever walks forward, so when the controller reaches the end of
+the floor it is the controller that turns round and sends the same delta the
+other way.
 
 {{code live}}
 
 ## What to look at
 
-The cube drifts steadily forward. Nothing here moved the cube's own local
-transform: the drift is entirely the controller answering
+The cube walks to one end of the floor, turns, and walks back, over and over.
+Nothing here moved the cube's own local transform except the little bounce in
+the clip's own track: the trip is entirely the controller answering
 `rootMotionDelta`, frame after frame, for a rig that itself never leaves its
-own origin.
+own origin. The posts along the edge are what show it — the walker's own
+shape never changes, and the ground goes past it.
