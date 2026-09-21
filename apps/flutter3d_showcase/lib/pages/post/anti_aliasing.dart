@@ -24,8 +24,11 @@ final class AntiAliasingDemo extends ShowcaseDemo {
 
   @override
   void configureView(DemoContext context) {
+    // Close enough that the spokes fill the frame — softening a single
+    // pixel-wide edge is not something a reader can see without leaning on
+    // the zoom this page never offered a reason to reach for.
     context.orbit
-      ..distance = 3.5
+      ..distance = 1.5
       ..pitch = 0.0
       ..yaw = 0.0;
   }
