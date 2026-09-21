@@ -31,3 +31,15 @@ A fresh generator given that saved state continues the exact same sequence.
 The resumed generator's next roll matches the original's third roll exactly,
 which is what lets a snapshot carry a simulation's dice forward across a save
 and a load.
+
+## Step 4: Two generators, one sequence
+
+The ring of grey points and the gold ball going round it are all placed with
+`Portable.sinCos`, so they land in the same spots in a browser as in the VM.
+Beyond the ring, two rows of bars count what two dice roll: the blue row is one
+`GameRandom` and the orange row a second that was handed the first's saved
+state. They roll together for as long as the page runs, and the lamp stays green
+while every roll has matched; the bars grow together and the two rows never
+differ. A run is wiped and started again when a face reaches forty.
+
+{{code live}}

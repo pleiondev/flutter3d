@@ -8,9 +8,13 @@ import 'package:flutter3d_showcase/pages/sim_audio_xr/audio_occlusion.dart';
 import 'package:flutter3d_showcase/pages/sim_audio_xr/baked_visibility.dart';
 import 'package:flutter3d_showcase/pages/sim_audio_xr/ecs_world.dart';
 import 'package:flutter3d_showcase/pages/sim_audio_xr/flow_field.dart';
+import 'package:flutter3d_showcase/pages/sim_audio_xr/headless_run.dart';
+import 'package:flutter3d_showcase/pages/sim_audio_xr/level_format.dart';
 import 'package:flutter3d_showcase/pages/sim_audio_xr/level_mechanisms.dart';
 import 'package:flutter3d_showcase/pages/sim_audio_xr/pendulum_lab.dart';
+import 'package:flutter3d_showcase/pages/sim_audio_xr/portable_math.dart';
 import 'package:flutter3d_showcase/pages/sim_audio_xr/positional_audio.dart';
+import 'package:flutter3d_showcase/pages/sim_audio_xr/replay_digest.dart';
 import 'package:flutter3d_showcase/pages/sim_audio_xr/rewind.dart';
 import 'package:flutter3d_showcase/pages/sim_audio_xr/terrain_tiles.dart';
 import 'package:flutter3d_showcase/pages/sim_audio_xr/voice_limit.dart';
@@ -214,6 +218,56 @@ void main() {
           _node(run, 'runner').readPosition().x,
           lessThan(before - 1.5),
         );
+      });
+    });
+
+    test('the replay lamps go red from the checkpoint that covers the drift', () {
+      final ReplayDigestDemo demo = ReplayDigestDemo()..driftAt = 9.0;
+      return _with(demo, (DemoRun run) async {
+        _tick(run, 2);
+        bool red(String name) => _node(run, name).material.baseColor.x > 0.6;
+        expect(red('lamp 0'), isFalse);
+        expect(red('lamp 1'), isFalse);
+        // Checkpoints fall on 4, 8, 12: the drift at 9 first shows at 12.
+        expect(red('lamp 2'), isTrue);
+        demo.driftAt = 21.0;
+        (demo.controls(run.context).first as SliderControl).onChanged(21.0);
+        _tick(run, 2);
+        expect(red('lamp 4'), isFalse);
+      });
+    });
+
+    test('a resumed generator rolls what the original rolls', () {
+      final PortableMathDemo demo = PortableMathDemo();
+      return _with(demo, (DemoRun run) async {
+        _tick(run, 300);
+        expect(_node(run, 'lamp').material.baseColor.x, lessThan(0.6));
+      });
+    });
+
+    test('the validator\'s lamps follow the edit', () {
+      final LevelFormatDemo demo = LevelFormatDemo();
+      return _with(demo, (DemoRun run) async {
+        _tick(run, 2);
+        int lit() => <int>[
+          for (var i = 0; i < 6; i++)
+            if (_node(run, 'issue $i').visible) i,
+        ].length;
+        final int overlapping = lit();
+        expect(overlapping, greaterThan(0));
+        (demo.controls(run.context).first as SliderControl).onChanged(2.0);
+        _tick(run, 2);
+        expect(lit(), lessThan(overlapping));
+      });
+    });
+
+    test('the blind run, watched, gets to the post', () {
+      final HeadlessRunDemo demo = HeadlessRunDemo();
+      return _with(demo, (DemoRun run) async {
+        _tick(run, 120);
+        expect(_node(run, 'walker').readPosition().x, greaterThan(3.0));
+        _tick(run, 200);
+        expect(_node(run, 'goal').material.baseColor.y, greaterThan(0.6));
       });
     });
 

@@ -36,3 +36,14 @@ round-trip it, and a trace read back this way agrees with the run it was
 taken from exactly as well as the original does.
 
 {{code wire}}
+
+## Step 4: Slide the drift
+
+Five checkpoints, one every four steps. The blue tower is the original run's
+state there and the orange one the replay's; the lamp over each pair is green
+while their digests agree and red once they do not. The replay's state drifts
+by one from the step on the slider, and the first red lamp is the checkpoint
+that covers it: the digest notices a difference far smaller than a tower's
+height. Slide it to *never* and every lamp stays green.
+
+{{code live}}

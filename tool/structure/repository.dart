@@ -239,6 +239,10 @@ const Map<String, String> notARigCamera = <String, String>{
       'the one CameraSyncController reads from or writes to directly, with '
       'no subject to follow — a CameraRig here would be steering a camera '
       'the demo is using to test the opposite direction of sync',
+  'flutter3d_showcase/lib/pages/formats/gltf_cameras_lights.dart':
+      'a page about reading the cameras and lights a glTF file carries, not '
+      'a camera that follows anything: it reports what the file said, and has '
+      'no subject, no impulse and no wall to be pulled out of',
 };
 
 /// Packages the repeatable-step rule does **not** apply to, and why.
