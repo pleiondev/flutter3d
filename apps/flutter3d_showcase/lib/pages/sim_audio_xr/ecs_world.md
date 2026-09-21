@@ -40,3 +40,15 @@ its new index in the reloaded world.
 Nothing here compares old and new indices directly, because that comparison
 is exactly what a level edit breaks. It only asks each name for its own
 value.
+
+## Step 4: Reload it a different way
+
+The page holds the saved world, two entities, and reloads it into whichever
+level you choose. Each pedestal is a slot of the reloaded world, and what
+stands on it is what the remap found there: the green one is the goblin's saved
+position, the red one the troll's, and the bar beside it is the number itself.
+Change the order, drop the troll's neighbour or add a second ogre ahead of
+everything, and each entity still finds its own name; a slot no name claims
+stays empty.
+
+{{code live}}

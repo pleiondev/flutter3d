@@ -28,3 +28,14 @@ outright: there is nothing left for it to finish.
 
 The shout, ranked far above every footstep, is one of the three that made
 it through.
+
+## Step 4: Crowd the scene
+
+The blue block is the listener; the coloured balls are the sounds asking to be
+heard, footsteps at growing distances round it and one shout across the room.
+A lit ball got a voice and a dark one lost the vote. The shout wins over every
+footstep because it is the higher priority, and among the footsteps the nearer
+ones win, however many ask. Raise or lower **Voices allowed** and watch the
+lit ones change; the purple bar is how many voices are in use.
+
+{{code live}}

@@ -26,3 +26,13 @@ distance.
 
 Every curve gets quieter as distance grows, and none of them has anything
 left to say beyond its own `maximum`.
+
+## Step 4: Draw the curves
+
+The page plots all three against distance, thirty metres wide. Slide **Distance**
+and the marker sweeps along them, each curve's dot reading off what that curve
+answers there. The inverse curve drops fast and then lingers; the linear one
+falls in a straight line to nothing at its maximum; the exponential one sits
+between them. The same `gainAt` call draws the whole plot, for the same three curves as before.
+
+{{code curves}}

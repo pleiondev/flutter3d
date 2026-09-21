@@ -28,3 +28,15 @@ hit that kills. The brain hears about it separately, through `onHurt`.
 
 Twelve damage against thirty health leaves the goblin at eighteen, still
 alive, and its brain now remembers being hurt.
+
+## Step 4: Hit it and watch
+
+The same goblin, on the floor, with a bar over its head. **Hit it for 12**
+runs the damage through `Health` and tells the brain, exactly as above: the
+bar shrinks, the goblin goes amber the first time it is hurt (the brain's own
+memory, not a colour the page keeps), and after three hits it is flat and
+grey. **A fresh goblin** builds it again from nothing.
+
+{{code live}}
+
+{{code hit}}

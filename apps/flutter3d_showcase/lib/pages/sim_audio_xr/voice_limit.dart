@@ -4,33 +4,161 @@
 /// Quoted by `voice_limit.md` and shown whole in the Source tab.
 library;
 
-import 'package:flutter/widgets.dart';
+import 'dart:math' as math;
+
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_audio/flutter3d_audio.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
+import 'package:flutter3d_showcase/src/demo/scene_kit.dart';
 import 'package:vector_math/vector_math.dart';
 
 final class VoiceLimitDemo extends ShowcaseDemo {
   late final String _report;
 
+  double voices = 3.0;
+  double asking = 8.0;
+  bool shouting = true;
+
+  bool _dirty = true;
+  late final List<MeshNode> _balls;
+  late final MeshNode _shout;
+  late final BarGauge _granted;
+
+  static const int _most = 12;
+
+  @override
+  void configureView(DemoContext context) {
+    context.orbit
+      ..distance = 14.0
+      ..pitch = 1.1
+      ..yaw = 0.0;
+    context.orbit.target.setValues(0.0, 0.0, 0.5);
+  }
+
   @override
   Scene build(DemoContext context) {
     _report = _run();
-    final material = Material(
-      name: 'crowd',
-      baseColor: Vector4(0.7, 0.4, 0.7, 1.0),
+    _balls = <MeshNode>[
+      for (var i = 0; i < _most; i++)
+        ballNode(context, 'step $i', 0.3, Vector4(0.3, 0.3, 0.33, 1.0)),
+    ];
+    _shout = ballNode(
+      context,
+      'shout',
+      0.55,
+      Vector4(0.3, 0.3, 0.33, 1.0),
+      at: Vector3(0.0, 0.55, -3.0),
     );
-    final node = MeshNode(
-      DeviceMesh.upload(context.device, SphereShape(segments: 16).build()),
-      material,
+    _granted = BarGauge(
+      context,
+      'granted',
+      Vector4(0.7, 0.4, 0.8, 1.0),
+      Vector3(-5.0, 0.0, 5.5),
+      height: 10.0,
     );
-    return Scene()
-      ..add(node)
-      ..add(
-        LightNode(name: 'sun', intensity: 3.0)
-          ..setLocalForward(Vector3(-0.4, -1.0, -0.3)),
-      );
+    return sceneOf(<SceneNode>[
+      floorNode(context, width: 16.0, depth: 14.0),
+      blockNode(
+        context,
+        'listener',
+        Vector3(0.6, 0.6, 0.6),
+        Vector4(0.45, 0.65, 0.95, 1.0),
+        at: Vector3(0.0, 0.3, 0.0),
+      ),
+      ..._balls,
+      _shout,
+      ..._granted.nodes,
+    ]);
   }
+
+  @override
+  void update(DemoContext context, double dt) {
+    if (!_dirty) return;
+    _dirty = false;
+    // #region live
+    // Ask again with whatever the sliders say: a scene with room for `voices`
+    // voices, a crowd of footsteps at growing distances, and a shout.
+    final AudioScene scene = AudioScene(
+      backend: SilentBackend(),
+      maxVoices: voices.round(),
+    );
+    const SoundDef footstep = SoundDef(name: 'footstep', asset: 'step.wav', priority: 0);
+    const SoundDef shout = SoundDef(name: 'shout', asset: 'shout.wav', priority: 10);
+    final List<SoundEmitter> steps = <SoundEmitter>[
+      for (var i = 0; i < asking.round(); i++)
+        scene.play(
+          footstep,
+          Vector3(
+            (1.5 + 0.35 * i) * math.cos(i * 2.4),
+            0.0,
+            (1.5 + 0.35 * i) * math.sin(i * 2.4),
+          ),
+        ),
+    ];
+    final SoundEmitter? loud = shouting
+        ? scene.play(shout, Vector3(0.0, 0.0, -3.0))
+        : null;
+    scene.update(AudioListener());
+    // #endregion live
+    for (var i = 0; i < _most; i++) {
+      final bool asked = i < steps.length;
+      _balls[i].visible = asked;
+      if (!asked) continue;
+      final double angle = i * 2.4;
+      final double radius = 1.5 + 0.35 * i;
+      _balls[i].setPosition(radius * math.cos(angle), 0.3, radius * math.sin(angle));
+      _colour(_balls[i], steps[i].audibleGain > 0.0, const <double>[0.9, 0.75, 0.3]);
+    }
+    _shout.visible = loud != null;
+    if (loud != null) {
+      _colour(_shout, loud.audibleGain > 0.0, const <double>[0.85, 0.35, 0.3]);
+    }
+    _granted.set(scene.voiceCount / 10.0);
+  }
+
+  /// Lit in [lit] colours while it has a voice, dark once it has none.
+  void _colour(MeshNode node, bool has, List<double> lit) {
+    node.material.baseColor.setValues(
+      has ? lit[0] : 0.22,
+      has ? lit[1] : 0.22,
+      has ? lit[2] : 0.25,
+      1.0,
+    );
+  }
+
+  @override
+  List<DemoControl> controls(DemoContext context) => <DemoControl>[
+    SliderControl(
+      'Voices allowed',
+      min: 1,
+      max: 10,
+      value: () => voices,
+      onChanged: (double v) {
+        voices = v.roundToDouble();
+        _dirty = true;
+      },
+      format: (double v) => v.round().toString(),
+    ),
+    SliderControl(
+      'Footsteps asking',
+      min: 0,
+      max: 12,
+      value: () => asking,
+      onChanged: (double v) {
+        asking = v.roundToDouble();
+        _dirty = true;
+      },
+      format: (double v) => v.round().toString(),
+    ),
+    ToggleControl(
+      'Add a shout',
+      value: () => shouting,
+      onChanged: (bool v) {
+        shouting = v;
+        _dirty = true;
+      },
+    ),
+  ];
 
   static String _run() {
     // #region scene
@@ -61,18 +189,6 @@ final class VoiceLimitDemo extends ShowcaseDemo {
         'the rest, being one-shots, are already gone\n'
         'the higher-priority shout is one of them: $shoutWon';
   }
-
-  @override
-  Widget? customBody(BuildContext buildContext, DemoContext context) =>
-      Container(
-        color: const Color(0xFF14161A),
-        padding: const EdgeInsets.all(24),
-        alignment: Alignment.topLeft,
-        child: DefaultTextStyle(
-          style: const TextStyle(color: Color(0xFFE8E8EC), fontSize: 16),
-          child: Text(_report),
-        ),
-      );
 
   @override
   void verify(Scene scene, FrameResult frame) {

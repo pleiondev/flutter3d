@@ -32,3 +32,15 @@ sitting in the buffer until something drains it.
 again. A system removed this way does not run on the next step.
 
 {{code remove}}
+
+## Step 4: Watch the order run
+
+Three systems, registered in one order and given another: **input** at −10,
+**scoring** at whatever the slider says, **logging** at 10. Every 0.6 s a step
+runs the phase, and each of the three slots lights in the colour of whichever
+system ran in that place: blue for input, yellow for scoring, purple for
+logging. Slide the scoring order past 10 and it moves behind logging;
+un-register logging and its slot goes dark. The yellow tower is the score that
+`scoring` keeps adding to.
+
+{{code live}}

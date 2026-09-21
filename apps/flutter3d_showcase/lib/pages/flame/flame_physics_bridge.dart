@@ -71,8 +71,8 @@ final class FlamePhysicsBridgeDemo extends ShowcaseDemo {
 
   static const Color _idle = Color(0xFFE6B333);
   static const Color _touching = Color(0xFF4DD966);
-  static final Vector4 _padIdle = Vector4(0.45, 0.36, 0.14, 1.0);
-  static final Vector4 _padTouching = Vector4(0.2, 0.6, 0.28, 1.0);
+  static Vector4 get _padIdle => Vector4(0.45, 0.36, 0.14, 1.0);
+  static Vector4 get _padTouching => Vector4(0.2, 0.6, 0.28, 1.0);
 
   @override
   void configureView(DemoContext context) {
@@ -96,7 +96,7 @@ final class FlamePhysicsBridgeDemo extends ShowcaseDemo {
       Material(name: name, baseColor: color),
       name: name,
     );
-    _pad = cuboid('landing pad', Vector3(6.0, 0.1, 6.0), _padIdle.clone())
+    _pad = cuboid('landing pad', Vector3(6.0, 0.1, 6.0), _padIdle)
       ..setPosition(0.0, 0.02, 0.0);
     final MeshNode crate = cuboid(
       'crate',

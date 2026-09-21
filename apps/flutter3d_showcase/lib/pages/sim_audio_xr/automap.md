@@ -29,3 +29,13 @@ enough on this side of the doorway.
 
 A cell near where the player walked reads as floor. A cell far across the
 same open room, well outside the reveal radius, is not on the map at all yet.
+
+## Step 4: Watch the map fill in
+
+The level on this page is two rooms and a corridor, and the orange dot walks
+between them. Each frame it calls `reveal` at its own position, and the map
+learns a little more: floor light, walls dark, the rest blank. The second room
+stays blank until the dot has actually gone through the doorway. **Forget the
+map** starts it again from nothing.
+
+{{code live}}

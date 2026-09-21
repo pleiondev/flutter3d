@@ -12,13 +12,33 @@ import 'package:vector_math/vector_math.dart';
 
 final class AutomapDemo extends ShowcaseDemo {
   late final NavGrid _grid;
-  late final Automap _map;
+  late Automap _map;
+
+  double speed = 3.0;
+  bool _forgetAsked = false;
+  final Vector3 _walker = Vector3(2.0, 0.0, 2.0);
+  int _leg = 0;
+
+  /// The walk: room, doorway, corridor, second room, and round again.
+  static final List<Vector3> _route = <Vector3>[
+    Vector3(2.0, 0.0, 2.0),
+    Vector3(8.0, 0.0, 8.0),
+    Vector3(5.0, 0.0, 5.0),
+    Vector3(13.0, 0.0, 5.0),
+    Vector3(20.0, 0.0, 3.0),
+    Vector3(23.0, 0.0, 8.0),
+    Vector3(20.0, 0.0, 5.0),
+    Vector3(13.0, 0.0, 5.0),
+  ];
 
   @override
   Scene build(DemoContext context) {
     // #region grid
+    // Two rooms and a corridor between them.
     _grid = NavGrid.bake(<Brush>[
       Brush(centre: Vector3(5, 0, 5), size: Vector3(10, 1, 10)),
+      Brush(centre: Vector3(13, 0, 5), size: Vector3(6, 1, 2)),
+      Brush(centre: Vector3(21, 0, 5), size: Vector3(10, 1, 10)),
     ], cellSize: 0.5);
     _map = Automap(_grid, revealRadius: 3.0);
     // #endregion grid
@@ -47,18 +67,63 @@ final class AutomapDemo extends ShowcaseDemo {
   // #endregion reveal
 
   @override
-  Widget? customBody(BuildContext buildContext, DemoContext context) {
-    _walk();
-    return ColoredBox(
-      color: const Color(0xFF14161A),
-      child: Center(
-        child: CustomPaint(
-          size: const Size(320, 200),
-          painter: _MapPainter(_grid, _map),
-        ),
-      ),
-    );
+  void update(DemoContext context, double dt) {
+    if (_forgetAsked) {
+      _forgetAsked = false;
+      _map = Automap(_grid, revealRadius: 3.0);
+    }
+    // Walk the route at `speed`, a leg at a time.
+    final Vector3 to = _route[(_leg + 1) % _route.length];
+    final Vector3 way = to - _walker;
+    final double step = speed * dt;
+    if (way.length <= step) {
+      _walker.setFrom(to);
+      _leg = (_leg + 1) % _route.length;
+    } else {
+      _walker.add(way.normalized() * step);
+    }
+    // #region live
+    // Every frame the player stands somewhere, and the map learns of it.
+    _map.reveal(_walker);
+    // #endregion live
   }
+
+  @override
+  List<DemoControl> controls(DemoContext context) => <DemoControl>[
+    SliderControl(
+      'Walking speed',
+      min: 1.0,
+      max: 10.0,
+      value: () => speed,
+      onChanged: (double v) => speed = v,
+      format: (double v) => '${v.toStringAsFixed(1)} m/s',
+    ),
+    ToggleControl(
+      'Forget the map',
+      value: () => false,
+      onChanged: (bool v) {
+        if (v) _forgetAsked = true;
+      },
+    ),
+  ];
+
+  @override
+  Widget? customBody(BuildContext buildContext, DemoContext context) =>
+      ColoredBox(
+        color: const Color(0xFF14161A),
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Center(
+            child: AspectRatio(
+              aspectRatio: _grid.columns / _grid.rows,
+              child: CustomPaint(
+                painter: _MapPainter(_grid, _map, _walker),
+                child: const SizedBox.expand(),
+              ),
+            ),
+          ),
+        ),
+      );
 
   @override
   void verify(Scene scene, FrameResult frame) {
@@ -86,10 +151,11 @@ final class AutomapDemo extends ShowcaseDemo {
 /// Draws revealed floor light, revealed walls dark, and everything else
 /// blank.
 final class _MapPainter extends CustomPainter {
-  const _MapPainter(this.grid, this.map);
+  const _MapPainter(this.grid, this.map, this.walker);
 
   final NavGrid grid;
   final Automap map;
+  final Vector3 walker;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -108,8 +174,14 @@ final class _MapPainter extends CustomPainter {
         paint,
       );
     }
+    // Where the player is, in the same cells.
+    canvas.drawCircle(
+      Offset(walker.x / grid.cellSize * cellW, walker.z / grid.cellSize * cellH),
+      cellW * 1.4,
+      Paint()..color = const Color(0xFFE8A33D),
+    );
   }
 
   @override
-  bool shouldRepaint(covariant _MapPainter oldDelegate) => false;
+  bool shouldRepaint(covariant _MapPainter oldDelegate) => true;
 }

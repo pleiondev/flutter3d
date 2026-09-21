@@ -9,8 +9,7 @@ walks across a box.
 
 ## Step 1: A field of samples
 
-Flat along one axis, rising a little more than eight degrees along the
-other. Every triangle is extended downward into a solid prism, and where two
+Rolling hills, a sample to the metre. Every triangle is extended downward into a solid prism, and where two
 prisms meet the shared face is a seam rather than a wall: nothing here stops
 a body crossing from one triangle to the next.
 
@@ -23,6 +22,13 @@ probes the ground exactly as it does against a box; the shape underneath it
 just happens to answer with a different set of planes each time.
 
 {{code walk}}
+
+On the page the walker keeps going: it chases a point a little ahead of itself
+on a circle round the field, and the controller carries it up every hill and
+down again with its feet on the surface. Drag to turn the view; the camera
+follows the walker.
+
+{{code patrol}}
 
 ## Step 3: What the feet should be doing
 

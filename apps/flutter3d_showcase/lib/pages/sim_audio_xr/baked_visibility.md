@@ -31,3 +31,14 @@ own cell cannot see it.
 Standing on the near side of the wall, the culler leaves the near marker
 showing and turns the far one off, because every straight line from one side
 to the other has to cross the wall.
+
+## Step 4: Walk through the wall
+
+The corridor on this page has four markers and a wall down the middle; the blue
+ball is the eye and it walks from end to end, or stands where the slider puts
+it. The culler is asked every frame, and the markers on the far side of the
+wall disappear the moment the eye is on the other side, then come back as it
+crosses over. The wall is drawn, but nothing in the culler knows about
+drawing: its answer comes from the table baked before the walk began.
+
+{{code live}}

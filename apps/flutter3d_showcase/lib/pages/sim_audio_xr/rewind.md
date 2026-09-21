@@ -32,3 +32,16 @@ to replay to reach the exact step asked for.
 Thirty steps in at ten steps a second is three seconds of play. Rewinding by
 one second lands on step 20, which happens to sit exactly on a keyframe here,
 so there is nothing left to replay.
+
+## Step 4: Run it, and take it back
+
+A runner runs along a track, ten steps a second. Each step records its input
+and, every fifth, a keyframe; the blue ghost beside it is where the buffer says
+the run stood a second ago, worked out afresh each frame from the nearest
+keyframe and the steps to play forward from it. **Rewind one second** puts the
+runner on the ghost and forgets the future that had been recorded, and the run
+carries on from there. The purple bar is how much of the run the buffer holds.
+
+{{code live}}
+
+{{code back}}

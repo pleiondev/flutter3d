@@ -29,3 +29,15 @@ to that side.
 Turning to face the source directly centres the pan, and stepping closer
 raises the gain: `InverseRolloff`, the default attenuation curve, gets
 louder the nearer the reference distance a sound is heard from.
+
+## Step 4: Walk round the bell
+
+The same two calls, made every frame. The blue block is the listener and its
+white nose is the way it faces; it walks round the bell, or wherever the
+sliders put it. The bell swells with how loud it is heard, the yellow bar is
+that gain, and the knob on the rail is the pan, from the left ear to the right.
+Turn the listener away and the pan swings, though the distance has not changed.
+
+{{code live}}
+
+{{code hear}}

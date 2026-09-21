@@ -29,3 +29,13 @@ planned atlas, seeded so two bakes of the same level are the same bytes.
 
 The corner where the wall meets the floor picks up light from both, so the
 map is not left entirely black.
+
+## Step 4: See what it baked
+
+The page shows the atlas itself: each texel of every face of the closet, as
+bright as the light that reaches it. Slide the light along the closet and the
+bright patch on the floor follows it; take the bounces to zero and the wall
+loses what the floor was lending it; lower the samples and the noise shows.
+Each change is a whole new bake, made when you let go of the slider.
+
+{{code live}}

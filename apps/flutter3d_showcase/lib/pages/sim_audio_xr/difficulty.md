@@ -26,3 +26,14 @@ starting point.
 The same ten-point hit costs less on `gentle` and more on `punishing`,
 because `damageTaken` is a multiplier and the two settings sit on either
 side of one.
+
+## Step 4: Fight it at each level
+
+An opponent lunges at a player over and over, and each lunge takes the same
+ten points off the bar above the player's head, scaled by whichever level is
+chosen. On **gentle** it swings slowly and barely hurts; on **punishing** it
+swings faster and the bar empties in a few blows. The number that changed is
+`damageTaken` and the pace is `opponentReaction`; nothing else about the fight
+is different.
+
+{{code hit}}

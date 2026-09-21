@@ -10,11 +10,14 @@
 /// Quoted by `head_tracking.md` and shown whole in the Source tab.
 library;
 
+import 'dart:math' as math;
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter3d/flutter3d.dart' hide Material;
 import 'package:flutter3d/flutter3d.dart' as f3d show Material;
 import 'package:flutter3d_showcase/src/demo/demo.dart';
+import 'package:flutter3d_showcase/src/demo/scene_kit.dart';
 import 'package:flutter3d_stereo/flutter3d_stereo.dart';
 import 'package:vector_math/vector_math.dart';
 
@@ -60,13 +63,33 @@ final class HeadTrackingDemo extends ShowcaseDemo {
       DeviceMesh.upload(context.device, SphereShape(segments: 24).build()),
       material,
     )..setPosition(0, 0, -2);
-    _scene = Scene()
-      ..add(_rig.stage)
-      ..add(ball)
-      ..add(
-        LightNode(name: 'sun', intensity: 3.0)
-          ..setLocalForward(Vector3(-0.4, -1.0, -0.3)),
-      );
+    // A ring of posts round the viewer, each its own colour, so that turning
+    // the head visibly sweeps across something.
+    final List<SceneNode> posts = <SceneNode>[
+      for (var i = 0; i < 8; i++)
+        blockNode(
+          context,
+          'post $i',
+          Vector3(0.5, 1.0 + 0.4 * (i % 3), 0.5),
+          Vector4(
+            0.5 + 0.45 * math.sin(i * 0.8),
+            0.5 + 0.35 * math.sin(i * 1.6 + 1.0),
+            0.45 + 0.4 * math.sin(i * 2.4 + 2.0),
+            1.0,
+          ),
+          at: Vector3(
+            4.0 * math.sin(i * math.pi / 4),
+            (1.0 + 0.4 * (i % 3)) / 2 - 1.6,
+            -4.0 * math.cos(i * math.pi / 4),
+          ),
+        ),
+    ];
+    _scene = sceneOf(<SceneNode>[
+      _rig.stage,
+      ball,
+      floorNode(context, width: 14.0, depth: 14.0)..setPosition(0.0, -1.65, 0.0),
+      ...posts,
+    ]);
     return _scene;
   }
 

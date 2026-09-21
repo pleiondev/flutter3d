@@ -32,3 +32,19 @@ levels as the camera drifts across it.
 
 A tile close to the camera gets the fine level; one far away gets the coarse
 one, which is what keeps a large terrain affordable.
+
+## Step 4: Move the eye over it
+
+The field on this page is thirty-two metres square, cut into sixteen tiles of
+eight cells, each of which can be drawn at three levels. The blue ball is the
+eye and it circles the field; every frame each tile asks the chooser which level
+it should be at, from its own distance to the eye, and is rebuilt only when the
+answer changes. The colour says which: green is every sample, yellow every
+second, orange every fourth. Narrow **Fine detail within** and the green
+patch shrinks round the eye; the skirts hide the seams between levels.
+
+{{code live}}
+
+{{code choose}}
+
+{{code pick}}

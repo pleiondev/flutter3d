@@ -4,6 +4,7 @@
 /// Quoted by `heightfield_collision.md` and shown whole in the Source tab.
 library;
 
+import 'dart:math' as math;
 import 'dart:typed_data';
 
 import 'package:flutter3d/flutter3d.dart';
@@ -17,22 +18,29 @@ final class HeightfieldCollisionDemo extends ShowcaseDemo {
   late final CharacterController _controller;
   late final MeshNode _body;
 
-  static const int _columns = 6;
-  static const int _rows = 3;
+  static const int _columns = 25;
+  static const int _rows = 25;
   static const double _cellSize = 1.0;
   static const double _step = 1 / 60;
-  static const int _steps = 30;
+  static const int _steps = 60;
 
+  /// Rolling hills: a few metres of wavelength and about half a metre of
+  /// height, gentle enough to walk everywhere.
   Float32List _heights() => Float32List.fromList(<double>[
     for (var row = 0; row < _rows; row++)
-      for (var col = 0; col < _columns; col++) col * 0.15,
+      for (var col = 0; col < _columns; col++)
+        0.55 * math.sin(col * 0.45) * math.cos(row * 0.38) +
+            0.25 * math.sin(col * 0.9 + row * 0.7),
   ]);
+
+  /// Where the walker is heading, on a circle round the middle of the field.
+  static const double _ring = 6.0;
 
   @override
   void configureView(DemoContext context) {
     context.orbit
       ..distance = 7.0
-      ..pitch = 0.25
+      ..pitch = 0.35
       ..yaw = 0.6;
   }
 
@@ -42,9 +50,9 @@ final class HeightfieldCollisionDemo extends ShowcaseDemo {
     final Float32List heights = _heights();
 
     // #region field
-    // A gentle ramp: flat along z, rising a little more than eight degrees
-    // along x. `CollisionHeightfield` is the fifth shape and the first that
-    // is not one convex solid — it hands a query the triangles near it.
+    // Rolling hills, one height sample to the metre. `CollisionHeightfield`
+    // is the fifth shape and the first that is not one convex solid — it
+    // hands a query the triangles near it.
     _field = CollisionHeightfield(
       columns: _columns,
       rows: _rows,
@@ -57,10 +65,10 @@ final class HeightfieldCollisionDemo extends ShowcaseDemo {
     // #region walk
     _controller = CharacterController(
       world: _world,
-      position: Vector3(-2.0, 1.0, 0.0),
+      position: Vector3(-_ring, 1.6, 0.0),
     );
     for (var i = 0; i < _steps; i++) {
-      _controller.step(_step, wishDirection: Vector3(1.0, 0.0, 0.0));
+      _controller.step(_step, wishDirection: Vector3(0.0, 0.0, 1.0));
     }
     // #endregion walk
 
@@ -74,6 +82,8 @@ final class HeightfieldCollisionDemo extends ShowcaseDemo {
     )..setPositionFrom(_controller.position);
 
     return Scene()
+      ..ambientColor = Vector3(0.5, 0.55, 0.65)
+      ..ambientIntensity = 0.3
       ..add(_terrain(context, heights))
       ..add(_body)
       ..add(
@@ -89,7 +99,8 @@ final class HeightfieldCollisionDemo extends ShowcaseDemo {
     final MeshBuilder builder = MeshBuilder(VertexLayout.standard);
     final double width = (_columns - 1) * _cellSize;
     final double depth = (_rows - 1) * _cellSize;
-    final double centre = (heights.reduce((a, b) => a > b ? a : b) + 0) / 2;
+    double at(int col, int row) =>
+        heights[row.clamp(0, _rows - 1) * _columns + col.clamp(0, _columns - 1)];
     final List<int> indices = <int>[];
     for (var row = 0; row < _rows; row++) {
       for (var col = 0; col < _columns; col++) {
@@ -97,10 +108,15 @@ final class HeightfieldCollisionDemo extends ShowcaseDemo {
           builder.addVertex(
             position: Vector3(
               col * _cellSize - width * 0.5,
-              heights[row * _columns + col] - centre,
+              heights[row * _columns + col],
               row * _cellSize - depth * 0.5,
             ),
-            normal: Vector3(0.0, 1.0, 0.0),
+            // The slope either side of the sample, turned into a normal.
+            normal: Vector3(
+              at(col - 1, row) - at(col + 1, row),
+              2.0 * _cellSize,
+              at(col, row - 1) - at(col, row + 1),
+            )..normalize(),
           ),
         );
       }
@@ -123,7 +139,21 @@ final class HeightfieldCollisionDemo extends ShowcaseDemo {
 
   @override
   void update(DemoContext context, double dt) {
+    // #region patrol
+    // Chase a point that keeps a little ahead of the walker on the circle;
+    // the controller does the rest, up every hill and down again.
+    final Vector3 at = _controller.position;
+    final double ahead = math.atan2(at.z, at.x) + 0.35;
+    final Vector3 wish = Vector3(
+      _ring * math.cos(ahead) - at.x,
+      0.0,
+      _ring * math.sin(ahead) - at.z,
+    )..normalize();
+    _controller.step(_step, wishDirection: wish);
+    // #endregion patrol
     _body.setPositionFrom(_controller.position);
+    context.orbit.target.setFrom(_controller.position);
+    context.orbit.apply();
   }
 
   @override
@@ -140,8 +170,8 @@ final class HeightfieldCollisionDemo extends ShowcaseDemo {
         'the walker\'s feet should track the slope: feet $feet, ground $ground',
       );
     }
-    if (at.x <= -2.0) {
-      throw StateError('the walker should have moved up the slope');
+    if (at.z <= 0.5) {
+      throw StateError('the walker should have walked across the hills');
     }
     // #endregion check
     if (frame.drawCalls < 2) {

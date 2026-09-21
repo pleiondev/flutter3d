@@ -28,3 +28,13 @@ says whether anything can stand there.
 
 Both slabs and the bridge between them answer walkable; the open gap on
 either side of the bridge does not, because no brush covers it.
+
+## Step 4: Probe it
+
+The grid is drawn from above, blue where an agent could stand. The dot is a
+probe that sweeps across both slabs, the bridge and the gap: each frame it asks
+the grid which cell it is in and whether that cell is walkable, and turns green
+or red. Tap the map to put it somewhere yourself; the answer is one array
+lookup either way.
+
+{{code live}}
