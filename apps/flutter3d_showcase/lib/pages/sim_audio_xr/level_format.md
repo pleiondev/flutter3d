@@ -28,3 +28,14 @@ game actually has; an empty one is enough to check the geometry alone.
 The overlap between the two brushes shows up as one of the issues, alongside
 anything the validator has to say about an entity type it does not
 recognise.
+
+## Step 4: Edit the level, ask the validator
+
+The two brushes are on the floor, the green ball is the spawn, and the red
+lamps below are the validator's issues, one lamp to an issue. Slide the second
+brush apart and back until it overlaps the first, drop the spawn point, and
+each change goes through the same round trip: written to JSON, read back,
+validated. The lamps are whatever the validator says about the document it
+reads, not about the picture.
+
+{{code live}}

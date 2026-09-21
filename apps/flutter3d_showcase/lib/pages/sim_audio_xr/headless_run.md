@@ -31,3 +31,14 @@ whatever `save` would write to a file.
 
 This is the shape `bin/`'s own command line tool drives: it opens a real game
 through `HeadlessGame.start`, and everything after that is exactly this loop.
+
+## Step 4: The same run, looked at
+
+The blind loop above needs no window, but the run it steps is an ordinary
+object, and here it is stepped once a frame instead of a thousand times at
+once: the walker goes to the post at x = 10, the bar is how far it has got, and
+the post turns green when the run reports it has won. Nothing about the run
+changed to be watched; what it says about itself, its `summary` and `reading`,
+is the same sentence a tool reading it blind would get.
+
+{{code run}}

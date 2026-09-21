@@ -9,33 +9,112 @@
 /// Quoted by `replay_digest.md` and shown whole in the Source tab.
 library;
 
-import 'package:flutter/widgets.dart';
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
+import 'package:flutter3d_showcase/src/demo/scene_kit.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:vector_math/vector_math.dart';
 
 final class ReplayDigestDemo extends ShowcaseDemo {
   late final String _report;
 
+  double driftAt = 9.0;
+  bool _dirty = true;
+  late final List<BarGauge> _original;
+  late final List<BarGauge> _replay;
+  late final List<MeshNode> _lamps;
+
+  static const int _checkpoints = 5;
+
+  @override
+  void configureView(DemoContext context) {
+    context.orbit
+      ..distance = 12.0
+      ..pitch = 0.45
+      ..yaw = 0.0;
+    context.orbit.target.setValues(0.0, 1.4, 0.0);
+  }
+
   @override
   Scene build(DemoContext context) {
     _report = _run();
-    final material = Material(
-      name: 'tape',
-      baseColor: Vector4(0.6, 0.5, 0.9, 1.0),
+    BarGauge tower(String name, Vector4 ink, double x, double z) => BarGauge(
+      context,
+      name,
+      ink,
+      Vector3(x, 0.0, z),
+      height: 3.0,
+      width: 0.8,
+      vertical: true,
     );
-    final node = MeshNode(
-      DeviceMesh.upload(context.device, SphereShape(segments: 16).build()),
-      material,
-    );
-    return Scene()
-      ..add(node)
-      ..add(
-        LightNode(name: 'sun', intensity: 3.0)
-          ..setLocalForward(Vector3(-0.4, -1.0, -0.3)),
-      );
+    _original = <BarGauge>[
+      for (var k = 0; k < _checkpoints; k++)
+        tower('original $k', Vector4(0.45, 0.65, 0.95, 1.0), -4.0 + k * 2.0, -0.8),
+    ];
+    _replay = <BarGauge>[
+      for (var k = 0; k < _checkpoints; k++)
+        tower('replay $k', Vector4(0.95, 0.65, 0.3, 1.0), -4.0 + k * 2.0, 0.8),
+    ];
+    _lamps = <MeshNode>[
+      for (var k = 0; k < _checkpoints; k++)
+        ballNode(
+          context,
+          'lamp $k',
+          0.3,
+          Vector4(0.3, 0.3, 0.33, 1.0),
+          at: Vector3(-4.0 + k * 2.0, 3.7, 0.0),
+        ),
+    ];
+    return sceneOf(<SceneNode>[
+      floorNode(context, width: 12.0, depth: 5.0),
+      for (final BarGauge g in _original) ...g.nodes,
+      for (final BarGauge g in _replay) ...g.nodes,
+      ..._lamps,
+    ]);
   }
+
+  @override
+  void update(DemoContext context, double dt) {
+    if (!_dirty) return;
+    _dirty = false;
+    // #region live
+    // The original, and a replay that drifts by one from the chosen step on.
+    // A checkpoint every four steps: the tower is the state there, and its
+    // lamp is green while the two digests agree.
+    final DigestTrace original = _record(20, (int step) => step);
+    final DigestTrace replay = _record(
+      20,
+      (int step) => step >= driftAt.round() ? step + 1 : step,
+    );
+    // #endregion live
+    for (var k = 0; k < _checkpoints; k++) {
+      final int step = (k + 1) * 4;
+      _original[k].set(step / 22.0);
+      _replay[k].set((step >= driftAt.round() ? step + 1 : step) / 22.0);
+      final bool same = original.digests[k] == replay.digests[k];
+      _lamps[k].material.baseColor.setValues(
+        same ? 0.35 : 0.9,
+        same ? 0.85 : 0.3,
+        same ? 0.4 : 0.3,
+        1.0,
+      );
+    }
+  }
+
+  @override
+  List<DemoControl> controls(DemoContext context) => <DemoControl>[
+    SliderControl(
+      'Drift starts at step',
+      min: 1,
+      max: 21,
+      value: () => driftAt,
+      onChanged: (double v) {
+        driftAt = v.roundToDouble();
+        _dirty = true;
+      },
+      format: (double v) => v.round() > 20 ? 'never' : v.round().toString(),
+    ),
+  ];
 
   /// A toy step: a counter that walks forward, standing in for a simulation.
   static Map<String, Object?> _stepOf(int x) => <String, Object?>{'x': x};
@@ -75,18 +154,6 @@ final class ReplayDigestDemo extends ShowcaseDemo {
         'a drifted one diverges at $where\n'
         'a trace written to JSON and read back still agrees: $roundTrips';
   }
-
-  @override
-  Widget? customBody(BuildContext buildContext, DemoContext context) =>
-      Container(
-        color: const Color(0xFF14161A),
-        padding: const EdgeInsets.all(24),
-        alignment: Alignment.topLeft,
-        child: DefaultTextStyle(
-          style: const TextStyle(color: Color(0xFFE8E8EC), fontSize: 16),
-          child: Text(_report),
-        ),
-      );
 
   @override
   void verify(Scene scene, FrameResult frame) {
