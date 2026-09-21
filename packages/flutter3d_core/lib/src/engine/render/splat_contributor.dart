@@ -39,8 +39,9 @@ const double kSplatReach = 3.0;
 /// Floats per vertex in `VertexLayout.positionColorTexcoord`: xyz, rgba, uv.
 const int kSplatFloatsPerVertex = 9;
 
-/// Six vertices a splat: two triangles, unindexed, the shape the overlay
-/// batches already use.
+/// Six vertices a splat: two triangles sharing no vertex between them, drawn
+/// through the identity index buffer `MeshOverlay` also reaches for, since
+/// this engine has no unindexed draw at all.
 const int kSplatVerticesPerSplat = 6;
 
 /// Builds the vertex data for [cloud], back to front, as [camera] sees it.
@@ -197,6 +198,33 @@ final class SplatContributor extends PassContributor {
 
   PipelineHandle? _pipeline;
 
+  /// The index sequence 0, 1, 2, … every draw in this engine needs — see
+  /// `MeshOverlay._identityIndices`, which keeps the same sequence for the
+  /// same reason: `CommandEncoder.draw` has no unindexed path, and a draw
+  /// left with a vertex buffer and no index buffer bound draws nothing, with
+  /// no refusal to say so.
+  GeometryBuffer? _indices;
+  int _indexCapacity = 0;
+
+  GeometryBuffer _identityIndices(GraphicsDevice device, int count) {
+    if (count > _indexCapacity) {
+      var capacity = math.max(_indexCapacity * 2, 1024);
+      while (capacity < count) {
+        capacity *= 2;
+      }
+      final indices = Uint32List(capacity);
+      for (var i = 0; i < capacity; i++) {
+        indices[i] = i;
+      }
+      _indices = device.uploadGeometry(
+        indices.buffer.asByteData(),
+        GeometryUsage.indices,
+      );
+      _indexCapacity = capacity;
+    }
+    return _indices!.slice(length: count * 4);
+  }
+
   /// After the opaque scene, because every splat is translucent and has to
   /// land on top of whatever solid geometry is behind it.
   @override
@@ -251,6 +279,11 @@ final class SplatContributor extends PassContributor {
     frame.encoder
       ..setState(_kSplatState)
       ..bindVertexData(bytes, quads.vertexCount)
+      ..bindIndexBuffer(
+        _identityIndices(frame.device, quads.vertexCount),
+        IndexType.int32,
+        quads.vertexCount,
+      )
       ..bindUniformBlock(vertexShader, 'ParticleInfo', <String, Float32List>{
         'view_projection': viewProjection.storage,
       })
