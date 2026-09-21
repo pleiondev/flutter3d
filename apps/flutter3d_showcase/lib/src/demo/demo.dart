@@ -111,6 +111,11 @@ abstract class ShowcaseDemo {
   /// Called every frame with the seconds since the last, before it is drawn.
   void update(DemoContext context, double dt) {}
 
+  /// The views one frame is made of. One, the viewport's own, unless a page
+  /// is about drawing the same scene several ways at once — tiles of one
+  /// picture, say — and hands back more.
+  List<RenderView> views(DemoContext context) => <RenderView>[context.view];
+
   /// What to draw it with, read every frame, so a control that changes a
   /// setting only has to change a field.
   RenderSettings settings(DemoContext context) => const RenderSettings();

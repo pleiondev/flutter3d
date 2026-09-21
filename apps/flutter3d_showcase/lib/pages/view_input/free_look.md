@@ -24,16 +24,23 @@ for the seconds you hand it.
 > **Note.** `up` here means the world's up, not the camera's. Rising while
 > you look at the floor should lift you off the floor, not push you into it.
 
-## Step 3: Stop and start it
+## Step 3: Turn the head, then walk
 
-`walk` does nothing when every axis is zero or the toggle turns it off, so
-holding still is not a special case: it is calling `walk` with nothing asked
-of it.
+`look` takes the same pixel deltas `OrbitController.rotate` does, but keeps
+the eye where it is and slides the target instead. The **Turn the head**
+slider feeds it a steady turn every frame, so the camera turns on the spot
+and the walk carries it the way it now faces: at zero it walks straight,
+and anywhere else it walks a circle.
 
 {{code walk}}
 
-Toggle walking off and the row of posts stops sliding past; the camera is
-holding still exactly where the last step left it. `FreeLook` also has a
-`look` method, built the same way, that turns the head with the eye held
-still instead of the target: it takes the same pixel deltas
-`OrbitController.rotate` does.
+`walk` does nothing when every axis is zero or the toggle turns it off, so
+holding still is not a special case: it is calling `walk` with nothing asked
+of it. Toggle walking off and the posts stop sliding past while the head
+goes on turning; drag **Speed** to change how many metres a second the same
+call covers.
+
+The posts are laid out again around the camera every frame, on a lattice
+that does not move: a post keeps its place and its colour as you pass it,
+and a new one arrives ahead, which is what lets a walk go on for ever in a
+scene with nine posts a side in it.
