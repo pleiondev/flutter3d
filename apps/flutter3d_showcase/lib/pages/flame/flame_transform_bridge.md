@@ -35,3 +35,12 @@ to `(4, -1)` reads back as scene `x=4, z=-1`.
 The node that moved carried its position onto the Flame side, and the Flame
 position that moved carried its onto the node — both readings came back
 exactly where the bridge's own plane said they would.
+
+## Step 4: Watch them keep step
+
+On the page the blue cube is the scene-authoritative one: flutter3d moves it
+round in a circle, and the blue dot on Flame's map follows. The orange cube is
+the reverse: Flame slides its component along a figure of eight, and the cube
+in the scene follows. Drag to turn the view and compare the floor with the map.
+
+{{code live}}
