@@ -8,6 +8,8 @@
 /// size the device does not have.
 library;
 
+import 'dart:math' as math;
+
 import 'package:flutter/foundation.dart' show listEquals;
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
@@ -63,7 +65,10 @@ class _DemoStageState extends State<DemoStage>
   void _tick(Duration _) {
     final DemoRun? run = _run;
     if (run == null) return;
-    run.update(_clock.tick());
+    // A frame that took long (a tab left in the background) is played as a
+    // tenth of a second: a page that steps by `dt` is then never flung a
+    // minute's worth in one go.
+    run.update(math.min(_clock.tick(), 0.1));
     setState(() {});
   }
 
