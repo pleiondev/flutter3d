@@ -4,11 +4,14 @@
 /// Quoted by `flame_transform_bridge.md` and shown whole in the Source tab.
 library;
 
+import 'dart:math' as math;
+
 import 'package:flame/components.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_flame/flutter3d_flame.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
+import 'package:flutter3d_showcase/src/demo/flame_layer.dart';
 
 final class FlameTransformBridgeDemo extends ShowcaseDemo {
   late final double _flamePositionX;
@@ -16,8 +19,42 @@ final class FlameTransformBridgeDemo extends ShowcaseDemo {
   late final double _scenePositionX;
   late final double _scenePositionZ;
 
+  late final DemoContext _context;
+  late final Scene _scene;
+  late final MeshNode _leader;
+  late final TransparentFlameGame _game;
+  late final Widget _body = flameOrbit(
+    _context,
+    Flutter3dFlameWidget(
+      game: _game,
+      camera: _context.camera,
+      existing: (device: _context.device, renderer: _context.renderer),
+      buildScene: (GraphicsDevice device) => _scene,
+    ),
+  );
+  double _clock = 0.0;
+
+  @override
+  void configureView(DemoContext context) {
+    context.orbit
+      ..distance = 8.0
+      ..pitch = 0.7
+      ..yaw = 0.5;
+    context.orbit.target.setValues(0.0, 0.0, 0.0);
+  }
+
+  MeshNode _cube(DemoContext context, String name, Vector4 color) => MeshNode(
+    DeviceMesh.upload(
+      context.device,
+      CuboidShape(size: Vector3(0.5, 0.5, 0.5)).build(),
+    ),
+    Material(name: name, baseColor: color),
+    name: name,
+  )..setPosition(0.0, 0.25, 0.0);
+
   @override
   Scene build(DemoContext context) {
+    _context = context;
     final (double flameX, double flameY, double sceneX, double sceneZ) = _run(
       context.device,
     );
@@ -26,21 +63,76 @@ final class FlameTransformBridgeDemo extends ShowcaseDemo {
     _scenePositionX = sceneX;
     _scenePositionZ = sceneZ;
 
-    final node = MeshNode(
-      DeviceMesh.upload(
-        context.device,
-        CuboidShape(size: Vector3(0.6, 0.6, 0.6)).build(),
-      ),
-      Material(name: 'marker', baseColor: Vector4(0.6, 0.4, 0.8, 1.0)),
-      name: 'marker',
+    _leader = _cube(context, 'scene leads', Vector4(0.5, 0.7, 0.9, 1.0));
+    final MeshNode follower = _cube(
+      context,
+      'flame leads',
+      Vector4(0.9, 0.6, 0.3, 1.0),
     );
-
-    return Scene()
-      ..add(node)
+    _scene = Scene()
+      ..ambientColor = Vector3(0.5, 0.55, 0.65)
+      ..ambientIntensity = 0.3
+      ..add(
+        MeshNode(
+          DeviceMesh.upload(
+            context.device,
+            CuboidShape(size: Vector3(8.0, 0.1, 8.0)).build(),
+          ),
+          Material(name: 'floor', baseColor: Vector4(0.36, 0.4, 0.38, 1.0)),
+          name: 'floor',
+        )..setPosition(0.0, -0.05, 0.0),
+      )
+      ..add(_leader)
+      ..add(follower)
       ..add(
         LightNode(name: 'sun', intensity: 2.5)
           ..setLocalForward(Vector3(-0.3, -0.6, -0.4)),
       );
+
+    // #region live
+    // The same two components as above, now in a running game: each frame
+    // Flame updates them and each copies one way. The map in the corner is
+    // Flame's own view of the ground plane, a metre to 24 pixels.
+    final BridgePlane plane = BridgePlane.ground();
+    final Object3dComponent reads = Object3dComponent(
+      node: _leader,
+      scene: _scene,
+      plane: plane,
+    )..add(flameDot(const Color(0xFF80B3E6)));
+    final Object3dComponent writes = Object3dComponent(
+      node: follower,
+      scene: _scene,
+      plane: plane,
+      direction: SyncDirection.flameToScene,
+    )..add(flameDot(const Color(0xFFE6994D)));
+    final FlameMinimap map = FlameMinimap()
+      ..world.addAll(<Component>[reads, writes]);
+    _game = TransparentFlameGame();
+    _game
+      // Before `writes`, so the position is set before it is copied.
+      ..add(_Drift(writes))
+      ..add(map)
+      ..add(flameCaption('blue: the node moves, Flame reads it'))
+      ..add(
+        flameCaption(
+          'orange: Flame moves, the node reads it',
+          at: Vector2(16.0, 40.0),
+        ),
+      );
+    // #endregion live
+    return _scene;
+  }
+
+  @override
+  void update(DemoContext context, double dt) {
+    _clock += dt;
+    context.orbit.syncProjectionDepth(context.camera);
+    // The flutter3d side leads: it moves its own node round in a circle.
+    _leader.setPosition(
+      2.6 * math.cos(_clock * 0.8),
+      0.25,
+      2.6 * math.sin(_clock * 0.8),
+    );
   }
 
   static (double, double, double, double) _run(GraphicsDevice device) {
@@ -104,35 +196,12 @@ final class FlameTransformBridgeDemo extends ShowcaseDemo {
     return (flamePosition.x, flamePosition.y, scenePosition.x, scenePosition.z);
   }
 
+  /// The Flame game the page runs, for a test that steps it without a window.
+  @visibleForTesting
+  TransparentFlameGame get game => _game;
+
   @override
-  Widget? customBody(BuildContext buildContext, DemoContext context) {
-    final scene = Scene();
-    final node = MeshNode(
-      DeviceMesh.upload(
-        context.device,
-        CuboidShape(size: Vector3(0.6, 0.6, 0.6)).build(),
-      ),
-      Material(name: 'bridged-cube', baseColor: Vector4(0.6, 0.4, 0.8, 1.0)),
-    );
-    final plane = BridgePlane.ground();
-    final bridge = Object3dComponent(
-      node: node,
-      scene: scene,
-      plane: plane,
-      direction: SyncDirection.flameToScene,
-    );
-    final game = TransparentFlameGame()..add(bridge..add(_Drift(bridge)));
-    return Flutter3dFlameWidget(
-      game: game,
-      // Left at its own default transform, this camera sat exactly where
-      // the bridged cube does — see `flame_overview.dart` for the same fix.
-      camera: CameraNode(name: 'transform-preview')
-        ..setPosition(2.5, 2.0, 4.0)
-        ..lookAt(Vector3.zero()),
-      existing: (device: context.device, renderer: context.renderer),
-      buildScene: (GraphicsDevice device) => scene,
-    );
-  }
+  Widget? customBody(BuildContext buildContext, DemoContext context) => _body;
 
   @override
   void verify(Scene scene, FrameResult frame) {
@@ -158,7 +227,8 @@ final class FlameTransformBridgeDemo extends ShowcaseDemo {
   }
 }
 
-/// Nudges a bridged component sideways every frame, for the preview only.
+/// Moves a bridged component along a figure of eight, the way a Flame game
+/// moves anything of its own: by setting its position.
 final class _Drift extends Component {
   _Drift(this._target);
 
@@ -169,6 +239,9 @@ final class _Drift extends Component {
   void update(double dt) {
     super.update(dt);
     _t += dt;
-    _target.position = Vector2(_t % 2.0 - 1.0, 0.0);
+    _target.position = Vector2(
+      2.6 * math.sin(_t * 0.8),
+      1.6 * math.sin(_t * 1.6),
+    );
   }
 }

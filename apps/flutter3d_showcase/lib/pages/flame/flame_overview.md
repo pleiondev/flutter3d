@@ -32,3 +32,13 @@ the seam between them is empty space until a page in this category fills it.
 The Flame shape stayed exactly where it started while the cube sat at its own
 position on the other side of the origin — the two layers this widget draws
 never exchanged a single number.
+
+## Step 4: Watch both run
+
+On the page, the orange square is a Flame component that Flame's own game
+slides across the top; the cube is a flutter3d node that the scene turns. Both
+run at once, in one `Stack`, and neither reads the other. The game and the
+scene are built once and kept: the widget is rebuilt every frame, and a game
+made afresh each time would restart before it drew anything.
+
+{{code live}}

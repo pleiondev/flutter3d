@@ -39,3 +39,15 @@ The crate settled where the solver's own resting height says it should, and
 on the way down `CollisionBridge` had already turned its overlap with the
 landing trigger into a call on the Flame-side component — the same event a
 native Flame body colliding with another would fire.
+
+## Step 4: Watch it fall, over and over
+
+The same three pieces, now running. A component steps `Dynamics` and the
+collision world once a Flame frame; the crate's own component copies where the
+body went. The map in the corner is a side view of the same fall, Flame's `y`
+being the height, drawn with `BridgePlane.backdrop`. When the crate touches the
+landing pad, `CollisionBridge` hands the overlap to a Flame callback, and that
+callback turns the pad green on both layers; a moment after the crate comes to
+rest it is put back and dropped again from the height on the slider.
+
+{{code live}}

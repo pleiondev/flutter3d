@@ -37,3 +37,14 @@ Ninety steps of the shared system moved the goblin's real physics body
 forward, and the bridged Flame position read back exactly the body's own `x`
 — the mesh followed the actor, through the bridge, with nothing hand-copied
 in between.
+
+## Step 4: Three goblins on the map
+
+The same pieces, three times over. Every goblin is an actor of one shared
+system; each has a bridge component that copies its body onto its mesh and,
+through the plane, onto a Flame position, and the dots on the map are those
+Flame positions. One `ActorSystemComponent` steps the whole system once a
+frame. A goblin that walks off the far edge is put back on the near one, so
+the walk goes on.
+
+{{code live}}

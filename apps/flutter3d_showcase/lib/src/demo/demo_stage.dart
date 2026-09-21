@@ -100,11 +100,11 @@ class _DemoStageState extends State<DemoStage>
         child: Center(child: CircularProgressIndicator()),
       );
     }
-    final Widget? own = run.demo.customBody(context, run.context);
-    if (own != null) return own;
-
+    // A page's own body takes the viewport's place, not the panel's: its
+    // controls sit beside it the same as beside a scene.
     final List<DemoControl> controls = run.demo.controls(run.context);
-    final Widget viewport = _viewport(run);
+    final Widget viewport =
+        run.demo.customBody(context, run.context) ?? _viewport(run);
     if (controls.isEmpty) return viewport;
 
     final Widget panel = ControlsPanel(

@@ -27,3 +27,18 @@ The Flame handler reported the key consumed, and the flutter3d side reading
 the same `InputState` a moment later found the action already held — one
 press, one shared answer, read by two engines that never spoke to each
 other directly.
+
+## Step 4: Press a key, walk the sphere
+
+Four keys, bound once in a table both engines read. Flame's side is a
+component that hands every key event to the bridge; it also draws four keycaps
+that light while the shared state holds their action. flutter3d's side is the
+sphere: each frame it reads the same state and walks. Click the scene and press
+W A S D, or use **Hold D for me** if there is no keyboard to hand.
+
+{{code live}}
+
+The sphere's half is one read of `moveAxis` per frame; nothing in it knows the
+keys came through Flame.
+
+{{code walk}}
