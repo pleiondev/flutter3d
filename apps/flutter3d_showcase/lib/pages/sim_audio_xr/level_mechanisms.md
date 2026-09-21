@@ -29,3 +29,15 @@ relays that to its target; a door starts moving towards open.
 The door starts closed, at progress 0. After the button is pressed and the
 world is stepped forward, the door reaches progress 1 and reports itself
 open, well inside the three seconds it is given to hold there.
+
+## Step 4: Press it and watch
+
+The door on this page is the one wired above, drawn: its collider is what the
+mechanism moves, and the picture follows the collider. Press the button, or let
+it press itself, and the door slides up out of its frame, waits, and comes back
+down; the bar on the right is its `progress`, and the button lights while the
+activation is on its way.
+
+{{code live}}
+
+{{code press-live}}

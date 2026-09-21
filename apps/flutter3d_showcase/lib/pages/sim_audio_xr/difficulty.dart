@@ -5,30 +5,99 @@
 /// Quoted by `difficulty.md` and shown whole in the Source tab.
 library;
 
-import 'package:flutter/widgets.dart';
+import 'dart:math' as math;
+
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
+import 'package:flutter3d_showcase/src/demo/scene_kit.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:vector_math/vector_math.dart';
 
 final class DifficultyDemo extends ShowcaseDemo {
+  int level = 0;
+
+  late final MeshNode _player;
+  late final MeshNode _enemy;
+  late final BarGauge _health;
+  double _hp = 100.0;
+  double _swing = 0.0;
+  bool _struck = false;
+
+  @override
+  void configureView(DemoContext context) {
+    context.orbit
+      ..distance = 9.0
+      ..pitch = 0.45
+      ..yaw = 0.0;
+    context.orbit.target.setValues(0.0, 0.8, 0.0);
+  }
+
   @override
   Scene build(DemoContext context) {
-    final material = Material(
-      name: 'target',
-      baseColor: Vector4(0.7, 0.5, 0.9, 1.0),
+    _player = blockNode(
+      context,
+      'player',
+      Vector3(0.9, 1.6, 0.9),
+      Vector4(0.45, 0.65, 0.95, 1.0),
+      at: Vector3(-2.5, 0.8, 0.0),
     );
-    final node = MeshNode(
-      DeviceMesh.upload(context.device, SphereShape(segments: 16).build()),
-      material,
+    _enemy = ballNode(
+      context,
+      'opponent',
+      0.6,
+      Vector4(0.85, 0.35, 0.3, 1.0),
+      at: Vector3(2.5, 0.6, 0.0),
     );
-    return Scene()
-      ..add(node)
-      ..add(
-        LightNode(name: 'sun', intensity: 3.0)
-          ..setLocalForward(Vector3(-0.4, -1.0, -0.3)),
-      );
+    _health = BarGauge(
+      context,
+      'health',
+      Vector4(0.4, 0.85, 0.4, 1.0),
+      Vector3(-3.5, 2.6, 0.0),
+      height: 2.0,
+    );
+    return sceneOf(<SceneNode>[
+      floorNode(context, width: 12.0, depth: 6.0),
+      _player,
+      _enemy,
+      ..._health.nodes,
+    ]);
   }
+
+  @override
+  void update(DemoContext context, double dt) {
+    final Difficulty difficulty = Difficulty.offered[level];
+    // The opponent lunges once a swing; a quicker opponent swings sooner.
+    _swing += dt * difficulty.opponentReaction * 0.6;
+    if (_swing >= 1.0) {
+      _swing -= 1.0;
+      _struck = false;
+    }
+    // Out to the player and back, hitting at the far end.
+    final double reach = math.sin(math.pi * _swing.clamp(0.0, 1.0));
+    _enemy.setPosition(2.5 - 4.2 * reach, 0.6, 0.0);
+    if (!_struck && reach > 0.97) {
+      _struck = true;
+      // #region hit
+      // The same ten-point hit as ever, scaled by the level.
+      _hp -= _incomingDamage(difficulty, 10.0);
+      // #endregion hit
+      if (_hp <= 0.0) _hp = 100.0;
+    }
+    _health.set(_hp / 100.0);
+  }
+
+  @override
+  List<DemoControl> controls(DemoContext context) => <DemoControl>[
+    ChoiceControl(
+      'Difficulty',
+      options: <String>[for (final Difficulty d in Difficulty.offered) d.name],
+      index: () => level,
+      onChanged: (int i) {
+        level = i;
+        _hp = 100.0;
+      },
+    ),
+  ];
 
   // #region apply
   /// A hit a genre would deal at `normal`, scaled by one difficulty.
@@ -42,22 +111,14 @@ final class DifficultyDemo extends ShowcaseDemo {
         'x${level.opponentReaction} speed, assistance ${level.assistance}';
   }
 
-  @override
-  Widget? customBody(BuildContext buildContext, DemoContext context) {
+  /// One line for each level on offer, as the settings screen would list them.
+  static List<String> lines() {
     // #region list
     final lines = <String>[
       for (final Difficulty level in Difficulty.offered) _lineFor(level),
     ];
     // #endregion list
-    return Container(
-      color: const Color(0xFF14161A),
-      padding: const EdgeInsets.all(24),
-      alignment: Alignment.topLeft,
-      child: DefaultTextStyle(
-        style: const TextStyle(color: Color(0xFFE8E8EC), fontSize: 16),
-        child: Text(lines.join('\n')),
-      ),
-    );
+    return lines;
   }
 
   @override

@@ -4,9 +4,9 @@
 /// Quoted by `ecs_world.md` and shown whole in the Source tab.
 library;
 
-import 'package:flutter/widgets.dart';
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
+import 'package:flutter3d_showcase/src/demo/scene_kit.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:vector_math/vector_math.dart';
 
@@ -16,31 +16,160 @@ final class _Position {
 }
 
 final class EcsWorldDemo extends ShowcaseDemo {
-  late final String _report;
   late final double? _goblinX;
   late final double? _trollX;
 
+  int reload = 0;
+  int _shown = -1;
+
+  late final Map<String, Object?> _saved;
+  late final List<MeshNode> _balls;
+  late final List<BarGauge> _bars;
+  late final List<MeshNode> _pedestals;
+
+  /// The names the reloaded level offers, in slot order, for each choice.
+  static const List<List<String?>> _levels = <List<String?>>[
+    <String?>['goblin', 'ogre', 'troll'],
+    <String?>['troll', 'goblin'],
+    <String?>['goblin'],
+    <String?>['ogre', 'goblin', 'ogre', 'troll'],
+  ];
+
+  @override
+  void configureView(DemoContext context) {
+    context.orbit
+      ..distance = 12.0
+      ..pitch = 0.55
+      ..yaw = 0.2;
+    context.orbit.target.setValues(0.0, 0.8, 0.0);
+  }
+
   @override
   Scene build(DemoContext context) {
-    final (String report, double? goblinX, double? trollX) = _run();
-    _report = report;
+    final (String _, double? goblinX, double? trollX) = _run();
     _goblinX = goblinX;
     _trollX = trollX;
-    final material = Material(
-      name: 'entity',
-      baseColor: Vector4(0.4, 0.7, 0.9, 1.0),
-    );
-    final node = MeshNode(
-      DeviceMesh.upload(context.device, SphereShape(segments: 16).build()),
-      material,
-    );
-    return Scene()
-      ..add(node)
-      ..add(
-        LightNode(name: 'sun', intensity: 3.0)
-          ..setLocalForward(Vector3(-0.4, -1.0, -0.3)),
+
+    // The saved world, the same two entities `_run` saves.
+    final EcsWorld world = _newWorld();
+    final Entity goblin = world.spawn();
+    final Entity troll = world.spawn();
+    world
+      ..set(goblin, const _Position(3.0))
+      ..set(troll, const _Position(9.0));
+    _saved = world.save();
+
+    // Four slots is the most any choice below has: a pedestal, a ball that
+    // sits on it and a bar that stands for the number stored there.
+    const int slots = 4;
+    _pedestals = <MeshNode>[];
+    _balls = <MeshNode>[];
+    _bars = <BarGauge>[];
+    final List<SceneNode> nodes = <SceneNode>[
+      floorNode(context, width: 16.0, depth: 8.0),
+    ];
+    for (var i = 0; i < slots; i++) {
+      final double x = (i - (slots - 1) / 2) * 2.6;
+      final MeshNode pedestal = blockNode(
+        context,
+        'slot $i',
+        Vector3(1.8, 0.3, 1.8),
+        Vector4(0.5, 0.42, 0.34, 1.0),
+        at: Vector3(x, 0.15, 0.0),
       );
+      final MeshNode ball = ballNode(
+        context,
+        'entity $i',
+        0.5,
+        Vector4(0.9, 0.9, 0.9, 1.0),
+        at: Vector3(x, 0.8, 0.0),
+      );
+      final BarGauge bar = BarGauge(
+        context,
+        'value $i',
+        Vector4(0.9, 0.75, 0.3, 1.0),
+        Vector3(x, 0.3, 1.8),
+        height: 2.5,
+        width: 0.4,
+        vertical: true,
+      );
+      _pedestals.add(pedestal);
+      _balls.add(ball);
+      _bars.add(bar);
+      nodes
+        ..add(pedestal)
+        ..add(ball)
+        ..addAll(bar.nodes);
+    }
+    return sceneOf(nodes);
   }
+
+  EcsWorld _newWorld() => EcsWorld()
+    ..register<_Position>(
+      'position',
+      encode: (_Position p) => p.x,
+      decode: (Object? data) => _Position((data! as num).toDouble()),
+    );
+
+  /// The position stored in each slot of a level laid out as [names], or null
+  /// for a slot nothing was saved into.
+  List<double?> _reloadInto(List<String?> names) {
+    // #region live
+    // The same remap as above, for whichever level is chosen: each saved
+    // entity finds its own name in the new layout, wherever that now is.
+    final remap = remapEntitySave(
+      _saved,
+      oldNames: <String?>['goblin', 'troll'],
+      newNames: names,
+      newGenerations: List<int>.filled(names.length, 0),
+      newFree: <int>[],
+    );
+    final EcsWorld reloaded = _newWorld();
+    final List<Entity> ids = <Entity>[
+      for (var i = 0; i < names.length; i++) reloaded.spawn(),
+    ];
+    reloaded.restore(remap.save);
+    return <double?>[for (final Entity id in ids) reloaded.get<_Position>(id)?.x];
+    // #endregion live
+  }
+
+  @override
+  void update(DemoContext context, double dt) {
+    if (reload == _shown) return;
+    _shown = reload;
+    final List<String?> names = _levels[reload];
+    final List<double?> found = _reloadInto(names);
+    for (var i = 0; i < _balls.length; i++) {
+      final bool has = i < names.length;
+      final double? x = has ? found[i] : null;
+      _pedestals[i].visible = has;
+      _balls[i].visible = x != null;
+      for (final SceneNode n in _bars[i].nodes) {
+        n.visible = x != null;
+      }
+      if (x == null) continue;
+      // Whoever held 3 is the goblin and whoever held 9 the troll.
+      _balls[i].material.baseColor.setFrom(
+        x < 5.0 ? Vector4(0.5, 0.8, 0.35, 1.0) : Vector4(0.85, 0.35, 0.3, 1.0),
+      );
+      _bars[i].set(x / 9.0);
+    }
+  }
+
+  @override
+  List<DemoControl> controls(DemoContext context) => <DemoControl>[
+    ChoiceControl(
+      'The level reloads as',
+      options: const <String>[
+        'goblin, ogre, troll',
+        'troll, goblin',
+        'goblin only',
+        'ogre, goblin, ogre, troll',
+      ],
+      index: () => reload,
+      onChanged: (int i) => reload = i,
+    ),
+  ];
 
   static (String, double?, double?) _run() {
     // #region world
@@ -90,23 +219,6 @@ final class EcsWorldDemo extends ShowcaseDemo {
       trollX,
     );
   }
-
-  @override
-  Widget? customBody(
-    BuildContext buildContext,
-    DemoContext context,
-  ) => Container(
-    color: const Color(0xFF14161A),
-    padding: const EdgeInsets.all(24),
-    alignment: Alignment.topLeft,
-    child: DefaultTextStyle(
-      style: const TextStyle(color: Color(0xFFE8E8EC), fontSize: 16),
-      child: Text(
-        'Two monsters were saved by name, then a third was inserted ahead of '
-        'the troll before the level reloaded.\n\n$_report',
-      ),
-    ),
-  );
 
   @override
   void verify(Scene scene, FrameResult frame) {

@@ -33,3 +33,15 @@ This student changes the pendulum's length partway through the run.
 The two runs agree at every checkpoint before the change, and the checkpoint
 covering step 30 is the first to disagree — exactly where the student's
 length stopped matching the assignment's.
+
+## Step 4: Watch two runs part
+
+Two pendulums swing side by side, the assignment in green and the student's in
+orange, and a row of lamps below them lights a checkpoint at a time: green
+while the two runs agree there, red from the first checkpoint that does not.
+The student's length changes at the step on the slider, and the orange pendulum
+lengthens under your eyes; the first red lamp is the checkpoint covering that
+step, which is `divergenceFrom` working. Move the step or the new length and
+the run starts again.
+
+{{code live}}

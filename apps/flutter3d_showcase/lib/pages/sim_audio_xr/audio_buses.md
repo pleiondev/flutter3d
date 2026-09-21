@@ -24,3 +24,14 @@ special case, only another bus everything is also on.
 `AudioBus.sfx` is never configured on this page, and `gainFor` still answers
 1.0 for it: an unset bus is full rather than silent, so a game that forgets
 to configure one is still heard.
+
+## Step 4: Watch the levels
+
+Three bars stand on the page: the blue one is music as it is actually heard,
+after the master; the yellow one is sfx, which nobody configured; the purple
+one is the master itself. Slide **Music volume** and only the blue one moves.
+Slide **Master volume** and the blue and the yellow both follow it, because
+every bus is multiplied by the master; the yellow one otherwise stays at full,
+since an unset bus does until a game turns it down.
+
+{{code read}}

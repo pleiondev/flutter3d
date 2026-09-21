@@ -4,10 +4,10 @@
 /// Quoted by `audio_buses.md` and shown whole in the Source tab.
 library;
 
-import 'package:flutter/widgets.dart';
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_audio/flutter3d_audio.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
+import 'package:flutter3d_showcase/src/demo/scene_kit.dart';
 import 'package:vector_math/vector_math.dart';
 
 final class AudioBusesDemo extends ShowcaseDemo {
@@ -15,6 +15,9 @@ final class AudioBusesDemo extends ShowcaseDemo {
   double masterVolume = 1.0;
 
   late final Mixer _mixer;
+  late final BarGauge _music;
+  late final BarGauge _sfx;
+  late final BarGauge _out;
 
   @override
   Scene build(DemoContext context) {
@@ -22,20 +25,36 @@ final class AudioBusesDemo extends ShowcaseDemo {
     _mixer = Mixer();
     // #endregion mixer
 
-    final material = Material(
-      name: 'mixer',
-      baseColor: Vector4(0.5, 0.9, 0.9, 1.0),
+    _music = BarGauge(
+      context,
+      'music',
+      Vector4(0.45, 0.65, 0.95, 1.0),
+      Vector3(-2.5, 0.0, 0.0),
+      width: 1.0,
+      vertical: true,
     );
-    final node = MeshNode(
-      DeviceMesh.upload(context.device, SphereShape(segments: 16).build()),
-      material,
+    _sfx = BarGauge(
+      context,
+      'sfx',
+      Vector4(0.95, 0.75, 0.3, 1.0),
+      Vector3(0.0, 0.0, 0.0),
+      width: 1.0,
+      vertical: true,
     );
-    return Scene()
-      ..add(node)
-      ..add(
-        LightNode(name: 'sun', intensity: 3.0)
-          ..setLocalForward(Vector3(-0.4, -1.0, -0.3)),
-      );
+    _out = BarGauge(
+      context,
+      'master',
+      Vector4(0.7, 0.4, 0.8, 1.0),
+      Vector3(2.5, 0.0, 0.0),
+      width: 1.0,
+      vertical: true,
+    );
+    return sceneOf(<SceneNode>[
+      floorNode(context, width: 10.0, depth: 5.0),
+      ..._music.nodes,
+      ..._sfx.nodes,
+      ..._out.nodes,
+    ]);
   }
 
   // #region set
@@ -47,25 +66,24 @@ final class AudioBusesDemo extends ShowcaseDemo {
   // #endregion set
 
   @override
-  Widget? customBody(BuildContext buildContext, DemoContext context) {
+  void configureView(DemoContext context) {
+    context.orbit
+      ..distance = 9.0
+      ..pitch = 0.3
+      ..yaw = 0.0;
+    context.orbit.target.setValues(0.0, 1.5, 0.0);
+  }
+
+  @override
+  void update(DemoContext context, double dt) {
     _apply();
     // #region read
     final musicGain = _mixer.gainFor(AudioBus.music);
     final sfxGain = _mixer.gainFor(AudioBus.sfx);
     // #endregion read
-    return Container(
-      color: const Color(0xFF14161A),
-      padding: const EdgeInsets.all(24),
-      alignment: Alignment.topLeft,
-      child: DefaultTextStyle(
-        style: const TextStyle(color: Color(0xFFE8E8EC), fontSize: 16),
-        child: Text(
-          'music plays at ${musicGain.toStringAsFixed(2)} of full volume\n'
-          'sfx, never configured, plays at ${sfxGain.toStringAsFixed(2)} '
-          '(unset buses stay full until a game turns them down)',
-        ),
-      ),
-    );
+    _music.set(musicGain);
+    _sfx.set(sfxGain);
+    _out.set(masterVolume);
   }
 
   @override

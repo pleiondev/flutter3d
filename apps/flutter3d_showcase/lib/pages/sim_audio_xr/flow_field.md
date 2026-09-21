@@ -29,3 +29,18 @@ the sweep already knows for free.
 
 A point in the near corner of the floor is told to walk towards the far
 corner, where the goal sits.
+
+## Step 4: Sixteen agents, one table
+
+The floor on this page has two walls across it, each with a gap at one end, and
+sixteen agents that start on the left. There is one `FlowField`: rebuilt when the
+goal moves, and read by every agent every frame. Each agent asks it for a
+direction from wherever it stands and takes a step, and they all snake round
+the walls to the gold post, however far apart they started. Move the goal and
+the whole crowd turns at once, off a single rebuild.
+
+{{code live}}
+
+{{code aim}}
+
+{{code follow}}

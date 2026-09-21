@@ -4,33 +4,132 @@
 /// Quoted by `audio_occlusion.md` and shown whole in the Source tab.
 library;
 
-import 'package:flutter/widgets.dart';
+import 'dart:math' as math;
+
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_audio/flutter3d_audio.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
+import 'package:flutter3d_showcase/src/demo/scene_kit.dart';
 import 'package:vector_math/vector_math.dart';
 
 final class AudioOcclusionDemo extends ShowcaseDemo {
   late final String _report;
 
+  double listenerX = 0.0;
+  bool walking = true;
+
+  late final AudioScene _audio;
+  late final SoundEmitter _bell;
+  late final AudioListener _listener;
+  late final MeshNode _source;
+  late final MeshNode _head;
+  late final BarGauge _gain;
+  late final BarGauge _muffle;
+  double _clock = 0.0;
+
+  @override
+  void configureView(DemoContext context) {
+    context.orbit
+      ..distance = 12.0
+      ..pitch = 0.8
+      ..yaw = 0.0;
+    context.orbit.target.setValues(1.0, 0.0, 1.0);
+  }
+
   @override
   Scene build(DemoContext context) {
     _report = _run();
-    final material = Material(
-      name: 'wall',
-      baseColor: Vector4(0.6, 0.5, 0.4, 1.0),
+    _source = ballNode(
+      context,
+      'bell',
+      0.5,
+      Vector4(0.9, 0.75, 0.3, 1.0),
+      at: Vector3(4.0, 0.5, 0.0),
     );
-    final node = MeshNode(
-      DeviceMesh.upload(context.device, SphereShape(segments: 16).build()),
-      material,
+    _head = blockNode(
+      context,
+      'listener',
+      Vector3(0.7, 0.7, 0.7),
+      Vector4(0.45, 0.65, 0.95, 1.0),
     );
-    return Scene()
-      ..add(node)
-      ..add(
-        LightNode(name: 'sun', intensity: 3.0)
-          ..setLocalForward(Vector3(-0.4, -1.0, -0.3)),
-      );
+    _gain = BarGauge(
+      context,
+      'gain',
+      Vector4(0.9, 0.75, 0.3, 1.0),
+      Vector3(-4.0, 0.0, 4.5),
+      height: 5.0,
+    );
+    _muffle = BarGauge(
+      context,
+      'muffle',
+      Vector4(0.7, 0.4, 0.85, 1.0),
+      Vector3(-4.0, 0.0, 5.5),
+      height: 5.0,
+    );
+
+    // #region live
+    // The same scene and the same question, asked every frame while the
+    // listener walks: the wall is only ever the callback.
+    _audio = AudioScene(backend: SilentBackend(), occlusion: _occlusion);
+    _bell = _audio.play(
+      const SoundDef(name: 'bell', asset: 'bell.wav', loop: true),
+      Vector3(4.0, 0.0, 0.0),
+    );
+    _listener = AudioListener(position: Vector3.zero());
+    // #endregion live
+    return sceneOf(<SceneNode>[
+      floorNode(context, width: 18.0, depth: 14.0),
+      blockNode(
+        context,
+        'wall',
+        Vector3(0.3, 2.0, 6.0),
+        Vector4(0.6, 0.5, 0.4, 1.0),
+        at: Vector3(2.0, 1.0, 0.0),
+      ),
+      _source,
+      _head,
+      ..._gain.nodes,
+      ..._muffle.nodes,
+    ]);
   }
+
+  @override
+  void update(DemoContext context, double dt) {
+    _clock += dt;
+    if (walking) listenerX = 2.0 + 5.5 * math.sin(_clock * 0.45);
+    _listener.position.setValues(listenerX, 0.0, 0.0);
+    _audio.update(_listener);
+    _head.setPosition(listenerX, 0.35, 0.0);
+    _gain.set(_bell.audibleGain);
+    _muffle.set(_bell.muffle);
+    // A muffled bell goes dull.
+    _source.material.baseColor.setValues(
+      0.9 - 0.45 * _bell.muffle,
+      0.75 - 0.3 * _bell.muffle,
+      0.3 + 0.2 * _bell.muffle,
+      1.0,
+    );
+  }
+
+  @override
+  List<DemoControl> controls(DemoContext context) => <DemoControl>[
+    SliderControl(
+      'Listener at',
+      min: -6.0,
+      max: 8.0,
+      value: () => listenerX,
+      onChanged: (double v) {
+        walking = false;
+        listenerX = v;
+      },
+      format: (double v) => '${v.toStringAsFixed(1)} m',
+    ),
+    ToggleControl(
+      'Walk about',
+      value: () => walking,
+      onChanged: (bool v) => walking = v,
+    ),
+  ];
 
   // #region wall
   /// A wall at x = 2: a straight line that crosses it is half heard, and one
@@ -66,18 +165,6 @@ final class AudioOcclusionDemo extends ShowcaseDemo {
         'listener moved to 5, same side as the sound now: gain '
         '${gainSameSide.toStringAsFixed(3)}';
   }
-
-  @override
-  Widget? customBody(BuildContext buildContext, DemoContext context) =>
-      Container(
-        color: const Color(0xFF14161A),
-        padding: const EdgeInsets.all(24),
-        alignment: Alignment.topLeft,
-        child: DefaultTextStyle(
-          style: const TextStyle(color: Color(0xFFE8E8EC), fontSize: 16),
-          child: Text(_report),
-        ),
-      );
 
   @override
   void verify(Scene scene, FrameResult frame) {
