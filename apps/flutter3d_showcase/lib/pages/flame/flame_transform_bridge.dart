@@ -124,7 +124,11 @@ final class FlameTransformBridgeDemo extends ShowcaseDemo {
     final game = TransparentFlameGame()..add(bridge..add(_Drift(bridge)));
     return Flutter3dFlameWidget(
       game: game,
-      camera: CameraNode(name: 'transform-preview'),
+      // Left at its own default transform, this camera sat exactly where
+      // the bridged cube does — see `flame_overview.dart` for the same fix.
+      camera: CameraNode(name: 'transform-preview')
+        ..setPosition(2.5, 2.0, 4.0)
+        ..lookAt(Vector3.zero()),
       existing: (device: context.device, renderer: context.renderer),
       buildScene: (GraphicsDevice device) => scene,
     );

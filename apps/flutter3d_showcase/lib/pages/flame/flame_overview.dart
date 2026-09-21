@@ -96,7 +96,12 @@ final class FlameOverviewDemo extends ShowcaseDemo {
       );
     return Flutter3dFlameWidget(
       game: game,
-      camera: CameraNode(name: 'overview-preview'),
+      // `Flutter3dFlameWidget` adds this camera to the scene as-is — it does
+      // not point it anywhere. Left at its own default transform, it sat
+      // exactly where the cube did, which is a 3D layer of nothing but black.
+      camera: CameraNode(name: 'overview-preview')
+        ..setPosition(3.0, 2.0, 4.0)
+        ..lookAt(Vector3.zero()),
       existing: (device: context.device, renderer: context.renderer),
       buildScene: (GraphicsDevice device) => scene,
     );
