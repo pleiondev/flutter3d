@@ -95,9 +95,10 @@ final class LightmapBakeDemo extends ShowcaseDemo {
       for (var x = 0; x < lightmap.width; x++) {
         final Vector3 light = lightmap.irradianceAt(x, y);
         final int at = (y * lightmap.width + x) * 4;
-        rgba[at] = (light.x / brightest * 255).round();
-        rgba[at + 1] = (light.y / brightest * 255).round();
-        rgba[at + 2] = (light.z / brightest * 255).round();
+        // Square-rooted, since a screen shows most of its range in the darks.
+        rgba[at] = (math.sqrt(light.x / brightest) * 255).round();
+        rgba[at + 1] = (math.sqrt(light.y / brightest) * 255).round();
+        rgba[at + 2] = (math.sqrt(light.z / brightest) * 255).round();
         rgba[at + 3] = 255;
         if (light.x + light.y + light.z > 0.0) lit++;
       }

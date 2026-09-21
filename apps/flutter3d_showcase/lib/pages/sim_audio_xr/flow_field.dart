@@ -127,7 +127,12 @@ final class FlowFieldDemo extends ShowcaseDemo {
       // #region follow
       // One step down the table from wherever the agent stands.
       if (_field.descend(at, direction)) {
-        at.addScaled(direction, 3.0 * dt);
+        // A long frame (a tab left in the background) must not fling an agent
+        // out of the level in one step.
+        at.addScaled(direction, 3.0 * math.min(dt, 0.05));
+      } else {
+        // Not on the floor any more: back to where it started.
+        at.setFrom(_starts[i]);
       }
       // #endregion follow
       if ((at.x - gx).abs() + (at.z - gz).abs() < 1.8) {
