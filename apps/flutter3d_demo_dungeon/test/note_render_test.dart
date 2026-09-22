@@ -34,7 +34,7 @@ void main() {
     final renderer = Renderer.create(device: device);
 
     final document = await GltfLoader().load(
-      File('assets/models/note.glb').readAsBytesSync(),
+      File('assets_src/models/note.glb').readAsBytesSync(),
     );
     final asset = await ModelAsset.fromDocument(document, device: device);
     final scene = Scene();
