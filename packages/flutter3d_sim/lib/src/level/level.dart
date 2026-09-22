@@ -42,11 +42,11 @@ final class Level {
        entities = entities ?? <EntityDef>[],
        lights = lights ?? <LevelLight>[],
        materials = materials ?? <String, LevelMaterial>{},
-       fogColor = fogColor?.clone() ?? _defaultFogColor.clone();
+       fogColor = fogColor?.clone() ?? _defaultFogColor;
 
-  /// What [fogColor] is when a document says nothing. Cloned wherever it is
-  /// used, because a `Vector3` is mutable and this one is shared.
-  static final Vector3 _defaultFogColor = Vector3(0.05, 0.04, 0.06);
+  /// What [fogColor] is when a document says nothing. A fresh one each time,
+  /// because a `Vector3` is mutable and a shared one could be changed in place.
+  static Vector3 get _defaultFogColor => Vector3(0.05, 0.04, 0.06);
 
   /// The document this level was read from. See [writeThrough].
   ///
@@ -141,7 +141,7 @@ final class Level {
         final Map<String, Object?> section => Heightfield.fromJson(section),
         _ => null,
       },
-      fogColor: json.vector3('fogColor', fallback: _defaultFogColor.clone()),
+      fogColor: json.vector3('fogColor', fallback: _defaultFogColor),
       fogDensity: json.numberOr('fogDensity', 0.0),
       music: json.textOrNull('music'),
       next: json.textOrNull('next'),
