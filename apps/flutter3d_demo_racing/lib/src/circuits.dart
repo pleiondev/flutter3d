@@ -29,7 +29,7 @@ final class Circuit {
 /// ordered so that the last is the hardest, which is what a season is for.
 ///
 /// **Why this is not a `RunSession`.** The other two games load a level,
-/// snapshot it, restore it and move on, and `flutter3d_session` holds that shape
+/// snapshot it, restore it and move on, and `flutter3d_game` holds that shape
 /// for them. A season is the same idea with the middle taken out: nobody resumes
 /// a race half a lap in, so `snapshotOf` and `restoreInto` would be two required
 /// overrides returning nothing — ceremony that reads as a feature. What is

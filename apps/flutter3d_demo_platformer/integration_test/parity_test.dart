@@ -13,8 +13,8 @@
 /// answering and why it is not part of `test/` already.
 library;
 
-import 'package:flutter3d_game/flutter3d_game.dart';
 import 'package:flutter3d_game_platformer/flutter3d_game_platformer.dart';
+import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 import 'package:vector_math/vector_math.dart';
@@ -63,7 +63,10 @@ CollisionWorld _room() {
   return world;
 }
 
-List<({bool forward, bool jump})> _tape({required int seed, required int steps}) {
+List<({bool forward, bool jump})> _tape({
+  required int seed,
+  required int steps,
+}) {
   final dice = GameRandom(seed);
   final tape = <({bool forward, bool jump})>[];
   var forward = false;
@@ -103,9 +106,7 @@ DigestTrace _play(List<({bool forward, bool jump})> tape, {int every = 25}) {
       forward = wish.forward;
     }
     if (wish.jump != jump) {
-      wish.jump
-          ? input.press(GameAction.jump)
-          : input.release(GameAction.jump);
+      wish.jump ? input.press(GameAction.jump) : input.release(GameAction.jump);
       jump = wish.jump;
     }
     sim.step(_dt);

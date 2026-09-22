@@ -16,7 +16,7 @@ import 'dart:typed_data';
 
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
-import 'package:flutter_test/flutter_test.dart';
+import 'package:test/test.dart';
 
 /// A two-texel-wide texture: black on the left, white on the right.
 ///

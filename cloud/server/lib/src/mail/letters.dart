@@ -47,12 +47,10 @@ Letter verificationLetter({
       'will happen.\n',
   html: _frame(
     heading: 'Confirm your address',
-    paragraphs: [
-      'Hello ${_escape.convert(name)},',
-      _verifyBody,
-    ],
+    paragraphs: ['Hello ${_escape.convert(name)},', _verifyBody],
     action: ('Confirm address', link),
-    footnote: 'If you did not create an account, ignore this letter and '
+    footnote:
+        'If you did not create an account, ignore this letter and '
         'nothing will happen.',
   ),
 );
@@ -75,12 +73,10 @@ Letter resetLetter({
       'If it was not you, ignore this letter: your password has not changed.\n',
   html: _frame(
     heading: 'Reset your password',
-    paragraphs: [
-      'Hello ${_escape.convert(name)},',
-      _resetBody,
-    ],
+    paragraphs: ['Hello ${_escape.convert(name)},', _resetBody],
     action: ('Choose a new password', link),
-    footnote: 'If it was not you, ignore this letter: your password has not '
+    footnote:
+        'If it was not you, ignore this letter: your password has not '
         'changed.',
   ),
 );
@@ -106,10 +102,7 @@ Letter passwordChangedLetter({
       '$resetLink\n',
   html: _frame(
     heading: 'Your password was changed',
-    paragraphs: [
-      'Hello ${_escape.convert(name)},',
-      _changedBody,
-    ],
+    paragraphs: ['Hello ${_escape.convert(name)},', _changedBody],
     action: ('It was not me — reset it', resetLink),
     footnote: null,
   ),
@@ -124,7 +117,10 @@ String _frame({
   final (label, link) = action;
   final href = _attribute.convert(link.toString());
   final body = paragraphs
-      .map((p) => '<p style="margin:0 0 16px;font-size:16px;line-height:1.6;color:#10161c">$p</p>')
+      .map(
+        (p) =>
+            '<p style="margin:0 0 16px;font-size:16px;line-height:1.6;color:#10161c">$p</p>',
+      )
       .join();
   final note = footnote == null
       ? ''

@@ -17,7 +17,9 @@ void main() {
     test('holds exactly the frames and vertexCount it was built with', () {
       final cache = SimulationCache(
         vertexCount: 400,
-        frames: <Float32List>[for (var i = 0; i < 120; i++) frameOf(400, i.toDouble())],
+        frames: <Float32List>[
+          for (var i = 0; i < 120; i++) frameOf(400, i.toDouble()),
+        ],
       );
 
       // The row's own worked scale: 120 frames × 400 vertices.
@@ -108,7 +110,10 @@ void main() {
       });
 
       test('fromJson is null for a missing field', () {
-        expect(SimulationCache.fromJson(<String, Object?>{'vertexCount': 3}), isNull);
+        expect(
+          SimulationCache.fromJson(<String, Object?>{'vertexCount': 3}),
+          isNull,
+        );
       });
 
       test('fromJson is null for a frame that is not a string', () {
@@ -121,27 +126,33 @@ void main() {
         );
       });
 
-      test('fromJson is null for a frame whose byte length is not a multiple of 4', () {
-        expect(
-          SimulationCache.fromJson(<String, Object?>{
-            'vertexCount': 1,
-            // Base64 for a single odd byte — five bytes decoded, not a
-            // multiple of 4.
-            'frames': <Object?>['AQIDBAU='],
-          }),
-          isNull,
-        );
-      });
+      test(
+        'fromJson is null for a frame whose byte length is not a multiple of 4',
+        () {
+          expect(
+            SimulationCache.fromJson(<String, Object?>{
+              'vertexCount': 1,
+              // Base64 for a single odd byte — five bytes decoded, not a
+              // multiple of 4.
+              'frames': <Object?>['AQIDBAU='],
+            }),
+            isNull,
+          );
+        },
+      );
 
-      test('fromJson is null for a frame whose length does not match vertexCount', () {
-        final mismatched = SimulationCache(
-          vertexCount: 2,
-          frames: <Float32List>[frameOf(2, 0)],
-        ).toJson();
-        // vertexCount says 5, but the one frame is still 2 vertices long.
-        mismatched['vertexCount'] = 5;
-        expect(SimulationCache.fromJson(mismatched), isNull);
-      });
+      test(
+        'fromJson is null for a frame whose length does not match vertexCount',
+        () {
+          final mismatched = SimulationCache(
+            vertexCount: 2,
+            frames: <Float32List>[frameOf(2, 0)],
+          ).toJson();
+          // vertexCount says 5, but the one frame is still 2 vertices long.
+          mismatched['vertexCount'] = 5;
+          expect(SimulationCache.fromJson(mismatched), isNull);
+        },
+      );
     });
   });
 }

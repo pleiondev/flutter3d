@@ -95,24 +95,25 @@ void main() {
   });
 
   group('import', () {
-    test('a written export reopens as the same shape it was written from',
-        () async {
-      final session = sessionWithAGhostAndAQuad();
-      final path = '${workspace.path}/roundtrip.f3d';
-      final written = session.export(path, force: true);
-      expect(written.did, isTrue, reason: written.says);
+    test(
+      'a written export reopens as the same shape it was written from',
+      () async {
+        final session = sessionWithAGhostAndAQuad();
+        final path = '${workspace.path}/roundtrip.f3d';
+        final written = session.export(path, force: true);
+        expect(written.did, isTrue, reason: written.says);
 
-      final blank = ModelSession(ModelHistory(const ModelProject()));
-      final result = await blank.import(path);
+        final blank = ModelSession(ModelHistory(const ModelProject()));
+        final result = await blank.import(path);
 
-      expect(result.did, isTrue, reason: result.says);
-      // The panel's own quad survives; the ghost, with no faces, brings
-      // nothing across for `importInto` to place.
-      expect(blank.project.objects, isNotEmpty);
-    });
+        expect(result.did, isTrue, reason: result.says);
+        // The panel's own quad survives; the ghost, with no faces, brings
+        // nothing across for `importInto` to place.
+        expect(blank.project.objects, isNotEmpty);
+      },
+    );
 
-    test('a path with nothing at it is refused rather than crashing',
-        () async {
+    test('a path with nothing at it is refused rather than crashing', () async {
       final session = ModelSession(ModelHistory(const ModelProject()));
       final result = await session.import(
         '${workspace.path}/does-not-exist.glb',

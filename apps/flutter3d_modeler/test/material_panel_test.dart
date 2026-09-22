@@ -1,13 +1,16 @@
-/// `mat-04a-n`'s own panel: a list of the project's materials, and — for the
-/// one an object is painted with — base colour, metallic, roughness and one
-/// texture slot.
+/// `mat-04`'s own full panel: a list of the project's materials, and — for
+/// the one an object is painted with — every field `SurfaceMaterial` carries.
 ///
 ///     flutter test test/material_panel_test.dart
 library;
 
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
-import 'package:flutter3d_formats/flutter3d_formats.dart';
+import 'package:flutter3d_core/formats.dart';
 import 'package:flutter3d_model_core/flutter3d_model_core.dart';
+import 'package:flutter3d_modeler/l10n/app_localizations.dart';
+import 'package:flutter3d_modeler/src/texture_slot.dart';
 import 'package:flutter3d_modeler/src/ui/material_panel.dart';
 import 'package:flutter3d_modeler/src/ui/theme.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -18,6 +21,60 @@ ProjectMaterial _material({String? name, double metallic = 0.0}) =>
       surface: SurfaceMaterial(name: name, metallic: metallic),
     );
 
+/// A slot with no file bound at all — [TextureSlotController]'s own five
+/// fields beyond the name, every one of them null or a no-op.
+const TextureSlotController _emptySlot = (
+  name: null,
+  subtitle: null,
+  badge: null,
+  thumbnail: null,
+  onChoose: _noop,
+  onClear: null,
+);
+
+void _noop() {}
+
+/// A slot map with every one of [SetTexture]'s five names, each empty and
+/// each callback a no-op unless a caller overrides one.
+Map<String, TextureSlotController> _emptySlots({
+  VoidCallback? onChooseAlbedo,
+}) => <String, TextureSlotController>{
+  'albedo': onChooseAlbedo == null
+      ? _emptySlot
+      : (
+          name: null,
+          subtitle: null,
+          badge: null,
+          thumbnail: null,
+          onChoose: onChooseAlbedo,
+          onClear: null,
+        ),
+  'normal': _emptySlot,
+  'metallicRoughness': _emptySlot,
+  'occlusion': _emptySlot,
+  'emissive': _emptySlot,
+};
+
+/// A PNG whose `IHDR` names [width]/[height], padded out to [totalBytes] so a
+/// weight can be asserted on it too — the same minimal header
+/// `texture_slot_test.dart` builds, copied here rather than shared across a
+/// test-only import neither file otherwise needs.
+Uint8List _pngBytes(int width, int height, {required int totalBytes}) {
+  final bytes = Uint8List(totalBytes);
+  final view = ByteData.sublistView(bytes);
+  bytes.setAll(0, <int>[0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A]);
+  view.setUint32(8, 13, Endian.big);
+  bytes.setAll(12, <int>[0x49, 0x48, 0x44, 0x52]);
+  view.setUint32(16, width, Endian.big);
+  view.setUint32(20, height, Endian.big);
+  bytes.setAll(24, <int>[8, 6, 0, 0, 0]);
+  return bytes;
+}
+
+/// The panel's own full length, with every texture slot and the advanced
+/// section open, does not fit the default 800×600 test surface — widened
+/// here rather than in each test, the same way `accessibility_test.dart`
+/// does for its own tall screens.
 Future<void> _pump(
   WidgetTester tester, {
   required List<ProjectMaterial> materials,
@@ -26,27 +83,34 @@ Future<void> _pump(
   VoidCallback? onAddMaterial,
   void Function(String field, Object? value)? onSetField,
   bool metallicEnabled = true,
-  VoidCallback? onChooseBaseColorTexture,
-  VoidCallback? onClearBaseColorTexture,
-  String? textureName,
-}) => tester.pumpWidget(
-  MaterialApp(
-    theme: modelerTheme(),
-    home: Scaffold(
-      body: MaterialPanel(
-        materials: materials,
-        activeIndex: activeIndex,
-        onAssign: onAssign ?? (_) {},
-        onAddMaterial: onAddMaterial ?? () {},
-        onSetField: onSetField ?? (_, _) {},
-        metallicEnabled: metallicEnabled,
-        onChooseBaseColorTexture: onChooseBaseColorTexture ?? () {},
-        onClearBaseColorTexture: onClearBaseColorTexture,
-        textureName: textureName,
+  Map<String, TextureSlotController>? textureSlots,
+}) async {
+  tester.view
+    ..physicalSize = const Size(800, 1400)
+    ..devicePixelRatio = 1.0;
+  addTearDown(tester.view.reset);
+  await tester.pumpWidget(
+    MaterialApp(
+      locale: const Locale('en'),
+      localizationsDelegates: AppLocalizations.localizationsDelegates,
+      supportedLocales: AppLocalizations.supportedLocales,
+      theme: modelerTheme(),
+      home: Scaffold(
+        body: SingleChildScrollView(
+          child: MaterialPanel(
+            materials: materials,
+            activeIndex: activeIndex,
+            onAssign: onAssign ?? (_) {},
+            onAddMaterial: onAddMaterial ?? () {},
+            onSetField: onSetField ?? (_, _) {},
+            metallicEnabled: metallicEnabled,
+            textureSlots: textureSlots ?? _emptySlots(),
+          ),
+        ),
       ),
     ),
-  ),
-);
+  );
+}
 
 void main() {
   group('the material list', () {
@@ -90,7 +154,7 @@ void main() {
       expect(assigned, <int?>[1]);
     });
 
-    testWidgets('tapping the row already active clears the paint', (
+    testWidgets('ux-40: tapping the row already active leaves it painted', (
       WidgetTester tester,
     ) async {
       final assigned = <int?>[];
@@ -101,10 +165,43 @@ void main() {
         onAssign: assigned.add,
       );
 
+      // **Mutation: send null for the row that is already active**, which
+      // is what this did. Clicking a row is how a person looks at a
+      // material's own fields, so looking at the one already assigned took
+      // the paint off the object — and looking at it twice put it back.
       await tester.tap(find.text('Steel'));
       await tester.pump();
 
+      expect(assigned, <int?>[0]);
+    });
+
+    testWidgets('ux-40: and "Unassign" is what takes the paint off', (
+      WidgetTester tester,
+    ) async {
+      final assigned = <int?>[];
+      await _pump(
+        tester,
+        materials: <ProjectMaterial>[_material(name: 'Steel')],
+        activeIndex: 0,
+        onAssign: assigned.add,
+      );
+
+      await tester.tap(find.text('Unassign'));
+      await tester.pump();
       expect(assigned, <int?>[null]);
+    });
+
+    testWidgets('ux-40: with nothing painted there is nothing to unassign', (
+      WidgetTester tester,
+    ) async {
+      await _pump(
+        tester,
+        materials: <ProjectMaterial>[_material(name: 'Steel')],
+      );
+
+      // A button that can only refuse is worse than no button — the same
+      // rule `ux-47`'s own "Open in editor" row already follows here.
+      expect(find.text('Unassign'), findsNothing);
     });
 
     testWidgets('the "Add material" link is always there', (
@@ -124,6 +221,52 @@ void main() {
   });
 
   group('the active material\'s own fields', () {
+    testWidgets('the shader dropdown offers the six built-in models and '
+        'edits `lightingModel`', (WidgetTester tester) async {
+      final said = <Object?>[];
+      await _pump(
+        tester,
+        materials: <ProjectMaterial>[_material(name: 'Cloth')],
+        activeIndex: 0,
+        onSetField: (String field, Object? value) {
+          if (field == 'lightingModel') said.add(value);
+        },
+      );
+
+      await tester.tap(
+        find.byKey(const ValueKey<String>('lightingModelDropdown')),
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('Lambert'), findsOneWidget);
+      expect(find.text('Toon'), findsOneWidget);
+      await tester.tap(find.text('Lambert').last);
+      await tester.pumpAndSettle();
+
+      expect(said, <String>['Lambert']);
+    });
+
+    testWidgets(
+      'a material with no shader field of its own shows PBR selected',
+      (WidgetTester tester) async {
+        await _pump(
+          tester,
+          materials: <ProjectMaterial>[_material(name: 'Steel')],
+          activeIndex: 0,
+        );
+
+        // `EnumField` wraps the actual `DropdownButton` now, so its own key
+        // finds the wrapper — the dropdown itself is the sole descendant of
+        // that type underneath it.
+        final DropdownButton<String> dropdown = tester.widget(
+          find.descendant(
+            of: find.byKey(const ValueKey<String>('lightingModelDropdown')),
+            matching: find.byType(DropdownButton<String>),
+          ),
+        );
+        expect(dropdown.value, 'Pbr');
+      },
+    );
+
     testWidgets('mat-04\'s own acceptance: Lambert disables metallic', (
       WidgetTester tester,
     ) async {
@@ -195,7 +338,7 @@ void main() {
         },
       );
 
-      await tester.enterText(find.byType(TextField), '5FD4E4');
+      await tester.enterText(find.byType(TextField).first, '5FD4E4');
       await tester.testTextInput.receiveAction(TextInputAction.done);
       await tester.pump();
 
@@ -203,45 +346,269 @@ void main() {
       expect(said.single[0], closeTo(0.373, 0.001));
     });
 
-    testWidgets('the texture row shows its own image name', (
+    testWidgets('the emissive field edits `emissive`', (
+      WidgetTester tester,
+    ) async {
+      final said = <List<double>>[];
+      await _pump(
+        tester,
+        materials: <ProjectMaterial>[_material(name: 'Lamp')],
+        activeIndex: 0,
+        onSetField: (String field, Object? value) {
+          if (field == 'emissive') said.add(value! as List<double>);
+        },
+      );
+
+      // The second colour swatch on the panel is emissive's, base colour's
+      // own coming first.
+      await tester.enterText(find.byType(TextField).at(1), '5FD4E4');
+      await tester.testTextInput.receiveAction(TextInputAction.done);
+      await tester.pump();
+
+      expect(said, hasLength(1));
+      expect(said.single, hasLength(3));
+    });
+
+    testWidgets(
+      'alpha mode offers the three glTF modes and edits `alphaMode`',
+      (WidgetTester tester) async {
+        final said = <String>[];
+        await _pump(
+          tester,
+          materials: <ProjectMaterial>[_material(name: 'Glass')],
+          activeIndex: 0,
+          onSetField: (String field, Object? value) {
+            if (field == 'alphaMode') said.add(value! as String);
+          },
+        );
+
+        await tester.tap(
+          find.byKey(const ValueKey<String>('alphaModeDropdown')),
+        );
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('Blended').last);
+        await tester.pumpAndSettle();
+
+        expect(said, <String>['blend']);
+      },
+    );
+
+    testWidgets('a cutoff slider appears only in mask mode', (
+      WidgetTester tester,
+    ) async {
+      await _pump(
+        tester,
+        materials: <ProjectMaterial>[
+          ProjectMaterial(
+            surface: SurfaceMaterial(alphaMode: SurfaceAlphaMode.opaque),
+          ),
+        ],
+        activeIndex: 0,
+      );
+      expect(find.byKey(const ValueKey<String>('slider-Cutoff')), findsNothing);
+
+      await _pump(
+        tester,
+        materials: <ProjectMaterial>[
+          ProjectMaterial(
+            surface: SurfaceMaterial(alphaMode: SurfaceAlphaMode.mask),
+          ),
+        ],
+        activeIndex: 0,
+      );
+      expect(
+        find.byKey(const ValueKey<String>('slider-Cutoff')),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('every one of the five texture slots draws its own row', (
       WidgetTester tester,
     ) async {
       await _pump(
         tester,
         materials: <ProjectMaterial>[_material(name: 'Steel')],
         activeIndex: 0,
-        textureName: 'rust.png',
-        onClearBaseColorTexture: () {},
+        textureSlots: <String, TextureSlotController>{
+          'albedo': (
+            name: 'rust_albedo.png',
+            subtitle: null,
+            badge: null,
+            thumbnail: null,
+            onChoose: () {},
+            onClear: () {},
+          ),
+          'normal': _emptySlot,
+          'metallicRoughness': _emptySlot,
+          'occlusion': _emptySlot,
+          'emissive': _emptySlot,
+        },
       );
 
-      expect(find.text('rust.png'), findsOneWidget);
+      expect(find.text('Base colour texture'), findsOneWidget);
+      expect(find.text('Normal map'), findsOneWidget);
+      expect(find.text('Metallic-roughness map'), findsOneWidget);
+      expect(find.text('Occlusion map'), findsOneWidget);
+      expect(find.text('Emissive map'), findsOneWidget);
+      expect(find.text('rust_albedo.png'), findsOneWidget);
+      // Four empty slots, "None" each.
+      expect(find.text('None'), findsNWidgets(4));
+      // Only the bound slot offers "Clear".
       expect(find.text('Clear'), findsOneWidget);
     });
 
-    testWidgets('an empty texture slot offers no "Clear"', (
+    testWidgets(
+      'a texture row reads dimensions and weight from textureSlotDisplay',
+      (WidgetTester tester) async {
+        final TextureSlotDisplay display = textureSlotDisplay(
+          EncodedImage(
+            bytes: _pngBytes(256, 128, totalBytes: 170 * 1024),
+            name: 'albedo.png',
+          ),
+        );
+
+        await _pump(
+          tester,
+          materials: <ProjectMaterial>[_material(name: 'Steel')],
+          activeIndex: 0,
+          textureSlots: <String, TextureSlotController>{
+            'albedo': (
+              name: display.name,
+              subtitle: display.dimensionsText == null
+                  ? null
+                  : '${display.dimensionsText} · ${display.weightText}',
+              badge: display.formatBadge,
+              thumbnail: display.thumbnail,
+              onChoose: () {},
+              onClear: () {},
+            ),
+            'normal': _emptySlot,
+            'metallicRoughness': _emptySlot,
+            'occlusion': _emptySlot,
+            'emissive': _emptySlot,
+          },
+        );
+
+        expect(find.text('albedo.png'), findsOneWidget);
+        expect(find.text('256×128 · 170 KB'), findsOneWidget);
+      },
+    );
+
+    testWidgets("the dot reflects the material's own base colour", (
       WidgetTester tester,
     ) async {
       await _pump(
         tester,
-        materials: <ProjectMaterial>[_material(name: 'Steel')],
-        activeIndex: 0,
+        materials: <ProjectMaterial>[
+          ProjectMaterial(
+            surface: SurfaceMaterial(
+              name: 'Rust',
+              baseColor: Vector4(0.33, 0.66, 0.11, 1),
+            ),
+          ),
+        ],
       );
 
-      expect(find.text('None'), findsOneWidget);
-      expect(find.text('Clear'), findsNothing);
+      final Finder row = find.byWidgetPredicate(
+        (Widget w) => w is Semantics && w.properties.label == 'Rust',
+      );
+      final Container dot = tester.widget(
+        find.descendant(of: row, matching: find.byType(Container)).first,
+      );
+      final BoxDecoration decoration = dot.decoration! as BoxDecoration;
+      expect(decoration.shape, BoxShape.circle);
+      expect(
+        decoration.color,
+        Color.fromRGBO(
+          (0.33 * 255).round(),
+          (0.66 * 255).round(),
+          (0.11 * 255).round(),
+          1.0,
+        ),
+      );
     });
 
-    testWidgets('"Choose…" reaches the caller', (WidgetTester tester) async {
+    testWidgets('"Choose…" reaches the caller for the slot it was pressed on', (
+      WidgetTester tester,
+    ) async {
       var chosen = 0;
       await _pump(
         tester,
         materials: <ProjectMaterial>[_material(name: 'Steel')],
         activeIndex: 0,
-        onChooseBaseColorTexture: () => chosen++,
+        textureSlots: _emptySlots(onChooseAlbedo: () => chosen++),
       );
 
-      await tester.tap(find.text('Choose…'));
+      await tester.tap(find.text('Choose…').first);
       expect(chosen, 1);
+    });
+
+    testWidgets(
+      'the advanced section holds emissive strength and double-sided always',
+      (WidgetTester tester) async {
+        await _pump(
+          tester,
+          materials: <ProjectMaterial>[_material(name: 'Steel')],
+          activeIndex: 0,
+        );
+
+        await tester.tap(find.text('Advanced'));
+        await tester.pumpAndSettle();
+
+        expect(find.text('Emissive strength'), findsOneWidget);
+        expect(
+          find.byKey(const ValueKey<String>('doubleSidedCheckbox')),
+          findsOneWidget,
+        );
+        // No map bound to either slot, so neither slider that only means
+        // something once one is shows up.
+        expect(find.text('Normal scale'), findsNothing);
+        expect(find.text('Occlusion strength'), findsNothing);
+      },
+    );
+
+    testWidgets('normal scale appears in Advanced once a normal map is bound', (
+      WidgetTester tester,
+    ) async {
+      await _pump(
+        tester,
+        materials: <ProjectMaterial>[
+          ProjectMaterial(
+            surface: SurfaceMaterial(
+              normalTexture: const TextureBinding(imageIndex: 0),
+            ),
+          ),
+        ],
+        activeIndex: 0,
+      );
+
+      await tester.tap(find.text('Advanced'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Normal scale'), findsOneWidget);
+    });
+
+    testWidgets('double-sided reaches `onSetField`', (
+      WidgetTester tester,
+    ) async {
+      final said = <bool>[];
+      await _pump(
+        tester,
+        materials: <ProjectMaterial>[_material(name: 'Leaf')],
+        activeIndex: 0,
+        onSetField: (String field, Object? value) {
+          if (field == 'doubleSided') said.add(value! as bool);
+        },
+      );
+
+      await tester.tap(find.text('Advanced'));
+      await tester.pumpAndSettle();
+      await tester.tap(
+        find.byKey(const ValueKey<String>('doubleSidedCheckbox')),
+      );
+      await tester.pump();
+
+      expect(said, <bool>[true]);
     });
 
     testWidgets('no active material shows no field, only the list', (

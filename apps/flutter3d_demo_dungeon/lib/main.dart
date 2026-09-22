@@ -11,18 +11,20 @@ import 'package:flutter/services.dart';
 // dance.
 import 'package:flutter3d/flutter3d.dart' hide Material;
 import 'package:flutter3d_audio/flutter3d_audio.dart';
-import 'package:flutter3d_bridge/flutter3d_bridge.dart';
 import 'package:flutter3d_game/flutter3d_game.dart';
 import 'package:flutter3d_game_shooter/bridge.dart';
 import 'package:flutter3d_game_shooter/flutter3d_game_shooter.dart';
 import 'package:flutter3d_game_shooter/sample.dart';
 import 'package:flutter3d_particles/flutter3d_particles.dart';
+import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:pad_input/pad_input.dart';
 import 'package:vector_math/vector_math.dart' hide Colors;
 
 import 'src/backend.dart';
 import 'src/credits.dart';
 import 'src/ending.dart';
+import 'src/first_shot_hint.dart';
 import 'src/frame_effects.dart';
 import 'src/hud.dart';
 import 'src/layers.dart';
@@ -54,7 +56,7 @@ const String _buildStamp = String.fromEnvironment(
 /// renderer in `flutter3d`, the clock and the input in `flutter3d_game`, the
 /// level documents and their validator in `flutter3d_sim`, the shooter's rules
 /// in `flutter3d_game_shooter`, the settings and the save in
-/// `flutter3d_screens`, the pointer capture in `pointer_lock` — and what is
+/// `flutter3d_game`, the pointer capture in `pointer_lock` — and what is
 /// left here is the part that is specific to this game.
 ///
 /// **This doc used to say "a handful of boxes, because the level format does
@@ -234,6 +236,10 @@ class _GameScreenState extends State<GameScreen>
   /// the message the HUD reads. See `FrameEffects` for why this is not part
   /// of `_step`.
   final FrameEffects _effects = FrameEffects();
+
+  /// Whether this run's own first-shot hint (`ls-g-01`) has already gone to
+  /// [_effects] — reset in `_beginDemo`, so a restart teaches it again.
+  bool _taughtFirstShot = false;
 
   final CameraNode _camera = CameraNode(name: 'player');
   late final RenderView _view;
@@ -604,6 +610,7 @@ class _GameScreenState extends State<GameScreen>
   /// the demo has to begin where the player did. The tape's seed is the dice
   /// the snapshot carries, which is the one number a replay cannot do without.
   void _beginDemo(String asset, LevelReady level) {
+    _taughtFirstShot = false;
     final start = level.staged.sim.save();
     _demoStart = start;
     _demoLevel = asset;
@@ -1075,7 +1082,8 @@ class _GameScreenState extends State<GameScreen>
     // flash can be turned down without turning the camera down with it. A
     // full-screen flash on every hit is a photosensitivity question, which is
     // not the same harm as a camera that moves by itself.
-    if (events.any((GameEvent e) => e is PlayerHurt)) {
+    final hurt = events.any((GameEvent e) => e is PlayerHurt);
+    if (hurt) {
       _effects.hurt(_system.screenFlash);
     }
 
@@ -1110,7 +1118,20 @@ class _GameScreenState extends State<GameScreen>
     // is right for as long as nobody restarts and wrong from the first R. The
     // run owns it now, along with the clock, and `startFresh` empties both.
     if (events.any((GameEvent e) => e is ShotFired)) _weaponView.recoil();
-    _run.run.crawl.step(dt, killed: events.whereType<ActorDied>().length);
+    // `ls-g-01`: gated on the run, not on the application's own lifetime —
+    // `_beginDemo` clears `_taughtFirstShot`, so a player restarting after
+    // death is taught again, the same reason the kill count resets there
+    // rather than at launch.
+    final hint = firstShotHintFor(events, alreadyTaught: _taughtFirstShot);
+    if (hint != null) {
+      _taughtFirstShot = true;
+      _effects.say(hint);
+    }
+    _run.run.crawl.step(
+      dt,
+      killed: events.whereType<ActorDied>().length,
+      hurt: hurt,
+    );
 
     final body = player.body;
     _weaponView.step(
@@ -1375,6 +1396,7 @@ class _GameScreenState extends State<GameScreen>
                       ? const XraySettings(layerMask: DungeonLayers.actors)
                       : const XraySettings(),
                 ),
+                presentFrame: presentFrame,
               ),
               // Hold to fire and drag to aim, which is what a captured pointer
               // already does at once — so the two are the same gesture here
@@ -1515,6 +1537,7 @@ class _GameScreenState extends State<GameScreen>
                     kills: _run.run.crawl.kills,
                     seconds: _run.run.crawl.seconds,
                     levels: _run.run.crawl.levels,
+                    bestStreak: _run.run.crawl.bestStreak,
                     touch: Playing.touch,
                   ),
                 ),

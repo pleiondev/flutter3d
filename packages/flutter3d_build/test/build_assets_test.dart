@@ -42,25 +42,25 @@ f 1 2 3
 
     expect(report.converted, hasLength(1));
     expect(report.skipped, isEmpty);
-    expect(File('${project.path}/flutter3d_generated/hero.f3d').existsSync(), isTrue);
+    expect(
+      File('${project.path}/flutter3d_generated/hero.f3d').existsSync(),
+      isTrue,
+    );
   });
 
-  test(
-    'the acceptance line: a second build with nothing changed converts '
-    'nothing, and the log says so as a count',
-    () async {
-      writeSource('hero.obj');
-      writeSource('props/chair.obj');
+  test('the acceptance line: a second build with nothing changed converts '
+      'nothing, and the log says so as a count', () async {
+    writeSource('hero.obj');
+    writeSource('props/chair.obj');
 
-      await runAssetBuild(project, log: log);
-      buffer.clear();
-      final second = await runAssetBuild(project, log: log);
+    await runAssetBuild(project, log: log);
+    buffer.clear();
+    final second = await runAssetBuild(project, log: log);
 
-      expect(second.converted, isEmpty);
-      expect(second.skipped, hasLength(2));
-      expect(log.text, contains('0 converted, 2 unchanged'));
-    },
-  );
+    expect(second.converted, isEmpty);
+    expect(second.skipped, hasLength(2));
+    expect(log.text, contains('0 converted, 2 unchanged'));
+  });
 
   test(
     'the acceptance line: changing one source reconverts exactly that one',
@@ -85,67 +85,65 @@ f 1 2 3
     },
   );
 
-  test('a destination that vanished is rebuilt even if the cache agrees', () async {
+  test(
+    'a destination that vanished is rebuilt even if the cache agrees',
+    () async {
+      writeSource('hero.obj');
+      await runAssetBuild(project);
+      File('${project.path}/flutter3d_generated/hero.f3d').deleteSync();
+
+      final report = await runAssetBuild(project, log: log);
+
+      expect(report.converted, hasLength(1));
+      expect(
+        File('${project.path}/flutter3d_generated/hero.f3d').existsSync(),
+        isTrue,
+      );
+    },
+  );
+
+  test('the acceptance line: a pipeline-version stamp change forces a full '
+      'reconvert with the content unchanged', () async {
     writeSource('hero.obj');
     await runAssetBuild(project);
-    File('${project.path}/flutter3d_generated/hero.f3d').deleteSync();
+
+    // Simulate a later flutter3d_build release by rewriting the cache
+    // file with a stamp this run will not recognise — the same effect
+    // kAssetPipelineVersion moving would have, without needing two
+    // built copies of this package side by side to prove it.
+    final cache = File(
+      '${project.path}/flutter3d_generated/.flutter3d_cache.json',
+    );
+    final json = jsonDecode(cache.readAsStringSync()) as Map<String, Object?>;
+    for (final entry in json.values) {
+      (entry! as Map<String, Object?>)['pipelineVersion'] = 0;
+    }
+    cache.writeAsStringSync(jsonEncode(json));
 
     final report = await runAssetBuild(project, log: log);
 
     expect(report.converted, hasLength(1));
-    expect(File('${project.path}/flutter3d_generated/hero.f3d').existsSync(), isTrue);
+    expect(report.skipped, isEmpty);
   });
 
-  test(
-    'the acceptance line: a pipeline-version stamp change forces a full '
-    'reconvert with the content unchanged',
-    () async {
-      writeSource('hero.obj');
-      await runAssetBuild(project);
+  test('a format-version stamp change forces a full reconvert too, the same '
+      'way', () async {
+    writeSource('hero.obj');
+    await runAssetBuild(project);
 
-      // Simulate a later flutter3d_build release by rewriting the cache
-      // file with a stamp this run will not recognise — the same effect
-      // kAssetPipelineVersion moving would have, without needing two
-      // built copies of this package side by side to prove it.
-      final cache = File(
-        '${project.path}/flutter3d_generated/.flutter3d_cache.json',
-      );
-      final json =
-          jsonDecode(cache.readAsStringSync()) as Map<String, Object?>;
-      for (final entry in json.values) {
-        (entry! as Map<String, Object?>)['pipelineVersion'] = 0;
-      }
-      cache.writeAsStringSync(jsonEncode(json));
+    final cache = File(
+      '${project.path}/flutter3d_generated/.flutter3d_cache.json',
+    );
+    final json = jsonDecode(cache.readAsStringSync()) as Map<String, Object?>;
+    for (final entry in json.values) {
+      (entry! as Map<String, Object?>)['formatVersion'] = 0;
+    }
+    cache.writeAsStringSync(jsonEncode(json));
 
-      final report = await runAssetBuild(project, log: log);
+    final report = await runAssetBuild(project, log: log);
 
-      expect(report.converted, hasLength(1));
-      expect(report.skipped, isEmpty);
-    },
-  );
-
-  test(
-    'a format-version stamp change forces a full reconvert too, the same '
-    'way',
-    () async {
-      writeSource('hero.obj');
-      await runAssetBuild(project);
-
-      final cache = File(
-        '${project.path}/flutter3d_generated/.flutter3d_cache.json',
-      );
-      final json =
-          jsonDecode(cache.readAsStringSync()) as Map<String, Object?>;
-      for (final entry in json.values) {
-        (entry! as Map<String, Object?>)['formatVersion'] = 0;
-      }
-      cache.writeAsStringSync(jsonEncode(json));
-
-      final report = await runAssetBuild(project, log: log);
-
-      expect(report.converted, hasLength(1));
-    },
-  );
+    expect(report.converted, hasLength(1));
+  });
 
   test(
     'every planned source is a dependency, converted or skipped alike — '
@@ -163,7 +161,9 @@ f 1 2 3
 
   test('a broken cache file is treated as empty, not fatal', () async {
     writeSource('hero.obj');
-    Directory('${project.path}/flutter3d_generated').createSync(recursive: true);
+    Directory(
+      '${project.path}/flutter3d_generated',
+    ).createSync(recursive: true);
     File(
       '${project.path}/flutter3d_generated/.flutter3d_cache.json',
     ).writeAsStringSync('not json at all {{{');

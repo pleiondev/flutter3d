@@ -22,32 +22,27 @@ void main() {
     expect(layout.plan(), isEmpty);
   });
 
-  test(
-    'without a manifest, every recognised file maps 1:1 into '
-    'flutter3d_generated, extension swapped',
-    () {
-      Directory('${project.path}/assets_src/props').createSync(recursive: true);
-      File('${project.path}/assets_src/hero.glb').writeAsStringSync('x');
-      File(
-        '${project.path}/assets_src/props/chair.obj',
-      ).writeAsStringSync('x');
+  test('without a manifest, every recognised file maps 1:1 into '
+      'flutter3d_generated, extension swapped', () {
+    Directory('${project.path}/assets_src/props').createSync(recursive: true);
+    File('${project.path}/assets_src/hero.glb').writeAsStringSync('x');
+    File('${project.path}/assets_src/props/chair.obj').writeAsStringSync('x');
 
-      final layout = AssetLayout(projectRoot: project);
-      final plan = layout.plan();
+    final layout = AssetLayout(projectRoot: project);
+    final plan = layout.plan();
 
-      expect(plan, hasLength(2));
-      final byName = {for (final job in plan) job.source.split('/').last: job};
-      expect(
-        byName['hero.glb']!.destination,
-        '${project.path}/flutter3d_generated/hero.f3d',
-      );
-      expect(
-        byName['chair.obj']!.destination,
-        '${project.path}/flutter3d_generated/props/chair.f3d',
-      );
-      expect(byName['hero.glb']!.rule, isNull);
-    },
-  );
+    expect(plan, hasLength(2));
+    final byName = {for (final job in plan) job.source.split('/').last: job};
+    expect(
+      byName['hero.glb']!.destination,
+      '${project.path}/flutter3d_generated/hero.f3d',
+    );
+    expect(
+      byName['chair.obj']!.destination,
+      '${project.path}/flutter3d_generated/props/chair.f3d',
+    );
+    expect(byName['hero.glb']!.rule, isNull);
+  });
 
   test('a manifest rule that excludes a glob removes it from the plan', () {
     Directory('${project.path}/assets_src/ui').createSync(recursive: true);

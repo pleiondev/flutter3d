@@ -13,10 +13,10 @@
 /// consequences elsewhere. This test needs no such decision.
 library;
 
-import 'package:flutter3d/src/engine/render/debug_draw.dart';
-import 'package:flutter3d/src/engine/render/renderer.dart';
-import 'package:flutter3d/src/engine/render/sky_settings.dart';
-import 'package:flutter3d/src/engine/scene/scene_node.dart';
+import 'package:flutter3d_core/src/engine/render/debug_draw.dart';
+import 'package:flutter3d_core/src/engine/render/renderer.dart';
+import 'package:flutter3d_core/src/engine/render/sky_settings.dart';
+import 'package:flutter3d_core/src/engine/scene/scene_node.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vector_math/vector_math.dart';
 

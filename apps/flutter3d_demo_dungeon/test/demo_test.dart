@@ -12,12 +12,12 @@ library;
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:flutter3d_bridge/flutter3d_bridge.dart';
+import 'package:flutter3d_app/flutter3d_app.dart';
 import 'package:flutter3d_demo_dungeon/src/staging.dart';
 import 'package:flutter3d_game/flutter3d_game.dart';
 import 'package:flutter3d_game_shooter/flutter3d_game_shooter.dart';
-import 'package:flutter3d_game_shooter/sample.dart';
-import 'package:flutter3d_screens/flutter3d_screens.dart';
+import 'package:flutter3d_game_shooter/sample.dart' hide Staged, stage;
+import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 const double _dt = 1.0 / 60.0;
@@ -135,7 +135,10 @@ void main() {
       playback.applyTo(replay.input);
       replay.staged.sim.step(_dt);
       replayedSteps++;
-      replayCheckpoints.observe(replayedSteps, replay.staged.sim.save().toJson());
+      replayCheckpoints.observe(
+        replayedSteps,
+        replay.staged.sim.save().toJson(),
+      );
       replay.input.endStep();
     }
 
@@ -143,7 +146,8 @@ void main() {
     expect(
       replayCheckpoints.divergenceFromHex(demo.checkpoints.hexDigests),
       isNull,
-      reason: 'the replay should check out against the document\'s own trace, '
+      reason:
+          'the replay should check out against the document\'s own trace, '
           'not only end at the same byte',
     );
   });

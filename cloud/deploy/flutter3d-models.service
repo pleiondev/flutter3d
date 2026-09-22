@@ -15,6 +15,10 @@ EnvironmentFile=/etc/flutter3d-models.env
 Environment=MODELS_PORT=8794
 Environment=MODELS_BLOB_DIR=/var/lib/flutter3d-models/blobs
 Environment=MODELS_ASSETS_DIR=/opt/flutter3d-models/assets
+# The tutorial's Markdown, which `tool/deploy.sh` copies here. Without this the
+# service looks for `content/learn/modeler` under its working directory, finds
+# nothing, and serves an empty tutorial without an error.
+Environment=MODELS_LEARN_DIR=/opt/flutter3d-models/learn
 Restart=on-failure
 RestartSec=5
 # SIGTERM lets uploads in flight finish; after this long they are cut.

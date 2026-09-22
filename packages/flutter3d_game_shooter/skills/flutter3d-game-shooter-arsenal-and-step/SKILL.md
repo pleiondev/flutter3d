@@ -47,8 +47,9 @@ loads of the same save agree until the first flinch roll.
 
 ## Nothing here draws
 
-No import reaches the renderer, and a test holds that line — `WeaponView` draws,
-which is why it is in `bridge.dart` and outside the barrel. The bugs a shooter
+No import in the simulation reaches the renderer or names Flutter, and
+`tool/structure.dart` holds that line — `WeaponView` draws and the readouts are
+widgets, which is why both are in `bridge.dart` and outside the barrel. The bugs a shooter
 actually has are invisible in a picture: a shot that misses at a low frame rate,
 a pickup taken twice in one step, a door that will not move because somebody is
 riding it.

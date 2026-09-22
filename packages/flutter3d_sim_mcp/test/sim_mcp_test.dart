@@ -21,15 +21,11 @@ import 'package:flutter3d_sim_mcp/flutter3d_sim_mcp.dart';
 import 'package:test/test.dart';
 
 Future<({Process process, int port})> _startServer() async {
-  final process = await Process.start(
-    'flutter',
-    <String>[
-      'test',
-      '--reporter=silent',
-      'test/fixtures/sim_mcp_server.dart',
-    ],
-    workingDirectory: Directory.current.path,
-  );
+  final process = await Process.start('flutter', <String>[
+    'test',
+    '--reporter=silent',
+    'test/fixtures/sim_mcp_server.dart',
+  ], workingDirectory: Directory.current.path);
   final portFound = Completer<int>();
   final subscription = process.stdout
       .transform(utf8.decoder)
@@ -65,7 +61,9 @@ void main() {
     process = server.process;
     socket = await Socket.connect(InternetAddress.loopbackIPv4, server.port);
 
-    client = MCPClient(Implementation(name: 'the suite', version: simMcpVersion));
+    client = MCPClient(
+      Implementation(name: 'the suite', version: simMcpVersion),
+    );
     connection = client.connectServer(
       stdioChannel(input: socket, output: socket),
     );
@@ -111,10 +109,14 @@ void main() {
   test('the six tools an agent is offered are the ones it can call', () async {
     final offered = await connection.listTools(ListToolsRequest());
     final names = offered.tools.map((t) => t.name).toSet();
-    expect(
-      names,
-      <String>{'open', 'step', 'snapshot', 'digest', 'writeRun', 'frame'},
-    );
+    expect(names, <String>{
+      'open',
+      'step',
+      'snapshot',
+      'digest',
+      'writeRun',
+      'frame',
+    });
   });
 
   test('a run before opening a level is refused, not crashed', () async {
@@ -123,64 +125,66 @@ void main() {
     expect(result.says, contains('no level open'));
   });
 
-  test(
-    'an agent walks the crypt from words alone, and the run it hands over '
-    'opens like any other',
-    () async {
-      final opened = await call('open', <String, Object?>{
-        'path': '../../apps/flutter3d_demo_dungeon/assets/levels/crypt.json',
-      });
-      expect(opened.did, isTrue, reason: opened.says);
-      expect(opened.says, contains('player at'));
+  test('an agent walks the crypt from words alone, and the run it hands over '
+      'opens like any other', () async {
+    final opened = await call('open', <String, Object?>{
+      'path': '../../apps/flutter3d_demo_dungeon/assets/levels/crypt.json',
+    });
+    expect(opened.did, isTrue, reason: opened.says);
+    expect(opened.says, contains('player at'));
 
-      final before = await call('snapshot');
-      expect(before.did, isTrue);
-      final beforeWords = jsonDecode(before.says) as Map<String, Object?>;
-      expect(beforeWords['player'], isNotNull);
-      expect(beforeWords['actors'], isA<List<Object?>>());
+    final before = await call('snapshot');
+    expect(before.did, isTrue);
+    final beforeWords = jsonDecode(before.says) as Map<String, Object?>;
+    expect(beforeWords['player'], isNotNull);
+    expect(beforeWords['actors'], isA<List<Object?>>());
 
-      // Sixty steps forward, so at least one checkpoint (every 25) is taken.
-      final stepped = await call('step', <String, Object?>{
-        'steps': 60,
-        'moveY': 1.0,
-      });
-      expect(stepped.did, isTrue);
-      expect(stepped.says, contains('stepped to 60'));
+    // Sixty steps forward, so at least one checkpoint (every 25) is taken.
+    final stepped = await call('step', <String, Object?>{
+      'steps': 60,
+      'moveY': 1.0,
+    });
+    expect(stepped.did, isTrue);
+    expect(stepped.says, contains('stepped to 60'));
 
-      final digest = await call('digest');
-      expect(digest.did, isTrue);
-      expect(
-        digest.says,
-        isNot(contains('no checkpoint')),
-        reason: '60 steps should have crossed the first checkpoint at 25',
-      );
+    final digest = await call('digest');
+    expect(digest.did, isTrue);
+    expect(
+      digest.says,
+      isNot(contains('no checkpoint')),
+      reason: '60 steps should have crossed the first checkpoint at 25',
+    );
 
-      final frame = await call('frame');
-      expect(frame.did, isTrue, reason: frame.says);
-      expect(
-        frame.png,
-        isNotNull,
-        reason: 'a frame answer with no image content is not a frame',
-      );
-      // The PNG signature — proof this is actually a PNG and not raw bytes
-      // wearing the mime type.
-      expect(
-        frame.png!.sublist(0, 8),
-        <int>[0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A],
-      );
+    final frame = await call('frame');
+    expect(frame.did, isTrue, reason: frame.says);
+    expect(
+      frame.png,
+      isNotNull,
+      reason: 'a frame answer with no image content is not a frame',
+    );
+    // The PNG signature — proof this is actually a PNG and not raw bytes
+    // wearing the mime type.
+    expect(frame.png!.sublist(0, 8), <int>[
+      0x89,
+      0x50,
+      0x4E,
+      0x47,
+      0x0D,
+      0x0A,
+      0x1A,
+      0x0A,
+    ]);
 
-      final runPath = '${workspace.path}/agent.f3drun';
-      final written = await call('writeRun', <String, Object?>{'path': runPath});
-      expect(written.did, isTrue, reason: written.says);
+    final runPath = '${workspace.path}/agent.f3drun';
+    final written = await call('writeRun', <String, Object?>{'path': runPath});
+    expect(written.did, isTrue, reason: written.says);
 
-      // Opens like any other run — read back exactly the way
-      // `apps/flutter3d_editor`'s own timeline would.
-      final demo = Demo.fromJson(
-        jsonDecode(File(runPath).readAsStringSync()) as Map<String, Object?>,
-      );
-      expect(demo.tape.steps, 60);
-      expect(demo.checkpoints.steps, isNotEmpty);
-    },
-    timeout: const Timeout(Duration(seconds: 60)),
-  );
+    // Opens like any other run — read back exactly the way
+    // `apps/flutter3d_editor`'s own timeline would.
+    final demo = Demo.fromJson(
+      jsonDecode(File(runPath).readAsStringSync()) as Map<String, Object?>,
+    );
+    expect(demo.tape.steps, 60);
+    expect(demo.checkpoints.steps, isNotEmpty);
+  }, timeout: const Timeout(Duration(seconds: 60)));
 }

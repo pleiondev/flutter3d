@@ -136,6 +136,8 @@ def build():
             colour=(0.55, 0.78, 1.0), intensity=5.0)
     k.pickup("armour", (3.0, 0.8, -24.0), amount=25)
     k.exit_at("way_down", (0.0, 0.0, -30.0))
+    k.widget_surface("run-terminal", (1.4, 1.6, 10.0), widget="run-terminal",
+                      yaw=3.14159265)
 
     k.write("crypt.json", name="The Crypt", next_level="assets/levels/vaults.json",
             tool=TOOL)

@@ -41,7 +41,9 @@ import 'edit_mesh.dart';
 int fillHoles(EditMesh mesh) {
   final chains = boundaryChains(mesh);
   for (final chain in chains) {
-    final loop = <int>[for (final half in chain) mesh.originOf(mesh.nextOf(half))];
+    final loop = <int>[
+      for (final half in chain) mesh.originOf(mesh.nextOf(half)),
+    ];
     final first = mesh.halfEdgeSlotCount;
     mesh.addFace(loop);
     for (var i = 0; i < chain.length; i++) {

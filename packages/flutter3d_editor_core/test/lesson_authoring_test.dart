@@ -58,9 +58,7 @@ void main() {
   {"type": "edu_sequence", "name": "seq", "steps": ["step-1", "step-missing"]}
 ]}
 ''');
-      expect(orderedSteps(level, 'seq').map((s) => s.name), <String>[
-        'step-1',
-      ]);
+      expect(orderedSteps(level, 'seq').map((s) => s.name), <String>['step-1']);
     });
 
     test('an unknown sequence name resolves to no steps', () {
@@ -77,7 +75,11 @@ void main() {
       // 0.3499999940395355. The editor's own grid is quarters of a metre
       // for the same underlying reason, and this test stays on it.
       final step = EntityDef(type: 'edu_step', name: 'step-1');
-      final offsets = mergedOffsets(step, 'engine-body#valve_cover', Vector3(0, 0.25, 0));
+      final offsets = mergedOffsets(
+        step,
+        'engine-body#valve_cover',
+        Vector3(0, 0.25, 0),
+      );
       expect(offsets, <String, Object?>{
         'engine-body#valve_cover': <double>[0.0, 0.25, 0.0],
       });
@@ -93,7 +95,11 @@ void main() {
           'engine-body#gasket': <double>[0.0, 0.1, 0.0],
         },
       });
-      final offsets = mergedOffsets(step, 'engine-body#valve_cover', Vector3(0, 0.5, 0));
+      final offsets = mergedOffsets(
+        step,
+        'engine-body#valve_cover',
+        Vector3(0, 0.5, 0),
+      );
       expect(offsets['engine-body#valve_cover'], <double>[0.0, 0.5, 0.0]);
       expect(offsets['engine-body#gasket'], <double>[0.0, 0.1, 0.0]);
     });
@@ -101,17 +107,11 @@ void main() {
 
   group('movedStep', () {
     test('moves a name earlier in the list', () {
-      expect(
-        movedStep(<String>['a', 'b', 'c'], 2, 0),
-        <String>['c', 'a', 'b'],
-      );
+      expect(movedStep(<String>['a', 'b', 'c'], 2, 0), <String>['c', 'a', 'b']);
     });
 
     test('moves a name later in the list', () {
-      expect(
-        movedStep(<String>['a', 'b', 'c'], 0, 2),
-        <String>['b', 'c', 'a'],
-      );
+      expect(movedStep(<String>['a', 'b', 'c'], 0, 2), <String>['b', 'c', 'a']);
     });
 
     test('an out-of-range source index changes nothing', () {
@@ -120,7 +120,11 @@ void main() {
     });
 
     test('an overshooting target clamps to the end', () {
-      expect(movedStep(<String>['a', 'b', 'c'], 0, 99), <String>['b', 'c', 'a']);
+      expect(movedStep(<String>['a', 'b', 'c'], 0, 99), <String>[
+        'b',
+        'c',
+        'a',
+      ]);
     });
   });
 
@@ -170,12 +174,12 @@ void main() {
         Place(Piece.entity, 'edu_sequence', Vector3(0, 0, 0)).apply(editing),
         isTrue,
       );
+      expect(const SetField('name', 'engine-teardown').apply(editing), isTrue);
+      expect(const SetField('steps', <String>[]).apply(editing), isTrue);
       expect(
-        const SetField('name', 'engine-teardown').apply(editing),
+        const SetField('title', 'Разборка двигателя').apply(editing),
         isTrue,
       );
-      expect(const SetField('steps', <String>[]).apply(editing), isTrue);
-      expect(const SetField('title', 'Разборка двигателя').apply(editing), isTrue);
       final sequenceIndex = indexOfNamed(editing.level, 'engine-teardown')!;
 
       final captions = <String>[
@@ -188,7 +192,11 @@ void main() {
       for (final caption in captions) {
         final name = freshName(editing.level, 'step');
         expect(
-          Place(Piece.entity, 'edu_step', Vector3(1.0, 1.6, -0.4)).apply(editing),
+          Place(
+            Piece.entity,
+            'edu_step',
+            Vector3(1.0, 1.6, -0.4),
+          ).apply(editing),
           isTrue,
         );
         expect(SetField('name', name).apply(editing), isTrue);
@@ -206,7 +214,8 @@ void main() {
       // metre, via a merge computed the way a viewport would compute it
       // from a drag, not typed as a literal offsets map.
       final stepTwoName =
-          (editing.level.named('engine-teardown')!.properties['steps']! as List)[1]
+          (editing.level.named('engine-teardown')!.properties['steps']!
+                  as List)[1]
               as String;
       editing.select(Piece.entity, indexOfNamed(editing.level, stepTwoName)!);
       final withOffset = mergedOffsets(
@@ -218,7 +227,11 @@ void main() {
 
       // An annotation, attached to the same node the offset just moved.
       expect(
-        Place(Piece.entity, 'edu_annotation', Vector3(1.0, 1.6, -0.4)).apply(editing),
+        Place(
+          Piece.entity,
+          'edu_annotation',
+          Vector3(1.0, 1.6, -0.4),
+        ).apply(editing),
         isTrue,
       );
       final annotationName = freshName(editing.level, 'note');
@@ -241,7 +254,11 @@ void main() {
       // own doc comment says why: an `edu_clip_plane` is an ordinary
       // `EntityDef` with a `yaw`, exactly like everything else in this format.
       expect(
-        Place(Piece.entity, 'edu_clip_plane', Vector3(0.0, 1.0, 0.0)).apply(editing),
+        Place(
+          Piece.entity,
+          'edu_clip_plane',
+          Vector3(0.0, 1.0, 0.0),
+        ).apply(editing),
         isTrue,
       );
       expect(SetField('name', 'cutaway-1').apply(editing), isTrue);
@@ -272,12 +289,9 @@ void main() {
       }
 
       final movedStepEntity = finished.named(stepNames[1])!;
-      expect(
-        movedStepEntity.properties['offsets'],
-        <String, Object?>{
-          'engine-body#valve_cover': <double>[0.0, 0.25, 0.0],
-        },
-      );
+      expect(movedStepEntity.properties['offsets'], <String, Object?>{
+        'engine-body#valve_cover': <double>[0.0, 0.25, 0.0],
+      });
       final annotations = (movedStepEntity.properties['annotations']! as List)
           .cast<String>();
       expect(annotations, <String>[annotationName]);

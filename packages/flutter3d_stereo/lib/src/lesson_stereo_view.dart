@@ -29,6 +29,7 @@ class LessonStereoView extends StatefulWidget {
     required this.player,
     this.nodes = const <String, SceneNode>{},
     this.viewer = StereoViewer.cardboardV2,
+    this.onTick,
   });
 
   final Renderer renderer;
@@ -37,6 +38,14 @@ class LessonStereoView extends StatefulWidget {
   final LessonPlayer player;
   final Map<String, SceneNode> nodes;
   final StereoViewer? viewer;
+
+  /// Called once a frame, alongside [LessonPlayer.applyCurrent] — a
+  /// `WidgetSurface` on the lesson's own scene needs `tick()` called the
+  /// same way, and this widget does not reach for `WidgetSurfaceVisuals` to
+  /// do it: the caller, which already resolved the level's `widget_surface`
+  /// entities into nodes, hands the one call back in rather than this
+  /// widget growing a dependency to make it itself.
+  final VoidCallback? onTick;
 
   @override
   State<LessonStereoView> createState() => _LessonStereoViewState();
@@ -52,8 +61,10 @@ class _LessonStereoViewState extends State<LessonStereoView> {
           scene: widget.scene,
           rig: widget.rig,
           settings: () => const RenderSettings().forStereo(),
-          onBeforeFrame: () =>
-              widget.player.applyCurrent(widget.rig, nodes: widget.nodes),
+          onBeforeFrame: () {
+            widget.player.applyCurrent(widget.rig, nodes: widget.nodes);
+            widget.onTick?.call();
+          },
           viewer: widget.viewer,
         ),
         Positioned(

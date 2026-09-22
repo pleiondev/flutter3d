@@ -40,7 +40,11 @@ class SettingsPage extends StatelessComponent {
           dt([Component.text('Email')]),
           dd([Component.text(user.email)]),
           dt([Component.text('Address')]),
-          dd([Component.text(user.emailVerified ? 'confirmed' : 'not confirmed yet')]),
+          dd([
+            Component.text(
+              user.emailVerified ? 'confirmed' : 'not confirmed yet',
+            ),
+          ]),
         ], classes: 'facts'),
       ], classes: 'settings'),
       section([
@@ -64,7 +68,11 @@ class SettingsPage extends StatelessComponent {
       ], classes: 'settings'),
       section([
         h2([Component.text('Password')]),
-        p([Component.text('Changing it signs you out everywhere, including here.')]),
+        p([
+          Component.text(
+            'Changing it signs you out everywhere, including here.',
+          ),
+        ]),
         if (passwordError case final error?) Notice(error, kind: 'error'),
         PostForm(
           action: '/settings/password',
@@ -104,8 +112,10 @@ class SettingsPage extends StatelessComponent {
               csrf: csrf,
               children: [
                 p([
-                  Component.text('Your account, every model and every file are removed '
-                      'at once. This cannot be undone.'),
+                  Component.text(
+                    'Your account, every model and every file are removed '
+                    'at once. This cannot be undone.',
+                  ),
                 ]),
                 Field(
                   label: 'Your password',
@@ -114,7 +124,9 @@ class SettingsPage extends StatelessComponent {
                   error: deleteError,
                   autocomplete: 'current-password',
                 ),
-                div([submit('Delete account and all models', classes: 'danger')]),
+                div([
+                  submit('Delete account and all models', classes: 'danger'),
+                ]),
               ],
             ),
           ],

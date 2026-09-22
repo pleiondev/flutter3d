@@ -1,258 +1,275 @@
-# Меньше пакетов — план слияний
+# Fewer packages — the merge plan
 
-Свод от 2026-09-13. Основание — вопрос владельца о сорока пяти пакетах как
-избыточном абстрагировании и разбор каждого по pubspec, графу зависимостей,
-ARCHITECTURE.md §3 и ответам pub.dev в тот же день, на ветке `modeler`.
+Compiled 2026-09-13. Grounded in the owner's own question about whether
+forty-five packages is over-abstraction, and a review of every package
+against its pubspec, its dependency graph, `ARCHITECTURE.md` §3, and
+pub.dev's own answers the same day, on the `modeler` branch.
 
-Обозначения — как в [tooling-plan.md](tooling-plan.md): **р.** — размер для
-одного человека (S — до дня, M — два–три дня); **pub** — пакет опубликован на
-pub.dev и слияние требует bump и записи в CHANGELOG обоих участников.
-Строки считаны по `lib/`, без тестов.
+Notation — as in [tooling-plan.md](tooling-plan.md): **size** — how big for
+one person (S up to a day, M two to three days); **pub** — the package is
+published on pub.dev, and a merge needs a version bump and a CHANGELOG entry
+on both sides. Line counts are `lib/` only, no tests.
 
-## 1. Что является границей пакета, а что нет
+## 1. What makes a package boundary, and what doesn't
 
-В этом репозитории пакет оправдан, если его отделяет одна из шести вещей:
+In this repository a package is justified if one of six things separates it:
 
-1. **Flutter SDK.** Сервер, MCP-сервер, CLI и build hook не могут импортировать
-   Flutter. Граница проверяется правилом `the simulation names no Flutter` по
-   списку `flatDartPackages` в `tool/structure/repository.dart`.
-2. **Нативный код или плагин.** Папки платформ, `flutter_gpu`, `flutter_soloud`,
-   `flutter_webrtc`. Влить плагин в не-плагин нельзя, не сделав плагином его.
-3. **Сторонняя зависимость, которую потребитель не должен наследовать.**
-   `dart_mcp`, `flutter_bloc`, `flutter_test`, `web`.
-4. **Вес ассетов.** 4,7 МБ образцов Khronos, GLSL-исходники, шейдерный бандл.
-5. **Правило жанров.** `no package names a genre` и `a genre package reaches no
-   other genre` — оба в `tool/structure.dart`.
-6. **Независимая публикация.** 27 пакетов на pub.dev, 18 нет. Неопубликованные
-   сливаются без последствий для чужих `pubspec.yaml`.
+1. **The Flutter SDK.** A server, an MCP server, a CLI, and a build hook
+   cannot import Flutter. The boundary is checked by the `the simulation
+   names no Flutter` rule against the `flatDartPackages` list in
+   `tool/structure/repository.dart`.
+2. **Native code or a plugin.** Platform folders, `flutter_gpu`,
+   `flutter_soloud`, `flutter_webrtc`. A plugin cannot be folded into a
+   non-plugin without making the receiver a plugin too.
+3. **A third-party dependency a consumer should not inherit.** `dart_mcp`,
+   `flutter_bloc`, `flutter_test`, `web`.
+4. **Asset weight.** 4.7 MB of Khronos samples, GLSL sources, the shader
+   bundle.
+5. **The genre rule.** `no package names a genre` and `a genre package
+   reaches no other genre` — both in `tool/structure.dart`.
+6. **Independent publishing.** 27 packages on pub.dev, 18 not. Unpublished
+   ones merge with no consequence for anyone else's `pubspec.yaml`.
 
-Границей **не** является: «написан после того, как набор 0.6.0 был решён»
-(CHANGELOG `flutter3d_cloth`, `flutter3d_rig`), «удобно импортировать одной
-строкой» (`flutter3d_app`), «на будущее» (`flutter3d_fbx`) и «пока никто не
-использует» (`flutter3d_render_job`, `flutter3d_stereo`).
+What does **not** make a boundary: "written after the 0.6.0 set was decided"
+(the `flutter3d_cloth`/`flutter3d_rig` CHANGELOGs), "convenient to import in
+one line" (`flutter3d_app`), "for later" (`flutter3d_fbx`), and "nobody uses
+it yet" (`flutter3d_render_job`, `flutter3d_stereo`).
 
-## 2. Итог разбора
+## 2. What the review found
 
-Из 45 пакетов 38 держатся на одной из причин выше и остаются.
-Семь держатся на истории, и их можно свернуть в шесть слияний (одно из
-семи — спорное, §4). Результат: **45 → 39**, при спорном — 38.
+Of 45 packages, 38 hold up under one of the reasons above and stay. Seven
+hold up only on history, and fold into six merges (one of the seven is
+contested, §4). Result: **45 → 39**, or 38 if the contested one lands too.
 
-Седьмая причина, добавленная владельцем 2026-09-13 при чтении первого
-варианта: **узкая предметная область**. `flutter3d_lab` (маятник `edu-04`)
-строится на `sim`, но образовательная симуляция — это вертикаль, а не часть
-движка, так же как жанровый пакет — не часть `flutter3d_game`. Она остаётся
-отдельным пакетом по тому же основанию, что и четыре жанра.
+A seventh reason, added by the owner on 2026-09-13 while reading the first
+draft: **a narrow subject-matter domain**. `flutter3d_lab` (the pendulum,
+`edu-04`) is built on `sim`, but an educational simulation is a vertical, not
+part of the engine — the same way a genre package is not part of
+`flutter3d_game`. It stays a separate package on the same grounds as the four
+genres.
 
-Полная таблица по всем пакетам с причиной выделения — в §6.
+The full table across every package, with its reason for standing alone, is
+in §6.
 
-## 3. Слияния
+## 3. The merges
 
-Порядок — от бесплатных к дорогим: сначала неопубликованные, потом пары с
-pub.dev. Каждое слияние — отдельный коммит, чтобы откатывалось по одному.
+Ordered from cheap to expensive: unpublished packages first, then pairs
+already on pub.dev. Each merge is its own commit, so a bad one reverts alone.
 
-### 3.1 `flutter3d_cloth` → `flutter3d_physics` — р. S, pub (physics)
+### 3.1 `flutter3d_cloth` → `flutter3d_physics` — size S, pub (physics)
 
-Ткань зависит только от `physics` и сталкивается с его же фигурами. Единственная
-причина отдельного пакета, по его CHANGELOG, — время написания. Идёт в
-`packages/flutter3d_physics/lib/src/cloth/`, экспорт через
-`flutter3d_physics.dart`. Потребители: `flutter3d_model_core`, `apps/flutter3d_modeler`.
+Cloth depends only on `physics` and shares its own shape types. The only
+reason it's a separate package, per its own CHANGELOG, is when it was
+written. Moves into `packages/flutter3d_physics/lib/src/cloth/`, exported
+through `flutter3d_physics.dart`. Consumers: `flutter3d_model_core`,
+`apps/flutter3d_modeler`.
 
-### 3.2 `flutter3d_rig` → `flutter3d_model_core` — р. S, не pub
+### 3.2 `flutter3d_rig` → `flutter3d_model_core` — size S, not pub
 
-Описание обещает «no Flutter, no renderer», а pubspec зависит от
-`flutter3d_model_core`, то есть это операция моделлера, а не библиотека.
-Единственный потребитель — `flutter3d_model_mcp`. Идёт в
-`packages/flutter3d_model_core/lib/src/rig/`. Цикла нет: `model_core` от `rig` не
-зависит.
+Its own description promises "no Flutter, no renderer," yet its pubspec
+depends on `flutter3d_model_core` — meaning this is a modeler operation, not
+a library. Its only consumer is `flutter3d_model_mcp`. Moves into
+`packages/flutter3d_model_core/lib/src/rig/`. No cycle results: `model_core`
+does not depend on `rig`.
 
-### 3.3 `flutter3d_fbx` → `flutter3d_formats` — р. S, не pub
+### 3.3 `flutter3d_fbx` → `flutter3d_formats` — size S, not pub
 
-73 строки: `handles()` узнаёт файл, `decode()` отказывает с `FormatException`.
-Рядом с glTF, OBJ, STL и USDZ в `formats` ему и место. Выделять обратно —
-только если ридер `fmt-24`/`fmt-25` принесёт зависимость, которую `formats` не
-должен носить. Строку `flutter3d_fbx` из `flatDartPackages` убрать: `formats` в
-списке уже есть.
+73 lines: `handles()` recognizes the file, `decode()` refuses with a
+`FormatException`. It belongs next to glTF, OBJ, STL and USDZ in `formats`.
+Splitting it back out only makes sense if the `fmt-24`/`fmt-25` reader
+brings in a dependency `formats` shouldn't carry. Drop the `flutter3d_fbx`
+line from `flatDartPackages` — `formats` is already in that list.
 
-### 3.4 `flutter3d_render_job` — не слияние, а потребитель — р. S, не pub
+### 3.4 `flutter3d_render_job` — not a merge, a consumer — size S, not pub
 
-`RenderSnapshotJob` не импортирует ни один пакет и ни одно приложение, и в
-первом варианте плана стоял на удаление. Разбор 2026-09-13 показал, что он
-от редактора не зависит: на входе `ModelProject`, который `model_core`
-собирает и из любого документа `formats` через `fromModelDocument`, на выходе
-PNG. Своего в нём три вещи, которых нет больше нигде: `sceneFromProject`
-(второй конвертер документа в `Scene`; первый — `scene_sync.dart` в
-моделлере), тайловый рендер со сшивкой и SSAA ×2, и выбор между
-`Isolate.run` и покадровой уступкой на web.
+`RenderSnapshotJob` is imported by no package and no app, and the plan's
+first draft marked it for removal. The 2026-09-13 review found it doesn't
+depend on the editor at all: it takes a `ModelProject` in (which `model_core`
+assembles, including from any `formats` document through
+`fromModelDocument`) and produces a PNG. It owns three things that exist
+nowhere else: `sceneFromProject` (a second document-to-`Scene` converter; the
+first is the modeler's own `scene_sync.dart`), tiled rendering with stitching
+and 2× SSAA, and a choice between `Isolate.run` and yielding frame by frame
+on the web.
 
-Запускается только внутри Flutter-процесса: `flutter3d` называет Flutter, так
-что `dart run` и `flutter3d_model_mcp` отпадают. Значит его дом — пакет над
-чистым `model_core`, по той же схеме, что `particles` над `particles_core`.
+It only runs inside a Flutter process: `flutter3d` names Flutter, so
+`dart run` and `flutter3d_model_mcp` are both out. So its home is a package
+sitting above the pure `model_core`, the same shape `particles` has above
+`particles_core`.
 
-**Решение владельца (2026-09-13): оставить пакетом и дать ему потребителя.**
-Самое дешёвое — кнопка «Render» в `apps/flutter3d_modeler` и thumbnail в
-списке проектов. Заодно свести два конвертера документа в сцену к одному:
-`scene_sync.dart` моделлера и `sceneFromProject` строят одну и ту же сцену
-по-разному, и второй из них уже лежит в пакете, который моделлер сможет
-импортировать. В `flutter3d_testing` не сливать: `testing` получил бы
-`model_core` и `mesh` в закрытие ради одного сценария.
+**Owner decision (2026-09-13): keep it as a package and give it a
+consumer.** The cheapest option is a "Render" button in
+`apps/flutter3d_modeler` and a thumbnail in the project list. While at it,
+collapse the two document-to-scene converters into one: the modeler's own
+`scene_sync.dart` and `sceneFromProject` build the same scene two different
+ways, and the second of the two already lives in a package the modeler can
+import. Do not fold this into `flutter3d_testing`: `testing` would inherit
+`model_core` and `mesh` just to close over one scenario.
 
-### 3.5 `flutter3d_sim_mcp` + `flutter3d_render_mcp` → `flutter3d_sim_mcp` — р. M, не pub
+### 3.5 `flutter3d_sim_mcp` + `flutter3d_render_mcp` → `flutter3d_sim_mcp` — size M, not pub
 
-Оба Flutter-пакеты, оба на `dart_mcp`, у обоих закрытие `bridge` + `cpu` +
-`sim` + `flutter3d`; `sim_mcp` сверху тянет `game_shooter`. Один процесс с
-двумя наборами инструментов: агент, который играет уровень вслепую (`ai-00`),
-и агент, который спрашивает «почему кадр неверен» (`par-02`), — это один и тот
-же агент в одной сессии, и сейчас ему нужны два stdio-сервера.
+Both are Flutter packages, both build on `dart_mcp`, both close over
+`bridge` + `cpu` + `sim` + `flutter3d`; `sim_mcp` additionally pulls in
+`game_shooter`. One process with two tool sets: an agent that plays a level
+blind (`ai-00`) and an agent that asks "why is this frame wrong" (`par-02`)
+are the same agent in the same session, and today it needs two stdio
+servers.
 
-Имя остаётся `flutter3d_sim_mcp`; инструменты `render_mcp` идут отдельным
-файлом `lib/src/render_tools.dart`, оба `bin/` сохраняются, пока есть
-конфигурации агентов, которые их называют. Проверить `tool/skills` — там могут
-лежать описания серверов по именам.
+The name stays `flutter3d_sim_mcp`; `render_mcp`'s tools move into their own
+file, `lib/src/render_tools.dart`, and both `bin/` entries are kept as long
+as any agent configuration still names them. Check `tool/skills` — server
+descriptions there may reference these by name.
 
-### 3.6 `flutter3d_backend` → `flutter3d_app` — р. S, pub (оба)
+### 3.6 `flutter3d_backend` → `flutter3d_app` — size S, pub (both)
 
-`app` — barrel из пяти `export`, `backend` — 188 строк условного импорта
-«какой бэкенд открыть» и `openDevice`. Вместе это один пакет «сборка
-приложения». `app` уже re-экспортирует `backend`, поэтому семь приложений,
-которые импортируют `flutter3d_app`, не заметят ничего. Прямой импорт
-`flutter3d_backend` остался только в `apps/flutter3d_demo_strategy/pubspec.yaml`
-— убрать строку.
+`app` is a five-`export` barrel; `backend` is 188 lines of conditional
+"which backend to open" import logic plus `openDevice`. Together they're one
+"assemble the application" package. `app` already re-exports `backend`, so
+the seven apps importing `flutter3d_app` notice nothing. Only
+`apps/flutter3d_demo_strategy/pubspec.yaml` imports `flutter3d_backend`
+directly — drop that line.
 
-Правило `the engine names no backend` читает только `packages/flutter3d`, так
-что `app`, назвавший четыре бэкенда, его не нарушает.
+The `the engine names no backend` rule only reads `packages/flutter3d`, so
+`app`, which names all four backends, doesn't violate it.
 
-### 3.7 `flutter3d_session` → `flutter3d_screens` — р. M, pub (оба)
+### 3.7 `flutter3d_session` → `flutter3d_screens` — size M, pub (both)
 
-`session` зависит от `screens` (берёт `RenderSettings`), значит закрытие
-зависимостей любого потребителя от слияния не меняется — включая
-`flutter3d_bridge`, которому нужен `RunSession`. Имя оставить `flutter3d_screens`?
-Нет: слитый пакет — это «приложение вокруг игры»: surface, прогон и экраны.
-Предлагаемое имя — **`flutter3d_session`** (оно шире), `screens` уходит в
-`lib/src/screens/`.
+`session` depends on `screens` (for `RenderSettings`), so no consumer's own
+dependency closure changes from the merge — including `flutter3d_bridge`,
+which needs `RunSession`. Should the name stay `flutter3d_screens`? No: the
+merged package is "the application around a game" — surface, run lifecycle,
+and screens together. The proposed name is **`flutter3d_session`** (the
+wider concept); `screens` moves into `lib/src/screens/`.
 
-Доклад в `flutter3d_app/lib/flutter3d_app.dart` «пять пакетов, никто из
-которых не знает о другом» и так неверен: `session` знает о `screens`.
-После 3.6 и 3.7 barrel будет re-экспортировать три пакета: `session`,
-`pad_input`, `pointer_lock`, плюс собственный код выбора бэкенда.
+`flutter3d_app/lib/flutter3d_app.dart`'s own claim of "five packages, none
+of which know about each other" is already wrong: `session` knows about
+`screens`. After 3.6 and 3.7 the barrel re-exports three packages —
+`session`, `pad_input`, `pointer_lock` — plus its own backend-selection code.
 
-## 4. Спорное: `flutter3d_particles` → `flutter3d`
+## 4. Contested: `flutter3d_particles` → `flutter3d`
 
-488 строк контрибьютора прохода. Если влить в движок, `flutter3d` начнёт
-зависеть от `flutter3d_particles_core` (чистый Dart, безвредно), а пакет
-`flutter3d_particles` на pub.dev останется с последней версией и пометкой
-discontinued. Переименовать `particles_core` в `particles` нельзя, пока имя
-занято. Выигрыш — один пакет; цена — discontinued-запись и переезд четырёх
-потребителей (`bridge` и три демо). **Отложить**; вернуться, когда следующая
-мажорная версия всё равно заставит трогать потребителей.
+488 lines contributing a pass. Folding it into the engine would make
+`flutter3d` depend on `flutter3d_particles_core` (pure Dart, harmless), and
+the `flutter3d_particles` package on pub.dev would sit at its last version,
+marked discontinued. `particles_core` can't be renamed to `particles` while
+that name is taken. The gain is one fewer package; the cost is a
+discontinued entry and moving four consumers (`bridge` and three demos).
+**Deferred**; revisit when the next major version forces touching consumers
+anyway.
 
-## 5. Что остаётся и почему это стоит записать
+## 5. What stays, and why it's worth writing down
 
-- **`flutter3d_stereo`** (914 строк, Android-плагин, v0.1.0) и
-  **`flutter3d_net_webrtc`** (174 строки, `flutter_webrtc`) никто не
-  импортирует. Слить некуда: нативный код. Вопрос не «куда», а «нужны ли»;
-  решает владелец, план их не трогает.
-- **`flutter3d_shaders`** (66 строк + GLSL) — три потребителя: `impeller`,
-  `cpu`, `conformance`. В `hardware` не идёт, потому что «hardware names no
-  graphics API», а GLSL — это API. Остаётся.
-- **`flutter3d_build`** — `tool/init` (чистый Dart) импортирует его для
-  конвертации на этапе сборки; в `flutter3d` его нельзя.
-- **Четыре MCP-пакета** после 3.5 станут тремя: `editor_mcp` (Dart, `sim`),
-  `model_mcp` (Dart, моделлер), `sim_mcp` (Flutter, игра + кадр). Сливать
-  дальше нельзя: закрытия разные, и потребитель `editor_mcp` получил бы
-  моделлер.
+- **`flutter3d_stereo`** (914 lines, an Android plugin, v0.1.0) and
+  **`flutter3d_net_webrtc`** (174 lines, `flutter_webrtc`) have no
+  importers. There's nowhere to merge them into: native code. The question
+  isn't "where" but "are they needed"; that's the owner's call, this plan
+  leaves them alone.
+- **`flutter3d_shaders`** (66 lines + GLSL) — three consumers: `impeller`,
+  `cpu`, `conformance`. It doesn't go into `hardware`, because "hardware
+  names no graphics API," and GLSL is an API. Stays.
+- **`flutter3d_build`** — `tool/init` (pure Dart) imports it for
+  build-time conversion; it can't live in `flutter3d`.
+- **The four MCP packages** become three after 3.5: `editor_mcp` (Dart,
+  `sim`), `model_mcp` (Dart, modeler), `sim_mcp` (Flutter, game + frame).
+  No further merging: their closures differ, and `editor_mcp`'s consumer
+  would inherit the modeler.
 
-## 6. Что обновить при каждом слиянии
+## 6. What to update on every merge
 
-Список, потому что половина из этого проверяется сканом, а половина — нет.
+Listed because half of this is caught by a scan and half isn't.
 
-1. `pubspec.yaml` корня: убрать пакет из `workspace:`.
-2. `pubspec.yaml` потребителей: заменить зависимость, `flutter pub get`.
-3. Импорты `package:<старое>/` → `package:<новое>/` (`rg -l` по `packages/`,
+1. Root `pubspec.yaml`: drop the package from `workspace:`.
+2. Consumers' `pubspec.yaml`: swap the dependency, `flutter pub get`.
+3. Imports `package:<old>/` → `package:<new>/` (`rg -l` across `packages/`,
    `apps/`, `tool/`).
-4. ARCHITECTURE.md: таблица §3.2, список **The order, used on the day**
-   (правило `the publishing order names every package` падает, если пакет в
-   дереве, но не в списке — и наоборот), число «Thirty-five packages» в §3
-   (сейчас в дереве 45, документ уже врёт; после плана — 39).
-5. README.md: строка «holds thirty-five» (строка 14).
+4. `ARCHITECTURE.md`: the §3.2 table, the **The order, used on the day**
+   list (the `the publishing order names every package` rule fails if a
+   package is in the tree but not the list — and vice versa), the "Thirty-
+   five packages" count in §3 (the tree already holds 45 today, so the
+   document is already wrong; after the plan, 39).
+5. README.md: the "holds thirty-five" line (line 14).
 6. `tool/structure/repository.dart`: `flatDartPackages` (3.3),
-   `genrePackages` не трогается.
-7. Число тестов в README, ARCHITECTURE.md и на сайте — `tool/structure.dart`
-   считает «says N tests»; слияние тестов число не меняет, новый тест на
-   кнопку «Render» (3.4) — меняет.
-8. CHANGELOG.md принимающего пакета: жирный тезис «принял `X`, потому что…»;
-   CHANGELOG.md уходящего — последняя запись «слит в `Y`».
-9. Для pub-пакетов (3.1, 3.6, 3.7): версия `0.7.0` у принимающего, у
-   уходящего — `flutter pub publish` последней версии с `discontinued`
-   через pub.dev admin, поле `replaced_by`.
-10. `doc/plan-status.json` — если слитый пакет назван в статусе пункта
-    (`pro-rn-02`, `fmt-29d`, `ai-00`, `par-02`), обновить причину.
-11. `tool/skills` — описания MCP-серверов по именам (3.5).
-12. CI `.github/workflows/ci.yml` — пакеты в явных шагах: `flutter3d_mesh`
-    (bench), `flutter3d_impeller` (bundle). Ни один из сливаемых там не
-    назван; проверить после 3.5.
+   `genrePackages` untouched.
+7. The test count in README, ARCHITECTURE.md, and the site — `tool/
+   structure.dart` counts "says N tests"; merging tests doesn't change the
+   number, a new test for the "Render" button (3.4) does.
+8. The receiving package's CHANGELOG.md: a bold thesis, "accepted `X`,
+   because…"; the departing package's CHANGELOG.md: a final entry, "merged
+   into `Y`."
+9. For pub packages (3.1, 3.6, 3.7): the receiving package bumps to
+   `0.7.0`; the departing one gets a final `flutter pub publish` of its last
+   version, then marked `discontinued` via pub.dev's admin UI, with
+   `replaced_by` set.
+10. `doc/plan-status.json` — if a merged package is named in an item's own
+    status text (`pro-rn-02`, `fmt-29d`, `ai-00`, `par-02`), update the
+    reason.
+11. `tool/skills` — MCP server descriptions that name packages (3.5).
+12. CI `.github/workflows/ci.yml` — packages named in explicit steps:
+    `flutter3d_mesh` (bench), `flutter3d_impeller` (bundle). None of the
+    merging packages are named there; check after 3.5.
 
-## 7. Порядок и оценка
+## 7. Order and estimate
 
-| Шаг | Слияние | р. | pub | Блокирует |
+| Step | Merge | size | pub | Blocks |
 |---|---|---|---|---|
-| 1 | 3.3 `fbx` → `formats` | S | нет | — |
-| 2 | 3.2 `rig` → `model_core` | S | нет | — |
-| 3 | 3.4 `render_job`: кнопка «Render» в моделлере | S | нет | — |
-| 4 | 3.5 `render_mcp` → `sim_mcp` | M | нет | — |
-| 5 | 3.1 `cloth` → `physics` | S | да | bump physics |
-| 6 | 3.6 `backend` → `app` | S | да | bump app |
-| 7 | 3.7 `screens` → `session` | M | да | bump session, bridge |
+| 1 | 3.3 `fbx` → `formats` | S | no | — |
+| 2 | 3.2 `rig` → `model_core` | S | no | — |
+| 3 | 3.4 `render_job`: a "Render" button in the modeler | S | no | — |
+| 4 | 3.5 `render_mcp` → `sim_mcp` | M | no | — |
+| 5 | 3.1 `cloth` → `physics` | S | yes | bump physics |
+| 6 | 3.6 `backend` → `app` | S | yes | bump app |
+| 7 | 3.7 `screens` → `session` | M | yes | bump session, bridge |
 
-Шаги 1–4 — один-два дня без публикаций. Шаги 5–7 — вместе с выпуском 0.7.0,
-потому что три discontinued-пакета за один релиз объяснить проще, чем по
-одному за три.
+Steps 1–4 are a day or two with no publishing. Steps 5–7 go out with the
+0.7.0 release, since three discontinued packages are easier to explain in
+one release than one at a time across three.
 
-## 8. Полная таблица
+## 8. The full table
 
-| Пакет | Строк | pub | Держится на | Вердикт |
+| Package | Lines | pub | Held up by | Verdict |
 |---|---|---|---|---|
-| `flutter3d` | 23 894 | да | ядро | остаётся |
-| `flutter3d_hardware` | 4 422 | да | HAL, §1.5 «engine names no backend» | остаётся |
-| `flutter3d_impeller` | 2 753 | да | §1.2 `flutter_gpu`, hook, бандл | остаётся |
-| `flutter3d_webgl` | 15 131 | да | §1.3 `web`, условный импорт | остаётся |
-| `flutter3d_webgpu` | 20 293 | да | бэкенд, WGSL | остаётся |
-| `flutter3d_cpu` | 6 443 | да | софтверный бэкенд, 19 зависимых | остаётся |
-| `flutter3d_backend` | 188 | да | история | → `app` (3.6) |
-| `flutter3d_app` | 35 | да | barrel | принимает `backend` |
-| `flutter3d_session` | 1 737 | да | история | принимает `screens` (3.7) |
-| `flutter3d_screens` | 2 664 | да | §1.3 `flutter_bloc`, но `session` уже зависит | → `session` (3.7) |
-| `flutter3d_conformance` | 4 598 | да | §1.3 `flutter_test` | остаётся |
-| `flutter3d_testing` | 328 | да | §1.3 `flutter_test` | остаётся |
-| `flutter3d_shaders` | 66 + GLSL | да | §1.4, три потребителя | остаётся |
-| `flutter3d_samples` | 33 + 4,7 МБ | да | §1.4 | остаётся |
-| `flutter3d_particles` | 488 | да | Flutter-половина | спорно (§4), отложено |
-| `flutter3d_particles_core` | 1 826 | нет | §1.1, нужен `model_core` | остаётся |
-| `flutter3d_physics` | 5 099 | да | §1.1, 7 зависимых | принимает `cloth` (3.1) |
-| `flutter3d_cloth` | 579 | нет | история | → `physics` (3.1) |
-| `flutter3d_rig` | 1 722 | нет | история | → `model_core` (3.2) |
-| `flutter3d_fbx` | 73 | нет | «на будущее» | → `formats` (3.3) |
-| `flutter3d_lab` | 249 | нет | §2, вертикаль `edu-04` | остаётся |
-| `flutter3d_render_job` | 535 | нет | Flutter-половина над `model_core`; потребителя пока нет | остаётся, подключить (3.4) |
-| `flutter3d_stereo` | 914 | нет | §1.2 Android-плагин; нет потребителей | остаётся, вопрос §5 |
-| `flutter3d_sim` | 15 937 | да | §1.1 | остаётся |
-| `flutter3d_game` | 1 893 | да | Flutter-половина игры, 15 зависимых | остаётся |
-| `flutter3d_game_shooter` | 4 968 | да | §1.5 | остаётся |
-| `flutter3d_game_platformer` | 4 415 | да | §1.5 | остаётся |
-| `flutter3d_game_racing` | 4 805 | да | §1.5 | остаётся |
-| `flutter3d_game_strategy` | 4 133 | нет | §1.5 | остаётся |
-| `flutter3d_bridge` | 2 377 | да | единственный пакет по обе стороны | остаётся |
-| `flutter3d_audio` | 1 469 | да | §1.2 `flutter_soloud` | остаётся |
-| `flutter3d_net` | 608 | нет | §1.1 | остаётся |
-| `flutter3d_net_webrtc` | 174 | нет | §1.2 `flutter_webrtc`; нет потребителей | остаётся, вопрос §5 |
-| `flutter3d_editor_core` | 2 796 | да | §1.1, `tool/init` | остаётся |
-| `flutter3d_editor_mcp` | 720 | да | §1.3 `dart_mcp` | остаётся |
-| `flutter3d_model_core` | 21 265 | нет | §1.1 | принимает `rig` |
-| `flutter3d_model_mcp` | 4 277 | нет | §1.3 `dart_mcp`; modeler поднимает in-process | остаётся |
-| `flutter3d_mesh` | 15 875 | нет | `cpu` и bench берут без `model_core` | остаётся |
-| `flutter3d_geometry` | 3 141 | нет | `mesh` берёт без декодеров | остаётся |
-| `flutter3d_formats` | 14 046 | нет | §1.1, `tool/convert_asset` | принимает `fbx` |
-| `flutter3d_build` | 1 026 | нет | §1.1, `tool/init` | остаётся |
-| `flutter3d_sim_mcp` | 927 | нет | §1.3 `dart_mcp` | принимает `render_mcp` (3.5) |
-| `flutter3d_render_mcp` | 589 | нет | то же закрытие, что у `sim_mcp` | → `sim_mcp` (3.5) |
-| `pad_input` | 1 407 | да | §1.2, самостоятельное имя | остаётся |
-| `pointer_lock` | 499 | да | §1.2 macOS-код | остаётся |
+| `flutter3d` | 23,894 | yes | the core | stays |
+| `flutter3d_hardware` | 4,422 | yes | the HAL, §1.5 "engine names no backend" | stays |
+| `flutter3d_impeller` | 2,753 | yes | §1.2 `flutter_gpu`, a hook, a bundle | stays |
+| `flutter3d_webgl` | 15,131 | yes | §1.3 `web`, conditional import | stays |
+| `flutter3d_webgpu` | 20,293 | yes | a backend, WGSL | stays |
+| `flutter3d_cpu` | 6,443 | yes | the software backend, 19 dependents | stays |
+| `flutter3d_backend` | 188 | yes | history | → `app` (3.6) |
+| `flutter3d_app` | 35 | yes | a barrel | absorbs `backend` |
+| `flutter3d_session` | 1,737 | yes | history | absorbs `screens` (3.7) |
+| `flutter3d_screens` | 2,664 | yes | §1.3 `flutter_bloc`, but `session` already depends on it | → `session` (3.7) |
+| `flutter3d_conformance` | 4,598 | yes | §1.3 `flutter_test` | stays |
+| `flutter3d_testing` | 328 | yes | §1.3 `flutter_test` | stays |
+| `flutter3d_shaders` | 66 + GLSL | yes | §1.4, three consumers | stays |
+| `flutter3d_samples` | 33 + 4.7 MB | yes | §1.4 | stays |
+| `flutter3d_particles` | 488 | yes | the Flutter half | contested (§4), deferred |
+| `flutter3d_particles_core` | 1,826 | no | §1.1, needed by `model_core` | stays |
+| `flutter3d_physics` | 5,099 | yes | §1.1, 7 dependents | absorbs `cloth` (3.1) |
+| `flutter3d_cloth` | 579 | no | history | → `physics` (3.1) |
+| `flutter3d_rig` | 1,722 | no | history | → `model_core` (3.2) |
+| `flutter3d_fbx` | 73 | no | "for later" | → `formats` (3.3) |
+| `flutter3d_lab` | 249 | no | §2, the `edu-04` vertical | stays |
+| `flutter3d_render_job` | 535 | no | the Flutter half above `model_core`; no consumer yet | stays, gets wired up (3.4) |
+| `flutter3d_stereo` | 914 | no | §1.2 an Android plugin; no consumers | stays, question in §5 |
+| `flutter3d_sim` | 15,937 | yes | §1.1 | stays |
+| `flutter3d_game` | 1,893 | yes | the Flutter half of the game, 15 dependents | stays |
+| `flutter3d_game_shooter` | 4,968 | yes | §1.5 | stays |
+| `flutter3d_game_platformer` | 4,415 | yes | §1.5 | stays |
+| `flutter3d_game_racing` | 4,805 | yes | §1.5 | stays |
+| `flutter3d_game_strategy` | 4,133 | no | §1.5 | stays |
+| `flutter3d_bridge` | 2,377 | yes | the only package on both sides | stays |
+| `flutter3d_audio` | 1,469 | yes | §1.2 `flutter_soloud` | stays |
+| `flutter3d_net` | 608 | no | §1.1 | stays |
+| `flutter3d_net_webrtc` | 174 | no | §1.2 `flutter_webrtc`; no consumers | stays, question in §5 |
+| `flutter3d_editor_core` | 2,796 | yes | §1.1, `tool/init` | stays |
+| `flutter3d_editor_mcp` | 720 | yes | §1.3 `dart_mcp` | stays |
+| `flutter3d_model_core` | 21,265 | no | §1.1 | absorbs `rig` |
+| `flutter3d_model_mcp` | 4,277 | no | §1.3 `dart_mcp`; the modeler loads it in-process | stays |
+| `flutter3d_mesh` | 15,875 | no | `cpu` and the bench use it without `model_core` | stays |
+| `flutter3d_geometry` | 3,141 | no | `mesh` uses it without decoders | stays |
+| `flutter3d_formats` | 14,046 | no | §1.1, `tool/convert_asset` | absorbs `fbx` |
+| `flutter3d_build` | 1,026 | no | §1.1, `tool/init` | stays |
+| `flutter3d_sim_mcp` | 927 | no | §1.3 `dart_mcp` | absorbs `render_mcp` (3.5) |
+| `flutter3d_render_mcp` | 589 | no | the same closure as `sim_mcp` | → `sim_mcp` (3.5) |
+| `pad_input` | 1,407 | yes | §1.2, a standalone name | stays |
+| `pointer_lock` | 499 | yes | §1.2 macOS code | stays |

@@ -30,7 +30,9 @@ List<ExportIssue> rigIssues(ModelProject project, ProjectProfile profile) {
   final issues = <ExportIssue>[];
 
   for (var i = 0; i < project.skeletons.length; i++) {
-    issues.addAll(_skeletonIssues(i, project.skeletons[i], profile, objectsById));
+    issues.addAll(
+      _skeletonIssues(i, project.skeletons[i], profile, objectsById),
+    );
   }
 
   for (final clip in project.clips) {

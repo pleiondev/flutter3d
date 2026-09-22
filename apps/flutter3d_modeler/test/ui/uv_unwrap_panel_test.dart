@@ -6,6 +6,7 @@ library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter3d_model_core/flutter3d_model_core.dart';
+import 'package:flutter3d_modeler/l10n/app_localizations.dart';
 import 'package:flutter3d_modeler/src/ui/uv_unwrap_panel.dart';
 import 'package:flutter3d_modeler/src/uv_unwrap_layout.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -24,6 +25,9 @@ Widget _panel({
   ValueChanged<int>? onIslandSelected,
   List<UvIslandData>? islands,
 }) => MaterialApp(
+  locale: const Locale('en'),
+  localizationsDelegates: AppLocalizations.localizationsDelegates,
+  supportedLocales: AppLocalizations.supportedLocales,
   home: Material(
     child: UvUnwrapPanel(
       methods: const <UnwrapMethod>[UnwrapMethod.lscm],

@@ -8,14 +8,18 @@ library;
 import 'dart:math' as math;
 import 'dart:typed_data';
 
-import 'package:flutter3d_formats/flutter3d_formats.dart';
+import 'package:flutter3d_core/formats.dart';
 import 'package:flutter3d_model_core/flutter3d_model_core.dart';
 import 'package:test/test.dart';
 import 'package:vector_math/vector_math.dart';
 
 /// A rotation-only [ProjectTrack] for [jointId], two keys: identity at t=0
 /// and [angle] radians about [axis] at t=1, linear (slerped) between them.
-ProjectTrack _bendTrack(int jointId, {required Vector3 axis, required double angle}) {
+ProjectTrack _bendTrack(
+  int jointId, {
+  required Vector3 axis,
+  required double angle,
+}) {
   final identity = Quaternion.identity();
   final bent = Quaternion.axisAngle(axis, angle);
   return ProjectTrack(
@@ -26,8 +30,14 @@ ProjectTrack _bendTrack(int jointId, {required Vector3 axis, required double ang
       interpolation: AnimationInterpolation.linear,
       times: Float32List.fromList(<double>[0, 1]),
       values: Float32List.fromList(<double>[
-        identity.x, identity.y, identity.z, identity.w,
-        bent.x, bent.y, bent.z, bent.w,
+        identity.x,
+        identity.y,
+        identity.z,
+        identity.w,
+        bent.x,
+        bent.y,
+        bent.z,
+        bent.w,
       ]),
       componentCount: 4,
     ),
@@ -63,10 +73,13 @@ void main() {
       expect(driver.evaluate(rotation), closeTo(1.0, 1e-6));
     });
 
-    test('a rotation about a different axis does not drive an x-axis driver', () {
-      final rotation = Quaternion.axisAngle(Vector3(0, 1, 0), math.pi / 2);
-      expect(driver.evaluate(rotation), closeTo(0.0, 1e-6));
-    });
+    test(
+      'a rotation about a different axis does not drive an x-axis driver',
+      () {
+        final rotation = Quaternion.axisAngle(Vector3(0, 1, 0), math.pi / 2);
+        expect(driver.evaluate(rotation), closeTo(0.0, 1e-6));
+      },
+    );
   });
 
   group('evaluateShapeDriversLive — additive combination', () {
@@ -78,8 +91,20 @@ void main() {
         ],
       );
       const drivers = <ShapeDriver>[
-        ShapeDriver(shapeIndex: 0, jointId: 1, axis: DriverAxis.x, from: 0, to: math.pi / 2),
-        ShapeDriver(shapeIndex: 0, jointId: 2, axis: DriverAxis.x, from: 0, to: math.pi / 2),
+        ShapeDriver(
+          shapeIndex: 0,
+          jointId: 1,
+          axis: DriverAxis.x,
+          from: 0,
+          to: math.pi / 2,
+        ),
+        ShapeDriver(
+          shapeIndex: 0,
+          jointId: 2,
+          axis: DriverAxis.x,
+          from: 0,
+          to: math.pi / 2,
+        ),
       ];
 
       // At t=0.5 each joint has slerped to a 45-degree bend (half of the
@@ -98,7 +123,13 @@ void main() {
     test('a joint with no rotation track in the clip reads as unrotated', () {
       final clip = ProjectClip(tracks: const <ProjectTrack>[]);
       const drivers = <ShapeDriver>[
-        ShapeDriver(shapeIndex: 0, jointId: 99, axis: DriverAxis.x, from: 0, to: math.pi / 2),
+        ShapeDriver(
+          shapeIndex: 0,
+          jointId: 99,
+          axis: DriverAxis.x,
+          from: 0,
+          to: math.pi / 2,
+        ),
       ];
       final weights = evaluateShapeDriversLive(
         clip: clip,
@@ -111,60 +142,68 @@ void main() {
   });
 
   group('bakeShapeDrivers — baked equals live', () {
-    test('sampling the baked weights track matches the live driver everywhere', () {
-      final clip = ProjectClip(
-        tracks: <ProjectTrack>[_bendTrack(1, axis: Vector3(1, 0, 0), angle: math.pi / 2)],
-      );
-      const driver = ShapeDriver(
-        shapeIndex: 0,
-        jointId: 1,
-        axis: DriverAxis.x,
-        from: 0,
-        to: math.pi / 2,
-      );
+    test(
+      'sampling the baked weights track matches the live driver everywhere',
+      () {
+        final clip = ProjectClip(
+          tracks: <ProjectTrack>[
+            _bendTrack(1, axis: Vector3(1, 0, 0), angle: math.pi / 2),
+          ],
+        );
+        const driver = ShapeDriver(
+          shapeIndex: 0,
+          jointId: 1,
+          axis: DriverAxis.x,
+          from: 0,
+          to: math.pi / 2,
+        );
 
-      final baked = bakeShapeDrivers(
-        clip: clip,
-        drivers: const <ShapeDriver>[driver],
-        shapeTargetObjectId: 7,
-        shapeCount: 1,
-      );
-
-      expect(baked.tracks, hasLength(clip.tracks.length + 1));
-      final weightsTrack = baked.tracks.last;
-      expect(weightsTrack.objectId, 7);
-      expect(weightsTrack.track.path, AnimationPath.weights);
-
-      final out = Float32List(1);
-      for (final t in <double>[0.0, 0.25, 0.5, 0.75, 1.0]) {
-        weightsTrack.track.sample(t, out);
-        final live = evaluateShapeDriversLive(
+        final baked = bakeShapeDrivers(
           clip: clip,
           drivers: const <ShapeDriver>[driver],
-          time: t,
+          shapeTargetObjectId: 7,
           shapeCount: 1,
         );
-        expect(out[0], closeTo(live[0], 1e-5), reason: 'time $t');
-      }
-    });
 
-    test('the source clip itself is returned unchanged when no joint moves', () {
-      final clip = ProjectClip(tracks: const <ProjectTrack>[]);
-      const driver = ShapeDriver(
-        shapeIndex: 0,
-        jointId: 1,
-        axis: DriverAxis.x,
-        from: 0,
-        to: math.pi / 2,
-      );
-      final baked = bakeShapeDrivers(
-        clip: clip,
-        drivers: const <ShapeDriver>[driver],
-        shapeTargetObjectId: 7,
-        shapeCount: 1,
-      );
-      expect(baked.tracks, isEmpty);
-    });
+        expect(baked.tracks, hasLength(clip.tracks.length + 1));
+        final weightsTrack = baked.tracks.last;
+        expect(weightsTrack.objectId, 7);
+        expect(weightsTrack.track.path, AnimationPath.weights);
+
+        final out = Float32List(1);
+        for (final t in <double>[0.0, 0.25, 0.5, 0.75, 1.0]) {
+          weightsTrack.track.sample(t, out);
+          final live = evaluateShapeDriversLive(
+            clip: clip,
+            drivers: const <ShapeDriver>[driver],
+            time: t,
+            shapeCount: 1,
+          );
+          expect(out[0], closeTo(live[0], 1e-5), reason: 'time $t');
+        }
+      },
+    );
+
+    test(
+      'the source clip itself is returned unchanged when no joint moves',
+      () {
+        final clip = ProjectClip(tracks: const <ProjectTrack>[]);
+        const driver = ShapeDriver(
+          shapeIndex: 0,
+          jointId: 1,
+          axis: DriverAxis.x,
+          from: 0,
+          to: math.pi / 2,
+        );
+        final baked = bakeShapeDrivers(
+          clip: clip,
+          drivers: const <ShapeDriver>[driver],
+          shapeTargetObjectId: 7,
+          shapeCount: 1,
+        );
+        expect(baked.tracks, isEmpty);
+      },
+    );
   });
 
   group('DriverAxis and ShapeDriverCurve — value classes, not enums', () {

@@ -6,6 +6,7 @@ library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter3d_model_core/flutter3d_model_core.dart';
+import 'package:flutter3d_modeler/l10n/app_localizations.dart';
 import 'package:flutter3d_modeler/src/ui/actions_list.dart';
 import 'package:flutter3d_modeler/src/ui/animation_screen.dart';
 import 'package:flutter3d_modeler/src/ui/constraints_list.dart';
@@ -54,6 +55,9 @@ Widget _screen({
   int? selectedConstraint,
   ValueChanged<int>? onSelectConstraint,
 }) => MaterialApp(
+  locale: const Locale('en'),
+  localizationsDelegates: AppLocalizations.localizationsDelegates,
+  supportedLocales: AppLocalizations.supportedLocales,
   home: Material(
     child: AnimationScreen(
       viewport: const Placeholder(key: ValueKey<String>('viewport')),
@@ -110,9 +114,7 @@ void main() {
     WidgetTester tester,
   ) async {
     int? selected;
-    await tester.pumpWidget(
-      _screen(onSelectJoint: (int id) => selected = id),
-    );
+    await tester.pumpWidget(_screen(onSelectJoint: (int id) => selected = id));
 
     await tester.tap(find.text('arm'));
     await tester.pump();
@@ -120,17 +122,14 @@ void main() {
     expect(selected, 3);
   });
 
-  testWidgets(
-    'the constraint list names the joint through the skeleton\'s own '
-    'objects, not a bare id',
-    (WidgetTester tester) async {
-      await tester.pumpWidget(_screen());
+  testWidgets('the constraint list names the joint through the skeleton\'s own '
+      'objects, not a bare id', (WidgetTester tester) async {
+    await tester.pumpWidget(_screen());
 
-      // `_armConstraint`'s own `rootJointId: 1` is `hips` in `_rig()` — the
-      // row this proves is reading through `AnimationScreen`'s own
-      // `_jointName`, not falling back to `joint 1`.
-      expect(find.textContaining('hips'), findsWidgets);
-      expect(find.textContaining('joint 1'), findsNothing);
-    },
-  );
+    // `_armConstraint`'s own `rootJointId: 1` is `hips` in `_rig()` — the
+    // row this proves is reading through `AnimationScreen`'s own
+    // `_jointName`, not falling back to `joint 1`.
+    expect(find.textContaining('hips'), findsWidgets);
+    expect(find.textContaining('joint 1'), findsNothing);
+  });
 }

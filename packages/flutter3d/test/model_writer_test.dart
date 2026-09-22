@@ -1,6 +1,6 @@
-import 'package:flutter3d/src/engine/assets/model_loader.dart';
-import 'package:flutter3d/src/engine/assets/model_writer.dart';
-import 'package:flutter3d_formats/flutter3d_formats.dart';
+import 'package:flutter3d_core/formats.dart';
+import 'package:flutter3d_core/src/engine/assets/model_loader.dart';
+import 'package:flutter3d_core/src/engine/assets/model_writer.dart';
 import 'package:flutter3d_samples/flutter3d_samples.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -51,22 +51,13 @@ void main() {
       final document = await box();
       final results = await Future.wait(<Future<Object>>[
         encodeModelInIsolate(
-          ModelWriteRequest(
-            document: document,
-            format: ModelWriteFormat.glb,
-          ),
+          ModelWriteRequest(document: document, format: ModelWriteFormat.glb),
         ),
         encodeModelInIsolate(
-          ModelWriteRequest(
-            document: document,
-            format: ModelWriteFormat.obj,
-          ),
+          ModelWriteRequest(document: document, format: ModelWriteFormat.obj),
         ),
         encodeModelInIsolate(
-          ModelWriteRequest(
-            document: document,
-            format: ModelWriteFormat.stl,
-          ),
+          ModelWriteRequest(document: document, format: ModelWriteFormat.stl),
         ),
       ]);
       expect(results, hasLength(3));

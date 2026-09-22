@@ -11,7 +11,7 @@ import 'dart:async';
 import 'dart:isolate';
 import 'dart:typed_data';
 
-import 'package:flutter3d_formats/flutter3d_formats.dart';
+import 'package:flutter3d_core/formats.dart';
 import 'package:flutter3d_model_core/flutter3d_model_core.dart';
 
 /// What an accepted file is, as stored in `models.source_format`.
@@ -64,7 +64,9 @@ Future<Inspection> inspectUpload(
 }) async {
   if (bytes.isEmpty) return Rejected('$fileName is empty.');
   try {
-    final result = await Isolate.run(() => _inspect(bytes, fileName)).timeout(deadline);
+    final result = await Isolate.run(
+      () => _inspect(bytes, fileName),
+    ).timeout(deadline);
     return switch (result) {
       (format: final format?, triangles: final triangles, refusal: null) =>
         Accepted(format, triangles),
@@ -103,7 +105,11 @@ Future<_Result> _inspect(Uint8List bytes, String name) async {
         triangles: project.triangleCount,
         refusal: null,
       ),
-      ProjectRefused(:final because) => (format: null, triangles: 0, refusal: because),
+      ProjectRefused(:final because) => (
+        format: null,
+        triangles: 0,
+        refusal: because,
+      ),
     };
   }
 
@@ -131,13 +137,18 @@ Future<_Result> _inspect(Uint8List bytes, String name) async {
       return (
         format: null,
         triangles: 0,
-        refusal: 'There is nothing in $name that could be read as a model: no '
+        refusal:
+            'There is nothing in $name that could be read as a model: no '
             'meshes and no nodes came out of it.',
       );
     }
     return (format: format, triangles: document.triangleCount, refusal: null);
   } catch (error) {
-    return (format: null, triangles: 0, refusal: '$name could not be read: $error');
+    return (
+      format: null,
+      triangles: 0,
+      refusal: '$name could not be read: $error',
+    );
   }
 }
 

@@ -10,10 +10,7 @@ import 'package:flutter3d_model_core/flutter3d_model_core.dart';
 import 'package:test/test.dart';
 import 'package:vector_math/vector_math.dart';
 
-final _humanoidBounds = Aabb3.minMax(
-  Vector3(-1, -1, -1),
-  Vector3(1, 2, 1),
-);
+final _humanoidBounds = Aabb3.minMax(Vector3(-1, -1, -1), Vector3(1, 2, 1));
 
 final _humanoidMarkers = <String, Vector3>{
   'hips': Vector3(0, 1.0, 0),
@@ -224,11 +221,7 @@ void main() {
     });
 
     test('quadruped', () {
-      checkIdentity(
-        RigTemplate.quadruped,
-        _quadrupedMarkers,
-        _quadrupedBounds,
-      );
+      checkIdentity(RigTemplate.quadruped, _quadrupedMarkers, _quadrupedBounds);
     });
   });
 
@@ -263,8 +256,14 @@ void main() {
   });
 
   test('required markers list matches the table exactly', () {
-    expect(requiredMarkers(RigTemplate.humanoid).toSet(), _humanoidMarkers.keys.toSet());
-    expect(requiredMarkers(RigTemplate.quadruped).toSet(), _quadrupedMarkers.keys.toSet());
+    expect(
+      requiredMarkers(RigTemplate.humanoid).toSet(),
+      _humanoidMarkers.keys.toSet(),
+    );
+    expect(
+      requiredMarkers(RigTemplate.quadruped).toSet(),
+      _quadrupedMarkers.keys.toSet(),
+    );
   });
 
   test('object ids start at firstObjectId and are consecutive', () {
@@ -278,4 +277,385 @@ void main() {
     expect(rig.objects.last.id, 40 + rig.objects.length - 1);
     expect(rig.skeleton.joints, rig.objects.map((o) => o.id).toList());
   });
+
+  // -------------------------------------------------------------- anim-33d
+  //
+  // `RigBuildOptions` — screen 16's rig-composition switches, given a
+  // backend: spineCount, fingers, toes, faceBones, ikChains, controllers.
+
+  group('anim-33d acceptance table (cumulative RigBuildOptions)', () {
+    void expectHumanoidCount(RigBuildOptions options, int expectedJoints) {
+      final preview = previewRig(RigTemplate.humanoid, options: options);
+      expect(preview.jointCount, expectedJoints, reason: '$options');
+      final rig = buildSkeleton(
+        RigTemplate.humanoid,
+        _humanoidMarkers,
+        bounds: _humanoidBounds,
+        options: options,
+        firstObjectId: 1,
+      );
+      expect(rig.skeleton.jointCount, expectedJoints, reason: '$options');
+      expect(rig.objects.length, expectedJoints, reason: '$options');
+    }
+
+    test('base: 17', () {
+      expectHumanoidCount(const RigBuildOptions(), 17);
+    });
+
+    test('+fingers: 47', () {
+      expectHumanoidCount(const RigBuildOptions(fingers: true), 47);
+    });
+
+    test('+fingers+spine3: 49', () {
+      expectHumanoidCount(
+        const RigBuildOptions(fingers: true, spineCount: 3),
+        49,
+      );
+    });
+
+    test('+fingers+spine3+toes: 51', () {
+      expectHumanoidCount(
+        const RigBuildOptions(fingers: true, spineCount: 3, toes: true),
+        51,
+      );
+    });
+
+    test('+fingers+spine3+toes+face: 54', () {
+      expectHumanoidCount(
+        const RigBuildOptions(
+          fingers: true,
+          spineCount: 3,
+          toes: true,
+          faceBones: true,
+        ),
+        54,
+      );
+    });
+
+    test('quadruped stays 15 — the new flags are humanoid-only', () {
+      const options = RigBuildOptions(
+        fingers: true,
+        spineCount: 3,
+        toes: true,
+        faceBones: true,
+      );
+      final preview = previewRig(RigTemplate.quadruped, options: options);
+      expect(preview.jointCount, 15);
+      final rig = buildSkeleton(
+        RigTemplate.quadruped,
+        _quadrupedMarkers,
+        bounds: _quadrupedBounds,
+        options: options,
+        firstObjectId: 1,
+      );
+      expect(rig.skeleton.jointCount, 15);
+    });
+  });
+
+  test('previewRig(...).jointCount == buildSkeleton(...).skeleton.jointCount '
+      'for several option combinations', () {
+    final combos = <RigBuildOptions>[
+      const RigBuildOptions(),
+      const RigBuildOptions(fingers: true),
+      const RigBuildOptions(toes: true),
+      const RigBuildOptions(spineCount: 2),
+      const RigBuildOptions(spineCount: 3),
+      const RigBuildOptions(faceBones: true),
+      const RigBuildOptions(controllers: true),
+      const RigBuildOptions(ikChains: true),
+      const RigBuildOptions(
+        fingers: true,
+        toes: true,
+        spineCount: 3,
+        faceBones: true,
+        ikChains: true,
+        controllers: true,
+      ),
+    ];
+    for (final options in combos) {
+      final preview = previewRig(RigTemplate.humanoid, options: options);
+      final rig = buildSkeleton(
+        RigTemplate.humanoid,
+        _humanoidMarkers,
+        bounds: _humanoidBounds,
+        options: options,
+        firstObjectId: 1,
+      );
+      expect(rig.skeleton.jointCount, preview.jointCount, reason: '$options');
+    }
+
+    final quadPreview = previewRig(RigTemplate.quadruped);
+    final quadRig = buildSkeleton(
+      RigTemplate.quadruped,
+      _quadrupedMarkers,
+      bounds: _quadrupedBounds,
+      firstObjectId: 1,
+    );
+    expect(quadRig.skeleton.jointCount, quadPreview.jointCount);
+  });
+
+  test('anim-33d: every left/right pair mirrors within 1e-6 and '
+      'inverseBind·worldRest = I, for a full cross-product of the six '
+      'humanoid RigBuildOptions knobs', () {
+    // 3 spineCounts × 2^5 booleans = 96 combinations — cheap: each is
+    // pure arithmetic over at most 54 joints, no I/O.
+    for (final spineCount in const <int>[1, 2, 3]) {
+      for (final fingers in const <bool>[false, true]) {
+        for (final toes in const <bool>[false, true]) {
+          for (final faceBones in const <bool>[false, true]) {
+            for (final ikChains in const <bool>[false, true]) {
+              for (final controllers in const <bool>[false, true]) {
+                _checkSymmetryAndInverseBind(
+                  RigBuildOptions(
+                    spineCount: spineCount,
+                    fingers: fingers,
+                    toes: toes,
+                    faceBones: faceBones,
+                    ikChains: ikChains,
+                    controllers: controllers,
+                  ),
+                );
+              }
+            }
+          }
+        }
+      }
+    }
+  });
+
+  group('anim-33d refusals', () {
+    test('an unreasonably large spineCount pushes deformingCount past 64 and '
+        'is refused', () {
+      const options = RigBuildOptions(spineCount: 50);
+      expect(
+        previewRig(RigTemplate.humanoid, options: options).deformingCount,
+        greaterThan(64),
+      );
+      expect(
+        () => buildSkeleton(
+          RigTemplate.humanoid,
+          _humanoidMarkers,
+          bounds: _humanoidBounds,
+          options: options,
+          firstObjectId: 1,
+        ),
+        throwsArgumentError,
+      );
+    });
+
+    test('every combination this row actually ships stays at or under 64', () {
+      const options = RigBuildOptions(
+        fingers: true,
+        spineCount: 3,
+        toes: true,
+        faceBones: true,
+        ikChains: true,
+        controllers: true,
+      );
+      expect(
+        previewRig(RigTemplate.humanoid, options: options).deformingCount,
+        lessThanOrEqualTo(64),
+      );
+      expect(
+        () => buildSkeleton(
+          RigTemplate.humanoid,
+          _humanoidMarkers,
+          bounds: _humanoidBounds,
+          options: options,
+          firstObjectId: 1,
+        ),
+        returnsNormally,
+      );
+    });
+  });
+
+  test('faceBones adds two non-deforming eyes: deformingCount is jointCount '
+      'minus 2', () {
+    final preview = previewRig(
+      RigTemplate.humanoid,
+      options: const RigBuildOptions(faceBones: true),
+    );
+    expect(preview.jointCount, 20);
+    expect(preview.deformingCount, 18);
+  });
+
+  group('RigBuildOptions.controllers', () {
+    test('adds one socket-parent object above the root, not counted as a '
+        'joint', () {
+      final preview = previewRig(
+        RigTemplate.humanoid,
+        options: const RigBuildOptions(controllers: true),
+      );
+      expect(preview.controllerCount, 1);
+      expect(preview.jointCount, 17);
+
+      final rig = buildSkeleton(
+        RigTemplate.humanoid,
+        _humanoidMarkers,
+        bounds: _humanoidBounds,
+        options: const RigBuildOptions(controllers: true),
+        firstObjectId: 1,
+      );
+      expect(rig.objects.length, 18);
+      expect(rig.skeleton.jointCount, 17);
+
+      final controller = rig.objects.first;
+      expect(controller.name, 'hipsControl');
+      expect(controller.parent, isNull);
+      expect(rig.skeleton.joints, isNot(contains(controller.id)));
+
+      final hips = rig.objects.firstWhere((o) => o.name == 'hips');
+      expect(hips.parent, controller.id);
+      expect(hips.transform.getTranslation(), Vector3.zero());
+    });
+
+    test('without it, the root has no parent, same as before anim-33d', () {
+      final rig = buildSkeleton(
+        RigTemplate.humanoid,
+        _humanoidMarkers,
+        bounds: _humanoidBounds,
+        firstObjectId: 1,
+      );
+      expect(rig.objects.first.name, 'hips');
+      expect(rig.objects.first.parent, isNull);
+      expect(previewRig(RigTemplate.humanoid).controllerCount, 0);
+    });
+
+    test('mirrors the quadruped root (pelvis) too, not just hips', () {
+      final rig = buildSkeleton(
+        RigTemplate.quadruped,
+        _quadrupedMarkers,
+        bounds: _quadrupedBounds,
+        options: const RigBuildOptions(controllers: true),
+        firstObjectId: 1,
+      );
+      final controller = rig.objects.first;
+      expect(controller.name, 'pelvisControl');
+      final pelvis = rig.objects.firstWhere((o) => o.name == 'pelvis');
+      expect(pelvis.parent, controller.id);
+    });
+  });
+
+  group('RigBuildOptions.ikChains', () {
+    test('adds four two-bone IkConstraints on a humanoid', () {
+      final preview = previewRig(
+        RigTemplate.humanoid,
+        options: const RigBuildOptions(ikChains: true),
+      );
+      expect(preview.ikChainCount, 4);
+
+      final rig = buildSkeleton(
+        RigTemplate.humanoid,
+        _humanoidMarkers,
+        bounds: _humanoidBounds,
+        options: const RigBuildOptions(ikChains: true),
+        firstObjectId: 1,
+      );
+      expect(rig.skeleton.constraints, hasLength(4));
+
+      final byName = <String, int>{
+        for (final object in rig.objects) object.name: object.id,
+      };
+      final leftArm = rig.skeleton.constraints.firstWhere(
+        (c) => c.rootJointId == byName['leftShoulder'],
+      );
+      expect(leftArm.midJointId, byName['leftElbow']);
+      expect(leftArm.effectorJointId, byName['leftWrist']);
+
+      // The target sits exactly at the effector's own rest position, so
+      // solving this constraint immediately after building moves nothing.
+      final project = _projectOf(rig);
+      final wristWorld = worldTransformOf(
+        project,
+        byName['leftWrist']!,
+      ).getTranslation();
+      expect(leftArm.target.x, closeTo(wristWorld.x, 1e-6));
+      expect(leftArm.target.y, closeTo(wristWorld.y, 1e-6));
+      expect(leftArm.target.z, closeTo(wristWorld.z, 1e-6));
+    });
+
+    test('no constraints without ikChains', () {
+      final rig = buildSkeleton(
+        RigTemplate.humanoid,
+        _humanoidMarkers,
+        bounds: _humanoidBounds,
+        firstObjectId: 1,
+      );
+      expect(rig.skeleton.constraints, isEmpty);
+    });
+
+    test('a no-op on the quadruped template: no elbow/knee to bend around', () {
+      final preview = previewRig(
+        RigTemplate.quadruped,
+        options: const RigBuildOptions(ikChains: true),
+      );
+      expect(preview.ikChainCount, 0);
+
+      final rig = buildSkeleton(
+        RigTemplate.quadruped,
+        _quadrupedMarkers,
+        bounds: _quadrupedBounds,
+        options: const RigBuildOptions(ikChains: true),
+        firstObjectId: 1,
+      );
+      expect(rig.skeleton.constraints, isEmpty);
+    });
+  });
+}
+
+/// Builds [options] against the standard humanoid fixture and checks two
+/// of this row's own invariants that must hold for *every* combination:
+/// every `left…` object mirrors its `right…` counterpart within 1e-6 (an
+/// object's own name is enough to find its pair — [_mirroredName] in
+/// `rig_template.dart` builds every right-side name the same way), and
+/// `inverseBind · worldRest = I` for every joint.
+void _checkSymmetryAndInverseBind(RigBuildOptions options) {
+  final rig = buildSkeleton(
+    RigTemplate.humanoid,
+    _humanoidMarkers,
+    bounds: _humanoidBounds,
+    options: options,
+    firstObjectId: 1,
+  );
+  final project = _projectOf(rig);
+  final byName = <String, int>{
+    for (final object in rig.objects) object.name: object.id,
+  };
+
+  for (final object in rig.objects) {
+    if (!object.name.startsWith('left')) continue;
+    final rightId = byName['right${object.name.substring(4)}'];
+    if (rightId == null) continue;
+    final leftPos = worldTransformOf(project, object.id).getTranslation();
+    final rightPos = worldTransformOf(project, rightId).getTranslation();
+    expect(
+      rightPos.x,
+      closeTo(-leftPos.x, 1e-6),
+      reason: '${object.name} x, options $options',
+    );
+    expect(
+      rightPos.y,
+      closeTo(leftPos.y, 1e-6),
+      reason: '${object.name} y, options $options',
+    );
+    expect(
+      rightPos.z,
+      closeTo(leftPos.z, 1e-6),
+      reason: '${object.name} z, options $options',
+    );
+  }
+
+  for (var i = 0; i < rig.skeleton.jointCount; i++) {
+    final jointId = rig.skeleton.joints[i];
+    final worldRest = worldTransformOf(project, jointId);
+    final composed = Matrix4.copy(rig.skeleton.inverseBindMatrices[i])
+      ..multiply(worldRest);
+    for (var e = 0; e < 16; e++) {
+      expect(
+        composed.storage[e],
+        closeTo(Matrix4.identity().storage[e], 1e-6),
+        reason: 'joint ${project[jointId]!.name}, element $e, options $options',
+      );
+    }
+  }
 }

@@ -9,22 +9,19 @@ void main() {
     'impellerc, and writes a real, non-empty bundle',
     () async {
       final bundle = File('assets/shaders/flutter3d.shaderbundle');
-      final before = bundle.existsSync() ? bundle.lengthSync() : -1;
 
       final dependencies = await buildShaderBundle(
         packageRoot: Directory.current,
       );
 
       expect(bundle.existsSync(), isTrue);
-      expect(bundle.lengthSync(), greaterThan(0));
       // A real recompile — not a stale file this test happened to find —
       // proven by writing a fresh copy right here and comparing sizes is
       // fragile against unrelated shader edits, so the honest check is
-      // narrower: the compiler actually ran and actually produced bytes,
-      // which `before == -1` (nothing there at all before this call, in a
-      // checkout that never ran the manual script) already covers on a
-      // clean machine; on a machine that already had one, at least confirm
-      // it did not shrink to nothing.
+      // narrower but covers both a clean machine (nothing there before this
+      // call) and one that already had a bundle: the compiler actually ran
+      // and actually produced real bytes, not something that shrank to
+      // nothing.
       expect(bundle.lengthSync(), greaterThan(1000));
 
       expect(

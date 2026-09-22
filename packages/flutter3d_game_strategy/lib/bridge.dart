@@ -20,8 +20,8 @@ library;
 import 'dart:typed_data';
 
 import 'package:flutter3d/flutter3d.dart';
-import 'package:flutter3d_bridge/flutter3d_bridge.dart';
-import 'package:flutter3d_game/flutter3d_game.dart';
+import 'package:flutter3d_app/flutter3d_app.dart';
+import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:vector_math/vector_math.dart';
 
 import 'src/building.dart';
@@ -37,6 +37,16 @@ final class StrategyVisuals {
   /// when it is made — the buffer behind it is allocated once — so a game that
   /// intends thousands says so here rather than discovering the ceiling when it
   /// reaches it.
+  ///
+  /// [unitMesh] replaces the boxy default with a real model, already scaled
+  /// and grounded — its own local origin is where a unit's feet stand, not
+  /// its centre, since `sync()` places it with no added lift once one is
+  /// set. [buildingMesh] and [buildingMeshSize] do the same for a hall, but
+  /// as a shared mesh rather than a shape rebuilt at each footprint: a
+  /// building's width and depth come from the level document, and one
+  /// upload stretched per instance with [SceneNode.setScale] costs nothing
+  /// extra past the second building, where a fresh [CuboidShape] would cost
+  /// one upload apiece.
   StrategyVisuals({
     required this.simulation,
     required GraphicsDevice device,
@@ -48,7 +58,22 @@ final class StrategyVisuals {
     Material? unseen,
     Material? remembered,
     this.unitSize = const UnitSize(),
-  }) : _buildingMaterial = buildings ?? _stone(),
+    DeviceMesh? unitMesh,
+    DeviceMesh? buildingMesh,
+    Vector3? buildingMeshSize,
+  }) : assert(
+         (buildingMesh == null) == (buildingMeshSize == null),
+         'a shared building mesh needs its own natural size to scale from, '
+         'and a size with nothing to scale is dead weight',
+       ),
+       _buildingMaterial = buildings ?? _stone(),
+       _buildingMesh = buildingMesh,
+       _buildingMeshSize = buildingMeshSize,
+       // A real model stands on its own feet at its local origin, once
+       // prepared the way `tool/prepare_models.py` prepares `worker.glb`; the
+       // default `CuboidShape` is centred instead, so only it needs lifting
+       // by half its height to stand on the ground `at.y` names.
+       _unitGroundLift = unitMesh == null ? unitSize.height / 2.0 : 0.0,
        _device = device {
     _ground = MeshNode(
       DeviceMesh.upload(
@@ -65,12 +90,13 @@ final class StrategyVisuals {
     );
 
     _crowd = InstancedMeshNode(
-      DeviceMesh.upload(
-        device,
-        CuboidShape(
-          size: Vector3(unitSize.width, unitSize.height, unitSize.width),
-        ).build(),
-      ),
+      unitMesh ??
+          DeviceMesh.upload(
+            device,
+            CuboidShape(
+              size: Vector3(unitSize.width, unitSize.height, unitSize.width),
+            ).build(),
+          ),
       units ?? _cloth(),
       capacity: capacity,
       name: 'crowd',
@@ -145,6 +171,20 @@ final class StrategyVisuals {
 
   final GraphicsDevice _device;
   final Material _buildingMaterial;
+
+  /// A shared upload every building instance scales to its own footprint,
+  /// or null to build a fresh [CuboidShape] per building instead.
+  final DeviceMesh? _buildingMesh;
+
+  /// [_buildingMesh]'s own width, height and depth, so a building can be
+  /// scaled to its footprint by ratio rather than by a number read off the
+  /// file by hand.
+  final Vector3? _buildingMeshSize;
+
+  /// Added to a unit's Y position; zero once a real, already-grounded
+  /// [unitMesh] replaces the centred default box. See the constructor.
+  final double _unitGroundLift;
+
   late final MeshNode _ground;
   late final InstancedMeshNode _crowd;
   late final Float32List _tileTop;
@@ -229,7 +269,7 @@ final class StrategyVisuals {
       if (side != null && !_showsUnit(side, unit)) continue;
       final Vector3 at = unit.position;
       _transform.setIdentity();
-      _transform.setTranslationRaw(at.x, at.y + unitSize.height / 2.0, at.z);
+      _transform.setTranslationRaw(at.x, at.y + _unitGroundLift, at.z);
       _crowd.setTransform(drawn, _transform);
       _crowd.setColor(drawn, _woundOf(unit));
       drawn++;
@@ -254,29 +294,47 @@ final class StrategyVisuals {
           !simulation.fog.knows(side, building.centre.x, building.centre.z)) {
         continue;
       }
-      final node =
-          MeshNode(
-            DeviceMesh.upload(
-              _device,
-              CuboidShape(
-                size: Vector3(
-                  building.width,
-                  unitSize.height * 2.5,
-                  building.depth,
-                ),
-              ).build(),
-            ),
-            // A copy each, not the one material shared. It costs a handful of
-            // objects and it buys the only thing a picking pass is good for
-            // here: a hall the cursor is over can be lit on its own. Shared,
-            // the highlight would light every hall on the map at once.
-            _buildingMaterial.copy(),
-            name: building.name,
-          )..setPosition(
+      // A copy each, not the one material shared. It costs a handful of
+      // objects and it buys the only thing a picking pass is good for here:
+      // a hall the cursor is over can be lit on its own. Shared, the
+      // highlight would light every hall on the map at once.
+      final Material material = _buildingMaterial.copy();
+      final double height = unitSize.height * 2.5;
+      final MeshNode node;
+      final DeviceMesh? sharedMesh = _buildingMesh;
+      if (sharedMesh != null) {
+        final Vector3 natural = _buildingMeshSize!;
+        // A real model already stands on its own feet at Y = 0, the same
+        // convention `tool/prepare_models.py` leaves `hall.glb` in — no lift
+        // to add, only the stretch from its authored size to this building's.
+        node = MeshNode(sharedMesh, material, name: building.name)
+          ..setScale(
+            building.width / natural.x,
+            height / natural.y,
+            building.depth / natural.z,
+          )
+          ..setPosition(
             building.centre.x,
-            building.centre.y + unitSize.height * 1.25,
+            building.centre.y,
             building.centre.z,
           );
+      } else {
+        node =
+            MeshNode(
+              DeviceMesh.upload(
+                _device,
+                CuboidShape(
+                  size: Vector3(building.width, height, building.depth),
+                ).build(),
+              ),
+              material,
+              name: building.name,
+            )..setPosition(
+              building.centre.x,
+              building.centre.y + unitSize.height * 1.25,
+              building.centre.z,
+            );
+      }
       _buildings[i] = node;
       _scene?.add(node);
     }

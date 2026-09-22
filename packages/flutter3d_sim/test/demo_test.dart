@@ -115,31 +115,27 @@ void main() {
       );
     });
 
-    test(
-      'refuses a demo with no level, no start, no hash, no stamp or no '
-      'checkpoints',
-      () {
-        for (final field in <String>[
-          'level',
-          'run',
-          'levelHash',
-          'buildStamp',
-          'checkpoints',
-        ]) {
-          expect(
-            () => Demo.fromJson(_demo().toJson()..remove(field)),
-            throwsA(isA<DemoFormatException>()),
-            reason: 'missing "$field" should be refused',
-          );
-        }
+    test('refuses a demo with no level, no start, no hash, no stamp or no '
+        'checkpoints', () {
+      for (final field in <String>[
+        'level',
+        'run',
+        'levelHash',
+        'buildStamp',
+        'checkpoints',
+      ]) {
         expect(
-          () => Demo.fromJson(<String, Object?>{}),
+          () => Demo.fromJson(_demo().toJson()..remove(field)),
           throwsA(isA<DemoFormatException>()),
-          reason:
-              'an empty object has no version, which is the first thing said',
+          reason: 'missing "$field" should be refused',
         );
-      },
-    );
+      }
+      expect(
+        () => Demo.fromJson(<String, Object?>{}),
+        throwsA(isA<DemoFormatException>()),
+        reason: 'an empty object has no version, which is the first thing said',
+      );
+    });
 
     test('and a starting state from the future is refused through it', () {
       final json = _demo().toJson();

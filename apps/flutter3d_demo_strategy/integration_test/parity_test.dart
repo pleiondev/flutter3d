@@ -12,8 +12,8 @@ library;
 
 import 'dart:typed_data';
 
-import 'package:flutter3d_game/flutter3d_game.dart';
 import 'package:flutter3d_game_strategy/flutter3d_game_strategy.dart';
+import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 import 'package:vector_math/vector_math.dart';
@@ -83,7 +83,11 @@ Match _mirror({
     }
     if (policies) bots.add(Bot(side: side, base: base));
   }
-  return Match(simulation: sim, bots: bots, goal: MatchGoal(delivered: target));
+  return Match(
+    simulation: sim,
+    bots: bots,
+    goal: MatchGoal(delivered: target),
+  );
 }
 
 DigestTrace _play({double seamTwo = 20.0, int steps = 1200, int every = 30}) {

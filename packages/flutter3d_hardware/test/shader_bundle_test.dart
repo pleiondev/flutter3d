@@ -12,7 +12,7 @@ import 'dart:typed_data';
 
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:flutter3d_hardware/testing.dart';
-import 'package:flutter_test/flutter_test.dart';
+import 'package:test/test.dart';
 
 ByteData _payload(List<int> bytes) =>
     Uint8List.fromList(bytes).buffer.asByteData();

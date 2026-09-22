@@ -9,9 +9,21 @@ part of 'command.dart';
 /// Adds a light to the project's own lighting, with nothing lit in
 /// particular.
 final class AddLight extends ModelCommand {
-  const AddLight({this.type = ProjectLightType.directional});
+  const AddLight({this.type = ProjectLightType.directional, this.at});
 
   final ProjectLightType type;
+
+  /// Where to put it, in the scene's own space — `ux-23`.
+  ///
+  /// **An argument rather than something this works out.** A light belongs
+  /// above the model, and where the model is means walking every object's
+  /// geometry through its own transform — which the viewport has already
+  /// done for the camera it framed. So the caller that knows hands the
+  /// answer over, and a caller that does not (an agent, a headless script)
+  /// leaves it out and gets the origin, exactly as before.
+  ///
+  /// Null keeps `ProjectLight`'s own identity transform.
+  final Vector3? at;
 
   @override
   String get name => 'addLight';
@@ -20,7 +32,10 @@ final class AddLight extends ModelCommand {
   String get says => 'add a light';
 
   @override
-  Map<String, Object?> get arguments => <String, Object?>{'type': type.name};
+  Map<String, Object?> get arguments => <String, Object?>{
+    'type': type.name,
+    if (at case final Vector3 where) 'at': <double>[where.x, where.y, where.z],
+  };
 
   @override
   Outcome apply(ModelProject project, ProjectSelection selection) =>
@@ -29,7 +44,12 @@ final class AddLight extends ModelCommand {
           lighting: project.lighting.copyWith(
             lights: <ProjectLight>[
               ...project.lighting.lights,
-              ProjectLight(type: type),
+              ProjectLight(
+                type: type,
+                transform: at == null
+                    ? null
+                    : Matrix4.translation(Vector3.copy(at!)),
+              ),
             ],
           ),
         ),
@@ -52,7 +72,12 @@ final class RemoveLight extends ModelCommand {
   String get name => 'removeLight';
 
   @override
-  String get says => 'remove a light';
+  // `ux-43`: an index-shifting removal says so, because every index an
+  // agent is holding past this one has just moved and nothing else
+  // would tell it. The review watched one delete material 1 and then
+  // paint with material 2, which was a different material by then.
+  String get says =>
+      'remove light $index (every light after it shifts down by one)';
 
   @override
   Map<String, Object?> get arguments => <String, Object?>{'index': index};
@@ -179,6 +204,65 @@ final class SetLightTransform extends ModelCommand {
   }
 }
 
+/// Lights the scene with a panorama the project carries — `ux-49`.
+///
+/// **An equirectangular image is twice as wide as it is tall, and this
+/// refuses anything else by name.** The mapping from a pixel to a direction
+/// assumes exactly that: longitude runs the full width and latitude the full
+/// height, so a 4:3 photograph fed in as a panorama comes out as a sky
+/// stretched round the horizon with the poles pinched, and nothing about the
+/// picture says why. Saying the size back is the difference between "this
+/// looks wrong" and "this is 1920 by 1080, and a panorama is 2:1".
+///
+/// [index] names a row of [ModelProject.images], so a panorama is saved with
+/// the project rather than being a path that may not exist on the next
+/// machine. Null clears it, and the scene falls back to whatever
+/// [SceneLighting.environment] names.
+final class SetPanorama extends ModelCommand {
+  const SetPanorama({this.index});
+
+  final int? index;
+
+  @override
+  String get name => 'setPanorama';
+
+  @override
+  String get says => index == null ? 'clear the panorama' : 'set the panorama';
+
+  @override
+  Map<String, Object?> get arguments => <String, Object?>{'index': index};
+
+  @override
+  Outcome apply(ModelProject project, ProjectSelection selection) {
+    final int? at = index;
+    if (at == null) {
+      return Outcome.done(
+        project.copyWith(
+          lighting: project.lighting.copyWith(clearPanorama: true),
+        ),
+      );
+    }
+    if (at < 0 || at >= project.images.length) {
+      return Outcome.refused('there is no image $at in this project');
+    }
+    final ({int width, int height})? size = hdrSizeOf(project.images[at].bytes);
+    if (size == null) {
+      return Outcome.refused(
+        'image $at is not a Radiance .hdr this build can read',
+      );
+    }
+    if (size.width != size.height * 2) {
+      return Outcome.refused(
+        'a panorama is twice as wide as it is tall, and image $at is '
+        '${size.width} by ${size.height}',
+      );
+    }
+    return Outcome.done(
+      project.copyWith(lighting: project.lighting.copyWith(panorama: at)),
+    );
+  }
+}
+
 /// Sets the project's own built-in sky.
 final class SetEnvironment extends ModelCommand {
   const SetEnvironment(this.preset);
@@ -207,7 +291,11 @@ final class SetEnvironment extends ModelCommand {
 
 /// Sets one scene-wide lighting field by name — everything on
 /// [SceneLighting] that is not a light or the environment: `ambientIntensity`,
-/// `shadows`, `exposure`.
+/// `shadows`, `exposure`, and [ScenePostSettings.bloomEnabled] under its own
+/// name, `bloomEnabled` — the post panel draws it beside `exposure` (see that
+/// panel's own doc comment for why), so it is set the same way, through the
+/// one command every other scene-wide field already goes through, rather
+/// than a `SetPostField` this row would be the only command left needing.
 final class SetSceneLightingField extends ModelCommand {
   const SetSceneLightingField({required this.field, required this.value});
 
@@ -263,13 +351,9 @@ ProjectLight? _lightFieldSet(ProjectLight l, String field, Object? value) {
     case 'castsShadow':
       return value is bool ? l.copyWith(castsShadow: value) : null;
     case 'innerConeAngle':
-      return value is num
-          ? l.copyWith(innerConeAngle: value.toDouble())
-          : null;
+      return value is num ? l.copyWith(innerConeAngle: value.toDouble()) : null;
     case 'outerConeAngle':
-      return value is num
-          ? l.copyWith(outerConeAngle: value.toDouble())
-          : null;
+      return value is num ? l.copyWith(outerConeAngle: value.toDouble()) : null;
     default:
       return null;
   }
@@ -282,11 +366,17 @@ SceneLighting? _sceneLightingFieldSet(
 ) {
   switch (field) {
     case 'ambientIntensity':
-      return value is num ? s.copyWith(ambientIntensity: value.toDouble()) : null;
+      return value is num
+          ? s.copyWith(ambientIntensity: value.toDouble())
+          : null;
     case 'shadows':
       return value is bool ? s.copyWith(shadows: value) : null;
     case 'exposure':
       return value is num ? s.copyWith(exposure: value.toDouble()) : null;
+    case 'bloomEnabled':
+      return value is bool
+          ? s.copyWith(post: s.post.copyWith(bloomEnabled: value))
+          : null;
     default:
       return null;
   }

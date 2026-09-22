@@ -1,0 +1,13 @@
+# /etc/cloudflared/grafana.yml
+#
+# `<TUNNEL_ID>` is what `cloudflared tunnel create flutter3d-grafana` prints;
+# the credentials file of the same name is written beside it. See
+# cloud/README.md's "Tunnel" step for the DNS route command and the flag that
+# step warns about.
+tunnel: <TUNNEL_ID>
+credentials-file: /etc/cloudflared/<TUNNEL_ID>.json
+
+ingress:
+  - hostname: grafana.pleion.dev
+    service: http://127.0.0.1:8797
+  - service: http_status:404

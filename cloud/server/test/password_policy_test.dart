@@ -6,9 +6,12 @@ void main() {
       passwordProblems(password, email: email, displayName: name).isEmpty;
 
   group('length', () {
-    test('under the minimum is refused with one sentence, whatever else is true', () {
-      expect(passwordProblems('Ab1!xyz'), ['Use at least 10 characters.']);
-    });
+    test(
+      'under the minimum is refused with one sentence, whatever else is true',
+      () {
+        expect(passwordProblems('Ab1!xyz'), ['Use at least 10 characters.']);
+      },
+    );
 
     test('is counted in characters, not in UTF-16 units', () {
       // Nine characters, eighteen code units: still too short.
@@ -25,7 +28,11 @@ void main() {
       expect(accepted('bluekettle'), isFalse, reason: 'one kind');
       expect(accepted('bluekettle7'), isFalse, reason: 'two kinds');
       expect(accepted('Bluekettle7'), isTrue, reason: 'three kinds');
-      expect(accepted('blue-kettle7'), isTrue, reason: 'symbol counts as a kind');
+      expect(
+        accepted('blue-kettle7'),
+        isTrue,
+        reason: 'symbol counts as a kind',
+      );
     });
 
     test('a passphrase needs no mixing', () {
@@ -44,13 +51,16 @@ void main() {
       expect(accepted('Aa1!Aa1!Aa1!'), isFalse);
     });
 
-    test('keyboard and alphabet runs, including stuck together and reversed', () {
-      expect(accepted('1234567890'), isFalse);
-      expect(accepted('qwertyuiopasdfgh'), isFalse);
-      expect(accepted('0987654321qwerty'), isFalse);
-      expect(accepted('abcdefghijklmnop'), isFalse);
-      expect(accepted('1qaz2wsx3edc4rfv'), isFalse);
-    });
+    test(
+      'keyboard and alphabet runs, including stuck together and reversed',
+      () {
+        expect(accepted('1234567890'), isFalse);
+        expect(accepted('qwertyuiopasdfgh'), isFalse);
+        expect(accepted('0987654321qwerty'), isFalse);
+        expect(accepted('abcdefghijklmnop'), isFalse);
+        expect(accepted('1qaz2wsx3edc4rfv'), isFalse);
+      },
+    );
 
     test('a common password, and a common word dressed up', () {
       expect(accepted('password123'), isFalse);
@@ -68,7 +78,10 @@ void main() {
   });
 
   test('every problem is reported at once, not one per attempt', () {
-    final problems = passwordProblems('password12', email: 'password@example.com');
+    final problems = passwordProblems(
+      'password12',
+      email: 'password@example.com',
+    );
     expect(problems.length, greaterThan(1));
   });
 }

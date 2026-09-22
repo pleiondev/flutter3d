@@ -43,7 +43,11 @@ Matrix4 worldTransformOf(
   var current = project[id];
   while (current != null && visited.add(current.id)) {
     final override = rotationOverrides?[current.id];
-    chain.add(override == null ? current.transform : _withRotation(current.transform, override));
+    chain.add(
+      override == null
+          ? current.transform
+          : _withRotation(current.transform, override),
+    );
     current = current.parent == null ? null : project[current.parent!];
   }
   // Steps, not `Matrix4 * Matrix4`: that operator is declared to return

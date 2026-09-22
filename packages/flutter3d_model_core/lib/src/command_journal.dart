@@ -23,17 +23,23 @@
 /// different build, a corrupted line, or a command that reads something the
 /// journal does not carry.
 ///
-/// **A real limit: a command that reads `selection` rather than taking ids in
-/// its own arguments cannot replay correctly unless every change to that
-/// selection was itself recorded.** `doc-06`'s object commands take an id
-/// because of exactly this — `Rename`, `SetTransform`, `SetParent`,
-/// `AssignMaterial`, `SetParametric` and the rest all replay cleanly — but
-/// `MoveBy`, `RotateBy`, `ScaleBy`, `DeleteObjects`, `DuplicateObjects` and
-/// every mesh command act on "what is selected", and object-level picking is
-/// a mouse click that goes through `ModelHistory.selection =`, never through a
-/// `ModelCommand`. A caller building a recovery journal on this and using any
-/// of those has to also record its own selection changes, replayed before the
-/// command that needs them; nothing here does that for it.
+/// **A real limit, narrower than it used to be: a command that reads
+/// `selection` rather than taking ids in its own arguments cannot replay
+/// correctly unless every change to that selection was itself recorded.**
+/// `doc-06`'s object commands take an id because of exactly this — `Rename`,
+/// `SetTransform`, `SetParent`, `AssignMaterial`, `SetParametric` and the rest
+/// all replay cleanly — but `MoveBy`, `RotateBy`, `ScaleBy`, `DeleteObjects`,
+/// `DuplicateObjects` and every mesh command act on "what is selected".
+/// **`tut-05`, closed:** `ModelSession.select` — the door an agent over MCP
+/// picks through — now runs `SelectElements`, a thin, non-mutating
+/// `ModelCommand` (`command.dart`) that records and replays a pick the same
+/// as any other edit, at either object or mesh-element level. What remains
+/// outside this journal's reach is only a caller that assigns
+/// `ModelHistory.selection =` directly, bypassing both `select` and
+/// [ModelHistory.run] — the live application's own pointer and gizmo click
+/// path (`ModelerCubit`) still does, a UI-implementation choice rather than a
+/// limit of this format: nothing stops that click from running
+/// `SelectElements` through `run` too, it simply does not today.
 library;
 
 import 'dart:convert';
@@ -50,7 +56,26 @@ final class CommandJournal {
 
   final List<String> _lines = <String>[];
 
+  /// Transactions opened whose `begin` marker has not been written yet.
+  ///
+  /// **A transaction that records nothing writes no markers at all** —
+  /// `tut-01`'s own gap, found reading `case1.jsonl`. `ModelHistory` already
+  /// promised this on its side: "a transaction in which nothing succeeded
+  /// leaves no step". This journal promised it on replay — an empty bracket is
+  /// a no-op there — and broke it on the page, where a `cleanup()` that found
+  /// nothing to clean still left a `begin`/`end` pair for whoever opened the
+  /// file to puzzle over. Holding the marker until the first line inside it
+  /// costs one counter and makes the two promises the same promise.
+  ///
+  /// Counted rather than flagged, because transactions nest: the count is how
+  /// many `begin` lines a record has to lay down before its own, which is what
+  /// keeps the depth a replay sees the depth the caller opened.
+  int _unwrittenBegins = 0;
+
   /// How many lines have been recorded, transaction markers included.
+  ///
+  /// A transaction that has opened but not yet recorded anything counts for
+  /// nothing here, because it has written nothing — see [_unwrittenBegins].
   int get length => _lines.length;
 
   /// Records [command] as the next line. Call this after [command] has
@@ -63,19 +88,102 @@ final class CommandJournal {
   /// [replay] and threaded into `ModelHistory.run` the same way, so a
   /// recovered journal's undo stack refuses an agent's own undo past a
   /// person's step exactly as the live session would have.
-  void record(ModelCommand command, {StepAuthor author = StepAuthor.person}) =>
-      _lines.add(
-        jsonEncode(<String, Object?>{...command.toJson(), 'author': author.name}),
-      );
+  void record(ModelCommand command, {StepAuthor author = StepAuthor.person}) {
+    _writeOpenBegins();
+    _lines.add(
+      jsonEncode(<String, Object?>{...command.toJson(), 'author': author.name}),
+    );
+  }
+
+  /// Lays down the `begin` lines for every transaction still holding one.
+  void _writeOpenBegins() {
+    for (; _unwrittenBegins > 0; _unwrittenBegins--) {
+      _lines.add(_beginMarker);
+    }
+  }
+
+  /// Forgets the last recorded step and writes [replacement] in its place —
+  /// the journal-side half of `ModelHistory.amend`'s own "the stack does
+  /// not grow" rule.
+  ///
+  /// **Overwrites rather than appending, so a cold [replay] lands on the
+  /// adjusted state.** A caller pairs this with `ModelHistory.amend`, at the
+  /// same moment: that method re-runs [replacement] against the document
+  /// the top step's own command ran against, in place of it, and this
+  /// forgets the original line(s) the same way — replay meets a `command`
+  /// line carrying [replacement]'s own arguments where the original's used
+  /// to be, and reaches the adjusted document directly rather than the
+  /// original followed by a second, unrecorded edit on top of it.
+  ///
+  /// **A step [transaction] wrote as a `beginTransaction`/several lines/
+  /// `endTransaction` bracket loses the whole bracket, not only its own
+  /// last line.** `ModelHistory.amend` replaces everything back to
+  /// `HistoryStep.before` — the document as it stood before the *whole*
+  /// step, transaction or not — with [replacement] alone, so a journal that
+  /// kept the bracket's inner lines would replay a step nothing in the live
+  /// session still remembers taking.
+  void amend(
+    ModelCommand replacement, {
+    StepAuthor author = StepAuthor.person,
+  }) {
+    if (_lines.isNotEmpty && _lines.last == _endMarker) {
+      _lines.removeLast();
+      var depth = 1;
+      while (depth > 0 && _lines.isNotEmpty) {
+        final String removed = _lines.removeLast();
+        if (removed == _endMarker) {
+          depth++;
+        } else if (removed == _beginMarker) {
+          depth--;
+        }
+      }
+    } else if (_lines.isNotEmpty) {
+      _lines.removeLast();
+    }
+    record(replacement, author: author);
+  }
 
   /// Brackets the commands recorded between this and the matching
   /// [endTransaction] as one undo step on [replay], mirroring
   /// `ModelHistory.beginTransaction`. Call it at the same moment a caller
   /// opens the transaction on its own `ModelHistory`, not after.
-  void beginTransaction() => _marker('begin');
+  ///
+  /// **The marker itself waits for the first line inside it** — see
+  /// [_unwrittenBegins]. A transaction that records nothing leaves nothing.
+  void beginTransaction() => _unwrittenBegins++;
 
   /// Closes the transaction [beginTransaction] opened.
-  void endTransaction() => _marker('end');
+  void endTransaction() {
+    if (_unwrittenBegins > 0) {
+      // Nothing was recorded inside it, so its `begin` never reached the page
+      // and neither does this.
+      _unwrittenBegins--;
+      return;
+    }
+    _lines.add(_endMarker);
+  }
+
+  /// Abandons the transaction [beginTransaction] opened: on [replay] it is
+  /// closed and then taken straight back, leaving the project exactly as it
+  /// was before the first command inside it — `ux-20`.
+  ///
+  /// **A marker rather than erasing the lines.** A journal is append-only,
+  /// because it is written to a file as it goes and a crash between two edits
+  /// is the case it exists for; rewinding a file that may already be on disk
+  /// is not something this can promise. Saying "and then that was undone" is
+  /// something it can.
+  ///
+  /// A transaction whose every command refused recorded nothing, so there is
+  /// nothing on the page to take back and no marker to write — the same
+  /// silence [endTransaction] keeps, and the case `replay`'s own rollback
+  /// branch already guards against on the other side.
+  void rollbackTransaction() {
+    if (_unwrittenBegins > 0) {
+      _unwrittenBegins--;
+      return;
+    }
+    _lines.add(_rollbackMarker);
+  }
 
   /// Runs [body], recording everything it does as one transaction.
   T transaction<T>(T Function() body) {
@@ -87,8 +195,15 @@ final class CommandJournal {
     }
   }
 
-  void _marker(String which) =>
-      _lines.add(jsonEncode(<String, Object?>{'transaction': which}));
+  static final String _beginMarker = jsonEncode(<String, Object?>{
+    'transaction': 'begin',
+  });
+  static final String _endMarker = jsonEncode(<String, Object?>{
+    'transaction': 'end',
+  });
+  static final String _rollbackMarker = jsonEncode(<String, Object?>{
+    'transaction': 'rollback',
+  });
 
   /// The journal so far, one JSON object per line, UTF-8, each line ended.
   Uint8List toBytes() => utf8.encode(_lines.map((String l) => '$l\n').join());
@@ -105,6 +220,9 @@ final class CommandJournal {
   static JournalReplay replay(Uint8List bytes, ModelProject initial) {
     final history = ModelHistory(initial);
     final lines = utf8.decode(bytes).split('\n');
+    // How tall the undo stack was when the open transaction began — what a
+    // `rollback` marker measures against. See that case below.
+    var stepsBeforeTransaction = 0;
     for (var i = 0; i < lines.length; i++) {
       final String raw = lines[i];
       if (raw.trim().isEmpty) continue;
@@ -118,10 +236,28 @@ final class CommandJournal {
 
       switch (parsed) {
         case {'transaction': 'begin'}:
+          stepsBeforeTransaction = history.steps.length;
           history.beginTransaction();
           continue;
         case {'transaction': 'end'}:
           history.endTransaction();
+          continue;
+        // `ux-20`: a batch one of whose commands refused. The `end` marker
+        // came first and has already left whatever succeeded as one step;
+        // this takes that step back, so the replay lands where the live
+        // session landed — on the project as it was before the batch.
+        //
+        // **Guarded on a step having actually appeared.** A transaction in
+        // which nothing succeeded leaves none, and an unguarded undo here
+        // would reach past it and take back the edit *before* the batch —
+        // a rollback that deletes somebody's work.
+        case {'transaction': 'rollback'}:
+          history.endTransaction();
+          if (history.steps.length > stepsBeforeTransaction) {
+            history
+              ..undo()
+              ..dropRedo();
+          }
           continue;
       }
 

@@ -78,7 +78,7 @@ Stated up front rather than left to be discovered. Three entries used to be here
 
 | | |
 |---|---|
-| **Fixed resolution** | A `WebGlDevice` owns the canvas it was created with, and a WebGL canvas resets its drawing buffer when resized. So the frame is drawn at 1280×720 and the element is stretched to the layout by CSS, which is why `present` takes a `BoxFit` |
+| **Fixed resolution** | A `WebGlDevice` owns the canvas it was created with, and a WebGL canvas resets its drawing buffer when resized. So the frame is drawn at 1280×720 and the element is stretched to the layout by CSS, which is why `presentFrame` takes a `BoxFit` |
 | **Download** | About 55 MB on a first load, most of it textures, models and the CanvasKit runtime. Read once off the deployed build; the browser and the date were not written down, so it is an order of magnitude rather than a figure to hold anything to |
 
 ## The bug this demo found

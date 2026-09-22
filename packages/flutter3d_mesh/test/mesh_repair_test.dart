@@ -24,24 +24,25 @@ void main() {
       expect(mesh.eulerCharacteristic, 2);
     });
 
-    test(
-      'a cube with one face removed closes back to a sphere, χ = 2 — '
-      "mesh-81n's own acceptance line",
-      () {
-        final mesh = EditMesh.cuboid();
-        expect(mesh.faceCount, 6);
-        edit(mesh, () {
-          mesh.deleteFace(0);
-          mesh.repairVertexLinks();
-        });
-        expect(mesh.eulerCharacteristic, 1, reason: 'one open face: a disc, not a sphere');
+    test('a cube with one face removed closes back to a sphere, χ = 2 — '
+        "mesh-81n's own acceptance line", () {
+      final mesh = EditMesh.cuboid();
+      expect(mesh.faceCount, 6);
+      edit(mesh, () {
+        mesh.deleteFace(0);
+        mesh.repairVertexLinks();
+      });
+      expect(
+        mesh.eulerCharacteristic,
+        1,
+        reason: 'one open face: a disc, not a sphere',
+      );
 
-        var closed = 0;
-        edit(mesh, () => closed = fillHoles(mesh));
-        expect(closed, 1);
-        expect(mesh.eulerCharacteristic, 2);
-      },
-    );
+      var closed = 0;
+      edit(mesh, () => closed = fillHoles(mesh));
+      expect(closed, 1);
+      expect(mesh.eulerCharacteristic, 2);
+    });
 
     test('closing the hole welds every boundary edge, not just covers it', () {
       final mesh = EditMesh.cuboid();
@@ -101,7 +102,11 @@ void main() {
       // needs to turn — if the new face came out backwards, this would flip it.
       var turned = false;
       edit(mesh, () => turned = mesh.makeConsistent());
-      expect(turned, isFalse, reason: 'the new face should already point outward');
+      expect(
+        turned,
+        isFalse,
+        reason: 'the new face should already point outward',
+      );
     });
   });
 

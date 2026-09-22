@@ -1,982 +1,1119 @@
-# Редактор 3D-моделей на flutter3d — проработка
+# A 3D model editor on flutter3d — a working-through
 
-Черновик от 2026-09-09. Исходные материалы — архив «3D редактор с Material
-Design» (README передачи, 19 экранов, план разработки на четыре фазы). Обе
-копии архива в `~/Downloads` побайтно одинаковы.
+Draft from 2026-09-09. Source material — the "3D editor with Material
+Design" handoff archive (a handoff README, 19 screens, a four-phase
+development plan). Both copies of the archive in `~/Downloads` are
+byte-identical.
 
-Документ отвечает на первый вопрос плана разработки — «насколько готова
-flutter3d сегодня: что уже работает, что нужно дописать под редактор» — и
-предлагает, как положить редактор на этот репозиторий. Всё, что сказано о
-движке, проверено по коду на коммите `239ccf8e`, а не по документации.
-
----
-
-## 1. Коротко
-
-**Вьюпорт, материалы, скелет, анимация и импорт уже есть.** Сцена, камера с
-орбитой, шесть моделей освещения, PBR metal-rough с текстурами и IBL, восемь
-источников света, тени, GPU-скиннинг до 64 костей, морф-цели на GPU, плеер
-анимаций со слоями и масками, LOD-группы, пикинг по пикселю и рейкастинг по
-треугольникам, декодеры glTF/GLB, OBJ и `.f3d`, четыре бэкенда, один из
-которых программный и даёт эталонные кадры без GPU. Фаза 0 плана («тянет ли
-Flutter реальную сцену») наполовину закрыта существующим кодом; открытым
-остаётся только замер на мешах в миллион треугольников.
-
-**Всего, что *меняет* геометрию, нет.** Редактируемой топологии, операций
-над мешем, модификаторов, булевых операций, записи glTF/OBJ/STL, выделения
-вершин и рёбер, манипулятора перемещения и поворота, параметрических объектов.
-Это и есть основной объём фазы 1, и он целиком новый код.
-
-**В трёх местах дизайн расходится с решениями, уже записанными в репозитории:**
-граф нод материала (ROADMAP: «не делаем»), офлайн-рендер с сэмплами (движка
-такого нет), и модель отмены (редактор уровней хранит снимки целого документа,
-для меша в миллион вершин это не работает). Все три решены 2026-09-09 (§4, §7).
-
-**Предложение:** три новых пакета на чистом Dart, один MCP-сервер и одно
-приложение, в этом же монорепозитории, по той же схеме, что уже стоит у
-редактора уровней (§5). После решений владельца 2026-09-09 (§7) к ним
-добавились два пакета словаря, вынесенные из `flutter3d` (§5.1), а веб и
-мобильные платформы вошли в фазу 1 наравне с macOS.
+This document answers the development plan's first question — "how ready is
+flutter3d today: what already works, what needs to be written for the
+editor" — and proposes how to lay the editor onto this repository.
+Everything said about the engine was checked against the code at commit
+`239ccf8e`, not against documentation.
 
 ---
 
-## 2. Экраны против движка
+## 1. In short
 
-Что уже есть под каждый экран, и чего нет. «Есть» значит «в репозитории и
-покрыто тестами», а не «в планах».
+**The viewport, materials, skeleton, animation, and import already exist.**
+A scene, an orbit camera, six lighting models, PBR metal-rough with
+textures and IBL, eight light sources, shadows, GPU skinning up to 64
+bones, GPU morph targets, an animation player with layers and masks, LOD
+groups, per-pixel picking and triangle raycasting, glTF/GLB, OBJ, and
+`.f3d` decoders, four backends, one of them software and producing golden
+frames with no GPU. Phase 0 of the plan ("does Flutter handle a real
+scene") is half-closed by existing code; only a measurement on
+million-triangle meshes remains open.
 
-| Экран | Фаза | Есть в репозитории | Нет |
+**Nothing that *changes* geometry exists at all.** No editable topology, no
+mesh operations, no modifiers, no boolean operations, no glTF/OBJ/STL
+writing, no vertex/edge selection, no move-and-rotate manipulator, no
+parametric objects. This is the bulk of phase 1, and it's entirely new
+code.
+
+**The design diverges from decisions already recorded in the repository in
+three places:** a material node graph (ROADMAP: "not doing this"), offline
+rendering with samples (the engine has no such thing), and an undo model
+(the level editor stores whole-document snapshots, which doesn't work for
+a million-vertex mesh). All three were resolved 2026-09-09 (§4, §7).
+
+**Proposal:** three new pure-Dart packages, one MCP server, and one
+application, in this same monorepo, following the same shape the level
+editor already uses (§5). After the owner's 2026-09-09 decisions (§7), two
+vocabulary packages, split out of `flutter3d`, were added to these (§5.1),
+and the web and mobile platforms entered phase 1 on equal footing with
+macOS.
+
+---
+
+## 2. Screens versus the engine
+
+What already exists for each screen, and what doesn't. "Exists" means "in
+the repository and covered by tests," not "planned."
+
+| Screen | Phase | Exists in the repository | Missing |
 |---|---|---|---|
-| 01 Объект | 1 | `Scene`/`SceneNode`, `OrbitController`, `Renderer.pickPixel`, `Raycaster`, `Shape` со всеми примитивами, `LodGroup`, `DebugDraw` линиями | манипулятор XYZ (в редакторе уровней только грани выделяющего бокса), стек модификаторов, булевы |
-| 02 Меш | 1 | `MeshData`/`MeshBuilder`/`VertexLayout`, `rayTriangle`, линейные оверлеи, генерация тангенсов | половинно-рёберная структура, выделение по вершинам/рёбрам/граням, экструзия, скос, разрез петлёй, слияние, проверка n-гонов и неманифолдности |
-| 03–04 Планшет, телефон | 1 | адаптивные экраны в `flutter3d_screens`, тач-контролы в `flutter3d_game` | всё UI редактора |
-| 05 Материал | 2 | `SurfaceMaterial`, `.fmat` с `MaterialHint` (инспектор строится из подсказок, уже реализовано в `material_panel.dart`), предпросмотр в `RenderView` с IBL | граф нод — см. §4.1 |
-| 06 UV | 4 | UV в вершинном формате, вторая `RenderView` под 2D-развёртку | развёртка, упаковка островов, оценка растяжения |
-| 07 Анимация | 3 | `Skeleton`, `AnimationClip`/`Track` (step, linear, cubicSpline), `AnimationPlayer`, слои, маски, `BakedPoses` | редактор ключей и кривых, IK |
-| 08 Скульптинг | 4 | ничего специфичного | кисти, мультиразрешение с кнопкой «Подразбить» (Б9, решение 2026-09-09), замер на 1,2 млн треугольников |
-| 09 Тело вращения | 1 | `LatheShape` с произвольным профилем, все производные фигуры | редактор профиля (UI), параметрический объект в документе |
-| 10 Ретопология и запекание | 4 | `GraphicsDevice.readback`, рендер в текстуру | всё остальное |
-| 11 Симуляции | 4 | CPU-частицы, `RigidBody` без вращения | ткань, вращение тел (ROADMAP: «не делаем»), кэш кадров |
-| 12 Рендер и композитинг | 4 | frame graph, bloom, SSAO, отражения, автоэкспозиция, `composite_mix` | трассировка с сэмплами — см. §4.2; граф композитинга |
-| 13 Веса | 3 | 4 влияния на вершину в формате, `Skeleton` | кисть весов, перенормировка, окраска градиентом |
-| 14 Ретаргет | 3 | плеер, смешивание слоёв | сопоставление костей, библиотека клипов, корневое движение |
-| 15 Морфы | 3 | `MorphTarget`/`MorphBlend`, `MorphSink`, экспорт морфов в `.f3d` | ключи на строке, корректирующие формы по углу кости |
-| 16 Авториг | 3 | ничего | всё |
-| 17 LOD | 4 | `LodGroup` c дистанциями, три `RenderView` рядом | упрощение меша с сохранением UV и весов |
-| 18 3D-покраска | 4 | рендер в текстуру | всё |
-| 19 Предпросмотр «как в игре» | 3 | **это буквально движок**: те же шейдеры, тот же лимит костей, счётчики кадров; `flutter3d_session` умеет виджет-текстуру | профиль проекта с бюджетами |
-| Импорт с проверкой | 1 | `ModelDocument.warnings` у всех декодеров, фоновый изолят (на вебе — основной поток) | экран не нарисован |
-| Экспорт с проверками | 1 | `F3dWriter` как образец писателя | **писателей glTF/GLB, OBJ, STL нет**; экран не нарисован |
+| 01 Object | 1 | `Scene`/`SceneNode`, `OrbitController`, `Renderer.pickPixel`, `Raycaster`, `Shape` with every primitive, `LodGroup`, `DebugDraw` lines | an XYZ manipulator (the level editor only has selection-box edges), a modifier stack, booleans |
+| 02 Mesh | 1 | `MeshData`/`MeshBuilder`/`VertexLayout`, `rayTriangle`, line overlays, tangent generation | a half-edge structure, vertex/edge/face selection, extrusion, bevel, loop cut, merging, n-gon and non-manifold checks |
+| 03–04 Tablet, phone | 1 | responsive screens in `flutter3d_screens`, touch controls in `flutter3d_game` | the whole editor UI |
+| 05 Material | 2 | `SurfaceMaterial`, `.fmat` with `MaterialHint` (the inspector is built from hints, already implemented in `material_panel.dart`), a preview in `RenderView` with IBL | a node graph — see §4.1 |
+| 06 UV | 4 | UV in the vertex format, a second `RenderView` for the 2D unwrap | unwrapping, island packing, stretch metrics |
+| 07 Animation | 3 | `Skeleton`, `AnimationClip`/`Track` (step, linear, cubicSpline), `AnimationPlayer`, layers, masks, `BakedPoses` | a keyframe/curve editor, IK |
+| 08 Sculpting | 4 | nothing specific | brushes, multiresolution with a "Subdivide" button (item B9, 2026-09-09 decision), a measurement on 1.2 million triangles |
+| 09 Lathe | 1 | `LatheShape` with an arbitrary profile, all derived shapes | a profile editor (UI), a parametric object in the document |
+| 10 Retopology and baking | 4 | `GraphicsDevice.readback`, render-to-texture | everything else |
+| 11 Simulations | 4 | CPU particles, non-rotating `RigidBody` | cloth, body rotation (ROADMAP: "not doing this"), a frame cache |
+| 12 Render and compositing | 4 | a frame graph, bloom, SSAO, reflections, auto-exposure, `composite_mix` | ray tracing with samples — see §4.2; a compositing graph |
+| 13 Weights | 3 | 4 influences per vertex in the format, `Skeleton` | a weight brush, renormalization, gradient painting |
+| 14 Retargeting | 3 | a player, layer blending | bone mapping, a clip library, root motion |
+| 15 Morphs | 3 | `MorphTarget`/`MorphBlend`, `MorphSink`, exporting morphs to `.f3d` | on-timeline keys, bone-angle correction shapes |
+| 16 Auto-rig | 3 | nothing | everything |
+| 17 LOD | 4 | `LodGroup` with distances, three side-by-side `RenderView`s | mesh simplification preserving UV and weights |
+| 18 3D painting | 4 | render-to-texture | everything |
+| 19 "In-game" preview | 3 | **this is literally the engine**: the same shaders, the same bone limit, frame counters; `flutter3d_app` already supports a widget texture | a project profile with budgets |
+| Import with checks | 1 | `ModelDocument.warnings` on every decoder, a background isolate (the main thread on the web) | the screen isn't drawn |
+| Export with checks | 1 | `F3dWriter` as a writer template | **no glTF/GLB, OBJ, or STL writers**; the screen isn't drawn |
 
-Две строки заслуживают отдельного слова.
+Two rows deserve their own note.
 
-**Экран 19 — самое сильное место дизайна с точки зрения движка.** «Рантайм тот
-же, что в игре» здесь буквальная правда, а не обещание: редактор и игра делят
-один `Renderer`, один бандл шейдеров, один `Skeleton.maxJoints`. Предпросмотр
-получается почти бесплатно, а бюджеты профиля (треугольники, кости, вес
-текстур) уже считаются движком: `MeshData.triangleCount`, размеры текстур в
-`TextureUpload`, число костей в `Skeleton`.
+**Screen 19 is the design's strongest point, engine-wise.** "The same
+runtime as the game" is literal truth here, not a promise: the editor and
+the game share one `Renderer`, one shader bundle, one
+`Skeleton.maxJoints`. The preview comes almost for free, and profile
+budgets (triangles, bones, texture weight) are already computed by the
+engine: `MeshData.triangleCount`, texture sizes in `TextureUpload`, bone
+count in `Skeleton`.
 
-**Экран 09 — второй.** `LatheShape` уже принимает произвольный профиль, так
-что тело вращения — это редактор профиля плюс хранение профиля в документе как
-параметра. Ровно то, что дизайн называет «фигура хранится параметрически».
-
----
-
-## 3. Что берём из редактора уровней как есть
-
-`flutter3d_editor_core`, `flutter3d_editor_mcp` и `apps/flutter3d_editor` за
-последние недели отработали форму, которую редактору моделей повторять не
-нужно — нужно скопировать:
-
-- **Команда как значение.** `EditorCommand` — sealed-класс с именем, `says`
-  (предложение для строки статуса и истории), `arguments` (JSON) и `apply`.
-  Из одного списка команд строятся и клавиши, и таблица MCP-инструментов.
-  Это ровно «все правки идут через команды» из README передачи.
-- **История с транзакциями.** `EditorHistory.transaction` — один шаг на всё
-  перетаскивание, а не на каждое событие мыши. Механизм снимков внутри неё
-  для мешей придётся заменить (§4.3), форма остаётся.
-- **Инспектор из подсказок.** `MaterialHint` описывает контрол, а не значение;
-  `material_panel.dart` собирает панель из подсказок. Правая панель экрана 05
-  («ползунки для простого случая») — это оно.
-- **Документы и диск.** `documents.dart`, `recent_projects.dart`, `file_selector`,
-  «открыть — предложить шаблон, если пути нет» — переносится без изменений.
-- **Разрез Cubit/State.** `EditorState` держит то, на чём перестраивается экран;
-  камера, сцена и гизмо живут в `State` виджета и не проходят через bloc.
-  Для вьюпорта на 60 кадров это единственная рабочая схема.
-- **Тесты без GPU.** `pick_pixel_test`, `drag_test`, `frame_test` в редакторе
-  уровней идут через программный растеризатор. Новый редактор наследует и это.
-- **MCP как второй пользователь.** Семнадцать инструментов редактора уровней —
-  те же команды по stdio. Для редактора моделей это отдельная ценность: «агент
-  собирает ассет из примитивов» — сценарий, которого у Blender нет.
-
-Чего **не** брать: `Piece` (brush / light / entity) и `Editing`. Документ уровня
-и документ модели — разные вещи, и один класс на оба был бы ошибкой, которую
-`gizmos.dart` уже описывает в своём заголовке.
+**Screen 09 is the second.** `LatheShape` already accepts an arbitrary
+profile, so a lathe object is just a profile editor plus storing the
+profile in the document as a parameter — exactly what the design calls "a
+shape stored parametrically."
 
 ---
 
-## 4. Где дизайн расходится с репозиторием
+## 3. What we take from the level editor as-is
 
-### 4.1 Граф нод материала (экран 05, экран 12)
+`flutter3d_editor_core`, `flutter3d_editor_mcp`, and `apps/flutter3d_editor`
+have, over recent weeks, arrived at a shape the model editor doesn't need
+to reinvent — it needs to copy:
 
-ROADMAP, раздел «Не делаем»: *«Node-graph materials. There is no shader
-compilation at runtime here, and a graph that cannot produce a new shader is a
-picture of one.»* Это ограничение канала, не выбор: шейдеры собираются заранее
-в бандл, permutation на модель освещения.
+- **A command as a value.** `EditorCommand` — a sealed class with a name,
+  `says` (a sentence for the status line and history), `arguments` (JSON),
+  and `apply`. Hotkeys and the MCP tool table are both built from one
+  command list. This is exactly "every edit goes through a command" from
+  the handoff README.
+- **History with transactions.** `EditorHistory.transaction` — one step
+  per whole drag, not per mouse event. The snapshot mechanism inside it
+  will need replacing for meshes (§4.3); the shape stays.
+- **An inspector built from hints.** `MaterialHint` describes a control,
+  not a value; `material_panel.dart` assembles the panel from hints. Screen
+  05's right panel ("sliders for the simple case") is exactly this.
+- **Documents and disk.** `documents.dart`, `recent_projects.dart`,
+  `file_selector`, "open — offer a template if there's no path" — carries
+  over unchanged.
+- **A Cubit/State split.** `EditorState` holds what a screen rebuilds on;
+  the camera, the scene, and gizmos live in the widget's `State` and never
+  go through the bloc. For a 60-fps viewport, this is the only workable
+  shape.
+- **Tests with no GPU.** `pick_pixel_test`, `drag_test`, `frame_test` in
+  the level editor run through the software rasterizer. The new editor
+  inherits this too.
+- **MCP as a second user.** The level editor's seventeen tools are the same
+  commands over stdio. For the model editor this is separate value: "an
+  agent assembles an asset from primitives" is a scenario Blender doesn't
+  have.
 
-Три выхода:
-
-1. **Граф как компоновщик текстур.** Ноды «Текстура», «Смешивание», «Цвет»
-   считаются на CPU (или в проходе рендера в текстуру) и *запекаются* в те
-   слоты, которые фиксированный PBR-шейдер читает. Граф остаётся, шейдер нет.
-   Экран 05 в макете именно такой: текстура → смешивание → принципиальный PBR.
-2. **Отложить граф до тех пор, пока бандл не научится собираться из редактора.**
-   ARCHITECTURE §15 допускает «designer-facing graph… that generates
-   permutations into a bundle» — но это оффлайн-сборка через `impellerc` и
-   `naga`, не в рантайме и не на вебе.
-3. Убрать граф из фазы 2, оставить ползунки.
-
-**Рекомендация:** 1 для материалов, и то же для композитинга (экран 12): проходы
-frame graph уже есть, граф может лишь включать их и крутить параметры. Формулировку
-«граф» в дизайне стоит уточнить до «граф из фиксированного набора нод».
-
-**Решение принято 2026-09-09 (владелец):** компоновщик текстур с
-фиксированным набором нод; ROADMAP переформулируется на ревизии 28 сентября.
-
-### 4.2 «Рендер» с сэмплами (экран 12)
-
-`256 / 256 сэмплов · 1 мин 12 с` описывает трассировщик путей. В движке его нет,
-и ROADMAP его не планирует. Что есть: программный растеризатор `flutter3d_cpu`,
-который рисует те же 43 эталонные сцены, что и GPU, и может делать это в любом
-разрешении без GPU. «Рендер» первой версии — это тот же кадр в 4К с
-суперсэмплингом, честно назвать его «снимок». Трассировщик — отдельный проект
-вне этой проработки.
-
-**Решение принято 2026-09-09 (владелец):** снимок тем же рендерером с
-суперсэмплингом и проходами frame graph; трассировщик вне плана.
-
-### 4.3 Модель отмены
-
-`EditorHistory` хранит снимок **всего документа** до каждого шага, и
-`editor_command.dart` объясняет, почему: «an undo that reconstructs state is an
-undo with its own bugs», уровень — это несколько сотен чисел. ROADMAP при этом
-всё ещё пишет про `apply` и `revert` — там текст отстал от кода.
-
-Для меша это не работает: снимок документа с мешем на 200 тыс. вершин на каждый
-мазок — это гигабайты за минуту скульптинга. Нужен третий вариант, и он один:
-
-- документ хранит меши как **неизменяемые значения со структурным
-  разделением** (persistent data): операция возвращает новый меш, разделяя с
-  прежним всё, чего не трогала;
-- снимок истории тогда — ссылка на прежнее значение, стоимость снимка равна
-  объёму изменённого;
-- аргумент «отмена с собственными ошибками» сохраняется: обратной операции
-  по-прежнему нет, назад — это подстановка прежнего значения.
-
-Это решение принимается до первой строки кода `flutter3d_mesh`, потому что
-задаёт, как устроена структура данных.
-
-**Решение принято 2026-09-09 (владелец):** персистентные значения со
-структурным разделением. Разбивку на чанки и патчи и цену снимка меряет
-фаза 0 (p0-05 плана), это уже замер, а не выбор. История при этом пишется и
-в файл проекта — секция `history` со ссылками на чанки, которые в файле уже
-лежат как блобы (план, doc-31d).
-
-### 4.4 Мелкие расхождения, которые надо знать
-
-- **Кости:** `Skeleton.maxJoints = 64` — жёсткий лимит бандла. В макете «28 из
-  64» совпадает, но профиль проекта не сможет поставить больше без пересборки
-  шейдеров.
-- **Свет:** восемь источников на сцену. Экрану 19 хватит, экрану сцены — не
-  всегда; в ROADMAP есть per-object light lists.
-- **Каркас:** `supportsWireframe` — нет на OpenGL ES и WebGPU. Рёбра в режиме
-  «Меш» рисуются как линии (`PrimitiveType.line`, механизм `DebugDraw` уже так
-  делает), на всех бэкендах одинаково. Это лучше, чем polygon mode: цвет, толщина
-  и выделение рёбер управляются из данных.
-- **Веб и изоляты:** `decodeModelInIsolate` на вебе падает в `decodeModel` на
-  основном потоке. «Тяжёлые операции в изоляте» из README передачи на вебе
-  означает «на основном потоке с уступкой кадру» или web worker, которого в
-  репозитории нет.
-- **Веб и файлы:** редактор уровней объявлен desktop-only ровно потому, что
-  «писать файл поверх себя браузер не станет». Редактору моделей нужна запись
-  через скачивание и открытие через `file_selector` для веба, и это отдельная
-  задача фазы 1, а не деталь.
-- **Обновление меша на GPU:** `DeviceMesh.upload` — одноразовая загрузка;
-  метода «заменить вершины» нет. На каждую правку сейчас — новый `DeviceMesh`.
-  Для фазы 1 (десятки тысяч треугольников) хватит; для скульптинга нужен путь
-  частичной перезаписи буфера, и это правка в `flutter3d_hardware` с
-  конформанс-тестом на все четыре бэкенда.
-- **Выделение подэлементов:** id-проход пишет номер *объекта*, не грани;
-  `gl_PrimitiveID` в WebGL2 нет. Вершины, рёбра и грани выбираются на CPU —
-  `Raycaster` с `rayTriangle` уже есть, нужен BVH по редактируемому мешу.
-- **Симуляции:** физика движка — без вращения тел, без ткани, и ROADMAP
-  относит вращение и суставы к «не делаем». Экран 11 — это отдельный
-  солвер, а не расширение `flutter3d_physics`.
+What **not** to take: `Piece` (brush / light / entity) and `Editing`. A
+level document and a model document are different things, and one class
+for both would be exactly the mistake `gizmos.dart`'s own header already
+describes.
 
 ---
 
-## 5. Архитектура
+## 4. Where the design diverges from the repository
 
-### 5.1 Пакеты
+### 4.1 A material node graph (screen 05, screen 12)
 
-Схема переписана 2026-09-09 по решению владельца (план §1 п. 1, §3.1): к
-трём пакетам редактора добавились два пакета словаря, вынесенные из
-`flutter3d`.
+The ROADMAP, under "Not doing": *"Node-graph materials. There is no shader
+compilation at runtime here, and a graph that cannot produce a new shader
+is a picture of one."* This is a channel limitation, not a choice: shaders
+are compiled ahead of time into a bundle, one permutation per lighting
+model.
+
+Three ways out:
+
+1. **A graph as a texture compositor.** "Texture," "Blend," "Color" nodes
+   are computed on the CPU (or in a render-to-texture pass) and *baked*
+   into the slots the fixed PBR shader reads. The graph stays, the shader
+   doesn't. Screen 05's own mockup is exactly this: texture → blend →
+   principled PBR.
+2. **Defer the graph until the bundle can be assembled from the editor.**
+   ARCHITECTURE §15 allows for a "designer-facing graph… that generates
+   permutations into a bundle" — but that's an offline build through
+   `impellerc` and `naga`, not at runtime and not on the web.
+3. Drop the graph from phase 2, keep sliders.
+
+**Recommendation:** option 1 for materials, and the same for compositing
+(screen 12): frame graph passes already exist, a graph can just enable them
+and turn parameters. The design's own wording of "graph" is worth
+tightening to "a graph over a fixed set of nodes."
+
+**Decision made 2026-09-09 (owner):** a texture compositor with a fixed
+node set; the ROADMAP gets reworded at the September 28 review.
+
+### 4.2 A "render" with samples (screen 12)
+
+`256 / 256 samples · 1 min 12 s` describes a path tracer. The engine has
+none, and the ROADMAP doesn't plan one. What exists: the software
+rasterizer `flutter3d_cpu`, which draws the same 43 golden scenes as the
+GPU and can do so at any resolution with no GPU. The first version's
+"render" is the same 4K frame with supersampling — honestly called a
+"snapshot." A path tracer is a separate project, outside this write-up.
+
+**Decision made 2026-09-09 (owner):** a snapshot from the same renderer
+with supersampling and frame-graph passes; a path tracer is out of scope.
+
+### 4.3 The undo model
+
+`EditorHistory` stores a snapshot of the **whole document** before every
+step, and `editor_command.dart` explains why: "an undo that reconstructs
+state is an undo with its own bugs," and a level is a few hundred
+numbers. The ROADMAP still talks about `apply` and `revert` — the text has
+fallen behind the code there.
+
+For a mesh this doesn't work: a whole-document snapshot with a
+200,000-vertex mesh on every stroke is gigabytes per minute of sculpting.
+A third option is needed, and there's only one:
+
+- the document stores meshes as **immutable values with structural
+  sharing** (persistent data): an operation returns a new mesh, sharing
+  with the previous one everything it didn't touch;
+- a history snapshot is then just a reference to the prior value, and its
+  cost equals the size of what changed;
+- the "undo has its own bugs" argument still holds: there's still no
+  inverse operation, going back is still substituting the prior value.
+
+This decision is made before a single line of `flutter3d_mesh` code,
+because it sets the shape of the data structure.
+
+**Decision made 2026-09-09 (owner):** persistent values with structural
+sharing. Chunking versus patches, and the cost of a snapshot, are measured
+by phase 0 (plan item p0-05) — that's already a measurement, not a choice.
+History is also written into the project file — a `history` section
+referencing chunks that already sit in the file as blobs (plan, doc-31d).
+
+### 4.4 Small divergences worth knowing about
+
+- **Bones:** `Skeleton.maxJoints = 64` — a hard bundle limit. The mockup's
+  "28 of 64" matches, but a project profile can't set a higher number
+  without rebuilding shaders.
+- **Light:** eight sources per scene. Enough for screen 19, not always
+  enough for a scene screen; the ROADMAP has per-object light lists.
+- **Wireframe:** `supportsWireframe` — absent on OpenGL ES and WebGPU. Edges
+  in "Mesh" mode are drawn as lines (`PrimitiveType.line`, the mechanism
+  `DebugDraw` already uses), the same way on every backend. This is better
+  than polygon mode: color, thickness, and edge highlighting are all
+  data-driven.
+- **Web and isolates:** `decodeModelInIsolate` falls back to `decodeModel`
+  on the main thread on the web. "Heavy operations in an isolate" from the
+  handoff README means, on the web, "on the main thread with a frame
+  yield," or a web worker, which the repository doesn't have.
+- **Web and files:** the level editor is declared desktop-only precisely
+  because "a browser won't write a file over itself." The model editor
+  needs writing through a download and opening through `file_selector` for
+  the web, and this is a separate phase-1 item, not a detail.
+- **Updating a mesh on the GPU:** `DeviceMesh.upload` is a one-shot load;
+  there's no "replace the vertices" method. Every edit today gets a new
+  `DeviceMesh`. Fine for phase 1 (tens of thousands of triangles); sculpting
+  needs a partial buffer rewrite path, and that's a `flutter3d_hardware`
+  change with a conformance test across all four backends.
+- **Sub-element selection:** the id pass writes an *object* number, not a
+  face; WebGL2 has no `gl_PrimitiveID`. Vertices, edges, and faces are
+  picked on the CPU — `Raycaster` with `rayTriangle` already exists, a BVH
+  over the editable mesh is needed.
+- **Simulations:** the engine's physics has no body rotation, no cloth, and
+  the ROADMAP files rotation and joints under "not doing this." Screen 11
+  is a separate solver, not an extension of `flutter3d_physics`.
+
+---
+
+## 5. Architecture
+
+### 5.1 Packages
+
+The layout was rewritten 2026-09-09 per an owner decision (plan §1 item 1,
+§3.1): two vocabulary packages, split out of `flutter3d`, were added to the
+three editor packages.
 
 ```
-flutter3d_geometry      чистый Dart   MeshData, VertexLayout, Shape/LatheShape,
-                                      тангенсы, morph_target, CpuMesh,
-                                      math/intersections, Ray, TriangleBvh
-flutter3d_formats       чистый Dart   ModelDocument, SurfaceMaterial,
-                                      MaterialDocument/MaterialHint, lighting_model,
-                                      синхронная половина model_loader,
-                                      декодеры gltf/obj/f3d/ktx2/stl,
-                                      писатели F3dWriter/GltfWriter/ObjWriter
-flutter3d_mesh          чистый Dart   редактируемая топология и операции
-flutter3d_model_core    чистый Dart   документ, команды, история, проверки, экспорт
-flutter3d_model_mcp     чистый Dart   те же команды агенту по stdio
-apps/flutter3d_modeler  Flutter       оболочка, вьюпорт, панели, диск
+flutter3d_geometry      pure Dart   MeshData, VertexLayout, Shape/LatheShape,
+                                    tangents, morph_target, CpuMesh,
+                                    math/intersections, Ray, TriangleBvh
+flutter3d_formats       pure Dart   ModelDocument, SurfaceMaterial,
+                                    MaterialDocument/MaterialHint, lighting_model,
+                                    the synchronous half of model_loader,
+                                    gltf/obj/f3d/ktx2/stl decoders,
+                                    F3dWriter/GltfWriter/ObjWriter writers
+flutter3d_mesh          pure Dart   editable topology and operations
+flutter3d_model_core    pure Dart   the document, commands, history, checks, export
+flutter3d_model_mcp     pure Dart   the same commands over stdio for an agent
+apps/flutter3d_modeler  Flutter     the shell, viewport, panels, disk
 ```
 
-Плюс правки в `flutter3d` (частичная перезапись буферов, пара оверлеев,
-`Pose` и IK) — все они нужны и играм, поэтому идут в движок, а не в редактор.
-Писатели форматов тоже нужны играм, но живут в `flutter3d_formats`, чтобы
-MCP-сервер экспортировал GLB без Flutter.
+Plus engine changes (partial buffer rewrites, a couple of overlays, `Pose`
+and IK) — all of these are also needed by games, so they go into the
+engine, not the editor. Format writers are also needed by games, but live
+in `flutter3d_formats` so the MCP server can export a GLB with no Flutter.
 
-Зависимости:
+Dependencies:
 
 ```
 apps/flutter3d_modeler ──► flutter3d_model_core ──► flutter3d_mesh
         │                    │           │                 │
         ▼                    ▼           ▼                 ▼
     flutter3d ──────► flutter3d_formats ──► flutter3d_geometry ──► vector_math
-  (рендер, RenderView,   (документ, декодеры,   (меш, формы, лучи, BVH)
-   пикинг, камера;        писатели)
-   реэкспортирует оба)
+  (rendering, RenderView,   (document, decoders,   (mesh, shapes, rays, BVH)
+   picking, camera;          writers)
+   re-exports both)
 ```
 
-Почему словарь вынесен, а не взят из `flutter3d`: `packages/flutter3d/pubspec.yaml`
-объявляет `flutter: sdk`, и любой пакет, который зависит от `flutter3d`,
-тянет Flutter SDK транзитивно — `flatDartPackages` в
-`tool/structure/repository.dart` этого не видит, а `dart pub get` в контейнере
-без Flutter не резолвится. Обещание ARCHITECTURE §8.1 («`ModelDocument`-слой
-без Flutter») становится проверяемым только пакетом, который Flutter не
-объявляет. Поэтому `flutter3d_model_core` зависит от `flutter3d_formats` и
-`flutter3d_geometry`, `flutter3d_mesh` — от `flutter3d_geometry`, а
-`flutter3d` реэкспортирует оба, и для игр ничего не меняется. Порядок
-публикации: geometry → formats → flutter3d; к концу фазы 0 в дереве 33
-пакета. Позже приходят `flutter3d_fbx` (свой читатель FBX над `formats`,
-фаза 2), `flutter3d_rig` (фаза 3) и `flutter3d_cloth` (фаза 4).
+Why the vocabulary was split out rather than taken from `flutter3d`:
+`packages/flutter3d/pubspec.yaml` declares `flutter: sdk`, and any package
+depending on `flutter3d` inherits the Flutter SDK transitively —
+`flatDartPackages` in `tool/structure/repository.dart` can't see this, and
+`dart pub get` in a container with no Flutter can't resolve it.
+ARCHITECTURE §8.1's promise (a "`ModelDocument` layer with no Flutter")
+only becomes checkable through a package that doesn't declare Flutter. So
+`flutter3d_model_core` depends on `flutter3d_formats` and
+`flutter3d_geometry`, `flutter3d_mesh` depends on `flutter3d_geometry`, and
+`flutter3d` re-exports both, with nothing changing for games. Publishing
+order: geometry → formats → flutter3d; by the end of phase 0 the tree holds
+33 packages. Later come `flutter3d_fbx` (its own FBX reader over `formats`,
+phase 2), `flutter3d_rig` (phase 3), and `flutter3d_cloth` (phase 4).
 
-### 5.2 `flutter3d_mesh`: топология
+### 5.2 `flutter3d_mesh`: topology
 
-**`EditMesh`** — половинно-рёберная структура (half-edge) с гранями любой
-валентности. Не `MeshData`: та хранит треугольники, интерливленные для GPU, и
-не отвечает на вопрос «какие грани у этого ребра». `EditMesh` отвечает, а
-`toMeshData()` триангулирует, считает нормали и отдаёт движку. Обратный путь
-`EditMesh.fromMeshData()` склеивает вершины по позиции и восстанавливает
-рёбра, сохраняя UV и веса как атрибуты углов.
+**`EditMesh`** — a half-edge structure with faces of any valence. Not
+`MeshData`: that stores GPU-interleaved triangles and can't answer "which
+faces touch this edge." `EditMesh` answers that, and `toMeshData()`
+triangulates, computes normals, and hands the result to the engine. The
+reverse path, `EditMesh.fromMeshData()`, welds vertices by position and
+reconstructs edges, keeping UV and weights as corner attributes.
 
-Хранение — типизированные массивы (`Int32List` для связей, `Float32List` для
-атрибутов) с индексами вместо объектов: ARCHITECTURE §2 объясняет, что каждый
-`Vector3` — объект в куче и GC съедает бюджет кадра. Персистентность (§4.3) —
-чанками по 1024 элемента с копированием при записи.
+Storage — typed arrays (`Int32List` for connectivity, `Float32List` for
+attributes) with indices instead of objects: ARCHITECTURE §2 explains that
+every `Vector3` is a heap object and GC eats into the frame budget.
+Persistence (§4.3) is done in 1024-element chunks with copy-on-write.
 
-**Операции** — чистые функции `EditMesh × Selection × параметры → EditMesh`:
+**Operations** — pure functions `EditMesh × Selection × parameters →
+EditMesh`:
 
-| Фаза 1 | Фаза 2 |
+| Phase 1 | Phase 2 |
 |---|---|
-| выделение: вершины, рёбра, грани, петля, кольцо, рост | скос (bevel) |
-| перемещение выделения, поворот, масштаб | вставка (inset) |
-| экструзия граней и рёбер | подразбиение (Catmull-Clark) |
-| разрез петлёй | булевы: объединение, вычитание, пересечение |
-| слияние вершин по расстоянию, растворение ребра | сглаживание, зеркальная симметрия как операция |
-| удаление, разделение на объекты | развёртка UV — фаза 4 |
-| триангуляция n-гонов, пересчёт нормалей | |
+| selection: vertices, edges, faces, loop, ring, grow | bevel |
+| move, rotate, scale a selection | inset |
+| face and edge extrusion | subdivision (Catmull-Clark) |
+| loop cut | booleans: union, subtract, intersect |
+| weld vertices by distance, dissolve an edge | smoothing, mirror symmetry as an operation |
+| delete, split into objects | UV unwrapping — phase 4 |
+| n-gon triangulation, normal recomputation | |
 
-**Модификаторы** — те же функции, но записанные в объект и применяемые при
-каждом `toMeshData()`: зеркало, массив, сглаживание, булево. Стек модификаторов
-экрана 01 — список таких значений; «применить» — заменить меш результатом.
+**Modifiers** — the same functions, but recorded onto an object and applied
+at every `toMeshData()`: mirror, array, smoothing, boolean. Screen 01's
+modifier stack is a list of such values; "apply" means replacing the mesh
+with the result.
 
-**Проверки** — то, что кормит строку статуса: n-гоны, неманифолдные рёбра,
-вывернутые нормали, изолированные вершины, число треугольников после
-триангуляции. Каждая — функция с тестом.
+**Checks** — what feeds the status line: n-gons, non-manifold edges,
+inverted normals, isolated vertices, triangle count after triangulation.
+Each is a function with a test.
 
-**Параметрические объекты** — `Lathe(profile, segments, angle, smooth, caps)`
-и примитивы хранятся параметрами, а `EditMesh` строится из них по требованию
-через существующие `Shape`. Первая правка вершины вручную «запекает» объект в
-меш — с предупреждением, как в макете.
+**Parametric objects** — `Lathe(profile, segments, angle, smooth, caps)`
+and primitives are stored as parameters, and `EditMesh` is built from them
+on demand through the existing `Shape` types. The first manual vertex edit
+"bakes" an object into a mesh — with a warning, as in the mockup.
 
-**Булевы операции** — единственный пункт фазы 1–2, для которого стоит взять
-известный алгоритм, а не изобретать: BSP-подход на триангулированных мешах
-(как в csg.js) прост, тестируем и предсказуемо плох на копланарных гранях —
-что честно предупреждается в интерфейсе. Точная арифметика — потом, если
-понадобится.
+**Boolean operations** — the one item in phase 1–2 worth taking a known
+algorithm for rather than inventing one: a BSP approach on triangulated
+meshes (as in csg.js) is simple, testable, and predictably poor on coplanar
+faces — which is honestly flagged in the UI. Exact arithmetic can come
+later, if needed.
 
-### 5.3 `flutter3d_model_core`: документ
+### 5.3 `flutter3d_model_core`: the document
 
 ```
 ModelProject
-  profile        ProjectProfile: лимиты треугольников, костей, влияний, текстур
-  objects[]      ModelObject: имя, трансформация, родитель,
+  profile        ProjectProfile: triangle, bone, influence, and texture limits
+  objects[]      ModelObject: name, transform, parent,
                    geometry: Parametric | Edited(EditMesh) | Imported(MeshData)
                    modifiers[], materialSlots[]
-  materials[]    SurfaceMaterial + путь .fmat, если материал внешний
-  skeletons[]    joints, inverse bind — то же, что ModelSkin
+  materials[]    SurfaceMaterial + a .fmat path if the material is external
+  skeletons[]    joints, inverse bind — the same shape as ModelSkin
   clips[]        AnimationClip
-  selection      режим, подрежим, объекты, уровень элементов, элементы
-  history        шаги: says + прежнее значение документа (структурно разделённое)
+  selection      mode, submode, objects, element level, elements
+  history        steps: says + the document's prior value (structurally shared)
 ```
 
-**Экспорт** — `project.toModelDocument()` и дальше любой писатель. `ModelDocument`
-уже сегодня единственный вход в `ModelAsset.fromDocument()` и в `F3dWriter`;
-писатели glTF и OBJ встают рядом с ним и получают деduplication мешей и картинок
-бесплатно. **Импорт** — обратное: любой декодер → `ModelDocument` →
-`ModelProject.fromModelDocument()`, а `warnings` документа становятся экраном
-импорта.
+**Export** — `project.toModelDocument()`, then any writer. `ModelDocument`
+is already the sole entry point into `ModelAsset.fromDocument()` and into
+`F3dWriter`; glTF and OBJ writers sit alongside it and get mesh/image
+deduplication for free. **Import** is the reverse: any decoder →
+`ModelDocument` → `ModelProject.fromModelDocument()`, and the document's
+`warnings` become the import screen.
 
-**Формат проекта** — свой, JSON плюс бинарные блобы по образцу `.f3d`
-(секции с выравниванием, неизвестная секция пропускается). Не glTF: в glTF нет
-места профилю, параметрам тела вращения, стеку модификаторов и истории.
-glTF — формат *выхода*.
+**The project format** — its own, JSON plus binary blobs following the
+`.f3d` pattern (aligned sections, an unknown section is skipped). Not
+glTF: glTF has no room for a profile, lathe parameters, a modifier stack,
+or history. glTF is an *output* format.
 
-**Команды** — sealed-иерархия по образцу `EditorCommand`, с одним
-дополнением: команда над мешем несёт `Selection`, а не только параметры, чтобы
-из лога MCP операция воспроизводилась. Транзакция обёртывает перетаскивание.
+**Commands** — a sealed hierarchy following `EditorCommand`'s own pattern,
+with one addition: a mesh command carries a `Selection`, not just
+parameters, so an operation replays from the MCP log. A transaction wraps
+a drag.
 
-**Проверки экспорта** — `ExportReadiness(project, profile)` возвращает список
-`Issue(severity, text, objectId)`; строка статуса показывает первый, диалог
-экспорта — все. Считается после каждой команды, дёшево, потому что кэшируется
-по версии объекта.
+**Export checks** — `ExportReadiness(project, profile)` returns a list of
+`Issue(severity, text, objectId)`; the status line shows the first one, the
+export dialog shows all of them. Computed after every command, cheaply,
+because it's cached by object version.
 
-### 5.4 Что добавить в движок и словарь
+### 5.4 What to add to the engine and vocabulary
 
-| Что | Где | Зачем | Тест |
+| What | Where | Why | Test |
 |---|---|---|---|
-| `GltfWriter` (GLB и `.gltf` + `.bin`) | `flutter3d_formats`, рядом с лоадером glTF, зеркально `F3dWriter` (решение 2026-09-09: писатели в пакете словаря, не в `flutter3d`) | экспорт фазы 1 | round-trip на моделях Khronos из `flutter3d_samples`: decode → write → decode → документы равны; плюс эталонный кадр обоих |
-| `ObjWriter` с `.mtl` | `flutter3d_formats`, рядом с лоадером OBJ | экспорт фазы 1 | round-trip тот же |
-| `StlLoader` (ASCII и бинарный) | `flutter3d_formats`, как `ModelDecoder` | импорт фазы 1 | Khronos-подобные фикстуры, три файла |
-| `DeviceMesh.overwrite(vertices, range)` | `flutter3d_hardware` + четыре бэкенда | скульптинг, перетаскивание вершин без пересоздания | конформанс: перезапись части буфера рисует то же, что новая загрузка |
-| Оверлеи вершин и рёбер | `PassContributor` на `PrimitiveType.line`/`point` | режим «Меш» | эталонный кадр `mesh-overlay` в четырёх наборах |
-| `Skeleton`/`AnimationClip` — запись в `ModelDocument` | уже есть для `.f3d`, проверить для glTF | экспорт анимации фазы 3 | round-trip `simple_skin`, `BoxAnimated` |
+| `GltfWriter` (GLB and `.gltf` + `.bin`) | `flutter3d_formats`, next to the glTF loader, mirroring `F3dWriter` (2026-09-09 decision: writers go into the vocabulary package, not `flutter3d`) | phase-1 export | round-trip on Khronos models from `flutter3d_samples`: decode → write → decode → documents are equal; plus a golden frame of both |
+| `ObjWriter` with `.mtl` | `flutter3d_formats`, next to the OBJ loader | phase-1 export | the same round-trip |
+| `StlLoader` (ASCII and binary) | `flutter3d_formats`, as a `ModelDecoder` | phase-1 import | Khronos-like fixtures, three files |
+| `DeviceMesh.overwrite(vertices, range)` | `flutter3d_hardware` + all four backends | sculpting, dragging vertices with no re-creation | conformance: overwriting part of a buffer draws the same as a fresh upload |
+| Vertex and edge overlays | a `PassContributor` on `PrimitiveType.line`/`point` | "Mesh" mode | a `mesh-overlay` golden frame across all four sets |
+| `Skeleton`/`AnimationClip` — writing into `ModelDocument` | already exists for `.f3d`, check for glTF | phase-3 animation export | `simple_skin`, `BoxAnimated` round-trip |
 
-Ни одна из правок не меняет контракт бэкенда, кроме `overwrite`; та проходит
-через конформанс-набор, как любая правка `GpuDevice`.
+None of these changes alters the backend contract except `overwrite`; that
+one goes through the conformance suite, like any `GpuDevice` change.
 
 ### 5.5 `apps/flutter3d_modeler`
 
-Оболочка — по README передачи: тема M3 из таблицы токенов, `SegmentedButton`
-режимов, `NavigationRail`-подобная рельса 52, панель свойств 250–330, статус 30.
-Три раскладки по классу ширины; состав инструментов один.
+The shell — per the handoff README: an M3 theme from the token table, a
+mode `SegmentedButton`, a 52-wide `NavigationRail`-like rail, a 250–330
+properties panel, a 30-tall status bar. Three layouts by width class, one
+set of tools.
 
-Вьюпорт — `Renderer` в `Texture.asImage()` внутри виджета, как в редакторе
-уровней. Камера — `OrbitController`, а не fly-камера редактора уровней: модель
-крутят, по уровню летают.
+The viewport — a `Renderer` inside `Texture.asImage()` inside a widget, as
+in the level editor. The camera — `OrbitController`, not the level
+editor's fly camera: a model gets orbited, a level gets flown through.
 
-Панели — виджеты, читающие `ModelProject` через Cubit; каждая правка — команда.
-Правая панель режима «Меш» — карточка последней операции: транзакция
-завершилась, команда с параметрами лежит на вершине истории, карточка
-редактирует её параметры и переприменяет команду поверх прежнего значения
-(это ровно то, что персистентный меш делает дешёвым).
+Panels — widgets reading `ModelProject` through a Cubit; every edit is a
+command. "Mesh" mode's right panel is a last-operation card: once a
+transaction closes, the command with its parameters sits at the top of
+history, and the card edits its parameters and reapplies the command over
+the prior value (exactly what a persistent mesh makes cheap).
 
 ---
 
-## 6. Фазы 0 и 1 в деталях
+## 6. Phases 0 and 1 in detail
 
-Размеры: S — до недели, M — две–три недели, L — месяц и больше, для одного
-человека, знакомого с репозиторием. Это порядок величины, не смета.
+Sizes: S — up to a week, M — two to three weeks, L — a month or more, for
+one person familiar with the repository. This is an order of magnitude, not
+an estimate.
 
-### Фаза 0 — замеры и спайк (ответ «тянет ли»)
+### Phase 0 — measurements and a spike (answering "does it hold up")
 
-| # | Что | Размер | Что считается ответом |
+| # | What | Size | What counts as an answer |
 |---|---|---|---|
-| 0.1 | Сцена в 1 млн треугольников на macOS, в Chrome (WebGL2 и WebGPU), на Galaxy A55 | S | кадры в секунду и время загрузки, записанные в HANDOFF-стиле |
-| 0.2 | Спайк `EditMesh`: половинно-рёберный куб → экструзия грани → `toMeshData()` → кадр | M | тесты операций без GPU; эталонный кадр через `flutter3d_cpu`; замер `toMeshData` на 50 и 200 тыс. треугольников |
-| 0.3 | Персистентный меш: стоимость снимка истории на 200 тыс. вершин при перемещении 1 % вершин | S | байты на шаг и время; если > 10 % от полной копии — структура чанков неверна |
-| 0.4 | Сканер структуры на пяти новых чисто-Dart пакетах (geometry, formats, mesh, model_core, model_mcp) | S | `dart run tool/structure.dart` зелёный с пакетами в `flatDartPackages` |
-| 0.5 | Веб: открыть GLB через `file_selector`, сохранить через скачивание, на `--wasm` | S | открывает и скачивает в трёх браузерах — или в фазу 1 входит то, что закрывает порог (JS-сборка как записанное исключение, своя обёртка через `package:web`, worker при заморозке дольше секунды) |
+| 0.1 | A 1-million-triangle scene on macOS, in Chrome (WebGL2 and WebGPU), on a Galaxy A55 | S | frames per second and load time, recorded HANDOFF-style |
+| 0.2 | An `EditMesh` spike: a half-edge cube → a face extrusion → `toMeshData()` → a frame | M | operation tests with no GPU; a golden frame via `flutter3d_cpu`; a `toMeshData` measurement at 50k and 200k triangles |
+| 0.3 | A persistent mesh: the cost of a history snapshot on 200,000 vertices when moving 1% of them | S | bytes per step and time; if > 10% of a full copy, the chunk structure is wrong |
+| 0.4 | The structure scanner on the five new pure-Dart packages (geometry, formats, mesh, model_core, model_mcp) | S | `dart run tool/structure.dart` is green with the packages in `flatDartPackages` |
+| 0.5 | Web: open a GLB via `file_selector`, save via download, on `--wasm` | S | opens and downloads in three browsers — or whatever closes the gap enters phase 1 (a JS build as a recorded exception, a custom wrapper via `package:web`, a worker for a freeze longer than a second) |
 
-Если 0.1 или 0.5 не проходят на вебе, веб остаётся платформой фазы 1:
-непройденный порог становится пунктом фазы 1 (§7, решение 2026-09-09).
+If 0.1 or 0.5 don't pass on the web, the web stays a phase-1 platform: the
+unmet threshold becomes a phase-1 item (§7, 2026-09-09 decision).
 
-#### Что фаза 0 ответила, одной таблицей
+#### What phase 0 answered, in one table
 
-Свод p0-12. Полные числа и то, как они снимались, — ниже; здесь только исход
-и что он поменял.
+A p0-12 rollup. Full numbers and how they were taken follow below; this
+only gives the outcome and what it changed.
 
-| Замер | Результат | Что решено |
+| Measurement | Result | What was decided |
 |---|---|---|
-| p0-01 стенд | приложение `flutter3d_modeler` с `--dart-define=stress/objects/orbit/churn` | стенд общий для macOS и веба, отчёт печатается и показывается на экране |
-| p0-02 macOS | 1 млн треугольников — 8,33 мс кадр, 1,02 мс `render`; 1000 draws — 27 мс | бюджет проекта считает **объекты**, не треугольники |
-| p0-02 браузер | под `--wasm` не стартует, под dart2js работает | **веб фазы 1 — JS-сборка**, записанное исключение; причина wasm — отдельный пункт |
-| p0-03 Android, iPad | не снято — нужны устройства | остаётся на владельце, до середины фазы 1 (rel-19d) |
-| p0-04 спайк `EditMesh` | 200 тыс.: `toMeshData` 59 мс, операция с перестройкой ≈1 мс | правка на месте (`mesh-11`) и `fillVertices` (`mesh-14`) — условие интерактивности |
-| p0-05 история | журнал прежних значений 2 % копии в обоих распределениях; чанки — до 100 % | **чанки отвергнуты**: плоский массив + журнал |
-| p0-06 загрузка буфера | `DeviceMesh.upload` 1,24 мс на 200 тыс., 5,39 мс на 1 млн | `overwriteGeometry` → фаза 4, `view-14` из фазы 1 убран |
-| p0-07 изолят/порции | изолят ≈0 накладных; 32 порции — худшая 2,1 мс | операции пошаговые с первого дня, изолят на native бесплатно |
-| p0-08 файлы в браузере | своя обёртка на `package:web` написана, JS-сборка с кнопками работает | живой прогон в трёх браузерах — ручной шаг |
-| p0-09 пакеты без Flutter | 6 плоских пакетов резолвятся `dart pub get` без Flutter SDK; правило сканера + job в CI | закрыто |
-| p0-10 пикинг | луч 2,2–3,8 мкс против 1,2–23 мс перебором; build 200 тыс. — 61 мс | пикинг остаётся на CPU |
-| p0-11 сквозной конвейер | 200 тыс.: 1,8 мс на кадр, 0 медленных; 1 млн: 12 % кадров опаздывают | API на значениях до 200 тыс.; `toMeshData(into:)` — при большем |
-| p0-13n сандбокс macOS | контейнер: и прямая запись, и temp+rename | автосохранение без оговорок; user-selected — ручной шаг |
-| anim-31 FK | 17,5 мкс на позу из 64 костей | FK не узкое место фазы 3 |
+| p0-01 rig | the `flutter3d_modeler` app with `--dart-define=stress/objects/orbit/churn` | the rig is shared between macOS and web, a report is printed and shown on screen |
+| p0-02 macOS | 1 million triangles — 8.33 ms frame, 1.02 ms `render`; 1000 draws — 27 ms | the project budget counts **objects**, not triangles |
+| p0-02 browser | doesn't start under `--wasm`, works under dart2js | **phase-1 web is a JS build**, a recorded exception; the wasm failure's cause is a separate item |
+| p0-03 Android, iPad | not measured — needs the devices | stays with the owner, by mid-phase-1 (rel-19d) |
+| p0-04 `EditMesh` spike | 200k: `toMeshData` 59 ms, an in-place-rebuild operation ≈1 ms | in-place editing (`mesh-11`) and `fillVertices` (`mesh-14`) — a condition for interactivity |
+| p0-05 history | a log of prior values costs 2% of a copy under both distributions; chunks — up to 100% | **chunks are rejected**: a flat array + a log |
+| p0-06 buffer upload | `DeviceMesh.upload` 1.24 ms at 200k, 5.39 ms at 1 million | `overwriteGeometry` → phase 4, `view-14` removed from phase 1 |
+| p0-07 isolate/chunks | an isolate costs ≈0 overhead; 32 chunks — worst 2.1 ms | operations are step-based from day one, an isolate on native is free |
+| p0-08 files in the browser | a custom wrapper over `package:web` was written, a JS build with buttons works | a live run in three browsers is a manual step |
+| p0-09 packages with no Flutter | 6 flat packages resolve via `dart pub get` with no Flutter SDK; a scanner rule + a CI job | closed |
+| p0-10 picking | a ray at 2.2–3.8 μs versus 1.2–23 ms by brute force; build at 200k — 61 ms | picking stays on the CPU |
+| p0-11 end-to-end pipeline | 200k: 1.8 ms per frame, 0 slow frames; 1 million: 12% of frames run late | an API on values up to 200k; `toMeshData(into:)` — above that |
+| p0-13n macOS sandbox | the container: both a direct write and temp+rename work | autosave with no caveats; a user-selected path is a manual step |
+| anim-31 FK | 17.5 μs per pose across 64 bones | FK isn't phase 3's bottleneck |
 
-| qa-13 бенч в CI | `bench-mesh` собирается `dart compile exe` и кладётся артефактом на каждый push | числа перестали браться раз и на одной машине |
-| p0-02 macOS, перепроверка | 1 млн в одном draw — 8,33 мс кадр, 0,64 мс `render`, 0 кадров сверх 16,6; 1000 draws — 29,11 мс кадр, 24,49 мс `render`, 114 из 227 опаздывают | подтверждает прежний вывод: бюджет считает **объекты**, а не треугольники |
-| эталонные кадры на Impeller | 43 из 43 совпали побайтно (0 пикселей из 172 800 в каждой) | половина набора, которую `tool/ci.sh` не берёт, снята вручную на GPU |
-| p0-13n панель macOS | контейнер и домашний каталог: и прямая запись, и temp+rename; `HOME` — внутри контейнера | запись через панель по-прежнему требует человека: панель не отвечает процессу |
-| fmt-13 `encodeModelInIsolate` | 199 712 треугольников (сетка 317×317, 100 489 вершин): `glb` 18,6 мс, `obj` 207,2 мс, `f3d` 7,0 мс, `stl` 64,2 мс синхронно; изолятом — 18,7 / 177,5 / 7,5 / 48,8 мс, побайтно те же бинарные (`glb`/`f3d`/`stl` побайтно идентичны, `obj` — тот же текст) | изолят стоит примерно ничего, как p0-07; текстовый `obj` на порядок дороже двоичных форматов, что не про изолят, а про сам кодек |
-| fmt-27 `UsdzWriter`, Box.glb | реальный `.usdz` от `GltfLoader().load(Box.glb)` проверен macOS-овским `unzip -l`/`zipinfo -v` (валидный архив, верная CRC-32, 1 запись) и `mdls` (`kMDItemContentTypeTree` называет `com.pixar.universal-scene-description-mobile`/`public.3d-content`, MIME `model/vnd.usdz+zip` — система узнаёт файл как настоящий USDZ); смещение данных `.usda`-записи — 64 байта, `% 64 == 0`, посчитано отдельно питоном по тем же полям, что пишет `UsdzZip` | выравнивание подтверждено независимо от кода писателя; экранного скрина Quick Look в этом пункте нет — см. ниже, почему |
-| pro-sc-01 мазок на 1,2 млн | macOS: открытие+BVH 3,3–5,7 с (порог 3 с не пройден); мазок (отбор+правка+нормали+overwrite+raycast) 294–1005 мс (пороги 8/16 мс не пройдены в 20–60 раз, узкое место — полный пересчёт нормалей); Chrome и A55 не сняты | `pro-sc-02` (чанки `SculptMesh` + локальные нормали) нужен раньше, чем мазок станет интерактивным на 1,2 млн; лимит `pro-sc-09` для веба должен исходить из размера, который проходит этот же бюджет |
+| qa-13 CI bench | `bench-mesh` is built with `dart compile exe` and attached as an artifact on every push | numbers stopped being taken once, on one machine |
+| p0-02 macOS, re-checked | 1 million in one draw — 8.33 ms frame, 0.64 ms `render`, 0 frames over 16.6; 1000 draws — 29.11 ms frame, 24.49 ms `render`, 114 of 227 run late | confirms the earlier finding: the budget counts **objects**, not triangles |
+| golden frames on Impeller | 43 of 43 matched byte-for-byte (0 pixels out of 172,800 in each) | the half of the set `tool/ci.sh` doesn't take was captured manually on GPU |
+| p0-13n macOS panel | the container and the home directory: both a direct write and temp+rename work; `HOME` is inside the container | writing through the panel still requires a human: the panel doesn't answer the process |
+| fmt-13 `encodeModelInIsolate` | 199,712 triangles (a 317×317 grid, 100,489 vertices): `glb` 18.6 ms, `obj` 207.2 ms, `f3d` 7.0 ms, `stl` 64.2 ms synchronously; through an isolate — 18.7 / 177.5 / 7.5 / 48.8 ms, byte-identical (`glb`/`f3d`/`stl` byte-identical, `obj` the same text) | the isolate costs roughly nothing, like p0-07; the text-based `obj` is an order of magnitude more expensive than binary formats, which is about the codec, not the isolate |
+| fmt-27 `UsdzWriter`, Box.glb | a real `.usdz` from `GltfLoader().load(Box.glb)` was checked with macOS's own `unzip -l`/`zipinfo -v` (a valid archive, a correct CRC-32, 1 entry) and `mdls` (`kMDItemContentTypeTree` names `com.pixar.universal-scene-description-mobile`/`public.3d-content`, MIME `model/vnd.usdz+zip` — the system recognizes the file as a genuine USDZ); the `.usda` entry's data offset — 64 bytes, `% 64 == 0`, computed independently in Python against the same fields `UsdzZip` writes | the alignment is confirmed independently of the writer's own code; there is no Quick Look screenshot for this item — see below for why |
+| pro-sc-01 stroke at 1.2 million | macOS: opening+BVH 3.3–5.7 s (the 3 s threshold is not met); a stroke (selection+edit+normals+overwrite+raycast) 294–1005 ms (the 8/16 ms thresholds are missed by 20–60×, the bottleneck is a full normal recompute). Chrome: opening+BVH 24.2–24.4 s, a full stroke 7.58–7.71 s (both thresholds missed, ~4–5× slower than macOS — the cost of JS/wasm with no SIMD). The A55 wasn't measured | `pro-sc-02` (chunked `SculptMesh` + local normals) is needed before a stroke can become interactive at 1.2 million; the `pro-sc-09` web limit should be based on whatever size passes this same budget |
+| pro-sc-01 re-measured with `MeshNormals.rebuildAround`, 2026-09-17 | macOS: setup 1.87 s (**passes** 3 s); a stroke 38.2 ms (misses 16 ms by 2.4×, where it used to miss by 20–60×) — normals 17.4 ms against the whole-mesh path's 156.7 ms in the same sitting, selection 15.1 ms. Chrome: setup 24.87 s, a stroke 396.87 ms, nineteen times cheaper than the 7.58 s it was. The A55 still wasn't measured | normals stop being *the* bottleneck and become one of two: the selection scan over all 602k vertices now costs as much as they do, and it is what `pro-sc-02`'s chunking was always for. `pro-sc-09`'s limit should be measured at a candidate size rather than extrapolated from this one, because the two remaining costs scale differently — one with the mesh, one with the brush |
 
-Не снято, и всё это требует не кода, а машины или человека: p0-03 (нужны
-Galaxy A55 и iPad), кадровые числа в браузере (нужен `profile_web.py` и три
-браузера), запись в файл, выбранный в панели macOS (нужен один клик в панели,
-которую CI не покажет), `syn-02` — два макета экранов, это работа дизайна, и
-теперь ещё **fmt-27 — скриншот Quick Look**: `qlmanage -t` для `.usdz`
-зависает без ответа в этой автоматической оболочке (для обычного файла —
-текстового, `.txt` — та же команда отрабатывает за секунды, так что
-`qlmanage` как таковой работает; зависает именно генератор трёхмерного
-превью, которому, похоже, нужна сессия с активным WindowServer, которой у
-этого процесса нет). Файл при этом опознаётся системой правильно (`mdls`
-выше), так что это ограничение окружения, а не дефект писателя — но
-собственно скриншот, который просит приёмка строки, остаётся ручным шагом
-для человека за этой же машиной.
+Not measured, and none of it needs code, only a machine or a person: p0-03
+(needs a Galaxy A55 and an iPad), frame numbers in the browser (needs
+`profile_web.py` and three browsers), writing to a file chosen through the
+macOS panel (needs one click in a panel CI can't show), `syn-02` — two
+screen mockups, which is design work, and now also **fmt-27's Quick Look
+screenshot**: `qlmanage -t` for `.usdz` hangs with no response in this
+automated shell (for an ordinary file — a text `.txt` — the same command
+finishes in seconds, so `qlmanage` itself works; it's specifically the
+3D-preview generator that hangs, apparently needing a session with an
+active WindowServer, which this process doesn't have). The file is
+recognized correctly by the system regardless (`mdls`, above), so this is
+an environment limitation, not a writer defect — but the actual screenshot
+the line's acceptance asks for stays a manual step for a person at this
+same machine.
 
-Всё остальное закрыто. Проверено 2026-09-10 против репозитория, а не по
-памяти: правило «плоский пакет резолвится без Flutter SDK» и job `flat-dart`
-на месте (p0-09, qa-03), словарь замен в CONTRIBUTING и его примеры в
-`proveDetectorsWork` — тоже (qa-05), `tool/ci.sh` берёт список пакетов из
-`flatDartPackages` (doc-30, qa-04), `flat_dart_check.sh` поднимает
-`model_mcp --help` в копии без Flutter (rel-04), имена и платформы записаны в
-§7 с датой (rel-01, rel-17), трек «A modeller, and the same agent driving it»
-в ROADMAP (rel-12). `dart format` молчит с 2026-09-10 (qa-01): до этого дня
-двадцать три файла разошлись.
+Everything else is closed. Checked 2026-09-10 against the repository, not
+from memory: the "a flat package resolves with no Flutter SDK" rule and the
+`flat-dart` job are in place (p0-09, qa-03), the substitution dictionary in
+CONTRIBUTING and its examples in `proveDetectorsWork` too (qa-05),
+`tool/ci.sh` reads its package list from `flatDartPackages` (doc-30, qa-04),
+`flat_dart_check.sh` brings up `model_mcp --help` in a Flutter-free copy
+(rel-04), names and platforms are recorded in §7 with a date (rel-01,
+rel-17), the "A modeller, and the same agent driving it" track is in the
+ROADMAP (rel-12). `dart format` has been silent since 2026-09-10 (qa-01):
+before that day, twenty-three files had drifted.
 
-#### Измеренное
+#### Measured
 
-Машина: MacBook Pro, Apple M3 Pro, macOS 27.0, Dart 3.13.0 stable, сборка
-`dart compile exe` (`packages/flutter3d_mesh/tool/bench.dart`). Дата: 2026-09-09.
-Перепроверено на той же машине 2026-09-10: числа стенда и все 43 эталонных
-кадра на Impeller — в строках выше.
-Каждое число — среднее по пяти прогонам после одного непрогретого.
+Machine: a MacBook Pro, Apple M3 Pro, macOS 27.0, Dart 3.13.0 stable, a
+`dart compile exe` build (`packages/flutter3d_mesh/tool/bench.dart`). Date:
+2026-09-09. Re-checked on the same machine 2026-09-10: the rig numbers and
+all 43 golden frames on Impeller — in the rows above. Every number is an
+average across five runs after one unwarmed run.
 
-**0.1 — стенд на macOS (Metal, Impeller).** Приложение `apps/flutter3d_modeler`,
-release-сборка, `--dart-define=stress=<треугольники> --dart-define=objects=<draw
-calls> --dart-define=orbit=600`: камера обходит полный круг за 600 кадров, и
-приложение печатает и показывает, во что обошлись кадры. Первые десять
-отброшены (компиляция шейдера и первая загрузка). Дисплей 120 Гц, поэтому
-«идеальный» кадр здесь — 8,33 мс, а не 16,6.
+**0.1 — the macOS rig (Metal, Impeller).** The `apps/flutter3d_modeler` app,
+a release build, `--dart-define=stress=<triangles> --dart-define=objects=<draw
+calls> --dart-define=orbit=600`: the camera makes a full circle over 600
+frames, and the app prints and displays what the frames cost. The first ten
+frames are dropped (shader compilation and the first load). The display is
+120 Hz, so an "ideal" frame here is 8.33 ms, not 16.6.
 
-| Сцена | кадр средн. | кадр худш. | `render` средн. | кадров >16,6 мс |
+| Scene | avg frame | worst frame | avg `render` | frames >16.6 ms |
 |---|---|---|---|---|
-| 1 млн треугольников, 1 draw | 8,33 мс | 8,34 мс | 1,02 мс | 0 из 587 |
-| 1 млн треугольников, 200 draws | 8,36 мс | 16,67 мс | 5,41 мс | 2 из 587 |
-| 1 млн треугольников, 1000 draws | 27,11 мс | 108,33 мс | 24,87 мс | 299 из 587 |
+| 1M triangles, 1 draw | 8.33 ms | 8.34 ms | 1.02 ms | 0 of 587 |
+| 1M triangles, 200 draws | 8.36 ms | 16.67 ms | 5.41 ms | 2 of 587 |
+| 1M triangles, 1000 draws | 27.11 ms | 108.33 ms | 24.87 ms | 299 of 587 |
 
-Что из этого следует:
+What follows from this:
 
-- **Порог p0-02 на macOS пройден с запасом**: миллион треугольников одним мешем
-  не отнимает у кадра и одной шестой его бюджета, `render` стоит миллисекунду.
-  Треугольники — не то, обо что упрётся вьюпорт.
-- **Упрётся он в число draw call'ов.** Тысяча объектов с той же общей
-  геометрией стоит в 24 раза больше — 24,87 мс против 1,02, — и половина
-  кадров опаздывает. Двести проходят. Это число попадает в профиль проекта как
-  бюджет объектов (`doc-13`) и объясняет, зачем модельеру инстансинг и
-  объединение по материалу раньше, чем упрощение сеток.
-- Худший кадр в 108 мс на тысяче объектов — не выброс, а форма распределения:
-  при таком числе вызовов кадры идут неровно, и `ExportReadiness` должен
-  предупреждать о числе объектов, а не только о треугольниках.
+- **The p0-02 macOS threshold is met with margin to spare**: a million
+  triangles in one mesh doesn't cost a frame even a sixth of its budget,
+  `render` costs a millisecond. Triangles aren't what the viewport will
+  bottleneck on.
+- **It will bottleneck on the number of draw calls.** A thousand objects
+  with the same total geometry cost 24 times as much — 24.87 ms versus
+  1.02 — and half the frames run late. Two hundred pass. This number goes
+  into the project profile as an object budget (`doc-13`) and explains why
+  the modeler needs instancing and material-based batching before mesh
+  simplification.
+- A worst frame of 108 ms at a thousand objects isn't an outlier but the
+  shape of the distribution: at that call count, frames come in unevenly,
+  and `ExportReadiness` should warn about object count, not only
+  triangles.
 
-**0.1 и 0.5 в браузере — два ответа, и один из них меняет план.**
+**0.1 and 0.5 in the browser — two answers, and one changes the plan.**
 
-**Под `--wasm` приложение не запускается.** Сборка проходит (`flutter build web
---wasm`, `main.dart.wasm` — 2,3 МБ), страница загружается, заголовок вкладки
-меняется на «flutter3d modeller» — и на белом экране остаётся две минуты, без
-единого сообщения в консоли. Та же ревизия, собранная в JS (`flutter build web
---profile`), рисует первый кадр за несколько секунд: куб, кнопки «Открыть» и
-«Сохранить как .f3d», строка `opened in 36 ms`. Миллион треугольников под JS
-тоже рисуется. Проверялось в Chrome на локальном сервере с COOP и COEP — без
-этих заголовков бутстрап сам уходит на JS-сборку, и разница осталась бы
-незамеченной.
+**The app doesn't start under `--wasm`.** The build succeeds
+(`flutter build web --wasm`, `main.dart.wasm` — 2.3 MB), the page loads,
+the tab title changes to "flutter3d modeller" — and then two minutes of a
+blank white screen, with not one console message. The same revision, built
+as JS (`flutter build web --profile`), draws its first frame in a few
+seconds: a cube, "Open" and "Save as .f3d" buttons, an `opened in 36 ms`
+line. A million triangles also draws fine under JS. Checked in Chrome on a
+local server with COOP and COEP — without those headers the bootstrap
+falls back to the JS build on its own, and the difference would have gone
+unnoticed.
 
-Это ровно тот исход, для которого в плане записано «не работает под wasm →
-JS-сборка как записанное исключение ARCHITECTURE §1»: **веб фазы 1 выходит на
-dart2js**, а причина wasm-отказа заводится отдельным пунктом. Первая версия
-этого приложения — до файлового слоя — под wasm рисовала, так что дело в
-чём-то, что появилось вместе с ним; `file_selector_web` и `path_provider` как
-подозреваемые проверены и отпадают (первый уже на `package:web`, второй в
-веб-сборку не попадает, это conditional export).
+This is exactly the outcome the plan already recorded for: "doesn't work
+under wasm → a JS build as ARCHITECTURE §1's own recorded exception":
+**phase-1 web ships on dart2js**, and the wasm failure's cause becomes its
+own separate item. The app's first version — before the file layer existed
+— did draw under wasm, so the cause is something that arrived along with
+it; `file_selector_web` and `path_provider` were checked as suspects and
+ruled out (the first is already on `package:web`, the second never enters
+the web build, being a conditional export).
 
-**Кадровых чисел из браузера по-прежнему нет, и причина методическая.** Вкладка,
-на которую никто не смотрит, дросселируется до кадра в секунду, а держать окно
-Chrome на переднем плане в течение прогона из скрипта не выходит. Замер веба
-снимается тем, что для этого уже есть, — `packages/flutter3d_webgl/tool/
-profile_web.py`, который поднимает сборку и водит браузер сам, — и это
-отдельный заход. До тех пор строка p0-02 остаётся без числа, и §7 не может
-ссылаться на неё как на пройденный порог.
+**There are still no frame numbers from the browser, for a methodological
+reason.** A tab nobody is looking at is throttled to one frame per second,
+and keeping a Chrome window in the foreground through a scripted run
+doesn't work. The web measurement is taken with the tool that already
+exists for this — `packages/flutter3d_webgl/tool/profile_web.py`, which
+brings up the build and drives the browser itself — and that's a separate
+pass. Until then, the p0-02 row stays without a number, and §7 can't cite
+it as a passed threshold.
 
-**0.5 — файлы в браузере.** Обёртка написана своя, через `package:web`:
-`<input type="file">` для открытия и `Blob` + `<a download>` для сохранения
-(`apps/flutter3d_modeler/lib/src/files/project_files_web.dart`), а нативная
-половина — `file_selector`. Обе половины анализируются, JS-сборка с кнопками
-запускается; живой прогон «открыть GLB → кадр → скачать `.f3d`» в трёх
-браузерах остаётся ручным шагом вместе с кадровыми числами.
+**0.5 — files in the browser.** A custom wrapper was written over
+`package:web`: an `<input type="file">` for opening and a `Blob` +
+`<a download>` for saving
+(`apps/flutter3d_modeler/lib/src/files/project_files_web.dart`), with
+`file_selector` for the native half. Both halves pass analysis, the JS
+build with the buttons runs; a live run of "open a GLB → a frame → download
+a `.f3d`" in three browsers stays a manual step alongside the frame
+numbers.
 
-**0.2 — спайк `EditMesh` (половинно-рёберная сетка на `Int32List`, операция
-перестраивает массивы целиком).**
+**0.2 — the `EditMesh` spike (a half-edge mesh over `Int32List`, an
+operation rebuilds the arrays wholesale).**
 
-| Что | 25k квадов (50k треугольников) | 100k квадов (200k треугольников) |
+| What | 25k quads (50k triangles) | 100k quads (200k triangles) |
 |---|---|---|
-| `EditMesh.fromFaces` | 8,4 мс (336 нс/грань) | 33,1 мс (331 нс/грань) |
-| `toMeshData` | 17,7 мс (710 нс/грань) | 59,2 мс (593 нс/грань) |
-| `signedVolume` | 13,4 мс | 37,1 мс |
-| `validate` | 3,3 мс (131 нс/грань) | 15,4 мс (154 нс/грань) |
+| `EditMesh.fromFaces` | 8.4 ms (336 ns/face) | 33.1 ms (331 ns/face) |
+| `toMeshData` | 17.7 ms (710 ns/face) | 59.2 ms (593 ns/face) |
+| `signedVolume` | 13.4 ms | 37.1 ms |
+| `validate` | 3.3 ms (131 ns/face) | 15.4 ms (154 ns/face) |
 
-`extrudeFace` тысячу раз подряд от куба (грань растёт до 4004 граней):
-**1010 мс на тысячу операций**, то есть около миллисекунды на операцию и рост
-вместе с размером меша.
+`extrudeFace` a thousand times in a row from a cube (growing to 4004
+faces): **1010 ms for a thousand operations**, roughly a millisecond per
+operation, growing with the mesh's size.
 
-Что из этого следует, по порогам p0-04 и p0-11 плана:
+What follows from this, against thresholds p0-04 and p0-11 of the plan:
 
-- **Перестройка целиком в кадр не проходит.** 59 мс на `toMeshData` для 200
-  тыс. треугольников — это больше 33 мс, а операция с полной перестройкой
-  массивов стоит столько же ещё раз. Половинно-рёберная структура с правкой
-  на месте (`mesh-11`) и `writePositions(into:)` (`mesh-14`) — не оптимизация,
-  а условие интерактивности.
-- **Сама структура дешёвая.** `validate` обходит все полурёбра за 154 нс на
-  грань, а построение — за 331 нс: обход и связывание не являются узким
-  местом, им является пересборка `MeshData` и аллокация `Vector3` на вершину
-  в спайке. Это и есть предмет `mesh-14` («заполнение без хеша»).
-- **Порог «≤8 мс → перестройка в кадр» выполняется только до ~25 тыс.
-  треугольников.** Для мелких примитивов фазы 1 перестройка допустима как
-  запасной путь, для импортированной модели — нет.
+- **A full rebuild doesn't fit in a frame.** 59 ms for `toMeshData` at
+  200,000 triangles is above the 33 ms budget, and an operation with a full
+  array rebuild costs about the same again. A half-edge structure with
+  in-place editing (`mesh-11`) and `writePositions(into:)` (`mesh-14`)
+  isn't an optimization — it's a condition for interactivity.
+- **The structure itself is cheap.** `validate` walks every half-edge at
+  154 ns per face, and building it costs 331 ns: traversal and linking
+  aren't the bottleneck — rebuilding `MeshData` and allocating a `Vector3`
+  per vertex in the spike is. That's exactly what `mesh-14`
+  ("hash-free filling") targets.
+- **The "≤8 ms → an in-frame rebuild" threshold only holds up to roughly
+  25,000 triangles.** A full rebuild is acceptable as a fallback for phase
+  1's small primitives, not for an imported model.
 
-Кадр `mesh-spike-extrude.png` пока не снят: он требует `flutter3d_testing`, а
-значит приложения или пакета с Flutter SDK, и снимается вместе с `view-02`.
+The `mesh-spike-extrude.png` frame hasn't been captured yet: it needs
+`flutter3d_testing`, meaning an app or a package with the Flutter SDK, and
+gets captured alongside `view-02`.
 
-**0.2а — замеры фазы 1 (`mesh-31`), тот же стенд, дата 2026-09-10.**
-Снято по рабочему коду целиком: `EditMesh` с журналом, нормали по углам,
-триангуляция ушами, слияние углов в GPU-вершины, тангенсы, дерево пикинга.
+**0.2a — phase-1 measurements (`mesh-31`), the same rig, dated
+2026-09-10.** Taken against the whole working code: `EditMesh` with a log,
+per-corner normals, ear-clipping triangulation, corner-to-GPU-vertex
+merging, tangents, a picking tree.
 
-| Что | 25k квадов (50k треугольников) | 100k квадов (200k треугольников) |
+| What | 25k quads (50k triangles) | 100k quads (200k triangles) |
 |---|---|---|
-| `EditMesh.fromFaces` | 20,3 мс (814 нс/грань) | 97,0 мс (971 нс/грань) |
-| `importMeshData` | 101,4 мс | 512,9 мс |
-| `toMeshData` целиком | 27,2 мс | 101,7 мс |
-| `MeshLayoutPlan.build` | 18,4 мс (735 нс/грань) | 69,7 мс (698 нс/грань) |
-| `fillVertices` все строки | 1,73 мс (70 нс/грань) | 6,73 мс (67 нс/грань) |
-| `fillVerticesOf` 40 вершин | 2,2 мкс | 1,5 мкс |
-| `MeshBvh.rebuild` | 13,2 мс | 54,7 мс |
-| `MeshBvh.refit` | 1,19 мс | 5,00 мс |
-| `MeshBvh.raycast` | 0,5 мкс | 0,5 мкс |
-| шаг истории по 1 % вершин | 42 мкс | 172 мкс |
-| `signedVolume` | 2,45 мс | 10,2 мс |
-| `validate` | 0,55 мс (22 нс/грань) | 2,15 мс (22 нс/грань) |
+| `EditMesh.fromFaces` | 20.3 ms (814 ns/face) | 97.0 ms (971 ns/face) |
+| `importMeshData` | 101.4 ms | 512.9 ms |
+| full `toMeshData` | 27.2 ms | 101.7 ms |
+| `MeshLayoutPlan.build` | 18.4 ms (735 ns/face) | 69.7 ms (698 ns/face) |
+| `fillVertices` every row | 1.73 ms (70 ns/face) | 6.73 ms (67 ns/face) |
+| `fillVerticesOf` 40 vertices | 2.2 μs | 1.5 μs |
+| `MeshBvh.rebuild` | 13.2 ms | 54.7 ms |
+| `MeshBvh.refit` | 1.19 ms | 5.00 ms |
+| `MeshBvh.raycast` | 0.5 μs | 0.5 μs |
+| a history step over 1% of vertices | 42 μs | 172 μs |
+| `signedVolume` | 2.45 ms | 10.2 ms |
+| `validate` | 0.55 ms (22 ns/face) | 2.15 ms (22 ns/face) |
 
-Отдельно, на форме, где операция повторяется: `loopCut` ×256 по цилиндру из
-32 сегментов — **17,2 мс**; `extrudeFace` ×1000 от куба — **691 мс**, то есть
-0,7 мс на операцию с ростом вместе с размером меша (эта форма осталась из
-спайка и перестраивает массивы; на месте правит `extrudeFaces` из `mesh-23`).
+Separately, on a shape where the operation repeats: `loopCut` ×256 over a
+32-segment cylinder — **17.2 ms**; `extrudeFace` ×1000 from a cube —
+**691 ms**, meaning 0.7 ms per operation, growing with the mesh's size
+(this shape is left over from the spike and still rebuilds arrays wholesale;
+`extrudeFaces` from `mesh-23` edits in place).
 
-Что из этого следует:
+What follows from this:
 
-- **Порог p0-04 закрыт.** Полная конверсия 200 тыс. треугольников — 101,7 мс,
-  и почти всё это (69,7) — решения: триангуляция, нормали, слияние углов.
-  Заполнение строк по готовому плану стоит 6,7 мс, а перезапись строк сорока
-  перетаскиваемых вершин — 1,5 мкс, в 45 тысяч раз дешевле конверсии.
-  Перетаскивание миллиона треугольников упирается в загрузку буфера (p0-06,
-  5,39 мс), а не в подготовку данных.
-- **Порог `refit = rebuild` из mesh-20 выполнен:** 5,0 мс против 54,7 —
-  в одиннадцать раз дешевле и внутри 5 мс, которые p0-10 назвал условием
-  перетаскивания на 200 тыс. Луч — полмикросекунды, то есть клик по грани
-  бесплатен даже на каждом движении мыши: p0-10 подтверждён на рабочем коде,
-  пикинг остаётся на CPU.
-- **Шаг истории по 1 % вершин — 172 мкс на 200 тыс.**, что подтверждает выбор
-  p0-05 на рабочем коде: журнал прежних значений, а не копирование чанков.
-- **`toMeshData` вырос с 59 мс у спайка до 102, и это не регресс.** Спайк
-  ставил нормаль грани в каждый угол; сейчас считаются нормали по углам с
-  разбиением по sharp/углу/smooth, углы сливаются в общие GPU-вершины, а с
-  `mesh-17` добавились тангенсы, без которых модель под normal map чернеет.
-  Платится один раз при перестройке плана, а не в кадре.
-- **Импорт был квадратичным, и это нашёл замер.** До правки `importMeshData`
-  занимал 6,6 с на 50 тыс. треугольников: ключ ребра вида `a·2³² + b` несёт в
-  младших битах только `b`, поэтому множество из 150 тыс. таких ключей кладёт
-  все рёбра с общим концом в одну корзину. Ключ упакован по числу вершин —
-  101 мс на 50 тыс., 513 мс на 200 тыс., и снова линейно.
-- **`validate` и `signedVolume` подешевели на порядок** против спайка
-  (15,4 → 2,15 и 37,1 → 10,2 мс) — обходы без аллокаций на элемент.
-- **`fromFaces` дороже спайка втрое** (33 → 97 мс). Строитель держит хеш пар
-  вершин, а к нему добавились девять журналируемых массивов. Это цена
-  открытия файла, платится один раз; если импорт станет заметен — сокращать
-  надо здесь.
+- **The p0-04 threshold is closed.** A full conversion of 200,000
+  triangles is 101.7 ms, and almost all of it (69.7) is decisions:
+  triangulation, normals, corner merging. Filling rows from an already-built
+  plan costs 6.7 ms, and rewriting the rows of forty dragged vertices costs
+  1.5 μs — 45,000 times cheaper than a full conversion. Dragging a
+  million-triangle mesh bottlenecks on the buffer upload (p0-06, 5.39 ms),
+  not data preparation.
+- **The `refit = rebuild` threshold from mesh-20 is met:** 5.0 ms versus
+  54.7 — eleven times cheaper and inside the 5 ms p0-10 named as the
+  condition for dragging at 200,000. A ray is half a microsecond, meaning a
+  click on a face is free even on every mouse move: p0-10 is confirmed on
+  working code, picking stays on the CPU.
+- **A history step over 1% of vertices is 172 μs at 200,000**, confirming
+  p0-05's choice on working code: a log of prior values, not chunk copying.
+- **`toMeshData` grew from 59 ms in the spike to 102, and this isn't a
+  regression.** The spike gave every corner the face normal; now normals
+  are computed per corner with sharp/angle/smooth splitting, corners merge
+  into shared GPU vertices, and `mesh-17` added tangents, without which a
+  model under a normal map goes black. Paid once when rebuilding the plan,
+  not in the frame.
+- **Import was quadratic, and the measurement found this.** Before the fix,
+  `importMeshData` took 6.6 s at 50,000 triangles: an edge key of the shape
+  `a·2³² + b` carries only `b` in its low bits, so a set of 150,000 such
+  keys puts every edge sharing an endpoint into the same bucket. The key is
+  now packed by vertex count — 101 ms at 50,000, 513 ms at 200,000, and
+  linear again.
+- **`validate` and `signedVolume` got an order of magnitude cheaper**
+  compared to the spike (15.4 → 2.15 and 37.1 → 10.2 ms) — allocation-free
+  walks per element.
+- **`fromFaces` is three times more expensive than the spike** (33 → 97
+  ms). The builder keeps a hash of vertex pairs, and nine logged arrays
+  were added on top. This is the cost of opening a file, paid once; if
+  import becomes noticeable, this is where to trim.
 
-**0.2б — меш через изолят (`mesh-30`), тот же стенд, дата 2026-09-10.**
-`packages/flutter3d_mesh/tool/bench_isolate.dart`, решётка 316×316.
+**0.2b — a mesh through an isolate (`mesh-30`), the same rig, dated
+2026-09-10.** `packages/flutter3d_mesh/tool/bench_isolate.dart`, a 316×316
+grid.
 
-| Что | 200k треугольников |
+| What | 200k triangles |
 |---|---|
-| `EditMesh.toBytes` | 2,7 мс |
-| `EditMesh.fromBytes` | 2,5 мс |
-| туда и обратно через `Isolate.run` | 11,4 мс |
-| из них сама передача | 0,9 мс |
+| `EditMesh.toBytes` | 2.7 ms |
+| `EditMesh.fromBytes` | 2.5 ms |
+| round trip through `Isolate.run` | 11.4 ms |
+| of which, the transfer itself | 0.9 ms |
 
-- **Меш переходит в изолят за 11 мс на 200 тыс. треугольников**, и почти всё
-  это — запись и чтение байтов. Собственно передача через
-  `TransferableTypedData` стоит 0,9 мс: буфер переезжает, а не копируется.
-  Это подтверждает решение p0-07 на рабочем формате — длинную операцию можно
-  уносить в изолят, накладные расходы единицы процентов от самой операции.
-- Тот же порядок величин у порций: 32 порции дают худшую 0,8 мс при общем
-  15,6 мс. На вебе, где изолятов нет, это и есть путь (`ui-34d`).
+- **A mesh crosses into an isolate in 11 ms at 200,000 triangles**, and
+  almost all of it is writing and reading bytes. The actual transfer
+  through `TransferableTypedData` costs 0.9 ms: the buffer moves rather
+  than being copied. This confirms p0-07's decision on a working format —
+  a long operation can be moved into an isolate for a few percent overhead
+  of the operation itself.
+- Chunking gives the same order of magnitude: 32 chunks give a worst case
+  of 0.8 ms out of a 15.6 ms total. On the web, where there are no
+  isolates, this is the path (`ui-34d`).
 
 
-**0.3 / p0-05 — чем платить за шаг истории.** `packages/flutter3d_mesh/tool/
-bench_persistence.dart`, 200 тыс. вершин (позиции — 2344 КБ), правка 1 % за шаг,
-сид 1234. Полная копия для масштаба — 0,18–0,25 мс.
+**0.3 / p0-05 — what to pay for a history step.**
+`packages/flutter3d_mesh/tool/bench_persistence.dart`, 200,000 vertices
+(positions — 2344 KB), a 1% edit per step, seed 1234. A full copy, for
+scale, is 0.18–0.25 ms.
 
-| Структура | кластер: байт/шаг | кластер: время | вразброс: байт/шаг | вразброс: время |
+| Structure | clustered: bytes/step | clustered: time | scattered: bytes/step | scattered: time |
 |---|---|---|---|---|
-| чанки CoW, 256 | 24 КБ (1,0 %) | 0,17 мс | 2162 КБ (92,2 %) | 0,37 мс |
-| чанки CoW, 1024 | 28 КБ (1,2 %) | 0,07 мс | 2344 КБ (100 %) | 0,37 мс |
-| чанки CoW, 4096 | 48 КБ (2,0 %) | 0,09 мс | 2352 КБ (100,4 %) | 0,31 мс |
-| плоский массив + журнал прежних значений | 46,9 КБ (2,0 %) | 0,05 мс | 46,9 КБ (2,0 %) | 0,04 мс |
+| CoW chunks, 256 | 24 KB (1.0%) | 0.17 ms | 2162 KB (92.2%) | 0.37 ms |
+| CoW chunks, 1024 | 28 KB (1.2%) | 0.07 ms | 2344 KB (100%) | 0.37 ms |
+| CoW chunks, 4096 | 48 KB (2.0%) | 0.09 ms | 2352 KB (100.4%) | 0.31 ms |
+| flat array + a log of prior values | 46.9 KB (2.0%) | 0.05 ms | 46.9 KB (2.0%) | 0.04 ms |
 
-**Порог p0-05 чанкование не проходит, а журнал проходит.** Правило было
-записано так: «≤10 % копии и ≤2 мс в обоих распределениях → чанк фиксируется;
-только кластер → плоский массив + журнал». Чанки любого размера дают на
-рассеянной правке 92–100 % полной копии — тысяча случайных вершин задевает
-почти каждый чанк, и copy-on-write копирует весь меш. Журнал прежних значений
-стоит 2 % в обоих случаях и в полтора-девять раз меньше времени.
+**Chunking doesn't meet the p0-05 threshold, and a log does.** The rule was
+recorded as: "≤10% of a copy and ≤2 ms under both distributions → a chunk
+is chosen; clustered-only → a flat array + a log." Chunks of any size cost
+92–100% of a full copy under a scattered edit — a thousand random vertices
+touch nearly every chunk, and copy-on-write copies the whole mesh. A log of
+prior values costs 2% in both cases and takes 1.5 to 9 times less time.
 
-Что это меняет в плане:
+What this changes in the plan:
 
-- `mesh-10` пишет **не** `PersistentFloat32Vector` с чанками, а плоские
-  `Float32List` плюс журнал `(индексы, прежние значения)` на шаг. Чанки
-  остаются в тексте плана как отвергнутый вариант с этим замером в качестве
-  причины.
-- Приёмка `doc-31d` («нетронутые чанки `identical` после открытия файла»)
-  переписывается: у журнала нет версий-значений, старое состояние существует
-  только через откат. В файле проекта история — это те же записи журнала, а не
-  ссылки на общие блобы.
-- `mesh-30` (передача в изолят) упрощается: передавать надо один массив и
-  журнал, а не граф разделяемых чанков.
+- `mesh-10` writes, **not** a `PersistentFloat32Vector` with chunks, but a
+  flat `Float32List` plus a `(indices, prior values)` log per step. Chunks
+  stay in the plan text as a rejected option, with this measurement as the
+  reason.
+- The `doc-31d` acceptance ("untouched chunks stay `identical` after
+  opening a file") gets rewritten: a log has no versioned values, the old
+  state exists only through rollback. In the project file, history is the
+  same log entries, not references to shared blobs.
+- `mesh-30` (transfer to an isolate) simplifies: one array plus a log needs
+  transferring, not a graph of shared chunks.
 
-**p0-10 — пикинг на CPU.** `packages/flutter3d_geometry/tool/bench_bvh.dart`,
-сферы соответствующего размера, 10 тыс. лучей из случайных точек в центр
-модели, сид 20260909.
+**p0-10 — picking on the CPU.**
+`packages/flutter3d_geometry/tool/bench_bvh.dart`, spheres of the given
+size, 10,000 rays from random points toward the model's center, seed
+20260909.
 
-| Треугольников | build | refit | луч через дерево | луч перебором | во сколько раз |
+| Triangles | build | refit | ray via tree | ray by brute force | how many times |
 |---|---|---|---|---|---|
-| 49 728 | 14,2 мс | 1,3 мс | 2,2 мкс | 1,19 мс | 534× |
-| 198 468 | 60,9 мс | 6,0 мс | 2,9 мкс | 4,70 мс | 1618× |
-| 998 000 | 320,3 мс | 27,3 мс | 3,8 мкс | 23,42 мс | 6193× |
+| 49,728 | 14.2 ms | 1.3 ms | 2.2 μs | 1.19 ms | 534× |
+| 198,468 | 60.9 ms | 6.0 ms | 2.9 μs | 4.70 ms | 1618× |
+| 998,000 | 320.3 ms | 27.3 ms | 3.8 μs | 23.42 ms | 6193× |
 
-**Порог пройден с огромным запасом: пикинг остаётся на CPU**, и ни id-проход
-граней, ни поиск по окрестности half-edge в фазе 2 не нужны. Луч — единицы
-микросекунд против порога в миллисекунду.
+**The threshold is met with enormous margin: picking stays on the CPU**,
+and neither a face id pass nor a half-edge neighborhood search is needed
+in phase 2. A ray is a few microseconds against a one-millisecond
+threshold.
 
-Два числа получены не с первой попытки, и это стоит записать: первая версия
-`TriangleBvh` сортировала диапазон каждого узла компаратором, который считал
-центроид заново, и строила дерево над миллионом треугольников **3,1 секунды**
-при пороге 100 мс; `refit` пересчитывал каждый узел по его треугольникам и
-стоил 43 мс на 200 тыс. при требовании `mesh-20` в 5 мс. Обе цифры — не
-свойство подхода, а свойство реализации: медиана берётся quickselect'ом по
-предвычисленным центроидам, ось выбирается по разбросу центроидов (три флоата
-на треугольник вместо девяти), бокс внутреннего узла — объединение боксов
-детей, а `refit` идёт снизу вверх. После этого build 200 тыс. — 61 мс, refit —
-6 мс.
+Two numbers weren't right on the first attempt, and it's worth recording
+this: the first version of `TriangleBvh` sorted each node's range with a
+comparator that recomputed the centroid every time, and built a tree over a
+million triangles in **3.1 seconds** against a 100 ms threshold; `refit`
+recomputed every node from its triangles and cost 43 ms at 200,000 against
+`mesh-20`'s 5 ms requirement. Neither number is a property of the
+approach, but of the implementation: the median is taken by quickselect
+over precomputed centroids, the split axis is chosen from the centroids'
+own spread (three floats per triangle instead of nine), an internal node's
+box is the union of its children's boxes, and `refit` runs bottom-up.
+After this, a build at 200,000 is 61 ms, refit is 6 ms.
 
-**p0-07 — где считать долгую операцию.** `packages/flutter3d_mesh/tool/
-bench_isolate.dart`, решётка 316×316 (99 856 квадов, 199 712 треугольников),
-построение плюс `toMeshData`.
+**p0-07 — where to run a long operation.**
+`packages/flutter3d_mesh/tool/bench_isolate.dart`, a 316×316 grid (99,856
+quads, 199,712 triangles), building plus `toMeshData`.
 
-| Способ | время | накладные |
+| Approach | time | overhead |
 |---|---|---|
-| на вызывающем изоляте | 81,6 мс | — |
-| через `Isolate.run` | 78,3 мс | в пределах шума |
-| `Isolate.run` + `TransferableTypedData` | 78,8 мс | в пределах шума |
-| порциями по 8, с уступкой | 68,1 мс | худшая порция 12,0 мс |
-| порциями по 32, с уступкой | 64,4 мс | худшая порция 2,1 мс |
+| on the calling isolate | 81.6 ms | — |
+| via `Isolate.run` | 78.3 ms | within noise |
+| `Isolate.run` + `TransferableTypedData` | 78.8 ms | within noise |
+| chunked, 8 chunks, yielding | 68.1 ms | worst chunk 12.0 ms |
+| chunked, 32 chunks, yielding | 64.4 ms | worst chunk 2.1 ms |
 
-**Проходят оба порога, и это редкий случай, когда выбирать не приходится.**
-Изолят на native стоит меньше погрешности измерения (порог был «≤20 % или ≤50
-мс»), а нарезка на 32 порции даёт худший кусок в 2 мс при пороге 50. Значит:
-операции пишутся пошаговыми с первого дня — это то, что нужно вебу, где
-изолятов нет, — а на native та же работа при желании уходит в `Isolate.run`
-почти бесплатно. `ui-34d` (web worker) остаётся условным пунктом и включается
-только если веб-замер покажет заморозку дольше секунды.
+**Both thresholds are met, and this is the rare case where there's no need
+to choose.** An isolate on native costs less than measurement noise (the
+threshold was "≤20% or ≤50 ms"), and slicing into 32 chunks gives a worst
+chunk of 2 ms against a 50 ms threshold. So: operations are written
+step-based from day one — what the web needs, since it has no isolates —
+and on native, the same work, when desired, moves into `Isolate.run`
+almost for free.
 
-**p0-06 и p0-11 — весь путь правки, каждый кадр.** Стенд — то же приложение,
-`--dart-define=churn=true`: 1 % вершин сдвигается, `MeshData` пересобирается,
-`DeviceMesh.upload` заливает её, кадр рисуется. 600 кадров, первые десять
-отброшены.
+**A web measurement, finally taken rather than deferred.** Real headless
+Chrome (`--headless=new`), not an assumption:
 
-| Сцена | правка | пересборка | загрузка | кадр средн. | кадр худш. | кадров >16,6 мс |
+| Operation | Approach | time |
+|---|---|---|
+| export 200k (the same 316×316 grid) | `dart compile js` | 353.5 ms |
+| export 200k (the same 316×316 grid) | `dart compile wasm` | 427.4 ms |
+| import 30 MB (a real `.glb`, 625,681 vertices, 1,248,200 triangles, built by `GltfWriter`, checked by its own round trip) | `dart compile js`, `GltfLoader().load()` via `fetch` | ≈10 ms |
+
+Both reference operations sit two orders of magnitude below `ui-34d`'s own
+one-second threshold. `ui-34d` (a web worker) doesn't get built: the
+"p0-07/p0-08 show a freeze longer than 1 s" condition didn't fire for
+either operation.
+
+**p0-06 and p0-11 — the whole edit path, every frame.** The rig — the same
+app, `--dart-define=churn=true`: 1% of the vertices move, `MeshData` is
+rebuilt, `DeviceMesh.upload` uploads it, the frame draws. 600 frames, the
+first ten dropped.
+
+| Scene | edit | rebuild | upload | avg frame | worst frame | frames >16.6 ms |
 |---|---|---|---|---|---|---|
-| 200 тыс. треугольников | 0,05 мс | 0,52 мс | 1,24 мс | 8,33 мс | 8,33 мс | 0 из 587 |
-| 1 млн треугольников | 0,19 мс | 2,35 мс | 5,39 мс | 9,33 мс | 25,00 мс | 68 из 587 |
+| 200k triangles | 0.05 ms | 0.52 ms | 1.24 ms | 8.33 ms | 8.33 ms | 0 of 587 |
+| 1M triangles | 0.19 ms | 2.35 ms | 5.39 ms | 9.33 ms | 25.00 ms | 68 of 587 |
 
-- **p0-06: `DeviceMesh.upload` в кадр проходит, значит `overwriteGeometry`
-  уходит в фазу 4.** Порог был «≤16,6 мс → overwrite в фазу 4»: 1,24 мс на 200
-  тыс. и 5,39 мс на миллионе. `view-14` (частичная перезапись буфера, правка
-  четырёх бэкендов и конформанс-проверка) **не входит в фазу 1** — это
-  сэкономленный M-пункт и одна правка движка из сорока шести.
-- **p0-11 на 200 тыс. — первый исход порога**: ни одной паузы, ноль медленных
-  кадров, весь конвейер 1,8 мс. API остаётся на значениях, снимок на команду,
-  без изменяемого рабочего режима.
-- **На миллионе — второй исход**: 12 % кадров опаздывают, худший 25 мс. Для
-  таких мешей нужен `toMeshData(into:)` из `mesh-14` (переиспользовать буфер
-  вместо пересборки) и снимок на транзакцию, а не на команду. Это уже
-  записанный пункт фазы 1, и теперь у него есть число, при котором он
-  срабатывает.
+- **p0-06: `DeviceMesh.upload` fits inside a frame, so
+  `overwriteGeometry` moves to phase 4.** The threshold was "≤16.6 ms →
+  overwrite moves to phase 4": 1.24 ms at 200k and 5.39 ms at a million.
+  `view-14` (partial buffer rewrite, a four-backend change plus a
+  conformance check) **doesn't enter phase 1** — a saved M-sized item and
+  one fewer engine change out of forty-six.
+- **p0-11 at 200k is the first outcome for the threshold**: no pauses at
+  all, zero slow frames, the whole pipeline is 1.8 ms. The API stays
+  value-based, a snapshot per command, with no mutable working mode.
+- **At a million, the second outcome**: 12% of frames run late, the worst
+  at 25 ms. Meshes this size need `toMeshData(into:)` from `mesh-14`
+  (reusing a buffer instead of rebuilding it) and a snapshot per
+  transaction rather than per command. This is already a recorded phase-1
+  item, and now it has the number that triggers it.
 
-**anim-31 — поза персонажа.** `packages/flutter3d/test/skeleton_posing_test.dart`:
-`Skeleton.update` на 64 костях с новой позой каждый раз — **17,5 мкс на позу**
-(273 нс на кость). Сто персонажей в кадре — 1,75 мс, то есть FK не то, обо что
-упрётся фаза 3.
+**anim-31 — a character pose.**
+`packages/flutter3d/test/skeleton_posing_test.dart`: `Skeleton.update`
+across 64 bones with a new pose each time — **17.5 μs per pose** (273 ns
+per bone). A hundred characters in a frame — 1.75 ms, meaning FK isn't
+phase 3's bottleneck.
 
-Число снято тестом, а не AOT-бенчем, и это часть ответа: `Skeleton` тянет
-`SceneNode` → `Scene` → `flutter3d_hardware` → Flutter SDK, поэтому
-`dart compile exe` до него не доходит. С таблицей §14 `ARCHITECTURE.md` оно
-поэтому несравнимо; чтобы стало сравнимо, позирование должно перестать ходить
-по графу сцены — это `anim-02`, не этот замер.
+The number was taken by a test, not an AOT bench, and that's part of the
+answer: `Skeleton` pulls in `SceneNode` → `Scene` →
+`flutter3d_hardware` → the Flutter SDK, so `dart compile exe` never reaches
+it. It's therefore not comparable to `ARCHITECTURE.md` §14's own table; to
+become comparable, posing would have to stop walking the scene graph —
+that's `anim-02`, not this measurement.
 
-**p0-13n — что сандбокс macOS разрешает писать.** Приложение с включённым
-сандбоксом (`com.apple.security.app-sandbox`, как его создаёт `flutter create`),
-release-сборка, `--dart-define=sandbox=true`; зонд —
+**p0-13n — what the macOS sandbox permits writing.** An app with the
+sandbox on (`com.apple.security.app-sandbox`, as `flutter create` sets it
+up), a release build, `--dart-define=sandbox=true`; the probe —
 `apps/flutter3d_modeler/lib/src/files/sandbox_probe.dart`.
 
-| Куда | прямая запись | временный файл + rename |
+| Where | direct write | temp file + rename |
 |---|---|---|
-| контейнер (`getApplicationSupportDirectory`) | да | да |
-| «домашний каталог» | да — потому что `HOME` подменён | — |
+| the container (`getApplicationSupportDirectory`) | yes | yes |
+| "the home directory" | yes — because `HOME` is redirected | — |
 
-`HOME` внутри сандбокса — это
-`~/Library/Containers/dev.flutter3d.modeler/Data`, то есть сандбокс
-действительно включён, а «домашний каталог» процесса и есть его контейнер.
+`HOME` inside the sandbox is
+`~/Library/Containers/dev.flutter3d.modeler/Data`, meaning the sandbox is
+genuinely on, and the process's own "home directory" is its own container.
 
-Отсюда два вывода:
+Two conclusions follow:
 
-- **Автосохранение (`ui-18`) и восстановление после сбоя работают без
-  оговорок**: в контейнере разрешено и писать напрямую, и делать атомарную
-  запись через переименование. Это то место, где нельзя терять работу, и оно
-  доступно полностью.
-- **Файл, выбранный человеком, зондом не проверяется**: доступ выдаётся вместе
-  с панелью, и открыть её без человека нельзя (попытка нажать Return скриптом
-  на спящем экране ничего не дала). Оставшийся шаг — ручной, в одну минуту:
-  собрать `flutter run -d macos --release --dart-define=sandbox=true
-  --dart-define=sandboxPick=true`, выбрать имя в панели и прочитать строку —
-  приложение печатает и то, записался ли файл, и то, прошло ли бы рядом
-  `временный файл + rename`. По документации Apple второе не проходит:
-  `user-selected.read-write` выдаёт доступ к выбранному файлу, а не к его
-  каталогу — поэтому `saveAs` в `project_files_io.dart` пишет прямо в
-  выбранный путь и объясняет в комментарии, почему не через временный файл.
-  Строку с результатом надо дописать сюда после ручного прогона.
+- **Autosave (`ui-18`) and crash recovery work with no caveats**: inside the
+  container, both a direct write and an atomic rename-based write are
+  permitted. This is the place where losing work isn't acceptable, and it's
+  fully available.
+- **A file chosen by a human isn't checked by the probe**: access is
+  granted alongside the panel, and there's no way to open it without a
+  human (a scripted Return keypress on a sleeping screen did nothing). The
+  remaining step is manual, a minute long: build `flutter run -d macos
+  --release --dart-define=sandbox=true --dart-define=sandboxPick=true`,
+  choose a name in the panel, and read the line — the app prints both
+  whether the file was written and whether a `temp file + rename` would
+  have worked alongside it. Per Apple's own documentation the second one
+  doesn't pass: `user-selected.read-write` grants access to the chosen
+  file, not to its directory — which is why `saveAs` in
+  `project_files_io.dart` writes directly to the chosen path and explains
+  in a comment why it isn't done via a temp file. The result line needs to
+  be added here after the manual run.
 
-**pro-sc-01 — мазок на 1,2 млн треугольников.**
-`packages/flutter3d_cpu/test/sculpt_budget_benchmark_test.dart`, тот же класс
-машины, что у замеров выше (MacBook Pro, Apple M3 Pro, macOS 27.0), но
-`flutter test` (JIT), а не `dart compile exe`: `DeviceMesh`/`GraphicsDevice`
-называют Flutter SDK, а значит AOT для них недостижим — та же граница, что и
-у `pro-rn-01`'s собственного бенча. Дата: 2026-09-13. Сетка 775×775 (1 201 250
-треугольников, 602 176 вершин, все грани помечены гладкими) — тот же
-генератор, что у `tool/bench.dart`'s `grid`, но с одним исправлением: без
-`FaceFlags.smooth` `EditMesh` не мержит углы в общие GPU-вершины, и вершинный
-буфер получается вчетверо больше (153,76 МБ вместо 38,54 МБ) — первая цифра,
-которую этот бенч напечатал до исправления, оставлена в его собственном
-доккомменте как объяснение, а не как число. Каждое число ниже — по пяти
-прогонам подряд, без отбрасывания худшего: разброс на этой общей машине через
-JIT оказался заметным (см. ниже), и отбрасывать его значило бы решать за
-читателя, что было выбросом.
+**pro-sc-01 — a stroke at 1.2 million triangles.**
+`packages/flutter3d/test/sculpt_budget_benchmark_test.dart`, the same class
+of machine as the measurements above (a MacBook Pro, Apple M3 Pro, macOS
+27.0), but `flutter test` (JIT), not `dart compile exe`:
+`DeviceMesh`/`GraphicsDevice` name the Flutter SDK, so AOT is unreachable
+for them — the same boundary `pro-rn-01`'s own bench has. Date: 2026-09-13.
+A 775×775 grid (1,201,250 triangles, 602,176 vertices, every face marked
+smooth) — the same generator as `tool/bench.dart`'s `grid`, with one fix:
+without `FaceFlags.smooth`, `EditMesh` doesn't merge corners into shared
+GPU vertices, and the vertex buffer comes out four times larger
+(153.76 MB instead of 38.54 MB) — the first number this bench printed
+before the fix is left in its own doc comment as an explanation, not as a
+measurement. Every number below is across five runs in a row, with no
+worst-run dropped: the spread on this shared machine under JIT turned out
+to be noticeable (see below), and dropping it would have meant deciding for
+the reader what counted as an outlier.
 
-Один раз, открытие и подготовка (строка плана про «3 с»):
+Once, opening and preparation (the plan line about "3 s"):
 
-| Что | Время по пяти прогонам |
+| What | Time across five runs |
 |---|---|
-| `EditMesh.fromFaces` (775×775, гладкая) | 1,7–2,9 с |
-| `MeshLayoutPlan.build` (мердж углов, резка граней, нормали) | 0,8–1,3 с |
-| `fillVertices` (все строки) | 30–90 мс |
-| `withGeneratedTangents` (разово, не часть мазка) | 0,25–0,43 с |
-| `DeviceMesh.upload`, CPU-бэкенд как прокси байтовой копии | 16–33 мс |
-| `TriangleBvh.fromMesh` | 0,68–1,08 с |
-| **итого** | **3,3–5,7 с — порог 3 с не пройден ни на одном из пяти прогонов** |
+| `EditMesh.fromFaces` (775×775, smooth) | 1.7–2.9 s |
+| `MeshLayoutPlan.build` (corner merge, face splitting, normals) | 0.8–1.3 s |
+| `fillVertices` (every row) | 30–90 ms |
+| `withGeneratedTangents` (once, not part of a stroke) | 0.25–0.43 s |
+| `DeviceMesh.upload`, the CPU backend as a byte-copy proxy | 16–33 ms |
+| `TriangleBvh.fromMesh` | 0.68–1.08 s |
+| **total** | **3.3–5.7 s — the 3 s threshold is not met on any of the five runs** |
 
-Вершинный буфер — 38 539 264 байта (38,54 МБ), с точностью до процента
-совпадает со строкой плана «38 МБ».
+The vertex buffer is 38,539,264 bytes (38.54 MB), matching the plan's
+"38 MB" line to within a percent.
 
-На мазок, повторяется (строка плана про «8/16 мс»), в среднем по трём
-засечённым итерациям после одной неучтённой, новый случайный центр каждый
-раз, круг радиусом 0,1028 в системе координат сетки — ~19 948 вершин:
+Per stroke, repeated (the plan line about "8/16 ms"), averaged across three
+timed iterations after one untimed one, a new random center each time, a
+circle of radius 0.1028 in the grid's own coordinate system — ~19,948
+vertices:
 
-| Что | Время по пяти прогонам |
+| What | Time across five runs |
 |---|---|
-| отбор ~20k вершин в круге (линейный проход по 602k) | 27–121 мс |
-| `moveVertex` × отобранные, в журнале | 6–17 мс |
-| `MeshNormals.build` (весь меш — частичного пути нет) | 255–824 мс |
-| `fillVerticesOf` (только затронутые строки) | 1,8–5,3 мс |
-| `DeviceMesh.overwriteVertices`, CPU-бэкенд | 1,9–35 мс |
-| один `TriangleBvh.raycast` | 41 мкс — 1,7 мс |
-| **мазок целиком** | **294–1005 мс — пороги 8 и 16 мс не пройдены ни на одном из пяти прогонов, с разрывом в 20–60 раз** |
+| selecting ~20k vertices inside the circle (a linear pass over 602k) | 27–121 ms |
+| `moveVertex` × the selected vertices, into the log | 6–17 ms |
+| `MeshNormals.build` (the whole mesh — there is no partial path) | 255–824 ms |
+| `fillVerticesOf` (only the affected rows) | 1.8–5.3 ms |
+| `DeviceMesh.overwriteVertices`, the CPU backend | 1.9–35 ms |
+| one `TriangleBvh.raycast` | 41 μs — 1.7 ms |
+| **the whole stroke** | **294–1005 ms — the 8 and 16 ms thresholds are not met on any of the five runs, missed by 20–60×** |
 
-Разброс между прогонами (местами больше чем в 2 раза) — не шум измерения
-дробных микросекунд, а нагрузка общей песочницы: `flutter test` через JIT на
-незанятой под замер машине, а не выделенный `dart compile exe`-прогон, каким
-снят весь остальной §6. Направление вывода — оба порога не пройдены — не
-меняется ни на одном из пяти прогонов.
+**Re-measured 2026-09-17, with the partial normal path this table said did
+not exist.** `MeshNormals.rebuildAround` now rebuilds the fans at the moved
+vertices and at the ring of faces around them, and the benchmark calls it
+where it used to call `build`. Both numbers below were taken back to back in
+one sitting on the same machine, the only difference being which of the two
+the stroke calls:
 
-Что из этого следует:
+| | normals | the whole stroke |
+|---|---|---|
+| `MeshNormals.build`, the whole mesh | 156.70 ms | 178.81 ms |
+| `MeshNormals.rebuildAround`, the ring | 17.4–18.6 ms | 38.2–41.1 ms |
 
-- **Порог «3 с» не пройден.** Основной вклад — `MeshLayoutPlan.build` и
-  `TriangleBvh.fromMesh`, оба линейны по треугольникам и уже сами по себе
-  занимают заметную долю секунды на 1,2 млн.
-- **Порог «8/16 мс» не пройден с разрывом на полтора-два порядка, и причина —
-  не отбор, не overwrite и не raycast, а `MeshNormals.build`.** Это
-  единственный путь пересчёта нормалей, который существует сегодня, и он
-  всегда проходит по всему мешу: 255–824 мс на мазок, тронувший 20 тысяч
-  вершин из 602 тысяч. Вывод `mesh-31` («нормали пересчитываются на каждом
-  кадре, пока кто-то тащит вершину») верен на 200 тыс. и перестаёт быть
-  дешёвым на 1,2 млн именно потому, что частичного пересчёта нормалей нет.
-- **`overwriteVertices` перезаписывает не то, что тронуто, а полосу вокруг
-  этого.** ~20 тысяч тронутых вершин лежат в GPU-строках, чей минимальный и
-  максимальный номер вместе покрывают ~123 тысячи строк (7,9 МБ) — потому что
-  при плоском, нечанкованном расположении вершин круглый мазок задевает целые
-  полосы решётки, а не компактный диапазон. Это именно то, что чанки
-  `SculptMesh` (`pro-sc-02`) должны исправить.
-- **Мусор на мазок — разбор по коду, не снятое трассировкой число.**
-  `MeshNormals` и `MeshLayoutPlan` держат свои буферы между вызовами и не
-  перевыделяют их, пока меш не растёт (`_resize` только увеличивает буфер);
-  отбор вершин пишет в заранее выделенный `Int32List`, а не в новый список на
-  каждый мазок; и третий мазок не дороже первого (например, 309,97 мс против
-  298,98 мс в одном из прогонов) — если бы каждый мазок заново выделял память
-  под нормали или под список отобранных вершин, третий обычно не был бы
-  дешевле первого. У Dart нет портируемого счётчика аллокаций без
-  `--observe` + DevTools, которые в этой песочнице поднять негде, поэтому
-  это разбор по исходнику и косвенная проверка, а не отдельно снятое число.
-  Вывод из него: сегодняшняя цена мазка на 1,2 млн — это время (весь меш
-  пересчитывается целиком), а не мусор (буферы уже переиспользуются).
-- **Chrome и Galaxy A55 не сняты.** У этой песочницы есть только macOS;
-  браузерный замер нуждается в `packages/flutter3d_webgl/tool/profile_web.py`
-  и во вкладке на переднем плане (та же причина, по которой собственный
-  браузерный замер `p0-02` остаётся отдельным заходом), а A55 нуждается в
-  устройстве в руках, как и `p0-03`.
-- **Какой порог к чему относится, раз строка плана не говорит прямо.**
-  Открытие и построение BVH — разовая стоимость при загрузке модели, и это то,
-  что мерится тем же «3 с», каким `p0-02` мерил загрузку отдельно от кадра;
-  отбор, правка, нормали, overwrite и один raycast повторяются на каждое
-  движение мыши во время мазка, и это то, что должно укладываться в «8/16 мс»
-  кадра — по аналогии с собственным различием `p0-02` между кадром 120 Гц
-  (8,33 мс) и 60 Гц (16,6 мс). «Кадр» из строки плана не переснят здесь:
-  `p0-02` уже снял реальный Metal/Impeller кадр с мешем в миллион
-  треугольников в одном draw call на этой же машине (8,33 мс средних, 0 кадров
-  из 587 дольше 16,6 мс) — 1,2 миллиона не меняет этот вывод, раз `p0-02` уже
-  показал, что кадр упирается в число draw call'ов, а не в число
-  треугольников.
-- **Upload и overwrite сняты через `CpuDevice`, не через Impeller.**
-  `CpuDevice.uploadGeometry`/`overwriteGeometry` делают ровно ту половину
-  работы реального бэкенда, что двигает байты (`Uint8List.fromList`,
-  `Uint8List.setAll`), и ничего дальше — ни вызова драйвера, ни командного
-  буфера, ни GPU. Числа выше — прокси стоимости копирования памяти, а не
-  повтор `p0-06`'s собственного замера на реальном Impeller (1,24 мс на
-  200 тыс. треугольников, 5,39 мс на 1 млн) — тому замеру и стоит доверять
-  для GPU-стороны.
-- **Решение по `pro-sc-09`:** веб (Chrome, wasm/JS) не снят напрямую, но раз
-  даже нативный macOS-путь не укладывается в 8/16 мс на мазке, тронувшем 20
-  тысяч вершин из 1,2 млн, а Dart на вебе не быстрее нативного, лимит
-  плотности мазка для веба (`pro-sc-09`) должен исходить из размера меша, на
-  котором этот же путь укладывается в бюджет — то есть заметно меньше 1,2
-  млн, пока `pro-sc-02` не заменит полный пересчёт нормалей чанкованным и
-  локальным.
+Eight times on the normals, four on the stroke — and the stroke still misses
+16 ms. The picture that number paints has changed, though, and it is the part
+worth carrying forward: **normals are no longer *the* bottleneck, they are
+one of two of roughly equal size.** Selecting the touched vertices is a
+brute-force scan over all 602,176 of them (15.1 ms) and is now as expensive
+as the normals it feeds; the ring rebuild is 17.4 ms because a brush this
+wide touches tens of thousands of vertices and `rebuildAround` gathers them
+into hash sets. The first wants the spatial chunking `pro-sc-02` describes —
+which is what this row already concluded, for a different reason — and the
+second wants an index rather than a set.
 
-### Фаза 1 — первая версия
+Setup is unchanged at 1.87 s and now **passes** its own 3 s threshold, which
+the first run did not: nothing about it was touched, so the difference is
+this machine under a lighter load than the day the 3.3–5.7 s spread was
+taken. That is the honest reading of a spread that wide, and the reason the
+paired measurement above was taken in one sitting rather than compared
+across dates.
 
-| # | Что | Пакет | Размер | Зависит от |
+Chrome, the same day, the same way: a stroke went from 7.58–7.71 s to
+**396.87 ms**, nineteen times, and setup stayed at 24.87 s. Both still miss.
+
+The spread between runs (in places more than 2×) isn't measurement noise at
+the fractional-microsecond level — it's the load of a shared sandbox:
+`flutter test` under JIT on a machine not dedicated to measurement, not a
+`dart compile exe` run the way the rest of §6 was taken. The conclusion's
+direction — both thresholds missed — doesn't change on any of the five
+runs.
+
+What follows from this:
+
+- **The "3 s" threshold is not met.** The main contributors are
+  `MeshLayoutPlan.build` and `TriangleBvh.fromMesh`, both linear in
+  triangle count and already, on their own, taking a noticeable fraction of
+  a second at 1.2 million.
+  
+- **The "8/16 ms" threshold is missed by one and a half to two orders of
+  magnitude, and the cause is neither selection, nor overwrite, nor
+  raycast, but `MeshNormals.build`.** This is the only normal-recompute
+  path that exists today, and it always walks the whole mesh: 255–824 ms
+  for a stroke touching 20,000 out of 602,000 vertices. `mesh-31`'s own
+  conclusion ("normals are recomputed on every frame while someone drags a
+  vertex") holds at 200,000 and stops being cheap at 1.2 million precisely
+  because there is no partial normal recompute. **Superseded 2026-09-17**:
+  there is one now, the stroke is four times cheaper, and the threshold is
+  still missed — see the paired table above. The sentence is kept rather
+  than rewritten because it is what the row concluded on the evidence it
+  had, and the partial path was built because of it.
+- **`overwriteVertices` rewrites not what was touched, but a band around
+  it.** The ~20,000 touched vertices sit in GPU rows whose minimum and
+  maximum numbers together span ~123,000 rows (7.9 MB) — because, with a
+  flat, unchunked vertex layout, a circular stroke touches whole grid
+  bands, not a compact range. This is exactly what `SculptMesh` chunking
+  (`pro-sc-02`) is meant to fix.
+- **Garbage per stroke is a code-reading conclusion, not a traced
+  number.** `MeshNormals` and `MeshLayoutPlan` keep their buffers between
+  calls and don't reallocate them unless the mesh grows (`_resize` only
+  ever grows a buffer); vertex selection writes into a pre-allocated
+  `Int32List`, not a fresh list every stroke; and a third stroke isn't more
+  expensive than the first (e.g. 309.97 ms versus 298.98 ms in one run) —
+  if every stroke reallocated memory for normals or for the selected-vertex
+  list, a third stroke usually wouldn't come out cheaper than the first.
+  Dart has no portable allocation counter without `--observe` + DevTools,
+  which there's nowhere to bring up in this sandbox, so this is a
+  source-reading conclusion and an indirect check, not a separately taken
+  number. What follows from it: today's cost of a stroke at 1.2 million is
+  time (the whole mesh is recomputed), not garbage (buffers are already
+  reused).
+- **Chrome was measured the same day, with the same `flutter test`.** The
+  reason a browser supposedly needs `profile_web.py` and a foregrounded tab
+  — true for `p0-02`'s own `requestAnimationFrame`-based measurement —
+  doesn't apply here: this test never asks for a frame, so `flutter test
+  --platform chrome` runs it entirely headless, like any other platform.
+  Three runs on this same machine: opening+BVH — 24.2–24.4 s (the 3 s
+  threshold not met), a full stroke — 7.58–7.71 s (the 8/16 ms thresholds
+  not met). Chrome is roughly 4–5× slower than the native run on the same
+  arithmetic — the cost of JS/wasm with no SIMD path, not something
+  specific to sculpting. **The Galaxy A55 still hasn't been measured** —
+  needs a phone in hand, same as `p0-03`.
+- **Which threshold applies to what, since the plan's own line doesn't say
+  directly.** Opening and building the BVH are a one-time cost at model
+  load, and that's what the same "3 s" measures, the way `p0-02` measured
+  loading separately from a frame; selection, editing, normals, overwrite,
+  and one raycast repeat on every mouse move during a stroke, and that's
+  what should fit inside the "8/16 ms" frame budget — by analogy with
+  `p0-02`'s own distinction between a 120 Hz frame (8.33 ms) and a 60 Hz
+  one (16.6 ms). The "frame" from the plan's line isn't re-measured here:
+  `p0-02` already measured a real Metal/Impeller frame with a
+  million-triangle mesh in one draw call on this same machine (8.33 ms
+  average, 0 of 587 frames over 16.6 ms) — 1.2 million doesn't change that
+  conclusion, since `p0-02` already showed a frame bottlenecks on draw-call
+  count, not triangle count.
+- **Upload and overwrite were measured through `CpuDevice`, not
+  Impeller.** `CpuDevice.uploadGeometry`/`overwriteGeometry` do exactly the
+  half of a real backend's work that moves bytes (`Uint8List.fromList`,
+  `Uint8List.setAll`) and nothing further — no driver call, no command
+  buffer, no GPU. The numbers above are a proxy for memory-copy cost, not a
+  repeat of `p0-06`'s own measurement on real Impeller (1.24 ms at 200,000
+  triangles, 5.39 ms at 1 million) — that measurement is the one to trust
+  for the GPU side.
+- **A `pro-sc-09` decision:** the web (Chrome, wasm/JS) wasn't measured
+  directly, but since even the native macOS path misses 8/16 ms on a
+  stroke touching 20,000 of 1.2 million vertices, and Dart on the web isn't
+  faster than native, the web's stroke-density limit (`pro-sc-09`) should
+  be based on whatever mesh size lets this same path fit its budget —
+  meaning noticeably smaller than 1.2 million, until `pro-sc-02` replaces
+  the full normal recompute with a chunked, local one. **Still the
+  decision after the 2026-09-17 re-measurement, with the reasoning
+  narrowed**: a stroke on macOS is 38 ms against 16, which is a factor of
+  2.4 rather than 20–60, so the size that fits is much closer to 1.2
+  million than the first run suggested — and the two costs that remain
+  scale differently, one with the mesh (the selection scan) and one with
+  the brush (the ring). A limit chosen on the old numbers would be far too
+  small; one chosen on these should be measured at the size, not
+  extrapolated from this one.
+
+### Phase 1 — the first version
+
+| # | What | Package | Size | Depends on |
 |---|---|---|---|---|
-| 1.1 | Спроектировать два ненарисованных экрана: импорт с проверкой, экспорт с проверками | дизайн | S | — |
-| 1.2 | `EditMesh` полностью: структура, `from/toMeshData`, персистентность, атрибуты углов | mesh | L | 0.2, 0.3 |
-| 1.3 | Выделение: вершины/рёбра/грани, петля, кольцо, рост; BVH для пикинга на CPU | mesh | M | 1.2 |
-| 1.4 | Операции фазы 1 (таблица §5.2) с тестами на каждую | mesh | L | 1.2 |
-| 1.5 | Проверки: n-гоны, манифолдность, нормали | mesh | S | 1.2 |
-| 1.6 | Параметрические объекты: примитивы, тело вращения на `LatheShape` | mesh | S | 1.2 |
-| 1.7 | `ModelProject`, команды, история, транзакции, сериализация проекта | model_core | L | 1.2 |
-| 1.8 | `ExportReadiness` и `ProjectProfile` | model_core | S | 1.7 |
-| 1.9 | `GltfWriter`, `ObjWriter`, `StlLoader` c round-trip тестами | formats | M | шаг 1 §8 (doc-01) |
-| 1.10 | Оверлеи вершин/рёбер, эталонный кадр | flutter3d | S | — |
-| 1.11 | Оболочка: тема, каркас, три раскладки, режимы «Объект» и «Меш» | app | L | 1.7 |
-| 1.12 | Вьюпорт: орбита, пикинг объектов и подэлементов, манипулятор XYZ | app | M | 1.3, 1.10 |
-| 1.12а | Базовые операции целиком: модальная трансформация с ограничением по оси, вводом числа и привязкой (view-23n), рамка выделения и команды выделения (view-24n, doc-32n), точка опоры и пространство (doc-33n), рукоятки гизмо через тот же путь (view-25n) | app + core | M | 1.12 |
-| 1.13 | Карточка последней операции с переприменением | app | S | 1.7, 1.11 |
-| 1.14 | Модальный экран тела вращения с редактором профиля | app | M | 1.6 |
-| 1.15 | Импорт и экспорт с диалогами проверок; диск на десктопе и вебе | app | M | 1.1, 1.8, 1.9 |
-| 1.16 | Автосохранение и восстановление | app | S | 1.7 |
-| 1.17 | MCP-сервер: команды таблицей инструментов, сценарий «агент строит стол» в CI | model_mcp | M | 1.7 |
-| 1.18 | Тесты приложения через `flutter3d_cpu` (пикинг, перетаскивание, кадр) и синхронизация чисел в README/сайте | app | M | всё |
+| 1.1 | Design the two undrawn screens: import with checks, export with checks | design | S | — |
+| 1.2 | `EditMesh` in full: the structure, `from/toMeshData`, persistence, corner attributes | mesh | L | 0.2, 0.3 |
+| 1.3 | Selection: vertices/edges/faces, loop, ring, grow; a BVH for CPU picking | mesh | M | 1.2 |
+| 1.4 | Phase-1 operations (§5.2's table) with a test for each | mesh | L | 1.2 |
+| 1.5 | Checks: n-gons, manifoldness, normals | mesh | S | 1.2 |
+| 1.6 | Parametric objects: primitives, a lathe over `LatheShape` | mesh | S | 1.2 |
+| 1.7 | `ModelProject`, commands, history, transactions, project serialization | model_core | L | 1.2 |
+| 1.8 | `ExportReadiness` and `ProjectProfile` | model_core | S | 1.7 |
+| 1.9 | `GltfWriter`, `ObjWriter`, `StlLoader` with round-trip tests | formats | M | step 1, §8 (doc-01) |
+| 1.10 | Vertex/edge overlays, a golden frame | flutter3d | S | — |
+| 1.11 | The shell: theme, framework, three layouts, "Object" and "Mesh" modes | app | L | 1.7 |
+| 1.12 | The viewport: orbiting, object and sub-element picking, an XYZ manipulator | app | M | 1.3, 1.10 |
+| 1.12a | Basic operations in full: a modal transform with axis constraint, numeric input, and snapping (view-23n), a selection box and selection commands (view-24n, doc-32n), a pivot point and space (doc-33n), gizmo handles through the same path (view-25n) | app + core | M | 1.12 |
+| 1.13 | The last-operation card with reapplication | app | S | 1.7, 1.11 |
+| 1.14 | A modal lathe screen with a profile editor | app | M | 1.6 |
+| 1.15 | Import and export with check dialogs; disk on desktop and web | app | M | 1.1, 1.8, 1.9 |
+| 1.16 | Autosave and recovery | app | S | 1.7 |
+| 1.17 | The MCP server: commands as a tool table, an "agent builds a table" scenario in CI | model_mcp | M | 1.7 |
+| 1.18 | App tests through `flutter3d_cpu` (picking, dragging, a frame) and syncing numbers into the README/site | app | M | everything |
 
-Критический путь: 1.2 → 1.4 → 1.7 → 1.11 → 1.15. Писатели форматов (1.9) и
-оверлеи (1.10) от него не зависят и могут идти с первого дня — это первые
-дорожки, которые отдаются агентам под готовые тесты (план §4.2–4.3);
-исполнитель один.
+The critical path: 1.2 → 1.4 → 1.7 → 1.11 → 1.15. Format writers (1.9) and
+overlays (1.10) don't depend on it and can start on day one — these are the
+first tracks handed to agents under pre-written tests (plan §4.2–4.3); one
+executor.
 
 ---
 
-## 7. Решения, которые нужны до старта
+## 7. Decisions needed before starting
 
-Столбец с рекомендацией заменён 2026-09-09 на решения владельца (Дмитрий);
-каждое окончательное и в план внесено как факт. Два вопроса плана дизайна —
-монетизация и сроки — здесь не повторяются: они не инженерные.
+The recommendation column was replaced 2026-09-09 with the owner's own
+decisions (Dmitrii); each is final and entered into the plan as fact. Two
+questions from the design plan — monetization and timelines — aren't
+repeated here: they aren't engineering questions.
 
-| Вопрос | Варианты | Решение 2026-09-09 |
+| Question | Options | Decision, 2026-09-09 |
 |---|---|---|
-| Где живёт код | этот монорепозиторий / отдельный | **здесь.** Пакеты входят в workspace, сканер структуры, CI и порядок публикации; цена — CI длиннее и правило «числа в документах совпадают с деревом» на ещё пять пакетов |
-| Граф нод | шейдерный / компоновщик текстур / нет | **компоновщик текстур с фиксированным набором нод** (§4.1); ROADMAP переформулируется на ревизии 28 сентября, в дизайне переименовать |
-| Отмена для мешей | снимки / обратные команды / персистентные значения | **персистентные значения со структурным разделением** (§4.3) |
-| Формат проекта | свой / glTF с расширениями | **свой `.f3dproj` с историей**, секционный по образцу `.f3d`: секция истории ссылается на чанки, уже лежащие в файле как блобы, лимит истории применяется к файлу, «сохранить без истории» — опция, журнал команд остаётся; приёмка — сохранить → открыть → отменить три шага; glTF — только выход |
-| Веб на старте | равный / просмотр | **равноправная платформа с первой версии.** Замеры 0.1 и 0.5 остаются воротами качества: если порог не пройден, фаза 1 включает то, что нужно для прохождения (JS-сборка как записанное исключение, порции вместо изолята, web worker при заморозке дольше секунды) |
-| Платформы фазы 1 | macOS / плюс веб / плюс мобильные | **все четыре: macOS, веб, Android (планшет и телефон), iOS (iPad и iPhone).** Раскладки, перо, тач и платформенные конфигурации — фаза 1; физический iPad и аккаунт Apple Developer — до середины фазы 1; подпись macOS — «правый клик → Open» |
-| Язык интерфейса | русский / плюс английский | **русский и английский с первой версии**; ядро, MCP и `says` — английский |
-| Булевы операции | свои / порт BSP | **порт BSP-подхода** в фазу 2, с честным предупреждением о копланарных гранях (без изменений) |
-| Что делать с «Рендером» экрана 12 | трассировщик / снимок программным растеризатором | **снимок тем же рендерером** с суперсэмплингом и проходами frame graph; трассировщик вне плана |
-| Режим «Сцена» | свет/окружение/тени/пост / плюс расстановка ассетов | **плюс расстановка нескольких ассетов** (фаза 2): импорт в существующий проект и экспорт сцены одним GLB |
-| Симуляции экрана 11 | расширять `flutter3d_physics` / отдельный солвер | **отдельный солвер `flutter3d_cloth`, фаза 4** |
-| Словарь движка | брать из `flutter3d` / один чистый пакет / два | **два пакета: `flutter3d_geometry` и `flutter3d_formats`** (§5.1) |
-| FBX | свой читатель / серверная конвертация | **свой читатель на Dart** — пакет `flutter3d_fbx` над `flutter3d_formats`, фаза 2 отдельной дорожкой после того, как фаза 1 в руках; серверной конвертации нет |
-| Экспорт при ошибке проверки | отказ / предупреждение | **предупредить и экспортировать с явным подтверждением**; отказ только при пустой геометрии |
-| Горячие клавиши | свои / Blender-подобные | **Blender-подобные** |
-| Иконки | Material Symbols (внешний пакет) / `Icons` из SDK | **`Icons` из SDK** с таблицей соответствия |
-| Скульптинг | динамическая топология / мультиразрешение | **мультиразрешение**; экран 08 получает кнопку «Подразбить» вместо «плотности» |
-| Неманифолдный вход | радиальная структура / расщепить при импорте | **расщепить при импорте** и показать как проблему |
-| Проверка экспорта во внешнем движке | ручной чек-лист / автотест | **headless Godot в CI** плюс ручной чек-лист Unity/Blender перед релизом |
-| Состав | один / двое / трое | **один человек с агентами**; календарь фазы 1 — сумма размеров пунктов (план §4.3) |
-| Первая публикация | 27 декабря / когда фаза 1 в руках | **когда фаза 1 в руках у первых пользователей**; 27 декабря целью не является |
-| Название | `flutter3d_modeler` / `flutter3d_studio` / … | `flutter3d_modeler`; на pub.dev не резервировать, перепроверить перед публикацией. Свободны на 2026-09-09: `flutter3d_geometry`, `flutter3d_formats`, `flutter3d_mesh`, `flutter3d_model_core`, `flutter3d_model_mcp`, `flutter3d_modeler`, `flutter3d_fbx`, `flutter3d_cloth`; bundle id приложения — `dev.flutter3d.modeler` |
+| Where the code lives | this monorepo / a separate one | **here.** The packages join the workspace, the structure scanner, CI, and the publishing order; the cost is a longer CI and the "document numbers match the tree" rule covering five more packages |
+| Node graph | shader-based / a texture compositor / none | **a texture compositor with a fixed node set** (§4.1); the ROADMAP gets reworded at the September 28 review, and the design gets renamed |
+| Undo for meshes | snapshots / inverse commands / persistent values | **persistent values with structural sharing** (§4.3) |
+| Project format | its own / glTF with extensions | **its own `.f3dproj` with history**, sectioned following `.f3d`'s pattern: the history section references chunks that already sit in the file as blobs, the history limit applies to the file, "save without history" is an option, the command journal stays; acceptance — save → open → undo three steps; glTF stays output-only |
+| Web at the start | equal footing / view-only | **an equal-footing platform from the first version.** Measurements 0.1 and 0.5 stay quality gates: if a threshold isn't met, phase 1 includes whatever's needed to meet it (a JS build as a recorded exception, chunks instead of an isolate, a web worker for a freeze longer than a second) |
+| Phase-1 platforms | macOS / plus web / plus mobile | **all four: macOS, web, Android (tablet and phone), iOS (iPad and iPhone).** Layouts, pen, touch, and platform configuration are phase 1; a physical iPad and an Apple Developer account by mid-phase-1; macOS signing via "right-click → Open" |
+| Interface language | Russian / plus English | **Russian and English from the first version**; the core, MCP, and `says` stay in English |
+| Boolean operations | homemade / a BSP port | **a BSP-approach port** in phase 2, with an honest warning about coplanar faces (unchanged) |
+| What to do with screen 12's "Render" | a path tracer / a snapshot via the software rasterizer | **a snapshot from the same renderer** with supersampling and frame-graph passes; a path tracer is out of scope |
+| "Scene" mode | light/environment/shadows/post / plus placing assets | **plus placing several assets** (phase 2): importing into an existing project and exporting a scene as one GLB |
+| Screen-11 simulations | extend `flutter3d_physics` / a separate solver | **a separate `flutter3d_cloth` solver, phase 4** |
+| The engine's vocabulary | take it from `flutter3d` / one pure package / two | **two packages: `flutter3d_geometry` and `flutter3d_formats`** (§5.1) |
+| FBX | its own reader / server-side conversion | **its own reader in Dart** — a `flutter3d_fbx` package over `flutter3d_formats`, phase 2, as a separate track once phase 1 is in users' hands; no server-side conversion |
+| Export on a check failure | refuse / warn | **warn, and export with explicit confirmation**; refuse only on empty geometry |
+| Hotkeys | homemade / Blender-like | **Blender-like** |
+| Icons | Material Symbols (an external package) / the SDK's `Icons` | **the SDK's `Icons`**, with a mapping table |
+| Sculpting | dynamic topology / multiresolution | **multiresolution**; screen 08 gets a "Subdivide" button instead of a "density" one |
+| Non-manifold input | a radial structure / split on import | **split on import** and show it as an issue |
+| Checking export in an external engine | a manual checklist / an automated test | **headless Godot in CI** plus a manual Unity/Blender checklist before release |
+| Team | one / two / three | **one person with agents**; the phase-1 calendar is the sum of item sizes (plan §4.3) |
+| First release | December 27 / once phase 1 is in hand | **once phase 1 is in the hands of its first users**; December 27 is not the target |
+| Where Play runs | in process / a companion command in `tool/` | **in process, decided 2026-09-16 by `ux-50`'s spike.** Both macOS entitlements files turn the sandbox on and the Flutter SDK sits outside the container, so a sandboxed build cannot start `flutter run --machine` at all, and the web build cannot start a process of any kind: the companion command would work on one of four platforms and only from a developer checkout. In process it is the same renderer, device and uploaded textures as the viewport everywhere the modeller opens, and "reload" is the `SceneSync` the document already runs rather than a process to restart. What it gives up is the game's own Dart — Play runs a template, not a project — which is what the companion command is still for when somebody asks for it. It does not depend on `flutter3d_game`: that package brings `pointer_lock`, `pad_input`, `flutter3d_audio` and `flutter3d_particles`, two of them native plugins, into an application that has to keep building for the web, and what Play needs from it is a walking body `flutter3d_physics` already provides |
+| Name | `flutter3d_modeler` / `flutter3d_studio` / … | `flutter3d_modeler`; not reserved on pub.dev, recheck before publishing. Free as of 2026-09-09: `flutter3d_geometry`, `flutter3d_formats`, `flutter3d_mesh`, `flutter3d_model_core`, `flutter3d_model_mcp`, `flutter3d_modeler`, `flutter3d_fbx`, `flutter3d_cloth`; the app's bundle id — `dev.flutter3d.modeler` |
 
 ---
 
-## 8. Первые шаги
+## 8. First steps
 
-Обновлено 2026-09-09: §4 и §7 согласованы решениями владельца, первый шаг
-из прежнего списка снят.
+Updated 2026-09-09: §4 and §7 are now settled by owner decisions, and the
+first step from the earlier list is removed.
 
-1. ~~Вынести словарь из `flutter3d` в `flutter3d_geometry` и
-   `flutter3d_formats` (§5.1)~~ — **сделано 2026-09-09**, на две недели раньше
-   срока. `flutter3d` реэкспортирует оба, игры и демонстрации не заметили
-   переезда, 4340 тестов зелёные. Что где лежит: в `geometry` — `MeshData`,
-   `VertexLayout`, генераторы фигур, тангенсы, морф-цели, `Ray`; в `formats` —
-   `ModelDocument`, материалы, `LightingModel`, `AnimationClip`/`Track`/`Mask`,
-   декодеры glTF/OBJ/`.f3d`/`.fmat` и синхронная половина загрузки. В движке
-   остались `DeviceMesh`, изолятный загрузчик с `kIsWeb`, два источника
-   ассетов (бандл Flutter и `dart:io`), резолверы бандла и всё, что называет
-   `GraphicsDevice`, — включая KTX2, чьи форматы принадлежат HAL.
-2. Нарисовать два экрана фазы 1, которых нет (импорт с проверкой, экспорт с
-   проверками). README передачи сам это требует до начала фазы.
-3. Фаза 0 целиком до 2026-10-05: замеры с порогами, результат — числа в этом
-   документе вместо оценок. Веб и мобильные замеряются как ворота качества,
-   а не как выбор: фаза 1 выходит на macOS, вебе, Android и iOS сразу, и
-   непройденный порог становится пунктом фазы 1, а не поводом убрать
-   платформу. Физический iPad и аккаунт Apple Developer — до середины фазы 1.
-4. `GltfWriter` с round-trip тестами на моделях Khronos — пункт, который
-   можно начать сразу после шага 1, и который нужен в любом исходе; он же
-   первая дорожка, отдаваемая агенту под готовые тесты (план §4.3).
-5. На ревизии ROADMAP 28 сентября: трек редактора моделей со строкой
-   Acceptance и переформулированный пункт о графе нод («fixed set of nodes
-   that bakes into texture slots»).
+1. ~~Split the vocabulary out of `flutter3d` into `flutter3d_geometry` and
+   `flutter3d_formats` (§5.1)~~ — **done 2026-09-09**, two weeks ahead of
+   schedule. `flutter3d` re-exports both, games and demos noticed nothing
+   about the move, 4340 tests green. What lives where: in `geometry` —
+   `MeshData`, `VertexLayout`, shape generators, tangents, morph targets,
+   `Ray`; in `formats` — `ModelDocument`, materials, `LightingModel`,
+   `AnimationClip`/`Track`/`Mask`, glTF/OBJ/`.f3d`/`.fmat` decoders, and the
+   synchronous half of loading. What stayed in the engine: `DeviceMesh`, the
+   isolate loader with `kIsWeb`, two asset sources (the Flutter bundle and
+   `dart:io`), bundle resolvers, and everything that names
+   `GraphicsDevice` — including KTX2, whose formats belong to the HAL.
+2. Draw the two missing phase-1 screens (import with checks, export with
+   checks). The handoff README itself requires this before the phase
+   starts.
+3. All of phase 0, by 2026-10-05: threshold-based measurements, with the
+   result being numbers in this document instead of estimates. Web and
+   mobile are measured as quality gates, not as a choice: phase 1 ships on
+   macOS, web, Android, and iOS at once, and an unmet threshold becomes a
+   phase-1 item, not a reason to drop the platform. A physical iPad and an
+   Apple Developer account, by mid-phase-1.
+4. `GltfWriter` with round-trip tests on Khronos models — an item that can
+   start right after step 1, and is needed under any outcome; it's also the
+   first track handed to an agent under pre-written tests (plan §4.3).
+5. At the September 28 ROADMAP review: a model-editor track with an
+   Acceptance line, and a reworded node-graph item ("fixed set of nodes
+   that bakes into texture slots").

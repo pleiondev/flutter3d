@@ -16,10 +16,12 @@ and `tool/structure.dart` keep are counts of packages.
 |---|---|
 | `server/` | One Dart process: shelf for the routes, jaspr to render every page on the server |
 | `server/lib/src/db/migrations/` | The schema, as numbered SQL. `tool/embed_migrations.dart` turns it into the Dart file the binary carries |
-| `server/web/assets/` | The stylesheet and two scripts: uploading, and opening a model in 3D |
+| `server/web/assets/` | The stylesheet and two scripts: uploading, and opening a model in 3D. The tutorial's pictures are under `learn/modeler/` here |
+| `server/content/learn/modeler/` | The modeller's tutorial, one Markdown file a case, served at `/learn/modeler/`. Read from disk at start, so it is deployed beside the executable and not inside it |
 | `tool/` | Building the executable, building the viewer, deploying both |
 | `deploy/` | The systemd units, the nginx vhost, the tunnel config and an example environment |
 | `docker-compose.yml` | Postgres for development and the integration test |
+| `monitoring/` | Prometheus and Grafana for the service's own numbers — accounts, models, disk. [README](monitoring/README.md) |
 
 ## Running it
 
@@ -57,6 +59,7 @@ names of everything that is missing.
 | `MODELS_UPLOAD_LIMIT` | Bytes; default 100 MB, which is what a free Cloudflare tunnel passes |
 | `MODELS_ASSETS_DIR` | Default `web/assets` |
 | `MODELS_VIEWER_DIR` | Optional; serves the viewer at `/app/` when set |
+| `MODELS_LEARN_DIR` | Default `content/learn/modeler`, which is right in a checkout and nowhere else. A directory with no case in it is an empty tutorial and one line in the log, not a failed start |
 
 ## Tests
 
@@ -106,6 +109,12 @@ Done once, by hand, because each step creates something outside this repository.
 4. **Service** — `deploy/flutter3d-models.service` to `/etc/systemd/system/`,
    `systemctl enable flutter3d-models`, then run `tool/deploy.sh`.
 
+   The unit is copied by hand and `tool/deploy.sh` does not touch it, so a
+   setting added to it later is not on the server until it is copied again and
+   `systemctl daemon-reload` is run. The script checks the one setting it
+   depends on, `MODELS_LEARN_DIR`, before it replaces anything, and stops with
+   these two steps in its message when the unit does not have it.
+
 5. **nginx** — `deploy/nginx-models.pleion.dev.conf` to `sites-available`,
    linked into `sites-enabled`, `nginx -t && systemctl reload nginx`.
 
@@ -135,12 +144,34 @@ Done once, by hand, because each step creates something outside this repository.
 
 ## What is not here yet
 
-- **Preview pictures.** The schema and the repository have a place for them;
-  nothing makes one yet. The server has no GPU to render a frame, so the plan is
-  for the viewer to capture one in the uploader's browser, and the viewer cannot
-  read a frame back yet.
-- **Editing from the cabinet.** The viewer opens a model; saving it back is the
-  next stage, along with revisions.
-- **The public catalogue.** Models can be private only. Publishing with a
-  licence, author pages and attribution written into exported files are the stage
-  after that; the licences and the `published()` query exist already.
+- **Author pages and attribution written into exported files.** A published
+  model's own page already names its owner, its licence and its category; a
+  page listing everything one account has published, and a downloaded file
+  carrying that licence in its own metadata, are both still ahead.
+
+Preview pictures and editing from the cabinet, with revisions, are both real
+now: the server has no GPU to render a frame, so a preview is captured in the
+viewer's own browser (`canvas.toBlob`) and POSTed to
+`/api/v1/models/<id>/preview`; a save-back goes to
+`/api/v1/models/<id>/source`, which keeps the file it replaces as a revision
+in `model_revisions`, downloadable by the owner at
+`/files/<id>/revisions/<revisionId>`. Both endpoints check ownership and CSRF
+the same way every other mutating route here does.
+
+Projects, publishing and the public showcase are real now too. A model can
+live inside a project or stand alone — `models.project_id`, nullable, set to
+`null` by the database itself when its project is deleted rather than by any
+code walking the model to detach it. `POST /m/<id>/publish` records a licence
+and a category, each chosen from a fixed enum server-side so a client-supplied
+string never reaches the `check` constraint that backstops them; `/explore`
+lists every published model, searchable by title and description through
+`websearch_to_tsquery` (never raw `to_tsquery` on what somebody typed) and
+filterable by category. Every mutating route this added — project create,
+describe, delete, move, publish, unpublish — checks ownership and CSRF the
+same way every other one here does, and a cross-account project id is refused
+with the same clean 404 a cross-account model id already was, never a 403
+that would confirm the other account's project exists at all. An adversarial
+pass over all of it found one real gap and closed it: project creation had no
+rate limit at all, unlike every other row-creating action here, so it now
+carries `RateRule.projectCreatePerAccount` the same shape publishing already
+had.

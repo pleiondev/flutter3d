@@ -425,11 +425,10 @@ List<String> enumDeclarationsIn(String source) => <String>[
 /// reason a fourth value would be machinery rather than a game's own content
 /// — and everything else [enumDeclarationsIn] finds is a promise nobody has
 /// looked at yet.
-List<String> unexemptedEnumsIn(String source, Set<String> exempt) =>
-    <String>[
-      for (final name in enumDeclarationsIn(source))
-        if (!exempt.contains(name)) name,
-    ];
+List<String> unexemptedEnumsIn(String source, Set<String> exempt) => <String>[
+  for (final name in enumDeclarationsIn(source))
+    if (!exempt.contains(name)) name,
+];
 
 // --------------------------------------------------------------- self-checks
 

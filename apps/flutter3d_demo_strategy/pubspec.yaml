@@ -11,21 +11,16 @@ dependencies:
   flutter:
     sdk: flutter
 
-  flutter3d: ^0.6.0
-  flutter3d_app: ^0.6.0
-  flutter3d_backend: ^0.6.0
-  flutter3d_game: ^0.6.0
-  flutter3d_game_strategy: ^0.6.0
+  flutter3d: ^0.7.0
+  flutter3d_app: ^0.7.0
+  flutter3d_game: ^0.7.0
+  flutter3d_sim: ^0.7.0
+  flutter3d_game_strategy: ^0.7.0
 
   # Where `RunSession` lives. Named here rather than reached through the
   # `flutter3d_app` barrel above, because `src/run.dart` imports it by name and
   # a file's imports and its package's dependencies should say the same thing.
   #
-  # **Not a dependency of `flutter3d_game_strategy`, and that is the boundary.**
-  # None of the four genre packages depends on this one: a session knows where a
-  # save lives and which side a person is playing, and both are facts about an
-  # application. The genre owes it two methods and no import.
-  flutter3d_session: ^0.6.0
 
   vector_math: ^2.2.0
 
@@ -34,7 +29,7 @@ dev_dependencies:
     sdk: flutter
 
   # A device with no GPU behind it, for the frame test.
-  flutter3d_cpu: ^0.6.0
+  flutter3d_cpu: ^0.7.0
   flutter_lints: ^6.0.0
 
   # Real-device e2e — see `apps/flutter3d_demo_platformer/pubspec.yaml` for the
@@ -50,3 +45,4 @@ flutter:
   # second map is a second file and not a second line here.
   assets:
     - assets/levels/
+    - assets/models/

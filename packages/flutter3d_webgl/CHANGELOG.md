@@ -1,3 +1,37 @@
+## 0.7.0
+
+**Breaking.** `WebGlDevice.present` is gone with `GraphicsDevice.present`
+itself (mcp-01n). Its blit half is now the public `blitToCanvas`, and its
+canvas is now the public `canvas` field; the CSS-styling half moved to a new
+`WebGlFramePresenter` widget.
+
+**`ensureWebGlBackendRegistered`, new.** This backend registers itself as the
+web fallback opener and as `WebGlDevice`'s presenter with
+`flutter3d_hardware`'s device registry, rather than waiting for
+`flutter3d_app` to know it exists. Floors to `flutter3d_hardware` `^0.7.0`
+and `flutter3d_conformance` `^0.7.0`.
+
+**`overwriteGeometry` and `overwriteTexture`.** Geometry is `bufferSubData`
+and a texture region is `texSubImage2D`, and both complete in the same turn. A
+WebGL buffer is bound to one target for life, so the device now remembers
+which target each buffer was made against and an overwrite does not have to be
+told. A write through `GeometryBuffer.slice()` is offset by the slice's start.
+
+**`maxColorAttachments` is what the context says.** It is read from
+`MAX_DRAW_BUFFERS` once, when the device opens, and a pass that asks for more
+throws `UnsupportedError` from `beginRenderPass`.
+
+**The generated shader table is rebuilt against `flutter3d_shaders` 0.7.0.**
+`engine_shaders.dart` gains `Fxaa`, `SsaoBlur`, `ContactShadow`, `LightShafts`,
+`DepthOfField`, `ViewportShade`, `ShadowDepthMasked`, `ShadowDistanceMasked`,
+`Splat` and `PolylineVertex`, and the regenerated `Composite`, `BloomUpsample`,
+shadow and surface stages. No Dart in the device changed for them.
+
+**The archive carries a skill**, `skills/flutter3d-webgl-browser-backend/`,
+about opening the device, the generated shader map, browser tests and the
+bugs that only show up in a browser. `dart run skills@ get` installs it for a
+coding agent.
+
 ## 0.6.0
 
 * **The generated shader table is rebuilt against `flutter3d_shaders` 0.6.0.**

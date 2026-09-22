@@ -50,7 +50,8 @@ void main() {
     expect(
       ready,
       isTrue,
-      reason: 'never reached ModelerReady — the device did not open, or '
+      reason:
+          'never reached ModelerReady — the device did not open, or '
           'took longer than this test waits',
     );
 

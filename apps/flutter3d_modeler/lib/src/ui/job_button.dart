@@ -10,6 +10,8 @@ library;
 
 import 'package:flutter/material.dart';
 
+import '../../../l10n/app_localizations.dart';
+
 /// An ordinary button labelled [label] when idle; a progress indicator with
 /// a cancel affordance once [progress] is not null.
 final class JobButton extends StatelessWidget {
@@ -37,6 +39,7 @@ final class JobButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final double? running = progress;
+    final AppLocalizations l = AppLocalizations.of(context);
     if (running == null) {
       return ElevatedButton(onPressed: onStart, child: Text(label));
     }
@@ -55,11 +58,11 @@ final class JobButton extends StatelessWidget {
         // own inner, actually tappable node.
         MergeSemantics(
           child: Semantics(
-            label: 'Cancel',
+            label: l.cancel,
             button: true,
             child: IconButton(
               icon: const Icon(Icons.close),
-              tooltip: 'Cancel',
+              tooltip: l.cancel,
               onPressed: onCancel,
             ),
           ),

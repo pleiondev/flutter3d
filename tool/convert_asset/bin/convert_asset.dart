@@ -25,7 +25,7 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:convert_asset/convert_asset.dart';
-import 'package:flutter3d_formats/flutter3d_formats.dart';
+import 'package:flutter3d_core/formats.dart';
 
 Future<void> main(List<String> arguments) async {
   final options = ConvertAssetOptions.parse(arguments);

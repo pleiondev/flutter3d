@@ -93,7 +93,11 @@ void main() {
         rows: rows,
         positionAt: (col, row) {
           final angle = col * angleStep;
-          return Vector3(radius * math.cos(angle), row * heightStep, radius * math.sin(angle));
+          return Vector3(
+            radius * math.cos(angle),
+            row * heightStep,
+            radius * math.sin(angle),
+          );
         },
       );
 
@@ -189,30 +193,36 @@ void main() {
   });
 
   group('boundary behavior', () {
-    test('onProgress and isCancelled see every island in a multi-island mesh', () {
-      final mesh = _buildGrid(
-        columns: 3,
-        rows: 2,
-        positionAt: (col, row) => Vector3(col.toDouble(), row.toDouble(), 0),
-      );
-      var shared = -1;
-      mesh.forEachHalfEdge(0, (half) {
-        if (mesh.hasLiveTwin(half) && mesh.faceOf(mesh.twinOf(half)) == 1) {
-          shared = half;
-        }
-      });
-      mesh.beginStep();
-      mesh.setEdgeFlag(shared, EdgeFlags.seam, on: true);
-      mesh.endStep();
+    test(
+      'onProgress and isCancelled see every island in a multi-island mesh',
+      () {
+        final mesh = _buildGrid(
+          columns: 3,
+          rows: 2,
+          positionAt: (col, row) => Vector3(col.toDouble(), row.toDouble(), 0),
+        );
+        var shared = -1;
+        mesh.forEachHalfEdge(0, (half) {
+          if (mesh.hasLiveTwin(half) && mesh.faceOf(mesh.twinOf(half)) == 1) {
+            shared = half;
+          }
+        });
+        mesh.beginStep();
+        mesh.setEdgeFlag(shared, EdgeFlags.seam, on: true);
+        mesh.endStep();
 
-      final progressCalls = <(int, int)>[];
-      mesh.beginStep();
-      unwrapMesh(mesh, onProgress: (done, total) => progressCalls.add((done, total)));
-      mesh.endStep();
-      expect(progressCalls, hasLength(2));
-      expect(progressCalls[0], (1, 2));
-      expect(progressCalls[1], (2, 2));
-    });
+        final progressCalls = <(int, int)>[];
+        mesh.beginStep();
+        unwrapMesh(
+          mesh,
+          onProgress: (done, total) => progressCalls.add((done, total)),
+        );
+        mesh.endStep();
+        expect(progressCalls, hasLength(2));
+        expect(progressCalls[0], (1, 2));
+        expect(progressCalls[1], (2, 2));
+      },
+    );
 
     test('isCancelled stops before the next island, not mid-island', () {
       final mesh = _buildGrid(

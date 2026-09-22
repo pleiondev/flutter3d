@@ -16,7 +16,9 @@ import 'package:crypto/crypto.dart';
 /// URL-shaped alphabet a cookie and a link both accept.
 String newToken([Random? random]) {
   final source = random ?? Random.secure();
-  final bytes = Uint8List.fromList([for (var i = 0; i < 32; i++) source.nextInt(256)]);
+  final bytes = Uint8List.fromList([
+    for (var i = 0; i < 32; i++) source.nextInt(256),
+  ]);
   return base64Url.encode(bytes).replaceAll('=', '');
 }
 

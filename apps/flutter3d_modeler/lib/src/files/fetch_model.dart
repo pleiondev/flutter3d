@@ -5,4 +5,5 @@
 /// `openBytes` a picked file goes through.
 library;
 
-export 'fetch_model_io.dart' if (dart.library.js_interop) 'fetch_model_web.dart';
+export 'fetch_model_io.dart'
+    if (dart.library.js_interop) 'fetch_model_web.dart';

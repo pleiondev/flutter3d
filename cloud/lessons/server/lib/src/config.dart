@@ -12,7 +12,11 @@ import 'dart:io';
 /// Where the service listens, what it calls itself, and where the built
 /// lesson viewer lives.
 class Config {
-  const Config({required this.port, required this.baseUrl, this.viewerDirectory});
+  const Config({
+    required this.port,
+    required this.baseUrl,
+    this.viewerDirectory,
+  });
 
   /// Reads the configuration from the process environment.
   ///

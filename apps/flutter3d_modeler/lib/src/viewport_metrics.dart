@@ -1,7 +1,7 @@
 /// Whether a device opened for one viewport size still fits another.
 ///
 /// Only matters where a device owns a fixed-size surface for its whole life —
-/// `kFixedResolution` in `flutter3d_backend`, true for `WebGlDevice` — because
+/// `kFixedResolution` in `flutter3d_app`, true for `WebGlDevice` — because
 /// that is the one backend a resize or a change of screen does not already
 /// reach on its own: the canvas keeps the pixels it was created with and CSS
 /// stretches them to fit, which is fine until there are fewer of them than the

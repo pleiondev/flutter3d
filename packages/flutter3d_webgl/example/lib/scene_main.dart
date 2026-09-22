@@ -89,7 +89,17 @@ class _SceneAppState extends State<SceneApp>
       views: <RenderView>[RenderView(camera: camera)],
       settings: const RenderSettings(bloom: BloomSettings(enabled: false)),
     );
-    final view = device.present(result.frame, fit: BoxFit.contain);
+    // Blitted here, ahead of the widget's own build, so `debugCanvasState`
+    // below reads this frame rather than the one before it. The presenter
+    // widget blits again when Flutter actually builds it — harmless, since a
+    // blit is idempotent, and simpler than threading the diagnostic read
+    // through a callback on the widget itself.
+    device.blitToCanvas(result.frame);
+    final view = WebGlFramePresenter(
+      device: device,
+      frame: result.frame,
+      fit: BoxFit.contain,
+    );
     final state = device.debugCanvasState();
     setState(() {
       _frame = view;
@@ -198,7 +208,11 @@ class _SceneAppState extends State<SceneApp>
       _camera = camera;
       setState(() {
         _status = '$log=== A FRAME WAS DRAWN ===';
-        _frame = device.present(result.frame, fit: BoxFit.contain);
+        _frame = WebGlFramePresenter(
+          device: device,
+          frame: result.frame,
+          fit: BoxFit.contain,
+        );
       });
       // From here the canvas is in the document, so every later frame is drawn
       // into a buffer that survives to be composited.

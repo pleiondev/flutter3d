@@ -15,7 +15,7 @@ A shooter and a platformer both stand on brushes: axis-aligned boxes in a collis
 | Mechanisms, movers, the level format | `RaceState`: laps, checkpoints, positions, the lights |
 | `CameraRig` | `ChaseCamera`, `AiDriver`, `GhostRecorder` |
 
-Nothing in the package imports the renderer. `bridge.dart` turns a track into meshes and is the one file that does.
+Nothing in the package imports the renderer. `bridge.dart` turns a track into meshes and is the one file that does; it also exports the lap and position readouts, which are the package's only widgets.
 
 ## The track is a curve, not a floor
 

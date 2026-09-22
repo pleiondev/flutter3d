@@ -41,93 +41,88 @@ CollisionWorld _worldFrom(Level level) {
 }
 
 void main() {
-  test(
-    'a wall moved between two loads does not crash a restored run, and the '
-    'run is stopped or not stopped by whichever wall is actually there',
-    () {
-      // The level as it was played: a wall at x=5 the runner cannot cross.
-      final playedIn = _worldFrom(_withWallAt(5.0));
-      var body = CharacterController(
-        world: playedIn,
-        position: Vector3(0.0, 1.0, 0.0),
-      );
-      const dt = 1.0 / 60.0;
-      final forward = Vector3(1.0, 0.0, 0.0);
-      for (var step = 0; step < 300; step++) {
-        body.step(dt, wishDirection: forward);
-        playedIn.update();
-      }
-      final stoppedAtWall = body.position.x;
-      expect(
-        stoppedAtWall,
-        lessThan(5.0),
-        reason: 'the wall should have stopped the runner before it',
-      );
-      expect(
-        stoppedAtWall,
-        greaterThan(3.5),
-        reason: 'and the runner should have reached it, not started there',
-      );
-      final snapshot = Snapshot(body.save());
+  test('a wall moved between two loads does not crash a restored run, and the '
+      'run is stopped or not stopped by whichever wall is actually there', () {
+    // The level as it was played: a wall at x=5 the runner cannot cross.
+    final playedIn = _worldFrom(_withWallAt(5.0));
+    var body = CharacterController(
+      world: playedIn,
+      position: Vector3(0.0, 1.0, 0.0),
+    );
+    const dt = 1.0 / 60.0;
+    final forward = Vector3(1.0, 0.0, 0.0);
+    for (var step = 0; step < 300; step++) {
+      body.step(dt, wishDirection: forward);
+      playedIn.update();
+    }
+    final stoppedAtWall = body.position.x;
+    expect(
+      stoppedAtWall,
+      lessThan(5.0),
+      reason: 'the wall should have stopped the runner before it',
+    );
+    expect(
+      stoppedAtWall,
+      greaterThan(3.5),
+      reason: 'and the runner should have reached it, not started there',
+    );
+    final snapshot = Snapshot(body.save());
 
-      // The level edited since: the wall moved out of the way entirely.
-      final editedIn = _worldFrom(_withWallAt(null));
-      body = CharacterController(world: editedIn, position: Vector3.zero());
-      body.restore(snapshot.data);
+    // The level edited since: the wall moved out of the way entirely.
+    final editedIn = _worldFrom(_withWallAt(null));
+    body = CharacterController(world: editedIn, position: Vector3.zero());
+    body.restore(snapshot.data);
 
-      // The run continues — this must not throw, wherever the new geometry
-      // puts the collider.
-      for (var step = 0; step < 300; step++) {
-        body.step(dt, wishDirection: forward);
-        editedIn.update();
-      }
+    // The run continues — this must not throw, wherever the new geometry
+    // puts the collider.
+    for (var step = 0; step < 300; step++) {
+      body.step(dt, wishDirection: forward);
+      editedIn.update();
+    }
 
-      expect(
-        body.position.x,
-        greaterThan(stoppedAtWall + 1.0),
-        reason:
-            'the wall that stopped the original run is gone in the edited '
-            'level, so the same forward input should carry the runner well '
-            'past where it used to stop — proving the step reads the new '
-            'geometry rather than the old collider or nothing at all',
-      );
-    },
-  );
+    expect(
+      body.position.x,
+      greaterThan(stoppedAtWall + 1.0),
+      reason:
+          'the wall that stopped the original run is gone in the edited '
+          'level, so the same forward input should carry the runner well '
+          'past where it used to stop — proving the step reads the new '
+          'geometry rather than the old collider or nothing at all',
+    );
+  });
 
-  test(
-    'a wall newly placed under a restored runner is respected on the very '
-    'next step',
-    () {
-      final playedIn = _worldFrom(_withWallAt(null));
-      var body = CharacterController(
-        world: playedIn,
-        position: Vector3(0.0, 1.0, 0.0),
-      );
-      const dt = 1.0 / 60.0;
-      final forward = Vector3(1.0, 0.0, 0.0);
-      for (var step = 0; step < 120; step++) {
-        body.step(dt, wishDirection: forward);
-        playedIn.update();
-      }
-      final withoutWall = body.position.x;
-      final snapshot = Snapshot(body.save());
+  test('a wall newly placed under a restored runner is respected on the very '
+      'next step', () {
+    final playedIn = _worldFrom(_withWallAt(null));
+    var body = CharacterController(
+      world: playedIn,
+      position: Vector3(0.0, 1.0, 0.0),
+    );
+    const dt = 1.0 / 60.0;
+    final forward = Vector3(1.0, 0.0, 0.0);
+    for (var step = 0; step < 120; step++) {
+      body.step(dt, wishDirection: forward);
+      playedIn.update();
+    }
+    final withoutWall = body.position.x;
+    final snapshot = Snapshot(body.save());
 
-      // Edited to add a wall a little ahead of where the run already is.
-      final editedIn = _worldFrom(_withWallAt(withoutWall + 1.0));
-      body = CharacterController(world: editedIn, position: Vector3.zero());
-      body.restore(snapshot.data);
+    // Edited to add a wall a little ahead of where the run already is.
+    final editedIn = _worldFrom(_withWallAt(withoutWall + 1.0));
+    body = CharacterController(world: editedIn, position: Vector3.zero());
+    body.restore(snapshot.data);
 
-      for (var step = 0; step < 300; step++) {
-        body.step(dt, wishDirection: forward);
-        editedIn.update();
-      }
+    for (var step = 0; step < 300; step++) {
+      body.step(dt, wishDirection: forward);
+      editedIn.update();
+    }
 
-      expect(
-        body.position.x,
-        lessThan(withoutWall + 1.0),
-        reason: 'a wall placed in the edited level should stop the runner '
-            'even though nothing in the snapshot ever knew it existed',
-      );
-    },
-  );
+    expect(
+      body.position.x,
+      lessThan(withoutWall + 1.0),
+      reason:
+          'a wall placed in the edited level should stop the runner '
+          'even though nothing in the snapshot ever knew it existed',
+    );
+  });
 }

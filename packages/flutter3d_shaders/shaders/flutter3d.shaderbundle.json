@@ -59,6 +59,10 @@
     "type": "fragment",
     "file": "shaders/post/composite.frag"
   },
+  "Fxaa": {
+    "type": "fragment",
+    "file": "shaders/post/fxaa.frag"
+  },
   "MrtProbe": {
     "type": "fragment",
     "file": "shaders/post/mrt_probe.frag"
@@ -79,6 +83,10 @@
     "type": "vertex",
     "file": "shaders/mesh_lightmapped.vert"
   },
+  "PolylineVertex": {
+    "type": "vertex",
+    "file": "shaders/polyline.vert"
+  },
   "ParticleVertex": {
     "type": "vertex",
     "file": "shaders/particle.vert"
@@ -90,6 +98,10 @@
   "ParticleTextured": {
     "type": "fragment",
     "file": "shaders/lighting/particle_textured.frag"
+  },
+  "Splat": {
+    "type": "fragment",
+    "file": "shaders/lighting/splat.frag"
   },
   "ParticleMeshVertex": {
     "type": "vertex",
@@ -107,6 +119,26 @@
     "type": "fragment",
     "file": "shaders/post/ssao.frag"
   },
+  "SsaoBlur": {
+    "type": "fragment",
+    "file": "shaders/post/ssao_blur.frag"
+  },
+  "ContactShadow": {
+    "type": "fragment",
+    "file": "shaders/post/contact_shadow.frag"
+  },
+  "LightShafts": {
+    "type": "fragment",
+    "file": "shaders/post/light_shafts.frag"
+  },
+  "DepthOfField": {
+    "type": "fragment",
+    "file": "shaders/post/depth_of_field.frag"
+  },
+  "ViewportShade": {
+    "type": "fragment",
+    "file": "shaders/post/viewport_shade.frag"
+  },
   "ProbePrefilter": {
     "type": "fragment",
     "file": "shaders/post/probe_prefilter.frag"
@@ -114,6 +146,14 @@
   "ShadowDistance": {
     "type": "fragment",
     "file": "shaders/lighting/shadow_distance.frag"
+  },
+  "ShadowDepthMasked": {
+    "type": "fragment",
+    "file": "shaders/lighting/shadow_depth_masked.frag"
+  },
+  "ShadowDistanceMasked": {
+    "type": "fragment",
+    "file": "shaders/lighting/shadow_distance_masked.frag"
   },
   "ShadowTileReset": {
     "type": "fragment",

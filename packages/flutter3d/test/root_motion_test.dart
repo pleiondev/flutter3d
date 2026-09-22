@@ -8,7 +8,7 @@ library;
 
 import 'dart:typed_data';
 
-import 'package:flutter3d/src/engine/animation/animation.dart';
+import 'package:flutter3d_core/src/engine/animation/animation.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vector_math/vector_math.dart';
 
@@ -32,7 +32,9 @@ AnimationClip _extractedWalkCycle({
   return AnimationClip(
     name: 'walk',
     extras: <String, Object?>{
-      kRootMotionExtra: <Object?>[for (final v in realValues) List<double>.of(v)],
+      kRootMotionExtra: <Object?>[
+        for (final v in realValues) List<double>.of(v),
+      ],
     },
     tracks: <AnimationTrack>[
       AnimationTrack(
@@ -77,8 +79,10 @@ void main() {
         <double>[2, 0, 0],
       ],
     );
-    final player = AnimationPlayer(clips: <AnimationClip>[clip], targets: const [])
-      ..play(0);
+    final player = AnimationPlayer(
+      clips: <AnimationClip>[clip],
+      targets: const [],
+    )..play(0);
 
     const steps = 100;
     var total = Vector3.zero();
@@ -104,8 +108,10 @@ void main() {
         <double>[2, 0, 0],
       ],
     );
-    final player = AnimationPlayer(clips: <AnimationClip>[clip], targets: const [])
-      ..play(0);
+    final player = AnimationPlayer(
+      clips: <AnimationClip>[clip],
+      targets: const [],
+    )..play(0);
 
     // A frame that lands on 0.9s and, after `update`'s own `%=`, on 0.1s of
     // the next lap: the leg from 0.9 to 1.0 (0.2m) plus the leg from 0.0 to
@@ -147,52 +153,47 @@ void main() {
         targets: const [],
       )..play(0);
 
-      expect(
-        player.rootMotionDelta(0, fromTime: 0.0, toTime: 0.5),
-        isNull,
-      );
+      expect(player.rootMotionDelta(0, fromTime: 0.0, toTime: 0.5), isNull);
     });
 
     test('a node index with no matching track answers null', () {
-      final player = AnimationPlayer(clips: <AnimationClip>[clip], targets: const [])
-        ..play(0);
-
-      expect(
-        player.rootMotionDelta(7, fromTime: 0.0, toTime: 0.5),
-        isNull,
-      );
-    });
-
-    test('cubic tangents are refused rather than replayed as a plain value',
-        () {
-      final cubic = AnimationClip(
-        name: 'walk',
-        extras: <String, Object?>{
-          kRootMotionExtra: <Object?>[
-            <double>[0, 0, 0, 0, 0, 0, 0, 0, 0],
-            <double>[0, 0, 0, 2, 0, 0, 0, 0, 0],
-          ],
-        },
-        tracks: <AnimationTrack>[
-          AnimationTrack(
-            nodeIndex: 0,
-            path: AnimationPath.translation,
-            interpolation: AnimationInterpolation.cubicSpline,
-            componentCount: 3,
-            times: Float32List.fromList(<double>[0.0, 1.0]),
-            values: Float32List.fromList(List<double>.filled(18, 0.0)),
-          ),
-        ],
-      );
       final player = AnimationPlayer(
-        clips: <AnimationClip>[cubic],
+        clips: <AnimationClip>[clip],
         targets: const [],
       )..play(0);
 
-      expect(
-        player.rootMotionDelta(0, fromTime: 0.0, toTime: 0.5),
-        isNull,
-      );
+      expect(player.rootMotionDelta(7, fromTime: 0.0, toTime: 0.5), isNull);
     });
+
+    test(
+      'cubic tangents are refused rather than replayed as a plain value',
+      () {
+        final cubic = AnimationClip(
+          name: 'walk',
+          extras: <String, Object?>{
+            kRootMotionExtra: <Object?>[
+              <double>[0, 0, 0, 0, 0, 0, 0, 0, 0],
+              <double>[0, 0, 0, 2, 0, 0, 0, 0, 0],
+            ],
+          },
+          tracks: <AnimationTrack>[
+            AnimationTrack(
+              nodeIndex: 0,
+              path: AnimationPath.translation,
+              interpolation: AnimationInterpolation.cubicSpline,
+              componentCount: 3,
+              times: Float32List.fromList(<double>[0.0, 1.0]),
+              values: Float32List.fromList(List<double>.filled(18, 0.0)),
+            ),
+          ],
+        );
+        final player = AnimationPlayer(
+          clips: <AnimationClip>[cubic],
+          targets: const [],
+        )..play(0);
+
+        expect(player.rootMotionDelta(0, fromTime: 0.0, toTime: 0.5), isNull);
+      },
+    );
   });
 }

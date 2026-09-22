@@ -1,6 +1,6 @@
 import 'dart:math' as math;
 
-import 'package:flutter3d/src/engine/scene/scene_graph.dart';
+import 'package:flutter3d_core/src/engine/scene/scene_graph.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vector_math/vector_math.dart';
 
@@ -235,6 +235,27 @@ void main() {
       // picture snaps round as the next drag crosses it.
       expect(orbit.pitch, lessThan(math.pi / 2));
       expect(orbit.pitch, greaterThan(math.pi / 2 - 0.05));
+    });
+
+    test('a model smaller than the near clamp is still framed', () {
+      final node = SceneNode();
+      final orbit = OrbitController(node, distance: 3.0);
+
+      // A six-millimetre part, which is what a millimetre-scale scan read in
+      // as metres looks like — and what the modeller's own case 1 fixture is.
+      orbit.frameBounds(
+        Aabb3.minMax(Vector3(-0.003, 0, -0.002), Vector3(0.003, 0.003, 0.002)),
+      );
+
+      // Mutation: clamp to the fixed `minDistance` of 0.05 — which is what
+      // this did. The camera stops eleven times further out than the framing
+      // asked for, the model comes out a speck in the middle of an empty
+      // picture, and nothing anywhere says why.
+      final double radius =
+          (Vector3(0.003, 0.003, 0.002) - Vector3(-0.003, 0, -0.002)).length /
+          2;
+      expect(orbit.distance, lessThan(0.05));
+      expect(orbit.distance, greaterThan(radius));
     });
 
     test('pan moves the target across the view plane', () {

@@ -12,8 +12,11 @@ import 'package:flutter3d_stereo/flutter3d_stereo.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vector_math/vector_math.dart' hide Colors;
 
-GraphicsDevice _device() =>
-    CpuDevice(width: 16, height: 8, shaders: CpuShaderLibrary(builtinCpuShaders()));
+GraphicsDevice _device() => CpuDevice(
+  width: 16,
+  height: 8,
+  shaders: CpuShaderLibrary(builtinCpuShaders()),
+);
 
 List<EntityDef> _steps() => <EntityDef>[
   EntityDef(
@@ -100,4 +103,47 @@ void main() {
     );
     expect(button.onPressed, isNull);
   });
+
+  testWidgets(
+    'onTick runs once a frame, alongside the player — a WidgetSurface on '
+    "the lesson's own scene needs this to redraw in stereo",
+    (tester) async {
+      final device = _device();
+      final renderer = Renderer.create(device: device);
+      final scene = Scene();
+      final rig = StereoRig();
+      scene.add(rig.stage);
+      final player = LessonPlayer(_steps());
+
+      var ticks = 0;
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: LessonStereoView(
+            renderer: renderer,
+            scene: scene,
+            rig: rig,
+            player: player,
+            onTick: () => ticks++,
+          ),
+        ),
+      );
+      await tester.pump();
+      expect(ticks, greaterThan(0));
+
+      // A repaint this widget tree only owes on a real change — the same
+      // "Next" tap the other test already proves moves the rig — is enough
+      // to show `onTick` fires again rather than once for the widget's
+      // life, without this test also claiming a continuous redraw loop
+      // that only whatever drives head tracking in the real app owns.
+      final afterFirstPump = ticks;
+      await tester.tap(find.byTooltip('Next step'));
+      await tester.pump();
+      expect(
+        ticks,
+        greaterThan(afterFirstPump),
+        reason: 'a second frame ticks again, not once for the widget\'s life',
+      );
+    },
+  );
 }

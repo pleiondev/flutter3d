@@ -77,7 +77,9 @@ class ResendMailer implements Mailer {
     if (response.statusCode >= 300) {
       // The body names the reason — an unverified domain, a bad key — and it
       // carries no secret, so it goes into the error whole.
-      throw MailError('Resend answered ${response.statusCode}: ${response.body}');
+      throw MailError(
+        'Resend answered ${response.statusCode}: ${response.body}',
+      );
     }
   }
 }

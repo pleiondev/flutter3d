@@ -6,7 +6,7 @@ description: Use when drawing with flutter3d from an application — building a 
 # A device, a renderer, a scene, a view
 
 ```dart
-final device = await openDevice(width: 1280, height: 720);   // flutter3d_backend
+final device = await openDevice(width: 1280, height: 720);   // flutter3d_app
 final renderer = Renderer.create(device: device);
 
 final scene = Scene();

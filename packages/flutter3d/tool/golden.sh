@@ -113,13 +113,41 @@ if [[ ! -f "$LOADABLE" ]]; then
   exit 2
 fi
 
-APP='flutter3d.app/Contents/MacOS/flutter3d'
-APP_BIN="$EXAMPLE_DIR/build/macos/Build/Products/Debug/$APP"
+# **Two desktops, because one of them has no GPU and that is the point** —
+# `gfx-72n`. The Impeller half of this set needs a real device and always will;
+# the software half does not, and a Linux runner under Xvfb is how a pull
+# request that moves a golden goes red in CI rather than on somebody's machine
+# days later. The only things that differ are the build command and where the
+# binary lands: the launch below is `exec "$APP_BIN"` either way, and every
+# scene, every comparison and every exit code is shared.
+#
+# The build directory carries the architecture, which this reads rather than
+# assumes — a runner may be x64 or arm64 and neither is this script's business.
+case "$(uname -s)" in
+  Linux)
+    HOST='Linux'
+    BUILD_ARGS=(linux --debug)
+    APP_BIN="$(echo "$EXAMPLE_DIR"/build/linux/*/debug/bundle/flutter3d)"
+    ;;
+  *)
+    HOST='macOS'
+    BUILD_ARGS=(macos --debug)
+    APP_BIN="$EXAMPLE_DIR/build/macos/Build/Products/Debug/flutter3d.app/Contents/MacOS/flutter3d"
+    ;;
+esac
 
 if [[ "$BUILD" == true ]]; then
-  echo "building the example for macOS…"
-  (cd "$EXAMPLE_DIR" && flutter build macos --debug \
+  # Braces, because the ellipsis is not ASCII and macOS ships bash 3.2, which
+  # reads its bytes as more of the variable's name: `$HOST…` is the unset
+  # `HOST…`, and under `set -u` that ends the run before it builds anything.
+  echo "building the example for ${HOST}…"
+  (cd "$EXAMPLE_DIR" && flutter build "${BUILD_ARGS[@]}" \
     ${BACKEND_DEFINE[@]+"${BACKEND_DEFINE[@]}"})
+  # Re-read it: the glob above ran before the build existed, so on a first
+  # Linux build it matched nothing and stayed as the pattern.
+  if [[ "$HOST" == 'Linux' ]]; then
+    APP_BIN="$(echo "$EXAMPLE_DIR"/build/linux/*/debug/bundle/flutter3d)"
+  fi
 fi
 
 if [[ ! -x "$APP_BIN" ]]; then
@@ -162,13 +190,13 @@ fi
 # this whole function exists to remove, and the waiting is the part that does
 # it — the `pkill` was already here and was not enough.
 reap_app() {
-  pkill -f "$APP" 2>/dev/null || true
+  pkill -f "$APP_BIN" 2>/dev/null || true
   for _ in $(seq 1 60); do
-    pgrep -f "$APP" >/dev/null 2>&1 || return 0
+    pgrep -f "$APP_BIN" >/dev/null 2>&1 || return 0
     sleep 0.25
   done
   # Still there after fifteen seconds: it is not exiting on its own.
-  pkill -9 -f "$APP" 2>/dev/null || true
+  pkill -9 -f "$APP_BIN" 2>/dev/null || true
   sleep 1
 }
 
@@ -222,7 +250,11 @@ pass=0
 fail=0
 stopped=""
 failed_scenes=()
-log="$(mktemp -t flutter3d-golden)"
+# `mktemp -t prefix` means two different things. BSD takes the prefix and
+# appends the random part itself; GNU reads the argument as a template and
+# refuses one without at least three trailing X's — "too few X's in template".
+# Spelling the template out is what both agree on.
+log="$(mktemp "${TMPDIR:-/tmp}/flutter3d-golden.XXXXXX")"
 trap 'rm -f "$log"' EXIT
 
 for scene in "${SCENES[@]}"; do

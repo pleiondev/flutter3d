@@ -2,7 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter3d_build/flutter3d_build.dart';
-import 'package:flutter3d_formats/flutter3d_formats.dart';
+import 'package:flutter3d_core/formats.dart';
 import 'package:image/image.dart' as img;
 import 'package:test/test.dart';
 
@@ -41,11 +41,7 @@ void main() {
     () async {
       final output = '${scratch.path}/box.f3d';
       final out = _BufferSink();
-      final code = await runConvert(<String>[
-        _fixture,
-        '-o',
-        output,
-      ], out: out);
+      final code = await runConvert(<String>[_fixture, '-o', output], out: out);
 
       expect(code, 0);
       expect(File(output).existsSync(), isTrue);
@@ -66,24 +62,28 @@ void main() {
     expect(File('${scratch.path}/teapot_copy.f3d').existsSync(), isTrue);
   });
 
-  test('a directory converts every recognised file under it, recursively', () async {
-    final nested = Directory('${scratch.path}/models/nested')
-      ..createSync(recursive: true);
-    File(_fixture).copySync('${scratch.path}/models/a.obj');
-    File(
-      _fixture,
-    ).copySync('${nested.path}/b.obj');
-    File('${scratch.path}/models/not_a_model.txt').writeAsStringSync('hello');
+  test(
+    'a directory converts every recognised file under it, recursively',
+    () async {
+      final nested = Directory('${scratch.path}/models/nested')
+        ..createSync(recursive: true);
+      File(_fixture).copySync('${scratch.path}/models/a.obj');
+      File(_fixture).copySync('${nested.path}/b.obj');
+      File('${scratch.path}/models/not_a_model.txt').writeAsStringSync('hello');
 
-    final code = await runConvert(<String>[
-      '${scratch.path}/models',
-    ], out: _BufferSink());
+      final code = await runConvert(<String>[
+        '${scratch.path}/models',
+      ], out: _BufferSink());
 
-    expect(code, 0);
-    expect(File('${scratch.path}/models/a.f3d').existsSync(), isTrue);
-    expect(File('${nested.path}/b.f3d').existsSync(), isTrue);
-    expect(File('${scratch.path}/models/not_a_model.f3d').existsSync(), isFalse);
-  });
+      expect(code, 0);
+      expect(File('${scratch.path}/models/a.f3d').existsSync(), isTrue);
+      expect(File('${nested.path}/b.f3d').existsSync(), isTrue);
+      expect(
+        File('${scratch.path}/models/not_a_model.f3d').existsSync(),
+        isFalse,
+      );
+    },
+  );
 
   test(
     'a directory with -o mirrors relative paths into the output root',
@@ -103,17 +103,20 @@ void main() {
     },
   );
 
-  test('an unrecognised extension in --textures is a usage error, not a crash', () async {
-    final err = _BufferSink();
-    final code = await runConvert(<String>[
-      _fixture,
-      '--textures',
-      'astc',
-    ], err: err);
+  test(
+    'an unrecognised extension in --textures is a usage error, not a crash',
+    () async {
+      final err = _BufferSink();
+      final code = await runConvert(<String>[
+        _fixture,
+        '--textures',
+        'astc',
+      ], err: err);
 
-    expect(code, 2);
-    expect(err.text, contains('Usage:'));
-  });
+      expect(code, 2);
+      expect(err.text, contains('Usage:'));
+    },
+  );
 
   test('--textures auto prints an honest, not silent, note', () async {
     final out = _BufferSink();
@@ -129,38 +132,29 @@ void main() {
     expect(out.text, contains('--textures auto accepted'));
   });
 
-  test('--textures etc2/bc name a real family and print no such note', () async {
-    for (final family in <String>['etc2', 'bc', 'none']) {
-      final out = _BufferSink();
-      await runConvert(<String>[
-        _fixture,
-        '-o',
-        '${scratch.path}/box.f3d',
-        '--textures',
-        family,
-      ], out: out);
-
-      expect(out.text, isNot(contains('--textures')), reason: family);
-    }
-  });
-
-  test('--no-mips prints an honest note too', () async {
-    final out = _BufferSink();
-    await runConvert(<String>[
-      _fixture,
-      '-o',
-      '${scratch.path}/box.f3d',
-      '--no-mips',
-    ], out: out);
-
-    expect(out.text, contains('--no-mips accepted, no mip generator yet'));
-  });
-
   test(
-    '--textures bc really encodes a referenced image, end to end',
+    '--textures etc2/bc name a real family and print no such note',
     () async {
-      final objPath = '${scratch.path}/textured.obj';
-      File(objPath).writeAsStringSync('''
+      for (final family in <String>['etc2', 'bc', 'none']) {
+        final out = _BufferSink();
+        await runConvert(<String>[
+          _fixture,
+          '-o',
+          '${scratch.path}/box.f3d',
+          '--textures',
+          family,
+        ], out: out);
+
+        expect(out.text, isNot(contains('--textures')), reason: family);
+      }
+    },
+  );
+
+  /// Writes an 8×8-textured triangle under [scratch] and returns its `.obj`
+  /// path — the fixture the two tests below convert.
+  String writeTexturedObj() {
+    final objPath = '${scratch.path}/textured.obj';
+    File(objPath).writeAsStringSync('''
 mtllib textured.mtl
 v 0.0 0.0 0.0
 v 1.0 0.0 0.0
@@ -171,40 +165,80 @@ vt 0.0 1.0
 usemtl Textured
 f 1/1 2/2 3/3
 ''');
-      File('${scratch.path}/textured.mtl').writeAsStringSync('''
+    File('${scratch.path}/textured.mtl').writeAsStringSync('''
 newmtl Textured
 map_Kd textured.png
 ''');
-      final pngImage = img.Image(width: 8, height: 8);
-      for (var y = 0; y < 8; y++) {
-        for (var x = 0; x < 8; x++) {
-          pngImage.setPixelRgb(x, y, (x * 30) & 0xFF, 60, (y * 30) & 0xFF);
-        }
+    final pngImage = img.Image(width: 8, height: 8);
+    for (var y = 0; y < 8; y++) {
+      for (var x = 0; x < 8; x++) {
+        pngImage.setPixelRgb(x, y, (x * 30) & 0xFF, 60, (y * 30) & 0xFF);
       }
-      File(
-        '${scratch.path}/textured.png',
-      ).writeAsBytesSync(img.encodePng(pngImage));
+    }
+    File(
+      '${scratch.path}/textured.png',
+    ).writeAsBytesSync(img.encodePng(pngImage));
+    return objPath;
+  }
 
-      final outPath = '${scratch.path}/textured.f3d';
-      final code = await runConvert(<String>[
-        objPath,
-        '-o',
-        outPath,
-        '--textures',
-        'bc',
-      ]);
-      expect(code, 0);
+  test(
+    '--no-mips keeps the base level, where the default carries a chain',
+    () async {
+      // It used to print a note and do nothing, because nothing generated a
+      // chain to skip. Something does now, so the flag has to reach it.
+      //
+      // Mutation: stop handing `options.mips` to `convertOne` — the second file
+      // comes out with two levels as well.
+      final objPath = writeTexturedObj();
+      Future<Ktx2Texture> convert(String name, List<String> extra) async {
+        final outPath = '${scratch.path}/$name.f3d';
+        final code = await runConvert(<String>[
+          objPath,
+          '-o',
+          outPath,
+          '--textures',
+          'bc',
+          ...extra,
+        ]);
+        expect(code, 0);
+        return Ktx2Texture.parse(
+          F3dDocument.parse(
+            File(outPath).readAsBytesSync(),
+          ).images.single.bytes,
+        );
+      }
 
-      final document = F3dDocument.parse(File(outPath).readAsBytesSync());
-      expect(document.images, hasLength(1));
-      final bytes = document.images.single.bytes;
-      expect(isKtx2File(bytes), isTrue);
-      final texture = Ktx2Texture.parse(bytes);
-      expect(texture.vkFormat, VkFormat.bc1RgbaUNormBlock);
-      expect(texture.pixelWidth, 8);
-      expect(texture.pixelHeight, 8);
+      // 8×8 halves to 4×4, and four is the block: two levels of BC1, four
+      // blocks and then one, eight bytes a block.
+      final chained = await convert('chained', const <String>[]);
+      expect(chained.levels.map((level) => level.lengthInBytes), <int>[32, 8]);
+
+      final single = await convert('single', const <String>['--no-mips']);
+      expect(single.levels.map((level) => level.lengthInBytes), <int>[32]);
     },
   );
+
+  test('--textures bc really encodes a referenced image, end to end', () async {
+    final objPath = writeTexturedObj();
+    final outPath = '${scratch.path}/textured.f3d';
+    final code = await runConvert(<String>[
+      objPath,
+      '-o',
+      outPath,
+      '--textures',
+      'bc',
+    ]);
+    expect(code, 0);
+
+    final document = F3dDocument.parse(File(outPath).readAsBytesSync());
+    expect(document.images, hasLength(1));
+    final bytes = document.images.single.bytes;
+    expect(isKtx2File(bytes), isTrue);
+    final texture = Ktx2Texture.parse(bytes);
+    expect(texture.vkFormat, VkFormat.bc1RgbaUNormBlock);
+    expect(texture.pixelWidth, 8);
+    expect(texture.pixelHeight, 8);
+  });
 
   test('a missing input names the path, not a stack trace', () async {
     final err = _BufferSink();
@@ -216,20 +250,19 @@ map_Kd textured.png
     expect(err.text, contains('No such file or directory'));
   });
 
-  test('a file that is already .f3d refuses rather than corrupting itself', () async {
-    final f3dPath = '${scratch.path}/already.f3d';
-    await runConvert(<String>[
-      _fixture,
-      '-o',
-      f3dPath,
-    ], out: _BufferSink());
+  test(
+    'a file that is already .f3d refuses rather than corrupting itself',
+    () async {
+      final f3dPath = '${scratch.path}/already.f3d';
+      await runConvert(<String>[_fixture, '-o', f3dPath], out: _BufferSink());
 
-    final err = _BufferSink();
-    final code = await runConvert(<String>[f3dPath], err: err);
+      final err = _BufferSink();
+      final code = await runConvert(<String>[f3dPath], err: err);
 
-    expect(code, 1);
-    expect(err.text, contains('already a .f3d file'));
-  });
+      expect(code, 1);
+      expect(err.text, contains('already a .f3d file'));
+    },
+  );
 }
 
 final class _BufferSink implements IOSink {

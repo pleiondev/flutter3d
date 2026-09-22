@@ -10,7 +10,7 @@
 ///
 /// So this renders one. `CpuDevice` is a `GraphicsDevice` with no GPU under it
 /// and `readPixels` gives the frame back as bytes — the arrangement
-/// `packages/flutter3d_cpu/test/engine_parity_test.dart` already uses. What is
+/// `packages/flutter3d/test/engine_parity_test.dart` already uses. What is
 /// assembled here is the real thing: the shipped level document, the real
 /// registry, the real `FixtureVisuals` with the game's own `PlatformerLooks`,
 /// and the real `PlatformerSimulation` stepping at sixty hertz. The only piece
@@ -28,13 +28,14 @@ import 'dart:typed_data';
 import 'package:flutter3d/flutter3d.dart' as engine show Material;
 import 'package:flutter3d/flutter3d.dart' hide Material;
 import 'package:flutter3d/parity_scene.dart';
-import 'package:flutter3d_bridge/flutter3d_bridge.dart';
+import 'package:flutter3d_app/flutter3d_app.dart';
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
 import 'package:flutter3d_demo_platformer/src/run.dart';
 import 'package:flutter3d_demo_platformer/src/runner_looks.dart';
 import 'package:flutter3d_demo_platformer/src/staging.dart';
 import 'package:flutter3d_game/flutter3d_game.dart';
 import 'package:flutter3d_game_platformer/flutter3d_game_platformer.dart';
+import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vector_math/vector_math.dart';
 

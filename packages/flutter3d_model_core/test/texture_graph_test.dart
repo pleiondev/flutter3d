@@ -68,30 +68,25 @@ void main() {
     test('every node kind writes the word fromJson switches back on', () {
       final graph = oneOfEach();
       final kinds = <String>[for (final node in graph.nodes) node.kind];
-      expect(
-        kinds.toSet(),
-        <String>{
-          'image',
-          'color',
-          'blend',
-          'channels',
-          'levels',
-          'invert',
-          'uvTransform',
-          'checker',
-          'noise',
-          'normalFromHeight',
-          'output',
-        },
-      );
+      expect(kinds.toSet(), <String>{
+        'image',
+        'color',
+        'blend',
+        'channels',
+        'levels',
+        'invert',
+        'uvTransform',
+        'checker',
+        'noise',
+        'normalFromHeight',
+        'output',
+      });
     });
 
     test('an unknown kind is refused rather than silently dropped', () {
       expect(
-        () => TextureNode.fromJson(<String, Object?>{
-          'id': 1,
-          'kind': 'shader',
-        }),
+        () =>
+            TextureNode.fromJson(<String, Object?>{'id': 1, 'kind': 'shader'}),
         throwsFormatException,
       );
     });
@@ -189,10 +184,7 @@ void main() {
         nodes: <TextureNode>[const InvertTextureNode(id: 1, source: 1)],
       );
       final issues = graph.validate();
-      expect(
-        issues.where((i) => i.message.contains('cycle')),
-        hasLength(1),
-      );
+      expect(issues.where((i) => i.message.contains('cycle')), hasLength(1));
     });
 
     test('a longer cycle through three nodes is still caught once', () {

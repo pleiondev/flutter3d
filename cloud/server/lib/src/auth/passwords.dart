@@ -34,7 +34,11 @@ class HashCost {
 ///
 /// The result carries its own salt and cost, which is what lets [verifyPassword]
 /// check a hash made under settings this build no longer uses.
-String hashPassword(String password, {HashCost cost = HashCost.standard, Random? random}) {
+String hashPassword(
+  String password, {
+  HashCost cost = HashCost.standard,
+  Random? random,
+}) {
   final salt = _salt(random ?? Random.secure());
   final digest = _derive(password, salt, cost);
   return '\$argon2id\$v=19'
@@ -50,7 +54,10 @@ bool verifyPassword(String password, String stored) {
   final parsed = _parse(stored);
   if (parsed == null) return false;
   final (cost, salt, expected) = parsed;
-  return _sameBytes(_derive(password, salt, cost, length: expected.length), expected);
+  return _sameBytes(
+    _derive(password, salt, cost, length: expected.length),
+    expected,
+  );
 }
 
 /// Whether [stored] was made with weaker settings than [cost].
@@ -66,7 +73,12 @@ bool needsRehash(String stored, {HashCost cost = HashCost.standard}) {
       was.lanes != cost.lanes;
 }
 
-Uint8List _derive(String password, Uint8List salt, HashCost cost, {int length = 32}) {
+Uint8List _derive(
+  String password,
+  Uint8List salt,
+  HashCost cost, {
+  int length = 32,
+}) {
   final generator = Argon2BytesGenerator()
     ..init(
       Argon2Parameters(
@@ -91,7 +103,8 @@ Uint8List _derive(String password, Uint8List salt, HashCost cost, {int length = 
 
   final settings = {
     for (final pair in parts[3].split(','))
-      if (pair.split('=') case [final key, final value]) key: int.tryParse(value),
+      if (pair.split('=') case [final key, final value])
+        key: int.tryParse(value),
   };
   final memory = settings['m'];
   final iterations = settings['t'];

@@ -76,7 +76,8 @@ EntityRemap remapEntitySave(
       final newRows = <String, Object?>{};
       for (final row in rows.entries) {
         final oldIndex = int.tryParse('${row.key}');
-        final name = (oldIndex != null && oldIndex >= 0 && oldIndex < oldNames.length)
+        final name =
+            (oldIndex != null && oldIndex >= 0 && oldIndex < oldNames.length)
             ? oldNames[oldIndex]
             : null;
         if (name == null) {

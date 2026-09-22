@@ -12,6 +12,18 @@
   const limit = Number(zone.dataset.limit);
   const csrf = zone.dataset.csrf;
 
+  // The project selector lives inside the upload zone and writes its choice
+  // back onto the zone's own dataset, the same place data-limit and
+  // data-csrf already sit — send() below reads it from there, same as those.
+  const projectSelect = zone.querySelector('[data-project-select]');
+  if (projectSelect) {
+    const syncProject = () => {
+      zone.dataset.projectId = projectSelect.value;
+    };
+    syncProject();
+    projectSelect.addEventListener('change', syncProject);
+  }
+
   const say = (text, kind) => {
     status.textContent = text;
     status.dataset.kind = kind || '';
@@ -29,6 +41,9 @@
     request.setRequestHeader('content-type', 'application/octet-stream');
     request.setRequestHeader('x-csrf', csrf);
     request.setRequestHeader('x-filename', encodeURIComponent(file.name));
+    if (zone.dataset.projectId) {
+      request.setRequestHeader('x-project-id', zone.dataset.projectId);
+    }
 
     request.upload.onprogress = (event) => {
       if (!event.lengthComputable) return;

@@ -14,12 +14,13 @@ library;
 import 'dart:typed_data';
 
 import 'package:flutter3d/flutter3d.dart';
-import 'package:flutter3d_cpu/testing.dart';
 import 'package:flutter3d_mesh/flutter3d_mesh.dart';
 import 'package:flutter3d_model_core/flutter3d_model_core.dart';
 import 'package:flutter3d_modeler/src/opening.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vector_math/vector_math.dart';
+
+import 'support/fake_graphics_backend.dart';
 
 /// Four faces and four corners, so that a surface swapped for the cuboid below
 /// shows up as a different triangle count rather than passing quietly.
@@ -109,7 +110,7 @@ ModelDocument decoded() => _Decoded(
 void main() {
   test('every node in the file becomes an object in the document', () async {
     final document = decoded();
-    final it = cpuTestDevice(width: 8, height: 8);
+    final it = fakeTestDevice(width: 8, height: 8);
 
     final opened = await openDocument(document, device: it.device);
 
@@ -125,7 +126,7 @@ void main() {
 
   test('the triangles on screen are the triangles in the file', () async {
     final document = decoded();
-    final it = cpuTestDevice(width: 8, height: 8);
+    final it = fakeTestDevice(width: 8, height: 8);
 
     final opened = await openDocument(document, device: it.device);
 
@@ -136,7 +137,7 @@ void main() {
 
   test('the scene draws a node for each object, and nothing else', () async {
     final document = decoded();
-    final it = cpuTestDevice(width: 8, height: 8);
+    final it = fakeTestDevice(width: 8, height: 8);
 
     final opened = await openDocument(document, device: it.device);
     final sync = opened.stage.sync!;
@@ -152,7 +153,7 @@ void main() {
 
   test('the hierarchy survives the trip', () async {
     final document = decoded();
-    final it = cpuTestDevice(width: 8, height: 8);
+    final it = fakeTestDevice(width: 8, height: 8);
 
     final opened = await openDocument(document, device: it.device);
     final sync = opened.stage.sync!;
@@ -173,7 +174,7 @@ void main() {
 
   test('an opened model can be edited and taken back', () async {
     final document = decoded();
-    final it = cpuTestDevice(width: 8, height: 8);
+    final it = fakeTestDevice(width: 8, height: 8);
 
     final opened = await openDocument(document, device: it.device);
     final history = ModelHistory(opened.project);
@@ -219,7 +220,7 @@ void main() {
         SurfaceMaterial(name: 'brass', baseColor: brass, metallic: 1.0),
       ],
     );
-    final it = cpuTestDevice(width: 8, height: 8);
+    final it = fakeTestDevice(width: 8, height: 8);
 
     final opened = await openDocument(document, device: it.device);
     final sync = opened.stage.sync!;
@@ -258,7 +259,7 @@ void main() {
       roots: <int>[0],
       materials: <SurfaceMaterial>[SurfaceMaterial(name: 'brass')],
     );
-    final it = cpuTestDevice(width: 8, height: 8);
+    final it = fakeTestDevice(width: 8, height: 8);
 
     final opened = await openDocument(document, device: it.device);
 
@@ -300,7 +301,7 @@ void main() {
           ),
         ],
       );
-      final it = cpuTestDevice(width: 8, height: 8);
+      final it = fakeTestDevice(width: 8, height: 8);
 
       final opened = await openDocument(document, device: it.device);
       final sync = opened.stage.sync!;
@@ -352,7 +353,7 @@ void main() {
 
     test('a saved project opens back as the same project', () async {
       final before = workshop();
-      final it = cpuTestDevice(width: 8, height: 8);
+      final it = fakeTestDevice(width: 8, height: 8);
 
       final opened = await openBytes(
         writeProject(before),
@@ -379,7 +380,7 @@ void main() {
     });
 
     test('the scene follows a project that came out of a file', () async {
-      final it = cpuTestDevice(width: 8, height: 8);
+      final it = fakeTestDevice(width: 8, height: 8);
 
       final opened =
           await openBytes(
@@ -399,7 +400,7 @@ void main() {
     });
 
     test('a model file goes down the import road instead', () async {
-      final it = cpuTestDevice(width: 8, height: 8);
+      final it = fakeTestDevice(width: 8, height: 8);
       final model = F3dWriter(toModelDocument(workshop())).write();
 
       final opened =
@@ -416,7 +417,7 @@ void main() {
     });
 
     test('the extension is not what decides', () async {
-      final it = cpuTestDevice(width: 8, height: 8);
+      final it = fakeTestDevice(width: 8, height: 8);
 
       // A project someone renamed. Mutation: branch on the name and this opens
       // as a broken model, with a sentence about a decoder rather than the two
@@ -433,7 +434,7 @@ void main() {
     });
 
     test('a damaged project is a sentence, not an exception', () async {
-      final it = cpuTestDevice(width: 8, height: 8);
+      final it = fakeTestDevice(width: 8, height: 8);
       final broken = Uint8List.fromList(writeProject(workshop()));
       // Inside the manifest, which is where a flipped byte used to open as a
       // silently different model.
@@ -453,7 +454,7 @@ void main() {
     });
 
     test('a file that is neither is a sentence too', () async {
-      final it = cpuTestDevice(width: 8, height: 8);
+      final it = fakeTestDevice(width: 8, height: 8);
 
       final opened = await openBytes(
         Uint8List.fromList(<int>[1, 2, 3, 4, 5, 6, 7, 8]),
@@ -470,16 +471,18 @@ void main() {
   });
 
   group('ui-16\'s own lower half', () {
-    test('decodeBytes hands back the same document openBytes would use',
-        () async {
-      final document = decoded();
-      final bytes = F3dWriter(document).write();
+    test(
+      'decodeBytes hands back the same document openBytes would use',
+      () async {
+        final document = decoded();
+        final bytes = F3dWriter(document).write();
 
-      final redecoded = await decodeBytes(bytes, 'thing.f3d');
+        final redecoded = await decodeBytes(bytes, 'thing.f3d');
 
-      expect(redecoded.nodes.length, document.nodes.length);
-      expect(redecoded.surfaces.length, document.surfaces.length);
-    });
+        expect(redecoded.nodes.length, document.nodes.length);
+        expect(redecoded.surfaces.length, document.surfaces.length);
+      },
+    );
 
     test('emptyDecodeRefusal is null for a document with content', () {
       expect(emptyDecodeRefusal(decoded(), 'thing.f3d'), isNull);
@@ -487,7 +490,11 @@ void main() {
 
     test('emptyDecodeRefusal names the file for one with neither meshes nor '
         'nodes', () {
-      final blank = _Decoded(surfaces: const <ModelSurface>[], nodes: const <ModelNode>[], roots: const <int>[]);
+      final blank = _Decoded(
+        surfaces: const <ModelSurface>[],
+        nodes: const <ModelNode>[],
+        roots: const <int>[],
+      );
       final because = emptyDecodeRefusal(blank, 'empty.obj');
       expect(because, isNotNull);
       expect(because, contains('empty.obj'));
@@ -496,7 +503,7 @@ void main() {
     test('openDocument reads the ImportOptions it is given, not always the '
         'default', () async {
       final document = decoded();
-      final it = cpuTestDevice(width: 8, height: 8);
+      final it = fakeTestDevice(width: 8, height: 8);
 
       // A .stl in millimetres, imported with "mm" chosen — the same worked
       // example import_plan_test proves at the pure-Dart layer, now proven

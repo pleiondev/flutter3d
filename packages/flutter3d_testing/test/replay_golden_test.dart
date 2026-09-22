@@ -12,7 +12,7 @@ library;
 import 'dart:io';
 
 import 'package:flutter3d/flutter3d.dart';
-import 'package:flutter3d_game/flutter3d_game.dart';
+import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:flutter3d_testing/flutter3d_testing.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vector_math/vector_math.dart';
@@ -89,23 +89,26 @@ void main() {
     );
   });
 
-  test('a second replay to the same step matches the recorded golden', () async {
-    final dir = Directory.systemTemp.createTempSync('replay_golden_test');
-    addTearDown(() => dir.deleteSync(recursive: true));
-    final goldenPath = '${dir.path}/frame.png';
+  test(
+    'a second replay to the same step matches the recorded golden',
+    () async {
+      final dir = Directory.systemTemp.createTempSync('replay_golden_test');
+      addTearDown(() => dir.deleteSync(recursive: true));
+      final goldenPath = '${dir.path}/frame.png';
 
-    Future<void> once() => replayGolden(
-      demo: _demo(steps: 10),
-      atStep: 6,
-      input: InputState(),
-      onStep: (dt) {},
-      width: 16,
-      height: 16,
-      frame: _emptyScene,
-      goldenPath: goldenPath,
-    );
+      Future<void> once() => replayGolden(
+        demo: _demo(steps: 10),
+        atStep: 6,
+        input: InputState(),
+        onStep: (dt) {},
+        width: 16,
+        height: 16,
+        frame: _emptyScene,
+        goldenPath: goldenPath,
+      );
 
-    await once(); // records
-    await once(); // compares against what it just recorded
-  });
+      await once(); // records
+      await once(); // compares against what it just recorded
+    },
+  );
 }

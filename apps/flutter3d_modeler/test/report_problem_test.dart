@@ -18,10 +18,13 @@ void main() {
     expect(url.queryParameters['template'], 'modeler_report.yml');
   });
 
-  test('prefills the environment field so nobody retypes flutter --version', () {
-    final url = reportProblemUrl(environment: 'Flutter 3.99.0, macOS');
-    expect(url.queryParameters['environment'], 'Flutter 3.99.0, macOS');
-  });
+  test(
+    'prefills the environment field so nobody retypes flutter --version',
+    () {
+      final url = reportProblemUrl(environment: 'Flutter 3.99.0, macOS');
+      expect(url.queryParameters['environment'], 'Flutter 3.99.0, macOS');
+    },
+  );
 
   test('leaves "what" unset when nothing concrete is known', () {
     final url = reportProblemUrl(environment: 'Flutter 3.99.0, macOS');
@@ -44,7 +47,10 @@ void main() {
     // rather than null would then prefill an empty field, which reads to a
     // person as "this was supposed to say something and did not" rather
     // than as a field nobody touched.
-    final url = reportProblemUrl(environment: 'Flutter 3.99.0, macOS', whatHappened: '');
+    final url = reportProblemUrl(
+      environment: 'Flutter 3.99.0, macOS',
+      whatHappened: '',
+    );
     expect(url.queryParameters.containsKey('what'), isFalse);
   });
 }

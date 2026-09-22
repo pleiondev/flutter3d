@@ -4,7 +4,7 @@
 ///     flutter test integration_test/widget_surface_benchmark_test.dart -d <device-id>
 ///
 /// **Mirrors
-/// `packages/flutter3d_session/test/widget_surface_pipeline_benchmark_test.dart`
+/// `packages/flutter3d_app/test/widget_surface_pipeline_benchmark_test.dart`
 /// on purpose, rather than importing it** — see
 /// `apps/flutter3d_demo_platformer/integration_test/parity_test.dart` for why
 /// that shape is used across this repository's device probes. See
@@ -14,7 +14,7 @@ library;
 import 'dart:ui' as ui;
 
 import 'package:flutter/widgets.dart';
-import 'package:flutter3d_session/flutter3d_session.dart';
+import 'package:flutter3d_app/flutter3d_app.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 

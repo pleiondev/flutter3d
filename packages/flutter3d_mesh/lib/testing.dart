@@ -181,8 +181,7 @@ EditMesh bevelledCube() {
   final mesh = EditMesh.cuboid();
   final edges = <int>[
     for (var half = 0; half < mesh.halfEdgeSlotCount; half++)
-      if (mesh.edgeOf(half) == half && mesh.faceOf(half) != EditMesh.none)
-        half,
+      if (mesh.edgeOf(half) == half && mesh.faceOf(half) != EditMesh.none) half,
   ];
   mesh.beginStep();
   bevelEdges(mesh, Selection.of(ElementLevel.edge, edges), width: 0.12);

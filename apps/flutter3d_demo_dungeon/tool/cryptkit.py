@@ -412,6 +412,18 @@ def note(at, text, *, yaw=0.0):
                      "yaw": round(yaw, 4), "text": text})
 
 
+def widget_surface(name, at, *, widget, yaw=0.0, width=1.2, height=0.9):
+    """A live Flutter widget drawn on a surface in the world — `wg-01`'s own
+    entity, [widget] the name a registry in the application resolves.
+
+    `wg-02`'s own demo: a terminal showing the run's event log, so the first
+    monster encounter teaches a rule through play rather than a pause screen.
+    """
+    entities.append({"type": "widget_surface", "name": name, "at": rounded(at),
+                     "yaw": round(yaw, 4), "widget": widget,
+                     "width": width, "height": height})
+
+
 def secret(at, *, size=(2.0, 2.5, 2.0)):
     """A place that counts the first time somebody walks into it.
 

@@ -1,4 +1,4 @@
-import 'package:flutter3d/src/engine/render/shadow_slots.dart';
+import 'package:flutter3d_core/src/engine/render/shadow_slots.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 /// Stands in for a `LightNode`. The allocator compares by identity and reads

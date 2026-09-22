@@ -75,7 +75,10 @@ final class ApplySimulationCache extends ModelCommand {
 /// [cache.frameCount] frames at or under [maxKeys] keeps every one of them,
 /// named for its own index, rather than throwing any away to make room for a
 /// spacing nothing needs.
-List<ShapeKey> simulationCacheToShapeKeys(SimulationCache cache, {int maxKeys = 8}) {
+List<ShapeKey> simulationCacheToShapeKeys(
+  SimulationCache cache, {
+  int maxKeys = 8,
+}) {
   if (maxKeys <= 0) {
     throw ArgumentError.value(maxKeys, 'maxKeys', 'must be at least one');
   }
@@ -96,8 +99,8 @@ List<ShapeKey> simulationCacheToShapeKeys(SimulationCache cache, {int maxKeys = 
 /// frame, so the identity case introduces no rounding at all.
 int _evenlySpacedFrame(int k, int keyCount, int frameCount) =>
     keyCount == frameCount
-        ? k
-        : (k * (frameCount - 1) / (keyCount - 1)).round();
+    ? k
+    : (k * (frameCount - 1) / (keyCount - 1)).round();
 
 /// Turns [id]'s own baked [ModelObject.simulationCache] into up to [maxKeys]
 /// shape keys on the same object, appended to whatever [ShapeSet] it already
@@ -124,7 +127,10 @@ final class BakeSimulationToShapes extends ModelCommand {
   String get says => 'turn the simulation cache into shape keys';
 
   @override
-  Map<String, Object?> get arguments => <String, Object?>{'id': id, 'maxKeys': maxKeys};
+  Map<String, Object?> get arguments => <String, Object?>{
+    'id': id,
+    'maxKeys': maxKeys,
+  };
 
   @override
   Outcome apply(ModelProject project, ProjectSelection selection) {
@@ -137,7 +143,9 @@ final class BakeSimulationToShapes extends ModelCommand {
       );
     }
     if (object.geometry is! EditedGeometry) {
-      return Outcome.refused('"${object.name}" has no mesh to hold a shape key');
+      return Outcome.refused(
+        '"${object.name}" has no mesh to hold a shape key',
+      );
     }
     final mesh = (object.geometry as EditedGeometry).mesh;
     if (cache.vertexCount != mesh.vertexSlotCount) {

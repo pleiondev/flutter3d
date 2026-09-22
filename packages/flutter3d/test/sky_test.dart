@@ -2,7 +2,7 @@
 ///
 ///     flutter test test/sky_test.dart
 ///
-/// What is drawn is checked in `packages/flutter3d_cpu/test/sky_frame_test.dart`,
+/// What is drawn is checked in `packages/flutter3d/test/sky_frame_test.dart`,
 /// on a real frame. Here are the two halves that can be checked without one: the
 /// gradient answers a colour for every direction, and the dome is inside out.
 ///

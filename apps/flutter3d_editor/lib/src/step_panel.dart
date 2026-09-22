@@ -20,7 +20,7 @@ library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter3d_editor_core/flutter3d_editor_core.dart';
-import 'package:flutter3d_game/flutter3d_game.dart' show EntityDef, Level;
+import 'package:flutter3d_sim/flutter3d_sim.dart' show EntityDef, Level;
 import 'package:vector_math/vector_math.dart' show Vector3;
 
 const Color _panelBackground = Color(0xFF14161A);
@@ -64,10 +64,7 @@ final class StepPanel extends StatelessWidget {
 
   void _addSequenceIfMissing() {
     if (_findSequence(editing.level) != null) return;
-    _run(
-      Place(Piece.entity, 'edu_sequence', Vector3.zero()),
-      'added a lesson',
-    );
+    _run(Place(Piece.entity, 'edu_sequence', Vector3.zero()), 'added a lesson');
     _run(const SetField('name', 'lesson'), 'named the lesson');
     _run(const SetField('steps', <String>[]), 'started an empty lesson');
   }
@@ -123,7 +120,10 @@ final class StepPanel extends StatelessWidget {
     final name = freshName(editing.level, 'note');
     _run(Place(Piece.entity, 'edu_annotation', at), 'added $name');
     _run(SetField('name', name), 'named $name');
-    _run(const SetField('widget', 'unnamed-widget'), 'gave $name a widget name');
+    _run(
+      const SetField('widget', 'unnamed-widget'),
+      'gave $name a widget name',
+    );
 
     _selectByName(stepName);
     final annotations = List<String>.of(
@@ -164,8 +164,13 @@ final class StepPanel extends StatelessWidget {
             Row(
               children: <Widget>[
                 Text(
-                  sequence == null ? 'No lesson yet' : (sequence.string('title') ?? sequence.name!),
-                  style: const TextStyle(color: _text, fontWeight: FontWeight.bold),
+                  sequence == null
+                      ? 'No lesson yet'
+                      : (sequence.string('title') ?? sequence.name!),
+                  style: const TextStyle(
+                    color: _text,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
                 const Spacer(),
                 IconButton(
@@ -198,7 +203,10 @@ final class StepPanel extends StatelessWidget {
             TextButton.icon(
               onPressed: _addClipPlane,
               icon: const Icon(Icons.content_cut, color: _text, size: 16),
-              label: const Text('Add a clip plane', style: TextStyle(color: _text)),
+              label: const Text(
+                'Add a clip plane',
+                style: TextStyle(color: _text),
+              ),
             ),
           ],
         ),
@@ -244,7 +252,11 @@ final class _StepRow extends StatelessWidget {
                 ),
               ),
               IconButton(
-                icon: const Icon(Icons.sticky_note_2_outlined, color: _dim, size: 16),
+                icon: const Icon(
+                  Icons.sticky_note_2_outlined,
+                  color: _dim,
+                  size: 16,
+                ),
                 tooltip: 'Add an annotation to this step',
                 onPressed: onAddAnnotation,
               ),

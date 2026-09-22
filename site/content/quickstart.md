@@ -25,7 +25,7 @@ Fifteen minutes from a fresh checkout to a lit mesh turning on screen. Two of th
 
 ## Resolve the workspace
 
-The repository is a [pub workspace](https://dart.dev/tools/pub/workspaces): one resolve covers all thirty-seven packages and seven applications against a single lock file. Packages that depend on each other by path drift apart at the first version bump otherwise, and the drift only shows up as an unbuildable checkout on somebody else's machine.
+The repository is a [pub workspace](https://dart.dev/tools/pub/workspaces): one resolve covers all thirty-seven packages and nine applications against a single lock file. Packages that depend on each other by path drift apart at the first version bump otherwise, and the drift only shows up as an unbuildable checkout on somebody else's machine.
 
 ```bash
 git clone https://github.com/pleiondev/flutter3d.git
@@ -35,17 +35,20 @@ flutter pub get
 
 ## Build the shader bundles
 
-Required before the first run, and again after every Flutter SDK change. There
-are two: the engine's own, which every application links, and the engine demo's,
-which it loads at runtime and names as an asset.
+There are two: the engine's own canonical bundle, which every application
+links, and the engine demo's own separate one, which it loads at runtime and
+names as an asset.
+
+<div class="note">
+<p>The engine's own bundle no longer needs this step. <code>packages/flutter3d_impeller/hook/build.dart</code> (<code>ap-06</code> in <code>doc/asset-pipeline-plan.md</code>) runs it during <code>flutter build</code>/<code>flutter run</code> automatically — a fresh checkout, <code>flutter pub get</code>, and <code>flutter run -d macos</code> in any of the three games below draws a frame with no shader step in between. Left here only for the one thing the hook does not cover.</p>
+</div>
 
 ```bash
-(cd packages/flutter3d_impeller && ./tool/build_shaders.sh)
 (cd packages/flutter3d/example && ./tool/build_shaders.sh)
 ```
 
 <div class="warn">
-<p>The bundle is generated, gitignored, and its format is tied to the Flutter version. A fresh checkout has none, and the symptom is <code>Failed to initialize ShaderLibrary</code> at startup instead of a missing-file error. After <code>flutter upgrade</code>, run it again — shaders that used to load will stop.</p>
+<p>This one bundle is still generated, gitignored, and tied to the Flutter version — a fresh checkout has none, and the symptom is a missing-asset error at startup rather than a build failure. After <code>flutter upgrade</code>, run it again. It has not moved onto the hook because it is the demo's own separate bundle, outside <code>ap-06</code>'s own canonical one — see that entry's "Not done" for why.</p>
 </div>
 
 The script calls `impellerc` directly rather than going through Native Assets, and prints the compiled binding table on the way out. That table is worth reading once: the compiler drops a uniform block or a sampler whose result never reaches the output, so what a shader *declares* and what it actually *binds* are different lists.
@@ -53,7 +56,8 @@ The script calls `impellerc` directly rather than going through Native Assets, a
 ## Run something
 
 ```bash
-# The engine's demo: a model browser with every feature switchable
+# The engine's demo: a model browser with every feature switchable.
+# Needs the shader step above — it is the one bundle that still asks for it.
 (cd packages/flutter3d/example && flutter run -d macos)
 
 # The shooter
@@ -87,11 +91,15 @@ tool/ci.sh                                  # shaders, analyze, every test
 (cd packages/flutter3d_physics && dart test) # plain Dart, no Flutter needed
 ```
 
-7366 tests across 46 packages and nine applications, and only about thirty need a GPU: the Impeller half of the golden set. The other half renders through the software backend, so forty-four scenes stay checkable in a headless run.
+9786 tests across 37 packages and nine applications, and only about thirty need a GPU: the Impeller half of the golden set. The other half renders through the software backend, so forty-four scenes stay checkable in a headless run.
 
 ## Your own application
 
 A new app needs three things in its pubspec: the engine, a backend, and whatever else it draws with. The backend is named on purpose. It is the one line an application changes to run on a different graphics API.
+
+<div class="warn">
+<p>The <code>^0.7.0</code> below names the tree this documentation was built from, not what <code>pub get</code> can resolve today: pub.dev's published set is still <strong>0.6.0</strong>, and 0.7.0 goes out once <a href="https://models.pleion.dev">the modeller</a>'s own tutorial has been walked by people other than its author — see the <a href="https://github.com/pleiondev/flutter3d#readme">README</a>'s own note on this. Building against the tree in the meantime means cloning the repository and running it from source, the way <a href="#run-something">Run something</a> above does, or pinning <code>^0.6.0</code> and reading <code>doc/boundary-0.7.0.md</code> for which import lines move.</p>
+</div>
 
 ```yaml
 name: my_game
@@ -109,9 +117,9 @@ dependencies:
   #   flutter3d_impeller -> flutter_gpu (Metal, Vulkan)  <- the production one
   #   flutter3d_webgl    -> WebGL2, in the browser
   #   flutter3d_cpu      -> software, rasterises in Dart (tests, goldens)
-  flutter3d_impeller: ^0.6.0
+  flutter3d_impeller: ^0.7.0
 
-  flutter3d: ^0.6.0
+  flutter3d: ^0.7.0
 
   vector_math: ^2.2.0
 ```
@@ -159,7 +167,7 @@ Scene buildScene(GraphicsDevice device) {
 ```
 
 <div class="note">
-<p>None of the three shipped games open a device this way. Hand-rolling <code>GpuRenderBackend.create()</code> and a bare <code>Ticker</code> is what this page teaches because it is what is actually happening underneath, but by the second game the same conditional import, frame surface and level lifecycle had been copy-pasted three times. <a href="/core/session/">Assembling an application</a> is the guide for the pattern the games use instead: <code>flutter3d_backend</code>, <code>flutter3d_session</code> and <code>flutter3d_screens</code>.</p>
+<p>None of the three shipped games open a device this way. Hand-rolling <code>GpuRenderBackend.create()</code> and a bare <code>Ticker</code> is what this page teaches because it is what is actually happening underneath, but by the second game the same conditional import, frame surface and level lifecycle had been copy-pasted three times. <a href="/core/session/">Assembling an application</a> is the guide for the pattern the games use instead: <code>flutter3d_app</code> and <code>flutter3d_game</code>.</p>
 </div>
 
 ## Where to go next
@@ -169,4 +177,5 @@ Scene buildScene(GraphicsDevice device) {
 - [The frame](/core/rendering/): what the renderer actually does with a scene
 - [Tutorial: first scene](/core/tutorial/): the whole application, step by step
 - [Assembling an application](/core/session/): the device, frame surface and level lifecycle the shipped games actually use
+- [The asset pipeline](/reference/asset-pipeline/): converting your own models and textures on every build, instead of committing what a script produced once
 - [Pitfalls](/reference/pitfalls/): the conditions without which Flutter GPU silently renders nothing

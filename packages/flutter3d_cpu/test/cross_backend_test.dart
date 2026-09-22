@@ -1,6 +1,6 @@
 /// How far the software backend lands from the hardware one, per scene.
 ///
-///     flutter test test/cross_backend_test.dart
+///     dart test test/cross_backend_test.dart
 ///
 /// A comparison of two committed reference sets — this package's, in
 /// `test/goldens`, against Impeller's, in `flutter3d/test/goldens` — so it
@@ -24,10 +24,10 @@ library;
 
 import 'dart:io';
 import 'dart:typed_data';
-import 'dart:ui' as ui;
 
+import 'package:flutter3d_core/formats.dart';
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
-import 'package:flutter_test/flutter_test.dart';
+import 'package:test/test.dart';
 
 /// Per-scene ceiling on the share of pixels differing by more than [_channel].
 ///
@@ -125,15 +125,20 @@ const Map<String, double> _budgets = <String, double>{
   // 0.318% measured: the room is two lit quads, and the edge of each is the
   // whole of what the two backends disagree about.
   'lightmapped-room': 0.4,
-  // 3.811% measured, and the one budget in this file that is a feature
-  // rather than a floor. Impeller takes eight taps along the floor and this
-  // backend answers `maxAnisotropy` of one and takes one — see
-  // `CpuDevice.maxAnisotropy` — so the middle distance of the checkerboard
-  // is sharp on one set and blurred on the other, on purpose; the far
-  // reaches melt to one tone on both, which is why the number is not
-  // larger. Set just above the measurement all the same: a narrower gap is
-  // the filter being lost on Impeller, a wider one is a change in something
-  // other than the filter.
+  // 3.780% measured, and the one budget in this file that is two filters
+  // disagreeing rather than a floor. Both backends take eight taps along the
+  // floor now — `CpuDevice.maxAnisotropy` answered one until `1ff0a477` built
+  // the taps and raised it to sixteen — and they still differ, because how
+  // the taps are weighted is a vendor's own and this backend averages them
+  // flat. Measured across the band where it shows: the middle distance is
+  // *sharper* here than on Impeller, 7.30 against 6.63 by mean horizontal
+  // gradient, where before it was 4.71 and blurred. The near floor agrees to
+  // hundredths on both, and the far reaches melt to one tone, which is why
+  // the number is not larger.
+  //
+  // The gap barely moved when the filter arrived — 3.811% to 3.780% — and
+  // that is worth knowing rather than reassuring: the pixels that differ are
+  // not the same pixels, they are a comparable count of them.
   'anisotropic-floor': 4.0,
   // 0.614% measured. Three boxes on a floor, each with a shadow, and a
   // silhouette whose edge is the far cube's against the wall: more edge than
@@ -244,15 +249,14 @@ const Map<String, double> _budgets = <String, double>{
 const int _channel = 8;
 
 Future<Uint8List> _rgba(File file) async {
-  final codec = await ui.instantiateImageCodec(await file.readAsBytes());
-  final frame = await codec.getNextFrame();
-  final data = await frame.image.toByteData(format: ui.ImageByteFormat.rawRgba);
-  return data!.buffer.asUint8List();
+  final decoded = await decodeImagePure(await file.readAsBytes());
+  if (decoded == null) {
+    throw StateError('${file.path} did not decode as a PNG.');
+  }
+  return decoded.pixels;
 }
 
 void main() {
-  TestWidgetsFlutterBinding.ensureInitialized();
-
   final mine = Directory('test/goldens');
   final theirs = Directory('../flutter3d/test/goldens');
 

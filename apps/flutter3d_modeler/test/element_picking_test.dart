@@ -734,29 +734,32 @@ void main() {
       expect(frustumOverBox(view, Rect.fromPoints(at, at)), isNull);
     });
 
-    test('answers the same frustum frustumOver itself would, for a real box', () {
-      final view = viewLookingAtTheCube();
-      final corner = screenOf(Vector3(1.0, 1.0, 1.0));
-      final rect = Rect.fromPoints(
-        corner.translate(-20.0, -20.0),
-        corner.translate(30.0, 20.0),
-      );
+    test(
+      'answers the same frustum frustumOver itself would, for a real box',
+      () {
+        final view = viewLookingAtTheCube();
+        final corner = screenOf(Vector3(1.0, 1.0, 1.0));
+        final rect = Rect.fromPoints(
+          corner.translate(-20.0, -20.0),
+          corner.translate(30.0, 20.0),
+        );
 
-      // The guard answers null only for an empty rectangle; anything else
-      // still reaches `frustumOver`, and reaches it built from the same
-      // rectangle — not a looser or tighter one the guard quietly
-      // substituted. Mutation: `frustumOverBox` returns a frustum built from
-      // the full viewport instead of `rect` whenever `rect` is non-empty.
-      // Run, and this test is the one that notices: the two planes would
-      // stop being the pair `frustumOver(rect)` itself produces.
-      final direct = view.frustumOver(rect);
-      final viaHelper = frustumOverBox(view, rect);
-      expect(viaHelper, isNotNull);
-      expect(viaHelper!.plane0.normal, direct.plane0.normal);
-      expect(viaHelper.plane0.constant, direct.plane0.constant);
-      expect(viaHelper.plane2.normal, direct.plane2.normal);
-      expect(viaHelper.plane2.constant, direct.plane2.constant);
-    });
+        // The guard answers null only for an empty rectangle; anything else
+        // still reaches `frustumOver`, and reaches it built from the same
+        // rectangle — not a looser or tighter one the guard quietly
+        // substituted. Mutation: `frustumOverBox` returns a frustum built from
+        // the full viewport instead of `rect` whenever `rect` is non-empty.
+        // Run, and this test is the one that notices: the two planes would
+        // stop being the pair `frustumOver(rect)` itself produces.
+        final direct = view.frustumOver(rect);
+        final viaHelper = frustumOverBox(view, rect);
+        expect(viaHelper, isNotNull);
+        expect(viaHelper!.plane0.normal, direct.plane0.normal);
+        expect(viaHelper.plane0.constant, direct.plane0.constant);
+        expect(viaHelper.plane2.normal, direct.plane2.normal);
+        expect(viaHelper.plane2.constant, direct.plane2.constant);
+      },
+    );
   });
 
   group('a viewport', () {
@@ -803,6 +806,136 @@ void main() {
       // its own mirror image instead of nowhere — indistinguishable from a
       // real joint standing in front of the camera at that same spot.
       expect(projected, isNull);
+    });
+  });
+
+  group('ux-28: a 4×4 grid, alt-clicked', () {
+    /// A flat grid of [across] by [across] quads, two units on a side and
+    /// centred on the origin, facing the camera. The mesh the row's own
+    /// acceptance names.
+    EditMesh grid(int across) {
+      final points = <Vector3>[];
+      for (var row = 0; row <= across; row++) {
+        for (var column = 0; column <= across; column++) {
+          points.add(
+            Vector3(column * 2.0 / across - 1.0, 1.0 - row * 2.0 / across, 0.0),
+          );
+        }
+      }
+      final faces = <List<int>>[];
+      for (var row = 0; row < across; row++) {
+        for (var column = 0; column < across; column++) {
+          final int corner = row * (across + 1) + column;
+          faces.add(<int>[
+            corner,
+            corner + across + 1,
+            corner + across + 2,
+            corner + 1,
+          ]);
+        }
+      }
+      return EditMesh.fromFaces(points, faces);
+    }
+
+    test('the click finds the edge it was aimed at, at edge level', () {
+      final mesh = grid(4);
+      final picker = pickerFor(mesh);
+      final view = viewLookingAtTheCube();
+
+      // The middle of a vertical grid line: x = −0.5, half way up.
+      final picked = pickElementAt(
+        picker,
+        view,
+        at: screenOf(Vector3(-0.5, 0.25, 0.0)),
+        pointer: PointerDeviceKind.mouse,
+        level: ElementLevel.edge,
+      );
+
+      expect(picked.level, ElementLevel.edge);
+      expect(picked.ids, hasLength(1));
+    });
+
+    test('and the loop through it runs the height of the grid', () {
+      final mesh = grid(4);
+      final picker = pickerFor(mesh);
+      final view = viewLookingAtTheCube();
+      final picked = pickElementAt(
+        picker,
+        view,
+        at: screenOf(Vector3(-0.5, 0.25, 0.0)),
+        pointer: PointerDeviceKind.mouse,
+        level: ElementLevel.edge,
+      );
+
+      final Selection loop = Selection.edgeLoop(mesh, picked.ids.first);
+
+      // The acceptance this row states. A vertical line of a 4×4 grid is four
+      // edges tall. Mutation: ask the picker at the sub-mode's own level — a
+      // person in face mode would then alt-click and get the loop through
+      // whatever edge a *face* id happens to name, which is a different run
+      // of the mesh or none at all.
+      expect(loop.level, ElementLevel.edge);
+      expect(loop.ids, hasLength(4));
+    });
+
+    test('and a lasso round two faces catches those two and no more', () {
+      final mesh = grid(4);
+      final picker = pickerFor(mesh);
+      final view = viewLookingAtTheCube();
+
+      // A loop drawn round the middles of the two faces of the top row
+      // nearest the left: centres at (−0.75, 0.75) and (−0.25, 0.75).
+      final List<Offset> path = <Offset>[
+        screenOf(Vector3(-1.05, 1.05, 0.0)),
+        screenOf(Vector3(0.05, 1.05, 0.0)),
+        screenOf(Vector3(0.05, 0.45, 0.0)),
+        screenOf(Vector3(-1.05, 0.45, 0.0)),
+      ];
+      final Rect bounds = path
+          .skip(1)
+          .fold(
+            Rect.fromPoints(path.first, path.first),
+            (Rect box, Offset at) =>
+                box.expandToInclude(Rect.fromPoints(at, at)),
+          );
+      bool inside(Offset at) => bounds.deflate(0.0).contains(at);
+
+      final Selection caught = pickElementsInLoop(
+        picker,
+        view,
+        bounds: bounds,
+        encloses: inside,
+        level: ElementLevel.face,
+      );
+
+      expect(caught.ids, hasLength(2));
+    });
+
+    test('and a loop that excludes a face leaves it out', () {
+      final mesh = grid(4);
+      final picker = pickerFor(mesh);
+      final view = viewLookingAtTheCube();
+
+      // The same rectangle as above, reaching for two faces, but asked with
+      // a predicate that only admits the left half of it. Mutation: answer
+      // with the bounding box's own catch — `pickElementsIn` alone — and this
+      // is two, which is a lasso that is a rectangle wearing a different
+      // outline.
+      final Rect bounds = Rect.fromPoints(
+        screenOf(Vector3(-1.05, 1.05, 0.0)),
+        screenOf(Vector3(0.05, 0.45, 0.0)),
+      );
+      final double middle = screenOf(Vector3(-0.5, 0.75, 0.0)).dx;
+
+      final Selection caught = pickElementsInLoop(
+        picker,
+        view,
+        bounds: bounds,
+        encloses: (Offset at) => at.dx < middle,
+        level: ElementLevel.face,
+      );
+
+      expect(caught.ids, hasLength(1));
     });
   });
 }

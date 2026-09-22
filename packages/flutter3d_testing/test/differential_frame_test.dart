@@ -70,10 +70,7 @@ Future<RenderedFrame> _renderDocument(ModelDocument document) async {
 
   final bounds = scene.computeBounds();
   final centre = (bounds.min + bounds.max)..scale(0.5);
-  final radius = math.max(
-    ((bounds.max - bounds.min)..scale(0.5)).length,
-    1e-3,
-  );
+  final radius = math.max(((bounds.max - bounds.min)..scale(0.5)).length, 1e-3);
 
   scene.add(
     LightNode(intensity: 3.0)
@@ -119,28 +116,25 @@ Future<RenderedFrame> _renderDocument(ModelDocument document) async {
 }
 
 void main() {
-  group(
-    'a model rendered, written through GltfWriter and read back, renders '
-    'the same picture',
-    () {
-      for (final entry in _kModels.entries) {
-        test(entry.key, () async {
-          final source = await entry.value();
-          final rewritten = await GltfLoader().load(
-            GltfWriter(source).writeGlb(),
-          );
+  group('a model rendered, written through GltfWriter and read back, renders '
+      'the same picture', () {
+    for (final entry in _kModels.entries) {
+      test(entry.key, () async {
+        final source = await entry.value();
+        final rewritten = await GltfLoader().load(
+          GltfWriter(source).writeGlb(),
+        );
 
-          final before = await _renderDocument(source);
-          final after = await _renderDocument(rewritten);
+        final before = await _renderDocument(source);
+        final after = await _renderDocument(rewritten);
 
-          final difference = compareFrames(
-            before.pixels,
-            after.pixels,
-            channel: 0,
-          );
-          expect(difference.differing, 0, reason: difference.toString());
-        });
-      }
-    },
-  );
+        final difference = compareFrames(
+          before.pixels,
+          after.pixels,
+          channel: 0,
+        );
+        expect(difference.differing, 0, reason: difference.toString());
+      });
+    }
+  });
 }

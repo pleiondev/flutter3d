@@ -58,9 +58,18 @@ Uint8List readSample(String name) => File('$kSamples/$name').readAsBytesSync();
   );
 }
 
-void _expectMatrixClose(Matrix4 a, Matrix4 b, {double tol = 1e-5, String? reason}) {
+void _expectMatrixClose(
+  Matrix4 a,
+  Matrix4 b, {
+  double tol = 1e-5,
+  String? reason,
+}) {
   for (var e = 0; e < 16; e++) {
-    expect(a.storage[e], closeTo(b.storage[e], tol), reason: '$reason, element $e');
+    expect(
+      a.storage[e],
+      closeTo(b.storage[e], tol),
+      reason: '$reason, element $e',
+    );
   }
 }
 
@@ -306,7 +315,11 @@ void main() {
       );
       final identity = Matrix4.identity().storage;
       for (var e = 0; e < 16; e++) {
-        expect(joints[16 + e], closeTo(identity[e], 1e-9), reason: 'element $e');
+        expect(
+          joints[16 + e],
+          closeTo(identity[e], 1e-9),
+          reason: 'element $e',
+        );
       }
     });
 

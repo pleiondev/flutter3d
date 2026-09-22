@@ -1,17 +1,21 @@
 /// `mat-24`'s own shadows panel: the scene-wide shadow request, and the
-/// status line — "Источников N · теневых M из 6" — that reads orange when
-/// `lightsDropped`/`shadowsDenied` say the renderer could not keep up.
+/// status line — `sceneStatusLabel`, "N sources, M shadowed of 6" — that
+/// reads orange when `lightsDropped`/`shadowsDenied` say the renderer could
+/// not keep up.
 ///
 /// The status is computed elsewhere, by `computeSceneStatus`
 /// (`scene_mode.dart`) — this widget only draws a [SceneStatus] it is
 /// handed, the same split every panel in this app keeps between the pure
-/// logic and the widget over it.
+/// logic and the widget over it. `SceneStatus` names no string of its own
+/// (`ui-22`): the numbers are pure, the words are this widget's, through
+/// `AppLocalizations`.
 library;
 
 import 'package:flutter/material.dart';
+import 'package:flutter3d_editor_widgets/flutter3d_editor_widgets.dart';
 
+import '../../l10n/app_localizations.dart';
 import '../scene_mode.dart';
-import 'section_label.dart';
 
 /// The shadow toggle, and the status it drives.
 final class SceneShadowsPanel extends StatelessWidget {
@@ -33,27 +37,33 @@ final class SceneShadowsPanel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final l10n = AppLocalizations.of(context);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: <Widget>[
-        const SectionLabel('Тени'),
+        SectionLabel(l10n.sceneShadowsSectionLabel),
         SwitchListTile(
           dense: true,
           contentPadding: EdgeInsets.zero,
-          title: const Text('Shadows'),
+          title: Text(l10n.sceneShadowsToggleLabel),
           value: shadows,
           onChanged: onShadowsChanged,
         ),
         Padding(
           padding: const EdgeInsets.symmetric(vertical: 4),
           child: Text(
-            status.text,
-            // `status_line.dart`'s own doc comment already names orange as
-            // this app's own warning colour — used here for the identical
-            // reason, not picked fresh for this one panel.
+            l10n.sceneStatusLabel(
+              status.lightCount,
+              status.shadowedCount,
+              status.shadowCap,
+            ),
+            // The design hand-over's own warning colour is `tertiary`
+            // (`#FFB86B`), not a hard-coded Material orange picked fresh for
+            // this one panel — `status_line.dart`'s own doc comment names
+            // the same role for the identical reason.
             style: theme.textTheme.bodySmall?.copyWith(
               color: status.warning
-                  ? Colors.orange
+                  ? theme.colorScheme.tertiary
                   : theme.colorScheme.onSurfaceVariant,
               fontWeight: status.warning ? FontWeight.bold : null,
             ),

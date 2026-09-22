@@ -15,10 +15,10 @@ library;
 import 'dart:math';
 import 'dart:typed_data';
 
+import 'package:flutter3d_core/formats.dart' show Rgba8Image, buildMipChain;
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
-import 'package:flutter3d_formats/flutter3d_formats.dart' show Rgba8Image, buildMipChain;
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
-import 'package:flutter_test/flutter_test.dart';
+import 'package:test/test.dart';
 
 const _size = 32;
 
@@ -51,7 +51,11 @@ void main() {
   late CpuDevice device;
 
   setUp(() {
-    device = CpuDevice(width: 8, height: 8, shaders: CpuShaderLibrary(builtinCpuShaders()));
+    device = CpuDevice(
+      width: 8,
+      height: 8,
+      shaders: CpuShaderLibrary(builtinCpuShaders()),
+    );
   });
 
   test(
@@ -68,23 +72,27 @@ void main() {
           .toList();
 
       final withChain = BoundTexture(
-        device.createTextureFromPixels(
-              width: _size,
-              height: _size,
-              format: TextureFormat.r8g8b8a8UNormInt,
-              pixels: baseBytes,
-              mipLevels: mipLevels,
-            )!.backend
+        device
+                .createTextureFromPixels(
+                  width: _size,
+                  height: _size,
+                  format: TextureFormat.r8g8b8a8UNormInt,
+                  pixels: baseBytes,
+                  mipLevels: mipLevels,
+                )!
+                .backend
             as CpuTexture,
         SamplerOptions.trilinearRepeat,
       );
       final withoutChain = BoundTexture(
-        device.createTextureFromPixels(
-              width: _size,
-              height: _size,
-              format: TextureFormat.r8g8b8a8UNormInt,
-              pixels: baseBytes,
-            )!.backend
+        device
+                .createTextureFromPixels(
+                  width: _size,
+                  height: _size,
+                  format: TextureFormat.r8g8b8a8UNormInt,
+                  pixels: baseBytes,
+                )!
+                .backend
             as CpuTexture,
         SamplerOptions.trilinearRepeat,
       );

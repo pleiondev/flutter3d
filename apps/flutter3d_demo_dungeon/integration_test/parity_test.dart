@@ -9,8 +9,8 @@
 /// See `doc/tooling-plan.md` rp-00 for what this answers.
 library;
 
-import 'package:flutter3d_game/flutter3d_game.dart';
 import 'package:flutter3d_game_shooter/flutter3d_game_shooter.dart';
+import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 import 'package:vector_math/vector_math.dart';
@@ -113,9 +113,7 @@ DigestTrace _play(
       forward = wish.forward;
     }
     if (wish.jump != jump) {
-      wish.jump
-          ? input.press(GameAction.jump)
-          : input.release(GameAction.jump);
+      wish.jump ? input.press(GameAction.jump) : input.release(GameAction.jump);
       jump = wish.jump;
     }
     if (wish.crouch != crouch) {

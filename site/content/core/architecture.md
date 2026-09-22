@@ -62,7 +62,7 @@ A browser build opens WebGL2 unless it says otherwise. That is a decision about 
 Any new backend has to pass `flutter3d_conformance` before it counts as one.
 
 <div class="note">
-<p>Writing a fifth one is a documented job rather than an archaeology exercise: <a href="/core/backends/"><strong>Writing a HAL backend</strong></a> covers the whole contract, the ten semantics that appear in no signature, the conformance suite you can run before compiling a single shader, and the thirty-nine shader entry points your bundle has to answer to.</p>
+<p>Writing a fifth one is a documented job rather than an archaeology exercise: <a href="/core/backends/"><strong>Writing a HAL backend</strong></a> covers the whole contract, the ten semantics that appear in no signature, the conformance suite you can run before compiling a single shader, and the forty-eight shader entry points your bundle has to answer to.</p>
 </div>
 
 ### What the HAL actually names
@@ -76,10 +76,6 @@ abstract interface class GraphicsDevice implements TextureAllocator {
   void beginFrame();
   CommandEncoder beginRenderPass(RenderPassDescriptor descriptor);
 
-  /// Hands the finished frame to Flutter. `present` instead of an image,
-  /// because a backend whose frame is composited elsewhere has none.
-  Widget present(...);
-
   Future<ByteData?> readPixels(TextureHandle texture);
 
   /// The frame before, without waiting for it: what an exposure meter and
@@ -90,7 +86,7 @@ abstract interface class GraphicsDevice implements TextureAllocator {
 
 Plus `PassEncoder` (state, bindings, draws), `PassState` as one value, the enums a caller has to name (`formats.dart`, `vertex_layout_spec.dart`), opaque handles for the things a backend owns (`GeometryBuffer`, `ShaderHandle`, `TextureHandle`), sampling (`SamplerOptions`, `MipChain`), and a render target pool with the description that makes two targets interchangeable.
 
-Two rules in `tool/structure.dart` hold the boundary: `the hardware layer names no graphics API` refuses a `flutter_gpu` import anywhere in the HAL, and `the engine names no backend` refuses one in `flutter3d` — and refuses the *dependency* too, which the import scan alone would miss. The HAL also refuses `dart:ui`, apart from one member on `GraphicsDevice` that has to name it, and the reason is written beside the exemption.
+Two rules in `tool/structure.dart` hold the boundary: `the hardware layer names no graphics API` refuses a `flutter_gpu` import anywhere in the HAL, and `the engine names no backend` refuses one in `flutter3d` — and refuses the *dependency* too, which the import scan alone would miss. The HAL also refuses `dart:ui` and the rest of Flutter outright now: `GraphicsDevice.present`, its one Flutter member, is gone, and what a finished frame becomes is decided by a device registry in `flutter3d_hardware` that a backend registers its own presenter with, looked up by `presentFrame` in `flutter3d_app`.
 
 <div class="note">
 <p>The compiled shader bundle is an asset of <code>flutter3d_impeller</code>, which is where it belongs: a bundle is one backend's output, and the backend that reads it is the one that ships it. The GLSL it is built from is shared, in <code>flutter3d_shaders</code>, because the other two backends compile from the same sources. It used to sit in <code>flutter3d</code>, which made the engine carry one backend's build output.</p>
@@ -118,9 +114,9 @@ What stayed behind is machinery: `Actor` (a body, a brain and some health, **eve
 <p>The file used to be <code>lib/shooter.dart</code> in the game package, unexported by the barrel, a rule instead of a boundary. It still resolved from inside the package, and the four things it leaned on carried no marking at all. The genre rule is what turned the rename into a fact.</p>
 </div>
 
-### One package may see both sides {#the-bridge}
+### Where the two sides meet {#the-bridge}
 
-Level geometry has to become mesh nodes. An actor has to get a visual. A glowing fixture has to drive a light. Neither of the two rules above leaves anywhere for that mapping to live, so `flutter3d_bridge` is that place, and it is the smallest package in the repository.
+Level geometry has to become mesh nodes. An actor has to get a visual. A glowing fixture has to drive a light. Neither of the two rules above lets that mapping live in the simulation or in the renderer, so it lives above both: `flutter3d_app` loads a level into a scene for any application, and `flutter3d_game` gives a game's actors and fixtures their visuals.
 
 Everything in it is mechanism. What a torch *looks* like and what colour a runner is are decided by the game and handed in through `FixtureAppearance` and `ActorAppearance`.
 

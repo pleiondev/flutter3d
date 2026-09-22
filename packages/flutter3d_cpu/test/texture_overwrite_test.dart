@@ -1,17 +1,20 @@
-/// `GraphicsDevice.overwriteTexture`, on the one backend a plain `flutter
+/// `GraphicsDevice.overwriteTexture`, on the one backend a plain `dart
 /// test` can check content against without a GPU or a browser — `pro-eng-02`.
 ///
-///     flutter test test/texture_overwrite_test.dart
+///     dart test test/texture_overwrite_test.dart
 library;
 
 import 'dart:typed_data';
 
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
-import 'package:flutter_test/flutter_test.dart';
+import 'package:test/test.dart';
 
-CpuDevice _device() =>
-    CpuDevice(width: 8, height: 8, shaders: CpuShaderLibrary(builtinCpuShaders()));
+CpuDevice _device() => CpuDevice(
+  width: 8,
+  height: 8,
+  shaders: CpuShaderLibrary(builtinCpuShaders()),
+);
 
 TextureHandle _solidTexture(CpuDevice device, int width, int height, int rgba) {
   final pixels = ByteData(width * height * 4);
@@ -53,14 +56,24 @@ void main() {
     // The 2x2 patch at (1,1) is green now...
     for (var y = 1; y < 3; y++) {
       for (var x = 1; x < 3; x++) {
-        expect(_texelAt(texture, x, y), <int>[0, 255, 0, 255], reason: '($x,$y)');
+        expect(_texelAt(texture, x, y), <int>[
+          0,
+          255,
+          0,
+          255,
+        ], reason: '($x,$y)');
       }
     }
     // ...and every texel outside it is still the original red.
     for (var y = 0; y < 4; y++) {
       for (var x = 0; x < 4; x++) {
         if (x >= 1 && x < 3 && y >= 1 && y < 3) continue;
-        expect(_texelAt(texture, x, y), <int>[255, 0, 0, 255], reason: '($x,$y)');
+        expect(_texelAt(texture, x, y), <int>[
+          255,
+          0,
+          0,
+          255,
+        ], reason: '($x,$y)');
       }
     }
   });

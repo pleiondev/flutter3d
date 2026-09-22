@@ -65,7 +65,9 @@ void main() {
       double distanceToSphere(Vector3 p) => p.length - radius;
       final worst = _worstRelativeDistance(result, distanceToSphere, diagonal);
       // ignore: avoid_print
-      print('sphere: worst relative distance ${(worst * 100).toStringAsFixed(3)}%');
+      print(
+        'sphere: worst relative distance ${(worst * 100).toStringAsFixed(3)}%',
+      );
       expect(worst, lessThan(0.005));
     });
 
@@ -103,17 +105,25 @@ void main() {
 
       final worst = _worstRelativeDistance(result, distanceToTorus, diagonal);
       // ignore: avoid_print
-      print('torus: worst relative distance ${(worst * 100).toStringAsFixed(3)}%');
+      print(
+        'torus: worst relative distance ${(worst * 100).toStringAsFixed(3)}%',
+      );
       expect(worst, lessThan(0.005));
     });
 
-    test('a mesh already at or under the target is returned close to as-is', () {
-      final source = const ParametricSphere(segments: 8, rings: 4).toEditMesh();
-      final result = retopologize(source, targetQuads: 1000);
+    test(
+      'a mesh already at or under the target is returned close to as-is',
+      () {
+        final source = const ParametricSphere(
+          segments: 8,
+          rings: 4,
+        ).toEditMesh();
+        final result = retopologize(source, targetQuads: 1000);
 
-      // Nothing to simplify away, but quadrangulation still runs.
-      expect(result.vertexSlotCount, greaterThan(0));
-      expect(_quadFraction(result), greaterThan(0.0));
-    });
+        // Nothing to simplify away, but quadrangulation still runs.
+        expect(result.vertexSlotCount, greaterThan(0));
+        expect(_quadFraction(result), greaterThan(0.0));
+      },
+    );
   });
 }

@@ -1,24 +1,24 @@
 ---
-description: The device, the frame surface and the level lifecycle every shipped game assembles the same way, through flutter3d_backend, flutter3d_session and flutter3d_screens.
+description: The device, the frame surface and the level lifecycle every shipped game assembles the same way, through flutter3d_app and flutter3d_game.
 ---
 
 # Assembling an application
 
-[The tutorial](/core/tutorial/) opens a device and drives a `Ticker` by hand, because that is what is actually happening underneath. By the second game, the same conditional import, the same forty-line frame widget and the same load-restart-save sequence had been written out three times, close enough to identical that a bug fixed in one copy stayed broken in the other two. Three packages exist because of that: `flutter3d_backend`, `flutter3d_session` and `flutter3d_screens`. This page is what they do, and how `apps/flutter3d_demo_dungeon` puts them to use. It is the most complete worked example of all three together.
+[The tutorial](/core/tutorial/) opens a device and drives a `Ticker` by hand, because that is what is actually happening underneath. By the second game, the same conditional import, the same forty-line frame widget and the same load-restart-save sequence had been written out three times, close enough to identical that a bug fixed in one copy stayed broken in the other two. Two packages exist because of that: `flutter3d_app` (the backend choice, the frame surface and level loading, which any application needs) and `flutter3d_game` (the input, the run, and the settings, rebinding and save screens no game owns). This page is what they do, and how `apps/flutter3d_demo_dungeon` puts them to use. It is the most complete worked example of both together.
 
 <div class="goal">
 <ul>
-<li><code>flutter3d_backend.openDevice()</code>: one line that opens Impeller on desktop and WebGL2 on the web, without either name appearing at the call site</li>
+<li><code>flutter3d_app.openDevice()</code>: one line that opens Impeller on desktop and WebGL2 on the web, without either name appearing at the call site</li>
 <li><code>SceneSurface</code>: the widget that hands a frame to Flutter, and why its settings are a function rather than a value</li>
 <li><code>RunSession&lt;L&gt;</code>: the five questions a game answers to get loading, restarting, saving and moving on for free</li>
-<li>Where <code>flutter3d_screens</code> and the input packages fit in, how <code>flutter3d_app</code> puts all five behind one import, and where one of the six applications has not caught up to any of this yet</li>
+<li>Where the settings screens and the input packages fit in, how <code>flutter3d_app</code> puts all of it behind one import, and where one of the six applications has not caught up to any of this yet</li>
 </ul>
 </div>
 
 ## Picking a device
 
 ```dart
-import 'package:flutter3d_backend/flutter3d_backend.dart';
+import 'package:flutter3d_app/flutter3d_app.dart';
 
 final device = await openDevice(width: 1280, height: 720);
 ```
@@ -29,10 +29,10 @@ final device = await openDevice(width: 1280, height: 720);
 <p>The software fallback is <code>flutter3d_cpu</code>, which the rest of this site describes as a golden-test backend and a dev dependency, not a production one. It is a Dart rasteriser with no GPU under it, and a frame that would take a millisecond on Impeller takes a great deal longer here. It exists as a last resort, so that a broken Impeller start shows <em>something</em>, playable if slow, instead of nothing at all. It is not a supported way to ship a game. <code>debugPrint</code> logs which one actually ran; <code>openDevice</code>'s return type does not say, on purpose, so every existing caller keeps compiling unchanged.</p>
 </div>
 
-What it does not decide is `kFixedResolution` — whether the backend renders to a fixed internal target that Flutter then stretches. It's `false` on native (Impeller allocates its frame targets at whatever size the widget was laid out at) and `true` on the web (a WebGL canvas resets its drawing buffer on resize, so `WebGlDevice` owns a canvas at one size and `present` takes a `BoxFit` to stretch it). *What* size is left to the application: the crypt and the platformer draw at 720p, the racing game at 960×540, and each says why where the number is.
+What it does not decide is `kFixedResolution` — whether the backend renders to a fixed internal target that Flutter then stretches. It's `false` on native (Impeller allocates its frame targets at whatever size the widget was laid out at) and `true` on the web (a WebGL canvas resets its drawing buffer on resize, so `WebGlDevice` owns a canvas at one size and `presentFrame` takes a `BoxFit` to stretch it). *What* size is left to the application: the crypt and the platformer draw at 720p, the racing game at 960×540, and each says why where the number is.
 
 <div class="note">
-<p><code>flutter3d_backend</code> was deliberately not folded into <code>flutter3d_session</code>. Session would then depend on both backends, and <code>apps/flutter3d_editor</code>, which is desktop only and has no browser build to choose for, would pull WebGL through it for nothing.</p>
+<p>The backend choice lives in <code>flutter3d_app</code>, which every application stands on — <code>apps/flutter3d_editor</code> included, which is desktop only and resolves the WebGL backend anyway; the conditional import is what keeps a native build from compiling it. It was its own package once, until most of its consumers turned out to already reach it through that same barrel and the few that didn't cost nothing to repoint.</p>
 </div>
 
 ## The frame surface
@@ -104,7 +104,7 @@ Not every game fits the shape. The racing game moves from one circuit to the nex
 
 ## Settings and saves
 
-`flutter3d_screens` is the screens a game has that are not the game: `SettingsOverlay` (volumes, a gamepad and accessibility sliders, a rebinding list that takes a key or a pad button, and where a licence's attribution goes) and `SaveFile` (where `RunSession.saves` reads and writes, per platform, through `Storage`). Wiring the overlay into a HUD is one widget per game:
+`lib/src/screens/` (once its own package, `flutter3d_screens`) is the screens a game has that are not the game: `SettingsOverlay` (volumes, a gamepad and accessibility sliders, a rebinding list that takes a key or a pad button, and where a licence's attribution goes) and `SaveFile` (where `RunSession.saves` reads and writes, per platform, through `Storage`). Wiring the overlay into a HUD is one widget per game:
 
 ```dart
 SettingsOverlay(
@@ -146,24 +146,24 @@ final delta = lock.takeDelta();                       // synchronous, drained on
 
 ## One import for all of it
 
-The five packages this page walks are re-exported by `flutter3d_app`, so an application names the layer once rather than naming its parts:
+The packages this page walks are re-exported by `flutter3d_app`, so an application names the layer once rather than naming its parts:
 
 ```dart
 import 'package:flutter3d_app/flutter3d_app.dart';
 ```
 
-Thirty-five lines, all of them `export`. It changes nothing about how the five relate: none of them knows about the others, and the barrel does not make them. What it saves is five import lines being copied into every new project, which is how this page's subject started.
+Thirty-five lines of `export`, plus the backend choice itself, which lives in this package directly rather than behind one more `export` line. It changes nothing about how the four sibling packages relate: none of them knows about the others, and the barrel does not make them. What it saves is import lines being copied into every new project, which is how this page's subject started.
 
-What is deliberately not behind it: `flutter3d`, `flutter3d_bridge`, `flutter3d_game` and a genre package. Those say what a scene looks like and what kind of game this is, and a facade cannot choose a genre for an application.
+What is deliberately not behind it: `flutter3d`, `flutter3d_sim`, `flutter3d_game` and a genre package. Those say what a scene looks like and what kind of game this is, and a facade cannot choose a genre for an application.
 
 ## Where one application has not caught up
 
-The four demo games import `flutter3d_app`, and so does `apps/flutter3d_template_app`: the scaffold names `flutter3d_app` in its pubspec and opens its device through `openDevice`, which picks Impeller or WebGL for the build and falls back to the software rasteriser at run time when flutter_gpu will not start — the pattern this page teaches, including the fallback. It also names `flutter3d_session` directly, which the barrel re-exports; a second dependency on a package you are already getting is a line to delete, not a different arrangement.
+The four demo games import `flutter3d_app`, and so does `packages/flutter3d_game/example`, the game a new project starts as: the scaffold names `flutter3d_app` in its pubspec and opens its device through `openDevice`, which picks Impeller or WebGL for the build and falls back to the software rasteriser at run time when flutter_gpu will not start — the pattern this page teaches, including the fallback. It also names `flutter3d_game`, for the input and the run.
 
 `apps/flutter3d_editor` is the one that does not: it names `flutter3d_impeller` and opens its device with `GpuRenderBackend.create()`, the way [the tutorial](/core/tutorial/) does. That is defensible where it is, since the editor is desktop-only and there is no backend to choose between — but it is the reason the editor cannot be the thing you copy. Copy the scaffold, which is what it is for.
 
 ## Next
 
-- [Core: what core is](/core/): the five packages underneath all of this
+- [Core: what core is](/core/): the packages underneath all of this
 - [Tutorial: first scene](/core/tutorial/): the raw version of device-opening this page builds on
 - [The level editor](/core/editor/): the fourth application, and the one with no genre package at all

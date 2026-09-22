@@ -699,6 +699,15 @@ final class WebGpuDevice implements GraphicsDevice, WgslModuleCompiler {
   @override
   int get maxAnisotropy => 16;
 
+  /// Four — `gfx-50n`.
+  ///
+  /// The specification's `maxColorAttachments` limit, whose guaranteed floor
+  /// is four and which no device may report below. A constant rather than a
+  /// query for once, because here the floor is the promise: a WebGPU device
+  /// that offered fewer would not be a WebGPU device.
+  @override
+  int get maxColorAttachments => 4;
+
   /// Whether WebGPU has a name for [format] *and* this device was granted the
   /// feature it needs.
   ///
@@ -773,13 +782,16 @@ final class WebGpuDevice implements GraphicsDevice, WgslModuleCompiler {
         'level (0) may be overwritten.',
       );
     }
-    final rect = region ?? ScreenRect(width: target.width, height: target.height);
+    final rect =
+        region ?? ScreenRect(width: target.width, height: target.height);
     if (rect.x < 0 ||
         rect.y < 0 ||
         rect.x + rect.width > target.width ||
         rect.y + rect.height > target.height) {
-      throw ArgumentError('overwriteTexture: $rect does not fit inside a '
-          '${target.width}x${target.height} texture');
+      throw ArgumentError(
+        'overwriteTexture: $rect does not fit inside a '
+        '${target.width}x${target.height} texture',
+      );
     }
     if (rgba.lengthInBytes != rect.width * rect.height * 4) {
       throw ArgumentError(
@@ -850,11 +862,14 @@ final class WebGpuDevice implements GraphicsDevice, WgslModuleCompiler {
   );
 
   @override
-  void overwriteGeometry(GeometryBuffer target, int offsetInBytes, ByteData bytes) =>
-      guard(
-        'a ${bytes.lengthInBytes}-byte overwrite at $offsetInBytes',
-        () => webgpuOverwriteGeometry(gpuDevice, target, offsetInBytes, bytes),
-      );
+  void overwriteGeometry(
+    GeometryBuffer target,
+    int offsetInBytes,
+    ByteData bytes,
+  ) => guard(
+    'a ${bytes.lengthInBytes}-byte overwrite at $offsetInBytes',
+    () => webgpuOverwriteGeometry(gpuDevice, target, offsetInBytes, bytes),
+  );
 
   /// Records the stage pair, its layout and the reflection a bind group will
   /// need. Nothing is built: see [WebGpuPipeline], and `webgpu_encoder.dart`
@@ -933,50 +948,31 @@ final class WebGpuDevice implements GraphicsDevice, WgslModuleCompiler {
   }
 
   @override
-  CommandEncoder beginRenderPass(RenderPassDescriptor descriptor) =>
-      WebGpuEncoder(this, descriptor);
+  CommandEncoder beginRenderPass(RenderPassDescriptor descriptor) {
+    // `gfx-50n`. WebGPU validates this itself and reports it on the device's
+    // error scope, which arrives asynchronously and after the frame; the
+    // throw says the same thing where the caller still is.
+    descriptor.checkAttachmentLimit(
+      maxColorAttachments,
+      backend: 'this WebGPU device',
+    );
+    return WebGpuEncoder(this, descriptor);
+  }
 
   // --------------------------------------------------------------- output
 
-  /// The canvas, in the widget tree, with [frame] copied into it.
+  /// Copies [frame] into the canvas the browser composites.
+  ///
+  /// `WebGpuFramePresenter` in this same package calls this, then
+  /// [applyCanvasStyle], before building the `HtmlElementView` that shows
+  /// [viewType].
   ///
   /// **A copy rather than a render**, because `getCurrentTexture` is valid only
   /// for the task it was asked in and cannot be held across an `await`. The
   /// engine's target already exists and the copy is one command on an encoder
   /// submitted immediately — the same one GPU copy the WebGL2 backend's
   /// presenting blit is, arrived at from the other side.
-  ///
-  /// [fit] and [quality] are honoured through CSS on the element rather than by
-  /// Flutter, since Flutter does not composite these pixels.
-  @override
-  Widget present(
-    TextureHandle frame, {
-    BoxFit fit = BoxFit.fill,
-    FilterQuality quality = FilterQuality.none,
-  }) {
-    _copyToCanvas(frame);
-    _canvas.style
-      ..width = '100%'
-      ..height = '100%'
-      // A display surface, not a control. Left interactive, the canvas takes
-      // the pointer events over it and the Flutter widgets above the platform
-      // view never see them — which reads as an application whose camera does
-      // not turn while its keyboard works fine.
-      ..pointerEvents = 'none'
-      ..objectFit = switch (fit) {
-        BoxFit.contain => 'contain',
-        BoxFit.cover => 'cover',
-        BoxFit.fill => 'fill',
-        BoxFit.fitWidth ||
-        BoxFit.fitHeight ||
-        BoxFit.none ||
-        BoxFit.scaleDown => 'contain',
-      }
-      ..imageRendering = quality == FilterQuality.none ? 'pixelated' : 'auto';
-    return HtmlElementView(viewType: viewType);
-  }
-
-  void _copyToCanvas(TextureHandle frame) {
+  void copyToCanvas(TextureHandle frame) {
     // **The canvas takes the frame's size, and the clamp below is no longer the
     // thing that reconciles them.** A frame is as big as the surface asked for
     // — `SceneSurface` renders at the layout size times the device pixel ratio
@@ -990,9 +986,10 @@ final class WebGpuDevice implements GraphicsDevice, WgslModuleCompiler {
     // drawn at the centre by Flutter.
     //
     // Resizing the canvas is what makes the copy one-to-one; the scaling is
-    // CSS's, which is what `objectFit` in [present] has always been for. The
-    // WebGPU context keeps its configuration across a resize and hands back a
-    // texture of the new size, so nothing has to be reconfigured here.
+    // CSS's, which is what `objectFit` in [applyCanvasStyle] has always been
+    // for. The WebGPU context keeps its configuration across a resize and
+    // hands back a texture of the new size, so nothing has to be
+    // reconfigured here.
     if (_canvas.width != frame.width || _canvas.height != frame.height) {
       _canvas
         ..width = frame.width
@@ -1021,6 +1018,39 @@ final class WebGpuDevice implements GraphicsDevice, WgslModuleCompiler {
         );
       gpuDevice.queue.submit(<GPUCommandBuffer>[encoder.finish()].toJS);
     });
+  }
+
+  /// Styles the canvas through CSS, honouring [fit] and [quality] the way
+  /// Flutter would if it composited these pixels itself.
+  ///
+  /// A method here rather than a public canvas, because this package depends
+  /// on neither `package:web` nor anything else that would hand an element to
+  /// a caller outside this file — see this file's own top-of-file doc comment.
+  /// `WebGlDevice` exposes its canvas directly for the same job because its
+  /// canvas already depends on `package:web`; this device's does not, and
+  /// keeping `_Canvas`/`_Style` private is what lets it stay that way.
+  void applyCanvasStyle({
+    BoxFit fit = BoxFit.fill,
+    FilterQuality quality = FilterQuality.none,
+  }) {
+    _canvas.style
+      ..width = '100%'
+      ..height = '100%'
+      // A display surface, not a control. Left interactive, the canvas takes
+      // the pointer events over it and the Flutter widgets above the platform
+      // view never see them — which reads as an application whose camera does
+      // not turn while its keyboard works fine.
+      ..pointerEvents = 'none'
+      ..objectFit = switch (fit) {
+        BoxFit.contain => 'contain',
+        BoxFit.cover => 'cover',
+        BoxFit.fill => 'fill',
+        BoxFit.fitWidth ||
+        BoxFit.fitHeight ||
+        BoxFit.none ||
+        BoxFit.scaleDown => 'contain',
+      }
+      ..imageRendering = quality == FilterQuality.none ? 'pixelated' : 'auto';
   }
 
   /// The platform view type this device's canvas is registered under.

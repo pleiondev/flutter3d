@@ -1,11 +1,11 @@
 import 'dart:math' as math;
 import 'dart:typed_data';
 
-import 'package:flutter3d/src/engine/render/debug_draw.dart';
-import 'package:flutter3d/src/engine/render/debug_draw_gizmos.dart';
-import 'package:flutter3d/src/engine/render/material.dart';
-import 'package:flutter3d/src/engine/scene/scene_graph.dart';
-import 'package:flutter3d_geometry/flutter3d_geometry.dart';
+import 'package:flutter3d_core/geometry.dart';
+import 'package:flutter3d_core/src/engine/render/debug_draw.dart';
+import 'package:flutter3d_core/src/engine/render/debug_draw_gizmos.dart';
+import 'package:flutter3d_core/src/engine/render/material.dart';
+import 'package:flutter3d_core/src/engine/scene/scene_graph.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vector_math/vector_math.dart';
 
@@ -397,12 +397,7 @@ void main() {
   group('skeleton overlay', () {
     test('a bone octahedron has twelve edges, none past the waist width', () {
       final draw = DebugDraw();
-      draw.addBoneOctahedron(
-        Vector3(0, 0, 0),
-        Vector3(0, 2, 0),
-        0.3,
-        red,
-      );
+      draw.addBoneOctahedron(Vector3(0, 0, 0), Vector3(0, 2, 0), 0.3, red);
       expect(draw.lineCount, 12);
 
       var sawFrom = false;
@@ -490,10 +485,7 @@ void main() {
       final first = _vertexAt(draw, 0).color;
 
       final defaulted = DebugDraw();
-      defaulted.addSkeletonOverlay(
-        <Vector3>[Vector3.zero()],
-        <int>[-1],
-      );
+      defaulted.addSkeletonOverlay(<Vector3>[Vector3.zero()], <int>[-1]);
       expect(_vertexAt(defaulted, 0).color, first);
     });
   });

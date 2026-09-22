@@ -66,7 +66,9 @@ class Database {
       // same cluster.
       await session.execute('select pg_advisory_lock(1023100)');
       try {
-        final applied = await session.execute('select version from schema_migrations');
+        final applied = await session.execute(
+          'select version from schema_migrations',
+        );
         final done = {for (final row in applied) row[0]! as int};
 
         for (final migration in migrations) {

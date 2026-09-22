@@ -1,4 +1,4 @@
-import 'package:flutter3d_game/flutter3d_game.dart';
+import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:vector_math/vector_math.dart';
 
 /// What a shot is worth depending on where it lands on a body.

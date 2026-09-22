@@ -101,7 +101,10 @@ Map<String, Matrix4> _matricesAt({
 }) {
   final skin = document.skins.single;
   final built = _buildScene(document.nodes, document.roots);
-  final player = AnimationPlayer(clips: <AnimationClip>[clip], targets: List<AnimationTarget?>.of(built.created));
+  final player = AnimationPlayer(
+    clips: <AnimationClip>[clip],
+    targets: List<AnimationTarget?>.of(built.created),
+  );
   final skeleton = Skeleton(
     joints: <SceneNode>[for (final j in skin.joints) built.created[j]],
     inverseBindMatrices: skin.inverseBindMatrices,
@@ -164,7 +167,8 @@ void _expectAllAgree(Map<String, Matrix4> matrices, {String? reason}) {
       expect(
         entry.value.storage[e],
         closeTo(first.storage[e], 1e-5),
-        reason: '${reason ?? ''}: ${entries.first.key} vs ${entry.key}, element $e',
+        reason:
+            '${reason ?? ''}: ${entries.first.key} vs ${entry.key}, element $e',
       );
     }
   }
@@ -211,7 +215,11 @@ void main() {
         final before = originalMatrices[key]!;
         final after = mutatedMatrices[key]!;
         final moved = (before.getTranslation() - after.getTranslation()).length;
-        expect(moved, greaterThan(1e-3), reason: '$key did not react to the tangent change');
+        expect(
+          moved,
+          greaterThan(1e-3),
+          reason: '$key did not react to the tangent change',
+        );
       }
     },
   );

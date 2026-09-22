@@ -8,6 +8,7 @@
 /// Whether that was really allowed is what running it answers.
 library;
 
+export 'src/cpu_backend_registration.dart';
 export 'src/cpu_device.dart';
 export 'src/cpu_png.dart';
 export 'src/cpu_shader.dart';

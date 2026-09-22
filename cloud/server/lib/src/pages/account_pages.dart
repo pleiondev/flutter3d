@@ -26,7 +26,8 @@ class RegisterPage extends StatelessComponent {
   @override
   Component build(BuildContext context) => Page(
     title: 'Create account',
-    description: 'Create an account to keep your 3D models and open them in the browser.',
+    description:
+        'Create an account to keep your 3D models and open them in the browser.',
     scripts: const ['password.js'],
     children: [
       div([
@@ -48,7 +49,8 @@ class RegisterPage extends StatelessComponent {
               name: 'displayName',
               value: displayName,
               error: problems['displayName'],
-              hint: 'Shown beside anything you publish. Leave it empty to use '
+              hint:
+                  'Shown beside anything you publish. Leave it empty to use '
                   'the first part of your address; it can be changed later.',
               autocomplete: 'name',
               required: false,
@@ -66,8 +68,10 @@ class RegisterPage extends StatelessComponent {
         p([
           Component.text('Already have one? '),
           a([Component.text('Sign in')], href: '/login'),
-          Component.text('. The address is kept to send the two letters an '
-              'account needs — see '),
+          Component.text(
+            '. The address is kept to send the two letters an '
+            'account needs — see ',
+          ),
           a([Component.text('privacy')], href: '/privacy'),
           Component.text('.'),
         ], classes: 'below'),
@@ -133,7 +137,13 @@ class SignInPage extends StatelessComponent {
 }
 
 class ForgotPage extends StatelessComponent {
-  const ForgotPage({required this.csrf, this.email = '', this.error, this.sentTo, super.key});
+  const ForgotPage({
+    required this.csrf,
+    this.email = '',
+    this.error,
+    this.sentTo,
+    super.key,
+  });
 
   final String csrf;
   final String email;
@@ -158,14 +168,18 @@ class ForgotPage extends StatelessComponent {
             kind: 'ok',
           ),
           p([
-            Component.text('Nothing after a few minutes? Check the spam folder, or '),
+            Component.text(
+              'Nothing after a few minutes? Check the spam folder, or ',
+            ),
             a([Component.text('try again')], href: '/forgot'),
             Component.text('.'),
           ], classes: 'below'),
         ] else ...[
           p([
-            Component.text('Enter the address the account uses, and a link to '
-                'choose a new password will be sent to it.'),
+            Component.text(
+              'Enter the address the account uses, and a link to '
+              'choose a new password will be sent to it.',
+            ),
           ], classes: 'muted'),
           if (error case final error?) Notice(error, kind: 'error'),
           PostForm(
@@ -182,7 +196,9 @@ class ForgotPage extends StatelessComponent {
               submit('Send the link'),
             ],
           ),
-          p([a([Component.text('Back to sign in')], href: '/login')], classes: 'below'),
+          p([
+            a([Component.text('Back to sign in')], href: '/login'),
+          ], classes: 'below'),
         ],
       ], classes: 'auth'),
     ],
@@ -190,7 +206,12 @@ class ForgotPage extends StatelessComponent {
 }
 
 class ResetPage extends StatelessComponent {
-  const ResetPage({required this.csrf, required this.token, this.error, super.key});
+  const ResetPage({
+    required this.csrf,
+    required this.token,
+    this.error,
+    super.key,
+  });
 
   final String csrf;
   final String token;
@@ -222,7 +243,9 @@ class ResetPage extends StatelessComponent {
                 label: 'New password',
                 confirmLabel: 'New password again',
               ),
-              p([Component.text('Setting it signs the account out everywhere.')], classes: 'muted'),
+              p([
+                Component.text('Setting it signs the account out everywhere.'),
+              ], classes: 'muted'),
               submit('Set the password'),
             ],
           ),
@@ -233,7 +256,11 @@ class ResetPage extends StatelessComponent {
 }
 
 class VerifiedPage extends StatelessComponent {
-  const VerifiedPage({required this.signedIn, required this.confirmed, super.key});
+  const VerifiedPage({
+    required this.signedIn,
+    required this.confirmed,
+    super.key,
+  });
 
   final User? signedIn;
   final bool confirmed;
@@ -246,11 +273,19 @@ class VerifiedPage extends StatelessComponent {
       div([
         if (confirmed) ...[
           h1([Component.text('Address confirmed')]),
-          p([Component.text('Uploading is open. Everything you upload stays private '
-              'until you choose otherwise.')]),
+          p([
+            Component.text(
+              'Uploading is open. Everything you upload stays private '
+              'until you choose otherwise.',
+            ),
+          ]),
           div([
             a(
-              [Component.text(signedIn == null ? 'Sign in' : 'Go to my models')],
+              [
+                Component.text(
+                  signedIn == null ? 'Sign in' : 'Go to my models',
+                ),
+              ],
               href: signedIn == null ? '/login' : '/me',
               classes: 'button',
             ),
@@ -258,13 +293,19 @@ class VerifiedPage extends StatelessComponent {
         ] else ...[
           h1([Component.text('This link no longer works')]),
           p([
-            Component.text('Confirmation links work once and for 24 hours, and '
-                'asking for a new letter retires the old one. Sign in and send '
-                'another from your models page.'),
+            Component.text(
+              'Confirmation links work once and for 24 hours, and '
+              'asking for a new letter retires the old one. Sign in and send '
+              'another from your models page.',
+            ),
           ]),
           div([
             a(
-              [Component.text(signedIn == null ? 'Sign in' : 'Go to my models')],
+              [
+                Component.text(
+                  signedIn == null ? 'Sign in' : 'Go to my models',
+                ),
+              ],
               href: signedIn == null ? '/login' : '/me',
               classes: 'button',
             ),

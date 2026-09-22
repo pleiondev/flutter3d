@@ -385,13 +385,15 @@ void main() {
   });
 
   group('Selection.all', () {
-    test('a cube in face mode selects six — view-24n\'s own worked example',
-        () {
-      final mesh = EditMesh.cuboid();
-      final all = Selection.all(mesh, ElementLevel.face);
-      expect(all.length, 6);
-      expect(all.level, ElementLevel.face);
-    });
+    test(
+      'a cube in face mode selects six — view-24n\'s own worked example',
+      () {
+        final mesh = EditMesh.cuboid();
+        final all = Selection.all(mesh, ElementLevel.face);
+        expect(all.length, 6);
+        expect(all.level, ElementLevel.face);
+      },
+    );
 
     test('a cube has eight vertices and twelve edges', () {
       final mesh = EditMesh.cuboid();
@@ -413,8 +415,10 @@ void main() {
       final mesh = EditMesh.cuboid();
       final selected = Selection.of(ElementLevel.face, <int>[0, 3]);
 
-      final inverted = Selection.all(mesh, ElementLevel.face)
-          .difference(selected);
+      final inverted = Selection.all(
+        mesh,
+        ElementLevel.face,
+      ).difference(selected);
 
       expect(inverted.length, 4);
       expect(inverted.contains(0), isFalse);

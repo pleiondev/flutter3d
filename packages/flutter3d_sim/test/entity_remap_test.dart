@@ -23,59 +23,62 @@ EcsWorld _world() => EcsWorld()
   );
 
 void main() {
-  test(
-    'removing the middle of three named monsters does not misattribute the '
-    'other two',
-    () {
-      // The old level: three monsters, spawned in document order, each given
-      // a name the way `rp-03`'s write-up says a game's own spawn code would
-      // — this file stands in for that code with a plain map, since nothing
-      // shipped calls `remapEntitySave` yet.
-      final oldWorld = _world();
-      final guard = oldWorld.spawn();
-      final archer = oldWorld.spawn();
-      final ogre = oldWorld.spawn();
-      oldWorld.set(guard, _Health(30.0));
-      oldWorld.set(archer, _Health(18.0));
-      oldWorld.set(ogre, _Health(90.0));
-      final oldNames = <String?>['guard', 'archer', 'ogre'];
+  test('removing the middle of three named monsters does not misattribute the '
+      'other two', () {
+    // The old level: three monsters, spawned in document order, each given
+    // a name the way `rp-03`'s write-up says a game's own spawn code would
+    // — this file stands in for that code with a plain map, since nothing
+    // shipped calls `remapEntitySave` yet.
+    final oldWorld = _world();
+    final guard = oldWorld.spawn();
+    final archer = oldWorld.spawn();
+    final ogre = oldWorld.spawn();
+    oldWorld.set(guard, _Health(30.0));
+    oldWorld.set(archer, _Health(18.0));
+    oldWorld.set(ogre, _Health(90.0));
+    final oldNames = <String?>['guard', 'archer', 'ogre'];
 
-      final saved = oldWorld.save();
+    final saved = oldWorld.save();
 
-      // The edited level: the archer removed, so the ogre — spawned after it
-      // — gets the archer's old index in the new world.
-      final newWorld = _world();
-      final newGuard = newWorld.spawn();
-      final newOgre = newWorld.spawn();
-      expect(newOgre.index, archer.index, reason: 'the whole point of the '
-          'test: the ogre now sits where the archer used to');
-      final newNames = <String?>['guard', 'ogre'];
+    // The edited level: the archer removed, so the ogre — spawned after it
+    // — gets the archer's old index in the new world.
+    final newWorld = _world();
+    final newGuard = newWorld.spawn();
+    final newOgre = newWorld.spawn();
+    expect(
+      newOgre.index,
+      archer.index,
+      reason:
+          'the whole point of the '
+          'test: the ogre now sits where the archer used to',
+    );
+    final newNames = <String?>['guard', 'ogre'];
 
-      final remap = remapEntitySave(
-        saved,
-        oldNames: oldNames,
-        newNames: newNames,
-        newGenerations: newWorld.save()['generations']! as List<int>,
-        newFree: newWorld.save()['free']! as List<int>,
-      );
+    final remap = remapEntitySave(
+      saved,
+      oldNames: oldNames,
+      newNames: newNames,
+      newGenerations: newWorld.save()['generations']! as List<int>,
+      newFree: newWorld.save()['free']! as List<int>,
+    );
 
-      expect(remap.dropped, <String>['archer']);
+    expect(remap.dropped, <String>['archer']);
 
-      newWorld.restore(remap.save);
+    newWorld.restore(remap.save);
 
-      expect(
-        newWorld.get<_Health>(newGuard)?.value,
-        30.0,
-        reason: 'the guard kept its own health',
-      );
-      expect(
-        newWorld.get<_Health>(newOgre)?.value,
-        90.0,
-        reason: 'the ogre kept its own ninety, not the archer\'s eighteen — '
-            'the bug this whole mechanism exists to catch',
-      );
-    },
-  );
+    expect(
+      newWorld.get<_Health>(newGuard)?.value,
+      30.0,
+      reason: 'the guard kept its own health',
+    );
+    expect(
+      newWorld.get<_Health>(newOgre)?.value,
+      90.0,
+      reason:
+          'the ogre kept its own ninety, not the archer\'s eighteen — '
+          'the bug this whole mechanism exists to catch',
+    );
+  });
 
   test('an entity nobody named is dropped and reported, not misattributed', () {
     final oldWorld = _world();

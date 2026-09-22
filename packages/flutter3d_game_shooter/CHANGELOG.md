@@ -1,3 +1,42 @@
+## 0.7.0
+
+* **Breaking. The readouts are in `bridge.dart`.** `HealthBar`, `AmmoReadout`,
+  `KeyPips` and `ReadoutStyle` are widgets, and the simulation's barrel names
+  no Flutter now; import `package:flutter3d_game_shooter/bridge.dart` for them.
+  `WeaponView` was there already. `doc/boundary-0.7.0.md` has the same move for
+  the platformer and racing.
+* **Breaking. `flutter3d_game` is no longer a dependency.** The simulation
+  imports `flutter3d_sim` by name rather than through `flutter3d_game`, which
+  stopped re-exporting it. A game that reached `flutter3d_game` or a simulation
+  type through this package's pubspec alone names them in its own.
+* **`sample.dart` gains `Staged`, `stage()` and `agentStartingInventory()`.**
+  Promoted from `flutter3d_sim_mcp`'s own `staging.dart` — a fourth copy of
+  `apps/flutter3d_demo_dungeon`'s composition, kept there only because
+  `tool/structure.dart`'s "no package depends on an application" rule meant
+  that package could not reach the original. It already depended on this one
+  for the genre itself, so the composition moves to where it can be named
+  once instead of copied. Deliberately smaller than the app's own `stage()` —
+  no mechanisms, no breaches, no automap — for the reason that copy's own doc
+  comment already gave.
+* **`package:flutter3d_game_shooter/staging.dart`: the shipped game's assembly,
+  and the game as a `HeadlessGame`.** The full `stage(level, world, input:,
+  registry:, inventory:)` moved here from
+  `apps/flutter3d_demo_dungeon/lib/src/staging.dart`, with the automap and the
+  breaches the copy above leaves out, and `startingInventory()` is what a
+  player starts a level holding. `ShooterHeadlessGame` implements
+  `flutter3d_sim`'s `HeadlessGame` over the sample roster: its `name` is
+  `shooter`, its one button is `fire`, and `start` answers a `HeadlessRun` a
+  tool can step and read. `ShooterHeadlessGame(extra:)` takes entity kinds this
+  package cannot know, which is how a level with a `widget_surface` entity in
+  it loads headless. This library and `sample.dart` both declare a `Staged` and
+  a `stage`, so a file that imports the two hides one pair.
+* **A spawned monster carries the name its level gave it.**
+  `Bestiary.spawn(name:)` passes an entity's `name` to the `Actor`, which is
+  what `ActorSystem.byName` and `remapEntitySave` in `flutter3d_sim` 0.7.0 read.
+* The monsters, the weapons, the inventory and the step order are otherwise
+  0.6.0's. The floors on `flutter3d`, `flutter3d_physics` and `flutter3d_sim`
+  are `^0.7.0`.
+
 ## 0.6.0
 
 * **Floors, and no code.** The monsters, the weapons, the inventory and the step

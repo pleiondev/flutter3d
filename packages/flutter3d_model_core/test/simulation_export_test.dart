@@ -6,7 +6,7 @@ library;
 
 import 'dart:typed_data';
 
-import 'package:flutter3d_formats/flutter3d_formats.dart';
+import 'package:flutter3d_core/formats.dart';
 import 'package:flutter3d_mesh/flutter3d_mesh.dart';
 import 'package:flutter3d_model_core/flutter3d_model_core.dart';
 import 'package:test/test.dart';
@@ -50,25 +50,39 @@ void main() {
       expect(keys.map((k) => k.name), <String>['sim_0', 'sim_1', 'sim_2']);
     });
 
-    test('a cache with exactly maxKeys frames keeps every one of them, in order', () {
-      final keys = simulationCacheToShapeKeys(cacheOf(2, 8), maxKeys: 8);
-      expect(
-        keys.map((k) => k.name),
-        <String>['sim_0', 'sim_1', 'sim_2', 'sim_3', 'sim_4', 'sim_5', 'sim_6', 'sim_7'],
-      );
-    });
+    test(
+      'a cache with exactly maxKeys frames keeps every one of them, in order',
+      () {
+        final keys = simulationCacheToShapeKeys(cacheOf(2, 8), maxKeys: 8);
+        expect(keys.map((k) => k.name), <String>[
+          'sim_0',
+          'sim_1',
+          'sim_2',
+          'sim_3',
+          'sim_4',
+          'sim_5',
+          'sim_6',
+          'sim_7',
+        ]);
+      },
+    );
 
-    test('a cache with more frames than maxKeys spreads evenly, both ends included', () {
-      final keys = simulationCacheToShapeKeys(cacheOf(2, 71), maxKeys: 8);
-      expect(keys, hasLength(8));
-      expect(keys.first.name, 'sim_0');
-      expect(keys.last.name, 'sim_70');
-      // Strictly increasing: no frame picked twice, none picked out of order.
-      final indices = keys.map((k) => int.parse(k.name.substring(4))).toList();
-      for (var i = 1; i < indices.length; i++) {
-        expect(indices[i], greaterThan(indices[i - 1]));
-      }
-    });
+    test(
+      'a cache with more frames than maxKeys spreads evenly, both ends included',
+      () {
+        final keys = simulationCacheToShapeKeys(cacheOf(2, 71), maxKeys: 8);
+        expect(keys, hasLength(8));
+        expect(keys.first.name, 'sim_0');
+        expect(keys.last.name, 'sim_70');
+        // Strictly increasing: no frame picked twice, none picked out of order.
+        final indices = keys
+            .map((k) => int.parse(k.name.substring(4)))
+            .toList();
+        for (var i = 1; i < indices.length; i++) {
+          expect(indices[i], greaterThan(indices[i - 1]));
+        }
+      },
+    );
 
     test('an empty cache yields no keys at all', () {
       expect(simulationCacheToShapeKeys(cacheOf(2, 0)), isEmpty);
@@ -84,7 +98,10 @@ void main() {
     });
 
     test('maxKeys under one is refused', () {
-      expect(() => simulationCacheToShapeKeys(cacheOf(2, 3), maxKeys: 0), throwsArgumentError);
+      expect(
+        () => simulationCacheToShapeKeys(cacheOf(2, 3), maxKeys: 0),
+        throwsArgumentError,
+      );
     });
   });
 
@@ -123,7 +140,8 @@ void main() {
 
     test('refuses a cache whose vertex count does not match the mesh', () {
       final history = edited();
-      final vertexSlots = (history.project[1]!.geometry as EditedGeometry).mesh.vertexSlotCount;
+      final vertexSlots =
+          (history.project[1]!.geometry as EditedGeometry).mesh.vertexSlotCount;
       history.run(
         ApplySimulationCache(
           objectId: 1,
@@ -137,30 +155,42 @@ void main() {
       expect(refusal, contains('$vertexSlots'));
     });
 
-    test('appends up to eight shape keys at weight zero, on top of any already there', () {
-      final history = edited();
-      final vertexSlots = (history.project[1]!.geometry as EditedGeometry).mesh.vertexSlotCount;
-      history.run(const AddShapeFromMesh(id: 1, shapeName: 'hand-sculpted'));
-      history.run(
-        ApplySimulationCache(
-          objectId: 1,
-          baseVersion: history.project[1]!.version,
-          cache: cacheOf(vertexSlots, 20),
-        ),
-      );
+    test(
+      'appends up to eight shape keys at weight zero, on top of any already there',
+      () {
+        final history = edited();
+        final vertexSlots = (history.project[1]!.geometry as EditedGeometry)
+            .mesh
+            .vertexSlotCount;
+        history.run(const AddShapeFromMesh(id: 1, shapeName: 'hand-sculpted'));
+        history.run(
+          ApplySimulationCache(
+            objectId: 1,
+            baseVersion: history.project[1]!.version,
+            cache: cacheOf(vertexSlots, 20),
+          ),
+        );
 
-      expect(history.run(const BakeSimulationToShapes(id: 1, maxKeys: 8)), isNull);
+        expect(
+          history.run(const BakeSimulationToShapes(id: 1, maxKeys: 8)),
+          isNull,
+        );
 
-      final shapes = history.project[1]!.shapeSet;
-      expect(shapes.keys, hasLength(9)); // the hand-sculpted one, plus 8 baked.
-      expect(shapes.keys.first.name, 'hand-sculpted');
-      expect(shapes.keys.skip(1).map((k) => k.name).first, 'sim_0');
-      expect(shapes.weights.skip(1), everyElement(0.0));
-    });
+        final shapes = history.project[1]!.shapeSet;
+        expect(
+          shapes.keys,
+          hasLength(9),
+        ); // the hand-sculpted one, plus 8 baked.
+        expect(shapes.keys.first.name, 'hand-sculpted');
+        expect(shapes.keys.skip(1).map((k) => k.name).first, 'sim_0');
+        expect(shapes.weights.skip(1), everyElement(0.0));
+      },
+    );
 
     test('undoes back to no shape keys at all', () {
       final history = edited();
-      final vertexSlots = (history.project[1]!.geometry as EditedGeometry).mesh.vertexSlotCount;
+      final vertexSlots =
+          (history.project[1]!.geometry as EditedGeometry).mesh.vertexSlotCount;
       history.run(
         ApplySimulationCache(
           objectId: 1,
@@ -179,7 +209,8 @@ void main() {
   group("pro-sim-05's own acceptance", () {
     test('cloth to shapes to GLB: a frame equals the cache', () async {
       final history = edited();
-      final vertexSlots = (history.project[1]!.geometry as EditedGeometry).mesh.vertexSlotCount;
+      final vertexSlots =
+          (history.project[1]!.geometry as EditedGeometry).mesh.vertexSlotCount;
       final cache = cacheOf(vertexSlots, 20);
       history.run(
         ApplySimulationCache(
@@ -225,7 +256,8 @@ void main() {
         for (var v = 0; v < plan.vertexCount; v++) {
           final vertex = plan.gpuVertexToVertex[v];
           for (var c = 0; c < 3; c++) {
-            final blended = basePositions[v * 3 + c] + target.positions[v * 3 + c];
+            final blended =
+                basePositions[v * 3 + c] + target.positions[v * 3 + c];
             expect(
               blended,
               closeTo(wanted[vertex * 3 + c], 1e-4),

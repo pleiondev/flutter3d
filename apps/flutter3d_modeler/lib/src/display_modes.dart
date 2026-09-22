@@ -58,9 +58,10 @@ enum StandardView { front, back, left, right, top, bottom }
 /// pivot, a 3D cursor, and a `SetCursor` command to place it, and stopped
 /// short of building either — there is no position anywhere in the document
 /// this could hand to a `RotateBy`. It stays in this enum, and the chip that
-/// draws it stays disabled (see `_PivotAndSpaceChips` in `main.dart`), so the
-/// panel shows the three-way choice `ui-35n`'s own row asks for rather than
-/// quietly shrinking it to the two that work.
+/// draws it stays disabled (see `PivotAndSpaceChips` in
+/// `ui/properties/pivot_space_chips.dart`), so the panel shows the
+/// three-way choice `ui-35n`'s own row asks for rather than quietly
+/// shrinking it to the two that work.
 enum PivotChip { median, individual, cursor }
 
 /// What [chip] means to a command that only knows [TransformPivot].
@@ -138,78 +139,60 @@ void useLens(CameraNode camera, ViewLens lens, OrbitController orbit) {
 /// only when the exposure is neutral as well. The difference between the first
 /// two and the third is a face nobody can tell from one leaning a few degrees.
 ///
-/// The rest of a display mode is the materials' business, which is
-/// [SurfaceShading]'s.
-RenderSettings settingsFor(ShadingMode mode, RenderSettings over) =>
-    over.copyWith(
-      wireframe: mode == ShadingMode.wireframe,
-      tonemap: mode != ShadingMode.normals,
-      exposure: mode == ShadingMode.normals ? 1.0 : over.exposure,
-    );
-
-/// Swaps the subject's materials for a debug one and back.
+/// **The rest of a display mode used to be the materials' business**, and
+/// `gfx-43n` is what ended that. A normals view was drawn by walking the
+/// subject, swapping every mesh's material for a debug one and remembering
+/// what each had so it could be put back — a class whose own docstring
+/// documented the two ways the remembering had already failed. The scene pass
+/// writes the interpolated normal into its second attachment for reflections
+/// and occlusion to read, and that is the same normal `normals.frag` showed,
+/// so the view is now a setting over a buffer that exists. Nothing is
+/// modified and there is nothing to restore.
 ///
-/// **It remembers, and that is the whole class.** The obvious way to show
-/// normals is to walk the subject and assign a normals material to every mesh
-/// under it; the obvious way back is to assign the original — and by then there
-/// is no original, because it was overwritten by the walk. A person who
-/// switched to normals to check one face and switched back would find their
-/// model had turned grey, permanently, with the undo stack unable to explain
-/// it. So the first swap records what each node had.
+/// [edgesDrawn] says the overlay is already drawing the mesh's own edges, in
+/// which case the renderer is asked for no wireframe of its own — `ux-31`.
 ///
-/// Recorded per node rather than per material, because two nodes sharing one
-/// material is the normal case — glTF splits a mesh at material boundaries and
-/// the halves point at the same object — and the map has to put back what each
-/// node was drawn with, not what the material was.
-final class SurfaceShading {
-  /// What each node was drawn with before anything was swapped.
-  ///
-  /// An identity map: two `Material` values that compare equal are still two
-  /// materials as far as putting one back is concerned, and `SceneNode` has no
-  /// equality of its own, so this is the default `Map` behaviour and is stated
-  /// here so it is not "simplified" into something keyed by name.
-  final Map<MeshNode, Material> _own = <MeshNode, Material>{};
-
-  /// The one material every normals view is drawn with.
-  ///
-  /// Shared rather than one per node: the stage it selects reads the surface
-  /// normal and nothing else, so every field but [Material.lighting] is
-  /// ignored, and a fresh instance per node would only cost the render list a
-  /// sort key it cannot use.
-  static final Material normals = Material(
-    name: 'normals',
-    lighting: LightingModel.normals,
+/// **The two draw different shapes, and only one of them is the model.** The
+/// renderer's wireframe is the triangles it rasterises, so a cube of six
+/// quads comes out as eighteen lines with a diagonal across every face: a
+/// picture of how the GPU was fed rather than of the topology somebody is
+/// editing. `MeshOverlayBuilder` walks the `EditMesh` and draws each edge
+/// once — twelve for the same cube — which is the thing a modeller counts.
+/// Where there is no `EditMesh` to walk (an imported surface, a shape that
+/// still knows its own parameters) the renderer's own is still better than
+/// nothing, and that is what [edgesDrawn] false leaves in place.
+/// **`gfx-40n` fixed a bug here rather than tidying the call.** This used to
+/// set `tonemap` and `exposure` and touch nothing else, so a normals view over
+/// a viewport with bloom switched on returned a glowing debug buffer: the
+/// colour a person read off a face was not the normal that face had. The
+/// engine's own `CompositeMix` had the complete answer all along — it forces
+/// exposure, tone mapping *and* bloom off, because a debug buffer is data
+/// rather than light and any of the three would misreport it — and this was
+/// one of three places that reproduced two thirds of it.
+RenderSettings settingsFor(
+  ShadingMode mode,
+  RenderSettings over, {
+  bool edgesDrawn = false,
+}) {
+  final base = over.copyWith(
+    wireframe: mode == ShadingMode.wireframe && !edgesDrawn,
   );
-
-  /// What [apply] was last asked for, which is what the chips read to know
-  /// which of them is lit.
-  ShadingMode get mode => _mode;
-  ShadingMode _mode = ShadingMode.material;
-
-  /// Draws everything under [subject] the way [mode] asks.
-  ///
-  /// Idempotent, and walked every time rather than skipped when the mode has
-  /// not changed: a viewport calls this every frame rather than remembering to
-  /// call it when a chip is pressed, and a model opened while the normals view
-  /// is on brings nodes this has never seen. Skipping the walk would leave
-  /// those drawn with their own material in a view that is meant to show
-  /// normals — and, worse, leave them unrecorded, so switching back would be
-  /// the first thing that ever assigned them anything.
-  void apply(SceneNode subject, ShadingMode mode) {
-    _mode = mode;
-    subject.traverse((SceneNode node) {
-      if (node is! MeshNode) return;
-      final Material own = _own.putIfAbsent(node, () => node.material);
-      node.material = mode == ShadingMode.normals ? normals : own;
-    });
-  }
-
-  /// Forgets everything, for a subject that has been replaced.
-  ///
-  /// Without it the map holds every node of every model ever opened, and the
-  /// scene graph they belong to cannot be collected.
-  void forget() {
-    _own.clear();
-    _mode = ShadingMode.material;
-  }
+  return mode == ShadingMode.normals
+      // `gfx-43n`. The normal comes out of the surface buffer now, through a
+      // pass that writes into the *finished* picture — so the colour a person
+      // reads off a face is the number the buffer holds, with nothing after
+      // it to change it. `forMeasurement` stays: exposure, the curve and the
+      // glow no longer reach the shaded pixels, but a frame that draws a
+      // bloom chain nobody sees is a frame paying for nothing.
+      ? base.forMeasurement().copyWith(
+          viewportShading: const ViewportShadingSettings(
+            mode: ViewportShading.normals,
+          ),
+        )
+      // **`tonemap: true` rather than whatever arrived**, which is what this
+      // did before `forMeasurement` existed and is not incidental: leaving a
+      // caller's `tonemap: false` in place would carry a debug frame's
+      // settings into the lit view, and the first version of this change did
+      // exactly that. Two mode screenshots moved before anything caught it.
+      : base.copyWith(tonemap: true);
 }

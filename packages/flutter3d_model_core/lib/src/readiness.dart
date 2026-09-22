@@ -25,8 +25,8 @@ library;
 
 import 'dart:math';
 
-import 'package:flutter3d_formats/flutter3d_formats.dart';
-import 'package:flutter3d_geometry/flutter3d_geometry.dart';
+import 'package:flutter3d_core/formats.dart';
+import 'package:flutter3d_core/geometry.dart';
 import 'package:flutter3d_mesh/flutter3d_mesh.dart';
 import 'package:vector_math/vector_math.dart';
 
@@ -104,13 +104,12 @@ final class ExportReadiness {
       ...textureBudgetIssues(project),
       for (final ModelObject object in project.objects)
         ..._issuesWith(
+          project,
           object,
           trianglesOnly: trianglesOnly ?? project.profile.requireTriangles,
           requireManifold: requireManifold ?? project.profile.requireManifold,
           maxTextureSize: project.profile.maxTextureSize,
           texelsPerMeter: project.profile.texelsPerMeter,
-          materials: project.materials,
-          images: project.images,
         ),
     ];
     return ExportReadiness._(_worstFirst(found));
@@ -182,13 +181,12 @@ ExportIssue? _budget(ModelProject project) {
 }
 
 List<ExportIssue> _issuesWith(
+  ModelProject project,
   ModelObject object, {
   required bool trianglesOnly,
   required bool requireManifold,
   required int maxTextureSize,
   required double? texelsPerMeter,
-  required List<ProjectMaterial> materials,
-  required List<EncodedImage> images,
 }) => <ExportIssue>[
   // An error, and the loader is the reason rather than taste: a primitive with
   // no indices is a mesh some glTF readers reject outright and the rest draw as
@@ -198,8 +196,7 @@ List<ExportIssue> _issuesWith(
   // point rather than a shape, the same way an empty group already writes as
   // a node with no surface, and warning about geometry nobody meant to add
   // would send somebody hunting for faces that were never supposed to exist.
-  if (object.geometry.triangleCount == 0 &&
-      object.geometry is! SocketGeometry)
+  if (object.geometry.triangleCount == 0 && object.geometry is! SocketGeometry)
     ExportIssue(
       ExportSeverity.error,
       '"${object.name}" has no faces; it would be written as an empty mesh, '
@@ -213,16 +210,16 @@ List<ExportIssue> _issuesWith(
     // issue telling somebody to throw away the parameters that let them change
     // the segment count. Do not add one.
     ParametricGeometry() => const <ExportIssue>[],
-    // Buffers with no topology behind them: there are no half-edges to walk,
-    // so the mesh checks below have nothing to ask — triangles are what
-    // arrived and triangles are what will be written. Morph targets are the
-    // one thing an imported mesh can carry that an edited or parametric one
-    // cannot yet, so they are the one thing checked here instead.
-    ImportedGeometry(:final data) => _morphTargetIssues(
-      object,
-      data,
-      maxTextureSize,
-    ),
+    // Buffers with no topology behind them: `MeshChecks` reads a half-edge
+    // mesh and a freshly imported buffer has none, so [_importedMeshIssues]
+    // builds one purely to ask the same three structural questions
+    // [_meshIssues] asks of an edited mesh, without turning this object into
+    // one. Morph targets are the one thing an imported mesh can carry that an
+    // edited or parametric one cannot yet, so they are checked here too.
+    ImportedGeometry(:final data) => <ExportIssue>[
+      ..._morphTargetIssues(object, data, maxTextureSize),
+      ..._importedMeshIssues(object, data, requireManifold: requireManifold),
+    ],
     EditedGeometry(:final EditMesh mesh) => <ExportIssue>[
       ..._meshIssues(
         object,
@@ -230,13 +227,7 @@ List<ExportIssue> _issuesWith(
         trianglesOnly: trianglesOnly,
         requireManifold: requireManifold,
       ),
-      ?_texelDensityIssue(
-        object,
-        mesh,
-        texelsPerMeter: texelsPerMeter,
-        materials: materials,
-        images: images,
-      ),
+      ?_texelDensityIssue(project, object, texelsPerMeter: texelsPerMeter),
     ],
     // Deliberately nothing, and for the same reason the check above exempts
     // it: a socket has no faces on purpose.
@@ -244,18 +235,23 @@ List<ExportIssue> _issuesWith(
   },
 ];
 
-/// How densely [object]'s texture covers its own surface, against the
-/// profile's [texelsPerMeter] target — `doc-35n`'s own rule.
+/// How densely [object] measures within [project] — texels/m, the number
+/// the status line divides by 100 for "tex/cm" and [_texelDensityIssue]
+/// below compares against a profile's own target. Public — `mat-33d`'s own
+/// line — for the status line to read directly, rather than the answer
+/// staying trapped inside the warning that used to be the only thing that
+/// read it.
 ///
-/// **Silent whenever there is nothing to measure, on purpose**: no target set
-/// ([texelsPerMeter] null), no material on the object's first slot, no base
-/// colour texture on that material, an image whose header will not read, or
-/// a mesh with no UV island of its own — every corner an [EditMesh] has not
-/// been given a UV sits at `Vector2.zero()`, which folds the whole face flat
-/// and gives it zero UV area, so "no UV" and "degenerate UV" both read as the
-/// same silence rather than as a division by zero. Any one of those is "there
-/// is no picture stretched over this object to measure", a different fact
-/// from "the picture is the wrong size for it".
+/// **Silent whenever there is nothing to measure, on purpose**: [object]'s
+/// geometry is not an [EditedGeometry] (there is no topology to walk faces
+/// over), no material on the object's first slot, no base colour texture on
+/// that material, an image whose header will not read, or a mesh with no UV
+/// island of its own — every corner an [EditMesh] has not been given a UV
+/// sits at `Vector2.zero()`, which folds the whole face flat and gives it
+/// zero UV area, so "no UV" and "degenerate UV" both read as the same
+/// silence rather than as a division by zero. Any one of those is "there is
+/// no picture stretched over this object to measure", a different fact from
+/// "the picture is the wrong size for it".
 ///
 /// **One material only, the object's own first slot** — the same
 /// simplification `project_document.dart`'s own `_slotOf` already makes and
@@ -270,28 +266,20 @@ List<ExportIssue> _issuesWith(
 /// Both areas come from the same fan-triangulation `EditMesh.areaOf` already
 /// walks for world space, done again here over `uvOf` for UV space, since
 /// `areaOf` itself has no UV-space twin to call instead.
-///
-/// A factor of two off target either way is the threshold, not a return to
-/// exactly [texelsPerMeter]: `mat-28`'s own texture presets already differ by
-/// that much between targets, so a check that fired on any deviation at all
-/// would be a check nobody could satisfy on every profile at once.
-ExportIssue? _texelDensityIssue(
-  ModelObject object,
-  EditMesh mesh, {
-  required double? texelsPerMeter,
-  required List<ProjectMaterial> materials,
-  required List<EncodedImage> images,
-}) {
-  if (texelsPerMeter == null || object.materialSlots.isEmpty) return null;
+double? texelDensityOf(ModelProject project, ModelObject object) {
+  final Geometry geometry = object.geometry;
+  if (geometry is! EditedGeometry) return null;
+  final EditMesh mesh = geometry.mesh;
+  if (object.materialSlots.isEmpty) return null;
   final slot = object.materialSlots.first;
-  if (slot < 0 || slot >= materials.length) return null;
-  final texture = materials[slot].surface.baseColorTexture;
+  if (slot < 0 || slot >= project.materials.length) return null;
+  final texture = project.materials[slot].surface.baseColorTexture;
   if (texture == null ||
       texture.imageIndex < 0 ||
-      texture.imageIndex >= images.length) {
+      texture.imageIndex >= project.images.length) {
     return null;
   }
-  final dimensions = imageDimensions(images[texture.imageIndex].bytes);
+  final dimensions = imageDimensions(project.images[texture.imageIndex].bytes);
   if (dimensions == null) return null;
 
   var worldArea = 0.0;
@@ -306,7 +294,24 @@ ExportIssue? _texelDensityIssue(
   final resolution = sqrt(
     dimensions.width.toDouble() * dimensions.height.toDouble(),
   );
-  final actual = resolution * sqrt(uvArea) / sqrt(worldArea);
+  return resolution * sqrt(uvArea) / sqrt(worldArea);
+}
+
+/// [texelDensityOf] against the profile's [texelsPerMeter] target —
+/// `doc-35n`'s own rule.
+///
+/// A factor of two off target either way is the threshold, not a return to
+/// exactly [texelsPerMeter]: `mat-28`'s own texture presets already differ by
+/// that much between targets, so a check that fired on any deviation at all
+/// would be a check nobody could satisfy on every profile at once.
+ExportIssue? _texelDensityIssue(
+  ModelProject project,
+  ModelObject object, {
+  required double? texelsPerMeter,
+}) {
+  if (texelsPerMeter == null) return null;
+  final double? actual = texelDensityOf(project, object);
+  if (actual == null) return null;
   final ratio = actual / texelsPerMeter;
   if (ratio < 2.0 && ratio > 0.5) return null;
 
@@ -375,49 +380,107 @@ List<ExportIssue> _meshIssues(
   EditMesh mesh, {
   required bool trianglesOnly,
   required bool requireManifold,
+}) => <ExportIssue>[
+  ?(trianglesOnly ? _wideFaces(object, mesh) : null),
+  ..._structuralMeshIssues(
+    object,
+    MeshChecks(mesh),
+    requireManifold: requireManifold,
+  ),
+];
+
+/// Degenerate faces, pinched vertices and inside-out shells — the three
+/// `MeshChecks` questions both [_meshIssues] (an edited mesh) and
+/// [_importedMeshIssues] (a mesh built only to ask them) share. [_wideFaces]
+/// is not among them: it reads [EditMesh.valencyOf], which means a face
+/// somebody actually cut wide, not a triangle the target format can already
+/// hold — an imported mesh's own [MeshData] is triangles to begin with
+/// ([MeshData]'s constructor refuses anything else), so there is no wide
+/// face to ask about.
+List<ExportIssue> _structuralMeshIssues(
+  ModelObject object,
+  MeshChecks checks, {
+  required bool requireManifold,
+}) => <ExportIssue>[
+  // An error: a face standing on no area has no normal either, so a
+  // triangulated export writes a triangle whose normal is a division by zero.
+  // That is a NaN in a vertex buffer, and a NaN in a position or a normal is
+  // a model that disappears on some drivers and takes the draw call with it.
+  if (checks.degenerateFaces() case final MeshIssue issue)
+    ExportIssue(
+      ExportSeverity.error,
+      '"${object.name}" has ${_count(issue.ids.length, 'face', 'faces')} '
+      'with no area; they have no normal either, and what gets written for '
+      'them is arithmetic nothing downstream can use',
+      object: object,
+    ),
+  // A warning unless the profile requires a manifold: triangles are
+  // triangles, so a surface pinched at a point uploads and draws, and what
+  // it breaks — smoothing, thickening, printing, the vertex normal at the
+  // pinch — only matters to a profile that asked for a watertight mesh in
+  // the first place.
+  if (checks.nonManifoldVertices() case final MeshIssue issue)
+    ExportIssue(
+      requireManifold ? ExportSeverity.error : ExportSeverity.warning,
+      '"${object.name}" has '
+      '${_count(issue.ids.length, 'vertex', 'vertices')} where two pieces '
+      'of surface meet at a point and are joined nowhere else; the shading '
+      'there will be wrong and nothing downstream can thicken or subdivide '
+      'it',
+      object: object,
+    ),
+  // A warning for the same reason: it loads. With backface culling on, which
+  // is every engine's default, an inside-out shell is a model you can see
+  // straight through to the inside of, and it is the far side you see.
+  if (checks.invertedShells() case final MeshIssue issue)
+    ExportIssue(
+      ExportSeverity.warning,
+      '"${object.name}" has ${_count(issue.ids.length, 'face', 'faces')} in '
+      'a closed shell wound inside out; with backface culling on, which is '
+      'every engine default, you will see through it to the far side',
+      object: object,
+    ),
+];
+
+/// The same three structural questions [_meshIssues] asks of an edited mesh,
+/// asked of an imported one by building the half-edge mesh `MeshChecks`
+/// needs purely to ask them.
+///
+/// **Read-only, on purpose.** This does not touch [object]'s own stored
+/// geometry — it stays [ImportedGeometry], byte for byte, exactly as
+/// everything else that reads it already expects; only a throwaway
+/// [EditMesh] is built, asked, and dropped. Converting the object for real is
+/// still a choice a person or an agent makes (the weld checkbox, a mesh
+/// command), and this must not make it for them — a diagnosis that silently
+/// changed what "imported, unwelded" means for every other reader of the
+/// object would be a worse bug than the one it fixed.
+///
+/// **[importMeshData]'s own weld, at its strictest.** `weldEpsilon: 0.0`
+/// merges only vertices at the exact same position — the same choice
+/// `model_session.dart`'s own `_cleanedUpImport` makes when the weld
+/// checkbox is off — so this reports what the file's own coincident
+/// vertices already say and nothing a looser tolerance would have decided
+/// for it. It is also what a truly unwelded file already needs: a shared
+/// edge between two triangles in a `MeshData` with no index buffer of its
+/// own reuses the identical float bits for both copies of the vertex, so an
+/// exact-match weld reconstructs that sharing without guessing at anything a
+/// looser epsilon would have to.
+///
+/// **Silent on an empty mesh**, the same guard the pre-check above already
+/// gives its own error for — running [importMeshData] over nothing would
+/// only ask `MeshChecks` questions with no faces to answer them.
+List<ExportIssue> _importedMeshIssues(
+  ModelObject object,
+  MeshData data, {
+  required bool requireManifold,
 }) {
-  final checks = MeshChecks(mesh);
-  return <ExportIssue>[
-    ?(trianglesOnly ? _wideFaces(object, mesh) : null),
-    // An error: a face standing on no area has no normal either, so a
-    // triangulated export writes a triangle whose normal is a division by zero.
-    // That is a NaN in a vertex buffer, and a NaN in a position or a normal is
-    // a model that disappears on some drivers and takes the draw call with it.
-    if (checks.degenerateFaces() case final MeshIssue issue)
-      ExportIssue(
-        ExportSeverity.error,
-        '"${object.name}" has ${_count(issue.ids.length, 'face', 'faces')} '
-        'with no area; they have no normal either, and what gets written for '
-        'them is arithmetic nothing downstream can use',
-        object: object,
-      ),
-    // A warning unless the profile requires a manifold: triangles are
-    // triangles, so a surface pinched at a point uploads and draws, and what
-    // it breaks — smoothing, thickening, printing, the vertex normal at the
-    // pinch — only matters to a profile that asked for a watertight mesh in
-    // the first place.
-    if (checks.nonManifoldVertices() case final MeshIssue issue)
-      ExportIssue(
-        requireManifold ? ExportSeverity.error : ExportSeverity.warning,
-        '"${object.name}" has '
-        '${_count(issue.ids.length, 'vertex', 'vertices')} where two pieces '
-        'of surface meet at a point and are joined nowhere else; the shading '
-        'there will be wrong and nothing downstream can thicken or subdivide '
-        'it',
-        object: object,
-      ),
-    // A warning for the same reason: it loads. With backface culling on, which
-    // is every engine's default, an inside-out shell is a model you can see
-    // straight through to the inside of, and it is the far side you see.
-    if (checks.invertedShells() case final MeshIssue issue)
-      ExportIssue(
-        ExportSeverity.warning,
-        '"${object.name}" has ${_count(issue.ids.length, 'face', 'faces')} in '
-        'a closed shell wound inside out; with backface culling on, which is '
-        'every engine default, you will see through it to the far side',
-        object: object,
-      ),
-  ];
+  if (data.triangleCount == 0) return const <ExportIssue>[];
+  final (EditMesh mesh, _, _) = importMeshData(data, weldEpsilon: 0.0);
+  return _structuralMeshIssues(
+    object,
+    MeshChecks(mesh),
+    requireManifold: requireManifold,
+  );
 }
 
 /// "1 face" and "2 faces", because a panel that says "1 faces" reads as
@@ -477,20 +540,17 @@ List<ExportIssue> textureBudgetIssues(ModelProject project) {
   final usage = measure(project, budget);
   return <ExportIssue>[
     for (final int index in usage.overs)
-      ExportIssue(
-        ExportSeverity.warning,
-        () {
-          final label = project.images[index].name == null
-              ? 'image $index'
-              : 'image $index ("${project.images[index].name}")';
-          final dimensions = imageDimensions(project.images[index].bytes);
-          return '$label is '
-              '${dimensions == null ? 'wider or taller' : '${dimensions.width}×${dimensions.height}'} '
-              'and the ${project.profile.name} profile allows '
-              '${budget.maxSide}px a side; it will need resizing before it '
-              'reaches that target';
-        }(),
-      ),
+      ExportIssue(ExportSeverity.warning, () {
+        final label = project.images[index].name == null
+            ? 'image $index'
+            : 'image $index ("${project.images[index].name}")';
+        final dimensions = imageDimensions(project.images[index].bytes);
+        return '$label is '
+            '${dimensions == null ? 'wider or taller' : '${dimensions.width}×${dimensions.height}'} '
+            'and the ${project.profile.name} profile allows '
+            '${budget.maxSide}px a side; it will need resizing before it '
+            'reaches that target';
+      }()),
     // A warning rather than an error, the same reasoning `_budget` gives for
     // triangles: every image still loads and draws, and what is over is a
     // total the device this profile describes cannot actually hold once

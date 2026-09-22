@@ -11,6 +11,7 @@ library;
 import 'package:flutter/material.dart';
 import 'package:flutter3d_mesh/flutter3d_mesh.dart';
 import 'package:flutter3d_model_core/flutter3d_model_core.dart';
+import 'package:flutter3d_modeler/l10n/app_localizations.dart';
 import 'package:flutter3d_modeler/src/ui/status_line.dart';
 import 'package:flutter3d_modeler/src/ui/theme.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -42,17 +43,32 @@ Future<void> show(
   WidgetTester tester,
   ExportReadiness readiness, {
   int triangles = 12,
+  int vertices = 0,
+  int materialCount = 0,
+  double? texelDensity,
+  TextureBudgetStatus? textureBudget,
   String said = 'ready',
+  bool saidIsRefusal = false,
   VoidCallback? onExport,
+  VoidCallback? onShowFolder,
 }) => tester.pumpWidget(
   MaterialApp(
+    locale: const Locale('en'),
+    localizationsDelegates: AppLocalizations.localizationsDelegates,
+    supportedLocales: AppLocalizations.supportedLocales,
     theme: modelerTheme(),
     home: Scaffold(
       body: StatusLine(
         said: said,
+        saidIsRefusal: saidIsRefusal,
         readiness: readiness,
         triangles: triangles,
+        vertices: vertices,
+        materialCount: materialCount,
+        texelDensity: texelDensity,
+        textureBudget: textureBudget,
         onExport: onExport,
+        onShowFolder: onShowFolder,
       ),
     ),
   ),
@@ -159,6 +175,111 @@ void main() {
     });
   });
 
+  group('vertex and material counts', () {
+    testWidgets('both are on the bar, grouped', (WidgetTester tester) async {
+      await show(
+        tester,
+        ExportReadiness.check(const ModelProject()),
+        vertices: 1240000,
+        materialCount: 3,
+      );
+
+      expect(
+        find.textContaining(
+          "1${thinSpace}240${thinSpace}000 vertices · 3 materials",
+        ),
+        findsOneWidget,
+      );
+    });
+  });
+
+  group('S2\'s own animation-mode summary', () {
+    testWidgets(
+      'modeSummary replaces the vertices/materials segment when given',
+      (WidgetTester tester) async {
+        await tester.pumpWidget(
+          MaterialApp(
+            locale: const Locale('en'),
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
+            theme: modelerTheme(),
+            home: Scaffold(
+              body: StatusLine(
+                said: 'ready',
+                readiness: ExportReadiness.check(const ModelProject()),
+                triangles: 12,
+                vertices: 8,
+                materialCount: 1,
+                modeSummary: 'Bones 24 · actions 3 · influences 4 per vertex',
+              ),
+            ),
+          ),
+        );
+
+        expect(
+          find.text('Bones 24 · actions 3 · influences 4 per vertex'),
+          findsOneWidget,
+        );
+        expect(find.textContaining('vertices'), findsNothing);
+      },
+    );
+
+    testWidgets('null keeps the ordinary vertex/material segment', (
+      WidgetTester tester,
+    ) async {
+      await show(tester, ExportReadiness.check(const ModelProject()));
+
+      expect(find.textContaining('vertices'), findsOneWidget);
+    });
+  });
+
+  group('texel density', () {
+    testWidgets('shown in tex/cm, a hundredth of the stored texels/m', (
+      WidgetTester tester,
+    ) async {
+      await show(
+        tester,
+        ExportReadiness.check(const ModelProject()),
+        texelDensity: 842,
+      );
+
+      expect(find.text('8.4 tex/cm'), findsOneWidget);
+    });
+
+    testWidgets('null leaves no tex/cm segment on the bar', (
+      WidgetTester tester,
+    ) async {
+      await show(tester, ExportReadiness.check(const ModelProject()));
+
+      expect(find.textContaining('tex/cm'), findsNothing);
+    });
+  });
+
+  group('the texture budget', () {
+    testWidgets('reads "N MB of M" from the budget measure', (
+      WidgetTester tester,
+    ) async {
+      await show(
+        tester,
+        ExportReadiness.check(const ModelProject()),
+        textureBudget: (
+          usedBytes: 12 * 1024 * 1024,
+          budgetBytes: 256 * 1024 * 1024,
+        ),
+      );
+
+      expect(find.text('12 MB of 256'), findsOneWidget);
+    });
+
+    testWidgets('null leaves no budget segment on the bar', (
+      WidgetTester tester,
+    ) async {
+      await show(tester, ExportReadiness.check(const ModelProject()));
+
+      expect(find.textContaining(' MB of '), findsNothing);
+    });
+  });
+
   group("ui-10's own click", () {
     testWidgets('tapping the readiness sentence calls onExport', (
       WidgetTester tester,
@@ -211,6 +332,84 @@ void main() {
       expect(tester.takeException(), isNull);
       expect(find.textContaining('ready to export'), findsOneWidget);
       expect(find.textContaining('△'), findsOneWidget);
+    });
+  });
+
+  group('ux-01: the offer beside an autosave that is not working', () {
+    testWidgets('no offer while nothing is wrong', (WidgetTester tester) async {
+      await show(tester, ExportReadiness.check(const ModelProject()));
+
+      // Mutation: show the button always. A permanent "Show folder" beside
+      // every ordinary sentence is exactly the developer chrome `ux-30` is
+      // about to take out of the viewport corner.
+      expect(find.text('Show folder'), findsNothing);
+    });
+
+    testWidgets('and one that opens the folder when there is', (
+      WidgetTester tester,
+    ) async {
+      var shown = 0;
+      await show(
+        tester,
+        ExportReadiness.check(const ModelProject()),
+        said:
+            'Autosave is not working: could not write autosave/1f2e '
+            '(No such file or directory)',
+        onShowFolder: () => shown++,
+      );
+
+      expect(find.textContaining('Autosave is not working'), findsOneWidget);
+      await tester.tap(find.text('Show folder'));
+
+      expect(shown, 1);
+      expect(find.textContaining('△'), findsOneWidget);
+    });
+  });
+
+  group('ux-17: a refusal looks like one', () {
+    testWidgets('it is painted apart from an ordinary report', (
+      WidgetTester tester,
+    ) async {
+      await show(
+        tester,
+        ExportReadiness.check(const ModelProject()),
+        said: 'cannot delete: nothing is selected',
+        saidIsRefusal: true,
+      );
+      final Color refused = colourOf(tester, 'cannot delete');
+
+      await show(
+        tester,
+        ExportReadiness.check(const ModelProject()),
+        said: 'saved',
+      );
+      final Color plain = colourOf(tester, 'saved');
+
+      // Mutation: paint both the same, which is what this did — a refusal
+      // read exactly like "saved", in a line people stop reading after a
+      // week.
+      expect(refused, isNot(plain));
+    });
+
+    testWidgets('and the whole sentence is in a tooltip', (
+      WidgetTester tester,
+    ) async {
+      const String long =
+          'cannot export: "teapot" has 109 faces with more than three sides '
+          'and the target format holds only triangles';
+      await show(
+        tester,
+        ExportReadiness.check(const ModelProject()),
+        said: long,
+        saidIsRefusal: true,
+      );
+
+      // The strip is one line of a fraction of a window, so the part that
+      // says what to do about it is exactly the part the ellipsis eats.
+      final Tooltip tip = tester.widget<Tooltip>(
+        find.ancestor(of: find.text(long), matching: find.byType(Tooltip)),
+      );
+      expect(tip.message, long);
     });
   });
 }

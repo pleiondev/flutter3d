@@ -4,14 +4,16 @@
 ///     dart test test/texture_graph_commands_test.dart
 library;
 
-import 'package:flutter3d_formats/flutter3d_formats.dart';
+import 'package:flutter3d_core/formats.dart';
 import 'package:flutter3d_model_core/flutter3d_model_core.dart';
 import 'package:test/test.dart';
 import 'package:vector_math/vector_math.dart';
 
 /// One material, unpainted, no objects.
 ModelHistory painted() => ModelHistory(
-  ModelProject(materials: <ProjectMaterial>[ProjectMaterial(surface: SurfaceMaterial())]),
+  ModelProject(
+    materials: <ProjectMaterial>[ProjectMaterial(surface: SurfaceMaterial())],
+  ),
 );
 
 /// [painted] with a two-node graph already on its one material: a red colour
@@ -73,9 +75,13 @@ void main() {
       final history = painted();
       expect(
         history.run(
-          const AddNode(materialIndex: 0, kind: 'color', fields: <String, Object?>{
-            'value': <double>[0, 0, 0, 1],
-          }),
+          const AddNode(
+            materialIndex: 0,
+            kind: 'color',
+            fields: <String, Object?>{
+              'value': <double>[0, 0, 0, 1],
+            },
+          ),
         ),
         isNull,
       );
@@ -116,8 +122,9 @@ void main() {
         ),
         isNull,
       );
-      final node = history.project.materials.single.graph!.nodeById(3)!
-          as ChannelsTextureNode;
+      final node =
+          history.project.materials.single.graph!.nodeById(3)!
+              as ChannelsTextureNode;
       expect(node.source, 1);
     });
 
@@ -132,8 +139,9 @@ void main() {
         ),
         isNotNull,
       );
-      final output = history.project.materials.single.graph!.nodeById(2)!
-          as OutputTextureNode;
+      final output =
+          history.project.materials.single.graph!.nodeById(2)!
+              as OutputTextureNode;
       expect(output.result, 1); // unchanged
     });
 
@@ -168,8 +176,9 @@ void main() {
         history.run(const Unlink(materialIndex: 0, nodeId: 3, input: 'source')),
         isNull,
       );
-      final node = history.project.materials.single.graph!.nodeById(3)!
-          as ChannelsTextureNode;
+      final node =
+          history.project.materials.single.graph!.nodeById(3)!
+              as ChannelsTextureNode;
       expect(node.source, isNull);
     });
   });
@@ -188,8 +197,9 @@ void main() {
         ),
         isNull,
       );
-      final node = history.project.materials.single.graph!.nodeById(3)!
-          as ChannelsTextureNode;
+      final node =
+          history.project.materials.single.graph!.nodeById(3)!
+              as ChannelsTextureNode;
       expect(node.channel, TextureChannel.g);
     });
 
@@ -305,24 +315,18 @@ void main() {
       );
     });
 
-    test(
-      'an output node is not protected — this codebase has no invariant '
-      'requiring a graph to keep one; BakeTextureGraph refuses on its own '
-      'terms instead, at bake time',
-      () {
-        final history = wired();
-        expect(
-          history.run(const RemoveNode(materialIndex: 0, nodeId: 2)),
-          isNull,
-        );
-        final graph = history.project.materials.single.graph!;
-        expect(graph.nodeById(2), isNull);
-        expect(
-          graph.nodes.whereType<OutputTextureNode>(),
-          isEmpty,
-        );
-      },
-    );
+    test('an output node is not protected — this codebase has no invariant '
+        'requiring a graph to keep one; BakeTextureGraph refuses on its own '
+        'terms instead, at bake time', () {
+      final history = wired();
+      expect(
+        history.run(const RemoveNode(materialIndex: 0, nodeId: 2)),
+        isNull,
+      );
+      final graph = history.project.materials.single.graph!;
+      expect(graph.nodeById(2), isNull);
+      expect(graph.nodes.whereType<OutputTextureNode>(), isEmpty);
+    });
 
     test('is one undo step, restoring the node and its dangling links', () {
       final history = wired();

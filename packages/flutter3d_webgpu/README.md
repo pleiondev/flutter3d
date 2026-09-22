@@ -15,7 +15,7 @@ float target reads back as a picture.
     final device = await openWebGpu(width: 960, height: 540);
 
 **A browser build does not open this backend unless it asks.**
-`flutter3d_backend` opens WebGL2 in a browser and tries WebGPU first only behind
+`flutter3d_app` opens WebGL2 in a browser and tries WebGPU first only behind
 `--dart-define=FLUTTER3D_WEBGPU=true`; the engine's own example takes
 `?backend=webgpu` in the URL instead, because a golden stand that serves
 forty-three scenes from one build should not spend that saving on a define. The
@@ -226,8 +226,8 @@ rasteriser. glTF, OBJ and `.f3d` loading, six lighting models, shadows, bloom,
 skinning, animation, BVH culling and picking; a deterministic fixed-step game
 layer with collision, navigation, positional audio, and gamepad and touch
 input. Three example games — shooter, platformer, racing — each built on its
-genre package: [`flutter3d_game_shooter`](../flutter3d_game_shooter),
-[`flutter3d_game_platformer`](../flutter3d_game_platformer),
-[`flutter3d_game_racing`](../flutter3d_game_racing). A new game starts from the
+genre package: [`flutter3d_game_shooter`](https://pub.dev/packages/flutter3d_game_shooter),
+[`flutter3d_game_platformer`](https://pub.dev/packages/flutter3d_game_platformer),
+[`flutter3d_game_racing`](https://pub.dev/packages/flutter3d_game_racing). A new game starts from the
 editor's scaffold, which writes one from a template: <https://flutter3d.pleion.dev/first-project/>.
 Documentation: <https://flutter3d.pleion.dev>.

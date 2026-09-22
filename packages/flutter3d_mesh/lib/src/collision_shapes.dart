@@ -120,9 +120,7 @@ MeshInertia computeMeshInertia(EditMesh mesh) {
     }
   }
 
-  final centroid = mass.abs() > 1e-12
-      ? (firstMoment / mass)
-      : Vector3.zero();
+  final centroid = mass.abs() > 1e-12 ? (firstMoment / mass) : Vector3.zero();
 
   // Shift the covariance from about the origin to about the centroid
   // (parallel axis theorem on the covariance form: C' = C - m * g outer g).
@@ -164,7 +162,10 @@ PrincipalInertia principalAxesOf(MeshInertia inertia) {
     (r) => List.generate(3, (c) => inertia.tensor.entry(r, c)),
   );
   // Eigenvectors accumulate here, starting at the identity.
-  final v = List.generate(3, (r) => List.generate(3, (c) => r == c ? 1.0 : 0.0));
+  final v = List.generate(
+    3,
+    (r) => List.generate(3, (c) => r == c ? 1.0 : 0.0),
+  );
 
   for (var sweep = 0; sweep < 64; sweep++) {
     // Largest off-diagonal magnitude drives convergence and picks the next
@@ -516,7 +517,8 @@ ConvexHull? computeConvexHull(List<Vector3> points) {
     }
   }
 
-  final centroidSeed = (points[ia] + points[ib] + points[ic] + points[id]) / 4.0;
+  final centroidSeed =
+      (points[ia] + points[ib] + points[ic] + points[id]) / 4.0;
   Vector3 outwardFrom(int p, int q, int r) {
     final c = (points[p] + points[q] + points[r]) / 3.0;
     return c - centroidSeed;

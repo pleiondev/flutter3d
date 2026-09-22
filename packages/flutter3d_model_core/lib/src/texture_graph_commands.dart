@@ -57,7 +57,10 @@ TextureNode? _textureNodeWith(TextureNode node, String field, Object? value) {
 /// The material at [materialIndex] in [project], or null with a refusal
 /// already built — the bounds check every one of this file's five commands
 /// starts with.
-(ProjectMaterial?, Outcome?) _materialAt(ModelProject project, int materialIndex) {
+(ProjectMaterial?, Outcome?) _materialAt(
+  ModelProject project,
+  int materialIndex,
+) {
   if (materialIndex < 0 || materialIndex >= project.materials.length) {
     return (null, Outcome.refused('there is no material $materialIndex'));
   }
@@ -149,7 +152,9 @@ final class AddNode extends ModelCommand {
         objects: project.objects,
         materials: <ProjectMaterial>[
           for (var i = 0; i < project.materials.length; i++)
-            i == materialIndex ? material.withGraph(nextGraph) : project.materials[i],
+            i == materialIndex
+                ? material.withGraph(nextGraph)
+                : project.materials[i],
         ],
         images: project.images,
         nextId: id + 1,

@@ -107,7 +107,9 @@ class SessionsRepository {
 
   /// Removes what has expired. Called by the sweeper, not by a request.
   Future<int> sweep() => _db.run((session) async {
-    final rows = await session.execute('delete from sessions where expires_at < now()');
+    final rows = await session.execute(
+      'delete from sessions where expires_at < now()',
+    );
     return rows.affectedRows;
   });
 }

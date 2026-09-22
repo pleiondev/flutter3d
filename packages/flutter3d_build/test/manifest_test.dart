@@ -1,7 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter3d_build/flutter3d_build.dart';
-import 'package:flutter3d_formats/flutter3d_formats.dart';
+import 'package:flutter3d_core/formats.dart';
 import 'package:test/test.dart';
 
 void main() {
@@ -40,20 +40,17 @@ rules:
       expect(rule.exclude, isFalse);
     });
 
-    test(
-      '"**/*.obj" does not match a root-level file — package:glob\'s own '
-      'rule, worth a test rather than a surprise the first time somebody '
-      'writes a manifest for a project with no subdirectories',
-      () {
-        final manifest = AssetManifest.parse('''
+    test('"**/*.obj" does not match a root-level file — package:glob\'s own '
+        'rule, worth a test rather than a surprise the first time somebody '
+        'writes a manifest for a project with no subdirectories', () {
+      final manifest = AssetManifest.parse('''
 rules:
   - glob: "**/*.obj"
     exclude: true
 ''');
-        expect(manifest.ruleFor('a.obj'), isNull);
-        expect(manifest.ruleFor('props/a.obj'), isNotNull);
-      },
-    );
+      expect(manifest.ruleFor('a.obj'), isNull);
+      expect(manifest.ruleFor('props/a.obj'), isNotNull);
+    });
 
     test('the last matching rule wins over an earlier, broader one', () {
       final manifest = AssetManifest.parse('''
@@ -64,7 +61,10 @@ rules:
     exclude: true
 ''');
       expect(manifest.ruleFor('ui/icon.glb')!.exclude, isTrue);
-      expect(manifest.ruleFor('characters/hero.glb')!.textures, TextureFamily.bc);
+      expect(
+        manifest.ruleFor('characters/hero.glb')!.textures,
+        TextureFamily.bc,
+      );
     });
 
     test('an unknown top-level key names its own line', () {
@@ -100,7 +100,9 @@ rules:
   - glob: "hero.glb"
   - glob: "["
 '''),
-        throwsA(isA<ManifestFormatException>().having((e) => e.line, 'line', 3)),
+        throwsA(
+          isA<ManifestFormatException>().having((e) => e.line, 'line', 3),
+        ),
       );
     });
 
@@ -125,14 +127,18 @@ rules:
 rules:
   - textures: bc
 '''),
-        throwsA(isA<ManifestFormatException>().having((e) => e.line, 'line', 2)),
+        throwsA(
+          isA<ManifestFormatException>().having((e) => e.line, 'line', 2),
+        ),
       );
     });
 
     test('"rules" as a scalar rather than a list names its own line', () {
       expect(
         () => AssetManifest.parse('rules: yes'),
-        throwsA(isA<ManifestFormatException>().having((e) => e.line, 'line', 1)),
+        throwsA(
+          isA<ManifestFormatException>().having((e) => e.line, 'line', 1),
+        ),
       );
     });
 

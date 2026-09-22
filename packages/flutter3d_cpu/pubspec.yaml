@@ -2,7 +2,7 @@ name: flutter3d_cpu
 description: >-
   A software backend for flutter3d_hardware: no GPU, no shading language, and
   therefore the sharpest test of whether the interface is an interface.
-version: 0.6.0
+version: 0.7.0
 repository: https://github.com/pleiondev/flutter3d
 homepage: https://flutter3d.pleion.dev
 issue_tracker: https://github.com/pleiondev/flutter3d/issues
@@ -14,31 +14,35 @@ topics:
 
 environment:
   sdk: ^3.12.2
-  flutter: '>=3.47.0'
 
 dependencies:
-  flutter:
-    sdk: flutter
-  flutter3d_hardware: ^0.6.0
+  flutter3d_hardware: ^0.7.0
   vector_math: ^2.2.0
 
 dev_dependencies:
-  flutter_test:
-    sdk: flutter
+  test: ^1.25.0
   flutter_lints: ^6.0.0
-  flutter3d_conformance: ^0.6.0
-  # Test-only, and deliberately so: the backend itself must not depend on the
-  # engine. A backend that could not be compiled without it would not be an
-  # implementation of an interface, it would be a part of the engine.
-  flutter3d: ^0.6.0
-  flutter3d_shaders: ^0.6.0
-  # For `mip_chain_quality_test.dart` alone: `ap-08`'s own Kaiser-filtered
-  # chain, sampled at a distant footprint. Not a real dependency — nothing in
-  # `lib/` reaches it.
-  flutter3d_formats: ^0.6.0
-  # `pro-sc-01`'s own benchmark: an `EditMesh` big enough to sculpt is built
-  # here and uploaded through this backend, which is test-only for the same
-  # reason the two lines above are.
-  flutter3d_mesh: ^0.6.0
+  flutter3d_conformance: ^0.7.0
+  # For `shader_names_test.dart` alone: the entry-point names it checks
+  # against are `flutter3d_shaders`'s own. Not a real dependency — nothing in
+  # `lib/` reaches it. Both this and `flutter3d_conformance` above are flat
+  # themselves now, so neither carries the Flutter SDK in here any more.
+  flutter3d_shaders: ^0.7.0
+  # For `render_project_test.dart` alone: `renderProject` itself
+  # (`flutter3d_model_core`) and `ParametricCuboid` to build a project to hand
+  # it (`flutter3d_mesh`). Not a real dependency — nothing in `lib/` reaches
+  # either; the direction is the opposite one `render_project.dart`'s own doc
+  # comment explains, and deliberately: `flutter3d_model_core` may not depend
+  # on this package (it would carry the Flutter SDK straight into a package
+  # that must resolve without it), but nothing stops this package depending
+  # on it to prove the two actually work together.
+  flutter3d_model_core: ^0.7.0
+  flutter3d_mesh: ^0.7.0
+  # For `render_snapshot_job_test.dart` and `scene_from_project_test.dart`:
+  # the `RenderSettings`, projections and scene nodes a snapshot is described
+  # and checked with; and for `mip_chain_quality_test.dart`, `ap-08`'s own
+  # Kaiser-filtered chain from its formats library. Flat, like everything else
+  # in this list.
+  flutter3d_core: ^0.7.0
 
 resolution: workspace

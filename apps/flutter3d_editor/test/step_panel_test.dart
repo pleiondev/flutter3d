@@ -107,26 +107,25 @@ void main() {
     await tester.pump();
 
     final sequence = editing.level.named('seq')!;
-    expect(
-      (sequence.properties['steps']! as List).cast<String>(),
-      <String>['step-2', 'step-1'],
-    );
+    expect((sequence.properties['steps']! as List).cast<String>(), <String>[
+      'step-2',
+      'step-1',
+    ]);
   });
 
-  testWidgets(
-    'the first step cannot move up and the last cannot move down',
-    (tester) async {
-      await tester.pumpWidget(_panel(_twoStepLevel()));
-      final upButtons = tester.widgetList<IconButton>(
-        find.widgetWithIcon(IconButton, Icons.arrow_upward),
-      );
-      final downButtons = tester.widgetList<IconButton>(
-        find.widgetWithIcon(IconButton, Icons.arrow_downward),
-      );
-      expect(upButtons.first.onPressed, isNull);
-      expect(downButtons.last.onPressed, isNull);
-    },
-  );
+  testWidgets('the first step cannot move up and the last cannot move down', (
+    tester,
+  ) async {
+    await tester.pumpWidget(_panel(_twoStepLevel()));
+    final upButtons = tester.widgetList<IconButton>(
+      find.widgetWithIcon(IconButton, Icons.arrow_upward),
+    );
+    final downButtons = tester.widgetList<IconButton>(
+      find.widgetWithIcon(IconButton, Icons.arrow_downward),
+    );
+    expect(upButtons.first.onPressed, isNull);
+    expect(downButtons.last.onPressed, isNull);
+  });
 
   testWidgets('deleting a step removes it from the level and the lesson', (
     tester,
@@ -139,10 +138,9 @@ void main() {
 
     expect(editing.level.named('step-1'), isNull);
     final sequence = editing.level.named('seq')!;
-    expect(
-      (sequence.properties['steps']! as List).cast<String>(),
-      <String>['step-2'],
-    );
+    expect((sequence.properties['steps']! as List).cast<String>(), <String>[
+      'step-2',
+    ]);
   });
 
   testWidgets('adding an annotation to a step attaches it by name', (
@@ -162,9 +160,7 @@ void main() {
     expect(annotation.type, 'edu_annotation');
   });
 
-  testWidgets('adding a clip plane creates one and selects it', (
-    tester,
-  ) async {
+  testWidgets('adding a clip plane creates one and selects it', (tester) async {
     final editing = _twoStepLevel();
     await tester.pumpWidget(_panel(editing));
 

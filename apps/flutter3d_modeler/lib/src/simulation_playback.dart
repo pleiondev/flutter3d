@@ -11,7 +11,8 @@ library;
 import 'dart:typed_data';
 
 import 'package:flutter3d/flutter3d.dart';
-import 'package:flutter3d_model_core/flutter3d_model_core.dart' show SimulationCache;
+import 'package:flutter3d_model_core/flutter3d_model_core.dart'
+    show SimulationCache;
 
 /// What this file needs from `pro-sim-03`'s `SimulationCache`: a fixed vertex
 /// count, a frame count, and each frame's baked positions.
@@ -90,7 +91,13 @@ void playSimulationFrame(
     );
   }
   if (frameIndex < 0 || frameIndex >= cache.frameCount) {
-    throw RangeError.index(frameIndex, cache, 'frameIndex', null, cache.frameCount);
+    throw RangeError.index(
+      frameIndex,
+      cache,
+      'frameIndex',
+      null,
+      cache.frameCount,
+    );
   }
 
   final frame = cache.frameAt(frameIndex);
@@ -101,6 +108,9 @@ void playSimulationFrame(
     );
   }
 
-  final bytes = frame.buffer.asByteData(frame.offsetInBytes, frame.lengthInBytes);
+  final bytes = frame.buffer.asByteData(
+    frame.offsetInBytes,
+    frame.lengthInBytes,
+  );
   mesh.overwriteVertices(device, 0, bytes);
 }

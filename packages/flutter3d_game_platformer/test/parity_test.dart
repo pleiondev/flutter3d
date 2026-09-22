@@ -20,8 +20,8 @@
 /// browser test besides.
 library;
 
-import 'package:flutter3d_game/flutter3d_game.dart';
 import 'package:flutter3d_game_platformer/flutter3d_game_platformer.dart';
+import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vector_math/vector_math.dart';
 
@@ -92,7 +92,10 @@ CollisionWorld _room() {
 /// Held for a stretch rather than rerolled every step, the way a keyboard
 /// produces edges and not noise: a direction and a jump held or not, changed
 /// on a rhythm and read as `press`/`release` rather than every-step state.
-List<({bool forward, bool jump})> _tape({required int seed, required int steps}) {
+List<({bool forward, bool jump})> _tape({
+  required int seed,
+  required int steps,
+}) {
   final dice = GameRandom(seed);
   final tape = <({bool forward, bool jump})>[];
   var forward = false;
@@ -134,9 +137,7 @@ DigestTrace _play(List<({bool forward, bool jump})> tape, {int every = 25}) {
       forward = wish.forward;
     }
     if (wish.jump != jump) {
-      wish.jump
-          ? input.press(GameAction.jump)
-          : input.release(GameAction.jump);
+      wish.jump ? input.press(GameAction.jump) : input.release(GameAction.jump);
       jump = wish.jump;
     }
     sim.step(_dt);

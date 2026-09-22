@@ -15,11 +15,11 @@ library;
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:flutter3d_bridge/flutter3d_bridge.dart';
+import 'package:flutter3d_app/flutter3d_app.dart';
 import 'package:flutter3d_demo_dungeon/src/staging.dart';
-import 'package:flutter3d_game/flutter3d_game.dart';
 import 'package:flutter3d_game_shooter/flutter3d_game_shooter.dart';
-import 'package:flutter3d_game_shooter/sample.dart';
+import 'package:flutter3d_game_shooter/sample.dart' hide Staged, stage;
+import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 Level _crypt() => Level.fromJson(
@@ -93,15 +93,14 @@ void main() {
 
     // ignore: avoid_print
     print(
-      'net-00 dungeon (crypt): ${[
-        for (final k in results.keys) 'k=$k ${results[k]!.toStringAsFixed(4)}ms',
-      ].join(', ')}',
+      'net-00 dungeon (crypt): ${[for (final k in results.keys) 'k=$k ${results[k]!.toStringAsFixed(4)}ms'].join(', ')}',
     );
 
     expect(
       results[8],
       isNotNull,
-      reason: 'net-00 states its budget at k=8; the table must have a row for it',
+      reason:
+          'net-00 states its budget at k=8; the table must have a row for it',
     );
     // Structural check rather than a hard number: restoring once and running
     // more steps costs at least as much as running fewer, since a step never

@@ -37,25 +37,28 @@ void main() {
       expect(pairs.single.weight, closeTo(1.0, 1e-6));
     });
 
-    test('accumulates onto an existing joint rather than replacing the vertex', () {
-      final mesh = EditMesh.cuboid();
-      edit(
-        mesh,
-        () => mesh.setSkin(
-          0,
-          VertexAttributes(
-            joints: Vector4(1, 5, 0, 0),
-            weights: Vector4(0.6, 0.4, 0, 0),
+    test(
+      'accumulates onto an existing joint rather than replacing the vertex',
+      () {
+        final mesh = EditMesh.cuboid();
+        edit(
+          mesh,
+          () => mesh.setSkin(
+            0,
+            VertexAttributes(
+              joints: Vector4(1, 5, 0, 0),
+              weights: Vector4(0.6, 0.4, 0, 0),
+            ),
           ),
-        ),
-      );
-      edit(mesh, () => paintWeight(mesh, 0, 5, 0.4));
-      final pairs = weightsOf(mesh, 0);
-      expect(pairs, hasLength(2));
-      final five = pairs.firstWhere((p) => p.joint == 5).weight;
-      expect(five, greaterThan(0.4)); // grew from its 0.4 share
-      expect(_sum(pairs), closeTo(1.0, 1e-6));
-    });
+        );
+        edit(mesh, () => paintWeight(mesh, 0, 5, 0.4));
+        final pairs = weightsOf(mesh, 0);
+        expect(pairs, hasLength(2));
+        final five = pairs.firstWhere((p) => p.joint == 5).weight;
+        expect(five, greaterThan(0.4)); // grew from its 0.4 share
+        expect(_sum(pairs), closeTo(1.0, 1e-6));
+      },
+    );
 
     test('sum stays 1±1e-6 and influences stay within the cap after a stroke '
         'that would otherwise add a fifth', () {
@@ -84,7 +87,10 @@ void main() {
         mesh,
         () => mesh.setSkin(
           0,
-          VertexAttributes(joints: Vector4(3, 0, 0, 0), weights: Vector4(1, 0, 0, 0)),
+          VertexAttributes(
+            joints: Vector4(3, 0, 0, 0),
+            weights: Vector4(1, 0, 0, 0),
+          ),
         ),
       );
       final before = weightsOf(mesh, 0);
@@ -100,27 +106,34 @@ void main() {
       };
       final totalVariation = joints.fold<double>(
         0,
-        (sum, joint) => sum + (weightOf(after, joint) - weightOf(before, joint)).abs(),
+        (sum, joint) =>
+            sum + (weightOf(after, joint) - weightOf(before, joint)).abs(),
       );
       expect(totalVariation / 2, lessThanOrEqualTo(0.10));
     });
   });
 
   group('normalizeVertexWeights', () {
-    test('scales stored weights to sum to one without adding or dropping joints', () {
-      final mesh = EditMesh.cuboid();
-      edit(
-        mesh,
-        () => mesh.setSkin(
-          0,
-          VertexAttributes(joints: Vector4(1, 2, 0, 0), weights: Vector4(2, 6, 0, 0)),
-        ),
-      );
-      edit(mesh, () => normalizeVertexWeights(mesh, 0));
-      final pairs = weightsOf(mesh, 0);
-      expect(pairs, hasLength(2));
-      expect(_sum(pairs), closeTo(1.0, 1e-6));
-    });
+    test(
+      'scales stored weights to sum to one without adding or dropping joints',
+      () {
+        final mesh = EditMesh.cuboid();
+        edit(
+          mesh,
+          () => mesh.setSkin(
+            0,
+            VertexAttributes(
+              joints: Vector4(1, 2, 0, 0),
+              weights: Vector4(2, 6, 0, 0),
+            ),
+          ),
+        );
+        edit(mesh, () => normalizeVertexWeights(mesh, 0));
+        final pairs = weightsOf(mesh, 0);
+        expect(pairs, hasLength(2));
+        expect(_sum(pairs), closeTo(1.0, 1e-6));
+      },
+    );
   });
 
   group('pruneVertexWeights', () {
@@ -149,72 +162,91 @@ void main() {
   });
 
   group('assignSelection', () {
-    test('hard-assigns a whole selection to one joint, dropping other influences', () {
-      final mesh = EditMesh.cuboid();
-      edit(
-        mesh,
-        () => mesh.setSkin(
-          0,
-          VertexAttributes(joints: Vector4(1, 2, 0, 0), weights: Vector4(0.5, 0.5, 0, 0)),
-        ),
-      );
-      edit(mesh, () => assignSelection(mesh, <int>[0, 1], 9, 1.0));
-      for (final v in <int>[0, 1]) {
-        final pairs = weightsOf(mesh, v);
-        expect(pairs, hasLength(1));
-        expect(pairs.single.joint, 9);
-        expect(pairs.single.weight, closeTo(1.0, 1e-6));
-      }
-    });
+    test(
+      'hard-assigns a whole selection to one joint, dropping other influences',
+      () {
+        final mesh = EditMesh.cuboid();
+        edit(
+          mesh,
+          () => mesh.setSkin(
+            0,
+            VertexAttributes(
+              joints: Vector4(1, 2, 0, 0),
+              weights: Vector4(0.5, 0.5, 0, 0),
+            ),
+          ),
+        );
+        edit(mesh, () => assignSelection(mesh, <int>[0, 1], 9, 1.0));
+        for (final v in <int>[0, 1]) {
+          final pairs = weightsOf(mesh, v);
+          expect(pairs, hasLength(1));
+          expect(pairs.single.joint, 9);
+          expect(pairs.single.weight, closeTo(1.0, 1e-6));
+        }
+      },
+    );
   });
 
   group('mirrorWeights', () {
-    test('a symmetric cube copies weights to the matching vertex, joints remapped', () {
-      final mesh = EditMesh.cuboid();
-      final allVertices = <int>[for (var v = 0; v < mesh.vertexSlotCount; v++) v];
+    test(
+      'a symmetric cube copies weights to the matching vertex, joints remapped',
+      () {
+        final mesh = EditMesh.cuboid();
+        final allVertices = <int>[
+          for (var v = 0; v < mesh.vertexSlotCount; v++) v,
+        ];
 
-      // Find the two vertices with the largest opposite x — a real pair on
-      // the cube's own geometry, not one picked by hand from its layout.
-      int left = allVertices.first, right = allVertices.first;
-      for (final v in allVertices) {
-        final x = mesh.positionOf(v).x;
-        if (x < mesh.positionOf(left).x) left = v;
-        if (x > mesh.positionOf(right).x) right = v;
-      }
-      expect(mesh.positionOf(left).x, -mesh.positionOf(right).x);
+        // Find the two vertices with the largest opposite x — a real pair on
+        // the cube's own geometry, not one picked by hand from its layout.
+        int left = allVertices.first, right = allVertices.first;
+        for (final v in allVertices) {
+          final x = mesh.positionOf(v).x;
+          if (x < mesh.positionOf(left).x) left = v;
+          if (x > mesh.positionOf(right).x) right = v;
+        }
+        expect(mesh.positionOf(left).x, -mesh.positionOf(right).x);
 
-      edit(
-        mesh,
-        () => mesh.setSkin(
-          left,
-          VertexAttributes(joints: Vector4(10, 0, 0, 0), weights: Vector4(1, 0, 0, 0)),
-        ),
-      );
-      edit(
-        mesh,
-        () => mirrorWeights(
+        edit(
           mesh,
-          allVertices,
-          axis: 0,
-          jointMirror: <int, int>{10: 11},
-        ),
-      );
-      final mirrored = weightsOf(mesh, right);
-      expect(mirrored, hasLength(1));
-      expect(mirrored.single.joint, 11);
-      expect(mirrored.single.weight, closeTo(1.0, 1e-6));
-    });
+          () => mesh.setSkin(
+            left,
+            VertexAttributes(
+              joints: Vector4(10, 0, 0, 0),
+              weights: Vector4(1, 0, 0, 0),
+            ),
+          ),
+        );
+        edit(
+          mesh,
+          () => mirrorWeights(
+            mesh,
+            allVertices,
+            axis: 0,
+            jointMirror: <int, int>{10: 11},
+          ),
+        );
+        final mirrored = weightsOf(mesh, right);
+        expect(mirrored, hasLength(1));
+        expect(mirrored.single.joint, 11);
+        expect(mirrored.single.weight, closeTo(1.0, 1e-6));
+      },
+    );
 
     test('a vertex on the mirror plane is left alone', () {
       final mesh = EditMesh.cuboid();
-      final allVertices = <int>[for (var v = 0; v < mesh.vertexSlotCount; v++) v];
+      final allVertices = <int>[
+        for (var v = 0; v < mesh.vertexSlotCount; v++) v,
+      ];
       // Move one vertex onto the x=0 plane and give it a distinctive weight.
       edit(mesh, () => mesh.moveVertex(allVertices.first, Vector3(0, 1, 1)));
       edit(
         mesh,
         () => mesh.setSkin(
           allVertices.first,
-          VertexAttributes(joints: Vector4(4, 0, 0, 0), weights: Vector4(1, 0, 0, 0)),
+          VertexAttributes(
+            joints: Vector4(4, 0, 0, 0),
+            weights: Vector4(1, 0, 0, 0),
+          ),
         ),
       );
       edit(
@@ -234,13 +266,18 @@ void main() {
   group('smoothVertexWeights', () {
     test('a lone painted vertex spreads partway onto its neighbours', () {
       final mesh = EditMesh.cuboid();
-      final allVertices = <int>[for (var v = 0; v < mesh.vertexSlotCount; v++) v];
+      final allVertices = <int>[
+        for (var v = 0; v < mesh.vertexSlotCount; v++) v,
+      ];
       final center = allVertices.first;
       edit(
         mesh,
         () => mesh.setSkin(
           center,
-          VertexAttributes(joints: Vector4(2, 0, 0, 0), weights: Vector4(1, 0, 0, 0)),
+          VertexAttributes(
+            joints: Vector4(2, 0, 0, 0),
+            weights: Vector4(1, 0, 0, 0),
+          ),
         ),
       );
       final neighbor = mesh.neighborsOf(center).first;
@@ -260,17 +297,23 @@ void main() {
 
     test('sum stays 1±1e-6 after several iterations', () {
       final mesh = EditMesh.cuboid();
-      final allVertices = <int>[for (var v = 0; v < mesh.vertexSlotCount; v++) v];
+      final allVertices = <int>[
+        for (var v = 0; v < mesh.vertexSlotCount; v++) v,
+      ];
       edit(
         mesh,
         () => mesh.setSkin(
           allVertices.first,
-          VertexAttributes(joints: Vector4(2, 0, 0, 0), weights: Vector4(1, 0, 0, 0)),
+          VertexAttributes(
+            joints: Vector4(2, 0, 0, 0),
+            weights: Vector4(1, 0, 0, 0),
+          ),
         ),
       );
       edit(
         mesh,
-        () => smoothVertexWeights(mesh, allVertices, lambda: 0.5, iterations: 3),
+        () =>
+            smoothVertexWeights(mesh, allVertices, lambda: 0.5, iterations: 3),
       );
       for (final v in allVertices) {
         expect(_sum(weightsOf(mesh, v)), closeTo(1.0, 1e-6));
@@ -281,7 +324,9 @@ void main() {
   group('gradientWeights', () {
     test('blends linearly between two joints along an axis, sum 1±1e-6', () {
       final mesh = EditMesh.cuboid();
-      final allVertices = <int>[for (var v = 0; v < mesh.vertexSlotCount; v++) v];
+      final allVertices = <int>[
+        for (var v = 0; v < mesh.vertexSlotCount; v++) v,
+      ];
       edit(
         mesh,
         () => gradientWeights(
@@ -313,7 +358,9 @@ void main() {
 
     test('a vertex beyond either end clamps rather than extrapolating', () {
       final mesh = EditMesh.cuboid();
-      final allVertices = <int>[for (var v = 0; v < mesh.vertexSlotCount; v++) v];
+      final allVertices = <int>[
+        for (var v = 0; v < mesh.vertexSlotCount; v++) v,
+      ];
       edit(
         mesh,
         () => gradientWeights(

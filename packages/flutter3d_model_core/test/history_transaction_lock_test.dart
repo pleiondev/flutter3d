@@ -53,42 +53,50 @@ void main() {
       expect(resolved, isTrue);
     });
 
-    test('a transaction that opens again before this resolves is waited out too', () async {
-      final history = freshHistory();
-      history.beginTransaction();
+    test(
+      'a transaction that opens again before this resolves is waited out too',
+      () async {
+        final history = freshHistory();
+        history.beginTransaction();
 
-      var resolved = false;
-      final waiting = history.whenNotInTransaction.then((_) => resolved = true);
+        var resolved = false;
+        final waiting = history.whenNotInTransaction.then(
+          (_) => resolved = true,
+        );
 
-      // Closes the first transaction and immediately opens a second one,
-      // both inside the microtask `endTransaction`'s own completion runs —
-      // `whenNotInTransaction`'s loop re-reads the flag rather than trusting
-      // the one wakeup, which is what this proves.
-      history.endTransaction();
-      history.beginTransaction();
+        // Closes the first transaction and immediately opens a second one,
+        // both inside the microtask `endTransaction`'s own completion runs —
+        // `whenNotInTransaction`'s loop re-reads the flag rather than trusting
+        // the one wakeup, which is what this proves.
+        history.endTransaction();
+        history.beginTransaction();
 
-      await Future<void>.value();
-      expect(resolved, isFalse, reason: 'a second transaction is now open');
+        await Future<void>.value();
+        expect(resolved, isFalse, reason: 'a second transaction is now open');
 
-      history.endTransaction();
-      await waiting;
-      expect(resolved, isTrue);
-    });
+        history.endTransaction();
+        await waiting;
+        expect(resolved, isTrue);
+      },
+    );
 
-    test('several waiters all resolve once the one transaction they are all waiting on closes', () async {
-      final history = freshHistory();
-      history.beginTransaction();
+    test(
+      'several waiters all resolve once the one transaction they are all waiting on closes',
+      () async {
+        final history = freshHistory();
+        history.beginTransaction();
 
-      final order = <int>[];
-      final waiters = <Future<void>>[
-        for (var i = 0; i < 3; i++)
-          history.whenNotInTransaction.then((_) => order.add(i)),
-      ];
+        final order = <int>[];
+        final waiters = <Future<void>>[
+          for (var i = 0; i < 3; i++)
+            history.whenNotInTransaction.then((_) => order.add(i)),
+        ];
 
-      history.endTransaction();
-      await Future.wait(waiters);
-      expect(order.toSet(), <int>{0, 1, 2});
-    });
+        history.endTransaction();
+        await Future.wait(waiters);
+        expect(order.toSet(), <int>{0, 1, 2});
+      },
+    );
 
     test('runs in and out of a transaction() body the same way', () async {
       final history = freshHistory();

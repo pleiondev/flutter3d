@@ -61,7 +61,10 @@ final class LoopbackTransport implements NetTransport {
     // still comes out of a single, seeded sequence, and a test replaying the
     // same seed sees the same drops in the same order they were asked for.
     if (_random.nextDouble() < _lossRate) return;
-    _peer._inbox.add((_peer._now + _delaySteps, Map<String, Object?>.of(message)));
+    _peer._inbox.add((
+      _peer._now + _delaySteps,
+      Map<String, Object?>.of(message),
+    ));
   }
 
   @override

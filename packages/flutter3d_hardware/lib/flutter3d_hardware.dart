@@ -34,6 +34,11 @@ library;
 /// Recording a pass — state, bindings, draws.
 export 'src/command_encoder.dart';
 
+/// How a build opens a `GraphicsDevice`, and how a caller finds what shows a
+/// frame from one — both as a backend registers into, not a list this
+/// package or an assembly layer has to already know every entry of.
+export 'src/device_registry.dart';
+
 /// Enums, one per thing a caller has to name.
 export 'src/formats.dart';
 

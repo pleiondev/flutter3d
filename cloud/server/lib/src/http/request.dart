@@ -18,11 +18,13 @@ import 'cookies.dart';
 /// nginx sets `X-Real-IP` from Cloudflare's `CF-Connecting-IP`. On a port
 /// anybody could reach, this would be a header anybody could forge.
 String clientIp(Request request) {
-  final forwarded = request.headers['x-real-ip'] ?? request.headers['cf-connecting-ip'];
+  final forwarded =
+      request.headers['x-real-ip'] ?? request.headers['cf-connecting-ip'];
   if (forwarded != null && forwarded.trim().isNotEmpty) {
     return forwarded.split(',').first.trim();
   }
-  final info = request.context['shelf.io.connection_info'] as HttpConnectionInfo?;
+  final info =
+      request.context['shelf.io.connection_info'] as HttpConnectionInfo?;
   return info?.remoteAddress.address ?? '0.0.0.0';
 }
 
@@ -39,14 +41,15 @@ String csrfOf(Request request) =>
     cookiesOf(request)[Services.instance.cookies.csrfName] ?? '';
 
 /// Whether a script's request carries this service's token in `X-CSRF`.
-bool scriptIsOurs(Request request) => formIsOurs(
-  request,
-  {'csrf': ?request.headers['x-csrf']},
-  Services.instance.cookies,
-);
+bool scriptIsOurs(Request request) => formIsOurs(request, {
+  'csrf': ?request.headers['x-csrf'],
+}, Services.instance.cookies);
 
 /// The fields of a urlencoded form, or an empty map for anything else.
-Future<Map<String, String>> readForm(Request request, {int limit = 64 * 1024}) async {
+Future<Map<String, String>> readForm(
+  Request request, {
+  int limit = 64 * 1024,
+}) async {
   if (request.mimeType != 'application/x-www-form-urlencoded') return const {};
   final body = await readBody(request, limit: limit);
   if (body == null) return const {};
@@ -78,7 +81,10 @@ Response seeOther(String location, {Map<String, Object>? headers}) =>
 /// Only a path on this host: `//evil.example` is a path to a browser and a
 /// host to everybody else, which is what makes an open redirect.
 String safeNext(String? next) =>
-    next != null && next.startsWith('/') && !next.startsWith('//') && !next.startsWith('/\\')
+    next != null &&
+        next.startsWith('/') &&
+        !next.startsWith('//') &&
+        !next.startsWith('/\\')
     ? next
     : '/me';
 

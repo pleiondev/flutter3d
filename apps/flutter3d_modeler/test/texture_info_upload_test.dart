@@ -14,34 +14,46 @@ library;
 import 'dart:io';
 
 import 'package:flutter3d/flutter3d.dart';
-import 'package:flutter3d_cpu/testing.dart';
 import 'package:flutter3d_model_core/flutter3d_model_core.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'support/fake_graphics_backend.dart';
+
 void main() {
-  test('a Basis Universal KTX2 uploads at the size its own header claims',
-      () async {
-    // A real encoder's own output, not a hand-built fixture — the smallest
-    // of the three `flutter3d_samples` already keeps for exactly this
-    // format. Basis Universal transcodes to plain RGBA8 on the way to the
-    // device, so `textureInfo`'s own fallback (the level index's stored
-    // total, since there is no block layout for an undefined `vkFormat`)
-    // is read here only for its width and height — the one part of the
-    // acceptance this row asks for, not the byte count a transcode changes
-    // on purpose.
-    final bytes = await File(
-      '../../packages/flutter3d_samples/assets/ktx2/etc1s_gradient_quadrants.ktx2',
-    ).readAsBytes();
+  test(
+    'a Basis Universal KTX2 uploads at the size its own header claims',
+    () async {
+      // A real encoder's own output, not a hand-built fixture — the smallest
+      // of the three `flutter3d_samples` already keeps for exactly this
+      // format. Basis Universal transcodes to plain RGBA8 on the way to the
+      // device, so `textureInfo`'s own fallback (the level index's stored
+      // total, since there is no block layout for an undefined `vkFormat`)
+      // is read here only for its width and height — the one part of the
+      // acceptance this row asks for, not the byte count a transcode changes
+      // on purpose.
+      final bytes = await File(
+        '../../packages/flutter3d_samples/assets/ktx2/etc1s_gradient_quadrants.ktx2',
+      ).readAsBytes();
 
-    final info = textureInfo(bytes);
-    expect(info, isNotNull, reason: 'a real KTX2 file should read a header');
+      final info = textureInfo(bytes);
+      expect(info, isNotNull, reason: 'a real KTX2 file should read a header');
 
-    final it = cpuTestDevice();
-    final handle = await uploadEncodedImage(it.device, bytes);
+      final it = fakeTestDevice();
+      final handle = await uploadEncodedImage(
+        it.device,
+        bytes,
+        decodeImage: defaultImageDecoder,
+      );
 
-    expect(handle, isNotNull, reason: 'a plain RGBA8 upload should not be '
-        'refused by a device that samples everything uncompressed');
-    expect(handle!.width, info!.width);
-    expect(handle.height, info.height);
-  });
+      expect(
+        handle,
+        isNotNull,
+        reason:
+            'a plain RGBA8 upload should not be '
+            'refused by a device that samples everything uncompressed',
+      );
+      expect(handle!.width, info!.width);
+      expect(handle.height, info.height);
+    },
+  );
 }

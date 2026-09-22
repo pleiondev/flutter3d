@@ -43,8 +43,13 @@ part of 'command.dart';
   return (skeleton: project.skeletons[skeletonIndex], refused: null);
 }
 
-ModelProject _withSkeleton(ModelProject project, int index, ProjectSkeleton skeleton) {
-  final skeletons = List<ProjectSkeleton>.of(project.skeletons)..[index] = skeleton;
+ModelProject _withSkeleton(
+  ModelProject project,
+  int index,
+  ProjectSkeleton skeleton,
+) {
+  final skeletons = List<ProjectSkeleton>.of(project.skeletons)
+    ..[index] = skeleton;
   return project.copyWith(skeletons: skeletons);
 }
 
@@ -72,8 +77,9 @@ final class AddSkeleton extends ModelCommand {
       skeletonName == null ? 'add a skeleton' : 'add skeleton "$skeletonName"';
 
   @override
-  Map<String, Object?> get arguments =>
-      <String, Object?>{'skeletonName': skeletonName};
+  Map<String, Object?> get arguments => <String, Object?>{
+    'skeletonName': skeletonName,
+  };
 
   @override
   Outcome apply(ModelProject project, ProjectSelection selection) =>
@@ -108,8 +114,10 @@ final class BindSkin extends ModelCommand {
   String get says => 'bind to a skeleton';
 
   @override
-  Map<String, Object?> get arguments =>
-      <String, Object?>{'objectId': objectId, 'skeletonIndex': skeletonIndex};
+  Map<String, Object?> get arguments => <String, Object?>{
+    'objectId': objectId,
+    'skeletonIndex': skeletonIndex,
+  };
 
   @override
   Outcome apply(ModelProject project, ProjectSelection selection) {
@@ -130,7 +138,11 @@ final class BindSkin extends ModelCommand {
 /// [inverseBindMatrix] (identity when the object's own bind pose is
 /// already its rest pose).
 final class AddJoint extends ModelCommand {
-  const AddJoint({required this.skeletonIndex, required this.objectId, this.inverseBindMatrix});
+  const AddJoint({
+    required this.skeletonIndex,
+    required this.objectId,
+    this.inverseBindMatrix,
+  });
 
   final int skeletonIndex;
   final int objectId;
@@ -146,7 +158,8 @@ final class AddJoint extends ModelCommand {
   Map<String, Object?> get arguments => <String, Object?>{
     'skeletonIndex': skeletonIndex,
     'objectId': objectId,
-    if (inverseBindMatrix != null) 'inverseBindMatrix': inverseBindMatrix!.storage,
+    if (inverseBindMatrix != null)
+      'inverseBindMatrix': inverseBindMatrix!.storage,
   };
 
   @override
@@ -157,7 +170,9 @@ final class AddJoint extends ModelCommand {
       return Outcome.refused('there is no object $objectId');
     }
     if (skeleton.joints.contains(objectId)) {
-      return Outcome.refused('object $objectId is already a joint of this skeleton');
+      return Outcome.refused(
+        'object $objectId is already a joint of this skeleton',
+      );
     }
     final next = skeleton.copyWith(
       joints: <int>[...skeleton.joints, objectId],
@@ -185,11 +200,18 @@ final class RemoveJoint extends ModelCommand {
   String get name => 'removeJoint';
 
   @override
-  String get says => 'remove a joint';
+  // `ux-43`: an index-shifting removal says so, because every index an
+  // agent is holding past this one has just moved and nothing else
+  // would tell it. The review watched one delete material 1 and then
+  // paint with material 2, which was a different material by then.
+  String get says =>
+      'remove joint $jointIndex (every joint after it shifts down by one)';
 
   @override
-  Map<String, Object?> get arguments =>
-      <String, Object?>{'skeletonIndex': skeletonIndex, 'jointIndex': jointIndex};
+  Map<String, Object?> get arguments => <String, Object?>{
+    'skeletonIndex': skeletonIndex,
+    'jointIndex': jointIndex,
+  };
 
   @override
   Outcome apply(ModelProject project, ProjectSelection selection) {
@@ -240,11 +262,16 @@ final class RemoveJoint extends ModelCommand {
               if (p.joint != jointIndex)
                 WeightPair(
                   p.joint > jointIndex ? p.joint - 1 : p.joint,
-                  p.joint == parentJointIndex ? p.weight + removedWeight : p.weight,
+                  p.joint == parentJointIndex
+                      ? p.weight + removedWeight
+                      : p.weight,
                 ),
-            if (parentJointIndex != null && !pairs.any((p) => p.joint == parentJointIndex))
+            if (parentJointIndex != null &&
+                !pairs.any((p) => p.joint == parentJointIndex))
               WeightPair(
-                parentJointIndex > jointIndex ? parentJointIndex - 1 : parentJointIndex,
+                parentJointIndex > jointIndex
+                    ? parentJointIndex - 1
+                    : parentJointIndex,
                 removedWeight,
               ),
           ];
@@ -258,7 +285,8 @@ final class RemoveJoint extends ModelCommand {
     }
 
     final joints = List<int>.of(skeleton.joints)..removeAt(jointIndex);
-    final matrices = List<Matrix4>.of(skeleton.inverseBindMatrices)..removeAt(jointIndex);
+    final matrices = List<Matrix4>.of(skeleton.inverseBindMatrices)
+      ..removeAt(jointIndex);
     next = _withSkeleton(
       next,
       skeletonIndex,
@@ -272,7 +300,11 @@ final class RemoveJoint extends ModelCommand {
 /// [Rename]'s own refusal for a blank name, reached through a skeleton's
 /// own joint index rather than an id directly.
 final class RenameJoint extends ModelCommand {
-  const RenameJoint({required this.skeletonIndex, required this.jointIndex, required this.to});
+  const RenameJoint({
+    required this.skeletonIndex,
+    required this.jointIndex,
+    required this.to,
+  });
 
   final int skeletonIndex;
   final int jointIndex;
@@ -285,8 +317,11 @@ final class RenameJoint extends ModelCommand {
   String get says => 'rename a joint to "$to"';
 
   @override
-  Map<String, Object?> get arguments =>
-      <String, Object?>{'skeletonIndex': skeletonIndex, 'jointIndex': jointIndex, 'to': to};
+  Map<String, Object?> get arguments => <String, Object?>{
+    'skeletonIndex': skeletonIndex,
+    'jointIndex': jointIndex,
+    'to': to,
+  };
 
   @override
   Outcome apply(ModelProject project, ProjectSelection selection) {
@@ -298,7 +333,10 @@ final class RenameJoint extends ModelCommand {
         '$jointIndex is not one of them',
       );
     }
-    return Rename(id: skeleton.joints[jointIndex], to: to).apply(project, selection);
+    return Rename(
+      id: skeleton.joints[jointIndex],
+      to: to,
+    ).apply(project, selection);
   }
 }
 
@@ -309,7 +347,11 @@ final class RenameJoint extends ModelCommand {
 /// through a skeleton's own joint index rather than an id directly — the
 /// cycle check and the refusals are [SetParent]'s own, not repeated here.
 final class ReparentJoint extends ModelCommand {
-  const ReparentJoint({required this.skeletonIndex, required this.jointIndex, required this.to});
+  const ReparentJoint({
+    required this.skeletonIndex,
+    required this.jointIndex,
+    required this.to,
+  });
 
   final int skeletonIndex;
   final int jointIndex;
@@ -421,7 +463,11 @@ final class SetRestPose extends ModelCommand {
 /// otherwise have the second write read the first write's own
 /// already-mirrored result instead of the original.
 final class MirrorJoints extends ModelCommand {
-  const MirrorJoints({required this.skeletonIndex, required this.axis, required this.jointMirror});
+  const MirrorJoints({
+    required this.skeletonIndex,
+    required this.axis,
+    required this.jointMirror,
+  });
 
   final int skeletonIndex;
 
@@ -500,4 +546,148 @@ Matrix4 _reflected(Matrix4 transform, int axis) {
   return Matrix4.copy(reflect)
     ..multiply(transform)
     ..multiply(reflect);
+}
+
+/// Turns joint [jointIndex] of skeleton [skeletonIndex] by [degrees] about
+/// [axis], measured from its bind pose rather than from wherever it stands
+/// — `tut-09`'s own row.
+///
+/// **What the document could not say before this.** `ui/bend_slider_bar.dart`
+/// is a slider: at thirty it means thirty from rest, and at thirty again it
+/// still means thirty. That bar turns a joint's live `SceneNode` and never
+/// touches `ModelHistory` — by design, so sixty frames of a drag cost
+/// nothing on the undo stack — so an agent over MCP had no way to reach the
+/// same statement. Case 4's own scenario used `select` + `RotateBy` +
+/// `PoseJoint` instead, which reaches the identical *keyed* state through a
+/// different door: [RotateBy] turns a joint from where it is, so a caller
+/// who wants "thirty from rest" has to read the current pose and work out
+/// the difference, and a caller who runs it twice gets sixty.
+///
+/// This is the absolute form. Running it twice with the same [degrees]
+/// leaves the joint exactly where the first run put it, which is what makes
+/// it the command a slider's own position maps onto and what lets an agent
+/// say a pose rather than a nudge.
+///
+/// **Rest means the bind pose, and that is a choice with an alternative.**
+/// `poseOf` builds a `Pose` whose "rest" is whatever the document's own
+/// transforms currently say — right for a caller measuring a rig as it
+/// stands, wrong as an anchor for an absolute bend, since it would move
+/// every time the joint did and a second call would then mean thirty from
+/// the first call's thirty. A skeleton's inverse bind matrices do not move:
+/// they are what [SetRestPose] maintains and what the skin itself is
+/// weighted against. So the anchor is `inverted(inverseBind)`, composed back
+/// into the joint's own parent space the same way [SetRestPose] composes the
+/// other direction.
+///
+/// **The rotation, and not the translation or the scale.** The slider calls
+/// `SceneNode.setRotation` and leaves the node's position alone; this leaves
+/// the object's own translation and scale exactly as the document holds
+/// them, so a rig whose joints have been moved deliberately keeps that and
+/// only its orientation is spoken for.
+final class BendJoint extends ModelCommand {
+  const BendJoint({
+    required this.skeletonIndex,
+    required this.jointIndex,
+    required this.degrees,
+    this.axis = 0,
+  });
+
+  final int skeletonIndex;
+  final int jointIndex;
+
+  /// The turn from the bind pose, in degrees.
+  final double degrees;
+
+  /// `0` for x, `1` for y, `2` for z — the same spelling [MirrorJoints] uses.
+  final int axis;
+
+  @override
+  String get name => 'bendJoint';
+
+  @override
+  String get says => 'bend a joint';
+
+  @override
+  Map<String, Object?> get arguments => <String, Object?>{
+    'skeletonIndex': skeletonIndex,
+    'jointIndex': jointIndex,
+    'degrees': degrees,
+    'axis': axis,
+  };
+
+  @override
+  Outcome apply(ModelProject project, ProjectSelection selection) {
+    final (:skeleton, :refused) = _skeletonTarget(project, skeletonIndex);
+    if (skeleton == null) return Outcome.refused(refused!);
+    if (jointIndex < 0 || jointIndex >= skeleton.jointCount) {
+      return Outcome.refused(
+        'skeleton $skeletonIndex has ${skeleton.jointCount} joints; '
+        '$jointIndex is not one of them',
+      );
+    }
+    if (axis < 0 || axis > 2) {
+      return Outcome.refused('an axis is 0 for x, 1 for y or 2 for z');
+    }
+    final jointId = skeleton.joints[jointIndex];
+    final object = project[jointId];
+    if (object == null) {
+      return Outcome.refused('there is no object $jointId');
+    }
+
+    final Matrix4 bindLocal = _bindLocalOf(project, skeleton, jointIndex);
+    final bindTranslation = Vector3.zero();
+    final bindRotation = Quaternion.identity();
+    final bindScale = Vector3.zero();
+    bindLocal.decompose(bindTranslation, bindRotation, bindScale);
+
+    // The joint's own translation and scale, not the bind pose's: this
+    // command speaks for the orientation and leaves the rest of the
+    // transform to whoever set it.
+    final held = Vector3.zero();
+    final heldRotation = Quaternion.identity();
+    final heldScale = Vector3.zero();
+    object.transform.decompose(held, heldRotation, heldScale);
+
+    final turn = Quaternion.axisAngle(switch (axis) {
+      0 => Vector3(1.0, 0.0, 0.0),
+      1 => Vector3(0.0, 1.0, 0.0),
+      _ => Vector3(0.0, 0.0, 1.0),
+    }, radians(degrees));
+    // `bind · turn`, the order `bend_slider_bar.dart` composes: the axis
+    // then reads the same whichever way the bind pose itself is turned.
+    final bent = bindRotation * turn
+      ..normalize();
+
+    return Outcome.done(
+      project.withObject(
+        object.copyWith(transform: Matrix4.compose(held, bent, heldScale)),
+      ),
+    );
+  }
+
+  /// Joint [index]'s bind transform in its own parent's space.
+  ///
+  /// `inverted(inverseBind)` is the joint's bind transform in world space;
+  /// dividing out its parent's gives the local one. The parent is the
+  /// skeleton's own when the joint hangs under another joint of it, and
+  /// whatever the document says otherwise — the same two cases `poseOf`
+  /// splits, for the same reason: a root joint under a rig controller still
+  /// has to answer for what that controller contributes.
+  static Matrix4 _bindLocalOf(
+    ModelProject project,
+    ProjectSkeleton skeleton,
+    int index,
+  ) {
+    final Matrix4 bindWorld = Matrix4.inverted(
+      skeleton.inverseBindMatrices[index],
+    );
+    final int? parentId = project[skeleton.joints[index]]?.parent;
+    if (parentId == null) return bindWorld;
+
+    final int parentIndex = skeleton.joints.indexOf(parentId);
+    final Matrix4 parentWorld = parentIndex >= 0
+        ? Matrix4.inverted(skeleton.inverseBindMatrices[parentIndex])
+        : worldTransformOf(project, parentId);
+    return Matrix4.inverted(parentWorld)..multiply(bindWorld);
+  }
 }

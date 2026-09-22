@@ -7,35 +7,39 @@ import 'package:test/test.dart';
 /// This test's own working directory, when run through `dart test` from
 /// `tool/init`, is `tool/init` itself — three `..` up is the checkout root,
 /// the same arithmetic `bin/init.dart` does from its own script path.
-String get _repositoryRoot =>
-    Directory.current.parent.parent.absolute.path;
+String get _repositoryRoot => Directory.current.parent.parent.absolute.path;
 
 String get _templatesRoot => defaultTemplatesRoot(_repositoryRoot);
 
 void main() {
   test('the four genres this repository ships are the four --list names', () {
-    expect(
-      availableTemplates(_templatesRoot),
-      <String>['platformer', 'racing', 'shooter', 'strategy'],
-    );
+    expect(availableTemplates(_templatesRoot), <String>[
+      'platformer',
+      'racing',
+      'shooter',
+      'strategy',
+    ]);
   });
 
-  test('an unknown genre names what it does know instead of crashing blind', () {
-    expect(
-      () => writeProject(
-        templatesRoot: _templatesRoot,
-        genre: 'not-a-real-genre',
-        targetDirectory: Directory.systemTemp.path,
-      ),
-      throwsA(
-        isA<ArgumentError>().having(
-          (e) => e.message,
-          'message',
-          contains('platformer'),
+  test(
+    'an unknown genre names what it does know instead of crashing blind',
+    () {
+      expect(
+        () => writeProject(
+          templatesRoot: _templatesRoot,
+          genre: 'not-a-real-genre',
+          targetDirectory: Directory.systemTemp.path,
         ),
-      ),
-    );
-  });
+        throwsA(
+          isA<ArgumentError>().having(
+            (e) => e.message,
+            'message',
+            contains('platformer'),
+          ),
+        ),
+      );
+    },
+  );
 
   for (final genre in <String>['platformer', 'racing', 'shooter', 'strategy']) {
     group(genre, () {
@@ -57,11 +61,10 @@ void main() {
           projectName: 'my_${genre}_game',
         );
 
-        final pubspec =
-            File('${target.path}/pubspec.yaml').readAsStringSync();
+        final pubspec = File('${target.path}/pubspec.yaml').readAsStringSync();
         expect(pubspec, contains('name: my_${genre}_game'));
         expect(pubspec, isNot(contains('path:')));
-        expect(pubspec, contains('flutter3d: ^0.6.0'));
+        expect(pubspec, contains('flutter3d: ^0.7.0'));
       });
 
       test('writes a starter level a genre-agnostic reader can parse', () {
@@ -71,11 +74,13 @@ void main() {
           targetDirectory: target.path,
         );
 
-        final level = jsonDecode(
-              File('${target.path}/assets/levels/first.json')
-                  .readAsStringSync(),
-            )
-            as Map<String, Object?>;
+        final level =
+            jsonDecode(
+                  File(
+                    '${target.path}/assets/levels/first.json',
+                  ).readAsStringSync(),
+                )
+                as Map<String, Object?>;
         // `_disown` (in `scaffold.dart`) strips `generatedBy` so the level
         // belongs to whoever scaffolded it, not to the Python script that
         // built the template — the same check `scaffold_test.dart` in

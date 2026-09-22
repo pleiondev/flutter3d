@@ -1,0 +1,63 @@
+name: flame_flutter3d
+description: "A bridge to the Flame 2D game engine: Flame draws its own layer, flutter3d draws its own, and the two stay reconciled — transforms, lifecycle, physics contacts, input and the actor system."
+version: 0.7.0
+repository: https://github.com/pleiondev/flutter3d
+homepage: https://flutter3d.pleion.dev
+issue_tracker: https://github.com/pleiondev/flutter3d/issues
+topics:
+  - game-development
+  - game-engine
+  - graphics
+  - flame
+resolution: workspace
+
+environment:
+  sdk: ^3.12.2
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # Flame renders its own layer; nothing here reimplements its component
+  # tree, its camera, or its collision broadphase.
+  flame: ^1.38.2
+
+  # The surface flutter3d itself draws through, and the clock every host in
+  # this repo already ticks a scene with.
+  flutter3d_app: ^0.7.0
+
+  # The scene graph a Flame component's transform is bridged onto.
+  flutter3d: ^0.7.0
+
+  # The actor/entity system the ECS bridge wraps, and the shared `InputState`
+  # the input bridge writes into — the same object `flutter3d_game`'s own
+  # `DesktopInput`/`PadInput` write into, so a bridged game and a native one
+  # read one input model.
+  flutter3d_sim: ^0.7.0
+
+  # Rigid bodies and the collision world the physics bridge steps and
+  # listens to.
+  flutter3d_physics: ^0.7.0
+
+  # `Bindings`, and the desktop/pad input translators the input bridge's own
+  # guide points a reader back to rather than duplicating.
+  flutter3d_game: ^0.7.0
+
+  vector_math: ^2.2.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+
+  # A renderer with no GPU under it, so a bridge test can build a scene and
+  # pump a frame without a device.
+  flutter3d_cpu: ^0.7.0
+
+  # Flame's own test harness: a `GameWidget` under `flutter_test` needs its
+  # first load/resize driven a specific way plain `pumpWidget`/`pump` does
+  # not do on their own.
+  flame_test: ^2.3.1
+
+flutter:
+  uses-material-design: true

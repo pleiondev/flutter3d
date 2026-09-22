@@ -232,4 +232,62 @@ void main() {
       expect(editing.level.entities.length, 3);
     });
   });
+
+  group("ls-e-00: this editor never learned the word 'part', and opens a "
+      'teardown anyway', () {
+    // `flutter3d_lesson_viewer`'s own `assets/levels/teardown.json`, in
+    // shape: four named, no-collider scenery entities of a type this
+    // package has never heard of — proof that authoring a teardown needs no
+    // new editor code, only what `paletteOf`/`Editing.place` already do for
+    // every type they have never heard of either.
+    String teardownDocument() => jsonEncode(<String, Object?>{
+      'version': 1,
+      'name': 'ls-e-00 teardown',
+      'materials': <String, Object?>{
+        'block': <String, Object?>{
+          'baseColor': <double>[0.28, 0.3, 0.34, 1.0],
+        },
+        'cover': <String, Object?>{
+          'baseColor': <double>[0.75, 0.2, 0.15, 1.0],
+        },
+      },
+      'entities': <Object?>[
+        <String, Object?>{
+          'type': 'part',
+          'name': 'engine-block',
+          'at': <double>[0.0, 1.2, 0.0],
+          'size': <double>[1.2, 0.8, 1.2],
+          'material': 'block',
+        },
+        <String, Object?>{
+          'type': 'part',
+          'name': 'valve-cover',
+          'at': <double>[0.0, 1.75, 0.0],
+          'size': <double>[0.9, 0.3, 0.9],
+          'material': 'cover',
+        },
+      ],
+    });
+
+    test('the palette lists "part" alongside every other unknown type', () {
+      final editing = Editing.parse(teardownDocument(), path: '/t.json');
+
+      final row = _row(editing, 'part');
+      expect(row.count, 2);
+    });
+
+    test('placing another part copies the last one\'s own size and material, '
+        'not a bare 1×1×1 box', () {
+      final editing = Editing.parse(teardownDocument(), path: '/t.json');
+
+      editing.place(_row(editing, 'part'), Vector3(2.0, 1.75, 0.0));
+
+      expect(editing.level.entities.length, 3);
+      final placed = editing.entity!;
+      expect(placed.type, 'part');
+      expect(placed.vector('size'), Vector3(0.9, 0.3, 0.9));
+      expect(placed.string('material'), 'cover');
+      expect(placed.position, Vector3(2.0, 1.75, 0.0));
+    });
+  });
 }

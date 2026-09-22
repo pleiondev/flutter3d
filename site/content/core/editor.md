@@ -137,6 +137,6 @@ And the rebuild is the whole level on every change, because a brush is batched i
 
 ## Next
 
-- [Assembling an application](/core/session/): what the game apps do instead of this, through `flutter3d_backend`, `flutter3d_session` and `flutter3d_screens`
+- [Assembling an application](/core/session/): what the game apps do instead of this, through `flutter3d_app` and `flutter3d_game`
 - [Simulation layer](/core/simulation/): `Level`, `EntityRegistry` and the validator the editor's generated templates are checked against
 - [Package index](/reference/packages/): `flutter3d_editor_core` and `flutter3d_editor_mcp` beside the rest of the workspace

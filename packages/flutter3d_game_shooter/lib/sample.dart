@@ -16,14 +16,10 @@
 /// deliverable; where the sample content sits is bookkeeping.
 library;
 
-import 'package:flutter3d_game/flutter3d_game.dart';
+import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:vector_math/vector_math.dart';
 
-import 'src/combat/weapon.dart';
-import 'src/combat/weapon_behaviour.dart';
-import 'src/entity_kinds.dart';
-import 'src/gift.dart';
-import 'src/monsters.dart';
+import 'flutter3d_game_shooter.dart';
 
 /// The roster.
 abstract final class Monsters {
@@ -244,9 +240,9 @@ List<EntityKind> sampleLightKinds() => <EntityKind>[
 ///
 /// [extra] is where an application adds a kind this package cannot know
 /// about without depending on it — `wg-02`'s `WidgetSurfaceKind`
-/// (`flutter3d_bridge`) is the reason this exists: a genre package must not
-/// gain a dependency on the bridge layer just so its sample registry can
-/// speak a word the bridge, not the genre, defines.
+/// (`flutter3d_app`) is the reason this exists: a genre package must not
+/// gain a dependency on the application layer just so its sample registry
+/// can speak a word that layer, not the genre, defines.
 EntityRegistry sampleRegistry({
   bool monsters = true,
   Iterable<EntityKind> extra = const <EntityKind>[],
@@ -297,3 +293,108 @@ Arsenal sampleArsenal({int startingSlot = 0}) => Arsenal(
   ammo: <AmmoType, int>{AmmoType.bullets: 40},
   startingSlot: startingSlot,
 );
+
+/// Everything an agent's own run starts holding — every weapon owned rather
+/// than [sampleArsenal]'s two, so a blind policy can find out what each one
+/// does rather than being stuck finding pickups first.
+///
+/// Kept in step with `apps/flutter3d_demo_dungeon`'s own
+/// `startingInventory()` by hand rather than by import: that copy answers
+/// what a *person* starts a level holding, which is a decision about this
+/// one game's pacing and not a fact this package should assert on the app's
+/// behalf.
+Inventory agentStartingInventory() => Inventory(
+  arsenal: Arsenal(
+    slots: Weapons.all,
+    owned: <WeaponDef>[...Weapons.all],
+    ammo: <AmmoType, int>{
+      AmmoType.bullets: 90,
+      AmmoType.shells: 30,
+      AmmoType.rockets: 12,
+    },
+    startingSlot: 1,
+  ),
+);
+
+/// A level, spawned, with somebody standing in it ready to be stepped.
+final class Staged {
+  const Staged({required this.actors, required this.player, required this.sim});
+
+  final ActorSystem actors;
+  final Player player;
+  final GameSimulation sim;
+}
+
+/// Turns a level document into a run, given a world it has already been
+/// added to.
+///
+/// **Promoted from `flutter3d_sim_mcp`'s own `staging.dart` (`ai-00`), which
+/// could not depend on `apps/flutter3d_demo_dungeon` for the original —
+/// `tool/structure.dart`'s `no package depends on an application` rule sees
+/// to that — and so carried a trimmed copy instead. Living here instead of
+/// there is the fix that copy's own doc comment already asked for: this is
+/// a package `flutter3d_sim_mcp` already depends on for the genre itself,
+/// so the composition can be named once rather than copied.**
+///
+/// Deliberately smaller than `apps/flutter3d_demo_dungeon`'s own `stage()`:
+/// no mechanisms, no breaches, no automap, no `onActorSpawned`/`onFixture`
+/// hooks — none of which an agent's own tools read back, and each one is a
+/// further place this copy could drift from the shipped game if it carried
+/// something nothing here uses. Not a replacement for that function; a
+/// second, smaller one for a caller with smaller needs.
+Staged stage(Level level, CollisionWorld world, {required InputState input}) {
+  final entities = EcsWorld();
+  final dice = GameRandom(1);
+  final projectiles = ProjectileSystem(world: world, entities: entities);
+  final actors = ActorSystem(world: world, entities: entities, random: dice);
+
+  final navIssues = <LevelIssue>[];
+  final navigation = Navigation.bake(level, cellSize: 0.25, issues: navIssues);
+  actors.navigation = navigation;
+
+  final hitscan = Hitscan(world: world, random: dice);
+  final shot = WeaponShot(
+    world: world,
+    hitscan: hitscan,
+    projectiles: projectiles,
+  );
+  final mechanisms = MechanismWorld(world);
+
+  final registry = sampleRegistry();
+  (registry[ShooterEntities.monster] as MonsterKind?)?.bestiary = Bestiary(
+    actors: actors,
+    shot: shot,
+    catalog: Monsters.byName,
+  );
+
+  level.spawnInto(
+    SpawnContext(world: world, actors: actors, mechanisms: mechanisms),
+    registry: registry,
+  );
+
+  final spawn = level.playerStart;
+  final start = spawn?.position ?? Vector3.zero();
+  final player = Player(
+    body: CharacterController(
+      world: world,
+      position: start + Vector3(0.0, 0.9, 0.0),
+    ),
+    inventory: agentStartingInventory(),
+  )..yaw = spawn?.yaw ?? 0.0;
+
+  return Staged(
+    actors: actors,
+    player: player,
+    sim: GameSimulation(
+      random: dice,
+      player: player,
+      collision: world,
+      input: input,
+      actors: actors,
+      mechanisms: mechanisms,
+      projectiles: projectiles,
+      shot: shot,
+      levelNext: level.next,
+    ),
+  );
+}

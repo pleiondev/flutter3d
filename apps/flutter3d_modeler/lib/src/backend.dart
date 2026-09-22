@@ -1,6 +1,6 @@
 /// Which backend this build draws through.
 ///
-/// **Through `flutter3d_backend`, not by naming one**, for the reason the
+/// **Through `flutter3d_app`, not by naming a backend**, for the reason the
 /// template's own note gives: `openDevice` is a compile-time choice between
 /// Impeller and WebGL *and* the run-time fallback to the software rasteriser
 /// when flutter_gpu will not start. A modeller that named a backend would be a

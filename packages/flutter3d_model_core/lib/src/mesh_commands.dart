@@ -96,9 +96,10 @@ Outcome _asMeshStep(
     project.withObject(
       // A new `EditedGeometry` round the same mesh: the value that changed is
       // the object, and its version is what tells a viewport to upload again.
-      _resyncShapeSet(target.object, target.mesh).copyWith(
-        geometry: EditedGeometry(target.mesh),
-      ),
+      _resyncShapeSet(
+        target.object,
+        target.mesh,
+      ).copyWith(geometry: EditedGeometry(target.mesh)),
     ),
     selection: selection.copyWith(
       elements: result.selection.ids.toList(),
@@ -194,6 +195,172 @@ final class LoopCut extends ModelCommand {
         selection,
         (_MeshTarget target) =>
             loopCut(target.mesh, target.elements, cuts: cuts, factor: factor),
+      );
+}
+
+/// Cuts a corner off every selected edge or vertex, walling the gap with a
+/// new face per edge and a new n-gon per vertex — `flutter3d_mesh`'s own
+/// [bevelEdges]/[bevelVertices] (`bevel.dart`), wired into the undo stack for
+/// `tut-04`.
+///
+/// **Reads the selection's own level to choose between the two.** A vertex
+/// selection means "the vertex and everywhere it touches" —
+/// [bevelVertices]'s own walk of a vertex's edges, not the edges
+/// [Selection.convertedTo] would give (only an edge whose *both* ends are
+/// selected). Anything else goes through [bevelEdges], which converts the
+/// selection to edges the ordinary way on its own.
+final class BevelEdges extends ModelCommand {
+  const BevelEdges(this.width, {this.segments = 1, this.clampOverlap = true});
+
+  /// How far the new face wall sits from the original corner.
+  final double width;
+
+  /// Segments above `1` are not built yet — see [bevelEdges]'s own doc
+  /// comment — so a value other than the default is refused by the mesh
+  /// package itself, with a sentence, rather than silently flattened here.
+  final int segments;
+
+  /// Scales [width] down when the shortest beveled edge is not long enough
+  /// to hold it, rather than building bevels that overlap and cross.
+  final bool clampOverlap;
+
+  @override
+  String get name => 'bevelEdges';
+
+  @override
+  String get says => 'bevel';
+
+  @override
+  Map<String, Object?> get arguments => <String, Object?>{
+    'width': width,
+    'segments': segments,
+    'clampOverlap': clampOverlap,
+  };
+
+  @override
+  Map<String, ParamHint> get hints => const <String, ParamHint>{
+    'width': DoubleHint(min: 0.0, unit: 'm', step: 0.01),
+  };
+
+  @override
+  Outcome apply(ModelProject project, ProjectSelection selection) =>
+      _asMeshStep(project, selection, (_MeshTarget target) {
+        final OpResult Function(
+          EditMesh,
+          Selection, {
+          required double width,
+          int segments,
+          bool clampOverlap,
+        })
+        bevel = target.elements.level == ElementLevel.vertex
+            ? bevelVertices
+            : bevelEdges;
+        return bevel(
+          target.mesh,
+          target.elements,
+          width: width,
+          segments: segments,
+          clampOverlap: clampOverlap,
+        );
+      });
+}
+
+/// Shrinks every selected face inward and walls the ring it leaves —
+/// `ux-39`.
+final class InsetFaces extends ModelCommand {
+  const InsetFaces(this.thickness, {this.depth = 0.0});
+
+  /// How far the new ring sits inside the face's own border.
+  final double thickness;
+
+  /// How far the new ring is pushed along the face's own normal — nought
+  /// for a flat inset, which is what a panel is.
+  final double depth;
+
+  @override
+  String get name => 'insetFaces';
+
+  @override
+  String get says => 'inset';
+
+  @override
+  Map<String, Object?> get arguments => <String, Object?>{
+    'thickness': thickness,
+    'depth': depth,
+  };
+
+  @override
+  Map<String, ParamHint> get hints => const <String, ParamHint>{
+    'thickness': DoubleHint(min: 0.0, unit: 'm', step: 0.01),
+    'depth': DoubleHint(unit: 'm', step: 0.01),
+  };
+
+  @override
+  Outcome apply(ModelProject project, ProjectSelection selection) =>
+      _asMeshStep(
+        project,
+        selection,
+        (_MeshTarget target) => insetFaces(
+          target.mesh,
+          target.elements,
+          thickness: thickness,
+          depth: depth,
+        ),
+      );
+}
+
+/// Joins the two open borders the selection names with a ring of quads —
+/// `ux-39`.
+final class BridgeLoops extends ModelCommand {
+  const BridgeLoops();
+
+  @override
+  String get name => 'bridgeLoops';
+
+  @override
+  String get says => 'bridge';
+
+  @override
+  Map<String, Object?> get arguments => const <String, Object?>{};
+
+  @override
+  Outcome apply(ModelProject project, ProjectSelection selection) =>
+      _asMeshStep(
+        project,
+        selection,
+        (_MeshTarget target) => bridgeLoops(target.mesh, target.elements),
+      );
+}
+
+/// Moves the selected loop along the edges that cross it — `ux-39`.
+final class SlideEdges extends ModelCommand {
+  const SlideEdges(this.amount);
+
+  /// How far along the rail, as a fraction of its own length. Negative
+  /// slides the other way.
+  final double amount;
+
+  @override
+  String get name => 'slideEdges';
+
+  @override
+  String get says => 'slide';
+
+  @override
+  Map<String, Object?> get arguments => <String, Object?>{'amount': amount};
+
+  @override
+  Map<String, ParamHint> get hints => const <String, ParamHint>{
+    'amount': DoubleHint(min: -1.0, max: 1.0, step: 0.01),
+  };
+
+  @override
+  Outcome apply(ModelProject project, ProjectSelection selection) =>
+      _asMeshStep(
+        project,
+        selection,
+        (_MeshTarget target) =>
+            slideEdges(target.mesh, target.elements, amount: amount),
       );
 }
 
@@ -708,10 +875,341 @@ final class FillHoles extends ModelCommand {
         target.object.copyWith(geometry: EditedGeometry(target.mesh)),
       ),
       selection: selection.copyWith(
-        elements: <int>[for (var f = firstNewFace; f < target.mesh.faceSlotCount; f++) f],
+        elements: <int>[
+          for (var f = firstNewFace; f < target.mesh.faceSlotCount; f++) f,
+        ],
         level: ElementLevel.face,
       ),
       meshTouched: target.mesh,
+    );
+  }
+}
+
+/// Subdivides the selected object's mesh — `pro-sc-08`'s own "Subdivide"
+/// button, and the coarse-to-fine step a sculptor takes when the shape is
+/// right and the detail is not.
+///
+/// **A new mesh rather than an edit to the one that is there.** Every other
+/// command in this file mutates an [EditMesh] through its own journal, which
+/// is how a history of two hundred thousand faces stays affordable;
+/// `catmullClark` builds a mesh of four times the faces, and there is no
+/// journal entry that describes "everything is different now" more cheaply
+/// than the old mesh already does. So the object takes a fresh
+/// [EditedGeometry] and the step's own kept document holds the old one —
+/// [Outcome.meshTouched] is deliberately null, because no journal moved.
+///
+/// **[smooth] false is the linear subdivision.** Catmull-Clark pulls the
+/// surface in toward its own limit — a cube becomes a ball at three levels —
+/// which is what a sculptor usually wants and is exactly wrong for a shape
+/// that is already the shape, a screw thread or a bevelled panel. The
+/// unsmoothed pass gives the same four-quads-per-face topology and leaves
+/// every vertex where it was.
+///
+/// **It refuses on a mesh that carries something subdivision would drop.**
+/// `subdivide.dart` carries position, UV and crease and says plainly that it
+/// carries neither skin weights nor shape keys; subdividing a rigged
+/// character would silently unbind it. A refusal that names what is in the
+/// way is the honest answer, and bakes are what a person does about it.
+final class SubdivideMesh extends ModelCommand {
+  const SubdivideMesh({this.levels = 1, this.smooth = true});
+
+  /// How many times. Capped at four: a level is four times the faces, so
+  /// four of them is two hundred and fifty-six, and a fifth on anything but
+  /// a toy mesh is a machine that stops answering rather than a model that
+  /// gets finer.
+  final int levels;
+
+  final bool smooth;
+
+  @override
+  String get name => 'subdivideMesh';
+
+  @override
+  String get says => levels == 1 ? 'subdivide' : 'subdivide $levels times';
+
+  @override
+  Map<String, Object?> get arguments => <String, Object?>{
+    'levels': levels,
+    'smooth': smooth,
+  };
+
+  @override
+  Map<String, ParamHint> get hints => const <String, ParamHint>{
+    'levels': IntHint(min: 1, max: 4),
+  };
+
+  @override
+  Outcome apply(ModelProject project, ProjectSelection selection) {
+    if (levels < 1 || levels > 4) {
+      return Outcome.refused('subdivide takes one to four levels, not $levels');
+    }
+    final found = _meshTarget(project, selection);
+    if (found.target == null) return Outcome.refused(found.refused!);
+    final _MeshTarget target = found.target!;
+    if (target.object.shapeSet.keys.isNotEmpty) {
+      return Outcome.refused(
+        '"${target.object.name}" carries ${target.object.shapeSet.keys.length} '
+        'shape keys, which a subdivision does not carry with it — delete them '
+        'or subdivide a copy',
+      );
+    }
+    if (target.object.skeletonIndex != null) {
+      return Outcome.refused(
+        '"${target.object.name}" is bound to a skeleton, and a subdivision '
+        'does not carry skin weights — subdivide before binding, or bind '
+        'again afterwards',
+      );
+    }
+
+    var mesh = target.mesh;
+    for (var i = 0; i < levels; i++) {
+      mesh = smooth ? catmullClark(mesh) : subdivideSimple(mesh);
+    }
+    return Outcome.done(
+      project.withObject(
+        target.object.copyWith(geometry: EditedGeometry(mesh)),
+      ),
+      // Every element id the selection held belonged to the old mesh and
+      // names something else in the new one, which is worse than naming
+      // nothing.
+      selection: selection.copyWith(elements: const <int>[]),
+    );
+  }
+}
+
+/// `pro-rt-02`: one quad of a retopology, drawn by naming its four corners.
+///
+/// **The four points are where somebody clicked, not where the vertices
+/// go.** A click has already been turned into a point near the high surface
+/// by a ray through the camera; what goes into the document is that point
+/// snapped — to a vertex the retopology mesh already has when one is within
+/// [snap], so the new quad welds to the strip beside it rather than sitting
+/// a hair away from it, and otherwise pulled onto [sourceId]'s own surface
+/// through [closestPointOn]. A second ray cannot do the pulling: there is no
+/// direction that is right for a corner, a crease and a flat face at once.
+///
+/// **Welding is the whole reason a retopology tool is a tool.** Four points
+/// added as four fresh vertices every time is a mesh of loose quads that
+/// looks right and exports as a shell full of holes; the snap is what makes
+/// the second quad share an edge with the first.
+///
+/// **Adjusting it is `ModelHistory.amend`, not a second command.** A person
+/// dragging a corner of the quad they have just drawn is adjusting one step,
+/// which is what `amend` is for — the stack does not grow and the document
+/// is re-derived from the state before the quad, so the snap runs again
+/// against the mesh as it was rather than against the quad's own new
+/// vertices.
+final class DrawQuad extends ModelCommand {
+  const DrawQuad({
+    required this.objectId,
+    required this.points,
+    this.sourceId,
+    this.snap = 0.02,
+  });
+
+  /// The object the quad is added to — the retopology in progress.
+  final int objectId;
+
+  /// Four corners, in order, in the target mesh's own space.
+  final List<Vector3> points;
+
+  /// The high mesh a new corner is pulled onto, when one is named. Null
+  /// leaves each point where the caller put it, which is what a test and a
+  /// caller that has already projected both want.
+  final int? sourceId;
+
+  /// How near an existing vertex has to be, in metres, to be reused instead
+  /// of added.
+  final double snap;
+
+  @override
+  String get name => 'drawQuad';
+
+  @override
+  String get says => 'draw a quad';
+
+  @override
+  Map<String, Object?> get arguments => <String, Object?>{
+    'objectId': objectId,
+    'points': <Object?>[
+      for (final Vector3 p in points) <double>[p.x, p.y, p.z],
+    ],
+    if (sourceId != null) 'sourceId': sourceId,
+    'snap': snap,
+  };
+
+  @override
+  Map<String, ParamHint> get hints => const <String, ParamHint>{
+    'snap': DoubleHint(min: 0, max: 1, step: 0.005),
+  };
+
+  @override
+  Outcome apply(ModelProject project, ProjectSelection selection) {
+    if (points.length != 4) {
+      return Outcome.refused('a quad takes four points, not ${points.length}');
+    }
+    final ModelObject? object = project[objectId];
+    if (object == null) return Outcome.refused('there is no object $objectId');
+    final EditedGeometry? edited = switch (object.geometry) {
+      final EditedGeometry it => it,
+      _ => null,
+    };
+    if (edited == null) {
+      return Outcome.refused(
+        '"${object.name}" has no mesh to draw onto — bake it to a mesh first',
+      );
+    }
+
+    final TriangleBvh? source = switch (sourceId) {
+      final int id => switch (project[id]?.geometry) {
+        EditedGeometry(:final mesh) => surfaceOf(mesh),
+        _ => null,
+      },
+      null => null,
+    };
+    if (sourceId != null && source == null) {
+      return Outcome.refused('object $sourceId has no mesh to project onto');
+    }
+
+    final EditMesh mesh = edited.mesh;
+    mesh.beginStep();
+    final corners = <int>[];
+    for (final Vector3 wanted in points) {
+      final int existing = _vertexNear(mesh, wanted, snap);
+      if (existing != EditMesh.none) {
+        corners.add(existing);
+        continue;
+      }
+      final Vector3 at = source == null
+          ? wanted
+          : (closestPointOn(source, wanted)?.point ?? wanted);
+      corners.add(mesh.addVertex(at));
+    }
+    if (corners.toSet().length != 4) {
+      mesh.abandonStep();
+      return Outcome.refused(
+        'two of the four points snapped to the same vertex, which is a '
+        'triangle rather than a quad',
+      );
+    }
+    final int face = mesh.addFace(corners);
+    mesh.endStep();
+
+    return Outcome.done(
+      project.withObject(
+        _resyncShapeSet(object, mesh).copyWith(geometry: EditedGeometry(mesh)),
+      ),
+      selection: selection.copyWith(
+        objects: <int>[objectId],
+        elements: <int>[face],
+        level: ElementLevel.face,
+      ),
+      meshTouched: mesh,
+    );
+  }
+}
+
+/// The live vertex of [mesh] within [snap] of [point] and nearest it, or
+/// [EditMesh.none].
+int _vertexNear(EditMesh mesh, Vector3 point, double snap) {
+  if (snap <= 0) return EditMesh.none;
+  var best = EditMesh.none;
+  var bestDistance = snap;
+  final at = Vector3.zero();
+  for (var v = 0; v < mesh.vertexSlotCount; v++) {
+    if (!mesh.isVertexAlive(v)) continue;
+    mesh.positionOf(v, at);
+    final double distance = at.distanceTo(point);
+    if (distance <= bestDistance) {
+      bestDistance = distance;
+      best = v;
+    }
+  }
+  return best;
+}
+
+/// Rebuilds the selected object's surface as quads — `pro-rt-01`'s own
+/// `retopologize`, as a command.
+///
+/// **A new mesh rather than an edit, the same shape [SubdivideMesh] has.**
+/// Nothing of the old topology survives a retopology; a journal entry
+/// describing that is larger than the old mesh the kept document already
+/// holds, so the object takes a fresh [EditedGeometry] and
+/// [Outcome.meshTouched] is null.
+///
+/// **It refuses on a mesh carrying what a retopology drops**, for the reason
+/// [SubdivideMesh] refuses: skin weights and shape keys are per-vertex, and
+/// a retopology has none of the old vertices.
+final class Retopologize extends ModelCommand {
+  const Retopologize({required this.objectId, this.targetQuads = 2000});
+
+  final int objectId;
+
+  /// About how many quads to come out at. About, not exactly: a
+  /// quadrangulation that hit a number exactly would be one that had stopped
+  /// caring where the edges go.
+  final int targetQuads;
+
+  @override
+  String get name => 'retopologize';
+
+  @override
+  String get says => 'retopologize';
+
+  @override
+  Map<String, Object?> get arguments => <String, Object?>{
+    'objectId': objectId,
+    'targetQuads': targetQuads,
+  };
+
+  @override
+  Map<String, ParamHint> get hints => const <String, ParamHint>{
+    'targetQuads': IntHint(min: 20, max: 200000, step: 100),
+  };
+
+  @override
+  Outcome apply(ModelProject project, ProjectSelection selection) {
+    if (targetQuads < 20) {
+      return Outcome.refused(
+        'a retopology of $targetQuads quads is not a surface',
+      );
+    }
+    final ModelObject? object = project[objectId];
+    if (object == null) return Outcome.refused('there is no object $objectId');
+    final EditedGeometry? edited = switch (object.geometry) {
+      final EditedGeometry it => it,
+      _ => null,
+    };
+    if (edited == null) {
+      return Outcome.refused(
+        '"${object.name}" has no mesh to retopologize — bake it to a mesh '
+        'first',
+      );
+    }
+    if (object.shapeSet.keys.isNotEmpty) {
+      return Outcome.refused(
+        '"${object.name}" carries shape keys, which a retopology does not '
+        'carry with it — delete them or retopologize a copy',
+      );
+    }
+    if (object.skeletonIndex != null) {
+      return Outcome.refused(
+        '"${object.name}" is bound to a skeleton, and a retopology has none '
+        'of the old vertices to carry weights on — bind it again afterwards',
+      );
+    }
+
+    final EditMesh next = retopologize(edited.mesh, targetQuads: targetQuads);
+    if (next.faceCount == 0) {
+      return Outcome.refused(
+        '"${object.name}" came back from the retopology with no faces; try '
+        'a higher quad count',
+      );
+    }
+    return Outcome.done(
+      project.withObject(object.copyWith(geometry: EditedGeometry(next))),
+      // Every element id named the old mesh — see [SubdivideMesh].
+      selection: selection.copyWith(elements: const <int>[]),
     );
   }
 }

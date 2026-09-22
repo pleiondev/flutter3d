@@ -38,7 +38,9 @@ Future<Map<String, Uint8List>> _pickFiles(web.HTMLInputElement input) {
   input.onchange = (web.Event _) {
     final files = input.files;
     if (files == null || files.length == 0) {
-      if (!completer.isCompleted) completer.complete(const <String, Uint8List>{});
+      if (!completer.isCompleted) {
+        completer.complete(const <String, Uint8List>{});
+      }
       return;
     }
     final reads = <Future<void>>[];
@@ -91,6 +93,23 @@ Future<PickedFile?> openModel() async {
       ..multiple = true,
   );
   return PickedFile(name: name, bytes: embedGltfSiblings(bytes, siblings));
+}
+
+/// Asks for a Radiance `.hdr` to light the scene with — `ux-49`.
+///
+/// **A browser can do this half.** Picking a file is what a file input is
+/// for; what it cannot do is remember where the file came from, which is
+/// `ux-48`'s problem and not this one — a panorama is copied into the
+/// project's own image table either way.
+Future<PickedFile?> openPanorama() async {
+  final byName = await _pickFiles(
+    web.HTMLInputElement()
+      ..type = 'file'
+      ..accept = '.hdr',
+  );
+  if (byName.isEmpty) return null;
+  final name = byName.keys.single;
+  return PickedFile(name: name, bytes: byName.values.single);
 }
 
 /// Asks for an image and reads it, for a material's texture slot.

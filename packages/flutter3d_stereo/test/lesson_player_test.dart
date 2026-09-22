@@ -122,8 +122,16 @@ void main() {
       // offset, which the "shifts by exactly the stage's move" test below is
       // deliberately not about.
       final steps = <EntityDef>[
-        EntityDef(type: 'edu_step', name: 'a', position: Vector3(0.0, 1.6, 3.0)),
-        EntityDef(type: 'edu_step', name: 'b', position: Vector3(1.0, 1.6, 3.0)),
+        EntityDef(
+          type: 'edu_step',
+          name: 'a',
+          position: Vector3(0.0, 1.6, 3.0),
+        ),
+        EntityDef(
+          type: 'edu_step',
+          name: 'b',
+          position: Vector3(1.0, 1.6, 3.0),
+        ),
       ];
       final player = LessonPlayer(steps);
 

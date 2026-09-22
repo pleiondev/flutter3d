@@ -2,10 +2,10 @@
 ///
 /// **The choosing is not here.** The conditional import and `openDevice` were
 /// three files in each of the other demos before they were one file in
-/// `flutter3d_backend`, reached through the `flutter3d_app` barrel this file
-/// re-exports rather than naming `flutter3d_backend` directly. What is left is
-/// the part no two games share: the size this one draws at, and the shadow
-/// atlas it can afford, when the backend renders to a fixed internal target.
+/// `flutter3d_app`, reached through the same barrel this file re-exports.
+/// What is left is the part no two games share: the size this one draws at,
+/// and the shadow atlas it can afford, when the backend renders to a fixed
+/// internal target.
 library;
 
 import 'package:flutter3d_app/flutter3d_app.dart';

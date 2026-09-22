@@ -2,9 +2,9 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 
-import 'package:flutter3d/src/engine/assets/gltf_resolvers.dart';
-import 'package:flutter3d_formats/flutter3d_formats.dart';
-import 'package:flutter3d_geometry/flutter3d_geometry.dart';
+import 'package:flutter3d_core/formats.dart';
+import 'package:flutter3d_core/geometry.dart';
+import 'package:flutter3d_core/src/engine/assets/gltf_resolvers.dart';
 import 'package:flutter3d_samples/flutter3d_samples.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vector_math/vector_math.dart';
@@ -760,14 +760,14 @@ void main() {
         GltfLoader().load(
           buildGlb(<String, Object?>{
             'asset': {'version': '2.0'},
-            'extensionsRequired': <Object?>['KHR_draco_mesh_compression'],
+            'extensionsRequired': <Object?>['KHR_materials_transmission'],
           }),
         ),
         throwsA(
           isA<FormatException>().having(
             (e) => e.message,
             'message',
-            contains('KHR_draco_mesh_compression'),
+            contains('KHR_materials_transmission'),
           ),
         ),
       );
@@ -809,13 +809,14 @@ void main() {
     });
 
     // The commoner half: a file that lists the extension under
-    // `extensionsUsed` alone never reached the gate at all, so it drew
-    // untransformed with an empty `warnings`. Mutation: deleting the
-    // `infoExtensions` block in `_decodeMaterials` empties `warnings` and
-    // this expectation reports false.
-    test('a used KHR_texture_transform warns where the texture is', () async {
-      final asset = await GltfLoader().load(
-        buildGlb(<String, Object?>{
+    // `extensionsUsed` alone. One transform on a material's textures is what
+    // an atlas export writes, and it is honoured by whoever draws the surface
+    // — `ModelAsset` moves the coordinates — so the decoder carries the
+    // numbers and has nothing to warn about. Mutation: dropping `transform:`
+    // from the `TextureBinding` in `textureRef` makes the first expectation
+    // report null.
+    Map<String, Object?> atlasFile(List<Map<String, Object?>> transforms) =>
+        <String, Object?>{
           'asset': {'version': '2.0'},
           'extensionsUsed': <Object?>['KHR_texture_transform'],
           'materials': <Object?>[
@@ -823,14 +824,14 @@ void main() {
               'pbrMetallicRoughness': {
                 'baseColorTexture': {
                   'index': 0,
-                  'extensions': {
-                    'KHR_texture_transform': {
-                      'offset': <double>[0.5, 0.0],
-                      'scale': <double>[0.5, 0.5],
-                    },
-                  },
+                  'extensions': {'KHR_texture_transform': transforms.first},
                 },
               },
+              if (transforms.length > 1)
+                'emissiveTexture': {
+                  'index': 0,
+                  'extensions': {'KHR_texture_transform': transforms.last},
+                },
             },
           ],
           'textures': <Object?>[
@@ -839,15 +840,58 @@ void main() {
           'images': <Object?>[
             {'uri': 'data:image/png;base64,iVBORw0KGgo='},
           ],
-        }),
-      );
+        };
 
-      expect(asset.materials.single.baseColorTexture, isNotNull);
-      expect(
-        asset.warnings.where((w) => w.contains('KHR_texture_transform')),
-        hasLength(1),
-      );
-    });
+    test(
+      'a used KHR_texture_transform is carried, and is no warning',
+      () async {
+        final asset = await GltfLoader().load(
+          buildGlb(
+            atlasFile(<Map<String, Object?>>[
+              {
+                'offset': <double>[0.5, 0.0],
+                'scale': <double>[0.5, 0.5],
+              },
+            ]),
+          ),
+        );
+
+        final transform = asset.materials.single.baseColorTexture?.transform;
+        expect(transform?.offset, Vector2(0.5, 0.0));
+        expect(transform?.scale, Vector2(0.5, 0.5));
+        expect(
+          asset.warnings.where((w) => w.contains('KHR_texture_transform')),
+          isEmpty,
+        );
+      },
+    );
+
+    // The case nothing here can honour: two textures of one material, two
+    // transforms, one set of coordinates. Mutation: deleting the `checked`
+    // wrapper in `_decodeMaterials` empties `warnings`.
+    test(
+      'textures of one material that disagree are warned about, once',
+      () async {
+        final asset = await GltfLoader().load(
+          buildGlb(
+            atlasFile(<Map<String, Object?>>[
+              {
+                'offset': <double>[0.5, 0.0],
+              },
+              {
+                'offset': <double>[0.0, 0.5],
+              },
+            ]),
+          ),
+        );
+
+        expect(
+          asset.warnings.where((w) => w.contains('KHR_texture_transform')),
+          hasLength(1),
+        );
+        expect(asset.warnings.join(), contains('materials[0]'));
+      },
+    );
   });
 
   group('bounds', () {

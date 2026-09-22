@@ -1,0 +1,340 @@
+<title>Release Board</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+  :root {
+    --bg: #eef1f5; --panel: #ffffff; --ink: #16202b; --dim: #566373;
+    --line: #d6dce4; --wash: #f4f6f9;
+    --pass: #17803d; --fail: #c62a34; --run: #98620a; --pend: #5f6b7a; --unk: #7a4fd0;
+    --accent: #1f5fd6;
+    --sans: "IBM Plex Sans", system-ui, -apple-system, sans-serif;
+    --mono: "IBM Plex Mono", ui-monospace, Menlo, monospace;
+    --display: "Bricolage Grotesque", "IBM Plex Sans", system-ui, sans-serif;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #0e131a; --panel: #151c25; --ink: #e4eaf1; --dim: #93a0b0;
+      --line: #28323f; --wash: #1a222d;
+      --pass: #4ac36c; --fail: #ff6b70; --run: #e0a93a; --pend: #93a0b0; --unk: #b394f5;
+      --accent: #6ea2ff;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #0e131a; --panel: #151c25; --ink: #e4eaf1; --dim: #93a0b0;
+    --line: #28323f; --wash: #1a222d;
+    --pass: #4ac36c; --fail: #ff6b70; --run: #e0a93a; --pend: #93a0b0; --unk: #b394f5;
+    --accent: #6ea2ff;
+  }
+  * { box-sizing: border-box; }
+  body { background: var(--bg); color: var(--ink); font: 14px/1.5 var(--sans);
+    padding-inline: 16px; padding-block: 20px 48px; }
+  .wrap { max-width: 1240px; margin: 0 auto; display: grid; gap: 16px; }
+  code, .mono { font-family: var(--mono); font-size: 12px; }
+  a { color: var(--accent); }
+  :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+  .top { display: grid; gap: 14px; }
+  .headline { display: flex; flex-wrap: wrap; align-items: end; gap: 10px 28px; }
+  .big { font: 700 64px/0.9 var(--display); letter-spacing: -0.03em;
+    font-variant-numeric: tabular-nums; }
+  .big small { font-size: 26px; color: var(--dim); font-weight: 600; margin-left: 2px; }
+  .who h1 { font: 600 20px/1.2 var(--display); margin: 0 0 4px; text-wrap: balance; }
+  .who p { margin: 0; color: var(--dim); overflow-wrap: anywhere; }
+  .fresh { margin-left: auto; text-align: right; font-size: 12px; color: var(--dim); }
+  .fresh b { display: inline-block; padding: 1px 9px; border-radius: 10px; font-weight: 500;
+    background: var(--wash); border: 1px solid var(--line); color: var(--ink); }
+  .fresh.old b { color: var(--run); border-color: var(--run); }
+
+  .meter { display: flex; height: 10px; border-radius: 2px; overflow: hidden; background: var(--line); }
+  .meter i { display: block; height: 100%; }
+  .legend { display: flex; flex-wrap: wrap; gap: 4px 18px; font-size: 12px; color: var(--dim); }
+  .legend span::before { content: ""; display: inline-block; width: 8px; height: 8px;
+    margin-right: 6px; background: currentColor; }
+
+  .pass { color: var(--pass); } .fail { color: var(--fail); } .running { color: var(--run); }
+  .pending { color: var(--pend); } .unknown { color: var(--unk); }
+  .m-pass { background: var(--pass); } .m-fail { background: var(--fail); }
+  .m-running { background: var(--run); } .m-pending { background: var(--pend); opacity: .45; }
+  .m-unknown { background: var(--unk); }
+
+  .stages { display: grid; gap: 14px; grid-template-columns: repeat(auto-fit, minmax(270px, 1fr)); }
+  .stage { background: var(--panel); border: 1px solid var(--line); border-radius: 4px; padding: 12px 14px; }
+  .stage h2, .box h2 { margin: 0 0 8px; font: 600 12px/1.3 var(--sans); letter-spacing: .06em;
+    text-transform: uppercase; color: var(--dim); display: flex; justify-content: space-between; gap: 8px; }
+  .stage h2 em { font-style: normal; font-family: var(--mono); letter-spacing: 0; }
+  .stage .meter { height: 4px; margin-bottom: 8px; }
+  .item { display: grid; grid-template-columns: 22px 1fr; gap: 6px; padding: 5px 0;
+    border-top: 1px solid var(--line); }
+  .item:first-of-type { border-top: 0; }
+  .glyph { font: 500 11px/18px var(--mono); text-align: center; border: 1px solid currentColor;
+    border-radius: 3px; height: 18px; margin-top: 1px; }
+  .item .d { color: var(--dim); font-size: 12px; overflow-wrap: anywhere; }
+  .item.running .glyph { animation: pulse 1.2s ease-in-out infinite; }
+  @keyframes pulse { 50% { opacity: .35; } }
+  @media (prefers-reduced-motion: reduce) { .item.running .glyph { animation: none; } }
+
+  .below { display: grid; gap: 14px; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); }
+  .box { background: var(--panel); border: 1px solid var(--line); border-radius: 4px;
+    padding: 12px 14px; min-width: 0; }
+  .box.wide { grid-column: 1 / -1; }
+  .scroll { overflow-x: auto; }
+  table { border-collapse: collapse; width: 100%; }
+  th, td { text-align: left; padding: 4px 12px 4px 0; border-top: 1px solid var(--line);
+    vertical-align: top; white-space: nowrap; }
+  td.wrap, th.wrap { white-space: normal; min-width: 220px; }
+  th { border-top: 0; color: var(--dim); font: 500 11px var(--sans); letter-spacing: .05em; text-transform: uppercase; }
+  td.num { font-variant-numeric: tabular-nums; }
+
+  .gate { padding: 7px 0; border-top: 1px solid var(--line); }
+  .gate:first-of-type { border-top: 0; }
+  .gate .row { display: grid; grid-template-columns: 22px 1fr auto; gap: 8px; align-items: start; }
+  .gate .d { color: var(--dim); font-size: 12px; }
+  .tag { font-size: 11px; padding: 0 7px; border: 1px solid var(--line); border-radius: 9px; color: var(--dim); }
+  button.link { font: inherit; font-size: 12px; background: none; border: 0; padding: 0;
+    color: var(--accent); cursor: pointer; text-decoration: underline; }
+  pre { margin: 6px 0 0; padding: 8px 10px; background: var(--wash); border-radius: 3px;
+    font: 12px/1.45 var(--mono); overflow: auto; max-height: 220px; white-space: pre-wrap; overflow-wrap: anywhere; }
+  label { font-size: 12px; color: var(--dim); text-transform: none; letter-spacing: 0; font-weight: 400; cursor: pointer; }
+  ul { list-style: none; margin: 0; padding: 0; }
+  li { padding: 3px 0; overflow-wrap: anywhere; }
+  li time { font: 11px var(--mono); color: var(--dim); margin-right: 8px; }
+  .empty { color: var(--dim); }
+  .waiting { padding: 40px 0; text-align: center; color: var(--dim); }
+</style>
+
+<div class="wrap">
+  <header class="top" id="top"></header>
+  <main class="wrap" id="body"><p class="waiting">Waiting for the first snapshot.</p></main>
+</div>
+
+<script>
+'use strict';
+
+const MARK = { pass: 'OK', fail: '!!', running: '..', pending: '--', unknown: '?' };
+const NS = 'http://www.w3.org/2000/svg';
+const STALE_AFTER_MIN = 30;
+
+let state = null;
+let previous = null;
+let subscribed = false;
+const open = new Set();
+const changes = [];
+let onlyProblems = false;
+
+// Everything the snapshot carries goes in through textContent, never as
+// markup: a commit subject or a CHANGELOG heading is data, not something to run.
+function h(tag, props, ...kids) {
+  const el = document.createElement(tag);
+  for (const [k, v] of Object.entries(props || {})) {
+    if (k === 'class') el.className = v;
+    else if (k === 'on') for (const [ev, fn] of Object.entries(v)) el.addEventListener(ev, fn);
+    else if (v !== false && v != null) el.setAttribute(k, v === true ? '' : v);
+  }
+  for (const kid of kids.flat()) {
+    if (kid == null || kid === false) continue;
+    el.append(kid instanceof Node ? kid : document.createTextNode(String(kid)));
+  }
+  return el;
+}
+
+function ago(iso) {
+  if (!iso) return 'never';
+  const s = Math.max(0, Math.round((Date.now() - new Date(iso)) / 1000));
+  if (s < 90) return s + ' s ago';
+  if (s < 5400) return Math.round(s / 60) + ' min ago';
+  if (s < 172800) return Math.round(s / 3600) + ' h ago';
+  return Math.round(s / 86400) + ' days ago';
+}
+
+function clock(d) {
+  return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+}
+
+const glyph = (level) => h('span', { class: 'glyph ' + level }, MARK[level] || '?');
+const LEVELS = ['pass', 'running', 'fail', 'pending', 'unknown'];
+
+function meter(counts, total) {
+  return h('div', { class: 'meter', role: 'img',
+      'aria-label': LEVELS.map((l) => `${counts[l] || 0} ${l}`).join(', ') },
+    LEVELS.map((l) => (counts[l] || 0) > 0 &&
+      h('i', { class: 'm-' + l, style: `width:${((counts[l] || 0) / total) * 100}%` })));
+}
+
+function header(s) {
+  const p = s.progress;
+  const g = s.git;
+  const fresh = h('div', { class: 'fresh', id: 'fresh' });
+  return [
+    h('div', { class: 'headline' },
+      h('div', { class: 'big' }, String(p.percent), h('small', {}, '%')),
+      h('div', { class: 'who' },
+        h('h1', {}, `Release ${s.release}`),
+        h('p', {}, g
+          ? [h('code', {}, g.branch), ` at ${g.head}, ${g.aheadOfMain} commits ahead of main, `,
+             g.dirty ? `${g.dirty} uncommitted` : 'tree clean']
+          : 'git has not been read')),
+      fresh),
+    meter(p, p.total),
+    h('div', { class: 'legend' },
+      h('span', { class: 'pass' }, `${p.passed} done`),
+      h('span', { class: 'fail' }, `${p.failed} broken`),
+      h('span', { class: 'running' }, `${p.running} running`),
+      h('span', { class: 'pending' }, `${p.pending} waiting on something else`),
+      h('span', { class: 'unknown' }, `${p.unknown} not measured`)),
+  ];
+}
+
+function stageBox(stage) {
+  const counts = {};
+  for (const i of stage.items) counts[i.level] = (counts[i.level] || 0) + 1;
+  return h('section', { class: 'stage' },
+    h('h2', {}, stage.title, h('em', {}, `${counts.pass || 0}/${stage.items.length}`)),
+    meter(counts, stage.items.length),
+    stage.items.map((it) => h('div', { class: 'item ' + it.level }, glyph(it.level),
+      h('div', {}, it.title, it.detail && h('div', { class: 'd' }, it.detail)))));
+}
+
+function gatesBox(gates) {
+  return h('section', { class: 'box' },
+    h('h2', {}, 'Checks', h('span', {}, 'the repository’s own scripts')),
+    gates.map((g) => {
+      const key = 'gate:' + g.id;
+      const shown = open.has(key);
+      return h('div', { class: 'gate' },
+        h('div', { class: 'row' }, glyph(g.level),
+          h('div', {}, g.title,
+            h('div', { class: 'd' }, g.summary,
+              g.seconds != null && ` · ${g.seconds} s`,
+              g.ranAt && ` · ${ago(g.ranAt)}`,
+              g.stale && ' · judged an older tree')),
+          h('div', {}, g.auto && h('span', { class: 'tag' }, 'auto'))),
+        g.brokenRules.length > 0 && h('pre', {}, g.brokenRules.map((r) => '✗ ' + r).join('\n')),
+        g.tail.length > 0 && h('button', { class: 'link', type: 'button',
+          on: { click: () => { shown ? open.delete(key) : open.add(key); paint(); } } },
+          shown ? 'hide output' : 'show output'),
+        shown && h('pre', {}, g.tail.join('\n')),
+        h('div', { class: 'd mono' }, g.command));
+    }));
+}
+
+function remoteBox(s) {
+  const ci = s.ci, sites = s.sites, pub = s.pubdev;
+  const lv = { success: 'pass', failure: 'fail', in_progress: 'running', queued: 'running' };
+  const row = (level, ...text) => h('div', { class: 'item ' + level }, glyph(level), h('div', {}, ...text));
+  const when = (name, iso, err) => h('div', { class: 'd' }, err ? `${name}: ${err}` : `${name}: asked ${ago(iso)}`);
+  return h('section', { class: 'box' },
+    h('h2', {}, 'Remote', h('span', {}, 'GitHub, pub.dev, models.pleion.dev')),
+    row(ci.pushed ? 'pass' : ci.pushed === false ? 'fail' : 'unknown',
+      ci.pushed ? 'The branch is on the remote' : ci.pushed === false ? 'The branch has not been pushed' : 'Push state not known'),
+    row(lv[ci.state] || (ci.state === 'none' ? 'pending' : 'unknown'), 'CI: ' + ci.state,
+      ci.url && [' · ', h('a', { href: ci.url, target: '_blank', rel: 'noopener noreferrer' }, 'open run')]),
+    ci.jobs.map((j) => row(lv[j.state] || 'pending', h('span', { class: 'mono' }, `${j.name}: ${j.state}`))),
+    when('GitHub', ci.fetchedAt, ci.error),
+    row(sites.healthy ? 'pass' : sites.healthy === false ? 'fail' : 'unknown',
+      'models.pleion.dev', sites.healthy != null && (sites.healthy ? ' answers' : ' does not answer'),
+      sites.learnCases != null && ` · ${sites.learnCases} tutorial cases`),
+    when('models.pleion.dev', sites.fetchedAt, sites.error),
+    when('pub.dev', pub.fetchedAt, pub.error));
+}
+
+function workBox(s) {
+  const p = s.plan;
+  const rel = Object.entries(p.release).sort();
+  return h('section', { class: 'box' },
+    h('h2', {}, 'Plan and worktrees'),
+    h('div', { class: 'd' }, `${p.done} done, ${p.partial} partial, ${p.todo} to do, of ${p.total} rows in the plan`),
+    rel.length > 0 && h('div', { class: 'd' }, 'release rows: ', rel.map(([id, st]) => `${id} ${st}`).join(', ')),
+    h('h2', { style: 'margin-top:14px' }, 'Other worktrees'),
+    s.agents.length === 0 ? h('div', { class: 'empty' }, 'None.') :
+    s.agents.map((a) => h('div', { class: 'item ' + (a.dirty || a.ahead ? 'running' : 'pending') },
+      glyph(a.dirty || a.ahead ? 'running' : 'pending'),
+      h('div', {}, a.name, a.locked && ' (locked)',
+        h('div', { class: 'd' }, `${a.ahead} ahead, ${a.dirty} uncommitted · ${a.subject}`)))));
+}
+
+function packagesBox(list) {
+  const bad = list.filter((p) => p.problems.length).length;
+  const rows = onlyProblems ? list.filter((p) => p.problems.length) : list;
+  const box = h('input', { type: 'checkbox', id: 'only-problems', checked: onlyProblems,
+    on: { change: (e) => { onlyProblems = e.target.checked; paint(); } } });
+  return h('section', { class: 'box wide' },
+    h('h2', {}, `Packages · ${list.length}, ${bad} with problems`,
+      h('label', { for: 'only-problems' }, box, ' only problems')),
+    rows.length === 0 ? h('div', { class: 'empty' }, 'Nothing to show.') :
+    h('div', { class: 'scroll' }, h('table', {},
+      h('tr', {}, h('th', {}, 'Package'), h('th', {}, 'Version'), h('th', {}, 'CHANGELOG'),
+        h('th', {}, 'On pub.dev'), h('th', { class: 'wrap' }, 'Problems')),
+      rows.map((p) => h('tr', {},
+        h('td', {}, p.name, p.ownLine && h('span', { class: 'tag' }, 'own line')),
+        h('td', { class: 'num' }, h('code', {}, p.version)),
+        h('td', { class: 'num' }, h('code', {}, p.changelog || '-')),
+        h('td', { class: 'num' }, h('code', {}, p.pubdev == null ? '-' : p.pubdev)),
+        h('td', { class: 'wrap ' + (p.problems.length ? 'fail' : 'pass') },
+          p.problems.length ? p.problems.join('; ') : 'ready'))))));
+}
+
+function changesBox() {
+  return h('section', { class: 'box wide' },
+    h('h2', {}, 'Changed since you opened this page'),
+    changes.length === 0 ? h('div', { class: 'empty' }, 'Nothing yet. New snapshots are compared with the one on screen.') :
+    h('ul', {}, changes.slice(0, 40).map((c) =>
+      h('li', { class: c.level }, h('time', {}, clock(c.at)), c.text))));
+}
+
+function noteChanges(before, after) {
+  if (!before) return;
+  const was = new Map(before.stages.flatMap((s) => s.items).map((i) => [i.id, i]));
+  for (const item of after.stages.flatMap((s) => s.items)) {
+    const old = was.get(item.id);
+    if (old && old.level !== item.level) {
+      changes.unshift({ at: new Date(), level: item.level, text: `${item.title}: ${old.level} to ${item.level}` });
+    }
+  }
+}
+
+function paintFresh() {
+  const el = document.getElementById('fresh');
+  if (!el || !state) return;
+  const minutes = (Date.now() - new Date(state.generatedAt)) / 60000;
+  el.className = 'fresh' + (minutes > STALE_AFTER_MIN ? ' old' : '');
+  el.replaceChildren(h('b', {}, 'Measured ' + ago(state.generatedAt)),
+    h('div', {}, minutes > STALE_AFTER_MIN
+      ? 'Nobody has refreshed this for a while. What is shown may be out of date.'
+      : 'Refreshed by the session that runs the checks.'));
+}
+
+function paint() {
+  if (!state) return;
+  document.title = `${state.progress.percent}% · Release Board`;
+  document.getElementById('top').replaceChildren(...header(state));
+  document.getElementById('body').replaceChildren(
+    h('div', { class: 'stages' }, state.stages.map(stageBox)),
+    h('div', { class: 'below' },
+      gatesBox(state.gates), remoteBox(state), workBox(state),
+      packagesBox(state.packages), changesBox()));
+  paintFresh();
+}
+
+function take(data) {
+  if (!data || !data.stages) return;
+  noteChanges(state, data);
+  previous = state;
+  state = data;
+  paint();
+}
+
+(async () => {
+  const db = window.claude ? await window.claude.use('db') : null;
+  if (!db) {
+    document.getElementById('body').replaceChildren(
+      h('p', { class: 'waiting' }, 'This page shows a stored snapshot and cannot reach it from here.'));
+    return;
+  }
+  db.doc('release/state').onSnapshot(
+    (snap) => { subscribed = true; if (snap.exists) take(snap.data()); },
+    () => { /* a lost subscription leaves the last snapshot on screen, with its age */ });
+})();
+
+setInterval(paintFresh, 30000);
+</script>

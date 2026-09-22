@@ -10,8 +10,8 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter3d_demo_platformer/src/staging.dart';
-import 'package:flutter3d_game/flutter3d_game.dart';
 import 'package:flutter3d_game_platformer/flutter3d_game_platformer.dart';
+import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 const double _dt = 1.0 / 60.0;
@@ -26,7 +26,12 @@ Level _shipped() => Level.fromJson(
   final world = CollisionWorld();
   level.addTo(world);
   final input = InputState();
-  final staged = stage(level, world, input: input, registry: platformerRegistry());
+  final staged = stage(
+    level,
+    world,
+    input: input,
+    registry: platformerRegistry(),
+  );
   world.update();
   return (sim: staged.sim, input: input);
 }
@@ -77,9 +82,7 @@ void main() {
 
     // ignore: avoid_print
     print(
-      'net-00 platformer (ascent): ${[
-        for (final k in results.keys) 'k=$k ${results[k]!.toStringAsFixed(4)}ms',
-      ].join(', ')}',
+      'net-00 platformer (ascent): ${[for (final k in results.keys) 'k=$k ${results[k]!.toStringAsFixed(4)}ms'].join(', ')}',
     );
 
     expect(results[8], isNotNull);

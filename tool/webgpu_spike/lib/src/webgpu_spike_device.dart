@@ -16,7 +16,6 @@ import 'dart:async';
 import 'dart:js_interop';
 import 'dart:typed_data';
 
-import 'package:flutter/widgets.dart';
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:web/web.dart' as web;
 
@@ -243,6 +242,11 @@ final class WebGpuSpikeDevice implements GraphicsDevice {
 
   @override
   int get maxAnisotropy => 16;
+
+  /// Four — `gfx-50n`, and the specification's guaranteed floor for
+  /// `maxColorAttachments`, which no WebGPU device may report below.
+  @override
+  int get maxColorAttachments => 4;
 
   /// Whether WebGPU has a name for the format, asked through the one table that
   /// also does the uploads — so the answer here cannot drift from what an
@@ -532,27 +536,6 @@ final class WebGpuSpikeDevice implements GraphicsDevice {
           'webgpuContractGaps.',
     );
   }
-
-  /// **Not implemented, and not a contract problem either.** WebGPU draws into a
-  /// canvas through `GPUCanvasContext`, and a Flutter application shows a canvas
-  /// the way the WebGL2 backend already does — a platform view the browser
-  /// composites. What the contract asks for is a widget, which is exactly the
-  /// shape that lets a backend answer that way; asking for a `ui.Image` is what
-  /// would not have worked.
-  ///
-  /// The one wrinkle is timing rather than typing: the canvas texture is
-  /// `getCurrentTexture()` and is only valid for the task it was asked in, so
-  /// presenting is a copy from the engine's target into it. That is a submit
-  /// inside `present`, which the contract permits and does not mention.
-  @override
-  Widget present(
-    TextureHandle frame, {
-    BoxFit fit = BoxFit.fill,
-    FilterQuality quality = FilterQuality.none,
-  }) => throw UnimplementedError(
-    'ordinary work this spike did not do: a GPUCanvasContext behind an '
-    'HtmlElementView, and a copy into getCurrentTexture() per frame.',
-  );
 
   @override
   void dispose() {

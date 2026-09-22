@@ -1,17 +1,16 @@
 /// `anim-25`'s own row: the three `RigJob` kinds whose underlying functions
 /// live in this package — `bakeIk`, `bakeDrivers`, `bakeRootMotion` — run
 /// through `rig_job.dart`'s request/run shape and applied through
-/// `ApplyClipResult`. `bindWeights` and `retargetClip` are
-/// `flutter3d_rig`'s own job kinds (see that package's own
-/// `test/rig_job_test.dart`) — `rig_job.dart`'s own doc comment explains
-/// why they cannot live, or be tested, here.
+/// `ApplyClipResult`. `bindWeights` and `retargetClip`, the two kinds that run
+/// the rig algorithms in `lib/src/rig/`, are tested in
+/// `test/rig_job_retarget_and_bind_test.dart`.
 ///
 ///     dart test test/rig_job_test.dart
 library;
 
 import 'dart:typed_data';
 
-import 'package:flutter3d_formats/flutter3d_formats.dart';
+import 'package:flutter3d_core/formats.dart';
 import 'package:flutter3d_model_core/flutter3d_model_core.dart';
 import 'package:test/test.dart';
 import 'package:vector_math/vector_math.dart';
@@ -238,6 +237,102 @@ void main() {
         isNull,
       );
     });
+
+    test(
+      'falls back to the shape-owning object\'s own persisted drivers when '
+      'none are given, matching an explicit list byte for byte — anim-34d',
+      () async {
+        final identity = Quaternion.identity();
+        final bent = Quaternion.axisAngle(Vector3(1, 0, 0), _piOverTwo);
+        final clip = ProjectClip(
+          tracks: <ProjectTrack>[
+            ProjectTrack(
+              objectId: 2,
+              track: AnimationTrack(
+                nodeIndex: 0,
+                path: AnimationPath.rotation,
+                interpolation: AnimationInterpolation.linear,
+                times: Float32List.fromList(<double>[0, 1]),
+                values: Float32List.fromList(<double>[
+                  identity.x,
+                  identity.y,
+                  identity.z,
+                  identity.w,
+                  bent.x,
+                  bent.y,
+                  bent.z,
+                  bent.w,
+                ]),
+                componentCount: 4,
+              ),
+            ),
+          ],
+        );
+        const drivers = <ShapeDriver>[
+          ShapeDriver(
+            shapeIndex: 0,
+            jointId: 2,
+            axis: DriverAxis.x,
+            from: 0,
+            to: _piOverTwo,
+          ),
+        ];
+
+        // Built by hand rather than through `.added`: `_straightChain()`
+        // constructs its objects directly, so its own `nextId` is still the
+        // default 1 — `.added` would hand back an object numbered 1 too,
+        // doubling up on the first joint's own id rather than naming a
+        // fourth object.
+        const faceId = 9;
+        final project = ModelProject(
+          objects: <ModelObject>[
+            ..._straightChain().objects,
+            ModelObject(
+              id: faceId,
+              name: 'face',
+              geometry: const SocketGeometry(),
+              transform: Matrix4.identity(),
+              shapeDrivers: drivers,
+            ),
+          ],
+          clips: <ProjectClip>[clip],
+        );
+
+        final fromPersisted = bakeDriversJobRequestFor(
+          project,
+          0,
+          null,
+          faceId,
+          1,
+        )!;
+        final fromExplicit = bakeDriversJobRequestFor(
+          project,
+          0,
+          drivers,
+          faceId,
+          1,
+        )!;
+
+        final persistedResult = await fromPersisted.run();
+        final explicitResult = await fromExplicit.run();
+
+        expect(persistedResult.tracks, hasLength(2));
+        expect(explicitResult.tracks, hasLength(2));
+        final persistedTrack = persistedResult.tracks.last.track;
+        final explicitTrack = explicitResult.tracks.last.track;
+        final persistedOut = Float32List(1);
+        final explicitOut = Float32List(1);
+        for (final t in <double>[0.0, 0.25, 0.5, 0.75, 1.0]) {
+          persistedTrack.sample(t, persistedOut);
+          explicitTrack.sample(t, explicitOut);
+          expect(
+            persistedOut[0],
+            closeTo(explicitOut[0], 1e-5),
+            reason: 't=$t',
+          );
+        }
+      },
+    );
   });
 
   group('BakeRootMotionJobRequest.run', () {
@@ -349,10 +444,43 @@ void main() {
       expect(history.project.clips, isEmpty);
     });
 
-    test('is not in modelCommandNames — an agent tool for it is later, '
-        'app-integration work, the same scope line this row leaves '
-        'undrawn for a reason its own doc comment gives', () {
-      expect(modelCommandNames.contains('applyClipResult'), isFalse);
+    test('`tut-14`, resolved: is in modelCommandNames now, and round-trips '
+        'through modelCommandFromJson — a cold journal replay can name '
+        'this command again', () {
+      expect(modelCommandNames.contains('applyClipResult'), isTrue);
+
+      final clip = ProjectClip(
+        name: 'baked',
+        tracks: <ProjectTrack>[_identityRotationTrack(1)],
+      );
+      final command = ApplyClipResult(clip: clip, clipIndex: 2);
+      final read = modelCommandFromJson(command.toJson());
+
+      expect(read, isA<ApplyClipResult>());
+      expect((read! as ApplyClipResult).clipIndex, 2);
+      _expectClipsEqual((read as ApplyClipResult).clip, clip);
+    });
+
+    test('a null clipIndex round-trips as null, not a missing key '
+        'modelCommandFromJson could confuse for one', () {
+      final clip = ProjectClip(
+        tracks: <ProjectTrack>[_identityRotationTrack(1)],
+      );
+      final command = ApplyClipResult(clip: clip);
+      final read = modelCommandFromJson(command.toJson());
+
+      expect(read, isA<ApplyClipResult>());
+      expect((read! as ApplyClipResult).clipIndex, isNull);
+    });
+
+    test('modelCommandFromJson refuses a clip with no readable tracks '
+        'rather than building a half-read command', () {
+      final read = modelCommandFromJson(<String, Object?>{
+        'name': 'applyClipResult',
+        'clipIndex': null,
+        'clip': <String, Object?>{'name': 'x', 'tracks': 'not a list'},
+      });
+      expect(read, isNull);
     });
   });
 

@@ -9,9 +9,8 @@ library;
 
 import 'dart:typed_data';
 
+import 'package:flutter3d_core/formats.dart';
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
-import 'package:flutter3d_formats/flutter3d_formats.dart';
-import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:flutter3d_hardware/testing.dart';
 import 'package:flutter3d_model_core/flutter3d_model_core.dart';
 import 'package:flutter3d_modeler/src/material_pool.dart';
@@ -21,59 +20,77 @@ import 'package:flutter_test/flutter_test.dart';
 /// way it would decode anything a project actually holds.
 Uint8List _solidColorPng(int r, int g, int b) => encodePng(
   Uint8List.fromList(<int>[
-    r, g, b, 255,
-    r, g, b, 255,
-    r, g, b, 255,
-    r, g, b, 255,
+    r,
+    g,
+    b,
+    255,
+    r,
+    g,
+    b,
+    255,
+    r,
+    g,
+    b,
+    255,
+    r,
+    g,
+    b,
+    255,
   ]),
   2,
   2,
 );
 
-ProjectMaterial _paintedWith(int imageIndex, {int version = 1, double roughness = 0.5}) =>
-    ProjectMaterial(
-      surface: SurfaceMaterial(
-        roughness: roughness,
-        baseColorTexture: TextureBinding(imageIndex: imageIndex),
-      ),
-      version: version,
-    );
+ProjectMaterial _paintedWith(
+  int imageIndex, {
+  int version = 1,
+  double roughness = 0.5,
+}) => ProjectMaterial(
+  surface: SurfaceMaterial(
+    roughness: roughness,
+    baseColorTexture: TextureBinding(imageIndex: imageIndex),
+  ),
+  version: version,
+);
 
 void main() {
-  test('two table rows with the same bytes share one uploaded texture', () async {
-    final red = _solidColorPng(255, 0, 0);
-    final blue = _solidColorPng(0, 0, 255);
-    // Fresh Uint8List instances holding the same bytes as `red`, not the same
-    // reference — this is the case a table-index key would still fail, and a
-    // key on identity rather than content would too.
-    final redAgain = Uint8List.fromList(red);
+  test(
+    'two table rows with the same bytes share one uploaded texture',
+    () async {
+      final red = _solidColorPng(255, 0, 0);
+      final blue = _solidColorPng(0, 0, 255);
+      // Fresh Uint8List instances holding the same bytes as `red`, not the same
+      // reference — this is the case a table-index key would still fail, and a
+      // key on identity rather than content would too.
+      final redAgain = Uint8List.fromList(red);
 
-    final project = ModelProject(
-      images: <EncodedImage>[
-        EncodedImage(bytes: red),
-        EncodedImage(bytes: redAgain),
-        EncodedImage(bytes: blue),
-      ],
-      materials: <ProjectMaterial>[
-        _paintedWith(0),
-        _paintedWith(1),
-        _paintedWith(2),
-      ],
-    );
+      final project = ModelProject(
+        images: <EncodedImage>[
+          EncodedImage(bytes: red),
+          EncodedImage(bytes: redAgain),
+          EncodedImage(bytes: blue),
+        ],
+        materials: <ProjectMaterial>[
+          _paintedWith(0),
+          _paintedWith(1),
+          _paintedWith(2),
+        ],
+      );
 
-    final device = FakeBackend();
-    final pool = MaterialPool(device: device);
-    final built = await pool.refresh(project);
+      final device = FakeBackend();
+      final pool = MaterialPool(device: device);
+      final built = await pool.refresh(project);
 
-    expect(built, 3, reason: 'every material was new and had to be built');
-    expect(
-      device.uploadedTextures.length,
-      2,
-      reason:
-          'three images, two distinct byte contents — the repeated red '
-          'should not decode or upload a second time',
-    );
-  });
+      expect(built, 3, reason: 'every material was new and had to be built');
+      expect(
+        device.uploadedTextures.length,
+        2,
+        reason:
+            'three images, two distinct byte contents — the repeated red '
+            'should not decode or upload a second time',
+      );
+    },
+  );
 
   test('an unchanged project rebuilds nothing on a second refresh', () async {
     final png = _solidColorPng(10, 20, 30);

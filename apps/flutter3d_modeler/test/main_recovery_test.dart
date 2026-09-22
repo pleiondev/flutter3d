@@ -8,10 +8,10 @@ library;
 import 'dart:convert';
 import 'dart:typed_data';
 
+import 'package:flutter3d_app/flutter3d_app.dart';
 import 'package:flutter3d_mesh/flutter3d_mesh.dart';
 import 'package:flutter3d_model_core/flutter3d_model_core.dart';
 import 'package:flutter3d_modeler/main.dart' hide main;
-import 'package:flutter3d_screens/flutter3d_screens.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vector_math/vector_math.dart';
 

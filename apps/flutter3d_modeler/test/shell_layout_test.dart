@@ -5,6 +5,7 @@
 library;
 
 import 'package:flutter/material.dart';
+import 'package:flutter3d_modeler/l10n/app_localizations.dart';
 import 'package:flutter3d_modeler/src/ui/layout_class.dart';
 import 'package:flutter3d_modeler/src/ui/shell.dart';
 import 'package:flutter3d_modeler/src/ui/shell_phone.dart';
@@ -36,6 +37,8 @@ Widget _shellFor(
       onMode: (_) {},
       submode: MeshSubmode.vertex,
       onSubmode: (_) {},
+      animationSubmode: AnimationSubmode.pose,
+      onAnimationSubmode: (_) {},
       activeTool: activeTool,
       onTool: onTool,
       viewport: viewport,
@@ -84,6 +87,9 @@ Future<void> _pump(
   addTearDown(tester.view.reset);
   await tester.pumpWidget(
     MaterialApp(
+      locale: const Locale('en'),
+      localizationsDelegates: AppLocalizations.localizationsDelegates,
+      supportedLocales: AppLocalizations.supportedLocales,
       theme: modelerTheme(),
       home: _shellFor(
         layoutClass,
@@ -222,7 +228,10 @@ void main() {
       // together and this test would never notice.
       final palette = tester.getSize(
         find
-            .ancestor(of: find.byType(ListView), matching: find.byType(SizedBox))
+            .ancestor(
+              of: find.byType(ListView),
+              matching: find.byType(SizedBox),
+            )
             .first,
       );
       expect(palette.width, 48);
@@ -260,6 +269,24 @@ void main() {
       expect(fabBox.height, 56);
     });
 
+    testWidgets(
+      'the nav bar lists Object, Mesh, Material, Scene — no Animation',
+      (WidgetTester tester) async {
+        // `README.md:137`'s own row for width <600. Animation is `ready`
+        // (`ui-39d`) but the handoff's phone bar simply has no destination
+        // for it — reached the same way a desktop or tablet reaches it.
+        await _pump(tester, LayoutClass.phone, size: const Size(360, 800));
+
+        final destinations = tester
+            .widgetList<NavigationDestination>(
+              find.byType(NavigationDestination),
+            )
+            .map((d) => d.label)
+            .toList();
+        expect(destinations, <String>['Object', 'Mesh', 'Material', 'Scene']);
+      },
+    );
+
     testWidgets('an action in the "More" sheet is actually tappable', (
       WidgetTester tester,
     ) async {
@@ -277,6 +304,9 @@ void main() {
       addTearDown(tester.view.reset);
       await tester.pumpWidget(
         MaterialApp(
+          locale: const Locale('en'),
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
           theme: modelerTheme(),
           home: ModelerPhoneShell(
             mode: ModelerMode.object,
@@ -318,6 +348,9 @@ void main() {
       addTearDown(tester.view.reset);
       await tester.pumpWidget(
         MaterialApp(
+          locale: const Locale('en'),
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
           theme: modelerTheme(),
           home: const ModelerPhoneShell(
             mode: ModelerMode.object,

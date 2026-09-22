@@ -13,7 +13,7 @@
 library;
 
 import 'package:flutter/material.dart';
-import 'package:flutter3d_app/flutter3d_app.dart'; // CreditsSection, Credit
+import 'package:flutter3d_game/flutter3d_game.dart'; // CreditsSection, Credit
 
 import 'credits.dart';
 

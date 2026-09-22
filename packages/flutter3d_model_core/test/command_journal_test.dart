@@ -4,8 +4,11 @@
 ///     dart test test/command_journal_test.dart
 library;
 
+import 'dart:convert';
 import 'dart:typed_data';
 
+import 'package:flutter3d_mesh/flutter3d_mesh.dart'
+    show ParametricCuboid, ParametricShape;
 import 'package:flutter3d_model_core/flutter3d_model_core.dart';
 import 'package:test/test.dart';
 import 'package:vector_math/vector_math.dart';
@@ -63,10 +66,9 @@ void main() {
     test('a transaction replays as one undo step', () {
       // `SetTransform` rather than `MoveBy`, and on purpose: it names its
       // object in its own arguments — `doc-06`'s rule — where `MoveBy` reads
-      // `selection`, and object-level selection is picked with a mouse click
-      // rather than through any `ModelCommand` in this build. A recorded
-      // journal cannot replay a command whose meaning depends on a selection
-      // nothing in the journal ever set; see the library comment.
+      // `selection` instead, so replaying it correctly needs a `select`
+      // (`SelectElements`, `tut-05`) recorded first, which this test's own
+      // three-line journal deliberately keeps out of its own way.
       final history = ModelHistory(const ModelProject());
       final journal = CommandJournal();
       history.run(const AddPrimitive(kind: 'box'));
@@ -133,6 +135,193 @@ void main() {
     });
   });
 
+  group('tut-01: a transaction that does nothing leaves nothing', () {
+    /// The journal's lines, which `toBytes` is the only way back out to.
+    List<String> linesOf(CommandJournal journal) => utf8
+        .decode(journal.toBytes())
+        .split('\n')
+        .where((String line) => line.isNotEmpty)
+        .toList();
+
+    test('an empty transaction writes no markers at all', () {
+      // The gap `doc/modeler-tutorial-gaps.md` found reading `case1.jsonl`:
+      // a `cleanup()` recipe that finds nothing to clean still opened and
+      // closed a transaction, and the journal wrote both markers, so a person
+      // reading the raw file met a pointless pair. `ModelHistory` promised
+      // otherwise on its own side — "a transaction in which nothing succeeded
+      // leaves no step" — and this is the same promise on the page.
+      final journal = CommandJournal()..transaction(() {});
+
+      expect(linesOf(journal), isEmpty);
+      expect(journal.length, 0);
+    });
+
+    test('a transaction that records keeps its bracket', () {
+      // The other half, and the mutation the first test alone would not
+      // catch: never writing the `begin` marker at all passes "an empty
+      // transaction is empty" and loses every grouping a drag depends on.
+      final journal = CommandJournal();
+      journal.transaction(() {
+        journal.record(const AddPrimitive(kind: 'box'));
+      });
+
+      expect(linesOf(journal), hasLength(3));
+      expect(jsonDecode(linesOf(journal).first), <String, Object?>{
+        'transaction': 'begin',
+      });
+      expect(jsonDecode(linesOf(journal).last), <String, Object?>{
+        'transaction': 'end',
+      });
+    });
+
+    test('an empty transaction inside a real one leaves only the real one', () {
+      // Nesting is why the count is a count. A recipe that runs two cleanups
+      // inside one batch, one of which finds work and one of which does not,
+      // must still bracket the work at the depth the caller opened it.
+      final journal = CommandJournal();
+      journal.transaction(() {
+        journal
+          ..transaction(() {})
+          ..record(const AddPrimitive(kind: 'box'))
+          ..transaction(() {});
+      });
+
+      final List<String> lines = linesOf(journal);
+      expect(lines, hasLength(3));
+      expect(
+        lines.where((String l) => l.contains('"transaction":"begin"')),
+        hasLength(1),
+      );
+    });
+
+    test('a nested transaction that records keeps both brackets', () {
+      final journal = CommandJournal();
+      journal.transaction(() {
+        journal.transaction(() {
+          journal.record(const AddPrimitive(kind: 'box'));
+        });
+      });
+
+      expect(linesOf(journal), hasLength(5));
+      expect(
+        linesOf(journal).take(2).map(jsonDecode),
+        everyElement(<String, Object?>{'transaction': 'begin'}),
+      );
+    });
+
+    test('a rollback of a transaction that recorded nothing writes no marker '
+        'either', () {
+      // `ux-20`'s rollback says "and then that was undone", which is only
+      // worth saying about something that was done. `replay`'s own rollback
+      // branch already guards the other side of this — it refuses to undo
+      // past a transaction that left no step — and now the marker it would
+      // have been guarding against is never written.
+      final journal = CommandJournal()
+        ..beginTransaction()
+        ..rollbackTransaction();
+
+      expect(linesOf(journal), isEmpty);
+    });
+
+    test('a batch whose commands all refused still replays to the project it '
+        'started from', () {
+      // The end-to-end claim, not the line count: a rollback that has nothing
+      // to roll back must not reach past itself. The journal below adds a box,
+      // then opens and abandons a batch that recorded nothing.
+      final journal = CommandJournal()
+        ..record(const AddPrimitive(kind: 'box'))
+        ..beginTransaction()
+        ..rollbackTransaction();
+
+      final replay = CommandJournal.replay(
+        journal.toBytes(),
+        const ModelProject(),
+      );
+
+      expect(replay.ok, isTrue);
+      expect(replay.history!.project.objects, hasLength(1));
+    });
+  });
+
+  group('tut-03: amend overwrites rather than appending', () {
+    test('a plain step: one line replaced by one line, not two', () {
+      final journal = CommandJournal()
+        ..record(const AddPrimitive(kind: 'box', size: 1.0));
+
+      journal.amend(const AddPrimitive(kind: 'box', size: 2.0));
+
+      expect(journal.length, 1);
+      final replay = CommandJournal.replay(
+        journal.toBytes(),
+        const ModelProject(),
+      );
+      expect(replay.ok, isTrue, reason: replay.refused);
+      // Mutation: append instead of overwriting, and this project would
+      // hold two boxes — a 1.0 m one nothing amended away, and a second,
+      // 2.0 m one beside it — rather than one box at the adjusted size,
+      // the same document `ModelHistory.amend` itself reaches live.
+      expect(replay.history!.project.objects, hasLength(1));
+      final ParametricShape shape =
+          (replay.history!.project.objects.single.geometry
+                  as ParametricGeometry)
+              .shape;
+      expect((shape as ParametricCuboid).size, Vector3.all(2.0));
+    });
+
+    test('a step recorded as a whole transaction loses the whole bracket, '
+        'not only its own last line', () {
+      final journal = CommandJournal()..record(const AddPrimitive(kind: 'box'));
+      journal.transaction(() {
+        journal.record(Rename(id: 1, to: 'one'));
+        journal.record(Rename(id: 1, to: 'two'));
+        journal.record(Rename(id: 1, to: 'three'));
+      });
+      expect(journal.length, 6); // add, begin, 3 renames, end
+
+      journal.amend(Rename(id: 1, to: 'amended'));
+
+      // The add survives (it came before the bracket); the whole bracket
+      // is gone, replaced by one plain line — not a `begin`/`end` pair
+      // around it, since `ModelHistory.amend` replaced the transaction
+      // with a single command, not a transaction of one.
+      expect(journal.length, 2);
+      final replay = CommandJournal.replay(
+        journal.toBytes(),
+        const ModelProject(),
+      );
+      expect(replay.ok, isTrue, reason: replay.refused);
+      expect(replay.history!.project.objects.single.name, 'amended');
+      // One undo step for the add, one for the amended rename — not the
+      // three the original transaction would have collapsed to on its
+      // own, and not a fourth, stray step for a leftover empty bracket.
+      expect(replay.history!.steps, hasLength(2));
+    });
+
+    test('an empty journal amends into a single fresh line', () {
+      final journal = CommandJournal();
+      journal.amend(const AddPrimitive(kind: 'box'));
+      expect(journal.length, 1);
+    });
+
+    test('the recorded author is the one amend is given, not the original '
+        "line's own", () {
+      // Recorded with no author at all — the plain `StepAuthor.person`
+      // default — so the agent author below can only have come from
+      // `amend`'s own argument, not from a line this overwrote.
+      final journal = CommandJournal()..record(const AddPrimitive(kind: 'box'));
+      journal.amend(
+        const AddPrimitive(kind: 'box', size: 2.0),
+        author: StepAuthor.agent,
+      );
+      final replay = CommandJournal.replay(
+        journal.toBytes(),
+        const ModelProject(),
+      );
+      expect(replay.ok, isTrue, reason: replay.refused);
+      expect(replay.history!.topStepAuthor, StepAuthor.agent);
+    });
+  });
+
   group('mcp-12n: the author rides along', () {
     test('an agent\'s own line reads back as StepAuthor.agent', () {
       final history = ModelHistory(const ModelProject());
@@ -141,7 +330,10 @@ void main() {
       history.run(command, author: StepAuthor.agent);
       journal.record(command, author: StepAuthor.agent);
 
-      final replay = CommandJournal.replay(journal.toBytes(), const ModelProject());
+      final replay = CommandJournal.replay(
+        journal.toBytes(),
+        const ModelProject(),
+      );
       expect(replay.ok, isTrue);
       // Mutation: `replay` ignoring the line's own `author` key and always
       // calling `history.run(command)` with no author — every step would
@@ -153,7 +345,10 @@ void main() {
     test('a line recorded with no author reads back as StepAuthor.person, '
         'the same as a journal written before this row existed', () {
       final journal = CommandJournal()..record(const AddPrimitive(kind: 'box'));
-      final replay = CommandJournal.replay(journal.toBytes(), const ModelProject());
+      final replay = CommandJournal.replay(
+        journal.toBytes(),
+        const ModelProject(),
+      );
       expect(replay.ok, isTrue);
       expect(replay.history!.topStepAuthor, StepAuthor.person);
     });
@@ -178,7 +373,10 @@ void main() {
         });
       });
 
-      final replay = CommandJournal.replay(journal.toBytes(), const ModelProject());
+      final replay = CommandJournal.replay(
+        journal.toBytes(),
+        const ModelProject(),
+      );
       expect(replay.ok, isTrue);
       expect(replay.history!.steps, hasLength(2)); // the add, then the drag
       expect(replay.history!.topStepAuthor, StepAuthor.agent);
@@ -201,7 +399,10 @@ void main() {
 
       // "A clean process" — nothing here is the `history` or `journal`
       // above, only the bytes either one could be handed on disk.
-      final replay = CommandJournal.replay(journal.toBytes(), const ModelProject());
+      final replay = CommandJournal.replay(
+        journal.toBytes(),
+        const ModelProject(),
+      );
       expect(replay.ok, isTrue);
 
       // Mutation: read the author back but never pass it into
@@ -211,7 +412,10 @@ void main() {
       // would have already caught it; this line is the row's own literal
       // acceptance, kept as its own assertion rather than folded into one
       // that also happens to prove something else.
-      expect(writeProject(replay.history!.project), writeProject(history.project));
+      expect(
+        writeProject(replay.history!.project),
+        writeProject(history.project),
+      );
     });
   });
 

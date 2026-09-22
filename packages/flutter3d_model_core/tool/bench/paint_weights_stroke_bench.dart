@@ -44,7 +44,13 @@ EditMesh weightedGrid(int side) {
   mesh.beginStep();
   for (var v = 0; v < mesh.vertexSlotCount; v++) {
     if (!mesh.isVertexAlive(v)) continue;
-    mesh.setSkin(v, VertexAttributes(joints: Vector4(0, 0, 0, 0), weights: Vector4(1, 0, 0, 0)));
+    mesh.setSkin(
+      v,
+      VertexAttributes(
+        joints: Vector4(0, 0, 0, 0),
+        weights: Vector4(1, 0, 0, 0),
+      ),
+    );
   }
   mesh.endStep();
   return mesh;
@@ -63,13 +69,16 @@ void bench(String name, int iterations, void Function() body, {int? items}) {
       : '${perIteration.toStringAsFixed(1)} us';
   var line = '${name.padRight(44)} $label';
   if (items != null && items > 0) {
-    line += '   (${(perIteration * 1000 / items).toStringAsFixed(2)} ns/vertex)';
+    line +=
+        '   (${(perIteration * 1000 / items).toStringAsFixed(2)} ns/vertex)';
   }
   print(line);
 }
 
 void main() {
-  print('--- weight-paint stroke vs. a full copy, anim-31a-n\'s own first number ---');
+  print(
+    '--- weight-paint stroke vs. a full copy, anim-31a-n\'s own first number ---',
+  );
 
   // 447² = 199 809, near enough the row's own "200k". A single sample of
   // radius 0.05 on a grid spanning [-0.5, 0.5] covers a disc of area
@@ -83,22 +92,40 @@ void main() {
 
   final project = ModelProject(
     objects: <ModelObject>[
-      ModelObject(id: 1, name: 'root', geometry: const SocketGeometry(), transform: Matrix4.identity()),
-      ModelObject(id: 10, name: 'sheet', geometry: EditedGeometry(mesh), transform: Matrix4.identity(), skeletonIndex: 0),
+      ModelObject(
+        id: 1,
+        name: 'root',
+        geometry: const SocketGeometry(),
+        transform: Matrix4.identity(),
+      ),
+      ModelObject(
+        id: 10,
+        name: 'sheet',
+        geometry: EditedGeometry(mesh),
+        transform: Matrix4.identity(),
+        skeletonIndex: 0,
+      ),
     ],
     skeletons: <ProjectSkeleton>[
-      ProjectSkeleton(joints: <int>[1], inverseBindMatrices: <Matrix4>[Matrix4.identity()]),
+      ProjectSkeleton(
+        joints: <int>[1],
+        inverseBindMatrices: <Matrix4>[Matrix4.identity()],
+      ),
     ],
   );
   final skeleton = project.skeletons.single;
 
-  final samples = <BrushSample>[BrushSample(center: Vector3.zero(), radius: 0.05)];
+  final samples = <BrushSample>[
+    BrushSample(center: Vector3.zero(), radius: 0.05),
+  ];
   var touched = 0;
   for (var v = 0; v < vertexCount; v++) {
     if (mesh.positionOf(v).length <= 0.05) touched++;
   }
-  print('one sample of radius 0.05 touches $touched vertices '
-      '(${(100 * touched / vertexCount).toStringAsFixed(2)} % of $vertexCount)');
+  print(
+    'one sample of radius 0.05 touches $touched vertices '
+    '(${(100 * touched / vertexCount).toStringAsFixed(2)} % of $vertexCount)',
+  );
   print('');
 
   bench(

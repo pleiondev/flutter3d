@@ -1,13 +1,14 @@
 /// The select-all/-none/-invert keyboard bindings — `view-24n`'s own row.
 ///
-/// **A function rather than three more lines inline in `_Keys`**, because
-/// `A` is not free to bind unconditionally: `object.add` already claims
-/// plain `A` in object mode (`ui-07`'s own tool table), and a modeller where
-/// pressing `A` sometimes adds a box and sometimes selects everything,
-/// depending on which line of a map happened to be written last, is not one
-/// a person can predict from the keyboard alone. Pulled out to its own file
-/// so this decision is a pure function `_Keys` calls rather than a private
-/// widget method nothing outside `main.dart` can exercise directly.
+/// **A function rather than three more lines inline in `ModelerKeys`**,
+/// because `A` is not free to bind unconditionally: `object.add` already
+/// claims plain `A` in object mode (`ui-07`'s own tool table), and a
+/// modeller where pressing `A` sometimes adds a box and sometimes selects
+/// everything, depending on which line of a map happened to be written
+/// last, is not one a person can predict from the keyboard alone. Pulled
+/// out to its own file so this decision is a pure function `ModelerKeys`
+/// calls rather than a widget method with nowhere else to be exercised
+/// from.
 library;
 
 import 'package:flutter/services.dart';

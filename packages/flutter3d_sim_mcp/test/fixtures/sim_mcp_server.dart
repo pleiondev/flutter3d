@@ -5,7 +5,7 @@
 ///     flutter test --reporter=silent test/fixtures/sim_mcp_server.dart
 ///
 /// **Not named `*_test.dart` on purpose**, the same reason
-/// `flutter3d_session/test/fixtures/timeline_target.dart` gives for itself:
+/// `flutter3d_game/test/fixtures/timeline_target.dart` gives for itself:
 /// `flutter test` run over the whole package should never pick this up on
 /// its own, since alone it does nothing but wait for a client that never
 /// connects. `test/sim_mcp_test.dart` is what starts it, named explicitly,
@@ -22,7 +22,9 @@ library;
 import 'dart:io';
 
 import 'package:dart_mcp/stdio.dart';
+import 'package:flutter3d_app/flutter3d_app.dart';
 import 'package:flutter3d_game_shooter/staging.dart';
+import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:flutter3d_sim_mcp/src/sim_server.dart';
 import 'package:flutter3d_sim_mcp/src/sim_session.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -39,8 +41,14 @@ void main() {
     server.listen((socket) {
       SimMcpServer(
         stdioChannel(input: socket, output: socket),
-        // The host decides what is played; this suite plays the crypt.
-        session: SimSession(game: const ShooterHeadlessGame()),
+        // The host decides what is played; this suite plays the crypt, which
+        // names a `widget_surface` entity (`wg-02`) the shooter's own
+        // vocabulary does not know without this.
+        session: SimSession(
+          game: const ShooterHeadlessGame(
+            extra: <EntityKind>[WidgetSurfaceKind()],
+          ),
+        ),
       );
     });
 

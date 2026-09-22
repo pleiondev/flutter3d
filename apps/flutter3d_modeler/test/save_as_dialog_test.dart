@@ -5,6 +5,7 @@
 library;
 
 import 'package:flutter/material.dart';
+import 'package:flutter3d_modeler/l10n/app_localizations.dart';
 import 'package:flutter3d_modeler/src/ui/save_as_dialog.dart';
 import 'package:flutter3d_modeler/src/ui/theme.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -14,9 +15,15 @@ import 'package:flutter_test/flutter_test.dart';
 /// would freeze at whatever the dialog held the moment the button was
 /// tapped, before a test has had the chance to touch the checkbox or press
 /// anything in it.
-Future<void> openOver(WidgetTester tester, {required void Function(SaveAsChoice?) into}) async {
+Future<void> openOver(
+  WidgetTester tester, {
+  required void Function(SaveAsChoice?) into,
+}) async {
   await tester.pumpWidget(
     MaterialApp(
+      locale: const Locale('en'),
+      localizationsDelegates: AppLocalizations.localizationsDelegates,
+      supportedLocales: AppLocalizations.supportedLocales,
       theme: modelerTheme(),
       home: Scaffold(
         body: Builder(

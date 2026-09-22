@@ -520,7 +520,9 @@ void webglOverwriteGeometry(
   final buffer = geometryTarget.backend as web.WebGLBuffer;
   final glTarget = bufferTargets[buffer];
   if (glTarget == null) {
-    throw ArgumentError('overwriteGeometry: $buffer was not made by this device');
+    throw ArgumentError(
+      'overwriteGeometry: $buffer was not made by this device',
+    );
   }
   if (offsetInBytes < 0 ||
       offsetInBytes + bytes.lengthInBytes > geometryTarget.lengthInBytes) {

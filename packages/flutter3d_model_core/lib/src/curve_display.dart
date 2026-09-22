@@ -9,7 +9,7 @@ library;
 import 'dart:math' as math;
 import 'dart:typed_data';
 
-import 'package:flutter3d_formats/flutter3d_formats.dart';
+import 'package:flutter3d_core/formats.dart';
 import 'package:vector_math/vector_math.dart';
 
 import 'key_table.dart';
@@ -70,10 +70,7 @@ List<(double, double)> curveSamples(
   final inSlope = key.inTangent?[component] ?? 0.0;
   final outSlope = key.outTangent?[component] ?? 0.0;
   return (
-    inHandle: Vector2(
-      key.time - handleLength,
-      value - inSlope * handleLength,
-    ),
+    inHandle: Vector2(key.time - handleLength, value - inSlope * handleLength),
     outHandle: Vector2(
       key.time + handleLength,
       value + outSlope * handleLength,

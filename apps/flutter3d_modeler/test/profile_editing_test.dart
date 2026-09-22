@@ -11,7 +11,12 @@ import 'package:vector_math/vector_math.dart';
 /// A fine, fixed sampling of a quadratic Bezier's own arc length — the
 /// "true" length a flattened polyline's chord-length sum is checked
 /// against, independent of [ProfileCurve]'s own subdivision.
-double _quadraticArcLength(Vector2 p0, Vector2 c, Vector2 p1, {int steps = 20000}) {
+double _quadraticArcLength(
+  Vector2 p0,
+  Vector2 c,
+  Vector2 p1, {
+  int steps = 20000,
+}) {
   Vector2 at(double t) {
     final u = 1 - t;
     return p0 * (u * u) + c * (2 * u * t) + p1 * (t * t);
@@ -132,17 +137,20 @@ void main() {
       expect(chordLength, lessThanOrEqualTo(arcLength));
     });
 
-    test('a tighter tolerance never produces fewer points than a looser one', () {
-      final curve = ProfileCurve(
-        points: <ProfilePoint>[ProfilePoint(p0), ProfilePoint(p1)],
-        segments: <ProfileSegment>[QuadraticSegment(control)],
-      );
+    test(
+      'a tighter tolerance never produces fewer points than a looser one',
+      () {
+        final curve = ProfileCurve(
+          points: <ProfilePoint>[ProfilePoint(p0), ProfilePoint(p1)],
+          segments: <ProfileSegment>[QuadraticSegment(control)],
+        );
 
-      final loose = curve.toPolyline(tolerance: 1.0);
-      final tight = curve.toPolyline(tolerance: 0.001);
+        final loose = curve.toPolyline(tolerance: 1.0);
+        final tight = curve.toPolyline(tolerance: 0.001);
 
-      expect(tight.length, greaterThan(loose.length));
-    });
+        expect(tight.length, greaterThan(loose.length));
+      },
+    );
 
     test('a control point exactly on the line needs no subdivision at all', () {
       final straight = Vector2(2, 0);

@@ -1090,7 +1090,7 @@ void main() {
     final scene = await _scene();
     if (scene == null) return;
     final frame = scene.target(size: 32);
-    expect(scene.device.present(frame), isNotNull);
+    scene.device.copyToCanvas(frame);
     expect(await scene.device.debugDrainErrors('present'), isNull);
     scene.device.dispose();
   });

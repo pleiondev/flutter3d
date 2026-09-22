@@ -18,12 +18,18 @@ dependencies:
   flutter3d_app:
     path: ../../packages/flutter3d_app
 
+  # The gamepad's buttons, which the controls name directly.
+  pad_input:
+    path: ../../packages/pad_input
+
   flutter3d:
     path: ../../packages/flutter3d
 
   # Simulation and input.
   flutter3d_game:
     path: ../../packages/flutter3d_game
+  flutter3d_sim:
+    path: ../../packages/flutter3d_sim
 
   # The genre. The whole of the game's own vocabulary is here and none of it is
   # in the two above, which is the point stage 5 was making.
@@ -34,16 +40,12 @@ dependencies:
   flutter3d_audio:
     path: ../../packages/flutter3d_audio
 
-  # Where the two meet: level geometry to mesh nodes, a fixture to its look.
-  flutter3d_bridge:
-    path: ../../packages/flutter3d_bridge
-
   # Dust, sparks and the flame on a lamp. One pool, one draw call.
   flutter3d_particles:
     path: ../../packages/flutter3d_particles
 
   vector_math: ^2.2.0
-  # State management — see the note in `packages/flutter3d_screens/pubspec.yaml`.
+  # State management — see the note in `packages/flutter3d_game/pubspec.yaml`.
   # What goes through it is the screen: loading, pause, settings, the run's
   # state and what the HUD shows. What does **not** is the sixty-hertz step,
   # the camera, the particles and the scene; a state object per simulation step
@@ -70,11 +72,6 @@ dev_dependencies:
   # have caught — see `test/frame_test.dart`.
   flutter3d_cpu:
     path: ../../packages/flutter3d_cpu
-
-  # `testing.dart`'s `creditGaps` — comparing shipped assets against the
-  # credits list. Test-only, so it is not behind the flutter3d_app barrel.
-  flutter3d_screens:
-    path: ../../packages/flutter3d_screens
 
 flutter:
   uses-material-design: true

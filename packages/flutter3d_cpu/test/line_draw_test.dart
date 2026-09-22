@@ -1,6 +1,6 @@
 /// Lines on the software rasteriser, and the triangle arithmetic that got in.
 ///
-///     flutter test test/line_draw_test.dart
+///     dart test test/line_draw_test.dart
 ///
 /// `PrimitiveType.line` draws this engine's debug geometry — bounds, axes,
 /// light gizmos — and it has its own path here because a line has no
@@ -16,7 +16,7 @@ import 'dart:typed_data';
 
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
-import 'package:flutter_test/flutter_test.dart';
+import 'package:test/test.dart';
 import 'package:vector_math/vector_math.dart';
 
 const int _size = 16;

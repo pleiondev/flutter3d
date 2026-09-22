@@ -101,7 +101,8 @@ Uint8List embedGltfSiblings(
       final baseName = Uri.decodeComponent(uri).split('/').last;
       final bytes = siblingsByName[baseName];
       if (bytes == null) continue;
-      entry['uri'] = 'data:application/octet-stream;base64,'
+      entry['uri'] =
+          'data:application/octet-stream;base64,'
           '${base64Encode(bytes)}';
       changed = true;
     }

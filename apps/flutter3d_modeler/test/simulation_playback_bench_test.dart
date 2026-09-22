@@ -41,7 +41,10 @@ void main() {
     for (var i = 0; i < frame.length; i++) {
       frame[i] = (i % 97) * 0.01;
     }
-    final cache = SimulationCacheStub(vertexCount: vertexCount, frames: [frame]);
+    final cache = SimulationCacheStub(
+      vertexCount: vertexCount,
+      frames: [frame],
+    );
 
     // Warm, because the first call through a JIT measures the compiler.
     for (var i = 0; i < 50; i++) {

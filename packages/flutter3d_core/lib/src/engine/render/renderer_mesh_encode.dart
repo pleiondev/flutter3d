@@ -1,0 +1,680 @@
+/// Encoding one mesh node into an open pass: pipeline, uniforms, textures,
+/// draw.
+///
+/// A `part` of `renderer.dart` — see `renderer_shadow_pass.dart` for why.
+///
+/// Split out of `renderer_scene_pass.dart` along the seam the code already
+/// names: [_encodeNode] is "extracted so the view-model pass draws through
+/// exactly the same code as the scene" — it is a self-contained procedure over
+/// one node, called both from the scene pass's per-view loop and, through
+/// `Renderer.encodeScene`, from any contributor drawing ordinary geometry
+/// somewhere unordinary. Everything it touches is a renderer field or an
+/// argument; nothing here is specific to iterating views or building a render
+/// list, which is what stayed behind.
+part of 'renderer.dart';
+
+/// What the x-ray stage swaps in when it draws a node again.
+///
+/// A material for the node's own, and a blend the material cannot express:
+/// [BlendState.keepDestination] is not an alpha mode, and the marking draw
+/// needs it to leave the picture alone. Depth is not here because the
+/// material already carries it — `depthWrite` and `depthCompare` are the two
+/// fields a backdrop asked for, and a silhouette wants exactly those two.
+final class _DrawOverride {
+  const _DrawOverride({required this.material, required this.blend});
+
+  final Material material;
+
+  /// Null is blending off, as it is on `setBlend`.
+  final BlendState? blend;
+}
+
+extension _MeshEncode on Renderer {
+  /// Binds the morph state for a draw through one of the mesh vertex stages.
+  ///
+  /// **Every path that binds `FrameInfo` has to call this**, and that is the
+  /// price of putting the deltas in a texture: `lib/morph.glsl` is included by
+  /// all four mesh vertex stages, so the block and the sampler are declared on
+  /// every pipeline they build, and a stage whose block nobody wrote reads
+  /// whatever was in that memory. The first time this was missed the shadow and
+  /// pick passes still bound `FrameInfo` and not this, and the browser drew
+  /// shadows displaced by a garbage weight — 217 pixels out where 8 is the
+  /// budget — while Impeller happened to see zeros and looked fine.
+  ///
+  /// One helper rather than the same six lines in four places, for the reason
+  /// this file already gives about the material binding: two copies of a
+  /// binding eventually disagree, and the disagreement arrives as a picture
+  /// nobody can explain.
+  void _bindMorph(PassEncoder pass, ShaderHandle stage, [MorphState? morph]) {
+    final count = morph == null
+        ? 0
+        : (morph.targetCount < _morphWeights.length
+              ? morph.targetCount
+              : _morphWeights.length);
+
+    for (var i = 0; i < _morphWeights.length; i++) {
+      _morphWeights[i] = i < count ? morph!.weights[i] : 0.0;
+    }
+    _morphParams[0] = count.toDouble();
+    // One texel across and one down, so the shader can reach a texel centre
+    // without `textureSize` — which is a second thing that would have to
+    // survive the compiler that crashes on `texelFetch`. Nought when there is
+    // nothing to read, which the count already stops.
+    _morphParams[1] = morph == null ? 0.0 : 1.0 / morph.texture.width;
+    _morphParams[2] = morph == null ? 0.0 : 1.0 / morph.texture.height;
+
+    pass
+      ..bindUniformBlock(stage, _kMorphInfoBlock, {
+        'morph_weights': _morphWeights,
+        'morph_params': _morphParams,
+      })
+      ..bindTexture(
+        stage,
+        'morph_texture',
+        morph?.texture ?? fallbackAlbedo,
+        // Nearest and clamped: the coordinate names a texel centre exactly, and
+        // a filtered read would blend a vertex with its neighbour — a model
+        // that shimmers along its own index order.
+        sampler: SamplerOptions.nearestClamp,
+      );
+  }
+
+  /// Binds the per-instance weights for a draw through the *instanced* stage.
+  ///
+  /// Called only for that stage, and always for it: `MorphInstanceInfo` and
+  /// `morph_instance_weights` are declared on it and on nothing else, so
+  /// binding them elsewhere is a phantom sampler and not binding them here is
+  /// a block nobody wrote — the two ways this repository has already found to
+  /// draw a wrong picture with no error anywhere.
+  ///
+  /// A batch with no per-instance weights still binds: the flag goes to nought,
+  /// the shader falls through to the batch-wide uniform, and the sampler holds
+  /// a stand-in it never reads.
+  void _bindInstanceMorph(
+    PassEncoder pass,
+    ShaderHandle stage,
+    InstancedMeshNode? batch,
+  ) {
+    final texture = batch?.instanceMorphWeights(device);
+    _morphInstanceParams[0] = texture == null ? 0.0 : 1.0;
+    _morphInstanceParams[1] = texture == null ? 0.0 : 1.0 / texture.width;
+    _morphInstanceParams[2] = texture == null ? 0.0 : 1.0 / texture.height;
+
+    pass
+      ..bindUniformBlock(stage, _kMorphInstanceInfoBlock, {
+        'instance_params': _morphInstanceParams,
+      })
+      ..bindTexture(
+        stage,
+        'morph_instance_weights',
+        texture ?? fallbackAlbedo,
+        sampler: SamplerOptions.nearestClamp,
+      );
+  }
+
+  /// Encodes one mesh node into an open pass.
+  ///
+  /// Extracted so the view-model pass draws through exactly the same code as
+  /// the scene. The alternative was a second copy of the material binding, and
+  /// that binding is where the phantom-sampler trap lives: a shader that never
+  /// reads a texture has no slot for it, and binding one anyway is a native
+  /// crash rather than a no-op. Two copies of that would eventually disagree,
+  /// and the disagreement would arrive as a segfault with no Dart stack.
+  void _encodeNode({
+    required PassEncoder encoder,
+    required MeshNode node,
+    required Scene scene,
+    required RenderSettings settings,
+    required vm.Matrix4 viewProjection,
+    required SceneShadows shadows,
+    // A parameter shadowing the renderer's field on purpose: the scene pass
+    // hands the frame's buffer and slot table in, and `encodeScene` hands in
+    // whatever its scene actually holds. Read from the field they were wrong
+    // for every scene that was not the world's — the view model's studio
+    // lights went unbound, and its light indices read the world's slot rows.
+    required LightBuffer lights,
+    required Float32List shadowSlots,
+    required FramePassState state,
+    // The x-ray stage's, and null for every other caller: the node is drawn
+    // with a different material and a blend its alpha mode cannot say, and
+    // the rest of this procedure — pipeline, matrices, skinning, instancing,
+    // the texture slots the model declares — is exactly what it must not
+    // grow a second copy of.
+    _DrawOverride? override,
+    // The probes this draw may reflect, answered by the calling node the way
+    // the shadows are. None by default: the view model and a probe's own
+    // capture both draw without one.
+    _SceneProbes probes = _SceneProbes.none,
+    // Whether the view-projection mirrors the picture. A probe's face is drawn
+    // through one — see `probeFaceViewProjection` — and a mirror reverses
+    // which way every triangle winds, so the winding set below flips with it.
+    bool mirrored = false,
+  }) {
+    final mesh = node.mesh;
+    // The scene deals in MeshGeometry so that culling and picking need no
+    // device; only here does it matter that the geometry actually reached
+    // the GPU. A CPU-only mesh in a drawn scene is a bug in the caller,
+    // not something to skip quietly.
+    if (mesh is! DrawableGeometry) {
+      throw StateError(
+        'MeshNode "${node.name}" holds ${mesh.runtimeType}, which has no '
+        'GPU buffers. Upload it with DeviceMesh.upload before drawing it.',
+      );
+    }
+    final material = override?.material ?? node.material;
+
+    final skeleton = node.skeleton;
+    final skinned = skeleton != null;
+    // A batch draws its instances in one call from a third vertex stage; a
+    // batch with nothing in it draws nothing, and binding for it would leave
+    // the pass state describing a pipeline no draw used.
+    final instanced = node is InstancedMeshNode ? node : null;
+    if (instanced != null && instanced.count == 0) return;
+    final batched = instanced != null;
+    // A level's batches read their colour as a lightmap coordinate; neither
+    // a skinned mesh nor an instanced one is a level, so the flag is ignored
+    // where it cannot apply rather than asserted against. Nor is a
+    // silhouette: an override draws through the plain stage, whose clip
+    // position is the same arithmetic, rather than linking a fourth pipeline
+    // for a term the flat colour never reads.
+    final lightmapped =
+        node.lightmapped && !skinned && !batched && override == null;
+    if (state.boundPipeline != material.lighting ||
+        state.boundSkinned != skinned ||
+        state.boundInstanced != batched ||
+        state.boundLightmapped != lightmapped) {
+      encoder.bindPipeline(
+        _pipelineFor(
+          material.lighting,
+          skinned: skinned,
+          instanced: batched,
+          lightmapped: lightmapped,
+        ),
+      );
+      state.boundPipeline = material.lighting;
+      state.boundSkinned = skinned;
+      state.boundInstanced = batched;
+      state.boundLightmapped = lightmapped;
+      state.pipelineSwitches++;
+    }
+
+    // Both matrices are cached on the node and keyed on its transform
+    // version, so a static object costs nothing here.
+    final modelMatrix = node.worldMatrix;
+    final normalMatrix = node.worldNormalMatrix;
+
+    encoder.setWindingOrder(
+      node.worldIsMirrored != mirrored
+          ? WindingOrder.clockwise
+          : WindingOrder.counterClockwise,
+    );
+    final cull =
+        settings.backfaceCulling &&
+        !settings.wireframe &&
+        !material.doubleSided;
+    encoder.setCullMode(cull ? CullMode.backFace : CullMode.none);
+
+    final blend = material.alphaMode == MaterialAlphaMode.blend;
+    encoder.setBlend(
+      override != null
+          ? override.blend
+          : (blend ? BlendState.alphaBlend : null),
+    );
+    // Transparent surfaces must not occlude what is behind them — unless the
+    // material has an opinion, which is how a backdrop says it is drawn but
+    // is not there.
+    encoder.setDepthWrite(material.depthWrite ?? !blend);
+
+    // Only when it changes. A scene where nothing overrides the test never
+    // emits this call, so the pass's own `less` stands and every frame the
+    // golden sets were recorded from is byte-identical.
+    final depthCompare = material.depthCompare ?? CompareFunction.less;
+    if (state.depthCompare != depthCompare) {
+      encoder.setDepthCompare(depthCompare);
+      state.depthCompare = depthCompare;
+    }
+
+    encoder.bindVertexBuffer(mesh.vertices, mesh.vertexCount);
+    encoder.bindIndexBuffer(mesh.indices, mesh.indexType, mesh.indexCount);
+
+    if (instanced != null) {
+      encoder.bindVertexData(instanced.instanceBytes, instanced.count, slot: 1);
+    }
+    // **The stage the pipeline was built with, including one a material
+    // brought — `gfx-86n`.** This used to pick among the engine's own four
+    // and bind `FrameInfo` through `MeshVertex` even when the pipeline's vertex
+    // stage was somebody else's. The software backend binds a block by name
+    // for the whole pass and never noticed; a backend that resolves the slot
+    // through the handle it was given was writing into the engine's stage's
+    // layout and landing in the right place only because a stage that copies
+    // `FrameInfo` from `mesh.vert` puts it at the same index. A stage that
+    // declares a block of its own — the polyline's viewport — would not.
+    final activeVertexShader = batched
+        ? instancedVertexShader
+        : _vertexShaderFor(
+            material.lighting,
+            skinned: skinned,
+            lightmapped: lightmapped,
+          );
+    // Typed, because `Matrix4.operator*` returns `dynamic`: without the
+    // annotation `.storage` here is an unchecked call on an untyped value,
+    // and a typo in it would compile and fail at the draw.
+    final vm.Matrix4 mvp = viewProjection * modelMatrix;
+    encoder.bindUniformBlock(activeVertexShader, _kFrameInfoBlock, {
+      'mvp': mvp.storage,
+      'model': modelMatrix.storage,
+      'normal_matrix': normalMatrix.storage,
+    });
+
+    // Always, even when nothing morphs. See [_bindMorph].
+    _bindMorph(encoder, activeVertexShader, node.morph);
+    if (batched) _bindInstanceMorph(encoder, activeVertexShader, instanced);
+
+    if (skeleton != null) {
+      // Recomputed here rather than by the caller: the matrices depend on
+      // the mesh node's own world transform, which is exactly what the
+      // renderer is holding at this point.
+      skeleton.update(modelMatrix);
+      encoder.bindUniformBlock(activeVertexShader, _kSkinInfoBlock, {
+        'joint_matrices': skeleton.matrices,
+      });
+      state.skinnedDraws++;
+    }
+
+    // **A material's own vertex stage reads its parameters too — `gfx-86n`.**
+    // They were bound to the fragment stage alone, which is where every stage
+    // a material could supply used to be; since `gfx-75n` a material can bring
+    // the vertex half as well, and a vertex stage has things to be told — a
+    // wave height, a wind, the viewport a line is widened against. Only a
+    // stage the material brought: the engine's own read `FrameInfo` and
+    // nothing else, and a material naming no vertex stage draws exactly as it
+    // did, which is why no golden could move.
+    if (material.parameters.isNotEmpty &&
+        material.lighting.vertexShaderName != null &&
+        !batched) {
+      encoder.bindUniformBlock(
+        activeVertexShader,
+        material.parameterBlock,
+        material.parameters,
+      );
+    }
+
+    final fragmentShader = _fragmentShaderFor(material.lighting);
+
+    // Gated on model metadata, not reflection: a shader that only DECLARES
+    // FragInfo still reports it with a non-zero size while the compiled
+    // function binds no buffer, and binding that segfaults inside Metal.
+    // Only when there is a real cube *and* the device can hold one: on a
+    // backend with no cube support the fallback is null too, and a level
+    // count with nothing bound is the branch this exists to avoid.
+    //
+    // The nearest probe first, where one reaches this node: a probe is the
+    // room the object is actually in, and the scene's environment is the sky
+    // it may not be able to see. One per object and no blending — see
+    // `_SceneProbes.nearest`.
+    //
+    // **A lightmapped draw reads no probe**, and that is the same "one term or
+    // the other, never both" rule the ambient strength above follows. A
+    // lightmap *is* this surface's indirect light, measured per texel and
+    // baked; a probe's roughest level is a coarser guess at the same quantity,
+    // and the shader adds the lightmap on top of the environment rather than
+    // choosing between them, so a wall that took both would count the room's
+    // bounce twice. The walls keep the bake, which is finer than a probe can
+    // be, and the probe lights everything the bake does not reach: props,
+    // enemies, anything skinned or batched — none of which carries a lightmap
+    // coordinate, which is why the local `lightmapped` is the one asked here
+    // rather than `node.lightmapped`. What a wall gives up is its specular
+    // lobe, and a rough dielectric's is very nearly nothing.
+    final probe = material.lighting.usesEnvironment && !lightmapped
+        ? probes.nearest(node.worldBoundsCentre)
+        : null;
+    final environment =
+        probe?.texture ?? scene.environment ?? _environmentFallback(device);
+    final environmentLevels = probe != null
+        ? probe.levels
+        : scene.environment == null || environment == null
+        ? 0
+        : scene.environmentLevels;
+
+    // Which of the scene's lights *this* draw is lit by. The frame's own eight
+    // when they are all the scene has, and the eight that reach this object
+    // when the scene holds more — the shader is handed eight slots either way,
+    // which is why hundreds of lights need no new shader.
+    //
+    // Asked here rather than at the call sites because every caller draws
+    // through this one procedure, and a second copy of the question would
+    // eventually answer it differently for the x-ray stage than for the pass.
+    final draw = _drawLightsFor(
+      frameLights: lights,
+      frameShadowSlots: shadowSlots,
+      node: node,
+      fadeBand: settings.lightFadeBand,
+    );
+    final drawLights = draw.lights;
+    final drawShadowSlots = draw.shadowSlots;
+
+    if (material.lighting.usesFragInfo) {
+      _baseColorData[0] = material.baseColor.x;
+      _baseColorData[1] = material.baseColor.y;
+      _baseColorData[2] = material.baseColor.z;
+      _baseColorData[3] = material.baseColor.w;
+
+      _emissiveData[0] = material.emissive.x;
+      _emissiveData[1] = material.emissive.y;
+      _emissiveData[2] = material.emissive.z;
+
+      _materialData[0] = material.metallic;
+      _materialData[1] = material.roughness;
+      // The ambient strength, which is also the environment's — the shader
+      // scales both by this one number and uses one *or* the other. A probe
+      // brings its own: a captured room is read at the strength the frame drew
+      // it, and the flat term a scene dims to six per cent is not consulted
+      // while a probe is bound. See `ReflectionProbeNode.intensity`.
+      _materialData[2] = probe?.intensity ?? scene.ambientIntensity;
+      _materialData[3] = settings.specular;
+
+      // A negative cutoff means "not masked". The shader compares against
+      // it directly, so encoding the mode in the value keeps a branch and
+      // a separate flag out of the uniform block.
+      _material2Data[0] = switch (material.alphaMode) {
+        MaterialAlphaMode.mask => material.alphaCutoff,
+        // `gfx-16n`'s sentinel. Below -1.5 is "hashed", which the shader
+        // reads out of the same component: -1 already meant "not masked" and
+        // anything more negative was free, where a second number would have
+        // been a member added to a block six shaders share.
+        MaterialAlphaMode.hashed => -2.0,
+        _ => -1.0,
+      };
+      _material2Data[1] = material.normalScale;
+      _material2Data[2] = material.occlusionStrength;
+      _material2Data[3] = material.emissiveStrength;
+
+      _frameParams[0] = settings.exposure;
+      _frameParams[1] = drawLights.count.toDouble();
+      _frameParams[2] = shadows.directional == null
+          ? -1.0
+          : shadows.casterIndex.toDouble();
+      // The slot `surface.glsl` reserved for a frame-wide parameter, now
+      // spent: the environment's level count, and zero when there is none.
+      // One number carrying both the roughness scale and the "is there one"
+      // flag, so the shader needs no second uniform and no second branch.
+      _frameParams[3] = environmentLevels.toDouble();
+
+      // `gfx-15n`, and it rides here for the reason `surface.glsl` gives:
+      // this is the last unspent component of a block six shaders share, and
+      // the slot that was reserved for a frame-wide parameter went to the
+      // line above. Zero keeps the 3×3 kernel every recorded golden holds.
+      _ambientGround[3] = settings.shadows.enabled
+          ? settings.shadows.directionalLightRadius
+          : 0.0;
+
+      // Its own block, bound beside FragInfo rather than folded into it. See
+      // the note in color.glsl: appending to a block six shaders share moves
+      // offsets nobody expected to move.
+      //
+      // None for a silhouette. Fog is a property of a surface in air, and a
+      // silhouette is a marker: a sensor that lost its monsters to the far
+      // end of a corridor would be a sensor with the corridor's own range.
+      final fog = override == null ? settings.fog : const FogSettings();
+      _fogData[0] = fog.resolvedColor.x;
+      _fogData[1] = fog.resolvedColor.y;
+      _fogData[2] = fog.resolvedColor.z;
+      _fogData[3] = fog.density;
+      // Gated on the model, like every other block and sampler here. Unlit
+      // declares FragInfo but reaches no lighting loop, so the compiler drops
+      // all three of these — and binding a block the compiled shader does not
+      // have is a native failure, not a no-op.
+      if (material.lighting.usesPointShadow) {
+        // Half a texel, in tile-local uv: what every tap is held inside its
+        // tile by, so none of them can reach the next face along.
+        final texel = _cubeShadowTile > 0 ? 1.0 / _cubeShadowTile : 0.0;
+        _pointShadowParams[0] = texel * 0.5;
+        _pointShadowParams[1] = settings.shadows.pointBias;
+        _pointShadowParams[2] = _cubeShadowLight < 0
+            ? 0.0
+            : settings.shadows.strength;
+        _pointShadowParams[3] = settings.shadows.pointNormalOffset;
+        // Softness is authored in texels and spent in tile-local uv, so a
+        // penumbra keeps its width when the atlas resolution changes.
+        _pointShadowParams2[0] =
+            math.max(settings.shadows.pointSoftness, 0.0) * texel;
+        _pointShadowParams2[1] = math.max(
+          settings.shadows.pointLightRadius,
+          0.0,
+        );
+        _pointShadowParams2[2] =
+            math.max(settings.shadows.pointMaxSoftness, 0.0) * texel;
+        _pointShadowParams2[3] = settings.showPointShadowDebug ? 1.0 : 0.0;
+        // Asked of the device rather than assumed, like the depth range and the
+        // cascade matrices before it. See where it is read in surface.glsl.
+        _pointShadowParams3[0] =
+            device.framebufferOrigin == FramebufferOrigin.bottomLeft
+            ? 1.0
+            : 0.0;
+        // One over the tile's edge in texels. The shader turns it into the
+        // world width of a texel at whatever distance the fragment is, which is
+        // the quantity a normal offset has to clear — see `surface.glsl`.
+        _pointShadowParams3[1] = _cubeShadowTile > 0
+            ? 1.0 / _cubeShadowTile
+            : 0.0;
+        encoder.bindUniformBlock(fragmentShader, 'PointShadow', {
+          'faces': _cubeFaceMatrices,
+          'lights': _cubeLightData,
+          'slots': drawShadowSlots,
+          'params': _pointShadowParams,
+          'params2': _pointShadowParams2,
+          'params3': _pointShadowParams3,
+        });
+        encoder.bindTexture(
+          fragmentShader,
+          'point_shadow_texture',
+          // Whatever the caller was given by the frame, not the renderer's own
+          // field. Two nodes reach this code — the scene and the view model,
+          // through `encodeScene` — so there is no single node whose
+          // `tryTexture` could be asked *here*; each of them declares its own
+          // read and answers with [SceneShadows], which is why that type exists.
+          //
+          // White where there is no atlas, which reads as "nothing between here
+          // and the light", the same answer an unoccupied row gives.
+          shadows.point ?? fallbackAlbedo,
+          sampler: Renderer._clampSampler,
+        );
+        encoder.bindTexture(
+          fragmentShader,
+          'point_shadow_static_texture',
+          shadows.pointStatic ?? fallbackAlbedo,
+          sampler: Renderer._clampSampler,
+        );
+      }
+
+      encoder.bindUniformBlock(fragmentShader, _kFogInfoBlock, {
+        'fog': _fogData,
+        'eye': _cameraData,
+        'forward': _forwardData,
+      });
+
+      // **The irradiance field, where there is one — `gfx-81n`.** It replaces
+      // the two ambient colours for this draw and nothing else, which is the
+      // whole of why a scene without one is byte for byte what it was: the
+      // staged arrays are rewritten per draw either way, and with no field the
+      // values written are the ones `_updateAmbient` put there.
+      //
+      // Per object rather than per pixel, and that is the granularity this
+      // costs: a large floor reads one point of the field, so it takes the
+      // bounce of its own middle. The two samples are the surface facing up and
+      // the surface facing down, which is exactly the pair the shader already
+      // blends between — so the field arrives through a uniform that exists
+      // rather than through a texture and a fifth set of bindings.
+      _applyIrradiance(scene, node);
+
+      // **Every lit draw, both halves — `gfx-74n`.** A draw with no tail binds
+      // a count of nought and a one-by-one stand-in it never samples, because a
+      // declared sampler nobody binds is a native crash on Metal and a declared
+      // block nobody writes is the other way this repository has drawn a wrong
+      // picture with no error anywhere.
+      _bindLightList(
+        encoder,
+        fragmentShader,
+        drawLights,
+        _buildLightList(lights),
+      );
+      encoder.bindUniformBlock(fragmentShader, _kFragInfoBlock, {
+        // Whole arrays written from their reflected base offset. A backend
+        // reflects the array, not its elements — `lights[0]` comes back
+        // null — but the std140 stride for a vec4 array is a flat 16
+        // bytes, so a contiguous write lands each element correctly.
+        'light_position': drawLights.positions,
+        'light_color': drawLights.colors,
+        'light_direction': drawLights.directions,
+        'light_cone': drawLights.cones,
+        'base_color': _baseColorData,
+        'emissive': _emissiveData,
+        'camera_position': _cameraData,
+        'material': _materialData,
+        'material2': _material2Data,
+        'frame_params': _frameParams,
+        'shadow_params': _shadowParams,
+        'shadow_matrix': _shadowMatrix.storage,
+        'shadow_matrix_far': _shadowMatrixFar.storage,
+        'shadow_matrix_farthest': _shadowMatrixFarthest.storage,
+        'shadow_cascades': _shadowCascades,
+        'ambient_sky': _ambientSky,
+        'ambient_ground': _ambientGround,
+      });
+    }
+
+    // Bound strictly according to the model's declared slots. The
+    // compiler drops a sampler the shader never reads, and binding one
+    // Metal does not have is a native crash rather than a no-op.
+    // **An application's own parameters, bound after everything built in.**
+    // Later so that a material cannot displace a block the engine depends on
+    // by naming it: the encoder fills a block once, and the last fill wins.
+    //
+    // Unconditional, and the risk it carries is the material's own. A block
+    // the compiled shader does not have is reported rather than bound, so a
+    // material naming a block nobody reads costs nothing — but a block that
+    // exists without a member the material named now throws, on every backend
+    // that can see the difference. That is the contract as of today, and it
+    // cuts the way an author wants: a parameter renamed in the GLSL and not in
+    // the Dart used to draw with a zero in its place, on Impeller only.
+    if (material.parameters.isNotEmpty) {
+      encoder.bindUniformBlock(
+        fragmentShader,
+        material.parameterBlock,
+        material.parameters,
+      );
+    }
+    // Not safe in the same way, and the asymmetry is the encoder's: a sampler
+    // slot a compiled shader does not have is a native crash. The material
+    // that lists these is the same one that names the shader, so keeping the
+    // two in step is the author's job — nothing here can check it.
+    for (final slot in material.extraTextures.entries) {
+      encoder.bindTexture(fragmentShader, slot.key, slot.value);
+    }
+
+    if (material.lighting.usesEnvironment && environment != null) {
+      encoder.bindTexture(
+        fragmentShader,
+        _kEnvironmentTextureSlot,
+        environment,
+        sampler: Renderer._environmentSampler,
+      );
+    }
+    // The material's own samplers, with the setting's anisotropy applied
+    // where it applies — see `_anisotropic`. Clamped to the device here,
+    // once for the up-to-five binds below. The lightmap and the shadow map
+    // are not model textures and keep their clamped samplers as they are.
+    final anisotropy = _anisotropyLevel(settings.anisotropy);
+    if (material.lighting.usesAlbedoTexture) {
+      encoder.bindTexture(
+        fragmentShader,
+        _kAlbedoTextureSlot,
+        material.albedo ?? fallbackAlbedo,
+        sampler: _anisotropic(material.albedoSampler, anisotropy),
+      );
+    }
+    if (material.lighting.usesMaterialMaps) {
+      encoder.bindTexture(
+        fragmentShader,
+        _kNormalTextureSlot,
+        material.normal ?? fallbackNormal,
+        sampler: _anisotropic(material.normalSampler, anisotropy),
+      );
+      encoder.bindTexture(
+        fragmentShader,
+        _kOcclusionTextureSlot,
+        material.occlusion ?? fallbackAlbedo,
+        sampler: _anisotropic(material.occlusionSampler, anisotropy),
+      );
+      encoder.bindTexture(
+        fragmentShader,
+        _kEmissiveTextureSlot,
+        material.emissiveTexture ?? fallbackAlbedo,
+        sampler: _anisotropic(material.emissiveSampler, anisotropy),
+      );
+      // Black, not white: the lightmap is added, and a material without one
+      // adds nothing. Bound for every lit model because the shader samples
+      // the slot unconditionally, which is a texel cheaper than a branch and
+      // the same arrangement every other map here uses.
+      encoder.bindTexture(
+        fragmentShader,
+        _kLightmapTextureSlot,
+        material.lightmap ?? fallbackBlack,
+        sampler: material.lightmapSampler ?? Renderer._clampSampler,
+      );
+    }
+    if (material.lighting.usesShadowMap) {
+      encoder.bindTexture(
+        fragmentShader,
+        _kShadowTextureSlot,
+        // With shadows off the slot still has to be satisfied, and a white
+        // texture reads as "nothing between here and the light" — which is
+        // also what the zero strength above already guarantees.
+        shadows.directional ?? fallbackAlbedo,
+        sampler: Renderer._clampSampler,
+      );
+    }
+    if (material.lighting.usesMetallicRoughnessMap) {
+      encoder.bindTexture(
+        fragmentShader,
+        _kMetallicRoughnessTextureSlot,
+        material.metallicRoughness ?? fallbackAlbedo,
+        sampler: _anisotropic(material.metallicRoughnessSampler, anisotropy),
+      );
+    }
+
+    encoder.draw(instanceCount: instanced?.count ?? 1);
+    state.drawCalls++;
+    state.triangles += (mesh.indexCount ~/ 3) * (instanced?.count ?? 1);
+    if (instanced != null) state.instances += instanced.count;
+  }
+
+  /// Rewrites the two ambient colours for [node] from the scene's irradiance
+  /// field — `gfx-81n`. Does nothing at all when there is no field, which is
+  /// what keeps every recorded frame where it was.
+  void _applyIrradiance(Scene scene, MeshNode node) {
+    final field = scene.irradianceField;
+    if (field == null) return;
+
+    // The node's own middle. A point on its surface would be better and is not
+    // available here — the encode sees a bounding box, not the geometry — and
+    // the middle is the one point that is certainly inside the thing being lit.
+    final at = node.worldBoundsCentre;
+    final up = field.sample(at, _kUp, _irradianceUp);
+    final down = field.sample(at, _kDown, _irradianceDown);
+
+    // Scaled by the scene's own ambient knob, so the one control still dials
+    // indirect light: a field is a measurement of the room and this is how much
+    // of that measurement the author wants.
+    final tint = scene.ambientIntensity;
+    _ambientSky[0] = up.x * tint;
+    _ambientSky[1] = up.y * tint;
+    _ambientSky[2] = up.z * tint;
+    _ambientGround[0] = down.x * tint;
+    _ambientGround[1] = down.y * tint;
+    _ambientGround[2] = down.z * tint;
+  }
+}
+
+final vm.Vector3 _kUp = vm.Vector3(0.0, 1.0, 0.0);
+final vm.Vector3 _kDown = vm.Vector3(0.0, -1.0, 0.0);

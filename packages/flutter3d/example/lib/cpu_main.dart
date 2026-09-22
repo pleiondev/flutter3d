@@ -34,6 +34,7 @@ import 'package:flutter/services.dart'
     show KeyDownEvent, KeyEvent, LogicalKeyboardKey;
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d/parity_scene.dart';
+import 'package:flutter3d_app/flutter3d_app.dart' show presentFrame;
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
 import 'package:vector_math/vector_math.dart' show Vector3;
 
@@ -126,7 +127,7 @@ class _CpuAppState extends State<CpuApp> with SingleTickerProviderStateMixin {
     final ms = DateTime.now().difference(started).inMicroseconds / 1000.0;
 
     setState(() {
-      _frame = _device.present(result.frame, fit: BoxFit.contain);
+      _frame = presentFrame(_device, result.frame, fit: BoxFit.contain);
       _smoothed = _frames == 0 ? ms : _smoothed * 0.9 + ms * 0.1;
       _frames++;
     });

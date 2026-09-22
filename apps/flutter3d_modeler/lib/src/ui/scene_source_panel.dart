@@ -10,10 +10,11 @@
 library;
 
 import 'package:flutter/material.dart';
+import 'package:flutter3d_editor_widgets/flutter3d_editor_widgets.dart';
 import 'package:flutter3d_model_core/flutter3d_model_core.dart';
 
-import 'number_field.dart';
-import 'section_label.dart';
+import '../../l10n/app_localizations.dart';
+import 'named_button.dart';
 import 'theme.dart';
 
 /// The lights, and the selected one's own fields.
@@ -67,6 +68,7 @@ final class SceneSourcePanel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final AppLocalizations l = AppLocalizations.of(context);
     final int? active =
         selected != null && selected! >= 0 && selected! < lights.length
         ? selected
@@ -75,12 +77,12 @@ final class SceneSourcePanel extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: <Widget>[
-        const SectionLabel('Источники'),
+        SectionLabel(AppLocalizations.of(context).sceneSourcesSectionLabel),
         if (lights.isEmpty)
           Padding(
             padding: const EdgeInsets.symmetric(vertical: 4),
             child: Text(
-              'No lights',
+              l.sceneNoLights,
               style: theme.textTheme.bodySmall?.copyWith(
                 fontStyle: FontStyle.italic,
               ),
@@ -95,23 +97,26 @@ final class SceneSourcePanel extends StatelessWidget {
               selected: i == active,
               onTap: () => onSelect(i),
               title: Text(_labelOf(lights[i].type)),
-              trailing: IconButton(
-                icon: const Icon(Icons.close, size: 16),
-                tooltip: 'Remove',
-                onPressed: () => onRemove(i),
+              trailing: NamedButton(
+                label: l.sceneRemoveLight,
+                child: IconButton(
+                  icon: const Icon(Icons.close, size: 16),
+                  tooltip: l.sceneRemoveLight,
+                  onPressed: () => onRemove(i),
+                ),
               ),
             ),
         TextButton(
           onPressed: onAdd,
           style: TextButton.styleFrom(
             padding: EdgeInsets.zero,
-            minimumSize: const Size(0, ModelerMetrics.row - 4),
+            minimumSize: panelButtonMinimum(context),
             tapTargetSize: MaterialTapTargetSize.shrinkWrap,
           ),
-          child: const Text('Add'),
+          child: Text(l.sceneAdd),
         ),
         if (active != null) ...<Widget>[
-          const SectionLabel('Source'),
+          SectionLabel(l.sceneSource),
           Padding(
             padding: const EdgeInsets.symmetric(vertical: 4),
             child: DropdownButton<ProjectLightType>(
@@ -130,25 +135,25 @@ final class SceneSourcePanel extends StatelessWidget {
             ),
           ),
           NumberField(
-            label: 'Intensity',
+            label: l.sceneIntensity,
             value: lights[active].intensity,
             onChanged: (double value) => onIntensityChanged(active, value),
           ),
           NumberField(
-            label: 'Range',
+            label: l.sceneRange,
             value: lights[active].range,
             onChanged: (double value) => onRangeChanged(active, value),
           ),
           if (lights[active].type == ProjectLightType.spot)
             NumberField(
-              label: 'Cone',
+              label: l.sceneCone,
               value: lights[active].outerConeAngle,
               onChanged: (double value) => onConeChanged(active, value),
             ),
           SwitchListTile(
             dense: true,
             contentPadding: EdgeInsets.zero,
-            title: const Text('Casts shadow'),
+            title: Text(l.sceneCastsShadow),
             value: lights[active].castsShadow,
             onChanged: (bool value) => onShadowChanged(active, value),
           ),

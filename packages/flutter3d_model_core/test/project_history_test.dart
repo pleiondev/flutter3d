@@ -6,7 +6,7 @@ library;
 
 import 'dart:typed_data';
 
-import 'package:flutter3d_formats/flutter3d_formats.dart' show EncodedImage;
+import 'package:flutter3d_core/formats.dart' show EncodedImage;
 import 'package:flutter3d_mesh/flutter3d_mesh.dart';
 import 'package:flutter3d_model_core/src/command.dart';
 import 'package:flutter3d_model_core/src/history.dart';
@@ -196,8 +196,7 @@ void main() {
       // largest offsets and dropping from the back keeps the smallest.
       expect(opened.history.length, lessThan(20));
       expect(opened.history, isNotEmpty);
-      final firstKeptOffset =
-          (opened.history.first.command as MoveBy).by.x;
+      final firstKeptOffset = (opened.history.first.command as MoveBy).by.x;
       expect(firstKeptOffset, greaterThan(0));
     });
 

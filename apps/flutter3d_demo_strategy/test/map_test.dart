@@ -24,8 +24,8 @@ import 'dart:io';
 import 'dart:math' as math;
 
 import 'package:flutter3d_demo_strategy/src/level_document.dart';
-import 'package:flutter3d_game/flutter3d_game.dart';
 import 'package:flutter3d_game_strategy/flutter3d_game_strategy.dart';
+import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 /// The document, read off the disk rather than out of the bundle, so that the

@@ -1,20 +1,20 @@
-/// A project's own clips, retargeted through `flutter3d_rig` — the adapter
-/// that lets retargeting know nothing about a project.
+/// A project's own clips, retargeted through the rig algorithms in `rig/` —
+/// the adapter that lets retargeting know nothing about a project.
 ///
-/// **The document depends on the algorithm, not the other way round.**
-/// `flutter3d_rig` reads a rig as nodes and tracks; this file is the one place
-/// a [ModelProject]'s objects, skeletons and clips are turned into those and
-/// back. Before it, the rig package imported this one for `ModelProject`, and
-/// `RigJob` had to be split across the two packages to dodge the cycle.
+/// **The document depends on the algorithm, not the other way round.** The
+/// files under `rig/` read a rig as nodes and tracks; this file is the one
+/// place a [ModelProject]'s objects, skeletons and clips are turned into those
+/// and back. They were a package of their own once, and that package imported
+/// this one for `ModelProject`, so `RigJob` had to be split across the two to
+/// dodge the cycle.
 library;
-
-import 'package:flutter3d_rig/flutter3d_rig.dart'
-    show BoneMap, RetargetRig, RigNode, RigTrack, retargetTracks;
 
 import 'project.dart';
 import 'project_animation.dart';
+import 'rig/bone_map.dart' show BoneMap;
+import 'rig/retarget.dart' show RetargetRig, RigNode, RigTrack, retargetTracks;
 
-/// [skeleton] in [project] as `flutter3d_rig` reads a rig: every joint, every
+/// [skeleton] in [project] as the rig algorithms read a rig: every joint, every
 /// object a joint hangs from, and every object in [alsoNodes] — the objects a
 /// clip's own tracks move, which a bone map may name whether or not they are
 /// joints.
@@ -49,7 +49,7 @@ RetargetRig retargetRigOf(
 /// joints in [sourceProject] — onto [targetSkeleton]'s joints in
 /// [targetProject], through [boneMap].
 ///
-/// `anim-17`'s own row: `flutter3d_rig`'s `retargetTracks` does the work and
+/// `anim-17`'s own row: `retargetTracks` (in `rig/`) does the work and
 /// says how — rest-relative rotations, height-scaled translations, a two-bone
 /// foot lock under [lockFeet] — and this reads the two skeletons out of their
 /// projects and puts the answer back into a [ProjectClip] under the source

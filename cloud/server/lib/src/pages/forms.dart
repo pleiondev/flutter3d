@@ -72,29 +72,30 @@ class Field extends StatelessComponent {
   Component build(BuildContext context) {
     final id = 'f-$name';
     final note = error ?? hint;
-    return div(
-      [
-        label([Component.text(caption)], htmlFor: id),
-        input(
-          type: type,
-          name: name,
-          value: value,
-          id: id,
-          attributes: {
-            'autocomplete': ?autocomplete,
-            if (required) 'required': '',
-            if (minLength != null) 'minlength': '$minLength',
-            if (maxLength != null) 'maxlength': '$maxLength',
-            if (error != null) 'aria-invalid': 'true',
-            if (note != null) 'aria-describedby': '$id-note',
-            ...inputAttributes,
-          },
+    return div([
+      label([Component.text(caption)], htmlFor: id),
+      input(
+        type: type,
+        name: name,
+        value: value,
+        id: id,
+        attributes: {
+          'autocomplete': ?autocomplete,
+          if (required) 'required': '',
+          if (minLength != null) 'minlength': '$minLength',
+          if (maxLength != null) 'maxlength': '$maxLength',
+          if (error != null) 'aria-invalid': 'true',
+          if (note != null) 'aria-describedby': '$id-note',
+          ...inputAttributes,
+        },
+      ),
+      if (note != null)
+        p(
+          [Component.text(note)],
+          id: '$id-note',
+          classes: error != null ? 'error' : 'hint',
         ),
-        if (note != null)
-          p([Component.text(note)], id: '$id-note', classes: error != null ? 'error' : 'hint'),
-      ],
-      classes: error != null ? 'field invalid' : 'field',
-    );
+    ], classes: error != null ? 'field invalid' : 'field');
   }
 }
 
@@ -133,22 +134,29 @@ class PasswordFields extends StatelessComponent {
     ),
     ul(
       [
-        li([Component.text('At least $minPasswordLength characters')], attributes: const {'data-rule': 'length'}),
+        li(
+          [Component.text('At least $minPasswordLength characters')],
+          attributes: const {'data-rule': 'length'},
+        ),
         li(
           [
-            Component.text('Three of lowercase, uppercase, digits, symbols — or '
-                '$passphraseLength characters and more'),
+            Component.text(
+              'Three of lowercase, uppercase, digits, symbols — or '
+              '$passphraseLength characters and more',
+            ),
           ],
           attributes: const {'data-rule': 'mix'},
         ),
-        li([Component.text('Both entries match')], attributes: const {'data-rule': 'match'}),
         li(
-          [
-            Component.text('Common passwords, keyboard runs and your own name or '
-                'address are refused too.'),
-          ],
-          classes: 'extra',
+          [Component.text('Both entries match')],
+          attributes: const {'data-rule': 'match'},
         ),
+        li([
+          Component.text(
+            'Common passwords, keyboard runs and your own name or '
+            'address are refused too.',
+          ),
+        ], classes: 'extra'),
       ],
       classes: 'checklist',
       attributes: const {'data-password-checklist': ''},
@@ -166,7 +174,12 @@ class PasswordFields extends StatelessComponent {
 
 /// A sentence in a box: the result of what was just done, or why it was not.
 class Notice extends StatelessComponent {
-  const Notice(this.text, {this.kind = 'info', this.children = const [], super.key});
+  const Notice(
+    this.text, {
+    this.kind = 'info',
+    this.children = const [],
+    super.key,
+  });
 
   final String text;
 
@@ -180,7 +193,10 @@ class Notice extends StatelessComponent {
   Component build(BuildContext context) => div(
     [Component.text(text), ...children],
     classes: 'notice',
-    attributes: {'data-kind': kind, 'role': kind == 'error' ? 'alert' : 'status'},
+    attributes: {
+      'data-kind': kind,
+      'role': kind == 'error' ? 'alert' : 'status',
+    },
   );
 }
 

@@ -8,7 +8,7 @@ library;
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:flutter3d_formats/flutter3d_formats.dart';
+import 'package:flutter3d_core/formats.dart';
 import 'package:flutter3d_model_core/flutter3d_model_core.dart';
 import 'package:flutter3d_modeler/src/material_file_writer.dart';
 import 'package:test/test.dart';
@@ -40,7 +40,10 @@ void main() {
       final written = File('${dir.path}/materials/steel.fmat');
       expect(written.existsSync(), isTrue);
 
-      final document = readFmat(written.readAsBytesSync(), name: material.fmat!);
+      final document = readFmat(
+        written.readAsBytesSync(),
+        name: material.fmat!,
+      );
       // Mutation: have `bytesFor` write the material's un-edited surface —
       // this catches it on the field the edit above actually changed.
       expect(document.surface.roughness, closeTo(0.35, 1e-6));
@@ -50,16 +53,19 @@ void main() {
     },
   );
 
-  test('writing an unlinked material refuses rather than guessing a path', () async {
-    final material = ProjectMaterial(surface: SurfaceMaterial(name: 'brass'));
+  test(
+    'writing an unlinked material refuses rather than guessing a path',
+    () async {
+      final material = ProjectMaterial(surface: SurfaceMaterial(name: 'brass'));
 
-    await expectLater(
-      () => MaterialFileWriter.write(material, baseDir: dir.path),
-      throwsA(isA<StateError>()),
-    );
-    // Nothing was created.
-    expect(Directory(dir.path).listSync(), isEmpty);
-  });
+      await expectLater(
+        () => MaterialFileWriter.write(material, baseDir: dir.path),
+        throwsA(isA<StateError>()),
+      );
+      // Nothing was created.
+      expect(Directory(dir.path).listSync(), isEmpty);
+    },
+  );
 
   test('bytesFor is exactly what write puts on disk', () async {
     final material = ProjectMaterial(

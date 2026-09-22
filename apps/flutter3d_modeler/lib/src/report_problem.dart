@@ -22,11 +22,9 @@ library;
 /// [whatHappened], when given, seeds the "what happens" field — a caller
 /// that already knows something concrete (the file that was open, the
 /// backend in use) can save a person retyping it.
-Uri reportProblemUrl({
-  required String environment,
-  String? whatHappened,
-}) => Uri.https('github.com', '/pleiondev/flutter3d/issues/new', <String, String>{
-  'template': 'modeler_report.yml',
-  'environment': environment,
-  if (whatHappened != null && whatHappened.isNotEmpty) 'what': whatHappened,
-});
+Uri reportProblemUrl({required String environment, String? whatHappened}) =>
+    Uri.https('github.com', '/pleiondev/flutter3d/issues/new', <String, String>{
+      'template': 'modeler_report.yml',
+      'environment': environment,
+      if (whatHappened != null && whatHappened.isNotEmpty) 'what': whatHappened,
+    });

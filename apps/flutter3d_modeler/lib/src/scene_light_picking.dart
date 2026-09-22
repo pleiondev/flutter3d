@@ -63,12 +63,7 @@ int? pickLightMarker({
 /// starts inside the sphere answers zero rather than a negative number — the
 /// same "already inside counts as a hit" rule `transform_gizmo.dart`'s own
 /// `_boxHit` gives a gizmo handle.
-double? _sphereHit(
-  Vector3 center,
-  double radius,
-  Vector3 from,
-  Vector3 along,
-) {
+double? _sphereHit(Vector3 center, double radius, Vector3 from, Vector3 along) {
   final Vector3 toCenter = center - from;
   final double projected = toCenter.dot(along);
   final double closestSquared = toCenter.length2 - projected * projected;

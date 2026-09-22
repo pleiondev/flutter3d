@@ -12,6 +12,7 @@
 /// device that will read it has no other platform.
 library;
 
+import 'package:flutter3d_shaders/flutter3d_shaders.dart';
 import 'package:flutter3d_webgpu/engine_shaders.dart';
 import 'package:flutter3d_webgpu/src/webgpu_bundle_section.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -47,9 +48,22 @@ void main() {
     ]) {
       expect(stages.containsKey(name), isTrue, reason: '$name is missing');
     }
-    expect(stages.length, 39);
-    expect(engineShaders.vertex.length, 12);
-    expect(engineShaders.fragment.length, 27);
+    // **Against the manifest rather than against a number.** These three were
+    // literals — 39, 12, 27 — written when this backend landed, and they were
+    // still those numbers with 46 stages in the table: every shader added since
+    // left the assertion stale, and nothing noticed, because a literal count
+    // rots the moment somebody adds a pass and rots silently. `gfx-76n` is the
+    // row that found it, by adding the forty-seventh. `kRequiredShaders` is the
+    // list the manifest is generated from and the one the engine actually asks
+    // against, so a table that matches it matches by name as well as by count
+    // and needs no editing when the next row adds a stage.
+    Set<String> namesOf({bool? fragment}) => <String>{
+      for (final shader in kRequiredShaders)
+        if (fragment == null || shader.fragment == fragment) shader.name,
+    };
+    expect(stages.keys.toSet(), namesOf());
+    expect(engineShaders.vertex.keys.toSet(), namesOf(fragment: false));
+    expect(engineShaders.fragment.keys.toSet(), namesOf(fragment: true));
   });
 
   test('every stage carries WGSL with an entry point of its kind', () {

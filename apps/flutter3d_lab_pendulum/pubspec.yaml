@@ -11,8 +11,8 @@ dependencies:
   flutter:
     sdk: flutter
 
-  # The backend chooser with its software fallback, and — via its own
-  # barrel — `flutter3d_session`'s `SceneSurface`/`WidgetSurface`. See
+  # The backend chooser with its software fallback, and `SceneSurface`/
+  # `WidgetSurface` beside it. See
   # `lib/src/pendulum_lab_panel.dart` for the one thing built here that
   # `flutter3d_app` does not carry.
   flutter3d_app:
@@ -35,12 +35,6 @@ dependencies:
   # parameter a tap on the panel changes.
   flutter3d_sim:
     path: ../../packages/flutter3d_sim
-
-  # `WidgetSurface` directly, in the panel's own integration test — the app
-  # itself reaches it through `flutter3d_app`'s barrel, but a test file
-  # importing it needs it named here too.
-  flutter3d_session:
-    path: ../../packages/flutter3d_session
 
   vector_math: ^2.2.0
 

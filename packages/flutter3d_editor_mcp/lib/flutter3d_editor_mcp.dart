@@ -26,7 +26,7 @@
 /// repository reaches a `GraphicsDevice` whose finished frame is a Flutter
 /// widget, so a process that can render a level is a Flutter process — and
 /// `dart run` cannot resolve a package that depends on the Flutter SDK, which
-/// `packages/flutter3d_cpu/tool/dump_fixture.dart` records finding out. An
+/// `packages/flutter3d/tool/dump_fixture.dart` records finding out. An
 /// absent tool would have an agent inventing ways around it; a refusal with a
 /// reason ends the question.
 ///

@@ -13,6 +13,7 @@ import 'package:flutter3d_mcp_kit/flutter3d_mcp_kit.dart';
 
 import 'model_server.dart';
 import 'model_session.dart';
+import 'render_tool.dart' show ModelPictureTool;
 
 export 'package:flutter3d_mcp_kit/flutter3d_mcp_kit.dart'
     show deleteMcpSessionFile, writeMcpSessionFile;
@@ -37,13 +38,50 @@ final class ModelHttpServer {
 
   /// Binds `127.0.0.1:$port` and serves [session] there. See
   /// [LoopbackMcpServer.start] for [port] and [token].
+  ///
+  /// [extraTools] is [ModelMcpServer]'s own door, reachable only from here:
+  /// the GUI application this socket is for is the one caller that has UI
+  /// tools (`ui.setMode` and the rest, `mcp-16d`) to offer beside the
+  /// ordinary document ones — `bin/model_mcp.dart`'s headless server never
+  /// passes any, which is what keeps them out of that server's own
+  /// `tools/list`.
+  ///
+  /// [onInitialize] is `ux-05`'s own door beside it: an open port is not an
+  /// agent, and a screen that shows agent chrome from the first frame is
+  /// showing it to nobody. This fires the moment a client says hello.
+  ///
+  /// [onToolCall] is `tut-16`'s own door: screen 26's own tool-call feed —
+  /// the GUI wants to know about every call an agent makes over this
+  /// socket, the instant it answers, so [ModelMcpServer.onCall] is threaded
+  /// straight through rather than this class watching calls a second way.
   static Future<ModelHttpServer> start({
     required ModelSession session,
     int port = 0,
     String? token,
+    List<ModelPictureTool> extraTools = const <ModelPictureTool>[],
+    void Function(
+      String toolName,
+      Map<String, Object?> arguments,
+      PictureAnswer answer,
+      Duration elapsed,
+    )?
+    onToolCall,
+    void Function(String clientName)? onInitialize,
+
+    /// `ux-45`: why calls are being refused right now, or null when they are
+    /// not — a person's own hand on the brake, asked before every call. See
+    /// `ToolTableServer.pausedBecause`.
+    String? Function()? pausedBecause,
   }) async => ModelHttpServer._(
     await LoopbackMcpServer.start(
-      serve: (channel) => ModelMcpServer(channel, session: session),
+      serve: (channel) => ModelMcpServer(
+        channel,
+        session: session,
+        extraTools: extraTools,
+        onCall: onToolCall,
+        onInitialize: onInitialize,
+        pausedBecause: pausedBecause,
+      ),
       port: port,
       token: token,
     ),

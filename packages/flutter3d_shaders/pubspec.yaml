@@ -1,6 +1,6 @@
 name: flutter3d_shaders
 description: The engine's shader sources, in GLSL, for every backend to compile.
-version: 0.6.0
+version: 0.7.0
 repository: https://github.com/pleiondev/flutter3d
 homepage: https://flutter3d.pleion.dev
 issue_tracker: https://github.com/pleiondev/flutter3d/issues
@@ -20,16 +20,19 @@ topics:
 #
 # It lived in flutter3d_impeller until there was a second backend, which is
 # exactly how long that was the right place for it.
+#
+# **Flat, not a Flutter package** — the `flutter: sdk` dependency this pubspec
+# carried since the `flutter3d_impeller` split was never real: `lib/`'s own
+# `kRequiredShaders` is a plain `const` list, and `test/manifest_test.dart`
+# only ever needed `test`/`expect` out of `flutter_test`, both of which
+# `package:test` gives identically. Left alone, this was the one edge
+# `flutter3d_conformance` — and everything that dev-depends on it, including
+# every backend's own `conformance_test.dart` — resolved the Flutter SDK
+# through for no reason at all.
 environment:
   sdk: ^3.12.2
-  flutter: '>=3.47.0'
-
-dependencies:
-  flutter:
-    sdk: flutter
 
 dev_dependencies:
-  flutter_test:
-    sdk: flutter
+  test: ^1.25.0
 
 resolution: workspace

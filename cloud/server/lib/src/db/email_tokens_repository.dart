@@ -66,29 +66,31 @@ class EmailTokensRepository {
   /// For checking a new password against the account before the link is used
   /// up: a reset link that is spent on a password the rules then refuse would
   /// send the person back to their mailbox for nothing.
-  Future<int?> peek(String token, LetterPurpose purpose) => _db.run((session) async {
-    final rows = await session.execute(
-      Sql.named('''
+  Future<int?> peek(String token, LetterPurpose purpose) =>
+      _db.run((session) async {
+        final rows = await session.execute(
+          Sql.named('''
         select user_id from email_tokens
         where token_sha256 = @digest and purpose = @purpose
           and used_at is null and expires_at > now()
       '''),
-      parameters: {
-        'digest': Uint8List.fromList(tokenDigest(token)),
-        'purpose': purpose.column,
-      },
-    );
-    return rows.isEmpty ? null : rows.first[0]! as int;
-  });
+          parameters: {
+            'digest': Uint8List.fromList(tokenDigest(token)),
+            'purpose': purpose.column,
+          },
+        );
+        return rows.isEmpty ? null : rows.first[0]! as int;
+      });
 
   /// Spends [token] and returns whose account it was for.
   ///
   /// **One statement, so that two clicks cannot both win.** The `used_at is
   /// null` in the update is what makes the second click find nothing, however
   /// close together they arrive.
-  Future<int?> spend(String token, LetterPurpose purpose) => _db.run((session) async {
-    final rows = await session.execute(
-      Sql.named('''
+  Future<int?> spend(String token, LetterPurpose purpose) =>
+      _db.run((session) async {
+        final rows = await session.execute(
+          Sql.named('''
         update email_tokens set used_at = now()
         where token_sha256 = @digest
           and purpose = @purpose
@@ -96,13 +98,13 @@ class EmailTokensRepository {
           and expires_at > now()
         returning user_id
       '''),
-      parameters: {
-        'digest': Uint8List.fromList(tokenDigest(token)),
-        'purpose': purpose.column,
-      },
-    );
-    return rows.isEmpty ? null : rows.first[0]! as int;
-  });
+          parameters: {
+            'digest': Uint8List.fromList(tokenDigest(token)),
+            'purpose': purpose.column,
+          },
+        );
+        return rows.isEmpty ? null : rows.first[0]! as int;
+      });
 
   Future<int> sweep() => _db.run((session) async {
     final rows = await session.execute(

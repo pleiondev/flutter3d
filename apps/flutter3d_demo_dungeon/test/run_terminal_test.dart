@@ -15,7 +15,10 @@ void main() {
       final effects = FrameEffects();
       effects.say('the door is locked');
       effects.say('you found a key');
-      expect(effects.log.value, <String>['the door is locked', 'you found a key']);
+      expect(effects.log.value, <String>[
+        'the door is locked',
+        'you found a key',
+      ]);
     });
 
     test('a null message is not recorded', () {
@@ -43,7 +46,10 @@ void main() {
     });
 
     testWidgets('shows every line the log holds', (tester) async {
-      final log = ValueNotifier<List<String>>(const <String>['first', 'second']);
+      final log = ValueNotifier<List<String>>(const <String>[
+        'first',
+        'second',
+      ]);
       await tester.pumpWidget(MaterialApp(home: RunTerminal(log: log)));
       expect(find.text('> first'), findsOneWidget);
       expect(find.text('> second'), findsOneWidget);

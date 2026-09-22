@@ -51,8 +51,9 @@ they execute in submission order.
 ## What is deliberately absent
 
 No device enumeration, no swapchain, no window, no context-loss policy, no
-shader compiler. An application opens a backend and hands it over. `present()`
-is the one call returning a Flutter `Widget`.
+shader compiler, no Flutter `Widget` — an application opens a backend and
+hands it over, and `presentFrame()` in `flutter3d_app` is where a finished
+frame becomes a widget, one backend at a time.
 
 An interface can only say a call exists. What a backend must *do* — a clear
 covering the whole attachment, uploaded pixels keeping their row order — is

@@ -48,10 +48,12 @@ import 'package:vector_math/vector_math.dart';
 
 import 'cpu_shader.dart';
 import 'cpu_shaders_bloom.dart';
+import 'cpu_shaders_contact_shadow.dart';
 import 'cpu_shaders_debug.dart';
 import 'cpu_shaders_lit.dart';
 import 'cpu_shaders_mesh_vertex.dart';
 import 'cpu_shaders_particles.dart';
+import 'cpu_shaders_polyline.dart';
 import 'cpu_shaders_post.dart';
 import 'cpu_shaders_probe.dart';
 import 'cpu_shaders_reflections.dart';
@@ -62,6 +64,7 @@ import 'cpu_shaders_vertex_probe.dart';
 
 export 'cpu_shaders_bloom.dart';
 export 'cpu_shaders_color.dart';
+export 'cpu_shaders_contact_shadow.dart';
 export 'cpu_shaders_debug.dart';
 export 'cpu_shaders_layout.dart';
 export 'cpu_shaders_lighting.dart';
@@ -141,6 +144,7 @@ Map<String, CpuStage> builtinCpuShaders() {
       MeshLightmappedVertexShader(),
     ),
     'DebugLineVertex': const CpuStage.vertex(DebugLineVertexShader()),
+    'PolylineVertex': const CpuStage.vertex(PolylineVertexShader()),
     'VertexTextureProbeVertex': const CpuStage.vertex(
       VertexTextureProbeVertexShader(),
     ),
@@ -151,11 +155,22 @@ Map<String, CpuStage> builtinCpuShaders() {
     'ParticleMesh': const CpuStage.fragment(ParticleMeshShader()),
     'ParticleTextured': const CpuStage.fragment(ParticleTexturedShader()),
     'Particle': const CpuStage.fragment(ParticleShader()),
+    'Splat': const CpuStage.fragment(SplatShader()),
     'Reflections': const CpuStage.fragment(ReflectionsShader()),
     'Ssao': const CpuStage.fragment(SsaoShader()),
+    'ContactShadow': const CpuStage.fragment(ContactShadowShader()),
+    'SsaoBlur': const CpuStage.fragment(SsaoBlurShader()),
+    'LightShafts': const CpuStage.fragment(LightShaftsShader()),
+    'DepthOfField': const CpuStage.fragment(DepthOfFieldShader()),
+    'ViewportShade': const CpuStage.fragment(ViewportShadeShader()),
+    'ShadowDepthMasked': const CpuStage.fragment(ShadowDepthMaskedShader()),
+    'ShadowDistanceMasked': const CpuStage.fragment(
+      ShadowDistanceMaskedShader(),
+    ),
     'ProbePrefilter': const CpuStage.fragment(ProbePrefilterShader()),
     'MrtProbe': const CpuStage.fragment(MrtProbeShader()),
     'Composite': const CpuStage.fragment(CompositeShader()),
+    'Fxaa': const CpuStage.fragment(FxaaShader()),
     'ShadowDepth': const CpuStage.fragment(ShadowDepthShader()),
     'ShadowDistance': const CpuStage.fragment(ShadowDistanceShader()),
     'ShadowTileReset': const CpuStage.fragment(ShadowTileResetShader()),

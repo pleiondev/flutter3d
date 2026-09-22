@@ -18,7 +18,7 @@
 /// transposed, or a chain filtered from the wrong level puts a colour on the
 /// wrong side, and every one of those draws a plausible reflection. The
 /// software backend asks the same three questions of the same room in
-/// `flutter3d_cpu/test/reflection_probe_test.dart`, deliberately: two
+/// `flutter3d/test/cpu_reflection_probe_test.dart`, deliberately: two
 /// rasterisers that agree about which side is which agree about the whole face
 /// table.
 ///

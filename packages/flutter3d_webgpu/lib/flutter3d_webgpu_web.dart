@@ -25,6 +25,9 @@ export 'src/webgpu_device.dart';
 /// One pass, accumulated and resolved at the draw.
 export 'src/webgpu_encoder.dart';
 
+/// The widget `presentFrame` in `flutter3d_app` returns for this device.
+export 'src/webgpu_frame_presenter.dart';
+
 /// The bindings under all of it, hand-written because `package:web` stops at
 /// WebGPU's flag constants.
 export 'src/webgpu_interop.dart';

@@ -1,4 +1,4 @@
-import 'package:flutter3d_game/flutter3d_game.dart';
+import 'package:flutter3d_sim/flutter3d_sim.dart';
 
 /// The moments inside a shooter's step that a game can hang its own rules off.
 ///

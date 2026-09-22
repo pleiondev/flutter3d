@@ -10,16 +10,18 @@ library;
 
 import 'dart:async';
 
+import 'package:flutter/foundation.dart' show defaultTargetPlatform;
 import 'package:flutter/material.dart' hide Material;
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart' show KeyDownEvent, LogicalKeyboardKey;
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_audio/flutter3d_audio.dart';
-import 'package:flutter3d_bridge/flutter3d_bridge.dart';
 import 'package:flutter3d_game/flutter3d_game.dart';
 import 'package:flutter3d_game_platformer/flutter3d_game_platformer.dart';
 import 'package:flutter3d_particles/flutter3d_particles.dart';
+import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:pad_input/pad_input.dart';
 import 'package:vector_math/vector_math.dart' hide Colors;
 
 import 'src/audio_cubit.dart';
@@ -38,6 +40,13 @@ import 'src/sounds.dart';
 import 'src/soundtrack.dart';
 import 'src/title_card.dart';
 import 'src/touch_runner.dart';
+
+/// `rp-04`'s own build stamp, the same convention `flutter3d_demo_dungeon`
+/// established: whatever the release process passes in, `dev` otherwise.
+const String _buildStamp = String.fromEnvironment(
+  'FLUTTER3D_BUILD_STAMP',
+  defaultValue: 'dev',
+);
 
 void main() {
   // Landscape and no system bars on a handset — see `configureForTouch`,
@@ -141,6 +150,41 @@ class _GameScreenState extends State<GameScreen>
   final InputState _input = InputState();
   late final DesktopInput _devices;
   late final PadInput _pad;
+
+  /// `rp-04`'s last ten seconds, every step of them — the same window and the
+  /// same reasoning as `flutter3d_demo_dungeon`'s own `_rewind`.
+  final RewindBuffer _rewind = RewindBuffer(stepsPerSecond: 60, history: 10.0);
+
+  /// `rp-02`'s door onto this run, over the VM service. Reads `_sim` fresh on
+  /// every call rather than capturing it, since which simulation that getter
+  /// answers changes every time a level does.
+  late final RunTimeline _timeline = RunTimeline(
+    rewind: _rewind,
+    input: _input,
+    stepSim: (double dt) => _sim?.step(dt),
+    restore: (Snapshot snapshot) => _sim?.restore(snapshot),
+  );
+
+  /// `rp-04`'s "send this run", called remotely rather than from a button
+  /// this game draws itself — the last few seconds `_rewind` has kept, as
+  /// plain JSON. Null (and the extension answers with an error) when there
+  /// is nothing to report yet, the same case `bugReportTape` itself returns
+  /// null for.
+  Map<String, Object?> _remoteBugReport() {
+    final report = bugReportTape(_rewind);
+    if (report == null) {
+      throw StateError('nothing has been recorded yet');
+    }
+    final level = _level?.loaded.level;
+    return <String, Object?>{
+      'level': level?.name ?? 'unknown',
+      'levelHash': level?.digestHex ?? '',
+      'start': report.start.toJson(),
+      'tape': report.tape.toJson(),
+      'buildStamp': _buildStamp,
+      'platform': defaultTargetPlatform.name,
+    };
+  }
 
   /// The settings screen, which is a state machine and now says so.
   ///
@@ -291,6 +335,79 @@ class _GameScreenState extends State<GameScreen>
   /// Through [_runOrNull], because [build] asks before the device has opened.
   LevelReady? get _level => _runOrNull?.level;
 
+  /// `rp-01`/`rp-04`: this game's own `.f3drun` files, on disk. The dungeon's
+  /// own field, mirrored — see its `_beginDemo`/`_endDemo` for the mechanism
+  /// this repeats rather than reinvents.
+  DemoFile? _demos;
+
+  /// Where the run being recorded started, and in which level.
+  Snapshot? _demoStart;
+  String? _demoLevel;
+  String? _demoLevelHash;
+
+  /// A checkpoint every so many steps, taken live while the run is recorded.
+  DigestTrace? _demoCheckpoints;
+
+  /// The demo's own recorder, beside no rewind buffer here — this game has
+  /// none of the dungeon's kill camera to share one with.
+  InputTapeRecorder? _demoRecorder;
+
+  /// Starts writing the run down, from the state the level is in now.
+  ///
+  /// Now rather than at load: a level resumed from a save begins mid-run, and
+  /// the demo has to begin where the player did. The tape's seed is the dice
+  /// the snapshot carries, which is the one number a replay cannot do without.
+  void _beginDemo(String asset, LevelReady level) {
+    final start = level.sim.save();
+    _demoStart = start;
+    _demoLevel = asset;
+    _demoLevelHash = level.loaded.level.digestHex;
+    _demoCheckpoints = DigestTrace();
+    _endRecording();
+    final recorder = InputTapeRecorder(seed: start.data.integer('random'));
+    _demoRecorder = recorder;
+    _loop.recorders.add(recorder);
+  }
+
+  /// Stops the demo's recorder.
+  InputTapeRecorder? _endRecording() {
+    final recorder = _demoRecorder;
+    if (recorder != null) _loop.recorders.remove(recorder);
+    _demoRecorder = null;
+    return recorder;
+  }
+
+  /// Writes the run down when it ends, either way.
+  ///
+  /// Either way, because a death is the run somebody wants to send: "it threw
+  /// me off the edge" is a sentence, and the demo is the proof. Written once
+  /// at the end rather than as it goes — the same reason the save is.
+  void _endDemo() {
+    final recorder = _endRecording();
+    final start = _demoStart;
+    final level = _demoLevel;
+    final levelHash = _demoLevelHash;
+    final checkpoints = _demoCheckpoints;
+    if (recorder == null ||
+        start == null ||
+        level == null ||
+        levelHash == null ||
+        checkpoints == null) {
+      return;
+    }
+    _demos?.write(
+      Demo(
+        level: level,
+        levelHash: levelHash,
+        start: start,
+        tape: recorder.tape,
+        buildStamp: _buildStamp,
+        checkpoints: checkpoints,
+        platform: defaultTargetPlatform.name,
+      ),
+    );
+  }
+
   /// Where the run was standing when it was last written to disk.
   ///
 
@@ -323,7 +440,12 @@ class _GameScreenState extends State<GameScreen>
       apply: _applyConfig,
     );
     _applyConfig(_config);
-    _loop = GameLoop(input: _input, onStep: _step, drainLook: _drainLook);
+    _demos = DemoFile(appName: 'platformer', onIssue: printIssue);
+    _loop = GameLoop(input: _input, onStep: _step, drainLook: _drainLook)
+      ..recorders.add(_rewind.recorder);
+    // `rp-02`: harmless where the VM service is off — `registerExtension`
+    // just adds an entry nothing ever asks for.
+    registerTimelineExtensions(_timeline, bugReport: _remoteBugReport);
     _view = RenderView(camera: _camera);
     unawaited(_openGraphics());
   }
@@ -446,8 +568,10 @@ class _GameScreenState extends State<GameScreen>
         saves: _saveFile,
         input: _input,
         openDevice: () => _deviceReady.future,
-        onLevelBuilt: (LevelReady level, GraphicsDevice device) =>
-            setState(() => _levelArrived(level, device)),
+        onLevelBuilt: (String asset, LevelReady level, GraphicsDevice device) {
+          setState(() => _levelArrived(level, device));
+          _beginDemo(asset, level);
+        },
       ),
     );
 
@@ -764,7 +888,17 @@ class _GameScreenState extends State<GameScreen>
 
     // The camera owns "forward", and the simulation takes it as a number.
     sim.cameraYaw = camera.yaw;
+    // Before the step, so the keyframe is the state this step's recorded
+    // entry acts on — the moment `RewindBuffer` and the loop agree about.
+    if (_rewind.keyframeDue) _rewind.keyframe(sim.save());
     sim.step(dt);
+    // `rp-01`'s own checkpoint, taken here rather than replayed later from the
+    // finished tape — see the dungeon's identical placement for why the step
+    // number has to be the recorder's own.
+    final demoRecorder = _demoRecorder;
+    if (demoRecorder != null) {
+      _demoCheckpoints?.observe(demoRecorder.tape.steps, sim.save().toJson());
+    }
     // Drained once, here, and handed to everything that wants it. Draining
     // empties the buffer, so two readers each draining would each get half of
     // what happened — and which half would depend on the order they ran in.
@@ -942,7 +1076,7 @@ class _GameScreenState extends State<GameScreen>
   Widget build(BuildContext context) {
     final error = _screen.state.error;
     if (error != null) {
-      // The sentence is this game's; the screen is `flutter3d_session`'s,
+      // The sentence is this game's; the screen is `flutter3d_app`'s,
       // and it was the same four widgets in five applications.
       return DidNotStart(
         'The renderer did not start.\n\n$error',
@@ -963,8 +1097,22 @@ class _GameScreenState extends State<GameScreen>
 
     // `_run` is assigned in the same synchronous stretch as `_renderer`, so by
     // the time a frame actually reaches this widget it is there to read.
-    return BlocBuilder<RunCubit, RunStatus<LevelReady>>(
+    return BlocConsumer<RunCubit, RunStatus<LevelReady>>(
       bloc: _run,
+      // `rp-01`/`rp-04`: the one moment `_beginDemo` cannot cover, because it
+      // fires from `onLevelBuilt` rather than from a republished status —
+      // this game's own outcome ending, win or lose. `RunSession.observe`
+      // (called every step, see the comment above it) is what republishes
+      // `RunPlaying` with a new `outcome` exactly once per transition, so
+      // this fires once per level ending, not once per frame it stays ended.
+      listener: (BuildContext context, RunStatus<LevelReady> run) {
+        switch (run) {
+          case RunPlaying<LevelReady>(outcome: RunOutcome.lost):
+          case RunPlaying<LevelReady>(outcome: RunOutcome.won):
+            _endDemo();
+          default:
+        }
+      },
       builder: (BuildContext context, RunStatus<LevelReady> run) {
         if (run is RunFailed<LevelReady>) {
           // **This used to be a black screen for ever**: the load caught its
@@ -1048,29 +1196,44 @@ class _GameScreenState extends State<GameScreen>
           child: Stack(
             fit: StackFit.expand,
             children: <Widget>[
-              SceneSurface(
+              // **`gfx-71n`.** This build ships to Android and iOS, and the
+              // pool it draws through settles at the high-water mark of every
+              // attachment shape any frame has needed — which here includes a
+              // 6144 x 2048 shadow atlas and bloom's five levels. On a phone
+              // that is the difference between a slow frame and the operating
+              // system killing the process, so the platform's own warning is
+              // wired to giving the pooled ones back.
+              MemoryPressureRelease(
                 renderer: renderer,
-                scene: scene,
-                view: _view,
-                onBeforeFrame: () {},
-                settings: () => RenderSettings(
-                  fog: FogSettings(
-                    color: _loaded?.level.fogColor ?? Vector3(0.05, 0.07, 0.12),
-                    density: _loaded?.level.fogDensity ?? 0.0,
+                child: SceneSurface(
+                  renderer: renderer,
+                  scene: scene,
+                  view: _view,
+                  onBeforeFrame: () {},
+                  settings: () => RenderSettings(
+                    fog: FogSettings(
+                      color:
+                          _loaded?.level.fogColor ?? Vector3(0.05, 0.07, 0.12),
+                      density: _loaded?.level.fogDensity ?? 0.0,
+                    ),
+                    // Three cascades, because this level is a hundred and twenty
+                    // metres by two hundred and sixty and one map over that is
+                    // fourteen centimetres of world per texel — which drew the
+                    // runner's own shadow as a blurred slab beside them, and was
+                    // reported as the character being drawn twice.
+                    //
+                    // 2048 rather than the default 1024, which is a real cost:
+                    // the atlas is `resolution × cascades` wide, so this is
+                    // 6144 × 2048. What it buys is the character's own shadow
+                    // reading as soft rather than as a staircase — at 1024 the
+                    // near cascade is 1.9 cm of world per texel and the penguin's
+                    // shadow is a visible flight of steps beside it.
+                    shadows: const ShadowSettings(
+                      cascades: 3,
+                      resolution: 2048,
+                    ),
                   ),
-                  // Three cascades, because this level is a hundred and twenty
-                  // metres by two hundred and sixty and one map over that is
-                  // fourteen centimetres of world per texel — which drew the
-                  // runner's own shadow as a blurred slab beside them, and was
-                  // reported as the character being drawn twice.
-                  //
-                  // 2048 rather than the default 1024, which is a real cost:
-                  // the atlas is `resolution × cascades` wide, so this is
-                  // 6144 × 2048. What it buys is the character's own shadow
-                  // reading as soft rather than as a staircase — at 1024 the
-                  // near cascade is 1.9 cm of world per texel and the penguin's
-                  // shadow is a visible flight of steps beside it.
-                  shadows: const ShadowSettings(cascades: 3, resolution: 2048),
+                  presentFrame: presentFrame,
                 ),
               ),
               // The web build draws into a platform view, and a platform view

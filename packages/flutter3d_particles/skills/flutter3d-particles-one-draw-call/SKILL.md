@@ -35,7 +35,10 @@ makes a muzzle flash light the wall.
 
 `emit`, `emitTimed`, `emitFor` and `stopEmitting(key)` are the continuous forms;
 `burst` is the one-shot. A continuous emitter is addressed by a key, so whatever
-started it can stop it without holding a handle across a save.
+started it can stop it without holding a handle across a save. A burst takes
+`source:` for the same purpose the key serves: pass the `LightEmitter` the flash
+belongs to and its glow follows the particles up and back down. A burst without
+one lights nothing.
 
 ## Randomness a particle owns
 

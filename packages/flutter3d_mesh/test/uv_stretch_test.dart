@@ -40,10 +40,7 @@ void main() {
     for (var face = 0; face < 6; face++) {
       _project(mesh, <int>[face], UvProjection.box);
     }
-    expect(
-      stretchOf(mesh, <int>[0, 1, 2, 3, 4, 5]),
-      closeTo(1.0, 1e-9),
-    );
+    expect(stretchOf(mesh, <int>[0, 1, 2, 3, 4, 5]), closeTo(1.0, 1e-9));
   });
 
   test('halving the UV scale reads 2.0 — the row\'s own "known number"', () {

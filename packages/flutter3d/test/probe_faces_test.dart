@@ -13,7 +13,7 @@
 /// picture it lands on.
 library;
 
-import 'package:flutter3d/src/engine/render/probe_faces.dart';
+import 'package:flutter3d_core/src/engine/render/probe_faces.dart';
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vector_math/vector_math.dart';

@@ -38,7 +38,7 @@ them.
 
 **It does not draw.** A `Handle` is a box with a size and a colour, not a mesh
 and not a widget. Turning handles into something on a screen is
-`flutter3d_bridge`'s work and the editor's.
+`flutter3d_app`'s work and the editor's.
 
 **It does not read a disk.** `Editing` parses text and writes text; `scaffold`
 returns a project as a map of bytes. Choosing a path, reading it and writing it

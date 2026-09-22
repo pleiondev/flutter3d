@@ -39,7 +39,9 @@ void main() {
 
     test('a level with no edu_step entities binds nothing', () {
       final level = Level.fromJson(
-        jsonDecode('{"entities": [{"type": "door", "name": "d", "at": [0,0,0]}]}')
+        jsonDecode(
+              '{"entities": [{"type": "door", "name": "d", "at": [0,0,0]}]}',
+            )
             as Map<String, Object?>,
       );
       expect(bindingsInLevel(level), isEmpty);
@@ -47,7 +49,9 @@ void main() {
 
     test('an edu_step with no bindings field is skipped, not thrown', () {
       final level = Level.fromJson(
-        jsonDecode('{"entities": [{"type": "edu_step", "name": "s", "at": [0,0,0]}]}')
+        jsonDecode(
+              '{"entities": [{"type": "edu_step", "name": "s", "at": [0,0,0]}]}',
+            )
             as Map<String, Object?>,
       );
       expect(bindingsInLevel(level), isEmpty);

@@ -68,6 +68,23 @@ class OrientationDial extends StatelessWidget {
   }
 }
 
+/// What the three axis letters are drawn in — `ux-34`.
+///
+/// Exposed so the contrast test can read the same value the painter does,
+/// rather than repeating a hex beside it and passing after somebody changes
+/// one of the two.
+const Color kDialLabel = Color(0xFF000000);
+
+/// The ball each axis is drawn as, by the letter on it — `ux-34`'s own pair.
+///
+/// The painter reads these; the contrast test reads them too, for the same
+/// reason [kDialLabel] is public.
+const Map<String, Color> kDialAxisColours = <String, Color>{
+  'X': Color(0xFFC2566E),
+  'Y': Color(0xFF7FB069),
+  'Z': Color(0xFF5A87B8),
+};
+
 /// The circle, the six balls and the labels on the three facing the viewer.
 class _DialPainter extends CustomPainter {
   const _DialPainter(this.buttons, this.gizmo);
@@ -78,13 +95,17 @@ class _DialPainter extends CustomPainter {
   /// One per axis, matching the floor's own X and Z lines so the dial and the
   /// grid name the same axis the same colour. Y is the up axis, which the floor
   /// has no line for.
-  static const Map<ViewAxis, Color> _colours = <ViewAxis, Color>{
-    ViewAxis.xPositive: Color(0xFFC2566E),
-    ViewAxis.xNegative: Color(0xFF7A3A48),
-    ViewAxis.yPositive: Color(0xFF7FB069),
-    ViewAxis.yNegative: Color(0xFF4A6B3E),
-    ViewAxis.zPositive: Color(0xFF5A87B8),
-    ViewAxis.zNegative: Color(0xFF35526E),
+  /// `static final` rather than `const`: the three a letter is ever drawn on
+  /// are read from [kDialAxisColours] so there is one hex per axis and the
+  /// contrast test in `ux-34` measures the colour the painter actually uses.
+  /// The three behind are darkened versions nothing writes on.
+  static final Map<ViewAxis, Color> _colours = <ViewAxis, Color>{
+    ViewAxis.xPositive: kDialAxisColours['X']!,
+    ViewAxis.xNegative: const Color(0xFF7A3A48),
+    ViewAxis.yPositive: kDialAxisColours['Y']!,
+    ViewAxis.yNegative: const Color(0xFF4A6B3E),
+    ViewAxis.zPositive: kDialAxisColours['Z']!,
+    ViewAxis.zNegative: const Color(0xFF35526E),
   };
 
   static const Map<ViewAxis, String> _labels = <ViewAxis, String>{
@@ -137,7 +158,13 @@ class _DialPainter extends CustomPainter {
           style: const TextStyle(
             fontSize: 9,
             fontWeight: FontWeight.w600,
-            color: Color(0xFF0E1112),
+            // Black rather than the viewport's own near-black — `ux-34`.
+            // **Nine pixels is small text by every threshold there is**, so
+            // it owes 4.5:1 against whatever it sits on, and the ball it
+            // sits on worst is X+ (`#C2566E`): `#0E1112` on that is 4.38:1
+            // and black is 4.85:1. The difference is invisible on the other
+            // five balls and is the whole of the margin on that one.
+            color: kDialLabel,
           ),
         ),
         textDirection: TextDirection.ltr,

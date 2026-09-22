@@ -9,6 +9,8 @@ library;
 import 'package:flutter/material.dart';
 import 'package:flutter3d_model_core/flutter3d_model_core.dart';
 
+import '../../../l10n/app_localizations.dart';
+import 'named_button.dart';
 import 'theme.dart';
 
 /// One row per [IkConstraint] in [constraints]. Tapping a row reports its
@@ -41,11 +43,12 @@ class ConstraintsList extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final AppLocalizations l = AppLocalizations.of(context);
     if (constraints.isEmpty) {
       return Padding(
         padding: const EdgeInsets.symmetric(vertical: 4),
         child: Text(
-          'No constraints',
+          l.constraintsNone,
           style: Theme.of(
             context,
           ).textTheme.bodySmall?.copyWith(fontStyle: FontStyle.italic),
@@ -71,9 +74,13 @@ class ConstraintsList extends StatelessWidget {
           ),
           trailing: onRemove == null
               ? null
-              : IconButton(
-                  icon: const Icon(Icons.close, size: 16),
-                  onPressed: () => onRemove!(index),
+              : NamedButton(
+                  label: l.constraintsRemove,
+                  child: IconButton(
+                    tooltip: l.constraintsRemove,
+                    icon: const Icon(Icons.close, size: 16),
+                    onPressed: () => onRemove!(index),
+                  ),
                 ),
           onTap: () => onSelect(index),
         );

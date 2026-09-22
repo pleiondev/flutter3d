@@ -8,7 +8,8 @@ import 'package:flutter3d_game_shooter/staging.dart';
 import 'package:flutter3d_sim_mcp/flutter3d_sim_mcp.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-const String _crypt = '../../apps/flutter3d_demo_dungeon/assets/levels/crypt.json';
+const String _crypt =
+    '../../apps/flutter3d_demo_dungeon/assets/levels/crypt.json';
 
 void main() {
   test('eight playthroughs each reach an outcome, and the heatmap accounts '
@@ -33,7 +34,7 @@ void main() {
       8,
       reason: 'every run should be counted under exactly one outcome',
     );
-    expect((heatmap['cells']! as List<Object?>), isNotEmpty);
+    expect(heatmap['cells']! as List<Object?>, isNotEmpty);
   }, timeout: const Timeout(Duration(seconds: 60)));
 
   test('the same seed plays the same run twice', () async {
@@ -66,7 +67,8 @@ void main() {
     expect(
       runs.map((r) => r.outcome),
       anyElement(PlaytestOutcome.stuck),
-      reason: 'none of six tries got stuck — stuckAfter/stuckStride may be '
+      reason:
+          'none of six tries got stuck — stuckAfter/stuckStride may be '
           'miscalibrated for this level, or the detector may not be firing '
           'at all',
     );

@@ -8,35 +8,38 @@
 ///
 /// It is also useful rather than only instructive. Rendering on this backend
 /// needs no device, so the engine's frames can be checked under a plain
-/// `flutter test` on the VM, in seconds, where the golden suite currently
+/// `dart test` on the VM, in seconds, where the golden suite currently
 /// drives an application for twelve minutes.
 ///
 /// Split across a few files by cohesive concern, all re-exported from here:
 /// [CpuShaderLibrary] and `CpuPipeline` are `cpu_shader_library.dart`;
 /// [CpuEncoder] — the pass that records state and rasterises on `draw` — is
-/// `cpu_encoder.dart`; the widget [present] returns is `cpu_frame_widget.dart`;
-/// and the per-vertex attribute assembly instancing needs is
-/// `cpu_vertex_fetch.dart`.
+/// `cpu_encoder.dart`; and the per-vertex attribute assembly instancing needs
+/// is `cpu_vertex_fetch.dart`. `CpuFrame`, the widget `presentFrame` in
+/// `flutter3d_app` returns for this backend, moved there with it (mcp-02n) —
+/// this package is flat, and a Flutter-facing widget file could not stay.
 library;
 
 import 'dart:typed_data';
 
-import 'package:flutter/widgets.dart';
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 
 import 'cpu_encoder.dart';
-import 'cpu_frame_widget.dart';
 import 'cpu_shader.dart';
 import 'cpu_shader_library.dart';
 
 export 'cpu_encoder.dart';
-export 'cpu_frame_widget.dart';
 export 'cpu_shader_library.dart';
 export 'cpu_vertex_fetch.dart';
 
 /// The software backend.
 final class CpuDevice implements GraphicsDevice {
-  CpuDevice({required this.width, required this.height, required this.shaders});
+  CpuDevice({
+    required this.width,
+    required this.height,
+    required this.shaders,
+    this.maxColorAttachments = 2,
+  });
 
   final int width;
   final int height;
@@ -50,9 +53,6 @@ final class CpuDevice implements GraphicsDevice {
   @override
   Future<LoadedShaderLibrary> loadShaders(ByteData bytes) async =>
       CpuLoadedShaderLibrary.load(shaders, bytes);
-
-  /// What [present] shows: the last frame handed to it.
-  CpuTexture? _presented;
 
   @override
   // The engine's own convention, and here it is a choice rather than a
@@ -120,11 +120,35 @@ final class CpuDevice implements GraphicsDevice {
 
   @override
   // One tap along one axis from one level, chosen per triangle — see
-  // `BoundTexture.sample`. A sampler that asks for more is honoured on the
-  // hardware backends and ignored here, and the answer says so rather than
-  // promising taps this rasteriser does not take: `anisotropic-floor` is the
-  // scene where the two sets are allowed to differ by exactly that.
-  int get maxAnisotropy => 1;
+  // `BoundTexture.sample`, which takes the taps since `gfx-02n`: a sampler
+  // asking for eight gets eight, spread along the long axis of its footprint,
+  // each at the level the short axis asks for. This answered one until then,
+  // and `anisotropic-floor` is the scene whose cross-backend budget was the
+  // measured size of that difference — a budget now describing a smaller gap
+  // than it was written for, since the remaining difference is the weighting
+  // of the taps rather than their absence.
+  //
+  // Sixteen because that is what the hardware backends report and what a
+  // sampler is clamped against; the cost here is linear in the taps and paid
+  // only by a sampler that asked.
+  int get maxAnisotropy => 16;
+
+  /// Two by default, and settable — `gfx-50n`.
+  ///
+  /// The rasteriser could write into any number of arrays, so the two is a
+  /// choice rather than a limit: it answers what the hardware backends answer
+  /// where they work, because a reference that could do more than the thing
+  /// it is a reference for would record pictures no shipping backend can
+  /// reproduce.
+  ///
+  /// **Settable for the harder reason.** The device this stands in for is
+  /// Impeller on OpenGL ES, which aborts rather than refusing, so the no-MRT
+  /// path cannot be run on the hardware that has it — there is no way to see
+  /// what the engine does there except to build a device that says one. A
+  /// rasteriser that can be that device is the only place the path is
+  /// exercised with real pixels at the end of it.
+  @override
+  final int maxColorAttachments;
 
   @override
   // Nothing to probe: a cube here is six arrays of floats and a table saying
@@ -330,13 +354,16 @@ final class CpuDevice implements GraphicsDevice {
         'level (0) may be overwritten.',
       );
     }
-    final rect = region ?? ScreenRect(width: target.width, height: target.height);
+    final rect =
+        region ?? ScreenRect(width: target.width, height: target.height);
     if (rect.x < 0 ||
         rect.y < 0 ||
         rect.x + rect.width > target.width ||
         rect.y + rect.height > target.height) {
-      throw ArgumentError('overwriteTexture: $rect does not fit inside a '
-          '${target.width}x${target.height} texture');
+      throw ArgumentError(
+        'overwriteTexture: $rect does not fit inside a '
+        '${target.width}x${target.height} texture',
+      );
     }
     if (rgba.lengthInBytes != rect.width * rect.height * 4) {
       throw ArgumentError(
@@ -377,9 +404,12 @@ final class CpuDevice implements GraphicsDevice {
   /// step, which is the one respect in which this backend's write is simpler
   /// than the other three's.
   @override
-  void overwriteGeometry(GeometryBuffer target, int offsetInBytes, ByteData bytes) {
-    final backend =
-        target.backend as ({ByteData bytes, GeometryUsage usage});
+  void overwriteGeometry(
+    GeometryBuffer target,
+    int offsetInBytes,
+    ByteData bytes,
+  ) {
+    final backend = target.backend as ({ByteData bytes, GeometryUsage usage});
     if (offsetInBytes < 0 ||
         offsetInBytes + bytes.lengthInBytes > target.lengthInBytes) {
       throw ArgumentError(
@@ -448,8 +478,17 @@ final class CpuDevice implements GraphicsDevice {
   }
 
   @override
-  CommandEncoder beginRenderPass(RenderPassDescriptor descriptor) =>
-      CpuEncoder(descriptor);
+  CommandEncoder beginRenderPass(RenderPassDescriptor descriptor) {
+    // `gfx-50n`. Nothing here would abort — the rasteriser writes into
+    // whichever lists it is handed — and it refuses all the same, because a
+    // reference implementation that accepted a pass the shipping backends
+    // would not is a reference for the wrong thing.
+    descriptor.checkAttachmentLimit(
+      maxColorAttachments,
+      backend: 'the software rasteriser',
+    );
+    return CpuEncoder(descriptor);
+  }
 
   @override
   Future<ByteData?> readPixels(TextureHandle texture) async {
@@ -504,16 +543,6 @@ final class CpuDevice implements GraphicsDevice {
       }
     }
     return Future<ByteData>.value(ByteData.sublistView(out));
-  }
-
-  @override
-  Widget present(
-    TextureHandle frame, {
-    BoxFit fit = BoxFit.fill,
-    FilterQuality quality = FilterQuality.none,
-  }) {
-    _presented = frame.backend as CpuTexture;
-    return CpuFrame(texture: _presented!, fit: fit, quality: quality);
   }
 
   /// A no-op, and honestly one: every texture and buffer this backend hands
