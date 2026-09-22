@@ -108,8 +108,9 @@ final class LevelMechanismsDemo extends ShowcaseDemo {
   @override
   void update(DemoContext context, double dt) {
     _clock += dt;
-    if (automatic && _clock > 2.0 && (_clock - 2.0) % 8.0 < dt)
+    if (automatic && _clock > 2.0 && (_clock - 2.0) % 8.0 < dt) {
       _pressAsked = true;
+    }
     if (_pressAsked) {
       _pressAsked = false;
       // #region press-live
