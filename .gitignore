@@ -72,3 +72,10 @@ HANDOFF.md
 # Machine-local working notes, like HANDOFF.md above.
 CLAUDE.md
 site/CLAUDE.md
+
+# What `matchesGoldenFile` writes when a comparison fails: the recorded
+# picture, the one the test drew, and the difference between them. Output of a
+# failed run rather than anything a run reads, and six of them had been
+# committed by accident — still sitting there from a failure fixed long since,
+# where they read as a golden nobody could place.
+**/test/failures/

@@ -138,6 +138,9 @@ void main() {
           'texelsPerMeter',
           'fps',
           'frameSnap',
+          // `pro-sc-09`: a browser's own sculpt ceiling is a number a
+          // project states, not one this build decides for it.
+          'sculptTriangleLimitWeb',
         ]),
       );
     });
@@ -552,6 +555,31 @@ void main() {
       // drawing the old paint until something else forces a rebuild.
       expect(after.version, before.version + 1);
       expect(after.surface.name, 'brass');
+    });
+  });
+
+  group('vertexCount', () {
+    // `mat-33d`'s own status-line line: `triangleCount`'s twin, summed the
+    // same way.
+    test("sums each object's own geometry.vertexCount", () {
+      final one = cubes(1);
+      final int singleCubeVertices = one.objects.single.geometry.vertexCount;
+
+      expect(one.vertexCount, singleCubeVertices);
+      expect(cubes(2).vertexCount, singleCubeVertices * 2);
+    });
+
+    test('a socket contributes nothing — it has no geometry to count', () {
+      final project = const ModelProject().added(
+        (int id) => ModelObject(
+          id: id,
+          name: 'socket',
+          geometry: const SocketGeometry(),
+          transform: Matrix4.identity(),
+        ),
+      );
+
+      expect(project.vertexCount, 0);
     });
   });
 }

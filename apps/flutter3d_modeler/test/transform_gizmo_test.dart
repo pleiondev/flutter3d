@@ -293,8 +293,10 @@ void main() {
     expect(GizmoDrag.start(handles, _oblique, Vector3(0.0, -1.0, 0.0)), isNull);
 
     // And the arrows themselves are all reachable from a camera like this one,
-    // or the miss above would be proving nothing.
-    for (final axis in GizmoAxis.values) {
+    // or the miss above would be proving nothing. The three that are axes:
+    // the fourth member is the middle box of a scale gizmo, which a move
+    // gizmo does not place and which runs along no direction at all.
+    for (final axis in GizmoAxis.three) {
       final target = axis.direction * 1.0;
       final hit = GizmoHit.nearest(handles, _oblique, _at(target, _oblique));
       expect(hit?.axis, axis, reason: 'the $axis arrow can be taken hold of');
@@ -325,28 +327,34 @@ void main() {
     expect(drag.moved, isFalse);
   });
 
-  test('the X arrow is #FF6B8A', () {
+  test('each arrow is the hand-over\'s own axis colour', () {
     final handles = gizmoHandles(Vector3.zero(), _view());
-    final x = handles.firstWhere((GizmoHandle it) => it.axis == GizmoAxis.x);
 
-    // Mutation: give the X arrow `kGizmoTintY`. Every channel below is out by
-    // more than two, and what a person sees is a green arrow moving things
-    // sideways — three arms of colours that no longer mean anything.
-    expect(((x.colour.x * 255.0).round() - 0xFF).abs(), lessThanOrEqualTo(2));
-    expect(((x.colour.y * 255.0).round() - 0x6B).abs(), lessThanOrEqualTo(2));
-    expect(((x.colour.z * 255.0).round() - 0x8A).abs(), lessThanOrEqualTo(2));
-
-    // The other two are the same three numbers rotated, so no arrow is heavier
-    // than the others. Mutation: darken Y to `0x4A9F3B` and the sum below
-    // stops matching. Run: this fails.
-    for (final handle in handles) {
-      final channels = <int>[
-        (handle.colour.x * 255.0).round(),
-        (handle.colour.y * 255.0).round(),
-        (handle.colour.z * 255.0).round(),
-      ]..sort();
-      expect(channels, <int>[0x6B, 0x8A, 0xFF]);
+    // Mutation: swap any two of these three expectations. The colour a
+    // person drags is the colour that tells them which axis they are
+    // dragging; the design hand-over gives each axis its own hex rather than
+    // rotating one triple through the three (screen 01: X `#FF6B8A`, Y
+    // `#7EE081` — the same green a filled budget bar reads success from — Z
+    // `#6AA8FF`).
+    void expectAxis(GizmoAxis axis, int r, int g, int b) {
+      final handle = handles.firstWhere((GizmoHandle it) => it.axis == axis);
+      expect(
+        ((handle.colour.x * 255.0).round() - r).abs(),
+        lessThanOrEqualTo(2),
+      );
+      expect(
+        ((handle.colour.y * 255.0).round() - g).abs(),
+        lessThanOrEqualTo(2),
+      );
+      expect(
+        ((handle.colour.z * 255.0).round() - b).abs(),
+        lessThanOrEqualTo(2),
+      );
     }
+
+    expectAxis(GizmoAxis.x, 0xFF, 0x6B, 0x8A);
+    expectAxis(GizmoAxis.y, 0x7E, 0xE0, 0x81);
+    expectAxis(GizmoAxis.z, 0x6A, 0xA8, 0xFF);
   });
 
   test('an arrow is grabbable where it is drawn', () {

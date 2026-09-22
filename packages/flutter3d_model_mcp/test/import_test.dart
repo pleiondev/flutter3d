@@ -5,6 +5,9 @@
 ///     dart test test/import_test.dart
 library;
 
+import 'dart:io';
+
+import 'package:flutter3d_core/formats.dart';
 import 'package:flutter3d_model_core/flutter3d_model_core.dart';
 import 'package:flutter3d_model_mcp/flutter3d_model_mcp.dart';
 import 'package:test/test.dart';
@@ -57,6 +60,55 @@ void main() {
       // undo in this project already holds, and the acceptance this test
       // is named for.
       expect(identical(session.history.project, afterFirst), isTrue);
+    });
+
+    // `tut-01`'s own acceptance: `ImportOptions` reaches `session.import`
+    // now, and reads a file the identical way `fromModelDocument` already
+    // does when called directly with the same options.
+    test('options: ImportOptions(scale: 0.001) scales an import exactly '
+        'the way fromModelDocument does called directly with the same '
+        'options', () async {
+      const stlPath = '../flutter3d_core/test/formats/fixtures/stl/cube.stl';
+      final bytes = File(stlPath).readAsBytesSync();
+      final document = await StlLoader().load(bytes);
+      final direct = fromModelDocument(
+        document,
+        options: const ImportOptions(scale: 0.001),
+      );
+
+      final session = ModelSession(ModelHistory(const ModelProject()));
+      final answer = await session.import(
+        stlPath,
+        options: const ImportOptions(scale: 0.001),
+      );
+      expect(answer.did, isTrue, reason: answer.says);
+
+      expect(writeProject(session.history.project), writeProject(direct));
+    });
+
+    // The regression guard the same row asks for: a call with no options at
+    // all still behaves exactly as it did before `ImportOptions` reached
+    // this far — unscaled, up axis `y`, every object left as
+    // `ImportedGeometry`.
+    test('called with no options at all still behaves exactly as it does '
+        'today', () async {
+      const stlPath = '../flutter3d_core/test/formats/fixtures/stl/cube.stl';
+      final bytes = File(stlPath).readAsBytesSync();
+      final document = await StlLoader().load(bytes);
+      final direct = fromModelDocument(document);
+
+      final session = ModelSession(ModelHistory(const ModelProject()));
+      final answer = await session.import(stlPath);
+      expect(answer.did, isTrue, reason: answer.says);
+
+      expect(writeProject(session.history.project), writeProject(direct));
+      expect(
+        session.history.project.objects.every(
+          (ModelObject o) => o.geometry is ImportedGeometry,
+        ),
+        isTrue,
+        reason: 'weld/fixNormals/triangulate all default to off',
+      );
     });
   });
 }

@@ -9,6 +9,10 @@
 ///     dart test test/render_project_test.dart
 library;
 
+import 'dart:convert';
+import 'dart:math' as math;
+import 'dart:typed_data';
+
 import 'package:flutter3d_core/formats.dart';
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
@@ -22,6 +26,83 @@ GraphicsDevice _cpuDevice(int width, int height) => CpuDevice(
   height: height,
   shaders: CpuShaderLibrary(builtinCpuShaders()),
 );
+
+/// A unit cube centred at [center] rather than at the origin — a modifier's
+/// own mirror or array runs in the mesh's *local* space, through the
+/// origin, so a cube already straddling it would not show a visible
+/// difference in the picture at all.
+EditMesh _offsetCuboid(Vector3 center) {
+  final half = Vector3(0.5, 0.5, 0.5);
+  Vector3 at(double sx, double sy, double sz) =>
+      center + Vector3(sx * half.x, sy * half.y, sz * half.z);
+  return EditMesh.fromFaces(
+    <Vector3>[
+      at(-1, -1, -1),
+      at(1, -1, -1),
+      at(1, 1, -1),
+      at(-1, 1, -1),
+      at(-1, -1, 1),
+      at(1, -1, 1),
+      at(1, 1, 1),
+      at(-1, 1, 1),
+    ],
+    <List<int>>[
+      <int>[4, 5, 6, 7],
+      <int>[1, 0, 3, 2],
+      <int>[5, 1, 2, 6],
+      <int>[0, 4, 7, 3],
+      <int>[3, 7, 6, 2],
+      <int>[0, 1, 5, 4],
+    ],
+  );
+}
+
+/// A project with one red, edited (not parametric — a modifier stack only
+/// runs over an [EditedGeometry]) cube offset from the origin, and
+/// [modifiers] on it.
+ModelProject _editedCubeProject({
+  List<ModifierSlot> modifiers = const <ModifierSlot>[],
+}) {
+  final project = const ModelProject().added(
+    (int id) => ModelObject(
+      id: id,
+      name: 'cube',
+      geometry: EditedGeometry(_offsetCuboid(Vector3(1.2, 0, 0))),
+      transform: Matrix4.identity(),
+      materialSlots: const <int>[0],
+      modifiers: modifiers,
+    ),
+  );
+  return ModelProject(
+    profile: project.profile,
+    objects: project.objects,
+    materials: <ProjectMaterial>[
+      ProjectMaterial(
+        surface: SurfaceMaterial(
+          name: 'red',
+          baseColor: Vector4(0.9, 0.1, 0.1, 1.0),
+          roughness: 0.8,
+        ),
+      ),
+    ],
+    images: project.images,
+    nextId: project.nextId,
+    skeletons: project.skeletons,
+    clips: project.clips,
+    lighting: project.lighting,
+  );
+}
+
+int _differingPixels(Rgba8Image a, Rgba8Image b) {
+  var differing = 0;
+  for (var i = 0; i < a.pixels.length; i += 4) {
+    final dr = (a.pixels[i] - b.pixels[i]).abs();
+    final dg = (a.pixels[i + 1] - b.pixels[i + 1]).abs();
+    final db = (a.pixels[i + 2] - b.pixels[i + 2]).abs();
+    if (dr + dg + db > 30) differing++;
+  }
+  return differing;
+}
 
 /// A project with one cuboid, red, centred at the origin.
 ModelProject _cubeProject() {
@@ -65,6 +146,47 @@ int _litPixels(Rgba8Image image, {int threshold = 60}) {
   return lit;
 }
 
+/// A Radiance panorama of [width] x [height], every pixel [channels].
+///
+/// Flat rather than a picture: what is in question is whether an environment
+/// reaches the shading at all, and a flat sky makes the answer one number per
+/// pixel rather than a pattern somebody has to interpret.
+Uint8List _panorama(int width, int height, List<int> channels) =>
+    Uint8List.fromList(<int>[
+      ...utf8.encode(
+        '#?RADIANCE\nFORMAT=32-bit_rle_rgbe\n\n-Y $height +X $width\n',
+      ),
+      for (var i = 0; i < width * height; i++) ...channels,
+    ]);
+
+/// [_cubeProject], lit by [panorama] where one is given.
+ModelProject _underPanorama(Uint8List? panorama) {
+  final ModelProject cube = _cubeProject();
+  if (panorama == null) return cube;
+  final ModelProject withImage = cube.copyWith(
+    images: <EncodedImage>[
+      EncodedImage(
+        bytes: panorama,
+        name: 'sky.hdr',
+        mimeType: 'image/vnd.radiance',
+      ),
+    ],
+  );
+  final ModelHistory history = ModelHistory(withImage);
+  final String? refused = history.run(const SetPanorama(index: 0));
+  expect(refused, isNull, reason: refused);
+  return history.project;
+}
+
+/// How bright a picture is on average, as a number to compare two by.
+double _brightness(Rgba8Image image) {
+  var total = 0;
+  for (var i = 0; i < image.pixels.length; i += 4) {
+    total += image.pixels[i] + image.pixels[i + 1] + image.pixels[i + 2];
+  }
+  return total / (image.pixels.length / 4);
+}
+
 void main() {
   group('renderProject on a real CpuDevice', () {
     test(
@@ -87,6 +209,52 @@ void main() {
         );
       },
     );
+
+    test('tut-02: a millimetre-scale prop fills the frame too', () async {
+      // Case 1's own teapot, correctly imported from a millimetre STL, is
+      // about eight millimetres across. The framing used to floor its fitted
+      // radius at five centimetres, so a picture of it was a speck in the
+      // middle of an empty frame — which the tutorial worked around by
+      // scaling the model up twenty times for the render alone.
+      final ModelProject small = ModelProject(
+        objects: <ModelObject>[
+          ModelObject(
+            id: 1,
+            name: 'prop',
+            geometry: ParametricGeometry(
+              ParametricCuboid(size: Vector3(0.008, 0.006, 0.008)),
+            ),
+            transform: Matrix4.identity(),
+            materialSlots: const <int>[0],
+          ),
+        ],
+        materials: <ProjectMaterial>[
+          ProjectMaterial(
+            surface: SurfaceMaterial(
+              name: 'red',
+              baseColor: Vector4(0.9, 0.1, 0.1, 1.0),
+              roughness: 0.8,
+            ),
+          ),
+        ],
+        nextId: 2,
+      );
+
+      final png = await renderProject(
+        RenderRequest(project: small, width: 64, height: 64),
+        deviceFactory: _cpuDevice,
+      );
+      final decoded = await decodeImagePure(png);
+
+      // Mutation: put the floor back. The prop covers a pixel or two and the
+      // picture is of nothing — for the tutorial and for an agent's own
+      // "show me the model" alike.
+      expect(
+        _litPixels(decoded!),
+        greaterThan(64 * 64 ~/ 20),
+        reason: 'a small prop is framed by its own size, not by a floor',
+      );
+    });
 
     test('every named view actually points at the cube', () async {
       for (final view in RenderProjectView.values) {
@@ -236,6 +404,631 @@ void main() {
       expect(decoded, isNotNull);
       expect(decoded!.width, 16);
       expect(decoded.height, 16);
+    });
+  });
+
+  group('tut-22 — renderProject is deterministic', () {
+    // `tut-22`'s own investigation (`doc/modeler-tutorial-gaps.md`): four
+    // committed tutorial reference PNGs were found to differ from a clean
+    // regenerate of the same, unmodified HEAD. That turned out to have
+    // nothing to do with `renderProject` itself — the real cause was
+    // `tut-07`'s own legitimate default change (`RenderSettings.bloom`/
+    // `.shadows` now follow `SceneLighting`'s own defaults, which do not
+    // match `RenderSettings`'s bare ones, for a project that never touches
+    // its own lighting) reaching two tutorial cases' own reference pictures
+    // that were never regenerated for it — not a source of nondeterminism
+    // anywhere in the render path. This group is what actually rules that
+    // out, rather than leaving it assumed: the same project, rendered twice,
+    // must come back byte-identical, in one process and across two.
+    test(
+      'the same project, rendered twice in one process, is byte-identical',
+      () async {
+        // A shape close to the two cases this row's own investigation named:
+        // an edited mesh under a modifier, no explicit `SceneLighting` at
+        // all — exactly the combination that made `tut-07`'s default change
+        // invisible to every test that only ever compared *within* one run.
+        final project = _editedCubeProject(
+          modifiers: <ModifierSlot>[
+            ModifierSlot(modifier: MirrorModifier(normal: Vector3(1, 0, 0))),
+          ],
+        );
+        final request = RenderRequest(
+          project: project,
+          view: RenderProjectView.front,
+          width: 64,
+          height: 64,
+        );
+        final first = await renderProject(request, deviceFactory: _cpuDevice);
+        final second = await renderProject(request, deviceFactory: _cpuDevice);
+        expect(
+          second,
+          orderedEquals(first),
+          reason:
+              'renderProject has no clock, no random seed and no unordered '
+              'Set/Map on its own render path — two calls with the same '
+              'RenderRequest must produce the same bytes',
+        );
+      },
+    );
+
+    test(
+      'the same project, rendered in two fresh CpuDevices, is byte-identical',
+      () async {
+        // `_cpuDevice` builds a brand-new `CpuDevice` per call, the same
+        // shape `tool/make_caseN_fixtures.dart` uses from a fresh `dart run`
+        // process each time it is invoked by hand — so this is the closer
+        // analogue of "two fresh processes" than the test above, without
+        // actually paying for a second process.
+        final project = _cubeProject();
+        final request = RenderRequest(
+          project: project,
+          view: RenderProjectView.iso,
+          width: 48,
+          height: 48,
+        );
+        final a = await renderProject(
+          request,
+          deviceFactory: (w, h) => CpuDevice(
+            width: w,
+            height: h,
+            shaders: CpuShaderLibrary(builtinCpuShaders()),
+          ),
+        );
+        final b = await renderProject(
+          request,
+          deviceFactory: (w, h) => CpuDevice(
+            width: w,
+            height: h,
+            shaders: CpuShaderLibrary(builtinCpuShaders()),
+          ),
+        );
+        expect(b, orderedEquals(a));
+      },
+    );
+  });
+
+  group('tut-06 — modifiers read at render time', () {
+    Future<Rgba8Image> render(ModelProject project) async =>
+        (await decodeImagePure(
+          await renderProject(
+            RenderRequest(
+              project: project,
+              view: RenderProjectView.front,
+              width: 64,
+              height: 64,
+            ),
+            deviceFactory: _cpuDevice,
+          ),
+        ))!;
+
+    test('a mirror modifier changes the picture, with no Apply', () async {
+      final bare = await render(_editedCubeProject());
+      final mirrored = await render(
+        _editedCubeProject(
+          modifiers: <ModifierSlot>[
+            ModifierSlot(modifier: MirrorModifier(normal: Vector3(1, 0, 0))),
+          ],
+        ),
+      );
+
+      // Mutation: read `object.geometry` straight through regardless of
+      // `object.modifiers`, the way `renderProject` did before `tut-06` —
+      // the two pictures would then be pixel-for-pixel identical.
+      expect(
+        _differingPixels(bare, mirrored),
+        greaterThan(0),
+        reason:
+            'a mirror modifier should be visible in a headless render '
+            'without Apply ever being called',
+      );
+    });
+
+    test('an array modifier changes the picture, with no Apply', () async {
+      final bare = await render(_editedCubeProject());
+      final arrayed = await render(
+        _editedCubeProject(
+          modifiers: <ModifierSlot>[
+            ModifierSlot(
+              modifier: ArrayModifier(count: 3, offset: Vector3(0, 0, 2.4)),
+            ),
+          ],
+        ),
+      );
+
+      expect(
+        _differingPixels(bare, arrayed),
+        greaterThan(0),
+        reason:
+            'an array modifier should be visible in a headless render '
+            'without Apply ever being called',
+      );
+    });
+
+    test(
+      'Apply bakes exactly the picture the live stack already drew',
+      () async {
+        final project = _editedCubeProject(
+          modifiers: <ModifierSlot>[
+            ModifierSlot(modifier: MirrorModifier(normal: Vector3(1, 0, 0))),
+            ModifierSlot(
+              modifier: ArrayModifier(count: 2, offset: Vector3(0, 0, 2.4)),
+            ),
+          ],
+        );
+        final before = await render(project);
+
+        final history = ModelHistory(project);
+        expect(history.run(const ApplyModifier(id: 1, index: 1)), isNull);
+        expect(history.project[1]!.modifiers, isEmpty);
+
+        final after = await render(history.project);
+
+        // Apply bakes the stack into the base mesh and drops it — it must
+        // not change what was already visible, only how it is stored.
+        expect(_differingPixels(before, after), 0);
+      },
+    );
+  });
+
+  group("tut-07 — a project's own lighting reaches the picture", () {
+    Future<Rgba8Image> render(ModelProject project) async =>
+        (await decodeImagePure(
+          await renderProject(
+            RenderRequest(project: project, width: 64, height: 64),
+            deviceFactory: _cpuDevice,
+          ),
+        ))!;
+
+    int brightnessSum(Rgba8Image image) {
+      var sum = 0;
+      for (var i = 0; i < image.pixels.length; i += 4) {
+        sum += image.pixels[i] + image.pixels[i + 1] + image.pixels[i + 2];
+      }
+      return sum;
+    }
+
+    ModelProject relit(ModelProject base, SceneLighting lighting) =>
+        ModelProject(
+          profile: base.profile,
+          objects: base.objects,
+          materials: base.materials,
+          images: base.images,
+          nextId: base.nextId,
+          skeletons: base.skeletons,
+          clips: base.clips,
+          lighting: lighting,
+        );
+
+    test("a project's own point light brightens the picture, on top of the "
+        'fixed key/fill pair', () async {
+      final base = _cubeProject();
+      final unlit = await render(base);
+      final lit = await render(
+        relit(
+          base,
+          SceneLighting(
+            lights: <ProjectLight>[
+              ProjectLight(
+                type: ProjectLightType.point,
+                intensity: 80.0,
+                transform: Matrix4.translation(Vector3(1.5, 1.5, 1.5)),
+              ),
+            ],
+          ),
+        ),
+      );
+
+      // Mutation: build `renderProject`'s own scene from the two fixed
+      // lights alone, the way it did before `tut-07` — the two pictures
+      // would then be identical, since nothing reads `project.lighting`
+      // at all.
+      expect(
+        _differingPixels(unlit, lit),
+        greaterThan(0),
+        reason:
+            "a project's own AddLight should reach a headless render, "
+            'not only the live viewport',
+      );
+      expect(
+        brightnessSum(lit),
+        greaterThan(brightnessSum(unlit)),
+        reason: 'an added point light should brighten the picture',
+      );
+    });
+
+    test("the scene's own exposure reaches the picture too", () async {
+      final base = _cubeProject();
+      final normal = await render(base);
+      final dim = await render(relit(base, const SceneLighting(exposure: 0.3)));
+
+      expect(
+        brightnessSum(dim),
+        lessThan(brightnessSum(normal)),
+        reason:
+            "SetSceneLightingField('exposure', ...) should darken a "
+            'headless render, the same way it darkens the live viewport',
+      );
+    });
+  });
+
+  group('tut-10 — a posed, skinned, morphed character', () {
+    Future<Rgba8Image> render(ModelProject project) async =>
+        (await decodeImagePure(
+          await renderProject(
+            RenderRequest(
+              project: project,
+              view: RenderProjectView.front,
+              width: 64,
+              height: 64,
+            ),
+            deviceFactory: _cpuDevice,
+          ),
+        ))!;
+
+    /// A flat quad, small enough that a modest joint move carries it well
+    /// clear of where it started.
+    EditMesh buildQuad() => EditMesh.fromFaces(
+      <Vector3>[
+        Vector3(-0.5, -0.5, 0),
+        Vector3(0.5, -0.5, 0),
+        Vector3(0.5, 0.5, 0),
+        Vector3(-0.5, 0.5, 0),
+      ],
+      <List<int>>[
+        <int>[0, 1, 2, 3],
+      ],
+    );
+
+    /// A project with one quad, wholly weighted to one joint sitting at
+    /// [jointTransform] — bind pose is always the joint at the identity, so
+    /// [jointTransform] alone is what a `PoseJoint`/`RotateBy` pair would
+    /// have moved it to.
+    ModelProject skinnedQuadProject(Matrix4 jointTransform) {
+      var project = const ModelProject().added(
+        (int id) => ModelObject(
+          id: id,
+          name: 'joint',
+          geometry: const SocketGeometry(),
+          transform: jointTransform,
+        ),
+      );
+      final int jointId = project.objects.single.id;
+
+      final mesh = buildQuad();
+      mesh.beginStep();
+      assignSelection(
+        mesh,
+        <int>[for (var v = 0; v < mesh.vertexSlotCount; v++) v],
+        0,
+        1.0,
+      );
+      mesh.endStep();
+      project = project.added(
+        (int id) => ModelObject(
+          id: id,
+          name: 'mesh',
+          geometry: EditedGeometry(mesh),
+          transform: Matrix4.identity(),
+          materialSlots: const <int>[0],
+          skeletonIndex: 0,
+        ),
+      );
+
+      return ModelProject(
+        profile: project.profile,
+        objects: project.objects,
+        materials: <ProjectMaterial>[
+          ProjectMaterial(
+            surface: SurfaceMaterial(
+              baseColor: Vector4(0.9, 0.1, 0.1, 1.0),
+              roughness: 0.8,
+            ),
+          ),
+        ],
+        images: project.images,
+        nextId: project.nextId,
+        skeletons: <ProjectSkeleton>[
+          ProjectSkeleton(
+            joints: <int>[jointId],
+            inverseBindMatrices: <Matrix4>[Matrix4.identity()],
+          ),
+        ],
+        clips: project.clips,
+        lighting: project.lighting,
+      );
+    }
+
+    test("a posed joint moves the mesh it skins — renderProject draws the "
+        'pose, not the bind pose', () async {
+      // A rotation, not a translation: `_frame`'s own camera re-fits to
+      // wherever a lone skinned object ends up, so a pure translation
+      // reads as the identical picture either way — moved, then framed
+      // right back to the middle. Turning the flat quad edge-on to the
+      // camera instead changes its own *silhouette*, which framing cannot
+      // hide.
+      final rest = await render(skinnedQuadProject(Matrix4.identity()));
+      final posed = await render(
+        skinnedQuadProject(Matrix4.rotationY(math.pi / 2)),
+      );
+
+      // Mutation: read `object.geometry` at raw bind pose regardless of
+      // `skeletonIndex`, the way `renderProject` did before `tut-10` —
+      // `restLit` and `posedLit` would then be equal, since nothing about
+      // the mesh object's own transform ever changed.
+      final int restLit = _litPixels(rest, threshold: 30);
+      final int posedLit = _litPixels(posed, threshold: 30);
+      expect(
+        posedLit,
+        lessThan(restLit ~/ 3),
+        reason:
+            'a quad turned edge-on by its own joint should cover far '
+            'fewer pixels face-on than one left at bind pose — '
+            'rest=$restLit posed=$posedLit',
+      );
+    });
+
+    test("a shape key's own weight blends into the render", () async {
+      final quad = buildQuad();
+      final puffed = Float32List(quad.vertexSlotCount * 3);
+      for (var v = 0; v < quad.vertexSlotCount; v++) {
+        final p = quad.positionOf(v);
+        puffed[v * 3] = p.x * 2.4;
+        puffed[v * 3 + 1] = p.y * 2.4;
+        puffed[v * 3 + 2] = p.z * 2.4;
+      }
+      final key = ShapeKey('puff', puffed);
+
+      ModelProject projectAt(double weight) {
+        final base = const ModelProject().added(
+          (int id) => ModelObject(
+            id: id,
+            name: 'mesh',
+            geometry: EditedGeometry(quad),
+            transform: Matrix4.identity(),
+            materialSlots: const <int>[0],
+            shapeSet: ShapeSet(
+              keys: <ShapeKey>[key],
+              weights: <double>[weight],
+            ),
+          ),
+        );
+        return ModelProject(
+          profile: base.profile,
+          objects: base.objects,
+          materials: <ProjectMaterial>[
+            ProjectMaterial(
+              surface: SurfaceMaterial(
+                baseColor: Vector4(0.9, 0.1, 0.1, 1.0),
+                roughness: 0.8,
+              ),
+            ),
+          ],
+          images: base.images,
+          nextId: base.nextId,
+          skeletons: base.skeletons,
+          clips: base.clips,
+          lighting: base.lighting,
+        );
+      }
+
+      final flat = await render(projectAt(0.0));
+      final blended = await render(projectAt(1.0));
+
+      // Mutation: never read `object.shapeSet` at all, the way
+      // `renderProject` did before `tut-10` — the two pictures would
+      // then be identical regardless of the weight.
+      expect(
+        _differingPixels(flat, blended),
+        greaterThan(0),
+        reason:
+            "a shape key's own weight should blend into a headless "
+            'render — case 4\'s own chest-puff morph',
+      );
+    });
+  });
+
+  group('tut-11 — the weight-paint gradient render mode', () {
+    /// A ten-vertex strip along X, half of it weighted 1.0 to the one
+    /// joint and half left at 0.0 — two known, well-separated regions to
+    /// sample the gradient at.
+    ModelProject weightStripProject() {
+      const int columns = 10;
+      final points = <Vector3>[];
+      for (var x = 0; x <= columns; x++) {
+        final u = x / columns - 0.5;
+        points
+          ..add(Vector3(u, -0.5, 0))
+          ..add(Vector3(u, 0.5, 0));
+      }
+      final faces = <List<int>>[
+        for (var x = 0; x < columns; x++)
+          <int>[x * 2, x * 2 + 2, x * 2 + 3, x * 2 + 1],
+      ];
+      final mesh = EditMesh.fromFaces(points, faces);
+      mesh.beginStep();
+      for (var v = 0; v < mesh.vertexSlotCount; v++) {
+        final onJoint = mesh.positionOf(v).x >= 0;
+        if (onJoint) assignSelection(mesh, <int>[v], 0, 1.0);
+      }
+      mesh.endStep();
+
+      final joint = const ModelProject().added(
+        (int id) => ModelObject(
+          id: id,
+          name: 'joint',
+          geometry: const SocketGeometry(),
+          transform: Matrix4.identity(),
+        ),
+      );
+      final int jointId = joint.objects.single.id;
+      final withMesh = joint.added(
+        (int id) => ModelObject(
+          id: id,
+          name: 'mesh',
+          geometry: EditedGeometry(mesh),
+          transform: Matrix4.identity(),
+          materialSlots: const <int>[0],
+          skeletonIndex: 0,
+        ),
+      );
+      return ModelProject(
+        profile: withMesh.profile,
+        objects: withMesh.objects,
+        materials: <ProjectMaterial>[
+          ProjectMaterial(surface: SurfaceMaterial()),
+        ],
+        images: withMesh.images,
+        nextId: withMesh.nextId,
+        skeletons: <ProjectSkeleton>[
+          ProjectSkeleton(
+            joints: <int>[jointId],
+            inverseBindMatrices: <Matrix4>[Matrix4.identity()],
+          ),
+        ],
+        clips: withMesh.clips,
+        lighting: withMesh.lighting,
+      );
+    }
+
+    test('the half painted onto the joint reads warmer than the half left at '
+        'zero', () async {
+      final project = weightStripProject();
+      final jointId = project.objects
+          .firstWhere((ModelObject o) => o.name == 'joint')
+          .id;
+      final decoded = (await decodeImagePure(
+        await renderProject(
+          RenderRequest(
+            project: project,
+            view: RenderProjectView.front,
+            width: 64,
+            height: 64,
+            shading: RenderShading.weights,
+            weightsJoint: jointId,
+          ),
+          deviceFactory: _cpuDevice,
+        ),
+      ))!;
+
+      // Searched over the whole picture rather than sampled at a fixed
+      // coordinate: `_frame`'s own fit (margin, aspect, the socket
+      // joint's own degenerate bounds folded into the box) is real
+      // arithmetic this test has no business duplicating just to guess
+      // a pixel address — what it can assert directly is that both of
+      // `weight_gradient_colors.dart`'s own extreme stops actually
+      // appear somewhere in the picture.
+      bool hasPixelNear(int r, int g, int b, {int tolerance = 40}) {
+        for (var i = 0; i < decoded.pixels.length; i += 4) {
+          final dr = (decoded.pixels[i] - r).abs();
+          final dg = (decoded.pixels[i + 1] - g).abs();
+          final db = (decoded.pixels[i + 2] - b).abs();
+          if (dr <= tolerance && dg <= tolerance && db <= tolerance) {
+            return true;
+          }
+        }
+        return false;
+      }
+
+      // Mutation: paint every vertex the same colour (or draw `material`
+      // regardless of `shading`) and neither of these is found.
+      expect(
+        hasPixelNear(0x2A, 0x3A, 0x7A),
+        isTrue,
+        reason:
+            'the untouched half should read as the gradient\'s own '
+            'no-influence stop, #2A3A7A',
+      );
+      expect(
+        hasPixelNear(0xFF, 0x3B, 0x5C),
+        isTrue,
+        reason:
+            'the joint half should read as the gradient\'s own '
+            'full-influence stop, #FF3B5C',
+      );
+    });
+
+    test('an object not bound to the requested joint falls back to material, '
+        'not a blank mesh', () async {
+      final unbound = _cubeProject();
+      final decoded = (await decodeImagePure(
+        await renderProject(
+          RenderRequest(
+            project: unbound,
+            width: 48,
+            height: 48,
+            shading: RenderShading.weights,
+            weightsJoint: 999,
+          ),
+          deviceFactory: _cpuDevice,
+        ),
+      ))!;
+      expect(
+        _litPixels(decoded),
+        greaterThan(0),
+        reason:
+            'an unskinned object under `weights` mode should still draw '
+            'its own material rather than nothing at all',
+      );
+    });
+  });
+
+  group('ux-49: a panorama lights the scene', () {
+    test('a bright 2:1 sky lights the model, and no sky does not', () async {
+      Future<Rgba8Image> drawn(Uint8List? panorama) async =>
+          (await decodeImagePure(
+            await renderProject(
+              RenderRequest(
+                project: _underPanorama(panorama),
+                width: 48,
+                height: 48,
+              ),
+              deviceFactory: _cpuDevice,
+            ),
+          ))!;
+
+      final Rgba8Image bare = await drawn(null);
+      // Every pixel at mantissa 200, exponent 136 - so a channel reads back
+      // as 200 and clamps to white in the eight-bit cube. A sky this bright
+      // is what an HDRI of an overcast noon looks like to a surface.
+      final Rgba8Image lit = await drawn(
+        _panorama(8, 4, const <int>[200, 200, 200, 136]),
+      );
+
+      // **The row's own acceptance.** Mutation: leave `PanoramaSync` out of
+      // `renderProject`, which is how this was - a project can then hold a
+      // panorama that the viewport shows and a render does not, which is two
+      // answers to one question.
+      expect(_brightness(lit), greaterThan(_brightness(bare)));
+    });
+
+    test('and a dark sky is not the same picture as a bright one', () async {
+      Future<double> brightnessUnder(List<int> channels) async {
+        final Rgba8Image image = (await decodeImagePure(
+          await renderProject(
+            RenderRequest(
+              project: _underPanorama(_panorama(8, 4, channels)),
+              width: 48,
+              height: 48,
+            ),
+            deviceFactory: _cpuDevice,
+          ),
+        ))!;
+        return _brightness(image);
+      }
+
+      // Mutation: build the cube from the exponent alone, or from the first
+      // channel - both draw every sky the same and this is the check that
+      // says so.
+      expect(
+        await brightnessUnder(const <int>[200, 200, 200, 136]),
+        // Exponent 128 rather than 136: `mantissa * 2^(e-136)` puts this at
+        // an eighth of a unit, which is a byte of 8 in the cube. At 136 it
+        // would be 8.0 — eight times over white, and clamped to the same
+        // 255 the bright sky is, which is a pair of skies this could not
+        // tell apart for a reason that is about the fixture rather than
+        // about the code.
+        greaterThan(await brightnessUnder(const <int>[8, 8, 8, 128])),
+      );
     });
   });
 }

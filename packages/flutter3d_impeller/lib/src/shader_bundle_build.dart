@@ -10,6 +10,8 @@ library;
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:meta/meta.dart';
+
 /// Thrown on any failure here — `hook/build.dart` wraps it as a
 /// [BuildError][], `bin/build_shader_bundle.dart` prints it and exits
 /// non-zero. Plain rather than a `package:hooks` type, because this file
@@ -44,7 +46,7 @@ Future<List<Uri>> buildShaderBundle({
   final sdkRoot = _flutterSdkRoot();
   final platform = _hostArtifactPlatform(sdkRoot);
   final impellerc = File(
-    '$sdkRoot/bin/cache/artifacts/engine/$platform/impellerc',
+    '$sdkRoot/bin/cache/artifacts/engine/$platform/$impellercName',
   );
   if (!impellerc.existsSync()) {
     throw ShaderBundleBuildException(
@@ -187,17 +189,37 @@ File? _findPackageConfig(Directory start) {
 /// at all — it runs under `flutter_tester`, the engine's own headless
 /// embedder, under the same SDK's `bin/cache/artifacts/engine/` as
 /// `impellerc` itself. Both are real, both are checked.
-String _flutterSdkRoot() {
-  final executable = Platform.resolvedExecutable;
+String _flutterSdkRoot() => flutterSdkRootFrom(Platform.resolvedExecutable);
+
+/// The parsing half of [_flutterSdkRoot], taking the executable path rather
+/// than reading [Platform.resolvedExecutable] itself — the only way a test
+/// hands this the Windows shape without running on Windows to get one.
+///
+/// **A third empirical shape, not assumed either.** GitHub's own
+/// `windows-latest` runner exposes a path with backslashes and a `.exe`
+/// suffix on both names — `dart.exe`, `flutter_tester.exe` — that the two
+/// forward-slash markers below never matched, which is a hook that throws on
+/// every Windows build rather than one that occasionally gets the root
+/// wrong. Matched against a slash-normalised copy so one pair of markers
+/// covers every platform this package builds on; the root itself is sliced
+/// out of [executable] unchanged, backslashes and all, since that is the
+/// path this process actually has to join against later.
+@visibleForTesting
+String flutterSdkRootFrom(String executable) {
+  final normalized = executable.replaceAll(r'\', '/');
 
   const dartSuffix = '/bin/cache/dart-sdk/bin/dart';
-  if (executable.endsWith(dartSuffix)) {
-    return executable.substring(0, executable.length - dartSuffix.length);
+  for (final suffix in <String>[dartSuffix, '$dartSuffix.exe']) {
+    if (normalized.endsWith(suffix)) {
+      return executable.substring(0, executable.length - suffix.length);
+    }
   }
 
   const artifactsMarker = '/bin/cache/artifacts/engine/';
-  final markerIndex = executable.indexOf(artifactsMarker);
-  if (markerIndex >= 0 && executable.endsWith('/flutter_tester')) {
+  final markerIndex = normalized.indexOf(artifactsMarker);
+  if (markerIndex >= 0 &&
+      (normalized.endsWith('/flutter_tester') ||
+          normalized.endsWith('/flutter_tester.exe'))) {
     return executable.substring(0, markerIndex);
   }
 
@@ -212,6 +234,17 @@ String _flutterSdkRoot() {
 /// `tool/build_shaders.sh` does — macOS ships one universal `darwin-x64`
 /// bundle even on Apple silicon, so the candidate that actually exists on
 /// disk wins rather than a guess from `Platform.operatingSystem`.
+/// What the compiler is called on this host.
+///
+/// **Windows ships it as `impellerc.exe`**, which is the whole of the
+/// difference and was enough to make the search below find nothing at all:
+/// the artifact directory was right, the platform candidates were right, and
+/// the file being asked for did not exist under either of them. The error
+/// read "no impellerc under ... — run flutter precache", so it pointed at a
+/// missing download rather than at a missing four letters.
+@visibleForTesting
+String get impellercName => Platform.isWindows ? 'impellerc.exe' : 'impellerc';
+
 String _hostArtifactPlatform(String sdkRoot) {
   final artifacts = Directory('$sdkRoot/bin/cache/artifacts/engine');
   final candidates = switch (Platform.operatingSystem) {
@@ -221,12 +254,12 @@ String _hostArtifactPlatform(String sdkRoot) {
     _ => const <String>['darwin-x64', 'linux-x64', 'windows-x64'],
   };
   for (final candidate in candidates) {
-    if (File('${artifacts.path}/$candidate/impellerc').existsSync()) {
+    if (File('${artifacts.path}/$candidate/$impellercName').existsSync()) {
       return candidate;
     }
   }
   throw ShaderBundleBuildException(
-    'no impellerc under ${artifacts.path} for any of $candidates — run '
+    'no $impellercName under ${artifacts.path} for any of $candidates — run '
     '"flutter precache"',
   );
 }

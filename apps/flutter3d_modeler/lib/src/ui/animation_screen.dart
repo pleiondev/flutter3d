@@ -89,7 +89,9 @@ final class AnimationScreen extends StatelessWidget {
   final int? selectedKey;
   final ValueChanged<MoveKeys>? onMoveKeys;
   final ValueChanged<double>? onSeek;
-  final void Function(int trackIndex, int keyIndex)? onSelectKey;
+
+  /// `ux-46`: [add] is shift, "and this one too" rather than "instead".
+  final void Function(int trackIndex, int keyIndex, {bool add})? onSelectKey;
 
   String _jointName(int jointId) {
     for (final object in objects) {

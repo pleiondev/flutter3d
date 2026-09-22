@@ -1004,6 +1004,47 @@ final class EditMesh {
     _redoSlots.clear();
   }
 
+  /// Forgets the [count] oldest steps and answers the bytes that freed —
+  /// `pro-sc-06`'s own budget, applied by `ModelHistory`.
+  ///
+  /// **The same step everywhere, or nothing.** Nine arrays hold one step each
+  /// and [undo] pops one off all of them together (see [endStep]); dropping a
+  /// different number from each would leave them at different depths, and the
+  /// next undo would take positions back a version while the topology stayed
+  /// where it was. So this drops step *n* from every array and from the slot
+  /// counts beside them, and stops as soon as any of them has nothing left.
+  ///
+  /// **The oldest end, which is the only end that can go.** History is walked
+  /// backwards from now: losing the first step leaves every later one still
+  /// applicable, and the document it named is one nobody can reach any more —
+  /// `ModelHistory` drops the `HistoryStep` that owned it in the same breath,
+  /// so nothing is left offering an undo the mesh can no longer take.
+  int dropOldestJournalSteps(int count) {
+    var freed = 0;
+    for (var i = 0; i < count; i++) {
+      if (_faceAlive.undoDepth == 0) break;
+      freed +=
+          _positions.dropOldestStep() +
+          _origin.dropOldestStep() +
+          _next.dropOldestStep() +
+          _twin.dropOldestStep() +
+          _halfEdgeFace.dropOldestStep() +
+          _faceHalfEdge.dropOldestStep() +
+          _outgoing.dropOldestStep() +
+          _vertexAlive.dropOldestStep() +
+          _faceAlive.dropOldestStep();
+      for (final layer in _floatLayers) {
+        freed += layer.dropOldestStep();
+      }
+      for (final layer in _intLayers) {
+        freed += layer.dropOldestStep();
+      }
+      // Three per step — see [endStep], which pushes them as a triple.
+      if (_undoSlots.length >= 3) _undoSlots.removeRange(0, 3);
+    }
+    return freed;
+  }
+
   /// Bytes every journal holds together.
   int get journalBytes =>
       _positions.journalBytes +

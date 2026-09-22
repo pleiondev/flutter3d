@@ -27,28 +27,29 @@ enum GltfComponentType {
 
   /// Reads one component as a double, applying the normalization rule when asked.
   double readDouble(ByteData data, int offset, {bool normalized = false}) {
-    switch (this) {
-      case GltfComponentType.float:
-        return data.getFloat32(offset, Endian.little);
-      case GltfComponentType.unsignedByte:
-        final v = data.getUint8(offset);
-        return normalized ? v / 255.0 : v.toDouble();
-      case GltfComponentType.unsignedShort:
-        final v = data.getUint16(offset, Endian.little);
-        return normalized ? v / 65535.0 : v.toDouble();
-      case GltfComponentType.unsignedInt:
-        final v = data.getUint32(offset, Endian.little);
-        return normalized ? v / 4294967295.0 : v.toDouble();
-      case GltfComponentType.byte:
-        final v = data.getInt8(offset);
-        // Signed normalization clamps at -1: -128 and -127 both map to -1.0,
-        // which is what keeps the range symmetric.
-        return normalized ? (v / 127.0).clamp(-1.0, 1.0) : v.toDouble();
-      case GltfComponentType.short:
-        final v = data.getInt16(offset, Endian.little);
-        return normalized ? (v / 32767.0).clamp(-1.0, 1.0) : v.toDouble();
+    if (this == GltfComponentType.float) {
+      return data.getFloat32(offset, Endian.little);
     }
+    final v = readInt(data, offset);
+    return normalized ? normalize(v) : v.toDouble();
   }
+
+  /// The normalization rule on its own: an integer component as the float it
+  /// stands for.
+  ///
+  /// Separate from [readDouble] because not every integer comes out of a
+  /// buffer view — `KHR_draco_mesh_compression` hands back a colour as the
+  /// bytes it was stored as, and they mean what the accessor says they mean.
+  double normalize(int v) => switch (this) {
+    GltfComponentType.float => v.toDouble(),
+    GltfComponentType.unsignedByte => v / 255.0,
+    GltfComponentType.unsignedShort => v / 65535.0,
+    GltfComponentType.unsignedInt => v / 4294967295.0,
+    // Signed normalization clamps at -1: -128 and -127 both map to -1.0,
+    // which is what keeps the range symmetric.
+    GltfComponentType.byte => (v / 127.0).clamp(-1.0, 1.0),
+    GltfComponentType.short => (v / 32767.0).clamp(-1.0, 1.0),
+  };
 
   /// Reads one component as an integer, for indices and joint references.
   int readInt(ByteData data, int offset) {

@@ -1,12 +1,12 @@
 name: flutter3d_model_core
 description: "The headless half of a model editor: a project of objects and materials, the commands that change one, the history that takes them back, and what it refuses to export."
-version: 0.6.0
+version: 0.7.0
 repository: https://github.com/pleiondev/flutter3d
 homepage: https://flutter3d.pleion.dev
 issue_tracker: https://github.com/pleiondev/flutter3d/issues
 topics:
   - modelling
-  - 3d
+  - graphics
   - tooling
   - game-engine
 resolution: workspace
@@ -16,7 +16,7 @@ environment:
 
 dependencies:
   # The mesh being edited, with the topology still in it.
-  flutter3d_mesh: ^0.6.0
+  flutter3d_mesh: ^0.7.0
 
   # What a project is read from and written back to — `ModelDocument`,
   # `SurfaceMaterial`, the glTF/OBJ/`.f3d` decoders and the writers beside
@@ -30,7 +30,7 @@ dependencies:
   # actually draws a frame at the far end of `renderProject`'s own device
   # parameter — see that function's own doc comment for why the concrete
   # device is the caller's dependency, not this package's.
-  flutter3d_core: ^0.1.0
+  flutter3d_core: ^0.7.0
 
   # `ClothMesh`/`stepCloth` — `pro-sim-03`'s own row, what `BakeClothJobRequest`
   # runs one frame at a time into a `SimulationCache` — and `Dynamics`/`RigidBody`/
@@ -43,7 +43,7 @@ dependencies:
   # `SimulationCache` the same way — `pro-sim-02`'s own other half. The
   # contributors that draw a system come along and cost nothing: they draw
   # through `flutter3d_core`, already a dependency here, and name no Flutter.
-  flutter3d_particles: ^0.6.0
+  flutter3d_particles: ^0.7.0
 
   vector_math: ^2.2.0
 

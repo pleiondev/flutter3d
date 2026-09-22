@@ -10,6 +10,14 @@
 /// reads as a passing count and an empty frame. This draws through
 /// `staging.dart`, the same stage the viewport builds, and asks the software
 /// rasteriser what actually reached a pixel.
+// Draws real pixels: a scene through the software rasteriser, a reference
+// picture, or both. Tagged so a run that only wants the logic skips the whole
+// slow class at once:
+//
+//     very_good test -x golden
+//
+// Not optional in CI, which runs the suite without the flag.
+@Tags(<String>['golden'])
 library;
 
 import 'dart:typed_data';

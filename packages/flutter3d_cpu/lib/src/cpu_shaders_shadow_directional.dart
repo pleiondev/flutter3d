@@ -80,15 +80,62 @@ double shadowFactor(Surface s, ShaderBindings b, int lightIndex) {
   final texelU = params.x;
   final texelV = cascades.w > 0.0 ? cascades.w : params.x;
 
-  // PCF 3x3: four samples band visibly at this map size and nine is the
-  // smallest kernel that reads as a soft edge rather than as stair steps.
+  // `gfx-15n`: the directional light's apparent size, riding in
+  // `ambient_ground.w` for the reason `surface.glsl` gives. Zero is the 3×3
+  // kernel this has always had.
+  final softness = b.vec4('FragInfo', 'ambient_ground', Vector4.zero()).w;
+
   var lit = 0.0;
-  for (var y = -1; y <= 1; y++) {
-    for (var x = -1; x <= 1; x++) {
-      final occluder = map.sample(u + x * texelU, vv + y * texelV).x;
+  if (softness <= 0.0) {
+    // PCF 3x3: four samples band visibly at this map size and nine is the
+    // smallest kernel that reads as a soft edge rather than as stair steps.
+    for (var y = -1; y <= 1; y++) {
+      for (var x = -1; x <= 1; x++) {
+        final occluder = map.sample(u + x * texelU, vv + y * texelV).x;
+        lit += projected.z - bias > occluder ? 0.0 : 1.0;
+      }
+    }
+    lit /= 9.0;
+  } else {
+    // The blocker search, then the filter sized by what it found — mirroring
+    // `shadow.glsl` step for step.
+    // Bounded, not proportional: see `shadow.glsl`.
+    final searchRadius = (softness * 0.25).clamp(2.0, 16.0);
+    var blockerSum = 0.0;
+    var blockerCount = 0.0;
+    for (final (double dx, double dy) in kShadowDisc) {
+      final occluder = map
+          .sample(
+            u + dx * texelU * searchRadius,
+            vv + dy * texelV * searchRadius,
+          )
+          .x;
+      if (projected.z - bias > occluder) {
+        blockerSum += occluder;
+        blockerCount += 1.0;
+      }
+    }
+    if (blockerCount <= 0.0) return 1.0;
+
+    final averaged = projected.z - blockerSum / blockerCount;
+    final gap = averaged > 0.0 ? averaged : 0.0;
+    final radius = (gap * softness).clamp(1.0, 16.0);
+    for (final (double dx, double dy) in kShadowDisc) {
+      final occluder = map
+          .sample(u + dx * texelU * radius, vv + dy * texelV * radius)
+          .x;
       lit += projected.z - bias > occluder ? 0.0 : 1.0;
     }
+    lit /= 5.0;
   }
-  lit /= 9.0;
   return 1.0 + (lit - 1.0) * strength.clamp(0.0, 1.0);
 }
+
+/// `kShadowDisc` from `shadow.glsl`: the centre and four diagonals.
+const List<(double, double)> kShadowDisc = <(double, double)>[
+  (0.0, 0.0),
+  (0.7071, 0.7071),
+  (-0.7071, 0.7071),
+  (0.7071, -0.7071),
+  (-0.7071, -0.7071),
+];

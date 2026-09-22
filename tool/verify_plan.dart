@@ -344,7 +344,17 @@ String? _asSymbol(String named) {
     r'|\bget\s+([A-Za-z_][A-Za-z0-9_]*)',
   );
   final word = RegExp(r'[A-Za-z_][A-Za-z0-9_]*');
-  for (final String where in <String>['packages', 'apps', 'tool', '.github']) {
+  // `cloud` is here for `gal-07`: a plan row can name something the server
+  // owns — an endpoint's own handler, a catalogue, a cache header — and a
+  // scan that stopped at `packages` and `apps` reported those as missing
+  // while they sat in a file beside them.
+  for (final String where in <String>[
+    'packages',
+    'apps',
+    'cloud',
+    'tool',
+    '.github',
+  ]) {
     final directory = Directory('${root.path}/$where');
     if (!directory.existsSync()) continue;
     for (final FileSystemEntity entity in directory.listSync(recursive: true)) {

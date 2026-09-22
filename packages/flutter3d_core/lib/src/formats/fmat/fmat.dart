@@ -222,15 +222,55 @@ String writeFmat(MaterialDocument document) {
   };
 
   final lighting = document.lighting;
-  return '${const JsonEncoder.withIndent('  ').convert(<String, Object?>{
+  final json = const JsonEncoder.withIndent('  ').convert(<String, Object?>{
     'fmat': kFmatVersion,
     if (lighting != null) 'lighting': _writeLighting(lighting),
     ...surfaceMaterialToJson(surface),
     if (textures.isNotEmpty) 'textures': textures,
-    if (document.parameterBlock != 'MaterialParams') 'parameterBlock': document.parameterBlock,
-    if (document.parameters.isNotEmpty) 'parameters': <String, Object?>{for (final entry in document.parameters.entries) entry.key: entry.value.toList()},
+    if (document.parameterBlock != 'MaterialParams')
+      'parameterBlock': document.parameterBlock,
+    if (document.parameters.isNotEmpty)
+      'parameters': <String, Object?>{
+        for (final entry in document.parameters.entries)
+          entry.key: entry.value.toList(),
+      },
     if (document.hints.isNotEmpty) 'hints': _writeHints(document.hints),
-  })}\n';
+  });
+  return '${_ensureFloatLiterals(json)}\n';
+}
+
+/// Every number [writeFmat] writes past `fmat` itself is conceptually a
+/// double — the format declares no schema distinguishing `1` from `1.0` —
+/// and a double that happens to hold a whole number writes as a bare
+/// integer regardless of why: on the Dart VM because `JsonEncoder` checks
+/// `is int` and a whole-number double is not one, and on the web because it
+/// is — `1.0 is int` is `true` there, the one thing JavaScript's single
+/// number type cannot keep apart from Dart's two. A colour with every
+/// channel at full strength would then write three channels with a decimal
+/// point and the fourth without, on the web only, for a reader who would
+/// never see the difference on desktop.
+///
+/// Every field this format reads back already goes through `num.toDouble()`
+/// or `.toInt()` rather than trusting which shape the literal came in as
+/// (`readFmat`'s own `_number` and the version check both do), so appending
+/// `.0` costs nothing to read — including to the handful of fields, like a
+/// colour hint's channel count, that happen to be genuine integers. `fmat`
+/// itself is the one exception worth keeping bare: a version number that
+/// looks like one.
+final RegExp _bareIntegerLine = RegExp(
+  r'^(\s*(?:"[^"]+"\s*:\s*)?)(-?\d+)(,?)\s*$',
+);
+
+String _ensureFloatLiterals(String json) {
+  final lines = json.split('\n');
+  for (var i = 0; i < lines.length; i++) {
+    final line = lines[i];
+    if (line.trimLeft().startsWith('"fmat"')) continue;
+    final match = _bareIntegerLine.firstMatch(line);
+    if (match == null) continue;
+    lines[i] = '${match[1]}${match[2]}.0${match[3]}';
+  }
+  return lines.join('\n');
 }
 
 /// [surface]'s own scalar and colour fields, keyed the way [writeFmat] nests
@@ -254,10 +294,10 @@ Map<String, Object?> surfaceMaterialToJson(SurfaceMaterial surface) =>
     <String, Object?>{
       if (surface.name != null) 'name': surface.name,
       'baseColor': <double>[
-        surface.baseColor.r,
-        surface.baseColor.g,
-        surface.baseColor.b,
-        surface.baseColor.a,
+        _cleanFloat32(surface.baseColor.r),
+        _cleanFloat32(surface.baseColor.g),
+        _cleanFloat32(surface.baseColor.b),
+        _cleanFloat32(surface.baseColor.a),
       ],
       if (surface.metallic != 0.0) 'metallic': surface.metallic,
       if (surface.roughness != 0.5) 'roughness': surface.roughness,
@@ -266,9 +306,9 @@ Map<String, Object?> surfaceMaterialToJson(SurfaceMaterial surface) =>
         'occlusionStrength': surface.occlusionStrength,
       if (surface.emissive.length2 != 0.0)
         'emissive': <double>[
-          surface.emissive.r,
-          surface.emissive.g,
-          surface.emissive.b,
+          _cleanFloat32(surface.emissive.r),
+          _cleanFloat32(surface.emissive.g),
+          _cleanFloat32(surface.emissive.b),
         ],
       if (surface.emissiveStrength != 1.0)
         'emissiveStrength': surface.emissiveStrength,
@@ -541,6 +581,28 @@ SurfaceAlphaMode _alphaMode(Object? value, List<String> warnings) =>
 
 double _number(Object? value, double fallback) =>
     value is num ? value.toDouble() : fallback;
+
+/// [v] came out of a [Vector4]/[Vector3] component, so it is already a
+/// float32 value widened to a double — `0.55` written in comes back as
+/// `0.550000011920929`, float32's honest opinion of it. Writing that verbatim
+/// would defeat the doc comment above [writeFmat]: a `.fmat` an artist edits
+/// and diffs should show the number they typed, not the bits it landed on.
+///
+/// Picks the shortest decimal of up to nine significant digits whose own
+/// float32 rounding lands on the same bits as [v], so the file keeps
+/// exactly the precision the format already only carries.
+double _cleanFloat32(double v) {
+  if (!v.isFinite) return v;
+  final Float32List probe = Float32List(1);
+  probe[0] = v;
+  final double target = probe[0];
+  for (var digits = 1; digits <= 9; digits++) {
+    final double candidate = double.parse(v.toStringAsPrecision(digits));
+    probe[0] = candidate;
+    if (probe[0] == target) return candidate;
+  }
+  return v;
+}
 
 Float32List _floats(Object? value) {
   if (value is num) return Float32List.fromList(<double>[value.toDouble()]);

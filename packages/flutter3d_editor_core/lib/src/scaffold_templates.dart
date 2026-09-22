@@ -37,9 +37,9 @@ dependencies:
   flutter:
     sdk: flutter
 
-  flutter3d: ^0.6.0
-  flutter3d_game: ^0.6.0
-  flutter3d_sim: ^0.6.0
+  flutter3d: ^0.7.0
+  flutter3d_game: ^0.7.0
+  flutter3d_sim: ^0.7.0
 
   # The assembly layer, which this seed used to leave out — and with it the
   # settings screen, the key rebinding, the pointer capture and the gamepad.
@@ -52,7 +52,7 @@ dependencies:
   flutter3d_app: ^0.7.0
 
   # Sound, which the seed also had none of.
-  flutter3d_audio: ^0.6.0
+  flutter3d_audio: ^0.7.0
 
   vector_math: ^2.2.0
   # State management — see the note in `packages/flutter3d_game/pubspec.yaml`.

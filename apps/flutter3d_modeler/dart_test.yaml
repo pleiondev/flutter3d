@@ -1,0 +1,27 @@
+# Tags this package's tests use. Declared so an unknown tag is an error
+# rather than a silent no-op: `-x goldens` with an s would otherwise skip
+# nothing and look exactly like a run that skipped everything asked for.
+tags:
+  golden:
+    # **A test that draws real pixels**, which is a wider class than the name
+    # suggests and is deliberately one tag rather than two. It covers a
+    # reference picture held against a committed PNG, and it also covers every
+    # test that renders a scene at all — because under `flutter test` there is
+    # no Impeller, so a rendering test falls through to the software
+    # rasteriser and pays for every pixel in Dart.
+    #
+    # Naming it for the comparison was the first mistake here: the six files
+    # that call `matchesGoldenFile` were tagged and the twelve `*_frame_test`
+    # files were not, which left the slow half of the suite outside the one
+    # switch meant to turn it off. They are the same class of test and the
+    # rasteriser is what they have in common, not the PNG.
+    #
+    #     very_good test -x golden
+    #
+    # Not optional in CI, which runs the suite without the flag.
+
+  skip_very_good_optimization:
+    # Read by `very_good test`, not by us: it leaves a file carrying this out
+    # of the concatenated entry point its optimizer builds. Needed by any
+    # `@TestOn('browser')` file, because that optimizer ignores `@TestOn` and
+    # would compile a `dart:js_interop` import on the VM.

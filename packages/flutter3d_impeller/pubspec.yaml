@@ -51,7 +51,11 @@ dependencies:
   # `package_config.json`, so an external consumer's own `dart pub get`
   # puts `flutter3d_shaders` where the hook can find it too.
   hooks: ^2.0.0
-  flutter3d_shaders: ^0.6.0
+  flutter3d_shaders: ^0.7.0
+
+  # `@visibleForTesting` on `flutterSdkRootFrom`, the one seam a test can
+  # hand a Windows-shaped path to without running on Windows to get one.
+  meta: ^1.9.0
 
 dev_dependencies:
   # Not flutter3d_conformance, though this backend is the one it exists for.

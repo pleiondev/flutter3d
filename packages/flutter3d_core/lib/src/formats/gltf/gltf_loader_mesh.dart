@@ -58,29 +58,6 @@ extension _GltfMesh on GltfLoader {
       // stand in this place was a warning that they were dropped.
       final targets = primitive['targets'];
 
-      // `fmt-15`'s own name for what follows: a primitive compressed with
-      // either extension keeps its ordinary accessors as a fallback only
-      // when an exporter chose to write one — the common case leaves them
-      // with no `bufferView` at all, since the real data lives in the
-      // extension's own buffer instead. Reading a bufferView-less accessor
-      // is legal and reads as all zeros (`GltfAccessorReader`'s own rule,
-      // correct for a sparse accessor's base) but wrong here: a degenerate
-      // mesh pinched to the origin, decoded in silence.
-      var compressed = false;
-      if (primitive['extensions'] is Map) {
-        final extensions = (primitive['extensions']! as Map).keys;
-        for (final name in extensions) {
-          if (name == 'KHR_draco_mesh_compression' ||
-              name == 'EXT_meshopt_compression') {
-            compressed = true;
-            warnings.add(
-              '$label uses $name, which is not implemented; read from its '
-              'own uncompressed accessors when it has any.',
-            );
-          }
-        }
-      }
-
       final attributes = primitive['attributes'];
       if (attributes is! Map) {
         warnings.add('$label has no attributes; skipped.');
@@ -91,7 +68,48 @@ extension _GltfMesh on GltfLoader {
         warnings.add('$label has no POSITION; skipped.');
         continue;
       }
-      if (compressed && !reader.hasBufferView(positionAccessor)) {
+
+      // `fmt-15`'s own name for what follows: a primitive compressed with
+      // either extension keeps its ordinary accessors as a fallback only
+      // when an exporter chose to write one — the common case leaves them
+      // with no `bufferView` at all, since the real data lives in the
+      // extension's own buffer instead. Reading a bufferView-less accessor
+      // is legal and reads as all zeros (`GltfAccessorReader`'s own rule,
+      // correct for a sparse accessor's base) but wrong here: a degenerate
+      // mesh pinched to the origin, decoded in silence.
+      //
+      // `gfx-82n`: Draco is decoded, and its values are put behind the
+      // primitive's own accessors, so everything below reads a compressed
+      // primitive exactly as it reads any other. Only when the payload does
+      // *not* decode is the primitive back in `fmt-15`'s position — and then
+      // the warning carries the decoder's reason, because "skipped" with no
+      // why is the hole in the model this row was opened to close.
+      final extensions = primitive['extensions'];
+      final unreadExtensions = <String>[
+        if (extensions is Map) ...<String>[
+          if (extensions.containsKey('KHR_draco_mesh_compression'))
+            if (_supplyDraco(
+                  extension: extensions['KHR_draco_mesh_compression'],
+                  attributes: attributes,
+                  indicesAccessor: _asInt(primitive['indices']),
+                  reader: reader,
+                )
+                case final problem?)
+              'KHR_draco_mesh_compression, which did not decode: $problem',
+          // On a primitive this is not where the extension lives — it
+          // belongs to a buffer view, where `GltfAccessorReader` decodes it —
+          // so one named here is one this loader has nothing to do with.
+          if (extensions.containsKey('EXT_meshopt_compression'))
+            'EXT_meshopt_compression, which is not implemented on a primitive',
+        ],
+      ];
+      for (final name in unreadExtensions) {
+        warnings.add(
+          '$label uses $name; read from its own uncompressed accessors when '
+          'it has any.',
+        );
+      }
+      if (unreadExtensions.isNotEmpty && !reader.hasData(positionAccessor)) {
         warnings.add(
           '$label\'s POSITION accessor has no buffer view of its own; the '
           'compressed data has nowhere else to be read from, so the '
@@ -418,6 +436,89 @@ extension _GltfMesh on GltfLoader {
   }
 }
 
+/// Decodes a primitive's `KHR_draco_mesh_compression` payload and puts its
+/// values behind the primitive's own accessors — `gfx-82n`. Returns why it
+/// could not, or null.
+///
+/// **By id, not by order.** The extension maps each attribute *name* to a
+/// Draco unique id, and the primitive maps the same name to an accessor; the
+/// name is the only thing the two have in common, so that is what joins them.
+/// An attribute the primitive lists and the extension does not is left alone
+/// — the specification lets an exporter keep some attributes uncompressed,
+/// with buffer views of their own.
+///
+/// **All or nothing.** Every accessor is checked against the decoded mesh
+/// before any is given data, so a payload that decodes to the wrong vertex
+/// count leaves the primitive exactly as it would be if the payload had not
+/// decoded at all, rather than with positions from one source and normals
+/// from another.
+///
+/// A problem comes back as a string, not as an exception, because nothing is
+/// exceptional about it: the caller warns and falls back, which is what it
+/// did for every compressed primitive before this existed.
+String? _supplyDraco({
+  required Object? extension,
+  required Map<Object?, Object?> attributes,
+  required int? indicesAccessor,
+  required GltfAccessorReader reader,
+}) {
+  if (extension is! Map) return 'the extension is not an object';
+  final bufferView = _asInt(extension['bufferView']);
+  final ids = extension['attributes'];
+  if (bufferView == null || ids is! Map) {
+    return 'the extension names no bufferView, or no attributes';
+  }
+  if (indicesAccessor == null) {
+    return 'the primitive has no indices accessor for the decoded faces to '
+        'go behind';
+  }
+
+  try {
+    final mesh = decodeDraco(reader.bytesOfBufferView(bufferView));
+
+    final supplies =
+        <({int accessor, Float32List? floats, List<int>? integers})>[
+          (accessor: indicesAccessor, floats: null, integers: mesh.indices),
+          for (final MapEntry(key: name, value: id) in ids.entries)
+            if (_asInt(attributes[name]) case final accessor?)
+              switch (mesh.attributes[_asInt(id)]) {
+                final attribute? => (
+                  accessor: accessor,
+                  floats: attribute.values,
+                  integers: attribute.integers,
+                ),
+                null => throw FormatException(
+                  'the extension maps $name to Draco attribute $id, which the '
+                  'payload does not have',
+                ),
+              },
+        ];
+
+    for (final supply in supplies) {
+      final declared =
+          reader.countOf(supply.accessor) *
+          reader.typeOf(supply.accessor).componentCount;
+      final decoded = supply.integers?.length ?? supply.floats?.length;
+      if (declared != decoded) {
+        return 'accessors[${supply.accessor}] declares $declared components '
+            'and the payload decodes to $decoded';
+      }
+    }
+    for (final supply in supplies) {
+      reader.supplyDecoded(
+        supply.accessor,
+        floats: supply.floats,
+        integers: supply.integers,
+      );
+    }
+    return null;
+  } on DracoException catch (error) {
+    return error.message;
+  } on FormatException catch (error) {
+    return error.message;
+  }
+}
+
 /// Reads a primitive's morph targets, or says why it could not.
 ///
 /// **Only where the built vertices are the file's vertices.** A target is a
@@ -441,8 +542,8 @@ List<MorphTarget> _readMorphTargets({
 }) {
   if (split || builtVertexCount != sourceVertexCount) {
     warnings.add(
-      '\$label has \${targets.length} morph target(s) and was rebuilt with '
-      '\$builtVertexCount vertices from \$sourceVertexCount, so the deltas no '
+      '$label has ${targets.length} morph target(s) and was rebuilt with '
+      '$builtVertexCount vertices from $sourceVertexCount, so the deltas no '
       'longer line up with the vertices; the base shape is drawn. A primitive '
       'with NORMAL is not rebuilt.',
     );
@@ -458,13 +559,13 @@ List<MorphTarget> _readMorphTargets({
       // glTF allows a target that morphs only normals. Nothing this engine
       // draws is authored that way, and reading one would mean carrying a
       // target with no positions through every layer below.
-      warnings.add('\$label morph target \$i has no POSITION and was skipped.');
+      warnings.add('$label morph target $i has no POSITION and was skipped.');
       continue;
     }
     if (reader.countOf(positionAccessor) != sourceVertexCount) {
       warnings.add(
-        '\$label morph target \$i covers \${reader.countOf(positionAccessor)} '
-        'vertices and the primitive has \$sourceVertexCount; skipped.',
+        '$label morph target $i covers ${reader.countOf(positionAccessor)} '
+        'vertices and the primitive has $sourceVertexCount; skipped.',
       );
       continue;
     }

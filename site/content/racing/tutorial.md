@@ -22,7 +22,7 @@ Twelve steps. The engine underneath is the one the [shooter](/shooter/tutorial/)
 dependencies:
   flutter: { sdk: flutter }
 
-  flutter3d_impeller: ^0.6.0
+  flutter3d_impeller: ^0.7.0
   flutter3d:          ^0.6.0
   flutter3d_game:     ^0.6.0
   flutter3d_game_racing:   ^0.6.0

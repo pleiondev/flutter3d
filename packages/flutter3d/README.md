@@ -103,13 +103,13 @@ What works today:
   `CUBICSPLINE` with authored tangents), slerped rotations, an `AnimationPlayer`
   with play/pause/seek/speed and once/loop/ping-pong, and the decoded node
   hierarchy rebuilt on instantiation so an animated parent carries its subtree;
-- 1114 tests — projection, scene, sorting, debug draw, raycasting, animation,
+- 1484 tests — projection, scene, sorting, debug draw, raycasting, animation,
   skinning, lighting, render targets, BVH, LOD, glTF, OBJ and `.f3d`, plus a
   real frame drawn through `flutter3d_cpu`'s software rasteriser for the ones
   that need one — all without a GPU. The geometry the engine is written in —
-  `MeshData`, the shape generators, tangents, morph targets and `Ray` — went to
-  [`flutter3d_geometry`](../flutter3d_geometry) with its own suite, and this
-  package exports it whole.
+  `MeshData`, the shape generators, tangents, morph targets and `Ray` — is
+  [`flutter3d_core`](https://pub.dev/packages/flutter3d_core)'s geometry library,
+  with its own suite, and this package exports it whole.
 
 ## Running
 
@@ -223,11 +223,13 @@ What is supported:
 | Animations | all samplers and channels; `STEP`, `LINEAR` and `CUBICSPLINE`; translation, rotation, scale and weights |
 | Morph targets | POSITION, NORMAL and TANGENT deltas, packed into a texture the vertex stage samples; a node's or mesh's rest weights; up to eight targets blended at once |
 
-Not there: cameras, Draco and meshopt (reported in `warnings`),
-TEXCOORD_1 and up. KTX2 is read — `KHR_texture_basisu`'s Basis ETC1S files
-transcode to RGBA8, and a file's own BC, ETC2 or ASTC blocks upload as they
-are where the device samples them — with UASTC and Zstandard still refused by
-name.
+Compressed geometry is decoded — `KHR_draco_mesh_compression` and
+`EXT_meshopt_compression` — and a Draco payload that does not decode costs
+that primitive, with the reason in `warnings`. KTX2 is read:
+`KHR_texture_basisu`'s Basis Universal files, ETC1S and UASTC LDR, unpack to
+RGBA8 with or without Zstandard, and a file's own BC, ETC2 or ASTC blocks
+upload as they are where the device samples them. Not there: TEXCOORD_1 and
+up.
 
 Non-fatal decoding problems land in `warnings` and are surfaced in the UI — a
 skipped primitive or an ignored extension explains a model that looks odd but
@@ -236,14 +238,14 @@ still loaded.
 The sample models are the official Khronos
 [glTF-Sample-Assets](https://github.com/KhronosGroup/glTF-Sample-Assets), picked to
 cover all three ways of storing the data. They live in
-[`flutter3d_samples`](../flutter3d_samples) — a dev dependency of this package
+[`flutter3d_samples`](https://pub.dev/packages/flutter3d_samples) — a dev dependency of this package
 and not a real one, so a game gets the decoders without 4.1 MB of the fixtures
 they were checked against. Their terms are in
-[ATTRIBUTION.md](../flutter3d_samples/assets/ATTRIBUTION.md).
+[ATTRIBUTION.md](https://github.com/pleiondev/flutter3d/blob/main/packages/flutter3d_samples/assets/ATTRIBUTION.md).
 
 ## The `.f3d` container
 
-[ARCHITECTURE.md](../../ARCHITECTURE.md), section 14, measured the decoders and
+[ARCHITECTURE.md](https://github.com/pleiondev/flutter3d/blob/main/ARCHITECTURE.md), section 14, measured the decoders and
 found the format matters far more than the language: the same geometry is about 360x slower to load as OBJ
 text than as a binary buffer, and native code does not close that. `.f3d` moves
 the parse off the device entirely.
@@ -319,17 +321,17 @@ lib/src/engine/assets/          glTF, OBJ and .f3d decoders, isolate loading, ca
 example/lib/                    the demo, and the frame capture hook
 skills/                         the conventions, as agent skills — see below
 bin/skills.dart                 what copies them into a project that uses this
-test/                           1114 tests, all runnable without a GPU
+test/                           1484 tests, all runnable without a GPU
 ```
 
 The GLSL is not here. Every shader this package draws with lives in
-[`packages/flutter3d_shaders`](../flutter3d_shaders) — the vertex stages that
+[`packages/flutter3d_shaders`](https://pub.dev/packages/flutter3d_shaders) — the vertex stages that
 define the layouts, one fragment shader per lighting model, the shadow and sky
 stages, the post chain and the headers they share — because an extension package
 includes those headers and would otherwise depend on the whole engine to reach
 them.
 
-This package is one of twenty-seven; see the [repository README](../../README.md)
+This package is one of twenty-seven; see the [repository README](https://github.com/pleiondev/flutter3d/blob/main/README.md)
 for how the game layer, the backends and the genre templates sit around it.
 
 ## The conventions, unpacked into your repository
@@ -380,7 +382,7 @@ to 97 KB with seven.
 
 It also makes the pipeline the most expensive state change in a pass, which is why
 it is the **high-order term** when the render list is sorted — see
-[ARCHITECTURE.md](../../ARCHITECTURE.md), section 14, for the measurements.
+[ARCHITECTURE.md](https://github.com/pleiondev/flutter3d/blob/main/ARCHITECTURE.md), section 14, for the measurements.
 
 The same constraint is why lighting is a uniform array rather than a permutation
 per light count. Verified rather than assumed: `vec4 lights[8]` survives into the
@@ -401,8 +403,8 @@ rasteriser. glTF, OBJ and `.f3d` loading, six lighting models, shadows, bloom,
 skinning, animation, BVH culling and picking; a deterministic fixed-step game
 layer with collision, navigation, positional audio, and gamepad and touch
 input. Three example games — shooter, platformer, racing — each built on its
-genre package: [`flutter3d_game_shooter`](../flutter3d_game_shooter),
-[`flutter3d_game_platformer`](../flutter3d_game_platformer),
-[`flutter3d_game_racing`](../flutter3d_game_racing). A new game starts from the
+genre package: [`flutter3d_game_shooter`](https://pub.dev/packages/flutter3d_game_shooter),
+[`flutter3d_game_platformer`](https://pub.dev/packages/flutter3d_game_platformer),
+[`flutter3d_game_racing`](https://pub.dev/packages/flutter3d_game_racing). A new game starts from the
 editor's scaffold, which writes one from a template: <https://flutter3d.pleion.dev/first-project/>.
 Documentation: <https://flutter3d.pleion.dev>.

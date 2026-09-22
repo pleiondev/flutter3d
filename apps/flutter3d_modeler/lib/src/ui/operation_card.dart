@@ -19,9 +19,10 @@
 library;
 
 import 'package:flutter/material.dart';
+import 'package:flutter3d_editor_widgets/flutter3d_editor_widgets.dart';
 import 'package:flutter3d_model_core/flutter3d_model_core.dart';
 
-import 'number_field.dart';
+import '../../../l10n/app_localizations.dart';
 import 'theme.dart';
 
 /// The last operation, or nothing when there has not been one.
@@ -94,11 +95,12 @@ class _OperationCardState extends State<OperationCard> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final ModelCommand? last = widget.command;
+    final AppLocalizations l = AppLocalizations.of(context);
     if (last == null) {
       return Padding(
         padding: const EdgeInsets.symmetric(vertical: 6),
         child: Text(
-          'nothing done yet',
+          l.operationNothingDone,
           style: theme.textTheme.bodySmall?.copyWith(
             color: theme.colorScheme.onSurfaceVariant,
           ),
@@ -120,12 +122,12 @@ class _OperationCardState extends State<OperationCard> {
           // own inner, actually tappable node.
           MergeSemantics(
             child: Semantics(
-              label: 'Hide this card',
+              label: l.operationHide,
               button: true,
               child: IconButton(
                 iconSize: 16,
                 visualDensity: VisualDensity.compact,
-                tooltip: 'Hide this card without undoing it',
+                tooltip: l.operationHideHelp,
                 icon: const Icon(Icons.close),
                 onPressed: () => setState(() => _dismissed = true),
               ),
@@ -145,7 +147,7 @@ class _OperationCardState extends State<OperationCard> {
               header,
               if (numbers.isEmpty)
                 Text(
-                  'nothing to adjust',
+                  l.operationNothingToAdjust,
                   style: theme.textTheme.bodySmall?.copyWith(
                     color: theme.colorScheme.onSurfaceVariant,
                   ),
@@ -198,15 +200,29 @@ class _OperationCardState extends State<OperationCard> {
       IntHint(:final min?, :final max?) => (min.toDouble(), max.toDouble()),
       _ => null,
     };
+    // A parameter's own name is a word — `distance`, `segments`, `amount` —
+    // and the default label slot is the width of the single letter a
+    // transform row carries, which wrapped "distance" into two lines.
+    const double nameWidth = 58;
     if (range == null) {
-      return NumberField(label: label, value: value, onChanged: onChanged);
+      return NumberField(
+        label: label,
+        labelWidth: nameWidth,
+        value: value,
+        onChanged: onChanged,
+      );
     }
     final (double min, double max) = range;
     return Row(
       children: <Widget>[
         SizedBox(
-          width: 90,
-          child: NumberField(label: label, value: value, onChanged: onChanged),
+          width: 130,
+          child: NumberField(
+            label: label,
+            labelWidth: nameWidth,
+            value: value,
+            onChanged: onChanged,
+          ),
         ),
         Expanded(
           child: Slider(

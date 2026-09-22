@@ -46,6 +46,8 @@ import 'package:flutter3d/flutter3d.dart'
         TextureHint,
         builtInMaterialHints;
 import 'package:flutter3d_editor_core/flutter3d_editor_core.dart';
+import 'package:flutter3d_editor_widgets/flutter3d_editor_widgets.dart'
+    show SectionLabel;
 // For `Level`, which is what a material is written back through. The editor's
 // core keeps the document open and does not re-export the format it is in.
 import 'package:flutter3d_sim/flutter3d_sim.dart' show Level;
@@ -349,18 +351,14 @@ class _MaterialPanelState extends State<MaterialPanel> {
     widget.onChanged('$name:$key');
   }
 
-  Widget _heading(String says) => Padding(
-    padding: const EdgeInsets.fromLTRB(12, 10, 12, 2),
-    child: Text(
-      says.toUpperCase(),
-      maxLines: 1,
-      overflow: TextOverflow.ellipsis,
-      style: const TextStyle(
-        color: Color(0xFF525A66),
-        fontSize: 10,
-        letterSpacing: 1.4,
-        fontWeight: FontWeight.w700,
-      ),
+  Widget _heading(String says) => SectionLabel(
+    says,
+    style: const TextStyle(
+      color: Color(0xFF525A66),
+      fontSize: 10,
+      letterSpacing: 1.4,
+      fontWeight: FontWeight.w700,
     ),
+    padding: const EdgeInsets.fromLTRB(12, 10, 12, 2),
   );
 }

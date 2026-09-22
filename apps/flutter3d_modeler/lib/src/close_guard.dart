@@ -29,11 +29,24 @@ enum UnsavedChoice {
 /// about.
 bool needsConfirmation({required bool isDirty}) => isDirty;
 
-/// The window/tab title's own marker for unsaved work — `ui-24`'s own "маркер
-/// в заголовке", kept a pure string function so it is testable the same way
-/// as everything else in this file, without a `BuildContext` to build one in.
-String windowTitleFor({required bool isDirty}) =>
-    isDirty ? '• flutter3d modeller' : 'flutter3d modeller';
+/// The window/tab title: what is open, and whether it has unsaved work —
+/// `ui-24`'s own "маркер в заголовке" and `ux-30`'s own "the window title is
+/// the document name". Kept a pure string function so it is testable the same
+/// way as everything else in this file, without a `BuildContext` to build one
+/// in.
+///
+/// **The name leads, because a title bar answers "which one is this".** It
+/// said `flutter3d modeller` and nothing else, which is the one fact a person
+/// looking at the window already knows. Somebody with three of them open —
+/// which is what a browser tab strip is — had three identical labels, and the
+/// application's own name is in the menu bar on macOS and on the page beside
+/// the tab everywhere else.
+String windowTitleFor({required bool isDirty, String name = 'untitled'}) {
+  final String said = name.trim().isEmpty ? 'untitled' : name.trim();
+  return isDirty
+      ? '• $said — flutter3d modeller'
+      : '$said — flutter3d modeller';
+}
 
 /// What actually closing means, once a person has answered the dialog
 /// [needsConfirmation] asked for.

@@ -173,25 +173,34 @@ extension _ScenePasses on Renderer {
       _forwardData[2] = _forward.z;
 
       developer.Timeline.startSync('Renderer.encodeDraws');
+      void encodeOne(MeshNode node) => _encodeNode(
+        encoder: pass,
+        node: node,
+        scene: scene,
+        settings: settings,
+        viewProjection: viewProjection,
+        shadows: shadows,
+        probes: probes,
+        lights: lights,
+        shadowSlots: _shadowSlots,
+        state: passState,
+      );
+
       void encodeHalf(List<int> indices) {
         for (var i = 0; i < indices.length; i++) {
-          final node = _renderList.itemAt(indices[i]).requireNode;
-          _encodeNode(
-            encoder: pass,
-            node: node,
-            scene: scene,
-            settings: settings,
-            viewProjection: viewProjection,
-            shadows: shadows,
-            probes: probes,
-            lights: lights,
-            shadowSlots: _shadowSlots,
-            state: passState,
-          );
+          encodeOne(_renderList.itemAt(indices[i]).requireNode);
         }
       }
 
-      encodeHalf(_renderList.opaque);
+      if (settings.batchIdenticalDraws) {
+        _encodeBatchedOpaque(
+          indices: _renderList.opaque,
+          probes: probes,
+          encode: encodeOne,
+        );
+      } else {
+        encodeHalf(_renderList.opaque);
+      }
       // Between the two halves, which is the one place it can go. After the
       // opaque half, so every pixel already covered by geometry fails the depth
       // test before the sky's fragment stage runs — the software rasteriser
@@ -257,6 +266,24 @@ extension _ScenePasses on Renderer {
       debugLines: debugLines,
       lightOverflow: lightOverflow,
       submitMicros: stopwatch.elapsedMicroseconds,
+      // `gfx-20n`. What the pass drew with, not what was asked for: `msaa`
+      // above is null whenever the surface buffer is attached, and that is
+      // the case a caller cannot otherwise see.
+      msaaSamples: msaa == null ? 1 : device.preferredSampleCount,
+      // **The device first, and the order is the point.** A device that
+      // cannot multisample at all is the cause whatever else is true, and
+      // blaming the surface buffer there would send somebody to remove an
+      // effect that was never the reason. The buffer is named only where
+      // multisampling was available and this frame gave it up.
+      msaaDeclined: msaa != null
+          ? null
+          : (!device.supportsOffscreenMsaa
+                ? 'this device has no multisampled offscreen target'
+                : (surfaceIsRead
+                      ? 'a pass in this frame reads the surface buffer, and '
+                            'attachments in one target must agree on sample '
+                            'count'
+                      : null)),
     );
   }
 }

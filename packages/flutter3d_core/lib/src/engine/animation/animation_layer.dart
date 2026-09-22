@@ -8,6 +8,26 @@ import 'animation_target.dart';
 int animationTrackKey(AnimationTrack track) =>
     track.nodeIndex * AnimationPath.values.length + track.path.index;
 
+/// How a layer's pose meets the base's — `gfx-10n`.
+enum AnimationBlend {
+  /// The layer's value replaces the base's, faded by the layer's weight.
+  ///
+  /// What every layer did before there was a choice, and still the right one
+  /// for a clip authored as a whole performance of the joints it covers: an
+  /// upper-body reload is a reload, not a correction to one.
+  override,
+
+  /// The layer's distance from its own reference pose is laid on top of the
+  /// base.
+  ///
+  /// For a clip authored as a *difference*: a breath, a recoil, a lean, a
+  /// flinch. Playing one of these on its own poses a character into a shape
+  /// nobody wants, which is the sign that it is additive — and the reason it
+  /// needs [AnimationClip.referenceTime] to say what it is a difference
+  /// *from*.
+  additive,
+}
+
 /// A clip played over part of a skeleton, on top of whatever the base is doing.
 ///
 /// **The thing a crossfade cannot do.** `AnimationPlayer.crossFadeTo` moves the
@@ -17,14 +37,19 @@ int animationTrackKey(AnimationTrack track) =>
 /// keeps walking, and between a soldier who must stand still to reload and one
 /// who reloads on the move.
 ///
-/// **Override, not additive.** Where a layer covers a joint and has a track for
-/// it, the layer's value replaces the base's, faded by [weight]. Additive
-/// blending — a delta over a reference pose, which is what recoil and lean want
-/// — is a different feature and is not this one: it needs a reference frame per
-/// clip, glTF has no standard place to say which frame that is, and building it
-/// on a guess is how an API arrives that nobody can use. See §15 of
-/// ARCHITECTURE.md, which now says so rather than saying there is no blending
-/// at all.
+/// **Override by default, additive when asked** — [blend], `gfx-10n`. Where a
+/// layer covers a joint and has a track for it, the layer's value replaces the
+/// base's, faded by [weight]. [AnimationBlend.additive] instead takes the
+/// distance between the clip at this moment and the clip at its own
+/// [AnimationClip.referenceTime] and lays that *on top of* the base — which is
+/// what a breath over a walk, a recoil over an aim and a lean over a run all
+/// want, and what an override can never be: an overriding breath stops the
+/// walk for as long as it lasts.
+///
+/// The reference frame was the whole of why this was override-only. glTF has
+/// nowhere to say which frame is the rest pose, so the clip carries it now;
+/// a clip that does not name one cannot be blended additively and the player
+/// leaves it to the override path rather than guessing at zero.
 ///
 /// **A joint the layer's clip does not animate keeps the base's value**, even
 /// inside the mask. A mask says where a layer *may* write, not where it must:
@@ -42,10 +67,19 @@ final class AnimationLayer {
     this.weight = 1.0,
     this.wrap = AnimationWrap.loop,
     this.speed = 1.0,
+    this.blend = AnimationBlend.override,
   }) : mask = mask ?? AnimationMask.everything;
 
   /// Index into the player's clips.
   int clip;
+
+  /// Whether this layer replaces the base's pose or adds to it — `gfx-10n`.
+  ///
+  /// [AnimationBlend.additive] needs the clip to name an
+  /// [AnimationClip.referenceTime]; without one there is nothing to measure a
+  /// delta from and the player falls back to overriding, which is the answer
+  /// that at least shows the clip rather than silently posing nothing.
+  AnimationBlend blend;
 
   /// The joints this layer may write.
   AnimationMask mask;

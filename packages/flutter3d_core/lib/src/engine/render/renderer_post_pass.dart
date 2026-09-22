@@ -35,7 +35,15 @@ extension _PostPasses on Renderer {
     required TextureHandle top,
     required BloomSettings settings,
   }) {
-    final levels = settings.levels.clamp(1, 8);
+    // `gfx-31n`: the chain is a count of halvings, so its reach is a number
+    // of pixels rather than a fraction of the frame. Scaled against the
+    // height the count was chosen at, the glow covers the same share of the
+    // picture at any resolution. Zero leaves it alone, which is what keeps
+    // every frame recorded before this where it was.
+    final levels = bloomLevelsFor(
+      settings,
+      frameHeight: scene.height,
+    ).clamp(1, 8);
     final chain = <TextureHandle>[];
 
     var sourceWidth = scene.width;
@@ -92,9 +100,17 @@ extension _PostPasses on Renderer {
       _bloomParams[0] = 1.0 / from.width;
       _bloomParams[1] = 1.0 / from.height;
       _bloomParams[2] = settings.filterRadius;
-      _bloomParams[3] = 0.0;
+      // `gfx-30n`: the wider the level, the warmer it goes. Level zero is the
+      // tight core and stays exactly neutral; the broadest level carries the
+      // whole amount. One over the chain rather than a constant, because
+      // halation that warmed the core too would be a tint on the glow rather
+      // than a halo around it.
+      _bloomParams[3] = chain.length > 1
+          ? settings.halation * (level / (chain.length - 1))
+          : 0.0;
 
       _drawFullscreenAdditive(target: into, source: from);
+      _frameCounters?.drawCalls++;
     }
     developer.Timeline.finishSync();
   }
@@ -144,6 +160,161 @@ extension _PostPasses on Renderer {
     });
     pass.draw();
     pass.submit();
+  }
+
+  /// Smooths the edges of [source] into [target] — `gfx-04n`.
+  ///
+  /// One full-screen draw through [drawFullscreen], which counts it, so the
+  /// profiler's own breakdown shows what the pass costs without anything here
+  /// keeping a number.
+  void _encodeFxaa({
+    required TextureHandle target,
+    required TextureHandle source,
+    required AntiAliasSettings settings,
+  }) {
+    _fxaaParams[0] = 1.0 / math.max(source.width, 1);
+    _fxaaParams[1] = 1.0 / math.max(source.height, 1);
+    _fxaaParams[2] = settings.contrastThreshold.clamp(0.0, 1.0);
+    _fxaaParams[3] = settings.blend.clamp(0.0, 1.0);
+    // `gfx-29n`. Zero exactly when nobody asked: the shader returns the
+    // centre untouched at zero rather than running a kernel that rounds to
+    // nothing, and forty-four goldens depend on that being the same bytes.
+    _fxaaSharpen[0] = settings.sharpen.clamp(0.0, 1.0);
+    drawFullscreen(
+      FullscreenDraw(
+        target: target,
+        fragment: fxaaShader,
+        textures: <String, TextureHandle>{_kPostSourceSlot: source},
+        uniforms: <String, Map<String, Float32List>>{
+          _kFxaaInfoBlock: <String, Float32List>{
+            'params': _fxaaParams,
+            'sharpen': _fxaaSharpen,
+          },
+        },
+      ),
+    );
+  }
+
+  /// `gfx-32n`: smooths the occlusion buffer without crossing a silhouette.
+  ///
+  /// Draws into a transient of the same shape and hands it back under the
+  /// same name, the way `_encodeReflections` does: a texture cannot be
+  /// sampled and written in one pass, so a blur over a buffer needs a second
+  /// one to land in, and the graph's versioning is what lets both be called
+  /// `ao`.
+  void _encodeSsaoBlur({
+    required TextureHandle source,
+    required TextureHandle surface,
+    required AmbientOcclusionSettings options,
+    required FrameResources resources,
+  }) {
+    developer.Timeline.startSync('Renderer.ssaoBlur');
+    final target = resources.transient(
+      RenderTargetSpec(
+        width: source.width,
+        height: source.height,
+        format: source.format,
+      ),
+    );
+
+    _ssaoBlurParams[0] = 1.0 / math.max(source.width, 1);
+    _ssaoBlurParams[1] = 1.0 / math.max(source.height, 1);
+    _ssaoBlurParams[2] = options.blurTaps.clamp(0, 8).toDouble();
+    _ssaoBlurParams[3] = math.max(options.blurDepthFalloff, 1e-4);
+
+    drawFullscreen(
+      FullscreenDraw(
+        target: target,
+        fragment: ssaoBlurShader,
+        textures: <String, TextureHandle>{
+          'ao_texture': source,
+          'surface_texture': surface,
+        },
+        uniforms: <String, Map<String, Float32List>>{
+          'SsaoBlurInfo': <String, Float32List>{'params': _ssaoBlurParams},
+        },
+      ),
+    );
+    developer.Timeline.finishSync();
+
+    // The pass wrote a *different* texture from the one it read, so the
+    // version it produced has to be told which texture that is — the same
+    // hand-off `_ReflectionsNode` makes for the lit colour.
+    resources.provide(FrameResourceIds.ao, target);
+  }
+
+  /// The contact shadow's own march — `gfx-76n`.
+  ///
+  /// Everything about the reconstruction is `_encodeSsao`'s below, and for its
+  /// reasons: the matrix comes from the surface buffer's own shape, carries the
+  /// framebuffer origin and is *not* depth-range adjusted, and the camera's
+  /// position and forward axis come with it because the buffer holds metres
+  /// along that axis rather than a window depth.
+  ///
+  /// What differs is one direction instead of a hemisphere, and the target's
+  /// size: full resolution rather than the occlusion's half, because the seam
+  /// at a join is exactly the detail a half-resolution pass loses.
+  void _encodeContactShadow({
+    required TextureHandle target,
+    required TextureHandle surface,
+    required ContactShadowSettings options,
+    required RenderView view,
+    required vm.Vector3 toLight,
+  }) {
+    developer.Timeline.startSync('Renderer.contactShadow');
+
+    final aspect = surface.height == 0 ? 1.0 : surface.width / surface.height;
+    final viewProjection = toFramebufferOrigin(
+      view.camera.viewProjection(aspect),
+      device.framebufferOrigin,
+    );
+    final inverse = vm.Matrix4.copy(viewProjection)..invert();
+
+    view.camera.readWorldPosition(_ssaoCamera);
+    _contactCamera[0] = _ssaoCamera.x;
+    _contactCamera[1] = _ssaoCamera.y;
+    _contactCamera[2] = _ssaoCamera.z;
+    view.camera.readForward(_ssaoForward);
+    _contactForward[0] = _ssaoForward.x;
+    _contactForward[1] = _ssaoForward.y;
+    _contactForward[2] = _ssaoForward.z;
+
+    _contactLight[0] = toLight.x;
+    _contactLight[1] = toLight.y;
+    _contactLight[2] = toLight.z;
+
+    _contactParams[0] = math.max(options.length, 1e-4);
+    _contactParams[1] = options.steps.clamp(1, 16).toDouble();
+    _contactParams[2] = math.max(options.thickness, 1e-4);
+    // The strength is the composite's, for the reason the occlusion's is: "off"
+    // has to be a multiplier of exactly one, and that is a property of one
+    // `mix` rather than of arithmetic in two places.
+    _contactParams[3] = options.bias;
+
+    drawFullscreen(
+      FullscreenDraw(
+        target: target,
+        fragment: contactShadowShader,
+        textures: <String, TextureHandle>{'surface_texture': surface},
+        uniforms: <String, Map<String, Float32List>>{
+          _kContactShadowBlock: <String, Float32List>{
+            'inverse_view_projection': inverse.storage,
+            'view_projection': viewProjection.storage,
+            'params': _contactParams,
+            'camera': _contactCamera,
+            'forward': _contactForward,
+            'to_light': _contactLight,
+          },
+        },
+        // Unfiltered, for `_encodeSsao`'s measured reason below: a filtered tap
+        // across a silhouette averages a foreground depth with the cleared
+        // background and lands at a depth where nothing stands. Here that reads
+        // as an occluder in front of the ray, so every silhouette in the frame
+        // would grow its own thin dark outline.
+        sampler: SamplerOptions.nearestClamp,
+      ),
+    );
+    developer.Timeline.finishSync();
   }
 
   /// Draws ambient occlusion into [target] from the surface buffer.
@@ -234,6 +405,249 @@ extension _PostPasses on Renderer {
       ),
     );
     developer.Timeline.finishSync();
+  }
+
+  /// `gfx-33n`: adds volumetric shafts into the lit colour.
+  ///
+  /// Reuses the shadow pass's own matrices and splits rather than recomputing
+  /// them — they describe the map this is about to sample, so a second
+  /// derivation is a second thing to disagree with the map.
+  TextureHandle _encodeLightShafts({
+    required TextureHandle scene,
+    required TextureHandle surface,
+    required TextureHandle shadow,
+    required LightShaftSettings settings,
+    required RenderView view,
+    required FrameResources resources,
+    required int width,
+    required int height,
+  }) {
+    developer.Timeline.startSync('Renderer.lightShafts');
+    // A transient of the scene's own shape: a pass cannot sample and write
+    // one texture, and nothing outside this frame wants the intermediate.
+    final target = resources.transient(
+      RenderTargetSpec(
+        width: scene.width,
+        height: scene.height,
+        format: scene.format,
+      ),
+    );
+
+    final aspect = height == 0 ? 1.0 : width / height;
+    // Origin-adjusted and not depth-range adjusted, for the reason
+    // `_encodeReflections` writes out at length: the shader inverts this to
+    // find the ray through a pixel, and the other convention puts the far
+    // corner somewhere else.
+    final viewProjection = toFramebufferOrigin(
+      view.camera.viewProjection(aspect),
+      device.framebufferOrigin,
+    );
+    final inverse = vm.Matrix4.copy(viewProjection)..invert();
+
+    view.camera.readWorldPosition(_shaftCameraVec);
+    _shaftCamera[0] = _shaftCameraVec.x;
+    _shaftCamera[1] = _shaftCameraVec.y;
+    _shaftCamera[2] = _shaftCameraVec.z;
+    _shaftCamera[3] = math.max(settings.distance, 0.0);
+
+    view.camera.readForward(_shaftForwardVec);
+    _shaftForward[0] = _shaftForwardVec.x;
+    _shaftForward[1] = _shaftForwardVec.y;
+    _shaftForward[2] = _shaftForwardVec.z;
+    _shaftForward[3] = settings.steps.clamp(0, 64).toDouble();
+
+    // The strength is folded into the colour here, so the shader adds a
+    // vector that is exactly zero when nobody asked rather than branching on
+    // a separate number.
+    final colour = settings.color;
+    final strength = math.max(settings.strength, 0.0);
+    _shaftScatter[0] = (colour?.x ?? 1.0) * strength;
+    _shaftScatter[1] = (colour?.y ?? 1.0) * strength;
+    _shaftScatter[2] = (colour?.z ?? 1.0) * strength;
+
+    _shaftCascades[0] = _shadowCascades[0];
+    _shaftCascades[1] = _shadowCascades[1];
+    _shaftCascades[2] = _shadowCascades[2];
+    // The same bias the surface lookup uses. A point in the air has no
+    // surface to lift off, so this is the only guard against a shaft
+    // shadowing itself along the map's own quantisation.
+    _shaftCascades[3] = _shadowParams[1];
+
+    drawFullscreen(
+      FullscreenDraw(
+        target: target,
+        fragment: lightShaftsShader,
+        textures: <String, TextureHandle>{
+          'scene_texture': scene,
+          'surface_texture': surface,
+          'shadow_texture': shadow,
+        },
+        uniforms: <String, Map<String, Float32List>>{
+          'ShaftInfo': <String, Float32List>{
+            'inverse_view_projection': inverse.storage,
+            'shadow_matrix': _shadowMatrix.storage,
+            'shadow_matrix_far': _shadowMatrixFar.storage,
+            'shadow_matrix_farthest': _shadowMatrixFarthest.storage,
+            'camera': _shaftCamera,
+            'forward': _shaftForward,
+            'scatter': _shaftScatter,
+            'cascades': _shaftCascades,
+          },
+        },
+      ),
+    );
+    developer.Timeline.finishSync();
+    return target;
+  }
+
+  /// `gfx-34n`: defocuses the lit colour through a thin lens.
+  ///
+  /// **Everything about scale is taken from the scene texture rather than
+  /// from the frame**, which is what keeps `gfx-35n`'s resolution lever
+  /// honest. Half the width is half the texels per metre and half the radius
+  /// in texels, so the blur covers the same share of the picture: the lever
+  /// spends less on the same photograph rather than taking a different one,
+  /// and `gfx-36n` pulling it while the camera holds still does not change
+  /// what is in focus.
+  TextureHandle _encodeDepthOfField({
+    required TextureHandle scene,
+    required TextureHandle surface,
+    required DepthOfFieldSettings settings,
+    required FrameResources resources,
+    required int width,
+    required int height,
+  }) {
+    developer.Timeline.startSync('Renderer.depthOfField');
+    // A transient of the scene's own shape, for the reason the shafts take
+    // one: a pass cannot sample and write a single texture, and nothing
+    // outside this frame wants the intermediate.
+    final target = resources.transient(
+      RenderTargetSpec(
+        width: scene.width,
+        height: scene.height,
+        format: scene.format,
+      ),
+    );
+
+    _dofLens[0] = math.max(settings.focusDistance, 1e-3);
+    _dofLens[1] = math.max(settings.focalLength, 1e-4);
+    _dofLens[2] = math.max(settings.aperture, 1e-3);
+    _dofLens[3] = settings.samples.clamp(0, 64).toDouble();
+
+    _dofParams[0] = scene.width == 0 ? 0.0 : 1.0 / scene.width;
+    _dofParams[1] = scene.height == 0 ? 0.0 : 1.0 / scene.height;
+    _dofParams[2] = math.max(settings.maxRadius, 0.0);
+    // Texels per metre across the sensor. The scene texture's width rather
+    // than the frame's, so that under `renderScale` the lens keeps blurring
+    // the same fraction of the picture: the resolution lever is there to
+    // spend less on the same photograph, not to take a different one.
+    _dofParams[3] = scene.width / math.max(settings.sensorWidth, 1e-4);
+
+    drawFullscreen(
+      FullscreenDraw(
+        target: target,
+        fragment: depthOfFieldShader,
+        textures: <String, TextureHandle>{
+          'scene_texture': scene,
+          'surface_texture': surface,
+        },
+        uniforms: <String, Map<String, Float32List>>{
+          'DofInfo': <String, Float32List>{
+            'lens': _dofLens,
+            'params': _dofParams,
+          },
+        },
+      ),
+    );
+    developer.Timeline.finishSync();
+    return target;
+  }
+
+  /// `gfx-43n`/`44n`/`45n`: shades the picture from the surface buffer.
+  ///
+  /// [surface] is nullable and a null is not an error: the buffer is an
+  /// *optional* read, so a frame that could not produce one — a device with a
+  /// single colour attachment, per `gfx-50n` — gets the lit picture back
+  /// untouched rather than a mode that silently did nothing.
+  TextureHandle _encodeViewportShade({
+    required TextureHandle scene,
+    required TextureHandle? surface,
+    required ViewportShadingSettings settings,
+    required RenderView view,
+    required FrameResources resources,
+  }) {
+    if (surface == null) return scene;
+    developer.Timeline.startSync('Renderer.viewportShade');
+    final target = resources.transient(
+      RenderTargetSpec(
+        width: scene.width,
+        height: scene.height,
+        format: scene.format,
+      ),
+    );
+
+    _shadeParams[0] = settings.mode.code;
+    _shadeParams[1] = settings.amount.clamp(0.0, 1.0);
+    // Two meanings per slot, by mode, which is what keeps this to one block —
+    // see the shader, where the same comment is the contract.
+    _shadeParams[2] = switch (settings.mode) {
+      ViewportShading.clay => settings.ambient.clamp(0.0, 1.0),
+      ViewportShading.outline => math.max(settings.depthEdge, 1e-4),
+      ViewportShading.curvature => math.max(settings.curvatureGain, 0.0),
+      _ => 0.0,
+    };
+    _shadeParams[3] = switch (settings.mode) {
+      ViewportShading.outline => settings.normalEdge.clamp(0.0, 2.0),
+      ViewportShading.curvature => settings.cavity.clamp(0.0, 1.0),
+      _ => 0.0,
+    };
+
+    _shadeScreen[0] = scene.width == 0 ? 0.0 : 1.0 / scene.width;
+    _shadeScreen[1] = scene.height == 0 ? 0.0 : 1.0 / scene.height;
+    _shadeScreen[2] = math.max(settings.outlineWidth, 1.0);
+
+    // Over the camera's shoulder unless the caller said otherwise: a studio
+    // light behind the viewer is the one arrangement where every surface a
+    // modeller can see is lit, which is what clay is for.
+    final aim = settings.lightDirection;
+    if (aim == null) {
+      view.camera.readForward(_shadeLightVec);
+      _shadeLight[0] = -_shadeLightVec.x;
+      _shadeLight[1] = -_shadeLightVec.y;
+      _shadeLight[2] = -_shadeLightVec.z;
+    } else {
+      _shadeLight[0] = aim.x;
+      _shadeLight[1] = aim.y;
+      _shadeLight[2] = aim.z;
+    }
+
+    drawFullscreen(
+      FullscreenDraw(
+        target: target,
+        fragment: viewportShadeShader,
+        textures: <String, TextureHandle>{
+          'scene_texture': scene,
+          'surface_texture': surface,
+        },
+        uniforms: <String, Map<String, Float32List>>{
+          'ShadeInfo': <String, Float32List>{
+            'params': _shadeParams,
+            'screen': _shadeScreen,
+            'light': _shadeLight,
+          },
+        },
+        // **Nearest on the surface buffer, for the reason the occlusion pass
+        // gives at length**: a filtered tap at a silhouette averages a
+        // foreground normal with the cleared background and decodes to a
+        // direction belonging to neither, which an outline would draw as a
+        // second edge just inside the first.
+        samplers: const <String, SamplerOptions>{
+          'surface_texture': SamplerOptions.nearestClamp,
+        },
+      ),
+    );
+    developer.Timeline.finishSync();
+    return target;
   }
 
   /// Adds screen-space reflections, returning the texture the rest of the
@@ -360,7 +774,14 @@ extension _PostPasses on Renderer {
   /// pass that wrote the target has run either way; what is skipped is the
   /// copy and the download behind it, and the frame is metered again the
   /// frame after the answer lands.
-  void _meterExposure(TextureHandle target, AutoExposureSettings settings) {
+  /// [views] is what each per-view adapter meters its own rectangle of —
+  /// `gfx-22n`. Empty, or per-view metering switched off, and there is one
+  /// adapter reading the whole histogram, as there always was.
+  void _meterExposure(
+    TextureHandle target,
+    AutoExposureSettings settings, {
+    List<RenderView> views = const <RenderView>[],
+  }) {
     final adapter = _autoExposure;
     if (adapter == null || _meterInFlight) return;
     _meterInFlight = true;
@@ -377,11 +798,35 @@ extension _PostPasses on Renderer {
     // the meter would never ask the device again.
     Future<ByteData>.sync(() => device.readback(target))
         .then(
-          (ByteData bytes) => adapter.meter(bytes, settings),
+          (ByteData bytes) {
+            // The frame's own exposure first: it is what a single-view frame
+            // uses, what `FrameResult.exposure` reports, and where a view
+            // joining later starts from.
+            adapter.meter(bytes, settings);
+            if (!settings.perView) return;
+            // Then each view's own rectangle of the same bytes. One readback,
+            // several histograms — see `ExposureMeter._histogram`, which is
+            // why this costs no extra pass and no extra download.
+            for (var i = 0; i < _viewExposure.length && i < views.length; i++) {
+              final rect = views[i].viewportFraction;
+              _viewExposure[i].meter(
+                bytes,
+                settings,
+                within: (
+                  x: rect.x,
+                  y: rect.y,
+                  width: rect.width,
+                  height: rect.height,
+                ),
+              );
+            }
+          },
           // A refused copy leaves the exposure where it was, which is the
           // right picture for a frame, and is counted rather than swallowed
           // so a meter that has stopped hearing back is visible as a number.
-          onError: (Object _, StackTrace _) => _meterFailures++,
+          onError: (Object _, StackTrace _) {
+            _meterFailures++;
+          },
         )
         .whenComplete(() => _meterInFlight = false);
   }
@@ -392,12 +837,17 @@ extension _PostPasses on Renderer {
   /// but must not be a separate render target — and because keeping the pass
   /// open is free, while a second one would reload the attachment.
   ///
-  /// Returns the number of overlay line segments drawn.
-  int _encodeComposite({
+  /// Returns the number of overlay line segments drawn, and how many draws
+  /// the composite itself made — one, or one per view when `gfx-22n`'s
+  /// per-view exposure is on. Counted rather than assumed: the node used to
+  /// add a hardcoded one, which was true for as long as there was one draw
+  /// and silently wrong the moment there were two.
+  ({int lines, int draws}) _encodeComposite({
     required TextureHandle target,
     required TextureHandle scene,
     required TextureHandle? bloom,
     required TextureHandle? ao,
+    required TextureHandle? contactShadow,
     required TextureHandle? surface,
     required TextureHandle? shadowView,
     required Scene sceneGraph,
@@ -419,6 +869,16 @@ extension _PostPasses on Renderer {
       Renderer._kFullscreenState.copyWith(viewport: full, scissor: full),
     );
 
+    // `gfx-22n`. One draw covering everything, unless each view is exposing
+    // itself — then one draw per view, scissored to its own rectangle, so the
+    // exposure in the uniform is the one that view metered. With per-view
+    // metering off, or with a single view, this is the one full-frame draw it
+    // has always been and the bytes are the bytes forty-four goldens hold.
+    final perView =
+        settings.autoExposure.enabled &&
+        settings.autoExposure.perView &&
+        views.length > 1;
+
     final mix = CompositeMix(
       showSurfaceBuffer: settings.showSurfaceBuffer,
       showPointShadowDebug: settings.showPointShadowDebug,
@@ -428,6 +888,7 @@ extension _PostPasses on Renderer {
       exposure: _exposureFor(settings),
       bloomIntensity: settings.bloom.intensity,
       tonemap: settings.tonemap,
+      curve: settings.tonemapCurve,
     );
     _compositeParams[0] = mix.exposure;
     _compositeParams[1] = mix.bloomIntensity;
@@ -480,10 +941,46 @@ extension _PostPasses on Renderer {
       occlusion ?? fallbackAlbedo,
       sampler: Renderer._clampSampler,
     );
+    // `gfx-76n`, the same pairing once more: unoccluded is white, the 1×1 white
+    // stands in when the node was culled, and the strength is zeroed beside it
+    // so the stand-in is multiplied out rather than trusted. Its own strength
+    // and not the occlusion's — a scene may want a seam at a join without
+    // wanting ambient occlusion, and folding the two would make one of those
+    // settings silently govern the other.
+    final contact = contactShadow != null && settings.contactShadows.enabled
+        ? contactShadow
+        : null;
+    _compositeContact[0] = contact == null
+        ? 0.0
+        : settings.contactShadows.strength.clamp(0.0, 1.0);
+    pass.bindTexture(
+      compositeShader,
+      _kContactShadowTextureSlot,
+      contact ?? fallbackAlbedo,
+      sampler: Renderer._clampSampler,
+    );
+
+    // The colour table, or nothing — `gfx-18n`. The same pairing as the two
+    // samplers above: a texture is always bound because a declared sampler
+    // with nothing in it is a native crash on Metal, and the strength is
+    // zeroed alongside it so the stand-in is never read. Its size comes off
+    // the texture rather than from a field: a strip is N² by N, so the height
+    // *is* N, and a table whose two dimensions disagree about that is a table
+    // the engine should not be guessing about.
+    final look = settings.look;
+    final lut = look.gradesThroughLut ? look.lut : null;
+    _compositeAoTexel[2] = lut == null ? 0.0 : look.lutStrength.clamp(0.0, 1.0);
+    _compositeAoTexel[3] = (lut?.height ?? 2).toDouble();
+    pass.bindTexture(
+      compositeShader,
+      _kLutTextureSlot,
+      lut ?? fallbackAlbedo,
+      sampler: Renderer._clampSampler,
+    );
+
     // Neutral is (1, 1, 0, 0) and (0, …, 0, aspect), which the shader relies on
     // being exact: every golden in the repository goes through this block, and a
     // default that only nearly cancels moves all of them by a bit each.
-    final look = settings.look;
     _compositeLook[0] = look.contrast;
     _compositeLook[1] = look.saturation;
     _compositeLook[2] = look.temperature;
@@ -495,17 +992,82 @@ extension _PostPasses on Renderer {
     // not — without this the falloff is an ellipse on screen.
     _compositeLookMore[3] = height <= 0 ? 1.0 : width / height;
 
-    pass.bindUniformBlock(compositeShader, _kCompositeInfoBlock, {
+    // `gfx-24n`. Zero exactly, and every golden depends on it: the shader
+    // skips the whole branch at zero rather than adding a noise that rounds
+    // to nothing, because "rounds to nothing" is a claim about the target's
+    // bit depth and not about the arithmetic.
+    _compositeOutputEncode[0] = math.max(look.dither, 0.0);
+    _compositeOutputEncode[1] = look.whiteBalance.clamp(-1.0, 1.0);
+    _compositeOutputEncode[2] = look.tint.clamp(-1.0, 1.0);
+
+    // `gfx-27n`. Written every frame rather than only when set, because the
+    // buffers are reused across frames and a grade left in one would apply to
+    // the next scene that did not ask for it.
+    final lift = look.lift;
+    _compositeLift[0] = lift?.x ?? 0.0;
+    _compositeLift[1] = lift?.y ?? 0.0;
+    _compositeLift[2] = lift?.z ?? 0.0;
+    final gamma = look.gamma;
+    // Guarded away from zero: the shader raises to one over this, and an
+    // exponent of infinity is a black frame rather than a loud failure.
+    _compositeGamma[0] = math.max(gamma?.x ?? 1.0, 1e-3);
+    _compositeGamma[1] = math.max(gamma?.y ?? 1.0, 1e-3);
+    _compositeGamma[2] = math.max(gamma?.z ?? 1.0, 1e-3);
+    final gain = look.gain;
+    _compositeGain[0] = gain?.x ?? 1.0;
+    _compositeGain[1] = gain?.y ?? 1.0;
+    _compositeGain[2] = gain?.z ?? 1.0;
+
+    // The whole block, in one map, because a bind replaces the block rather
+    // than patching it: rebinding with `params` alone would leave a per-view
+    // frame with no look, no grade and an occlusion texel of zero.
+    final block = <String, Float32List>{
       'params': _compositeParams,
       'ao_texel': _compositeAoTexel,
       'look': _compositeLook,
       'look_more': _compositeLookMore,
-    });
-    pass.draw();
+      'output_encode': _compositeOutputEncode,
+      'lift': _compositeLift,
+      'gamma': _compositeGamma,
+      'gain': _compositeGain,
+      'contact': _compositeContact,
+    };
+    pass.bindUniformBlock(compositeShader, _kCompositeInfoBlock, block);
+    var draws = 1;
+    if (!perView) {
+      pass.draw();
+    } else {
+      draws = views.length;
+      for (var i = 0; i < views.length; i++) {
+        final fraction = views[i].viewportFraction;
+        final rect = ScreenRect(
+          x: (fraction.x * width).round(),
+          y: (fraction.y * height).round(),
+          width: math.max(1, (fraction.width * width).round()),
+          height: math.max(1, (fraction.height * height).round()),
+        );
+        // The scissor as well as the viewport: the covering triangle is
+        // oversized on purpose, so a viewport alone would leave each draw
+        // painting the whole attachment with that view's exposure and the
+        // last one would win.
+        pass
+          ..setViewport(rect)
+          ..setScissor(rect);
+        _compositeParams[0] = _exposureForView(settings, i);
+        pass
+          ..bindUniformBlock(compositeShader, _kCompositeInfoBlock, block)
+          ..draw();
+      }
+      // Back to the whole frame, because the overlay loop below sets its own
+      // viewport and trusts the scissor to be the pass's.
+      pass
+        ..setViewport(full)
+        ..setScissor(full);
+    }
 
     if (!settings.debug.anyEnabled && settings.highlighted.isEmpty) {
       pass.submit();
-      return 0;
+      return (lines: 0, draws: draws);
     }
 
     var lines = 0;
@@ -536,6 +1098,6 @@ extension _PostPasses on Renderer {
       }
     }
     pass.submit();
-    return lines;
+    return (lines: lines, draws: draws);
   }
 }

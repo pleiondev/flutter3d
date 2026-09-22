@@ -22,6 +22,8 @@ import 'dart:typed_data';
 import 'package:flutter3d_core/flutter3d_core.dart';
 import 'package:vector_math/vector_math.dart';
 
+import 'lighting_sync.dart';
+import 'panorama_sync.dart';
 import 'project.dart';
 import 'scene_from_project.dart';
 
@@ -106,13 +108,12 @@ const double _maxPitch = math.pi / 2 - 0.01;
 /// What a surface is drawn as.
 ///
 /// A final class with const instances for the same reason
-/// [RenderProjectView] is one, not an enum. Two instances, not the four
-/// `mcp-08n`'s own row eventually names. [material] and [normals] are real,
-/// distinct shaders today (`LightingModel.pbr`/`LightingModel.unlit` and
+/// [RenderProjectView] is one, not an enum. All four `mcp-08n`'s own row
+/// names, as of 2026-09-17. [material] and [normals] are real, distinct
+/// shaders (`LightingModel.pbr`/`LightingModel.unlit` and
 /// `LightingModel.normals`, both already compiled into every backend's
-/// shader bundle). `wireframe` waits on `view-07`'s own edge-drawing landing
-/// in the engine — there is no member for it here rather than one that draws
-/// the same picture [material] does under a name that promises otherwise.
+/// shader bundle). [weights] is not a shader at all — `tut-11`'s own fix —
+/// see its own doc comment, and neither is [wireframe]; see that one's.
 /// `selection` is not a shading mode; see [RenderRequest.selection] for how
 /// it is drawn instead.
 final class RenderShading {
@@ -123,7 +124,44 @@ final class RenderShading {
   static const RenderShading material = RenderShading._('material');
   static const RenderShading normals = RenderShading._('normals');
 
-  static const List<RenderShading> values = <RenderShading>[material, normals];
+  /// The weight-paint gradient — `tut-11`'s own row. Every object with an
+  /// [EditedGeometry] mesh bound to [RenderRequest.weightsJoint]'s own
+  /// skeleton is coloured by [weightGradientColor] of its own weight on
+  /// that joint, unlit; everything else (unskinned, or bound to a different
+  /// skeleton) draws as [material] rather than going blank, so a picture of
+  /// a scene with more than one object still shows all of it.
+  static const RenderShading weights = RenderShading._('weights');
+
+  /// The document's own polygon edges, drawn as thin solids over a flat
+  /// surface — `mcp-08n`'s fourth mode, and no more a shader than [weights]
+  /// is.
+  ///
+  /// **Not a line topology, and `wire_overlay.dart` says why at length.** In
+  /// short: a wire drawn as a three-sided prism needs nothing a backend does
+  /// not already do, it costs six triangles an edge, and that is the right
+  /// trade for a frame an agent asks for once and the wrong one for a
+  /// viewport. `view-07`'s edge drawing is still the answer for the live
+  /// viewport.
+  ///
+  /// The edges are the *document's* — `EditMesh`'s half-edges, walked face by
+  /// face — not the triangulation's. A wireframe built from drawn triangles
+  /// draws a hexagon as six triangles with three diagonals across it, which
+  /// is a picture of the triangulator; this draws six wires, which is what
+  /// makes the mode worth having: an agent told "this object has n-gons" can
+  /// look at one.
+  ///
+  /// An object whose geometry is not an [EditedGeometry] has no polygons to
+  /// read, so it keeps its flat surface and gets no wires. Said here rather
+  /// than left to be noticed: an imported mesh drawn under this mode is not
+  /// a bug, it is a mesh with no topology behind it.
+  static const RenderShading wireframe = RenderShading._('wireframe');
+
+  static const List<RenderShading> values = <RenderShading>[
+    material,
+    normals,
+    weights,
+    wireframe,
+  ];
 
   @override
   String toString() => 'RenderShading.$name';
@@ -138,6 +176,7 @@ final class RenderRequest {
     this.height = 512,
     this.shading = RenderShading.material,
     this.selection = const <int>{},
+    this.weightsJoint,
   });
 
   final ModelProject project;
@@ -151,6 +190,13 @@ final class RenderRequest {
   /// tool argument already names objects with. See [_restyle] for why the
   /// tint lives in `baseColor` rather than `emissive`.
   final Set<int> selection;
+
+  /// Which joint [RenderShading.weights] paints the gradient for, by its own
+  /// [ModelObject.id] — the same id a `PaintWeights`/`SetRig` call already
+  /// names a joint with. Meaningless with any other [shading]; with
+  /// [RenderShading.weights] and this left null, nothing has a joint to
+  /// measure a weight against and every mesh falls back to [material].
+  final int? weightsJoint;
 }
 
 /// Why [renderProject] declined to draw.
@@ -174,6 +220,38 @@ const int _maxRenderDimension = 1024;
 /// [request.project] drawn from [request.view], as PNG bytes, on a device
 /// [deviceFactory] builds for the occasion — see this library's own doc
 /// comment for why that is a parameter rather than a [CpuDevice] built here.
+///
+/// **The project's own lights, its skinned pose and its shape-key blend reach
+/// the picture — `tut-07` and `tut-10`'s own fix.** Before them, neither a
+/// project's own `AddLight`/`SetEnvironment`/`SetSceneLightingField` settings
+/// nor a posed skeleton ever reached a headless picture at all; the scene
+/// comes from [sceneFromProject], which adds the project's lights through the
+/// same `LightingSync` the live viewport uses, and this function reads that
+/// sync's render settings too. See `LightingSync`'s own doc comment for why
+/// the two fixed lights stay rather than being replaced, and for what
+/// [ModelProject.lighting] still does not reach a picture through
+/// (`ambientIntensity`, `environment`).
+///
+/// **`tut-07` also moved bloom and shadows onto [SceneLighting]'s own
+/// defaults, which do not match [RenderSettings]'s bare ones — `tut-22`'s
+/// own finding.** Before `tut-07`, this function always rendered with
+/// `bloom` forced off and `shadows` left at [ShadowSettings]'s own default
+/// (`enabled: true`), regardless of the project. Since, both come from
+/// [LightingSync.apply] instead: `bloom.enabled` follows
+/// `SceneLighting.post.bloomEnabled` (default `true`) and `shadows.enabled`
+/// follows `SceneLighting.shadows` (default `false`) — the opposite of each
+/// bare default, for *any* project that has never called
+/// `SetSceneLightingField` at all. A deliberate change (verified against
+/// case 3's and case 4's own reference pictures in the same commit, and by
+/// `tut-22`'s own determinism tests below — this function has no clock, no
+/// random seed and no unordered iteration on its own render path, so it is
+/// not the source of a byte difference), but four other tutorial cases'
+/// reference pictures were not regenerated when it landed and quietly went
+/// stale — `tut-22`'s own row is the account of finding and fixing that.
+/// **Any tutorial case whose fixture never sets `SceneLighting` explicitly
+/// is reading these two defaults**, so if either one moves again, every
+/// such case's reference pictures need regenerating, not only the ones a
+/// commit happens to check by eye.
 ///
 /// Throws [RenderRefusal] for a size outside 1×1..1024×1024, before
 /// [deviceFactory] is ever called.
@@ -210,17 +288,56 @@ Future<Uint8List> renderProject(
     device,
     restyle: (ModelObject object, Material material) =>
         _restyle(request, object, material),
+    weightsJoint: request.shading == RenderShading.weights
+        ? request.weightsJoint
+        : null,
+    wires: request.shading == RenderShading.wireframe,
   );
+  // `ux-49`: the project's own panorama, where it has one. A headless
+  // picture is exactly where an environment matters most — a tutorial page's
+  // own "what you get" and an agent's "show me the model" are both lit by
+  // whatever the project says lights it, and a sky the viewport shows and a
+  // render does not would be two answers to one question.
+  PanoramaSync().sync(device, scene, request.project);
   final camera = CameraNode(name: 'renderProject');
   scene.add(camera);
   _frame(camera, scene.meshes, request.view);
+
+  // `mat-25`'s own light gizmos stay off here even though [LightingSync
+  // .apply] would otherwise turn them on the moment [request.project] has a
+  // light: those are an editing overlay for the live viewport, and a
+  // headless picture — a tutorial page's own "what you get," an agent's own
+  // "show me the model" — wants the scene, not the markers pointing at its
+  // lights.
+  final RenderSettings lit = LightingSync()
+      .apply(const RenderSettings(), request.project.lighting)
+      .copyWith(debug: const DebugDrawOptions());
+  // `tut-11`'s own fix: a vertex colour named by hex is not scene-referred
+  // light, and only reads back as that hex with tonemapping and exposure
+  // out of the way. The wireframe wants the same for the same reason: both
+  // of its colours are named by hand — a pale ground and a near-black wire —
+  // and a tonemap would lift the wire off the black it was chosen to be and
+  // pull the ground off the white, which is the contrast the mode is.
+  //
+  // `gfx-40n` replaced the hand-built `tonemap: false, exposure: 1.0` here
+  // with `forMeasurement`, which is the same request said completely. The
+  // pair was never the whole of it: bloom is on by default, so an agent
+  // asking for the weights of a bright model got the gradient with a glow
+  // over it and read back a colour no material had written. Three places
+  // built that same incomplete pair and the engine's own `CompositeMix`
+  // built the complete one, which is how the gap stayed invisible.
+  final RenderSettings settings =
+      request.shading == RenderShading.weights ||
+          request.shading == RenderShading.wireframe
+      ? lit.forMeasurement()
+      : lit;
 
   final frame = renderer.render(
     width: width,
     height: height,
     scene: scene,
     views: <RenderView>[RenderView(camera: camera)],
-    settings: const RenderSettings(bloom: BloomSettings(enabled: false)),
+    settings: settings,
   );
   final pixels = (await device.readPixels(frame.frame))!.buffer.asUint8List();
   return encodeCompressedPng(width, height, pixels);
@@ -246,9 +363,17 @@ void _frame(
     box = box == null ? worldBox : (box..hull(worldBox));
   }
   final center = box?.center ?? Vector3.zero();
+  // **Floored only against zero, not against five centimetres** — `tut-02`.
+  // A scanned prop read in at millimetre scale is a few millimetres across,
+  // and a floor of 0.05 framed it as if it were ten centimetres: a handful
+  // of pixels in the middle of an empty picture, which is what the tutorial's
+  // own case 1 worked around by scaling the model up twenty times for the
+  // render alone. The near plane was the real reason for the floor, and it
+  // now follows the framing (below) rather than staying at the default tenth
+  // of a metre.
   final radius = box == null
       ? 1.0
-      : math.max(box.min.distanceTo(box.max) / 2, 0.05);
+      : math.max(box.min.distanceTo(box.max) / 2, 1e-5);
 
   final fovY = switch (camera.projection) {
     PerspectiveProjection(:final fovYRadians) => fovYRadians,
@@ -257,6 +382,15 @@ void _frame(
   // A margin over the tight fit, so an object's silhouette does not touch
   // the frame's own edge.
   final distance = radius / math.sin(fovY / 2) * 1.2;
+  // The depth range from where the camera ended up, the same reasoning
+  // `OrbitController.suggestedDepthRange` gives: a fixed 0.1..1000 spends its
+  // precision on empty space for a small model and clips it outright once the
+  // camera is closer than a tenth of a metre.
+  camera.projection = PerspectiveProjection(
+    fovYRadians: fovY,
+    near: math.max(distance * 0.01, 1e-6),
+    far: distance * 10.0 + 10.0,
+  );
 
   final cosPitch = math.cos(view.pitch);
   final offset = Vector3(
@@ -276,14 +410,28 @@ Material _restyle(
   ModelObject object,
   Material material,
 ) {
-  final shaded = request.shading == RenderShading.normals
-      ? Material(
-          name: material.name,
-          lighting: LightingModel.normals,
-          baseColor: material.baseColor,
-          doubleSided: material.doubleSided,
-        )
-      : material;
+  final shaded = switch (request.shading) {
+    RenderShading.normals => Material(
+      name: material.name,
+      lighting: LightingModel.normals,
+      baseColor: material.baseColor,
+      doubleSided: material.doubleSided,
+    ),
+    // A pale flat surface under the wires, and flat for the reason the wires
+    // are unlit: this mode is a diagram. A lit surface would shade half the
+    // model down to where a near-black wire on it is one indistinguishable
+    // dark shape, which is the picture somebody asked the wireframe *not* to
+    // be. `baseColor` is dropped with the lighting — the model's own greys
+    // and browns are not information here, and one ground makes every wire
+    // read the same against every object.
+    RenderShading.wireframe => Material(
+      name: material.name,
+      lighting: LightingModel.unlit,
+      baseColor: Vector4(0.82, 0.83, 0.85, material.baseColor.a),
+      doubleSided: material.doubleSided,
+    ),
+    _ => material,
+  };
   if (!request.selection.contains(object.id)) return shaded;
   // Blended into `baseColor` itself, not left to `emissive`: the CPU backend
   // only ever reads `Material.emissive` behind a bound `emissiveTexture`

@@ -12,11 +12,12 @@ library;
 import 'dart:math' as math;
 
 import 'package:flutter3d/flutter3d.dart';
-import 'package:flutter3d_cpu/testing.dart';
 import 'package:flutter3d_modeler/src/display_modes.dart';
 import 'package:flutter3d_modeler/src/staging.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vector_math/vector_math.dart';
+
+import 'support/fake_graphics_backend.dart';
 
 /// Where the camera ends up once [view] has been asked for and the turn has
 /// finished, relative to the point it is orbiting.
@@ -130,59 +131,64 @@ void main() {
       expect(settingsFor(ShadingMode.normals, base).wireframe, isFalse);
     });
 
-    test('normals can be switched back', () {
-      final it = cpuTestDevice(width: 8, height: 8);
+    test("ux-31: and it steps aside where the overlay has real edges to "
+        'draw', () {
+      const base = RenderSettings();
+
+      // **The renderer's wireframe is the triangles it rasterises.** A cube
+      // of six quads comes out as eighteen lines with a diagonal across
+      // every face — a picture of how the GPU was fed, not of the topology
+      // anybody is editing. Where there is an `EditMesh`, the overlay draws
+      // each edge once and this stands down; where there is not (an
+      // imported surface, a shape that still knows its parameters) it is
+      // still better than nothing.
+      expect(
+        settingsFor(ShadingMode.wireframe, base, edgesDrawn: true).wireframe,
+        isFalse,
+      );
+      expect(
+        settingsFor(ShadingMode.wireframe, base, edgesDrawn: false).wireframe,
+        isTrue,
+      );
+      // And it changes nothing about the other two, which never asked for a
+      // wireframe in the first place.
+      expect(
+        settingsFor(ShadingMode.material, base, edgesDrawn: true).wireframe,
+        isFalse,
+      );
+    });
+
+    test('a normals view is a setting rather than a swap', () {
+      // `gfx-43n`. Five tests used to stand here, and every one of them was
+      // about a class that no longer exists: what each node had been drawn
+      // with, whether a node arriving late was swapped too, whether a
+      // material painted on afterwards was painted back over. All of it was
+      // bookkeeping for a traversal, and the traversal is gone — the normal
+      // is read out of the surface buffer the scene pass already writes.
+      //
+      // What is left to check is that the mode reaches the renderer, and
+      // that nothing else does: the settings say which shading, and no node
+      // is touched to say it.
+      final it = fakeTestDevice(width: 8, height: 8);
       final stage = ModelerStage.build(device: it.device);
-      final shading = SurfaceShading();
       final MeshNode node = stage.subject as MeshNode;
       final Material own = node.material;
 
-      shading.apply(stage.subject, ShadingMode.normals);
-      expect(node.material.lighting, LightingModel.normals);
+      const base = RenderSettings();
+      final normals = settingsFor(ShadingMode.normals, base);
 
-      shading.apply(stage.subject, ShadingMode.material);
-      // Mutation: put back `SurfaceShading.normals` instead of the recorded
-      // material — or record the material inside the swap, after it has already
-      // been overwritten — and a person who looked at the normals once finds
-      // their model grey for the rest of the session, with nothing in the undo
-      // stack to explain it.
-      expect(identical(node.material, own), isTrue);
-    });
-
-    test('a node that arrives late is swapped too', () {
-      final it = cpuTestDevice(width: 8, height: 8);
-      final stage = ModelerStage.build(device: it.device);
-      final shading = SurfaceShading()
-        ..apply(stage.subject, ShadingMode.normals);
-
-      final arrived = MeshNode(
-        (stage.subject as MeshNode).mesh,
-        Material(name: 'late'),
-        name: 'late',
+      expect(normals.viewportShading.mode, ViewportShading.normals);
+      expect(
+        settingsFor(ShadingMode.material, base).viewportShading.mode,
+        ViewportShading.off,
       );
-      stage.subject.add(arrived);
-      shading.apply(stage.subject, ShadingMode.normals);
-
-      // Mutation: return early from `apply` when the mode has not changed,
-      // which is the obvious way to save the walk — and a model opened while
-      // the normals view is on is drawn with its own materials in a view that
-      // exists to show normals.
-      expect(arrived.material.lighting, LightingModel.normals);
-
-      shading.apply(stage.subject, ShadingMode.material);
-      expect(arrived.material.name, 'late');
-    });
-
-    test('forgetting lets a replaced subject go', () {
-      final it = cpuTestDevice(width: 8, height: 8);
-      final stage = ModelerStage.build(device: it.device);
-      final shading = SurfaceShading()
-        ..apply(stage.subject, ShadingMode.normals)
-        ..forget();
-
-      // Back to where a fresh one starts, so the next model is asked about from
-      // scratch rather than measured against the last one's answer.
-      expect(shading.mode, ShadingMode.material);
+      expect(
+        node.material,
+        same(own),
+        reason:
+            'asking for the normals view modified the subject, which is '
+            'the whole bug class this row deleted',
+      );
     });
   });
 }

@@ -36,8 +36,8 @@ final class CpuFrame extends StatefulWidget {
 class _CpuFrameState extends State<CpuFrame> {
   ui.Image? _image;
 
-  /// Which decode is allowed to land. The backend presents a new texture every
-  /// frame, so two decodes are routinely in flight at once, and nothing about
+  /// Which decode is allowed to land. A decode is asked for on every frame,
+  /// so two are routinely in flight at once, and nothing about
   /// `decodeImageFromPixels` promises they complete in order — a slow older
   /// frame used to overwrite the newer one that had already landed.
   int _decodeSequence = 0;
@@ -51,7 +51,23 @@ class _CpuFrameState extends State<CpuFrame> {
   @override
   void didUpdateWidget(CpuFrame old) {
     super.didUpdateWidget(old);
-    if (!identical(old.texture, widget.texture)) _decode();
+    // **Unconditionally, and that is the fix.** This used to decode only when
+    // the texture instance changed — and the backend hands back the *same*
+    // `CpuTexture` every frame, because a render target is a buffer it
+    // reuses rather than a megabyte it allocates sixty times a second. So the
+    // comparison was always "unchanged", the decode ran once in `initState`,
+    // and the picture froze on the first frame ever drawn: the camera turned,
+    // the document changed, the model was replaced, and the widget went on
+    // showing the frame from startup. It cost nothing to see because the two
+    // GPU backends present through their own path and never come here.
+    //
+    // A rebuild that carries no new pixels — a theme change, a parent
+    // rebuilding for its own reasons — now decodes the same pixels again,
+    // which is a copy and a decode of a buffer that was going to be decoded
+    // on the next frame anyway. The alternative is a frame counter on the
+    // texture, which is a field on a rendering type for one widget's
+    // convenience; this is the cheaper thing to be wrong about.
+    _decode();
   }
 
   void _decode() {

@@ -6,8 +6,10 @@ import 'package:vector_math/vector_math.dart';
 import '../animation/animation_clip.dart';
 import '../animation/animation_track.dart';
 import '../asset_resolver.dart';
+import '../draco/draco.dart';
 import '../model_document.dart';
 import '../model_loader.dart';
+import '../texture_transform_bake.dart';
 import 'glb_container.dart';
 import 'gltf_accessor.dart';
 import 'gltf_asset.dart';
@@ -46,9 +48,14 @@ part 'gltf_loader_skins.dart';
 /// [GltfAsset.warnings] rather than silently, the same channel every other
 /// non-fatal gap in this loader already reports through.
 ///
-/// Compressed extensions (`KHR_draco_mesh_compression`, `EXT_meshopt_compression`)
-/// are not supported and are reported through [GltfAsset.warnings] rather than
-/// throwing, so a file that merely *offers* a compressed variant still loads.
+/// **Compressed geometry is decoded, both kinds.** `EXT_meshopt_compression`
+/// lives on a buffer view and is undone by [GltfAccessorReader] before an
+/// accessor reads a byte. `KHR_draco_mesh_compression` lives on a primitive and
+/// is undone in `gltf_loader_mesh.dart`, which puts the decoded values behind
+/// the primitive's own accessors. A payload that does not decode is reported
+/// through [GltfAsset.warnings] with the decoder's reason rather than thrown,
+/// so one bad primitive — or a file that merely *offers* a compressed variant
+/// beside an uncompressed one — still loads.
 final class GltfLoader implements ModelDecoder {
   GltfLoader({
     this.layout = VertexLayout.standard,
@@ -162,14 +169,18 @@ final class GltfLoader implements ModelDecoder {
     // was on this list and nothing anywhere applied a transform: an
     // atlas-packed model — the export that needs it — passed the gate and
     // then drew every material sampling the whole atlas. A file that requires
-    // it is refused here, and one that merely uses it gets a warning where
-    // its texture is read, in `_decodeMaterials`.
+    // it is still refused here, because requiring it promises every transform
+    // in the file and only some can be kept: one shared by a material's
+    // textures is honoured in the coordinates by whoever draws the surface,
+    // and textures that disagree are not, which `_decodeMaterials` warns
+    // about. A file that merely uses it loads.
     const supported = <String>{
       'KHR_materials_unlit',
       'KHR_materials_emissive_strength',
-      // Supported as far as the KTX2 reader goes — Basis ETC1S, and a file's
-      // own BC/ETC2/ASTC where the device samples them. A UASTC texture in
-      // such a file is refused by name at upload and becomes a warning on the
+      // Supported as far as the KTX2 reader goes — both Basis Universal
+      // encodings, ETC1S and UASTC LDR, and a file's own BC/ETC2/ASTC where the
+      // device samples them. A texture the reader still refuses (UASTC HDR, a
+      // cube map) is refused by name at upload and becomes a warning on the
       // material rather than a refusal of the whole file, since the geometry
       // and every other texture are still worth having.
       'KHR_texture_basisu',
@@ -189,6 +200,13 @@ final class GltfLoader implements ModelDecoder {
       // an accessor ever reads a byte, so a file naming this as required
       // reads exactly as it would uncompressed.
       'EXT_meshopt_compression',
+      // `gfx-82n`: `_supplyDraco` decodes the payload — both connectivity
+      // methods, every prediction scheme a current encoder writes — and a
+      // stream it refuses costs the one primitive, with the reason in a
+      // warning. Every Draco file names this as required, since its accessors
+      // have no buffer views to fall back on; refusing the extension here
+      // refused all of them.
+      'KHR_draco_mesh_compression',
     };
     final unsupported = required.whereType<String>().where(
       (e) => !supported.contains(e),

@@ -1,6 +1,6 @@
 ---
 name: flutter3d-core-geometry-meshes
-description: Use when building, describing or intersecting geometry with flutter3d_geometry — vertex layouts, MeshData, shape generators, tangents and the ray arithmetic, with no GPU.
+description: Use when building, describing or intersecting geometry with package:flutter3d_core/geometry.dart — vertex layouts, MeshData, shape generators, tangents and the ray arithmetic, with no GPU.
 ---
 
 # Geometry, without a device anywhere
@@ -82,5 +82,5 @@ to eight blend at once.
 
 It does not upload, draw or load. `DeviceMesh` and everything naming a
 `GraphicsDevice` are in `flutter3d`; reading a `.glb`, `.obj` or `.f3d` is
-`flutter3d_formats`. `CpuMesh` is the `MeshGeometry` for geometry that is
+`package:flutter3d_core/formats.dart`. `CpuMesh` is the `MeshGeometry` for geometry that is
 queried and never drawn.

@@ -268,7 +268,18 @@ extension _PickPass on Renderer {
         // a material that is not masked, the encoding `material2.x` already
         // uses, and the tint's alpha rides beside it because the scene pass
         // multiplies the texel by that as well.
-        final masked = material.alphaMode == MaterialAlphaMode.mask;
+        // **Hashed counts as masked here, at a fixed half.** `gfx-16n`'s mode
+        // keeps a random half-ish of its pixels, and a click is one pixel:
+        // answering it with noise would make picking a leaf a coin toss that
+        // changed with the camera. Half is the honest middle — a click near
+        // the opaque core of a leaf hits, one at its faded edge does not, and
+        // the answer is the same twice running.
+        final masked =
+            material.alphaMode == MaterialAlphaMode.mask ||
+            material.alphaMode == MaterialAlphaMode.hashed;
+        final cutoff = material.alphaMode == MaterialAlphaMode.hashed
+            ? 0.5
+            : material.alphaCutoff;
         pass.bindUniformBlock(_objectIdShader, _kIdInfoBlock, {
           'id': Float32List.fromList(<double>[
             (id & 0xFF) / 255.0,
@@ -277,7 +288,7 @@ extension _PickPass on Renderer {
             1.0,
           ]),
           'mask': Float32List.fromList(<double>[
-            masked ? material.alphaCutoff : -1.0,
+            masked ? cutoff : -1.0,
             material.baseColor.w,
             0.0,
             0.0,

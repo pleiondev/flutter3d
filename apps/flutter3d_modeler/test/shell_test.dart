@@ -11,6 +11,7 @@ library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter3d_modeler/l10n/app_localizations.dart';
 import 'package:flutter3d_modeler/src/ui/shell.dart';
 import 'package:flutter3d_modeler/src/ui/theme.dart';
 import 'package:flutter3d_modeler/src/ui/tools.dart';
@@ -23,11 +24,16 @@ Future<void> pumpShell(
   ModelerMode mode = ModelerMode.object,
   ValueChanged<ModelerMode>? onMode,
   MeshSubmode submode = MeshSubmode.vertex,
+  AnimationSubmode animationSubmode = AnimationSubmode.pose,
   String? activeTool,
   ValueChanged<String>? onTool,
   Size size = const Size(1440, 900),
   String documentName = 'untitled',
   bool isDirty = false,
+  double? propertiesWidth,
+  ValueChanged<double>? onPropertiesWidth,
+  bool foldedPanel = false,
+  bool foldedRail = false,
 }) async {
   tester.view
     ..physicalSize = size
@@ -35,12 +41,17 @@ Future<void> pumpShell(
   addTearDown(tester.view.reset);
   await tester.pumpWidget(
     MaterialApp(
+      locale: const Locale('en'),
+      localizationsDelegates: AppLocalizations.localizationsDelegates,
+      supportedLocales: AppLocalizations.supportedLocales,
       theme: modelerTheme(),
       home: ModelerShell(
         mode: mode,
         onMode: onMode ?? (_) {},
         submode: submode,
         onSubmode: (_) {},
+        animationSubmode: animationSubmode,
+        onAnimationSubmode: (_) {},
         activeTool: activeTool,
         onTool: onTool ?? (_) {},
         viewport: const ColoredBox(
@@ -52,6 +63,10 @@ Future<void> pumpShell(
         actions: const <Widget>[Text('actions')],
         documentName: documentName,
         isDirty: isDirty,
+        propertiesWidth: propertiesWidth,
+        onPropertiesWidth: onPropertiesWidth,
+        foldedPanel: foldedPanel,
+        foldedRail: foldedRail,
       ),
     ),
   );
@@ -91,30 +106,138 @@ void main() {
       expect(viewport.height, 900 - 52 - 30 - 2);
     });
 
-    testWidgets('a mode past phase one is shown and refused', (
+    testWidgets(
+      'ui-41d: a 270 bottom slot leaves the viewport 545 tall at 1440×900',
+      (WidgetTester tester) async {
+        tester.view
+          ..physicalSize = const Size(1440, 900)
+          ..devicePixelRatio = 1.0;
+        addTearDown(tester.view.reset);
+        await tester.pumpWidget(
+          MaterialApp(
+            locale: const Locale('en'),
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
+            theme: modelerTheme(),
+            home: ModelerShell(
+              mode: ModelerMode.animation,
+              onMode: (_) {},
+              submode: MeshSubmode.vertex,
+              onSubmode: (_) {},
+              animationSubmode: AnimationSubmode.pose,
+              onAnimationSubmode: (_) {},
+              activeTool: null,
+              onTool: (_) {},
+              viewport: const ColoredBox(
+                color: Color(0xFF000000),
+                child: SizedBox.expand(child: Text('viewport')),
+              ),
+              properties: const Text('properties'),
+              status: const Text('status'),
+              bottom: const ColoredBox(
+                color: Color(0xFF000000),
+                child: Center(child: Text('bottom')),
+              ),
+              bottomHeight: 270,
+            ),
+          ),
+        );
+
+        // 816 (today's own full-height viewport, see the test above) less
+        // the 270 slot and the one hairline between them.
+        final Size viewport = tester.getSize(find.text('viewport'));
+        expect(viewport.height, 545);
+        expect(regionOf(tester, 'bottom', SizedBox).height, 270);
+      },
+    );
+
+    testWidgets('the bar offers the ready modes, and only those', (
       WidgetTester tester,
     ) async {
       final asked = <ModelerMode>[];
       await pumpShell(tester, onMode: asked.add);
 
-      // Sculpt is phase four. It is on the bar — a mode that was missing
-      // altogether would read as a mode nobody had planned — and pressing it
-      // does nothing.
-      await tester.tap(
-        find.byIcon(ModelerMode.sculpt.icon),
-        warnIfMissed: false,
+      // **This used to be "shown and refused", and `ux-07` reversed it.** The
+      // old reasoning was that a mode missing altogether would read as a mode
+      // nobody had planned. The live run cost that its case: the switcher is
+      // eight unlabelled icons, three of them look active, and pressing one
+      // of those three is indistinguishable from a press that missed. A
+      // roadmap belongs on the site, not in the one control a person uses
+      // every minute.
+      //
+      // `uv` was the mode this named while it waited for its wiring
+      // (`pro-uv-07`); every mode is ready now, so the rule is stated over
+      // the enum and holds for the next one drawn before it is reachable.
+      //
+      // Mutation: build the segments from `ModelerMode.values` and disable
+      // the unready ones. A mode with `ready: false` is on the bar again and
+      // this finds it.
+      Finder onTheBar(ModelerMode mode) => find.descendant(
+        of: find.byType(SegmentedButton<ModelerMode>),
+        matching: find.byIcon(mode.icon),
       );
-      await tester.pump();
-      expect(asked, isEmpty);
+      for (final ModelerMode mode in ModelerMode.values) {
+        expect(
+          onTheBar(mode),
+          mode.ready ? findsOneWidget : findsNothing,
+          reason: mode.label,
+        );
+      }
 
-      // And the mesh mode, which is phase one, does answer. Mutation: drop the
-      // `enabled:` on the segment and both of these arrive, so a person in a
-      // half-built sculpt mode is looking at an empty rail and wondering what
-      // they broke.
-      await tester.tap(find.byIcon(ModelerMode.mesh.icon));
+      // And UV, the last to arrive, is there and answers — as the mesh mode
+      // beside it always has.
+      await tester.tap(onTheBar(ModelerMode.uv));
       await tester.pump();
-      expect(asked, <ModelerMode>[ModelerMode.mesh]);
+      await tester.tap(onTheBar(ModelerMode.mesh));
+      await tester.pump();
+      expect(asked, <ModelerMode>[ModelerMode.uv, ModelerMode.mesh]);
     });
+
+    testWidgets('the UV mode shows the element level, as the mesh mode does', (
+      WidgetTester tester,
+    ) async {
+      // A seam is an edge selection and a patch to unwrap is a face
+      // selection, so the level switch is as live in this mode as in Mesh.
+      // Mutation: leave the switcher's condition at `mode == mesh`. A person
+      // in UV mode has then no way to say "edges" but the digit row, which a
+      // tablet does not have.
+      await pumpShell(tester, mode: ModelerMode.uv);
+      expect(find.byType(SegmentedButton<MeshSubmode>), findsOneWidget);
+
+      await pumpShell(tester, mode: ModelerMode.material);
+      expect(find.byType(SegmentedButton<MeshSubmode>), findsNothing);
+    });
+
+    testWidgets('material, animation and scene are enabled (ui-39d)', (
+      WidgetTester tester,
+    ) async {
+      // One assertion per mode, not one shared tap: a switcher that enables
+      // material but not the other two would still pass a single combined
+      // check if it only ever pressed the first icon it found.
+      for (final ModelerMode target in <ModelerMode>[
+        ModelerMode.material,
+        ModelerMode.animation,
+        ModelerMode.scene,
+      ]) {
+        final asked = <ModelerMode>[];
+        await pumpShell(tester, onMode: asked.add);
+
+        await tester.tap(find.byIcon(target.icon));
+        await tester.pump();
+
+        expect(asked, <ModelerMode>[
+          target,
+        ], reason: '${target.label} did not switch');
+      }
+    });
+
+    // **"A mode that is not ready is unreachable" stood here, and insisted
+    // there be one to check** — it read `ModelerMode.values.where(!ready)`
+    // and failed on an empty answer, so that it could not pass by checking
+    // nothing. `pro-uv-07` made the answer empty for good: `uv` was the last.
+    // The rule itself is held by "the bar offers the ready modes, and only
+    // those" above, per mode over the whole enum, which is the same
+    // assertion with nothing to go stale when the last unready mode lands.
 
     testWidgets(
       'the element level is shown in the mesh mode and nowhere else',
@@ -125,6 +248,30 @@ void main() {
         await pumpShell(tester, mode: ModelerMode.mesh);
         expect(find.text('Vertex'), findsOneWidget);
         expect(find.text('Face'), findsOneWidget);
+      },
+    );
+
+    // `ui-40d`'s own row: the second switcher's other tenant. Object mode
+    // shows neither the mesh element levels nor the animation sub-mode —
+    // "every other mode shows nothing" is the handoff's own frame rule 2.
+    testWidgets(
+      'the animation sub-mode is shown in the animation mode and nowhere '
+      'else',
+      (WidgetTester tester) async {
+        await pumpShell(tester, mode: ModelerMode.object);
+        expect(find.text('Pose'), findsNothing);
+        expect(find.text('Weights'), findsNothing);
+        expect(find.text('Retarget'), findsNothing);
+        expect(find.text('Morphs'), findsNothing);
+
+        await pumpShell(tester, mode: ModelerMode.mesh);
+        expect(find.text('Pose'), findsNothing);
+
+        await pumpShell(tester, mode: ModelerMode.animation);
+        expect(find.text('Pose'), findsOneWidget);
+        expect(find.text('Weights'), findsOneWidget);
+        expect(find.text('Retarget'), findsOneWidget);
+        expect(find.text('Morphs'), findsOneWidget);
       },
     );
   });
@@ -179,6 +326,29 @@ void main() {
       // whose tools stop working in Russian.
       expect(pressed, <String>['mesh.extrude']);
     });
+
+    testWidgets("ux-18: the tooltip says what the tool does, not only what "
+        'it is called', (WidgetTester tester) async {
+      await pumpShell(tester, mode: ModelerMode.mesh);
+
+      final ModelerTool dissolve = toolsFor(
+        ModelerMode.mesh,
+      ).firstWhere((ModelerTool it) => it.id == 'mesh.dissolve');
+      final Tooltip tip = tester.widget<Tooltip>(
+        find.ancestor(
+          of: find.byIcon(dissolve.icon),
+          matching: find.byType(Tooltip),
+        ),
+      );
+
+      // **"Dissolve edges" is a name.** The review watched people press it
+      // to find out what it was. Mutation: leave the tooltip as the label
+      // and its key, and the one place the interface could have explained
+      // itself repeats the word already on the button.
+      expect(tip.message, contains(dissolve.label));
+      expect(tip.message, contains('\n'));
+      expect(tip.message, endsWith(dissolve.about));
+    });
   });
 
   group('the tool table', () {
@@ -214,12 +384,30 @@ void main() {
       }
     });
 
-    test('every phase-one mode has tools and no other does', () {
+    test('a rail is for the modes you aim at the picture', () {
+      // The rule, and not a list that happens to be true today: a mode has a
+      // rail when its work is done by pointing at the model. Material and
+      // scene are `ready` (`ui-39d`) and have none — their work is numbers
+      // and slots in the properties panel, and a rail of one tool called
+      // "select" would say a mode is emptier than it is. Animation answers
+      // empty until a sub-mode is picked, since its four sub-modes have four
+      // different rails (`toolsFor`'s own doc comment). UV has one since
+      // `pro-uv-07`: a seam is marked by pointing at an edge.
+      const withTools = <ModelerMode>{
+        ModelerMode.object,
+        ModelerMode.mesh,
+        ModelerMode.uv,
+        ModelerMode.sculpt,
+        ModelerMode.retopo,
+        ModelerMode.paint,
+        ModelerMode.simulation,
+        ModelerMode.render,
+      };
       for (final ModelerMode mode in ModelerMode.values) {
         expect(
           toolsFor(mode).isNotEmpty,
-          mode.isReady,
-          reason: '${mode.label} disagrees with its own phase',
+          withTools.contains(mode),
+          reason: '${mode.label} disagrees with its own tool table',
         );
       }
     });
@@ -238,7 +426,7 @@ void main() {
       // with `ColorScheme.fromSeed` and every one of these moves — which is
       // the whole reason the scheme is written out rather than generated.
       expect(scheme.surface, const Color(0xFF14181A));
-      expect(scheme.onSurface, const Color(0xFFE6E9EA));
+      expect(scheme.onSurface, const Color(0xFFE1E3E3));
       expect(scheme.primaryContainer, const Color(0xFF004F58));
       expect(scheme.outline, const Color(0xFF899295));
       expect(scheme.brightness, Brightness.dark);
@@ -273,6 +461,173 @@ void main() {
       // plain name would still be findsOneWidget and this would not notice.
       expect(find.text('teapot.f3dproj'), findsNothing);
       expect(find.text('• teapot.f3dproj'), findsOneWidget);
+    });
+  });
+
+  group('ux-08: the properties panel is somewhere a ListTile can live', () {
+    testWidgets('a ListTile in the panel does not bring the build down', (
+      WidgetTester tester,
+    ) async {
+      tester.view
+        ..physicalSize = const Size(1440, 900)
+        ..devicePixelRatio = 1.0;
+      addTearDown(tester.view.reset);
+
+      // **A `ListTile`, because that is what the Scene panels are made of.**
+      // `scene_source_panel.dart`, `scene_shadows_panel.dart` and
+      // `scene_post_panel.dart` are lists of `ListTile`/`SwitchListTile`, and
+      // a `ListTile` asserts in a debug build when it can find no `Material`
+      // ancestor to paint its background and ink into. The panel was a
+      // `ColoredBox` — the same colour, not a `Material` — so entering Scene
+      // mode threw on every frame and stacked a crash dialog per frame over
+      // a black window.
+      //
+      // Mutation: put the `ColoredBox` back. This throws "ListTile
+      // background color or ink splashes may be invisible".
+      await tester.pumpWidget(
+        MaterialApp(
+          locale: const Locale('en'),
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          theme: modelerTheme(),
+          home: ModelerShell(
+            mode: ModelerMode.scene,
+            onMode: (_) {},
+            submode: MeshSubmode.vertex,
+            onSubmode: (_) {},
+            animationSubmode: AnimationSubmode.pose,
+            onAnimationSubmode: (_) {},
+            activeTool: null,
+            onTool: (_) {},
+            viewport: const ColoredBox(
+              color: Color(0xFF000000),
+              child: SizedBox.expand(),
+            ),
+            properties: Column(
+              children: <Widget>[
+                // **Tappable, and that is not incidental.** The check only
+                // runs for a tile with an `onTap`/`onLongPress` or an opaque
+                // tile colour — `ListTile.build`, Flutter 3.47 — because
+                // those are the tiles whose background and ink an opaque
+                // ancestor would swallow. Every tile in the Scene panels has
+                // one; a decorative tile would make this test vacuous.
+                ListTile(title: const Text('Sources'), onTap: () {}),
+                SwitchListTile(
+                  value: true,
+                  onChanged: (_) {},
+                  title: const Text('Shadows'),
+                ),
+              ],
+            ),
+            status: const Text('status'),
+            actions: const <Widget>[Text('actions')],
+            documentName: 'untitled',
+            isDirty: false,
+          ),
+        ),
+      );
+
+      expect(tester.takeException(), isNull);
+      expect(find.text('Sources'), findsOne);
+    });
+
+    testWidgets('and every ready mode can be entered with asserts on', (
+      WidgetTester tester,
+    ) async {
+      for (final ModelerMode mode in ModelerMode.values) {
+        if (!mode.ready) continue;
+        await pumpShell(tester, mode: mode);
+        expect(
+          tester.takeException(),
+          isNull,
+          reason: '${mode.label} threw on the way in',
+        );
+      }
+    });
+  });
+
+  group('ux-27: panels that resize and fold', () {
+    testWidgets('a folded panel gives its width to the picture', (
+      WidgetTester tester,
+    ) async {
+      await pumpShell(tester);
+      final double before = regionOf(tester, 'viewport', Expanded).width;
+
+      await pumpShell(tester, foldedPanel: true);
+
+      // Mutation: hide the panel and leave its width behind. The point of
+      // folding it is the picture, and a gap where the panel was is the one
+      // outcome nobody wants.
+      expect(find.text('properties'), findsNothing);
+      expect(
+        regionOf(tester, 'viewport', Expanded).width,
+        greaterThan(before + 200),
+      );
+    });
+
+    testWidgets('and a folded rail gives its own', (WidgetTester tester) async {
+      await pumpShell(tester);
+      final double before = regionOf(tester, 'viewport', Expanded).width;
+
+      await pumpShell(tester, foldedRail: true);
+
+      expect(
+        regionOf(tester, 'viewport', Expanded).width,
+        closeTo(before + ModelerMetrics.rail + 1, 0.5),
+      );
+    });
+
+    testWidgets('the panel is as wide as it is told, within its range', (
+      WidgetTester tester,
+    ) async {
+      await pumpShell(tester, propertiesWidth: 400);
+
+      expect(regionOf(tester, 'properties', SizedBox).width, 400);
+
+      // Past the widest it may be, it is the widest it may be — the number
+      // arrives from a saved document as well as from a drag.
+      await pumpShell(tester, propertiesWidth: 4000);
+      expect(
+        regionOf(tester, 'properties', SizedBox).width,
+        ModelerMetrics.propertiesWidest,
+      );
+    });
+
+    testWidgets('dragging the splitter reports a wider panel', (
+      WidgetTester tester,
+    ) async {
+      final widths = <double>[];
+      await pumpShell(
+        tester,
+        propertiesWidth: 300,
+        onPropertiesWidth: widths.add,
+      );
+
+      // The splitter lies over the panel's own left edge, so that nothing in
+      // the row moves to make room for it.
+      final Offset panel = tester.getTopLeft(find.text('properties'));
+      await tester.dragFrom(Offset(panel.dx + 3, 400), const Offset(-40, 0));
+      await tester.pump();
+
+      // Mutation: report the raw delta, or report it with the wrong sign.
+      // Dragging left would then narrow the panel it is pulling wider.
+      expect(widths, isNotEmpty);
+      expect(widths.last, greaterThan(300));
+    });
+
+    testWidgets('and offering the drag at all moves nothing', (
+      WidgetTester tester,
+    ) async {
+      await pumpShell(tester);
+      final double without = regionOf(tester, 'viewport', Expanded).width;
+
+      await pumpShell(tester, onPropertiesWidth: (_) {});
+
+      // Mutation: put the grab zone in the row as a widget of its own. Six
+      // pixels wide enough to hit is six pixels the picture loses, and every
+      // screenshot in the tutorial moves by six pixels to pay for it — which
+      // is how this was found.
+      expect(regionOf(tester, 'viewport', Expanded).width, without);
     });
   });
 }

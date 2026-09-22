@@ -1,5 +1,6 @@
 import 'dart:typed_data';
 
+import 'principal_axis.dart';
 import 'rgba8_image.dart';
 
 /// Encodes [image] as BC1 (`vkFormat.bc1RgbaUNormBlock`): one 8-byte block
@@ -13,17 +14,8 @@ import 'rgba8_image.dart';
 /// on a tie, nudging one channel by one step — see its own doc comment for
 /// why a tie is not a curiosity to leave alone.
 ///
-/// **Endpoints from a principal-axis fit, not a bounding box.** A block's
-/// sixteen colours rarely spread along an axis aligned with R, G or B, so
-/// picking `min`/`max` per channel finds a box around the data rather than a
-/// line through it — visibly worse on the kind of smooth gradient a real
-/// texture is made of. [_principalAxis] finds that line by power iteration
-/// on the block's 3×3 covariance matrix (eight iterations converges well
-/// past what an 8-bit endpoint can represent, and a 4×4 block's covariance
-/// is cheap enough to build sixteen times over without it ever being the
-/// slow part of an encode). The two pixels furthest apart when projected
-/// onto that axis become the endpoints — not the axis's own extremes, which
-/// need not be colours any real pixel has.
+/// **Endpoints from a principal-axis fit, not a bounding box** — see
+/// [blockEndpoints], which every block encoder here shares.
 Uint8List encodeBc1(Rgba8Image image) {
   requireWholeBlocks(image, 'encodeBc1');
   final blocksX = image.width ~/ 4;
@@ -43,62 +35,12 @@ Uint8List encodeBc1(Rgba8Image image) {
 /// Encodes one 4×4 block (sixteen `(r, g, b, a)` tuples, row-major) as the
 /// eight bytes of a single BC1 block. Alpha is ignored — BC1 has none.
 Uint8List encodeBc1Block(List<(int, int, int, int)> pixels) {
-  final rgb = <(double, double, double)>[
-    for (final (r, g, b, _) in pixels)
-      (r.toDouble(), g.toDouble(), b.toDouble()),
-  ];
-
-  var meanR = 0.0, meanG = 0.0, meanB = 0.0;
-  for (final (r, g, b) in rgb) {
-    meanR += r;
-    meanG += g;
-    meanB += b;
-  }
-  meanR /= 16;
-  meanG /= 16;
-  meanB /= 16;
-
-  final (axisR, axisG, axisB) = _principalAxis(rgb, meanR, meanG, meanB);
-
-  // The two pixels whose projection onto the axis is furthest apart, not the
-  // axis's own extremes — see the library doc comment.
-  var minT = double.infinity, maxT = -double.infinity;
-  var minIndex = 0, maxIndex = 0;
-  for (var i = 0; i < 16; i++) {
-    final (r, g, b) = rgb[i];
-    final t = (r - meanR) * axisR + (g - meanG) * axisG + (b - meanB) * axisB;
-    if (t < minT) {
-      minT = t;
-      minIndex = i;
-    }
-    if (t > maxT) {
-      maxT = t;
-      maxIndex = i;
-    }
-  }
-
-  final e0 = rgb[maxIndex];
-  // A flat block projects every pixel to the same point, so min and max land
-  // on the same pixel; any endpoint works, and the block decodes solid
-  // either way.
-  final e1 = minIndex == maxIndex ? e0 : rgb[minIndex];
-
-  var pack0 = _quantize565(e0);
-  var pack1 = _quantize565(e1);
+  final (:high, :low) = blockEndpoints(pixels);
+  var pack0 = _quantize565(high);
+  var pack1 = _quantize565(low);
   (pack0, pack1) = _orderEndpoints(pack0, pack1);
 
-  final (r0, g0, b0) = _expand565(pack0);
-  final (r1, g1, b1) = _expand565(pack1);
-  // BC1's four-color palette: the two endpoints, then 2/3 and 1/3 blends —
-  // the interpolation every BC1 decoder performs, reproduced here so the
-  // index each pixel picks is the index that decoder will actually resolve
-  // to that pixel's nearest colour, not to the un-quantized endpoint.
-  final palette = <(int, int, int)>[
-    (r0, g0, b0),
-    (r1, g1, b1),
-    ((2 * r0 + r1) ~/ 3, (2 * g0 + g1) ~/ 3, (2 * b0 + b1) ~/ 3),
-    ((r0 + 2 * r1) ~/ 3, (g0 + 2 * g1) ~/ 3, (b0 + 2 * b1) ~/ 3),
-  ];
+  final palette = bc1Palette(pack0, pack1);
 
   var indices = 0;
   for (var i = 0; i < 16; i++) {
@@ -125,59 +67,30 @@ Uint8List encodeBc1Block(List<(int, int, int, int)> pixels) {
   return out;
 }
 
-/// The dominant direction sixteen `(r, g, b)` points vary along, found by
-/// power iteration on their covariance matrix rather than an eigenvalue
-/// solver — a 3×3 matrix converges in a handful of iterations and needs no
-/// dependency this package does not already carry.
-(double, double, double) _principalAxis(
-  List<(double, double, double)> rgb,
-  double meanR,
-  double meanG,
-  double meanB,
+/// The two endpoints as a BC1 block stores them, and whether ordering had to
+/// swap the pair — `gfx-83n`.
+///
+/// The universal-block transcoder arrives with endpoints already chosen and
+/// needs BC1's quantisation, its four-colour ordering and the tie nudge
+/// [_orderEndpoints] documents, without the fit or the index search. It has to
+/// know about [swapped] because its own weights are written against the
+/// endpoints in the order it holds them.
+({int pack0, int pack1, bool swapped}) packBc1Endpoints(
+  (int, int, int) e0,
+  (int, int, int) e1,
 ) {
-  var cRR = 0.0, cRG = 0.0, cRB = 0.0, cGG = 0.0, cGB = 0.0, cBB = 0.0;
-  for (final (r, g, b) in rgb) {
-    final dr = r - meanR, dg = g - meanG, db = b - meanB;
-    cRR += dr * dr;
-    cRG += dr * dg;
-    cRB += dr * db;
-    cGG += dg * dg;
-    cGB += dg * db;
-    cBB += db * db;
-  }
-
-  // Seeded along the block's own colour range rather than an arbitrary axis:
-  // a block that varies in only one channel (a pure red gradient, say) would
-  // otherwise converge slower from a symmetric start, and eight iterations
-  // is a budget chosen assuming a reasonable seed.
-  var vr = cRR + cRG + cRB;
-  var vg = cRG + cGG + cGB;
-  var vb = cRB + cGB + cBB;
-  if (vr == 0 && vg == 0 && vb == 0) return (1, 0, 0); // a flat block
-
-  for (var i = 0; i < 8; i++) {
-    final nr = cRR * vr + cRG * vg + cRB * vb;
-    final ng = cRG * vr + cGG * vg + cGB * vb;
-    final nb = cRB * vr + cGB * vg + cBB * vb;
-    final length = _length(nr, ng, nb);
-    if (length == 0) break;
-    vr = nr / length;
-    vg = ng / length;
-    vb = nb / length;
-  }
-  final length = _length(vr, vg, vb);
-  return length == 0 ? (1, 0, 0) : (vr / length, vg / length, vb / length);
-}
-
-double _length(double x, double y, double z) => _sqrt(x * x + y * y + z * z);
-
-double _sqrt(double x) {
-  if (x <= 0) return 0;
-  var guess = x;
-  for (var i = 0; i < 12; i++) {
-    guess = 0.5 * (guess + x / guess);
-  }
-  return guess;
+  final first = _quantize565((
+    e0.$1.toDouble(),
+    e0.$2.toDouble(),
+    e0.$3.toDouble(),
+  ));
+  final second = _quantize565((
+    e1.$1.toDouble(),
+    e1.$2.toDouble(),
+    e1.$3.toDouble(),
+  ));
+  final (pack0, pack1) = _orderEndpoints(first, second);
+  return (pack0: pack0, pack1: pack1, swapped: first < second);
 }
 
 int _quantize565((double, double, double) rgb) {
@@ -186,6 +99,25 @@ int _quantize565((double, double, double) rgb) {
   final g6 = (g * 63 / 255).round().clamp(0, 63);
   final b5 = (b * 31 / 255).round().clamp(0, 31);
   return (r5 << 11) | (g6 << 5) | b5;
+}
+
+/// BC1's four-colour palette for a pair of packed endpoints: the two
+/// endpoints, then the ⅔ and ⅓ blends.
+///
+/// The interpolation every BC1 decoder performs, reproduced so that an index
+/// chosen against it is the index that decoder resolves back to the colour it
+/// was chosen for — not to the un-quantised endpoint. Public since `gfx-83n`,
+/// for the universal-block transcoder, which picks indices against BC1's
+/// palette without running BC1's fit.
+List<(int, int, int)> bc1Palette(int pack0, int pack1) {
+  final (r0, g0, b0) = _expand565(pack0);
+  final (r1, g1, b1) = _expand565(pack1);
+  return <(int, int, int)>[
+    (r0, g0, b0),
+    (r1, g1, b1),
+    ((2 * r0 + r1) ~/ 3, (2 * g0 + g1) ~/ 3, (2 * b0 + b1) ~/ 3),
+    ((r0 + 2 * r1) ~/ 3, (g0 + 2 * g1) ~/ 3, (b0 + 2 * b1) ~/ 3),
+  ];
 }
 
 (int, int, int) _expand565(int packed) {

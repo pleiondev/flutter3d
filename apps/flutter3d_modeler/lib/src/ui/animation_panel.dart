@@ -1,44 +1,46 @@
-/// `anim-07`'s own screen: [ActionsList] to pick a clip, [TimelinePanel] to
-/// scrub and drag its keys, and — for the held object's own skeleton, when
-/// it has one — [SkeletonTree] and [ConstraintsList].
+/// `anim-07`'s own screen: [ActionsList] to pick a clip, and — for the held
+/// object's own skeleton, when it has one — [SkeletonTree] and
+/// [ConstraintsList].
 ///
-/// **Selection and the scrub position are this widget's own state, not the
-/// project's.** Which clip is open, which track or joint is highlighted and
-/// where the playhead sits are exactly the facts [ModelHistory] must never
-/// carry — undoing a click that only changed what a person was looking at
-/// would be a step of "undo" that visibly does nothing. [onMoveKeys] and
-/// [onAddClip] are the only two things this panel ever asks a caller to run
-/// as a real command.
-///
-/// **The live pose is reported, not applied, here.** [onSelectClip] and
-/// [onTimeChanged] fire alongside this panel's own local selection and
-/// scrub state, so a caller holding the real scene — `main.dart`'s own
-/// `TimelinePlayback` — can sample the clip onto it. This widget still has
-/// no `ModelProject` and no scene of its own to apply a pose to; it only
-/// ever names which clip and which moment. `anim-08`'s own skeleton overlay
-/// still draws the rest pose regardless — a played pose moving the mesh and
-/// an overlay drawn over it are two different screens' worth of work.
+/// **A stateless pass-through, as of `S2`.** This panel used to keep the
+/// clip/track/key selection and the scrub position as its own local state,
+/// with the reasoning that none of it belongs on [ModelHistory] — undoing a
+/// click that only changed what a person was looking at would be a step of
+/// "undo" that visibly does nothing. That reasoning still holds; only where
+/// the state lives changed. `S2` moved [TimelinePanel] out of this panel and
+/// into `ModelerShell.bottom` (`ui-41d`'s own slot) so the transport bar and
+/// the curve editor beside it can share the same playhead and clip — a
+/// widget the panel had no way to reach while it was the only thing holding
+/// which clip was open. What was `_selectedClip`/`_selectedTrack`/
+/// `_selectedKey`/`_selectedJoint`/`_selectedConstraint` on this class's own
+/// `State` are now `_ModelerScreenState`'s own fields instead, the same
+/// "one screen, one place selection lives" this application already keeps
+/// [pivot]/[space]/[selectedLight] in.
 library;
 
 import 'package:flutter/material.dart';
+import 'package:flutter3d_editor_widgets/flutter3d_editor_widgets.dart';
 import 'package:flutter3d_model_core/flutter3d_model_core.dart' hide Key;
 
+import '../../../l10n/app_localizations.dart';
 import 'actions_list.dart';
 import 'constraints_list.dart';
-import 'section_label.dart';
 import 'skeleton_tree.dart';
-import 'timeline_panel.dart';
 
-class AnimationPanel extends StatefulWidget {
+class AnimationPanel extends StatelessWidget {
   const AnimationPanel({
     super.key,
     required this.clips,
     required this.objects,
     this.skeleton,
-    required this.onMoveKeys,
     required this.onAddClip,
-    this.onSelectClip,
-    this.onTimeChanged,
+    this.selectedClip,
+    required this.onSelectClip,
+    this.selectedJoint,
+    required this.onSelectJoint,
+    this.selectedConstraint,
+    required this.onSelectConstraint,
+    this.onRemoveConstraint,
   });
 
   /// The project's own actions — [ModelProject.clips].
@@ -53,61 +55,25 @@ class AnimationPanel extends StatefulWidget {
   /// the caller since this panel has no [ModelProject] of its own to index.
   final ProjectSkeleton? skeleton;
 
-  /// A drag on a diamond ended — [TimelinePanel.onMoveKeys]'s own callback,
-  /// passed straight through to whichever history a caller keeps.
-  final ValueChanged<MoveKeys> onMoveKeys;
-
   /// "Add" was pressed under the action list — [AddClip], `anim-04`'s own
   /// row.
   final VoidCallback onAddClip;
 
-  /// Which clip is open changed — including to null, when a clip closes or
-  /// the selection is clamped out from under it — so a caller previewing a
-  /// pose knows to stop.
-  final ValueChanged<int?>? onSelectClip;
+  /// Which clip is open — the caller's own selection, so the timeline in
+  /// `ModelerShell.bottom` and this panel's own action list always agree on
+  /// it.
+  final int? selectedClip;
+  final ValueChanged<int> onSelectClip;
 
-  /// The scrub position moved, in seconds into the open clip. Never fires
-  /// with no clip open, the same way [TimelinePanel] itself only exists then.
-  final ValueChanged<double>? onTimeChanged;
+  final int? selectedJoint;
+  final ValueChanged<int> onSelectJoint;
 
-  @override
-  State<AnimationPanel> createState() => _AnimationPanelState();
-}
-
-class _AnimationPanelState extends State<AnimationPanel> {
-  int? _selectedClip;
-  int? _selectedTrack;
-  int? _selectedKey;
-  int? _selectedJoint;
-  int? _selectedConstraint;
-  double _time = 0.0;
-
-  @override
-  void didUpdateWidget(covariant AnimationPanel old) {
-    super.didUpdateWidget(old);
-    // A clip [AddClip] appended, or one removed from further up the
-    // history, can leave a stale index behind — clamped rather than left to
-    // throw the next time [build] indexes [widget.clips] with it.
-    if (_selectedClip != null && _selectedClip! >= widget.clips.length) {
-      _selectedClip = null;
-      _selectedTrack = null;
-      _selectedKey = null;
-      widget.onSelectClip?.call(null);
-    }
-  }
-
-  void _selectClip(int index) {
-    setState(() {
-      _selectedClip = index;
-      _selectedTrack = null;
-      _selectedKey = null;
-      _time = 0.0;
-    });
-    widget.onSelectClip?.call(index);
-  }
+  final int? selectedConstraint;
+  final ValueChanged<int> onSelectConstraint;
+  final ValueChanged<int>? onRemoveConstraint;
 
   String _jointName(int jointId) {
-    for (final object in widget.objects) {
+    for (final object in objects) {
       if (object.id == jointId) return object.name;
     }
     return 'joint $jointId';
@@ -115,63 +81,36 @@ class _AnimationPanelState extends State<AnimationPanel> {
 
   @override
   Widget build(BuildContext context) {
-    final int? clipIndex = _selectedClip;
-    final ProjectClip? clip =
-        clipIndex != null && clipIndex < widget.clips.length
-        ? widget.clips[clipIndex]
-        : null;
-    final ProjectSkeleton? skeleton = widget.skeleton;
+    final ProjectSkeleton? skeleton = this.skeleton;
+    final AppLocalizations l = AppLocalizations.of(context);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: <Widget>[
-        SectionLabel('Actions'),
+        SectionLabel(l.animActions),
         ActionsList(
-          clips: widget.clips,
-          selectedClip: _selectedClip,
-          onSelectClip: _selectClip,
-          onAddClip: widget.onAddClip,
+          clips: clips,
+          selectedClip: selectedClip,
+          onSelectClip: onSelectClip,
+          onAddClip: onAddClip,
         ),
-        if (clip != null) ...<Widget>[
-          const SizedBox(height: 6),
-          SectionLabel('Timeline'),
-          SizedBox(
-            height: 180,
-            child: TimelinePanel(
-              clipIndex: clipIndex!,
-              clip: clip,
-              time: _time,
-              selectedTrack: _selectedTrack,
-              selectedKey: _selectedKey,
-              onMoveKeys: widget.onMoveKeys,
-              onSeek: (double t) {
-                setState(() => _time = t);
-                widget.onTimeChanged?.call(t);
-              },
-              onSelectKey: (int track, int key) => setState(() {
-                _selectedTrack = track;
-                _selectedKey = key;
-              }),
-            ),
-          ),
-        ],
         if (skeleton != null) ...<Widget>[
           const SizedBox(height: 6),
-          SectionLabel('Skeleton'),
+          SectionLabel(l.animSkeleton),
           SkeletonTree(
-            objects: widget.objects,
+            objects: objects,
             skeleton: skeleton,
-            selectedJoint: _selectedJoint,
-            onSelectJoint: (int id) => setState(() => _selectedJoint = id),
+            selectedJoint: selectedJoint,
+            onSelectJoint: onSelectJoint,
           ),
           const SizedBox(height: 6),
-          SectionLabel('Constraints'),
+          SectionLabel(l.animConstraints),
           ConstraintsList(
             constraints: skeleton.constraints,
             nameOf: _jointName,
-            selected: _selectedConstraint,
-            onSelect: (int index) =>
-                setState(() => _selectedConstraint = index),
+            selected: selectedConstraint,
+            onSelect: onSelectConstraint,
+            onRemove: onRemoveConstraint,
           ),
         ],
       ],

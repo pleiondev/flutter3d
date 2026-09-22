@@ -47,26 +47,6 @@ import 'package:vector_math/vector_math.dart';
 import 'transform_gizmo.dart';
 import 'transform_modal.dart';
 
-/// The colour of the box in the middle, the one that scales every axis at once,
-/// as `0xRRGGBB`.
-///
-/// **No axis, so no tint.** [kGizmoTintX] and its two rotations each say a
-/// direction, and a uniform scale is the one handle that says none of them;
-/// borrowing one of the three would put a red box in the middle of a gizmo
-/// whose red arm points elsewhere. A pale grey is what is left that still reads
-/// as something to take hold of.
-///
-/// It is a grey of its own, which is one more colour than this file would like
-/// to add. The greys already on screen are the wireframe's `#8C9399` and an
-/// unselected vertex handle's `#B8C2C7`, and a middle box painted in either of
-/// them is a handle a person has to pick out of the mesh it is standing on.
-/// This one is a step lighter than both, so it reads as sitting in front of the
-/// model; going the other way and darkening it would put the box in the range
-/// the shadowed side of a lit model occupies. The test holds the gap rather
-/// than the hex: what matters is that the middle box is lighter than anything
-/// the overlay draws underneath it.
-const int kGizmoTintUniform = 0xC8CFD2;
-
 /// How far towards white the handle under the pointer is mixed.
 ///
 /// **Brighter rather than another colour, and brighter rather than bigger.** A
@@ -269,6 +249,10 @@ final class GizmoDrawing {
     GizmoAxis.x => (Vector3(0, 1, 0), Vector3(0, 0, 1)),
     GizmoAxis.y => (Vector3(0, 0, 1), Vector3(1, 0, 0)),
     GizmoAxis.z => (Vector3(1, 0, 0), Vector3(0, 1, 0)),
+    // A rotate gizmo has no middle handle, so nothing places one; the case is
+    // here because the enum has four members and an unwritten one would be a
+    // crash rather than a compile error the day somebody adds a turn-all ring.
+    GizmoAxis.uniform => (Vector3.zero(), Vector3.zero()),
   };
 
   /// [tint] as the overlay wants it, mixed towards white when [lit].

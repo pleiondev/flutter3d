@@ -18,10 +18,12 @@ import '../scene/morph_state.dart';
 import '../scene/projection.dart';
 import '../scene/reflection_probe_node.dart';
 import '../scene/scene.dart';
+import '../scene/scene_node.dart';
 import 'composite_mix.dart';
 import 'debug_draw.dart';
 import 'debug_draw_gizmos.dart';
 import 'empty_frame.dart';
+import 'frame_capture.dart';
 import 'frame_graph.dart';
 import 'frame_plan.dart';
 import 'frame_resources.dart';
@@ -43,7 +45,9 @@ import 'static_bake_key.dart';
 // being the one place that decides what a consumer reaches through.
 export 'render_settings.dart';
 
+part 'renderer_batch.dart';
 part 'renderer_frame_nodes.dart';
+part 'renderer_light_list.dart';
 part 'renderer_mesh_encode.dart';
 part 'renderer_pick_pass.dart';
 part 'renderer_post_pass.dart';
@@ -64,12 +68,19 @@ const String _kReflectionInfoBlock = 'ReflectionInfo';
 const String _kSsaoInfoBlock = 'SsaoInfo';
 const String _kFrameInfoBlock = 'FrameInfo';
 const String _kFragInfoBlock = 'FragInfo';
+
+/// The per-draw half of the light list — `gfx-74n`.
+const String _kLightListBlock = 'LightListInfo';
+
+/// The contact shadow's own block — `gfx-76n`.
+const String _kContactShadowBlock = 'ContactShadowInfo';
 const String _kFogInfoBlock = 'FogInfo';
 const String _kMorphInfoBlock = 'MorphInfo';
 const String _kMorphInstanceInfoBlock = 'MorphInstanceInfo';
 const String _kLineInfoBlock = 'LineInfo';
 const String _kSkinInfoBlock = 'SkinInfo';
 const String _kBloomInfoBlock = 'BloomInfo';
+const String _kFxaaInfoBlock = 'FxaaInfo';
 const String _kCompositeInfoBlock = 'CompositeInfo';
 const String _kLuminanceInfoBlock = 'LuminanceInfo';
 const String _kIdInfoBlock = 'IdInfo';
@@ -77,6 +88,9 @@ const String _kProbeInfoBlock = 'ProbeInfo';
 
 /// Texture slots, unlike uniform blocks, are reflected under the variable name.
 const String _kAlbedoTextureSlot = 'base_color_texture';
+
+/// `gfx-60n`: the cutoff and the base alpha a cut-out shadow stage reads.
+const String _kShadowMaskBlock = 'MaskInfo';
 const String _kNormalTextureSlot = 'normal_texture';
 const String _kMetallicRoughnessTextureSlot = 'metallic_roughness_texture';
 const String _kOcclusionTextureSlot = 'occlusion_texture';
@@ -88,6 +102,8 @@ const String _kPostSourceSlot = 'source_texture';
 const String _kSceneTextureSlot = 'scene_texture';
 const String _kBloomTextureSlot = 'bloom_texture';
 const String _kAoTextureSlot = 'ao_texture';
+const String _kLutTextureSlot = 'lut_texture';
+const String _kContactShadowTextureSlot = 'contact_shadow_texture';
 
 /// Draws a [Scene] through one or more [RenderView]s.
 ///
@@ -126,8 +142,14 @@ final class Renderer implements RenderServices {
     required this.bloomDownsampleShader,
     required this.bloomUpsampleShader,
     required this.compositeShader,
+    required this.fxaaShader,
     required this.reflectionShader,
     required this.ssaoShader,
+    required this.contactShadowShader,
+    required this.ssaoBlurShader,
+    required this.lightShaftsShader,
+    required this.depthOfFieldShader,
+    required this.viewportShadeShader,
     required TextureHandle fallbackAlbedo,
     required TextureHandle fallbackNormal,
     required TextureHandle fallbackBlack,
@@ -243,11 +265,29 @@ final class Renderer implements RenderServices {
   final ShaderHandle bloomUpsampleShader;
   final ShaderHandle compositeShader;
 
+  /// `gfx-04n`: edges smoothed on the composited picture.
+  final ShaderHandle fxaaShader;
+
   /// The screen-space reflection pass.
   final ShaderHandle reflectionShader;
 
   /// The ambient occlusion pass.
   final ShaderHandle ssaoShader;
+
+  /// The short march toward the light — `gfx-76n`. See `post/contact_shadow.frag`.
+  final ShaderHandle contactShadowShader;
+
+  /// `gfx-32n`'s depth-aware blur over what that pass produced.
+  final ShaderHandle ssaoBlurShader;
+
+  /// `gfx-33n`'s volumetric shafts through the directional shadow map.
+  final ShaderHandle lightShaftsShader;
+
+  /// `gfx-34n`'s thin lens and its gather.
+  final ShaderHandle depthOfFieldShader;
+
+  /// `gfx-43n`/`44n`/`45n`'s three branches over the surface buffer.
+  final ShaderHandle viewportShadeShader;
 
   /// 1x1 opaque white, bound when a material has no base-colour texture.
   ///
@@ -611,6 +651,12 @@ final class Renderer implements RenderServices {
     _shadowPipeline = null;
     _skinnedShadowPipeline = null;
     _instancedShadowPipeline = null;
+    _maskedShadowPipeline = null;
+    _skinnedMaskedShadowPipeline = null;
+    _instancedMaskedShadowPipeline = null;
+    _maskedCubeShadowPipeline = null;
+    _skinnedMaskedCubeShadowPipeline = null;
+    _instancedMaskedCubeShadowPipeline = null;
     _bloomUpsamplePipeline = null;
     _compositePipeline = null;
     _skyPipeline = null;
@@ -623,11 +669,40 @@ final class Renderer implements RenderServices {
 
   final Map<String, ShaderHandle> _fragmentShaders = <String, ShaderHandle>{};
 
+  /// Vertex stages a material brought with it, by entry point — `gfx-75n`.
+  ///
+  /// Beside [_fragmentShaders] and for its reason: the lookup throws when the
+  /// name is not there, and a throw per draw would be a throw per frame.
+  final Map<String, ShaderHandle> _materialVertexShaders =
+      <String, ShaderHandle>{};
+
   /// Textures reused across frames and across bloom levels.
   ///
   /// The device is the allocator: one rule for every texture in the engine,
   /// and no second way to make one.
   final RenderTargetPool targetPool;
+
+  /// Gives back every pooled transient target no live frame is holding —
+  /// `gfx-71n`.
+  ///
+  /// **What the pool does without this is settle at a high-water mark and stay
+  /// there.** It keeps one texture of every attachment shape any frame has ever
+  /// needed: turn bloom on once and its five levels are held for the rest of
+  /// the session, take one screenshot at twice the window size and that pair of
+  /// targets is held too. On a desktop that is a megabyte nobody notices; on a
+  /// phone it is the difference between a slow frame and the process being
+  /// killed, which is why this is wired to the platform's own warning rather
+  /// than to a budget this package would have to invent.
+  ///
+  /// Safe at any moment between frames: what is lent out is left alone, and
+  /// `RenderTargetPool.trim` marks those retired so they go back to the device
+  /// when their frame releases them rather than into a free list for a size
+  /// nothing will ask for again. The next frame allocates what it needs and
+  /// draws the same picture, a little slower once.
+  ///
+  /// `Flutter3dSurface` calls it from `didHaveMemoryPressure`. An application
+  /// that owns its own renderer calls it from wherever its platform says.
+  void releaseTransientTargets() => targetPool.trim();
 
   int _targetWidth = 0;
   int _targetHeight = 0;
@@ -740,6 +815,21 @@ final class Renderer implements RenderServices {
 
   PipelineHandle? _shadowPipeline;
   PipelineHandle? _skinnedShadowPipeline;
+
+  /// `gfx-60n`: the same three again, against the cut-out shadow stages.
+  ///
+  /// Separate handles rather than a flag on the three above, because a
+  /// pipeline is a shader pair and these pair a different fragment stage. A
+  /// scene with no cut-out caster never builds them.
+  PipelineHandle? _maskedShadowPipeline;
+  PipelineHandle? _skinnedMaskedShadowPipeline;
+  PipelineHandle? _instancedMaskedShadowPipeline;
+  PipelineHandle? _maskedCubeShadowPipeline;
+  PipelineHandle? _skinnedMaskedCubeShadowPipeline;
+  PipelineHandle? _instancedMaskedCubeShadowPipeline;
+
+  /// `gfx-60n`: the cutoff and the base alpha, packed for the shadow stages.
+  final Float32List _shadowMask = Float32List(4);
   PipelineHandle? _instancedShadowPipeline;
   PipelineHandle? _bloomUpsamplePipeline;
   PipelineHandle? _compositePipeline;
@@ -829,6 +919,29 @@ final class Renderer implements RenderServices {
   /// most applications never draw one and a full-size depth buffer is megabytes
   /// nobody asked for.
   final Float32List _bloomParams = Float32List(4);
+  final Float32List _fxaaParams = Float32List(4);
+
+  /// `gfx-29n`: x is the sharpening amount, the rest unclaimed.
+  final Float32List _fxaaSharpen = Float32List(4);
+
+  /// `gfx-32n`: one texel of the occlusion buffer, the tap count, and how
+  /// fast a tap's weight falls off with depth.
+  final Float32List _ssaoBlurParams = Float32List(4);
+
+  /// `gfx-33n`'s own four vectors. The three matrices it also needs are the
+  /// shadow pass's, reused rather than recomputed.
+  final Float32List _shaftCamera = Float32List(4);
+  final Float32List _shaftForward = Float32List(4);
+  final Float32List _shaftScatter = Float32List(4);
+  final Float32List _shaftCascades = Float32List(4);
+  final vm.Vector3 _shaftCameraVec = vm.Vector3.zero();
+  final vm.Vector3 _shaftForwardVec = vm.Vector3.zero();
+  final Float32List _dofLens = Float32List(4);
+  final Float32List _dofParams = Float32List(4);
+  final Float32List _shadeParams = Float32List(4);
+  final Float32List _shadeScreen = Float32List(4);
+  final Float32List _shadeLight = Float32List(4);
+  final vm.Vector3 _shadeLightVec = vm.Vector3.zero();
   final Float32List _compositeParams = Float32List(4);
   final Float32List _compositeAoTexel = Float32List(4);
   final Float32List _luminanceParams = Float32List(4);
@@ -840,6 +953,16 @@ final class Renderer implements RenderServices {
   /// the meter for a menu comes back to the exposure it left rather than to
   /// the setting's number and a second climb.
   ExposureAdapter? _autoExposure;
+
+  /// One adapter per view, for `gfx-22n`'s per-view metering.
+  ///
+  /// Beside [_autoExposure] rather than replacing it: with per-view metering
+  /// off there is one exposure for the frame and this stays empty, which is
+  /// what keeps a stereo pair — and every golden — on the path it has always
+  /// taken. Indexed by the view's place in the ordered list, so a frame that
+  /// gains a view gains an adapter starting where the frame's own exposure is
+  /// rather than at the setting's number and a fresh climb.
+  final List<ExposureAdapter> _viewExposure = <ExposureAdapter>[];
 
   /// Readbacks of the luminance target that came back as an error. Diagnostic:
   /// a meter that has stopped hearing from the device holds its last answer,
@@ -932,6 +1055,22 @@ final class Renderer implements RenderServices {
       ? _autoExposure?.value ?? settings.exposure
       : settings.exposure;
 
+  /// What the composite exposes view [index] with — `gfx-22n`.
+  ///
+  /// The frame's own exposure unless per-view metering is on and this view has
+  /// an adapter, which is what makes the single-view case the case it always
+  /// was: one view meters the whole histogram, so its answer and the frame's
+  /// are the same number arrived at the same way.
+  double _exposureForView(RenderSettings settings, int index) {
+    if (!settings.autoExposure.enabled || !settings.autoExposure.perView) {
+      return _exposureFor(settings);
+    }
+    if (index < 0 || index >= _viewExposure.length) {
+      return _exposureFor(settings);
+    }
+    return _viewExposure[index].value;
+  }
+
   /// The look, packed for the composite's uniform block.
   ///
   /// Two vectors rather than one because std140 pads a `vec3` to sixteen bytes
@@ -939,6 +1078,24 @@ final class Renderer implements RenderServices {
   /// on the shader's side: grading in one, the lens and the film in the other.
   final Float32List _compositeLook = Float32List(4);
   final Float32List _compositeLookMore = Float32List(4);
+
+  /// `gfx-24n`'s fifth block: x is the dither amount, y and z the white
+  /// balance pair `gfx-27n` added. Allocated once and zero on every frame
+  /// that does not ask for any of them.
+  final Float32List _compositeOutputEncode = Float32List(4);
+
+  /// `gfx-27n`'s three ranges. Neutral is (0,0,0) for the lift and (1,1,1)
+  /// for the other two, which is what the composite reads as "do nothing".
+  final Float32List _compositeLift = Float32List(4);
+  final Float32List _compositeGamma = Float32List(4);
+  final Float32List _compositeGain = Float32List(4);
+
+  /// `gfx-76n`'s strength, in x. Neutral is zero, which the composite reads as
+  /// a multiplier of exactly one — the same arrangement the occlusion's
+  /// strength has, and for the same reason: forty-four goldens go through this
+  /// block and "off" has to be a number the shader cancels, not one it nearly
+  /// cancels.
+  final Float32List _compositeContact = Float32List(4);
 
   /// Builds a renderer on [device].
   ///
@@ -998,8 +1155,14 @@ final class Renderer implements RenderServices {
       bloomDownsampleShader: require('BloomDownsample'),
       bloomUpsampleShader: require('BloomUpsample'),
       compositeShader: require('Composite'),
+      fxaaShader: require('Fxaa'),
       reflectionShader: require('Reflections'),
       ssaoShader: require('Ssao'),
+      contactShadowShader: require('ContactShadow'),
+      ssaoBlurShader: require('SsaoBlur'),
+      lightShaftsShader: require('LightShafts'),
+      depthOfFieldShader: require('DepthOfField'),
+      viewportShadeShader: require('ViewportShade'),
       fallbackAlbedo: fallbackAlbedo ?? SolidColorTexture.white.upload(device),
       fallbackNormal:
           fallbackNormal ?? SolidColorTexture.flatNormal.upload(device),
@@ -1116,11 +1279,38 @@ final class Renderer implements RenderServices {
   /// Only a directional light casts today: it is the one whose shadow volume is
   /// a box rather than a frustum or a cube, so it needs neither cascades nor six
   /// faces to be useful.
-  int _firstDirectionalIndex() {
-    for (var i = 0; i < lights.count; i++) {
-      if (lights.positions[i * 4 + 3] == ShaderLightType.directional) return i;
+  int _firstDirectionalIndex() => _directionalIndexIn(lights);
+
+  /// The same question asked of a buffer that is not this renderer's.
+  ///
+  /// `gfx-41n` needs it: a plan gathers the scene's lights into a buffer of
+  /// its own so that asking what a frame *would* do cannot disturb what the
+  /// last frame did.
+  static int _directionalIndexIn(LightBuffer buffer) {
+    for (var i = 0; i < buffer.count; i++) {
+      if (buffer.positions[i * 4 + 3] == ShaderLightType.directional) return i;
     }
     return -1;
+  }
+
+  /// Which way the sun lies *from* a surface, or null when nothing directional
+  /// lights the scene — `gfx-76n`.
+  ///
+  /// The buffer holds the direction a light points; a march goes the other way.
+  /// Taken from the same buffer and the same index the shadow map's caster comes
+  /// from, so a frame cannot march toward one sun and shadow from another.
+  static vm.Vector3? _toLightIn(LightBuffer buffer, int index) {
+    if (index < 0) return null;
+    final at = index * 4;
+    final direction = vm.Vector3(
+      buffer.directions[at],
+      buffer.directions[at + 1],
+      buffer.directions[at + 2],
+    );
+    // A directional light with no direction is not a light this pass can march
+    // toward, and normalising a zero vector is how you get a frame of NaN.
+    if (direction.length2 == 0.0) return null;
+    return -direction.normalized();
   }
 
   /// Restates this frame's atlas assignment in the slot order [buffer] packed.
@@ -1165,15 +1355,31 @@ final class Renderer implements RenderServices {
     required LightBuffer frameLights,
     required Float32List frameShadowSlots,
     required MeshNode node,
+    double fadeBand = 0.0,
   }) {
-    if (frameLights.overflow == 0) {
+    // **The fast path is what makes `gfx-12n` free when nobody uses it.** A
+    // scene whose lights fit and whose lights ask for no channel shares the
+    // frame's own arrays, not a copy, and packs byte for byte what it packed
+    // before channels existed. Both halves of the condition matter: a
+    // channelled light in a scene of three still has to be filtered, and an
+    // object on every channel in a scene of two hundred still has to rank.
+    final channels = node.lightChannels;
+    final channelled =
+        frameLights.anyChannelled || channels != LightChannels.all;
+    if (frameLights.overflow == 0 && !channelled) {
       return (lights: frameLights, shadowSlots: frameShadowSlots);
     }
-    _drawLights.gatherNearFrom(
-      frameLights,
-      node.worldBoundsCentre,
-      node.worldBoundsRadius,
-    );
+    if (frameLights.overflow == 0) {
+      _drawLights.gatherMatchingFrom(frameLights, channels);
+    } else {
+      _drawLights.gatherNearFrom(
+        frameLights,
+        node.worldBoundsCentre,
+        node.worldBoundsRadius,
+        channels: channels,
+        fadeBand: fadeBand,
+      );
+    }
     // The frame's table is the world scene's; a contributor scene was handed
     // `_noShadowSlots` and its lights own no rows, so rebuilding from the row
     // map would invent shadows the atlas never drew.
@@ -1318,6 +1524,12 @@ final class Renderer implements RenderServices {
 
   /// What a surface facing up, and one facing down, receive from the
   /// environment. Recomputed once a frame — see [_updateAmbient].
+  /// Scratch for the two irradiance samples a draw takes — `gfx-81n`. Kept
+  /// here for the reason every other staging buffer is: a draw must allocate
+  /// nothing, and a scene with a field takes two of these per object.
+  final vm.Vector3 _irradianceUp = vm.Vector3.zero();
+  final vm.Vector3 _irradianceDown = vm.Vector3.zero();
+
   final Float32List _ambientSky = Float32List(4);
   final Float32List _ambientGround = Float32List(4);
 
@@ -1459,8 +1671,16 @@ final class Renderer implements RenderServices {
   /// Relevance is measured from the view drawn first — the main camera. A row
   /// chosen for a rear-view mirror would be a row spent on a shadow nobody is
   /// looking at.
-  void _collectShadowCandidates(Scene scene, List<RenderView> views) {
-    _shadowCandidates.clear();
+  /// [into] is where the candidates land — this renderer's own list for a
+  /// frame, and a list of its own for `gfx-41n`'s plan, so asking what a frame
+  /// would do cannot disturb the scratch the last frame left.
+  void _collectShadowCandidates(
+    Scene scene,
+    List<RenderView> views, {
+    List<ShadowCandidate>? into,
+  }) {
+    final candidates = into ?? _shadowCandidates;
+    candidates.clear();
     if (views.isEmpty) return;
 
     var primary = views.first;
@@ -1497,7 +1717,7 @@ final class Renderer implements RenderServices {
       }
 
       light.readDirection(_shadowAim);
-      _shadowCandidates.add(
+      candidates.add(
         ShadowCandidate(
           light: light,
           priority: priority,
@@ -1682,6 +1902,7 @@ final class Renderer implements RenderServices {
     required _CompositeNode composite,
     required _LuminanceNode luminance,
     required _ObjectIdNode objectIds,
+    required vm.Vector3? sunToLight,
   }) {
     final graph = FrameGraph()
       // The atlas before the directional map, which is the order they were
@@ -1726,9 +1947,11 @@ final class Renderer implements RenderServices {
     for (final node in nodes.of(FramePhase.overlay)) {
       graph.addNode(node);
     }
-    if (s.reflections.enabled) {
-      graph.addNode(_ReflectionsNode(this, view));
-    }
+    // Registered whether or not it is switched on, for the reason bloom and
+    // the occlusion are: a name has to be known for a read of it to compile,
+    // and a node left out when its setting is off cannot be reported on.
+    // `gfx-38n` — this was the last post node still registered inside an `if`.
+    graph.addNode(_ReflectionsNode(this, view, s));
     // After reflections and before bloom: the meter reads the scene as the
     // composite will, glow not yet added. Registered whether or not it is on,
     // for the reason every other node is — a name has to be known — and
@@ -1739,6 +1962,27 @@ final class Renderer implements RenderServices {
     // the reason bloom is: a name has to be known for a read of it to compile,
     // and the composite reads the occlusion.
     graph.addNode(_SsaoNode(this, view, s));
+    // `gfx-32n`. A link in the occlusion chain rather than a second producer:
+    // it reads `ao` and writes the next version of it, so with the blur off
+    // the node is inactive, consumes no version, and the composite binds what
+    // the occlusion pass left — the version-skip the graph already does for
+    // every other optional link.
+    graph.addNode(_SsaoBlurNode(this, s));
+    // `gfx-76n`, beside the occlusion rather than in it: the composite
+    // multiplies both into the ambient term, but each has its own strength, so
+    // either can be off without the other having to be. Registration order does
+    // not matter here — it writes a name nothing else writes — and this is
+    // simply where the pass it belongs next to is.
+    graph.addNode(_ContactShadowNode(this, view, s, sunToLight));
+    // `gfx-33n`. After the occlusion and before bloom: a shaft is light in
+    // the air, so it should glow the way any other light does, and it is not
+    // a surface so the occlusion has nothing to say about it.
+    graph.addNode(_LightShaftsNode(this, view, s));
+    // `gfx-34n`. After the shafts, because a lens is in front of everything
+    // the scene emits and light in the air defocuses exactly as the geometry
+    // behind it does; before bloom, because a glow is what the sensor does
+    // with light that has already been through the lens.
+    graph.addNode(_DepthOfFieldNode(this, s));
     // Then bloom, so it reads the scene as everything before it left it — the
     // registration order *is* the version chain — and the composite last, so it
     // reads the end of that chain and the glow taken from it.
@@ -1751,7 +1995,17 @@ final class Renderer implements RenderServices {
     // glow, the graph culls the node, and the optional read comes back null.
     graph
       ..addNode(bloom)
-      ..addNode(composite);
+      ..addNode(composite)
+      // And the smoothing after the composite, which is what lets it read a
+      // finished picture — `gfx-04n`. Registered whether or not it is on, for
+      // the same reason bloom is: registration order is the version chain, and
+      // an inactive node is culled rather than branched around.
+      ..addNode(_FxaaNode(this, s.antiAlias))
+      // `gfx-43n`/`44n`/`45n`, last: a mode here is about the finished
+      // picture, so it goes after the tone map and after the edges are
+      // smoothed. Before the antialias it would have had its own outline
+      // blurred, which is the one thing an outline must not be.
+      ..addNode(_ViewportShadeNode(this, view, s));
 
     // After the composite, which is the whole of what [FramePhase.present]
     // means: registration order is the version chain, so a node here reads the
@@ -1763,13 +2017,22 @@ final class Renderer implements RenderServices {
     }
 
     return graph.compile(
+      disabled: s.disabledPasses,
       outputs: <ResourceId>[
         FrameResourceIds.frame,
         // An application that asked for the surface buffer is a consumer no node
         // declares, so it is a frame output. Without this, `surfaceBuffer` on its
         // own would leave the buffer unread, the scene would not attach it, and
         // the application would read whatever the texture held last.
-        if (s.surfaceBuffer) FrameResourceIds.surfaceBuffer,
+        // `gfx-50n` adds the second half of that condition, and it is the one
+        // place the device has to be asked outside a node. An output is a
+        // consumer the graph cannot see, so naming the buffer here makes the
+        // scene pass attach it — on a device that opens one attachment that
+        // is the pass that aborts. A caller asking for the buffer on such a
+        // device gets a frame without one, which is the same "nobody filled
+        // it" the flag has always had to handle.
+        if (s.surfaceBuffer && device.maxColorAttachments > 1)
+          FrameResourceIds.surfaceBuffer,
         // Both read back rather than read by a node, which is a consumer the
         // graph cannot see, so both are outputs while their node is active or
         // the node is culled for producing something nobody wants.
@@ -1829,16 +2092,6 @@ final class Renderer implements RenderServices {
   PipelineHandle? _instancedCubeShadowPipeline;
   PipelineHandle? _cubeShadowResetPipeline;
 
-  /// Skinned casters whose pose has already been evaluated in the pass now
-  /// being encoded.
-  ///
-  /// Held on the renderer rather than allocated per pass so that a frame with
-  /// no skinned casters — which is most frames in most scenes — costs one
-  /// `clear` of an empty set. Identity is the right key: the same node twice
-  /// means the same world matrix and the same joints, and two nodes sharing one
-  /// skeleton at different transforms genuinely need two evaluations.
-  final Set<MeshNode> _cubeShadowPosed = <MeshNode>{};
-
   /// Whether each atlas has been cleared since it was allocated.
   bool _cubeShadowCleared = false;
   bool _cubeShadowStaticCleared = false;
@@ -1882,6 +2135,99 @@ final class Renderer implements RenderServices {
   /// [_cubeMatrix] in the backend's clip space, for drawing a face with.
   final vm.Matrix4 _cubeDrawMatrix = vm.Matrix4.identity();
   final Float32List _cubeLight = Float32List(4);
+
+  /// This frame's light rows, or null while the scene fits in eight slots —
+  /// `gfx-74n`. See `renderer_light_list.dart`.
+  TextureHandle? _lightListTexture;
+  int _lightListEpoch = -1;
+  int _lightListRows = 0;
+
+  /// Staging for the per-draw list, beside every other uniform this renderer
+  /// writes: arrays reused rather than allocated per draw.
+  final Float32List _lightListParams = Float32List(4);
+  final Float32List _lightListIndices = Float32List(LightBuffer.maxExtraLights);
+  final Float32List _lightListScales = Float32List(LightBuffer.maxExtraLights);
+
+  /// Staging for the contact shadow's block — `gfx-76n`.
+  final Float32List _contactParams = Float32List(4);
+  final Float32List _contactCamera = Float32List(4);
+  final Float32List _contactForward = Float32List(4);
+  final Float32List _contactLight = Float32List(4);
+
+  /// The capture being filled, or null — `gfx-70n`.
+  FrameCaptureBuilder? _capture;
+
+  /// Records the next frame pass by pass, with the pixels each one wrote.
+  ///
+  /// **A one-shot rather than a setting**, because that is what a capture is:
+  /// something is wrong now, and the readback of every pass's output is far too
+  /// expensive to leave on. The returned future answers when the frame's
+  /// readbacks have, which on a hardware backend is a frame or two later.
+  ///
+  /// ```dart
+  /// final capture = renderer.captureNextFrame();
+  /// renderer.render(/* … */);
+  /// final frame = await capture;
+  /// print(frame.firstBlack('hdr colour')?.name);
+  /// ```
+  ///
+  /// Asking twice before a frame runs replaces the first request: there is one
+  /// next frame.
+  Future<FrameCapture> captureNextFrame() {
+    final completer = Completer<FrameCapture>();
+    _captureWanted = completer;
+    return completer.future;
+  }
+
+  Completer<FrameCapture>? _captureWanted;
+
+  /// Hands [wanted] the capture this frame built, and clears the builder.
+  ///
+  /// Called on both ways out of the graph loop, because a frame that threw is
+  /// exactly the frame somebody captured.
+  void _completeCapture(Completer<FrameCapture>? wanted) {
+    final builder = _capture;
+    _capture = null;
+    if (wanted == null || wanted.isCompleted) return;
+    if (builder == null) {
+      wanted.completeError(
+        StateError('The frame ran without building a capture.'),
+      );
+      return;
+    }
+    wanted.complete(builder.build());
+  }
+
+  /// What the directional atlas currently holds, as the key that drew it —
+  /// `gfx-68n`. Null until a first pass.
+  ({int matrices, int epoch, int generation, int faces, int casters})?
+  _directionalBaked;
+
+  /// How many casters the last directional pass actually drew, so a frame that
+  /// skips the pass can put the figure back after the frame zeroed it.
+  int _directionalCasters = 0;
+
+  /// One reusable batch per mesh-and-material pair — `gfx-67n`.
+  ///
+  /// Held across frames on purpose: a scene whose runs are the same every frame
+  /// refills the same buffers rather than allocating a node and a typed list per
+  /// run per frame, which would cost more than the draw calls it saves.
+  final Map<_BatchKey, InstancedMeshNode> _batchPool =
+      <_BatchKey, InstancedMeshNode>{};
+
+  /// How many individual draws the last frame's batching replaced.
+  ///
+  /// The reading the row is about: a hundred identical meshes drawn in one call
+  /// and a hundred drawn in a hundred look the same, so the saving needs a
+  /// number. Reset at the top of each frame.
+  int _batchedDraws = 0;
+
+  /// The volume of the cube face currently being filled — `gfx-63n`.
+  ///
+  /// One object reused across faces rather than one per face: there are up to
+  /// thirty-six of them in a frame, and a `Frustum` is six planes with a vector
+  /// each.
+  final vm.Frustum _faceFrustum = vm.Frustum();
 
   /// How far this camera sees, for dividing between cascades.
   ///
@@ -2028,8 +2374,24 @@ final class Renderer implements RenderServices {
     });
 
     pass.draw();
+    _frameCounters?.drawCalls++;
     pass.submit();
   }
+
+  /// The counters of the frame currently being encoded, or null between
+  /// frames — `gfx-01n`.
+  ///
+  /// **Not global state; the frame's own, held where the draws are.** A draw
+  /// is counted by whatever encodes it, and most of them are encoded inside
+  /// `encodeScene`, which is handed a `FramePassState` already. The post
+  /// chain and the shadow passes are not: they draw through [drawFullscreen]
+  /// and through their own passes, neither of which had anywhere to count.
+  /// So the shadow map and the whole bloom ladder were drawing and reporting
+  /// nothing — `FrameResult.drawCalls` was the scene and the composite, and
+  /// a shadow pass that gained a cascade moved no number at all. The comment
+  /// in `_renderShadowMap` even says "the draw call count is the graph's
+  /// business", which was a promise nobody had kept.
+  FramePassState? _frameCounters;
 
   /// The diagnostic overlay: lines, on top of everything.
   ///
@@ -2359,6 +2721,133 @@ final class Renderer implements RenderServices {
   /// display and the queue between them keep in the air on one that does not.
   int get framesInFlight => _ldrFrames.length;
 
+  /// What a frame of [scene] under [settings] would do, worked out without
+  /// drawing it — `gfx-41n`.
+  ///
+  /// **The same nodes and the same compile as a real frame, and no device
+  /// touched.** The answer comes back as a [CompiledFrameGraph]: which passes
+  /// would run, in what order, and — through `skipped` — which would not and
+  /// why, with the same five reasons a drawn frame reports. It is the *graph*
+  /// this asks, not a second implementation of the graph's rules, which is
+  /// the whole reason to trust it: a dry run computed by a copy of the
+  /// scheduling logic would answer for the copy.
+  ///
+  /// **What it costs, and what that buys.** The plan gathers the scene's
+  /// lights into a buffer of its own and runs its own shadow-slot allocator,
+  /// rather than reading this renderer's. That is an allocation per call and
+  /// it is the point: asking what a frame *would* do cannot be allowed to
+  /// disturb what the last frame did, and an allocator shared with the real
+  /// path would hand out rows to a frame that is never drawn.
+  ///
+  /// **What it does not promise**, said plainly because a diagnostic that
+  /// overstates itself is worse than none:
+  ///
+  ///  * it plans no picks, so `object ids` is reported as it would be for a
+  ///    frame nobody asked a question of;
+  ///  * it bakes nothing, so the static atlas is planned as clean — a real
+  ///    frame that decides to re-bake runs the same node either way, so the
+  ///    answer about *which passes* stands;
+  ///  * the auto-exposure meter is not stepped, because stepping it is a
+  ///    change to the picture rather than a question about it.
+  ///
+  /// Where it is worth calling: before a frame, to find out whether an effect
+  /// a caller switched on will actually run — and on a device that cannot draw
+  /// at all, which is how an application can answer "would this scene get
+  /// occlusion here" during start-up rather than after the first frame.
+  CompiledFrameGraph planFrame({
+    required Scene scene,
+    required List<RenderView> views,
+    RenderSettings settings = const RenderSettings(),
+  }) {
+    if (views.isEmpty) {
+      throw ArgumentError('At least one RenderView is required.');
+    }
+
+    // This plan's own lights, gathered the way a frame gathers them — a
+    // default light included, because a scene with none is lit by one and a
+    // plan that said otherwise would be planning a different picture.
+    final planLights = LightBuffer()..gather(scene.lights);
+    if (planLights.count == 0) planLights.useDefaultLight();
+    final shadowCaster = _directionalIndexIn(planLights);
+
+    // This plan's own allocator. A fresh one assigns rows by the same rule
+    // from an empty state, which is what a plan can honestly say: how many
+    // rows this scene *wants*, not which rows the running frame happens to
+    // have handed out.
+    final candidates = <ShadowCandidate>[];
+    _collectShadowCandidates(scene, views, into: candidates);
+    final assignment = ShadowSlotAllocator(
+      slotCount: kShadowedLights,
+    ).assign(candidates);
+    var slot = 0;
+    for (var row = 0; row < assignment.owners.length; row++) {
+      if (assignment.owners[row] is LightNode) slot = math.max(slot, row + 1);
+    }
+
+    final ordered = List<RenderView>.of(views)
+      ..sort((a, b) => a.priority.compareTo(b.priority));
+
+    return _compileFrameGraph(
+      views.first,
+      settings,
+      // From this plan's own buffer, not the running frame's: a plan that asked
+      // the live lights whether a sun exists would answer about a different
+      // scene.
+      sunToLight: _toLightIn(planLights, shadowCaster),
+      cubeStatic: _CubeShadowStaticNode(
+        this,
+        scene: scene,
+        settings: settings.shadows,
+        slotCount: slot,
+        // Nothing is baked by a plan, so the bake is planned as clean. Both
+        // answers run the same node, so what passes would run is unaffected.
+        staticDirty: false,
+      ),
+      cube: _CubeShadowNode(
+        this,
+        scene: scene,
+        settings: settings.shadows,
+        slotCount: slot,
+      ),
+      shadow: _ShadowMapNode(
+        this,
+        scene: scene,
+        settings: settings.shadows,
+        casterIndex: shadowCaster,
+        camera: ordered.isEmpty ? null : ordered.first.camera,
+      ),
+      probes: <_ReflectionProbeNode>[
+        for (var i = 0; i < scene.probes.length; i++)
+          _ReflectionProbeNode(
+            this,
+            scene: scene,
+            probe: scene.probes[i],
+            index: i,
+            shadowCaster: shadowCaster,
+            clearColor: ordered.first.clearColor,
+          ),
+      ],
+      scene: _SceneNode(
+        this,
+        scene: scene,
+        ordered: ordered,
+        contributors: contributors.active.toList(growable: false),
+        shadowCaster: shadowCaster,
+        lightOverflow: planLights.overflow,
+      ),
+      bloom: _BloomNode(this, settings.bloom),
+      composite: _CompositeNode(this, scene, ordered, settings),
+      luminance: _LuminanceNode(this, settings.autoExposure, ordered),
+      // No questions, because a plan asks none — see the note above.
+      objectIds: _ObjectIdNode(
+        this,
+        scene: scene,
+        ordered: ordered,
+        picks: const <_PickRequest>[],
+      ),
+    );
+  }
+
   FrameResult render({
     required int width,
     required int height,
@@ -2368,6 +2857,16 @@ final class Renderer implements RenderServices {
   }) {
     if (views.isEmpty) {
       throw ArgumentError('At least one RenderView is required.');
+    }
+    // `gfx-35n`. Applied here, once, so every target and every pass below is
+    // sized from it — the scene, the surface buffer, the occlusion, the bloom
+    // chain and the composite all take their size from these two numbers.
+    // Clamped to at least one pixel: a viewport animating open is a real
+    // state and a zero-pixel target is not.
+    final scale = settings.renderScale.clamp(0.1, 1.0);
+    if (scale != 1.0) {
+      width = math.max(1, (width * scale).round());
+      height = math.max(1, (height * scale).round());
     }
     // Timeline markers, not print statements: the phases below are only
     // meaningful next to Flutter's own build and raster spans, and only in
@@ -2422,7 +2921,16 @@ final class Renderer implements RenderServices {
     lights.gather(scene.lights);
     if (lights.count == 0) lights.useDefaultLight();
     _lightsScene = scene;
-    final lightOverflowCount = lights.overflow;
+    // **What was actually lost, not what did not fit the slots — `gfx-74n`.**
+    // The frame's own `gather` fills eight slots in scene order and calls the
+    // rest overflow; every draw then re-selects for itself, and since this row
+    // a draw carries up to `maxExtraLights` more in the light list. So a scene
+    // of sixteen lamps drops nothing, and reporting eight here would tell
+    // somebody their ninth lamp does nothing while it is lighting the floor.
+    final lightOverflowCount = math.max(
+      scene.lights.length - LightBuffer.maxLights - LightBuffer.maxExtraLights,
+      0,
+    );
     final shadowCaster = _firstDirectionalIndex();
 
     // Zeroed by the frame rather than by the pass, because the pass may not
@@ -2432,6 +2940,7 @@ final class Renderer implements RenderServices {
     // just switched off.
     _shadowParams[3] = 0.0;
     _shadowCasters = 0;
+    _batchedDraws = 0;
     // One cascade until a pass says otherwise, so a shader reading these
     // between frames sees the arrangement it has always seen.
     _shadowCascades[2] = 1.0;
@@ -2539,6 +3048,28 @@ final class Renderer implements RenderServices {
       (_autoExposure ??= ExposureAdapter(
         initial: settings.exposure,
       )).step(dt, settings.autoExposure);
+      // `gfx-22n`. One adapter per view, stepped by the same clock. A view
+      // that has just appeared starts at the frame's own exposure rather than
+      // at the setting's, so a second player joining does not arrive to a
+      // climb from a number nothing on screen was drawn with.
+      if (settings.autoExposure.perView) {
+        while (_viewExposure.length < views.length) {
+          _viewExposure.add(
+            ExposureAdapter(initial: _autoExposure?.value ?? settings.exposure),
+          );
+        }
+        while (_viewExposure.length > views.length) {
+          _viewExposure.removeLast();
+        }
+        for (final adapter in _viewExposure) {
+          adapter.step(dt, settings.autoExposure);
+        }
+      } else if (_viewExposure.isNotEmpty) {
+        // Switched off again: the adapters go, so switching it back on starts
+        // from the frame's exposure rather than from what each view thought
+        // several seconds of scene ago.
+        _viewExposure.clear();
+      }
     }
     _lastExposure = _exposureFor(settings);
 
@@ -2629,7 +3160,11 @@ final class Renderer implements RenderServices {
       );
       final bloomNode = _BloomNode(this, settings.bloom);
       compositeNode = _CompositeNode(this, scene, ordered, settings);
-      final luminanceNode = _LuminanceNode(this, settings.autoExposure);
+      final luminanceNode = _LuminanceNode(
+        this,
+        settings.autoExposure,
+        ordered,
+      );
       final objectIdNode = _ObjectIdNode(
         this,
         scene: scene,
@@ -2648,6 +3183,9 @@ final class Renderer implements RenderServices {
         composite: compositeNode,
         luminance: luminanceNode,
         objectIds: objectIdNode,
+        // The same light the shadow map casts from, so the seam the march draws
+        // continues the shadow the map drew rather than crossing it.
+        sunToLight: _toLightIn(lights, shadowCaster),
       );
 
       // The frame's own resources: the graph names the lit scene and each
@@ -2689,6 +3227,17 @@ final class Renderer implements RenderServices {
                 size: const FrameFraction(2),
               ),
             )
+            // The frame's own size, unlike the occlusion beside it: the seam a
+            // contact shadow draws is a few pixels wide, and half of a few
+            // pixels is a stair. Same format for the same reason as the
+            // occlusion — HDR is what all three backends are known to render
+            // into — and the pass writes its one number four times over.
+            ..declare(
+              ResourceDesc(
+                id: FrameResourceIds.contactShadow,
+                format: hdrFormat,
+              ),
+            )
             // A fixed small square of bytes, whatever the window does: the
             // meter reads it back, and sixteen kilobytes is what a readback
             // per frame may cost. Eight bits because that is what comes back
@@ -2723,11 +3272,29 @@ final class Renderer implements RenderServices {
     // written for this and had no caller; it has one now, and the throw the
     // resource layer raises when a node breaks its `keeps` promise is the first
     // thing likely to use it.
-    final passTimings = <({String name, bool active, int micros})>[];
+    final passTimings = <FramePass>[];
+    _frameCounters = passState;
+    // Taken at the top of the frame and cleared here, so a request made while
+    // this frame is encoding is the *next* frame's — `gfx-70n`.
+    final capturing = _captureWanted;
+    _captureWanted = null;
+    _capture = capturing == null
+        ? null
+        : FrameCaptureBuilder(width: width, height: height);
     try {
       for (var i = 0; i < frameGraph.order.length; i++) {
         resources.beginNode(i);
         final node = frameGraph.order[i] as RenderNode;
+        // **Differenced rather than counted per node** — `gfx-01n`. The
+        // counters live on `passState` because a draw is encoded deep inside
+        // the mesh encoder, which has no idea which graph node called it, and
+        // threading a node identity down there to be incremented would put
+        // the profiler's concern into every drawing path in the engine.
+        // Reading the running totals either side of `execute` asks the same
+        // question from outside and costs three integers a pass.
+        final drawsBefore = passState.drawCalls;
+        final trianglesBefore = passState.triangles;
+        final switchesBefore = passState.pipelineSwitches;
         final passClock = Stopwatch()..start();
         node.execute(
           NodeFrame(
@@ -2757,7 +3324,16 @@ final class Renderer implements RenderServices {
           name: node.name,
           active: node.isActive,
           micros: passClock.elapsedMicroseconds,
+          drawCalls: passState.drawCalls - drawsBefore,
+          triangles: passState.triangles - trianglesBefore,
+          pipelineSwitches: passState.pipelineSwitches - switchesBefore,
         ));
+        // **Before `endNode`, which is the whole point** — `gfx-70n`. That call
+        // is where a version whose last reader has passed goes back to the
+        // pool, and the next pass draws over it. A capture taken after the
+        // frame would hold whatever the last pass to borrow that shape left
+        // there, attributed to whichever pass wrote it first.
+        _capture?.record(node, device: device, lookup: resources.tryTexture);
         resources.endNode(i);
       }
     } catch (error, stack) {
@@ -2775,6 +3351,11 @@ final class Renderer implements RenderServices {
       // answer checks before it completes.
       _failPicks(picks, error, stack);
 
+      // A capture of a frame that threw is exactly the capture somebody wanted,
+      // so it is handed over rather than dropped — it holds every pass up to
+      // the one that broke, which is where the reader is going to look.
+      _completeCapture(capturing);
+
       // **And the counter has to move, or the deferral this frame just relied
       // on is a frame that never happened.** Releases go into slot
       // `_frameIndex % 3` and are retired at the top of frame N + 3; leaving
@@ -2786,7 +3367,14 @@ final class Renderer implements RenderServices {
       // enough; zero is worse.
       _frameIndex++;
       rethrow;
+    } finally {
+      // Cleared whichever way the frame ended: a counter left pointing at a
+      // frame that is over would be incremented by the next `drawFullscreen`
+      // somebody makes outside one — `renderPost` is exactly that call — and
+      // the number would land in a report nobody is reading any more.
+      _frameCounters = null;
     }
+    _completeCapture(capturing);
 
     // Out of the nodes rather than out of the calls, which is the shape of
     // every one of these: the frame reports what its passes counted. The draws
@@ -2860,6 +3448,15 @@ final class Renderer implements RenderServices {
       // scene pass, because it is a fact about the settings and the device
       // rather than about anything that happened during the frame.
       wireframeDeclined: settings.wireframe && !device.supportsWireframe,
+      // `gfx-20n`. Half of it comes from the scene pass, which knows what it
+      // attached, and half from the graph, which knows whether the node ran.
+      // Neither half can answer alone, which is why the answer is assembled
+      // here rather than reported by one of them.
+      antiAliasing: EffectiveAntiAliasing(
+        msaaSamples: scenePass.msaaSamples,
+        fxaa: passTimings.any((p) => p.name == 'antialias'),
+        msaaDeclined: scenePass.msaaDeclined,
+      ),
       cpuMicros: frameClock.elapsedMicroseconds,
       submitMicros: scenePass.submitMicros,
       drawCalls: passState.drawCalls,
@@ -2873,9 +3470,14 @@ final class Renderer implements RenderServices {
       pipelines: _pipelineCache.length,
       shadowCasters: _shadowCasters,
       shadowsDenied: _shadowsDenied,
+      batchedDraws: _batchedDraws,
       skinnedDraws: passState.skinnedDraws,
       exposure: _lastExposure,
       passes: passTimings,
+      // Read off the compiled graph rather than recomputed here: the reasons
+      // are the compile's own answers, and a second derivation is a second
+      // thing to disagree with the frame.
+      skipped: frameGraph.skipped,
     );
   }
 
@@ -2928,8 +3530,21 @@ final class Renderer implements RenderServices {
     final graph = FrameGraph()
       ..addExternal(FrameResourceIds.hdrColour)
       ..addNode(bloomNode);
+    // The same `disabledPasses` the full frame honours, narrowed to the one
+    // node this graph has. Without the narrowing a perfectly good set — the
+    // one a caller uses for their full frames, naming `ssao` or `antialias` —
+    // would be rejected here as a misspelling, because this graph genuinely
+    // does not have those nodes. Narrowed rather than validated, then: the
+    // typo check belongs to the frame that has all the names, and this path
+    // deliberately has one.
+    final postDisabled = settings.disabledPasses
+        .where((name) => name == bloomNode.name)
+        .toSet();
     final compiled = graph.compile(
-      outputs: <ResourceId>[if (bloomNode.isActive) FrameResourceIds.bloom],
+      disabled: postDisabled,
+      outputs: <ResourceId>[
+        if (bloomNode.isActive && postDisabled.isEmpty) FrameResourceIds.bloom,
+      ],
     );
 
     final resources =
@@ -2997,6 +3612,10 @@ final class Renderer implements RenderServices {
       scene: hdr,
       bloom: bloom,
       ao: null,
+      // No scene and so no surface buffer to march through: this path composites
+      // an HDR image somebody handed in, and a contact shadow is a fact about
+      // geometry rather than about a picture.
+      contactShadow: null,
       surface: null,
       shadowView: null,
       sceneGraph: Scene(),
@@ -3036,6 +3655,20 @@ final class Renderer implements RenderServices {
   Future<String> probeMultipleRenderTargets() async {
     final probe = shaders['MrtProbe'];
     if (probe == null) return 'MRT probe: the bundle has no MrtProbe entry.';
+
+    // `gfx-50n`. **This is the line the probe was missing, and its absence
+    // was the joke in it**: the diagnostic that exists to find out whether a
+    // second attachment works used to find out by opening one, which on the
+    // backend where the answer is no ends the process. A diagnostic that
+    // cannot survive its own bad news is not a diagnostic. The device is
+    // asked first, and a device that says one is reported rather than tried.
+    if (device.maxColorAttachments < 2) {
+      return 'MRT probe: this device opens at most '
+          '${device.maxColorAttachments} colour attachment, so the probe was '
+          'not run — see GraphicsDevice.maxColorAttachments. Every pass that '
+          'reads the surface buffer is culled on this device and reported as '
+          'starved.';
+    }
 
     const size = 4;
     TextureHandle makeTarget() => device.createTexture(

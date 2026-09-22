@@ -62,10 +62,14 @@ final class LodMeshCache {
       1,
       base.triangleCount,
     );
+    // Into the base's own layout, for the reason `project_document.dart`
+    // gives where the exported levels are cut: the simplifier answers in the
+    // attributes it reads, and whatever draws the level draws it through the
+    // layout the object has.
     final MeshData mesh = simplifyMeshWithAttributes(
       base,
       targetTriangleCount: target,
-    );
+    ).convertedTo(base.layout);
     byLod[lodIndex] = _CachedLod(object.version, mesh);
     return mesh;
   }

@@ -1,0 +1,20 @@
+name: release_dashboard
+description: "A live page over the state of a release: what is done, what is red, what is waiting on somebody, updated as the tree changes."
+publish_to: 'none'
+resolution: workspace
+
+# **Under `tool/` and not under `packages/`, deliberately** — the same reason
+# `tool/godot_check`'s own pubspec gives: a package under `packages/` is checked
+# against ARCHITECTURE.md's publishing list by `tool/structure.dart`, and this
+# is never going out.
+#
+# **No dependencies.** It reads files, runs the repository's own scripts and
+# answers a browser, and `dart:io` does all three. A dashboard that needs its
+# own `pub get` to tell you whether the workspace resolves would have a hard
+# time being believed on the day it does not.
+
+environment:
+  sdk: ^3.12.2
+
+dev_dependencies:
+  test: ^1.24.0

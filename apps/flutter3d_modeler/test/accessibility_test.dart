@@ -6,6 +6,7 @@
 library;
 
 import 'package:flutter/material.dart';
+import 'package:flutter3d_modeler/l10n/app_localizations.dart';
 import 'package:flutter3d_modeler/src/ui/shell.dart';
 import 'package:flutter3d_modeler/src/ui/shell_phone.dart';
 import 'package:flutter3d_modeler/src/ui/shell_tablet.dart';
@@ -25,11 +26,98 @@ const _status = SizedBox.shrink();
 
 Widget _wrapped(Widget child, {Size size = const Size(1440, 900)}) =>
     MaterialApp(
+      locale: const Locale('en'),
+      localizationsDelegates: AppLocalizations.localizationsDelegates,
+      supportedLocales: AppLocalizations.supportedLocales,
       theme: modelerTheme(),
       home: Scaffold(body: child),
     );
 
+/// The nearest `FocusTraversalGroup` above [of] — which region Tab treats
+/// whatever is there as part of (`ux-33`).
+///
+/// The element rather than the widget, because two groups built from the
+/// same `const` expression compare equal and what is in question is whether
+/// they are the same one.
+Element regionOf(WidgetTester tester, Finder of) => tester.element(
+  find.ancestor(of: of, matching: find.byType(FocusTraversalGroup)).first,
+);
+
 void main() {
+  group('ux-33: Tab moves between regions rather than through everything', () {
+    testWidgets('the shell puts a traversal group round each region', (
+      WidgetTester tester,
+    ) async {
+      tester.view
+        ..physicalSize = const Size(1440, 900)
+        ..devicePixelRatio = 1.0;
+      addTearDown(tester.view.reset);
+      await tester.pumpWidget(
+        _wrapped(
+          ModelerShell(
+            mode: ModelerMode.object,
+            onMode: (_) {},
+            submode: MeshSubmode.vertex,
+            onSubmode: (_) {},
+            animationSubmode: AnimationSubmode.pose,
+            onAnimationSubmode: (_) {},
+            onTool: (_) {},
+            activeTool: null,
+            viewport: _viewport,
+            properties: const Text('a field in the panel'),
+            status: _status,
+            agentPanel: const Text('a row in the agent panel'),
+          ),
+        ),
+      );
+
+      // **Each region's own group, and not one shared with its neighbour.**
+      // Mutation: drop the groups, which is how this was — Tab then walks
+      // the whole window in whatever order the widgets happen to be built
+      // in, so somebody in the properties panel reaches the rail's twelfth
+      // button before the field under the one they were in. Without the
+      // groups every one of these is `MaterialApp`'s own, and all three
+      // comparisons below are the same element.
+      final Element panel = regionOf(tester, find.text('a field in the panel'));
+      final Element agent = regionOf(
+        tester,
+        find.text('a row in the agent panel'),
+      );
+      final Element rail = regionOf(
+        tester,
+        find.byIcon(Icons.near_me_outlined),
+      );
+      final Element bar = regionOf(tester, find.byTooltip('Object'));
+
+      expect(<Element>{panel, agent, rail, bar}, hasLength(4));
+    });
+
+    testWidgets('and the viewport takes the focus, so the arrows can turn it', (
+      WidgetTester tester,
+    ) async {
+      // The one control in the application that needed a mouse to use at
+      // all: every panel is a list of focusable fields, every tool has a
+      // letter, and the picture in the middle could only be turned by
+      // dragging. `ux-33` gives it the arrow keys, which means it has to be
+      // somewhere Tab can land first.
+      final FocusNode node = FocusNode(debugLabel: 'viewport');
+      addTearDown(node.dispose);
+      await tester.pumpWidget(
+        _wrapped(
+          Focus(
+            focusNode: node,
+            child: const ColoredBox(color: Colors.black),
+          ),
+        ),
+      );
+      node.requestFocus();
+      await tester.pump();
+
+      expect(node.hasFocus, isTrue);
+      expect(node.skipTraversal, isFalse);
+    });
+  });
+
   group('the desktop rail and mode switcher', () {
     testWidgets('meet contrast and tap-target guidelines', (
       WidgetTester tester,
@@ -46,6 +134,8 @@ void main() {
             onMode: (_) {},
             submode: MeshSubmode.vertex,
             onSubmode: (_) {},
+            animationSubmode: AnimationSubmode.pose,
+            onAnimationSubmode: (_) {},
             onTool: (_) {},
             activeTool: null,
             viewport: _viewport,
@@ -68,6 +158,9 @@ void main() {
       addTearDown(tester.view.reset);
       await tester.pumpWidget(
         MaterialApp(
+          locale: const Locale('en'),
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
           theme: modelerTheme(),
           builder: (context, child) => MediaQuery(
             data: MediaQuery.of(
@@ -81,6 +174,8 @@ void main() {
               onMode: (_) {},
               submode: MeshSubmode.vertex,
               onSubmode: (_) {},
+              animationSubmode: AnimationSubmode.pose,
+              onAnimationSubmode: (_) {},
               onTool: (_) {},
               activeTool: null,
               viewport: _viewport,
@@ -133,6 +228,9 @@ void main() {
       addTearDown(tester.view.reset);
       await tester.pumpWidget(
         MaterialApp(
+          locale: const Locale('en'),
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
           theme: modelerTheme(),
           builder: (context, child) => MediaQuery(
             data: MediaQuery.of(
@@ -228,6 +326,9 @@ void main() {
       addTearDown(tester.view.reset);
       await tester.pumpWidget(
         MaterialApp(
+          locale: const Locale('en'),
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
           theme: modelerTheme(),
           builder: (context, child) => MediaQuery(
             data: MediaQuery.of(

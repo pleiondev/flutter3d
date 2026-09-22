@@ -15,6 +15,14 @@
 /// is awaited directly, before `renderFrame` runs, and the `Material` it
 /// hands back replaces `.build`'s own default clay on the one node the stage
 /// already has.
+// Draws real pixels: a scene through the software rasteriser, a reference
+// picture, or both. Tagged so a run that only wants the logic skips the whole
+// slow class at once:
+//
+//     very_good test -x golden
+//
+// Not optional in CI, which runs the suite without the flag.
+@Tags(<String>['golden'])
 library;
 
 import 'package:flutter3d/flutter3d.dart';

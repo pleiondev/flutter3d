@@ -1,0 +1,11 @@
+{
+  "_comment": "PLACEHOLDER — proves shoot.dart's scenario format parses and sequences correctly. Not a tutorial case. `view` must be one of StandardView's own six names (front/back/left/right/top/bottom, display_modes.dart) — there is no 'iso'; confirmed against a real running modeler on 2026-09-15.",
+  "name": "placeholder-smoke-test",
+  "steps": [
+    { "tool": "ui.say", "args": { "text": "placeholder scenario — smoke test only" } },
+    { "tool": "ui.setMode", "args": { "mode": "object" } },
+    { "tool": "ui.standardView", "args": { "view": "front" }, "screenshot": "01-front.png" },
+    { "tool": "ui.frameSubject", "args": {} },
+    { "tool": "ui.standardView", "args": { "view": "left" }, "screenshot": "02-left.png" }
+  ]
+}

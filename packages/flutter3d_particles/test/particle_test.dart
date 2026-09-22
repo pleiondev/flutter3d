@@ -771,6 +771,61 @@ void _glowCentreTests() {
       );
     });
 
+    test('a burst lights what it was fired from, and then goes dark', () {
+      // A burst took no source at all, so its particles were born with `source`
+      // null and no glow was ever fed by them. The skill shipped with this
+      // package says a [LightEmitter] is what makes a muzzle flash light the
+      // wall, and a muzzle flash is a burst.
+      final system = ParticleSystem(capacity: 256, seed: 5);
+      final muzzle = _Torch();
+      final where = Vector3(2.0, 1.5, -3.0);
+      final emitted = system.burst(
+        _effect(count: 24, lifetime: const Range.exact(0.1)),
+        where,
+        source: muzzle,
+      );
+      expect(emitted, 24);
+
+      system.advance(1.0 / 60.0);
+      expect(muzzle.glow.count, greaterThan(0));
+      expect(muzzle.glow.power, greaterThan(0.0));
+      expect((muzzle.glow.centre - where).length, lessThan(1.0));
+
+      for (var i = 0; i < 60; i++) {
+        system.advance(1.0 / 60.0);
+      }
+      expect(muzzle.glow.count, 0);
+      expect(
+        muzzle.glow.power,
+        lessThan(1e-4),
+        reason: 'the flash was over and the wall stayed lit',
+      );
+    });
+
+    test('a burst with no source feeds nobody', () {
+      final system = ParticleSystem(capacity: 256, seed: 5);
+      final torch = _Torch();
+      system.emit(
+        torch,
+        _effect(count: 1, lifetime: const Range.exact(0.05)),
+        Vector3.zero(),
+        perSecond: 60.0,
+      );
+      system.advance(0.2);
+      system.stopEmitting(torch);
+      for (var i = 0; i < 60; i++) {
+        system.advance(1.0 / 60.0);
+      }
+      expect(torch.glow.count, 0);
+
+      system.burst(
+        _effect(count: 32, lifetime: const Range.exact(0.5)),
+        Vector3(1.0, 0.0, 0.0),
+      );
+      system.advance(1.0 / 60.0);
+      expect(torch.glow.count, 0);
+    });
+
     test('keeps its last position through a gap with no particles', () {
       // `count` drops to zero whenever a step catches a gap between particles.
       // A light that read `count` instead of `located` would snap back to the

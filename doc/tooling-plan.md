@@ -364,6 +364,51 @@ expensive").**
   further from `Stopwatch` — this session didn't go deeper, because further
   localization with no profiler would have become guessing, not a spike.
 
+**The dungeon's one-off, found on 2026-09-15 — and the fix first written for
+it, measured again and not kept.** Neither candidate above is involved:
+`Stopwatch` around every call inside `CollisionWorld.update()` and
+`Automap.reveal()` showed nothing expensive in the measured window. The cost
+is three calls deeper, `ActorSystem.step` → `Navigation.update` →
+`FlowField.update`: a full Dijkstra sweep of the nav grid, per field, each
+time the goal (the player) resolves to a different cell. Timed by itself,
+`FlowField.rebuild` over the crypt's `cellSize: 0.25` grid (116 × 192 cells)
+is about 1.2 ms, and the crypt's monsters keep two fields. One crossing, or
+two, inside the measured window is the whole of the flat one-off.
+
+The first reading was that the goal *jitters* about 2.7 cm across a cell
+edge on physics settle and re-sweeps on every step, and the fix written for
+it was a hysteresis inside `FlowField`: remember where the field was last
+swept from and trust a newly crossed edge only once the goal is a third of a
+cell away from there. The test's number went from 4.74 ms to 0.52 ms at k=8.
+Re-measured on the merged tree before bringing that across, by counting
+`goalCell` changes per step over the same nine hundred steps of the crypt:
+
+- **It is motion, not jitter.** In the measured window the player is sliding
+  along a wall at about 2.7 cm a step, and crosses a quarter-metre cell every
+  nine to nineteen steps; while it walks it crosses one every two or three.
+  Each crossing is a sweep the monsters' routes really need. With the stick
+  released at step 300 the goal settles and nothing re-sweeps again, with or
+  without a hysteresis; with it held, the goal changes cell about a hundred
+  and twenty times in those nine hundred steps either way.
+- **The 0.52 ms was a replay that no longer matched its run.** A
+  `Navigation` is not part of a snapshot, so in `rollback_cost_test.dart`
+  every `restore()` leaves the fields where the *previous* sample's steps
+  put them. Without a hysteresis the first replayed step notices (the goal's
+  cell differs) and sweeps back — that is the measured one-off, and it is
+  the replay being faithful. With one, the stale cell is within a third of a
+  cell of the goal and is held, so the sweep is skipped and the restored run
+  flows to a different cell than the run the snapshot came from — the
+  "thinking on a different beat" `ActorSystem.save` already exists to
+  prevent. A field whose target depends on where it was *last* swept is only
+  safe once that point travels with the snapshot.
+
+So what is left of this item is not a jitter but the price of a sweep: a
+quarter-metre grid re-swept in full for one cell's move. The honest fixes
+are an incremental re-sweep, or a goal that names a coarser cell than the
+one steering reads — neither attempted here. The row in the table stands as
+it was: on the edge. The same test on the same machine gave k=8 between 2.5
+and 4.7 ms a few hours apart, depending on what else the machine was doing.
+
 Not measured, under the same limitation as rp-00: a real mid-range phone.
 The numbers above are a lower bound on what the budget will demand; on a
 device, they'll only be worse.
@@ -881,6 +926,18 @@ next to the already-existing `Icons.podcasts` in `main.dart`, the same
 Not done: writing a `.f3drun` per run inside `Playtest` (needed for real
 scrubbing), and the literal terminal command itself — the same reason as
 ai-00/ai-01 (`ap-10`).
+
+### par-01: hot reload for models and textures — not started, and saying so
+
+The one item in this document (`rp-`/`net-`/`ai-`/`wg-`/`par-`/`tpl-`) that
+had no status section, because it has had no attempt. Its acceptance is
+worded through the modeller literally — "a model saved in the modeler shows
+up in the demo on a phone with no restart" — and the 2026-09-15 pass that
+went through every other item here was about finishing the tracks *other*
+than the modeller and the textbook. `par-01` builds on `ap-05`/`ap-11`, both
+closed in `doc/asset-pipeline-plan.md`, but its acceptance cannot be checked
+without a line of code in the modeller. Left untouched rather than collide
+with the work that owns that track.
 
 ### par-02: the diagnostic MCP — closed, scope narrowed by the actual findings
 
@@ -2400,6 +2457,46 @@ revisit. The cloud (an upload, a link, a run page) is `cloud/server`,
 where another session in this session is already doing parallel work —
 left untouched, to avoid a collision.
 
+**Added 2026-09-15: every game writes its own whole run down, not only the
+dungeon.** The bug report above is the last ten seconds, asked for from
+outside. `_beginDemo`/`_endDemo` is the other half — the whole run, written
+once when it ends, with `rp-01`'s checkpoints taken live — and only the
+dungeon had it.
+
+- **platformer** — ported rather than copied. This game has no listener for
+  a new level arriving, so `PlatformerRun.onLevelBuilt` grew the `asset`
+  argument it always needed (its own test: "onLevelBuilt names the level it
+  just built, not the one it's leaving"). Level endings go the other way:
+  `RunSession.observe()` republishes `RunPlaying` with a new `outcome`
+  exactly once per transition, so the end hooks into a `BlocConsumer`
+  listener instead of a second edge-detection flag.
+- **racing** — no listener to hook at all: `RaceProgress` is not a
+  `RunSession` and publishes no status stream. Both ends are plain calls
+  where the transition already happens — `_beginDemo` right after
+  `_loadCircuit` calls `ready()`, `_endDemo` as the first line of
+  `_finishedHere`. The circuit's hash is `contentDigestHex` over the JSON
+  `_loadCircuit` was already decoding, which also gives the remote bug
+  report above the `levelHash` it had to leave empty. No new test: the wire
+  lives in `_RaceScreenState`, and nothing in the repository mounts
+  `RaceScreen` to drive it.
+- **strategy** — the "different reason" above still stands for the rewind
+  buffer, and does not stand for a whole match: `rp-01` had shipped
+  `MatchDemo`/`OrderTape` for this genre without ever staging the shipped
+  map through them. Doing that surfaced a question the format never
+  answered — `Match.step` always asks every bot to decide before it steps
+  the simulation, so a replay through it would ask the far side's bot a
+  second time and double a recorded step's orders. `OrderTapePlayback.
+  applyTo` takes an `OrderQueue` for exactly that reason, so a replay drives
+  `StrategySimulation.step` directly. `apps/flutter3d_demo_strategy/test/
+  demo_test.dart` plays the shipped map, records through a real bot and
+  `CommandPost.restock`, and replays to the same digests. The widget wire:
+  `onLevelBuilt` carries the asset and its digest, recording starts there —
+  before `RunSession` restores a resumed match into it, the same gap the
+  platformer's `_beginDemo` lives with — and the match is written off in
+  `_keep`, which already reads `isOver` once a frame. `MatchDemoFile` is its
+  own class rather than `DemoFile` reused: that one reads `Demo`, whose
+  `tape` is an `InputTape` by name.
+
 ### rp-06: a per-run-step profiler — closed
 
 Closed 2026-09-12. `StepTimeTrace` in `flutter3d_sim`
@@ -2633,21 +2730,59 @@ the exact same proven setup (an ordinary `tester.pumpWidget` +
 `dispatchAtLocal` now holds a `HitTestResult` per pointer between `down`
 and `up`, the same way the real binding does. This didn't fix
 `Scrollable` — the offset stays 0.0 even after the fix — but it removed a
-false lead: the cause isn't a stale hit test, it's deeper and wasn't found
-within this session.
+false lead: the cause isn't a stale hit test, it's deeper.
+
+**The cause was found on 2026-09-15 — and it isn't a separate new problem,
+but the very same `GlobalKey`/`BuildOwner` SDK wall that already broke
+`TextField` above, only with no exception.** `Scrollable` builds its
+`RawGestureDetector` under a `GlobalKey<RawGestureDetectorState>
+_gestureDetectorKey` (`scrollable.dart`), and when
+`ScrollPositionWithSingleContext.applyNewDimensions` — an ordinary layout
+step, run on the first pass in which the content turns out longer than the
+viewport — learns that dragging is possible, it neither rebuilds the widget
+nor calls `setState`: it reads `_gestureDetectorKey.currentState` and, if
+that isn't `null`, swaps the recognizers directly through
+`replaceGestureRecognizers(...)`, bypassing build. And
+`GlobalKey.currentState` — as for `TextField` — is
+`WidgetsBinding.instance.buildOwner!._globalKeyRegistry[this]`
+(`framework.dart`): the registry of the application's ONE `BuildOwner`. The
+`RawGestureDetector` element this pipeline built registers itself through
+`owner!._registerGlobalKey(key, this)`, where `owner` is `Element.owner` —
+the pipeline's OWN private `BuildOwner`. Two registries: inside the pipeline
+`currentState` is always `null`, `replaceGestureRecognizers` is never
+called, and the `RawGestureDetector` lives out its life with the empty
+`gestures: {}` it was built with BEFORE the first layout (while
+`_lastCanDrag` was still `null`). Nothing is left to open an arena — which
+is why `debugPrintGestureArenaDiagnostics` prints nothing at all for a
+pointer on a `Scrollable`, although the `RenderPointerListener` inside it is
+honestly on the hit-test path (checked by printing the path on `down`) and
+its `handleEvent` really is called.
+
+Checked by measuring, not only by reading the source:
+`WidgetsBinding.instance.buildOwner!.globalKeyCount` is the same before and
+after a `ListView` is mounted inside the pipeline — no element of the
+pipeline, with a `GlobalKey` or without, ever appears in the application's
+registry, which is what `Element.mount` predicts. So `wg-01`'s "open
+question" closes as a found cause rather than a rejected hypothesis, and it
+stands exactly where the wall for `TextField` was already named: one
+application, one `BuildOwner`, and a widget that coordinates its state
+through `GlobalKey.currentState` rather than through `context` cannot live
+in an isolated tree. It can't be fixed inside this package: that would take
+either a Flutter API for swapping `WidgetsBinding.instance.buildOwner` while
+a pipeline works (there is none) or a fork of `Scrollable`.
 
 **Not done, honestly:**
-- "the list scrolls under a finger" — the third acceptance point. The
-  pointer mechanism is proven to deliver a full down/move/up sequence
-  with a correct `delta` to a plain gesture recognizer
+- "the list scrolls under a finger" — the third acceptance point, and it
+  won't be done inside this package: the cause above is an SDK wall, not a
+  bug here. The pointer mechanism is proven to deliver a full down/move/up
+  sequence with a correct `delta` to a plain gesture recognizer
   (`onVerticalDragUpdate` reacts, the offset matches the computed one);
-  `Scrollable` widgets (`ListView`, `SingleChildScrollView`) don't react
-  at all to the same sequence — not one `ScrollNotification`, with no
-  exception either. The cause wasn't found: not `GlobalKey` (`Scrollable`
-  has none on this path), not `View.of` (no similar exception), not a
-  stale hit test (checked and fixed separately, didn't help). This is an
-  open question, not a rejected hypothesis — left named that way plainly,
-  rather than presenting as finished something unproven.
+  `Scrollable`'s drag recognizer is never registered — not one entry in the
+  gesture arena, not one `ScrollNotification`, no exception, which is
+  exactly what was observed. The same class of wall as `TextField`, only
+  without the crash: `Scrollable` guards with `if
+  (_gestureDetectorKey.currentState != null)` where `TextField`'s code
+  doesn't check and throws `Null check operator used on a null value`.
 - Semantics — per §7's own decision, wg-01 ships without it. Recorded:
   `flutter3d_session`'s own `CHANGELOG.md`, further in this same commit,
   names the gap explicitly.
@@ -2813,9 +2948,22 @@ together with the ones that already existed — are green.
 
 Not done: the literal `--list`/`init` (`ap-10`); the templates appearing
 in the gallery (`tpl-02` hasn't started); the bridge for
-`edu_annotation.attachTo`/`offset` into rendering (see above); retinting
-the product's own geometry on the configurator; a measurement on a real
-phone.
+`edu_annotation.attachTo`/`offset` into rendering (see above); a
+measurement on a real phone.
+
+**Addendum, 2026-09-14 (the configurator's own geometry).** The product
+now does retint, closing the one item this section used to list as not
+done — just not by live-addressing a brush, which still carries no name
+(`packages/flutter3d_sim/lib/src/level/brush.dart`) and still bakes its
+material in at load. `configurator.json` instead places three pre-built
+`part` entities, one per `ConfiguratorController` option, named
+`product-<option, lowercase>`; `main.dart`'s `_applyProductVariant` shows
+exactly the one the controller currently names and hides the other two,
+the same `SceneNode.visible` mechanism `flutter3d_lesson_viewer`'s own
+teardown already proves. The boundary this leaves: a variant is authored
+geometry, chosen from a fixed set the level ships with, not a live retint
+of an arbitrary brush — right for a product line's fixed finishes, not
+for an open-ended sculpt.
 
 ---
 

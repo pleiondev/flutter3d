@@ -180,7 +180,14 @@ void main() {
 
     // And the frame says which regime it is in: nine lamps, eight slots, so
     // one beyond what a single packing carries.
+    //
+    // **`lightsDropped` is nought, and that is `gfx-74n`.** It used to be one,
+    // because the ninth lamp fitted nowhere; it rides in the frame's light list
+    // now, which carries twenty-four more, so nothing was dropped. The counter
+    // means what it says — light this frame could deliver nowhere — rather than
+    // "light that did not fit eight slots", which would tell somebody their
+    // ninth lamp does nothing while it is lighting the floor.
     expect(room.scene.lights, hasLength(9));
-    expect(frame.lightsDropped, 1);
+    expect(frame.lightsDropped, 0);
   });
 }

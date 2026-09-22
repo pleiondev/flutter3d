@@ -4,7 +4,7 @@ description: Every package in the workspace, what it owns, what it depends on, a
 
 # Package index
 
-Thirty-three packages and seven applications, resolved as one [pub workspace](https://dart.dev/tools/pub/workspaces), so a single `flutter pub get` covers everything against one lock file. Twenty-seven of the packages are on pub.dev at the 0.6.0 set — `pad_input` and `pointer_lock` on a line of their own at 0.4.1, `flutter3d_samples` on its at 0.4.3. `flutter3d_game_strategy` is the one that lives in this checkout only, because its types still encode how many sides a match may have.
+Thirty-six packages and nine applications, resolved as one [pub workspace](https://dart.dev/tools/pub/workspaces), so a single `flutter pub get` covers everything against one lock file. Thirty-three of the packages carry 0.7.0, and any `^0.7.0` on one of them resolves against every other. `pad_input` and `pointer_lock` keep a line of their own at 0.4.1 and `flutter3d_samples` its own at 0.4.3, since none of the three names a sibling. Four names pub.dev has at 0.6.0 are no longer packages here: `flutter3d_backend`, `flutter3d_screens`, `flutter3d_session` and `flutter3d_bridge` were folded into `flutter3d_app` and `flutter3d_game`.
 
 ## Engine
 
@@ -65,7 +65,7 @@ It is how forty-four golden scenes are checkable with no GPU in the room, and it
 ### `flutter3d_conformance`
 The suite any fourth backend would have to pass before it counted as one, plus the cross-backend comparison with per-scene budgets.
 
-Two tiers, and the split is a correction. The library said it was shader-free as a whole, and that stopped being true the day a check needed a pipeline: twenty-seven of the thirty-six link stages and draw. `coreChecks` is what runs on clears, uploads and readback alone, so a backend can ask it before compiling a single shader; `shaderChecks` is the rest. A backend that believed the old promise would have met every one of those failures with nothing it could do about them yet — and the phrasing here is the one `tool/structure.dart` holds to the lists themselves, so the sentence cannot go stale again without the scan saying so.
+Two tiers, and the split is a correction. The library said it was shader-free as a whole, and that stopped being true the day a check needed a pipeline: twenty-eight of the thirty-seven link stages and draw. `coreChecks` is what runs on clears, uploads and readback alone, so a backend can ask it before compiling a single shader; `shaderChecks` is the rest. A backend that believed the old promise would have met every one of those failures with nothing it could do about them yet — and the phrasing here is the one `tool/structure.dart` holds to the lists themselves, so the sentence cannot go stale again without the scan saying so.
 
 → [Writing a HAL backend](/core/backends/)
 
@@ -128,9 +128,9 @@ There is no package for this. The rules about how the repository is arranged (wh
 dart run tool/structure.dart
 ```
 
-Thirty-two rules, under a second, no `pub get` and no device: every one of them reads source text. They were a `boundaries_test.dart` in each package until thirteen packages of twenty-one turned out to have none, all thirteen clean and not one of them checked. A runner that walks `packages/` covers a package the day it exists.
+Thirty-five rules, under a second, no `pub get` and no device: every one of them reads source text. They were a `boundaries_test.dart` in each package until thirteen packages of twenty-one turned out to have none, all thirteen clean and not one of them checked. A runner that walks `packages/` covers a package the day it exists.
 
-The detectors prove they fire before a single file is scanned, and a broken detector stops the run rather than letting thirty-two green scans be reported behind it. See [Testing](/reference/testing/).
+The detectors prove they fire before a single file is scanned, and a broken detector stops the run rather than letting thirty-five green scans be reported behind it. See [Testing](/reference/testing/).
 
 ## Assembling an application
 
@@ -195,6 +195,18 @@ Button names are **physical positions** (`face.south`, not `a`), because the str
 
 Knows nothing about games. The translation into actions is `PadInput` in `flutter3d_game`, beside the keyboard's. The web backend is pure Dart over `navigator.getGamepads()`; macOS, iOS and Android wait for a controller in hand, for the reason `ARCHITECTURE.md` §11.1 records. Windows and Linux are not implemented yet.
 
+### `flutter3d_stereo`
+A rig of two eyes under a head, and `StereoSurface`, the widget that draws the pair side by side into one frame. Each eye gets the off-axis frustum its half of the screen calls for, from the viewer profile and the screen's size in metres. The head is turned by a `HeadTracker`; the one that reads a sensor is Android's rotation vector, three degrees of freedom. It is a pair for a phone in a holder: there is no lens distortion correction and no XR runtime behind it.
+
+### `flutter3d_lab`
+Virtual laboratory simulations, of which the pendulum is the first. Plain Dart, so a server can replay a student's run with no Flutter SDK, and `divergenceFrom` names the first checkpoint at which a run departs from the reference.
+
+### `flutter3d_net`
+Rollback netcode over `flutter3d_sim` for two peers: input frames exchanged per step, prediction from the last frame that arrived, a rollback and replay when a confirmation disagrees. `NetTransport` is the one door to a network. `LoopbackTransport` stands in for it with a fixed delay and a seeded loss rate, and `WebSocketTransport` is a real one.
+
+### `flutter3d_net_webrtc`
+`NetTransport` over a WebRTC data channel, peer to peer, with a relay that carries only the SDP and ICE handshake. Its own package because it is the one that names a plugin.
+
 ## Tools
 
 ### `flutter3d_editor_core`
@@ -238,7 +250,16 @@ Twenty-eight commands so far, each carrying its own name, a sentence for the men
 ### `flutter3d_model_mcp`
 The modeller offered to an agent, over MCP on stdio, one project per process — the shape `flutter3d_editor_mcp` has for levels.
 
-An entry point and a usage line today; running it says the server is not built yet and exits non-zero. What it already proves is the property everything under it is arranged for: a machine with the Dart SDK and no Flutter can resolve this package and start it, which CI asks in a container of exactly that kind.
+A hundred and forty-seven editing tools, each one of the editor's own commands under its own name, plus `render` and `renderSheet`, which draw the project through the software backend and hand the agent a picture of what it just did. A path that does not exist yet starts a fresh project there, so the first call can be `addPrimitive`. It also proves the property everything under it is arranged for: a machine with the Dart SDK and no Flutter can resolve this package and start it, which CI asks in a container of exactly that kind.
+
+### `flutter3d_sim_mcp`
+Two servers. `SimMcpServer` is a level an agent can play without seeing it: open a level, step it with input, read positions and health back in words, capture a headless frame, and write the run out as a `.f3drun`. `DiagnosticMcpServer` answers why a frame is wrong: a debug view of normals and depth, the HDR value of one pixel, the passes the frame graph ran, a scan for NaN.
+
+### `flutter3d_build`
+The build hook `dart run flutter3d_build:init` wires into a project. It converts model and texture sources into what the engine loads on every build, from the rules in `flutter3d_assets.yaml`, with a content-hash cache so an unchanged source costs nothing. Textures are cooked once into a block format the device turns into BC, ASTC, ETC2 or RGBA8 when it loads them. Plain Dart, because the Flutter tool starts a hook as a separate process with no SDK to resolve inside it. See [The asset pipeline](/reference/asset-pipeline/) for `init`, the manifest, the families, and what a failed hook actually says.
+
+### `flutter3d_editor_widgets`
+The controls the modeller and the level editor share, so neither keeps its own copy: number, colour, range, enum and texture fields and the row they assemble into, over one theme.
 
 ### `flutter3d_mcp_kit`
 What the four MCP servers share, written once: `OfferedTool`, a tool and the code that runs it as one value; `ToolTableServer`, a server that is a list of those over one session; `Answer` and `PictureAnswer`, with the functions that turn a refusal into an error result an agent reads rather than a server that failed; and `LoopbackMcpServer`, any of those servers over `127.0.0.1` HTTP with a token per server, for an application handing an agent the session a person already has open. Plain Dart.
@@ -259,6 +280,15 @@ A map, two sides and a match played to a finish: a camera over the ground, a box
 
 ### `apps/flutter3d_editor`
 The first application here that is not a game: opens a level document with the same `LevelLoader` the games use, and lets somebody fly around it, drag what's in it, and write it back. What it keeps is the half that reaches a device — the window, the disk, the camera, the frame; everything else is `flutter3d_editor_core`. → [The level editor](/core/editor/)
+
+### `apps/flutter3d_modeler`
+The model editor: object, mesh, material, UV, sculpt, retopology, paint, simulation, animation, render and scene modes over one project document, with an undo history that records who made each change, a person or an agent. It runs on macOS and in a browser, and its web build is what [models.pleion.dev](https://models.pleion.dev) serves. The [tutorial](https://models.pleion.dev/learn/modeler/) walks six cases through it.
+
+### `apps/flutter3d_lesson_viewer`, `apps/flutter3d_stereo_lesson_viewer`
+A lesson is a level document with steps in it. The viewer plays the steps: where the camera stands, what is shown and hidden, and a question with its answers. The stereo one is the same player behind a `StereoRig`.
+
+### `apps/flutter3d_lab_pendulum`
+The pendulum laboratory from `flutter3d_lab`, as something a student runs.
 
 ### `packages/flutter3d_app/example`
 The smallest application on the engine: a device, a renderer, a lit cube and a camera that orbits it. No level, no body and no genre — what a project that is not a game starts from.

@@ -80,5 +80,22 @@ void main() {
 
       expect(await storage.read('probe.bin'), Uint8List.fromList(<int>[9]));
     });
+
+    // `ux-01`'s own root cause. The modeller's autosave key is
+    // `autosave/<hash>` (`recoveryPathFor`), a name with a directory in it
+    // that nothing created: the write threw "No such file or directory" on
+    // every attempt and answered `false`, for a whole session at a time.
+    test('a name with a directory in it writes, and reads back', () async {
+      final storage = defaultBinaryStorage('flutter3d_app_test');
+      addTearDown(() => storage.remove('nested/deeper/probe.bin'));
+
+      final bytes = Uint8List.fromList(<int>[4, 5, 6]);
+      // Mutation: create the storage's own root instead of the file's own
+      // parent — the only shape of name that then still works is one with no
+      // directory in it, and this write answers `false`.
+      expect(await storage.write('nested/deeper/probe.bin', bytes), isTrue);
+
+      expect(await storage.read('nested/deeper/probe.bin'), bytes);
+    });
   });
 }

@@ -2,14 +2,28 @@
 /// instanced cubes gives the formula, checked directly rather than read off
 /// a picture.
 ///
-/// **`drawCalls` in every test here is one more than the scene's own meshes
-/// would suggest** — `renderer_sky_pass.dart` draws a full-screen triangle
-/// for the procedural sky every frame, with no scene environment needed to
-/// turn it on, and increments `drawCalls` for it outside `_encodeNode`
-/// (`renderer_mesh_encode.dart`). [FrameResult.triangles]/[FrameResult.
-/// instances] deliberately do not count it: it is a screen-space background
-/// trick, not scene content, the same reason [FrameResult.culled] and
-/// [FrameResult.skinnedDraws] are scoped to meshes rather than every draw
+/// **The draw counts here are the scene pass's own, not the frame's** — and
+/// they used to be the frame's, because the frame's *were* the scene pass's
+/// plus the composite. `gfx-01n` found that the shadow map and the whole
+/// bloom ladder were drawing and counting nothing, so the totals moved the
+/// day they started counting; what these tests are actually about never did.
+/// "How many draws did the cube take" is a question about the pass the cube
+/// is drawn in, and `FrameResult.passes` lets it be asked that way.
+///
+/// **And the extra draw these tests attributed to the procedural sky was the
+/// composite's.** The header used to say `renderer_sky_pass.dart` draws a
+/// full-screen triangle every frame "with no scene environment needed to
+/// turn it on", and every count here carried a `+ 1` for it. Asked per pass,
+/// a lone cube gives `scene: 1` — the cube — with the sky nowhere, and the
+/// `+ 1` that made the old total two was the composite at the end of the
+/// frame. Nothing was broken by it, and nothing would have caught it either:
+/// two numbers that happen to agree read exactly like one number that is
+/// right.
+///
+/// [FrameResult.triangles]/[FrameResult.instances] still deliberately count
+/// neither — a full-screen triangle is a screen-space trick, not scene
+/// content, the same reason [FrameResult.culled] and
+/// [FrameResult.skinnedDraws] are scoped to meshes rather than to every draw
 /// the renderer issues.
 ///
 ///     flutter test test/frame_triangle_count_test.dart
@@ -22,6 +36,12 @@ import 'package:vector_math/vector_math.dart';
 
 const int _width = 64;
 const int _height = 64;
+
+/// The draws the scene pass itself made — what every count in this file is
+/// about, told apart from the shadow map and the post chain by name.
+int _sceneDraws(FrameResult frame) => frame.passes
+    .where((FramePass pass) => pass.name == 'scene')
+    .fold<int>(0, (int sum, FramePass pass) => sum + pass.drawCalls);
 
 ({CpuDevice device, Renderer renderer}) _engine() {
   final device = CpuDevice(
@@ -47,7 +67,7 @@ void main() {
 
     expect(frame.triangles, 0);
     expect(frame.instances, 0);
-    expect(frame.drawCalls, 1, reason: 'the procedural sky, drawn regardless');
+    expect(_sceneDraws(frame), 0, reason: 'nothing to draw, so nothing drawn');
   });
 
   test('a lone cube draws its own 12 triangles and no instances', () {
@@ -73,7 +93,7 @@ void main() {
 
     expect(frame.triangles, 12);
     expect(frame.instances, 0);
-    expect(frame.drawCalls, 2, reason: 'the cube, plus the procedural sky');
+    expect(_sceneDraws(frame), 1, reason: 'the cube, and only the cube');
   });
 
   test('a cube plus a batch of N instanced cubes: triangles == 12 + 12*N, '
@@ -119,8 +139,8 @@ void main() {
 
     expect(frame.triangles, 12 + 12 * instanceCount);
     expect(frame.instances, instanceCount);
-    // The lone cube, the whole batch in one call, and the procedural sky.
-    expect(frame.drawCalls, 3);
+    // The lone cube, and the whole batch in one call.
+    expect(_sceneDraws(frame), 2);
   });
 
   test('an instanced batch with nothing in it draws no triangles, no call', () {
@@ -147,6 +167,6 @@ void main() {
 
     expect(frame.triangles, 0);
     expect(frame.instances, 0);
-    expect(frame.drawCalls, 1, reason: 'the procedural sky, drawn regardless');
+    expect(_sceneDraws(frame), 0, reason: 'nothing to draw, so nothing drawn');
   });
 }

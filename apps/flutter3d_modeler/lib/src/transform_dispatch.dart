@@ -1,10 +1,10 @@
 /// Deciding what a transform-panel field commit means for the document.
 ///
 /// **Pulled out of `main.dart` for the reason `transform_fields.dart` and
-/// `properties_sections.dart` were.** `_Properties` is private to that library
-/// and nothing in this app's own suite pumps the whole screen, so the question
-/// this file answers — which command one field commit becomes — is arithmetic
-/// on two `TransformFields`, checkable without a `NumberField` in sight.
+/// `properties_sections.dart` were.** `PropertiesPanel` is a wide widget to
+/// pump for one arithmetic question, so this file answers it directly —
+/// which command one field commit becomes, arithmetic on two
+/// `TransformFields`, checkable without a `NumberField` in sight.
 ///
 /// **Position and rotation are read back as a difference and handed to
 /// `MoveBy`/`RotateBy`, which is what lets the pivot and the space chips mean
@@ -102,7 +102,7 @@ const double _sameEnough = 1e-6;
   }
 
   // Scale on its own, or more than one of the three at once — the second is
-  // not a shape `_TransformRows` produces, but a field arriving from a file
+  // not a shape `TransformRows` produces, but a field arriving from a file
   // reload or a future caller with no such guarantee still needs an answer
   // rather than a crash, and the exact matrix is always a correct one for the
   // object that owns it.

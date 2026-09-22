@@ -134,6 +134,32 @@ double _signedAngle(Vector3 a, Vector3 b, Vector3 axis) {
   return unsigned * sign;
 }
 
+/// [v] turned [angle] radians about the unit vector [axis], right-hand rule.
+///
+/// **Through the rotation matrix, and never through `Quaternion.rotated`.**
+/// `vector_math`'s own `Quaternion.rotate`/`rotated` turns a vector the
+/// *opposite* way from the same quaternion's own `asRotationMatrix` —
+/// `Quaternion.axisAngle(Vector3(0, 1, 0), pi / 2).rotated(Vector3(0, 0, 1))`
+/// is `(-1, 0, 0)`, and `asRotationMatrix() * Vector3(0, 0, 1)` is
+/// `(1, 0, 0)`. The matrix is the one that agrees with [worldTransformOf],
+/// which composes through `Matrix4`, and with [_signedAngle], which reads
+/// its sign out of a cross product. Mixing the two senses is a sign bug
+/// that only shows up off-axis, which is exactly where nobody looks.
+Vector3 _turnAbout(Vector3 axis, double angle, Vector3 v) =>
+    Quaternion.axisAngle(axis, angle).asRotationMatrix().transformed(v);
+
+/// The angle between two unit vectors, through `atan2` rather than `acos`.
+///
+/// **`acos` cannot measure a small angle.** Near a dot product of one its
+/// slope is vertical, so `vector_math`'s `Float32List` storage — an epsilon
+/// of about 6e-8 — comes back out as an angle of about 2.6e-4 radians for
+/// two vectors that are the same vector. A look-at that hit its target
+/// exactly would report a fifteenth of a degree of failure. The cross
+/// product carries the same information conditioned the other way round,
+/// and `atan2` of the two is accurate at both ends.
+double _angleBetween(Vector3 a, Vector3 b) =>
+    math.atan2(a.cross(b).length, a.dot(b));
+
 const double _epsilon = 1e-6;
 
 /// [constraint] solved once, given [currentRoot] and [currentMid] as the
@@ -301,6 +327,161 @@ const double _epsilon = 1e-6;
   currentMid: _currentRotationOf(project, constraint.midJointId, clip, time),
 );
 
+/// [constraint] solved once: the joint's own new local rotation, and how
+/// much of the turn its limits refused.
+///
+/// **[aimError] is the whole point of the limits being here.** A look-at
+/// that silently stops short is a head that seems to be ignoring what it
+/// was told to watch, and the caller has no way to tell that from a bug
+/// in its own target. The angle between where the joint ends up facing
+/// and where the target actually is says exactly how far the limits made
+/// it fall short: zero when the target was inside them, and a number a
+/// caller can act on — fade the gaze out, turn the chest as well — when it
+/// was not.
+///
+/// The turn is the minimal rotation from the joint's own rest facing to
+/// the clamped direction, so the joint gains no roll it did not already
+/// have. A look-at that also twisted would need a second reference the
+/// constraint does not carry, and a head that rolls while tracking looks
+/// broken in a way a head that merely aims does not.
+({Quaternion rotation, double aimError}) resolveLookAtConstraint({
+  required ModelProject project,
+  required LookAtConstraint constraint,
+  ProjectClip? clip,
+  double time = 0.0,
+}) {
+  final restLocal = _currentRotationOf(project, constraint.jointId, clip, time);
+  final overrides = <int, Quaternion>{constraint.jointId: restLocal};
+
+  final jointPos = worldTransformOf(
+    project,
+    constraint.jointId,
+    rotationOverrides: overrides,
+  ).getTranslation();
+
+  // Every angle below is measured in the parent's space, which is what
+  // makes the limits mean "away from rest" rather than "away from north".
+  final parentId = project[constraint.jointId]?.parent;
+  final parentRotation = parentId == null
+      ? Matrix3.identity()
+      : worldTransformOf(
+          project,
+          parentId,
+          rotationOverrides: overrides,
+        ).getRotation();
+
+  final toTargetWorld = constraint.target - jointPos;
+  if (toTargetWorld.length2 <= _epsilon) {
+    // Nothing to aim at: a target sitting on the joint names no direction,
+    // and turning to face it would be turning to face an arbitrary one.
+    return (rotation: restLocal, aimError: 0.0);
+  }
+  // A rotation matrix's inverse is its transpose, which is the whole of
+  // what "into the parent's frame" means here.
+  final desired = parentRotation.transposed().transformed(
+    toTargetWorld.normalized(),
+  )..normalize();
+
+  // The rest basis: where this joint faces, and which way is up, before
+  // anything is asked of it.
+  final rest = restLocal.asRotationMatrix();
+  final restForward = rest.transformed(constraint.forward)..normalize();
+  var restUp = _perpendicularComponent(
+    rest.transformed(constraint.up),
+    restForward,
+  );
+  restUp = restUp.length2 > _epsilon
+      ? restUp.normalized()
+      : _arbitraryPerpendicular(restForward);
+  final restRight = restForward.cross(restUp)..normalize();
+
+  // Yaw around up, pitch around right: the two angles a neck is specified
+  // in, taken apart in that order and put back in the same one.
+  final flat = _perpendicularComponent(desired, restUp);
+  final yaw = flat.length2 > _epsilon
+      ? _signedAngle(restForward, flat.normalized(), restUp)
+      : 0.0;
+  final pitch = math.asin(desired.dot(restUp).clamp(-1.0, 1.0));
+
+  final clampedYaw = yaw.clamp(-constraint.maxYaw, constraint.maxYaw);
+  final clampedPitch = pitch.clamp(-constraint.maxPitch, constraint.maxPitch);
+
+  // Pitch first, then yaw about the rest up — the order the two angles are
+  // quoted in, and the order that makes yaw mean "away from straight ahead"
+  // rather than "away from wherever the pitch left it".
+  final allowed = _turnAbout(
+    restUp,
+    clampedYaw,
+    _turnAbout(restRight, clampedPitch, restForward),
+  )..normalize();
+
+  return (
+    rotation: (Quaternion.fromTwoVectors(restForward, allowed) * restLocal)
+      ..normalize(),
+    aimError: _angleBetween(allowed, desired),
+  );
+}
+
+/// [clip], with [constraint]'s own joint's rotation track replaced by
+/// [resolveLookAtConstraint]'s own output, sampled every `1/[fps]` seconds
+/// — the look-at's own [bakeIk], and for the same reason: nothing plays a
+/// live [LookAtConstraint] back, so what leaves in a file has to be
+/// ordinary keyframes.
+ProjectClip bakeLookAt({
+  required ModelProject project,
+  required ProjectClip clip,
+  required LookAtConstraint constraint,
+  required double fps,
+}) {
+  if (fps <= 0) {
+    throw ArgumentError.value(fps, 'fps', 'must be positive');
+  }
+
+  final table = KeyTable(componentCount: 4);
+  for (var frame = 0; frame < _frameCount(clip, fps); frame++) {
+    final time = frame / fps;
+    final solved = resolveLookAtConstraint(
+      project: project,
+      constraint: constraint,
+      clip: clip,
+      time: time,
+    );
+    table.setKey(time, <double>[
+      solved.rotation.x,
+      solved.rotation.y,
+      solved.rotation.z,
+      solved.rotation.w,
+    ]);
+  }
+
+  return ProjectClip(
+    name: clip.name,
+    tracks: <ProjectTrack>[
+      for (final track in clip.tracks)
+        if (track.objectId != constraint.jointId) track,
+      ProjectTrack(
+        objectId: constraint.jointId,
+        track: table.toAnimationTrack(
+          nodeIndex: 0,
+          path: AnimationPath.rotation,
+        ),
+      ),
+    ],
+    extras: clip.extras,
+  );
+}
+
+/// How many frames at [fps] cover [clip]'s own longest track, never fewer
+/// than one — a clip with nothing in it still has a pose at time zero.
+int _frameCount(ProjectClip clip, double fps) {
+  var duration = 0.0;
+  for (final track in clip.tracks) {
+    final times = track.track.times;
+    if (times.isNotEmpty) duration = math.max(duration, times.last);
+  }
+  return math.max(1, (duration * fps).round() + 1);
+}
+
 /// [clip], with [constraint]'s own root and middle joints' rotation tracks
 /// replaced by [resolveIkConstraint]'s own output, sampled every `1/[fps]`
 /// seconds from zero through [clip]'s own duration — `BakeIk(clip, fps)`'s
@@ -318,12 +499,7 @@ ProjectClip bakeIk({
     throw ArgumentError.value(fps, 'fps', 'must be positive');
   }
 
-  var duration = 0.0;
-  for (final track in clip.tracks) {
-    final times = track.track.times;
-    if (times.isNotEmpty) duration = math.max(duration, times.last);
-  }
-  final frameCount = math.max(1, (duration * fps).round() + 1);
+  final frameCount = _frameCount(clip, fps);
 
   final rootTable = KeyTable(componentCount: 4);
   final midTable = KeyTable(componentCount: 4);

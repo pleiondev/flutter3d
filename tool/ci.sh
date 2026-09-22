@@ -181,6 +181,14 @@ step "analyze" flutter analyze
 # possible moment otherwise.
 step "publish check" bash tool/publish_check.sh
 
+# The modeller's pictures, as the tutorial and the documentation site show them,
+# against the ones its own golden tests hold. `--check` was written for this
+# line and nothing ever called it: the first time it was run by hand it found
+# `animation-weights.png` published in two places and drawn differently by the
+# editor, with every test green. A picture of a panel that has since moved is
+# a tutorial step a reader cannot follow.
+step "modeller screenshots" dart run tool/publish_modeler_screenshots.dart --check
+
 # **Which packages are plain Dart is not this script's knowledge.** It named
 # four of them here and `tool/structure/repository.dart` named the same four,
 # and the two lists were free to disagree: a fifth plain package added there
@@ -189,6 +197,15 @@ step "publish check" bash tool/publish_check.sh
 # `--flat-dart` prints the list the rules are held to, so there is one list.
 FLAT_DART="$(dart run tool/structure.dart --flat-dart)"
 
+# **What this loop does not cover, said here because here is where somebody
+# would look for it.** It walks `packages/`, and the six programs under `tool/`
+# carry suites of their own that nothing in this script runs: `convert_asset`
+# (13), `skills` (13), `init` (18), `tutorial` (29), `godot_check` (11) and
+# `webgpu_spike` (which needs `flutter test`, not `dart test` — its fixtures
+# reach for `flutter_test`, so a loop over `tool/` would want the same split
+# this one has). `godot_check`'s run in the `godot` job in
+# .github/workflows/ci.yml; the other five are a hole, found on 2026-09-17 and
+# left named rather than quietly half-fixed.
 for package in packages/*/; do
   name="$(basename "$package")"
   # Matched on the files rather than on the directory, for the reason the
@@ -238,6 +255,11 @@ step "test cloud/server" in_dir cloud/server dart test -x db
 step "pub get cloud/lessons/server" in_dir cloud/lessons/server dart pub get
 step "analyze cloud/lessons/server" in_dir cloud/lessons/server dart analyze --fatal-infos
 step "test cloud/lessons/server" in_dir cloud/lessons/server dart test
+
+# **The release dashboard judges the same scripts this one runs**, so a change
+# to how it reads a result is a change to what "green" means on its page.
+step "analyze tool/release_dashboard" in_dir tool/release_dashboard dart analyze --fatal-infos
+step "test tool/release_dashboard" in_dir tool/release_dashboard dart test
 
 # **Five test files that nothing had ever run.** `flutter3d_webgl` marks them
 # `@TestOn('browser')` — the conformance suite, the parity comparison against

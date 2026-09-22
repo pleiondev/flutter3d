@@ -127,6 +127,12 @@ final class DiagnosticSession {
             'name': pass.name,
             'active': pass.active,
             'micros': pass.micros,
+            // `gfx-01n`: an agent asking why a frame is slow gets the same
+            // four numbers a person reads off the panel, rather than a time
+            // it has to guess the cause of.
+            'drawCalls': pass.drawCalls,
+            'triangles': pass.triangles,
+            'pipelineSwitches': pass.pipelineSwitches,
           },
       ]),
     );

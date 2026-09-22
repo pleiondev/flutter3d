@@ -1,3 +1,31 @@
+## 0.7.0
+
+* **The first publication.** The 0.6.0 below was a number carried inside the
+  workspace and never reached pub.dev: the package sat out that release waiting
+  for its own acceptance, which `ARCHITECTURE.md` §16 records, and it is one of
+  the thirteen packages `doc/boundary-0.7.0.md` lists as beginning here. 0.7.0
+  is the number the whole shelf goes out on, so one number names one tree and
+  `^0.7.0` on any `flutter3d_*` package resolves against every other. What the
+  package holds is described under 0.6.0; what follows is what changed since.
+* **A recorded match carries what a replay is verified against.** `MatchDemo`
+  requires `levelHash`, `buildStamp` and `checkpoints`, a `DigestTrace`, beside
+  the map's path, the start and the `OrderTape`, and takes `platform` and
+  `recordedBy` as optional. `MatchDemo.fromJson` throws `DemoFormatException`
+  for a document without the first three, so a match written by the 0.6.0 in
+  this workspace does not open; `formatVersion` is still 1. No published
+  version wrote such a file. They are the three fields `Demo` in `flutter3d_sim`
+  0.7.0 gained, for the same reason: a reader can tell that the map changed
+  since the recording, and a replay can be compared checkpoint by checkpoint.
+  `MatchDemo.fileExtension` is `.f3drun`, the extension `Demo` uses.
+* **`flutter3d_game` and `flutter3d_bridge` are no longer dependencies.** The
+  simulation imports `flutter3d_sim` by name, and `bridge.dart`, where
+  `StrategyVisuals` is, takes what it used from `flutter3d_bridge` out of
+  `flutter3d_app`. The main library still imports neither the renderer nor
+  Flutter; `bridge.dart` is the one file that does.
+* The floors on `flutter3d`, `flutter3d_app` and `flutter3d_sim`, and the dev
+  floor on `flutter3d_cpu`, are `^0.7.0`. The units, the orders, the economy,
+  the fog, `Bot` and `Match` are what 0.6.0 describes.
+
 ## 0.6.0
 
 * **In the workspace at the set's number, and deliberately not on pub.dev.**

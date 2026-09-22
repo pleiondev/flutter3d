@@ -68,7 +68,7 @@ void main() {
 
       expect(display.name, 'albedo.png');
       expect(display.dimensionsText, '256×128');
-      expect(display.weightText, '174 КБ');
+      expect(display.weightText, '174 KB');
       expect(display.formatBadge, isNull);
       expect(display.thumbnail, same(image.bytes));
     });
@@ -100,7 +100,7 @@ void main() {
 
       expect(display.dimensionsText, isNull);
       expect(display.formatBadge, isNull);
-      expect(display.weightText, '3 Б');
+      expect(display.weightText, '3 B');
     });
   });
 

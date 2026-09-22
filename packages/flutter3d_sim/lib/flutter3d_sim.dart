@@ -62,6 +62,7 @@ export 'src/level/data_source.dart';
 export 'src/level/entity_kind.dart';
 export 'src/level/heightfield.dart';
 export 'src/level/heightfield_geometry.dart';
+export 'src/level/heightfield_tiles.dart';
 export 'src/level/json_reader.dart';
 export 'src/level/level.dart';
 export 'src/level/level_collision.dart';

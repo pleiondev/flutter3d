@@ -83,9 +83,15 @@ Uint8List _compressedPrimitiveGltf(
 }
 
 void main() {
-  for (final String extensionName in <String>[
-    'KHR_draco_mesh_compression',
-    'EXT_meshopt_compression',
+  // What each extension's warning says when the primitive cannot be read
+  // through it. They used to say the same thing. `gfx-82n` made Draco a
+  // decoder, so an extension object with nothing in it — which is what this
+  // handwritten file has — is now a payload that *did not decode*, with the
+  // reason; meshopt on a primitive is still simply not where that extension
+  // lives.
+  for (final (String extensionName, String complaint) in <(String, String)>[
+    ('KHR_draco_mesh_compression', 'did not decode: the extension names no'),
+    ('EXT_meshopt_compression', 'not implemented'),
   ]) {
     group(extensionName, () {
       test('with no buffer view on its own POSITION, the primitive is '
@@ -126,7 +132,7 @@ void main() {
         // fallback to, would come back empty too.
         expect(document.surfaces, hasLength(1));
         expect(
-          document.warnings.any((String w) => w.contains('not implemented')),
+          document.warnings.any((String w) => w.contains(complaint)),
           isTrue,
           reason: document.warnings.join('\n'),
         );

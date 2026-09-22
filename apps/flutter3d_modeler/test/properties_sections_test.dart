@@ -59,6 +59,25 @@ void main() {
       },
     );
 
+    test(
+      "mat-34d's own row: scene mode owns all four scene panels together",
+      () {
+        final sections = sectionsFor(ModelerMode.scene);
+
+        expect(sections, contains(PropertiesSection.sceneSources));
+        expect(sections, contains(PropertiesSection.sceneShadows));
+        expect(sections, contains(PropertiesSection.sceneEnvironment));
+        expect(sections, contains(PropertiesSection.scenePost));
+        // Mutation: leave object/mesh/animation sections showing in scene
+        // mode too — `ui-04`'s own "wholesale, not piecemeal" applies here
+        // exactly as it does to every other mode.
+        expect(sections, isNot(contains(PropertiesSection.objects)));
+        expect(sections, isNot(contains(PropertiesSection.transform)));
+        expect(sections, isNot(contains(PropertiesSection.materials)));
+        expect(sections, isNot(contains(PropertiesSection.animation)));
+      },
+    );
+
     test('display, view and budget show in every mode', () {
       for (final ModelerMode mode in ModelerMode.values) {
         final sections = sectionsFor(mode);
@@ -72,6 +91,42 @@ void main() {
           reason: '$mode dropped a cross-mode section',
         );
       }
+    });
+
+    test('ux-07: material mode is not an empty screen', () {
+      final sections = sectionsFor(ModelerMode.material);
+
+      // The live run's own finding: the button was enabled, it switched, and
+      // it showed Display/View/Budget and nothing else — materials were
+      // edited in Object mode, with no hint and no link.
+      //
+      // Mutation: fall through to the `_ => {}` default, which is what this
+      // did. Material mode shows the three cross-mode utility sections and
+      // nothing about materials at all.
+      expect(sections, contains(PropertiesSection.materials));
+      expect(sections, contains(PropertiesSection.objects));
+    });
+
+    test('ux-40: and the workspace half is material mode\'s alone', () {
+      // **Mutation: give object mode the workspace too.** The preview, five
+      // texture slots and a graph canvas then sit between the transform
+      // grid and the modifier stack in the mode somebody is in to move an
+      // object — which is the panel the compact material row exists to keep
+      // short.
+      expect(
+        sectionsFor(ModelerMode.material),
+        contains(PropertiesSection.materialWorkspace),
+      );
+      expect(
+        sectionsFor(ModelerMode.object),
+        isNot(contains(PropertiesSection.materialWorkspace)),
+      );
+      // Still the list and the fields there, though: "clean a mesh, fix its
+      // material, export to GLB" is one mode's worth of work.
+      expect(
+        sectionsFor(ModelerMode.object),
+        contains(PropertiesSection.materials),
+      );
     });
   });
 }

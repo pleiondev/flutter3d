@@ -14,6 +14,8 @@ import 'dart:ui';
 
 import 'package:flutter3d_mesh/flutter3d_mesh.dart';
 
+import 'ui/theme.dart';
+
 /// One triangle in UV space, corners in the mesh's own winding order.
 final class UvTriangle {
   const UvTriangle(this.a, this.b, this.c);
@@ -93,8 +95,41 @@ List<UvIslandData> buildUvIslandData(EditMesh mesh, List<List<int>> islands) {
   return result;
 }
 
-/// The acceptance's own colour: what a maximally-stretched island paints.
-const Color kUvMaxStretchColor = Color(0xFFFF458E);
+/// How much of the unit square [islands] cover, from nought to one — screen
+/// 06's own status line, "unwrap fill 74 %".
+///
+/// **The triangles' own area, not their bounding boxes'.** A box would say an
+/// L-shaped island fills the corner it leaves empty, and the number exists to
+/// tell somebody how much texture they are paying for and not using. Summed
+/// as absolute values, so a mirrored island — wound the other way round in UV
+/// space — counts for what it covers rather than against it.
+///
+/// Clamped at one: islands laid over each other, which is what an unpacked
+/// unwrap is, would otherwise report more than the whole square.
+double uvFillOf(List<UvIslandData> islands) {
+  final double area = islands
+      .expand((UvIslandData island) => island.triangles)
+      .fold<double>(
+        0,
+        (double sum, UvTriangle t) =>
+            sum +
+            ((t.b.dx - t.a.dx) * (t.c.dy - t.a.dy) -
+                        (t.c.dx - t.a.dx) * (t.b.dy - t.a.dy))
+                    .abs() /
+                2,
+      );
+  return area.isFinite ? area.clamp(0.0, 1.0) : 0.0;
+}
+
+/// The acceptance's own colour: what a maximally-stretched island paints —
+/// `kModelerScheme.secondary`, the design hand-over's own "second spot",
+/// rather than a hex this file used to carry on its own.
+///
+/// **`final`, not `const`.** `ColorScheme`'s own fields are not
+/// const-accessible from outside the class, so `kModelerScheme.secondary`
+/// cannot sit in a const initialiser — nothing downstream needs one, since
+/// nothing constructs a `const UvIslandData`/`UvTriangle` with this baked in.
+final Color kUvMaxStretchColor = kModelerScheme.secondary;
 
 /// A neutral tone for a perfectly isometric island — [ModelerColors.wire]'s
 /// own hex, so an unstretched island reads the same grey as an ordinary
