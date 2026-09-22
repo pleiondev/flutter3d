@@ -39,6 +39,10 @@ dependencies:
   flutter3d_audio:
     path: ../../packages/flutter3d_audio
 
+  # `ls-x-02`: the same race, opened in `StereoViewer` behind `?stereo=1`.
+  flutter3d_stereo:
+    path: ../../packages/flutter3d_stereo
+
   # What a locked wheel and a car off the road throw into the air. This game
   # had no particles at all until it had smoke.
   flutter3d_particles:
@@ -81,6 +85,14 @@ dev_dependencies:
   flutter3d_cpu:
     path: ../../packages/flutter3d_cpu
 
+  # `ap-12`: the build hook (`hook/build.dart`) that converts
+  # `assets_src/models/*.glb` into `flutter3d_generated/*.f3d` on every
+  # build — `path`, the same convention every other sibling package in
+  # this file uses, rather than the version constraint `flutter3d_build:init`
+  # writes for a project outside this repository.
+  flutter3d_build:
+    path: ../../packages/flutter3d_build
+
 # Two traps this repository has paid for before, one of them already sprung
 # here: `FLTEnableFlutterGPU` and `FLTEnableImpeller` have to be in the macOS
 # `Info.plist` or the window comes up empty — they are; and when sound is added,
@@ -92,5 +104,6 @@ flutter:
 
   assets:
     - assets/tracks/
-    - assets/models/
     - assets/sounds/
+    - flutter3d_generated/
+    - flutter3d_generated/models/

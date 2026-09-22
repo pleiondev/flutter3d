@@ -27,6 +27,7 @@ import 'package:flutter3d_game_racing/bridge.dart';
 import 'package:flutter3d_game_racing/flutter3d_game_racing.dart';
 import 'package:flutter3d_particles/flutter3d_particles.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
+import 'package:flutter3d_stereo/flutter3d_stereo.dart' as stereo;
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:pad_input/pad_input.dart';
 import 'package:vector_math/vector_math.dart' hide Colors;
@@ -46,6 +47,7 @@ import 'src/reactions.dart';
 import 'src/roadside.dart';
 import 'src/sounds.dart';
 import 'src/staging.dart';
+import 'src/stereo_hud_panel.dart';
 import 'src/title_card.dart';
 import 'src/touch_drive.dart';
 
@@ -128,6 +130,31 @@ class _RaceScreenState extends State<RaceScreen>
   );
   final CameraNode _camera = CameraNode(projection: _lens);
 
+  /// `ls-x-02`: `?stereo=1` opens the same race in `StereoViewer` instead of
+  /// on the flat screen — [_camera] is still built either way (an unused one
+  /// costs nothing, `flutter3d_template_app`'s own attempt at this same
+  /// pattern already made that call), but only one of [_camera]/[_rig] is
+  /// ever the stage a frame is actually drawn from. `near`/`far` match
+  /// [_lens]'s own — the rig's own defaults (0.05/500.0) would clip this
+  /// circuit's own kilometre-round track well before the horizon.
+  late final stereo.StereoRig? _rig = Uri.base.queryParameters['stereo'] == '1'
+      ? stereo.StereoRig(near: _lens.near, far: _lens.far)
+      : null;
+
+  /// Whichever of [_camera]/[_rig]'s own stage is the one actually driven
+  /// every frame — added to the scene, moved by the chase camera, and (in
+  /// stereo) the anchor the HUD panel rides along with.
+  SceneNode get _stage => _rig?.stage ?? _camera;
+
+  /// `ls-x-02`'s own showcase: [StereoHud] on a `WidgetSurface`, a child of
+  /// [_rig]'s own stage — null in flat mode, where [RaceHud] stays the
+  /// ordinary Flutter overlay it always was. Built once [_loadCircuit] has a
+  /// device to build it with.
+  WidgetSurface? _hudPanel;
+  final ValueNotifier<RaceReadout?> _hudReading = ValueNotifier<RaceReadout?>(
+    null,
+  );
+
   /// The view, and the one colour behind the sky.
   ///
   /// Nearly nothing shows this now: the sky is drawn per pixel and covers every
@@ -176,6 +203,36 @@ class _RaceScreenState extends State<RaceScreen>
     final colour = _sky.colourAt(_gaze);
     return Vector4(colour.x, colour.y, colour.z, 1.0);
   }
+
+  /// The one [RenderSettings] this game draws with — pulled out of `build`
+  /// so [_rig]'s own [StereoSurface] and the flat [SceneSurface] read the
+  /// same fog, exposure, sky and shadows rather than two settings blocks a
+  /// future edit could quietly let drift apart. `.forStereo()` is applied by
+  /// each caller separately, not here: only the stereo path wants it.
+  RenderSettings _raceSettings() => RenderSettings(
+    // Not a colour anybody typed: the haze at the horizon, brightened
+    // towards the sun along the direction the camera is looking. It is the
+    // same arithmetic the sky above is drawn with, so the far side of the
+    // lap fades into the background instead of into a band of a slightly
+    // different grey.
+    fog: FogSettings(
+      color: _sky.inScatterAlong(_gaze),
+      density: _sky.fogDensity,
+    ),
+    // The hour of the day changes it: a low sun puts far less light on a
+    // circuit than a high one, and one exposure through both is either a
+    // washed-out noon or a dusk nobody can see the road in.
+    exposure: _sky.exposure,
+    sky: _skySettings(),
+    // Three cascades over a circuit a kilometre round. One map over that is
+    // metres of world per texel, which draws a car's own shadow as a slab
+    // beside it; three tiles put the near one over the part of the track
+    // anybody is looking at.
+    shadows: const ShadowSettings(
+      cascades: kShadowCascades,
+      resolution: kShadowResolution,
+    ),
+  );
 
   /// The hour this circuit is raced at, and everything that follows from it.
   ///
@@ -580,6 +637,8 @@ class _RaceScreenState extends State<RaceScreen>
       voice.stop();
     }
     unawaited(_speakers?.dispose());
+    _hudPanel?.dispose();
+    _hudReading.dispose();
     super.dispose();
   }
 
@@ -739,7 +798,31 @@ class _RaceScreenState extends State<RaceScreen>
         buildings: await loadBuildings(device),
         signs: await drawSignFaces(device),
       );
-      scene.add(_camera);
+      scene.add(_stage);
+
+      // `ls-x-02`: the same [RaceHud] drawn on a `WidgetSurface` in front of
+      // the stereo camera instead of as a flat overlay — a child of [_rig]'s
+      // own stage, so it rides along exactly the way `edu_annotation`'s own
+      // `attachTo` already keeps a note in place on a moving anchor
+      // (`packages/flutter3d_bridge/test/widget_surface_visuals_test.dart`'s
+      // own "moves with its anchor node"). Positioned in local space — in
+      // front of, and a little below, the eye — since that offset is what
+      // "in front" means once this is a child rather than free-standing.
+      if (_rig case final stereo.StereoRig rig) {
+        final panel = WidgetSurface(
+          device: device,
+          width: 0.9,
+          height: 0.32,
+          name: 'race-hud',
+          child: Transform.flip(
+            flipX: true,
+            flipY: true,
+            child: StereoHud(reading: _hudReading, issueOf: () => _issue),
+          ),
+        )..setPosition(Vector3(0.0, -0.28, -1.1));
+        rig.stage.add(panel.node);
+        _hudPanel = panel;
+      }
 
       // **Before the grid is formed, not after.** The field used to be lined up
       // as boxes and re-dressed when the model arrived, and on a cold start
@@ -955,11 +1038,18 @@ class _RaceScreenState extends State<RaceScreen>
     _carDraw.clear();
     _ghostCar = null;
 
+    // `ls-x-02`: the HUD panel belongs to the circuit being left, same as
+    // every car above — [_loadCircuit] builds a fresh one for whichever
+    // circuit comes next, and a stale one kept alive here would be a second
+    // `WidgetSurfacePipeline` nobody reads leaking beside it.
+    _hudPanel?.dispose();
+    _hudPanel = null;
+
     setState(() {
       // An empty scene rather than none: the surface has to keep drawing
       // through the load or Flutter GPU never learns its own pixel format —
       // see [_scene].
-      _scene = Scene()..add(_camera);
+      _scene = Scene()..add(_stage);
       _race = null;
       _simulation = null;
       _track = null;
@@ -981,9 +1071,10 @@ class _RaceScreenState extends State<RaceScreen>
   /// not something anybody sees on the way to a normal start.
   Future<ModelAsset?> _loadCarModel(GraphicsDevice device) async {
     try {
-      final document = await decodeModelInIsolate(
-        ModelLoadRequest(source: const BundleAssetSource(kCarModel)),
-      );
+      // `ap-12`: `kCarModel` names its `assets_src/` source; `loadModelAsset`
+      // (`ap-11`) resolves the generated `.f3d`, falling back to the source
+      // directly in debug if the hook has not run yet.
+      final document = await loadModelAsset(kCarModel);
       return await ModelAsset.fromDocument(
         document,
         device: device,
@@ -1236,10 +1327,16 @@ class _RaceScreenState extends State<RaceScreen>
     final chase = _chase;
     if (chase == null) return;
     chase.follow(_cars[0], dt);
-    _camera
+    _stage
       ..setPositionFrom(chase.eye)
-      ..lookAt(chase.target)
-      ..projection = _lens.copyWith(fovYRadians: chase.fov);
+      ..lookAt(chase.target);
+    // `StereoRig` reads its own field of view from `StereoSurface`'s own
+    // `verticalFieldOfView` every frame (`fitToViewport`, called from
+    // `build()`) — `chase.fov` reaches it there instead of through
+    // `.projection`, which only [_camera] itself has.
+    if (_rig == null) {
+      _camera.projection = _lens.copyWith(fovYRadians: chase.fov);
+    }
 
     // The sky, once a frame, from where the camera ended up. The engine's fog
     // is one colour with no idea of direction; giving it the colour of the air
@@ -1249,6 +1346,14 @@ class _RaceScreenState extends State<RaceScreen>
       ..setFrom(chase.target)
       ..sub(chase.eye);
     _view.clearColor = _skyColour();
+
+    // `ls-x-02`'s own HUD panel — read and redrawn only when it exists
+    // (flat mode never builds one) and only once a race is actually up to
+    // read, [_readout]'s own requirement.
+    if (_hudPanel case final panel?) {
+      _hudReading.value = _readout();
+      unawaited(panel.tick());
+    }
   }
 
   /// What the race sounds like this frame.
@@ -1403,37 +1508,31 @@ class _RaceScreenState extends State<RaceScreen>
         child: Stack(
           fit: StackFit.expand,
           children: <Widget>[
-            SceneSurface(
-              renderer: renderer,
-              scene: scene,
-              view: _view,
-              onBeforeFrame: () {},
-              settings: () => RenderSettings(
-                // Not a colour anybody typed: the haze at the horizon,
-                // brightened towards the sun along the direction the camera is
-                // looking. It is the same arithmetic the sky above is drawn
-                // with, so the far side of the lap fades into the background
-                // instead of into a band of a slightly different grey.
-                fog: FogSettings(
-                  color: _sky.inScatterAlong(_gaze),
-                  density: _sky.fogDensity,
-                ),
-                // The hour of the day changes it: a low sun puts far less light
-                // on a circuit than a high one, and one exposure through both is
-                // either a washed-out noon or a dusk nobody can see the road in.
-                exposure: _sky.exposure,
-                sky: _skySettings(),
-                // Three cascades over a circuit a kilometre round. One map over
-                // that is metres of world per texel, which draws a car's own
-                // shadow as a slab beside it; three tiles put the near one over
-                // the part of the track anybody is looking at.
-                shadows: const ShadowSettings(
-                  cascades: kShadowCascades,
-                  resolution: kShadowResolution,
-                ),
+            if (_rig case final stereo.StereoRig rig)
+              stereo.StereoSurface(
+                renderer: renderer,
+                scene: scene,
+                rig: rig,
+                // The same speed-pumped field of view the flat camera reads
+                // through `.projection` — `chase`'s own doc comment gives the
+                // reason it changes at all, and nothing about drawing it
+                // twice needs that reason to be any different. Whether that
+                // reads well through a headset is unmeasured, the same
+                // "unverified against glass" line `LessonStereoView`'s own
+                // doc comment already draws for its lens numbers.
+                verticalFieldOfView: _chase?.fov ?? _lens.fovYRadians,
+                onBeforeFrame: () {},
+                settings: () => _raceSettings().forStereo(),
+              )
+            else
+              SceneSurface(
+                renderer: renderer,
+                scene: scene,
+                view: _view,
+                onBeforeFrame: () {},
+                settings: _raceSettings,
+                presentFrame: presentFrame,
               ),
-              presentFrame: presentFrame,
-            ),
             // A platform view takes the pointer events over it, so the click
             // that hands the keyboard back has to be caught above the frame
             // rather than around it. Nothing else here wants the pointer.
