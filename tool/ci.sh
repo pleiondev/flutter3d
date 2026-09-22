@@ -111,7 +111,7 @@ step "icons" python3 tool/check_icons.py
 # same reason the icons are — and for one more: `math.sin` is libm, so a
 # generator that did not quantise its coordinates produces different bytes on a
 # different machine, and this is the step that would say so.
-step "models" bash -c 'python3 tool/make_models.py >/dev/null && python3 tool/make_templates.py >/dev/null && git diff --exit-code -- "apps/flutter3d_editor/assets/templates" "apps/flutter3d_demo_dungeon/assets/models"'
+step "models" bash -c 'python3 tool/make_models.py >/dev/null && python3 tool/make_templates.py >/dev/null && git diff --exit-code -- "apps/flutter3d_editor/assets/templates" "apps/flutter3d_demo_dungeon/assets_src/models"'
 
 # **The levels and the tracks, which `ARCHITECTURE.md` claimed were covered and
 # were not.** §13 says anything a tool produces is regenerated here and diffed;

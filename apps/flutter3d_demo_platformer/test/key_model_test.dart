@@ -24,16 +24,14 @@ import 'package:flutter_test/flutter_test.dart';
 
 /// The shipped file, read the way the game reads it: off disk, as bytes.
 ///
-/// **The two games do not agree on where their own copy lives, and that is
-/// current, not a bug here.** `ap-12` moved the platformer's onto
-/// `assets_src/models/` — the pipeline's own source directory — while the
-/// dungeon's own migration has not happened yet and still ships from
-/// `assets/models/` directly. This function names each game's own real
-/// path rather than one shared suffix, so this test keeps comparing what
-/// each game actually ships instead of assuming they match.
+/// **Each game's own real path rather than one shared suffix.** `ap-12` moved
+/// both games' copies onto `assets_src/models/`, the pipeline's own source
+/// directory: the platformer first and the dungeon after it. They agree
+/// today, but the test compares what each game ships, so a later move of
+/// either one fails here rather than quietly comparing a file with itself.
 String _keyPathFor(String game) => switch (game) {
   'platformer' => 'assets_src/models/key.glb',
-  'dungeon' => '../flutter3d_demo_dungeon/assets/models/key.glb',
+  'dungeon' => '../flutter3d_demo_dungeon/assets_src/models/key.glb',
   _ => throw ArgumentError('unknown game: $game'),
 };
 

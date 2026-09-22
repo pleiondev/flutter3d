@@ -1,6 +1,6 @@
 {
   "monster": {
-    "model": "assets/models/monster_{kind}.glb",
+    "model": "assets_src/models/monster_{kind}.glb",
     "size": [0.9, 1.9, 0.9]
   },
   "torch": {
@@ -27,16 +27,16 @@
         "at": [0.0, 0.46, 0.0], "colour": [0.16, 0.15, 0.14] }
     ]
   },
-  "player_spawn": { "model": "assets/models/player_spawn.glb",
+  "player_spawn": { "model": "assets_src/models/player_spawn.glb",
     "size": [0.7, 1.8, 0.7]
   },
-  "pickup": { "model": "assets/models/pickup.glb",
+  "pickup": { "model": "assets_src/models/pickup.glb",
     "size": [0.45, 0.45, 0.45]
   },
-  "note": { "model": "assets/models/note.glb",
+  "note": { "model": "assets_src/models/note.glb",
     "size": [0.5, 0.66, 0.06]
   },
-  "exit": { "model": "assets/models/exit.glb",
+  "exit": { "model": "assets_src/models/exit.glb",
     "size": [1.8, 2.6, 0.4]
   },
   "door": {
