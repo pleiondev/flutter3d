@@ -30,6 +30,7 @@
 /// cancellation for free.
 library;
 
+import 'dart:async';
 import 'dart:isolate';
 import 'dart:typed_data';
 
@@ -143,13 +144,41 @@ final class RenderPreset {
 /// A snapshot of [project] at [preset], each tile rendered on a device of its
 /// own from [tileDevice].
 final class RenderSnapshotJob {
-  RenderSnapshotJob(this.project, this.preset, {required this.tileDevice});
+  RenderSnapshotJob(
+    this.project,
+    this.preset, {
+    required this.tileDevice,
+    this.concurrency = 1,
+  }) : assert(concurrency >= 1, 'a grid is drawn by at least one worker');
 
   final ModelProject project;
   final RenderPreset preset;
 
   /// Where each tile is drawn. See [TileDevice] for why it is a function.
   final TileDevice tileDevice;
+
+  /// How many tiles are drawn at once, each in an isolate of its own.
+  ///
+  /// **One by default, which is what this did before and is not a placeholder
+  /// for a better default.** The number that belongs here is the machine's
+  /// core count, and this package cannot ask: it is a flat Dart package, so
+  /// `dart:io`'s `Platform.numberOfProcessors` would take the web build with
+  /// it. The application knows, and passes it.
+  ///
+  /// Above one, each tile crosses into `Isolate.run` with the project, the
+  /// preset, its index and the [TileDevice] tear-off, and its pixels come back
+  /// through a `TransferableTypedData` — which moves the buffer rather than
+  /// copying it, the reason `editInIsolate` uses one for a mesh.
+  ///
+  /// **It changes no pixel.** Tiles already render independently — each builds
+  /// its own device, its own scene and its own camera, and writes only its own
+  /// share of the frame — so which thread draws one cannot be visible in the
+  /// result. `a 2x2 tile grid stitches to the same frame as one tile` held
+  /// that before any of this, and holds it still.
+  ///
+  /// Ignored on the web, where there are no isolates and the grid is stepped
+  /// one tile at a time with a yield between them.
+  final int concurrency;
 
   /// One chunk per tile of [RenderPreset.tilesX] × [RenderPreset.tilesY] — the
   /// grid a caller stepping through chunks on the web draws one tile per frame
@@ -162,6 +191,17 @@ final class RenderSnapshotJob {
   /// on the web after every tile, on native once, when the whole grid finishes
   /// inside its own isolate.
   Future<Uint8List> run({void Function(double progress)? onProgress}) async {
+    if (!meshWorkStaysHere && concurrency > 1) {
+      final bytes = await _renderTilesInParallel(
+        project,
+        preset,
+        tileDevice,
+        concurrency,
+        onProgress,
+      );
+      return bytes;
+    }
+
     if (!meshWorkStaysHere) {
       final TileDevice device = tileDevice;
       final bytes = await Isolate.run(
@@ -205,6 +245,270 @@ final class RenderSnapshotJob {
   }
 }
 
+/// The grid, [concurrency] tiles at a time, each in an isolate of its own.
+///
+/// **A bounded pool rather than one isolate per tile.** A 4x4 grid is sixteen
+/// tiles and a machine has eight cores; spawning sixteen isolates would pay
+/// sixteen times for building a shader library and a scene, to run eight at a
+/// time anyway. The pool keeps at most [concurrency] in flight and starts the
+/// next as one lands.
+///
+/// **The pixels come back through a `TransferableTypedData`.** That is the
+/// one direction it fits: `materialize()` may be called once and the buffer
+/// moves rather than copying, which is exactly a tile handing its frame back.
+/// It does not fit the other direction — the project goes *to* each worker as
+/// an ordinary copy, because a transferable is single-use and could not be
+/// sent to a second worker at all. The project is a document and small; the
+/// pixels are the large thing, and they are the ones that move.
+Future<Uint8List> _renderTilesInParallel(
+  ModelProject project,
+  RenderPreset preset,
+  TileDevice tileDevice,
+  int concurrency,
+  void Function(double progress)? onProgress,
+) async {
+  final buffer = _SnapshotBuffer(preset, tileDevice);
+  final count = preset.tilesX * preset.tilesY;
+  final workers = concurrency < count ? concurrency : count;
+
+  final pool = await _TileWorkerPool.start(
+    workers,
+    project: project,
+    preset: preset,
+    tileDevice: tileDevice,
+    tileWidth: buffer.tileWidth,
+    tileHeight: buffer.tileHeight,
+  );
+
+  try {
+    var next = 0;
+    var landed = 0;
+
+    Future<void> drive(_TileWorker worker) async {
+      while (true) {
+        // Read and advance in one turn: this is an event loop rather than
+        // threads, so nothing runs between these two lines and no two workers
+        // can take the same tile.
+        final index = next;
+        if (index >= count) return;
+        next = index + 1;
+
+        final tile = await worker.draw(index);
+        buffer.blitTile(
+          tile,
+          tileX: index % preset.tilesX,
+          tileY: index ~/ preset.tilesX,
+        );
+        landed++;
+        onProgress?.call(landed / count);
+      }
+    }
+
+    await Future.wait(pool.workers.map(drive));
+  } finally {
+    // Even if a tile threw: an isolate nobody shut down keeps the process
+    // alive, which in a test runner reads as a suite that will not finish.
+    pool.close();
+  }
+  return buffer.finish();
+}
+
+/// Workers that outlive the tile they are drawing.
+///
+/// **The measurement that asked for this.** With an `Isolate.run` per tile, a
+/// 4x4 grid at 1024x1024 went from 3283 ms on one worker to 993 on eight —
+/// 3.3x on an 11-core machine, where the two frame sizes measured said the
+/// rest was fixed cost per tile rather than contention. Each `Isolate.run`
+/// spawns an isolate, copies the project into it, and builds a shader library
+/// before drawing a pixel; sixteen tiles paid that sixteen times.
+///
+/// A worker pays it once. The project and the preset cross at startup and
+/// stay; per tile only an index goes over, and pixels come back.
+final class _TileWorkerPool {
+  _TileWorkerPool(this.workers);
+
+  final List<_TileWorker> workers;
+
+  static Future<_TileWorkerPool> start(
+    int count, {
+    required ModelProject project,
+    required RenderPreset preset,
+    required TileDevice tileDevice,
+    required int tileWidth,
+    required int tileHeight,
+  }) async {
+    final started = await Future.wait(<Future<_TileWorker>>[
+      for (var i = 0; i < count; i++)
+        _TileWorker.start(
+          project: project,
+          preset: preset,
+          tileDevice: tileDevice,
+          tileWidth: tileWidth,
+          tileHeight: tileHeight,
+        ),
+    ]);
+    return _TileWorkerPool(started);
+  }
+
+  void close() {
+    for (final worker in workers) {
+      worker.close();
+    }
+  }
+}
+
+/// One isolate, kept alive across tiles.
+///
+/// **One reply outstanding at a time, so the bookkeeping is one field.** A
+/// worker draws the tile it was given and is handed the next only once that
+/// one has landed — the pool's loop is what serialises it — so there is never
+/// a second reply in flight to tell apart from the first. A queue here would
+/// be machinery for a case the caller cannot produce.
+final class _TileWorker {
+  _TileWorker(this._isolate, this._toWorker, this._fromWorker);
+
+  final Isolate _isolate;
+  final SendPort _toWorker;
+  final ReceivePort _fromWorker;
+  Completer<Object?>? _pending;
+
+  static Future<_TileWorker> start({
+    required ModelProject project,
+    required RenderPreset preset,
+    required TileDevice tileDevice,
+    required int tileWidth,
+    required int tileHeight,
+  }) async {
+    final fromWorker = ReceivePort();
+    final ready = Completer<SendPort>();
+    late final _TileWorker worker;
+
+    fromWorker.listen((Object? message) {
+      if (!ready.isCompleted) {
+        // The worker's first message is the port to send tile indices to. It
+        // arrives once the project and the preset are in place there, so a
+        // caller holding a worker has one that is ready to draw.
+        ready.complete(message! as SendPort);
+        return;
+      }
+      final pending = worker._pending;
+      worker._pending = null;
+      pending?.complete(message);
+    });
+
+    final isolate = await Isolate.spawn(
+      _tileWorkerMain,
+      _TileWorkerSetup(
+        reply: fromWorker.sendPort,
+        project: project,
+        preset: preset,
+        tileDevice: tileDevice,
+        tileWidth: tileWidth,
+        tileHeight: tileHeight,
+      ),
+    );
+    worker = _TileWorker(isolate, await ready.future, fromWorker);
+    return worker;
+  }
+
+  /// Draws tile [index] and brings its pixels back.
+  Future<Uint8List> draw(int index) async {
+    final pending = _pending = Completer<Object?>();
+    _toWorker.send(index);
+    final reply = await pending.future;
+    if (reply is _TileFailure) {
+      throw StateError(
+        'a tile worker could not draw tile $index: ${reply.message}',
+      );
+    }
+    return (reply! as TransferableTypedData).materialize().asUint8List();
+  }
+
+  void close() {
+    // A negative index is the stop word rather than a message type of its
+    // own: every other message is a tile index, and one sentinel is cheaper
+    // to keep right than a second shape crossing the boundary.
+    _toWorker.send(-1);
+    _fromWorker.close();
+    _isolate.kill(priority: Isolate.immediate);
+  }
+}
+
+/// What a worker is handed when it starts.
+final class _TileWorkerSetup {
+  const _TileWorkerSetup({
+    required this.reply,
+    required this.project,
+    required this.preset,
+    required this.tileDevice,
+    required this.tileWidth,
+    required this.tileHeight,
+  });
+
+  final SendPort reply;
+  final ModelProject project;
+  final RenderPreset preset;
+  final TileDevice tileDevice;
+  final int tileWidth;
+  final int tileHeight;
+}
+
+/// A tile that threw, carried back rather than left to hang the pool.
+final class _TileFailure {
+  const _TileFailure(this.message);
+  final String message;
+}
+
+/// The worker's own loop: take an index, give back pixels.
+///
+/// Top-level, because that is what `Isolate.spawn` takes — and everything it
+/// needs arrives in [_TileWorkerSetup] rather than being captured, for the
+/// same reason `drawTile` takes plain values.
+Future<void> _tileWorkerMain(_TileWorkerSetup setup) async {
+  final jobs = ReceivePort();
+  setup.reply.send(jobs.sendPort);
+
+  // Built once and drawn on for every tile this worker is given. A device
+  // carries a shader library, and building one per tile was the cost two
+  // measurements kept pointing at: a finer grid balanced the work better and
+  // still ran slower, because it paid this more times. Measured at 1024x1024
+  // on eight workers, within one run: 4x4 went from 2.06x to 2.87x and 8x8
+  // from 2.95x to 3.69x.
+  //
+  // **What this trades, said rather than discovered later.** `sceneFromProject`
+  // uploads the project's meshes to whatever device it is handed, and nothing
+  // releases them between tiles — so a worker's device holds one upload per
+  // tile it has drawn, rather than one. For a snapshot that is a bounded
+  // number of tiles of one project it is a fair trade; for a grid fine enough
+  // or a project large enough that the uploads matter, the fix is a scene
+  // built once per worker rather than once per tile, which is a bigger change
+  // than this one and wants its own measurement.
+  final device = setup.tileDevice(setup.tileWidth, setup.tileHeight);
+
+  await for (final Object? message in jobs) {
+    final index = message! as int;
+    if (index < 0) break;
+    try {
+      final tile = await drawTile(
+        setup.project,
+        setup.preset,
+        index,
+        setup.tileDevice,
+        tileWidth: setup.tileWidth,
+        tileHeight: setup.tileHeight,
+        on: device,
+      );
+      setup.reply.send(TransferableTypedData.fromList(<Uint8List>[tile]));
+    } catch (error) {
+      // Answered rather than thrown: an isolate that dies mid-tile leaves the
+      // pool waiting on a reply that will never come, and the frame hangs
+      // instead of failing.
+      setup.reply.send(_TileFailure('$error'));
+    }
+  }
+  jobs.close();
+}
+
 /// The whole grid, off this isolate — [Isolate.run]'s own computation on
 /// native. Top-level so the closure [RenderSnapshotJob.run] builds carries
 /// only [project], [preset] and [tileDevice].
@@ -240,70 +544,39 @@ final class _SnapshotBuffer {
   final int tileHeight;
   final Uint8List _pixels;
 
-  /// Renders tile [index] on its own fresh device and blits it into the
-  /// supersampled frame — the same eye and look-at as every other tile, with
-  /// [TiledProjection] cropping this one's share of the frustum, the shape
-  /// `packages/flutter3d/test/tiled_projection_stitch_test.dart` proves
-  /// stitches back byte for byte.
+  /// Renders tile [index] and blits it into the supersampled frame.
+  ///
+  /// The drawing itself is [drawTile], a top-level function: a tile is one
+  /// picture computed from plain values, so it can be computed anywhere — on
+  /// this thread, or in an isolate of its own. This method is the half that
+  /// owns the shared buffer, and it is the half that cannot cross.
   Future<void> renderTile(
     ModelProject project,
     RenderPreset preset,
     int index,
   ) async {
-    final tileX = index % preset.tilesX;
-    final tileY = index ~/ preset.tilesX;
-
-    final device = tileDevice(tileWidth, tileHeight);
-    final renderer = Renderer.create(
-      device: device,
-      fallbackAlbedo: _texel(device, const <int>[255, 255, 255, 255]),
-      fallbackNormal: _texel(device, const <int>[128, 128, 255, 255]),
+    _blit(
+      await drawTile(
+        project,
+        preset,
+        index,
+        tileDevice,
+        tileWidth: tileWidth,
+        tileHeight: tileHeight,
+      ),
+      tileX: index % preset.tilesX,
+      tileY: index ~/ preset.tilesX,
     );
-
-    final scene = sceneFromProject(project, device);
-    final wholeFrame = preset.camera.projection;
-    final camera =
-        CameraNode(
-          name: 'snapshot',
-          projection: (preset.tilesX == 1 && preset.tilesY == 1)
-              ? wholeFrame
-              : TiledProjection(
-                  wholeFrame,
-                  tileX: tileX,
-                  tileY: tileY,
-                  tilesX: preset.tilesX,
-                  tilesY: preset.tilesY,
-                ),
-        )..setPosition(
-          preset.camera.position.x,
-          preset.camera.position.y,
-          preset.camera.position.z,
-        );
-    camera.lookAt(preset.camera.target, up: preset.camera.up);
-    scene.add(camera);
-
-    final result = renderer.render(
-      width: tileWidth,
-      height: tileHeight,
-      scene: scene,
-      views: <RenderView>[
-        RenderView(
-          camera: camera,
-          clearColor: preset.clearColor ?? Vector4(0.0, 0.0, 0.0, 1.0),
-        ),
-      ],
-      settings: preset.settings,
-    );
-
-    final tile = await device.readPixels(result.frame);
-    if (tile == null) {
-      throw StateError(
-        'tile $tileX,$tileY could not be read back from the device it was '
-        'drawn on',
-      );
-    }
-    _blit(tile.buffer.asUint8List(), tileX: tileX, tileY: tileY);
   }
+
+  /// Writes one tile's pixels into its own share of the frame.
+  ///
+  /// Public to this library because a tile drawn in an isolate comes back as
+  /// bytes with nowhere to put itself — the pool hands them here. Safe to call
+  /// from several futures in turn for the same reason the grid is tiled at
+  /// all: a tile's rows are its own, so no two calls touch the same byte.
+  void blitTile(Uint8List tile, {required int tileX, required int tileY}) =>
+      _blit(tile, tileX: tileX, tileY: tileY);
 
   void _blit(Uint8List tile, {required int tileX, required int tileY}) {
     for (var row = 0; row < tileHeight; row++) {
@@ -367,4 +640,86 @@ Uint8List _downsample(Uint8List src, int srcWidth, int srcHeight, int factor) {
     }
   }
   return out;
+}
+
+/// One tile of a snapshot, drawn on a device of its own, as raw RGBA bytes.
+///
+/// **Top-level and taking only plain values, so a tile can be drawn anywhere.**
+/// Everything it needs — the project, the preset, which tile, and a tear-off
+/// that makes a device — crosses an isolate; a method on a buffer holding the
+/// whole frame does not. That is the split: this computes a picture, and
+/// `_SnapshotBuffer` owns the one place every picture is written to.
+///
+/// The same eye and look-at as every other tile, with [TiledProjection]
+/// cropping this one's share of the frustum — the shape
+/// `packages/flutter3d/test/tiled_projection_stitch_test.dart` proves stitches
+/// back byte for byte.
+Future<Uint8List> drawTile(
+  ModelProject project,
+  RenderPreset preset,
+  int index,
+  TileDevice tileDevice, {
+  required int tileWidth,
+  required int tileHeight,
+  GraphicsDevice? on,
+}) async {
+  final tileX = index % preset.tilesX;
+  final tileY = index ~/ preset.tilesX;
+
+  // **[on] is a device to draw on rather than one to make**, which is what
+  // lets a worker pay for a shader library once instead of once per tile.
+  // Every tile is the same size and the frame is cleared before each, so the
+  // second tile on a device sees nothing the first left — the test that the
+  // grid matches a single tile byte for byte is what holds that, and it holds
+  // it whichever way the device arrived.
+  final device = on ?? tileDevice(tileWidth, tileHeight);
+  final renderer = Renderer.create(
+    device: device,
+    fallbackAlbedo: _texel(device, const <int>[255, 255, 255, 255]),
+    fallbackNormal: _texel(device, const <int>[128, 128, 255, 255]),
+  );
+
+  final scene = sceneFromProject(project, device);
+  final wholeFrame = preset.camera.projection;
+  final camera =
+      CameraNode(
+        name: 'snapshot',
+        projection: (preset.tilesX == 1 && preset.tilesY == 1)
+            ? wholeFrame
+            : TiledProjection(
+                wholeFrame,
+                tileX: tileX,
+                tileY: tileY,
+                tilesX: preset.tilesX,
+                tilesY: preset.tilesY,
+              ),
+      )..setPosition(
+        preset.camera.position.x,
+        preset.camera.position.y,
+        preset.camera.position.z,
+      );
+  camera.lookAt(preset.camera.target, up: preset.camera.up);
+  scene.add(camera);
+
+  final result = renderer.render(
+    width: tileWidth,
+    height: tileHeight,
+    scene: scene,
+    views: <RenderView>[
+      RenderView(
+        camera: camera,
+        clearColor: preset.clearColor ?? Vector4(0.0, 0.0, 0.0, 1.0),
+      ),
+    ],
+    settings: preset.settings,
+  );
+
+  final tile = await device.readPixels(result.frame);
+  if (tile == null) {
+    throw StateError(
+      'tile $tileX,$tileY could not be read back from the device it was '
+      'drawn on',
+    );
+  }
+  return tile.buffer.asUint8List();
 }

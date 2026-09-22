@@ -12,6 +12,19 @@
 /// Linear depth from the light's point of view, in the red channel.
 uniform sampler2D shadow_texture;
 
+/// Five points on a disc: the centre and four at the diagonals.
+///
+/// **Diagonals rather than the axes.** A cross of four axis-aligned taps
+/// leaves a shadow whose edge is smooth along x and y and hard at forty-five
+/// degrees, which is the angle most edges in a built scene actually run at.
+/// Turned by an eighth of a turn, the four taps straddle a vertical or
+/// horizontal edge evenly and the artefact has nowhere to line up.
+const vec2 kShadowDisc[5] = vec2[5](vec2(0.0, 0.0),
+                                    vec2(0.7071, 0.7071),
+                                    vec2(-0.7071, 0.7071),
+                                    vec2(0.7071, -0.7071),
+                                    vec2(-0.7071, -0.7071));
+
 /// How much of the light survives at this fragment, from 0 to 1.
 ///
 /// Returns 1 when shadows are off, when the fragment falls outside the map, or
@@ -82,9 +95,6 @@ float ShadowFactor(Surface s, LightSample light, int lightIndex) {
   // cascade they are the same number and this is the kernel it has always been.
   vec2 texel = vec2(frag_info.shadow_params.x, frag_info.shadow_cascades.w);
 
-  // PCF 3x3. Four samples would band visibly at this map size and nine is the
-  // smallest kernel that reads as a soft edge rather than as stair steps.
-  //
   // **`textureLod` and not `texture`, and the level asked for is the only one
   // there is.** Everything above this loop is a reason not to be here — the
   // cascade search returns early when no cascade contains the fragment, and the
@@ -95,16 +105,75 @@ float ShadowFactor(Surface s, LightSample light, int lightIndex) {
   // single level, so the derivative was never doing anything but selecting
   // level zero, and naming that level directly costs nothing and changes no
   // pixel on any backend.
+  //
+  // **The softness, where it rides, and what zero means.**
+  //
+  // `ambient_ground.w` is the directional light's apparent size. It has
+  // nothing to do with ambient light and everything to do with this being the
+  // one component left unspent in a block six shaders share: `frame_params.w`
+  // was the slot reserved for exactly this and the environment's level count
+  // took it, and appending to the block moves offsets four backends have
+  // agreed on. The alternative was a second uniform block bound per draw for
+  // one float. Named here because a reader arriving at `ambient_ground` has
+  // every right to be surprised.
+  //
+  // Zero is the 3×3 kernel this has always had, which is what keeps every
+  // recorded golden where it is. Above zero the edge widens with the distance
+  // between the occluder and what it falls on — what a real light does, and
+  // what no fixed kernel can.
+  float softness = frag_info.ambient_ground.w;
   float lit = 0.0;
-  for (int y = -1; y <= 1; y++) {
-    for (int x = -1; x <= 1; x++) {
-      float occluder =
-          textureLod(shadow_texture, uv + vec2(float(x), float(y)) * texel, 0.0)
-              .r;
+  if (softness <= 0.0) {
+    // PCF 3x3. Four samples would band visibly at this map size and nine is
+    // the smallest kernel that reads as a soft edge rather than as stair
+    // steps.
+    for (int y = -1; y <= 1; y++) {
+      for (int x = -1; x <= 1; x++) {
+        float occluder = textureLod(
+            shadow_texture, uv + vec2(float(x), float(y)) * texel, 0.0).r;
+        lit += projected.z - bias > occluder ? 0.0 : 1.0;
+      }
+    }
+    lit *= 1.0 / 9.0;
+  } else {
+    // **Find what is casting before deciding how wide to blur.** The five
+    // taps go out at a fixed search radius first and average the depths of
+    // whatever they find in front of this fragment; that average is the
+    // occluder's distance, and the penumbra is proportional to it. A kernel
+    // sized without this step is the fixed one again with a bigger number.
+    // Bounded, and not proportional to the softness: the search only has to
+    // reach far enough to find *a* blocker, and a radius that grew without
+    // limit would start finding occluders from the other side of the scene
+    // and report a gap that belongs to them.
+    float searchRadius = clamp(softness * 0.25, 2.0, 16.0);
+    float blockerSum = 0.0;
+    float blockerCount = 0.0;
+    for (int i = 0; i < 5; i++) {
+      float occluder = textureLod(
+          shadow_texture, uv + kShadowDisc[i] * texel * searchRadius, 0.0).r;
+      if (projected.z - bias > occluder) {
+        blockerSum += occluder;
+        blockerCount += 1.0;
+      }
+    }
+    // Nothing between this fragment and the light: lit, and no second loop.
+    if (blockerCount <= 0.0) return 1.0;
+
+    // Linear depth over the cascade's own volume, so the gap between the
+    // occluder and the receiver *is* the distance — no perspective divide,
+    // which is what an orthographic light means.
+    float gap = max(projected.z - blockerSum / blockerCount, 0.0);
+    // One texel at the tightest, so a contact edge stays an edge; the cap
+    // keeps a distant occluder from reaching across a whole cascade.
+    float radius = clamp(gap * softness, 1.0, 16.0);
+
+    for (int i = 0; i < 5; i++) {
+      float occluder = textureLod(
+          shadow_texture, uv + kShadowDisc[i] * texel * radius, 0.0).r;
       lit += projected.z - bias > occluder ? 0.0 : 1.0;
     }
+    lit *= 1.0 / 5.0;
   }
-  lit *= 1.0 / 9.0;
 
   // Strength lerps towards fully lit, so the control is "how dark", not "how
   // much of the kernel".

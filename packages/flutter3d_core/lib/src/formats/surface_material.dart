@@ -74,29 +74,51 @@ final class TextureBinding {
   /// file named the extension — `fmt-19`'s own row. Null for a texture info
   /// with no such extension, which is every file before this one existed.
   ///
-  /// **Carried, not applied.** No shader here samples a texture through
-  /// this, so a material with one still draws sampling its whole image —
-  /// `gltf_loader_materials.dart`'s own warning about that stays exactly
-  /// where it was. What changes is that a round trip no longer drops the
-  /// numbers a decoder already had in hand.
+  /// **Carried here, and honoured by whoever draws the surface.** No shader
+  /// samples a texture through this. What draws — `ModelAsset` — moves the
+  /// surface's texture coordinates instead, when every texture of the
+  /// material names the same transform, which is what an atlas export
+  /// writes: see `texture_transform_bake.dart`. The document keeps the
+  /// coordinates the file had beside the numbers it named, so a round trip
+  /// gives the file back.
   final TextureTransform? transform;
 }
 
-/// `KHR_texture_transform`'s three fields, decoded but not acted on — see
-/// [TextureBinding.transform].
+/// `KHR_texture_transform`'s three fields — see [TextureBinding.transform].
 final class TextureTransform {
   TextureTransform({Vector2? offset, Vector2? scale, this.rotation = 0.0})
     : offset = offset ?? Vector2.zero(),
       scale = scale ?? Vector2(1.0, 1.0);
 
-  /// UV offset, applied before scale and rotation per the extension's own
-  /// spec — not that anything here applies either.
+  /// UV offset. The extension multiplies `translation * rotation * scale`, so
+  /// a coordinate is scaled, then turned, then moved by this.
   final Vector2 offset;
 
   final Vector2 scale;
 
   /// Radians, counter-clockwise, about the origin.
   final double rotation;
+
+  /// Whether this moves nothing, which is what a file that names the
+  /// extension and gives it no fields has asked for.
+  bool get isIdentity =>
+      offset.x == 0.0 &&
+      offset.y == 0.0 &&
+      scale.x == 1.0 &&
+      scale.y == 1.0 &&
+      rotation == 0.0;
+
+  /// Whether [other] asks for the same numbers.
+  ///
+  /// Exact, not within a tolerance: the question is whether two textures of
+  /// one material were given one transform by whatever wrote the file, and a
+  /// writer that did so wrote the same digits twice.
+  bool sameAs(TextureTransform other) =>
+      offset.x == other.offset.x &&
+      offset.y == other.offset.y &&
+      scale.x == other.scale.x &&
+      scale.y == other.scale.y &&
+      rotation == other.rotation;
 
   @override
   String toString() =>

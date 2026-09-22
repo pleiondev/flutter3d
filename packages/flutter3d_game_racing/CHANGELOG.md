@@ -1,10 +1,19 @@
-## Unreleased
+## 0.7.0
 
-* **The readouts are in `bridge.dart`.** `LapReadout`, `PositionReadout` and
-  `ReadoutStyle` are widgets, and the simulation's barrel names no Flutter now;
-  import `package:flutter3d_game_racing/bridge.dart` for them.
-* The simulation imports `flutter3d_sim` by name rather than through
-  `flutter3d_game`, which this package no longer depends on.
+* **Breaking. The readouts are in `bridge.dart`.** `LapReadout`,
+  `PositionReadout` and `ReadoutStyle` are widgets, and the simulation's barrel
+  names no Flutter now; import `package:flutter3d_game_racing/bridge.dart` for
+  them. `buildRoadMesh`, `buildVergeMesh`, `buildBarrierMeshes` and
+  `RoadMeshSettings` were there already. `doc/boundary-0.7.0.md` has the same
+  move for the shooter and the platformer.
+* **Breaking. `flutter3d_game` is no longer a dependency.** The simulation
+  imports `flutter3d_sim` by name rather than through `flutter3d_game`, which
+  stopped re-exporting it. A game that reached `flutter3d_game` or a simulation
+  type through this package's pubspec alone names them in its own.
+* Apart from thirteen import lines nothing under `lib/src/` changed: the
+  vehicle, the tyre model, the track, the AI driver and the ghost are 0.6.0's.
+  The floors on `flutter3d`, `flutter3d_physics` and `flutter3d_sim` are
+  `^0.7.0`.
 
 ## 0.6.0
 

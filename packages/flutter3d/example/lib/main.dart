@@ -13,7 +13,7 @@ import 'package:vector_math/vector_math.dart' show Aabb3, Vector3, Vector4;
 import 'src/spike/backend.dart';
 import 'src/spike/control_panel.dart';
 import 'src/spike/error_panels.dart';
-import 'src/spike/frame_capture.dart';
+import 'src/spike/frame_to_png.dart';
 import 'src/spike/golden_extras.dart';
 import 'src/spike/golden_runner.dart';
 import 'src/spike/orbit_gestures.dart';
@@ -223,7 +223,7 @@ class _SpikePageState extends State<SpikePage>
   FrameResult? _lastFrame;
 
   /// Set only when `--dart-define=FLUTTER3D_CAPTURE=...` asked for a PNG.
-  final FrameCapture? _capture = FrameCapture.fromEnvironment();
+  final FrameToPng? _capture = FrameToPng.fromEnvironment();
 
   /// Set only when `--dart-define=FLUTTER3D_GOLDEN=...` named a scene.
   final GoldenRunner? _golden = GoldenRunner.fromEnvironment();

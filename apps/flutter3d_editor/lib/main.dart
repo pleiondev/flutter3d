@@ -45,6 +45,7 @@ import 'src/editor_cubit.dart';
 import 'src/editor_inspector.dart';
 import 'src/editor_legend.dart';
 import 'src/editor_palette.dart';
+import 'src/editor_theme.dart';
 import 'src/fly_camera.dart';
 import 'src/open_run_channel.dart';
 import 'src/playtest_report_screen.dart';
@@ -105,6 +106,7 @@ class EditorApp extends StatelessWidget {
   Widget build(BuildContext context) => MaterialApp(
     title: 'flutter3d level editor',
     debugShowCheckedModeBanner: false,
+    theme: editorTheme(),
     home: const EditorScreen(),
   );
 }

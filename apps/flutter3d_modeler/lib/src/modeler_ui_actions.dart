@@ -1,0 +1,460 @@
+/// [ModelerUiActions]: `mcp-16d`'s own [UiActions], wired to a live
+/// [ModelerCubit] and the two dialogs it can open — nothing here that is not
+/// already a button, a keyboard shortcut, or a dialog `screen/files.dart`
+/// already opens some other way, offered a second way in over MCP.
+///
+/// **Public and standalone, not a `part of 'main.dart'`.** `modeler_cubit.
+/// dart`'s own doc comment gives the reason this follows: every method below
+/// is a state transition worth writing down as a sentence, and
+/// `modeler_ui_actions_test.dart` is that sentence, reached with a plain
+/// `ModelerCubit` and no pumped widget — the same shape
+/// `modeler_cubit_test.dart` already uses.
+library;
+
+import 'dart:async';
+
+import 'package:flutter3d_model_core/flutter3d_model_core.dart'
+    show ReplaceDocument;
+import 'package:vector_math/vector_math.dart' show Vector3;
+
+import 'console_log.dart';
+import 'display_modes.dart';
+import 'gallery/gallery_insert.dart';
+import 'gallery/gallery_item.dart';
+import 'gallery/recipe_source.dart';
+import 'mcp_ui_actions.dart';
+import 'modeler_cubit.dart';
+import 'play/play_control.dart';
+import 'play/play_template.dart';
+import 'ui/tools.dart';
+
+final class ModelerUiActions implements UiActions {
+  ModelerUiActions({
+    required this.cubit,
+    required this.openExportDialog,
+    required this.openLatheDialog,
+    required this.openAutorigDialog,
+    required this.openGamePreview,
+    required this.openPlay,
+    required this.play,
+    this.gallerySources = const <GallerySource>[RecipeSource()],
+    required this.runTool,
+    this.captureWindow,
+  });
+
+  final ModelerCubit cubit;
+
+  /// `_ModelerScreenState._showExportDialog`, handed in rather than reached
+  /// for directly — the one piece of this that genuinely needs a live
+  /// screen, kept to exactly the one call [openDialog] makes so a test can
+  /// stub it out instead of pumping one.
+  final Future<void> Function() openExportDialog;
+
+  /// `_ModelerScreenState._openLatheDialog`, the same deal.
+  final Future<void> Function() openLatheDialog;
+
+  /// `_ModelerScreenState._openAutorigDialog` and `._openGamePreview` —
+  /// `ux-36`.
+  ///
+  /// **Both used to be a refusal here.** `ui.openDialog` said "not built in
+  /// this app yet" for autorig and for preview, which was true when the
+  /// sentence was written and stopped being true when `S8` built
+  /// `autorig_dialog.dart` and `S9` built the game preview. A refusal that
+  /// has outlived its reason is worse than no tool: a screenshot script
+  /// reads it as a thing the application cannot do.
+  final Future<void> Function() openAutorigDialog;
+  final Future<void> Function() openGamePreview;
+
+  /// `ux-50`: `_ModelerScreenState._openPlay` — the document walked in
+  /// rather than looked at, which is what separates this from the preview
+  /// above.
+  final Future<void> Function(PlayTemplate template) openPlay;
+
+  /// `ux-52`: whether Play is running, and how to press its buttons. Filled
+  /// in by `PlayScreen` itself while the route is up — see `PlayControl`.
+  final PlayControl play;
+
+  /// `gal-06`: where the gallery's own items come from. The built-in
+  /// recipes by default, which is the one source that needs no network and
+  /// cannot be unreachable.
+  final List<GallerySource> gallerySources;
+
+  /// `ux-44`: the window as PNG bytes, or null when there is no laid-out
+  /// window to capture. Handed in for the same reason the two dialogs above
+  /// are — it needs a live `RenderRepaintBoundary`, which is exactly the
+  /// thing a test of the rest of this file does not want to pump.
+  final Future<List<int>?> Function()? captureWindow;
+
+  /// `_ModelerScreenState._ranTool` — the one door a rail button, the
+  /// command palette and `ux-25`'s own `run_command` all go through, so a
+  /// tool reached any of those three ways arms, opens or lands identically.
+  final void Function(String id) runTool;
+
+  ModelerReady? get _ready =>
+      cubit.state is ModelerReady ? cubit.state as ModelerReady : null;
+
+  @override
+  UiAnswer setMode(String mode) {
+    if (_ready == null) return (did: false, says: 'no document open');
+    final ModelerMode? target = _enumByName(ModelerMode.values, mode);
+    if (target == null) return (did: false, says: 'no such mode: $mode');
+    // `ux-07`: the same gate the switcher has. The live run asked for `uv`
+    // over MCP and was told "mode set to uv" — the mode did change, the
+    // screen showed a mode nothing has built, and an agent driving a
+    // screenshot script had no way to know it was looking at nothing. A
+    // refusal that names the mode and what it is waiting for is the answer a
+    // person pressing a hidden segment would get, if the segment were there.
+    if (!target.ready) {
+      return (
+        did: false,
+        says: '$mode is not built yet — it is phase ${target.phase} work',
+      );
+    }
+    cubit.mode(target);
+    return (did: true, says: 'mode set to $mode');
+  }
+
+  @override
+  UiAnswer setSubmode(String submode) {
+    if (_ready == null) return (did: false, says: 'no document open');
+    // `ui-40d`'s own widening: two submode enums now share this one string
+    // argument, `MeshSubmode` tried first since it was here first.
+    // `UiActions.setSubmode`'s own shape does not change either day — a
+    // third submode enum would widen this the same way.
+    final MeshSubmode? mesh = _enumByName(MeshSubmode.values, submode);
+    if (mesh != null) {
+      cubit.submode(mesh);
+      return (did: true, says: 'submode set to $submode');
+    }
+    final AnimationSubmode? animation = _enumByName(
+      AnimationSubmode.values,
+      submode,
+    );
+    if (animation != null) {
+      cubit.animationSubmode(animation);
+      return (did: true, says: 'submode set to $submode');
+    }
+    return (did: false, says: 'no such submode: $submode');
+  }
+
+  @override
+  UiAnswer setTool(String? id) {
+    if (_ready == null) return (did: false, says: 'no document open');
+    cubit.tool(id);
+    return (did: true, says: id == null ? 'tool cleared' : 'tool set to $id');
+  }
+
+  @override
+  UiAnswer runCommand(String id) {
+    if (_ready == null) return (did: false, says: 'no document open');
+    final bool known = ModelerMode.values.any(
+      (ModelerMode mode) =>
+          mode.ready &&
+          AnimationSubmode.values.any(
+            (AnimationSubmode submode) => toolsFor(
+              mode,
+              animation: submode,
+            ).any((ModelerTool tool) => tool.id == id),
+          ),
+    );
+    if (!known) return (did: false, says: 'no such command: $id');
+    runTool(id);
+    return (did: true, says: 'ran $id');
+  }
+
+  /// `ux-26`. **`says` is the log itself, as one line per entry**, rather
+  /// than a structured answer: every other tool in this file answers with a
+  /// sentence, the transport is text, and an agent reading "14:03:22 you
+  /// refused: nothing is selected to extrude" needs no parser to act on it.
+  /// The machine-readable shape is `ConsoleEntry.toJson`, and it is there
+  /// for whatever wants it next.
+  @override
+  UiAnswer console({DateTime? since}) {
+    final List<ConsoleEntry> entries = cubit.console.since(since);
+    if (entries.isEmpty) {
+      return (
+        did: true,
+        says: since == null
+            ? 'nothing has been said this session'
+            : 'nothing since ${since.toIso8601String()}',
+      );
+    }
+    return (
+      did: true,
+      says: entries
+          .map(
+            (ConsoleEntry it) =>
+                '${it.at.toIso8601String()} '
+                '${it.author.name}'
+                '${it.kind == ConsoleKind.report ? '' : ' (${it.kind.name})'}'
+                '${it.tool == null ? '' : ' ${it.tool}'}: ${it.text}',
+          )
+          .join('\n'),
+    );
+  }
+
+  @override
+  List<({String id, String label, String mode})> commands() {
+    final seen = <String>{};
+    final out = <({String id, String label, String mode})>[];
+    for (final ModelerMode mode in ModelerMode.values) {
+      if (!mode.ready) continue;
+      for (final AnimationSubmode submode in AnimationSubmode.values) {
+        for (final ModelerTool tool in toolsFor(mode, animation: submode)) {
+          if (!seen.add(tool.id)) continue;
+          out.add((id: tool.id, label: tool.label, mode: mode.name));
+        }
+        if (mode != ModelerMode.animation) break;
+      }
+    }
+    return out;
+  }
+
+  @override
+  UiAnswer standardView(String view) {
+    final ModelerReady? ready = _ready;
+    if (ready == null) return (did: false, says: 'no document open');
+    final StandardView? target = _enumByName(StandardView.values, view);
+    if (target == null) return (did: false, says: 'no such view: $view');
+    lookFrom(ready.stage.orbit, target);
+    return (did: true, says: 'view set to $view');
+  }
+
+  @override
+  UiAnswer frameSubject() {
+    final ModelerReady? ready = _ready;
+    if (ready == null) return (did: false, says: 'no document open');
+    ready.stage.frameSubject();
+    return (did: true, says: 'framed the subject');
+  }
+
+  @override
+  UiAnswer openDialog(String dialog) {
+    if (_ready == null) return (did: false, says: 'no document open');
+    switch (dialog) {
+      case 'export':
+        unawaited(openExportDialog());
+        return (did: true, says: 'opened the export dialog');
+      case 'lathe':
+        unawaited(openLatheDialog());
+        return (did: true, says: 'opened the lathe dialog');
+      // `ux-36`: both of these exist now — `S8`'s own autorig dialog and
+      // `S9`'s own game preview — and this answered "not built in this app
+      // yet" for as long as nobody re-read it.
+      case 'autorig':
+        unawaited(openAutorigDialog());
+        return (did: true, says: 'opened the auto-rig dialog');
+      case 'preview':
+        unawaited(openGamePreview());
+        return (did: true, says: 'opened the game preview');
+      // `ux-50`: one name per template, because "play" with no template is
+      // a question rather than a command — the three answer different ones.
+      // `ux-52` gave Play its own tool; this stays because a screenshot
+      // script that already speaks `ui.openDialog` should not have to learn
+      // a second verb to reach the same route.
+      case 'play':
+        return playStart(PlayTemplate.character.name);
+      case 'play.character':
+      case 'play.prop':
+      case 'play.walkthrough':
+        return playStart(dialog.split('.').last);
+      default:
+        return (did: false, says: 'no such dialog: $dialog');
+    }
+  }
+
+  @override
+  UiAnswer say(String text) {
+    if (_ready == null) return (did: false, says: 'no document open');
+    cubit.say(text, important: true);
+    return (did: true, says: text);
+  }
+
+  @override
+  Future<UiPicture> screenshot() async {
+    final Future<List<int>?> Function()? capture = captureWindow;
+    if (capture == null) {
+      return (
+        did: false,
+        says: 'this server has no window to capture',
+        png: null,
+      );
+    }
+    final List<int>? png = await capture();
+    if (png == null) {
+      return (
+        did: false,
+        says: 'the window has not been laid out yet',
+        png: null,
+      );
+    }
+    return (did: true, says: 'the window, ${png.length} bytes', png: png);
+  }
+
+  @override
+  UiAnswer playStart(String template) {
+    final ModelerReady? ready = _ready;
+    if (ready == null) return (did: false, says: 'no document open');
+    if (play.running case final PlayRunning already) {
+      // Refused rather than restarted: a second start would throw away the
+      // walk the first one made, and an agent that meant "reload" has a
+      // tool that says so.
+      return (
+        did: false,
+        says:
+            'Play is already running on the ${already.template.name} '
+            'template; reload or stop it first',
+      );
+    }
+    final PlayTemplate? picked = PlayTemplate.values
+        .where((PlayTemplate it) => it.name == template)
+        .firstOrNull;
+    if (picked == null) {
+      return (
+        did: false,
+        says:
+            'no such template: $template — '
+            '${PlayTemplate.values.map((PlayTemplate it) => it.name).join(', ')}',
+      );
+    }
+    // `ux-51`'s own gate, answered here as well as on the button: Play
+    // hands the document over the way an export does, so an agent that asks
+    // for Play on a project that will not export is told the same thing a
+    // person pressing the button is told.
+    if (!ready.readiness.canExport) {
+      return (did: false, says: 'Play: ${ready.readiness.says}');
+    }
+    unawaited(openPlay(picked));
+    return (did: true, says: 'started Play on the ${picked.name} template');
+  }
+
+  @override
+  UiAnswer playReload() {
+    final PlayRunning? running = play.running;
+    if (running == null) return (did: false, says: 'Play is not running');
+    running.reload();
+    return (did: true, says: 'reloaded the running game');
+  }
+
+  @override
+  UiAnswer playStop() {
+    final PlayRunning? running = play.running;
+    if (running == null) return (did: false, says: 'Play is not running');
+    running.stop();
+    return (did: true, says: 'stopped Play');
+  }
+
+  @override
+  UiAnswer playConsole() {
+    final PlayRunning? running = play.running;
+    if (running == null) return (did: false, says: 'Play is not running');
+    final Vector3 at = running.where();
+    return (
+      did: true,
+      says:
+          'Play is running on the ${running.template.name} template; the '
+          'body is standing at '
+          '${at.x.toStringAsFixed(2)}, ${at.y.toStringAsFixed(2)}, '
+          '${at.z.toStringAsFixed(2)}',
+    );
+  }
+
+  /// Every source an agent can reach — the built-in recipes, and whatever
+  /// the screen was given. Handed in rather than built here so a test can
+  /// offer a catalogue of its own without a network.
+  Future<List<GalleryItem>> _catalogue() async {
+    final found = <GalleryItem>[];
+    for (final GallerySource source in gallerySources) {
+      try {
+        for (final GalleryItem item in await source.list()) {
+          if (refuseItem(item) == null) found.add(item);
+        }
+      } on Object {
+        // A source that is down costs its own items and nothing else —
+        // `gal-01`'s own rule, and the reason an agent still gets the
+        // built-in models on a machine with no network.
+        continue;
+      }
+    }
+    return freeFirst(found);
+  }
+
+  @override
+  Future<UiAnswer> galleryList({String? category, String? licence}) async {
+    final List<GalleryItem> items = await _catalogue();
+    final List<GalleryItem> shown = <GalleryItem>[
+      for (final GalleryItem item in items)
+        if ((category == null || item.category.name == category) &&
+            (licence == null || item.licence.id == licence))
+          item,
+    ];
+    if (shown.isEmpty) {
+      return (did: true, says: 'nothing in the gallery matches that');
+    }
+    return (
+      did: true,
+      says: shown
+          .map(
+            (GalleryItem it) =>
+                '${it.id} (${it.name}, ${it.category.name}, '
+                '${it.licence.id}${it.author == null ? '' : ', by ${it.author}'})',
+          )
+          .join('\n'),
+    );
+  }
+
+  @override
+  Future<UiAnswer> galleryInsert(String id) async {
+    final ModelerReady? ready = _ready;
+    if (ready == null) return (did: false, says: 'no document open');
+    final List<GalleryItem> items = await _catalogue();
+    final GalleryItem? item = items
+        .where((GalleryItem it) => it.id == id)
+        .firstOrNull;
+    if (item == null) {
+      return (
+        did: false,
+        says: 'no gallery item called $id — call gallery.list for the ids',
+      );
+    }
+    final GalleryModel model = await item.open();
+    final GalleryInsert inserted = insertIntoProject(
+      ready.history.project,
+      item,
+      model,
+    );
+    if (inserted.ids.isEmpty) {
+      return (
+        did: false,
+        says: '${item.name} brought nothing this reader could place',
+      );
+    }
+    cubit.ran(
+      ReplaceDocument(inserted.project, 'insert ${item.name}'),
+      said: insertSaid(item, inserted.ids.length),
+    );
+    return (did: true, says: insertSaid(item, inserted.ids.length));
+  }
+
+  @override
+  Future<UiPicture> playScreenshot() async {
+    if (play.running == null) {
+      return (did: false, says: 'Play is not running', png: null);
+    }
+    // The same capture `ui.screenshot` makes: Play is a full-screen route,
+    // so the window *is* the game. A second capture path that cropped or
+    // re-rendered would be a second answer to "what is on screen".
+    return screenshot();
+  }
+}
+
+/// [name] as one of [values], or null when nothing in [values] is named that
+/// — the one lookup every method above needs, since the tools this drives
+/// take a plain string rather than this app's own enum (see
+/// `mcp_ui_actions.dart`'s own doc comment for why).
+T? _enumByName<T extends Enum>(List<T> values, String name) {
+  for (final T value in values) {
+    if (value.name == name) return value;
+  }
+  return null;
+}

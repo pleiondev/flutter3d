@@ -1,3 +1,35 @@
+## 0.7.0
+
+The same seventeen tools, on the server the other two share.
+
+* **Breaking for code that extends the server, and for no agent.**
+  `EditorMcpServer` extends `flutter3d_mcp_kit`'s
+  `ToolTableServer<EditorSession, Answer>` where it extended `MCPServer with
+  ToolsSupport`, and the registration loop and the turning of an answer into a
+  result are the kit's. `EditorTool` is a typedef of
+  `OfferedTool<EditorSession, Answer>`, so `EditorTool(tool, run)` still
+  constructs one, but it is no longer a class of this package and `run` may
+  return a `Future`. `Answer` is the kit's record, re-exported from here under
+  the name it had. The model server and the simulation server are built on
+  the same three types, which is why they moved.
+* **Nothing an agent sees changed.** The seventeen tools keep their names,
+  their schemas and their sentences, and a refusal is still an error result
+  and not a thrown exception. This server passes the kit no `refusal`, so
+  argument checking is `dart_mcp`'s own as before.
+* **The three skills are renamed.** `editing-order`, `level-document` and
+  `what-it-refuses` under `skills/` each gained the prefix
+  `flutter3d-editor-mcp-`. `dart run skills@ get` skips a skill whose directory
+  does not start with its package's name, and a project that depends on
+  several packages can tell whose `editing-order` it is looking at.
+* **The server says the version it is.** `editorMcpVersion`, which a client
+  sees in the handshake, was the constant `'0.1.0'` while the package went out
+  at 0.6.0. It is `'0.7.0'`, and a test reads the pubspec and holds the two
+  together.
+* `flutter3d_mcp_kit` `^0.7.0` is a new dependency; the floors on
+  `flutter3d_editor_core` and `flutter3d_sim` are `^0.7.0`. Still plain Dart,
+  and `dart run flutter3d_editor_mcp:editor_mcp <level.json>` still resolves
+  on a machine with no Flutter.
+
 ## 0.6.0
 
 An agent edits a level with the editor's own commands.

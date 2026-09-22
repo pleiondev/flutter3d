@@ -11,6 +11,46 @@ waiting for `flutter3d_app` to know it exists — calling it once is now the
 whole of what an assembly layer owes this package. Floors to
 `flutter3d_hardware` `^0.7.0`.
 
+**The shader bundle is built by a hook.** `hook/build.dart` compiles
+`flutter3d_shaders`' manifest through `impellerc` into
+`assets/shaders/flutter3d.shaderbundle` during `flutter run` and
+`flutter build`, so an application draws a frame without anybody having run
+`tool/build_shaders.sh` first. It calls `impellerc` from the Flutter SDK's
+artifact cache directly and fails with a `BuildError` that says to run
+`flutter precache` when the binary is not there. `flutter analyze` runs no
+hooks and fails on the missing asset in a fresh checkout, so
+`dart run flutter3d_impeller:build_shader_bundle` does the same compile from
+a command line. Both go through `buildShaderBundle` in
+`lib/src/shader_bundle_build.dart`. `hooks` `^2.0.0` and `flutter3d_shaders`
+`^0.7.0` are dependencies now for this, the second so that a consumer's own
+`pub get` puts the GLSL where the hook looks for it. The published archive
+still carries a prebuilt bundle, and `tool/build_shaders.sh` is unchanged.
+
+**`overwriteGeometry` and `overwriteTexture`.** Geometry goes through
+`DeviceBuffer.overwrite`. flutter_gpu's `Texture` has no partial write, only a
+whole mip level, so a region here is a readback of the base level, a patch in
+memory and an overwrite of the whole level. This is the backend the method is
+asynchronous for, and a caller patching small regions every frame pays for the
+full level each time.
+
+**`maxColorAttachments` answers 2 where `supportsRenderToMip` is true and 1
+where it is not.** That is an inference. flutter_gpu publishes no MRT
+capability and no backend name, and the probe that would settle it is the
+call that ends the process on the OpenGL ES path. A pass that asks for more
+than the answer throws `UnsupportedError` from `beginRenderPass` instead.
+
+**The bundle holds the engine's ten new stages** and the changed `Composite`,
+`BloomUpsample`, shadow and surface sources, compiled from `flutter3d_shaders`
+0.7.0. No Dart in this package changed for them. One of those sources is a
+fix that matters on this backend alone: `shadow_depth.frag` no longer
+declares `FogInfo`, a block it never read, which on Vulkan collided with the
+vertex stage's first binding and had a Galaxy A55 refuse the pipeline.
+
+**The archive carries two skills** for a coding agent,
+`skills/flutter3d-impeller-shader-bundle/` and
+`skills/flutter3d-impeller-driver-crash/`, the second about a build that dies
+on one device and not the others. `dart run skills@ get` installs them.
+
 ## 0.6.0
 
 * **A floor, and no code.** The device, the encoder and the shader build are

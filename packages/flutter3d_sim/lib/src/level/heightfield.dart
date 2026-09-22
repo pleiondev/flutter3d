@@ -134,6 +134,14 @@ final class Heightfield {
   /// The height at sample [column], [row].
   double sample(int column, int row) => _heights[row * columns + column];
 
+  /// Every sample, row-major, as a copy.
+  ///
+  /// A copy because the one reader that wants them all is the collision shape,
+  /// and it measures its bounds from the numbers once, when it is built. A
+  /// field edited under a shape that shares its list would leave the shape
+  /// indexed in cells it no longer occupies, so the two never share one.
+  Float32List copyOfSamples() => Float32List.fromList(_heights);
+
   /// Whether `(x, z)` is over the field at all.
   bool contains(double x, double z) {
     final double u = x - origin.x;

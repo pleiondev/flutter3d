@@ -29,7 +29,7 @@ dependencies:
   flutter3d_game_platformer:^0.6.0
   flutter3d_app:       ^0.7.0
   flutter3d_audio:     ^0.6.0
-  flutter3d_particles: ^0.6.0
+  flutter3d_particles: ^0.7.0
   vector_math: ^2.2.0
 ```
 

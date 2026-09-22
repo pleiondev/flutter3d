@@ -40,6 +40,12 @@ dependencies:
   flutter3d_editor_core:
     path: ../../packages/flutter3d_editor_core
 
+  # `FieldRow` and the controls it is built from — `ui-27`'s own package,
+  # shared with `apps/flutter3d_modeler` rather than each keeping its own
+  # copy. See `src/editor_inspector.dart`.
+  flutter3d_editor_widgets:
+    path: ../../packages/flutter3d_editor_widgets
+
   # Level geometry to mesh nodes. `LevelLoader.build` is what an editor needs
   # and what a game never did: a level drawn from a document in memory rather
   # than from an asset. And `writeFileAtomically` through `native.dart`: this

@@ -57,6 +57,11 @@ dependencies:
   # stopped is not a trade worth making.
   pointycastle: ^4.0.0
 
+  # Renders the tutorial's `content/learn/modeler/*.md` files to the HTML the
+  # `LearnPage` component drops into the page — the same package the Dart SDK
+  # itself uses for its own docs.
+  markdown: ^7.3.0
+
   crypto: ^3.0.7
   http: ^1.2.0
 

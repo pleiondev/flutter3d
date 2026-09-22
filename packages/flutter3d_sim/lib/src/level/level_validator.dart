@@ -268,7 +268,12 @@ final class LevelValidator {
 
   void _checkOverlaps(Level level, List<LevelIssue> issues) {
     const cell = 8.0;
-    final buckets = <int, List<int>>{};
+    // Keyed by the cell coordinates themselves, not packed into one int: `<<`
+    // truncates its shift to five bits on the web, so `x << 32` there is `x`
+    // unshifted, and two different cells — say `(-1, -1)` and `(0, 0)` — would
+    // hash to the same bucket. A brush spanning both then meets itself in the
+    // pairing loop below and gets reported as overlapping its own volume.
+    final buckets = <(int, int), List<int>>{};
 
     for (var i = 0; i < level.brushes.length; i++) {
       final brush = level.brushes[i];
@@ -277,12 +282,12 @@ final class LevelValidator {
       final max = brush.max;
       for (var x = (min.x / cell).floor(); x <= (max.x / cell).floor(); x++) {
         for (var z = (min.z / cell).floor(); z <= (max.z / cell).floor(); z++) {
-          (buckets[(x << 32) ^ (z & 0xFFFFFFFF)] ??= <int>[]).add(i);
+          (buckets[(x, z)] ??= <int>[]).add(i);
         }
       }
     }
 
-    final reported = <int>{};
+    final reported = <(int, int)>{};
     for (final bucket in buckets.values) {
       for (var a = 0; a < bucket.length; a++) {
         for (var b = a + 1; b < bucket.length; b++) {
@@ -290,7 +295,7 @@ final class LevelValidator {
           final ib = bucket[b];
           final lo = ia < ib ? ia : ib;
           final hi = ia < ib ? ib : ia;
-          if (!reported.add((lo << 32) ^ hi)) continue;
+          if (!reported.add((lo, hi))) continue;
 
           final volume = level.brushes[ia].overlapVolumeWith(level.brushes[ib]);
           // A shared face has zero volume; this is about real interpenetration.

@@ -21,6 +21,16 @@
 /// argument, against the document as it was before it — so dragging the slider
 /// does not grow the stack by one per frame and does not need a transaction
 /// wrapped round the widget.
+///
+/// **[recoveryJournal], once attached, hears every [run]/[amend]/transaction
+/// through this door, regardless of who is calling it.** `tut-15`'s own fix:
+/// an `--mcp-port` session binds a `ModelSession` over the very
+/// `ModelHistory` a person already has open (`mcp_bootstrap_io.dart`), so
+/// `ModelSession.run` and a person's own `ModelerCubit.run` (`now.history
+/// .run(command)`, no author named) both end up calling the [run] below —
+/// recording here rather than leaving each caller to record to a journal of
+/// its own is what makes a session's own recovery file agree with every step
+/// actually taken on the shared document, whoever took it.
 library;
 
 import 'dart:async';
@@ -28,6 +38,7 @@ import 'dart:async';
 import 'package:flutter3d_mesh/flutter3d_mesh.dart';
 
 import 'command.dart';
+import 'command_journal.dart';
 import 'project.dart';
 import 'selection.dart';
 
@@ -44,6 +55,7 @@ final class HistoryStep {
     required this.selectionBefore,
     this.meshSteps = const <EditMesh, int>{},
     this.author = StepAuthor.person,
+    this.client,
   });
 
   final ModelCommand command;
@@ -54,6 +66,20 @@ final class HistoryStep {
   /// The selection the command was made against, kept so a redo does the same
   /// thing to the same elements even if the pointer has moved on.
   final ProjectSelection selectionBefore;
+
+  /// Which agent made this step, by the name its client said hello with —
+  /// `ux-45`.
+  ///
+  /// **One `agent` for everybody was not enough the moment there were two.**
+  /// A person with an assistant in the editor and a script running beside it
+  /// sees one undo stack, and "an agent did this" does not say which; the
+  /// live run had exactly that, and the only way to tell the two apart was
+  /// the order things happened in. The name comes from `initialize`, which
+  /// every client sends before it calls anything.
+  ///
+  /// Null for a person's own step, and for an agent whose client gave no
+  /// name — an honest gap rather than a made-up one.
+  final String? client;
 
   /// Who made this step — a person at the app, or an agent over MCP.
   /// Defaults to [StepAuthor.person] because that is every call site this
@@ -77,9 +103,14 @@ final class HistoryStep {
 
 /// A project, the changes made to it, and the way back.
 final class ModelHistory {
-  ModelHistory(this._project, {this.depth = 64, ProjectSelection? selection})
-    : _selection = selection ?? ProjectSelection.none,
-      _saved = _project;
+  ModelHistory(
+    this._project, {
+    this.depth = 64,
+    this.historyBudgetBytes = kHistoryBudgetBytes,
+    ProjectSelection? selection,
+    this.recoveryJournal,
+  }) : _selection = selection ?? ProjectSelection.none,
+       _saved = _project;
 
   /// Rebuilds a history whose undo stack is already known — `doc-31d`'s own
   /// reader, once a file's own `history` section has read [steps] back.
@@ -98,7 +129,9 @@ final class ModelHistory {
     this._project,
     List<HistoryStep> steps, {
     this.depth = 64,
+    this.historyBudgetBytes = kHistoryBudgetBytes,
     ProjectSelection? selection,
+    this.recoveryJournal,
   }) : _selection = selection ?? ProjectSelection.none,
        _saved = _project {
     _done.addAll(steps);
@@ -112,6 +145,39 @@ final class ModelHistory {
   /// Sixty-four is far past what anybody undoes through and near enough to
   /// nothing in the ordinary case.
   final int depth;
+
+  /// How many bytes of mesh journal the kept steps may hold together before
+  /// the oldest of them are dropped — [kHistoryBudgetBytes] by default.
+  ///
+  /// **[depth] alone is the wrong cap for a mesh, and `pro-sc-06` is where
+  /// that stops being theoretical.** A step is a pointer to a kept document
+  /// for every command that edits the document, and the shared parts cost
+  /// nothing; a step that edits a *mesh* is a journal entry the size of what
+  /// it wrote, and a sculpting stroke writes whatever the brush reached.
+  /// Sixty-four nudges of one vertex and sixty-four strokes over a dense mesh
+  /// are the same number of steps and three orders of magnitude apart in
+  /// memory, so the second cap counts what is actually held.
+  ///
+  /// It counts the meshes the kept steps name, both directions of each
+  /// journal — an undone step is memory too, and the redo it offers is the
+  /// reason it is still there.
+  final int historyBudgetBytes;
+
+  /// A recovery journal every [run]/[amend]/[beginTransaction]/
+  /// [endTransaction] call writes to as well, when one is attached — see the
+  /// library comment. Not [journal] (that getter is [_done]'s own commands,
+  /// oldest first, for `doc-31d`'s own file writer) — a *recovery* journal,
+  /// `doc-16`'s `CommandJournal`, JSON Lines rather than a Dart list. Null by
+  /// default: a history built for a test, a `CommandJournal.replay` (which
+  /// never attaches one to the `ModelHistory` it builds), or a plain desktop
+  /// session with no `--mcp-port` bound over it records nothing anywhere
+  /// unless a caller asks for that in code.
+  ///
+  /// A plain mutable field rather than a constructor-only value: a caller
+  /// that already holds a live `ModelHistory` — `ModelSession`, given one
+  /// built elsewhere — has to be able to attach its own journal to it after
+  /// the fact, not only build a fresh history around one.
+  CommandJournal? recoveryJournal;
 
   ModelProject _project;
   ProjectSelection _selection;
@@ -162,16 +228,28 @@ final class ModelHistory {
   /// `ModelSession` (`flutter3d_model_mcp`) is the one caller that ever
   /// passes [StepAuthor.agent], since every command an MCP tool call runs is
   /// one by definition.
-  String? run(ModelCommand command, {StepAuthor author = StepAuthor.person}) {
+  ///
+  /// **Records to [recoveryJournal], when one is attached, on every success
+  /// — regardless of which door the caller came in through.** `ModelSession
+  /// .run` and a plain `now.history.run(command)` from `ModelerCubit` both
+  /// call this same method, so attaching a journal here is what lets both a
+  /// person's live edit and an agent's own reach the identical recovery file
+  /// (`tut-15`), each under the [author] it was actually given.
+  String? run(
+    ModelCommand command, {
+    StepAuthor author = StepAuthor.person,
+    String? client,
+  }) {
     final Outcome outcome = command.apply(_project, selection);
     if (!outcome.ok) return outcome.refused;
-    final EditMesh? touched = outcome.meshTouched;
+    final List<EditMesh> touched = outcome.meshesTouched;
     if (_inTransaction) {
       _firstOfTransaction ??= command;
       _authorOfTransaction ??= author;
-      if (touched != null) {
-        _meshStepsOfTransaction[touched] =
-            (_meshStepsOfTransaction[touched] ?? 0) + 1;
+      _clientOfTransaction ??= client;
+      for (final EditMesh each in touched) {
+        _meshStepsOfTransaction[each] =
+            (_meshStepsOfTransaction[each] ?? 0) + 1;
       }
     } else {
       _done.add(
@@ -179,16 +257,21 @@ final class ModelHistory {
           command: command,
           before: _project,
           selectionBefore: _selection,
-          meshSteps: touched == null
-              ? const <EditMesh, int>{}
-              : <EditMesh, int>{touched: 1},
+          meshSteps: <EditMesh, int>{
+            for (final EditMesh each in touched) each: 1,
+          },
           author: author,
+          client: client,
         ),
       );
       // Only a step that a person made clears the redo stack. A redo that ran
       // through here would wipe the very stack it is walking.
       _undone.clear();
       if (_done.length > depth) _done.removeAt(0);
+      _trimToBudget();
+    }
+    if (command.isJournaled) {
+      recoveryJournal?.record(command, author: author);
     }
     _project = outcome.project!;
     _selection = outcome.selection ?? _selection;
@@ -203,6 +286,7 @@ final class ModelHistory {
   bool _inTransaction = false;
   ModelCommand? _firstOfTransaction;
   StepAuthor? _authorOfTransaction;
+  String? _clientOfTransaction;
   final Map<EditMesh, int> _meshStepsOfTransaction = <EditMesh, int>{};
 
   /// Completed by [endTransaction] and awaited by [whenNotInTransaction] —
@@ -262,9 +346,11 @@ final class ModelHistory {
     _inTransaction = true;
     _firstOfTransaction = null;
     _authorOfTransaction = null;
+    _clientOfTransaction = null;
     _meshStepsOfTransaction.clear();
     _projectBeforeTransaction = _project;
     _selectionBeforeTransaction = _selection;
+    recoveryJournal?.beginTransaction();
   }
 
   /// Closes it, leaving one step for everything that succeeded inside.
@@ -277,6 +363,7 @@ final class ModelHistory {
     if (!_inTransaction) return;
     final ModelCommand? first = _firstOfTransaction;
     final StepAuthor author = _authorOfTransaction ?? StepAuthor.person;
+    final String? client = _clientOfTransaction;
     final ModelProject before = _projectBeforeTransaction!;
     final ProjectSelection selectionBefore = _selectionBeforeTransaction!;
     final Map<EditMesh, int> meshSteps = Map<EditMesh, int>.of(
@@ -285,6 +372,7 @@ final class ModelHistory {
     _inTransaction = false;
     _firstOfTransaction = null;
     _authorOfTransaction = null;
+    _clientOfTransaction = null;
     _projectBeforeTransaction = null;
     _selectionBeforeTransaction = null;
     _meshStepsOfTransaction.clear();
@@ -293,6 +381,11 @@ final class ModelHistory {
     // command that has been waiting on it.
     _transactionClosed?.complete();
     _transactionClosed = null;
+    // Unconditional, matching `beginTransaction`'s own marker: a transaction
+    // that ran nothing still closes the bracket it opened on the journal,
+    // the same as it always has when a caller wrapped `CommandJournal
+    // .transaction` around this by hand.
+    recoveryJournal?.endTransaction();
     if (first == null || identical(_project, before)) return;
     _done.add(
       HistoryStep(
@@ -301,10 +394,45 @@ final class ModelHistory {
         selectionBefore: selectionBefore,
         meshSteps: meshSteps,
         author: author,
+        client: client,
       ),
     );
     _undone.clear();
     if (_done.length > depth) _done.removeAt(0);
+    _trimToBudget();
+  }
+
+  /// Drops the oldest steps until the meshes they name hold no more than
+  /// [historyBudgetBytes] between them — `pro-sc-06`.
+  ///
+  /// **The step and the mesh journal go together, or the history lies.** A
+  /// `HistoryStep` dropped on its own leaves its journal entries behind,
+  /// costing the memory this exists to reclaim; a journal entry dropped on
+  /// its own leaves a step offering an undo the mesh can no longer take. So
+  /// each step that goes takes its own [HistoryStep.meshSteps] with it, by
+  /// the count it recorded.
+  ///
+  /// **The newest step is never dropped.** A history with nothing in it is
+  /// the one state a person cannot get out of: whatever they just did would
+  /// stop being undoable at the exact moment they might want to.
+  void _trimToBudget() {
+    if (_done.length < 2) return;
+    var bytes = 0;
+    final Set<EditMesh> meshes = <EditMesh>{
+      for (final HistoryStep step in _done) ...step.meshSteps.keys,
+    };
+    for (final EditMesh mesh in meshes) {
+      bytes += mesh.journalBytes;
+    }
+    while (bytes > historyBudgetBytes && _done.length > 1) {
+      // A document-only step frees nothing, and still has to go: the stack is
+      // walked backwards, so the mesh steps under it cannot be reached
+      // without it.
+      final HistoryStep oldest = _done.removeAt(0);
+      for (final MapEntry<EditMesh, int> each in oldest.meshSteps.entries) {
+        bytes -= each.key.dropOldestJournalSteps(each.value);
+      }
+    }
   }
 
   ModelProject? _projectBeforeTransaction;
@@ -329,7 +457,25 @@ final class ModelHistory {
   /// document. A refusal rolls the journal forward again: refused commands
   /// abandon their open step rather than pushing one, so the redo is still
   /// there to take.
-  String? amend(ModelCommand replacement) {
+  ///
+  /// **Records to [recoveryJournal], when one is attached, the same way [run]
+  /// does** — under the step's own original [HistoryStep.author], since an
+  /// amend adjusts a step already on the stack rather than naming a fresh
+  /// one; a person dragging the app's own operation-card slider and an agent
+  /// calling `ModelSession.amend` both reach this, and both now leave the
+  /// adjustment on a shared recovery journal the same way an ordinary edit
+  /// does.
+  /// **[by] is who is adjusting, and it changes whose the step is** —
+  /// `ux-45`. A person dragging the operation card's slider over an agent's
+  /// extrusion has taken that operation over: it is their distance now, and
+  /// an agent's own undo must not reach past it. Leaving the step marked as
+  /// the agent's was what let one take back an edit a person had just
+  /// adjusted by hand.
+  String? amend(
+    ModelCommand replacement, {
+    StepAuthor by = StepAuthor.person,
+    String? client,
+  }) {
     if (_done.isEmpty) return 'there is nothing to adjust';
     final HistoryStep step = _done.last;
     _rollMeshes(step.meshSteps, forward: false);
@@ -341,21 +487,25 @@ final class ModelHistory {
       _rollMeshes(step.meshSteps, forward: true);
       return outcome.refused;
     }
-    final EditMesh? touched = outcome.meshTouched;
+    final List<EditMesh> touched = outcome.meshesTouched;
     _done[_done.length - 1] = HistoryStep(
       command: replacement,
       before: step.before,
       selectionBefore: step.selectionBefore,
-      meshSteps: touched == null
-          ? const <EditMesh, int>{}
-          : <EditMesh, int>{touched: 1},
-      author: step.author,
+      meshSteps: <EditMesh, int>{for (final EditMesh each in touched) each: 1},
+      author: by,
+      // A person taking a step over has no client name; an agent adjusting
+      // its own keeps the one it said hello with.
+      client: by == StepAuthor.person ? null : (client ?? step.client),
     );
     // A different result is a different future, the same rule [run] keeps: a
     // redo recorded against the old one would put back a document that no
     // longer follows from this one, and its mesh steps are gone from the
     // journal the moment the replacement wrote.
     _undone.clear();
+    if (replacement.isJournaled) {
+      recoveryJournal?.amend(replacement, author: by);
+    }
     _project = outcome.project!;
     _selection = outcome.selection ?? step.selectionBefore;
     return null;
@@ -389,6 +539,7 @@ final class ModelHistory {
         selectionBefore: _selection,
         meshSteps: step.meshSteps,
         author: step.author,
+        client: step.client,
       ),
     );
     _project = step.before;
@@ -396,6 +547,38 @@ final class ModelHistory {
     _rollMeshes(step.meshSteps, forward: false);
     return true;
   }
+
+  /// Takes back every step on top of the stack that [author] made, newest
+  /// first, and says how many — `ux-45`'s own "Undo all agent steps".
+  ///
+  /// **It stops at the first step somebody else made, and that is the whole
+  /// design.** An undo stack is a stack: a person's own edit sitting above
+  /// three of an agent's cannot be stepped over, because taking back what is
+  /// under it would mean re-running the person's edit against a document it
+  /// was never made against. So this takes the run at the top and stops,
+  /// which is exactly "undo everything the agent has done since I last
+  /// touched it" — the thing a person actually wants when they reach for it.
+  ///
+  /// [client] narrows it further: with two agents connected, one of them can
+  /// be taken back without touching the other's steps under it.
+  int undoAllBy(StepAuthor author, {String? client}) {
+    var taken = 0;
+    while (_done.isNotEmpty &&
+        _done.last.author == author &&
+        (client == null || _done.last.client == client)) {
+      if (!undo()) break;
+      taken++;
+    }
+    return taken;
+  }
+
+  /// Every step still on the stack, newest last, with who made each — what a
+  /// panel showing "three steps by Claude, then one of yours" reads.
+  List<({String says, StepAuthor author, String? client})> get authorship =>
+      <({String says, StepAuthor author, String? client})>[
+        for (final HistoryStep step in _done)
+          (says: step.command.says, author: step.author, client: step.client),
+      ];
 
   /// One step forward.
   bool redo() {

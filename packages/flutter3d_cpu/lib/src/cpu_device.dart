@@ -34,7 +34,12 @@ export 'cpu_vertex_fetch.dart';
 
 /// The software backend.
 final class CpuDevice implements GraphicsDevice {
-  CpuDevice({required this.width, required this.height, required this.shaders});
+  CpuDevice({
+    required this.width,
+    required this.height,
+    required this.shaders,
+    this.maxColorAttachments = 2,
+  });
 
   final int width;
   final int height;
@@ -115,11 +120,35 @@ final class CpuDevice implements GraphicsDevice {
 
   @override
   // One tap along one axis from one level, chosen per triangle — see
-  // `BoundTexture.sample`. A sampler that asks for more is honoured on the
-  // hardware backends and ignored here, and the answer says so rather than
-  // promising taps this rasteriser does not take: `anisotropic-floor` is the
-  // scene where the two sets are allowed to differ by exactly that.
-  int get maxAnisotropy => 1;
+  // `BoundTexture.sample`, which takes the taps since `gfx-02n`: a sampler
+  // asking for eight gets eight, spread along the long axis of its footprint,
+  // each at the level the short axis asks for. This answered one until then,
+  // and `anisotropic-floor` is the scene whose cross-backend budget was the
+  // measured size of that difference — a budget now describing a smaller gap
+  // than it was written for, since the remaining difference is the weighting
+  // of the taps rather than their absence.
+  //
+  // Sixteen because that is what the hardware backends report and what a
+  // sampler is clamped against; the cost here is linear in the taps and paid
+  // only by a sampler that asked.
+  int get maxAnisotropy => 16;
+
+  /// Two by default, and settable — `gfx-50n`.
+  ///
+  /// The rasteriser could write into any number of arrays, so the two is a
+  /// choice rather than a limit: it answers what the hardware backends answer
+  /// where they work, because a reference that could do more than the thing
+  /// it is a reference for would record pictures no shipping backend can
+  /// reproduce.
+  ///
+  /// **Settable for the harder reason.** The device this stands in for is
+  /// Impeller on OpenGL ES, which aborts rather than refusing, so the no-MRT
+  /// path cannot be run on the hardware that has it — there is no way to see
+  /// what the engine does there except to build a device that says one. A
+  /// rasteriser that can be that device is the only place the path is
+  /// exercised with real pixels at the end of it.
+  @override
+  final int maxColorAttachments;
 
   @override
   // Nothing to probe: a cube here is six arrays of floats and a table saying
@@ -449,8 +478,17 @@ final class CpuDevice implements GraphicsDevice {
   }
 
   @override
-  CommandEncoder beginRenderPass(RenderPassDescriptor descriptor) =>
-      CpuEncoder(descriptor);
+  CommandEncoder beginRenderPass(RenderPassDescriptor descriptor) {
+    // `gfx-50n`. Nothing here would abort — the rasteriser writes into
+    // whichever lists it is handed — and it refuses all the same, because a
+    // reference implementation that accepted a pass the shipping backends
+    // would not is a reference for the wrong thing.
+    descriptor.checkAttachmentLimit(
+      maxColorAttachments,
+      backend: 'the software rasteriser',
+    );
+    return CpuEncoder(descriptor);
+  }
 
   @override
   Future<ByteData?> readPixels(TextureHandle texture) async {

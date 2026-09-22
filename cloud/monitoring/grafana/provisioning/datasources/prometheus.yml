@@ -1,0 +1,15 @@
+# Provisioned rather than clicked in: a redeploy that wipes the container's
+# writable layer must not also wipe the one datasource every dashboard here
+# depends on.
+apiVersion: 1
+
+datasources:
+  - name: Prometheus
+    type: prometheus
+    access: proxy
+    # Grafana runs in the host's own network namespace too, so this is the
+    # same loopback address Prometheus bound itself to, not a container name
+    # a bridge network would resolve.
+    url: http://127.0.0.1:9091
+    isDefault: true
+    editable: false

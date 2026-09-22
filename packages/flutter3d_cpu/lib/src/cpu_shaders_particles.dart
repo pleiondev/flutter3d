@@ -187,3 +187,46 @@ final class ParticleShader implements CpuFragmentShader {
     return Vector4(v[0] * scale, v[1] * scale, v[2] * scale, 1.0);
   }
 }
+
+/// `splat.frag` — `gfx-80n`.
+///
+/// The same varyings the particle stage reads, because it shares
+/// `particle.vert`: colour in 0..3, the quad's own coordinates in 4..5, the
+/// world position in 6..8. What differs is that `v_uv` here is not a texture
+/// coordinate but the fragment's position in the Gaussian's own frame, in
+/// standard deviations, already centred — so there is no `* 2 - 1`.
+final class SplatShader implements CpuFragmentShader {
+  const SplatShader();
+
+  @override
+  Vector4? run(Float32List v, ShaderBindings b, FragmentContext c) {
+    final power = -0.5 * (v[4] * v[4] + v[5] * v[5]);
+    // Cut off at three standard deviations, where the falloff is under a
+    // hundredth: a Gaussian never reaches zero, so without this the quad's own
+    // square edge shows and the cloud reads as a field of faint rectangles.
+    if (power < -4.5) return null;
+
+    final alpha = v[3] * math.exp(power);
+    if (alpha < 1.0 / 255.0) return null;
+
+    var r = v[0];
+    var g = v[1];
+    var bl = v[2];
+    final fog = b.vec4('FogInfo', 'fog', Vector4.zero());
+    if (fog.w > 0.0) {
+      final eye = b.vec4('FogInfo', 'eye', Vector4.zero());
+      final d =
+          (Vector3(v[6], v[7], v[8]) - Vector3(eye.x, eye.y, eye.z)).length;
+      final visibility = math.exp(-fog.w * d).clamp(0.0, 1.0);
+      // A mix rather than an attenuation, which is the opposite of the particle
+      // stage and for the opposite reason: this is blended, so a splat that
+      // faded toward black would put black into the wall behind it.
+      r = fog.x + (r - fog.x) * visibility;
+      g = fog.y + (g - fog.y) * visibility;
+      bl = fog.z + (bl - fog.z) * visibility;
+    }
+
+    // Premultiplied, for the blend state this draws under.
+    return Vector4(r * alpha, g * alpha, bl * alpha, alpha);
+  }
+}

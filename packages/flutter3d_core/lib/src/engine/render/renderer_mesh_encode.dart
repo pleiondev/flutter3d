@@ -240,13 +240,22 @@ extension _MeshEncode on Renderer {
     if (instanced != null) {
       encoder.bindVertexData(instanced.instanceBytes, instanced.count, slot: 1);
     }
+    // **The stage the pipeline was built with, including one a material
+    // brought — `gfx-86n`.** This used to pick among the engine's own four
+    // and bind `FrameInfo` through `MeshVertex` even when the pipeline's vertex
+    // stage was somebody else's. The software backend binds a block by name
+    // for the whole pass and never noticed; a backend that resolves the slot
+    // through the handle it was given was writing into the engine's stage's
+    // layout and landing in the right place only because a stage that copies
+    // `FrameInfo` from `mesh.vert` puts it at the same index. A stage that
+    // declares a block of its own — the polyline's viewport — would not.
     final activeVertexShader = batched
         ? instancedVertexShader
-        : skinned
-        ? skinnedVertexShader
-        : lightmapped
-        ? lightmappedVertexShader
-        : vertexShader;
+        : _vertexShaderFor(
+            material.lighting,
+            skinned: skinned,
+            lightmapped: lightmapped,
+          );
     // Typed, because `Matrix4.operator*` returns `dynamic`: without the
     // annotation `.storage` here is an unchecked call on an untyped value,
     // and a typo in it would compile and fail at the draw.
@@ -266,10 +275,28 @@ extension _MeshEncode on Renderer {
       // the mesh node's own world transform, which is exactly what the
       // renderer is holding at this point.
       skeleton.update(modelMatrix);
-      encoder.bindUniformBlock(skinnedVertexShader, _kSkinInfoBlock, {
+      encoder.bindUniformBlock(activeVertexShader, _kSkinInfoBlock, {
         'joint_matrices': skeleton.matrices,
       });
       state.skinnedDraws++;
+    }
+
+    // **A material's own vertex stage reads its parameters too — `gfx-86n`.**
+    // They were bound to the fragment stage alone, which is where every stage
+    // a material could supply used to be; since `gfx-75n` a material can bring
+    // the vertex half as well, and a vertex stage has things to be told — a
+    // wave height, a wind, the viewport a line is widened against. Only a
+    // stage the material brought: the engine's own read `FrameInfo` and
+    // nothing else, and a material naming no vertex stage draws exactly as it
+    // did, which is why no golden could move.
+    if (material.parameters.isNotEmpty &&
+        material.lighting.vertexShaderName != null &&
+        !batched) {
+      encoder.bindUniformBlock(
+        activeVertexShader,
+        material.parameterBlock,
+        material.parameters,
+      );
     }
 
     final fragmentShader = _fragmentShaderFor(material.lighting);
@@ -321,6 +348,7 @@ extension _MeshEncode on Renderer {
       frameLights: lights,
       frameShadowSlots: shadowSlots,
       node: node,
+      fadeBand: settings.lightFadeBand,
     );
     final drawLights = draw.lights;
     final drawShadowSlots = draw.shadowSlots;
@@ -348,9 +376,15 @@ extension _MeshEncode on Renderer {
       // A negative cutoff means "not masked". The shader compares against
       // it directly, so encoding the mode in the value keeps a branch and
       // a separate flag out of the uniform block.
-      _material2Data[0] = material.alphaMode == MaterialAlphaMode.mask
-          ? material.alphaCutoff
-          : -1.0;
+      _material2Data[0] = switch (material.alphaMode) {
+        MaterialAlphaMode.mask => material.alphaCutoff,
+        // `gfx-16n`'s sentinel. Below -1.5 is "hashed", which the shader
+        // reads out of the same component: -1 already meant "not masked" and
+        // anything more negative was free, where a second number would have
+        // been a member added to a block six shaders share.
+        MaterialAlphaMode.hashed => -2.0,
+        _ => -1.0,
+      };
       _material2Data[1] = material.normalScale;
       _material2Data[2] = material.occlusionStrength;
       _material2Data[3] = material.emissiveStrength;
@@ -365,6 +399,14 @@ extension _MeshEncode on Renderer {
       // One number carrying both the roughness scale and the "is there one"
       // flag, so the shader needs no second uniform and no second branch.
       _frameParams[3] = environmentLevels.toDouble();
+
+      // `gfx-15n`, and it rides here for the reason `surface.glsl` gives:
+      // this is the last unspent component of a block six shaders share, and
+      // the slot that was reserved for a frame-wide parameter went to the
+      // line above. Zero keeps the 3×3 kernel every recorded golden holds.
+      _ambientGround[3] = settings.shadows.enabled
+          ? settings.shadows.directionalLightRadius
+          : 0.0;
 
       // Its own block, bound beside FragInfo rather than folded into it. See
       // the note in color.glsl: appending to a block six shaders share moves
@@ -451,6 +493,31 @@ extension _MeshEncode on Renderer {
         'forward': _forwardData,
       });
 
+      // **The irradiance field, where there is one — `gfx-81n`.** It replaces
+      // the two ambient colours for this draw and nothing else, which is the
+      // whole of why a scene without one is byte for byte what it was: the
+      // staged arrays are rewritten per draw either way, and with no field the
+      // values written are the ones `_updateAmbient` put there.
+      //
+      // Per object rather than per pixel, and that is the granularity this
+      // costs: a large floor reads one point of the field, so it takes the
+      // bounce of its own middle. The two samples are the surface facing up and
+      // the surface facing down, which is exactly the pair the shader already
+      // blends between — so the field arrives through a uniform that exists
+      // rather than through a texture and a fifth set of bindings.
+      _applyIrradiance(scene, node);
+
+      // **Every lit draw, both halves — `gfx-74n`.** A draw with no tail binds
+      // a count of nought and a one-by-one stand-in it never samples, because a
+      // declared sampler nobody binds is a native crash on Metal and a declared
+      // block nobody writes is the other way this repository has drawn a wrong
+      // picture with no error anywhere.
+      _bindLightList(
+        encoder,
+        fragmentShader,
+        drawLights,
+        _buildLightList(lights),
+      );
       encoder.bindUniformBlock(fragmentShader, _kFragInfoBlock, {
         // Whole arrays written from their reflected base offset. A backend
         // reflects the array, not its elements — `lights[0]` comes back
@@ -581,4 +648,33 @@ extension _MeshEncode on Renderer {
     state.triangles += (mesh.indexCount ~/ 3) * (instanced?.count ?? 1);
     if (instanced != null) state.instances += instanced.count;
   }
+
+  /// Rewrites the two ambient colours for [node] from the scene's irradiance
+  /// field — `gfx-81n`. Does nothing at all when there is no field, which is
+  /// what keeps every recorded frame where it was.
+  void _applyIrradiance(Scene scene, MeshNode node) {
+    final field = scene.irradianceField;
+    if (field == null) return;
+
+    // The node's own middle. A point on its surface would be better and is not
+    // available here — the encode sees a bounding box, not the geometry — and
+    // the middle is the one point that is certainly inside the thing being lit.
+    final at = node.worldBoundsCentre;
+    final up = field.sample(at, _kUp, _irradianceUp);
+    final down = field.sample(at, _kDown, _irradianceDown);
+
+    // Scaled by the scene's own ambient knob, so the one control still dials
+    // indirect light: a field is a measurement of the room and this is how much
+    // of that measurement the author wants.
+    final tint = scene.ambientIntensity;
+    _ambientSky[0] = up.x * tint;
+    _ambientSky[1] = up.y * tint;
+    _ambientSky[2] = up.z * tint;
+    _ambientGround[0] = down.x * tint;
+    _ambientGround[1] = down.y * tint;
+    _ambientGround[2] = down.z * tint;
+  }
 }
+
+final vm.Vector3 _kUp = vm.Vector3(0.0, 1.0, 0.0);
+final vm.Vector3 _kDown = vm.Vector3(0.0, -1.0, 0.0);

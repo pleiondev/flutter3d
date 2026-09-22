@@ -22,12 +22,12 @@ dependencies:
   # a dependency you declare. The simulation is where the fixed step, the
   # levels, the actors and the saves live since they stopped needing Flutter.
   flutter3d_physics: ^0.7.0
-  flutter3d_sim: ^0.6.0
+  flutter3d_sim: ^0.7.0
 
   # Only `bridge.dart` imports this — the view model of a weapon held in the
   # hands is a shooter's, not a renderer's and not a bridge's. The simulation
   # library imports nothing from it, and a test holds that.
-  flutter3d: ^0.6.0
+  flutter3d: ^0.7.0
 
   vector_math: ^2.2.0
 

@@ -243,6 +243,11 @@ final class WebGpuSpikeDevice implements GraphicsDevice {
   @override
   int get maxAnisotropy => 16;
 
+  /// Four — `gfx-50n`, and the specification's guaranteed floor for
+  /// `maxColorAttachments`, which no WebGPU device may report below.
+  @override
+  int get maxColorAttachments => 4;
+
   /// Whether WebGPU has a name for the format, asked through the one table that
   /// also does the uploads — so the answer here cannot drift from what an
   /// allocation would do.

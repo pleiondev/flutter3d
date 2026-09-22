@@ -34,12 +34,14 @@ workspace:
   - packages/flutter3d_audio
   - packages/flutter3d_game
   - packages/flutter3d_game/example
+  - packages/flame_flutter3d
   - packages/flutter3d_sim
   - packages/flutter3d_lab
   - packages/flutter3d_net
   - packages/flutter3d_net_webrtc
   - packages/flutter3d_sim_mcp
   - packages/flutter3d_editor_core
+  - packages/flutter3d_editor_widgets
   - packages/flutter3d_editor_mcp
   - packages/flutter3d_game_shooter
   - packages/flutter3d_game_strategy
@@ -52,9 +54,11 @@ workspace:
   - packages/pad_input/example
   - packages/pointer_lock
   - packages/pointer_lock/example
+  - apps/flutter3d_demo_arcade
   - apps/flutter3d_demo_dungeon
   - apps/flutter3d_editor
   - apps/flutter3d_modeler
+  - apps/flutter3d_showcase
   - apps/flutter3d_demo_platformer
   - apps/flutter3d_demo_racing
   - apps/flutter3d_demo_strategy
@@ -68,3 +72,6 @@ workspace:
   - tool/convert_asset
   - tool/skills
   - tool/init
+  - tool/tutorial
+  - tool/godot_check
+  - tool/release_dashboard

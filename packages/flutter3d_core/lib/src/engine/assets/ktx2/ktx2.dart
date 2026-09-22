@@ -30,6 +30,7 @@ export 'package:flutter3d_core/formats.dart'
         Ktx2FormatException,
         Ktx2HeaderField,
         Ktx2SupercompressionScheme,
+        UniversalTarget,
         VkFormat,
         isBasisUniversalKtx2,
         isKtx2File,
@@ -37,7 +38,8 @@ export 'package:flutter3d_core/formats.dart'
         kKtx2Identifier,
         kKtx2IndexOffset,
         kKtx2LevelIndexEntryBytes,
-        kKtx2LevelIndexOffset;
+        kKtx2LevelIndexOffset,
+        universalBlockFormat;
 
 /// A KTX2 file, read down to what a texture upload needs: dimensions, an
 /// engine [TextureFormat], and each mip level's bytes.
@@ -63,8 +65,14 @@ final class Ktx2Texture {
   /// `.ktx2`, and a silent null would surface later as a missing texture with
   /// no reason. The container itself is `flutter3d_formats.Ktx2Texture.parse`
   /// — everything this factory adds is [_engineFormat].
-  factory Ktx2Texture.parse(Uint8List bytes) {
-    final texture = formats.Ktx2Texture.parse(bytes);
+  factory Ktx2Texture.parse(
+    Uint8List bytes, {
+    formats.UniversalTarget? universalTarget,
+  }) {
+    final texture = formats.Ktx2Texture.parse(
+      bytes,
+      universalTarget: universalTarget,
+    );
     final format = _engineFormat(texture.vkFormat);
     if (format == null) {
       throw formats.Ktx2FormatException(
@@ -78,6 +86,44 @@ final class Ktx2Texture {
       texture.levels,
     );
   }
+}
+
+/// The best format [device] samples for a universal-block texture — `gfx-83n`,
+/// and the half of that row this package can answer that `flutter3d_core`'s
+/// own formats library cannot.
+///
+/// **Ordered by what the block loses on the way, not by age.** BC keeps the
+/// per-texel choice exactly and only requantises the endpoints, so it goes
+/// first where it is sampled at all. ASTC keeps the endpoints exactly and
+/// moves two of the four levels by a fiftieth of the range. ETC2 keeps
+/// neither, because ETC stores a base and a signed offset rather than a pair
+/// of endpoints, so that leg re-encodes the block and is the slow one. RGBA8
+/// keeps everything and costs four bytes a texel, which is what a device
+/// sampling no block format gets.
+///
+/// Returns null when the texture has alpha and nothing the device samples
+/// carries it — the caller reports that rather than uploading a texture whose
+/// alpha quietly became opaque.
+formats.UniversalTarget? chooseUniversalTarget(
+  GraphicsDevice device, {
+  required bool hasAlpha,
+}) {
+  final order = hasAlpha
+      ? const <formats.UniversalTarget>[
+          formats.UniversalTarget.bc3,
+          formats.UniversalTarget.rgba8,
+        ]
+      : const <formats.UniversalTarget>[
+          formats.UniversalTarget.bc1,
+          formats.UniversalTarget.astc4x4,
+          formats.UniversalTarget.etc2Rgb8,
+          formats.UniversalTarget.rgba8,
+        ];
+  for (final target in order) {
+    final format = _engineFormat(target.vkFormat);
+    if (format != null && device.supportsTextureFormat(format)) return target;
+  }
+  return null;
 }
 
 /// The engine format [vkFormat] means, or null for anything this stage does

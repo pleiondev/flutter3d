@@ -699,6 +699,15 @@ final class WebGpuDevice implements GraphicsDevice, WgslModuleCompiler {
   @override
   int get maxAnisotropy => 16;
 
+  /// Four — `gfx-50n`.
+  ///
+  /// The specification's `maxColorAttachments` limit, whose guaranteed floor
+  /// is four and which no device may report below. A constant rather than a
+  /// query for once, because here the floor is the promise: a WebGPU device
+  /// that offered fewer would not be a WebGPU device.
+  @override
+  int get maxColorAttachments => 4;
+
   /// Whether WebGPU has a name for [format] *and* this device was granted the
   /// feature it needs.
   ///
@@ -939,8 +948,16 @@ final class WebGpuDevice implements GraphicsDevice, WgslModuleCompiler {
   }
 
   @override
-  CommandEncoder beginRenderPass(RenderPassDescriptor descriptor) =>
-      WebGpuEncoder(this, descriptor);
+  CommandEncoder beginRenderPass(RenderPassDescriptor descriptor) {
+    // `gfx-50n`. WebGPU validates this itself and reports it on the device's
+    // error scope, which arrives asynchronously and after the frame; the
+    // throw says the same thing where the caller still is.
+    descriptor.checkAttachmentLimit(
+      maxColorAttachments,
+      backend: 'this WebGPU device',
+    );
+    return WebGpuEncoder(this, descriptor);
+  }
 
   // --------------------------------------------------------------- output
 

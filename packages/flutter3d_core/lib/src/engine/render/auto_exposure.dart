@@ -28,6 +28,7 @@ final class AutoExposureSettings {
     this.target = 0.18,
     this.lowPercentile = 0.8,
     this.highPercentile = 0.98,
+    this.perView = false,
   }) : assert(minExposure > 0.0 && maxExposure >= minExposure),
        assert(
          lowPercentile >= 0.0 &&
@@ -78,6 +79,20 @@ final class AutoExposureSettings {
   final double lowPercentile;
   final double highPercentile;
 
+  /// Whether each view meters its own part of the frame — `gfx-22n`.
+  ///
+  /// **Off, and the default is a judgement rather than caution.** One exposure
+  /// for the whole frame is right for a stereo pair: two eyes that disagree
+  /// about brightness while the head turns is worse than either eye being a
+  /// stop off, which is why `RenderSettings.forStereo` leaves the meter alone.
+  /// It is wrong for split screen, where two players in two rooms get one
+  /// exposure and whichever room is darker is the one nobody can see.
+  ///
+  /// With one view it changes nothing at all: the view is the frame, so its
+  /// rectangle is the whole histogram and the arithmetic is the arithmetic it
+  /// always was.
+  final bool perView;
+
   AutoExposureSettings copyWith({
     bool? enabled,
     double? minExposure,
@@ -87,6 +102,7 @@ final class AutoExposureSettings {
     double? target,
     double? lowPercentile,
     double? highPercentile,
+    bool? perView,
   }) => AutoExposureSettings(
     enabled: enabled ?? this.enabled,
     minExposure: minExposure ?? this.minExposure,
@@ -96,8 +112,17 @@ final class AutoExposureSettings {
     target: target ?? this.target,
     lowPercentile: lowPercentile ?? this.lowPercentile,
     highPercentile: highPercentile ?? this.highPercentile,
+    perView: perView ?? this.perView,
   );
 }
+
+/// A rectangle of the frame, in fractions — what a view occupies.
+///
+/// A record rather than `ViewportRect`, deliberately: this library knows
+/// nothing about cameras, views or scenes, and that is what lets a test hand
+/// it bytes and read an exposure with no device and no scene graph in the
+/// room. The renderer converts at the one call site.
+typedef MeterRect = ({double x, double y, double width, double height});
 
 /// The other end of `luminance.frag`'s encoding, and the arithmetic that
 /// turns a texture of stops into one exposure.
@@ -132,14 +157,11 @@ abstract final class ExposureMeter {
     ByteData luminance, {
     double lowPercentile = 0.8,
     double highPercentile = 0.98,
+    MeterRect? within,
   }) {
-    final total = luminance.lengthInBytes ~/ 4;
-    if (total == 0) return floorStops;
-
     final counts = List<int>.filled(256, 0);
-    for (var i = 0; i < total; i++) {
-      counts[luminance.getUint8(i * 4)]++;
-    }
+    final total = _histogram(luminance, within, counts);
+    if (total == 0) return floorStops;
 
     final from = (total * lowPercentile).floor();
     final to = (total * highPercentile).ceil();
@@ -165,6 +187,64 @@ abstract final class ExposureMeter {
       used = total;
     }
     return sum / used;
+  }
+
+  /// Counts the bytes of [luminance] into [counts], over [within] or over all
+  /// of it, and answers how many there were — `gfx-22n`.
+  ///
+  /// **A rectangle of the same readback rather than a second pass.** The
+  /// luminance target is the whole frame reduced to sixty-four squared, so a
+  /// view occupying a fraction of the frame occupies the same fraction of it.
+  /// Metering a view is therefore reading fewer texels of a picture that was
+  /// going to be read anyway: no extra target, no extra draw, and no shader
+  /// that has to be told where a viewport is.
+  ///
+  /// The rectangle is rounded outwards to whole texels and clamped to at least
+  /// one in each direction, so a view thinner than a texel meters that texel
+  /// rather than nothing.
+  static int _histogram(
+    ByteData luminance,
+    MeterRect? within,
+    List<int> counts,
+  ) {
+    final texels = luminance.lengthInBytes ~/ 4;
+    if (texels == 0) return 0;
+    if (within == null) {
+      for (var i = 0; i < texels; i++) {
+        counts[luminance.getUint8(i * 4)]++;
+      }
+      return texels;
+    }
+
+    // The readback is square and its side is [size]; a target of another size
+    // would make this arithmetic wrong, so it is derived rather than assumed.
+    final side = math.sqrt(texels).round();
+    if (side * side != texels) {
+      // Not square: nothing here can say which texel is where, so the honest
+      // answer is the whole picture rather than a guess at a rectangle.
+      for (var i = 0; i < texels; i++) {
+        counts[luminance.getUint8(i * 4)]++;
+      }
+      return texels;
+    }
+
+    final x0 = (within.x * side).floor().clamp(0, side - 1);
+    final y0 = (within.y * side).floor().clamp(0, side - 1);
+    final x1 = math
+        .max(x0 + 1, ((within.x + within.width) * side).ceil())
+        .clamp(x0 + 1, side);
+    final y1 = math
+        .max(y0 + 1, ((within.y + within.height) * side).ceil())
+        .clamp(y0 + 1, side);
+
+    var counted = 0;
+    for (var y = y0; y < y1; y++) {
+      for (var x = x0; x < x1; x++) {
+        counts[luminance.getUint8((y * side + x) * 4)]++;
+        counted++;
+      }
+    }
+    return counted;
   }
 
   /// The exposure that puts a scene whose brightness is [meanStops] at
@@ -197,11 +277,18 @@ final class ExposureAdapter {
   /// Clamped here rather than in [step], so the target itself is honest about
   /// the limits and a frame that asks for more than the ceiling reads back as
   /// the ceiling.
-  void meter(ByteData luminance, AutoExposureSettings settings) {
+  /// [within] is the part of the frame this adapter is metering — the whole
+  /// of it, or one view's rectangle when `gfx-22n`'s per-view metering is on.
+  void meter(
+    ByteData luminance,
+    AutoExposureSettings settings, {
+    MeterRect? within,
+  }) {
     final stops = ExposureMeter.meanStops(
       luminance,
       lowPercentile: settings.lowPercentile,
       highPercentile: settings.highPercentile,
+      within: within,
     );
     _target = ExposureMeter.exposureFor(
       stops,

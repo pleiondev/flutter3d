@@ -42,12 +42,12 @@ dev_dependencies:
   # For `formats_encoder_conformance_test.dart` alone: a real BC1/BC3/ETC2
   # block from `ap-07`'s own encoders, drawn and read back on a real WebGL2
   # context. Not a real dependency — nothing in `lib/` reaches it.
-  flutter3d_core: ^0.1.0
+  flutter3d_core: ^0.7.0
   # For the tests only: engine_frame_test drives the real Renderer through this
   # backend, which is the one thing this package exists to make possible and so
   # the one thing worth testing. A dev dependency, so nothing a consumer builds
   # picks up the engine because the backend was installed.
-  flutter3d: ^0.6.0
+  flutter3d: ^0.7.0
   flutter_test:
     sdk: flutter
   flutter_lints: ^6.0.0

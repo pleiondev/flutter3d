@@ -249,9 +249,10 @@ final class FixtureVisuals {
 
   Future<ModelAsset?> _load(String path) async {
     try {
-      final document = await decodeModelInIsolate(
-        ModelLoadRequest(source: BundleAssetSource(path)),
-      );
+      // Whichever kind of path the level wrote: a source under `assets_src/`
+      // is read from where the build hook converted it to, and anything else
+      // as it stands — see [loadModelByPath].
+      final document = await loadModelByPath(path);
       // `await`, not a bare return: this returns a future, and a future
       // returned out of a `try` completes after the block has been left, so
       // the `catch` below never saw its failures. A model whose upload threw

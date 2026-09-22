@@ -1,0 +1,13 @@
+; The smallest Godot project that can import a glTF file, copied into a
+; temporary directory beside the fixtures under test by `bin/godot_check.dart`.
+;
+; `config_version=5` is Godot 4's. `config/features` names the engine version
+; the project was authored for; a newer Godot reads it and a older one refuses,
+; which is the behaviour wanted — a check whose answer depends on which Godot
+; happened to be installed should say so rather than guess.
+config_version=5
+
+[application]
+
+config/name="flutter3d export check"
+config/features=PackedStringArray("4.3")

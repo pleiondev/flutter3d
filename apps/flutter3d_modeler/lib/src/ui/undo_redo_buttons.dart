@@ -3,8 +3,8 @@
 ///
 /// **The tooltip says what would happen, not what the button is.** `undoSays`
 /// and `redoSays` already carry the name of the step at the top of each
-/// stack; the keyboard shortcut (⌘Z/⇧⌘Z, wired in `main.dart`'s own `_Keys`)
-/// works with no tooltip open at all, so this widget's whole job is to put
+/// stack; the keyboard shortcut (⌘Z/⇧⌘Z, wired in `ModelerKeys`) works with
+/// no tooltip open at all, so this widget's whole job is to put
 /// those two sentences somewhere a pointer can find them, and to grey out
 /// a button whose stack is empty rather than let it be pressed for nothing.
 library;

@@ -11,23 +11,45 @@ import 'package:shelf/shelf.dart';
 import 'package:shelf_router/shelf_router.dart';
 
 import '../auth/accounts.dart';
+import '../content/learn_content.dart';
 import '../db/models_repository.dart';
+import '../db/rate_limit.dart';
 import '../db/sessions_repository.dart';
 import '../domain/access.dart';
 import '../domain/model.dart';
+import '../domain/project.dart';
 import '../domain/user.dart';
 import '../pages/account_pages.dart';
+import '../pages/explore_page.dart';
 import '../pages/home.dart';
 import '../pages/model_page.dart';
 import '../pages/my_models.dart';
 import '../pages/plain_pages.dart';
+import '../pages/project_page.dart';
+import '../pages/projects_page.dart';
 import '../pages/settings_page.dart';
 import '../services.dart';
 import '../storage/inspect.dart';
+import '../storage/png.dart';
 import 'cookies.dart';
+import 'gallery_routes.dart';
+import 'learn_routes.dart';
+import 'metrics.dart';
 import 'render.dart';
 import 'request.dart';
 import 'static_files.dart';
+
+/// The largest preview picture accepted, in bytes.
+///
+/// A preview is a viewport screenshot the browser captures and re-encodes,
+/// not a photograph — a few megabytes is already generous for one, and far
+/// below `services.config.uploadLimitBytes`, which exists for whole model
+/// files.
+const _previewLimitBytes = 4 * 1024 * 1024;
+
+/// How many published models the showcase shows at once, and how many more
+/// `/explore`'s own "More" link asks for on each page after the first.
+const _exploreLimit = 24;
 
 Handler buildHandler(Services services) {
   final policy = services.cookies;
@@ -35,6 +57,22 @@ Handler buildHandler(Services services) {
 
   final router = Router(notFoundHandler: _notFound)
     ..get('/health', (Request request) => Response.ok('ok'))
+    // `gal-07`: the modeller's own gallery, behind one endpoint of ours,
+    // so the keys the outside catalogues want stay on a machine we own.
+    ..mount('/gallery/', galleryRoutes(services.gallery).call)
+    // Nothing here checks who is asking. The endpoint is not linked from any
+    // page and nginx keeps it off the public vhost (see
+    // `cloud/monitoring/deploy/nginx-grafana.pleion.dev.conf` and
+    // `cloud/deploy/nginx-models.pleion.dev.conf`) — a scraper on the same
+    // loopback the service already listens on needs no separate credential to
+    // leak, the way a bearer token baked into a Prometheus config file would.
+    ..get('/metrics', (Request request) async {
+      final snapshot = await services.metrics.snapshot();
+      return Response.ok(
+        renderPrometheusMetrics(snapshot),
+        headers: {'content-type': 'text/plain; version=0.0.4; charset=utf-8'},
+      );
+    })
     ..mount(
       '/assets/',
       staticDirectory(
@@ -62,6 +100,36 @@ Handler buildHandler(Services services) {
       '/privacy',
       (Request request) async =>
           htmlPage(PrivacyPage(signedIn: await userOf(request))),
+    )
+    ..get('/explore', (Request request) async {
+      final params = request.url.queryParameters;
+      final rawQuery = params['q'];
+      final query = (rawQuery == null || rawQuery.trim().isEmpty)
+          ? null
+          : rawQuery.trim();
+      final category = Category.of(params['category']);
+      final before = DateTime.tryParse(params['before'] ?? '');
+      final models = await services.models.published(
+        limit: _exploreLimit,
+        before: before,
+        category: category,
+        search: query,
+      );
+      return htmlPage(
+        ExplorePage(
+          models: models,
+          signedIn: await userOf(request),
+          query: query,
+          category: category,
+          hasMore: models.length == _exploreLimit,
+        ),
+      );
+    })
+    ..mount(
+      '/learn/modeler/',
+      learnRoutes(
+        cases: loadLearnCases(directory: services.config.learnDirectory),
+      ),
     );
 
   // --- registration ------------------------------------------------------------
@@ -283,6 +351,7 @@ Handler buildHandler(Services services) {
           user: user,
           csrf: csrfOf(request),
           models: await services.models.ofOwner(user.id),
+          projects: await services.projects.ofOwner(user.id),
           uploadLimitBytes: services.config.uploadLimitBytes,
           said: request.url.queryParameters['said'],
         ),
@@ -296,6 +365,23 @@ Handler buildHandler(Services services) {
       if (user == null) return json(401, {'error': 'Sign in again.'});
       if (!canUpload(user)) {
         return json(403, {'error': 'Confirm your address before uploading.'});
+      }
+
+      // A project chosen at upload time, checked before anything is read
+      // off the wire — a project that does not belong to this account
+      // refuses the whole upload rather than quietly falling back to
+      // personal, so nobody ends up with a file dropped somewhere they did
+      // not ask for.
+      int? projectId;
+      if (request.headers['x-project-id'] case final raw? when raw.isNotEmpty) {
+        final parsed = int.tryParse(raw);
+        final project = parsed == null
+            ? null
+            : await services.projects.byId(parsed);
+        if (project == null || !canEditProject(project, user)) {
+          return json(422, {'error': 'That project does not exist.'});
+        }
+        projectId = parsed;
       }
 
       final fileName = Uri.decodeComponent(
@@ -319,6 +405,7 @@ Handler buildHandler(Services services) {
             title: titleFromFileName(fileName),
             sourceFormat: format.column,
             triangleCount: triangleCount,
+            projectId: projectId,
             source: StoredFile(
               blobSha256: hash,
               bytes: bytes.length,
@@ -328,6 +415,174 @@ Handler buildHandler(Services services) {
           );
           return json(201, {'id': record.id, 'path': record.path});
       }
+    })
+    ..post('/api/v1/models/<id|[0-9]+>/preview', (
+      Request request,
+      String id,
+    ) async {
+      if (!scriptIsOurs(request)) {
+        return json(403, {'error': 'This page is out of date. Reload it.'});
+      }
+      final user = await userOf(request);
+      final model = await services.models.byId(int.parse(id));
+      // A preview is edited on a model that already exists, so this checks
+      // `canEdit`, the same as `/m/<id>/describe` and `/m/<id>/delete` — never
+      // `canUpload`, which only says whether the account may create new
+      // models. Missing or somebody else's: 404 either way, never 403, so a
+      // private model's id is not confirmed to somebody who cannot edit it.
+      if (model == null || !canEdit(model, user)) {
+        return _notFound(request, viewer: user);
+      }
+
+      if (!await services.limiter.allow(
+        'preview:account:${user!.id}',
+        RateRule.previewPerAccount,
+      )) {
+        return json(429, {
+          'error': 'Too many preview pictures saved recently. Try again later.',
+        });
+      }
+
+      // The picture must have been captured against the source file the model
+      // currently has — not one an earlier save already replaced — so a stale
+      // capture cannot silently attach itself to whatever the model is now.
+      final source = await services.models.fileOf(model.id, FileKind.source);
+      final sourceSha = request.headers['x-source-sha256'];
+      if (source == null ||
+          sourceSha == null ||
+          sourceSha != source.blobSha256) {
+        return json(409, {
+          'error':
+              'The model has changed since this picture was captured. Reload '
+              'it and capture the preview again.',
+        });
+      }
+
+      final bytes = await readBody(request, limit: _previewLimitBytes);
+      if (bytes == null) {
+        return json(413, {
+          'error':
+              'A preview picture must be smaller than '
+              '${formatBytes(_previewLimitBytes)}.',
+        });
+      }
+
+      switch (inspectPreviewPng(bytes)) {
+        case PngRejected(:final because):
+          return json(422, {'error': because});
+        case PngAccepted():
+          final hash = await services.blobs.put(bytes);
+          final replaced = await services.models.setPreview(
+            model.id,
+            StoredFile(
+              blobSha256: hash,
+              bytes: bytes.length,
+              contentType: 'image/png',
+              filename: 'preview.png',
+            ),
+          );
+          // The picture this one replaced, freed the same way `/m/<id>/delete`
+          // frees its own files — only once nothing else still points at it.
+          if (replaced != null &&
+              replaced != hash &&
+              !await services.models.isReferenced(replaced)) {
+            await services.blobs.delete(replaced);
+          }
+          return json(200, {'hasPreview': true});
+      }
+    })
+    ..post('/api/v1/models/<id|[0-9]+>/source', (
+      Request request,
+      String id,
+    ) async {
+      if (!scriptIsOurs(request)) {
+        return json(403, {'error': 'This page is out of date. Reload it.'});
+      }
+      final user = await userOf(request);
+      final model = await services.models.byId(int.parse(id));
+      // Saving edits a model that already exists, so this checks `canEdit`,
+      // the same as the preview endpoint above — never `canUpload`. Missing
+      // or somebody else's: 404 either way, never 403.
+      if (model == null || !canEdit(model, user)) {
+        return _notFound(request, viewer: user);
+      }
+
+      if (!await services.limiter.allow(
+        'source-save:account:${user!.id}',
+        RateRule.sourceSavePerAccount,
+      )) {
+        return json(429, {
+          'error': 'Too many saves recently. Try again later.',
+        });
+      }
+
+      final fileName = Uri.decodeComponent(
+        request.headers['x-filename'] ?? 'model',
+      );
+      final limit = services.config.uploadLimitBytes;
+      final bytes = await readBody(request, limit: limit);
+      if (bytes == null) {
+        return json(413, {
+          'error': '$fileName is larger than ${formatBytes(limit)}.',
+        });
+      }
+
+      // The identical decode-and-validate `inspectUpload` runs on a fresh
+      // upload — an edited document that fails to decode is refused the same
+      // way, not a weaker check because it is "just an update". Nothing is
+      // stored, and no revision is recorded, until this accepts the bytes.
+      switch (await inspectUpload(bytes, fileName: fileName)) {
+        case Rejected(:final because):
+          return json(422, {'error': because});
+        case Accepted(:final format, :final triangleCount):
+          final hash = await services.blobs.put(bytes);
+          // Keeps the new file as current and records a revision row in one
+          // transaction. The blob this replaces is deliberately not freed
+          // here — it now lives on as a revision, and `isReferenced` already
+          // knows to keep it alive.
+          final updated = await services.models.replaceSource(
+            modelId: model.id,
+            newSource: StoredFile(
+              blobSha256: hash,
+              bytes: bytes.length,
+              contentType: format.contentType,
+              filename: _fileNameFor(fileName, format),
+            ),
+            triangleCount: triangleCount,
+            sourceFormat: format.column,
+            actorUserId: user.id,
+          );
+          return json(200, {
+            'id': updated.id,
+            'path': updated.path,
+            'triangleCount': updated.triangleCount,
+            'sizeBytes': updated.sizeBytes,
+          });
+      }
+    })
+    ..get('/api/v1/models/<id|[0-9]+>/revisions', (
+      Request request,
+      String id,
+    ) async {
+      final viewer = await userOf(request);
+      final model = await services.models.byId(int.parse(id));
+      // Revision metadata — no bytes, just id/size/who/when — follows the
+      // model's own visibility, the same as its page or its current file:
+      // `canView`, not `canEdit`. The file each revision points at stays
+      // owner-only, at the download route below.
+      if (model == null || !canView(model, viewer)) {
+        return _notFound(request, viewer: viewer);
+      }
+      final revisions = await services.models.revisionsOf(model.id);
+      return json(200, [
+        for (final revision in revisions)
+          {
+            'id': revision.id,
+            'bytes': revision.bytes,
+            'createdAt': revision.createdAt.toIso8601String(),
+            'createdBy': revision.createdBy,
+          },
+      ]);
     });
 
   // --- one model --------------------------------------------------------------------
@@ -344,12 +599,33 @@ Handler buildHandler(Services services) {
       if (ref != '${model.id}-${model.slug}') {
         return Response.movedPermanently(model.path);
       }
+      // Revision history is owner-only on the page, the same as the download
+      // route at `/files/<id>/revisions/<revisionId>`, so nothing is fetched
+      // for a viewer who could not follow those links anyway.
+      final revisions = canEdit(model, viewer)
+          ? await services.models.revisionsOf(model.id)
+          : const <RevisionRecord>[];
+      // The owner's own projects, for the move form's select — the same
+      // owner-only fetch as `revisions` above, for the same reason: nobody
+      // else's page needs to know what projects the owner keeps.
+      final ownerProjects = canEdit(model, viewer)
+          ? await services.projects.ofOwner(model.ownerId)
+          : const <ProjectRecord>[];
+      // `tut-19`'s own preview capture needs the source's current hash to
+      // send as `x-source-sha256` — the same staleness guard
+      // `/api/v1/models/<id>/preview` already checks it against. Fetched for
+      // every viewer, not just the owner, because [ModelPage] threads it into
+      // `viewer.js`'s data attributes unconditionally, the same as `data-id`.
+      final source = await services.models.fileOf(model.id, FileKind.source);
       return htmlPage(
         ModelPage(
           model: model,
           viewer: viewer,
           csrf: csrfOf(request),
           viewerAvailable: true,
+          revisions: revisions,
+          ownerProjects: ownerProjects,
+          sourceSha: source?.blobSha256 ?? '',
           said: request.url.queryParameters['said'],
         ),
       );
@@ -381,6 +657,110 @@ Handler buildHandler(Services services) {
         return seeOther('/me?said=deleted');
       });
     })
+    ..post('/m/<id|[0-9]+>/move', (Request request, String id) async {
+      final form = await readForm(request);
+      return _editing(services, request, form, id, (model) async {
+        final raw = (form['project'] ?? '').trim();
+        int? targetId;
+        if (raw.isNotEmpty) {
+          targetId = int.tryParse(raw);
+          final target = targetId == null
+              ? null
+              : await services.projects.byId(targetId);
+          // Ownership of the target project is checked here, before
+          // `moveToProject` is ever called, so a foreign project reads as
+          // the same clean 404 every other ownership refusal on this page
+          // already gives — not a raw database error, and not a 403 that
+          // would confirm the project exists at all.
+          final viewer = await userOf(request);
+          if (target == null || !canEditProject(target, viewer)) {
+            return _notFound(request, viewer: viewer);
+          }
+        }
+        await services.models.moveToProject(model.id, targetId);
+        final updated = await services.models.byId(model.id);
+        return seeOther('${updated!.path}?said=moved');
+      });
+    })
+    ..post('/m/<id|[0-9]+>/publish', (Request request, String id) async {
+      final form = await readForm(request);
+      return _editing(services, request, form, id, (model) async {
+        if (!await services.limiter.allow(
+          'publish:account:${model.ownerId}',
+          RateRule.publishPerAccount,
+        )) {
+          return htmlPage(
+            MessagePage(
+              title: 'Too many publish changes',
+              body:
+                  'This account has published or unpublished several models '
+                  'recently. Try again later.',
+              signedIn: await userOf(request),
+            ),
+            status: 429,
+          );
+        }
+        // Posted strings, never trusted as-is — `Licence.of`/`Category.of`
+        // return null for anything outside their own enum, and that is a
+        // clean 422 with the form re-shown, the same as `/register`'s own
+        // `RegisterInvalid` branch, rather than a value reaching the
+        // database for its `check` constraint to catch.
+        final licence = Licence.of(form['licence']);
+        final category = Category.of(form['category']);
+        if (licence == null || category == null) {
+          return htmlPage(
+            ModelPage(
+              model: model,
+              viewer: await userOf(request),
+              csrf: csrfOf(request),
+              viewerAvailable: true,
+              revisions: await services.models.revisionsOf(model.id),
+              ownerProjects: await services.projects.ofOwner(model.ownerId),
+              sourceSha:
+                  (await services.models.fileOf(
+                    model.id,
+                    FileKind.source,
+                  ))?.blobSha256 ??
+                  '',
+              publishProblems: {
+                if (licence == null) 'licence': 'Choose one of the licences.',
+                if (category == null)
+                  'category': 'Choose one of the categories.',
+              },
+              publishLicence: form['licence'],
+              publishCategory: form['category'],
+            ),
+            status: 422,
+          );
+        }
+        await services.models.publish(model.id, licence, category: category);
+        final updated = await services.models.byId(model.id);
+        return seeOther('${updated!.path}?said=published');
+      });
+    })
+    ..post('/m/<id|[0-9]+>/unpublish', (Request request, String id) async {
+      final form = await readForm(request);
+      return _editing(services, request, form, id, (model) async {
+        if (!await services.limiter.allow(
+          'publish:account:${model.ownerId}',
+          RateRule.publishPerAccount,
+        )) {
+          return htmlPage(
+            MessagePage(
+              title: 'Too many publish changes',
+              body:
+                  'This account has published or unpublished several models '
+                  'recently. Try again later.',
+              signedIn: await userOf(request),
+            ),
+            status: 429,
+          );
+        }
+        await services.models.unpublish(model.id);
+        final updated = await services.models.byId(model.id);
+        return seeOther('${updated!.path}?said=unpublished');
+      });
+    })
     ..get('/files/<id|[0-9]+>/source', (Request request, String id) async {
       final viewer = await userOf(request);
       final model = await services.models.byId(int.parse(id));
@@ -390,6 +770,132 @@ Handler buildHandler(Services services) {
       final file = await services.models.fileOf(model.id, FileKind.source);
       if (file == null) return _notFound(request, viewer: viewer);
       return _serveBlob(services, request, file, public: model.isPublic);
+    })
+    ..get('/files/<id|[0-9]+>/preview', (Request request, String id) async {
+      final viewer = await userOf(request);
+      final model = await services.models.byId(int.parse(id));
+      if (model == null || !canView(model, viewer)) {
+        return _notFound(request, viewer: viewer);
+      }
+      final file = await services.models.fileOf(model.id, FileKind.preview);
+      // No picture yet is a 404, the same as a model with no page to redirect
+      // to — never an empty 200, which would be indistinguishable from a
+      // picture that really is zero bytes.
+      if (file == null) return _notFound(request, viewer: viewer);
+      return _serveBlob(services, request, file, public: model.isPublic);
+    })
+    ..get('/files/<id|[0-9]+>/revisions/<revisionId|[0-9]+>', (
+      Request request,
+      String id,
+      String revisionId,
+    ) async {
+      final viewer = await userOf(request);
+      final model = await services.models.byId(int.parse(id));
+      // A past revision is an editing/audit artifact, not something a public
+      // viewer should be able to enumerate-and-download even if the current
+      // file is public — `canEdit`, owner-only, unlike the source and
+      // preview downloads above.
+      if (model == null || !canEdit(model, viewer)) {
+        return _notFound(request, viewer: viewer);
+      }
+      final file = await services.models.revisionFile(
+        model.id,
+        int.parse(revisionId),
+      );
+      // Null both when the id does not exist at all and when it belongs to
+      // a different model — `revisionFile` checks the two together, so
+      // neither case can serve a file that is not this model's own.
+      if (file == null) return _notFound(request, viewer: viewer);
+      return _serveBlob(services, request, file, public: false);
+    });
+
+  // --- projects ---------------------------------------------------------------------
+
+  router
+    ..get('/projects', (Request request) async {
+      final user = await userOf(request);
+      if (user == null) return seeOther('/login?next=/projects');
+      return htmlPage(
+        ProjectsPage(
+          user: user,
+          csrf: csrfOf(request),
+          projects: await services.projects.ofOwner(user.id),
+          said: request.url.queryParameters['said'],
+        ),
+      );
+    })
+    ..post('/projects', (Request request) async {
+      final form = await readForm(request);
+      if (!formIsOurs(request, form, policy)) return _staleForm(request);
+      final user = await userOf(request);
+      if (user == null) return seeOther('/login?next=/projects');
+      if (!await services.limiter.allow(
+        'project-create:account:${user.id}',
+        RateRule.projectCreatePerAccount,
+      )) {
+        return htmlPage(
+          MessagePage(
+            title: 'Too many projects created',
+            body:
+                'This account has created several projects recently. Try '
+                'again later.',
+            signedIn: user,
+          ),
+          status: 429,
+        );
+      }
+      final title = (form['title'] ?? '').trim();
+      final created = await services.projects.create(
+        ownerId: user.id,
+        title: title.isEmpty
+            ? 'Untitled project'
+            : (title.length > 80 ? title.substring(0, 80) : title),
+      );
+      return seeOther('${created.path}?said=project-created');
+    })
+    ..get('/p/<ref>', (Request request, String ref) async {
+      final viewer = await userOf(request);
+      final project = await _projectOf(services, ref);
+      // A project has no public side at all — `canEditProject` is also the
+      // whole of "may this viewer even see it", the same as
+      // `domain/access.dart` already says of it.
+      if (project == null || !canEditProject(project, viewer)) {
+        return _notFound(request, viewer: viewer);
+      }
+      if (ref != '${project.id}-${project.slug}') {
+        return Response.movedPermanently(project.path);
+      }
+      return htmlPage(
+        ProjectPage(
+          project: project,
+          viewer: viewer!,
+          csrf: csrfOf(request),
+          models: await services.models.ofProject(project.id),
+          said: request.url.queryParameters['said'],
+        ),
+      );
+    })
+    ..post('/p/<id|[0-9]+>/describe', (Request request, String id) async {
+      final form = await readForm(request);
+      return _editingProject(services, request, form, id, (project) async {
+        final title = (form['title'] ?? '').trim();
+        await services.projects.describe(
+          project.id,
+          title: title.isEmpty
+              ? project.title
+              : (title.length > 80 ? title.substring(0, 80) : title),
+          description: (form['description'] ?? '').trim(),
+        );
+        final updated = await services.projects.byId(project.id);
+        return seeOther('${updated!.path}?said=described');
+      });
+    })
+    ..post('/p/<id|[0-9]+>/delete', (Request request, String id) async {
+      final form = await readForm(request);
+      return _editingProject(services, request, form, id, (project) async {
+        await services.projects.delete(project.id);
+        return seeOther('/projects?said=project-deleted');
+      });
     });
 
   // --- settings ----------------------------------------------------------------------
@@ -504,6 +1010,27 @@ Future<Response> _editing(
 Future<ModelRecord?> _modelOf(Services services, String ref) async {
   final id = int.tryParse(RegExp(r'^\d+').stringMatch(ref) ?? '');
   return id == null ? null : services.models.byId(id);
+}
+
+Future<Response> _editingProject(
+  Services services,
+  Request request,
+  Map<String, String> form,
+  String id,
+  Future<Response> Function(ProjectRecord project) change,
+) async {
+  if (!formIsOurs(request, form, services.cookies)) return _staleForm(request);
+  final user = await userOf(request);
+  final project = await services.projects.byId(int.parse(id));
+  if (project == null || !canEditProject(project, user)) {
+    return _notFound(request, viewer: user);
+  }
+  return change(project);
+}
+
+Future<ProjectRecord?> _projectOf(Services services, String ref) async {
+  final id = int.tryParse(RegExp(r'^\d+').stringMatch(ref) ?? '');
+  return id == null ? null : services.projects.byId(id);
 }
 
 Future<Response> _serveBlob(

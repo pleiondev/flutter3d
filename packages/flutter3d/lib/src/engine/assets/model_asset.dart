@@ -147,7 +147,13 @@ final class ModelAsset {
 
     // Surfaces may share a MeshData, and materials may share an image; upload
     // each distinct one once.
-    final meshCache = <MeshData, DeviceMesh>{};
+    //
+    // Keyed on the transform as well as the mesh, because one set of vertices
+    // drawn with two atlas-packed materials is two sets of coordinates. The
+    // transform is compared by identity, which is the material's own object:
+    // two surfaces sharing a mesh and a material share the upload, and that is
+    // the case there is.
+    final meshCache = <(MeshData, TextureTransform?), DeviceMesh>{};
     // Keyed on the image **and on whether it carries a chain**, not on the
     // image alone. One image can be bound by two materials that sample it
     // differently — a decal atlas sampled without mips in one place and with
@@ -234,13 +240,25 @@ final class ModelAsset {
 
     final parts = <ModelPart>[];
     for (final surface in document.surfaces) {
+      final index = surface.materialIndex;
+      // `KHR_texture_transform`, honoured in the coordinates: see
+      // `texture_transform_bake.dart` for why here and not in the decoder or
+      // the sampler.
+      final moved =
+          index != null && index >= 0 && index < document.materials.length
+          ? sharedTextureTransform(document.materials[index])
+          : null;
       final mesh = meshCache.putIfAbsent(
-        surface.mesh,
-        () => DeviceMesh.upload(device, surface.mesh),
+        (surface.mesh, moved),
+        () => DeviceMesh.upload(
+          device,
+          moved == null
+              ? surface.mesh
+              : withTextureTransform(surface.mesh, moved),
+        ),
       );
       final morph = morphFor(surface.mesh, surface.name ?? 'a surface');
 
-      final index = surface.materialIndex;
       Material material;
       if (index != null && index >= 0 && index < document.materials.length) {
         material = materialCache[index] ??= await bindSurfaceMaterial(

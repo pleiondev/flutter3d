@@ -7,6 +7,7 @@ import 'package:flutter3d_mesh/flutter3d_mesh.dart';
 // package's unrelated modifier-parameter `EnumHint`, which nothing here reads.
 import 'package:flutter3d_model_core/flutter3d_model_core.dart' hide EnumHint;
 
+import 'describe_type.dart';
 import 'model_session.dart';
 
 /// One tool: what an agent is offered, and what calling it does — see
@@ -24,8 +25,14 @@ Future<Answer> Function(ModelSession, Map<String, Object?>) _sync(
 
 /// Three numbers, which is how the project spells every position, axis and
 /// size.
-ListSchema _vector(String about) => ListSchema(
-  description: about,
+///
+/// [unit] is appended to [about] rather than left to each call site —
+/// `ux-43`'s own acceptance is that every numeric field says what its number
+/// is a number *of*, and forty call sites each remembering to say "in metres"
+/// is forty chances to forget. A direction says so instead: a normalised axis
+/// is a ratio of three numbers and has no unit at all.
+ListSchema _vector(String about, {String unit = 'in metres'}) => ListSchema(
+  description: '$about — three numbers, x y z, $unit',
   items: NumberSchema(),
   minItems: 3,
   maxItems: 3,
@@ -34,7 +41,9 @@ ListSchema _vector(String about) => ListSchema(
 /// Sixteen numbers, column-major — `Matrix4.storage` — for the two commands
 /// that take a whole transform rather than a friendlier vector or angle.
 ListSchema _matrix16(String about) => ListSchema(
-  description: about,
+  description:
+      '$about — sixteen numbers, column-major (Matrix4.storage order); the '
+      'translation in the last column is in metres, Y-up',
   items: NumberSchema(),
   minItems: 16,
   maxItems: 16,
@@ -56,6 +65,32 @@ UntitledSingleSelectEnumSchema _interpolation(String about) =>
     UntitledSingleSelectEnumSchema(
       description: about,
       values: <String>[for (final i in AnimationInterpolation.values) i.name],
+    );
+
+/// `import`'s own "unit" — `apps/flutter3d_modeler`'s `import_plan.dart`
+/// `ImportUnit` restated as a string enum, since the app that owns that
+/// type is not something this package depends on. Keys into
+/// [_importUnitScale] for the multiplier `ImportOptions.scale` actually
+/// takes.
+UntitledSingleSelectEnumSchema _importUnit(String about) =>
+    UntitledSingleSelectEnumSchema(
+      description: about,
+      values: const <String>['mm', 'cm', 'm'],
+    );
+
+/// [_importUnit]'s own values, mapped to [ImportOptions.scale] the way
+/// `import_plan.dart`'s `ImportUnit` already does — `mm` and `cm` read as
+/// this project's own metres, `m` (the default) leaves a file untouched.
+const Map<String, double> _importUnitScale = <String, double>{
+  'mm': 0.001,
+  'cm': 0.01,
+  'm': 1.0,
+};
+
+UntitledSingleSelectEnumSchema _upAxis(String about) =>
+    UntitledSingleSelectEnumSchema(
+      description: about,
+      values: <String>[for (final a in UpAxis.values) a.name],
     );
 
 /// The three components [PoseJoint] can key — never `weights`, which the
@@ -156,7 +191,60 @@ Future<Answer> Function(ModelSession, Map<String, Object?>) _command(
   // step it had no part in, at whatever intermediate position the drag has
   // reached the instant this call arrived.
   await session.history.whenNotInTransaction;
-  return session.run(command);
+  return session.runTargeted(command, ModelSession.targetIn(arguments));
+};
+
+/// Every command tool, with the target arguments added to the ones that act
+/// on a selection — and that is exactly the ones whose schema does not
+/// already name what they act on.
+///
+/// **The rule is computed rather than written down as a list.** A list of
+/// "commands that read the selection" is a second place to remember something,
+/// and the first command added without an entry in it would advertise no way
+/// to be aimed. A tool that already takes an `id` or an `index` is aimed;
+/// every other one reads `history.selection`, which is what [_targetSchema]
+/// is for.
+List<ModelTool> get _aimableCommandTools => <ModelTool>[
+  for (final ModelTool tool in _commandTools) _aimable(tool),
+];
+
+ModelTool _aimable(ModelTool tool) {
+  final Map<String, Schema> properties =
+      tool.tool.inputSchema.properties ?? const <String, Schema>{};
+  if (properties.containsKey('id') || properties.containsKey('index')) {
+    return tool;
+  }
+  return ModelTool(
+    Tool(
+      name: tool.name,
+      description:
+          '${tool.tool.description} Acts on what is selected, or on the '
+          'object and elements you name — "object" with "faces", "edges" or '
+          '"vertices", or "ids" for whole objects. Naming a target leaves the '
+          'selection exactly as it was; what the command selected while it '
+          'ran is in the answer.',
+      inputSchema: ObjectSchema(
+        properties: <String, Schema>{...properties, ..._targetSchema},
+        required: tool.tool.inputSchema.required,
+      ),
+    ),
+    tool.run,
+  );
+}
+
+/// The target arguments, as schema, added to every command tool that acts on
+/// a selection. `ModelSession.targetIn` is what reads them back, and its own
+/// doc comment is why they live there rather than here.
+Map<String, Schema> get _targetSchema => <String, Schema>{
+  'object': IntegerSchema(
+    description:
+        'act on this object\'s mesh rather than on what is selected; the '
+        'selection is left exactly as it was',
+  ),
+  'vertices': _ints('vertex ids of "object" to act on'),
+  'edges': _ints('edge ids of "object" to act on'),
+  'faces': _ints('face ids of "object" to act on'),
+  'ids': _ints('object ids to act on, instead of what is selected'),
 };
 
 // ------------------------------------------------------------ command tools
@@ -207,7 +295,7 @@ List<ModelTool> get _commandTools => <ModelTool>[
           'units. Select objects first — this reads the current selection '
           'rather than taking an id.',
       inputSchema: ObjectSchema(
-        properties: <String, Schema>{'by': _vector('how far, as x, y, z')},
+        properties: <String, Schema>{'by': _vector('how far to move')},
         required: <String>['by'],
       ),
     ),
@@ -223,7 +311,10 @@ List<ModelTool> get _commandTools => <ModelTool>[
           'world\'s axes or each object\'s own.',
       inputSchema: ObjectSchema(
         properties: <String, Schema>{
-          'axis': _vector('the axis to turn about'),
+          'axis': _vector(
+            'the axis to turn about',
+            unit: 'a direction, no unit',
+          ),
           'radians': NumberSchema(description: 'how far, in radians'),
           'pivot': _pivot('median (default) or individual'),
           'space': _space('global (default) or local'),
@@ -241,7 +332,11 @@ List<ModelTool> get _commandTools => <ModelTool>[
           'pivot. 2 doubles the size; 0.5 halves it.',
       inputSchema: ObjectSchema(
         properties: <String, Schema>{
-          'by': NumberSchema(description: 'the factor, above 0'),
+          'by': NumberSchema(
+            description:
+                'how much bigger, as a multiplier: 2 is twice the size, '
+                '0.5 is half. Above 0',
+          ),
           'pivot': _pivot('median (default) or individual'),
         },
         required: <String>['by'],
@@ -259,7 +354,9 @@ List<ModelTool> get _commandTools => <ModelTool>[
       inputSchema: ObjectSchema(
         properties: <String, Schema>{
           'id': IntegerSchema(description: 'the object to reparent'),
-          'to': IntegerSchema(description: 'the new parent; omit for none'),
+          'to': IntegerSchema(
+            description: 'the new parent, by object id; omit for none',
+          ),
         },
         required: <String>['id'],
       ),
@@ -313,11 +410,19 @@ List<ModelTool> get _commandTools => <ModelTool>[
       inputSchema: ObjectSchema(
         properties: <String, Schema>{
           'kind': UntitledSingleSelectEnumSchema(
-            description: 'which shape',
-            values: AddPrimitive.primitiveKinds,
+            // `ux-43`: `cuboid` is offered beside `box` and means the same
+            // shape. The project format spells it `cuboid` and the menu says
+            // `box`; a caller that read one and asked the other used to be
+            // refused for spelling it the way the file did.
+            description: 'which shape. "cuboid" is another name for "box"',
+            values: <String>[...AddPrimitive.primitiveKinds, 'cuboid'],
           ),
-          'size': NumberSchema(description: 'how big, default 1'),
-          'segments': IntegerSchema(description: 'how round, default 32'),
+          'size': NumberSchema(
+            description: 'how big across, in metres; default 1',
+          ),
+          'segments': IntegerSchema(
+            description: 'how many segments around, default 32',
+          ),
           'at': _vector('where it goes, default the origin'),
         },
         required: <String>['kind'],
@@ -339,7 +444,9 @@ List<ModelTool> get _commandTools => <ModelTool>[
             items: ListSchema(items: NumberSchema(), minItems: 2, maxItems: 2),
             minItems: 2,
           ),
-          'segments': IntegerSchema(description: 'how round, default 32'),
+          'segments': IntegerSchema(
+            description: 'how many segments around, default 32',
+          ),
           'closedProfile': BooleanSchema(
             description:
                 'join the last point back to the first, for a torus '
@@ -459,7 +566,9 @@ List<ModelTool> get _commandTools => <ModelTool>[
           'level.',
       inputSchema: ObjectSchema(
         properties: <String, Schema>{
-          'distance': NumberSchema(description: 'how far, along the normal'),
+          'distance': NumberSchema(
+            description: 'how far along the face normal, in metres',
+          ),
         },
         required: <String>['distance'],
       ),
@@ -476,12 +585,94 @@ List<ModelTool> get _commandTools => <ModelTool>[
         properties: <String, Schema>{
           'cuts': IntegerSchema(description: 'how many loops, default 1'),
           'factor': NumberSchema(
-            description: '0 to 1 along the edge, default 0.5 (centred)',
+            description:
+                'where along the edge, as a fraction 0..1; default 0.5 '
+                '(centred)',
           ),
         },
       ),
     ),
     _command('loopCut'),
+  ),
+  ModelTool(
+    Tool(
+      name: 'bevelEdges',
+      description:
+          'Cut a corner off every selected edge or vertex, by width, '
+          'walling the gap with a new face. Mesh mode: select edges, or '
+          'vertices for every edge each one touches. The selection has to '
+          'be a closed region — every face touching a beveled edge needs '
+          'all of its own edges beveled too.',
+      inputSchema: ObjectSchema(
+        properties: <String, Schema>{
+          'width': NumberSchema(
+            description:
+                'how far the new wall sits from the original corner, '
+                'in metres',
+          ),
+        },
+        required: <String>['width'],
+      ),
+    ),
+    _command('bevelEdges'),
+  ),
+  ModelTool(
+    Tool(
+      name: 'insetFaces',
+      description:
+          'Shrink every selected face inward and wall the ring it leaves - '
+          'the way a panel, a window or a recessed button is made. Mesh '
+          'mode, face level. depth pushes the new ring along the face\'s own '
+          'normal as well, so one call makes an inset and a push.',
+      inputSchema: ObjectSchema(
+        properties: <String, Schema>{
+          'thickness': NumberSchema(
+            description:
+                'how far inside the border the new ring sits, in metres',
+          ),
+          'depth': NumberSchema(
+            description:
+                'how far along the face normal to push it, in metres; omit '
+                'for a flat inset',
+          ),
+        },
+        required: <String>['thickness'],
+      ),
+    ),
+    _command('insetFaces'),
+  ),
+  ModelTool(
+    Tool(
+      name: 'bridgeLoops',
+      description:
+          'Join two open borders with a ring of quads - how two halves of a '
+          'tube, or a sleeve and a body, are made one surface. Mesh mode, '
+          'edge level: select exactly the two borders, which must have the '
+          'same number of edges, must not meet, and must not already be '
+          'joined corner to corner. Refuses with the reason otherwise.',
+      inputSchema: ObjectSchema(),
+    ),
+    _command('bridgeLoops'),
+  ),
+  ModelTool(
+    Tool(
+      name: 'slideEdges',
+      description:
+          'Move the selected loop along the edges that cross it, without '
+          'changing a single face - how a seam is nudged to where a detail '
+          'wants it. Mesh mode, edge level. amount is a fraction of each '
+          'rail\'s own length, from -1 to 1; the sign picks which of a '
+          'vertex\'s two rails it travels.',
+      inputSchema: ObjectSchema(
+        properties: <String, Schema>{
+          'amount': NumberSchema(
+            description: 'how far along the rail, as a fraction of it: -1 to 1',
+          ),
+        },
+        required: <String>['amount'],
+      ),
+    ),
+    _command('slideEdges'),
   ),
   ModelTool(
     Tool(
@@ -525,8 +716,8 @@ List<ModelTool> get _commandTools => <ModelTool>[
         properties: <String, Schema>{
           'distance': NumberSchema(
             description:
-                'the threshold, default a '
-                'small epsilon',
+                'how close two vertices must be to become one, in '
+                'metres; default a small epsilon',
           ),
         },
       ),
@@ -598,7 +789,9 @@ List<ModelTool> get _commandTools => <ModelTool>[
       inputSchema: ObjectSchema(
         properties: <String, Schema>{
           'margin': NumberSchema(
-            description: 'gap autoPack leaves between islands, default 0.01',
+            description:
+                'gap autoPack leaves between islands, as a fraction of '
+                'the UV square; default 0.01',
           ),
           'autoPack': BooleanSchema(
             description:
@@ -720,6 +913,117 @@ List<ModelTool> get _commandTools => <ModelTool>[
   ),
   ModelTool(
     Tool(
+      name: 'selectFacing',
+      description:
+          'Select the faces pointing a given way — "the top", "the '
+          'front", said in a way a program can say it. Takes a direction in '
+          'the object\'s own space ([0,1,0] is up) and an angle to allow '
+          'either side of it. Answers with the faces, at face level, '
+          'whatever level was live. Mesh mode only. This is how you find the '
+          'face to extrude without rendering a picture and guessing.',
+      inputSchema: ObjectSchema(
+        properties: <String, Schema>{
+          'axis': _vector(
+            'the direction to face, e.g. [0,1,0] for up',
+            unit: 'a direction, no unit',
+          ),
+          'within': NumberSchema(
+            description:
+                'how far off that direction a face may point and still '
+                'count, in degrees; 45 by default, which is "the top" on a '
+                'box',
+          ),
+        },
+        required: <String>['axis'],
+      ),
+    ),
+    _command('selectFacing'),
+  ),
+  // `ux-14`, `ux-13` and `ux-16` added four commands and no tools for them,
+  // which `tools_test.dart`'s own "a command exists that this server cannot
+  // call" caught — closed here, since `ux-19` is the row about an agent being
+  // able to reach the state it edits.
+  ModelTool(
+    Tool(
+      name: 'setObjectVisible',
+      description:
+          'Show or hide an object. A hidden object is not drawn and is '
+          'not written to an export — it is a fact about the document, not '
+          'about this session — and hiding a parent hides its children.',
+      inputSchema: ObjectSchema(
+        properties: <String, Schema>{
+          'id': IntegerSchema(description: 'the object, from list'),
+          'to': BooleanSchema(description: 'true to show, false to hide'),
+        },
+        required: <String>['id', 'to'],
+      ),
+    ),
+    _command('setObjectVisible'),
+  ),
+  ModelTool(
+    Tool(
+      name: 'setObjectLocked',
+      description:
+          'Lock or unlock an object. A locked object stays on screen '
+          'and refuses to be picked or transformed — the floor somebody '
+          'keeps catching by accident.',
+      inputSchema: ObjectSchema(
+        properties: <String, Schema>{
+          'id': IntegerSchema(description: 'the object, from list'),
+          'to': BooleanSchema(description: 'true to lock, false to unlock'),
+        },
+        required: <String>['id', 'to'],
+      ),
+    ),
+    _command('setObjectLocked'),
+  ),
+  ModelTool(
+    Tool(
+      name: 'buildTopology',
+      description:
+          'Turn an object that came from a file into a real editable '
+          'mesh, welding vertices that sit on top of each other. This is '
+          'what gives an imported object elements with ids — an STL arrives '
+          'with every triangle carrying its own three corners, and nothing '
+          'can be extruded or bevelled until they are shared. Refused on '
+          'something that already has topology, since rebuilding it would '
+          'throw away every edit that made it what it is.',
+      inputSchema: ObjectSchema(
+        properties: <String, Schema>{
+          'id': IntegerSchema(description: 'the imported object, from list'),
+          'weld': NumberSchema(
+            description:
+                'how close two corners must be to become one; left out, '
+                'the import\'s own scale-aware default',
+          ),
+        },
+        required: <String>['id'],
+      ),
+    ),
+    _command('buildTopology'),
+  ),
+  ModelTool(
+    Tool(
+      name: 'selectNear',
+      description:
+          'Select everything at the live level within a distance of a '
+          'point — a box-select for something with no screen. Measured in '
+          'the object\'s own space, the same space describe answers in and '
+          'transformElements moves in. Mesh mode only.',
+      inputSchema: ObjectSchema(
+        properties: <String, Schema>{
+          'point': _vector('the centre, in the object\'s own space'),
+          'radius': NumberSchema(
+            description: 'how far from it to reach, in metres',
+          ),
+        },
+        required: <String>['point', 'radius'],
+      ),
+    ),
+    _command('selectNear'),
+  ),
+  ModelTool(
+    Tool(
       name: 'setLightTransform',
       description:
           'Place one of the project\'s own lights: replace its whole '
@@ -749,6 +1053,11 @@ List<ModelTool> get _commandTools => <ModelTool>[
             description:
                 'what the table shows '
                 'for it; omit to leave it unnamed',
+          ),
+          'assignTo': IntegerSchema(
+            description:
+                'an object id to paint with the new material in the '
+                'same step; omit to only add the row',
           ),
         },
       ),
@@ -1108,13 +1417,35 @@ List<ModelTool> get _commandTools => <ModelTool>[
   ),
   ModelTool(
     Tool(
+      name: 'toggleModifierExport',
+      description:
+          'Flip whether a modifier runs for the file as well as for '
+          'the picture. A modifier switched off here still shapes what you '
+          'see and is left out of an export — a mirror you are working '
+          'against but do not want baked into the GLB.',
+      inputSchema: ObjectSchema(
+        properties: <String, Schema>{
+          'id': IntegerSchema(description: 'the object'),
+          'index': IntegerSchema(description: 'the modifier, from list'),
+        },
+        required: <String>['id', 'index'],
+      ),
+    ),
+    _command('toggleModifierExport'),
+  ),
+  ModelTool(
+    Tool(
       name: 'reorderModifier',
       description: 'Move a modifier to a different position in the stack.',
       inputSchema: ObjectSchema(
         properties: <String, Schema>{
           'id': IntegerSchema(description: 'the object'),
-          'from': IntegerSchema(description: 'the modifier\'s current index'),
-          'to': IntegerSchema(description: 'where it should end up'),
+          'from': IntegerSchema(
+            description: 'the modifier\'s current index in the stack',
+          ),
+          'to': IntegerSchema(
+            description: 'the index in the stack it should end up at',
+          ),
         },
         required: <String>['id', 'from', 'to'],
       ),
@@ -1178,6 +1509,163 @@ List<ModelTool> get _commandTools => <ModelTool>[
       ),
     ),
     _command('applyJobResult'),
+  ),
+  // `ux-48` and `ux-49` landed their commands without the tools beside them,
+  // so an agent could read `modelCommandNames` and find four names it had no
+  // way to call. The four below close that.
+  ModelTool(
+    Tool(
+      name: 'setPanorama',
+      description:
+          'Light the scene from one of the built-in panoramas instead of a '
+          'preset. Leave index out (or pass null) to clear it and go back to '
+          'whichever preset the project already names.',
+      inputSchema: ObjectSchema(
+        properties: <String, Schema>{
+          'index': IntegerSchema(
+            description:
+                'which panorama, by its index in the built-in list; null '
+                'clears it',
+          ),
+        },
+      ),
+    ),
+    _command('setPanorama'),
+  ),
+  ModelTool(
+    Tool(
+      name: 'linkToSource',
+      description:
+          'Record that an object came from a file on disk, so a later '
+          'reimport can tell whether that file has changed. sha is the '
+          'file\'s own digest as it was read; path is where it was read '
+          'from.',
+      inputSchema: ObjectSchema(
+        properties: <String, Schema>{
+          'id': IntegerSchema(description: 'the object'),
+          'path': StringSchema(description: 'where the file was read from'),
+          'sha': StringSchema(description: 'the file\'s digest when read'),
+        },
+        required: <String>['id', 'path', 'sha'],
+      ),
+    ),
+    _command('linkToSource'),
+  ),
+  ModelTool(
+    Tool(
+      name: 'unlinkSource',
+      description:
+          'Forget the file an object came from. What it is now is what it '
+          'is; nothing will offer to reimport it again.',
+      inputSchema: ObjectSchema(
+        properties: <String, Schema>{
+          'id': IntegerSchema(description: 'the object'),
+        },
+        required: <String>['id'],
+      ),
+    ),
+    _command('unlinkSource'),
+  ),
+  ModelTool(
+    Tool(
+      name: 'reimport',
+      description:
+          'Replace a linked object\'s mesh with the file as it is now, '
+          'keeping its transform, its name and its place in the tree — one '
+          'undo step. sha is the digest of what is being brought in, which '
+          'is what the link then records.',
+      inputSchema: ObjectSchema(
+        properties: <String, Schema>{
+          'id': IntegerSchema(description: 'the object, already linked'),
+          'sha': StringSchema(description: 'the digest of the new file'),
+          'meshBytes': StringSchema(
+            description: 'the new mesh, base64-encoded EditMesh.toBytes',
+          ),
+        },
+        required: <String>['id', 'sha', 'meshBytes'],
+      ),
+    ),
+    _command('reimport'),
+  ),
+  ModelTool(
+    Tool(
+      name: 'applyClipResult',
+      description:
+          'Write a baked clip — retargetClip/bakeIk/bakeDrivers\'s own '
+          'result, or one computed some other way — into the project. '
+          'clipIndex null (or left out) appends it as a new clip; given, '
+          'replaces the clip already at that index. Nothing here computes '
+          'anything: retargetClip/bakeIk/bakeDrivers already compute and '
+          'land their own result in one call, so this tool exists for '
+          'a clip an agent is landing separately from computing it — the '
+          'same reason applyJobResult exists beside applyModifier.',
+      inputSchema: ObjectSchema(
+        properties: <String, Schema>{
+          'clipIndex': IntegerSchema(
+            description: 'the clip to replace; omit to append instead',
+          ),
+          'clip': ObjectSchema(
+            description: 'the clip, ApplyClipResult\'s own toJson shape',
+            properties: <String, Schema>{
+              'name': StringSchema(description: 'optional'),
+              'tracks': ListSchema(
+                description: 'one entry per animated object/property',
+                items: ObjectSchema(
+                  properties: <String, Schema>{
+                    'objectId': IntegerSchema(
+                      description: 'the object this track drives',
+                    ),
+                    'track': ObjectSchema(
+                      properties: <String, Schema>{
+                        'nodeIndex': IntegerSchema(
+                          description:
+                              'unused on read; carried through for '
+                              'round-trip with a source document only',
+                        ),
+                        'path': UntitledSingleSelectEnumSchema(
+                          description: 'what this track animates',
+                          values: <String>[
+                            for (final p in AnimationPath.values) p.name,
+                          ],
+                        ),
+                        'interpolation': _interpolation(
+                          'how keys blend between times',
+                        ),
+                        'times': _numbers(
+                          'keyframe times in seconds, ascending',
+                        ),
+                        'values': _numbers(
+                          'keyframe values, componentCount per key '
+                          '(times valuesPerKey for cubicSpline)',
+                        ),
+                        'componentCount': IntegerSchema(
+                          description: 'values per keyframe',
+                        ),
+                      },
+                      required: <String>[
+                        'nodeIndex',
+                        'path',
+                        'interpolation',
+                        'times',
+                        'values',
+                        'componentCount',
+                      ],
+                    ),
+                  },
+                  required: <String>['objectId', 'track'],
+                ),
+              ),
+              'extras': ObjectSchema(
+                description: 'optional, carried through opaquely',
+              ),
+            },
+            required: <String>['tracks'],
+          ),
+        },
+        required: <String>['clip'],
+      ),
+    ),
+    _command('applyClipResult'),
   ),
   ModelTool(
     Tool(
@@ -1246,9 +1734,11 @@ List<ModelTool> get _commandTools => <ModelTool>[
           'left out keeps the project\'s current value for it.',
       inputSchema: ObjectSchema(
         properties: <String, Schema>{
-          'maxJoints': IntegerSchema(description: 'new ceiling, 1 through 64'),
+          'maxJoints': IntegerSchema(
+            description: 'how many joints a skeleton may have, 1 to 64',
+          ),
           'maxInfluences': IntegerSchema(
-            description: 'new ceiling, 1 through 4',
+            description: 'how many joints may pull on one vertex, 1 to 4',
           ),
         },
       ),
@@ -1342,6 +1832,83 @@ List<ModelTool> get _commandTools => <ModelTool>[
       ),
     ),
     _command('keyShape'),
+  ),
+  ModelTool(
+    Tool(
+      name: 'addShapeDriver',
+      description:
+          'Add a shape driver to an object: one of its own shape keys, '
+          'wired to track how far a joint has turned about one axis '
+          'between two angles, rather than a person\'s own slider. '
+          'bakeDrivers freezes these into an animation track.',
+      inputSchema: ObjectSchema(
+        properties: <String, Schema>{
+          'id': IntegerSchema(description: 'the object; needs shape keys'),
+          'driver': ObjectSchema(
+            properties: <String, Schema>{
+              'shapeIndex': IntegerSchema(
+                description: 'the shape key, from list',
+              ),
+              'jointId': IntegerSchema(description: 'the joint to read'),
+              'axis': UntitledSingleSelectEnumSchema(
+                description: 'x (default), y or z',
+                values: <String>['x', 'y', 'z'],
+              ),
+              'from': NumberSchema(
+                description: 'the angle, in radians, that reads as 0',
+              ),
+              'to': NumberSchema(
+                description: 'the angle, in radians, that reads as 1',
+              ),
+            },
+            required: <String>['shapeIndex', 'jointId', 'from', 'to'],
+          ),
+        },
+        required: <String>['id', 'driver'],
+      ),
+    ),
+    _command('addShapeDriver'),
+  ),
+  ModelTool(
+    Tool(
+      name: 'removeShapeDriver',
+      description: 'Remove one of an object\'s own shape drivers.',
+      inputSchema: ObjectSchema(
+        properties: <String, Schema>{
+          'id': IntegerSchema(description: 'the object'),
+          'index': IntegerSchema(description: 'the shape driver, from list'),
+        },
+        required: <String>['id', 'index'],
+      ),
+    ),
+    _command('removeShapeDriver'),
+  ),
+  ModelTool(
+    Tool(
+      name: 'setShapeDriverField',
+      description:
+          'Change one field of one of an object\'s own shape drivers, by '
+          'the same field names addShapeDriver\'s own "driver" object '
+          'takes.',
+      inputSchema: ObjectSchema(
+        properties: <String, Schema>{
+          'id': IntegerSchema(description: 'the object'),
+          'index': IntegerSchema(description: 'the shape driver, from list'),
+          'field': UntitledSingleSelectEnumSchema(
+            description: 'shapeIndex, jointId, axis, from or to',
+            values: <String>['shapeIndex', 'jointId', 'axis', 'from', 'to'],
+          ),
+          'value': Schema.combined(
+            description:
+                'a number for shapeIndex/jointId/from/to (from and to in '
+                'radians), or "x"/"y"/"z" for axis',
+            anyOf: <Schema>[NumberSchema(), StringSchema()],
+          ),
+        },
+        required: <String>['id', 'index', 'field', 'value'],
+      ),
+    ),
+    _command('setShapeDriverField'),
   ),
   ModelTool(
     Tool(
@@ -1481,6 +2048,36 @@ List<ModelTool> get _commandTools => <ModelTool>[
   ),
   ModelTool(
     Tool(
+      name: 'bendJoint',
+      description:
+          'Bend a joint to a given angle from its bind pose, the way the '
+          'editor\'s own bend slider does. This is an absolute angle, not a '
+          'nudge: calling it twice with the same degrees leaves the joint '
+          'where the first call put it, and zero puts it back on its bind '
+          'pose. Use rotateBy instead to turn a joint from wherever it '
+          'currently stands. The joint\'s position and scale are left alone.',
+      inputSchema: ObjectSchema(
+        properties: <String, Schema>{
+          'skeletonIndex': IntegerSchema(
+            description: 'which skeleton, from list',
+          ),
+          'jointIndex': IntegerSchema(description: 'the joint, from list'),
+          'degrees': NumberSchema(
+            description: 'the angle from the bind pose, in degrees',
+          ),
+          'axis': IntegerSchema(
+            description:
+                'which axis to bend about, as an index: 0 for x (the '
+                'default), 1 for y, 2 for z',
+          ),
+        },
+        required: <String>['skeletonIndex', 'jointIndex', 'degrees'],
+      ),
+    ),
+    _command('bendJoint'),
+  ),
+  ModelTool(
+    Tool(
       name: 'mirrorJoints',
       description:
           'Mirror one or more joints across an axis-aligned plane, by '
@@ -1493,7 +2090,11 @@ List<ModelTool> get _commandTools => <ModelTool>[
           'skeletonIndex': IntegerSchema(
             description: 'which skeleton, from list',
           ),
-          'axis': IntegerSchema(description: '0 for x, 1 for y, 2 for z'),
+          'axis': IntegerSchema(
+            description:
+                'which axis to mirror across, as an index: 0 for x, 1 '
+                'for y, 2 for z',
+          ),
           'jointMirror': ObjectSchema(
             description:
                 'source joint index (as a string key) to target joint index',
@@ -1504,6 +2105,104 @@ List<ModelTool> get _commandTools => <ModelTool>[
       ),
     ),
     _command('mirrorJoints'),
+  ),
+  ModelTool(
+    Tool(
+      name: 'setRig',
+      description:
+          'One undo step for a whole auto-rig result: appends jointObjects '
+          '(each one\'s own id already chosen, e.g. from buildSkeleton\'s '
+          'own preview) to the project, appends skeleton as a new skeleton, '
+          'and — when skinObjectId is given — binds it to that new '
+          'skeleton, writing weights onto its mesh too when weights is '
+          'also given. Refused: an id in jointObjects already taken, '
+          'skinObjectId with no mesh to skin, or weights.baseVersion '
+          'behind skinObjectId\'s own current version.',
+      inputSchema: ObjectSchema(
+        properties: <String, Schema>{
+          'jointObjects': ListSchema(
+            description:
+                'the new joint (and, for a rig controller, socket) '
+                'objects, in order — each one\'s own parent may name an '
+                'earlier entry in this same list',
+            items: ObjectSchema(
+              properties: <String, Schema>{
+                'id': IntegerSchema(description: 'not already in the project'),
+                'name': StringSchema(),
+                'transform': _matrix16('this joint\'s own local transform'),
+                'parent': IntegerSchema(
+                  description:
+                      'an earlier id in jointObjects, or omit for the root',
+                ),
+              },
+              required: <String>['id', 'name', 'transform'],
+            ),
+          ),
+          'skeleton': ObjectSchema(
+            description: 'the new skeleton, addressing jointObjects by id',
+            properties: <String, Schema>{
+              'name': StringSchema(description: 'optional'),
+              'joints': _ints('jointObjects ids, in vertex-attribute order'),
+              'inverseBindMatrices': ListSchema(
+                description: 'one per joint, same order',
+                items: _matrix16('an inverse bind matrix'),
+              ),
+              'skeletonRoot': IntegerSchema(description: 'optional'),
+              'constraints': ListSchema(
+                description: 'optional two-bone IK chains',
+                items: ObjectSchema(
+                  properties: <String, Schema>{
+                    'rootJointId': IntegerSchema(),
+                    'midJointId': IntegerSchema(),
+                    'effectorJointId': IntegerSchema(),
+                    'target': _vector('the effector\'s own target position'),
+                    'pole': _vector(
+                      'where the mid joint bends toward',
+                      unit: 'a direction, no unit',
+                    ),
+                  },
+                  required: <String>[
+                    'rootJointId',
+                    'midJointId',
+                    'effectorJointId',
+                    'target',
+                    'pole',
+                  ],
+                ),
+              ),
+            },
+            required: <String>['joints', 'inverseBindMatrices'],
+          ),
+          'skinObjectId': IntegerSchema(
+            description: 'optional; bind this object to the new skeleton',
+          ),
+          'weights': ObjectSchema(
+            description:
+                'optional; a bind-weights job\'s own result for '
+                'skinObjectId\'s mesh — refused unless baseVersion still '
+                'matches skinObjectId\'s own current version',
+            properties: <String, Schema>{
+              'baseVersion': IntegerSchema(
+                description: 'skinObjectId\'s own version when this was read',
+              ),
+              'data': StringSchema(
+                description:
+                    'base64 Float32, 8 numbers per vertex slot (4 joint '
+                    'indices into skeleton.joints, then 4 weights)',
+              ),
+            },
+            required: <String>['baseVersion', 'data'],
+          ),
+          'label': StringSchema(
+            description:
+                'what the history offers to undo, e.g. "auto-rig '
+                'humanoid (17 joints)"',
+          ),
+        },
+        required: <String>['jointObjects', 'skeleton', 'label'],
+      ),
+    ),
+    _command('setRig'),
   ),
   ModelTool(
     Tool(
@@ -1518,9 +2217,17 @@ List<ModelTool> get _commandTools => <ModelTool>[
           'clipIndex': IntegerSchema(description: 'which clip, from list'),
           'trackIndex': IntegerSchema(description: 'which track in that clip'),
           'time': NumberSchema(description: 'when, in seconds'),
-          'values': _numbers('one number a component'),
-          'inTangent': _numbers('optional; one number a component'),
-          'outTangent': _numbers('optional; one number a component'),
+          'values': _numbers(
+            'the keyed value, one number a component, in the track\'s '
+            'own units — metres for translation, a unit quaternion for '
+            'rotation, a multiplier for scale',
+          ),
+          'inTangent': _numbers(
+            'optional; one number a component, in the track\'s own units',
+          ),
+          'outTangent': _numbers(
+            'optional; one number a component, in the track\'s own units',
+          ),
         },
         required: <String>['clipIndex', 'trackIndex', 'time', 'values'],
       ),
@@ -1595,8 +2302,12 @@ List<ModelTool> get _commandTools => <ModelTool>[
           'clipIndex': IntegerSchema(description: 'which clip, from list'),
           'trackIndex': IntegerSchema(description: 'which track in that clip'),
           'index': IntegerSchema(description: 'the key, from its own track'),
-          'inTangent': _numbers('optional; one number a component'),
-          'outTangent': _numbers('optional; one number a component'),
+          'inTangent': _numbers(
+            'optional; one number a component, in the track\'s own units',
+          ),
+          'outTangent': _numbers(
+            'optional; one number a component, in the track\'s own units',
+          ),
         },
         required: <String>['clipIndex', 'trackIndex', 'index'],
       ),
@@ -1783,16 +2494,26 @@ List<ModelTool> get _commandTools => <ModelTool>[
           'Set one scene-wide lighting field that is not a light or the '
           'environment: ambientIntensity (a number, the flat ambient '
           'term), shadows (a bool — whether this project\'s lights ask the '
-          'viewport for a shadow map at all), or exposure (a number).',
+          'viewport for a shadow map at all), exposure (a number), or '
+          'bloomEnabled (a bool — whether bright pixels bleed).',
       inputSchema: ObjectSchema(
         properties: <String, Schema>{
+          // `ux-35`: `bloomEnabled` has been one of the four this command
+          // sets since `SetSceneLightingField` was written, and the schema
+          // named three — so the one field an agent could not discover was
+          // the only post-processing switch the project has.
           'field': UntitledSingleSelectEnumSchema(
-            values: <String>['ambientIntensity', 'shadows', 'exposure'],
+            values: <String>[
+              'ambientIntensity',
+              'shadows',
+              'exposure',
+              'bloomEnabled',
+            ],
           ),
           'value': Schema.combined(
             description:
                 'a number for ambientIntensity/exposure, a bool for '
-                'shadows',
+                'shadows/bloomEnabled',
             anyOf: <Schema>[NumberSchema(), BooleanSchema()],
           ),
         },
@@ -1818,8 +2539,16 @@ List<ModelTool> get _commandTools => <ModelTool>[
             description: 'the kind\'s own fields beyond id and kind',
             additionalProperties: true,
           ),
-          'x': NumberSchema(description: 'canvas position, default 0'),
-          'y': NumberSchema(description: 'canvas position, default 0'),
+          'x': NumberSchema(
+            description:
+                'where on the graph canvas, in pixels; '
+                'default 0',
+          ),
+          'y': NumberSchema(
+            description:
+                'where on the graph canvas, in pixels; '
+                'default 0',
+          ),
         },
         required: <String>['materialIndex', 'kind'],
       ),
@@ -1838,7 +2567,9 @@ List<ModelTool> get _commandTools => <ModelTool>[
           'materialIndex': IntegerSchema(description: 'the material row'),
           'nodeId': IntegerSchema(description: 'the node being wired into'),
           'input': StringSchema(description: 'which of its inputs'),
-          'from': IntegerSchema(description: 'the node whose output feeds it'),
+          'from': IntegerSchema(
+            description: 'the node whose output feeds it, by node id',
+          ),
         },
         required: <String>['materialIndex', 'nodeId', 'input', 'from'],
       ),
@@ -1899,8 +2630,8 @@ List<ModelTool> get _commandTools => <ModelTool>[
         properties: <String, Schema>{
           'materialIndex': IntegerSchema(description: 'the material row'),
           'nodeId': IntegerSchema(description: 'the node'),
-          'x': NumberSchema(description: 'new canvas position'),
-          'y': NumberSchema(description: 'new canvas position'),
+          'x': NumberSchema(description: 'the new canvas position, in pixels'),
+          'y': NumberSchema(description: 'the new canvas position, in pixels'),
         },
         required: <String>['materialIndex', 'nodeId', 'x', 'y'],
       ),
@@ -1936,7 +2667,11 @@ List<ModelTool> get _commandTools => <ModelTool>[
       inputSchema: ObjectSchema(
         properties: <String, Schema>{
           'id': IntegerSchema(description: 'the object'),
-          'ratio': NumberSchema(description: 'target triangle ratio, (0, 1]'),
+          'ratio': NumberSchema(
+            description:
+                'how many triangles to keep, as a fraction of the '
+                'original: (0, 1]',
+          ),
           'maxScreenFraction': NumberSchema(
             description: 'screen-height fraction this level takes over below',
           ),
@@ -1956,7 +2691,11 @@ List<ModelTool> get _commandTools => <ModelTool>[
         properties: <String, Schema>{
           'id': IntegerSchema(description: 'the object'),
           'lodIndex': IntegerSchema(description: 'which level, from addLod'),
-          'ratio': NumberSchema(description: 'the new target ratio, (0, 1]'),
+          'ratio': NumberSchema(
+            description:
+                'how many triangles to keep, as a fraction of the '
+                'original: (0, 1]',
+          ),
         },
         required: <String>['id', 'lodIndex', 'ratio'],
       ),
@@ -2006,6 +2745,85 @@ List<ModelTool> get modelTools => <ModelTool>[
     _sync(
       (ModelSession session, Map<String, Object?> arguments) =>
           (did: true, says: session.listing()),
+    ),
+  ),
+  ModelTool(
+    Tool(
+      name: 'describe',
+      description:
+          'One object in numbers: its box, and where each of its '
+          'elements is, which way it faces and how big it is. This is how '
+          'you find the element to edit — the face that points up, the '
+          'vertex at a corner, the longest edge — without rendering a '
+          'picture and guessing from it. Element ids from here go straight '
+          'into select. Describes the first 50 elements unless you name '
+          'some in "elements" or raise "limit".',
+      inputSchema: ObjectSchema(
+        properties: <String, Schema>{
+          'id': IntegerSchema(description: 'the object, from list'),
+          'level': UntitledSingleSelectEnumSchema(
+            description:
+                'vertex, edge or face; defaults to whatever the selection '
+                'is at, or faces',
+            values: <String>[for (final l in ElementLevel.values) l.name],
+          ),
+          'elements': _ints('specific element ids, instead of the first few'),
+          'limit': IntegerSchema(
+            description: 'how many to describe when "elements" is not given',
+          ),
+        },
+        required: <String>['id'],
+      ),
+    ),
+    _sync((ModelSession session, Map<String, Object?> arguments) {
+      final Object? id = arguments['id'];
+      if (id is! int) return (did: false, says: 'describe needs an "id"');
+      final Object? elements = arguments['elements'];
+      return (
+        did: true,
+        says: session.describe(
+          id,
+          level: arguments['level'] as String?,
+          limit: arguments['limit'] as int?,
+          elements: elements is List
+              ? elements.whereType<int>().toList()
+              : null,
+        ),
+      );
+    }),
+  ),
+  ModelTool(
+    Tool(
+      name: 'describe_type',
+      description:
+          'What a kind of thing takes: the fields of a modifier kind, a '
+          'parametric shape or a texture node, with their shapes, ranges and '
+          'units. Ask with a "family" alone to list its kinds, then again '
+          'with a "kind" for that one\'s own fields. This is the answer to '
+          '"what does addModifier want for a mirror" without reading a '
+          'paragraph covering five kinds.',
+      inputSchema: ObjectSchema(
+        properties: <String, Schema>{
+          'family': UntitledSingleSelectEnumSchema(
+            description: 'which family of kinds to describe',
+            values: describableFamilies,
+          ),
+          'kind': StringSchema(
+            description:
+                'one kind of that family, e.g. "mirror"; omit to list them',
+          ),
+        },
+        required: <String>['family'],
+      ),
+    ),
+    _sync(
+      (ModelSession session, Map<String, Object?> arguments) => (
+        did: true,
+        says: describeType(
+          family: arguments['family']! as String,
+          kind: arguments['kind'] as String?,
+        ),
+      ),
     ),
   ),
   ModelTool(
@@ -2063,7 +2881,85 @@ List<ModelTool> get modelTools => <ModelTool>[
       );
     }),
   ),
-  ..._commandTools,
+  ..._aimableCommandTools,
+  ModelTool(
+    Tool(
+      name: 'batch',
+      description:
+          'Run several commands as one undo step, all or nothing. Each '
+          'entry is a command object — "name" plus that command\'s own '
+          'arguments, the same shape amend and the journal use — and may '
+          'carry its own "object"/"faces"/"edges"/"vertices"/"ids" target. '
+          'If any entry refuses, the whole batch is taken back and the '
+          'project is exactly as it was; the answer names the entry that '
+          'refused and why. Use it for a run of edits that only makes sense '
+          'together, so a person\'s undo takes back the change rather than '
+          'the last third of it.',
+      inputSchema: ObjectSchema(
+        properties: <String, Schema>{
+          'commands': ListSchema(
+            description: 'the commands to run, in order',
+            items: ObjectSchema(),
+            minItems: 1,
+          ),
+        },
+        required: <String>['commands'],
+      ),
+    ),
+    (ModelSession session, Map<String, Object?> arguments) async {
+      final Object? commands = arguments['commands'];
+      if (commands is! List) {
+        return (did: false, says: 'batch needs a list of "commands"');
+      }
+      // `mcp-14n`'s own lock — see `_command`'s own copy of this line. A
+      // batch opens a transaction of its own, and two open at once is a
+      // `StateError` rather than a refusal.
+      await session.history.whenNotInTransaction;
+      return session.batch(<Map<String, Object?>>[
+        for (final Object? entry in commands)
+          if (entry is Map<String, Object?>) entry,
+      ]);
+    },
+  ),
+  ModelTool(
+    Tool(
+      name: 'amend',
+      description:
+          'Adjust the last operation instead of pushing a second one '
+          'on top of it — the operation card\'s own slider. Takes a whole '
+          'command object, the same shape run/the journal use ("name" '
+          'plus that command\'s own arguments, e.g. {"name": "extrude", '
+          '"distance": 0.09}) and re-runs it against the document as it '
+          'was before the step being adjusted, replacing that step rather '
+          'than adding a new one. Refused when there is nothing to adjust, '
+          'or when the new arguments themselves are refused — the old step '
+          'is left in place either way.',
+      inputSchema: ObjectSchema(
+        properties: <String, Schema>{
+          'name': StringSchema(
+            description: 'the command to re-run, e.g. "extrude"',
+          ),
+        },
+        required: <String>['name'],
+      ),
+    ),
+    (ModelSession session, Map<String, Object?> arguments) async {
+      final ModelCommand? command = modelCommandFromJson(arguments);
+      if (command == null) {
+        final Object? name = arguments['name'];
+        return (
+          did: false,
+          says:
+              '${name ?? 'that'} cannot be read from those arguments — '
+              'check the schema tools/list gave for the command amend is '
+              'adjusting to',
+        );
+      }
+      // `mcp-14n`'s own lock — see `_command`'s own copy of this line.
+      await session.history.whenNotInTransaction;
+      return session.amend(command);
+    },
+  ),
   ModelTool(
     Tool(
       name: 'undo',
@@ -2166,10 +3062,36 @@ List<ModelTool> get modelTools => <ModelTool>[
           'Bring a glTF, GLB, OBJ, `.f3d` or STL file in as new '
           'objects, added beside what is already here. Every object it '
           'brings arrives as one undo step. An FBX file is recognised and '
-          'refused with the reason.',
+          'refused with the reason. Defaults to no scaling, up axis "y" and '
+          'every object left exactly as the file read — pass unit/upAxis '
+          'for a file with a different convention of its own (an `.stl` in '
+          'particular carries no unit at all) and weld/fixNormals/'
+          'triangulate to build real mesh topology on the way in, the same '
+          'choices the app\'s own import screen offers a person.',
       inputSchema: ObjectSchema(
         properties: <String, Schema>{
           'from': StringSchema(description: 'the path to read'),
+          'unit': _importUnit(
+            'the file\'s own unit: "mm" (an `.stl`\'s usual '
+            'convention), "cm" or "m" (default, no scaling)',
+          ),
+          'upAxis': _upAxis('the file\'s own up axis, default "y"'),
+          'weld': BooleanSchema(
+            description:
+                'weld coincident vertices into real mesh '
+                'topology on the objects this import adds, default false '
+                '(left byte-for-byte as the file read)',
+          ),
+          'fixNormals': BooleanSchema(
+            description:
+                'recalculate normals on the objects this '
+                'import adds, default false',
+          ),
+          'triangulate': BooleanSchema(
+            description:
+                'triangulate every n-gon on the objects this '
+                'import adds, default false',
+          ),
         },
         required: <String>['from'],
       ),
@@ -2182,7 +3104,16 @@ List<ModelTool> get modelTools => <ModelTool>[
           says: 'import needs a "from" path',
         ));
       }
-      return session.import(from);
+      final unit = arguments['unit'];
+      final scale = unit is String ? (_importUnitScale[unit] ?? 1.0) : 1.0;
+      final upAxis = arguments['upAxis'] == 'z' ? UpAxis.z : UpAxis.y;
+      return session.import(
+        from,
+        options: ImportOptions(scale: scale, upAxis: upAxis),
+        weld: arguments['weld'] == true,
+        fixNormals: arguments['fixNormals'] == true,
+        triangulate: arguments['triangulate'] == true,
+      );
     },
   ),
   ModelTool(
@@ -2265,8 +3196,12 @@ List<ModelTool> get modelTools => <ModelTool>[
                 'kind': UntitledSingleSelectEnumSchema(
                   values: AddPrimitive.primitiveKinds,
                 ),
-                'size': NumberSchema(description: 'how big, default 1'),
-                'segments': IntegerSchema(description: 'how round, default 32'),
+                'size': NumberSchema(
+                  description: 'how big across, in metres; default 1',
+                ),
+                'segments': IntegerSchema(
+                  description: 'how many segments around, default 32',
+                ),
                 'at': _vector('where it goes, default the origin'),
                 'name': StringSchema(description: 'what to call it'),
                 'parent': IntegerSchema(
@@ -2298,7 +3233,7 @@ List<ModelTool> get modelTools => <ModelTool>[
       description:
           'Metrics (object, vertex and face counts) and issues in '
           'one call — list and check together, for a quick read on what '
-          'was just built. No picture yet.',
+          'was just built. Numbers only; `render` is the picture.',
       inputSchema: ObjectSchema(),
     ),
     _sync(
@@ -2311,15 +3246,24 @@ List<ModelTool> get modelTools => <ModelTool>[
 
 // ------------------------------------------------------------- anim-30
 //
-// MCP tools over `anim-21`'s `buildSkeleton`, `anim-10`'s `paintWeights`,
-// `anim-15`'s `bakeIk`, `anim-20`'s `bakeShapeDrivers`, `anim-13`'s
-// `rigIssues` and `anim-17`'s `retargetClip`, plus `addShape` — a
-// second, plan-facing name for the already-offered `addShapeFromMesh` tool.
+// MCP tools over `anim-21`'s `buildSkeleton`, `anim-15`'s `bakeIk`,
+// `anim-20`'s `bakeShapeDrivers`, `anim-13`'s `rigIssues` and `anim-17`'s
+// `retargetClip`, plus `addShape` — a second, plan-facing name for the
+// already-offered `addShapeFromMesh` tool.
 // Kept as one block, appended after every other tool, rather than woven in
 // beside the rig/keyframe tools above: `setKey`, `extractRootMotion` and
 // `addShapeFromMesh` already existed on this branch before this row and
 // are untouched; everything here is new, and a merge that finds this file
 // changed elsewhere too only has to reconcile one seam, not several.
+//
+// **`paintWeights` itself sits here too, but runs through `_command`, not
+// a session recipe.** `anim-10`'s own `PaintWeights` is a real
+// `ModelCommand` (`flutter3d_model_core`'s own `paint_weights.dart`) —
+// unlike every other tool in this block, which wraps a real function that
+// cannot be one. It stays in this block anyway rather than moving up
+// beside the other command tools: it is still part of the same rig
+// pipeline scenario `rig_pipeline_mcp_test.dart` drives end to end, and
+// splitting it out would cost that continuity for no reader's benefit.
 List<ModelTool> get _rigPipelineTools => <ModelTool>[
   ModelTool(
     Tool(
@@ -2332,7 +3276,11 @@ List<ModelTool> get _rigPipelineTools => <ModelTool>[
           'joint is the mirror of its left-side marker; only the left half '
           'and the centerline need naming. skinObjectId, when given, binds '
           'that object\'s own mesh to the new skeleton in the same step — '
-          'paintWeights is what then puts real weights on its vertices.',
+          'paintWeights is what then puts real weights on its vertices. '
+          'spineCount, fingers, toes, faceBones, ikChains and controllers '
+          'compose extra joints (humanoid only, past the base template) — '
+          'see the refusal this gives if a combination would deform more '
+          'than the skinning shader\'s own 64 joints.',
       inputSchema: ObjectSchema(
         properties: <String, Schema>{
           'template': UntitledSingleSelectEnumSchema(
@@ -2355,11 +3303,42 @@ List<ModelTool> get _rigPipelineTools => <ModelTool>[
           ),
           'bounds': ListSchema(
             description:
-                'optional sanity box, 6 numbers: minX minY minZ maxX maxY '
-                'maxZ; computed from the markers themselves when left out',
+                'optional sanity box, 6 numbers in metres: minX minY minZ '
+                'maxX maxY maxZ; computed from the markers themselves '
+                'when left out',
             items: NumberSchema(),
             minItems: 6,
             maxItems: 6,
+          ),
+          'spineCount': IntegerSchema(
+            description:
+                '1 (default) through 3 spine segments between hips and '
+                'chest; humanoid only',
+          ),
+          'fingers': BooleanSchema(
+            description:
+                'five three-phalanx fingers per hand, off the wrists; '
+                'humanoid only, default false',
+          ),
+          'toes': BooleanSchema(
+            description:
+                'one toes joint per foot, off the ankles; humanoid only, '
+                'default false',
+          ),
+          'faceBones': BooleanSchema(
+            description:
+                'a jaw and two eyes, derived from head/neck; humanoid '
+                'only, default false',
+          ),
+          'ikChains': BooleanSchema(
+            description:
+                'two-bone IK on both arms and both legs; humanoid only, '
+                'default false',
+          ),
+          'controllers': BooleanSchema(
+            description:
+                'a socket-parent controller above the root joint, not '
+                'itself a deforming joint; default false',
           ),
         },
         required: <String>['template', 'markers'],
@@ -2394,6 +3373,12 @@ List<ModelTool> get _rigPipelineTools => <ModelTool>[
         bounds: bounds is List
             ? <double>[for (final n in bounds) (n as num).toDouble()]
             : null,
+        spineCount: (arguments['spineCount'] as num?)?.toInt() ?? 1,
+        fingers: arguments['fingers'] as bool? ?? false,
+        toes: arguments['toes'] as bool? ?? false,
+        faceBones: arguments['faceBones'] as bool? ?? false,
+        ikChains: arguments['ikChains'] as bool? ?? false,
+        controllers: arguments['controllers'] as bool? ?? false,
       );
     },
   ),
@@ -2403,11 +3388,13 @@ List<ModelTool> get _rigPipelineTools => <ModelTool>[
       description:
           'Paint one joint\'s skin weight influence over one or more brush '
           'samples on an object\'s own mesh, hit-tested against the '
-          'mesh\'s current posed shape. mode "paint" blends onto whatever a '
-          'vertex already has; "assign" replaces its whole influence list '
-          'with this one joint. Not recorded as an undo step — the mesh is '
-          'changed for real (an export afterward sees it), but undo cannot '
-          'take just this back yet.',
+          'mesh\'s current posed shape, as one undo step. mode "paint" '
+          'blends onto whatever a vertex already has; "assign" replaces '
+          'its whole influence list with this one joint. normalize '
+          '(default true) prunes every touched vertex to maxInfluences — '
+          'the project\'s own profile limit by default — and renormalizes '
+          'it, once the stroke (and the mirror, when one is given) is '
+          'done.',
       inputSchema: ObjectSchema(
         properties: <String, Schema>{
           'objectId': IntegerSchema(description: 'the object, with a mesh'),
@@ -2435,7 +3422,11 @@ List<ModelTool> get _rigPipelineTools => <ModelTool>[
           'mirror': ObjectSchema(
             description: 'optional; mirror the stroke across a plane',
             properties: <String, Schema>{
-              'axis': IntegerSchema(description: '0 for x, 1 for y, 2 for z'),
+              'axis': IntegerSchema(
+                description:
+                    'which axis to mirror across, as an index: 0 for x, 1 '
+                    'for y, 2 for z',
+              ),
               'jointMirror': ObjectSchema(
                 description: 'source joint index (string key) to target',
                 additionalProperties: IntegerSchema(),
@@ -2447,7 +3438,13 @@ List<ModelTool> get _rigPipelineTools => <ModelTool>[
           ),
           'normalize': BooleanSchema(
             description:
-                'renormalize every touched vertex after, default false',
+                'prune every touched vertex to maxInfluences and '
+                'renormalize it after the stroke; default true',
+          ),
+          'maxInfluences': IntegerSchema(
+            description:
+                'how many joints may pull on one vertex once normalize '
+                'has pruned; default the project\'s own profile limit',
           ),
         },
         required: <String>[
@@ -2459,39 +3456,332 @@ List<ModelTool> get _rigPipelineTools => <ModelTool>[
         ],
       ),
     ),
-    (ModelSession session, Map<String, Object?> arguments) async {
-      final objectId = arguments['objectId'];
-      final skeletonIndex = arguments['skeletonIndex'];
-      final joint = arguments['joint'];
-      final samplesJson = arguments['samples'];
-      final strength = arguments['strength'];
-      if (objectId is! int ||
-          skeletonIndex is! int ||
-          joint is! int ||
-          samplesJson is! List ||
-          strength is! num) {
-        return (
-          did: false,
-          says:
-              'paintWeights needs "objectId", "skeletonIndex", "joint", '
-              '"samples" and "strength"',
-        );
-      }
-      return session.paintSkinWeights(
-        objectId: objectId,
-        skeletonIndex: skeletonIndex,
-        joint: joint,
-        samples: <Map<String, Object?>>[
-          for (final s in samplesJson) Map<String, Object?>.from(s! as Map),
-        ],
-        strength: strength.toDouble(),
-        mode: arguments['mode'] as String? ?? 'paint',
-        mirror: arguments['mirror'] == null
-            ? null
-            : Map<String, Object?>.from(arguments['mirror']! as Map),
-        normalize: arguments['normalize'] == true,
-      );
-    },
+    _command('paintWeights'),
+  ),
+  ModelTool(
+    Tool(
+      name: 'sculptStroke',
+      description:
+          'Drag one sculpting brush along a path over an object\'s mesh, as '
+          'one undo step — `pro-sc-06`\'s own tool. points are where the '
+          'brush went, in the mesh\'s own space, in order; pressures (when '
+          'given, one per point) scales strength at each of them, which is '
+          'what a tablet reports and a mouse does not. The brush moves '
+          'vertices within radius of each point: draw and clay build a '
+          'surface up along the shared normal, inflate pushes each vertex '
+          'along its own, smooth and flatten even it out, grab drags the '
+          'vertices with the path, pinch and crease pull them together. '
+          'symmetryX applies the same stroke mirrored across x = 0.',
+      inputSchema: ObjectSchema(
+        properties: <String, Schema>{
+          'objectId': IntegerSchema(description: 'the object, with a mesh'),
+          'kind': UntitledSingleSelectEnumSchema(
+            description: 'which brush',
+            values: <String>[
+              'draw',
+              'clay',
+              'smooth',
+              'flatten',
+              'inflate',
+              'grab',
+              'pinch',
+              'crease',
+            ],
+          ),
+          'radius': NumberSchema(
+            description: 'how far each dab reaches, in metres',
+          ),
+          'strength': NumberSchema(description: 'how hard it pushes, 0..1'),
+          'points': ListSchema(
+            description: 'the path the brush was dragged along, in order',
+            items: _vector('one point on the stroke'),
+          ),
+          'pressures': ListSchema(
+            description:
+                'optional; pressure 0..1 per point, same length as points. '
+                'A point at 0 moves the brush without sculpting.',
+            items: NumberSchema(),
+          ),
+          'falloff': UntitledSingleSelectEnumSchema(
+            description: 'how influence tapers to the edge; default smooth',
+            values: <String>['linear', 'smooth', 'sharp'],
+          ),
+          'symmetryX': BooleanSchema(
+            description: 'also apply the stroke mirrored across x = 0',
+          ),
+        },
+        required: <String>['objectId', 'kind', 'radius', 'strength', 'points'],
+      ),
+    ),
+    _command('sculptStroke'),
+  ),
+  ModelTool(
+    Tool(
+      name: 'subdivideMesh',
+      description:
+          'Subdivide the selected object\'s mesh, four quads per face per '
+          'level — `pro-sc-08`\'s own Subdivide. smooth (default true) is '
+          'Catmull-Clark, which pulls the surface toward its limit; false '
+          'keeps every vertex where it is and only adds topology. Refused '
+          'on an object with shape keys or a bound skeleton, neither of '
+          'which a subdivision carries with it.',
+      inputSchema: ObjectSchema(
+        properties: <String, Schema>{
+          'levels': IntegerSchema(
+            description: 'how many times to subdivide, 1 to 4; default 1',
+          ),
+          'smooth': BooleanSchema(
+            description:
+                'Catmull-Clark when true (the default), plain linear '
+                'subdivision when false',
+          ),
+        },
+      ),
+    ),
+    _command('subdivideMesh'),
+  ),
+  ModelTool(
+    Tool(
+      name: 'drawQuad',
+      description:
+          'Add one quad to a retopology by naming its four corners in the '
+          'target mesh\'s own space, in order — `pro-rt-02`. A corner '
+          'within snap metres of a vertex the mesh already has reuses that '
+          'vertex, which is what welds the new quad to the strip beside it; '
+          'a corner that is not is pulled onto sourceId\'s own surface when '
+          'one is given, and left where it is when none is. Refused when '
+          'two corners snap to the same vertex, which would be a triangle.',
+      inputSchema: ObjectSchema(
+        properties: <String, Schema>{
+          'objectId': IntegerSchema(
+            description: 'the retopology mesh the quad is added to',
+          ),
+          'points': ListSchema(
+            description: 'the four corners, in order',
+            items: _vector('one corner, in the target mesh\'s own space'),
+          ),
+          'sourceId': IntegerSchema(
+            description: 'optional; the high mesh a new corner is pulled onto',
+          ),
+          'snap': NumberSchema(
+            description:
+                'how near an existing vertex has to be to be reused, in '
+                'metres; default 0.02',
+          ),
+        },
+        required: <String>['objectId', 'points'],
+      ),
+    ),
+    _command('drawQuad'),
+  ),
+
+  ModelTool(
+    Tool(
+      name: 'retopologize',
+      description:
+          'Rebuild an object\'s surface as quads at about the count you ask '
+          'for, shrink-wrapped back onto the shape it had — `pro-rt-01`. '
+          'Refused on an object with shape keys or a bound skeleton, neither '
+          'of which survives a retopology: it has none of the old vertices.',
+      inputSchema: ObjectSchema(
+        properties: <String, Schema>{
+          'objectId': IntegerSchema(description: 'the object to rebuild'),
+          'targetQuads': IntegerSchema(
+            description: 'about how many quads to come out at; default 2000',
+          ),
+        },
+        required: <String>['objectId'],
+      ),
+    ),
+    _command('retopologize'),
+  ),
+  ModelTool(
+    Tool(
+      name: 'bakeMaps',
+      description:
+          'Bake a high mesh\'s surface onto a low mesh\'s UVs — '
+          '`pro-rt-06`. normal and ao land in the target material\'s own '
+          'normal and occlusion slots; curvature and thickness have no slot '
+          'in glTF, so they are added to the project\'s images for a '
+          'texture graph to read as a mask. The target needs UVs and, for '
+          'normal or ao, a material. One command for however many maps: '
+          'they share the rasterization and the high mesh\'s tree.',
+      inputSchema: ObjectSchema(
+        properties: <String, Schema>{
+          'sourceId': IntegerSchema(
+            description: 'the high mesh, the one with the detail',
+          ),
+          'targetId': IntegerSchema(
+            description: 'the low mesh, the one with the UVs',
+          ),
+          'maps': ListSchema(
+            description: 'which maps; default ["normal"]',
+            items: UntitledSingleSelectEnumSchema(
+              values: <String>['normal', 'ao', 'curvature', 'thickness'],
+            ),
+          ),
+          'resolution': IntegerSchema(
+            description:
+                'the side of the square image, in texels, 16 to 4096; '
+                'default 1024',
+          ),
+          'shell': NumberSchema(
+            description:
+                'how far either side of the low surface the ray cage '
+                'reaches, in metres; default 0.1',
+          ),
+        },
+        required: <String>['sourceId', 'targetId'],
+      ),
+    ),
+    _command('bakeMaps'),
+  ),
+  ModelTool(
+    Tool(
+      name: 'paintStroke',
+      description:
+          'Paint one stroke onto an object\'s own texture, as one undo step '
+          '— `pro-pt-03`. Each sample is a ball on the surface in the '
+          'object\'s own space, and the texels it reaches are found in three '
+          'dimensions rather than in the layout, so a stroke over a UV seam '
+          'paints both islands. maskImage names a baked map (ao, curvature) '
+          'whose red channel gates the stroke, which is how paint settles '
+          'into crevices. The object needs UVs and a material.',
+      inputSchema: ObjectSchema(
+        properties: <String, Schema>{
+          'objectId': IntegerSchema(description: 'the object being painted'),
+          'samples': ListSchema(
+            description: 'one or more brush hits making up this stroke',
+            items: ObjectSchema(
+              properties: <String, Schema>{
+                'centre': _vector(
+                  'where the brush touched, in the object\'s own space',
+                ),
+                'radius': NumberSchema(
+                  description: 'how far the hit reaches, in metres',
+                ),
+              },
+              required: <String>['centre', 'radius'],
+            ),
+          ),
+          'colour': ListSchema(
+            description: 'straight-alpha RGBA, four numbers 0..1',
+            items: NumberSchema(),
+          ),
+          'layer': IntegerSchema(
+            description:
+                'which layer of the stack, counted from the bottom; a layer '
+                'past the end is added. Default 0',
+          ),
+          'strength': NumberSchema(description: 'how hard, 0..1; default 1'),
+          'size': IntegerSchema(
+            description:
+                'the side of the square canvas in texels, 16 to 4096, read '
+                'only when the material has no layers yet; default 1024',
+          ),
+          'maskImage': IntegerSchema(
+            description:
+                'optional; an index into the project\'s images whose red '
+                'channel gates the stroke',
+          ),
+          'maskInverted': BooleanSchema(
+            description: 'read the mask the other way up',
+          ),
+        },
+        required: <String>['objectId', 'samples', 'colour'],
+      ),
+    ),
+    _command('paintStroke'),
+  ),
+  ModelTool(
+    Tool(
+      name: 'adoptTexture',
+      description:
+          'Take the base-colour texture a material already has as the bottom '
+          'layer of its paint stack — `pro-pt-04`. Without this the first '
+          'stroke replaces the texture rather than painting over it, since '
+          'the flattened stack is written into that same slot. Refused on a '
+          'material that already has layers: adopting the texture then would '
+          'put it under work already done.',
+      inputSchema: ObjectSchema(
+        properties: <String, Schema>{
+          'materialIndex': IntegerSchema(description: 'which material'),
+          'size': IntegerSchema(
+            description:
+                'the canvas to lay it into, a side in texels; default the '
+                'image\'s own size',
+          ),
+        },
+        required: <String>['materialIndex'],
+      ),
+    ),
+    _command('adoptTexture'),
+  ),
+  ModelTool(
+    Tool(
+      name: 'paintVertexColour',
+      description:
+          'Paint into the mesh\'s own vertex colour rather than a texture — '
+          '`pro-pt-06n`. No UVs and no second file: the colour is on the '
+          'vertices and travels with them, including through a glTF export, '
+          'which is why masks for wind, grime and wear live here. The '
+          'resolution is the mesh\'s own, so a stroke on a cube paints eight '
+          'corners; subdivide first if you want a brush rather than a flood.',
+      inputSchema: ObjectSchema(
+        properties: <String, Schema>{
+          'objectId': IntegerSchema(description: 'the object being painted'),
+          'samples': ListSchema(
+            description: 'one or more brush hits making up this stroke',
+            items: ObjectSchema(
+              properties: <String, Schema>{
+                'centre': _vector(
+                  'where the brush touched, in the object\'s own space',
+                ),
+                'radius': NumberSchema(
+                  description: 'how far the hit reaches, in metres',
+                ),
+              },
+              required: <String>['centre', 'radius'],
+            ),
+          ),
+          'colour': ListSchema(
+            description: 'straight RGBA, four numbers 0..1',
+            items: NumberSchema(),
+          ),
+          'strength': NumberSchema(description: 'how hard, 0..1; default 1'),
+        },
+        required: <String>['objectId', 'samples', 'colour'],
+      ),
+    ),
+    _command('paintVertexColour'),
+  ),
+  ModelTool(
+    Tool(
+      name: 'packAtlas',
+      description:
+          'Pack several objects\' UVs into one shared square and point them '
+          'all at one material — `pro-uv-08n`. Nine props with one texture '
+          'is one draw call instead of nine, which is the whole reason. Each '
+          'object keeps the island layout it already has and is scaled into '
+          'a cell of the square, so a face somebody laid out carefully stays '
+          'laid out, smaller. Every object needs UVs, and the first needs a '
+          'material for the rest to share.',
+      inputSchema: ObjectSchema(
+        properties: <String, Schema>{
+          'objectIds': ListSchema(
+            description: 'which objects share the atlas; two or more',
+            items: IntegerSchema(),
+          ),
+          'margin': NumberSchema(
+            description:
+                'empty space between two cells, as a fraction of the '
+                'square\'s own side; default 0.01',
+          ),
+        },
+        required: <String>['objectIds'],
+      ),
+    ),
+    _command('packAtlas'),
   ),
   ModelTool(
     Tool(
@@ -2518,8 +3808,14 @@ List<ModelTool> get _rigPipelineTools => <ModelTool>[
             additionalProperties: StringSchema(),
           ),
           'lockFeet': BooleanSchema(description: 'default true'),
-          'groundY': NumberSchema(description: 'default 0'),
-          'footTolerance': NumberSchema(description: 'default 1e-3'),
+          'groundY': NumberSchema(
+            description: 'where the floor is, in metres; default 0',
+          ),
+          'footTolerance': NumberSchema(
+            description:
+                'how far a foot may drift from the floor before it is '
+                'locked to it, in metres; default 1e-3',
+          ),
           'clipName': StringSchema(description: 'optional'),
         },
         required: <String>[
@@ -2577,8 +3873,13 @@ List<ModelTool> get _rigPipelineTools => <ModelTool>[
           'midJointId': IntegerSchema(description: 'the chain\'s own middle'),
           'effectorJointId': IntegerSchema(description: 'the chain\'s own tip'),
           'target': _vector('where the effector should reach'),
-          'pole': _vector('which side the middle joint bends toward'),
-          'fps': NumberSchema(description: 'sampling rate, default 30'),
+          'pole': _vector(
+            'which side the middle joint bends toward',
+            unit: 'a direction, no unit',
+          ),
+          'fps': NumberSchema(
+            description: 'how many samples a second, in fps; default 30',
+          ),
         },
         required: <String>[
           'clipIndex',
@@ -2629,7 +3930,9 @@ List<ModelTool> get _rigPipelineTools => <ModelTool>[
           'joint has turned about one axis) into one more weights track on '
           'a clip, naming the shape-owning object — additive, so drivers '
           'naming the same shape add rather than the second overwriting '
-          'the first.',
+          'the first. "drivers" is optional: when it is left out, this '
+          'bakes the shape-owning object\'s own drivers, whatever '
+          'addShapeDriver has built up on it.',
       inputSchema: ObjectSchema(
         properties: <String, Schema>{
           'clipIndex': IntegerSchema(description: 'which clip, from list'),
@@ -2637,7 +3940,9 @@ List<ModelTool> get _rigPipelineTools => <ModelTool>[
             description: 'the object whose shape keys are driven',
           ),
           'drivers': ListSchema(
-            description: 'one or more drivers, combined additively',
+            description:
+                'one or more drivers, combined additively; omit to bake '
+                'the object\'s own persisted shape drivers instead',
             items: ObjectSchema(
               properties: <String, Schema>{
                 'shapeIndex': IntegerSchema(
@@ -2659,51 +3964,45 @@ List<ModelTool> get _rigPipelineTools => <ModelTool>[
             ),
           ),
         },
-        required: <String>['clipIndex', 'shapeTargetObjectId', 'drivers'],
+        required: <String>['clipIndex', 'shapeTargetObjectId'],
       ),
     ),
     _sync((ModelSession session, Map<String, Object?> arguments) {
       final clipIndex = arguments['clipIndex'];
       final shapeTargetObjectId = arguments['shapeTargetObjectId'];
-      final driversJson = arguments['drivers'];
-      if (clipIndex is! int ||
-          shapeTargetObjectId is! int ||
-          driversJson is! List) {
+      if (clipIndex is! int || shapeTargetObjectId is! int) {
         return (
           did: false,
-          says:
-              'bakeDrivers needs "clipIndex", "shapeTargetObjectId" and '
-              '"drivers"',
+          says: 'bakeDrivers needs "clipIndex" and "shapeTargetObjectId"',
         );
+      }
+      final driversJson = arguments['drivers'];
+      List<Map<String, Object?>>? drivers;
+      if (driversJson != null) {
+        if (driversJson is! List) {
+          return (
+            did: false,
+            says: '"drivers", when given, needs to be a list',
+          );
+        }
+        drivers = <Map<String, Object?>>[
+          for (final d in driversJson) Map<String, Object?>.from(d! as Map),
+        ];
       }
       return session.bakeDrivers(
         clipIndex: clipIndex,
         shapeTargetObjectId: shapeTargetObjectId,
-        drivers: <Map<String, Object?>>[
-          for (final d in driversJson) Map<String, Object?>.from(d! as Map),
-        ],
+        drivers: drivers,
       );
     }),
   ),
-  ModelTool(
-    Tool(
-      name: 'addShape',
-      description:
-          'Add a new shape key to an object, captured from the mesh\'s own '
-          'current vertex positions — the same command addShapeFromMesh '
-          'already offers, under the name the rig-pipeline scenario '
-          'knows it by. Sculpt the mesh first, then call this to save it '
-          'as a shape; it starts at weight 0.0.',
-      inputSchema: ObjectSchema(
-        properties: <String, Schema>{
-          'id': IntegerSchema(description: 'the object; needs an edited mesh'),
-          'shapeName': StringSchema(description: 'the new shape key\'s name'),
-        },
-        required: <String>['id', 'shapeName'],
-      ),
-    ),
-    _command('addShapeFromMesh'),
-  ),
+  // **`addShape` was here, and `ux-35` dropped it.** It was a second name
+  // for `addShapeFromMesh` — same command, same arguments, same answer —
+  // offered because one scenario's own script had been written against that
+  // spelling. Two names for one thing is the kind of thing a table of tools
+  // must not have: an agent reading the list has to decide which of two
+  // identical entries it wants, and every sentence written about either has
+  // to be kept true of both.
   ModelTool(
     Tool(
       name: 'validateRig',

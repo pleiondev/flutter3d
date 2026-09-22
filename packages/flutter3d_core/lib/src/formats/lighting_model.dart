@@ -33,6 +33,7 @@ final class LightingModel {
   const LightingModel(
     this.label,
     this.shaderName, {
+    this.vertexShaderName,
     this.usesFragInfo = true,
     this.usesAlbedoTexture = true,
     this.usesMaterialMaps = true,
@@ -74,6 +75,29 @@ final class LightingModel {
     usesMetallicRoughnessMap: false,
     usesMaterialParameters: false,
   );
+
+  /// A line of constant screen width — `gfx-86n`: [unlit]'s fragment stage
+  /// behind the engine's own `PolylineVertex`, which widens `buildPolyline`'s
+  /// geometry by the number of pixels each point carries.
+  ///
+  /// **Unlit on purpose.** A route drawn over terrain is a mark on a map
+  /// rather than a surface in the world, and a lit band would darken where the
+  /// ground turns away from the sun — the gradient an application draws with
+  /// per-point colour would come back as that colour times a shadow term
+  /// nobody asked for. The vertex colour is multiplied into the albedo by
+  /// `ReadSurface`, so the colour at each point is the colour on screen.
+  ///
+  /// Absent from [builtIn] for the reason [xray] is: it is not a way to light
+  /// a model, and a picker offering it would offer to draw a cube as a line.
+  static const LightingModel polyline = LightingModel(
+    'Polyline',
+    'Unlit',
+    vertexShaderName: 'PolylineVertex',
+    usesMaterialMaps: false,
+    usesMetallicRoughnessMap: false,
+    usesMaterialParameters: false,
+  );
+
   static const LightingModel lambert = LightingModel(
     'Lambert',
     'Lambert',
@@ -126,6 +150,37 @@ final class LightingModel {
   /// weight while one that misses a name the engine does ask for fails at
   /// `Renderer.create`, which names the missing entry.
   final String shaderName;
+
+  /// The vertex stage this material brings with it, or null for the engine's
+  /// own — `gfx-75n`.
+  ///
+  /// **The seam a material could not reach across.** Everything above names a
+  /// *fragment* stage; the vertex side was `MeshVertex` and `MeshSkinnedVertex`
+  /// by fixed name, so vertex displacement, an ocean, wind and a per-material
+  /// morph hook were all outside what a material could express — not a missing
+  /// feature in a table, but the thing that decides whether somebody writes an
+  /// effect or forks the engine.
+  ///
+  /// **One name, two stages.** A skinned draw needs the skinned variant, and a
+  /// material that named only one would draw correctly on a prop and put a
+  /// character back in its bind pose. So the name given here is the unskinned
+  /// entry point and `'${vertexShaderName}Skinned'` is the skinned one, the
+  /// same relationship `MeshVertex` and `MeshSkinnedVertex` already have. A
+  /// material drawn only on unskinned geometry need not ship the second; the
+  /// renderer asks for it when a skinned draw reaches it and says which name it
+  /// wanted when the bundle has not got it.
+  ///
+  /// Instanced and lightmapped draws keep the engine's stages. Both read a
+  /// second buffer whose layout the engine declares — the instance rows, the
+  /// lightmap coordinate — and a stage supplied from outside cannot be held to
+  /// a layout it has never seen. That is a limit rather than an oversight, and
+  /// `gfx-84n` is where the language that would describe those layouts goes.
+  ///
+  /// The stage must write the varyings the fragment side reads and take the
+  /// same `FrameInfo` block. `MeshVertex` in `flutter3d_shaders` is the
+  /// reference, and `mesh_displace.vert` beside it is the smallest thing that
+  /// is not a copy of it.
+  final String? vertexShaderName;
 
   /// Whether the shader reads the `FragInfo` uniform block.
   final bool usesFragInfo;

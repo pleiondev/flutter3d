@@ -29,7 +29,9 @@ Uint8List encodeBc3(Rgba8Image image) {
   for (var by = 0; by < blocksY; by++) {
     for (var bx = 0; bx < blocksX; bx++) {
       final pixels = readBlock(image, bx, by);
-      final alphaBlock = _encodeAlphaBlock(pixels);
+      final alphaBlock = encodeBc3AlphaBlock([
+        for (final (_, _, _, a) in pixels) a,
+      ]);
       final colorBlock = encodeBc1Block(pixels);
       out.setRange(offset, offset + 8, alphaBlock);
       out.setRange(offset + 8, offset + 16, colorBlock);
@@ -39,9 +41,14 @@ Uint8List encodeBc3(Rgba8Image image) {
   return out;
 }
 
-Uint8List _encodeAlphaBlock(List<(int, int, int, int)> pixels) {
+/// The eight bytes of one BC3 alpha block, from sixteen alpha values in
+/// row-major order.
+///
+/// Public since `gfx-83n`: the universal-block transcoder has decoded alpha in
+/// hand and wants this half of a BC3 block without the colour half beside it.
+Uint8List encodeBc3AlphaBlock(List<int> alphas) {
   var lo = 255, hi = 0;
-  for (final (_, _, _, a) in pixels) {
+  for (final a in alphas) {
     if (a < lo) lo = a;
     if (a > hi) hi = a;
   }
@@ -50,7 +57,7 @@ Uint8List _encodeAlphaBlock(List<(int, int, int, int)> pixels) {
   final ramp = _alphaRamp(a0, a1);
   var indices = 0;
   for (var i = 0; i < 16; i++) {
-    final (_, _, _, a) = pixels[i];
+    final a = alphas[i];
     var best = 0;
     var bestError = 1 << 30;
     for (var candidate = 0; candidate < 8; candidate++) {

@@ -90,6 +90,7 @@ final class FakeBackend implements GraphicsDevice {
     this.supportsRenderToMip = true,
     this.unsupportedFormats = const <TextureFormat>{},
     this.maxAnisotropy = 16,
+    this.maxColorAttachments = 2,
   }) : shaders = FakeShaderLibrary(missing: missingShaders);
 
   /// Settable for the same reason [supportsWireframe] is: the case worth a
@@ -114,6 +115,18 @@ final class FakeBackend implements GraphicsDevice {
   /// can be the device that answers one and see what a caller clamps to.
   @override
   final int maxAnisotropy;
+
+  /// Two, and settable so a test can be the device that answers one —
+  /// `gfx-50n`.
+  ///
+  /// **The reason this is a parameter is that the device it stands in for
+  /// cannot be asked.** Impeller on OpenGL ES aborts rather than refusing, so
+  /// there is no way to run the no-MRT path on the hardware that has it and
+  /// see what the engine does. This fake answers what a pass was *opened*
+  /// with; `CpuDevice`, which takes the same number, answers what came out
+  /// the other end as pixels.
+  @override
+  final int maxColorAttachments;
 
   /// Every library [loadShaders] has handed out, in order, so a test can
   /// reach the one an application holds and count its refreshes.
@@ -224,8 +237,16 @@ final class FakeBackend implements GraphicsDevice {
   @override
   TextureFormat get defaultDepthStencilFormat => TextureFormat.d24UnormS8Uint;
 
+  /// True, and settable so a test can be the device that answers no —
+  /// `gfx-20n`.
+  ///
+  /// The reason it is worth setting: a frame that stops multisampling because
+  /// the device cannot and a frame that stops because something reads the
+  /// surface buffer look identical from outside, and
+  /// `FrameResult.antiAliasing` exists to tell them apart. A fake that could
+  /// only say yes leaves half of that untested.
   @override
-  bool get supportsOffscreenMsaa => true;
+  bool supportsOffscreenMsaa = true;
 
   @override
   // Recorded, not evaluated: this device blends nothing, so the honest answer
@@ -452,6 +473,14 @@ final class FakeBackend implements GraphicsDevice {
 
   @override
   CommandEncoder beginRenderPass(RenderPassDescriptor descriptor) {
+    // `gfx-50n`. The fake refuses what a real device would refuse, because a
+    // fake that accepted more would let a test record a pass no backend could
+    // open — and a test that passes on a device nobody has is worse than no
+    // test.
+    descriptor.checkAttachmentLimit(
+      maxColorAttachments,
+      backend: 'this fake device',
+    );
     final pass = FakePass(descriptor);
     passes.add(pass);
     return pass;

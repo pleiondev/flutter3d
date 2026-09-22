@@ -331,15 +331,24 @@ List<RigTrack> _lockFeet(
     for (final id in target.joints)
       if (target[id] case final RigNode node) node.name: node,
   };
-  final tracksByNodeId = <int, RigTrack>{
-    for (final track in tracks) track.nodeId: track,
+
+  // Keyed by (node, path) rather than node alone — a joint routinely carries
+  // translation, rotation *and* scale tracks at once (`RiggedFigure.glb`'s
+  // own clip animates every joint that way, not only the root's), and a
+  // plain `Map<int, RigTrack>` here used to keep only the last of a joint's
+  // tracks built, silently dropping the others (tut-12).
+  final tracksByNodeId = <int, Map<AnimationPath, RigTrack>>{};
+  for (final track in tracks) {
+    (tracksByNodeId[track.nodeId] ??=
+            <AnimationPath, RigTrack>{})[track.track.path] =
+        track;
+  }
+
+  final replaced = <(int, AnimationPath), AnimationTrack>{
+    for (final track in tracks) (track.nodeId, track.track.path): track.track,
   };
 
-  final replaced = Map<int, AnimationTrack>.fromEntries(
-    tracksByNodeId.entries.map((e) => MapEntry(e.key, e.value.track)),
-  );
-
-  final newTrackNodeIds = <int>{};
+  final newTrackKeys = <(int, AnimationPath)>{};
 
   for (final chain in _legChains) {
     final hip = jointByName[chain.hip];
@@ -350,14 +359,22 @@ List<RigTrack> _lockFeet(
     // `hips`, the shared root both legs hang from — its own retargeted
     // rotation and translation tracks, when present, since the leg chain's
     // own FK starts from wherever the pelvis actually is at this keyframe,
-    // not from its rest pose.
+    // not from its rest pose. Read by path explicitly rather than through a
+    // single collapsed track: the root may carry both at once (and a scale
+    // track besides), and each is read separately below.
     final rootNode = hip.parent == null ? null : target[hip.parent!];
-    final rootTrack = rootNode == null
+    final rootTranslationTrack = rootNode == null
         ? null
-        : tracksByNodeId[rootNode.id]?.track;
+        : tracksByNodeId[rootNode.id]?[AnimationPath.translation];
+    final rootRotationTrack = rootNode == null
+        ? null
+        : tracksByNodeId[rootNode.id]?[AnimationPath.rotation];
 
-    final hipTrack = tracksByNodeId[hip.id]?.track;
-    final kneeTrack = tracksByNodeId[knee.id]?.track;
+    // Explicitly the *rotation* track for each — a joint carrying
+    // translation/rotation/scale all at once (tut-12's own reproduction)
+    // must not have one silently stand in for another.
+    final hipTrack = tracksByNodeId[hip.id]?[AnimationPath.rotation];
+    final kneeTrack = tracksByNodeId[knee.id]?[AnimationPath.rotation];
 
     // Every bone in this rig is a pure translation at rest (`rig_template
     // .dart`'s own doc comment), so a bone with no rotation track at all is
@@ -366,7 +383,11 @@ List<RigTrack> _lockFeet(
     // that order) is what lets a clip that only ever animates the root
     // translation — a crouch with the legs otherwise held straight, this
     // row's own acceptance case — still get its foot corrected.
-    final times = hipTrack?.times ?? kneeTrack?.times ?? rootTrack?.times;
+    final times =
+        hipTrack?.track.times ??
+        kneeTrack?.track.times ??
+        rootRotationTrack?.track.times ??
+        rootTranslationTrack?.track.times;
     if (times == null) continue;
 
     Float32List identityRotations() {
@@ -378,10 +399,14 @@ List<RigTrack> _lockFeet(
     }
 
     final hipValues = Float32List.fromList(
-      replaced[hip.id]?.values ?? hipTrack?.values ?? identityRotations(),
+      replaced[(hip.id, AnimationPath.rotation)]?.values ??
+          hipTrack?.track.values ??
+          identityRotations(),
     );
     final kneeValues = Float32List.fromList(
-      replaced[knee.id]?.values ?? kneeTrack?.values ?? identityRotations(),
+      replaced[(knee.id, AnimationPath.rotation)]?.values ??
+          kneeTrack?.track.values ??
+          identityRotations(),
     );
 
     final rootRestT = rootNode?.restLocal.getTranslation() ?? Vector3.zero();
@@ -392,14 +417,14 @@ List<RigTrack> _lockFeet(
     final kneeOffset = knee.restLocal.getTranslation();
     final ankleOffset = ankle.restLocal.getTranslation();
 
-    final rootTranslationValues =
-        rootTrack != null && rootTrack.path == AnimationPath.translation
-        ? (replaced[rootNode!.id]?.values ?? rootTrack.values)
-        : null;
-    final rootRotationValues =
-        rootTrack != null && rootTrack.path == AnimationPath.rotation
-        ? (replaced[rootNode!.id]?.values ?? rootTrack.values)
-        : null;
+    final rootTranslationValues = rootNode == null
+        ? null
+        : (replaced[(rootNode.id, AnimationPath.translation)]?.values ??
+              rootTranslationTrack?.track.values);
+    final rootRotationValues = rootNode == null
+        ? null
+        : (replaced[(rootNode.id, AnimationPath.rotation)]?.values ??
+              rootRotationTrack?.track.values);
 
     for (var key = 0; key < times.length; key++) {
       final hipLocalRot = Quaternion(
@@ -465,33 +490,35 @@ List<RigTrack> _lockFeet(
       kneeValues[key * 4 + 3] = result.midLocalRotation.w;
     }
 
-    replaced[hip.id] = AnimationTrack(
-      nodeIndex: hipTrack?.nodeIndex ?? 0,
+    replaced[(hip.id, AnimationPath.rotation)] = AnimationTrack(
+      nodeIndex: hipTrack?.track.nodeIndex ?? 0,
       path: AnimationPath.rotation,
-      interpolation: hipTrack?.interpolation ?? AnimationInterpolation.linear,
+      interpolation:
+          hipTrack?.track.interpolation ?? AnimationInterpolation.linear,
       times: times,
       values: hipValues,
       componentCount: 4,
     );
-    if (hipTrack == null) newTrackNodeIds.add(hip.id);
-    replaced[knee.id] = AnimationTrack(
-      nodeIndex: kneeTrack?.nodeIndex ?? 0,
+    if (hipTrack == null) newTrackKeys.add((hip.id, AnimationPath.rotation));
+    replaced[(knee.id, AnimationPath.rotation)] = AnimationTrack(
+      nodeIndex: kneeTrack?.track.nodeIndex ?? 0,
       path: AnimationPath.rotation,
-      interpolation: kneeTrack?.interpolation ?? AnimationInterpolation.linear,
+      interpolation:
+          kneeTrack?.track.interpolation ?? AnimationInterpolation.linear,
       times: times,
       values: kneeValues,
       componentCount: 4,
     );
-    if (kneeTrack == null) newTrackNodeIds.add(knee.id);
+    if (kneeTrack == null) newTrackKeys.add((knee.id, AnimationPath.rotation));
   }
 
   return <RigTrack>[
     for (final track in tracks)
       RigTrack(
         nodeId: track.nodeId,
-        track: replaced[track.nodeId] ?? track.track,
+        track: replaced[(track.nodeId, track.track.path)] ?? track.track,
       ),
-    for (final nodeId in newTrackNodeIds)
-      RigTrack(nodeId: nodeId, track: replaced[nodeId]!),
+    for (final key in newTrackKeys)
+      RigTrack(nodeId: key.$1, track: replaced[key]!),
   ];
 }

@@ -29,12 +29,14 @@ export 'src/formats/animation/animation_track.dart';
 export 'src/formats/asset_resolver.dart';
 export 'src/formats/asset_source.dart';
 export 'src/formats/document_compare.dart';
+export 'src/formats/draco/draco.dart';
 export 'src/formats/export_report.dart';
 export 'src/formats/f3d/f3d.dart';
 export 'src/formats/fbx/fbx_decoder.dart';
 export 'src/formats/fmat/fmat.dart';
 export 'src/formats/gltf/gltf.dart';
 export 'src/formats/image/deflate.dart';
+export 'src/formats/image/hdr_decoder.dart';
 export 'src/formats/image/inflate.dart';
 export 'src/formats/image/jpeg_decoder.dart';
 export 'src/formats/image/png_decoder.dart';
@@ -51,15 +53,31 @@ export 'src/formats/ktx2/encode/ktx2_writer.dart' show writeKtx2;
 export 'src/formats/ktx2/encode/mip_chain.dart' show buildMipChain;
 export 'src/formats/ktx2/encode/rgba8_image.dart' show Rgba8Image;
 export 'src/formats/ktx2/ktx2.dart';
+export 'src/formats/ktx2/universal/universal_block.dart'
+    show
+        UniversalTarget,
+        decodeUniversalBlock,
+        encodeUniversalBlock,
+        encodeUniversalBlocks,
+        kUniversalBlockKey,
+        kUniversalBlockRgb,
+        kUniversalBlockRgba,
+        transcodeUniversal;
 export 'src/formats/lighting_model.dart';
 export 'src/formats/material_document.dart';
 export 'src/formats/material_hint.dart';
+export 'src/formats/material_language/material_ast.dart';
+export 'src/formats/material_language/material_eval.dart';
+export 'src/formats/material_language/material_glsl.dart';
+export 'src/formats/material_language/material_parser.dart';
 export 'src/formats/model_document.dart';
 export 'src/formats/model_loader.dart';
 export 'src/formats/model_node.dart';
 export 'src/formats/model_writer.dart';
 export 'src/formats/obj/obj.dart';
 export 'src/formats/plain_model_document.dart';
+export 'src/formats/splat/splat.dart';
 export 'src/formats/stl/stl.dart';
 export 'src/formats/surface_material.dart';
+export 'src/formats/texture_transform_bake.dart';
 export 'src/formats/usdz/usdz.dart';

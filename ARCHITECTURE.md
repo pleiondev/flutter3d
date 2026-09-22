@@ -169,7 +169,7 @@ copy, and is the bridge into the widget tree.
 
 ## 3. The package map
 
-Thirty-five packages and eight applications in one pub workspace — one
+Thirty-six packages and nine applications in one pub workspace — one
 `flutter pub get` for the repository.
 
 ### 3.1 The layering rule
@@ -215,8 +215,9 @@ point of §3.3.
 | `flutter3d_game_racing` | Racing rules: cars, circuits, laps, ghosts |
 | `flutter3d_game_strategy` | Strategy rules: ground made of samples, a crowd that takes orders, flow fields shared by destination, an economy, a policy that plays a side, fog each side has to walk into |
 | `flutter3d_audio` | Loading, streaming, 3D positioning, voice limits, mix buses |
-| `flutter3d_app` | What any application on the engine is assembled from: which backend a build draws through, the surface a frame reaches Flutter through, widgets in the scene, a level loaded into a scene, and storage. The modeller, the editor and the lessons use it and nothing above it |
+| `flutter3d_app` | What any application on the engine is assembled from: which backend a build draws through, the surface a frame reaches Flutter through, widgets in the scene, a level loaded into a scene, the scene published to the platform's accessibility layer, and storage. The modeller, the editor and the lessons use it and nothing above it |
 | `flutter3d_editor_core` | The headless half of a level editor: the document being changed and undone, the handles a pointer hits, the palette a level builds out of itself, the project a template becomes. Plain Dart |
+| `flutter3d_editor_widgets` | Editor controls the modeller and the level editor share instead of each keeping its own copy — `ui-27`'s own package: `SectionLabel`, `NumberField`, `ColorField`, `RangeSliderField`, `EnumField`, `TextureSlotRow`, `TexturePathField`, `ColorSwatchField`, `HintTextBox`/`NumbersRow`, `FieldRow` and `EditorWidgetsTheme` so far |
 | `flutter3d_editor_mcp` | The same editor offered to an agent: `EditorCommand` as a table of MCP tools over stdio, one document per process, plus the two verbs a caller with no screen needs — a flat listing, and the validator. Plain Dart |
 | `flutter3d_mcp_kit` | What every MCP server here shares: a tool paired with its handler, a server that is a list of them over one session, the two shapes of answer, and a loopback HTTP transport an open application offers its session over. Plain Dart |
 | `flutter3d_sim_mcp` | A level an agent plays blind, of whatever `HeadlessGame` a host hands it — step, read back, digest, hand over the run — and many seeded playtests in isolates; and a rendered frame of a level offered to an agent: drawn with no GPU in one of the renderer's debug views, one pixel read back unclamped, the passes the frame graph ran. Names no genre |
@@ -233,7 +234,7 @@ Applications: `apps/flutter3d_demo_dungeon` (shooter),
 `apps/flutter3d_demo_strategy`, `apps/flutter3d_editor` (level editor),
 `apps/flutter3d_modeler` (the modeller), and `apps/flutter3d_lesson_viewer`,
 `apps/flutter3d_stereo_lesson_viewer` and `apps/flutter3d_lab_pendulum` (the
-lessons) — eight applications, which is the count the workspace list is held
+lessons) — nine applications, which is the count the workspace list is held
 to. A new project starts from a package's example rather than an application of
 its own: `packages/flutter3d_app/example` is an application on the engine and
 nothing else, `packages/flutter3d_game/example` is a level to walk around and is
@@ -313,7 +314,7 @@ a caller for that cannot supply a Flutter SDK.
 
 ### 3.3 Rules that are scanned, not remembered
 
-`tool/structure.dart` walks `packages/` and `apps/` and enforces thirty-two rules in
+`tool/structure.dart` walks `packages/` and `apps/` and enforces thirty-five rules in
 under a second, as the first step of CI. They cover the *arrangement* of the code
 — who imports what, what a name says, where a thing may live — while anything
 about what the code *does* stays a test.
@@ -862,6 +863,26 @@ Directional, point and spot, with glTF's inverse-square falloff, range window an
 smooth cone ramp. Up to eight are packed into `vec4[8]` uniform arrays with the
 count as a uniform, so switching a light on or off never rebuilds a pipeline.
 Intensities are unitless multipliers rather than lumens.
+
+A fourth kind is a rectangle, and it is the one that is not punctual: what
+reaches a surface is an integral over the panel rather than a value at a point.
+The diffuse half of that integral is closed-form — Lambert's polygon form
+factor, four `acos` calls, exact and checked against a brute-force quadrature
+rather than against a shipped table — and the specular half is the
+representative point on the panel nearest the mirror direction, which is what
+makes the highlight a streak with the panel's shape. The rectangle's two edge
+vectors ride in the arrays a punctual light uses for the direction it points and
+its cone, so a fourth type cost no bytes per draw.
+
+Indirect diffuse light can come from a grid of probes instead of from a flat
+colour or an environment's roughest level. `IrradianceField` holds one: each
+probe stores what a surface facing each direction receives, as an octahedral
+tile with a gutter, plus two moments of depth so that Chebyshev's inequality can
+refuse light that would cross a wall. It is filled by casting rays through the
+scene's own raycaster — one bounce — and probes that turn out to be inside
+geometry are detected and skipped. A scene reads it through the ambient uniform
+that already exists, sampled once facing up and once facing down per object, so
+it costs no new binding and a scene without one draws exactly as before.
 
 Image-based lighting is a prefiltered specular chain plus a diffuse level, built
 by `EnvironmentMap.prefilter` from a cube map or from sky settings. The
@@ -1907,8 +1928,8 @@ entities a game defines.
 |---|---|
 | Style | `dart format` |
 | Analysis | `flutter analyze` clean across the workspace, no warnings |
-| Unit tests | **7447 tests** across 35 packages and 8 applications |
-| Structure rules | 32, `dart run tool/structure.dart`, the first CI step |
+| Unit tests | **9782 tests** across 37 packages and 9 applications |
+| Structure rules | 35, `dart run tool/structure.dart`, the first CI step |
 | CI | GitHub Actions over `tool/ci.sh`, on `ubuntu-latest`, with no graphics card |
 
 ### 13.1 The published-enum boundary
@@ -2192,8 +2213,8 @@ a panel that shows a colour as a swatch instead of as four boxes, and that is
 the whole of what they were for. The one consumer today is
 `apps/flutter3d_editor/lib/src/material_panel.dart`.
 
-**Morph targets are drawn on the GPU, and there is still no additive
-animation.** A file's targets are read into `MeshData.morphTargets`, packed by
+**Morph targets are drawn on the GPU, and a pose layer can now add rather
+than replace.** A file's targets are read into `MeshData.morphTargets`, packed by
 `MorphTexture` into an `r32g32b32a32Float` texture — one column a vertex, three
 rows a target: positions, normals, tangents — uploaded once with the mesh, and
 sampled by the vertex stage through `lib/morph.glsl`. `MorphState` holds the
@@ -2252,8 +2273,17 @@ vertex stage can sample one, measured on all three backends by
 
 Additive blending **of a pose** — a delta over a reference pose, which is what
 recoil and lean want — needs a reference frame per clip, and glTF has no
-standard place to say which frame that is. Morph *weights* are a different
-matter and are additive already: a weight is a number from nought, so a layer
+standard place to say which frame that is. So the clip carries it:
+`AnimationClip.referenceTime` names a moment rather than holding a pose,
+because the reference is a frame of the clip in almost every case and sampling
+it there needs no second structure. `AnimationLayer.blend` then picks how the
+layer meets the base, and the delta is taken in whatever way undoes itself at
+nothing: a difference for a translation, a ratio for a scale, `base · delta`
+for a rotation. Null is the ordinary value and means the clip is not additive,
+which is what every clip read from a file has — guessing at frame zero would
+work for most exports and silently ruin the rest, so a layer asking to add over
+such a clip overrides instead. Morph *weights* are a different
+matter and were additive already: a weight is a number from nought, so a layer
 has a reference frame without anybody naming one. So a layer adds its weights
 to the base's, scaled by the layer's own weight and bounded at one — a wince
 over a shout rather than instead of half of it — while a crossfade mixes them
@@ -2502,16 +2532,21 @@ second of which is this stale row plus the arrangement — and a pass of
 `flutter3d/tool/golden.sh --update` and `flutter3d_webgl/tool/golden_web.sh
 --update` over the two names takes both to zero.
 
-**No occlusion culling for anything but a brush level, and no FXAA or TAA.**
+**No occlusion culling for anything but a brush level, and no TAA.**
 A brush level has the precomputed visibility of [§4.6](#46-precomputed-visibility);
 a model imported from glTF is culled by the frustum alone.
 
-The absent antialiasing costs more than it sounds like, because of what the
-screen-space effects require: filling the surface buffer turns MSAA off for the
-whole scene pass — the average of two octahedral normals is the encoding of no
-normal — so switching on ambient occlusion or reflections switches off the
-antialiasing of the entire frame, and there is nothing to put in its place. A
-post-pass FXAA is the piece that would let a game have both.
+The antialiasing there is has a hole in it, because of what the screen-space
+effects require: filling the surface buffer turns MSAA off for the whole scene
+pass — the average of two octahedral normals is the encoding of no normal — so
+switching on ambient occlusion, reflections, contact shadows or viewport shading
+switches off the multisampling of the entire frame, and `FrameResult` says so in
+`antiAliasing.msaaDeclined`. What goes in its place is the post-pass FXAA of
+`AntiAliasSettings` (`post/fxaa.frag`), which this paragraph used to name as the
+missing piece. It lets a game have both, and it is not the same thing: FXAA
+softens an edge it finds in the finished picture and cannot recover a wire or a
+railing thinner than a pixel, which is what a temporal resolve would do and what
+is still absent.
 
 Those two effects are off by default and are pinned by a picture on every
 backend: `ambient-occlusion-corner` and `screen-space-reflections` are golden
@@ -2725,7 +2760,29 @@ went to pub.dev at 0.4.0 under the
 internet" — came out of the packages that day; the workspace root, the
 applications and the example apps keep theirs, being repository-only by design.
 
-**0.6.0 is the shelf, not the list of packages that happened to change**, and
+**0.7.0 is the shelf the tree carries, and it is not on pub.dev yet.** Thirty-four
+of the thirty-seven packages are 0.7.0 and every constraint one of them puts on
+another is `^0.7.0`. What changed since 0.6.0 is which packages there are, more
+than what is in them: seven were folded into others, four names that pub.dev has
+at 0.6.0 no longer have code behind them (`flutter3d_backend`,
+`flutter3d_screens`, `flutter3d_session`, `flutter3d_bridge`) and are marked
+`discontinued` with a `replaced_by` on the day of publication, and fourteen go
+out for the first time. [`doc/boundary-0.7.0.md`](doc/boundary-0.7.0.md) is the
+account of all of it, import line by import line.
+
+Four of the fourteen carried 0.1.0, 0.1.1 or 0.3.0 and take 0.7.0 with the rest,
+for the reason the next paragraph gives for 0.6.0: a constraint has to cover what
+the sibling declares, twelve packages had `^0.1.0` on `flutter3d_core`, and a
+shelf at four numbers names no combination anything ever resolved.
+
+**Prepared and published are two days, on purpose.** `rel-06`, the publication,
+is held behind `rel-16`, five to ten people walking the modeller's tutorial
+against a clock, and the owner kept that gate on 2026-09-19. The modeller goes to
+`models.pleion.dev` first, because that is where the cohort walks it; the tiers
+below go out after, and the tag `v0.7.0` is put on the commit that was published
+rather than on the one that was ready.
+
+**0.6.0 was the shelf, not the list of packages that happened to change**, and
 the reason is mechanical before it is aesthetic. `every package agrees about
 versions with the workspace` requires a constraint to *cover* what the sibling
 declares, and `^0.5.2` does not reach 0.6.0 — so a single package moving forces
@@ -2750,13 +2807,12 @@ script and two reference pictures; `flutter3d_cpu`'s two pictures;
 `flutter3d_game_racing`'s determinism note), and fourteen are byte for byte what
 pub.dev already has and move so that one number names one tree.
 
-**`flutter3d_game_strategy` carries 0.6.0 in this checkout and does not go out.**
-Its stockpile and its delivery count were lists of exactly two, one per side, so
-its types encoded how many sides a game may have; that is fixed, and what it
-waits for now is its own acceptance rather than a release. Being in the
-publishing order and being published are different things, and this is the entry
-that makes the difference visible. After 0.6.0 it is the one package of
-twenty-eight that is not on pub.dev.
+**`flutter3d_game_strategy` sat out 0.6.0 and goes out with 0.7.0.** Its
+stockpile and its delivery count were lists of exactly two, one per side, so its
+types encoded how many sides a game may have. That was fixed before 0.6.0 and
+the package was held for its own acceptance, which made it the entry showing
+that being in the publishing order and being published are different things. It
+is one of the thirteen now.
 
 **Three packages keep lines of their own, and it is not an oversight.**
 `pad_input` and `pointer_lock` are plugins this repository vendors: neither
@@ -2771,7 +2827,7 @@ what went out at 0.4.2.
 - **Licence: MIT**, `Copyright (c) 2026 Dmitrii Zolotov`. One `LICENSE` at the root
   and a copy in every package, because pub wants the file inside the archive.
 - `LICENSE`, `CHANGELOG.md`, `README.md`, `repository:` and `homepage:` in all
-  twenty-eight packages, the four unpublished ones included — `pub publish
+  thirty-seven packages, the fourteen unpublished ones included — `pub publish
   --dry-run` is what `tool/publish_check.sh` asks of every one of them, so a
   package is ready on the day it is written rather than on release day.
 - **`dart format` is a CI step**, second in the order and reported by
@@ -2794,7 +2850,8 @@ what went out at 0.4.2.
    `flutter3d_audio`, `flutter3d_physics`, `flutter3d_mcp_kit`, `pad_input`,
    `pointer_lock`
 2. `flutter3d_conformance`, `flutter3d_core`
-3. `flutter3d_mesh`, `flutter3d_build`, `flutter3d_particles`
+3. `flutter3d_mesh`, `flutter3d_build`, `flutter3d_particles`,
+   `flutter3d_editor_widgets`
 4. `flutter3d`, `flutter3d_model_core`
 5. `flutter3d_impeller`, `flutter3d_webgl`, `flutter3d_webgpu`, `flutter3d_cpu`,
    `flutter3d_sim`
@@ -2802,7 +2859,7 @@ what went out at 0.4.2.
 7. `flutter3d_game`, `flutter3d_stereo`, `flutter3d_testing`,
    `flutter3d_editor_mcp`, `flutter3d_model_mcp`, `flutter3d_net_webrtc`
 8. `flutter3d_game_shooter`, `flutter3d_game_platformer`, `flutter3d_game_racing`,
-   `flutter3d_game_strategy`
+   `flutter3d_game_strategy`, `flame_flutter3d`
 9. `flutter3d_sim_mcp`
 
 Several positions are not obvious and so are written down rather than
@@ -2822,16 +2879,20 @@ it loads levels for are in the fifth, and `flutter3d_game` stands one tier
 behind it; `flutter3d_editor_core` is beside `flutter3d_app` rather than
 behind `flutter3d_game`, because the editor's document layer never wanted the Flutter
 half, which is why it could leave an application at all — it needed only
-`flutter3d_sim` until `mat-03` gave it `flutter3d_formats` too, for the
+`flutter3d_sim` until `mat-03` gave it `flutter3d_core`'s formats too, for the
 `.fmat` gate a second editor wanted, and the second tier that dependency sits
 in is still well ahead of the sixth; and `flutter3d_editor_mcp` sits one tier
 behind that core and nowhere near the applications, because it is a published
 package that happens to have a `bin/` rather than a program that happens to
-be in this repository.
+be in this repository; and `flutter3d_editor_widgets` sits in the third tier
+— one past `flutter3d_core` — because `ui-27`'s own `RangeSliderField` and
+`EnumField` read `RangeHint`/`EnumHint` off it, a second tier's worth of
+floor `ui-27`'s first step had already promised ahead of time, precisely so
+this dependency would land without moving the package once it did.
 
 **The applications are not packages.** `apps/` keeps its path dependencies: four
-demo games, an editor and a template are things to clone, not things to depend
-on.
+demo games, two editors and three lesson viewers are things to clone, not things
+to depend on.
 
 **Most packages have no `example/`.** pub scores a package higher with one, and an
 example nobody runs is worse than none. `packages/pad_input/example` exists because

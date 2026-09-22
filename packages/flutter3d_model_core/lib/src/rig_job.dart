@@ -123,10 +123,17 @@ final class BakeDriversJobRequest {
 
 /// [project]'s own clip [clipIndex], captured alongside [drivers] as a
 /// [BakeDriversJobRequest] — null when [clipIndex] names no clip.
+///
+/// [drivers] falls back to [shapeTargetObjectId]'s own persisted
+/// [ModelObject.shapeDrivers] when it is null — `anim-34d`'s own row — so a
+/// caller that has not looked one up itself still bakes whatever a person
+/// already built through [AddShapeDriver] rather than baking nothing. Pass
+/// an explicit list, even an empty one, to bake against something other
+/// than what the object currently holds.
 BakeDriversJobRequest? bakeDriversJobRequestFor(
   ModelProject project,
   int clipIndex,
-  List<ShapeDriver> drivers,
+  List<ShapeDriver>? drivers,
   int shapeTargetObjectId,
   int shapeCount,
 ) {
@@ -134,7 +141,10 @@ BakeDriversJobRequest? bakeDriversJobRequestFor(
   return BakeDriversJobRequest(
     clipIndex: clipIndex,
     clip: project.clips[clipIndex],
-    drivers: drivers,
+    drivers:
+        drivers ??
+        project[shapeTargetObjectId]?.shapeDrivers ??
+        const <ShapeDriver>[],
     shapeTargetObjectId: shapeTargetObjectId,
     shapeCount: shapeCount,
   );

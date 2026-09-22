@@ -43,6 +43,20 @@ const lessons = <Lesson>[
         'первый интерактивный урок, проигрываемый в браузере без авторинга.',
     levelAsset: 'assets/levels/tour.json',
   ),
+  // `ls-e-04`'s own second half: the same shared content `ls-i-03` already
+  // closed (`apps/flutter3d_lesson_viewer/assets/levels/housing.json`),
+  // reachable through this registry rather than through new code — `/e/
+  // control-box` is this row's own "embeds into a test internal page
+  // through an iframe with no code" acceptance, literally, since the route
+  // itself already carries no framing header for any slug named here.
+  Lesson(
+    slug: 'control-box',
+    title: 'Замена батареи в блоке управления',
+    description:
+        'Семь шагов разборки и сборки блока управления — от корпуса до '
+        'батареи и обратно, на планшете техника без сети.',
+    levelAsset: 'assets/levels/housing.json',
+  ),
 ];
 
 /// The lesson named [slug], or null when nothing in [lessons] answers to it.

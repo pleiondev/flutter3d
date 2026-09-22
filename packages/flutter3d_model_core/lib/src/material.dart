@@ -17,6 +17,7 @@ library;
 
 import 'package:flutter3d_core/formats.dart';
 
+import 'paint_layer.dart';
 import 'texture_graph.dart';
 
 /// One material in a project's table.
@@ -33,6 +34,7 @@ final class ProjectMaterial {
     this.fmat,
     this.graph,
     this.bakedAtVersion,
+    this.paint,
   });
 
   /// How the surface looks, in the one description every decoder in the
@@ -67,6 +69,17 @@ final class ProjectMaterial {
   /// See [isGraphStale].
   final int? bakedAtVersion;
 
+  /// `pro-pt-03`: what a person has painted onto this material's own
+  /// texture, layer by layer, or null for a material nobody has painted on.
+  ///
+  /// **The strokes rather than the picture.** The flattened result lives in
+  /// [ModelProject.images] where every other texture does, and this is what
+  /// it was flattened *from* — so a layer can be reordered, its blend mode
+  /// changed or the whole thing repainted without the earlier strokes having
+  /// been thrown away. It is the same bargain `graph` makes for a material
+  /// built out of nodes.
+  final PaintStack? paint;
+
   /// Whether [graph] has moved on since the slots were last baked from it —
   /// true right after `SetMaterialGraph` replaces the graph, or after any
   /// other edit bumps [version] past the bake's own. False for a material
@@ -80,6 +93,7 @@ final class ProjectMaterial {
     fmat: fmat,
     graph: graph,
     bakedAtVersion: bakedAtVersion,
+    paint: paint,
   );
 
   /// A copy naming (or clearing) the `.fmat` this material defers to, with
@@ -90,17 +104,30 @@ final class ProjectMaterial {
     fmat: next,
     graph: graph,
     bakedAtVersion: bakedAtVersion,
+    paint: paint,
   );
 
   /// A copy naming (or clearing) [graph], with [version] moved on — so a
   /// graph just handed to a material reads [isGraphStale] true until
   /// `BakeTextureGraph` runs against it, the same as any other edit would.
+  /// A copy carrying [next] as what has been painted onto it, with
+  /// [version] moved on the same way [withSurface] does.
+  ProjectMaterial withPaint(PaintStack? next) => ProjectMaterial(
+    surface: surface,
+    version: version + 1,
+    fmat: fmat,
+    graph: graph,
+    bakedAtVersion: bakedAtVersion,
+    paint: next,
+  );
+
   ProjectMaterial withGraph(TextureGraph? next) => ProjectMaterial(
     surface: surface,
     version: version + 1,
     fmat: fmat,
     graph: next,
     bakedAtVersion: bakedAtVersion,
+    paint: paint,
   );
 
   /// `BakeTextureGraph`'s own update: a new [surface] with the baked images
@@ -116,6 +143,7 @@ final class ProjectMaterial {
       fmat: fmat,
       graph: graph,
       bakedAtVersion: baked,
+      paint: paint,
     );
   }
 

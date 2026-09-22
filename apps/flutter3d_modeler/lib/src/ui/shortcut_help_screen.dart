@@ -18,60 +18,68 @@ import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../l10n/app_localizations.dart';
+import '../settings.dart' show NavigationScheme;
+import 'keymap.dart';
 import 'shortcut_help.dart';
 
-/// The site's own root — see this file's own doc comment for why not a
-/// deeper, not-yet-real path.
-final Uri tutorialUrl = Uri.parse('https://flutter3d.pleion.dev');
+/// The modeller's own tutorial — `ux-42`.
+///
+/// **The tutorial, not the front door.** This pointed at the site's root
+/// while there was no modeller section to point at; `rel-08` built one, and a
+/// person pressing "Tutorial" in a modeller and landing on a page about a
+/// rendering engine has been answered with a different question.
+final Uri tutorialUrl = Uri.parse(
+  'https://flutter3d.pleion.dev/learn/modeler/',
+);
 
-/// Opens `ui-32n`'s own shortcut-help dialog.
-Future<void> showShortcutHelp(BuildContext context) => showDialog<void>(
+/// Opens `ui-32n`'s own shortcut-help dialog, over the live preset.
+Future<void> showShortcutHelp(
+  BuildContext context, {
+  required Keymap keymap,
+  NavigationScheme navigation = NavigationScheme.middleMouseOrbit,
+}) => showDialog<void>(
   context: context,
-  builder: (BuildContext context) => const _ShortcutHelpScreen(),
+  builder: (BuildContext context) =>
+      _ShortcutHelpScreen(keymap: keymap, navigation: navigation),
 );
 
 class _ShortcutHelpScreen extends StatelessWidget {
-  const _ShortcutHelpScreen();
+  const _ShortcutHelpScreen({required this.keymap, required this.navigation});
+
+  final Keymap keymap;
+  final NavigationScheme navigation;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final l10n = AppLocalizations.of(context);
-    final entries = shortcutTable();
+    final entries = shortcutTable(keymap, l: l10n, navigation: navigation);
     return AlertDialog(
       title: Text(l10n.keyboardShortcuts),
-      content: SizedBox(
-        width: 360,
-        height: 420,
-        child: ListView(
-          shrinkWrap: true,
-          children: <Widget>[
-            for (final ShortcutEntry entry in entries)
-              Padding(
-                padding: const EdgeInsets.symmetric(vertical: 3),
-                child: Row(
-                  children: <Widget>[
-                    SizedBox(
-                      width: 64,
-                      child: Text(
-                        entry.shortcut.keyLabel.toUpperCase(),
-                        style: theme.textTheme.bodyMedium?.copyWith(
-                          fontFeatures: const <FontFeature>[
-                            FontFeature.tabularFigures(),
-                          ],
-                        ),
-                      ),
-                    ),
-                    Expanded(
-                      child: Text(
-                        entry.label,
-                        style: theme.textTheme.bodyMedium,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-          ],
+      // **As tall as the list needs, up to what the window can give** —
+      // `ux-28`, which added enough rows to push a section heading off the
+      // bottom of the 420 this used to be fixed at. A scrolling list cut off
+      // mid-row is how a person concludes there is nothing below it; three
+      // fifths of the window leaves room for the title and the two buttons
+      // and still shrinks on a laptop turned on its side.
+      content: ConstrainedBox(
+        constraints: BoxConstraints(
+          maxHeight: MediaQuery.sizeOf(context).height * 0.6,
+        ),
+        child: SizedBox(
+          width: 360,
+          child: ListView(
+            shrinkWrap: true,
+            children: <Widget>[
+              // Sectioned since `ux-10`: the review found this screen
+              // teaching the tools and nothing else — not the camera, not
+              // saving, not selecting, which are the three things somebody in
+              // their first hour actually comes here for.
+              for (final ShortcutSection section in ShortcutSection.values)
+                if (entries.any((ShortcutEntry it) => it.section == section))
+                  ..._section(theme, section, entries),
+            ],
+          ),
         ),
       ),
       actions: <Widget>[
@@ -86,4 +94,52 @@ class _ShortcutHelpScreen extends StatelessWidget {
       ],
     );
   }
+
+  /// One section's own heading and rows.
+  List<Widget> _section(
+    ThemeData theme,
+    ShortcutSection section,
+    List<ShortcutEntry> entries,
+  ) => <Widget>[
+    Padding(
+      padding: const EdgeInsets.only(top: 12, bottom: 4),
+      child: Text(
+        switch (section) {
+          ShortcutSection.camera => 'CAMERA',
+          ShortcutSection.application => 'APPLICATION',
+          ShortcutSection.selection => 'SELECTION',
+          ShortcutSection.tools => 'TOOLS · ${keymap.preset.label}',
+          ShortcutSection.touch => 'TOUCH AND PEN',
+        },
+        style: theme.textTheme.labelSmall?.copyWith(
+          letterSpacing: 1.0,
+          color: theme.colorScheme.onSurfaceVariant,
+        ),
+      ),
+    ),
+    for (final ShortcutEntry entry in entries)
+      if (entry.section == section)
+        Padding(
+          padding: const EdgeInsets.symmetric(vertical: 3),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              SizedBox(
+                width: 132,
+                child: Text(
+                  entry.keys,
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    fontFeatures: const <FontFeature>[
+                      FontFeature.tabularFigures(),
+                    ],
+                  ),
+                ),
+              ),
+              Expanded(
+                child: Text(entry.label, style: theme.textTheme.bodyMedium),
+              ),
+            ],
+          ),
+        ),
+  ];
 }

@@ -1,6 +1,6 @@
 name: flutter3d_game
 description: "What a game on flutter3d adds to an application: touch, keyboard, mouse and gamepad input, the run being played, the screens that are not the game, and the actors and fixtures a simulation moves, drawn."
-version: 0.6.0
+version: 0.7.0
 repository: https://github.com/pleiondev/flutter3d
 homepage: https://flutter3d.pleion.dev
 issue_tracker: https://github.com/pleiondev/flutter3d/issues
@@ -24,7 +24,7 @@ dependencies:
   flutter3d_app: ^0.7.0
 
   # The renderer, for the actors and fixtures drawn.
-  flutter3d: ^0.6.0
+  flutter3d: ^0.7.0
 
   # Relative mouse deltas, which Flutter offers on no desktop platform.
   pointer_lock: ^0.4.0
@@ -39,13 +39,13 @@ dependencies:
   # to advance a step — see that package's pubspec for the whole reason.
   # Not re-exported: a caller that steps a simulation names this package
   # itself.
-  flutter3d_sim: ^0.6.0
+  flutter3d_sim: ^0.7.0
 
   # Volumes are a mixer's, and the settings panel is where they are turned.
-  flutter3d_audio: ^0.6.0
+  flutter3d_audio: ^0.7.0
 
   # A torch's flame, which is the particles its light is measured from.
-  flutter3d_particles: ^0.6.0
+  flutter3d_particles: ^0.7.0
 
   # State management. The screens here are state machines — a panel that is
   # open, a rebinding that is waiting for a key, a settings document that has

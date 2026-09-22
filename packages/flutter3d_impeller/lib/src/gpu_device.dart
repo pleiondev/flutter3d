@@ -274,6 +274,31 @@ final class GpuRenderBackend implements GraphicsDevice {
   bool get supportsRenderToMip =>
       gpu.gpuContext.doesSupportFramebufferRenderMipmap;
 
+  /// Two where this backend is not on its OpenGL ES path, one where it is —
+  /// `gfx-50n`.
+  ///
+  /// **Inferred, and that is stated rather than hidden.** flutter_gpu
+  /// publishes no MRT capability and no backend name, so there is nothing
+  /// here to ask directly. [supportsRenderToMip] is the closest published
+  /// fact: flutter_gpu's own documentation says it is true on Metal and
+  /// Vulkan and false on the OpenGL ES path, which is the same split the
+  /// attachment limit falls on.
+  ///
+  /// **A probe is not available**, and this is the unusual part. Every other
+  /// uncertain capability in this backend is settled by trying it and
+  /// catching — see `_probeCubes`. Trying a second attachment on GLES reaches
+  /// an `FML_CHECK`, so the probe that would answer the question is the same
+  /// call that ends the process. An inference from a neighbouring capability
+  /// is what is left.
+  ///
+  /// Two rather than the four or eight Metal and Vulkan actually allow: two
+  /// is what this engine has ever opened and what the split above is evidence
+  /// for. A number this backend cannot support is not a number worth
+  /// publishing, and a caller who needs four should be told two and write the
+  /// pass that works.
+  @override
+  int get maxColorAttachments => supportsRenderToMip ? 2 : 1;
+
   @override
   TextureHandle? createCubeRenderTarget({
     required int size,
@@ -698,6 +723,13 @@ final class GpuRenderBackend implements GraphicsDevice {
 
   @override
   CommandEncoder beginRenderPass(RenderPassDescriptor descriptor) {
+    // `gfx-50n`. Before anything reaches flutter_gpu, because past this line
+    // there is no Dart left to throw from: a second attachment on the GLES
+    // path walks into an `FML_CHECK` and the process stops.
+    descriptor.checkAttachmentLimit(
+      maxColorAttachments,
+      backend: 'the Impeller backend on this device',
+    );
     final buffer = gpu.gpuContext.createCommandBuffer();
     final pass = buffer.createRenderPass(_toRenderTarget(descriptor));
     final frame = _openFrame;

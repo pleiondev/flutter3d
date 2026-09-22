@@ -15,10 +15,17 @@ abstract final class ShaderLightType {
   static const double point = 1.0;
   static const double spot = 2.0;
 
+  /// `gfx-77n`. Last on purpose: the shader classifies with `<` tests in this
+  /// order, so a fourth kind appended costs the three that came before it
+  /// nothing, and every scene that has no rectangle in it takes the identical
+  /// path it always did.
+  static const double area = 3.0;
+
   static double of(LightType type) => switch (type) {
     LightType.directional => directional,
     LightType.point => point,
     LightType.spot => spot,
+    LightType.area => area,
   };
 }
 
@@ -52,10 +59,97 @@ abstract final class ShaderLightType {
 /// | `colors` | linear RGB | intensity |
 /// | `directions` | the direction it points, its local -Z | range, 0 for unbounded |
 /// | `cones` | x: cos(inner), y: cos(outer) | unused |
+///
+/// A rectangle reads the last two rows differently, and nothing else changes —
+/// `gfx-77n`:
+///
+/// | Array | xyz | w |
+/// |---|---|---|
+/// | `directions` | half-width vector, world space | range |
+/// | `cones` | half-height vector, world space | unused |
+///
+/// Its normal is `cross(halfWidth, halfHeight)` normalised, so the panel's
+/// facing is derived rather than stored and cannot disagree with its shape.
 final class LightBuffer {
   /// The shader declares arrays of this length, so it is a compile-time
   /// constant on both sides. Raising it means rebuilding the bundle.
   static const int maxLights = 8;
+
+  /// How many more lights one draw may be handed through the light list —
+  /// `gfx-74n`. `kExtraLights` in `lib/surface.glsl`, and the two move together.
+  ///
+  /// These are the lights this selection turned away: they reach the object and
+  /// did not make its eight slots, so before this row they simply did not light
+  /// it. They carry no shadow — the atlas has six rows and the slot table eight
+  /// entries, so there is no row for a ninth light to read.
+  static const int maxExtraLights = 24;
+
+  /// Which candidates the tail holds, and how many.
+  ///
+  /// Indices into [candidates], because that is what the frame's light texture
+  /// is laid out by: one row per candidate in scene order, so a draw's tail is
+  /// a list of row numbers and the light data itself is written once a frame.
+  final Int32List extraIndices = Int32List(maxExtraLights);
+
+  /// How much of each tail light survives the edge fade, per draw.
+  ///
+  /// Beside the index rather than in the texture: the row an index points at is
+  /// shared by every draw in the frame, so a scale written into it would dim
+  /// that light for all of them. See the fade at the end of [gatherNearFrom].
+  final Float32List extraScales = Float32List(maxExtraLights);
+
+  final Float32List _extraScore = Float32List(maxExtraLights);
+  int _extraCount = 0;
+
+  /// How many lights the tail holds. Zero on every path but [gatherNear] with
+  /// a scene that overflowed, which is what keeps a scene that fits paying
+  /// nothing.
+  int get extraCount => _extraCount;
+
+  /// Offers a turned-away candidate to the tail, keeping the best
+  /// [maxExtraLights], and returns the score of whatever this left unlit — the
+  /// candidate when the tail was full and turned it away, the evicted one when
+  /// it was not, and nought when nothing was lost.
+  ///
+  /// **The fade band reads that return, and getting it wrong is subtle.** The
+  /// band softens the cliff where a light stops contributing, and before
+  /// `gfx-74n` that cliff was the eighth slot. It is the end of the tail now: a
+  /// light turned away from the slots is still lit, through the list, so fading
+  /// the slots against *that* water line would be fading against a step that is
+  /// no longer there.
+  ///
+  /// Linear rather than a heap: twenty-four is small enough that the scan for
+  /// the weakest costs less than maintaining an order would, and this runs only
+  /// for a scene that has already overflowed.
+  double _considerExtra(int candidate, double score) {
+    if (_extraCount < maxExtraLights) {
+      extraIndices[_extraCount] = candidate;
+      _extraScore[_extraCount] = score;
+      _extraCount++;
+      return 0.0;
+    }
+    var weakest = 0;
+    for (var i = 1; i < maxExtraLights; i++) {
+      if (_extraScore[i] < _extraScore[weakest]) weakest = i;
+    }
+    if (score <= _extraScore[weakest]) {
+      // A tie raises no water line. The incumbent kept its row only by
+      // arriving first — see the tie-break above — not because this
+      // candidate scored any weaker, and treating an exact tie as "lost"
+      // is what let a symmetric scene fade to black: a ring of torches
+      // equidistant from a floor's own centre all score identically, so
+      // the one turned away by scene order alone set the water line at
+      // the same value as every torch that made it in, and `_edgeFade`
+      // reads "at the water line" as "contributes nothing" for all of
+      // them at once. A strictly weaker candidate still raises it exactly
+      // as before.
+      return score < _extraScore[weakest] ? score : 0.0;
+    }
+    final evicted = _extraScore[weakest];
+    extraIndices[weakest] = candidate;
+    _extraScore[weakest] = score;
+    return evicted;
+  }
 
   final Float32List positions = Float32List(maxLights * 4);
   final Float32List colors = Float32List(maxLights * 4);
@@ -75,15 +169,33 @@ final class LightBuffer {
   /// Lights actually packed, never more than [maxLights].
   int get count => _count;
 
-  /// Lights that did not fit, so a caller can say so rather than leave the user
-  /// wondering why the ninth lamp does nothing.
+  /// Lights that did not fit the eight slots.
   ///
   /// After [gatherNear] it is the same arithmetic read against one object: how
-  /// many of the scene's live lights this draw was not told about.
+  /// many of the scene's live lights did not reach its slots.
+  ///
+  /// **Not the same as being dropped, since `gfx-74n`** — see [dropped], which
+  /// is the number a caller reports. A light past the eighth goes into the
+  /// light list and still lights the draw; only one past the list's own bound
+  /// is actually lost, and that is the distinction a frame counter has to make
+  /// or it tells somebody their ninth lamp does nothing when it does.
   int get overflow => _overflow;
+
+  /// Lights this selection could deliver nowhere — `gfx-74n`.
+  ///
+  /// What a frame reports, and the honest version of [overflow]: the slots hold
+  /// eight and the list holds [maxExtraLights] more, so a scene is only losing
+  /// light past thirty-two.
+  int get dropped => math.max(_overflow - _extraCount, 0);
 
   final Vector3 _direction = Vector3.zero();
   final Vector3 _position = Vector3.zero();
+
+  /// A rectangle's two edge vectors while it is being packed — `gfx-77n`.
+  /// Kept here for the reason the two above are: gathering lights runs every
+  /// frame and must allocate nothing.
+  final Vector3 _halfWidth = Vector3.zero();
+  final Vector3 _halfHeight = Vector3.zero();
 
   /// The scene's live lights, in scene order, as [collect] last found them.
   final List<LightNode> candidates = <LightNode>[];
@@ -119,13 +231,28 @@ final class LightBuffer {
   /// either is not a light that lost a slot, it is a light that is not there,
   /// and counting it in [overflow] would report a scene as crowded because
   /// somebody turned a lamp off.
+  /// Whether any candidate asks for a channel — `gfx-12n`.
+  ///
+  /// Read by the per-draw selection to keep the fast path exactly as fast as
+  /// it was: a scene with no channels takes the same short-circuit and packs
+  /// the same bytes, and that is what "zero changes to frames with no
+  /// channels" means as something a test can check rather than a hope.
+  bool get anyChannelled => _anyChannelled;
+  bool _anyChannelled = false;
+
+  /// Whether [channels] admits [light].
+  static bool reaches(LightNode light, int channels) =>
+      light.channels & channels != 0;
+
   void collect(List<LightNode> lights) {
     candidates.clear();
+    _anyChannelled = false;
     for (var i = 0; i < lights.length; i++) {
       final light = lights[i];
       if (!light.visibleInHierarchy) continue;
       if (light.intensity <= 0.0) continue;
       candidates.add(light);
+      if (light.channels != LightChannels.all) _anyChannelled = true;
     }
 
     final needed = candidates.length * _kCandidateStride;
@@ -210,7 +337,38 @@ final class LightBuffer {
   /// either method, so nothing that fits can change appearance by adopting
   /// this; and a light that stays chosen keeps its slot while the set holds,
   /// which keeps the shadow slot table from churning as the camera walks.
-  void gatherNearFrom(LightBuffer table, Vector3 centre, double radius) {
+  ///
+  /// ## The pop at the edge of the list, and [fadeBand] — `gfx-05n`
+  ///
+  /// Ranking correctly does not stop a light from *arriving*. Walk a camera
+  /// down a corridor of forty torches and the eighth slot changes hands every
+  /// few metres; the light leaving was contributing whatever the ranking said
+  /// it was, and the next frame it contributes nothing. That is the pop, and
+  /// it is a property of any hard cut-off, however good the ranking is.
+  ///
+  /// [fadeBand] closes it by making the edge of the list a ramp rather than a
+  /// cliff. The strongest score this selection *rejected* is the water line:
+  /// a light exactly at it contributes nothing, one at `(1 + fadeBand)` times
+  /// it contributes fully, and in between its intensity is scaled smoothly.
+  /// Two lights swapping places are then both near the water line, both near
+  /// nothing, and the swap has nothing to show.
+  ///
+  /// **Nought, the default, is the old hard edge exactly** — not approximately:
+  /// with no band there is nothing to divide by and every chosen light packs
+  /// its own intensity, byte for byte. That is what lets this ship without
+  /// moving a recorded frame on a backend this machine cannot re-record.
+  ///
+  /// **A scene that fits pays nothing either way.** The water line is the best
+  /// *rejected* score, and a selection that rejected nothing has none — so a
+  /// scene inside [maxLights] fades nothing even with a band set, which is the
+  /// same "only overflow pays" rule the rest of this method follows.
+  void gatherNearFrom(
+    LightBuffer table,
+    Vector3 centre,
+    double radius, {
+    int channels = LightChannels.all,
+    double fadeBand = 0.0,
+  }) {
     _reset();
 
     // Read out of the vector once. Every component read inside the loop is a
@@ -222,8 +380,18 @@ final class LightBuffer {
 
     var chosen = 0;
     var weakest = 0;
+    // The strongest score this selection turned away — the water line the
+    // fade is measured against. Stays nought when nothing was turned away.
+    var rejected = 0.0;
     final length = table.candidates.length;
     for (var i = 0; i < length; i++) {
+      // Channels before relevance — `gfx-12n`. A light this object is not on
+      // the channel of should not take one of its eight slots, which is the
+      // difference between a channel and a check made in the shader.
+      if (channels != LightChannels.all &&
+          !reaches(table.candidates[i], channels)) {
+        continue;
+      }
       final score = _relevanceIn(data, i, cx, cy, cz, radius);
       // Zero is not a weak light, it is a light this object is outside of.
       // Packing it would spend a slot on a term the shader evaluates to black.
@@ -239,7 +407,17 @@ final class LightBuffer {
 
       // Strictly better, so an incumbent survives an equal score and the
       // earlier light wins the tie.
-      if (score <= _chosenScore[weakest]) continue;
+      if (score <= _chosenScore[weakest]) {
+        // Turned away from the slots, and before `gfx-74n` that was the end of
+        // it. The tail is where it goes instead, and what the tail could not
+        // keep either is what the water line is measured from.
+        final lost = _considerExtra(i, score);
+        if (lost > rejected) rejected = lost;
+        continue;
+      }
+      final evicted = _chosenScore[weakest];
+      final lost = _considerExtra(_chosen[weakest], evicted);
+      if (lost > rejected) rejected = lost;
       _chosen[weakest] = i;
       _chosenScore[weakest] = score;
       weakest = _weakest(chosen);
@@ -260,10 +438,70 @@ final class LightBuffer {
       _chosenScore[j + 1] = score;
     }
 
+    // Above the top of the band nothing is scaled, so the whole fade costs a
+    // comparison in the ordinary case: one full light at the water line is
+    // rare, and eight of them is a corridor of identical torches.
+    final ceiling = rejected * (1.0 + fadeBand);
+    final fading = fadeBand > 0.0 && rejected > 0.0;
     for (var i = 0; i < chosen; i++) {
-      _pack(table.candidates[_chosen[i]]);
+      _pack(
+        table.candidates[_chosen[i]],
+        scale: fading ? _edgeFade(_chosenScore[i], rejected, ceiling) : 1.0,
+      );
     }
+
+    // **The tail fades too, and it has to — `gfx-74n`.** The water line is now
+    // the end of the list, so the light approaching it is one of these rather
+    // than one of the slots above; fading only the slots would dim a light that
+    // is nowhere near the edge and leave the one that is popping in and out at
+    // full brightness. The scale rides per draw beside the index, because the
+    // row it points at is shared by every draw in the frame.
+    for (var i = 0; i < _extraCount; i++) {
+      extraScales[i] = fading
+          ? _edgeFade(_extraScore[i], rejected, ceiling)
+          : 1.0;
+    }
+
     _overflow = table.candidates.length - _count;
+  }
+
+  /// How much of a chosen light survives its distance from the water line.
+  ///
+  /// Smoothstep rather than a straight ramp: the derivative is nought at both
+  /// ends, so a light does not start fading with a visible kink the moment it
+  /// crosses the top of the band — which would be a second, smaller pop in
+  /// place of the one this removes.
+  ///
+  /// [score] is infinite for a directional light, which falls out correctly
+  /// without a branch: `infinity > ceiling`, so the sun is never faded.
+  static double _edgeFade(double score, double floor, double ceiling) {
+    if (score >= ceiling) return 1.0;
+    if (score <= floor) return 0.0;
+    final t = (score - floor) / (ceiling - floor);
+    return t * t * (3.0 - 2.0 * t);
+  }
+
+  /// Packs whichever of [table]'s candidates [channels] admits, in order —
+  /// `gfx-12n`'s path for a scene that fits in [maxLights].
+  ///
+  /// **Separate from [gatherNearFrom] because relevance is not the question
+  /// here.** A scene inside eight lights packs them all and ranks nothing; a
+  /// channel does not make it overflow, it makes it *smaller*. Sending it
+  /// through the ranking path would compute a score per light to answer a
+  /// question nobody asked, and would drop a light whose attenuation is zero
+  /// at this object — which the unranked path deliberately keeps, so that a
+  /// scene inside eight sees the same eight everywhere.
+  void gatherMatchingFrom(LightBuffer table, int channels) {
+    _reset();
+    for (var i = 0; i < table.candidates.length && _count < maxLights; i++) {
+      final light = table.candidates[i];
+      if (!reaches(light, channels)) continue;
+      _pack(light);
+    }
+    // Nothing is left waiting: what a channel excluded is not overflow, it is
+    // a light that does not apply, and reporting it as pressure on the eight
+    // slots would read as a scene that needs selection when it does not.
+    _overflow = 0;
   }
 
   /// [gatherNearFrom] against this buffer's own candidates.
@@ -272,8 +510,8 @@ final class LightBuffer {
   /// drawn on its own. A frame uses the two-buffer form: its own buffer holds
   /// the table and the packing the shadow atlas was assigned against, and a
   /// second buffer is repacked per draw without disturbing it.
-  void gatherNear(Vector3 centre, double radius) =>
-      gatherNearFrom(this, centre, radius);
+  void gatherNear(Vector3 centre, double radius, {double fadeBand = 0.0}) =>
+      gatherNearFrom(this, centre, radius, fadeBand: fadeBand);
 
   /// Which of the chosen slots is the easiest to give up.
   ///
@@ -355,11 +593,63 @@ final class LightBuffer {
   void _reset() {
     _count = 0;
     _overflow = 0;
+    _extraCount = 0;
     packed.clear();
   }
 
-  /// Writes one light into the next free slot.
-  void _pack(LightNode light) {
+  /// Writes one light into the next free slot, its intensity scaled by
+  /// [scale] — nought to one, and one for every caller but the edge fade.
+  ///
+  /// The intensity and not the colour, because they are the same multiply to
+  /// the shader and only one of them is a number nobody authored: dimming a
+  /// light by writing a darker colour would show up in a debug view as a lamp
+  /// somebody tinted.
+  /// Writes candidate [index] into [out] at [at], as one row of the light list
+  /// texture — `gfx-74n`.
+  ///
+  /// Sixteen floats, four texels: the same four vectors [_pack] writes into the
+  /// four slot arrays, in the same order, so `lib/surface.glsl` reads a row and
+  /// a slot with one piece of code.
+  ///
+  /// **Not shared with [_pack] despite the overlap.** That one writes four
+  /// arrays at a stride of four and counts a slot; this writes one array at a
+  /// stride of sixteen and counts nothing. Folding them together would mean a
+  /// destination abstraction in the hottest packing loop the renderer has, to
+  /// save a dozen assignments — and the shared thing would then be the place a
+  /// change to the slot layout silently changed the row layout.
+  void writeCandidateRow(int index, Float32List out, int at) {
+    final light = candidates[index];
+    light.readDirection(_direction);
+    light.readWorldPosition(_position);
+
+    out[at] = _position.x;
+    out[at + 1] = _position.y;
+    out[at + 2] = _position.z;
+    out[at + 3] = ShaderLightType.of(light.type);
+
+    out[at + 4] = light.color.x;
+    out[at + 5] = light.color.y;
+    out[at + 6] = light.color.z;
+    out[at + 7] = light.intensity;
+
+    out[at + 8] = _direction.x;
+    out[at + 9] = _direction.y;
+    out[at + 10] = _direction.z;
+    out[at + 11] = math.max(light.range, 0.0);
+
+    final outer = light.outerConeAngle.clamp(0.0, math.pi / 2.0);
+    final inner = light.innerConeAngle.clamp(0.0, outer);
+    final cosOuter = math.cos(outer);
+    var cosInner = math.cos(inner);
+    if (cosInner - cosOuter < 1e-4) cosInner = cosOuter + 1e-4;
+
+    out[at + 12] = cosInner;
+    out[at + 13] = cosOuter;
+    out[at + 14] = 0.0;
+    out[at + 15] = 0.0;
+  }
+
+  void _pack(LightNode light, {double scale = 1.0}) {
     packed.add(light);
     final slot = _count * 4;
     light.readDirection(_direction);
@@ -373,7 +663,47 @@ final class LightBuffer {
     colors[slot] = light.color.x;
     colors[slot + 1] = light.color.y;
     colors[slot + 2] = light.color.z;
-    colors[slot + 3] = light.intensity;
+    colors[slot + 3] = light.intensity * scale;
+
+    // **A rectangle takes over the two arrays it has no punctual use for —
+    // `gfx-77n`.** It needs six numbers nothing else does: two edge vectors,
+    // which between them carry the panel's size *and* its roll about its own
+    // normal, and a number cannot carry a roll. Widening the block by a fifth
+    // `vec4[8]` would have cost 128 bytes on every draw in every scene, most
+    // of which hold no rectangle at all — the objection `gfx-74n` raised
+    // against widening these arrays, at a smaller size but the same shape. So
+    // the half-width goes where a punctual light keeps the direction it points
+    // and the half-height where a spot keeps its cone, and the normal is the
+    // cross product of the two, which is a multiply the shader was going to do
+    // anyway. Nothing grew.
+    if (light.type == LightType.area) {
+      light.readHalfWidth(_halfWidth);
+      light.readHalfHeight(_halfHeight);
+
+      directions[slot] = _halfWidth.x;
+      directions[slot + 1] = _halfWidth.y;
+      directions[slot + 2] = _halfWidth.z;
+      directions[slot + 3] = math.max(light.range, 0.0);
+
+      // **Negated, and that is the whole of how a window aims like everything
+      // else.** The shader takes the panel's facing as
+      // `cross(halfWidth, halfHeight)`, which is the plain reading of two edge
+      // vectors and needs no minus sign anywhere in the inner loop. The node's
+      // own axes give `cross(+X, +Y) = +Z`, and every light in this engine
+      // points down its local −Z — a spot, a directional, and the camera that
+      // [SceneNode.lookAt] was written for. Flipping the height axis here makes
+      // the cross product come out −Z, so a window aimed with `lookAt` lights
+      // what it was aimed at instead of the wall behind it. It costs nothing
+      // visible: a rectangle is symmetric about its centre, so which way its
+      // height runs cannot be seen.
+      cones[slot] = -_halfHeight.x;
+      cones[slot + 1] = -_halfHeight.y;
+      cones[slot + 2] = -_halfHeight.z;
+      cones[slot + 3] = 0.0;
+
+      _count++;
+      return;
+    }
 
     directions[slot] = _direction.x;
     directions[slot + 1] = _direction.y;

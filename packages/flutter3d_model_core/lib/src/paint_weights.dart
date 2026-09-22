@@ -1,9 +1,11 @@
-/// A weight-paint brush stroke — `anim-10`'s own row, the brush that calls
-/// `flutter3d_mesh`'s already-built one-vertex primitives
-/// (`paintWeight`/`assignSelection`/`mirrorWeights`/`normalizeVertexWeights`,
-/// `packages/flutter3d_mesh/lib/src/skin/vertex_weights.dart`) per hit, the
-/// sampling and BVH picking that file's own doc comment names as this row's
-/// job and not theirs.
+/// A weight-paint brush stroke — `anim-10`'s own row, closed for real: the
+/// brush that calls `flutter3d_mesh`'s already-built one-vertex primitives
+/// (`paintWeight`/`assignSelection`/`mirrorWeights`/`normalizeVertexWeights`/
+/// `pruneVertexWeights`, `packages/flutter3d_mesh/lib/src/skin/vertex_weights.dart`)
+/// per hit, the sampling and BVH picking that file's own doc comment names as
+/// this row's job and not theirs — and [PaintWeights], the [ModelCommand]
+/// wrapping it, so a stroke is one undo step rather than an edit nothing can
+/// take back.
 ///
 /// **Hit-tested against the mesh's own CURRENT posed shape, not its bind
 /// pose.** A bent elbow's skin has already moved away from where the rest
@@ -28,24 +30,27 @@
 /// structure built for bind-pose faces would not obviously be. A row that
 /// actually needs the speed can reach for the BVH later; this one does not.
 ///
-/// **Not a `ModelCommand`.** `command.dart`'s own sealed set requires a
-/// matching MCP tool for every name it adds (`flutter3d_model_mcp`'s
-/// `tools_test.dart` fails symmetrically otherwise) — wiring a UI or an
-/// agent up to call this is a later, app-integration row's own work, the
-/// same scope line `anim-15`'s `IkConstraint` and `anim-20`'s `ShapeDriver`
-/// already drew for themselves instead of becoming commands. What this row
-/// promises instead — "one drag is one step" — is kept the same low-level
-/// way `command.dart`'s own `_asMeshStep` keeps it for every mesh command:
-/// one [EditMesh.beginStep] before the first sample, one
-/// [EditMesh.endStep] after the last.
-library;
-
-import 'package:flutter3d_mesh/flutter3d_mesh.dart';
-import 'package:vector_math/vector_math.dart';
-
-import 'project.dart';
-import 'project_animation.dart';
-import 'world_transform.dart';
+/// **`PaintWeights` closes `anim-10` exactly as its own wording already
+/// promised: "a stroke is one Cmd-Z."** The one drag is one [EditMesh]
+/// journal step — [paintWeights] brackets it with one [EditMesh.beginStep]
+/// before the first sample and one [EditMesh.endStep] after the last, the
+/// same low-level bracketing every mesh command in `mesh_commands.dart`
+/// keeps through its own `_asMeshStep` — and a hundred of these run inside
+/// one [ModelHistory] transaction collapse into the one undo step that
+/// transaction leaves behind, `history.dart`'s own doc comment describing
+/// exactly this shape.
+///
+/// **"A limit from the profile, renormalised on every stroke."** After the
+/// samples land (and after [mirror], when one is given), every vertex the
+/// stroke touched is pruned to [PaintWeights.maxInfluences] — the project's
+/// own [ProjectProfile.maxInfluences] by default — through
+/// [pruneVertexWeights], which renormalizes what is left as part of its own
+/// contract; there is no separate renormalize call needed after it. Only
+/// when [PaintWeights.normalize] is false is this whole pass skipped,
+/// leaving a stroke's raw weights exactly as painted — [paintWeight]'s own
+/// four-slot cap still applies underneath either way, since that is
+/// `mesh-60`'s own storage limit, not this row's.
+part of 'command.dart';
 
 /// One brush hit within a drag: where it landed, in the same space
 /// [worldTransformOf] answers in, and how far its influence reaches.
@@ -57,6 +62,28 @@ final class BrushSample {
   /// Vertices farther than this from [center] (in their own current, posed
   /// position) are untouched by this sample.
   final double radius;
+
+  Map<String, Object?> toJson() => <String, Object?>{
+    'center': <double>[center.x, center.y, center.z],
+    'radius': radius,
+  };
+
+  /// A [BrushSample] from its own [toJson], or null when a field is missing
+  /// or the wrong shape.
+  static BrushSample? fromJson(Object? json) {
+    if (json is! Map<String, Object?>) return null;
+    return switch (json) {
+      {'center': final Object? centerJson, 'radius': final num radius} =>
+        switch (_doubles(centerJson, 3)) {
+          final List<double> center => BrushSample(
+            center: Vector3(center[0], center[1], center[2]),
+            radius: radius.toDouble(),
+          ),
+          null => null,
+        },
+      _ => null,
+    };
+  }
 }
 
 /// How a sample changes a vertex's weight at `paintWeights`' own `joint`.
@@ -108,6 +135,40 @@ final class PaintMirror {
 
   final double plane;
   final double tolerance;
+
+  Map<String, Object?> toJson() => <String, Object?>{
+    'axis': axis,
+    'jointMirror': jointMirror.map(
+      (int key, int value) => MapEntry(key.toString(), value),
+    ),
+    'plane': plane,
+    'tolerance': tolerance,
+  };
+
+  /// A [PaintMirror] from its own [toJson], or null when a field is missing
+  /// or the wrong shape — [MirrorJoints]' own `jointMirror` reader, repeated
+  /// here rather than shared, since the two commands' readers live in
+  /// different `switch` shapes and neither is worth a third file just to
+  /// hold one map decode.
+  static PaintMirror? fromJson(Object? json) {
+    if (json is! Map<String, Object?>) return null;
+    return switch (json) {
+      {
+        'axis': final int axis,
+        'jointMirror': final Map<String, Object?> jointMirrorJson,
+      } =>
+        PaintMirror(
+          axis: axis,
+          jointMirror: jointMirrorJson.map(
+            (String key, Object? value) =>
+                MapEntry(int.parse(key), value! as int),
+          ),
+          plane: (json['plane'] as num?)?.toDouble() ?? 0.0,
+          tolerance: (json['tolerance'] as num?)?.toDouble() ?? 1e-4,
+        ),
+      _ => null,
+    };
+  }
 }
 
 /// [vertex]'s own current, posed position: [mesh]'s bind-pose position for
@@ -165,14 +226,21 @@ Map<int, Vector3> _posedPositions(
 };
 
 /// Paints [joint]'s influence over every vertex [samples] touches, hit-tested
-/// against each vertex's current posed position — `anim-10`'s own row:
-/// `PaintWeights(joint, samples, strength, mode, mirror, normalize)`.
+/// against each vertex's current posed position — the low-level brush
+/// [PaintWeights] runs inside one journal step: `paintWeights(joint,
+/// samples, strength, mode, mirror, normalize, maxInfluences)`.
 ///
 /// [joint] is a [ModelObject.id], the same addressing `IkConstraint` and
 /// `ShapeDriver` already use — not the local, vertex-attribute-slot index
 /// [WeightPair.joint] stores; this looks that index up itself via
 /// `skeleton.joints.indexOf(joint)`. Does nothing when [joint] does not
 /// belong to [skeleton], or [samples] is empty.
+///
+/// [normalize] (default false, here — [PaintWeights] itself defaults to
+/// true) gates one pass over every touched vertex after painting and
+/// mirroring: [pruneVertexWeights] to [maxInfluences] when one is given —
+/// which renormalizes what is left as part of its own contract — or a bare
+/// [normalizeVertexWeights] when it is not.
 ///
 /// The whole drag is one journal step on [mesh]: nothing here refuses
 /// midway, so there is nothing to roll back, but the batching itself is
@@ -188,6 +256,7 @@ void paintWeights({
   PaintWeightsMode mode = PaintWeightsMode.paint,
   PaintMirror? mirror,
   bool normalize = false,
+  int? maxInfluences,
 }) {
   final localJoint = skeleton.joints.indexOf(joint);
   if (localJoint < 0 || samples.isEmpty) return;
@@ -237,8 +306,160 @@ void paintWeights({
   }
   if (normalize) {
     for (final v in touched) {
-      normalizeVertexWeights(mesh, v);
+      if (maxInfluences != null) {
+        pruneVertexWeights(mesh, v, maxInfluences);
+      } else {
+        normalizeVertexWeights(mesh, v);
+      }
     }
   }
   mesh.endStep();
+}
+
+/// A weight-paint brush stroke, as one undo step — `anim-10`'s own row,
+/// closed exactly as its own wording promised: "a stroke is one Cmd-Z."
+///
+/// See this library's own doc comment for [paintWeights], the low-level
+/// brush this runs inside one journal step, and for what [normalize] and
+/// [maxInfluences] do together once the stroke itself is painted.
+final class PaintWeights extends ModelCommand {
+  const PaintWeights({
+    required this.objectId,
+    required this.skeletonIndex,
+    required this.joint,
+    required this.samples,
+    required this.strength,
+    this.mode = PaintWeightsMode.paint,
+    this.mirror,
+    this.normalize = true,
+    this.maxInfluences,
+  });
+
+  /// The object with the mesh a stroke paints onto.
+  final int objectId;
+
+  final int skeletonIndex;
+
+  /// [ModelObject.id] of the joint this stroke paints — [skeletonIndex]'s
+  /// own joint, not the mesh's local, vertex-attribute-slot index.
+  final int joint;
+
+  final List<BrushSample> samples;
+  final double strength;
+  final PaintWeightsMode mode;
+  final PaintMirror? mirror;
+
+  /// Whether every vertex the stroke touched is pruned to [maxInfluences]
+  /// and renormalized once painting (and mirroring) is done. True by
+  /// default — a real stroke wants the profile's own budget kept, not left
+  /// to whatever an export-time check catches later.
+  final bool normalize;
+
+  /// The cap [normalize] prunes to, or [ProfileBudget.maxInfluences] when
+  /// this is left null — "a limit from the profile," the row's own words.
+  final int? maxInfluences;
+
+  @override
+  String get name => 'paintWeights';
+
+  @override
+  String get says => 'paint weights';
+
+  @override
+  Map<String, Object?> get arguments => <String, Object?>{
+    'objectId': objectId,
+    'skeletonIndex': skeletonIndex,
+    'joint': joint,
+    'samples': <Object?>[for (final BrushSample s in samples) s.toJson()],
+    'strength': strength,
+    'mode': mode.name,
+    if (mirror != null) 'mirror': mirror!.toJson(),
+    'normalize': normalize,
+    if (maxInfluences != null) 'maxInfluences': maxInfluences,
+  };
+
+  @override
+  Map<String, ParamHint> get hints => const <String, ParamHint>{
+    'strength': DoubleHint(min: 0, max: 1, step: 0.05),
+  };
+
+  @override
+  Outcome apply(ModelProject project, ProjectSelection selection) {
+    final object = project[objectId];
+    if (object == null) return Outcome.refused('there is no object $objectId');
+    final EditedGeometry? edited = switch (object.geometry) {
+      final EditedGeometry it => it,
+      _ => null,
+    };
+    if (edited == null) {
+      return Outcome.refused(
+        '"${object.name}" has no mesh to paint weights on — bake it to a '
+        'mesh first',
+      );
+    }
+    final (:skeleton, :refused) = _skeletonTarget(project, skeletonIndex);
+    if (skeleton == null) return Outcome.refused(refused!);
+    if (!skeleton.joints.contains(joint)) {
+      return Outcome.refused(
+        'object $joint is not a joint of skeleton $skeletonIndex',
+      );
+    }
+    if (samples.isEmpty) {
+      return Outcome.refused('paintWeights needs at least one sample');
+    }
+
+    paintWeights(
+      project: project,
+      mesh: edited.mesh,
+      skeleton: skeleton,
+      joint: joint,
+      samples: samples,
+      strength: strength,
+      mode: mode,
+      mirror: mirror,
+      normalize: normalize,
+      maxInfluences: maxInfluences ?? project.profile.maxInfluences,
+    );
+    // A new `ModelObject` round the same, in-place-mutated mesh — never
+    // `identical` to what [project] held, the same way every mesh command
+    // in `mesh_commands.dart` rewraps through `_asMeshStep`. Two things
+    // need that: a viewport reads a bumped `ModelObject.version` as "upload
+    // this again," and `ModelHistory.endTransaction` reads a project
+    // `identical` to its own `before` as "nothing happened" — true for
+    // every other command that ever sets `meshTouched`, since each of them
+    // also touches the document some other way, but not for a stroke that
+    // only ever mutates the mesh in place. Without this, a hundred
+    // `PaintWeights` inside one transaction would journal on the mesh for
+    // real and then have `endTransaction` throw the whole step away anyway.
+    return Outcome.done(
+      project.withObject(
+        object.copyWith(geometry: EditedGeometry(edited.mesh)),
+      ),
+      meshTouched: edited.mesh,
+    );
+  }
+}
+
+/// Every [BrushSample.fromJson] in [json], or null on the first one that does
+/// not read back — the same "no half-built command" rule every other reader
+/// in `command.dart` keeps.
+List<BrushSample>? _brushSamplesFrom(List<Object?> json) {
+  final out = <BrushSample>[];
+  for (final Object? each in json) {
+    final sample = BrushSample.fromJson(each);
+    if (sample == null) return null;
+    out.add(sample);
+  }
+  return out;
+}
+
+/// The mirror [json] describes: `(null, true)` when [json] is null — a
+/// stroke with no mirror, the ordinary case — `(mirror, true)` when it reads
+/// back, or `(null, false)` when it does not. The `bool` is what lets the
+/// caller tell "no mirror" apart from "an unreadable one," which a plain
+/// nullable return cannot.
+(PaintMirror?, bool) _paintMirrorFrom(Object? json) {
+  if (json == null) return (null, true);
+  final mirror = PaintMirror.fromJson(json);
+  return (mirror, mirror != null);
 }
