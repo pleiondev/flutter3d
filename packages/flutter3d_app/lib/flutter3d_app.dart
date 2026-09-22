@@ -44,6 +44,8 @@ export 'src/backend_native.dart'
     show kFixedResolution, openDevice, presentFrame;
 export 'src/diagnostics/issues.dart';
 export 'src/level/level_loader.dart';
+export 'src/level/model_visuals.dart';
+export 'src/level/prop_visuals.dart';
 export 'src/level/shared_meshes.dart';
 export 'src/level/surface_mesh.dart';
 export 'src/level/terrain_tiles.dart';

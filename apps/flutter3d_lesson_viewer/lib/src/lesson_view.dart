@@ -22,7 +22,6 @@ import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/gestures.dart';
-import 'package:flutter/material.dart' hide Material;
 // `Material` the widget, under a prefix: both imports below hide the bare
 // name because `flutter3d` has its own `Material` (a render material, not a
 // widget), and this file needs Flutter's — only for the one line that gives
@@ -30,9 +29,11 @@ import 'package:flutter/material.dart' hide Material;
 import 'package:flutter/material.dart'
     as widgets_material
     show Material, MaterialType;
+import 'package:flutter/material.dart' hide Material;
 import 'package:flutter3d/flutter3d.dart' hide Material;
 import 'package:flutter3d_app/flutter3d_app.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:vector_math/vector_math.dart' show Vector3;
 
 import 'check_prompt.dart';
 import 'lesson_player.dart';
@@ -49,6 +50,7 @@ class LessonView extends StatefulWidget {
     required this.camera,
     required this.player,
     this.nodes = const <String, SceneNode>{},
+    this.restPositions = const <String, Vector3>{},
   });
 
   final Renderer renderer;
@@ -61,6 +63,12 @@ class LessonView extends StatefulWidget {
   /// entity names to nodes is left to the caller, the same split
   /// `LessonStereoView`'s own doc comment already draws.
   final Map<String, SceneNode> nodes;
+
+  /// Where each named node sits with nothing taken apart, so a step's
+  /// `offsets` can be read as the whole disassembled state rather than as a
+  /// move from wherever the last step left things. Empty for a lesson that
+  /// takes nothing apart, which is every lesson that ships today.
+  final Map<String, Vector3> restPositions;
 
   @override
   State<LessonView> createState() => _LessonViewState();
@@ -80,7 +88,11 @@ class _LessonViewState extends State<LessonView> {
   void initState() {
     super.initState();
     _orbit = OrbitCubit(OrbitController(widget.camera))
-      ..resetFromStep(widget.player.current, nodes: widget.nodes);
+      ..resetFromStep(
+        widget.player.current,
+        nodes: widget.nodes,
+        restPositions: widget.restPositions,
+      );
   }
 
   @override
@@ -92,7 +104,11 @@ class _LessonViewState extends State<LessonView> {
   void _step(void Function() advance) {
     setState(() {
       advance();
-      _orbit.resetFromStep(widget.player.current, nodes: widget.nodes);
+      _orbit.resetFromStep(
+        widget.player.current,
+        nodes: widget.nodes,
+        restPositions: widget.restPositions,
+      );
     });
   }
 
