@@ -152,8 +152,8 @@ extra code. The four that break:
 
 ## 4. The switch is not a differentiator. The reason is
 
-This is the answer to "будет очень круто если у нас это будет, а у них нет",
-and it is no.
+This is the answer to "будет очень круто если у нас это будет, а у них нет"
+("it would be very cool if we had this and they did not"), and it is no.
 
 flutter_scene already ships the per-pass boolean for a caller's own passes:
 `CustomRenderPass.enabled`, filtered in `Scene._passesAt`
