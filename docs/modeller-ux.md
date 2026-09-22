@@ -271,7 +271,7 @@ prefills a browser form with exactly that same text — the dialog and the
 bug report describe the crash identically, because both read the same
 `CrashReport.describe()`.
 
-`RestoreAutosaveDialog` ("предложение восстановить," the recovery offer
+`RestoreAutosaveDialog` ("предложение восстановить" — the offer to restore,
 on a session that did not close cleanly) makes a smaller but pointed
 choice: it names **how many objects** the autosave would bring back,
 rather than only that something was found (`restore_autosave_dialog.dart:1-3`)
