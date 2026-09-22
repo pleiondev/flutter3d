@@ -1,6 +1,6 @@
 /// Screen 26, "Agent session" — `tut-16`'s own fix.
 ///
-/// `doc/design/modeler-handoff/README-дополнение.md` row 26, and screen 26 of
+/// `doc/design/modeler-handoff/README-addendum.md` row 26, and screen 26 of
 /// `designs/Экраны редактора - дополнение.dc.html`, draw three things beside
 /// the ordinary shell while `--mcp-port` is open: a live feed of every tool
 /// call an agent makes, a history list badged by who made each step, and a
