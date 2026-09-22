@@ -234,6 +234,20 @@ jobs:
       - name: golden scenes, software backend
         run: xvfb-run -a packages/flutter3d/tool/golden.sh --cpu
 
+      # **What the run actually drew, when it drew the wrong thing.** The
+      # script writes `<scene>.actual.png` beside the reference it failed
+      # against and says so, and until now that file died with the runner: a
+      # failure here could be read as a count of differing pixels and nothing
+      # else. Whether a golden moved because the renderer regressed or because
+      # the reference is older than the code is a question a picture answers
+      # in a second and a number never answers at all.
+      - if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cpu-goldens-actual
+          path: packages/flutter3d_cpu/test/goldens/*.actual.png
+          if-no-files-found: ignore
+
   # **Windows and Linux** — `gfx-73n`. The pubspec declared four platform
   # folders across ten applications and neither desktop was among them, so a
   # reader asking "which platforms can I ship" got a backend count for an
