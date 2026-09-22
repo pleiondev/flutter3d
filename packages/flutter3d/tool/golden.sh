@@ -137,7 +137,10 @@ case "$(uname -s)" in
 esac
 
 if [[ "$BUILD" == true ]]; then
-  echo "building the example for $HOST…"
+  # Braces, because the ellipsis is not ASCII and macOS ships bash 3.2, which
+  # reads its bytes as more of the variable's name: `$HOST…` is the unset
+  # `HOST…`, and under `set -u` that ends the run before it builds anything.
+  echo "building the example for ${HOST}…"
   (cd "$EXAMPLE_DIR" && flutter build "${BUILD_ARGS[@]}" \
     ${BACKEND_DEFINE[@]+"${BACKEND_DEFINE[@]}"})
   # Re-read it: the glob above ran before the build existed, so on a first
