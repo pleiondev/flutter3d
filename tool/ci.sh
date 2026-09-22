@@ -256,6 +256,14 @@ step "pub get cloud/lessons/server" in_dir cloud/lessons/server dart pub get
 step "analyze cloud/lessons/server" in_dir cloud/lessons/server dart analyze --fatal-infos
 step "test cloud/lessons/server" in_dir cloud/lessons/server dart test
 
+# **The LTI service, the third of the same kind.** `lti-03`'s own launch
+# endpoint over `flutter3d_lti` — outside the workspace like the two above,
+# and named here for the same reason: a service nothing runs is a service
+# nobody finds out about until it is deployed.
+step "pub get cloud/lti/server" in_dir cloud/lti/server dart pub get
+step "analyze cloud/lti/server" in_dir cloud/lti/server dart analyze --fatal-infos
+step "test cloud/lti/server" in_dir cloud/lti/server dart test
+
 # **The release dashboard judges the same scripts this one runs**, so a change
 # to how it reads a result is a change to what "green" means on its page.
 step "analyze tool/release_dashboard" in_dir tool/release_dashboard dart analyze --fatal-infos

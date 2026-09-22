@@ -1,0 +1,14 @@
+# /etc/cloudflared/lti.yml
+#
+# A tunnel of its own, the same "each service gets its own tunnel" pattern
+# cloud/lessons/deploy/cloudflared-lessons.yml already documents.
+#
+# `<TUNNEL_ID>` is what `cloudflared tunnel create flutter3d-lti` prints; the
+# credentials file of the same name is written beside it.
+tunnel: <TUNNEL_ID>
+credentials-file: /etc/cloudflared/<TUNNEL_ID>.json
+
+ingress:
+  - hostname: lti.pleion.dev
+    service: http://127.0.0.1:8797
+  - service: http_status:404
