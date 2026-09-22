@@ -88,9 +88,9 @@ final class DungeonMonsters implements ActorAppearance {
   /// is a monster silently drawn as a capsule, and a test that only checked
   /// the files on disk would pass — which it did, until a mutation said so.
   static const Map<String, String> modelsForKind = <String, String>{
-    'runner': 'assets/models/monster_runner.glb',
-    'shooter': 'assets/models/monster_shooter.glb',
-    'tank': 'assets/models/monster_tank.glb',
+    'runner': 'assets_src/models/monster_runner.glb',
+    'shooter': 'assets_src/models/monster_shooter.glb',
+    'tank': 'assets_src/models/monster_tank.glb',
   };
 
   /// Materials by kind, for anything still drawn as a capsule — an actor whose

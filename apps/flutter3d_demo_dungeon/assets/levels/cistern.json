@@ -378,7 +378,7 @@
       "at": [-23.0, 0.9, -6.0],
       "color": "brass",
       "name": "brass_key",
-      "model": "assets/models/key.glb",
+      "model": "assets_src/models/key.glb",
       "material": "keymetal",
       "size": [0.7, 0.7, 0.7],
       "tint": [0.95, 0.6, 0.2]
@@ -398,7 +398,7 @@
       "at": [22.0, 1.2, -6.0],
       "color": "iron",
       "name": "iron_key",
-      "model": "assets/models/key.glb",
+      "model": "assets_src/models/key.glb",
       "material": "keymetal",
       "size": [0.7, 0.7, 0.7],
       "tint": [0.95, 0.6, 0.2]
