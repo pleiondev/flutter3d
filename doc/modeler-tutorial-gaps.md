@@ -1,6 +1,7 @@
 # Modeler tutorial — gaps journal
 
-`tut-00`'s own "Журнал гэпов": every gap found while writing or walking
+`tut-00`'s own "Журнал гэпов" (gap log): every gap found while writing or
+walking
 through a tutorial case, as one row. Accepted when this file is empty, or
 every row below has become a `tut-NN` line in `doc/model-editor-plan.md`
 with a decision — "делаем" or "откладываем" — recorded there.
