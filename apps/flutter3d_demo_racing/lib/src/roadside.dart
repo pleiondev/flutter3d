@@ -252,22 +252,23 @@ List<SceneNode> addRoadsideTo(
 /// load.
 ///
 /// Four of the forty in Kenney's suburban city kit, which is CC0 — see
-/// `assets/models/LICENSES.md`. Four rather than forty because a lap goes past
-/// a dozen of them and a fifth model would cost a hundred kilobytes to be
+/// `assets_src/models/LICENSES.md`. Four rather than forty because a lap goes
+/// past a dozen of them and a fifth model would cost a hundred kilobytes to be
 /// noticed by nobody.
 Future<List<ModelAsset>> loadBuildings(GraphicsDevice device) async {
   const paths = <String>[
-    'assets/models/building-a.glb',
-    'assets/models/building-e.glb',
-    'assets/models/building-k.glb',
-    'assets/models/building-q.glb',
+    'assets_src/models/building-a.glb',
+    'assets_src/models/building-e.glb',
+    'assets_src/models/building-k.glb',
+    'assets_src/models/building-q.glb',
   ];
   final loaded = <ModelAsset>[];
   for (final path in paths) {
     try {
-      final document = await decodeModelInIsolate(
-        ModelLoadRequest(source: BundleAssetSource(path)),
-      );
+      // `ap-12`: `path` names its `assets_src/` source; `loadModelAsset`
+      // (`ap-11`) resolves the generated `.f3d`, falling back to the
+      // source directly in debug if the hook has not run yet.
+      final document = await loadModelAsset(path);
       loaded.add(
         await ModelAsset.fromDocument(document, device: device, name: path),
       );

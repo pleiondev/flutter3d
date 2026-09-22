@@ -3,7 +3,7 @@
 /// The class and the screen are `flutter3d_game`'s — see `Credit` there. What is
 /// here is the list, which is this game's alone.
 ///
-/// **This game was in breach and nobody had noticed.** `assets/models/LICENSES.md`
+/// **This game was in breach and nobody had noticed.** `assets_src/models/LICENSES.md`
 /// says it in as many words about the car: *"Attribution is a condition of the
 /// licence, so it is written here, and it must appear wherever the game does —
 /// a credits screen, a store page, a README."* There was no credits screen, no
