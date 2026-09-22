@@ -291,6 +291,11 @@ const Map<String, String> notARepeatableStep = <String, String>{
       'server replays against a client\'s own answer the way `flutter3d_sim`\'s '
       'is, so the platform\'s libm disagreeing with itself across machines has '
       'nothing to fail',
+  'flutter3d_lti':
+      'a cloud tool, not a step: an LTI launch is checked against the wall '
+      'clock its own `exp`/`iat` claims are written in, and an xAPI statement '
+      'or an AGS score carries the moment it was sent — nothing here is a run '
+      'a client and a server must replay to the same frame',
   'flutter3d_testing': 'a test helper',
   'flutter3d_game':
       'a run\'s lifecycle, the screens that run on the frame clock, and '
@@ -620,6 +625,21 @@ String relative(File file, Directory dir) => file.path
 /// the next one has to be argued for rather than typed.
 const Map<String, Map<String, String>>
 boundaryEnumExempt = <String, Map<String, String>>{
+  'flutter3d_lti/lib/src/lti_launch_claims.dart': <String, String>{
+    'LtiMessageType':
+        "the IMS LTI 1.3 core spec's own closed set of message types "
+        '(`LtiResourceLinkRequest`, `LtiDeepLinkingRequest`, ...). A launch '
+        "naming a sixth is not naming a message type this package's own "
+        'switch is missing — it is not a valid LTI 1.3 launch',
+  },
+  'flutter3d_lti/lib/src/ags_score.dart': <String, String>{
+    'AgsActivityProgress':
+        "the IMS Assignment and Grade Services spec's own five values for "
+        "how far a student got. A sixth is not this package's to invent",
+    'AgsGradingProgress':
+        "the same spec's own values for how far grading got, for the same "
+        'reason',
+  },
   'flutter3d_mesh/lib/src/recipes.dart': <String, String>{
     'RecipeCategory':
         'how a gallery groups the models this package builds, and the set '
