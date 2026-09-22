@@ -13,7 +13,7 @@ numbers rather than yes-or-no answers.
 
 {{code rows}}
 
-## Step 2: Numbers, where a number is the honest answer
+## Step 2: Where a number says more than yes or no
 
 Anisotropic filtering and multiple colour attachments are not yes-or-no
 questions. "Does it work" and "how much" are different questions, and a
