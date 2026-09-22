@@ -13,6 +13,8 @@ import 'dart:typed_data';
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:vector_math/vector_math.dart';
 
+import 'portable_log2.dart';
+
 /// A texture as this backend holds one: linear float RGBA, row zero at the top.
 ///
 /// Float rather than bytes for every format, because the engine renders in
@@ -330,7 +332,7 @@ final class BoundTexture {
       }
     }
 
-    final lod = math.log(footprint) / math.ln2;
+    final lod = portableLog2(footprint);
     final top = chain.length;
     if (lod >= top) return _sampleLevel(chain[top - 1], u, v);
 
@@ -408,7 +410,7 @@ final class BoundTexture {
     final footprint = math.max(du * width, dv * height);
     if (footprint <= 1.0) return _sampleLevel(texture, u, v);
 
-    final lod = math.log(footprint) / math.ln2;
+    final lod = portableLog2(footprint);
     final top = chain.length;
     if (lod >= top) return _sampleLevel(chain[top - 1], u, v);
 
