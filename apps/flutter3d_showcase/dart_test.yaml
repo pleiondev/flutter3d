@@ -1,7 +1,10 @@
 tags:
   # A test that draws real pixels: a reference picture held against a
   # committed PNG, or a page rendered on the software rasteriser. Skipped by
-  # `very_good test -x golden` for a quick run; CI runs everything.
+  # `very_good test -x golden` for a quick run, and by CI as well since
+  # 2026-09-22 — `tool/ci.sh` says why at its `GOLDEN_EXCLUDE` line. These
+  # pages were passing; they are off because the tag is one switch and the
+  # modeller's screenshots are what it was thrown for.
   golden:
 
   # Tests that touch `dart:js_interop` or draw cannot be rewritten by
