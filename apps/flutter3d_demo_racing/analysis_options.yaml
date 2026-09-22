@@ -9,3 +9,7 @@ analyzer:
     - windows/**
     - macos/**
     - linux/**
+    # `ap-12`: see `apps/flutter3d_demo_platformer/analysis_options.yaml`'s
+    # identical exclude for why `hook/build.dart` is excluded rather than
+    # given a dependency it will never need at runtime.
+    - hook/**
