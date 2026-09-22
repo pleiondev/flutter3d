@@ -12,5 +12,6 @@
 /// container with no Flutter SDK in it.
 library;
 
+export 'src/lab_review.dart';
 export 'src/pendulum.dart';
 export 'src/pendulum_lab_run.dart';
