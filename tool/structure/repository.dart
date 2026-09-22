@@ -43,6 +43,7 @@ const List<String> applications = <String>[
   'flutter3d_showcase',
   'flutter3d_lesson_viewer',
   'flutter3d_stereo_lesson_viewer',
+  'flutter3d_lab_incident',
   'flutter3d_lab_pendulum',
 ];
 
