@@ -18,8 +18,6 @@ to `ModelHistory`, an MCP tool call can do too, through the identical
 `ModelCommand` machinery; the reverse is not quite true (seven `ui.*`
 tools exist only when a live GUI window is the one answering MCP calls).
 
----
-
 ## 1. The document
 
 `ModelProject` (`packages/flutter3d_model_core/lib/src/project.dart:503`,
@@ -60,8 +58,6 @@ file format, same honest gap as `lighting`).
   an importer, no topology.
 - `SocketGeometry()` — an empty marker object (an attachment point), zero
   triangles/vertices.
-
----
 
 ## 2. History, undo, and the journal
 
@@ -132,8 +128,6 @@ grouped by file:
 | `rig_job_commands.dart` | `ApplyClipResult` |
 | `paint_weights.dart` | `PaintWeights` |
 
----
-
 ## 3. MCP transport
 
 `ModelSession` (`packages/flutter3d_model_mcp/lib/src/model_session.dart:36`)
@@ -152,8 +146,6 @@ GUI adds the seven `ui.*` tools (§5); the headless entry point
 (`bin/model_mcp.dart`) does not pass any, so a headless session's
 `tools/list` never shows them. `onToolCall` feeds the Agent Session
 panel's live tool-call feed (§5).
-
----
 
 ## 4. UI modes and layout
 
@@ -262,8 +254,6 @@ GUI-only, absent from a headless session):
    survive the line's ordinary auto-clear — for a screenshot script to
    caption a step.
 
----
-
 ## 5. Object-level editing
 
 - `addPrimitive {kind, size?, segments?, at?}` — `kind` ∈ `box`, `plane`,
@@ -293,8 +283,6 @@ GUI-only, absent from a headless session):
 - `applyTransform {id}` — bakes the node's transform into the geometry,
   leaving identity; needed before exporting to engines that expect a
   model to start at the origin.
-
----
 
 ## 6. Mesh editing
 
@@ -342,8 +330,6 @@ Mesh-mode tools:
   `selectLinked`; `selectEdgeLoop` / `selectEdgeRing {edge}`;
   `selectByMaterial {slot}` (mesh mode only).
 
----
-
 ## 7. Modifiers
 
 A stack of modifiers lives on each object (`addModifier {id, modifier:
@@ -371,8 +357,6 @@ Stack tools: `setModifierField {id, index, field, value}`,
 modifier and everything below it into the mesh — even if currently
 disabled, matching export behaviour — leaving modifiers above it running
 against the new base mesh).
-
----
 
 ## 8. Materials and textures
 
@@ -444,8 +428,6 @@ material adopts every scalar/colour/alpha/doubleSided/unlit field from it
 the path is remembered, for a file that does not exist yet. `embedMaterial`
 drops the file link without changing the look.
 
----
-
 ## 9. LOD
 
 `addLod {id, ratio (0,1], maxScreenFraction}`, `setLodRatio {id, lodIndex,
@@ -461,8 +443,6 @@ skin weights, with a boundary/seam penalty — a Hoppe-style extension).
 `simplifyMeshWithAttributes` — **attribute-preserving simplification is
 implemented and in use**, contradicting `doc/model-editor.md`'s older
 "missing" row for it.
-
----
 
 ## 10. Rigging and skinning
 
@@ -545,8 +525,6 @@ the project profile's own limit) and renormalizes, after mirroring too.
 per-draw joint array size) are hard ceilings, refused with an explanation
 rather than silently clamped.
 
----
-
 ## 11. Animation, retargeting, morphs
 
 `AnimationPath` (`packages/flutter3d_formats/lib/src/animation/animation_track.dart:43-50`):
@@ -606,8 +584,6 @@ computed outside the synchronous tool call (`retargetClip`/`bakeIk`/
 for a result an agent computed separately, or that came back from a
 background job — `applyJobResult` is refused if `baseVersion` is stale).
 
----
-
 ## 12. Scene and lighting
 
 `SceneLighting` (`packages/flutter3d_model_core/lib/src/scene_lighting.dart:178-223`):
@@ -657,8 +633,6 @@ orange; a seventh *shadowed* light is what stops getting a shadow map.
 scene status orange (`lightOverflowOf`,
 `packages/flutter3d_model_core/lib/src/lighting_sync.dart:134`).
 
----
-
 ## 13. Simulation
 
 `applySimulationCache {objectId, baseVersion, ...}` writes a baked
@@ -673,8 +647,6 @@ simulation cache into up to `maxKeys` shape keys, one per baked frame,
 named by frame number; refused with no cache, no mesh to key, or a vertex
 count mismatch. `setProfileLimits {maxJoints? (1-64), maxInfluences?
 (1-4)}` — an omitted field is left unchanged.
-
----
 
 ## 14. Document-wide tools
 
@@ -715,8 +687,6 @@ count mismatch. `setProfileLimits {maxJoints? (1-64), maxInfluences?
 - `inspect` — metrics (object/vertex/face counts) plus issues in one
   call — `list` and `check` together, no picture.
 
----
-
 ## 15. Import and export formats
 
 **Import** (`import` tool): glTF, GLB, OBJ, native `.f3d`, and STL. FBX is
@@ -748,8 +718,6 @@ later). There is no separate JSON `.gltf` + `.bin` writer — only `.glb`;
 `doc/model-editor.md`'s "no glTF/GLB, OBJ, or STL writers" row, which is
 stale.
 
----
-
 ## 16. Headless render
 
 `packages/flutter3d_model_mcp/lib/src/render_tool.dart` — both tools
@@ -775,8 +743,6 @@ text block, backed by `CpuDevice` (the software rasterizer from
   nothing). **Wireframe is not implemented** — it waits on the engine's
   own edge-drawing landing, named honestly in the tool's own description
   rather than left silently unavailable.
-
----
 
 ## 17. Export readiness and budgets
 
@@ -806,8 +772,6 @@ no check), `fps` (default 30 — the time base keyframe commands assume),
 `frameSnap` (default false). A built-in `ProjectProfile.mobile` constant
 tightens `maxTriangles` to 100,000 and `maxTextureSize` to 2048.
 
----
-
 ## 18. Cabinet integration (cloud save-back)
 
 `apps/flutter3d_modeler/lib/src/cabinet_link.dart` —
@@ -828,8 +792,6 @@ Save-to-cabinet: `POST /api/v1/models/<id>/source`, headers `x-csrf`,
 `x-filename: model.f3dproj`. Preview capture: `POST
 /api/v1/models/<id>/preview`, headers `x-csrf`, `x-source-sha256`.
 
----
-
 ## 19. Platform notes
 
 - `FLUTTER3D_WINDOW=WIDTHxHEIGHT` (an environment variable, not a
@@ -841,8 +803,6 @@ Save-to-cabinet: `POST /api/v1/models/<id>/source`, headers `x-csrf`,
   `import`/`export`/`save` can only reach a file a person picked through a
   real file dialog — an absolute path outside that throws
   `PathAccessException`, by sandbox design, not a bug.
-
----
 
 ## 20. Known gaps, as of this writing
 

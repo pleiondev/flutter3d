@@ -7,8 +7,6 @@ comments (not paraphrased from memory: every claim below traces to a
 specific file). Where a decision was later reconsidered, that reversal is
 kept in, because it is usually more informative than the decision itself.
 
----
-
 ## 1. Where the shape came from
 
 The modeller's screen layout traces to a "3D editor with Material Design"
@@ -33,8 +31,6 @@ keyboard shortcut uses. What was deliberately **not** reused: the level
 editor's `Piece`/`Editing` types, because a level document and a model
 document are different enough things that sharing one class for both was
 judged the specific mistake worth avoiding.
-
----
 
 ## 2. Visual language
 
@@ -88,8 +84,6 @@ package arrives with the whole interface's own localization pass and
 taking a dependency now for one call site "would be a dependency taken for
 a tenth of what it does" (`status_line.dart:44-53`).
 
----
-
 ## 3. One properties panel, replaced wholesale
 
 The properties panel does not accumulate controls as a mode adds them —
@@ -117,8 +111,6 @@ switches modes cleanly into a screen with nothing on it. A person clicking
 `Object` instead — a genuine, named UX debt (see `docs/modeller.md` §20
 for the equivalent functional framing).
 
----
-
 ## 4. Three shells, one layout classifier
 
 `LayoutClass.of(width)` (`layout_class.dart:41`) buckets a window into
@@ -141,8 +133,6 @@ The tablet and phone shells are not the desktop shell with things hidden
   mode's rail collapses into one FAB sized for a thumb (56px) that opens
   the same tool table as a sheet, shorter still (130px) than the tablet's
   own.
-
----
 
 ## 5. The operation card: adjusting, not redoing
 
@@ -168,8 +158,6 @@ Two decisions worth naming:
   `StatefulWidget` for exactly this one reason), reset only when a
   genuinely new command lands on top — dismissing should not also hide
   the next command's own card (operation_card.dart:28-36, 70-77).
-
----
 
 ## 6. Command-as-a-value: one list, four readers
 
@@ -198,8 +186,6 @@ extrude do" or "what does the extrude tool's status message say" could
 drift from what the command itself actually does, because none of these
 surfaces hard-code a description — they all read the command.
 
----
-
 ## 7. Undo as a shared, authored stack
 
 Undo is one stack, not two — an agent's tool calls and a person's own
@@ -214,8 +200,6 @@ narrower door for the agent than for the person, on purpose (see
 surfaces this as a visible trust boundary rather than a silent rule: a
 history list with "You"/"Agent" badges, and an "Undo agent steps" button
 that is only enabled while the top step is the agent's.
-
----
 
 ## 8. The Agent Session panel: additive, and honest about what it shows
 
@@ -237,8 +221,6 @@ come." Given a choice between a more impressive-looking but synthetic
 feature and an honest record of what actually happened, the honest record
 won.
 
----
-
 ## 9. Background jobs stay presentational
 
 `JobButton` (`job_button.dart:1-9`) is the visible half of a background
@@ -253,8 +235,6 @@ payoff of keeping this split rigid across the whole shell: a widget test
 can build any of these controls alone, handing it whatever state it wants
 to assert against, without also standing up the cubit that would normally
 produce that state.
-
----
 
 ## 10. Crash and recovery: promise first, then explain
 
@@ -279,8 +259,6 @@ rather than only that something was found (`restore_autosave_dialog.dart:1-3`)
 status line's three tones over two: don't make a person guess how much is
 actually at stake in a choice.
 
----
-
 ## 11. Two languages, on purpose, for two audiences
 
 The interface itself ships bilingual (Russian and English,
@@ -297,8 +275,6 @@ about the document itself is not, because the MCP surface an agent reads
 never localizes, and a status message that changed wording depending on
 interface locale would be a message two different debugging sessions
 could no longer compare.
-
----
 
 ## 12. Accessibility as a recurring, named pass
 
@@ -326,8 +302,6 @@ slider's accessible name is manufactured at the one call site that needs
 it, rather than left to whatever Flutter's default slider semantics would
 say.
 
----
-
 ## 13. The tutorial pages are the UX documentation that ships
 
 `cloud/server/content/learn/modeler/*.md` (six cases) are not a separate
@@ -348,8 +322,6 @@ literally (the mirror modifier's `bisect`/`flipUv` requirement, the
 gap that silently dropped a person's own edit from the journal) — the
 tutorials function as an ongoing UX/correctness test as much as
 documentation.
-
----
 
 ## 14. Known UX rough edges
 

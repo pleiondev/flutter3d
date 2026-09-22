@@ -24,8 +24,6 @@ a week, M two to three, L a month or more); **⇢ X** — the scenario absorbs
 item X's own acceptance from tooling-plan.md rather than duplicating it. Id
 prefixes: `ls-g` games, `ls-e` education, `ls-i` industry, `ls-x` VR/XR.
 
----
-
 ## 1. In short
 
 1. **One document, four storefronts.** `edu-00` does not know who is looking
@@ -54,8 +52,6 @@ prefixes: `ls-g` games, `ls-e` education, `ls-i` industry, `ls-x` VR/XR.
    that depend only on `edu-00` (the spec, S, no engine change) can be built
    earlier — they wait on the document, not on the authoring tool.
 
----
-
 ## 2. What can be done before the code is ready
 
 Subject-matter preparation, no building: pick the object, write the steps,
@@ -68,8 +64,6 @@ code nothing. All four are groundwork for the scenarios in §3–§6.
 | prep-02 | Write the text and questions for three teaching scenarios (physics — a pendulum, geometry, a subject of the testing instructor's own choosing) with a checkable answer per step | S | ls-e-01, ls-e-03 |
 | prep-03 | Pick which of the existing `site/content/*/tutorial.md` guides get an embedded live scene first — candidates: `platformer/tutorial.md` (already five steps of text), `racing/tutorial.md` | S | ls-g-00 |
 
----
-
 ## 3. Games (`ls-g-`)
 
 | id | Scenario | Format (from `edu-00`) | Depends on | size | Acceptance |
@@ -79,8 +73,6 @@ code nothing. All four are groundwork for the scenarios in §3–§6.
 | ls-g-02 | **The racing garage as an interactive.** The car-setup screen between races gets "tyres → suspension → gear ratio" steps, each annotated with what it changes on the track | steps, property bindings | edu-00, wg-01 | S | a player goes through the garage once before their first race, each step highlights the part of the car it changes |
 | ls-g-03 | **The strategy game's first ten minutes as an interactive briefing.** Building order, fog of war, the unit triangle — steps over the real match map, not a separate cutscene | steps, annotations | edu-00 | S | the briefing plays out on the demo match's own map, each step shows what it is talking about rather than text on a black screen |
 | ls-g-04 | **Shooter secret-hunting — a level cross-section.** A wall cross-section shows a hidden room in full, a step names which lever opens it | cross-section, steps | edu-00, wg-01 | S | a player using the interactive finds every secret in the level faster than from a text guide (measured on a pair of playtesters) |
-
----
 
 ## 4. Education (`ls-e-`)
 
@@ -92,8 +84,6 @@ code nothing. All four are groundwork for the scenarios in §3–§6.
 | ls-e-03 | **The same lesson inside an LMS.** `ls-e-00` or `ls-e-01` launches from a test Moodle through LTI, the step question's answers go to the course log as xAPI | LTI/xAPI (⇢ `edu-03`) | edu-02, edu-03 | S | the grade for `ls-e-02`'s own question is visible in the test Moodle's log |
 | ls-e-04 ⚠ | **Corporate safety training.** A real equipment teardown (content shared with `ls-i-03`) with "danger" annotations on a step, embedded in a corporate portal through `edu-02`'s own embed | steps, annotations, embed | edu-01, edu-02 | S | the interactive embeds into a test internal page through an iframe with no code. The shared content half exists now — `ls-i-03`'s own `housing.json`. A real, latent bug behind this row's own "danger" annotation was found and fixed 2026-09-14, in `apps/flutter3d_lesson_viewer`: `LessonCubit.open`'s `nodes` map — what a step's `visible`/`hidden` list reaches by name — was built *before* `widgetSurfaces.add(entity)` ran, so any `widget_surface` (the only mechanism a step-scoped "danger" panel could be built from) was silently unreachable by name, always a no-op. Fixed by building `nodes` after the widget-surface loop instead (`lesson_cubit_test.dart`'s new test hides then shows `tour.json`'s own `view-caption` panel through a synthetic step, proving the exact mechanism a "danger" panel needs). The same pass also closed a second, independent gap: `tour.json`'s own `view-caption` `widget_surface` had been authored with no registry ever wired to resolve it — `_open` called `LessonCubit.open` with no `widgetRegistry` at all — so it silently failed in the shipped app until now; `widgetRegistry()`/`_viewerCaption` close that. The `edu-02` iframe embed half closed 2026-09-14 too, with zero new library code: `cloud/lessons/server/lib/src/lessons_registry.dart` gained a second `Lesson` (slug `control-box`, pointing at `ls-i-03`'s own `housing.json`, already bundled in `flutter3d_lesson_viewer`'s web build), which `/l/control-box` and `/e/control-box` serve through the exact same handler `engine-tour` already proved — `app_test.dart`'s own new tests hit `/e/control-box` directly and check the iframe src and the missing framing header, the same way the existing tests do for the first lesson. Not built: the "danger" annotations themselves — a *reactive*, step-tracking `widget_surface`, `_viewerCaption`'s own doc comment names this as the next row |
 
----
-
 ## 5. Industry (`ls-i-`)
 
 | id | Scenario | Format | Depends on | size | Acceptance |
@@ -103,8 +93,6 @@ code nothing. All four are groundwork for the scenarios in §3–§6.
 | ls-i-02 ⚠ | **Incident review on an operator panel.** ⇢ demo `wg-02` ("an operator panel by the machine"), grown into a full lesson: an engineer rewinds through `rp-02` to the failure moment `edu-05` recorded as its own input tape, and works through "what the sensor showed → what the operator did → what happened" | a run, a timeline, steps | wg-02, edu-05, rp-02 | M | an engineer opens a recorded failure from a link and scrubs the timeline to the moment the lesson named. Closed 2026-09-14 at the mechanism level for "the moment," not for "opens... from a link" or "scrubs": `DataSourceTrace.firstStepWhere` (`flutter3d_sim`) answers "which step first satisfies this" over any recorded reading — a `path` and a predicate, the same shape `DigestTrace.divergenceFrom` already answers for two runs disagreeing, here for a reading crossing a threshold. Four tests, including a reading that stays calm and then genuinely spikes (not a single glitchy sample) and never crossing a threshold at all. This is the one piece all three dependencies (`wg-02`, `edu-05`, `rp-02`) were each proven separately and never combined: "the failure moment" a lesson would otherwise have to name by hand is now something code can find in a recorded `DataSourceTrace` directly. **Not built**: the link, the scrubbing UI, and the actual incident content (a real recorded run with a real sensor, an operator's own actions, and a narrative) — this closes the "find the moment" primitive, not the lesson |
 | ls-i-03 ⚠ | **Maintenance instructions.** A real assembly's own housing teardown (content shared with `ls-e-04`) for a field technician: a cross-section shows the inside, steps give the disassembly/reassembly order | cross-section, steps, layer-by-layer disassembly | edu-01, prep-00 | S | a technician goes through disassembly and reassembly in the right order on a tablet with no network. Closed 2026-09-14 against this literal acceptance: `apps/flutter3d_lesson_viewer/assets/levels/housing.json` — a control box's own case, lid, circuit board and battery, seven `edu_step`s that remove the battery, board and lid in order and then put them back in the reverse order, proven the same way `ls-e-00`'s own teardown is (`housing_test.dart`, five tests: forward disassembly, then reassembly restoring exactly the part each step names, ending with every node visible again). No new code — `flutter3d_lesson_viewer` already opens any teardown-shaped document by asset path, and it already works offline once built, which is this row's own acceptance in full. **Not built**: an `edu_clip_plane` cross-section — the row's own description asks for one, no scene in this workspace has ever drawn one (`ls-x-00`'s own honest-scope line names the same gap), and the acceptance text itself never tests for it |
 
----
-
 ## 6. VR/XR (`ls-x-`)
 
 | id | Scenario | Format | Depends on | size | Acceptance |
@@ -113,8 +101,6 @@ code nothing. All four are groundwork for the scenarios in §3–§6.
 | ls-x-01 ⚠ | **A product configurator in stereo.** `ls-i-01` opened in `StereoViewer` — "try before you buy" in VR, the same document and the same property binding. Its own real prerequisite closed 2026-09-14, not this scenario itself: `WidgetSurface` (`wg-01`) had never been resolved or ticked inside any stereo application — `LessonStereoView`/`StereoSurface` already draw any `Scene` handed to them with no node-type special-casing, so the gap was purely that `apps/flutter3d_stereo_lesson_viewer` never built a `WidgetSurfaceVisuals` from a level's `widget_surface` entities or called `tick()` on it once a frame. Both are wired now (`LessonStereoView` gained an `onTick` hook), proven with a real `widget_surface` in that app's own shipped `teardown.json` (`title-card`, a static caption) and a test confirming it resolves onto the scene. **Not done**: `ls-i-01`'s own `configurator.json` is not opened by the stereo app at all, and the configurator's own annotation needs a *tap* to change anything — no ray from a stereo camera pair has ever been cast at a `WidgetSurface` here; `wg-00`'s own "ray → uvAt → dispatchAtUv → a tap" chain is proven flat only. Both remain real, separate work | the same document as `ls-i-01` | edu-06, ls-i-01 | S | the same configurator plays in a headset, the annotation works through the same input `wg-00` already measured on a phone |
 | ls-x-02 | **First-person racing in stereo with HUD widgets.** The racing demo in `StereoViewer`, the HUD (position, lap, car state) drawn as widgets on a surface inside the headset — a showcase for tooling-plan.md's own second bet (Flutter widgets on 3D surfaces) under the most demanding input-and-repaint conditions there are | widget on a surface | wg-01, flutter3d_stereo | M | the HUD reads cleanly in a headset with no stutter; the stereo repaint cost measurement is added to `wg-00`'s own table in tooling-plan.md §8 |
 | ls-x-03 | **Remote training on a twin.** `ls-i-00` opened in `StereoViewer` for remote instruction: the same machine, the same data tape, a first-person view instead of a screen | the same document as `ls-i-00` | edu-06, ls-i-00 | S | the same "what if" from `ls-i-00` reproduces in a headset, the branch is visible the same way |
-
----
 
 ## 7. Order
 
@@ -139,8 +125,6 @@ code nothing. All four are groundwork for the scenarios in §3–§6.
 - **`ls-g-00`, `ls-g-03`** wait only on `edu-00` and `tpl-02`/`edu-00`
   respectively — they do not wait on `wg-01`, and can be built first among
   the game scenarios.
-
----
 
 ## 8. Out of scope
 
