@@ -13,7 +13,7 @@ import 'package:flutter3d_game_racing/flutter3d_game_racing.dart';
 import 'package:vector_math/vector_math.dart';
 
 /// The asset the player drives.
-const String kCarModel = 'assets/models/car.glb';
+const String kCarModel = 'assets_src/models/car.glb';
 
 /// What the surfaces look like.
 ///
