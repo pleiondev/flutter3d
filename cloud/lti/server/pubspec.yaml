@@ -1,0 +1,45 @@
+name: flutter3d_lti_service
+description: >-
+  LTI 1.3 launch for flutter3d lessons: /login and /launch over
+  flutter3d_lti, serving the lesson viewer once a launch verifies.
+publish_to: none
+version: 0.1.0
+
+# Outside the workspace, same reason cloud/server and cloud/lessons are: a
+# service, never published, resolving its own lock file.
+
+environment:
+  sdk: ^3.12.2
+
+dependencies:
+  shelf: ^1.4.2
+  shelf_router: ^1.1.4
+
+  # OidcLoginInitiation, LtiLaunchValidator, LtiLaunchClaims — the launch
+  # this service verifies but does not itself implement (`lti-00`). Path
+  # dependency, the same reasoning `cloud/server`'s pubspec.yaml gives for
+  # `flutter3d_formats`/`flutter3d_model_core`: this package is not
+  # published, so this is the only way to depend on it today.
+  flutter3d_lti:
+    path: ../../../packages/flutter3d_lti
+
+  # `Config._readToolCredentials` derives this tool's public key from its
+  # private one (`pc.RSAPublicKey(n, publicExponent)`) — the one place this
+  # service's own `lib/` needs the raw type rather than going through
+  # `flutter3d_lti`'s own JWK functions.
+  pointycastle: ^4.0.0
+
+  # `buildHandler`'s own `httpClient` injection point (`lti-04`) is typed in
+  # `http.Client`, not just handed opaquely to `flutter3d_lti`'s clients.
+  http: ^1.2.0
+
+dev_dependencies:
+  lints: ^6.0.0
+  test: ^1.25.0
+
+  # Signing a fake platform's id_token and answering its JWKS, and a fake
+  # AGS/LRS endpoint for `lti-04`'s own tests, in test/support/ — the same
+  # tools `flutter3d_lti`'s own tests use, duplicated rather than imported: a
+  # package's test/ directory is not part of what another package can
+  # depend on.
+  dart_jsonwebtoken: ^3.4.1

@@ -1,0 +1,29 @@
+# The repository's rules, less the two that do not fit a server — same
+# reasoning as `cloud/server/analysis_options.yaml`, copied rather than
+# shared because this package resolves its own dependencies outside the
+# workspace.
+include: package:lints/recommended.yaml
+
+analyzer:
+  exclude:
+    - build/**
+
+linter:
+  rules:
+    - always_declare_return_types
+    - avoid_dynamic_calls
+    - cast_nullable_to_non_nullable
+    - collection_methods_unrelated_type
+    - directives_ordering
+    - no_adjacent_strings_in_list
+    - only_throw_errors
+    - prefer_final_locals
+    - throw_in_finally
+    - unawaited_futures
+    - unnecessary_await_in_return
+    - unnecessary_parenthesis
+    - unnecessary_statements
+    - unrelated_type_equality_checks
+    # `avoid_slow_async_io` left out for the same reason as `cloud/server`: a
+    # synchronous `exists()` in a long-running server holds the one event
+    # loop every other request waits on.

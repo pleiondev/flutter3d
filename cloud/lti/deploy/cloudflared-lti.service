@@ -1,0 +1,14 @@
+# /etc/systemd/system/cloudflared-lti.service
+[Unit]
+Description=Cloudflare Tunnel (lti.pleion.dev -> :8797)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+ExecStart=/usr/local/bin/cloudflared --no-autoupdate --config /etc/cloudflared/lti.yml tunnel run
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

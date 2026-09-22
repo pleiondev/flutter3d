@@ -1,0 +1,65 @@
+# A throwaway Moodle to launch flutter3d_lti's `cloud/lti` from — `lti-06`
+# (`doc/edu-03-lti-plan.md`). Not a production deploy: `ALLOW_EMPTY_PASSWORD`
+# and a fixed admin password have no business past a developer's machine.
+#
+#   docker compose -f cloud/lti/docker-compose.yml up -d
+#
+# First boot runs Moodle's own installer and takes a few minutes — watch it
+# with `docker compose -f cloud/lti/docker-compose.yml logs -f moodle` until
+# it prints its "ready" line, then open http://localhost:8798 and sign in as
+# admin/<MOODLE_PASSWORD below>. `cloud/lti/deploy/moodle-sandbox-setup.md`
+# is the next step: registering this tool as an LTI 1.3 external tool.
+#
+# Canvas is not here yet — `doc/edu-03-lti-plan.md` §5 already expects it to
+# be the heavier second half of this pointer and takes it as its own step
+# rather than blocking this one on it.
+#
+# **`bitnamilegacy`, not `bitnami`.** Bitnami moved its maintained catalogue
+# behind a paid tier in 2025; `bitnami/moodle` now resolves to nothing at
+# all, and `bitnamilegacy/*` is the frozen (no further security updates)
+# snapshot that still pulls. Fine for a throwaway dev sandbox nothing else
+# depends on; not something to point a real deployment at. If `bitnamilegacy`
+# stops resolving too, `moodlehq/moodle-docker` (Moodle HQ's own CI
+# environment, actively maintained) is the documented fallback — heavier to
+# set up (it checks out Moodle's own source tree) but not tied to a
+# third party's catalogue.
+services:
+  mariadb:
+    image: docker.io/bitnamilegacy/mariadb:11.8.3
+    environment:
+      # Fine for a container nothing outside this compose file can reach;
+      # never do this past a developer's machine.
+      - ALLOW_EMPTY_PASSWORD=yes
+      - MARIADB_USER=bn_moodle
+      - MARIADB_DATABASE=bitnami_moodle
+      - MARIADB_CHARACTER_SET=utf8mb4
+      - MARIADB_COLLATE=utf8mb4_unicode_ci
+    volumes:
+      - lti-sandbox-mariadb:/bitnami/mariadb
+
+  moodle:
+    image: docker.io/bitnamilegacy/moodle:5.0.2
+    ports:
+      # 127.0.0.1-bound and off 80/443 so this never fights a developer's
+      # own web server for the port.
+      - '127.0.0.1:8798:8080'
+    environment:
+      - MOODLE_USERNAME=admin
+      - MOODLE_PASSWORD=flutter3d-lti-sandbox
+      - MOODLE_EMAIL=admin@example.test
+      - MOODLE_SITE_NAME=flutter3d LTI sandbox
+      - MOODLE_DATABASE_HOST=mariadb
+      - MOODLE_DATABASE_PORT_NUMBER=3306
+      - MOODLE_DATABASE_USER=bn_moodle
+      - MOODLE_DATABASE_NAME=bitnami_moodle
+      - ALLOW_EMPTY_PASSWORD=yes
+    volumes:
+      - lti-sandbox-moodle:/bitnami/moodle
+      - lti-sandbox-moodledata:/bitnami/moodledata
+    depends_on:
+      - mariadb
+
+volumes:
+  lti-sandbox-mariadb:
+  lti-sandbox-moodle:
+  lti-sandbox-moodledata:
