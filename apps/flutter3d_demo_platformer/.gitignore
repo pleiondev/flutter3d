@@ -46,3 +46,10 @@ app.*.map.json
 
 # Widget Preview related
 .widget_preview/
+
+# ap-12: the build hook's own output (ap-05) — converted on every build.
+# The directory itself is kept, and only kept: `pubspec.yaml` names it as
+# an asset directory, and `flutter analyze` fails on one that is not there
+# — which, before the first build in a fresh checkout, it would not be.
+/flutter3d_generated/*
+!/flutter3d_generated/.gitkeep

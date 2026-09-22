@@ -94,70 +94,70 @@
       "name": "first coin 1",
       "at": [0.0, 0.8, -4.0],
       "what": "coin",
-      "model": "assets/models/coin.glb"
+      "model": "assets_src/models/coin.glb"
     },
     {
       "type": "collectible",
       "name": "first coin 2",
       "at": [0.0, 0.8, 0.0],
       "what": "coin",
-      "model": "assets/models/coin.glb"
+      "model": "assets_src/models/coin.glb"
     },
     {
       "type": "collectible",
       "name": "first coin 3",
       "at": [0.0, 0.8, 4.0],
       "what": "coin",
-      "model": "assets/models/coin.glb"
+      "model": "assets_src/models/coin.glb"
     },
     {
       "type": "collectible",
       "name": "first stray coin 1",
       "at": [-5.0, 0.8, -6.0],
       "what": "coin",
-      "model": "assets/models/coin.glb"
+      "model": "assets_src/models/coin.glb"
     },
     {
       "type": "collectible",
       "name": "first stray coin 2",
       "at": [5.0, 0.8, -6.0],
       "what": "coin",
-      "model": "assets/models/coin.glb"
+      "model": "assets_src/models/coin.glb"
     },
     {
       "type": "collectible",
       "name": "first stray coin 3",
       "at": [-7.0, 0.8, 1.0],
       "what": "coin",
-      "model": "assets/models/coin.glb"
+      "model": "assets_src/models/coin.glb"
     },
     {
       "type": "collectible",
       "name": "first stray coin 4",
       "at": [7.0, 0.8, 1.0],
       "what": "coin",
-      "model": "assets/models/coin.glb"
+      "model": "assets_src/models/coin.glb"
     },
     {
       "type": "collectible",
       "name": "first stray coin 5",
       "at": [-4.0, 0.8, 6.0],
       "what": "coin",
-      "model": "assets/models/coin.glb"
+      "model": "assets_src/models/coin.glb"
     },
     {
       "type": "collectible",
       "name": "first stray coin 6",
       "at": [4.0, 0.8, 6.0],
       "what": "coin",
-      "model": "assets/models/coin.glb"
+      "model": "assets_src/models/coin.glb"
     },
     {
       "type": "collectible",
       "name": "the coin at the top of the slope",
       "at": [-9.5, 2.8, 3.0],
       "what": "coin",
-      "model": "assets/models/coin.glb"
+      "model": "assets_src/models/coin.glb"
     },
     {
       "type": "crate",
@@ -202,21 +202,21 @@
       "name": "the jump coin",
       "at": [0.0, 2.2, 11.0],
       "what": "coin",
-      "model": "assets/models/coin.glb"
+      "model": "assets_src/models/coin.glb"
     },
     {
       "type": "collectible",
       "name": "the jump coin to the left",
       "at": [-3.5, 2.2, 11.0],
       "what": "coin",
-      "model": "assets/models/coin.glb"
+      "model": "assets_src/models/coin.glb"
     },
     {
       "type": "collectible",
       "name": "the jump coin to the right",
       "at": [3.5, 2.2, 11.0],
       "what": "coin",
-      "model": "assets/models/coin.glb"
+      "model": "assets_src/models/coin.glb"
     },
     {
       "type": "crate",
@@ -231,35 +231,35 @@
       "name": "the coin you need the crate for",
       "at": [-6.0, 3.4, 19.0],
       "what": "coin",
-      "model": "assets/models/coin.glb"
+      "model": "assets_src/models/coin.glb"
     },
     {
       "type": "collectible",
       "name": "landing coin 1",
       "at": [-8.0, 0.8, 15.5],
       "what": "coin",
-      "model": "assets/models/coin.glb"
+      "model": "assets_src/models/coin.glb"
     },
     {
       "type": "collectible",
       "name": "landing coin 2",
       "at": [-4.0, 0.8, 15.5],
       "what": "coin",
-      "model": "assets/models/coin.glb"
+      "model": "assets_src/models/coin.glb"
     },
     {
       "type": "collectible",
       "name": "landing coin 3",
       "at": [4.0, 0.8, 15.5],
       "what": "coin",
-      "model": "assets/models/coin.glb"
+      "model": "assets_src/models/coin.glb"
     },
     {
       "type": "collectible",
       "name": "landing coin 4",
       "at": [8.0, 0.8, 15.5],
       "what": "coin",
-      "model": "assets/models/coin.glb"
+      "model": "assets_src/models/coin.glb"
     },
     {
       "type": "checkpoint",
@@ -274,56 +274,56 @@
       "name": "the coin you cannot reach once",
       "at": [0.0, 2.6, 19.0],
       "what": "coin",
-      "model": "assets/models/coin.glb"
+      "model": "assets_src/models/coin.glb"
     },
     {
       "type": "collectible",
       "name": "the coin you cannot reach twice",
       "at": [-4.5, 2.6, 21.0],
       "what": "coin",
-      "model": "assets/models/coin.glb"
+      "model": "assets_src/models/coin.glb"
     },
     {
       "type": "collectible",
       "name": "the coin you cannot reach three times",
       "at": [4.5, 2.6, 21.0],
       "what": "coin",
-      "model": "assets/models/coin.glb"
+      "model": "assets_src/models/coin.glb"
     },
     {
       "type": "collectible",
       "name": "the high coin",
       "at": [0.0, 3.6, 26.0],
       "what": "coin",
-      "model": "assets/models/coin.glb"
+      "model": "assets_src/models/coin.glb"
     },
     {
       "type": "collectible",
       "name": "the coin on the step",
       "at": [9.0, 2.0, 23.0],
       "what": "coin",
-      "model": "assets/models/coin.glb"
+      "model": "assets_src/models/coin.glb"
     },
     {
       "type": "collectible",
       "name": "the second jump coin",
       "at": [0.0, 3.0, 32.0],
       "what": "coin",
-      "model": "assets/models/coin.glb"
+      "model": "assets_src/models/coin.glb"
     },
     {
       "type": "collectible",
       "name": "the coin left of the gap",
       "at": [-3.5, 3.0, 31.0],
       "what": "coin",
-      "model": "assets/models/coin.glb"
+      "model": "assets_src/models/coin.glb"
     },
     {
       "type": "collectible",
       "name": "the coin right of the gap",
       "at": [3.5, 3.0, 33.0],
       "what": "coin",
-      "model": "assets/models/coin.glb"
+      "model": "assets_src/models/coin.glb"
     },
     {
       "type": "checkpoint",
@@ -338,28 +338,28 @@
       "name": "the shaft coin one",
       "at": [0.0, 1.4, 52.0],
       "what": "coin",
-      "model": "assets/models/coin.glb"
+      "model": "assets_src/models/coin.glb"
     },
     {
       "type": "collectible",
       "name": "the shaft coin two",
       "at": [0.0, 3.0, 52.0],
       "what": "coin",
-      "model": "assets/models/coin.glb"
+      "model": "assets_src/models/coin.glb"
     },
     {
       "type": "collectible",
       "name": "the shaft coin three",
       "at": [0.0, 4.4, 52.0],
       "what": "coin",
-      "model": "assets/models/coin.glb"
+      "model": "assets_src/models/coin.glb"
     },
     {
       "type": "collectible",
       "name": "the shaft coin four",
       "at": [0.0, 5.8, 52.0],
       "what": "coin",
-      "model": "assets/models/coin.glb"
+      "model": "assets_src/models/coin.glb"
     },
     {
       "type": "crate",
@@ -374,35 +374,35 @@
       "name": "shaft floor coin 1",
       "at": [-9.0, 0.8, 46.4],
       "what": "coin",
-      "model": "assets/models/coin.glb"
+      "model": "assets_src/models/coin.glb"
     },
     {
       "type": "collectible",
       "name": "shaft floor coin 2",
       "at": [-4.0, 0.8, 46.4],
       "what": "coin",
-      "model": "assets/models/coin.glb"
+      "model": "assets_src/models/coin.glb"
     },
     {
       "type": "collectible",
       "name": "shaft floor coin 3",
       "at": [4.0, 0.8, 46.4],
       "what": "coin",
-      "model": "assets/models/coin.glb"
+      "model": "assets_src/models/coin.glb"
     },
     {
       "type": "collectible",
       "name": "shaft floor coin 4",
       "at": [9.0, 0.8, 46.4],
       "what": "coin",
-      "model": "assets/models/coin.glb"
+      "model": "assets_src/models/coin.glb"
     },
     {
       "type": "collectible",
       "name": "the ledge coin",
       "at": [0.0, 7.0, 62.0],
       "what": "coin",
-      "model": "assets/models/coin.glb"
+      "model": "assets_src/models/coin.glb"
     },
     {
       "type": "checkpoint",
@@ -417,49 +417,49 @@
       "name": "the dash coin",
       "at": [0.0, 7.0, 68.0],
       "what": "coin",
-      "model": "assets/models/coin.glb"
+      "model": "assets_src/models/coin.glb"
     },
     {
       "type": "collectible",
       "name": "the dash trail 1",
       "at": [0.0, 7.0, 69.5],
       "what": "coin",
-      "model": "assets/models/coin.glb"
+      "model": "assets_src/models/coin.glb"
     },
     {
       "type": "collectible",
       "name": "the dash trail 2",
       "at": [0.0, 7.0, 70.5],
       "what": "coin",
-      "model": "assets/models/coin.glb"
+      "model": "assets_src/models/coin.glb"
     },
     {
       "type": "collectible",
       "name": "the dash trail 3",
       "at": [0.0, 7.0, 71.5],
       "what": "coin",
-      "model": "assets/models/coin.glb"
+      "model": "assets_src/models/coin.glb"
     },
     {
       "type": "collectible",
       "name": "the gap coin",
       "at": [0.0, 8.0, 74.0],
       "what": "coin",
-      "model": "assets/models/coin.glb"
+      "model": "assets_src/models/coin.glb"
     },
     {
       "type": "collectible",
       "name": "the gap coin to the left",
       "at": [-4.0, 8.0, 74.0],
       "what": "coin",
-      "model": "assets/models/coin.glb"
+      "model": "assets_src/models/coin.glb"
     },
     {
       "type": "collectible",
       "name": "the gap coin to the right",
       "at": [4.0, 8.0, 74.0],
       "what": "coin",
-      "model": "assets/models/coin.glb"
+      "model": "assets_src/models/coin.glb"
     },
     {
       "type": "crate",
@@ -474,7 +474,7 @@
       "name": "the coin above the far crate",
       "at": [7.0, 8.9, 84.0],
       "what": "coin",
-      "model": "assets/models/coin.glb"
+      "model": "assets_src/models/coin.glb"
     },
     {
       "type": "checkpoint",
@@ -489,35 +489,35 @@
       "name": "the crawl coin 1",
       "at": [0.0, 6.5, 91.5],
       "what": "coin",
-      "model": "assets/models/coin.glb"
+      "model": "assets_src/models/coin.glb"
     },
     {
       "type": "collectible",
       "name": "the crawl coin 2",
       "at": [0.0, 6.5, 94.0],
       "what": "coin",
-      "model": "assets/models/coin.glb"
+      "model": "assets_src/models/coin.glb"
     },
     {
       "type": "collectible",
       "name": "the crawl coin 3",
       "at": [0.0, 6.5, 96.5],
       "what": "coin",
-      "model": "assets/models/coin.glb"
+      "model": "assets_src/models/coin.glb"
     },
     {
       "type": "collectible",
       "name": "the crawl coin to the left",
       "at": [-5.0, 6.5, 94.0],
       "what": "coin",
-      "model": "assets/models/coin.glb"
+      "model": "assets_src/models/coin.glb"
     },
     {
       "type": "collectible",
       "name": "the crawl coin to the right",
       "at": [5.0, 6.5, 94.0],
       "what": "coin",
-      "model": "assets/models/coin.glb"
+      "model": "assets_src/models/coin.glb"
     },
     {
       "type": "enemy",
@@ -536,21 +536,21 @@
       "name": "the guard's coin",
       "at": [0.0, 6.8, 101.0],
       "what": "coin",
-      "model": "assets/models/coin.glb"
+      "model": "assets_src/models/coin.glb"
     },
     {
       "type": "collectible",
       "name": "the coin the guard walks past",
       "at": [-8.0, 6.8, 100.0],
       "what": "coin",
-      "model": "assets/models/coin.glb"
+      "model": "assets_src/models/coin.glb"
     },
     {
       "type": "collectible",
       "name": "the other coin the guard walks past",
       "at": [8.0, 6.8, 102.0],
       "what": "coin",
-      "model": "assets/models/coin.glb"
+      "model": "assets_src/models/coin.glb"
     },
     {
       "type": "crate",

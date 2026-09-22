@@ -9,3 +9,10 @@ analyzer:
     - windows/**
     - macos/**
     - linux/**
+    # `ap-12`: `hook/build.dart` is a separate Dart entry point the Flutter
+    # tool resolves through `flutter3d_build`'s own dependency graph at
+    # build time, not through this package's analysis context — the
+    # analyzer otherwise reports its two imports as undeclared, since a
+    # `dev_dependencies:` entry (`ap-10`'s own placement for the hook's own
+    # package) is not visible outside `test/`.
+    - hook/**
