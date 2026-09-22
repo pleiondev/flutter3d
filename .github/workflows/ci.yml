@@ -62,6 +62,15 @@ jobs:
       # resampler is no longer an input to it.
       - run: pip install pillow
 
+      # The dungeon's `replay_video_test.dart` renders a replay through
+      # `ffmpeg --video` and checks that a playable file comes out. The runner
+      # image has no `ffmpeg`, so the test died on a `ProcessException` without
+      # saying anything about the video. Installed rather than skipped when it
+      # is missing, for the reason `tool/ci.sh` gives about the database: a test
+      # that steps aside when its tool is absent is green whether or not the
+      # thing it tests works.
+      - run: sudo apt-get update && sudo apt-get install -y ffmpeg
+
       # The "webgpu shaders" step regenerates the WGSL table and demands the
       # result be byte-identical to the committed one, so the two compilers it
       # runs are inputs to it: a different glslang or a different naga writes a

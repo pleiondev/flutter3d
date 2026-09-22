@@ -66,10 +66,36 @@ _startAndConnect() async {
       .replaceFirst('http://', 'ws://')
       .replaceFirst(RegExp(r'/?$'), '/ws');
   final service = await vmServiceConnectUri(wsUri);
-  final vm = await service.getVM();
-  final isolateId = vm.isolates!.first.id!;
+  final isolateId = await _isolateWith(
+    service,
+    'ext.flutter3d.timeline.status',
+  );
 
   return (process: process, service: service, isolateId: isolateId);
+}
+
+/// The isolate that has registered [extension], once one has.
+///
+/// **The URI is printed before the fixture can answer.** The VM service is up
+/// as soon as the process is, and the fixture's `main` registers its
+/// extensions only after `flutter test` has compiled and started it. This
+/// used to take the first isolate and wait a fixed two seconds, which was
+/// enough on a laptop; on a CI runner the first call arrived first and came
+/// back `Unknown method "ext.flutter3d.timeline.status"`. Asking the isolate
+/// what it has registered is the answer the protocol already gives, and
+/// looking through every isolate rather than the first is what keeps the
+/// harness's own isolates from being mistaken for the fixture.
+Future<String> _isolateWith(VmService service, String extension) async {
+  final deadline = DateTime.now().add(const Duration(seconds: 30));
+  while (DateTime.now().isBefore(deadline)) {
+    final vm = await service.getVM();
+    for (final ref in vm.isolates ?? const <IsolateRef>[]) {
+      final isolate = await service.getIsolate(ref.id!);
+      if (isolate.extensionRPCs?.contains(extension) ?? false) return ref.id!;
+    }
+    await Future<void>.delayed(const Duration(milliseconds: 100));
+  }
+  throw StateError('no isolate registered $extension within 30s');
 }
 
 Map<String, Object?> _decode(Response response) =>

@@ -43,6 +43,8 @@
 /// as not measured, not silently assumed to pass.
 library;
 
+import 'dart:io' show Platform;
+
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
 import 'package:flutter3d_cpu/testing.dart';
@@ -150,5 +152,15 @@ void main() {
     // machine this was measured on; a timeout tighter than that would fail
     // on its own overhead rather than on anything this test is checking.
     timeout: const Timeout(Duration(minutes: 5)),
+    // **Not on CI.** The threshold is the row's own, "under 3 minutes on an
+    // M3", and a shared Linux runner is not that machine: it took 235 s there
+    // on 2026-09-22 against 138 s here, which says how busy the runner was
+    // and nothing about the renderer. `.github/workflows/ci.yml` says the same
+    // about its own benchmark step: a threshold on a shared machine gates a
+    // merge on whoever else is using it. It also spent five of CI's minutes
+    // on every push.
+    skip: Platform.environment['CI'] == 'true'
+        ? 'a timing threshold for an M3, not for a shared CI runner'
+        : false,
   );
 }

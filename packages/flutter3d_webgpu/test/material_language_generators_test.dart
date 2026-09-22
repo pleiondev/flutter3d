@@ -25,6 +25,12 @@
 /// that the emitted text is the same shape as every `.frag` that binary
 /// already compiles — the same `#version`, the same one header, the same
 /// prototypes — and that is stated rather than proved.
+///
+/// **The VM only**, because resolving headers against the real tree is file
+/// access: `loadShaders` starts from `Directory.current`, which a browser
+/// does not have, and the package's browser run failed to load this file
+/// with `Unsupported operation: _Namespace` before a single test ran.
+@TestOn('vm')
 library;
 
 import 'package:flutter3d_core/formats.dart';
