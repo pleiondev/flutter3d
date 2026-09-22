@@ -77,7 +77,11 @@ final class ActorsDemo extends ShowcaseDemo {
       Material(name: name, baseColor: color),
       name: name,
     );
-    _bar = block('health', Vector3(_barWidth, 0.14, 0.14), Vector4(0.3, 0.8, 0.3, 1.0));
+    _bar = block(
+      'health',
+      Vector3(_barWidth, 0.14, 0.14),
+      Vector4(0.3, 0.8, 0.3, 1.0),
+    );
     return Scene()
       ..ambientColor = Vector3(0.5, 0.55, 0.65)
       ..ambientIntensity = 0.3
@@ -86,8 +90,11 @@ final class ActorsDemo extends ShowcaseDemo {
           ..setPosition(0.0, -0.05, 0.0),
       )
       ..add(
-        block('bar back', Vector3(_barWidth + 0.08, 0.2, 0.1), Vector4(0.1, 0.1, 0.12, 1.0))
-          ..setPosition(0.0, 1.5, -0.02),
+        block(
+          'bar back',
+          Vector3(_barWidth + 0.08, 0.2, 0.1),
+          Vector4(0.1, 0.1, 0.12, 1.0),
+        )..setPosition(0.0, 1.5, -0.02),
       )
       ..add(_body)
       ..add(_bar)
@@ -131,13 +138,18 @@ final class ActorsDemo extends ShowcaseDemo {
     }
     _flash = math.max(0.0, _flash - dt * 3.0);
 
-    final double fraction =
-        (_goblin.health!.current / _goblin.health!.maximum).clamp(0.0, 1.0);
+    final double fraction = (_goblin.health!.current / _goblin.health!.maximum)
+        .clamp(0.0, 1.0);
     // The bar shrinks towards its left end, and goes red as it does.
     _bar
       ..setScale(math.max(fraction, 0.001), 1.0, 1.0)
       ..setPosition(-(1.0 - fraction) * _barWidth / 2, 1.5, 0.05);
-    _bar.material.baseColor.setValues(1.0 - fraction * 0.7, 0.2 + 0.6 * fraction, 0.2, 1.0);
+    _bar.material.baseColor.setValues(
+      1.0 - fraction * 0.7,
+      0.2 + 0.6 * fraction,
+      0.2,
+      1.0,
+    );
 
     if (_goblin.isAlive) {
       // A hit squashes it, and a goblin that has been hurt stays wary.

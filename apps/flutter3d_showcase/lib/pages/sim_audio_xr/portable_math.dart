@@ -57,14 +57,30 @@ final class PortableMathDemo extends ShowcaseDemo {
     );
     _bars = <BarGauge>[
       for (var i = 0; i < 6; i++)
-        bar('face ${i + 1}', Vector4(0.45, 0.65, 0.95, 1.0), -2.5 + i * 1.0, 3.2),
+        bar(
+          'face ${i + 1}',
+          Vector4(0.45, 0.65, 0.95, 1.0),
+          -2.5 + i * 1.0,
+          3.2,
+        ),
     ];
     _barsAgain = <BarGauge>[
       for (var i = 0; i < 6; i++)
-        bar('again ${i + 1}', Vector4(0.95, 0.65, 0.3, 1.0), -2.5 + i * 1.0 + 0.35, 3.2),
+        bar(
+          'again ${i + 1}',
+          Vector4(0.95, 0.65, 0.3, 1.0),
+          -2.5 + i * 1.0 + 0.35,
+          3.2,
+        ),
     ];
     _hand = ballNode(context, 'hand', 0.3, Vector4(0.95, 0.75, 0.3, 1.0));
-    _lamp = ballNode(context, 'lamp', 0.3, Vector4(0.35, 0.85, 0.4, 1.0), at: Vector3(0.0, 0.3, 5.5));
+    _lamp = ballNode(
+      context,
+      'lamp',
+      0.3,
+      Vector4(0.35, 0.85, 0.4, 1.0),
+      at: Vector3(0.0, 0.3, 5.5),
+    );
     return sceneOf(<SceneNode>[
       floorNode(context, width: 12.0, depth: 12.0),
       // A ring of points placed by `Portable`, and a hand that goes round it.
@@ -123,7 +139,12 @@ final class PortableMathDemo extends ShowcaseDemo {
       _bars[i].set(_seen[i] / 40.0);
       _barsAgain[i].set(_seenAgain[i] / 40.0);
     }
-    _lamp.material.baseColor.setValues(_agree ? 0.35 : 0.9, _agree ? 0.85 : 0.3, _agree ? 0.4 : 0.3, 1.0);
+    _lamp.material.baseColor.setValues(
+      _agree ? 0.35 : 0.9,
+      _agree ? 0.85 : 0.3,
+      _agree ? 0.4 : 0.3,
+      1.0,
+    );
   }
 
   @override

@@ -86,7 +86,10 @@ final class LightmapBakeDemo extends ShowcaseDemo {
     for (var y = 0; y < lightmap.height; y++) {
       for (var x = 0; x < lightmap.width; x++) {
         final Vector3 light = lightmap.irradianceAt(x, y);
-        brightest = math.max(brightest, math.max(light.x, math.max(light.y, light.z)));
+        brightest = math.max(
+          brightest,
+          math.max(light.x, math.max(light.y, light.z)),
+        );
       }
     }
     final Uint8List rgba = Uint8List(lightmap.texelCount * 4);

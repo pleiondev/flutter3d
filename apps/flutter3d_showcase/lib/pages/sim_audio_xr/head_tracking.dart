@@ -87,7 +87,8 @@ final class HeadTrackingDemo extends ShowcaseDemo {
     _scene = sceneOf(<SceneNode>[
       _rig.stage,
       ball,
-      floorNode(context, width: 14.0, depth: 14.0)..setPosition(0.0, -1.65, 0.0),
+      floorNode(context, width: 14.0, depth: 14.0)
+        ..setPosition(0.0, -1.65, 0.0),
       ...posts,
     ]);
     return _scene;

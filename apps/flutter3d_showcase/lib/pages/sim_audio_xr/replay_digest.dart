@@ -49,7 +49,12 @@ final class ReplayDigestDemo extends ShowcaseDemo {
     );
     _original = <BarGauge>[
       for (var k = 0; k < _checkpoints; k++)
-        tower('original $k', Vector4(0.45, 0.65, 0.95, 1.0), -4.0 + k * 2.0, -0.8),
+        tower(
+          'original $k',
+          Vector4(0.45, 0.65, 0.95, 1.0),
+          -4.0 + k * 2.0,
+          -0.8,
+        ),
     ];
     _replay = <BarGauge>[
       for (var k = 0; k < _checkpoints; k++)

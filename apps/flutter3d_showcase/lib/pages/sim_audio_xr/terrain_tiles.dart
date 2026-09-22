@@ -73,14 +73,20 @@ final class TerrainTilesDemo extends ShowcaseDemo {
       _levels.add(null);
       _nodes.add(
         MeshNode(
-          DeviceMesh.upload(context.device, MeshBuilder(VertexLayout.standard).build()),
+          DeviceMesh.upload(
+            context.device,
+            MeshBuilder(VertexLayout.standard).build(),
+          ),
           _paint[0],
           name: 'tile $i',
         ),
       );
     }
     _eye = MeshNode(
-      DeviceMesh.upload(context.device, SphereShape(segments: 16, radius: 0.6).build()),
+      DeviceMesh.upload(
+        context.device,
+        SphereShape(segments: 16, radius: 0.6).build(),
+      ),
       Material(name: 'eye', baseColor: Vector4(0.45, 0.65, 0.95, 1.0)),
       name: 'eye',
     );
@@ -91,11 +97,10 @@ final class TerrainTilesDemo extends ShowcaseDemo {
     for (final MeshNode node in _nodes) {
       scene.add(node);
     }
-    return scene
-      ..add(
-        LightNode(name: 'sun', intensity: 2.6)
-          ..setLocalForward(Vector3(-0.35, -1.0, -0.45)),
-      );
+    return scene..add(
+      LightNode(name: 'sun', intensity: 2.6)
+        ..setLocalForward(Vector3(-0.35, -1.0, -0.45)),
+    );
   }
 
   @override
@@ -119,11 +124,19 @@ final class TerrainTilesDemo extends ShowcaseDemo {
         final double dx = (tx + 0.5) * _tileCells - ex;
         final double dz = (tz + 0.5) * _tileCells - ez;
         // #region pick
-        final int level = chooser.choose(math.sqrt(dx * dx + dz * dz), _levels[i]);
+        final int level = chooser.choose(
+          math.sqrt(dx * dx + dz * dz),
+          _levels[i],
+        );
         // #endregion pick
         if (level == _levels[i]) continue;
         _levels[i] = level;
-        final BrushSurface tile = _tiles.build(tx, tz, level: level, material: 'ground');
+        final BrushSurface tile = _tiles.build(
+          tx,
+          tz,
+          level: level,
+          material: 'ground',
+        );
         _nodes[i]
           ..mesh = DeviceMesh.upload(_context.device, _meshOf(tile))
           ..material = _paint[level];
@@ -142,7 +155,11 @@ final class TerrainTilesDemo extends ShowcaseDemo {
       );
     }
     for (var i = 0; i + 2 < tile.indices.length; i += 3) {
-      builder.addTriangle(tile.indices[i], tile.indices[i + 1], tile.indices[i + 2]);
+      builder.addTriangle(
+        tile.indices[i],
+        tile.indices[i + 1],
+        tile.indices[i + 2],
+      );
     }
     return builder.build();
   }

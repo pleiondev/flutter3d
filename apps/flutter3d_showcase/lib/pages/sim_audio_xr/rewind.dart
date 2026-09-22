@@ -106,7 +106,11 @@ final class RewindDemo extends ShowcaseDemo {
       _x = then;
     }
     _rewindAsked = false;
-    _runner.setPosition(_x * _scale, 0.4 + 0.15 * (0.5 + 0.5 * math.sin(_clock * 12.0)), 0.0);
+    _runner.setPosition(
+      _x * _scale,
+      0.4 + 0.15 * (0.5 + 0.5 * math.sin(_clock * 12.0)),
+      0.0,
+    );
     _ghost.visible = then != null;
     if (then != null) _ghost.setPosition(then * _scale, 0.4, 1.2);
     _held.set(_buffer.step / 160.0);

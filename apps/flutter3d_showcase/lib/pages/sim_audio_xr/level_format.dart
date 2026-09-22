@@ -36,8 +36,18 @@ final class LevelFormatDemo extends ShowcaseDemo {
   @override
   Scene build(DemoContext context) {
     _report = _run();
-    _first = blockNode(context, 'brush 1', Vector3(4.0, 2.0, 4.0), Vector4(0.55, 0.65, 0.8, 1.0));
-    _second = blockNode(context, 'brush 2', Vector3(4.0, 1.9, 4.0), Vector4(0.8, 0.65, 0.5, 1.0));
+    _first = blockNode(
+      context,
+      'brush 1',
+      Vector3(4.0, 2.0, 4.0),
+      Vector4(0.55, 0.65, 0.8, 1.0),
+    );
+    _second = blockNode(
+      context,
+      'brush 2',
+      Vector3(4.0, 1.9, 4.0),
+      Vector4(0.8, 0.65, 0.5, 1.0),
+    );
     _spawn = ballNode(context, 'spawn', 0.35, Vector4(0.4, 0.9, 0.5, 1.0));
     _issues = <MeshNode>[
       for (var i = 0; i < _lamps; i++)
@@ -101,8 +111,9 @@ final class LevelFormatDemo extends ShowcaseDemo {
         gap = v;
         _dirty = true;
       },
-      format: (double v) =>
-          v < 0 ? 'overlap ${(-v).toStringAsFixed(1)} m' : '${v.toStringAsFixed(1)} m',
+      format: (double v) => v < 0
+          ? 'overlap ${(-v).toStringAsFixed(1)} m'
+          : '${v.toStringAsFixed(1)} m',
     ),
     ToggleControl(
       'A spawn point',

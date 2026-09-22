@@ -137,12 +137,7 @@ final class RailGauge {
     Vector4 color,
     Vector3 at, {
     this.length = 4.0,
-  }) : _knob = blockNode(
-         context,
-         name,
-         Vector3(0.35, 0.35, 0.35),
-         color,
-       ),
+  }) : _knob = blockNode(context, name, Vector3(0.35, 0.35, 0.35), color),
        _rail = blockNode(
          context,
          '$name rail',

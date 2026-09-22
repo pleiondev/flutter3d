@@ -82,8 +82,16 @@ final class VoiceLimitDemo extends ShowcaseDemo {
       backend: SilentBackend(),
       maxVoices: voices.round(),
     );
-    const SoundDef footstep = SoundDef(name: 'footstep', asset: 'step.wav', priority: 0);
-    const SoundDef shout = SoundDef(name: 'shout', asset: 'shout.wav', priority: 10);
+    const SoundDef footstep = SoundDef(
+      name: 'footstep',
+      asset: 'step.wav',
+      priority: 0,
+    );
+    const SoundDef shout = SoundDef(
+      name: 'shout',
+      asset: 'shout.wav',
+      priority: 10,
+    );
     final List<SoundEmitter> steps = <SoundEmitter>[
       for (var i = 0; i < asking.round(); i++)
         scene.play(
@@ -106,8 +114,16 @@ final class VoiceLimitDemo extends ShowcaseDemo {
       if (!asked) continue;
       final double angle = i * 2.4;
       final double radius = 1.5 + 0.35 * i;
-      _balls[i].setPosition(radius * math.cos(angle), 0.3, radius * math.sin(angle));
-      _colour(_balls[i], steps[i].audibleGain > 0.0, const <double>[0.9, 0.75, 0.3]);
+      _balls[i].setPosition(
+        radius * math.cos(angle),
+        0.3,
+        radius * math.sin(angle),
+      );
+      _colour(_balls[i], steps[i].audibleGain > 0.0, const <double>[
+        0.9,
+        0.75,
+        0.3,
+      ]);
     }
     _shout.visible = loud != null;
     if (loud != null) {

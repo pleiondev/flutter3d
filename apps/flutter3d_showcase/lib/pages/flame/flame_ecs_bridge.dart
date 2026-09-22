@@ -112,12 +112,7 @@ final class FlameEcsBridgeDemo extends ShowcaseDemo {
         ),
         Material(
           name: 'goblin $i',
-          baseColor: Vector4(
-            _colors[i].r,
-            _colors[i].g,
-            _colors[i].b,
-            1.0,
-          ),
+          baseColor: Vector4(_colors[i].r, _colors[i].g, _colors[i].b, 1.0),
         ),
         name: 'goblin $i',
       );
@@ -213,8 +208,7 @@ final class FlameEcsBridgeDemo extends ShowcaseDemo {
   TransparentFlameGame get game => _game;
 
   @override
-  Widget? customBody(BuildContext buildContext, DemoContext context) =>
-      _body;
+  Widget? customBody(BuildContext buildContext, DemoContext context) => _body;
 
   @override
   void verify(Scene scene, FrameResult frame) {
