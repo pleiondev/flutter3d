@@ -317,7 +317,7 @@ automap.reveal(player.position);      // each step
 automap.revealAll(player.position);   // a map pickup: everything reachable from here
 ```
 
-Walls are the cells the walk could not enter, not the cells nobody can stand in; the grid calls a roof walkable, because a wall's column has one standing place and it is on top. What was seen goes into the snapshot as runs of bits. `AutomapView` in `flutter3d_session` paints it, centred on the player and turned the way they face, and the dungeon shows it on M with the fight running underneath.
+Walls are the cells the walk could not enter, not the cells nobody can stand in; the grid calls a roof walkable, because a wall's column has one standing place and it is on top. What was seen goes into the snapshot as runs of bits. `AutomapView` in `flutter3d_game` paints it, centred on the player and turned the way they face, and the dungeon shows it on M with the fight running underneath.
 
 ## The ECS, and how far it has got
 

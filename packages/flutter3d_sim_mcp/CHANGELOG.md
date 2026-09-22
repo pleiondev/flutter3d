@@ -1,17 +1,58 @@
 ## 0.7.0
 
-**`staging.dart`'s composition moved to `flutter3d_game_shooter`'s own
-`sample.dart`, and this package's own files stopped importing the shooter's
-vocabulary wholesale.** `sim_session.dart`/`playtest.dart` now name exactly
-`ShooterActions`, `Staged` and `stage` — the one action and the one
-composition they actually touch — instead of the full barrel; `sim_renderer.dart`
-takes its `EntityRegistry` as an optional parameter, the same shape
-`flutter3d_render_mcp`'s own `open` already uses. `SimRenderer.frame()`
-supplies `wg-02`'s `WidgetSurfaceKind` this way now too, fixing a level with
-a widget surface in it failing to render — not a regression from this
-change, a gap this change's own new parameter closed. No tool's own
-signature changed; `open`/`step`/`snapshot`/`digest`/`writeRun`/`frame` are
-untouched.
+**The first publication.** The 0.6.0 below was a number carried inside the
+workspace and never reached pub.dev. 0.7.0 is the number the whole shelf goes
+out on, so one number names one tree and `^0.7.0` on any `flutter3d_*` package
+resolves against every other; `doc/boundary-0.7.0.md` lists the thirteen
+packages that begin here. The package needs the Flutter SDK, because `frame`
+draws the level through `flutter3d` over `flutter3d_cpu` and that needs
+`dart:ui`. It has no `bin/`: a host runs a server inside `flutter test` and
+hands it a `Socket`, since `flutter test` prefixes every line written to
+stdout and a protocol framed by lines does not survive that.
+
+**Accepted `flutter3d_render_mcp`: one package, two servers.** The diagnostic
+server — a headless frame in one of the renderer's debug views, one pixel read
+back unclamped, the passes the frame graph ran, a scan for the first NaN
+(`par-02`) — lives beside the playing one as `DiagnosticMcpServer`, with
+`DiagnosticRenderer` drawing both. The two packages already had the same
+dependency closure, and `SimRenderer.frame()` was already the diagnostic
+renderer's `lit` view. `flutter3d_render_mcp` was never published. Neither
+server's tools changed.
+
+**The playing server names no genre.** `SimSession(game:)` and
+`Playtest(game:)` take a `HeadlessGame` from `flutter3d_sim`, and
+`SimMcpServer` builds its tools and its instructions from that game's `name`
+and `buttons`, so an agent reads the words of the game it is handed. The
+0.6.0 in this workspace imported `flutter3d_game_shooter` and called its
+player, its inventory and its fire button. The shooter is a dev dependency
+now, where the suite plays the shipped crypt as `ShooterHeadlessGame`, and
+`staging.dart`, this package's copy of the demo's composition, is gone: the
+composition is `flutter3d_game_shooter`'s. The six tools are still `open`,
+`step`, `snapshot`, `digest`, `writeRun` and `frame`, and `writeRun` writes a
+`.f3drun`.
+
+**`SimRenderer.open` and `DiagnosticRenderer.open` require the
+`EntityRegistry`.** Both load the level through `LevelLoader` with
+`sidecars: false`, and a level naming an entity type the registry does not
+know is refused, so a level with a `widget_surface` in it draws once the host
+registers `WidgetSurfaceKind`. A frame is 320 by 200 on the software
+rasteriser.
+
+**`passes` reports what each pass cost.** Every entry carries the pass's `name`
+and `active` with `micros`, `drawCalls`, `triangles` and `pipelineSwitches`,
+read from `FrameResult.passes` of the frame `frame` last drew. `pixel` and
+`scanNaN` read that same frame as unclamped floats, and the four views are
+`lit`, `normals`, `shadowMap` and `staticShadowMap`. `DiagnosticView` is an enum, and its four values are the
+debug outputs `RenderSettings` has.
+
+**The servers report the package's version.** `simMcpVersion` and
+`renderMcpVersion` are `0.7.0`. They said 0.1.0 while the pubspec moved, and a
+test holds them to the pubspec now.
+
+**What it depends on.** `flutter3d_sim`, `flutter3d`, `flutter3d_app`,
+`flutter3d_cpu` and `flutter3d_mcp_kit` at `^0.7.0`, `vector_math` and
+`dart_mcp` from 0.5.2 up to 0.6.0. `PictureAnswer` is re-exported from
+`flutter3d_mcp_kit`.
 
 ## 0.6.0
 

@@ -37,15 +37,12 @@ import 'dart:convert';
 import 'package:flutter/material.dart' hide Material;
 import 'package:flutter/services.dart';
 import 'package:flutter3d/flutter3d.dart' hide Material;
-import 'package:flutter3d_bridge/flutter3d_bridge.dart' hide LessonPlayer;
+import 'package:flutter3d_app/flutter3d_app.dart';
 import 'package:flutter3d_editor_core/flutter3d_editor_core.dart';
-import 'package:flutter3d_game/flutter3d_game.dart';
-import 'package:flutter3d_session/flutter3d_session.dart' show DidNotStart;
+import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:flutter3d_stereo/flutter3d_stereo.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:vector_math/vector_math.dart' show Vector3;
-
-import 'src/backend.dart';
 
 /// The lesson this build opens, as a bundled asset path — the same two
 /// override doors `flutter3d_lesson_viewer`'s own `kLevel` gives.
@@ -68,7 +65,7 @@ class StereoLessonApp extends StatelessWidget {
 }
 
 /// A kind for a type this application has not been taught — see
-/// `flutter3d_template_app`'s own `OpenKind` for why every type in the
+/// `packages/flutter3d_game/example`'s own `OpenKind` for why every type in the
 /// document is accepted and none of them given a meaning here.
 final class OpenKind extends EntityKind {
   const OpenKind(super.type);

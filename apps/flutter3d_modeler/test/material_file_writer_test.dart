@@ -8,7 +8,7 @@ library;
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:flutter3d_formats/flutter3d_formats.dart';
+import 'package:flutter3d_core/formats.dart';
 import 'package:flutter3d_model_core/flutter3d_model_core.dart';
 import 'package:flutter3d_modeler/src/material_file_writer.dart';
 import 'package:test/test.dart';

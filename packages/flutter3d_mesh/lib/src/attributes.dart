@@ -22,7 +22,7 @@
 /// whether the layer is there before spending a byte on it.
 library;
 
-import 'package:flutter3d_geometry/flutter3d_geometry.dart';
+import 'package:flutter3d_core/geometry.dart';
 import 'package:vector_math/vector_math.dart';
 
 /// Where an attribute lives.

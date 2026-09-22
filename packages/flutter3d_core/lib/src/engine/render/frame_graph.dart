@@ -138,7 +138,108 @@ abstract base class FrameGraphNode {
   /// no pass setup — and so its outputs count as unproduced, which correctly
   /// culls anything that existed only to consume them.
   bool get isActive => true;
+
+  /// Whether the device this frame is drawn on can run the pass at all —
+  /// `gfx-50n`.
+  ///
+  /// **Separate from [isActive] because the two answer different questions,
+  /// and a caller needs to tell them apart.** An inactive pass is a pass the
+  /// frame was told not to run; an unsupported one is a pass this device
+  /// cannot run whatever anybody asks. The first is answered by changing a
+  /// setting and the second is not answered at all, so reporting them the
+  /// same way sends somebody looking through their own configuration for a
+  /// limit that belongs to their hardware.
+  ///
+  /// What it exists for so far: a pass that reads the surface buffer needs a
+  /// second colour attachment, and `GraphicsDevice.maxColorAttachments` is
+  /// one on Impeller's OpenGL ES path — where opening one aborts the process
+  /// rather than failing. The buffer is still declared and the scene pass
+  /// still writes it where it can; what this decides is whether the reader is
+  /// in the frame.
+  ///
+  /// Asked once at compile, beside [isActive], and reported as
+  /// [PassSkip.unsupported].
+  bool get supported => true;
 }
+
+/// Why a pass that was registered did not run — `gfx-39n`.
+///
+/// The compile has always computed all four of these and then thrown the
+/// distinction away into a bare list of nodes, which is one answer where
+/// there are four. They are not interchangeable, and the difference is what a
+/// caller needs: [settings] means the frame did what it was told, [disabled]
+/// means somebody said so by name, [unconsumed] means the pass ran for nobody
+/// and is the *graph* being clever, and [starved] means something upstream
+/// could not run and this is the consequence rather than the cause.
+///
+/// **This is the thing no other engine reports.** three.js, Unity URP, Godot,
+/// Bevy, Filament and Unreal all expose a per-pass switch and none of them
+/// will say what became of it — their `enabled` and `isActive`
+/// read back the input, which answers "did I ask for this" rather than "what
+/// happened". This engine has one caller for whom that is not a nicety: an
+/// agent handed a 256-pixel picture cannot look at it and infer that the
+/// occlusion it asked for was dropped because nothing consumed it.
+///
+/// A [starved] pass is the one to read first when a frame is wrong, because
+/// it names a consequence and some other pass is the cause.
+/// **A final class with const instances rather than an enum**, which
+/// `tool/structure.dart` insists on for a published package and is right to.
+/// The fifth reason arrived — [unsupported], a pass refused for a capability
+/// the device lacks, which is exactly the candidate this note named before it
+/// existed — and it arrived without breaking an exhaustive `switch` anybody
+/// had written, which is the whole of the argument. `TonemapCurve` and
+/// `LightingModel` have the same shape for the same reason.
+final class PassSkip {
+  const PassSkip._(this.name);
+
+  /// The name it is written down as.
+  final String name;
+
+  /// The node's own [FrameGraphNode.isActive] said there was nothing to do —
+  /// bloom at zero intensity, occlusion switched off in the settings.
+  static const PassSkip settings = PassSkip._('settings');
+
+  /// A caller named it in `RenderSettings.disabledPasses`.
+  static const PassSkip disabled = PassSkip._('disabled');
+
+  /// It could have run, and nothing downstream wanted what it produces.
+  static const PassSkip unconsumed = PassSkip._('unconsumed');
+
+  /// Something it reads unconditionally was not produced this frame, so it
+  /// could not run. The cause is upstream; this is the effect.
+  static const PassSkip starved = PassSkip._('starved');
+
+  /// The device cannot run it — `gfx-50n`, and the fifth reason the note
+  /// above predicted.
+  ///
+  /// **The only one of the five that no setting will change.** The other four
+  /// describe a decision about this frame; this describes the machine. A
+  /// caller who gets it should stop looking through their configuration: the
+  /// pass is absent on this device and will be absent on the next frame too.
+  ///
+  /// So far it means one thing — the pass reads the surface buffer and the
+  /// device opens a single colour attachment. See
+  /// `GraphicsDevice.maxColorAttachments`, whose documentation says what
+  /// happens on the backend where the answer is one and why it is not a
+  /// probe.
+  static const PassSkip unsupported = PassSkip._('unsupported');
+
+  /// All of them, in the order a reader should try them: the two a caller
+  /// asked for, then the two the frame decided, then the one the device did.
+  static const List<PassSkip> values = <PassSkip>[
+    settings,
+    disabled,
+    unconsumed,
+    starved,
+    unsupported,
+  ];
+
+  @override
+  String toString() => 'PassSkip.$name';
+}
+
+/// A registered pass that did not run, and why.
+typedef SkippedPass = ({String name, PassSkip reason});
 
 /// A graph that failed to compile, with the reason a person can act on.
 final class FrameGraphError extends Error {
@@ -160,17 +261,35 @@ final class CompiledFrameGraph {
     required this.order,
     required this.culled,
     required this.outputs,
+    this.skipped = const <SkippedPass>[],
   });
 
   /// Nodes to execute, earliest first.
   final List<FrameGraphNode> order;
 
-  /// Nodes left out because nothing wanted what they produce.
+  /// Nodes left out, whatever the reason.
   ///
   /// Kept rather than discarded so the reason a pass did not run is
   /// answerable. A pass that silently stops running is the kind of thing that
   /// gets debugged twice.
+  ///
+  /// The doc comment above said exactly that before [skipped] existed, and the
+  /// list could not deliver it: it recorded *that* a pass was left out and
+  /// nothing about why, so the four cases the compile distinguishes arrived as
+  /// one. Kept as it was, in registration order, because callers count it and
+  /// map it to names; [skipped] is the same nodes with the answer attached.
   final List<FrameGraphNode> culled;
+
+  /// The same passes as [culled], each with why it did not run — `gfx-39n`.
+  final List<SkippedPass> skipped;
+
+  /// Why [name] did not run, or null if it ran or was never registered.
+  PassSkip? skipReason(String name) {
+    for (final entry in skipped) {
+      if (entry.name == name) return entry.reason;
+    }
+    return null;
+  }
 
   final Map<ResourceVersion, int> _lastUse;
   final Set<String> _readers;

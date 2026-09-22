@@ -6,6 +6,11 @@
 /// image cannot see, and none of it needs a device to answer.
 library;
 
+// The one thing here that is not a flag: which tone curve the composite asks
+// for. It is still not a GPU type — a name and the number that goes into a
+// uniform — so this file's own claim holds.
+import 'render_settings.dart' show TonemapCurve;
+
 /// Which picture the composite samples into the scene slot.
 ///
 /// Three exclusive answers where the pass used to have two nested conditionals.
@@ -51,6 +56,7 @@ final class CompositeMix {
     required double exposure,
     required double bloomIntensity,
     required bool tonemap,
+    TonemapCurve curve = TonemapCurve.neutral,
   }) {
     // The debug picture rides in the surface buffer rather than in an
     // attachment of its own, so asking for the point-shadow estimate is asking
@@ -73,7 +79,9 @@ final class CompositeMix {
       // not hold a glow, and zero for a raw view because a debug buffer must
       // come out as the numbers that were written into it.
       bloomIntensity: raw || !hasGlow ? 0.0 : bloomIntensity,
-      tonemap: raw || !tonemap ? 0.0 : 1.0,
+      // Zero is "leave the colour alone", which a raw debug view needs and
+      // `tonemap: false` asks for; otherwise the curve's own number.
+      tonemap: raw || !tonemap ? 0.0 : curve.code,
     );
   }
 

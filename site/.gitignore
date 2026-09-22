@@ -1,3 +1,7 @@
 dist/
 node_modules/
 docs-dist/
+
+# Written by apps/flutter3d_showcase/tool/showcase_bundle.dart, read by tool/showcase.mjs.
+/.generated/
+/node_modules

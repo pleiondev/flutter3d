@@ -11,8 +11,6 @@
 /// when the backend renders to a fixed internal resolution.
 library;
 
-import 'package:flutter3d_app/flutter3d_app.dart';
-
 export 'package:flutter3d_app/flutter3d_app.dart';
 
 /// 720p, which is the trade this demo makes in a browser.

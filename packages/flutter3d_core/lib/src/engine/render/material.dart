@@ -1,6 +1,6 @@
 import 'dart:typed_data';
 
-import 'package:flutter3d_formats/flutter3d_formats.dart';
+import 'package:flutter3d_core/formats.dart';
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:vector_math/vector_math.dart';
 
@@ -8,7 +8,32 @@ import 'package:vector_math/vector_math.dart';
 ///
 /// The renderer uses this to split draws into the opaque and transparent halves
 /// of the render list, in the manner of PlayCanvas sub-layers.
-enum MaterialAlphaMode { opaque, mask, blend }
+enum MaterialAlphaMode {
+  opaque,
+  mask,
+  blend,
+
+  /// Kept or dropped per pixel against noise instead of a threshold —
+  /// `gfx-16n`'s own row, and the one mode here that glTF has no word for.
+  ///
+  /// **What it is for: foliage and nets.** A leaf texture at 40% opacity is
+  /// either entirely there or entirely gone under [mask], so a fern comes out
+  /// as a hard-edged cut-out; [blend] draws it correctly and needs the
+  /// geometry sorted, which costs a sort per frame and defeats instancing.
+  /// Hashed keeps 40% of the *pixels* and resolves as 40% opacity to anything
+  /// that averages several of them.
+  ///
+  /// It is drawn in the opaque half, writes depth, and needs no sorting —
+  /// which is the whole point — at the price of visible noise anywhere the
+  /// result is not averaged down. Without temporal accumulation this engine
+  /// does not have, that price is real: it suits a supersampled render or a
+  /// distant canopy better than a leaf held up to the camera.
+  ///
+  /// The noise is anchored to world position rather than to the screen, so a
+  /// moving branch keeps its verdict instead of sparkling as it passes
+  /// through a fixed pattern. See `surface.glsl`, which does the work.
+  hashed,
+}
 
 /// Surface appearance as plain data.
 ///
@@ -51,6 +76,49 @@ final class Material {
        extraTextures = extraTextures ?? const <String, TextureHandle>{},
        baseColor = baseColor ?? Vector4(1.0, 1.0, 1.0, 1.0),
        emissive = emissive ?? Vector3.zero();
+
+  /// The material a `buildPolyline` mesh is drawn with — `gfx-86n`.
+  ///
+  /// [viewportWidth] and [viewportHeight] are the render target in pixels, the
+  /// same pixels the line's width was given in. They are the one thing the
+  /// vertex stage needs that no engine block carries, so they travel as this
+  /// material's own parameter; on a resize, write the new size into
+  /// [polylineViewport] rather than rebuilding anything.
+  ///
+  /// **Double-sided, and not as a preference.** Which way a band's triangles
+  /// wind on screen depends on which way the line is heading relative to the
+  /// camera, so half of any route faces away and back-face culling would
+  /// delete it segment by segment as the camera turned.
+  ///
+  /// **No depth bias.** A line behind a hill is hidden by the hill, which is
+  /// what the depth test does by itself; an overlay that pushes towards the
+  /// eye, the way `MeshOverlay.biasPixels` does so an edge sits on its own
+  /// face, would draw a route through the mountain. A line laid exactly on the
+  /// ground it follows will fight that ground for depth, and the answer there
+  /// is to lift the points, not to bias the pass.
+  factory Material.polyline({
+    String? name,
+    required double viewportWidth,
+    required double viewportHeight,
+  }) => Material(
+    name: name,
+    lighting: LightingModel.polyline,
+    doubleSided: true,
+    parameters: <String, Float32List>{
+      'viewport': Float32List.fromList(<double>[
+        viewportWidth,
+        viewportHeight,
+        0,
+        0,
+      ]),
+    },
+  );
+
+  /// The render target size a [Material.polyline] widens its line against, as
+  /// the list the renderer binds — so writing to it takes effect on the next
+  /// frame, with nothing rebuilt. Null for any other material.
+  Float32List? get polylineViewport =>
+      lighting == LightingModel.polyline ? parameters['viewport'] : null;
 
   final String? name;
 

@@ -1,12 +1,13 @@
 import 'dart:typed_data';
 
-import 'package:flutter3d_render_mcp/flutter3d_render_mcp.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:vector_math/vector_math.dart';
 
+import 'diagnostic_renderer.dart';
+
 /// A picture of the room, drawn with no GPU — [SimSession.frame]'s other half.
 ///
-/// **`flutter3d_render_mcp`'s [DiagnosticRenderer], in its ordinary view.**
+/// **The diagnostic server's [DiagnosticRenderer], in its ordinary view.**
 /// The two were one class written twice, down to the marker a level's asset
 /// root is found by; a picture from the sim server is the renderer server's
 /// `lit` frame, and a fix to how a level is loaded for one is a fix for both.

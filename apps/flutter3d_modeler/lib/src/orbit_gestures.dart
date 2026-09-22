@@ -24,6 +24,8 @@ library;
 
 import 'dart:math' as math;
 
+import 'settings.dart' show NavigationScheme;
+
 /// The kind of thing that produced an event.
 ///
 /// This is the whole reason the file exists: the same two-hundred-pixel drag
@@ -89,8 +91,13 @@ final class GestureModifiers {
   /// preference, it is what a browser delivers a trackpad pinch as.
   final bool control;
 
-  /// Alt. Read by nothing here yet; carried so the widget layer has one type
-  /// to fill in rather than two.
+  /// Alt: with the left button, stands in for a middle button.
+  ///
+  /// **The one modifier a laptop actually needs.** A MacBook has no middle
+  /// button at all, so a scheme built on one is a scheme that cannot orbit on
+  /// the machine most of this is written on — which is exactly what the live
+  /// run found. This was declared and read by nothing for a year; `ux-04` is
+  /// where it starts meaning something.
   final bool alt;
 
   @override
@@ -138,6 +145,8 @@ final class CameraIntent {
   const CameraIntent({
     this.deltaYaw = 0.0,
     this.deltaPitch = 0.0,
+    this.lookYaw = 0.0,
+    this.lookPitch = 0.0,
     this.panRight = 0.0,
     this.panUp = 0.0,
     this.zoomBy = 1.0,
@@ -151,6 +160,19 @@ final class CameraIntent {
 
   /// Pixels of vertical travel to orbit by, positive upward.
   final double deltaPitch;
+
+  /// Pixels of horizontal travel to turn the *head* by — `ux-04`'s own
+  /// free-look, which turns about where the camera stands rather than about
+  /// the target.
+  ///
+  /// Its own pair rather than a flag beside [deltaYaw], because the two are
+  /// different motions and a caller that mistook one for the other would
+  /// swing the camera across the model instead of turning it in place. A
+  /// gesture produces one or the other, never both.
+  final double lookYaw;
+
+  /// Pixels of vertical travel to turn the head by, positive upward.
+  final double lookPitch;
 
   /// Pixels the grabbed content should slide right by.
   final double panRight;
@@ -173,6 +195,8 @@ final class CameraIntent {
   bool get movesCamera =>
       deltaYaw != 0.0 ||
       deltaPitch != 0.0 ||
+      lookYaw != 0.0 ||
+      lookPitch != 0.0 ||
       panRight != 0.0 ||
       panUp != 0.0 ||
       zoomBy != 1.0;
@@ -218,7 +242,30 @@ final class CameraIntent {
 /// trackpad's scale gesture. It keeps only what it needs to compute a delta,
 /// so dropping it on the floor mid-drag costs nothing.
 final class OrbitGestures {
-  OrbitGestures({this.zoomPerScrollPixel = 0.0015});
+  OrbitGestures({
+    this.zoomPerScrollPixel = 0.0015,
+    this.scheme = NavigationScheme.middleMouseOrbit,
+    this.toolArmed = false,
+  });
+
+  /// Which set of rules this is classifying by — `ux-04`'s own pair, chosen
+  /// in Settings.
+  ///
+  /// **A field rather than a subclass or a strategy object.** Both schemes
+  /// answer the same four questions about the same four devices, and the
+  /// difference between them is six lines of [_roleFor]; two classes would
+  /// mean two places for the touch and pen rules, which are identical under
+  /// both and are the rules most easily got wrong.
+  NavigationScheme scheme;
+
+  /// Whether a tool has claimed the primary drag — a transform armed, a brush
+  /// held, a box being dragged from the Select tool.
+  ///
+  /// Read only under [NavigationScheme.leftDragOrbit], where the left button
+  /// is the camera's *unless* something else has asked for it. Under
+  /// [NavigationScheme.middleMouseOrbit] the left button is never the
+  /// camera's and this changes nothing.
+  bool toolArmed;
 
   /// How much of a zoom a pixel of scroll is worth, before exponentiation.
   ///
@@ -246,6 +293,14 @@ final class OrbitGestures {
   /// A viewport reads this to decide whether to keep a hover highlight alive.
   bool get isDragging =>
       _active.values.any((_Pointer p) => p.role != _Role.idle);
+
+  /// Whether a pointer is holding free-look open right now.
+  ///
+  /// A viewport reads this to know the keyboard is the camera's for as long
+  /// as it answers true: the walk keys are read per frame rather than per
+  /// key event, and while this is false nothing should be walking.
+  bool get isLooking =>
+      _active.values.any((_Pointer p) => p.role == _Role.look);
 
   /// How many fingers are on the glass. A stylus is not one of them.
   int get fingerCount => _fingers.length;
@@ -300,6 +355,7 @@ final class OrbitGestures {
 
     return switch (tracked.role) {
       _Role.orbit => CameraIntent(deltaYaw: dx, deltaPitch: -dy),
+      _Role.look => CameraIntent(lookYaw: dx, lookPitch: -dy),
       _Role.pan => CameraIntent(panRight: dx, panUp: -dy),
       _Role.idle => CameraIntent.none,
     };
@@ -335,7 +391,19 @@ final class OrbitGestures {
         // downward, so the model on it rises. Matching a drag instead would
         // make the trackpad disagree with every scrollable thing on the
         // machine, which is the complaint this whole arm exists to avoid.
-        return CameraIntent(panRight: -dx, panUp: dy);
+        if (modifiers.shift) return CameraIntent(panRight: -dx, panUp: dy);
+        // **Two fingers orbit, and used to pan.** `ux-04`'s own finding, and
+        // the worst of the review's: on a laptop with no middle button and no
+        // touch screen there was no way to orbit at all, under any modifier.
+        // A trackpad's two-finger scroll is the only continuous two-axis
+        // gesture it has, so it is the one that has to carry the camera's
+        // main move; panning keeps Shift, the modifier it already means with
+        // the middle button.
+        //
+        // The signs match a drag rather than a scroll here, because an orbit
+        // is a hand on the model rather than a view over a page: fingers
+        // moving right turn the model right.
+        return CameraIntent(deltaYaw: -dx, deltaPitch: dy);
       case PointerKind.touch:
       case PointerKind.stylus:
         // Neither device produces a scroll of its own; anything arriving here
@@ -372,11 +440,48 @@ final class OrbitGestures {
     required GestureButton button,
     required GestureModifiers modifiers,
   }) {
+    // The pen never moves the camera, under either scheme. A person drawing
+    // weights with a stylus who orbited every time the nib touched the glass
+    // would be unable to paint at all, and no setting should be able to ask
+    // for that.
     if (kind == PointerKind.stylus) return _Role.idle;
-    if (kind == PointerKind.touch) return _Role.orbit;
+    // One finger orbits under both schemes — unless a tool has the drag, in
+    // which case the finger is the tool's the same way the left button is.
+    // There is no second button to fall back to on a touch screen, so this is
+    // the only way a camera is reachable there at all.
+    if (kind == PointerKind.touch) {
+      return toolArmed ? _Role.idle : _Role.orbit;
+    }
     if (kind != PointerKind.mouse) return _Role.idle;
-    if (button != GestureButton.middle) return _Role.idle;
-    return modifiers.shift ? _Role.pan : _Role.orbit;
+
+    if (button == GestureButton.middle) {
+      return modifiers.shift ? _Role.pan : _Role.orbit;
+    }
+    // The right button is free-look under the scheme whose left button is
+    // already the camera's — `ux-04`'s own "RMB held is free-look with WASD".
+    //
+    // Under the other scheme it stays the context menu's: there the left
+    // button belongs to the tools and the middle one to the camera, so the
+    // right one is the only button left for a menu, and taking it for a
+    // second camera would leave the application with nowhere to put one.
+    if (button == GestureButton.secondary) {
+      return scheme == NavigationScheme.leftDragOrbit ? _Role.look : _Role.idle;
+    }
+    if (button != GestureButton.primary) return _Role.idle;
+
+    return switch (scheme) {
+      // Alt with the left button stands in for a middle button a laptop has
+      // not got; Shift with it pans, the same way Shift does on the middle
+      // button, so one rule is learnt rather than two.
+      NavigationScheme.middleMouseOrbit =>
+        modifiers.alt
+            ? (modifiers.shift ? _Role.pan : _Role.orbit)
+            : _Role.idle,
+      // The left button is the camera's here unless something else has asked
+      // for it: a transform armed, a brush held, a box being dragged.
+      NavigationScheme.leftDragOrbit =>
+        toolArmed ? _Role.idle : (modifiers.shift ? _Role.pan : _Role.orbit),
+    };
   }
 
   /// What a move means when more than one finger is down.
@@ -431,7 +536,7 @@ final class OrbitGestures {
 }
 
 /// What a pointer was granted at the moment it went down.
-enum _Role { idle, orbit, pan }
+enum _Role { idle, orbit, look, pan }
 
 /// One live pointer: the only mutable state in the file, and it is a position.
 final class _Pointer {

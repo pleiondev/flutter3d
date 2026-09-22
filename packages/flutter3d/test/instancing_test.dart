@@ -195,12 +195,43 @@ void main() {
       settings: const RenderSettings(),
     );
 
+    /// What one named pass drew.
+    int drawsIn(FrameResult frame, String pass) => frame.passes
+        .where((FramePass each) => each.name == pass)
+        .fold<int>(0, (int sum, FramePass each) => sum + each.drawCalls);
+
     expect(
-      nodes.drawCalls - batch.drawCalls,
+      drawsIn(nodes, 'scene') - drawsIn(batch, 'scene'),
       _side * _side - 1,
       reason:
           'sixteen cubes as one draw instead of sixteen, in the colour '
-          'pass; the shadow pass has the same saving and is counted apart',
+          'pass',
+    );
+
+    // **This used to read the frame's own total and mean the same thing,
+    // because the shadow pass counted nothing.** `gfx-01n` gave every pass
+    // its own numbers, and the saving turned out to be larger than this test
+    // was claiming: the shadow map pays it once per cascade.
+    //
+    // **The multiple is no longer three, and that is `gfx-63n`.** Each caster
+    // is now tested against the cascade it is about to be drawn into, and
+    // neither side reaches all three: sixteen cubes spread across the floor
+    // certainly do not, and measured here the batch reaches two. So the claim
+    // is what it was always about — the batch is at most one draw per cascade,
+    // never one per node — rather than a multiple that now depends on where the
+    // cascades happen to fall.
+    expect(
+      drawsIn(batch, 'directional shadows'),
+      inInclusiveRange(1, 3),
+      reason: 'the batch is not one draw per cascade',
+    );
+    expect(
+      drawsIn(nodes, 'directional shadows') -
+          drawsIn(batch, 'directional shadows'),
+      greaterThan(_side * _side - 1),
+      reason:
+          'batching saved less in the shadow pass than it did in one colour '
+          'pass, so the cascades are not paying per node any more',
     );
   });
 

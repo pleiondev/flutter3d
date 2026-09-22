@@ -21,10 +21,12 @@ import 'package:flutter3d/flutter3d.dart' hide Material;
 import 'package:flutter3d_mesh/flutter3d_mesh.dart';
 import 'package:vector_math/vector_math.dart' show Vector2;
 
+import '../../../l10n/app_localizations.dart';
 import '../modeler_viewport.dart';
 import '../profile_editing.dart';
 import '../staging.dart';
 import 'profile_editor.dart';
+import 'roomy_dialog.dart';
 
 /// What the dialog hands back when confirmed — [AddLathe]'s own two
 /// user-facing fields, read off the profile authored inside.
@@ -138,6 +140,7 @@ class _LatheDialogState extends State<_LatheDialog> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final mesh = _lastMesh;
+    final AppLocalizations l = AppLocalizations.of(context);
     var minHeight = 0.0;
     var maxHeight = 0.0;
     for (final point in _curve.points) {
@@ -145,108 +148,123 @@ class _LatheDialogState extends State<_LatheDialog> {
       if (point.position.y > maxHeight) maxHeight = point.position.y;
     }
 
-    return AlertDialog(
-      title: const Text('Lathe'),
-      content: SizedBox(
-        width: 900,
-        height: 720,
-        child: Row(
+    final Widget profile = Column(
+      children: <Widget>[
+        Expanded(
+          child: ClipRect(
+            child: ProfileEditor(
+              curve: _curve,
+              tool: _tool,
+              onChanged: _onCurveChanged,
+            ),
+          ),
+        ),
+        const SizedBox(height: 8),
+        SegmentedButton<ProfileEditTool>(
+          showSelectedIcon: false,
+          segments: <ButtonSegment<ProfileEditTool>>[
+            for (final ProfileEditTool tool in ProfileEditTool.values)
+              ButtonSegment<ProfileEditTool>(
+                value: tool,
+                label: Text(tool.label),
+              ),
+          ],
+          selected: <ProfileEditTool>{_tool},
+          onSelectionChanged: (Set<ProfileEditTool> picked) =>
+              setState(() => _tool = picked.first),
+        ),
+      ],
+    );
+    final Widget preview = ModelerViewport(
+      renderer: widget.renderer,
+      stage: _stage,
+      onFrame: () {},
+      grid: null,
+    );
+    final Widget settings = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: <Widget>[
+        Text(l.latheSegments, style: theme.textTheme.labelMedium),
+        Slider(
+          value: _segments.toDouble(),
+          min: 3,
+          max: 256,
+          divisions: 253,
+          label: '$_segments',
+          onChanged: _onSegmentsChanged,
+        ),
+        CheckboxListTile(
+          contentPadding: EdgeInsets.zero,
+          controlAffinity: ListTileControlAffinity.leading,
+          title: Text(l.latheClosed),
+          value: _closedProfile,
+          onChanged: _onClosedProfileChanged,
+        ),
+        const SizedBox(height: 12),
+        Text(
+          mesh == null
+              ? 'Add at least two points'
+              : 'Vertices ${mesh.vertexCount}\n'
+                    'Triangles ${mesh.triangleCount}\n'
+                    'Height ${(maxHeight - minHeight).toStringAsFixed(0)}',
+          style: theme.textTheme.bodySmall,
+        ),
+      ],
+    );
+    final List<Widget> buttons = <Widget>[
+      TextButton(
+        onPressed: () => Navigator.of(context).pop(),
+        child: Text(l.cancel),
+      ),
+      FilledButton(
+        onPressed: _curve.toPolyline().length < 2
+            ? null
+            : () => Navigator.of(context).pop(
+                LatheChoice(
+                  profile: _curve.toPolyline(),
+                  segments: _segments,
+                  closedProfile: _closedProfile,
+                ),
+              ),
+        child: Text(l.latheAdd),
+      ),
+    ];
+
+    return RoomyDialog(
+      title: l.latheTitle,
+      width: 900,
+      height: 720,
+      onClose: () => Navigator.of(context).pop(),
+      actions: buttons,
+      wide: Row(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: <Widget>[
+          SizedBox(width: 520, child: profile),
+          const VerticalDivider(width: 24),
+          Expanded(child: preview),
+          const VerticalDivider(width: 24),
+          SizedBox(width: 220, child: settings),
+        ],
+      ),
+      // `ux-21`: the same three pieces down the screen. The profile gets the
+      // larger share because it is the thing being edited and the preview is
+      // what it is being edited against — and the settings scroll, since a
+      // slider and two lines of counts are the one piece here that can be
+      // read a moment later rather than watched.
+      narrow: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: <Widget>[
-            SizedBox(
-              width: 520,
-              child: Column(
-                children: <Widget>[
-                  Expanded(
-                    child: ClipRect(
-                      child: ProfileEditor(
-                        curve: _curve,
-                        tool: _tool,
-                        onChanged: _onCurveChanged,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  SegmentedButton<ProfileEditTool>(
-                    showSelectedIcon: false,
-                    segments: <ButtonSegment<ProfileEditTool>>[
-                      for (final ProfileEditTool tool in ProfileEditTool.values)
-                        ButtonSegment<ProfileEditTool>(
-                          value: tool,
-                          label: Text(tool.label),
-                        ),
-                    ],
-                    selected: <ProfileEditTool>{_tool},
-                    onSelectionChanged: (Set<ProfileEditTool> picked) =>
-                        setState(() => _tool = picked.first),
-                  ),
-                ],
-              ),
-            ),
-            const VerticalDivider(width: 24),
-            Expanded(
-              child: ModelerViewport(
-                renderer: widget.renderer,
-                stage: _stage,
-                onFrame: () {},
-                grid: null,
-              ),
-            ),
-            const VerticalDivider(width: 24),
-            SizedBox(
-              width: 220,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: <Widget>[
-                  Text('Segments', style: theme.textTheme.labelMedium),
-                  Slider(
-                    value: _segments.toDouble(),
-                    min: 3,
-                    max: 256,
-                    divisions: 253,
-                    label: '$_segments',
-                    onChanged: _onSegmentsChanged,
-                  ),
-                  CheckboxListTile(
-                    contentPadding: EdgeInsets.zero,
-                    controlAffinity: ListTileControlAffinity.leading,
-                    title: const Text('Closed profile'),
-                    value: _closedProfile,
-                    onChanged: _onClosedProfileChanged,
-                  ),
-                  const SizedBox(height: 12),
-                  Text(
-                    mesh == null
-                        ? 'Add at least two points'
-                        : 'Vertices ${mesh.vertexCount}\n'
-                              'Triangles ${mesh.triangleCount}\n'
-                              'Height ${(maxHeight - minHeight).toStringAsFixed(0)}',
-                    style: theme.textTheme.bodySmall,
-                  ),
-                ],
-              ),
-            ),
+            Expanded(flex: 3, child: profile),
+            const SizedBox(height: 12),
+            Expanded(flex: 2, child: preview),
+            const Divider(),
+            Flexible(child: SingleChildScrollView(child: settings)),
           ],
         ),
       ),
-      actions: <Widget>[
-        TextButton(
-          onPressed: () => Navigator.of(context).pop(),
-          child: const Text('Cancel'),
-        ),
-        FilledButton(
-          onPressed: _curve.toPolyline().length < 2
-              ? null
-              : () => Navigator.of(context).pop(
-                  LatheChoice(
-                    profile: _curve.toPolyline(),
-                    segments: _segments,
-                    closedProfile: _closedProfile,
-                  ),
-                ),
-          child: const Text('Add'),
-        ),
-      ],
     );
   }
 }

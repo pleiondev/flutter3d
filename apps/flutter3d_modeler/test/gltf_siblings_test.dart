@@ -9,7 +9,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 
-import 'package:flutter3d_formats/flutter3d_formats.dart';
+import 'package:flutter3d_core/formats.dart';
 import 'package:flutter3d_modeler/src/files/gltf_siblings.dart';
 import 'package:flutter_test/flutter_test.dart';
 

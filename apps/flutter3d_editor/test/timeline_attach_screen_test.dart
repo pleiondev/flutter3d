@@ -1,6 +1,6 @@
 /// `TimelineAttachScreen` against a fake `TimelineClient` — the UI logic on
 /// top of the real wire protocol
-/// `flutter3d_session/test/run_timeline_extensions_test.dart` already
+/// `flutter3d_game/test/run_timeline_extensions_test.dart` already
 /// proves against an actual running process. This file is what stays fast
 /// and deterministic; that one is what stays honest about the protocol.
 ///

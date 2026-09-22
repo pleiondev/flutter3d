@@ -15,9 +15,8 @@ library;
 import 'dart:math';
 import 'dart:typed_data';
 
+import 'package:flutter3d_core/formats.dart' show Rgba8Image, buildMipChain;
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
-import 'package:flutter3d_formats/flutter3d_formats.dart'
-    show Rgba8Image, buildMipChain;
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:test/test.dart';
 

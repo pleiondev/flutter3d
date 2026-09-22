@@ -2,7 +2,7 @@ name: flutter3d_testing
 description: >-
   Renders a flutter3d scene with no GPU and compares it against a reference
   image, so a game gets pixel regression tests on a machine with no display.
-version: 0.6.0
+version: 0.7.0
 repository: https://github.com/pleiondev/flutter3d
 homepage: https://flutter3d.pleion.dev
 issue_tracker: https://github.com/pleiondev/flutter3d/issues
@@ -23,14 +23,22 @@ dependencies:
   # its own package: `flutter3d_cpu` must not depend on `flutter3d` — a backend
   # that could not compile without the engine would be part of the engine — so
   # neither of them can hold something that needs both.
-  flutter3d: ^0.6.0
+  flutter3d: ^0.7.0
   flutter3d_cpu: ^0.7.0
   flutter3d_hardware: ^0.7.0
   # `Demo`, `InputTapePlayback` and `InputState` — `rp-01`'s `.f3drun`, for
   # `replayGolden`. A real dependency and not a dev one: replaying a demo
   # to a frame is this package's own job, the same as rendering a
   # hand-built scene already is.
-  flutter3d_game: ^0.6.0
+  flutter3d_sim: ^0.7.0
+  # The material language — `gfx-84n`. A real dependency now, and for the same
+  # reason the two above it are: `MaterialProgramStage` is what lets the
+  # software backend draw a material written as source, and it needs the
+  # engine's parsed program and the backend's stage interface at once.
+  # `flutter3d_cpu` may not reach for the first (its own pubspec says nothing
+  # in its `lib/` does), so the pairing lives here, which is the package that
+  # exists for pairings neither side may hold.
+  flutter3d_core: ^0.7.0
   # `expect` and the test binding, which is what makes this a testing package
   # rather than a rendering one.
   flutter_test:
@@ -40,11 +48,9 @@ dependencies:
 dev_dependencies:
   flutter_lints: ^6.0.0
 
-  # The document decoders and writer, and the Khronos sample models they read —
-  # for the one test that checks a *rendered* round trip rather than a byte
-  # one. Neither is a real dependency: nothing this package ships builds a
-  # `ModelDocument`.
-  flutter3d_formats: ^0.6.0
-  flutter3d_samples: ^0.4.2
+  # The Khronos sample models the document decoders read — for the one test
+  # that checks a *rendered* round trip rather than a byte one. Not a real
+  # dependency: nothing this package ships builds a `ModelDocument`.
+  flutter3d_samples: ^0.4.3
 
 resolution: workspace

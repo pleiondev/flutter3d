@@ -7,7 +7,7 @@ import 'dart:math' as math;
 
 import 'package:flutter3d_editor/src/fly_camera.dart';
 import 'package:flutter3d_editor_core/flutter3d_editor_core.dart';
-import 'package:flutter3d_game/flutter3d_game.dart';
+import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vector_math/vector_math.dart';
 

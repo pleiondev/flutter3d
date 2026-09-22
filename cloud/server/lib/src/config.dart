@@ -22,6 +22,7 @@ class Config {
     required this.uploadLimitBytes,
     this.assetsDirectory = 'web/assets',
     this.viewerDirectory,
+    this.learnDirectory = 'content/learn/modeler',
   });
 
   /// Reads the configuration from the process environment.
@@ -61,6 +62,7 @@ class Config {
       // the prefix, so this is `web/assets`, not `web`.
       assetsDirectory: env['MODELS_ASSETS_DIR'] ?? 'web/assets',
       viewerDirectory: env['MODELS_VIEWER_DIR'],
+      learnDirectory: env['MODELS_LEARN_DIR'] ?? 'content/learn/modeler',
     );
 
     if (missing.isNotEmpty) throw ConfigError(missing);
@@ -105,6 +107,18 @@ class Config {
   /// The web build of the modeller, served under `/app/` — or null, when nginx
   /// serves it and this process should not.
   final String? viewerDirectory;
+
+  /// The tutorial's Markdown, one file a case, served under `/learn/modeler/`.
+  ///
+  /// **A setting, because the default only works from a checkout.** It is a
+  /// path relative to the working directory, which is `cloud/server` when
+  /// somebody runs the service by hand and `/opt/flutter3d-models` under
+  /// systemd, where there is no `content/` at all. The pages were read from the
+  /// relative path with nothing to override it, the deploy copied no Markdown
+  /// anywhere, and an absent directory reads as an empty tutorial by design —
+  /// so production would have served the index with nothing on it and said
+  /// nothing.
+  final String learnDirectory;
 
   /// Whether letters are actually sent.
   bool get sendsMail => resendApiKey != null;

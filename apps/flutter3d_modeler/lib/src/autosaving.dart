@@ -19,8 +19,8 @@ import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:clock/clock.dart' show clock;
+import 'package:flutter3d_app/flutter3d_app.dart';
 import 'package:flutter3d_model_core/flutter3d_model_core.dart';
-import 'package:flutter3d_session/flutter3d_session.dart';
 
 import 'modeler_cubit.dart';
 
@@ -40,7 +40,9 @@ final class AutosaveController {
     required this.storage,
     required this.sessionId,
     this.policy = const AutosavePolicy(),
+    this.issues,
     this.onIssue,
+    this.onRecovered,
     Duration pollEvery = const Duration(milliseconds: 500),
   }) {
     _lastEditAt = clock.now();
@@ -57,8 +59,29 @@ final class AutosaveController {
 
   final AutosavePolicy policy;
 
+  /// Where [storage] reports *why* a write failed.
+  ///
+  /// [BinaryStorage.write] answers `false` and nothing else — "no such
+  /// directory" and "the disk is full" are different days, and a person told
+  /// only that autosave is not working has nowhere to go. Handing the same
+  /// [IssueLog] to the storage and to this controller is what lets [onIssue]
+  /// carry the sentence the storage actually wrote.
+  final IssueLog? issues;
+
   /// Told once per failure, not once per failed attempt — see [_check].
-  final void Function(String said)? onIssue;
+  ///
+  /// The argument is the reason, as [issues] last recorded it, or a plain
+  /// "could not write" where nothing said more.
+  final void Function(String reason)? onIssue;
+
+  /// Told when a write succeeds after [onIssue] fired, so an application
+  /// showing "autosave is not working" can stop showing it. Called on the
+  /// edge out of failure only, the mirror of [onIssue]'s own edge in.
+  final void Function()? onRecovered;
+
+  /// Whether the last attempt failed — what a crash dialog asks before
+  /// promising a person their edits were written.
+  bool get isFailing => _lastAttemptFailed;
 
   late DateTime _lastEditAt;
   DateTime? _lastSavedAt;
@@ -105,14 +128,26 @@ final class AutosaveController {
       final wrote = await storage.write(key, bytes);
       _lastSavedAt = clock.now();
       if (!wrote) {
-        if (!_lastAttemptFailed) onIssue?.call('autosave: could not write');
+        if (!_lastAttemptFailed) onIssue?.call(_reason());
         _lastAttemptFailed = true;
       } else {
+        if (_lastAttemptFailed) onRecovered?.call();
         _lastAttemptFailed = false;
       }
     } finally {
       _writing = false;
     }
+  }
+
+  /// What [issues] last heard from [storage], stripped of the prefix the
+  /// storage puts on every message of its own — a person reading the status
+  /// line is already being told this is about autosave.
+  String _reason() {
+    final List<String> said = issues?.issues ?? const <String>[];
+    if (said.isEmpty) return 'could not write';
+    const String prefix = 'storage: ';
+    final String last = said.last;
+    return last.startsWith(prefix) ? last.substring(prefix.length) : last;
   }
 
   void dispose() {
@@ -133,13 +168,19 @@ final class AutosaveController {
 ///
 /// A no-op when there is no open document — nothing here throws a second
 /// exception on top of the first.
-Future<void> emergencyAutosave(
+///
+/// Answers whether the bytes actually landed, because the dialog that follows
+/// says so out loud: `ux-01`'s own finding was a crash dialog promising "an
+/// emergency autosave was written" at the end of a session where every write
+/// had failed. `false` covers both "nothing to write" and "the storage
+/// refused".
+Future<bool> emergencyAutosave(
   ModelerCubit cubit,
   BinaryStorage storage,
   String sessionId,
 ) async {
   final ModelerState state = cubit.state;
-  if (state is! ModelerReady) return;
+  if (state is! ModelerReady) return false;
   final Uint8List bytes = writeProject(state.history.project);
-  await storage.write(recoveryPathFor(null, sessionId: sessionId), bytes);
+  return storage.write(recoveryPathFor(null, sessionId: sessionId), bytes);
 }

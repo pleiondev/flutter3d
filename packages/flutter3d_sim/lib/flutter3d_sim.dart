@@ -31,8 +31,9 @@
 /// [InputTape], which is that intent written down per step and is therefore
 /// also the format a run is submitted to a server in.
 ///
-/// **The renderer.** As before: `flutter3d_bridge` is where a simulation meets
-/// something that draws it, and nothing here knows that anything does.
+/// **The renderer.** `flutter3d_app` is where a level meets something that
+/// draws it, and `flutter3d_game` is where a game's actors do; nothing here
+/// knows that anything does.
 library;
 
 // Collision, queries and the character controller. Re-exported so that a game
@@ -61,6 +62,7 @@ export 'src/level/data_source.dart';
 export 'src/level/entity_kind.dart';
 export 'src/level/heightfield.dart';
 export 'src/level/heightfield_geometry.dart';
+export 'src/level/heightfield_tiles.dart';
 export 'src/level/json_reader.dart';
 export 'src/level/level.dart';
 export 'src/level/level_collision.dart';

@@ -27,24 +27,12 @@
 library;
 
 // The rendering core: animation, assets, the render graph and the scene
-// graph — everything that resolves without the Flutter SDK, which mcp-03n
-// moved to its own package once the four files that did not were down to
-// four small seams. See `flutter3d_core`'s own doc comment for the full
-// account of what moved and why.
+// graph, with the geometry and the model formats under them — everything that
+// resolves without the Flutter SDK, which mcp-03n moved to its own package
+// once the four files that did not were down to four small seams. See
+// `flutter3d_core`'s own doc comment for the full account of what moved and
+// why.
 export 'package:flutter3d_core/flutter3d_core.dart';
-// Assets: the formats and the documents they decode into are
-// `package:flutter3d_formats` — glTF/GLB, OBJ, the project's own .f3d container
-// and its .fmat material, `ModelDocument`, `SurfaceMaterial`, `LightingModel`
-// and the synchronous half of loading. Exported whole, so an application that
-// imports the engine keeps every name it had — except `Ktx2Texture`, which
-// this package's own `src/engine/assets/ktx2/ktx2.dart` exports below: that
-// one carries a `TextureFormat`, this one only a raw `vkFormat` (`ap-01`).
-export 'package:flutter3d_formats/flutter3d_formats.dart' hide Ktx2Texture;
-// Geometry: CPU-side meshes, the shapes that generate them and the ray
-// arithmetic that reads one, all of it `package:flutter3d_geometry` since the
-// day a program with no Flutter SDK had to be able to say `MeshData`. Exported
-// whole, so an application that imports the engine keeps every name it had.
-export 'package:flutter3d_geometry/flutter3d_geometry.dart';
 // The graphics vocabulary, re-exported from `flutter3d_hardware`.
 //
 // Re-exported rather than left for a consumer to depend on separately, because
@@ -67,6 +55,7 @@ export 'package:flutter3d_hardware/flutter3d_hardware.dart';
 export 'src/engine/assets/bundle_asset_source.dart';
 export 'src/engine/assets/default_image_decoder.dart';
 export 'src/engine/assets/gltf_resolvers.dart';
+export 'src/engine/assets/load_model_asset.dart';
 export 'src/engine/assets/material_loader.dart';
 export 'src/engine/assets/model_asset.dart';
 

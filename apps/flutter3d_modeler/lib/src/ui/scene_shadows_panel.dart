@@ -12,10 +12,10 @@
 library;
 
 import 'package:flutter/material.dart';
+import 'package:flutter3d_editor_widgets/flutter3d_editor_widgets.dart';
 
 import '../../l10n/app_localizations.dart';
 import '../scene_mode.dart';
-import 'section_label.dart';
 
 /// The shadow toggle, and the status it drives.
 final class SceneShadowsPanel extends StatelessWidget {
@@ -57,12 +57,13 @@ final class SceneShadowsPanel extends StatelessWidget {
               status.shadowedCount,
               status.shadowCap,
             ),
-            // `status_line.dart`'s own doc comment already names orange as
-            // this app's own warning colour — used here for the identical
-            // reason, not picked fresh for this one panel.
+            // The design hand-over's own warning colour is `tertiary`
+            // (`#FFB86B`), not a hard-coded Material orange picked fresh for
+            // this one panel — `status_line.dart`'s own doc comment names
+            // the same role for the identical reason.
             style: theme.textTheme.bodySmall?.copyWith(
               color: status.warning
-                  ? Colors.orange
+                  ? theme.colorScheme.tertiary
                   : theme.colorScheme.onSurfaceVariant,
               fontWeight: status.warning ? FontWeight.bold : null,
             ),

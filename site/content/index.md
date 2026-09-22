@@ -8,7 +8,7 @@ description: A 3D engine on Flutter GPU, a game layer on top of it, and two ship
 
 flutter3d is a renderer, a game layer, and three finished games of different genres. The second and third were built without changing a line in the first one's engine packages.
 
-**Playable right now, in this browser:** [the shooter](/shooter/demo/) · [the platformer](/platformer/demo/) · [the racing game](/racing/demo/).
+**Playable right now, in this browser:** [the shooter](/shooter/demo/) · [the platformer](/platformer/demo/) · [the racing game](/racing/demo/). **Or try every capability, one page each, with live controls:** [the showcase](/showcase/).
 
 <div class="frameband">
   <p class="frameband-label"><span>One frame, as this engine encodes it</span><span>one command buffer per pass</span></p>
@@ -27,9 +27,8 @@ flutter3d is a renderer, a game layer, and three finished games of different gen
 
 | | |
 |---|---|
-| Channel | Flutter 3.47.0 stable, Dart 3.12.2 |
 | Platforms | macOS and the browser are supported and exercised; Android is played on a real handset (Impeller Vulkan, touch controls); iOS runs clean in the simulator on Metal; Windows and Linux are unverified |
-| Published | Yes — 27 of the workspace's 28 packages, on [pub.dev](https://pub.dev/publishers/pleion.dev/packages) under the pleion.dev publisher. The set is 0.6.0; `flutter3d_game_strategy` is the one held back |
+| Published | Yes — 27 packages on [pub.dev](https://pub.dev/publishers/pleion.dev/packages) under the pleion.dev publisher, at the 0.6.0 set. The workspace holds 37 and carries 0.7.0, which is prepared and not out yet: fourteen packages go up for the first time with it, `flutter3d_game_strategy`, `flame_flutter3d` and the modeller's among them |
 | Stability | Pre-1.0. The graphics HAL carries a written compatibility promise; nothing else does |
 
 ## Where to start
@@ -49,6 +48,11 @@ flutter3d is a renderer, a game layer, and three finished games of different gen
     <span class="card-kind">Engine</span>
     <h3>Core</h3>
     <p>The renderer, the scene graph, geometry, assets, the fixed step and collision.</p>
+  </a></li>
+  <li><a href="/modeler/">
+    <span class="card-kind">Tool · in progress</span>
+    <h3>Modeler</h3>
+    <p>Import, clean up, rig, pose and light a model — ten modes over one document of commands, drivable by an agent through the same doors a person uses.</p>
   </a></li>
   <li><a href="/shooter/demo/">
     <span class="card-kind">Genre · playable</span>
@@ -80,7 +84,7 @@ flowchart TB
     platformer["apps/flutter3d_demo_platformer<br>the platformer"]
     racing["apps/flutter3d_demo_racing<br>the racing game"]
     editor["apps/flutter3d_editor<br>the level editor"]
-    templateApp["apps/flutter3d_template_app<br>the project scaffold"]
+    gameSeed["flutter3d_game/example<br>the game scaffold"]
   end
 
   subgraph genre["genres — vocabulary"]
@@ -89,7 +93,10 @@ flowchart TB
     race["flutter3d_game_racing<br>track, car, tire, lap"]
   end
 
-  bridge["flutter3d_bridge<br>the only package that may see both sides"]
+  subgraph layer["the application layer"]
+    appLayer["flutter3d_app<br>backend choice, surface, level loading, storage"]
+    game["flutter3d_game<br>input, the run, the screens, actor visuals"]
+  end
 
   subgraph draw["drawing"]
     f3d["flutter3d<br>renderer, scene, assets"]
@@ -100,29 +107,28 @@ flowchart TB
   end
 
   subgraph sim["simulating, no GPU"]
-    game["flutter3d_game<br>the devices: touch, keys, pad"]
     simp["flutter3d_sim<br>step, input, levels, actors, ECS<br><i>no Flutter at all</i>"]
     physics["flutter3d_physics<br>shapes, sweeps, controller"]
   end
 
-  dungeon --> shooter & bridge
-  platformer --> plat & bridge
-  racing --> race & bridge
-  editor --> bridge
-  templateApp --> bridge
-  shooter --> game
-  plat --> game
-  race --> game
-  bridge --> f3d & game
+  dungeon --> shooter & game
+  platformer --> plat & game
+  racing --> race & game
+  editor --> appLayer
+  gameSeed --> game
+  shooter --> simp
+  plat --> simp
+  race --> simp
+  game --> appLayer
+  appLayer --> f3d & simp
   f3d --> gfx
   impeller --> gfx
   webgl --> gfx
   cpu --> gfx
-  game --> simp
   simp --> physics
 ```
 
-Three more packages exist that this diagram deliberately leaves out, because none of them changes what an app may know: `flutter3d_session` holds `SceneSurface` and `RunSession`, the frame surface and level lifecycle that every app used to reimplement, and the settings, rebinding and save screens no game owns; `pad_input` and `pointer_lock` are gamepad and mouse-capture, read once per frame like everything else `flutter3d_game` polls. `flutter3d_app` re-exports all three, plus one decision of its own — which device to open, web or native at compile time and which of the two on each side at run time, so the conditional import an app needs is written once and not per project. [Assembling an application](/core/session/) walks all of it with the real code that uses them. One more, `flutter3d_conformance`, is test-only: it is what a backend has to pass before it can appear in the table below. The rules this diagram states are not a package at all — they are `tool/structure.dart`, thirty-two checks that read source text and run before a build.
+Three more packages exist that this diagram deliberately leaves out, because none of them changes what an app may know: `pad_input` and `pointer_lock` are gamepad and mouse capture, read once per frame by `flutter3d_game`, and `flutter3d_conformance` is test-only — it is what a backend has to pass before it can appear in the table below. `flutter3d_app` makes one decision of its own: which device to open, web or native at compile time and which of the two on each side at run time, so the conditional import an app needs is written once and not per project. [Assembling an application](/core/session/) walks all of it with the real code that uses them. The rules this diagram states are not a package at all — they are `tool/structure.dart`, thirty-five checks that read source text and run before a build.
 
 Three rules hold the picture up, and `tool/structure.dart` checks each one before a build.
 
@@ -178,4 +184,4 @@ Each backend exists for a different reason. Impeller is the production one. WebG
 - **No compute passes.** That is what `flutter_gpu` still lacks, and it is why the bloom chain is half-size targets rather than a workgroup. Compressed textures and rendering into a mip level have both arrived since this line was written: `GraphicsDevice.supportsTextureFormat` answers per format and a device that says no leaves the texture out with a warning, and `supportsRenderToMip` is true on Metal and Vulkan and false elsewhere — the one capability that splits a single backend by platform.
 - **No navmesh, no flanking, no squads.** Navigation gets an agent there, not around you.
 - **No touch backend, and no gamepad or mouse capture on Windows or Linux.** `pad_input` covers macOS, iOS, Web and Android; `pointer_lock` covers macOS and the web. `InputState` is device-agnostic, so the remaining platforms are new implementations of an existing seam, not a design change.
-- **No Draco, no UASTC.** A decoder reports these in `warnings` rather than failing the file. KTX2 is read: Basis ETC1S transcodes to RGBA8, and BC, ETC2 and ASTC blocks upload as they are where the device samples them.
+- **Basis Universal textures unpack to RGBA8.** ETC1S and UASTC are both read, with or without Zstandard, but as pixels: neither is repacked into the BC, ETC2 or ASTC blocks a device samples, so a Basis texture costs four bytes a texel once loaded. A KTX2 file's own BC, ETC2 and ASTC blocks do upload as they are where the device samples them. Draco-compressed geometry is decoded.

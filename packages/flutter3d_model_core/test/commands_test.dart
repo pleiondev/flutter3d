@@ -13,8 +13,8 @@ import 'dart:convert';
 import 'dart:math' as math;
 import 'dart:typed_data';
 
-import 'package:flutter3d_formats/flutter3d_formats.dart';
-import 'package:flutter3d_geometry/flutter3d_geometry.dart' show VertexLayout;
+import 'package:flutter3d_core/formats.dart';
+import 'package:flutter3d_core/geometry.dart' show VertexLayout;
 import 'package:flutter3d_mesh/flutter3d_mesh.dart';
 import 'package:flutter3d_model_core/flutter3d_model_core.dart';
 import 'package:test/test.dart';
@@ -693,6 +693,114 @@ void main() {
       expect(at.y, startY);
       expect(history.canUndo, isFalse);
     });
+
+    test('bevels edges the same way bevelEdges does directly, and undo '
+        'restores the mesh byte-exact', () {
+      final history = edited();
+      final mesh = meshOf(history);
+      final edgeIds = <int>[
+        for (var he = 0; he < mesh.halfEdgeSlotCount; he++)
+          if (mesh.edgeOf(he) == he && mesh.faceOf(he) != EditMesh.none) he,
+      ];
+      history.selection = history.selection.copyWith(
+        level: ElementLevel.edge,
+        elements: edgeIds,
+      );
+      final beforeBytes = mesh.toBytes();
+
+      // The same operation, run directly against an identical fresh cube
+      // with the identical selection — what this command's own thin
+      // wrapper is checked against, not a reimplementation of `bevelEdges`
+      // here.
+      final reference = EditMesh.cuboid();
+      reference.beginStep();
+      bevelEdges(
+        reference,
+        Selection.of(ElementLevel.edge, edgeIds),
+        width: 0.1,
+      );
+      reference.endStep();
+
+      expect(history.run(const BevelEdges(0.1)), isNull);
+      expect(mesh.vertexCount, 24);
+      expect(mesh.faceCount, 26);
+      expect(mesh.toBytes(), reference.toBytes());
+
+      history.undo();
+      // Mutation: the same trap `_asMeshStep`'s own doc comment names for
+      // every mesh command — leave `meshTouched` out and undo would put
+      // the document back a step while the mesh itself stayed beveled.
+      expect(mesh.toBytes(), beforeBytes);
+    });
+
+    test('a vertex selection bevels through bevelVertices instead, matching it '
+        'directly', () {
+      final history = edited();
+      final mesh = meshOf(history);
+      final vertexIds = <int>[
+        for (var v = 0; v < mesh.vertexSlotCount; v++)
+          if (mesh.isVertexAlive(v)) v,
+      ];
+      history.selection = history.selection.copyWith(
+        level: ElementLevel.vertex,
+        elements: vertexIds,
+      );
+
+      final reference = EditMesh.cuboid();
+      reference.beginStep();
+      bevelVertices(
+        reference,
+        Selection.of(ElementLevel.vertex, vertexIds),
+        width: 0.1,
+      );
+      reference.endStep();
+
+      // Every vertex of the cube is selected, so the edge set the two
+      // functions land on happens to agree either way — the byte
+      // comparison is what the acceptance line asks for, not proof of the
+      // dispatch on its own; the next test is that.
+      expect(history.run(const BevelEdges(0.1)), isNull);
+      expect(mesh.toBytes(), reference.toBytes());
+    });
+
+    test('one selected vertex bevels its own three edges, not the empty set '
+        'bevelEdges would convert a single vertex to', () {
+      // A cube corner is where the two functions actually disagree: a
+      // vertex-level selection converted the ordinary way (both endpoints
+      // selected) keeps no edge at all, so `bevelEdges` itself would
+      // refuse with "no edges are selected to bevel". `bevelVertices`
+      // instead walks the vertex's own three edges directly — still
+      // refused, since none of the three faces meeting at a corner has
+      // every one of its own edges selected, but refused for a different
+      // reason. Mutation: dispatch on `.level` backwards, or always call
+      // `bevelEdges` regardless of level, and this reads "no edges are
+      // selected to bevel" instead.
+      final history = edited();
+      history.selection = history.selection.copyWith(
+        level: ElementLevel.vertex,
+        elements: <int>[0],
+      );
+      expect(
+        history.run(const BevelEdges(0.1)),
+        contains('bevel needs every edge of a touched face selected'),
+      );
+    });
+
+    test('bevel refuses a partial selection, and says so', () {
+      // A single edge in the middle of the cube's grid: `mesh-44`'s own
+      // closed-region requirement, checked here only to see the wrapper
+      // passes the refusal through rather than swallowing it.
+      final history = edited();
+      history.selection = history.selection.copyWith(
+        level: ElementLevel.edge,
+        elements: <int>[0],
+      );
+      expect(
+        history.run(const BevelEdges(0.1)),
+        contains('bevel needs every edge'),
+      );
+      expect(history.canUndo, isFalse);
+    });
   });
 
   group(
@@ -1108,6 +1216,133 @@ void main() {
       expect(history.run(const AddMaterial()), isNull);
       expect(history.project.materials.last.surface.name, isNull);
       expect(history.undoSays, 'add a material');
+    });
+
+    group('ux-39: inset, bridge and slide', () {
+      test('inset walls the ring it leaves, and undo puts the mesh back', () {
+        final history = edited();
+        final EditMesh mesh = meshOf(history);
+        final Uint8List before = mesh.toBytes();
+        history.selection = history.selection.copyWith(
+          mode: SelectionMode.mesh,
+          level: ElementLevel.face,
+          elements: <int>[0],
+        );
+
+        expect(history.run(const InsetFaces(0.2)), isNull);
+        // One face on the cube became five: the inner ring, remapped onto the
+        // face's own id, and a wall per edge.
+        expect(mesh.faceCount, 10);
+
+        history.undo();
+        // The trap `_asMeshStep` names: leave `meshTouched` out and the
+        // document goes back a step while the mesh stays inset.
+        expect(mesh.toBytes(), before);
+      });
+
+      test('and its hints are what a card draws a slider from', () {
+        // **Mutation: leave the hints off.** The operation card then has a
+        // number field where a person expected to drag a thickness, and
+        // `ux-29`'s own amend loses the one control it exists for.
+        expect(
+          const InsetFaces(0.2).hints['thickness'],
+          isA<DoubleHint>().having((DoubleHint it) => it.min, 'min', 0.0),
+        );
+        expect(const SlideEdges(0.5).hints['amount'], isA<DoubleHint>());
+      });
+
+      test('slide moves the loop without changing one face', () {
+        final history = edited();
+        final EditMesh mesh = meshOf(history);
+        final int faces = mesh.faceCount;
+        final int vertices = mesh.vertexCount;
+        history.selection = history.selection.copyWith(
+          mode: SelectionMode.mesh,
+          level: ElementLevel.edge,
+          elements: <int>[mesh.edgeOf(mesh.halfEdgeOf(0))],
+        );
+
+        expect(history.run(const SlideEdges(0.25)), isNull);
+        expect(mesh.faceCount, faces);
+        expect(mesh.vertexCount, vertices);
+      });
+
+      test(
+        'bridge refuses a closed edge, in a sentence a person can act on',
+        () {
+          final history = edited();
+          final EditMesh mesh = meshOf(history);
+          history.selection = history.selection.copyWith(
+            mode: SelectionMode.mesh,
+            level: ElementLevel.edge,
+            elements: <int>[mesh.edgeOf(mesh.halfEdgeOf(0))],
+          );
+
+          final String? said = history.run(const BridgeLoops());
+          expect(said, contains('open borders'));
+          expect(mesh.faceCount, 6);
+        },
+      );
+
+      test('all three round-trip through the journal', () {
+        for (final ModelCommand command in <ModelCommand>[
+          const InsetFaces(0.2, depth: 0.1),
+          const BridgeLoops(),
+          const SlideEdges(-0.4),
+        ]) {
+          final ModelCommand? back = modelCommandFromJson(command.toJson());
+          expect(back, isNotNull, reason: command.name);
+          expect(back!.toJson(), command.toJson(), reason: command.name);
+        }
+      });
+    });
+
+    test('ux-40: a material added for an object arrives painted onto it', () {
+      final history = ModelHistory(
+        const ModelProject().added(
+          (int id) => ModelObject(
+            id: id,
+            name: 'bolt',
+            geometry: EditedGeometry(EditMesh.cuboid()),
+            transform: Matrix4.identity(),
+          ),
+        ),
+      );
+      final int id = history.project.objects.first.id;
+
+      expect(
+        history.run(AddMaterial(materialName: 'brass', assignTo: id)),
+        isNull,
+      );
+      expect(history.project.materials.single.surface.name, 'brass');
+      expect(history.project[id]!.materialSlots, <int>[0]);
+
+      // **One command, so one undo.** Mutation: run `AddMaterial` and
+      // `AssignMaterial` one after the other from the panel. Undoing once
+      // then leaves a material in the table that nothing is painted with,
+      // which is a row somebody has to notice and delete.
+      history.undo();
+      expect(history.project.materials, isEmpty);
+      expect(history.project[id]!.materialSlots, isEmpty);
+
+      // And an id that names no object refuses the whole command rather
+      // than adding the row and skipping the paint: a half-done edit is the
+      // one outcome an undo cannot describe.
+      expect(history.run(const AddMaterial(assignTo: 9999)), isNotNull);
+      expect(history.project.materials, isEmpty);
+    });
+
+    test('and it round-trips with the object it was painted onto', () {
+      final AddMaterial back =
+          modelCommandFromJson(
+                const AddMaterial(materialName: 'brass', assignTo: 7).toJson(),
+              )!
+              as AddMaterial;
+      expect(back.assignTo, 7);
+      // Absent rather than null when there is nobody to paint: the key is
+      // what tells an agent reading the journal that this add meant to
+      // paint something.
+      expect(const AddMaterial().arguments.containsKey('assignTo'), isFalse);
     });
 
     test('a material name and an image name still round-trip as the '
@@ -2411,6 +2646,10 @@ void main() {
         ),
         const ScaleBy(2, pivot: TransformPivot.individual),
         const SetParent(id: 2, to: 1),
+        // `ux-14` and `ux-16` added these three and no samples for them,
+        // which is what this test is for; closed with `ux-19`.
+        const SetObjectVisible(id: 1, to: false),
+        const SetObjectLocked(id: 1, to: true),
         const SetOrigin(id: 1, to: OriginPlacement.boundsBottom),
         const ApplyTransform(1),
         const AddPrimitive(kind: 'cylinder', size: 2, segments: 12),
@@ -2425,10 +2664,16 @@ void main() {
           to: ParametricSphere(radius: 0.75, segments: 16),
         ),
         const BakeToMesh(1),
+        const BuildTopology(id: 1, weld: 0.002),
         const DeleteObjects(),
         const DuplicateObjects(),
         const Extrude(0.25),
         const LoopCut(cuts: 2),
+        const BevelEdges(0.05),
+        // `ux-39`'s own three.
+        const InsetFaces(0.1, depth: 0.05),
+        const BridgeLoops(),
+        const SlideEdges(0.3),
         const DeleteElements(),
         TransformElements(
           Matrix4.identity(),
@@ -2451,6 +2696,9 @@ void main() {
         const SelectEdgeLoop(4),
         const SelectEdgeRing(4),
         const SelectByMaterial(2),
+        SelectFacing(axis: Vector3(0, 1, 0), within: 30),
+        SelectNear(point: Vector3(0, 0.5, 0), radius: 0.25),
+        const SelectElements(object: 1, level: 'face', elements: <int>[0, 1]),
         const AddLight(type: ProjectLightType.point),
         const RemoveLight(0),
         const SetLightField(index: 0, field: 'intensity', value: 2.0),
@@ -2509,6 +2757,7 @@ void main() {
         ),
         const SetModifierField(id: 1, index: 0, field: 'count', value: 5),
         const ToggleModifier(id: 1, index: 0),
+        const ToggleModifierExport(id: 1, index: 0),
         const ReorderModifier(id: 1, from: 0, to: 1),
         const RemoveModifier(id: 1, index: 0),
         const ApplyModifier(id: 1, index: 0),
@@ -2516,6 +2765,44 @@ void main() {
           objectId: 1,
           baseVersion: 1,
           meshBytes: Uint8List.fromList(<int>[1, 2, 3]),
+        ),
+        // `ux-49`: the panorama beside the four presets.
+        const SetPanorama(index: 0),
+        // `ux-48`: the three that link an object to the file it came from.
+        const LinkToSource(id: 1, path: 'props/crate.obj', sha: 'abc123'),
+        const UnlinkSource(id: 1),
+        Reimport(
+          id: 1,
+          sha: 'def456',
+          meshBytes: Uint8List.fromList(<int>[1, 2, 3]),
+        ),
+        ApplyClipResult(
+          clipIndex: 0,
+          clip: ProjectClip(
+            name: 'baked',
+            tracks: <ProjectTrack>[
+              ProjectTrack(
+                objectId: 1,
+                track: AnimationTrack(
+                  nodeIndex: 0,
+                  path: AnimationPath.rotation,
+                  interpolation: AnimationInterpolation.linear,
+                  times: Float32List.fromList(<double>[0, 1]),
+                  values: Float32List.fromList(<double>[
+                    0,
+                    0,
+                    0,
+                    1,
+                    0,
+                    0,
+                    0,
+                    1,
+                  ]),
+                  componentCount: 4,
+                ),
+              ),
+            ],
+          ),
         ),
         ApplySimulationCache(
           objectId: 1,
@@ -2534,6 +2821,18 @@ void main() {
         const RenameShape(id: 1, shapeIndex: 0, to: 'grin'),
         const DeleteShape(id: 1, shapeIndex: 0),
         const KeyShape(id: 1, clipIndex: 0, time: 0.5),
+        const AddShapeDriver(
+          id: 1,
+          driver: ShapeDriver(
+            shapeIndex: 0,
+            jointId: 3,
+            axis: DriverAxis.y,
+            from: 0.1,
+            to: 1.2,
+          ),
+        ),
+        const RemoveShapeDriver(id: 1, index: 0),
+        const SetShapeDriverField(id: 1, index: 0, field: 'to', value: 2.0),
         AddJoint(
           skeletonIndex: 0,
           objectId: 2,
@@ -2547,10 +2846,106 @@ void main() {
           jointIndex: 0,
           worldTransform: Matrix4.identity(),
         ),
+        const BendJoint(skeletonIndex: 0, jointIndex: 1, degrees: 30.0),
         const MirrorJoints(
           skeletonIndex: 0,
           axis: 0,
           jointMirror: <int, int>{1: 2, 2: 1},
+        ),
+        PaintWeights(
+          objectId: 10,
+          skeletonIndex: 0,
+          joint: 3,
+          samples: <BrushSample>[
+            BrushSample(center: Vector3(1, 1, 0), radius: 0.3),
+          ],
+          strength: 0.6,
+          mode: PaintWeightsMode.assign,
+          mirror: const PaintMirror(axis: 0, jointMirror: <int, int>{1: 2}),
+          normalize: false,
+          maxInfluences: 3,
+        ),
+        const Retopologize(objectId: 10, targetQuads: 800),
+        const PackAtlas(objectIds: <int>[10, 11], margin: 0.02),
+        PaintVertexColour(
+          objectId: 10,
+          samples: <PaintSample>[
+            PaintSample(centre: Vector3(0, 0, 0), radius: 0.4),
+          ],
+          colour: const <double>[0, 1, 0, 1],
+          strength: 0.7,
+        ),
+        const AdoptTexture(materialIndex: 0, size: 256),
+        PaintStroke(
+          objectId: 10,
+          samples: <PaintSample>[
+            PaintSample(centre: Vector3(0, 0, 0), radius: 0.2),
+          ],
+          colour: const <double>[1, 0.5, 0, 1],
+          layer: 1,
+          strength: 0.8,
+          size: 256,
+          maskImage: 0,
+          maskInverted: true,
+        ),
+        const BakeMaps(
+          sourceId: 10,
+          targetId: 11,
+          maps: <String>['normal', 'ao'],
+          resolution: 256,
+          shell: 0.05,
+        ),
+        DrawQuad(
+          objectId: 10,
+          points: <Vector3>[
+            Vector3(0, 0, 0),
+            Vector3(1, 0, 0),
+            Vector3(1, 1, 0),
+            Vector3(0, 1, 0),
+          ],
+          sourceId: 11,
+          snap: 0.05,
+        ),
+        const SubdivideMesh(levels: 2, smooth: false),
+        SculptStroke(
+          objectId: 10,
+          kind: BrushKind.clay,
+          radius: 0.2,
+          strength: 0.4,
+          points: <Vector3>[Vector3(0, 0, 0), Vector3(0.1, 0, 0)],
+          pressures: const <double>[1, 0.5],
+          falloff: BrushFalloff.sharp,
+          symmetryX: true,
+        ),
+        SetRig(
+          jointObjects: <ModelObject>[
+            ModelObject(
+              id: 20,
+              name: 'hips',
+              geometry: const SocketGeometry(),
+              transform: Matrix4.identity(),
+            ),
+          ],
+          skeleton: ProjectSkeleton(
+            joints: <int>[20],
+            inverseBindMatrices: <Matrix4>[Matrix4.identity()],
+            name: 'rig',
+            constraints: <IkConstraint>[
+              IkConstraint(
+                rootJointId: 20,
+                midJointId: 20,
+                effectorJointId: 20,
+                target: Vector3(0, 0, 0),
+                pole: Vector3(0, 1, 0),
+              ),
+            ],
+          ),
+          skinObjectId: 10,
+          weights: SkinWeightsBlob(
+            baseVersion: 1,
+            data: Float32List.fromList(<double>[0, 0, 0, 0, 1, 0, 0, 0]),
+          ),
+          label: 'auto-rig humanoid (1 joint)',
         ),
         const SetKey(
           clipIndex: 0,
@@ -2676,6 +3071,81 @@ void main() {
       expect(back, isA<ScaleBy>());
       expect((back! as ScaleBy).pivot, TransformPivot.median);
     });
+
+    test('ux-12: a move carries its space, and an old one is global', () {
+      final moved =
+          modelCommandFromJson(
+                MoveBy(Vector3(1, 0, 0), space: TransformSpace.local).toJson(),
+              )!
+              as MoveBy;
+      expect(moved.space, TransformSpace.local);
+
+      // An entry written before a move had a space at all.
+      final old =
+          modelCommandFromJson(<String, Object?>{
+                'name': 'moveBy',
+                'by': <double>[1, 0, 0],
+              })!
+              as MoveBy;
+      expect(old.space, TransformSpace.global);
+    });
+  });
+
+  group('ux-12: a move along the object\'s own axes', () {
+    /// Two objects: one facing along the world's axes, one turned a quarter
+    /// turn about Y, both selected.
+    (ModelProject, ProjectSelection) twoFacingApart() {
+      final project = ModelProject(
+        objects: <ModelObject>[
+          ModelObject(
+            id: 1,
+            name: 'a',
+            geometry: const SocketGeometry(),
+            transform: Matrix4.identity(),
+          ),
+          ModelObject(
+            id: 2,
+            name: 'b',
+            geometry: const SocketGeometry(),
+            transform: Matrix4.compose(
+              Vector3.zero(),
+              Quaternion.axisAngle(Vector3(0, 1, 0), math.pi / 2),
+              Vector3.all(1),
+            ),
+          ),
+        ],
+        nextId: 3,
+      );
+      return (project, const ProjectSelection(objects: <int>[1, 2]));
+    }
+
+    test('global sends both the same way', () {
+      final (project, selection) = twoFacingApart();
+      final Outcome out = MoveBy(Vector3(1, 0, 0)).apply(project, selection);
+
+      final ModelProject after = out.project!;
+      expect(after[1]!.transform.getTranslation(), Vector3(1, 0, 0));
+      expect(after[2]!.transform.getTranslation(), Vector3(1, 0, 0));
+    });
+
+    test('local sends each along its own', () {
+      final (project, selection) = twoFacingApart();
+      final Outcome out = MoveBy(
+        Vector3(1, 0, 0),
+        space: TransformSpace.local,
+      ).apply(project, selection);
+
+      // Mutation: ignore the space. The turned object then goes along the
+      // world's X like the other one, and the "Local" chip means nothing for
+      // a move — which is what it did.
+      final ModelProject after = out.project!;
+      final Vector3 first = after[1]!.transform.getTranslation();
+      final Vector3 second = after[2]!.transform.getTranslation();
+      expect(first.x, closeTo(1, 1e-6));
+      expect(first.z, closeTo(0, 1e-6));
+      expect(second.x, closeTo(0, 1e-6));
+      expect(second.z.abs(), closeTo(1, 1e-6));
+    });
   });
 
   group('ParamHint', () {
@@ -2695,6 +3165,11 @@ void main() {
       ),
       const Extrude(0.25),
       const LoopCut(cuts: 3, factor: 0.25),
+      const BevelEdges(0.05),
+      // `ux-39`'s own three.
+      const InsetFaces(0.1, depth: 0.05),
+      const BridgeLoops(),
+      const SlideEdges(0.3),
       TransformElements(Matrix4.identity()),
       const MergeByDistance(distance: 0.001),
       const RecalculateNormals(flip: true),
@@ -3357,6 +3832,221 @@ void main() {
       // shifted down one slot rather than reading each other's.
       expect(out[0], closeTo(0.1, 1e-6));
       expect(out[1], closeTo(0.3, 1e-6));
+    });
+  });
+
+  group('shape drivers', () {
+    test('AddShapeDriver appends to the object\'s own list, refusing an '
+        'unknown shape index or joint, and undoes byte-exact', () {
+      final history = edited();
+      history.run(const AddShapeFromMesh(id: 1, shapeName: 'a'));
+      history.run(const AddShapeFromMesh(id: 1, shapeName: 'b'));
+
+      expect(
+        history.run(
+          const AddShapeDriver(
+            id: 1,
+            driver: ShapeDriver(
+              shapeIndex: 1,
+              jointId: 1,
+              axis: DriverAxis.y,
+              from: 0.1,
+              to: 1.2,
+            ),
+          ),
+        ),
+        isNull,
+      );
+      final drivers = history.project[1]!.shapeDrivers;
+      expect(drivers, hasLength(1));
+      expect(drivers.single.shapeIndex, 1);
+      expect(drivers.single.jointId, 1);
+      expect(drivers.single.axis, DriverAxis.y);
+      expect(drivers.single.from, 0.1);
+      expect(drivers.single.to, 1.2);
+
+      expect(
+        history.run(
+          const AddShapeDriver(
+            id: 1,
+            driver: ShapeDriver(
+              shapeIndex: 5,
+              jointId: 1,
+              axis: DriverAxis.x,
+              from: 0,
+              to: 1,
+            ),
+          ),
+        ),
+        isNotNull,
+      );
+      expect(
+        history.run(
+          const AddShapeDriver(
+            id: 1,
+            driver: ShapeDriver(
+              shapeIndex: 0,
+              jointId: 99,
+              axis: DriverAxis.x,
+              from: 0,
+              to: 1,
+            ),
+          ),
+        ),
+        isNotNull,
+      );
+      // Neither refusal added a second driver.
+      expect(history.project[1]!.shapeDrivers, hasLength(1));
+
+      history.undo();
+      expect(history.project[1]!.shapeDrivers, isEmpty);
+    });
+
+    test('RemoveShapeDriver drops one driver, refusing an unknown index, and '
+        'undoes byte-exact', () {
+      final history = edited();
+      history.run(const AddShapeFromMesh(id: 1, shapeName: 'a'));
+      history.run(
+        const AddShapeDriver(
+          id: 1,
+          driver: ShapeDriver(
+            shapeIndex: 0,
+            jointId: 1,
+            axis: DriverAxis.x,
+            from: 0,
+            to: 1,
+          ),
+        ),
+      );
+
+      expect(history.run(const RemoveShapeDriver(id: 1, index: 5)), isNotNull);
+      expect(history.project[1]!.shapeDrivers, hasLength(1));
+
+      expect(history.run(const RemoveShapeDriver(id: 1, index: 0)), isNull);
+      expect(history.project[1]!.shapeDrivers, isEmpty);
+
+      history.undo();
+      expect(history.project[1]!.shapeDrivers, hasLength(1));
+      expect(history.project[1]!.shapeDrivers.single.jointId, 1);
+    });
+
+    test('SetShapeDriverField changes one field, refusing an unknown field or '
+        'the wrong value shape, and undoes byte-exact', () {
+      final history = edited();
+      history.run(const AddShapeFromMesh(id: 1, shapeName: 'a'));
+      history.run(
+        const AddShapeDriver(
+          id: 1,
+          driver: ShapeDriver(
+            shapeIndex: 0,
+            jointId: 1,
+            axis: DriverAxis.x,
+            from: 0,
+            to: 1,
+          ),
+        ),
+      );
+
+      expect(
+        history.run(
+          const SetShapeDriverField(id: 1, index: 0, field: 'to', value: 2.5),
+        ),
+        isNull,
+      );
+      expect(history.project[1]!.shapeDrivers.single.to, 2.5);
+
+      expect(
+        history.run(
+          const SetShapeDriverField(id: 1, index: 0, field: 'axis', value: 'z'),
+        ),
+        isNull,
+      );
+      expect(history.project[1]!.shapeDrivers.single.axis, DriverAxis.z);
+
+      expect(
+        history.run(
+          const SetShapeDriverField(
+            id: 1,
+            index: 0,
+            field: 'from',
+            value: 'nope',
+          ),
+        ),
+        isNotNull,
+      );
+      expect(
+        history.run(
+          const SetShapeDriverField(
+            id: 1,
+            index: 0,
+            field: 'nonsense',
+            value: 1,
+          ),
+        ),
+        isNotNull,
+      );
+      // Neither refusal moved the driver off what it already had.
+      expect(history.project[1]!.shapeDrivers.single.to, 2.5);
+      expect(history.project[1]!.shapeDrivers.single.axis, DriverAxis.z);
+
+      history.undo();
+      expect(history.project[1]!.shapeDrivers.single.axis, DriverAxis.x);
+      history.undo();
+      expect(history.project[1]!.shapeDrivers.single.to, 1.0);
+    });
+
+    test('DeleteShape(2) drops the driver on 2 and shifts the one on 3 down '
+        'to 2, leaving 1 alone — anim-34d', () {
+      final history = edited();
+      history.run(const AddShapeFromMesh(id: 1, shapeName: 'a'));
+      history.run(const AddShapeFromMesh(id: 1, shapeName: 'b'));
+      history.run(const AddShapeFromMesh(id: 1, shapeName: 'c'));
+      history.run(const AddShapeFromMesh(id: 1, shapeName: 'd'));
+      history.run(
+        const AddShapeDriver(
+          id: 1,
+          driver: ShapeDriver(
+            shapeIndex: 1,
+            jointId: 1,
+            axis: DriverAxis.x,
+            from: 0,
+            to: 1,
+          ),
+        ),
+      );
+      history.run(
+        const AddShapeDriver(
+          id: 1,
+          driver: ShapeDriver(
+            shapeIndex: 2,
+            jointId: 1,
+            axis: DriverAxis.y,
+            from: 0,
+            to: 1,
+          ),
+        ),
+      );
+      history.run(
+        const AddShapeDriver(
+          id: 1,
+          driver: ShapeDriver(
+            shapeIndex: 3,
+            jointId: 1,
+            axis: DriverAxis.z,
+            from: 0,
+            to: 1,
+          ),
+        ),
+      );
+
+      expect(history.run(const DeleteShape(id: 1, shapeIndex: 2)), isNull);
+
+      final drivers = history.project[1]!.shapeDrivers;
+      expect(drivers, hasLength(2));
+      expect(drivers[0].shapeIndex, 1);
+      expect(drivers[0].axis, DriverAxis.x);
+      expect(drivers[1].shapeIndex, 2);
+      expect(drivers[1].axis, DriverAxis.z);
     });
   });
 
@@ -4427,6 +5117,132 @@ void main() {
         }); // mid, tip — shifted down
       },
     );
+
+    group('tut-09: BendJoint says a pose rather than a nudge', () {
+      /// The joint's own local rotation, as a turn about X in degrees.
+      ///
+      /// The fixture's bind pose is the identity, so the local rotation *is*
+      /// the bend; `2·atan2(x, w)` reads it back out of the quaternion's own
+      /// half-angle.
+      double bendOf(ModelHistory history, int jointIndex) {
+        final skeleton = history.project.skeletons.single;
+        final object = history.project[skeleton.joints[jointIndex]]!;
+        final rotation = Quaternion.identity();
+        object.transform.decompose(Vector3.zero(), rotation, Vector3.zero());
+        return degrees(2.0 * math.atan2(rotation.x, rotation.w));
+      }
+
+      test('it turns the joint by what it was asked for', () {
+        final history = riggedChain();
+        expect(
+          history.run(
+            const BendJoint(skeletonIndex: 0, jointIndex: 1, degrees: 30.0),
+          ),
+          isNull,
+        );
+        expect(bendOf(history, 1), closeTo(30.0, 1e-4));
+      });
+
+      test('twice is the same as once, which RotateBy is not', () {
+        // The whole reason this command exists. A slider at thirty means
+        // thirty however many times it is set there; `RotateBy` turns a
+        // joint from where it stands, so running it twice gives sixty and a
+        // caller wanting an absolute pose has to read the current one and
+        // work out the difference first.
+        final history = riggedChain();
+        for (var i = 0; i < 2; i++) {
+          expect(
+            history.run(
+              const BendJoint(skeletonIndex: 0, jointIndex: 1, degrees: 30.0),
+            ),
+            isNull,
+          );
+        }
+        expect(bendOf(history, 1), closeTo(30.0, 1e-4));
+      });
+
+      test('nought puts the joint back on its bind pose', () {
+        final history = riggedChain();
+        expect(
+          history.run(
+            const BendJoint(skeletonIndex: 0, jointIndex: 1, degrees: 45.0),
+          ),
+          isNull,
+        );
+        expect(
+          history.run(
+            const BendJoint(skeletonIndex: 0, jointIndex: 1, degrees: 0.0),
+          ),
+          isNull,
+        );
+        expect(bendOf(history, 1), closeTo(0.0, 1e-4));
+      });
+
+      test('it keeps the translation and scale the document holds', () {
+        // The slider calls `setRotation` and leaves the node's position
+        // alone; this leaves the object's own translation and scale. A rig
+        // whose joints were moved deliberately keeps that.
+        final history = riggedChain();
+        final skeleton = history.project.skeletons.single;
+        final midId = skeleton.joints[1];
+        final moved = Matrix4.compose(
+          Vector3(0.0, 1.5, 0.0),
+          Quaternion.identity(),
+          Vector3(2.0, 2.0, 2.0),
+        );
+        expect(history.run(SetTransform(id: midId, to: moved)), isNull);
+        expect(
+          history.run(
+            const BendJoint(skeletonIndex: 0, jointIndex: 1, degrees: 30.0),
+          ),
+          isNull,
+        );
+
+        final after = history.project[midId]!.transform;
+        final translation = Vector3.zero();
+        final scale = Vector3.zero();
+        after.decompose(translation, Quaternion.identity(), scale);
+        expect(translation.y, closeTo(1.5, 1e-6));
+        expect(scale.x, closeTo(2.0, 1e-6));
+        expect(bendOf(history, 1), closeTo(30.0, 1e-4));
+      });
+
+      test('it refuses a joint and an axis that are not there', () {
+        final history = riggedChain();
+        expect(
+          history.run(
+            const BendJoint(skeletonIndex: 0, jointIndex: 9, degrees: 10.0),
+          ),
+          contains('is not one of them'),
+        );
+        expect(
+          history.run(
+            const BendJoint(
+              skeletonIndex: 0,
+              jointIndex: 1,
+              degrees: 10.0,
+              axis: 7,
+            ),
+          ),
+          contains('an axis is 0 for x'),
+        );
+      });
+
+      test('it round-trips through the journal', () {
+        const written = BendJoint(
+          skeletonIndex: 0,
+          jointIndex: 1,
+          degrees: 30.0,
+          axis: 2,
+        );
+        final read = modelCommandFromJson(written.toJson());
+        expect(read, isA<BendJoint>());
+        final bend = read! as BendJoint;
+        expect(bend.jointIndex, 1);
+        expect(bend.degrees, 30.0);
+        expect(bend.axis, 2);
+      });
+    });
 
     test('SetRestPose moves the joint in world space and recomputes its own '
         'inverse bind matrix', () {

@@ -29,17 +29,27 @@
 /// cannot use.
 library;
 
+// The rig algorithms — bone-name mapping, rest-relative retargeting with a
+// tracks and know nothing of a project; they were a package of their own
+// two-bone-IK foot lock, automatic skin weights. They read a rig as nodes and
+// until the only callers turned out to be this one and the server above it.
 export 'src/autosave.dart';
 export 'src/byte_size.dart';
 export 'src/command.dart';
 export 'src/command_journal.dart';
+export 'src/composite_graph.dart';
+export 'src/credits.dart';
 export 'src/curve_display.dart';
+export 'src/describe.dart';
+export 'src/exporting.dart';
 export 'src/history.dart';
 export 'src/ik_constraint.dart';
 export 'src/image_dimensions.dart';
 export 'src/import_into.dart';
+export 'src/impostor.dart';
 export 'src/job.dart';
 export 'src/key_table.dart';
+export 'src/lighting_sync.dart';
 export 'src/listing.dart';
 export 'src/lod_cache.dart';
 export 'src/lod_spec.dart';
@@ -47,9 +57,10 @@ export 'src/material.dart';
 export 'src/modifier_evaluation_cache.dart';
 export 'src/modifier_slot.dart';
 export 'src/paint_layer.dart';
-export 'src/paint_weights.dart';
+export 'src/panorama_sync.dart';
 export 'src/param_hint.dart';
 export 'src/parametric_json.dart';
+export 'src/pose_of_skeleton.dart';
 export 'src/profile_budget_report.dart';
 export 'src/project.dart';
 export 'src/project_animation.dart';
@@ -60,10 +71,18 @@ export 'src/readiness.dart';
 export 'src/readiness_cache.dart';
 export 'src/render_project.dart';
 export 'src/render_sheet.dart';
+export 'src/render_snapshot.dart';
 export 'src/retarget_clip.dart';
+export 'src/retarget_source.dart';
+export 'src/rig/bind_weights.dart';
+export 'src/rig/bone_map.dart';
+export 'src/rig/bone_segments.dart';
+export 'src/rig/retarget.dart';
+export 'src/rig/two_bone_ik.dart';
 export 'src/rig_issues.dart';
 export 'src/rig_job.dart';
 export 'src/rig_template.dart';
+export 'src/scene_from_project.dart';
 export 'src/scene_lighting.dart';
 export 'src/selection.dart';
 export 'src/shape_driver.dart';
@@ -76,4 +95,6 @@ export 'src/texture_budget.dart';
 export 'src/texture_graph.dart';
 export 'src/texture_info.dart';
 export 'src/texture_resize.dart';
+export 'src/tiny_font.dart';
+export 'src/wire_overlay.dart';
 export 'src/world_transform.dart';

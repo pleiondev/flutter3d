@@ -2,7 +2,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:flutter3d/flutter3d.dart';
-import 'package:flutter3d_bridge/flutter3d_bridge.dart';
+import 'package:flutter3d_app/flutter3d_app.dart';
 import 'package:flutter3d_game_platformer/flutter3d_game_platformer.dart';
 import 'package:vector_math/vector_math.dart';
 

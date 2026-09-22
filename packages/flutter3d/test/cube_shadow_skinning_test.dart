@@ -15,6 +15,7 @@ library;
 
 import 'dart:typed_data';
 
+import 'package:flutter3d_core/geometry.dart';
 import 'package:flutter3d_core/src/engine/geometry/device_mesh.dart';
 import 'package:flutter3d_core/src/engine/render/material.dart';
 import 'package:flutter3d_core/src/engine/render/render_view.dart';
@@ -25,7 +26,6 @@ import 'package:flutter3d_core/src/engine/scene/mesh_node.dart';
 import 'package:flutter3d_core/src/engine/scene/scene.dart';
 import 'package:flutter3d_core/src/engine/scene/scene_node.dart';
 import 'package:flutter3d_core/src/engine/scene/skeleton.dart';
-import 'package:flutter3d_geometry/flutter3d_geometry.dart';
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:flutter3d_hardware/testing.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -330,7 +330,14 @@ void main() {
         frames: 2,
         between: () {},
       );
-      expect(counts.first, 6);
+      // Five faces, not six. `gfx-63n` tests each caster against the face it is
+      // about to be drawn into, and this caster's posed box — the joints plus
+      // `skinReach`, which is what a skinned node's bounds are — does not reach
+      // one of them. The light is inside the caster's bounding *sphere*, which
+      // is what the number six was resting on, and the box is tighter than the
+      // sphere. What matters to this test is unchanged: an idle character
+      // redraws nothing on the second frame.
+      expect(counts.first, 5);
       expect(counts.last, 0);
     });
 
@@ -341,10 +348,12 @@ void main() {
       // allocated per joint, six times over, for a pose that cannot change
       // inside one pass.
       //
-      // MUTATION: drop the `_cubeShadowPosed.add(node)` guard and call
-      // `skeleton.update` unconditionally. Every pixel of every frame stays
-      // identical and every other test here still passes; this count goes from
-      // two to seven.
+      // MUTATION: drop the guard inside `Skeleton.update` — the pose stamp and
+      // the mesh transform it last computed for — and recompute unconditionally.
+      // Every pixel of every frame stays identical and every other test here
+      // still passes; this count goes from two to seven. The guard used to live
+      // here as a set of nodes held by the renderer; `gfx-64n` moved it into the
+      // skeleton, where the pick pass and mesh encoding get it too.
       final built = _scene(device, skinned: true);
       _renderer(device).render(
         width: 256,
@@ -356,9 +365,11 @@ void main() {
           .expand((pass) => pass.recordedOf<RecordedPipeline>())
           .where((p) => p.pipeline.name.startsWith('MeshSkinnedVertex+'))
           .length;
-      // The light sits inside the caster's bounding sphere, so it lands in all
-      // six faces. Without that this measures nothing.
-      expect(skinnedDraws, 6);
+      // The light sits inside the caster's bounding sphere, so it lands in
+      // nearly every face — five of six since `gfx-63n` culls each caster
+      // against the face it is drawn into, and the posed box is tighter than
+      // the sphere. Without several faces this measures nothing.
+      expect(skinnedDraws, 5);
       // Two: once for the atlas pass and once for the scene pass, which poses
       // the same character again to draw it.
       expect(

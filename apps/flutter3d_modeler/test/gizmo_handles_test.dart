@@ -239,7 +239,7 @@ void main() {
       expect(ink.sublist(12, 24), everyElement(_opaque(kGizmoTintY)));
       expect(ink.sublist(24, 36), everyElement(_opaque(kGizmoTintZ)));
       // Mutation: `_inkFor(handle.tint, …)` to `_inkFor(kGizmoTintX, …)`. The Y
-      // arm comes back #FF6B8A where it should be #8AFF6B, and a gizmo whose
+      // arm comes back #FF6B8A where it should be #7EE081, and a gizmo whose
       // arms are one colour tells a person nothing about which way any of them
       // goes.
     });

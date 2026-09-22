@@ -43,7 +43,7 @@
 /// in the picture, which is exactly why it is asserted rather than intended.
 library;
 
-import 'package:flutter3d_game/flutter3d_game.dart';
+import 'package:flutter3d_sim/flutter3d_sim.dart';
 
 import 'building.dart';
 import 'economy.dart';

@@ -14,8 +14,8 @@ library;
 
 import 'dart:convert';
 
+import 'package:flutter3d_app/flutter3d_app.dart' show Storage;
 import 'package:flutter3d_modeler/src/recent_projects.dart';
-import 'package:flutter3d_session/flutter3d_session.dart' show Storage;
 import 'package:flutter_test/flutter_test.dart';
 
 /// A disk with exactly these files on it — the same shape

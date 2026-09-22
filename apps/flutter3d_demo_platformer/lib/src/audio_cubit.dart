@@ -1,8 +1,8 @@
 import 'dart:async';
 
-import 'package:flutter3d_app/flutter3d_app.dart'; // applySavedVolumes
 import 'package:flutter3d_audio/flutter3d_audio.dart';
-import 'package:flutter3d_game/flutter3d_game.dart'; // GameConfig
+import 'package:flutter3d_game/flutter3d_game.dart'; // applySavedVolumes
+// GameConfig
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import 'sounds.dart';
@@ -112,7 +112,7 @@ final class AudioCubit extends Cubit<AudioReady> {
 
   /// Copies the saved volumes into the mixer the scene is reading.
   ///
-  /// The list of buses is `flutter3d_session`'s, beside the panel that offers them:
+  /// The list of buses is `flutter3d_game`'s, beside the panel that offers them:
   /// there were four copies of it and they had already disagreed once.
   void applyVolumes(GameConfig config) =>
       applySavedVolumes(config, scene.mixer);

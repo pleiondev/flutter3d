@@ -1,0 +1,17 @@
+# Points Grafana at ../dashboards/*.json rather than a database row, so the
+# dashboard is this file in the repository and a redeploy cannot drift from
+# it — editing a panel in the browser edits a copy that the next deploy
+# overwrites, which is the point: the dashboard people see is the one
+# reviewed here.
+apiVersion: 1
+
+providers:
+  - name: flutter3d-models
+    orgId: 1
+    folder: ''
+    type: file
+    disableDeletion: false
+    updateIntervalSeconds: 30
+    allowUiUpdates: false
+    options:
+      path: /etc/grafana/dashboards

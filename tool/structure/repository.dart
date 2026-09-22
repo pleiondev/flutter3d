@@ -27,18 +27,20 @@ const List<String> genrePackages = <String>[
 
 /// Every application in this repository, which is also its directory name.
 ///
-/// `_demo_` marks the three that exist to show the engine works. The others are
-/// tools — a level editor, a modeller, and the seed a new project starts from —
-/// and rules about *games* filter on the infix rather than carrying a fourth
-/// list.
+/// `_demo_` marks the ones that exist to show the engine works. The others are
+/// tools — a level editor and a modeller — and the lessons, and rules about
+/// *games* filter on the infix rather than carrying a fourth list. The seed a
+/// new project starts from is not here: it is two package examples,
+/// `flutter3d_app`'s for an application and `flutter3d_game`'s for a game.
 const List<String> applications = <String>[
+  'flutter3d_demo_arcade',
   'flutter3d_demo_dungeon',
   'flutter3d_demo_platformer',
   'flutter3d_demo_racing',
   'flutter3d_demo_strategy',
   'flutter3d_editor',
   'flutter3d_modeler',
-  'flutter3d_template_app',
+  'flutter3d_showcase',
   'flutter3d_lesson_viewer',
   'flutter3d_stereo_lesson_viewer',
   'flutter3d_lab_pendulum',
@@ -65,40 +67,25 @@ const Map<String, String> flatDartPackages = <String, String>{
   'flutter3d_core':
       'mcp-03n\'s own split: a modeller\'s document layer, the tool an agent '
       'starts with `dart run`, and a service checking an uploaded asset all '
-      'want a `Renderer` that draws a frame with no window in front of it — '
-      'the same want that already moved `MeshData` to `flutter3d_geometry` '
-      'and the decoders to `flutter3d_formats`. `flutter3d` stays the thin '
+      'want a `Renderer` that draws a frame with no window in front of it, '
+      'and the geometry and model formats under it, which the same callers '
+      'read with no window at all. `flutter3d` stays the thin '
       'Flutter shell three seams could not leave: `BundleAssetSource` and '
       '`assetUriResolver` name `rootBundle`, `defaultImageDecoder` names '
       '`dart:ui`, and `ModelAsset`/`bindMaterial`/`loadMaterial` default to '
       'that decoder so every existing caller of either keeps compiling '
       'unchanged',
-  'flutter3d_formats':
-      'a modeller\'s document layer, the tool an agent starts with `dart '
-      'run`, and a service that checks an uploaded asset all want to read a '
-      '`.glb` or a `.ktx2` with no window in front of them — `ap-01` in '
-      '`doc/asset-pipeline-plan.md` moved the KTX2 reader below `flutter3d` '
-      'for exactly this, splitting `vkFormat` from the `TextureFormat` '
-      'mapping that needs `flutter3d_hardware`\'s own Flutter dependency',
-  'flutter3d_geometry':
-      'a mesh is described here and drawn elsewhere: a modeller\'s document '
-      'layer, the tool an agent starts with `dart run`, and this repository\'s '
-      'own AOT benches all need to say `MeshData` with no window in front of '
-      'them, which is what depending on `flutter3d` for it cost them',
-  'flutter3d_fbx':
-      '`fmt-29d`\'s own row: an FBX decoder is read by the same callers '
-      '`flutter3d_formats`\' own decoders are — a modeller\'s document layer, '
-      'a service checking an uploaded asset, the tool an agent starts with '
-      '`dart run` — none of which has a window in front of it',
   'flutter3d_mesh':
       'the mesh a modeller edits is a document before it is a picture: a bench '
       'compiled by `dart compile exe`, the tool an agent starts with `dart '
       'run`, and a test of a loop cut all hold one and none of them draws',
-  'flutter3d_particles_core':
+  'flutter3d_particles':
       '`pro-sim-02`\'s own row: `flutter3d_model_core`\'s '
       '`BakeParticleSystemJobRequest` bakes a `ParticleSystem` into a cache from '
       'a command line or a service with no window in front of it, the same '
-      'way `BakeRigidBodyJobRequest` already does through `flutter3d_physics`',
+      'way `BakeRigidBodyJobRequest` already does through `flutter3d_physics`. '
+      'The two contributors that draw a system live beside it because they '
+      'draw through `flutter3d_core` and name no Flutter either',
   'flutter3d_model_core':
       'a model is a document, and the programs that check, convert or drive '
       'one — an exporter on a command line, a service validating an upload, '
@@ -179,6 +166,30 @@ const Map<String, Set<String>> genreMayDraw = <String, Set<String>>{
   'flutter3d_game_strategy': <String>{'lib/bridge.dart'},
 };
 
+/// Which files of a genre package belong to its visible half, and so may name
+/// Flutter.
+///
+/// **A genre's simulation is plain Dart in everything but its pubspec.** The
+/// package declares `flutter: sdk` because its readouts are widgets, and nothing
+/// stopped a widget, a `debugPrint` or a `MediaQuery` from arriving in the
+/// simulation beside them — the simulation a server replays and a test steps
+/// with no device. So the files that may name Flutter are listed here, the
+/// barrel the simulation is imported through may export none of them, and
+/// `bridge.dart` is where they are reached from.
+///
+/// Checked apart from [genreMayDraw], because a widget is Flutter without being
+/// a renderer.
+const Map<String, Set<String>> genreBridgeHalf = <String, Set<String>>{
+  'flutter3d_game_shooter': <String>{
+    'lib/bridge.dart',
+    'lib/src/hud.dart',
+    'lib/src/weapon_view.dart',
+  },
+  'flutter3d_game_racing': <String>{'lib/bridge.dart', 'lib/src/hud.dart'},
+  'flutter3d_game_platformer': <String>{'lib/bridge.dart', 'lib/src/hud.dart'},
+  'flutter3d_game_strategy': <String>{'lib/bridge.dart'},
+};
+
 /// Genre cameras that do not turn [CameraRig], and why.
 ///
 /// **The seam this protects was already built, which is exactly why it needs a
@@ -209,14 +220,29 @@ const Map<String, String> notARigCamera = <String, String>{
   'flutter3d_editor/lib/src/fly_camera.dart':
       'a tool, not a game: it flies where the author points it, so it follows '
       'nothing and has no impulse, no shake and no wall to be pulled out of',
-  'flutter3d_formats/lib/src/model_camera.dart':
+  'flutter3d_core/lib/src/formats/model_camera.dart':
       'data, not a rig: `ModelCamera` is what a glTF file said its camera\'s '
       'projection was — yfov, znear, an aspect ratio that may be absent on '
       'purpose — with no subject to follow and nothing that ever moves it',
-  'flutter3d_formats/lib/src/gltf/gltf_loader_lights_cameras.dart':
+  'flutter3d_core/lib/src/formats/gltf/gltf_loader_lights_cameras.dart':
       'reads that same data out of glTF JSON; still nothing to follow',
-  'flutter3d_formats/lib/src/gltf/gltf_writer_lights_cameras.dart':
+  'flutter3d_core/lib/src/formats/gltf/gltf_writer_lights_cameras.dart':
       'writes it back; still nothing to follow',
+  'flame_flutter3d/lib/src/camera/camera_sync_controller.dart':
+      'a mirror, not a rig: it copies one camera\'s position and zoom onto '
+      'the other\'s, in whichever direction was asked for, and has no '
+      'subject, no impulse and no wall — the smoothing and the pull-out '
+      'CameraRig gives a followed subject would be a second opinion about '
+      'where the camera already, definitionally, is',
+  'flutter3d_showcase/lib/pages/flame/flame_camera_bridge.dart':
+      'demonstrates that same mirror, not a rig: the camera it builds is '
+      'the one CameraSyncController reads from or writes to directly, with '
+      'no subject to follow — a CameraRig here would be steering a camera '
+      'the demo is using to test the opposite direction of sync',
+  'flutter3d_showcase/lib/pages/formats/gltf_cameras_lights.dart':
+      'a page about reading the cameras and lights a glTF file carries, not '
+      'a camera that follows anything: it reports what the file said, and has '
+      'no subject, no impulse and no wall to be pulled out of',
 };
 
 /// Packages the repeatable-step rule does **not** apply to, and why.
@@ -236,11 +262,10 @@ const Map<String, String> notARigCamera = <String, String>{
 /// package is a rule that has outlived its subject.
 const Map<String, String> notARepeatableStep = <String, String>{
   'flutter3d_core':
-      'a renderer draws a frame; the clock it reads is the frame\'s',
-  'flutter3d_geometry':
-      'geometry, not a step: a lathe turns a profile with `math.sin` once, at '
-      'the moment a shape is built, and a run that stepped it would be a run '
-      'rebuilding its meshes every tick',
+      'a renderer draws a frame; the clock it reads is the frame\'s. Its '
+      'geometry turns a lathe profile with `math.sin` once, when a shape is '
+      'built, and its formats slerp between two keys for a frame, on that '
+      'same clock',
   'flutter3d_mesh':
       'a mesh, not a step: an extrusion happens when somebody asks for it, and '
       'the arithmetic that places its vertices is the same arithmetic '
@@ -250,11 +275,6 @@ const Map<String, String> notARepeatableStep = <String, String>{
       'nothing here advances on a clock',
   'flutter3d_model_mcp':
       'a server that answers a host, on the host\'s schedule',
-  'flutter3d_formats':
-      'files, not a step: what is read out of a `.glb` is what somebody '
-      'authored, and the one place here that calls libm — slerping a rotation '
-      'between two keys — is sampled for a frame, on the clock the renderer '
-      'these files came out of is already exempt for',
   'flutter3d_impeller': 'a backend, not a step',
   'flutter3d_webgl': 'a backend, not a step',
   'flutter3d_webgpu': 'a backend, not a step',
@@ -263,20 +283,22 @@ const Map<String, String> notARepeatableStep = <String, String>{
   'flutter3d_conformance': 'a test suite for backends',
   'flutter3d_shaders': 'GLSL and a manifest',
   'flutter3d_samples': 'fixtures',
-  'flutter3d_particles_core':
-      'display and preview, not a verified replay: `flutter3d_particles` '
-      'draws with the frame\'s own delta, and `flutter3d_model_core`\'s '
+  'flutter3d_particles':
+      'display and preview, not a verified replay: its contributors draw '
+      'with the frame\'s own delta, and `flutter3d_model_core`\'s '
       '`BakeParticleSystemJobRequest` steps it at a fixed `dt` only to fill a '
       '`SimulationCache` a modeller scrubs locally — nothing here is a run a '
       'server replays against a client\'s own answer the way `flutter3d_sim`\'s '
       'is, so the platform\'s libm disagreeing with itself across machines has '
       'nothing to fail',
   'flutter3d_testing': 'a test helper',
-  'flutter3d_session':
-      'a run\'s lifecycle and the screens that run on the frame clock: it '
-      'loads and saves, and steps nothing itself',
-  'flutter3d_app': 'chooses a device and steps nothing',
-  'flutter3d_bridge': 'display: it reads a simulation and moves nodes',
+  'flutter3d_game':
+      'a run\'s lifecycle, the screens that run on the frame clock, and '
+      'display: it reads devices once a frame, reads a simulation and moves '
+      'nodes, loads and saves, and steps nothing itself',
+  'flutter3d_app':
+      'chooses a device, loads a level into a scene and draws it; steps '
+      'nothing',
   'flutter3d_audio': 'display: a mix is recomputed once a frame',
   'pad_input': 'a device, read once a frame',
   'pointer_lock': 'a platform channel',
@@ -286,6 +308,12 @@ const Map<String, String> notARepeatableStep = <String, String>{
       'watching it run, the same way `step_time_trace.dart` does for a '
       'step from outside it — there is no simulation here to replay, only '
       'a CLI printing what it just measured',
+  'flutter3d_editor_widgets':
+      'a colour swatch, not a step: `ColorField.encodeSrgb`/`decodeSrgb` '
+      'convert whatever colour a person is looking at right now, on this '
+      'one machine, the same formula and the same exemption '
+      '`flutter3d_cpu`\'s own `cpu_shaders_color.dart` already has — never '
+      'a run a server replays',
 };
 
 /// Files inside a scanned package that are allowed to be unrepeatable, and why.
@@ -299,6 +327,20 @@ const Map<String, Map<String, String>> repeatableStepExempt =
             'step took and writes the answer into a trace nothing in the '
             'simulation reads back, the same one-way relationship '
             '`FrameTimingLog` already has with the render loop it watches',
+      },
+      'flutter3d_mcp_kit': <String, String>{
+        'lib/src/tool_table.dart':
+            "`tut-16`'s own `onCall` hook: `ToolTableServer` reads a "
+            '`Stopwatch` around a tool\'s own `run`, purely to hand a '
+            'caller watching a screen (`ModelerCubit.agentToolCalled`, an '
+            'MCP session\'s own tool-call feed) how long that one call '
+            'took — nothing a tool\'s own answer reads back, the same '
+            'observing-from-outside relationship `step_time_trace.dart` '
+            'above already has. `onCall` is null on every server that has '
+            'no screen watching (`flutter3d_model_mcp`\'s own `bin/'
+            'model_mcp.dart`, `flutter3d_sim_mcp` included), so nothing '
+            'here reaches the clock on a run this table\'s own rule '
+            'actually cares about replaying bit-for-bit',
       },
     };
 
@@ -348,10 +390,11 @@ const Map<String, String> engineCompilesOffDevice = <String, String>{
       'suite that cannot be compiled produces numbers that cannot be '
       'contradicted',
   // The CPU geometry layer used to be named here, as `lib/src/engine/geometry/
-  // geometry.dart`. It is `flutter3d_geometry` now, a package with no Flutter
-  // SDK in its pubspec at all, and `a flat Dart package resolves without the
-  // Flutter SDK` holds it to something stronger than this rule could: not "no
-  // import reaches Flutter today" but "no dependency could".
+  // geometry.dart`. It is `flutter3d_core`'s geometry library now, in a
+  // package with no Flutter SDK in its pubspec at all, and `a flat Dart package
+  // resolves without the Flutter SDK` holds it to something stronger than this
+  // rule could: not "no import reaches Flutter today" but "no dependency
+  // could".
 };
 
 /// Sentences that say a number of scenes and are not claims about how many
@@ -425,10 +468,11 @@ goldenCountExempt = <String, Map<String, String>>{
     'Two scenes, switched with the space bar':
         'the example application\'s two scenes, which are not a golden set',
   },
-  'packages/flutter3d_formats/lib/src/lighting_model.dart': <String, String>{
-    'Two goldens caught it at 25% and 0.6%':
-        'the two that caught it, named with what each one showed',
-  },
+  'packages/flutter3d_core/lib/src/formats/lighting_model.dart':
+      <String, String>{
+        'Two goldens caught it at 25% and 0.6%':
+            'the two that caught it, named with what each one showed',
+      },
   'packages/flutter3d/test/lighting_model_test.dart': <String, String>{
     'which two goldens found at 25% and 0.6%': 'the same two',
   },
@@ -576,19 +620,37 @@ String relative(File file, Directory dir) => file.path
 /// the next one has to be argued for rather than typed.
 const Map<String, Map<String, String>>
 boundaryEnumExempt = <String, Map<String, String>>{
-  'flutter3d_formats/lib/src/gltf/gltf_accessor_type.dart': <String, String>{
-    'GltfComponentType':
-        "the glTF specification's own component types. The set is the "
-        "format's, and a file that names a fifth is not a glTF file",
-    'GltfAccessorType':
-        "the same specification's accessor types, for the same reason",
+  'flutter3d_mesh/lib/src/recipes.dart': <String, String>{
+    'RecipeCategory':
+        'how a gallery groups the models this package builds, and the set '
+        'is the gallery\'s own four sections rather than a taxonomy '
+        'anybody outside switches over. The one `switch` is the heading a '
+        'card draws; a fifth section is a fifth heading in that same file, '
+        'not a case somebody else has to answer',
   },
-  'flutter3d_formats/lib/src/gltf/gltf_primitive_mode.dart': <String, String>{
-    'GltfPrimitiveMode':
-        "the glTF specification's seven primitive modes, numbered by the "
-        'format',
+  'flutter3d_editor_widgets/lib/src/number_expression.dart': <String, String>{
+    'NumberUnit':
+        'what one field\'s own numbers mean, and the set is the two things '
+        'this application measures — a length and an angle — plus "neither". '
+        'A `switch` over it lives in one function beside the enum, and a '
+        'third kind of field would be a third kind of unit table in the same '
+        'file rather than a new case anybody outside has to answer',
   },
-  'flutter3d_formats/lib/src/surface_material.dart': <String, String>{
+  'flutter3d_core/lib/src/formats/gltf/gltf_accessor_type.dart':
+      <String, String>{
+        'GltfComponentType':
+            "the glTF specification's own component types. The set is the "
+            "format's, and a file that names a fifth is not a glTF file",
+        'GltfAccessorType':
+            "the same specification's accessor types, for the same reason",
+      },
+  'flutter3d_core/lib/src/formats/gltf/gltf_primitive_mode.dart':
+      <String, String>{
+        'GltfPrimitiveMode':
+            "the glTF specification's seven primitive modes, numbered by the "
+            'format',
+      },
+  'flutter3d_core/lib/src/formats/surface_material.dart': <String, String>{
     'SurfaceAlphaMode':
         "glTF's three alpha modes. A decoder for another format maps onto "
         'these; it does not add to them',
@@ -601,18 +663,40 @@ boundaryEnumExempt = <String, Map<String, String>>{
         'the engine side of SurfaceAlphaMode, and a fourth would need a '
         'pipeline the shaders do not have',
   },
-  'flutter3d_formats/lib/src/animation/animation_track.dart': <String, String>{
-    'AnimationInterpolation':
-        "glTF's three interpolations; the sampler implements exactly these",
-    'AnimationPath':
-        'the four channel targets glTF defines. A fifth is not a thing the '
-        'format can express',
-  },
+  'flutter3d_core/lib/src/formats/animation/animation_track.dart':
+      <String, String>{
+        'AnimationInterpolation':
+            "glTF's three interpolations; the sampler implements exactly these",
+        'AnimationPath':
+            'the four channel targets glTF defines. A fifth is not a thing the '
+            'format can express',
+      },
   'flutter3d_core/lib/src/engine/animation/animation_target.dart':
       <String, String>{
         'AnimationWrap':
             'how a clip ends. Each value is a branch in the sampler, so a fifth '
             'is code rather than a name',
+      },
+  'flutter3d_model_core/lib/src/exporting.dart': <String, String>{
+    'ExportFormat':
+        'each value carries the writer that produces it — `f3d(F3dModelWriter())`, '
+        '`glb(GlbModelWriter())` and the rest — so a fifth format is a `ModelWriter` '
+        'somebody wrote, not a name added to a list. The one `switch` over it picks '
+        'an extension in `bin/export.dart`, beside the enum, and a caller outside '
+        'reads `ExportFormat.values` rather than naming cases',
+    'TextureEncoding':
+        'what an export does to its images, and the set is what the writers can '
+        'actually produce. A sixth encoding is an encoder in `flutter3d_core`, not a '
+        'value here; the switches over it live in this same file, choosing which of '
+        'those encoders to call',
+  },
+  'flutter3d_core/lib/src/engine/animation/animation_layer.dart':
+      <String, String>{
+        'AnimationBlend':
+            'how a layer meets the base. Both values are whole arithmetic in '
+            'the player — one replaces a joint, the other adds a delta to it '
+            'per path — so a third is a third set of formulas there rather '
+            'than a name anybody outside has to answer',
       },
   'flutter3d_core/lib/src/engine/scene/light_node.dart': <String, String>{
     'LightType':
@@ -655,7 +739,7 @@ boundaryEnumExempt = <String, Map<String, String>>{
         'Adding one is recording three golden sets, which is not something '
         'a caller does',
   },
-  'flutter3d_formats/lib/src/model_loader.dart': <String, String>{
+  'flutter3d_core/lib/src/formats/model_loader.dart': <String, String>{
     'ModelFormat':
         'names the three decoders this package ships, plus auto. A format it '
         'does not ship never reaches this switch: a game supplies a '
@@ -737,7 +821,7 @@ boundaryEnumExempt = <String, Map<String, String>>{
         'the file switches on these three, and decision Б7 of the model '
         'editor plan chose an enum here over a sealed class for that reason',
   },
-  'flutter3d_formats/lib/src/obj/obj_loader.dart': <String, String>{
+  'flutter3d_core/lib/src/formats/obj/obj_loader.dart': <String, String>{
     'ObjNormals':
         'what to do when an OBJ has no normals. Smooth or flat, and there '
         'is no third answer the decoder could give',
@@ -794,14 +878,14 @@ boundaryEnumExempt = <String, Map<String, String>>{
         '(a second agent, a plugin) worth its own row, not a value added '
         'to the one switch an undo\'s own authorship check already is',
   },
-  'flutter3d_formats/lib/src/stl/stl_loader.dart': <String, String>{
+  'flutter3d_core/lib/src/formats/stl/stl_loader.dart': <String, String>{
     'StlNormals':
         'whether a facet\'s own normal record is trusted or recomputed from '
         'its triangle. Unlike OBJ, STL always carries a normal, so this is a '
         'choice about how much to trust it rather than what to do when it is '
         'missing — and there is no third answer there either',
   },
-  'flutter3d_formats/lib/src/model_light.dart': <String, String>{
+  'flutter3d_core/lib/src/formats/model_light.dart': <String, String>{
     'ModelLightType':
         "`KHR_lights_punctual`'s own three light shapes. The extension "
         'defines exactly directional, point and spot; a fourth is not a '
@@ -886,7 +970,7 @@ boundaryEnumExempt = <String, Map<String, String>>{
         'fifth way to end would be a fifth branch in that loop, not a '
         "monster or a weapon this package has never heard of",
   },
-  'flutter3d_render_mcp/lib/src/diagnostic_renderer.dart': <String, String>{
+  'flutter3d_sim_mcp/lib/src/diagnostic_renderer.dart': <String, String>{
     'DiagnosticView':
         'lit, normals, shadowMap, staticShadowMap — the four debug outputs '
         '`RenderSettings` itself already knows how to produce. A fifth view '
@@ -894,6 +978,23 @@ boundaryEnumExempt = <String, Map<String, String>>{
         'read it back at all; this enum only names what is already there, '
         'the same reason `RenderSettings.showShadowMap` and its siblings are '
         'booleans and not a growing list',
+  },
+  'flame_flutter3d/lib/src/transform/object3d_component.dart': <String, String>{
+    'SyncDirection':
+        'which of two sides writes a frame\'s transform into the other, and '
+        'there are exactly two sides to a bridge between two engines. A '
+        'third value would not be a third direction — there is nowhere else '
+        'for a write to come from — so the `switch` beside it in the same '
+        'file is exhaustive by the shape of the problem, not by omission',
+  },
+  'flame_flutter3d/lib/src/transform/plane.dart': <String, String>{
+    'PlaneAxis':
+        'which flutter3d axis, Y or Z, a bridge plane holds constant. A '
+        'third case is not a third plane the game genres this package '
+        'targets — top-down and side-scrolling — actually have; it would be '
+        'a plane perpendicular to X, which reads as neither a ground nor a '
+        'backdrop, and adding it is exactly the kind of case this rule '
+        'wants argued for rather than typed. It is not, yet',
   },
 };
 

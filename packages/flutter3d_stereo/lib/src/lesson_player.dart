@@ -6,7 +6,7 @@
 /// **Nothing here is a second way to read a step.** `orderedSteps` already
 /// resolves `edu_sequence.steps` to the `edu_step` entities themselves; this
 /// file only says what a step *means* to a rig — where the stage stands, and
-/// which of the scene's named nodes are visible — the way `flutter3d_bridge`
+/// which of the scene's named nodes are visible — the way `flutter3d_app`'s level loader
 /// says what an entity means to a mesh. Advancing between steps is a button,
 /// not a keystroke or a scroll: `wg-01` found both of those unreachable
 /// inside a `WidgetSurface`, and a phone in a Cardboard holder has no

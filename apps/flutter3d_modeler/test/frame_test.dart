@@ -16,6 +16,14 @@
 /// somebody moves the fill light by five degrees and teaches nothing; what is
 /// asserted here is that the subject was drawn, that it is lit from one side,
 /// and that framing it put it in front of the camera.
+// Draws real pixels: a scene through the software rasteriser, a reference
+// picture, or both. Tagged so a run that only wants the logic skips the whole
+// slow class at once:
+//
+//     very_good test -x golden
+//
+// Not optional in CI, which runs the suite without the flag.
+@Tags(<String>['golden'])
 library;
 
 import 'dart:io';
@@ -228,7 +236,8 @@ void main() {
     // face whose normal is exactly +Y and the answer is a number rather than a
     // range.
     lookFrom(stage.orbit, StandardView.top, seconds: 0.0);
-    SurfaceShading().apply(stage.subject, ShadingMode.normals);
+    // `gfx-43n`: no swap. The mode is in the settings below, and the normal
+    // it shows comes out of the buffer the scene pass writes.
 
     final rgba = await _drawWith(
       it.device,
@@ -551,47 +560,164 @@ void main() {
     // already draws, reached this time through `RenderSettings.debug` the way
     // the application would ask for them, rather than by calling the overlay
     // builder directly the way `debug_draw_test.dart` already does.
-    test('a two-joint rig over the cube matches its reference', () async {
-      final frame = await renderFrame(
-        width: 240,
-        height: 160,
-        build: (FrameRequest request) {
-          final stage = ModelerStage.build(device: request.device);
-          final subject = stage.subject as MeshNode;
-          // Every vertex is bound wholly to joint 0 by the builder's own
-          // default weight, and joint 0 stays at the origin — the cube's own
-          // bind pose — so giving it a skeleton does not move it. `tip` is
-          // the second joint purely to give the overlay a bone to draw.
-          subject.mesh = DeviceMesh.upload(
-            request.device,
-            CuboidShape().build(layout: VertexLayout.skinned),
-          );
+    //
+    // **Built from a project, not a hand-assembled `Skeleton` — `view-27d`'s
+    // own row.** The two joints and the mesh below are ordinary
+    // `ModelObject`s, reaching the screen through `ModelerStage.fromProject`
+    // and `SceneSync.apply` exactly the way a real rig would. This file used
+    // to build the engine `Skeleton` itself and hand it straight to the
+    // mesh node, which meant nothing here ever exercised `scene_sync.dart`'s
+    // own skinning at all — a mutation that dropped its upload of
+    // `VertexLayout.skinned`, or never hung a `Skeleton` off the mesh in the
+    // first place, would have passed this test and every other one in this
+    // suite.
+    test('a two-joint rig built from a project matches its reference, and '
+        'moving a joint actually deforms the mesh', () async {
+      final it = cpuTestDevice(width: 240, height: 160);
 
-          final root = SceneNode(name: 'root');
-          final tip = SceneNode(name: 'tip')..setPosition(0.0, 0.5, 0.0);
-          stage.scene.root.add(root);
-          root.add(tip);
-          subject.skeleton = Skeleton(
-            joints: <SceneNode>[root, tip],
-            inverseBindMatrices: <Matrix4>[
-              Matrix4.copy(root.worldMatrix)..invert(),
-              Matrix4.copy(tip.worldMatrix)..invert(),
-            ],
+      // The top four vertices ride the tip, the bottom four the root — a
+      // real two-joint bind rather than the all-one-joint default every
+      // other skinned mesh in this file draws with. A mesh bound wholly to
+      // the root would look identical whether or not moving the *tip*
+      // reached it at all, which is exactly the "disconnected socket" bug
+      // this row fixes and this test is the one that would otherwise miss.
+      final mesh = EditMesh.cuboid();
+      mesh.beginStep();
+      for (var v = 0; v < mesh.vertexSlotCount; v++) {
+        if (!mesh.isVertexAlive(v)) continue;
+        if (mesh.positionOf(v).y > 0) {
+          mesh.setSkin(
+            v,
+            VertexAttributes(
+              joints: Vector4(1, 0, 0, 0),
+              weights: Vector4(1, 0, 0, 0),
+            ),
           );
-          // A skinned mesh's own bounds describe the bind pose, so framing
-          // uses the joints instead — padded by this, or the frame would zoom
-          // to a box no wider than the distance between two joint points and
-          // never show the cube hanging off them.
-          subject.skinReach = 1.0;
-          stage.frameSubject();
-          return (scene: stage.scene, camera: stage.camera);
-        },
-        settings: const RenderSettings(
-          debug: DebugDrawOptions(skeletons: true),
+        }
+      }
+      mesh.endStep();
+
+      var project = ModelProject(
+        objects: <ModelObject>[
+          ModelObject(
+            id: 1,
+            name: 'root',
+            geometry: const SocketGeometry(),
+            transform: Matrix4.identity(),
+          ),
+          ModelObject(
+            id: 2,
+            name: 'tip',
+            geometry: const SocketGeometry(),
+            transform: Matrix4.translation(Vector3(0.0, 0.5, 0.0)),
+            parent: 1,
+          ),
+          ModelObject(
+            id: 3,
+            name: 'cube',
+            geometry: EditedGeometry(mesh),
+            transform: Matrix4.identity(),
+            skeletonIndex: 0,
+          ),
+        ],
+        nextId: 4,
+      );
+      // Bind-pose inverse matrices from the joints' own rest transforms —
+      // `poseOf`'s own job, the same arithmetic a real importer or
+      // `SetRestPose` already trusts, rather than this test inverting two
+      // matrices by hand a second way.
+      final bindPose = poseOf(
+        project,
+        ProjectSkeleton(
+          joints: <int>[1, 2],
+          inverseBindMatrices: <Matrix4>[
+            Matrix4.identity(),
+            Matrix4.identity(),
+          ],
         ),
       );
+      project = project.copyWith(
+        skeletons: <ProjectSkeleton>[
+          ProjectSkeleton(
+            joints: <int>[1, 2],
+            inverseBindMatrices: <Matrix4>[
+              for (final world in bindPose.worldMatrices())
+                Matrix4.copy(world)..invert(),
+            ],
+          ),
+        ],
+      );
 
-      await expectMatchesGolden(frame, 'test/goldens/skeleton-overlay.png');
+      final stage = ModelerStage.fromProject(
+        device: it.device,
+        project: project,
+      );
+      // A skinned mesh's own bounds describe the bind pose, so framing —
+      // and `skinReach`, which pads it — has to come from the joints
+      // instead; `SceneSync` sets that itself once the skeleton is built,
+      // as part of the same pass `stage.frameSubject()` below reads.
+      stage.frameSubject();
+      final renderer = Renderer.create(
+        device: it.device,
+        fallbackAlbedo: it.albedo,
+        fallbackNormal: it.normal,
+      );
+
+      Future<RenderedFrame> draw() async {
+        final result = renderer.render(
+          width: 240,
+          height: 160,
+          scene: stage.scene,
+          views: <RenderView>[
+            RenderView(
+              camera: stage.camera,
+              clearColor: Vector4(0.0, 0.0, 0.0, 1.0),
+            ),
+          ],
+          settings: const RenderSettings(
+            debug: DebugDrawOptions(skeletons: true),
+          ),
+        );
+        final pixels = await it.device.readPixels(result.frame);
+        expect(pixels, isNotNull, reason: 'the frame could not be read back');
+        return (
+          pixels: pixels!.buffer.asUint8List(),
+          width: 240,
+          height: 160,
+          drawCalls: result.drawCalls,
+        );
+      }
+
+      final rest = await draw();
+      await expectMatchesGolden(rest, 'test/goldens/skeleton-overlay.png');
+
+      // The tip, slid sideways — an ordinary edit through the same door a
+      // drag or `PoseJoint` both use: a new `ModelObject` value for the
+      // joint, nothing more. The root never moves, so a vertex still bound
+      // to it stays exactly where it was; a vertex bound to the tip has to
+      // follow, which is what turns a rigid slide of one joint into an
+      // actual shear of the mesh rather than the whole cube sliding as one
+      // block.
+      final bentProject = project.withObject(
+        project[2]!.copyWith(
+          transform: Matrix4.translation(Vector3(0.3, 0.5, 0.0)),
+        ),
+      );
+      stage.sync!.apply(bentProject);
+      final bent = await draw();
+
+      // Mutation: never build the engine `Skeleton` at all, or build it
+      // once and never look at it again once the joint moves — either
+      // leaves the tip a "disconnected socket", moving on its own with
+      // nothing bound to it, and this frame comes back pixel-identical to
+      // `rest`.
+      expect(
+        bent.pixels,
+        isNot(equals(rest.pixels)),
+        reason:
+            'moving the tip joint did not change a single pixel of the '
+            'mesh half bound to it',
+      );
     });
   });
 

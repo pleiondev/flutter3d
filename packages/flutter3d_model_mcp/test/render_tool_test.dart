@@ -7,7 +7,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:dart_mcp/client.dart';
-import 'package:flutter3d_formats/flutter3d_formats.dart';
+import 'package:flutter3d_core/formats.dart';
 import 'package:flutter3d_model_mcp/flutter3d_model_mcp.dart';
 import 'package:stream_channel/stream_channel.dart';
 import 'package:test/test.dart';
@@ -136,4 +136,23 @@ void main() {
       expect(plainPng, isNot(equals(highlightedPng)));
     },
   );
+
+  test('mode: wireframe reaches the tool boundary and draws', () async {
+    // `mcp-08n`'s fourth mode, checked where an agent actually touches it:
+    // the string in the schema has to reach `RenderShading.wireframe`.
+    // `render_modes_test.dart` is where the picture itself is measured — a
+    // cube's twelve polygon edges and not the triangulation's eighteen; this
+    // is the wiring, which is the half a typo in one string would break
+    // while every measurement of the mode stayed green.
+    await call('addPrimitive', <String, Object?>{'kind': 'box'});
+    final material = await call('render');
+    final wireframe = await call('render', <String, Object?>{
+      'mode': 'wireframe',
+    });
+    expect(wireframe.isError, isNot(true));
+    expect(
+      base64Decode((wireframe.content.last as ImageContent).data),
+      isNot(equals(base64Decode((material.content.last as ImageContent).data))),
+    );
+  });
 }

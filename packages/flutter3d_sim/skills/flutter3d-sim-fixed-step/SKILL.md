@@ -86,4 +86,4 @@ A level is validated before it runs, and `LevelValidator` reports the coordinate
 of a problem rather than "the file is broken". `LevelIssue` values are warnings
 a caller can show; the level still loads where it can. Geometry, spawns,
 visibility and the surface table live here with no mesh and no device near them
-— turning a level into something drawable is `flutter3d_bridge`.
+— turning a level into something drawable is `flutter3d_app`.

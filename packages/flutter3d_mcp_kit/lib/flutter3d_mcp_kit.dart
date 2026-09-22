@@ -9,5 +9,6 @@
 library;
 
 export 'src/answers.dart';
+export 'src/argument_check.dart';
 export 'src/loopback_http.dart';
 export 'src/tool_table.dart';

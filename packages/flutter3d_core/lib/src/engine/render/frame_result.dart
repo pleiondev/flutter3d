@@ -11,7 +11,86 @@ library;
 
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 
+import 'frame_graph.dart' show PassSkip, SkippedPass;
 import 'render_settings.dart' show RenderSettings;
+
+/// What one node of the frame graph cost — `gfx-01n`'s own row.
+///
+/// **A frame total says a frame got slower and not where.** Four passes draw
+/// in an ordinary frame — the shadows, the scene, the sky, the composite —
+/// and "the frame is up twelve draw calls" is the same sentence whether the
+/// shadow map gained a cascade or somebody added an overlay. Per pass, it is
+/// one sentence and it names the pass.
+///
+/// A record rather than a class because it is read and never built by
+/// anything outside the renderer, and a named one because the shape is
+/// written out in four files and was drifting.
+typedef FramePass = ({
+  /// The graph node's own name.
+  String name,
+
+  /// What `RenderNode.isActive` said at the node this timing came from. See
+  /// [FrameResult.passes] for why absence, not `false`, is how a pass that
+  /// did not run is reported.
+  bool active,
+
+  /// Wall-clock time inside this node's own `execute`.
+  int micros,
+
+  /// Draws this node encoded. Zero for a node that only moves textures
+  /// about — the composite's own full-screen triangle is a draw and counts.
+  int drawCalls,
+  int triangles,
+  int pipelineSwitches,
+});
+
+/// What smoothed the edges of a frame, as opposed to what was asked for —
+/// `gfx-20n`.
+///
+/// **Two mechanisms that a caller thinks of as one setting, and one of them
+/// turns itself off.** Multisampling belongs to the scene pass's attachments;
+/// the post-process pass is a node in the graph. They are asked for
+/// separately and they interact: attachments in one target must agree on
+/// sample count, so the moment anything consumes the surface buffer the scene
+/// pass stops multisampling — switch occlusion on and the edges get worse,
+/// with nothing anywhere saying why.
+///
+/// That is the readback this type exists for. [msaaDeclined] names the reason
+/// rather than leaving a caller to compare a sample count against a setting
+/// and guess.
+final class EffectiveAntiAliasing {
+  const EffectiveAntiAliasing({
+    required this.msaaSamples,
+    required this.fxaa,
+    required this.msaaDeclined,
+  });
+
+  /// Samples the scene pass actually drew with. One means none.
+  final int msaaSamples;
+
+  /// Whether the post-process pass ran.
+  ///
+  /// Derivable from `FrameResult.passes`, and stated here anyway: a caller
+  /// asking "what smoothed my edges" should get one answer rather than a
+  /// number and a list to search.
+  final bool fxaa;
+
+  /// Why multisampling was not used, or null when it was — or when nobody
+  /// asked for it.
+  ///
+  /// A sentence rather than a code, because there are exactly two reasons and
+  /// both are things a caller can act on: the device has no multisampled
+  /// offscreen target, or something in this frame reads the surface buffer.
+  final String? msaaDeclined;
+
+  /// Whether the frame got no anti-aliasing at all.
+  bool get none => msaaSamples <= 1 && !fxaa;
+
+  @override
+  String toString() =>
+      'EffectiveAntiAliasing(msaa $msaaSamples, fxaa $fxaa'
+      '${msaaDeclined == null ? "" : ", msaa declined: $msaaDeclined"})';
+}
 
 /// One rendered frame.
 final class FrameResult {
@@ -31,10 +110,61 @@ final class FrameResult {
     required this.shadowCasters,
     required this.skinnedDraws,
     this.shadowsDenied = 0,
+    this.batchedDraws = 0,
     this.wireframeDeclined = false,
     this.exposure = RenderSettings.defaultExposure,
-    this.passes = const <({String name, bool active, int micros})>[],
+    this.passes = const <FramePass>[],
+    this.skipped = const <SkippedPass>[],
+    this.antiAliasing = const EffectiveAntiAliasing(
+      msaaSamples: 1,
+      fxaa: false,
+      msaaDeclined: null,
+    ),
   });
+
+  /// How many individual draws the automatic batcher replaced — `gfx-67n`.
+  ///
+  /// Zero unless `RenderSettings.batchIdenticalDraws` asked for it. A hundred
+  /// identical meshes drawn in one call look exactly like a hundred drawn in a
+  /// hundred, so the saving needs a number: this is `100` for that frame, and
+  /// `drawCalls` is the figure it came off.
+  final int batchedDraws;
+
+  /// What actually smoothed the edges — `gfx-20n`.
+  ///
+  /// Beside [skipped] rather than folded into it, because multisampling is
+  /// not a pass: it is a property of the scene pass's attachments, and a
+  /// frame that quietly stopped multisampling has no node to report.
+  final EffectiveAntiAliasing antiAliasing;
+
+  /// Every registered pass that did not run this frame, and why — `gfx-39n`.
+  ///
+  /// [passes] says what ran and what each cost. This says what did not, which
+  /// is the harder question and the one that actually gets asked: a frame
+  /// missing its occlusion looks exactly like a frame whose occlusion did
+  /// nothing, and [culled] only counts them.
+  ///
+  /// It joins [shadowsDenied], [wireframeDeclined] and [exposure] rather than
+  /// starting a new convention — this class already answers "you asked for
+  /// something and here is what you actually got" three times, and those three
+  /// each needed their own field because there was no general form. This is
+  /// the general form.
+  final List<SkippedPass> skipped;
+
+  /// Why [name] did not run this frame, or null if it ran or was never
+  /// registered.
+  ///
+  /// The two nulls are deliberately one: a caller holding a name from
+  /// [passes] is asking about a pass that ran, and a caller holding a name
+  /// from nowhere has a question this frame cannot answer. Telling those
+  /// apart is `FrameGraphError`'s job, at compile, where a name nothing
+  /// carries is refused outright.
+  PassSkip? skipReasonOf(String name) {
+    for (final entry in skipped) {
+      if (entry.name == name) return entry.reason;
+    }
+    return null;
+  }
 
   /// The exposure the composite used: the setting's, or — with auto exposure
   /// on — what the meter had adapted to by this frame.
@@ -155,7 +285,7 @@ final class FrameResult {
   /// two questions — "did the graph keep this node" and "what did the node
   /// itself say about its own readiness" — happen to agree now and are not
   /// the same question.
-  final List<({String name, bool active, int micros})> passes;
+  final List<FramePass> passes;
 }
 
 /// What [Renderer.renderPost] handed back.

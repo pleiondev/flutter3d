@@ -3,7 +3,7 @@
 /// capturing real stdout.
 library;
 
-import 'package:flutter3d_formats/flutter3d_formats.dart';
+import 'package:flutter3d_core/formats.dart';
 
 /// Writes [report] to [out], one line per warning and one per difference.
 void writeReport(ExportReport report, StringSink out) {

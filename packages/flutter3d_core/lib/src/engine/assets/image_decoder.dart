@@ -1,6 +1,6 @@
 import 'dart:typed_data';
 
-import 'package:flutter3d_formats/flutter3d_formats.dart';
+import 'package:flutter3d_core/formats.dart';
 
 /// Decodes an encoded image — PNG, JPEG, whatever [uploadEncodedImage]'s
 /// caller hands it — into straight (not premultiplied) RGBA8 pixels, or

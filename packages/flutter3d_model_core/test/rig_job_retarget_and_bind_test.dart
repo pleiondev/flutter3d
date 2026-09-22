@@ -1,17 +1,16 @@
 /// `anim-25`'s own `RetargetClipJobRequest` and `BindWeightsJobRequest` —
-/// the two `RigJob` kinds that run `flutter3d_rig`'s algorithms. They lived in
-/// that package while it depended on this one; see `lib/src/rig_job.dart` for
-/// why they are beside the other three now.
+/// the two `RigJob` kinds that run the rig algorithms in `lib/src/rig/`. They
+/// lived in a package of their own while it depended on this one; see
+/// `lib/src/rig_job.dart` for why they are beside the other three now.
 ///
 ///     dart test test/rig_job_retarget_and_bind_test.dart
 library;
 
 import 'dart:typed_data';
 
-import 'package:flutter3d_formats/flutter3d_formats.dart';
+import 'package:flutter3d_core/formats.dart';
 import 'package:flutter3d_mesh/flutter3d_mesh.dart';
 import 'package:flutter3d_model_core/flutter3d_model_core.dart';
-import 'package:flutter3d_rig/flutter3d_rig.dart';
 import 'package:test/test.dart';
 import 'package:vector_math/vector_math.dart';
 

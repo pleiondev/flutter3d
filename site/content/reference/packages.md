@@ -4,7 +4,7 @@ description: Every package in the workspace, what it owns, what it depends on, a
 
 # Package index
 
-Thirty-three packages and seven applications, resolved as one [pub workspace](https://dart.dev/tools/pub/workspaces), so a single `flutter pub get` covers everything against one lock file. Twenty-seven of the packages are on pub.dev at the 0.6.0 set — `pad_input` and `pointer_lock` on a line of their own at 0.4.1, `flutter3d_samples` on its at 0.4.3. `flutter3d_game_strategy` is the one that lives in this checkout only, because its types still encode how many sides a match may have.
+Thirty-six packages and nine applications, resolved as one [pub workspace](https://dart.dev/tools/pub/workspaces), so a single `flutter pub get` covers everything against one lock file. Thirty-three of the packages carry 0.7.0, and any `^0.7.0` on one of them resolves against every other. `pad_input` and `pointer_lock` keep a line of their own at 0.4.1 and `flutter3d_samples` its own at 0.4.3, since none of the three names a sibling. Four names pub.dev has at 0.6.0 are no longer packages here: `flutter3d_backend`, `flutter3d_screens`, `flutter3d_session` and `flutter3d_bridge` were folded into `flutter3d_app` and `flutter3d_game`.
 
 ## Engine
 
@@ -15,19 +15,12 @@ Depends on `flutter3d_hardware` and nothing below it. **Does not** re-export a b
 
 → [The frame](/core/rendering/) · [Scene graph](/core/scene/) · [Geometry](/core/geometry/) · [Assets](/core/assets/)
 
-### `flutter3d_geometry` — the mesh, with no Flutter behind it
-`VertexLayout`, `MeshData`, `MeshBuilder`, the shape generators a scene is sketched from, `MeshGeometry` and `CpuMesh`, tangents by Lengyel, morph targets and `MorphTexture`, and `Ray` with the intersection arithmetic that reads a triangle. Import `package:flutter3d_geometry/flutter3d_geometry.dart`, or take it through `flutter3d`, which exports it whole.
+### `flutter3d_core` — the renderer with no Flutter behind it, and what it draws from
+The scene graph, the render graph, materials and animation, and two libraries under them that import on their own. `package:flutter3d_core/geometry.dart` is `VertexLayout`, `MeshData`, `MeshBuilder`, the shape generators a scene is sketched from, `MeshGeometry`, tangents by Lengyel, morph targets and `MorphTexture`, and `Ray` with the intersection arithmetic that reads a triangle. `package:flutter3d_core/formats.dart` is `ModelDocument` and everything a decoder fills in, `SurfaceMaterial`, `MaterialDocument`, `LightingModel`, `AnimationClip` and `AnimationTrack`, the readers and writers for glTF/GLB, OBJ, STL, USDZ, the engine's own `.f3d` and `.fmat`, and the FBX decoder that refuses with a reason. `flutter3d` exports all of it.
 
-It left the engine because `flutter3d` declares `flutter: sdk`: every file here named Flutter nowhere, and it bought nobody anything, since a package that depended on the engine to say `MeshData` resolved a Flutter SDK it had no use for and `dart pub get` in a container without one failed. `DeviceMesh` stayed behind with the types that have met a `GraphicsDevice` — that is the line the split was made along, and the only one.
+Plain Dart, because a modeller's document layer, a tool an agent starts with `dart run` and a service checking an upload all read a mesh or a `.glb` with no window. Geometry and formats were packages of their own until it turned out a library gives such a caller the same thing. What needs Flutter — the asset bundle, `dart:ui` image decoding and the defaults that reach for it — is the `flutter3d` shell.
 
-→ [Geometry](/core/geometry/)
-
-### `flutter3d_formats` — what a model arrives in
-`ModelDocument` and everything a decoder fills in, `SurfaceMaterial`, `MaterialDocument`, `LightingModel`, `AnimationClip` and `AnimationTrack`, and the readers for glTF/GLB, OBJ, the engine's own `.f3d` container and its `.fmat`. Import `package:flutter3d_formats/flutter3d_formats.dart`, or take it through `flutter3d`.
-
-The split with the engine is at the bytes: this package turns bytes into a document, and `flutter3d` is what fetches them and uploads the result. So `decodeModelInIsolate` with its `kIsWeb`, `BundleAssetSource` and `FileAssetSource`, the bundle resolvers, and everything naming a `GraphicsDevice` — `ModelAsset`, `ModelPart`, texture upload, the KTX2 reader — all stayed behind. `AssetSource` itself is here, as the abstraction both sources extend.
-
-→ [Assets](/core/assets/)
+→ [Geometry](/core/geometry/) · [Assets](/core/assets/)
 
 ### `flutter3d_hardware` — the HAL
 The hardware abstraction layer, and the vocabulary a backend implements: `GraphicsDevice`, `CommandEncoder`, `PassState`, `TextureHandle`, `GeometryBuffer`, samplers, formats, vertex layout specs, a render target pool. **No implementation at all.** Two rules, both checked: no `flutter_gpu` import ever, and no `dart:ui` apart from one member on `GraphicsDevice` that has to name it.
@@ -72,7 +65,7 @@ It is how forty-four golden scenes are checkable with no GPU in the room, and it
 ### `flutter3d_conformance`
 The suite any fourth backend would have to pass before it counted as one, plus the cross-backend comparison with per-scene budgets.
 
-Two tiers, and the split is a correction. The library said it was shader-free as a whole, and that stopped being true the day a check needed a pipeline: twenty-seven of the thirty-six link stages and draw. `coreChecks` is what runs on clears, uploads and readback alone, so a backend can ask it before compiling a single shader; `shaderChecks` is the rest. A backend that believed the old promise would have met every one of those failures with nothing it could do about them yet — and the phrasing here is the one `tool/structure.dart` holds to the lists themselves, so the sentence cannot go stale again without the scan saying so.
+Two tiers, and the split is a correction. The library said it was shader-free as a whole, and that stopped being true the day a check needed a pipeline: twenty-eight of the thirty-seven link stages and draw. `coreChecks` is what runs on clears, uploads and readback alone, so a backend can ask it before compiling a single shader; `shaderChecks` is the rest. A backend that believed the old promise would have met every one of those failures with nothing it could do about them yet — and the phrasing here is the one `tool/structure.dart` holds to the lists themselves, so the sentence cannot go stale again without the scan saying so.
 
 → [Writing a HAL backend](/core/backends/)
 
@@ -92,11 +85,6 @@ That is not tidiness. A server that verifies a submitted run has to replay it th
 
 → [Simulation layer](/core/simulation/)
 
-### `flutter3d_game`
-What was left when the simulation moved out: the touch stick, the touch button and the controls that lay them out, keyboard and mouse, the accessibility settings that read a `MediaQuery`, and the diagnostics sink. Eight files that wanted Flutter, out of the eighty-nine this package used to hold.
-
-Re-exports the whole of `flutter3d_sim` and `flutter3d_physics` through it, so a game that imported this one keeps working unchanged.
-
 ### `flutter3d_physics`
 Collision shapes, a uniform-grid broadphase, sweeps and rays that do not tunnel, `CharacterController`, `Dynamics` and `RigidBody`. Plain Dart, no Flutter, no renderer, runs under `dart test`.
 
@@ -107,14 +95,14 @@ Collision shapes, a uniform-grid broadphase, sweeps and rays that do not tunnel,
 ### `flutter3d_game_shooter`
 Weapons, an arsenal, hitscan, projectiles and blasts, monsters with a six-state brain, an inventory, gifts and pickups, and `GameSimulation`, a shooter's step order.
 
-Three barrels: `flutter3d_game_shooter.dart` (nothing imports the renderer), `bridge.dart` (`WeaponView`, which does), and `sample.dart` (this repository's own roster, so the package itself ships no content).
+Three barrels: `flutter3d_game_shooter.dart` (nothing imports the renderer or names Flutter), `bridge.dart` (`WeaponView` and the readouts, which do), and `sample.dart` (this repository's own roster, so the package itself ships no content).
 
 → [What a shooter adds](/shooter/) · [Tutorial](/shooter/tutorial/)
 
 ### `flutter3d_game_platformer`
 `Runner` and `RunnerTuning`, `Surfaces`, `Purse`, collectibles, checkpoints, hazards, springs, one-way platforms, conveyors, crumbling and breakable blocks, climbables, crates, `Patrol`, `Leaper` and `Hunter` enemies, `FollowCamera`, and `PlatformerSimulation`.
 
-Nothing here imports the renderer, so all of it runs in a test with no device.
+The simulation's barrel imports neither the renderer nor Flutter, so all of it runs in a test with no device; the readouts are in `bridge.dart`.
 
 → [What a platformer adds](/platformer/) · [Tutorial](/platformer/tutorial/)
 
@@ -132,11 +120,6 @@ Two probes ran before any of it was written, and both moved the design. Ten thou
 
 It is what finally exercised three things the engine had built and no game had used: `InstancedMeshNode`, the picking pass, and the flow fields in `flutter3d_sim`'s navigation.
 
-## Where the halves meet
-
-### `flutter3d_bridge`
-The only package allowed to depend on both sides. `LevelLoader` (a document becomes a scene *and* a collision world, and its `rebuildBrushes` draws the walls again after a breach), `VisibilityCuller` (the visibility table applied to the batches once a frame), `SoundOcclusion` (the walls between a sound and the ear, as a gain and a muffle), `ActorVisuals`, `FixtureVisuals`, `SharedMeshes`. Everything in it is mechanism; what a torch looks like arrives through `FixtureAppearance` and `ActorAppearance`.
-
 ## Keeping the rules
 
 There is no package for this. The rules about how the repository is arranged (which package may name a genre, which file may reach a renderer, where a `static final Vector3` may not be) live in `tool/structure.dart` and run before a build:
@@ -145,16 +128,16 @@ There is no package for this. The rules about how the repository is arranged (wh
 dart run tool/structure.dart
 ```
 
-Thirty-two rules, under a second, no `pub get` and no device: every one of them reads source text. They were a `boundaries_test.dart` in each package until thirteen packages of twenty-one turned out to have none, all thirteen clean and not one of them checked. A runner that walks `packages/` covers a package the day it exists.
+Thirty-five rules, under a second, no `pub get` and no device: every one of them reads source text. They were a `boundaries_test.dart` in each package until thirteen packages of twenty-one turned out to have none, all thirteen clean and not one of them checked. A runner that walks `packages/` covers a package the day it exists.
 
-The detectors prove they fire before a single file is scanned, and a broken detector stops the run rather than letting thirty-two green scans be reported behind it. See [Testing](/reference/testing/).
+The detectors prove they fire before a single file is scanned, and a broken detector stops the run rather than letting thirty-five green scans be reported behind it. See [Testing](/reference/testing/).
 
 ## Assembling an application
 
-Two packages exist because the same wiring was written out, close to identically, in three `main.dart` files. A third is a barrel over them, plus the backend choice, which used to be its own package until most of its consumers turned out to already reach it through this same barrel — and the handful that didn't cost nothing to repoint.
+Two packages hold what an application is assembled from: `flutter3d_app` what every application on the engine repeats, and `flutter3d_game` what a game adds on top. The line between them is who uses it — the modeller, the level editor and the lessons stand on the first and never touch the second.
 
 ### `flutter3d_app`
-One import for the assembly layer:
+One import for what every application shares:
 
 ```dart
 import 'package:flutter3d_app/flutter3d_app.dart';
@@ -162,24 +145,24 @@ import 'package:flutter3d_app/flutter3d_app.dart';
 final device = await openDevice(width: 1280, height: 720);
 ```
 
-Thirty-five lines of `export`, plus which graphics backend a build draws through: `openDevice({required width, required height})` returns a `GraphicsDevice`. It re-exports `flutter3d_session`, `pad_input` and `pointer_lock`. None of those three know about each other, and this does not change that. What it buys is that an application says "the assembly layer" once, the way importing `flutter3d` says "the renderer" once instead of naming `flutter3d_hardware`.
+Which graphics backend a build draws through: `openDevice({required width, required height})` returns a `GraphicsDevice`. `SceneSurface` is the widget that hands a frame to Flutter, with its `RenderSettings` read from a function called once per frame rather than stored, so anything derived from the camera is derived after it moved. `FrameClock` is how long since the last frame, measured on the wall clock rather than read off the ticker: five applications had written that out, three said a sixtieth of a second on the first frame and one said nought, and a ticker's timestamp is the vsync a frame was aimed at, which steps in pairs when the GPU falls behind. `WidgetSurface` draws a live widget onto a quad in the scene.
+
+`LevelLoader` turns a document into a scene *and* a collision world, and its `rebuildBrushes` draws the walls again after a breach; `VisibilityCuller` applies the visibility table to the batches once a frame, and `SharedMeshes` keeps one mesh per shape. `Storage` and `BinaryStorage` keep a document where each platform keeps such things. A second entry point, `package:flutter3d_app/native.dart`, holds the one piece that needs a filesystem (an atomic document write), kept off the main barrel so a `dart:io` import never stops a web build compiling.
 
 **Three decisions, made three different ways.** Web or native is a conditional export, picked at compile time, because `flutter_gpu` does not compile for the web and `dart:js_interop` does not compile for macOS. On the native half, Impeller or software is a runtime `try`/`catch` instead: `GpuRenderBackend.create()` is tried first, and a throw — Flutter GPU refusing to start on Skia, or a platform where Impeller was never enabled — falls back to `flutter3d_cpu`'s `CpuDevice`, since `flutter_gpu` ships with the SDK and no compile-time check can see whether it will actually start. On the browser half, WebGPU or WebGL2 is the same shape of `try`/`catch` — `navigator.gpu` may be absent, or present and hand out no adapter on a blocklisted driver, and no `dart.library.*` check sees either — but it is reached only behind `--dart-define=FLUTTER3D_WEBGPU=true`, because a probe that can call both openers keeps both backends reachable and dart2js ships what it can reach: 376,649 bytes of `main.dart.js` on the strategy demo, 14.9%, measured on two builds of the same checkout. Deliberately does not decide resolution or shadow budget — `kFixedResolution` reports whether the *primary* backend renders to a fixed internal target, and the size stays the application's own choice.
 
-The backend choice is kept out of `flutter3d_session`, which would otherwise have to depend on both backends and drag WebGL into `apps/flutter3d_editor`, which has no browser build to choose for.
+Deliberately **not** behind this barrel: `flutter3d`, `flutter3d_sim`, `flutter3d_game` and a genre package. Import them by name, so the choice is visible in the pubspec.
 
-Deliberately **not** behind this barrel: `flutter3d`, `flutter3d_bridge`, `flutter3d_game` and a genre package. Those are content, meaning what a scene looks like and what kind of game this is, and a facade cannot choose a genre on an application's behalf.
+The four games, the modeller, the level editor and the lessons import it, and so do both seeds a new project starts from.
 
-Six of the seven applications import it — the four games, the template and the modeller, which reaches `openDevice` through it in one exported line. `flutter3d_editor` is the one that does not, and that is a gap rather than a second pattern: see [Assembling an application](/core/session/).
+### `flutter3d_game`
+What a game adds: the touch stick, the touch button and the controls that lay them out, keyboard, mouse and gamepad through one set of bindings, the accessibility settings that read a `MediaQuery`, and the run. `RunSession<L>` is loading a level, restarting it, moving to the next, saving, resuming, and reporting how a run ended — an ordinary class that two of the three games wrap in a cubit, which the package neither knows nor requires.
 
-### `flutter3d_session`
-The seam a rendered frame reaches Flutter through, the run being played, and the screens a game has that are not the game — neither the simulation nor the renderer, so it belongs to neither `flutter3d_bridge` nor either of them alone. `SceneSurface` is the widget that hands a frame to Flutter, with its `RenderSettings` read from a function called once per frame rather than stored, so anything derived from the camera is derived after it moved. `RunSession<L>` is loading a level, restarting it, moving to the next, saving, resuming, and reporting how a run ended — an ordinary class that two of the three games wrap in a cubit, which the package neither knows nor requires. `FrameClock` is how long since the last frame, measured on the wall clock rather than read off the ticker: five applications had written that out, three said a sixtieth of a second on the first frame and one said nought, and a ticker's timestamp is the vsync a frame was aimed at, which steps in pairs when the GPU falls behind.
+**The screens a game has that are not the game** live under `lib/src/screens/`: a settings panel with volumes, gamepad and accessibility sliders, a rebinding list that takes a key or a pad button, `AutomapView` for what an `Automap` has seen, and where a licence's attribution goes. Extracted into `flutter3d_screens` once, when the second game wanted it, which is this repository's habit rather than a new rule — `CameraRig` says the same about itself. What triggered it was accessibility: rebinding a control is the accommodation that matters most, and the alternative was four hundred lines of panel copied into the second game.
 
-`test/one_assembly_test.dart` checks the rule this package exists to keep: exactly one function per game turns a level document into a run. The platformer had six copies of that assembly before extraction, and they had drifted.
+`ActorVisuals` and `FixtureVisuals` draw what a level's simulation moves; what a torch looks like arrives through `FixtureAppearance` and `ActorAppearance`. `SoundOcclusion` is the walls between a sound and the ear, as a gain and a muffle.
 
-**The screens a game has that are not the game** live under `lib/src/screens/`: a settings panel with volumes, gamepad and accessibility sliders, a rebinding list that takes a key or a pad button, `AutomapView` for what an `Automap` has seen, and where a licence's attribution goes. Nothing here draws a frame or steps a simulation.
-
-Extracted into `flutter3d_screens` once, when the second game wanted it, which is this repository's habit rather than a new rule — `CameraRig` says the same about itself. What triggered it was accessibility: rebinding a control is the accommodation that matters most, and the alternative was four hundred lines of panel copied into the second game. It merged back in because this package already depended on it for `SaveFile`, and nothing else depended on it without also depending on this package. A second entry point, `package:flutter3d_session/native.dart`, holds the one piece that needs a filesystem (an atomic document write), kept off the main barrel so a `dart:io` import never stops a web build compiling.
+It does not re-export `flutter3d_sim`: a file that steps a simulation imports that package by name. `tool/structure.dart` holds the rule the run exists to keep: exactly one function per game turns a level document into a run. The platformer had six copies of that assembly before extraction, and they had drifted.
 
 → [Assembling an application](/core/session/)
 
@@ -188,7 +171,7 @@ Extracted into `flutter3d_screens` once, when the second game wanted it, which i
 ### `flutter3d_particles`
 One pool for the whole application, one draw call, plugged in through `PassContributor`. Emitters, affectors, curves and gradients, flipbooks, mesh particles, and `ParticleGlow` — the light a fire casts, measured from the fire's own particles.
 
-The simulation itself — `ParticleSystem`, emission, affectors, curves — lives in `flutter3d_particles_core`, a plain Dart package this one depends on and re-exports unchanged. Only the two files that draw a system ever imported Flutter, so the split is what lets `flutter3d_model_core`'s `BakeParticleSystemJobRequest` bake a system into a cache with no window in front of it.
+The simulation and the two contributors that draw it are one plain Dart package. A contributor is handed a pass encoder by `flutter3d_core`, never a widget, so nothing here names Flutter — which is what lets `flutter3d_model_core`'s `BakeParticleSystemJobRequest` bake a system into a cache with no window in front of it.
 
 ### `flutter3d_audio`
 Positional audio: attenuation curves, panning, occlusion through a callback, voice limiting, buses. `SilentBackend` and `SoLoudBackend`, so a machine with no audio device still plays the game.
@@ -211,6 +194,18 @@ Sticks, triggers and buttons, read as a snapshot the caller asks for once per fr
 Button names are **physical positions** (`face.south`, not `a`), because the string lands in a player's config file and is read back years later, possibly on a different pad: Xbox's lower face button is `A`, PlayStation's is Cross, and Nintendo swaps `A` and `B`.
 
 Knows nothing about games. The translation into actions is `PadInput` in `flutter3d_game`, beside the keyboard's. The web backend is pure Dart over `navigator.getGamepads()`; macOS, iOS and Android wait for a controller in hand, for the reason `ARCHITECTURE.md` §11.1 records. Windows and Linux are not implemented yet.
+
+### `flutter3d_stereo`
+A rig of two eyes under a head, and `StereoSurface`, the widget that draws the pair side by side into one frame. Each eye gets the off-axis frustum its half of the screen calls for, from the viewer profile and the screen's size in metres. The head is turned by a `HeadTracker`; the one that reads a sensor is Android's rotation vector, three degrees of freedom. It is a pair for a phone in a holder: there is no lens distortion correction and no XR runtime behind it.
+
+### `flutter3d_lab`
+Virtual laboratory simulations, of which the pendulum is the first. Plain Dart, so a server can replay a student's run with no Flutter SDK, and `divergenceFrom` names the first checkpoint at which a run departs from the reference.
+
+### `flutter3d_net`
+Rollback netcode over `flutter3d_sim` for two peers: input frames exchanged per step, prediction from the last frame that arrived, a rollback and replay when a confirmation disagrees. `NetTransport` is the one door to a network. `LoopbackTransport` stands in for it with a fixed delay and a seeded loss rate, and `WebSocketTransport` is a real one.
+
+### `flutter3d_net_webrtc`
+`NetTransport` over a WebRTC data channel, peer to peer, with a relay that carries only the SDP and ICE handshake. Its own package because it is the one that names a plugin.
 
 ## Tools
 
@@ -255,7 +250,16 @@ Twenty-eight commands so far, each carrying its own name, a sentence for the men
 ### `flutter3d_model_mcp`
 The modeller offered to an agent, over MCP on stdio, one project per process — the shape `flutter3d_editor_mcp` has for levels.
 
-An entry point and a usage line today; running it says the server is not built yet and exits non-zero. What it already proves is the property everything under it is arranged for: a machine with the Dart SDK and no Flutter can resolve this package and start it, which CI asks in a container of exactly that kind.
+A hundred and forty-seven editing tools, each one of the editor's own commands under its own name, plus `render` and `renderSheet`, which draw the project through the software backend and hand the agent a picture of what it just did. A path that does not exist yet starts a fresh project there, so the first call can be `addPrimitive`. It also proves the property everything under it is arranged for: a machine with the Dart SDK and no Flutter can resolve this package and start it, which CI asks in a container of exactly that kind.
+
+### `flutter3d_sim_mcp`
+Two servers. `SimMcpServer` is a level an agent can play without seeing it: open a level, step it with input, read positions and health back in words, capture a headless frame, and write the run out as a `.f3drun`. `DiagnosticMcpServer` answers why a frame is wrong: a debug view of normals and depth, the HDR value of one pixel, the passes the frame graph ran, a scan for NaN.
+
+### `flutter3d_build`
+The build hook `dart run flutter3d_build:init` wires into a project. It converts model and texture sources into what the engine loads on every build, from the rules in `flutter3d_assets.yaml`, with a content-hash cache so an unchanged source costs nothing. Textures are cooked once into a block format the device turns into BC, ASTC, ETC2 or RGBA8 when it loads them. Plain Dart, because the Flutter tool starts a hook as a separate process with no SDK to resolve inside it. See [The asset pipeline](/reference/asset-pipeline/) for `init`, the manifest, the families, and what a failed hook actually says.
+
+### `flutter3d_editor_widgets`
+The controls the modeller and the level editor share, so neither keeps its own copy: number, colour, range, enum and texture fields and the row they assemble into, over one theme.
 
 ### `flutter3d_mcp_kit`
 What the four MCP servers share, written once: `OfferedTool`, a tool and the code that runs it as one value; `ToolTableServer`, a server that is a list of those over one session; `Answer` and `PictureAnswer`, with the functions that turn a refusal into an error result an agent reads rather than a server that failed; and `LoopbackMcpServer`, any of those servers over `127.0.0.1` HTTP with a token per server, for an application handing an agent the session a person already has open. Plain Dart.
@@ -277,8 +281,20 @@ A map, two sides and a match played to a finish: a camera over the ground, a box
 ### `apps/flutter3d_editor`
 The first application here that is not a game: opens a level document with the same `LevelLoader` the games use, and lets somebody fly around it, drag what's in it, and write it back. What it keeps is the half that reaches a device — the window, the disk, the camera, the frame; everything else is `flutter3d_editor_core`. → [The level editor](/core/editor/)
 
-### `apps/flutter3d_template_app`
-The application a new project starts as: a level you can walk around, with no genre package. It opens its device through `flutter3d_app`'s `openDevice` in one exported line, which is what gives a scaffolded project the web build and the software fallback without its author deciding anything — see [Assembling an application](/core/session/).
+### `apps/flutter3d_modeler`
+The model editor: object, mesh, material, UV, sculpt, retopology, paint, simulation, animation, render and scene modes over one project document, with an undo history that records who made each change, a person or an agent. It runs on macOS and in a browser, and its web build is what [models.pleion.dev](https://models.pleion.dev) serves. The [tutorial](https://models.pleion.dev/learn/modeler/) walks six cases through it.
+
+### `apps/flutter3d_lesson_viewer`, `apps/flutter3d_stereo_lesson_viewer`
+A lesson is a level document with steps in it. The viewer plays the steps: where the camera stands, what is shown and hidden, and a question with its answers. The stereo one is the same player behind a `StereoRig`.
+
+### `apps/flutter3d_lab_pendulum`
+The pendulum laboratory from `flutter3d_lab`, as something a student runs.
+
+### `packages/flutter3d_app/example`
+The smallest application on the engine: a device, a renderer, a lit cube and a camera that orbits it. No level, no body and no genre — what a project that is not a game starts from.
+
+### `packages/flutter3d_game/example`
+The application a new game starts as: a level you can walk around, with no genre package. It opens its device through `flutter3d_app`'s `openDevice` in one exported line, which is what gives a scaffolded project the web build and the software fallback without its author deciding anything — see [Assembling an application](/core/session/). The editor's four game templates are copies of it, and `apps/flutter3d_editor/test/scaffold_test.dart` holds them to that.
 
 ### `packages/flutter3d/example`
 The engine's own demo: a model browser with every feature switchable, and the frame-capture hook.
@@ -288,16 +304,16 @@ The engine's own demo: a model browser with every feature switchable, and the fr
 ```mermaid
 flowchart TB
   apps["apps/*"] --> genres["flutter3d_game_shooter<br>flutter3d_game_platformer<br>flutter3d_game_racing<br>flutter3d_game_strategy"]
-  apps --> bridge["flutter3d_bridge"]
-  apps --> session["flutter3d_session"]
-  apps --> picker["flutter3d_app<br>(backend choice)"]
-  picker --> gfx["flutter3d_hardware<br><b>the HAL</b>"]
-  picker -.-> onebackend["one backend<br><i>impeller · webgl · webgpu · cpu</i>"]
-  session --> bridge
-  genres --> game["flutter3d_game"]
-  bridge --> engine["flutter3d"]
-  bridge --> game
-  game --> physics["flutter3d_physics"]
+  apps --> game["flutter3d_game"]
+  apps --> app["flutter3d_app<br>(backend choice, surface, level loading)"]
+  game --> app
+  genres --> sim["flutter3d_sim"]
+  app --> gfx["flutter3d_hardware<br><b>the HAL</b>"]
+  app -.-> onebackend["one backend<br><i>impeller · webgl · webgpu · cpu</i>"]
+  app --> engine["flutter3d"]
+  app --> sim
+  game --> engine
+  sim --> physics["flutter3d_physics"]
   engine --> gfx
   onebackend --> gfx
   onebackend --> shaders["flutter3d_shaders"]
@@ -305,7 +321,7 @@ flowchart TB
   game --> devices["pointer_lock<br>pad_input<br><i>devices only</i>"]
 
   classDef forbidden stroke-dasharray: 4 3
-  game -.-x engine
+  sim -.-x engine
 ```
 
-The dashed crossed edge is the rule that pays: `flutter3d_game` must never reach the renderer, and the genre and backend rules in `tool/structure.dart` are what make it a fact instead of an intention.
+The dashed crossed edge is the rule that pays: `flutter3d_sim` must never reach the renderer, and the genre and backend rules in `tool/structure.dart` are what make it a fact instead of an intention.

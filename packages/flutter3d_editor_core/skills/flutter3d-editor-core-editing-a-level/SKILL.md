@@ -25,7 +25,7 @@ a property of the document rather than of a widget.
 ## What it does not do
 
 **It does not draw.** A `Handle` is a box with a size and a colour. Turning
-handles into something on a screen belongs to `flutter3d_bridge` and the editor
+handles into something on a screen belongs to `flutter3d_app` and the editor
 application.
 
 **It does not read a disk.** `Editing` parses text and writes text; `scaffold`

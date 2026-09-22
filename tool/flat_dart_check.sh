@@ -53,23 +53,64 @@ done
 # so what is left is an ordinary package the way pub.dev would see it.
 python3 - "$WORK" <<'PY'
 import pathlib
+import re
 import sys
 
 work = pathlib.Path(sys.argv[1])
 names = sorted(p.name for p in (work / 'packages').iterdir())
+
+
+def siblings_named(text, sections):
+    """The siblings a pubspec names under the given top-level sections."""
+    found = set()
+    section = None
+    for line in text.split('\n'):
+        top = re.match(r'^([a-z_]+):', line)
+        if top:
+            section = top.group(1)
+            continue
+        entry = re.match(r'^  ([a-z0-9_]+):', line)
+        if entry and section in sections and entry.group(1) in names:
+            found.add(entry.group(1))
+    return found
+
+
+texts = {
+    name: (work / 'packages' / name / 'pubspec.yaml').read_text() for name in names
+}
+depends = {name: siblings_named(texts[name], {'dependencies'}) for name in names}
+
 for name in names:
-    pubspec = work / 'packages' / name / 'pubspec.yaml'
-    text = pubspec.read_text()
     text = '\n'.join(
-        line for line in text.split('\n') if line.strip() != 'resolution: workspace'
+        line
+        for line in texts[name].split('\n')
+        if line.strip() != 'resolution: workspace'
     )
     # Siblings by path, so nothing reaches pub.dev for a version that is not
     # published yet — which is every one of the modeller's packages today.
-    overrides = ''.join(
-        f'  {other}:\n    path: ../{other}\n' for other in names if other != name
+    #
+    # **Only the ones this package reaches, not all of them.** An override is a
+    # dependency as far as the solver is concerned, so overriding every sibling
+    # handed each plain package `pointer_lock`, which needs the Flutter SDK —
+    # and on a machine without one, which is the machine this check is for,
+    # every package failed for a reason none of them had. A developer's laptop
+    # has Flutter on the PATH and never saw it.
+    reached = set()
+    queue = list(
+        siblings_named(texts[name], {'dependencies', 'dev_dependencies'})
     )
-    text += f'\ndependency_overrides:\n{overrides}'
-    pubspec.write_text(text)
+    while queue:
+        other = queue.pop()
+        if other in reached or other == name:
+            continue
+        reached.add(other)
+        queue.extend(depends[other])
+    overrides = ''.join(
+        f'  {other}:\n    path: ../{other}\n' for other in sorted(reached)
+    )
+    if overrides:
+        text += f'\ndependency_overrides:\n{overrides}'
+    (work / 'packages' / name / 'pubspec.yaml').write_text(text)
 PY
 
 while read -r name; do

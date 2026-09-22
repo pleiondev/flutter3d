@@ -252,6 +252,32 @@ abstract interface class GraphicsDevice implements TextureAllocator {
   /// whether there is one.
   int get maxAnisotropy;
 
+  /// How many colour attachments one render pass may open — `gfx-50n`.
+  ///
+  /// One, or more. **Asked rather than assumed, and the failure it guards
+  /// against is the worst kind this interface has:** on Impeller's OpenGL ES
+  /// path a second attachment reaches an `FML_CHECK`, so the process aborts
+  /// in release. It does not draw the wrong picture, log a warning or fall
+  /// back — it stops. Every other capability here guards against something
+  /// that produces a frame somebody can look at.
+  ///
+  /// A number rather than a boolean for the reason [maxAnisotropy] is one:
+  /// "does MRT work" and "how many" are different questions, and a deferred
+  /// pass wanting four attachments has to be able to find out that it may
+  /// have two.
+  ///
+  /// **What the engine does with a one**: the scene pass stops declaring that
+  /// it writes the surface buffer, so every node that reads it — occlusion,
+  /// reflections, the shafts, the lens — is culled by the frame graph and
+  /// reported as `PassSkip.starved`. Those effects are then off on that
+  /// device and the frame is otherwise the frame it always was. A caller who
+  /// wants to know why asks `CompiledFrameGraph.skipped`, which names the
+  /// pass and the reason; nothing has to guess from a picture.
+  ///
+  /// Opening more attachments than this throws rather than aborting, which is
+  /// the promise that makes the number worth publishing.
+  int get maxColorAttachments;
+
   /// The compiled bundle this device was built with.
   ///
   /// On the device rather than on `RenderServices` because it is a property of

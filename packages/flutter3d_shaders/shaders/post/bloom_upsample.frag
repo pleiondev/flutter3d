@@ -17,7 +17,7 @@ uniform sampler2D source_texture;
 
 uniform BloomInfo {
   /// x: 1/width, y: 1/height of the SOURCE texture. z: filter radius in source
-  /// texels. w unused.
+  /// texels. w: halation for this level of the chain, 0 for none.
   vec4 params;
 }
 bloom_info;
@@ -37,5 +37,25 @@ void main() {
 
   // 1 2 1 / 2 4 2 / 1 2 1, over sixteen.
   vec3 result = e * 4.0 + (b + d + f + h) * 2.0 + (a + c + g + i);
-  frag_color = vec4(result * (1.0 / 16.0), 1.0);
+  result *= (1.0 / 16.0);
+
+  // **Halation: the wide part of the glow goes red — `gfx-30n`.** On film the
+  // halo around a highlight is warm, because light that made it through the
+  // emulsion scatters off the backing and comes back, and the red layer sits
+  // deepest so it catches the most of it. The same asymmetry is what stops a
+  // digital bloom reading as a grey smear.
+  //
+  // Applied here rather than in the composite because here is where the
+  // *levels* are: the caller hands each level its own amount, so the tight
+  // core stays neutral and only the broad skirt warms. The composite sees one
+  // glow and could not tell them apart.
+  //
+  // Zero is an exact identity — the multiplier is one on every channel — and
+  // that is what keeps every recorded frame where it is.
+  float halation = bloom_info.params.w;
+  if (halation > 0.0) {
+    result *= vec3(1.0 + halation * 0.5, 1.0, 1.0 - halation * 0.35);
+  }
+
+  frag_color = vec4(result, 1.0);
 }

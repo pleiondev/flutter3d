@@ -173,6 +173,62 @@ final class PaintLayer {
   }
 }
 
+/// Which tiles differ between [before] and [after], as `(tx, ty)` pairs.
+///
+/// **What copy-on-write is for, read back.** `pro-pt-03`'s stroke replaces
+/// the tiles it touched and shares the rest *by reference*, so `identical`
+/// answers "did this tile change" without comparing sixteen kilobytes of
+/// pixels — and that answer is exactly the rectangle a renderer has to
+/// re-upload. Without it a stroke costs a whole texture decode and upload
+/// per gesture, which is the difference between painting and waiting.
+///
+/// A tile present in one stack and absent from the other counts as changed:
+/// absent is transparent, and a stroke that put paint where there was none
+/// is the ordinary case.
+List<(int, int)> dirtyTilesBetween(PaintStack? before, PaintStack? after) {
+  if (after == null) return const <(int, int)>[];
+  final out = <(int, int)>{};
+  for (var i = 0; i < after.layers.length; i++) {
+    final PaintLayer now = after.layers[i];
+    final PaintLayer? was = before != null && i < before.layers.length
+        ? before.layers[i]
+        : null;
+    for (var ty = 0; ty < now.tilesY; ty++) {
+      for (var tx = 0; tx < now.tilesX; tx++) {
+        final PaintTile? a = was?.tileAt(tx, ty);
+        final PaintTile? b = now.tileAt(tx, ty);
+        if (identical(a, b)) continue;
+        if (a == null && b == null) continue;
+        out.add((tx, ty));
+      }
+    }
+  }
+  final list = out.toList()
+    ..sort(((int, int) a, (int, int) b) {
+      final int byRow = a.$2.compareTo(b.$2);
+      return byRow != 0 ? byRow : a.$1.compareTo(b.$1);
+    });
+  return list;
+}
+
+/// The texel rectangle [tiles] cover, or null when there are none —
+/// `(x, y, width, height)`, clamped to a canvas of [canvas] texels a side.
+(int, int, int, int)? dirtyRectOf(List<(int, int)> tiles, int canvas) {
+  if (tiles.isEmpty) return null;
+  var minX = canvas, minY = canvas, maxX = 0, maxY = 0;
+  for (final (int tx, int ty) in tiles) {
+    minX = tx * paintTileSize < minX ? tx * paintTileSize : minX;
+    minY = ty * paintTileSize < minY ? ty * paintTileSize : minY;
+    final int right = (tx + 1) * paintTileSize;
+    final int bottom = (ty + 1) * paintTileSize;
+    maxX = right > maxX ? right : maxX;
+    maxY = bottom > maxY ? bottom : maxY;
+  }
+  maxX = maxX > canvas ? canvas : maxX;
+  maxY = maxY > canvas ? canvas : maxY;
+  return (minX, minY, maxX - minX, maxY - minY);
+}
+
 /// An ordered stack of [PaintLayer]s, bottom ([layers] index 0) to top.
 final class PaintStack {
   const PaintStack(this.layers);

@@ -14,7 +14,7 @@ dependencies:
   flutter:
     sdk: flutter
 
-  flutter3d: ^0.6.0
+  flutter3d: ^0.7.0
   flutter3d_app: ^0.7.0
   vector_math: ^2.2.0
 ```

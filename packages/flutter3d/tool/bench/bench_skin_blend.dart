@@ -15,8 +15,8 @@ library;
 
 import 'dart:typed_data';
 
+import 'package:flutter3d_core/geometry.dart';
 import 'package:flutter3d_core/src/engine/animation/skin_blend.dart';
-import 'package:flutter3d_geometry/flutter3d_geometry.dart';
 import 'package:vector_math/vector_math.dart' hide Ray;
 
 /// A grid of `(side + 1)²` vertices, [VertexLayout.skinned], each rigidly

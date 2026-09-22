@@ -2,7 +2,7 @@ import 'dart:developer' as developer;
 import 'dart:isolate';
 import 'dart:typed_data';
 
-import 'package:flutter3d_formats/flutter3d_formats.dart';
+import 'package:flutter3d_core/formats.dart';
 
 /// Whether this build has no isolates in it — see `model_loader.dart`'s own
 /// copy of this constant for why it replaces `kIsWeb` here (mcp-03n).

@@ -26,7 +26,7 @@ library;
 
 import 'dart:typed_data';
 
-import 'package:flutter3d_formats/flutter3d_formats.dart';
+import 'package:flutter3d_core/formats.dart';
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:flutter3d_webgl/engine_shaders.dart';
 import 'package:flutter3d_webgl/flutter3d_webgl.dart';

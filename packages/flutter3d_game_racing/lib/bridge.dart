@@ -1,7 +1,9 @@
-/// The visual half of the genre: a circuit turned into something to draw.
+/// The visual half of the genre: a circuit turned into something to draw, and
+/// the lap and position readouts a game lays out over it.
 ///
 /// This is the one file here allowed to see a renderer, and the isolation test
-/// names it. Everything else in this package is a simulation and stays testable
+/// names it. The readouts it exports are widgets rather than a renderer, and
+/// they are here because the simulation's barrel names no Flutter either. Everything else in this package is a simulation and stays testable
 /// without a device; the road, however, has to become triangles somewhere, and
 /// the rule this repository keeps is that the somewhere is a file that says so.
 ///
@@ -19,6 +21,8 @@ import 'package:flutter3d/flutter3d.dart';
 import 'package:vector_math/vector_math.dart';
 
 import 'flutter3d_game_racing.dart';
+
+export 'src/hud.dart';
 
 /// How finely the road is cut into rings.
 final class RoadMeshSettings {

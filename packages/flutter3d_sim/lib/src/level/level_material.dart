@@ -78,7 +78,7 @@ final class LevelMaterial {
   /// level written so far, and those go on being drawn from the fields above.
   ///
   /// This package may not import the engine, so nothing here reads the file;
-  /// `flutter3d_bridge`'s loader is the only place that knows both formats, and
+  /// `flutter3d_app`'s level loader is the only place that knows both formats, and
   /// it is where the fork lives.
   final String? fmat;
 

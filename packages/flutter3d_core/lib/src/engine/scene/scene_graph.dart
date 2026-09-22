@@ -9,6 +9,7 @@ library;
 
 export 'bvh.dart';
 export 'camera_node.dart';
+export 'free_look.dart';
 export 'light_buffer.dart';
 export 'light_node.dart';
 export 'lod_group.dart';

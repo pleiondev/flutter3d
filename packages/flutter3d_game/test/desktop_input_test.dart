@@ -9,6 +9,7 @@ library;
 import 'dart:async';
 import 'package:flutter/services.dart';
 import 'package:flutter3d_game/flutter3d_game.dart';
+import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pointer_lock/pointer_lock.dart';
 

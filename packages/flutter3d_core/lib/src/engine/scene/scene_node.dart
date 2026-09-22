@@ -1,6 +1,7 @@
 import 'package:vector_math/vector_math.dart';
 
 import '../animation/animation_target.dart' show AnimationTarget;
+import 'light_node.dart' show LightChannels;
 import 'scene.dart';
 
 /// A node in the scene graph: a name, a place in the hierarchy, and a transform.
@@ -34,6 +35,61 @@ base class SceneNode implements AnimationTarget {
   /// Monotonic source of version stamps, shared by every node.
   static int _versionCounter = 0;
 
+  /// How many times anything anywhere has been *touched*.
+  ///
+  /// Distinct from [_versionCounter], which also advances when a matrix is
+  /// recomputed. This one moves only when dirt is introduced: a transform set,
+  /// a node reparented, added or removed, a visibility flipped, a mesh's own
+  /// bounds invalidated. Starts at 1 so that zero is a value no node can have
+  /// verified itself at.
+  static int _dirtyEpoch = 1;
+
+  /// The counter as a public reading: "has anything anywhere changed since?"
+  ///
+  /// **What it is for — `gfx-62n`.** The lazy scheme above has one gap that
+  /// only shows at scale: there is no way to ask whether a frame needs to
+  /// redo work derived from transforms, short of reading every transform,
+  /// which is the work. `RenderList` hit this exactly. Keeping its spatial
+  /// tree meant repacking every mesh's bounding sphere each frame to find out
+  /// whether any had moved, and at 50 000 meshes that pack cost 3.3 ms —
+  /// as much as the cull it was there to make unnecessary, so the tree could
+  /// not win at any size.
+  ///
+  /// A reader that holds a previous value and finds it unchanged knows no node
+  /// was touched: not moved, not reparented, not added, not removed, not
+  /// hidden, and no mesh's own bounds invalidated.
+  ///
+  /// It over-reports on purpose. Setting a node to the position it already
+  /// holds advances it, and so does a move that nothing derived from
+  /// transforms cares about, because the alternative is comparing values on
+  /// every setter and paying for the comparison always to save a frame
+  /// rarely. Over-reporting costs a frame of redone work; under-reporting
+  /// draws the wrong picture.
+  static int get changeEpoch => _dirtyEpoch;
+
+  /// Advances [changeEpoch] for a change the graph itself cannot see.
+  ///
+  /// The one caller is `MeshNode.markBoundsDirty`, which is the only way
+  /// something a reader derived from the graph goes stale without a transform
+  /// being touched.
+  static void noteChange() => _dirtyEpoch++;
+
+  /// How many times a [worldMatrix] read has had to walk to the root.
+  ///
+  /// Here because the saving `gfx-65n` is about is invisible in a picture: a
+  /// frame that walks every ancestor of every drawable twice per pass draws
+  /// exactly what a frame that walks none of them draws. A count is what a test
+  /// can hold to, and what this one holds to is that a second read of an
+  /// unmoved node adds nothing.
+  static int get ancestorWalks => _ancestorWalks;
+  static int _ancestorWalks = 0;
+
+  /// Records that this node's local transform no longer matches its matrix.
+  void _markLocalDirty() {
+    _localDirty = true;
+    _dirtyEpoch++;
+  }
+
   SceneNode? _parent;
   final List<SceneNode> _children = <SceneNode>[];
   Scene? _scene;
@@ -54,12 +110,42 @@ base class SceneNode implements AnimationTarget {
   /// at a value no stamp can equal, so the first read always computes.
   int _seenParentVersion = -1;
 
+  /// The epoch at which [_worldMatrix] was last confirmed current, all the way
+  /// to the root. Zero is before the first epoch, so the first read walks.
+  int _verifiedEpoch = 0;
+
   /// Whether this node and its subtree are drawn.
-  bool visible = true;
+  bool get visible => _visible;
+
+  set visible(bool value) {
+    // Hiding a branch changes what [visibleInHierarchy] answers for everything
+    // under it, and that answer is cached on the epoch — `gfx-65n`. Guarded on
+    // the value because this is the one setter where the comparison is free and
+    // the common write is `visible = visible`: `LodGroup` sets every level's
+    // flag every frame to pick one.
+    if (_visible == value) return;
+    _visible = value;
+    _dirtyEpoch++;
+  }
+
+  bool _visible = true;
 
   /// Bitmask filtered against a render view's mask, in the manner of three.js
   /// layers. Bit 0 is the default layer.
   int layerMask = 1;
+
+  /// Which light channels this node accepts — `gfx-12n`.
+  ///
+  /// Met against [LightNode.channels]: a light reaches this node when the two
+  /// masks share a bit. Every bit by default, so a scene that has never heard
+  /// of channels is lit as it always was.
+  ///
+  /// **Not inherited down the graph**, unlike [visible]. A channel is a
+  /// statement about one surface — the sky dome that the torch must not
+  /// reach — and making it inherit would mean a prop parented to a lamp post
+  /// silently changing what lights it. A caller who wants a subtree to share
+  /// a channel sets it on the subtree, which is a loop they can read.
+  int lightChannels = LightChannels.all;
 
   SceneNode? get parent => _parent;
 
@@ -83,34 +169,34 @@ base class SceneNode implements AnimationTarget {
   @override
   void setPosition(double x, double y, double z) {
     _position.setValues(x, y, z);
-    _localDirty = true;
+    _markLocalDirty();
   }
 
   void setPositionFrom(Vector3 value) => setPosition(value.x, value.y, value.z);
 
   void translate(double dx, double dy, double dz) {
     _position.setValues(_position.x + dx, _position.y + dy, _position.z + dz);
-    _localDirty = true;
+    _markLocalDirty();
   }
 
   @override
   void setRotation(Quaternion value) {
     _rotation.setFrom(value);
     _rotation.normalize();
-    _localDirty = true;
+    _markLocalDirty();
   }
 
   /// Yaw about Y, then pitch about X, then roll about Z — the order that reads
   /// naturally for cameras and turntables.
   void setRotationYawPitchRoll(double yaw, double pitch, double roll) {
     _rotation.setEuler(yaw, pitch, roll);
-    _localDirty = true;
+    _markLocalDirty();
   }
 
   @override
   void setScale(double x, double y, double z) {
     _scale.setValues(x, y, z);
-    _localDirty = true;
+    _markLocalDirty();
   }
 
   void setUniformScale(double value) => setScale(value, value, value);
@@ -164,6 +250,23 @@ base class SceneNode implements AnimationTarget {
 
   /// The node-to-world transform, always current.
   Matrix4 get worldMatrix {
+    // **The read that does not walk — `gfx-65n`.** Everything below is correct
+    // and costs an ancestor walk every time, with no early-out, and a frame is
+    // made of reads: the inverse, the world bounds and the normal matrix all
+    // route through this, and every drawable was paying two full walks a pass.
+    //
+    // `_dirtyEpoch` advances only when something is *touched* — a transform
+    // set, a node reparented, a visibility flipped — and never when a matrix is
+    // merely recomputed. So a node that verified itself at the current epoch
+    // has an ancestor chain nobody has touched since, and the cached matrix is
+    // the answer. What this cannot do is tell one subtree's change from
+    // another's: move one node and every node in the scene walks once more.
+    // That is the trade, and it is the right way round, because the walk is
+    // per read and the change is per move.
+    if (_verifiedEpoch == _dirtyEpoch) return _worldMatrix;
+    _verifiedEpoch = _dirtyEpoch;
+    _ancestorWalks++;
+
     final parent = _parent;
 
     if (parent == null) {
@@ -217,6 +320,7 @@ base class SceneNode implements AnimationTarget {
   /// Forces the next [worldMatrix] read to recompute, used on reparenting.
   void _invalidateWorld() {
     _seenParentVersion = -1;
+    _dirtyEpoch++;
   }
 
   /// Aims the node's local -Z along [direction], expressed in the parent's space.
@@ -334,6 +438,83 @@ base class SceneNode implements AnimationTarget {
     return false;
   }
 
+  /// What this node and everything under it occupies, or null when the subtree
+  /// draws nothing.
+  ///
+  /// **A branch rejected whole — `gfx-66n`.** A node holding a thousand meshes
+  /// was a thousand frustum tests, because the only bound in the engine was a
+  /// mesh's own. This is the union over the subtree, cached on
+  /// [changeEpoch] like every other derived quantity here, so a scene that
+  /// nobody touched computes it once and a scene that moved computes it once
+  /// more.
+  ///
+  /// Recursive rather than iterative on purpose: the recursion reads
+  /// `subtreeBounds` on each child, so every node on the way down caches its
+  /// own answer and the whole tree costs one pass rather than one per node. A
+  /// hierarchy deep enough to overflow a stack here is one whose transforms
+  /// would have overflowed it first.
+  ///
+  /// The box is in world space and it is grown by whatever
+  /// [MeshNode.frustumCulled] refuses: a subtree holding a node that opted out
+  /// of culling answers [subtreeAlwaysDrawn], and a caller that rejects on this
+  /// box has to honour that or a sky dome disappears.
+  Aabb3? get subtreeBounds {
+    if (_subtreeEpoch == _dirtyEpoch) return _subtreeBounds;
+    _subtreeEpoch = _dirtyEpoch;
+    _subtreeAlwaysDrawn = false;
+
+    Aabb3? box = ownBounds;
+    if (box != null) {
+      // A fresh box rather than the node's own: the union below writes into it,
+      // and a `MeshNode`'s world bounds are the cache the whole engine reads.
+      box = Aabb3.copy(box);
+      _subtreeAlwaysDrawn = !ownBoundsAreCullable;
+    }
+
+    for (var i = 0; i < _children.length; i++) {
+      final child = _children[i];
+      final childBox = child.subtreeBounds;
+      if (child._subtreeAlwaysDrawn) _subtreeAlwaysDrawn = true;
+      if (childBox == null) continue;
+      if (box == null) {
+        box = Aabb3.copy(childBox);
+      } else {
+        box.hull(childBox);
+      }
+    }
+
+    return _subtreeBounds = box;
+  }
+
+  /// Whether anything in this subtree has opted out of frustum culling.
+  ///
+  /// Reading it resolves [subtreeBounds], which is what computes it.
+  bool get subtreeAlwaysDrawn {
+    subtreeBounds;
+    return _subtreeAlwaysDrawn;
+  }
+
+  /// This node's own contribution to [subtreeBounds], or null when it draws
+  /// nothing.
+  ///
+  /// For `MeshNode` to override, and for nothing else to call: it is the one
+  /// piece of "what does this node occupy" that a subclass knows and this class
+  /// does not. A plain node occupies nothing — it is a transform with children
+  /// under it — which is why the default is null rather than a point at the
+  /// origin, a box that would drag every subtree's bound out to meet it.
+  Aabb3? get ownBounds => null;
+
+  /// Whether [ownBounds] may be culled.
+  ///
+  /// For `MeshNode` to override from its own `frustumCulled`, so that a subtree
+  /// holding a sky dome or a held weapon cannot be rejected whole. Nothing else
+  /// calls it; [subtreeAlwaysDrawn] is the reading a caller wants.
+  bool get ownBoundsAreCullable => true;
+
+  Aabb3? _subtreeBounds;
+  int _subtreeEpoch = 0;
+  bool _subtreeAlwaysDrawn = false;
+
   /// Walks this node and its descendants.
   ///
   /// Convenient for scene code, but the renderer never uses it: per-frame work
@@ -358,14 +539,24 @@ base class SceneNode implements AnimationTarget {
 
   /// True when this node and every ancestor is visible.
   bool get visibleInHierarchy {
+    // Cached on the epoch for the reason [worldMatrix] is — `gfx-65n`. This one
+    // is read from seventeen call sites, and the cull path alone asks it once
+    // per mesh per pass, so a deep hierarchy paid a second full ancestor walk
+    // on top of the transform's.
+    if (_visibleEpoch == _dirtyEpoch) return _visibleCached;
+    _visibleEpoch = _dirtyEpoch;
+
     var current = this;
     while (true) {
-      if (!current.visible) return false;
+      if (!current._visible) return _visibleCached = false;
       final parent = current._parent;
-      if (parent == null) return true;
+      if (parent == null) return _visibleCached = true;
       current = parent;
     }
   }
+
+  bool _visibleCached = true;
+  int _visibleEpoch = 0;
 
   /// Binds this node's subtree to [scene]. Called by [Scene] for its own root;
   /// user code attaches nodes with [add] instead.

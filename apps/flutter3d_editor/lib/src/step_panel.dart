@@ -20,7 +20,7 @@ library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter3d_editor_core/flutter3d_editor_core.dart';
-import 'package:flutter3d_game/flutter3d_game.dart' show EntityDef, Level;
+import 'package:flutter3d_sim/flutter3d_sim.dart' show EntityDef, Level;
 import 'package:vector_math/vector_math.dart' show Vector3;
 
 const Color _panelBackground = Color(0xFF14161A);

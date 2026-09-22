@@ -26,7 +26,7 @@ library;
 
 import 'dart:typed_data';
 
-import 'package:flutter3d_formats/flutter3d_formats.dart';
+import 'package:flutter3d_core/formats.dart';
 
 Uint8List buildKtx2({
   int vkFormat = VkFormat.bc7UNormBlock,

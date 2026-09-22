@@ -75,6 +75,10 @@ Future<void> checkLinking(GraphicsDevice device) async {
       // Every mesh casts, through the layout it already has.
       (vertex, 'ShadowDepth'),
       (vertex, 'ShadowDistance'),
+      // `gfx-60n`: the cut-out twins of both, which declare a sampler the
+      // plain ones do not, so they are a different link.
+      (vertex, 'ShadowDepthMasked'),
+      (vertex, 'ShadowDistanceMasked'),
     ],
     // The picking pass draws every mesh again through the stage its layout
     // needs — plain, skinned or instanced; a lightmapped mesh has the plain
@@ -103,14 +107,29 @@ Future<void> checkLinking(GraphicsDevice device) async {
       'BloomUpsample',
       'Reflections',
       'Ssao',
+      'SsaoBlur',
+      'ContactShadow',
+      'LightShafts',
+      'DepthOfField',
+      'ViewportShade',
       'MrtProbe',
     ])
       ('FullscreenVertex', post),
     ('DebugLineVertex', 'DebugLine'),
+    // `gfx-86n`: the polyline stage behind the one fragment stage
+    // `LightingModel.polyline` pairs it with. A stage a material brings has to
+    // write every varying the fragment side reads, and this is the pair where
+    // that is least likely to have been copied right — the line writes a normal
+    // and a tangent it has no geometry for.
+    ('PolylineVertex', 'Unlit'),
     // Both particle fragment stages, and the mesh particle's own vertex stage,
     // which is the only one in the bundle with a per-instance buffer.
     ('ParticleVertex', 'Particle'),
     ('ParticleVertex', 'ParticleTextured'),
+    // `gfx-80n` shares that vertex stage rather than adding a third one, so
+    // this pair is the check that it really does read the same three
+    // attributes and the same two varyings.
+    ('ParticleVertex', 'Splat'),
     ('ParticleMeshVertex', 'ParticleMesh'),
     // The sky is the only pair where both stages are new at once, so it is the
     // one where a varying can disagree with nothing to compare against. Both

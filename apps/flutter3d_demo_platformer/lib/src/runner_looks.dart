@@ -1,7 +1,7 @@
 import 'dart:math' as math;
 
-import 'package:flutter3d_game/flutter3d_game.dart';
 import 'package:flutter3d_game_platformer/flutter3d_game_platformer.dart';
+import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:vector_math/vector_math.dart';
 
 // `RunnerClips` used to live here too. Split out to `runner_clips.dart`

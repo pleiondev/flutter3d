@@ -14,7 +14,7 @@
 library;
 
 import 'package:flutter/material.dart';
-import 'package:flutter3d_app/flutter3d_app.dart'; // CreditsSection
+import 'package:flutter3d_game/flutter3d_game.dart'; // CreditsSection
 
 import 'credits.dart';
 import 'race_readout.dart';

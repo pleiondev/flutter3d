@@ -9,7 +9,7 @@
 ///
 /// `fmt-11`'s own row names three options: the Dart `gltf` package, `npx
 /// gltf-validator`, or a checker of our own. The engine took the third —
-/// see `packages/flutter3d_formats/lib/src/gltf/gltf_validate.dart`'s own
+/// see `packages/flutter3d_core/lib/src/formats/gltf/gltf_validate.dart`'s own
 /// doc comment for why a package that resolves without Node has no business
 /// reaching for one. This script is the second option, asked for here
 /// instead: `tool/` already shells out to external toolchains that are not

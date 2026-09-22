@@ -47,6 +47,17 @@ abstract final class FrameResourceIds {
   /// buffer twelve times per pixel.
   static const ResourceId ao = ResourceId('ao');
 
+  /// The short march toward the sun, at the scene's own resolution —
+  /// `gfx-76n`.
+  ///
+  /// Full resolution where the occlusion is half, and for the reason the
+  /// occlusion is half: a contact shadow is the *highest*-frequency thing in
+  /// the frame — a seam a few pixels wide where a box meets a floor — and at
+  /// half resolution it is either gone or a step. It costs less than the
+  /// occlusion anyway: sixteen taps along one line against twelve over a
+  /// hemisphere, and only where a surface faces the light.
+  static const ResourceId contactShadow = ResourceId('contact_shadow');
+
   /// The scene's log luminance at a fixed small size, for the exposure meter
   /// to read back. Produced only while auto exposure is on.
   static const ResourceId luminance = ResourceId('luminance');

@@ -1,6 +1,6 @@
 # flutter3d_app
 
-The layer an application is assembled from, as one import.
+What any Flutter application on flutter3d is assembled from, as one import.
 
 ```dart
 import 'package:flutter3d_app/flutter3d_app.dart';
@@ -8,28 +8,28 @@ import 'package:flutter3d_app/flutter3d_app.dart';
 final device = await openDevice(width: 1280, height: 720);
 ```
 
-## Why it is a package
+## What is in it
 
-Four sibling packages hold the wiring a game needs beyond the renderer and the
-simulation: `flutter3d_session` (`SceneSurface`, `RunSession`),
-`flutter3d_screens` (settings, rebinding, saves), `pad_input` (a gamepad),
-`pointer_lock` (desktop mouse capture). None of the four know about each
-other, and this package does not change that — it re-exports them and holds
-one real decision of its own: which device to open, absorbed from the former
-`flutter3d_backend`, whose consumers mostly reached it through this same
-barrel already; the handful that named it directly cost nothing to repoint.
+| | |
+|---|---|
+| `openDevice` / `presentFrame` | Which backend a build draws through, and the runtime fallback to the software rasteriser when Impeller will not start. |
+| `SceneSurface` | The widget that hands a frame to Flutter. Its settings are a **function called per frame**, not an object, so anything derived from where the camera ended up is derived after it got there. |
+| `WidgetSurface` | A live Flutter widget drawn onto a quad in the scene. |
+| `LevelLoader` | A level document turned into mesh nodes, lights, probes and a collision world. Problems come back as `LoadedLevel.issues` rather than exceptions: a missing wall texture leaves the surface flat and says so. |
+| `Storage` / `BinaryStorage` | A document kept where each platform keeps such things, behind one interface. |
 
-What it buys is that an application's own `pubspec.yaml` and `main.dart` say
-"the assembly layer" once, the way importing `flutter3d` already says "the
-renderer" once instead of naming `flutter3d_hardware` directly.
+## Universal, and that is the rule for what goes in
 
-## What is deliberately not behind it
+The modeller, the level editor, the lessons and every game use this package.
+Nothing in it knows what a run, a binding or a monster is: that is
+[`flutter3d_game`](https://pub.dev/packages/flutter3d_game), which stands on this package. A name only
+a game would want does not belong here, however convenient one barrel would be.
 
-`flutter3d`, `flutter3d_bridge`, `flutter3d_game`, and a genre package.
-Those are content — what a scene looks like and what kind of game this is —
-and a facade cannot pick a genre on an application's behalf. See
-[Assembling an application](https://flutter3d.pleion.dev/core/session/) for
-the full pattern, worked through with `apps/flutter3d_demo_dungeon` as the example.
+What is deliberately not behind it: `flutter3d`, `flutter3d_sim`,
+`flutter3d_game` and a genre package. Import them by name, so the choice is
+visible in the pubspec. See
+[Assembling an application](https://flutter3d.pleion.dev/core/session/) for the
+full pattern, worked through with `apps/flutter3d_demo_dungeon` as the example.
 
 ---
 
@@ -41,8 +41,8 @@ rasteriser. glTF, OBJ and `.f3d` loading, six lighting models, shadows, bloom,
 skinning, animation, BVH culling and picking; a deterministic fixed-step game
 layer with collision, navigation, positional audio, and gamepad and touch
 input. Three example games — shooter, platformer, racing — each built on its
-genre package: [`flutter3d_game_shooter`](../flutter3d_game_shooter),
-[`flutter3d_game_platformer`](../flutter3d_game_platformer),
-[`flutter3d_game_racing`](../flutter3d_game_racing). A new game starts from the
+genre package: [`flutter3d_game_shooter`](https://pub.dev/packages/flutter3d_game_shooter),
+[`flutter3d_game_platformer`](https://pub.dev/packages/flutter3d_game_platformer),
+[`flutter3d_game_racing`](https://pub.dev/packages/flutter3d_game_racing). A new game starts from the
 editor's scaffold, which writes one from a template: <https://flutter3d.pleion.dev/first-project/>.
 Documentation: <https://flutter3d.pleion.dev>.

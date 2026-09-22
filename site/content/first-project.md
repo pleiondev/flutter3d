@@ -68,7 +68,7 @@ flutter run -d macos
 | `assets/models/*.glb` | One model per kind of thing the level names |
 | `test/widget_test.dart` | It loads the level through a software device, with no window |
 
-The imports at the top of `main.dart` say where the halves are: `flutter3d` draws, `flutter3d_game` simulates, `flutter3d_session` owns loading, and `flutter3d_bridge` is the only one allowed to see both sides. [Assembling an application](/core/session/) is that seam in detail.
+The imports at the top of `main.dart` say where the halves are: `flutter3d` draws, `flutter3d_sim` simulates, `flutter3d_app` loads a level into a scene, and `flutter3d_game` holds the input and the run. [Assembling an application](/core/session/) is that seam in detail.
 
 <div class="note">
 <p><strong><code>main.dart</code> is a seed, not a game.</strong> It reads the level, builds it, and puts a body in it that walks, looks and jumps. What it deliberately leaves out is everything a <em>genre</em> is: no weapons, no monsters, no coins, no doors that open, no score, no menu, no saving. Those live in <code>flutter3d_game_shooter</code> and <code>flutter3d_game_platformer</code>, and adding one is the last step below.</p>

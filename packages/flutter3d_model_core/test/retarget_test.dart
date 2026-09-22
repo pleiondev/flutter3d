@@ -6,9 +6,8 @@ library;
 
 import 'dart:typed_data';
 
-import 'package:flutter3d_formats/flutter3d_formats.dart';
+import 'package:flutter3d_core/formats.dart';
 import 'package:flutter3d_model_core/flutter3d_model_core.dart';
-import 'package:flutter3d_rig/flutter3d_rig.dart';
 import 'package:test/test.dart';
 import 'package:vector_math/vector_math.dart';
 
@@ -72,6 +71,15 @@ AnimationTrack _translationTrack(int nodeIndex, Vector3 value) =>
       values: Float32List.fromList([value.x, value.y, value.z]),
       componentCount: 3,
     );
+
+AnimationTrack _scaleTrack(int nodeIndex, Vector3 value) => AnimationTrack(
+  nodeIndex: nodeIndex,
+  path: AnimationPath.scale,
+  interpolation: AnimationInterpolation.linear,
+  times: Float32List.fromList([0.0]),
+  values: Float32List.fromList([value.x, value.y, value.z]),
+  componentCount: 3,
+);
 
 void main() {
   group('anim-17\'s own acceptance', () {
@@ -240,6 +248,122 @@ void main() {
 
       // `lockFeet` (the default) pulls it back within the row's own 1cm.
       expect((ankleY(withLock) - 0.0).abs(), lessThan(0.01));
+    });
+
+    test('tut-12: a joint carrying translation, rotation AND scale at once '
+        "does not throw, and lockFeet still corrects the foot — "
+        "RiggedFigure.glb's own clip animates every joint that way, not "
+        "only the root's, and used to collapse onto whichever of the "
+        "hip's own three retargeted tracks was built last", () {
+      final source = _buildHumanoid(scale: 1.0);
+      final target = _buildHumanoid(scale: (3.4 - 1.8) / 0.7, legScale: 1.8);
+      final sourceProject = _projectOf(source);
+      final targetProject = _projectOf(target);
+
+      final restHips = source.objects
+          .firstWhere((o) => o.name == 'hips')
+          .transform
+          .getTranslation();
+      final crouchHips = restHips - Vector3(0, 0.1, 0);
+      final hipTilt = Quaternion.axisAngle(Vector3(1, 0, 0), 0.05)..normalize();
+
+      final clip = ProjectClip(
+        name: 'crouch-with-scale',
+        tracks: [
+          // Translation, rotation and scale on the very same joint — the
+          // exact shape that used to make `_lockFeet`'s own
+          // `Map<int, RigTrack>` keep only the last of the three (the scale
+          // track here) and silently drop the rotation the foot-lock math
+          // actually reads, then run its per-key indexing past its own end.
+          ProjectTrack(
+            objectId: source.idOf['hips']!,
+            track: _translationTrack(0, crouchHips),
+          ),
+          ProjectTrack(
+            objectId: source.idOf['hips']!,
+            track: _rotationTrack(0, hipTilt),
+          ),
+          ProjectTrack(
+            objectId: source.idOf['hips']!,
+            track: _scaleTrack(0, Vector3(1, 1, 1)),
+          ),
+        ],
+      );
+
+      final sourceNames = source.objects.map((o) => o.name).toList();
+      final targetNames = target.objects.map((o) => o.name).toList();
+      final boneMap = autoMap(sourceNames, targetNames);
+
+      // No `lockFeet: false` here — the default (`true`) is the exact
+      // repro tut-12 named, and must no longer throw.
+      final withLock = retargetClip(
+        sourceClip: clip,
+        sourceProject: sourceProject,
+        sourceSkeleton: source.skeleton,
+        targetProject: targetProject,
+        targetSkeleton: target.skeleton,
+        boneMap: boneMap,
+      );
+
+      final hipRest = target.objects
+          .firstWhere((o) => o.name == 'leftHip')
+          .transform;
+      final kneeRest = target.objects
+          .firstWhere((o) => o.name == 'leftKnee')
+          .transform;
+      final ankleRest = target.objects
+          .firstWhere((o) => o.name == 'leftAnkle')
+          .transform;
+
+      Quaternion rotOf(int objectId, Quaternion fallback) {
+        for (final t in withLock.tracks) {
+          if (t.objectId == objectId &&
+              t.track.path == AnimationPath.rotation) {
+            final v = t.track.values;
+            return Quaternion(v[0], v[1], v[2], v[3]);
+          }
+        }
+        return fallback;
+      }
+
+      Vector3 hipsWorld() {
+        for (final t in withLock.tracks) {
+          if (t.objectId == target.idOf['hips'] &&
+              t.track.path == AnimationPath.translation) {
+            final v = t.track.values;
+            return Vector3(v[0], v[1], v[2]);
+          }
+        }
+        return target.objects
+            .firstWhere((o) => o.name == 'hips')
+            .transform
+            .getTranslation();
+      }
+
+      final hipRot = rotOf(target.idOf['leftHip']!, Quaternion.identity());
+      final kneeRot = rotOf(target.idOf['leftKnee']!, Quaternion.identity());
+
+      final hipWorldPos =
+          hipsWorld() + Quaternion.identity().rotated(hipRest.getTranslation());
+      final kneeWorldPos =
+          hipWorldPos + hipRot.rotated(kneeRest.getTranslation());
+      final kneeWorldRot = (kneeRot * hipRot)..normalize();
+      final ankleWorldPos =
+          kneeWorldPos + kneeWorldRot.rotated(ankleRest.getTranslation());
+
+      // The foot still lands within the row's own 1cm of the ground —
+      // lockFeet ran the real correction, not merely avoided the crash.
+      expect((ankleWorldPos.y - 0.0).abs(), lessThan(0.01));
+
+      // The hip's own scale track survived untouched alongside its
+      // corrected rotation and translation — nothing else on the joint was
+      // dropped to make room for the fix.
+      final hipScale = withLock.tracks.firstWhere(
+        (t) =>
+            t.objectId == target.idOf['hips'] &&
+            t.track.path == AnimationPath.scale,
+      );
+      expect(hipScale.track.values, [1.0, 1.0, 1.0]);
     });
 
     test('two forks — bone name mismatch is dropped, not guessed at', () {

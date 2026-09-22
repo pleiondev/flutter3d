@@ -9,6 +9,7 @@
 library;
 
 import 'package:flutter/material.dart';
+import 'package:flutter3d_game_racing/bridge.dart';
 import 'package:flutter3d_game_racing/flutter3d_game_racing.dart';
 import 'package:flutter_test/flutter_test.dart';
 

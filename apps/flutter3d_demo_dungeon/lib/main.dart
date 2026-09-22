@@ -11,13 +11,14 @@ import 'package:flutter/services.dart';
 // dance.
 import 'package:flutter3d/flutter3d.dart' hide Material;
 import 'package:flutter3d_audio/flutter3d_audio.dart';
-import 'package:flutter3d_bridge/flutter3d_bridge.dart';
 import 'package:flutter3d_game/flutter3d_game.dart';
 import 'package:flutter3d_game_shooter/bridge.dart';
 import 'package:flutter3d_game_shooter/flutter3d_game_shooter.dart';
 import 'package:flutter3d_game_shooter/sample.dart';
 import 'package:flutter3d_particles/flutter3d_particles.dart';
+import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:pad_input/pad_input.dart';
 import 'package:vector_math/vector_math.dart' hide Colors;
 
 import 'src/backend.dart';
@@ -55,7 +56,7 @@ const String _buildStamp = String.fromEnvironment(
 /// renderer in `flutter3d`, the clock and the input in `flutter3d_game`, the
 /// level documents and their validator in `flutter3d_sim`, the shooter's rules
 /// in `flutter3d_game_shooter`, the settings and the save in
-/// `flutter3d_session`, the pointer capture in `pointer_lock` — and what is
+/// `flutter3d_game`, the pointer capture in `pointer_lock` — and what is
 /// left here is the part that is specific to this game.
 ///
 /// **This doc used to say "a handful of boxes, because the level format does
@@ -1081,7 +1082,8 @@ class _GameScreenState extends State<GameScreen>
     // flash can be turned down without turning the camera down with it. A
     // full-screen flash on every hit is a photosensitivity question, which is
     // not the same harm as a camera that moves by itself.
-    if (events.any((GameEvent e) => e is PlayerHurt)) {
+    final hurt = events.any((GameEvent e) => e is PlayerHurt);
+    if (hurt) {
       _effects.hurt(_system.screenFlash);
     }
 
@@ -1125,7 +1127,11 @@ class _GameScreenState extends State<GameScreen>
       _taughtFirstShot = true;
       _effects.say(hint);
     }
-    _run.run.crawl.step(dt, killed: events.whereType<ActorDied>().length);
+    _run.run.crawl.step(
+      dt,
+      killed: events.whereType<ActorDied>().length,
+      hurt: hurt,
+    );
 
     final body = player.body;
     _weaponView.step(
@@ -1531,6 +1537,7 @@ class _GameScreenState extends State<GameScreen>
                     kills: _run.run.crawl.kills,
                     seconds: _run.run.crawl.seconds,
                     levels: _run.run.crawl.levels,
+                    bestStreak: _run.run.crawl.bestStreak,
                     touch: Playing.touch,
                   ),
                 ),

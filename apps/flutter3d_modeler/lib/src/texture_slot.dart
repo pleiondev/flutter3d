@@ -4,9 +4,17 @@
 /// from `flutter3d_model_core` already computes what a texture costs once
 /// uploaded — decoded RGBA for a PNG, the same bytes as disk for a
 /// block-compressed KTX2 — and that is the right number for a texture budget,
-/// wrong for a slot's own "170 КБ". A slot is answering "how big is the file
+/// wrong for a slot's own "170 KB". A slot is answering "how big is the file
 /// I attached", which for a PNG is a tenth of what it decodes to; this reads
 /// [EncodedImage.bytes]'s own length instead of borrowing the budget's answer.
+///
+/// **Its own English words, not `flutter3d_model_core`'s `formatByteSize`.**
+/// That one prints "КБ"/"МБ" — the level editor's own Russian panels are what
+/// it was built for — and this modeller's panels are English throughout,
+/// "None"/"Choose…"/"Clear" among them; borrowing it here would be the one
+/// texture-slot row on an English screen reading its weight in Cyrillic.
+/// [_weightText] is the same tiering and the same rounding rule, spelled in
+/// this app's own words instead.
 ///
 /// **`texCoordSet` is not read from anywhere.** `mat-05`'s acceptance is "only
 /// 0" — every [TextureBinding] this reader is handed is shown at set 0
@@ -16,7 +24,7 @@ library;
 
 import 'dart:typed_data';
 
-import 'package:flutter3d_formats/flutter3d_formats.dart';
+import 'package:flutter3d_core/formats.dart';
 import 'package:flutter3d_model_core/flutter3d_model_core.dart';
 
 /// A slot's own texcoord set, per `mat-05`'s acceptance: always 0, whatever a
@@ -42,7 +50,7 @@ final class TextureSlotDisplay {
   /// truncated bytes, or a format none of PNG/JPEG/KTX2's headers match.
   final String? dimensionsText;
 
-  /// `"170 КБ"`, from the file's own length — see the library doc comment for
+  /// `"170 KB"`, from the file's own length — see the library doc comment for
   /// why this is not [TextureInfo.bytesOnDevice].
   final String weightText;
 
@@ -69,10 +77,23 @@ TextureSlotDisplay textureSlotDisplay(
   return TextureSlotDisplay(
     name: image.name ?? fallbackName,
     dimensionsText: info == null ? null : '${info.width}×${info.height}',
-    weightText: formatByteSize(image.bytes.length),
+    weightText: _weightText(image.bytes.length),
     formatBadge: info == null ? null : formatBadgeFor(info.format),
     thumbnail: image.bytes,
   );
+}
+
+/// [bytes] as `"170 KB"`, `"3 MB"` — see the library doc comment for why this
+/// is its own small copy of `flutter3d_model_core`'s `formatByteSize` rather
+/// than a call to it.
+String _weightText(int bytes) {
+  const int kb = 1024;
+  const int mb = kb * 1024;
+  const int gb = mb * 1024;
+  if (bytes < kb) return '$bytes B';
+  if (bytes < mb) return '${(bytes / kb).round()} KB';
+  if (bytes < gb) return '${(bytes / mb).round()} MB';
+  return '${(bytes / gb).round()} GB';
 }
 
 /// The badge text for [format], or null for [TextureFileFormat.rgba8] — see

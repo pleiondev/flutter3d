@@ -4,19 +4,21 @@
 ///     flutter test test/autosaving_test.dart
 library;
 
+import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:fake_async/fake_async.dart';
 import 'package:flutter3d/flutter3d.dart' hide Material;
-import 'package:flutter3d_cpu/testing.dart';
+import 'package:flutter3d_app/flutter3d_app.dart';
 import 'package:flutter3d_mesh/flutter3d_mesh.dart';
 import 'package:flutter3d_model_core/flutter3d_model_core.dart';
 import 'package:flutter3d_modeler/src/autosaving.dart';
 import 'package:flutter3d_modeler/src/modeler_cubit.dart';
 import 'package:flutter3d_modeler/src/staging.dart';
-import 'package:flutter3d_session/flutter3d_session.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vector_math/vector_math.dart';
+
+import 'support/fake_graphics_backend.dart';
 
 /// A storage kept in memory, counting every attempt so a test can ask how
 /// many actually happened rather than only whether the document is there.
@@ -56,7 +58,7 @@ ModelProject cubes(int count) {
 }
 
 ModelerCubit opened({int count = 2}) {
-  final it = cpuTestDevice(width: 8, height: 8);
+  final it = fakeTestDevice(width: 8, height: 8);
   final history = ModelHistory(cubes(count));
   final stage = ModelerStage.fromProject(
     device: it.device,
@@ -175,6 +177,112 @@ void main() {
       // go a whole crash without a fresher copy than its first one.
       async.elapse(const Duration(seconds: 15));
       expect(storage.writeCount, 2);
+    });
+  });
+
+  // `ux-01`. The three tests above all pass against the build whose autosave
+  // never wrote a byte for a whole session, because a fake `BinaryStorage`
+  // has no directories in it. These drive the real one.
+  group('ux-01: the write a real storage actually does', () {
+    test('the autosave key lands on disk, directory and all', () async {
+      final Directory root = await Directory.systemTemp.createTemp('autosave');
+      addTearDown(() => root.deleteSync(recursive: true));
+      final storage = FileBinaryStorage(
+        appName: 'flutter3d_modeler',
+        directory: root,
+      );
+
+      // The real key, not a flat name: `autosave/<hash>`, whose parent is a
+      // directory nothing had created. Mutation: create the storage's own
+      // root rather than the file's own parent, and this answers `false`.
+      final String key = recoveryPathFor(null, sessionId: 'a-session');
+      expect(key, contains('/'));
+      final wrote = await storage.write(key, Uint8List.fromList(<int>[1, 2]));
+
+      expect(wrote, isTrue);
+      expect(File('${root.path}/$key').existsSync(), isTrue);
+      expect(await storage.read(key), Uint8List.fromList(<int>[1, 2]));
+    });
+
+    test('and a storage with nowhere to write says why', () async {
+      final Directory root = await Directory.systemTemp.createTemp('autosave');
+      addTearDown(() => root.deleteSync(recursive: true));
+      // A file where the directory should be: `createSync` refuses with a
+      // real reason, the same shape a full disk or a locked folder gives,
+      // and without a `chmod` that would answer differently as root.
+      File('${root.path}/blocked').writeAsStringSync('not a directory');
+      final issues = IssueLog();
+      final storage = FileBinaryStorage(
+        appName: 'flutter3d_modeler',
+        directory: Directory('${root.path}/blocked'),
+        onIssue: issues.add,
+      );
+
+      final wrote = await storage.write('probe', Uint8List.fromList(<int>[1]));
+
+      expect(wrote, isFalse);
+      // Mutation: swallow the exception into a bare `false`. The controller
+      // then has nothing but "could not write" to put on the status line —
+      // the sentence the live run found unactionable.
+      expect(issues.issues, hasLength(1));
+      expect(issues.issues.single, contains('could not write'));
+    });
+  });
+
+  group('ux-01: what the status line is told', () {
+    test('the storage\'s own reason reaches onIssue, not a bare phrase', () {
+      fakeAsync((async) {
+        final cubit = opened();
+        final storage = FakeBinaryStorage()..refuse = true;
+        final issues = IssueLog()..add(const Issue('storage: disk is full'));
+        final said = <String>[];
+        final controller = AutosaveController(
+          cubit: cubit,
+          storage: storage,
+          sessionId: 'test-session',
+          issues: issues,
+          onIssue: said.add,
+        );
+        addTearDown(controller.dispose);
+
+        final id = ready(cubit).project.objects.first.id;
+        cubit.ran(Rename(id: id, to: 'renamed'));
+        async.elapse(const Duration(seconds: 3));
+
+        // Mutation: report `'could not write'` regardless of what the storage
+        // said. A person then cannot tell a missing folder from a full disk.
+        expect(said, <String>['disk is full']);
+        expect(controller.isFailing, isTrue);
+      });
+    });
+
+    test('and a write that works again is reported too', () {
+      fakeAsync((async) {
+        final cubit = opened();
+        final storage = FakeBinaryStorage()..refuse = true;
+        var recovered = 0;
+        final controller = AutosaveController(
+          cubit: cubit,
+          storage: storage,
+          sessionId: 'test-session',
+          onRecovered: () => recovered++,
+        );
+        addTearDown(controller.dispose);
+
+        final id = ready(cubit).project.objects.first.id;
+        cubit.ran(Rename(id: id, to: 'renamed'));
+        async.elapse(const Duration(seconds: 3));
+        expect(controller.isFailing, isTrue);
+
+        storage.refuse = false;
+        async.elapse(const Duration(seconds: 20));
+
+        // Mutation: never call `onRecovered`. "Autosave is not working" then
+        // stays on the status line for the rest of the session, with an
+        // offer to show a folder that is no longer the problem.
+        expect(recovered, 1);
+        expect(controller.isFailing, isFalse);
+      });
     });
   });
 }

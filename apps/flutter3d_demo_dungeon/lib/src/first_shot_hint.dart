@@ -1,5 +1,5 @@
-import 'package:flutter3d_game/flutter3d_game.dart';
 import 'package:flutter3d_game_shooter/flutter3d_game_shooter.dart';
+import 'package:flutter3d_sim/flutter3d_sim.dart';
 
 /// `ls-g-01`'s own rule, said once a run: the guard room's own layout —
 /// `apps/flutter3d_demo_dungeon/tool/make_crypt.py`'s own design note —

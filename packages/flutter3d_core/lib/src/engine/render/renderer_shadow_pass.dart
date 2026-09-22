@@ -42,6 +42,39 @@ CullMode _casterCull(ShadowCasterFaces faces) => switch (faces) {
 /// The pass that draws what the sun cannot see, and the one that draws what a
 /// lamp cannot.
 extension _ShadowPasses on Renderer {
+  /// Whether [node] casts through the cut-out shadow stages — `gfx-60n`.
+  ///
+  /// glTF's MASK mode and nothing else. A blended material is a different
+  /// question that a shadow map cannot answer, since it holds one depth per
+  /// texel and a half-transparent caster has no single depth to record; an
+  /// opaque one has nothing to cut out. So this is exactly the mode whose own
+  /// definition is a threshold.
+  bool _castsMasked(MeshNode node) {
+    final material = node.material;
+    return material.alphaMode == MaterialAlphaMode.mask &&
+        material.albedo != null;
+  }
+
+  /// Binds what a cut-out shadow stage reads: the map and the two numbers.
+  ///
+  /// The base colour's own alpha rides beside the cutoff because glTF
+  /// multiplies the two, so a material faded to nothing casts nothing rather
+  /// than casting its texture.
+  void _bindShadowMask(
+    PassEncoder pass,
+    ShaderHandle stage,
+    Material material,
+  ) {
+    final texture = material.albedo;
+    if (texture == null) return;
+    pass.bindTexture(stage, _kAlbedoTextureSlot, texture);
+    _shadowMask[0] = material.alphaCutoff;
+    _shadowMask[1] = material.baseColor.w;
+    pass.bindUniformBlock(stage, _kShadowMaskBlock, <String, Float32List>{
+      'mask': _shadowMask,
+    });
+  }
+
   /// Draws [slotCount] lights' cube faces into one atlas, in one pass.
   ///
   /// Every row at once, and not one call per light, because a pass clears its
@@ -73,6 +106,9 @@ extension _ShadowPasses on Renderer {
 
     final shader = shaders['ShadowDistance'];
     if (shader == null) return false;
+    // `gfx-60n`, and the same fallback the cascade pass takes: a bundle
+    // without the cut-out stage draws the shadow it used to.
+    final maskedShader = shaders['ShadowDistanceMasked'] ?? shader;
     final resetShader = shaders['ShadowTileReset'];
     final resetVertexShader = shaders['ShadowTileResetVertex'];
     if (resetShader == null || resetVertexShader == null) return false;
@@ -126,11 +162,6 @@ extension _ShadowPasses on Renderer {
     final mvp = vm.Matrix4.identity();
     final position = vm.Vector3.zero();
     var drawn = 0;
-
-    // Which skinned casters have had their pose evaluated in this pass. See
-    // [_cubeShadowPosed]: the loop below reaches the same node once per face
-    // of every light, and the pose it would compute is the same each time.
-    _cubeShadowPosed.clear();
 
     for (var slot = 0; slot < slotCount; slot++) {
       position.setValues(
@@ -229,6 +260,7 @@ extension _ShadowPasses on Renderer {
         pass.bindVertexBuffer(_fullscreenTriangle, 3);
         pass.bindIndexBuffer(_identityIndices(3), IndexType.int32, 3);
         pass.draw();
+        _frameCounters?.drawCalls++;
 
         pass.setState(casterState);
         // Which cull the pass is currently in. A node that casts from every
@@ -237,8 +269,19 @@ extension _ShadowPasses on Renderer {
         // state change per run of them rather than one per draw.
         var everyFace = casterCull == CullMode.none;
 
+        // What this face can see — `gfx-63n`. A cube face is a ninety-degree
+        // frustum reaching as far as the light's range, so it holds a small
+        // part of any real level, and the loop below was walking all of it six
+        // times per light. Built from the unremapped matrix and reused for
+        // every mesh on the face.
+        _faceFrustum.setFromMatrix(_cubeMatrix);
+
         for (final node in scene.meshes) {
           if (!node.visibleInHierarchy || !node.shadowCasting.casts) continue;
+          if (node.frustumCulled &&
+              !_faceFrustum.intersectsWithAabb3(node.worldBounds)) {
+            continue;
+          }
           // One atlas holds the things that never move, the other the things
           // that do. Splitting them is the whole point: the walls are baked
           // once and only a spinning pickup, a monster or a door is redrawn.
@@ -271,23 +314,46 @@ extension _ShadowPasses on Renderer {
             everyFace = wantsEveryFace;
           }
 
+          // `gfx-60n`. A cut-out caster draws through a stage with a sampler
+          // in it, and a point light is where the omission showed worst: a
+          // cube face is a ninety-degree frustum with the caster close to it,
+          // so a foliage quad's slab fills far more of the tile than it would
+          // in a cascade.
+          final masked = maskedShader != shader && _castsMasked(node);
+          final fragment = masked ? maskedShader : shader;
           pass.bindPipeline(
             instanced != null
-                ? (_instancedCubeShadowPipeline ??= device.createPipeline(
-                    instancedVertexShader,
-                    shader,
-                    layout: _kInstancedLayout,
-                  ))
+                ? masked
+                      ? (_instancedMaskedCubeShadowPipeline ??= device
+                            .createPipeline(
+                              instancedVertexShader,
+                              fragment,
+                              layout: _kInstancedLayout,
+                            ))
+                      : (_instancedCubeShadowPipeline ??= device.createPipeline(
+                          instancedVertexShader,
+                          fragment,
+                          layout: _kInstancedLayout,
+                        ))
                 : skinned
-                ? (_skinnedCubeShadowPipeline ??= device.createPipeline(
-                    skinnedVertexShader,
-                    shader,
+                ? masked
+                      ? (_skinnedMaskedCubeShadowPipeline ??= device
+                            .createPipeline(skinnedVertexShader, fragment))
+                      : (_skinnedCubeShadowPipeline ??= device.createPipeline(
+                          skinnedVertexShader,
+                          fragment,
+                        ))
+                : masked
+                ? (_maskedCubeShadowPipeline ??= device.createPipeline(
+                    vertexShader,
+                    fragment,
                   ))
                 : (_cubeShadowPipeline ??= device.createPipeline(
                     vertexShader,
-                    shader,
+                    fragment,
                   )),
           );
+          if (masked) _bindShadowMask(pass, maskedShader, node.material);
           final stage = instanced != null
               ? instancedVertexShader
               : skinned
@@ -341,19 +407,20 @@ extension _ShadowPasses on Renderer {
             // exactly what makes the shadow follow the animation, so an
             // animated caster near a shadowed light pays this every frame.
             //
-            // The CPU half is not repeated. `update` allocates a matrix per
-            // joint, and running it once per face would be sixty-odd
-            // allocations six times over for a pose that cannot change inside
-            // one pass.
-            if (_cubeShadowPosed.add(node)) {
-              skeleton.update(node.worldMatrix);
-            }
+            // The CPU half is not repeated, and since `gfx-64n` the skeleton
+            // is what refuses rather than a set kept here: `update` returns at
+            // once when the pose and the mesh transform are the ones it last
+            // computed for, which is the same refusal extended to the cascade
+            // pass, the pick pass and mesh encoding, all of which reached this
+            // same call once per primitive and none of which had a guard.
+            skeleton.update(node.worldMatrix);
             pass.bindUniformBlock(skinnedVertexShader, _kSkinInfoBlock, {
               'joint_matrices': skeleton.matrices,
             });
           }
           pass.bindUniformBlock(shader, 'ShadowLight', {'light': _cubeLight});
           pass.draw(instanceCount: instanced?.count ?? 1);
+          _frameCounters?.drawCalls++;
           drawn++;
         }
       }
@@ -367,6 +434,50 @@ extension _ShadowPasses on Renderer {
     }
     developer.Timeline.finishSync();
     return drawn > 0;
+  }
+
+  /// Everything that decides a texel of the directional atlas — `gfx-68n`.
+  ///
+  /// A record rather than a hash, so two frames that differ are never equal by
+  /// accident; the matrices are the one part reduced to a number, because the
+  /// alternative is holding copies of up to four of them and comparing
+  /// sixty-four doubles.
+  ({int matrices, int epoch, int generation, int faces, int casters})
+  _directionalBakeKey(
+    Scene scene,
+    ShadowSettings settings,
+    List<vm.Matrix4> shaderMatrices,
+  ) {
+    var matrices = shaderMatrices.length;
+    for (final matrix in shaderMatrices) {
+      for (final value in matrix.storage) {
+        matrices = 0x1fffffff & (matrices * 31 + value.hashCode);
+      }
+    }
+
+    // Masked casters read a cutoff and an alpha off their material, and neither
+    // a material's fields nor the texture it points at reach `changeEpoch` or
+    // the static generation — a material is not a node. This is that gap
+    // closed, and it costs one pass over the casters against the two or three
+    // passes of drawing them it is deciding about.
+    var casters = 0;
+    for (final node in scene.meshes) {
+      if (!node.shadowCasting.casts) continue;
+      final material = node.material;
+      casters = 0x1fffffff & (casters * 31 + identityHashCode(material));
+      casters = 0x1fffffff & (casters * 31 + material.alphaMode.hashCode);
+      casters = 0x1fffffff & (casters * 31 + material.alphaCutoff.hashCode);
+      casters = 0x1fffffff & (casters * 31 + material.baseColor.w.hashCode);
+      casters = 0x1fffffff & (casters * 31 + identityHashCode(material.albedo));
+    }
+
+    return (
+      matrices: matrices,
+      epoch: SceneNode.changeEpoch,
+      generation: scene.staticShadowGeneration,
+      faces: settings.casterFaces.hashCode,
+      casters: casters,
+    );
   }
 
   /// Draws the directional light's shadow map, and says whether it drew one.
@@ -471,6 +582,11 @@ extension _ShadowPasses on Renderer {
     // One matrix per cascade, plus the copy each backend needs to *draw* with.
     final drawMatrices = <vm.Matrix4>[];
     final shaderMatrices = <vm.Matrix4>[];
+    // And the volume each one covers, for `gfx-63n`'s caster cull. Built from
+    // the unremapped matrix, because that is the one in the clip space the
+    // planes are extracted for; the drawing copy has been through the backend's
+    // depth convention and the shader copy may have had its y flipped.
+    final cascadeFrusta = <vm.Frustum>[];
 
     for (var i = 0; i < centres.length; i++) {
       final radius = radii[i];
@@ -520,6 +636,7 @@ extension _ShadowPasses on Renderer {
       final matrix = vm.Matrix4.copy(projection)..multiply(view);
       drawMatrices.add(toDepthRange(matrix, device.depthRange));
       shaderMatrices.add(toFramebufferOrigin(matrix, device.framebufferOrigin));
+      cascadeFrusta.add(vm.Frustum.matrix(matrix));
     }
 
     _shadowMatrix.setFrom(shaderMatrices.first);
@@ -542,9 +659,60 @@ extension _ShadowPasses on Renderer {
     // the uv it computes has to be mirrored with it. Measured: that alone takes
     // the directional shadow from a worst cell of 32 to 4.
 
+    // **A cascade nobody changed is not redrawn — `gfx-68n`.** Every cascade
+    // was drawn from nothing every frame, which on a scene larger than the
+    // nearest cascade covers is the whole caster set two or three times over,
+    // for a picture identical to the one already in the texture. The map is
+    // `devicePrivate` and has always survived the frame; nothing was reading it
+    // back.
+    //
+    // The key is everything that decides a texel. The matrices carry the
+    // camera, the light's aim, the scene's own bounds, the resolution and the
+    // padding, because all of those went into fitting them.
+    // `SceneNode.changeEpoch` carries every caster that moved, appeared,
+    // vanished or was hidden, and a skinned caster's pose with it, since a joint
+    // is a node. `Scene.staticShadowGeneration` carries a caster that changed
+    // *how* it casts. The cull mode and the masked casters' own thresholds are
+    // read directly, because neither reaches either counter.
     // Cascades live side by side in one texture, so the number of samplers the
     // fragment shader binds does not depend on how many there are.
     final atlasWidth = resolution * count;
+
+    /// What the lighting shader reads about the map, whether or not this frame
+    /// drew into it.
+    ///
+    /// A closure with two call sites rather than a tail with one, because the
+    /// skip below leaves by a different door and these are not optional: they
+    /// are applied per fragment, so a frame that left them at nought would read
+    /// a perfectly good atlas with a strength of zero and come back unshadowed.
+    void publishShadowParams() {
+      // Horizontally the texel is a texel of the *atlas*, vertically it is a
+      // texel of a tile. With one cascade they are the same number, which is
+      // what keeps that path byte-identical to the one this renderer has always
+      // had.
+      _shadowParams[0] = 1.0 / atlasWidth;
+      _shadowCascades[0] = splits[0];
+      _shadowCascades[1] = splits[1];
+      _shadowCascades[2] = count.toDouble();
+      _shadowCascades[3] = 1.0 / resolution;
+      _shadowParams[1] = settings.bias;
+      _shadowParams[2] = settings.normalOffset;
+      _shadowParams[3] = settings.strength.clamp(0.0, 1.0);
+    }
+
+    final bakeKey = _directionalBakeKey(scene, settings, shaderMatrices);
+    if (_shadowMap != null &&
+        _shadowResolution == resolution &&
+        _shadowCascadeCount == count &&
+        _directionalBaked == bakeKey) {
+      // Zeroed by the frame, so a pass that draws nothing has to put back what
+      // the last one counted or the overlay reports a scene that stopped
+      // casting.
+      _shadowCasters = _directionalCasters;
+      publishShadowParams();
+      return true;
+    }
+    _directionalBaked = bakeKey;
     if (_shadowMap == null ||
         _shadowResolution != resolution ||
         _shadowCascadeCount != count) {
@@ -608,6 +776,10 @@ extension _ShadowPasses on Renderer {
       developer.Timeline.finishSync();
       return false;
     }
+    // `gfx-60n`. Falls back to the plain stage in a bundle that predates the
+    // row, which is the shadow a cut-out caster used to get rather than no
+    // shadow at all, and `masked` below then never fires.
+    final maskedShadowShader = shaders['ShadowDepthMasked'] ?? shadowShader;
     // Two pipelines, for the same reason the main pass has two: a skinned mesh
     // has a different vertex layout, so it needs the skinned stage here too.
     // Drawing it with the static one would read joints and weights as position
@@ -652,6 +824,7 @@ extension _ShadowPasses on Renderer {
         boundKind = null;
       }
       final drawMatrix = drawMatrices[cascade];
+      final casterFrustum = cascadeFrusta[cascade];
 
       for (var i = 0; i < meshes.length; i++) {
         final node = meshes[i];
@@ -659,6 +832,20 @@ extension _ShadowPasses on Renderer {
         if (!node.shadowCasting.casts) continue;
         final mesh = node.mesh;
         if (mesh is! DrawableGeometry || mesh.indexCount == 0) continue;
+        // **A caster outside this cascade is not drawn into it — `gfx-63n`.**
+        // Every cascade used to walk the whole scene, so a level larger than
+        // the nearest cascade covers was recorded three or four times over,
+        // most of it clipped away the moment it reached the rasteriser.
+        //
+        // The map cannot move a byte, and that is a property rather than a
+        // hope: the box bounds every triangle the node has, so a box the
+        // volume does not touch holds no triangle that could have produced a
+        // fragment. What is rejected here is what the clipper was going to
+        // reject anyway, only without the vertex work first.
+        if (node.frustumCulled &&
+            !casterFrustum.intersectsWithAabb3(node.worldBounds)) {
+          continue;
+        }
         final instanced = node is InstancedMeshNode ? node : null;
         if (instanced != null && instanced.count == 0) continue;
 
@@ -682,29 +869,51 @@ extension _ShadowPasses on Renderer {
 
         final skeleton = node.skeleton;
         final skinned = skeleton != null;
-        final kind = instanced != null
-            ? 2
-            : skinned
-            ? 1
-            : 0;
+        // `gfx-60n`. A cut-out caster goes through a stage with a sampler in
+        // it; everything else keeps the stage it has always had, which is why
+        // the masked half costs the common path nothing and why forty-four
+        // goldens recorded against the plain stage cannot move.
+        final masked = maskedShadowShader != shadowShader && _castsMasked(node);
+        final kind =
+            (instanced != null
+                ? 2
+                : skinned
+                ? 1
+                : 0) +
+            (masked ? 3 : 0);
         if (boundKind != kind) {
+          final fragment = masked ? maskedShadowShader : shadowShader;
           pass.bindPipeline(switch (kind) {
+            5 => _instancedMaskedShadowPipeline ??= device.createPipeline(
+              instancedVertexShader,
+              fragment,
+              layout: _kInstancedLayout,
+            ),
+            4 => _skinnedMaskedShadowPipeline ??= device.createPipeline(
+              skinnedVertexShader,
+              fragment,
+            ),
+            3 => _maskedShadowPipeline ??= device.createPipeline(
+              vertexShader,
+              fragment,
+            ),
             2 => _instancedShadowPipeline ??= device.createPipeline(
               instancedVertexShader,
-              shadowShader,
+              fragment,
               layout: _kInstancedLayout,
             ),
             1 => _skinnedShadowPipeline ??= device.createPipeline(
               skinnedVertexShader,
-              shadowShader,
+              fragment,
             ),
             _ => _shadowPipeline ??= device.createPipeline(
               vertexShader,
-              shadowShader,
+              fragment,
             ),
           });
           boundKind = kind;
         }
+        if (masked) _bindShadowMask(pass, maskedShadowShader, node.material);
 
         pass.setWindingOrder(
           node.worldIsMirrored
@@ -746,26 +955,23 @@ extension _ShadowPasses on Renderer {
         }
         pass.draw(instanceCount: instanced?.count ?? 1);
         // Counted once, not once per cascade: the number answers "how many things
-        // cast", and a caster drawn into three tiles is still one caster. The
-        // draw call count is the graph's business.
+        // cast", and a caster drawn into three tiles is still one caster.
+        //
+        // The draws are counted every time, which is the other half of the
+        // same sentence and was missing until `gfx-01n` went looking: a
+        // caster in three cascades is three draws, and a frame that reported
+        // one caster and no draws at all was hiding the cost of the cascade
+        // count from every measurement made of it.
         if (cascade == 0) _shadowCasters++;
+        _frameCounters?.drawCalls++;
       }
     }
 
     pass.submit();
     developer.Timeline.finishSync();
 
-    // Horizontally the texel is a texel of the *atlas*, vertically it is a
-    // texel of a tile. With one cascade they are the same number, which is what
-    // keeps that path byte-identical to the one this renderer has always had.
-    _shadowParams[0] = 1.0 / atlasWidth;
-    _shadowCascades[0] = splits[0];
-    _shadowCascades[1] = splits[1];
-    _shadowCascades[2] = count.toDouble();
-    _shadowCascades[3] = 1.0 / resolution;
-    _shadowParams[1] = settings.bias;
-    _shadowParams[2] = settings.normalOffset;
-    _shadowParams[3] = settings.strength.clamp(0.0, 1.0);
+    publishShadowParams();
+    _directionalCasters = _shadowCasters;
     return true;
   }
 }

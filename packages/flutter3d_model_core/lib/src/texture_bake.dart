@@ -40,7 +40,7 @@ import 'dart:isolate';
 import 'dart:math' as math;
 import 'dart:typed_data';
 
-import 'package:flutter3d_formats/flutter3d_formats.dart' show decodePng;
+import 'package:flutter3d_core/formats.dart' show decodePng;
 
 import 'texture_graph.dart';
 

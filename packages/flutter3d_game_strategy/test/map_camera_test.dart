@@ -4,8 +4,8 @@ library;
 
 import 'dart:typed_data';
 
-import 'package:flutter3d_game/flutter3d_game.dart';
 import 'package:flutter3d_game_strategy/flutter3d_game_strategy.dart';
+import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 /// Eighty metres square, flat unless [height] says otherwise.

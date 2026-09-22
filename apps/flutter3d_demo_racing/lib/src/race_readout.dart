@@ -5,7 +5,7 @@
 /// car and being the reason a lap counter changed.
 library;
 
-import 'package:flutter3d_app/flutter3d_app.dart'; // clockText, from flutter3d_session
+import 'package:flutter3d_game/flutter3d_game.dart'; // clockText
 import 'package:flutter3d_game_racing/flutter3d_game_racing.dart';
 import 'package:vector_math/vector_math.dart' show Vector2;
 

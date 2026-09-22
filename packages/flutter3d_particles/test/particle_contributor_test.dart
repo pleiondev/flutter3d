@@ -9,10 +9,10 @@ library;
 
 import 'dart:typed_data';
 
-import 'package:flutter3d/flutter3d.dart';
+import 'package:flutter3d_core/flutter3d_core.dart';
 import 'package:flutter3d_hardware/testing.dart';
 import 'package:flutter3d_particles/flutter3d_particles.dart';
-import 'package:flutter_test/flutter_test.dart';
+import 'package:test/test.dart';
 import 'package:vector_math/vector_math.dart' as vm;
 
 void main() {

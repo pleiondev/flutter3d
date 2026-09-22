@@ -1,6 +1,6 @@
 import 'dart:typed_data';
 
-import 'package:flutter3d_geometry/flutter3d_geometry.dart';
+import 'package:flutter3d_core/geometry.dart';
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:vector_math/vector_math.dart';
 
@@ -78,15 +78,70 @@ final class InstancedMeshNode extends MeshNode {
   /// Bytes one instance occupies.
   static const int strideInBytes = floatsPerInstance * 4;
 
-  final int _capacity;
-  final Float32List _data;
+  int _capacity;
+  Float32List _data;
   int _count = 0;
   int _dataVersion = 0;
 
-  /// How many instances the buffer can hold. Fixed at construction, because
-  /// growing means reallocating, and a caller that knows its field is a
-  /// caller that can size it.
+  /// How many instances the buffer can hold.
+  ///
+  /// Set at construction, because a caller that knows its field is a caller
+  /// that can size it, and grown by [ensureCapacity] for the one that cannot —
+  /// see there for who that is.
   int get capacity => _capacity;
+
+  /// Grows the buffer to hold at least [wanted] instances, keeping what is in
+  /// it.
+  ///
+  /// **For a caller that does not know its size in advance — `gfx-67n`.** The
+  /// automatic batcher is exactly that: it discovers a run of identical draws
+  /// while encoding a frame, and the run is as long as the scene and the camera
+  /// make it. Growing doubles rather than fitting, so a batch that creeps up by
+  /// one a frame reallocates a handful of times rather than every frame.
+  void ensureCapacity(int wanted) {
+    if (wanted <= _capacity) return;
+    var grown = _capacity;
+    while (grown < wanted) {
+      grown *= 2;
+    }
+
+    final data = Float32List(grown * floatsPerInstance);
+    data.setRange(0, _capacity * floatsPerInstance, _data);
+    for (var i = _capacity; i < grown; i++) {
+      final at = i * floatsPerInstance;
+      data[at] = 1.0;
+      data[at + 5] = 1.0;
+      data[at + 10] = 1.0;
+      data[at + 12] = 1.0;
+      data[at + 13] = 1.0;
+      data[at + 14] = 1.0;
+      data[at + 15] = 1.0;
+    }
+    _data = data;
+
+    final weights = _weights;
+    if (weights != null) {
+      _weights = Float32List(grown * maxMorphTargets)
+        ..setRange(0, _capacity * maxMorphTargets, weights);
+      // The texture is one row per slot, so a taller buffer is a different
+      // texture and the cached one no longer describes it.
+      _weightsVersion++;
+    }
+
+    _capacity = grown;
+    _touched();
+  }
+
+  /// Empties the batch without giving up the buffer it has.
+  ///
+  /// The other half of [ensureCapacity]'s bargain: a batcher that refills the
+  /// same node every frame needs to start from nothing, and freeing the buffer
+  /// to do it would be the allocation the pool exists to avoid.
+  void clear() {
+    if (_count == 0) return;
+    _count = 0;
+    _touched();
+  }
 
   /// How many instances are drawn, never more than [capacity].
   int get count => _count;
@@ -171,6 +226,11 @@ final class InstancedMeshNode extends MeshNode {
   }
 
   /// Appends an instance and returns its index.
+  ///
+  /// Throws when the batch is full: a caller that sized its field and then
+  /// overran it has a bug, and growing quietly underneath it would hide the
+  /// bug and the reallocation both. [ensureCapacity] is how a caller that
+  /// means to grow says so.
   int addInstance(Matrix4 transform, {Vector4? color}) {
     if (_count >= _capacity) {
       throw StateError(

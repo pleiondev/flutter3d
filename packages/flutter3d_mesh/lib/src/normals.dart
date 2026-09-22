@@ -106,6 +106,191 @@ final class MeshNormals {
     _normalise(mesh);
   }
 
+  /// Recomputes only what moving [vertices] can have changed, and answers how
+  /// many corners that came to.
+  ///
+  /// **`pro-sc-01` measured this and both of its platforms missed both
+  /// thresholds on it.** A sculpt stroke moves a few thousand vertices and
+  /// then [build] recomputes every face normal, every fan and every corner of
+  /// the whole mesh: on a 1.2M-triangle model, twenty thousand moved vertices
+  /// pay for 1.2 million faces. Nothing about the far side of the model
+  /// changed, and this is the call that says so.
+  ///
+  /// What can change is bounded and local. A face's normal moves only if one
+  /// of its own vertices did. A corner's normal moves only if some face in its
+  /// fan did — so the fans to rebuild are the fans at every vertex of every
+  /// face touching a moved one, and nothing beyond that ring.
+  ///
+  /// **The boundary is where this goes wrong if it is written the obvious
+  /// way.** [EditMesh.neighborsOf] rotates one way and stops where an edge has
+  /// no twin, which on a boundary vertex is halfway round; a fan gathered that
+  /// way is rebuilt from half its faces and comes back as a crease that is not
+  /// there. [_forEachCornerAt] therefore walks back from where it started
+  /// whenever the forward walk ran out, and `normals_partial_test.dart` holds
+  /// the result to a whole [build], float for float, on a mesh with an open
+  /// edge.
+  ///
+  /// **Positions only, and that is a contract rather than a hope.** This reads
+  /// the loop links the last [build] walked, so it is for an edit that moved
+  /// vertices and left the topology alone — a sculpt stroke, a gizmo drag, a
+  /// shape-key blend. Anything that added, removed or relinked a face needs
+  /// [build]. Slot counts that do not match what the last build saw are the
+  /// cheap, certain half of that — a different mesh, or one that grew — and
+  /// they fall back to the whole rebuild; a deletion that left the counts
+  /// where they were is the caller's to know about.
+  /// [touched], when given, is filled with every vertex whose fans were
+  /// rebuilt — the moved ones and the ring around them. **A caller patching a
+  /// vertex buffer needs this and not the list it passed in**:
+  /// [MeshLayoutPlan.fillVerticesOf] writes the rows of the vertices it is
+  /// given, and the rows carrying a changed normal are the ring's, not just
+  /// the moved ones'. Filling only what moved leaves a seam of old lighting
+  /// one vertex wide around every stroke.
+  int rebuildAround(
+    EditMesh mesh,
+    Iterable<int> vertices, {
+    double smoothAngle = defaultSmoothAngle,
+    Set<int>? touched,
+  }) {
+    if (_faceSlots != mesh.faceSlotCount ||
+        _halfEdgeSlots != mesh.halfEdgeSlotCount) {
+      build(mesh, smoothAngle: smoothAngle);
+      var live = 0;
+      for (var face = 0; face < _faceSlots; face++) {
+        if (!mesh.isFaceAlive(face)) continue;
+        mesh.forEachHalfEdge(face, (int half) {
+          live++;
+          touched?.add(mesh.originOf(half));
+        });
+      }
+      return live;
+    }
+
+    // The faces whose own normal can have moved: those with a moved vertex.
+    final faces = <int>{};
+    for (final int vertex in vertices) {
+      _forEachCornerAt(mesh, vertex, (int half) {
+        final face = mesh.faceOf(half);
+        if (face != EditMesh.none && mesh.isFaceAlive(face)) faces.add(face);
+      });
+    }
+    if (faces.isEmpty) return 0;
+
+    final normal = Vector3.zero();
+    for (final int face in faces) {
+      mesh.normalOf(face, normal);
+      _faces[face * 3] = normal.x;
+      _faces[face * 3 + 1] = normal.y;
+      _faces[face * 3 + 2] = normal.z;
+    }
+
+    // Every vertex of every such face — the ring whose fans now disagree with
+    // what is in the buffers.
+    final ring = touched ?? <int>{};
+    for (final int face in faces) {
+      mesh.forEachHalfEdge(face, (int half) {
+        ring.add(mesh.originOf(half));
+      });
+    }
+
+    // And every corner at every one of them. Whole fans, never part of one:
+    // the grouping below resets each of these corners to stand alone, and a
+    // fan left half-reset would be split down the middle.
+    final corners = <int>{};
+    for (final int vertex in ring) {
+      _forEachCornerAt(mesh, vertex, (int half) {
+        final face = mesh.faceOf(half);
+        if (face != EditMesh.none && mesh.isFaceAlive(face)) corners.add(half);
+      });
+    }
+
+    for (final int half in corners) {
+      _group[half] = half;
+      _sums[half * 3] = 0;
+      _sums[half * 3 + 1] = 0;
+      _sums[half * 3 + 2] = 0;
+    }
+
+    // A union only ever links two corners at the same vertex, and every corner
+    // at every touched vertex is in `corners` — so no rebuilt corner can be
+    // joined to a root left over from the last build.
+    final cosLimit = math.cos(smoothAngle);
+    for (final int half in corners) {
+      final face = mesh.faceOf(half);
+      if (_breaks(mesh, half, face, cosLimit)) continue;
+      _union(half, mesh.nextOf(mesh.twinOf(half)));
+    }
+
+    final here = Vector3.zero();
+    final ahead = Vector3.zero();
+    final behind = Vector3.zero();
+    for (final int half in corners) {
+      final face = mesh.faceOf(half);
+      mesh.positionOf(mesh.originOf(half), here);
+      mesh.positionOf(mesh.originOf(mesh.nextOf(half)), ahead);
+      mesh.positionOf(mesh.originOf(_previous[half]), behind);
+      ahead.sub(here);
+      behind.sub(here);
+      final weight = math.atan2(ahead.cross(behind).length, ahead.dot(behind));
+      final at = _find(half) * 3;
+      _sums[at] += _faces[face * 3] * weight;
+      _sums[at + 1] += _faces[face * 3 + 1] * weight;
+      _sums[at + 2] += _faces[face * 3 + 2] * weight;
+    }
+
+    for (final int half in corners) {
+      final face = mesh.faceOf(half);
+      final at = _find(half) * 3;
+      final x = _sums[at];
+      final y = _sums[at + 1];
+      final z = _sums[at + 2];
+      final length = math.sqrt(x * x + y * y + z * z);
+      if (length == 0) {
+        _corners[half * 3] = _faces[face * 3];
+        _corners[half * 3 + 1] = _faces[face * 3 + 1];
+        _corners[half * 3 + 2] = _faces[face * 3 + 2];
+        continue;
+      }
+      _corners[half * 3] = x / length;
+      _corners[half * 3 + 1] = y / length;
+      _corners[half * 3 + 2] = z / length;
+    }
+
+    return corners.length;
+  }
+
+  /// Every corner at [vertex], both ways round, once each.
+  ///
+  /// The forward rotation `nextOf(twinOf(h))` comes back to where it started
+  /// on an interior vertex, and that is how it knows it is finished. On a
+  /// boundary vertex it runs into the edge with no twin and stops with half
+  /// the fan unvisited — so the other half is walked back from the start,
+  /// through the half-edge before each one on its own loop.
+  void _forEachCornerAt(EditMesh mesh, int vertex, void Function(int) visit) {
+    final start = mesh.outgoingOf(vertex);
+    if (start == EditMesh.none) return;
+
+    var half = start;
+    while (true) {
+      visit(half);
+      if (!mesh.hasLiveTwin(half)) break;
+      half = mesh.nextOf(mesh.twinOf(half));
+      // All the way round: an interior vertex, and there is no other half.
+      if (half == start) return;
+    }
+
+    half = start;
+    while (true) {
+      final back = _previous[half];
+      if (!mesh.hasLiveTwin(back)) break;
+      half = mesh.twinOf(back);
+      // Unreachable on a sane twin table — the forward walk would have come
+      // back round instead of stopping — and a cheap guard against spinning
+      // forever on a broken one.
+      if (half == start) break;
+      visit(half);
+    }
+  }
+
   void _resize(EditMesh mesh) {
     _faceSlots = mesh.faceSlotCount;
     _halfEdgeSlots = mesh.halfEdgeSlotCount;

@@ -8,11 +8,11 @@
 library;
 
 import 'package:flutter/material.dart';
+import 'package:flutter3d_editor_widgets/flutter3d_editor_widgets.dart';
 import 'package:flutter3d_model_core/flutter3d_model_core.dart';
 
+import '../../l10n/app_localizations.dart';
 import '../uv_unwrap_layout.dart';
-import 'number_field.dart';
-import 'section_label.dart';
 
 /// The unwrap's own method, margin and island list, in one panel.
 final class UvUnwrapPanel extends StatelessWidget {
@@ -26,6 +26,10 @@ final class UvUnwrapPanel extends StatelessWidget {
     required this.islands,
     this.selectedIslandId,
     this.onIslandSelected,
+    this.autoPack,
+    this.onAutoPackChanged,
+    this.onUnwrap,
+    this.unwrapRefusal,
   });
 
   /// Every method this build knows how to run — [UnwrapMethod.lscm] alone
@@ -51,17 +55,36 @@ final class UvUnwrapPanel extends StatelessWidget {
   /// same convention [UvLayoutView.onTriangleTap] uses for its own tap.
   final ValueChanged<int>? onIslandSelected;
 
+  /// [UnwrapCommand.autoPack] — screen 06's own "pack automatically" tick.
+  /// Both this and [onAutoPackChanged] left null hides the row, which is what
+  /// a caller with nowhere to keep the answer wants instead of a tick that
+  /// does not stay ticked.
+  final bool? autoPack;
+  final ValueChanged<bool>? onAutoPackChanged;
+
+  /// The Unwrap button under the three settings it reads. Null hides it: the
+  /// rail's own `uv.unwrap` runs the same command, and this is here for the
+  /// shells that have no rail on screen while the panel is — a tablet's own
+  /// sheet covers it.
+  final VoidCallback? onUnwrap;
+
+  /// Why [onUnwrap] cannot run, or null. Shown under a disabled button, the
+  /// bargain `BakePanel.refusal` already makes: a button that refuses after
+  /// the press teaches nothing about what to fix first.
+  final String? unwrapRefusal;
+
   static String _labelOf(UnwrapMethod method) =>
       method == UnwrapMethod.lscm ? 'LSCM' : method.name;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final AppLocalizations l = AppLocalizations.of(context);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
       children: <Widget>[
-        const SectionLabel('Method'),
+        SectionLabel(l.uvMethod),
         SegmentedButton<UnwrapMethod>(
           segments: <ButtonSegment<UnwrapMethod>>[
             for (final option in methods)
@@ -75,14 +98,48 @@ final class UvUnwrapPanel extends StatelessWidget {
           onSelectionChanged: (Set<UnwrapMethod> selection) =>
               onMethodChanged(selection.first),
         ),
-        const SectionLabel('Margin'),
-        NumberField(label: 'Margin', value: margin, onChanged: onMarginChanged),
-        const SectionLabel('Islands'),
+        SectionLabel(l.uvMargin),
+        NumberField(
+          label: l.uvMargin,
+          value: margin,
+          onChanged: onMarginChanged,
+        ),
+        if (autoPack != null && onAutoPackChanged != null)
+          CheckboxListTile(
+            key: const ValueKey<String>('uvAutoPack'),
+            dense: true,
+            contentPadding: EdgeInsets.zero,
+            controlAffinity: ListTileControlAffinity.leading,
+            title: Text(l.uvAutoPack, style: theme.textTheme.bodySmall),
+            value: autoPack,
+            onChanged: (bool? on) => onAutoPackChanged!(on ?? false),
+          ),
+        if (onUnwrap != null) ...<Widget>[
+          const SizedBox(height: 4),
+          FilledButton.tonalIcon(
+            key: const ValueKey<String>('uvUnwrap'),
+            onPressed: unwrapRefusal == null ? onUnwrap : null,
+            icon: const Icon(Icons.unfold_more_outlined),
+            label: Text(l.uvUnwrap),
+          ),
+          if (unwrapRefusal != null)
+            Padding(
+              padding: const EdgeInsets.only(top: 6),
+              child: Text(
+                unwrapRefusal!,
+                key: const ValueKey<String>('uvUnwrapRefusal'),
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.error,
+                ),
+              ),
+            ),
+        ],
+        SectionLabel(l.uvIslands),
         if (islands.isEmpty)
           Padding(
             padding: const EdgeInsets.symmetric(vertical: 4),
             child: Text(
-              'No islands',
+              l.uvNoIslands,
               style: theme.textTheme.bodySmall?.copyWith(
                 fontStyle: FontStyle.italic,
               ),
@@ -124,7 +181,7 @@ final class _IslandRow extends StatelessWidget {
       ),
       child: const SizedBox(width: 16, height: 16),
     ),
-    title: Text('Island ${island.id}'),
+    title: Text(AppLocalizations.of(context).uvIsland(island.id)),
     trailing: Text(island.stretch.toStringAsFixed(2)),
   );
 }

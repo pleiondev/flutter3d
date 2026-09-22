@@ -80,7 +80,7 @@ unawaited(_dressRunner(device, scene, runner));   // swaps it in later
 | Animations | All samplers and channels; STEP, LINEAR, CUBICSPLINE; translation, rotation, scale, and weights |
 | Morph targets | POSITION, NORMAL and TANGENT deltas, packed into a texture the vertex stage samples; rest weights from the node or the mesh; eight blended at once |
 
-Not supported: cameras, Draco and meshopt, TEXCOORD_1 and up. All of them are reported in `warnings` rather than failing the file, and the demo surfaces those, a skipped primitive explains a model that looks odd but still loaded.
+Compressed geometry is decoded, both `KHR_draco_mesh_compression` and `EXT_meshopt_compression`. Not supported: TEXCOORD_1 and up. That, and a Draco payload that does not decode, are reported in `warnings` rather than failing the file, and the demo surfaces those, a skipped primitive explains a model that looks odd but still loaded.
 
 ## KTX2 and compressed textures
 
@@ -244,3 +244,4 @@ batch.setMorphWeights(7, [0.6, 0.0]);    // one copy in a batch
 - [Simulation layer](/core/simulation/): the fixed step the animation is not tied to
 - [Scene graph](/core/scene/), where an instantiated model lands
 - [Tutorial: first scene](/core/tutorial/): loading a model end to end
+- [The asset pipeline](/reference/asset-pipeline/): converting a project's own sources into what this page's decoders read, on every build

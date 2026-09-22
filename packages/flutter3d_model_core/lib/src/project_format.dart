@@ -65,8 +65,8 @@ library;
 import 'dart:convert';
 import 'dart:typed_data';
 
-import 'package:flutter3d_formats/flutter3d_formats.dart';
-import 'package:flutter3d_geometry/flutter3d_geometry.dart';
+import 'package:flutter3d_core/formats.dart';
+import 'package:flutter3d_core/geometry.dart';
 import 'package:flutter3d_mesh/flutter3d_mesh.dart';
 import 'package:vector_math/vector_math.dart';
 
@@ -74,11 +74,16 @@ import 'command.dart';
 import 'history.dart';
 import 'lod_spec.dart';
 import 'material.dart';
+import 'modifier_slot.dart';
+import 'paint_layer.dart';
 import 'parametric_json.dart';
 import 'project.dart';
 import 'project_animation.dart';
 import 'project_morphs.dart';
+import 'scene_lighting.dart';
 import 'selection.dart';
+import 'shape_driver.dart';
+import 'simulation_cache.dart';
 import 'texture_budget.dart';
 import 'texture_graph.dart';
 import 'texture_info.dart';
@@ -121,6 +126,12 @@ const int kProjectImageEntryBytes = 8;
 
 /// One entry of the checksum table: u32 section kind, u32 CRC-32.
 const int kProjectChecksumEntryBytes = 8;
+
+/// One entry of the simulation-cache table: u32 offset into the blob, u32
+/// length. The shape of the frames it addresses — how many, and how long each
+/// is — is in the object's own manifest record, for the reason
+/// [ProjectSection.simulationCaches] gives.
+const int kProjectSimulationEntryBytes = 8;
 
 /// Section kinds.
 ///
@@ -221,6 +232,26 @@ abstract final class ProjectSection {
   /// it to that count; rows only history needs would open in that reader as
   /// images the project does not have. Absent when history needs none.
   static const int historyImages = 8;
+
+  /// `pro-doc-01`'s own `SIMC`: `count` entries of
+  /// [kProjectSimulationEntryBytes], addressing [blob] — one baked
+  /// [SimulationCache]'s frames, packed end to end as raw `Float32List`
+  /// bytes, in the same host-endian form the imported-mesh buffers already
+  /// take.
+  ///
+  /// **A section rather than a record, because a cache is the one thing on
+  /// this document that really is bulk.** A hundred-and-twenty-frame bake of
+  /// a two-thousand-vertex cloth is nearly three megabytes of floats, and
+  /// through `SimulationCache.toJson`'s own base64 it is four — sitting
+  /// inside the manifest, which every reader parses in full before it knows
+  /// whether it wants a simulation at all. So the frames go in the blob,
+  /// which is what the blob is for, and `vertexCount` and the frame count are
+  /// two integers that stay in the object's own record beside the index of
+  /// this row.
+  ///
+  /// Written only for a project that has one, and absent from every file
+  /// written before this existed — the additive rule, same as [historyImages].
+  static const int simulationCaches = 9;
 }
 
 /// What [readProject] gives back.
@@ -366,6 +397,13 @@ Uint8List writeProject(
   final importedAt = <MeshData, int>{};
   final importedJson = <Map<String, Object?>>[];
 
+  // `pro-doc-01`: baked simulation frames, deduplicated by identity for the
+  // same reason the imported buffers are — a history step and the live
+  // project usually hold the same cache, and comparing megabytes of floats
+  // to find that out costs more than writing them twice would.
+  final caches = <SimulationCache>[];
+  final cacheAt = Map<SimulationCache, int>.identity();
+
   List<Map<String, Object?>> objectsJsonFor(List<ModelObject> objectList) {
     final out = <Map<String, Object?>>[];
     for (final ModelObject object in objectList) {
@@ -420,9 +458,59 @@ Uint8List writeProject(
         // most objects most files ever hold.
         'skeletonIndex': object.skeletonIndex,
         'shapeSet': _shapeSetJson(object.shapeSet),
+        // `anim-34d`, younger still — absent reads back as
+        // `<ShapeDriver>[]`, the ordinary case of a shape key nobody has
+        // wired to a bone yet.
+        'shapeDrivers': _shapeDriversJson(object.shapeDrivers),
         // `pro-lod-03`, younger still — absent reads back as `<LodSpec>[]`,
         // the ordinary case of an object nobody has asked to simplify.
         'lods': _lodsJson(object.lods),
+        // The modifier stack, and written only for an object that has one.
+        // It was not written at all: `ModifierSlot` had a `toJson` and a
+        // `fromJson` from the day the stack existed and nothing here called
+        // either, so a mirror, an array or a boolean lasted until the file
+        // was closed. Absent reads back as no stack, which is what every
+        // file written before this says and what it meant.
+        if (object.modifiers.isNotEmpty)
+          'modifiers': <Object?>[
+            for (final ModifierSlot slot in object.modifiers) slot.toJson(),
+          ],
+        // `pro-doc-01`, and written only for an object somebody has baked:
+        // the row addresses the frames in
+        // `ProjectSection.simulationCaches`, and the two counts here are
+        // what says how to read them back. Absent is the ordinary case and
+        // what every file written before this existed says.
+        if (object.simulationCache case final SimulationCache cache)
+          'simulationCache': <String, Object?>{
+            'chunk': cacheAt.putIfAbsent(cache, () {
+              caches.add(cache);
+              return caches.length - 1;
+            }),
+            'vertexCount': cache.vertexCount,
+            'frameCount': cache.frameCount,
+          },
+        // `ux-14`, younger still, and written only when it is not the
+        // default: almost every object in almost every file is visible and
+        // unlocked, and two more keys per object is real bytes on a project
+        // of thousands. Absent reads back as the default, which is what
+        // every file written before this existed says.
+        if (!object.visible) 'hidden': true,
+        if (object.locked) 'locked': true,
+        // `ux-48`, and written only for an object that has one: almost
+        // nothing in almost any file is linked, and an absent key reads back
+        // as the null every file written before this said.
+        if (object.source case final SourceLink link)
+          'source': <String, Object?>{'path': link.path, 'sha': link.sha},
+        if (object.credit case final ModelCredit credit)
+          // `gal-05`, written only where there is one: most objects owe
+          // nobody anything, and a null in every entry is a byte per object
+          // for a fact that is almost always absent.
+          'credit': <String, Object?>{
+            'title': credit.title,
+            'author': credit.author,
+            'licence': credit.licence,
+            'url': credit.url,
+          },
       });
     }
     return out;
@@ -517,6 +605,15 @@ Uint8List writeProject(
         'clips': <Object?>[
           for (final ProjectClip each in project.clips) _clipJson(each),
         ],
+        // The lights, the environment, the exposure and the rest of
+        // `SceneLighting`, and written only when somebody has changed one of
+        // them. `ModelProject.lighting` said for some time that a project
+        // reopened comes back with the default; that was true and it was a
+        // person's lamps gone when the file closed. Absent reads as the
+        // default, which is what every file written before this says, and a
+        // project nobody has lit writes the bytes it always wrote.
+        if (!_isDefaultLighting(project.lighting))
+          'lighting': _lightingJson(project.lighting),
         'objects': objects,
       }),
     ),
@@ -558,6 +655,14 @@ Uint8List writeProject(
     for (final EncodedImage each in historyImages)
       (place(each.bytes), each.bytes.lengthInBytes),
   ];
+  // One chunk per cache, its frames end to end: every frame is the same
+  // length, which the object's own record already says, so a table of one
+  // offset and one length per cache is enough to cut them apart again.
+  final cacheOffsets = <(int, int)>[
+    for (final SimulationCache each in caches)
+      if (_packedFrames(each) case final Uint8List packed)
+        (place(packed), packed.lengthInBytes),
+  ];
 
   final blob = Uint8List(blobLength);
   for (var i = 0; i < chunks.length; i++) {
@@ -596,6 +701,15 @@ Uint8List writeProject(
     imageView
       ..setUint32(i * kProjectImageEntryBytes, at, Endian.little)
       ..setUint32(i * kProjectImageEntryBytes + 4, length, Endian.little);
+  }
+
+  final cacheTable = Uint8List(caches.length * kProjectSimulationEntryBytes);
+  final cacheView = ByteData.view(cacheTable.buffer);
+  for (var i = 0; i < cacheOffsets.length; i++) {
+    final (int at, int length) = cacheOffsets[i];
+    cacheView
+      ..setUint32(i * kProjectSimulationEntryBytes, at, Endian.little)
+      ..setUint32(i * kProjectSimulationEntryBytes + 4, length, Endian.little);
   }
 
   final historyImageTable = Uint8List(
@@ -650,6 +764,11 @@ Uint8List writeProject(
       ),
     if (historyImages.isNotEmpty)
       (ProjectSection.historyImages, historyImageTable, historyImages.length),
+    // Absent rather than empty for a project nobody has baked — the same
+    // rule `historyImages` keeps, and the reason an older reader never has
+    // to know this section exists.
+    if (caches.isNotEmpty)
+      (ProjectSection.simulationCaches, cacheTable, caches.length),
   ];
 
   // Computed over the section data, before anything knows where in the file it
@@ -875,6 +994,10 @@ ProjectRead readProject(Uint8List bytes) {
         'its five original limits, the nextId, and a list of objects.',
       );
     }
+    final (List<Uint8List> simulationChunks, String? cacheRefusal) =
+        _readSimulationChunks(bytes, sections);
+    if (cacheRefusal != null) return ProjectRefused(cacheRefusal);
+
     final objects = <ModelObject>[];
     for (var i = 0; i < entries.length; i++) {
       final (ModelObject? object, String? refusal) = _readObject(
@@ -883,10 +1006,18 @@ ProjectRead readProject(Uint8List bytes) {
         meshes,
         arrived,
         pool,
+        simulationChunks: simulationChunks,
+        warnings: warnings,
       );
       if (refusal != null) return ProjectRefused(refusal);
       objects.add(object!);
     }
+
+    final SceneLighting lighting = _readLighting(
+      document['lighting'],
+      warnings,
+      imageCount: images.length,
+    );
 
     final (List<HistoryStep> history, String? historyRefusal) = _readHistory(
       bytes,
@@ -899,8 +1030,10 @@ ProjectRead readProject(Uint8List bytes) {
       images: images,
       skeletons: skeletons,
       clips: clips,
+      lighting: lighting,
       nextId: nextId,
       warnings: warnings,
+      simulationChunks: simulationChunks,
     );
     if (historyRefusal != null) return ProjectRefused(historyRefusal);
 
@@ -912,6 +1045,7 @@ ProjectRead readProject(Uint8List bytes) {
         images: images,
         skeletons: skeletons,
         clips: clips,
+        lighting: lighting,
         nextId: nextId,
       ),
       warnings: warnings,
@@ -953,8 +1087,10 @@ ProjectRead readProject(Uint8List bytes) {
   required List<EncodedImage> images,
   required List<ProjectSkeleton> skeletons,
   required List<ProjectClip> clips,
+  required SceneLighting lighting,
   required int nextId,
   required List<String> warnings,
+  List<Uint8List> simulationChunks = const <Uint8List>[],
 }) {
   final at = sections[ProjectSection.history];
   if (at == null) return (const <HistoryStep>[], null);
@@ -1002,6 +1138,7 @@ ProjectRead readProject(Uint8List bytes) {
   var carriedImages = images;
   var carriedSkeletons = skeletons;
   var carriedClips = clips;
+  var carriedLighting = lighting;
   final noticed = <String>[];
 
   final steps = List<HistoryStep?>.filled(entries.length, null);
@@ -1039,6 +1176,7 @@ ProjectRead readProject(Uint8List bytes) {
           meshes,
           arrived,
           pool,
+          simulationChunks: simulationChunks,
         );
         if (refusal != null) {
           return (const <HistoryStep>[], 'History step $i: $refusal');
@@ -1115,6 +1253,15 @@ ProjectRead readProject(Uint8List bytes) {
         }
         carriedClips = read;
       }
+      if (step.containsKey('lighting')) {
+        // The images as this step's own state has them, since the panorama
+        // is an index into that table and not into the live one.
+        carriedLighting = _readLighting(
+          step['lighting'],
+          noticed,
+          imageCount: carriedImages.length,
+        );
+      }
       steps[i] = HistoryStep(
         command: command,
         before: ModelProject(
@@ -1124,6 +1271,7 @@ ProjectRead readProject(Uint8List bytes) {
           images: carriedImages,
           skeletons: carriedSkeletons,
           clips: carriedClips,
+          lighting: carriedLighting,
           nextId: carriedNextId,
         ),
         selectionBefore: selection,
@@ -1301,6 +1449,15 @@ Map<String, Object?> _shapeKeyJson(ShapeKey key) => <String, Object?>{
   'positions': <double>[...key.positions],
 };
 
+/// [drivers] as JSON — `null` for the ordinary object with no shape
+/// drivers, the same absent-means-empty shape [_shapeSetJson]/[_lodsJson]
+/// keep for the same reason: a project that never touched `anim-34d`
+/// writes exactly the file it would have written before this row existed.
+List<Object?>? _shapeDriversJson(List<ShapeDriver> drivers) {
+  if (drivers.isEmpty) return null;
+  return <Object?>[for (final ShapeDriver driver in drivers) driver.toJson()];
+}
+
 /// [lods] as JSON — `null` for the ordinary object with no levels of detail,
 /// the same absent-means-empty shape [_shapeSetJson] keeps for the same
 /// reason: a project that never touched `pro-lod-03` writes exactly the
@@ -1374,7 +1531,145 @@ Map<String, Object?> _stepJson(
       'clips': <Object?>[
         for (final ProjectClip each in before.clips) _clipJson(each),
       ],
+    // Always written when the step changed it, default or not: this is what
+    // an undo puts back, and "back to the default" is a thing to put back.
+    if (!identical(before.lighting, after.lighting))
+      'lighting': _lightingJson(before.lighting),
   };
+}
+
+/// Whether [lighting] is what a project nobody has lit holds.
+bool _isDefaultLighting(SceneLighting lighting) {
+  const untouched = SceneLighting();
+  return lighting.lights.isEmpty &&
+      lighting.environment == untouched.environment &&
+      lighting.ambientIntensity == untouched.ambientIntensity &&
+      lighting.shadows == untouched.shadows &&
+      lighting.exposure == untouched.exposure &&
+      lighting.post.bloomEnabled == untouched.post.bloomEnabled &&
+      lighting.panorama == null;
+}
+
+Map<String, Object?> _lightingJson(SceneLighting lighting) => <String, Object?>{
+  'lights': <Object?>[
+    for (final ProjectLight light in lighting.lights)
+      <String, Object?>{
+        'type': light.type.name,
+        'color': <double>[light.color.x, light.color.y, light.color.z],
+        'intensity': light.intensity,
+        'range': light.range,
+        'castsShadow': light.castsShadow,
+        'innerConeAngle': light.innerConeAngle,
+        'outerConeAngle': light.outerConeAngle,
+        'transform': <double>[...light.transform.storage],
+      },
+  ],
+  'environment': lighting.environment.name,
+  'ambientIntensity': lighting.ambientIntensity,
+  'shadows': lighting.shadows,
+  'exposure': lighting.exposure,
+  'bloom': lighting.post.bloomEnabled,
+  if (lighting.panorama case final int image) 'panorama': image,
+};
+
+/// [json] as a [SceneLighting], with anything it cannot read left at its
+/// default and said in [warnings].
+///
+/// **Never a reason to refuse the file.** A light whose kind a newer build
+/// added, or an environment this one has no name for, is a scene that opens a
+/// little darker than it was saved, with a sentence saying what was dropped.
+/// That is the rule the rest of this reader follows for a name it does not
+/// know, and lights are the last thing worth losing a model over.
+///
+/// [imageCount] bounds the panorama, which is an index into the project's
+/// images: one that points past the table is dropped, since a renderer handed
+/// it would be reading an image that is not there.
+SceneLighting _readLighting(
+  Object? json,
+  List<String> warnings, {
+  required int imageCount,
+}) {
+  if (json is! Map<String, Object?>) return const SceneLighting();
+  const untouched = SceneLighting();
+
+  void noticed(String what) {
+    final said = 'The scene lighting $what; left at its default.';
+    if (!warnings.contains(said)) warnings.add(said);
+  }
+
+  ProjectLight? lightFrom(Object? entry) {
+    if (entry case {
+      'type': final String typeName,
+      'color': [final num r, final num g, final num b],
+      'intensity': final num intensity,
+      'transform': final List<Object?> transform,
+    } when transform.length == 16 && transform.every((v) => v is num)) {
+      final type = ProjectLightType.values
+          .where((ProjectLightType each) => each.name == typeName)
+          .firstOrNull;
+      if (type == null) return null;
+      return ProjectLight(
+        type: type,
+        color: Vector3(r.toDouble(), g.toDouble(), b.toDouble()),
+        intensity: intensity.toDouble(),
+        range: (entry['range'] as num?)?.toDouble() ?? 0.0,
+        castsShadow: entry['castsShadow'] == true,
+        innerConeAngle: (entry['innerConeAngle'] as num?)?.toDouble() ?? 0.0,
+        outerConeAngle:
+            (entry['outerConeAngle'] as num?)?.toDouble() ??
+            ProjectLight().outerConeAngle,
+        transform: Matrix4.fromList(<double>[
+          for (final Object? value in transform) (value! as num).toDouble(),
+        ]),
+      );
+    }
+    return null;
+  }
+
+  final entries = switch (json['lights']) {
+    final List<Object?> list => list,
+    _ => const <Object?>[],
+  };
+  final lights = <ProjectLight>[
+    for (final Object? entry in entries) ?lightFrom(entry),
+  ];
+  if (lights.length != entries.length) {
+    noticed(
+      'had ${entries.length - lights.length} of its ${entries.length} lights '
+      'dropped, which this build cannot read',
+    );
+  }
+
+  final environment = switch (json['environment']) {
+    final String name =>
+      SceneEnvironmentPreset.values
+          .where((SceneEnvironmentPreset each) => each.name == name)
+          .firstOrNull,
+    _ => null,
+  };
+  if (json['environment'] != null && environment == null) {
+    noticed('names an environment this build does not have');
+  }
+
+  final panorama = switch (json['panorama']) {
+    final int image when image >= 0 && image < imageCount => image,
+    _ => null,
+  };
+  if (json['panorama'] != null && panorama == null) {
+    noticed('names a panorama that is not among the project\'s images');
+  }
+
+  return SceneLighting(
+    lights: lights,
+    environment: environment ?? untouched.environment,
+    ambientIntensity:
+        (json['ambientIntensity'] as num?)?.toDouble() ??
+        untouched.ambientIntensity,
+    shadows: json['shadows'] == true,
+    exposure: (json['exposure'] as num?)?.toDouble() ?? untouched.exposure,
+    post: ScenePostSettings(bloomEnabled: json['bloom'] != false),
+    panorama: panorama,
+  );
 }
 
 Map<String, Object?> _profileJson(ProjectProfile profile) => <String, Object?>{
@@ -1404,6 +1699,8 @@ Map<String, Object?> _profileJson(ProjectProfile profile) => <String, Object?>{
   // `syn-03`, younger still, read back the same optional way.
   'fps': profile.fps,
   'frameSnap': profile.frameSnap,
+  // `pro-sc-09`, younger again, and optional for the same reason.
+  'sculptTriangleLimitWeb': profile.sculptTriangleLimitWeb,
 };
 
 Map<String, Object?> _skeletonJson(ProjectSkeleton skeleton) =>
@@ -1452,6 +1749,10 @@ Map<String, Object?> _materialJson(ProjectMaterial material) {
     'fmat': material.fmat,
     'graph': material.graph?.toJson(),
     'bakedAtVersion': material.bakedAtVersion,
+    // `pro-doc-01`'s own `PNTL`: what a person painted, layer by layer,
+    // rather than only the flattening of it. Absent for a material nobody
+    // has painted on, which is nearly all of them.
+    if (material.paint case final PaintStack stack) 'paint': _paintJson(stack),
     'name': surface.name,
     'baseColor': <double>[
       surface.baseColor.x,
@@ -1571,6 +1872,9 @@ Map<String, Object?>? _bindingJson(TextureBinding? binding) => binding == null
             _ => null,
           },
           bakedAtVersion: entry['bakedAtVersion'] as int?,
+          // Younger than `graph` above, read the same optional way: absent
+          // means a material nobody painted on, not a refusal.
+          paint: _paintFrom(entry['paint']),
           surface: SurfaceMaterial(
             name: name == null ? null : _intern(name, pool),
             baseColor: Vector4(
@@ -1749,6 +2053,10 @@ ProjectProfile? _readProfile(Object? json, List<String> warnings) {
         _ => fallback.fps,
       },
       frameSnap: json['frameSnap'] as bool? ?? fallback.frameSnap,
+      sculptTriangleLimitWeb: switch (json['sculptTriangleLimitWeb']) {
+        final num value => value.round(),
+        _ => fallback.sculptTriangleLimitWeb,
+      },
     );
   }
   return null;
@@ -1919,6 +2227,126 @@ LightingModel? _lightingModelNamed(
   return (images, null);
 }
 
+/// The raw frame bytes of every row of [ProjectSection.simulationCaches], or
+/// the sentence that stops the file being read.
+///
+/// Sliced rather than decoded here: what the bytes mean — how many frames,
+/// how many vertices each — is on the object that names the row, and an
+/// object is what this file has to refuse against. A row nothing names costs
+/// a slice and is dropped when the project is built, which is the same thing
+/// an unreferenced mesh chunk already costs.
+///
+/// Copied out of the file rather than viewed over it, for [_readImages]'s own
+/// reason: a project holding one bake should not keep the whole `.f3dproj`
+/// alive for as long as anything scrubs it.
+(List<Uint8List>, String?) _readSimulationChunks(
+  Uint8List bytes,
+  Map<int, ({int offset, int length})> sections,
+) {
+  final table = sections[ProjectSection.simulationCaches];
+  if (table == null || table.length == 0) return (const <Uint8List>[], null);
+  final blob = sections[ProjectSection.blob];
+  if (blob == null) {
+    return (
+      const <Uint8List>[],
+      'This file has a simulation-cache table and no blob for it to point '
+          'into.',
+    );
+  }
+
+  final view = ByteData.view(
+    bytes.buffer,
+    bytes.offsetInBytes,
+    bytes.lengthInBytes,
+  );
+  final chunks = <Uint8List>[];
+  final count = table.length ~/ kProjectSimulationEntryBytes;
+  for (var i = 0; i < count; i++) {
+    final entry = table.offset + i * kProjectSimulationEntryBytes;
+    final at = view.getUint32(entry, Endian.little);
+    final length = view.getUint32(entry + 4, Endian.little);
+    if (at + length > blob.length) {
+      return (
+        const <Uint8List>[],
+        'Simulation cache $i runs from $at for $length bytes and the blob is '
+            '${blob.length} bytes long.',
+      );
+    }
+    chunks.add(
+      Uint8List.fromList(
+        Uint8List.sublistView(
+          bytes,
+          blob.offset + at,
+          blob.offset + at + length,
+        ),
+      ),
+    );
+  }
+  return (chunks, null);
+}
+
+/// The cache object [record] names, or the sentence that stops the file being
+/// read.
+///
+/// **Refused rather than dropped when the numbers do not agree.** A bake that
+/// opens with the wrong vertex count is a cloth that scrubs into a shape
+/// nothing in the document has, and nothing downstream can tell that from a
+/// simulation that really did look like that.
+(SimulationCache?, String?) _readSimulationCache(
+  Object? record,
+  List<Uint8List> chunks,
+  int index,
+  String name,
+) {
+  if (record == null) return (null, null);
+  if (record case {
+    'chunk': final int chunk,
+    'vertexCount': final int vertexCount,
+    'frameCount': final int frameCount,
+  }) {
+    if (chunk < 0 || chunk >= chunks.length) {
+      return (
+        null,
+        'Object $index ("$name") names simulation cache $chunk and the file '
+            'holds ${chunks.length}.',
+      );
+    }
+    final Float32List floats = Float32List.view(
+      chunks[chunk].buffer,
+      chunks[chunk].offsetInBytes,
+      chunks[chunk].lengthInBytes ~/ Float32List.bytesPerElement,
+    );
+    if (floats.length != frameCount * vertexCount * 3) {
+      return (
+        null,
+        'Object $index ("$name") names a simulation cache of $frameCount '
+            'frames over $vertexCount vertices, which is '
+            '${frameCount * vertexCount * 3} values, and the file holds '
+            '${floats.length}.',
+      );
+    }
+    return (
+      SimulationCache(
+        vertexCount: vertexCount,
+        frames: <Float32List>[
+          for (var i = 0; i < frameCount; i++)
+            Float32List.sublistView(
+              floats,
+              i * vertexCount * 3,
+              (i + 1) * vertexCount * 3,
+            ),
+        ],
+      ),
+      null,
+    );
+  }
+  return (
+    null,
+    'Object $index ("$name") has a simulation cache that is not a chunk, a '
+        'vertex count and a frame count.',
+  );
+}
+
 /// The CRC-32 of [bytes], the polynomial PNG and zip use.
 ///
 /// **Written here rather than reached for, because there is nowhere to reach.**
@@ -2080,6 +2508,25 @@ Object? _canonical(Object? value) => switch (value) {
 /// the repository is worth more than a byte-swap nothing here can exercise.
 Uint8List _rawBytes(TypedData data) =>
     Uint8List.view(data.buffer, data.offsetInBytes, data.lengthInBytes);
+
+/// [cache]'s frames end to end, as raw bytes.
+///
+/// One buffer rather than one blob entry per frame: a frame is the unit a
+/// scrub reads, not the unit a file addresses, and a hundred and twenty table
+/// rows to say "these are contiguous" is a table that can disagree with
+/// itself. The frames are all the same length — [SimulationCache]'s own
+/// constructor refuses otherwise — so where one ends is arithmetic.
+Uint8List _packedFrames(SimulationCache cache) {
+  final out = Float32List(cache.frameCount * cache.vertexCount * 3);
+  for (var i = 0; i < cache.frameCount; i++) {
+    out.setRange(
+      i * cache.vertexCount * 3,
+      (i + 1) * cache.vertexCount * 3,
+      cache.frame(i),
+    );
+  }
+  return _rawBytes(out);
+}
 
 /// A vertex layout as JSON: the attribute names, in order, with how many floats
 /// each of them takes.
@@ -2282,6 +2729,72 @@ VertexLayout? _layoutFrom(Object? json, Map<String, String> pool) {
     }
   }
   return (lods, null);
+}
+
+/// [json] as a modifier stack, or the sentence that stops the file —
+/// `(null, null)` for the ordinary absent case, an object with no stack.
+///
+/// **A slot this build cannot read is dropped with a warning, and the file
+/// still opens.** That is [ModifierSlot.fromJson]'s own rule and the reason it
+/// answers null: a stack written by a build with a modifier kind this one has
+/// not got is still a model worth opening, and the person is told which object
+/// lost what. A `modifiers` entry that is not a list at all is a different
+/// matter, a damaged file, and stops it the way [_readLods] does.
+(List<ModifierSlot>?, String?) _readModifiers(
+  Object? json,
+  int index,
+  String name,
+  List<String>? warnings,
+) {
+  if (json == null) return (null, null);
+  if (json is! List<Object?>) {
+    return (
+      null,
+      'Object $index ("$name") has a modifiers entry that is not a list.',
+    );
+  }
+  final slots = <ModifierSlot>[
+    for (final Object? each in json) ?ModifierSlot.fromJson(each),
+  ];
+  if (slots.length != json.length) {
+    warnings?.add(
+      'Object $index ("$name") had ${json.length - slots.length} of its '
+      '${json.length} modifiers dropped: this build cannot read them.',
+    );
+  }
+  return (slots, null);
+}
+
+/// [json] as a list of [ShapeDriver], or the sentence that stops the file —
+/// `(null, null)` for the ordinary absent case, an object no driver has
+/// ever been added to (every project saved before `anim-34d`, among
+/// others). Mirrors [_readLods]'s own shape.
+(List<ShapeDriver>?, String?) _readShapeDrivers(
+  Object? json,
+  int index,
+  String name,
+) {
+  if (json == null) return (null, null);
+  if (json is! List<Object?>) {
+    return (
+      null,
+      'Object $index ("$name") has a shapeDrivers entry that is not a '
+          'list.',
+    );
+  }
+  final drivers = <ShapeDriver>[];
+  for (var i = 0; i < json.length; i++) {
+    final driver = ShapeDriver.fromJson(json[i]);
+    if (driver == null) {
+      return (
+        null,
+        'Object $index ("$name")\'s shape driver $i is missing a field or '
+            'has one of the wrong type.',
+      );
+    }
+    drivers.add(driver);
+  }
+  return (drivers, null);
 }
 
 /// The skeletons [json] describes, or the sentence that stops the file.
@@ -2513,8 +3026,10 @@ VertexLayout? _layoutFrom(Object? json, Map<String, String> pool) {
   int index,
   List<EditMesh> meshes,
   List<MeshData> arrived,
-  Map<String, String> pool,
-) {
+  Map<String, String> pool, {
+  List<Uint8List> simulationChunks = const <Uint8List>[],
+  List<String>? warnings,
+}) {
   if (entry case {
     'id': final int id,
     'name': final String name,
@@ -2554,12 +3069,28 @@ VertexLayout? _layoutFrom(Object? json, Map<String, String> pool) {
     );
     if (shapeRefusal != null) return (null, shapeRefusal);
 
+    final (List<ShapeDriver>? shapeDrivers, String? driversRefusal) =
+        _readShapeDrivers(entry['shapeDrivers'], index, name);
+    if (driversRefusal != null) return (null, driversRefusal);
+
     final (List<LodSpec>? lods, String? lodsRefusal) = _readLods(
       entry['lods'],
       index,
       name,
     );
     if (lodsRefusal != null) return (null, lodsRefusal);
+
+    final (List<ModifierSlot>? modifiers, String? modifiersRefusal) =
+        _readModifiers(entry['modifiers'], index, name, warnings);
+    if (modifiersRefusal != null) return (null, modifiersRefusal);
+
+    final (SimulationCache? cache, String? cacheRefusal) = _readSimulationCache(
+      entry['simulationCache'],
+      simulationChunks,
+      index,
+      name,
+    );
+    if (cacheRefusal != null) return (null, cacheRefusal);
 
     return (
       ModelObject(
@@ -2578,7 +3109,41 @@ VertexLayout? _layoutFrom(Object? json, Map<String, String> pool) {
         // already are.
         skeletonIndex: entry['skeletonIndex'] as int?,
         shapeSet: shapeSet ?? const ShapeSet(),
+        shapeDrivers: shapeDrivers ?? const <ShapeDriver>[],
         lods: lods ?? const <LodSpec>[],
+        modifiers: modifiers ?? const <ModifierSlot>[],
+        // `pro-doc-01`. Absent is an object nobody has baked, which is what
+        // every file written before the section existed says.
+        simulationCache: cache,
+        // `ux-14`. Written as "hidden" rather than "visible" so that absent
+        // and false say the same thing, which is what every file written
+        // before this existed says.
+        visible: entry['hidden'] != true,
+        locked: entry['locked'] == true,
+        // `ux-48`. A half-written link — a path with no digest, or the other
+        // way round — reads as no link at all rather than as a link that
+        // cannot answer "has this changed"; there is nothing useful to do
+        // with half of one.
+        source: switch (entry['source']) {
+          {'path': final String path, 'sha': final String sha}
+              when path.isNotEmpty =>
+            (path: path, sha: sha),
+          _ => null,
+        },
+        // `gal-05`. A credit missing its author is no credit: the export
+        // would write a line that claims to attribute and names nobody,
+        // which is worse than writing nothing.
+        credit: switch (entry['credit']) {
+          {
+            'title': final String title,
+            'author': final String author,
+            'licence': final String licence,
+            'url': final String url,
+          }
+              when author.isNotEmpty =>
+            (title: title, author: author, licence: licence, url: url),
+          _ => null,
+        },
       ),
       null,
     );
@@ -2652,3 +3217,77 @@ const List<String> _shapeNames = <String>[
   'cylinder',
   'torus',
 ];
+
+/// `pro-doc-01`: a [PaintStack] as the manifest carries it.
+///
+/// **The tiles go through the PNG writer this file already has.** A 64×64
+/// RGBA tile is sixteen kilobytes raw and a few hundred bytes compressed for
+/// the mostly-flat thing a paint layer usually is; base64 over the raw bytes
+/// would put a third on top of the sixteen. The alternative — a blob-addressed
+/// section of its own — is where this belongs once a canvas is measured in
+/// thousands of tiles rather than tens, and the plan's own `PNTL` names that
+/// shape; what is here is the round trip, in the place this format puts
+/// everything that is not bulk.
+Map<String, Object?> _paintJson(PaintStack stack) => <String, Object?>{
+  'layers': <Object?>[
+    for (final PaintLayer layer in stack.layers)
+      <String, Object?>{
+        'tilesX': layer.tilesX,
+        'tilesY': layer.tilesY,
+        'blend': layer.blendMode.name,
+        'tiles': <String, Object?>{
+          for (final MapEntry<int, PaintTile> tile in layer.tiles.entries)
+            '${tile.key}': base64Encode(
+              encodeCompressedPng(
+                paintTileSize,
+                paintTileSize,
+                tile.value.pixels,
+              ),
+            ),
+        },
+      },
+  ],
+};
+
+/// [json] read back as a [PaintStack], or null when there is none — or when
+/// a row of it does not read back, which is the same "an unreadable record
+/// is no record" rule every optional reader here keeps.
+PaintStack? _paintFrom(Object? json) {
+  if (json is! Map<String, Object?>) return null;
+  final Object? rows = json['layers'];
+  if (rows is! List<Object?>) return null;
+  final layers = <PaintLayer>[];
+  for (final Object? row in rows) {
+    if (row is! Map<String, Object?>) return null;
+    final Object? tilesX = row['tilesX'];
+    final Object? tilesY = row['tilesY'];
+    if (tilesX is! int || tilesY is! int) return null;
+    final tiles = <int, PaintTile>{};
+    if (row['tiles'] case final Map<String, Object?> written) {
+      for (final MapEntry<String, Object?> each in written.entries) {
+        final int? key = int.tryParse(each.key);
+        final Object? encoded = each.value;
+        if (key == null || encoded is! String) return null;
+        final decoded = decodePng(base64Decode(encoded));
+        if (decoded == null ||
+            decoded.width != paintTileSize ||
+            decoded.height != paintTileSize) {
+          return null;
+        }
+        tiles[key] = PaintTile(decoded.rgba);
+      }
+    }
+    layers.add(
+      PaintLayer(
+        tilesX: tilesX,
+        tilesY: tilesY,
+        blendMode: BlendMode.values.firstWhere(
+          (BlendMode it) => it.name == row['blend'],
+          orElse: () => BlendMode.normal,
+        ),
+        tiles: tiles,
+      ),
+    );
+  }
+  return PaintStack(layers);
+}

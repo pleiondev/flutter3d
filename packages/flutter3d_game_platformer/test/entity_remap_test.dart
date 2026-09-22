@@ -11,8 +11,8 @@
 /// with rather than a name a test typed in by hand.
 library;
 
-import 'package:flutter3d_game/flutter3d_game.dart';
 import 'package:flutter3d_game_platformer/flutter3d_game_platformer.dart';
+import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 /// Three named hunters, or two — a stand-in for "the level before an edit"

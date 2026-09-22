@@ -1,0 +1,13 @@
+# The one target this box's Prometheus has: the models service's own
+# /metrics, on the loopback port it already listens on. nginx never sees this
+# request — Prometheus runs in the host's network namespace (see
+# ../docker-compose.yml) and reaches 127.0.0.1:8794 the same way `curl` on the
+# host itself would.
+global:
+  scrape_interval: 30s
+  evaluation_interval: 30s
+
+scrape_configs:
+  - job_name: flutter3d-models
+    static_configs:
+      - targets: ['127.0.0.1:8794']

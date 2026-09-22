@@ -64,13 +64,22 @@ extension _RendererResources on Renderer {
       !(lightmapped && (skinned || instanced)),
       'a lightmap is baked onto a level, which is neither skinned nor batched',
     );
+    // **The vertex stage is part of the key — `gfx-75n`.** It used to be the
+    // fragment stage's name alone, which was complete while the vertex side was
+    // fixed. Two materials that light the same way and displace differently
+    // are two pipelines, and keying on the fragment name would have handed the
+    // second one the first one's.
+    final vertex = model.vertexShaderName;
+    final name = vertex == null
+        ? model.shaderName
+        : '$vertex+${model.shaderName}';
     final key = instanced
-        ? 'instanced/${model.shaderName}'
+        ? 'instanced/$name'
         : skinned
-        ? 'skinned/${model.shaderName}'
+        ? 'skinned/$name'
         : lightmapped
-        ? 'lightmapped/${model.shaderName}'
-        : model.shaderName;
+        ? 'lightmapped/$name'
+        : name;
     return _pipelineCache.putIfAbsent(
       key,
       () => instanced
@@ -80,14 +89,56 @@ extension _RendererResources on Renderer {
               layout: _kInstancedLayout,
             )
           : device.createPipeline(
-              skinned
-                  ? skinnedVertexShader
-                  : lightmapped
-                  ? lightmappedVertexShader
-                  : vertexShader,
+              _vertexShaderFor(
+                model,
+                skinned: skinned,
+                lightmapped: lightmapped,
+              ),
               _fragmentShaderFor(model),
             ),
     );
+  }
+
+  /// The vertex stage this draw goes through — `gfx-75n`.
+  ///
+  /// The engine's own unless the material brought one, which is the seam this
+  /// row exists for. Instanced and lightmapped draws keep the engine's: both
+  /// read a second buffer whose layout the engine declares, and a stage
+  /// supplied from outside cannot be held to a layout it has never seen.
+  ShaderHandle _vertexShaderFor(
+    LightingModel model, {
+    required bool skinned,
+    required bool lightmapped,
+  }) {
+    final supplied = model.vertexShaderName;
+    if (supplied == null || lightmapped) {
+      return skinned
+          ? skinnedVertexShader
+          : lightmapped
+          ? lightmappedVertexShader
+          : vertexShader;
+    }
+
+    // One name, two stages: the skinned entry point is the given name with
+    // `Skinned` on the end, the same relationship `MeshVertex` and
+    // `MeshSkinnedVertex` already have. A material drawn only on props need
+    // never ship the second, and one that is drawn on a character and did not
+    // is told which name was wanted rather than silently drawing the bind pose.
+    final wanted = skinned ? '${supplied}Skinned' : supplied;
+    return _materialVertexShaders.putIfAbsent(wanted, () {
+      final shader = shaders[wanted];
+      if (shader == null) {
+        throw StateError(
+          'Material "${model.label}" asks for the vertex stage "$wanted", '
+          'which no shader library the renderer was given answers to. '
+          '${skinned ? 'This is the skinned half of "$supplied": a material '
+                    'drawn on a skinned mesh needs both. ' : ''}'
+          'Pass it to Renderer.create as `materials:`, or rebuild the '
+          "backend's bundle with it in.",
+        );
+      }
+      return shader;
+    });
   }
 }
 

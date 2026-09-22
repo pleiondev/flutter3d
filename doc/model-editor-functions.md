@@ -149,15 +149,18 @@ run/undo/redo/check/save/export/import/journal). Every new command
 automatically requires its own tool — a test enforces this, so commands and
 tools never drift apart.
 
-**⬜ Not started — a whole functional track ("an agent that can see the
-model")**
-Today the agent edits the model blind: it gets readiness-check numbers, but
-no picture. Requires separate engine groundwork (moving the remaining
-Flutter dependencies out of the hardware layer and the rendering core, at
-four points):
+**✅ Done — the whole "an agent that can see the model" track.** This section
+described it as not started, with a paragraph about the engine groundwork it
+would need first; the groundwork happened, the track closed row by row, and
+the list below was still saying otherwise when `mcp-08n`, the last of them,
+closed on 2026-09-17.
+
 - Rendering a project to PNG with no GPU widget (mcp-05n) and a `render` MCP
   tool with ready-made angles (mcp-06n), a contact sheet from several views
-  (mcp-07n), display modes — material/wireframe/normals/selection (mcp-08n)
+  (mcp-07n), display modes — material/wireframe/normals/selection (mcp-08n),
+  the wireframe drawn as geometry rather than as a line topology; see that
+  row, and "A golden set recorded on a GPU" below for why it sat on the
+  wrong list for a day
 - Composite recipes as one transaction: `cleanup()`, `makeGameReady(profile)`,
   `buildFrom(spec)`, `inspect()` (mcp-09n)
 - Splitting history-step authorship between human/agent, undoing only one's
@@ -167,11 +170,10 @@ four points):
   through the headless stdio server (mcp-13n), syncing with an open window
   (mcp-14n)
 - Import/export as session verbs with a readiness gate and `force` (mcp-15n)
-
-Materials (`listMaterials`, `setMaterialField`, `bakeTextureGraph`, light)
-and animation (`autoRig`, `paintWeights`, `bakeIk`) as MCP tools — also not
-started (mat-32, anim-30), since the underlying phase 2–3 material/animation
-functionality itself isn't done beyond the basic set.
+- Materials (`listMaterials`, `setMaterialField`, `bakeTextureGraph`, light)
+  and animation (`autoRig`, `paintWeights`, `bakeIk`) as MCP tools (mat-32,
+  anim-30) — this section said both were blocked on the underlying material
+  and animation work, and that work is done too
 
 ## Formats: import and export
 
@@ -431,50 +433,62 @@ but the richest in functionality:
 ## Game graphics — a parallel engine-work track (G1–G3)
 
 Not part of the editor's phases: these items fix game rendering directly,
-and the editor is the tool that made the gaps visible. Not one item is
-started.
+and the editor is the tool that made the gaps visible.
 
-**⬜ Not started**
+**✅ Done**
 - A per-pass frame profiler as a first step, so further work is measured,
   not eyeballed (gfx-01n)
-- Measuring and possibly changing the default anisotropic filtering
-  (gfx-02n, gfx-07n), distant shadows (gfx-03n, gfx-06n)
 - FXAA, resolving the conflict between SSAO/reflections and anti-aliasing
-  (gfx-04n), turning SSAO on by default after that (gfx-08n)
-- Culling light sources by contribution instead of a hard cap of eight, with
-  no "pop" as the camera moves (gfx-05n), light channels (gfx-12n), physical
-  light units (gfx-13n)
-- Screen-space contact shadows (gfx-09n)
+  (gfx-04n)
 - An additive pose layer over the base animation (gfx-10n)
 - Ray hits against the animated pose, not the base shape (gfx-11n)
+- Light channels (gfx-12n)
 - Light and cameras from glTF (`KHR_lights_punctual`) (gfx-14n)
 - Soft disc shadows instead of hard PCF (gfx-15n), alpha hashing for foliage
-  and nets (gfx-16n), LUT color grading (gfx-17n)
+  and nets (gfx-16n), tone curves (gfx-17n) and the LUT sampled after them
+  (gfx-18n)
+
+**⬜ Not started**
+- Measuring and possibly changing the default anisotropic filtering
+  (gfx-02n, gfx-07n), distant shadows (gfx-03n, gfx-06n)
+- Turning SSAO on by default now that it no longer fights anti-aliasing
+  (gfx-08n) — held by the golden sets on the three backends this machine
+  cannot re-record
+- Physical light units (gfx-13n)
+- Culling light sources by contribution instead of a hard cap of eight, with
+  no "pop" as the camera moves (gfx-05n) — the selection and the fade are
+  both built; what is left is the golden frame, which means turning the fade
+  on for every backend
+- Screen-space contact shadows (gfx-09n)
 
 ## Quality, infrastructure, and CI
 
-**✅ Done**
+**✅ Done** — every row here but one, and the list below said otherwise until
+2026-09-17, when closing the last of them made the staleness worth fixing.
+
 - A green `main` build, structure-scanner rules for new packages (qa-01,
   qa-02), the "a flat Dart package resolves with no Flutter SDK" check
   (qa-03)
 - CI reads the test list from flat packages (qa-04), a forbidden-word
-  dictionary for the scanner's detector (qa-05)
-- A CI benchmark artifact and a stress scene with a measurement table
-  (qa-13)
-
-**⬜ Not started**
-- An enum/sealed policy as a scanner rule (qa-06)
-- A formal half-edge invariant audit as a separate quality item, writer
-  round-trips with fixtures and provenance (qa-07, qa-08), a glTF-validator
-  check in CI (qa-09), an automatic check that a file opens in headless
-  Godot (qa-19n)
+  dictionary for the scanner's detector (qa-05), an enum/sealed policy as a
+  scanner rule (qa-06)
+- A half-edge invariant audit and writer round-trips with fixtures and
+  provenance (qa-07, qa-08), the real Khronos validator in CI
+  (qa-09, `tool/validate_gltf.dart`)
 - Golden scenes for the mesh overlay (qa-10), a conformance check for
   partial buffer rewrites (qa-11), an agent scenario and tool round-trip
   (qa-12)
-- A draw-call-count guard (qa-14), app tests through software rendering
-  (qa-15), documents kept in sync with the tree (qa-16), builds for every
-  platform in CI (qa-17), format/command/history/readiness tests as a
-  separate summary check (qa-18)
+- A CI benchmark artifact and a stress scene with a measurement table
+  (qa-13), a draw-call-count guard (qa-14), app tests through software
+  rendering (qa-15), documents kept in sync with the tree (qa-16),
+  format/command/history/readiness tests as a separate summary check (qa-18)
+- **An automatic check that a file opens in headless Godot (qa-19n)** —
+  `tool/godot_check` and the `godot` job in `ci.yml`. It found a broken
+  embedded PNG in a published tutorial GLB on its first run; see "A run
+  somewhere this is not" below for why it was on the wrong list.
+
+**⬜ Not started**
+- Builds for every platform in CI (qa-17)
 
 ## Phase 0 measurements (the numbers decisions are built on)
 
@@ -522,35 +536,35 @@ macOS-sandbox spike (p0-13n).
 
 ## What's next
 
-**Big blocks left entirely unresolved:**
-1. **Phase 3 — the character pipeline** (rigging, skinning, IK, retargeting,
-   morph drivers, the animation timeline) — only the FK measurement is done.
-   This is the only section of the plan where nothing functional has
-   started at all.
-2. **Phase 4 — professional modes** (sculpting, retopology, UV, cloth
-   simulation, offline rendering, texture painting, LOD) — not started at
-   all; the phase itself is flagged in the plan as "the least precise," and
-   the L-sized estimates inside it could double once implemented.
-3. **The "an agent that can see the model" track (mcp-*)** — today the agent
-   works blind: MCP tools give readiness numbers, not a picture. Needs
-   separate engine groundwork (`GraphicsDevice.present()` stops naming
-   Flutter, the rendering core becomes a flat package) before a `render`
-   tool can be added.
-4. **The game-graphics track (gfx-*)** — engine fixes running alongside the
-   editor (a frame profiler, light-source culling with no "pop," contact
-   shadows, FXAA); not started, moves through its own G1–G3 phases rather
-   than the editor's phases.
-5. **The two remaining phase-2 items**: wrapping a boolean operation as a
-   stack modifier (mesh-48) and phase-2 golden frames (mesh-49) — the core
-   is done, the thin wrapper and the frames are not.
-6. **Phase-2 materials and modifiers beyond the basic set**: a full material
-   panel, a texture compositor (node graph), a material studio, a "Scene"
-   mode with light, a modifier stack in the UI — the core (`mat-18`,
-   `mat-19`, `mat-28`) is done, the whole user-facing layer and the texture
-   graph are not started.
-7. **Formats**: a dedicated FBX reader (two L-sized items), an offline
-   texture encoder into compressed formats, USDZ, light/cameras in the
-   format's own dictionary — none started.
+**This section listed seven big blocks as "left entirely unresolved" on
+2026-09-11, and six of them have been built since.** The statuses in the
+sections above are that day's too. `doc/plan-status.json`, checked on
+2026-09-18, has 517 of 526 rows done and none open, and the audit under
+[What is left](#what-is-left-and-what-each-piece-is-waiting-for) below is the
+current account of the rest. What became of the seven:
+
+1. **Phase 3, the character pipeline** — built: rigging with an auto-rig,
+   skinning and weight painting, two-bone IK and look-at constraints,
+   retargeting, shape keys with drivers, the timeline and curve editor. All 36
+   `anim-*` rows are done.
+2. **Phase 4, the professional modes** — built: sculpting with multires,
+   retopology and baking, UV unwrap and packing, cloth, rigid-body and particle
+   simulation with baking, offline tiled rendering, texture painting, LOD. All
+   58 `pro-*` rows are done. The UV, LOD and retopology screens were built and
+   left unreachable from the application; connecting them is part of the 0.7.0
+   release work.
+3. **An agent that can see the model (`mcp-*`)** — built: the rendering core
+   is a flat package, and `flutter3d_model_mcp` has `render` and `renderSheet`
+   (`render_tool.dart`) beside the 147 editing tools of `model_tools.dart`.
+4. **The game-graphics track (`gfx-*`)** — 68 rows done and 5 partial, FXAA and
+   contact shadows among the done. The five are in the audit below.
+5. **The two phase-2 items** — done: `BooleanModifier` is a stack modifier and
+   the golden frames exist.
+6. **Phase-2 materials and modifiers** — done: the material panel and studio,
+   the texture graph, the Scene mode with lights, the modifier stack in the UI.
+7. **Formats** — the offline texture encoder and lights and cameras in the
+   format are done, USDZ is partial (`fmt-27`), and the FBX reader is the one
+   block still not started (`fmt-24`, `fmt-25`), by the plan's own sequencing.
 
 **Open design questions (plan §8), not yet closed by an owner decision**
 (the questions closed on 2026-09-09 are already reflected in the statuses
@@ -579,6 +593,129 @@ closed, 63 remain open across ten groups):
 - **Quality/publishing** (J): who runs the nightly build of the reference
   Impeller/WebGL/WebGPU sets for new scenes, whether an automatic
   number-recompute tool is needed for the documents
+
+## What is left, and what each piece is waiting for
+
+*Audited 2026-09-17, against `doc/plan-status.json`. Twenty-six rows were not
+`done` when this was written; **four of them — `gfx-02n`, `gfx-03n`,
+`qa-19n` and `mcp-08n` — were closed within hours by disbelieving this
+section**, which is recorded below rather than tidied away. Of what remains,
+**not one row is waiting on somebody sitting down to write code**: every one
+is held by a device, a credential, a golden set that has to be recorded on
+hardware, or a decision that belongs to the owner.*
+
+*That claim is worth reading with suspicion, and four corrections in one day
+are why. A row lands on a list like this because of a sentence somebody wrote
+about it, and the sentence is not the measurement. Each of the four was held
+by a different kind of wrong sentence: two said the software backend could
+not take a measurement it could; one said a tool lived somewhere this machine
+is not, when it is a download; one said a feature needed a phase-2 engine
+row, when it needed six triangles an edge. None of them was found by reading
+the code — each was found by trying the thing the sentence said was
+impossible.*
+
+### A device nobody has yet (4)
+
+`p0-03`, `pro-sc-11n`, `ui-21`, `rel-19d`. A Galaxy A55 and an iPad with a
+Pencil. `rel-19d` is the purchase itself; the other three are measurements
+and a platform check that need the hardware in hand. The benchmarks are
+written and run unchanged on a device — `sculpt_budget_benchmark_test.dart`
+is the same file that produced the macOS and Chrome numbers in
+`doc/model-editor.md` §6.
+
+### A golden set recorded on a GPU (6)
+
+`gfx-05n`, `gfx-06n`, `gfx-07n`, `gfx-08n`, `gfx-09n` and `mat-17`.
+Forty-four scenes are held against four reference sets, and only the software
+one can be recorded on a machine with no GPU app run and no browser stand. So
+a row whose acceptance is a *frame* — `many-lights`, `contact-shadow`,
+`ambient-occlusion-corner`, `ibl-hdr` — cannot be closed here, however
+finished its code is. Several are exactly that: `gfx-05n`'s selection and its
+fade are built, tested and off by default, waiting only for the frame.
+
+**`mcp-08n` was here too, "through `view-07`", and that was the fourth wrong
+call in this section's short life.** It is not a golden-set row: its own
+acceptance is a measured difference between two frames, not a reference
+picture. What it was missing was the `wireframe` mode, and the reason
+recorded in three places was that a wire needs `view-07`'s line topology.
+A wire drawn as a thin *solid* needs no topology at all — six triangles an
+edge — which costs geometry rather than a shader and is the right trade for
+a headless frame an agent asks for once. Closed 2026-09-17, with the edges
+read off the document's own half-edges so a cube shows twelve and not the
+triangulation's eighteen. `view-07` is still the answer for the live
+viewport, and still phase 2.
+
+`cross_backend_test.dart`'s own `_provisional` is the route: a new scene
+names itself there with a reason until the other sets catch up.
+
+### A measurement the software backend cannot make — *wrong, and both closed*
+
+This section named `gfx-02n` and `gfx-03n` when the audit was written, on the
+reasoning that `CpuDevice.maxAnisotropy` is 1 and that three shadow options
+are a frame cost on real hardware. Both were closed the same day, and the
+mistake is worth keeping rather than editing away, because it was the same
+mistake twice: *a measurement the backend cannot take today* is not the same
+thing as *a measurement that cannot be taken*.
+
+`gfx-02n` needed the software rasteriser to take anisotropic taps. It takes
+them now, a sampler that asks for one is untouched byte for byte, and the
+measurement is 3165 of 14400 pixels and 1.7× the surviving detail.
+
+`gfx-03n` needed three options compared, and the finding was that the engine
+has one: a fourth cascade is a shader change on four backends and a static
+far map does not exist. What the option that exists costs turned out to be
+nothing — the same nine draws at sixty metres and at two hundred and forty.
+
+What is left of the pair is `gfx-07n`, the flip of the default, which is in
+the golden-set group below for the reason everything there is.
+
+### A credential, a service, or other people (4)
+
+`gal-04` needs API keys for Smithsonian, Poly Pizza and Sketchfab; the
+adapters say what each will need rather than shipping a guessed shape.
+`rel-05` and `rel-06` are publishing to pub.dev. `rel-16` is five to ten
+people doing a timed tutorial run.
+
+### A run somewhere this is not (4)
+
+`qa-17` (a CI matrix), `rel-09` (the tutorial as a CI scenario), `rel-10`
+(Chrome *and* Safari), `rel-11` (a clean Mac opening a signed-nothing build).
+Each can be written here and none can be *verified* here, and a CI job nobody
+has watched go green is a claim rather than a check.
+
+**`qa-19n` was on this list and should not have been, which makes three.**
+The list said "headless Godot" and left it there. Headless Godot is one
+archive off a GitHub release — fifty megabytes for Linux, a hundred for the
+macOS universal build — and it runs headless on this machine, over the seven
+committed GLBs, in 4.6 seconds idle and 21.7 on the same machine under load
+— an import of all seven and one script over them. It
+also found something in the first minute it existed: a tutorial GLB this
+repository publishes carried a 33-byte "PNG" whose IHDR checksum was zero,
+which Godot rejected and which nothing here had ever looked at, because
+nothing here had ever handed one of these files to a decoder that was not
+ours. The two earlier corrections above were about a *measurement* a backend
+supposedly could not take; this one is about a *tool* supposedly somewhere
+else. The pattern is the same and it is worth naming once more: the thing to
+check is whether it can be done here, not whether it is usually done
+elsewhere.
+
+`fmt-27` belongs here too for a narrower reason: its remaining half is a
+Quick Look screenshot, and this machine has `simctl` but no `Simulator.app`
+to tap.
+
+### An owner decision (1)
+
+`rel-13`'s second half. The template models are drawn out of primitives by
+`tool/make_models.py`; moving them to modeller documents changes the bytes of
+every model a new project is scaffolded with. That is a decision about what
+the editor ships.
+
+### Sequenced behind the above (2)
+
+`fmt-24` and `fmt-25`, the FBX reader and its animation half. The row says it
+itself: *a separate phase-2 track, starting after `rel-16`*. Starting it now
+would be working out of the order the plan chose.
+
 
 Every one of these questions has a recommendation in the plan itself (§8) —
 these are not gaps, but decisions left to the product owner at the point

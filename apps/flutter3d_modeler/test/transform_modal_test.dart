@@ -241,4 +241,82 @@ void main() {
       expect(modal.says, contains('1.'));
     });
   });
+
+  group('ux-11: the label carried beside the pointer', () {
+    test('names what, where and how far — with the unit on the number', () {
+      final modal = dragged(Vector3(0.35, 0, 0))..axis = TransformAxis.x;
+
+      // Mutation: drop the axis from the label. "Move 0.35 m" is the same
+      // sentence whether or not the transform is confined, which is the one
+      // thing somebody checks before letting go.
+      expect(modal.readout, 'Move · X · 0.35 m');
+    });
+
+    test('unconstrained, it carries all three', () {
+      final modal = dragged(Vector3(0.1, 0.2, 0));
+
+      expect(modal.readout, 'Move · 0.1, 0.2, 0 m');
+    });
+
+    test('a turn is degrees and a scale is a factor', () {
+      expect(
+        dragged(Vector3(math.pi / 2, 0, 0), kind: TransformKind.rotate)
+          ..axis = TransformAxis.y,
+        isA<TransformModal>(),
+      );
+      final turn = dragged(
+        Vector3(math.pi / 2, 0, 0),
+        kind: TransformKind.rotate,
+      );
+      expect(turn.readout, contains('90°'));
+      final scale = dragged(Vector3(0.5, 0, 0), kind: TransformKind.scale);
+      expect(scale.readout, contains('×1.5'));
+    });
+
+    test('what is being typed is on the label too', () {
+      final modal = TransformModal(TransformKind.move)
+        ..type('5')
+        ..axis = TransformAxis.z;
+
+      expect(modal.readout, contains('⌨ 5'));
+    });
+
+    test('the hints name the snap step this transform would round to', () {
+      final modal = TransformModal(TransformKind.move)
+        ..snapSteps(move: 0.25, turnRadians: math.pi / 8, scale: 0.5);
+
+      // Mutation: name `TransformModal.moveStep` rather than the step this
+      // transform actually carries. The chip then says 0.1 m while holding
+      // the modifier rounds to a quarter metre, which is worse than saying
+      // nothing.
+      expect(modal.hints, contains('0.25 m'));
+      expect(modal.hints, contains('Esc'));
+    });
+
+    test('and a turn names its step in degrees', () {
+      final modal = TransformModal(TransformKind.rotate)
+        ..snapSteps(move: 0.25, turnRadians: math.pi / 8, scale: 0.5);
+
+      expect(modal.hints, contains('22.5°'));
+    });
+  });
+
+  group('ux-11: the snap step comes from outside', () {
+    test('a held snap rounds to the step it was given', () {
+      final modal = dragged(Vector3(0.62, 0, 0))
+        ..snapping = true
+        ..snapSteps(move: 0.25, turnRadians: math.pi / 8, scale: 0.5);
+
+      // Mutation: keep rounding to the constant tenth. Somebody working at a
+      // quarter-metre grid gets 0.6 where they asked for 0.5, and every
+      // number they place is off by a quarter of a step.
+      expect(modal.amount.x, closeTo(0.5, 1e-6));
+    });
+
+    test('and the default is the tenth it always was', () {
+      final modal = dragged(Vector3(0.62, 0, 0))..snapping = true;
+
+      expect(modal.amount.x, closeTo(0.6, 1e-6));
+    });
+  });
 }

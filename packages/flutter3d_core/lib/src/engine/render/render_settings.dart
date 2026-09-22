@@ -1,3 +1,7 @@
+import 'dart:math' as math;
+import 'dart:typed_data';
+
+import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:vector_math/vector_math.dart' as vm;
 
 import '../scene/scene_node.dart';
@@ -104,6 +108,83 @@ final class ReflectionSettings {
 ///
 /// The `ambient-occlusion-corner` golden closes that: one frame, recorded on
 /// three backends, of a corner this pass has something to darken.
+/// Contact shadows: a short march toward the light, in screen space —
+/// `gfx-76n`.
+///
+/// **What a shadow map cannot do at any resolution.** A box resting on a plane
+/// meets it along a line, and the shadow that belongs there is a texel wide or
+/// less. Raising the map's resolution moves the line closer to right without
+/// arriving; raising the bias enough to stop the acne a tight contact produces
+/// detaches the shadow from the object, which is the familiar look of a prop
+/// floating a centimetre above the floor.
+///
+/// **Not contact *hardening*.** `shadow.glsl` already sizes its penumbra from
+/// the blockers it finds, so a shadow is sharp where its caster is close. That
+/// is a different thing with a confusingly similar name.
+///
+/// Off by default, and [strength] at nought multiplies by exactly one — the
+/// same construction the occlusion above uses, and what lets this ship without
+/// moving a recorded frame.
+final class ContactShadowSettings {
+  const ContactShadowSettings({
+    this.enabled = false,
+    this.length = 0.25,
+    this.steps = 8,
+    this.thickness = 0.15,
+    this.bias = 0.01,
+    this.strength = 1.0,
+  });
+
+  final bool enabled;
+
+  /// How far the march reaches, in world metres.
+  ///
+  /// A quarter of a metre: the gap a shadow map leaves is the first few
+  /// centimetres, and a march long enough to replace the map would be a march
+  /// whose cost is the map's without its coverage.
+  final double length;
+
+  /// How many steps, one to sixteen — `kContactSteps` in the shader bounds the
+  /// loop, and this is the count it breaks at.
+  final int steps;
+
+  /// How thick an occluder is assumed to be, in metres.
+  ///
+  /// A surface nearer to the eye than the ray by more than this is something
+  /// else standing in front rather than the thing casting. Without it a wall
+  /// four metres nearer than the floor shadows everything the ray crosses,
+  /// which is the halo the occlusion's own range check exists to stop.
+  final double thickness;
+
+  /// How far the ray is lifted along the surface normal, in metres, so a flat
+  /// surface does not shadow itself. Metres and not window depth, for
+  /// `ssao.frag`'s reason: a bias in window depth is a different number of
+  /// millimetres at every distance from the camera.
+  final double bias;
+
+  /// How much of the result reaches the picture, nought to one.
+  ///
+  /// Applied in the composite and nowhere else, so "off" is a multiplier of
+  /// exactly one rather than nearly one.
+  final double strength;
+
+  ContactShadowSettings copyWith({
+    bool? enabled,
+    double? length,
+    int? steps,
+    double? thickness,
+    double? bias,
+    double? strength,
+  }) => ContactShadowSettings(
+    enabled: enabled ?? this.enabled,
+    length: length ?? this.length,
+    steps: steps ?? this.steps,
+    thickness: thickness ?? this.thickness,
+    bias: bias ?? this.bias,
+    strength: strength ?? this.strength,
+  );
+}
+
 final class AmbientOcclusionSettings {
   const AmbientOcclusionSettings({
     this.enabled = false,
@@ -111,6 +192,8 @@ final class AmbientOcclusionSettings {
     this.samples = 12,
     this.strength = 0.8,
     this.bias = 0.02,
+    this.blurTaps = 0,
+    this.blurDepthFalloff = 0.1,
   });
 
   final bool enabled;
@@ -130,12 +213,351 @@ final class AmbientOcclusionSettings {
   /// How dark a fully enclosed corner goes, where 1 is black.
   final double strength;
 
+  /// Taps to each side in the depth-aware blur over the occlusion buffer,
+  /// 0 for no blur — `gfx-32n`. Bounded at eight whatever this says.
+  ///
+  /// **The composite's own 2x2 is not this, and widening it would not do.**
+  /// That average exists to cancel the kernel rotation this pass applies by
+  /// the parity of the pixel, and it is sized to that artefact rather than
+  /// tuned for quality — widen it and the contact shadows smear. So the
+  /// smoothing has to be a pass of its own, and this is how many taps it
+  /// takes. Twelve is where a flat wall stops showing the sampling pattern.
+  ///
+  /// Off by default. A blur is a second full-screen pass over a signal that
+  /// is already off by default, so nothing pays for it until two things are
+  /// switched on.
+  final int blurTaps;
+
+  /// How much difference in depth, in world metres, halves a tap's weight in
+  /// that blur.
+  ///
+  /// The number that decides whether occlusion bleeds past a silhouette. Too
+  /// large and the dark of a corner spreads out over whatever is in front of
+  /// it, which is the halo that makes people switch ambient occlusion off;
+  /// too small and a curved surface loses the smoothing the blur is for,
+  /// because its own depth changes faster than the falloff allows.
+  final double blurDepthFalloff;
+
   /// How far, in metres, the sample origin is lifted off its own surface.
   ///
   /// In metres rather than in window depth on purpose: a bias in depth units is
   /// a different physical distance at every range, so one tuned against a near
   /// wall leaves acne on a far one.
   final double bias;
+}
+
+/// Volumetric light shafts, marched through the directional shadow map —
+/// `gfx-33n`.
+///
+/// **Not the radial smear, and the difference is what it can draw.** The
+/// cheap version takes bright pixels and streaks them away from the sun's
+/// position on screen: it needs the sun in frame, it brightens anything else
+/// that happens to be bright, and it knows nothing about what is casting.
+/// This marches the view ray and asks the shadow map whether each point in
+/// the air is lit, so a beam through a doorway is the doorway's shape — and
+/// with the caster's shadow switched off there is nothing to draw at all,
+/// which is the check the row is held to.
+///
+/// **It needs a shadow-casting directional light**, because the shadow map is
+/// where the shape comes from. A scene with no caster gets nothing, silently:
+/// that is the honest answer rather than an error, since a light being added
+/// later is the ordinary case.
+final class LightShaftSettings {
+  const LightShaftSettings({
+    this.enabled = false,
+    this.steps = 16,
+    this.distance = 40.0,
+    this.strength = 0.15,
+    this.color,
+  });
+
+  /// Off by default. It is a full-screen pass with sixteen shadow lookups a
+  /// pixel, which is a real cost for an effect a scene either wants badly or
+  /// not at all.
+  final bool enabled;
+
+  /// Samples along each view ray. Bounded at sixty-four in the shader, the
+  /// same rule every marching loop in this engine keeps — a loop a uniform
+  /// can lengthen without limit is a hang rather than a slow frame.
+  ///
+  /// Sixteen reads as a beam because each pixel starts a fraction of a step
+  /// further along, from an ordered cell; without that offset sixteen steps
+  /// read as sixteen bands.
+  final int steps;
+
+  /// How far along the ray to march, in world metres. Shorter spends the
+  /// samples where the air is closest and gives up the far end of a long
+  /// shaft; longer spreads them and softens it.
+  final double distance;
+
+  /// How much the air scatters, 0 to about 1. Multiplied into [color] before
+  /// it reaches the shader, so "off" is a colour of exactly zero rather than
+  /// a branch.
+  final double strength;
+
+  /// What the air scatters, or null for white. The colour of the light
+  /// rather than of the fog: a shaft is the light you can see because
+  /// something is in the way of it.
+  final vm.Vector3? color;
+
+  LightShaftSettings copyWith({
+    bool? enabled,
+    int? steps,
+    double? distance,
+    double? strength,
+    vm.Vector3? color,
+  }) => LightShaftSettings(
+    enabled: enabled ?? this.enabled,
+    steps: steps ?? this.steps,
+    distance: distance ?? this.distance,
+    strength: strength ?? this.strength,
+    color: color ?? this.color,
+  );
+}
+
+/// Depth of field, from a lens rather than from a ramp — `gfx-34n`.
+///
+/// **Every number here is one a photographer already knows.** A focus
+/// distance, a focal length and an f-number are what a lens is described by,
+/// and the circle of confusion that follows from them is the thin-lens
+/// formula rather than a curve chosen because it looked right. Open
+/// [aperture] and the background softens by an amount somebody can predict
+/// from the three numbers, which a strength slider between zero and one
+/// cannot offer.
+///
+/// **The depth comes from the surface buffer's alpha**, which carries
+/// distance along the view axis in metres. That is the same channel the
+/// shafts read, and the reason the engine keeps it rather than depending on a
+/// sampleable depth attachment: the formula wants a real distance, and a
+/// window depth would make the same blur mean different things near and far.
+///
+/// Off by default, with defaults that are a no-op if it is switched on
+/// blind — [focusDistance] is far enough and [aperture] narrow enough that
+/// nothing in an ordinary scene leaves focus until somebody says so.
+final class DepthOfFieldSettings {
+  const DepthOfFieldSettings({
+    this.enabled = false,
+    this.focusDistance = 10.0,
+    this.focalLength = 0.05,
+    this.aperture = 8.0,
+    this.samples = 24,
+    this.maxRadius = 16.0,
+    this.sensorWidth = 0.036,
+  });
+
+  /// Off by default: it is a full-screen gather of two dozen taps, and a scene
+  /// either wants a lens or wants everything sharp.
+  final bool enabled;
+
+  /// What the lens is focused on, in world metres. Things at this distance
+  /// image to a point; everything either side of it spreads.
+  final double focusDistance;
+
+  /// The focal length in metres — 0.05 is a fifty-millimetre lens.
+  ///
+  /// It enters the formula squared, so it is the strongest of the three: a
+  /// long lens throws a background out of focus at an aperture where a wide
+  /// one keeps it sharp, which is why a portrait is shot long.
+  final double focalLength;
+
+  /// The f-number. Eight is a landscape, 1.4 is a portrait wide open.
+  ///
+  /// Larger means a smaller circle, because it is a divisor — the direction
+  /// is the one a photographer expects and the opposite of what a "blur
+  /// amount" slider would do.
+  final double aperture;
+
+  /// Taps in the gather, on a spiral. Bounded at sixty-four in the shader, the
+  /// rule every loop in this engine keeps.
+  ///
+  /// The spiral is why this is a number of taps rather than a kernel width: a
+  /// square kernel makes a square bokeh, and the shape of an out-of-focus
+  /// highlight is the one thing anybody looks at in this effect.
+  final int samples;
+
+  /// The largest circle the gather will draw, in pixels at the render
+  /// resolution.
+  ///
+  /// A bound on the cost rather than on the optics: the formula is happy to
+  /// ask for a circle a hundred pixels across at f/1.4 with a near focus, and
+  /// the taps that would need are not there. Clamping shows as a background
+  /// that stops getting softer, which is the failure worth having.
+  final double maxRadius;
+
+  /// How wide the sensor is, in metres. 0.036 is full-frame 35mm.
+  ///
+  /// **Without it a focal length in millimetres means nothing.** "Fifty
+  /// millimetres" is only a normal lens beside a 36mm frame; on a phone
+  /// sensor it is a telephoto. The circle of confusion comes out in metres on
+  /// the sensor, and this is what turns those metres into pixels together
+  /// with the frame's width — which is also why the blur does not change when
+  /// the resolution does: a scene rendered twice as wide is the same
+  /// photograph, larger.
+  final double sensorWidth;
+
+  DepthOfFieldSettings copyWith({
+    bool? enabled,
+    double? focusDistance,
+    double? focalLength,
+    double? aperture,
+    int? samples,
+    double? maxRadius,
+    double? sensorWidth,
+  }) => DepthOfFieldSettings(
+    enabled: enabled ?? this.enabled,
+    focusDistance: focusDistance ?? this.focusDistance,
+    focalLength: focalLength ?? this.focalLength,
+    aperture: aperture ?? this.aperture,
+    samples: samples ?? this.samples,
+    maxRadius: maxRadius ?? this.maxRadius,
+    sensorWidth: sensorWidth ?? this.sensorWidth,
+  );
+}
+
+/// Which viewport shading a frame is drawn with — `gfx-43n`, `44n`, `45n`.
+///
+/// **A final class with const instances rather than an enum**, the shape
+/// `TonemapCurve` and `PassSkip` have and the one `tool/structure.dart`'s "an
+/// enum in a published package is machinery or is not an enum" rule asks for:
+/// the [code] is part of a uniform layout four backends read, so it is a
+/// number this type owns rather than an ordinal the language happens to
+/// assign.
+final class ViewportShading {
+  const ViewportShading._(this.name, this.code);
+
+  /// The name it is written down as.
+  final String name;
+
+  /// What goes into `ShadeInfo.params.x`. Part of the shader contract.
+  final double code;
+
+  /// The lit picture, untouched — the default, and an exact no-op.
+  static const ViewportShading off = ViewportShading._('off', 0.0);
+
+  /// The world normal as colour, which is the mode the material swap in
+  /// `apps/flutter3d_modeler` existed for.
+  static const ViewportShading normals = ViewportShading._('normals', 1.0);
+
+  /// One studio light over a neutral surface: a form with its albedo taken
+  /// away, which is what a sculptor turns on to read shape.
+  static const ViewportShading clay = ViewportShading._('clay', 2.0);
+
+  /// A dark line where depth or normal steps — `gfx-44n`.
+  static const ViewportShading outline = ViewportShading._('outline', 3.0);
+
+  /// Ridges lit and creases darkened, from how fast the normal field turns —
+  /// `gfx-45n`.
+  static const ViewportShading curvature = ViewportShading._('curvature', 4.0);
+
+  /// All of them, off first.
+  static const List<ViewportShading> values = <ViewportShading>[
+    off,
+    normals,
+    clay,
+    outline,
+    curvature,
+  ];
+
+  @override
+  String toString() => 'ViewportShading.$name';
+}
+
+/// Shading read out of the surface buffer instead of out of the materials —
+/// `gfx-43n`, `gfx-44n` and `gfx-45n`.
+///
+/// **What this replaces is a traversal, and that is the point.** A normals
+/// view built by walking the subject and swapping every material has to
+/// remember what it swapped and put it back; the modeller's own docstring
+/// documents what happens when the remembering fails. The scene pass already
+/// wrote a world normal and a view-axis depth into its second attachment, so
+/// every mode here is arithmetic on a buffer that exists — nothing is
+/// modified and there is nothing to restore.
+///
+/// **It costs the frame its multisampling**, and that is said here rather
+/// than found later: reading the surface buffer attaches the second colour
+/// attachment, attachments in one target must agree on sample count, so a
+/// frame with a mode on is a frame the scene pass did not multisample.
+/// `FrameResult.antiAliasing.msaaDeclined` reports it.
+final class ViewportShadingSettings {
+  const ViewportShadingSettings({
+    this.mode = ViewportShading.off,
+    this.amount = 1.0,
+    this.ambient = 0.25,
+    this.depthEdge = 0.05,
+    this.normalEdge = 0.15,
+    this.outlineWidth = 1.0,
+    this.curvatureGain = 4.0,
+    this.cavity = 1.0,
+    this.lightDirection,
+  });
+
+  /// Which mode. [ViewportShading.off] is the default and an exact no-op.
+  final ViewportShading mode;
+
+  /// How much of the shaded result is mixed over the lit picture.
+  ///
+  /// One is the mode alone. Below one is the mode *over* the render, which is
+  /// what an outline is usually wanted as — the shading a modeller was
+  /// already looking at, with the edges drawn on top.
+  final double amount;
+
+  /// How much ambient sits under the studio light in [ViewportShading.clay].
+  ///
+  /// Not zero by default: clay with no ambient puts everything facing away
+  /// from the light at black, and a sculptor reading a form needs the far
+  /// side to have a shape too.
+  final double ambient;
+
+  /// How far apart in metres two depths must be to count as an edge.
+  final double depthEdge;
+
+  /// How far apart two normals must be, as one minus their dot product: 0.15
+  /// is about thirty-two degrees.
+  ///
+  /// **Both thresholds, because either alone misses half the edges.** A depth
+  /// step finds a silhouette and misses a crease in a flat wall; a normal
+  /// step finds the crease and misses two surfaces at the same angle one
+  /// behind the other.
+  final double normalEdge;
+
+  /// How wide the outline's neighbour taps reach, in pixels.
+  final double outlineWidth;
+
+  /// The gain on the curvature estimate, which is a screen-space divergence
+  /// and therefore a small number before it is scaled.
+  final double curvatureGain;
+
+  /// How much of the concave half is darkened, 0 to 1 — the cavity in a
+  /// cavity map.
+  final double cavity;
+
+  /// Which way the clay light points, or null for over the camera's shoulder.
+  ///
+  /// A direction rather than a position: clay is a studio light at infinity,
+  /// so a distance would be a number with nothing to do.
+  final vm.Vector3? lightDirection;
+
+  ViewportShadingSettings copyWith({
+    ViewportShading? mode,
+    double? amount,
+    double? ambient,
+    double? depthEdge,
+    double? normalEdge,
+    double? outlineWidth,
+    double? curvatureGain,
+    double? cavity,
+    vm.Vector3? lightDirection,
+  }) => ViewportShadingSettings(
+    mode: mode ?? this.mode,
+    amount: amount ?? this.amount,
+    ambient: ambient ?? this.ambient,
+    depthEdge: depthEdge ?? this.depthEdge,
+    normalEdge: normalEdge ?? this.normalEdge,
+    outlineWidth: outlineWidth ?? this.outlineWidth,
+    curvatureGain: curvatureGain ?? this.curvatureGain,
+    cavity: cavity ?? this.cavity,
+    lightDirection: lightDirection ?? this.lightDirection,
+  );
 }
 
 /// Distance fog.
@@ -224,9 +646,12 @@ final class RenderSettings {
     this.exposure = defaultExposure,
     this.wireframe = false,
     this.backfaceCulling = true,
+    this.batchIdenticalDraws = false,
     this.debug = const DebugDrawOptions(),
     this.highlighted = const <SceneNode>[],
     this.tonemap = true,
+    this.tonemapCurve = TonemapCurve.neutral,
+    this.antiAlias = const AntiAliasSettings(),
     this.bloom = const BloomSettings(),
     this.look = const LookSettings(),
     this.shadows = const ShadowSettings(),
@@ -237,12 +662,20 @@ final class RenderSettings {
     this.showPointShadowDebug = false,
     this.reflections = const ReflectionSettings(),
     this.ambientOcclusion = const AmbientOcclusionSettings(),
+    this.contactShadows = const ContactShadowSettings(),
     this.fog = const FogSettings(),
     this.sky = const SkySettings(),
     this.anisotropy = 1,
+    this.lightFadeBand = 0.0,
     this.autoExposure = const AutoExposureSettings(),
     this.xray = const XraySettings(),
-  }) : assert(anisotropy >= 1, 'anisotropy is a count of taps, one or more');
+    this.disabledPasses = const <String>{},
+    this.renderScale = 1.0,
+    this.lightShafts = const LightShaftSettings(),
+    this.depthOfField = const DepthOfFieldSettings(),
+    this.viewportShading = const ViewportShadingSettings(),
+  }) : assert(anisotropy >= 1, 'anisotropy is a count of taps, one or more'),
+       assert(lightFadeBand >= 0.0, 'a fade band is a width, not a direction');
 
   final double specular;
 
@@ -267,6 +700,31 @@ final class RenderSettings {
   /// to spread them over. That is also flutter_gpu's rule, which refuses
   /// anisotropy on a nearest filter.
   final int anisotropy;
+
+  /// How wide a ramp sits at the edge of a draw's own light list — `gfx-05n`.
+  ///
+  /// A scene with more lights than the shader's eight slots picks the eight
+  /// that reach each object, and that choice changes as the camera walks: the
+  /// light leaving the list was contributing whatever the ranking said it was,
+  /// and the next frame it contributes nothing. That is a pop, and it belongs
+  /// to the hard cut-off rather than to any fault in the ranking.
+  ///
+  /// This is the width of the ramp that replaces the cut-off, as a fraction of
+  /// the strongest score the selection rejected: `0.5` fades a light in over
+  /// the range where it is between one and one and a half times as relevant as
+  /// the best light left out. A light about to be swapped out is then already
+  /// near nothing, and the swap has nothing to show.
+  ///
+  /// **Nought, the default, is the hard edge this engine has always had.**
+  /// Not approximately — a band of nought scales nothing and packs the same
+  /// bytes, which is what lets the feature ship without moving a recorded
+  /// frame on the three backends that cannot be re-recorded here. A wider band
+  /// costs brightness: every light near the water line is dimmer than the
+  /// shader would have made it, so this trades a little light for no jump.
+  ///
+  /// A scene whose lights all fit ignores this entirely: with nothing
+  /// rejected there is no water line and nothing to fade.
+  final double lightFadeBand;
 
   /// Linear multiplier applied before tone mapping.
   ///
@@ -311,6 +769,41 @@ final class RenderSettings {
   final bool wireframe;
   final bool backfaceCulling;
 
+  /// Whether a run of identical opaque draws is merged into one instanced call
+  /// — `gfx-67n`.
+  ///
+  /// A hundred `MeshNode`s sharing one geometry and one material are a hundred
+  /// pipeline binds, six hundred uniform writes and a hundred draws. The sort
+  /// already groups by material, so the run is there to be found: the scene
+  /// pass walks the sorted opaque half, collects each run whose members share a
+  /// mesh, a material, a mirroring and a reflection probe and carry no skeleton,
+  /// no morph and no lightmap, and draws it through the instanced stage with
+  /// each member's world transform as an instance.
+  ///
+  /// **Off by default, and the reason is what cannot be measured here rather
+  /// than what was.** The two vertex stages compute different expressions: a
+  /// plain mesh clips with `(viewProjection * model) * position` and a batch
+  /// with `viewProjection * (instance * position)`, because the instance
+  /// transform is where the node's own matrix went, and the normal takes a
+  /// `normalize` on the instanced side that the plain side does not. On the
+  /// software rasteriser, which computes in Dart doubles, both carry to the same
+  /// eight-bit answer — `auto_batch_test.dart` holds a hundred cubes, turned and
+  /// scaled, to byte equality. Impeller, WebGL and WebGPU compute in 32-bit
+  /// floats, where those expressions have far less room before they part, and
+  /// nothing headless can run them. So the forty-four goldens keep the frame
+  /// they have, and an application that wants the draw calls back asks.
+  ///
+  /// Shadows and picking are unaffected: both walk the scene themselves and
+  /// still draw a node at a time.
+  final bool batchIdenticalDraws;
+
+  /// How many identical draws it takes before merging them is worth a pipeline
+  /// switch on either side of the batch.
+  ///
+  /// Four rather than two, because a batch costs the instanced pipeline coming
+  /// in and the plain one going out, and two draws do not pay for that.
+  static const int batchRunMinimum = 4;
+
   /// Which debug overlays to draw on top of the scene.
   final DebugDrawOptions debug;
 
@@ -323,6 +816,17 @@ final class RenderSettings {
   /// is not a light value at all and a tone curve would corrupt it — a normal
   /// encoded as RGB has no business being rolled off.
   final bool tonemap;
+
+  /// Which curve [tonemap] applies — `gfx-17n`'s own row.
+  ///
+  /// [TonemapCurve.neutral] by default, which is what every golden in this
+  /// repository was recorded with and what a glTF asset's author saw in a
+  /// reference viewer. The other three are a look a game asks for, not a
+  /// default anybody inherits.
+  final TonemapCurve tonemapCurve;
+
+  /// Edges smoothed after the composite — see [AntiAliasSettings].
+  final AntiAliasSettings antiAlias;
 
   final BloomSettings bloom;
 
@@ -358,6 +862,20 @@ final class RenderSettings {
   /// Darkens the ambient term where a surface cannot see the sky.
   final AmbientOcclusionSettings ambientOcclusion;
 
+  /// The short march toward the light — `gfx-76n`.
+  final ContactShadowSettings contactShadows;
+
+  /// `gfx-33n`'s volumetric shafts through the directional shadow map.
+  final LightShaftSettings lightShafts;
+
+  /// `gfx-34n`'s lens, which decides what is sharp and by how much the rest
+  /// is not.
+  final DepthOfFieldSettings depthOfField;
+
+  /// `gfx-43n`/`44n`/`45n`'s shading read out of the surface buffer rather
+  /// than out of the materials.
+  final ViewportShadingSettings viewportShading;
+
   final FogSettings fog;
 
   /// What is behind everything, when there is anything.
@@ -368,6 +886,63 @@ final class RenderSettings {
 
   /// Silhouettes of the nodes on a layer, drawn where something hides them.
   final XraySettings xray;
+
+  /// How much of the asked-for resolution the frame is actually drawn at —
+  /// `gfx-35n`. 1 is all of it, and is the default.
+  ///
+  /// **The one missing capability class that is not an effect.** Every other
+  /// knob in this class trades a look for time; this trades resolution for
+  /// it, which is the lever an application reaches for when a frame will not
+  /// fit in its budget and everything else is already off — the lever most
+  /// engines reach for before they start switching effects off, and this
+  /// engine had no way to.
+  ///
+  /// Applied at the top of `Renderer.render`, so it reaches everything: the
+  /// scene target, the surface buffer, the occlusion, the bloom chain and the
+  /// composite are all sized from it. At 0.75 a frame costs 0.5625 of the
+  /// pixels, because both axes shrink.
+  ///
+  /// **What comes back is the smaller texture, not an upscaled one.**
+  /// `FrameResult.frame` is what a presenter stretches over its widget, and
+  /// it already stretches — so an upscale pass here would be a full-screen
+  /// draw to do again what the presenter does for nothing. A caller reading
+  /// pixels back gets the size it was drawn at, which is the honest answer
+  /// and the one a measurement wants.
+  final double renderScale;
+
+  /// Frame-graph nodes to leave out of this frame, by name — `gfx-37n`.
+  ///
+  /// The name is the node's own [FrameGraphNode.name], exactly as
+  /// `FrameResult.passes` already reports it, which is what makes this
+  /// addressable at all: an application can list what ran, hand a name back,
+  /// and get a frame without it.
+  ///
+  /// **Data rather than a predicate, deliberately.** A `bool Function(String)`
+  /// would be one character shorter at the call site and would cost the rest
+  /// of this class: every pixel test in this repository is driven from a
+  /// `RenderSettings`, and a frame with a closure applied is a frame no golden
+  /// can describe. A set can also be written into a project file, put in a bug
+  /// report, and diffed to see what an editor changed; and a name no node
+  /// carries is rejected at compile with the name in the message, which a
+  /// predicate matching nothing cannot be told apart from a misspelling.
+  ///
+  /// **What happens to a reader of a suppressed node is already decided**, and
+  /// three of the four answers needed no new code. An optional read comes back
+  /// null and the reader degrades — that is how the composite already treats
+  /// bloom and the occlusion. A hard read cannot be satisfied, so the reader is
+  /// culled with it, transitively, without an error. A suppressed *link* in a
+  /// read-modify-write chain is free: it consumes no version, so the next pass
+  /// binds the version before it, which is what "skip this step and keep
+  /// everything after it" has to mean.
+  ///
+  /// The fourth is the sole producer of something the frame asked for, and four
+  /// names are refused rather than honoured, each for its own reason:
+  /// `composite` and `scene`, because the frame has no picture without them and
+  /// the fallback would hand back a stale texture; `object ids`, because a pick
+  /// already taken off the queue would never be answered and a click would
+  /// await forever; and the computed `reflection probe N`, because it exists
+  /// only on frames with that many probes.
+  final Set<String> disabledPasses;
 
   /// Composites the shadow map instead of the scene.
   ///
@@ -456,9 +1031,12 @@ final class RenderSettings {
     double? exposure,
     bool? wireframe,
     bool? backfaceCulling,
+    bool? batchIdenticalDraws,
     DebugDrawOptions? debug,
     List<SceneNode>? highlighted,
     bool? tonemap,
+    TonemapCurve? tonemapCurve,
+    AntiAliasSettings? antiAlias,
     BloomSettings? bloom,
     LookSettings? look,
     ShadowSettings? shadows,
@@ -469,19 +1047,29 @@ final class RenderSettings {
     bool? showPointShadowDebug,
     ReflectionSettings? reflections,
     AmbientOcclusionSettings? ambientOcclusion,
+    ContactShadowSettings? contactShadows,
     FogSettings? fog,
     SkySettings? sky,
     int? anisotropy,
+    double? lightFadeBand,
     AutoExposureSettings? autoExposure,
     XraySettings? xray,
+    Set<String>? disabledPasses,
+    double? renderScale,
+    LightShaftSettings? lightShafts,
+    DepthOfFieldSettings? depthOfField,
+    ViewportShadingSettings? viewportShading,
   }) => RenderSettings(
     specular: specular ?? this.specular,
     exposure: exposure ?? this.exposure,
     wireframe: wireframe ?? this.wireframe,
     backfaceCulling: backfaceCulling ?? this.backfaceCulling,
+    batchIdenticalDraws: batchIdenticalDraws ?? this.batchIdenticalDraws,
     debug: debug ?? this.debug,
     highlighted: highlighted ?? this.highlighted,
     tonemap: tonemap ?? this.tonemap,
+    tonemapCurve: tonemapCurve ?? this.tonemapCurve,
+    antiAlias: antiAlias ?? this.antiAlias,
     bloom: bloom ?? this.bloom,
     look: look ?? this.look,
     shadows: shadows ?? this.shadows,
@@ -492,11 +1080,18 @@ final class RenderSettings {
     showPointShadowDebug: showPointShadowDebug ?? this.showPointShadowDebug,
     reflections: reflections ?? this.reflections,
     ambientOcclusion: ambientOcclusion ?? this.ambientOcclusion,
+    contactShadows: contactShadows ?? this.contactShadows,
     fog: fog ?? this.fog,
     sky: sky ?? this.sky,
     anisotropy: anisotropy ?? this.anisotropy,
+    lightFadeBand: lightFadeBand ?? this.lightFadeBand,
     autoExposure: autoExposure ?? this.autoExposure,
     xray: xray ?? this.xray,
+    disabledPasses: disabledPasses ?? this.disabledPasses,
+    renderScale: renderScale ?? this.renderScale,
+    lightShafts: lightShafts ?? this.lightShafts,
+    depthOfField: depthOfField ?? this.depthOfField,
+    viewportShading: viewportShading ?? this.viewportShading,
   );
 
   /// These settings with the effects a stereo pair cannot have taken out.
@@ -521,6 +1116,13 @@ final class RenderSettings {
   /// eyes rather than two that disagree while the head turns. Shadows are drawn
   /// once for the frame and sampled per view.
   ///
+  /// **`gfx-22n` gave the meter a per-view mode and this method leaves it
+  /// off**, which is a decision rather than an omission: per-view metering
+  /// exists for split screen, where two players in two rooms metered together
+  /// means the darker room is the one nobody can see. A stereo pair is the
+  /// case it is wrong for, and it is off by default, so a pair that never asks
+  /// gets the right answer without this method having to take it away.
+  ///
   /// Effects are turned off by replacing their settings with the defaults,
   /// which are already off, rather than by clearing one flag: a tuned radius
   /// kept beside a disabled effect is a value that lies about what the frame
@@ -529,6 +1131,139 @@ final class RenderSettings {
     bloom: bloom.copyWith(enabled: false),
     reflections: const ReflectionSettings(),
     ambientOcclusion: const AmbientOcclusionSettings(),
+  );
+
+  /// Every pass the engine registers, in the order it registers them —
+  /// `gfx-19n`.
+  ///
+  /// **The key space [disabledPasses] is typed against, published as data
+  /// rather than described in prose.** A name here is what a caller types,
+  /// character for character: `'point shadows (static)'` carries spaces and
+  /// parentheses, `'antialias'` is not spelled `fxaa`, and the graph rejects
+  /// anything else rather than silently changing nothing. Prose cannot be
+  /// typed into a set, and a document that drifted from the strings would be
+  /// worse than no document — which is why `pass_order_test.dart` compiles a
+  /// frame and compares.
+  ///
+  /// The order is the *version chain*: each pass reads what the ones before
+  /// it left. That is why it is a list rather than a set, and why reading it
+  /// answers questions the names alone cannot — occlusion is registered
+  /// before bloom, so a glow is taken from a picture that is already
+  /// occluded.
+  ///
+  /// **Not every registered pass is here, and the exception is stated rather
+  /// than hidden.** A reflection probe's name carries its index —
+  /// `'reflection probe 0'` — so the set of them is a property of the scene
+  /// and not of the engine. [probePassName] builds one. Everything else is a
+  /// fixed string.
+  ///
+  /// Three of these cannot be switched off at all; ask [undisablePasses].
+  static const List<String> passOrder = <String>[
+    'point shadows (static)',
+    'point shadows',
+    'directional shadows',
+    // Reflection probes are registered here, one per probe in the scene, and
+    // are named by index rather than by a constant — see [probePassName].
+    'scene',
+    'object ids',
+    'reflections',
+    'luminance',
+    'ssao',
+    'ssao blur',
+    // Beside the occlusion because it reads the same buffer and its result is
+    // applied in the same place — `gfx-76n`.
+    'contact shadows',
+    'light shafts',
+    'depth of field',
+    'bloom',
+    'composite',
+    'antialias',
+    // `gfx-43n`/`44n`/`45n`, last: a mode here is about the finished picture,
+    // so it runs after the tone map and after the edges are smoothed.
+    'viewport shading',
+  ];
+
+  /// What a reflection probe's pass is called, for probe [index].
+  ///
+  /// A function rather than a list entry because the count belongs to the
+  /// scene: a level with nine probes registers nine of these, and an engine
+  /// that published a fixed set of names would be publishing a guess about
+  /// somebody else's world.
+  static String probePassName(int index) => 'reflection probe $index';
+
+  /// The three names [disabledPasses] refuses — `gfx-19n` publishing what the
+  /// graph already enforced.
+  ///
+  /// Switching any of them off would leave no frame at all, so the graph
+  /// throws rather than drawing nothing. Published so a caller building a set
+  /// out of [passOrder] can subtract them instead of discovering the rule
+  /// from an exception.
+  static const Set<String> undisablePasses = <String>{
+    'scene',
+    'composite',
+    'object ids',
+  };
+
+  /// Node names a measurement frame leaves out — see [forMeasurement].
+  ///
+  /// Published rather than inlined so a caller building their own variant is
+  /// not guessing at strings, and so a new post pass has one obvious list to
+  /// join. Every name here is a pass that changes a pixel away from the
+  /// number the material wrote; `scene` and `composite` are deliberately
+  /// absent, because a measurement frame still needs a picture and the
+  /// composite is where `tonemap: false` is honoured.
+  static const Set<String> pixelAlteringPasses = <String>{
+    'bloom',
+    'ssao',
+    'reflections',
+    'antialias',
+    'luminance',
+    // Both of these are off by default, so a measurement frame taken from
+    // stock settings never had them. They are named all the same, because a
+    // caller who switched a lens on and then asked for a measurement would
+    // otherwise be handed a photograph of the numbers rather than the
+    // numbers: a shaft adds light the material never wrote, and a lens
+    // averages a neighbourhood of values that each meant something on their
+    // own.
+    'light shafts',
+    'depth of field',
+  };
+
+  /// These settings, arranged so the frame's bytes are the numbers the
+  /// material wrote rather than a photograph of them — `gfx-40n`.
+  ///
+  /// **This existed four times before it existed once.** `render_project.dart`
+  /// built `tonemap: false, exposure: 1.0` for the agent's weights and
+  /// wireframe modes; `display_modes.dart`'s `settingsFor` built the same pair
+  /// for the viewport's normals chip; `weight_gradient.dart` built it a third
+  /// time; and `CompositeMix` built a fourth inside the engine, forcing
+  /// exposure, tone mapping **and** bloom off because — in its own words — a
+  /// debug buffer is data rather than light and any of the three would
+  /// misreport it.
+  ///
+  /// **The four did not agree, and that was a bug rather than four styles.**
+  /// `CompositeMix` was right and the other three were incomplete: they
+  /// touched neither bloom nor the occlusion, so a normals view over a
+  /// viewport with bloom switched on returned a glowing debug buffer and
+  /// nothing caught it. The number a caller read back was not the number the
+  /// material wrote, which is the one promise the mode makes.
+  ///
+  /// Auto exposure is turned off rather than left to [exposure], because with
+  /// the meter running it is the meter and not this setting that decides what
+  /// the composite uses, and a pinned exposure beside a running meter is a
+  /// value that lies about what the frame did — the argument [forStereo]
+  /// makes about a tuned radius beside a disabled effect.
+  ///
+  /// The passes go through [disabledPasses] rather than through each effect's
+  /// own settings object, which is what `gfx-37n` bought: one list to read,
+  /// and `FrameResult.skipped` afterwards reporting `PassSkip.disabled` for
+  /// each — so a caller who gets an unexpected picture can see that this
+  /// method is why, rather than wondering which of six flags did it.
+  RenderSettings forMeasurement() => copyWith(
+    tonemap: false,
+    exposure: 1.0,
+    autoExposure: const AutoExposureSettings(),
+    disabledPasses: <String>{...disabledPasses, ...pixelAlteringPasses},
   );
 }
 
@@ -549,6 +1284,64 @@ final class RenderSettings {
 /// the scene at offset coordinates; grading is a decision about a displayable
 /// image and so follows the tone map; grain and vignette are the film and the
 /// barrel, and come last.
+/// Which curve the composite rolls highlights off with — `gfx-17n`.
+///
+/// **A final class with const instances rather than an enum**, the shape
+/// `LightingModel` already has and the one `tool/structure.dart`'s "an enum in
+/// a published package is machinery or is not an enum" rule asks for: the
+/// [code] is part of a uniform layout four backends read, so it is a number
+/// this type owns rather than an ordinal the language happens to assign.
+///
+/// None of these is better than the others and the default is not a verdict:
+/// [neutral] leaves midtones where the asset's author put them, [aces] trades
+/// midtones for a filmic shoulder, [agx] keeps a gradient inside bright
+/// saturated light at the cost of desaturating as it climbs, and [reinhard]
+/// touches nothing but the highlights. `composite.frag` carries the argument
+/// for each one beside its arithmetic.
+final class TonemapCurve {
+  const TonemapCurve._(this.name, this.code);
+
+  /// The name it is written down as.
+  final String name;
+
+  /// What goes into `CompositeInfo.params.z`. Part of the shader contract.
+  final double code;
+
+  /// Khronos PBR Neutral — the default, and what every golden here holds.
+  static const TonemapCurve neutral = TonemapCurve._('neutral', 1.0);
+
+  /// ACES, the Narkowicz fit.
+  static const TonemapCurve aces = TonemapCurve._('aces', 2.0);
+
+  /// AgX's curve, without the gamut rotation — see `composite.frag`.
+  static const TonemapCurve agx = TonemapCurve._('agx', 3.0);
+
+  /// Reinhard, extended so white reaches white.
+  static const TonemapCurve reinhard = TonemapCurve._('reinhard', 4.0);
+
+  /// AgX with the gamut rotation, so a hue survives being over-bright —
+  /// `gfx-26n`.
+  ///
+  /// A fifth member rather than a fix to [agx], because 18% grey lands
+  /// somewhere else through the rotation and every golden that names `agx`
+  /// names the bare curve on purpose. Reach for this when a deep blue or a
+  /// saturated lamp has to keep its hue four stops over white; reach for
+  /// [agx] when the recorded look is the one that matters.
+  static const TonemapCurve agxFull = TonemapCurve._('agxFull', 5.0);
+
+  /// All of them, in the order their codes run.
+  static const List<TonemapCurve> values = <TonemapCurve>[
+    neutral,
+    aces,
+    agx,
+    reinhard,
+    agxFull,
+  ];
+
+  @override
+  String toString() => 'TonemapCurve.$name';
+}
+
 final class LookSettings {
   const LookSettings({
     this.contrast = 1.0,
@@ -558,6 +1351,14 @@ final class LookSettings {
     this.vignetteRoundness = 1.0,
     this.grain = 0.0,
     this.chromaticAberration = 0.0,
+    this.dither = 0.0,
+    this.lift,
+    this.gamma,
+    this.gain,
+    this.whiteBalance = 0.0,
+    this.tint = 0.0,
+    this.lut,
+    this.lutStrength = 1.0,
   });
 
   /// Pivoted about mid grey, so raising it does not also raise exposure.
@@ -591,6 +1392,88 @@ final class LookSettings {
   /// visible without reading as a fault.
   final double chromaticAberration;
 
+  /// What is **added**, per channel, so the shadows move and white stays —
+  /// `gfx-27n`. Null is neutral, the same as zero.
+  ///
+  /// **Lift, gamma and gain are three ranges rather than three strengths.**
+  /// [contrast] and [saturation] move the whole picture at once; these move
+  /// one end of it, which is what a grade is for. Lift raises the shadows and
+  /// leaves white alone, [gain] moves the highlights and leaves black alone,
+  /// and [gamma] is the exponent between them. Each is a colour rather than a
+  /// number, because the whole reason to reach for them is a warm highlight
+  /// over a cool shadow, and one scalar per stage cannot say that.
+  final vm.Vector3? lift;
+
+  /// The **exponent**, per channel, so the midtones move and both ends stay.
+  /// Null is neutral, the same as one. See [lift].
+  final vm.Vector3? gamma;
+
+  /// What is **multiplied**, per channel, so the highlights move and black
+  /// stays. Null is neutral, the same as one. See [lift].
+  final vm.Vector3? gain;
+
+  /// Warm above zero, cool below, in the range −1 to 1 — `gfx-27n`.
+  ///
+  /// **Not [temperature], and the two are deliberately both here.**
+  /// [temperature] is a gain on red against blue: a look, and documented as
+  /// one. This is the correction a camera and a grading panel offer, and it
+  /// comes with [tint] across it because a white balance without a
+  /// green-magenta axis can only fix half of what is wrong with a white.
+  ///
+  /// Approximated in display space rather than converted through a chromatic
+  /// adaptation matrix: the exact transform wants the scene's own white
+  /// point, and the composite has the picture rather than the light that made
+  /// it.
+  final double whiteBalance;
+
+  /// Green above zero, magenta below, in the range −1 to 1. The other axis of
+  /// [whiteBalance], and takes its green out of red and blue rather than
+  /// adding light, so a tint alone changes the hue and not the level.
+  final double tint;
+
+  /// Ordered noise added after the sRGB encode, in output steps — `gfx-24n`.
+  ///
+  /// `1 / 255` is one 8-bit step and is the value to reach for; 0 is off,
+  /// exactly, and is the default because every golden was recorded without it.
+  ///
+  /// **What it is for: a dark gradient that arrives in six flat bands.** The
+  /// frame is computed in floating point and written to an 8-bit target, and
+  /// near black the sRGB curve is at its steepest, so a long shallow ramp —
+  /// a shadowed corridor wall, a vignette, a soft key light falling off —
+  /// quantises to a handful of distinct values with visible edges between
+  /// them. Adding less than one step of ordered noise before the value is
+  /// rounded turns each edge into a dither pattern the eye integrates back
+  /// into a gradient.
+  ///
+  /// Ordered rather than random: a hash gives the same result numerically and
+  /// reads as noise on a flat surface, where a 4x4 Bayer cell reads as a
+  /// gradient. Both are fixed to screen position and neither moves with time,
+  /// which is what keeps a golden stable — the same constraint [grain]
+  /// documents from the other side.
+  final double dither;
+
+  /// A colour table, as a strip of N slices of N×N — `gfx-18n`'s own row.
+  ///
+  /// **The shape every grading tool exports**, and the shape three of this
+  /// engine's four backends can sample without a capability check: N² wide
+  /// and N tall, blue selecting the slice, red running across it and green
+  /// down. [buildIdentityLut] makes the one that changes nothing, which is
+  /// what a test compares against and what somebody starts from.
+  ///
+  /// Null is not "a neutral table": nothing is sampled at all, and that is
+  /// the difference [lutStrength] of zero also makes.
+  final TextureHandle? lut;
+
+  /// How much of [lut] to apply, 0 to 1.
+  ///
+  /// Zero means the composite never samples the table — a branch on a
+  /// uniform, so the whole draw takes one side of it. Anything above zero
+  /// mixes towards the graded colour.
+  final double lutStrength;
+
+  /// Whether [lut] will actually be sampled this frame.
+  bool get gradesThroughLut => lut != null && lutStrength > 0.0;
+
   /// Whether any of this changes the picture at all.
   ///
   /// Read by the renderer to skip packing the second uniform, and by tests to
@@ -601,7 +1484,8 @@ final class LookSettings {
       temperature == 0.0 &&
       vignette == 0.0 &&
       grain == 0.0 &&
-      chromaticAberration == 0.0;
+      chromaticAberration == 0.0 &&
+      !gradesThroughLut;
 
   LookSettings copyWith({
     double? contrast,
@@ -611,6 +1495,14 @@ final class LookSettings {
     double? vignetteRoundness,
     double? grain,
     double? chromaticAberration,
+    double? dither,
+    vm.Vector3? lift,
+    vm.Vector3? gamma,
+    vm.Vector3? gain,
+    double? whiteBalance,
+    double? tint,
+    TextureHandle? lut,
+    double? lutStrength,
   }) => LookSettings(
     contrast: contrast ?? this.contrast,
     saturation: saturation ?? this.saturation,
@@ -619,7 +1511,148 @@ final class LookSettings {
     vignetteRoundness: vignetteRoundness ?? this.vignetteRoundness,
     grain: grain ?? this.grain,
     chromaticAberration: chromaticAberration ?? this.chromaticAberration,
+    dither: dither ?? this.dither,
+    lift: lift ?? this.lift,
+    gamma: gamma ?? this.gamma,
+    gain: gain ?? this.gain,
+    whiteBalance: whiteBalance ?? this.whiteBalance,
+    tint: tint ?? this.tint,
+    lut: lut ?? this.lut,
+    lutStrength: lutStrength ?? this.lutStrength,
   );
+}
+
+/// Edges smoothed on the finished picture — `gfx-04n`'s own row.
+///
+/// **It exists to end a choice nobody should have to make.** The scene pass
+/// turns MSAA off whenever anything consumes the surface buffer, because a
+/// multisampled attachment and a buffer a later pass reads are the same
+/// decision made twice — so switching ambient occlusion on cost every edge in
+/// the frame its smoothing, and a game got shadows in its corners or clean
+/// silhouettes and not both.
+///
+/// Off by default, because it is a pass and a texture, and because MSAA is
+/// the better answer wherever it is still available: it sees edges this
+/// cannot, a thin wire that fell between two pixel centres among them. On by
+/// default *with* the surface buffer would be a reasonable policy and is
+/// deliberately not taken here — the renderer does not turn passes on behind
+/// a caller's back.
+/// How many halvings the bloom chain does on a frame [frameHeight] tall —
+/// `gfx-31n`.
+///
+/// **A function rather than a method, so it can be checked without a frame.**
+/// The arithmetic is where the row's whole claim lives — that identical
+/// settings cover the same fraction of the picture at two resolutions — and a
+/// claim about arithmetic should be testable as arithmetic rather than by
+/// rendering two frames and comparing glows.
+///
+/// With [BloomSettings.referenceHeight] at zero this is
+/// [BloomSettings.levels] unchanged. Otherwise it is that count plus the
+/// doublings between the reference height and the real one, rounded to the
+/// nearest whole halving: the chain can only be lengthened by whole levels,
+/// so a frame 1.5x taller gets one more rather than half of one.
+int bloomLevelsFor(BloomSettings settings, {required int frameHeight}) {
+  final reference = settings.referenceHeight;
+  if (reference <= 0 || frameHeight <= 0) return settings.levels;
+  // log2 of the ratio: each doubling of the frame wants one more halving for
+  // the glow to reach the same share of it.
+  final doublings = math.log(frameHeight / reference) / math.ln2;
+  return settings.levels + doublings.round();
+}
+
+final class AntiAliasSettings {
+  const AntiAliasSettings({
+    this.enabled = false,
+    this.contrastThreshold = 0.125,
+    this.blend = 0.75,
+    this.sharpen = 0.0,
+  });
+
+  final bool enabled;
+
+  /// How much local contrast a pixel needs before it is worth touching, as a
+  /// fraction of the local maximum.
+  ///
+  /// Relative and not absolute: a step of 0.02 across a dark surface is an
+  /// edge somebody can see and the same step across a white wall is
+  /// dithering. 0.125 is where an edge starts reading as an edge; lower
+  /// scrubs texture detail, higher leaves staircases on shallow slopes.
+  final double contrastThreshold;
+
+  /// How far along the edge to sample, as a fraction of a texel. One is the
+  /// whole neighbour, which over-blurs; 0.75 keeps a silhouette crisp.
+  final double blend;
+
+  /// Contrast-adaptive sharpening on the finished picture — `gfx-29n`. 0 is
+  /// off exactly, and is the default.
+  ///
+  /// **It lives on the anti-aliasing settings because it lives in that pass**,
+  /// and it lives in that pass because the four neighbours it needs are the
+  /// four the smoothing already fetches. A pass of its own would be a second
+  /// full-screen draw for the same answer.
+  ///
+  /// **Sharpening is what normally follows a smoothed image**, and this
+  /// engine had neither it nor any unsharp path, while `fxaa.frag` documents
+  /// that it is the only anti-aliasing left once the surface buffer is in use
+  /// — so a frame with ambient occlusion on was softened with nothing to put
+  /// the edge back.
+  ///
+  /// Adaptive rather than a plain unsharp mask: the amplitude comes from how
+  /// much headroom the neighbourhood leaves, so a pixel already against the
+  /// ceiling is not pushed past it. That is what separates sharpening from
+  /// the bright halo along every hard edge that reads as a cheap filter.
+  /// 0.5 is visible without announcing itself; 1 is the most the kernel
+  /// offers.
+  final double sharpen;
+
+  AntiAliasSettings copyWith({
+    bool? enabled,
+    double? contrastThreshold,
+    double? blend,
+    double? sharpen,
+  }) => AntiAliasSettings(
+    enabled: enabled ?? this.enabled,
+    contrastThreshold: contrastThreshold ?? this.contrastThreshold,
+    blend: blend ?? this.blend,
+    sharpen: sharpen ?? this.sharpen,
+  );
+}
+
+/// The colour table that changes nothing, [size] slices wide — `gfx-18n`.
+///
+/// **What every other table is a departure from.** A grading tool exports one
+/// of these, somebody paints over it, and the difference between the two is
+/// the look. It is also what a test compares against: a table whose entries
+/// are exactly the colours they stand for should leave a frame where it was,
+/// and whether it *exactly* does is a question about the texture's own
+/// precision rather than about the arithmetic.
+///
+/// The strip is `size²` wide and `size` tall: blue picks the slice, red runs
+/// across it, green down. 33 is what most tools export and is the default;
+/// 17 is the other common one and is cheap enough to test with.
+///
+/// Eight bits a channel, because that is what a table read off disk will be
+/// and a neutral one that is secretly more precise than a real one would be
+/// testing the wrong thing.
+Uint8List buildIdentityLut({int size = 33}) {
+  if (size < 2) {
+    throw ArgumentError.value(size, 'size', 'a table needs at least two ends');
+  }
+  final width = size * size;
+  final pixels = Uint8List(width * size * 4);
+  final last = size - 1;
+  for (var blue = 0; blue < size; blue++) {
+    for (var green = 0; green < size; green++) {
+      for (var red = 0; red < size; red++) {
+        final at = ((green * width) + blue * size + red) * 4;
+        pixels[at] = (red * 255 / last).round();
+        pixels[at + 1] = (green * 255 / last).round();
+        pixels[at + 2] = (blue * 255 / last).round();
+        pixels[at + 3] = 255;
+      }
+    }
+  }
+  return pixels;
 }
 
 final class BloomSettings {
@@ -630,6 +1663,8 @@ final class BloomSettings {
     this.intensity = 0.06,
     this.levels = 5,
     this.filterRadius = 1.0,
+    this.referenceHeight = 0,
+    this.halation = 0.0,
   });
 
   final bool enabled;
@@ -653,6 +1688,45 @@ final class BloomSettings {
   /// Tent-filter radius, in source texels, used on the way back up.
   final double filterRadius;
 
+  /// How red the broad part of the glow goes — `gfx-30n`. 0 is off exactly,
+  /// and is the default.
+  ///
+  /// **What it is, and why it is not a tint on the whole bloom.** On film the
+  /// halo around a highlight is warm: light that gets through the emulsion
+  /// scatters off the backing and comes back, and the red layer sits deepest
+  /// so it catches the most of it. What makes that read as light rather than
+  /// as a colour cast is that only the *wide* part is warm — the tight core
+  /// around the highlight stays the colour of the highlight.
+  ///
+  /// So this is applied per level of the chain, on the way back up, where the
+  /// levels still exist as separate pictures. The composite sees one glow and
+  /// could not tell the core from the skirt.
+  ///
+  /// It costs nothing new: the pyramid is the expensive half and bloom has
+  /// already paid for it. 0.5 is visible as warmth without reading as a
+  /// filter.
+  final double halation;
+
+  /// The frame height [levels] was chosen at, or 0 to leave it alone —
+  /// `gfx-31n`.
+  ///
+  /// **What it fixes: the same settings glowing differently at two
+  /// resolutions.** [levels] is a count of halvings, and each halving doubles
+  /// the glow's reach *in pixels* — so a chain of five reaches a fixed number
+  /// of pixels, which is a different fraction of the picture at 512 than it
+  /// is at 1024. Export the frame at twice the size and the bloom covers half
+  /// as much of it, from settings nobody touched.
+  ///
+  /// Given a height, the chain is lengthened or shortened by the doublings
+  /// between that height and the real one, so the reach stays a fraction of
+  /// the frame rather than a number of pixels. At 0 — the default — nothing
+  /// is recomputed and [levels] means exactly what it always did, which is
+  /// what keeps every recorded frame where it was.
+  ///
+  /// The count is still clamped to the chain the frame can actually hold: a
+  /// level whose target is one pixel has nothing left to halve.
+  final int referenceHeight;
+
   BloomSettings copyWith({
     bool? enabled,
     double? threshold,
@@ -660,6 +1734,8 @@ final class BloomSettings {
     double? intensity,
     int? levels,
     double? filterRadius,
+    int? referenceHeight,
+    double? halation,
   }) => BloomSettings(
     enabled: enabled ?? this.enabled,
     threshold: threshold ?? this.threshold,
@@ -667,5 +1743,7 @@ final class BloomSettings {
     intensity: intensity ?? this.intensity,
     levels: levels ?? this.levels,
     filterRadius: filterRadius ?? this.filterRadius,
+    referenceHeight: referenceHeight ?? this.referenceHeight,
+    halation: halation ?? this.halation,
   );
 }

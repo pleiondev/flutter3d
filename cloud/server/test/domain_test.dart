@@ -80,10 +80,21 @@ void main() {
 
     test('a licence is found by its SPDX id, and an unknown one is none', () {
       expect(Licence.of('CC-BY-4.0'), Licence.ccBy);
+      expect(Licence.of('MIT'), Licence.mit);
       expect(Licence.of('GPL-3.0'), isNull);
       expect(Licence.of(null), isNull);
       expect(Licence.cc0.requiresAttribution, isFalse);
+      expect(Licence.mit.requiresAttribution, isTrue);
     });
+
+    test(
+      'a category is found by its column value, and an unknown one is none',
+      () {
+        expect(Category.of('characters'), Category.characters);
+        expect(Category.of('bogus'), isNull);
+        expect(Category.of(null), isNull);
+      },
+    );
   });
 
   group('format', () {

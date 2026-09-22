@@ -1,4 +1,4 @@
-import 'package:flutter3d_geometry/flutter3d_geometry.dart';
+import 'package:flutter3d_core/geometry.dart';
 import 'package:vector_math/vector_math.dart';
 
 import '../render/material.dart';
@@ -200,13 +200,34 @@ base class MeshNode extends SceneNode {
   ///
   /// For a subclass whose [localBounds] can change without the transform or
   /// the mesh changing, which are the two things the cache is keyed on.
-  void markBoundsDirty() => _boundsVersion = -1;
+  ///
+  /// Advances [SceneNode.changeEpoch] as well, because a reader holding an
+  /// epoch is asking "is anything I derived from bounds stale?", and this is
+  /// the one way bounds go stale without a transform saying so.
+  ///
+  /// **Only while the node is in a scene**, which is not a nicety. Nothing
+  /// derives anything from a node no scene holds, and `gfx-67n`'s batcher fills
+  /// a detached node once per run per frame: advancing the epoch there would
+  /// invalidate every cached world transform in the scene halfway through
+  /// encoding it, which is the whole of `gfx-65n` undone by a node that is not
+  /// even being drawn as itself.
+  void markBoundsDirty() {
+    _boundsVersion = -1;
+    if (scene != null) SceneNode.noteChange();
+  }
 
   /// World-space axis-aligned bounds, recomputed only when the transform changes.
   Aabb3 get worldBounds {
     _refreshBounds();
     return _worldBounds;
   }
+
+  /// What a subtree bound has to contain on this node's account — `gfx-66n`.
+  @override
+  Aabb3? get ownBounds => worldBounds;
+
+  @override
+  bool get ownBoundsAreCullable => frustumCulled;
 
   /// Centre of the world bounding sphere used for the cheap culling test.
   Vector3 get worldBoundsCentre {

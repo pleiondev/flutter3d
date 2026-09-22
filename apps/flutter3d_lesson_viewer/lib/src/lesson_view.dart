@@ -31,12 +31,11 @@ import 'package:flutter/material.dart'
     as widgets_material
     show Material, MaterialType;
 import 'package:flutter3d/flutter3d.dart' hide Material;
-import 'package:flutter3d_app/flutter3d_app.dart' show presentFrame;
-import 'package:flutter3d_bridge/flutter3d_bridge.dart' show LessonPlayer;
-import 'package:flutter3d_session/flutter3d_session.dart';
+import 'package:flutter3d_app/flutter3d_app.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import 'check_prompt.dart';
+import 'lesson_player.dart';
 import 'orbit_cubit.dart';
 
 /// Wraps [SceneSurface] around a [LessonPlayer], with a "Previous"/"Next"
@@ -186,7 +185,7 @@ class _LessonViewState extends State<LessonView> {
                 // Rebuilds this subtree on every `OrbitCubit` emit — the only
                 // reason it needs to. `SceneSurface` calls `renderer.render`
                 // from inside its own `build`
-                // (`packages/flutter3d_session/lib/src/scene_surface.dart`),
+                // (`packages/flutter3d_app/lib/src/surface/scene_surface.dart`),
                 // so a mutation to the turntable with no rebuild to follow
                 // moves the camera and leaves the picture on screen exactly as
                 // it was — found the hard way, by a drag that changed

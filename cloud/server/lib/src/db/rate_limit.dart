@@ -27,6 +27,33 @@ class RateRule {
   static const lettersPerAddress = RateRule(3, Duration(hours: 1));
 
   static const lettersPerIp = RateRule(10, Duration(hours: 1));
+
+  /// Preview pictures saved to one account. A save-and-preview cycle spends
+  /// one or two of these, even with a retry; the limit exists to bound how
+  /// much disk one account can fill by repeatedly posting distinct pictures,
+  /// not to get in the way of normal use.
+  static const previewPerAccount = RateRule(30, Duration(hours: 1));
+
+  /// Source files saved back to one account's models. A working session of
+  /// edit-and-save spends a handful of these; the limit exists to bound how
+  /// many distinct revisions one account can push in an hour, not to get in
+  /// the way of normal editing.
+  static const sourceSavePerAccount = RateRule(30, Duration(hours: 1));
+
+  /// Publishing or unpublishing a model, from one account. A legitimate
+  /// owner does this a handful of times a session at most; the ceiling is
+  /// generous because the point is only to stop something automated from
+  /// toggling a model's visibility over and over, not to get in the way of
+  /// normal use.
+  static const publishPerAccount = RateRule(20, Duration(hours: 1));
+
+  /// Creating a project, from one account. A legitimate owner starts a
+  /// handful of projects a session at most; the ceiling exists to bound how
+  /// many rows a script looping on the form could create in an hour, not to
+  /// get in the way of normal use — every other row-creating action here
+  /// (an upload, a publish) already has a rule of its own, and a project was
+  /// the one left without one.
+  static const projectCreatePerAccount = RateRule(20, Duration(hours: 1));
 }
 
 class RateLimiter {

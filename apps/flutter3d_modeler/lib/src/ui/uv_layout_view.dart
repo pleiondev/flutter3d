@@ -36,6 +36,7 @@ final class UvLayoutView extends StatelessWidget {
     this.onTriangleTap,
     this.size = 400,
     this.checkerCells = 32,
+    this.semanticLabel,
   });
 
   /// What to paint — [buildUvIslandData]'s own output, one entry per island.
@@ -49,36 +50,60 @@ final class UvLayoutView extends StatelessWidget {
   /// [GestureDetector] either.
   final UvTriangleTap? onTriangleTap;
 
-  /// Edge length in logical pixels — 400 is the acceptance's own number.
+  /// Edge length in logical pixels — 400 is the acceptance's own number, and
+  /// the most this takes: a parent with less room gets a smaller square
+  /// rather than a clipped one, see [build].
   final double size;
 
   /// Checker cells per edge — 32 is the acceptance's own number.
   final int checkerCells;
 
+  /// What a screen reader is told this picture is — the caller's own words,
+  /// already translated, since this file is pumped by tests with no
+  /// localizations above it. Null leaves the picture unannounced, which is
+  /// what it was before `UvScreen` had a sentence to give it.
+  final String? semanticLabel;
+
   @override
-  Widget build(BuildContext context) {
-    final painter = _UvLayoutPainter(
-      islands: islands,
-      selectedIslandId: selectedIslandId,
-      checkerCells: checkerCells,
-    );
-    final picture = CustomPaint(size: Size.square(size), painter: painter);
-    final tap = onTriangleTap;
-    return SizedBox.square(
-      dimension: size,
-      child: tap == null
+  Widget build(BuildContext context) => LayoutBuilder(
+    builder: (BuildContext context, BoxConstraints constraints) {
+      // **The side it is given, not the side it asked for.** A parent
+      // narrower than [size] — `UvScreen`'s own column on anything short of a
+      // wide desktop — hands down a tight width, and a `SizedBox` of 400
+      // inside it is laid out at that width whatever it asked for. The
+      // painter already drew to the box it got; the tap still divided by
+      // [size], so a press landed on a different triangle from the one under
+      // it. One number for both is what makes them the same picture.
+      final double room = constraints.biggest.shortestSide;
+      final double side = room.isFinite && room < size ? room : size;
+      final picture = CustomPaint(
+        size: Size.square(side),
+        painter: _UvLayoutPainter(
+          islands: islands,
+          selectedIslandId: selectedIslandId,
+          checkerCells: checkerCells,
+        ),
+      );
+      final tap = onTriangleTap;
+      final Widget pressable = tap == null
           ? picture
           : GestureDetector(
               behavior: HitTestBehavior.opaque,
               onTapUp: (TapUpDetails details) =>
-                  _handleTap(details.localPosition, tap),
+                  _handleTap(details.localPosition, side, tap),
               child: picture,
-            ),
-    );
-  }
+            );
+      return SizedBox.square(
+        dimension: side,
+        child: semanticLabel == null
+            ? pressable
+            : Semantics(label: semanticLabel, image: true, child: pressable),
+      );
+    },
+  );
 
-  void _handleTap(Offset local, UvTriangleTap onTap) {
-    final uv = _toUv(local, size);
+  void _handleTap(Offset local, double side, UvTriangleTap onTap) {
+    final uv = _toUv(local, side);
     for (final island in islands) {
       for (var i = 0; i < island.triangles.length; i++) {
         if (_containsPoint(island.triangles[i], uv)) {

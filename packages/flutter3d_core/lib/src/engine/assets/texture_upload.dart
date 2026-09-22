@@ -4,7 +4,7 @@ import 'dart:typed_data';
 // `Ktx2Texture` hidden: this package's own thin wrapper of the same name,
 // imported below from `ktx2/ktx2.dart`, is the one that maps to a
 // `TextureFormat` — see that file's doc comment for why the two exist.
-import 'package:flutter3d_formats/flutter3d_formats.dart' hide Ktx2Texture;
+import 'package:flutter3d_core/formats.dart' hide Ktx2Texture;
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 
 import 'image_decoder.dart';
@@ -144,6 +144,11 @@ TextureHandle? _uploadRgba8(
 /// of a million blocks, and the frame that loads it should not stall for
 /// them. The web has no isolates and decodes where it stands, as the model
 /// loader does. A plain file's parse is a handful of reads and stays here.
+///
+/// **A universal-block file is the fifth outcome — `gfx-83n`.** It is one
+/// cooked asset for every device family, so which GPU format it becomes is
+/// decided here, from what this device says it samples, and carried into the
+/// transcode.
 Future<TextureHandle?> _uploadKtx2(
   GraphicsDevice device,
   TextureSampling sampling,
@@ -152,9 +157,34 @@ Future<TextureHandle?> _uploadKtx2(
 ) async {
   final Ktx2Texture texture;
   try {
+    // **A universal-block file needs its target chosen here — `gfx-83n`.**
+    // The block layout is device-agnostic on purpose, so the one thing it
+    // cannot carry is which GPU format it becomes; that comes from the
+    // device, and the device is not reachable from the isolate the transcode
+    // runs on.
+    final universal = universalBlockFormat(encoded);
+    final UniversalTarget? universalTarget;
+    if (universal != null) {
+      universalTarget = chooseUniversalTarget(
+        device,
+        hasAlpha: universal.hasAlpha,
+      );
+      if (universalTarget == null) {
+        report?.call(
+          'KTX2 texture left out: it holds universal blocks with alpha, and '
+          'this device samples no format that carries it.',
+        );
+        return null;
+      }
+    } else {
+      universalTarget = null;
+    }
+
     texture = _isWeb || !isBasisUniversalKtx2(encoded)
-        ? Ktx2Texture.parse(encoded)
-        : await Isolate.run(() => Ktx2Texture.parse(encoded));
+        ? Ktx2Texture.parse(encoded, universalTarget: universalTarget)
+        : await Isolate.run(
+            () => Ktx2Texture.parse(encoded, universalTarget: universalTarget),
+          );
   } on Ktx2FormatException catch (error) {
     report?.call('KTX2 file left out: ${error.message}');
     return null;

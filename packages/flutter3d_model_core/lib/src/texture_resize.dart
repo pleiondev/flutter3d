@@ -5,7 +5,7 @@ library;
 
 import 'dart:typed_data';
 
-import 'package:flutter3d_formats/flutter3d_formats.dart';
+import 'package:flutter3d_core/formats.dart';
 
 import 'image_dimensions.dart';
 import 'project.dart';

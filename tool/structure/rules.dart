@@ -32,6 +32,7 @@ List<Rule> get allRules => <Rule>[
     run: _flatDartResolvesWithoutFlutter,
   ),
   (name: 'the hardware layer names no graphics API', run: _hardwareNamesNoApi),
+  (name: 'the hardware layer names no Flutter', run: _hardwareNamesNoFlutter),
   (name: 'the engine names no backend', run: _engineNamesNoBackend),
   (name: 'each assembly has one home per application', run: _oneAssembly),
   (name: 'no test builds its own world', run: _noHarnessAssembly),
@@ -81,6 +82,14 @@ List<Rule> get allRules => <Rule>[
   (
     name: 'the compiled shader bundle is not older than its sources',
     run: _shaderBundleIsCurrent,
+  ),
+  (
+    name: 'no vertex stage reaches for texelFetch',
+    run: _noTexelFetchInVertexStages,
+  ),
+  (
+    name: 'the surface buffer keeps carrying depth in metres',
+    run: _surfaceDepthStays,
   ),
   (name: 'a step asks no machine for an answer', run: _portableStepArithmetic),
   (name: 'every skill is named for its package', run: _skillNames),
@@ -151,17 +160,21 @@ List<Finding> _noSharedMutables() {
 bool _draws(String source) =>
     reaches(source, 'package:flutter3d/') || reaches(source, 'flutter_gpu');
 
+bool _namesFlutter(String source) =>
+    reaches(source, 'package:flutter/') || reaches(source, 'dart:ui');
+
 List<Finding> _genreIsolation() {
   final found = <Finding>[];
   for (final genre in genrePackages) {
     final dir = packages[genre];
     if (dir == null) continue;
     final mayDraw = genreMayDraw[genre] ?? const <String>{};
+    final visible = genreBridgeHalf[genre] ?? const <String>{};
 
     for (final file in dartFilesIn(Directory('${dir.path}/lib'))) {
       final path = relative(file, dir);
-      if (mayDraw.contains(path)) continue;
-      if (_draws(file.readAsStringSync())) {
+      final source = file.readAsStringSync();
+      if (!mayDraw.contains(path) && _draws(source)) {
         found.add(
           Finding(
             '$genre/$path',
@@ -169,6 +182,36 @@ List<Finding> _genreIsolation() {
                 'genreMayDraw and say why',
           ),
         );
+      }
+      if (!visible.contains(path) && _namesFlutter(source)) {
+        found.add(
+          Finding(
+            '$genre/$path',
+            'the simulation half names Flutter — a widget belongs to what '
+                'bridge.dart exports; move it there, or add it to '
+                'genreBridgeHalf and say why',
+          ),
+        );
+      }
+    }
+
+    // A file can keep to its half and still be handed over by the wrong door:
+    // the simulation's barrel exporting a widget puts Flutter in front of every
+    // caller that only wanted to step a run.
+    final barrel = File('${dir.path}/lib/$genre.dart');
+    if (barrel.existsSync()) {
+      final source = barrel.readAsStringSync();
+      for (final path in <String>{...mayDraw, ...visible}) {
+        final uri = path.replaceFirst('lib/', '');
+        if (reaches(source, "'$uri'")) {
+          found.add(
+            Finding(
+              '$genre/lib/$genre.dart',
+              'exports $uri, which belongs to the visible half — export it '
+                  'from bridge.dart',
+            ),
+          );
+        }
       }
     }
 
@@ -434,42 +477,46 @@ List<Finding> _flatDartResolvesWithoutFlutter() {
 
 // ------------------------------------------------------- backend containment
 
-List<Finding> _hardwareNamesNoApi() {
+/// The files of `flutter3d_hardware`, or the one finding that says why there
+/// are none to read.
+///
+/// Both hardware rules walk the same list, and both are worthless against an
+/// empty one: a scan over no files reports nothing and is indistinguishable
+/// from a scan over clean ones.
+(List<File>, Finding?) _hardwareFiles() {
   final dir = packages['flutter3d_hardware'];
   if (dir == null) {
-    return <Finding>[const Finding('flutter3d_hardware', 'is not there')];
+    return (
+      const <File>[],
+      const Finding('flutter3d_hardware', 'is not there'),
+    );
   }
-  final found = <Finding>[];
   final files = dartFilesIn(Directory('${dir.path}/lib'));
   if (files.isEmpty) {
-    return <Finding>[
+    return (
+      const <File>[],
       const Finding(
         'flutter3d_hardware',
-        'has no lib/ — a scan that finds '
-            'nothing proves nothing',
+        'has no lib/ — a scan that finds nothing proves nothing',
       ),
-    ];
+    );
   }
+  return (files, null);
+}
 
-  for (final file in files) {
-    final name = file.uri.pathSegments.last;
-    final source = file.readAsStringSync();
-    final where = 'flutter3d_hardware/${relative(file, dir)}';
-    if (reaches(source, 'flutter_gpu')) {
-      found.add(Finding(where, 'reaches a backend'));
-    }
-    if (hardwareMayUseFlutter.containsKey(name)) continue;
-    if (reaches(source, 'dart:ui') || reaches(source, 'package:flutter/')) {
-      found.add(
+List<Finding> _hardwareNamesNoApi() {
+  final (files, missing) = _hardwareFiles();
+  if (missing != null) return <Finding>[missing];
+  final dir = packages['flutter3d_hardware']!;
+
+  final found = <Finding>[
+    for (final file in files)
+      if (reaches(file.readAsStringSync(), 'flutter_gpu'))
         Finding(
-          where,
-          "reaches Flutter — this package's vocabulary is its own. If this is "
-          'genuinely something every backend must answer, name it in '
-          'hardwareMayUseFlutter with the reason',
+          'flutter3d_hardware/${relative(file, dir)}',
+          'reaches a backend',
         ),
-      );
-    }
-  }
+  ];
 
   if (File(
     '${dir.path}/pubspec.yaml',
@@ -482,6 +529,40 @@ List<Finding> _hardwareNamesNoApi() {
     );
   }
   return found;
+}
+
+/// The hardware layer's vocabulary is its own — Flutter's included.
+///
+/// **This was the back half of `the hardware layer names no graphics API`,
+/// and a rule that fires under another rule's name is a rule nobody reads.**
+/// A `dart:ui` import in `graphics_device.dart` was reported by a line that
+/// says "graphics API", which is the one thing such an import is not; the
+/// reader goes looking for a `flutter_gpu` they will not find. mcp-01n's own
+/// acceptance asks for this rule by name for that reason, and the split costs
+/// nothing: both halves read the same files, neither excuses the other's
+/// findings, and the failure now says which boundary was crossed.
+///
+/// `package:flutter/` is banned alongside `dart:ui` because widgets re-export
+/// half of `dart:ui` — [hardwareMayUseFlutter] carries the longer argument,
+/// and is empty since `present()` left `GraphicsDevice` for `presentFrame` in
+/// `flutter3d_app`.
+List<Finding> _hardwareNamesNoFlutter() {
+  final (files, missing) = _hardwareFiles();
+  if (missing != null) return <Finding>[missing];
+  final dir = packages['flutter3d_hardware']!;
+
+  return <Finding>[
+    for (final file in files)
+      if (!hardwareMayUseFlutter.containsKey(file.uri.pathSegments.last) &&
+          (reaches(file.readAsStringSync(), 'dart:ui') ||
+              reaches(file.readAsStringSync(), 'package:flutter/')))
+        Finding(
+          'flutter3d_hardware/${relative(file, dir)}',
+          "reaches Flutter — this package's vocabulary is its own. If this is "
+              'genuinely something every backend must answer, name it in '
+              'hardwareMayUseFlutter with the reason',
+        ),
+  ];
 }
 
 List<Finding> _engineNamesNoBackend() {
@@ -625,7 +706,7 @@ Iterable<String> _importedUris(String source) => RegExp(
 ///
 /// **Normalized, not just made absolute.** A relative import climbing out of
 /// its own directory (`../asset_source.dart`, common wherever
-/// `flutter3d_formats/lib/src/{f3d,gltf,obj,stl,usdz}/` reaches a sibling)
+/// `flutter3d_core/lib/src/formats/{f3d,gltf,obj,stl,usdz}/` reaches a sibling)
 /// used to come back as a literal `.../f3d/../asset_source.dart` — a
 /// different string for the same file depending on which directory imported
 /// it from. `_pathToFlutter`'s `seen` set dedupes by string, so five
@@ -1175,6 +1256,11 @@ List<Finding> _exemptionsResolve() {
   for (final entry in genreMayDraw.entries) {
     for (final path in entry.value) {
       check('genreMayDraw', entry.key, path);
+    }
+  }
+  for (final entry in genreBridgeHalf.entries) {
+    for (final path in entry.value) {
+      check('genreBridgeHalf', entry.key, path);
     }
   }
   for (final entry in repeatableStepExempt.entries) {
@@ -2938,4 +3024,122 @@ String? _frontmatterValue(String text, String key) {
     return line.substring(colon + 1).trim();
   }
   return null;
+}
+
+/// `gfx-51n`: no vertex stage reaches for `texelFetch`.
+///
+/// **Bisected rather than assumed, and the account is in the shader that went
+/// the long way round.** `lib/morph.glsl` records it: impellerc crashes on
+/// `texelFetch` in a *vertex* stage — SIGABRT, no diagnostic, exit 134 —
+/// while the same call in a fragment stage compiles, `gl_VertexIndex` alone
+/// compiles, and `texture()` in a vertex stage compiles. It is that one
+/// combination.
+///
+/// The survey this row came from said something wider — that `texelFetch`
+/// aborts at the default GLES target and needs
+/// `--gles-language-version=300` — and the bundle builds today with three
+/// fragment stages that would have contradicted it. The narrower claim is the
+/// one with a bisection behind it, so it is the one enforced.
+///
+/// So a vertex stage that wants an exact texel builds the coordinate by hand,
+/// `(index + 0.5) / size`, with a nearest clamped sampler and the size passed
+/// down in a uniform rather than read from `textureSize`. This rule is what
+/// says so at a moment somebody can act on: the failure it prevents is an
+/// abort with no line number during a bundle build, on the one backend whose
+/// build a shader author may not be running.
+///
+/// Comments do not count, and that is not a detail — the file carrying the
+/// clearest account of this constraint is the one that names `texelFetch`
+/// most often, and a rule that flagged it would punish the documentation.
+List<Finding> _noTexelFetchInVertexStages() {
+  final sources = packages['flutter3d_shaders'];
+  if (sources == null) {
+    return <Finding>[const Finding('flutter3d_shaders', 'is not there')];
+  }
+  final dir = Directory('${sources.path}/shaders');
+  if (!dir.existsSync()) {
+    return <Finding>[
+      const Finding('flutter3d_shaders/shaders', 'is not there'),
+    ];
+  }
+
+  return <Finding>[
+    for (final file in dir.listSync(recursive: true).whereType<File>())
+      // `.vert` is a vertex stage outright; a `.glsl` may be included by one,
+      // and `lib/morph.glsl` is exactly that case.
+      if (file.path.endsWith('.vert') || file.path.endsWith('.glsl'))
+        if (_withoutComments(file.readAsStringSync()).contains('texelFetch'))
+          Finding(
+            'flutter3d_shaders/${relative(file, sources)}',
+            'reaches for texelFetch where a vertex stage can see it, which '
+                'impellerc aborts on with exit 134 and no diagnostic. Build '
+                'the coordinate by hand and sample with a nearest clamped '
+                'sampler, the way lib/morph.glsl does and says why',
+          ),
+  ];
+}
+
+/// `gfx-58n`: the surface buffer keeps carrying depth, whatever upstream does.
+///
+/// **A gate with an argument attached, and the argument is the whole row.**
+/// `#192449` — no way to sample a depth texture — is the most defensible
+/// filing in `doc/upstream.md` on merit, and it is the one that would do the
+/// most damage if it landed and nobody thought about it: the temptation would
+/// be to throw away `surface.a` and read a depth attachment instead.
+///
+/// `surface.a` is view-axis depth **in metres**, which is not what a depth
+/// attachment holds. The thin-lens circle of confusion in
+/// `depth_of_field.frag` needs metres; the shafts convert along the ray with
+/// it; the occlusion and reflection marches unproject with it. A window depth
+/// would make all four mean different things near and far. So the channel
+/// stays whether or not the filing lands, and this is what says so in a place
+/// that fails rather than in a paragraph nobody reads.
+List<Finding> _surfaceDepthStays() {
+  final sources = packages['flutter3d_shaders'];
+  if (sources == null) {
+    return <Finding>[const Finding('flutter3d_shaders', 'is not there')];
+  }
+  final found = <Finding>[];
+
+  // The write, which everything else depends on.
+  final color = File('${sources.path}/shaders/lib/color.glsl');
+  if (!color.existsSync()) {
+    found.add(
+      const Finding('flutter3d_shaders/shaders/lib/color.glsl', 'is not there'),
+    );
+  } else if (!color.readAsStringSync().contains('ViewDepth()')) {
+    found.add(
+      const Finding(
+        'flutter3d_shaders/shaders/lib/color.glsl',
+        'no longer writes ViewDepth() into the surface buffer. Four passes '
+            'read that channel as metres along the view axis — see gfx-58n '
+            'in doc/upstream.md, which is why the channel outlives #192449 '
+            'either way',
+      ),
+    );
+  }
+
+  // And no shader declaring a depth sampler, which is the shape the
+  // temptation would arrive in.
+  final dir = Directory('${sources.path}/shaders');
+  if (dir.existsSync()) {
+    for (final file in dir.listSync(recursive: true).whereType<File>()) {
+      if (!file.path.endsWith('.frag') && !file.path.endsWith('.glsl')) {
+        continue;
+      }
+      final text = file.readAsStringSync();
+      if (text.contains('sampler2DShadow') ||
+          text.contains('texture2DShadow')) {
+        found.add(
+          Finding(
+            'flutter3d_shaders/${relative(file, sources)}',
+            'declares a depth sampler. flutter_gpu cannot sample one — '
+                '#192449 — and the engine reads depth out of the surface '
+                'buffer instead, in metres. See gfx-58n',
+          ),
+        );
+      }
+    }
+  }
+  return found;
 }

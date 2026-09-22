@@ -491,25 +491,29 @@ TEMPLATES = {
 }
 
 
-# The application a new project starts as, copied into the editor's bundle so
-# it can be written into a project.
+# The application a new game starts as, copied into the editor's bundle so it
+# can be written into a project.
 #
 # **A real application in this repository, not a string in a scaffolder.** A
 # `main.dart` that only ever exists as text is one that stops compiling six
 # months later and nobody finds out until somebody creates a project;
-# `apps/flutter3d_template_app` is analysed by CI like everything else, and this copies
-# it. One source, one regeneration, one diff.
+# `packages/flutter3d_game/example` is analysed by CI like everything else, and
+# this copies it. One source, one regeneration, one diff. It is the game
+# package's example rather than an application of its own because walking a
+# level is game code, and the seed of a project that is not a game — the
+# engine and nothing else — is `packages/flutter3d_app/example`.
+GAME_SEED = 'packages/flutter3d_game/example'
 APP = {
-    'app.main.dart.txt': ('apps/flutter3d_template_app/lib/main.dart', 'lib/main.dart'),
+    'app.main.dart.txt': (f'{GAME_SEED}/lib/main.dart', 'lib/main.dart'),
     'app.backend.dart.txt': (
-        'apps/flutter3d_template_app/lib/src/backend.dart',
+        f'{GAME_SEED}/lib/src/backend.dart',
         'lib/src/backend.dart',
     ),
     # The test a new project comes with. Same argument as `main.dart` above,
     # and it used to be a string inside the scaffolder — which is the one
     # place in this repository where nothing compiles what it holds.
     'app.test.dart.txt': (
-        'apps/flutter3d_template_app/test/widget_test.dart',
+        f'{GAME_SEED}/test/widget_test.dart',
         'test/widget_test.dart',
     ),
 }
