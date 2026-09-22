@@ -923,6 +923,18 @@ gamma-correct average would disagree with it between levels 0 and 1.
 `flutter3d_core` — for a caller that wants renormalised normals or preserved
 alpha coverage and uploads the levels itself.
 
+**And the two halves the paragraphs above name as missing now exist**, from
+the `ap-track` branch. `writeKtx2WithMips` (`mipped_ktx2_writer.dart`) is the
+glue: it builds the chain over a base image and writes every level through
+`writeKtx2` in one call, so a caller after a ready-to-load file need not know
+that a chain and a writer are two separate pieces. Its levels are written
+uncompressed and the file says why rather than leaving it to be discovered —
+all four of `ap-07`'s encoders require whole 4×4 blocks, and a chain that
+runs down to 1×1 passes through 2×2 and 1×1 on the way, neither of which is a
+whole block of anything. Beside it, `packages/flutter3d_cpu/test/
+mip_chain_render_test.dart` gives the acceptance the scene it asked for:
+a distant model drawn on the software backend, with the chain and without.
+
 ### ap-09: a per-target compression family — closed by three other items, and by one flag here
 
 The row was answered twice. On the `edu-track` branch (2026-09-15) by a
