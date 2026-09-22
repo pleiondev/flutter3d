@@ -1928,7 +1928,7 @@ entities a game defines.
 |---|---|
 | Style | `dart format` |
 | Analysis | `flutter analyze` clean across the workspace, no warnings |
-| Unit tests | **9786 tests** across 37 packages and 9 applications |
+| Unit tests | **9812 tests** across 38 packages and 9 applications |
 | Structure rules | 35, `dart run tool/structure.dart`, the first CI step |
 | CI | GitHub Actions over `tool/ci.sh`, on `ubuntu-latest`, with no graphics card |
 
@@ -2847,8 +2847,8 @@ what went out at 0.4.2.
 **The order, used on the day**, is set by the dependency graph:
 
 1. `flutter3d_hardware`, `flutter3d_shaders`, `flutter3d_samples`,
-   `flutter3d_audio`, `flutter3d_physics`, `flutter3d_mcp_kit`, `pad_input`,
-   `pointer_lock`
+   `flutter3d_audio`, `flutter3d_physics`, `flutter3d_mcp_kit`,
+   `flutter3d_lti`, `pad_input`, `pointer_lock`
 2. `flutter3d_conformance`, `flutter3d_core`
 3. `flutter3d_mesh`, `flutter3d_build`, `flutter3d_particles`,
    `flutter3d_editor_widgets`
