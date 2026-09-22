@@ -187,13 +187,13 @@ fi
 # this whole function exists to remove, and the waiting is the part that does
 # it — the `pkill` was already here and was not enough.
 reap_app() {
-  pkill -f "$APP" 2>/dev/null || true
+  pkill -f "$APP_BIN" 2>/dev/null || true
   for _ in $(seq 1 60); do
-    pgrep -f "$APP" >/dev/null 2>&1 || return 0
+    pgrep -f "$APP_BIN" >/dev/null 2>&1 || return 0
     sleep 0.25
   done
   # Still there after fifteen seconds: it is not exiting on its own.
-  pkill -9 -f "$APP" 2>/dev/null || true
+  pkill -9 -f "$APP_BIN" 2>/dev/null || true
   sleep 1
 }
 
@@ -247,7 +247,11 @@ pass=0
 fail=0
 stopped=""
 failed_scenes=()
-log="$(mktemp -t flutter3d-golden)"
+# `mktemp -t prefix` means two different things. BSD takes the prefix and
+# appends the random part itself; GNU reads the argument as a template and
+# refuses one without at least three trailing X's — "too few X's in template".
+# Spelling the template out is what both agree on.
+log="$(mktemp "${TMPDIR:-/tmp}/flutter3d-golden.XXXXXX")"
 trap 'rm -f "$log"' EXIT
 
 for scene in "${SCENES[@]}"; do
