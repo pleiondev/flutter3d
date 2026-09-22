@@ -18,7 +18,14 @@ tags:
     #
     #     very_good test -x golden
     #
-    # Not optional in CI, which runs the suite without the flag.
+    # CI passes that flag too, since 2026-09-22. `tool/ci.sh` carries the
+    # reason at its `GOLDEN_EXCLUDE` line: 43 of the tutorial screenshots
+    # fail on a Linux runner and pass on a developer's machine, because the
+    # software rasteriser reaches `math.pow` per pixel and libm does not
+    # agree across platforms. The comparison counts any difference at all,
+    # so a surface nobody could tell apart reports as most of the frame.
+    # Meant to come back once the comparator weighs how far a channel moved
+    # rather than whether it moved.
 
   skip_very_good_optimization:
     # Read by `very_good test`, not by us: it leaves a file carrying this out

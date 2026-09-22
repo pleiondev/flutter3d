@@ -29,12 +29,16 @@ jobs:
     # nothing at the end of it.
     #
     # 90 rather than 60, because 60 had stopped bounding a hang and started
-    # cutting the job off mid-suite: four runs in a row were killed at exactly
-    # 60 minutes, and the one that did finish took 58.5. A killed job also
-    # skips every `if: failure()` step, so the screenshots the run was meant
-    # to hand back never left the runner. The job grew into this: the modeler's
-    # screenshot suite draws 47 scenes through the software rasteriser, and it
-    # is the cost of that, not a hang, that the old bound was catching.
+    # cutting the job off mid-suite: five runs in a row were killed at exactly
+    # 60 minutes, and one raised to 90 was killed at 90 with the wasm build
+    # still to go. A killed job also skips every `if: failure()` step, so the
+    # screenshots those runs were meant to hand back never left the runner.
+    #
+    # What ran away with it was the modeller: 51 minutes of an 89-minute run,
+    # against 36 for everything else in the script together. Excluding the
+    # `golden` tag takes most of that back, so the bound is a bound again
+    # rather than a second deadline the suite keeps walking into. It stays at
+    # 90 until a run says what the job now costs.
     timeout-minutes: 90
     steps:
       - uses: actions/checkout@v4
@@ -227,7 +231,19 @@ jobs:
   # A job of its own for the reason the `godot` job gives: `check` is already
   # seventeen minutes and is what a push waits for, and this brings a desktop
   # toolchain with it.
+  # **The whole job is off since 2026-09-22, with the rest of the golden lane.**
+  # `tool/ci.sh` carries the reason at its `GOLDEN_EXCLUDE` line: the software
+  # rasteriser reaches `math.pow` per pixel, libm does not agree across
+  # platforms, and a comparison that counts any difference at all reports a
+  # surface nobody could tell apart as most of the frame. Everything this job
+  # does is build a toolchain in order to run that one comparison, so the step
+  # and the job are the same switch. Forty-three minutes a push, for a lane
+  # that cannot be green until the comparator is fixed.
+  #
+  # `if: false` rather than a deletion: what this needs to run took a while to
+  # get right, and none of it is what went wrong.
   render:
+    if: false
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
@@ -259,6 +275,15 @@ jobs:
 
       # The comparison, not a recording: `--update` is what records, and a lane
       # that recorded would agree with itself for ever.
+      #
+      # **Off since 2026-09-22, with the rest of the golden lane.** `tool/ci.sh`
+      # says why at the `GOLDEN_EXCLUDE` line: the software rasteriser reaches
+      # `math.pow` per pixel and libm does not agree across platforms, so a
+      # comparison that counts any difference at all reports a surface nobody
+      # could tell apart as most of the frame. This step draws through the same
+      # rasteriser and compares the same way, so leaving it on would keep the
+      # lane red for the reason the others were switched off.
+      #
       - name: golden scenes, software backend
         run: xvfb-run -a packages/flutter3d/tool/golden.sh --cpu
 
