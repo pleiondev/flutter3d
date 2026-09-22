@@ -75,16 +75,20 @@ final class FlameCameraBridgeDemo extends ShowcaseDemo {
     _cameraX = cameraX;
     _orthoHeight = orthoHeight;
 
-    _lens = CameraNode(
-      name: 'bridged-lens',
-      projection: const OrthographicProjection(height: 9.0),
-    )
-      ..setPosition(0.0, _eyeHeight, 0.0)
-      // Straight down, with -z at the top of the picture: Flame's y grows
-      // downwards and the plane maps it to z, so the two agree on which way
-      // is up.
-      ..lookAt(Vector3.zero(), up: Vector3(0.0, 0.0, -1.0));
-    _view = RenderView(camera: _lens, clearColor: Vector4(0.05, 0.05, 0.07, 1.0));
+    _lens =
+        CameraNode(
+            name: 'bridged-lens',
+            projection: const OrthographicProjection(height: 9.0),
+          )
+          ..setPosition(0.0, _eyeHeight, 0.0)
+          // Straight down, with -z at the top of the picture: Flame's y grows
+          // downwards and the plane maps it to z, so the two agree on which way
+          // is up.
+          ..lookAt(Vector3.zero(), up: Vector3(0.0, 0.0, -1.0));
+    _view = RenderView(
+      camera: _lens,
+      clearColor: Vector4(0.05, 0.05, 0.07, 1.0),
+    );
 
     _scene = Scene()
       ..ambientColor = Vector3(0.5, 0.55, 0.65)
@@ -161,7 +165,9 @@ final class FlameCameraBridgeDemo extends ShowcaseDemo {
     // #endregion live
     _game
       ..add(_Drive(this))
-      ..add(flameCaption('yellow rings: Flame\'s world, through its viewfinder'))
+      ..add(
+        flameCaption('yellow rings: Flame\'s world, through its viewfinder'),
+      )
       ..add(flameCaption(_report, at: Vector2(16.0, 40.0)));
     return _scene;
   }
@@ -263,8 +269,7 @@ final class FlameCameraBridgeDemo extends ShowcaseDemo {
   TransparentFlameGame get game => _game;
 
   @override
-  Widget? customBody(BuildContext buildContext, DemoContext context) =>
-      _body;
+  Widget? customBody(BuildContext buildContext, DemoContext context) => _body;
 
   @override
   void verify(Scene scene, FrameResult frame) {

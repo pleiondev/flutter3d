@@ -176,7 +176,10 @@ final class _MapPainter extends CustomPainter {
     }
     // Where the player is, in the same cells.
     canvas.drawCircle(
-      Offset(walker.x / grid.cellSize * cellW, walker.z / grid.cellSize * cellH),
+      Offset(
+        walker.x / grid.cellSize * cellW,
+        walker.z / grid.cellSize * cellH,
+      ),
       cellW * 1.4,
       Paint()..color = const Color(0xFFE8A33D),
     );

@@ -115,8 +115,7 @@ void main() {
     });
 
     test('the door rises once the button is pressed', () {
-      final LevelMechanismsDemo demo = LevelMechanismsDemo()
-        ..automatic = false;
+      final LevelMechanismsDemo demo = LevelMechanismsDemo()..automatic = false;
       return _with(demo, (DemoRun run) async {
         _tick(run, 30);
         expect(_node(run, 'door').readPosition().y, closeTo(1.0, 0.01));
@@ -179,8 +178,7 @@ void main() {
       final VoiceLimitDemo demo = VoiceLimitDemo();
       return _with(demo, (DemoRun run) async {
         _tick(run, 2);
-        bool lit(String name) =>
-            _node(run, name).material.baseColor.x > 0.5;
+        bool lit(String name) => _node(run, name).material.baseColor.x > 0.5;
         expect(lit('shout'), isTrue);
         final int steps = <int>[
           for (var i = 0; i < 8; i++)
@@ -214,28 +212,28 @@ void main() {
         final double before = _node(run, 'runner').readPosition().x;
         _press(demo, run, 0);
         _tick(run, 1);
-        expect(
-          _node(run, 'runner').readPosition().x,
-          lessThan(before - 1.5),
-        );
+        expect(_node(run, 'runner').readPosition().x, lessThan(before - 1.5));
       });
     });
 
-    test('the replay lamps go red from the checkpoint that covers the drift', () {
-      final ReplayDigestDemo demo = ReplayDigestDemo()..driftAt = 9.0;
-      return _with(demo, (DemoRun run) async {
-        _tick(run, 2);
-        bool red(String name) => _node(run, name).material.baseColor.x > 0.6;
-        expect(red('lamp 0'), isFalse);
-        expect(red('lamp 1'), isFalse);
-        // Checkpoints fall on 4, 8, 12: the drift at 9 first shows at 12.
-        expect(red('lamp 2'), isTrue);
-        demo.driftAt = 21.0;
-        (demo.controls(run.context).first as SliderControl).onChanged(21.0);
-        _tick(run, 2);
-        expect(red('lamp 4'), isFalse);
-      });
-    });
+    test(
+      'the replay lamps go red from the checkpoint that covers the drift',
+      () {
+        final ReplayDigestDemo demo = ReplayDigestDemo()..driftAt = 9.0;
+        return _with(demo, (DemoRun run) async {
+          _tick(run, 2);
+          bool red(String name) => _node(run, name).material.baseColor.x > 0.6;
+          expect(red('lamp 0'), isFalse);
+          expect(red('lamp 1'), isFalse);
+          // Checkpoints fall on 4, 8, 12: the drift at 9 first shows at 12.
+          expect(red('lamp 2'), isTrue);
+          demo.driftAt = 21.0;
+          (demo.controls(run.context).first as SliderControl).onChanged(21.0);
+          _tick(run, 2);
+          expect(red('lamp 4'), isFalse);
+        });
+      },
+    );
 
     test('a resumed generator rolls what the original rolls', () {
       final PortableMathDemo demo = PortableMathDemo();

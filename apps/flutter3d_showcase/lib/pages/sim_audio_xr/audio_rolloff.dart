@@ -115,7 +115,12 @@ final class _CurvePainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    final Rect plot = Rect.fromLTWH(48.0, 8.0, size.width - 64.0, size.height - 56.0);
+    final Rect plot = Rect.fromLTWH(
+      48.0,
+      8.0,
+      size.width - 64.0,
+      size.height - 56.0,
+    );
     final Paint axis = Paint()
       ..color = const Color(0x55FFFFFF)
       ..style = PaintingStyle.stroke;
@@ -126,7 +131,10 @@ final class _CurvePainter extends CustomPainter {
     );
     void label(String text, Offset where, Color colour) {
       final TextPainter painter = TextPainter(
-        text: TextSpan(text: text, style: TextStyle(color: colour, fontSize: 13)),
+        text: TextSpan(
+          text: text,
+          style: TextStyle(color: colour, fontSize: 13),
+        ),
         textDirection: TextDirection.ltr,
       )..layout();
       painter.paint(canvas, where);
@@ -134,15 +142,28 @@ final class _CurvePainter extends CustomPainter {
 
     for (var m = 0; m <= 30; m += 5) {
       final Offset x = at(m.toDouble(), 0.0);
-      canvas.drawLine(x, Offset(x.dx, plot.top), axis..color = const Color(0x22FFFFFF));
-      label('$m m', Offset(x.dx - 10, plot.bottom + 4), const Color(0xAAFFFFFF));
+      canvas.drawLine(
+        x,
+        Offset(x.dx, plot.top),
+        axis..color = const Color(0x22FFFFFF),
+      );
+      label(
+        '$m m',
+        Offset(x.dx - 10, plot.bottom + 4),
+        const Color(0xAAFFFFFF),
+      );
     }
     for (var g = 0; g <= 4; g++) {
-      label('${g * 25}%', Offset(6, plot.bottom - g / 4 * plot.height - 8), const Color(0xAAFFFFFF));
+      label(
+        '${g * 25}%',
+        Offset(6, plot.bottom - g / 4 * plot.height - 8),
+        const Color(0xAAFFFFFF),
+      );
     }
 
     var i = 0;
-    for (final MapEntry<String, Attenuation> entry in AudioRolloffDemo.curves.entries) {
+    for (final MapEntry<String, Attenuation> entry
+        in AudioRolloffDemo.curves.entries) {
       final Path path = Path();
       for (var step = 0; step <= 150; step++) {
         final double d = step / 150 * _reach;

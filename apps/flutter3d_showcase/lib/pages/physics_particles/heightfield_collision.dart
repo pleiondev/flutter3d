@@ -100,7 +100,8 @@ final class HeightfieldCollisionDemo extends ShowcaseDemo {
     final double width = (_columns - 1) * _cellSize;
     final double depth = (_rows - 1) * _cellSize;
     double at(int col, int row) =>
-        heights[row.clamp(0, _rows - 1) * _columns + col.clamp(0, _columns - 1)];
+        heights[row.clamp(0, _rows - 1) * _columns +
+            col.clamp(0, _columns - 1)];
     final List<int> indices = <int>[];
     for (var row = 0; row < _rows; row++) {
       for (var col = 0; col < _columns; col++) {

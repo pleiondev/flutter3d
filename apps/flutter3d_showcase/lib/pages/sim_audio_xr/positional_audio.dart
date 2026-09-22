@@ -104,7 +104,11 @@ final class PositionalAudioDemo extends ShowcaseDemo {
   void update(DemoContext context, double dt) {
     if (orbiting) angle = (angle + 25.0 * dt + 180.0) % 360.0 - 180.0;
     final double a = angle * math.pi / 180.0;
-    final Vector3 at = Vector3(distance * math.cos(a), 0.0, distance * math.sin(a));
+    final Vector3 at = Vector3(
+      distance * math.cos(a),
+      0.0,
+      distance * math.sin(a),
+    );
     // Facing the source, or a quarter turn from it.
     final double toward = math.atan2(at.x, at.z);
     final double yaw = toward + (turnedAway ? math.pi / 2 : 0.0);

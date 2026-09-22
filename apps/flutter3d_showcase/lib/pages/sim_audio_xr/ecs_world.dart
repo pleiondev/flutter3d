@@ -129,7 +129,9 @@ final class EcsWorldDemo extends ShowcaseDemo {
       for (var i = 0; i < names.length; i++) reloaded.spawn(),
     ];
     reloaded.restore(remap.save);
-    return <double?>[for (final Entity id in ids) reloaded.get<_Position>(id)?.x];
+    return <double?>[
+      for (final Entity id in ids) reloaded.get<_Position>(id)?.x,
+    ];
     // #endregion live
   }
 
