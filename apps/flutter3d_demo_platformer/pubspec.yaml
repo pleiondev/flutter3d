@@ -73,11 +73,19 @@ dev_dependencies:
   flutter3d_cpu:
     path: ../../packages/flutter3d_cpu
 
+  # `ap-12`: the build hook (`hook/build.dart`) that converts
+  # `assets_src/models/*.glb` into `flutter3d_generated/*.f3d` on every
+  # build — `path`, the same convention every other sibling package in this
+  # file uses, rather than the version constraint `flutter3d_build:init`
+  # writes for a project outside this repository.
+  flutter3d_build:
+    path: ../../packages/flutter3d_build
+
 flutter:
   uses-material-design: true
 
   assets:
     - assets/levels/
     - assets/sounds/
-    - assets/models/
     - assets/textures/
+    - flutter3d_generated/

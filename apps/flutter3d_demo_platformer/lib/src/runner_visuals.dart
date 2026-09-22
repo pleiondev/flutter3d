@@ -95,9 +95,11 @@ final class RunnerVisuals {
     required void Function() onArrived,
   }) async {
     try {
-      final document = await decodeModelInIsolate(
-        ModelLoadRequest(source: BundleAssetSource(model)),
-      );
+      // `ap-12`: `model` names its `assets_src/` source, not the converted
+      // `.f3d` — `loadModelAsset` (`ap-11`) resolves that itself, and falls
+      // back to decoding the source directly in debug if the hook has not
+      // run yet.
+      final document = await loadModelAsset(model);
       final loaded = await ModelAsset.fromDocument(
         document,
         device: device,
