@@ -1,0 +1,70 @@
+{
+  "version": 1,
+  "name": "edu-07 teardown demo",
+  "generatedBy": "edu-07",
+  "materials": {
+    "floor": { "baseColor": [0.42, 0.4, 0.38, 1.0], "roughness": 0.9 },
+    "body": { "baseColor": [0.35, 0.36, 0.4, 1.0], "roughness": 0.6 },
+    "cover": { "baseColor": [0.75, 0.2, 0.2, 1.0], "roughness": 0.4 }
+  },
+  "brushes": [
+    {
+      "at": [0.0, -0.5, 0.0],
+      "size": [8.0, 1.0, 8.0],
+      "material": "floor"
+    }
+  ],
+  "entities": [
+    {
+      "type": "prop",
+      "name": "engine-body",
+      "at": [0.0, 0.0, 0.0],
+      "shape": "box",
+      "size": [1.2, 1.0, 1.2],
+      "material": "body"
+    },
+    {
+      "type": "prop",
+      "name": "engine-body#valve_cover",
+      "at": [0.0, 0.6, 0.0],
+      "shape": "box",
+      "size": [1.0, 0.2, 1.0],
+      "material": "cover"
+    },
+    {
+      "type": "edu_data_source",
+      "name": "block-temp",
+      "kind": "sampler"
+    },
+    {
+      "type": "edu_sequence",
+      "name": "teardown",
+      "title": "Engine teardown (placeholder geometry)",
+      "steps": ["step-1", "step-2"]
+    },
+    {
+      "type": "edu_step",
+      "name": "step-1",
+      "at": [2.5, 1.6, 2.5],
+      "yaw": 2.4,
+      "caption": "Whole engine",
+      "bindings": [
+        {
+          "source": "block-temp",
+          "path": "value",
+          "target": "engine-body.material.emissiveStrength"
+        }
+      ]
+    },
+    {
+      "type": "edu_step",
+      "name": "step-2",
+      "at": [1.6, 1.8, -0.6],
+      "yaw": 2.1,
+      "caption": "Cover removed",
+      "offsets": {
+        "engine-body#valve_cover": [0.0, 0.6, 0.0]
+      }
+    }
+  ]
+}
