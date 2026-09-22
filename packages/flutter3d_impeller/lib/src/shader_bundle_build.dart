@@ -46,7 +46,7 @@ Future<List<Uri>> buildShaderBundle({
   final sdkRoot = _flutterSdkRoot();
   final platform = _hostArtifactPlatform(sdkRoot);
   final impellerc = File(
-    '$sdkRoot/bin/cache/artifacts/engine/$platform/impellerc',
+    '$sdkRoot/bin/cache/artifacts/engine/$platform/$impellercName',
   );
   if (!impellerc.existsSync()) {
     throw ShaderBundleBuildException(
@@ -234,6 +234,17 @@ String flutterSdkRootFrom(String executable) {
 /// `tool/build_shaders.sh` does — macOS ships one universal `darwin-x64`
 /// bundle even on Apple silicon, so the candidate that actually exists on
 /// disk wins rather than a guess from `Platform.operatingSystem`.
+/// What the compiler is called on this host.
+///
+/// **Windows ships it as `impellerc.exe`**, which is the whole of the
+/// difference and was enough to make the search below find nothing at all:
+/// the artifact directory was right, the platform candidates were right, and
+/// the file being asked for did not exist under either of them. The error
+/// read "no impellerc under ... — run flutter precache", so it pointed at a
+/// missing download rather than at a missing four letters.
+@visibleForTesting
+String get impellercName => Platform.isWindows ? 'impellerc.exe' : 'impellerc';
+
 String _hostArtifactPlatform(String sdkRoot) {
   final artifacts = Directory('$sdkRoot/bin/cache/artifacts/engine');
   final candidates = switch (Platform.operatingSystem) {
@@ -243,12 +254,12 @@ String _hostArtifactPlatform(String sdkRoot) {
     _ => const <String>['darwin-x64', 'linux-x64', 'windows-x64'],
   };
   for (final candidate in candidates) {
-    if (File('${artifacts.path}/$candidate/impellerc').existsSync()) {
+    if (File('${artifacts.path}/$candidate/$impellercName').existsSync()) {
       return candidate;
     }
   }
   throw ShaderBundleBuildException(
-    'no impellerc under ${artifacts.path} for any of $candidates — run '
+    'no $impellercName under ${artifacts.path} for any of $candidates — run '
     '"flutter precache"',
   );
 }
