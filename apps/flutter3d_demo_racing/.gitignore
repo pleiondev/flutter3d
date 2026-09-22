@@ -50,5 +50,7 @@ app.*.map.json
 # ap-12: the build hook's own output (ap-05) — converted on every build.
 # Kept as a directory, and only that: `pubspec.yaml` names it as an asset
 # directory, and `flutter analyze` fails on one that is not there.
-/flutter3d_generated/*
+/flutter3d_generated/**
 !/flutter3d_generated/.gitkeep
+!/flutter3d_generated/models/
+!/flutter3d_generated/models/.gitkeep
