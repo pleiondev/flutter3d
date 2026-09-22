@@ -125,7 +125,7 @@ abstract final class Credits {
   /// The ones whose licence makes naming the author a condition.
   ///
   /// Empty, because everything here is CC0 — which is why the pack was chosen.
-  /// The list stays: the next model dropped into `assets/models` is one
+  /// The list stays: the next model dropped into `assets_src/models` is one
   /// somebody found somewhere.
   static List<Credit> get owed =>
       models.where((Credit c) => c.owesAttribution).toList();

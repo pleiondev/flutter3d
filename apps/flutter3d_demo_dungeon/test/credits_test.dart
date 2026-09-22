@@ -8,9 +8,9 @@
 ///
 /// This game is not in breach — everything in it is CC0 or generated here — and
 /// the file exists anyway, for the same reason the licence table does. The next
-/// model dropped into `assets/models` is one somebody found somewhere, and the
-/// check that matters reads **the directory**, not the list beside it. A list
-/// that only agrees with itself is the one that goes stale.
+/// model dropped into `assets_src/models` is one somebody found somewhere, and
+/// the check that matters reads **the directory**, not the list beside it. A
+/// list that only agrees with itself is the one that goes stale.
 library;
 
 import 'dart:io';
@@ -29,7 +29,7 @@ void main() {
     //
     // The comparison is `flutter3d_game`'s: it was these twelve lines in three
     // applications, down to the wording of the failures.
-    final gaps = creditGaps(Credits.models, shippedFrom: 'assets/models');
+    final gaps = creditGaps(Credits.models, shippedFrom: 'assets_src/models');
 
     expect(gaps.shipped, isNotEmpty, reason: 'no models found to check');
     expect(
@@ -89,7 +89,7 @@ void main() {
     // Two records of the same fact, which is one too many — so they are checked
     // against each other. `LICENSES.md` is the long version a person reads; the
     // list above is the half a player sees.
-    final table = File('assets/models/LICENSES.md').readAsStringSync();
+    final table = File('assets_src/models/LICENSES.md').readAsStringSync();
 
     for (final credit in Credits.models) {
       final name = credit.file.split('/').last;
