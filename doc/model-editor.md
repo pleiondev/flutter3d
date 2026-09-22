@@ -70,7 +70,7 @@ the repository and covered by tests," not "planned."
 | 16 Auto-rig | 3 | nothing | everything |
 | 17 LOD | 4 | `LodGroup` with distances, three side-by-side `RenderView`s | mesh simplification preserving UV and weights |
 | 18 3D painting | 4 | render-to-texture | everything |
-| 19 "In-game" preview | 3 | **this is literally the engine**: the same shaders, the same bone limit, frame counters; `flutter3d_session` already supports a widget texture | a project profile with budgets |
+| 19 "In-game" preview | 3 | **this is literally the engine**: the same shaders, the same bone limit, frame counters; `flutter3d_app` already supports a widget texture | a project profile with budgets |
 | Import with checks | 1 | `ModelDocument.warnings` on every decoder, a background isolate (the main thread on the web) | the screen isn't drawn |
 | Export with checks | 1 | `F3dWriter` as a writer template | **no glTF/GLB, OBJ, or STL writers**; the screen isn't drawn |
 
@@ -456,6 +456,7 @@ only gives the outcome and what it changed.
 | fmt-13 `encodeModelInIsolate` | 199,712 triangles (a 317×317 grid, 100,489 vertices): `glb` 18.6 ms, `obj` 207.2 ms, `f3d` 7.0 ms, `stl` 64.2 ms synchronously; through an isolate — 18.7 / 177.5 / 7.5 / 48.8 ms, byte-identical (`glb`/`f3d`/`stl` byte-identical, `obj` the same text) | the isolate costs roughly nothing, like p0-07; the text-based `obj` is an order of magnitude more expensive than binary formats, which is about the codec, not the isolate |
 | fmt-27 `UsdzWriter`, Box.glb | a real `.usdz` from `GltfLoader().load(Box.glb)` was checked with macOS's own `unzip -l`/`zipinfo -v` (a valid archive, a correct CRC-32, 1 entry) and `mdls` (`kMDItemContentTypeTree` names `com.pixar.universal-scene-description-mobile`/`public.3d-content`, MIME `model/vnd.usdz+zip` — the system recognizes the file as a genuine USDZ); the `.usda` entry's data offset — 64 bytes, `% 64 == 0`, computed independently in Python against the same fields `UsdzZip` writes | the alignment is confirmed independently of the writer's own code; there is no Quick Look screenshot for this item — see below for why |
 | pro-sc-01 stroke at 1.2 million | macOS: opening+BVH 3.3–5.7 s (the 3 s threshold is not met); a stroke (selection+edit+normals+overwrite+raycast) 294–1005 ms (the 8/16 ms thresholds are missed by 20–60×, the bottleneck is a full normal recompute). Chrome: opening+BVH 24.2–24.4 s, a full stroke 7.58–7.71 s (both thresholds missed, ~4–5× slower than macOS — the cost of JS/wasm with no SIMD). The A55 wasn't measured | `pro-sc-02` (chunked `SculptMesh` + local normals) is needed before a stroke can become interactive at 1.2 million; the `pro-sc-09` web limit should be based on whatever size passes this same budget |
+| pro-sc-01 re-measured with `MeshNormals.rebuildAround`, 2026-09-17 | macOS: setup 1.87 s (**passes** 3 s); a stroke 38.2 ms (misses 16 ms by 2.4×, where it used to miss by 20–60×) — normals 17.4 ms against the whole-mesh path's 156.7 ms in the same sitting, selection 15.1 ms. Chrome: setup 24.87 s, a stroke 396.87 ms, nineteen times cheaper than the 7.58 s it was. The A55 still wasn't measured | normals stop being *the* bottleneck and become one of two: the selection scan over all 602k vertices now costs as much as they do, and it is what `pro-sc-02`'s chunking was always for. `pro-sc-09`'s limit should be measured at a candidate size rather than extrapolated from this one, because the two remaining costs scale differently — one with the mesh, one with the brush |
 
 Not measured, and none of it needs code, only a machine or a person: p0-03
 (needs a Galaxy A55 and an iPad), frame numbers in the browser (needs
@@ -892,6 +893,39 @@ vertices:
 | one `TriangleBvh.raycast` | 41 μs — 1.7 ms |
 | **the whole stroke** | **294–1005 ms — the 8 and 16 ms thresholds are not met on any of the five runs, missed by 20–60×** |
 
+**Re-measured 2026-09-17, with the partial normal path this table said did
+not exist.** `MeshNormals.rebuildAround` now rebuilds the fans at the moved
+vertices and at the ring of faces around them, and the benchmark calls it
+where it used to call `build`. Both numbers below were taken back to back in
+one sitting on the same machine, the only difference being which of the two
+the stroke calls:
+
+| | normals | the whole stroke |
+|---|---|---|
+| `MeshNormals.build`, the whole mesh | 156.70 ms | 178.81 ms |
+| `MeshNormals.rebuildAround`, the ring | 17.4–18.6 ms | 38.2–41.1 ms |
+
+Eight times on the normals, four on the stroke — and the stroke still misses
+16 ms. The picture that number paints has changed, though, and it is the part
+worth carrying forward: **normals are no longer *the* bottleneck, they are
+one of two of roughly equal size.** Selecting the touched vertices is a
+brute-force scan over all 602,176 of them (15.1 ms) and is now as expensive
+as the normals it feeds; the ring rebuild is 17.4 ms because a brush this
+wide touches tens of thousands of vertices and `rebuildAround` gathers them
+into hash sets. The first wants the spatial chunking `pro-sc-02` describes —
+which is what this row already concluded, for a different reason — and the
+second wants an index rather than a set.
+
+Setup is unchanged at 1.87 s and now **passes** its own 3 s threshold, which
+the first run did not: nothing about it was touched, so the difference is
+this machine under a lighter load than the day the 3.3–5.7 s spread was
+taken. That is the honest reading of a spread that wide, and the reason the
+paired measurement above was taken in one sitting rather than compared
+across dates.
+
+Chrome, the same day, the same way: a stroke went from 7.58–7.71 s to
+**396.87 ms**, nineteen times, and setup stayed at 24.87 s. Both still miss.
+
 The spread between runs (in places more than 2×) isn't measurement noise at
 the fractional-microsecond level — it's the load of a shared sandbox:
 `flutter test` under JIT on a machine not dedicated to measurement, not a
@@ -913,7 +947,11 @@ What follows from this:
   for a stroke touching 20,000 out of 602,000 vertices. `mesh-31`'s own
   conclusion ("normals are recomputed on every frame while someone drags a
   vertex") holds at 200,000 and stops being cheap at 1.2 million precisely
-  because there is no partial normal recompute.
+  because there is no partial normal recompute. **Superseded 2026-09-17**:
+  there is one now, the stroke is four times cheaper, and the threshold is
+  still missed — see the paired table above. The sentence is kept rather
+  than rewritten because it is what the row concluded on the evidence it
+  had, and the partial path was built because of it.
 - **`overwriteVertices` rewrites not what was touched, but a band around
   it.** The ~20,000 touched vertices sit in GPU rows whose minimum and
   maximum numbers together span ~123,000 rows (7.9 MB) — because, with a
@@ -972,7 +1010,15 @@ What follows from this:
   faster than native, the web's stroke-density limit (`pro-sc-09`) should
   be based on whatever mesh size lets this same path fit its budget —
   meaning noticeably smaller than 1.2 million, until `pro-sc-02` replaces
-  the full normal recompute with a chunked, local one.
+  the full normal recompute with a chunked, local one. **Still the
+  decision after the 2026-09-17 re-measurement, with the reasoning
+  narrowed**: a stroke on macOS is 38 ms against 16, which is a factor of
+  2.4 rather than 20–60, so the size that fits is much closer to 1.2
+  million than the first run suggested — and the two costs that remain
+  scale differently, one with the mesh (the selection scan) and one with
+  the brush (the ring). A limit chosen on the old numbers would be far too
+  small; one chosen on these should be measured at the size, not
+  extrapolated from this one.
 
 ### Phase 1 — the first version
 
@@ -1035,6 +1081,7 @@ repeated here: they aren't engineering questions.
 | Checking export in an external engine | a manual checklist / an automated test | **headless Godot in CI** plus a manual Unity/Blender checklist before release |
 | Team | one / two / three | **one person with agents**; the phase-1 calendar is the sum of item sizes (plan §4.3) |
 | First release | December 27 / once phase 1 is in hand | **once phase 1 is in the hands of its first users**; December 27 is not the target |
+| Where Play runs | in process / a companion command in `tool/` | **in process, decided 2026-09-16 by `ux-50`'s spike.** Both macOS entitlements files turn the sandbox on and the Flutter SDK sits outside the container, so a sandboxed build cannot start `flutter run --machine` at all, and the web build cannot start a process of any kind: the companion command would work on one of four platforms and only from a developer checkout. In process it is the same renderer, device and uploaded textures as the viewport everywhere the modeller opens, and "reload" is the `SceneSync` the document already runs rather than a process to restart. What it gives up is the game's own Dart — Play runs a template, not a project — which is what the companion command is still for when somebody asks for it. It does not depend on `flutter3d_game`: that package brings `pointer_lock`, `pad_input`, `flutter3d_audio` and `flutter3d_particles`, two of them native plugins, into an application that has to keep building for the web, and what Play needs from it is a walking body `flutter3d_physics` already provides |
 | Name | `flutter3d_modeler` / `flutter3d_studio` / … | `flutter3d_modeler`; not reserved on pub.dev, recheck before publishing. Free as of 2026-09-09: `flutter3d_geometry`, `flutter3d_formats`, `flutter3d_mesh`, `flutter3d_model_core`, `flutter3d_model_mcp`, `flutter3d_modeler`, `flutter3d_fbx`, `flutter3d_cloth`; the app's bundle id — `dev.flutter3d.modeler` |
 
 ---

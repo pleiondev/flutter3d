@@ -5,6 +5,7 @@
 library;
 
 import 'package:flutter/material.dart';
+import 'package:flutter3d_modeler/l10n/app_localizations.dart';
 import 'package:flutter3d_modeler/src/ui/simulation_cache_strip.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -14,6 +15,9 @@ Future<void> show(
   required int targetFrameCount,
 }) => tester.pumpWidget(
   MaterialApp(
+    locale: const Locale('en'),
+    localizationsDelegates: AppLocalizations.localizationsDelegates,
+    supportedLocales: AppLocalizations.supportedLocales,
     home: Scaffold(
       body: SimulationCacheStrip(
         bakedFrameCount: bakedFrameCount,

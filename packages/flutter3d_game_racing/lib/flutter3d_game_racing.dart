@@ -1,8 +1,8 @@
 /// A third genre: driving, and the lap that comes of it.
 ///
 /// The shape of this package is the one the other two genres settled into. It
-/// holds a simulation and nothing that draws — no `flutter3d`, no `flutter_gpu`
-/// — because the things that go wrong in a racing game go wrong invisibly. A
+/// holds a simulation and nothing that draws — no `flutter3d`, no `flutter_gpu`,
+/// no Flutter; the road mesh and the readouts are `bridge.dart` — because the things that go wrong in a racing game go wrong invisibly. A
 /// car that understeers differently at a lower frame rate, a lap that counts
 /// twice because the finish line was crossed twice in one step, a driving line
 /// an AI cuts through a barrier, a position table that disagrees with itself on
@@ -21,7 +21,6 @@ export 'src/ai/ai_tuning.dart';
 export 'src/chase_camera.dart';
 export 'src/events.dart';
 export 'src/ghost.dart';
-export 'src/hud.dart';
 export 'src/layers.dart';
 export 'src/race_phase.dart';
 export 'src/race_state.dart';

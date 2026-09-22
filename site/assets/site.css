@@ -564,3 +564,26 @@ figure.golden .golden-name { font: 500 11px/1 var(--mono); color: var(--cyan); m
 @media (max-width: 720px) {
   figure.golden.golden3 { grid-template-columns: 1fr; }
 }
+
+/* --- The showcase: version tag, links and the source view ------------------ */
+.showcase-meta { display: flex; flex-wrap: wrap; gap: .5rem; margin: .25rem 0 .5rem; }
+.showcase-links, .showcase-regions { font-size: .95rem; }
+.src-file {
+  border: 1px solid rgba(127, 127, 127, .35);
+  border-radius: 6px;
+  overflow-x: auto;
+  padding: .5rem 0;
+  margin-top: 1rem;
+  font: 13px/1.5 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+.src-line { display: flex; }
+.src-line:target { background: rgba(255, 190, 0, .2); }
+.src-no {
+  flex: 0 0 3.4em;
+  padding-right: 1em;
+  text-align: right;
+  color: #8b949e;
+  text-decoration: none;
+  user-select: none;
+}
+.src-code { white-space: pre; }

@@ -60,18 +60,15 @@ void main() {
   });
 
   group('/e/<slug> for ls-e-04\'s own lesson', () {
-    test(
-      "the shared housing.json embeds with no code beyond this registry's "
-      'own entry',
-      () async {
-        final response = await get('/e/control-box');
-        expect(response.statusCode, 200);
-        final body = await response.readAsString();
-        expect(body, contains('<iframe'));
-        expect(body, contains('level=assets%2Flevels%2Fhousing.json'));
-        expect(response.headers.containsKey('x-frame-options'), isFalse);
-      },
-    );
+    test("the shared housing.json embeds with no code beyond this registry's "
+        'own entry', () async {
+      final response = await get('/e/control-box');
+      expect(response.statusCode, 200);
+      final body = await response.readAsString();
+      expect(body, contains('<iframe'));
+      expect(body, contains('level=assets%2Flevels%2Fhousing.json'));
+      expect(response.headers.containsKey('x-frame-options'), isFalse);
+    });
   });
 
   group('/e/<slug>', () {

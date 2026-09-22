@@ -46,12 +46,15 @@ library;
 
 import 'dart:async';
 
+import 'package:flutter/foundation.dart' show defaultTargetPlatform;
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart' hide Material;
 import 'package:flutter/scheduler.dart';
 import 'package:flutter3d/flutter3d.dart';
-import 'package:flutter3d_game/flutter3d_game.dart' show FixedStep;
+import 'package:flutter3d_game/flutter3d_game.dart' show SaveFile;
 import 'package:flutter3d_game_strategy/flutter3d_game_strategy.dart';
+import 'package:flutter3d_sim/flutter3d_sim.dart'
+    show DigestTrace, FixedStep, Snapshot;
 import 'package:vector_math/vector_math.dart' as vm;
 
 import 'src/backend.dart';
@@ -59,9 +62,18 @@ import 'src/command.dart';
 import 'src/hud.dart';
 import 'src/hud_readout.dart';
 import 'src/level_document.dart';
+import 'src/match_demo_file.dart';
 import 'src/pointing.dart';
 import 'src/run.dart';
 import 'src/staging.dart';
+
+/// Which build wrote a `.f3drun` — see the other three demos' own identical
+/// constant for why this is free text rather than a package version read at
+/// runtime.
+const String _buildStamp = String.fromEnvironment(
+  'FLUTTER3D_BUILD_STAMP',
+  defaultValue: 'dev',
+);
 
 void main() => runApp(const StrategyDemo());
 
@@ -146,6 +158,83 @@ class _MapState extends State<_Map> with SingleTickerProviderStateMixin {
   /// The run: which map is up, how it is going, and where it is written down.
   StrategyRun? _run;
 
+  /// `rp-01`/`rp-04`: this game's own `.f3drun` files, on disk — the other
+  /// three demos' `DemoFile`, mirrored in shape and not in type: see
+  /// `MatchDemoFile`'s own doc comment for why `OrderTape` gets a reader of
+  /// its own rather than reusing theirs.
+  MatchDemoFile? _demos;
+
+  /// Where the match being recorded started. A `StrategySimulation` snapshot
+  /// rather than a `Match` one — see `test/demo_test.dart`'s own doc comment
+  /// for why a replay has to stay at the level `OrderTapePlayback.applyTo`
+  /// itself is written for.
+  Snapshot? _demoStart;
+  String? _demoLevel;
+  String? _demoLevelHash;
+
+  /// A checkpoint every so many steps, taken live while the match is
+  /// recorded.
+  DigestTrace? _demoCheckpoints;
+
+  /// The demo's own recorder. Hung on `StrategySimulation.orders` directly
+  /// rather than kept in a loop's own list — this genre records orders, not
+  /// input, and the queue is where every order already passes regardless of
+  /// which side gave it or why.
+  OrderTapeRecorder? _demoRecorder;
+
+  /// Starts writing the match down, from the state the crowd is in now.
+  ///
+  /// **Now, which is before a resumed match is put back.** `onLevelBuilt`
+  /// fires from inside `StrategyRun.open`, and `RunSession.load` only calls
+  /// `restoreInto` once `open` returns — the platformer's own `_beginDemo`
+  /// names the same gap for the same reason, and it stands here too: a match
+  /// resumed from a save begins its demo at the map's opening crowd rather
+  /// than at the crowd the save actually held.
+  void _beginDemo(String asset, String levelHash, Staged staged) {
+    final start = staged.simulation.save();
+    _demoStart = start;
+    _demoLevel = asset;
+    _demoLevelHash = levelHash;
+    _demoCheckpoints = DigestTrace();
+    final recorder = OrderTapeRecorder(seed: staged.simulation.random.state);
+    _demoRecorder = recorder;
+    staged.simulation.orders.recorder = recorder;
+  }
+
+  /// Writes the match down once it is over, either way.
+  ///
+  /// Called from [_keep], which already reads [StrategyRun.isOver] once a
+  /// frame for the save it clears — a second read here costs nothing and
+  /// keeps this file the one place besides that one that has to agree with
+  /// `RunSession` about when a match has ended.
+  void _endDemo(Staged staged) {
+    final recorder = _demoRecorder;
+    final start = _demoStart;
+    final level = _demoLevel;
+    final levelHash = _demoLevelHash;
+    final checkpoints = _demoCheckpoints;
+    _demoRecorder = null;
+    staged.simulation.orders.recorder = null;
+    if (recorder == null ||
+        start == null ||
+        level == null ||
+        levelHash == null ||
+        checkpoints == null) {
+      return;
+    }
+    _demos?.write(
+      MatchDemo(
+        level: level,
+        levelHash: levelHash,
+        start: start,
+        tape: recorder.tape,
+        buildStamp: _buildStamp,
+        checkpoints: checkpoints,
+        platform: defaultTargetPlatform.name,
+      ),
+    );
+  }
+
   /// Real time turned into whole steps of simulated time.
   ///
   /// **Two of what it offers are deliberately not read here, and saying which
@@ -183,6 +272,10 @@ class _MapState extends State<_Map> with SingleTickerProviderStateMixin {
   @override
   void initState() {
     super.initState();
+    _demos = MatchDemoFile(
+      appName: 'flutter3d_demo_strategy',
+      onIssue: printIssue,
+    );
     _open();
   }
 
@@ -216,7 +309,10 @@ class _MapState extends State<_Map> with SingleTickerProviderStateMixin {
       firstLevel: mapAsset,
       saves: SaveFile(appName: 'flutter3d_demo_strategy'),
       openDevice: () async => device,
-      onLevelBuilt: _place,
+      onLevelBuilt: (String asset, String levelHash, Staged staged) {
+        _place(staged);
+        _beginDemo(asset, levelHash, staged);
+      },
     );
     _run = run;
     // Resumes the saved match if there is one, and starts a fresh one if there
@@ -264,6 +360,13 @@ class _MapState extends State<_Map> with SingleTickerProviderStateMixin {
       // drains.
       command.restock();
       staged.match.step(_clock.stepSeconds);
+      final demoRecorder = _demoRecorder;
+      if (demoRecorder != null) {
+        _demoCheckpoints?.observe(
+          demoRecorder.tape.steps,
+          staged.simulation.save().toJson(),
+        );
+      }
       // Before the picture and before the readout: a squad the player is
       // holding may have lost somebody to the step that just ran, and both the
       // count on the screen and the next order given would otherwise be about a
@@ -276,7 +379,7 @@ class _MapState extends State<_Map> with SingleTickerProviderStateMixin {
     // mid-frame would describe a match half a frame old, and the outcome the
     // session republishes has to be the one the last step decided.
     run.observe();
-    _keep(run, steps * _clock.stepSeconds);
+    _keep(run, staged, steps * _clock.stepSeconds);
 
     staged.visuals.sync();
     staged.camera.place(dt);
@@ -297,8 +400,15 @@ class _MapState extends State<_Map> with SingleTickerProviderStateMixin {
   ///
   /// `RunSession.save` refuses a finished run of its own accord, so the clock
   /// below needs no guard against writing one down at the finishing line.
-  void _keep(StrategyRun run, double seconds) {
+  ///
+  /// **The demo is written off here too, for the same reason.** `_endDemo`
+  /// only ever writes once — its recorder is null on every call after the
+  /// first — so reading [StrategyRun.isOver] a second time, already read for
+  /// [run.advance], costs nothing and keeps the two files agreeing about the
+  /// one frame a match actually ends on.
+  void _keep(StrategyRun run, Staged staged, double seconds) {
     if (run.isOver) {
+      _endDemo(staged);
       unawaited(run.advance());
       return;
     }

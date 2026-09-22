@@ -12,10 +12,9 @@ library;
 import 'dart:convert';
 import 'dart:typed_data';
 
-import 'package:flutter3d_formats/flutter3d_formats.dart';
+import 'package:flutter3d_core/formats.dart';
 import 'package:flutter3d_mesh/flutter3d_mesh.dart';
 import 'package:flutter3d_model_core/flutter3d_model_core.dart';
-import 'package:flutter3d_modeler/src/exporting.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vector_math/vector_math.dart';
 
@@ -469,6 +468,185 @@ void main() {
         f3d.warnings.any((String w) => w.contains('no node tree')),
         isFalse,
       );
+    });
+  });
+
+  group("ux-18: what the one export screen can now ask for", () {
+    /// The cube, the vase, and a bolt parented to the cube — three objects
+    /// and one parent link, which is the least that can tell "only this one"
+    /// apart from "this one and its family".
+    (ModelProject, int cube, int vase, int bolt) assembly() {
+      final base = workshop();
+      final int cube = base.objects.first.id;
+      final int vase = base.objects.last.id;
+      final ModelProject withBolt = base.added(
+        (int id) => ModelObject(
+          id: id,
+          name: 'bolt',
+          geometry: EditedGeometry(EditMesh.cuboid()),
+          transform: Matrix4.identity(),
+          parent: cube,
+        ),
+      );
+      return (withBolt, cube, vase, withBolt.objects.last.id);
+    }
+
+    test('selection only writes the picked object and leaves the rest', () {
+      final (ModelProject project, _, int vase, _) = assembly();
+
+      final ok = written(
+        planExport(project, format: ExportFormat.f3d, only: <int>{vase}),
+      );
+      final back = F3dDocument.parse(ok.files.single.bytes);
+
+      // Mutation: pass `only` through and narrow nothing, and the whole room
+      // comes out of a request for one chair.
+      expect(back.surfaces.map((ModelSurface it) => it.name), <String>['vase']);
+    });
+
+    test('a child comes with its parent, and a parent with its child', () {
+      final (ModelProject project, int cube, _, int bolt) = assembly();
+
+      final fromParent = written(
+        planExport(project, format: ExportFormat.f3d, only: <int>{cube}),
+      );
+      final fromChild = written(
+        planExport(project, format: ExportFormat.f3d, only: <int>{bolt}),
+      );
+
+      // Down, because a chair without its own legs is a worse answer than
+      // refusing; up, because a node whose parent is missing comes back at
+      // the origin rather than where it sits.
+      expect(
+        F3dDocument.parse(
+          fromParent.files.single.bytes,
+        ).surfaces.map((ModelSurface it) => it.name).toSet(),
+        <String>{'cube', 'bolt'},
+      );
+      expect(
+        F3dDocument.parse(
+          fromChild.files.single.bytes,
+        ).surfaces.map((ModelSurface it) => it.name).toSet(),
+        <String>{'cube', 'bolt'},
+      );
+    });
+
+    test('an empty selection still means everything', () {
+      final (ModelProject project, _, _, _) = assembly();
+
+      final ok = written(planExport(project, format: ExportFormat.f3d));
+
+      // The default has to stay what Export has always meant, or every
+      // caller that does not know about this option changes behaviour.
+      expect(F3dDocument.parse(ok.files.single.bytes).surfaces, hasLength(3));
+    });
+
+    test('applyModifiers off writes the base mesh, on writes what is seen', () {
+      final mirrored = const ModelProject().added(
+        (int id) => ModelObject(
+          id: id,
+          name: 'half',
+          geometry: EditedGeometry(EditMesh.cuboid()),
+          transform: Matrix4.translationValues(1, 0, 0),
+          modifiers: <ModifierSlot>[
+            ModifierSlot(modifier: MirrorModifier(normal: Vector3(1, 0, 0))),
+          ],
+        ),
+      );
+
+      final folded = written(
+        planExport(mirrored, format: ExportFormat.f3d, force: true),
+      );
+      final bare = written(
+        planExport(
+          mirrored,
+          format: ExportFormat.f3d,
+          force: true,
+          applyModifiers: false,
+        ),
+      );
+
+      final int foldedTriangles = F3dDocument.parse(
+        folded.files.single.bytes,
+      ).triangleCount;
+      final int bareTriangles = F3dDocument.parse(
+        bare.files.single.bytes,
+      ).triangleCount;
+
+      // A mirror doubles the geometry. Mutation: ignore the flag and both
+      // numbers agree, which is the bug — somebody taking a model into a
+      // tool with its own mirror gets it applied twice.
+      expect(foldedTriangles, greaterThan(bareTriangles));
+      expect(foldedTriangles, bareTriangles * 2);
+    });
+
+    test('the project being edited keeps its modifiers either way', () {
+      final mirrored = const ModelProject().added(
+        (int id) => ModelObject(
+          id: id,
+          name: 'half',
+          geometry: EditedGeometry(EditMesh.cuboid()),
+          transform: Matrix4.identity(),
+          modifiers: <ModifierSlot>[
+            ModifierSlot(modifier: MirrorModifier(normal: Vector3(1, 0, 0))),
+          ],
+        ),
+      );
+
+      planExport(
+        mirrored,
+        format: ExportFormat.f3d,
+        force: true,
+        applyModifiers: false,
+      );
+
+      // An export option is not an edit: the copy handed to the writer is
+      // the only thing the stacks come off.
+      expect(mirrored.objects.single.modifiers, hasLength(1));
+    });
+
+    test('every registered writer is a format the screen offers', () {
+      // The row's own acceptance. `builtInModelWriters` had STL and USDZ in
+      // it long before this menu did, so somebody with a 3D printer opened
+      // the one screen that writes files and could not choose the one format
+      // they came for. Mutation: drop a member from `ExportFormat` and the
+      // writer goes back to being unreachable from the interface.
+      final Set<String> offered = <String>{
+        for (final ExportFormat format in ExportFormat.values)
+          format.writer.name,
+      };
+      final Set<String> registered = <String>{
+        for (final ModelWriter writer in builtInModelWriters) writer.name,
+      };
+      expect(offered, containsAll(registered));
+      // And the other way round, which is the half that catches a member
+      // kept here after its writer was withdrawn: a button that writes a
+      // format nothing in the repository still reads.
+      expect(registered, containsAll(offered));
+    });
+
+    test('no two formats are offered under the same name', () {
+      // Binary and ASCII STL write the same `.stl` extension, so a picker
+      // built on `suffix` alone shows two identical buttons. Mutation: make
+      // `label` return `suffix` and this is the test that says why not.
+      final List<String> labels = <String>[
+        for (final ExportFormat format in ExportFormat.values) format.label,
+      ];
+      expect(labels.toSet(), hasLength(labels.length));
+    });
+
+    test('STL and USDZ are formats the screen can offer', () {
+      // `ux-18` asks for one export dialog, which means the dialog has to be
+      // able to reach every format the application writes.
+      for (final ExportFormat format in <ExportFormat>[
+        ExportFormat.stl,
+        ExportFormat.stlAscii,
+        ExportFormat.usdz,
+      ]) {
+        final ok = written(planExport(workshop(), format: format));
+        expect(ok.files, isNotEmpty, reason: '${format.name} wrote nothing');
+        expect(ok.files.single.bytes, isNotEmpty);
+      }
     });
   });
 }

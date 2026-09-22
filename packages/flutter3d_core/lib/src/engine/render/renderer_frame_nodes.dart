@@ -509,6 +509,16 @@ final class _SceneNode extends RenderNode {
       FrameResourceIds.reflectionProbe(i),
   ];
 
+  /// **Both names always, including on a device that cannot attach the
+  /// second** — `gfx-50n`.
+  ///
+  /// Withholding `surface_buffer` here was tried and is wrong: the graph
+  /// refuses a read of a name nothing declares, deliberately, because a name
+  /// nothing writes is a misspelling or a missing pass and both look
+  /// identical at runtime. A device that cannot open a second attachment is
+  /// neither — the pass exists and the name is spelled right — so the refusal
+  /// belongs on the *consumers*, where it is one more reason a pass did not
+  /// run. See `RenderNode.supported` and `PassSkip.unsupported`.
   @override
   List<ResourceId> get writes => const <ResourceId>[
     FrameResourceIds.hdrColour,
@@ -554,9 +564,18 @@ final class _SceneNode extends RenderNode {
     // `RenderSettings`. It decides both whether the second attachment is
     // present and whether the pass may multisample — attachments in one target
     // must agree on sample count — so a wrong answer here is silent.
-    final surfaceIsRead = resources.graph.isConsumed(
-      FrameResourceIds.surfaceBuffer,
-    );
+    //
+    // **And of the device, which `gfx-50n` did not finish.** Hard readers of
+    // the buffer are culled where the device cannot attach it, so they cannot
+    // reach here — but an *optional* reader is never culled, by definition,
+    // and `isConsumed` counts it. A frame with a viewport-shading mode on a
+    // one-attachment device therefore asked for an attachment the device
+    // refuses, which the refusal turned into a throw. The pass attaches what
+    // the device can open; the optional reader gets null and declines, which
+    // is what optional means.
+    final surfaceIsRead =
+        resources.graph.isConsumed(FrameResourceIds.surfaceBuffer) &&
+        _renderer.device.maxColorAttachments > 1;
 
     // Every map this pass samples, taken from the frame rather than from the
     // renderer, and every one of them is declared above. The directional map is
@@ -612,14 +631,53 @@ final class _SceneNode extends RenderNode {
 /// consumer of one — and it reads the surface buffer, which is what makes the
 /// buffer get attached at all. That read is the whole of what
 /// `RenderSettings.needsSurfaceBuffer` used to compute by hand.
-final class _ReflectionsNode extends RenderNode {
-  _ReflectionsNode(this._renderer, this._view);
+///
+/// **Switched off through [isActive], like every other post node, and it was
+/// the last one that was not.** Until `gfx-38n` the renderer registered this
+/// node inside `if (s.reflections.enabled)`, which is the branch the
+/// registration block beside it argues against twice: a name has to be known
+/// for a read of it to compile, and leaving the node out when the setting is
+/// off moves the branch rather than deleting it. Nothing read `hdrColour`
+/// *conditionally* on reflections, so the inconsistency never produced a
+/// wrong frame — it produced a node that could not be addressed. A caller
+/// asking why reflections did not run got no answer, because with the
+/// setting off there was no node to have an answer about.
+/// A pass that cannot run without the surface buffer — `gfx-50n`.
+///
+/// **Five nodes read that buffer unconditionally, and every one of them needs
+/// the same sentence**: the buffer is the scene pass's second colour
+/// attachment, and a device that opens one attachment cannot have it. Written
+/// once here rather than five times, so a sixth reader joins by mixing this in
+/// and cannot join by forgetting.
+///
+/// The refusal is [FrameGraphNode.supported] rather than
+/// [FrameGraphNode.isActive], because a caller who switched occlusion on and
+/// got nothing deserves to be told that their device cannot, rather than to go
+/// looking through settings they already set correctly.
+base mixin _NeedsSurfaceBuffer on RenderNode {
+  /// The renderer whose device this asks. Each node already holds one
+  /// privately; this is the one line that makes it reachable from here.
+  Renderer get owner;
+
+  @override
+  bool get supported => owner.device.maxColorAttachments > 1;
+}
+
+final class _ReflectionsNode extends RenderNode with _NeedsSurfaceBuffer {
+  _ReflectionsNode(this._renderer, this._view, this._settings);
+
+  @override
+  Renderer get owner => _renderer;
 
   final Renderer _renderer;
   final RenderView _view;
+  final RenderSettings _settings;
 
   @override
   String get name => 'reflections';
+
+  @override
+  bool get isActive => _settings.reflections.enabled;
 
   @override
   List<ResourceId> get reads => const <ResourceId>[
@@ -648,16 +706,6 @@ final class _ReflectionsNode extends RenderNode {
   }
 }
 
-/// The bloom pyramid, as a graph node.
-///
-/// The first pass in the frame whose output the graph **allocates**: everything
-/// before it was handed a texture the renderer already owned. `bloom` is
-/// declared as half the frame in the HDR format, the chain's top level is that
-/// texture, and the levels below it are scratch — see
-/// [FrameResources.transient].
-///
-/// Switching bloom off is [isActive], not a null return: nothing produces the
-/// glow, so the node is culled and costs no pass, no texture and no branch.
 /// Ambient occlusion, as a producer of one resource.
 ///
 /// `reads: [surfaceBuffer]` is doing more work than it looks. The scene pass
@@ -667,8 +715,11 @@ final class _ReflectionsNode extends RenderNode {
 /// graph was built for and the first place it has paid for itself twice: the
 /// same declaration also turns MSAA off for the scene pass, because the two are
 /// the same decision.
-final class _SsaoNode extends RenderNode {
+final class _SsaoNode extends RenderNode with _NeedsSurfaceBuffer {
   _SsaoNode(this._renderer, this._view, this._settings);
+
+  @override
+  Renderer get owner => _renderer;
 
   final Renderer _renderer;
   final RenderView _view;
@@ -707,6 +758,325 @@ final class _SsaoNode extends RenderNode {
   }
 }
 
+/// `gfx-76n`'s short march toward the sun, as a producer of one resource.
+///
+/// **A second producer rather than a link in the occlusion chain**, although
+/// the composite ends up multiplying both into the same ambient term. The
+/// occlusion has a strength of its own, and folding the contact shadow into
+/// `ao` would mean a scene with occlusion switched off — strength zero, node
+/// culled, buffer at one — has nowhere to put a contact shadow. Two resources
+/// and two strengths is what lets either be off without deciding for the other.
+///
+/// Declines the same way the shafts do: with no directional light there is
+/// nothing to march toward, and the node is inactive rather than marching
+/// toward a direction it made up.
+final class _ContactShadowNode extends RenderNode with _NeedsSurfaceBuffer {
+  _ContactShadowNode(this._renderer, this._view, this._settings, this._toLight);
+
+  @override
+  Renderer get owner => _renderer;
+
+  final Renderer _renderer;
+  final RenderView _view;
+  final RenderSettings _settings;
+
+  /// Which way the sun lies from a surface, or null for a scene with no
+  /// directional light.
+  final vm.Vector3? _toLight;
+
+  @override
+  String get name => 'contact shadows';
+
+  @override
+  bool get isActive =>
+      _settings.contactShadows.enabled &&
+      _settings.contactShadows.strength > 0.0 &&
+      _settings.contactShadows.length > 0.0 &&
+      _settings.contactShadows.steps > 0 &&
+      _toLight != null;
+
+  @override
+  List<ResourceId> get reads => const <ResourceId>[
+    FrameResourceIds.surfaceBuffer,
+  ];
+
+  @override
+  List<ResourceId> get writes => const <ResourceId>[
+    FrameResourceIds.contactShadow,
+  ];
+
+  @override
+  void execute(NodeFrame frame) {
+    final surface = frame.resources.tryTexture(FrameResourceIds.surfaceBuffer);
+    final toLight = _toLight;
+    // Both are hard conditions of the node running at all, so neither should
+    // happen — and a march over stale pixels would draw plausible seams where
+    // nothing meets, which is the kind of wrong that survives review.
+    if (surface == null || toLight == null) return;
+    _renderer._encodeContactShadow(
+      target: frame.resources.texture(FrameResourceIds.contactShadow),
+      surface: surface,
+      options: _settings.contactShadows,
+      view: _view,
+      toLight: toLight,
+    );
+  }
+}
+
+/// `gfx-33n`'s volumetric shafts, as a link in the lit-colour chain.
+///
+/// **Reads the shadow map optionally, which is the whole of how it declines.**
+/// The shafts are a shadow-map product: with no caster there is no map, the
+/// optional read comes back null, and the node returns having drawn nothing.
+/// That is the honest answer rather than an error — a light being added later
+/// is the ordinary case, and a frame that threw because a scene had no
+/// directional caster would be a worse engine.
+///
+/// Reads the surface buffer too, for how far along each ray there is still
+/// air. Declaring it is what attaches the buffer, the same way the occlusion
+/// pass's own declaration does.
+final class _LightShaftsNode extends RenderNode with _NeedsSurfaceBuffer {
+  _LightShaftsNode(this._renderer, this._view, this._settings);
+
+  @override
+  Renderer get owner => _renderer;
+
+  final Renderer _renderer;
+  final RenderView _view;
+  final RenderSettings _settings;
+
+  @override
+  String get name => 'light shafts';
+
+  @override
+  bool get isActive =>
+      _settings.lightShafts.enabled &&
+      _settings.lightShafts.strength > 0.0 &&
+      _settings.lightShafts.steps > 0;
+
+  @override
+  List<ResourceId> get reads => const <ResourceId>[
+    FrameResourceIds.hdrColour,
+    FrameResourceIds.surfaceBuffer,
+  ];
+
+  @override
+  List<ResourceId> get optionalReads => const <ResourceId>[
+    FrameResourceIds.shadowMap,
+  ];
+
+  @override
+  List<ResourceId> get writes => const <ResourceId>[FrameResourceIds.hdrColour];
+
+  @override
+  void execute(NodeFrame frame) {
+    final surface = frame.resources.tryTexture(FrameResourceIds.surfaceBuffer);
+    final shadow = frame.resources.tryTexture(FrameResourceIds.shadowMap);
+    if (surface == null || shadow == null) return;
+    final lit = _renderer._encodeLightShafts(
+      scene: frame.resources.texture(FrameResourceIds.hdrColour),
+      surface: surface,
+      shadow: shadow,
+      settings: _settings.lightShafts,
+      view: _view,
+      resources: frame.resources,
+      width: frame.width,
+      height: frame.height,
+    );
+    // A different texture from the one it read — a pass cannot sample and
+    // write one — so the version it produced is told which texture it is, the
+    // hand-off `_ReflectionsNode` makes for the same reason.
+    frame.resources.provide(FrameResourceIds.hdrColour, lit);
+  }
+}
+
+/// `gfx-34n`'s lens, as a link in the lit-colour chain.
+///
+/// **Placed after the shafts and before the bloom, which is an order with a
+/// reason.** A lens is in front of the scene, so anything the scene emits goes
+/// through it — including the shafts, which are light in the air and are
+/// blurred by a lens exactly as the geometry behind them is. Bloom comes
+/// after, because a glow is what the *sensor* does with light that already
+/// went through the lens: blooming first and defocusing the glow afterwards
+/// would soften the one part of the picture a wide aperture makes more
+/// pronounced, not less.
+///
+/// Reads the surface buffer for depth, which is what the circle of confusion
+/// is computed from. Declaring it is what attaches the buffer, the same way
+/// the occlusion pass's declaration does.
+final class _DepthOfFieldNode extends RenderNode with _NeedsSurfaceBuffer {
+  _DepthOfFieldNode(this._renderer, this._settings);
+
+  @override
+  Renderer get owner => _renderer;
+
+  final Renderer _renderer;
+  final RenderSettings _settings;
+
+  @override
+  String get name => 'depth of field';
+
+  @override
+  bool get isActive =>
+      _settings.depthOfField.enabled &&
+      _settings.depthOfField.samples > 0 &&
+      _settings.depthOfField.maxRadius > 0.0;
+
+  @override
+  List<ResourceId> get reads => const <ResourceId>[
+    FrameResourceIds.hdrColour,
+    FrameResourceIds.surfaceBuffer,
+  ];
+
+  @override
+  List<ResourceId> get writes => const <ResourceId>[FrameResourceIds.hdrColour];
+
+  @override
+  void execute(NodeFrame frame) {
+    final surface = frame.resources.tryTexture(FrameResourceIds.surfaceBuffer);
+    // A hard read, so this should not happen — but a lens with no depth would
+    // focus on whatever the alpha channel last held, and a plausible blur out
+    // of stale pixels is the kind of wrong that survives review.
+    if (surface == null) return;
+    final focused = _renderer._encodeDepthOfField(
+      scene: frame.resources.texture(FrameResourceIds.hdrColour),
+      surface: surface,
+      settings: _settings.depthOfField,
+      resources: frame.resources,
+      width: frame.width,
+      height: frame.height,
+    );
+    // A different texture from the one it read — a pass cannot sample and
+    // write one — so the version it produced is told which texture it is.
+    frame.resources.provide(FrameResourceIds.hdrColour, focused);
+  }
+}
+
+/// `gfx-43n`/`44n`/`45n`'s viewport shading, as a link in the finished
+/// picture.
+///
+/// **After the composite, and the first draft of this had it before —
+/// wrongly.** A normal mapped into `[0, 1]` is not a quantity of light, and
+/// the engine already says so: `normals.frag` writes through
+/// `WriteDisplayColor`, and `display_modes.dart` carries the sentence "a
+/// normals view is not a picture of light, and the composite has to be told".
+/// Registered before the composite, every mode here would have been exposed,
+/// tone mapped and graded — a pale blue pushed through a filmic shoulder is
+/// not the pale blue anybody recognises. So it reads and writes `frame`, in
+/// the phase whose own documentation asks for exactly this: things that are
+/// honestly about the finished image.
+///
+/// **It reads the surface buffer optionally**, and that is what makes a mode
+/// degrade rather than break: on a device that cannot attach the buffer the
+/// read comes back null and the pass hands the picture straight through. The
+/// cost of the declaration is a frame the scene pass did not multisample —
+/// see `anchor_identity_test.dart`, where that trade is pinned, and
+/// `FrameResult.antiAliasing`, which reports it.
+final class _ViewportShadeNode extends RenderNode {
+  _ViewportShadeNode(this._renderer, this._view, this._settings);
+
+  final Renderer _renderer;
+  final RenderView _view;
+  final RenderSettings _settings;
+
+  @override
+  String get name => 'viewport shading';
+
+  @override
+  FramePhase get preferredPhase => FramePhase.present;
+
+  @override
+  bool get isActive =>
+      _settings.viewportShading.mode != ViewportShading.off &&
+      _settings.viewportShading.amount > 0.0;
+
+  @override
+  List<ResourceId> get reads => const <ResourceId>[FrameResourceIds.frame];
+
+  @override
+  List<ResourceId> get optionalReads => const <ResourceId>[
+    FrameResourceIds.surfaceBuffer,
+  ];
+
+  @override
+  List<ResourceId> get writes => const <ResourceId>[FrameResourceIds.frame];
+
+  @override
+  void execute(NodeFrame frame) {
+    final shaded = _renderer._encodeViewportShade(
+      scene: frame.resources.texture(FrameResourceIds.frame),
+      surface: frame.resources.tryTexture(FrameResourceIds.surfaceBuffer),
+      settings: _settings.viewportShading,
+      view: _view,
+      resources: frame.resources,
+    );
+    frame.resources.provide(FrameResourceIds.frame, shaded);
+  }
+}
+
+/// `gfx-32n`'s depth-aware blur, as a link in the occlusion chain.
+///
+/// **Reads `ao` and writes `ao`, which is what makes it skippable for free.**
+/// A node that consumed the occlusion and produced something else would make
+/// the composite's read conditional on whether the blur ran. As a
+/// read-modify-write link it produces the next version of the same name, so
+/// switching it off leaves the composite bound to the version before it with
+/// nothing to branch on — the semantics `frame_graph_compile.dart` argues for
+/// and `frame_graph_test.dart` holds.
+///
+/// It reads the surface buffer too, which is where the depth comes from. That
+/// read costs nothing extra: the occlusion pass already declared it, so the
+/// buffer is attached either way.
+final class _SsaoBlurNode extends RenderNode with _NeedsSurfaceBuffer {
+  _SsaoBlurNode(this._renderer, this._settings);
+
+  @override
+  Renderer get owner => _renderer;
+
+  final Renderer _renderer;
+  final RenderSettings _settings;
+
+  @override
+  String get name => 'ssao blur';
+
+  @override
+  bool get isActive =>
+      _settings.ambientOcclusion.enabled &&
+      _settings.ambientOcclusion.strength > 0.0 &&
+      _settings.ambientOcclusion.blurTaps > 0;
+
+  @override
+  List<ResourceId> get reads => const <ResourceId>[
+    FrameResourceIds.ao,
+    FrameResourceIds.surfaceBuffer,
+  ];
+
+  @override
+  List<ResourceId> get writes => const <ResourceId>[FrameResourceIds.ao];
+
+  @override
+  void execute(NodeFrame frame) {
+    final surface = frame.resources.tryTexture(FrameResourceIds.surfaceBuffer);
+    if (surface == null) return;
+    _renderer._encodeSsaoBlur(
+      source: frame.resources.texture(FrameResourceIds.ao),
+      surface: surface,
+      options: _settings.ambientOcclusion,
+      resources: frame.resources,
+    );
+  }
+}
+
+/// The bloom pyramid, as a graph node.
+///
+/// The first pass in the frame whose output the graph **allocates**: everything
+/// before it was handed a texture the renderer already owned. `bloom` is
+/// declared as half the frame in the HDR format, the chain's top level is that
+/// texture, and the levels below it are scratch — see
+/// [FrameResources.transient].
+///
+/// Switching bloom off is [isActive], not a null return: nothing produces the
+/// glow, so the node is culled and costs no pass, no texture and no branch.
 final class _BloomNode extends RenderNode {
   _BloomNode(this._renderer, this._settings);
 
@@ -780,6 +1150,10 @@ final class _CompositeNode extends RenderNode {
     // nobody produced is what `optionalReads` is for. Gating it here as
     // well would put the same switch in two places.
     FrameResourceIds.ao,
+    // And the contact shadow beside it, for the same reason and with the same
+    // unconditional read: its node knows whether it is on, and the graph
+    // answering null is what "nobody produced it" looks like — `gfx-76n`.
+    FrameResourceIds.contactShadow,
     // Only when it is going to show it. An unconditional read would make
     // the buffer look wanted on every frame, and what wants it is what
     // decides whether the scene pass attaches it at all.
@@ -816,12 +1190,28 @@ final class _CompositeNode extends RenderNode {
   @override
   void execute(NodeFrame frame) {
     developer.Timeline.startSync('Renderer.composite');
-    final target = _renderer._ldrColor!;
-    // The renderer's texture, not the pool's, so the name is bound rather than
-    // allocated. Before the draw, so anything reading `frame` after this node
-    // finds the picture rather than nothing.
+    // **Where the picture lands depends on whether anything runs after it.**
+    // Ordinarily this is the renderer's own finished-frame texture — the one
+    // that outlives the frame and that Flutter samples — bound by name rather
+    // than allocated. With `gfx-04n`'s pass on, the smoothing needs to read a
+    // finished picture and write another, and the *presented* texture has to
+    // stay the renderer's: a pooled one would be handed back while the
+    // compositor was still reading it. So the composite draws into scratch
+    // and the pass after it draws into the frame.
+    final smoothing = _settings.antiAlias.enabled;
+    final target = smoothing
+        ? frame.resources.transient(
+            RenderTargetSpec(
+              width: frame.width,
+              height: frame.height,
+              format: _renderer.device.defaultColorFormat,
+            ),
+          )
+        : _renderer._ldrColor!;
+    // Before the draw, so anything reading `frame` after this node finds the
+    // picture rather than nothing.
     frame.resources.provide(FrameResourceIds.frame, target);
-    overlayLines = _renderer._encodeComposite(
+    final composited = _renderer._encodeComposite(
       target: target,
       scene: frame.resources.texture(FrameResourceIds.hdrColour),
       bloom: frame.resources.tryTexture(FrameResourceIds.bloom),
@@ -829,6 +1219,7 @@ final class _CompositeNode extends RenderNode {
       // produced it, and the graph answering null is a fact it derived rather
       // than a flag this pass was handed.
       ao: frame.resources.tryTexture(FrameResourceIds.ao),
+      contactShadow: frame.resources.tryTexture(FrameResourceIds.contactShadow),
       surface: _showsSurface
           ? frame.resources.tryTexture(FrameResourceIds.surfaceBuffer)
           : null,
@@ -850,8 +1241,52 @@ final class _CompositeNode extends RenderNode {
       width: frame.width,
       height: frame.height,
     );
-    // The composite is a draw, and so is the overlay batch.
-    frame.state.drawCalls += 1 + (overlayLines > 0 ? 1 : 0);
+    overlayLines = composited.lines;
+    // The composite's own draws — one, or one per view — and the overlay
+    // batch, which is one more when it drew anything.
+    frame.state.drawCalls += composited.draws + (overlayLines > 0 ? 1 : 0);
+    developer.Timeline.finishSync();
+  }
+}
+
+/// Edges smoothed on the composited picture — `gfx-04n`'s own row.
+///
+/// **Registered after the composite, which is the whole of how it knows what
+/// to read.** Registration order is the version chain: this node reads the
+/// version the composite wrote and produces the next one, and the frame's own
+/// result takes whichever version is last. Nothing is threaded, nothing is
+/// branched on outside this file.
+///
+/// It draws into the renderer's finished-frame texture and reads the pooled
+/// one the composite drew into — the opposite way round from every other post
+/// pass, and deliberately: the texture that leaves the frame has to be the
+/// renderer's, because a pooled one would be handed back to the pool while
+/// the compositor was still sampling it.
+final class _FxaaNode extends RenderNode {
+  _FxaaNode(this._renderer, this._settings);
+
+  final Renderer _renderer;
+  final AntiAliasSettings _settings;
+
+  @override
+  String get name => 'antialias';
+
+  @override
+  bool get isActive => _settings.enabled;
+
+  @override
+  List<ResourceId> get reads => const <ResourceId>[FrameResourceIds.frame];
+
+  @override
+  List<ResourceId> get writes => const <ResourceId>[FrameResourceIds.frame];
+
+  @override
+  void execute(NodeFrame frame) {
+    developer.Timeline.startSync('Renderer.antialias');
+    final source = frame.resources.texture(FrameResourceIds.frame);
+    final target = _renderer._ldrColor!;
+    frame.resources.provide(FrameResourceIds.frame, target);
+    _renderer._encodeFxaa(target: target, source: source, settings: _settings);
     developer.Timeline.finishSync();
   }
 }
@@ -870,10 +1305,19 @@ final class _CompositeNode extends RenderNode {
 /// The consumer is the readback, which the graph cannot see, exactly as an
 /// application reading the surface buffer is a consumer it cannot see.
 final class _LuminanceNode extends RenderNode {
-  _LuminanceNode(this._renderer, this._settings);
+  _LuminanceNode(
+    this._renderer,
+    this._settings, [
+    this._views = const <RenderView>[],
+  ]);
 
   final Renderer _renderer;
   final AutoExposureSettings _settings;
+
+  /// The frame's views, for `gfx-22n`: each meters its own rectangle of the
+  /// one readback this node asks for. Empty is the frame metering itself,
+  /// which is what a single-view frame and every frame before this row did.
+  final List<RenderView> _views;
 
   @override
   String get name => 'luminance';
@@ -894,7 +1338,7 @@ final class _LuminanceNode extends RenderNode {
       target: target,
       scene: frame.resources.texture(FrameResourceIds.hdrColour),
     );
-    _renderer._meterExposure(target, _settings);
+    _renderer._meterExposure(target, _settings, views: _views);
     frame.state.drawCalls++;
   }
 }
@@ -955,10 +1399,16 @@ final class _ScenePass {
     required this.debugLines,
     required this.lightOverflow,
     required this.submitMicros,
+    this.msaaSamples = 1,
+    this.msaaDeclined,
   });
 
   final int culled;
   final int debugLines;
   final int lightOverflow;
   final int submitMicros;
+
+  /// `gfx-20n`: samples the pass actually drew with, and why not more.
+  final int msaaSamples;
+  final String? msaaDeclined;
 }

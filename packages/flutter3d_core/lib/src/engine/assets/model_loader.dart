@@ -2,9 +2,9 @@ import 'dart:developer' as developer;
 import 'dart:isolate';
 import 'dart:typed_data';
 
-import 'package:flutter3d_formats/flutter3d_formats.dart';
+import 'package:flutter3d_core/formats.dart';
 
-export 'package:flutter3d_formats/flutter3d_formats.dart'
+export 'package:flutter3d_core/formats.dart'
     show
         ModelDecoder,
         ModelFormat,

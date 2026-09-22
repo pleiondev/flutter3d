@@ -7,8 +7,8 @@
 ///     dart test test/render_sheet_test.dart
 library;
 
+import 'package:flutter3d_core/formats.dart';
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
-import 'package:flutter3d_formats/flutter3d_formats.dart';
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:flutter3d_mesh/flutter3d_mesh.dart';
 import 'package:flutter3d_model_core/flutter3d_model_core.dart';
@@ -35,10 +35,13 @@ void main() {
     'a 2x2 sheet, each quarter the same frame render gives for its own view',
     () async {
       final project = _cubeProject();
+      // `labels: false`: a labelled quadrant is deliberately *not* what
+      // `renderProject` returns, and this is the test that claims it is.
       final sheet = await renderSheet(
         project: project,
         width: 128,
         height: 128,
+        labels: false,
         deviceFactory: _cpuDevice,
       );
       final decodedSheet = await decodeImagePure(sheet);
@@ -74,6 +77,77 @@ void main() {
       }
     },
   );
+
+  test('each quadrant is labelled with its own view, and only there', () async {
+    final project = _cubeProject();
+    const int size = 256;
+    const int tile = size ~/ 2;
+    final plain = (await decodeImagePure(
+      await renderSheet(
+        project: project,
+        width: size,
+        height: size,
+        labels: false,
+        deviceFactory: _cpuDevice,
+      ),
+    ))!;
+    final labelled = (await decodeImagePure(
+      await renderSheet(
+        project: project,
+        width: size,
+        height: size,
+        deviceFactory: _cpuDevice,
+      ),
+    ))!;
+
+    // The label box: the bottom-left corner of each quadrant, generously
+    // sized. Everything outside every box has to be untouched, or the
+    // labels are writing over the picture they annotate.
+    const int scale = tile ~/ 64;
+    const int boxHeight = (tinyFontHeight + 8) * scale;
+    const int boxWidth = tile;
+    final changed = List<int>.filled(renderSheetViews.length, 0);
+    var changedOutside = 0;
+    for (var y = 0; y < size; y++) {
+      for (var x = 0; x < size; x++) {
+        final at = (y * size + x) * 4;
+        var differs = false;
+        for (var c = 0; c < 4; c++) {
+          if (plain.pixels[at + c] != labelled.pixels[at + c]) differs = true;
+        }
+        if (!differs) continue;
+        final quadrant = (y ~/ tile) * 2 + (x ~/ tile);
+        final withinX = x % tile < boxWidth;
+        final withinY = y % tile >= tile - boxHeight;
+        if (withinX && withinY) {
+          changed[quadrant]++;
+        } else {
+          changedOutside++;
+        }
+      }
+    }
+
+    expect(
+      changedOutside,
+      0,
+      reason: 'a label wrote outside its own corner of its own quadrant',
+    );
+    for (var i = 0; i < renderSheetViews.length; i++) {
+      expect(
+        changed[i],
+        greaterThan(0),
+        reason: 'quadrant $i (${renderSheetViews[i].name}) has no label',
+      );
+    }
+
+    // And the marks are the view's own name rather than a generic tag:
+    // `front` is five glyphs and `top` is three, so the first quadrant has
+    // to carry visibly more ink than the third.
+    expect(
+      changed[renderSheetViews.indexOf(RenderProjectView.front)],
+      greaterThan(changed[renderSheetViews.indexOf(RenderProjectView.top)]),
+    );
+  });
 
   test('an odd sheet size loses at most a pixel, not a crash', () async {
     final sheet = await renderSheet(

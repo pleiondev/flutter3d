@@ -18,8 +18,8 @@
 /// ever goes up is the one thing that survives both.
 library;
 
-import 'package:flutter3d_formats/flutter3d_formats.dart' hide EnumHint;
-import 'package:flutter3d_geometry/flutter3d_geometry.dart';
+import 'package:flutter3d_core/formats.dart' hide EnumHint;
+import 'package:flutter3d_core/geometry.dart';
 import 'package:flutter3d_mesh/flutter3d_mesh.dart';
 import 'package:vector_math/vector_math.dart';
 
@@ -31,6 +31,7 @@ import 'project_animation.dart';
 import 'project_morphs.dart';
 import 'scene_lighting.dart';
 import 'selection.dart';
+import 'shape_driver.dart';
 import 'simulation_cache.dart';
 import 'texture_budget.dart';
 
@@ -77,6 +78,7 @@ final class ProjectProfile {
     this.texelsPerMeter,
     this.fps = 30.0,
     this.frameSnap = false,
+    this.sculptTriangleLimitWeb = 300000,
   });
 
   /// What a handset can be asked for, which is the tightest of the three the
@@ -148,6 +150,23 @@ final class ProjectProfile {
   /// tool actually drags a key; this class only carries the setting.
   final bool frameSnap;
 
+  /// How many triangles a sculpt may carry in a browser — `pro-sc-09`.
+  ///
+  /// **A measured number, not the desktop one scaled by a guess.** The web
+  /// build runs the same Dart through wasm with one thread and no way to
+  /// ask for a second, so the ceiling that matters there is not
+  /// [maxTriangles] — which is about what a game engine will draw — but
+  /// what a stroke can move and re-upload inside a frame. Three hundred
+  /// thousand is what `pro-sc-01` measured as the largest mesh whose
+  /// stroke stays under sixteen milliseconds on wasm; a project that wants
+  /// a different answer says so here rather than in code.
+  ///
+  /// Read by the sculpt mode before it opens a mesh, not by the document:
+  /// nothing about a file changes because it is being edited in a browser,
+  /// and a project written on a desktop and opened on the web has to say
+  /// the same thing to both.
+  final int sculptTriangleLimitWeb;
+
   /// What control a profile editor should offer for each of this class's own
   /// fields, keyed by field name.
   ///
@@ -192,6 +211,11 @@ final class ProjectProfile {
     'texelsPerMeter': const DoubleHint(min: 0, unit: 'texels/m'),
     'fps': const DoubleHint(min: 1, unit: 'fps'),
     'frameSnap': const BoolHint(),
+    'sculptTriangleLimitWeb': const IntHint(
+      min: 10000,
+      max: 2000000,
+      step: 10000,
+    ),
   };
 
   /// [this], with named fields replaced.
@@ -211,6 +235,7 @@ final class ProjectProfile {
     bool clearTexelsPerMeter = false,
     double? fps,
     bool? frameSnap,
+    int? sculptTriangleLimitWeb,
   }) => ProjectProfile(
     name: name ?? this.name,
     target: target ?? this.target,
@@ -229,6 +254,8 @@ final class ProjectProfile {
         : (texelsPerMeter ?? this.texelsPerMeter),
     fps: fps ?? this.fps,
     frameSnap: frameSnap ?? this.frameSnap,
+    sculptTriangleLimitWeb:
+        sculptTriangleLimitWeb ?? this.sculptTriangleLimitWeb,
   );
 
   @override
@@ -246,7 +273,8 @@ final class ProjectProfile {
       other.textures == textures &&
       other.texelsPerMeter == texelsPerMeter &&
       other.fps == fps &&
-      other.frameSnap == frameSnap;
+      other.frameSnap == frameSnap &&
+      other.sculptTriangleLimitWeb == sculptTriangleLimitWeb;
 
   @override
   int get hashCode => Object.hash(
@@ -263,6 +291,7 @@ final class ProjectProfile {
     texelsPerMeter,
     fps,
     frameSnap,
+    sculptTriangleLimitWeb,
   );
 }
 
@@ -290,6 +319,11 @@ sealed class Geometry {
   /// a lathe of two hundred segments is not something to rebuild for a number
   /// in the corner.
   int get triangleCount;
+
+  /// How many vertices this draws as, for the status line's own "N vertices" —
+  /// [triangleCount]'s own twin, cached and computed the same way case by
+  /// case.
+  int get vertexCount;
 }
 
 /// A shape that still knows its own parameters.
@@ -299,9 +333,13 @@ final class ParametricGeometry extends Geometry {
   final ParametricShape shape;
 
   int? _triangles;
+  int? _vertices;
 
   @override
   int get triangleCount => _triangles ??= shape.drawn.build().triangleCount;
+
+  @override
+  int get vertexCount => _vertices ??= shape.drawn.build().vertexCount;
 }
 
 /// A mesh with its topology, being edited.
@@ -324,6 +362,9 @@ final class EditedGeometry extends Geometry {
     }
     return triangles;
   }
+
+  @override
+  int get vertexCount => mesh.vertexCount;
 }
 
 /// Buffers as they arrived, with no topology behind them.
@@ -334,6 +375,9 @@ final class ImportedGeometry extends Geometry {
 
   @override
   int get triangleCount => data.triangleCount;
+
+  @override
+  int get vertexCount => data.vertexCount;
 }
 
 /// No geometry at all — a named point for something else to hang off of, the
@@ -350,6 +394,9 @@ final class SocketGeometry extends Geometry {
 
   @override
   int get triangleCount => 0;
+
+  @override
+  int get vertexCount => 0;
 }
 
 /// One thing in the project.
@@ -371,9 +418,67 @@ final class ModelObject {
     this.modifiers = const <ModifierSlot>[],
     this.skeletonIndex,
     this.shapeSet = const ShapeSet(),
+    this.shapeDrivers = const <ShapeDriver>[],
     this.lods = const <LodSpec>[],
     this.simulationCache,
+    this.visible = true,
+    this.locked = false,
+    this.source,
+    this.credit,
   });
+
+  /// The file this object's geometry was imported from, and what that file
+  /// looked like at the time — `ux-48`. Null for an object built here, and
+  /// for one imported as a copy rather than as a link.
+  ///
+  /// **A link, not an ownership claim.** Everything else about the object —
+  /// where it stands, what it is painted with, what modifiers are stacked on
+  /// it, which shape keys it carries — belongs to this project and survives a
+  /// re-import; only the geometry comes from the file. That is the whole
+  /// distinction between this and opening the file again, and it is why a
+  /// re-import is worth having at all: the work done *around* an imported
+  /// mesh is the work nobody wants to do twice.
+  ///
+  /// [SourceLink.sha] is what the file said when it was last read, so a
+  /// caller can tell "the file has changed" from "the file is as it was"
+  /// without diffing meshes.
+  final SourceLink? source;
+
+  /// Who this object is owed a credit to, when it came from somewhere
+  /// that asks for one — `gal-05`.
+  ///
+  /// **On the object rather than on the project.** A credit is owed for
+  /// what is in the file, and an object deleted before the export is not
+  /// in it: a project-level list would go on crediting somebody whose
+  /// chair nobody kept. Deleting the object takes the obligation with it,
+  /// which is the honest arithmetic.
+  ///
+  /// Null for everything built here and for anything under a licence that
+  /// asks for nothing — most of a document, most of the time.
+  final ModelCredit? credit;
+
+  /// Whether this object is drawn — `ux-14`.
+  ///
+  /// **A fact about the document, not about the session.** Hiding the walls
+  /// to get at what is inside them is something a person does once and comes
+  /// back to tomorrow, and an exporter has to know: a hidden object is one
+  /// the person has said they are not working on, and writing it into the
+  /// GLB anyway is writing something they cannot see.
+  ///
+  /// A hidden parent hides its children — see [ModelProject.isVisible]. That
+  /// is what makes it a hierarchy toggle rather than a per-object one, and
+  /// the reason the flag is stored per object rather than resolved on the
+  /// way in: unhiding the parent brings back exactly the children that were
+  /// visible before, rather than all of them.
+  final bool visible;
+
+  /// Whether this object refuses to be picked or transformed — `ux-14`.
+  ///
+  /// **Locked is not hidden.** The floor a person keeps clicking by accident
+  /// while aiming at what stands on it has to stay on screen — that is what
+  /// it is for — and has to stop answering the pointer. Hiding it answers a
+  /// different question.
+  final bool locked;
 
   /// Stable for the life of the object, and not reused after a delete.
   final int id;
@@ -395,9 +500,10 @@ final class ModelObject {
   final List<int> materialSlots;
 
   /// The modifier stack, top of the list evaluated first — see
-  /// `ModifierEvaluationCache` for what actually runs it. Empty for almost
-  /// every object today, since nothing yet writes to this list; `doc-23`'s
-  /// commands are what will.
+  /// `ModifierEvaluationCache` for what actually runs it. Edited by
+  /// `AddModifier` and its six siblings, folded into an export by
+  /// `ProjectModelDocument` for the slots marked `inExport`, and written to
+  /// the project file for an object that has one.
   final List<ModifierSlot> modifiers;
 
   /// Which of [ModelProject.skeletons] this object's own mesh is skinned
@@ -410,6 +516,14 @@ final class ModelObject {
   /// `anim-19`'s own row. Empty for almost every object, the ordinary case
   /// of a mesh with no sculpted alternate shapes.
   final ShapeSet shapeSet;
+
+  /// Shape keys of this object's own [shapeSet] driven by how far some
+  /// joint has turned, rather than by a person's own slider — `anim-34d`'s
+  /// own row, [ShapeDriver.shapeIndex] indexing this same [shapeSet]'s own
+  /// [ShapeSet.keys]. Empty for almost every object, the ordinary case of a
+  /// shape key nobody has wired to a bone yet; [bakeShapeDrivers] is what
+  /// freezes these into an ordinary weights track.
+  final List<ShapeDriver> shapeDrivers;
 
   /// This object's own levels of detail, finest declared first —
   /// `pro-lod-03`'s own row. Empty for almost every object, the ordinary
@@ -443,9 +557,16 @@ final class ModelObject {
     int? skeletonIndex,
     bool clearSkeletonIndex = false,
     ShapeSet? shapeSet,
+    List<ShapeDriver>? shapeDrivers,
     List<LodSpec>? lods,
     SimulationCache? simulationCache,
     bool clearSimulationCache = false,
+    bool? visible,
+    bool? locked,
+    SourceLink? source,
+    bool clearSource = false,
+    ModelCredit? credit,
+    bool clearCredit = false,
   }) => ModelObject(
     id: id,
     name: name ?? this.name,
@@ -459,15 +580,52 @@ final class ModelObject {
         ? null
         : (skeletonIndex ?? this.skeletonIndex),
     shapeSet: shapeSet ?? this.shapeSet,
+    shapeDrivers: shapeDrivers ?? this.shapeDrivers,
     lods: lods ?? this.lods,
     simulationCache: clearSimulationCache
         ? null
         : (simulationCache ?? this.simulationCache),
+    visible: visible ?? this.visible,
+    locked: locked ?? this.locked,
+    source: clearSource ? null : (source ?? this.source),
+    credit: clearCredit ? null : (credit ?? this.credit),
   );
 
   @override
   String toString() => 'ModelObject($id, "$name", v$version)';
 }
+
+/// Where an object's geometry came from, and what that file looked like when
+/// it was last read — `ux-48`'s own "link to source".
+///
+/// **A hash rather than a timestamp.** A file copied out of a version-control
+/// checkout, or restored from a backup, has a modification time that says
+/// nothing about whether its contents moved; the digest of the bytes says
+/// exactly that and nothing else. Which digest it is belongs to whoever
+/// writes it — this record only promises that two equal strings mean two
+/// identical files.
+typedef SourceLink = ({String path, String sha});
+
+/// What an export owes somebody for one object — `gal-05`.
+///
+/// **Four fields, because a credit that cannot be checked is not a
+/// credit.** A name alone leaves whoever reads the exported file unable to
+/// find the original or the terms; the licence and its URL are what make
+/// the line answerable.
+typedef ModelCredit = ({
+  /// What the thing is called where it came from.
+  String title,
+
+  /// Who to credit. Never empty — `gal-01` refuses an item that asks for
+  /// a credit and names nobody.
+  String author,
+
+  /// The licence's own name, as the card showed it.
+  String licence,
+
+  /// Where the licence text is.
+  String url,
+});
 
 /// The document.
 final class ModelProject implements ModelProjectView {
@@ -502,10 +660,11 @@ final class ModelProject implements ModelProjectView {
   final List<ProjectClip> clips;
 
   /// The project's own lights, environment, ambient level, shadow request
-  /// and post-processing — `mat-23`'s own row. Not written to the file
-  /// format yet: a project saved and reopened comes back with the default
-  /// (no lights, no environment), the same honest gap `fromModelDocument`'s
-  /// own doc comment already keeps for [profile].
+  /// and post-processing — `mat-23`'s own row. Written to the file when it is
+  /// not the default, and into each step of a saved history that changed it,
+  /// so a project reopened is lit the way it was closed and an undo after
+  /// reopening puts back the lighting of that step. This comment said for a
+  /// while that it was not written at all, which was true.
   final SceneLighting lighting;
 
   /// In the order they were added, which is the order the outliner shows and
@@ -528,10 +687,36 @@ final class ModelProject implements ModelProjectView {
     return null;
   }
 
+  /// Whether [id] is drawn, counting its parents — `ux-14`.
+  ///
+  /// **A hidden parent hides its children.** That is what people mean by
+  /// hiding a group, and it is the only rule under which the toggle is worth
+  /// having: an outliner where hiding a rig's root left forty bones on
+  /// screen would be one where the toggle has to be pressed forty-one times.
+  ///
+  /// A cycle cannot form — [SetParent] refuses to make one — but the walk is
+  /// bounded anyway by the number of objects, because a project read from a
+  /// file somebody edited by hand is a project this has to survive rather
+  /// than hang in.
+  bool isVisible(int id) {
+    var at = this[id];
+    for (var steps = 0; at != null && steps <= objects.length; steps++) {
+      if (!at.visible) return false;
+      final int? up = at.parent;
+      if (up == null) return true;
+      at = this[up];
+    }
+    return true;
+  }
+
   int get triangleCount => objects.fold(
     0,
     (int sum, ModelObject o) => sum + o.geometry.triangleCount,
   );
+
+  /// The status line's own "N vertices" — [triangleCount]'s own twin.
+  int get vertexCount =>
+      objects.fold(0, (int sum, ModelObject o) => sum + o.geometry.vertexCount);
 
   /// This project with [object] in place of the one with its id.
   ///

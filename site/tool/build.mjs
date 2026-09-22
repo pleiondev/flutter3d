@@ -6,11 +6,14 @@
 import { readFileSync, writeFileSync, mkdirSync, cpSync, existsSync, rmSync, readdirSync } from 'node:fs';
 import { dirname, join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { createHash } from 'node:crypto';
 
 import MarkdownIt from 'markdown-it';
 import anchor from 'markdown-it-anchor';
 import attrs from 'markdown-it-attrs';
 import hljs from 'highlight.js';
+
+import { buildShowcasePages, indexMarkdown, readBundle } from './showcase.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const root = join(here, '..');
@@ -25,6 +28,20 @@ const distDir = join(root, 'dist');
 const packageCount = readdirSync(join(root, '../packages'), {
   withFileTypes: true,
 }).filter((entry) => entry.isDirectory()).length;
+
+// `/assets/site.js?v=<hash>` rather than a bare path: this file changed six
+// times in one sitting while chasing a scroll-position bug, and every browser
+// that had already loaded the bare path kept answering from cache — so a
+// rebuilt, genuinely fixed script could sit on disk while every open tab went
+// on running the one from before the fix. The hash is of the file's own
+// bytes, not a build timestamp, so a rebuild that changes nothing else does
+// not bust a cache that had nothing wrong with it.
+function assetVersion(relativePath) {
+  const bytes = readFileSync(join(root, 'assets', relativePath));
+  return createHash('sha1').update(bytes).digest('hex').slice(0, 10);
+}
+const siteJsVersion = assetVersion('site.js');
+const siteCssVersion = assetVersion('site.css');
 
 // Pictures come from the golden sets, not from a screenshots folder. A golden
 // is re-recorded with the feature it pins, so a picture drawn from one is
@@ -147,6 +164,16 @@ const NAV = [
     ],
   },
   {
+    section: 'Modeler',
+    slug: 'modeler',
+    badge: 'tool',
+    pages: [
+      { file: 'modeler/index.md', url: '/modeler/', title: 'What the modeller is' },
+      { file: 'modeler/tutorial.md', url: '/modeler/tutorial/', title: 'Tutorial: six ways in', kind: 'tutorial' },
+      { file: 'modeler/demo.md', url: '/modeler/demo/', title: 'Trying it', kind: 'demo' },
+    ],
+  },
+  {
     section: 'Shooter',
     slug: 'shooter',
     badge: 'genre',
@@ -177,6 +204,25 @@ const NAV = [
     ],
   },
   {
+    // One page, where the three genres above have three. The strategy game
+    // has a demo and a package and no tutorial yet, and its demo was built by
+    // `demos.sh` and linked from nowhere.
+    section: 'Strategy',
+    slug: 'strategy',
+    badge: 'genre',
+    pages: [
+      { file: 'strategy/demo.md', url: '/strategy/demo/', title: 'Playable demo', kind: 'demo' },
+    ],
+  },
+  {
+    section: 'Showcase',
+    slug: 'showcase',
+    badge: 'engine',
+    pages: [
+      { file: 'showcase/index.md', url: '/showcase/learn/', title: 'Guides by capability', kind: 'guide' },
+    ],
+  },
+  {
     section: 'Reference',
     slug: 'reference',
     pages: [
@@ -185,9 +231,34 @@ const NAV = [
       { file: 'reference/pitfalls.md', url: '/reference/pitfalls/', title: 'Pitfalls' },
       { file: 'reference/testing.md', url: '/reference/testing/', title: 'Testing' },
       { file: 'reference/packages.md', url: '/reference/packages/', title: 'Package index' },
+      { file: 'reference/asset-pipeline.md', url: '/reference/asset-pipeline/', title: 'The asset pipeline' },
+      { file: 'reference/comparison.md', url: '/reference/comparison/', title: 'vs. Flutter Scene' },
+    ],
+  },
+  {
+    section: 'Legal',
+    slug: 'legal',
+    pages: [
+      { file: 'legal/eula.md', url: '/legal/eula/', title: 'Licence agreement', outside: true },
+      { file: 'legal/privacy.md', url: '/legal/privacy/', title: 'Privacy policy', outside: true },
+      { file: 'legal/cookies.md', url: '/legal/cookies/', title: 'Cookies & local storage', outside: true },
+      { file: 'legal/terms.md', url: '/legal/terms/', title: 'Website terms', outside: true },
+      { file: 'legal/content-policy.md', url: '/legal/content-policy/', title: 'Content & copyright', outside: true },
+      { file: 'legal/export-compliance.md', url: '/legal/export-compliance/', title: 'Export compliance', outside: true },
     ],
   },
 ];
+
+// Where a page's Markdown actually is. Almost every page lives under
+// `content/`; the legal documents do not, and deliberately — they are the
+// source of truth for the application as well as for the site, they live in
+// `legal/` at the root of the repository beside `LICENSE`, and a copy of them
+// under `content/` would be a second version of the same promise, free to
+// drift from the one the application ships. Their `file` is written relative
+// to the repository root rather than to `content/`, which is also what the
+// footer's "Source:" line should say about them.
+const sourceOf = (page) =>
+  page.outside ? join(root, '..', page.file) : join(contentDir, page.file);
 
 const flat = NAV.flatMap((group) =>
   group.pages.map((page) => ({ ...page, section: group.section, sectionSlug: group.slug })));
@@ -297,7 +368,7 @@ function sidebar(current) {
   }).join('\n');
 }
 
-function layout({ page, html, toc, index }) {
+function layout({ page, html, toc, index, pager: pagerOverride }) {
   const prev = index > 0 ? flat[index - 1] : null;
   const next = index < flat.length - 1 ? flat[index + 1] : null;
   // Absolute asset paths: the site is served at the domain root, and a
@@ -311,12 +382,12 @@ function layout({ page, html, toc, index }) {
        </nav>`
     : '<div class="toc"></div>';
 
-  const pager = (prev || next)
+  const pager = pagerOverride ?? ((prev || next)
     ? `<nav class="pager">
         ${prev ? `<a class="pager-prev" href="${prev.url}"><span>Previous</span><strong>${prev.title}</strong></a>` : '<span></span>'}
         ${next ? `<a class="pager-next" href="${next.url}"><span>Next</span><strong>${next.title}</strong></a>` : '<span></span>'}
        </nav>`
-    : '';
+    : '');
 
   const isHome = page.url === '/';
 
@@ -328,7 +399,7 @@ function layout({ page, html, toc, index }) {
 <title>${page.title === 'flutter3d' ? 'flutter3d — a 3D engine on Flutter GPU' : `${page.title} · flutter3d`}</title>
 <meta name="description" content="${(page.description || 'A 3D engine on Flutter GPU, a game layer on top of it, and three games built from both.').replace(/"/g, '&quot;')}">
 <link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
-<link rel="stylesheet" href="/assets/site.css">
+<link rel="stylesheet" href="/assets/site.css?v=${siteCssVersion}">
 <!-- Google tag (gtag.js) -->
 <script async src="https://www.googletagmanager.com/gtag/js?id=G-6F6VZ4H7CF"></script>
 <script>
@@ -348,7 +419,7 @@ gtag('config', 'G-6F6VZ4H7CF');
   </a>
   <button class="rail-toggle" aria-expanded="false" aria-controls="rail">Menu</button>
   <div class="topbar-meta">
-    <span class="chip">Flutter 3.47 · Impeller</span>
+    <a class="chip chip-link" href="/showcase/">Showcase</a>
     <a class="chip chip-link" href="/reference/packages/">${packageCount} packages</a>
     <a class="chip chip-link" href="/docs/">API reference</a>
     ${iconLinks()}
@@ -364,18 +435,26 @@ gtag('config', 'G-6F6VZ4H7CF');
     ${html}
     ${pager}
     <footer class="foot">
-      <p>flutter3d documentation. Flutter 3.47.0 stable, Dart 3.12.2.
+      <p>flutter3d documentation.
          Source: <code>${page.file ?? 'site/content'}</code></p>
       <p class="foot-links">
         <a href="${GITHUB}" rel="noopener">GitHub</a> ·
         <a href="/docs/">API reference</a> ·
         <a href="${GITHUB}/blob/main/ARCHITECTURE.md" rel="noopener">Architecture</a>
       </p>
+      <p class="foot-links">
+        <a href="/legal/privacy/">Privacy</a> ·
+        <a href="/legal/cookies/">Cookies</a> ·
+        <a href="/legal/terms/">Terms</a> ·
+        <a href="/legal/eula/">Licence agreement</a>
+      </p>
       <p class="foot-legal">
         An independent implementation of a 3D engine for Flutter, not affiliated
         with the Flutter team.<br>
         © 2026 Dmitrii Zolotov. Released under the
         <a href="${GITHUB}/blob/main/LICENSE" rel="noopener">MIT licence</a>.
+        This site sets no cookies and runs no analytics —
+        <a href="/legal/cookies/">why there is no banner</a>.
       </p>
     </footer>
   </main>
@@ -384,7 +463,7 @@ gtag('config', 'G-6F6VZ4H7CF');
 </div>
 
 <script src="/assets/mermaid.min.js"></script>
-<script src="/assets/site.js"></script>
+<script src="/assets/site.js?v=${siteJsVersion}"></script>
 </body>
 </html>
 `;
@@ -396,14 +475,18 @@ gtag('config', 'G-6F6VZ4H7CF');
 if (existsSync(distDir)) rmSync(distDir, { recursive: true });
 mkdirSync(distDir, { recursive: true });
 
+// The showcase's guides, if the bundle has been generated; see showcase.mjs.
+const showcaseBundle = readBundle(root);
+
 let built = 0;
 // What each page said about itself, collected while it is being built rather
 // than by reading the tree a second time afterwards. The second read is where
 // the two lists drift apart.
 const catalog = [];
 flat.forEach((page, index) => {
-  const source = readFileSync(join(contentDir, page.file), 'utf8');
-  const { data, body } = frontMatter(source);
+  const source = readFileSync(sourceOf(page), 'utf8');
+  const { data, body: written } = frontMatter(source);
+  const body = written.replace('{{showcase-index}}', () => indexMarkdown(showcaseBundle));
   catalog.push({
     url: page.url,
     title: page.title,
@@ -424,6 +507,26 @@ flat.forEach((page, index) => {
   writeFileSync(target, out);
   built += 1;
 });
+
+// The showcase's guides and source, one page each, under /showcase/. The live
+// app is copied into the same directory afterwards by tool/showcase.sh.
+if (showcaseBundle) {
+  const written = buildShowcasePages({
+    bundle: showcaseBundle,
+    root,
+    distDir,
+    github: GITHUB,
+    layout,
+    render(markdown) {
+      slugs.clear();
+      const html = md.render(markdown);
+      return { html, toc: tocFrom(html) };
+    },
+  });
+  built += written.length;
+} else {
+  console.warn('showcase: no bundle in site/.generated/showcase, its pages are not built');
+}
 
 // A 404 that looks like the rest of the site rather than like nginx.
 writeFileSync(
@@ -595,4 +698,54 @@ cpSync(
   join(distDir, 'assets/mermaid.min.js'),
 );
 
-console.log(`built ${built} pages -> ${relative(process.cwd(), distDir)}`);
+// Every picture a page points at is in `dist` — `rel-08`.
+//
+// The `{{golden}}` check above covers the one syntax that names a picture by
+// id; an ordinary `![alt](/assets/…)` was checked by nothing, and the
+// tutorial on the other site shipped a page with four broken images for
+// exactly that reason. Walking the built HTML is the only place that can see
+// both halves at once: what a page asks for, and what the copy step put
+// there.
+function builtPages(dir) {
+  const out = [];
+  for (const entry of readdirSync(dir, { withFileTypes: true })) {
+    const path = join(dir, entry.name);
+    if (entry.isDirectory()) out.push(...builtPages(path));
+    else if (entry.name.endsWith('.html')) out.push(path);
+  }
+  return out;
+}
+
+const missingAssets = [];
+let checkedAssets = 0;
+for (const page of builtPages(distDir)) {
+  const html = readFileSync(page, 'utf8');
+  for (const [, url] of html.matchAll(/(?:src|href)="(\/(?:assets|goldens|demo|showcase\/learn\/img)\/[^"#]+)"/g)) {
+    if (url.endsWith('/')) continue;
+    checkedAssets += 1;
+    // Strip a cache-busting `?v=...` before checking: the query string is not
+    // part of the path on disk, and `site.js?v=<hash>` failing this check
+    // would be this scan complaining about the very versioning that keeps a
+    // browser from running a stale copy of it.
+    const path = url.split('?')[0];
+    if (!existsSync(join(distDir, path.slice(1)))) {
+      missingAssets.push(`${relative(distDir, page)} -> ${url}`);
+    }
+  }
+}
+if (missingAssets.length > 0) {
+  throw new Error(
+    `these pages point at files that are not in dist:\n  ${missingAssets.join('\n  ')}`,
+  );
+}
+// A walk that visited nothing proves nothing: if the pattern above stops
+// matching — a template that writes its own tags differently, say — this is
+// what says so rather than a silent pass over an empty list.
+if (checkedAssets < 20) {
+  throw new Error(`only ${checkedAssets} asset links found; the scan has stopped scanning`);
+}
+
+console.log(
+  `built ${built} pages -> ${relative(process.cwd(), distDir)} ` +
+    `(${checkedAssets} asset links, all present)`,
+);

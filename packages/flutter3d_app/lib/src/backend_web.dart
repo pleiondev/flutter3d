@@ -14,9 +14,10 @@ library;
 
 import 'package:flutter/widgets.dart';
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
-import 'package:flutter3d_session/flutter3d_session.dart' show FramePresenter;
 import 'package:flutter3d_webgl/flutter3d_webgl.dart';
 import 'package:flutter3d_webgpu/flutter3d_webgpu_web.dart';
+
+import 'surface/scene_surface.dart';
 
 /// Whether this build renders at a fixed internal resolution.
 ///

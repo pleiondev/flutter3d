@@ -26,6 +26,7 @@ import 'package:flutter/material.dart';
 import 'package:vector_math/vector_math.dart' show Vector2;
 
 import '../profile_editing.dart';
+import 'theme.dart';
 
 /// Which of the design's own three chips is armed, and so what a drag does.
 enum ProfileEditTool {
@@ -46,9 +47,13 @@ enum ProfileEditTool {
 }
 
 /// The magenta the design hand-over gives the axis of revolution — screen
-/// 09's own `#FF458E`, used nowhere else in [ModelerColors] because nothing
-/// else in the shell draws an axis of revolution.
-const Color _kAxisColor = Color(0xFFFF458E);
+/// 09's own `#FF458E`, which is [kModelerScheme]'s own `secondary` now that
+/// a token exists for it, and used nowhere else in this screen because
+/// nothing else here draws an axis of revolution.
+///
+/// `final`, not `const`: `ColorScheme`'s own fields are not const-accessible
+/// from outside the class.
+final Color _kAxisColor = kModelerScheme.secondary;
 
 /// The teal the profile's own fill and outline are specified in — the same
 /// `#004F58` the viewport's selection wash and [kModelerScheme]'s own

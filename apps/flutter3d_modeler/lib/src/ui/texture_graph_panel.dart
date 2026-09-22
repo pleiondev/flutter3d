@@ -31,7 +31,8 @@ import 'dart:typed_data';
 import 'dart:ui' show lerpDouble;
 
 import 'package:flutter/material.dart';
-import 'package:flutter3d_formats/flutter3d_formats.dart';
+import 'package:flutter3d_core/formats.dart';
+import 'package:flutter3d_editor_widgets/flutter3d_editor_widgets.dart';
 // `EnumHint` hidden: this file switches on `MaterialHint.kind`, which is
 // `flutter3d_formats`' own `EnumHint` — `flutter3d_model_core`'s is
 // `ModelCommand.hints`' own, for a command argument, and the two are kept
@@ -40,6 +41,7 @@ import 'package:flutter3d_model_core/flutter3d_model_core.dart' hide EnumHint;
 
 import '../../l10n/app_localizations.dart';
 import 'job_button.dart';
+import 'named_button.dart';
 import 'theme.dart';
 
 /// A node's own header, in logical pixels — the offset every input port and
@@ -150,34 +152,26 @@ final class HintRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final AppLocalizations l = AppLocalizations.of(context);
     final ThemeData theme = Theme.of(context);
     final String label = hint.label ?? field;
+    final String bound = value?.toString() ?? '\u2014';
     final Widget control = switch (hint.kind) {
       RangeHint(:final double min, :final double max, :final double? step) =>
-        Slider(
-          value: _asDouble(value).clamp(min, max),
+        RangeSliderField(
+          value: _asDouble(value),
           min: min,
           max: max,
-          divisions: step == null || step <= 0
-              ? null
-              : ((max - min) / step).round().clamp(1, 1000000),
+          step: step,
           onChanged: (double v) => onChanged(v),
         ),
-      EnumHint(:final values) => DropdownButton<String>(
-        isDense: true,
-        isExpanded: true,
+      EnumHint(:final values) => EnumField(
         value: switch (value) {
-          final String s when values.any((EnumHintValue v) => v.value == s) =>
-            s,
-          _ => values.first.value,
+          final String s => s,
+          _ => null,
         },
-        items: <DropdownMenuItem<String>>[
-          for (final EnumHintValue v in values)
-            DropdownMenuItem<String>(value: v.value, child: Text(v.label)),
-        ],
-        onChanged: (String? v) {
-          if (v != null) onChanged(v);
-        },
+        options: values,
+        onChanged: onChanged,
       ),
       ColorHint(:final channels) => GestureDetector(
         onTap: () {
@@ -211,17 +205,25 @@ final class HintRow extends StatelessWidget {
       TextureHint() => Row(
         mainAxisSize: MainAxisSize.min,
         children: <Widget>[
-          Text('#${value ?? '—'}', style: theme.textTheme.bodySmall),
-          IconButton(
-            padding: EdgeInsets.zero,
-            constraints: const BoxConstraints(minWidth: 22, minHeight: 22),
-            iconSize: 14,
-            icon: const Icon(Icons.swap_horiz),
-            tooltip: 'Next image',
-            onPressed: () => onChanged(switch (value) {
-              final int n => n + 1,
-              _ => 0,
-            }),
+          // The image index, or an em dash for a node that names none.
+          // Built above rather than inside the string: a quote inside
+          // an interpolation reads as the end of the string to every
+          // scanner that is not a Dart parser, `ux-22`'s own literal
+          // check included.
+          Text('#$bound', style: theme.textTheme.bodySmall),
+          NamedButton(
+            label: l.graphNextImage,
+            child: IconButton(
+              padding: EdgeInsets.zero,
+              constraints: const BoxConstraints(minWidth: 22, minHeight: 22),
+              iconSize: 14,
+              icon: const Icon(Icons.swap_horiz),
+              tooltip: l.graphNextImageTooltip,
+              onPressed: () => onChanged(switch (value) {
+                final int n => n + 1,
+                _ => 0,
+              }),
+            ),
           ),
         ],
       ),
@@ -690,6 +692,7 @@ class _TextureGraphPanelState extends State<TextureGraphPanel> {
     final List<TextureNode> nodes = widget.graph.nodes;
     final Map<int, Offset> positions = <int, Offset>{};
     final Map<int, double> widths = <int, double>{};
+    final AppLocalizations l = AppLocalizations.of(context);
     for (var i = 0; i < nodes.length; i++) {
       final TextureNode node = nodes[i];
       final (double x, double y) at = _positionOf(node, i);
@@ -706,7 +709,7 @@ class _TextureGraphPanelState extends State<TextureGraphPanel> {
             children: <Widget>[
               PopupMenuButton<String>(
                 key: const ValueKey<String>('textureGraphAddNode'),
-                tooltip: 'Add node',
+                tooltip: l.graphAddNode,
                 onSelected: (String kind) => widget.onAddNode(
                   kind,
                   defaultTextureNodeFields(kind),
@@ -787,9 +790,12 @@ class _TextureGraphPanelState extends State<TextureGraphPanel> {
   @override
   Widget build(BuildContext context) {
     final ThemeData theme = Theme.of(context);
+    final AppLocalizations l = AppLocalizations.of(context);
     return Container(
       key: const ValueKey<String>('textureGraphPanel'),
-      height: _expanded ? ModelerMetrics.propertiesMin : ModelerMetrics.row,
+      height: _expanded
+          ? ModelerMetrics.propertiesMin
+          : ModelerMetrics.textureGraphStripCollapsed,
       // `foregroundDecoration`, not `decoration`: `BoxDecoration.padding`
       // reserves space for a border it holds, which would shrink this
       // `Column` one pixel short of the exact row/propertiesMin height this
@@ -807,7 +813,13 @@ class _TextureGraphPanelState extends State<TextureGraphPanel> {
             key: const ValueKey<String>('textureGraphPanelHeader'),
             onTap: () => setState(() => _expanded = !_expanded),
             child: SizedBox(
-              height: ModelerMetrics.row,
+              // 44 collapsed, per `mat-33d`'s 2026-09-11 supplement; expanded,
+              // the header stays [ModelerMetrics.row] so the extra 12 goes to
+              // the canvas below it rather than to a header nobody asked to
+              // grow.
+              height: _expanded
+                  ? ModelerMetrics.row
+                  : ModelerMetrics.textureGraphStripCollapsed,
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 8),
                 child: Row(
@@ -818,7 +830,7 @@ class _TextureGraphPanelState extends State<TextureGraphPanel> {
                       color: theme.colorScheme.onSurfaceVariant,
                     ),
                     const SizedBox(width: 4),
-                    Text('Texture graph', style: theme.textTheme.labelMedium),
+                    Text(l.graphTitle, style: theme.textTheme.labelMedium),
                   ],
                 ),
               ),

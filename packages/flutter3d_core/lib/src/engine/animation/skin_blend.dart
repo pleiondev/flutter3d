@@ -1,6 +1,6 @@
 import 'dart:typed_data';
 
-import 'package:flutter3d_geometry/flutter3d_geometry.dart';
+import 'package:flutter3d_core/geometry.dart';
 
 /// Skins a mesh's positions, normals and tangent directions on the CPU, into
 /// a copy of its vertex buffer — `anim-02`'s own row, the skinning half of

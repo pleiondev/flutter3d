@@ -18,15 +18,15 @@ library;
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:flutter3d_app/flutter3d_app.dart';
 import 'package:flutter3d_audio/flutter3d_audio.dart';
 import 'package:flutter3d_audio/testing.dart';
-import 'package:flutter3d_bridge/flutter3d_bridge.dart';
 import 'package:flutter3d_demo_dungeon/src/sounds.dart';
 import 'package:flutter3d_demo_dungeon/src/soundtrack.dart';
 import 'package:flutter3d_demo_dungeon/src/staging.dart';
-import 'package:flutter3d_game/flutter3d_game.dart';
 import 'package:flutter3d_game_shooter/flutter3d_game_shooter.dart';
 import 'package:flutter3d_game_shooter/sample.dart' hide Staged, stage;
+import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 /// This game's sound table, read out of its own source.

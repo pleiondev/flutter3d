@@ -19,7 +19,7 @@ What could **not** be written from the contract is the shaders. That limit is re
 <li>What <code>GraphicsDevice</code>, <code>CommandEncoder</code> and <code>PassEncoder</code> require of you</li>
 <li>Ten semantics that are part of the contract and appear in no signature</li>
 <li>The conformance suite, and how to run it before you have a single shader</li>
-<li>The thirty-nine shader entry points your bundle must answer to</li>
+<li>The forty-eight shader entry points your bundle must answer to</li>
 </ul>
 </div>
 
@@ -106,6 +106,15 @@ final class MyDevice implements GraphicsDevice {
   /// request above this is clamped by the backend, never refused.
   @override
   int get maxAnisotropy => 16;
+
+  /// Colour attachments one pass may open. One is an honest answer and the
+  /// engine handles it: every pass that reads the surface buffer is left out
+  /// of the frame and reported as `PassSkip.unsupported`. Unlike the
+  /// anisotropy above, a request past this is **refused** rather than
+  /// clamped — call `descriptor.checkAttachmentLimit` on the way into
+  /// `beginRenderPass`, as every backend here does.
+  @override
+  int get maxColorAttachments => 4;
 }
 ```
 
@@ -278,7 +287,7 @@ The Impeller backend's translation asserts that each enum value maps to the `flu
 
 ## Run the conformance suite first
 
-`flutter3d_conformance` turns those semantics into executable checks, in **two tiers**. `coreChecks` works with clears, uploads and readback alone, so you can run it before you have a single shader compiled, which is when the answers are cheapest to act on. `shaderChecks` needs the bundle: twenty-seven shader checks against eight that ask for none, and one more for a backend that can pack its own shaders as a loadable bundle — twenty-seven of the thirty-six link stages and draw. Among the twenty-seven: that a pass starts covering its own attachment and nothing else, that its initial viewport covers the *level* rather than the base, that it inherits no clipping from the pass before it and starts with the stencil test off, that a binding made for one pipeline does not follow the next, that a block missing a member the caller named is refused, that a pass renders into a cube face and a mip, that a blend constant reaches the blend or is refused rather than drawn as zero, that a multisample resolve resolves, that an object id survives the draw and the readback, that a geometry overwrite draws what a fresh upload draws and leaves its neighbours untouched, and that wireframe and every primitive type are each drawn as themselves or refused rather than quietly substituted. The lists are the authority — `coreChecks` and `shaderChecks` in `flutter3d_conformance.dart` — and the counts in this paragraph are held to them by `tool/structure.dart`, because the last time they were not, this page said fifteen.
+`flutter3d_conformance` turns those semantics into executable checks, in **two tiers**. `coreChecks` works with clears, uploads and readback alone, so you can run it before you have a single shader compiled, which is when the answers are cheapest to act on. `shaderChecks` needs the bundle: twenty-eight shader checks against eight that ask for none, and one more for a backend that can pack its own shaders as a loadable bundle — twenty-eight of the thirty-seven link stages and draw. Among the twenty-eight: that a pass starts covering its own attachment and nothing else, that its initial viewport covers the *level* rather than the base, that it inherits no clipping from the pass before it and starts with the stencil test off, that a binding made for one pipeline does not follow the next, that a block missing a member the caller named is refused, that a pass renders into a cube face and a mip, that a blend constant reaches the blend or is refused rather than drawn as zero, that a multisample resolve resolves, that an object id survives the draw and the readback, that a geometry overwrite draws what a fresh upload draws and leaves its neighbours untouched, and that wireframe and every primitive type are each drawn as themselves or refused rather than quietly substituted. The lists are the authority — `coreChecks` and `shaderChecks` in `flutter3d_conformance.dart` — and the counts in this paragraph are held to them by `tool/structure.dart`, because the last time they were not, this page said fifteen.
 
 **A check a backend cannot be asked is reported as a decline, not as a pass.** Multisampling ends that way on the software rasteriser, which answers `supportsOffscreenMsaa` false and does not multisample at all; the blend constant ends that way on Impeller, where flutter_gpu exposes no setter, and on WebGPU, where the API has `"constant"` and `"one-minus-constant"` and no colour/alpha split to form `BlendFactor.blendAlpha` with; and the uniform-member rule is one only a backend that reflects its shaders can keep. WebGPU declines two in all — the blend constant and wireframe — which is how its run reads 33 of 33 without claiming anything it cannot do. It used to decline two more, rendering into a mip and the block-compressed formats, and the first of those is the caution this paragraph needs beside it: two checks read `supportsRenderToMip` and, finding it false, went on to ask a *smaller* question rather than to skip — one allocated a single mip level instead of two, the other returned before it drew. Neither showed up in the tally, because a check that answers half of itself still passes. The capability is true now and both ask the whole question, at exactly the same 33 of 33. The runner's tally line says `N passed, M failed, K declined` for exactly this reason: "the suite is green" and "the suite is green, and here is what it never asked" are different sentences, and a third party reading this page to decide what conformance buys them needs the second one.
 
@@ -335,10 +344,10 @@ Thirty-seven entry points. `kRequiredShaders` and the bundle manifest are kept i
 
 | Stage | Names |
 |---|---|
-| Vertex | `MeshVertex`, `MeshSkinnedVertex`, `MeshInstancedVertex`, `MeshLightmappedVertex`, `FullscreenVertex`, `DebugLineVertex`, `ParticleVertex`, `ParticleMeshVertex`, `ShadowTileResetVertex`, `SkyVertex`, `SkyCubeVertex` |
+| Vertex | `MeshVertex`, `MeshSkinnedVertex`, `MeshInstancedVertex`, `MeshLightmappedVertex`, `FullscreenVertex`, `DebugLineVertex`, `ParticleVertex`, `ParticleMeshVertex`, `PolylineVertex`, `ShadowTileResetVertex`, `SkyVertex`, `SkyCubeVertex` |
 | Lighting | `Unlit`, `Lambert`, `BlinnPhong`, `Pbr`, `Toon`, `Normals` |
-| Shadows | `ShadowDepth`, `ShadowDistance`, `ShadowTileReset` |
-| Post | `BloomThreshold`, `BloomDownsample`, `BloomUpsample`, `Composite`, `Reflections`, `Ssao`, `Luminance`, `ProbePrefilter` |
+| Shadows | `ShadowDepth`, `ShadowDistance`, `ShadowDepthMasked`, `ShadowDistanceMasked`, `ShadowTileReset` |
+| Post | `BloomThreshold`, `BloomDownsample`, `BloomUpsample`, `Composite`, `Fxaa`, `Reflections`, `Ssao`, `SsaoBlur`, `ContactShadow`, `Splat`, `LightShafts`, `DepthOfField`, `ViewportShade`, `Luminance`, `ProbePrefilter` |
 | Particles | `Particle`, `ParticleTextured`, `ParticleMesh` |
 | Sky | `Sky`, `SkyCube` |
 | Debug | `DebugLine`, `MrtProbe`, `ObjectId`, `Xray` |

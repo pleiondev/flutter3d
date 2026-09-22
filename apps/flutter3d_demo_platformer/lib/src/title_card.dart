@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:flutter3d_app/flutter3d_app.dart'; // SettingsOverlay, Credit
+import 'package:flutter3d_game/flutter3d_game.dart'; // SettingsOverlay, Credit
 
 import 'credits.dart';
 

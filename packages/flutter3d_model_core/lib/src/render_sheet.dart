@@ -3,26 +3,32 @@
 /// than one view," and four small pictures read in one tool call cost less
 /// than four round trips through [renderProject] would.
 ///
-/// **No labels yet — a real, named gap, not a silent one.** This row's own
-/// one-liner asks for "four views in one picture with labels," but nothing
-/// in this workspace draws text into a raster with no `dart:ui` behind it:
-/// every label an agent reads today comes from a widget tree, and a bitmap
-/// font is its own small project, not a corner of this one. The acceptance
-/// text itself only checks "a 2×2 sheet; each quarter is the same frame
-/// `render` gives for its own view," which this delivers exactly — literally
-/// the same [renderProject], called once per quadrant. Labelling the sheet
-/// is real future work, not folded in here under the row's own harder
-/// wording.
+/// **The labels arrived late, and this is what they cost.** This row's own
+/// one-liner asked for "four views in one picture with labels" and shipped
+/// without them, because nothing in this workspace drew text into a raster
+/// with no `dart:ui` behind it — every label an agent read came from a
+/// widget tree. `tiny_font.dart` is that missing piece: a 5×7 bitmap font
+/// and a nested loop over RGBA bytes. Each quadrant now carries the name of
+/// the view it is, in the corner, white over a one-pixel black shadow so it
+/// reads on a light render and a dark one alike.
+///
+/// The acceptance text — "a 2×2 sheet; each quarter is the same frame
+/// `render` gives for its own view" — is still checkable exactly, because
+/// [renderSheet] takes `labels: false` and the test that makes that claim
+/// passes it. A sheet is not pixel-identical to four renders *and* labelled;
+/// saying so and giving the caller the switch is better than quietly
+/// weakening the older claim.
 library;
 
 import 'dart:typed_data';
 
 import 'package:flutter3d_core/flutter3d_core.dart' show GraphicsDevice;
-import 'package:flutter3d_formats/flutter3d_formats.dart'
+import 'package:flutter3d_core/formats.dart'
     show Rgba8Image, decodeImagePure, encodeCompressedPng;
 
 import 'project.dart';
 import 'render_project.dart';
+import 'tiny_font.dart';
 
 /// The four views a sheet renders, one per quadrant, left-to-right then
 /// top-to-bottom: front and right make the top row, top and iso the bottom —
@@ -43,12 +49,17 @@ const List<RenderProjectView> renderSheetViews = <RenderProjectView>[
 /// pixel off the sheet's own right or bottom edge rather than off any tile.
 /// [RenderRefusal] surfaces from whichever quadrant [renderProject] refuses
 /// first, at the half-size it was actually asked to draw.
+///
+/// [labels] writes each view's own name into its quadrant. Pass `false` for
+/// a sheet whose quadrants are byte-for-byte what [renderProject] returns.
 Future<Uint8List> renderSheet({
   required ModelProject project,
   int width = 512,
   int height = 512,
   RenderShading shading = RenderShading.material,
   Set<int> selection = const <int>{},
+  int? weightsJoint,
+  bool labels = true,
   required GraphicsDevice Function(int width, int height) deviceFactory,
 }) async {
   final tileWidth = width ~/ 2;
@@ -64,6 +75,7 @@ Future<Uint8List> renderSheet({
         height: tileHeight,
         shading: shading,
         selection: selection,
+        weightsJoint: weightsJoint,
       ),
       deviceFactory: deviceFactory,
     );
@@ -87,6 +99,24 @@ Future<Uint8List> renderSheet({
         srcStart,
       );
     }
+
+    if (!labels) continue;
+    // One pixel of scale per sixty-four of tile, so a 128-pixel thumbnail
+    // gets legible text rather than a smear, and a 1024-pixel sheet gets a
+    // caption rather than a watermark. The inset matches the scale for the
+    // same reason: a margin measured in pixels looks like a mistake at one
+    // size or the other.
+    final scale = (tileHeight ~/ 64).clamp(1, 4);
+    final inset = 3 * scale;
+    drawTinyTextWithShadow(
+      pixels,
+      width: sheetWidth,
+      height: sheetHeight,
+      x: originX + inset,
+      y: originY + tileHeight - inset - tinyFontHeight * scale,
+      text: renderSheetViews[i].name,
+      scale: scale,
+    );
   }
   return encodeCompressedPng(sheetWidth, sheetHeight, pixels);
 }

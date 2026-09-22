@@ -23,8 +23,10 @@ import 'package:flutter3d_mesh/flutter3d_mesh.dart';
 import 'package:flutter3d_samples/flutter3d_samples.dart';
 import 'package:vector_math/vector_math.dart' show Vector3, Vector4;
 
+import '../../../l10n/app_localizations.dart';
 import '../modeler_viewport.dart';
 import '../staging.dart';
+import 'roomy_dialog.dart';
 
 /// Which body the material is shown on.
 enum MaterialStudioBody {
@@ -286,68 +288,89 @@ class _MaterialStudioDialogState extends State<_MaterialStudioDialog> {
 
   @override
   Widget build(BuildContext context) {
-    return AlertDialog(
-      title: const Text('Material Studio'),
-      content: SizedBox(
-        width: 720,
-        height: 520,
-        child: Column(
+    final AppLocalizations l = AppLocalizations.of(context);
+    // The same three pieces at either width — this dialog was already a
+    // column, so `ux-21` costs it only the fixed 720 that used to overflow
+    // anything narrower than the desktop shell.
+    final Widget preview = Stack(
+      children: <Widget>[
+        ModelerViewport(
+          renderer: widget.renderer,
+          stage: _stage,
+          onFrame: () {},
+          grid: null,
+        ),
+        if (_loadingTeapot)
+          const Positioned(
+            right: 12,
+            top: 12,
+            child: SizedBox(
+              width: 18,
+              height: 18,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            ),
+          ),
+      ],
+    );
+    final Widget chips = Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: <Widget>[
+        Wrap(
+          spacing: 8,
           children: <Widget>[
-            Expanded(
-              child: Stack(
-                children: <Widget>[
-                  ModelerViewport(
-                    renderer: widget.renderer,
-                    stage: _stage,
-                    onFrame: () {},
-                    grid: null,
-                  ),
-                  if (_loadingTeapot)
-                    const Positioned(
-                      right: 12,
-                      top: 12,
-                      child: SizedBox(
-                        width: 18,
-                        height: 18,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      ),
-                    ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 12),
-            Wrap(
-              spacing: 8,
-              children: <Widget>[
-                for (final MaterialStudioBody body in MaterialStudioBody.values)
-                  if (body != MaterialStudioBody.thisObject ||
-                      widget.selectedObjectMesh != null)
-                    ChoiceChip(
-                      label: Text(body.label),
-                      selected: _body == body,
-                      onSelected: (bool _) => unawaited(_selectBody(body)),
-                    ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            Wrap(
-              spacing: 8,
-              children: <Widget>[
-                for (var i = 0; i < _presets.length; i++)
-                  ChoiceChip(
-                    label: Text(_presets[i].name),
-                    selected: _presetIndex == i,
-                    onSelected: (bool _) => _selectPreset(i),
-                  ),
-              ],
-            ),
+            for (final MaterialStudioBody body in MaterialStudioBody.values)
+              if (body != MaterialStudioBody.thisObject ||
+                  widget.selectedObjectMesh != null)
+                ChoiceChip(
+                  label: Text(body.label),
+                  selected: _body == body,
+                  onSelected: (bool _) => unawaited(_selectBody(body)),
+                ),
           ],
         ),
+        const SizedBox(height: 8),
+        Wrap(
+          spacing: 8,
+          children: <Widget>[
+            for (var i = 0; i < _presets.length; i++)
+              ChoiceChip(
+                label: Text(_presets[i].name),
+                selected: _presetIndex == i,
+                onSelected: (bool _) => _selectPreset(i),
+              ),
+          ],
+        ),
+      ],
+    );
+    Widget body({required bool roomy}) => Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: <Widget>[
+        Expanded(child: preview),
+        const SizedBox(height: 12),
+        // Scrolled on a narrow window: the presets are a `Wrap`, and a
+        // window half as wide runs them to twice as many rows.
+        if (roomy)
+          chips
+        else
+          Flexible(child: SingleChildScrollView(child: chips)),
+      ],
+    );
+
+    return RoomyDialog(
+      title: l.studioTitle,
+      width: 720,
+      height: 520,
+      onClose: () => Navigator.of(context).pop(),
+      wide: body(roomy: true),
+      narrow: Padding(
+        padding: const EdgeInsets.all(12),
+        child: body(roomy: false),
       ),
       actions: <Widget>[
         TextButton(
           onPressed: () => Navigator.of(context).pop(),
-          child: const Text('Close'),
+          child: Text(l.studioClose),
         ),
       ],
     );

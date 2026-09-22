@@ -273,6 +273,19 @@ final class JournalledFloats {
     return dropped;
   }
 
+  /// Drops the single oldest undo step and answers the bytes it held — zero
+  /// when there was none.
+  ///
+  /// **[trim]'s own step, offered one at a time because a mesh cannot be
+  /// trimmed one array at a time.** `EditMesh` keeps nine of these side by
+  /// side and one undo pops a step off each, so a limit applied per array
+  /// would leave them at different depths and an undo would take positions
+  /// back a version while the topology stayed put. `EditMesh
+  /// .dropOldestJournalSteps` is what enforces the budget instead, and it
+  /// needs to drop the same step everywhere rather than "however many each
+  /// array can spare".
+  int dropOldestStep() => _undo.isEmpty ? 0 : _undo.removeAt(0).byteCount;
+
   /// Grows the array to hold at least [length] values, keeping what is there.
   ///
   /// **Growth is not journalled, and that is a rule rather than an omission.**
@@ -462,6 +475,9 @@ final class JournalledInts {
     }
     return dropped;
   }
+
+  /// See [JournalledFloats.dropOldestStep].
+  int dropOldestStep() => _undo.isEmpty ? 0 : _undo.removeAt(0).byteCount;
 
   void grow(int length, {int fill = 0}) {
     if (length <= _values.length) return;

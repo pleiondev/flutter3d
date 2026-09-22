@@ -29,11 +29,11 @@ import 'package:flutter/material.dart' hide Material;
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter3d/flutter3d.dart' hide Material;
-import 'package:flutter3d_bridge/flutter3d_bridge.dart';
+import 'package:flutter3d_app/flutter3d_app.dart';
+import 'package:flutter3d_app/native.dart';
 import 'package:flutter3d_editor_core/flutter3d_editor_core.dart';
 import 'package:flutter3d_game/flutter3d_game.dart';
-import 'package:flutter3d_session/flutter3d_session.dart';
-import 'package:flutter3d_session/native.dart';
+import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:vector_math/vector_math.dart' hide Colors;
 
@@ -45,6 +45,7 @@ import 'src/editor_cubit.dart';
 import 'src/editor_inspector.dart';
 import 'src/editor_legend.dart';
 import 'src/editor_palette.dart';
+import 'src/editor_theme.dart';
 import 'src/fly_camera.dart';
 import 'src/open_run_channel.dart';
 import 'src/playtest_report_screen.dart';
@@ -105,6 +106,7 @@ class EditorApp extends StatelessWidget {
   Widget build(BuildContext context) => MaterialApp(
     title: 'flutter3d level editor',
     debugShowCheckedModeBanner: false,
+    theme: editorTheme(),
     home: const EditorScreen(),
   );
 }

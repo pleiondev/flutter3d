@@ -21,7 +21,7 @@ library;
 
 import 'dart:io';
 
-import 'package:flutter3d_formats/flutter3d_formats.dart';
+import 'package:flutter3d_core/formats.dart';
 import 'package:glob/glob.dart';
 import 'package:yaml/yaml.dart';
 

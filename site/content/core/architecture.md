@@ -62,7 +62,7 @@ A browser build opens WebGL2 unless it says otherwise. That is a decision about 
 Any new backend has to pass `flutter3d_conformance` before it counts as one.
 
 <div class="note">
-<p>Writing a fifth one is a documented job rather than an archaeology exercise: <a href="/core/backends/"><strong>Writing a HAL backend</strong></a> covers the whole contract, the ten semantics that appear in no signature, the conformance suite you can run before compiling a single shader, and the thirty-nine shader entry points your bundle has to answer to.</p>
+<p>Writing a fifth one is a documented job rather than an archaeology exercise: <a href="/core/backends/"><strong>Writing a HAL backend</strong></a> covers the whole contract, the ten semantics that appear in no signature, the conformance suite you can run before compiling a single shader, and the forty-eight shader entry points your bundle has to answer to.</p>
 </div>
 
 ### What the HAL actually names
@@ -114,9 +114,9 @@ What stayed behind is machinery: `Actor` (a body, a brain and some health, **eve
 <p>The file used to be <code>lib/shooter.dart</code> in the game package, unexported by the barrel, a rule instead of a boundary. It still resolved from inside the package, and the four things it leaned on carried no marking at all. The genre rule is what turned the rename into a fact.</p>
 </div>
 
-### One package may see both sides {#the-bridge}
+### Where the two sides meet {#the-bridge}
 
-Level geometry has to become mesh nodes. An actor has to get a visual. A glowing fixture has to drive a light. Neither of the two rules above leaves anywhere for that mapping to live, so `flutter3d_bridge` is that place, and it is the smallest package in the repository.
+Level geometry has to become mesh nodes. An actor has to get a visual. A glowing fixture has to drive a light. Neither of the two rules above lets that mapping live in the simulation or in the renderer, so it lives above both: `flutter3d_app` loads a level into a scene for any application, and `flutter3d_game` gives a game's actors and fixtures their visuals.
 
 Everything in it is mechanism. What a torch *looks* like and what colour a runner is are decided by the game and handed in through `FixtureAppearance` and `ActorAppearance`.
 

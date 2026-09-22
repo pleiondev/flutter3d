@@ -43,6 +43,11 @@ final class OrbitController {
   /// makes the up vector ambiguous and the view snaps.
   double pitch;
 
+  /// The closest the camera may come to [target].
+  ///
+  /// Not final: [frameBounds] lowers it when asked to frame something smaller
+  /// than it — see there for why a fixed floor made a small model
+  /// unframeable.
   double minDistance;
   double maxDistance;
 
@@ -127,6 +132,15 @@ final class OrbitController {
 
     final extent = (bounds.max - bounds.min)..scale(0.5);
     final radius = math.max(extent.length, 1e-4);
+    // **A model smaller than the closest the camera may stand cannot be
+    // framed at all**, and the failure is silent: the clamp holds the camera
+    // back at [minDistance] and the model comes out a speck in the middle of
+    // an empty picture, with nothing anywhere saying why. A millimetre part
+    // and a scan read in as metres are both this, and both are ordinary. So
+    // the framing lowers its own floor to a tenth of what it is framing,
+    // which is far closer than anybody orbits by hand and still far enough
+    // out for the near plane `suggestedDepthRange` derives from it.
+    minDistance = math.min(minDistance, radius * 0.1);
     distance = (radius / math.sin(fovYRadians * 0.5) * margin).clamp(
       minDistance,
       maxDistance,

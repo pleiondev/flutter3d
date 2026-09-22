@@ -101,5 +101,1082 @@
   "sceneSourcesSectionLabel": "Источники",
   "scenePostSectionLabel": "Пост",
   "bakeTextureButtonLabel": "Запечь 2048²",
-  "resetPoseButtonLabel": "Сбросить позу"
+  "resetPoseButtonLabel": "Сбросить позу",
+  "toolObjectSelectLabel": "Выделение",
+  "toolObjectSelectAbout": "Клик по объекту берёт его в работу; с Shift — добавляет к уже выбранному.",
+  "toolObjectMoveLabel": "Перемещение",
+  "toolObjectMoveAbout": "Тяните стрелку, чтобы двигать вдоль одной оси, или центр — чтобы свободно.",
+  "toolObjectRotateLabel": "Поворот",
+  "toolObjectRotateAbout": "Тяните кольцо, чтобы повернуть вокруг этой оси.",
+  "toolObjectScaleLabel": "Масштаб",
+  "toolObjectScaleAbout": "Тяните ручку, чтобы растянуть или сжать — по одной оси или сразу по трём от центра.",
+  "toolObjectAddLabel": "Добавить куб",
+  "toolObjectAddAbout": "Ставит новый куб в начале координат, всё ещё параметрический: размеры и разбиение правятся в панели.",
+  "toolObjectDuplicateLabel": "Дублировать",
+  "toolObjectDuplicateAbout": "Копирует выделенное и выделяет копию, оставляя оригинал на месте.",
+  "toolObjectBakeLabel": "Превратить в меш",
+  "toolObjectBakeAbout": "Превращает форму, помнящую свои параметры, в обычную правимую геометрию. Поля размеров и разбиения исчезают.",
+  "toolObjectLatheLabel": "Добавить тело вращения",
+  "toolObjectLatheAbout": "Вращает нарисованный профиль вокруг оси — так делаются ваза, бутылка или колесо.",
+  "toolObjectOriginLabel": "Опорную точку вниз",
+  "toolObjectOriginAbout": "Опускает точку, вокруг которой объект поворачивается и масштабируется, к самой нижней вершине — объект встаёт на пол.",
+  "toolObjectApplyLabel": "Применить трансформацию",
+  "toolObjectApplyAbout": "Вживляет положение, поворот и масштаб в сами вершины и обнуляет трансформацию.",
+  "toolObjectDeleteLabel": "Удалить",
+  "toolObjectDeleteAbout": "Убирает выделенное. Отмена возвращает.",
+  "toolMeshSelectLabel": "Выделение",
+  "toolMeshSelectAbout": "Клик по вершине, ребру или грани; с Shift — добавляет к уже выбранному.",
+  "toolMeshLassoLabel": "Лассо",
+  "toolMeshLassoAbout": "Обведите нужное от руки вместо того, чтобы кликать каждую часть.",
+  "toolMeshLinkedLabel": "Выделить связное",
+  "toolMeshLinkedAbout": "Берёт всё, что соединено с уже выбранным, — целую оболочку меша, если их несколько.",
+  "toolMeshMoveLabel": "Перемещение",
+  "toolMeshMoveAbout": "Двигает выбранные элементы. Число, набранное во время перетаскивания, задаёт расстояние точно.",
+  "toolMeshRotateLabel": "Поворот",
+  "toolMeshRotateAbout": "Поворачивает выбранные элементы вокруг центра выделения.",
+  "toolMeshScaleLabel": "Масштаб",
+  "toolMeshScaleAbout": "Растягивает или сжимает выбранные элементы относительно центра выделения.",
+  "toolMeshExtrudeLabel": "Выдавливание",
+  "toolMeshExtrudeAbout": "Вытягивает новую геометрию из выбранных граней и оставляет стенку, соединяющую её с тем, откуда она вышла.",
+  "toolMeshLoopCutLabel": "Кольцевой разрез",
+  "toolMeshLoopCutAbout": "Добавляет кольцо рёбер вокруг всего меша — там, где следующему изгибу нужно место.",
+  "toolMeshBevelLabel": "Фаска",
+  "toolMeshBevelAbout": "Заменяет острое ребро узкой полоской, чтобы свет ложился на неё как на настоящем предмете.",
+  "toolMeshInsetLabel": "Врезка",
+  "toolMeshInsetAbout": "Сжимает грань внутрь и застраивает оставшееся кольцо — так делаются панель, окно или утопленная кнопка.",
+  "toolMeshBridgeLabel": "Мост",
+  "toolMeshBridgeAbout": "Соединяет две открытые границы кольцом четырёхугольников: две половины трубы становятся одной поверхностью.",
+  "toolMeshSlideLabel": "Сдвиг рёбер",
+  "toolMeshSlideAbout": "Двигает петлю вдоль пересекающих её рёбер: шов переезжает, но ни одна грань не меняется.",
+  "toolMeshTriangulateLabel": "Триангуляция",
+  "toolMeshTriangulateAbout": "Режет каждую грань на треугольники — то, что читает игровой движок, и то, чем сначала должна стать грань больше чем с четырьмя углами.",
+  "toolMeshSeparateLabel": "Отделить",
+  "toolMeshSeparateAbout": "Выносит выбранные грани в отдельный объект.",
+  "toolMeshDissolveLabel": "Растворить рёбра",
+  "toolMeshDissolveAbout": "Убирает выбранные рёбра, сохраняя поверхность: разделённые ими грани сливаются в одну.",
+  "toolMeshFillHolesLabel": "Заполнить дыры",
+  "toolMeshFillHolesAbout": "Закрывает каждую открытую границу — те щели, из-за которых модель просвечивает с одной стороны.",
+  "toolMeshMergeLabel": "Сшить по расстоянию",
+  "toolMeshMergeAbout": "Сплавляет вершины, лежащие одна на другой, — то, чем полны скан и STL.",
+  "toolMeshNormalsLabel": "Пересчитать нормали",
+  "toolMeshNormalsAbout": "Разворачивает каждую грань наружу, чтобы поверхность перестала читаться вывернутой.",
+  "toolMeshFlipLabel": "Развернуть нормали",
+  "toolMeshFlipAbout": "Поворачивает выбранные грани в другую сторону — для оболочки, которую и правда смотрят изнутри.",
+  "toolMeshDeleteLabel": "Удалить",
+  "toolMeshDeleteAbout": "Убирает выбранные вершины, рёбра или грани и всё, что на них держалось.",
+  "toolPoseSelectLabel": "Выделение",
+  "toolPoseSelectAbout": "Клик по суставу скелета берёт его в позу.",
+  "toolPoseKeyLabel": "Ключ позы",
+  "toolPoseKeyAbout": "Записывает позу с экрана в клип, на кадре, где стоит бегунок.",
+  "toolPoseDeleteKeyLabel": "Удалить ключ",
+  "toolPoseDeleteKeyAbout": "Убирает ключ этого кадра, оставляя соседние вести движение сквозь него.",
+  "toolPoseAutoRigLabel": "Автоскелет…",
+  "toolPoseAutoRigAbout": "Строит скелет по горсти точек, которые вы расставляете на модели.",
+  "toolWeightsPaintLabel": "Красить веса",
+  "toolWeightsPaintAbout": "Кистью задаёт, насколько сильно выбранный сустав тянет поверхность под курсором.",
+  "toolWeightsAssignLabel": "Привязать к суставу",
+  "toolWeightsAssignAbout": "Отдаёт выбранному суставу каждую вершину, которой коснулась кисть, — на полную силу.",
+  "toolWeightsMirrorLabel": "Отзеркалить",
+  "toolWeightsMirrorAbout": "Копирует веса одной стороны на другую: симметричная модель красится один раз.",
+  "toolWeightsNormalizeLabel": "Нормализовать",
+  "toolWeightsNormalizeAbout": "Сводит тяги каждой вершины в сумму, равную единице, и отбрасывает самые слабые сверх её собственного предела.",
+  "toolRetargetImportLabel": "Импортировать клип-источник",
+  "toolRetargetImportAbout": "Читает клип из другого файла, чтобы вести этим ригом.",
+  "toolRetargetAutoMapLabel": "Сопоставить кости автоматически",
+  "toolRetargetAutoMapAbout": "Угадывает по именам, какая кость источника какой кости этого рига соответствует.",
+  "toolRetargetApplyLabel": "Применить перенос",
+  "toolRetargetApplyAbout": "Записывает перенесённое движение на этот риг как собственный клип.",
+  "toolMorphsAddLabel": "Добавить форму",
+  "toolMorphsAddAbout": "Берёт меш как он есть сейчас — как форму, к которой будет вести ползунок.",
+  "toolMorphsKeyLabel": "Ключ формы",
+  "toolMorphsKeyAbout": "Записывает веса форм как они есть в клип, на кадре бегунка.",
+  "toolMorphsDeleteLabel": "Удалить форму",
+  "toolMorphsDeleteAbout": "Убирает выбранную форму и ползунок, который её вёл.",
+  "primitiveBox": "Куб",
+  "primitivePlane": "Плоскость",
+  "primitiveSphere": "Сфера",
+  "primitiveCylinder": "Цилиндр",
+  "primitiveTorus": "Тор",
+  "openTooltip": "Открыть файл — заменяет всё, что открыто сейчас",
+  "importTooltip": "Импортировать файл — добавляет его к тому, что уже открыто",
+  "import": "Импорт",
+  "saveTooltipDirty": "Сохранить — есть несохранённые изменения",
+  "saveTooltipClean": "Сохранить — всё записано",
+  "saveToCabinet": "Сохранить в кабинет",
+  "splitViewportSemanticsLabel": "Разделить вьюпорт",
+  "splitViewportOn": "Разделить вьюпорт — один документ с двух камер",
+  "splitViewportOff": "Снова один вьюпорт",
+  "play": "Играть",
+  "playTooltip": "Играть — походить по документу в шаблоне",
+  "playBlockedTooltip": "Играть — {reason}",
+  "preview": "Предпросмотр",
+  "previewTooltip": "Предпросмотр — как это нарисует игра",
+  "settings": "Настройки",
+  "settingsTooltip": "Настройки — навигация, клавиши, рабочее пространство, язык",
+  "agentSessionSemanticsLabel": "Сеанс агента, вызовов: {count}",
+  "agentSessionTooltip": "{client} · вызовов: {count}",
+  "@playBlockedTooltip": {
+    "description": "Верхняя панель — ux-22.",
+    "placeholders": {
+      "reason": {
+        "type": "String"
+      }
+    }
+  },
+  "@agentSessionSemanticsLabel": {
+    "description": "Верхняя панель — ux-22.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "@agentSessionTooltip": {
+    "description": "Верхняя панель — ux-22.",
+    "placeholders": {
+      "client": {
+        "type": "String"
+      },
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "exportCopyTooltip": "Экспортировать копию",
+  "reportProblemTooltip": "Сообщить о проблеме",
+  "startScreenLabel": "Начальный экран",
+  "more": "Ещё",
+  "foldPropertiesPanel": "Свернуть панель свойств",
+  "foldToolRail": "Свернуть панель инструментов",
+  "legalEntry": "Юридическое: лицензия, приватность и сторонние лицензии",
+  "runACommand": "Выполнить команду",
+  "gallery": "Галерея",
+  "galleryTooltip": "Галерея — вставить готовую модель рядом с открытым",
+  "toolSculptDrawLabel": "Лепка",
+  "toolSculptDrawAbout": "Выдавливает всё под кистью в одном общем направлении — как штамп.",
+  "toolSculptClayLabel": "Глина",
+  "toolSculptClayAbout": "Наращивает поверхность плоскими слоями — как глину пальцем.",
+  "toolSculptInflateLabel": "Надув",
+  "toolSculptInflateAbout": "Двигает каждую вершину по её собственной нормали: округлый участок раздувается, а не поднимается плоскостью.",
+  "toolSculptSmoothLabel": "Сглаживание",
+  "toolSculptSmoothAbout": "Выравнивает то, что под кистью, снимая неровности.",
+  "toolSculptFlattenLabel": "Выравнивание",
+  "toolSculptFlattenAbout": "Притягивает всё под кистью к одной плоскости.",
+  "toolSculptGrabLabel": "Захват",
+  "toolSculptGrabAbout": "Тянет вершины под кистью вслед за указателем.",
+  "toolSculptPinchLabel": "Сжатие",
+  "toolSculptPinchAbout": "Стягивает вершины под кистью к её центру.",
+  "toolSculptCreaseLabel": "Складка",
+  "toolSculptCreaseAbout": "Сжимает и вдавливает разом — так прорезается складка.",
+  "toolRetopoQuadLabel": "Нарисовать квад",
+  "toolRetopoQuadAbout": "Четыре клика по исходной модели: каждая точка либо прилипает к уже существующей вершине новой сетки, либо ложится на поверхность.",
+  "toolRetopoAutoLabel": "Ретопология",
+  "toolRetopoAutoAbout": "Перестраивает всю поверхность квадами примерно в том количестве, что задано на панели, и обтягивает ими оригинал.",
+  "toolRetopoBakeLabel": "Запечь карты",
+  "toolRetopoBakeAbout": "Запекает поверхность исходной модели в развёртку новой — карту нормалей, карту затенения или обе.",
+  "toolPaintBrushLabel": "Кисть",
+  "toolPaintBrushAbout": "Красит текстуру объекта через его развёртку: штрих поперёк шва ложится на оба острова.",
+  "toolPaintFillLabel": "Залить слой",
+  "toolPaintFillAbout": "Заливает весь слой цветом с палитры.",
+  "toolPaintClearLabel": "Очистить слой",
+  "toolPaintClearAbout": "Опустошает слой, не трогая те, что под ним.",
+  "toolSimSelectLabel": "Выделение",
+  "toolSimSelectAbout": "Выбрать вершины, на которых висит ткань, или объект для расчёта.",
+  "toolSimPinLabel": "Закрепить выделение",
+  "toolSimPinAbout": "Удерживает выбранные вершины на месте, пока всё остальное падает.",
+  "toolSimBakeLabel": "Запечь",
+  "toolSimBakeAbout": "Считает весь клип и сохраняет его, чтобы по нему можно было перематывать.",
+  "toolRenderSnapshotLabel": "Рендер",
+  "toolRenderSnapshotAbout": "Рендерит проект в размере, заданном на панели, по тайлу за раз и показывает результат.",
+  "toolRenderSaveLabel": "Сохранить картинку",
+  "toolRenderSaveAbout": "Записывает последний рендер в PNG.",
+  "settingsClearDataTitle": "Очистить локальные данные?",
+  "settingsClear": "Очистить",
+  "settingsCameraNavigation": "Навигация камерой",
+  "settingsKeys": "Клавиши",
+  "settingsTransformTools": "Перемещение, поворот и масштаб",
+  "settingsWorkspace": "Рабочее пространство",
+  "settingsLanguage": "Язык",
+  "settingsStepMove": "Сдвиг",
+  "settingsStepTurn": "Поворот°",
+  "settingsStepScale": "Масштаб",
+  "settingsShowHome": "Показывать «Домой» при запуске",
+  "settingsSaveHistory": "Сохранять проекты вместе с историей",
+  "settingsLegal": "Лицензия, приватность и остальное",
+  "settingsClearData": "Очистить локальные данные",
+  "settingsClearDataBody": "Удалятся настройки, список недавних файлов и автосохранение. Файлы проектов, сохранённые вами, не трогаются. Отменить нельзя.",
+  "settingsCameraNavigationHelp": "Какие кнопки и жесты вращают, двигают и приближают.",
+  "settingsKeysHelp": "Какой набор горячих клавиш действует.",
+  "settingsTransformToolsHelp": "Открывает ли клавиша преобразование сразу или готовит его к перетаскиванию.",
+  "settingsWorkspaceHelp": "Какие экраны предлагает переключатель режимов.",
+  "settingsLanguageHelp": "На каком языке написан интерфейс.",
+  "settingsLanguageEnglish": "Английский",
+  "settingsLanguageRussian": "Русский",
+  "settingsLanguageSystem": "Системный",
+  "settingsSnapSteps": "Шаги привязки",
+  "settingsShowHomeHelp": "Стартовый экран с недавними моделями и карточками сценариев.",
+  "settingsSaveHistoryHelp": "Сохраняет внутри файла то, что ещё можно отменить.",
+  "settingsLegalSection": "Юридическое и данные",
+  "settingsClearDataHelp": "Настройки, список недавних файлов и автосохранение. Сохранённые файлы проектов не трогаются.",
+  "settingsLegalHelp": "Документы, под которыми вышла эта сборка, и сторонние лицензии.",
+  "commandPaletteNoMatch": "ничего не найдено по «{said}»",
+  "@commandPaletteNoMatch": {
+    "description": "Палитра команд — ux-22.",
+    "placeholders": {
+      "said": {
+        "type": "String"
+      }
+    }
+  },
+  "autorigTitle": "Авториг",
+  "autorigCreate": "Создать",
+  "autorigDragMarker": "Перетащите маркер, чтобы уточнить сустав",
+  "autorigTemplate": "Шаблон",
+  "autorigHumanoid": "Человек",
+  "autorigQuadruped": "Четвероногое",
+  "autorigCustom": "Свой",
+  "autorigComposition": "Состав",
+  "autorigFingers": "Пальцы рук",
+  "autorigToes": "Пальцы ног",
+  "autorigSpine": "Позвоночник",
+  "autorigFaceBones": "Кости лица",
+  "autorigIkChains": "IK-цепи",
+  "autorigController": "Контроллер рига",
+  "autorigBinding": "Привязка",
+  "autorigPrimaryWeights": "Назначить основные веса",
+  "autorigSymmetry": "Симметрия",
+  "autorigBones": "Костей",
+  "autorigDeforming": "Деформирующих",
+  "autorigNone": "Нет",
+  "autorigMarkers": "Маркеров {placed} из {total}",
+  "@autorigMarkers": {
+    "description": "Авториг — ux-22.",
+    "placeholders": {
+      "placed": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "brushSize": "Размер",
+  "brushStrength": "Сила",
+  "sculptBrush": "Кисть",
+  "sculptFalloffLinear": "Линейное",
+  "sculptFalloffSmooth": "Мягкое",
+  "sculptFalloffSharp": "Резкое",
+  "sculptSymmetryX": "Симметрия (X)",
+  "sculptSurface": "Поверхность",
+  "sculptSubdivide": "Подразделить",
+  "paintCanvas": "Холст",
+  "paintNothingYet": "Пока ничего не нарисовано",
+  "paintLayers": "Слои",
+  "paintAddLayer": "Добавить слой",
+  "paintColour": "Цвет",
+  "paintMask": "Маска",
+  "paintMaskNone": "Нет",
+  "bakeRetopology": "Ретопология",
+  "bakeTargetQuads": "Сколько квадов",
+  "bakeRetopologize": "Ретопологизировать",
+  "bakeMaps": "Карты",
+  "bakeResolution": "Разрешение",
+  "simKind": "Вид",
+  "simParameters": "Параметры",
+  "simCollidesWith": "Сталкивается с",
+  "simNothingElse": "В сцене больше ничего нет",
+  "simPinned": "Закреплено",
+  "simClearPins": "Снять закрепление",
+  "simClearCache": "Очистить кеш",
+  "renderPasses": "Проходы",
+  "renderStart": "Рендер",
+  "renderNothingYet": "Пока ничего не отрендерено",
+  "sculptFaces": "{count} граней",
+  "renderCancelTiles": "Отмена · {done}/{total}",
+  "@sculptFaces": {
+    "description": "Скульптинг — ux-22.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "@renderCancelTiles": {
+    "description": "Рендер — ux-22.",
+    "placeholders": {
+      "done": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "weightsBrush": "Кисть",
+  "weightsPaint": "Рисовать",
+  "weightsAssign": "Назначить",
+  "weightsRadius": "Радиус",
+  "weightsMirror": "Зеркалить",
+  "weightsNormalize": "Нормализовать",
+  "weightsSelectedVertex": "Выбранная вершина",
+  "weightsNoVertex": "Под кистью пока нет вершины",
+  "weightsNoInfluences": "На эту вершину ничто не влияет",
+  "weightsBones": "Кости",
+  "weightsNoBones": "Костей нет",
+  "morphsNoShapeKeys": "У этого объекта нет ключей формы",
+  "morphsAddDriver": "Добавить драйвер",
+  "morphsKeyShape": "Поставить ключ на форму",
+  "morphsRemoveDriver": "Удалить драйвер",
+  "morphsFrom": "От°",
+  "morphsTo": "До°",
+  "retargetRootMotion": "Движение корня",
+  "retargetCorrections": "Поправки",
+  "retargetLockFeet": "Зафиксировать стопы",
+  "retargetGroundY": "Уровень земли Y",
+  "retargetFootTolerance": "Допуск для стопы",
+  "retargetApply": "Применить ретаргет",
+  "uvMethod": "Метод",
+  "uvMargin": "Отступ",
+  "uvIslands": "Острова",
+  "uvNoIslands": "Островов нет",
+  "transportKeys": "Ключи",
+  "transportCurves": "Кривые",
+  "transportLoop": "Цикл",
+  "uvIsland": "Остров {id}",
+  "@uvIsland": {
+    "description": "Развёртка UV — ux-22.",
+    "placeholders": {
+      "id": {
+        "type": "int"
+      }
+    }
+  },
+  "propDisplay": "Отображение",
+  "propMaterial": "Материал",
+  "propNormals": "Нормали",
+  "propWire": "Сетка",
+  "propPerspective": "Перспектива",
+  "propOrthographic": "Ортографическая",
+  "propView": "Вид",
+  "propObjects": "Объекты",
+  "propTransform": "Преобразование",
+  "propSource": "Источник",
+  "propReimport": "Переимпорт",
+  "propModifiers": "Модификаторы",
+  "propMorphs": "Морфы",
+  "propLastOperation": "Последняя операция",
+  "propSelection": "Выделение",
+  "propMesh": "Меш",
+  "propHealth": "Состояние",
+  "propBudget": "Бюджет",
+  "importTitle": "Импорт",
+  "importUnit": "Единица",
+  "importUpAxis": "Ось вверх",
+  "importWeld": "Сварить совпадающие вершины",
+  "importWeldHelp": "Строит настоящую топологию меша; оставьте выключенным, чтобы данные файла остались ровно такими, какими пришли.",
+  "importRecalculateNormals": "Пересчитать нормали",
+  "importTriangulate": "Триангулировать n-угольники",
+  "importLinkToSource": "Связать с источником",
+  "importLinkToSourceHelp": "Запомнить, откуда это пришло, чтобы «Переимпорт» прочитал файл снова и сохранил преобразование, материалы и модификаторы.",
+  "exportTitle": "Экспорт",
+  "exportTriangles": "Треугольников",
+  "exportBakeTransforms": "Запечь преобразования узлов",
+  "exportBakeTransformsHelp": "Переносит положение каждого объекта в его собственные вершины, чтобы файлу нечего было терять из иерархии.",
+  "exportApplyModifiers": "Применить модификаторы",
+  "exportApplyModifiersHelp": "Пишет ту форму, которую вы видите, со свёрнутыми зеркалами и массивами. Выключено — пишется базовый меш.",
+  "exportSelectionOnly": "Только выделенное",
+  "exportSelectionOnlyHelp": "Пишет то, что выделено, и всё, что под ним, оставляя остальной проект на месте.",
+  "exportCompressTextures": "Сжать текстуры (KTX2)",
+  "exportCompressTexturesHelp": "Меньшие изображения, которые GPU читает без распаковки. Их понимает только читатель .f3d.",
+  "exportReady": "готово к экспорту",
+  "exportShow": "Показать",
+  "shortcutEdgeLoop": "Выделить кольцо рёбер вдоль",
+  "shortcutEdgeRing": "Выделить кольцо рёбер поперёк",
+  "shortcutFinger": "Палец",
+  "shortcutFingerHeld": "Палец, удержанный на месте",
+  "shortcutPen": "Перо",
+  "shortcutPenOtherEnd": "Обратная сторона пера",
+  "shortcutOrbit": "Вращать",
+  "shortcutPan": "Сдвигать",
+  "shortcutZoom": "Приближать",
+  "exportNothing": "Нечего экспортировать",
+  "exportOfBudget": "{triangles} из {budget} ({profile})",
+  "@exportOfBudget": {
+    "description": "Экспорт — ux-22.",
+    "placeholders": {
+      "triangles": {
+        "type": "int"
+      },
+      "budget": {
+        "type": "int"
+      },
+      "profile": {
+        "type": "String"
+      }
+    }
+  },
+  "shortcutEdgeLoopKeys": "Alt и клик, в режиме меша",
+  "shortcutEdgeRingKeys": "Ctrl или ⌘, вместе с Alt и кликом",
+  "shortcutFingerKeys": "Двигает камеру, каким бы инструментом ни целились",
+  "shortcutFingerHeldKeys": "Открывает меню, не сдвинув камеру",
+  "shortcutPenKeys": "Рисует по модели, сильнее нажим — сильнее штрих",
+  "shortcutPenOtherEndKeys": "Тот же штрих, стирающий",
+  "shortcutPanKeys": "Shift и то, чем вращают",
+  "shortcutZoomKeys": "Колесо или Ctrl с двумя пальцами",
+  "importWarnings": "{count, plural, =1{1 предупреждение} few{{count} предупреждения} other{{count} предупреждений}}",
+  "@importWarnings": {
+    "description": "Импорт — ux-22.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "shortcutOrbitMiddle": "Средняя кнопка, Alt с левой кнопкой или два пальца на трекпаде",
+  "shortcutOrbitLeft": "Левая кнопка по пустому месту, средняя кнопка или два пальца на трекпаде",
+  "actionSave": "Сохранить",
+  "actionExport": "Экспорт",
+  "actionUndo": "Отменить",
+  "actionRedo": "Повторить",
+  "actionThisScreen": "Этот экран",
+  "actionCommandPalette": "Палитра команд",
+  "actionFoldPanel": "Свернуть панель свойств",
+  "actionFoldRail": "Свернуть рельсу инструментов",
+  "actionGrowSelection": "Расширить выделение",
+  "actionShrinkSelection": "Сузить выделение",
+  "actionBrushNarrower": "Кисть уже",
+  "actionBrushWider": "Кисть шире",
+  "actionFrameSelection": "Показать выделенное целиком",
+  "actionFrameAll": "Показать всё целиком",
+  "actionViewFront": "Вид спереди",
+  "actionViewSide": "Вид сбоку",
+  "actionViewTop": "Вид сверху",
+  "actionPlayPause": "Пуск и пауза",
+  "actionSelectAll": "Выделить всё",
+  "actionSelectNone": "Снять выделение",
+  "actionInvertSelection": "Инвертировать выделение",
+  "actionToggleObjectMesh": "Объект и меш",
+  "actionDelete": "Удалить",
+  "matNoMaterials": "Материалов нет",
+  "matAdd": "Добавить материал",
+  "matUnassign": "Снять назначение",
+  "matOpenInEditor": "Открыть в редакторе",
+  "matCutoff": "Порог",
+  "matAdvanced": "Дополнительно",
+  "matEmissiveStrength": "Сила свечения",
+  "matNormalScale": "Масштаб нормалей",
+  "matOcclusionStrength": "Сила затенения",
+  "matDoubleSided": "Двусторонний",
+  "sceneNoLights": "Источников нет",
+  "sceneRemoveLight": "Убрать этот источник",
+  "sceneAdd": "Добавить",
+  "sceneSource": "Источник",
+  "sceneIntensity": "Яркость",
+  "sceneRange": "Дальность",
+  "sceneCone": "Конус",
+  "sceneCastsShadow": "Отбрасывает тень",
+  "quickSetupTitle": "Настроить редактор",
+  "quickSetupHelp": "Пять ответов, один раз. Каждый из них потом есть в настройках.",
+  "quickSetupCamera": "Камера",
+  "quickSetupHowMuch": "Сколько всего",
+  "quickSetupStart": "Начать",
+  "pivotHelp": "Вокруг чего центрируется поворот или масштаб из полей выше",
+  "pivotMedian": "Медиана",
+  "pivotIndividual": "Каждый сам",
+  "pivotCursor": "3D-курсор",
+  "spaceHelp": "В чьих осях задан поворот из полей выше",
+  "spaceGlobal": "Глобальные",
+  "spaceLocal": "Локальные",
+  "modifierMirror": "Зеркало",
+  "modifierArray": "Массив",
+  "modifierSmooth": "Сглаживание",
+  "modifierSubdivision": "Подразделение",
+  "modifierBoolean": "Булева операция",
+  "modifierNone": "Модификаторов нет",
+  "modifierAdd": "Добавить модификатор",
+  "modifierAddShort": "Добавить",
+  "modifierRemove": "Убрать",
+  "modifierTriangles": "{before} → {after} треугольников",
+  "@modifierTriangles": {
+    "description": "Стек модификаторов — ux-22.",
+    "placeholders": {
+      "before": {
+        "type": "int"
+      },
+      "after": {
+        "type": "int"
+      }
+    }
+  },
+  "latheSegments": "Сегментов",
+  "latheClosed": "Замкнутый профиль",
+  "latheAdd": "Добавить",
+  "latheTitle": "Тело вращения",
+  "saveAsTitle": "Сохранить как",
+  "saveWithoutHistory": "Сохранить без истории",
+  "saveWithoutHistoryHelp": "После повторного открытия этого файла отмена будет недоступна.",
+  "galleryTitle": "Галерея",
+  "galleryClose": "Закрыть",
+  "gallerySearch": "Искать в галерее",
+  "galleryAll": "Все",
+  "galleryNoCredit": "Указание авторства не требуется",
+  "previewBudgets": "Бюджеты",
+  "previewTitle": "Превью",
+  "previewClose": "Закрыть превью",
+  "previewWireframe": "Показать сетку",
+  "previewNotBuilt": "для этого экрана ещё не собрано",
+  "agentHide": "Скрыть панель агента",
+  "agentSession": "Сессия",
+  "agentRenders": "Рендеров",
+  "agentToolCalls": "Вызовов инструментов",
+  "agentHistoryAuthor": "История · автор",
+  "agentUndoSteps": "Отменить шаги агента",
+  "agentContactSheet": "КОНТАКТНЫЙ ЛИСТ",
+  "agentInsteadOfNumbers": "что агент получает вместо чисел",
+  "agentNoRenderYet": "В этой сессии ещё не было вызова render/renderSheet",
+  "graphNextImage": "Следующее изображение",
+  "graphAddNode": "Добавить узел",
+  "graphTitle": "Граф текстур",
+  "legalTitle": "Юридическое",
+  "legalClose": "Закрыть",
+  "legalDocument": "Документ",
+  "legalEnglishOnly": "Эти документы публикуются только на английском, каким бы ни был язык интерфейса: одна подлинная версия, чтобы не было вопроса, какая из них обязывает.",
+  "legalThirdParty": "Сторонние лицензии",
+  "budgetTriangles": "Треугольники",
+  "budgetJoints": "Суставы",
+  "budgetTextureMemory": "Память текстур",
+  "budgetInfluences": "Влияния",
+  "consoleAll": "Все",
+  "consoleYou": "Вы",
+  "consoleAgent": "Агент",
+  "consoleClose": "Закрыть консоль",
+  "previewLights": "{lights} источников · {shadowed}/{cap} с тенью",
+  "agentSteps": "{agent} агента · {person} ваших",
+  "exportAnywayMore": "и ещё {count}",
+  "legalLoadFailed": "Документы не загрузились: {error}",
+  "metricsFps": "{fps} кадр/с",
+  "metricsDrawCalls": "{count} вызовов отрисовки",
+  "metricsTriangles": "{count} треугольников",
+  "metricsBones": "{count} костей",
+  "metricsPasses": "Проходы кадра",
+  "metricsPassLine": "{name} · {ms} мс · {draws} выз. · {triangles} тр.",
+  "captureTitle": "Снимок кадра",
+  "captureTake": "Снять кадр",
+  "captureWaiting": "Снимаем…",
+  "captureEmpty": "Снимков ещё нет",
+  "capturePassLine": "{name} · изображений: {images}",
+  "captureInactive": "{name} · не выполнялся",
+  "captureReads": "читает {names}",
+  "captureWrites": "пишет {names}",
+  "captureBlack": "{name} вернулся чёрным",
+  "captureRefused": "{name}: {reason}",
+  "@previewLights": {
+    "description": "Превью — ux-22.",
+    "placeholders": {
+      "lights": {
+        "type": "int"
+      },
+      "shadowed": {
+        "type": "int"
+      },
+      "cap": {
+        "type": "int"
+      }
+    }
+  },
+  "@agentSteps": {
+    "description": "Панель агента — ux-22.",
+    "placeholders": {
+      "agent": {
+        "type": "int"
+      },
+      "person": {
+        "type": "int"
+      }
+    }
+  },
+  "@exportAnywayMore": {
+    "description": "Экспорт — ux-22.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "@legalLoadFailed": {
+    "description": "Юридический экран — ux-22.",
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "@metricsFps": {
+    "description": "Оверлей метрик — ux-22.",
+    "placeholders": {
+      "fps": {
+        "type": "int"
+      }
+    }
+  },
+  "@metricsDrawCalls": {
+    "description": "Оверлей метрик — ux-22. Число уже отформатировано.",
+    "placeholders": {
+      "count": {
+        "type": "String"
+      }
+    }
+  },
+  "@metricsTriangles": {
+    "description": "Оверлей метрик — ux-22. Число уже отформатировано.",
+    "placeholders": {
+      "count": {
+        "type": "String"
+      }
+    }
+  },
+  "@metricsBones": {
+    "description": "Оверлей метрик — ux-22. Число уже отформатировано.",
+    "placeholders": {
+      "count": {
+        "type": "String"
+      }
+    }
+  },
+  "@metricsPasses": {
+    "description": "Заголовок разбивки по проходам кадра — gfx-01n."
+  },
+  "@metricsPassLine": {
+    "description": "Одна строка разбивки по проходам — gfx-01n. Числа уже отформатированы.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "ms": {
+        "type": "String"
+      },
+      "draws": {
+        "type": "String"
+      },
+      "triangles": {
+        "type": "String"
+      }
+    }
+  },
+  "@captureTitle": {
+    "description": "Заголовок панели снимка кадра — gfx-70n."
+  },
+  "@captureTake": {
+    "description": "Кнопка, снимающая следующий кадр — gfx-70n."
+  },
+  "@captureWaiting": {
+    "description": "Снимок запрошен, ответа ещё нет — gfx-70n."
+  },
+  "@captureEmpty": {
+    "description": "Панель открыта, снимков не делали — gfx-70n."
+  },
+  "@capturePassLine": {
+    "description": "Строка прохода в снимке — gfx-70n.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "images": {
+        "type": "String"
+      }
+    }
+  },
+  "@captureInactive": {
+    "description": "Проход был в графе, но сказал, что делать нечего — gfx-70n.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "@captureReads": {
+    "description": "Что проход читает, по именам ресурсов графа — gfx-70n.",
+    "placeholders": {
+      "names": {
+        "type": "String"
+      }
+    }
+  },
+  "@captureWrites": {
+    "description": "Что проход пишет, по именам ресурсов графа — gfx-70n.",
+    "placeholders": {
+      "names": {
+        "type": "String"
+      }
+    }
+  },
+  "@captureBlack": {
+    "description": "Ресурс, который проход оставил полностью чёрным — gfx-70n.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "@captureRefused": {
+    "description": "Почему у ресурса нет пикселей — gfx-70n.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "reason": {
+        "type": "String"
+      }
+    }
+  },
+  "galleryUnreachable": "Не удалось достучаться: {names}; всё остальное на месте",
+  "graphNextImageTooltip": "Следующее изображение",
+  "@galleryUnreachable": {
+    "description": "Галерея — ux-22.",
+    "placeholders": {
+      "names": {
+        "type": "String"
+      }
+    }
+  },
+  "statusShowFolder": "Показать папку",
+  "envClearPanorama": "Убрать панораму",
+  "envAmbient": "Окружающий свет",
+  "animActions": "Действия",
+  "statusTexelDensity": "{density} тексел/см",
+  "statusTextureBudget": "{used} МБ из {budget}",
+  "statusFrameTime": "{ms} мс",
+  "@statusTexelDensity": {
+    "description": "Строка состояния — ux-22. Число уже отформатировано.",
+    "placeholders": {
+      "density": {
+        "type": "String"
+      }
+    }
+  },
+  "@statusTextureBudget": {
+    "description": "Строка состояния — ux-22.",
+    "placeholders": {
+      "used": {
+        "type": "String"
+      },
+      "budget": {
+        "type": "String"
+      }
+    }
+  },
+  "@statusFrameTime": {
+    "description": "Строка состояния — ux-22. Число уже отформатировано.",
+    "placeholders": {
+      "ms": {
+        "type": "String"
+      }
+    }
+  },
+  "animSkeleton": "Скелет",
+  "animConstraints": "Ограничения",
+  "crashTitle": "Что-то пошло не так",
+  "crashDismiss": "Закрыть",
+  "crashReport": "Сообщить о проблеме",
+  "postBloom": "Свечение",
+  "postExposure": "Экспозиция",
+  "playStop": "Стоп",
+  "playReload": "Перезапустить",
+  "operationNothingDone": "пока ничего не сделано",
+  "operationHide": "Скрыть карточку",
+  "operationHideHelp": "Скрыть карточку, не отменяя действие",
+  "operationNothingToAdjust": "нечего настраивать",
+  "studioTitle": "Студия материалов",
+  "studioClose": "Закрыть",
+  "constraintsNone": "Ограничений нет",
+  "constraintsRemove": "Убрать это ограничение",
+  "clipBlend": "Смешение",
+  "clipPreview": "Превью",
+  "boneMapTitle": "Карта костей",
+  "boneMapAuto": "Сопоставить автоматически",
+  "animPickAction": "Выберите или добавьте действие, чтобы увидеть таймлайн",
+  "animPickTrack": "Выберите дорожку в режиме ключей, чтобы увидеть кривую",
+  "startFrom": "Начать с",
+  "dialogClose": "Закрыть",
+  "nameField": "Имя",
+  "healthNothingWrong": "С ним всё в порядке",
+  "clipSearch": "Искать клипы",
+  "clipNoSource": "Источник ещё не импортирован",
+  "actionsNone": "Действий нет",
+  "actionsAdd": "Добавить",
+  "weightsPickBone": "Выберите кость, чтобы проверить сгиб",
+  "crashCommand": "Команда: {name}",
+  "crashRecent": "Последние команды: {names}",
+  "playHint": "{template}  ·  WASD — идти, тянуть — смотреть, Esc — выйти",
+  "simCacheSemantics": "Кеш симуляции: запечено {baked} из {target} кадров",
+  "simCacheReadout": "{baked} / {target} кадров в кеше",
+  "healthSelectThem": "{message}, выделить их",
+  "lodThreshold": "Порог LOD {index}",
+  "clipNoMatch": "Ни один клип не подходит под «{query}»",
+  "bakingMaps": "Печётся карт: {count}…",
+  "@crashCommand": {
+    "description": "Карточка падения — ux-22.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "@crashRecent": {
+    "description": "Карточка падения — ux-22.",
+    "placeholders": {
+      "names": {
+        "type": "String"
+      }
+    }
+  },
+  "@playHint": {
+    "description": "Игровой экран — ux-22.",
+    "placeholders": {
+      "template": {
+        "type": "String"
+      }
+    }
+  },
+  "@simCacheSemantics": {
+    "description": "Полоса кеша симуляции — ux-22.",
+    "placeholders": {
+      "baked": {
+        "type": "int"
+      },
+      "target": {
+        "type": "int"
+      }
+    }
+  },
+  "@simCacheReadout": {
+    "description": "Полоса кеша симуляции — ux-22.",
+    "placeholders": {
+      "baked": {
+        "type": "int"
+      },
+      "target": {
+        "type": "int"
+      }
+    }
+  },
+  "@healthSelectThem": {
+    "description": "Панель состояния меша — ux-22.",
+    "placeholders": {
+      "message": {
+        "type": "String"
+      }
+    }
+  },
+  "@lodThreshold": {
+    "description": "Полоса зон LOD — ux-22.",
+    "placeholders": {
+      "index": {
+        "type": "int"
+      }
+    }
+  },
+  "@clipNoMatch": {
+    "description": "Библиотека клипов — ux-22.",
+    "placeholders": {
+      "query": {
+        "type": "String"
+      }
+    }
+  },
+  "@bakingMaps": {
+    "description": "Ретопология — ux-22.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "outlinerToTopLevel": "на верхний уровень",
+  "retargetImportSource": "Импортируйте исходный клип",
+  "skeletonNoJoints": "Суставов нет",
+  "sceneLightNamed": "Источник {number} · {kind}",
+  "@sceneLightNamed": {
+    "description": "Режим сцены — ux-22.",
+    "placeholders": {
+      "number": {
+        "type": "int"
+      },
+      "kind": {
+        "type": "String"
+      }
+    }
+  },
+  "healthTriangulate": "Триангулировать",
+  "healthFill": "Закрыть",
+  "healthMerge": "Слить",
+  "healthRecalculate": "Пересчитать",
+  "healthFix": "Исправить",
+  "budgetProfile": "Профиль",
+  "importBounds": "Габариты",
+  "propWhat": "Что",
+  "envNone": "Нет",
+  "envStudio": "Студия",
+  "envDaylight": "Дневной свет",
+  "envSunset": "Закат",
+  "toolUvSelectLabel": "Выделение",
+  "toolUvSelectAbout": "Клик по рёбрам, вдоль которых пойдёт шов; с Shift ребро добавляется к уже выбранным.",
+  "toolUvMarkSeamLabel": "Пометить шов",
+  "toolUvMarkSeamAbout": "Разрезает развёртку по выбранным рёбрам — так кроят выкройку, чтобы ткань легла плоско.",
+  "toolUvClearSeamLabel": "Снять шов",
+  "toolUvClearSeamAbout": "Сшивает развёртку обратно по выбранным рёбрам.",
+  "toolUvUnwrapLabel": "Развернуть",
+  "toolUvUnwrapAbout": "Раскладывает выбранные грани на плоскости — всю сетку, если грани не выбраны, — разрезая острова по швам.",
+  "toolUvPackLabel": "Упаковать в один атлас",
+  "toolUvPackAbout": "Укладывает развёртки выбранных объектов в один общий квадрат, чтобы у них была одна текстура и один вызов отрисовки.",
+  "uvAutoPack": "Упаковать автоматически",
+  "uvUnwrap": "Развернуть",
+  "uvSeamCount": "Швы · рёбер: {count}",
+  "@uvSeamCount": {
+    "description": "Плашка над 3D-видом в режиме UV — pro-uv-07, экран 06.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "uvStatus": "Заполнение развёртки {percent} % · островов: {islands}",
+  "@uvStatus": {
+    "description": "Строка статуса режима UV — экран 06.",
+    "placeholders": {
+      "percent": {
+        "type": "int"
+      },
+      "islands": {
+        "type": "int"
+      }
+    }
+  },
+  "uvLayoutSemantics": "Развёртка UV, островов: {islands}",
+  "@uvLayoutSemantics": {
+    "description": "Что экранный диктор говорит о квадрате развёртки.",
+    "placeholders": {
+      "islands": {
+        "type": "int"
+      }
+    }
+  },
+  "uvLayoutTitle": "Развёртка",
+  "uvLegendNormal": "норма",
+  "uvLegendStretched": "растяжение",
+  "uvRefusalNoObject": "Выберите объект, чтобы его развернуть",
+  "uvRefusalNoMesh": "У «{name}» ещё нет сетки — сначала преобразуйте его в сетку",
+  "@uvRefusalNoMesh": {
+    "description": "Почему кнопка «Развернуть» выключена.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "uvUnwrapFlat": "Развёртка вышла без площади: замкнутую форму не разложить на плоскости, пока она не разрезана. Пометьте швы по рёбрам и разверните снова",
+  "uvPackNeedsTwo": "Атлас — общий: выберите два или больше развёрнутых объекта",
+  "propLods": "Уровни детализации",
+  "propLodsCount": "Уровней: {count}",
+  "@propLodsCount": {
+    "description": "Секция инспектора объекта — pro-lod-04, экран 17.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "propLodsOpen": "Открыть…",
+  "lodLevel": "LOD {index}",
+  "@lodLevel": {
+    "description": "Заголовок карточки уровня — экран 17.",
+    "placeholders": {
+      "index": {
+        "type": "int"
+      }
+    }
+  },
+  "lodRatio": "Оставить",
+  "lodTriangles": "Треугольников: {count}",
+  "@lodTriangles": {
+    "description": "Сколько треугольников в упрощённой сетке уровня.",
+    "placeholders": {
+      "count": {
+        "type": "String"
+      }
+    }
+  },
+  "lodUpTo": "рисуется, пока объект меньше {percent} % экрана",
+  "@lodUpTo": {
+    "description": "Порог уровня как доля высоты экрана.",
+    "placeholders": {
+      "percent": {
+        "type": "int"
+      }
+    }
+  },
+  "lodAddLevel": "Добавить уровень",
+  "lodRegenerate": "Пересчитать",
+  "lodClose": "Вернуться к объекту",
+  "lodNoLevels": "Уровней ещё нет. Первый добавленный оставит половину треугольников и включится, когда объект займёт меньше четверти экрана.",
+  "lodNow": "Сейчас: {percent} % экрана — LOD {index}",
+  "@lodNow": {
+    "description": "Какую долю экрана объект занимает в основном вьюпорте и какой уровень этому отвечает.",
+    "placeholders": {
+      "percent": {
+        "type": "int"
+      },
+      "index": {
+        "type": "int"
+      }
+    }
+  },
+  "lodNowBase": "Сейчас: {percent} % экрана — полная сетка",
+  "@lodNowBase": {
+    "description": "То же, когда ни один уровень ещё не включился.",
+    "placeholders": {
+      "percent": {
+        "type": "int"
+      }
+    }
+  },
+  "lodPaneEmpty": "Уровня LOD {index} ещё нет",
+  "@lodPaneEmpty": {
+    "description": "Треть экрана 17, для которой уровень не задан.",
+    "placeholders": {
+      "index": {
+        "type": "int"
+      }
+    }
+  },
+  "lodRefusalNoMesh": "У «{name}» нет сетки для упрощения — сначала преобразуйте его в сетку",
+  "@lodRefusalNoMesh": {
+    "description": "Почему уровень добавить нельзя.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "lodThresholdFixed": "Порог уровня задаётся при добавлении: команды, которая сдвигает его потом, в этой сборке нет",
+  "retopoCorners": "Квад · точек: {count} из 4",
+  "@retopoCorners": {
+    "description": "Плашка над вьюпортом, пока рисуется квад — pro-rt-03.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "retopoNeedsTwo": "Выберите исходную модель, затем с Shift — сетку, на которую ложатся квады",
+  "retopoMissed": "Клик не попал в исходную модель",
+  "aboutVersion": "Версия {version}",
+  "@aboutVersion": {
+    "description": "Номер версии приложения на экране «Юридическое».",
+    "placeholders": {
+      "version": {
+        "type": "String"
+      }
+    }
+  }
 }

@@ -1,6 +1,6 @@
 name: flutter3d_net
 description: "Rollback netcode over `sim`: input frames per step, prediction, correction, and the transport behind an interface so a game never names WebRTC or a socket."
-version: 0.6.0
+version: 0.7.0
 repository: https://github.com/pleiondev/flutter3d
 homepage: https://flutter3d.pleion.dev
 issue_tracker: https://github.com/pleiondev/flutter3d/issues
@@ -18,7 +18,7 @@ dependencies:
   # `Snapshot`, `GameRandom` for the test transport's loss, nothing that
   # draws or reads a device — the same reason `net-01`'s own row gives for
   # sitting on this package and not on `flutter3d_game`.
-  flutter3d_sim: ^0.6.0
+  flutter3d_sim: ^0.7.0
 
   # `WebSocketTransport` — net-02's fallback transport, and the one client
   # class in this package that has to compile for the web as well as

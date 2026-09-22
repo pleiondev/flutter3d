@@ -27,9 +27,9 @@ dependencies:
   flutter3d:           ^0.6.0
   flutter3d_game:      ^0.6.0
   flutter3d_game_platformer:^0.6.0
-  flutter3d_bridge:    ^0.6.0
+  flutter3d_app:       ^0.7.0
   flutter3d_audio:     ^0.6.0
-  flutter3d_particles: ^0.6.0
+  flutter3d_particles: ^0.7.0
   vector_math: ^2.2.0
 ```
 
@@ -74,7 +74,7 @@ _devices = DesktopInput(
 Settings first, devices second. The bindings a player saved are the ones the keyboard should be reading from the **first** key press, not from the first rebind.
 
 <div class="note">
-<p><code>SettingsFile</code> comes from <code>flutter3d_session</code>, so add that package to the pubspec like the rest. The catalogues used later on this page (<code>Sounds</code>, <code>Effects</code>, <code>RunnerClips</code>) are exported by no package at all: they are the application's own definitions, and the demo's live in <code>apps/flutter3d_demo_platformer/lib/src/</code> as <code>sounds.dart</code>, <code>effects.dart</code> and <code>runner_clips.dart</code>.</p>
+<p><code>SettingsFile</code> comes from <code>flutter3d_game</code>, so add that package to the pubspec like the rest. The catalogues used later on this page (<code>Sounds</code>, <code>Effects</code>, <code>RunnerClips</code>) are exported by no package at all: they are the application's own definitions, and the demo's live in <code>apps/flutter3d_demo_platformer/lib/src/</code> as <code>sounds.dart</code>, <code>effects.dart</code> and <code>runner_clips.dart</code>.</p>
 </div>
 
 ## Open the renderer, and keep the scene non-null {.step}

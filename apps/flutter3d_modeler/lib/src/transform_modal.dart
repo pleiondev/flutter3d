@@ -65,6 +65,11 @@ enum TransformAxis {
     return key;
   }
 
+  /// The plane at right angles to this axis, or [TransformAxis.free] for
+  /// anything that is not one of the three — `ux-11`'s own `Shift`+axis,
+  /// which says in one press what pressing the key twice says in two.
+  TransformAxis get plane => _planeAcross(this);
+
   static TransformAxis _planeAcross(TransformAxis axis) => switch (axis) {
     TransformAxis.x => TransformAxis.yz,
     TransformAxis.y => TransformAxis.xz,
@@ -86,7 +91,13 @@ enum TransformAxis {
 
 /// How far a transform has got, and what it is confined to.
 final class TransformModal {
-  TransformModal(this.kind);
+  TransformModal(this.kind) {
+    step = switch (kind) {
+      TransformKind.move => moveStep,
+      TransformKind.rotate => turnStep,
+      TransformKind.scale => scaleStep,
+    };
+  }
 
   final TransformKind kind;
 
@@ -128,9 +139,28 @@ final class TransformModal {
   /// A tenth of a unit, fifteen degrees and a tenth of a factor: the three
   /// steps every modeller uses, and the reason they are not one number is that
   /// a tenth of a radian is not a step anybody thinks in.
+  ///
+  /// The defaults; [step] is what a live transform actually rounds to, and a
+  /// caller with Settings behind it writes the person's own steps there —
+  /// `ux-11`.
   static const double moveStep = 0.1;
   static const double turnStep = math.pi / 12;
   static const double scaleStep = 0.1;
+
+  /// What this transform rounds to while the snap modifier is held, in the
+  /// units [kind] is measured in — metres, radians, a factor.
+  double step = 0.1;
+
+  /// Brings [step] to whichever of the three [kind] asks for.
+  void snapSteps({
+    required double move,
+    required double turnRadians,
+    required double scale,
+  }) => step = switch (kind) {
+    TransformKind.move => move,
+    TransformKind.rotate => turnRadians,
+    TransformKind.scale => scale,
+  };
 
   /// The typed number, or null when nothing usable has been typed.
   double? get typedValue {
@@ -196,11 +226,6 @@ final class TransformModal {
     if (!allows.y) raw.y = 0;
     if (!allows.z) raw.z = 0;
     if (!snapping || said != null) return raw;
-    final double step = switch (kind) {
-      TransformKind.move => moveStep,
-      TransformKind.rotate => turnStep,
-      TransformKind.scale => scaleStep,
-    };
     return Vector3(_snap(raw.x, step), _snap(raw.y, step), _snap(raw.z, step));
   }
 
@@ -244,6 +269,58 @@ final class TransformModal {
     return where.isEmpty
         ? '$what $number$typing'
         : '$what $where $number$typing';
+  }
+
+  /// What the label beside the pointer says — `ux-11`'s own carried readout,
+  /// as against [says], which is the sentence the status line already had.
+  ///
+  /// **Three parts, in the order a person reads them**: what is happening,
+  /// what it is confined to, and how far it has got. The unit is on the
+  /// number, because "0.35" alone is the one thing on this label that could
+  /// be read as either metres or centimetres.
+  String get readout {
+    final String what = switch (kind) {
+      TransformKind.move => 'Move',
+      TransformKind.rotate => 'Rotate',
+      TransformKind.scale => 'Scale',
+    };
+    final Vector3 by = amount;
+    final bool oneAxis =
+        axis == TransformAxis.x ||
+        axis == TransformAxis.y ||
+        axis == TransformAxis.z;
+    final String number = switch (kind) {
+      TransformKind.move =>
+        oneAxis
+            ? '${_show(by.x + by.y + by.z)} m'
+            : '${_show(by.x)}, ${_show(by.y)}, ${_show(by.z)} m',
+      TransformKind.rotate => '${_show(by.x * 180 / math.pi)}°',
+      TransformKind.scale => '×${_show(1 + by.x)}',
+    };
+    final String where = switch (axis) {
+      TransformAxis.free => '',
+      TransformAxis.x => 'X',
+      TransformAxis.y => 'Y',
+      TransformAxis.z => 'Z',
+      TransformAxis.yz => 'YZ',
+      TransformAxis.xz => 'XZ',
+      TransformAxis.xy => 'XY',
+    };
+    final String typing = typed == null ? '' : ' · ⌨ $typed';
+    return <String>[what, if (where.isNotEmpty) where, number].join(' · ') +
+        typing;
+  }
+
+  /// The keys worth naming under [readout], and what each one is worth right
+  /// now — the snap step is the person's own, so the label says what holding
+  /// the modifier would actually round to.
+  String get hints {
+    final String snap = switch (kind) {
+      TransformKind.move => '${_show(step)} m',
+      TransformKind.rotate => '${_show(step * 180 / math.pi)}°',
+      TransformKind.scale => _show(step),
+    };
+    return 'Shift precise · Ctrl snap $snap · X/Y/Z axis · Esc cancel';
   }
 
   static String _show(double value) => value

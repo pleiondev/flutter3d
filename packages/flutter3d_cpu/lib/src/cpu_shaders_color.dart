@@ -255,3 +255,129 @@ Vector3 tonemapNeutral(Vector3 colour) {
     c.z + (newPeak - c.z) * desaturate,
   );
 }
+
+/// `TonemapAces` from `composite.frag`: the Narkowicz fit.
+Vector3 tonemapAces(Vector3 colour) {
+  const a = 2.51;
+  const b = 0.03;
+  const c = 2.43;
+  const d = 0.59;
+  const e = 0.14;
+  double curve(double x) =>
+      ((x * (a * x + b)) / (x * (c * x + d) + e)).clamp(0.0, 1.0);
+  return Vector3(curve(colour.x), curve(colour.y), curve(colour.z));
+}
+
+/// `TonemapAgx` from `composite.frag`: the log sigmoid and its desaturation.
+Vector3 tonemapAgx(Vector3 colour) {
+  const minEv = -12.47393;
+  const maxEv = 4.026069;
+
+  double curve(double channel) {
+    final logged = (math.log(math.max(channel, 1e-10)) / math.ln2).clamp(
+      minEv,
+      maxEv,
+    );
+    final v = (logged - minEv) / (maxEv - minEv);
+    final v2 = v * v;
+    final v4 = v2 * v2;
+    final shaped =
+        15.5 * v4 * v2 -
+        40.14 * v4 * v +
+        31.96 * v4 -
+        6.868 * v2 * v +
+        0.4298 * v2 +
+        0.1191 * v -
+        0.00232;
+    return shaped.clamp(0.0, 1.0);
+  }
+
+  final shaped = Vector3(curve(colour.x), curve(colour.y), curve(colour.z));
+  final luma = 0.2126 * shaped.x + 0.7152 * shaped.y + 0.0722 * shaped.z;
+  return Vector3(
+    luma + (shaped.x - luma) * 0.84,
+    luma + (shaped.y - luma) * 0.84,
+    luma + (shaped.z - luma) * 0.84,
+  );
+}
+
+/// `TonemapAgxFull` from `composite.frag`: the curve with the gamut rotation
+/// around it — `gfx-26n`.
+///
+/// **The matrices are written out row by row here on purpose.** GLSL's `mat3`
+/// takes its arguments column-major and this backend has no `mat3` at all, so
+/// the one place the two implementations could silently disagree is the
+/// transpose. Multiplying by hand, with the rows named, makes the convention
+/// visible instead of hiding it inside a constructor whose order has to be
+/// remembered — and `tonemap_curve_test.dart` checks the two backends against
+/// each other on a colour whose hue would drift if either were transposed.
+Vector3 tonemapAgxFull(Vector3 colour) {
+  Vector3 apply(Vector3 v, List<double> r0, List<double> r1, List<double> r2) =>
+      Vector3(
+        r0[0] * v.x + r0[1] * v.y + r0[2] * v.z,
+        r1[0] * v.x + r1[1] * v.y + r1[2] * v.z,
+        r2[0] * v.x + r2[1] * v.y + r2[2] * v.z,
+      );
+
+  // `M * v` with these as the rows of M, matching the shader's use of the
+  // same literals through GLSL's column-major `mat3` — which is to say the
+  // shader's `mat3(...)` holds this matrix transposed, and the product is the
+  // same because the shader multiplies on the same side. Checked rather than
+  // reasoned about: see the cross-backend case in the test.
+  const inset0 = <double>[
+    0.842479062253094,
+    0.0784335999999992,
+    0.0792237451477643,
+  ];
+  const inset1 = <double>[
+    0.0423282422610123,
+    0.878468636469772,
+    0.0791661274605434,
+  ];
+  const inset2 = <double>[0.0423756549057051, 0.0784336, 0.879142973793104];
+  const outset0 = <double>[
+    1.19687900512017,
+    -0.0980208811401368,
+    -0.0990297440797205,
+  ];
+  const outset1 = <double>[
+    -0.0528968517574562,
+    1.15190312990417,
+    -0.0989611768448433,
+  ];
+  const outset2 = <double>[
+    -0.0529716355144438,
+    -0.0980434501171241,
+    1.15107367264116,
+  ];
+
+  final inset = apply(colour, inset0, inset1, inset2);
+  final shaped = tonemapAgx(inset);
+  final out = apply(shaped, outset0, outset1, outset2);
+  return Vector3(
+    out.x.clamp(0.0, 1.0),
+    out.y.clamp(0.0, 1.0),
+    out.z.clamp(0.0, 1.0),
+  );
+}
+
+/// `TonemapReinhard` from `composite.frag`, extended so white reaches white.
+Vector3 tonemapReinhard(Vector3 colour) {
+  const white = 4.0;
+  double curve(double x) =>
+      (x * (1.0 + x / (white * white)) / (1.0 + x)).clamp(0.0, 1.0);
+  return Vector3(curve(colour.x), curve(colour.y), curve(colour.z));
+}
+
+/// `TonemapBy` from `composite.frag`: whichever curve the number names.
+///
+/// The numbers are `TonemapCurve`'s own and are part of the uniform layout —
+/// see `composite.frag`'s note on why 1 is the default rather than 0.
+Vector3 tonemapBy(Vector3 colour, int curve) => switch (curve) {
+  1 => tonemapNeutral(colour),
+  2 => tonemapAces(colour),
+  3 => tonemapAgx(colour),
+  4 => tonemapReinhard(colour),
+  5 => tonemapAgxFull(colour),
+  _ => colour,
+};

@@ -15,7 +15,7 @@ final drawable = step.toMeshData();
 
 Plain Dart: no Flutter, no renderer, no disk.
 
-`flutter3d_geometry` describes a mesh that is finished — vertices in the order a
+`flutter3d_core`'s geometry library describes a mesh that is finished — vertices in the order a
 GPU wants them, a corner duplicated once per face normal that meets there. Every
 question a modeller asks is about what that threw away: which faces share this
 edge, what ring it belongs to, what the loop around this face is. Edit here,

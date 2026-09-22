@@ -2,7 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter3d_build/flutter3d_build.dart';
-import 'package:flutter3d_formats/flutter3d_formats.dart';
+import 'package:flutter3d_core/formats.dart';
 import 'package:image/image.dart' as img;
 import 'package:test/test.dart';
 
@@ -150,19 +150,9 @@ void main() {
     },
   );
 
-  test('--no-mips prints an honest note too', () async {
-    final out = _BufferSink();
-    await runConvert(<String>[
-      _fixture,
-      '-o',
-      '${scratch.path}/box.f3d',
-      '--no-mips',
-    ], out: out);
-
-    expect(out.text, contains('--no-mips accepted, no mip generator yet'));
-  });
-
-  test('--textures bc really encodes a referenced image, end to end', () async {
+  /// Writes an 8×8-textured triangle under [scratch] and returns its `.obj`
+  /// path — the fixture the two tests below convert.
+  String writeTexturedObj() {
     final objPath = '${scratch.path}/textured.obj';
     File(objPath).writeAsStringSync('''
 mtllib textured.mtl
@@ -188,7 +178,48 @@ map_Kd textured.png
     File(
       '${scratch.path}/textured.png',
     ).writeAsBytesSync(img.encodePng(pngImage));
+    return objPath;
+  }
 
+  test(
+    '--no-mips keeps the base level, where the default carries a chain',
+    () async {
+      // It used to print a note and do nothing, because nothing generated a
+      // chain to skip. Something does now, so the flag has to reach it.
+      //
+      // Mutation: stop handing `options.mips` to `convertOne` — the second file
+      // comes out with two levels as well.
+      final objPath = writeTexturedObj();
+      Future<Ktx2Texture> convert(String name, List<String> extra) async {
+        final outPath = '${scratch.path}/$name.f3d';
+        final code = await runConvert(<String>[
+          objPath,
+          '-o',
+          outPath,
+          '--textures',
+          'bc',
+          ...extra,
+        ]);
+        expect(code, 0);
+        return Ktx2Texture.parse(
+          F3dDocument.parse(
+            File(outPath).readAsBytesSync(),
+          ).images.single.bytes,
+        );
+      }
+
+      // 8×8 halves to 4×4, and four is the block: two levels of BC1, four
+      // blocks and then one, eight bytes a block.
+      final chained = await convert('chained', const <String>[]);
+      expect(chained.levels.map((level) => level.lengthInBytes), <int>[32, 8]);
+
+      final single = await convert('single', const <String>['--no-mips']);
+      expect(single.levels.map((level) => level.lengthInBytes), <int>[32]);
+    },
+  );
+
+  test('--textures bc really encodes a referenced image, end to end', () async {
+    final objPath = writeTexturedObj();
     final outPath = '${scratch.path}/textured.f3d';
     final code = await runConvert(<String>[
       objPath,

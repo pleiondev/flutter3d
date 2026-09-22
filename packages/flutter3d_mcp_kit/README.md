@@ -12,6 +12,6 @@ What every flutter3d MCP server shares, written once:
   per-server token, for an application that wants to hand an agent the session
   a person already has open.
 
-`flutter3d_editor_mcp`, `flutter3d_model_mcp`, `flutter3d_render_mcp` and
-`flutter3d_sim_mcp` are built on it. Plain Dart: no Flutter SDK is needed to
+`flutter3d_editor_mcp`, `flutter3d_model_mcp` and `flutter3d_sim_mcp` (with
+both of its servers) are built on it. Plain Dart: no Flutter SDK is needed to
 start a server that uses it.

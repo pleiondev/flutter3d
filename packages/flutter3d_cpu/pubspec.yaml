@@ -27,11 +27,7 @@ dev_dependencies:
   # against are `flutter3d_shaders`'s own. Not a real dependency — nothing in
   # `lib/` reaches it. Both this and `flutter3d_conformance` above are flat
   # themselves now, so neither carries the Flutter SDK in here any more.
-  flutter3d_shaders: ^0.6.0
-  # For `mip_chain_quality_test.dart` alone: `ap-08`'s own Kaiser-filtered
-  # chain, sampled at a distant footprint. Not a real dependency — nothing in
-  # `lib/` reaches it.
-  flutter3d_formats: ^0.6.0
+  flutter3d_shaders: ^0.7.0
   # For `render_project_test.dart` alone: `renderProject` itself
   # (`flutter3d_model_core`) and `ParametricCuboid` to build a project to hand
   # it (`flutter3d_mesh`). Not a real dependency — nothing in `lib/` reaches
@@ -40,7 +36,13 @@ dev_dependencies:
   # on this package (it would carry the Flutter SDK straight into a package
   # that must resolve without it), but nothing stops this package depending
   # on it to prove the two actually work together.
-  flutter3d_model_core: ^0.6.0
-  flutter3d_mesh: ^0.6.0
+  flutter3d_model_core: ^0.7.0
+  flutter3d_mesh: ^0.7.0
+  # For `render_snapshot_job_test.dart` and `scene_from_project_test.dart`:
+  # the `RenderSettings`, projections and scene nodes a snapshot is described
+  # and checked with; and for `mip_chain_quality_test.dart`, `ap-08`'s own
+  # Kaiser-filtered chain from its formats library. Flat, like everything else
+  # in this list.
+  flutter3d_core: ^0.7.0
 
 resolution: workspace

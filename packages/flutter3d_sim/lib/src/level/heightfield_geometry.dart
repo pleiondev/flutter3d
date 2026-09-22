@@ -3,7 +3,7 @@
 /// **A [BrushSurface] and not a new type.** The name is the one its first
 /// producer earned and terrain is not a brush, but what the type actually holds
 /// is plain arrays — positions, normals, texcoords, tangents, indices — and the
-/// twenty lines in `flutter3d_bridge` that interleave them into a vertex layout
+/// twenty lines in `flutter3d_app` that interleave them into a vertex layout
 /// do not care where the triangles came from. Emitting the same thing means the
 /// bridge needs no line of new code to draw ground, which is worth more than a
 /// tidier name.

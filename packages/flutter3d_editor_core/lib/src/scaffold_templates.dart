@@ -37,16 +37,9 @@ dependencies:
   flutter:
     sdk: flutter
 
-  flutter3d: ^0.6.0
-  flutter3d_game: ^0.6.0
-  flutter3d_bridge: ^0.6.0
-  flutter3d_session: ^0.6.0
-
-  # The digital-twin sensor reading the seed's own dashboard shows —
-  # `flutter3d_twin` moved this out of the seed itself so a scaffolded
-  # project depends on the same small package the seed does, rather than a
-  # copy of its math.
-  flutter3d_twin: ^0.1.0
+  flutter3d: ^0.7.0
+  flutter3d_game: ^0.7.0
+  flutter3d_sim: ^0.7.0
 
   # The assembly layer, which this seed used to leave out — and with it the
   # settings screen, the key rebinding, the pointer capture and the gamepad.
@@ -59,10 +52,10 @@ dependencies:
   flutter3d_app: ^0.7.0
 
   # Sound, which the seed also had none of.
-  flutter3d_audio: ^0.6.0
+  flutter3d_audio: ^0.7.0
 
   vector_math: ^2.2.0
-  # State management — see the note in `packages/flutter3d_session/pubspec.yaml`.
+  # State management — see the note in `packages/flutter3d_game/pubspec.yaml`.
   flutter_bloc: ^9.1.1
 
 dev_dependencies:

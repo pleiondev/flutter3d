@@ -115,7 +115,9 @@ final class SelectionBox {
     required this.pointer,
     Offset? to,
     this.mode = SelectionBoxMode.replace,
-  }) : to = to ?? from;
+    bool lasso = false,
+  }) : to = to ?? from,
+       trail = lasso ? <Offset>[from] : null;
 
   /// Where the button went down, in logical pixels within the viewport.
   final Offset from;
@@ -134,6 +136,64 @@ final class SelectionBox {
   /// press time makes the overlay's hint a lie for the rest of the drag.
   SelectionBoxMode mode;
 
+  /// Where the pointer has been, for a lasso — `ux-28`. Null for a rectangle.
+  ///
+  /// **A lasso is the same gesture with a different shape remembered, which is
+  /// why it lives here rather than in a class of its own.** Everything around
+  /// the drag is identical: the slop that tells a drag from a click, the three
+  /// modes, what letting go does to the ids that come back. What differs is
+  /// one question — is a point inside — and the answer is [encloses] instead
+  /// of [Rect.contains].
+  ///
+  /// Points that did not move are dropped rather than stored: a hand resting
+  /// mid-drag adds hundreds of copies of one point, and every one of them is
+  /// a segment the crossing test walks for every candidate element.
+  final List<Offset>? trail;
+
+  /// Whether this drag is a freehand loop rather than a rectangle.
+  bool get isLasso => trail != null;
+
+  /// Records where the pointer is now. For a rectangle this is only [to]; for
+  /// a lasso it is also a point on the loop.
+  void dragTo(Offset at) {
+    to = at;
+    final List<Offset>? path = trail;
+    if (path == null) return;
+    // A pixel of travel, which is below anything a hand does on purpose and
+    // above the jitter a stationary mouse reports.
+    if ((path.last - at).distanceSquared >= 1.0) path.add(at);
+  }
+
+  /// Whether [at] is inside the loop — `ux-28`.
+  ///
+  /// **The crossing rule, with the loop closed back to its start.** A lasso is
+  /// a shape somebody drew with their hand and never closes by itself; joining
+  /// the last point to the first is what every package does and is what the
+  /// person meant by stopping where they did. A point exactly on the boundary
+  /// is not decided either way on purpose: which side a pixel of an outline
+  /// falls on is not something anybody aimed at, and the rule below is the
+  /// standard half-open one, so neighbouring segments never both claim it.
+  ///
+  /// False for a rectangle drag, which has no loop; callers ask [rect] there.
+  bool encloses(Offset at) {
+    final List<Offset>? path = trail;
+    if (path == null || path.length < 3) return false;
+    var inside = false;
+    var previous = path.last;
+    for (final Offset point in path) {
+      if ((point.dy > at.dy) != (previous.dy > at.dy)) {
+        final double across =
+            (previous.dx - point.dx) *
+                (at.dy - point.dy) /
+                (previous.dy - point.dy) +
+            point.dx;
+        if (at.dx < across) inside = !inside;
+      }
+      previous = point;
+    }
+    return inside;
+  }
+
   /// The rectangle the two corners make, whichever way round they were dragged.
   ///
   /// Dragging up and to the left is the same instruction as dragging down and
@@ -141,7 +201,27 @@ final class SelectionBox {
   /// refusing. `Rect.fromLTRB` of the two corners was the obvious spelling and
   /// it gives a rectangle of negative width, which reads as empty and quietly
   /// selects nothing for half the drags a person makes.
-  Rect get rect => Rect.fromPoints(from, to);
+  ///
+  /// For a lasso this is the box the loop fits in, which is what the frustum
+  /// is cast through before [encloses] is asked about anything: the loop is
+  /// inside its own bounds by definition, so the cull is free of charge.
+  Rect get rect {
+    final List<Offset>? path = trail;
+    if (path == null) return Rect.fromPoints(from, to);
+    var low = path.first;
+    var high = path.first;
+    for (final Offset point in path) {
+      low = Offset(
+        point.dx < low.dx ? point.dx : low.dx,
+        point.dy < low.dy ? point.dy : low.dy,
+      );
+      high = Offset(
+        point.dx > high.dx ? point.dx : high.dx,
+        point.dy > high.dy ? point.dy : high.dy,
+      );
+    }
+    return Rect.fromPoints(low, high);
+  }
 
   /// Whether this has grown into a rectangle, or is still a click that wobbled.
   ///

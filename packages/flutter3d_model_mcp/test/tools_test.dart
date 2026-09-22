@@ -10,7 +10,7 @@ library;
 import 'dart:io';
 import 'dart:typed_data';
 
-import 'package:flutter3d_formats/flutter3d_formats.dart';
+import 'package:flutter3d_core/formats.dart';
 import 'package:flutter3d_model_core/flutter3d_model_core.dart';
 import 'package:flutter3d_model_mcp/flutter3d_model_mcp.dart';
 import 'package:test/test.dart';
@@ -21,20 +21,54 @@ void main() {
       tools.map((ModelTool it) => it.name).toSet();
 
   test('every model command is offered as a tool', () {
+    // `selectElements` is the one command named differently from the tool
+    // that reaches it: `select` predates the command (`tut-05`) and keeps
+    // its own historic name and JSON shape (`objects`/`object`/`level`/
+    // `elements`) rather than being renamed to match — every existing MCP
+    // client already calls it `select`.
+    const differentTool = <String, String>{'selectElements': 'select'};
+    final uncovered = modelCommandNames
+        .toSet()
+        .difference(namesOf(modelTools))
+        .difference(differentTool.keys.toSet());
     expect(
-      modelCommandNames.toSet().difference(namesOf(modelTools)),
+      uncovered,
       isEmpty,
       reason:
           'a command exists that this server cannot call, and an agent '
           'reading tools/list has no way to find out that it is missing',
     );
+    for (final MapEntry<String, String> renamed in differentTool.entries) {
+      expect(
+        namesOf(modelTools),
+        contains(renamed.value),
+        reason: '${renamed.key} is meant to be reachable as "${renamed.value}"',
+      );
+    }
   });
 
   test('every tool is a command or one of the named session verbs', () {
     const beyondTheCommands = <String>{
       'list',
+      // `ux-19`: reads the mesh and says where every element is; changes
+      // nothing, so there is no command for it to be.
+      'describe',
+      // `ux-44`: says what a modifier kind, a shape or a texture node takes,
+      // built from the readers themselves rather than from a paragraph.
+      'describe_type',
       'listMaterials',
+      // `tut-05`: runs a real command (`SelectElements`) underneath now, but
+      // under this tool's own historic name and JSON shape rather than the
+      // command's — see the "every model command is offered as a tool" test
+      // above for the other half of that exception.
       'select',
+      // `ux-20`: runs any number of commands as one step, so its own name is
+      // not one of theirs.
+      'batch',
+      // `tut-03`: adjusts whatever step is on top of the undo stack, of
+      // whichever command that step happens to be — there is no one
+      // command name this tool could equal.
+      'amend',
       'undo',
       'redo',
       'check',
@@ -48,18 +82,20 @@ void main() {
       'inspect',
       // `anim-30`: session recipes over real functions that are not, and
       // cannot be (`command.dart`'s own sealed hierarchy), a `ModelCommand`
-      // — see `model_session.dart`'s own "anim-30" section. `addShape` is
-      // the one exception with a command underneath it (`AddShapeFromMesh`,
-      // already offered as `addShapeFromMesh` too); it is a second name
-      // for that same command, not a session recipe, and belongs here for
-      // the same reason: this set is "what a tool is besides its own
-      // command name," and `addShape`'s own command name is not "addShape".
+      // — see `model_session.dart`'s own "anim-30" section.
+      // `paintWeights` used to be here too, as a session recipe over a
+      // function that could not be a command — it now has a real one
+      // (`PaintWeights`) behind it, runs through `_command('paintWeights')`
+      // like every other command tool, and its tool name equals its own
+      // command name, so it is not one of these exceptions any more.
+      // `addShape` used to be here as well, as a second name for
+      // `addShapeFromMesh` over the same command; `ux-35` dropped it, since
+      // two identical entries in a tool list are a choice an agent has to
+      // make and cannot make correctly.
       'autoRig',
-      'paintWeights',
       'retargetClip',
       'bakeIk',
       'bakeDrivers',
-      'addShape',
       'validateRig',
     };
     expect(
@@ -218,6 +254,51 @@ void main() {
       );
       expect(mirror.did, isFalse);
       expect(mirror.says, contains('there is no skeleton 0'));
+    });
+
+    test('autoRig through the session appears in the journal as setRig, '
+        'and undo takes back the whole rig — doc-36d', () async {
+      final session = ModelSession(ModelHistory(const ModelProject()));
+      await toolNamed(
+        'addPrimitive',
+      ).run(session, <String, Object?>{'kind': 'box'});
+      await toolNamed('bakeToMesh').run(session, <String, Object?>{'id': 1});
+
+      const markers = <String, List<double>>{
+        'hips': <double>[0, 1.0, 0],
+        'spine': <double>[0, 1.2, 0],
+        'chest': <double>[0, 1.4, 0],
+        'neck': <double>[0, 1.6, 0],
+        'head': <double>[0, 1.75, 0],
+        'leftShoulder': <double>[0.2, 1.4, 0],
+        'leftElbow': <double>[0.5, 1.4, 0],
+        'leftWrist': <double>[0.8, 1.4, 0],
+        'leftHip': <double>[0.1, 1.0, 0],
+        'leftKnee': <double>[0.1, 0.5, 0],
+        'leftAnkle': <double>[0.1, 0.05, 0],
+      };
+
+      final rigged = await toolNamed('autoRig').run(session, <String, Object?>{
+        'template': 'humanoid',
+        'markers': markers,
+        'skinObjectId': 1,
+      });
+      expect(rigged.did, isTrue, reason: rigged.says);
+      expect(session.history.project.skeletons, hasLength(1));
+      expect(session.history.project[1]!.skeletonIndex, 0);
+
+      // The whole point of `doc-36d`: today's auto-rig used to commit a
+      // `ReplaceDocument`, which `command.dart` deliberately keeps out of
+      // `modelCommandNames` — so it never reached the journal at all. It is
+      // `setRig` now.
+      expect(session.history.journal.last.name, 'setRig');
+      expect(session.history.journal.last, isA<SetRig>());
+
+      expect(session.history.canUndo, isTrue);
+      expect(session.history.undo(), isTrue);
+      expect(session.history.project.skeletons, isEmpty);
+      expect(session.history.project[1]!.skeletonIndex, isNull);
+      expect(session.history.project.objects, hasLength(1));
     });
 
     test('addShapeFromMesh, setShapeWeight, renameShape and deleteShape all '

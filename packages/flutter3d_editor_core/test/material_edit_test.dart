@@ -15,8 +15,8 @@ library;
 import 'dart:convert';
 import 'dart:typed_data';
 
+import 'package:flutter3d_core/formats.dart';
 import 'package:flutter3d_editor_core/flutter3d_editor_core.dart';
-import 'package:flutter3d_formats/flutter3d_formats.dart';
 import 'package:test/test.dart';
 
 /// A material file with one of everything a gate has to reason about: a

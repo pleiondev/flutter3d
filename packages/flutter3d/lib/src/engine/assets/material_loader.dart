@@ -7,7 +7,7 @@ import 'default_image_decoder.dart';
 // `Ktx2Texture` hidden: `flutter3d.dart` re-exports this package's own thin
 // wrapper of the same name from `ktx2/ktx2.dart` instead — see its doc
 // comment (`ap-01`).
-export 'package:flutter3d_formats/flutter3d_formats.dart' hide Ktx2Texture;
+export 'package:flutter3d_core/formats.dart' hide Ktx2Texture;
 
 /// A reader for a material format the engine does not ship.
 ///

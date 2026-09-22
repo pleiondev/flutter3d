@@ -274,6 +274,32 @@ void main() {
       expect(written, contains('"albedo": "steel.png"'));
       expect(written, contains('"clampToEdge"'));
     });
+
+    test('and never writes a bare integer for a value the reader treats as '
+        'a double', () {
+      // Every number `writeFmat` writes past `fmat` itself is
+      // conceptually a double, and on the Dart VM `1.0 is int` is false,
+      // so a whole-number double like `metallic: 1.0` already prints
+      // with its decimal point here — this suite cannot reproduce the
+      // web build's own bug, where `1.0 is int` is true and the same
+      // value prints as a bare `1`. `ColorHint.channels` is a genuine
+      // `int` on every platform, though, so it is where a reverted fix
+      // shows up on the VM too.
+      //
+      // Mutation: drop the post-processing step that appends `.0` to a
+      // bare integer line — this fails on every platform, not only the
+      // web build the bug actually came from.
+      final document = readFmat(
+        _bytes(
+          '{"fmat": 1, "hints": {"tint": {"kind": "color", "channels": 3}}}',
+        ),
+      );
+      final written = writeFmat(document);
+
+      expect(written, contains('"channels": 3.0'));
+      expect(written, isNot(contains('"channels": 3,')));
+      expect(written, isNot(contains('"channels": 3\n')));
+    });
   });
 
   group('a hint beside a parameter', () {

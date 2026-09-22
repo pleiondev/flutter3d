@@ -14,6 +14,7 @@ import 'package:shelf/shelf_io.dart' as shelf_io;
 
 import 'main.server.options.dart';
 import 'src/config.dart';
+import 'src/content/learn_content.dart';
 import 'src/db/database.dart';
 import 'src/http/app.dart';
 import 'src/mail/mailer.dart';
@@ -30,6 +31,11 @@ Future<void> main(List<String> arguments) async {
     stderr.writeln(error);
     exitCode = 78; // EX_CONFIG
     return;
+  }
+
+  // Not a reason to stop: see [learnDirectoryProblem].
+  if (learnDirectoryProblem(config.learnDirectory) case final problem?) {
+    stderr.writeln(problem);
   }
 
   final db = await Database.open(config.databaseUrl);

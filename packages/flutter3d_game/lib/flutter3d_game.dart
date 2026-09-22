@@ -1,34 +1,70 @@
-/// The game layer: a simulation that runs at a fixed rate, and input that has
-/// forgotten which device it came from.
+/// What a game on flutter3d adds to an application: the devices it is played
+/// with, the run being played, the screens a player uses that are not the
+/// game, and what a level's simulation moves, drawn.
 ///
-/// **What is left here is the Flutter half**, and it is small: a touch stick, a
-/// touch button, the widget that lays them out, the keyboard and mouse, the
-/// accessibility settings that read a `MediaQuery`, and the diagnostics sink.
-/// Everything a step actually does moved to `flutter3d_sim`, which is plain
-/// Dart and can therefore run on a server — see that package for why that
-/// matters more than tidiness. It is re-exported below, so a game that imported
-/// this one keeps working unchanged.
+/// **It stands on `flutter3d_app` and `flutter3d_sim`, and re-exports
+/// neither.** A file that loads a level or opens a device imports
+/// `flutter3d_app`; one that steps a simulation imports `flutter3d_sim`; one
+/// that reads a touch stick or saves a run imports this. The modeller and the
+/// lessons use the first two and never this one, which is the line this
+/// package exists to draw.
 ///
-/// Everything here is free of `flutter_gpu` and of `flutter3d`. That is the same rule the engine's geometry
-/// and scene layers already follow, applied to the part of a game that breaks
-/// most quietly: a collision that lets the player through a wall once in a
-/// thousand steps, a jump that is a different height on a faster monitor, a
-/// press swallowed at a low frame rate. None of those are visible in a
-/// screenshot, and all of them are reachable from a plain unit test.
+/// * **Input that has forgotten which device it came from**: [TouchControls],
+///   [DesktopInput], [PadInput] and the [Bindings] between a device and a
+///   `GameAction`, with [Accommodations] and [GameConfig] beside them.
+/// * **The run.** [RunSession] loads a level, restarts it, moves to the next,
+///   saves and resumes; [RunTimeline] scrubs and branches what a run has
+///   recorded, and [registerTimelineExtensions] lets a tool attached to a
+///   running game ask it to.
+/// * **The screens that are not the game**: [SettingsOverlay] with volumes,
+///   gamepad and accessibility sliders and a rebinding list, [SaveFile],
+///   [SettingsFile] and [DemoFile], [AutomapView], [TapToRestart] and the
+///   credits. What a particular game says is passed in: the credits are a
+///   widget, and the rebindable actions are the caller's.
+/// * **What a level's simulation moves, drawn**: [ActorVisuals] and
+///   [FixtureVisuals], with the look decided by the game through
+///   [ActorAppearance] and [FixtureAppearance], and [SoundOcclusion] for a wall
+///   between a listener and a source.
+/// * **The walk a level starts with**: [LevelWalk], a body that collides,
+///   jumps and runs, turns where it is dragged and carries a camera at eye
+///   height, and [openRegistryFor], which accepts every type a level names
+///   before a game has taught it any.
 ///
-/// `flutter3d_bridge` is where this meets the renderer.
+/// **What is deliberately not here**: the title card and the loss screen,
+/// which are the face of a particular game, and a state-management choice for
+/// the run — [RunSession] is an ordinary class.
 library;
 
-// The simulation, and through it `flutter3d_physics`. Re-exported rather than
-// left for the caller to add, so that the split costs no existing program a
-// line: `import 'package:flutter3d_game/flutter3d_game.dart'` still hands over
-// the loop, the level, the saves and the collision world.
-export 'package:flutter3d_sim/flutter3d_sim.dart';
 export 'src/config/accommodations.dart';
 export 'src/config/game_config.dart';
-export 'src/diagnostics/issues.dart';
 export 'src/input/bindings.dart';
 export 'src/input/desktop_input.dart';
 export 'src/input/pad_actions.dart';
 export 'src/input/playing.dart';
 export 'src/input/touch_controls.dart';
+export 'src/run/bug_report.dart';
+export 'src/run/demo_timeline.dart';
+export 'src/run/run_session.dart';
+export 'src/run/run_timeline.dart';
+export 'src/run/run_timeline_extensions.dart';
+export 'src/screens/automap_view.dart';
+export 'src/screens/clock_text.dart';
+export 'src/screens/credits.dart';
+export 'src/screens/demo_file.dart';
+export 'src/screens/drag_look.dart';
+export 'src/screens/owned_bindings.dart';
+export 'src/screens/pad_presses.dart';
+export 'src/screens/rebinding.dart';
+export 'src/screens/save_file.dart';
+export 'src/screens/settings_cubit.dart';
+export 'src/screens/settings_file.dart';
+export 'src/screens/settings_keys.dart';
+export 'src/screens/settings_overlay.dart';
+export 'src/screens/settings_panel.dart';
+export 'src/screens/tap_to_restart.dart';
+export 'src/screens/touch_platform.dart';
+export 'src/screens/volumes.dart';
+export 'src/visuals/actor_visuals.dart';
+export 'src/visuals/fixture_visuals.dart';
+export 'src/visuals/sound_occlusion.dart';
+export 'src/walk/level_walk.dart';

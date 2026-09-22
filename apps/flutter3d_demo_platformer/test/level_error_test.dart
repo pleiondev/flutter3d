@@ -12,15 +12,15 @@
 ///
 /// The claim left here is that **the load really does throw** — a `try`
 /// around something that cannot throw is a comment pretending to be code.
-/// The screen that says so moved to `flutter3d_session` with the widget, which
+/// The screen that says so moved to `flutter3d_app` with the widget, which
 /// four applications had each written a version of; its tests went with it.
 library;
 
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:flutter3d_game/flutter3d_game.dart';
 import 'package:flutter3d_game_platformer/flutter3d_game_platformer.dart';
+import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {

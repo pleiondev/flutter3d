@@ -2,7 +2,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter3d_audio/flutter3d_audio.dart';
-import 'package:flutter3d_bridge/flutter3d_bridge.dart';
+import 'package:flutter3d_game/flutter3d_game.dart';
 import 'package:flutter3d_particles/flutter3d_particles.dart';
 import 'package:vector_math/vector_math.dart';
 

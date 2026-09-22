@@ -36,20 +36,15 @@ dependencies:
   # What a model is, read on the server by the same code that reads it in the
   # editor: `sniffModelFormat`, `decodeModel`, `readProject`. An upload that
   # does not parse here never reaches the disk.
-  flutter3d_formats:
-    path: ../../packages/flutter3d_formats
+  flutter3d_core:
+    path: ../../packages/flutter3d_core
   flutter3d_model_core:
     path: ../../packages/flutter3d_model_core
 
-  # `flutter3d_model_core`'s own retargeting and binding algorithms, read the
-  # same way here as everywhere else that reads a project.
-  flutter3d_rig:
-    path: ../../packages/flutter3d_rig
-
   # `ParticleSystem`, what a baked simulation cache reads back — the same
   # package `flutter3d_model_core` depends on for `pro-sim-02`'s own row.
-  flutter3d_particles_core:
-    path: ../../packages/flutter3d_particles_core
+  flutter3d_particles:
+    path: ../../packages/flutter3d_particles
 
   # Published, but not yet at the `0.7.0` `flutter3d_model_core` now asks
   # for (`doc/package-merge-plan.md` §3.1 folded cloth in here) — a path
@@ -61,6 +56,11 @@ dependencies:
   # Dart 2, and a password hash is the one place where a dependency that has
   # stopped is not a trade worth making.
   pointycastle: ^4.0.0
+
+  # Renders the tutorial's `content/learn/modeler/*.md` files to the HTML the
+  # `LearnPage` component drops into the page — the same package the Dart SDK
+  # itself uses for its own docs.
+  markdown: ^7.3.0
 
   crypto: ^3.0.7
   http: ^1.2.0
@@ -77,38 +77,33 @@ dev_dependencies:
   # never disagree about the same file.
   dart_style: ^3.1.0
 
-# **Eight packages by path** — seven not on pub.dev yet, one (`flutter3d_physics`)
-# published but not at the version `flutter3d_model_core` now asks for. The
-# geometry and format packages were split out after the 0.6.0 set went out and
-# go with the next one; the mesh, document, rig, particle and core layers are
-# newer still. Until they are all published at a matching version, a path is
-# the only way to name them, and an override is what makes the path win over
-# the version they ask of each other.
+# **Six packages by path** — four not on pub.dev yet, two published but not in
+# the shape `flutter3d_model_core` now needs: `flutter3d_physics` not at the
+# version it asks for, and `flutter3d_particles` still at the 0.6.0 that named
+# Flutter. The
+# core (with the geometry and formats folded into it), mesh, document and
+# particle layers were written after the 0.6.0 set went out and go with the
+# next one. Until they are all published at a matching version, a path is the
+# only way to name them, and an override is what makes the path win over the
+# version they ask of each other.
 #
-# `flutter3d_core` (mcp-03n's own split) is here for the same reason
-# `flutter3d_geometry`/`flutter3d_mesh` are: nothing in this server imports it
-# directly, but `flutter3d_model_core` now names it as a hosted dependency it
-# cannot resolve until it is published.
+# `flutter3d_mesh` and `flutter3d_hardware` are here because
+# `flutter3d_model_core` and `flutter3d_core` name them as hosted
+# dependencies they cannot resolve until the next set is published.
 #
-# When the next set is published, these eight lines go and the five
-# dependencies above become ordinary hosted ones.
+# When it is, these lines go and the dependencies above become ordinary hosted
+# ones.
 dependency_overrides:
   flutter3d_core:
     path: ../../packages/flutter3d_core
   flutter3d_hardware:
     path: ../../packages/flutter3d_hardware
-  flutter3d_geometry:
-    path: ../../packages/flutter3d_geometry
-  flutter3d_formats:
-    path: ../../packages/flutter3d_formats
   flutter3d_mesh:
     path: ../../packages/flutter3d_mesh
   flutter3d_model_core:
     path: ../../packages/flutter3d_model_core
-  flutter3d_rig:
-    path: ../../packages/flutter3d_rig
-  flutter3d_particles_core:
-    path: ../../packages/flutter3d_particles_core
+  flutter3d_particles:
+    path: ../../packages/flutter3d_particles
   flutter3d_physics:
     path: ../../packages/flutter3d_physics
 

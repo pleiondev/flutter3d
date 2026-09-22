@@ -43,7 +43,7 @@ library;
 
 import 'dart:convert';
 
-import 'package:flutter3d_formats/flutter3d_formats.dart';
+import 'package:flutter3d_core/formats.dart';
 
 import 'material.dart';
 import 'project.dart';
@@ -120,6 +120,14 @@ ImportReport importInto(
         geometry: object.geometry,
         transform: object.transform,
         parent: object.parent == null ? null : idAt[object.parent],
+        // Carried across rather than left at the constructor's own default:
+        // `fromModelDocument`'s own up-axis/scale adjustment (`options.scale
+        // != 1.0` or a `z`-up file) already bumped a root's version once via
+        // `copyWith` before `incoming` ever reached here, and resetting it
+        // to `1` would tell a viewport this object has never changed when
+        // it has — invisible while every import ran with the default,
+        // unscaled `ImportOptions`, real once one does not.
+        version: object.version,
         materialSlots: <int>[
           for (final int slot in object.materialSlots) materialAt[slot]!,
         ],

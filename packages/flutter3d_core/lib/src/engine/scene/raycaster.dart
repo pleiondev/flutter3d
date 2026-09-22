@@ -1,11 +1,12 @@
 import 'dart:typed_data';
 
-import 'package:flutter3d_geometry/flutter3d_geometry.dart';
+import 'package:flutter3d_core/geometry.dart';
 import 'package:vector_math/vector_math.dart' hide Ray;
 
 import 'bvh.dart';
 import 'camera_node.dart';
 import 'mesh_node.dart';
+import 'posed_mesh.dart';
 import 'scene.dart';
 import 'scene_spheres.dart';
 
@@ -76,27 +77,26 @@ final class HitResult {
 /// before touching a single triangle. A spatial index replaces that first pass
 /// later without changing anything below it.
 ///
-/// ## It hits the mesh as it was authored, not as it is drawn
+/// ## It hits a skinned mesh where the skeleton has it, and a morphed one
+/// where it was modelled
 ///
-/// A skinned mesh is posed by its skeleton in the vertex stage and a morphed
-/// one is moved by its weights there, and **neither reaches these triangles**:
-/// the CPU geometry is the bind pose and the base shape. So a ray finds a
-/// character's arm where the model was exported with it, and finds a face's jaw
-/// shut however wide the expression has it open.
+/// **Skinning reaches these triangles as of `gfx-11n`; morphing still does
+/// not.** A skinned mesh is posed on the host through [PosedMesh] before the
+/// triangle test — a copy per node a ray actually reaches, kept while the
+/// pose holds — so a shot at a running figure hits the arm where the arm is,
+/// and a click selects the raised one. [posed] turns that off for a caller
+/// who wants the authored shape.
 ///
-/// Written down rather than fixed, because fixing it is a decision and not an
-/// oversight: deforming on the host means a posed copy of every skinned mesh
-/// and a blended copy of every morphed one, per cast or per frame, and that is
-/// a cost nothing in this repository has asked to pay — picking is used on
-/// static geometry and on whole characters, where the bounding volumes are the
-/// answer either way. `MorphBlend` is the tool for a caller that does need it:
-/// it produces the deformed vertices on the host, and a mesh built from those
-/// is one this will hit exactly.
+/// A morphed mesh is still the base shape here: a face's jaw is shut however
+/// wide the expression has it open. That is a decision rather than an
+/// oversight and it is a different one — a blend shape moves every vertex
+/// with no structure to exploit, where a skin moves them through a handful of
+/// matrices — and `MorphBlend` is the tool for a caller that needs it, since
+/// a mesh built from its output is one this hits exactly.
 ///
-/// The bounding volumes, unlike the triangles, **do** follow both — see
-/// `MeshNode.skinReach` and `MorphState.reach` — so a deformed model is still
-/// found as a candidate and still culled correctly. It is only the triangle
-/// test underneath that answers about the shape before the stage moved it.
+/// The bounding volumes follow both — see `MeshNode.skinReach` and
+/// `MorphState.reach` — so a deformed model is found as a candidate and
+/// culled correctly either way.
 final class Raycaster {
   Raycaster();
 
@@ -111,6 +111,22 @@ final class Raycaster {
   /// Off by default: picking should find a surface the user can see, and a
   /// double-sided or inside-out mesh is still something they clicked on.
   bool cullBackFaces = false;
+
+  /// Whether a skinned mesh is tested where its skeleton has it — `gfx-11n`.
+  ///
+  /// **On, which is a behaviour change and the point of the row.** A raycast
+  /// used to hit the bind pose whatever the character was doing: a shot at a
+  /// running figure missed, and a click on a raised arm selected nothing. The
+  /// cost is a posed copy of the mesh — per node a ray actually reaches, kept
+  /// while the pose holds — and [PosedMesh] carries the argument for why that
+  /// bill is smaller than the one this class's own doc comment used to quote.
+  ///
+  /// Off gives the old answer exactly, for a caller who wants the authored
+  /// shape: a tool measuring a model rather than a game shooting at one.
+  bool posed = true;
+
+  /// The posed copy, reused across casts and across nodes.
+  final PosedMesh _posed = PosedMesh();
 
   /// Optional spatial index, normally the render list's.
   ///

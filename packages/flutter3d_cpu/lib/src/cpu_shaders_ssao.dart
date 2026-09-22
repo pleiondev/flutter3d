@@ -154,3 +154,57 @@ final class SsaoShader implements CpuFragmentShader {
     return Vector4(ao, ao, ao, ao);
   }
 }
+
+/// `ssao_blur.frag`: the depth-aware smoothing over what [SsaoShader] drew —
+/// `gfx-32n`.
+///
+/// Mirrors the GLSL operation for operation, the contract every shader in
+/// this package keeps: the two are compared by golden images, and a shortcut
+/// here would read as a backend disagreeing about the picture.
+final class SsaoBlurShader implements CpuFragmentShader {
+  const SsaoBlurShader();
+
+  @override
+  Vector4? run(Float32List v, ShaderBindings bindings, FragmentContext c) {
+    final ao = bindings.textures['ao_texture'];
+    if (ao == null) return Vector4(1.0, 1.0, 1.0, 1.0);
+    final params = bindings.vec4('SsaoBlurInfo', 'params', Vector4.zero());
+
+    final centre = ao.sample(v[0], v[1]).x;
+    final taps = params.z;
+    if (taps < 1.0) return Vector4(centre, centre, centre, 1.0);
+
+    final surface = bindings.textures['surface_texture'];
+    if (surface == null) return Vector4(centre, centre, centre, 1.0);
+
+    final centreDepth = surface.sample(v[0], v[1]).w;
+    final falloff = math.max(params.w, 1e-4);
+
+    var total = centre;
+    var weightSum = 1.0;
+    // Bounded at eight to each side whatever the uniform says, the same rule
+    // the shader keeps and for the same reason.
+    for (var i = 1; i <= 8; i++) {
+      if (i > taps) break;
+      final offset = i.toDouble();
+      final steps = <List<double>>[
+        <double>[params.x * offset, 0.0],
+        <double>[-params.x * offset, 0.0],
+        <double>[0.0, params.y * offset],
+        <double>[0.0, -params.y * offset],
+      ];
+      for (final step in steps) {
+        final u = v[0] + step[0];
+        final w = v[1] + step[1];
+        final depth = surface.sample(u, w).w;
+        final closeness = math.exp(-(depth - centreDepth).abs() / falloff);
+        final weight = closeness / offset;
+        total += ao.sample(u, w).x * weight;
+        weightSum += weight;
+      }
+    }
+
+    final blurred = total / weightSum;
+    return Vector4(blurred, blurred, blurred, 1.0);
+  }
+}

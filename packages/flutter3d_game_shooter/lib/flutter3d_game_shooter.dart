@@ -11,8 +11,9 @@
 /// [Gift], [Arsenal] and [GameSimulation] answer the machinery with content,
 /// and content belongs to a genre.
 ///
-/// Nothing here imports the renderer. [WeaponView] does, and it is in
-/// `bridge.dart` for that reason; a test holds the split.
+/// Nothing here imports the renderer or names Flutter. [WeaponView] reaches
+/// the renderer and the readouts are widgets, so both are in `bridge.dart`;
+/// `tool/structure.dart` holds the split.
 library;
 
 export 'src/actions.dart';
@@ -29,7 +30,6 @@ export 'src/combat/weapon_def.dart';
 export 'src/entity_kinds.dart';
 export 'src/events.dart';
 export 'src/gift.dart';
-export 'src/hud.dart';
 export 'src/inventory.dart';
 export 'src/monsters.dart';
 export 'src/patrol.dart';

@@ -13,6 +13,8 @@ import 'dart:typed_data';
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:vector_math/vector_math.dart';
 
+import 'portable_log2.dart';
+
 /// A texture as this backend holds one: linear float RGBA, row zero at the top.
 ///
 /// Float rather than bytes for every format, because the engine renders in
@@ -264,7 +266,16 @@ final class BoundTexture {
   /// difference from the hardware backends, where the derivative is a property
   /// of the fragment rather than of the call, and it is why this is a
   /// parameter rather than something read off the context.
-  Vector4 sample(double u, double v, {double du = 0.0, double dv = 0.0}) {
+  Vector4 sample(
+    double u,
+    double v, {
+    double du = 0.0,
+    double dv = 0.0,
+    double dudx = 0.0,
+    double dvdx = 0.0,
+    double dudy = 0.0,
+    double dvdy = 0.0,
+  }) {
     final chain = texture.levels;
     if (chain == null || chain.isEmpty || (du == 0.0 && dv == 0.0)) {
       return _sampleLevel(texture, u, v);
@@ -273,10 +284,55 @@ final class BoundTexture {
     // The footprint in texels: how much of the texture one pixel covers. A
     // level is chosen so that footprint is about one texel, which is the whole
     // of what a mip chain is for.
-    final footprint = math.max(du * width, dv * height);
+    final along = du * width;
+    final across = dv * height;
+    final footprint = math.max(along, across);
     if (footprint <= 1.0) return _sampleLevel(texture, u, v);
 
-    final lod = math.log(footprint) / math.ln2;
+    // **Anisotropy — `gfx-02n`.** A trilinear sampler has one footprint and
+    // must pick a level for it, so at a grazing angle it serves the long axis
+    // and blurs the short one: a floor receding to the horizon loses its
+    // checks long before perspective would. The fix the hardware has always
+    // had is to take several taps *along* the long axis and choose the level
+    // from the short one.
+    //
+    // **A sampler that did not ask is untouched**, which is what makes this
+    // safe to add to a backend forty-four golden scenes are recorded on: with
+    // `anisotropy` at one — the default everywhere in this engine — the
+    // arithmetic below is not reached and the bytes are the ones that were
+    // recorded. `anisotropic-floor` is the one scene that asks.
+    final int wanted = sampler.anisotropy;
+    if (wanted > 1 && (dudx != 0.0 || dvdy != 0.0 || dudy != 0.0)) {
+      // **The two screen derivatives as vectors, not their axis maxima.** The
+      // footprint is the parallelogram they span; what a mip level cannot
+      // serve is its *ratio*, and `du`/`dv` have already thrown that away by
+      // taking a maximum per axis. The first version of this read them and
+      // measured a ratio of about one on a floor receding to the horizon —
+      // zero differing pixels, and the fixture said so.
+      final double lx = math.sqrt(
+        dudx * width * dudx * width + dvdx * height * dvdx * height,
+      );
+      final double ly = math.sqrt(
+        dudy * width * dudy * width + dvdy * height * dvdy * height,
+      );
+      final double major = math.max(lx, ly);
+      final double minor = math.min(lx, ly);
+      if (minor > 0.0 && major > 1.0) {
+        final int taps = math.min(wanted, math.max(1, (major / minor).round()));
+        if (taps > 1) {
+          return _anisotropic(
+            u,
+            v,
+            lx >= ly ? dudx : dudy,
+            lx >= ly ? dvdx : dvdy,
+            minor,
+            taps,
+          );
+        }
+      }
+    }
+
+    final lod = portableLog2(footprint);
     final top = chain.length;
     if (lod >= top) return _sampleLevel(chain[top - 1], u, v);
 
@@ -293,6 +349,84 @@ final class BoundTexture {
       a.y + (b.y - a.y) * t,
       a.z + (b.z - a.z) * t,
       a.w + (b.w - a.w) * t,
+    );
+  }
+
+  /// [taps] samples spread along the long axis of the footprint, each at the
+  /// level the *short* axis asks for.
+  ///
+  /// The taps are placed symmetrically about the centre and averaged flat,
+  /// which is what a box filter along the axis is. Hardware weights them —
+  /// the exact weighting is a vendor's own and is not written down anywhere —
+  /// so this will not match a GPU texel for texel and is not meant to: what
+  /// it matches is the *behaviour*, which is that the checks survive.
+  /// [taps] samples spread along the long axis of the footprint, each at the
+  /// level the *short* axis asks for.
+  ///
+  /// [stepU] and [stepV] are the long axis as a step in texture coordinates —
+  /// one whole screen pixel's worth — and [minor] is the short axis in
+  /// texels, which is the level every tap is taken at. The taps are placed
+  /// symmetrically about the centre and averaged flat, which is a box filter
+  /// along the axis. Hardware weights them, and the weighting is a vendor's
+  /// own and written down nowhere, so this will not match a GPU texel for
+  /// texel and is not meant to: what it matches is the behaviour, which is
+  /// that the checks survive.
+  Vector4 _anisotropic(
+    double u,
+    double v,
+    double stepU,
+    double stepV,
+    double minor,
+    int taps,
+  ) {
+    // The level the short axis wants, expressed the way `_trilinear` reads
+    // it: a per-pixel derivative whose footprint in texels is `minor`.
+    final double lodU = minor / width;
+    final double lodV = minor / height;
+
+    var r = 0.0;
+    var g = 0.0;
+    var b = 0.0;
+    var a = 0.0;
+    for (var i = 0; i < taps; i++) {
+      // Centres of `taps` equal slices across the footprint: -½ + (i + ½)/n.
+      final double t = (i + 0.5) / taps - 0.5;
+      final Vector4 tap = _trilinear(u + stepU * t, v + stepV * t, lodU, lodV);
+      r += tap.x;
+      g += tap.y;
+      b += tap.z;
+      a += tap.w;
+    }
+    return Vector4(r / taps, g / taps, b / taps, a / taps);
+  }
+
+  /// One trilinear sample — the path [sample] takes when nothing asks for
+  /// anisotropy, factored out so the taps above can reuse it without
+  /// recursing back into the anisotropy check.
+  Vector4 _trilinear(double u, double v, double du, double dv) {
+    final chain = texture.levels;
+    if (chain == null || chain.isEmpty) return _sampleLevel(texture, u, v);
+
+    final footprint = math.max(du * width, dv * height);
+    if (footprint <= 1.0) return _sampleLevel(texture, u, v);
+
+    final lod = portableLog2(footprint);
+    final top = chain.length;
+    if (lod >= top) return _sampleLevel(chain[top - 1], u, v);
+
+    final lower = lod.floor();
+    final near = lower == 0 ? texture : chain[lower - 1];
+    if (sampler.mipFilter == MipFilter.nearest) return _sampleLevel(near, u, v);
+
+    final far = chain[lower];
+    final t = lod - lower;
+    final first = _sampleLevel(near, u, v);
+    final second = _sampleLevel(far, u, v);
+    return Vector4(
+      first.x + (second.x - first.x) * t,
+      first.y + (second.y - first.y) * t,
+      first.z + (second.z - first.z) * t,
+      first.w + (second.w - first.w) * t,
     );
   }
 

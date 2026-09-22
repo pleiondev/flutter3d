@@ -1,0 +1,37 @@
+name: flutter3d_editor_widgets
+description: "Shared editor controls — a number field, a colour field, a section label, a range slider, an enum dropdown, a texture slot row, a texture path field, a colour swatch field and the FieldRow they assemble into, so far — over EditorWidgetsTheme, so the modeller and the level editor stop keeping their own copies."
+version: 0.7.0
+repository: https://github.com/pleiondev/flutter3d
+homepage: https://flutter3d.pleion.dev
+issue_tracker: https://github.com/pleiondev/flutter3d/issues
+topics:
+  - game-development
+  - game-engine
+  - tooling
+resolution: workspace
+
+environment:
+  sdk: ^3.12.2
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # `RangeHint`, `EnumHint` and `EnumHintValue` — `RangeSliderField` and
+  # `EnumField` read them, `ui-27`'s own P1. `TexturePathField`,
+  # `ColorSwatchField` and `FieldRow` read `TextureHint`/`ColorHint`/
+  # `MaterialHint` off the same package, `ui-27`'s own P2 — no second
+  # dependency joined to get there.
+  flutter3d_core: ^0.7.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+
+# **`flutter` and `flutter3d_core`, and nothing past them, on purpose.**
+# Not `flutter3d_editor_core` — the `.fmat` gate stays there — and not
+# `flutter3d_model_core`, whose own `ParamHint`/`EnumHint` are a different
+# type from anything a widget here reads. A widget that seems to need one of
+# those two is a widget that needs a parameter or a callback added to it
+# instead, not an import.

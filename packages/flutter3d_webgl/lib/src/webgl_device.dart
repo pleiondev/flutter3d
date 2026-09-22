@@ -129,7 +129,24 @@ final class WebGlDevice implements GraphicsDevice {
       .._floatLinear = floatLinear != null
       .._msaaSamples = _provenMsaaSamples(gl)
       .._maxAnisotropy = _queryMaxAnisotropy(gl)
+      .._maxColorAttachments = _queryMaxColorAttachments(gl)
       .._compressedTextureSupport = CompressedTextureSupport.query(gl);
+  }
+
+  /// What `MAX_DRAW_BUFFERS` says here — `gfx-50n`.
+  ///
+  /// Core in WebGL2 rather than an extension, and the specification's floor
+  /// is four, so this is the one backend where the number is a genuine query
+  /// with a guaranteed answer. Asked anyway rather than assumed four: a
+  /// software GL behind a headless browser is still a GL, and the floor is a
+  /// promise about conforming implementations rather than about whatever is
+  /// actually running.
+  static int _queryMaxColorAttachments(web.WebGL2RenderingContext gl) {
+    final value = gl.getParameter(web.WebGL2RenderingContext.MAX_DRAW_BUFFERS);
+    final max = value != null && value.isA<JSNumber>()
+        ? (value as JSNumber).toDartInt
+        : 1;
+    return max < 1 ? 1 : max;
   }
 
   /// What `EXT_texture_filter_anisotropic` allows here, or 1 without it.
@@ -353,6 +370,14 @@ final class WebGlDevice implements GraphicsDevice {
   /// land, and a picture that is merely blurrier than asked for.
   @override
   int get maxAnisotropy => _maxAnisotropy;
+
+  /// What [_queryMaxColorAttachments] found at [create]. One until then, which
+  /// is the answer that refuses everything rather than the one that promises
+  /// it.
+  int _maxColorAttachments = 1;
+
+  @override
+  int get maxColorAttachments => _maxColorAttachments;
 
   @override
   ShaderLibrary get shaders => _library;
@@ -597,8 +622,16 @@ final class WebGlDevice implements GraphicsDevice {
   }
 
   @override
-  CommandEncoder beginRenderPass(RenderPassDescriptor descriptor) =>
-      WebGlEncoder(this, _gl, descriptor);
+  CommandEncoder beginRenderPass(RenderPassDescriptor descriptor) {
+    // `gfx-50n`. GL would answer this itself with an incomplete framebuffer,
+    // which is every draw silently discarded — the same refusal said as a
+    // frame of nothing rather than as a throw.
+    descriptor.checkAttachmentLimit(
+      maxColorAttachments,
+      backend: 'this WebGL2 context',
+    );
+    return WebGlEncoder(this, _gl, descriptor);
+  }
 
   /// The platform view type this device's canvas is registered under.
   ///

@@ -10,8 +10,8 @@ library;
 import 'dart:io';
 import 'dart:typed_data';
 
-import 'package:flutter3d_formats/flutter3d_formats.dart';
-import 'package:flutter3d_geometry/flutter3d_geometry.dart';
+import 'package:flutter3d_core/formats.dart';
+import 'package:flutter3d_core/geometry.dart';
 
 import 'texture_encode.dart';
 
@@ -33,10 +33,16 @@ final class TextureFamily {
   static const TextureFamily etc2 = TextureFamily._('etc2');
   static const TextureFamily none = TextureFamily._('none');
 
+  /// One cooked texture for every device family — `gfx-83n`. Not a GPU
+  /// format: a 4×4 block intermediate the load turns into BC, ASTC, ETC2 or
+  /// RGBA8 against what the device reports sampling.
+  static const TextureFamily universal = TextureFamily._('universal');
+
   static const List<TextureFamily> values = <TextureFamily>[
     auto,
     bc,
     etc2,
+    universal,
     none,
   ];
 
@@ -64,19 +70,25 @@ Options:
                              input: the output directory, mirroring the
                              input's own relative paths (default: alongside
                              each source file).
-  --textures <family>       auto | bc | etc2 | none (default: auto). Chooses
-                             which compressed texture family a converted
-                             image targets. `bc` picks BC1 for an opaque
-                             image and BC3 for one with alpha; `etc2` refuses
-                             (and leaves the source image as it arrived)
-                             an image with alpha, since the EAC alpha block
-                             is not encoded yet. `auto` is unresolved until
-                             ap-09 picks a family per target device rather
-                             than per conversion — it behaves like `none`.
-  --no-mips                 Skip generating a mip chain for textures.
-                             Accepted, but there is no mip generator wired
-                             in here yet (ap-08 exists in flutter3d_formats;
-                             this converter does not call it).
+  --textures <family>       auto | bc | etc2 | universal | none (default:
+                             auto). Chooses which compressed texture family a
+                             converted image targets. `bc` picks BC1 for an
+                             opaque image and BC3 for one with alpha; `etc2`
+                             refuses (and leaves the source image as it
+                             arrived) an image with alpha, since the EAC alpha
+                             block is not encoded yet. `universal` writes a
+                             4x4 block intermediate that is not a GPU format:
+                             the load turns it into BC, ASTC, ETC2 or RGBA8
+                             against what the device samples, so one cooked
+                             file serves every device family at twenty bytes
+                             a block. `auto` behaves like `none` here: the
+                             machine converting a texture is not the one that
+                             loads it, so only a build hook, which is told its
+                             target, resolves it. Name a family, or
+                             `universal` for a file every device can load.
+  --no-mips                 Skip the mip chain and keep the base level alone.
+                             Every compressed image otherwise carries one,
+                             down to the last level that is whole 4x4 blocks.
   -h, --help                Show this text.
 ''';
 
@@ -171,15 +183,9 @@ Future<int> runConvert(
 
   if (options.textures == TextureFamily.auto) {
     stdoutSink.writeln(
-      'note: --textures auto accepted, but choosing a family per target '
-      'device is ap-09 — textures pass through unencoded until a run names '
-      'bc or etc2 explicitly',
-    );
-  }
-  if (!options.mips) {
-    stdoutSink.writeln(
-      'note: --no-mips accepted, no mip generator yet (ap-08) — nothing '
-      'generates one regardless',
+      'note: --textures auto accepted, but only a build hook knows the '
+      'target it converts for — textures pass through unencoded until a run '
+      'names bc, etc2 or universal explicitly',
     );
   }
 
@@ -203,6 +209,7 @@ Future<int> runConvert(
       stdoutSink,
       stderrSink,
       textures: options.textures,
+      mips: options.mips,
       decoders: decoders,
     );
     if (!ok) failures++;
@@ -272,6 +279,7 @@ Future<bool> convertOne(
   IOSink out,
   IOSink err, {
   TextureFamily textures = TextureFamily.auto,
+  bool mips = true,
   List<ModelDecoder> decoders = const <ModelDecoder>[],
 }) async {
   final input = File(inputPath);
@@ -295,6 +303,7 @@ Future<bool> convertOne(
   document = await encodeDocumentTextures(
     document,
     textures,
+    mips: mips,
     report: (message) => out.writeln('  texture: $message'),
   );
 

@@ -3,7 +3,7 @@ library;
 
 /// `net-02`'s fallback transport, proved against a real second process
 /// rather than a mock — the same reasoning
-/// `flutter3d_session/test/run_timeline_extensions_test.dart` gives for
+/// `flutter3d_game/test/run_timeline_extensions_test.dart` gives for
 /// `rp-02`: a relay that only ever talked to an in-memory fake would be
 /// proving a protocol nobody outside this test speaks.
 ///

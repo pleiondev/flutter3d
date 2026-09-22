@@ -14,7 +14,7 @@ library;
 import 'dart:io';
 
 import 'package:dart_mcp/client.dart';
-import 'package:flutter3d_formats/flutter3d_formats.dart';
+import 'package:flutter3d_core/formats.dart';
 import 'package:flutter3d_model_core/flutter3d_model_core.dart';
 import 'package:flutter3d_model_mcp/flutter3d_model_mcp.dart';
 import 'package:stream_channel/stream_channel.dart';
@@ -237,5 +237,64 @@ void main() {
     final empty = await call('listMaterials');
     expect(empty.did, isTrue, reason: empty.says);
     expect(empty.says, contains('no materials'));
+  });
+
+  group("ux-35: bloom is a field an agent can find", () {
+    test('setSceneLightingField turns it off and on', () async {
+      expect(session.history.project.lighting.post.bloomEnabled, isTrue);
+
+      final off = await call('setSceneLightingField', <String, Object?>{
+        'field': 'bloomEnabled',
+        'value': false,
+      });
+      expect(off.did, isTrue, reason: off.says);
+      expect(session.history.project.lighting.post.bloomEnabled, isFalse);
+    });
+
+    test('and the schema says so, which is how it would be found', () {
+      // **The bug this closes is a discovery bug, not a behaviour one.** The
+      // case worked in `_sceneLightingFieldSet` all along; the enum listed
+      // three of its four fields, so a client reading `tools/list` — which
+      // is every client — had no way to know the project's one
+      // post-processing switch could be set at all. And since `ux-43`,
+      // arguments are checked against the schema before a tool runs, so an
+      // undeclared field is now refused rather than quietly working.
+      final ModelTool tool = modelTools.firstWhere(
+        (ModelTool it) => it.name == 'setSceneLightingField',
+      );
+      final Map<String, Object?> schema =
+          tool.tool.inputSchema as Map<String, Object?>;
+      final Map<String, Object?> properties =
+          (schema['properties']! as Map<Object?, Object?>)
+              .cast<String, Object?>();
+      final Map<String, Object?> field =
+          (properties['field']! as Map<Object?, Object?>)
+              .cast<String, Object?>();
+
+      expect(
+        (field['enum']! as List<Object?>).cast<String>(),
+        containsAll(<String>[
+          'ambientIntensity',
+          'shadows',
+          'exposure',
+          'bloomEnabled',
+        ]),
+      );
+      expect(tool.tool.description, contains('bloomEnabled'));
+    });
+
+    test('and addShape is gone, so one command has one name', () {
+      // `ux-35`: a second name for `addShapeFromMesh` was a choice an agent
+      // had to make between two identical rows, and could not make wrong or
+      // right.
+      expect(
+        modelTools.where((ModelTool it) => it.name == 'addShape'),
+        isEmpty,
+      );
+      expect(
+        modelTools.where((ModelTool it) => it.name == 'addShapeFromMesh'),
+        hasLength(1),
+      );
+    });
   });
 }

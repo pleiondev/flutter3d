@@ -14,11 +14,12 @@
 library;
 
 import 'package:flutter3d/flutter3d.dart' hide Material;
-import 'package:flutter3d_app/flutter3d_app.dart'; // RunPlaying/RunFailed, SaveFile
+import 'package:flutter3d_app/flutter3d_app.dart';
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
 import 'package:flutter3d_demo_platformer/src/run.dart';
 import 'package:flutter3d_demo_platformer/src/run_cubit.dart';
-import 'package:flutter3d_game/flutter3d_game.dart';
+import 'package:flutter3d_game/flutter3d_game.dart'; // RunPlaying/RunFailed, SaveFile
+import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 const String _first = 'assets/levels/first_steps.json';
@@ -56,7 +57,8 @@ final class _Storage implements Storage {
         saves: SaveFile(appName: 'platformer', storage: storage),
         input: InputState(),
         openDevice: () async => device,
-        onLevelBuilt: (LevelReady level, GraphicsDevice device) {},
+        onLevelBuilt:
+            (String asset, LevelReady level, GraphicsDevice device) {},
         pauseBetweenLevels: Duration.zero,
       ),
     ),

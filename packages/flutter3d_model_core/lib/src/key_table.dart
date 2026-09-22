@@ -1,6 +1,6 @@
 import 'dart:typed_data';
 
-import 'package:flutter3d_formats/flutter3d_formats.dart';
+import 'package:flutter3d_core/formats.dart';
 
 /// One keyframe in a [KeyTable] — a time, a value, and the two tangents a
 /// cubic-interpolated key carries whether or not the table is currently

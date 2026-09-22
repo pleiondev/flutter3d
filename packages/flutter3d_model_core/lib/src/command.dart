@@ -21,6 +21,7 @@
 library;
 
 import 'dart:convert';
+import 'dart:math' as math;
 import 'dart:typed_data';
 
 // `EnumHint` hidden: `flutter3d_formats`' own is `MaterialHintKind`'s, for a
@@ -28,15 +29,18 @@ import 'dart:typed_data';
 // argument's the same word for the same reason — nothing here reads a
 // material's, and the collision is the one the plan's own critique (Г4/Ж2)
 // gives for keeping the two hierarchies apart in the first place.
-import 'package:flutter3d_formats/flutter3d_formats.dart' hide EnumHint;
+import 'package:flutter3d_core/formats.dart' hide EnumHint;
+import 'package:flutter3d_core/geometry.dart' show TriangleBvh;
 import 'package:flutter3d_mesh/flutter3d_mesh.dart';
 import 'package:vector_math/vector_math.dart';
 
+import 'describe.dart';
 import 'job.dart';
 import 'key_table.dart';
 import 'lod_spec.dart';
 import 'material.dart';
 import 'modifier_slot.dart';
+import 'paint_layer.dart';
 import 'param_hint.dart';
 import 'parametric_json.dart';
 import 'project.dart';
@@ -44,12 +48,14 @@ import 'project_animation.dart';
 import 'project_morphs.dart';
 import 'scene_lighting.dart';
 import 'selection.dart';
+import 'shape_driver.dart';
 import 'simulation_bake.dart';
 import 'simulation_cache.dart';
 import 'texture_bake.dart';
 import 'texture_graph.dart';
 import 'world_transform.dart';
 
+part 'bake_commands.dart';
 part 'job_commands.dart';
 part 'joint_commands.dart';
 part 'keyframe_commands.dart';
@@ -59,18 +65,29 @@ part 'material_commands.dart';
 part 'mesh_commands.dart';
 part 'modifier_commands.dart';
 part 'object_commands.dart';
+part 'paint_commands.dart';
+part 'paint_weights.dart';
 part 'profile_commands.dart';
 part 'rig_job_commands.dart';
 part 'root_motion_commands.dart';
+part 'sculpt_commands.dart';
 part 'selection_commands.dart';
+part 'set_rig.dart';
 part 'shape_commands.dart';
 part 'simulation_commands.dart';
+part 'source_commands.dart';
 part 'texture_graph_commands.dart';
 part 'uv_commands.dart';
 
 /// What a command did.
 final class Outcome {
-  const Outcome._(this.project, this.selection, this.refused, this.meshTouched);
+  const Outcome._(
+    this.project,
+    this.selection,
+    this.refused,
+    this.meshTouched,
+    this.meshesTouched,
+  );
 
   /// It worked, and this is the project now.
   ///
@@ -80,14 +97,25 @@ final class Outcome {
   /// [meshTouched] is the mesh that took a journal step, when one did. See
   /// `mesh_commands.dart`: a mesh is not a value with old versions in it, so
   /// the history has to roll its journal in step with the documents it keeps.
+  ///
+  /// [meshesTouched] is for a command that edited *several* — `PackAtlas`
+  /// rewrites every object's UVs in one step, and a history that rolled one
+  /// of the three back would leave a document disagreeing with itself.
+  /// Naming one mesh through [meshTouched] is the ordinary case and stays
+  /// the shorter way to say it.
   factory Outcome.done(
     ModelProject project, {
     ProjectSelection? selection,
     EditMesh? meshTouched,
-  }) => Outcome._(project, selection, null, meshTouched);
+    List<EditMesh> meshesTouched = const <EditMesh>[],
+  }) => Outcome._(project, selection, null, meshTouched, <EditMesh>[
+    ?meshTouched,
+    ...meshesTouched,
+  ]);
 
   /// It did not, and this is what to tell somebody.
-  factory Outcome.refused(String said) => Outcome._(null, null, said, null);
+  factory Outcome.refused(String said) =>
+      Outcome._(null, null, said, null, const <EditMesh>[]);
 
   final ModelProject? project;
   final ProjectSelection? selection;
@@ -96,6 +124,10 @@ final class Outcome {
   /// The mesh whose journal moved on, or null when the command only touched
   /// the document.
   final EditMesh? meshTouched;
+
+  /// Every mesh whose journal moved on, [meshTouched] included — what the
+  /// history rolls. Empty for a command that only touched the document.
+  final List<EditMesh> meshesTouched;
 
   bool get ok => refused == null;
 }
@@ -209,6 +241,22 @@ sealed class ModelCommand {
   /// made.
   Outcome apply(ModelProject project, ProjectSelection selection);
 
+  /// Whether a successful run of this should be written to whichever
+  /// `CommandJournal` a [ModelHistory] has attached, when one is. True for
+  /// every command except [ReplaceDocument] — see that class's own doc
+  /// comment for why a line naming it could never be read back.
+  ///
+  /// **On the command rather than left to each call site to remember.**
+  /// [ModelHistory.run] used to journal nothing itself — a caller recorded
+  /// to its own `CommandJournal` by hand, and one that called [run] directly
+  /// rather than through that wrapper (`ModelSession.import`'s own
+  /// [ReplaceDocument] call, deliberately) simply never did. Once [run]
+  /// journals on behalf of every caller (`tut-15`), that same exemption has
+  /// to travel with the command itself, or every caller earns the exemption
+  /// back by remembering which door to call [run] through — exactly the kind
+  /// of thing this row exists to stop depending on.
+  bool get isJournaled => true;
+
   Map<String, Object?> toJson() => <String, Object?>{
     'name': name,
     ...arguments,
@@ -222,14 +270,17 @@ sealed class ModelCommand {
 /// Swaps the whole document for [next], as one undo step.
 ///
 /// **Deliberately not in [modelCommandNames], not in [modelCommandFromJson],
-/// and not `record`-able through `CommandJournal`.** Every other command
-/// describes an edit small enough to write down and replay — a number, an id,
-/// a list of points; this one carries a whole [ModelProject], which is what an
-/// importer builds from a decoded file and a journal has no honest way to
-/// store. It exists so that bringing in an external model — `flutter3d_model_mcp`'s
-/// `import`, and later `doc-11a-n`'s `ImportInto` — still goes through
-/// [ModelHistory] and can be undone as itself, rather than needing a second,
-/// private way to push a step that every other command already has for free.
+/// and [isJournaled] is false.** Every other command describes an edit small
+/// enough to write down and replay — a number, an id, a list of points; this
+/// one carries a whole [ModelProject], which is what an importer builds from
+/// a decoded file and a journal has no honest way to store — a line naming it
+/// would read back only `{"name": "replaceDocument"}`, nothing of [next], and
+/// [modelCommandFromJson] would refuse it anyway since it is not in that
+/// table. It exists so that bringing in an external model —
+/// `flutter3d_model_mcp`'s `import`, and later `doc-11a-n`'s `ImportInto` —
+/// still goes through [ModelHistory] and can be undone as itself, rather than
+/// needing a second, private way to push a step that every other command
+/// already has for free.
 final class ReplaceDocument extends ModelCommand {
   const ReplaceDocument(this.next, this.says);
 
@@ -243,6 +294,9 @@ final class ReplaceDocument extends ModelCommand {
 
   @override
   Map<String, Object?> get arguments => const <String, Object?>{};
+
+  @override
+  bool get isJournaled => false;
 
   @override
   Outcome apply(ModelProject project, ProjectSelection selection) =>
@@ -315,9 +369,18 @@ final class SetTransform extends ModelCommand {
 /// what they mean. `ModelHistory.transaction` does the collapsing and this is
 /// the shape that lets it.
 final class MoveBy extends ModelCommand {
-  const MoveBy(this.by);
+  const MoveBy(this.by, {this.space = TransformSpace.global});
 
   final Vector3 by;
+
+  /// Whose axes [by] is measured along — `ux-12`.
+  ///
+  /// **A move has a space but no pivot.** Sliding something does not turn it,
+  /// so where the turn would be centred makes no difference to the answer;
+  /// which way "along X" points does, and under [TransformSpace.local] two
+  /// objects facing different ways go different ways under one command, which
+  /// is the whole reason the chip exists.
+  final TransformSpace space;
 
   @override
   String get name => 'moveBy';
@@ -328,6 +391,7 @@ final class MoveBy extends ModelCommand {
   @override
   Map<String, Object?> get arguments => <String, Object?>{
     'by': <double>[by.x, by.y, by.z],
+    if (space != TransformSpace.global) 'space': space.name,
   };
 
   @override
@@ -339,6 +403,20 @@ final class MoveBy extends ModelCommand {
   Outcome apply(ModelProject project, ProjectSelection selection) {
     if (selection.objects.isEmpty) {
       return Outcome.refused('nothing is selected to move');
+    }
+    if (space == TransformSpace.local) {
+      // Through the same applier the turn and the scale use: a translation
+      // sandwiched in each object's own basis is exactly "along its own
+      // axes", and the pivot cancels out of a translation, which is why it
+      // is not a parameter here.
+      return _aboutThePivot(
+        project,
+        selection,
+        'move',
+        pivot: TransformPivot.individual,
+        space: space,
+        build: () => Matrix4.translation(by),
+      );
     }
     var next = project;
     for (final int id in selection.objects) {
@@ -488,7 +566,13 @@ _modelCommandReaders =
             _ => null,
           },
       'moveBy': (json) => switch (_doubles(json['by'], 3)) {
-        final List<double> by => MoveBy(Vector3(by[0], by[1], by[2])),
+        final List<double> by => MoveBy(
+          Vector3(by[0], by[1], by[2]),
+          // `ux-12`: a move carries a space now. An entry written before it
+          // did says nothing, and `_space` answers that with the global one
+          // it always meant.
+          space: _space(json['space']) ?? TransformSpace.global,
+        ),
         _ => null,
       },
       'rotateBy': (json) => switch ((
@@ -520,6 +604,15 @@ _modelCommandReaders =
       },
       'setParent': (json) => switch ((json['id'], json['to'])) {
         (final int id, final int? to) => SetParent(id: id, to: to),
+        _ => null,
+      },
+      // `ux-14`'s own two.
+      'setObjectVisible': (json) => switch ((json['id'], json['to'])) {
+        (final int id, final bool to) => SetObjectVisible(id: id, to: to),
+        _ => null,
+      },
+      'setObjectLocked': (json) => switch ((json['id'], json['to'])) {
+        (final int id, final bool to) => SetObjectLocked(id: id, to: to),
         _ => null,
       },
       'setOrigin': (json) => switch ((json['id'], _placement(json['to']))) {
@@ -562,7 +655,13 @@ _modelCommandReaders =
       },
       'addPrimitive': (json) => switch (json['kind']) {
         final String kind => AddPrimitive(
-          kind: kind,
+          // `ux-43`: one shape, one meaning, whichever of its two names a
+          // caller uses. The project format has written `cuboid` since the
+          // first file it saved and cannot stop; `primitiveKinds` has said
+          // `box` for as long, because that is the word on the menu. An
+          // agent that read a `.f3dproj` and then asked for another one of
+          // those was refused for spelling it the way the file did.
+          kind: kind == 'cuboid' ? 'box' : kind,
           size: switch (json['size']) {
             final num size => size.toDouble(),
             _ => 1.0,
@@ -582,6 +681,18 @@ _modelCommandReaders =
         final int id => BakeToMesh(id),
         _ => null,
       },
+      // `ux-16`'s own: the import screen's weld, offered again on an object
+      // already open.
+      'buildTopology': (json) => switch (json['id']) {
+        final int id => BuildTopology(
+          id: id,
+          weld: switch (json['weld']) {
+            final num it => it.toDouble(),
+            _ => null,
+          },
+        ),
+        _ => null,
+      },
       'deleteObjects': (json) => const DeleteObjects(),
       'duplicateObjects': (json) => const DuplicateObjects(),
       'extrude': (json) => switch (json['distance']) {
@@ -598,6 +709,32 @@ _modelCommandReaders =
           _ => 0.5,
         },
       ),
+      'bevelEdges': (json) => switch (json['width']) {
+        final num width => BevelEdges(
+          width.toDouble(),
+          segments: switch (json['segments']) {
+            final int segments => segments,
+            _ => 1,
+          },
+          clampOverlap: json['clampOverlap'] as bool? ?? true,
+        ),
+        _ => null,
+      },
+      'insetFaces': (json) => switch (json['thickness']) {
+        final num thickness => InsetFaces(
+          thickness.toDouble(),
+          depth: switch (json['depth']) {
+            final num depth => depth.toDouble(),
+            _ => 0.0,
+          },
+        ),
+        _ => null,
+      },
+      'bridgeLoops': (json) => const BridgeLoops(),
+      'slideEdges': (json) => switch (json['amount']) {
+        final num amount => SlideEdges(amount.toDouble()),
+        _ => null,
+      },
       'deleteElements': (json) => const DeleteElements(),
       'mergeByDistance': (json) => MergeByDistance(
         distance: switch (json['distance']) {
@@ -657,6 +794,49 @@ _modelCommandReaders =
         final int slot => SelectByMaterial(slot),
         _ => null,
       },
+      // `ux-19`. `within` and `radius` are read the same way every other
+      // number in this reader is — a `num` that may have arrived as an int
+      // from JSON — and `within` falls back to the command's own default
+      // rather than refusing, since a caller that did not name an angle is
+      // asking for "the faces that point this way" and not for a syntax
+      // error.
+      'selectFacing': (json) => switch (_doubleListFrom(json['axis'])) {
+        final List<double> axis when axis.length == 3 => SelectFacing(
+          axis: Vector3(axis[0], axis[1], axis[2]),
+          within: switch (json['within']) {
+            final num within => within.toDouble(),
+            _ => 45.0,
+          },
+        ),
+        _ => null,
+      },
+      'selectNear': (json) =>
+          switch ((_doubleListFrom(json['point']), json['radius'])) {
+            (final List<double> point, final num radius)
+                when point.length == 3 =>
+              SelectNear(
+                point: Vector3(point[0], point[1], point[2]),
+                radius: radius.toDouble(),
+              ),
+            _ => null,
+          },
+      // `tut-05`: registered so a journal line — or an MCP `select` call,
+      // read back through `_command`-style reader — replays a specific pick
+      // rather than only the walks above. Every field is optional on
+      // `SelectElements` itself, so there is nothing here for this reader to
+      // refuse on.
+      'selectElements': (json) => SelectElements(
+        objects: _intListFrom(json['objects']),
+        object: switch (json['object']) {
+          final int object => object,
+          _ => null,
+        },
+        level: switch (json['level']) {
+          final String level => level,
+          _ => null,
+        },
+        elements: _intListFrom(json['elements']),
+      ),
       'addLight': (json) => AddLight(
         type: switch (json['type']) {
           final String type => ProjectLightType.values.firstWhere(
@@ -664,6 +844,16 @@ _modelCommandReaders =
             orElse: () => ProjectLightType.directional,
           ),
           _ => ProjectLightType.directional,
+        },
+        // `ux-23`. Absent is the identity transform a light has always had,
+        // which is what a journal written before this existed replays to.
+        at: switch (_doubleListFrom(json['at'])) {
+          final List<double> at when at.length == 3 => Vector3(
+            at[0],
+            at[1],
+            at[2],
+          ),
+          _ => null,
         },
       ),
       'removeLight': (json) => switch (json['index']) {
@@ -702,8 +892,10 @@ _modelCommandReaders =
         ),
         _ => null,
       },
-      'addMaterial': (json) =>
-          AddMaterial(materialName: json['materialName'] as String?),
+      'addMaterial': (json) => AddMaterial(
+        materialName: json['materialName'] as String?,
+        assignTo: json['assignTo'] as int?,
+      ),
       'removeMaterial': (json) => switch (json['index']) {
         final int index => RemoveMaterial(index),
         _ => null,
@@ -882,6 +1074,14 @@ _modelCommandReaders =
         (final int id, final int index) => ToggleModifier(id: id, index: index),
         _ => null,
       },
+      // `ux-13`'s own twin of it.
+      'toggleModifierExport': (json) => switch ((json['id'], json['index'])) {
+        (final int id, final int index) => ToggleModifierExport(
+          id: id,
+          index: index,
+        ),
+        _ => null,
+      },
       'reorderModifier': (json) =>
           switch ((json['id'], json['from'], json['to'])) {
             (final int id, final int from, final int to) => ReorderModifier(
@@ -899,6 +1099,33 @@ _modelCommandReaders =
         (final int id, final int index) => ApplyModifier(id: id, index: index),
         _ => null,
       },
+      // `ux-49`: the panorama beside the four presets. A null index is
+      // "clear it", which is why `index` is read as `int?` rather than
+      // refused when absent.
+      'setPanorama': (json) => SetPanorama(index: json['index'] as int?),
+      // `ux-48`: the three that link an object to the file it came from.
+      'linkToSource': (json) =>
+          switch ((json['id'], json['path'], json['sha'])) {
+            (final int id, final String path, final String sha) => LinkToSource(
+              id: id,
+              path: path,
+              sha: sha,
+            ),
+            _ => null,
+          },
+      'unlinkSource': (json) => switch (json['id']) {
+        final int id => UnlinkSource(id: id),
+        _ => null,
+      },
+      'reimport': (json) =>
+          switch ((json['id'], json['sha'], json['meshBytes'])) {
+            (final int id, final String sha, final String encoded) => Reimport(
+              id: id,
+              sha: sha,
+              meshBytes: base64Decode(encoded),
+            ),
+            _ => null,
+          },
       'applyJobResult': (json) =>
           switch ((json['objectId'], json['baseVersion'], json['meshBytes'])) {
             (final int objectId, final int baseVersion, final String encoded) =>
@@ -926,6 +1153,16 @@ _modelCommandReaders =
               },
             _ => null,
           },
+      // `tut-14`: registered so a journal line — or an MCP `applyClipResult`
+      // call — can name this command at all; `rig_job_commands.dart`'s own
+      // doc comment on [ApplyClipResult] used to say this stayed out on
+      // purpose, pending exactly this row.
+      'applyClipResult': (json) => switch (_clipFromJson(json['clip'])) {
+        final ProjectClip clip
+            when json['clipIndex'] == null || json['clipIndex'] is int =>
+          ApplyClipResult(clip: clip, clipIndex: json['clipIndex'] as int?),
+        _ => null,
+      },
       'bakeSimulationToShapes': (json) => switch (json['id']) {
         final int id => BakeSimulationToShapes(
           id: id,
@@ -974,6 +1211,32 @@ _modelCommandReaders =
               clipIndex: clipIndex,
               time: time.toDouble(),
             ),
+            _ => null,
+          },
+      'addShapeDriver': (json) => switch ((json['id'], json['driver'])) {
+        (final int id, final Object? driverJson) =>
+          switch (ShapeDriver.fromJson(driverJson)) {
+            final ShapeDriver driver => AddShapeDriver(id: id, driver: driver),
+            null => null,
+          },
+        _ => null,
+      },
+      'removeShapeDriver': (json) => switch ((json['id'], json['index'])) {
+        (final int id, final int index) => RemoveShapeDriver(
+          id: id,
+          index: index,
+        ),
+        _ => null,
+      },
+      'setShapeDriverField': (json) =>
+          switch ((json['id'], json['index'], json['field'])) {
+            (final int id, final int index, final String field) =>
+              SetShapeDriverField(
+                id: id,
+                index: index,
+                field: field,
+                value: json['value'],
+              ),
             _ => null,
           },
       'addSkeleton': (json) =>
@@ -1040,6 +1303,27 @@ _modelCommandReaders =
           ),
         _ => null,
       },
+      // `axis` defaults to x where it is absent, which the tool's own schema
+      // leaves optional: a caller who names only an angle means the bend a
+      // slider makes, and refusing them for the field they did not fill in
+      // would be the schema and the reader disagreeing.
+      'bendJoint': (json) => switch ((
+        json['skeletonIndex'],
+        json['jointIndex'],
+        json['degrees'],
+      )) {
+        (final int skeletonIndex, final int jointIndex, final num degrees) =>
+          BendJoint(
+            skeletonIndex: skeletonIndex,
+            jointIndex: jointIndex,
+            degrees: degrees.toDouble(),
+            axis: switch (json['axis']) {
+              final int axis => axis,
+              _ => 0,
+            },
+          ),
+        _ => null,
+      },
       'mirrorJoints': (json) =>
           switch ((json['skeletonIndex'], json['axis'], json['jointMirror'])) {
             (
@@ -1056,6 +1340,206 @@ _modelCommandReaders =
               ),
             _ => null,
           },
+      'setRig': (json) => switch ((
+        _jointObjectsFrom(json['jointObjects']),
+        _rigSkeletonFromJson(json['skeleton']),
+        json['label'],
+      )) {
+        (
+          final List<ModelObject> jointObjects,
+          final ProjectSkeleton skeleton,
+          final String label,
+        ) =>
+          switch (json['weights']) {
+            null => SetRig(
+              jointObjects: jointObjects,
+              skeleton: skeleton,
+              skinObjectId: json['skinObjectId'] as int?,
+              label: label,
+            ),
+            final Object? weightsJson => switch (SkinWeightsBlob.fromJson(
+              weightsJson,
+            )) {
+              final SkinWeightsBlob weights => SetRig(
+                jointObjects: jointObjects,
+                skeleton: skeleton,
+                skinObjectId: json['skinObjectId'] as int?,
+                weights: weights,
+                label: label,
+              ),
+              null => null,
+            },
+          },
+        _ => null,
+      },
+      'paintWeights': (json) => switch ((
+        json['objectId'],
+        json['skeletonIndex'],
+        json['joint'],
+        json['samples'],
+        json['strength'],
+      )) {
+        (
+          final int objectId,
+          final int skeletonIndex,
+          final int joint,
+          final List<Object?> samplesJson,
+          final num strength,
+        ) =>
+          switch (_brushSamplesFrom(samplesJson)) {
+            final List<BrushSample> samples => switch (_paintMirrorFrom(
+              json['mirror'],
+            )) {
+              (final PaintMirror? mirror, true) => PaintWeights(
+                objectId: objectId,
+                skeletonIndex: skeletonIndex,
+                joint: joint,
+                samples: samples,
+                strength: strength.toDouble(),
+                mode: json['mode'] == 'assign'
+                    ? PaintWeightsMode.assign
+                    : PaintWeightsMode.paint,
+                mirror: mirror,
+                normalize: json['normalize'] as bool? ?? true,
+                maxInfluences: json['maxInfluences'] as int?,
+              ),
+              (_, false) => null,
+            },
+            null => null,
+          },
+        _ => null,
+      },
+      'packAtlas': (json) => switch (json['objectIds']) {
+        final List<Object?> ids => PackAtlas(
+          objectIds: <int>[
+            for (final Object? it in ids)
+              if (it is int) it,
+          ],
+          margin: (json['margin'] as num?)?.toDouble() ?? 0.01,
+        ),
+        _ => null,
+      },
+      'paintVertexColour': (json) => switch ((
+        json['objectId'],
+        json['samples'],
+        _doubleListFrom(json['colour']),
+      )) {
+        (
+          final int objectId,
+          final List<Object?> samplesJson,
+          final List<double> colour,
+        ) =>
+          switch (_paintSamplesFrom(samplesJson)) {
+            final List<PaintSample> samples => PaintVertexColour(
+              objectId: objectId,
+              samples: samples,
+              colour: colour,
+              strength: (json['strength'] as num?)?.toDouble() ?? 1.0,
+            ),
+            null => null,
+          },
+        _ => null,
+      },
+      'adoptTexture': (json) => switch (json['materialIndex']) {
+        final int materialIndex => AdoptTexture(
+          materialIndex: materialIndex,
+          size: (json['size'] as num?)?.toInt(),
+        ),
+        _ => null,
+      },
+      'paintStroke': (json) => switch ((
+        json['objectId'],
+        json['samples'],
+        _doubleListFrom(json['colour']),
+      )) {
+        (
+          final int objectId,
+          final List<Object?> samplesJson,
+          final List<double> colour,
+        ) =>
+          switch (_paintSamplesFrom(samplesJson)) {
+            final List<PaintSample> samples => PaintStroke(
+              objectId: objectId,
+              samples: samples,
+              colour: colour,
+              layer: (json['layer'] as num?)?.toInt() ?? 0,
+              strength: (json['strength'] as num?)?.toDouble() ?? 1.0,
+              size: (json['size'] as num?)?.toInt() ?? 1024,
+              maskImage: (json['maskImage'] as num?)?.toInt(),
+              maskInverted: json['maskInverted'] as bool? ?? false,
+            ),
+            null => null,
+          },
+        _ => null,
+      },
+      'bakeMaps': (json) => switch ((json['sourceId'], json['targetId'])) {
+        (final int sourceId, final int targetId) => BakeMaps(
+          sourceId: sourceId,
+          targetId: targetId,
+          maps: switch (json['maps']) {
+            final List<Object?> named => <String>[
+              for (final Object? it in named) it.toString(),
+            ],
+            _ => const <String>['normal'],
+          },
+          resolution: (json['resolution'] as num?)?.toInt() ?? 1024,
+          shell: (json['shell'] as num?)?.toDouble() ?? 0.1,
+        ),
+        _ => null,
+      },
+      'retopologize': (json) => switch (json['objectId']) {
+        final int objectId => Retopologize(
+          objectId: objectId,
+          targetQuads: (json['targetQuads'] as num?)?.toInt() ?? 2000,
+        ),
+        _ => null,
+      },
+      'drawQuad': (json) =>
+          switch ((json['objectId'], _strokePointsFrom(json['points']))) {
+            (final int objectId, final List<Vector3> points) => DrawQuad(
+              objectId: objectId,
+              points: points,
+              sourceId: json['sourceId'] as int?,
+              snap: (json['snap'] as num?)?.toDouble() ?? 0.02,
+            ),
+            _ => null,
+          },
+      'subdivideMesh': (json) => SubdivideMesh(
+        levels: (json['levels'] as num?)?.toInt() ?? 1,
+        smooth: json['smooth'] as bool? ?? true,
+      ),
+      'sculptStroke': (json) => switch ((
+        json['objectId'],
+        json['kind'],
+        json['radius'],
+        json['strength'],
+        _strokePointsFrom(json['points']),
+      )) {
+        (
+          final int objectId,
+          final String kindName,
+          final num radius,
+          final num strength,
+          final List<Vector3> points,
+        ) =>
+          switch ((
+            _brushKindNamed(kindName),
+            _brushFalloffNamed(json['falloff'] as String? ?? 'smooth'),
+          )) {
+            (final BrushKind kind, final BrushFalloff falloff) => SculptStroke(
+              objectId: objectId,
+              kind: kind,
+              radius: radius.toDouble(),
+              strength: strength.toDouble(),
+              points: points,
+              pressures: _doubleListFrom(json['pressures']) ?? const <double>[],
+              falloff: falloff,
+              symmetryX: json['symmetryX'] as bool? ?? false,
+            ),
+            _ => null,
+          },
+        _ => null,
+      },
       'setKey': (json) => switch ((
         json['clipIndex'],
         json['trackIndex'],

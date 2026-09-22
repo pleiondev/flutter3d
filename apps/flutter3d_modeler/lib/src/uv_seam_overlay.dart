@@ -75,13 +75,35 @@ bool _uvDisagrees(EditMesh mesh, int half) {
 /// wireframe already uses for an [EdgeFlags.seam]-marked edge, so a UV seam
 /// reads the same whether the 3D view is drawing it from the flag alone or
 /// from this wider definition.
-void emitUvSeamOverlay(MeshOverlay overlay, EditMesh mesh, {Vector4? colour}) {
+///
+/// [edges] is [uvSeamEdges]' own answer when a caller already has it. The
+/// viewport draws every frame and the seams move only when a command lands,
+/// so `UvPanelState.readingOf` finds them once per version of the mesh and
+/// hands them in here; left null, this walks the mesh for them itself, which
+/// is what a caller drawing once wants.
+///
+/// [width] is in logical pixels — [kUvSeamRibbonWidth] is screen 06's own
+/// number, [MeshOverlay.ribbon]'s own default when nobody says.
+void emitUvSeamOverlay(
+  MeshOverlay overlay,
+  EditMesh mesh, {
+  Vector4? colour,
+  List<int>? edges,
+  double? width,
+}) {
   final tint = colour ?? MeshOverlayColours().seam;
   final from = Vector3.zero();
   final to = Vector3.zero();
-  for (final half in uvSeamEdges(mesh)) {
+  for (final half in edges ?? uvSeamEdges(mesh)) {
     mesh.positionOf(mesh.originOf(half), from);
     mesh.positionOf(mesh.originOf(mesh.nextOf(half)), to);
-    overlay.ribbon(from, to, tint);
+    if (width == null) {
+      overlay.ribbon(from, to, tint);
+    } else {
+      overlay.ribbon(from, to, tint, width: width);
+    }
   }
 }
+
+/// How wide the UV mode draws a seam — screen 06's own "толщина 3,5".
+const double kUvSeamRibbonWidth = 3.5;

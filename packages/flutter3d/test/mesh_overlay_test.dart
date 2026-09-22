@@ -268,6 +268,81 @@ void main() {
       expect(overlay.order, greaterThan(const _Ordinary().order));
     });
   });
+
+  group('ux-03: drawing through whatever is in front', () {
+    test('what is written inside throughGeometry goes to its own batches', () {
+      final overlay = looking();
+
+      overlay.throughGeometry(() {
+        overlay
+          ..edge(Vector3(0, 0, 0), Vector3(1, 0, 0), Vector4(1, 1, 1, 1))
+          ..point(Vector3.zero(), Vector4(1, 1, 1, 1));
+      });
+
+      // Mutation: write into the ordinary batches whatever the flag says.
+      // Everything then lands in the depth-tested pass and the ghost is
+      // simply a second, identical gizmo drawn on top of the first.
+      expect(overlay.lines.vertexCount, 0);
+      expect(overlay.handles.vertexCount, 0);
+      expect(overlay.linesThrough.vertexCount, 2);
+      expect(overlay.handlesThrough.vertexCount, 6);
+    });
+
+    test('and comes out at throughOpacity rather than at full strength', () {
+      final overlay = looking()..throughOpacity = 0.25;
+
+      overlay.throughGeometry(
+        () => overlay.edge(
+          Vector3(0, 0, 0),
+          Vector3(1, 0, 0),
+          Vector4(1, 1, 1, 1),
+        ),
+      );
+      overlay.edge(Vector3(0, 0, 0), Vector3(1, 0, 0), Vector4(1, 1, 1, 1));
+
+      // Mutation: keep the alpha at whatever the caller passed. The ghost is
+      // then as strong as the handle itself, and a gizmo inside a model reads
+      // as being in front of it — which is the opposite of what it is.
+      expect(alphasOf(overlay.linesThrough), everyElement(closeTo(0.25, 1e-6)));
+      expect(alphasOf(overlay.lines), everyElement(closeTo(1.0, 1e-6)));
+    });
+
+    test('the scope ends even when what it runs throws', () {
+      final overlay = looking();
+
+      expect(
+        () => overlay.throughGeometry(() => throw StateError('no')),
+        throwsStateError,
+      );
+
+      // Mutation: set the flag and clear it after the call rather than in a
+      // `finally`. One throw and the wireframe silently stops respecting
+      // depth for the rest of the session.
+      overlay.edge(Vector3(0, 0, 0), Vector3(1, 0, 0), Vector4(1, 1, 1, 1));
+      expect(overlay.lines.vertexCount, 2);
+      expect(overlay.linesThrough.vertexCount, 0);
+    });
+
+    test('clear empties them too', () {
+      final overlay = looking();
+      overlay.throughGeometry(
+        () => overlay.edge(
+          Vector3(0, 0, 0),
+          Vector3(1, 0, 0),
+          Vector4(1, 1, 1, 1),
+        ),
+      );
+      expect(overlay.isActive, isTrue);
+
+      overlay.clear();
+
+      // Mutation: leave the through batches out of `clear`. The gizmo from
+      // the frame before is still in them, so it draws twice and the second
+      // copy never moves.
+      expect(overlay.linesThrough.vertexCount, 0);
+      expect(overlay.isActive, isFalse);
+    });
+  });
 }
 
 /// A contributor with no opinion about when it runs, for comparison.

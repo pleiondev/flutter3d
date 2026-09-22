@@ -41,8 +41,8 @@ class LessonStereoView extends StatefulWidget {
 
   /// Called once a frame, alongside [LessonPlayer.applyCurrent] — a
   /// `WidgetSurface` on the lesson's own scene needs `tick()` called the
-  /// same way, and this package does not depend on `flutter3d_bridge` for
-  /// it: the caller, which already resolved the level's `widget_surface`
+  /// same way, and this widget does not reach for `WidgetSurfaceVisuals` to
+  /// do it: the caller, which already resolved the level's `widget_surface`
   /// entities into nodes, hands the one call back in rather than this
   /// widget growing a dependency to make it itself.
   final VoidCallback? onTick;

@@ -1,6 +1,6 @@
 name: flutter3d_sim_mcp
-description: "A level an agent can play blind, of whatever game a host hands it: open it, step it with input, read back positions and health in words, and hand over the run it made — ai-00."
-version: 0.6.0
+description: "A level an agent can play blind, of whatever game a host hands it — ai-00 — and why a frame of it is wrong: a debug view of normals and depth, the HDR value of one pixel, the passes the frame graph ran — par-02."
+version: 0.7.0
 repository: https://github.com/pleiondev/flutter3d
 homepage: https://flutter3d.pleion.dev
 issue_tracker: https://github.com/pleiondev/flutter3d/issues
@@ -21,16 +21,20 @@ dependencies:
 
   # The simulation every game steps through, and `HeadlessGame`/`HeadlessRun`
   # — what this server asks of a game. No genre: a host hands one in.
-  flutter3d_sim: ^0.6.0
+  flutter3d_sim: ^0.7.0
 
-  # The picture half of `frame`: `flutter3d_render_mcp`'s `DiagnosticRenderer`
-  # in its ordinary view, rather than a second copy of how a level is loaded
-  # and drawn with no GPU.
-  flutter3d_render_mcp: ^0.6.0
+  # A level's own scene, a device with no GPU behind it, and the debug views
+  # `RenderSettings` already carries — `showSurfaceBuffer`, `showShadowMap` —
+  # for `DiagnosticRenderer`, which draws both `frame`'s picture and the
+  # diagnostic server's views. They were two packages, and a picture from the
+  # sim server was already the diagnostic server's `lit` frame.
+  flutter3d: ^0.7.0
+  flutter3d_app: ^0.7.0
+  flutter3d_cpu: ^0.7.0
 
   # The tool table, the answers and the server underneath this one — what
   # every server here shares.
-  flutter3d_mcp_kit: ^0.6.0
+  flutter3d_mcp_kit: ^0.7.0
 
   vector_math: ^2.2.0
 
@@ -53,15 +57,9 @@ dev_dependencies:
   # decision and the suite is the host here.
   flutter3d_game_shooter: ^0.7.0
 
-  # `WidgetSurfaceKind` — the shipped crypt names a `widget_surface` entity
-  # (`wg-02`'s own terminal), and `ShooterHeadlessGame`'s own vocabulary does
-  # not know the word without a host handing it in, the same way
-  # `flutter3d_demo_dungeon`'s `main.dart` does for the real app.
-  flutter3d_bridge: ^0.6.0
-
 # **Why this package needs Flutter, unlike `flutter3d_editor_mcp` and
 # `flutter3d_model_mcp`.** `frame` draws the level, and the renderer it draws
-# with (`flutter3d_cpu`, under `flutter3d_render_mcp`) needs `dart:ui`, which
+# with (`flutter3d`, over `flutter3d_cpu`) needs `dart:ui`, which
 # does not compile under plain `dart run` — checked empirically, the same way
 # `rp-05` found it out for genre packages generally.
 #

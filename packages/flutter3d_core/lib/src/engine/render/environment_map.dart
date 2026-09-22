@@ -196,6 +196,52 @@ abstract final class EnvironmentMap {
     return texture == null ? null : (texture: texture, levels: levels);
   }
 
+  /// The same thing from a panorama the caller already has as pixels —
+  /// `ux-49`.
+  ///
+  /// **Two steps that both already existed, joined.**
+  /// [equirectToCubeFaces] turns an equirectangular image into six faces and
+  /// [prefilter] convolves them by roughness; this is the upload between
+  /// them, written once rather than at every call site that wants a sky out
+  /// of a file.
+  ///
+  /// [panorama] is RGBA8, `width × height` pixels, row zero at the top —
+  /// which is what [equirectToCubeFaces] already documents and what a
+  /// Radiance `.hdr` decodes to once its floats are scaled into bytes. The
+  /// eight-bit limit [fromSky]'s own comment states applies here for the same
+  /// reason and with more cost: a sun four hundred times brighter than the
+  /// sky around it clamps to white.
+  ///
+  /// Null where the device has no cube textures, where the pixels do not
+  /// match the size given, or where the upload refuses — the same "cost a
+  /// texture, not a frame" rule the rest of this class keeps.
+  static ({TextureHandle texture, int levels})? fromPanorama(
+    GraphicsDevice device,
+    ByteData panorama, {
+    required int width,
+    required int height,
+    int size = 32,
+    int levels = 4,
+  }) {
+    if (!device.supportsCubeTextures) return null;
+    final List<ByteData>? faces = equirectToCubeFaces(
+      panorama,
+      width: width,
+      height: height,
+      size: size,
+    );
+    if (faces == null) return null;
+    final chain = prefilter(faces, size: size, levels: levels);
+    if (chain == null) return null;
+    final texture = device.createCubeTextureFromPixels(
+      size: size,
+      format: TextureFormat.r8g8b8a8UNormInt,
+      faces: faces,
+      mipLevels: chain,
+    );
+    return texture == null ? null : (texture: texture, levels: levels);
+  }
+
   /// Which level of the chain a shader should treat as the diffuse term.
   ///
   /// The roughest one. **Not a true Lambert irradiance**, and the difference is

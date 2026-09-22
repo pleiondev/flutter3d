@@ -16,7 +16,7 @@
 /// open, and nothing here dispatches on the type.
 library;
 
-import 'package:flutter3d_game/flutter3d_game.dart';
+import 'package:flutter3d_sim/flutter3d_sim.dart';
 
 import 'racer_progress.dart';
 

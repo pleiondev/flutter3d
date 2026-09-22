@@ -87,7 +87,7 @@ void main() {
       late String source;
       setUpAll(() {
         source = File(
-          '../../packages/flutter3d/lib/src/engine/scene/lod_group.dart',
+          '../../packages/flutter3d_core/lib/src/engine/scene/lod_group.dart',
         ).readAsStringSync();
       });
 
@@ -116,7 +116,7 @@ void main() {
       late String source;
       setUpAll(() {
         source = File(
-          '../../packages/flutter3d/lib/src/engine/render/render_settings.dart',
+          '../../packages/flutter3d_core/lib/src/engine/render/render_settings.dart',
         ).readAsStringSync();
       });
 
@@ -160,7 +160,7 @@ void main() {
   group('the performance skill names fields that still exist', () {
     test('LodGroup.select still takes an explicit field of view', () {
       final source = File(
-        '../../packages/flutter3d/lib/src/engine/scene/lod_group.dart',
+        '../../packages/flutter3d_core/lib/src/engine/scene/lod_group.dart',
       ).readAsStringSync();
       expect(source, contains('verticalFieldOfView'));
       expect(source, contains('orthographicHeight'));
@@ -168,7 +168,7 @@ void main() {
 
     test('BloomSettings.levels is still the chain-length field', () {
       final source = File(
-        '../../packages/flutter3d/lib/src/engine/render/render_settings.dart',
+        '../../packages/flutter3d_core/lib/src/engine/render/render_settings.dart',
       ).readAsStringSync();
       expect(source, contains('final int levels;'));
     });

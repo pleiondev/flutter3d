@@ -14,8 +14,8 @@
 ///
 /// **Two tiers, and the split is a correction.** This file used to say it was
 /// shader-free as a whole, and that stopped being true the day a check needed a
-/// pipeline: twenty-seven of the thirty-six link stages and draw. A new
-/// backend following the old promise would have met twenty-seven shader checks
+/// pipeline: twenty-eight of the thirty-seven link stages and draw. A new
+/// backend following the old promise would have met twenty-eight shader checks
 /// it could do nothing about, so the lists say which is which — [coreChecks]
 /// needs clears, uploads and readback alone, [shaderChecks] needs the bundle.
 /// The tiers answer "can this be asked yet", not "does this matter": the
@@ -52,6 +52,7 @@ import 'dart:async';
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:test/test.dart' show markTestSkipped, test;
 
+import 'src/attachment_checks.dart';
 import 'src/blend_checks.dart';
 import 'src/compressed_checks.dart';
 import 'src/core_checks.dart';
@@ -211,7 +212,7 @@ void runDeviceConformance({
 /// **This list is why the two exist separately.** The library used to say it
 /// was shader-free as a whole, and it stopped being true the day the third
 /// check needed a pipeline — so a new backend, following the promise, would
-/// have hit twenty-seven shader checks it had no way to act on yet. Clears,
+/// have hit twenty-eight shader checks it had no way to act on yet. Clears,
 /// uploads and readback only: the answers here are the cheapest ones to get,
 /// and they are the ones worth having first.
 List<ConformanceCheck> get coreChecks => <ConformanceCheck>[
@@ -349,6 +350,13 @@ List<ConformanceCheck> get shaderChecks => <ConformanceCheck>[
   (
     name: 'a multisample resolve resolves',
     run: checkMultisampleResolveResolves,
+  ),
+  // `gfx-21n`. The number `gfx-50n` made the engine gate on, held to both of
+  // its obligations: a second attachment that receives its own output, and a
+  // pass past the limit that is refused rather than opened.
+  (
+    name: 'the colour attachment limit is honoured in both directions',
+    run: checkColorAttachmentLimitIsHonoured,
   ),
   // Picking, drawn and decoded on the software backend alone until now — and
   // the only draw in this suite through the standard five-attribute layout.

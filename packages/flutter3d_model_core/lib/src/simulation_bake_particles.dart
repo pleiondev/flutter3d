@@ -25,7 +25,7 @@ library;
 
 import 'dart:typed_data';
 
-import 'package:flutter3d_particles_core/flutter3d_particles_core.dart';
+import 'package:flutter3d_particles/flutter3d_particles.dart';
 
 import 'simulation_cache.dart';
 

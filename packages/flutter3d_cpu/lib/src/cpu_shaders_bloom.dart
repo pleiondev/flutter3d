@@ -121,8 +121,19 @@ final class BloomUpsampleShader implements CpuFragmentShader {
     final d = at(-1, 0), e = at(0, 0), f = at(1, 0);
     final g = at(-1, -1), h = at(0, -1), i = at(1, -1);
 
-    final result = e * 4.0 + (bb + d + f + h) * 2.0 + (a + cc + g + i);
+    var result = e * 4.0 + (bb + d + f + h) * 2.0 + (a + cc + g + i);
     result.scale(1.0 / 16.0);
+
+    // `gfx-30n`: the broad levels of the chain go warm, the tight core does
+    // not — see `bloom_upsample.frag` for why the asymmetry is the effect.
+    final halation = src.params.w;
+    if (halation > 0.0) {
+      result = Vector3(
+        result.x * (1.0 + halation * 0.5),
+        result.y,
+        result.z * (1.0 - halation * 0.35),
+      );
+    }
     return Vector4(result.x, result.y, result.z, 1.0);
   }
 }

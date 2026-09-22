@@ -153,10 +153,13 @@ void main() {
     // of the setting — it borrows a pooled target and the composite still
     // reads the setting, so even this passes; what fails is the frame's draw
     // count, which is why that is asserted too.
-    final it = _room(0.5);
-    final plain = await _draw(it, const RenderSettings());
+    // **A room each, not two frames of one room**, since `gfx-68n`: the
+    // directional cascades are cached on everything that decides a texel, so a
+    // second frame of an unchanged scene legitimately draws fewer calls than
+    // the first. Two first frames is what this test always meant to compare.
+    final plain = await _draw(_room(0.5), const RenderSettings());
     final stated = await _draw(
-      it,
+      _room(0.5),
       const RenderSettings(autoExposure: AutoExposureSettings()),
     );
     expect(stated.pixels, equals(plain.pixels));

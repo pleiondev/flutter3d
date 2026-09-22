@@ -29,17 +29,37 @@ extension _RaycasterHitTests on Raycaster {
       return true;
     }
 
-    // A box test in local space rejects the common near-miss, where the sphere
-    // was hit but the mesh inside it was not.
-    if (rayAabb(_localRay, node.mesh.bounds) == kNoHit) return false;
+    // **Posed before the box test, not after** — `gfx-11n`. A box test in
+    // local space rejects the common near-miss, where the sphere was hit but
+    // the mesh inside it was not; the mesh's own box describes the bind pose,
+    // so on a posed test it rejects exactly the rays this exists to catch. A
+    // ray through a raised arm misses the box the arm was exported in, and
+    // the triangles below never run. [PosedMesh] gathers the right box while
+    // it poses, at one comparison a vertex.
+    final skeleton = node.skeleton;
+    final Float32List? skinned = posed && skeleton != null
+        ? _posed.positionsOf(source, skeleton)
+        : null;
+    final box = skinned != null ? _posed.bounds : node.mesh.bounds;
+    if (rayAabb(_localRay, box) == kNoHit) return false;
 
-    return _intersectTriangles(node, source, best);
+    return _intersectTriangles(node, source, best, skinned);
   }
 
-  bool _intersectTriangles(MeshNode node, MeshData mesh, double best) {
+  /// [skinned] is [PosedMesh]'s three-floats-a-vertex array when the node is
+  /// posed, and null when this is the bind-pose loop it has always been. In
+  /// the mesh's own space either way, which is the space the ray is already
+  /// in, so the only thing that changes is where a vertex is read from and by
+  /// what stride.
+  bool _intersectTriangles(
+    MeshNode node,
+    MeshData mesh,
+    double best,
+    Float32List? skinned,
+  ) {
     final indices = mesh.indices;
-    final stride = mesh.layout.floatsPerVertex;
-    final vertices = mesh.vertices;
+    final stride = skinned != null ? 3 : mesh.layout.floatsPerVertex;
+    final vertices = skinned ?? mesh.vertices;
 
     var nearest = best;
     var nearestTriangle = -1;

@@ -21,7 +21,7 @@ library;
 import 'dart:ui' show Offset, PointerDeviceKind, Rect, Size;
 
 import 'package:flutter3d/flutter3d.dart' show CameraNode;
-import 'package:flutter3d_geometry/flutter3d_geometry.dart' show Ray;
+import 'package:flutter3d_core/geometry.dart' show Ray;
 import 'package:flutter3d_mesh/flutter3d_mesh.dart';
 import 'package:vector_math/vector_math.dart' hide Ray;
 
@@ -345,6 +345,93 @@ Selection pickElementsIn(
     view.frustumOver(box, objectToWorld: objectToWorld),
     level,
   );
+}
+
+/// Everything of [level] a freehand loop encloses — `ux-28`.
+///
+/// **The loop's own bounding box does the reaching, and the loop does the
+/// deciding.** Everything a rectangle over the same area would catch is a
+/// superset of what the loop catches, and that rectangle is already one
+/// frustum test against a tree; narrowing it afterwards is a projection and a
+/// crossing count per candidate rather than per element of the mesh. Doing it
+/// the other way round — projecting the whole mesh and testing every point
+/// against the loop — is the same answer at the cost of the model's size
+/// rather than the catch's.
+///
+/// Each element is judged by one point: a vertex by itself, an edge by its
+/// middle, a face by the average of its corners. **A face is in or out as a
+/// whole**, which is the same rule the rectangle already keeps and the one
+/// people expect — a lasso drawn across the middle of a large face selects it
+/// if the loop covers its centre, and a rule about overlap would select faces
+/// whose only presence in the loop is a corner the person could not see.
+///
+/// [encloses] is asked in the same logical pixels [PickingView.project]
+/// answers in, which is what the pointer arrives in.
+Selection pickElementsInLoop(
+  MeshPicker picker,
+  PickingView view, {
+  required Rect bounds,
+  required bool Function(Offset at) encloses,
+  required ElementLevel level,
+  Matrix4? objectToWorld,
+}) {
+  final Selection caught = pickElementsIn(
+    picker,
+    view,
+    rect: bounds,
+    level: level,
+    objectToWorld: objectToWorld,
+  );
+  if (caught.ids.isEmpty) return caught;
+  final EditMesh mesh = picker.mesh;
+  final at = Vector3.zero();
+  final kept = <int>{};
+  for (final int id in caught.ids) {
+    if (!_middleOf(mesh, level, id, at)) continue;
+    final Vector3 world = objectToWorld == null
+        ? at
+        : objectToWorld.transformed3(at);
+    final Offset? screen = view.project(world);
+    if (screen != null && encloses(screen)) kept.add(id);
+  }
+  return Selection.of(level, kept);
+}
+
+/// The one point that stands for [id] at [level], written into [out]. False
+/// when the element is not there any more — a selection outlives what it
+/// names, which `mesh_overlay_builder.dart` makes the same allowance for.
+bool _middleOf(EditMesh mesh, ElementLevel level, int id, Vector3 out) {
+  switch (level) {
+    case ElementLevel.vertex:
+      if (!mesh.isVertexAlive(id)) return false;
+      mesh.positionOf(id, out);
+      return true;
+    case ElementLevel.edge:
+      if (id < 0 || id >= mesh.halfEdgeSlotCount) return false;
+      if (!mesh.isFaceAlive(mesh.faceOf(id))) return false;
+      final to = Vector3.zero();
+      mesh.positionOf(mesh.originOf(id), out);
+      mesh.positionOf(mesh.originOf(mesh.nextOf(id)), to);
+      out
+        ..add(to)
+        ..scale(0.5);
+      return true;
+    case ElementLevel.face:
+      if (id < 0 || id >= mesh.faceSlotCount || !mesh.isFaceAlive(id)) {
+        return false;
+      }
+      final corner = Vector3.zero();
+      var corners = 0;
+      out.setZero();
+      mesh.forEachVertex(id, (int vertex) {
+        mesh.positionOf(vertex, corner);
+        out.add(corner);
+        corners++;
+      });
+      if (corners == 0) return false;
+      out.scale(1.0 / corners);
+      return true;
+  }
 }
 
 /// The frustum a dragged [rect] casts through [view], or null for a

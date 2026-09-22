@@ -14,8 +14,10 @@ library;
 
 import 'package:flutter/material.dart';
 
+import '../settings.dart' show Workspace;
 import 'shell.dart';
 import 'theme.dart';
+import 'tool_strings.dart';
 import 'tools.dart';
 
 /// The tablet shell: a palette instead of a rail, a sheet instead of a panel.
@@ -24,6 +26,7 @@ class ModelerTabletShell extends StatelessWidget {
     super.key,
     required this.mode,
     required this.onMode,
+    this.workspace = Workspace.full,
     required this.submode,
     required this.onSubmode,
     required this.activeTool,
@@ -32,10 +35,23 @@ class ModelerTabletShell extends StatelessWidget {
     required this.properties,
     required this.status,
     this.actions = const <Widget>[],
+    this.documentName = 'untitled',
+    this.isDirty = false,
   });
+
+  /// What the open document is called, and whether it has unsaved changes —
+  /// `ux-21`. Drawn here for the same reason the desktop bar draws it: a
+  /// person who cannot see which file is open, or that it is unsaved, has
+  /// only the window title to go on, and a web build has no window title.
+  final String documentName;
+  final bool isDirty;
 
   final ModelerMode mode;
   final ValueChanged<ModelerMode> onMode;
+
+  /// Which set of modes the switcher offers — `ux-37`. Full by default, so a
+  /// caller that has not been told about workspaces shows what it always did.
+  final Workspace workspace;
 
   final MeshSubmode submode;
   final ValueChanged<MeshSubmode> onSubmode;
@@ -56,7 +72,11 @@ class ModelerTabletShell extends StatelessWidget {
     final theme = Theme.of(context);
     final colours = theme.extension<ModelerColors>() ?? ModelerColors.dark;
     return Scaffold(
-      backgroundColor: theme.colorScheme.surface,
+      // `ux-32`: the hand-off's own "фон окна" is `surfaceContainerLowest`,
+      // not `surface`. The two differ by five points of lightness, which is
+      // exactly enough for the panels drawn on top of it to sit a shade
+      // *darker* than the window they are in rather than a shade lighter.
+      backgroundColor: theme.colorScheme.surfaceContainerLowest,
       body: Column(
         children: <Widget>[
           SizedBox(
@@ -67,10 +87,24 @@ class ModelerTabletShell extends StatelessWidget {
                 padding: const EdgeInsets.symmetric(horizontal: 10),
                 child: Row(
                   children: <Widget>[
+                    // `ux-21`, and the same fixed cap the desktop bar uses:
+                    // a `Flexible` name steals the width the mode switcher's
+                    // own horizontal scroll needs on exactly the widths this
+                    // shell is for.
+                    ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 140),
+                      child: Text(
+                        documentLabel(documentName, isDirty: isDirty),
+                        overflow: TextOverflow.ellipsis,
+                        style: theme.textTheme.titleSmall,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
                     Flexible(
                       child: SingleChildScrollView(
                         scrollDirection: Axis.horizontal,
                         child: ModelerModeSwitcher(
+                          workspace: workspace,
                           mode: mode,
                           onMode: onMode,
                           submode: submode,
@@ -124,7 +158,11 @@ class ModelerTabletShell extends StatelessWidget {
           SizedBox(
             height: ModelerMetrics.statusBar,
             child: ColoredBox(
-              color: theme.colorScheme.surfaceContainer,
+              // `ux-32`: the hand-off puts the status line on
+              // `surfaceContainerLow`, the same tone as the tool rail — the
+              // two frame the picture, and the top bar above it is the lighter
+              // one.
+              color: theme.colorScheme.surfaceContainerLow,
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 10),
                 child: Align(alignment: Alignment.centerLeft, child: status),
@@ -182,12 +220,15 @@ class _TabletPalette extends StatelessWidget {
                 // node rather than leaving it on a separate sibling node.
                 MergeSemantics(
                   child: Semantics(
-                    label: tool.label,
+                    label: toolLabelIn(context, tool),
                     button: true,
                     child: Tooltip(
+                      // `ux-18`: the same second line the desktop rail shows
+                      // — `ModelerTool.about`, written once in `tools.dart`.
                       message:
-                          '${tool.label}  ·  '
-                          '${tool.shortcut.keyLabel.toUpperCase()}',
+                          '${toolLabelIn(context, tool)}  ·  '
+                          '${tool.shortcut.keyLabel.toUpperCase()}\n'
+                          '${toolAboutIn(context, tool)}',
                       child: IconButton(
                         onPressed: () => onTool(tool.id),
                         icon: Icon(tool.icon, size: 16),
@@ -243,7 +284,10 @@ class ModelerPropertiesSheet extends StatelessWidget {
     return SizedBox(
       height: height,
       child: Material(
-        color: theme.colorScheme.surfaceContainerLow,
+        // `ux-32`: the hand-off's own "лист" is `surfaceContainer`, the same
+        // tone the properties panel takes on a desktop — it is the same
+        // panel, laid out for a thumb.
+        color: theme.colorScheme.surfaceContainer,
         elevation: 4,
         child: Column(
           children: <Widget>[
@@ -252,9 +296,14 @@ class ModelerPropertiesSheet extends StatelessWidget {
               width: 32,
               height: 4,
               decoration: BoxDecoration(
-                color: theme.colorScheme.onSurfaceVariant.withValues(
-                  alpha: 0.4,
-                ),
+                // `ux-34`: 40 % of `onSurfaceVariant` over this sheet came
+                // out at 2.7:1, and the handle is the only thing saying the
+                // sheet can be dragged at all. `ModelerColors.controlTrack`
+                // is opaque and clears 3:1 — a handle drawn through an alpha
+                // also changes ratio whenever the sheet's own tone does,
+                // which is a check nobody would think to redo.
+                color: (theme.extension<ModelerColors>() ?? ModelerColors.dark)
+                    .controlTrack,
                 borderRadius: BorderRadius.circular(2),
               ),
             ),

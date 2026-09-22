@@ -1,3 +1,28 @@
+## 0.7.0
+
+* **The first publication, and the number skips from 0.1.1.** 0.1.0 and 0.1.1
+  below were numbers this package carried inside the workspace; neither
+  reached pub.dev, so nobody outside saw the ones passed over. The shelf goes
+  out on one number so that one number names one tree, and `^0.7.0` on any
+  `flutter3d_*` package resolves against every other. `doc/boundary-0.7.0.md`
+  lists the thirteen that begin at this release.
+* **A lesson plays through the rig, which neither entry below mentions.**
+  `applyLessonStep(rig, step, nodes:)` moves the stage to an `edu_step`'s `at`
+  and `yaw` and shows or hides the scene nodes the step names in `visible` and
+  `hidden`; a node a step does not mention stays as the previous step left it.
+  `LessonPlayer` holds which step of an `edu_sequence` a lesson is on, and
+  `LessonStereoView` wraps a `StereoSurface` around one with a Previous and a
+  Next button, since a phone in a holder has no keyboard. Its `viewer` defaults
+  to `StereoViewer.cardboardV2`. Those lens numbers are the published ones and
+  have not been checked against a real holder.
+* **`LessonStereoView.onTick`.** Called once a frame beside
+  `LessonPlayer.applyCurrent`, so a caller that resolved a level's
+  `widget_surface` entities can `tick()` them and a `WidgetSurface` draws and
+  updates in stereo. Nothing in the rendering path changed for it. Tapping a
+  `WidgetSurface` through a stereo pair is not built.
+* `flutter3d_sim` `^0.7.0` is a dependency, for `EntityDef`, and the floors on
+  `flutter3d` and `flutter3d_app` are `^0.7.0`.
+
 ## 0.1.1
 
 * **No API change.** `StereoSurface` shows a frame through `presentFrame` from

@@ -61,6 +61,57 @@ final class MeshOverlay extends PassContributor {
   /// Triangles drawn translucent: the wash over a selected face.
   final OverlayBatch fill = OverlayBatch();
 
+  /// The same two batches again, for whatever was written inside
+  /// [throughGeometry]: drawn first, with no depth test, at
+  /// [throughOpacity].
+  ///
+  /// **Why an overlay that already respects depth needs a way not to.** The
+  /// depth test is right for a wireframe — see [_kLineState], where the whole
+  /// reasoning is — and wrong for a handle. A gizmo is not part of the model;
+  /// it is the thing a person reaches for, and one hidden inside the object it
+  /// belongs to is one nobody can find. The modeller's own live run found
+  /// exactly that: with the default display mode the arrows were invisible,
+  /// because they were inside an opaque cube.
+  ///
+  /// Drawing the ghost first and the solid copy after gives the answer every
+  /// modeller uses: where nothing is in the way the full-strength pass lands
+  /// on top of its own ghost and the colour is the handle's own; where the
+  /// model covers it, only the ghost is there, and the handle reads as being
+  /// behind something without disappearing into it.
+  final OverlayBatch linesThrough = OverlayBatch();
+  final OverlayBatch handlesThrough = OverlayBatch();
+
+  /// How much of a through-drawn colour survives. A ghost, not a second
+  /// gizmo: bright enough to follow round the far side of a model, faint
+  /// enough that nobody mistakes it for the part they can grab.
+  double throughOpacity = 0.35;
+
+  bool _through = false;
+
+  /// Runs [write] with everything it draws going to the through batches.
+  ///
+  /// A scope rather than a flag a caller sets and clears, because a flag left
+  /// set is a wireframe that quietly stops respecting depth — the failure this
+  /// whole class's depth reasoning exists to avoid, arriving from the one
+  /// place that asked for the opposite.
+  void throughGeometry(void Function() write) {
+    _through = true;
+    try {
+      write();
+    } finally {
+      _through = false;
+    }
+  }
+
+  OverlayBatch get _lineBatch => _through ? linesThrough : lines;
+  OverlayBatch get _handleBatch => _through ? handlesThrough : handles;
+
+  /// [colour] as the current pass wants it: untouched ordinarily, faded to
+  /// [throughOpacity] inside [throughGeometry].
+  Vector4 _inThisPass(Vector4 colour) => _through
+      ? Vector4(colour.x, colour.y, colour.z, colour.w * throughOpacity)
+      : colour;
+
   /// How much of the surface a fill lets through.
   ///
   /// **A number the design chose, not a taste.** A fill opaque enough to read
@@ -75,7 +126,12 @@ final class MeshOverlay extends PassContributor {
   int get order => 900;
 
   @override
-  bool get isActive => !lines.isEmpty || !handles.isEmpty || !fill.isEmpty;
+  bool get isActive =>
+      !lines.isEmpty ||
+      !handles.isEmpty ||
+      !fill.isEmpty ||
+      !linesThrough.isEmpty ||
+      !handlesThrough.isEmpty;
 
   Vector3 _eye = Vector3.zero();
   Vector3 _right = Vector3(1, 0, 0);
@@ -115,6 +171,8 @@ final class MeshOverlay extends PassContributor {
     lines.clear();
     handles.clear();
     fill.clear();
+    linesThrough.clear();
+    handlesThrough.clear();
   }
 
   /// A colour a design named, converted for the target it lands in.
@@ -153,8 +211,8 @@ final class MeshOverlay extends PassContributor {
 
   /// A line between two points.
   void edge(Vector3 from, Vector3 to, Vector4 colour) {
-    final drawn = asDrawn(colour);
-    lines
+    final drawn = asDrawn(_inThisPass(colour));
+    _lineBatch
       ..vertex(_towardsEye(from), drawn)
       ..vertex(_towardsEye(to), drawn);
   }
@@ -169,12 +227,12 @@ final class MeshOverlay extends PassContributor {
     final y = _up * half;
     final middle = _towardsEye(at);
     _quad(
-      handles,
+      _handleBatch,
       middle - x - y,
       middle + x - y,
       middle + x + y,
       middle - x + y,
-      asDrawn(colour),
+      asDrawn(_inThisPass(colour)),
     );
   }
 
@@ -194,12 +252,12 @@ final class MeshOverlay extends PassContributor {
     final half = worldSize(width, middle) * 0.5;
     final offset = side * half;
     _quad(
-      handles,
+      _handleBatch,
       _towardsEye(from) - offset,
       _towardsEye(to) - offset,
       _towardsEye(to) + offset,
       _towardsEye(from) + offset,
-      asDrawn(colour),
+      asDrawn(_inThisPass(colour)),
     );
   }
 
@@ -290,6 +348,10 @@ final class MeshOverlay extends PassContributor {
     );
     frame.state.invalidatePipeline();
 
+    // The ghost first, so the depth-tested copy of the same geometry lands on
+    // top of it wherever nothing is in the way — see [linesThrough].
+    _draw(frame, linesThrough, _kLineThroughState, viewProjection);
+    _draw(frame, handlesThrough, _kSolidThroughState, viewProjection);
     _draw(frame, lines, _kLineState, viewProjection);
     _draw(frame, handles, _kSolidState, viewProjection);
     _draw(frame, fill, _kFillState, viewProjection);
@@ -348,6 +410,27 @@ final class MeshOverlay extends PassContributor {
     blend: BlendState.alphaBlend,
     depthWrite: false,
     depthCompare: CompareFunction.lessEqual,
+  );
+
+  /// The two through states: no depth test at all, and blended, because
+  /// [throughOpacity] is the whole point of them — an unblended alpha is a
+  /// number nothing on screen would show.
+  static const PassState _kLineThroughState = PassState(
+    primitiveType: PrimitiveType.line,
+    polygonMode: PolygonMode.fill,
+    cullMode: CullMode.none,
+    blend: BlendState.alphaBlend,
+    depthWrite: false,
+    depthCompare: CompareFunction.always,
+  );
+
+  static const PassState _kSolidThroughState = PassState(
+    primitiveType: PrimitiveType.triangle,
+    polygonMode: PolygonMode.fill,
+    cullMode: CullMode.none,
+    blend: BlendState.alphaBlend,
+    depthWrite: false,
+    depthCompare: CompareFunction.always,
   );
 }
 
