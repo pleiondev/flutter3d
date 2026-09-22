@@ -49,6 +49,41 @@ class TemplateApp extends StatelessWidget {
   );
 }
 
+/// [level]'s own `part` entities, as plain boxed [MeshNode]s named after the
+/// entity that placed them.
+///
+/// **A brush carries no name, and that is the whole reason this exists.** A
+/// level's geometry arrives as brushes, which the loader bakes into one
+/// surface per material with nothing to address a single piece by; anything
+/// that wants to show one piece and hide another, or swap what one piece is
+/// made of while the scene is running, has nothing to hold. A `part` entity
+/// is that handle: it carries a name, a size and a material, and it becomes a
+/// mesh node that answers to the name. `apps/flutter3d_lesson_viewer` reads
+/// its own teardown levels exactly this way.
+///
+/// **Not collision.** `CollisionWorld` only ever sees what
+/// `loaded.level.addTo(world)` gives it, and a part added here is scenery —
+/// something to look at and to swap, not something to walk into.
+void _addParts(Level level, LoadedLevel loaded, GraphicsDevice device) {
+  final meshes = SharedMeshes(device);
+  for (final entity in level.entities) {
+    if (entity.type != 'part') continue;
+    final name = entity.name;
+    if (name == null) continue;
+    final materialName = entity.string('material');
+    final source = materialName == null ? null : level.materials[materialName];
+    final material = LevelLoader.materialFrom(
+      source ?? LevelMaterial(),
+      const <String, TextureHandle?>{},
+      name: materialName,
+    );
+    final size = entity.vector('size') ?? Vector3.all(1.0);
+    final node = MeshNode(meshes.box(size), material, name: name)
+      ..setPositionFrom(entity.position);
+    loaded.scene.add(node);
+  }
+}
+
 /// What the level is doing, as far as the screen is concerned.
 ///
 /// Screen state, and only that — this seed has no restart, no next level and
@@ -119,6 +154,7 @@ class LevelCubit extends Cubit<LevelState> {
         registry: openRegistryFor(level),
       );
       loaded.level.addTo(world);
+      _addParts(level, loaded, device);
 
       final spawn = LevelWalk.spawnIn(level);
       emit(
