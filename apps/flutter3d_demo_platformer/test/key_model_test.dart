@@ -23,13 +23,22 @@ import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 /// The shipped file, read the way the game reads it: off disk, as bytes.
+///
+/// **The two games do not agree on where their own copy lives, and that is
+/// current, not a bug here.** `ap-12` moved the platformer's onto
+/// `assets_src/models/` — the pipeline's own source directory — while the
+/// dungeon's own migration has not happened yet and still ships from
+/// `assets/models/` directly. This function names each game's own real
+/// path rather than one shared suffix, so this test keeps comparing what
+/// each game actually ships instead of assuming they match.
+String _keyPathFor(String game) => switch (game) {
+  'platformer' => 'assets_src/models/key.glb',
+  'dungeon' => '../flutter3d_demo_dungeon/assets/models/key.glb',
+  _ => throw ArgumentError('unknown game: $game'),
+};
+
 GlbContainer _key(String game) => GlbContainer.parse(
-  Uint8List.fromList(
-    File(
-      '${game == 'platformer' ? '.' : '../flutter3d_demo_dungeon'}'
-      '/assets/models/key.glb',
-    ).readAsBytesSync(),
-  ),
+  Uint8List.fromList(File(_keyPathFor(game)).readAsBytesSync()),
 );
 
 /// The extent of the mesh, from the accessor that carries bounds.
@@ -107,8 +116,8 @@ void main() {
     // One generator, two copies, and a script that writes both — so the day the
     // key changes it cannot change in one game only.
     expect(
-      File('assets/models/key.glb').readAsBytesSync(),
-      File('../flutter3d_demo_dungeon/assets/models/key.glb').readAsBytesSync(),
+      File(_keyPathFor('platformer')).readAsBytesSync(),
+      File(_keyPathFor('dungeon')).readAsBytesSync(),
     );
   });
 }
