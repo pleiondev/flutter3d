@@ -118,21 +118,21 @@
       "name": "cold floor coin 1",
       "at": [0.0, 0.8, -6.0],
       "what": "coin",
-      "model": "assets/models/coin.glb"
+      "model": "assets_src/models/coin.glb"
     },
     {
       "type": "collectible",
       "name": "cold floor coin 2",
       "at": [-4.0, 0.8, -2.0],
       "what": "coin",
-      "model": "assets/models/coin.glb"
+      "model": "assets_src/models/coin.glb"
     },
     {
       "type": "collectible",
       "name": "cold floor coin 3",
       "at": [4.0, 0.8, -2.0],
       "what": "coin",
-      "model": "assets/models/coin.glb"
+      "model": "assets_src/models/coin.glb"
     },
     {
       "type": "lamp",
@@ -169,14 +169,14 @@
       "name": "the ramp coin",
       "at": [-14.0, 4.8, 28.0],
       "what": "coin",
-      "model": "assets/models/coin.glb"
+      "model": "assets_src/models/coin.glb"
     },
     {
       "type": "collectible",
       "name": "the second ramp coin",
       "at": [-14.0, 4.8, 30.5],
       "what": "coin",
-      "model": "assets/models/coin.glb"
+      "model": "assets_src/models/coin.glb"
     },
     {
       "type": "breakable",
@@ -204,21 +204,21 @@
       "name": "the cap's coin 1",
       "at": [12.0, 0.8, 26.0],
       "what": "coin",
-      "model": "assets/models/coin.glb"
+      "model": "assets_src/models/coin.glb"
     },
     {
       "type": "collectible",
       "name": "the cap's coin 2",
       "at": [14.0, 0.8, 26.0],
       "what": "coin",
-      "model": "assets/models/coin.glb"
+      "model": "assets_src/models/coin.glb"
     },
     {
       "type": "collectible",
       "name": "the cap's coin 3",
       "at": [16.0, 0.8, 26.0],
       "what": "coin",
-      "model": "assets/models/coin.glb"
+      "model": "assets_src/models/coin.glb"
     },
     {
       "type": "spring",
@@ -233,21 +233,21 @@
       "name": "the pad coin 1",
       "at": [0.0, 2.6, 36.0],
       "what": "coin",
-      "model": "assets/models/coin.glb"
+      "model": "assets_src/models/coin.glb"
     },
     {
       "type": "collectible",
       "name": "the pad coin 2",
       "at": [0.0, 4.0, 36.0],
       "what": "coin",
-      "model": "assets/models/coin.glb"
+      "model": "assets_src/models/coin.glb"
     },
     {
       "type": "collectible",
       "name": "the pad coin 3",
       "at": [0.0, 5.4, 36.0],
       "what": "coin",
-      "model": "assets/models/coin.glb"
+      "model": "assets_src/models/coin.glb"
     },
     {
       "type": "enemy",
@@ -282,14 +282,14 @@
       "name": "gangway coin 1",
       "at": [0.0, 1.3, 42.0],
       "what": "coin",
-      "model": "assets/models/coin.glb"
+      "model": "assets_src/models/coin.glb"
     },
     {
       "type": "collectible",
       "name": "gangway coin 2",
       "at": [0.0, 1.3, 46.0],
       "what": "coin",
-      "model": "assets/models/coin.glb"
+      "model": "assets_src/models/coin.glb"
     },
     {
       "type": "crumbling",
@@ -305,7 +305,7 @@
       "name": "gangway coin 3",
       "at": [0.0, 1.3, 50.0],
       "what": "coin",
-      "model": "assets/models/coin.glb"
+      "model": "assets_src/models/coin.glb"
     },
     {
       "type": "crumbling",
@@ -321,7 +321,7 @@
       "name": "gangway coin 4",
       "at": [0.0, 1.3, 54.0],
       "what": "coin",
-      "model": "assets/models/coin.glb"
+      "model": "assets_src/models/coin.glb"
     },
     {
       "type": "platform",
@@ -338,7 +338,7 @@
       "name": "the ladle's coin",
       "at": [14.0, 1.4, 48.0],
       "what": "coin",
-      "model": "assets/models/coin.glb"
+      "model": "assets_src/models/coin.glb"
     },
     {
       "type": "spring",
@@ -369,56 +369,56 @@
       "name": "mould coin 1",
       "at": [-15.0, 2.4, 66.0],
       "what": "coin",
-      "model": "assets/models/coin.glb"
+      "model": "assets_src/models/coin.glb"
     },
     {
       "type": "collectible",
       "name": "mould coin 5",
       "at": [-7.0, 2.4, 66.0],
       "what": "coin",
-      "model": "assets/models/coin.glb"
+      "model": "assets_src/models/coin.glb"
     },
     {
       "type": "collectible",
       "name": "mould coin 2",
       "at": [-15.0, 4.0, 72.0],
       "what": "coin",
-      "model": "assets/models/coin.glb"
+      "model": "assets_src/models/coin.glb"
     },
     {
       "type": "collectible",
       "name": "mould coin 6",
       "at": [-7.0, 4.0, 72.0],
       "what": "coin",
-      "model": "assets/models/coin.glb"
+      "model": "assets_src/models/coin.glb"
     },
     {
       "type": "collectible",
       "name": "mould coin 3",
       "at": [-15.0, 5.6, 78.0],
       "what": "coin",
-      "model": "assets/models/coin.glb"
+      "model": "assets_src/models/coin.glb"
     },
     {
       "type": "collectible",
       "name": "mould coin 7",
       "at": [-7.0, 5.6, 78.0],
       "what": "coin",
-      "model": "assets/models/coin.glb"
+      "model": "assets_src/models/coin.glb"
     },
     {
       "type": "collectible",
       "name": "mould coin 4",
       "at": [-15.0, 7.2, 84.0],
       "what": "coin",
-      "model": "assets/models/coin.glb"
+      "model": "assets_src/models/coin.glb"
     },
     {
       "type": "collectible",
       "name": "mould coin 8",
       "at": [-7.0, 7.2, 84.0],
       "what": "coin",
-      "model": "assets/models/coin.glb"
+      "model": "assets_src/models/coin.glb"
     },
     {
       "type": "key",
@@ -426,7 +426,7 @@
       "at": [-11.0, 7.4, 84.0],
       "color": "amber",
       "material": "brass",
-      "model": "assets/models/key.glb"
+      "model": "assets_src/models/key.glb"
     },
     {
       "type": "lamp",
@@ -448,21 +448,21 @@
       "name": "the mould pad coin 1",
       "at": [12.0, 2.6, 70.0],
       "what": "coin",
-      "model": "assets/models/coin.glb"
+      "model": "assets_src/models/coin.glb"
     },
     {
       "type": "collectible",
       "name": "the mould pad coin 2",
       "at": [12.0, 4.2, 70.0],
       "what": "coin",
-      "model": "assets/models/coin.glb"
+      "model": "assets_src/models/coin.glb"
     },
     {
       "type": "collectible",
       "name": "the mould pad coin 3",
       "at": [12.0, 5.8, 70.0],
       "what": "coin",
-      "model": "assets/models/coin.glb"
+      "model": "assets_src/models/coin.glb"
     },
     {
       "type": "climbable",
@@ -479,7 +479,7 @@
       "name": "the rope's coin",
       "at": [19.0, 8.6, 84.0],
       "what": "coin",
-      "model": "assets/models/coin.glb"
+      "model": "assets_src/models/coin.glb"
     },
     {
       "type": "enemy",
@@ -513,28 +513,28 @@
       "name": "anvil coin 1",
       "at": [0.0, 1.2, 106.0],
       "what": "coin",
-      "model": "assets/models/coin.glb"
+      "model": "assets_src/models/coin.glb"
     },
     {
       "type": "collectible",
       "name": "anvil coin 2",
       "at": [0.0, 1.2, 110.0],
       "what": "coin",
-      "model": "assets/models/coin.glb"
+      "model": "assets_src/models/coin.glb"
     },
     {
       "type": "collectible",
       "name": "anvil coin 3",
       "at": [0.0, 1.2, 114.0],
       "what": "coin",
-      "model": "assets/models/coin.glb"
+      "model": "assets_src/models/coin.glb"
     },
     {
       "type": "collectible",
       "name": "anvil coin 4",
       "at": [0.0, 1.2, 118.0],
       "what": "coin",
-      "model": "assets/models/coin.glb"
+      "model": "assets_src/models/coin.glb"
     },
     {
       "type": "lift",
@@ -559,28 +559,28 @@
       "name": "gantry coin 1",
       "at": [-12.0, 10.4, 107.0],
       "what": "coin",
-      "model": "assets/models/coin.glb"
+      "model": "assets_src/models/coin.glb"
     },
     {
       "type": "collectible",
       "name": "gantry coin 2",
       "at": [-12.0, 10.4, 112.0],
       "what": "coin",
-      "model": "assets/models/coin.glb"
+      "model": "assets_src/models/coin.glb"
     },
     {
       "type": "collectible",
       "name": "gantry coin 3",
       "at": [-12.0, 10.4, 117.0],
       "what": "coin",
-      "model": "assets/models/coin.glb"
+      "model": "assets_src/models/coin.glb"
     },
     {
       "type": "collectible",
       "name": "gantry coin 4",
       "at": [-12.0, 10.4, 122.0],
       "what": "coin",
-      "model": "assets/models/coin.glb"
+      "model": "assets_src/models/coin.glb"
     },
     {
       "type": "checkpoint",
@@ -636,21 +636,21 @@
       "name": "yard coin 1",
       "at": [-4.0, 0.8, 142.0],
       "what": "coin",
-      "model": "assets/models/coin.glb"
+      "model": "assets_src/models/coin.glb"
     },
     {
       "type": "collectible",
       "name": "yard coin 2",
       "at": [4.0, 0.8, 142.0],
       "what": "coin",
-      "model": "assets/models/coin.glb"
+      "model": "assets_src/models/coin.glb"
     },
     {
       "type": "collectible",
       "name": "yard coin 3",
       "at": [0.0, 0.8, 148.0],
       "what": "coin",
-      "model": "assets/models/coin.glb"
+      "model": "assets_src/models/coin.glb"
     },
     {
       "type": "lift",
@@ -705,14 +705,14 @@
       "name": "the last coin 1",
       "at": [-6.0, 0.8, 170.0],
       "what": "coin",
-      "model": "assets/models/coin.glb"
+      "model": "assets_src/models/coin.glb"
     },
     {
       "type": "collectible",
       "name": "the last coin 2",
       "at": [6.0, 0.8, 170.0],
       "what": "coin",
-      "model": "assets/models/coin.glb"
+      "model": "assets_src/models/coin.glb"
     },
     {
       "type": "exit",
@@ -726,7 +726,7 @@
       "name": "coin 004",
       "at": [-17.0, 4.2, 2.0],
       "what": "coin",
-      "model": "assets/models/coin.glb"
+      "model": "assets_src/models/coin.glb"
     },
     {
       "type": "crate",
@@ -741,7 +741,7 @@
       "name": "coin 005",
       "at": [17.0, 4.2, 2.0],
       "what": "coin",
-      "model": "assets/models/coin.glb"
+      "model": "assets_src/models/coin.glb"
     },
     {
       "type": "crate",
@@ -756,42 +756,42 @@
       "name": "coin 014",
       "at": [-14.0, 1.1, 43.0],
       "what": "coin",
-      "model": "assets/models/coin.glb"
+      "model": "assets_src/models/coin.glb"
     },
     {
       "type": "collectible",
       "name": "coin 015",
       "at": [-14.0, 1.1, 53.0],
       "what": "coin",
-      "model": "assets/models/coin.glb"
+      "model": "assets_src/models/coin.glb"
     },
     {
       "type": "collectible",
       "name": "coin 021",
       "at": [-6.0, -1.4, 44.0],
       "what": "coin",
-      "model": "assets/models/coin.glb"
+      "model": "assets_src/models/coin.glb"
     },
     {
       "type": "collectible",
       "name": "coin 022",
       "at": [6.0, -1.4, 44.0],
       "what": "coin",
-      "model": "assets/models/coin.glb"
+      "model": "assets_src/models/coin.glb"
     },
     {
       "type": "collectible",
       "name": "coin 035",
       "at": [-19.0, 3.2, 60.0],
       "what": "coin",
-      "model": "assets/models/coin.glb"
+      "model": "assets_src/models/coin.glb"
     },
     {
       "type": "collectible",
       "name": "coin 036",
       "at": [-19.0, 4.4, 92.0],
       "what": "coin",
-      "model": "assets/models/coin.glb"
+      "model": "assets_src/models/coin.glb"
     },
     {
       "type": "crate",
@@ -806,14 +806,14 @@
       "name": "coin 037",
       "at": [19.0, 3.2, 60.0],
       "what": "coin",
-      "model": "assets/models/coin.glb"
+      "model": "assets_src/models/coin.glb"
     },
     {
       "type": "collectible",
       "name": "coin 038",
       "at": [19.0, 4.4, 92.0],
       "what": "coin",
-      "model": "assets/models/coin.glb"
+      "model": "assets_src/models/coin.glb"
     },
     {
       "type": "crate",
@@ -828,14 +828,14 @@
       "name": "coin 050",
       "at": [-16.0, 8.6, 154.0],
       "what": "coin",
-      "model": "assets/models/coin.glb"
+      "model": "assets_src/models/coin.glb"
     },
     {
       "type": "collectible",
       "name": "coin 051",
       "at": [-16.0, 9.0, 162.0],
       "what": "coin",
-      "model": "assets/models/coin.glb"
+      "model": "assets_src/models/coin.glb"
     },
     {
       "type": "crate",
@@ -850,14 +850,14 @@
       "name": "coin 052",
       "at": [16.0, 8.6, 154.0],
       "what": "coin",
-      "model": "assets/models/coin.glb"
+      "model": "assets_src/models/coin.glb"
     },
     {
       "type": "collectible",
       "name": "coin 053",
       "at": [16.0, 9.0, 162.0],
       "what": "coin",
-      "model": "assets/models/coin.glb"
+      "model": "assets_src/models/coin.glb"
     },
     {
       "type": "crate",
@@ -872,42 +872,42 @@
       "name": "coin 054",
       "at": [-7.5, 2.6, 166.0],
       "what": "coin",
-      "model": "assets/models/coin.glb"
+      "model": "assets_src/models/coin.glb"
     },
     {
       "type": "collectible",
       "name": "coin 055",
       "at": [-8.5, 4.4, 166.0],
       "what": "coin",
-      "model": "assets/models/coin.glb"
+      "model": "assets_src/models/coin.glb"
     },
     {
       "type": "collectible",
       "name": "coin 056",
       "at": [-9.5, 6.2, 166.0],
       "what": "coin",
-      "model": "assets/models/coin.glb"
+      "model": "assets_src/models/coin.glb"
     },
     {
       "type": "collectible",
       "name": "coin 057",
       "at": [14.5, 2.6, 166.0],
       "what": "coin",
-      "model": "assets/models/coin.glb"
+      "model": "assets_src/models/coin.glb"
     },
     {
       "type": "collectible",
       "name": "coin 058",
       "at": [13.5, 4.4, 166.0],
       "what": "coin",
-      "model": "assets/models/coin.glb"
+      "model": "assets_src/models/coin.glb"
     },
     {
       "type": "collectible",
       "name": "coin 059",
       "at": [12.5, 6.2, 166.0],
       "what": "coin",
-      "model": "assets/models/coin.glb"
+      "model": "assets_src/models/coin.glb"
     }
   ],
   "next": "assets/levels/spire.json"

@@ -60,8 +60,9 @@ abstract final class Credits {
   /// says — so the way it emptied was not finding the author of the old key,
   /// which nobody could, but replacing it with one this repository made.
   ///
-  /// It stays, because the next asset dropped into `assets/models` is one
-  /// somebody found somewhere, and `credits_test.dart` reads the directory.
+  /// It stays, because the next asset dropped into `assets_src/models` is
+  /// one somebody found somewhere, and `credits_test.dart` reads the
+  /// directory.
   static List<Credit> get untraced =>
       models.where((Credit c) => !c.traced).toList();
 }
