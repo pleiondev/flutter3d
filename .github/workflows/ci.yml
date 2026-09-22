@@ -97,6 +97,26 @@ jobs:
 
       - run: tool/ci.sh
 
+      # **A failed screenshot is an argument about a picture, and the picture
+      # is on the runner.** When a golden fails, the only thing that reaches
+      # a reader here is one number: the share of pixels that differ. That
+      # number cannot tell a panel that moved from a surface whose every
+      # pixel is off by one in the last place, and the two want opposite
+      # answers — regenerate, or widen what counts as a difference at all.
+      # `flutter_test` already writes both images and its own diff beside the
+      # reference; this carries them out so the question can be settled by
+      # looking rather than by arguing from a percentage.
+      #
+      # `if: failure()` because a green run has nothing to carry, and because
+      # a job killed by the timeout never reaches this step either way.
+      - if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: golden-failures
+          path: '**/test/**/failures/*.png'
+          retention-days: 14
+          if-no-files-found: ignore
+
       # **A number per commit, so that a regression has something to be a
       # regression against.** `doc/model-editor.md` §6 carries the mesh figures
       # with the machine and the date beside them, because a figure without

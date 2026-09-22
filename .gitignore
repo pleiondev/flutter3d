@@ -78,4 +78,9 @@ site/CLAUDE.md
 # failed run rather than anything a run reads, and six of them had been
 # committed by accident — still sitting there from a failure fixed long since,
 # where they read as a golden nobody could place.
-**/test/failures/
+#
+# Not `**/test/failures/`: `matchesGoldenFile` writes beside the reference, so
+# a suite that sorts its goldens into directories gets a `failures/` at every
+# depth. The modeler's sit under `test/goldens/screens/<tutorial>/`, which the
+# narrower pattern walked straight past.
+**/failures/
