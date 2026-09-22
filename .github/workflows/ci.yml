@@ -24,10 +24,18 @@ jobs:
     # sets. The Impeller half runs from tool/golden.sh on a real device — see
     # the note at the top of tool/ci.sh.
     runs-on: ubuntu-latest
-    # The run takes minutes. Without a bound, a step that hangs — a browser that
-    # never reports, a `pub get` waiting on a prompt — holds the runner for six
-    # hours and reports nothing at the end of it.
-    timeout-minutes: 60
+    # Without a bound, a step that hangs (a browser that never reports, a
+    # `pub get` waiting on a prompt) holds the runner for six hours and reports
+    # nothing at the end of it.
+    #
+    # 90 rather than 60, because 60 had stopped bounding a hang and started
+    # cutting the job off mid-suite: four runs in a row were killed at exactly
+    # 60 minutes, and the one that did finish took 58.5. A killed job also
+    # skips every `if: failure()` step, so the screenshots the run was meant
+    # to hand back never left the runner. The job grew into this: the modeler's
+    # screenshot suite draws 47 scenes through the software rasteriser, and it
+    # is the cost of that, not a hang, that the old bound was catching.
+    timeout-minutes: 90
     steps:
       - uses: actions/checkout@v4
 
