@@ -413,6 +413,7 @@ jobs:
       # under `cloud/`, and none of them about the code.
       - run: (cd cloud/server && dart pub get)
       - run: (cd cloud/lessons/server && dart pub get)
+      - run: (cd cloud/lti/server && dart pub get)
 
       - run: flutter analyze
       - run: dart run tool/structure.dart
