@@ -269,12 +269,16 @@ jobs:
           channel: stable
           cache: true
 
+      # libasound2-dev is not part of the Flutter desktop toolchain: it is what
+      # flutter_soloud's own ALSA backend compiles against, and the dungeon demo
+      # is the application that pulls the audio plugin in. Without it the build
+      # gets all the way to soloud_alsa.cpp and stops at a missing header.
       - name: linux desktop toolchain
         if: matrix.target == 'linux'
         run: |
           sudo apt-get update
           sudo apt-get install -y clang cmake ninja-build pkg-config \
-            libgtk-3-dev liblzma-dev libstdc++-12-dev
+            libgtk-3-dev liblzma-dev libstdc++-12-dev libasound2-dev
 
       - run: flutter pub get
 
