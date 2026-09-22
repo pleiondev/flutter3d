@@ -22,6 +22,13 @@ analyzer:
     - windows/**
     - macos/**
     - linux/**
+    # The three services under `cloud/` sit outside the pub workspace and
+    # resolve on their own, and `tool/ci.sh` analyses each one right after its
+    # own `pub get`. From here they were analysed a second time, before that
+    # `pub get` had run, so on a fresh runner every import was unresolved:
+    # about 1,500 errors that no developer machine could reproduce, because
+    # every developer machine has the `.dart_tool` a runner does not.
+    - cloud/**
 include: package:flutter_lints/flutter.yaml
 
 linter:

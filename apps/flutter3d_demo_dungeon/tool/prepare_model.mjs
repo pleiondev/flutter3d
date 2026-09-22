@@ -11,7 +11,7 @@
 // rather than an afternoon.
 //
 // Usage:
-//   node tool/prepare_model.mjs --in Key.OBJ --out assets/models/key.glb \
+//   node tool/prepare_model.mjs --in Key.OBJ --out assets_src/models/key.glb \
 //        --triangles 2500 --height 0.3
 //
 // Requires network on first run: npx fetches gltf-transform and mikktspace.
