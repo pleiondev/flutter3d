@@ -18,12 +18,20 @@
 /// exactly the cross-platform fragility this repository's own 3D goldens
 /// were built to avoid; capturing only the glyph-free half keeps this one
 /// honestly comparable to the same pipeline's own no-GPU-no-font promise.
+// A reference picture, held against a committed PNG. Tagged so a run that
+// only wants the logic can skip every one of them at once:
+//
+//     very_good test -x golden
+//
+// Kept as a tag rather than a flag a test reads, because the decision belongs
+// to whoever starts the run and not to the test.
+@Tags(<String>['golden'])
 library;
 
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
-import 'package:flutter3d_formats/flutter3d_formats.dart';
+import 'package:flutter3d_core/formats.dart';
 import 'package:flutter3d_model_core/flutter3d_model_core.dart' hide Key;
 import 'package:flutter3d_modeler/src/ui/theme.dart';
 import 'package:flutter3d_modeler/src/ui/timeline_panel.dart';

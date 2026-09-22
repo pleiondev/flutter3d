@@ -14,6 +14,7 @@ library;
 import 'dart:async';
 
 import 'package:flutter3d_game/flutter3d_game.dart';
+import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pad_input/pad_input.dart';
 import 'package:vector_math/vector_math.dart';

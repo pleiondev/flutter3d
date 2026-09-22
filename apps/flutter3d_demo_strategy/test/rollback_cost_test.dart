@@ -17,7 +17,7 @@ import 'package:flutter3d_demo_strategy/src/command.dart';
 import 'package:flutter3d_demo_strategy/src/level_document.dart';
 import 'package:flutter3d_demo_strategy/src/run.dart';
 import 'package:flutter3d_demo_strategy/src/staging.dart';
-import 'package:flutter3d_game/flutter3d_game.dart';
+import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 StrategyMap _map() =>
@@ -66,9 +66,7 @@ void main() {
 
     // ignore: avoid_print
     print(
-      'net-00 strategy (map_a): ${[
-        for (final k in results.keys) 'k=$k ${results[k]!.toStringAsFixed(4)}ms',
-      ].join(', ')}',
+      'net-00 strategy (map_a): ${[for (final k in results.keys) 'k=$k ${results[k]!.toStringAsFixed(4)}ms'].join(', ')}',
     );
 
     expect(results[8], isNotNull);

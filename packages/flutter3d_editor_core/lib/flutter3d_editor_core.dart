@@ -16,7 +16,7 @@
 ///
 /// **It does not draw.** [Handle] is a box with a colour and a size, not a mesh
 /// and not a widget; turning a list of handles into something on a screen is
-/// `flutter3d_bridge`'s and the editor's, and nothing here knows that anything
+/// `flutter3d_app`'s and the editor's, and nothing here knows that anything
 /// does.
 ///
 /// **It does not read a disk.** [Editing] parses text and writes text back,

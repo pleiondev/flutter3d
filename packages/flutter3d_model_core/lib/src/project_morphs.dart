@@ -20,7 +20,10 @@ import 'package:flutter3d_mesh/flutter3d_mesh.dart';
 /// set does not yet do is stay in step with a topology-changing edit on
 /// its own — the same, already-declared gap `mesh-61` left open.
 final class ShapeSet {
-  const ShapeSet({this.keys = const <ShapeKey>[], this.weights = const <double>[]});
+  const ShapeSet({
+    this.keys = const <ShapeKey>[],
+    this.weights = const <double>[],
+  });
 
   final List<ShapeKey> keys;
   final List<double> weights;

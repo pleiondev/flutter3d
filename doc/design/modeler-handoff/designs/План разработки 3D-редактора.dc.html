@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="./_ds/broadsheet-e153727d-0d22-4edf-874e-8d174b3fb206/styles.css">
+<style>
+doc-page:not(:defined){visibility:hidden}
+doc-page,doc-page p,doc-page li,doc-page ol,doc-page ul,doc-page td,doc-page th,doc-page div,doc-page span,doc-page strong{font-family:var(--font-body)}
+h1,h2,h3{text-wrap:balance}
+p,li{orphans:3;widows:3}
+.kept{break-inside:avoid}
+table.table{width:100%;font-size:14px}
+table.table th,table.table td{vertical-align:top}
+a{color:var(--color-accent-700);text-decoration-thickness:1px;text-underline-offset:2px}
+a:hover{color:var(--color-accent-600)}
+</style>
+<script src="./doc-page.js"></script>
+</helmet>
+<doc-page margin="0.8in">
+
+<div style="display:flex;justify-content:space-between;align-items:baseline;gap:var(--space-4);font-size:12px;letter-spacing:0.08em;text-transform:uppercase;color:var(--color-neutral-700)">
+  <span>План разработки</span>
+  <span>Черновик v0.1 · сентябрь 2026</span>
+</div>
+
+<h1 style="font-size:46px;line-height:1.04;margin:var(--space-4) 0 var(--space-3);max-width:15ch">Редактор 3D-фигур на Flutter</h1>
+
+<p style="font-size:19px;line-height:1.5;max-width:54ch;color:var(--color-neutral-800);margin:0 0 var(--space-8)">Кроссплатформенный редактор для создания, правки и анимации игровых ассетов и трёхмерных сцен. Ядро — собственная библиотека flutter3d. Интерфейс — Material 3 в минималистичной трактовке, с режимами под задачу вместо универсального набора панелей.</p>
+
+<h2 style="font-size:14px;letter-spacing:0.1em;text-transform:uppercase;margin:0 0 var(--space-3);color:var(--color-neutral-700)">Коротко</h2>
+<div style="display:grid;grid-template-columns:repeat(2,1fr);gap:var(--space-4) var(--space-8);margin-bottom:var(--space-8)">
+  <div class="kept"><div style="font-size:12px;letter-spacing:0.06em;text-transform:uppercase;color:var(--color-accent-700);margin-bottom:4px">Позиционирование</div><p style="margin:0;font-size:15px;line-height:1.6">Не «Blender в браузере», а инструмент конвейера игровых ассетов: импорт, правка, материалы, анимация, экспорт в движок.</p></div>
+  <div class="kept"><div style="font-size:12px;letter-spacing:0.06em;text-transform:uppercase;color:var(--color-accent-700);margin-bottom:4px">Технология</div><p style="margin:0;font-size:15px;line-height:1.6">Flutter и flutter3d. Один код на веб, десктоп, планшет с пером и телефон. Одновременно главное преимущество и главный риск.</p></div>
+  <div class="kept"><div style="font-size:12px;letter-spacing:0.06em;text-transform:uppercase;color:var(--color-accent-700);margin-bottom:4px">Аудитория</div><p style="margin:0;font-size:15px;line-height:1.6">Инди-разработчики игр и новички, для которых Blender избыточен. Профессионалы — вторая волна, когда экспорт станет надёжным.</p></div>
+  <div class="kept"><div style="font-size:12px;letter-spacing:0.06em;text-transform:uppercase;color:var(--color-accent-700);margin-bottom:4px">Главное решение</div><p style="margin:0;font-size:15px;line-height:1.6">Список функций из опроса — это объём на несколько лет. Ниже он разложен на четыре фазы; первая версия закрывает импорт, примитивы, тела вращения, правку меша и экспорт.</p></div>
+</div>
+
+<h2 style="font-size:26px;margin:0 0 var(--space-3)">1. Чем это отличается от Blender</h2>
+<p style="font-size:15px;line-height:1.65;max-width:64ch;margin:0 0 var(--space-3)">Blender бесплатен и умеет всё. Конкурировать по объёму функций бессмысленно, поэтому отличие строится на трёх вещах, которые вы уже назвали.</p>
+<ol style="font-size:15px;line-height:1.65;max-width:64ch;margin:0 0 var(--space-6);padding-left:1.2em">
+  <li style="margin-bottom:var(--space-2)"><strong>Один и тот же редактор на всех устройствах.</strong> Blender на планшете и телефоне практически неприменим. Flutter даёт вход туда, где у конкурента дыра: правка ассета на iPad с пером, просмотр и мелкая доводка с телефона.</li>
+  <li style="margin-bottom:var(--space-2)"><strong>Конвейер игрового ассета как основной сценарий.</strong> Не абстрактное 3D, а путь «модель → материал → скелет → анимация → экспорт в glTF/GLB для движка», с проверками на пригодность: полигонаж, размер текстур, количество костей, отсутствие n-гонов.</li>
+  <li><strong>Сцена и композиция без переключения инструмента.</strong> Ассеты собираются в сцену прямо здесь, а не только в движке.</li>
+</ol>
+
+<div class="kept" style="background:var(--color-accent-100);padding:var(--space-4);margin:0 0 var(--space-8);border-radius:var(--radius-md)">
+  <p style="margin:0;font-size:15px;line-height:1.6"><strong>Чего избегать.</strong> Позиции «Blender, но проще» — она заставляет догонять по функциям и проигрывать по каждой. Формулировка отличия должна быть проверяемой: «ассет из импорта в движок за пятнадцать минут на любом устройстве».</p>
+</div>
+
+<h2 style="font-size:26px;margin:0 0 var(--space-3)">2. Аудитория и сценарии</h2>
+<table class="table" style="margin:0 0 var(--space-8)">
+  <thead><tr><th style="text-align:left">Кто</th><th style="text-align:left">Сценарий</th><th style="text-align:left">Когда берём</th></tr></thead>
+  <tbody>
+    <tr><td>Инди-разработчик игр</td><td>Импортирует купленный ассет, чистит меш, правит материал, экспортирует в GLB под Unity или Godot</td><td>Фаза 1 — ядро продукта</td></tr>
+    <tr><td>Новичок</td><td>Собирает простую модель из примитивов и фигур вращения, красит, экспортирует</td><td>Фаза 1</td></tr>
+    <tr><td>Разработчик, которому нужна анимация</td><td>Ставит скелет, делает цикл ходьбы, проверяет в движке</td><td>Фаза 3</td></tr>
+    <tr><td>Профессиональный художник</td><td>Скульптинг, UV, рендер сцены</td><td>Фаза 4 и позже</td></tr>
+  </tbody>
+</table>
+
+<h2 style="font-size:26px;margin:0 0 var(--space-3)">3. Объём: что в какой фазе</h2>
+<p style="font-size:15px;line-height:1.65;max-width:64ch;margin:0 0 var(--space-4)">В опросе отмечено одиннадцать направлений. Каждое из них — самостоятельный подпроект: UV-развёртка и скульптинг в Blender разрабатывались годами командами. Порядок ниже выстроен так, чтобы после каждой фазы продукт был законченным и его можно было отдать пользователям.</p>
+
+<table class="table kept" style="margin:0 0 var(--space-6)">
+  <thead><tr><th style="text-align:left;width:22%">Фаза</th><th style="text-align:left">Содержание</th><th style="text-align:left;width:22%">Результат</th></tr></thead>
+  <tbody>
+    <tr><td><strong>0. Прототип ядра</strong></td><td>flutter3d: рендер сцены, камера, выделение, гизмо перемещения и поворота. Замер производительности на вебе, десктопе и планшете</td><td>Ответ, тянет ли Flutter реальную сцену</td></tr>
+    <tr><td><strong>1. Первая версия</strong></td><td>Импорт OBJ, GLTF, GLB, STL. Примитивы. Фигуры вращения. Правка меша: вершины, рёбра, грани, экструзия, разрез петлёй. Базовые материалы. Экспорт GLB и OBJ. История действий и автосохранение</td><td>Публичный релиз, первые пользователи</td></tr>
+    <tr><td><strong>2. Материалы и модификаторы</strong></td><td>PBR-материалы, текстуры, стек модификаторов: зеркало, сглаживание, массив, булевы операции. Освещение и предпросмотр сцены</td><td>Ассет выглядит так же, как в движке</td></tr>
+    <tr><td><strong>3. Анимация</strong></td><td>Скелет, скиннинг, ключевые кадры, таймлайн, кривые. Экспорт анимации в glTF</td><td>Полный конвейер игрового ассета</td></tr>
+    <tr><td><strong>4. Дальше</strong></td><td>UV-развёртка, скульптинг, ретопология и запекание карт, симуляции и физика, рендер с композитингом, совместная работа</td><td>Выход к профессиональной аудитории</td></tr>
+  </tbody>
+</table>
+
+<h3 style="font-size:18px;margin:0 0 var(--space-2)">Где план находится сейчас</h3>
+<p style="font-size:15px;line-height:1.65;max-width:64ch;margin:0 0 var(--space-4)">Состояние на 11 сентября 2026 года по фактическому статусу пунктов плана. Порядок фаз не изменился, но глубина проработки внутри них разная: ядро ушло далеко вперёд пользовательского слоя.</p>
+<table class="table" style="margin:0 0 var(--space-6)">
+  <thead><tr><th style="text-align:left;width:22%">Фаза</th><th style="text-align:left;width:20%">Статус</th><th style="text-align:left">Что осталось</th></tr></thead>
+  <tbody>
+    <tr><td><strong>0. Прототип ядра</strong></td><td>Закрыта</td><td>Кроме замера на iPad — ждёт покупки устройства. Веб-путь файлов работает, кроме открытия .gltf с соседними файлами.</td></tr>
+    <tr><td><strong>1. Первая версия</strong></td><td>Ядро готово, оболочка отстаёт</td><td>Half-edge меш, выделение, операции правки, документ, команды, история, формат проекта, импорт с отчётом, писатели glTF/GLB/OBJ — сделаны. Не хватает экранов старта, импорта и экспорта, адаптивных раскладок, локализации и доступности.</td></tr>
+    <tr><td><strong>2. Материалы и модификаторы</strong></td><td>Ядро готово, интерфейса нет</td><td>Стек, зеркало, массив, подразделение, сглаживание, булевы операции и кэш стека работают. Панель материала, компоновщик текстур, студия материалов, свет и режим «Сцена» не начаты. Открытых пунктов фазы два: булева как модификатор стека и эталонные кадры.</td></tr>
+    <tr><td><strong>3. Анимация</strong></td><td>Не начата</td><td>Из всего раздела закрыт один замер производительности FK. Скелет, скиннинг, ключи, таймлайн, IK, ретаргетинг и морфы — впереди целиком.</td></tr>
+    <tr><td><strong>4. Дальше</strong></td><td>Не начата</td><td>UV, скульптинг, ретопология, LOD, симуляции, офлайн-рендер, покраска текстур. Самая неточная по срокам часть: оценки L внутри неё могут удвоиться.</td></tr>
+  </tbody>
+</table>
+
+<div class="kept" style="background:var(--color-neutral-200);padding:var(--space-4);margin:0 0 var(--space-6);border-radius:var(--radius-md)">
+  <p style="margin:0 0 var(--space-2);font-size:13px;letter-spacing:0.06em;text-transform:uppercase;color:var(--color-neutral-700)">Два трека, которых не было в исходном плане</p>
+  <p style="margin:0 0 var(--space-2);font-size:15px;line-height:1.6"><strong>Агент, который видит модель.</strong> Набор MCP-инструментов зеркалит команды документа, и каждая новая команда автоматически требует своего инструмента. Сегодня агент правит модель вслепую: получает числа проверки готовности, но не картинку. Чтобы дать ему рендер, контактный лист и режимы показа, нужно вынести последние зависимости от Flutter из слоя железа и рендер-ядра.</p>
+  <p style="margin:0;font-size:15px;line-height:1.6"><strong>Игровая графика.</strong> Правки рендера игр, которые стали видны через редактор: профайлер кадра, отбор источников света по вкладу, контактные тени, FXAA, свет и камеры из glTF. Идёт своими фазами, параллельно фазам редактора.</p>
+</div>
+
+<div class="kept" style="background:var(--color-neutral-200);padding:var(--space-4);margin:0 0 var(--space-8);border-radius:var(--radius-md)">
+  <p style="margin:0 0 var(--space-2);font-size:13px;letter-spacing:0.06em;text-transform:uppercase;color:var(--color-neutral-700)">Что сознательно вынесено из первой версии</p>
+  <p style="margin:0;font-size:15px;line-height:1.6">Скульптинг, UV-развёртка, рендер и совместная работа. Каждое из них по трудоёмкости сравнимо со всей первой фазой, и ни одно не нужно, чтобы довести первый ассет до движка.</p>
+</div>
+
+<h2 style="font-size:26px;margin:0 0 var(--space-3);break-before:page">4. Архитектура</h2>
+<p style="font-size:15px;line-height:1.65;max-width:64ch;margin:0 0 var(--space-4)">Четыре слоя, разделённых так, чтобы геометрию можно было тестировать без интерфейса, а интерфейс — переносить между платформами без изменений в ядре.</p>
+<div style="display:grid;gap:var(--space-3);margin:0 0 var(--space-6)">
+  <div class="kept" style="display:grid;grid-template-columns:180px 1fr;gap:var(--space-4);align-items:start">
+    <div style="font-size:15px;font-weight:600">Геометрическое ядро</div>
+    <p style="margin:0;font-size:15px;line-height:1.6">Структура полумёбер или аналог, булевы операции, модификаторы, тела вращения. Чистый Dart, без Flutter. Покрывается модульными тестами. Тяжёлые операции — в изоляте, чтобы интерфейс не подвисал.</p>
+  </div>
+  <div class="kept" style="display:grid;grid-template-columns:180px 1fr;gap:var(--space-4);align-items:start">
+    <div style="font-size:15px;font-weight:600">Рендер: flutter3d</div>
+    <p style="margin:0;font-size:15px;line-height:1.6">Отрисовка вьюпорта, материалы, освещение, выбор объекта под курсором. Здесь же граница платформ: WebGL или WebGPU в браузере, Impeller и нативный GL на десктопе и планшете.</p>
+  </div>
+  <div class="kept" style="display:grid;grid-template-columns:180px 1fr;gap:var(--space-4);align-items:start">
+    <div style="font-size:15px;font-weight:600">Модель документа</div>
+    <p style="margin:0;font-size:15px;line-height:1.6">Сцена, объекты, история действий, формат проекта. Все правки идут через команды — это даёт отмену, автосохранение и в будущем совместную работу без переписывания.</p>
+  </div>
+  <div class="kept" style="display:grid;grid-template-columns:180px 1fr;gap:var(--space-4);align-items:start">
+    <div style="font-size:15px;font-weight:600">Интерфейс</div>
+    <p style="margin:0;font-size:15px;line-height:1.6">Material 3, режимы под задачу, адаптация под размер экрана и способ ввода: мышь, палец, перо.</p>
+  </div>
+</div>
+
+<h3 style="font-size:18px;margin:0 0 var(--space-2)">Форматы</h3>
+<p style="font-size:15px;line-height:1.65;max-width:64ch;margin:0 0 var(--space-6)">В первой версии полностью поддерживаются GLB и GLTF на импорт и экспорт, OBJ с MTL и STL на импорт. FBX даёт больше половины реального контента, но формат закрытый и трудоёмкий — его лучше вынести в отдельную задачу второй фазы и заранее заложить конвертацию на сервере как запасной путь. USDZ — по спросу.</p>
+
+<h2 style="font-size:26px;margin:0 0 var(--space-3)">5. Интерфейс: Material 3 и режимы</h2>
+<p style="font-size:15px;line-height:1.65;max-width:64ch;margin:0 0 var(--space-4)">Material 3 задуман для контентных приложений, а не для профессиональных инструментов: крупные отступы, крупные компоненты, много воздуха. В редакторе, где нужно двадцать элементов управления на экране, буквальное применение системы съест вьюпорт. Правила, которые снимают это противоречие:</p>
+<ul style="font-size:15px;line-height:1.65;max-width:64ch;margin:0 0 var(--space-6);padding-left:1.2em">
+  <li style="margin-bottom:6px">Вьюпорт — фон приложения, а не карточка. Панели лежат поверх него как поверхности с тональной заливкой, без обводок.</li>
+  <li style="margin-bottom:6px">Компактная плотность M3 для всей хромы инструмента: высота строки 32 пикселя, цель нажатия 48 сохраняется только на сенсорных устройствах.</li>
+  <li style="margin-bottom:6px">Один акцентный цвет на весь редактор — выделение объекта и активный инструмент. Всё остальное нейтральное: цвет должен принадлежать модели, а не интерфейсу.</li>
+  <li style="margin-bottom:6px">Режимы задают набор инструментов: Объект, Меш, Материал, Анимация, Сцена. Панели не накапливаются, они заменяются при смене режима.</li>
+  <li style="margin-bottom:6px">Один макет на три размера экрана: боковые панели на десктопе, выдвижные листы на планшете, нижняя панель на телефоне. Состав инструментов один и тот же.</li>
+  <li style="margin-bottom:6px">Мышь и клавиатура равноправны: модальная трансформация (<code>G</code>, <code>R</code>, <code>S</code>), ограничение осью, ввод значения цифрами и привязка работают поверх тех же команд, что и гизмо. Точка опоры, пространство и 3D-курсор живут чипами во вьюпорте.</li>
+  <li>Диагностика меша всегда рядом с починкой: число дыр и n-гонов бесполезно без кнопки, которая их закрывает, а починка идёт командой и попадает в историю.</li>
+</ul>
+
+<h2 style="font-size:26px;margin:0 0 var(--space-3)">6. Риски</h2>
+<table class="table" style="margin:0 0 var(--space-8)">
+  <thead><tr><th style="text-align:left;width:30%">Риск</th><th style="text-align:left">Что делать</th></tr></thead>
+  <tbody>
+    <tr><td><strong>Производительность Flutter на больших мешах</strong><br><span style="color:var(--color-neutral-700)">Критический</span></td><td>Проверить в фазе 0 на сцене в миллион треугольников на всех четырёх платформах. Если веб не тянет — веб становится режимом просмотра, а редактирование остаётся на десктопе и планшете.</td></tr>
+    <tr><td><strong>Объём работы</strong><br><span style="color:var(--color-neutral-700)">Высокий</span></td><td>Фазы выше. После каждой фазы продукт можно выпускать. Не начинать следующую, пока предыдущая не в руках у пользователей.</td></tr>
+    <tr><td><strong>Команда не собрана</strong><br><span style="color:var(--color-neutral-700)">Высокий</span></td><td>Минимальный состав первой фазы: разработчик ядра геометрии, разработчик flutter3d и рендера, разработчик интерфейса. Первые двое — на графике и вычислительной геометрии, это узкий рынок; искать заранее.</td></tr>
+    <tr><td><strong>Экосистема Dart для 3D бедна</strong></td><td>Библиотек уровня three.js нет. Парсеры форматов, булевы операции и физику придётся писать или портировать. Заложить это в оценку сроков.</td></tr>
+    <tr><td><strong>Экспорт не сходится с движком</strong></td><td>Автотесты: экспортированный файл открывается в Godot и Unity, сравнение геометрии и иерархии. Расхождение в экспорте убивает доверие быстрее любой недостающей функции.</td></tr>
+  </tbody>
+</table>
+
+<h2 style="font-size:26px;margin:0 0 var(--space-3)">7. Открытые решения</h2>
+<p style="font-size:15px;line-height:1.65;max-width:64ch;margin:0 0 var(--space-4)">Из восьмидесяти семи вопросов плана закрыто двадцать четыре; остальные распределены по десяти группам и ждут владельца продукта к началу соответствующей фазы. У каждого есть рекомендация в самом плане — это отложенные решения, а не пробелы. Требуют ответа раньше прочих:</p>
+<ol style="font-size:15px;line-height:1.65;max-width:64ch;margin:0 0 var(--space-6);padding-left:1.2em">
+  <li style="margin-bottom:6px">Дата официального старта фазы 1 и порог бюджета веб-профиля.</li>
+  <li style="margin-bottom:6px">Стабильность идентификаторов элементов меша: надгробия или плотная перенумерация — от этого зависит, переживают ли ссылки на элементы отмену.</li>
+  <li style="margin-bottom:6px">Место автосохранения на диске и глубина истории в байтах; писать ли историю секцией файла проекта.</li>
+  <li style="margin-bottom:6px">Один флаг модификатора или два: «включён» и «показывать во вьюпорте» — это видно в панели стека и меняет её строку.</li>
+  <li style="margin-bottom:6px">Точные цифры бюджета текстур по пресетам и разрешение запекания по умолчанию.</li>
+  <li>Жёсткий предел влияний скиннинга или раскладка на восемь в фазе 4 — упирается в экспорт и в нормализацию весов при каждом мазке кисти.</li>
+</ol>
+
+<p style="font-size:15px;line-height:1.6;color:var(--color-neutral-700);max-width:64ch;margin:0">Экраны собраны в двух файлах: «Экраны редактора» — девятнадцать основных, «Экраны редактора — дополнение» — вход в приложение, импорт, экспорт, сокеты, стек модификаторов, профиль с бюджетами, сеанс агента и справка по клавишам. Кликабельный прототип и презентация концепции строятся на этом документе.</p>
+
+</doc-page>
+</x-dc>
+</body>
+</html>

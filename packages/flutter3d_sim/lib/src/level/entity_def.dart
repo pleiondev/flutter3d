@@ -95,7 +95,11 @@ final class EntityDef {
 
   Map<String, Object?> toJson() => writeThrough(_source, <WriteThroughField>[
     WriteThroughField('type', type),
-    WriteThroughField('at', position.toJson()),
+    WriteThroughField(
+      'at',
+      position.toJson(),
+      whenAbsent: position != Vector3.zero(),
+    ),
     WriteThroughField('yaw', yaw, whenAbsent: yaw != 0.0),
     WriteThroughField('name', name, whenAbsent: name != null),
     for (final entry in properties.entries)

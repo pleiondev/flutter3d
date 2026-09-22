@@ -1,3 +1,75 @@
+## 0.7.0
+
+**Breaking.** `GraphicsDevice.present` is gone. It was the one member that
+returned a Flutter `Widget`, and the one reason this package depended on
+Flutter at all. `FakeBackend`'s own override, a bare `throw
+UnsupportedError`, is deleted rather than migrated. Nothing else in this
+package names Flutter; it resolves on the Dart VM alone now, and its tests
+run under plain `dart test`.
+
+**`registerBackendOpener`/`openRegisteredDevice` and
+`registerDevicePresenter`/`lookUpDevicePresenter`, new.** What replaced
+`present` is a registry a backend adds itself to rather than a fixed list an
+assembly layer would have to already know every entry of — a hardware
+abstraction layer that a new backend could only extend by editing another
+package's source was not one. Opening a device names no framework, so the
+whole of that registry lives here, typed; presenting one returns a Flutter
+`Widget`, which this package still must not name, so only the generic half
+— registered and looked up by a device's own runtime `Type`, holding
+whatever a caller registered as `Object` — lives here. `flutter3d_app`
+supplies the typed `FramePresenter` shape and the cast back to it for the
+four backends this repository ships, and is not required for a fifth.
+
+**Breaking for a backend, and for nobody else.** `GraphicsDevice` has three
+new abstract members, `overwriteGeometry`, `overwriteTexture` and
+`maxColorAttachments`. A class that implements the interface outside this
+repository stops compiling until it answers all three. Code that only calls a
+device compiles as it did.
+
+**`overwriteGeometry` writes into a buffer the device already made.** It takes
+the target `GeometryBuffer`, an offset in bytes and the bytes, and throws
+`ArgumentError` when `offsetInBytes + bytes.lengthInBytes` runs past
+`target.lengthInBytes`. The offset is measured inside the view it is given, so
+a write through `GeometryBuffer.slice()` lands where the slice says. The new
+bytes are visible from the next pass; a pass already encoded draws what it was
+handed. Before this the only way to change a vertex was `uploadGeometry` again.
+
+**`overwriteTexture` patches a rectangle of a texture's base level.** `region`
+is a `ScreenRect` and defaults to the whole texture, and the bytes are RGBA8,
+row-major from the top, the way `readback` returns them. It accepts the two
+formats in `readbackFormats` and throws `UnsupportedError` for any other,
+compressed ones included, and for a `mipLevel` other than zero: patching one
+level of a chain would leave the rest stale with nothing saying so. It returns
+a `Future` because flutter_gpu can only overwrite a whole level, so that
+backend reads the level back, patches it and writes it again; the other three
+complete in the same turn.
+
+**`maxColorAttachments`, and a pass that asks for more throws.** On Impeller's
+OpenGL ES path a second colour attachment reaches an `FML_CHECK` and the
+process stops, in release too. A device now says how many it can open, and
+`RenderPassDescriptor.checkAttachmentLimit(limit, backend:)` is what each
+backend calls on the way into `beginRenderPass`, so all four refuse with the
+same `UnsupportedError`, which names the backend and the limit.
+
+**A registration can be taken out again.** `registerBackendOpener` returns a
+`BackendRegistration` and `registerDevicePresenter` a `PresenterRegistration`,
+each with `undo()`. A test suite run in one process kept a fake backend
+registered for every file after the one that registered it, and an empty frame
+compares equal to another empty frame. Undoing a fallback puts back the
+fallback it displaced, and `undo()` does nothing once a later registration has
+replaced the one it belongs to. Callers that ignored the old `void` return are
+unaffected.
+
+**`FakeBackend` follows all of it.** It records `overwrites` and
+`overwrittenTextures` with the same bounds and format checks a real device
+makes, takes `maxColorAttachments` in its constructor with a default of 2, and
+`supportsOffscreenMsaa` is a field a test can set to false.
+
+**The archive carries a skill.** `skills/flutter3d-hardware-backend-contract/`
+is a `SKILL.md` for a coding agent that writes a backend or calls
+`GraphicsDevice` directly. A project depending on this package installs it
+with `dart run skills@ get`.
+
 ## 0.6.0
 
 * **Nothing of its own changed.** Every file under `lib/` is byte for byte what

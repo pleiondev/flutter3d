@@ -40,9 +40,14 @@ import 'sculpt_mesh.dart';
 /// existing `switch` instead of forcing them to handle a case they cannot
 /// yet know about.
 final class BrushKind {
-  const BrushKind._(this._name);
+  const BrushKind._(this.name);
 
-  final String _name;
+  /// What this brush is called where a brush has to be written down — a
+  /// journal line, an agent's own `sculptStroke` call, a project file.
+  /// Public rather than private for `pro-sc-06`: a command carries its
+  /// arguments as JSON, and a brush that can only print itself as
+  /// `BrushKind.draw` is one nothing can read back.
+  final String name;
 
   static const BrushKind draw = BrushKind._('draw');
   static const BrushKind clay = BrushKind._('clay');
@@ -54,7 +59,7 @@ final class BrushKind {
   static const BrushKind crease = BrushKind._('crease');
 
   @override
-  String toString() => 'BrushKind.$_name';
+  String toString() => 'BrushKind.$name';
 }
 
 /// The falloff curve shaping a linear `0..1` radial falloff before a brush
@@ -63,16 +68,17 @@ final class BrushKind {
 /// A final class with named instances, for the same reason [BrushKind] is
 /// one rather than an enum.
 final class BrushFalloff {
-  const BrushFalloff._(this._name);
+  const BrushFalloff._(this.name);
 
-  final String _name;
+  /// See [BrushKind.name].
+  final String name;
 
   static const BrushFalloff linear = BrushFalloff._('linear');
   static const BrushFalloff smooth = BrushFalloff._('smooth');
   static const BrushFalloff sharp = BrushFalloff._('sharp');
 
   @override
-  String toString() => 'BrushFalloff.$_name';
+  String toString() => 'BrushFalloff.$name';
 }
 
 /// Reshapes [t] (already `0` at the brush's edge, `1` at its centre) by
@@ -83,7 +89,11 @@ double shapeFalloff(BrushFalloff falloff, double t) {
     BrushFalloff.linear => clamped,
     BrushFalloff.smooth => clamped * clamped * (3 - 2 * clamped),
     BrushFalloff.sharp => clamped * clamped,
-    _ => throw ArgumentError.value(falloff, 'falloff', 'not a known BrushFalloff'),
+    _ => throw ArgumentError.value(
+      falloff,
+      'falloff',
+      'not a known BrushFalloff',
+    ),
   };
 }
 
@@ -108,7 +118,8 @@ class Brush {
 /// every triangle in [mesh] that uses it, from [mesh.triangles] and
 /// [SculptMesh.positionOf] — the "local normal" several brushes need and
 /// `SculptMesh` itself does not compute.
-Vector3 vertexNormal(SculptMesh mesh, int vertex) => vertexNormals(mesh, <int>[vertex])[vertex]!;
+Vector3 vertexNormal(SculptMesh mesh, int vertex) =>
+    vertexNormals(mesh, <int>[vertex])[vertex]!;
 
 /// [vertexNormal], for every vertex in [vertices] at once — one pass over
 /// [mesh.triangles] rather than one per vertex.
@@ -176,11 +187,18 @@ BrushResult applyBrushStroke(
   Vector3? previousCenter,
   bool symmetryX = false,
 }) {
-  final primary = _applyOneSide(mesh, brush, center: center, previousCenter: previousCenter);
+  final primary = _applyOneSide(
+    mesh,
+    brush,
+    center: center,
+    previousCenter: previousCenter,
+  );
   if (!symmetryX) return primary;
 
   final mirroredCenter = mirrorAcrossX(center);
-  final mirroredPrevious = previousCenter == null ? null : mirrorAcrossX(previousCenter);
+  final mirroredPrevious = previousCenter == null
+      ? null
+      : mirrorAcrossX(previousCenter);
   final mirrored = _applyOneSide(
     mesh,
     brush,
@@ -189,8 +207,14 @@ BrushResult applyBrushStroke(
   );
 
   return BrushResult(
-    touchedVertices: <int>[...primary.touchedVertices, ...mirrored.touchedVertices],
-    touchedChunks: <int>{...primary.touchedChunks, ...mirrored.touchedChunks}.toList(),
+    touchedVertices: <int>[
+      ...primary.touchedVertices,
+      ...mirrored.touchedVertices,
+    ],
+    touchedChunks: <int>{
+      ...primary.touchedChunks,
+      ...mirrored.touchedChunks,
+    }.toList(),
   );
 }
 
@@ -208,7 +232,8 @@ BrushResult _applyOneSide(
         center: center,
         radius: brush.radius,
         displace: (vertex, position, falloff) =>
-            position + normal * (brush.strength * shapeFalloff(brush.falloff, falloff)),
+            position +
+            normal * (brush.strength * shapeFalloff(brush.falloff, falloff)),
       );
 
     case BrushKind.inflate:
@@ -219,7 +244,8 @@ BrushResult _applyOneSide(
         radius: brush.radius,
         displace: (vertex, position, falloff) =>
             position +
-            normals[vertex]! * (brush.strength * shapeFalloff(brush.falloff, falloff)),
+            normals[vertex]! *
+                (brush.strength * shapeFalloff(brush.falloff, falloff)),
       );
 
     case BrushKind.clay:
@@ -282,7 +308,9 @@ BrushResult _applyOneSide(
       );
 
     case BrushKind.grab:
-      final drag = previousCenter == null ? Vector3.zero() : center - previousCenter;
+      final drag = previousCenter == null
+          ? Vector3.zero()
+          : center - previousCenter;
       return mesh.applyBrush(
         center: center,
         radius: brush.radius,
@@ -317,12 +345,17 @@ BrushResult _applyOneSide(
           final toward = center - position;
           final tangent = toward - normal * toward.dot(normal);
           final pinch = tangent * (brush.strength * shaped);
-          final fold = normal * (-brush.strength * shaped * brush.radius * 0.25);
+          final fold =
+              normal * (-brush.strength * shaped * brush.radius * 0.25);
           return position + pinch + fold;
         },
       );
 
     default:
-      throw ArgumentError.value(brush.kind, 'brush.kind', 'not a known BrushKind');
+      throw ArgumentError.value(
+        brush.kind,
+        'brush.kind',
+        'not a known BrushKind',
+      );
   }
 }

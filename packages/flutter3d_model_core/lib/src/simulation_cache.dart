@@ -41,7 +41,7 @@ abstract interface class SimulationBakeRequest {
 ///
 /// **Every frame the same length, `3 * vertexCount`** — x/y/z per vertex,
 /// flat, the same layout `ClothMesh.positions` already uses in
-/// `flutter3d_cloth`, so a frame can be set straight into a mesh upload
+/// `flutter3d_physics`, so a frame can be set straight into a mesh upload
 /// without walking it into vectors first. [BakeClothJobRequest] is what
 /// fills one of these in, one frame — one chunk — at a time.
 final class SimulationCache {
@@ -50,8 +50,10 @@ final class SimulationCache {
   /// [ArgumentError] for a frame whose own length is not `vertexCount * 3` —
   /// a cache that quietly held frames of mismatched vertex counts would be a
   /// cache nothing downstream could trust the shape of.
-  SimulationCache({required this.vertexCount, required List<Float32List> frames})
-    : frames = List<Float32List>.unmodifiable(frames) {
+  SimulationCache({
+    required this.vertexCount,
+    required List<Float32List> frames,
+  }) : frames = List<Float32List>.unmodifiable(frames) {
     final expected = vertexCount * 3;
     for (var i = 0; i < this.frames.length; i++) {
       if (this.frames[i].length != expected) {

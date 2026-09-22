@@ -81,7 +81,8 @@ final class AddClip extends ModelCommand {
   if (trackIndex < 0 || trackIndex >= clip.tracks.length) {
     return (
       track: null,
-      refused: 'clip $clipIndex has ${clip.tracks.length} tracks; $trackIndex '
+      refused:
+          'clip $clipIndex has ${clip.tracks.length} tracks; $trackIndex '
           'is not one of them',
     );
   }
@@ -250,7 +251,11 @@ ModelProject _withTrack(
       track: newTrack,
     );
   final clips = List<ProjectClip>.of(project.clips)
-    ..[clipIndex] = ProjectClip(name: clip.name, extras: clip.extras, tracks: tracks);
+    ..[clipIndex] = ProjectClip(
+      name: clip.name,
+      extras: clip.extras,
+      tracks: tracks,
+    );
   return project.copyWith(clips: clips);
 }
 

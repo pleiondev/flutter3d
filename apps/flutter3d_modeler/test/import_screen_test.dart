@@ -5,9 +5,10 @@
 library;
 
 import 'package:flutter/material.dart';
-import 'package:flutter3d_formats/flutter3d_formats.dart';
-import 'package:flutter3d_geometry/flutter3d_geometry.dart';
+import 'package:flutter3d_core/formats.dart';
+import 'package:flutter3d_core/geometry.dart';
 import 'package:flutter3d_model_core/flutter3d_model_core.dart';
+import 'package:flutter3d_modeler/l10n/app_localizations.dart';
 import 'package:flutter3d_modeler/src/import_plan.dart';
 import 'package:flutter3d_modeler/src/ui/import_screen.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -48,6 +49,9 @@ Future<ImportChoice?> openOver(
   addTearDown(() => tester.binding.setSurfaceSize(null));
   await tester.pumpWidget(
     MaterialApp(
+      locale: const Locale('en'),
+      localizationsDelegates: AppLocalizations.localizationsDelegates,
+      supportedLocales: AppLocalizations.supportedLocales,
       home: Scaffold(
         body: Builder(
           builder: (BuildContext context) => ElevatedButton(
@@ -151,11 +155,7 @@ void main() {
     ) async {
       final heavy = PlainModelDocument(
         surfaces: <ModelSurface>[
-          for (
-            var i = 0;
-            i < ProjectProfile.mobile.maxTriangles ~/ 12 + 1;
-            i++
-          )
+          for (var i = 0; i < ProjectProfile.mobile.maxTriangles ~/ 12 + 1; i++)
             ModelSurface(mesh: CuboidShape(size: Vector3(1, 1, 1)).build()),
         ],
       );

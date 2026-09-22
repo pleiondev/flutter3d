@@ -1,8 +1,9 @@
 import 'package:flutter3d/flutter3d.dart' hide Material;
-import 'package:flutter3d_app/flutter3d_app.dart'; // RunSession, from flutter3d_session
-import 'package:flutter3d_bridge/flutter3d_bridge.dart';
-import 'package:flutter3d_game/flutter3d_game.dart';
+import 'package:flutter3d_app/flutter3d_app.dart';
+import 'package:flutter3d_game/flutter3d_game.dart'; // RunSession
+
 import 'package:flutter3d_game_platformer/flutter3d_game_platformer.dart';
+import 'package:flutter3d_sim/flutter3d_sim.dart';
 
 import 'looks.dart';
 import 'staging.dart';
@@ -91,9 +92,14 @@ final class PlatformerRun extends RunSession<LevelReady> {
   final Future<GraphicsDevice> Function() openDevice;
 
   /// Everything the widget has to do with a level once it exists — the runner's
-  /// node, the camera, the interpolators. Handed in because it touches the
-  /// widget's own fields, which a run has no business holding.
-  final void Function(LevelReady level, GraphicsDevice device) onLevelBuilt;
+  /// node, the camera, the interpolators, and (`rp-01`/`rp-04`) starting the
+  /// demo recording. Handed in because it touches the widget's own fields,
+  /// which a run has no business holding. Carries [asset] too — [open]'s own
+  /// argument — because the widget needs the source path a demo names itself
+  /// by, and `_status` still reads the load this level is replacing at the
+  /// moment this fires, not the `RunPlaying` this one becomes.
+  final void Function(String asset, LevelReady level, GraphicsDevice device)
+  onLevelBuilt;
 
   final int startingLives;
 
@@ -131,7 +137,7 @@ final class PlatformerRun extends RunSession<LevelReady> {
       staged: staged,
       fixtures: fixtures,
     );
-    onLevelBuilt(level, device);
+    onLevelBuilt(asset, level, device);
     return level;
   }
 

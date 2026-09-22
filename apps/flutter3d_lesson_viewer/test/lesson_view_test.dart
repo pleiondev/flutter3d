@@ -9,16 +9,19 @@ library;
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart' hide Material;
 import 'package:flutter3d/flutter3d.dart' hide Material;
-import 'package:flutter3d_bridge/flutter3d_bridge.dart';
+import 'package:flutter3d_app/flutter3d_app.dart';
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
-import 'package:flutter3d_game/flutter3d_game.dart';
+import 'package:flutter3d_lesson_viewer/src/lesson_player.dart';
 import 'package:flutter3d_lesson_viewer/src/lesson_view.dart';
-import 'package:flutter3d_session/flutter3d_session.dart';
+import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vector_math/vector_math.dart' hide Colors;
 
-GraphicsDevice _device() =>
-    CpuDevice(width: 16, height: 8, shaders: CpuShaderLibrary(builtinCpuShaders()));
+GraphicsDevice _device() => CpuDevice(
+  width: 16,
+  height: 8,
+  shaders: CpuShaderLibrary(builtinCpuShaders()),
+);
 
 List<EntityDef> _steps() => <EntityDef>[
   EntityDef(
@@ -75,7 +78,12 @@ void main() {
 
       await tester.pumpWidget(
         MaterialApp(
-          home: LessonView(renderer: renderer, scene: scene, camera: camera, player: player),
+          home: LessonView(
+            renderer: renderer,
+            scene: scene,
+            camera: camera,
+            player: player,
+          ),
         ),
       );
       await tester.pump();
@@ -142,7 +150,12 @@ void main() {
 
       await tester.pumpWidget(
         MaterialApp(
-          home: LessonView(renderer: renderer, scene: scene, camera: camera, player: player),
+          home: LessonView(
+            renderer: renderer,
+            scene: scene,
+            camera: camera,
+            player: player,
+          ),
         ),
       );
       await tester.pump();
@@ -184,7 +197,12 @@ void main() {
 
       await tester.pumpWidget(
         MaterialApp(
-          home: LessonView(renderer: renderer, scene: scene, camera: camera, player: player),
+          home: LessonView(
+            renderer: renderer,
+            scene: scene,
+            camera: camera,
+            player: player,
+          ),
         ),
       );
       await tester.pump();

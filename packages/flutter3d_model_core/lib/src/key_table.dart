@@ -1,6 +1,6 @@
 import 'dart:typed_data';
 
-import 'package:flutter3d_formats/flutter3d_formats.dart';
+import 'package:flutter3d_core/formats.dart';
 
 /// One keyframe in a [KeyTable] — a time, a value, and the two tangents a
 /// cubic-interpolated key carries whether or not the table is currently
@@ -12,7 +12,12 @@ import 'package:flutter3d_formats/flutter3d_formats.dart';
 /// for a moment still has its tangents when the table switches back, rather
 /// than losing the curve shape a person spent time shaping.
 final class Key {
-  const Key({required this.time, required this.values, this.inTangent, this.outTangent});
+  const Key({
+    required this.time,
+    required this.values,
+    this.inTangent,
+    this.outTangent,
+  });
 
   final double time;
 
@@ -26,8 +31,12 @@ final class Key {
   final List<double>? inTangent;
   final List<double>? outTangent;
 
-  Key withTime(double newTime) =>
-      Key(time: newTime, values: values, inTangent: inTangent, outTangent: outTangent);
+  Key withTime(double newTime) => Key(
+    time: newTime,
+    values: values,
+    inTangent: inTangent,
+    outTangent: outTangent,
+  );
 
   Key withTangents({List<double>? inTangent, List<double>? outTangent}) => Key(
     time: time,
@@ -121,7 +130,10 @@ final class KeyTable {
   /// the same [ArgumentError] [AnimationTrack]'s own constructor would for
   /// an empty table: a track with no keyframes is not a thing either class
   /// can honestly claim to sample.
-  AnimationTrack toAnimationTrack({required int nodeIndex, required AnimationPath path}) {
+  AnimationTrack toAnimationTrack({
+    required int nodeIndex,
+    required AnimationPath path,
+  }) {
     final times = Float32List.fromList(<double>[for (final k in _keys) k.time]);
     final cubic = interpolation == AnimationInterpolation.cubicSpline;
     final stride = componentCount * (cubic ? 3 : 1);
@@ -222,7 +234,12 @@ final class KeyTable {
     List<double>? inTangent,
     List<double>? outTangent,
   }) {
-    final key = Key(time: time, values: values, inTangent: inTangent, outTangent: outTangent);
+    final key = Key(
+      time: time,
+      values: values,
+      inTangent: inTangent,
+      outTangent: outTangent,
+    );
     final existing = _keys.indexWhere(
       (k) => (k.time - time).abs() <= _kSameKeyTolerance,
     );
@@ -271,8 +288,15 @@ final class KeyTable {
   /// Read only while [interpolation] is [AnimationInterpolation.cubicSpline]
   /// — see [Key.inTangent] for what a tangent set while linear is showing
   /// still means once the table switches back.
-  void setTangent(int index, {List<double>? inTangent, List<double>? outTangent}) {
+  void setTangent(
+    int index, {
+    List<double>? inTangent,
+    List<double>? outTangent,
+  }) {
     if (index < 0 || index >= _keys.length) return;
-    _keys[index] = _keys[index].withTangents(inTangent: inTangent, outTangent: outTangent);
+    _keys[index] = _keys[index].withTangents(
+      inTangent: inTangent,
+      outTangent: outTangent,
+    );
   }
 }

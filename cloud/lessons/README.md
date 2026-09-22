@@ -139,7 +139,7 @@ break every embed.
 - **Everything `apps/flutter3d_lesson_viewer` itself does not play back**:
   `offsets` (layered teardown), `edu_clip_plane` rendering, `bindings`/
   `edu_data_source` (live data). See that app's own `lib/main.dart` doc
-  comment and `packages/flutter3d_bridge/lib/src/lesson_player.dart`.
+  comment and `apps/flutter3d_lesson_viewer/lib/src/lesson_player.dart`.
 - **`check` (the quiz question)** — `check_prompt.dart` implements and
   unit-tests it, and the shipped `tour.json` still carries a `quiz-steps`
   entity with a real question, but it is deliberately left OUT of

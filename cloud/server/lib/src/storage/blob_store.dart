@@ -85,9 +85,15 @@ class FileBlobStore implements BlobStore {
     // The hash arrives from the database, but a path built from anything a
     // caller passes must not be able to leave the root.
     if (!_hex.hasMatch(hash)) {
-      throw ArgumentError.value(hash, 'sha256', 'not a lowercase SHA-256 hex digest');
+      throw ArgumentError.value(
+        hash,
+        'sha256',
+        'not a lowercase SHA-256 hex digest',
+      );
     }
-    return File('${_root.path}/${hash.substring(0, 2)}/${hash.substring(2, 4)}/$hash');
+    return File(
+      '${_root.path}/${hash.substring(0, 2)}/${hash.substring(2, 4)}/$hash',
+    );
   }
 }
 

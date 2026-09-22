@@ -10,7 +10,7 @@ is why it is here rather than deleted:
 
 * `packages/flutter3d/test/hero_skin_sharing_test.dart` — four skins over one
   armature, which is the case that shipped broken twice;
-* `packages/flutter3d_cpu/test/hero_frame_test.dart` — the same rig rendered,
+* `packages/flutter3d/test/hero_frame_test.dart` — the same rig rendered,
   which is what caught the node scale.
 
 Nothing in this directory is declared in any `pubspec.yaml`, and that is the

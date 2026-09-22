@@ -59,7 +59,11 @@ void main() {
           );
           walked = mesh.nextOf(walked);
         }
-        expect(_uvArea(mesh, face).abs(), closeTo(1.0, 1e-9), reason: 'face $face');
+        expect(
+          _uvArea(mesh, face).abs(),
+          closeTo(1.0, 1e-9),
+          reason: 'face $face',
+        );
       }
     });
 
@@ -80,7 +84,11 @@ void main() {
       for (var half = 0; half < oneCall.halfEdgeSlotCount; half++) {
         final face = oneCall.faceOf(half);
         if (face == EditMesh.none || !oneCall.isFaceAlive(face)) continue;
-        expect(oneCall.uvOf(half), perFace.uvOf(half), reason: 'half-edge $half');
+        expect(
+          oneCall.uvOf(half),
+          perFace.uvOf(half),
+          reason: 'half-edge $half',
+        );
       }
     });
 
@@ -97,7 +105,9 @@ void main() {
       for (var face = 0; face < 6; face++) {
         _project(mesh, <int>[face], UvProjection.box);
       }
-      final signs = <double>[for (var face = 0; face < 6; face++) _uvArea(mesh, face).sign];
+      final signs = <double>[
+        for (var face = 0; face < 6; face++) _uvArea(mesh, face).sign,
+      ];
       expect(signs.toSet(), hasLength(1), reason: '$signs');
     });
   });
@@ -112,7 +122,8 @@ void main() {
       // exercises the subtraction rather than falling through it as a
       // no-op.
       final rotation = Matrix3.rotationX(0.6)..multiply(Matrix3.rotationY(0.4));
-      Vector3 corner(double x, double y) => rotation.transformed(Vector3(x, y, 0));
+      Vector3 corner(double x, double y) =>
+          rotation.transformed(Vector3(x, y, 0));
       final mesh = EditMesh.fromFaces(
         <Vector3>[
           corner(-0.5, -0.5),
@@ -144,7 +155,11 @@ void main() {
 
       var walked = mesh.halfEdgeOf(0);
       for (var i = 0; i < 4; i++) {
-        expect(_uvEdgeLength(mesh, walked), closeTo(1.0, 1e-9), reason: 'corner $i');
+        expect(
+          _uvEdgeLength(mesh, walked),
+          closeTo(1.0, 1e-9),
+          reason: 'corner $i',
+        );
         walked = mesh.nextOf(walked);
       }
     });

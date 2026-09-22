@@ -23,7 +23,11 @@ Future<void> main(List<String> arguments) async {
     return;
   }
 
-  final server = await shelf_io.serve(buildHandler(config), InternetAddress.loopbackIPv4, config.port);
+  final server = await shelf_io.serve(
+    buildHandler(config),
+    InternetAddress.loopbackIPv4,
+    config.port,
+  );
   server.autoCompress = true;
 
   stdout.writeln('lessons on http://${server.address.host}:${server.port}');

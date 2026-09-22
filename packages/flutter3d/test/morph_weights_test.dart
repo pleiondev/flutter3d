@@ -14,8 +14,8 @@ library;
 
 import 'dart:typed_data';
 
-import 'package:flutter3d/src/engine/animation/animation.dart';
-import 'package:flutter3d_geometry/flutter3d_geometry.dart';
+import 'package:flutter3d_core/geometry.dart';
+import 'package:flutter3d_core/src/engine/animation/animation.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 /// Records what a weights track wrote, standing in for a mesh on screen.

@@ -1,4 +1,4 @@
-import 'package:flutter3d_game/flutter3d_game.dart';
+import 'package:flutter3d_sim/flutter3d_sim.dart';
 
 import 'golden.dart';
 import 'render_frame.dart';
@@ -65,5 +65,10 @@ Future<void> replayGolden({
     height: height,
     build: frame,
   );
-  await expectMatchesGolden(rendered, goldenPath, tolerance: tolerance, reason: reason);
+  await expectMatchesGolden(
+    rendered,
+    goldenPath,
+    tolerance: tolerance,
+    reason: reason,
+  );
 }

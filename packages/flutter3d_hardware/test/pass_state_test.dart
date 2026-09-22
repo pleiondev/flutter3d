@@ -12,7 +12,7 @@
 library;
 
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
-import 'package:flutter_test/flutter_test.dart';
+import 'package:test/test.dart';
 
 /// Records the calls rather than performing them.
 final class _Recorder implements PassEncoder {

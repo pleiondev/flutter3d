@@ -22,7 +22,7 @@ library;
 
 import 'dart:typed_data';
 
-import 'package:flutter3d_geometry/flutter3d_geometry.dart';
+import 'package:flutter3d_core/geometry.dart';
 import 'package:vector_math/vector_math.dart' hide Ray;
 
 import 'edit_mesh.dart';

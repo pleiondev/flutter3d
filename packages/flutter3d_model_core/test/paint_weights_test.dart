@@ -12,13 +12,14 @@ import 'package:vector_math/vector_math.dart';
 
 /// A joint with no mesh of its own, the same shape `ik_constraint_test.dart`
 /// and `shape_driver_test.dart` already build fixtures out of.
-ModelObject _joint(int id, {int? parent, required Matrix4 transform}) => ModelObject(
-  id: id,
-  name: 'joint$id',
-  geometry: const SocketGeometry(),
-  transform: transform,
-  parent: parent,
-);
+ModelObject _joint(int id, {int? parent, required Matrix4 transform}) =>
+    ModelObject(
+      id: id,
+      name: 'joint$id',
+      geometry: const SocketGeometry(),
+      transform: transform,
+      parent: parent,
+    );
 
 /// A small quad of four vertices centred on [at], in the XY plane.
 List<Vector3> _quadAt(Vector3 at) => <Vector3>[
@@ -58,14 +59,27 @@ void _edit(EditMesh mesh, void Function() body) {
   );
   _edit(mesh, () {
     for (var v = 0; v < 4; v++) {
-      mesh.setSkin(v, VertexAttributes(joints: Vector4(0, 0, 0, 0), weights: Vector4(1, 0, 0, 0)));
+      mesh.setSkin(
+        v,
+        VertexAttributes(
+          joints: Vector4(0, 0, 0, 0),
+          weights: Vector4(1, 0, 0, 0),
+        ),
+      );
     }
     for (var v = 4; v < 8; v++) {
-      mesh.setSkin(v, VertexAttributes(joints: Vector4(1, 0, 0, 0), weights: Vector4(1, 0, 0, 0)));
+      mesh.setSkin(
+        v,
+        VertexAttributes(
+          joints: Vector4(1, 0, 0, 0),
+          weights: Vector4(1, 0, 0, 0),
+        ),
+      );
     }
   });
 
-  final bend = Matrix4.translation(Vector3(1, 0, 0))..multiply(Matrix4.rotationZ(1.5707963267948966));
+  final bend = Matrix4.translation(Vector3(1, 0, 0))
+    ..multiply(Matrix4.rotationZ(1.5707963267948966));
   final project = ModelProject(
     objects: <ModelObject>[
       _joint(1, transform: Matrix4.identity()),
@@ -116,199 +130,258 @@ double _bentArmSingleSampleWeight() {
 
 void main() {
   group("anim-10's own acceptance: a stroke in a bent pose hits the elbow", () {
-    test('the forearm quad is painted, found at its posed position, not its bind position', () {
-      final fixture = _bentArm();
-      final project = fixture.project;
-      final mesh = fixture.mesh;
-      final skeleton = project.skeletons.single;
+    test(
+      'the forearm quad is painted, found at its posed position, not its bind position',
+      () {
+        final fixture = _bentArm();
+        final project = fixture.project;
+        final mesh = fixture.mesh;
+        final skeleton = project.skeletons.single;
 
-      paintWeights(
-        project: project,
-        mesh: mesh,
-        skeleton: skeleton,
-        joint: 3,
-        // The forearm quad's own posed centre — (1, 1, 0) — never its bind
-        // centre, (2, 0, 0): a brush aimed here only finds anything because
-        // hit-testing reads the posed shape. Both quads' own bind and posed
-        // shoulder/root positions sit well outside this radius, so a hit
-        // here can only be the forearm quad, and only by way of its bend.
-        samples: <BrushSample>[BrushSample(center: Vector3(1, 1, 0), radius: 0.3)],
-        strength: 0.6,
-      );
+        paintWeights(
+          project: project,
+          mesh: mesh,
+          skeleton: skeleton,
+          joint: 3,
+          // The forearm quad's own posed centre — (1, 1, 0) — never its bind
+          // centre, (2, 0, 0): a brush aimed here only finds anything because
+          // hit-testing reads the posed shape. Both quads' own bind and posed
+          // shoulder/root positions sit well outside this radius, so a hit
+          // here can only be the forearm quad, and only by way of its bend.
+          samples: <BrushSample>[
+            BrushSample(center: Vector3(1, 1, 0), radius: 0.3),
+          ],
+          strength: 0.6,
+        );
 
-      // localJoint 2 is id 3, the joint being painted onto.
-      for (var v = 4; v < 8; v++) {
-        expect(_weightOf(mesh, v, 2), greaterThan(0.0), reason: 'forearm vertex $v');
-      }
-      // The shoulder quad, near the unmoving root, is untouched.
-      for (var v = 0; v < 4; v++) {
-        expect(_weightOf(mesh, v, 2), 0.0, reason: 'shoulder vertex $v');
-      }
-    });
+        // localJoint 2 is id 3, the joint being painted onto.
+        for (var v = 4; v < 8; v++) {
+          expect(
+            _weightOf(mesh, v, 2),
+            greaterThan(0.0),
+            reason: 'forearm vertex $v',
+          );
+        }
+        // The shoulder quad, near the unmoving root, is untouched.
+        for (var v = 0; v < 4; v++) {
+          expect(_weightOf(mesh, v, 2), 0.0, reason: 'shoulder vertex $v');
+        }
+      },
+    );
 
-    test('a target the bend moves away from is missed, proving this is not a lucky bind-pose hit', () {
-      final fixture = _bentArm();
-      final project = fixture.project;
-      final mesh = fixture.mesh;
-      final skeleton = project.skeletons.single;
+    test(
+      'a target the bend moves away from is missed, proving this is not a lucky bind-pose hit',
+      () {
+        final fixture = _bentArm();
+        final project = fixture.project;
+        final mesh = fixture.mesh;
+        final skeleton = project.skeletons.single;
 
-      // The forearm quad's own BIND centre — where a bind-pose-only
-      // implementation would look, and where the quad no longer is once
-      // bent.
-      paintWeights(
-        project: project,
-        mesh: mesh,
-        skeleton: skeleton,
-        joint: 3,
-        samples: <BrushSample>[BrushSample(center: Vector3(2, 0, 0), radius: 0.3)],
-        strength: 0.6,
-      );
+        // The forearm quad's own BIND centre — where a bind-pose-only
+        // implementation would look, and where the quad no longer is once
+        // bent.
+        paintWeights(
+          project: project,
+          mesh: mesh,
+          skeleton: skeleton,
+          joint: 3,
+          samples: <BrushSample>[
+            BrushSample(center: Vector3(2, 0, 0), radius: 0.3),
+          ],
+          strength: 0.6,
+        );
 
-      for (var v = 0; v < 8; v++) {
-        expect(_weightOf(mesh, v, 2), 0.0, reason: 'vertex $v');
-      }
-    });
+        for (var v = 0; v < 8; v++) {
+          expect(_weightOf(mesh, v, 2), 0.0, reason: 'vertex $v');
+        }
+      },
+    );
   });
 
   group("anim-10's own acceptance: one drag is one step", () {
-    test('undoing once reverts every sample in the drag, not just the last one', () {
-      final fixture = _bentArm();
-      final project = fixture.project;
-      final mesh = fixture.mesh;
-      final skeleton = project.skeletons.single;
+    test(
+      'undoing once reverts every sample in the drag, not just the last one',
+      () {
+        final fixture = _bentArm();
+        final project = fixture.project;
+        final mesh = fixture.mesh;
+        final skeleton = project.skeletons.single;
 
-      final before = weightsOf(mesh, 4).map((p) => (p.joint, p.weight)).toList();
+        final before = weightsOf(
+          mesh,
+          4,
+        ).map((p) => (p.joint, p.weight)).toList();
 
-      paintWeights(
-        project: project,
-        mesh: mesh,
-        skeleton: skeleton,
-        joint: 3,
-        samples: <BrushSample>[
-          BrushSample(center: Vector3(1, 1, 0), radius: 0.3),
-          BrushSample(center: Vector3(1, 1, 0), radius: 0.3),
-          BrushSample(center: Vector3(1, 1, 0), radius: 0.3),
-        ],
-        strength: 0.6,
-      );
-      // Three overlapping samples actually stacked onto one vertex — not
-      // three independent, non-accumulating hits — so a partial undo
-      // (reverting only the last one) would leave a visibly different,
-      // intermediate weight rather than the exact pre-stroke one.
-      final oneSampleWeight = _bentArmSingleSampleWeight();
-      expect(_weightOf(mesh, 4, 2), greaterThan(oneSampleWeight));
+        paintWeights(
+          project: project,
+          mesh: mesh,
+          skeleton: skeleton,
+          joint: 3,
+          samples: <BrushSample>[
+            BrushSample(center: Vector3(1, 1, 0), radius: 0.3),
+            BrushSample(center: Vector3(1, 1, 0), radius: 0.3),
+            BrushSample(center: Vector3(1, 1, 0), radius: 0.3),
+          ],
+          strength: 0.6,
+        );
+        // Three overlapping samples actually stacked onto one vertex — not
+        // three independent, non-accumulating hits — so a partial undo
+        // (reverting only the last one) would leave a visibly different,
+        // intermediate weight rather than the exact pre-stroke one.
+        final oneSampleWeight = _bentArmSingleSampleWeight();
+        expect(_weightOf(mesh, 4, 2), greaterThan(oneSampleWeight));
 
-      final undid = mesh.undo();
-      expect(undid, isTrue);
-      final after = weightsOf(mesh, 4).map((p) => (p.joint, p.weight)).toList();
-      expect(after, before);
-    });
+        final undid = mesh.undo();
+        expect(undid, isTrue);
+        final after = weightsOf(
+          mesh,
+          4,
+        ).map((p) => (p.joint, p.weight)).toList();
+        expect(after, before);
+      },
+    );
   });
 
   group('mirror and normalize', () {
-    test('mirror carries a stroke on one side onto its geometric partner on the other', () {
-      final mesh = EditMesh.cuboid();
-      final project = ModelProject(
-        objects: <ModelObject>[
-          _joint(1, transform: Matrix4.identity()),
-          ModelObject(
-            id: 10,
-            name: 'box',
-            geometry: EditedGeometry(mesh),
-            transform: Matrix4.identity(),
-            skeletonIndex: 0,
-          ),
-        ],
-        skeletons: <ProjectSkeleton>[
-          ProjectSkeleton(joints: <int>[1], inverseBindMatrices: <Matrix4>[Matrix4.identity()]),
-        ],
-      );
-      _edit(mesh, () {
-        for (var v = 0; v < 8; v++) {
-          mesh.setSkin(v, VertexAttributes(joints: Vector4(0, 0, 0, 0), weights: Vector4(1, 0, 0, 0)));
-        }
-      });
+    test(
+      'mirror carries a stroke on one side onto its geometric partner on the other',
+      () {
+        final mesh = EditMesh.cuboid();
+        final project = ModelProject(
+          objects: <ModelObject>[
+            _joint(1, transform: Matrix4.identity()),
+            ModelObject(
+              id: 10,
+              name: 'box',
+              geometry: EditedGeometry(mesh),
+              transform: Matrix4.identity(),
+              skeletonIndex: 0,
+            ),
+          ],
+          skeletons: <ProjectSkeleton>[
+            ProjectSkeleton(
+              joints: <int>[1],
+              inverseBindMatrices: <Matrix4>[Matrix4.identity()],
+            ),
+          ],
+        );
+        _edit(mesh, () {
+          for (var v = 0; v < 8; v++) {
+            mesh.setSkin(
+              v,
+              VertexAttributes(
+                joints: Vector4(0, 0, 0, 0),
+                weights: Vector4(1, 0, 0, 0),
+              ),
+            );
+          }
+        });
 
-      // `EditMesh.cuboid()`'s own vertex 1, (0.5, -0.5, -0.5), is vertex 0's
-      // mirror image across the x = 0 plane.
-      paintWeights(
-        project: project,
-        mesh: mesh,
-        skeleton: project.skeletons.single,
-        joint: 1,
-        samples: <BrushSample>[BrushSample(center: Vector3(-0.5, -0.5, -0.5), radius: 0.05)],
-        strength: 0.4,
-        mirror: const PaintMirror(axis: 0, jointMirror: <int, int>{}),
-      );
+        // `EditMesh.cuboid()`'s own vertex 1, (0.5, -0.5, -0.5), is vertex 0's
+        // mirror image across the x = 0 plane.
+        paintWeights(
+          project: project,
+          mesh: mesh,
+          skeleton: project.skeletons.single,
+          joint: 1,
+          samples: <BrushSample>[
+            BrushSample(center: Vector3(-0.5, -0.5, -0.5), radius: 0.05),
+          ],
+          strength: 0.4,
+          mirror: const PaintMirror(axis: 0, jointMirror: <int, int>{}),
+        );
 
-      List<(int, double)> asTuples(int vertex) =>
-          weightsOf(mesh, vertex).map((p) => (p.joint, p.weight)).toList();
-      expect(asTuples(0), asTuples(1));
-    });
+        List<(int, double)> asTuples(int vertex) =>
+            weightsOf(mesh, vertex).map((p) => (p.joint, p.weight)).toList();
+        expect(asTuples(0), asTuples(1));
+      },
+    );
 
-    test('normalize renormalizes an assign that left a vertex short of one', () {
-      final mesh = EditMesh.cuboid();
-      final project = ModelProject(
-        objects: <ModelObject>[
-          _joint(1, transform: Matrix4.identity()),
-          ModelObject(
-            id: 10,
-            name: 'box',
-            geometry: EditedGeometry(mesh),
-            transform: Matrix4.identity(),
-            skeletonIndex: 0,
-          ),
-        ],
-        skeletons: <ProjectSkeleton>[
-          ProjectSkeleton(joints: <int>[1], inverseBindMatrices: <Matrix4>[Matrix4.identity()]),
-        ],
-      );
+    test(
+      'normalize renormalizes an assign that left a vertex short of one',
+      () {
+        final mesh = EditMesh.cuboid();
+        final project = ModelProject(
+          objects: <ModelObject>[
+            _joint(1, transform: Matrix4.identity()),
+            ModelObject(
+              id: 10,
+              name: 'box',
+              geometry: EditedGeometry(mesh),
+              transform: Matrix4.identity(),
+              skeletonIndex: 0,
+            ),
+          ],
+          skeletons: <ProjectSkeleton>[
+            ProjectSkeleton(
+              joints: <int>[1],
+              inverseBindMatrices: <Matrix4>[Matrix4.identity()],
+            ),
+          ],
+        );
 
-      paintWeights(
-        project: project,
-        mesh: mesh,
-        skeleton: project.skeletons.single,
-        joint: 1,
-        samples: <BrushSample>[BrushSample(center: mesh.positionOf(0), radius: 0.01)],
-        strength: 0.4,
-        mode: PaintWeightsMode.assign,
-        normalize: true,
-      );
+        paintWeights(
+          project: project,
+          mesh: mesh,
+          skeleton: project.skeletons.single,
+          joint: 1,
+          samples: <BrushSample>[
+            BrushSample(center: mesh.positionOf(0), radius: 0.01),
+          ],
+          strength: 0.4,
+          mode: PaintWeightsMode.assign,
+          normalize: true,
+        );
 
-      final total = weightsOf(mesh, 0).fold<double>(0, (sum, p) => sum + p.weight);
-      expect(total, closeTo(1.0, 1e-6));
-    });
+        final total = weightsOf(
+          mesh,
+          0,
+        ).fold<double>(0, (sum, p) => sum + p.weight);
+        expect(total, closeTo(1.0, 1e-6));
+      },
+    );
 
-    test('without normalize, an assign below full strength is left exactly as assigned', () {
-      final mesh = EditMesh.cuboid();
-      final project = ModelProject(
-        objects: <ModelObject>[
-          _joint(1, transform: Matrix4.identity()),
-          ModelObject(
-            id: 10,
-            name: 'box',
-            geometry: EditedGeometry(mesh),
-            transform: Matrix4.identity(),
-            skeletonIndex: 0,
-          ),
-        ],
-        skeletons: <ProjectSkeleton>[
-          ProjectSkeleton(joints: <int>[1], inverseBindMatrices: <Matrix4>[Matrix4.identity()]),
-        ],
-      );
+    test(
+      'without normalize, an assign below full strength is left exactly as assigned',
+      () {
+        final mesh = EditMesh.cuboid();
+        final project = ModelProject(
+          objects: <ModelObject>[
+            _joint(1, transform: Matrix4.identity()),
+            ModelObject(
+              id: 10,
+              name: 'box',
+              geometry: EditedGeometry(mesh),
+              transform: Matrix4.identity(),
+              skeletonIndex: 0,
+            ),
+          ],
+          skeletons: <ProjectSkeleton>[
+            ProjectSkeleton(
+              joints: <int>[1],
+              inverseBindMatrices: <Matrix4>[Matrix4.identity()],
+            ),
+          ],
+        );
 
-      paintWeights(
-        project: project,
-        mesh: mesh,
-        skeleton: project.skeletons.single,
-        joint: 1,
-        samples: <BrushSample>[BrushSample(center: mesh.positionOf(0), radius: 0.01)],
-        strength: 0.4,
-        mode: PaintWeightsMode.assign,
-      );
+        paintWeights(
+          project: project,
+          mesh: mesh,
+          skeleton: project.skeletons.single,
+          joint: 1,
+          samples: <BrushSample>[
+            BrushSample(center: mesh.positionOf(0), radius: 0.01),
+          ],
+          strength: 0.4,
+          mode: PaintWeightsMode.assign,
+        );
 
-      final total = weightsOf(mesh, 0).fold<double>(0, (sum, p) => sum + p.weight);
-      expect(total, closeTo(0.4, 1e-6));
-    });
+        final total = weightsOf(
+          mesh,
+          0,
+        ).fold<double>(0, (sum, p) => sum + p.weight);
+        expect(total, closeTo(0.4, 1e-6));
+      },
+    );
   });
 }

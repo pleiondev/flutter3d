@@ -14,10 +14,8 @@
 /// small function is the one place in this feature that does.
 library;
 
-import 'package:flutter/foundation.dart'
-    show defaultTargetPlatform, kIsWeb;
+import 'package:flutter/foundation.dart' show defaultTargetPlatform, kIsWeb;
 
 /// "web", or the native platform's own name (`macOS`, `windows`, `linux`,
 /// `android`, `iOS`) — whichever this build is actually running as.
-String environmentSummary() =>
-    kIsWeb ? 'web' : defaultTargetPlatform.name;
+String environmentSummary() => kIsWeb ? 'web' : defaultTargetPlatform.name;

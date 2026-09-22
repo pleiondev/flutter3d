@@ -27,8 +27,9 @@ by `no_genre_test.dart` one layer down rather than left to everyone's memory.
 
 ## Nothing here draws
 
-No import reaches the renderer, and a test holds that line. `WeaponView` does
-draw, which is why it is in `bridge.dart` and not in the barrel — a package that
+No import in the simulation reaches the renderer or names Flutter, and
+`tool/structure.dart` holds that line. `WeaponView` draws and the readouts are
+widgets, which is why both are in `bridge.dart` and not in the barrel — a package that
 can be tested without a device is a package whose bugs are found in a second
 rather than in a screenshot.
 
@@ -48,8 +49,8 @@ rasteriser. glTF, OBJ and `.f3d` loading, six lighting models, shadows, bloom,
 skinning, animation, BVH culling and picking; a deterministic fixed-step game
 layer with collision, navigation, positional audio, and gamepad and touch
 input. Three example games — shooter, platformer, racing — each built on its
-genre package: [`flutter3d_game_shooter`](../flutter3d_game_shooter),
-[`flutter3d_game_platformer`](../flutter3d_game_platformer),
-[`flutter3d_game_racing`](../flutter3d_game_racing). A new game starts from the
+genre package: [`flutter3d_game_shooter`](https://pub.dev/packages/flutter3d_game_shooter),
+[`flutter3d_game_platformer`](https://pub.dev/packages/flutter3d_game_platformer),
+[`flutter3d_game_racing`](https://pub.dev/packages/flutter3d_game_racing). A new game starts from the
 editor's scaffold, which writes one from a template: <https://flutter3d.pleion.dev/first-project/>.
 Documentation: <https://flutter3d.pleion.dev>.

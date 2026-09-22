@@ -5,9 +5,9 @@ import 'dart:typed_data';
 
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
-import 'package:flutter3d_game/flutter3d_game.dart';
 import 'package:flutter3d_game_strategy/bridge.dart';
 import 'package:flutter3d_game_strategy/flutter3d_game_strategy.dart';
+import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vector_math/vector_math.dart';
 
@@ -77,6 +77,71 @@ void main() {
     expect(
       drawn.getTranslation().y,
       closeTo(unit.position.y + visuals.unitSize.height / 2.0, 1e-6),
+    );
+  });
+
+  test('a real unit mesh stands on the ground with no added lift', () {
+    // Mutation: keep adding the half-height lift once `unitMesh` is set. A
+    // model whose own feet are already at its local origin is then drawn
+    // floating half its height above where a unit actually stands.
+    final sim = StrategySimulation(random: GameRandom(1), ground: _ground());
+    final unit = sim.add(Unit(position: Vector3(10.0, 0.0, 10.0)));
+
+    final mesh = DeviceMesh.upload(
+      device,
+      const SphereShape(radius: 0.5).build(),
+    );
+    final visuals = StrategyVisuals(
+      simulation: sim,
+      device: device,
+      unitMesh: mesh,
+    );
+    visuals
+      ..addTo(Scene(name: 'map'))
+      ..sync();
+
+    final drawn = Matrix4.identity();
+    visuals.crowd.readTransform(0, drawn);
+
+    expect(drawn.getTranslation().y, closeTo(unit.position.y, 1e-6));
+  });
+
+  test('a shared building mesh is scaled to its footprint, not rebuilt', () {
+    // Mutation: ignore `buildingMesh` and always build a fresh `CuboidShape`.
+    // A hall then never reads `buildingMeshSize`, and this test's scale
+    // expectations hold by coincidence at best.
+    final sim = StrategySimulation(random: GameRandom(1), ground: _ground());
+    final mesh = DeviceMesh.upload(
+      device,
+      CuboidShape(size: Vector3(1.0, 2.0, 1.0)).build(),
+    );
+    final visuals = StrategyVisuals(
+      simulation: sim,
+      device: device,
+      buildingMesh: mesh,
+      buildingMeshSize: Vector3(1.0, 2.0, 1.0),
+    );
+    visuals.addTo(Scene(name: 'map'));
+    sim.build(
+      Building(centre: Vector3(20.0, 0.0, 20.0), width: 8.0, depth: 4.0),
+    );
+    visuals.sync();
+
+    final MeshNode hall = visuals.buildings.single;
+    expect(identical(hall.mesh, mesh), isTrue);
+
+    final scale = hall.readScale();
+    expect(scale.x, closeTo(8.0, 1e-6));
+    expect(scale.z, closeTo(4.0, 1e-6));
+    expect(
+      scale.y,
+      closeTo(visuals.unitSize.height * 2.5 / 2.0, 1e-6),
+      reason: 'a shared mesh still reaches the same target height',
+    );
+    expect(
+      hall.readPosition().y,
+      closeTo(0.0, 1e-6),
+      reason: 'a real model stands on its own feet; nothing lifts it',
     );
   });
 

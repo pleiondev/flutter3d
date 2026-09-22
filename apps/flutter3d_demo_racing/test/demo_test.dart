@@ -22,10 +22,9 @@ library;
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:flutter3d_demo_racing/src/circuits.dart';
 import 'package:flutter3d_demo_racing/src/staging.dart';
-import 'package:flutter3d_game/flutter3d_game.dart';
 import 'package:flutter3d_game_racing/flutter3d_game_racing.dart';
+import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 const double _dt = 1.0 / 60.0;
@@ -76,7 +75,10 @@ void _readDriver(RacingSimulation sim, InputState input) {
 /// take back — found by this test diverging the first time it ran.
 void _play(InputState input, int step) {
   input.setActionValue(_throttle, step % 40 < 30 ? 1.0 : 0.0);
-  input.setActionValue(_brake, (step % 200 >= 150 && step % 200 < 170) ? 0.6 : 0.0);
+  input.setActionValue(
+    _brake,
+    (step % 200 >= 150 && step % 200 < 170) ? 0.6 : 0.0,
+  );
   final steeringRight = step % 80 < 40;
   input.setActionValue(_right, steeringRight ? 0.4 : 0.0);
   input.setActionValue(_left, steeringRight ? 0.0 : 0.4);

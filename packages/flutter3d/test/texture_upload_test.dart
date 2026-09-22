@@ -11,8 +11,8 @@ library;
 import 'dart:io';
 import 'dart:typed_data';
 
-import 'package:flutter3d/src/engine/assets/texture_upload.dart';
-import 'package:flutter3d_formats/flutter3d_formats.dart';
+import 'package:flutter3d_core/formats.dart';
+import 'package:flutter3d_core/src/engine/assets/texture_upload.dart';
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:flutter3d_hardware/testing.dart';
 import 'package:flutter3d_samples/flutter3d_samples.dart';
@@ -22,6 +22,12 @@ import 'helpers/build_ktx2.dart';
 
 Uint8List _readSample(String name) =>
     File('$kSamplesPath/$name').readAsBytesSync();
+
+/// Every call in this file takes the KTX2 branch, which never reaches
+/// [ImageDecoder] — so this exists only to satisfy the parameter, and a call
+/// through it would fail the test that expected it never to run.
+Future<Rgba8Image?> _neverDecodes(Uint8List encoded) =>
+    throw StateError('this file is entirely about the KTX2 path');
 
 /// One BC7 block per level: sixteen bytes of anything, since the fake never
 /// decodes them and this file is about what reaches the device, not what it
@@ -42,6 +48,7 @@ void main() {
       final handle = await uploadEncodedImage(
         device,
         bytes,
+        decodeImage: _neverDecodes,
         report: reports.add,
       );
 
@@ -68,7 +75,12 @@ void main() {
       final reports = <String>[];
 
       expect(
-        await uploadEncodedImage(device, bytes, report: reports.add),
+        await uploadEncodedImage(
+          device,
+          bytes,
+          decodeImage: _neverDecodes,
+          report: reports.add,
+        ),
         isNull,
       );
       expect(device.uploadedTextures, isEmpty);
@@ -92,7 +104,12 @@ void main() {
       final reports = <String>[];
 
       expect(
-        await uploadEncodedImage(device, bytes, report: reports.add),
+        await uploadEncodedImage(
+          device,
+          bytes,
+          decodeImage: _neverDecodes,
+          report: reports.add,
+        ),
         isNull,
       );
       expect(reports.single, contains('6x6'));
@@ -117,7 +134,7 @@ void main() {
         ],
       );
 
-      await uploadEncodedImage(device, bytes);
+      await uploadEncodedImage(device, bytes, decodeImage: _neverDecodes);
 
       final chain = device.uploadedMipLevels.single;
       expect(chain, hasLength(3));
@@ -136,6 +153,7 @@ void main() {
     await uploadEncodedImage(
       device,
       bytes,
+      decodeImage: _neverDecodes,
       sampling: const TextureSampling(useMipmaps: false),
     );
 
@@ -153,7 +171,7 @@ void main() {
         levels: [List<int>.filled(16, 9), List<int>.filled(4, 3)],
       );
 
-      await uploadEncodedImage(device, bytes);
+      await uploadEncodedImage(device, bytes, decodeImage: _neverDecodes);
 
       final spec = device.uploadedTextures.single;
       expect(spec.format, TextureFormat.r8g8b8a8UNormInt);
@@ -169,7 +187,11 @@ void main() {
       final device = FakeBackend();
       final bytes = _readSample('ktx2/etc1s_alpha_mips.ktx2');
 
-      final handle = await uploadEncodedImage(device, bytes);
+      final handle = await uploadEncodedImage(
+        device,
+        bytes,
+        decodeImage: _neverDecodes,
+      );
 
       expect(handle, isNotNull);
       final spec = device.uploadedTextures.single;
@@ -192,7 +214,12 @@ void main() {
     final reports = <String>[];
 
     expect(
-      await uploadEncodedImage(device, bytes, report: reports.add),
+      await uploadEncodedImage(
+        device,
+        bytes,
+        decodeImage: _neverDecodes,
+        report: reports.add,
+      ),
       isNull,
     );
     expect(reports.single, contains('Zstandard'));
@@ -202,7 +229,11 @@ void main() {
     final device = FakeBackend();
     final bytes = _readSample('ktx2/etc1s_gradient_quadrants.ktx2');
 
-    final handle = await uploadEncodedImage(device, bytes);
+    final handle = await uploadEncodedImage(
+      device,
+      bytes,
+      decodeImage: _neverDecodes,
+    );
 
     expect(handle, isNotNull);
     expect(device.uploadedTextures, hasLength(1));
@@ -225,9 +256,128 @@ void main() {
     expect(at(7, 7), rgba(255, 255, 2));
   });
 
+  test(
+    'a UASTC KTX2 file uploads as RGBA8, with its mip chain — gfx-78n',
+    () async {
+      // The other half of Basis Universal, Zstandard-free here and with seven
+      // levels. `flutter3d_core`'s `uastc_test.dart` holds the decoder to the
+      // reference transcoder byte for byte; this is that the engine's own route
+      // to a device reaches it — the isolate hop `isBasisUniversalKtx2` asks
+      // for included — and hands over every level rather than the first.
+      const fixtures = '../flutter3d_core/test/formats/fixtures/ktx2';
+      final device = FakeBackend();
+      final reports = <String>[];
+
+      final handle = await uploadEncodedImage(
+        device,
+        File('$fixtures/uastc_alpha_mips.ktx2').readAsBytesSync(),
+        decodeImage: _neverDecodes,
+        report: reports.add,
+      );
+
+      expect(reports, isEmpty);
+      expect(handle, isNotNull);
+      final spec = device.uploadedTextures.single;
+      expect(spec.width, 64);
+      expect(spec.height, 64);
+      expect(spec.format, TextureFormat.r8g8b8a8UNormInt);
+      // Six below the base: `uploadedMipLevels` is the chain after level 0.
+      expect(device.uploadedMipLevels.single, hasLength(6));
+      expect(
+        Uint8List.sublistView(device.uploadedPixels.single),
+        orderedEquals(
+          File('$fixtures/uastc_alpha_mips_level_0.rgba').readAsBytesSync(),
+        ),
+      );
+    },
+  );
+
+  group(
+    'a universal-block file becomes the device\'s own format — gfx-83n',
+    () {
+      /// A 4×4 red-to-blue ramp, cooked once and reused by every case below —
+      /// the point of the row is that these are the *same* bytes.
+      final cooked = writeKtx2(
+        vkFormat: VkFormat.undefined,
+        pixelWidth: 4,
+        pixelHeight: 4,
+        levels: <Uint8List>[
+          encodeUniversalBlocks(
+            Rgba8Image(
+              width: 4,
+              height: 4,
+              pixels: Uint8List.fromList(<int>[
+                for (var i = 0; i < 16; i++) ...<int>[
+                  i * 16,
+                  40,
+                  255 - i * 16,
+                  255,
+                ],
+              ]),
+            ),
+          ),
+        ],
+        keyValues: const <String, String>{
+          kUniversalBlockKey: kUniversalBlockRgb,
+        },
+      );
+
+      for (final (name, unsupported, expected)
+          in <(String, Set<TextureFormat>, TextureFormat)>[
+            ('a desktop', <TextureFormat>{}, TextureFormat.bc1RGBAUNormInt),
+            (
+              'a phone with ASTC',
+              <TextureFormat>{TextureFormat.bc1RGBAUNormInt},
+              TextureFormat.astc4x4LDR,
+            ),
+            (
+              'an older phone with ETC2',
+              <TextureFormat>{
+                TextureFormat.bc1RGBAUNormInt,
+                TextureFormat.astc4x4LDR,
+              },
+              TextureFormat.etc2RGB8UNormInt,
+            ),
+            (
+              'a device with no block format at all',
+              <TextureFormat>{
+                TextureFormat.bc1RGBAUNormInt,
+                TextureFormat.astc4x4LDR,
+                TextureFormat.etc2RGB8UNormInt,
+              },
+              TextureFormat.r8g8b8a8UNormInt,
+            ),
+          ]) {
+        test('$name uploads ${expected.name}', () async {
+          final device = FakeBackend(unsupportedFormats: unsupported);
+          final reports = <String>[];
+
+          final handle = await uploadEncodedImage(
+            device,
+            cooked,
+            decodeImage: _neverDecodes,
+            report: reports.add,
+          );
+
+          expect(handle, isNotNull);
+          expect(reports, isEmpty);
+          expect(device.uploadedTextures.single.format, expected);
+          expect(device.uploadedTextures.single.width, 4);
+        });
+      }
+    },
+  );
+
   test('empty bytes upload nothing', () async {
     final device = FakeBackend();
-    expect(await uploadEncodedImage(device, Uint8List(0)), isNull);
+    expect(
+      await uploadEncodedImage(
+        device,
+        Uint8List(0),
+        decodeImage: _neverDecodes,
+      ),
+      isNull,
+    );
     expect(device.uploadedTextures, isEmpty);
   });
 
@@ -236,7 +386,10 @@ void main() {
     final bytes = _readSample('ktx2/etc1s_gradient_quadrants.ktx2');
     final truncated = Uint8List.sublistView(bytes, 0, 16);
 
-    expect(await uploadEncodedImage(device, truncated), isNull);
+    expect(
+      await uploadEncodedImage(device, truncated, decodeImage: _neverDecodes),
+      isNull,
+    );
     expect(device.uploadedTextures, isEmpty);
   });
 }

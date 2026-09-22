@@ -47,7 +47,8 @@ List<WeightPair> weightsOf(EditMesh mesh, int vertex) {
   final skin = mesh.skinOf(vertex);
   return <WeightPair>[
     for (var i = 0; i < 4; i++)
-      if (skin.weights[i] > 0) WeightPair(skin.joints[i].round(), skin.weights[i]),
+      if (skin.weights[i] > 0)
+        WeightPair(skin.joints[i].round(), skin.weights[i]),
   ];
 }
 

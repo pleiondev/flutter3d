@@ -1,3 +1,64 @@
+## 0.7.0
+
+**Breaking.** `CpuDevice.present` is gone with `GraphicsDevice.present`
+itself (mcp-01n), and with it the dead `_presented` field it was the only
+reader of. `CpuFrame`, the widget it used to return, moved to
+`flutter3d_app` (mcp-02n) — this package resolves without the Flutter SDK
+and cannot also build a Flutter `Widget`.
+
+**`ensureCpuBackendRegistered`, new.** This backend registers its own
+opener as the native fallback with `flutter3d_hardware`'s device registry.
+Its presenter is registered by `flutter3d_app` instead, on its behalf, since
+this package has nothing Flutter-shaped to register it with. Floors to
+`flutter3d_hardware` `^0.7.0` and `flutter3d_conformance` `^0.7.0`.
+
+**The pubspec names no Flutter.** `flutter: sdk` and `flutter_test` are out,
+`test` is in, and the dev dependency on the engine moved to `flutter3d` with
+the forty-one test files that built a scene through it. What is left runs
+under `dart test` on a machine with no Flutter SDK, and that is why
+`flutter3d_model_core`'s `renderProject` and `RenderSnapshotJob` are tested
+here, against a real device.
+
+**`overwriteGeometry` and `overwriteTexture`.** The two in-place writes
+`flutter3d_hardware` 0.7.0 asks of a device. Geometry is copied into the bytes
+the buffer already holds. A texture region is converted from RGBA8 into the
+`Float32List` a `CpuTexture` is, texel by texel, and the future completes in
+the same turn. Both refuse a write that does not fit with `ArgumentError`.
+
+**`CpuDevice` takes `maxColorAttachments`, default 2.** On Impeller's OpenGL
+ES path a second colour attachment aborts the process, so the path the engine
+takes on a device that answers one cannot be run on the hardware that has it.
+`CpuDevice(maxColorAttachments: 1)` is that device with pixels at the end of
+it. A pass past the limit throws from `beginRenderPass`.
+
+**`maxAnisotropy` is 16, and the taps are taken.** It answered 1.
+`BoundTexture.sample` accepts the four screen-space derivatives `dudx`, `dvdx`,
+`dudy` and `dvdy` and takes several taps along the long axis of the footprint,
+each at the level the short axis asks for. A sampler whose `anisotropy` is 1
+does not reach the new path and draws the same bytes as before.
+
+**`CpuDevice.readHdrPixels`, new.** It returns a texture as the linear floats
+it is stored in. `readPixels` clamps to eight bits on the way out, so a depth
+of forty metres or a NaN a broken stage wrote was indistinguishable from an
+ordinary 1.0.
+
+**Ten new stages, transcribed from the GLSL.** `Fxaa`, `SsaoBlur`,
+`ContactShadow`, `LightShafts`, `DepthOfField`, `ViewportShade`,
+`ShadowDepthMasked`, `ShadowDistanceMasked`, `Splat` and `PolylineVertex`
+answer to the names `flutter3d_shaders` 0.7.0 requires. The existing ones
+follow their sources: `Composite` selects one of five tone curves, samples a
+colour table, grades with lift, gamma and gain and adds its grain after the
+sRGB encode; `BloomUpsample` tints its wide levels; the surface stages read up
+to twenty-four lights past the first eight from a light texture, shade a
+rectangular area light, keep a hashed fraction of a material's pixels and
+widen a directional shadow's edge with the distance to its caster. The engine
+leaves each of these off or at zero by default, and the default tone curve is
+the one 0.6.0 had.
+
+**The archive carries a skill**, `skills/flutter3d-cpu-rendering-in-a-test/`,
+about drawing a frame with no GPU through `CpuDevice`, `encodePng` and
+`compareFrames`. `dart run skills@ get` installs it for a coding agent.
+
 ## 0.6.0
 
 * **Two reference pictures, and no code.** `cube-shadow-crowded` and

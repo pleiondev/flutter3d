@@ -58,8 +58,10 @@ class _HarnessState extends State<_Harness> {
 }
 
 /// The empty curve every "adds a point" test starts from.
-ProfileCurve _empty() =>
-    ProfileCurve(points: const <ProfilePoint>[], segments: const <ProfileSegment>[]);
+ProfileCurve _empty() => ProfileCurve(
+  points: const <ProfilePoint>[],
+  segments: const <ProfileSegment>[],
+);
 
 void main() {
   group('Point tool', () {
@@ -85,7 +87,10 @@ void main() {
 
       expect(last, isNotNull);
       expect(last!.points.length, 1);
-      expect((last!.points.first.position - Vector2(76, 276)).length < 1, isTrue);
+      expect(
+        (last!.points.first.position - Vector2(76, 276)).length < 1,
+        isTrue,
+      );
     });
 
     testWidgets('a drag on empty space both adds a point and drags it', (
@@ -108,7 +113,10 @@ void main() {
 
       expect(last, isNotNull);
       expect(last!.points.length, 1);
-      expect((last!.points.first.position - Vector2(96, 276)).length < 1, isTrue);
+      expect(
+        (last!.points.first.position - Vector2(96, 276)).length < 1,
+        isTrue,
+      );
     });
 
     testWidgets('a drag starting on an existing point moves it, rather '

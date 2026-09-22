@@ -18,7 +18,7 @@ library;
 
 import 'dart:typed_data';
 
-import 'package:flutter3d_geometry/flutter3d_geometry.dart';
+import 'package:flutter3d_core/geometry.dart';
 import 'package:flutter3d_mesh/flutter3d_mesh.dart';
 import 'package:test/test.dart';
 import 'package:vector_math/vector_math.dart';
@@ -26,10 +26,7 @@ import 'package:vector_math/vector_math.dart';
 void main() {
   group('construction', () {
     test('refuses a positions array not a multiple of three', () {
-      expect(
-        () => ShapeKey('bad', Float32List(5)),
-        throwsArgumentError,
-      );
+      expect(() => ShapeKey('bad', Float32List(5)), throwsArgumentError);
     });
 
     test('positionOf and setPosition round-trip', () {
@@ -97,12 +94,7 @@ void main() {
         ]),
       );
       final remap = IdRemap(
-        vertices: Int32List.fromList(<int>[
-          0,
-          EditMesh.none,
-          1,
-          EditMesh.none,
-        ]),
+        vertices: Int32List.fromList(<int>[0, EditMesh.none, 1, EditMesh.none]),
         faces: Int32List(0),
       );
 
@@ -155,11 +147,8 @@ void main() {
       final mesh = EditMesh.cuboid();
       final key = ShapeKey(
         'smile',
-        Float32List(mesh.vertexSlotCount * 3)..fillRange(
-          0,
-          mesh.vertexSlotCount * 3,
-          100.0,
-        ),
+        Float32List(mesh.vertexSlotCount * 3)
+          ..fillRange(0, mesh.vertexSlotCount * 3, 100.0),
       );
       final blended = ShapeKey.blend(mesh, <ShapeKey>[key], <double>[0.0]);
 

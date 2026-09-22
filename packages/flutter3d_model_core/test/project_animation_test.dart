@@ -9,7 +9,7 @@ library;
 import 'dart:io';
 import 'dart:typed_data';
 
-import 'package:flutter3d_formats/flutter3d_formats.dart';
+import 'package:flutter3d_core/formats.dart';
 import 'package:flutter3d_model_core/flutter3d_model_core.dart';
 import 'package:test/test.dart';
 import 'package:vector_math/vector_math.dart';
@@ -22,7 +22,10 @@ Uint8List _sample(String relativePath) =>
 /// whatever `toModelDocument` produces from a project built out of it, so
 /// comparing by index would be comparing the wrong two joints the moment
 /// numbering drifted for a reason that has nothing to do with the skin.
-Map<String, Matrix4> _inverseBindByJointName(ModelDocument doc, ModelSkin skin) {
+Map<String, Matrix4> _inverseBindByJointName(
+  ModelDocument doc,
+  ModelSkin skin,
+) {
   final result = <String, Matrix4>{};
   for (var j = 0; j < skin.joints.length; j++) {
     final name = doc.nodes[skin.joints[j]].name ?? 'joint $j';
@@ -33,7 +36,11 @@ Map<String, Matrix4> _inverseBindByJointName(ModelDocument doc, ModelSkin skin) 
 
 void _expectMatrixClose(Matrix4 a, Matrix4 b, {String? reason}) {
   for (var e = 0; e < 16; e++) {
-    expect(a.storage[e], closeTo(b.storage[e], 1e-6), reason: '$reason, element $e');
+    expect(
+      a.storage[e],
+      closeTo(b.storage[e], 1e-6),
+      reason: '$reason, element $e',
+    );
   }
 }
 
@@ -72,11 +79,7 @@ void _expectClipsMatch(ModelDocument source, ModelDocument rewritten) {
       expect(b.times, orderedEquals(a.times), reason: '$key times');
       expect(b.values, orderedEquals(a.values), reason: '$key values');
       expect(b.interpolation, a.interpolation, reason: '$key interpolation');
-      expect(
-        b.componentCount,
-        a.componentCount,
-        reason: '$key componentCount',
-      );
+      expect(b.componentCount, a.componentCount, reason: '$key componentCount');
     }
   }
 }
@@ -102,10 +105,7 @@ void main() {
       final rewritten = toModelDocument(project);
       expect(rewritten.skins, hasLength(1));
 
-      final sourceByName = _inverseBindByJointName(
-        source,
-        source.skins.single,
-      );
+      final sourceByName = _inverseBindByJointName(source, source.skins.single);
       final rewrittenByName = _inverseBindByJointName(
         rewritten,
         rewritten.skins.single,
@@ -120,28 +120,31 @@ void main() {
       }
     });
 
-    test('a skinned surface\'s own transform stays identity on both sides', () async {
-      // The joints place a skinned surface, not the node it hangs from —
-      // baking the placement in as well would move it twice. Checked here
-      // because `toModelDocument`'s own skin handling is new code, not
-      // inherited from the glTF loader's already-tested version of the
-      // same rule.
-      final source = await GltfLoader().load(_sample('RiggedFigure.glb'));
-      final project = fromModelDocument(source);
-      final rewritten = toModelDocument(project);
+    test(
+      'a skinned surface\'s own transform stays identity on both sides',
+      () async {
+        // The joints place a skinned surface, not the node it hangs from —
+        // baking the placement in as well would move it twice. Checked here
+        // because `toModelDocument`'s own skin handling is new code, not
+        // inherited from the glTF loader's already-tested version of the
+        // same rule.
+        final source = await GltfLoader().load(_sample('RiggedFigure.glb'));
+        final project = fromModelDocument(source);
+        final rewritten = toModelDocument(project);
 
-      final skinned = rewritten.surfaces.where((s) => s.skinIndex != null);
-      expect(skinned, isNotEmpty);
-      for (final surface in skinned) {
-        // Mutation: bake the object's own placement into the surface
-        // transform regardless of whether it is skinned — this would read
-        // a non-identity matrix for at least one of these.
-        expect(
-          surface.transform.storage,
-          orderedEquals(Matrix4.identity().storage),
-        );
-      }
-    });
+        final skinned = rewritten.surfaces.where((s) => s.skinIndex != null);
+        expect(skinned, isNotEmpty);
+        for (final surface in skinned) {
+          // Mutation: bake the object's own placement into the surface
+          // transform regardless of whether it is skinned — this would read
+          // a non-identity matrix for at least one of these.
+          expect(
+            surface.transform.storage,
+            orderedEquals(Matrix4.identity().storage),
+          );
+        }
+      },
+    );
   });
 
   group('BoxAnimated.glb: a plain transform clip round-trips', () {
@@ -163,7 +166,11 @@ void main() {
       final hasWeights = source.animations.any(
         (clip) => clip.tracks.any((t) => t.path == AnimationPath.weights),
       );
-      expect(hasWeights, isTrue, reason: 'fixture should carry a weights track');
+      expect(
+        hasWeights,
+        isTrue,
+        reason: 'fixture should carry a weights track',
+      );
 
       final project = fromModelDocument(source);
       final rewritten = toModelDocument(project);

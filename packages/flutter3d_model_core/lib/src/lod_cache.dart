@@ -23,7 +23,7 @@
 /// mistake to make.
 library;
 
-import 'package:flutter3d_geometry/flutter3d_geometry.dart';
+import 'package:flutter3d_core/geometry.dart';
 import 'package:flutter3d_mesh/flutter3d_mesh.dart';
 
 import 'lod_spec.dart';
@@ -62,10 +62,14 @@ final class LodMeshCache {
       1,
       base.triangleCount,
     );
+    // Into the base's own layout, for the reason `project_document.dart`
+    // gives where the exported levels are cut: the simplifier answers in the
+    // attributes it reads, and whatever draws the level draws it through the
+    // layout the object has.
     final MeshData mesh = simplifyMeshWithAttributes(
       base,
       targetTriangleCount: target,
-    );
+    ).convertedTo(base.layout);
     byLod[lodIndex] = _CachedLod(object.version, mesh);
     return mesh;
   }

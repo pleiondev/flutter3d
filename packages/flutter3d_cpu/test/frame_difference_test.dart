@@ -1,6 +1,6 @@
 /// What two frames disagree about.
 ///
-///     flutter test test/frame_difference_test.dart
+///     dart test test/frame_difference_test.dart
 ///
 /// Four places had counted this by hand, with three different thresholds. The
 /// thresholds were all defensible; having three of them and no written
@@ -10,7 +10,7 @@ library;
 import 'dart:typed_data';
 
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
-import 'package:flutter_test/flutter_test.dart';
+import 'package:test/test.dart';
 
 /// One pixel, repeated.
 Uint8List _frame(int r, int g, int b, {int pixels = 4, int alpha = 255}) =>

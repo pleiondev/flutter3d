@@ -22,8 +22,8 @@
 /// `flutter3d_webgl/test/engine_parity_test.dart` is where its pixels are held.
 library;
 
-import 'package:flutter3d/src/engine/render/shadow_settings.dart';
-import 'package:flutter3d/src/engine/render/static_bake_key.dart';
+import 'package:flutter3d_core/src/engine/render/shadow_settings.dart';
+import 'package:flutter3d_core/src/engine/render/static_bake_key.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {

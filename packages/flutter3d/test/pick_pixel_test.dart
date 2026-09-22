@@ -7,22 +7,23 @@
 /// questions here are about what the pass *is*: which target, cleared to
 /// what, which id each draw was handed, and which pixel was read back. That a
 /// real backend answers with the right node is
-/// `flutter3d_cpu/test/pick_pixel_test.dart`.
+/// `flutter3d/test/cpu_pick_pixel_test.dart` — moved here from
+/// `flutter3d_cpu/test/` once that package went flat (mcp-02n).
 library;
 
 import 'dart:typed_data';
 
-import 'package:flutter3d/src/engine/geometry/device_mesh.dart';
-import 'package:flutter3d/src/engine/render/frame_graph.dart';
-import 'package:flutter3d/src/engine/render/frame_plan.dart';
-import 'package:flutter3d/src/engine/render/material.dart';
-import 'package:flutter3d/src/engine/render/render_node.dart';
-import 'package:flutter3d/src/engine/render/render_view.dart';
-import 'package:flutter3d/src/engine/render/renderer.dart';
-import 'package:flutter3d/src/engine/scene/camera_node.dart';
-import 'package:flutter3d/src/engine/scene/mesh_node.dart';
-import 'package:flutter3d/src/engine/scene/scene.dart';
-import 'package:flutter3d_geometry/flutter3d_geometry.dart';
+import 'package:flutter3d_core/geometry.dart';
+import 'package:flutter3d_core/src/engine/geometry/device_mesh.dart';
+import 'package:flutter3d_core/src/engine/render/frame_graph.dart';
+import 'package:flutter3d_core/src/engine/render/frame_plan.dart';
+import 'package:flutter3d_core/src/engine/render/material.dart';
+import 'package:flutter3d_core/src/engine/render/render_node.dart';
+import 'package:flutter3d_core/src/engine/render/render_view.dart';
+import 'package:flutter3d_core/src/engine/render/renderer.dart';
+import 'package:flutter3d_core/src/engine/scene/camera_node.dart';
+import 'package:flutter3d_core/src/engine/scene/mesh_node.dart';
+import 'package:flutter3d_core/src/engine/scene/scene.dart';
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:flutter3d_hardware/testing.dart';
 import 'package:flutter_test/flutter_test.dart';

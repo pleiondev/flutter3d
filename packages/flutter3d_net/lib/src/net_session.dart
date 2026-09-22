@@ -50,7 +50,7 @@ final class _HistoryEntry {
 /// [applyAndStep] writes them back into it before calling that genre's own
 /// `sim.step`. This is `net-01`'s entire claim: a game hands over four
 /// functions and gets rollback, rather than teaching this package a second
-/// genre's vocabulary the way `flutter3d_bridge` was built not to.
+/// genre's vocabulary the way `flutter3d_app`'s level loader was built not to.
 ///
 /// ## Fixed input delay, and why it is not the whole answer
 ///
@@ -191,8 +191,7 @@ final class NetSession {
     _recentSent.removeWhere((s, _) => s < appliesAt - redundancy);
     transport.send(<String, Object?>{
       'frames': <String, Object?>{
-        for (final entry in _recentSent.entries)
-          '${entry.key}': entry.value,
+        for (final entry in _recentSent.entries) '${entry.key}': entry.value,
       },
     });
 
@@ -281,8 +280,8 @@ final class NetSession {
       // it began in — its own `snapshotBefore` describes only the moment
       // before it ran. Only fired when that next entry is still on hand,
       // which it always is: exactly one step crosses the horizon per call.
-      for (final s in _history.keys.where((s) => s < horizon).toList()
-        ..sort()) {
+      for (final s
+          in _history.keys.where((s) => s < horizon).toList()..sort()) {
         final after = _history[s + 1];
         if (after != null) settled(s, after.snapshotBefore);
       }

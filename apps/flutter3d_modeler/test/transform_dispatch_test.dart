@@ -92,14 +92,8 @@ void main() {
       // turn about Y there swaps their places along X.
       final Outcome swung = asMedian.apply(project, selection);
       expect(swung.ok, isTrue);
-      expect(
-        swung.project![1]!.transform.getTranslation().x,
-        closeTo(3, 1e-4),
-      );
-      expect(
-        swung.project![2]!.transform.getTranslation().x,
-        closeTo(1, 1e-4),
-      );
+      expect(swung.project![1]!.transform.getTranslation().x, closeTo(3, 1e-4));
+      expect(swung.project![2]!.transform.getTranslation().x, closeTo(1, 1e-4));
 
       final decidedIndividual = transformCommandFor(
         heldId: 1,
@@ -118,14 +112,8 @@ void main() {
       // exactly where they were.
       final Outcome spun = asIndividual.apply(project, selection);
       expect(spun.ok, isTrue);
-      expect(
-        spun.project![1]!.transform.getTranslation().x,
-        closeTo(1, 1e-4),
-      );
-      expect(
-        spun.project![2]!.transform.getTranslation().x,
-        closeTo(3, 1e-4),
-      );
+      expect(spun.project![1]!.transform.getTranslation().x, closeTo(1, 1e-4));
+      expect(spun.project![2]!.transform.getTranslation().x, closeTo(3, 1e-4));
     });
   });
 
@@ -187,22 +175,25 @@ void main() {
       expect(decided.refused, isNull);
     });
 
-    test('a refusal from the fields is passed on, and nothing is dispatched', () {
-      final decided = transformCommandFor(
-        heldId: 1,
-        from: at(Vector3.zero()),
-        to: (
-          position: Vector3(0, double.infinity, 0),
-          rotationDegrees: Vector3.zero(),
-          scale: Vector3.all(1),
-        ),
-        pivot: TransformPivot.median,
-        space: TransformSpace.global,
-      );
+    test(
+      'a refusal from the fields is passed on, and nothing is dispatched',
+      () {
+        final decided = transformCommandFor(
+          heldId: 1,
+          from: at(Vector3.zero()),
+          to: (
+            position: Vector3(0, double.infinity, 0),
+            rotationDegrees: Vector3.zero(),
+            scale: Vector3.all(1),
+          ),
+          pivot: TransformPivot.median,
+          space: TransformSpace.global,
+        );
 
-      expect(decided.command, isNull);
-      expect(decided.refused, 'Y of the position is not a number');
-    });
+        expect(decided.command, isNull);
+        expect(decided.refused, 'Y of the position is not a number');
+      },
+    );
 
     test('the space chosen rides along on the rotation command', () {
       final decided = transformCommandFor(

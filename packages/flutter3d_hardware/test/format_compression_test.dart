@@ -3,7 +3,7 @@
 library;
 
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
-import 'package:flutter_test/flutter_test.dart';
+import 'package:test/test.dart';
 
 const compressed = {
   TextureFormat.bc1RGBAUNormInt,

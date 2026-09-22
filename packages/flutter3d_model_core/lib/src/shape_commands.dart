@@ -26,7 +26,11 @@ part of 'command.dart';
 /// object is drawn, not a keyframe; [KeyShape] is what records one of
 /// those, from whatever this last set.
 final class SetShapeWeight extends ModelCommand {
-  const SetShapeWeight({required this.id, required this.shapeIndex, required this.weight});
+  const SetShapeWeight({
+    required this.id,
+    required this.shapeIndex,
+    required this.weight,
+  });
 
   final int id;
   final int shapeIndex;
@@ -39,8 +43,11 @@ final class SetShapeWeight extends ModelCommand {
   String get says => 'change a shape key\'s weight';
 
   @override
-  Map<String, Object?> get arguments =>
-      <String, Object?>{'id': id, 'shapeIndex': shapeIndex, 'weight': weight};
+  Map<String, Object?> get arguments => <String, Object?>{
+    'id': id,
+    'shapeIndex': shapeIndex,
+    'weight': weight,
+  };
 
   @override
   Outcome apply(ModelProject project, ProjectSelection selection) {
@@ -80,8 +87,10 @@ final class AddShapeFromMesh extends ModelCommand {
   String get says => 'add a shape key from the mesh';
 
   @override
-  Map<String, Object?> get arguments =>
-      <String, Object?>{'id': id, 'shapeName': shapeName};
+  Map<String, Object?> get arguments => <String, Object?>{
+    'id': id,
+    'shapeName': shapeName,
+  };
 
   @override
   Outcome apply(ModelProject project, ProjectSelection selection) {
@@ -108,13 +117,19 @@ final class AddShapeFromMesh extends ModelCommand {
         ),
       );
     }
-    return Outcome.refused('"${object.name}" has no mesh to sculpt a shape from');
+    return Outcome.refused(
+      '"${object.name}" has no mesh to sculpt a shape from',
+    );
   }
 }
 
 /// Renames [shapeIndex] in [id]'s own shape set.
 final class RenameShape extends ModelCommand {
-  const RenameShape({required this.id, required this.shapeIndex, required this.to});
+  const RenameShape({
+    required this.id,
+    required this.shapeIndex,
+    required this.to,
+  });
 
   final int id;
   final int shapeIndex;
@@ -127,8 +142,11 @@ final class RenameShape extends ModelCommand {
   String get says => 'rename a shape key to "$to"';
 
   @override
-  Map<String, Object?> get arguments =>
-      <String, Object?>{'id': id, 'shapeIndex': shapeIndex, 'to': to};
+  Map<String, Object?> get arguments => <String, Object?>{
+    'id': id,
+    'shapeIndex': shapeIndex,
+    'to': to,
+  };
 
   @override
   Outcome apply(ModelProject project, ProjectSelection selection) {
@@ -156,7 +174,9 @@ final class RenameShape extends ModelCommand {
     }
     keys[shapeIndex] = ShapeKey(to, positions);
     return Outcome.done(
-      project.withObject(object.copyWith(shapeSet: shapes.copyWith(keys: keys))),
+      project.withObject(
+        object.copyWith(shapeSet: shapes.copyWith(keys: keys)),
+      ),
     );
   }
 }
@@ -166,6 +186,14 @@ final class RenameShape extends ModelCommand {
 /// component from any `weights` track driving this object, so a track built
 /// for four shapes comes out driving three rather than reading one of
 /// them's slot as whatever the deleted shape's neighbour now occupies.
+///
+/// [id]'s own [ModelObject.shapeDrivers] move the same way, in this same
+/// step: a driver naming the deleted [shapeIndex] is dropped along with the
+/// shape it had nothing left to drive, and a driver naming a later shape has
+/// its own [ShapeDriver.shapeIndex] shifted down by one — `anim-34d`'s own
+/// row, done here rather than as a second command so a shape and its own
+/// driver leave the document in one undo step, never a shape gone and a
+/// driver still pointing at whatever now sits in its old slot.
 final class DeleteShape extends ModelCommand {
   const DeleteShape({required this.id, required this.shapeIndex});
 
@@ -176,10 +204,18 @@ final class DeleteShape extends ModelCommand {
   String get name => 'deleteShape';
 
   @override
-  String get says => 'delete a shape key';
+  // `ux-43`: an index-shifting removal says so, because every index an
+  // agent is holding past this one has just moved and nothing else
+  // would tell it. The review watched one delete material 1 and then
+  // paint with material 2, which was a different material by then.
+  String get says =>
+      'delete shape key $shapeIndex (every key after it shifts down by one)';
 
   @override
-  Map<String, Object?> get arguments => <String, Object?>{'id': id, 'shapeIndex': shapeIndex};
+  Map<String, Object?> get arguments => <String, Object?>{
+    'id': id,
+    'shapeIndex': shapeIndex,
+  };
 
   @override
   Outcome apply(ModelProject project, ProjectSelection selection) {
@@ -194,8 +230,16 @@ final class DeleteShape extends ModelCommand {
     }
     final keys = List<ShapeKey>.of(shapes.keys)..removeAt(shapeIndex);
     final weights = List<double>.of(shapes.weights)..removeAt(shapeIndex);
+    final drivers = <ShapeDriver>[
+      for (final driver in object.shapeDrivers)
+        if (driver.shapeIndex != shapeIndex)
+          driver.shapeIndex > shapeIndex
+              ? driver.copyWith(shapeIndex: driver.shapeIndex - 1)
+              : driver,
+    ];
     final next = object.copyWith(
       shapeSet: shapes.copyWith(keys: keys, weights: weights),
+      shapeDrivers: drivers,
     );
 
     final clips = <ProjectClip>[
@@ -205,7 +249,8 @@ final class DeleteShape extends ModelCommand {
           extras: clip.extras,
           tracks: <ProjectTrack>[
             for (final track in clip.tracks)
-              if (track.objectId == id && track.track.path == AnimationPath.weights)
+              if (track.objectId == id &&
+                  track.track.path == AnimationPath.weights)
                 ...?_withComponentDropped(track, shapeIndex)
               else
                 track,
@@ -213,9 +258,7 @@ final class DeleteShape extends ModelCommand {
         ),
     ];
 
-    return Outcome.done(
-      project.withObject(next).copyWith(clips: clips),
-    );
+    return Outcome.done(project.withObject(next).copyWith(clips: clips));
   }
 }
 
@@ -225,7 +268,9 @@ final class DeleteShape extends ModelCommand {
 /// leftover.
 List<ProjectTrack>? _withComponentDropped(ProjectTrack track, int dropped) {
   final table = KeyTable.fromAnimationTrack(track.track);
-  if (dropped < 0 || dropped >= table.componentCount) return <ProjectTrack>[track];
+  if (dropped < 0 || dropped >= table.componentCount) {
+    return <ProjectTrack>[track];
+  }
   if (table.componentCount <= 1) return null;
 
   List<double>? without(List<double>? values) {
@@ -265,7 +310,11 @@ List<ProjectTrack>? _withComponentDropped(ProjectTrack track, int dropped) {
 /// Creates the object's `weights` track in that clip when it does not have
 /// one yet, sized to the shape set's own current key count.
 final class KeyShape extends ModelCommand {
-  const KeyShape({required this.id, required this.clipIndex, required this.time});
+  const KeyShape({
+    required this.id,
+    required this.clipIndex,
+    required this.time,
+  });
 
   final int id;
   final int clipIndex;
@@ -278,8 +327,11 @@ final class KeyShape extends ModelCommand {
   String get says => 'key the shape weights';
 
   @override
-  Map<String, Object?> get arguments =>
-      <String, Object?>{'id': id, 'clipIndex': clipIndex, 'time': time};
+  Map<String, Object?> get arguments => <String, Object?>{
+    'id': id,
+    'clipIndex': clipIndex,
+    'time': time,
+  };
 
   @override
   Outcome apply(ModelProject project, ProjectSelection selection) {
@@ -319,8 +371,201 @@ final class KeyShape extends ModelCommand {
       tracks.add(newTrack);
     }
     final clips = List<ProjectClip>.of(project.clips)
-      ..[clipIndex] = ProjectClip(name: clip.name, extras: clip.extras, tracks: tracks);
+      ..[clipIndex] = ProjectClip(
+        name: clip.name,
+        extras: clip.extras,
+        tracks: tracks,
+      );
 
     return Outcome.done(project.copyWith(clips: clips));
+  }
+}
+
+/// Adds [driver] to [id]'s own [ModelObject.shapeDrivers] — `anim-34d`'s own
+/// row, the project-side half of a shape key that tracks a joint's rotation
+/// instead of a person's slider. [ShapeDriver.shapeIndex] has to name one of
+/// [id]'s own current shape keys and [ShapeDriver.jointId] one of the
+/// project's own objects, the same two things a driver evaluated against a
+/// live clip (`shape_driver.dart`'s own `evaluateShapeDriversLive`) would
+/// otherwise silently read as "nothing" for.
+final class AddShapeDriver extends ModelCommand {
+  const AddShapeDriver({required this.id, required this.driver});
+
+  final int id;
+  final ShapeDriver driver;
+
+  @override
+  String get name => 'addShapeDriver';
+
+  @override
+  String get says => 'add a shape driver';
+
+  @override
+  Map<String, Object?> get arguments => <String, Object?>{
+    'id': id,
+    'driver': driver.toJson(),
+  };
+
+  @override
+  Outcome apply(ModelProject project, ProjectSelection selection) {
+    final (:object, :refused) = _shapeTarget(project, id);
+    if (object == null) return Outcome.refused(refused!);
+    final shapes = object.shapeSet;
+    if (driver.shapeIndex < 0 || driver.shapeIndex >= shapes.keys.length) {
+      return Outcome.refused(
+        '"${object.name}" has ${shapes.keys.length} shape keys; '
+        '${driver.shapeIndex} is not one of them',
+      );
+    }
+    if (project[driver.jointId] == null) {
+      return Outcome.refused('there is no object ${driver.jointId}');
+    }
+    return Outcome.done(
+      project.withObject(
+        object.copyWith(
+          shapeDrivers: <ShapeDriver>[...object.shapeDrivers, driver],
+        ),
+      ),
+    );
+  }
+}
+
+/// Removes [index] from [id]'s own [ModelObject.shapeDrivers], shifting
+/// every later driver's own index down by one — the same "index into a
+/// list" shape [DeleteShape] and [RemoveModifier] already give their own
+/// stacks. Unlike [DeleteShape], nothing else in the document names a
+/// driver by its position, so there is nothing further to shift.
+final class RemoveShapeDriver extends ModelCommand {
+  const RemoveShapeDriver({required this.id, required this.index});
+
+  final int id;
+  final int index;
+
+  @override
+  String get name => 'removeShapeDriver';
+
+  @override
+  // `ux-43`: an index-shifting removal says so, because every index an
+  // agent is holding past this one has just moved and nothing else
+  // would tell it. The review watched one delete material 1 and then
+  // paint with material 2, which was a different material by then.
+  String get says =>
+      'remove shape driver $index (every driver after it shifts down by one)';
+
+  @override
+  Map<String, Object?> get arguments => <String, Object?>{
+    'id': id,
+    'index': index,
+  };
+
+  @override
+  Outcome apply(ModelProject project, ProjectSelection selection) {
+    final (:object, :refused) = _shapeTarget(project, id);
+    if (object == null) return Outcome.refused(refused!);
+    final drivers = object.shapeDrivers;
+    if (index < 0 || index >= drivers.length) {
+      return Outcome.refused(
+        '"${object.name}" has ${drivers.length} shape drivers; $index is '
+        'not one of them',
+      );
+    }
+    final next = List<ShapeDriver>.of(drivers)..removeAt(index);
+    return Outcome.done(
+      project.withObject(object.copyWith(shapeDrivers: next)),
+    );
+  }
+}
+
+/// [driver] with [field] set to [value], or null when [field] does not name
+/// one of [ShapeDriver]'s own fields or [value] is the wrong shape for it —
+/// the same contract `_modifierFieldSet` keeps for a modifier's own fields.
+ShapeDriver? _shapeDriverFieldSet(
+  ShapeDriver driver,
+  String field,
+  Object? value,
+) => switch (field) {
+  'shapeIndex' => value is int ? driver.copyWith(shapeIndex: value) : null,
+  'jointId' => value is int ? driver.copyWith(jointId: value) : null,
+  'axis' => switch (value) {
+    'x' => driver.copyWith(axis: DriverAxis.x),
+    'y' => driver.copyWith(axis: DriverAxis.y),
+    'z' => driver.copyWith(axis: DriverAxis.z),
+    _ => null,
+  },
+  'from' => value is num ? driver.copyWith(from: value.toDouble()) : null,
+  'to' => value is num ? driver.copyWith(to: value.toDouble()) : null,
+  _ => null,
+};
+
+/// Changes one [field] of the shape driver at [index] on [id]'s own
+/// [ModelObject.shapeDrivers] — `anim-34d`'s own generic setter, the same
+/// shape [SetModifierField] gives a modifier's own fields.
+///
+/// **[from]/[to] stay radians all the way through.** [hints] labels them
+/// `rad` for the same reason `RotateBy`'s own `radians` argument does; a
+/// panel showing degrees (screen 15, `T4.5`'s own row) converts at its own
+/// edge the way `transform_fields.dart` already does for a turn, rather
+/// than this command ever holding, journaling or replaying anything but the
+/// angle the maths itself uses.
+final class SetShapeDriverField extends ModelCommand {
+  const SetShapeDriverField({
+    required this.id,
+    required this.index,
+    required this.field,
+    required this.value,
+  });
+
+  final int id;
+  final int index;
+  final String field;
+  final Object? value;
+
+  @override
+  String get name => 'setShapeDriverField';
+
+  @override
+  String get says => 'set $field';
+
+  @override
+  Map<String, Object?> get arguments => <String, Object?>{
+    'id': id,
+    'index': index,
+    'field': field,
+    'value': value,
+  };
+
+  @override
+  Map<String, ParamHint> get hints => switch (field) {
+    'from' || 'to' => const <String, ParamHint>{
+      'value': DoubleHint(unit: 'rad', step: 0.01),
+    },
+    'axis' => const <String, ParamHint>{
+      'value': EnumHint(<String>['x', 'y', 'z']),
+    },
+    _ => const <String, ParamHint>{},
+  };
+
+  @override
+  Outcome apply(ModelProject project, ProjectSelection selection) {
+    final (:object, :refused) = _shapeTarget(project, id);
+    if (object == null) return Outcome.refused(refused!);
+    final drivers = object.shapeDrivers;
+    if (index < 0 || index >= drivers.length) {
+      return Outcome.refused(
+        '"${object.name}" has ${drivers.length} shape drivers; $index is '
+        'not one of them',
+      );
+    }
+    final next = _shapeDriverFieldSet(drivers[index], field, value);
+    if (next == null) {
+      return Outcome.refused(
+        '"$field" is not a field of a shape driver, or its value is the '
+        'wrong shape',
+      );
+    }
+    final updated = List<ShapeDriver>.of(drivers)..[index] = next;
+    return Outcome.done(
+      project.withObject(object.copyWith(shapeDrivers: updated)),
+    );
   }
 }

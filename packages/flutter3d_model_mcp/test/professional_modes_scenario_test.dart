@@ -22,8 +22,8 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:dart_mcp/client.dart';
-import 'package:flutter3d_formats/flutter3d_formats.dart';
-import 'package:flutter3d_geometry/flutter3d_geometry.dart';
+import 'package:flutter3d_core/formats.dart';
+import 'package:flutter3d_core/geometry.dart';
 import 'package:flutter3d_model_core/flutter3d_model_core.dart';
 import 'package:flutter3d_model_mcp/flutter3d_model_mcp.dart';
 import 'package:stream_channel/stream_channel.dart';
@@ -78,7 +78,9 @@ void main() {
     'unwrap, a level of detail, a baked simulation turned into shapes, exported to GLB',
     () async {
       // A box, the same shape `agent_builds_a_table_test.dart` starts from.
-      final built = await call('addPrimitive', <String, Object?>{'kind': 'box'});
+      final built = await call('addPrimitive', <String, Object?>{
+        'kind': 'box',
+      });
       expect(built.did, isTrue, reason: built.says);
       const id = 1;
 
@@ -108,8 +110,9 @@ void main() {
       // `pro-sim-02`/`pro-sim-05`: a cache an agent arrived with (see the
       // library comment for why this file builds it rather than baking one
       // live), applied and turned into shape keys.
-      final vertexSlots =
-          (session.project[id]!.geometry as EditedGeometry).mesh.vertexSlotCount;
+      final vertexSlots = (session.project[id]!.geometry as EditedGeometry)
+          .mesh
+          .vertexSlotCount;
       final cache = SimulationCache(
         vertexCount: vertexSlots,
         frames: <Float32List>[

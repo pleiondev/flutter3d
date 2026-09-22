@@ -14,14 +14,12 @@ library;
 import 'dart:typed_data';
 import 'dart:ui' as ui;
 
-import 'package:flutter/widgets.dart';
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:flutter_gpu/gpu.dart' as gpu;
 
 import 'gpu_command_encoder.dart';
 import 'gpu_formats.dart';
 import 'gpu_frame.dart';
-import 'gpu_frame_image.dart';
 import 'gpu_loaded_shaders.dart';
 import 'gpu_readback.dart';
 import 'gpu_shader_library.dart';
@@ -30,6 +28,7 @@ import 'host_buffer_grid.dart';
 
 export 'gpu_command_encoder.dart';
 export 'gpu_frame.dart';
+export 'gpu_frame_image.dart';
 export 'gpu_loaded_shaders.dart';
 export 'gpu_shader_library.dart';
 
@@ -275,6 +274,31 @@ final class GpuRenderBackend implements GraphicsDevice {
   bool get supportsRenderToMip =>
       gpu.gpuContext.doesSupportFramebufferRenderMipmap;
 
+  /// Two where this backend is not on its OpenGL ES path, one where it is —
+  /// `gfx-50n`.
+  ///
+  /// **Inferred, and that is stated rather than hidden.** flutter_gpu
+  /// publishes no MRT capability and no backend name, so there is nothing
+  /// here to ask directly. [supportsRenderToMip] is the closest published
+  /// fact: flutter_gpu's own documentation says it is true on Metal and
+  /// Vulkan and false on the OpenGL ES path, which is the same split the
+  /// attachment limit falls on.
+  ///
+  /// **A probe is not available**, and this is the unusual part. Every other
+  /// uncertain capability in this backend is settled by trying it and
+  /// catching — see `_probeCubes`. Trying a second attachment on GLES reaches
+  /// an `FML_CHECK`, so the probe that would answer the question is the same
+  /// call that ends the process. An inference from a neighbouring capability
+  /// is what is left.
+  ///
+  /// Two rather than the four or eight Metal and Vulkan actually allow: two
+  /// is what this engine has ever opened and what the split above is evidence
+  /// for. A number this backend cannot support is not a number worth
+  /// publishing, and a caller who needs four should be told two and write the
+  /// pass that works.
+  @override
+  int get maxColorAttachments => supportsRenderToMip ? 2 : 1;
+
   @override
   TextureHandle? createCubeRenderTarget({
     required int size,
@@ -431,7 +455,11 @@ final class GpuRenderBackend implements GraphicsDevice {
   /// visible to nothing until some unrelated flush happened to cover the same
   /// range.
   @override
-  void overwriteGeometry(GeometryBuffer target, int offsetInBytes, ByteData bytes) {
+  void overwriteGeometry(
+    GeometryBuffer target,
+    int offsetInBytes,
+    ByteData bytes,
+  ) {
     final buffer = target.backend as gpu.DeviceBuffer;
     if (offsetInBytes < 0 ||
         offsetInBytes + bytes.lengthInBytes > target.lengthInBytes) {
@@ -474,13 +502,16 @@ final class GpuRenderBackend implements GraphicsDevice {
         'level (0) may be overwritten.',
       );
     }
-    final rect = region ?? ScreenRect(width: target.width, height: target.height);
+    final rect =
+        region ?? ScreenRect(width: target.width, height: target.height);
     if (rect.x < 0 ||
         rect.y < 0 ||
         rect.x + rect.width > target.width ||
         rect.y + rect.height > target.height) {
-      throw ArgumentError('overwriteTexture: $rect does not fit inside a '
-          '${target.width}x${target.height} texture');
+      throw ArgumentError(
+        'overwriteTexture: $rect does not fit inside a '
+        '${target.width}x${target.height} texture',
+      );
     }
     if (rgba.lengthInBytes != rect.width * rect.height * 4) {
       throw ArgumentError(
@@ -500,7 +531,10 @@ final class GpuRenderBackend implements GraphicsDevice {
       patched.setRange(
         dstRowStart,
         dstRowStart + rect.width * 4,
-        rgba.buffer.asUint8List(rgba.offsetInBytes + srcRowStart, rect.width * 4),
+        rgba.buffer.asUint8List(
+          rgba.offsetInBytes + srcRowStart,
+          rect.width * 4,
+        ),
       );
     }
     target.gpuTexture.overwrite(ByteData.sublistView(patched), mipLevel: 0);
@@ -689,6 +723,13 @@ final class GpuRenderBackend implements GraphicsDevice {
 
   @override
   CommandEncoder beginRenderPass(RenderPassDescriptor descriptor) {
+    // `gfx-50n`. Before anything reaches flutter_gpu, because past this line
+    // there is no Dart left to throw from: a second attachment on the GLES
+    // path walks into an `FML_CHECK` and the process stops.
+    descriptor.checkAttachmentLimit(
+      maxColorAttachments,
+      backend: 'the Impeller backend on this device',
+    );
     final buffer = gpu.gpuContext.createCommandBuffer();
     final pass = buffer.createRenderPass(_toRenderTarget(descriptor));
     final frame = _openFrame;
@@ -728,19 +769,6 @@ final class GpuRenderBackend implements GraphicsDevice {
   @override
   void onFrameComplete(void Function() whenDone) =>
       _openFrame.whenDone.add(whenDone);
-
-  @override
-  Widget present(
-    TextureHandle frame, {
-    BoxFit fit = BoxFit.fill,
-    FilterQuality quality = FilterQuality.none,
-  }) =>
-      // A stateful widget rather than `asImage()` inline into a `RawImage`,
-      // which is what this was: the inline image was never disposed, so every
-      // frame left a `ui.Image` for the collector and pinned the frame texture
-      // in the engine's image accounting past the frames-in-flight ring. The
-      // widget owns the image and closes it — see `gpu_frame_image.dart`.
-      GpuFrameImage(frame: frame, fit: fit, quality: quality);
 
   @override
   Future<ByteData?> readPixels(TextureHandle texture) {

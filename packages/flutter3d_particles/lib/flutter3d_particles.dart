@@ -5,6 +5,12 @@
 /// required and no code read, so an application that draws no particles could
 /// not start a renderer.
 ///
+/// **No Flutter.** The two contributors draw through `flutter3d_core`'s
+/// `PassContributor`, not through a widget, so the whole package runs under
+/// `dart test` — and `flutter3d_model_core`'s `BakeParticleSystemJobRequest`
+/// bakes a system into a cache on the Dart VM through it, the same way it
+/// bakes a rigid body through `flutter3d_physics`.
+///
 /// **The shaders stay in `flutter3d_shaders`.** That package is already the
 /// shared GLSL every backend compiles from — Impeller into a bundle, WebGL by
 /// translation, and the CPU backend as Dart transcriptions — so `particle.vert`
@@ -17,7 +23,8 @@
 ///
 /// [ParticleSystem] is one pool for the whole application, not one per effect:
 /// a system per effect is a draw call per effect, and on this engine a pipeline
-/// change is the most expensive state change there is.
+/// change is the most expensive state change there is. Emission, ageing and
+/// [ParticleAffector]s advance every particle in it.
 ///
 /// [ParticleGlow] and [LightEmitter] are the part worth having. A fire *is* its
 /// particles, so the light it casts is measured from them rather than produced
@@ -26,7 +33,14 @@
 /// brightly while the light it casts has gone out.
 library;
 
-export 'package:flutter3d_particles_core/flutter3d_particles_core.dart';
-
+export 'src/flipbook.dart';
+export 'src/light_emitter.dart';
 export 'src/mesh_particle_contributor.dart';
+export 'src/particle.dart';
+export 'src/particle_affector.dart';
 export 'src/particle_contributor.dart';
+export 'src/particle_curve.dart';
+export 'src/particle_emitter.dart';
+export 'src/particle_random.dart';
+export 'src/particle_system.dart';
+export 'src/shown.dart';

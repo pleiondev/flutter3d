@@ -1,8 +1,8 @@
 /// A live look at `edu-04`'s own pieces, all of which existed only behind
 /// tests until now: a real swinging [PendulumSimulation], a real
 /// `WidgetSurface` carrying [PendulumLabPanel], a real tap routed through
-/// [Raycaster] the same way `flutter3d_template_app`'s own
-/// `_tapWidgetSurface` already proved for `tpl-04`.
+/// [Raycaster] along `wg-01`'s own chain (raycast → `uvAt` → `dispatchAtUv`),
+/// built from an actual pointer rather than a ray made by hand in a test.
 ///
 /// Its own application, not a mode of the crypt's `main.dart`: nothing here
 /// is a level, a genre or a save — it is a demonstration, run with
@@ -109,14 +109,21 @@ class _PendulumLabScreenState extends State<PendulumLabScreen>
 
     final pivotMesh = MeshNode(
       DeviceMesh.upload(device, const SphereShape(radius: 0.06).build()),
-      Material(lighting: LightingModel.unlit, baseColor: Vector4(0.6, 0.62, 0.66, 1.0)),
+      Material(
+        lighting: LightingModel.unlit,
+        baseColor: Vector4(0.6, 0.62, 0.66, 1.0),
+      ),
       name: 'pivot',
     )..setPositionFrom(_pivot);
     scene.add(pivotMesh);
 
     final bob = MeshNode(
       DeviceMesh.upload(device, const SphereShape(radius: 0.16).build()),
-      Material(lighting: LightingModel.pbr, baseColor: Vector4(0.86, 0.71, 0.32, 1.0), roughness: 0.4),
+      Material(
+        lighting: LightingModel.pbr,
+        baseColor: Vector4(0.86, 0.71, 0.32, 1.0),
+        roughness: 0.4,
+      ),
       name: 'bob',
     );
     scene.add(bob);
@@ -128,9 +135,18 @@ class _PendulumLabScreenState extends State<PendulumLabScreen>
     final string = MeshNode(
       DeviceMesh.upload(
         device,
-        const CylinderShape(radiusTop: 0.012, radiusBottom: 0.012, height: 1.0, segments: 8, capped: false).build(),
+        const CylinderShape(
+          radiusTop: 0.012,
+          radiusBottom: 0.012,
+          height: 1.0,
+          segments: 8,
+          capped: false,
+        ).build(),
       ),
-      Material(lighting: LightingModel.unlit, baseColor: Vector4(0.75, 0.75, 0.72, 1.0)),
+      Material(
+        lighting: LightingModel.unlit,
+        baseColor: Vector4(0.75, 0.75, 0.72, 1.0),
+      ),
       name: 'string',
     );
     scene.add(string);
@@ -152,7 +168,7 @@ class _PendulumLabScreenState extends State<PendulumLabScreen>
     // `runAsync`, read back an unrelated all-black frame — a second,
     // unexplained finding, not a confirmation of the first. Turning the
     // child here a half turn fixes what this app shows without touching
-    // `flutter3d_session` blind; `doc/tooling-plan.md`'s own edu-04 entry
+    // `flutter3d_app` blind; `doc/tooling-plan.md`'s own edu-04 entry
     // names the open question for whoever next hosts a `WidgetSurface`
     // with legible content — `edu-00` §7's own annotation widget among
     // them.
@@ -213,7 +229,9 @@ class _PendulumLabScreenState extends State<PendulumLabScreen>
       // The cylinder's own local +Y is its long axis (`CylinderShape`'s own
       // doc comment); this is the rotation that takes that axis to wherever
       // the bob actually is, not a yaw/pitch pair guessed and checked.
-      ..setRotation(Quaternion.fromTwoVectors(Vector3(0.0, 1.0, 0.0), delta.normalized()))
+      ..setRotation(
+        Quaternion.fromTwoVectors(Vector3(0.0, 1.0, 0.0), delta.normalized()),
+      )
       ..setPositionFrom(pivot + delta.scaled(0.5));
   }
 
@@ -230,14 +248,19 @@ class _PendulumLabScreenState extends State<PendulumLabScreen>
     if (mounted) setState(() {});
   }
 
-  /// The same raycast `flutter3d_template_app`'s own `_tapWidgetSurface`
-  /// proved for `tpl-04` — a real tap, through [Raycaster], landing on the
+  /// `wg-01`'s own raycast — a real tap, through [Raycaster], landing on the
   /// panel exactly the way a player's would in a shipped level.
   bool _tapPanel(Offset local) {
     final size = context.size;
     if (size == null || size.width <= 0.0 || size.height <= 0.0) return false;
     final hit = _raycaster
-        .setFromScreen(_camera, local.dx, local.dy, width: size.width, height: size.height)
+        .setFromScreen(
+          _camera,
+          local.dx,
+          local.dy,
+          width: size.width,
+          height: size.height,
+        )
         .intersectScene(_scene);
     if (hit == null || hit.node != _panel.node) return false;
     final surfaceUv = _panel.uvAt(hit.point);
@@ -257,8 +280,14 @@ class _PendulumLabScreenState extends State<PendulumLabScreen>
 
     const pointer = 9001;
     _panel.pipeline.announcePointer(pointer, added: true);
-    _panel.pipeline.dispatchAtUv(uv, (local) => PointerDownEvent(pointer: pointer, position: local));
-    _panel.pipeline.dispatchAtUv(uv, (local) => PointerUpEvent(pointer: pointer, position: local));
+    _panel.pipeline.dispatchAtUv(
+      uv,
+      (local) => PointerDownEvent(pointer: pointer, position: local),
+    );
+    _panel.pipeline.dispatchAtUv(
+      uv,
+      (local) => PointerUpEvent(pointer: pointer, position: local),
+    );
     _panel.pipeline.announcePointer(pointer, added: false);
     return true;
   }
@@ -289,13 +318,15 @@ class _PendulumLabScreenState extends State<PendulumLabScreen>
     return Scaffold(
       backgroundColor: const Color(0xFF14161A),
       body: Listener(
-        onPointerDown: (PointerDownEvent event) => _tapPanel(event.localPosition),
+        onPointerDown: (PointerDownEvent event) =>
+            _tapPanel(event.localPosition),
         child: SceneSurface(
           renderer: renderer,
           scene: _scene,
           view: RenderView(camera: _camera),
           settings: () => const RenderSettings(),
           onBeforeFrame: () {},
+          presentFrame: presentFrame,
         ),
       ),
     );

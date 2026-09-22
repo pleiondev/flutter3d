@@ -72,6 +72,30 @@ const XTypeGroup _images = XTypeGroup(
   extensions: <String>['png', 'jpg', 'jpeg'],
 );
 
+/// The one format `ux-49`'s own panorama reader takes.
+const XTypeGroup _panoramas = XTypeGroup(
+  label: 'panoramas',
+  extensions: <String>['hdr'],
+);
+
+/// Asks for a Radiance `.hdr` to light the scene with — `ux-49`.
+///
+/// Its own picker rather than [openImage] with a wider filter: a PNG is a
+/// texture and a `.hdr` is a sky, and offering both in one dialog would put a
+/// file `SetPanorama` can only refuse in front of somebody looking for one it
+/// will take.
+Future<PickedFile?> openPanorama() async {
+  final file = await openFile(
+    acceptedTypeGroups: const <XTypeGroup>[_panoramas],
+  );
+  if (file == null) return null;
+  return PickedFile(
+    name: file.name,
+    bytes: await file.readAsBytes(),
+    path: file.path,
+  );
+}
+
 /// Asks for an image and reads it, for a material's texture slot.
 ///
 /// Null when the person dismissed the picker — `mat-04a-n`'s own "Choose…"

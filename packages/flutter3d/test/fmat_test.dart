@@ -244,6 +244,27 @@ void main() {
       );
     });
 
+    test('mat-04: a material\'s own lightingModel round-trips separately '
+        'from the file\'s own shader', () {
+      // `_steel` names no `lightingModel` of its own, only the file-level
+      // `lighting` — the two fields are read from different keys.
+      final steel = readFmat(_bytes(_steel));
+      expect(steel.surface.lightingModel, isNull);
+
+      final lit = readFmat(
+        _bytes('''
+        {"fmat": 1, "name": "cloth", "lightingModel": "Lambert",
+         "baseColor": [0.5, 0.5, 0.5, 1.0]}
+      '''),
+      );
+      expect(lit.surface.lightingModel, LightingModel.lambert);
+      expect(lit.lighting, isNull);
+
+      final again = readFmat(_bytes(writeFmat(lit)));
+      expect(again.surface.lightingModel, LightingModel.lambert);
+      expect(again.warnings, isEmpty);
+    });
+
     test('and that an unusual sampler is written long and a plain one short', () {
       // Not a formatting preference: a file an artist edits by hand should show,
       // in a diff, that only the path changed. Mutation: always write the object
@@ -252,6 +273,32 @@ void main() {
 
       expect(written, contains('"albedo": "steel.png"'));
       expect(written, contains('"clampToEdge"'));
+    });
+
+    test('and never writes a bare integer for a value the reader treats as '
+        'a double', () {
+      // Every number `writeFmat` writes past `fmat` itself is
+      // conceptually a double, and on the Dart VM `1.0 is int` is false,
+      // so a whole-number double like `metallic: 1.0` already prints
+      // with its decimal point here — this suite cannot reproduce the
+      // web build's own bug, where `1.0 is int` is true and the same
+      // value prints as a bare `1`. `ColorHint.channels` is a genuine
+      // `int` on every platform, though, so it is where a reverted fix
+      // shows up on the VM too.
+      //
+      // Mutation: drop the post-processing step that appends `.0` to a
+      // bare integer line — this fails on every platform, not only the
+      // web build the bug actually came from.
+      final document = readFmat(
+        _bytes(
+          '{"fmat": 1, "hints": {"tint": {"kind": "color", "channels": 3}}}',
+        ),
+      );
+      final written = writeFmat(document);
+
+      expect(written, contains('"channels": 3.0'));
+      expect(written, isNot(contains('"channels": 3,')));
+      expect(written, isNot(contains('"channels": 3\n')));
     });
   });
 
@@ -379,7 +426,7 @@ void main() {
         SurfaceAlphaMode.values.map((mode) => mode.name),
       );
       expect(
-        (builtInMaterialHints['lighting']!.kind as EnumHint).values.map(
+        (builtInMaterialHints['lightingModel']!.kind as EnumHint).values.map(
           (v) => v.value,
         ),
         LightingModel.builtIn.map((model) => model.shaderName),

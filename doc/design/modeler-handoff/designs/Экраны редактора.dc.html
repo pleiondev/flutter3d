@@ -1,0 +1,1740 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<meta name="design_doc_mode" content="canvas">
+<link rel="stylesheet" href="_ds/broadsheet-e153727d-0d22-4edf-874e-8d174b3fb206/styles.css">
+<script src="_ds/broadsheet-e153727d-0d22-4edf-874e-8d174b3fb206/_ds_bundle.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500&family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0&display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:var(--color-bg)}
+a{color:var(--color-accent-700)}a:hover{color:var(--color-accent-600)}
+.ms{font-family:'Material Symbols Outlined';font-weight:400;font-style:normal;line-height:1;letter-spacing:normal;text-transform:none;display:inline-block;white-space:nowrap;direction:ltr;-webkit-font-feature-settings:'liga';-webkit-font-smoothing:antialiased}
+.m3{font-family:Roboto,'Helvetica Neue',sans-serif;color:#e1e3e3;flex:0 0 auto}
+.screenrow{display:flex;gap:var(--space-8);align-items:flex-start;flex-wrap:nowrap}
+.screenrow>*{flex-shrink:0}
+</style>
+</helmet>
+
+<div style="padding:60px 64px 120px;max-width:1780px">
+
+  <div style="display:flex;justify-content:space-between;align-items:baseline;font-size:12px;letter-spacing:0.08em;text-transform:uppercase;color:var(--color-neutral-700);margin-bottom:var(--space-4)">
+    <span>Экраны редактора · фазы 1–4</span><span>Material 3, тёмная схема</span>
+  </div>
+  <h1 style="font-size:52px;line-height:1.05;margin:0 0 var(--space-3);max-width:16ch">Интерфейс: режимы под задачу</h1>
+  <p style="font-size:19px;line-height:1.55;max-width:56ch;color:var(--color-neutral-800);margin:0 0 var(--space-8)">Девятнадцать экранов: четыре — первая фаза, остальные — режимы и конвейер персонажа, которые приходят с фазами 2–4. Ещё восемь — вход в приложение, импорт, экспорт, сокеты, стек модификаторов, бюджеты и сеанс агента — лежат в отдельном файле «Экраны редактора — дополнение». Хрома инструмента — компактная плотность Material 3: строка 32 пикселя, один акцентный цвет, панели как тональные поверхности без обводок. Цвет принадлежит модели, интерфейс остаётся нейтральным.</p>
+
+  <!-- ЭКРАН 1 -->
+  <div class="screenrow" style="margin-bottom:var(--space-8)">
+    <div style="flex:0 0 240px">
+      <div style="font-size:12px;letter-spacing:0.08em;text-transform:uppercase;color:var(--color-accent-700);margin-bottom:6px">Экран 01</div>
+      <h2 style="font-size:24px;margin:0 0 var(--space-2)">Режим «Объект»</h2>
+      <p style="font-size:14px;line-height:1.6;color:var(--color-neutral-800);margin:0 0 var(--space-3)">Состояние по умолчанию. Слева — инструменты режима, справа — свойства выделенного объекта, снизу — сводка по мешу для проверки на пригодность к движку.</p>
+      <p style="font-size:13px;line-height:1.6;color:var(--color-neutral-700);margin:0">Переключатель режимов — единственный постоянный элемент верхней панели. Всё остальное меняется вместе с режимом.</p>
+      <p style="font-size:13px;line-height:1.6;color:var(--color-neutral-700);margin:var(--space-2) 0 0">Вторая строка чипов вьюпорта — точка опоры и пространство: они меняют смысл поворота и масштаба, поэтому стоят рядом с моделью, а не в панели. 3D-курсор ставится Shift + ПКМ и показывает координаты в той же строке.</p>
+    </div>
+    <div class="m3" style="width:1400px;height:860px;background:#0b0e0f;border-radius:12px;overflow:hidden;box-shadow:var(--shadow-lg);display:flex;flex-direction:column;font-size:13px">
+      <!-- top app bar -->
+      <div style="height:52px;flex:0 0 52px;background:#171a1b;display:flex;align-items:center;justify-content:space-between;padding:0 12px;gap:16px">
+        <div style="display:flex;align-items:center;gap:10px;min-width:280px">
+          <span class="ms" style="font-size:20px;color:#5fd4e4">deployed_code</span>
+          <span style="font-size:14px;font-weight:500">Персонаж_v3</span>
+          <span style="color:#899295;font-size:12px">сохранено</span>
+        </div>
+        <div style="display:flex;background:#1b1f20;border-radius:16px;padding:2px;gap:2px">
+          <div style="padding:6px 16px;border-radius:14px;background:#004f58;color:#a2eeff;font-size:13px;font-weight:500">Объект</div>
+          <div style="padding:6px 16px;border-radius:14px;color:#bfc8ca;font-size:13px">Меш</div>
+          <div style="padding:6px 16px;border-radius:14px;color:#bfc8ca;font-size:13px">Материал</div>
+          <div style="padding:6px 16px;border-radius:14px;color:#bfc8ca;font-size:13px">Анимация</div>
+          <div style="padding:6px 16px;border-radius:14px;color:#bfc8ca;font-size:13px">Сцена</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:4px;min-width:280px;justify-content:flex-end">
+          <span class="ms" style="font-size:20px;color:#bfc8ca;padding:8px">undo</span>
+          <span class="ms" style="font-size:20px;color:#3f484a;padding:8px">redo</span>
+          <div style="width:1px;height:20px;background:#3f484a;margin:0 6px"></div>
+          <div style="display:flex;align-items:center;gap:6px;background:#004f58;color:#a2eeff;padding:8px 16px;border-radius:16px;font-size:13px;font-weight:500"><span class="ms" style="font-size:18px">ios_share</span>Экспорт</div>
+        </div>
+      </div>
+      <div style="flex:1;display:flex;min-height:0">
+        <!-- tool rail -->
+        <div style="width:52px;flex:0 0 52px;background:#131617;display:flex;flex-direction:column;align-items:center;padding:8px 0;gap:2px">
+          <div style="width:40px;height:36px;border-radius:10px;background:#004f58;display:flex;align-items:center;justify-content:center"><span class="ms" style="font-size:20px;color:#a2eeff">near_me</span></div>
+          <div style="width:40px;height:36px;display:flex;align-items:center;justify-content:center"><span class="ms" style="font-size:20px;color:#bfc8ca">open_with</span></div>
+          <div style="width:40px;height:36px;display:flex;align-items:center;justify-content:center"><span class="ms" style="font-size:20px;color:#bfc8ca">rotate_right</span></div>
+          <div style="width:40px;height:36px;display:flex;align-items:center;justify-content:center"><span class="ms" style="font-size:20px;color:#bfc8ca">zoom_out_map</span></div>
+          <div style="width:24px;height:1px;background:#3f484a;margin:8px 0"></div>
+          <div style="width:40px;height:36px;display:flex;align-items:center;justify-content:center"><span class="ms" style="font-size:20px;color:#bfc8ca">category</span></div>
+          <div style="width:40px;height:36px;display:flex;align-items:center;justify-content:center"><span class="ms" style="font-size:20px;color:#bfc8ca">360</span></div>
+          <div style="width:40px;height:36px;display:flex;align-items:center;justify-content:center"><span class="ms" style="font-size:20px;color:#bfc8ca">join_left</span></div>
+        </div>
+        <!-- viewport -->
+        <div style="flex:1;position:relative;background:radial-gradient(120% 100% at 50% 0%, #1a1e1f 0%, #0e1112 70%);overflow:hidden">
+          <div style="position:absolute;inset:auto 0 -10% 0;height:80%;background-image:linear-gradient(#2a3234 1px,transparent 1px),linear-gradient(90deg,#2a3234 1px,transparent 1px);background-size:48px 48px;transform:perspective(520px) rotateX(66deg);transform-origin:bottom center;opacity:0.55"></div>
+          <svg viewBox="0 0 320 300" style="position:absolute;left:50%;top:46%;width:360px;transform:translate(-50%,-50%)">
+            <polygon points="160,40 280,105 160,170 40,105" fill="#6f7d80"></polygon>
+            <polygon points="40,105 160,170 160,260 40,195" fill="#4a5658"></polygon>
+            <polygon points="280,105 160,170 160,260 280,195" fill="#5c696c"></polygon>
+            <polygon points="160,40 280,105 160,170 40,105" fill="none" stroke="#5fd4e4" stroke-width="2"></polygon>
+            <polygon points="40,105 160,170 160,260 40,195" fill="none" stroke="#5fd4e4" stroke-width="2"></polygon>
+            <polygon points="280,105 160,170 160,260 280,195" fill="none" stroke="#5fd4e4" stroke-width="2"></polygon>
+          </svg>
+          <div style="position:absolute;left:50%;top:46%;transform:translate(-50%,-50%);width:200px;height:200px;pointer-events:none">
+            <div style="position:absolute;left:50%;top:50%;width:90px;height:2px;background:#ff6b8a"></div>
+            <div style="position:absolute;left:50%;top:50%;width:2px;height:90px;background:#7ee081;transform:translateY(-90px)"></div>
+            <div style="position:absolute;left:50%;top:50%;width:2px;height:70px;background:#6aa8ff;transform:rotate(-140deg);transform-origin:top"></div>
+          </div>
+          <div style="position:absolute;left:34%;top:64%;width:40px;height:40px;transform:translate(-50%,-50%)">
+            <div style="position:absolute;left:50%;top:50%;width:20px;height:20px;border-radius:50%;border:2px solid #ff458e;transform:translate(-50%,-50%)"></div>
+            <div style="position:absolute;left:50%;top:50%;width:40px;height:1px;background:#ff458e;transform:translate(-50%,-50%)"></div>
+            <div style="position:absolute;left:50%;top:50%;width:1px;height:40px;background:#ff458e;transform:translate(-50%,-50%)"></div>
+          </div>
+          <div style="position:absolute;top:12px;left:12px;display:flex;flex-direction:column;gap:6px;align-items:flex-start">
+            <div style="display:flex;gap:6px">
+              <div style="background:#1b1f20;border-radius:8px;padding:6px 12px;color:#bfc8ca;font-size:12px">Перспектива</div>
+              <div style="background:#1b1f20;border-radius:8px;padding:6px 12px;color:#bfc8ca;font-size:12px">Материал</div>
+            </div>
+            <div style="display:flex;gap:6px;align-items:center">
+              <div style="display:flex;background:#1b1f20;border-radius:16px;padding:2px;gap:2px">
+                <div style="padding:5px 10px;border-radius:14px;background:#004f58;color:#a2eeff;font-size:12px;display:flex;align-items:center;gap:5px"><span class="ms" style="font-size:16px">adjust</span>Медиана</div>
+                <div style="padding:5px 10px;border-radius:14px;color:#bfc8ca;font-size:12px">Себя</div>
+                <div style="padding:5px 10px;border-radius:14px;color:#bfc8ca;font-size:12px">Курсор</div>
+              </div>
+              <div style="display:flex;background:#1b1f20;border-radius:16px;padding:2px;gap:2px">
+                <div style="padding:5px 10px;border-radius:14px;background:#004f58;color:#a2eeff;font-size:12px">Глобальное</div>
+                <div style="padding:5px 10px;border-radius:14px;color:#bfc8ca;font-size:12px">Локальное</div>
+              </div>
+              <div style="background:#1b1f20;border-radius:8px;padding:6px 10px;color:#bfc8ca;font-size:12px;display:flex;align-items:center;gap:6px"><span style="width:10px;height:10px;border-radius:50%;border:2px solid #ff458e"></span>Курсор 0,40 · 0,00 · 1,15</div>
+            </div>
+          </div>
+          <div style="position:absolute;top:12px;right:12px;width:60px;height:60px;border-radius:50%;background:#1b1f20;display:flex;align-items:center;justify-content:center;color:#899295;font-size:11px">гизмо</div>
+        </div>
+        <!-- properties -->
+        <div style="width:272px;flex:0 0 272px;background:#171a1b;padding:14px 16px;display:flex;flex-direction:column;gap:18px;overflow:hidden">
+          <div>
+            <div style="font-size:11px;letter-spacing:0.08em;text-transform:uppercase;color:#899295;margin-bottom:10px">Объекты сцены</div>
+            <div style="display:flex;flex-direction:column;gap:2px">
+              <div style="display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:8px;background:#262a2b"><span class="ms" style="font-size:16px;color:#5fd4e4">deployed_code</span><span>Корпус</span></div>
+              <div style="display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:8px;color:#bfc8ca"><span class="ms" style="font-size:16px">deployed_code</span><span>Крышка</span></div>
+              <div style="display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:8px;color:#bfc8ca"><span class="ms" style="font-size:16px">light_mode</span><span>Свет</span></div>
+              <div style="display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:8px;color:#bfc8ca"><span class="ms" style="font-size:16px">photo_camera</span><span>Камера</span></div>
+            </div>
+          </div>
+          <div>
+            <div style="font-size:11px;letter-spacing:0.08em;text-transform:uppercase;color:#899295;margin-bottom:10px">Трансформация</div>
+            <div style="display:grid;grid-template-columns:16px 1fr 1fr 1fr;gap:6px;align-items:center;font-size:12px">
+              <span style="color:#899295">П</span>
+              <div style="background:#1b1f20;border-radius:6px;padding:6px 8px">0,00</div><div style="background:#1b1f20;border-radius:6px;padding:6px 8px">1,20</div><div style="background:#1b1f20;border-radius:6px;padding:6px 8px">0,00</div>
+              <span style="color:#899295">В</span>
+              <div style="background:#1b1f20;border-radius:6px;padding:6px 8px">0°</div><div style="background:#1b1f20;border-radius:6px;padding:6px 8px">45°</div><div style="background:#1b1f20;border-radius:6px;padding:6px 8px">0°</div>
+              <span style="color:#899295">М</span>
+              <div style="background:#1b1f20;border-radius:6px;padding:6px 8px">1,00</div><div style="background:#1b1f20;border-radius:6px;padding:6px 8px">1,00</div><div style="background:#1b1f20;border-radius:6px;padding:6px 8px">1,00</div>
+            </div>
+          </div>
+          <div>
+            <div style="font-size:11px;letter-spacing:0.08em;text-transform:uppercase;color:#899295;margin-bottom:10px">Модификаторы</div>
+            <div style="display:flex;align-items:center;justify-content:space-between;background:#1b1f20;border-radius:8px;padding:8px 10px;margin-bottom:6px"><span>Зеркало · X</span><span class="ms" style="font-size:16px;color:#899295">visibility</span></div>
+            <div style="display:flex;align-items:center;gap:6px;color:#5fd4e4;padding:6px 2px"><span class="ms" style="font-size:16px">add</span><span>Добавить</span></div>
+          </div>
+        </div>
+      </div>
+      <!-- status -->
+      <div style="height:30px;flex:0 0 30px;background:#131617;display:flex;align-items:center;justify-content:space-between;padding:0 14px;font-size:11px;color:#899295">
+        <span>Треугольников 4 812 · вершин 2 410 · материалов 2 · плотность 9,8 текс/см · текстуры 6,4 / 64 МБ</span>
+        <span style="color:#7ee081">Готово к экспорту в GLB</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ЭКРАН 2 -->
+  <div class="screenrow" style="margin-bottom:var(--space-8)">
+    <div style="flex:0 0 240px">
+      <div style="font-size:12px;letter-spacing:0.08em;text-transform:uppercase;color:var(--color-accent-700);margin-bottom:6px">Экран 02</div>
+      <h2 style="font-size:24px;margin:0 0 var(--space-2)">Режим «Меш»</h2>
+      <p style="font-size:14px;line-height:1.6;color:var(--color-neutral-800);margin:0 0 var(--space-3)">Панель свойств заменяется параметрами текущей операции. Правка числом доступна сразу после действия мышью — это то, чего новичкам не хватает в Blender.</p>
+      <p style="font-size:13px;line-height:1.6;color:var(--color-neutral-700);margin:0">Уровень выделения — вершины, рёбра, грани — стоит рядом с переключателем режимов, а не отдельной клавишей.</p>
+      <p style="font-size:13px;line-height:1.6;color:var(--color-neutral-700);margin:var(--space-2) 0 0">Внизу вьюпорта — модальная трансформация: <code>G</code>, <code>R</code>, <code>S</code>, ограничение осью, ввод значения цифрами. Плашка живёт только во время операции и по завершении превращается в карточку параметров справа.</p>
+      <p style="font-size:13px;line-height:1.6;color:var(--color-neutral-700);margin:var(--space-2) 0 0">Диагностика в панели свойств — не только диагноз: рядом с каждым числом стоит починка, и она идёт командой, как любое другое действие.</p>
+    </div>
+    <div class="m3" style="width:1400px;height:860px;background:#0b0e0f;border-radius:12px;overflow:hidden;box-shadow:var(--shadow-lg);display:flex;flex-direction:column;font-size:13px">
+      <div style="height:52px;flex:0 0 52px;background:#171a1b;display:flex;align-items:center;justify-content:space-between;padding:0 12px;gap:16px">
+        <div style="display:flex;align-items:center;gap:10px;min-width:280px">
+          <span class="ms" style="font-size:20px;color:#5fd4e4">deployed_code</span>
+          <span style="font-size:14px;font-weight:500">Персонаж_v3</span>
+          <span style="color:#899295;font-size:12px">Корпус</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:12px">
+          <div style="display:flex;background:#1b1f20;border-radius:16px;padding:2px;gap:2px">
+            <div style="padding:6px 16px;border-radius:14px;color:#bfc8ca;font-size:13px">Объект</div>
+            <div style="padding:6px 16px;border-radius:14px;background:#004f58;color:#a2eeff;font-size:13px;font-weight:500">Меш</div>
+            <div style="padding:6px 16px;border-radius:14px;color:#bfc8ca;font-size:13px">Материал</div>
+            <div style="padding:6px 16px;border-radius:14px;color:#bfc8ca;font-size:13px">Анимация</div>
+            <div style="padding:6px 16px;border-radius:14px;color:#bfc8ca;font-size:13px">Сцена</div>
+          </div>
+          <div style="display:flex;background:#1b1f20;border-radius:16px;padding:2px;gap:2px">
+            <div style="padding:6px 12px;border-radius:14px;color:#bfc8ca"><span class="ms" style="font-size:18px">scatter_plot</span></div>
+            <div style="padding:6px 12px;border-radius:14px;background:#004f58;color:#a2eeff"><span class="ms" style="font-size:18px">timeline</span></div>
+            <div style="padding:6px 12px;border-radius:14px;color:#bfc8ca"><span class="ms" style="font-size:18px">pentagon</span></div>
+          </div>
+        </div>
+        <div style="display:flex;align-items:center;gap:4px;min-width:280px;justify-content:flex-end">
+          <span class="ms" style="font-size:20px;color:#bfc8ca;padding:8px">undo</span>
+          <span class="ms" style="font-size:20px;color:#bfc8ca;padding:8px">redo</span>
+          <div style="width:1px;height:20px;background:#3f484a;margin:0 6px"></div>
+          <div style="display:flex;align-items:center;gap:6px;background:#004f58;color:#a2eeff;padding:8px 16px;border-radius:16px;font-size:13px;font-weight:500"><span class="ms" style="font-size:18px">ios_share</span>Экспорт</div>
+        </div>
+      </div>
+      <div style="flex:1;display:flex;min-height:0">
+        <div style="width:52px;flex:0 0 52px;background:#131617;display:flex;flex-direction:column;align-items:center;padding:8px 0;gap:2px">
+          <div style="width:40px;height:36px;border-radius:10px;background:#004f58;display:flex;align-items:center;justify-content:center"><span class="ms" style="font-size:20px;color:#a2eeff">arrow_outward</span></div>
+          <div style="width:40px;height:36px;display:flex;align-items:center;justify-content:center"><span class="ms" style="font-size:20px;color:#bfc8ca">content_cut</span></div>
+          <div style="width:40px;height:36px;display:flex;align-items:center;justify-content:center"><span class="ms" style="font-size:20px;color:#bfc8ca">rounded_corner</span></div>
+          <div style="width:40px;height:36px;display:flex;align-items:center;justify-content:center"><span class="ms" style="font-size:20px;color:#bfc8ca">merge</span></div>
+          <div style="width:24px;height:1px;background:#3f484a;margin:8px 0"></div>
+          <div style="width:40px;height:36px;display:flex;align-items:center;justify-content:center"><span class="ms" style="font-size:20px;color:#bfc8ca">flip</span></div>
+          <div style="width:40px;height:36px;display:flex;align-items:center;justify-content:center"><span class="ms" style="font-size:20px;color:#bfc8ca">blur_on</span></div>
+        </div>
+        <div style="flex:1;position:relative;background:radial-gradient(120% 100% at 50% 0%, #1a1e1f 0%, #0e1112 70%);overflow:hidden">
+          <div style="position:absolute;inset:auto 0 -10% 0;height:80%;background-image:linear-gradient(#2a3234 1px,transparent 1px),linear-gradient(90deg,#2a3234 1px,transparent 1px);background-size:48px 48px;transform:perspective(520px) rotateX(66deg);transform-origin:bottom center;opacity:0.4"></div>
+          <svg viewBox="0 0 320 300" style="position:absolute;left:50%;top:46%;width:400px;transform:translate(-50%,-50%)">
+            <polygon points="160,40 280,105 160,170 40,105" fill="#394446" stroke="#5a6668" stroke-width="1"></polygon>
+            <polygon points="40,105 160,170 160,260 40,195" fill="#2c3537" stroke="#5a6668" stroke-width="1"></polygon>
+            <polygon points="280,105 160,170 160,260 280,195" fill="#333d3f" stroke="#5a6668" stroke-width="1"></polygon>
+            <line x1="160" y1="40" x2="160" y2="170" stroke="#5a6668" stroke-width="1"></line>
+            <line x1="40" y1="105" x2="280" y2="105" stroke="#5a6668" stroke-width="1"></line>
+            <line x1="160" y1="170" x2="160" y2="260" stroke="#5a6668" stroke-width="1"></line>
+            <polygon points="160,40 280,105 160,170" fill="#004f58" fill-opacity="0.55" stroke="#5fd4e4" stroke-width="2.5"></polygon>
+            <circle cx="160" cy="40" r="4.5" fill="#5fd4e4"></circle>
+            <circle cx="280" cy="105" r="4.5" fill="#5fd4e4"></circle>
+            <circle cx="160" cy="170" r="4.5" fill="#5fd4e4"></circle>
+          </svg>
+          <div style="position:absolute;left:50%;top:46%;width:760px;height:2px;background:linear-gradient(90deg,rgba(255,107,138,0) 0%,#ff6b8a 18%,#ff6b8a 82%,rgba(255,107,138,0) 100%);transform:translate(-50%,-50%)"></div>
+          <div style="position:absolute;top:12px;left:12px;display:flex;flex-direction:column;gap:6px;align-items:flex-start">
+            <div style="background:#1b1f20;border-radius:8px;padding:6px 12px;color:#bfc8ca;font-size:12px">Выделено граней: 1</div>
+            <div style="display:flex;gap:6px;align-items:center">
+              <div style="display:flex;background:#1b1f20;border-radius:16px;padding:2px;gap:2px">
+                <div style="padding:5px 10px;border-radius:14px;background:#004f58;color:#a2eeff;font-size:12px;display:flex;align-items:center;gap:5px"><span class="ms" style="font-size:16px">adjust</span>Медиана</div>
+                <div style="padding:5px 10px;border-radius:14px;color:#bfc8ca;font-size:12px">Себя</div>
+                <div style="padding:5px 10px;border-radius:14px;color:#bfc8ca;font-size:12px">Курсор</div>
+              </div>
+              <div style="display:flex;background:#1b1f20;border-radius:16px;padding:2px;gap:2px">
+                <div style="padding:5px 10px;border-radius:14px;color:#bfc8ca;font-size:12px">Глобальное</div>
+                <div style="padding:5px 10px;border-radius:14px;background:#004f58;color:#a2eeff;font-size:12px">Локальное</div>
+              </div>
+            </div>
+          </div>
+          <div style="position:absolute;top:12px;right:12px;display:flex;gap:6px;align-items:center">
+            <div style="background:#1b1f20;border-radius:8px;padding:6px 12px;color:#a2eeff;font-size:12px;display:flex;align-items:center;gap:6px"><span class="ms" style="font-size:16px">grid_goldenratio</span>Привязка · вершина</div>
+            <div style="background:#1b1f20;border-radius:8px;padding:6px 12px;color:#bfc8ca;font-size:12px">Шаг 0,10</div>
+          </div>
+          <div style="position:absolute;left:50%;bottom:18px;transform:translateX(-50%);display:flex;flex-direction:column;align-items:center;gap:8px">
+            <div style="display:flex;align-items:center;gap:12px;background:#1b1f20;border-radius:16px;padding:10px 16px;box-shadow:0 4px 16px rgba(0,0,0,0.4)">
+              <span style="display:flex;align-items:center;gap:6px;font-size:13px;font-weight:500"><span class="ms" style="font-size:18px;color:#5fd4e4">open_with</span>Перемещение</span>
+              <span style="width:1px;height:18px;background:#3f484a"></span>
+              <span style="color:#ff6b8a;font-size:13px;font-weight:500">ось X</span>
+              <span style="background:#262a2b;border-radius:6px;padding:6px 10px;font-size:12px;min-width:74px;text-align:right">0,42<span style="color:#5fd4e4">|</span></span>
+              <span style="color:#899295;font-size:12px">м</span>
+            </div>
+            <div style="display:flex;gap:6px;font-size:11px;color:#899295">
+              <span style="background:rgba(11,14,15,0.72);border-radius:6px;padding:3px 8px">цифры — ввести значение</span>
+              <span style="background:rgba(11,14,15,0.72);border-radius:6px;padding:3px 8px">Shift — точнее</span>
+              <span style="background:rgba(11,14,15,0.72);border-radius:6px;padding:3px 8px">Ctrl — привязка</span>
+              <span style="background:rgba(11,14,15,0.72);border-radius:6px;padding:3px 8px">Esc — отменить</span>
+            </div>
+          </div>
+        </div>
+        <div style="width:272px;flex:0 0 272px;background:#171a1b;padding:14px 16px;display:flex;flex-direction:column;gap:18px">
+          <div style="background:#1b1f20;border-radius:12px;padding:14px">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px"><span style="font-size:14px;font-weight:500">Экструзия</span><span class="ms" style="font-size:18px;color:#899295">close</span></div>
+            <div style="font-size:11px;color:#899295;margin-bottom:6px">Смещение</div>
+            <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px">
+              <div style="flex:1;height:4px;background:#3f484a;border-radius:2px;position:relative"><div style="position:absolute;left:0;top:0;bottom:0;width:62%;background:#5fd4e4;border-radius:2px"></div><div style="position:absolute;left:62%;top:-6px;width:16px;height:16px;border-radius:50%;background:#5fd4e4"></div></div>
+              <div style="background:#262a2b;border-radius:6px;padding:6px 10px;font-size:12px;min-width:56px;text-align:right">0,62</div>
+            </div>
+            <div style="display:flex;align-items:center;gap:8px;font-size:12px;color:#bfc8ca;margin-bottom:8px"><span class="ms" style="font-size:16px;color:#5fd4e4">check_box</span>По нормали</div>
+            <div style="display:flex;align-items:center;gap:8px;font-size:12px;color:#bfc8ca"><span class="ms" style="font-size:16px;color:#899295">check_box_outline_blank</span>Сохранить исходную грань</div>
+          </div>
+          <div>
+            <div style="font-size:11px;letter-spacing:0.08em;text-transform:uppercase;color:#899295;margin-bottom:10px">Выделение</div>
+            <div style="display:flex;flex-direction:column;gap:6px;font-size:12px;color:#bfc8ca">
+              <div style="display:flex;justify-content:space-between"><span>Граней</span><span>1 из 1 204</span></div>
+              <div style="display:flex;justify-content:space-between"><span>Периметр</span><span>3,41</span></div>
+              <div style="display:flex;justify-content:space-between"><span>Площадь</span><span>0,88</span></div>
+            </div>
+          </div>
+          <div>
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+              <span style="font-size:11px;letter-spacing:0.08em;text-transform:uppercase;color:#899295">Диагностика меша</span>
+              <span style="font-size:12px;color:#5fd4e4">Проверить</span>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:4px;font-size:12px">
+              <div style="display:flex;align-items:center;gap:8px;background:#3a2118;border-radius:8px;padding:8px 10px;color:#ffd9b0"><span class="ms" style="font-size:16px;color:#ffb86b">warning</span><span style="flex:1">n-гоны</span><span>2</span><span class="ms" style="font-size:16px;color:#ffb86b">arrow_forward</span></div>
+              <div style="display:flex;align-items:center;gap:8px;background:#3a2118;border-radius:8px;padding:8px 10px;color:#ffd9b0"><span class="ms" style="font-size:16px;color:#ffb86b">warning</span><span style="flex:1">Открытые границы</span><span>1</span><span class="ms" style="font-size:16px;color:#ffb86b">arrow_forward</span></div>
+              <div style="display:flex;align-items:center;gap:8px;background:#1b1f20;border-radius:8px;padding:8px 10px;color:#bfc8ca"><span class="ms" style="font-size:16px;color:#7ee081">check_circle</span><span style="flex:1">Неманифолдные рёбра</span><span>0</span></div>
+              <div style="display:flex;align-items:center;gap:8px;background:#1b1f20;border-radius:8px;padding:8px 10px;color:#bfc8ca"><span class="ms" style="font-size:16px;color:#7ee081">check_circle</span><span style="flex:1">Вырожденные грани</span><span>0</span></div>
+            </div>
+            <div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:10px">
+              <div style="padding:7px 14px;border-radius:16px;background:#004f58;color:#a2eeff;font-size:12px;font-weight:500">Заполнить отверстия</div>
+              <div style="padding:7px 14px;border-radius:16px;background:#1b1f20;color:#bfc8ca;font-size:12px">Триангулировать n-гоны</div>
+              <div style="padding:7px 14px;border-radius:16px;background:#1b1f20;color:#bfc8ca;font-size:12px">Согласовать нормали</div>
+              <div style="padding:7px 14px;border-radius:16px;background:#1b1f20;color:#bfc8ca;font-size:12px">Расщепить неманифолдные</div>
+            </div>
+            <div style="font-size:11px;color:#899295;margin-top:8px;line-height:1.6">Починка идёт командой и попадает в историю — отменяется как обычный шаг.</div>
+          </div>
+        </div>
+      </div>
+      <div style="height:30px;flex:0 0 30px;background:#131617;display:flex;align-items:center;justify-content:space-between;padding:0 14px;font-size:11px;color:#899295">
+        <span>Меш «Корпус» · треугольников 4 812 · граней 1 204 · привязка: вершина · плотность 9,8 текс/см</span>
+        <span style="color:#ffb86b">2 n-гона — проверьте перед экспортом</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ЭКРАН 3 и 4 -->
+  <div class="screenrow">
+    <div style="flex:0 0 240px">
+      <div style="font-size:12px;letter-spacing:0.08em;text-transform:uppercase;color:var(--color-accent-700);margin-bottom:6px">Экраны 03 и 04</div>
+      <h2 style="font-size:24px;margin:0 0 var(--space-2)">Планшет и телефон</h2>
+      <p style="font-size:14px;line-height:1.6;color:var(--color-neutral-800);margin:0 0 var(--space-3)">Тот же состав инструментов в другой раскладке. На планшете боковые панели становятся плавающей палитрой и выдвижным листом, чтобы освободить место под перо.</p>
+      <p style="font-size:13px;line-height:1.6;color:var(--color-neutral-700);margin:0">Телефон — режим просмотра и мелкой правки: навигационная панель Material 3 вместо переключателя режимов, лист свойств поверх вьюпорта.</p>
+    </div>
+    <div class="screenrow" style="gap:var(--space-6)">
+      <!-- планшет -->
+      <div class="m3" style="width:1000px;height:750px;background:#0b0e0f;border-radius:16px;overflow:hidden;box-shadow:var(--shadow-lg);position:relative;font-size:13px">
+        <div style="position:absolute;inset:0;background:radial-gradient(120% 100% at 50% 0%, #1a1e1f 0%, #0e1112 70%)"></div>
+        <div style="position:absolute;inset:auto 0 -6% 0;height:70%;background-image:linear-gradient(#2a3234 1px,transparent 1px),linear-gradient(90deg,#2a3234 1px,transparent 1px);background-size:56px 56px;transform:perspective(520px) rotateX(66deg);transform-origin:bottom center;opacity:0.45"></div>
+        <svg viewBox="0 0 320 300" style="position:absolute;left:44%;top:42%;width:340px;transform:translate(-50%,-50%)">
+          <polygon points="160,40 280,105 160,170 40,105" fill="#6f7d80"></polygon>
+          <polygon points="40,105 160,170 160,260 40,195" fill="#4a5658"></polygon>
+          <polygon points="280,105 160,170 160,260 280,195" fill="#5c696c"></polygon>
+        </svg>
+        <!-- floating tool palette -->
+        <div style="position:absolute;left:16px;top:50%;transform:translateY(-50%);background:#1b1f20;border-radius:24px;padding:8px;display:flex;flex-direction:column;gap:4px;box-shadow:0 4px 16px rgba(0,0,0,0.4)">
+          <div style="width:48px;height:48px;border-radius:16px;background:#004f58;display:flex;align-items:center;justify-content:center"><span class="ms" style="font-size:22px;color:#a2eeff">near_me</span></div>
+          <div style="width:48px;height:48px;display:flex;align-items:center;justify-content:center"><span class="ms" style="font-size:22px;color:#bfc8ca">open_with</span></div>
+          <div style="width:48px;height:48px;display:flex;align-items:center;justify-content:center"><span class="ms" style="font-size:22px;color:#bfc8ca">rotate_right</span></div>
+          <div style="width:48px;height:48px;display:flex;align-items:center;justify-content:center"><span class="ms" style="font-size:22px;color:#bfc8ca">category</span></div>
+          <div style="width:48px;height:48px;display:flex;align-items:center;justify-content:center"><span class="ms" style="font-size:22px;color:#bfc8ca">360</span></div>
+        </div>
+        <div style="position:absolute;top:16px;left:50%;transform:translateX(-50%);display:flex;background:#1b1f20;border-radius:18px;padding:3px;gap:2px">
+          <div style="padding:8px 18px;border-radius:16px;background:#004f58;color:#a2eeff;font-weight:500">Объект</div>
+          <div style="padding:8px 18px;border-radius:16px;color:#bfc8ca">Меш</div>
+          <div style="padding:8px 18px;border-radius:16px;color:#bfc8ca">Материал</div>
+          <div style="padding:8px 18px;border-radius:16px;color:#bfc8ca">Сцена</div>
+        </div>
+        <div style="position:absolute;top:16px;right:16px;display:flex;gap:8px">
+          <div style="width:44px;height:44px;border-radius:14px;background:#1b1f20;display:flex;align-items:center;justify-content:center"><span class="ms" style="font-size:20px;color:#bfc8ca">undo</span></div>
+          <div style="width:44px;height:44px;border-radius:14px;background:#1b1f20;display:flex;align-items:center;justify-content:center"><span class="ms" style="font-size:20px;color:#bfc8ca">ios_share</span></div>
+        </div>
+        <!-- bottom sheet -->
+        <div style="position:absolute;left:0;right:0;bottom:0;height:200px;background:#171a1b;border-radius:24px 24px 0 0;padding:10px 24px 0">
+          <div style="width:32px;height:4px;border-radius:2px;background:#3f484a;margin:0 auto 14px"></div>
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px"><span style="font-size:15px;font-weight:500">Корпус</span><span style="font-size:12px;color:#899295">треугольников 4 812</span></div>
+          <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px">
+            <div>
+              <div style="font-size:11px;color:#899295;margin-bottom:6px">Положение</div>
+              <div style="display:flex;gap:6px"><div style="flex:1;background:#1b1f20;border-radius:8px;padding:10px;font-size:12px">0,00</div><div style="flex:1;background:#1b1f20;border-radius:8px;padding:10px;font-size:12px">1,20</div><div style="flex:1;background:#1b1f20;border-radius:8px;padding:10px;font-size:12px">0,00</div></div>
+            </div>
+            <div>
+              <div style="font-size:11px;color:#899295;margin-bottom:6px">Поворот</div>
+              <div style="display:flex;gap:6px"><div style="flex:1;background:#1b1f20;border-radius:8px;padding:10px;font-size:12px">0°</div><div style="flex:1;background:#1b1f20;border-radius:8px;padding:10px;font-size:12px">45°</div><div style="flex:1;background:#1b1f20;border-radius:8px;padding:10px;font-size:12px">0°</div></div>
+            </div>
+            <div>
+              <div style="font-size:11px;color:#899295;margin-bottom:6px">Модификаторы</div>
+              <div style="background:#1b1f20;border-radius:8px;padding:10px;font-size:12px;display:flex;justify-content:space-between"><span>Зеркало · X</span><span class="ms" style="font-size:16px;color:#899295">visibility</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <!-- телефон -->
+      <div class="m3" style="width:380px;height:750px;background:#0b0e0f;border-radius:28px;overflow:hidden;box-shadow:var(--shadow-lg);position:relative;font-size:13px">
+        <div style="position:absolute;inset:0;background:radial-gradient(120% 100% at 50% 0%, #1a1e1f 0%, #0e1112 70%)"></div>
+        <div style="position:absolute;inset:auto 0 22% 0;height:50%;background-image:linear-gradient(#2a3234 1px,transparent 1px),linear-gradient(90deg,#2a3234 1px,transparent 1px);background-size:44px 44px;transform:perspective(420px) rotateX(66deg);transform-origin:bottom center;opacity:0.4"></div>
+        <div style="position:absolute;top:0;left:0;right:0;height:40px;display:flex;align-items:center;justify-content:space-between;padding:0 20px;font-size:12px;color:#bfc8ca"><span>9:41</span><span class="ms" style="font-size:16px">battery_full</span></div>
+        <div style="position:absolute;top:44px;left:12px;right:12px;display:flex;align-items:center;justify-content:space-between">
+          <span class="ms" style="font-size:22px;color:#bfc8ca;padding:8px">arrow_back</span>
+          <span style="font-size:14px;font-weight:500">Персонаж_v3</span>
+          <span class="ms" style="font-size:22px;color:#bfc8ca;padding:8px">more_vert</span>
+        </div>
+        <svg viewBox="0 0 320 300" style="position:absolute;left:50%;top:38%;width:250px;transform:translate(-50%,-50%)">
+          <polygon points="160,40 280,105 160,170 40,105" fill="#6f7d80"></polygon>
+          <polygon points="40,105 160,170 160,260 40,195" fill="#4a5658"></polygon>
+          <polygon points="280,105 160,170 160,260 280,195" fill="#5c696c"></polygon>
+          <polygon points="160,40 280,105 160,170 40,105" fill="none" stroke="#5fd4e4" stroke-width="3"></polygon>
+        </svg>
+        <div style="position:absolute;right:14px;bottom:220px;width:56px;height:56px;border-radius:18px;background:#004f58;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 12px rgba(0,0,0,0.5)"><span class="ms" style="font-size:24px;color:#a2eeff">add</span></div>
+        <div style="position:absolute;left:0;right:0;bottom:80px;height:130px;background:#171a1b;border-radius:24px 24px 0 0;padding:10px 20px 0">
+          <div style="width:32px;height:4px;border-radius:2px;background:#3f484a;margin:0 auto 12px"></div>
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px"><span style="font-size:14px;font-weight:500">Корпус</span><span style="font-size:11px;color:#899295">4 812 тр.</span></div>
+          <div style="display:flex;gap:6px"><div style="flex:1;background:#1b1f20;border-radius:8px;padding:10px;font-size:12px">0,00</div><div style="flex:1;background:#1b1f20;border-radius:8px;padding:10px;font-size:12px">1,20</div><div style="flex:1;background:#1b1f20;border-radius:8px;padding:10px;font-size:12px">0,00</div></div>
+        </div>
+        <div style="position:absolute;left:0;right:0;bottom:0;height:80px;background:#171a1b;display:flex;align-items:flex-start;justify-content:space-around;padding-top:10px">
+          <div style="display:flex;flex-direction:column;align-items:center;gap:4px"><div style="padding:4px 18px;border-radius:12px;background:#004f58"><span class="ms" style="font-size:20px;color:#a2eeff">deployed_code</span></div><span style="font-size:11px;color:#e1e3e3">Объект</span></div>
+          <div style="display:flex;flex-direction:column;align-items:center;gap:4px"><div style="padding:4px 18px"><span class="ms" style="font-size:20px;color:#bfc8ca">scatter_plot</span></div><span style="font-size:11px;color:#bfc8ca">Меш</span></div>
+          <div style="display:flex;flex-direction:column;align-items:center;gap:4px"><div style="padding:4px 18px"><span class="ms" style="font-size:20px;color:#bfc8ca">palette</span></div><span style="font-size:11px;color:#bfc8ca">Материал</span></div>
+          <div style="display:flex;flex-direction:column;align-items:center;gap:4px"><div style="padding:4px 18px"><span class="ms" style="font-size:20px;color:#bfc8ca">layers</span></div><span style="font-size:11px;color:#bfc8ca">Сцена</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div style="margin:var(--space-8) 0 var(--space-6);max-width:56ch">
+    <h2 style="font-size:32px;margin:0 0 var(--space-2)">Профессиональные режимы</h2>
+    <p style="font-size:16px;line-height:1.6;color:var(--color-neutral-800);margin:0">Фазы 2–4. Каждый режим живёт в той же оболочке: переключатель наверху, инструменты слева, параметры справа. Меняется только содержимое — художник не переучивает раскладку и не собирает рабочее пространство вручную.</p>
+  </div>
+
+  <!-- ЭКРАН 5 · МАТЕРИАЛ -->
+  <div class="screenrow" style="margin-bottom:var(--space-8)">
+    <div style="flex:0 0 240px">
+      <div style="font-size:12px;letter-spacing:0.08em;text-transform:uppercase;color:var(--color-accent-700);margin-bottom:6px">Экран 05 · фаза 2</div>
+      <h2 style="font-size:24px;margin:0 0 var(--space-2)">Материал</h2>
+      <p style="font-size:14px;line-height:1.6;color:var(--color-neutral-800);margin:0 0 var(--space-3)">Панель параметров PBR и слоты текстур — то, что закрывает материальный режим без графа нод. Полоса графа остаётся в раскладке свёрнутой: место под неё зарезервировано, содержимое приходит вместе с компоновщиком текстур.</p>
+      <p style="font-size:13px;line-height:1.6;color:var(--color-neutral-700);margin:0">Слоты текстур показывают разрешение, формат сжатия и вес против бюджета профиля — по этим числам ассет проходит или не проходит в движок. Режим прозрачности проверяется здесь же: blend без альфы в канале — предупреждение экспорта.</p>
+    </div>
+    <div class="m3" style="width:1400px;height:860px;background:#0b0e0f;border-radius:12px;overflow:hidden;box-shadow:var(--shadow-lg);display:flex;flex-direction:column;font-size:13px">
+      <div style="height:52px;flex:0 0 52px;background:#171a1b;display:flex;align-items:center;justify-content:space-between;padding:0 12px;gap:16px">
+        <div style="display:flex;align-items:center;gap:10px;min-width:280px"><span class="ms" style="font-size:20px;color:#5fd4e4">deployed_code</span><span style="font-size:14px;font-weight:500">Персонаж_v3</span><span style="color:#899295;font-size:12px">Металл_окрашенный</span></div>
+        <div style="display:flex;background:#1b1f20;border-radius:16px;padding:2px;gap:2px">
+          <div style="padding:6px 16px;border-radius:14px;color:#bfc8ca">Объект</div>
+          <div style="padding:6px 16px;border-radius:14px;color:#bfc8ca">Меш</div>
+          <div style="padding:6px 16px;border-radius:14px;background:#004f58;color:#a2eeff;font-weight:500">Материал</div>
+          <div style="padding:6px 16px;border-radius:14px;color:#bfc8ca">Анимация</div>
+          <div style="padding:6px 16px;border-radius:14px;color:#bfc8ca">Сцена</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:4px;min-width:280px;justify-content:flex-end">
+          <span class="ms" style="font-size:20px;color:#bfc8ca;padding:8px">undo</span><span class="ms" style="font-size:20px;color:#bfc8ca;padding:8px">redo</span>
+          <div style="width:1px;height:20px;background:#3f484a;margin:0 6px"></div>
+          <div style="display:flex;align-items:center;gap:6px;background:#004f58;color:#a2eeff;padding:8px 16px;border-radius:16px;font-weight:500"><span class="ms" style="font-size:18px">ios_share</span>Экспорт</div>
+        </div>
+      </div>
+      <div style="flex:1;display:flex;min-height:0">
+        <div style="width:52px;flex:0 0 52px;background:#131617;display:flex;flex-direction:column;align-items:center;padding:8px 0;gap:2px">
+          <div style="width:40px;height:36px;border-radius:10px;background:#004f58;display:flex;align-items:center;justify-content:center"><span class="ms" style="font-size:20px;color:#a2eeff">palette</span></div>
+          <div style="width:40px;height:36px;display:flex;align-items:center;justify-content:center"><span class="ms" style="font-size:20px;color:#bfc8ca">colorize</span></div>
+          <div style="width:40px;height:36px;display:flex;align-items:center;justify-content:center"><span class="ms" style="font-size:20px;color:#bfc8ca">brush</span></div>
+          <div style="width:24px;height:1px;background:#3f484a;margin:8px 0"></div>
+          <div style="width:40px;height:36px;display:flex;align-items:center;justify-content:center"><span class="ms" style="font-size:20px;color:#bfc8ca">texture</span></div>
+          <div style="width:40px;height:36px;display:flex;align-items:center;justify-content:center"><span class="ms" style="font-size:20px;color:#bfc8ca">light_mode</span></div>
+        </div>
+        <div style="flex:1;display:flex;flex-direction:column;min-width:0">
+          <div style="flex:1;position:relative;background:radial-gradient(120% 100% at 50% 0%, #1a1e1f 0%, #0e1112 70%);overflow:hidden;min-height:0">
+            <div style="position:absolute;inset:auto 0 -14% 0;height:70%;background-image:linear-gradient(#2a3234 1px,transparent 1px),linear-gradient(90deg,#2a3234 1px,transparent 1px);background-size:48px 48px;transform:perspective(520px) rotateX(66deg);transform-origin:bottom center;opacity:0.4"></div>
+            <div style="position:absolute;left:50%;top:48%;transform:translate(-50%,-50%);width:230px;height:230px;border-radius:50%;background:radial-gradient(circle at 34% 28%, #d8f4fa 0%, #6aa5b3 26%, #2c4750 62%, #16232a 100%);box-shadow:0 30px 60px rgba(0,0,0,0.5)"></div>
+            <div style="position:absolute;top:12px;left:12px;display:flex;gap:6px">
+              <div style="background:#1b1f20;border-radius:8px;padding:6px 12px;color:#a2eeff;font-size:12px">Предпросмотр материала</div>
+              <div style="background:#1b1f20;border-radius:8px;padding:6px 12px;color:#bfc8ca;font-size:12px">Студия · HDRI</div>
+            </div>
+          </div>
+          <div style="height:44px;flex:0 0 44px;background:#101314;border-top:1px solid #262a2b;display:flex;align-items:center;justify-content:space-between;padding:0 14px">
+            <div style="display:flex;align-items:center;gap:8px;font-size:12px;color:#bfc8ca"><span class="ms" style="font-size:16px;color:#5fd4e4">account_tree</span>Граф материала<span style="color:#899295">свёрнут</span></div>
+            <span class="ms" style="font-size:18px;color:#899295">expand_less</span>
+          </div>
+        </div>
+        <div style="width:272px;flex:0 0 272px;background:#171a1b;padding:14px 16px;display:flex;flex-direction:column;gap:16px;overflow:hidden">
+          <div>
+            <div style="font-size:11px;letter-spacing:0.08em;text-transform:uppercase;color:#899295;margin-bottom:10px">Материалы объекта</div>
+            <div style="display:flex;flex-direction:column;gap:2px">
+              <div style="display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:8px;background:#262a2b"><span style="width:14px;height:14px;border-radius:50%;background:#6aa5b3"></span>Металл_окрашенный</div>
+              <div style="display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:8px;color:#bfc8ca"><span style="width:14px;height:14px;border-radius:50%;background:#8d6b4f"></span>Резина</div>
+            </div>
+          </div>
+          <div>
+            <div style="font-size:11px;letter-spacing:0.08em;text-transform:uppercase;color:#899295;margin-bottom:10px">Свойства</div>
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;font-size:12px"><span style="color:#bfc8ca">Базовый цвет</span><span style="display:flex;align-items:center;gap:8px"><span style="width:22px;height:22px;border-radius:6px;background:#6aa5b3"></span><span style="color:#899295">#6AA5B3</span></span></div>
+            <div style="font-size:11px;color:#899295;margin-bottom:6px">Металличность</div>
+            <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px"><div style="flex:1;height:4px;background:#3f484a;border-radius:2px;position:relative"><div style="position:absolute;left:0;top:0;bottom:0;width:80%;background:#5fd4e4;border-radius:2px"></div><div style="position:absolute;left:80%;top:-6px;width:16px;height:16px;border-radius:50%;background:#5fd4e4"></div></div><span style="font-size:12px;min-width:34px;text-align:right">0,80</span></div>
+            <div style="font-size:11px;color:#899295;margin-bottom:6px">Шероховатость</div>
+            <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px"><div style="flex:1;height:4px;background:#3f484a;border-radius:2px;position:relative"><div style="position:absolute;left:0;top:0;bottom:0;width:32%;background:#5fd4e4;border-radius:2px"></div><div style="position:absolute;left:32%;top:-6px;width:16px;height:16px;border-radius:50%;background:#5fd4e4"></div></div><span style="font-size:12px;min-width:34px;text-align:right">0,32</span></div>
+            <div style="font-size:11px;color:#899295;margin-bottom:6px">Прозрачность</div>
+            <div style="display:flex;align-items:center;gap:10px"><div style="flex:1;height:4px;background:#3f484a;border-radius:2px;position:relative"><div style="position:absolute;left:0;top:0;bottom:0;width:0%;background:#5fd4e4;border-radius:2px"></div><div style="position:absolute;left:0;top:-6px;width:16px;height:16px;border-radius:50%;background:#5fd4e4"></div></div><span style="font-size:12px;min-width:34px;text-align:right">0,00</span></div>
+          </div>
+          <div>
+            <div style="font-size:11px;letter-spacing:0.08em;text-transform:uppercase;color:#899295;margin-bottom:10px">Текстуры</div>
+            <div style="display:flex;flex-direction:column;gap:6px;font-size:12px">
+              <div style="display:flex;align-items:center;gap:8px;background:#1b1f20;border-radius:8px;padding:8px 10px"><span style="width:26px;height:26px;border-radius:4px;background:linear-gradient(135deg,#6aa5b3,#2c4750)"></span><span style="flex:1">Базовый цвет</span><span style="color:#899295">2K · BC7</span><span style="color:#899295">3,4 МБ</span></div>
+              <div style="display:flex;align-items:center;gap:8px;background:#1b1f20;border-radius:8px;padding:8px 10px"><span style="width:26px;height:26px;border-radius:4px;background:linear-gradient(135deg,#8f9fd6,#4a5a86)"></span><span style="flex:1">Нормали</span><span style="color:#899295">2K · BC5</span><span style="color:#899295">3,0 МБ</span></div>
+              <div style="display:flex;align-items:center;justify-content:space-between;background:#1b1f20;border-radius:8px;padding:8px 10px"><span style="color:#bfc8ca">Режим прозрачности</span><span style="color:#899295">Непрозрачный</span></div>
+              <div style="display:flex;align-items:center;gap:8px;color:#5fd4e4;padding:4px 2px"><span class="ms" style="font-size:16px">add</span>Добавить карту</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div style="height:30px;flex:0 0 30px;background:#131617;display:flex;align-items:center;justify-content:space-between;padding:0 14px;font-size:11px;color:#899295">
+        <span>Материалов 2 · текстур 3 · вес текстур 6,4 / 64 МБ · плотность 9,8 текс/см</span><span style="color:#7ee081">Совместимо с glTF PBR</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ЭКРАН 6 · UV -->
+  <div class="screenrow" style="margin-bottom:var(--space-8)">
+    <div style="flex:0 0 240px">
+      <div style="font-size:12px;letter-spacing:0.08em;text-transform:uppercase;color:var(--color-accent-700);margin-bottom:6px">Экран 06 · фаза 4</div>
+      <h2 style="font-size:24px;margin:0 0 var(--space-2)">UV-развёртка</h2>
+      <p style="font-size:14px;line-height:1.6;color:var(--color-neutral-800);margin:0 0 var(--space-3)">Разделённый вид: слева меш со швами, справа развёртка. Швы ставятся тем же выделением рёбер, что и в режиме «Меш».</p>
+      <p style="font-size:13px;line-height:1.6;color:var(--color-neutral-700);margin:0">Растяжение показывается прямо на модели цветом, а не отдельной проверкой.</p>
+    </div>
+    <div class="m3" style="width:1400px;height:860px;background:#0b0e0f;border-radius:12px;overflow:hidden;box-shadow:var(--shadow-lg);display:flex;flex-direction:column;font-size:13px">
+      <div style="height:52px;flex:0 0 52px;background:#171a1b;display:flex;align-items:center;justify-content:space-between;padding:0 12px;gap:16px">
+        <div style="display:flex;align-items:center;gap:10px;min-width:280px"><span class="ms" style="font-size:20px;color:#5fd4e4">deployed_code</span><span style="font-size:14px;font-weight:500">Персонаж_v3</span><span style="color:#899295;font-size:12px">Корпус</span></div>
+        <div style="display:flex;align-items:center;gap:12px">
+          <div style="display:flex;background:#1b1f20;border-radius:16px;padding:2px;gap:2px">
+            <div style="padding:6px 16px;border-radius:14px;color:#bfc8ca">Объект</div>
+            <div style="padding:6px 16px;border-radius:14px;background:#004f58;color:#a2eeff;font-weight:500">Меш</div>
+            <div style="padding:6px 16px;border-radius:14px;color:#bfc8ca">Материал</div>
+            <div style="padding:6px 16px;border-radius:14px;color:#bfc8ca">Анимация</div>
+            <div style="padding:6px 16px;border-radius:14px;color:#bfc8ca">Сцена</div>
+          </div>
+          <div style="display:flex;background:#1b1f20;border-radius:16px;padding:2px;gap:2px">
+            <div style="padding:6px 14px;border-radius:14px;color:#bfc8ca;font-size:12px">Правка</div>
+            <div style="padding:6px 14px;border-radius:14px;background:#004f58;color:#a2eeff;font-size:12px;font-weight:500">UV</div>
+          </div>
+        </div>
+        <div style="display:flex;align-items:center;gap:4px;min-width:280px;justify-content:flex-end">
+          <span class="ms" style="font-size:20px;color:#bfc8ca;padding:8px">undo</span><span class="ms" style="font-size:20px;color:#bfc8ca;padding:8px">redo</span>
+          <div style="width:1px;height:20px;background:#3f484a;margin:0 6px"></div>
+          <div style="display:flex;align-items:center;gap:6px;background:#004f58;color:#a2eeff;padding:8px 16px;border-radius:16px;font-weight:500"><span class="ms" style="font-size:18px">ios_share</span>Экспорт</div>
+        </div>
+      </div>
+      <div style="flex:1;display:flex;min-height:0">
+        <div style="width:52px;flex:0 0 52px;background:#131617;display:flex;flex-direction:column;align-items:center;padding:8px 0;gap:2px">
+          <div style="width:40px;height:36px;border-radius:10px;background:#004f58;display:flex;align-items:center;justify-content:center"><span class="ms" style="font-size:20px;color:#a2eeff">content_cut</span></div>
+          <div style="width:40px;height:36px;display:flex;align-items:center;justify-content:center"><span class="ms" style="font-size:20px;color:#bfc8ca">unfold_more</span></div>
+          <div style="width:40px;height:36px;display:flex;align-items:center;justify-content:center"><span class="ms" style="font-size:20px;color:#bfc8ca">grid_view</span></div>
+          <div style="width:40px;height:36px;display:flex;align-items:center;justify-content:center"><span class="ms" style="font-size:20px;color:#bfc8ca">straighten</span></div>
+        </div>
+        <div style="flex:1;position:relative;background:radial-gradient(120% 100% at 50% 0%, #1a1e1f 0%, #0e1112 70%);overflow:hidden;min-width:0">
+          <div style="position:absolute;inset:auto 0 -14% 0;height:70%;background-image:linear-gradient(#2a3234 1px,transparent 1px),linear-gradient(90deg,#2a3234 1px,transparent 1px);background-size:48px 48px;transform:perspective(520px) rotateX(66deg);transform-origin:bottom center;opacity:0.35"></div>
+          <svg viewBox="0 0 320 300" style="position:absolute;left:50%;top:46%;width:360px;transform:translate(-50%,-50%)">
+            <polygon points="160,40 280,105 160,170 40,105" fill="#4f5c5e"></polygon>
+            <polygon points="40,105 160,170 160,260 40,195" fill="#3b4547"></polygon>
+            <polygon points="280,105 160,170 160,260 280,195" fill="#445052"></polygon>
+            <polyline points="160,40 280,105 280,195 160,260" fill="none" stroke="#ff458e" stroke-width="3.5"></polyline>
+            <line x1="160" y1="170" x2="160" y2="260" stroke="#ff458e" stroke-width="3.5"></line>
+          </svg>
+          <div style="position:absolute;top:12px;left:12px;background:#1b1f20;border-radius:8px;padding:6px 12px;color:#bfc8ca;font-size:12px">Швы · 4 ребра</div>
+        </div>
+        <div style="width:520px;flex:0 0 520px;background:#101314;border-left:1px solid #262a2b;position:relative;display:flex;align-items:center;justify-content:center">
+          <div style="position:absolute;top:12px;left:14px;font-size:12px;color:#bfc8ca">Развёртка · 1024 × 1024</div>
+          <div style="width:400px;height:400px;position:relative;background-image:linear-gradient(45deg,#1b1f20 25%,transparent 25%),linear-gradient(-45deg,#1b1f20 25%,transparent 25%),linear-gradient(45deg,transparent 75%,#1b1f20 75%),linear-gradient(-45deg,transparent 75%,#1b1f20 75%);background-size:32px 32px;background-position:0 0,0 16px,16px -16px,-16px 0;background-color:#161a1b;outline:1px solid #3f484a">
+            <svg viewBox="0 0 400 400" style="position:absolute;inset:0;width:100%;height:100%">
+              <polygon points="30,30 170,30 170,170 30,170" fill="#004f58" fill-opacity="0.5" stroke="#5fd4e4" stroke-width="2"></polygon>
+              <polygon points="200,30 370,30 340,150 220,150" fill="#004f58" fill-opacity="0.5" stroke="#5fd4e4" stroke-width="2"></polygon>
+              <polygon points="30,200 190,200 160,360 60,360" fill="#7a1230" fill-opacity="0.45" stroke="#ff458e" stroke-width="2"></polygon>
+              <polygon points="220,190 370,220 350,360 230,340" fill="#004f58" fill-opacity="0.5" stroke="#5fd4e4" stroke-width="2"></polygon>
+            </svg>
+          </div>
+          <div style="position:absolute;bottom:14px;left:14px;display:flex;gap:14px;font-size:11px;color:#899295">
+            <span style="display:flex;align-items:center;gap:6px"><span style="width:10px;height:10px;background:#5fd4e4"></span>норма</span>
+            <span style="display:flex;align-items:center;gap:6px"><span style="width:10px;height:10px;background:#ff458e"></span>растяжение</span>
+          </div>
+        </div>
+        <div style="width:250px;flex:0 0 250px;background:#171a1b;padding:14px 16px;display:flex;flex-direction:column;gap:16px">
+          <div>
+            <div style="font-size:11px;letter-spacing:0.08em;text-transform:uppercase;color:#899295;margin-bottom:10px">Развернуть</div>
+            <div style="display:flex;gap:6px;margin-bottom:12px"><div style="flex:1;background:#004f58;color:#a2eeff;border-radius:16px;padding:8px;text-align:center;font-size:12px;font-weight:500">Угловой</div><div style="flex:1;background:#1b1f20;color:#bfc8ca;border-radius:16px;padding:8px;text-align:center;font-size:12px">Проекция</div></div>
+            <div style="font-size:11px;color:#899295;margin-bottom:6px">Отступ между островами</div>
+            <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px"><div style="flex:1;height:4px;background:#3f484a;border-radius:2px;position:relative"><div style="position:absolute;left:0;top:0;bottom:0;width:24%;background:#5fd4e4;border-radius:2px"></div><div style="position:absolute;left:24%;top:-6px;width:16px;height:16px;border-radius:50%;background:#5fd4e4"></div></div><span style="font-size:12px">4 px</span></div>
+            <div style="display:flex;align-items:center;gap:8px;font-size:12px;color:#bfc8ca"><span class="ms" style="font-size:16px;color:#5fd4e4">check_box</span>Упаковать автоматически</div>
+          </div>
+          <div>
+            <div style="font-size:11px;letter-spacing:0.08em;text-transform:uppercase;color:#899295;margin-bottom:10px">Острова</div>
+            <div style="display:flex;flex-direction:column;gap:4px;font-size:12px;color:#bfc8ca">
+              <div style="display:flex;justify-content:space-between;padding:6px 8px;border-radius:8px;background:#262a2b"><span>Остров 3</span><span style="color:#ff90b1">1,8×</span></div>
+              <div style="display:flex;justify-content:space-between;padding:6px 8px"><span>Остров 1</span><span>1,0×</span></div>
+              <div style="display:flex;justify-content:space-between;padding:6px 8px"><span>Остров 2</span><span>1,1×</span></div>
+              <div style="display:flex;justify-content:space-between;padding:6px 8px"><span>Остров 4</span><span>1,0×</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div style="height:30px;flex:0 0 30px;background:#131617;display:flex;align-items:center;justify-content:space-between;padding:0 14px;font-size:11px;color:#899295">
+        <span>Заполнение развёртки 74 % · островов 4</span><span style="color:#ffb86b">Остров 3: растяжение 1,8×</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ЭКРАН 7 · АНИМАЦИЯ -->
+  <div class="screenrow" style="margin-bottom:var(--space-8)">
+    <div style="flex:0 0 240px">
+      <div style="font-size:12px;letter-spacing:0.08em;text-transform:uppercase;color:var(--color-accent-700);margin-bottom:6px">Экран 07 · фаза 3</div>
+      <h2 style="font-size:24px;margin:0 0 var(--space-2)">Анимация</h2>
+      <p style="font-size:14px;line-height:1.6;color:var(--color-neutral-800);margin:0 0 var(--space-3)">Таймлайн занимает низ экрана и переключается между ключами и кривыми одной кнопкой — отдельного окна графредактора нет.</p>
+      <p style="font-size:13px;line-height:1.6;color:var(--color-neutral-700);margin:0">Справа — скелет и ограничения. Счётчик костей виден постоянно: движки ограничивают их число.</p>
+    </div>
+    <div class="m3" style="width:1400px;height:860px;background:#0b0e0f;border-radius:12px;overflow:hidden;box-shadow:var(--shadow-lg);display:flex;flex-direction:column;font-size:13px">
+      <div style="height:52px;flex:0 0 52px;background:#171a1b;display:flex;align-items:center;justify-content:space-between;padding:0 12px;gap:16px">
+        <div style="display:flex;align-items:center;gap:10px;min-width:280px"><span class="ms" style="font-size:20px;color:#5fd4e4">deployed_code</span><span style="font-size:14px;font-weight:500">Персонаж_v3</span><span style="color:#899295;font-size:12px">Ходьба · 24 кадра</span></div>
+        <div style="display:flex;background:#1b1f20;border-radius:16px;padding:2px;gap:2px">
+          <div style="padding:6px 16px;border-radius:14px;color:#bfc8ca">Объект</div>
+          <div style="padding:6px 16px;border-radius:14px;color:#bfc8ca">Меш</div>
+          <div style="padding:6px 16px;border-radius:14px;color:#bfc8ca">Материал</div>
+          <div style="padding:6px 16px;border-radius:14px;background:#004f58;color:#a2eeff;font-weight:500">Анимация</div>
+          <div style="padding:6px 16px;border-radius:14px;color:#bfc8ca">Сцена</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:4px;min-width:280px;justify-content:flex-end">
+          <span class="ms" style="font-size:20px;color:#bfc8ca;padding:8px">undo</span><span class="ms" style="font-size:20px;color:#bfc8ca;padding:8px">redo</span>
+          <div style="width:1px;height:20px;background:#3f484a;margin:0 6px"></div>
+          <div style="display:flex;align-items:center;gap:6px;background:#004f58;color:#a2eeff;padding:8px 16px;border-radius:16px;font-weight:500"><span class="ms" style="font-size:18px">ios_share</span>Экспорт</div>
+        </div>
+      </div>
+      <div style="flex:1;display:flex;min-height:0">
+        <div style="width:52px;flex:0 0 52px;background:#131617;display:flex;flex-direction:column;align-items:center;padding:8px 0;gap:2px">
+          <div style="width:40px;height:36px;border-radius:10px;background:#004f58;display:flex;align-items:center;justify-content:center"><span class="ms" style="font-size:20px;color:#a2eeff">accessibility</span></div>
+          <div style="width:40px;height:36px;display:flex;align-items:center;justify-content:center"><span class="ms" style="font-size:20px;color:#bfc8ca">rotate_right</span></div>
+          <div style="width:40px;height:36px;display:flex;align-items:center;justify-content:center"><span class="ms" style="font-size:20px;color:#bfc8ca">link</span></div>
+          <div style="width:24px;height:1px;background:#3f484a;margin:8px 0"></div>
+          <div style="width:40px;height:36px;display:flex;align-items:center;justify-content:center"><span class="ms" style="font-size:20px;color:#bfc8ca">brush</span></div>
+        </div>
+        <div style="flex:1;display:flex;flex-direction:column;min-width:0">
+          <div style="flex:1;position:relative;background:radial-gradient(120% 100% at 50% 0%, #1a1e1f 0%, #0e1112 70%);overflow:hidden;min-height:0">
+            <div style="position:absolute;inset:auto 0 -14% 0;height:70%;background-image:linear-gradient(#2a3234 1px,transparent 1px),linear-gradient(90deg,#2a3234 1px,transparent 1px);background-size:48px 48px;transform:perspective(520px) rotateX(66deg);transform-origin:bottom center;opacity:0.35"></div>
+            <svg viewBox="0 0 300 340" style="position:absolute;left:50%;top:48%;width:260px;transform:translate(-50%,-50%)">
+              <line x1="150" y1="40" x2="150" y2="120" stroke="#5c696c" stroke-width="16" stroke-linecap="round"></line>
+              <line x1="150" y1="120" x2="150" y2="190" stroke="#5c696c" stroke-width="18" stroke-linecap="round"></line>
+              <line x1="150" y1="130" x2="90" y2="180" stroke="#5c696c" stroke-width="12" stroke-linecap="round"></line>
+              <line x1="150" y1="130" x2="215" y2="175" stroke="#5c696c" stroke-width="12" stroke-linecap="round"></line>
+              <line x1="150" y1="190" x2="115" y2="270" stroke="#5c696c" stroke-width="14" stroke-linecap="round"></line>
+              <line x1="150" y1="190" x2="190" y2="270" stroke="#5c696c" stroke-width="14" stroke-linecap="round"></line>
+              <line x1="150" y1="40" x2="150" y2="190" stroke="#5fd4e4" stroke-width="2"></line>
+              <line x1="150" y1="190" x2="115" y2="270" stroke="#ff458e" stroke-width="2.5"></line>
+              <line x1="150" y1="190" x2="190" y2="270" stroke="#5fd4e4" stroke-width="2"></line>
+              <circle cx="150" cy="40" r="5" fill="#5fd4e4"></circle>
+              <circle cx="150" cy="190" r="5" fill="#5fd4e4"></circle>
+              <circle cx="115" cy="270" r="6" fill="#ff458e"></circle>
+              <circle cx="190" cy="270" r="5" fill="#5fd4e4"></circle>
+            </svg>
+            <div style="position:absolute;top:12px;left:12px;background:#1b1f20;border-radius:8px;padding:6px 12px;color:#bfc8ca;font-size:12px">Поза · кадр 12</div>
+          </div>
+          <div style="height:270px;flex:0 0 270px;background:#101314;border-top:1px solid #262a2b;display:flex;flex-direction:column">
+            <div style="height:44px;flex:0 0 44px;display:flex;align-items:center;justify-content:space-between;padding:0 14px">
+              <div style="display:flex;align-items:center;gap:6px">
+                <span class="ms" style="font-size:20px;color:#bfc8ca">skip_previous</span>
+                <span class="ms" style="font-size:24px;color:#a2eeff;background:#004f58;border-radius:50%;padding:6px">play_arrow</span>
+                <span class="ms" style="font-size:20px;color:#bfc8ca">skip_next</span>
+                <span style="font-size:12px;color:#bfc8ca;margin-left:10px">12 / 24</span>
+                <span style="font-size:12px;color:#899295;margin-left:10px">24 к/с</span>
+              </div>
+              <div style="display:flex;background:#1b1f20;border-radius:16px;padding:2px;gap:2px">
+                <div style="padding:5px 14px;border-radius:14px;background:#004f58;color:#a2eeff;font-size:12px;font-weight:500">Ключи</div>
+                <div style="padding:5px 14px;border-radius:14px;color:#bfc8ca;font-size:12px">Кривые</div>
+              </div>
+            </div>
+            <div style="flex:1;display:flex;min-height:0">
+              <div style="width:180px;flex:0 0 180px;border-right:1px solid #262a2b;padding:6px 0;font-size:12px;color:#bfc8ca">
+                <div style="padding:7px 14px;background:#1b1f20">Бедро.L</div>
+                <div style="padding:7px 14px">Голень.L</div>
+                <div style="padding:7px 14px">Бедро.R</div>
+                <div style="padding:7px 14px">Голень.R</div>
+                <div style="padding:7px 14px">Позвоночник</div>
+              </div>
+              <div style="flex:1;position:relative;padding:6px 0;background-image:linear-gradient(90deg,#1b1f20 1px,transparent 1px);background-size:38px 100%">
+                <div style="height:30px;display:flex;align-items:center"><span style="position:absolute;left:12px;width:12px;height:12px;background:#5fd4e4;transform:rotate(45deg)"></span><span style="position:absolute;left:164px;width:12px;height:12px;background:#5fd4e4;transform:rotate(45deg)"></span><span style="position:absolute;left:392px;width:12px;height:12px;background:#5fd4e4;transform:rotate(45deg)"></span><span style="position:absolute;left:620px;width:12px;height:12px;background:#5fd4e4;transform:rotate(45deg)"></span></div>
+                <div style="height:30px;display:flex;align-items:center"><span style="position:absolute;left:12px;width:12px;height:12px;background:#5fd4e4;transform:rotate(45deg)"></span><span style="position:absolute;left:240px;width:12px;height:12px;background:#5fd4e4;transform:rotate(45deg)"></span><span style="position:absolute;left:620px;width:12px;height:12px;background:#5fd4e4;transform:rotate(45deg)"></span></div>
+                <div style="height:30px;display:flex;align-items:center"><span style="position:absolute;left:12px;width:12px;height:12px;background:#5fd4e4;transform:rotate(45deg)"></span><span style="position:absolute;left:316px;width:12px;height:12px;background:#5fd4e4;transform:rotate(45deg)"></span><span style="position:absolute;left:620px;width:12px;height:12px;background:#5fd4e4;transform:rotate(45deg)"></span></div>
+                <div style="height:30px;display:flex;align-items:center"><span style="position:absolute;left:12px;width:12px;height:12px;background:#5fd4e4;transform:rotate(45deg)"></span><span style="position:absolute;left:468px;width:12px;height:12px;background:#5fd4e4;transform:rotate(45deg)"></span></div>
+                <div style="height:30px;display:flex;align-items:center"><span style="position:absolute;left:12px;width:12px;height:12px;background:#899295;transform:rotate(45deg)"></span><span style="position:absolute;left:620px;width:12px;height:12px;background:#899295;transform:rotate(45deg)"></span></div>
+                <div style="position:absolute;top:0;bottom:0;left:456px;width:2px;background:#ff458e"></div>
+                <div style="position:absolute;top:-2px;left:446px;background:#ff458e;color:#2b0713;border-radius:4px;padding:1px 6px;font-size:10px;font-weight:500">12</div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div style="width:272px;flex:0 0 272px;background:#171a1b;padding:14px 16px;display:flex;flex-direction:column;gap:16px">
+          <div>
+            <div style="font-size:11px;letter-spacing:0.08em;text-transform:uppercase;color:#899295;margin-bottom:10px">Скелет</div>
+            <div style="display:flex;flex-direction:column;gap:2px;font-size:12px;color:#bfc8ca">
+              <div style="padding:6px 8px;display:flex;align-items:center;gap:8px"><span class="ms" style="font-size:16px">account_tree</span>Корень</div>
+              <div style="padding:6px 8px 6px 26px">Таз</div>
+              <div style="padding:6px 8px 6px 40px;border-radius:8px;background:#262a2b;color:#e1e3e3">Бедро.L</div>
+              <div style="padding:6px 8px 6px 54px">Голень.L</div>
+              <div style="padding:6px 8px 6px 40px">Бедро.R</div>
+              <div style="padding:6px 8px 6px 26px">Позвоночник</div>
+            </div>
+          </div>
+          <div>
+            <div style="font-size:11px;letter-spacing:0.08em;text-transform:uppercase;color:#899295;margin-bottom:10px">Ограничения</div>
+            <div style="background:#1b1f20;border-radius:8px;padding:8px 10px;font-size:12px;display:flex;justify-content:space-between;margin-bottom:6px"><span>Обратная кинематика</span><span style="color:#5fd4e4">вкл</span></div>
+            <div style="display:flex;align-items:center;gap:6px;color:#5fd4e4;font-size:12px;padding:4px 2px"><span class="ms" style="font-size:16px">add</span>Добавить</div>
+          </div>
+          <div>
+            <div style="font-size:11px;letter-spacing:0.08em;text-transform:uppercase;color:#899295;margin-bottom:10px">Действия</div>
+            <div style="display:flex;flex-direction:column;gap:4px;font-size:12px;color:#bfc8ca">
+              <div style="padding:6px 8px;border-radius:8px;background:#262a2b;color:#e1e3e3;display:flex;justify-content:space-between"><span>Ходьба</span><span style="color:#899295">24</span></div>
+              <div style="padding:6px 8px;border-radius:8px;display:flex;justify-content:space-between"><span>Ожидание</span><span style="color:#899295">60</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div style="height:30px;flex:0 0 30px;background:#131617;display:flex;align-items:center;justify-content:space-between;padding:0 14px;font-size:11px;color:#899295">
+        <span>Костей 28 · действий 2 · вес влияний 4 на вершину</span><span style="color:#7ee081">Скелет пригоден для glTF</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ЭКРАН 8 · СКУЛЬПТИНГ + 9 · ТЕЛО ВРАЩЕНИЯ -->
+  <div class="screenrow" style="margin-bottom:var(--space-8)">
+    <div style="flex:0 0 240px">
+      <div style="font-size:12px;letter-spacing:0.08em;text-transform:uppercase;color:var(--color-accent-700);margin-bottom:6px">Экран 08 · фаза 4</div>
+      <h2 style="font-size:24px;margin:0 0 var(--space-2)">Скульптинг</h2>
+      <p style="font-size:14px;line-height:1.6;color:var(--color-neutral-800);margin:0 0 var(--space-3)">Единственный режим, где панели уходят полностью: кисти плавающей палитрой, параметры — кольцом вокруг курсора при нажатии.</p>
+      <p style="font-size:13px;line-height:1.6;color:var(--color-neutral-700);margin:0">Раскладка рассчитана на перо: та же на десктопе и на планшете.</p>
+    </div>
+    <div class="m3" style="width:1400px;height:860px;background:#0b0e0f;border-radius:12px;overflow:hidden;box-shadow:var(--shadow-lg);position:relative;font-size:13px">
+      <div style="position:absolute;inset:0;background:radial-gradient(120% 100% at 50% 0%, #1c2021 0%, #0e1112 70%)"></div>
+      <div style="position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:420px;height:420px;border-radius:48% 52% 44% 56%/52% 44% 56% 48%;background:radial-gradient(circle at 36% 30%, #9aa6a8 0%, #6d7a7c 32%, #3b4547 76%, #232b2c 100%);box-shadow:0 40px 80px rgba(0,0,0,0.55)"></div>
+      <div style="position:absolute;left:56%;top:44%;width:140px;height:140px;border-radius:50%;border:2px solid #5fd4e4;transform:translate(-50%,-50%)"></div>
+      <div style="position:absolute;left:56%;top:44%;width:6px;height:6px;border-radius:50%;background:#5fd4e4;transform:translate(-50%,-50%)"></div>
+      <div style="position:absolute;top:16px;left:50%;transform:translateX(-50%);display:flex;background:#1b1f20;border-radius:18px;padding:3px;gap:2px">
+        <div style="padding:7px 16px;border-radius:16px;color:#bfc8ca">Объект</div>
+        <div style="padding:7px 16px;border-radius:16px;background:#004f58;color:#a2eeff;font-weight:500">Скульптинг</div>
+        <div style="padding:7px 16px;border-radius:16px;color:#bfc8ca">Материал</div>
+      </div>
+      <div style="position:absolute;left:16px;top:50%;transform:translateY(-50%);background:#1b1f20;border-radius:24px;padding:8px;display:flex;flex-direction:column;gap:4px;box-shadow:0 4px 16px rgba(0,0,0,0.4)">
+        <div style="width:48px;height:48px;border-radius:16px;background:#004f58;display:flex;align-items:center;justify-content:center"><span class="ms" style="font-size:22px;color:#a2eeff">brush</span></div>
+        <div style="width:48px;height:48px;display:flex;align-items:center;justify-content:center"><span class="ms" style="font-size:22px;color:#bfc8ca">stylus_note</span></div>
+        <div style="width:48px;height:48px;display:flex;align-items:center;justify-content:center"><span class="ms" style="font-size:22px;color:#bfc8ca">blur_on</span></div>
+        <div style="width:48px;height:48px;display:flex;align-items:center;justify-content:center"><span class="ms" style="font-size:22px;color:#bfc8ca">compress</span></div>
+        <div style="width:48px;height:48px;display:flex;align-items:center;justify-content:center"><span class="ms" style="font-size:22px;color:#bfc8ca">flip</span></div>
+      </div>
+      <div style="position:absolute;right:16px;top:76px;width:250px;background:#171a1b;border-radius:20px;padding:16px">
+        <div style="font-size:14px;font-weight:500;margin-bottom:14px">Лепка</div>
+        <div style="font-size:11px;color:#899295;margin-bottom:6px">Радиус</div>
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px"><div style="flex:1;height:4px;background:#3f484a;border-radius:2px;position:relative"><div style="position:absolute;left:0;top:0;bottom:0;width:46%;background:#5fd4e4;border-radius:2px"></div><div style="position:absolute;left:46%;top:-6px;width:16px;height:16px;border-radius:50%;background:#5fd4e4"></div></div><span style="font-size:12px">72</span></div>
+        <div style="font-size:11px;color:#899295;margin-bottom:6px">Сила</div>
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px"><div style="flex:1;height:4px;background:#3f484a;border-radius:2px;position:relative"><div style="position:absolute;left:0;top:0;bottom:0;width:58%;background:#5fd4e4;border-radius:2px"></div><div style="position:absolute;left:58%;top:-6px;width:16px;height:16px;border-radius:50%;background:#5fd4e4"></div></div><span style="font-size:12px">0,58</span></div>
+        <div style="display:flex;align-items:center;gap:8px;font-size:12px;color:#bfc8ca;margin-bottom:8px"><span class="ms" style="font-size:16px;color:#5fd4e4">check_box</span>Симметрия по X</div>
+        <div style="display:flex;align-items:center;gap:8px;font-size:12px;color:#bfc8ca;margin-bottom:14px"><span class="ms" style="font-size:16px;color:#5fd4e4">check_box</span>Нажим пера</div>
+        <div style="height:1px;background:#3f484a;margin-bottom:14px"></div>
+        <div style="display:flex;align-items:center;justify-content:space-between;font-size:12px;color:#bfc8ca"><span>Перестроить сетку</span><span class="ms" style="font-size:18px;color:#5fd4e4">refresh</span></div>
+      </div>
+      <div style="position:absolute;bottom:14px;left:0;right:0;display:flex;justify-content:space-between;padding:0 18px;font-size:11px;color:#899295">
+        <span>Треугольников 1 240 000 · плотность 0,8 мм</span><span style="color:#ffb86b">Перед экспортом потребуется ретопология</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="screenrow">
+    <div style="flex:0 0 240px">
+      <div style="font-size:12px;letter-spacing:0.08em;text-transform:uppercase;color:var(--color-accent-700);margin-bottom:6px">Экран 09 · фаза 1</div>
+      <h2 style="font-size:24px;margin:0 0 var(--space-2)">Тело вращения</h2>
+      <p style="font-size:14px;line-height:1.6;color:var(--color-neutral-800);margin:0 0 var(--space-3)">Профиль слева, результат справа, обновление сразу. Профиль остаётся редактируемым после создания — фигура хранится как параметр, а не как «запечённый» меш.</p>
+      <p style="font-size:13px;line-height:1.6;color:var(--color-neutral-700);margin:0">Тот же принцип позже распространяется на модификаторы.</p>
+    </div>
+    <div class="m3" style="width:1400px;height:700px;background:#0b0e0f;border-radius:12px;overflow:hidden;box-shadow:var(--shadow-lg);display:flex;flex-direction:column;font-size:13px">
+      <div style="height:52px;flex:0 0 52px;background:#171a1b;display:flex;align-items:center;justify-content:space-between;padding:0 12px">
+        <div style="display:flex;align-items:center;gap:10px"><span class="ms" style="font-size:20px;color:#5fd4e4">360</span><span style="font-size:14px;font-weight:500">Тело вращения</span><span style="color:#899295;font-size:12px">новый объект</span></div>
+        <div style="display:flex;align-items:center;gap:8px">
+          <div style="padding:8px 16px;border-radius:16px;color:#bfc8ca">Отмена</div>
+          <div style="padding:8px 20px;border-radius:16px;background:#004f58;color:#a2eeff;font-weight:500">Создать</div>
+        </div>
+      </div>
+      <div style="flex:1;display:flex;min-height:0">
+        <div style="width:520px;flex:0 0 520px;background:#101314;position:relative;border-right:1px solid #262a2b">
+          <div style="position:absolute;top:12px;left:14px;font-size:12px;color:#bfc8ca">Профиль</div>
+          <div style="position:absolute;inset:44px 20px 20px 20px;background-image:linear-gradient(#1b1f20 1px,transparent 1px),linear-gradient(90deg,#1b1f20 1px,transparent 1px);background-size:40px 40px">
+            <svg viewBox="0 0 480 540" style="position:absolute;inset:0;width:100%;height:100%">
+              <line x1="120" y1="20" x2="120" y2="520" stroke="#ff458e" stroke-width="2" stroke-dasharray="8 6"></line>
+              <path d="M 120 60 L 230 90 C 300 130, 300 220, 240 270 C 190 315, 190 400, 260 440 L 300 470 L 120 500" fill="#004f58" fill-opacity="0.28" stroke="#5fd4e4" stroke-width="2.5"></path>
+              <circle cx="230" cy="90" r="6" fill="#5fd4e4"></circle>
+              <circle cx="240" cy="270" r="6" fill="#0b0e0f" stroke="#5fd4e4" stroke-width="2.5"></circle>
+              <circle cx="260" cy="440" r="6" fill="#5fd4e4"></circle>
+              <circle cx="300" cy="470" r="6" fill="#5fd4e4"></circle>
+            </svg>
+          </div>
+          <div style="position:absolute;bottom:20px;left:20px;display:flex;gap:6px">
+            <div style="background:#1b1f20;border-radius:14px;padding:7px 14px;font-size:12px;color:#bfc8ca">Точка</div>
+            <div style="background:#004f58;border-radius:14px;padding:7px 14px;font-size:12px;color:#a2eeff;font-weight:500">Кривая</div>
+            <div style="background:#1b1f20;border-radius:14px;padding:7px 14px;font-size:12px;color:#bfc8ca">Ось</div>
+          </div>
+        </div>
+        <div style="flex:1;position:relative;background:radial-gradient(120% 100% at 50% 0%, #1a1e1f 0%, #0e1112 70%);overflow:hidden;min-width:0">
+          <div style="position:absolute;inset:auto 0 -14% 0;height:70%;background-image:linear-gradient(#2a3234 1px,transparent 1px),linear-gradient(90deg,#2a3234 1px,transparent 1px);background-size:48px 48px;transform:perspective(520px) rotateX(66deg);transform-origin:bottom center;opacity:0.35"></div>
+          <div style="position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:230px;height:400px;border-radius:50% 50% 46% 46%/22% 22% 12% 12%;background:linear-gradient(100deg,#2b3639 0%,#7d8a8d 34%, #a8b4b6 46%, #58686b 68%, #212a2c 100%);box-shadow:0 30px 60px rgba(0,0,0,0.5)"></div>
+          <div style="position:absolute;top:12px;left:12px;background:#1b1f20;border-radius:8px;padding:6px 12px;color:#bfc8ca;font-size:12px">Предпросмотр</div>
+        </div>
+        <div style="width:250px;flex:0 0 250px;background:#171a1b;padding:14px 16px;display:flex;flex-direction:column;gap:16px">
+          <div>
+            <div style="font-size:11px;letter-spacing:0.08em;text-transform:uppercase;color:#899295;margin-bottom:10px">Вращение</div>
+            <div style="font-size:11px;color:#899295;margin-bottom:6px">Сегментов</div>
+            <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px"><div style="flex:1;height:4px;background:#3f484a;border-radius:2px;position:relative"><div style="position:absolute;left:0;top:0;bottom:0;width:38%;background:#5fd4e4;border-radius:2px"></div><div style="position:absolute;left:38%;top:-6px;width:16px;height:16px;border-radius:50%;background:#5fd4e4"></div></div><span style="font-size:12px">48</span></div>
+            <div style="font-size:11px;color:#899295;margin-bottom:6px">Угол</div>
+            <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px"><div style="flex:1;height:4px;background:#3f484a;border-radius:2px;position:relative"><div style="position:absolute;left:0;top:0;bottom:0;width:100%;background:#5fd4e4;border-radius:2px"></div><div style="position:absolute;left:calc(100% - 16px);top:-6px;width:16px;height:16px;border-radius:50%;background:#5fd4e4"></div></div><span style="font-size:12px">360°</span></div>
+            <div style="display:flex;align-items:center;gap:8px;font-size:12px;color:#bfc8ca;margin-bottom:8px"><span class="ms" style="font-size:16px;color:#5fd4e4">check_box</span>Сгладить нормали</div>
+            <div style="display:flex;align-items:center;gap:8px;font-size:12px;color:#bfc8ca"><span class="ms" style="font-size:16px;color:#899295">check_box_outline_blank</span>Закрыть торцы</div>
+          </div>
+          <div>
+            <div style="font-size:11px;letter-spacing:0.08em;text-transform:uppercase;color:#899295;margin-bottom:10px">Итог</div>
+            <div style="display:flex;flex-direction:column;gap:6px;font-size:12px;color:#bfc8ca">
+              <div style="display:flex;justify-content:space-between"><span>Вершин</span><span>2 352</span></div>
+              <div style="display:flex;justify-content:space-between"><span>Треугольников</span><span>4 608</span></div>
+              <div style="display:flex;justify-content:space-between"><span>Высота</span><span>2,44</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ЭКРАН 10 · РЕТОПОЛОГИЯ И ЗАПЕКАНИЕ -->
+  <div class="screenrow" style="margin:var(--space-8) 0">
+    <div style="flex:0 0 240px">
+      <div style="font-size:12px;letter-spacing:0.08em;text-transform:uppercase;color:var(--color-accent-700);margin-bottom:6px">Экран 10 · фаза 4</div>
+      <h2 style="font-size:24px;margin:0 0 var(--space-2)">Ретопология и запекание</h2>
+      <p style="font-size:14px;line-height:1.6;color:var(--color-neutral-800);margin:0 0 var(--space-3)">Продолжение скульптинга, а не отдельный инструмент. Исходный меш остаётся видимым под сеткой, новая топология рисуется поверх и прилипает к поверхности.</p>
+      <p style="font-size:13px;line-height:1.6;color:var(--color-neutral-700);margin:0">Запекание карт живёт в той же панели: пара «источник — приёмник» уже задана самим фактом ретопологии.</p>
+    </div>
+    <div class="m3" style="width:1400px;height:860px;background:#0b0e0f;border-radius:12px;overflow:hidden;box-shadow:var(--shadow-lg);display:flex;flex-direction:column;font-size:13px">
+      <div style="height:52px;flex:0 0 52px;background:#171a1b;display:flex;align-items:center;justify-content:space-between;padding:0 12px;gap:16px">
+        <div style="display:flex;align-items:center;gap:10px;min-width:260px"><span class="ms" style="font-size:20px;color:#5fd4e4">grid_on</span><span style="font-size:14px;font-weight:500">Персонаж_v3</span><span style="color:#899295;font-size:12px">Корпус_low</span></div>
+        <div style="display:flex;align-items:center;gap:12px">
+          <div style="display:flex;background:#1b1f20;border-radius:16px;padding:2px;gap:2px">
+            <div style="padding:6px 16px;border-radius:14px;color:#bfc8ca">Объект</div>
+            <div style="padding:6px 16px;border-radius:14px;background:#004f58;color:#a2eeff;font-weight:500">Меш</div>
+            <div style="padding:6px 16px;border-radius:14px;color:#bfc8ca">Материал</div>
+            <div style="padding:6px 16px;border-radius:14px;color:#bfc8ca">Анимация</div>
+            <div style="padding:6px 16px;border-radius:14px;color:#bfc8ca">Сцена</div>
+          </div>
+          <div style="display:flex;background:#1b1f20;border-radius:16px;padding:2px;gap:2px">
+            <div style="padding:6px 14px;border-radius:14px;color:#bfc8ca;font-size:12px">Правка</div>
+            <div style="padding:6px 14px;border-radius:14px;color:#bfc8ca;font-size:12px">UV</div>
+            <div style="padding:6px 14px;border-radius:14px;background:#004f58;color:#a2eeff;font-size:12px;font-weight:500">Ретопология</div>
+          </div>
+        </div>
+        <div style="display:flex;align-items:center;gap:4px;min-width:260px;justify-content:flex-end">
+          <span class="ms" style="font-size:20px;color:#bfc8ca;padding:8px">undo</span><span class="ms" style="font-size:20px;color:#bfc8ca;padding:8px">redo</span>
+          <div style="width:1px;height:20px;background:#3f484a;margin:0 6px"></div>
+          <div style="display:flex;align-items:center;gap:6px;background:#004f58;color:#a2eeff;padding:8px 16px;border-radius:16px;font-weight:500"><span class="ms" style="font-size:18px">ios_share</span>Экспорт</div>
+        </div>
+      </div>
+      <div style="flex:1;display:flex;min-height:0">
+        <div style="width:52px;flex:0 0 52px;background:#131617;display:flex;flex-direction:column;align-items:center;padding:8px 0;gap:2px">
+          <div style="width:40px;height:36px;border-radius:10px;background:#004f58;display:flex;align-items:center;justify-content:center"><span class="ms" style="font-size:20px;color:#a2eeff">draw</span></div>
+          <div style="width:40px;height:36px;display:flex;align-items:center;justify-content:center"><span class="ms" style="font-size:20px;color:#bfc8ca">grid_4x4</span></div>
+          <div style="width:40px;height:36px;display:flex;align-items:center;justify-content:center"><span class="ms" style="font-size:20px;color:#bfc8ca">waves</span></div>
+          <div style="width:40px;height:36px;display:flex;align-items:center;justify-content:center"><span class="ms" style="font-size:20px;color:#bfc8ca">compress</span></div>
+          <div style="width:24px;height:1px;background:#3f484a;margin:8px 0"></div>
+          <div style="width:40px;height:36px;display:flex;align-items:center;justify-content:center"><span class="ms" style="font-size:20px;color:#bfc8ca">layers</span></div>
+        </div>
+        <div style="flex:1;position:relative;background:radial-gradient(120% 100% at 50% 0%, #1c2021 0%, #0e1112 70%);overflow:hidden;min-width:0">
+          <div style="position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:400px;height:400px;border-radius:48% 52% 44% 56%/52% 44% 56% 48%;background:radial-gradient(circle at 36% 30%, #6c7678 0%, #4d5658 34%, #2c3436 78%, #1b2122 100%);opacity:0.75"></div>
+          <svg viewBox="0 0 400 400" style="position:absolute;left:50%;top:50%;width:420px;height:420px;transform:translate(-50%,-50%)">
+            <path d="M 90 150 C 130 90, 270 90, 310 150" fill="none" stroke="#5fd4e4" stroke-width="1.6"></path>
+            <path d="M 78 210 C 130 160, 270 160, 322 210" fill="none" stroke="#5fd4e4" stroke-width="1.6"></path>
+            <path d="M 80 268 C 130 232, 270 232, 320 268" fill="none" stroke="#5fd4e4" stroke-width="1.6"></path>
+            <path d="M 96 322 C 140 300, 260 300, 304 322" fill="none" stroke="#5fd4e4" stroke-width="1.6"></path>
+            <path d="M 130 96 C 96 150, 96 290, 132 336" fill="none" stroke="#5fd4e4" stroke-width="1.6"></path>
+            <path d="M 176 82 C 156 150, 156 292, 178 348" fill="none" stroke="#5fd4e4" stroke-width="1.6"></path>
+            <path d="M 224 82 C 244 150, 244 292, 222 348" fill="none" stroke="#5fd4e4" stroke-width="1.6"></path>
+            <path d="M 270 96 C 304 150, 304 290, 268 336" fill="none" stroke="#5fd4e4" stroke-width="1.6"></path>
+            <circle cx="176" cy="210" r="4.5" fill="#ff458e"></circle>
+            <circle cx="224" cy="210" r="4.5" fill="#ff458e"></circle>
+            <circle cx="176" cy="268" r="4.5" fill="#ff458e"></circle>
+            <circle cx="224" cy="268" r="4.5" fill="#ff458e"></circle>
+            <polygon points="176,210 224,210 224,268 176,268" fill="#ff458e" fill-opacity="0.22" stroke="#ff458e" stroke-width="2"></polygon>
+          </svg>
+          <div style="position:absolute;top:12px;left:12px;display:flex;gap:6px">
+            <div style="background:#1b1f20;border-radius:8px;padding:6px 12px;color:#bfc8ca;font-size:12px">Исходный меш · 1,24 млн</div>
+            <div style="background:#1b1f20;border-radius:8px;padding:6px 12px;color:#a2eeff;font-size:12px">Новая сетка · 3 840 квадов</div>
+          </div>
+          <div style="position:absolute;bottom:14px;left:12px;display:flex;align-items:center;gap:10px;background:#1b1f20;border-radius:20px;padding:8px 14px">
+            <span style="font-size:12px;color:#bfc8ca">Прозрачность исходника</span>
+            <div style="width:120px;height:4px;background:#3f484a;border-radius:2px;position:relative"><div style="position:absolute;left:0;top:0;bottom:0;width:70%;background:#5fd4e4;border-radius:2px"></div><div style="position:absolute;left:70%;top:-6px;width:16px;height:16px;border-radius:50%;background:#5fd4e4"></div></div>
+          </div>
+        </div>
+        <div style="width:290px;flex:0 0 290px;background:#171a1b;padding:14px 16px;display:flex;flex-direction:column;gap:16px;overflow:hidden">
+          <div>
+            <div style="font-size:11px;letter-spacing:0.08em;text-transform:uppercase;color:#899295;margin-bottom:10px">Автоматическая ретопология</div>
+            <div style="font-size:11px;color:#899295;margin-bottom:6px">Целевое число квадов</div>
+            <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px"><div style="flex:1;height:4px;background:#3f484a;border-radius:2px;position:relative"><div style="position:absolute;left:0;top:0;bottom:0;width:40%;background:#5fd4e4;border-radius:2px"></div><div style="position:absolute;left:40%;top:-6px;width:16px;height:16px;border-radius:50%;background:#5fd4e4"></div></div><span style="font-size:12px;min-width:44px;text-align:right">4 000</span></div>
+            <div style="display:flex;align-items:center;gap:8px;font-size:12px;color:#bfc8ca;margin-bottom:8px"><span class="ms" style="font-size:16px;color:#5fd4e4">check_box</span>Плотнее по кривизне</div>
+            <div style="display:flex;align-items:center;gap:8px;font-size:12px;color:#bfc8ca;margin-bottom:12px"><span class="ms" style="font-size:16px;color:#5fd4e4">check_box</span>Симметрия по X</div>
+            <div style="background:#1b1f20;color:#a2eeff;border-radius:16px;padding:9px;text-align:center;font-size:12px;font-weight:500">Пересобрать сетку</div>
+          </div>
+          <div style="height:1px;background:#3f484a"></div>
+          <div>
+            <div style="font-size:11px;letter-spacing:0.08em;text-transform:uppercase;color:#899295;margin-bottom:10px">Запекание карт</div>
+            <div style="font-size:12px;color:#bfc8ca;display:flex;justify-content:space-between;margin-bottom:6px"><span>Источник</span><span style="color:#e1e3e3">Корпус_high</span></div>
+            <div style="font-size:12px;color:#bfc8ca;display:flex;justify-content:space-between;margin-bottom:12px"><span>Приёмник</span><span style="color:#e1e3e3">Корпус_low</span></div>
+            <div style="display:flex;flex-direction:column;gap:6px;font-size:12px;margin-bottom:12px">
+              <div style="display:flex;align-items:center;gap:8px;background:#1b1f20;border-radius:8px;padding:8px 10px"><span class="ms" style="font-size:16px;color:#5fd4e4">check_box</span><span style="flex:1">Нормали</span><span style="color:#899295">2K</span></div>
+              <div style="display:flex;align-items:center;gap:8px;background:#1b1f20;border-radius:8px;padding:8px 10px"><span class="ms" style="font-size:16px;color:#5fd4e4">check_box</span><span style="flex:1">Затенение AO</span><span style="color:#899295">2K</span></div>
+              <div style="display:flex;align-items:center;gap:8px;background:#1b1f20;border-radius:8px;padding:8px 10px"><span class="ms" style="font-size:16px;color:#899295">check_box_outline_blank</span><span style="flex:1">Кривизна</span><span style="color:#899295">1K</span></div>
+            </div>
+            <div style="font-size:11px;color:#899295;margin-bottom:6px">Толщина оболочки</div>
+            <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px"><div style="flex:1;height:4px;background:#3f484a;border-radius:2px;position:relative"><div style="position:absolute;left:0;top:0;bottom:0;width:22%;background:#5fd4e4;border-radius:2px"></div><div style="position:absolute;left:22%;top:-6px;width:16px;height:16px;border-radius:50%;background:#5fd4e4"></div></div><span style="font-size:12px">0,04</span></div>
+            <div style="background:#004f58;color:#a2eeff;border-radius:16px;padding:10px;text-align:center;font-size:13px;font-weight:500">Запечь 2 карты</div>
+          </div>
+        </div>
+      </div>
+      <div style="height:30px;flex:0 0 30px;background:#131617;display:flex;align-items:center;justify-content:space-between;padding:0 14px;font-size:11px;color:#899295">
+        <span>Квадов 3 840 · треугольников 7 680 · полюсов 12</span><span style="color:#7ee081">Развёртка сохранена</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ЭКРАН 11 · СИМУЛЯЦИИ И ФИЗИКА -->
+  <div class="screenrow" style="margin-bottom:var(--space-8)">
+    <div style="flex:0 0 240px">
+      <div style="font-size:12px;letter-spacing:0.08em;text-transform:uppercase;color:var(--color-accent-700);margin-bottom:6px">Экран 11 · фаза 4</div>
+      <h2 style="font-size:24px;margin:0 0 var(--space-2)">Симуляции и физика</h2>
+      <p style="font-size:14px;line-height:1.6;color:var(--color-neutral-800);margin:0 0 var(--space-3)">Физика — свойство объекта, а не отдельный раздел: тип назначается в списке сцены, параметры открываются справа, кэш и запекание — внизу у таймлайна.</p>
+      <p style="font-size:13px;line-height:1.6;color:var(--color-neutral-700);margin:0">Полоса кэша показывает, какие кадры просчитаны, — состояние симуляции видно без диалогов.</p>
+    </div>
+    <div class="m3" style="width:1400px;height:860px;background:#0b0e0f;border-radius:12px;overflow:hidden;box-shadow:var(--shadow-lg);display:flex;flex-direction:column;font-size:13px">
+      <div style="height:52px;flex:0 0 52px;background:#171a1b;display:flex;align-items:center;justify-content:space-between;padding:0 12px;gap:16px">
+        <div style="display:flex;align-items:center;gap:10px;min-width:260px"><span class="ms" style="font-size:20px;color:#5fd4e4">waves</span><span style="font-size:14px;font-weight:500">Сцена_бой</span><span style="color:#899295;font-size:12px">Плащ</span></div>
+        <div style="display:flex;background:#1b1f20;border-radius:16px;padding:2px;gap:2px">
+          <div style="padding:6px 16px;border-radius:14px;color:#bfc8ca">Объект</div>
+          <div style="padding:6px 16px;border-radius:14px;color:#bfc8ca">Меш</div>
+          <div style="padding:6px 16px;border-radius:14px;color:#bfc8ca">Материал</div>
+          <div style="padding:6px 16px;border-radius:14px;background:#004f58;color:#a2eeff;font-weight:500">Анимация</div>
+          <div style="padding:6px 16px;border-radius:14px;color:#bfc8ca">Сцена</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:4px;min-width:260px;justify-content:flex-end">
+          <span class="ms" style="font-size:20px;color:#bfc8ca;padding:8px">undo</span><span class="ms" style="font-size:20px;color:#bfc8ca;padding:8px">redo</span>
+          <div style="width:1px;height:20px;background:#3f484a;margin:0 6px"></div>
+          <div style="display:flex;align-items:center;gap:6px;background:#004f58;color:#a2eeff;padding:8px 16px;border-radius:16px;font-weight:500"><span class="ms" style="font-size:18px">ios_share</span>Экспорт</div>
+        </div>
+      </div>
+      <div style="flex:1;display:flex;min-height:0">
+        <div style="width:52px;flex:0 0 52px;background:#131617;display:flex;flex-direction:column;align-items:center;padding:8px 0;gap:2px">
+          <div style="width:40px;height:36px;border-radius:10px;background:#004f58;display:flex;align-items:center;justify-content:center"><span class="ms" style="font-size:20px;color:#a2eeff">air</span></div>
+          <div style="width:40px;height:36px;display:flex;align-items:center;justify-content:center"><span class="ms" style="font-size:20px;color:#bfc8ca">scatter_plot</span></div>
+          <div style="width:40px;height:36px;display:flex;align-items:center;justify-content:center"><span class="ms" style="font-size:20px;color:#bfc8ca">sports_volleyball</span></div>
+          <div style="width:24px;height:1px;background:#3f484a;margin:8px 0"></div>
+          <div style="width:40px;height:36px;display:flex;align-items:center;justify-content:center"><span class="ms" style="font-size:20px;color:#bfc8ca">push_pin</span></div>
+          <div style="width:40px;height:36px;display:flex;align-items:center;justify-content:center"><span class="ms" style="font-size:20px;color:#bfc8ca">block</span></div>
+        </div>
+        <div style="flex:1;display:flex;flex-direction:column;min-width:0">
+          <div style="flex:1;position:relative;background:radial-gradient(120% 100% at 50% 0%, #1a1e1f 0%, #0e1112 70%);overflow:hidden;min-height:0">
+            <div style="position:absolute;inset:auto 0 -14% 0;height:70%;background-image:linear-gradient(#2a3234 1px,transparent 1px),linear-gradient(90deg,#2a3234 1px,transparent 1px);background-size:48px 48px;transform:perspective(520px) rotateX(66deg);transform-origin:bottom center;opacity:0.35"></div>
+            <svg viewBox="0 0 420 420" style="position:absolute;left:50%;top:48%;width:440px;transform:translate(-50%,-50%)">
+              <ellipse cx="210" cy="150" rx="52" ry="58" fill="#4d5658"></ellipse>
+              <rect x="176" y="196" width="68" height="120" rx="20" fill="#454f51"></rect>
+              <path d="M 150 180 C 120 250, 118 330, 138 386 L 292 386 C 306 322, 300 244, 272 180 Z" fill="#7a1230" fill-opacity="0.55" stroke="#ff458e" stroke-width="1.4"></path>
+              <path d="M 158 210 C 150 270, 150 330, 160 380" fill="none" stroke="#ff90b1" stroke-width="1.2" stroke-opacity="0.7"></path>
+              <path d="M 190 200 C 182 268, 184 332, 194 384" fill="none" stroke="#ff90b1" stroke-width="1.2" stroke-opacity="0.7"></path>
+              <path d="M 226 200 C 234 268, 234 332, 226 384" fill="none" stroke="#ff90b1" stroke-width="1.2" stroke-opacity="0.7"></path>
+              <path d="M 258 208 C 268 268, 270 332, 262 382" fill="none" stroke="#ff90b1" stroke-width="1.2" stroke-opacity="0.7"></path>
+              <path d="M 146 250 C 190 262, 240 262, 284 250" fill="none" stroke="#ff90b1" stroke-width="1.2" stroke-opacity="0.5"></path>
+              <path d="M 142 320 C 190 334, 244 334, 292 320" fill="none" stroke="#ff90b1" stroke-width="1.2" stroke-opacity="0.5"></path>
+            </svg>
+            <div style="position:absolute;top:12px;left:12px;display:flex;gap:6px">
+              <div style="background:#1b1f20;border-radius:8px;padding:6px 12px;color:#bfc8ca;font-size:12px">Ткань · кадр 42</div>
+              <div style="background:#1b1f20;border-radius:8px;padding:6px 12px;color:#bfc8ca;font-size:12px">Столкновение: Тело</div>
+            </div>
+          </div>
+          <div style="height:150px;flex:0 0 150px;background:#101314;border-top:1px solid #262a2b;padding:12px 16px">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+              <div style="display:flex;align-items:center;gap:6px">
+                <span class="ms" style="font-size:20px;color:#bfc8ca">skip_previous</span>
+                <span class="ms" style="font-size:24px;color:#a2eeff;background:#004f58;border-radius:50%;padding:6px">play_arrow</span>
+                <span class="ms" style="font-size:20px;color:#bfc8ca">skip_next</span>
+                <span style="font-size:12px;color:#bfc8ca;margin-left:10px">42 / 120</span>
+              </div>
+              <div style="display:flex;align-items:center;gap:10px;font-size:12px;color:#bfc8ca"><span>Кэш 42 из 120 кадров</span><div style="background:#004f58;color:#a2eeff;border-radius:16px;padding:7px 16px;font-weight:500">Запечь симуляцию</div></div>
+            </div>
+            <div style="height:16px;border-radius:8px;background:#1b1f20;position:relative;overflow:hidden;margin-bottom:8px">
+              <div style="position:absolute;left:0;top:0;bottom:0;width:35%;background:#004f58"></div>
+              <div style="position:absolute;left:35%;top:0;bottom:0;width:1.5%;background:#ff458e"></div>
+            </div>
+            <div style="display:flex;justify-content:space-between;font-size:11px;color:#899295"><span>1</span><span>30</span><span>60</span><span>90</span><span>120</span></div>
+          </div>
+        </div>
+        <div style="width:290px;flex:0 0 290px;background:#171a1b;padding:14px 16px;display:flex;flex-direction:column;gap:16px">
+          <div>
+            <div style="font-size:11px;letter-spacing:0.08em;text-transform:uppercase;color:#899295;margin-bottom:10px">Физика объекта</div>
+            <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:14px">
+              <div style="background:#004f58;color:#a2eeff;border-radius:14px;padding:7px 14px;font-size:12px;font-weight:500">Ткань</div>
+              <div style="background:#1b1f20;color:#bfc8ca;border-radius:14px;padding:7px 14px;font-size:12px">Твёрдое тело</div>
+              <div style="background:#1b1f20;color:#bfc8ca;border-radius:14px;padding:7px 14px;font-size:12px">Частицы</div>
+            </div>
+            <div style="font-size:11px;color:#899295;margin-bottom:6px">Жёсткость</div>
+            <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px"><div style="flex:1;height:4px;background:#3f484a;border-radius:2px;position:relative"><div style="position:absolute;left:0;top:0;bottom:0;width:28%;background:#5fd4e4;border-radius:2px"></div><div style="position:absolute;left:28%;top:-6px;width:16px;height:16px;border-radius:50%;background:#5fd4e4"></div></div><span style="font-size:12px">0,28</span></div>
+            <div style="font-size:11px;color:#899295;margin-bottom:6px">Масса</div>
+            <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px"><div style="flex:1;height:4px;background:#3f484a;border-radius:2px;position:relative"><div style="position:absolute;left:0;top:0;bottom:0;width:55%;background:#5fd4e4;border-radius:2px"></div><div style="position:absolute;left:55%;top:-6px;width:16px;height:16px;border-radius:50%;background:#5fd4e4"></div></div><span style="font-size:12px">0,3 кг</span></div>
+            <div style="font-size:11px;color:#899295;margin-bottom:6px">Трение</div>
+            <div style="display:flex;align-items:center;gap:10px"><div style="flex:1;height:4px;background:#3f484a;border-radius:2px;position:relative"><div style="position:absolute;left:0;top:0;bottom:0;width:42%;background:#5fd4e4;border-radius:2px"></div><div style="position:absolute;left:42%;top:-6px;width:16px;height:16px;border-radius:50%;background:#5fd4e4"></div></div><span style="font-size:12px">0,42</span></div>
+          </div>
+          <div>
+            <div style="font-size:11px;letter-spacing:0.08em;text-transform:uppercase;color:#899295;margin-bottom:10px">Взаимодействие</div>
+            <div style="display:flex;flex-direction:column;gap:6px;font-size:12px;color:#bfc8ca">
+              <div style="display:flex;align-items:center;justify-content:space-between;background:#1b1f20;border-radius:8px;padding:8px 10px"><span>Столкновение с «Тело»</span><span class="ms" style="font-size:16px;color:#5fd4e4">check</span></div>
+              <div style="display:flex;align-items:center;justify-content:space-between;background:#1b1f20;border-radius:8px;padding:8px 10px"><span>Ветер · 2,4 м/с</span><span class="ms" style="font-size:16px;color:#899295">tune</span></div>
+              <div style="display:flex;align-items:center;justify-content:space-between;background:#1b1f20;border-radius:8px;padding:8px 10px"><span>Закреплённые вершины</span><span style="color:#899295">18</span></div>
+            </div>
+          </div>
+          <div>
+            <div style="font-size:11px;letter-spacing:0.08em;text-transform:uppercase;color:#899295;margin-bottom:10px">Точность</div>
+            <div style="display:flex;flex-direction:column;gap:6px;font-size:12px;color:#bfc8ca">
+              <div style="display:flex;justify-content:space-between"><span>Шагов на кадр</span><span>5</span></div>
+              <div style="display:flex;justify-content:space-between"><span>Гравитация</span><span>−9,81</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div style="height:30px;flex:0 0 30px;background:#131617;display:flex;align-items:center;justify-content:space-between;padding:0 14px;font-size:11px;color:#899295">
+        <span>Симуляций в сцене 2 · кэш 184 МБ</span><span style="color:#ffb86b">Запечь перед экспортом в движок</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ЭКРАН 12 · КОМПОЗИТИНГ -->
+  <div class="screenrow">
+    <div style="flex:0 0 240px">
+      <div style="font-size:12px;letter-spacing:0.08em;text-transform:uppercase;color:var(--color-accent-700);margin-bottom:6px">Экран 12 · фаза 4</div>
+      <h2 style="font-size:24px;margin:0 0 var(--space-2)">Рендер и композитинг</h2>
+      <p style="font-size:14px;line-height:1.6;color:var(--color-neutral-800);margin:0 0 var(--space-3)">Результат рендера и граф обработки — на одном экране. Правка ноды пересчитывает только затронутую ветку, изображение обновляется на месте.</p>
+      <p style="font-size:13px;line-height:1.6;color:var(--color-neutral-700);margin:0">Проходы слева работают как слои: любой можно вывести в просмотр одним нажатием.</p>
+    </div>
+    <div class="m3" style="width:1400px;height:860px;background:#0b0e0f;border-radius:12px;overflow:hidden;box-shadow:var(--shadow-lg);display:flex;flex-direction:column;font-size:13px">
+      <div style="height:52px;flex:0 0 52px;background:#171a1b;display:flex;align-items:center;justify-content:space-between;padding:0 12px;gap:16px">
+        <div style="display:flex;align-items:center;gap:10px;min-width:260px"><span class="ms" style="font-size:20px;color:#5fd4e4">photo_camera</span><span style="font-size:14px;font-weight:500">Сцена_бой</span><span style="color:#899295;font-size:12px">Камера 01</span></div>
+        <div style="display:flex;align-items:center;gap:12px">
+          <div style="display:flex;background:#1b1f20;border-radius:16px;padding:2px;gap:2px">
+            <div style="padding:6px 16px;border-radius:14px;color:#bfc8ca">Объект</div>
+            <div style="padding:6px 16px;border-radius:14px;color:#bfc8ca">Меш</div>
+            <div style="padding:6px 16px;border-radius:14px;color:#bfc8ca">Материал</div>
+            <div style="padding:6px 16px;border-radius:14px;color:#bfc8ca">Анимация</div>
+            <div style="padding:6px 16px;border-radius:14px;background:#004f58;color:#a2eeff;font-weight:500">Сцена</div>
+          </div>
+          <div style="display:flex;background:#1b1f20;border-radius:16px;padding:2px;gap:2px">
+            <div style="padding:6px 14px;border-radius:14px;color:#bfc8ca;font-size:12px">Компоновка</div>
+            <div style="padding:6px 14px;border-radius:14px;background:#004f58;color:#a2eeff;font-size:12px;font-weight:500">Рендер</div>
+          </div>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;min-width:260px;justify-content:flex-end">
+          <div style="display:flex;align-items:center;gap:6px;background:#1b1f20;color:#bfc8ca;padding:8px 14px;border-radius:16px"><span class="ms" style="font-size:18px">save</span>Сохранить кадр</div>
+          <div style="display:flex;align-items:center;gap:6px;background:#004f58;color:#a2eeff;padding:8px 16px;border-radius:16px;font-weight:500"><span class="ms" style="font-size:18px">play_arrow</span>Рендер</div>
+        </div>
+      </div>
+      <div style="flex:1;display:flex;min-height:0">
+        <div style="width:230px;flex:0 0 230px;background:#171a1b;padding:14px 16px;display:flex;flex-direction:column;gap:16px">
+          <div>
+            <div style="font-size:11px;letter-spacing:0.08em;text-transform:uppercase;color:#899295;margin-bottom:10px">Проходы</div>
+            <div style="display:flex;flex-direction:column;gap:2px;font-size:12px;color:#bfc8ca">
+              <div style="display:flex;align-items:center;gap:8px;padding:7px 8px;border-radius:8px;background:#262a2b;color:#e1e3e3"><span class="ms" style="font-size:16px;color:#5fd4e4">visibility</span>Совмещённый</div>
+              <div style="display:flex;align-items:center;gap:8px;padding:7px 8px;border-radius:8px"><span class="ms" style="font-size:16px;color:#899295">visibility_off</span>Глубина</div>
+              <div style="display:flex;align-items:center;gap:8px;padding:7px 8px;border-radius:8px"><span class="ms" style="font-size:16px;color:#899295">visibility_off</span>Нормали</div>
+              <div style="display:flex;align-items:center;gap:8px;padding:7px 8px;border-radius:8px"><span class="ms" style="font-size:16px;color:#899295">visibility_off</span>Затенение AO</div>
+              <div style="display:flex;align-items:center;gap:8px;padding:7px 8px;border-radius:8px"><span class="ms" style="font-size:16px;color:#899295">visibility_off</span>Маски объектов</div>
+            </div>
+          </div>
+          <div>
+            <div style="font-size:11px;letter-spacing:0.08em;text-transform:uppercase;color:#899295;margin-bottom:10px">Настройки</div>
+            <div style="display:flex;flex-direction:column;gap:8px;font-size:12px;color:#bfc8ca">
+              <div style="display:flex;justify-content:space-between"><span>Сэмплов</span><span style="color:#e1e3e3">256</span></div>
+              <div style="display:flex;justify-content:space-between"><span>Разрешение</span><span style="color:#e1e3e3">1920×1080</span></div>
+              <div style="display:flex;justify-content:space-between"><span>Шумоподавление</span><span style="color:#5fd4e4">вкл</span></div>
+              <div style="display:flex;justify-content:space-between"><span>Кадров</span><span style="color:#e1e3e3">1</span></div>
+            </div>
+          </div>
+        </div>
+        <div style="flex:1;display:flex;flex-direction:column;min-width:0">
+          <div style="flex:1;background:#0e1112;display:flex;align-items:center;justify-content:center;position:relative;min-height:0;padding:16px">
+            <div style="width:760px;height:428px;position:relative;background:linear-gradient(170deg,#2c3f4a 0%,#1b2a33 46%,#101a20 100%);box-shadow:0 12px 40px rgba(0,0,0,0.5)">
+              <div style="position:absolute;left:50%;top:56%;transform:translate(-50%,-50%);width:170px;height:230px;border-radius:44% 44% 40% 40%/16% 16% 10% 10%;background:linear-gradient(100deg,#3a4a4e 0%,#93a3a6 38%, #cdd8d9 50%, #5c6d71 72%, #232d2f 100%)"></div>
+              <div style="position:absolute;left:50%;bottom:60px;transform:translateX(-50%);width:320px;height:26px;border-radius:50%;background:rgba(0,0,0,0.45);filter:blur(10px)"></div>
+              <div style="position:absolute;left:24%;top:14%;width:150px;height:150px;border-radius:50%;background:radial-gradient(circle,rgba(255,214,150,0.5) 0%,transparent 70%)"></div>
+              <div style="position:absolute;top:10px;left:10px;background:rgba(0,0,0,0.55);border-radius:6px;padding:4px 10px;font-size:11px;color:#bfc8ca">256 / 256 сэмплов · 1 мин 12 с</div>
+            </div>
+          </div>
+          <div style="height:260px;flex:0 0 260px;background:#101314;border-top:1px solid #262a2b;position:relative">
+            <div style="position:absolute;top:10px;left:14px;display:flex;align-items:center;gap:8px;font-size:12px;color:#bfc8ca;z-index:2"><span class="ms" style="font-size:16px;color:#5fd4e4">account_tree</span>Граф композитинга</div>
+            <svg style="position:absolute;inset:0;width:100%;height:100%" preserveAspectRatio="none">
+              <path d="M 230 120 C 300 120, 300 116, 360 116" stroke="#5fd4e4" stroke-width="2" fill="none"></path>
+              <path d="M 230 160 C 300 160, 300 196, 360 196" stroke="#5fd4e4" stroke-width="2" fill="none"></path>
+              <path d="M 540 116 C 600 116, 600 140, 660 140" stroke="#5fd4e4" stroke-width="2" fill="none"></path>
+              <path d="M 540 196 C 600 196, 600 164, 660 164" stroke="#5fd4e4" stroke-width="2" fill="none"></path>
+              <path d="M 830 150 C 880 150, 890 150, 930 150" stroke="#5fd4e4" stroke-width="2" fill="none"></path>
+            </svg>
+            <div style="position:absolute;left:44px;top:76px;width:186px;background:#1b1f20;border-radius:10px;overflow:hidden;box-shadow:0 4px 12px rgba(0,0,0,0.4)">
+              <div style="background:#004f58;color:#a2eeff;padding:7px 12px;font-size:12px;font-weight:500">Слои рендера</div>
+              <div style="padding:8px 12px;font-size:11px;color:#bfc8ca;display:flex;flex-direction:column;gap:5px"><span>Совмещённый</span><span style="color:#899295">Глубина</span></div>
+            </div>
+            <div style="position:absolute;left:360px;top:76px;width:180px;background:#1b1f20;border-radius:10px;overflow:hidden;box-shadow:0 4px 12px rgba(0,0,0,0.4)">
+              <div style="background:#262a2b;padding:7px 12px;font-size:12px;font-weight:500">Свечение</div>
+              <div style="padding:8px 12px;font-size:11px;color:#bfc8ca;display:flex;justify-content:space-between"><span>Порог</span><span>0,82</span></div>
+            </div>
+            <div style="position:absolute;left:360px;top:166px;width:180px;background:#1b1f20;border-radius:10px;overflow:hidden;box-shadow:0 4px 12px rgba(0,0,0,0.4)">
+              <div style="background:#262a2b;padding:7px 12px;font-size:12px;font-weight:500">Размытие по глубине</div>
+              <div style="padding:8px 12px;font-size:11px;color:#bfc8ca;display:flex;justify-content:space-between"><span>Радиус</span><span>6 px</span></div>
+            </div>
+            <div style="position:absolute;left:660px;top:104px;width:170px;background:#1b1f20;border-radius:10px;overflow:hidden;box-shadow:0 4px 12px rgba(0,0,0,0.4)">
+              <div style="background:#262a2b;padding:7px 12px;font-size:12px;font-weight:500">Цветокоррекция</div>
+              <div style="padding:8px 12px;font-size:11px;color:#bfc8ca;display:flex;justify-content:space-between"><span>Контраст</span><span>+0,14</span></div>
+            </div>
+            <div style="position:absolute;left:930px;top:120px;width:150px;background:#1b1f20;border-radius:10px;overflow:hidden;box-shadow:0 4px 12px rgba(0,0,0,0.4)">
+              <div style="background:#004f58;color:#a2eeff;padding:7px 12px;font-size:12px;font-weight:500">Выход</div>
+              <div style="padding:8px 12px;font-size:11px;color:#899295">PNG · 16 бит</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div style="height:30px;flex:0 0 30px;background:#131617;display:flex;align-items:center;justify-content:space-between;padding:0 14px;font-size:11px;color:#899295">
+        <span>Нод 5 · пересчёт ветки 0,4 с</span><span style="color:#7ee081">Кадр отрендерен</span>
+      </div>
+    </div>
+  </div>
+
+  <div style="margin:var(--space-8) 0 var(--space-6);max-width:56ch">
+    <h2 style="font-size:32px;margin:0 0 var(--space-2)">Конвейер персонажа</h2>
+    <p style="font-size:16px;line-height:1.6;color:var(--color-neutral-800);margin:0">Семь экранов, которые закрывают путь от готового меша до персонажа, работающего в вашем движке. Целевая среда — собственный рантайм на flutter3d, поэтому проверки и бюджеты задаются профилем проекта, а не пресетом чужого движка.</p>
+  </div>
+
+  <!-- 13 · ПОКРАСКА ВЕСОВ -->
+  <div class="screenrow" style="margin-bottom:var(--space-8)">
+    <div style="flex:0 0 240px">
+      <div style="font-size:12px;letter-spacing:0.08em;text-transform:uppercase;color:var(--color-accent-700);margin-bottom:6px">Экран 13 · фаза 3</div>
+      <h2 style="font-size:24px;margin:0 0 var(--space-2)">Покраска весов</h2>
+      <p style="font-size:14px;line-height:1.6;color:var(--color-neutral-800);margin:0 0 var(--space-3)">Веса правятся кистью, а результат сразу проверяется в позе: ползунок внизу гнёт выбранную кость, не выходя из режима покраски.</p>
+      <p style="font-size:13px;line-height:1.6;color:var(--color-neutral-700);margin:0">Ограничение влияний на вершину задано профилем проекта и держится автоматически — перенормировка идёт при каждом мазке.</p>
+    </div>
+    <div class="m3" style="width:1400px;height:860px;background:#0b0e0f;border-radius:12px;overflow:hidden;box-shadow:var(--shadow-lg);display:flex;flex-direction:column;font-size:13px">
+      <div style="height:52px;flex:0 0 52px;background:#171a1b;display:flex;align-items:center;justify-content:space-between;padding:0 12px;gap:16px">
+        <div style="display:flex;align-items:center;gap:10px;min-width:260px"><span class="ms" style="font-size:20px;color:#5fd4e4">brush</span><span style="font-size:14px;font-weight:500">Персонаж_v3</span><span style="color:#899295;font-size:12px">Бедро.L</span></div>
+        <div style="display:flex;align-items:center;gap:12px">
+          <div style="display:flex;background:#1b1f20;border-radius:16px;padding:2px;gap:2px">
+            <div style="padding:6px 16px;border-radius:14px;color:#bfc8ca">Объект</div>
+            <div style="padding:6px 16px;border-radius:14px;color:#bfc8ca">Меш</div>
+            <div style="padding:6px 16px;border-radius:14px;color:#bfc8ca">Материал</div>
+            <div style="padding:6px 16px;border-radius:14px;background:#004f58;color:#a2eeff;font-weight:500">Анимация</div>
+            <div style="padding:6px 16px;border-radius:14px;color:#bfc8ca">Сцена</div>
+          </div>
+          <div style="display:flex;background:#1b1f20;border-radius:16px;padding:2px;gap:2px">
+            <div style="padding:6px 14px;border-radius:14px;color:#bfc8ca;font-size:12px">Поза</div>
+            <div style="padding:6px 14px;border-radius:14px;background:#004f58;color:#a2eeff;font-size:12px;font-weight:500">Веса</div>
+          </div>
+        </div>
+        <div style="display:flex;align-items:center;gap:4px;min-width:260px;justify-content:flex-end">
+          <span class="ms" style="font-size:20px;color:#bfc8ca;padding:8px">undo</span><span class="ms" style="font-size:20px;color:#bfc8ca;padding:8px">redo</span>
+          <div style="width:1px;height:20px;background:#3f484a;margin:0 6px"></div>
+          <div style="display:flex;align-items:center;gap:6px;background:#004f58;color:#a2eeff;padding:8px 16px;border-radius:16px;font-weight:500"><span class="ms" style="font-size:18px">ios_share</span>Экспорт</div>
+        </div>
+      </div>
+      <div style="flex:1;display:flex;min-height:0">
+        <div style="width:52px;flex:0 0 52px;background:#131617;display:flex;flex-direction:column;align-items:center;padding:8px 0;gap:2px">
+          <div style="width:40px;height:36px;border-radius:10px;background:#004f58;display:flex;align-items:center;justify-content:center"><span class="ms" style="font-size:20px;color:#a2eeff">add</span></div>
+          <div style="width:40px;height:36px;display:flex;align-items:center;justify-content:center"><span class="ms" style="font-size:20px;color:#bfc8ca">remove</span></div>
+          <div style="width:40px;height:36px;display:flex;align-items:center;justify-content:center"><span class="ms" style="font-size:20px;color:#bfc8ca">blur_on</span></div>
+          <div style="width:40px;height:36px;display:flex;align-items:center;justify-content:center"><span class="ms" style="font-size:20px;color:#bfc8ca">gradient</span></div>
+          <div style="width:24px;height:1px;background:#3f484a;margin:8px 0"></div>
+          <div style="width:40px;height:36px;display:flex;align-items:center;justify-content:center"><span class="ms" style="font-size:20px;color:#bfc8ca">flip</span></div>
+        </div>
+        <div style="flex:1;display:flex;flex-direction:column;min-width:0">
+          <div style="flex:1;position:relative;background:radial-gradient(120% 100% at 50% 0%, #1a1e1f 0%, #0e1112 70%);overflow:hidden;min-height:0">
+            <svg viewBox="0 0 300 400" style="position:absolute;left:50%;top:48%;width:330px;transform:translate(-50%,-50%)">
+              <defs>
+                <linearGradient id="wpaint" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stop-color="#ff3b5c"></stop>
+                  <stop offset="26%" stop-color="#ffb347"></stop>
+                  <stop offset="52%" stop-color="#7ee081"></stop>
+                  <stop offset="78%" stop-color="#4aa3ff"></stop>
+                  <stop offset="100%" stop-color="#2a3a7a"></stop>
+                </linearGradient>
+              </defs>
+              <circle cx="150" cy="52" r="30" fill="#2f4373"></circle>
+              <rect x="118" y="88" width="64" height="110" rx="22" fill="#33497c"></rect>
+              <rect x="82" y="96" width="30" height="96" rx="14" fill="#2f4373"></rect>
+              <rect x="188" y="96" width="30" height="96" rx="14" fill="#2f4373"></rect>
+              <path d="M 122 196 L 156 196 L 150 330 L 126 330 Z" fill="url(#wpaint)"></path>
+              <path d="M 164 196 L 196 196 L 190 330 L 166 330 Z" fill="#2f4373"></path>
+              <line x1="150" y1="196" x2="138" y2="264" stroke="#e1e3e3" stroke-width="2"></line>
+              <circle cx="150" cy="196" r="5" fill="#ffffff"></circle>
+              <circle cx="138" cy="264" r="5" fill="#ffffff"></circle>
+              <circle cx="136" cy="238" r="42" fill="none" stroke="#5fd4e4" stroke-width="2"></circle>
+            </svg>
+            <div style="position:absolute;top:12px;left:12px;background:#1b1f20;border-radius:8px;padding:6px 12px;color:#bfc8ca;font-size:12px">Веса кости «Бедро.L»</div>
+            <div style="position:absolute;top:12px;right:12px;background:#1b1f20;border-radius:8px;padding:8px 12px;display:flex;align-items:center;gap:10px">
+              <span style="font-size:11px;color:#899295">0</span>
+              <div style="width:140px;height:8px;border-radius:4px;background:linear-gradient(90deg,#2a3a7a,#4aa3ff,#7ee081,#ffb347,#ff3b5c)"></div>
+              <span style="font-size:11px;color:#899295">1</span>
+            </div>
+          </div>
+          <div style="height:74px;flex:0 0 74px;background:#101314;border-top:1px solid #262a2b;padding:14px 18px">
+            <div style="display:flex;align-items:center;gap:16px">
+              <span style="font-size:12px;color:#bfc8ca;white-space:nowrap">Проверка в позе · Бедро.L</span>
+              <div style="flex:1;height:4px;background:#3f484a;border-radius:2px;position:relative"><div style="position:absolute;left:0;top:0;bottom:0;width:64%;background:#ff458e;border-radius:2px"></div><div style="position:absolute;left:64%;top:-6px;width:16px;height:16px;border-radius:50%;background:#ff458e"></div></div>
+              <span style="font-size:12px;color:#e1e3e3;min-width:44px;text-align:right">−58°</span>
+              <div style="background:#1b1f20;color:#bfc8ca;border-radius:16px;padding:7px 14px;font-size:12px;white-space:nowrap">Сбросить позу</div>
+            </div>
+          </div>
+        </div>
+        <div style="width:290px;flex:0 0 290px;background:#171a1b;padding:14px 16px;display:flex;flex-direction:column;gap:16px">
+          <div>
+            <div style="font-size:11px;letter-spacing:0.08em;text-transform:uppercase;color:#899295;margin-bottom:10px">Кисть</div>
+            <div style="font-size:11px;color:#899295;margin-bottom:6px">Радиус</div>
+            <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px"><div style="flex:1;height:4px;background:#3f484a;border-radius:2px;position:relative"><div style="position:absolute;left:0;top:0;bottom:0;width:42%;background:#5fd4e4;border-radius:2px"></div><div style="position:absolute;left:42%;top:-6px;width:16px;height:16px;border-radius:50%;background:#5fd4e4"></div></div><span style="font-size:12px">48</span></div>
+            <div style="font-size:11px;color:#899295;margin-bottom:6px">Вес мазка</div>
+            <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px"><div style="flex:1;height:4px;background:#3f484a;border-radius:2px;position:relative"><div style="position:absolute;left:0;top:0;bottom:0;width:100%;background:#5fd4e4;border-radius:2px"></div><div style="position:absolute;left:calc(100% - 16px);top:-6px;width:16px;height:16px;border-radius:50%;background:#5fd4e4"></div></div><span style="font-size:12px">1,00</span></div>
+            <div style="display:flex;align-items:center;gap:8px;font-size:12px;color:#bfc8ca;margin-bottom:8px"><span class="ms" style="font-size:16px;color:#5fd4e4">check_box</span>Зеркалить на .R</div>
+            <div style="display:flex;align-items:center;gap:8px;font-size:12px;color:#bfc8ca"><span class="ms" style="font-size:16px;color:#5fd4e4">check_box</span>Нормализовать веса</div>
+          </div>
+          <div>
+            <div style="font-size:11px;letter-spacing:0.08em;text-transform:uppercase;color:#899295;margin-bottom:10px">Влияния выделенной вершины</div>
+            <div style="display:flex;flex-direction:column;gap:6px;font-size:12px;color:#bfc8ca">
+              <div style="display:flex;align-items:center;gap:8px"><span style="flex:1">Бедро.L</span><div style="width:90px;height:4px;background:#3f484a;border-radius:2px;position:relative"><div style="position:absolute;inset:0 32% 0 0;background:#5fd4e4;border-radius:2px"></div></div><span style="min-width:32px;text-align:right">0,68</span></div>
+              <div style="display:flex;align-items:center;gap:8px"><span style="flex:1">Таз</span><div style="width:90px;height:4px;background:#3f484a;border-radius:2px;position:relative"><div style="position:absolute;inset:0 76% 0 0;background:#5fd4e4;border-radius:2px"></div></div><span style="min-width:32px;text-align:right">0,24</span></div>
+              <div style="display:flex;align-items:center;gap:8px"><span style="flex:1">Голень.L</span><div style="width:90px;height:4px;background:#3f484a;border-radius:2px;position:relative"><div style="position:absolute;inset:0 92% 0 0;background:#5fd4e4;border-radius:2px"></div></div><span style="min-width:32px;text-align:right">0,08</span></div>
+            </div>
+          </div>
+          <div>
+            <div style="font-size:11px;letter-spacing:0.08em;text-transform:uppercase;color:#899295;margin-bottom:10px">Кости</div>
+            <div style="display:flex;flex-direction:column;gap:2px;font-size:12px;color:#bfc8ca">
+              <div style="padding:6px 8px;border-radius:8px;background:#262a2b;color:#e1e3e3;display:flex;justify-content:space-between"><span>Бедро.L</span><span style="color:#899295">412 в.</span></div>
+              <div style="padding:6px 8px;display:flex;justify-content:space-between"><span>Голень.L</span><span style="color:#899295">386 в.</span></div>
+              <div style="padding:6px 8px;display:flex;justify-content:space-between"><span>Таз</span><span style="color:#899295">640 в.</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div style="height:30px;flex:0 0 30px;background:#131617;display:flex;align-items:center;justify-content:space-between;padding:0 14px;font-size:11px;color:#899295">
+        <span>Влияний на вершину: максимум 4 · без непривязанных вершин</span><span style="color:#7ee081">Веса нормализованы</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- 14 · РЕТАРГЕТ И БИБЛИОТЕКА -->
+  <div class="screenrow" style="margin-bottom:var(--space-8)">
+    <div style="flex:0 0 240px">
+      <div style="font-size:12px;letter-spacing:0.08em;text-transform:uppercase;color:var(--color-accent-700);margin-bottom:6px">Экран 14 · фаза 3</div>
+      <h2 style="font-size:24px;margin:0 0 var(--space-2)">Ретаргет и библиотека</h2>
+      <p style="font-size:14px;line-height:1.6;color:var(--color-neutral-800);margin:0 0 var(--space-3)">Клипы лежат слева и накладываются на скелет перетаскиванием. Сопоставление костей автоматическое, вручную правятся только несовпадения.</p>
+      <p style="font-size:13px;line-height:1.6;color:var(--color-neutral-700);margin:0">Корневое движение выделено отдельно: для игрового персонажа важно, идёт смещение в анимации или задаётся кодом.</p>
+    </div>
+    <div class="m3" style="width:1400px;height:860px;background:#0b0e0f;border-radius:12px;overflow:hidden;box-shadow:var(--shadow-lg);display:flex;flex-direction:column;font-size:13px">
+      <div style="height:52px;flex:0 0 52px;background:#171a1b;display:flex;align-items:center;justify-content:space-between;padding:0 12px;gap:16px">
+        <div style="display:flex;align-items:center;gap:10px;min-width:260px"><span class="ms" style="font-size:20px;color:#5fd4e4">sync_alt</span><span style="font-size:14px;font-weight:500">Персонаж_v3</span><span style="color:#899295;font-size:12px">Бег_02 → свой скелет</span></div>
+        <div style="display:flex;align-items:center;gap:12px">
+          <div style="display:flex;background:#1b1f20;border-radius:16px;padding:2px;gap:2px">
+            <div style="padding:6px 16px;border-radius:14px;color:#bfc8ca">Объект</div>
+            <div style="padding:6px 16px;border-radius:14px;color:#bfc8ca">Меш</div>
+            <div style="padding:6px 16px;border-radius:14px;color:#bfc8ca">Материал</div>
+            <div style="padding:6px 16px;border-radius:14px;background:#004f58;color:#a2eeff;font-weight:500">Анимация</div>
+            <div style="padding:6px 16px;border-radius:14px;color:#bfc8ca">Сцена</div>
+          </div>
+          <div style="display:flex;background:#1b1f20;border-radius:16px;padding:2px;gap:2px">
+            <div style="padding:6px 14px;border-radius:14px;color:#bfc8ca;font-size:12px">Поза</div>
+            <div style="padding:6px 14px;border-radius:14px;color:#bfc8ca;font-size:12px">Веса</div>
+            <div style="padding:6px 14px;border-radius:14px;background:#004f58;color:#a2eeff;font-size:12px;font-weight:500">Ретаргет</div>
+          </div>
+        </div>
+        <div style="display:flex;align-items:center;gap:4px;min-width:260px;justify-content:flex-end">
+          <span class="ms" style="font-size:20px;color:#bfc8ca;padding:8px">undo</span><span class="ms" style="font-size:20px;color:#bfc8ca;padding:8px">redo</span>
+          <div style="width:1px;height:20px;background:#3f484a;margin:0 6px"></div>
+          <div style="display:flex;align-items:center;gap:6px;background:#004f58;color:#a2eeff;padding:8px 16px;border-radius:16px;font-weight:500"><span class="ms" style="font-size:18px">ios_share</span>Экспорт</div>
+        </div>
+      </div>
+      <div style="flex:1;display:flex;min-height:0">
+        <div style="width:230px;flex:0 0 230px;background:#171a1b;padding:14px 14px;display:flex;flex-direction:column;gap:10px">
+          <div style="display:flex;align-items:center;justify-content:space-between"><span style="font-size:11px;letter-spacing:0.08em;text-transform:uppercase;color:#899295">Библиотека</span><span class="ms" style="font-size:18px;color:#5fd4e4">add</span></div>
+          <div style="display:flex;align-items:center;gap:8px;background:#1b1f20;border-radius:18px;padding:8px 12px;color:#899295;font-size:12px"><span class="ms" style="font-size:16px">search</span>Поиск клипа</div>
+          <div style="display:flex;flex-direction:column;gap:6px;font-size:12px">
+            <div style="display:flex;align-items:center;gap:10px;background:#262a2b;border-radius:10px;padding:8px 10px"><span style="width:34px;height:34px;border-radius:6px;background:#004f58;display:flex;align-items:center;justify-content:center"><span class="ms" style="font-size:18px;color:#a2eeff">directions_run</span></span><span style="flex:1"><span style="display:block;color:#e1e3e3">Бег_02</span><span style="color:#899295;font-size:11px">32 кадра · mocap</span></span></div>
+            <div style="display:flex;align-items:center;gap:10px;padding:8px 10px"><span style="width:34px;height:34px;border-radius:6px;background:#1b1f20;display:flex;align-items:center;justify-content:center"><span class="ms" style="font-size:18px;color:#bfc8ca">directions_walk</span></span><span style="flex:1"><span style="display:block;color:#bfc8ca">Ходьба</span><span style="color:#899295;font-size:11px">24 кадра</span></span></div>
+            <div style="display:flex;align-items:center;gap:10px;padding:8px 10px"><span style="width:34px;height:34px;border-radius:6px;background:#1b1f20;display:flex;align-items:center;justify-content:center"><span class="ms" style="font-size:18px;color:#bfc8ca">airline_seat_recline_normal</span></span><span style="flex:1"><span style="display:block;color:#bfc8ca">Ожидание</span><span style="color:#899295;font-size:11px">60 кадров</span></span></div>
+            <div style="display:flex;align-items:center;gap:10px;padding:8px 10px"><span style="width:34px;height:34px;border-radius:6px;background:#1b1f20;display:flex;align-items:center;justify-content:center"><span class="ms" style="font-size:18px;color:#bfc8ca">sports_martial_arts</span></span><span style="flex:1"><span style="display:block;color:#bfc8ca">Удар</span><span style="color:#899295;font-size:11px">18 кадров</span></span></div>
+            <div style="display:flex;align-items:center;gap:10px;padding:8px 10px"><span style="width:34px;height:34px;border-radius:6px;background:#1b1f20;display:flex;align-items:center;justify-content:center"><span class="ms" style="font-size:18px;color:#bfc8ca">airline_stops</span></span><span style="flex:1"><span style="display:block;color:#bfc8ca">Прыжок</span><span style="color:#899295;font-size:11px">28 кадров</span></span></div>
+          </div>
+        </div>
+        <div style="flex:1;display:flex;flex-direction:column;min-width:0">
+          <div style="flex:1;display:flex;min-height:0">
+            <div style="flex:1;position:relative;background:radial-gradient(120% 100% at 50% 0%, #191d1e 0%, #0e1112 70%);border-right:1px solid #262a2b;min-width:0">
+              <div style="position:absolute;top:12px;left:14px;font-size:12px;color:#899295">Источник · mocap-скелет</div>
+              <svg viewBox="0 0 240 340" style="position:absolute;left:50%;top:52%;width:210px;transform:translate(-50%,-50%)">
+                <line x1="120" y1="46" x2="120" y2="170" stroke="#7d8a8d" stroke-width="2.5"></line>
+                <line x1="120" y1="80" x2="72" y2="132" stroke="#7d8a8d" stroke-width="2.5"></line>
+                <line x1="120" y1="80" x2="172" y2="120" stroke="#7d8a8d" stroke-width="2.5"></line>
+                <line x1="120" y1="170" x2="86" y2="252" stroke="#7d8a8d" stroke-width="2.5"></line>
+                <line x1="120" y1="170" x2="158" y2="248" stroke="#7d8a8d" stroke-width="2.5"></line>
+                <line x1="86" y1="252" x2="72" y2="304" stroke="#7d8a8d" stroke-width="2.5"></line>
+                <line x1="158" y1="248" x2="176" y2="300" stroke="#7d8a8d" stroke-width="2.5"></line>
+                <circle cx="120" cy="40" r="14" fill="none" stroke="#7d8a8d" stroke-width="2.5"></circle>
+                <circle cx="120" cy="170" r="4" fill="#7d8a8d"></circle>
+                <circle cx="86" cy="252" r="4" fill="#7d8a8d"></circle>
+                <circle cx="158" cy="248" r="4" fill="#7d8a8d"></circle>
+              </svg>
+            </div>
+            <div style="flex:1;position:relative;background:radial-gradient(120% 100% at 50% 0%, #1a1e1f 0%, #0e1112 70%);min-width:0">
+              <div style="position:absolute;top:12px;left:14px;font-size:12px;color:#a2eeff">Цель · Персонаж_v3</div>
+              <svg viewBox="0 0 240 340" style="position:absolute;left:50%;top:52%;width:230px;transform:translate(-50%,-50%)">
+                <line x1="120" y1="46" x2="120" y2="170" stroke="#5c696c" stroke-width="16" stroke-linecap="round"></line>
+                <line x1="120" y1="86" x2="74" y2="136" stroke="#5c696c" stroke-width="12" stroke-linecap="round"></line>
+                <line x1="120" y1="86" x2="170" y2="124" stroke="#5c696c" stroke-width="12" stroke-linecap="round"></line>
+                <line x1="120" y1="170" x2="88" y2="250" stroke="#5c696c" stroke-width="14" stroke-linecap="round"></line>
+                <line x1="120" y1="170" x2="156" y2="246" stroke="#5c696c" stroke-width="14" stroke-linecap="round"></line>
+                <circle cx="120" cy="38" r="20" fill="#5c696c"></circle>
+                <line x1="120" y1="46" x2="120" y2="170" stroke="#5fd4e4" stroke-width="2"></line>
+                <line x1="120" y1="170" x2="88" y2="250" stroke="#5fd4e4" stroke-width="2"></line>
+                <line x1="120" y1="170" x2="156" y2="246" stroke="#5fd4e4" stroke-width="2"></line>
+                <circle cx="120" cy="170" r="5" fill="#5fd4e4"></circle>
+                <circle cx="88" cy="250" r="5" fill="#5fd4e4"></circle>
+                <circle cx="156" cy="246" r="5" fill="#5fd4e4"></circle>
+              </svg>
+            </div>
+          </div>
+          <div style="height:150px;flex:0 0 150px;background:#101314;border-top:1px solid #262a2b;padding:12px 16px">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+              <div style="display:flex;align-items:center;gap:6px">
+                <span class="ms" style="font-size:24px;color:#a2eeff;background:#004f58;border-radius:50%;padding:6px">play_arrow</span>
+                <span style="font-size:12px;color:#bfc8ca;margin-left:8px">Бег_02 · 18 / 32</span>
+              </div>
+              <div style="display:flex;align-items:center;gap:8px;font-size:12px;color:#bfc8ca"><span>Смешивание с «Ходьба»</span><div style="width:110px;height:4px;background:#3f484a;border-radius:2px;position:relative"><div style="position:absolute;left:0;top:0;bottom:0;width:30%;background:#5fd4e4;border-radius:2px"></div><div style="position:absolute;left:30%;top:-6px;width:16px;height:16px;border-radius:50%;background:#5fd4e4"></div></div><span>0,30</span></div>
+            </div>
+            <div style="display:flex;gap:8px;align-items:center;margin-bottom:8px">
+              <span style="font-size:11px;color:#899295;width:96px">Бег_02</span>
+              <div style="flex:1;height:22px;border-radius:6px;background:#004f58;position:relative"><div style="position:absolute;left:56%;top:-3px;bottom:-3px;width:2px;background:#ff458e"></div></div>
+            </div>
+            <div style="display:flex;gap:8px;align-items:center">
+              <span style="font-size:11px;color:#899295;width:96px">Ходьба</span>
+              <div style="flex:1;height:22px;border-radius:6px;background:#1b1f20;position:relative"><div style="position:absolute;left:0;top:0;bottom:0;width:42%;background:#262a2b;border-radius:6px"></div></div>
+            </div>
+          </div>
+        </div>
+        <div style="width:290px;flex:0 0 290px;background:#171a1b;padding:14px 16px;display:flex;flex-direction:column;gap:16px">
+          <div>
+            <div style="font-size:11px;letter-spacing:0.08em;text-transform:uppercase;color:#899295;margin-bottom:10px">Сопоставление костей</div>
+            <div style="display:flex;flex-direction:column;gap:4px;font-size:12px;color:#bfc8ca">
+              <div style="display:flex;align-items:center;gap:6px;background:#1b1f20;border-radius:8px;padding:7px 10px"><span style="flex:1">Hips</span><span class="ms" style="font-size:14px;color:#899295">arrow_forward</span><span style="flex:1;text-align:right;color:#e1e3e3">Таз</span></div>
+              <div style="display:flex;align-items:center;gap:6px;background:#1b1f20;border-radius:8px;padding:7px 10px"><span style="flex:1">Spine</span><span class="ms" style="font-size:14px;color:#899295">arrow_forward</span><span style="flex:1;text-align:right;color:#e1e3e3">Позвоночник</span></div>
+              <div style="display:flex;align-items:center;gap:6px;background:#3a2118;border-radius:8px;padding:7px 10px"><span style="flex:1">Neck</span><span class="ms" style="font-size:14px;color:#ffb86b">error_outline</span><span style="flex:1;text-align:right;color:#ffb86b">не найдено</span></div>
+              <div style="display:flex;align-items:center;gap:6px;background:#1b1f20;border-radius:8px;padding:7px 10px"><span style="flex:1">LeftUpLeg</span><span class="ms" style="font-size:14px;color:#899295">arrow_forward</span><span style="flex:1;text-align:right;color:#e1e3e3">Бедро.L</span></div>
+              <div style="display:flex;align-items:center;gap:6px;background:#1b1f20;border-radius:8px;padding:7px 10px"><span style="flex:1">LeftLeg</span><span class="ms" style="font-size:14px;color:#899295">arrow_forward</span><span style="flex:1;text-align:right;color:#e1e3e3">Голень.L</span></div>
+            </div>
+            <div style="display:flex;align-items:center;gap:6px;color:#5fd4e4;font-size:12px;padding:8px 2px 0"><span class="ms" style="font-size:16px">auto_fix_high</span>Сопоставить автоматически</div>
+          </div>
+          <div>
+            <div style="font-size:11px;letter-spacing:0.08em;text-transform:uppercase;color:#899295;margin-bottom:10px">Корневое движение</div>
+            <div style="display:flex;gap:6px;margin-bottom:10px"><div style="flex:1;background:#004f58;color:#a2eeff;border-radius:14px;padding:8px;text-align:center;font-size:12px;font-weight:500">В анимации</div><div style="flex:1;background:#1b1f20;color:#bfc8ca;border-radius:14px;padding:8px;text-align:center;font-size:12px">Кодом</div></div>
+            <div style="font-size:12px;color:#bfc8ca;display:flex;justify-content:space-between"><span>Смещение за цикл</span><span style="color:#e1e3e3">1,82 м</span></div>
+          </div>
+          <div>
+            <div style="font-size:11px;letter-spacing:0.08em;text-transform:uppercase;color:#899295;margin-bottom:10px">Коррекция</div>
+            <div style="display:flex;align-items:center;gap:8px;font-size:12px;color:#bfc8ca;margin-bottom:8px"><span class="ms" style="font-size:16px;color:#5fd4e4">check_box</span>Подогнать под рост цели</div>
+            <div style="display:flex;align-items:center;gap:8px;font-size:12px;color:#bfc8ca"><span class="ms" style="font-size:16px;color:#5fd4e4">check_box</span>Прижимать стопы к полу</div>
+          </div>
+        </div>
+      </div>
+      <div style="height:30px;flex:0 0 30px;background:#131617;display:flex;align-items:center;justify-content:space-between;padding:0 14px;font-size:11px;color:#899295">
+        <span>Клипов в библиотеке 5 · сопоставлено 27 из 28 костей</span><span style="color:#ffb86b">Кость Neck не сопоставлена</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- 15 · МОРФЫ -->
+  <div class="screenrow" style="margin-bottom:var(--space-8)">
+    <div style="flex:0 0 240px">
+      <div style="font-size:12px;letter-spacing:0.08em;text-transform:uppercase;color:var(--color-accent-700);margin-bottom:6px">Экран 15 · фаза 3</div>
+      <h2 style="font-size:24px;margin:0 0 var(--space-2)">Морфы и лицевая анимация</h2>
+      <p style="font-size:14px;line-height:1.6;color:var(--color-neutral-800);margin:0 0 var(--space-3)">Список форм справа — он же набор ползунков для анимации: ключ ставится прямо на строке морфа, отдельного редактора нет.</p>
+      <p style="font-size:13px;line-height:1.6;color:var(--color-neutral-700);margin:0">Корректирующие формы привязываются к углу кости, поэтому исправление сгиба локтя не превращается в ручную анимацию.</p>
+    </div>
+    <div class="m3" style="width:1400px;height:820px;background:#0b0e0f;border-radius:12px;overflow:hidden;box-shadow:var(--shadow-lg);display:flex;flex-direction:column;font-size:13px">
+      <div style="height:52px;flex:0 0 52px;background:#171a1b;display:flex;align-items:center;justify-content:space-between;padding:0 12px;gap:16px">
+        <div style="display:flex;align-items:center;gap:10px;min-width:260px"><span class="ms" style="font-size:20px;color:#5fd4e4">face</span><span style="font-size:14px;font-weight:500">Персонаж_v3</span><span style="color:#899295;font-size:12px">Голова</span></div>
+        <div style="display:flex;background:#1b1f20;border-radius:16px;padding:2px;gap:2px">
+          <div style="padding:6px 14px;border-radius:14px;color:#bfc8ca;font-size:12px">Поза</div>
+          <div style="padding:6px 14px;border-radius:14px;color:#bfc8ca;font-size:12px">Веса</div>
+          <div style="padding:6px 14px;border-radius:14px;color:#bfc8ca;font-size:12px">Ретаргет</div>
+          <div style="padding:6px 14px;border-radius:14px;background:#004f58;color:#a2eeff;font-size:12px;font-weight:500">Морфы</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:4px;min-width:260px;justify-content:flex-end">
+          <span class="ms" style="font-size:20px;color:#bfc8ca;padding:8px">undo</span><span class="ms" style="font-size:20px;color:#bfc8ca;padding:8px">redo</span>
+          <div style="width:1px;height:20px;background:#3f484a;margin:0 6px"></div>
+          <div style="display:flex;align-items:center;gap:6px;background:#004f58;color:#a2eeff;padding:8px 16px;border-radius:16px;font-weight:500"><span class="ms" style="font-size:18px">ios_share</span>Экспорт</div>
+        </div>
+      </div>
+      <div style="flex:1;display:flex;min-height:0">
+        <div style="width:52px;flex:0 0 52px;background:#131617;display:flex;flex-direction:column;align-items:center;padding:8px 0;gap:2px">
+          <div style="width:40px;height:36px;border-radius:10px;background:#004f58;display:flex;align-items:center;justify-content:center"><span class="ms" style="font-size:20px;color:#a2eeff">open_with</span></div>
+          <div style="width:40px;height:36px;display:flex;align-items:center;justify-content:center"><span class="ms" style="font-size:20px;color:#bfc8ca">brush</span></div>
+          <div style="width:40px;height:36px;display:flex;align-items:center;justify-content:center"><span class="ms" style="font-size:20px;color:#bfc8ca">flip</span></div>
+        </div>
+        <div style="flex:1;position:relative;background:radial-gradient(120% 100% at 50% 0%, #1a1e1f 0%, #0e1112 70%);min-width:0">
+          <div style="position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:280px;height:340px;border-radius:48% 48% 42% 42%/54% 54% 46% 46%;background:radial-gradient(circle at 38% 30%, #9aa6a8 0%, #758285 34%, #414c4e 78%, #222a2b 100%)"></div>
+          <svg viewBox="0 0 280 340" style="position:absolute;left:50%;top:50%;width:280px;transform:translate(-50%,-50%)">
+            <ellipse cx="98" cy="146" rx="22" ry="11" fill="#1a2122"></ellipse>
+            <ellipse cx="182" cy="146" rx="22" ry="11" fill="#1a2122"></ellipse>
+            <path d="M 104 224 C 128 244, 152 244, 176 224" fill="none" stroke="#1a2122" stroke-width="6" stroke-linecap="round"></path>
+            <circle cx="104" cy="224" r="5" fill="#5fd4e4"></circle>
+            <circle cx="176" cy="224" r="5" fill="#5fd4e4"></circle>
+            <circle cx="140" cy="238" r="5" fill="#ff458e"></circle>
+          </svg>
+          <div style="position:absolute;top:12px;left:12px;background:#1b1f20;border-radius:8px;padding:6px 12px;color:#bfc8ca;font-size:12px">Улыбка · 0,72</div>
+        </div>
+        <div style="width:330px;flex:0 0 330px;background:#171a1b;padding:14px 16px;display:flex;flex-direction:column;gap:16px">
+          <div style="display:flex;align-items:center;justify-content:space-between"><span style="font-size:11px;letter-spacing:0.08em;text-transform:uppercase;color:#899295">Формы</span><span style="display:flex;align-items:center;gap:6px;color:#5fd4e4;font-size:12px"><span class="ms" style="font-size:16px">add</span>Из текущей</span></div>
+          <div style="display:flex;flex-direction:column;gap:10px;font-size:12px">
+            <div style="display:flex;align-items:center;gap:10px"><span style="width:96px;color:#e1e3e3">Улыбка</span><div style="flex:1;height:4px;background:#3f484a;border-radius:2px;position:relative"><div style="position:absolute;left:0;top:0;bottom:0;width:72%;background:#5fd4e4;border-radius:2px"></div><div style="position:absolute;left:72%;top:-6px;width:16px;height:16px;border-radius:50%;background:#5fd4e4"></div></div><span style="width:32px;text-align:right">0,72</span><span class="ms" style="font-size:14px;color:#ff458e">radio_button_checked</span></div>
+            <div style="display:flex;align-items:center;gap:10px"><span style="width:96px;color:#bfc8ca">Бровь.L</span><div style="flex:1;height:4px;background:#3f484a;border-radius:2px;position:relative"><div style="position:absolute;left:0;top:0;bottom:0;width:30%;background:#5fd4e4;border-radius:2px"></div><div style="position:absolute;left:30%;top:-6px;width:16px;height:16px;border-radius:50%;background:#5fd4e4"></div></div><span style="width:32px;text-align:right">0,30</span><span class="ms" style="font-size:14px;color:#3f484a">radio_button_unchecked</span></div>
+            <div style="display:flex;align-items:center;gap:10px"><span style="width:96px;color:#bfc8ca">Моргание</span><div style="flex:1;height:4px;background:#3f484a;border-radius:2px;position:relative"><div style="position:absolute;left:0;top:0;bottom:0;width:0%;background:#5fd4e4;border-radius:2px"></div><div style="position:absolute;left:0;top:-6px;width:16px;height:16px;border-radius:50%;background:#5fd4e4"></div></div><span style="width:32px;text-align:right">0,00</span><span class="ms" style="font-size:14px;color:#ff458e">radio_button_checked</span></div>
+            <div style="display:flex;align-items:center;gap:10px"><span style="width:96px;color:#bfc8ca">Челюсть</span><div style="flex:1;height:4px;background:#3f484a;border-radius:2px;position:relative"><div style="position:absolute;left:0;top:0;bottom:0;width:18%;background:#5fd4e4;border-radius:2px"></div><div style="position:absolute;left:18%;top:-6px;width:16px;height:16px;border-radius:50%;background:#5fd4e4"></div></div><span style="width:32px;text-align:right">0,18</span><span class="ms" style="font-size:14px;color:#3f484a">radio_button_unchecked</span></div>
+          </div>
+          <div style="height:1px;background:#3f484a"></div>
+          <div>
+            <div style="font-size:11px;letter-spacing:0.08em;text-transform:uppercase;color:#899295;margin-bottom:10px">Корректирующие формы</div>
+            <div style="background:#1b1f20;border-radius:10px;padding:10px 12px;font-size:12px;color:#bfc8ca">
+              <div style="display:flex;justify-content:space-between;margin-bottom:8px"><span style="color:#e1e3e3">Локоть.L_сгиб</span><span style="color:#899295">1 из 1</span></div>
+              <div style="display:flex;justify-content:space-between;margin-bottom:6px"><span>Ведущая кость</span><span style="color:#e1e3e3">Предплечье.L</span></div>
+              <div style="display:flex;justify-content:space-between"><span>Полная сила при</span><span style="color:#e1e3e3">−110°</span></div>
+            </div>
+            <div style="display:flex;align-items:center;gap:6px;color:#5fd4e4;font-size:12px;padding:8px 2px 0"><span class="ms" style="font-size:16px">add</span>Привязать к кости</div>
+          </div>
+          <div>
+            <div style="font-size:11px;letter-spacing:0.08em;text-transform:uppercase;color:#899295;margin-bottom:10px">Наборы</div>
+            <div style="display:flex;gap:6px;flex-wrap:wrap"><div style="background:#262a2b;border-radius:14px;padding:6px 12px;font-size:12px;color:#e1e3e3">Лицо · 12</div><div style="background:#1b1f20;border-radius:14px;padding:6px 12px;font-size:12px;color:#bfc8ca">Тело · 3</div></div>
+          </div>
+        </div>
+      </div>
+      <div style="height:30px;flex:0 0 30px;background:#131617;display:flex;align-items:center;justify-content:space-between;padding:0 14px;font-size:11px;color:#899295">
+        <span>Морфов 15 · с ключами 2 · вес формы 0,9 МБ</span><span style="color:#7ee081">Экспортируются как морф-цели</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- 16 · АВТОРИГ -->
+  <div class="screenrow" style="margin-bottom:var(--space-8)">
+    <div style="flex:0 0 240px">
+      <div style="font-size:12px;letter-spacing:0.08em;text-transform:uppercase;color:var(--color-accent-700);margin-bottom:6px">Экран 16 · фаза 3</div>
+      <h2 style="font-size:24px;margin:0 0 var(--space-2)">Авториг</h2>
+      <p style="font-size:14px;line-height:1.6;color:var(--color-neutral-800);margin:0 0 var(--space-3)">Пользователь ставит восемь опорных точек на силуэт, остальное строится по шаблону: цепочки, зеркало, обратная кинематика, контроллеры.</p>
+      <p style="font-size:13px;line-height:1.6;color:var(--color-neutral-700);margin:0">Первичные веса назначаются сразу — дальше правятся кистью на экране 13.</p>
+    </div>
+    <div class="m3" style="width:1400px;height:720px;background:#0b0e0f;border-radius:12px;overflow:hidden;box-shadow:var(--shadow-lg);display:flex;flex-direction:column;font-size:13px">
+      <div style="height:52px;flex:0 0 52px;background:#171a1b;display:flex;align-items:center;justify-content:space-between;padding:0 12px">
+        <div style="display:flex;align-items:center;gap:10px"><span class="ms" style="font-size:20px;color:#5fd4e4">accessibility_new</span><span style="font-size:14px;font-weight:500">Построение скелета</span><span style="color:#899295;font-size:12px">Персонаж_v3</span></div>
+        <div style="display:flex;align-items:center;gap:8px">
+          <div style="padding:8px 16px;border-radius:16px;color:#bfc8ca">Отмена</div>
+          <div style="padding:8px 20px;border-radius:16px;background:#004f58;color:#a2eeff;font-weight:500">Построить скелет</div>
+        </div>
+      </div>
+      <div style="flex:1;display:flex;min-height:0">
+        <div style="flex:1;position:relative;background:radial-gradient(120% 100% at 50% 0%, #1a1e1f 0%, #0e1112 70%);min-width:0">
+          <svg viewBox="0 0 320 480" style="position:absolute;left:50%;top:50%;height:88%;transform:translate(-50%,-50%)">
+            <circle cx="160" cy="60" r="34" fill="#3b4547"></circle>
+            <rect x="124" y="100" width="72" height="140" rx="24" fill="#414c4e"></rect>
+            <rect x="80" y="110" width="34" height="120" rx="16" fill="#3b4547"></rect>
+            <rect x="206" y="110" width="34" height="120" rx="16" fill="#3b4547"></rect>
+            <rect x="128" y="240" width="30" height="180" rx="14" fill="#3b4547"></rect>
+            <rect x="162" y="240" width="30" height="180" rx="14" fill="#3b4547"></rect>
+            <line x1="160" y1="60" x2="160" y2="240" stroke="#5fd4e4" stroke-width="2" stroke-dasharray="6 5"></line>
+            <line x1="160" y1="130" x2="97" y2="176" stroke="#5fd4e4" stroke-width="2" stroke-dasharray="6 5"></line>
+            <line x1="160" y1="130" x2="223" y2="176" stroke="#5fd4e4" stroke-width="2" stroke-dasharray="6 5"></line>
+            <line x1="160" y1="240" x2="143" y2="330" stroke="#5fd4e4" stroke-width="2" stroke-dasharray="6 5"></line>
+            <line x1="160" y1="240" x2="177" y2="330" stroke="#5fd4e4" stroke-width="2" stroke-dasharray="6 5"></line>
+            <circle cx="160" cy="60" r="8" fill="#0b0e0f" stroke="#5fd4e4" stroke-width="3"></circle>
+            <circle cx="160" cy="130" r="8" fill="#0b0e0f" stroke="#5fd4e4" stroke-width="3"></circle>
+            <circle cx="160" cy="240" r="8" fill="#ff458e"></circle>
+            <circle cx="97" cy="176" r="8" fill="#0b0e0f" stroke="#5fd4e4" stroke-width="3"></circle>
+            <circle cx="223" cy="176" r="8" fill="#0b0e0f" stroke="#5fd4e4" stroke-width="3"></circle>
+            <circle cx="143" cy="330" r="8" fill="#0b0e0f" stroke="#5fd4e4" stroke-width="3"></circle>
+            <circle cx="177" cy="330" r="8" fill="#0b0e0f" stroke="#5fd4e4" stroke-width="3"></circle>
+            <circle cx="143" cy="416" r="8" fill="#0b0e0f" stroke="#5fd4e4" stroke-width="3"></circle>
+          </svg>
+          <div style="position:absolute;top:12px;left:14px;background:#1b1f20;border-radius:8px;padding:6px 12px;color:#bfc8ca;font-size:12px">Опорные точки · 8 из 8</div>
+          <div style="position:absolute;bottom:14px;left:14px;background:#1b1f20;border-radius:8px;padding:6px 12px;color:#a2eeff;font-size:12px">Перетащите точку, чтобы уточнить сустав</div>
+        </div>
+        <div style="width:330px;flex:0 0 330px;background:#171a1b;padding:16px;display:flex;flex-direction:column;gap:18px">
+          <div>
+            <div style="font-size:11px;letter-spacing:0.08em;text-transform:uppercase;color:#899295;margin-bottom:10px">Шаблон</div>
+            <div style="display:flex;gap:6px;flex-wrap:wrap"><div style="background:#004f58;color:#a2eeff;border-radius:14px;padding:8px 14px;font-size:12px;font-weight:500">Гуманоид</div><div style="background:#1b1f20;color:#bfc8ca;border-radius:14px;padding:8px 14px;font-size:12px">Четвероногое</div><div style="background:#1b1f20;color:#bfc8ca;border-radius:14px;padding:8px 14px;font-size:12px">Своё</div></div>
+          </div>
+          <div>
+            <div style="font-size:11px;letter-spacing:0.08em;text-transform:uppercase;color:#899295;margin-bottom:10px">Состав</div>
+            <div style="display:flex;flex-direction:column;gap:10px;font-size:12px;color:#bfc8ca">
+              <div style="display:flex;align-items:center;justify-content:space-between"><span>Пальцы рук</span><div style="display:flex;background:#1b1f20;border-radius:14px;padding:2px"><span style="padding:5px 12px;border-radius:12px;color:#bfc8ca">нет</span><span style="padding:5px 12px;border-radius:12px;background:#004f58;color:#a2eeff">5</span></div></div>
+              <div style="display:flex;align-items:center;justify-content:space-between"><span>Позвонков</span><div style="display:flex;background:#1b1f20;border-radius:14px;padding:2px"><span style="padding:5px 12px;border-radius:12px;background:#004f58;color:#a2eeff">3</span><span style="padding:5px 12px;border-radius:12px;color:#bfc8ca">5</span></div></div>
+              <div style="display:flex;align-items:center;gap:8px"><span class="ms" style="font-size:16px;color:#5fd4e4">check_box</span>Обратная кинематика ног</div>
+              <div style="display:flex;align-items:center;gap:8px"><span class="ms" style="font-size:16px;color:#5fd4e4">check_box</span>Обратная кинематика рук</div>
+              <div style="display:flex;align-items:center;gap:8px"><span class="ms" style="font-size:16px;color:#5fd4e4">check_box</span>Кости-контроллеры</div>
+              <div style="display:flex;align-items:center;gap:8px"><span class="ms" style="font-size:16px;color:#899295">check_box_outline_blank</span>Кости лица</div>
+            </div>
+          </div>
+          <div>
+            <div style="font-size:11px;letter-spacing:0.08em;text-transform:uppercase;color:#899295;margin-bottom:10px">Привязка меша</div>
+            <div style="display:flex;align-items:center;gap:8px;font-size:12px;color:#bfc8ca;margin-bottom:8px"><span class="ms" style="font-size:16px;color:#5fd4e4">check_box</span>Назначить первичные веса</div>
+            <div style="display:flex;align-items:center;gap:8px;font-size:12px;color:#bfc8ca"><span class="ms" style="font-size:16px;color:#5fd4e4">check_box</span>Симметрия по X</div>
+          </div>
+          <div style="background:#1b1f20;border-radius:12px;padding:12px 14px;font-size:12px;color:#bfc8ca">
+            <div style="display:flex;justify-content:space-between;margin-bottom:6px"><span>Будет создано костей</span><span style="color:#e1e3e3">28</span></div>
+            <div style="display:flex;justify-content:space-between"><span>Из них деформирующих</span><span style="color:#e1e3e3">21</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 17 · LOD -->
+  <div class="screenrow" style="margin-bottom:var(--space-8)">
+    <div style="flex:0 0 240px">
+      <div style="font-size:12px;letter-spacing:0.08em;text-transform:uppercase;color:var(--color-accent-700);margin-bottom:6px">Экран 17 · фаза 4</div>
+      <h2 style="font-size:24px;margin:0 0 var(--space-2)">Уровни детализации</h2>
+      <p style="font-size:14px;line-height:1.6;color:var(--color-neutral-800);margin:0 0 var(--space-3)">Уровни генерируются из базового меша и сравниваются на одном экране. Ползунок расстояния показывает переключение так, как оно произойдёт в игре.</p>
+      <p style="font-size:13px;line-height:1.6;color:var(--color-neutral-700);margin:0">Каждый уровень наследует развёртку и веса — переделывать материал и скиннинг не нужно.</p>
+    </div>
+    <div class="m3" style="width:1400px;height:760px;background:#0b0e0f;border-radius:12px;overflow:hidden;box-shadow:var(--shadow-lg);display:flex;flex-direction:column;font-size:13px">
+      <div style="height:52px;flex:0 0 52px;background:#171a1b;display:flex;align-items:center;justify-content:space-between;padding:0 12px">
+        <div style="display:flex;align-items:center;gap:10px"><span class="ms" style="font-size:20px;color:#5fd4e4">layers</span><span style="font-size:14px;font-weight:500">Персонаж_v3</span><span style="color:#899295;font-size:12px">Уровни детализации</span></div>
+        <div style="display:flex;align-items:center;gap:8px">
+          <div style="display:flex;align-items:center;gap:6px;background:#1b1f20;color:#bfc8ca;padding:8px 14px;border-radius:16px"><span class="ms" style="font-size:18px">auto_fix_high</span>Пересобрать все</div>
+          <div style="display:flex;align-items:center;gap:6px;background:#004f58;color:#a2eeff;padding:8px 16px;border-radius:16px;font-weight:500"><span class="ms" style="font-size:18px">ios_share</span>Экспорт</div>
+        </div>
+      </div>
+      <div style="flex:1;display:flex;min-height:0">
+        <div style="flex:1;display:flex;flex-direction:column;min-width:0">
+          <div style="flex:1;display:flex;min-height:0">
+            <div style="flex:1;position:relative;background:radial-gradient(120% 100% at 50% 0%, #1a1e1f 0%, #0e1112 70%);border-right:1px solid #262a2b">
+              <div style="position:absolute;top:12px;left:14px;font-size:12px;color:#a2eeff">LOD 0 · 7 680 тр.</div>
+              <svg viewBox="0 0 200 320" style="position:absolute;left:50%;top:52%;height:78%;transform:translate(-50%,-50%)">
+                <circle cx="100" cy="42" r="26" fill="#6f7d80" stroke="#4a5658" stroke-width="0.8"></circle>
+                <rect x="72" y="74" width="56" height="106" rx="18" fill="#66757a"></rect>
+                <rect x="76" y="180" width="22" height="120" rx="10" fill="#5c696c"></rect>
+                <rect x="102" y="180" width="22" height="120" rx="10" fill="#5c696c"></rect>
+                <g stroke="#3d4749" stroke-width="0.7" fill="none"><path d="M 72 100 H 128"></path><path d="M 72 126 H 128"></path><path d="M 72 152 H 128"></path><path d="M 86 74 V 180"></path><path d="M 114 74 V 180"></path><path d="M 76 220 H 98"></path><path d="M 76 260 H 98"></path><path d="M 102 220 H 124"></path><path d="M 102 260 H 124"></path></g>
+              </svg>
+            </div>
+            <div style="flex:1;position:relative;background:radial-gradient(120% 100% at 50% 0%, #191d1e 0%, #0e1112 70%);border-right:1px solid #262a2b">
+              <div style="position:absolute;top:12px;left:14px;font-size:12px;color:#bfc8ca">LOD 1 · 3 100 тр.</div>
+              <svg viewBox="0 0 200 320" style="position:absolute;left:50%;top:52%;height:78%;transform:translate(-50%,-50%)">
+                <polygon points="100,16 122,42 100,68 78,42" fill="#6f7d80"></polygon>
+                <polygon points="74,74 126,74 122,180 78,180" fill="#66757a"></polygon>
+                <polygon points="78,180 98,180 96,300 80,300" fill="#5c696c"></polygon>
+                <polygon points="102,180 122,180 120,300 104,300" fill="#5c696c"></polygon>
+                <g stroke="#3d4749" stroke-width="0.7" fill="none"><path d="M 75 122 H 125"></path><path d="M 100 74 V 180"></path><path d="M 79 240 H 97"></path><path d="M 103 240 H 121"></path></g>
+              </svg>
+            </div>
+            <div style="flex:1;position:relative;background:radial-gradient(120% 100% at 50% 0%, #171b1c 0%, #0e1112 70%)">
+              <div style="position:absolute;top:12px;left:14px;font-size:12px;color:#bfc8ca">LOD 2 · 900 тр.</div>
+              <svg viewBox="0 0 200 320" style="position:absolute;left:50%;top:52%;height:78%;transform:translate(-50%,-50%)">
+                <polygon points="100,20 120,44 100,66 80,44" fill="#67757a"></polygon>
+                <polygon points="76,74 124,74 118,182 82,182" fill="#5f6d70"></polygon>
+                <polygon points="82,182 100,182 98,300 84,300" fill="#556264"></polygon>
+                <polygon points="102,182 118,182 116,300 102,300" fill="#556264"></polygon>
+              </svg>
+            </div>
+          </div>
+          <div style="height:96px;flex:0 0 96px;background:#101314;border-top:1px solid #262a2b;padding:16px 20px">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px"><span style="font-size:12px;color:#bfc8ca">Расстояние до камеры</span><span style="font-size:12px;color:#e1e3e3">18 м · активен LOD 1</span></div>
+            <div style="height:6px;border-radius:3px;background:#1b1f20;position:relative">
+              <div style="position:absolute;left:0;top:0;bottom:0;width:22%;background:#004f58;border-radius:3px 0 0 3px"></div>
+              <div style="position:absolute;left:22%;top:0;bottom:0;width:36%;background:#5fd4e4"></div>
+              <div style="position:absolute;left:58%;right:0;top:0;bottom:0;background:#2c3a3d;border-radius:0 3px 3px 0"></div>
+              <div style="position:absolute;left:36%;top:-7px;width:4px;height:20px;background:#ff458e;border-radius:2px"></div>
+            </div>
+            <div style="display:flex;justify-content:space-between;font-size:11px;color:#899295;margin-top:8px"><span>0 м</span><span>10 м</span><span>25 м</span><span>50 м</span></div>
+          </div>
+        </div>
+        <div style="width:310px;flex:0 0 310px;background:#171a1b;padding:16px;display:flex;flex-direction:column;gap:16px">
+          <div style="font-size:11px;letter-spacing:0.08em;text-transform:uppercase;color:#899295">Уровни</div>
+          <div style="display:flex;flex-direction:column;gap:8px;font-size:12px">
+            <div style="background:#262a2b;border-radius:10px;padding:10px 12px">
+              <div style="display:flex;justify-content:space-between;margin-bottom:6px"><span style="color:#e1e3e3">LOD 0</span><span style="color:#899295">исходный</span></div>
+              <div style="display:flex;justify-content:space-between;color:#bfc8ca"><span>7 680 тр.</span><span>до 10 м</span></div>
+            </div>
+            <div style="background:#1b1f20;border-radius:10px;padding:10px 12px">
+              <div style="display:flex;justify-content:space-between;margin-bottom:6px"><span style="color:#e1e3e3">LOD 1</span><span style="color:#5fd4e4">40 %</span></div>
+              <div style="display:flex;justify-content:space-between;color:#bfc8ca"><span>3 100 тр.</span><span>10–25 м</span></div>
+            </div>
+            <div style="background:#1b1f20;border-radius:10px;padding:10px 12px">
+              <div style="display:flex;justify-content:space-between;margin-bottom:6px"><span style="color:#e1e3e3">LOD 2</span><span style="color:#5fd4e4">12 %</span></div>
+              <div style="display:flex;justify-content:space-between;color:#bfc8ca"><span>900 тр.</span><span>от 25 м</span></div>
+            </div>
+            <div style="display:flex;align-items:center;gap:6px;color:#5fd4e4;padding:4px 2px"><span class="ms" style="font-size:16px">add</span>Добавить уровень</div>
+          </div>
+          <div style="height:1px;background:#3f484a"></div>
+          <div>
+            <div style="font-size:11px;letter-spacing:0.08em;text-transform:uppercase;color:#899295;margin-bottom:10px">Упрощение</div>
+            <div style="display:flex;align-items:center;gap:8px;font-size:12px;color:#bfc8ca;margin-bottom:8px"><span class="ms" style="font-size:16px;color:#5fd4e4">check_box</span>Сохранять силуэт</div>
+            <div style="display:flex;align-items:center;gap:8px;font-size:12px;color:#bfc8ca;margin-bottom:8px"><span class="ms" style="font-size:16px;color:#5fd4e4">check_box</span>Сохранять границы развёртки</div>
+            <div style="display:flex;align-items:center;gap:8px;font-size:12px;color:#bfc8ca"><span class="ms" style="font-size:16px;color:#5fd4e4">check_box</span>Переносить веса</div>
+          </div>
+        </div>
+      </div>
+      <div style="height:30px;flex:0 0 30px;background:#131617;display:flex;align-items:center;justify-content:space-between;padding:0 14px;font-size:11px;color:#899295">
+        <span>Суммарно 11 680 тр. · вес ассета 3,1 МБ</span><span style="color:#7ee081">Бюджет профиля соблюдён</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- 18 · 3D-ПОКРАСКА -->
+  <div class="screenrow" style="margin-bottom:var(--space-8)">
+    <div style="flex:0 0 240px">
+      <div style="font-size:12px;letter-spacing:0.08em;text-transform:uppercase;color:var(--color-accent-700);margin-bottom:6px">Экран 18 · фаза 4</div>
+      <h2 style="font-size:24px;margin:0 0 var(--space-2)">3D-покраска</h2>
+      <p style="font-size:14px;line-height:1.6;color:var(--color-neutral-800);margin:0 0 var(--space-3)">Покраска идёт по модели, развёртка остаётся видимой сбоку и обновляется теми же мазками. Слои с режимами наложения — грязь и потёртости правятся отдельно от базового цвета.</p>
+      <p style="font-size:13px;line-height:1.6;color:var(--color-neutral-700);margin:0">Маска по кривизне и по затенению берётся из запечённых карт с экрана 10.</p>
+    </div>
+    <div class="m3" style="width:1400px;height:820px;background:#0b0e0f;border-radius:12px;overflow:hidden;box-shadow:var(--shadow-lg);display:flex;flex-direction:column;font-size:13px">
+      <div style="height:52px;flex:0 0 52px;background:#171a1b;display:flex;align-items:center;justify-content:space-between;padding:0 12px;gap:16px">
+        <div style="display:flex;align-items:center;gap:10px;min-width:240px"><span class="ms" style="font-size:20px;color:#5fd4e4">format_paint</span><span style="font-size:14px;font-weight:500">Персонаж_v3</span><span style="color:#899295;font-size:12px">Металл_окрашенный</span></div>
+        <div style="display:flex;background:#1b1f20;border-radius:16px;padding:2px;gap:2px">
+          <div style="padding:6px 16px;border-radius:14px;color:#bfc8ca">Свойства</div>
+          <div style="padding:6px 16px;border-radius:14px;color:#bfc8ca">Граф</div>
+          <div style="padding:6px 16px;border-radius:14px;background:#004f58;color:#a2eeff;font-weight:500">Покраска</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:4px;min-width:240px;justify-content:flex-end">
+          <span class="ms" style="font-size:20px;color:#bfc8ca;padding:8px">undo</span><span class="ms" style="font-size:20px;color:#bfc8ca;padding:8px">redo</span>
+          <div style="width:1px;height:20px;background:#3f484a;margin:0 6px"></div>
+          <div style="display:flex;align-items:center;gap:6px;background:#004f58;color:#a2eeff;padding:8px 16px;border-radius:16px;font-weight:500"><span class="ms" style="font-size:18px">ios_share</span>Экспорт</div>
+        </div>
+      </div>
+      <div style="flex:1;display:flex;min-height:0">
+        <div style="width:52px;flex:0 0 52px;background:#131617;display:flex;flex-direction:column;align-items:center;padding:8px 0;gap:2px">
+          <div style="width:40px;height:36px;border-radius:10px;background:#004f58;display:flex;align-items:center;justify-content:center"><span class="ms" style="font-size:20px;color:#a2eeff">brush</span></div>
+          <div style="width:40px;height:36px;display:flex;align-items:center;justify-content:center"><span class="ms" style="font-size:20px;color:#bfc8ca">ink_eraser</span></div>
+          <div style="width:40px;height:36px;display:flex;align-items:center;justify-content:center"><span class="ms" style="font-size:20px;color:#bfc8ca">colorize</span></div>
+          <div style="width:40px;height:36px;display:flex;align-items:center;justify-content:center"><span class="ms" style="font-size:20px;color:#bfc8ca">format_color_fill</span></div>
+          <div style="width:24px;height:1px;background:#3f484a;margin:8px 0"></div>
+          <div style="width:40px;height:36px;display:flex;align-items:center;justify-content:center"><span class="ms" style="font-size:20px;color:#bfc8ca">flip</span></div>
+        </div>
+        <div style="flex:1;position:relative;background:radial-gradient(120% 100% at 50% 0%, #1c2021 0%, #0e1112 70%);min-width:0">
+          <div style="position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:300px;height:400px;border-radius:44% 44% 38% 38%/18% 18% 12% 12%;background:linear-gradient(105deg,#2f3c40 0%,#7d8a8d 30%, #b6c2c4 44%, #55666a 70%, #212a2c 100%)"></div>
+          <div style="position:absolute;left:52%;top:44%;transform:translate(-50%,-50%);width:180px;height:150px;border-radius:50%;background:radial-gradient(circle,rgba(214,0,108,0.5) 0%,rgba(214,0,108,0.08) 70%,transparent 78%)"></div>
+          <div style="position:absolute;left:56%;top:52%;width:96px;height:96px;border-radius:50%;border:2px solid #ff458e;transform:translate(-50%,-50%)"></div>
+          <div style="position:absolute;top:12px;left:12px;background:#1b1f20;border-radius:8px;padding:6px 12px;color:#bfc8ca;font-size:12px">Слой «Потёртости» · умножение</div>
+        </div>
+        <div style="width:300px;flex:0 0 300px;background:#101314;border-left:1px solid #262a2b;display:flex;flex-direction:column;align-items:center;justify-content:center;position:relative">
+          <div style="position:absolute;top:12px;left:14px;font-size:12px;color:#899295">Развёртка</div>
+          <div style="width:240px;height:240px;position:relative;background:#161a1b;outline:1px solid #3f484a">
+            <svg viewBox="0 0 240 240" style="position:absolute;inset:0;width:100%;height:100%">
+              <polygon points="18,18 102,18 102,102 18,102" fill="#5c696c"></polygon>
+              <polygon points="120,18 222,18 204,90 132,90" fill="#6f7d80"></polygon>
+              <polygon points="18,120 114,120 96,216 36,216" fill="#4a5658"></polygon>
+              <polygon points="132,114 222,132 210,216 138,204" fill="#5c696c"></polygon>
+              <circle cx="168" cy="160" r="26" fill="#d6006c" fill-opacity="0.45"></circle>
+            </svg>
+          </div>
+        </div>
+        <div style="width:290px;flex:0 0 290px;background:#171a1b;padding:14px 16px;display:flex;flex-direction:column;gap:16px">
+          <div>
+            <div style="font-size:11px;letter-spacing:0.08em;text-transform:uppercase;color:#899295;margin-bottom:10px">Слои</div>
+            <div style="display:flex;flex-direction:column;gap:6px;font-size:12px">
+              <div style="display:flex;align-items:center;gap:8px;background:#262a2b;border-radius:8px;padding:8px 10px"><span class="ms" style="font-size:16px;color:#5fd4e4">visibility</span><span style="flex:1;color:#e1e3e3">Потёртости</span><span style="color:#899295">×0,6</span></div>
+              <div style="display:flex;align-items:center;gap:8px;background:#1b1f20;border-radius:8px;padding:8px 10px"><span class="ms" style="font-size:16px;color:#bfc8ca">visibility</span><span style="flex:1;color:#bfc8ca">Грязь</span><span style="color:#899295">×0,4</span></div>
+              <div style="display:flex;align-items:center;gap:8px;background:#1b1f20;border-radius:8px;padding:8px 10px"><span class="ms" style="font-size:16px;color:#bfc8ca">visibility</span><span style="flex:1;color:#bfc8ca">Базовый цвет</span><span style="color:#899295">100 %</span></div>
+              <div style="display:flex;align-items:center;gap:6px;color:#5fd4e4;padding:4px 2px"><span class="ms" style="font-size:16px">add</span>Новый слой</div>
+            </div>
+          </div>
+          <div>
+            <div style="font-size:11px;letter-spacing:0.08em;text-transform:uppercase;color:#899295;margin-bottom:10px">Цвет</div>
+            <div style="display:flex;gap:8px;margin-bottom:12px">
+              <span style="width:32px;height:32px;border-radius:8px;background:#d6006c;outline:2px solid #5fd4e4;outline-offset:2px"></span>
+              <span style="width:32px;height:32px;border-radius:8px;background:#8d6b4f"></span>
+              <span style="width:32px;height:32px;border-radius:8px;background:#3f484a"></span>
+              <span style="width:32px;height:32px;border-radius:8px;background:#c9cfd0"></span>
+            </div>
+            <div style="font-size:11px;color:#899295;margin-bottom:6px">Радиус</div>
+            <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px"><div style="flex:1;height:4px;background:#3f484a;border-radius:2px;position:relative"><div style="position:absolute;left:0;top:0;bottom:0;width:36%;background:#5fd4e4;border-radius:2px"></div><div style="position:absolute;left:36%;top:-6px;width:16px;height:16px;border-radius:50%;background:#5fd4e4"></div></div><span style="font-size:12px">36</span></div>
+            <div style="font-size:11px;color:#899295;margin-bottom:6px">Непрозрачность</div>
+            <div style="display:flex;align-items:center;gap:10px"><div style="flex:1;height:4px;background:#3f484a;border-radius:2px;position:relative"><div style="position:absolute;left:0;top:0;bottom:0;width:64%;background:#5fd4e4;border-radius:2px"></div><div style="position:absolute;left:64%;top:-6px;width:16px;height:16px;border-radius:50%;background:#5fd4e4"></div></div><span style="font-size:12px">0,64</span></div>
+          </div>
+          <div>
+            <div style="font-size:11px;letter-spacing:0.08em;text-transform:uppercase;color:#899295;margin-bottom:10px">Маски</div>
+            <div style="display:flex;align-items:center;gap:8px;font-size:12px;color:#bfc8ca;margin-bottom:8px"><span class="ms" style="font-size:16px;color:#5fd4e4">check_box</span>По кривизне</div>
+            <div style="display:flex;align-items:center;gap:8px;font-size:12px;color:#bfc8ca"><span class="ms" style="font-size:16px;color:#899295">check_box_outline_blank</span>По затенению</div>
+          </div>
+        </div>
+      </div>
+      <div style="height:30px;flex:0 0 30px;background:#131617;display:flex;align-items:center;justify-content:space-between;padding:0 14px;font-size:11px;color:#899295">
+        <span>Холст 2048 × 2048 · слоёв 3</span><span style="color:#7ee081">Слои сводятся при экспорте</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- 19 · ПРЕДПРОСМОТР -->
+  <div class="screenrow">
+    <div style="flex:0 0 240px">
+      <div style="font-size:12px;letter-spacing:0.08em;text-transform:uppercase;color:var(--color-accent-700);margin-bottom:6px">Экран 19 · фаза 3</div>
+      <h2 style="font-size:24px;margin:0 0 var(--space-2)">Предпросмотр «как в игре»</h2>
+      <p style="font-size:14px;line-height:1.6;color:var(--color-neutral-800);margin:0 0 var(--space-3)">Персонаж проигрывается в рантайме flutter3d с настройками профиля проекта: те же шейдеры, тот же лимит костей, тот же бюджет памяти.</p>
+      <p style="font-size:13px;line-height:1.6;color:var(--color-neutral-700);margin:0">Это и есть проверка перед экспортом. Расхождение между редактором и движком должно обнаруживаться здесь, а не в игре.</p>
+    </div>
+    <div class="m3" style="width:1400px;height:800px;background:#0b0e0f;border-radius:12px;overflow:hidden;box-shadow:var(--shadow-lg);display:flex;flex-direction:column;font-size:13px">
+      <div style="height:52px;flex:0 0 52px;background:#171a1b;display:flex;align-items:center;justify-content:space-between;padding:0 12px">
+        <div style="display:flex;align-items:center;gap:10px"><span class="ms" style="font-size:20px;color:#5fd4e4">sports_esports</span><span style="font-size:14px;font-weight:500">Предпросмотр в рантайме</span><span style="color:#899295;font-size:12px">профиль: свой движок · flutter3d</span></div>
+        <div style="display:flex;align-items:center;gap:8px">
+          <div style="display:flex;align-items:center;gap:6px;background:#1b1f20;color:#bfc8ca;padding:8px 14px;border-radius:16px"><span class="ms" style="font-size:18px">tune</span>Профиль</div>
+          <div style="display:flex;align-items:center;gap:6px;background:#004f58;color:#a2eeff;padding:8px 16px;border-radius:16px;font-weight:500"><span class="ms" style="font-size:18px">ios_share</span>Экспорт</div>
+        </div>
+      </div>
+      <div style="flex:1;display:flex;min-height:0">
+        <div style="flex:1;position:relative;background:linear-gradient(180deg,#243440 0%,#16222a 58%,#0f181d 100%);min-width:0;overflow:hidden">
+          <div style="position:absolute;inset:auto 0 -10% 0;height:56%;background-image:linear-gradient(#33474f 1px,transparent 1px),linear-gradient(90deg,#33474f 1px,transparent 1px);background-size:60px 60px;transform:perspective(560px) rotateX(68deg);transform-origin:bottom center;opacity:0.5"></div>
+          <svg viewBox="0 0 300 400" style="position:absolute;left:50%;top:52%;height:70%;transform:translate(-50%,-50%)">
+            <circle cx="150" cy="52" r="30" fill="#8b989b"></circle>
+            <rect x="116" y="88" width="68" height="118" rx="22" fill="#7b898c"></rect>
+            <rect x="80" y="96" width="30" height="100" rx="14" fill="#6d7b7e"></rect>
+            <rect x="190" y="96" width="30" height="100" rx="14" fill="#6d7b7e"></rect>
+            <path d="M 124 206 L 152 206 L 140 330 L 116 330 Z" fill="#66757a"></path>
+            <path d="M 164 206 L 192 206 L 196 330 L 172 330 Z" fill="#66757a"></path>
+            <ellipse cx="150" cy="344" rx="76" ry="12" fill="#0b1418" fill-opacity="0.6"></ellipse>
+          </svg>
+          <div style="position:absolute;top:12px;left:12px;background:rgba(11,14,15,0.72);border-radius:8px;padding:8px 12px;font-size:11px;color:#bfc8ca;display:flex;flex-direction:column;gap:4px">
+            <div style="display:flex;justify-content:space-between;gap:22px"><span>Кадры</span><span style="color:#7ee081">60 к/с</span></div>
+            <div style="display:flex;justify-content:space-between;gap:22px"><span>Вызовов отрисовки</span><span style="color:#e1e3e3">4</span></div>
+            <div style="display:flex;justify-content:space-between;gap:22px"><span>Треугольников в кадре</span><span style="color:#e1e3e3">3 100</span></div>
+            <div style="display:flex;justify-content:space-between;gap:22px"><span>Костей на скиннинг</span><span style="color:#e1e3e3">28 из 64</span></div>
+          </div>
+          <div style="position:absolute;bottom:16px;left:50%;transform:translateX(-50%);display:flex;align-items:center;gap:8px;background:rgba(11,14,15,0.8);border-radius:24px;padding:8px 14px">
+            <span class="ms" style="font-size:22px;color:#a2eeff;background:#004f58;border-radius:50%;padding:6px">pause</span>
+            <div style="display:flex;background:#1b1f20;border-radius:16px;padding:2px;gap:2px">
+              <span style="padding:6px 14px;border-radius:14px;background:#004f58;color:#a2eeff;font-size:12px;font-weight:500">Бег_02</span>
+              <span style="padding:6px 14px;border-radius:14px;color:#bfc8ca;font-size:12px">Ходьба</span>
+              <span style="padding:6px 14px;border-radius:14px;color:#bfc8ca;font-size:12px">Ожидание</span>
+              <span style="padding:6px 14px;border-radius:14px;color:#bfc8ca;font-size:12px">Удар</span>
+            </div>
+            <span class="ms" style="font-size:20px;color:#bfc8ca;padding:0 6px">loop</span>
+          </div>
+        </div>
+        <div style="width:330px;flex:0 0 330px;background:#171a1b;padding:16px;display:flex;flex-direction:column;gap:16px">
+          <div>
+            <div style="font-size:11px;letter-spacing:0.08em;text-transform:uppercase;color:#899295;margin-bottom:10px">Бюджеты профиля</div>
+            <div style="display:flex;flex-direction:column;gap:12px;font-size:12px;color:#bfc8ca">
+              <div>
+                <div style="display:flex;justify-content:space-between;margin-bottom:5px"><span>Треугольники</span><span style="color:#e1e3e3">3 100 / 8 000</span></div>
+                <div style="height:5px;border-radius:3px;background:#3f484a;position:relative"><div style="position:absolute;inset:0 61% 0 0;background:#7ee081;border-radius:3px"></div></div>
+              </div>
+              <div>
+                <div style="display:flex;justify-content:space-between;margin-bottom:5px"><span>Текстуры</span><span style="color:#ffb86b">6,4 / 4,0 МБ</span></div>
+                <div style="height:5px;border-radius:3px;background:#3f484a;position:relative"><div style="position:absolute;inset:0 0 0 0;background:#ffb86b;border-radius:3px"></div></div>
+              </div>
+              <div>
+                <div style="display:flex;justify-content:space-between;margin-bottom:5px"><span>Кости</span><span style="color:#e1e3e3">28 / 64</span></div>
+                <div style="height:5px;border-radius:3px;background:#3f484a;position:relative"><div style="position:absolute;inset:0 56% 0 0;background:#7ee081;border-radius:3px"></div></div>
+              </div>
+              <div>
+                <div style="display:flex;justify-content:space-between;margin-bottom:5px"><span>Материалы</span><span style="color:#e1e3e3">2 / 4</span></div>
+                <div style="height:5px;border-radius:3px;background:#3f484a;position:relative"><div style="position:absolute;inset:0 50% 0 0;background:#7ee081;border-radius:3px"></div></div>
+              </div>
+            </div>
+          </div>
+          <div style="background:#3a2118;border-radius:12px;padding:12px 14px;display:flex;gap:10px;align-items:flex-start">
+            <span class="ms" style="font-size:18px;color:#ffb86b">error_outline</span>
+            <div style="font-size:12px;color:#ffd9b0;line-height:1.5">Текстуры превышают бюджет на 2,4 МБ. Уменьшите базовый цвет до 1K или включите сжатие.</div>
+          </div>
+          <div>
+            <div style="font-size:11px;letter-spacing:0.08em;text-transform:uppercase;color:#899295;margin-bottom:10px">Условия сцены</div>
+            <div style="display:flex;flex-direction:column;gap:10px;font-size:12px;color:#bfc8ca">
+              <div style="display:flex;align-items:center;justify-content:space-between"><span>Освещение</span><div style="display:flex;background:#1b1f20;border-radius:14px;padding:2px"><span style="padding:5px 12px;border-radius:12px;background:#004f58;color:#a2eeff">День</span><span style="padding:5px 12px;border-radius:12px;color:#bfc8ca">Ночь</span></div></div>
+              <div style="display:flex;align-items:center;gap:8px"><span class="ms" style="font-size:16px;color:#5fd4e4">check_box</span>Тени рантайма</div>
+              <div style="display:flex;align-items:center;gap:8px"><span class="ms" style="font-size:16px;color:#5fd4e4">check_box</span>Сжатие текстур движка</div>
+              <div style="display:flex;align-items:center;gap:8px"><span class="ms" style="font-size:16px;color:#899295">check_box_outline_blank</span>Показать каркас</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div style="height:30px;flex:0 0 30px;background:#131617;display:flex;align-items:center;justify-content:space-between;padding:0 14px;font-size:11px;color:#899295">
+        <span>Рантайм flutter3d · 60 к/с · память 42 МБ</span><span style="color:#ffb86b">1 предупреждение перед экспортом</span>
+      </div>
+    </div>
+  </div>
+
+</div>
+</x-dc>
+</body>
+</html>

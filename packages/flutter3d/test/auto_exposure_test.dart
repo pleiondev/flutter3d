@@ -4,8 +4,9 @@
 ///     flutter test test/auto_exposure_test.dart
 ///
 /// The rendered half — a dark scene climbing to the ceiling through a real
-/// luminance pass and a real readback — is
-/// `flutter3d_cpu/test/auto_exposure_test.dart`. What is here is everything
+/// luminance pass and a real readback — is `cpu_auto_exposure_test.dart`, in
+/// this same directory since mcp-02n moved it here from `flutter3d_cpu/test/`.
+/// What is here is everything
 /// that can be pinned with bytes handed in by hand, which is most of it: a
 /// meter that read the wrong band of the histogram, an adapter that lerped the
 /// multiplier instead of the stops, or a frame that ran the pass with the
@@ -16,14 +17,14 @@ library;
 import 'dart:math' as math;
 import 'dart:typed_data';
 
-import 'package:flutter3d/src/engine/geometry/device_mesh.dart';
-import 'package:flutter3d/src/engine/render/material.dart';
-import 'package:flutter3d/src/engine/render/render_view.dart';
-import 'package:flutter3d/src/engine/render/renderer.dart';
-import 'package:flutter3d/src/engine/scene/camera_node.dart';
-import 'package:flutter3d/src/engine/scene/mesh_node.dart';
-import 'package:flutter3d/src/engine/scene/scene.dart';
-import 'package:flutter3d_geometry/flutter3d_geometry.dart';
+import 'package:flutter3d_core/geometry.dart';
+import 'package:flutter3d_core/src/engine/geometry/device_mesh.dart';
+import 'package:flutter3d_core/src/engine/render/material.dart';
+import 'package:flutter3d_core/src/engine/render/render_view.dart';
+import 'package:flutter3d_core/src/engine/render/renderer.dart';
+import 'package:flutter3d_core/src/engine/scene/camera_node.dart';
+import 'package:flutter3d_core/src/engine/scene/mesh_node.dart';
+import 'package:flutter3d_core/src/engine/scene/scene.dart';
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:flutter3d_hardware/testing.dart';
 import 'package:flutter_test/flutter_test.dart';

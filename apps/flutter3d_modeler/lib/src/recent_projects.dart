@@ -1,7 +1,6 @@
 import 'dart:convert';
 
-import 'package:flutter3d_screens/flutter3d_screens.dart'
-    show Storage, defaultStorage;
+import 'package:flutter3d_app/flutter3d_app.dart' show Storage, defaultStorage;
 
 /// The model files this application has had open, most recent first —
 /// `ui-15`'s own "недавние" half of the start screen.
@@ -27,7 +26,8 @@ import 'package:flutter3d_screens/flutter3d_screens.dart'
 /// in and which of them have been deleted since are all decided here, which is
 /// why they are tested against a map in memory.
 final class RecentModels {
-  RecentModels({Storage? storage}) : storage = storage ?? defaultStorage(appName);
+  RecentModels({Storage? storage})
+    : storage = storage ?? defaultStorage(appName);
 
   /// Which application this list belongs to, and so which directory it sits
   /// in. Two programs sharing one document would each overwrite the other's.
@@ -37,7 +37,7 @@ final class RecentModels {
   /// the point of saying it out loud: a modeller's recent files are the same
   /// kind of thing as a player's volume — small, this machine's, and no loss
   /// if it goes.
-  static const String _name = 'recent.json';
+  static const String name = 'recent.json';
 
   /// How many are kept.
   ///
@@ -55,7 +55,7 @@ final class RecentModels {
   /// seam `apps/flutter3d_editor`'s own `RecentProjects.read` uses, and for
   /// the same reason.
   List<String> read({required bool Function(String) exists}) =>
-      remaining(storage.read(_name), exists: exists);
+      remaining(storage.read(name), exists: exists);
 
   /// Puts [path] at the front, writes the list back, and answers with it.
   ///
@@ -66,7 +66,7 @@ final class RecentModels {
   List<String> remember(String path, {required bool Function(String) exists}) {
     final paths = after(read(exists: exists), path);
     storage.write(
-      _name,
+      name,
       const JsonEncoder.withIndent(
         '  ',
       ).convert(<String, Object?>{'recent': paths}),
@@ -75,7 +75,7 @@ final class RecentModels {
   }
 
   /// Forgets every model, which is what a person clearing the list means.
-  void clear() => storage.remove(_name);
+  void clear() => storage.remove(name);
 
   /// What a stored path still means, which is never quite what it says.
   ///

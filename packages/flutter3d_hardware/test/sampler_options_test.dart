@@ -11,7 +11,7 @@
 library;
 
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
-import 'package:flutter_test/flutter_test.dart';
+import 'package:test/test.dart';
 
 void main() {
   test('one by default, on every named sampler', () {

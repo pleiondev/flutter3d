@@ -56,6 +56,7 @@ TransformModal grabbed(
     GizmoAxis.x => TransformAxis.x,
     GizmoAxis.y => TransformAxis.y,
     GizmoAxis.z => TransformAxis.z,
+    GizmoAxis.uniform => TransformAxis.free,
   };
 
 void main() {
@@ -210,6 +211,76 @@ void main() {
       // be grabbed at all.
       expect(there?.handle.axis, here?.handle.axis);
       expect(there?.handle.axis, isNotNull);
+    });
+  });
+
+  group('ux-03: the shape a handle is grabbed by follows the gizmo', () {
+    // Straight down −Z from two metres back: X runs right across the screen,
+    // Y up, and the Z ring is the one facing the camera.
+    final Vector3 eye = Vector3(0, 0, 2);
+    final GizmoView view = viewFrom(eye);
+
+    GizmoAxis? aimedAt(List<GizmoHandle> handles, Vector3 at) =>
+        GizmoHit.nearest(handles, eye, (at - eye).normalized())?.handle.axis;
+
+    test('a rotate gizmo is grabbed on its rings, not along its axes', () {
+      final rings = gizmoHandles(
+        Vector3.zero(),
+        view,
+        kind: GizmoKindForHit.rotate,
+      );
+      final double radius = rings.first.ringRadius!;
+
+      // On the Z ring: the circle in the XY plane, at its own radius.
+      expect(aimedAt(rings, Vector3(radius, 0, 0)), GizmoAxis.z);
+      expect(aimedAt(rings, Vector3(0, radius, 0)), GizmoAxis.z);
+
+      // Mutation: reuse the move gizmo's three axis boxes. Half the radius
+      // out along X is inside the box that runs along X, so an aim at plain
+      // empty space in the middle of the rings takes hold of a rotation —
+      // and an aim at the ring itself, below, takes hold of nothing.
+      expect(aimedAt(rings, Vector3(radius * 0.5, 0, 0)), isNull);
+    });
+
+    // A three-quarter view for the middle box, because the camera has to be
+    // somewhere no arm points at it: down an axis, that axis's own arm runs
+    // between the eye and the pivot and is hit first — correctly, since on
+    // screen it is exactly what is in front of the box.
+    final Vector3 corner = Vector3(2, 2, 2);
+    final GizmoView cornerView = viewFrom(corner);
+    GizmoAxis? aimedFromCorner(List<GizmoHandle> handles, Vector3 at) =>
+        GizmoHit.nearest(
+          handles,
+          corner,
+          (at - corner).normalized(),
+        )?.handle.axis;
+
+    test('and the middle box of a scale gizmo can be grabbed at all', () {
+      final scale = gizmoHandles(
+        Vector3.zero(),
+        cornerView,
+        kind: GizmoKindForHit.scale,
+      );
+
+      // Mutation: leave the middle box out of the handles, which is what it
+      // was — drawn since the gizmo was written, and answering nothing.
+      expect(aimedFromCorner(scale, Vector3.zero()), GizmoAxis.uniform);
+      // The arms are still the arms: the box is small and the shafts start
+      // well outside it.
+      expect(
+        aimedFromCorner(scale, middleOfArm(corner, GizmoAxis.x)),
+        GizmoAxis.x,
+      );
+    });
+
+    test('a move gizmo has no middle box to grab', () {
+      final move = gizmoHandles(Vector3.zero(), cornerView);
+
+      // The pivot is deliberately left clear on a move gizmo: something is
+      // being edited there, and a handle over it would be a handle covering
+      // the thing it moves.
+      expect(aimedFromCorner(move, Vector3.zero()), isNull);
+      expect(move.map((GizmoHandle h) => h.axis), GizmoAxis.three);
     });
   });
 }

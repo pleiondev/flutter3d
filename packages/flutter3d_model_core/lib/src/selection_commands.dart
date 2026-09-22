@@ -487,3 +487,235 @@ final class SelectByMaterial extends ModelCommand {
               : OpResult.done(selection: found);
         });
 }
+
+/// Every face pointing the way [axis] does — `ux-19`.
+///
+/// **What "the top of the cube" is, said in a way a program can say it.** An
+/// agent asked to extrude the top face could name a face id and had no way to
+/// find out which id that was: `list` counts the faces and `describe` says
+/// where each one points, but turning six normals into "the one that points
+/// up" is arithmetic every caller was writing again. This is that arithmetic,
+/// once, as a pick that lands on the undo stack like any other.
+///
+/// **Faces, and so face level, whatever level was live.** A normal is a
+/// face's; a vertex has one only by averaging the faces around it and an edge
+/// only by averaging its two sides, and "the vertices that point up" on a cube
+/// is four vertices of the top face plus every vertex of every face that
+/// leans upward — an answer nobody asked for. [_asSelection] carries the level
+/// back out with the elements, so a caller in vertex mode lands in face mode
+/// holding faces rather than holding face numbers under a vertex level.
+final class SelectFacing extends ModelCommand {
+  const SelectFacing({required this.axis, this.within = 45.0});
+
+  /// The direction to face, in the object's own space. `[0, 1, 0]` is up.
+  /// Need not be a unit vector: it is normalised here, because a caller
+  /// typing a direction by hand is thinking about which way it points and not
+  /// about its length.
+  final Vector3 axis;
+
+  /// How far off [axis] a face may point and still count, in degrees.
+  ///
+  /// **45° by default, which is the answer to "the top" on a box.** Wider
+  /// takes in the sides of a cylinder's cap; narrower misses a face that has
+  /// been bevelled. A caller that wants exactly the faces perpendicular to an
+  /// axis says so with a small number rather than by post-filtering what came
+  /// back.
+  final double within;
+
+  @override
+  String get name => 'selectFacing';
+
+  @override
+  String get says => 'select the faces facing ${axis.x}, ${axis.y}, ${axis.z}';
+
+  @override
+  Map<String, Object?> get arguments => <String, Object?>{
+    'axis': <double>[axis.x, axis.y, axis.z],
+    'within': within,
+  };
+
+  @override
+  Outcome apply(ModelProject project, ProjectSelection selection) {
+    if (selection.mode == SelectionMode.object) {
+      return Outcome.refused(
+        'a normal belongs to a face, so this needs mesh mode: select an '
+        'object with a level first',
+      );
+    }
+    if (axis.length2 < 1e-12) {
+      return Outcome.refused('the axis has no direction — give a non-zero one');
+    }
+    if (!(within > 0) || within > 180) {
+      return Outcome.refused('"within" is an angle in degrees, 0 to 180');
+    }
+    final Vector3 wanted = axis.normalized();
+    final double least = math.cos(within * math.pi / 180.0);
+    return _asSelection(project, selection, (_MeshTarget target) {
+      final found = <int>[
+        for (final int face in liveElements(target.mesh, ElementLevel.face))
+          if (elementNormal(target.mesh, ElementLevel.face, face)
+              case final Vector3 normal)
+            if (normal.dot(wanted) >= least) face,
+      ];
+      return found.isEmpty
+          ? OpResult.refused(
+              'nothing in "${target.object.name}" points that way within '
+              '$within°',
+              selection: target.elements,
+            )
+          : OpResult.done(selection: Selection.of(ElementLevel.face, found));
+    });
+  }
+}
+
+/// Everything at the live level within [radius] of [point] — `ux-19`.
+///
+/// **A box-select for something with no screen.** A person rubber-bands a
+/// region; an agent had `selectLinked` and `selectAll` and nothing in between,
+/// so "the vertices around the hole at the top" was a list of ids read off
+/// `describe` and typed back in. Measured in the object's own space, which is
+/// the space `describe` answers in and the space `transformElements` moves in
+/// — three coordinate systems for one region would be three chances to pick
+/// the wrong one.
+///
+/// **At whatever level is live, unlike [SelectFacing].** "Within half a metre
+/// of here" is a question with an answer at every level, and each answer is
+/// the one the person asking that level's question wants: a vertex's position,
+/// an edge's midpoint, a face's centroid.
+final class SelectNear extends ModelCommand {
+  const SelectNear({required this.point, required this.radius});
+
+  final Vector3 point;
+  final double radius;
+
+  @override
+  String get name => 'selectNear';
+
+  @override
+  String get says =>
+      'select within $radius of ${point.x}, ${point.y}, ${point.z}';
+
+  @override
+  Map<String, Object?> get arguments => <String, Object?>{
+    'point': <double>[point.x, point.y, point.z],
+    'radius': radius,
+  };
+
+  @override
+  Outcome apply(ModelProject project, ProjectSelection selection) {
+    if (selection.mode == SelectionMode.object) {
+      return Outcome.refused(
+        'this picks elements, so it needs mesh mode: select an object with a '
+        'level first',
+      );
+    }
+    if (!(radius > 0)) {
+      return Outcome.refused('the radius has to be a positive distance');
+    }
+    final double reach = radius * radius;
+    return _asSelection(project, selection, (_MeshTarget target) {
+      final ElementLevel level = target.elements.level;
+      final found = <int>[
+        for (final int id in liveElements(target.mesh, level))
+          if (elementCentre(target.mesh, level, id) case final Vector3 at)
+            if ((at - point).length2 <= reach) id,
+      ];
+      return found.isEmpty
+          ? OpResult.refused(
+              'nothing in "${target.object.name}" is within $radius of there',
+              selection: target.elements,
+            )
+          : OpResult.done(selection: Selection.of(level, found));
+    });
+  }
+}
+
+/// Picks whole objects by id, or switches to mesh mode on one object and
+/// picks vertices, edges or faces of it by id — a click, named.
+///
+/// **`tut-05`, closed.** Every command above answers "everything"/"nothing"/
+/// "the neighbours of what is already selected" — a walk relative to
+/// whatever the selection already holds, needing no id of its own. Naming a
+/// *specific* object or a *specific* set of elements is a different kind of
+/// pick — the one a mouse click makes, and the one `ModelSession.select`
+/// offers a program with no mouse — and it went straight to
+/// `ModelHistory.selection =` rather than through any command here, which is
+/// exactly what made a case whose edits depend on it (case 2's rim faces,
+/// case 3's imported box) unrecoverable from a cold `CommandJournal.replay`:
+/// the pick itself was never on the journal to replay. This command is that
+/// pick, written down.
+///
+/// **[level] is a `String` rather than an `ElementLevel`, matching
+/// `ModelSession.select`'s own argument** — an agent's JSON names a level by
+/// word, and a name nothing recognises is a refusal with a sentence
+/// ([apply]'s own "is not a level"), not a decode failure a caller never
+/// sees.
+final class SelectElements extends ModelCommand {
+  const SelectElements({this.objects, this.object, this.level, this.elements});
+
+  /// Object ids to select, in object mode. Ignored when [object] is given.
+  final List<int>? objects;
+
+  /// The one object to select elements of, switching to mesh mode. Null picks
+  /// whole objects instead, from [objects].
+  final int? object;
+
+  /// `"vertex"`, `"edge"` or `"face"` — required together with [object].
+  final String? level;
+
+  /// Element ids at [level], within [object]. Meaningless without [object].
+  final List<int>? elements;
+
+  @override
+  String get name => 'selectElements';
+
+  @override
+  String get says => object != null
+      ? 'select ${elements?.length ?? 0} '
+            '${level ?? 'element'}${(elements?.length ?? 0) == 1 ? '' : 's'}'
+      : 'select ${objects?.length ?? 0} '
+            'object${(objects?.length ?? 0) == 1 ? '' : 's'}';
+
+  @override
+  Map<String, Object?> get arguments => <String, Object?>{
+    if (objects != null) 'objects': objects,
+    if (object != null) 'object': object,
+    if (level != null) 'level': level,
+    if (elements != null) 'elements': elements,
+  };
+
+  @override
+  Outcome apply(ModelProject project, ProjectSelection selection) {
+    if (object != null) {
+      final ElementLevel? at = _elementLevelNamed(level);
+      if (at == null) {
+        return Outcome.refused(
+          '"$level" is not a level; it is vertex, edge or face',
+        );
+      }
+      return Outcome.done(
+        project,
+        selection: ProjectSelection(
+          mode: SelectionMode.mesh,
+          objects: <int>[object!],
+          level: at,
+          elements: elements ?? const <int>[],
+        ),
+      );
+    }
+    return Outcome.done(
+      project,
+      selection: ProjectSelection(
+        mode: SelectionMode.object,
+        objects: objects ?? const <int>[],
+      ),
+    );
+  }
+}
+
+ElementLevel? _elementLevelNamed(String? word) {
+  for (final ElementLevel level in ElementLevel.values) {
+    if (level.name == word) return level;
+  }
+  return null;
+}

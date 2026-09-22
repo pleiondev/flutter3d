@@ -100,13 +100,7 @@ void main() {
       final cache = TextureBakeCache();
       final images = <int, Uint8List>{0: _redPng};
 
-      final first = bakeTextureGraph(
-        graph,
-        3,
-        images,
-        size: 1,
-        cache: cache,
-      )!;
+      final first = bakeTextureGraph(graph, 3, images, size: 1, cache: cache)!;
 
       // A structurally identical Image node (same id, same imageId), a
       // different Blend factor, and — the point of the test — a

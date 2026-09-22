@@ -44,7 +44,8 @@ void main() {
       expect(
         _skills.existsSync(),
         isTrue,
-        reason: 'rel-14 promises editing-order, level-document and '
+        reason:
+            'rel-14 promises editing-order, level-document and '
             'what-it-refuses',
       );
       expect(
@@ -71,7 +72,9 @@ void main() {
       // Mutation: drop the `description:` line from any SKILL.md — fails
       // here. A skill with no description is one an agent never loads.
       for (final Directory directory in _skillDirectories) {
-        final String text = File('${directory.path}/SKILL.md').readAsStringSync();
+        final String text = File(
+          '${directory.path}/SKILL.md',
+        ).readAsStringSync();
         final String where = directory.path.split('/').last;
         expect(
           _frontmatter(text, 'name'),
@@ -97,7 +100,9 @@ void main() {
       // otherwise.
       for (final Directory directory in _skillDirectories) {
         final String where = directory.path.split('/').last;
-        final String text = File('${directory.path}/SKILL.md').readAsStringSync();
+        final String text = File(
+          '${directory.path}/SKILL.md',
+        ).readAsStringSync();
         expect(
           _frontmatter(text, 'name'),
           where,

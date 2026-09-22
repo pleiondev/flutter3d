@@ -21,7 +21,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 
-import 'package:flutter3d_formats/flutter3d_formats.dart';
+import 'package:flutter3d_core/formats.dart';
 import 'package:flutter3d_model_core/flutter3d_model_core.dart';
 
 /// Writes a material's own `.fmat` back to disk.
@@ -42,10 +42,9 @@ final class MaterialFileWriter {
   /// back in. Colour, the scalar factors, alpha and the two flags are the
   /// whole of what a project-owned material has to say, and it round-trips
   /// exactly.
-  static Uint8List bytesFor(ProjectMaterial material) =>
-      Uint8List.fromList(
-        utf8.encode(writeFmat(MaterialDocument(surface: material.surface))),
-      );
+  static Uint8List bytesFor(ProjectMaterial material) => Uint8List.fromList(
+    utf8.encode(writeFmat(MaterialDocument(surface: material.surface))),
+  );
 
   /// Writes [material]'s own `.fmat` to disk, resolved against [baseDir] —
   /// the directory [ProjectMaterial.fmat]'s own doc comment says a linked

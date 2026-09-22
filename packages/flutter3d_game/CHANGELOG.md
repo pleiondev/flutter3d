@@ -1,3 +1,59 @@
+## 0.7.0
+
+**Breaking.** Everything a game adds to an application is here, and
+`flutter3d_sim` is no longer re-exported. `flutter3d_session`,
+`flutter3d_screens` and `flutter3d_bridge` are marked `discontinued` on pub.dev
+the day this is published, the last two with this package as their
+replacement; `doc/boundary-0.7.0.md` has the whole list.
+
+* From `flutter3d_session`: `RunSession`, `RunTimeline` and its service
+  extensions, the demo timeline and the bug-report tape, the settings overlay
+  and panel, rebinding, `SaveFile`/`SettingsFile`/`DemoFile`, volumes, credits,
+  `AutomapView`, `DragLook`, `TapToRestart`, `clockText` and
+  `configureForTouch`. `package:flutter3d_game/testing.dart` holds
+  `creditGaps`. At 0.6.0 everything in that list after the bug-report tape was
+  `flutter3d_screens`, which was folded into the session first and followed it
+  here.
+* From `flutter3d_bridge`: `ActorVisuals`, `FixtureVisuals` and
+  `SoundOcclusion`. Loading a level into a scene, `LevelLoader` and what it
+  stands on, went to `flutter3d_app`.
+* To `flutter3d_app`: `Issue`, `IssueSink` and `IssueLog`, which storage
+  reports through. This package depends on `flutter3d_app`, and a file that
+  used one of the three imports it.
+* **Breaking. A file that steps a simulation imports `flutter3d_sim` by
+  name.** The line `export 'package:flutter3d_sim/flutter3d_sim.dart'` is gone
+  from this library, so `Level`, `GameLoop`, `InputState` and every other
+  simulation type stop arriving through it. `flutter3d_sim` is still a
+  dependency here at `^0.7.0`; a package that uses its types adds it to its own
+  pubspec.
+* **`RunTimeline`: a running game paused, stepped and rewound from outside.**
+  New since 0.6.0. `pause`, `resume`, `stepOnce`, `preview(secondsAgo)`,
+  `releaseAt` and `releaseAtStep(step)` over a `RewindBuffer`, with each action
+  kept as a sealed `TimelineCommand`: `TimelinePaused`, `TimelineResumed`,
+  `TimelineStepped` or `TimelineBranched`. `registerTimelineExtensions` puts a
+  timeline on the VM service as `ext.flutter3d.timeline.pause`, `resume`,
+  `stepOnce`, `preview`, `releaseAtStep`, `history` and `status`, with
+  `frameTimes` and `bugReport` when the caller supplies them. That is the
+  channel a tool attached to a running game already has.
+  `rewindBufferFromDemo` replays a whole `Demo` once into a buffer that reaches
+  every step of it, and `bugReportTape` answers the state and the tape of the
+  last seconds a `RewindBuffer` kept, or null before its first keyframe.
+* **`LevelWalk`, `OpenKind` and `openRegistryFor`**, out of the game example's
+  `main.dart`: a body that walks a level, turns where it is dragged and carries
+  a camera at eye height, and a registry that accepts every type a level names
+  before a game has taught it any.
+* **A level names a model by either kind of path.** `FixtureVisuals` and
+  `ActorVisuals` load through the engine's `loadModelByPath`: a model a level
+  names under `assets_src/` is read from the `.f3d` the build hook converted
+  it into, and any other path from the bundle exactly as before, so a project
+  that has run `dart run flutter3d_build:init` and one that has not both load
+  through the same two classes.
+* **What it depends on.** `flutter3d_app`, `flutter3d`, `flutter3d_sim`,
+  `flutter3d_audio` and `flutter3d_particles` at `^0.7.0`, `flutter_bloc` for
+  the settings cubit, and `pad_input` and `pointer_lock` at `^0.4.0`. None of
+  them is re-exported. The input devices, the bindings, the touch controls and
+  `GameConfig` are what 0.6.0 had.
+
 ## 0.6.0
 
 * **A floor, and no code — the same shape as 0.5.1 and for the same reason.**

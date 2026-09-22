@@ -12,7 +12,7 @@
 /// format needed nothing new.
 library;
 
-import 'package:flutter3d_game/flutter3d_game.dart';
+import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:vector_math/vector_math.dart';
 
 /// How a body behaves in water.

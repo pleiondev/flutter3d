@@ -12,8 +12,9 @@ library;
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:code_assets/code_assets.dart';
 import 'package:crypto/crypto.dart';
-import 'package:flutter3d_formats/flutter3d_formats.dart';
+import 'package:flutter3d_core/formats.dart';
 import 'package:hooks/hooks.dart';
 
 import 'convert.dart';
@@ -49,28 +50,41 @@ final class _CacheEntry {
     required this.hash,
     required this.formatVersion,
     required this.pipelineVersion,
+    required this.textures,
   });
 
   final String hash;
   final int formatVersion;
   final int pipelineVersion;
 
+  /// Which compression family the cached output was written with — `gfx-69n`.
+  ///
+  /// The source bytes and the pipeline version say nothing about it, so a build
+  /// that changed family would otherwise find every file "unchanged" and ship
+  /// the previous family's textures. Defaulted when absent so a cache written
+  /// before this field is read rather than thrown away — it then mismatches
+  /// once, which is the right amount of rebuilding.
+  final String textures;
+
   factory _CacheEntry.fromJson(Map<String, Object?> json) => _CacheEntry(
     hash: json['hash']! as String,
     formatVersion: json['formatVersion']! as int,
     pipelineVersion: json['pipelineVersion']! as int,
+    textures: json['textures'] as String? ?? '(unrecorded)',
   );
 
   Map<String, Object?> toJson() => <String, Object?>{
     'hash': hash,
     'formatVersion': formatVersion,
     'pipelineVersion': pipelineVersion,
+    'textures': textures,
   };
 
   bool matches(_CacheEntry other) =>
       hash == other.hash &&
       formatVersion == other.formatVersion &&
-      pipelineVersion == other.pipelineVersion;
+      pipelineVersion == other.pipelineVersion &&
+      textures == other.textures;
 }
 
 String _cachePath(AssetLayout layout) =>
@@ -113,6 +127,7 @@ void _writeCache(String path, Map<String, _CacheEntry> cache) {
 Future<AssetBuildReport> runAssetBuild(
   Directory projectRoot, {
   IOSink? log,
+  TextureFamily textures = TextureFamily.auto,
 }) async {
   final layout = AssetLayout(projectRoot: projectRoot);
   final plan = layout.plan();
@@ -130,17 +145,23 @@ Future<AssetBuildReport> runAssetBuild(
       hash: sha256.convert(bytes).toString(),
       formatVersion: kF3dVersion,
       pipelineVersion: kAssetPipelineVersion,
+      textures: textures.name,
     );
     next[job.source] = entry;
 
-    final unchanged =
-        previous[job.source]?.matches(entry) ?? false;
+    final unchanged = previous[job.source]?.matches(entry) ?? false;
     if (unchanged && File(job.destination).existsSync()) {
       skipped.add(job.source);
       continue;
     }
 
-    final ok = await convertOne(job.source, job.destination, sink, sink);
+    final ok = await convertOne(
+      job.source,
+      job.destination,
+      sink,
+      sink,
+      textures: textures,
+    );
     if (ok) converted.add(job.source);
   }
 
@@ -169,6 +190,43 @@ Future<AssetBuildReport> runAssetBuild(
 ///   await build(arguments, buildAssets);
 /// }
 /// ```
+/// The compression family the platform being built for guarantees —
+/// `gfx-69n`, and `ap-09`'s own table.
+///
+/// **Not a guess about a device.** A block format is guaranteed by the
+/// platform: every desktop GPU samples BC, and ETC2 is required by OpenGL ES
+/// 3.0 and by Metal on every iOS device this engine runs on. Getting it wrong
+/// is not a worse picture — `uploadTexture` refuses a format the device does
+/// not sample and says so by name, and the material draws untextured — which
+/// is exactly why this reads the target rather than picking a default.
+///
+/// **The web gets nothing**, and that is the one target where a guess would be
+/// a guess: a browser is whatever machine it is running on, and `ap-09`'s
+/// answer there is to ship both sets and choose at load time from the
+/// context's extensions. Until that exists, a web build carries what it
+/// carried.
+///
+/// Null is a build that names no target, and takes [TextureFamily.auto]:
+/// `HookConfig.code` throws without a code configuration, `buildCodeAssets` is
+/// the guard that says so, and a build that cannot see its target must not
+/// invent one.
+///
+/// **A function over an `OS` rather than over a `BuildInput`**, because the
+/// input cannot be built with a code configuration outside `code_assets`
+/// itself — `CodeAssetBuildInputBuilder`, which holds `setupCode`, is not among
+/// the symbols that library exports. This table is the part that can be got
+/// wrong, so this is the part that is tested; the guard beside it is one read
+/// of a documented flag.
+TextureFamily familyForTargetOS(OS? targetOS) => switch (targetOS) {
+  OS.macOS || OS.windows || OS.linux => TextureFamily.bc,
+  OS.android || OS.iOS => TextureFamily.etc2,
+  _ => TextureFamily.auto,
+};
+
+TextureFamily _familyForTarget(BuildInput input) => familyForTargetOS(
+  input.config.buildCodeAssets ? input.config.code.targetOS : null,
+);
+
 Future<void> buildAssets(BuildInput input, BuildOutputBuilder output) async {
   // `packageRoot` is a directory `Uri` — its own path ends in `/`, and
   // `Directory.fromUri(...).path` keeps that trailing slash rather than
@@ -179,9 +237,20 @@ Future<void> buildAssets(BuildInput input, BuildOutputBuilder output) async {
   // keys staying the same string across two different callers of this same
   // function. Found by a real end-to-end test, not by reading the API.
   final root = Directory.fromUri(input.packageRoot).path;
-  final projectRoot = Directory(root.endsWith('/') ? root.substring(0, root.length - 1) : root);
+  final projectRoot = Directory(
+    root.endsWith('/') ? root.substring(0, root.length - 1) : root,
+  );
 
-  final report = await runAssetBuild(projectRoot);
+  // **Which family — `gfx-69n`.** A project's own word first: `textures: bc`
+  // (or `etc2`, or `none`) under this package's key in its
+  // `hook_user_defines`, which is also how `--textures` finally reaches the
+  // application path. Failing that, the platform being built for.
+  final requested = input.userDefines['textures'];
+  final textures = requested is String
+      ? TextureFamily.parse(requested) ?? _familyForTarget(input)
+      : _familyForTarget(input);
+
+  final report = await runAssetBuild(projectRoot, textures: textures);
   for (final source in report.dependencies) {
     output.dependencies.add(Uri.file(source));
   }

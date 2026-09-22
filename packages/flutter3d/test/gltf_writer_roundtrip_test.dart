@@ -8,8 +8,8 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:flutter3d/src/engine/assets/model_asset.dart';
-import 'package:flutter3d/src/engine/scene/scene_graph.dart';
-import 'package:flutter3d_formats/flutter3d_formats.dart';
+import 'package:flutter3d_core/formats.dart';
+import 'package:flutter3d_core/src/engine/scene/scene_graph.dart';
 import 'package:flutter3d_hardware/testing.dart';
 import 'package:flutter3d_samples/flutter3d_samples.dart';
 import 'package:flutter_test/flutter_test.dart';

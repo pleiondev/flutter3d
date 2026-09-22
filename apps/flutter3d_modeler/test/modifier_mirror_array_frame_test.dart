@@ -6,12 +6,21 @@
 ///
 ///     flutter test test/modifier_mirror_array_frame_test.dart
 ///
-/// **Applied, not previewed live.** `SceneSync`'s own `_dataOf` uploads
-/// whatever `EditedGeometry` currently holds — a document's base mesh, not
-/// a modifier stack folded over it on the fly — so a frame proving a
-/// modifier's own visible effect needs the bake `ApplyModifier` already
-/// does for the "Применить" button, not a second live-evaluation path this
-/// application does not have.
+/// **Applied, on purpose — this is the bake, not the live preview.** Since
+/// `tut-06`, `SceneSync` reads a modifier stack live (`scene_sync_test.
+/// dart`'s own `tut-06` group covers that without `ApplyModifier` ever
+/// running); this frame instead proves the other half still works — that
+/// baking through the "Применить" button folds the stack into the base
+/// mesh and empties it, exactly as before, rather than drawing something
+/// new.
+// Draws real pixels: a scene through the software rasteriser, a reference
+// picture, or both. Tagged so a run that only wants the logic skips the whole
+// slow class at once:
+//
+//     very_good test -x golden
+//
+// Not optional in CI, which runs the suite without the flag.
+@Tags(<String>['golden'])
 library;
 
 import 'package:flutter3d_mesh/flutter3d_mesh.dart';
@@ -53,55 +62,61 @@ EditMesh _offsetCuboid(Vector3 center) {
 
 void main() {
   group('modifier stack, drawn', () {
-    test('a cube mirrored across X and arrayed three deep matches its reference', () async {
-      final project = const ModelProject().added(
-        (int id) => ModelObject(
-          id: id,
-          name: 'cube',
-          geometry: EditedGeometry(_offsetCuboid(Vector3(1.2, 0, 0))),
-          transform: Matrix4.identity(),
-          modifiers: <ModifierSlot>[
-            ModifierSlot(modifier: MirrorModifier(normal: Vector3(1, 0, 0))),
-            ModifierSlot(
-              modifier: ArrayModifier(count: 3, offset: Vector3(0, 0, 2.2)),
-            ),
-          ],
-        ),
-      );
+    test(
+      'a cube mirrored across X and arrayed three deep matches its reference',
+      () async {
+        final project = const ModelProject().added(
+          (int id) => ModelObject(
+            id: id,
+            name: 'cube',
+            geometry: EditedGeometry(_offsetCuboid(Vector3(1.2, 0, 0))),
+            transform: Matrix4.identity(),
+            modifiers: <ModifierSlot>[
+              ModifierSlot(modifier: MirrorModifier(normal: Vector3(1, 0, 0))),
+              ModifierSlot(
+                modifier: ArrayModifier(count: 3, offset: Vector3(0, 0, 2.2)),
+              ),
+            ],
+          ),
+        );
 
-      final history = ModelHistory(project);
-      // Bakes both slots (0..1) into the geometry and empties the stack —
-      // the same "Применить" the panel's own button runs.
-      expect(history.run(const ApplyModifier(id: 1, index: 1)), isNull);
-      expect(history.project[1]!.modifiers, isEmpty);
+        final history = ModelHistory(project);
+        // Bakes both slots (0..1) into the geometry and empties the stack —
+        // the same "Применить" the panel's own button runs.
+        expect(history.run(const ApplyModifier(id: 1, index: 1)), isNull);
+        expect(history.project[1]!.modifiers, isEmpty);
 
-      final frame = await renderFrame(
-        // `mat-31`'s own size for the three material/scene goldens this
-        // app's own tests keep in `test/goldens`.
-        width: 320,
-        height: 200,
-        build: (FrameRequest request) {
-          final stage = ModelerStage.fromProject(
-            device: request.device,
-            project: history.project,
-          );
-          // Wide enough to hold both mirrored halves (x spans roughly
-          // [-1.7, 1.7]) across all three array copies (z spans roughly
-          // [-0.5, 4.9]) — `ModelerStage.build`'s own 3.2 frames one cube,
-          // not six spread this far apart. A shallower pitch than the
-          // default 0.45 looks down the array's own Z axis rather than
-          // across it, so all three copies read as separate cubes rather
-          // than stacking behind one another.
-          stage.orbit
-            ..distance = 14.0
-            ..pitch = 0.65
-            ..yaw = 0.9
-            ..apply();
-          return (scene: stage.scene, camera: stage.camera);
-        },
-      );
+        final frame = await renderFrame(
+          // `mat-31`'s own size for the three material/scene goldens this
+          // app's own tests keep in `test/goldens`.
+          width: 320,
+          height: 200,
+          build: (FrameRequest request) {
+            final stage = ModelerStage.fromProject(
+              device: request.device,
+              project: history.project,
+            );
+            // Wide enough to hold both mirrored halves (x spans roughly
+            // [-1.7, 1.7]) across all three array copies (z spans roughly
+            // [-0.5, 4.9]) — `ModelerStage.build`'s own 3.2 frames one cube,
+            // not six spread this far apart. A shallower pitch than the
+            // default 0.45 looks down the array's own Z axis rather than
+            // across it, so all three copies read as separate cubes rather
+            // than stacking behind one another.
+            stage.orbit
+              ..distance = 14.0
+              ..pitch = 0.65
+              ..yaw = 0.9
+              ..apply();
+            return (scene: stage.scene, camera: stage.camera);
+          },
+        );
 
-      await expectMatchesGolden(frame, 'test/goldens/modifier-mirror-array.png');
-    });
+        await expectMatchesGolden(
+          frame,
+          'test/goldens/modifier-mirror-array.png',
+        );
+      },
+    );
   });
 }

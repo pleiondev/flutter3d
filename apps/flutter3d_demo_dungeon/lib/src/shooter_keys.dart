@@ -15,9 +15,9 @@
 library;
 
 import 'package:flutter/services.dart' show LogicalKeyboardKey;
-import 'package:flutter3d_app/flutter3d_app.dart'; // PadButton, from pad_input
 import 'package:flutter3d_game/flutter3d_game.dart';
 import 'package:flutter3d_game_shooter/flutter3d_game_shooter.dart';
+import 'package:pad_input/pad_input.dart'; // PadButton, from pad_input
 
 /// Adds this genre's own bindings to [bindings], and returns it.
 ///

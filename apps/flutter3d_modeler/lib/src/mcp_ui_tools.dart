@@ -1,0 +1,382 @@
+/// Turns a [UiActions] into the `ui.*` tools `mcp-16d` offers a
+/// GUI-mode agent beside the ordinary document ones — `ModelHttpServer.
+/// start`'s own `extraTools`.
+///
+/// **Imported only from `mcp_bootstrap_io.dart`.** This file reaches
+/// `package:flutter3d_model_mcp`, whose barrel export reaches `dart:io`
+/// through `ModelHttpServer` — see `mcp_ui_actions.dart`'s own doc comment
+/// for why that keeps this file, and not the interface it builds tools
+/// from, out of anything the web build compiles.
+library;
+
+import 'dart:typed_data';
+
+import 'package:dart_mcp/server.dart';
+import 'package:flutter3d_model_mcp/flutter3d_model_mcp.dart';
+
+import 'mcp_ui_actions.dart';
+
+/// [body] wrapped the way every tool `ModelMcpServer` offers already is:
+/// an [Answer]-shaped result with no picture, `session` itself unread since
+/// every `ui.*` tool acts on the live screen [actions] already closes over
+/// rather than on the document [session] carries.
+ModelPictureTool _ui(
+  Tool tool,
+  UiAnswer Function(Map<String, Object?> arguments) body,
+) => ModelPictureTool(tool, (
+  ModelSession session,
+  Map<String, Object?> arguments,
+) async {
+  final UiAnswer answer = body(arguments);
+  return (did: answer.did, says: answer.says, png: null);
+});
+
+/// The tools, each a thin call into [actions] — see [UiActions] for
+/// what each one does and refuses. GUI build only: nothing calls this except
+/// `mcp_bootstrap_io.dart`'s own `startMcpServer`, and only when a screen
+/// hands it a live [UiActions].
+List<ModelPictureTool> uiToolsFor(UiActions actions) => <ModelPictureTool>[
+  _ui(
+    Tool(
+      name: 'ui.setMode',
+      description:
+          'Switches the mode switcher — object, mesh, material, animation, '
+          'scene, and whatever else this build offers — the same as '
+          'clicking it. For driving a screenshot script. Refuses cleanly '
+          'for a name the switcher does not have.',
+      inputSchema: ObjectSchema(
+        properties: <String, Schema>{
+          'mode': StringSchema(description: 'a mode switcher name, lowercase'),
+        },
+        required: <String>['mode'],
+      ),
+    ),
+    (Map<String, Object?> arguments) =>
+        actions.setMode(arguments['mode']! as String),
+  ),
+  _ui(
+    Tool(
+      name: 'ui.setSubmode',
+      description:
+          'Changes the open mode\'s own second switcher — the mesh mode\'s '
+          'vertex/edge/face today, and whatever a later mode adds one for. '
+          'Refuses cleanly for a name the open mode does not offer.',
+      inputSchema: ObjectSchema(
+        properties: <String, Schema>{
+          'submode': StringSchema(description: 'a submode name, lowercase'),
+        },
+        required: <String>['submode'],
+      ),
+    ),
+    (Map<String, Object?> arguments) =>
+        actions.setSubmode(arguments['submode']! as String),
+  ),
+  _ui(
+    Tool(
+      name: 'ui.setTool',
+      description:
+          'Lights the tool rail\'s id, the same as clicking it. Omit "id" '
+          'to clear it back to none.',
+      inputSchema: ObjectSchema(
+        properties: <String, Schema>{
+          'id': StringSchema(
+            description: 'a tool id from the rail; omit to clear',
+          ),
+        },
+      ),
+    ),
+    (Map<String, Object?> arguments) =>
+        actions.setTool(arguments['id'] as String?),
+  ),
+  _ui(
+    Tool(
+      name: 'ui.standardView',
+      description:
+          'Points the camera at one of the app\'s own six standard views.',
+      inputSchema: ObjectSchema(
+        properties: <String, Schema>{
+          'view': StringSchema(
+            description: 'front, back, left, right, top or bottom',
+          ),
+        },
+        required: <String>['view'],
+      ),
+    ),
+    (Map<String, Object?> arguments) =>
+        actions.standardView(arguments['view']! as String),
+  ),
+  _ui(
+    Tool(
+      name: 'ui.frameSubject',
+      description:
+          'Frames the current subject in the viewport, the same framing a '
+          'fresh open already gives it.',
+      inputSchema: ObjectSchema(),
+    ),
+    (Map<String, Object?> _) => actions.frameSubject(),
+  ),
+  _ui(
+    Tool(
+      name: 'ui.openDialog',
+      description:
+          'Opens one of this app\'s own dialogs — export, lathe, autorig, '
+          'preview — without waiting for it to close, so a screenshot '
+          'script can catch it on screen. Refuses cleanly for a dialog this '
+          'build has not wired up yet.',
+      inputSchema: ObjectSchema(
+        properties: <String, Schema>{
+          'dialog': StringSchema(
+            description: 'export, lathe, autorig or preview',
+          ),
+        },
+        required: <String>['dialog'],
+      ),
+    ),
+    (Map<String, Object?> arguments) =>
+        actions.openDialog(arguments['dialog']! as String),
+  ),
+  _ui(
+    Tool(
+      name: 'ui.say',
+      description:
+          'Puts a sentence on the status line, marked to survive a routine '
+          'clear — for a screenshot script to caption the step it is about '
+          'to catch.',
+      inputSchema: ObjectSchema(
+        properties: <String, Schema>{
+          'text': StringSchema(description: 'the sentence to show'),
+        },
+        required: <String>['text'],
+      ),
+    ),
+    (Map<String, Object?> arguments) =>
+        actions.say(arguments['text']! as String),
+  ),
+  // `ux-44`: the window, not the model. `render` draws the project through a
+  // software rasteriser — framed, with no panels, no rail and no dialog —
+  // which answers "is the shape right" and cannot answer "did the export
+  // screen open" or "is the modifier I added showing in the stack".
+  ModelPictureTool(
+    Tool(
+      name: 'ui.screenshot',
+      description:
+          'The application window as a picture — panels, rail, dialogs, '
+          'selection highlight and all. This is what the person is looking '
+          'at; use render when you want the model on its own. Refuses when '
+          'there is no window, which is every headless server.',
+      inputSchema: ObjectSchema(),
+    ),
+    (ModelSession session, Map<String, Object?> arguments) async {
+      final UiPicture shot = await actions.screenshot();
+      return (
+        did: shot.did,
+        says: shot.says,
+        png: shot.png == null ? null : Uint8List.fromList(shot.png!),
+      );
+    },
+  ),
+  // `ux-52`: Play, driven from outside the route it runs in. Five tools
+  // rather than one with a verb argument, for the same reason the document
+  // side has `undo` and `redo` rather than `history {direction}`: an agent
+  // reading a tool list learns what it can do from the names.
+  _ui(
+    Tool(
+      name: 'play.start',
+      description:
+          'Opens Play: the document walked in rather than looked at. '
+          'Templates are character (the document rides the walking body, '
+          'seen from behind), prop (walk around it at eye height) and '
+          'walkthrough (the same from further out). The document is handed '
+          'over the way an export hands it over, so a project that will not '
+          'export refuses here with the same problems Export names. Refuses '
+          'a second start while one is running — reload or stop it first.',
+      inputSchema: ObjectSchema(
+        properties: <String, Schema>{
+          'template': StringSchema(
+            description: 'character, prop or walkthrough',
+          ),
+        },
+        required: <String>['template'],
+      ),
+    ),
+    (Map<String, Object?> arguments) =>
+        actions.playStart(arguments['template']! as String),
+  ),
+  _ui(
+    Tool(
+      name: 'play.reload',
+      description:
+          'Brings the running game to the document as it is now, keeping '
+          'the walk the body has already made. This is how you see an edit '
+          'without losing where the player got to. Refuses when nothing is '
+          'running.',
+      inputSchema: ObjectSchema(),
+    ),
+    (Map<String, Object?> arguments) => actions.playReload(),
+  ),
+  _ui(
+    Tool(
+      name: 'play.stop',
+      description:
+          'Closes the running game and comes back to the editor. Refuses '
+          'when nothing is running.',
+      inputSchema: ObjectSchema(),
+    ),
+    (Map<String, Object?> arguments) => actions.playStop(),
+  ),
+  _ui(
+    Tool(
+      name: 'play.console',
+      description:
+          'What the running game is: which template, and where the body is '
+          'standing. Play prints its sentences into the editor\'s own log, '
+          'so get_console is where those are; this is the state that log '
+          'cannot carry. Refuses when nothing is running.',
+      inputSchema: ObjectSchema(),
+    ),
+    (Map<String, Object?> arguments) => actions.playConsole(),
+  ),
+  ModelPictureTool(
+    Tool(
+      name: 'play.screenshot',
+      description:
+          'The running game as a picture. The same capture ui.screenshot '
+          'makes \u2014 Play is a full-screen route, so the window is the game '
+          '\u2014 except that this one refuses when Play is not running, so a '
+          'picture of the editor is never mistaken for a picture of the '
+          'game.',
+      inputSchema: ObjectSchema(),
+    ),
+    (ModelSession session, Map<String, Object?> arguments) async {
+      final UiPicture shot = await actions.playScreenshot();
+      return (
+        did: shot.did,
+        says: shot.says,
+        png: shot.png == null ? null : Uint8List.fromList(shot.png!),
+      );
+    },
+  ),
+  // `gal-06`: the gallery, for an agent that has no grid to look at. Two
+  // verbs rather than one with a mode argument, for the reason the Play
+  // tools are five: a tool list is what an agent learns the application
+  // from.
+  ModelPictureTool(
+    Tool(
+      name: 'gallery.list',
+      description:
+          'What the gallery offers: one line per item, each starting with '
+          'the id gallery.insert takes. Every line names the licence, and '
+          'an item under CC-BY names its author — an export that includes '
+          'one owes that credit. Narrow with category (lighting, '
+          'furniture, tableware, architecture) or licence (cc0, '
+          'cc-by-4.0). Both left out lists everything.',
+      inputSchema: ObjectSchema(
+        properties: <String, Schema>{
+          'category': StringSchema(
+            description:
+                'lighting, furniture, tableware or architecture; omit for '
+                'all of them',
+          ),
+          'licence': StringSchema(
+            description: 'cc0 for the items that need no credit',
+          ),
+        },
+      ),
+    ),
+    (ModelSession session, Map<String, Object?> arguments) async {
+      final UiAnswer answer = await actions.galleryList(
+        category: arguments['category'] as String?,
+        licence: arguments['licence'] as String?,
+      );
+      return (did: answer.did, says: answer.says, png: null);
+    },
+  ),
+  ModelPictureTool(
+    Tool(
+      name: 'gallery.insert',
+      description:
+          'Inserts a gallery item beside what is already open — one undo '
+          'step, and the document that was open stays open. Takes an id '
+          'from gallery.list; anything else refuses and says to call that '
+          'first.',
+      inputSchema: ObjectSchema(
+        properties: <String, Schema>{
+          'id': StringSchema(
+            description: 'an id from gallery.list, such as built-in/mug',
+          ),
+        },
+        required: <String>['id'],
+      ),
+    ),
+    (ModelSession session, Map<String, Object?> arguments) async {
+      final UiAnswer answer = await actions.galleryInsert(
+        arguments['id']! as String,
+      );
+      return (did: answer.did, says: answer.says, png: null);
+    },
+  ),
+  // `ux-25`: the command palette's own list, and the same door it presses.
+  _ui(
+    Tool(
+      name: 'run_command',
+      description:
+          'Runs one of the editor\'s own commands by id — the same list the '
+          'command palette shows a person, pressed the same way. Some ids '
+          'arm a tool and wait for a pointer (move, rotate, scale); the '
+          'rest act at once. Call it with no id to get the list back '
+          'instead of running anything.',
+      inputSchema: ObjectSchema(
+        properties: <String, Schema>{
+          'id': StringSchema(
+            description: 'a command id, such as "mesh.triangulate"',
+          ),
+        },
+      ),
+    ),
+    (Map<String, Object?> arguments) => switch (arguments['id']) {
+      final String id => actions.runCommand(id),
+      // No id: the catalogue, which is what an agent that has never seen
+      // this editor needs before it can ask for anything by name.
+      _ => (
+        did: true,
+        says: actions
+            .commands()
+            .map(
+              (({String id, String label, String mode}) it) =>
+                  '${it.id} (${it.label}, ${it.mode})',
+            )
+            .join('\n'),
+      ),
+    },
+  ),
+  // `ux-26`: the same log the person's own console panel shows.
+  _ui(
+    Tool(
+      name: 'get_console',
+      description:
+          'Everything the editor has said this session — what a person did, '
+          'what you did, and every refusal and warning either of you earned, '
+          'in the order it happened. Pass the `at` of the last entry you saw '
+          'as `since` to get only what has happened since; leave it out for '
+          'the whole log. This is how you find out what the person at the '
+          'other end of the document has been doing.',
+      inputSchema: ObjectSchema(
+        properties: <String, Schema>{
+          'since': StringSchema(
+            description:
+                'an ISO-8601 timestamp — an entry stamped exactly this is '
+                'the one you already have, and is not returned',
+          ),
+        },
+      ),
+    ),
+    (Map<String, Object?> arguments) => actions.console(
+      // Not `final String when` — `when` is the guard keyword in a switch
+      // expression, and the parser reads it as one.
+      since: switch (arguments['since']) {
+        final String stamp => DateTime.tryParse(stamp),
+        _ => null,
+      },
+    ),
+  ),
+];

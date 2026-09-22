@@ -13,7 +13,7 @@ import 'dart:typed_data';
 
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
-import 'package:flutter_test/flutter_test.dart';
+import 'package:test/test.dart';
 
 /// A texture whose base level is a checkerboard and whose every smaller level
 /// is the flat average of it.

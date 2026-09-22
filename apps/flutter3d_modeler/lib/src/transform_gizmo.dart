@@ -21,32 +21,80 @@ import 'package:vector_math/vector_math.dart';
 enum GizmoAxis {
   x,
   y,
-  z;
+  z,
 
-  /// The unit vector this axis runs along.
+  /// The box in the middle of a scale gizmo: every axis at once, which is no
+  /// axis at all.
+  ///
+  /// **A fourth member rather than a bool beside the other three**, because
+  /// every place that asks "which handle is the pointer on" was already
+  /// asking this enum, and a separate answer for the middle box would have to
+  /// be threaded through the hover, the press and the drag — three places
+  /// that would each have to remember it. `ux-03`'s own finding was that the
+  /// box was drawn and could not be grabbed at all; it is a handle, so it is
+  /// in the list of handles.
+  uniform;
+
+  /// The unit vector this axis runs along — the zero vector for [uniform],
+  /// which runs along none. Callers that do arithmetic with a direction take
+  /// [three] rather than [values] and never meet it.
   Vector3 get direction => switch (this) {
     GizmoAxis.x => Vector3(1.0, 0.0, 0.0),
     GizmoAxis.y => Vector3(0.0, 1.0, 0.0),
     GizmoAxis.z => Vector3(0.0, 0.0, 1.0),
+    GizmoAxis.uniform => Vector3.zero(),
   };
+
+  /// The three that are axes.
+  static const List<GizmoAxis> three = <GizmoAxis>[
+    GizmoAxis.x,
+    GizmoAxis.y,
+    GizmoAxis.z,
+  ];
 }
 
 /// The colour of the arrow that moves a thing along X, as `0xRRGGBB`.
 ///
-/// **The three tints are one triple of channel values, rotated.** X is
-/// `#FF6B8A`, Y is `#8AFF6B` and Z is `#6B8AFF`: the same numbers in a
-/// different order, so the three arrows have the same weight against the dark
-/// viewport and no one of them reads as the important one. Picked by hand for
-/// each axis instead, the greens and blues that look right beside a red are
-/// darker than it, and the axis a person uses most is then the axis they can
-/// see least well.
+/// **Three axis colours from the design hand-over, not a rotated triple.**
+/// An earlier version of this file picked all three by rotating one channel
+/// triple through the axes, so the three arrows carried the same weight
+/// against the dark viewport and no one of them read as the important one.
+/// The hand-over's own screen 01 gives three named hexes instead —
+/// `#FF6B8A`/`#7EE081`/`#6AA8FF` — chosen to agree with the rest of the
+/// palette rather than with each other: Y is `ModelerColors.success`'s own
+/// green (`theme.dart`), the same colour a filled budget bar reads success
+/// from, and Z is the cool blue the hand-over already uses for a Z axis
+/// everywhere else it draws one. X keeps the warm red the rotation would
+/// have given it anyway.
 const int kGizmoTintX = 0xFF6B8A;
 
-/// The colour of the arrow that moves a thing along Y. See [kGizmoTintX].
-const int kGizmoTintY = 0x8AFF6B;
+/// The colour of the arrow that moves a thing along Y — `ModelerColors.success`'s
+/// own hex. See [kGizmoTintX].
+const int kGizmoTintY = 0x7EE081;
 
-/// The colour of the arrow that moves a thing along Z. See [kGizmoTintX].
-const int kGizmoTintZ = 0x6B8AFF;
+/// The colour of the arrow that moves a thing along Z — the hand-over's own
+/// cool blue. See [kGizmoTintX].
+const int kGizmoTintZ = 0x6AA8FF;
+
+/// The colour of the box in the middle, the one that scales every axis at
+/// once, as `0xRRGGBB`.
+///
+/// **No axis, so no tint.** [kGizmoTintX] and its two rotations each say a
+/// direction, and a uniform scale is the one handle that says none of them;
+/// borrowing one of the three would put a red box in the middle of a gizmo
+/// whose red arm points elsewhere. A pale grey is what is left that still
+/// reads as something to take hold of.
+///
+/// It is a grey of its own, which is one more colour than this file would
+/// like to add. The greys already on screen are the wireframe's `#8C9399` and
+/// an unselected vertex handle's `#B8C2C7`, and a middle box painted in either
+/// of them is a handle a person has to pick out of the mesh it is standing on.
+/// This one is a step lighter than both, so it reads as sitting in front of
+/// the model; going the other way and darkening it would put the box in the
+/// range the shadowed side of a lit model occupies. The test holds the gap
+/// rather than the hex: what matters is that the middle box is lighter than
+/// anything the overlay draws underneath it.
+const int kGizmoTintUniform = 0xC8CFD2;
 
 /// How long an arrow is on screen, in logical pixels.
 ///
@@ -84,6 +132,26 @@ const double _headRadius = 0.09;
 
 /// How wide the shaft is, as a fraction of the length.
 const double _shaftRadius = 0.02;
+
+/// The radius of a turn ring, in logical pixels — `GizmoDrawing.turnPixels`'s
+/// own number, here because the hit test needs the same one.
+///
+/// **Shared through this file rather than passed in.** A ring grabbed at a
+/// radius the drawing did not use is the exact failure the gizmo's two halves
+/// were split to avoid, stated in `gizmo_handles.dart`'s own library comment:
+/// the handle lights in one place and drags in another.
+const double kGizmoTurnPixels = 82.0;
+
+/// How far either side of a ring a press still counts as grabbing it.
+///
+/// Wider than [kGizmoGrabPixels]: a ring is a curve a hand crosses rather than
+/// a shaft it aims along, and at the radius above the three rings are nowhere
+/// near each other, so there is room for a comfortable target.
+const double kGizmoRingGrabPixels = 13.0;
+
+/// How big the box in the middle of a scale gizmo is, in logical pixels —
+/// `GizmoDrawing.boxPixels`, plus the same slack an arm gets.
+const double kGizmoUniformPixels = 11.0;
 
 /// What a screen-sized gizmo needs to know about the camera.
 ///
@@ -168,6 +236,7 @@ final class GizmoHandle {
     required this.min,
     required this.max,
     required this.tint,
+    this.ringRadius,
   });
 
   /// Which way this arrow points.
@@ -191,8 +260,20 @@ final class GizmoHandle {
   /// The far corner of that box.
   final Vector3 max;
 
-  /// The arrow's colour as `0xRRGGBB` — one of [kGizmoTintX] and its rotations.
+  /// The arrow's colour as `0xRRGGBB` — one of [kGizmoTintX], [kGizmoTintY]
+  /// and [kGizmoTintZ].
   final int tint;
+
+  /// Set on a turn handle: the radius of the ring, in world units, centred on
+  /// [base] in the plane [axis] turns things in.
+  ///
+  /// **A ring is not a box along its own axis, and for one release it was
+  /// hit-tested as one.** A rotate gizmo draws three circles at eighty-two
+  /// pixels and reused the move gizmo's three axis boxes for grabbing, so a
+  /// press on a ring hit nothing and a press on empty space *inside* it —
+  /// where a move arrow would have been — took hold of a rotation. Null on
+  /// every arrow and arm handle, which are boxes and say so with [min]/[max].
+  final double? ringRadius;
 
   /// The same colour as the linear-ish triple a `Material` wants.
   Vector3 get colour => Vector3(
@@ -212,7 +293,15 @@ final class GizmoHandle {
 /// reads as a perspective drawing of one — and the arm nearest the camera then
 /// covers the model. One length, taken where the thing being moved actually is,
 /// is both steadier and what a person expects to see.
-List<GizmoHandle> gizmoHandles(Vector3 pivot, GizmoView view) {
+/// [kind] decides the shapes, not only the drawing: a rotate gizmo is three
+/// rings and a scale gizmo has a fourth handle in the middle. Left at
+/// [GizmoKindForHit.move] this is the arrow gizmo it has always been.
+List<GizmoHandle> gizmoHandles(
+  Vector3 pivot,
+  GizmoView view, {
+  GizmoKindForHit kind = GizmoKindForHit.move,
+}) {
+  if (kind == GizmoKindForHit.rotate) return _rings(pivot, view);
   final length = view.worldSize(kGizmoPixels, pivot);
   // The head is wider than the slack when the camera is close, and a head that
   // stuck out of its own grab box would be an arrow whose point cannot be
@@ -223,7 +312,7 @@ List<GizmoHandle> gizmoHandles(Vector3 pivot, GizmoView view) {
   );
 
   return <GizmoHandle>[
-    for (final axis in GizmoAxis.values)
+    for (final axis in GizmoAxis.three)
       () {
         final direction = axis.direction;
         final base = pivot + direction * (length * _shaftStart);
@@ -243,15 +332,73 @@ List<GizmoHandle> gizmoHandles(Vector3 pivot, GizmoView view) {
           headRadius: length * _headRadius,
           min: _minOf(base, tip) - sideways,
           max: _maxOf(base, tip) + sideways,
-          tint: switch (axis) {
-            GizmoAxis.x => kGizmoTintX,
-            GizmoAxis.y => kGizmoTintY,
-            GizmoAxis.z => kGizmoTintZ,
-          },
+          tint: _tintOf(axis),
+        );
+      }(),
+    // The middle box, on a scale gizmo only — drawn there since the gizmo
+    // was written and grabbable only since `ux-03`. A box of its own around
+    // the pivot, which the three arms deliberately leave clear (`_shaftStart`
+    // says why), so nothing of it overlaps them.
+    if (kind == GizmoKindForHit.scale)
+      () {
+        final half = Vector3.all(
+          view.worldSize(kGizmoUniformPixels, pivot) * 0.5 +
+              view.worldSize(kGizmoGrabPixels, pivot) * 0.5,
+        );
+        return GizmoHandle(
+          axis: GizmoAxis.uniform,
+          base: pivot,
+          headBase: pivot,
+          tip: pivot,
+          shaftRadius: 0,
+          headRadius: 0,
+          min: pivot - half,
+          max: pivot + half,
+          tint: kGizmoTintUniform,
         );
       }(),
   ];
 }
+
+/// Which gizmo the handles are being placed for.
+///
+/// A copy of `TransformKind`'s own three cases rather than an import of it:
+/// this file is the geometry half and knows nothing about a modal, a tool id
+/// or a command — the split its own library comment insists on — and one
+/// enum with three members is cheaper than the dependency the other way.
+enum GizmoKindForHit { move, rotate, scale }
+
+/// Three rings, one per axis, in the plane that axis turns things in.
+List<GizmoHandle> _rings(Vector3 pivot, GizmoView view) {
+  final double radius = view.worldSize(kGizmoTurnPixels, pivot);
+  final double slack = view.worldSize(kGizmoRingGrabPixels, pivot);
+  // A box round the whole ring, for the cheap reject `GizmoHit.nearest` does
+  // before it measures anything: a ring lies within `radius + slack` of the
+  // pivot in every direction, whichever plane it is in.
+  final Vector3 half = Vector3.all(radius + slack);
+  return <GizmoHandle>[
+    for (final axis in GizmoAxis.three)
+      GizmoHandle(
+        axis: axis,
+        base: pivot,
+        headBase: pivot,
+        tip: pivot,
+        shaftRadius: 0,
+        headRadius: slack,
+        min: pivot - half,
+        max: pivot + half,
+        tint: _tintOf(axis),
+        ringRadius: radius,
+      ),
+  ];
+}
+
+int _tintOf(GizmoAxis axis) => switch (axis) {
+  GizmoAxis.x => kGizmoTintX,
+  GizmoAxis.y => kGizmoTintY,
+  GizmoAxis.z => kGizmoTintZ,
+  GizmoAxis.uniform => kGizmoTintUniform,
+};
 
 /// Every number [handles] is made of, in one array.
 ///
@@ -320,13 +467,43 @@ final class GizmoHit {
     GizmoHandle? found;
     var nearest = double.infinity;
     for (final handle in handles) {
-      final distance = _boxHit(handle.min, handle.max, eye, along);
+      // The box first for every handle, ring or not: for a box handle it is
+      // the answer, and for a ring it is the cheap reject that keeps the
+      // plane arithmetic off every press that lands nowhere near the gizmo.
+      final box = _boxHit(handle.min, handle.max, eye, along);
+      if (box == null) continue;
+      final double? distance = handle.ringRadius == null
+          ? box
+          : _ringHit(handle, eye, along);
       if (distance == null || distance >= nearest) continue;
       nearest = distance;
       found = handle;
     }
     if (found == null) return null;
     return GizmoHit(handle: found, at: eye + along * nearest, away: nearest);
+  }
+
+  /// How far along the ray a turn ring is grabbed, or null.
+  ///
+  /// The ring lies in a plane, so the ray meets that plane at one point (or,
+  /// looking along it, at none worth having) and the only question left is
+  /// whether that point is near the circle: within [GizmoHandle.headRadius]
+  /// of the radius, which is where the grab slack was put for a ring handle.
+  ///
+  /// **A ring seen edge-on is deliberately hard to grab, and that is right.**
+  /// Looking straight down an axis, its own ring is a line and the other two
+  /// are circles; the parallel case below refuses rather than answering with
+  /// a point somewhere off at the horizon, which is the same refusal
+  /// [GizmoDrag.moveTo] already makes for an arrow aimed end-on.
+  static double? _ringHit(GizmoHandle handle, Vector3 eye, Vector3 along) {
+    final Vector3 normal = handle.axis.direction;
+    final double facing = normal.dot(along);
+    if (facing.abs() < 1e-4) return null;
+    final double away = normal.dot(handle.base - eye) / facing;
+    if (away < 0) return null;
+    final Vector3 at = eye + along * away;
+    final double offBy = ((at - handle.base).length - handle.ringRadius!).abs();
+    return offBy <= handle.headRadius ? away : null;
   }
 }
 

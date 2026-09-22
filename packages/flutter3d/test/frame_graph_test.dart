@@ -1,4 +1,4 @@
-import 'package:flutter3d/src/engine/render/frame_graph.dart';
+import 'package:flutter3d_core/src/engine/render/frame_graph.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 /// A node that does nothing but declare what it touches.
@@ -1000,6 +1000,285 @@ void main() {
         () => graph.compile(outputs: <ResourceId>[final_]),
         returnsNormally,
       );
+    });
+  });
+
+  group('switched off by name — gfx-37n', () {
+    // The toggle is one clause added to the `where` that already filters on
+    // `isActive`, so the tests that matter are the ones proving it lands on
+    // the *same* machinery rather than beside it.
+
+    FrameGraph chain() => FrameGraph()
+      ..addExternal(colour)
+      ..addNode(
+        const TestNode(
+          'middle',
+          reads: <ResourceId>[colour],
+          writes: <ResourceId>[colour],
+        ),
+      )
+      ..addNode(
+        const TestNode(
+          'composite',
+          reads: <ResourceId>[colour],
+          writes: <ResourceId>[final_],
+        ),
+      );
+
+    test('a disabled link in a chain leaves the version before it', () {
+      // The hard half of "skip step N and keep everything after it", and the
+      // whole reason the toggle goes through the active filter: an inactive
+      // node consumes no version, so the next pass binds what came before.
+      // Identical in shape to 'a pass that is switched off does not consume a
+      // version' above, which is the point — one mechanism, two ways in.
+      final compiled = chain().compile(
+        outputs: <ResourceId>[final_],
+        disabled: <String>{'middle'},
+      );
+
+      expect(names(compiled.order), <String>['composite']);
+      expect(compiled.readVersionOf(0, colour), 0);
+    });
+
+    test('by name and by isActive give the same compiled frame', () {
+      final byName = chain().compile(
+        outputs: <ResourceId>[final_],
+        disabled: <String>{'middle'},
+      );
+      final byFlag =
+          (FrameGraph()
+                ..addExternal(colour)
+                ..addNode(
+                  const TestNode(
+                    'middle',
+                    reads: <ResourceId>[colour],
+                    writes: <ResourceId>[colour],
+                    isActive: false,
+                  ),
+                )
+                ..addNode(
+                  const TestNode(
+                    'composite',
+                    reads: <ResourceId>[colour],
+                    writes: <ResourceId>[final_],
+                  ),
+                ))
+              .compile(outputs: <ResourceId>[final_]);
+
+      expect(names(byName.order), names(byFlag.order));
+      expect(names(byName.culled), names(byFlag.culled));
+      expect(byName.readVersionOf(0, colour), byFlag.readVersionOf(0, colour));
+    });
+
+    test('a disabled producer takes its hard consumers with it, silently', () {
+      final graph = FrameGraph()
+        ..addNode(const TestNode('bloom', writes: <ResourceId>[bloom]))
+        ..addNode(
+          const TestNode(
+            'glow',
+            reads: <ResourceId>[bloom],
+            writes: <ResourceId>[final_],
+          ),
+        );
+
+      // Not an error: the frame did what it was told, and a caller who
+      // switched the producer off asked for the consumer to stop too.
+      final compiled = graph.compile(
+        outputs: <ResourceId>[final_],
+        disabled: <String>{'bloom'},
+      );
+
+      expect(compiled.order, isEmpty);
+      expect(names(compiled.culled), containsAll(<String>['bloom', 'glow']));
+    });
+
+    test('an optional read of a disabled node is not a starvation', () {
+      final graph = FrameGraph()
+        ..addNode(const TestNode('bloom', writes: <ResourceId>[bloom]))
+        ..addNode(
+          const TestNode(
+            'composite',
+            optionalReads: <ResourceId>[bloom],
+            writes: <ResourceId>[final_],
+          ),
+        );
+
+      final compiled = graph.compile(
+        outputs: <ResourceId>[final_],
+        disabled: <String>{'bloom'},
+      );
+
+      expect(names(compiled.order), <String>['composite']);
+    });
+
+    test('a name no node carries is rejected, and the message names it', () {
+      // The failure this exists to prevent: 'fxaa' for the node called
+      // 'antialias' would otherwise hand back exactly the frame the caller
+      // asked to change, and they would conclude the switch does nothing.
+      expect(
+        () => chain().compile(
+          outputs: <ResourceId>[final_],
+          disabled: <String>{'middel'},
+        ),
+        throwsA(
+          isA<FrameGraphError>().having(
+            (e) => e.message,
+            'message',
+            allOf(contains('"middel"'), contains('middle')),
+          ),
+        ),
+      );
+    });
+
+    test('nothing is disabled by default', () {
+      final compiled = chain().compile(outputs: <ResourceId>[final_]);
+      expect(names(compiled.order), <String>['middle', 'composite']);
+      expect(compiled.skipped, isEmpty);
+    });
+  });
+
+  group('why a pass did not run — gfx-39n', () {
+    test('off by its own setting reads as settings, not as unconsumed', () {
+      final graph = FrameGraph()
+        ..addNode(const TestNode('scene', writes: <ResourceId>[final_]))
+        ..addNode(
+          const TestNode('bloom', writes: <ResourceId>[bloom], isActive: false),
+        );
+
+      final compiled = graph.compile(outputs: <ResourceId>[final_]);
+
+      expect(compiled.skipReason('bloom'), PassSkip.settings);
+    });
+
+    test(
+      'named by a caller reads as disabled, even though isActive agreed',
+      () {
+        // The two are indistinguishable in `culled` and must not be here: one
+        // says the frame did what the settings said, the other says somebody
+        // reached in by name.
+        final graph = FrameGraph()
+          ..addNode(const TestNode('scene', writes: <ResourceId>[final_]))
+          ..addNode(const TestNode('bloom', writes: <ResourceId>[bloom]));
+
+        final compiled = graph.compile(
+          outputs: <ResourceId>[final_],
+          disabled: <String>{'bloom'},
+        );
+
+        expect(compiled.skipReason('bloom'), PassSkip.disabled);
+      },
+    );
+
+    test('runnable but wanted by nobody reads as unconsumed', () {
+      final graph = FrameGraph()
+        ..addNode(const TestNode('scene', writes: <ResourceId>[final_]))
+        ..addNode(const TestNode('bloom', writes: <ResourceId>[bloom]));
+
+      final compiled = graph.compile(outputs: <ResourceId>[final_]);
+
+      expect(compiled.skipReason('bloom'), PassSkip.unconsumed);
+    });
+
+    test('a missing input reads as starved, and the cause reads as its own '
+        'reason', () {
+      // The distinction that sends somebody to the right pass. 'glow' did not
+      // run because 'bloom' did not, and reporting both as culled makes the
+      // consequence look like a second cause.
+      final graph = FrameGraph()
+        ..addNode(const TestNode('scene', writes: <ResourceId>[final_]))
+        ..addNode(
+          const TestNode('bloom', writes: <ResourceId>[bloom], isActive: false),
+        )
+        ..addNode(
+          const TestNode(
+            'glow',
+            reads: <ResourceId>[bloom],
+            writes: <ResourceId>[colour],
+          ),
+        );
+
+      final compiled = graph.compile(outputs: <ResourceId>[final_]);
+
+      expect(compiled.skipReason('bloom'), PassSkip.settings);
+      expect(compiled.skipReason('glow'), PassSkip.starved);
+    });
+
+    test('every culled node has a reason, and nothing that ran has one', () {
+      // The invariant, rather than four separate cases: the two lists are the
+      // same nodes, so a reason that goes missing is a reason that is wrong.
+      final graph = FrameGraph()
+        ..addNode(const TestNode('scene', writes: <ResourceId>[final_]))
+        ..addNode(
+          const TestNode('bloom', writes: <ResourceId>[bloom], isActive: false),
+        )
+        ..addNode(
+          const TestNode(
+            'glow',
+            reads: <ResourceId>[bloom],
+            writes: <ResourceId>[colour],
+          ),
+        )
+        ..addNode(const TestNode('ignored', writes: <ResourceId>[depth]));
+
+      final compiled = graph.compile(outputs: <ResourceId>[final_]);
+
+      expect(
+        compiled.skipped.map((s) => s.name).toList(),
+        names(compiled.culled),
+      );
+      for (final node in compiled.order) {
+        expect(compiled.skipReason(node.name), isNull);
+      }
+    });
+
+    test('a pass the graph never heard of has no reason, rather than a '
+        'wrong one', () {
+      final graph = FrameGraph()
+        ..addNode(const TestNode('scene', writes: <ResourceId>[final_]));
+
+      final compiled = graph.compile(outputs: <ResourceId>[final_]);
+
+      expect(compiled.skipReason('nothing of the sort'), isNull);
+    });
+  });
+
+  group('the passes that cannot be switched off — gfx-37n', () {
+    test('the frame refuses to be compiled without its own picture', () {
+      // Suppressing the composite leaves no version of the frame, and the
+      // renderer's fallback would hand back a texture holding whatever was in
+      // it last — a stale picture and no error, which is worse than a refusal.
+      for (final name in FrameGraph.undisableable) {
+        final graph = FrameGraph()
+          ..addNode(TestNode(name, writes: const <ResourceId>[final_]));
+
+        expect(
+          () => graph.compile(
+            outputs: <ResourceId>[final_],
+            disabled: <String>{name},
+          ),
+          throwsA(
+            isA<FrameGraphError>().having(
+              (e) => e.message,
+              'message',
+              allOf(contains('"$name"'), contains('forMeasurement')),
+            ),
+          ),
+          reason:
+              '"$name" must refuse rather than produce a frame with a '
+              'hole where the picture was',
+        );
+      }
+    });
+
+    test('the refusal names exactly three passes, and says why each', () {
+      // Pinned so a fourth name cannot be added without an argument: every
+      // other node in the engine degrades correctly when suppressed, and the
+      // list is the set that does not.
+      expect(FrameGraph.undisableable, <String>{
+        'scene',
+        'composite',
+        'object ids',
+      });
     });
   });
 }

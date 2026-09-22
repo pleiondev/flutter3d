@@ -9,7 +9,7 @@
 library;
 
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
-import 'package:flutter_test/flutter_test.dart';
+import 'package:test/test.dart';
 
 TextureHandle _texture({
   TextureFormat format = TextureFormat.r8g8b8a8UNormInt,

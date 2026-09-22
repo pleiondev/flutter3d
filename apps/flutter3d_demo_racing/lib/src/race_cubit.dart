@@ -110,7 +110,7 @@ final class SeasonTally {
 ///
 /// **What `RunSession` would have been, with the middle taken out.** The
 /// other two games load a level, snapshot it, restore it and move on, and
-/// `flutter3d_session` holds that shape for them. Racing has no middle: nobody
+/// `flutter3d_game` holds that shape for them. Racing has no middle: nobody
 /// resumes a race half a lap in, so there is no snapshot here and nothing
 /// this class calls `restoreInto`. What is left is three transitions —
 /// [ready], [finish] and [moveOn] — where `RunSession` needed five.
@@ -198,7 +198,7 @@ final class RaceProgress {
 ///
 /// A wrapper and nothing more, which is the point: [RaceProgress] decides
 /// nothing about state management, and this game happens to use BLoC — see
-/// the note in `packages/flutter3d_screens/pubspec.yaml`.
+/// the note in `packages/flutter3d_game/pubspec.yaml`.
 final class RaceCubit extends Cubit<RaceStatus> {
   RaceCubit(this.progress) : super(progress.status) {
     progress.onChanged = emit;

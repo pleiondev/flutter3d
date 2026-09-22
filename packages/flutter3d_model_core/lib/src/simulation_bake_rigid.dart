@@ -78,7 +78,10 @@ final class BakeRigidBodyJobRequest implements SimulationBakeRequest {
   /// crossing exists for.
   Future<SimulationCache> buildCache() async {
     final world = CollisionWorld();
-    world.addBox(Vector3(startPosition.x, -0.5, startPosition.z), Vector3(40.0, 1.0, 40.0));
+    world.addBox(
+      Vector3(startPosition.x, -0.5, startPosition.z),
+      Vector3(40.0, 1.0, 40.0),
+    );
     world.update();
 
     final dynamics = Dynamics(world: world);

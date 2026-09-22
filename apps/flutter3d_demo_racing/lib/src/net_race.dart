@@ -1,6 +1,6 @@
-import 'package:flutter3d_game/flutter3d_game.dart';
 import 'package:flutter3d_game_racing/flutter3d_game_racing.dart';
 import 'package:flutter3d_net/flutter3d_net.dart';
+import 'package:flutter3d_sim/flutter3d_sim.dart';
 
 const GameAction _throttle = GameAction('throttle');
 const GameAction _brake = GameAction('brake');

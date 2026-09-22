@@ -2,8 +2,9 @@
 /// `pro-sim-04`'s other half.
 ///
 /// A thin visualisation layer over data two other rows already made real:
-/// `pro-sim-01`'s `flutter3d_cloth` solves against `ClothObstacle`s, each one
-/// a `CollisionShape` from `flutter3d_physics` at a position, and this
+/// `pro-sim-01`'s cloth solver in `flutter3d_physics` solves against
+/// `ClothObstacle`s, each one a `CollisionShape` from the same package at a
+/// position, and this
 /// engine's own `DebugDraw` (`packages/flutter3d/lib/src/engine/render/
 /// debug_draw.dart`) already accumulates line segments into one buffer for
 /// exactly this kind of overlay — bounds, normals, gizmos, frusta. Nothing
@@ -12,7 +13,7 @@
 library;
 
 import 'package:flutter3d/flutter3d.dart';
-import 'package:flutter3d_cloth/flutter3d_cloth.dart';
+import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'package:vector_math/vector_math.dart';
 
 /// Draws a wireframe box around the world-space bounds of every obstacle in
@@ -38,7 +39,11 @@ void drawClothObstacles(
 }
 
 /// Draws a wireframe box around one obstacle's world-space bounds.
-void drawClothObstacle(DebugDraw draw, ClothObstacle obstacle, {Vector4? color}) {
+void drawClothObstacle(
+  DebugDraw draw,
+  ClothObstacle obstacle, {
+  Vector4? color,
+}) {
   final bounds = Aabb3();
   obstacle.shape.computeBounds(obstacle.position, bounds);
   _drawWireBox(draw, bounds, color ?? DebugColors.bounds);

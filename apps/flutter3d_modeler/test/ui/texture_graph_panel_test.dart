@@ -9,6 +9,7 @@ import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:flutter3d_model_core/flutter3d_model_core.dart';
+import 'package:flutter3d_modeler/l10n/app_localizations.dart';
 import 'package:flutter3d_modeler/src/ui/job_button.dart';
 import 'package:flutter3d_modeler/src/ui/texture_graph_panel.dart';
 import 'package:flutter3d_modeler/src/ui/theme.dart';
@@ -43,7 +44,8 @@ TextureGraph _graph() => TextureGraph(
 );
 
 final class _Calls {
-  (String kind, Map<String, Object?> fields, (double, double) position)? addNode;
+  (String kind, Map<String, Object?> fields, (double, double) position)?
+  addNode;
   (int nodeId, String input, int from)? link;
   (int nodeId, String input)? unlink;
   (int nodeId, String field, Object? value)? setNodeField;
@@ -63,6 +65,9 @@ Future<_Calls> _pump(
   final calls = _Calls();
   await tester.pumpWidget(
     MaterialApp(
+      locale: const Locale('en'),
+      localizationsDelegates: AppLocalizations.localizationsDelegates,
+      supportedLocales: AppLocalizations.supportedLocales,
       theme: modelerTheme(),
       home: Scaffold(
         body: TextureGraphPanel(
@@ -70,7 +75,8 @@ Future<_Calls> _pump(
           thumbnails: thumbnails,
           bakeProgress: bakeProgress,
           initiallyExpanded: initiallyExpanded,
-          onAddNode: (kind, fields, position) => calls.addNode = (kind, fields, position),
+          onAddNode: (kind, fields, position) =>
+              calls.addNode = (kind, fields, position),
           onLink: (nodeId, input, from) => calls.link = (nodeId, input, from),
           onUnlink: (nodeId, input) => calls.unlink = (nodeId, input),
           onSetNodeField: (nodeId, field, value) =>
@@ -97,12 +103,17 @@ void main() {
       final size = tester.getSize(
         find.byKey(const ValueKey<String>('textureGraphPanel')),
       );
-      expect(size.height, ModelerMetrics.row);
+      // `mat-33d`'s 2026-09-11 supplement: the collapsed strip grows from 32
+      // to 44, freeing the material preview above it.
+      expect(size.height, ModelerMetrics.textureGraphStripCollapsed);
+      expect(size.height, 44);
     });
 
     testWidgets('tapping the header expands it', (tester) async {
       await _pump(tester);
-      await tester.tap(find.byKey(const ValueKey<String>('textureGraphPanelHeader')));
+      await tester.tap(
+        find.byKey(const ValueKey<String>('textureGraphPanelHeader')),
+      );
       await tester.pumpAndSettle();
 
       expect(find.byType(InteractiveViewer), findsOneWidget);
@@ -110,7 +121,9 @@ void main() {
 
     testWidgets('tapping again collapses it back', (tester) async {
       await _pump(tester);
-      final header = find.byKey(const ValueKey<String>('textureGraphPanelHeader'));
+      final header = find.byKey(
+        const ValueKey<String>('textureGraphPanelHeader'),
+      );
       await tester.tap(header);
       await tester.pumpAndSettle();
       expect(find.byType(InteractiveViewer), findsOneWidget);
@@ -134,32 +147,44 @@ void main() {
     ) async {
       await _pump(tester, initiallyExpanded: true);
 
-      expect(find.byKey(const ValueKey<String>('textureNode-1')), findsOneWidget);
-      expect(find.byKey(const ValueKey<String>('textureNode-2')), findsOneWidget);
-      expect(find.byKey(const ValueKey<String>('textureNode-3')), findsOneWidget);
+      expect(
+        find.byKey(const ValueKey<String>('textureNode-1')),
+        findsOneWidget,
+      );
+      expect(
+        find.byKey(const ValueKey<String>('textureNode-2')),
+        findsOneWidget,
+      );
+      expect(
+        find.byKey(const ValueKey<String>('textureNode-3')),
+        findsOneWidget,
+      );
       expect(find.text('color'), findsOneWidget);
       expect(find.text('output'), findsOneWidget);
       expect(find.text('channels'), findsOneWidget);
     });
 
-    testWidgets('a node with a thumbnail shows Image.memory; one without a placeholder', (
-      tester,
-    ) async {
-      await _pump(
-        tester,
-        initiallyExpanded: true,
-        thumbnails: <int, Uint8List>{1: _onePixelPng},
-      );
+    testWidgets(
+      'a node with a thumbnail shows Image.memory; one without a placeholder',
+      (tester) async {
+        await _pump(
+          tester,
+          initiallyExpanded: true,
+          thumbnails: <int, Uint8List>{1: _onePixelPng},
+        );
 
-      expect(
-        find.byKey(const ValueKey<String>('textureNodeThumbnail-1')),
-        findsOneWidget,
-      );
-      expect(
-        find.byKey(const ValueKey<String>('textureNodeThumbnailPlaceholder-2')),
-        findsOneWidget,
-      );
-    });
+        expect(
+          find.byKey(const ValueKey<String>('textureNodeThumbnail-1')),
+          findsOneWidget,
+        );
+        expect(
+          find.byKey(
+            const ValueKey<String>('textureNodeThumbnailPlaceholder-2'),
+          ),
+          findsOneWidget,
+        );
+      },
+    );
 
     testWidgets('the graph draws a CustomPaint for its links', (tester) async {
       await _pump(tester, initiallyExpanded: true);
@@ -185,7 +210,9 @@ void main() {
       tester,
     ) async {
       final calls = await _pump(tester, initiallyExpanded: true);
-      await tester.tap(find.byKey(const ValueKey<String>('textureNodeUnlink-2-result')));
+      await tester.tap(
+        find.byKey(const ValueKey<String>('textureNodeUnlink-2-result')),
+      );
 
       expect(calls.unlink, (2, 'result'));
     });
@@ -195,9 +222,13 @@ void main() {
     ) async {
       final calls = await _pump(tester, initiallyExpanded: true);
 
-      await tester.tap(find.byKey(const ValueKey<String>('textureNodeOutput-1')));
+      await tester.tap(
+        find.byKey(const ValueKey<String>('textureNodeOutput-1')),
+      );
       await tester.pump();
-      await tester.tap(find.byKey(const ValueKey<String>('textureNodeInput-3-source')));
+      await tester.tap(
+        find.byKey(const ValueKey<String>('textureNodeInput-3-source')),
+      );
       await tester.pump();
 
       expect(calls.link, (3, 'source', 1));
@@ -208,24 +239,33 @@ void main() {
     ) async {
       final calls = await _pump(tester, initiallyExpanded: true);
 
-      await tester.tap(find.byKey(const ValueKey<String>('textureNodeOutput-1')));
+      await tester.tap(
+        find.byKey(const ValueKey<String>('textureNodeOutput-1')),
+      );
       await tester.pump();
-      await tester.tap(find.byKey(const ValueKey<String>('textureNodeOutput-1')));
+      await tester.tap(
+        find.byKey(const ValueKey<String>('textureNodeOutput-1')),
+      );
       await tester.pump();
-      await tester.tap(find.byKey(const ValueKey<String>('textureNodeInput-3-source')));
+      await tester.tap(
+        find.byKey(const ValueKey<String>('textureNodeInput-3-source')),
+      );
       await tester.pump();
 
       expect(calls.link, isNull);
     });
 
-    testWidgets('tapping a node\'s delete icon calls onRemoveNode with its id', (
-      tester,
-    ) async {
-      final calls = await _pump(tester, initiallyExpanded: true);
-      await tester.tap(find.byKey(const ValueKey<String>('textureNodeDelete-3')));
+    testWidgets(
+      'tapping a node\'s delete icon calls onRemoveNode with its id',
+      (tester) async {
+        final calls = await _pump(tester, initiallyExpanded: true);
+        await tester.tap(
+          find.byKey(const ValueKey<String>('textureNodeDelete-3')),
+        );
 
-      expect(calls.removedNodeId, 3);
-    });
+        expect(calls.removedNodeId, 3);
+      },
+    );
   });
 
   group('dragging a node', () {
@@ -246,20 +286,21 @@ void main() {
   });
 
   group('hints', () {
-    testWidgets('an EnumHint field (channel) shows a dropdown and reports a pick', (
-      tester,
-    ) async {
-      final calls = await _pump(tester, initiallyExpanded: true);
-      expect(find.byType(DropdownButton<String>), findsOneWidget);
+    testWidgets(
+      'an EnumHint field (channel) shows a dropdown and reports a pick',
+      (tester) async {
+        final calls = await _pump(tester, initiallyExpanded: true);
+        expect(find.byType(DropdownButton<String>), findsOneWidget);
 
-      await tester.tap(find.byType(DropdownButton<String>));
-      await tester.pumpAndSettle();
-      // Node 3 is the Channels node, defaulted to channel "r" — pick "g".
-      await tester.tap(find.text('g').last);
-      await tester.pumpAndSettle();
+        await tester.tap(find.byType(DropdownButton<String>));
+        await tester.pumpAndSettle();
+        // Node 3 is the Channels node, defaulted to channel "r" — pick "g".
+        await tester.tap(find.text('g').last);
+        await tester.pumpAndSettle();
 
-      expect(calls.setNodeField, (3, 'channel', 'g'));
-    });
+        expect(calls.setNodeField, (3, 'channel', 'g'));
+      },
+    );
 
     testWidgets('a ColorHint field cycles a swatch and reports a value', (
       tester,
@@ -267,7 +308,9 @@ void main() {
       final calls = await _pump(tester, initiallyExpanded: true);
       // Node 1's own `value` hint (a ColorHint) is wrapped in this key by
       // `_NodeCard`, one per node id and field name.
-      final hint = find.byKey(const ValueKey<String>('textureNodeHint-1-value'));
+      final hint = find.byKey(
+        const ValueKey<String>('textureNodeHint-1-value'),
+      );
       expect(hint, findsOneWidget);
       await tester.tap(
         find.descendant(of: hint, matching: find.byType(GestureDetector)),
@@ -281,20 +324,23 @@ void main() {
   });
 
   group('adding a node', () {
-    testWidgets('picking a kind from the menu calls onAddNode with its defaults', (
-      tester,
-    ) async {
-      final calls = await _pump(tester, initiallyExpanded: true);
+    testWidgets(
+      'picking a kind from the menu calls onAddNode with its defaults',
+      (tester) async {
+        final calls = await _pump(tester, initiallyExpanded: true);
 
-      await tester.tap(find.byKey(const ValueKey<String>('textureGraphAddNode')));
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('noise').last);
-      await tester.pumpAndSettle();
+        await tester.tap(
+          find.byKey(const ValueKey<String>('textureGraphAddNode')),
+        );
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('noise').last);
+        await tester.pumpAndSettle();
 
-      expect(calls.addNode, isNotNull);
-      expect(calls.addNode!.$1, 'noise');
-      expect(calls.addNode!.$2, defaultTextureNodeFields('noise'));
-    });
+        expect(calls.addNode, isNotNull);
+        expect(calls.addNode!.$1, 'noise');
+        expect(calls.addNode!.$2, defaultTextureNodeFields('noise'));
+      },
+    );
   });
 
   group('baking', () {
@@ -303,7 +349,7 @@ void main() {
     ) async {
       final calls = await _pump(tester, initiallyExpanded: true);
 
-      expect(find.text('Запечь 2048²'), findsOneWidget);
+      expect(find.text('Bake 2048²'), findsOneWidget);
       await tester.tap(find.byType(JobButton));
       expect(calls.baked, isTrue);
     });
@@ -313,16 +359,23 @@ void main() {
     ) async {
       await _pump(tester, initiallyExpanded: true, bakeProgress: 0.42);
 
-      expect(find.text('Запечь 2048²'), findsNothing);
+      expect(find.text('Bake 2048²'), findsNothing);
       expect(find.text('42%'), findsOneWidget);
       expect(find.byType(CircularProgressIndicator), findsOneWidget);
     });
 
     testWidgets('cancels, not starts, while active', (tester) async {
-      final calls = await _pump(tester, initiallyExpanded: true, bakeProgress: 0.5);
+      final calls = await _pump(
+        tester,
+        initiallyExpanded: true,
+        bakeProgress: 0.5,
+      );
 
       await tester.tap(
-        find.descendant(of: find.byType(JobButton), matching: find.byIcon(Icons.close)),
+        find.descendant(
+          of: find.byType(JobButton),
+          matching: find.byIcon(Icons.close),
+        ),
       );
       expect(calls.cancelled, isTrue);
       expect(calls.baked, isFalse);
@@ -337,6 +390,9 @@ void main() {
         StatefulBuilder(
           builder: (context, setState) => MaterialApp(
             theme: modelerTheme(),
+            locale: const Locale('en'),
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
             home: Scaffold(
               body: TextureGraphPanel(
                 graph: _graph(),
@@ -358,12 +414,15 @@ void main() {
 
       expect(find.byType(CircularProgressIndicator), findsOneWidget);
       await tester.tap(
-        find.descendant(of: find.byType(JobButton), matching: find.byIcon(Icons.close)),
+        find.descendant(
+          of: find.byType(JobButton),
+          matching: find.byIcon(Icons.close),
+        ),
       );
       await tester.pump();
 
       expect(find.byType(CircularProgressIndicator), findsNothing);
-      expect(find.text('Запечь 2048²'), findsOneWidget);
+      expect(find.text('Bake 2048²'), findsOneWidget);
       await tester.tap(find.byType(ElevatedButton));
       expect(calls.baked, isTrue);
     });

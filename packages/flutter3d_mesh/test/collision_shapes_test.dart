@@ -272,8 +272,7 @@ EditMesh capsuleMesh(
   final iz = 0.5 * mCyl * r * r + 0.4 * mSph * r * r;
   final d = h / 2 + 3 * r / 8;
   final iCylPerp = mCyl * (h * h / 12 + r * r / 4);
-  final iSphPerpAboutCentre =
-      (83.0 / 320.0) * mSph * r * r + mSph * d * d;
+  final iSphPerpAboutCentre = (83.0 / 320.0) * mSph * r * r + mSph * d * d;
   final iPerp = iCylPerp + iSphPerpAboutCentre;
   return (mass: volume, iz: iz, iPerp: iPerp);
 }
@@ -313,8 +312,11 @@ void main() {
     test('recovers a box mesh\'s own half-extents', () {
       final mesh = EditMesh.cuboid(size: Vector3(2, 4, 6));
       final fitted = fitBoxByInertia(mesh);
-      final got = [fitted.halfExtents.x, fitted.halfExtents.y, fitted.halfExtents.z]
-        ..sort();
+      final got = [
+        fitted.halfExtents.x,
+        fitted.halfExtents.y,
+        fitted.halfExtents.z,
+      ]..sort();
       final want = [1.0, 2.0, 3.0]..sort();
       for (var i = 0; i < 3; i++) {
         expect(got[i], closeTo(want[i], 1e-3));
@@ -364,10 +366,7 @@ void main() {
       expect((inertia.mass - hand.mass).abs() / hand.mass, lessThan(0.02));
       // The smallest principal moment is the long axis (`z` in
       // `principalAxesOf`'s own sorted order).
-      expect(
-        (principal.moments.z - hand.iz).abs() / hand.iz,
-        lessThan(0.05),
-      );
+      expect((principal.moments.z - hand.iz).abs() / hand.iz, lessThan(0.05));
     });
   });
 
@@ -459,53 +458,50 @@ void main() {
       }
     });
 
-    test(
-      'a single concave L-shape needs more than one piece, and gets it',
-      () {
-        // An L-shape built from two boxes standing side by side, sharing
-        // one face exactly (not overlapping in volume) — a properly
-        // tessellated, many-vertex concave mesh, unlike a bare low-poly
-        // prism: this file's own vertex-level k-means needs enough points
-        // to find a sensible split with, the same way real game and CAD
-        // meshes have plenty and a hand-built 12-corner prism does not.
-        // The two boxes use the *same* [spacing], which is what makes their
-        // touching grids weld into one seamless surface rather than two
-        // that merely happen to occupy adjacent space.
-        const spacing = 0.25;
-        final wide = subdividedBox(Vector3(1.0, 0.5, 0.5), spacing: spacing);
-        final tall = subdividedBox(Vector3(0.5, 0.5, 0.5), spacing: spacing);
-        final (points, faces) = mergeParts(
-          [wide, tall],
-          [Vector3(1.0, 0.5, 0.5), Vector3(0.5, 1.5, 0.5)],
-        );
-        final (merged, weldedFaces) = weldByPosition(points, faces);
-        final lShape = EditMesh.fromFaces(merged, weldedFaces);
+    test('a single concave L-shape needs more than one piece, and gets it', () {
+      // An L-shape built from two boxes standing side by side, sharing
+      // one face exactly (not overlapping in volume) — a properly
+      // tessellated, many-vertex concave mesh, unlike a bare low-poly
+      // prism: this file's own vertex-level k-means needs enough points
+      // to find a sensible split with, the same way real game and CAD
+      // meshes have plenty and a hand-built 12-corner prism does not.
+      // The two boxes use the *same* [spacing], which is what makes their
+      // touching grids weld into one seamless surface rather than two
+      // that merely happen to occupy adjacent space.
+      const spacing = 0.25;
+      final wide = subdividedBox(Vector3(1.0, 0.5, 0.5), spacing: spacing);
+      final tall = subdividedBox(Vector3(0.5, 0.5, 0.5), spacing: spacing);
+      final (points, faces) = mergeParts(
+        [wide, tall],
+        [Vector3(1.0, 0.5, 0.5), Vector3(0.5, 1.5, 0.5)],
+      );
+      final (merged, weldedFaces) = weldByPosition(points, faces);
+      final lShape = EditMesh.fromFaces(merged, weldedFaces);
 
-        final components = decomposeConvex(lShape, maxPieces: 1, seed: 1);
-        final singleHullVolume = components.fold<double>(
-          0,
-          (a, p) => a + p.volume,
-        );
-        final trueVolume = lShape.signedVolume.abs();
-        final singleHullError =
-            (singleHullVolume - trueVolume).abs() / trueVolume;
-        expect(
-          singleHullError,
-          greaterThan(0.15),
-          reason: 'the L-shape\'s own single hull should overshoot volume',
-        );
+      final components = decomposeConvex(lShape, maxPieces: 1, seed: 1);
+      final singleHullVolume = components.fold<double>(
+        0,
+        (a, p) => a + p.volume,
+      );
+      final trueVolume = lShape.signedVolume.abs();
+      final singleHullError =
+          (singleHullVolume - trueVolume).abs() / trueVolume;
+      expect(
+        singleHullError,
+        greaterThan(0.15),
+        reason: 'the L-shape\'s own single hull should overshoot volume',
+      );
 
-        final decomposed = decomposeConvex(lShape, maxPieces: 8, seed: 1);
-        final decomposedVolume = decomposed.fold<double>(
-          0,
-          (a, p) => a + p.volume,
-        );
-        final decomposedError =
-            (decomposedVolume - trueVolume).abs() / trueVolume;
-        expect(decomposed.length, greaterThan(1));
-        expect(decomposedError, lessThanOrEqualTo(0.15));
-      },
-    );
+      final decomposed = decomposeConvex(lShape, maxPieces: 8, seed: 1);
+      final decomposedVolume = decomposed.fold<double>(
+        0,
+        (a, p) => a + p.volume,
+      );
+      final decomposedError =
+          (decomposedVolume - trueVolume).abs() / trueVolume;
+      expect(decomposed.length, greaterThan(1));
+      expect(decomposedError, lessThanOrEqualTo(0.15));
+    });
 
     test('mutation: a wrong volume formula breaks the tolerance check', () {
       // The same idea `computeMeshInertia`'s own box test mutation checks:

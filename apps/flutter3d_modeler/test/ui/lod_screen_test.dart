@@ -5,8 +5,9 @@
 library;
 
 import 'package:flutter/material.dart';
-import 'package:flutter3d_geometry/flutter3d_geometry.dart';
+import 'package:flutter3d_core/geometry.dart';
 import 'package:flutter3d_model_core/flutter3d_model_core.dart';
+import 'package:flutter3d_modeler/l10n/app_localizations.dart';
 import 'package:flutter3d_modeler/src/ui/lod_screen.dart';
 import 'package:flutter3d_modeler/src/ui/lod_zone_bar.dart';
 import 'package:flutter3d_modeler/src/ui/theme.dart';
@@ -41,6 +42,9 @@ Future<void> show(
   void Function(int lodIndex, double maxScreenFraction)? onThresholdChanged,
 }) => tester.pumpWidget(
   MaterialApp(
+    locale: const Locale('en'),
+    localizationsDelegates: AppLocalizations.localizationsDelegates,
+    supportedLocales: AppLocalizations.supportedLocales,
     theme: modelerTheme(),
     home: Scaffold(
       body: LodScreen(
@@ -92,11 +96,10 @@ void main() {
         tester,
         object: object,
         cache: cache,
-        viewportBuilder:
-            (BuildContext context, int lodIndex, MeshData? mesh) {
-              triangleCounts[lodIndex] = mesh?.triangleCount;
-              return const SizedBox.shrink();
-            },
+        viewportBuilder: (BuildContext context, int lodIndex, MeshData? mesh) {
+          triangleCounts[lodIndex] = mesh?.triangleCount;
+          return const SizedBox.shrink();
+        },
       );
 
       expect(triangleCounts.length, 3);

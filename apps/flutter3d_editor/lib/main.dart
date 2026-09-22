@@ -29,11 +29,11 @@ import 'package:flutter/material.dart' hide Material;
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter3d/flutter3d.dart' hide Material;
-import 'package:flutter3d_bridge/flutter3d_bridge.dart';
+import 'package:flutter3d_app/flutter3d_app.dart';
+import 'package:flutter3d_app/native.dart';
 import 'package:flutter3d_editor_core/flutter3d_editor_core.dart';
 import 'package:flutter3d_game/flutter3d_game.dart';
-import 'package:flutter3d_screens/native.dart';
-import 'package:flutter3d_session/flutter3d_session.dart';
+import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:vector_math/vector_math.dart' hide Colors;
 
@@ -45,6 +45,7 @@ import 'src/editor_cubit.dart';
 import 'src/editor_inspector.dart';
 import 'src/editor_legend.dart';
 import 'src/editor_palette.dart';
+import 'src/editor_theme.dart';
 import 'src/fly_camera.dart';
 import 'src/open_run_channel.dart';
 import 'src/playtest_report_screen.dart';
@@ -56,6 +57,19 @@ import 'src/shader_watch.dart';
 import 'src/step_panel.dart';
 import 'src/timeline_attach_screen.dart';
 import 'src/timeline_client.dart';
+
+/// The widget that shows [frame] — always drawn through [GpuRenderBackend],
+/// the one backend this desktop-only application names.
+///
+/// Not `presentFrame` from `flutter3d_app`, because that barrel depends on a
+/// web backend this application has no reason to carry — see `src/backend.dart`
+/// for why there is no conditional import here at all.
+Widget _presentFrame(
+  GraphicsDevice device,
+  TextureHandle frame, {
+  BoxFit fit = BoxFit.fill,
+  FilterQuality quality = FilterQuality.none,
+}) => GpuFrameImage(frame: frame, fit: fit, quality: quality);
 
 /// The document opened on launch, when one is named on the command line.
 ///
@@ -92,6 +106,7 @@ class EditorApp extends StatelessWidget {
   Widget build(BuildContext context) => MaterialApp(
     title: 'flutter3d level editor',
     debugShowCheckedModeBanner: false,
+    theme: editorTheme(),
     home: const EditorScreen(),
   );
 }
@@ -1305,6 +1320,7 @@ class _EditorScreenState extends State<EditorScreen>
                         _fly.position.z,
                       );
                     },
+                    presentFrame: _presentFrame,
                   ),
                 ),
                 Positioned(
@@ -1383,10 +1399,7 @@ class _EditorScreenState extends State<EditorScreen>
                   top: 4,
                   right: 52,
                   child: IconButton(
-                    icon: const Icon(
-                      Icons.grain,
-                      color: Color(0xFFE6EAF0),
-                    ),
+                    icon: const Icon(Icons.grain, color: Color(0xFFE6EAF0)),
                     tooltip: 'Open a playtest report',
                     onPressed: _openPlaytestReport,
                   ),
@@ -1468,7 +1481,9 @@ class _EditorScreenState extends State<EditorScreen>
       label: 'flutter3d runs',
       extensions: <String>['f3drun'],
     );
-    final file = await openFile(acceptedTypeGroups: const <XTypeGroup>[runFiles]);
+    final file = await openFile(
+      acceptedTypeGroups: const <XTypeGroup>[runFiles],
+    );
     if (file == null || !mounted) return;
     await _openRunAt(file.path);
   }
@@ -1476,9 +1491,7 @@ class _EditorScreenState extends State<EditorScreen>
   /// Asks for a running game's VM service address, connects, and opens the
   /// timeline panel on it — `rp-02`'s door, from the editor's side.
   Future<void> _attachToRunningGame() async {
-    final controller = TextEditingController(
-      text: 'http://127.0.0.1:8181/',
-    );
+    final controller = TextEditingController(text: 'http://127.0.0.1:8181/');
     final uri = await showDialog<String>(
       context: context,
       builder: (BuildContext context) => AlertDialog(

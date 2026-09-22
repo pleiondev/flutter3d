@@ -4,8 +4,8 @@
 ///     dart test test/simulation_bake_test.dart
 library;
 
-import 'package:flutter3d_cloth/flutter3d_cloth.dart';
 import 'package:flutter3d_model_core/flutter3d_model_core.dart';
+import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'package:test/test.dart';
 
 BakeClothJobRequest bake({int frameCount = 120}) => BakeClothJobRequest(
@@ -53,32 +53,38 @@ void main() {
       expect(cache.vertexCount, 400);
     });
 
-    test('cancelling before any chunk runs leaves an empty cache, not a null one', () async {
-      final job = bake(frameCount: 120);
+    test(
+      'cancelling before any chunk runs leaves an empty cache, not a null one',
+      () async {
+        final job = bake(frameCount: 120);
 
-      final cache = job.buildCache();
+        final cache = job.buildCache();
 
-      expect(job.bakedFrameCount, 0);
-      expect(cache.frameCount, 0);
-      expect(cache.isEmpty, isTrue);
-      // vertexCount is known from the mesh up front, independent of how many
-      // frames actually ran.
-      expect(cache.vertexCount, 400);
-    });
+        expect(job.bakedFrameCount, 0);
+        expect(cache.frameCount, 0);
+        expect(cache.isEmpty, isTrue);
+        // vertexCount is known from the mesh up front, independent of how many
+        // frames actually ran.
+        expect(cache.vertexCount, 400);
+      },
+    );
   });
 
   group('BakeClothJobRequest', () {
-    test('every captured frame is the mesh\'s own particleCount × 3 long', () async {
-      final job = bake(frameCount: 3);
-      for (var i = 0; i < job.frameCount; i++) {
-        await job.runChunk(i);
-      }
+    test(
+      'every captured frame is the mesh\'s own particleCount × 3 long',
+      () async {
+        final job = bake(frameCount: 3);
+        for (var i = 0; i < job.frameCount; i++) {
+          await job.runChunk(i);
+        }
 
-      final cache = job.buildCache();
-      for (var f = 0; f < cache.frameCount; f++) {
-        expect(cache.frame(f).length, 400 * 3);
-      }
-    });
+        final cache = job.buildCache();
+        for (var f = 0; f < cache.frameCount; f++) {
+          expect(cache.frame(f).length, 400 * 3);
+        }
+      },
+    );
 
     test('each frame is a snapshot, not a live view into the solver', () async {
       final job = bake(frameCount: 2);
@@ -94,15 +100,18 @@ void main() {
       expect(firstFrame[0], firstX);
     });
 
-    test('buildCache called mid-bake does not see frames captured afterwards', () async {
-      final job = bake(frameCount: 5);
-      await job.runChunk(0);
-      final partial = job.buildCache();
-      await job.runChunk(1);
+    test(
+      'buildCache called mid-bake does not see frames captured afterwards',
+      () async {
+        final job = bake(frameCount: 5);
+        await job.runChunk(0);
+        final partial = job.buildCache();
+        await job.runChunk(1);
 
-      expect(partial.frameCount, 1);
-      expect(job.buildCache().frameCount, 2);
-    });
+        expect(partial.frameCount, 1);
+        expect(job.buildCache().frameCount, 2);
+      },
+    );
 
     test('rejects a bake of zero frames', () {
       expect(

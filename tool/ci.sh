@@ -161,7 +161,7 @@ step "webgpu shaders" bash -c 'cd packages/flutter3d_webgpu && dart run tool/gen
 
 # **`qa-09`: the real Khronos validator, against a fresh `GltfWriter` export.**
 # `fmt-11`'s own checker
-# (`packages/flutter3d_formats/lib/src/gltf/gltf_validate.dart`) only ever
+# (`packages/flutter3d_core/lib/src/formats/gltf/gltf_validate.dart`) only ever
 # checks that a declared `min`/`max` is the data's own, by design — see its
 # doc comment for why the package that writes glTF has no business reaching
 # for Node. This step is the other half: the actual validator, which knows
@@ -181,6 +181,14 @@ step "analyze" flutter analyze
 # possible moment otherwise.
 step "publish check" bash tool/publish_check.sh
 
+# The modeller's pictures, as the tutorial and the documentation site show them,
+# against the ones its own golden tests hold. `--check` was written for this
+# line and nothing ever called it: the first time it was run by hand it found
+# `animation-weights.png` published in two places and drawn differently by the
+# editor, with every test green. A picture of a panel that has since moved is
+# a tutorial step a reader cannot follow.
+step "modeller screenshots" dart run tool/publish_modeler_screenshots.dart --check
+
 # **Which packages are plain Dart is not this script's knowledge.** It named
 # four of them here and `tool/structure/repository.dart` named the same four,
 # and the two lists were free to disagree: a fifth plain package added there
@@ -189,6 +197,15 @@ step "publish check" bash tool/publish_check.sh
 # `--flat-dart` prints the list the rules are held to, so there is one list.
 FLAT_DART="$(dart run tool/structure.dart --flat-dart)"
 
+# **What this loop does not cover, said here because here is where somebody
+# would look for it.** It walks `packages/`, and the six programs under `tool/`
+# carry suites of their own that nothing in this script runs: `convert_asset`
+# (13), `skills` (13), `init` (18), `tutorial` (29), `godot_check` (11) and
+# `webgpu_spike` (which needs `flutter test`, not `dart test` — its fixtures
+# reach for `flutter_test`, so a loop over `tool/` would want the same split
+# this one has). `godot_check`'s run in the `godot` job in
+# .github/workflows/ci.yml; the other five are a hole, found on 2026-09-17 and
+# left named rather than quietly half-fixed.
 for package in packages/*/; do
   name="$(basename "$package")"
   # Matched on the files rather than on the directory, for the reason the
@@ -230,6 +247,20 @@ step "analyze cloud/server" in_dir cloud/server dart analyze --fatal-infos
 step "migrations cloud/server" in_dir cloud/server dart run tool/embed_migrations.dart --check
 step "test cloud/server" in_dir cloud/server dart test -x db
 
+# **The lessons service, same reason as the models one above.** `edu-02`'s own
+# public page and iframe embed for a lesson document — `flutter3d_lessons`,
+# serving `lessons.pleion.dev` — sat here with nobody running its `pub get`,
+# `analyze` or `test` at all: not a package under `packages/`, not part of the
+# pub workspace, and until this line, not part of this script either.
+step "pub get cloud/lessons/server" in_dir cloud/lessons/server dart pub get
+step "analyze cloud/lessons/server" in_dir cloud/lessons/server dart analyze --fatal-infos
+step "test cloud/lessons/server" in_dir cloud/lessons/server dart test
+
+# **The release dashboard judges the same scripts this one runs**, so a change
+# to how it reads a result is a change to what "green" means on its page.
+step "analyze tool/release_dashboard" in_dir tool/release_dashboard dart analyze --fatal-infos
+step "test tool/release_dashboard" in_dir tool/release_dashboard dart test
+
 # **Five test files that nothing had ever run.** `flutter3d_webgl` marks them
 # `@TestOn('browser')` — the conformance suite, the parity comparison against
 # Impeller, a whole engine frame — so the loop above skips every one of them and
@@ -264,14 +295,20 @@ step "test flutter3d_webgpu (browser)" in_dir packages/flutter3d_webgpu flutter 
 step "test pointer_lock (browser)" in_dir packages/pointer_lock flutter test --platform chrome
 
 # **The package whose whole job is a choice, asked to make it on the platform
-# where there is now more than one answer.** `flutter3d_backend` had a VM test
-# that says outright it can only reach the native half; the browser half was
-# left to the games' web builds, which compile it and never call it. That was
-# tolerable while a browser meant WebGL2 and nothing else. It stopped being
-# tolerable when the file grew a WebGPU probe: which backend an ordinary web
-# build opens is a decision now, and a decision nothing runs is a default that
-# moves the first time somebody edits four lines.
-step "test flutter3d_backend (browser)" in_dir packages/flutter3d_backend flutter test --platform chrome
+# where there is now more than one answer.** The backend choice, now part of
+# `flutter3d_app`, had a VM test that says outright it can only reach the
+# native half; the browser half was left to the games' web builds, which
+# compile it and never call it. That was tolerable while a browser meant
+# WebGL2 and nothing else. It stopped being tolerable when the file grew a
+# WebGPU probe: which backend an ordinary web build opens is a decision now,
+# and a decision nothing runs is a default that moves the first time somebody
+# edits four lines.
+#
+# The files are named because the package holds storage and level loading as
+# well now, and `storage_places_test.dart` reaches `dart:io`: `@TestOn('vm')`
+# filters what runs, not what is compiled, so one such file fails the whole
+# browser run before anything is filtered.
+step "test flutter3d_app (browser)" in_dir packages/flutter3d_app flutter test --platform chrome test/backend_choice_test.dart test/backend_choice_web_test.dart
 
 # **The WebGPU spike, which the loops above cannot reach.** It is a workspace
 # member under `tool/` rather than a package or an application — see its own
@@ -300,7 +337,10 @@ step "test webgpu_spike (browser)" in_dir tool/webgpu_spike flutter test --platf
 # the slower place to do that.
 step "test flutter3d_physics (browser)" in_dir packages/flutter3d_physics dart test -p chrome
 step "test flutter3d_sim (browser)" in_dir packages/flutter3d_sim dart test -p chrome
-step "test flutter3d_game (browser)" in_dir packages/flutter3d_game flutter test --platform chrome
+# The game layer's input files, named for the reason the application layer's
+# are above: the saves, the settings document and the timeline's service
+# extensions beside them reach `dart:io`.
+step "test flutter3d_game (browser)" in_dir packages/flutter3d_game flutter test --platform chrome test/accommodations_test.dart test/bindings_test.dart test/desktop_input_test.dart test/game_config_test.dart test/pad_actions_test.dart test/playing_test.dart test/touch_controls_test.dart test/touch_verbs_test.dart
 
 # An example with tests, which until `packages/pad_input/example` there was none of.
 # Its tests are the only ones that mount the tool the gamepad's manual acceptance
@@ -355,7 +395,7 @@ step "benchmarks compile" bash -c '
   (cd packages/flutter3d_mesh && dart compile exe tool/bench.dart -o "$out/mesh" >/dev/null)
   (cd packages/flutter3d_mesh && dart compile exe tool/bench_persistence.dart -o "$out/persistence" >/dev/null)
   (cd packages/flutter3d_mesh && dart compile exe tool/bench_isolate.dart -o "$out/isolate" >/dev/null)
-  (cd packages/flutter3d_geometry && dart compile exe tool/bench_bvh.dart -o "$out/bvh" >/dev/null)
+  (cd packages/flutter3d_core && dart compile exe tool/bench_bvh.dart -o "$out/bvh" >/dev/null)
   (cd packages/flutter3d && dart compile exe tool/bench/bench.dart -o "$out/engine" >/dev/null)
 '
 

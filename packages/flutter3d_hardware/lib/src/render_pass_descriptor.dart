@@ -392,4 +392,29 @@ final class RenderPassDescriptor {
   final List<ColorTarget> colors;
 
   final DepthTarget? depth;
+
+  /// Throws when this opens more colour attachments than [limit] allows —
+  /// `gfx-50n`.
+  ///
+  /// **Every backend calls this on the way into `beginRenderPass`, and the
+  /// reason it is shared is that the answer has to be the same everywhere.**
+  /// A refusal that one backend made and another did not would be worse than
+  /// no refusal at all: an application would be written against whichever
+  /// device the author had, and the one that aborts would be the one the
+  /// author did not have.
+  ///
+  /// [limit] is `GraphicsDevice.maxColorAttachments`. Passed rather than
+  /// taken from a device, because this file may not know what a device is —
+  /// the descriptor is what a caller builds before it has opened anything.
+  void checkAttachmentLimit(int limit, {required String backend}) {
+    if (colors.length <= limit) return;
+    throw UnsupportedError(
+      '$backend opens at most $limit colour '
+      '${limit == 1 ? "attachment" : "attachments"} and this pass asks for '
+      '${colors.length}. Ask `GraphicsDevice.maxColorAttachments` before '
+      'building a pass that wants more than one: this throw is the whole '
+      'point of the number, because the alternative on at least one backend '
+      'is that the process aborts.',
+    );
+  }
 }

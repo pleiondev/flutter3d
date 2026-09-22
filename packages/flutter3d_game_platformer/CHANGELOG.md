@@ -1,3 +1,23 @@
+## 0.7.0
+
+* **Breaking. `bridge.dart`, and the readouts in it.** `PurseReadout`,
+  `LivesStrip` and `ReadoutStyle` are widgets, and the simulation's barrel names
+  no Flutter now; import `package:flutter3d_game_platformer/bridge.dart` for
+  them. The library is new in this package, and the three widgets are all it
+  exports: the runner, the camera and the level are drawn by the game.
+  `doc/boundary-0.7.0.md` has the same move for the shooter and racing.
+* **Breaking. `flutter3d_game` is no longer a dependency.** The simulation
+  imports `flutter3d_sim` by name rather than through `flutter3d_game`, which
+  stopped re-exporting it. A game that reached `flutter3d_game` or a simulation
+  type through this package's pubspec alone names them in its own.
+  `CollisionHeightfield`, which the runner switches on, arrives through
+  `flutter3d_sim`'s re-export of `flutter3d_physics`, one step where 0.6.0 had
+  two, and the floor that says which version has it is `flutter3d_sim: ^0.7.0`.
+* **A spawned enemy carries the name its level gave it.** `EnemyKind` passes an
+  entity's `name` to the `Actor` it spawns, which is what `ActorSystem.byName`
+  and `remapEntitySave` in `flutter3d_sim` 0.7.0 read.
+* The runner, the coins, the hazards and the checkpoints are otherwise 0.6.0's.
+
 ## 0.6.0
 
 * **A floor, and no code.** The runner, the coins, the hazards and the

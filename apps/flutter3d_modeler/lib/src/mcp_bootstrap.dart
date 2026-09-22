@@ -6,4 +6,5 @@
 /// counterpart to compile against.
 library;
 
-export 'mcp_bootstrap_io.dart' if (dart.library.js_interop) 'mcp_bootstrap_web.dart';
+export 'mcp_bootstrap_io.dart'
+    if (dart.library.js_interop) 'mcp_bootstrap_web.dart';

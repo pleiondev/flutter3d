@@ -16,7 +16,7 @@ The line is the one the game layer already drew: **machinery stays, vocabulary m
 | `CharacterController`, `CollisionWorld` | `Player`, `WeaponDef`, `WeaponShot` |
 | `FixedStep`, `Snapshot` | `GameSimulation`, the step *order* |
 
-Nothing here imports the renderer. `WeaponView` does, and it lives in `bridge.dart` for that reason; a test holds the split.
+Nothing here imports the renderer or names Flutter. `WeaponView` and the readouts do, and they live in `bridge.dart` for that reason; `tool/structure.dart` holds the split.
 
 ## The pieces
 

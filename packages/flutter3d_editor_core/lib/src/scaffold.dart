@@ -113,7 +113,7 @@ Map<String, Uint8List> scaffold({
   out['pubspec.yaml'] = _bytes(pubspecFor(name));
   out['README.md'] = _bytes(readmeFor(name, template));
   // The test arrives with the rest of the template — see `app.test.dart.txt`
-  // in the index, and `apps/flutter3d_template_app/test/widget_test.dart`, which is the
+  // in the index, and `packages/flutter3d_game/example/test/widget_test.dart`, which is the
   // file itself and is run by CI like any other.
   return out;
 }

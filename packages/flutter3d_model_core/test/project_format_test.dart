@@ -15,8 +15,8 @@ library;
 import 'dart:convert';
 import 'dart:typed_data';
 
-import 'package:flutter3d_formats/flutter3d_formats.dart';
-import 'package:flutter3d_geometry/flutter3d_geometry.dart';
+import 'package:flutter3d_core/formats.dart';
+import 'package:flutter3d_core/geometry.dart';
 import 'package:flutter3d_mesh/flutter3d_mesh.dart';
 import 'package:flutter3d_mesh/testing.dart';
 import 'package:flutter3d_model_core/flutter3d_model_core.dart';
@@ -342,104 +342,165 @@ void main() {
       }
     });
 
-    test(
-      'a skeleton, a clip and a shape key all survive the round trip — '
-      "anim-03/anim-19's own gap",
-      () {
-        final before = riggedSample();
-        final after = opened(writeProject(before));
+    test('a skeleton, a clip and a shape key all survive the round trip — '
+        "anim-03/anim-19's own gap", () {
+      final before = riggedSample();
+      final after = opened(writeProject(before));
 
-        expect(after.skeletons, hasLength(1));
-        final skeletonBefore = before.skeletons.single;
-        final skeletonAfter = after.skeletons.single;
-        expect(skeletonAfter.name, skeletonBefore.name);
-        // Mutation: drop `skeletonRoot`/`name` from `_skeletonJson` and both
-        // come back null — this fixture would not notice unless both are
-        // set to something a default could not produce by accident.
-        expect(skeletonAfter.skeletonRoot, skeletonBefore.skeletonRoot);
-        expect(skeletonAfter.joints, skeletonBefore.joints);
-        expect(skeletonAfter.inverseBindMatrices, hasLength(1));
-        for (var i = 0; i < 16; i++) {
-          expect(
-            skeletonAfter.inverseBindMatrices[0].storage[i],
-            closeTo(skeletonBefore.inverseBindMatrices[0].storage[i], 1e-9),
-          );
-        }
-
-        expect(after.clips, hasLength(1));
-        final clipBefore = before.clips.single;
-        final clipAfter = after.clips.single;
-        expect(clipAfter.name, clipBefore.name);
-        expect(clipAfter.extras, clipBefore.extras);
-        expect(clipAfter.tracks, hasLength(1));
-        final trackBefore = clipBefore.tracks.single.track;
-        final trackAfter = clipAfter.tracks.single.track;
-        expect(clipAfter.tracks.single.objectId, clipBefore.tracks.single.objectId);
-        expect(trackAfter.path, trackBefore.path);
-        expect(trackAfter.interpolation, trackBefore.interpolation);
-        expect(trackAfter.componentCount, trackBefore.componentCount);
-        expect(trackAfter.times, trackBefore.times);
-        expect(trackAfter.values, trackBefore.values);
-
-        final bodyBefore = before.objects.firstWhere((o) => o.name == 'body');
-        final bodyAfter = after.objects.firstWhere((o) => o.name == 'body');
-        // Mutation: read `skeletonIndex` back as `null` unconditionally and
-        // this fails directly — the object would read as unskinned.
-        expect(bodyAfter.skeletonIndex, bodyBefore.skeletonIndex);
-        expect(bodyAfter.shapeSet.keys, hasLength(1));
-        expect(bodyAfter.shapeSet.keys.single.name, 'smile');
-        expect(bodyAfter.shapeSet.weights, bodyBefore.shapeSet.weights);
+      expect(after.skeletons, hasLength(1));
+      final skeletonBefore = before.skeletons.single;
+      final skeletonAfter = after.skeletons.single;
+      expect(skeletonAfter.name, skeletonBefore.name);
+      // Mutation: drop `skeletonRoot`/`name` from `_skeletonJson` and both
+      // come back null — this fixture would not notice unless both are
+      // set to something a default could not produce by accident.
+      expect(skeletonAfter.skeletonRoot, skeletonBefore.skeletonRoot);
+      expect(skeletonAfter.joints, skeletonBefore.joints);
+      expect(skeletonAfter.inverseBindMatrices, hasLength(1));
+      for (var i = 0; i < 16; i++) {
         expect(
-          bodyAfter.shapeSet.keys.single.positions,
-          bodyBefore.shapeSet.keys.single.positions,
+          skeletonAfter.inverseBindMatrices[0].storage[i],
+          closeTo(skeletonBefore.inverseBindMatrices[0].storage[i], 1e-9),
         );
+      }
 
-        // The plain, unrigged objects in `sample()` still read back with no
-        // skeleton and no shape keys — the absent case is `null`/empty, not
-        // some other default a dropped field could be mistaken for.
-        final plain = opened(writeProject(sample())).objects.first;
-        expect(plain.skeletonIndex, isNull);
-        expect(plain.shapeSet.isEmpty, isTrue);
-      },
-    );
+      expect(after.clips, hasLength(1));
+      final clipBefore = before.clips.single;
+      final clipAfter = after.clips.single;
+      expect(clipAfter.name, clipBefore.name);
+      expect(clipAfter.extras, clipBefore.extras);
+      expect(clipAfter.tracks, hasLength(1));
+      final trackBefore = clipBefore.tracks.single.track;
+      final trackAfter = clipAfter.tracks.single.track;
+      expect(
+        clipAfter.tracks.single.objectId,
+        clipBefore.tracks.single.objectId,
+      );
+      expect(trackAfter.path, trackBefore.path);
+      expect(trackAfter.interpolation, trackBefore.interpolation);
+      expect(trackAfter.componentCount, trackBefore.componentCount);
+      expect(trackAfter.times, trackBefore.times);
+      expect(trackAfter.values, trackBefore.values);
 
-    test(
-      "an object's own levels of detail survive the round trip — "
-      "pro-lod-03's own gap",
-      () {
-        final baseProject = sample();
-        final before = baseProject.withObject(
-          baseProject.objects.first.copyWith(
-            lods: const <LodSpec>[
-              LodSpec(ratio: 0.5, maxScreenFraction: 0.3),
-              LodSpec(ratio: 0.1, maxScreenFraction: 0.05),
-            ],
-          ),
+      final bodyBefore = before.objects.firstWhere((o) => o.name == 'body');
+      final bodyAfter = after.objects.firstWhere((o) => o.name == 'body');
+      // Mutation: read `skeletonIndex` back as `null` unconditionally and
+      // this fails directly — the object would read as unskinned.
+      expect(bodyAfter.skeletonIndex, bodyBefore.skeletonIndex);
+      expect(bodyAfter.shapeSet.keys, hasLength(1));
+      expect(bodyAfter.shapeSet.keys.single.name, 'smile');
+      expect(bodyAfter.shapeSet.weights, bodyBefore.shapeSet.weights);
+      expect(
+        bodyAfter.shapeSet.keys.single.positions,
+        bodyBefore.shapeSet.keys.single.positions,
+      );
+
+      // The plain, unrigged objects in `sample()` still read back with no
+      // skeleton and no shape keys — the absent case is `null`/empty, not
+      // some other default a dropped field could be mistaken for.
+      final plain = opened(writeProject(sample())).objects.first;
+      expect(plain.skeletonIndex, isNull);
+      expect(plain.shapeSet.isEmpty, isTrue);
+    });
+
+    test("an object's own levels of detail survive the round trip — "
+        "pro-lod-03's own gap", () {
+      final baseProject = sample();
+      final before = baseProject.withObject(
+        baseProject.objects.first.copyWith(
+          lods: const <LodSpec>[
+            LodSpec(ratio: 0.5, maxScreenFraction: 0.3),
+            LodSpec(ratio: 0.1, maxScreenFraction: 0.05),
+          ],
+        ),
+      );
+
+      final after = opened(writeProject(before));
+      final bodyBefore = before.objects.first;
+      final bodyAfter = after.objects.first;
+
+      // Mutation: drop `lods` from `objectsJsonFor`'s own map and this
+      // reads back empty, since an absent key and a genuinely empty list
+      // are indistinguishable once dropped.
+      expect(bodyAfter.lods, hasLength(2));
+      for (var i = 0; i < 2; i++) {
+        expect(bodyAfter.lods[i].ratio, bodyBefore.lods[i].ratio);
+        expect(
+          bodyAfter.lods[i].maxScreenFraction,
+          bodyBefore.lods[i].maxScreenFraction,
         );
+      }
 
-        final after = opened(writeProject(before));
-        final bodyBefore = before.objects.first;
-        final bodyAfter = after.objects.first;
+      // The other objects in `sample()` never had a LOD added — the
+      // absent case is an empty list, not some other default a dropped
+      // field could be mistaken for.
+      final plain = opened(writeProject(sample())).objects.first;
+      expect(plain.lods, isEmpty);
+    });
 
-        // Mutation: drop `lods` from `objectsJsonFor`'s own map and this
-        // reads back empty, since an absent key and a genuinely empty list
-        // are indistinguishable once dropped.
-        expect(bodyAfter.lods, hasLength(2));
-        for (var i = 0; i < 2; i++) {
-          expect(bodyAfter.lods[i].ratio, bodyBefore.lods[i].ratio);
-          expect(
-            bodyAfter.lods[i].maxScreenFraction,
-            bodyBefore.lods[i].maxScreenFraction,
-          );
-        }
+    test("an object's own shape drivers survive the round trip — "
+        "anim-34d's own gap", () {
+      final baseProject = sample();
+      final before = baseProject.withObject(
+        baseProject.objects.first.copyWith(
+          shapeDrivers: const <ShapeDriver>[
+            ShapeDriver(
+              shapeIndex: 2,
+              jointId: 3,
+              axis: DriverAxis.y,
+              from: 0.1,
+              to: 1.2,
+            ),
+            ShapeDriver(
+              shapeIndex: 0,
+              jointId: 1,
+              axis: DriverAxis.z,
+              from: -0.3,
+              to: 0.4,
+            ),
+          ],
+        ),
+      );
 
-        // The other objects in `sample()` never had a LOD added — the
-        // absent case is an empty list, not some other default a dropped
-        // field could be mistaken for.
-        final plain = opened(writeProject(sample())).objects.first;
-        expect(plain.lods, isEmpty);
-      },
-    );
+      final after = opened(writeProject(before));
+      final bodyBefore = before.objects.first;
+      final bodyAfter = after.objects.first;
+
+      // Mutation: drop `shapeDrivers` from `objectsJsonFor`'s own map and
+      // this reads back empty, since an absent key and a genuinely empty
+      // list are indistinguishable once dropped.
+      expect(bodyAfter.shapeDrivers, hasLength(2));
+      for (var i = 0; i < 2; i++) {
+        expect(
+          bodyAfter.shapeDrivers[i].shapeIndex,
+          bodyBefore.shapeDrivers[i].shapeIndex,
+        );
+        expect(
+          bodyAfter.shapeDrivers[i].jointId,
+          bodyBefore.shapeDrivers[i].jointId,
+        );
+        expect(
+          bodyAfter.shapeDrivers[i].axis.name,
+          bodyBefore.shapeDrivers[i].axis.name,
+        );
+        expect(bodyAfter.shapeDrivers[i].from, bodyBefore.shapeDrivers[i].from);
+        expect(bodyAfter.shapeDrivers[i].to, bodyBefore.shapeDrivers[i].to);
+      }
+
+      // The other objects in `sample()` never had a driver added — the
+      // absent case is an empty list, not some other default a dropped
+      // field could be mistaken for.
+      final plain = opened(writeProject(sample())).objects.first;
+      expect(plain.shapeDrivers, isEmpty);
+    });
+
+    test('an object written before anim-34d — no shapeDrivers key at all — '
+        'reads back with an empty list rather than throwing', () {
+      final after = opened(
+        forge(manifestOf(<Map<String, Object?>>[objectJson()])),
+      );
+      expect(after.objects.single.shapeDrivers, isEmpty);
+    });
 
     test('a socket writes and reads back with no mesh behind it', () {
       final before = ModelProject().added(
@@ -654,12 +715,14 @@ void main() {
 
       // The numbers this project's file actually lands on: a 16-byte header and
       // six 16-byte directory entries put the manifest at 112, and the manifest
-      // is 1303 bytes (`pro-lod-03`'s own `lods`, written even at its default
-      // — absent, the same way every other optional field grown since v1 is —
-      // which still costs the twelve bytes of `,"lods":null` per object;
-      // widened it from the 1267 an earlier version of this fixture measured),
-      // which ends at 1415 and is not a multiple of four. So the mesh table
-      // starts at 1416, one byte of padding later. That one byte is the whole
+      // is 1363 bytes (`anim-34d`'s own `shapeDrivers`, written even at its
+      // default — absent, the same way every other optional field grown
+      // since v1 is — which still costs the twenty bytes of
+      // `,"shapeDrivers":null` per object; widened it from the 1303 an
+      // earlier version of this fixture measured, itself `pro-lod-03`'s own
+      // widening from 1267 for the same reason, one field earlier), which
+      // ends at 1475 and is not a multiple of four. So the mesh table starts
+      // at 1476, one byte of padding later. That one byte is the whole
       // test — a reader building an `Int32List.view` over the blob throws on
       // an offset that is not a multiple of four, and it throws on the machine
       // of whoever opens the file rather than here.
@@ -672,11 +735,24 @@ void main() {
         ProjectSection.checksums,
       ]);
       expect(directory[0].offset, 112);
-      expect(directory[0].length, 1303);
-      expect(directory[1].offset, 1416);
       expect(directory[1].length, 16);
       expect(directory[1].count, 2);
-      expect(directory[2].offset, 1432);
+      // **The rule, not one build's own numbers.** Every section starts
+      // where the one before it ended, rounded up to four — which is the
+      // padding byte this test exists for. Writing the offsets down
+      // instead made this red for every field added to the manifest, and a
+      // test re-typed for that is a test nobody re-reads.
+      for (var i = 1; i < directory.length; i++) {
+        final previous = directory[i - 1];
+        final int after = previous.offset + previous.length;
+        expect(
+          directory[i].offset,
+          after + ((4 - after % 4) % 4),
+          reason:
+              'section ${directory[i].kind} does not follow '
+              '${previous.kind}',
+        );
+      }
       // This project has nothing imported and nothing textured, and both tables
       // are written all the same: every file this build produces has the same
       // five-section directory, so a reader is never deciding between "none of
@@ -686,7 +762,6 @@ void main() {
       // One row per other section, so the table grows with the directory.
       expect(directory[5].count, 5);
       expect(directory[5].length, 5 * kProjectChecksumEntryBytes);
-      expect(bytes.length, 4048);
 
       for (final entry in directory) {
         expect(entry.offset % 4, 0, reason: 'section ${entry.kind}');
@@ -889,7 +964,7 @@ void main() {
       expect(
         refusal(bytes),
         'The header claims 500 sections, whose directory ends at byte 8016, '
-        'past the end of a 4048-byte file.',
+        'past the end of a ${bytes.length}-byte file.',
       );
     });
 
@@ -904,10 +979,13 @@ void main() {
       // not that any particular section is the one that goes.
       final whole = writeProject(sample());
       final cut = Uint8List.sublistView(whole, 0, whole.length - 8);
+      // The byte numbers are computed rather than written down: a field
+      // added to any section moves them, and a test that has to be
+      // re-typed for that is a test that gets re-typed without being read.
       expect(
         refusal(cut),
-        'Section 6 runs from byte 4008 for 40 bytes, past the end of a '
-        '4040-byte file.',
+        'Section 6 runs from byte ${whole.length - 40} for 40 bytes, past '
+        'the end of a ${cut.length}-byte file.',
       );
     });
 
@@ -1046,7 +1124,10 @@ void main() {
       final object = objectJson()
         ..['shapeSet'] = <String, Object?>{
           'keys': <Object?>[
-            <String, Object?>{'name': 'a', 'positions': <double>[0, 0, 0]},
+            <String, Object?>{
+              'name': 'a',
+              'positions': <double>[0, 0, 0],
+            },
           ],
           'weights': <double>[0.1, 0.2],
         };
@@ -1075,35 +1156,44 @@ void main() {
       );
     });
 
-    test(
-      'a track whose times and values do not fit its interpolation and '
-      'component count',
-      () {
-        final bytes = forge(<String, Object?>{
-          ...manifestOf(<Map<String, Object?>>[]),
-          'clips': <Object?>[
-            <String, Object?>{
-              'name': 'broken',
-              'tracks': <Object?>[
-                <String, Object?>{
-                  'objectId': 0,
-                  'path': 'translation',
-                  'interpolation': 'LINEAR',
-                  'componentCount': 3,
-                  'times': <double>[0, 1, 2],
-                  'values': <double>[0, 0],
-                },
-              ],
-            },
-          ],
-        });
-        expect(
-          refusal(bytes),
-          'Clip 0, track 0 cannot be read: Track for node 0 has 3 keys and 2 '
-          'values; linear interpolation of 3 components needs 9.',
-        );
-      },
-    );
+    test('a shape driver missing a field', () {
+      final object = objectJson()
+        ..['shapeDrivers'] = <Object?>[
+          <String, Object?>{'shapeIndex': 0, 'jointId': 1, 'from': 0.0},
+        ];
+      expect(
+        refusal(forge(manifestOf(<Map<String, Object?>>[object]))),
+        'Object 0 ("thing")\'s shape driver 0 is missing a field or has one '
+        'of the wrong type.',
+      );
+    });
+
+    test('a track whose times and values do not fit its interpolation and '
+        'component count', () {
+      final bytes = forge(<String, Object?>{
+        ...manifestOf(<Map<String, Object?>>[]),
+        'clips': <Object?>[
+          <String, Object?>{
+            'name': 'broken',
+            'tracks': <Object?>[
+              <String, Object?>{
+                'objectId': 0,
+                'path': 'translation',
+                'interpolation': 'LINEAR',
+                'componentCount': 3,
+                'times': <double>[0, 1, 2],
+                'values': <double>[0, 0],
+              },
+            ],
+          },
+        ],
+      });
+      expect(
+        refusal(bytes),
+        'Clip 0, track 0 cannot be read: Track for node 0 has 3 keys and 2 '
+        'values; linear interpolation of 3 components needs 9.',
+      );
+    });
 
     test('a skeleton\'s joints and inverse bind matrices that do not move '
         'together', () {
@@ -1252,6 +1342,7 @@ void main() {
       alphaCutoff: 0.875,
       doubleSided: true,
       unlit: true,
+      lightingModel: LightingModel.lambert,
     );
 
     ModelProject painting() =>
@@ -1303,6 +1394,13 @@ void main() {
       expect(surface.alphaCutoff, 0.875);
       expect(surface.doubleSided, isTrue);
       expect(surface.unlit, isTrue);
+      expect(surface.lightingModel, LightingModel.lambert);
+    });
+
+    test('a material with no lightingModel of its own opens with none, not a '
+        'refusal — mat-04 is younger than the rest of this record', () {
+      final after = opened(writeProject(painting()));
+      expect(after.materials[1].surface.lightingModel, isNull);
     });
 
     test('a texture binding keeps its image, its set and its sampler', () {
@@ -1593,6 +1691,37 @@ void main() {
         expect(warningsOf(bytes).single, contains('baseColorTexture'));
         expect(warningsOf(bytes).single, contains('wrapS'));
         expect(warningsOf(bytes).single, contains('mirror'));
+      },
+    );
+
+    test(
+      'a lightingModel this build does not ship opens unset, and says so',
+      () {
+        final bytes = forge(<String, Object?>{
+          ...manifestOf(<Map<String, Object?>>[objectJson()]),
+          'materials': <Object?>[
+            <String, Object?>{
+              'version': 1,
+              'name': null,
+              'baseColor': <double>[1, 1, 1, 1],
+              'metallic': 0.0,
+              'roughness': 0.5,
+              'normalScale': 1.0,
+              'occlusionStrength': 1.0,
+              'emissive': <double>[0, 0, 0],
+              'emissiveStrength': 1.0,
+              'alphaMode': 'opaque',
+              'alphaCutoff': 0.5,
+              'doubleSided': false,
+              'unlit': false,
+              'lightingModel': 'Subsurface',
+            },
+          ],
+        });
+
+        expect(warningsOf(bytes).single, contains('lightingModel'));
+        expect(warningsOf(bytes).single, contains('Subsurface'));
+        expect(opened(bytes).materials.single.surface.lightingModel, isNull);
       },
     );
 
@@ -2115,6 +2244,188 @@ void main() {
       // sound file would make every save unopenable, which is the failure a
       // checksum is least likely to be trusted through.
       expect(readProject(writeProject(sample())), isA<ProjectOpened>());
+    });
+  });
+
+  group('pro-doc-01: a baked simulation survives a save', () {
+    /// Frames nobody could mistake for a default: every value is its own
+    /// number, so a frame written in the wrong order or read at the wrong
+    /// offset lands somewhere this can see.
+    SimulationCache bake({int frames = 3, int vertices = 2}) => SimulationCache(
+      vertexCount: vertices,
+      frames: <Float32List>[
+        for (var f = 0; f < frames; f++)
+          Float32List.fromList(<double>[
+            for (var v = 0; v < vertices * 3; v++) f * 100.0 + v + 0.5,
+          ]),
+      ],
+    );
+
+    ModelProject baked({int frames = 3, int vertices = 2}) {
+      final project = const ModelProject().added(
+        (int id) => ModelObject(
+          id: id,
+          name: 'cloth',
+          geometry: EditedGeometry(EditMesh.cuboid()),
+          transform: Matrix4.identity(),
+        ),
+      );
+      return project.withObject(
+        project.objects.single.copyWith(
+          simulationCache: bake(frames: frames, vertices: vertices),
+        ),
+      );
+    }
+
+    test('every frame comes back with the values it went in with', () {
+      final ModelProject read = opened(writeProject(baked()));
+      final SimulationCache? cache = read.objects.single.simulationCache;
+
+      expect(cache, isNotNull);
+      expect(cache!.vertexCount, 2);
+      expect(cache.frameCount, 3);
+      // Frame by frame rather than "the cache equals the cache": what this is
+      // guarding is the packing, and a check that compared the object with
+      // itself would pass against a writer that wrote every frame the same.
+      for (var f = 0; f < 3; f++) {
+        expect(cache.frame(f), bake().frame(f), reason: 'frame $f');
+      }
+    });
+
+    test('and the frames are in the blob, not in the manifest', () {
+      // **The whole reason this is a section.** Mutation: write the cache
+      // through `SimulationCache.toJson` into the object's own record, and
+      // the manifest grows by the size of the bake — which every reader
+      // parses before it knows whether it wants a simulation at all.
+      final Uint8List big = writeProject(baked(frames: 40, vertices: 64));
+      final Uint8List small = writeProject(baked(frames: 1, vertices: 1));
+      final int grew = big.length - small.length;
+
+      expect(grew, greaterThan(40 * 64 * 3 * 4 - 1024));
+      // The manifest is JSON, so a base64'd bake inside it would show up as
+      // text. Nothing of the sort is in the file.
+      expect(
+        utf8.decode(big, allowMalformed: true),
+        isNot(contains('"frames"')),
+      );
+    });
+
+    test('a project nobody baked writes no such section at all', () {
+      // The additive rule: a file with no bake is the file this build wrote
+      // before the section existed, byte for byte, so an older reader has
+      // nothing to step over.
+      expect(
+        utf8.decode(writeProject(sample()), allowMalformed: true),
+        isNot(contains('simulationCache')),
+      );
+      expect(
+        opened(writeProject(sample())).objects.first.simulationCache,
+        isNull,
+      );
+    });
+
+    test('two objects sharing one bake write it once', () {
+      final SimulationCache shared = bake(frames: 8, vertices: 32);
+      var project = const ModelProject();
+      for (var i = 0; i < 2; i++) {
+        project = project.added(
+          (int id) => ModelObject(
+            id: id,
+            name: 'cloth$id',
+            geometry: EditedGeometry(EditMesh.cuboid()),
+            transform: Matrix4.identity(),
+            simulationCache: shared,
+          ),
+        );
+      }
+
+      final ModelProject read = opened(writeProject(project));
+      expect(read.objects.first.simulationCache!.frameCount, 8);
+      expect(read.objects.last.simulationCache!.frameCount, 8);
+      // One chunk, named twice: the manifest holds two records and both point
+      // at row zero.
+      final String text = utf8.decode(
+        writeProject(project),
+        allowMalformed: true,
+      );
+      expect('"chunk":1'.allMatches(text), isEmpty);
+    });
+
+    /// A file whose one object names [record] as its bake, over a table of
+    /// [rows] chunks each of [floats] values. Forged rather than written,
+    /// because the writer cannot produce any of these and a file edited after
+    /// the fact would be caught by its own checksums first — which is what
+    /// the checksums are for, and not what these tests are about.
+    Uint8List fileNaming(Object? record, {int rows = 1, int floats = 6}) {
+      final table = Uint8List(rows * kProjectSimulationEntryBytes);
+      final view = ByteData.sublistView(table);
+      for (var i = 0; i < rows; i++) {
+        view
+          ..setUint32(
+            i * kProjectSimulationEntryBytes,
+            i * floats * 4,
+            Endian.little,
+          )
+          ..setUint32(
+            i * kProjectSimulationEntryBytes + 4,
+            floats * 4,
+            Endian.little,
+          );
+      }
+      return forge(
+        <String, Object?>{
+          ...manifestOf(<Map<String, Object?>>[objectJson()]),
+          'objects': <Map<String, Object?>>[
+            <String, Object?>{...objectJson(), 'simulationCache': record},
+          ],
+        },
+        <(int, Uint8List, int)>[
+          (ProjectSection.blob, Uint8List(rows * floats * 4), 0),
+          (ProjectSection.simulationCaches, table, rows),
+        ],
+      );
+    }
+
+    test('a record naming a row the file does not have is refused', () {
+      // Refused rather than opened without the bake: a cloth that scrubs into
+      // a shape nothing in the document has is worse than a file that will
+      // not open, and nothing downstream can tell the two apart.
+      final ProjectRead read = readProject(
+        fileNaming(<String, Object?>{
+          'chunk': 7,
+          'vertexCount': 2,
+          'frameCount': 1,
+        }),
+      );
+
+      expect(read, isA<ProjectRefused>());
+      // Both numbers, the way every other table refusal in this file reads:
+      // "names 7" and "holds 1" is something somebody can act on.
+      expect((read as ProjectRefused).because, contains('7'));
+      expect(read.because, contains('holds 1'));
+    });
+
+    test('and a row whose length disagrees with the counts is refused', () {
+      final ProjectRead read = readProject(
+        fileNaming(<String, Object?>{
+          'chunk': 0,
+          'vertexCount': 2,
+          'frameCount': 4,
+        }),
+      );
+
+      expect(read, isA<ProjectRefused>());
+      expect((read as ProjectRefused).because, contains('24'));
+      expect(read.because, contains('6'));
+    });
+
+    test('and a record that is not one is refused rather than ignored', () {
+      final ProjectRead read = readProject(fileNaming('a bake, honest'));
+      expect(read, isA<ProjectRefused>());
+      expect(
+        (read as ProjectRefused).because,
+        contains('a chunk, a vertex count and a frame count'),
+      );
     });
   });
 

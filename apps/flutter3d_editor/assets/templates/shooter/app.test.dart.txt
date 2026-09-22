@@ -9,9 +9,8 @@
 /// somebody creates a project, which is the same argument `main.dart` next
 /// door already makes about itself.
 ///
-/// It is also `apps/flutter3d_template_app`'s only test, and until now this application
-/// had none — the one application in the repository whose whole job is to be
-/// copied.
+/// It is also `packages/flutter3d_game/example`'s own test — the one
+/// application in the repository whose whole job is to be copied.
 ///
 /// **Named `widget_test.dart` on purpose.** `flutter create` writes one of
 /// those, referring to an application class that does not exist here, into any
@@ -23,7 +22,7 @@ library;
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:flutter3d_game/flutter3d_game.dart';
+import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
@@ -60,7 +59,7 @@ void main() {
           reason: '${entry.key} names $model, which is not there',
         );
       }
-      // **Skipped in `apps/flutter3d_template_app` and not in a project made from it**,
+      // **Skipped in `packages/flutter3d_game/example` and not in a project made from it**,
       // which is the honest shape: the looks and the models a project draws with
       // come from the template it was made from, and this application is what is
       // left when you take those away. Written as a skip rather than an early

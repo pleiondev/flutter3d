@@ -7,8 +7,6 @@ library;
 
 import 'dart:typed_data';
 
-import 'package:flutter/widgets.dart';
-
 import 'command_encoder.dart';
 import 'formats.dart';
 import 'geometry_buffer.dart';
@@ -254,6 +252,32 @@ abstract interface class GraphicsDevice implements TextureAllocator {
   /// whether there is one.
   int get maxAnisotropy;
 
+  /// How many colour attachments one render pass may open — `gfx-50n`.
+  ///
+  /// One, or more. **Asked rather than assumed, and the failure it guards
+  /// against is the worst kind this interface has:** on Impeller's OpenGL ES
+  /// path a second attachment reaches an `FML_CHECK`, so the process aborts
+  /// in release. It does not draw the wrong picture, log a warning or fall
+  /// back — it stops. Every other capability here guards against something
+  /// that produces a frame somebody can look at.
+  ///
+  /// A number rather than a boolean for the reason [maxAnisotropy] is one:
+  /// "does MRT work" and "how many" are different questions, and a deferred
+  /// pass wanting four attachments has to be able to find out that it may
+  /// have two.
+  ///
+  /// **What the engine does with a one**: the scene pass stops declaring that
+  /// it writes the surface buffer, so every node that reads it — occlusion,
+  /// reflections, the shafts, the lens — is culled by the frame graph and
+  /// reported as `PassSkip.starved`. Those effects are then off on that
+  /// device and the frame is otherwise the frame it always was. A caller who
+  /// wants to know why asks `CompiledFrameGraph.skipped`, which names the
+  /// pass and the reason; nothing has to guess from a picture.
+  ///
+  /// Opening more attachments than this throws rather than aborting, which is
+  /// the promise that makes the number worth publishing.
+  int get maxColorAttachments;
+
   /// The compiled bundle this device was built with.
   ///
   /// On the device rather than on `RenderServices` because it is a property of
@@ -355,7 +379,11 @@ abstract interface class GraphicsDevice implements TextureAllocator {
   /// [target] must be a buffer this device itself returned from
   /// [uploadGeometry], not a slice of unrelated bytes — the same requirement
   /// [releaseGeometry] already carries.
-  void overwriteGeometry(GeometryBuffer target, int offsetInBytes, ByteData bytes);
+  void overwriteGeometry(
+    GeometryBuffer target,
+    int offsetInBytes,
+    ByteData bytes,
+  );
 
   /// Creates a texture already holding [pixels].
   ///
@@ -514,51 +542,6 @@ abstract interface class GraphicsDevice implements TextureAllocator {
   /// attachment` and `a pass does not inherit the previous pass's scissor`.
   CommandEncoder beginRenderPass(RenderPassDescriptor descriptor);
 
-  /// A widget that shows the finished frame.
-  ///
-  /// **This used to be `ui.Image imageOf(...)`, and that was an Impeller shape
-  /// wearing a neutral name.** On flutter_gpu a texture becomes a `ui.Image`
-  /// for free — `Texture.asImage()` hands Flutter the same GPU allocation — so
-  /// "the frame is an image" looked like a fact about rendering rather than
-  /// about one API.
-  ///
-  /// It is not. A WebGL2 backend has no such path: the only route to a
-  /// `ui.Image` is `readPixels` into CPU memory and `decodeImageFromPixels`
-  /// back onto the GPU, and the cost is putting the pixels *back* — the read
-  /// itself is a fraction of it. A contract that demands an image demands that
-  /// round trip every frame, so it does not describe a renderer on that backend
-  /// at all.
-  ///
-  /// **The size of it, and what that number is worth.** Timed once by hand in a
-  /// browser at the golden suite's own 480x360: 17.7 ms for the round trip
-  /// against a 16.7 ms budget for the whole frame, of which `readPixels` was
-  /// 347 us. Nothing in this repository recomputes those — there is no harness
-  /// that could, since the measurement needs a browser and a GPU — so they are
-  /// an order of magnitude and a shape, not a budget to hold anything to. The
-  /// argument does not rest on them: a full-frame download and re-upload per
-  /// frame is the wrong order of magnitude for a frame whatever the exact
-  /// figure, which is why they are stated once and not maintained.
-  ///
-  /// What both backends can do is produce something Flutter will show:
-  /// flutter_gpu wraps its image, and a WebGL2 backend hands over the canvas it
-  /// drew into, composited by the browser. So the contract asks for the widget
-  /// and lets each answer in its own way.
-  ///
-  /// The cost of the honesty, stated once: on a backend that presents a
-  /// platform view, the frame is composited by something other than Flutter,
-  /// so it cannot be arbitrarily transformed, blended or layered by the widget
-  /// tree the way an image can. [fit] is the part of that which every caller
-  /// actually used, and it is offered because both can honour it.
-  /// [quality] defaults to none because a rendered frame is already at the
-  /// resolution it will be shown at, and smoothing one is a way to lose detail
-  /// the renderer just paid for. It is a parameter rather than a constant only
-  /// because the letterboxed golden window scales.
-  Widget present(
-    TextureHandle frame, {
-    BoxFit fit = BoxFit.fill,
-    FilterQuality quality = FilterQuality.none,
-  });
-
   /// The texture's pixels: **premultiplied** RGBA8, row-major from the
   /// top-left.
   ///
@@ -567,8 +550,8 @@ abstract interface class GraphicsDevice implements TextureAllocator {
   /// of a comparison that disagree about premultiplication differ on every
   /// translucent texel while looking identical on screen.
   ///
-  /// Separate from [present] because it is a different question with a
-  /// different cost. Presenting happens every frame and must be nearly free;
+  /// Separate from presenting a frame because it is a different question with
+  /// a different cost. Presenting happens every frame and must be nearly free;
   /// reading back happens when something wants to *look* at what a pass wrote —
   /// the golden suite comparing a frame, the MRT probe checking that a second
   /// attachment was honoured — and is affordable on both backends precisely

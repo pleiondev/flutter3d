@@ -65,6 +65,25 @@ final class MaterialPool {
   engine.Material? operator [](int? slot) =>
       slot == null ? null : _built[slot]?.material;
 
+  /// The texture this pool uploaded for [ModelProject.images] row [index],
+  /// or null when nothing has been uploaded for it.
+  ///
+  /// **`pro-pt-03` asks this so a paint stroke can write into the texture
+  /// already on the device.** The pool keys by the bytes' own hash, which is
+  /// what makes two identical images share one upload — and also what makes
+  /// a repainted image look like a different one. A caller that has just
+  /// changed those bytes needs the handle from *before* the change, which is
+  /// why this takes the project as it stands and hashes what is in it now.
+  TextureHandle? textureForImage(ModelProject project, int index) {
+    if (index < 0 || index >= project.images.length) return null;
+    final int hash = _contentHash(project.images[index].bytes);
+    for (final bool mips in <bool>[true, false]) {
+      final TextureHandle? found = _textures[(hash, mips)];
+      if (found != null) return found;
+    }
+    return null;
+  }
+
   /// The material an object is drawn with, by its first slot.
   engine.Material? forObject(ModelObject object) =>
       this[object.materialSlots.isEmpty ? null : object.materialSlots.first];
@@ -91,6 +110,7 @@ final class MaterialPool {
       final uploaded = await uploadEncodedImage(
         device,
         bytes,
+        decodeImage: defaultImageDecoder,
         sampling: sampling,
         report: (String message) => warnings.add('image $index: $message'),
       );

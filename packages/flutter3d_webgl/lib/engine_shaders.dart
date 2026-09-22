@@ -1051,6 +1051,166 @@ void main() {
 }
 
 ''',
+    'PolylineVertex': r'''#version 300 es
+
+// A polyline of constant screen width, widened here rather than on the CPU —
+// gfx-86n.
+//
+// **Why a vertex stage and not a rebuilt buffer.** The width is a number of
+// pixels, so where a band's edges go depends on the camera, and working them
+// out on the CPU means rebuilding the whole line every time the camera moves.
+// For a route of tens of thousands of points that is a rebuild per frame. Here
+// the camera is `frame_info.mvp`, which the renderer already sets per draw, so
+// the buffer is written once and a camera move costs a uniform.
+//
+// **The standard vertex layout, repacked.** A material's vertex stage reads the
+// same sixteen floats every mesh does (see mesh.vert), because the engine lays
+// out one format for every draw. A line needs different things from a vertex,
+// and they fit into the same slots:
+//
+//   position   this point
+//   normal     the previous point (this one again at the start of the line)
+//   texcoord   x the distance along the line in metres, y 0 on one side and
+//              1 on the other — passed through, for a fragment stage that
+//              wants dashes or an edge falloff
+//   tangent    xyz the next point (this one again at the end), w the half
+//              width in pixels, signed for which side of the line this is
+//   color      the colour at this point, which is what makes a gradient
+//
+// Each point is two vertices, one per side.
+//
+// **The viewport comes from the material's own block**, because nothing the
+// engine binds to a vertex stage carries it: FrameInfo is three matrices and is
+// shared with every mesh stage. `Material.parameters` is the channel an
+// application already had for its own shaders; the renderer now hands it to a
+// vertex stage the material brought as well, so a resize is one parameter
+// written and not a rebuilt line.
+//
+// **A joint's own width, not a mitre.** Earlier this offset each point by a
+// bisector of its two neighbouring segments, stretched to keep both segments
+// full width through the turn — correct on paper, and unstable in practice:
+// the stretch depends on the *angle* between two independently projected
+// directions, and a projection has no floor on how extreme an angle it will
+// report. A route that turns a modest 30 degrees in three dimensions can
+// still turn near 180 degrees on screen from the right camera angle — most
+// of it looking down the route's own general plane — and at that point the
+// stretch a `stroke-miterlimit`-style clamp allows (four half widths) is
+// already enough for a handful of neighbouring joints to cover a shape that
+// has itself foreshortened to a sliver, which is what a turn's own
+// mathematically-correct mitre looked like exploding into unrelated
+// triangles as the camera swept past that angle.
+//
+// The offset here is instead the perpendicular of one direction per point —
+// the direction from the point before this one to the point after it, which
+// is exactly the *only* direction there is at either end of the line, where
+// one of those two is a copy of this point. No angle between two directions
+// is ever computed, so there is nothing here for an extreme projection to
+// destabilise; the trade is a corner that can pinch inward on a sharp turn
+// rather than one that mitres outward to meet both segments exactly — the
+// same trade a plain averaged-tangent ribbon makes, for the same reason, and
+// the one gfx-86n's original mitre existed to avoid. A pinch is bounded by
+// the line's own half width; the mitre it replaced was not
+// bounded by anything a viewer could see coming.
+
+in vec3 position;
+in vec3 normal;
+in vec2 texcoord;
+in vec4 tangent;
+in vec4 color;
+
+layout(std140) uniform FrameInfo {
+  mat4 mvp;
+  mat4 model;
+  mat4 normal_matrix;
+}
+frame_info;
+
+layout(std140) uniform MaterialParams {
+  /// xy: the render target in pixels. zw unused.
+  vec4 viewport;
+}
+params;
+
+out vec3 v_world_position;
+out vec3 v_normal;
+out vec2 v_texcoord;
+out vec4 v_tangent;
+out vec4 v_color;
+out vec2 v_lightmap_uv;
+
+// The w below which a point is treated as at the eye. Dividing by a w near zero
+// sends a neighbour to infinity, and dividing by a negative one mirrors it
+// through the centre of the screen — either turns the band sideways.
+const float kNear = 1e-4;
+
+// `from`, moved along the segment towards `to` until it is in front of the eye.
+//
+// A neighbour behind the camera would otherwise divide into the wrong half of
+// the screen, and the direction of the segment — which is all a neighbour is
+// used for — would point backwards.
+vec4 InFront(vec4 from, vec4 to) {
+  if (from.w >= kNear) return from;
+  float t = (kNear - from.w) / (to.w - from.w);
+  return mix(from, to, clamp(t, 0.0, 1.0));
+}
+
+// A clip position in pixels from the centre of the viewport.
+vec2 ToPixels(vec4 clip, vec2 viewport) {
+  return clip.xy / clip.w * viewport * 0.5;
+}
+
+void main() {
+  vec2 viewport = params.viewport.xy;
+  float halfWidth = abs(tangent.w);
+  float side = tangent.w < 0.0 ? -1.0 : 1.0;
+
+  vec4 here = frame_info.mvp * vec4(position, 1.0);
+  vec4 before = frame_info.mvp * vec4(normal, 1.0);
+  vec4 after = frame_info.mvp * vec4(tangent.xyz, 1.0);
+
+  // A point behind the eye is pulled forward along whichever segment reaches
+  // the front, so the visible part of that segment is drawn where it is. Both
+  // neighbours behind as well means nothing of this point is visible, and it
+  // is left where the clipper will discard it.
+  if (here.w < kNear) {
+    here = after.w >= kNear ? InFront(here, after) : InFront(here, before);
+  }
+  before = InFront(before, here);
+  after = InFront(after, here);
+
+  // From the point before this one straight to the point after it — skipping
+  // `here` itself, so an end of the line (where one neighbour is a copy of
+  // `here`) reduces to the one direction that neighbour alone gives, with
+  // nothing to fall back from.
+  vec2 dir = ToPixels(after, viewport) - ToPixels(before, viewport);
+  float dirLength = length(dir);
+  // A pair of coincident points on screen — a true zero-length line, not
+  // just a foreshortened one — has no direction to be wide across; any
+  // perpendicular is as good as any other for the one degenerate pixel it
+  // affects.
+  vec2 segmentNormal = dirLength > 1e-9
+      ? vec2(-dir.y, dir.x) / dirLength
+      : vec2(1.0, 0.0);
+
+  vec2 offset = segmentNormal * halfWidth * side;
+
+  // Back from pixels to clip space, at this point's own w, so the offset is the
+  // same number of pixels at every depth.
+  gl_Position =
+      vec4(here.xy + offset / (viewport * 0.5) * here.w, here.zw);
+
+  v_world_position = (frame_info.model * vec4(position, 1.0)).xyz;
+  // A band has no normal of its own. Up is what a route drawn over ground
+  // faces, and it is a unit vector, which is what ReadSurface normalises —
+  // zero would be a NaN in every screen-space effect that reads the buffer.
+  v_normal = normalize(mat3(frame_info.normal_matrix) * vec3(0.0, 1.0, 0.0));
+  v_texcoord = texcoord;
+  v_tangent = vec4(1.0, 0.0, 0.0, 1.0);
+  v_color = color;
+  v_lightmap_uv = vec2(0.0);
+}
+
+''',
     'ParticleVertex': r'''#version 300 es
 
 // Vertex stage for particles.
@@ -1538,7 +1698,7 @@ float ViewDepth() { return 0.0; }
 /// A depth in metres has none of that: the exponent carries the range and the
 /// mantissa carries the same relative precision everywhere, which at twenty
 /// metres is a centimetre. Both numbers are measured in
-/// `flutter3d_cpu/test/surface_depth_test.dart`.
+/// `flutter3d/test/surface_depth_test.dart`.
 ///
 /// Zero still means nothing was drawn. The attachment is cleared to zero and
 /// nothing is drawn in front of the near plane.
@@ -1636,6 +1796,84 @@ void WriteDisplayColor(vec3 displayColor, float alpha) {
 /// offset, with the std140 stride of 16 bytes.
 #define kMaxLights 8
 
+/// How many more lights one draw may be handed — `gfx-74n`.
+///
+/// **The eight above stay exactly what they were**, which is what keeps this
+/// from moving a single recorded frame: a draw with eight lights or fewer runs
+/// the loop it has always run, reads the uniform arrays it has always read, and
+/// never touches the texture below. The tail is the part that used to be
+/// impossible.
+///
+/// A loop bound rather than a cost. `AccumulateLights` breaks at the draw's own
+/// count, so a scene with three lights costs three iterations whatever this
+/// says. Twenty-four because the two tables below are `vec4 x[6]` and four
+/// lanes fit a `vec4`: two hundred and eight bytes a draw, against the five
+/// hundred and twelve the light arrays already cost.
+#define kExtraLights 24
+#define kTotalLights (kMaxLights + kExtraLights)
+
+/// Every light in the scene, one per row, four texels across — `gfx-74n`.
+///
+/// **A texture rather than a wider uniform block, and that is the design.**
+/// `FragInfo` is uploaded on every draw, so widening its four `vec4` arrays to
+/// hold thirty-two lights would be a two-kilobyte upload per draw in every
+/// scene, including every scene with one light. This is built once a frame and
+/// only when a scene has more lights than a draw can hold in its slots.
+///
+/// Row layout, which `renderer_light_list.dart` writes and only this reads:
+///
+///  * texel 0 — xyz world position, w type (0 directional, 1 point, 2 spot)
+///  * texel 1 — rgb linear colour, w intensity
+///  * texel 2 — xyz the direction it points, w range
+///  * texel 3 — x cos(inner), y cos(outer), zw unused
+///
+/// The same four vectors the uniform arrays hold, in the same order, so one
+/// reader serves both.
+uniform sampler2D light_list_texture;
+
+layout(std140) uniform LightListInfo {
+  /// x: how many rows this draw reads, zero when it reads none.
+  /// y, z: one over the texture's width and height.
+  /// w: unused.
+  vec4 list;
+
+  /// Which rows, four to a vector, in the order they are read.
+  ///
+  /// Indices rather than the light data itself: the data is the same for every
+  /// draw in the frame and belongs in the texture; what differs per draw is
+  /// *which* of them reach it, and that is what `Renderer._drawLightsFor`
+  /// already decides.
+  vec4 indices[6];
+
+  /// How much of each of those survives the edge fade, in the same order.
+  ///
+  /// Per draw and not in the texture, because the row an index points at is
+  /// shared by every draw in the frame: a scale written into it would dim that
+  /// light for all of them. `gfx-12n`'s fade lives at the end of the list now —
+  /// that is where a light stops contributing, and fading the slots against a
+  /// water line that no longer marks a cliff would dim a light for no reason
+  /// while its rival stayed bright, making the swap more visible rather than
+  /// less.
+  vec4 scales[6];
+}
+light_list_info;
+
+/// One lane of a six-vector table, [slot] counting from nought.
+float LightListLane(vec4 four, int slot) {
+  int lane = slot - (slot / 4) * 4;
+  return lane == 0 ? four.x : lane == 1 ? four.y : lane == 2 ? four.z : four.w;
+}
+
+/// The row light [slot] of the list reads.
+float LightListRow(int slot) {
+  return LightListLane(light_list_info.indices[slot / 4], slot);
+}
+
+/// How much of light [slot] of the list survives the edge fade.
+float LightListScale(int slot) {
+  return LightListLane(light_list_info.scales[slot / 4], slot);
+}
+
 layout(std140) uniform FragInfo {
   /// xyz: world position (point and spot). w: type, 0 directional 1 point 2 spot.
   vec4 light_position[kMaxLights];
@@ -1698,7 +1936,14 @@ layout(std140) uniform FragInfo {
   vec4 ambient_sky;
 
   /// rgb: what a surface facing straight down receives — bounce off the ground
-  /// rather than the ground itself. w unused.
+  /// rather than the ground itself.
+  ///
+  /// **w is the directional light's apparent size** — `gfx-15n` — which has
+  /// nothing to do with ambient and everything to do with this being the last
+  /// unspent component in a block six shaders share. `frame_params.w` was the
+  /// slot reserved for a frame-wide parameter and the environment's level
+  /// count took it; appending to this block moves offsets four backends have
+  /// agreed on. See `shadow.glsl`, which reads it.
   ///
   /// Two colours rather than one is the whole of what makes ambient look like
   /// light instead of like a lifted black level. Outdoors the sky is blue and
@@ -1752,8 +1997,38 @@ Surface ReadSurface() {
   // material is opaque or blended, and discard would then be wrong rather than
   // merely unnecessary. Doing it before anything else is deliberate: a
   // discarded fragment should not pay for the lighting loop.
+  //
+  // **A cutoff below -1.5 is the fourth mode: hashed** — `gfx-16n`. The
+  // sentinel rides in the same component because the alternative is a second
+  // number in a block six shaders share, and -1 already meant "not masked";
+  // anything more negative was free. See [MaterialAlphaMode.hashed].
   float cutoff = frag_info.material2.x;
-  if (cutoff >= 0.0 && s.alpha < cutoff) discard;
+  if (cutoff >= 0.0) {
+    if (s.alpha < cutoff) discard;
+  } else if (cutoff < -1.5) {
+    // **Stochastic instead of a threshold.** A leaf texture at 40% opacity is
+    // either entirely there or entirely gone under a fixed cutoff, so a fern
+    // comes out as a hard-edged cardboard cut-out; sorting would fix it and
+    // costs a sort per frame and a draw per layer. Comparing against noise
+    // instead keeps 40% of the *pixels*, which resolves as 40% opacity to
+    // anything that averages several of them — a higher-resolution target,
+    // a downsample, a person standing back.
+    //
+    // **Hashed on world position, not on the screen.** Screen-space noise is
+    // one line shorter and swims: the pattern stays put while the object
+    // moves through it, so a moving branch sparkles. Anchoring it to where
+    // the surface *is* means a given speck of leaf keeps its verdict from
+    // frame to frame, and the camera moving changes nothing.
+    //
+    // The scale is a constant and it is the whole tuning: finer than the
+    // texture's own detail and the noise disappears into aliasing, coarser
+    // and the leaf breaks into blotches. Sixteen per metre is about a
+    // centimetre of grain at a metre away.
+    vec3 anchored = floor(v_world_position * 16.0);
+    float noise = fract(
+        sin(dot(anchored, vec3(12.9898, 78.233, 37.719))) * 43758.5453);
+    if (s.alpha < noise) discard;
+  }
 
   s.n = normalize(v_normal);
   s.v = normalize(frag_info.camera_position.xyz - v_world_position);
@@ -1787,8 +2062,18 @@ Surface ReadSurface() {
 }
 
 int LightCount() {
-  return clamp(int(frag_info.frame_params.y + 0.5), 0, kMaxLights);
+  return clamp(int(frag_info.frame_params.y + 0.5), 0, kMaxLights) +
+      clamp(int(light_list_info.list.x + 0.5), 0, kExtraLights);
 }
+
+/// Whether light [index] carries a shadow — `gfx-74n`.
+///
+/// Only the first eight do. The cube atlas holds six rows and the slot table is
+/// eight entries wide, so a light from the list has no row to read and asking
+/// for one would index past the table. That is a real limit and the right one:
+/// the eight a draw keeps in its slots are the eight ranked most relevant to
+/// it, which is exactly the set worth a shadow map.
+bool LightHasShadow(int index) { return index < kMaxLights; }
 
 /// Distance attenuation for a punctual light, following the glTF spec.
 ///
@@ -1805,6 +2090,99 @@ float PunctualAttenuation(float distance, float range) {
   return attenuation;
 }
 
+/// How much of [s]'s sky a rectangle covers, weighted by the cosine —
+/// `gfx-77n`.
+///
+/// **Exact, not fitted.** This is Lambert's own form factor for a polygon, from
+/// 1760: for each edge, the angle it subtends at the shading point times how
+/// much the edge's plane leans into the surface normal. Summed over four edges
+/// and halved, it *is* the integral of `cos θ` over the rectangle's projection
+/// on the hemisphere — the quantity a punctual light approximates with a single
+/// `n · l`. So there is no table to ship and nothing to fit: the usual
+/// linearly-transformed-cosine approach exists to make the *specular* lobe
+/// tractable, and buys nothing here, where the diffuse answer is a closed form
+/// four `acos` calls long.
+///
+/// Returns irradiance over radiance, so a surface facing a rectangle that fills
+/// its whole sky gets π, the same as a uniform hemisphere. [corners] are the
+/// four vertices in order, relative to the shading point.
+///
+/// **The rectangle emits along `cross(halfWidth, halfHeight)`**, and with the
+/// corners wound as `SampleLight` winds them the sum comes out *negative* on
+/// that side, so the negation below is the convention rather than a fix. It was
+/// measured rather than derived: the first version returned `+total * 0.5`, and
+/// against the reference integration it read nought where the answer was 0.349
+/// and 1.02 where the answer was nought — the two failures a flipped winding
+/// produces, and between them they name the sign with no room left to argue.
+float RectangleFormFactor(vec3 corners[4], vec3 n) {
+  float total = 0.0;
+  for (int i = 0; i < 4; i++) {
+    vec3 a = normalize(corners[i]);
+    vec3 b = normalize(corners[(i + 1) & 3]);
+    // Clamped before the `acos`: two nearly parallel edge directions can give a
+    // dot a hair past one through rounding alone, and `acos` of that is a NaN
+    // that spreads to the whole pixel and then to the bloom.
+    float angle = acos(clamp(dot(a, b), -1.0, 1.0));
+    vec3 axis = cross(a, b);
+    float len = length(axis);
+    // A degenerate edge — the shading point lies on the line through it —
+    // subtends nothing, and normalising a zero vector is the other way to get
+    // that NaN.
+    if (len > 1e-6) total += angle * dot(axis / len, n);
+  }
+  // Clamped rather than tested separately: a surface on the panel's dark side,
+  // or facing away from it, comes out with the sign reversed, so "one-sided" is
+  // a property of the arithmetic instead of a flag somebody has to remember.
+  return max(-total * 0.5, 0.0);
+}
+
+/// Where on the rectangle the specular lobe is really looking — `gfx-77n`.
+///
+/// **The representative point, which is an approximation, unlike the diffuse
+/// above.** The mirror direction leaves the surface and either hits the panel
+/// or misses it; the closest point of the panel to that ray is treated as a
+/// punctual light standing in for the whole rectangle. It is the standard
+/// cheap answer and its one visible property is the one the row asked for: as
+/// the view moves the closest point slides along the panel, so the highlight
+/// is a streak with the panel's own shape and orientation rather than a dot.
+///
+/// What it does not do is widen the lobe by the panel's solid angle, so a
+/// rough surface under a large panel is a little darker than a full integration
+/// would make it. That is a known error of this method and not a bug in this
+/// transcription; the fix is the fitted table this function exists to avoid.
+vec3 RectangleClosestPoint(vec3 centre, vec3 halfWidth, vec3 halfHeight,
+                           vec3 world, vec3 mirror) {
+  vec3 n = cross(halfWidth, halfHeight);
+  float nLen = length(n);
+  // A panel with no area has no surface to find a point on; its centre is the
+  // only answer that is not a division by zero.
+  if (nLen < 1e-12) return centre;
+  n /= nLen;
+
+  vec3 toPlane = centre - world;
+  float denom = dot(mirror, n);
+  vec3 onPlane;
+  // Parallel to the panel, or pointing away from it: the ray never lands, so
+  // the nearest thing to it is the centre projected back, which keeps the
+  // highlight on the panel instead of sending it to infinity.
+  if (abs(denom) < 1e-5) {
+    onPlane = toPlane - n * dot(toPlane, n);
+  } else {
+    float t = dot(toPlane, n) / denom;
+    onPlane = t > 0.0 ? mirror * t : toPlane - n * dot(toPlane, n);
+  }
+
+  // Clamped into the rectangle in its own axes. Dividing by the squared length
+  // turns a projection into a coordinate in units of the half-extent, so the
+  // clamp is against one either way round.
+  vec3 offset = onPlane - toPlane;
+  float wLen2 = max(dot(halfWidth, halfWidth), 1e-12);
+  float hLen2 = max(dot(halfHeight, halfHeight), 1e-12);
+  float u = clamp(dot(offset, halfWidth) / wLen2, -1.0, 1.0);
+  float v = clamp(dot(offset, halfHeight) / hLen2, -1.0, 1.0);
+  return centre + halfWidth * u + halfHeight * v;
+}
+
 /// Resolves light [index] against the surface.
 ///
 /// Returns `n_dot_l == 0` for anything that contributes nothing — behind the
@@ -1813,12 +2191,91 @@ float PunctualAttenuation(float distance, float range) {
 LightSample SampleLight(int index, Surface s) {
   LightSample light;
 
-  vec4 position = frag_info.light_position[index];
-  vec4 color = frag_info.light_color[index];
-  vec4 direction = frag_info.light_direction[index];
-  vec4 cone = frag_info.light_cone[index];
+  vec4 position;
+  vec4 color;
+  vec4 direction;
+  vec4 cone;
+  if (index < kMaxLights) {
+    position = frag_info.light_position[index];
+    color = frag_info.light_color[index];
+    direction = frag_info.light_direction[index];
+    cone = frag_info.light_cone[index];
+  } else {
+    // A row of the light list — `gfx-74n`. Sampled at texel centres so a
+    // driver's rounding cannot land a fetch on a neighbour, and the four texels
+    // across the row are the same four vectors the arrays above hold.
+    int slot = index - kMaxLights;
+    float v = (LightListRow(slot) + 0.5) * light_list_info.list.z;
+    float u = light_list_info.list.y;
+    // `textureLod` and not `texture`, for `shadow.glsl`'s own reason: `index`
+    // reaches this branch through a function parameter, so a WGSL backend
+    // cannot see that every invocation of a draw walks the same light count
+    // and refuses the implicit derivative as possibly non-uniform. The atlas
+    // has one level, so naming it directly changes no pixel.
+    position = textureLod(light_list_texture, vec2(0.5 * u, v), 0.0);
+    color = textureLod(light_list_texture, vec2(1.5 * u, v), 0.0);
+    direction = textureLod(light_list_texture, vec2(2.5 * u, v), 0.0);
+    cone = textureLod(light_list_texture, vec2(3.5 * u, v), 0.0);
+    // The intensity and not the colour, for `LightBuffer._pack`'s own reason:
+    // the same multiply here, and only one of them is a number nobody authored.
+    color.w *= LightListScale(slot);
+  }
 
   float type = position.w;
+
+  // **The rectangle leaves before `aim` is taken — `gfx-77n`.** For every other
+  // kind `direction.xyz` is a unit vector saying which way the light points;
+  // for this one it is an edge of the panel, with its length carrying half the
+  // width, and normalising it here would quietly throw the size away.
+  if (type > 2.5) {
+    vec3 halfWidth = direction.xyz;
+    vec3 halfHeight = cone.xyz;
+    vec3 toCentre = position.xyz - v_world_position;
+
+    vec3 corners[4];
+    corners[0] = toCentre - halfWidth - halfHeight;
+    corners[1] = toCentre + halfWidth - halfHeight;
+    corners[2] = toCentre + halfWidth + halfHeight;
+    corners[3] = toCentre - halfWidth + halfHeight;
+
+    // The cosine-weighted solid angle, which takes the place `n · l` holds for
+    // a punctual light: the loop multiplies the shading by `n_dot_l`, so
+    // putting the exact integral here makes the diffuse term exact rather than
+    // sampled. See [RectangleFormFactor].
+    float formFactor = RectangleFormFactor(corners, s.n);
+
+    // Radiance rather than intensity: `intensity` means the same thing for
+    // every kind of light, so a panel's is spread over its own area here.
+    // Enlarging a window at a fixed rating then dims it per square metre and
+    // leaves the room as bright, which is what the number is supposed to mean.
+    float area = length(cross(halfWidth, halfHeight)) * 4.0;
+    float radiance = area > 1e-9 ? 1.0 / area : 0.0;
+
+    // The range window only. A punctual light needs the inverse square as
+    // well; the form factor already contains it, because a panel twice as far
+    // away subtends a quarter of the sky.
+    float distance = length(toCentre);
+    if (direction.w > 0.0) {
+      float ratio = distance / direction.w;
+      float window = clamp(1.0 - ratio * ratio * ratio * ratio, 0.0, 1.0);
+      radiance *= window * window;
+    }
+
+    vec3 mirror = reflect(-s.v, s.n);
+    vec3 representative = RectangleClosestPoint(
+        position.xyz, halfWidth, halfHeight, v_world_position, mirror);
+    vec3 toPoint = representative - v_world_position;
+    float pointDistance = length(toPoint);
+    light.l = pointDistance > 1e-6 ? toPoint / pointDistance : s.n;
+
+    light.h = normalize(light.l + s.v);
+    light.n_dot_l = formFactor;
+    light.n_dot_h = max(dot(s.n, light.h), 0.0);
+    light.v_dot_h = max(dot(s.v, light.h), 0.0);
+    light.radiance = color.rgb * color.w * radiance;
+    return light;
+  }
+
   vec3 aim = normalize(direction.xyz);
   float attenuation = 1.0;
 
@@ -1965,8 +2422,8 @@ layout(std140) uniform PointShadow {
 }
 point_shadow;
 
-/// Eight points on a Poisson disk, the same set flutter_scene filters its
-/// cascades with.
+/// Eight points on a Poisson disk, a common set for filtering cascaded
+/// shadows.
 ///
 /// A disk rather than a grid because a grid of taps on a straight shadow edge
 /// lands every sample on the same side at once, and the edge steps between
@@ -2146,11 +2603,11 @@ float PointShadowFactor(vec3 world, vec3 normal, int lightIndex) {
       2.0 * toLightLength * max(point_shadow.slots[lightIndex].z, 1e-4) *
       point_shadow.params3.y;
   // Both terms are metres. The slope term used to be the kernel radius, which
-  // is a fraction of a tile — a unit error copied across from flutter_scene,
-  // where the softness it borrows genuinely is the right quantity for their
-  // map. Here it meant widening the kernel also lifted the sample off the
-  // surface, by up to ten centimetres at the wider settings, so the softening
-  // and the lift cancelled: tripling the kernel moved 184 pixels of the frame,
+  // is a fraction of a tile — a unit mismatch carried over from an estimate
+  // where a softness radius genuinely was the right quantity. Here it meant
+  // widening the kernel also lifted the sample off the surface, by up to ten
+  // centimetres at the wider settings, so the softening and the lift
+  // cancelled: tripling the kernel moved 184 pixels of the frame,
   // where the kernel alone moves thousands. It is what made contact hardening
   // look inert, and it was hiding in a comparison rather than in the estimate.
   vec3 origin = world + normal * texel * point_shadow.params.w * (1.0 + slope);
@@ -2283,12 +2740,18 @@ vec3 AccumulateLights(Surface s) {
   vec3 total = vec3(0.0);
   int count = LightCount();
 
-  for (int i = 0; i < kMaxLights; i++) {
+  for (int i = 0; i < kTotalLights; i++) {
     if (i >= count) break;
     LightSample light = SampleLight(i, s);
     if (light.n_dot_l <= 0.0) continue;
-    float visibility = LightVisibility(s, light, i) *
-        PointShadowFactor(v_world_position, s.n, i);
+    // A light from the list has no shadow row to read — see `LightHasShadow`.
+    // A branch rather than something folded into the two calls, because both
+    // index tables eight entries wide and the ninth light would read past them
+    // rather than read a one.
+    float visibility = LightHasShadow(i)
+        ? LightVisibility(s, light, i) *
+              PointShadowFactor(v_world_position, s.n, i)
+        : 1.0;
     if (visibility <= 0.0) continue;
     total += ShadeLight(s, light) * light.radiance * light.n_dot_l * visibility;
   }
@@ -2546,7 +3009,7 @@ float ViewDepth() { return 0.0; }
 /// A depth in metres has none of that: the exponent carries the range and the
 /// mantissa carries the same relative precision everywhere, which at twenty
 /// metres is a centimetre. Both numbers are measured in
-/// `flutter3d_cpu/test/surface_depth_test.dart`.
+/// `flutter3d/test/surface_depth_test.dart`.
 ///
 /// Zero still means nothing was drawn. The attachment is cleared to zero and
 /// nothing is drawn in front of the near plane.
@@ -2644,6 +3107,84 @@ void WriteDisplayColor(vec3 displayColor, float alpha) {
 /// offset, with the std140 stride of 16 bytes.
 #define kMaxLights 8
 
+/// How many more lights one draw may be handed — `gfx-74n`.
+///
+/// **The eight above stay exactly what they were**, which is what keeps this
+/// from moving a single recorded frame: a draw with eight lights or fewer runs
+/// the loop it has always run, reads the uniform arrays it has always read, and
+/// never touches the texture below. The tail is the part that used to be
+/// impossible.
+///
+/// A loop bound rather than a cost. `AccumulateLights` breaks at the draw's own
+/// count, so a scene with three lights costs three iterations whatever this
+/// says. Twenty-four because the two tables below are `vec4 x[6]` and four
+/// lanes fit a `vec4`: two hundred and eight bytes a draw, against the five
+/// hundred and twelve the light arrays already cost.
+#define kExtraLights 24
+#define kTotalLights (kMaxLights + kExtraLights)
+
+/// Every light in the scene, one per row, four texels across — `gfx-74n`.
+///
+/// **A texture rather than a wider uniform block, and that is the design.**
+/// `FragInfo` is uploaded on every draw, so widening its four `vec4` arrays to
+/// hold thirty-two lights would be a two-kilobyte upload per draw in every
+/// scene, including every scene with one light. This is built once a frame and
+/// only when a scene has more lights than a draw can hold in its slots.
+///
+/// Row layout, which `renderer_light_list.dart` writes and only this reads:
+///
+///  * texel 0 — xyz world position, w type (0 directional, 1 point, 2 spot)
+///  * texel 1 — rgb linear colour, w intensity
+///  * texel 2 — xyz the direction it points, w range
+///  * texel 3 — x cos(inner), y cos(outer), zw unused
+///
+/// The same four vectors the uniform arrays hold, in the same order, so one
+/// reader serves both.
+uniform sampler2D light_list_texture;
+
+layout(std140) uniform LightListInfo {
+  /// x: how many rows this draw reads, zero when it reads none.
+  /// y, z: one over the texture's width and height.
+  /// w: unused.
+  vec4 list;
+
+  /// Which rows, four to a vector, in the order they are read.
+  ///
+  /// Indices rather than the light data itself: the data is the same for every
+  /// draw in the frame and belongs in the texture; what differs per draw is
+  /// *which* of them reach it, and that is what `Renderer._drawLightsFor`
+  /// already decides.
+  vec4 indices[6];
+
+  /// How much of each of those survives the edge fade, in the same order.
+  ///
+  /// Per draw and not in the texture, because the row an index points at is
+  /// shared by every draw in the frame: a scale written into it would dim that
+  /// light for all of them. `gfx-12n`'s fade lives at the end of the list now —
+  /// that is where a light stops contributing, and fading the slots against a
+  /// water line that no longer marks a cliff would dim a light for no reason
+  /// while its rival stayed bright, making the swap more visible rather than
+  /// less.
+  vec4 scales[6];
+}
+light_list_info;
+
+/// One lane of a six-vector table, [slot] counting from nought.
+float LightListLane(vec4 four, int slot) {
+  int lane = slot - (slot / 4) * 4;
+  return lane == 0 ? four.x : lane == 1 ? four.y : lane == 2 ? four.z : four.w;
+}
+
+/// The row light [slot] of the list reads.
+float LightListRow(int slot) {
+  return LightListLane(light_list_info.indices[slot / 4], slot);
+}
+
+/// How much of light [slot] of the list survives the edge fade.
+float LightListScale(int slot) {
+  return LightListLane(light_list_info.scales[slot / 4], slot);
+}
+
 layout(std140) uniform FragInfo {
   /// xyz: world position (point and spot). w: type, 0 directional 1 point 2 spot.
   vec4 light_position[kMaxLights];
@@ -2706,7 +3247,14 @@ layout(std140) uniform FragInfo {
   vec4 ambient_sky;
 
   /// rgb: what a surface facing straight down receives — bounce off the ground
-  /// rather than the ground itself. w unused.
+  /// rather than the ground itself.
+  ///
+  /// **w is the directional light's apparent size** — `gfx-15n` — which has
+  /// nothing to do with ambient and everything to do with this being the last
+  /// unspent component in a block six shaders share. `frame_params.w` was the
+  /// slot reserved for a frame-wide parameter and the environment's level
+  /// count took it; appending to this block moves offsets four backends have
+  /// agreed on. See `shadow.glsl`, which reads it.
   ///
   /// Two colours rather than one is the whole of what makes ambient look like
   /// light instead of like a lifted black level. Outdoors the sky is blue and
@@ -2760,8 +3308,38 @@ Surface ReadSurface() {
   // material is opaque or blended, and discard would then be wrong rather than
   // merely unnecessary. Doing it before anything else is deliberate: a
   // discarded fragment should not pay for the lighting loop.
+  //
+  // **A cutoff below -1.5 is the fourth mode: hashed** — `gfx-16n`. The
+  // sentinel rides in the same component because the alternative is a second
+  // number in a block six shaders share, and -1 already meant "not masked";
+  // anything more negative was free. See [MaterialAlphaMode.hashed].
   float cutoff = frag_info.material2.x;
-  if (cutoff >= 0.0 && s.alpha < cutoff) discard;
+  if (cutoff >= 0.0) {
+    if (s.alpha < cutoff) discard;
+  } else if (cutoff < -1.5) {
+    // **Stochastic instead of a threshold.** A leaf texture at 40% opacity is
+    // either entirely there or entirely gone under a fixed cutoff, so a fern
+    // comes out as a hard-edged cardboard cut-out; sorting would fix it and
+    // costs a sort per frame and a draw per layer. Comparing against noise
+    // instead keeps 40% of the *pixels*, which resolves as 40% opacity to
+    // anything that averages several of them — a higher-resolution target,
+    // a downsample, a person standing back.
+    //
+    // **Hashed on world position, not on the screen.** Screen-space noise is
+    // one line shorter and swims: the pattern stays put while the object
+    // moves through it, so a moving branch sparkles. Anchoring it to where
+    // the surface *is* means a given speck of leaf keeps its verdict from
+    // frame to frame, and the camera moving changes nothing.
+    //
+    // The scale is a constant and it is the whole tuning: finer than the
+    // texture's own detail and the noise disappears into aliasing, coarser
+    // and the leaf breaks into blotches. Sixteen per metre is about a
+    // centimetre of grain at a metre away.
+    vec3 anchored = floor(v_world_position * 16.0);
+    float noise = fract(
+        sin(dot(anchored, vec3(12.9898, 78.233, 37.719))) * 43758.5453);
+    if (s.alpha < noise) discard;
+  }
 
   s.n = normalize(v_normal);
   s.v = normalize(frag_info.camera_position.xyz - v_world_position);
@@ -2795,8 +3373,18 @@ Surface ReadSurface() {
 }
 
 int LightCount() {
-  return clamp(int(frag_info.frame_params.y + 0.5), 0, kMaxLights);
+  return clamp(int(frag_info.frame_params.y + 0.5), 0, kMaxLights) +
+      clamp(int(light_list_info.list.x + 0.5), 0, kExtraLights);
 }
+
+/// Whether light [index] carries a shadow — `gfx-74n`.
+///
+/// Only the first eight do. The cube atlas holds six rows and the slot table is
+/// eight entries wide, so a light from the list has no row to read and asking
+/// for one would index past the table. That is a real limit and the right one:
+/// the eight a draw keeps in its slots are the eight ranked most relevant to
+/// it, which is exactly the set worth a shadow map.
+bool LightHasShadow(int index) { return index < kMaxLights; }
 
 /// Distance attenuation for a punctual light, following the glTF spec.
 ///
@@ -2813,6 +3401,99 @@ float PunctualAttenuation(float distance, float range) {
   return attenuation;
 }
 
+/// How much of [s]'s sky a rectangle covers, weighted by the cosine —
+/// `gfx-77n`.
+///
+/// **Exact, not fitted.** This is Lambert's own form factor for a polygon, from
+/// 1760: for each edge, the angle it subtends at the shading point times how
+/// much the edge's plane leans into the surface normal. Summed over four edges
+/// and halved, it *is* the integral of `cos θ` over the rectangle's projection
+/// on the hemisphere — the quantity a punctual light approximates with a single
+/// `n · l`. So there is no table to ship and nothing to fit: the usual
+/// linearly-transformed-cosine approach exists to make the *specular* lobe
+/// tractable, and buys nothing here, where the diffuse answer is a closed form
+/// four `acos` calls long.
+///
+/// Returns irradiance over radiance, so a surface facing a rectangle that fills
+/// its whole sky gets π, the same as a uniform hemisphere. [corners] are the
+/// four vertices in order, relative to the shading point.
+///
+/// **The rectangle emits along `cross(halfWidth, halfHeight)`**, and with the
+/// corners wound as `SampleLight` winds them the sum comes out *negative* on
+/// that side, so the negation below is the convention rather than a fix. It was
+/// measured rather than derived: the first version returned `+total * 0.5`, and
+/// against the reference integration it read nought where the answer was 0.349
+/// and 1.02 where the answer was nought — the two failures a flipped winding
+/// produces, and between them they name the sign with no room left to argue.
+float RectangleFormFactor(vec3 corners[4], vec3 n) {
+  float total = 0.0;
+  for (int i = 0; i < 4; i++) {
+    vec3 a = normalize(corners[i]);
+    vec3 b = normalize(corners[(i + 1) & 3]);
+    // Clamped before the `acos`: two nearly parallel edge directions can give a
+    // dot a hair past one through rounding alone, and `acos` of that is a NaN
+    // that spreads to the whole pixel and then to the bloom.
+    float angle = acos(clamp(dot(a, b), -1.0, 1.0));
+    vec3 axis = cross(a, b);
+    float len = length(axis);
+    // A degenerate edge — the shading point lies on the line through it —
+    // subtends nothing, and normalising a zero vector is the other way to get
+    // that NaN.
+    if (len > 1e-6) total += angle * dot(axis / len, n);
+  }
+  // Clamped rather than tested separately: a surface on the panel's dark side,
+  // or facing away from it, comes out with the sign reversed, so "one-sided" is
+  // a property of the arithmetic instead of a flag somebody has to remember.
+  return max(-total * 0.5, 0.0);
+}
+
+/// Where on the rectangle the specular lobe is really looking — `gfx-77n`.
+///
+/// **The representative point, which is an approximation, unlike the diffuse
+/// above.** The mirror direction leaves the surface and either hits the panel
+/// or misses it; the closest point of the panel to that ray is treated as a
+/// punctual light standing in for the whole rectangle. It is the standard
+/// cheap answer and its one visible property is the one the row asked for: as
+/// the view moves the closest point slides along the panel, so the highlight
+/// is a streak with the panel's own shape and orientation rather than a dot.
+///
+/// What it does not do is widen the lobe by the panel's solid angle, so a
+/// rough surface under a large panel is a little darker than a full integration
+/// would make it. That is a known error of this method and not a bug in this
+/// transcription; the fix is the fitted table this function exists to avoid.
+vec3 RectangleClosestPoint(vec3 centre, vec3 halfWidth, vec3 halfHeight,
+                           vec3 world, vec3 mirror) {
+  vec3 n = cross(halfWidth, halfHeight);
+  float nLen = length(n);
+  // A panel with no area has no surface to find a point on; its centre is the
+  // only answer that is not a division by zero.
+  if (nLen < 1e-12) return centre;
+  n /= nLen;
+
+  vec3 toPlane = centre - world;
+  float denom = dot(mirror, n);
+  vec3 onPlane;
+  // Parallel to the panel, or pointing away from it: the ray never lands, so
+  // the nearest thing to it is the centre projected back, which keeps the
+  // highlight on the panel instead of sending it to infinity.
+  if (abs(denom) < 1e-5) {
+    onPlane = toPlane - n * dot(toPlane, n);
+  } else {
+    float t = dot(toPlane, n) / denom;
+    onPlane = t > 0.0 ? mirror * t : toPlane - n * dot(toPlane, n);
+  }
+
+  // Clamped into the rectangle in its own axes. Dividing by the squared length
+  // turns a projection into a coordinate in units of the half-extent, so the
+  // clamp is against one either way round.
+  vec3 offset = onPlane - toPlane;
+  float wLen2 = max(dot(halfWidth, halfWidth), 1e-12);
+  float hLen2 = max(dot(halfHeight, halfHeight), 1e-12);
+  float u = clamp(dot(offset, halfWidth) / wLen2, -1.0, 1.0);
+  float v = clamp(dot(offset, halfHeight) / hLen2, -1.0, 1.0);
+  return centre + halfWidth * u + halfHeight * v;
+}
+
 /// Resolves light [index] against the surface.
 ///
 /// Returns `n_dot_l == 0` for anything that contributes nothing — behind the
@@ -2821,12 +3502,91 @@ float PunctualAttenuation(float distance, float range) {
 LightSample SampleLight(int index, Surface s) {
   LightSample light;
 
-  vec4 position = frag_info.light_position[index];
-  vec4 color = frag_info.light_color[index];
-  vec4 direction = frag_info.light_direction[index];
-  vec4 cone = frag_info.light_cone[index];
+  vec4 position;
+  vec4 color;
+  vec4 direction;
+  vec4 cone;
+  if (index < kMaxLights) {
+    position = frag_info.light_position[index];
+    color = frag_info.light_color[index];
+    direction = frag_info.light_direction[index];
+    cone = frag_info.light_cone[index];
+  } else {
+    // A row of the light list — `gfx-74n`. Sampled at texel centres so a
+    // driver's rounding cannot land a fetch on a neighbour, and the four texels
+    // across the row are the same four vectors the arrays above hold.
+    int slot = index - kMaxLights;
+    float v = (LightListRow(slot) + 0.5) * light_list_info.list.z;
+    float u = light_list_info.list.y;
+    // `textureLod` and not `texture`, for `shadow.glsl`'s own reason: `index`
+    // reaches this branch through a function parameter, so a WGSL backend
+    // cannot see that every invocation of a draw walks the same light count
+    // and refuses the implicit derivative as possibly non-uniform. The atlas
+    // has one level, so naming it directly changes no pixel.
+    position = textureLod(light_list_texture, vec2(0.5 * u, v), 0.0);
+    color = textureLod(light_list_texture, vec2(1.5 * u, v), 0.0);
+    direction = textureLod(light_list_texture, vec2(2.5 * u, v), 0.0);
+    cone = textureLod(light_list_texture, vec2(3.5 * u, v), 0.0);
+    // The intensity and not the colour, for `LightBuffer._pack`'s own reason:
+    // the same multiply here, and only one of them is a number nobody authored.
+    color.w *= LightListScale(slot);
+  }
 
   float type = position.w;
+
+  // **The rectangle leaves before `aim` is taken — `gfx-77n`.** For every other
+  // kind `direction.xyz` is a unit vector saying which way the light points;
+  // for this one it is an edge of the panel, with its length carrying half the
+  // width, and normalising it here would quietly throw the size away.
+  if (type > 2.5) {
+    vec3 halfWidth = direction.xyz;
+    vec3 halfHeight = cone.xyz;
+    vec3 toCentre = position.xyz - v_world_position;
+
+    vec3 corners[4];
+    corners[0] = toCentre - halfWidth - halfHeight;
+    corners[1] = toCentre + halfWidth - halfHeight;
+    corners[2] = toCentre + halfWidth + halfHeight;
+    corners[3] = toCentre - halfWidth + halfHeight;
+
+    // The cosine-weighted solid angle, which takes the place `n · l` holds for
+    // a punctual light: the loop multiplies the shading by `n_dot_l`, so
+    // putting the exact integral here makes the diffuse term exact rather than
+    // sampled. See [RectangleFormFactor].
+    float formFactor = RectangleFormFactor(corners, s.n);
+
+    // Radiance rather than intensity: `intensity` means the same thing for
+    // every kind of light, so a panel's is spread over its own area here.
+    // Enlarging a window at a fixed rating then dims it per square metre and
+    // leaves the room as bright, which is what the number is supposed to mean.
+    float area = length(cross(halfWidth, halfHeight)) * 4.0;
+    float radiance = area > 1e-9 ? 1.0 / area : 0.0;
+
+    // The range window only. A punctual light needs the inverse square as
+    // well; the form factor already contains it, because a panel twice as far
+    // away subtends a quarter of the sky.
+    float distance = length(toCentre);
+    if (direction.w > 0.0) {
+      float ratio = distance / direction.w;
+      float window = clamp(1.0 - ratio * ratio * ratio * ratio, 0.0, 1.0);
+      radiance *= window * window;
+    }
+
+    vec3 mirror = reflect(-s.v, s.n);
+    vec3 representative = RectangleClosestPoint(
+        position.xyz, halfWidth, halfHeight, v_world_position, mirror);
+    vec3 toPoint = representative - v_world_position;
+    float pointDistance = length(toPoint);
+    light.l = pointDistance > 1e-6 ? toPoint / pointDistance : s.n;
+
+    light.h = normalize(light.l + s.v);
+    light.n_dot_l = formFactor;
+    light.n_dot_h = max(dot(s.n, light.h), 0.0);
+    light.v_dot_h = max(dot(s.v, light.h), 0.0);
+    light.radiance = color.rgb * color.w * radiance;
+    return light;
+  }
+
   vec3 aim = normalize(direction.xyz);
   float attenuation = 1.0;
 
@@ -2973,8 +3733,8 @@ layout(std140) uniform PointShadow {
 }
 point_shadow;
 
-/// Eight points on a Poisson disk, the same set flutter_scene filters its
-/// cascades with.
+/// Eight points on a Poisson disk, a common set for filtering cascaded
+/// shadows.
 ///
 /// A disk rather than a grid because a grid of taps on a straight shadow edge
 /// lands every sample on the same side at once, and the edge steps between
@@ -3154,11 +3914,11 @@ float PointShadowFactor(vec3 world, vec3 normal, int lightIndex) {
       2.0 * toLightLength * max(point_shadow.slots[lightIndex].z, 1e-4) *
       point_shadow.params3.y;
   // Both terms are metres. The slope term used to be the kernel radius, which
-  // is a fraction of a tile — a unit error copied across from flutter_scene,
-  // where the softness it borrows genuinely is the right quantity for their
-  // map. Here it meant widening the kernel also lifted the sample off the
-  // surface, by up to ten centimetres at the wider settings, so the softening
-  // and the lift cancelled: tripling the kernel moved 184 pixels of the frame,
+  // is a fraction of a tile — a unit mismatch carried over from an estimate
+  // where a softness radius genuinely was the right quantity. Here it meant
+  // widening the kernel also lifted the sample off the surface, by up to ten
+  // centimetres at the wider settings, so the softening and the lift
+  // cancelled: tripling the kernel moved 184 pixels of the frame,
   // where the kernel alone moves thousands. It is what made contact hardening
   // look inert, and it was hiding in a comparison rather than in the estimate.
   vec3 origin = world + normal * texel * point_shadow.params.w * (1.0 + slope);
@@ -3291,12 +4051,18 @@ vec3 AccumulateLights(Surface s) {
   vec3 total = vec3(0.0);
   int count = LightCount();
 
-  for (int i = 0; i < kMaxLights; i++) {
+  for (int i = 0; i < kTotalLights; i++) {
     if (i >= count) break;
     LightSample light = SampleLight(i, s);
     if (light.n_dot_l <= 0.0) continue;
-    float visibility = LightVisibility(s, light, i) *
-        PointShadowFactor(v_world_position, s.n, i);
+    // A light from the list has no shadow row to read — see `LightHasShadow`.
+    // A branch rather than something folded into the two calls, because both
+    // index tables eight entries wide and the ninth light would read past them
+    // rather than read a one.
+    float visibility = LightHasShadow(i)
+        ? LightVisibility(s, light, i) *
+              PointShadowFactor(v_world_position, s.n, i)
+        : 1.0;
     if (visibility <= 0.0) continue;
     total += ShadeLight(s, light) * light.radiance * light.n_dot_l * visibility;
   }
@@ -3544,7 +4310,7 @@ float ViewDepth() { return 0.0; }
 /// A depth in metres has none of that: the exponent carries the range and the
 /// mantissa carries the same relative precision everywhere, which at twenty
 /// metres is a centimetre. Both numbers are measured in
-/// `flutter3d_cpu/test/surface_depth_test.dart`.
+/// `flutter3d/test/surface_depth_test.dart`.
 ///
 /// Zero still means nothing was drawn. The attachment is cleared to zero and
 /// nothing is drawn in front of the near plane.
@@ -3642,6 +4408,84 @@ void WriteDisplayColor(vec3 displayColor, float alpha) {
 /// offset, with the std140 stride of 16 bytes.
 #define kMaxLights 8
 
+/// How many more lights one draw may be handed — `gfx-74n`.
+///
+/// **The eight above stay exactly what they were**, which is what keeps this
+/// from moving a single recorded frame: a draw with eight lights or fewer runs
+/// the loop it has always run, reads the uniform arrays it has always read, and
+/// never touches the texture below. The tail is the part that used to be
+/// impossible.
+///
+/// A loop bound rather than a cost. `AccumulateLights` breaks at the draw's own
+/// count, so a scene with three lights costs three iterations whatever this
+/// says. Twenty-four because the two tables below are `vec4 x[6]` and four
+/// lanes fit a `vec4`: two hundred and eight bytes a draw, against the five
+/// hundred and twelve the light arrays already cost.
+#define kExtraLights 24
+#define kTotalLights (kMaxLights + kExtraLights)
+
+/// Every light in the scene, one per row, four texels across — `gfx-74n`.
+///
+/// **A texture rather than a wider uniform block, and that is the design.**
+/// `FragInfo` is uploaded on every draw, so widening its four `vec4` arrays to
+/// hold thirty-two lights would be a two-kilobyte upload per draw in every
+/// scene, including every scene with one light. This is built once a frame and
+/// only when a scene has more lights than a draw can hold in its slots.
+///
+/// Row layout, which `renderer_light_list.dart` writes and only this reads:
+///
+///  * texel 0 — xyz world position, w type (0 directional, 1 point, 2 spot)
+///  * texel 1 — rgb linear colour, w intensity
+///  * texel 2 — xyz the direction it points, w range
+///  * texel 3 — x cos(inner), y cos(outer), zw unused
+///
+/// The same four vectors the uniform arrays hold, in the same order, so one
+/// reader serves both.
+uniform sampler2D light_list_texture;
+
+layout(std140) uniform LightListInfo {
+  /// x: how many rows this draw reads, zero when it reads none.
+  /// y, z: one over the texture's width and height.
+  /// w: unused.
+  vec4 list;
+
+  /// Which rows, four to a vector, in the order they are read.
+  ///
+  /// Indices rather than the light data itself: the data is the same for every
+  /// draw in the frame and belongs in the texture; what differs per draw is
+  /// *which* of them reach it, and that is what `Renderer._drawLightsFor`
+  /// already decides.
+  vec4 indices[6];
+
+  /// How much of each of those survives the edge fade, in the same order.
+  ///
+  /// Per draw and not in the texture, because the row an index points at is
+  /// shared by every draw in the frame: a scale written into it would dim that
+  /// light for all of them. `gfx-12n`'s fade lives at the end of the list now —
+  /// that is where a light stops contributing, and fading the slots against a
+  /// water line that no longer marks a cliff would dim a light for no reason
+  /// while its rival stayed bright, making the swap more visible rather than
+  /// less.
+  vec4 scales[6];
+}
+light_list_info;
+
+/// One lane of a six-vector table, [slot] counting from nought.
+float LightListLane(vec4 four, int slot) {
+  int lane = slot - (slot / 4) * 4;
+  return lane == 0 ? four.x : lane == 1 ? four.y : lane == 2 ? four.z : four.w;
+}
+
+/// The row light [slot] of the list reads.
+float LightListRow(int slot) {
+  return LightListLane(light_list_info.indices[slot / 4], slot);
+}
+
+/// How much of light [slot] of the list survives the edge fade.
+float LightListScale(int slot) {
+  return LightListLane(light_list_info.scales[slot / 4], slot);
+}
+
 layout(std140) uniform FragInfo {
   /// xyz: world position (point and spot). w: type, 0 directional 1 point 2 spot.
   vec4 light_position[kMaxLights];
@@ -3704,7 +4548,14 @@ layout(std140) uniform FragInfo {
   vec4 ambient_sky;
 
   /// rgb: what a surface facing straight down receives — bounce off the ground
-  /// rather than the ground itself. w unused.
+  /// rather than the ground itself.
+  ///
+  /// **w is the directional light's apparent size** — `gfx-15n` — which has
+  /// nothing to do with ambient and everything to do with this being the last
+  /// unspent component in a block six shaders share. `frame_params.w` was the
+  /// slot reserved for a frame-wide parameter and the environment's level
+  /// count took it; appending to this block moves offsets four backends have
+  /// agreed on. See `shadow.glsl`, which reads it.
   ///
   /// Two colours rather than one is the whole of what makes ambient look like
   /// light instead of like a lifted black level. Outdoors the sky is blue and
@@ -3758,8 +4609,38 @@ Surface ReadSurface() {
   // material is opaque or blended, and discard would then be wrong rather than
   // merely unnecessary. Doing it before anything else is deliberate: a
   // discarded fragment should not pay for the lighting loop.
+  //
+  // **A cutoff below -1.5 is the fourth mode: hashed** — `gfx-16n`. The
+  // sentinel rides in the same component because the alternative is a second
+  // number in a block six shaders share, and -1 already meant "not masked";
+  // anything more negative was free. See [MaterialAlphaMode.hashed].
   float cutoff = frag_info.material2.x;
-  if (cutoff >= 0.0 && s.alpha < cutoff) discard;
+  if (cutoff >= 0.0) {
+    if (s.alpha < cutoff) discard;
+  } else if (cutoff < -1.5) {
+    // **Stochastic instead of a threshold.** A leaf texture at 40% opacity is
+    // either entirely there or entirely gone under a fixed cutoff, so a fern
+    // comes out as a hard-edged cardboard cut-out; sorting would fix it and
+    // costs a sort per frame and a draw per layer. Comparing against noise
+    // instead keeps 40% of the *pixels*, which resolves as 40% opacity to
+    // anything that averages several of them — a higher-resolution target,
+    // a downsample, a person standing back.
+    //
+    // **Hashed on world position, not on the screen.** Screen-space noise is
+    // one line shorter and swims: the pattern stays put while the object
+    // moves through it, so a moving branch sparkles. Anchoring it to where
+    // the surface *is* means a given speck of leaf keeps its verdict from
+    // frame to frame, and the camera moving changes nothing.
+    //
+    // The scale is a constant and it is the whole tuning: finer than the
+    // texture's own detail and the noise disappears into aliasing, coarser
+    // and the leaf breaks into blotches. Sixteen per metre is about a
+    // centimetre of grain at a metre away.
+    vec3 anchored = floor(v_world_position * 16.0);
+    float noise = fract(
+        sin(dot(anchored, vec3(12.9898, 78.233, 37.719))) * 43758.5453);
+    if (s.alpha < noise) discard;
+  }
 
   s.n = normalize(v_normal);
   s.v = normalize(frag_info.camera_position.xyz - v_world_position);
@@ -3793,8 +4674,18 @@ Surface ReadSurface() {
 }
 
 int LightCount() {
-  return clamp(int(frag_info.frame_params.y + 0.5), 0, kMaxLights);
+  return clamp(int(frag_info.frame_params.y + 0.5), 0, kMaxLights) +
+      clamp(int(light_list_info.list.x + 0.5), 0, kExtraLights);
 }
+
+/// Whether light [index] carries a shadow — `gfx-74n`.
+///
+/// Only the first eight do. The cube atlas holds six rows and the slot table is
+/// eight entries wide, so a light from the list has no row to read and asking
+/// for one would index past the table. That is a real limit and the right one:
+/// the eight a draw keeps in its slots are the eight ranked most relevant to
+/// it, which is exactly the set worth a shadow map.
+bool LightHasShadow(int index) { return index < kMaxLights; }
 
 /// Distance attenuation for a punctual light, following the glTF spec.
 ///
@@ -3811,6 +4702,99 @@ float PunctualAttenuation(float distance, float range) {
   return attenuation;
 }
 
+/// How much of [s]'s sky a rectangle covers, weighted by the cosine —
+/// `gfx-77n`.
+///
+/// **Exact, not fitted.** This is Lambert's own form factor for a polygon, from
+/// 1760: for each edge, the angle it subtends at the shading point times how
+/// much the edge's plane leans into the surface normal. Summed over four edges
+/// and halved, it *is* the integral of `cos θ` over the rectangle's projection
+/// on the hemisphere — the quantity a punctual light approximates with a single
+/// `n · l`. So there is no table to ship and nothing to fit: the usual
+/// linearly-transformed-cosine approach exists to make the *specular* lobe
+/// tractable, and buys nothing here, where the diffuse answer is a closed form
+/// four `acos` calls long.
+///
+/// Returns irradiance over radiance, so a surface facing a rectangle that fills
+/// its whole sky gets π, the same as a uniform hemisphere. [corners] are the
+/// four vertices in order, relative to the shading point.
+///
+/// **The rectangle emits along `cross(halfWidth, halfHeight)`**, and with the
+/// corners wound as `SampleLight` winds them the sum comes out *negative* on
+/// that side, so the negation below is the convention rather than a fix. It was
+/// measured rather than derived: the first version returned `+total * 0.5`, and
+/// against the reference integration it read nought where the answer was 0.349
+/// and 1.02 where the answer was nought — the two failures a flipped winding
+/// produces, and between them they name the sign with no room left to argue.
+float RectangleFormFactor(vec3 corners[4], vec3 n) {
+  float total = 0.0;
+  for (int i = 0; i < 4; i++) {
+    vec3 a = normalize(corners[i]);
+    vec3 b = normalize(corners[(i + 1) & 3]);
+    // Clamped before the `acos`: two nearly parallel edge directions can give a
+    // dot a hair past one through rounding alone, and `acos` of that is a NaN
+    // that spreads to the whole pixel and then to the bloom.
+    float angle = acos(clamp(dot(a, b), -1.0, 1.0));
+    vec3 axis = cross(a, b);
+    float len = length(axis);
+    // A degenerate edge — the shading point lies on the line through it —
+    // subtends nothing, and normalising a zero vector is the other way to get
+    // that NaN.
+    if (len > 1e-6) total += angle * dot(axis / len, n);
+  }
+  // Clamped rather than tested separately: a surface on the panel's dark side,
+  // or facing away from it, comes out with the sign reversed, so "one-sided" is
+  // a property of the arithmetic instead of a flag somebody has to remember.
+  return max(-total * 0.5, 0.0);
+}
+
+/// Where on the rectangle the specular lobe is really looking — `gfx-77n`.
+///
+/// **The representative point, which is an approximation, unlike the diffuse
+/// above.** The mirror direction leaves the surface and either hits the panel
+/// or misses it; the closest point of the panel to that ray is treated as a
+/// punctual light standing in for the whole rectangle. It is the standard
+/// cheap answer and its one visible property is the one the row asked for: as
+/// the view moves the closest point slides along the panel, so the highlight
+/// is a streak with the panel's own shape and orientation rather than a dot.
+///
+/// What it does not do is widen the lobe by the panel's solid angle, so a
+/// rough surface under a large panel is a little darker than a full integration
+/// would make it. That is a known error of this method and not a bug in this
+/// transcription; the fix is the fitted table this function exists to avoid.
+vec3 RectangleClosestPoint(vec3 centre, vec3 halfWidth, vec3 halfHeight,
+                           vec3 world, vec3 mirror) {
+  vec3 n = cross(halfWidth, halfHeight);
+  float nLen = length(n);
+  // A panel with no area has no surface to find a point on; its centre is the
+  // only answer that is not a division by zero.
+  if (nLen < 1e-12) return centre;
+  n /= nLen;
+
+  vec3 toPlane = centre - world;
+  float denom = dot(mirror, n);
+  vec3 onPlane;
+  // Parallel to the panel, or pointing away from it: the ray never lands, so
+  // the nearest thing to it is the centre projected back, which keeps the
+  // highlight on the panel instead of sending it to infinity.
+  if (abs(denom) < 1e-5) {
+    onPlane = toPlane - n * dot(toPlane, n);
+  } else {
+    float t = dot(toPlane, n) / denom;
+    onPlane = t > 0.0 ? mirror * t : toPlane - n * dot(toPlane, n);
+  }
+
+  // Clamped into the rectangle in its own axes. Dividing by the squared length
+  // turns a projection into a coordinate in units of the half-extent, so the
+  // clamp is against one either way round.
+  vec3 offset = onPlane - toPlane;
+  float wLen2 = max(dot(halfWidth, halfWidth), 1e-12);
+  float hLen2 = max(dot(halfHeight, halfHeight), 1e-12);
+  float u = clamp(dot(offset, halfWidth) / wLen2, -1.0, 1.0);
+  float v = clamp(dot(offset, halfHeight) / hLen2, -1.0, 1.0);
+  return centre + halfWidth * u + halfHeight * v;
+}
+
 /// Resolves light [index] against the surface.
 ///
 /// Returns `n_dot_l == 0` for anything that contributes nothing — behind the
@@ -3819,12 +4803,91 @@ float PunctualAttenuation(float distance, float range) {
 LightSample SampleLight(int index, Surface s) {
   LightSample light;
 
-  vec4 position = frag_info.light_position[index];
-  vec4 color = frag_info.light_color[index];
-  vec4 direction = frag_info.light_direction[index];
-  vec4 cone = frag_info.light_cone[index];
+  vec4 position;
+  vec4 color;
+  vec4 direction;
+  vec4 cone;
+  if (index < kMaxLights) {
+    position = frag_info.light_position[index];
+    color = frag_info.light_color[index];
+    direction = frag_info.light_direction[index];
+    cone = frag_info.light_cone[index];
+  } else {
+    // A row of the light list — `gfx-74n`. Sampled at texel centres so a
+    // driver's rounding cannot land a fetch on a neighbour, and the four texels
+    // across the row are the same four vectors the arrays above hold.
+    int slot = index - kMaxLights;
+    float v = (LightListRow(slot) + 0.5) * light_list_info.list.z;
+    float u = light_list_info.list.y;
+    // `textureLod` and not `texture`, for `shadow.glsl`'s own reason: `index`
+    // reaches this branch through a function parameter, so a WGSL backend
+    // cannot see that every invocation of a draw walks the same light count
+    // and refuses the implicit derivative as possibly non-uniform. The atlas
+    // has one level, so naming it directly changes no pixel.
+    position = textureLod(light_list_texture, vec2(0.5 * u, v), 0.0);
+    color = textureLod(light_list_texture, vec2(1.5 * u, v), 0.0);
+    direction = textureLod(light_list_texture, vec2(2.5 * u, v), 0.0);
+    cone = textureLod(light_list_texture, vec2(3.5 * u, v), 0.0);
+    // The intensity and not the colour, for `LightBuffer._pack`'s own reason:
+    // the same multiply here, and only one of them is a number nobody authored.
+    color.w *= LightListScale(slot);
+  }
 
   float type = position.w;
+
+  // **The rectangle leaves before `aim` is taken — `gfx-77n`.** For every other
+  // kind `direction.xyz` is a unit vector saying which way the light points;
+  // for this one it is an edge of the panel, with its length carrying half the
+  // width, and normalising it here would quietly throw the size away.
+  if (type > 2.5) {
+    vec3 halfWidth = direction.xyz;
+    vec3 halfHeight = cone.xyz;
+    vec3 toCentre = position.xyz - v_world_position;
+
+    vec3 corners[4];
+    corners[0] = toCentre - halfWidth - halfHeight;
+    corners[1] = toCentre + halfWidth - halfHeight;
+    corners[2] = toCentre + halfWidth + halfHeight;
+    corners[3] = toCentre - halfWidth + halfHeight;
+
+    // The cosine-weighted solid angle, which takes the place `n · l` holds for
+    // a punctual light: the loop multiplies the shading by `n_dot_l`, so
+    // putting the exact integral here makes the diffuse term exact rather than
+    // sampled. See [RectangleFormFactor].
+    float formFactor = RectangleFormFactor(corners, s.n);
+
+    // Radiance rather than intensity: `intensity` means the same thing for
+    // every kind of light, so a panel's is spread over its own area here.
+    // Enlarging a window at a fixed rating then dims it per square metre and
+    // leaves the room as bright, which is what the number is supposed to mean.
+    float area = length(cross(halfWidth, halfHeight)) * 4.0;
+    float radiance = area > 1e-9 ? 1.0 / area : 0.0;
+
+    // The range window only. A punctual light needs the inverse square as
+    // well; the form factor already contains it, because a panel twice as far
+    // away subtends a quarter of the sky.
+    float distance = length(toCentre);
+    if (direction.w > 0.0) {
+      float ratio = distance / direction.w;
+      float window = clamp(1.0 - ratio * ratio * ratio * ratio, 0.0, 1.0);
+      radiance *= window * window;
+    }
+
+    vec3 mirror = reflect(-s.v, s.n);
+    vec3 representative = RectangleClosestPoint(
+        position.xyz, halfWidth, halfHeight, v_world_position, mirror);
+    vec3 toPoint = representative - v_world_position;
+    float pointDistance = length(toPoint);
+    light.l = pointDistance > 1e-6 ? toPoint / pointDistance : s.n;
+
+    light.h = normalize(light.l + s.v);
+    light.n_dot_l = formFactor;
+    light.n_dot_h = max(dot(s.n, light.h), 0.0);
+    light.v_dot_h = max(dot(s.v, light.h), 0.0);
+    light.radiance = color.rgb * color.w * radiance;
+    return light;
+  }
+
   vec3 aim = normalize(direction.xyz);
   float attenuation = 1.0;
 
@@ -3971,8 +5034,8 @@ layout(std140) uniform PointShadow {
 }
 point_shadow;
 
-/// Eight points on a Poisson disk, the same set flutter_scene filters its
-/// cascades with.
+/// Eight points on a Poisson disk, a common set for filtering cascaded
+/// shadows.
 ///
 /// A disk rather than a grid because a grid of taps on a straight shadow edge
 /// lands every sample on the same side at once, and the edge steps between
@@ -4152,11 +5215,11 @@ float PointShadowFactor(vec3 world, vec3 normal, int lightIndex) {
       2.0 * toLightLength * max(point_shadow.slots[lightIndex].z, 1e-4) *
       point_shadow.params3.y;
   // Both terms are metres. The slope term used to be the kernel radius, which
-  // is a fraction of a tile — a unit error copied across from flutter_scene,
-  // where the softness it borrows genuinely is the right quantity for their
-  // map. Here it meant widening the kernel also lifted the sample off the
-  // surface, by up to ten centimetres at the wider settings, so the softening
-  // and the lift cancelled: tripling the kernel moved 184 pixels of the frame,
+  // is a fraction of a tile — a unit mismatch carried over from an estimate
+  // where a softness radius genuinely was the right quantity. Here it meant
+  // widening the kernel also lifted the sample off the surface, by up to ten
+  // centimetres at the wider settings, so the softening and the lift
+  // cancelled: tripling the kernel moved 184 pixels of the frame,
   // where the kernel alone moves thousands. It is what made contact hardening
   // look inert, and it was hiding in a comparison rather than in the estimate.
   vec3 origin = world + normal * texel * point_shadow.params.w * (1.0 + slope);
@@ -4289,12 +5352,18 @@ vec3 AccumulateLights(Surface s) {
   vec3 total = vec3(0.0);
   int count = LightCount();
 
-  for (int i = 0; i < kMaxLights; i++) {
+  for (int i = 0; i < kTotalLights; i++) {
     if (i >= count) break;
     LightSample light = SampleLight(i, s);
     if (light.n_dot_l <= 0.0) continue;
-    float visibility = LightVisibility(s, light, i) *
-        PointShadowFactor(v_world_position, s.n, i);
+    // A light from the list has no shadow row to read — see `LightHasShadow`.
+    // A branch rather than something folded into the two calls, because both
+    // index tables eight entries wide and the ninth light would read past them
+    // rather than read a one.
+    float visibility = LightHasShadow(i)
+        ? LightVisibility(s, light, i) *
+              PointShadowFactor(v_world_position, s.n, i)
+        : 1.0;
     if (visibility <= 0.0) continue;
     total += ShadeLight(s, light) * light.radiance * light.n_dot_l * visibility;
   }
@@ -4424,6 +5493,19 @@ void ApplyCommonMaps(inout Surface s) {
 /// Linear depth from the light's point of view, in the red channel.
 uniform sampler2D shadow_texture;
 
+/// Five points on a disc: the centre and four at the diagonals.
+///
+/// **Diagonals rather than the axes.** A cross of four axis-aligned taps
+/// leaves a shadow whose edge is smooth along x and y and hard at forty-five
+/// degrees, which is the angle most edges in a built scene actually run at.
+/// Turned by an eighth of a turn, the four taps straddle a vertical or
+/// horizontal edge evenly and the artefact has nowhere to line up.
+const vec2 kShadowDisc[5] = vec2[5](vec2(0.0, 0.0),
+                                    vec2(0.7071, 0.7071),
+                                    vec2(-0.7071, 0.7071),
+                                    vec2(0.7071, -0.7071),
+                                    vec2(-0.7071, -0.7071));
+
 /// How much of the light survives at this fragment, from 0 to 1.
 ///
 /// Returns 1 when shadows are off, when the fragment falls outside the map, or
@@ -4494,9 +5576,6 @@ float ShadowFactor(Surface s, LightSample light, int lightIndex) {
   // cascade they are the same number and this is the kernel it has always been.
   vec2 texel = vec2(frag_info.shadow_params.x, frag_info.shadow_cascades.w);
 
-  // PCF 3x3. Four samples would band visibly at this map size and nine is the
-  // smallest kernel that reads as a soft edge rather than as stair steps.
-  //
   // **`textureLod` and not `texture`, and the level asked for is the only one
   // there is.** Everything above this loop is a reason not to be here — the
   // cascade search returns early when no cascade contains the fragment, and the
@@ -4507,16 +5586,75 @@ float ShadowFactor(Surface s, LightSample light, int lightIndex) {
   // single level, so the derivative was never doing anything but selecting
   // level zero, and naming that level directly costs nothing and changes no
   // pixel on any backend.
+  //
+  // **The softness, where it rides, and what zero means.**
+  //
+  // `ambient_ground.w` is the directional light's apparent size. It has
+  // nothing to do with ambient light and everything to do with this being the
+  // one component left unspent in a block six shaders share: `frame_params.w`
+  // was the slot reserved for exactly this and the environment's level count
+  // took it, and appending to the block moves offsets four backends have
+  // agreed on. The alternative was a second uniform block bound per draw for
+  // one float. Named here because a reader arriving at `ambient_ground` has
+  // every right to be surprised.
+  //
+  // Zero is the 3×3 kernel this has always had, which is what keeps every
+  // recorded golden where it is. Above zero the edge widens with the distance
+  // between the occluder and what it falls on — what a real light does, and
+  // what no fixed kernel can.
+  float softness = frag_info.ambient_ground.w;
   float lit = 0.0;
-  for (int y = -1; y <= 1; y++) {
-    for (int x = -1; x <= 1; x++) {
-      float occluder =
-          textureLod(shadow_texture, uv + vec2(float(x), float(y)) * texel, 0.0)
-              .r;
+  if (softness <= 0.0) {
+    // PCF 3x3. Four samples would band visibly at this map size and nine is
+    // the smallest kernel that reads as a soft edge rather than as stair
+    // steps.
+    for (int y = -1; y <= 1; y++) {
+      for (int x = -1; x <= 1; x++) {
+        float occluder = textureLod(
+            shadow_texture, uv + vec2(float(x), float(y)) * texel, 0.0).r;
+        lit += projected.z - bias > occluder ? 0.0 : 1.0;
+      }
+    }
+    lit *= 1.0 / 9.0;
+  } else {
+    // **Find what is casting before deciding how wide to blur.** The five
+    // taps go out at a fixed search radius first and average the depths of
+    // whatever they find in front of this fragment; that average is the
+    // occluder's distance, and the penumbra is proportional to it. A kernel
+    // sized without this step is the fixed one again with a bigger number.
+    // Bounded, and not proportional to the softness: the search only has to
+    // reach far enough to find *a* blocker, and a radius that grew without
+    // limit would start finding occluders from the other side of the scene
+    // and report a gap that belongs to them.
+    float searchRadius = clamp(softness * 0.25, 2.0, 16.0);
+    float blockerSum = 0.0;
+    float blockerCount = 0.0;
+    for (int i = 0; i < 5; i++) {
+      float occluder = textureLod(
+          shadow_texture, uv + kShadowDisc[i] * texel * searchRadius, 0.0).r;
+      if (projected.z - bias > occluder) {
+        blockerSum += occluder;
+        blockerCount += 1.0;
+      }
+    }
+    // Nothing between this fragment and the light: lit, and no second loop.
+    if (blockerCount <= 0.0) return 1.0;
+
+    // Linear depth over the cascade's own volume, so the gap between the
+    // occluder and the receiver *is* the distance — no perspective divide,
+    // which is what an orthographic light means.
+    float gap = max(projected.z - blockerSum / blockerCount, 0.0);
+    // One texel at the tightest, so a contact edge stays an edge; the cap
+    // keeps a distant occluder from reaching across a whole cascade.
+    float radius = clamp(gap * softness, 1.0, 16.0);
+
+    for (int i = 0; i < 5; i++) {
+      float occluder = textureLod(
+          shadow_texture, uv + kShadowDisc[i] * texel * radius, 0.0).r;
       lit += projected.z - bias > occluder ? 0.0 : 1.0;
     }
+    lit *= 1.0 / 5.0;
   }
-  lit *= 1.0 / 9.0;
 
   // Strength lerps towards fully lit, so the control is "how dark", not "how
   // much of the kernel".
@@ -4769,7 +5907,7 @@ float ViewDepth() { return 0.0; }
 /// A depth in metres has none of that: the exponent carries the range and the
 /// mantissa carries the same relative precision everywhere, which at twenty
 /// metres is a centimetre. Both numbers are measured in
-/// `flutter3d_cpu/test/surface_depth_test.dart`.
+/// `flutter3d/test/surface_depth_test.dart`.
 ///
 /// Zero still means nothing was drawn. The attachment is cleared to zero and
 /// nothing is drawn in front of the near plane.
@@ -4867,6 +6005,84 @@ void WriteDisplayColor(vec3 displayColor, float alpha) {
 /// offset, with the std140 stride of 16 bytes.
 #define kMaxLights 8
 
+/// How many more lights one draw may be handed — `gfx-74n`.
+///
+/// **The eight above stay exactly what they were**, which is what keeps this
+/// from moving a single recorded frame: a draw with eight lights or fewer runs
+/// the loop it has always run, reads the uniform arrays it has always read, and
+/// never touches the texture below. The tail is the part that used to be
+/// impossible.
+///
+/// A loop bound rather than a cost. `AccumulateLights` breaks at the draw's own
+/// count, so a scene with three lights costs three iterations whatever this
+/// says. Twenty-four because the two tables below are `vec4 x[6]` and four
+/// lanes fit a `vec4`: two hundred and eight bytes a draw, against the five
+/// hundred and twelve the light arrays already cost.
+#define kExtraLights 24
+#define kTotalLights (kMaxLights + kExtraLights)
+
+/// Every light in the scene, one per row, four texels across — `gfx-74n`.
+///
+/// **A texture rather than a wider uniform block, and that is the design.**
+/// `FragInfo` is uploaded on every draw, so widening its four `vec4` arrays to
+/// hold thirty-two lights would be a two-kilobyte upload per draw in every
+/// scene, including every scene with one light. This is built once a frame and
+/// only when a scene has more lights than a draw can hold in its slots.
+///
+/// Row layout, which `renderer_light_list.dart` writes and only this reads:
+///
+///  * texel 0 — xyz world position, w type (0 directional, 1 point, 2 spot)
+///  * texel 1 — rgb linear colour, w intensity
+///  * texel 2 — xyz the direction it points, w range
+///  * texel 3 — x cos(inner), y cos(outer), zw unused
+///
+/// The same four vectors the uniform arrays hold, in the same order, so one
+/// reader serves both.
+uniform sampler2D light_list_texture;
+
+layout(std140) uniform LightListInfo {
+  /// x: how many rows this draw reads, zero when it reads none.
+  /// y, z: one over the texture's width and height.
+  /// w: unused.
+  vec4 list;
+
+  /// Which rows, four to a vector, in the order they are read.
+  ///
+  /// Indices rather than the light data itself: the data is the same for every
+  /// draw in the frame and belongs in the texture; what differs per draw is
+  /// *which* of them reach it, and that is what `Renderer._drawLightsFor`
+  /// already decides.
+  vec4 indices[6];
+
+  /// How much of each of those survives the edge fade, in the same order.
+  ///
+  /// Per draw and not in the texture, because the row an index points at is
+  /// shared by every draw in the frame: a scale written into it would dim that
+  /// light for all of them. `gfx-12n`'s fade lives at the end of the list now —
+  /// that is where a light stops contributing, and fading the slots against a
+  /// water line that no longer marks a cliff would dim a light for no reason
+  /// while its rival stayed bright, making the swap more visible rather than
+  /// less.
+  vec4 scales[6];
+}
+light_list_info;
+
+/// One lane of a six-vector table, [slot] counting from nought.
+float LightListLane(vec4 four, int slot) {
+  int lane = slot - (slot / 4) * 4;
+  return lane == 0 ? four.x : lane == 1 ? four.y : lane == 2 ? four.z : four.w;
+}
+
+/// The row light [slot] of the list reads.
+float LightListRow(int slot) {
+  return LightListLane(light_list_info.indices[slot / 4], slot);
+}
+
+/// How much of light [slot] of the list survives the edge fade.
+float LightListScale(int slot) {
+  return LightListLane(light_list_info.scales[slot / 4], slot);
+}
+
 layout(std140) uniform FragInfo {
   /// xyz: world position (point and spot). w: type, 0 directional 1 point 2 spot.
   vec4 light_position[kMaxLights];
@@ -4929,7 +6145,14 @@ layout(std140) uniform FragInfo {
   vec4 ambient_sky;
 
   /// rgb: what a surface facing straight down receives — bounce off the ground
-  /// rather than the ground itself. w unused.
+  /// rather than the ground itself.
+  ///
+  /// **w is the directional light's apparent size** — `gfx-15n` — which has
+  /// nothing to do with ambient and everything to do with this being the last
+  /// unspent component in a block six shaders share. `frame_params.w` was the
+  /// slot reserved for a frame-wide parameter and the environment's level
+  /// count took it; appending to this block moves offsets four backends have
+  /// agreed on. See `shadow.glsl`, which reads it.
   ///
   /// Two colours rather than one is the whole of what makes ambient look like
   /// light instead of like a lifted black level. Outdoors the sky is blue and
@@ -4983,8 +6206,38 @@ Surface ReadSurface() {
   // material is opaque or blended, and discard would then be wrong rather than
   // merely unnecessary. Doing it before anything else is deliberate: a
   // discarded fragment should not pay for the lighting loop.
+  //
+  // **A cutoff below -1.5 is the fourth mode: hashed** — `gfx-16n`. The
+  // sentinel rides in the same component because the alternative is a second
+  // number in a block six shaders share, and -1 already meant "not masked";
+  // anything more negative was free. See [MaterialAlphaMode.hashed].
   float cutoff = frag_info.material2.x;
-  if (cutoff >= 0.0 && s.alpha < cutoff) discard;
+  if (cutoff >= 0.0) {
+    if (s.alpha < cutoff) discard;
+  } else if (cutoff < -1.5) {
+    // **Stochastic instead of a threshold.** A leaf texture at 40% opacity is
+    // either entirely there or entirely gone under a fixed cutoff, so a fern
+    // comes out as a hard-edged cardboard cut-out; sorting would fix it and
+    // costs a sort per frame and a draw per layer. Comparing against noise
+    // instead keeps 40% of the *pixels*, which resolves as 40% opacity to
+    // anything that averages several of them — a higher-resolution target,
+    // a downsample, a person standing back.
+    //
+    // **Hashed on world position, not on the screen.** Screen-space noise is
+    // one line shorter and swims: the pattern stays put while the object
+    // moves through it, so a moving branch sparkles. Anchoring it to where
+    // the surface *is* means a given speck of leaf keeps its verdict from
+    // frame to frame, and the camera moving changes nothing.
+    //
+    // The scale is a constant and it is the whole tuning: finer than the
+    // texture's own detail and the noise disappears into aliasing, coarser
+    // and the leaf breaks into blotches. Sixteen per metre is about a
+    // centimetre of grain at a metre away.
+    vec3 anchored = floor(v_world_position * 16.0);
+    float noise = fract(
+        sin(dot(anchored, vec3(12.9898, 78.233, 37.719))) * 43758.5453);
+    if (s.alpha < noise) discard;
+  }
 
   s.n = normalize(v_normal);
   s.v = normalize(frag_info.camera_position.xyz - v_world_position);
@@ -5018,8 +6271,18 @@ Surface ReadSurface() {
 }
 
 int LightCount() {
-  return clamp(int(frag_info.frame_params.y + 0.5), 0, kMaxLights);
+  return clamp(int(frag_info.frame_params.y + 0.5), 0, kMaxLights) +
+      clamp(int(light_list_info.list.x + 0.5), 0, kExtraLights);
 }
+
+/// Whether light [index] carries a shadow — `gfx-74n`.
+///
+/// Only the first eight do. The cube atlas holds six rows and the slot table is
+/// eight entries wide, so a light from the list has no row to read and asking
+/// for one would index past the table. That is a real limit and the right one:
+/// the eight a draw keeps in its slots are the eight ranked most relevant to
+/// it, which is exactly the set worth a shadow map.
+bool LightHasShadow(int index) { return index < kMaxLights; }
 
 /// Distance attenuation for a punctual light, following the glTF spec.
 ///
@@ -5036,6 +6299,99 @@ float PunctualAttenuation(float distance, float range) {
   return attenuation;
 }
 
+/// How much of [s]'s sky a rectangle covers, weighted by the cosine —
+/// `gfx-77n`.
+///
+/// **Exact, not fitted.** This is Lambert's own form factor for a polygon, from
+/// 1760: for each edge, the angle it subtends at the shading point times how
+/// much the edge's plane leans into the surface normal. Summed over four edges
+/// and halved, it *is* the integral of `cos θ` over the rectangle's projection
+/// on the hemisphere — the quantity a punctual light approximates with a single
+/// `n · l`. So there is no table to ship and nothing to fit: the usual
+/// linearly-transformed-cosine approach exists to make the *specular* lobe
+/// tractable, and buys nothing here, where the diffuse answer is a closed form
+/// four `acos` calls long.
+///
+/// Returns irradiance over radiance, so a surface facing a rectangle that fills
+/// its whole sky gets π, the same as a uniform hemisphere. [corners] are the
+/// four vertices in order, relative to the shading point.
+///
+/// **The rectangle emits along `cross(halfWidth, halfHeight)`**, and with the
+/// corners wound as `SampleLight` winds them the sum comes out *negative* on
+/// that side, so the negation below is the convention rather than a fix. It was
+/// measured rather than derived: the first version returned `+total * 0.5`, and
+/// against the reference integration it read nought where the answer was 0.349
+/// and 1.02 where the answer was nought — the two failures a flipped winding
+/// produces, and between them they name the sign with no room left to argue.
+float RectangleFormFactor(vec3 corners[4], vec3 n) {
+  float total = 0.0;
+  for (int i = 0; i < 4; i++) {
+    vec3 a = normalize(corners[i]);
+    vec3 b = normalize(corners[(i + 1) & 3]);
+    // Clamped before the `acos`: two nearly parallel edge directions can give a
+    // dot a hair past one through rounding alone, and `acos` of that is a NaN
+    // that spreads to the whole pixel and then to the bloom.
+    float angle = acos(clamp(dot(a, b), -1.0, 1.0));
+    vec3 axis = cross(a, b);
+    float len = length(axis);
+    // A degenerate edge — the shading point lies on the line through it —
+    // subtends nothing, and normalising a zero vector is the other way to get
+    // that NaN.
+    if (len > 1e-6) total += angle * dot(axis / len, n);
+  }
+  // Clamped rather than tested separately: a surface on the panel's dark side,
+  // or facing away from it, comes out with the sign reversed, so "one-sided" is
+  // a property of the arithmetic instead of a flag somebody has to remember.
+  return max(-total * 0.5, 0.0);
+}
+
+/// Where on the rectangle the specular lobe is really looking — `gfx-77n`.
+///
+/// **The representative point, which is an approximation, unlike the diffuse
+/// above.** The mirror direction leaves the surface and either hits the panel
+/// or misses it; the closest point of the panel to that ray is treated as a
+/// punctual light standing in for the whole rectangle. It is the standard
+/// cheap answer and its one visible property is the one the row asked for: as
+/// the view moves the closest point slides along the panel, so the highlight
+/// is a streak with the panel's own shape and orientation rather than a dot.
+///
+/// What it does not do is widen the lobe by the panel's solid angle, so a
+/// rough surface under a large panel is a little darker than a full integration
+/// would make it. That is a known error of this method and not a bug in this
+/// transcription; the fix is the fitted table this function exists to avoid.
+vec3 RectangleClosestPoint(vec3 centre, vec3 halfWidth, vec3 halfHeight,
+                           vec3 world, vec3 mirror) {
+  vec3 n = cross(halfWidth, halfHeight);
+  float nLen = length(n);
+  // A panel with no area has no surface to find a point on; its centre is the
+  // only answer that is not a division by zero.
+  if (nLen < 1e-12) return centre;
+  n /= nLen;
+
+  vec3 toPlane = centre - world;
+  float denom = dot(mirror, n);
+  vec3 onPlane;
+  // Parallel to the panel, or pointing away from it: the ray never lands, so
+  // the nearest thing to it is the centre projected back, which keeps the
+  // highlight on the panel instead of sending it to infinity.
+  if (abs(denom) < 1e-5) {
+    onPlane = toPlane - n * dot(toPlane, n);
+  } else {
+    float t = dot(toPlane, n) / denom;
+    onPlane = t > 0.0 ? mirror * t : toPlane - n * dot(toPlane, n);
+  }
+
+  // Clamped into the rectangle in its own axes. Dividing by the squared length
+  // turns a projection into a coordinate in units of the half-extent, so the
+  // clamp is against one either way round.
+  vec3 offset = onPlane - toPlane;
+  float wLen2 = max(dot(halfWidth, halfWidth), 1e-12);
+  float hLen2 = max(dot(halfHeight, halfHeight), 1e-12);
+  float u = clamp(dot(offset, halfWidth) / wLen2, -1.0, 1.0);
+  float v = clamp(dot(offset, halfHeight) / hLen2, -1.0, 1.0);
+  return centre + halfWidth * u + halfHeight * v;
+}
+
 /// Resolves light [index] against the surface.
 ///
 /// Returns `n_dot_l == 0` for anything that contributes nothing — behind the
@@ -5044,12 +6400,91 @@ float PunctualAttenuation(float distance, float range) {
 LightSample SampleLight(int index, Surface s) {
   LightSample light;
 
-  vec4 position = frag_info.light_position[index];
-  vec4 color = frag_info.light_color[index];
-  vec4 direction = frag_info.light_direction[index];
-  vec4 cone = frag_info.light_cone[index];
+  vec4 position;
+  vec4 color;
+  vec4 direction;
+  vec4 cone;
+  if (index < kMaxLights) {
+    position = frag_info.light_position[index];
+    color = frag_info.light_color[index];
+    direction = frag_info.light_direction[index];
+    cone = frag_info.light_cone[index];
+  } else {
+    // A row of the light list — `gfx-74n`. Sampled at texel centres so a
+    // driver's rounding cannot land a fetch on a neighbour, and the four texels
+    // across the row are the same four vectors the arrays above hold.
+    int slot = index - kMaxLights;
+    float v = (LightListRow(slot) + 0.5) * light_list_info.list.z;
+    float u = light_list_info.list.y;
+    // `textureLod` and not `texture`, for `shadow.glsl`'s own reason: `index`
+    // reaches this branch through a function parameter, so a WGSL backend
+    // cannot see that every invocation of a draw walks the same light count
+    // and refuses the implicit derivative as possibly non-uniform. The atlas
+    // has one level, so naming it directly changes no pixel.
+    position = textureLod(light_list_texture, vec2(0.5 * u, v), 0.0);
+    color = textureLod(light_list_texture, vec2(1.5 * u, v), 0.0);
+    direction = textureLod(light_list_texture, vec2(2.5 * u, v), 0.0);
+    cone = textureLod(light_list_texture, vec2(3.5 * u, v), 0.0);
+    // The intensity and not the colour, for `LightBuffer._pack`'s own reason:
+    // the same multiply here, and only one of them is a number nobody authored.
+    color.w *= LightListScale(slot);
+  }
 
   float type = position.w;
+
+  // **The rectangle leaves before `aim` is taken — `gfx-77n`.** For every other
+  // kind `direction.xyz` is a unit vector saying which way the light points;
+  // for this one it is an edge of the panel, with its length carrying half the
+  // width, and normalising it here would quietly throw the size away.
+  if (type > 2.5) {
+    vec3 halfWidth = direction.xyz;
+    vec3 halfHeight = cone.xyz;
+    vec3 toCentre = position.xyz - v_world_position;
+
+    vec3 corners[4];
+    corners[0] = toCentre - halfWidth - halfHeight;
+    corners[1] = toCentre + halfWidth - halfHeight;
+    corners[2] = toCentre + halfWidth + halfHeight;
+    corners[3] = toCentre - halfWidth + halfHeight;
+
+    // The cosine-weighted solid angle, which takes the place `n · l` holds for
+    // a punctual light: the loop multiplies the shading by `n_dot_l`, so
+    // putting the exact integral here makes the diffuse term exact rather than
+    // sampled. See [RectangleFormFactor].
+    float formFactor = RectangleFormFactor(corners, s.n);
+
+    // Radiance rather than intensity: `intensity` means the same thing for
+    // every kind of light, so a panel's is spread over its own area here.
+    // Enlarging a window at a fixed rating then dims it per square metre and
+    // leaves the room as bright, which is what the number is supposed to mean.
+    float area = length(cross(halfWidth, halfHeight)) * 4.0;
+    float radiance = area > 1e-9 ? 1.0 / area : 0.0;
+
+    // The range window only. A punctual light needs the inverse square as
+    // well; the form factor already contains it, because a panel twice as far
+    // away subtends a quarter of the sky.
+    float distance = length(toCentre);
+    if (direction.w > 0.0) {
+      float ratio = distance / direction.w;
+      float window = clamp(1.0 - ratio * ratio * ratio * ratio, 0.0, 1.0);
+      radiance *= window * window;
+    }
+
+    vec3 mirror = reflect(-s.v, s.n);
+    vec3 representative = RectangleClosestPoint(
+        position.xyz, halfWidth, halfHeight, v_world_position, mirror);
+    vec3 toPoint = representative - v_world_position;
+    float pointDistance = length(toPoint);
+    light.l = pointDistance > 1e-6 ? toPoint / pointDistance : s.n;
+
+    light.h = normalize(light.l + s.v);
+    light.n_dot_l = formFactor;
+    light.n_dot_h = max(dot(s.n, light.h), 0.0);
+    light.v_dot_h = max(dot(s.v, light.h), 0.0);
+    light.radiance = color.rgb * color.w * radiance;
+    return light;
+  }
+
   vec3 aim = normalize(direction.xyz);
   float attenuation = 1.0;
 
@@ -5196,8 +6631,8 @@ layout(std140) uniform PointShadow {
 }
 point_shadow;
 
-/// Eight points on a Poisson disk, the same set flutter_scene filters its
-/// cascades with.
+/// Eight points on a Poisson disk, a common set for filtering cascaded
+/// shadows.
 ///
 /// A disk rather than a grid because a grid of taps on a straight shadow edge
 /// lands every sample on the same side at once, and the edge steps between
@@ -5377,11 +6812,11 @@ float PointShadowFactor(vec3 world, vec3 normal, int lightIndex) {
       2.0 * toLightLength * max(point_shadow.slots[lightIndex].z, 1e-4) *
       point_shadow.params3.y;
   // Both terms are metres. The slope term used to be the kernel radius, which
-  // is a fraction of a tile — a unit error copied across from flutter_scene,
-  // where the softness it borrows genuinely is the right quantity for their
-  // map. Here it meant widening the kernel also lifted the sample off the
-  // surface, by up to ten centimetres at the wider settings, so the softening
-  // and the lift cancelled: tripling the kernel moved 184 pixels of the frame,
+  // is a fraction of a tile — a unit mismatch carried over from an estimate
+  // where a softness radius genuinely was the right quantity. Here it meant
+  // widening the kernel also lifted the sample off the surface, by up to ten
+  // centimetres at the wider settings, so the softening and the lift
+  // cancelled: tripling the kernel moved 184 pixels of the frame,
   // where the kernel alone moves thousands. It is what made contact hardening
   // look inert, and it was hiding in a comparison rather than in the estimate.
   vec3 origin = world + normal * texel * point_shadow.params.w * (1.0 + slope);
@@ -5514,12 +6949,18 @@ vec3 AccumulateLights(Surface s) {
   vec3 total = vec3(0.0);
   int count = LightCount();
 
-  for (int i = 0; i < kMaxLights; i++) {
+  for (int i = 0; i < kTotalLights; i++) {
     if (i >= count) break;
     LightSample light = SampleLight(i, s);
     if (light.n_dot_l <= 0.0) continue;
-    float visibility = LightVisibility(s, light, i) *
-        PointShadowFactor(v_world_position, s.n, i);
+    // A light from the list has no shadow row to read — see `LightHasShadow`.
+    // A branch rather than something folded into the two calls, because both
+    // index tables eight entries wide and the ninth light would read past them
+    // rather than read a one.
+    float visibility = LightHasShadow(i)
+        ? LightVisibility(s, light, i) *
+              PointShadowFactor(v_world_position, s.n, i)
+        : 1.0;
     if (visibility <= 0.0) continue;
     total += ShadeLight(s, light) * light.radiance * light.n_dot_l * visibility;
   }
@@ -5649,6 +7090,19 @@ void ApplyCommonMaps(inout Surface s) {
 /// Linear depth from the light's point of view, in the red channel.
 uniform sampler2D shadow_texture;
 
+/// Five points on a disc: the centre and four at the diagonals.
+///
+/// **Diagonals rather than the axes.** A cross of four axis-aligned taps
+/// leaves a shadow whose edge is smooth along x and y and hard at forty-five
+/// degrees, which is the angle most edges in a built scene actually run at.
+/// Turned by an eighth of a turn, the four taps straddle a vertical or
+/// horizontal edge evenly and the artefact has nowhere to line up.
+const vec2 kShadowDisc[5] = vec2[5](vec2(0.0, 0.0),
+                                    vec2(0.7071, 0.7071),
+                                    vec2(-0.7071, 0.7071),
+                                    vec2(0.7071, -0.7071),
+                                    vec2(-0.7071, -0.7071));
+
 /// How much of the light survives at this fragment, from 0 to 1.
 ///
 /// Returns 1 when shadows are off, when the fragment falls outside the map, or
@@ -5719,9 +7173,6 @@ float ShadowFactor(Surface s, LightSample light, int lightIndex) {
   // cascade they are the same number and this is the kernel it has always been.
   vec2 texel = vec2(frag_info.shadow_params.x, frag_info.shadow_cascades.w);
 
-  // PCF 3x3. Four samples would band visibly at this map size and nine is the
-  // smallest kernel that reads as a soft edge rather than as stair steps.
-  //
   // **`textureLod` and not `texture`, and the level asked for is the only one
   // there is.** Everything above this loop is a reason not to be here — the
   // cascade search returns early when no cascade contains the fragment, and the
@@ -5732,16 +7183,75 @@ float ShadowFactor(Surface s, LightSample light, int lightIndex) {
   // single level, so the derivative was never doing anything but selecting
   // level zero, and naming that level directly costs nothing and changes no
   // pixel on any backend.
+  //
+  // **The softness, where it rides, and what zero means.**
+  //
+  // `ambient_ground.w` is the directional light's apparent size. It has
+  // nothing to do with ambient light and everything to do with this being the
+  // one component left unspent in a block six shaders share: `frame_params.w`
+  // was the slot reserved for exactly this and the environment's level count
+  // took it, and appending to the block moves offsets four backends have
+  // agreed on. The alternative was a second uniform block bound per draw for
+  // one float. Named here because a reader arriving at `ambient_ground` has
+  // every right to be surprised.
+  //
+  // Zero is the 3×3 kernel this has always had, which is what keeps every
+  // recorded golden where it is. Above zero the edge widens with the distance
+  // between the occluder and what it falls on — what a real light does, and
+  // what no fixed kernel can.
+  float softness = frag_info.ambient_ground.w;
   float lit = 0.0;
-  for (int y = -1; y <= 1; y++) {
-    for (int x = -1; x <= 1; x++) {
-      float occluder =
-          textureLod(shadow_texture, uv + vec2(float(x), float(y)) * texel, 0.0)
-              .r;
+  if (softness <= 0.0) {
+    // PCF 3x3. Four samples would band visibly at this map size and nine is
+    // the smallest kernel that reads as a soft edge rather than as stair
+    // steps.
+    for (int y = -1; y <= 1; y++) {
+      for (int x = -1; x <= 1; x++) {
+        float occluder = textureLod(
+            shadow_texture, uv + vec2(float(x), float(y)) * texel, 0.0).r;
+        lit += projected.z - bias > occluder ? 0.0 : 1.0;
+      }
+    }
+    lit *= 1.0 / 9.0;
+  } else {
+    // **Find what is casting before deciding how wide to blur.** The five
+    // taps go out at a fixed search radius first and average the depths of
+    // whatever they find in front of this fragment; that average is the
+    // occluder's distance, and the penumbra is proportional to it. A kernel
+    // sized without this step is the fixed one again with a bigger number.
+    // Bounded, and not proportional to the softness: the search only has to
+    // reach far enough to find *a* blocker, and a radius that grew without
+    // limit would start finding occluders from the other side of the scene
+    // and report a gap that belongs to them.
+    float searchRadius = clamp(softness * 0.25, 2.0, 16.0);
+    float blockerSum = 0.0;
+    float blockerCount = 0.0;
+    for (int i = 0; i < 5; i++) {
+      float occluder = textureLod(
+          shadow_texture, uv + kShadowDisc[i] * texel * searchRadius, 0.0).r;
+      if (projected.z - bias > occluder) {
+        blockerSum += occluder;
+        blockerCount += 1.0;
+      }
+    }
+    // Nothing between this fragment and the light: lit, and no second loop.
+    if (blockerCount <= 0.0) return 1.0;
+
+    // Linear depth over the cascade's own volume, so the gap between the
+    // occluder and the receiver *is* the distance — no perspective divide,
+    // which is what an orthographic light means.
+    float gap = max(projected.z - blockerSum / blockerCount, 0.0);
+    // One texel at the tightest, so a contact edge stays an edge; the cap
+    // keeps a distant occluder from reaching across a whole cascade.
+    float radius = clamp(gap * softness, 1.0, 16.0);
+
+    for (int i = 0; i < 5; i++) {
+      float occluder = textureLod(
+          shadow_texture, uv + kShadowDisc[i] * texel * radius, 0.0).r;
       lit += projected.z - bias > occluder ? 0.0 : 1.0;
     }
+    lit *= 1.0 / 5.0;
   }
-  lit *= 1.0 / 9.0;
 
   // Strength lerps towards fully lit, so the control is "how dark", not "how
   // much of the kernel".
@@ -6009,7 +7519,7 @@ float ViewDepth() { return 0.0; }
 /// A depth in metres has none of that: the exponent carries the range and the
 /// mantissa carries the same relative precision everywhere, which at twenty
 /// metres is a centimetre. Both numbers are measured in
-/// `flutter3d_cpu/test/surface_depth_test.dart`.
+/// `flutter3d/test/surface_depth_test.dart`.
 ///
 /// Zero still means nothing was drawn. The attachment is cleared to zero and
 /// nothing is drawn in front of the near plane.
@@ -6107,6 +7617,84 @@ void WriteDisplayColor(vec3 displayColor, float alpha) {
 /// offset, with the std140 stride of 16 bytes.
 #define kMaxLights 8
 
+/// How many more lights one draw may be handed — `gfx-74n`.
+///
+/// **The eight above stay exactly what they were**, which is what keeps this
+/// from moving a single recorded frame: a draw with eight lights or fewer runs
+/// the loop it has always run, reads the uniform arrays it has always read, and
+/// never touches the texture below. The tail is the part that used to be
+/// impossible.
+///
+/// A loop bound rather than a cost. `AccumulateLights` breaks at the draw's own
+/// count, so a scene with three lights costs three iterations whatever this
+/// says. Twenty-four because the two tables below are `vec4 x[6]` and four
+/// lanes fit a `vec4`: two hundred and eight bytes a draw, against the five
+/// hundred and twelve the light arrays already cost.
+#define kExtraLights 24
+#define kTotalLights (kMaxLights + kExtraLights)
+
+/// Every light in the scene, one per row, four texels across — `gfx-74n`.
+///
+/// **A texture rather than a wider uniform block, and that is the design.**
+/// `FragInfo` is uploaded on every draw, so widening its four `vec4` arrays to
+/// hold thirty-two lights would be a two-kilobyte upload per draw in every
+/// scene, including every scene with one light. This is built once a frame and
+/// only when a scene has more lights than a draw can hold in its slots.
+///
+/// Row layout, which `renderer_light_list.dart` writes and only this reads:
+///
+///  * texel 0 — xyz world position, w type (0 directional, 1 point, 2 spot)
+///  * texel 1 — rgb linear colour, w intensity
+///  * texel 2 — xyz the direction it points, w range
+///  * texel 3 — x cos(inner), y cos(outer), zw unused
+///
+/// The same four vectors the uniform arrays hold, in the same order, so one
+/// reader serves both.
+uniform sampler2D light_list_texture;
+
+layout(std140) uniform LightListInfo {
+  /// x: how many rows this draw reads, zero when it reads none.
+  /// y, z: one over the texture's width and height.
+  /// w: unused.
+  vec4 list;
+
+  /// Which rows, four to a vector, in the order they are read.
+  ///
+  /// Indices rather than the light data itself: the data is the same for every
+  /// draw in the frame and belongs in the texture; what differs per draw is
+  /// *which* of them reach it, and that is what `Renderer._drawLightsFor`
+  /// already decides.
+  vec4 indices[6];
+
+  /// How much of each of those survives the edge fade, in the same order.
+  ///
+  /// Per draw and not in the texture, because the row an index points at is
+  /// shared by every draw in the frame: a scale written into it would dim that
+  /// light for all of them. `gfx-12n`'s fade lives at the end of the list now —
+  /// that is where a light stops contributing, and fading the slots against a
+  /// water line that no longer marks a cliff would dim a light for no reason
+  /// while its rival stayed bright, making the swap more visible rather than
+  /// less.
+  vec4 scales[6];
+}
+light_list_info;
+
+/// One lane of a six-vector table, [slot] counting from nought.
+float LightListLane(vec4 four, int slot) {
+  int lane = slot - (slot / 4) * 4;
+  return lane == 0 ? four.x : lane == 1 ? four.y : lane == 2 ? four.z : four.w;
+}
+
+/// The row light [slot] of the list reads.
+float LightListRow(int slot) {
+  return LightListLane(light_list_info.indices[slot / 4], slot);
+}
+
+/// How much of light [slot] of the list survives the edge fade.
+float LightListScale(int slot) {
+  return LightListLane(light_list_info.scales[slot / 4], slot);
+}
+
 layout(std140) uniform FragInfo {
   /// xyz: world position (point and spot). w: type, 0 directional 1 point 2 spot.
   vec4 light_position[kMaxLights];
@@ -6169,7 +7757,14 @@ layout(std140) uniform FragInfo {
   vec4 ambient_sky;
 
   /// rgb: what a surface facing straight down receives — bounce off the ground
-  /// rather than the ground itself. w unused.
+  /// rather than the ground itself.
+  ///
+  /// **w is the directional light's apparent size** — `gfx-15n` — which has
+  /// nothing to do with ambient and everything to do with this being the last
+  /// unspent component in a block six shaders share. `frame_params.w` was the
+  /// slot reserved for a frame-wide parameter and the environment's level
+  /// count took it; appending to this block moves offsets four backends have
+  /// agreed on. See `shadow.glsl`, which reads it.
   ///
   /// Two colours rather than one is the whole of what makes ambient look like
   /// light instead of like a lifted black level. Outdoors the sky is blue and
@@ -6223,8 +7818,38 @@ Surface ReadSurface() {
   // material is opaque or blended, and discard would then be wrong rather than
   // merely unnecessary. Doing it before anything else is deliberate: a
   // discarded fragment should not pay for the lighting loop.
+  //
+  // **A cutoff below -1.5 is the fourth mode: hashed** — `gfx-16n`. The
+  // sentinel rides in the same component because the alternative is a second
+  // number in a block six shaders share, and -1 already meant "not masked";
+  // anything more negative was free. See [MaterialAlphaMode.hashed].
   float cutoff = frag_info.material2.x;
-  if (cutoff >= 0.0 && s.alpha < cutoff) discard;
+  if (cutoff >= 0.0) {
+    if (s.alpha < cutoff) discard;
+  } else if (cutoff < -1.5) {
+    // **Stochastic instead of a threshold.** A leaf texture at 40% opacity is
+    // either entirely there or entirely gone under a fixed cutoff, so a fern
+    // comes out as a hard-edged cardboard cut-out; sorting would fix it and
+    // costs a sort per frame and a draw per layer. Comparing against noise
+    // instead keeps 40% of the *pixels*, which resolves as 40% opacity to
+    // anything that averages several of them — a higher-resolution target,
+    // a downsample, a person standing back.
+    //
+    // **Hashed on world position, not on the screen.** Screen-space noise is
+    // one line shorter and swims: the pattern stays put while the object
+    // moves through it, so a moving branch sparkles. Anchoring it to where
+    // the surface *is* means a given speck of leaf keeps its verdict from
+    // frame to frame, and the camera moving changes nothing.
+    //
+    // The scale is a constant and it is the whole tuning: finer than the
+    // texture's own detail and the noise disappears into aliasing, coarser
+    // and the leaf breaks into blotches. Sixteen per metre is about a
+    // centimetre of grain at a metre away.
+    vec3 anchored = floor(v_world_position * 16.0);
+    float noise = fract(
+        sin(dot(anchored, vec3(12.9898, 78.233, 37.719))) * 43758.5453);
+    if (s.alpha < noise) discard;
+  }
 
   s.n = normalize(v_normal);
   s.v = normalize(frag_info.camera_position.xyz - v_world_position);
@@ -6258,8 +7883,18 @@ Surface ReadSurface() {
 }
 
 int LightCount() {
-  return clamp(int(frag_info.frame_params.y + 0.5), 0, kMaxLights);
+  return clamp(int(frag_info.frame_params.y + 0.5), 0, kMaxLights) +
+      clamp(int(light_list_info.list.x + 0.5), 0, kExtraLights);
 }
+
+/// Whether light [index] carries a shadow — `gfx-74n`.
+///
+/// Only the first eight do. The cube atlas holds six rows and the slot table is
+/// eight entries wide, so a light from the list has no row to read and asking
+/// for one would index past the table. That is a real limit and the right one:
+/// the eight a draw keeps in its slots are the eight ranked most relevant to
+/// it, which is exactly the set worth a shadow map.
+bool LightHasShadow(int index) { return index < kMaxLights; }
 
 /// Distance attenuation for a punctual light, following the glTF spec.
 ///
@@ -6276,6 +7911,99 @@ float PunctualAttenuation(float distance, float range) {
   return attenuation;
 }
 
+/// How much of [s]'s sky a rectangle covers, weighted by the cosine —
+/// `gfx-77n`.
+///
+/// **Exact, not fitted.** This is Lambert's own form factor for a polygon, from
+/// 1760: for each edge, the angle it subtends at the shading point times how
+/// much the edge's plane leans into the surface normal. Summed over four edges
+/// and halved, it *is* the integral of `cos θ` over the rectangle's projection
+/// on the hemisphere — the quantity a punctual light approximates with a single
+/// `n · l`. So there is no table to ship and nothing to fit: the usual
+/// linearly-transformed-cosine approach exists to make the *specular* lobe
+/// tractable, and buys nothing here, where the diffuse answer is a closed form
+/// four `acos` calls long.
+///
+/// Returns irradiance over radiance, so a surface facing a rectangle that fills
+/// its whole sky gets π, the same as a uniform hemisphere. [corners] are the
+/// four vertices in order, relative to the shading point.
+///
+/// **The rectangle emits along `cross(halfWidth, halfHeight)`**, and with the
+/// corners wound as `SampleLight` winds them the sum comes out *negative* on
+/// that side, so the negation below is the convention rather than a fix. It was
+/// measured rather than derived: the first version returned `+total * 0.5`, and
+/// against the reference integration it read nought where the answer was 0.349
+/// and 1.02 where the answer was nought — the two failures a flipped winding
+/// produces, and between them they name the sign with no room left to argue.
+float RectangleFormFactor(vec3 corners[4], vec3 n) {
+  float total = 0.0;
+  for (int i = 0; i < 4; i++) {
+    vec3 a = normalize(corners[i]);
+    vec3 b = normalize(corners[(i + 1) & 3]);
+    // Clamped before the `acos`: two nearly parallel edge directions can give a
+    // dot a hair past one through rounding alone, and `acos` of that is a NaN
+    // that spreads to the whole pixel and then to the bloom.
+    float angle = acos(clamp(dot(a, b), -1.0, 1.0));
+    vec3 axis = cross(a, b);
+    float len = length(axis);
+    // A degenerate edge — the shading point lies on the line through it —
+    // subtends nothing, and normalising a zero vector is the other way to get
+    // that NaN.
+    if (len > 1e-6) total += angle * dot(axis / len, n);
+  }
+  // Clamped rather than tested separately: a surface on the panel's dark side,
+  // or facing away from it, comes out with the sign reversed, so "one-sided" is
+  // a property of the arithmetic instead of a flag somebody has to remember.
+  return max(-total * 0.5, 0.0);
+}
+
+/// Where on the rectangle the specular lobe is really looking — `gfx-77n`.
+///
+/// **The representative point, which is an approximation, unlike the diffuse
+/// above.** The mirror direction leaves the surface and either hits the panel
+/// or misses it; the closest point of the panel to that ray is treated as a
+/// punctual light standing in for the whole rectangle. It is the standard
+/// cheap answer and its one visible property is the one the row asked for: as
+/// the view moves the closest point slides along the panel, so the highlight
+/// is a streak with the panel's own shape and orientation rather than a dot.
+///
+/// What it does not do is widen the lobe by the panel's solid angle, so a
+/// rough surface under a large panel is a little darker than a full integration
+/// would make it. That is a known error of this method and not a bug in this
+/// transcription; the fix is the fitted table this function exists to avoid.
+vec3 RectangleClosestPoint(vec3 centre, vec3 halfWidth, vec3 halfHeight,
+                           vec3 world, vec3 mirror) {
+  vec3 n = cross(halfWidth, halfHeight);
+  float nLen = length(n);
+  // A panel with no area has no surface to find a point on; its centre is the
+  // only answer that is not a division by zero.
+  if (nLen < 1e-12) return centre;
+  n /= nLen;
+
+  vec3 toPlane = centre - world;
+  float denom = dot(mirror, n);
+  vec3 onPlane;
+  // Parallel to the panel, or pointing away from it: the ray never lands, so
+  // the nearest thing to it is the centre projected back, which keeps the
+  // highlight on the panel instead of sending it to infinity.
+  if (abs(denom) < 1e-5) {
+    onPlane = toPlane - n * dot(toPlane, n);
+  } else {
+    float t = dot(toPlane, n) / denom;
+    onPlane = t > 0.0 ? mirror * t : toPlane - n * dot(toPlane, n);
+  }
+
+  // Clamped into the rectangle in its own axes. Dividing by the squared length
+  // turns a projection into a coordinate in units of the half-extent, so the
+  // clamp is against one either way round.
+  vec3 offset = onPlane - toPlane;
+  float wLen2 = max(dot(halfWidth, halfWidth), 1e-12);
+  float hLen2 = max(dot(halfHeight, halfHeight), 1e-12);
+  float u = clamp(dot(offset, halfWidth) / wLen2, -1.0, 1.0);
+  float v = clamp(dot(offset, halfHeight) / hLen2, -1.0, 1.0);
+  return centre + halfWidth * u + halfHeight * v;
+}
+
 /// Resolves light [index] against the surface.
 ///
 /// Returns `n_dot_l == 0` for anything that contributes nothing — behind the
@@ -6284,12 +8012,91 @@ float PunctualAttenuation(float distance, float range) {
 LightSample SampleLight(int index, Surface s) {
   LightSample light;
 
-  vec4 position = frag_info.light_position[index];
-  vec4 color = frag_info.light_color[index];
-  vec4 direction = frag_info.light_direction[index];
-  vec4 cone = frag_info.light_cone[index];
+  vec4 position;
+  vec4 color;
+  vec4 direction;
+  vec4 cone;
+  if (index < kMaxLights) {
+    position = frag_info.light_position[index];
+    color = frag_info.light_color[index];
+    direction = frag_info.light_direction[index];
+    cone = frag_info.light_cone[index];
+  } else {
+    // A row of the light list — `gfx-74n`. Sampled at texel centres so a
+    // driver's rounding cannot land a fetch on a neighbour, and the four texels
+    // across the row are the same four vectors the arrays above hold.
+    int slot = index - kMaxLights;
+    float v = (LightListRow(slot) + 0.5) * light_list_info.list.z;
+    float u = light_list_info.list.y;
+    // `textureLod` and not `texture`, for `shadow.glsl`'s own reason: `index`
+    // reaches this branch through a function parameter, so a WGSL backend
+    // cannot see that every invocation of a draw walks the same light count
+    // and refuses the implicit derivative as possibly non-uniform. The atlas
+    // has one level, so naming it directly changes no pixel.
+    position = textureLod(light_list_texture, vec2(0.5 * u, v), 0.0);
+    color = textureLod(light_list_texture, vec2(1.5 * u, v), 0.0);
+    direction = textureLod(light_list_texture, vec2(2.5 * u, v), 0.0);
+    cone = textureLod(light_list_texture, vec2(3.5 * u, v), 0.0);
+    // The intensity and not the colour, for `LightBuffer._pack`'s own reason:
+    // the same multiply here, and only one of them is a number nobody authored.
+    color.w *= LightListScale(slot);
+  }
 
   float type = position.w;
+
+  // **The rectangle leaves before `aim` is taken — `gfx-77n`.** For every other
+  // kind `direction.xyz` is a unit vector saying which way the light points;
+  // for this one it is an edge of the panel, with its length carrying half the
+  // width, and normalising it here would quietly throw the size away.
+  if (type > 2.5) {
+    vec3 halfWidth = direction.xyz;
+    vec3 halfHeight = cone.xyz;
+    vec3 toCentre = position.xyz - v_world_position;
+
+    vec3 corners[4];
+    corners[0] = toCentre - halfWidth - halfHeight;
+    corners[1] = toCentre + halfWidth - halfHeight;
+    corners[2] = toCentre + halfWidth + halfHeight;
+    corners[3] = toCentre - halfWidth + halfHeight;
+
+    // The cosine-weighted solid angle, which takes the place `n · l` holds for
+    // a punctual light: the loop multiplies the shading by `n_dot_l`, so
+    // putting the exact integral here makes the diffuse term exact rather than
+    // sampled. See [RectangleFormFactor].
+    float formFactor = RectangleFormFactor(corners, s.n);
+
+    // Radiance rather than intensity: `intensity` means the same thing for
+    // every kind of light, so a panel's is spread over its own area here.
+    // Enlarging a window at a fixed rating then dims it per square metre and
+    // leaves the room as bright, which is what the number is supposed to mean.
+    float area = length(cross(halfWidth, halfHeight)) * 4.0;
+    float radiance = area > 1e-9 ? 1.0 / area : 0.0;
+
+    // The range window only. A punctual light needs the inverse square as
+    // well; the form factor already contains it, because a panel twice as far
+    // away subtends a quarter of the sky.
+    float distance = length(toCentre);
+    if (direction.w > 0.0) {
+      float ratio = distance / direction.w;
+      float window = clamp(1.0 - ratio * ratio * ratio * ratio, 0.0, 1.0);
+      radiance *= window * window;
+    }
+
+    vec3 mirror = reflect(-s.v, s.n);
+    vec3 representative = RectangleClosestPoint(
+        position.xyz, halfWidth, halfHeight, v_world_position, mirror);
+    vec3 toPoint = representative - v_world_position;
+    float pointDistance = length(toPoint);
+    light.l = pointDistance > 1e-6 ? toPoint / pointDistance : s.n;
+
+    light.h = normalize(light.l + s.v);
+    light.n_dot_l = formFactor;
+    light.n_dot_h = max(dot(s.n, light.h), 0.0);
+    light.v_dot_h = max(dot(s.v, light.h), 0.0);
+    light.radiance = color.rgb * color.w * radiance;
+    return light;
+  }
+
   vec3 aim = normalize(direction.xyz);
   float attenuation = 1.0;
 
@@ -6436,8 +8243,8 @@ layout(std140) uniform PointShadow {
 }
 point_shadow;
 
-/// Eight points on a Poisson disk, the same set flutter_scene filters its
-/// cascades with.
+/// Eight points on a Poisson disk, a common set for filtering cascaded
+/// shadows.
 ///
 /// A disk rather than a grid because a grid of taps on a straight shadow edge
 /// lands every sample on the same side at once, and the edge steps between
@@ -6617,11 +8424,11 @@ float PointShadowFactor(vec3 world, vec3 normal, int lightIndex) {
       2.0 * toLightLength * max(point_shadow.slots[lightIndex].z, 1e-4) *
       point_shadow.params3.y;
   // Both terms are metres. The slope term used to be the kernel radius, which
-  // is a fraction of a tile — a unit error copied across from flutter_scene,
-  // where the softness it borrows genuinely is the right quantity for their
-  // map. Here it meant widening the kernel also lifted the sample off the
-  // surface, by up to ten centimetres at the wider settings, so the softening
-  // and the lift cancelled: tripling the kernel moved 184 pixels of the frame,
+  // is a fraction of a tile — a unit mismatch carried over from an estimate
+  // where a softness radius genuinely was the right quantity. Here it meant
+  // widening the kernel also lifted the sample off the surface, by up to ten
+  // centimetres at the wider settings, so the softening and the lift
+  // cancelled: tripling the kernel moved 184 pixels of the frame,
   // where the kernel alone moves thousands. It is what made contact hardening
   // look inert, and it was hiding in a comparison rather than in the estimate.
   vec3 origin = world + normal * texel * point_shadow.params.w * (1.0 + slope);
@@ -6754,12 +8561,18 @@ vec3 AccumulateLights(Surface s) {
   vec3 total = vec3(0.0);
   int count = LightCount();
 
-  for (int i = 0; i < kMaxLights; i++) {
+  for (int i = 0; i < kTotalLights; i++) {
     if (i >= count) break;
     LightSample light = SampleLight(i, s);
     if (light.n_dot_l <= 0.0) continue;
-    float visibility = LightVisibility(s, light, i) *
-        PointShadowFactor(v_world_position, s.n, i);
+    // A light from the list has no shadow row to read — see `LightHasShadow`.
+    // A branch rather than something folded into the two calls, because both
+    // index tables eight entries wide and the ninth light would read past them
+    // rather than read a one.
+    float visibility = LightHasShadow(i)
+        ? LightVisibility(s, light, i) *
+              PointShadowFactor(v_world_position, s.n, i)
+        : 1.0;
     if (visibility <= 0.0) continue;
     total += ShadeLight(s, light) * light.radiance * light.n_dot_l * visibility;
   }
@@ -6889,6 +8702,19 @@ void ApplyCommonMaps(inout Surface s) {
 /// Linear depth from the light's point of view, in the red channel.
 uniform sampler2D shadow_texture;
 
+/// Five points on a disc: the centre and four at the diagonals.
+///
+/// **Diagonals rather than the axes.** A cross of four axis-aligned taps
+/// leaves a shadow whose edge is smooth along x and y and hard at forty-five
+/// degrees, which is the angle most edges in a built scene actually run at.
+/// Turned by an eighth of a turn, the four taps straddle a vertical or
+/// horizontal edge evenly and the artefact has nowhere to line up.
+const vec2 kShadowDisc[5] = vec2[5](vec2(0.0, 0.0),
+                                    vec2(0.7071, 0.7071),
+                                    vec2(-0.7071, 0.7071),
+                                    vec2(0.7071, -0.7071),
+                                    vec2(-0.7071, -0.7071));
+
 /// How much of the light survives at this fragment, from 0 to 1.
 ///
 /// Returns 1 when shadows are off, when the fragment falls outside the map, or
@@ -6959,9 +8785,6 @@ float ShadowFactor(Surface s, LightSample light, int lightIndex) {
   // cascade they are the same number and this is the kernel it has always been.
   vec2 texel = vec2(frag_info.shadow_params.x, frag_info.shadow_cascades.w);
 
-  // PCF 3x3. Four samples would band visibly at this map size and nine is the
-  // smallest kernel that reads as a soft edge rather than as stair steps.
-  //
   // **`textureLod` and not `texture`, and the level asked for is the only one
   // there is.** Everything above this loop is a reason not to be here — the
   // cascade search returns early when no cascade contains the fragment, and the
@@ -6972,16 +8795,75 @@ float ShadowFactor(Surface s, LightSample light, int lightIndex) {
   // single level, so the derivative was never doing anything but selecting
   // level zero, and naming that level directly costs nothing and changes no
   // pixel on any backend.
+  //
+  // **The softness, where it rides, and what zero means.**
+  //
+  // `ambient_ground.w` is the directional light's apparent size. It has
+  // nothing to do with ambient light and everything to do with this being the
+  // one component left unspent in a block six shaders share: `frame_params.w`
+  // was the slot reserved for exactly this and the environment's level count
+  // took it, and appending to the block moves offsets four backends have
+  // agreed on. The alternative was a second uniform block bound per draw for
+  // one float. Named here because a reader arriving at `ambient_ground` has
+  // every right to be surprised.
+  //
+  // Zero is the 3×3 kernel this has always had, which is what keeps every
+  // recorded golden where it is. Above zero the edge widens with the distance
+  // between the occluder and what it falls on — what a real light does, and
+  // what no fixed kernel can.
+  float softness = frag_info.ambient_ground.w;
   float lit = 0.0;
-  for (int y = -1; y <= 1; y++) {
-    for (int x = -1; x <= 1; x++) {
-      float occluder =
-          textureLod(shadow_texture, uv + vec2(float(x), float(y)) * texel, 0.0)
-              .r;
+  if (softness <= 0.0) {
+    // PCF 3x3. Four samples would band visibly at this map size and nine is
+    // the smallest kernel that reads as a soft edge rather than as stair
+    // steps.
+    for (int y = -1; y <= 1; y++) {
+      for (int x = -1; x <= 1; x++) {
+        float occluder = textureLod(
+            shadow_texture, uv + vec2(float(x), float(y)) * texel, 0.0).r;
+        lit += projected.z - bias > occluder ? 0.0 : 1.0;
+      }
+    }
+    lit *= 1.0 / 9.0;
+  } else {
+    // **Find what is casting before deciding how wide to blur.** The five
+    // taps go out at a fixed search radius first and average the depths of
+    // whatever they find in front of this fragment; that average is the
+    // occluder's distance, and the penumbra is proportional to it. A kernel
+    // sized without this step is the fixed one again with a bigger number.
+    // Bounded, and not proportional to the softness: the search only has to
+    // reach far enough to find *a* blocker, and a radius that grew without
+    // limit would start finding occluders from the other side of the scene
+    // and report a gap that belongs to them.
+    float searchRadius = clamp(softness * 0.25, 2.0, 16.0);
+    float blockerSum = 0.0;
+    float blockerCount = 0.0;
+    for (int i = 0; i < 5; i++) {
+      float occluder = textureLod(
+          shadow_texture, uv + kShadowDisc[i] * texel * searchRadius, 0.0).r;
+      if (projected.z - bias > occluder) {
+        blockerSum += occluder;
+        blockerCount += 1.0;
+      }
+    }
+    // Nothing between this fragment and the light: lit, and no second loop.
+    if (blockerCount <= 0.0) return 1.0;
+
+    // Linear depth over the cascade's own volume, so the gap between the
+    // occluder and the receiver *is* the distance — no perspective divide,
+    // which is what an orthographic light means.
+    float gap = max(projected.z - blockerSum / blockerCount, 0.0);
+    // One texel at the tightest, so a contact edge stays an edge; the cap
+    // keeps a distant occluder from reaching across a whole cascade.
+    float radius = clamp(gap * softness, 1.0, 16.0);
+
+    for (int i = 0; i < 5; i++) {
+      float occluder = textureLod(
+          shadow_texture, uv + kShadowDisc[i] * texel * radius, 0.0).r;
       lit += projected.z - bias > occluder ? 0.0 : 1.0;
     }
+    lit *= 1.0 / 5.0;
   }
-  lit *= 1.0 / 9.0;
 
   // Strength lerps towards fully lit, so the control is "how dark", not "how
   // much of the kernel".
@@ -7342,7 +9224,7 @@ float ViewDepth() { return 0.0; }
 /// A depth in metres has none of that: the exponent carries the range and the
 /// mantissa carries the same relative precision everywhere, which at twenty
 /// metres is a centimetre. Both numbers are measured in
-/// `flutter3d_cpu/test/surface_depth_test.dart`.
+/// `flutter3d/test/surface_depth_test.dart`.
 ///
 /// Zero still means nothing was drawn. The attachment is cleared to zero and
 /// nothing is drawn in front of the near plane.
@@ -7440,6 +9322,84 @@ void WriteDisplayColor(vec3 displayColor, float alpha) {
 /// offset, with the std140 stride of 16 bytes.
 #define kMaxLights 8
 
+/// How many more lights one draw may be handed — `gfx-74n`.
+///
+/// **The eight above stay exactly what they were**, which is what keeps this
+/// from moving a single recorded frame: a draw with eight lights or fewer runs
+/// the loop it has always run, reads the uniform arrays it has always read, and
+/// never touches the texture below. The tail is the part that used to be
+/// impossible.
+///
+/// A loop bound rather than a cost. `AccumulateLights` breaks at the draw's own
+/// count, so a scene with three lights costs three iterations whatever this
+/// says. Twenty-four because the two tables below are `vec4 x[6]` and four
+/// lanes fit a `vec4`: two hundred and eight bytes a draw, against the five
+/// hundred and twelve the light arrays already cost.
+#define kExtraLights 24
+#define kTotalLights (kMaxLights + kExtraLights)
+
+/// Every light in the scene, one per row, four texels across — `gfx-74n`.
+///
+/// **A texture rather than a wider uniform block, and that is the design.**
+/// `FragInfo` is uploaded on every draw, so widening its four `vec4` arrays to
+/// hold thirty-two lights would be a two-kilobyte upload per draw in every
+/// scene, including every scene with one light. This is built once a frame and
+/// only when a scene has more lights than a draw can hold in its slots.
+///
+/// Row layout, which `renderer_light_list.dart` writes and only this reads:
+///
+///  * texel 0 — xyz world position, w type (0 directional, 1 point, 2 spot)
+///  * texel 1 — rgb linear colour, w intensity
+///  * texel 2 — xyz the direction it points, w range
+///  * texel 3 — x cos(inner), y cos(outer), zw unused
+///
+/// The same four vectors the uniform arrays hold, in the same order, so one
+/// reader serves both.
+uniform sampler2D light_list_texture;
+
+layout(std140) uniform LightListInfo {
+  /// x: how many rows this draw reads, zero when it reads none.
+  /// y, z: one over the texture's width and height.
+  /// w: unused.
+  vec4 list;
+
+  /// Which rows, four to a vector, in the order they are read.
+  ///
+  /// Indices rather than the light data itself: the data is the same for every
+  /// draw in the frame and belongs in the texture; what differs per draw is
+  /// *which* of them reach it, and that is what `Renderer._drawLightsFor`
+  /// already decides.
+  vec4 indices[6];
+
+  /// How much of each of those survives the edge fade, in the same order.
+  ///
+  /// Per draw and not in the texture, because the row an index points at is
+  /// shared by every draw in the frame: a scale written into it would dim that
+  /// light for all of them. `gfx-12n`'s fade lives at the end of the list now —
+  /// that is where a light stops contributing, and fading the slots against a
+  /// water line that no longer marks a cliff would dim a light for no reason
+  /// while its rival stayed bright, making the swap more visible rather than
+  /// less.
+  vec4 scales[6];
+}
+light_list_info;
+
+/// One lane of a six-vector table, [slot] counting from nought.
+float LightListLane(vec4 four, int slot) {
+  int lane = slot - (slot / 4) * 4;
+  return lane == 0 ? four.x : lane == 1 ? four.y : lane == 2 ? four.z : four.w;
+}
+
+/// The row light [slot] of the list reads.
+float LightListRow(int slot) {
+  return LightListLane(light_list_info.indices[slot / 4], slot);
+}
+
+/// How much of light [slot] of the list survives the edge fade.
+float LightListScale(int slot) {
+  return LightListLane(light_list_info.scales[slot / 4], slot);
+}
+
 layout(std140) uniform FragInfo {
   /// xyz: world position (point and spot). w: type, 0 directional 1 point 2 spot.
   vec4 light_position[kMaxLights];
@@ -7502,7 +9462,14 @@ layout(std140) uniform FragInfo {
   vec4 ambient_sky;
 
   /// rgb: what a surface facing straight down receives — bounce off the ground
-  /// rather than the ground itself. w unused.
+  /// rather than the ground itself.
+  ///
+  /// **w is the directional light's apparent size** — `gfx-15n` — which has
+  /// nothing to do with ambient and everything to do with this being the last
+  /// unspent component in a block six shaders share. `frame_params.w` was the
+  /// slot reserved for a frame-wide parameter and the environment's level
+  /// count took it; appending to this block moves offsets four backends have
+  /// agreed on. See `shadow.glsl`, which reads it.
   ///
   /// Two colours rather than one is the whole of what makes ambient look like
   /// light instead of like a lifted black level. Outdoors the sky is blue and
@@ -7556,8 +9523,38 @@ Surface ReadSurface() {
   // material is opaque or blended, and discard would then be wrong rather than
   // merely unnecessary. Doing it before anything else is deliberate: a
   // discarded fragment should not pay for the lighting loop.
+  //
+  // **A cutoff below -1.5 is the fourth mode: hashed** — `gfx-16n`. The
+  // sentinel rides in the same component because the alternative is a second
+  // number in a block six shaders share, and -1 already meant "not masked";
+  // anything more negative was free. See [MaterialAlphaMode.hashed].
   float cutoff = frag_info.material2.x;
-  if (cutoff >= 0.0 && s.alpha < cutoff) discard;
+  if (cutoff >= 0.0) {
+    if (s.alpha < cutoff) discard;
+  } else if (cutoff < -1.5) {
+    // **Stochastic instead of a threshold.** A leaf texture at 40% opacity is
+    // either entirely there or entirely gone under a fixed cutoff, so a fern
+    // comes out as a hard-edged cardboard cut-out; sorting would fix it and
+    // costs a sort per frame and a draw per layer. Comparing against noise
+    // instead keeps 40% of the *pixels*, which resolves as 40% opacity to
+    // anything that averages several of them — a higher-resolution target,
+    // a downsample, a person standing back.
+    //
+    // **Hashed on world position, not on the screen.** Screen-space noise is
+    // one line shorter and swims: the pattern stays put while the object
+    // moves through it, so a moving branch sparkles. Anchoring it to where
+    // the surface *is* means a given speck of leaf keeps its verdict from
+    // frame to frame, and the camera moving changes nothing.
+    //
+    // The scale is a constant and it is the whole tuning: finer than the
+    // texture's own detail and the noise disappears into aliasing, coarser
+    // and the leaf breaks into blotches. Sixteen per metre is about a
+    // centimetre of grain at a metre away.
+    vec3 anchored = floor(v_world_position * 16.0);
+    float noise = fract(
+        sin(dot(anchored, vec3(12.9898, 78.233, 37.719))) * 43758.5453);
+    if (s.alpha < noise) discard;
+  }
 
   s.n = normalize(v_normal);
   s.v = normalize(frag_info.camera_position.xyz - v_world_position);
@@ -7591,8 +9588,18 @@ Surface ReadSurface() {
 }
 
 int LightCount() {
-  return clamp(int(frag_info.frame_params.y + 0.5), 0, kMaxLights);
+  return clamp(int(frag_info.frame_params.y + 0.5), 0, kMaxLights) +
+      clamp(int(light_list_info.list.x + 0.5), 0, kExtraLights);
 }
+
+/// Whether light [index] carries a shadow — `gfx-74n`.
+///
+/// Only the first eight do. The cube atlas holds six rows and the slot table is
+/// eight entries wide, so a light from the list has no row to read and asking
+/// for one would index past the table. That is a real limit and the right one:
+/// the eight a draw keeps in its slots are the eight ranked most relevant to
+/// it, which is exactly the set worth a shadow map.
+bool LightHasShadow(int index) { return index < kMaxLights; }
 
 /// Distance attenuation for a punctual light, following the glTF spec.
 ///
@@ -7609,6 +9616,99 @@ float PunctualAttenuation(float distance, float range) {
   return attenuation;
 }
 
+/// How much of [s]'s sky a rectangle covers, weighted by the cosine —
+/// `gfx-77n`.
+///
+/// **Exact, not fitted.** This is Lambert's own form factor for a polygon, from
+/// 1760: for each edge, the angle it subtends at the shading point times how
+/// much the edge's plane leans into the surface normal. Summed over four edges
+/// and halved, it *is* the integral of `cos θ` over the rectangle's projection
+/// on the hemisphere — the quantity a punctual light approximates with a single
+/// `n · l`. So there is no table to ship and nothing to fit: the usual
+/// linearly-transformed-cosine approach exists to make the *specular* lobe
+/// tractable, and buys nothing here, where the diffuse answer is a closed form
+/// four `acos` calls long.
+///
+/// Returns irradiance over radiance, so a surface facing a rectangle that fills
+/// its whole sky gets π, the same as a uniform hemisphere. [corners] are the
+/// four vertices in order, relative to the shading point.
+///
+/// **The rectangle emits along `cross(halfWidth, halfHeight)`**, and with the
+/// corners wound as `SampleLight` winds them the sum comes out *negative* on
+/// that side, so the negation below is the convention rather than a fix. It was
+/// measured rather than derived: the first version returned `+total * 0.5`, and
+/// against the reference integration it read nought where the answer was 0.349
+/// and 1.02 where the answer was nought — the two failures a flipped winding
+/// produces, and between them they name the sign with no room left to argue.
+float RectangleFormFactor(vec3 corners[4], vec3 n) {
+  float total = 0.0;
+  for (int i = 0; i < 4; i++) {
+    vec3 a = normalize(corners[i]);
+    vec3 b = normalize(corners[(i + 1) & 3]);
+    // Clamped before the `acos`: two nearly parallel edge directions can give a
+    // dot a hair past one through rounding alone, and `acos` of that is a NaN
+    // that spreads to the whole pixel and then to the bloom.
+    float angle = acos(clamp(dot(a, b), -1.0, 1.0));
+    vec3 axis = cross(a, b);
+    float len = length(axis);
+    // A degenerate edge — the shading point lies on the line through it —
+    // subtends nothing, and normalising a zero vector is the other way to get
+    // that NaN.
+    if (len > 1e-6) total += angle * dot(axis / len, n);
+  }
+  // Clamped rather than tested separately: a surface on the panel's dark side,
+  // or facing away from it, comes out with the sign reversed, so "one-sided" is
+  // a property of the arithmetic instead of a flag somebody has to remember.
+  return max(-total * 0.5, 0.0);
+}
+
+/// Where on the rectangle the specular lobe is really looking — `gfx-77n`.
+///
+/// **The representative point, which is an approximation, unlike the diffuse
+/// above.** The mirror direction leaves the surface and either hits the panel
+/// or misses it; the closest point of the panel to that ray is treated as a
+/// punctual light standing in for the whole rectangle. It is the standard
+/// cheap answer and its one visible property is the one the row asked for: as
+/// the view moves the closest point slides along the panel, so the highlight
+/// is a streak with the panel's own shape and orientation rather than a dot.
+///
+/// What it does not do is widen the lobe by the panel's solid angle, so a
+/// rough surface under a large panel is a little darker than a full integration
+/// would make it. That is a known error of this method and not a bug in this
+/// transcription; the fix is the fitted table this function exists to avoid.
+vec3 RectangleClosestPoint(vec3 centre, vec3 halfWidth, vec3 halfHeight,
+                           vec3 world, vec3 mirror) {
+  vec3 n = cross(halfWidth, halfHeight);
+  float nLen = length(n);
+  // A panel with no area has no surface to find a point on; its centre is the
+  // only answer that is not a division by zero.
+  if (nLen < 1e-12) return centre;
+  n /= nLen;
+
+  vec3 toPlane = centre - world;
+  float denom = dot(mirror, n);
+  vec3 onPlane;
+  // Parallel to the panel, or pointing away from it: the ray never lands, so
+  // the nearest thing to it is the centre projected back, which keeps the
+  // highlight on the panel instead of sending it to infinity.
+  if (abs(denom) < 1e-5) {
+    onPlane = toPlane - n * dot(toPlane, n);
+  } else {
+    float t = dot(toPlane, n) / denom;
+    onPlane = t > 0.0 ? mirror * t : toPlane - n * dot(toPlane, n);
+  }
+
+  // Clamped into the rectangle in its own axes. Dividing by the squared length
+  // turns a projection into a coordinate in units of the half-extent, so the
+  // clamp is against one either way round.
+  vec3 offset = onPlane - toPlane;
+  float wLen2 = max(dot(halfWidth, halfWidth), 1e-12);
+  float hLen2 = max(dot(halfHeight, halfHeight), 1e-12);
+  float u = clamp(dot(offset, halfWidth) / wLen2, -1.0, 1.0);
+  float v = clamp(dot(offset, halfHeight) / hLen2, -1.0, 1.0);
+  return centre + halfWidth * u + halfHeight * v;
+}
+
 /// Resolves light [index] against the surface.
 ///
 /// Returns `n_dot_l == 0` for anything that contributes nothing — behind the
@@ -7617,12 +9717,91 @@ float PunctualAttenuation(float distance, float range) {
 LightSample SampleLight(int index, Surface s) {
   LightSample light;
 
-  vec4 position = frag_info.light_position[index];
-  vec4 color = frag_info.light_color[index];
-  vec4 direction = frag_info.light_direction[index];
-  vec4 cone = frag_info.light_cone[index];
+  vec4 position;
+  vec4 color;
+  vec4 direction;
+  vec4 cone;
+  if (index < kMaxLights) {
+    position = frag_info.light_position[index];
+    color = frag_info.light_color[index];
+    direction = frag_info.light_direction[index];
+    cone = frag_info.light_cone[index];
+  } else {
+    // A row of the light list — `gfx-74n`. Sampled at texel centres so a
+    // driver's rounding cannot land a fetch on a neighbour, and the four texels
+    // across the row are the same four vectors the arrays above hold.
+    int slot = index - kMaxLights;
+    float v = (LightListRow(slot) + 0.5) * light_list_info.list.z;
+    float u = light_list_info.list.y;
+    // `textureLod` and not `texture`, for `shadow.glsl`'s own reason: `index`
+    // reaches this branch through a function parameter, so a WGSL backend
+    // cannot see that every invocation of a draw walks the same light count
+    // and refuses the implicit derivative as possibly non-uniform. The atlas
+    // has one level, so naming it directly changes no pixel.
+    position = textureLod(light_list_texture, vec2(0.5 * u, v), 0.0);
+    color = textureLod(light_list_texture, vec2(1.5 * u, v), 0.0);
+    direction = textureLod(light_list_texture, vec2(2.5 * u, v), 0.0);
+    cone = textureLod(light_list_texture, vec2(3.5 * u, v), 0.0);
+    // The intensity and not the colour, for `LightBuffer._pack`'s own reason:
+    // the same multiply here, and only one of them is a number nobody authored.
+    color.w *= LightListScale(slot);
+  }
 
   float type = position.w;
+
+  // **The rectangle leaves before `aim` is taken — `gfx-77n`.** For every other
+  // kind `direction.xyz` is a unit vector saying which way the light points;
+  // for this one it is an edge of the panel, with its length carrying half the
+  // width, and normalising it here would quietly throw the size away.
+  if (type > 2.5) {
+    vec3 halfWidth = direction.xyz;
+    vec3 halfHeight = cone.xyz;
+    vec3 toCentre = position.xyz - v_world_position;
+
+    vec3 corners[4];
+    corners[0] = toCentre - halfWidth - halfHeight;
+    corners[1] = toCentre + halfWidth - halfHeight;
+    corners[2] = toCentre + halfWidth + halfHeight;
+    corners[3] = toCentre - halfWidth + halfHeight;
+
+    // The cosine-weighted solid angle, which takes the place `n · l` holds for
+    // a punctual light: the loop multiplies the shading by `n_dot_l`, so
+    // putting the exact integral here makes the diffuse term exact rather than
+    // sampled. See [RectangleFormFactor].
+    float formFactor = RectangleFormFactor(corners, s.n);
+
+    // Radiance rather than intensity: `intensity` means the same thing for
+    // every kind of light, so a panel's is spread over its own area here.
+    // Enlarging a window at a fixed rating then dims it per square metre and
+    // leaves the room as bright, which is what the number is supposed to mean.
+    float area = length(cross(halfWidth, halfHeight)) * 4.0;
+    float radiance = area > 1e-9 ? 1.0 / area : 0.0;
+
+    // The range window only. A punctual light needs the inverse square as
+    // well; the form factor already contains it, because a panel twice as far
+    // away subtends a quarter of the sky.
+    float distance = length(toCentre);
+    if (direction.w > 0.0) {
+      float ratio = distance / direction.w;
+      float window = clamp(1.0 - ratio * ratio * ratio * ratio, 0.0, 1.0);
+      radiance *= window * window;
+    }
+
+    vec3 mirror = reflect(-s.v, s.n);
+    vec3 representative = RectangleClosestPoint(
+        position.xyz, halfWidth, halfHeight, v_world_position, mirror);
+    vec3 toPoint = representative - v_world_position;
+    float pointDistance = length(toPoint);
+    light.l = pointDistance > 1e-6 ? toPoint / pointDistance : s.n;
+
+    light.h = normalize(light.l + s.v);
+    light.n_dot_l = formFactor;
+    light.n_dot_h = max(dot(s.n, light.h), 0.0);
+    light.v_dot_h = max(dot(s.v, light.h), 0.0);
+    light.radiance = color.rgb * color.w * radiance;
+    return light;
+  }
+
   vec3 aim = normalize(direction.xyz);
   float attenuation = 1.0;
 
@@ -7769,8 +9948,8 @@ layout(std140) uniform PointShadow {
 }
 point_shadow;
 
-/// Eight points on a Poisson disk, the same set flutter_scene filters its
-/// cascades with.
+/// Eight points on a Poisson disk, a common set for filtering cascaded
+/// shadows.
 ///
 /// A disk rather than a grid because a grid of taps on a straight shadow edge
 /// lands every sample on the same side at once, and the edge steps between
@@ -7950,11 +10129,11 @@ float PointShadowFactor(vec3 world, vec3 normal, int lightIndex) {
       2.0 * toLightLength * max(point_shadow.slots[lightIndex].z, 1e-4) *
       point_shadow.params3.y;
   // Both terms are metres. The slope term used to be the kernel radius, which
-  // is a fraction of a tile — a unit error copied across from flutter_scene,
-  // where the softness it borrows genuinely is the right quantity for their
-  // map. Here it meant widening the kernel also lifted the sample off the
-  // surface, by up to ten centimetres at the wider settings, so the softening
-  // and the lift cancelled: tripling the kernel moved 184 pixels of the frame,
+  // is a fraction of a tile — a unit mismatch carried over from an estimate
+  // where a softness radius genuinely was the right quantity. Here it meant
+  // widening the kernel also lifted the sample off the surface, by up to ten
+  // centimetres at the wider settings, so the softening and the lift
+  // cancelled: tripling the kernel moved 184 pixels of the frame,
   // where the kernel alone moves thousands. It is what made contact hardening
   // look inert, and it was hiding in a comparison rather than in the estimate.
   vec3 origin = world + normal * texel * point_shadow.params.w * (1.0 + slope);
@@ -8087,12 +10266,18 @@ vec3 AccumulateLights(Surface s) {
   vec3 total = vec3(0.0);
   int count = LightCount();
 
-  for (int i = 0; i < kMaxLights; i++) {
+  for (int i = 0; i < kTotalLights; i++) {
     if (i >= count) break;
     LightSample light = SampleLight(i, s);
     if (light.n_dot_l <= 0.0) continue;
-    float visibility = LightVisibility(s, light, i) *
-        PointShadowFactor(v_world_position, s.n, i);
+    // A light from the list has no shadow row to read — see `LightHasShadow`.
+    // A branch rather than something folded into the two calls, because both
+    // index tables eight entries wide and the ninth light would read past them
+    // rather than read a one.
+    float visibility = LightHasShadow(i)
+        ? LightVisibility(s, light, i) *
+              PointShadowFactor(v_world_position, s.n, i)
+        : 1.0;
     if (visibility <= 0.0) continue;
     total += ShadeLight(s, light) * light.radiance * light.n_dot_l * visibility;
   }
@@ -8222,6 +10407,19 @@ void ApplyCommonMaps(inout Surface s) {
 /// Linear depth from the light's point of view, in the red channel.
 uniform sampler2D shadow_texture;
 
+/// Five points on a disc: the centre and four at the diagonals.
+///
+/// **Diagonals rather than the axes.** A cross of four axis-aligned taps
+/// leaves a shadow whose edge is smooth along x and y and hard at forty-five
+/// degrees, which is the angle most edges in a built scene actually run at.
+/// Turned by an eighth of a turn, the four taps straddle a vertical or
+/// horizontal edge evenly and the artefact has nowhere to line up.
+const vec2 kShadowDisc[5] = vec2[5](vec2(0.0, 0.0),
+                                    vec2(0.7071, 0.7071),
+                                    vec2(-0.7071, 0.7071),
+                                    vec2(0.7071, -0.7071),
+                                    vec2(-0.7071, -0.7071));
+
 /// How much of the light survives at this fragment, from 0 to 1.
 ///
 /// Returns 1 when shadows are off, when the fragment falls outside the map, or
@@ -8292,9 +10490,6 @@ float ShadowFactor(Surface s, LightSample light, int lightIndex) {
   // cascade they are the same number and this is the kernel it has always been.
   vec2 texel = vec2(frag_info.shadow_params.x, frag_info.shadow_cascades.w);
 
-  // PCF 3x3. Four samples would band visibly at this map size and nine is the
-  // smallest kernel that reads as a soft edge rather than as stair steps.
-  //
   // **`textureLod` and not `texture`, and the level asked for is the only one
   // there is.** Everything above this loop is a reason not to be here — the
   // cascade search returns early when no cascade contains the fragment, and the
@@ -8305,16 +10500,75 @@ float ShadowFactor(Surface s, LightSample light, int lightIndex) {
   // single level, so the derivative was never doing anything but selecting
   // level zero, and naming that level directly costs nothing and changes no
   // pixel on any backend.
+  //
+  // **The softness, where it rides, and what zero means.**
+  //
+  // `ambient_ground.w` is the directional light's apparent size. It has
+  // nothing to do with ambient light and everything to do with this being the
+  // one component left unspent in a block six shaders share: `frame_params.w`
+  // was the slot reserved for exactly this and the environment's level count
+  // took it, and appending to the block moves offsets four backends have
+  // agreed on. The alternative was a second uniform block bound per draw for
+  // one float. Named here because a reader arriving at `ambient_ground` has
+  // every right to be surprised.
+  //
+  // Zero is the 3×3 kernel this has always had, which is what keeps every
+  // recorded golden where it is. Above zero the edge widens with the distance
+  // between the occluder and what it falls on — what a real light does, and
+  // what no fixed kernel can.
+  float softness = frag_info.ambient_ground.w;
   float lit = 0.0;
-  for (int y = -1; y <= 1; y++) {
-    for (int x = -1; x <= 1; x++) {
-      float occluder =
-          textureLod(shadow_texture, uv + vec2(float(x), float(y)) * texel, 0.0)
-              .r;
+  if (softness <= 0.0) {
+    // PCF 3x3. Four samples would band visibly at this map size and nine is
+    // the smallest kernel that reads as a soft edge rather than as stair
+    // steps.
+    for (int y = -1; y <= 1; y++) {
+      for (int x = -1; x <= 1; x++) {
+        float occluder = textureLod(
+            shadow_texture, uv + vec2(float(x), float(y)) * texel, 0.0).r;
+        lit += projected.z - bias > occluder ? 0.0 : 1.0;
+      }
+    }
+    lit *= 1.0 / 9.0;
+  } else {
+    // **Find what is casting before deciding how wide to blur.** The five
+    // taps go out at a fixed search radius first and average the depths of
+    // whatever they find in front of this fragment; that average is the
+    // occluder's distance, and the penumbra is proportional to it. A kernel
+    // sized without this step is the fixed one again with a bigger number.
+    // Bounded, and not proportional to the softness: the search only has to
+    // reach far enough to find *a* blocker, and a radius that grew without
+    // limit would start finding occluders from the other side of the scene
+    // and report a gap that belongs to them.
+    float searchRadius = clamp(softness * 0.25, 2.0, 16.0);
+    float blockerSum = 0.0;
+    float blockerCount = 0.0;
+    for (int i = 0; i < 5; i++) {
+      float occluder = textureLod(
+          shadow_texture, uv + kShadowDisc[i] * texel * searchRadius, 0.0).r;
+      if (projected.z - bias > occluder) {
+        blockerSum += occluder;
+        blockerCount += 1.0;
+      }
+    }
+    // Nothing between this fragment and the light: lit, and no second loop.
+    if (blockerCount <= 0.0) return 1.0;
+
+    // Linear depth over the cascade's own volume, so the gap between the
+    // occluder and the receiver *is* the distance — no perspective divide,
+    // which is what an orthographic light means.
+    float gap = max(projected.z - blockerSum / blockerCount, 0.0);
+    // One texel at the tightest, so a contact edge stays an edge; the cap
+    // keeps a distant occluder from reaching across a whole cascade.
+    float radius = clamp(gap * softness, 1.0, 16.0);
+
+    for (int i = 0; i < 5; i++) {
+      float occluder = textureLod(
+          shadow_texture, uv + kShadowDisc[i] * texel * radius, 0.0).r;
       lit += projected.z - bias > occluder ? 0.0 : 1.0;
     }
+    lit *= 1.0 / 5.0;
   }
-  lit *= 1.0 / 9.0;
 
   // Strength lerps towards fully lit, so the control is "how dark", not "how
   // much of the kernel".
@@ -8550,7 +10804,7 @@ float ViewDepth() { return 0.0; }
 /// A depth in metres has none of that: the exponent carries the range and the
 /// mantissa carries the same relative precision everywhere, which at twenty
 /// metres is a centimetre. Both numbers are measured in
-/// `flutter3d_cpu/test/surface_depth_test.dart`.
+/// `flutter3d/test/surface_depth_test.dart`.
 ///
 /// Zero still means nothing was drawn. The attachment is cleared to zero and
 /// nothing is drawn in front of the near plane.
@@ -8818,7 +11072,7 @@ uniform sampler2D source_texture;
 
 layout(std140) uniform BloomInfo {
   /// x: 1/width, y: 1/height of the SOURCE texture. z: filter radius in source
-  /// texels. w unused.
+  /// texels. w: halation for this level of the chain, 0 for none.
   vec4 params;
 }
 bloom_info;
@@ -8838,7 +11092,27 @@ void main() {
 
   // 1 2 1 / 2 4 2 / 1 2 1, over sixteen.
   vec3 result = e * 4.0 + (b + d + f + h) * 2.0 + (a + c + g + i);
-  frag_color = vec4(result * (1.0 / 16.0), 1.0);
+  result *= (1.0 / 16.0);
+
+  // **Halation: the wide part of the glow goes red — `gfx-30n`.** On film the
+  // halo around a highlight is warm, because light that made it through the
+  // emulsion scatters off the backing and comes back, and the red layer sits
+  // deepest so it catches the most of it. The same asymmetry is what stops a
+  // digital bloom reading as a grey smear.
+  //
+  // Applied here rather than in the composite because here is where the
+  // *levels* are: the caller hands each level its own amount, so the tight
+  // core stays neutral and only the broad skirt warms. The composite sees one
+  // glow and could not tell them apart.
+  //
+  // Zero is an exact identity — the multiplier is one on every channel — and
+  // that is what keeps every recorded frame where it is.
+  float halation = bloom_info.params.w;
+  if (halation > 0.0) {
+    result *= vec3(1.0 + halation * 0.5, 1.0, 1.0 - halation * 0.35);
+  }
+
+  frag_color = vec4(result, 1.0);
 }
 
 ''',
@@ -8875,12 +11149,34 @@ uniform sampler2D bloom_texture;
 /// nothing and removes the branch.
 uniform sampler2D ao_texture;
 
+/// The contact shadow's own factor — `gfx-76n`. Bound on every frame with a
+/// white stand-in when the pass did not run, the same rule `ao_texture` above
+/// follows and for the same reason: a declared sampler nobody binds is a native
+/// crash on Metal rather than a black texture.
+uniform sampler2D contact_shadow_texture;
+
+/// The colour table, as a strip: N slices of N×N laid out left to right, so
+/// the image is N² wide and N tall. Bound to whatever the engine has when no
+/// table is set — the strength is zero then and nothing samples it, but a
+/// sampler this shader declares and nobody binds is a native crash on Metal
+/// rather than a black texture, which is the same rule `ao_texture` above
+/// already follows.
+uniform sampler2D lut_texture;
+
 layout(std140) uniform CompositeInfo {
-  /// x: exposure, y: bloom intensity, z: 1 to tone map, w: how much of the
+  /// x: exposure, y: bloom intensity, z: which tone curve, w: how much of the
   /// occlusion to apply, 0 for none.
+  ///
+  /// **z is a curve number, not a flag, and 1 is still the old flag's
+  /// meaning.** 0 leaves the colour alone, 1 is Khronos PBR Neutral — what
+  /// every golden in this repository was recorded with — 2 is ACES, 3 is AgX
+  /// and 4 is Reinhard. Numbering the default 1 is what lets a `> 0.5` read
+  /// of the old flag and an `int()` read of the new number agree about every
+  /// scene already recorded.
   vec4 params;
 
-  /// x, y: one texel of the ao texture. z, w unused.
+  /// x, y: one texel of the ao texture. z: how much of the colour table to
+  /// apply, 0 for none. w: how many slices the table has, its N.
   vec4 ao_texel;
 
   /// The look, half of it. x: contrast, y: saturation, z: temperature,
@@ -8894,6 +11190,38 @@ layout(std140) uniform CompositeInfo {
   /// The look, the rest. x: vignette, y: vignette roundness, z: grain,
   /// w: the target's aspect, width over height.
   vec4 look_more;
+
+  /// x: dither amount, in display units — 1/255 is one 8-bit step, and 0 is
+  /// off exactly. y: white balance, warm above zero. z: tint, green against
+  /// magenta. w: unclaimed.
+  ///
+  /// **A fifth block rather than a spare component of a fourth**, because the
+  /// other four are full and because a number that means "one output step"
+  /// does not belong beside three that mean "a look". Neutral is
+  /// (0, 0, 0, 0) and must stay exactly that: every golden in the repository
+  /// goes through this block.
+  vec4 output_encode;
+
+  /// Lift, in xyz — what is added, so it moves the shadows and leaves white
+  /// where it was. w: unclaimed. Neutral is (0, 0, 0, 0).
+  vec4 lift;
+
+  /// Gamma, in xyz — the exponent, so it moves the midtones and leaves both
+  /// ends. w: unclaimed. Neutral is (1, 1, 1, 0).
+  vec4 gamma;
+
+  /// Gain, in xyz — what is multiplied, so it moves the highlights and leaves
+  /// black where it was. w: unclaimed. Neutral is (1, 1, 1, 0).
+  vec4 gain;
+
+  /// x: how much of the contact shadow reaches the picture, nought to one —
+  /// `gfx-76n`. y, z, w unclaimed.
+  ///
+  /// Appended after everything else, the way this block has grown before: a
+  /// std140 block is laid out in declaration order, so adding here leaves every
+  /// offset above unchanged and the four backends do not have to agree about
+  /// anything they had not already agreed on.
+  vec4 contact;
 }
 composite_info;
 
@@ -8907,6 +11235,42 @@ float Luma(vec3 color) { return dot(color, vec3(0.2126, 0.7152, 0.0722)); }
 /// `LookSettings.grain`, which says the same thing from the other side.
 float Hash(vec2 at) {
   return fract(sin(dot(at, vec2(12.9898, 78.233))) * 43758.5453);
+}
+
+/// One cell of a 4x4 Bayer matrix, as a value in [-0.5, 0.5).
+///
+/// **Ordered rather than random, and that is the whole choice.** The grain
+/// above already uses a hash, and a hash here would work — but blue-ish noise
+/// on a flat gradient reads as noise, where an ordered matrix reads as a
+/// gradient. The pattern repeats every four pixels and is fixed to screen
+/// position, so it is as golden-stable as the grain is and for the same
+/// reason: nothing here is a function of time.
+///
+/// The matrix is the standard recursive one, written out because computing it
+/// costs more than reading it.
+float BayerCell(vec2 at) {
+  int x = int(mod(at.x, 4.0));
+  int y = int(mod(at.y, 4.0));
+  int index = y * 4 + x;
+  // 0, 8, 2, 10 / 12, 4, 14, 6 / 3, 11, 1, 9 / 15, 7, 13, 5
+  float value = 0.0;
+  if (index == 0) value = 0.0;
+  else if (index == 1) value = 8.0;
+  else if (index == 2) value = 2.0;
+  else if (index == 3) value = 10.0;
+  else if (index == 4) value = 12.0;
+  else if (index == 5) value = 4.0;
+  else if (index == 6) value = 14.0;
+  else if (index == 7) value = 6.0;
+  else if (index == 8) value = 3.0;
+  else if (index == 9) value = 11.0;
+  else if (index == 10) value = 1.0;
+  else if (index == 11) value = 9.0;
+  else if (index == 12) value = 15.0;
+  else if (index == 13) value = 7.0;
+  else if (index == 14) value = 13.0;
+  else value = 5.0;
+  return value / 16.0 - 0.5;
 }
 
 vec3 LinearToSrgb(vec3 linear) {
@@ -8942,6 +11306,195 @@ vec3 TonemapNeutral(vec3 color) {
 
   float desaturate = 1.0 - 1.0 / (kDesaturation * (peak - newPeak) + 1.0);
   return mix(color, vec3(newPeak), desaturate);
+}
+
+/// ACES, the Narkowicz fit.
+///
+/// **It lifts the midtones, and that is why it is offered rather than
+/// imposed.** Measured rather than recited: 18% grey comes out at 0.267 where
+/// the neutral curve leaves it at 0.140, because this fit carries roughly a
+/// stop of exposure inside it — the RRT and ODT it approximates were never
+/// meant to be fed display-referred values. The result is the brighter,
+/// contrastier image people recognise from film, and it is also exactly why
+/// it is wrong as a default here: a glTF asset is authored against a
+/// reference viewer, and a curve that moves the midtones moves the asset away
+/// from how its author saw it.
+///
+/// The three-term rational fit rather than the full RRT/ODT: the matrices in
+/// front and behind cost more than the curve is worth at this end of the
+/// pipeline. Its own ceiling arrives early — everything above about 7.2 comes
+/// out at exactly one, so two different highlights an artist can tell apart
+/// become one flat patch. [TonemapAgx] is the answer to that.
+vec3 TonemapAces(vec3 color) {
+  const float a = 2.51;
+  const float b = 0.03;
+  const float c = 2.43;
+  const float d = 0.59;
+  const float e = 0.14;
+  return clamp((color * (a * color + b)) / (color * (c * color + d) + e),
+               vec3(0.0), vec3(1.0));
+}
+
+/// AgX, as a curve without the rotation matrices.
+///
+/// **What it is for: bright saturated light that does not turn into a flat
+/// disc of colour.** A coloured lamp four stops over white comes out of ACES
+/// with its channels 0.36 apart and out of this with 0.22 — the highlight
+/// walks towards white rather than towards its own primary. And it keeps
+/// separating values long after ACES has stopped: at 8 and at 40 ACES returns
+/// one and one, where this returns 0.971 and 0.999, so the inside of a bright
+/// patch still has shape in it.
+///
+/// **It is a much more exposed curve than the other three**, which is a
+/// decision to make with open eyes rather than a side effect: 18% grey lands
+/// at 0.50 here against 0.14 through the neutral curve, because AgX is built
+/// to put middle grey at middle display and the log encoding below does
+/// exactly that. A scene switched to this without re-lighting looks washed
+/// out, and correctly so.
+///
+/// A log-encoded sigmoid on each channel, then a pull towards the luminance
+/// by how far each channel climbed. The full transform rotates into and out
+/// of a wider gamut first; that rotation is what keeps deep blues from going
+/// purple, and it needs two matrices this pass has nowhere to keep. Named as
+/// missing rather than implied: this is AgX's curve, not AgX.
+vec3 TonemapAgx(vec3 color) {
+  const float kMinEv = -12.47393;
+  const float kMaxEv = 4.026069;
+
+  vec3 v = clamp(log2(max(color, vec3(1e-10))), vec3(kMinEv), vec3(kMaxEv));
+  v = (v - vec3(kMinEv)) / (kMaxEv - kMinEv);
+
+  // A sixth-order fit of AgX's own sigmoid, which is the part that does the
+  // work: gentle through the middle, long shoulders at both ends.
+  vec3 v2 = v * v;
+  vec3 v4 = v2 * v2;
+  v = 15.5 * v4 * v2 - 40.14 * v4 * v + 31.96 * v4 - 6.868 * v2 * v +
+      0.4298 * v2 + 0.1191 * v - 0.00232;
+  v = clamp(v, vec3(0.0), vec3(1.0));
+
+  // The desaturation AgX is known for, applied where the curve lifted the
+  // most. Without it the sigmoid alone leaves highlights as saturated as ACES
+  // does and the point of the curve is lost.
+  float luma = Luma(v);
+  return mix(vec3(luma), v, 0.84);
+}
+
+/// AgX with the rotation this pass used to have nowhere to keep — `gfx-26n`.
+///
+/// **What the two matrices buy, and it is one specific thing.** [TonemapAgx]
+/// compresses each channel on its own, so a channel that clips takes its hue
+/// with it: a deep blue four stops over white loses blue last and arrives at
+/// the display having drifted through purple, because red and green were
+/// driven up towards it while blue was already at the ceiling. The inset
+/// matrix mixes a little of each channel into the others *before* the curve,
+/// which means no channel is ever compressed alone, and the outset matrix —
+/// its inverse — takes the mixing back out afterwards. The hue that comes out
+/// is the hue that went in. That is the whole of the rotation, and it is why
+/// the comment on [TonemapAgx] named the absence rather than implying the
+/// curve was the transform.
+///
+/// **A fifth curve rather than a correction to the fourth.** Every golden in
+/// this repository that names a curve names one of the four codes, and 18%
+/// grey lands in a different place through the rotation than through the bare
+/// sigmoid — so quietly improving `agx` would move pictures somebody recorded
+/// on purpose. `agx` stays exactly the curve it was, and this is the one to
+/// reach for when a hue has to survive being over-bright.
+///
+/// The matrices are the published AgX ones, written out rather than derived,
+/// and they are inverses to about six decimal places — checked as arithmetic
+/// in `tonemap_curve_test.dart` rather than trusted, because a transposed row
+/// here would look like a subtle grade rather than like a bug.
+vec3 TonemapAgxFull(vec3 color) {
+  // The published pair, written in the same layout and used in the same order
+  // as the reference implementation — `M * v`, with the literals as that
+  // implementation lists them. Taken as a matched pair on purpose: an inset
+  // from one variant beside an outset from another is a matrix product that is
+  // *nearly* the identity, which reads as a grade nobody asked for rather than
+  // as a mistake.
+  const mat3 kInset = mat3(
+      0.842479062253094, 0.0423282422610123, 0.0423756549057051,
+      0.0784335999999992, 0.878468636469772, 0.0784336,
+      0.0792237451477643, 0.0791661274605434, 0.879142973793104);
+  const mat3 kOutset = mat3(
+      1.19687900512017, -0.0528968517574562, -0.0529716355144438,
+      -0.0980208811401368, 1.15190312990417, -0.0980434501171241,
+      -0.0990297440797205, -0.0989611768448433, 1.15107367264116);
+
+  vec3 v = kInset * color;
+  v = TonemapAgx(v);
+  // Out of the wider gamut, then clamped: the outset can push a channel a
+  // little past one or a little below zero on a colour that was already at
+  // the edge, and anything above display white is display white.
+  return clamp(kOutset * v, vec3(0.0), vec3(1.0));
+}
+
+/// Reinhard, extended so that white maps to white.
+///
+/// The plain `c / (1 + c)` never reaches one, so a sky that should clip to
+/// paper white comes out grey; the extension takes the value that *should*
+/// become white and normalises to it. Here that value is 4 — two stops over
+/// display white — which is the point past which this engine's bloom has
+/// taken over anyway.
+///
+/// **Clamped, because the extension keeps climbing past its own white
+/// point.** The curve maps 4 to exactly one and 40 to 3.4, which is not a
+/// tone mapper's job: anything above white is white. Without the clamp the
+/// only thing bounding the output is the sRGB encode at the very end, and a
+/// curve whose contract is "this fits on a display" should be the thing that
+/// makes it fit.
+///
+/// Kept because it is the plainest of the four and the one everything else
+/// gets compared against.
+vec3 TonemapReinhard(vec3 color) {
+  const float kWhite = 4.0;
+  vec3 numerator = color * (vec3(1.0) + color / vec3(kWhite * kWhite));
+  return clamp(numerator / (vec3(1.0) + color), vec3(0.0), vec3(1.0));
+}
+
+/// [color] through whichever curve [curve] names.
+///
+/// A chain of comparisons rather than a `switch`: the number is a uniform,
+/// so every backend takes the same branch for a whole frame, and `switch` on
+/// a non-constant is the construct that has needed a workaround on one
+/// backend or another every time it has been used here.
+/// [color] looked up in the colour table, which holds `size` slices.
+///
+/// **A strip, not a 3D texture**, because three of the four backends this
+/// engine runs on either have no 3D sampler or have one that costs a
+/// capability check — and a strip is an ordinary 2D image an artist can open,
+/// which is how every grading tool exports one anyway.
+///
+/// The blue axis picks a pair of neighbouring slices and mixes between them;
+/// red and green come out of the sampler's own bilinear filtering inside a
+/// slice. The half-texel inset on red is what keeps the first and last
+/// entries reachable: without it the ends of the ramp are never sampled and a
+/// table that should be an identity darkens white.
+vec3 SampleLut(vec3 color, float size) {
+  vec3 c = clamp(color, vec3(0.0), vec3(1.0));
+
+  float sliceWidth = 1.0 / size;
+  float texel = 1.0 / (size * size);
+  float innerWidth = texel * (size - 1.0);
+
+  float u = texel * 0.5 + c.r * innerWidth;
+  float v = (0.5 / size) + c.g * ((size - 1.0) / size);
+
+  float slice = c.b * (size - 1.0);
+  float lower = floor(slice);
+  float upper = min(lower + 1.0, size - 1.0);
+
+  vec3 a = texture(lut_texture, vec2(lower * sliceWidth + u, v)).rgb;
+  vec3 b = texture(lut_texture, vec2(upper * sliceWidth + u, v)).rgb;
+  return mix(a, b, slice - lower);
+}
+
+vec3 TonemapBy(vec3 color, int curve) {
+  if (curve == 1) return TonemapNeutral(color);
+  if (curve == 2) return TonemapAces(color);
+  if (curve == 3) return TonemapAgx(color);
+  if (curve == 4) return TonemapReinhard(color);
+  if (curve == 5) return TonemapAgxFull(color);
+  return color;
 }
 
 void main() {
@@ -8981,6 +11534,20 @@ void main() {
   // than nearly so.
   ao = mix(1.0, ao, clamp(composite_info.params.w, 0.0, 1.0));
 
+  // **The contact shadow, folded into the same multiplier — `gfx-76n`.** Its
+  // own strength, because it answers a different question from the occlusion:
+  // one is how enclosed a point is and the other is whether the sun reaches
+  // it, and a scene wants them at different amounts. Its own `mix` for the
+  // reason the line above has one — "off" has to be a multiplier of exactly
+  // one, which every golden in this repository depends on.
+  //
+  // Full resolution rather than the occlusion's half, so no four-tap average:
+  // the whole point of a contact shadow is the first few centimetres at the
+  // join, and a half-resolution one is the seam it exists to draw, blurred
+  // away.
+  float contact = texture(contact_shadow_texture, v_uv).r;
+  ao *= mix(1.0, contact, clamp(composite_info.contact.x, 0.0, 1.0));
+
   // Applied to the scene and **not** to the bloom, which is the whole reason
   // this lives in the composite rather than in a pass that reads and rewrites
   // the HDR colour. Multiplying before bloom would take the glow out of a lit
@@ -8999,7 +11566,7 @@ void main() {
   // stretching an already-compressed image.
   color *= max(composite_info.params.x, 0.0);
 
-  if (composite_info.params.z > 0.5) color = TonemapNeutral(color);
+  color = TonemapBy(color, int(composite_info.params.z + 0.5));
 
   // **After the tone map, and that is the point.** Grading is a decision about
   // an image somebody can see; applied to unbounded scene-referred colour it
@@ -9013,7 +11580,65 @@ void main() {
   color = mix(vec3(Luma(color)), color, saturation);
   // A gain on the ends against the middle. Not a white-balance conversion —
   // a scene lit at the wrong temperature is fixed at the light, not here.
+  // `white_balance` below is the conversion, and the two are deliberately
+  // separate: this one is a look, that one is a correction.
   color *= vec3(1.0 + temperature * 0.1, 1.0, 1.0 - temperature * 0.1);
+
+  // **Lift, gamma, gain — `gfx-27n`, and the three ranges a colourist
+  // actually reaches for.** Contrast and saturation move the whole picture at
+  // once; these move one end of it. Lift adds, so it raises the shadows and
+  // leaves white alone. Gain multiplies, so it moves the highlights and
+  // leaves black alone. Gamma is the exponent between them, so it moves the
+  // midtones and leaves both ends. Applied in that order, which is the order
+  // they are named in and the order a grading panel applies them.
+  //
+  // Each is a vec3, not a scalar: the whole reason to have them is a warm
+  // highlight over a cool shadow, which one number per stage cannot say.
+  vec3 lift = composite_info.lift.xyz;
+  vec3 gammaCurve = composite_info.gamma.xyz;
+  vec3 gain = composite_info.gain.xyz;
+  color = color + lift;
+  // Guarded, because a channel at zero under a fractional exponent is a
+  // divide by zero on some drivers and a black pixel on others, and the
+  // defaults have to be an exact identity rather than nearly one.
+  color = max(color, vec3(0.0));
+  if (gammaCurve != vec3(1.0)) color = pow(color, vec3(1.0) / gammaCurve);
+  color *= gain;
+
+  // **White balance, which the temperature above is not.** A gain on red
+  // against blue is a look; this is the correction — a shift along the
+  // warm-to-cool axis with a green-magenta tint across it, the pair every
+  // camera and every grading panel offers together. Approximated in the
+  // display space rather than converted through a chromatic adaptation
+  // matrix: the exact transform wants the scene's own white point, and this
+  // pass has the picture rather than the light that made it.
+  float balance = composite_info.output_encode.y;
+  float tint = composite_info.output_encode.z;
+  if (balance != 0.0 || tint != 0.0) {
+    color *= vec3(
+        1.0 + balance * 0.20,
+        1.0 + tint * 0.15,
+        1.0 - balance * 0.20);
+    // The tint takes its green out of the other two rather than adding light,
+    // so a tint alone changes the hue and not the level.
+    color.r -= tint * 0.075;
+    color.b -= tint * 0.075;
+  }
+
+  // **The table goes after the grade and before the barrel**, which is where
+  // a grading suite puts it: a LUT is somebody's finished look, so it should
+  // see the contrast and saturation decisions rather than have them applied
+  // on top of it — and it should not see the vignette or the grain, which
+  // belong to the lens and the film rather than to the colour.
+  //
+  // Branched on the strength rather than mixed by it, so a frame with no
+  // table does not sample one. The branch is on a uniform, so the whole draw
+  // takes the same side of it.
+  float lutStrength = composite_info.ao_texel.z;
+  if (lutStrength > 0.0) {
+    vec3 graded = SampleLut(color, max(composite_info.ao_texel.w, 2.0));
+    color = mix(color, graded, clamp(lutStrength, 0.0, 1.0));
+  }
 
   // The barrel and the film, last, and in that order: a vignette darkens what
   // the grain then lands on, which is the way round a camera does it.
@@ -9030,13 +11655,213 @@ void main() {
     color *= mix(1.0, 1.0 - vignette, clamp(radius, 0.0, 1.0));
   }
 
-  float grain = composite_info.look_more.z;
-  // Centred on zero so grain neither lifts nor lowers the average level, and
-  // added rather than multiplied so it stays visible in the shadows, which is
-  // where film grain lives.
-  if (grain > 0.0) color += vec3((Hash(gl_FragCoord.xy) - 0.5) * grain);
+  // **Grain and dither are both after the encode, and for the same reason.**
+  // Banding is a quantisation artefact of the 8-bit target, so the noise that
+  // breaks it up has to be the size of one output step: a fixed distance in
+  // display space and a wildly varying one in linear space, where a step near
+  // black is a thousandth of a step near white.
+  vec3 encoded = LinearToSrgb(max(color, vec3(0.0)));
 
-  frag_color = vec4(LinearToSrgb(max(color, vec3(0.0))), scene.a);
+  // **This used to be added in linear light, and the comment on it was
+  // wrong.** It said the noise was centred on zero so grain neither lifts nor
+  // lowers the average level. Symmetric in linear it was; symmetric by the
+  // time anybody saw it, it was not. `max(color, 0.0)` clipped the negative
+  // half, and the sRGB encode then stretched what was left: at a grain of
+  // 0.08 on black, the surviving half ran up to a linear 0.04, which encodes
+  // to 56 of 255. Measured over the `look` parity fixture, the darkest cell
+  // sat at 14 instead of 0, across a picture that is 188 cells of black.
+  //
+  // In display space the two halves are the same size, nothing is clipped
+  // before the average is taken, and the sentence above is finally true. What
+  // it costs is that the amount means something different: 0.08 is now eight
+  // percent of the output range rather than of the light, which is what a
+  // film grain control has always meant on every other tool.
+  float grain = composite_info.look_more.z;
+  if (grain > 0.0) encoded += vec3((Hash(gl_FragCoord.xy) - 0.5) * grain);
+
+  // Dither last, because it is the one aimed at the quantiser itself.
+  float dither = composite_info.output_encode.x;
+  if (dither > 0.0) encoded += vec3(BayerCell(gl_FragCoord.xy) * dither);
+
+  frag_color = vec4(encoded, scene.a);
+}
+
+''',
+    'Fxaa': r'''#version 300 es
+precision highp float;
+precision highp int;
+precision highp sampler2D;
+precision highp samplerCube;
+
+// Edges smoothed after the fact, on the finished picture.
+//
+// **This exists to end a choice nobody should have to make.** The scene pass
+// turns MSAA off whenever anything consumes the surface buffer, because a
+// multisampled attachment and a buffer something else reads back are the same
+// decision made two ways — so switching ambient occlusion on cost every edge
+// in the frame its smoothing. A game got shadows in its corners or clean
+// silhouettes, and not both.
+//
+// Working on the composited image rather than on the scene is what makes that
+// possible, and it is also what makes this cheap: one pass, one texture, no
+// depth, no second attachment, no knowledge of geometry at all. What it
+// cannot do is help an edge the rasteriser never saw — a thin wire that fell
+// between two pixel centres is gone before this reads it, which MSAA would
+// have caught. Named here because it is the honest limit of the technique
+// rather than a defect in this implementation.
+precision highp float;
+
+in vec2 v_uv;
+
+layout(location = 0) out vec4 frag_color;
+
+/// The composited frame, already tone mapped and sRGB encoded.
+uniform sampler2D source_texture;
+
+layout(std140) uniform FxaaInfo {
+  /// x, y: one texel. z: the contrast a pixel needs before it is worth
+  /// touching, as a fraction of the local maximum. w: how far along the edge
+  /// to sample, in texels.
+  vec4 params;
+
+  /// x: contrast-adaptive sharpening, 0 for none. y, z, w: unclaimed.
+  ///
+  /// **A second block member rather than a fifth component**, because
+  /// `params` is full — and because sharpening is not an anti-aliasing
+  /// parameter. It rides in this pass for one reason: the four taps it needs
+  /// are the four this pass already fetches.
+  vec4 sharpen;
+}
+fxaa_info;
+
+/// The smallest of the three, which GLSL has no builtin for.
+float MinChannel(vec3 v) { return min(v.x, min(v.y, v.z)); }
+
+/// Contrast-adaptive sharpening over the cross this pass already sampled —
+/// `gfx-29n`.
+///
+/// **Why it is here and not in a pass of its own.** Output sharpening is what
+/// normally follows an FXAA-softened image, and the neighbourhood it needs is
+/// the four taps the smoothing already fetched. A pass of its own would be a
+/// second full-screen draw and four more texture reads for the same answer.
+///
+/// **Adaptive, which is the whole of the name.** A plain unsharp mask
+/// overshoots wherever the neighbourhood is already near an extreme — the
+/// bright halo along a hard edge that reads as a cheap filter. The amplitude
+/// here is taken from how much headroom the darkest and lightest neighbours
+/// leave, so a pixel with room is sharpened and a pixel already against the
+/// ceiling is not.
+///
+/// **Pushed away from the neighbourhood average, with no denominator.** The
+/// first version here used the normalised kernel a sharpener usually has —
+/// `(c + w*(n+s+w+e)) / (1 + 4w)` — and that form has a hole in it with four
+/// neighbours: the denominator is zero at `w = -0.25`, which is exactly where
+/// full strength on a pixel with full headroom lands. A flat grey frame came
+/// back white. Measured, not reasoned about: 96 went to 255 on every pixel.
+///
+/// This form has no denominator to vanish. A flat neighbourhood has the
+/// centre equal to its own average, so the difference is zero and the pixel
+/// is returned untouched — an identity by construction rather than by
+/// algebra that happens to cancel.
+vec3 Sharpen(vec3 centre, vec3 n, vec3 s, vec3 w, vec3 e) {
+  float strength = fxaa_info.sharpen.x;
+  if (strength <= 0.0) return centre;
+
+  vec3 lowest = min(centre, min(min(n, s), min(w, e)));
+  vec3 highest = max(centre, max(max(n, s), max(w, e)));
+  // How much room is left at the nearer end. Per channel, because a red edge
+  // against white has headroom in two channels and none in the third.
+  vec3 room = min(lowest, vec3(1.0) - highest) / max(highest, vec3(1e-5));
+  float amount = clamp(sqrt(clamp(MinChannel(room), 0.0, 1.0)), 0.0, 1.0);
+
+  vec3 average = (n + s + w + e) * 0.25;
+  return centre + (centre - average) * amount * strength;
+}
+
+/// Perceptual weight, on the encoded image.
+///
+/// Green-weighted rather than Rec. 709 luma: this runs *after* the sRGB
+/// encode, so the values are not linear light and a photometric weighting
+/// would be measuring the wrong space. What the algorithm needs is a number
+/// that moves when a person would see an edge, and green carries most of
+/// that.
+float Weight(vec3 color) { return dot(color, vec3(0.299, 0.587, 0.114)); }
+
+void main() {
+  vec2 texel = fxaa_info.params.xy;
+
+  // `textureLod` throughout this pass, for `shadow.glsl`'s own reason: the
+  // last of these six taps sits after the early return below, so a WGSL
+  // backend sees a sample that need not be reached by every invocation of a
+  // quad and refuses the implicit derivative as possibly non-uniform. The
+  // composited frame is read at its native size with no mipmap of its own, so
+  // naming level zero directly changes no pixel.
+  vec3 middle = textureLod(source_texture, v_uv, 0.0).rgb;
+  float mid = Weight(middle);
+
+  // The four edge neighbours. Diagonals are deliberately left out: they cost
+  // four more samples and only sharpen the direction estimate on a corner,
+  // which is the one place this pass should be doing the least.
+  // The colours are kept, not just their weights: the sharpening at the end
+  // needs the neighbourhood itself, and these are the same four taps either
+  // way. Discarding the colour and re-fetching it would be four more.
+  vec3 northRgb = textureLod(source_texture, v_uv + vec2(0.0, -texel.y), 0.0).rgb;
+  vec3 southRgb = textureLod(source_texture, v_uv + vec2(0.0, texel.y), 0.0).rgb;
+  vec3 westRgb = textureLod(source_texture, v_uv + vec2(-texel.x, 0.0), 0.0).rgb;
+  vec3 eastRgb = textureLod(source_texture, v_uv + vec2(texel.x, 0.0), 0.0).rgb;
+  float north = Weight(northRgb);
+  float south = Weight(southRgb);
+  float west = Weight(westRgb);
+  float east = Weight(eastRgb);
+
+  float lowest = min(mid, min(min(north, south), min(west, east)));
+  float highest = max(mid, max(max(north, south), max(west, east)));
+  float contrast = highest - lowest;
+
+  // **Relative to the local brightness, not absolute.** A step of 0.02 across
+  // a dark surface is an edge somebody can see; the same step across a white
+  // wall is dithering. A fixed threshold either scrubs the dark parts of the
+  // frame or leaves the bright parts crawling, and this frame has both.
+  if (contrast < max(0.0312, highest * fxaa_info.params.z)) {
+    frag_color = vec4(
+        Sharpen(middle, northRgb, southRgb, westRgb, eastRgb), 1.0);
+    return;
+  }
+
+  // Which way the edge runs. The vertical difference is larger on a
+  // horizontal edge, which is the one to blend across.
+  float vertical = abs(north + south - 2.0 * mid);
+  float horizontal = abs(west + east - 2.0 * mid);
+  bool horizontalEdge = vertical >= horizontal;
+
+  // And which side of it is the darker one, so the blend moves towards the
+  // neighbour rather than away from it.
+  float towards = horizontalEdge ? south - mid : east - mid;
+  float away = horizontalEdge ? north - mid : west - mid;
+  float step_length = horizontalEdge ? texel.y : texel.x;
+  if (abs(away) > abs(towards)) step_length = -step_length;
+
+  // **How far to go: how wrong this pixel is against its neighbourhood.** A
+  // white pixel with a black neighbour sits far from the average of the four
+  // and has to move most; a pixel already near that average is already the
+  // blend and moves least.
+  //
+  // Measuring the distance from the *end* of the range instead — which the
+  // first version of this did — gives exactly zero on a hard black-to-white
+  // edge, because every pixel there is at one end or the other. The pass ran,
+  // cost a draw, and changed nothing, which is the failure this arithmetic
+  // exists to avoid.
+  float average = (north + south + west + east) * 0.25;
+  float blend = clamp(abs(average - mid) / max(contrast, 1e-5), 0.0, 1.0);
+  // Squared, so a faint gradient is left alone and a real edge gets the whole
+  // step: the difference between smoothing an edge and smearing a texture.
+  blend = blend * blend * fxaa_info.params.w;
+
+  vec2 offset = horizontalEdge ? vec2(0.0, step_length * blend)
+                               : vec2(step_length * blend, 0.0);
+  vec3 smoothed = textureLod(source_texture, v_uv + offset, 0.0).rgb;
+  frag_color =
+      vec4(Sharpen(smoothed, northRgb, southRgb, westRgb, eastRgb), 1.0);
 }
 
 ''',
@@ -9272,7 +12097,7 @@ float ViewDepth() { return 0.0; }
 /// A depth in metres has none of that: the exponent carries the range and the
 /// mantissa carries the same relative precision everywhere, which at twenty
 /// metres is a centimetre. Both numbers are measured in
-/// `flutter3d_cpu/test/surface_depth_test.dart`.
+/// `flutter3d/test/surface_depth_test.dart`.
 ///
 /// Zero still means nothing was drawn. The attachment is cleared to zero and
 /// nothing is drawn in front of the near plane.
@@ -9508,6 +12333,94 @@ void main() {
   // blending means by both of those at once.
   float scale = v_color.a * texel.a * fogged;
   frag_color = vec4(v_color.rgb * texel.rgb * scale, 1.0);
+}
+
+''',
+    'Splat': r'''#version 300 es
+precision highp float;
+precision highp int;
+precision highp sampler2D;
+precision highp samplerCube;
+
+// A Gaussian splat, as the falloff inside a quad — `gfx-80n`.
+//
+// **Why this is a fragment stage and nothing else.** A splat is an ellipsoid of
+// fading opacity, and what reaches the screen is that ellipsoid's projection: an
+// ellipse whose brightness falls off as a Gaussian from its middle. Two ways to
+// draw one. Expand a point into an ellipse here, which needs a geometry stage
+// flutter_gpu does not have; or hand the stage a quad already shaped and
+// oriented, and evaluate the falloff across it. This engine already made that
+// choice once, for particles, and `particle.vert`'s own comment says why — so
+// splats reuse that vertex stage exactly rather than adding a second one that
+// would read the same three attributes.
+//
+// The quad's `texcoord` is therefore not a texture coordinate. It is the
+// fragment's position in the *Gaussian's own* space, in units of its standard
+// deviation, centred at zero: the CPU builds the quad from the projected
+// ellipse's axes, so `v_uv` arrives already in the frame where the falloff is
+// round and the arithmetic here is one dot product.
+//
+// **Alpha blended, back to front, and that is the whole difference from a
+// particle.** Particles are additive, which is why they need no sorting —
+// addition does not care about order. A splat is translucent: two overlapping
+// ones give a different colour depending on which was drawn first, so the cloud
+// is sorted every time the camera moves and this stage writes straight alpha.
+
+in vec4 v_color;
+in vec2 v_uv;
+in vec3 v_world_position;
+
+layout(location = 0) out vec4 frag_color;
+
+/// The same block the particle stage declares, for the same reason it declares
+/// it: a different vertex layout and none of the lit shaders' varyings, so none
+/// of their headers apply. Two members, not three — nothing here writes a
+/// surface buffer, so there is no view axis to measure a depth along.
+layout(std140) uniform FogInfo {
+  /// rgb: linear fog colour. w: density per metre, zero for no fog.
+  vec4 fog;
+
+  /// xyz: camera position in world space.
+  vec4 eye;
+}
+fog_info;
+
+void main() {
+  // `exp(-½ dᵀd)` with d already in standard deviations, which is what the
+  // quad's own coordinates are. No matrix here: the inverse covariance was
+  // applied when the corners were placed, because it is one ellipse per splat
+  // and four corners, not one per fragment.
+  float power = -0.5 * dot(v_uv, v_uv);
+
+  // **Cut off rather than trailed to nothing.** A Gaussian never reaches zero,
+  // so a quad sized to hold all of it would be infinite; the corners sit at
+  // three standard deviations, where the falloff is under a hundredth, and
+  // anything past that is discarded so the quad's own square edge can never
+  // show. Without this the cloud reads as a field of faint rectangles.
+  if (power < -4.5) discard;
+
+  float alpha = v_color.a * exp(power);
+  if (alpha < 1.0 / 255.0) discard;
+
+  // Fog as a mix rather than as attenuation, which is the opposite of the
+  // particle stage above and for the opposite reason: this is blended, so the
+  // destination is *replaced* in proportion to alpha, and a distant splat that
+  // faded toward black would put black into the wall behind it instead of
+  // fading into the air.
+  vec3 colour = v_color.rgb;
+  if (fog_info.fog.w > 0.0) {
+    float visibility = clamp(
+        exp(-fog_info.fog.w * distance(v_world_position, fog_info.eye.xyz)),
+        0.0,
+        1.0);
+    colour = mix(fog_info.fog.rgb, colour, visibility);
+  }
+
+  // Premultiplied, because that is what the blend state this is drawn under
+  // expects: `one, one_minus_src_alpha` composites a stack of translucent
+  // layers correctly in one pass, and straight alpha under the same state
+  // double-counts the colour of everything in front.
+  frag_color = vec4(colour * alpha, alpha);
 }
 
 ''',
@@ -10088,6 +13001,770 @@ void main() {
 }
 
 ''',
+    'SsaoBlur': r'''#version 300 es
+precision highp float;
+precision highp int;
+precision highp sampler2D;
+precision highp samplerCube;
+
+// A depth-aware blur over the occlusion buffer — `gfx-32n`.
+//
+// **Why the occlusion needs one and the composite cannot give it.** The
+// composite already averages a 2x2, and that is not a blur: the occlusion
+// pass rotates its kernel by the parity of the pixel and the 2x2 averages
+// exactly that pattern away. Widening it would smear the contact shadows the
+// pass exists to draw, and the two are sized to each other on purpose. So the
+// quality has to come from somewhere else, and that somewhere is a pass of
+// its own over the occlusion buffer, before the composite reads it.
+//
+// **Depth-aware, because occlusion is the one signal a blur must not spread
+// across a silhouette.** A plain blur pulls the dark of a corner out past the
+// object that made it, which reads as a halo around every shape — the
+// artefact that makes people switch ambient occlusion off. Each tap is
+// weighted by how close its depth is to the centre's, so a tap on the other
+// side of an edge contributes nothing.
+//
+// Depth comes from the surface buffer's alpha, which carries view-axis
+// distance in metres — the same channel `ssao.frag` reconstructs positions
+// from, and the reason this pass needs no depth attachment of its own.
+
+in vec2 v_uv;
+
+layout(location = 0) out vec4 frag_color;
+
+uniform sampler2D ao_texture;
+uniform sampler2D surface_texture;
+
+layout(std140) uniform SsaoBlurInfo {
+  // x, y: one texel of the occlusion buffer. z: how many taps to each side,
+  // 0 for none. w: how much difference in depth, in metres, halves a tap's
+  // weight.
+  vec4 params;
+}
+blur_info;
+
+void main() {
+  float taps = blur_info.params.z;
+  float centre = texture(ao_texture, v_uv).r;
+  if (taps < 1.0) {
+    frag_color = vec4(centre, centre, centre, 1.0);
+    return;
+  }
+
+  float centreDepth = texture(surface_texture, v_uv).a;
+  float falloff = max(blur_info.params.w, 1e-4);
+
+  float total = centre;
+  float weightSum = 1.0;
+  // Bounded at eight to each side whatever the uniform says, the same rule
+  // `ssao.frag`'s own sample loop keeps: a loop a uniform can lengthen
+  // without limit is a hang rather than a slow frame.
+  for (int i = 1; i <= 8; i++) {
+    if (float(i) > taps) break;
+    float offset = float(i);
+    vec2 steps[4];
+    steps[0] = vec2(blur_info.params.x * offset, 0.0);
+    steps[1] = vec2(-blur_info.params.x * offset, 0.0);
+    steps[2] = vec2(0.0, blur_info.params.y * offset);
+    steps[3] = vec2(0.0, -blur_info.params.y * offset);
+
+    for (int s = 0; s < 4; s++) {
+      vec2 at = v_uv + steps[s];
+      float depth = texture(surface_texture, at).a;
+      // A tap across a silhouette is a tap from another surface, and the
+      // whole reason this is depth-aware is that it must not count. The
+      // weight falls off with the difference rather than cutting at a
+      // threshold, so a curved surface does not band where the cut would be.
+      float closeness = exp(-abs(depth - centreDepth) / falloff);
+      // And further taps count for less, which is what makes this a blur
+      // rather than a box.
+      float weight = closeness / offset;
+      total += texture(ao_texture, at).r * weight;
+      weightSum += weight;
+    }
+  }
+
+  float blurred = total / weightSum;
+  frag_color = vec4(blurred, blurred, blurred, 1.0);
+}
+
+''',
+    'ContactShadow': r'''#version 300 es
+precision highp float;
+precision highp int;
+precision highp sampler2D;
+precision highp samplerCube;
+
+// Contact shadows: a short march toward the light, in screen space —
+// `gfx-76n`.
+//
+// **What a shadow map cannot do at any resolution.** A box resting on a plane
+// meets it along a line, and the shadow that belongs at that line is a texel
+// wide or less. Raise the map's resolution and the line moves closer to right
+// without arriving; raise the bias enough to stop the acne a tight contact
+// produces and the shadow detaches from the object entirely — which is the
+// familiar look of a prop floating a centimetre above the floor. The gap is
+// structural, and the answer everywhere is to stop asking the map about the
+// first few centimetres and march the depth buffer instead.
+//
+// **Not contact *hardening*, which this repository already has.** `shadow.glsl`
+// searches for blockers and sizes its penumbra from what it finds, so a shadow
+// is sharp where its caster is close. That is a different thing with a
+// confusingly similar name, and it is the grep hit that made a survey record
+// this row as already done.
+//
+// **The march is the same arithmetic `ssao.frag` does**, with one direction
+// instead of a hemisphere: reconstruct the surface point from the buffer's
+// depth, step toward the light in world metres, project each step back into the
+// buffer, and compare in metres. Everything about why — the reconstruction as a
+// ray crossing a plane, the comparison in metres rather than window depth,
+// `textureLod` at level zero — is written out there and holds here unchanged.
+//
+// The strength is not applied here. It lives in the composite, for the reason
+// the occlusion's does: "off" has to mean a multiplier of exactly one, and that
+// is a property of a `mix` in one place rather than of arithmetic in two.
+
+// A fullscreen stage declares its own varying and its own output, the way
+// every other pass in this directory does: `lib/color.glsl` is the mesh
+// fragment's preamble and brings a surface this pass does not have.
+in vec2 v_uv;
+
+layout(location = 0) out vec4 frag_color;
+
+uniform sampler2D surface_texture;
+
+layout(std140) uniform ContactShadowInfo {
+  /// Screen to world, for turning a stored depth back into a point.
+  mat4 inverse_view_projection;
+
+  /// World to screen, for finding where a marched point lands.
+  mat4 view_projection;
+
+  /// x: how far to march, in world metres. y: how many steps.
+  /// z: how thick an occluder is assumed to be, in metres — a surface nearer
+  /// than the ray by more than this is something else in front rather than the
+  /// thing casting. w: bias in metres, which lifts the ray off its own surface.
+  vec4 params;
+
+  /// xyz: where the eye is. w unused.
+  vec4 camera;
+
+  /// xyz: the direction the camera looks, a unit vector. The normal of the
+  /// planes the stored depth measures against.
+  vec4 forward;
+
+  /// xyz: the direction *to* the light, a unit vector in world space — the
+  /// reverse of the direction a directional light points. w unused.
+  ///
+  /// One light and not eight. A march is a march per light, and eight of them
+  /// per pixel is a different pass with a different budget; the sun is the one
+  /// whose contact is missing from a shadow map that has to cover a level.
+  vec4 to_light;
+}
+contact_info;
+
+vec3 DecodeOctahedral(vec2 e) {
+  e = e * 2.0 - 1.0;
+  vec3 n = vec3(e.xy, 1.0 - abs(e.x) - abs(e.y));
+  float t = max(-n.z, 0.0);
+  n.x += n.x >= 0.0 ? -t : t;
+  n.y += n.y >= 0.0 ? -t : t;
+  return normalize(n);
+}
+
+/// Where a point at clip-space [ndc] lands in the surface buffer.
+///
+/// v runs the other way from y, and the matrices carry the framebuffer origin
+/// — `ssao.frag` says at length what going the other way costs.
+vec2 UvFromNdc(vec2 ndc) {
+  return vec2(ndc.x * 0.5 + 0.5, 0.5 - ndc.y * 0.5);
+}
+
+/// Where the depth stored for [uv] is, in the world.
+vec3 WorldAtDepth(vec2 uv, float depth) {
+  vec2 xy = vec2(uv.x * 2.0 - 1.0, 1.0 - uv.y * 2.0);
+  vec4 nearH = contact_info.inverse_view_projection * vec4(xy, 0.0, 1.0);
+  vec4 farH = contact_info.inverse_view_projection * vec4(xy, 1.0, 1.0);
+  vec3 origin = nearH.xyz / nearH.w;
+  vec3 along = normalize(farH.xyz / farH.w - origin);
+  vec3 axis = contact_info.forward.xyz;
+  return origin +
+         along * ((depth - dot(origin - contact_info.camera.xyz, axis)) /
+                  dot(along, axis));
+}
+
+/// How deep [at] is, in the metres the buffer holds.
+float DepthOf(vec3 at) {
+  return dot(at - contact_info.camera.xyz, contact_info.forward.xyz);
+}
+
+void main() {
+  vec4 surface = texture(surface_texture, v_uv);
+
+  // Nothing was drawn here. The buffer is cleared to zero and a zero alpha is
+  // the sky, not a surface sitting on the near plane.
+  if (surface.a <= 0.0) {
+    frag_color = vec4(1.0);
+    return;
+  }
+
+  vec3 normal = DecodeOctahedral(surface.rg);
+  vec3 toLight = normalize(contact_info.to_light.xyz);
+
+  // A surface already facing away from the light is unlit by the light term
+  // itself, and marching from it would find its own far side. Returning one
+  // leaves it to the lighting, which is the half that knows about the normal.
+  if (dot(normal, toLight) <= 0.0) {
+    frag_color = vec4(1.0);
+    return;
+  }
+
+  float reach = max(contact_info.params.x, 1e-4);
+  int steps = clamp(int(contact_info.params.y + 0.5), 1, 16);
+  float thickness = max(contact_info.params.z, 1e-4);
+
+  // Lifted along the normal, in metres, for `ssao.frag`'s reason: a bias in
+  // window depth is a different number of millimetres at every distance.
+  vec3 origin = WorldAtDepth(v_uv, surface.a) + normal * contact_info.params.w;
+  float stride = reach / float(steps);
+
+  for (int i = 0; i < 16; i++) {
+    if (i >= steps) break;
+
+    vec3 at = origin + toLight * (stride * float(i + 1));
+    vec4 clip = contact_info.view_projection * vec4(at, 1.0);
+    // Behind the eye: the march has left the frame, and a division by a
+    // negative w would fold it back into view somewhere it is not.
+    if (clip.w <= 0.0) break;
+    vec2 uv = UvFromNdc(clip.xy / clip.w);
+    // Off the edge of the buffer. Nothing is known out there, and guessing
+    // would put a dark rim around every frame.
+    if (uv.x < 0.0 || uv.x > 1.0 || uv.y < 0.0 || uv.y > 1.0) break;
+
+    vec4 there = textureLod(surface_texture, uv, 0.0);
+    if (there.a <= 0.0) continue;
+
+    float marched = DepthOf(at);
+    float gap = marched - there.a;
+    // In front of the ray, and not so far in front that it is a different
+    // object seen past the one casting: without the thickness test a wall four
+    // metres nearer than the floor shadows everything the ray crosses, which
+    // is the same halo `ssao.frag`'s range check exists to stop.
+    if (gap > 0.0 && gap < thickness) {
+      // **Darker the nearer the blocker, which is what makes this a contact
+      // shadow rather than a stencil.** A hit on the first step is a surface
+      // touching this one and gets nothing; a hit at the far end of the march
+      // is most of a metre away and barely counts. Without the fade the pass
+      // writes zero or one and the march's own reach becomes a visible edge on
+      // the floor — a hard band that ends where the loop does, which is a
+      // number in a settings object rather than anything in the scene.
+      frag_color = vec4(float(i) / float(steps));
+      return;
+    }
+  }
+
+  frag_color = vec4(1.0);
+}
+
+''',
+    'LightShafts': r'''#version 300 es
+precision highp float;
+precision highp int;
+precision highp sampler2D;
+precision highp samplerCube;
+
+// Volumetric light shafts, marched through the directional shadow map —
+// `gfx-33n`.
+//
+// **What it draws, and why it is not a screen-brightness trick.** The
+// familiar cheap version takes the bright pixels of the frame and smears them
+// radially from the sun's position on screen. That needs the sun to be *in*
+// the frame, it brightens anything else that happens to be bright, and it has
+// no idea what is casting. This marches the view ray instead and asks the
+// shadow map, at each step, whether that point in the air is lit. What comes
+// out is a shaft where the light actually reaches and none where something is
+// in the way — so a beam through a doorway is the doorway's shape, and
+// turning the caster's shadow off leaves nothing at all.
+//
+// **Additive, and it reads the scene only for where to stop.** The in-scatter
+// is added to the lit colour; the surface buffer's depth says how far along
+// the ray there is still air to march. Past that the ray is inside geometry
+// and anything accumulated would be light inside a wall.
+//
+// The dithered start is what makes sixteen steps look like a beam rather than
+// sixteen bands. Each pixel starts a fraction of a step further along, from a
+// 4x4 Bayer cell — ordered rather than random for the reason the dither in
+// `composite.frag` is: it is a function of screen position and of nothing
+// else, so a golden recorded with shafts on stays recorded.
+
+in vec2 v_uv;
+
+layout(location = 0) out vec4 frag_color;
+
+uniform sampler2D scene_texture;
+uniform sampler2D surface_texture;
+uniform sampler2D shadow_texture;
+
+layout(std140) uniform ShaftInfo {
+  // Screen to world, for turning a stored depth back into a point.
+  mat4 inverse_view_projection;
+
+  // The three cascade matrices, world to light clip. Unused ones are the
+  // identity and are never reached, because `cascades.z` says how many there
+  // are.
+  mat4 shadow_matrix;
+  mat4 shadow_matrix_far;
+  mat4 shadow_matrix_farthest;
+
+  // xyz: where the eye is. w: how far to march, in world metres.
+  vec4 camera;
+
+  // xyz: the direction the camera looks. w: how many steps.
+  vec4 forward;
+
+  // xyz: the colour the air scatters, already multiplied by the strength.
+  // w: unused.
+  vec4 scatter;
+
+  // x, y: the two cascade split distances. z: how many cascades. w: the
+  // depth bias, in the same units the map holds.
+  vec4 cascades;
+}
+shaft_info;
+
+// One cell of a 4x4 Bayer matrix, in [0, 1). The same table
+// `composite.frag` keeps, for the same reason.
+float BayerCell(vec2 at) {
+  int x = int(mod(at.x, 4.0));
+  int y = int(mod(at.y, 4.0));
+  int index = y * 4 + x;
+  float value = 0.0;
+  if (index == 0) value = 0.0;
+  else if (index == 1) value = 8.0;
+  else if (index == 2) value = 2.0;
+  else if (index == 3) value = 10.0;
+  else if (index == 4) value = 12.0;
+  else if (index == 5) value = 4.0;
+  else if (index == 6) value = 14.0;
+  else if (index == 7) value = 6.0;
+  else if (index == 8) value = 3.0;
+  else if (index == 9) value = 11.0;
+  else if (index == 10) value = 1.0;
+  else if (index == 11) value = 9.0;
+  else if (index == 12) value = 15.0;
+  else if (index == 13) value = 7.0;
+  else if (index == 14) value = 13.0;
+  else value = 5.0;
+  return value / 16.0;
+}
+
+// Whether [world] is lit by the caster: 1 in the light, 0 in shadow.
+//
+// The cascade walk `lib/shadow.glsl` does, without the surface it needs. A
+// point in the air has no normal, so there is no normal offset here and no
+// soft kernel either — one tap, because sixteen of them per pixel is already
+// the cost of this pass.
+float LitAt(vec3 world, float viewDistance) {
+  int cascadeCount = int(shaft_info.cascades.z + 0.5);
+  int cascade = 0;
+  if (cascadeCount > 1 && viewDistance > shaft_info.cascades.x) cascade = 1;
+  if (cascadeCount > 2 && viewDistance > shaft_info.cascades.y) cascade = 2;
+
+  for (int attempt = 0; attempt < 3; attempt++) {
+    int which = cascade + attempt;
+    if (which >= cascadeCount) break;
+
+    mat4 matrix = which == 0
+        ? shaft_info.shadow_matrix
+        : (which == 1 ? shaft_info.shadow_matrix_far
+                      : shaft_info.shadow_matrix_farthest);
+    vec4 lightSpace = matrix * vec4(world, 1.0);
+    if (lightSpace.w <= 0.0) continue;
+    vec3 candidate = lightSpace.xyz / lightSpace.w;
+
+    vec2 inTile = vec2(candidate.x * 0.5 + 0.5, 0.5 - candidate.y * 0.5);
+    if (inTile.x < 0.0 || inTile.x > 1.0 || inTile.y < 0.0 || inTile.y > 1.0) {
+      continue;
+    }
+    if (candidate.z > 1.0) continue;
+
+    vec2 uv = vec2((inTile.x + float(which)) / float(cascadeCount), inTile.y);
+    // `textureLod`, for `shadow.glsl`'s own reason: the cascade search above
+    // continues and breaks on values computed per fragment, so a WGSL backend
+    // refuses the implicit derivative here as possibly non-uniform. One level,
+    // so naming it directly changes no pixel.
+    float stored = textureLod(shadow_texture, uv, 0.0).r;
+    // Outside the map is lit rather than dark: a point beyond the shadow
+    // volume has nothing recorded about it, and calling that shadow would
+    // put a wall of darkness across the far half of every shaft.
+    return candidate.z - shaft_info.cascades.w > stored ? 0.0 : 1.0;
+  }
+  return 1.0;
+}
+
+void main() {
+  vec4 scene = texture(scene_texture, v_uv);
+  int steps = int(shaft_info.forward.w + 0.5);
+  if (steps < 1) {
+    frag_color = scene;
+    return;
+  }
+
+  // Where the ray starts and which way it goes.
+  vec2 xy = vec2(v_uv.x * 2.0 - 1.0, 1.0 - v_uv.y * 2.0);
+  vec4 nearH = shaft_info.inverse_view_projection * vec4(xy, 0.0, 1.0);
+  vec4 farH = shaft_info.inverse_view_projection * vec4(xy, 1.0, 1.0);
+  vec3 origin = nearH.xyz / nearH.w;
+  vec3 along = normalize(farH.xyz / farH.w - origin);
+
+  // How far there is air. The surface buffer holds depth along the view axis
+  // in metres, so the distance along *this* ray is that over the cosine
+  // between the two — a ray at the corner of the frame travels further than
+  // the axis does to reach the same plane.
+  float surfaceDepth = texture(surface_texture, v_uv).a;
+  float cosine = max(dot(along, shaft_info.forward.xyz), 1e-4);
+  float toSurface = surfaceDepth > 0.0 ? surfaceDepth / cosine : 1e9;
+  float distance = min(shaft_info.camera.w, toSurface);
+  if (distance <= 0.0) {
+    frag_color = scene;
+    return;
+  }
+
+  float stride = distance / float(steps);
+  // The dithered start: a fraction of a step, so the banding sixteen samples
+  // would otherwise draw is broken into a pattern the eye integrates.
+  float offset = BayerCell(gl_FragCoord.xy) * stride;
+
+  float lit = 0.0;
+  for (int i = 0; i < 64; i++) {
+    if (i >= steps) break;
+    float travelled = offset + float(i) * stride;
+    vec3 at = origin + along * travelled;
+    lit += LitAt(at, travelled * cosine);
+  }
+
+  // The average share of the ray that was in light, times the scatter colour.
+  // An average rather than a sum, so changing the step count changes the
+  // quality and not the brightness.
+  vec3 shaft = shaft_info.scatter.rgb * (lit / float(steps));
+  frag_color = vec4(scene.rgb + shaft, scene.a);
+}
+
+''',
+    'DepthOfField': r'''#version 300 es
+precision highp float;
+precision highp int;
+precision highp sampler2D;
+precision highp samplerCube;
+
+// Depth of field: a thin lens, a circle of confusion, and a gather — `gfx-34n`.
+//
+// **The arithmetic is a lens rather than a curve somebody liked.** A point at
+// distance `d` images to a disc whose diameter is
+//
+//     |d - focus| / d  *  f^2 / (N * (focus - f))
+//
+// where `f` is the focal length and `N` the f-number. That is the thin-lens
+// formula, and the reason to use it rather than a hand-drawn ramp is that
+// every number in it is one a photographer already knows: open the aperture
+// and the background goes softer by an amount somebody can predict.
+//
+// **The depth is the surface buffer's alpha**, which carries view-axis
+// distance in metres — so the circle is computed from a real distance rather
+// than from a window depth, where the same blur would mean different things
+// near and far. That channel is also why no depth attachment is needed:
+// flutter_gpu cannot sample one.
+//
+// **A gather, not a scatter.** Each output pixel reads the neighbourhood and
+// asks which of those samples would have landed on it. That gets the near
+// field wrong in a way a scatter would not — a foreground blur cannot spread
+// *over* a sharp background, because the sharp pixel never looks that far —
+// and it is the trade every real-time implementation makes, because a scatter
+// needs per-pixel splatting the hardware here has no path for. Written down
+// rather than discovered: this is why a foreground bokeh has a hard outer
+// edge where a photograph's would not.
+//
+// Sampled on a spiral rather than a grid: a square kernel makes a square
+// bokeh, and the shape of an out-of-focus highlight is the one thing anybody
+// looks at in this effect.
+
+in vec2 v_uv;
+
+layout(location = 0) out vec4 frag_color;
+
+uniform sampler2D scene_texture;
+uniform sampler2D surface_texture;
+
+layout(std140) uniform DofInfo {
+  // x: focus distance in metres. y: focal length in metres. z: f-number.
+  // w: how many samples in the gather.
+  vec4 lens;
+
+  // x, y: one texel. z: the largest circle, in texels, whatever the lens
+  // arithmetic says — a bound on the gather rather than on the optics.
+  // w: texels per metre across the sensor, which is the frame's width in
+  // texels over the sensor's width in metres.
+  vec4 params;
+}
+dof_info;
+
+// The circle of confusion at [depth], as a radius in texels.
+float CircleAt(float depth) {
+  float focus = max(dof_info.lens.x, 1e-3);
+  float focal = max(dof_info.lens.y, 1e-4);
+  float fnumber = max(dof_info.lens.z, 1e-3);
+  if (depth <= 0.0) return 0.0;
+
+  // The thin-lens diameter, in metres on the sensor.
+  float denominator = max(fnumber * (focus - focal), 1e-6);
+  float diameter = abs(depth - focus) / depth * (focal * focal) / denominator;
+
+  // Metres on the sensor into texels on the screen, and a diameter into a
+  // radius. The conversion needs a sensor size, which is what makes a
+  // millimetre of focal length mean something; the frame's width supplies the
+  // other half of it. **Derived rather than a constant**, because a constant
+  // would mean a lens whose blur changed with the resolution — the same scene
+  // rendered twice as wide would be a different photograph rather than a
+  // larger one.
+  return min(diameter * 0.5 * dof_info.params.w, max(dof_info.params.z, 0.0));
+}
+
+void main() {
+  // `textureLod` throughout this pass, for `shadow.glsl`'s own reason: the
+  // gather below sits behind two early returns keyed on a per-fragment circle
+  // of confusion, so a WGSL backend refuses the implicit derivative as
+  // possibly non-uniform. Both textures are read at native size with no
+  // mipmap of their own, so naming level zero directly changes no pixel.
+  vec4 centre = textureLod(scene_texture, v_uv, 0.0);
+  int samples = int(dof_info.lens.w + 0.5);
+  if (samples < 1) {
+    frag_color = centre;
+    return;
+  }
+
+  float centreDepth = textureLod(surface_texture, v_uv, 0.0).a;
+  float radius = CircleAt(centreDepth);
+  if (radius < 0.5) {
+    // Inside half a texel there is nothing to gather: the disc this point
+    // images to is smaller than the pixel it lands on, which is what "in
+    // focus" means.
+    frag_color = centre;
+    return;
+  }
+
+  vec3 total = centre.rgb;
+  float weight = 1.0;
+
+  // The golden angle, so consecutive samples never line up into a spoke.
+  const float kGolden = 2.39996323;
+  for (int i = 1; i <= 64; i++) {
+    if (i > samples) break;
+    float t = float(i) / float(samples);
+    // sqrt so the samples spread evenly over the disc's *area* rather than
+    // bunching at the middle, which would leave the rim of a bokeh thin.
+    float r = sqrt(t) * radius;
+    float angle = float(i) * kGolden;
+    vec2 at = v_uv + vec2(cos(angle), sin(angle)) * r * dof_info.params.xy;
+
+    vec4 tap = textureLod(scene_texture, at, 0.0);
+    float tapDepth = textureLod(surface_texture, at, 0.0).a;
+    float tapRadius = CircleAt(tapDepth);
+
+    // Would this sample's own disc have reached here? A sharp background
+    // pixel behind a blurred foreground says no, and letting it in anyway is
+    // the bleed that makes a distant object glow through a near one.
+    float reach = r <= max(tapRadius, radius) ? 1.0 : 0.0;
+    total += tap.rgb * reach;
+    weight += reach;
+  }
+
+  frag_color = vec4(total / weight, centre.a);
+}
+
+''',
+    'ViewportShade': r'''#version 300 es
+precision highp float;
+precision highp int;
+precision highp sampler2D;
+precision highp samplerCube;
+
+// Viewport shading, read out of the surface buffer — `gfx-43n`, `gfx-44n` and
+// `gfx-45n`, three branches of one stage.
+//
+// **This deletes a bug class rather than adding a look.** The modeller's
+// normals view works by walking the subject and swapping every material for a
+// debug one, remembering the old one to put back; its own docstring documents
+// what happens when the remembering fails. Nothing here touches a material.
+// The scene pass already wrote a world normal, a roughness and a view-axis
+// depth into the second attachment, and every mode below is arithmetic on
+// those — so the subject is never modified, there is nothing to restore, and
+// a mode is a uniform rather than a traversal.
+//
+// **The cost is real and is stated where a caller can see it.** Declaring a
+// read of the surface buffer attaches the second colour attachment, and
+// attachments in one target must agree on sample count, so a frame with any
+// of these modes on is a frame the scene pass did not multisample.
+// `FrameResult.antiAliasing.msaaDeclined` says so; `anchor_identity_test.dart`
+// is where that trade is pinned.
+//
+// One stage with branches rather than three stages, because all three read the
+// same two channels and the difference between them is a handful of lines. A
+// branch on a uniform is coherent across the whole draw — every fragment takes
+// the same one — so it costs a compare and not a divergence.
+
+in vec2 v_uv;
+
+layout(location = 0) out vec4 frag_color;
+
+uniform sampler2D scene_texture;
+uniform sampler2D surface_texture;
+
+layout(std140) uniform ShadeInfo {
+  // x: which mode. 0 leaves the picture alone, 1 normals as colour, 2 clay,
+  // 3 outline, 4 curvature. z and w below mean different things per mode,
+  // which is what keeps this to one block.
+  // y: how much of the shaded result to mix over the lit picture, 0 to 1.
+  // z: mode 2 — how much ambient sits under the studio light. mode 3 — the
+  //    depth difference, in metres, an edge starts at. mode 4 — the gain on
+  //    the curvature estimate.
+  // w: mode 3 — how far apart in angle two normals must be to count as an
+  //    edge, in cosine. mode 4 — how much of the cavity is darkened rather
+  //    than lit.
+  vec4 params;
+
+  // x, y: one texel. z: the outline's width in texels. w: unused.
+  vec4 screen;
+
+  // xyz: which way the studio light points, for mode 2. w: unused.
+  vec4 light;
+}
+shade_info;
+
+// The octahedral decode every reader of this buffer keeps — see `ssao.frag`,
+// which carries the argument for the encoding.
+vec3 DecodeOctahedral(vec2 e) {
+  e = e * 2.0 - 1.0;
+  vec3 n = vec3(e.xy, 1.0 - abs(e.x) - abs(e.y));
+  float t = max(-n.z, 0.0);
+  n.x += n.x >= 0.0 ? -t : t;
+  n.y += n.y >= 0.0 ? -t : t;
+  return normalize(n);
+}
+
+void main() {
+  // `textureLod` throughout this pass, for `shadow.glsl`'s own reason: modes 3
+  // and 4 read the surface buffer again behind the early return below, which
+  // is keyed on a per-fragment depth rather than on the uniform `mode` the
+  // docstring above talks about — so a WGSL backend refuses the implicit
+  // derivative there as possibly non-uniform. Both textures are read at native
+  // size with no mipmap of their own, so naming level zero directly changes no
+  // pixel.
+  vec4 scene = textureLod(scene_texture, v_uv, 0.0);
+  int mode = int(shade_info.params.x + 0.5);
+  float mix_amount = clamp(shade_info.params.y, 0.0, 1.0);
+  if (mode < 1 || mix_amount <= 0.0) {
+    frag_color = scene;
+    return;
+  }
+
+  vec4 surface = textureLod(surface_texture, v_uv, 0.0);
+  float depth = surface.a;
+  // Nothing was drawn here: the buffer is cleared to zero and a normal
+  // decoded from that is a direction pointing nowhere. The background keeps
+  // whatever the scene left, which is what makes every mode below a shading
+  // of the *subject* rather than a wash over the frame.
+  if (depth <= 0.0) {
+    frag_color = scene;
+    return;
+  }
+
+  vec3 normal = DecodeOctahedral(surface.rg);
+  vec3 shaded = scene.rgb;
+
+  if (mode == 1) {
+    // **Normals as colour**, the mode the material swap existed for. The
+    // usual half-and-half mapping, so a surface facing the camera is the
+    // pale blue everybody recognises from every other modeller.
+    shaded = normal * 0.5 + 0.5;
+  } else if (mode == 2) {
+    // **Clay**: one studio light and an ambient floor, no texture, no
+    // material. What it is for is shape — a form with its albedo taken away,
+    // which is the whole reason a sculptor turns it on.
+    float ambient = clamp(shade_info.params.z, 0.0, 1.0);
+    float lambert = max(dot(normal, normalize(shade_info.light.xyz)), 0.0);
+    shaded = vec3(ambient + (1.0 - ambient) * lambert);
+  } else if (mode == 3) {
+    // **Outline**, from depth *and* normal, because either alone misses half
+    // the edges a modeller is looking for. A depth step finds a silhouette
+    // and misses a crease in a flat wall; a normal step finds the crease and
+    // misses two surfaces at the same angle one behind the other. Both, and
+    // an edge is either.
+    vec2 texel = shade_info.screen.xy * max(shade_info.screen.z, 1.0);
+    float depthEdge = 0.0;
+    float normalEdge = 0.0;
+    // Four neighbours rather than eight: a Sobel would weight diagonals it
+    // then has to normalise, and the answer here is a threshold rather than a
+    // gradient direction.
+    vec2 offsets[4] = vec2[4](
+        vec2(texel.x, 0.0), vec2(-texel.x, 0.0),
+        vec2(0.0, texel.y), vec2(0.0, -texel.y));
+    for (int i = 0; i < 4; i++) {
+      vec4 tap = textureLod(surface_texture, v_uv + offsets[i], 0.0);
+      if (tap.a <= 0.0) {
+        // Against the background: that is a silhouette, and the strongest
+        // edge there is.
+        depthEdge = 1.0;
+        continue;
+      }
+      depthEdge = max(depthEdge, abs(tap.a - depth));
+      normalEdge =
+          max(normalEdge, 1.0 - dot(DecodeOctahedral(tap.rg), normal));
+    }
+
+    float depthHit = step(max(shade_info.params.z, 1e-4), depthEdge);
+    float normalHit = step(max(shade_info.params.w, 1e-4), normalEdge);
+    float edge = max(depthHit, normalHit);
+    // The line is drawn *dark over the picture* rather than as its own
+    // colour: an outline that replaced the pixel would hide the shading it is
+    // meant to clarify.
+    shaded = scene.rgb * (1.0 - edge);
+  } else if (mode == 4) {
+    // **Curvature and cavity**, from how fast the normal field turns. The
+    // divergence of the normals across a pixel: a convex ridge turns one way,
+    // a concave crease the other, and a flat face does not turn at all.
+    //
+    // Read from the normal buffer rather than from depth, deliberately: a
+    // depth-based curvature is dominated by how far away the surface is, so a
+    // model twice as far reads as half as detailed. A normal field is the same
+    // at any distance.
+    vec2 texel = shade_info.screen.xy;
+    vec3 right = DecodeOctahedral(
+        textureLod(surface_texture, v_uv + vec2(texel.x, 0.0), 0.0).rg);
+    vec3 left = DecodeOctahedral(
+        textureLod(surface_texture, v_uv - vec2(texel.x, 0.0), 0.0).rg);
+    vec3 down = DecodeOctahedral(
+        textureLod(surface_texture, v_uv + vec2(0.0, texel.y), 0.0).rg);
+    vec3 up = DecodeOctahedral(
+        textureLod(surface_texture, v_uv - vec2(0.0, texel.y), 0.0).rg);
+
+    // The x component of the horizontal change plus the y of the vertical:
+    // the screen-space divergence, which is positive on a ridge and negative
+    // in a groove.
+    float curvature = ((right.x - left.x) + (down.y - up.y)) *
+                      max(shade_info.params.z, 0.0);
+    float cavity = clamp(-curvature, 0.0, 1.0) *
+                   clamp(shade_info.params.w, 0.0, 1.0);
+    float ridge = clamp(curvature, 0.0, 1.0);
+    // Grey, lit on the ridges and darkened in the cavities, which is what a
+    // cavity map is read for: the creases a sculpt has, seen without its
+    // colour.
+    shaded = vec3(clamp(0.5 + ridge * 0.5 - cavity, 0.0, 1.0));
+  }
+
+  frag_color = vec4(mix(scene.rgb, shaded, mix_amount), scene.a);
+}
+
+''',
     'ProbePrefilter': r'''#version 300 es
 precision highp float;
 precision highp int;
@@ -10392,7 +14069,7 @@ float ViewDepth() { return 0.0; }
 /// A depth in metres has none of that: the exponent carries the range and the
 /// mantissa carries the same relative precision everywhere, which at twenty
 /// metres is a centimetre. Both numbers are measured in
-/// `flutter3d_cpu/test/surface_depth_test.dart`.
+/// `flutter3d/test/surface_depth_test.dart`.
 ///
 /// Zero still means nothing was drawn. The attachment is cleared to zero and
 /// nothing is drawn in front of the near plane.
@@ -10488,6 +14165,616 @@ layout(std140) uniform ShadowLight {
 shadow_light;
 
 void main() {
+  float range = max(shadow_light.light.w, 1e-4);
+  float distance = length(v_world_position - shadow_light.light.xyz);
+  frag_color = vec4(clamp(distance / range, 0.0, 1.0), 0.0, 0.0, 1.0);
+}
+
+''',
+    'ShadowDepthMasked': r'''#version 300 es
+precision highp float;
+precision highp int;
+precision highp sampler2D;
+precision highp samplerCube;
+
+// The shadow pass for a cut-out caster: write depth, or write nothing —
+// `gfx-60n`.
+//
+// **A separate stage rather than a branch in `shadow_depth.frag`.** Every
+// caster that is not cut out keeps the stage it has always had, which is a
+// pipeline with no sampler in it and no texture bound per draw. That is worth
+// a second entry point twice over: the common path pays nothing, and the
+// forty-four golden frames recorded against the old stage cannot move, because
+// the old stage is still the one they go through — the same split other
+// engines draw here, for the same reason.
+//
+// **Why the shadow pass has to know about alpha at all.** A leaf card is a
+// quad with a texture that is transparent almost everywhere. Depth-only, that
+// quad is opaque, so a tree casts the shadow of its bounding rectangles — a
+// stack of dark slabs where the eye expects dappled light. Nothing about the
+// lit pass can repair it, because by then the shadow map already says the
+// ground is in shadow.
+//
+// The threshold is the material's own `alphaCutoff` and the comparison is the
+// same one glTF's MASK mode specifies: alpha below the cutoff is not drawn,
+// alpha at or above it is fully drawn. There is no partial coverage here on
+// purpose; a shadow map holds one depth per texel, so a half-transparent
+// fragment either records or does not.
+
+#define F3D_NO_SURFACE_BUFFER
+#define F3D_NO_FOG
+// --- lib/color.glsl ---
+// Colour space helpers and the fragment output interface.
+//
+// Split out of surface.glsl so a shader that needs no material inputs — the
+// normals debug view — can avoid DECLARING the FragInfo uniform block at all.
+// That matters more than it looks: reflection metadata reports a block as
+// present merely because it was declared, even when the compiled shader binds
+// no such buffer, so a declared-but-unused block is indistinguishable from a
+// used one until Metal crashes on the bind.
+
+#ifndef COLOR_GLSL_
+#define COLOR_GLSL_
+
+precision highp float;
+
+const float kPi = 3.14159265359;
+
+// One varying set shared by every fragment shader, matching mesh.vert.
+//
+// All five are declared here, including the two the debug models never read: a
+// fragment shader whose `in` block disagrees with the vertex shader's `out`
+// block fails to link, and there is no partial-match rule to lean on.
+in vec3 v_world_position;
+in vec3 v_normal;
+in vec2 v_texcoord;
+in vec4 v_tangent;
+in vec4 v_color;
+
+/// Where this fragment is in the level's lightmap. Zero from every vertex
+/// stage but `mesh_lightmapped.vert`, and read only by the lit models, which
+/// sample a one-texel black there when a material has no map.
+in vec2 v_lightmap_uv;
+
+layout(location = 0) out vec4 frag_color;
+
+// The second attachment: what a screen-space effect needs to know about the
+// surface it is looking at. World-space normal in rgb, and in a the depth along
+// the view axis in world metres — not a window depth; `WriteSurfaceGeometry`
+// says at length why not.
+//
+// Depth travels here rather than in a depth texture because flutter_gpu cannot
+// sample one — the same reason the shadow pass writes its depth into a colour
+// target. See ARCHITECTURE.md §2.
+//
+// Guarded, because not every stage that includes this header draws into a
+// two-attachment target. The shadow pass draws into one, and a pipeline
+// declaring an output its target has no slot for is a mismatch worth avoiding
+// rather than discovering.
+#ifndef F3D_NO_SURFACE_BUFFER
+layout(location = 1) out vec4 frag_surface;
+#endif
+
+/// Octahedral encoding: a unit vector in two channels instead of three.
+///
+/// Worth the arithmetic because the fourth channel is already spent on depth,
+/// and without a free channel there is nowhere to put roughness — which is the
+/// difference between a reflection that knows stone from a mirror and one that
+/// does not. The error is well under a degree, far below anything a reflection
+/// off rough stone would show.
+vec2 EncodeOctahedral(vec3 n) {
+  n /= abs(n.x) + abs(n.y) + abs(n.z);
+  vec2 e = n.xy;
+  if (n.z < 0.0) {
+    e = (1.0 - abs(n.yx)) * vec2(n.x >= 0.0 ? 1.0 : -1.0,
+                                 n.y >= 0.0 ? 1.0 : -1.0);
+  }
+  return e * 0.5 + 0.5;
+}
+
+/// Where a debug pass leaves the picture it wants shown instead of the normal.
+///
+/// Declared here, in the header every lit shader includes **first**, and
+/// written from surface.glsl, which is included after. The alternative was a
+/// new member on a shared uniform block; a global costs nothing and moves no
+/// offsets. It is read at the moment the surface buffer is written, which
+/// happens after the lighting loop has run, so the value is there by then.
+vec3 g_debug_surface = vec3(0.0);
+bool g_debug_surface_on = false;
+
+// **A stage that needs none of this must be able to declare none of it.** On
+// Vulkan both stages' descriptors are merged into one set layout, and two
+// bindings with the same number in it is not a layout the specification
+// allows. A driver may accept it anyway; a Galaxy A55's refuses the pipeline
+// with `ErrorUnknown` and no other word, which is how the shadow pass came to
+// build everywhere except there — its only uniform block was this one, and it
+// landed on the same binding as the vertex stage's first.
+#ifndef F3D_NO_FOG
+
+/// Distance fog, in its own block rather than folded into FragInfo.
+///
+/// Its own because color.glsl is included before FragInfo is declared, and
+/// because appending to a block that half a dozen shaders already share is a
+/// way to move offsets nobody expected to move. Three vec4s is a cheap price
+/// for not touching any of that.
+layout(std140) uniform FogInfo {
+  /// rgb: linear fog colour. w: density per metre, zero for no fog.
+  vec4 fog;
+
+  /// xyz: camera position in world space. Duplicated from FragInfo so this
+  /// block stands alone; a vec3 is cheaper than a coupling.
+  vec4 eye;
+
+  /// xyz: the direction the camera looks, as a unit vector in world space.
+  /// w unused.
+  ///
+  /// Here rather than in a block of its own because it answers the same
+  /// question [eye] does — where the camera is and which way it faces — and
+  /// this is the block `color.glsl` can see.
+  vec4 forward;
+}
+fog_info;
+
+/// How far this fragment is from the eye, in world metres.
+///
+/// What the fog fades by. Distance rather than depth, because fog is a
+/// property of the air between two points and does not care which way the
+/// camera happens to face.
+float EyeDistance() { return distance(v_world_position, fog_info.eye.xyz); }
+
+/// How far this fragment is *along the view axis*, in world metres.
+///
+/// What the surface buffer's alpha holds. Depth rather than distance, and the
+/// difference only shows on an orthographic camera — where the rays through
+/// the pixels are parallel instead of meeting at the eye, so a distance from
+/// the eye names a sphere that the pixel's ray crosses somewhere the reader
+/// cannot solve for. A depth along the axis names a plane, which every ray
+/// crosses exactly once. See `WorldAtDepth` in `post/ssao.frag` for the
+/// reconstruction both projections share.
+float ViewDepth() {
+  return dot(v_world_position - fog_info.eye.xyz, fog_info.forward.xyz);
+}
+
+#else  // F3D_NO_FOG
+
+// The same two questions, answered without the block: a stage that declares no
+// fog has no eye position to measure from either. Stubs rather than a guard at
+// every call site, so that what includes this file reads the same whichever
+// way it was compiled.
+float EyeDistance() { return 0.0; }
+float ViewDepth() { return 0.0; }
+
+#endif  // F3D_NO_FOG
+
+/// Records the geometry of this fragment for whatever runs after the scene.
+///
+/// Called from the same place that writes colour, so a surface cannot be lit
+/// into the frame without also describing itself — which is the failure that
+/// leaves a screen-space effect reflecting whatever was in the buffer before.
+///
+/// rg: octahedral normal. b: perceptual roughness. a: **depth along the view
+/// axis, in world metres** — see [ViewDepth].
+///
+/// **Not `gl_FragCoord.z`, and that is a defect this channel carried until it
+/// was looked at.** Window depth crowds every distant surface into the top of
+/// its range — with a near plane of a tenth of a metre, everything past twenty
+/// metres lives in the last half a hundredth of `[0, 1]` — and this attachment
+/// is a half float, whose steps up there are about five ten-thousandths. So two
+/// surfaces half a metre apart at twenty metres stored the *same* number, and
+/// every screen-space pass that compares against this channel decided whole
+/// bands of pixels by rounding. The occlusion pass drew them: vertical stripes
+/// along the lines of constant depth on any wall receding from the camera, on
+/// both GPU backends. The software rasteriser kept the channel at full
+/// precision and drew the effect correctly, so it was the one that looked
+/// wrong against the other two.
+///
+/// A depth in metres has none of that: the exponent carries the range and the
+/// mantissa carries the same relative precision everywhere, which at twenty
+/// metres is a centimetre. Both numbers are measured in
+/// `flutter3d/test/surface_depth_test.dart`.
+///
+/// Zero still means nothing was drawn. The attachment is cleared to zero and
+/// nothing is drawn in front of the near plane.
+void WriteSurfaceGeometry(float roughness) {
+#ifndef F3D_NO_SURFACE_BUFFER
+  // A debug pass takes the buffer over rather than getting one of its own.
+  // The surface buffer already has an attachment, a viewer and a golden; a
+  // second one would need all three built before it could answer anything.
+  if (g_debug_surface_on) {
+    frag_surface = vec4(g_debug_surface, ViewDepth());
+    return;
+  }
+  frag_surface = vec4(EncodeOctahedral(normalize(v_normal)),
+                      clamp(roughness, 0.0, 1.0), ViewDepth());
+#endif
+}
+
+/// Fades [color] toward the fog with distance from the eye.
+///
+/// Exponential rather than linear, because linear fog has a visible plane
+/// where it starts and a dungeon corridor is exactly where that shows.
+vec3 ApplyFog(vec3 color) {
+#ifdef F3D_NO_FOG
+  return color;
+#else
+  float density = fog_info.fog.w;
+  if (density <= 0.0) return color;
+  float d = EyeDistance();
+  return mix(fog_info.fog.rgb, color, clamp(exp(-density * d), 0.0, 1.0));
+#endif
+}
+
+/// sRGB to linear. Textures are authored in sRGB, but lighting is only correct
+/// in linear space; skipping this is what makes naive renderers look muddy.
+vec3 SrgbToLinear(vec3 srgb) {
+  return mix(
+      srgb / 12.92,
+      pow((srgb + vec3(0.055)) / 1.055, vec3(2.4)),
+      step(vec3(0.04045), srgb));
+}
+
+/// Linear to sRGB. The render target is a plain UNorm format rather than an
+/// sRGB one, so the encode has to happen here.
+vec3 LinearToSrgb(vec3 linear) {
+  return mix(
+      linear * 12.92,
+      1.055 * pow(linear, vec3(1.0 / 2.4)) - vec3(0.055),
+      step(vec3(0.0031308), linear));
+}
+
+/// Writes scene-referred linear light into the HDR target.
+///
+/// No tone map and no sRGB encode: those moved into the composite pass, which
+/// is the entire point of rendering into `r16g16b16a16Float` first. Applying
+/// them here meant every model wrote display-referred colour into an 8-bit
+/// buffer, so anything above display white was gone before post-processing
+/// could see it — and bloom is a function of exactly that.
+///
+/// Exposure moved with them, for the same reason: it belongs on the same side
+/// of the display transform as the tone map.
+void WriteSurface(vec3 linearColor, float alpha, float roughness) {
+  frag_color = vec4(ApplyFog(linearColor), alpha);
+  WriteSurfaceGeometry(roughness);
+}
+
+/// For a stage with no material to speak of.
+///
+/// Fully rough, which is the honest default: a surface that cannot say how
+/// polished it is should not be reflected off.
+void WriteSurface(vec3 linearColor, float alpha) {
+  WriteSurface(linearColor, alpha, 1.0);
+}
+
+/// Writes a value that is already display-referred.
+///
+/// For debug output, where the colour is not a light value at all: a normal
+/// encoded as RGB means nothing after a tone curve. Converting to linear here
+/// means the composite pass's sRGB encode hands the original back unchanged,
+/// provided the view also turns tone mapping and exposure off — which is what
+/// `RenderSettings.tonemap` is for.
+void WriteDisplayColor(vec3 displayColor, float alpha) {
+  frag_color = vec4(SrgbToLinear(displayColor), alpha);
+  WriteSurfaceGeometry(1.0);
+}
+
+#endif  // COLOR_GLSL_
+
+
+/// The base colour map, whose alpha is the mask. The same texture and the same
+/// slot name the lit stages bind, so a caller that has one has it already.
+uniform sampler2D base_color_texture;
+
+layout(std140) uniform MaskInfo {
+  // x: the cutoff, from `Material.alphaCutoff`. y: the base colour's own
+  // alpha, which glTF multiplies the texture's by, so a material faded to
+  // nothing casts nothing. z, w: unused.
+  vec4 mask;
+}
+mask_info;
+
+void main() {
+  float alpha = texture(base_color_texture, v_texcoord).a * mask_info.mask.y;
+  if (alpha < mask_info.mask.x) discard;
+  frag_color = vec4(gl_FragCoord.z, 0.0, 0.0, 1.0);
+}
+
+''',
+    'ShadowDistanceMasked': r'''#version 300 es
+precision highp float;
+precision highp int;
+precision highp sampler2D;
+precision highp samplerCube;
+
+// The point-light depth pass for a cut-out caster — `gfx-60n`.
+//
+// `shadow_distance.frag` with the same mask test `shadow_depth_masked.frag`
+// carries, and a separate stage for the same reason: a caster that is not cut
+// out keeps a pipeline with no sampler in it.
+//
+// Both stages exist because both shadow paths record a caster, and a leaf card
+// lit by a torch is exactly as wrong as one lit by the sun. Point lights are
+// where it shows worst, in fact: a cube face is a ninety-degree frustum with a
+// caster close to it, so the slab of a foliage quad fills much more of the
+// tile than it would in a cascade.
+
+#define F3D_NO_SURFACE_BUFFER
+// --- lib/color.glsl ---
+// Colour space helpers and the fragment output interface.
+//
+// Split out of surface.glsl so a shader that needs no material inputs — the
+// normals debug view — can avoid DECLARING the FragInfo uniform block at all.
+// That matters more than it looks: reflection metadata reports a block as
+// present merely because it was declared, even when the compiled shader binds
+// no such buffer, so a declared-but-unused block is indistinguishable from a
+// used one until Metal crashes on the bind.
+
+#ifndef COLOR_GLSL_
+#define COLOR_GLSL_
+
+precision highp float;
+
+const float kPi = 3.14159265359;
+
+// One varying set shared by every fragment shader, matching mesh.vert.
+//
+// All five are declared here, including the two the debug models never read: a
+// fragment shader whose `in` block disagrees with the vertex shader's `out`
+// block fails to link, and there is no partial-match rule to lean on.
+in vec3 v_world_position;
+in vec3 v_normal;
+in vec2 v_texcoord;
+in vec4 v_tangent;
+in vec4 v_color;
+
+/// Where this fragment is in the level's lightmap. Zero from every vertex
+/// stage but `mesh_lightmapped.vert`, and read only by the lit models, which
+/// sample a one-texel black there when a material has no map.
+in vec2 v_lightmap_uv;
+
+layout(location = 0) out vec4 frag_color;
+
+// The second attachment: what a screen-space effect needs to know about the
+// surface it is looking at. World-space normal in rgb, and in a the depth along
+// the view axis in world metres — not a window depth; `WriteSurfaceGeometry`
+// says at length why not.
+//
+// Depth travels here rather than in a depth texture because flutter_gpu cannot
+// sample one — the same reason the shadow pass writes its depth into a colour
+// target. See ARCHITECTURE.md §2.
+//
+// Guarded, because not every stage that includes this header draws into a
+// two-attachment target. The shadow pass draws into one, and a pipeline
+// declaring an output its target has no slot for is a mismatch worth avoiding
+// rather than discovering.
+#ifndef F3D_NO_SURFACE_BUFFER
+layout(location = 1) out vec4 frag_surface;
+#endif
+
+/// Octahedral encoding: a unit vector in two channels instead of three.
+///
+/// Worth the arithmetic because the fourth channel is already spent on depth,
+/// and without a free channel there is nowhere to put roughness — which is the
+/// difference between a reflection that knows stone from a mirror and one that
+/// does not. The error is well under a degree, far below anything a reflection
+/// off rough stone would show.
+vec2 EncodeOctahedral(vec3 n) {
+  n /= abs(n.x) + abs(n.y) + abs(n.z);
+  vec2 e = n.xy;
+  if (n.z < 0.0) {
+    e = (1.0 - abs(n.yx)) * vec2(n.x >= 0.0 ? 1.0 : -1.0,
+                                 n.y >= 0.0 ? 1.0 : -1.0);
+  }
+  return e * 0.5 + 0.5;
+}
+
+/// Where a debug pass leaves the picture it wants shown instead of the normal.
+///
+/// Declared here, in the header every lit shader includes **first**, and
+/// written from surface.glsl, which is included after. The alternative was a
+/// new member on a shared uniform block; a global costs nothing and moves no
+/// offsets. It is read at the moment the surface buffer is written, which
+/// happens after the lighting loop has run, so the value is there by then.
+vec3 g_debug_surface = vec3(0.0);
+bool g_debug_surface_on = false;
+
+// **A stage that needs none of this must be able to declare none of it.** On
+// Vulkan both stages' descriptors are merged into one set layout, and two
+// bindings with the same number in it is not a layout the specification
+// allows. A driver may accept it anyway; a Galaxy A55's refuses the pipeline
+// with `ErrorUnknown` and no other word, which is how the shadow pass came to
+// build everywhere except there — its only uniform block was this one, and it
+// landed on the same binding as the vertex stage's first.
+#ifndef F3D_NO_FOG
+
+/// Distance fog, in its own block rather than folded into FragInfo.
+///
+/// Its own because color.glsl is included before FragInfo is declared, and
+/// because appending to a block that half a dozen shaders already share is a
+/// way to move offsets nobody expected to move. Three vec4s is a cheap price
+/// for not touching any of that.
+layout(std140) uniform FogInfo {
+  /// rgb: linear fog colour. w: density per metre, zero for no fog.
+  vec4 fog;
+
+  /// xyz: camera position in world space. Duplicated from FragInfo so this
+  /// block stands alone; a vec3 is cheaper than a coupling.
+  vec4 eye;
+
+  /// xyz: the direction the camera looks, as a unit vector in world space.
+  /// w unused.
+  ///
+  /// Here rather than in a block of its own because it answers the same
+  /// question [eye] does — where the camera is and which way it faces — and
+  /// this is the block `color.glsl` can see.
+  vec4 forward;
+}
+fog_info;
+
+/// How far this fragment is from the eye, in world metres.
+///
+/// What the fog fades by. Distance rather than depth, because fog is a
+/// property of the air between two points and does not care which way the
+/// camera happens to face.
+float EyeDistance() { return distance(v_world_position, fog_info.eye.xyz); }
+
+/// How far this fragment is *along the view axis*, in world metres.
+///
+/// What the surface buffer's alpha holds. Depth rather than distance, and the
+/// difference only shows on an orthographic camera — where the rays through
+/// the pixels are parallel instead of meeting at the eye, so a distance from
+/// the eye names a sphere that the pixel's ray crosses somewhere the reader
+/// cannot solve for. A depth along the axis names a plane, which every ray
+/// crosses exactly once. See `WorldAtDepth` in `post/ssao.frag` for the
+/// reconstruction both projections share.
+float ViewDepth() {
+  return dot(v_world_position - fog_info.eye.xyz, fog_info.forward.xyz);
+}
+
+#else  // F3D_NO_FOG
+
+// The same two questions, answered without the block: a stage that declares no
+// fog has no eye position to measure from either. Stubs rather than a guard at
+// every call site, so that what includes this file reads the same whichever
+// way it was compiled.
+float EyeDistance() { return 0.0; }
+float ViewDepth() { return 0.0; }
+
+#endif  // F3D_NO_FOG
+
+/// Records the geometry of this fragment for whatever runs after the scene.
+///
+/// Called from the same place that writes colour, so a surface cannot be lit
+/// into the frame without also describing itself — which is the failure that
+/// leaves a screen-space effect reflecting whatever was in the buffer before.
+///
+/// rg: octahedral normal. b: perceptual roughness. a: **depth along the view
+/// axis, in world metres** — see [ViewDepth].
+///
+/// **Not `gl_FragCoord.z`, and that is a defect this channel carried until it
+/// was looked at.** Window depth crowds every distant surface into the top of
+/// its range — with a near plane of a tenth of a metre, everything past twenty
+/// metres lives in the last half a hundredth of `[0, 1]` — and this attachment
+/// is a half float, whose steps up there are about five ten-thousandths. So two
+/// surfaces half a metre apart at twenty metres stored the *same* number, and
+/// every screen-space pass that compares against this channel decided whole
+/// bands of pixels by rounding. The occlusion pass drew them: vertical stripes
+/// along the lines of constant depth on any wall receding from the camera, on
+/// both GPU backends. The software rasteriser kept the channel at full
+/// precision and drew the effect correctly, so it was the one that looked
+/// wrong against the other two.
+///
+/// A depth in metres has none of that: the exponent carries the range and the
+/// mantissa carries the same relative precision everywhere, which at twenty
+/// metres is a centimetre. Both numbers are measured in
+/// `flutter3d/test/surface_depth_test.dart`.
+///
+/// Zero still means nothing was drawn. The attachment is cleared to zero and
+/// nothing is drawn in front of the near plane.
+void WriteSurfaceGeometry(float roughness) {
+#ifndef F3D_NO_SURFACE_BUFFER
+  // A debug pass takes the buffer over rather than getting one of its own.
+  // The surface buffer already has an attachment, a viewer and a golden; a
+  // second one would need all three built before it could answer anything.
+  if (g_debug_surface_on) {
+    frag_surface = vec4(g_debug_surface, ViewDepth());
+    return;
+  }
+  frag_surface = vec4(EncodeOctahedral(normalize(v_normal)),
+                      clamp(roughness, 0.0, 1.0), ViewDepth());
+#endif
+}
+
+/// Fades [color] toward the fog with distance from the eye.
+///
+/// Exponential rather than linear, because linear fog has a visible plane
+/// where it starts and a dungeon corridor is exactly where that shows.
+vec3 ApplyFog(vec3 color) {
+#ifdef F3D_NO_FOG
+  return color;
+#else
+  float density = fog_info.fog.w;
+  if (density <= 0.0) return color;
+  float d = EyeDistance();
+  return mix(fog_info.fog.rgb, color, clamp(exp(-density * d), 0.0, 1.0));
+#endif
+}
+
+/// sRGB to linear. Textures are authored in sRGB, but lighting is only correct
+/// in linear space; skipping this is what makes naive renderers look muddy.
+vec3 SrgbToLinear(vec3 srgb) {
+  return mix(
+      srgb / 12.92,
+      pow((srgb + vec3(0.055)) / 1.055, vec3(2.4)),
+      step(vec3(0.04045), srgb));
+}
+
+/// Linear to sRGB. The render target is a plain UNorm format rather than an
+/// sRGB one, so the encode has to happen here.
+vec3 LinearToSrgb(vec3 linear) {
+  return mix(
+      linear * 12.92,
+      1.055 * pow(linear, vec3(1.0 / 2.4)) - vec3(0.055),
+      step(vec3(0.0031308), linear));
+}
+
+/// Writes scene-referred linear light into the HDR target.
+///
+/// No tone map and no sRGB encode: those moved into the composite pass, which
+/// is the entire point of rendering into `r16g16b16a16Float` first. Applying
+/// them here meant every model wrote display-referred colour into an 8-bit
+/// buffer, so anything above display white was gone before post-processing
+/// could see it — and bloom is a function of exactly that.
+///
+/// Exposure moved with them, for the same reason: it belongs on the same side
+/// of the display transform as the tone map.
+void WriteSurface(vec3 linearColor, float alpha, float roughness) {
+  frag_color = vec4(ApplyFog(linearColor), alpha);
+  WriteSurfaceGeometry(roughness);
+}
+
+/// For a stage with no material to speak of.
+///
+/// Fully rough, which is the honest default: a surface that cannot say how
+/// polished it is should not be reflected off.
+void WriteSurface(vec3 linearColor, float alpha) {
+  WriteSurface(linearColor, alpha, 1.0);
+}
+
+/// Writes a value that is already display-referred.
+///
+/// For debug output, where the colour is not a light value at all: a normal
+/// encoded as RGB means nothing after a tone curve. Converting to linear here
+/// means the composite pass's sRGB encode hands the original back unchanged,
+/// provided the view also turns tone mapping and exposure off — which is what
+/// `RenderSettings.tonemap` is for.
+void WriteDisplayColor(vec3 displayColor, float alpha) {
+  frag_color = vec4(SrgbToLinear(displayColor), alpha);
+  WriteSurfaceGeometry(1.0);
+}
+
+#endif  // COLOR_GLSL_
+
+
+layout(std140) uniform ShadowLight {
+  /// xyz: the light's world position. w: its range in metres.
+  vec4 light;
+}
+shadow_light;
+
+/// The base colour map, whose alpha is the mask.
+uniform sampler2D base_color_texture;
+
+layout(std140) uniform MaskInfo {
+  // x: the cutoff, from `Material.alphaCutoff`. y: the base colour's own
+  // alpha. z, w: unused.
+  vec4 mask;
+}
+mask_info;
+
+void main() {
+  float alpha = texture(base_color_texture, v_texcoord).a * mask_info.mask.y;
+  if (alpha < mask_info.mask.x) discard;
+
   float range = max(shadow_light.light.w, 1e-4);
   float distance = length(v_world_position - shadow_light.light.xyz);
   frag_color = vec4(clamp(distance / range, 0.0, 1.0), 0.0, 0.0, 1.0);
@@ -10953,7 +15240,7 @@ float ViewDepth() { return 0.0; }
 /// A depth in metres has none of that: the exponent carries the range and the
 /// mantissa carries the same relative precision everywhere, which at twenty
 /// metres is a centimetre. Both numbers are measured in
-/// `flutter3d_cpu/test/surface_depth_test.dart`.
+/// `flutter3d/test/surface_depth_test.dart`.
 ///
 /// Zero still means nothing was drawn. The attachment is cleared to zero and
 /// nothing is drawn in front of the near plane.

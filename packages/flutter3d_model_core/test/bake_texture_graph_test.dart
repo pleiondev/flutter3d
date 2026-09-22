@@ -5,15 +5,18 @@
 ///     dart test test/bake_texture_graph_test.dart
 library;
 
-import 'package:flutter3d_formats/flutter3d_formats.dart';
+import 'package:flutter3d_core/formats.dart';
 import 'package:flutter3d_model_core/flutter3d_model_core.dart';
 import 'package:test/test.dart';
 import 'package:vector_math/vector_math.dart';
 
 /// One material, unpainted, no objects — everything these tests need to
 /// address is `materials[0]`.
-ModelHistory painted() =>
-    ModelHistory(ModelProject(materials: <ProjectMaterial>[ProjectMaterial(surface: SurfaceMaterial())]));
+ModelHistory painted() => ModelHistory(
+  ModelProject(
+    materials: <ProjectMaterial>[ProjectMaterial(surface: SurfaceMaterial())],
+  ),
+);
 
 /// A graph baking a flat colour straight to [slot] — the smallest graph
 /// `BakeTextureGraph` has anything to do with.
@@ -50,10 +53,7 @@ void main() {
         ),
       );
 
-      expect(
-        history.run(const SetMaterialGraph(materialIndex: 0)),
-        isNull,
-      );
+      expect(history.run(const SetMaterialGraph(materialIndex: 0)), isNull);
       final material = history.project.materials.single;
       expect(material.graph, isNull);
       expect(material.isGraphStale, isFalse); // nothing to be stale about
@@ -141,7 +141,9 @@ void main() {
       expect(binding, isNotNull);
       expect(history.project.images, hasLength(1));
 
-      final decoded = decodePng(history.project.images[binding!.imageIndex].bytes)!;
+      final decoded = decodePng(
+        history.project.images[binding!.imageIndex].bytes,
+      )!;
       expect(decoded.width, 8);
       expect(decoded.height, 8);
       // Linear 1/0/0/1 round-trips through the sRGB transfer function exactly
@@ -218,9 +220,8 @@ void main() {
 
       history.run(const BakeTextureGraph(materialIndex: 0, size: 4));
       expect(history.project.images, hasLength(1));
-      final firstImage = history.project.materials.single.surface
-          .baseColorTexture!
-          .imageIndex;
+      final firstImage =
+          history.project.materials.single.surface.baseColorTexture!.imageIndex;
 
       // A second bake of a graph that has not changed — nothing here
       // triggers it (`mat-13`'s own panel would, on a node edit), only that
@@ -277,10 +278,8 @@ void main() {
       final baked = history.project.materials.single;
 
       final bytes = writeProject(history.project);
-      final reopened = (readProject(bytes) as ProjectOpened)
-          .project
-          .materials
-          .single;
+      final reopened =
+          (readProject(bytes) as ProjectOpened).project.materials.single;
 
       expect(reopened.graph, isNotNull);
       expect(reopened.graph!.nodes, hasLength(baked.graph!.nodes.length));
@@ -292,10 +291,8 @@ void main() {
     test('a material with no graph opens with none, not a stale one', () {
       final history = painted();
       final bytes = writeProject(history.project);
-      final reopened = (readProject(bytes) as ProjectOpened)
-          .project
-          .materials
-          .single;
+      final reopened =
+          (readProject(bytes) as ProjectOpened).project.materials.single;
       expect(reopened.graph, isNull);
       expect(reopened.isGraphStale, isFalse);
     });

@@ -11,7 +11,7 @@
 library;
 
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
-import 'package:flutter_test/flutter_test.dart';
+import 'package:test/test.dart';
 
 /// A [TextureAllocator] over nothing, counting what comes back.
 final class _FakeAllocator implements TextureAllocator {

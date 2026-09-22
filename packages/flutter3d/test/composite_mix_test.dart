@@ -1,8 +1,8 @@
-import 'package:flutter3d/src/engine/render/composite_mix.dart';
-import 'package:flutter3d/src/engine/render/frame_graph.dart';
-import 'package:flutter3d/src/engine/render/frame_plan.dart';
-import 'package:flutter3d/src/engine/render/frame_resources.dart';
-import 'package:flutter3d/src/engine/render/render_node.dart';
+import 'package:flutter3d_core/src/engine/render/composite_mix.dart';
+import 'package:flutter3d_core/src/engine/render/frame_graph.dart';
+import 'package:flutter3d_core/src/engine/render/frame_plan.dart';
+import 'package:flutter3d_core/src/engine/render/frame_resources.dart';
+import 'package:flutter3d_core/src/engine/render/render_node.dart';
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:flutter_test/flutter_test.dart';
 

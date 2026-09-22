@@ -27,7 +27,10 @@ Future<RenderedFrame> _scene(int count) => renderFrame(
     for (var i = 0; i < count; i++) {
       scene.add(
         MeshNode(
-          DeviceMesh.upload(device, CuboidShape(size: Vector3(1, 1, 1)).build()),
+          DeviceMesh.upload(
+            device,
+            CuboidShape(size: Vector3(1, 1, 1)).build(),
+          ),
           Material(baseColor: Vector4(0.8, 0.8, 0.8, 1.0)),
           name: 'box$i',
         )..setPosition(i.toDouble(), 0.0, 0.0),
@@ -69,10 +72,17 @@ void main() {
       build: (FrameRequest request) {
         final device = request.device;
         final scene = Scene();
-        final mesh = DeviceMesh.upload(device, CuboidShape(size: Vector3(1, 1, 1)).build());
+        final mesh = DeviceMesh.upload(
+          device,
+          CuboidShape(size: Vector3(1, 1, 1)).build(),
+        );
         final material = Material(baseColor: Vector4(0.8, 0.8, 0.8, 1.0));
-        scene.add(MeshNode(mesh, material, name: 'a')..setPosition(-1.0, 0.0, 0.0));
-        scene.add(MeshNode(mesh, material, name: 'b')..setPosition(1.0, 0.0, 0.0));
+        scene.add(
+          MeshNode(mesh, material, name: 'a')..setPosition(-1.0, 0.0, 0.0),
+        );
+        scene.add(
+          MeshNode(mesh, material, name: 'b')..setPosition(1.0, 0.0, 0.0),
+        );
         final camera = CameraNode()..setPosition(0.0, 0.0, 5.0);
         return (scene: scene, camera: camera);
       },

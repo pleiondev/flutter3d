@@ -24,7 +24,7 @@ library;
 
 import 'dart:typed_data';
 
-import 'package:flutter3d_cloth/flutter3d_cloth.dart';
+import 'package:flutter3d_physics/flutter3d_physics.dart';
 
 import 'simulation_cache.dart';
 

@@ -20,8 +20,10 @@ import 'dart:typed_data';
 import 'package:flutter3d_modeler/src/simulation_playback.dart';
 
 final class SimulationCacheStub implements SimulationFrameSource {
-  SimulationCacheStub({required this.vertexCount, required List<Float32List> frames})
-    : _frames = List<Float32List>.unmodifiable(frames) {
+  SimulationCacheStub({
+    required this.vertexCount,
+    required List<Float32List> frames,
+  }) : _frames = List<Float32List>.unmodifiable(frames) {
     for (final frame in _frames) {
       if (frame.length != vertexCount * 3) {
         throw ArgumentError(
@@ -59,7 +61,9 @@ final class SimulationCacheStub implements SimulationFrameSource {
       vertexCount: vertexCount,
       frames: [
         for (final frame in frames)
-          Float32List.fromList((frame as List).cast<num>().map((n) => n.toDouble()).toList()),
+          Float32List.fromList(
+            (frame as List).cast<num>().map((n) => n.toDouble()).toList(),
+          ),
       ],
     );
   }

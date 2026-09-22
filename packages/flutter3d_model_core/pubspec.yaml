@@ -1,12 +1,12 @@
 name: flutter3d_model_core
 description: "The headless half of a model editor: a project of objects and materials, the commands that change one, the history that takes them back, and what it refuses to export."
-version: 0.6.0
+version: 0.7.0
 repository: https://github.com/pleiondev/flutter3d
 homepage: https://flutter3d.pleion.dev
 issue_tracker: https://github.com/pleiondev/flutter3d/issues
 topics:
   - modelling
-  - 3d
+  - graphics
   - tooling
   - game-engine
 resolution: workspace
@@ -16,35 +16,34 @@ environment:
 
 dependencies:
   # The mesh being edited, with the topology still in it.
-  flutter3d_mesh: ^0.6.0
+  flutter3d_mesh: ^0.7.0
 
-  # What a project is read from and written back to: `ModelDocument`,
-  # `SurfaceMaterial`, the glTF/OBJ/`.f3d` decoders and the writers beside them.
-  flutter3d_formats: ^0.6.0
+  # What a project is read from and written back to — `ModelDocument`,
+  # `SurfaceMaterial`, the glTF/OBJ/`.f3d` decoders and the writers beside
+  # them — `MeshData` and `VertexLayout`, which an imported object holds as it
+  # arrived, and `Scene`, `MeshNode`, `LightNode`, `CameraNode`, `Renderer`, `RenderView`,
+  # `RenderSettings`, `GraphicsDevice` — `renderProject`'s own scene and the
+  # renderer it draws with (`render_project.dart`, `mcp-05n`). The
+  # Flutter-free half of the engine, not `flutter3d` itself: a package under
+  # this one starts with `dart run`, which cannot resolve a graph with the
+  # Flutter SDK in it. Not `flutter3d_cpu` as well, even though that is what
+  # actually draws a frame at the far end of `renderProject`'s own device
+  # parameter — see that function's own doc comment for why the concrete
+  # device is the caller's dependency, not this package's.
+  flutter3d_core: ^0.7.0
 
-  # `MeshData` and `VertexLayout`, which an imported object holds as it arrived.
-  flutter3d_geometry: ^0.6.0
-
-  # `ClothMesh`/`stepCloth`, what `BakeClothJobRequest` runs one frame at a
-  # time into a `SimulationCache` — `pro-sim-03`'s own row.
-  flutter3d_cloth: ^0.6.0
-
-  # `Dynamics`/`RigidBody`/`CollisionWorld`, what `BakeRigidBodyJobRequest` runs
-  # one frame at a time into the same `SimulationCache` — `pro-sim-02`'s own
-  # row, the sibling `pro-sim-01`'s cloth solver has here.
-  flutter3d_physics: ^0.6.0
+  # `ClothMesh`/`stepCloth` — `pro-sim-03`'s own row, what `BakeClothJobRequest`
+  # runs one frame at a time into a `SimulationCache` — and `Dynamics`/`RigidBody`/
+  # `CollisionWorld`, what `BakeRigidBodyJobRequest` runs one frame at a time into
+  # the same `SimulationCache` for `pro-sim-02`'s own row. One package now:
+  # cloth moved into `flutter3d_physics` itself, reacting to its own shapes.
+  flutter3d_physics: ^0.7.0
 
   # `ParticleSystem`, what `BakeParticleSystemJobRequest` bakes into a
-  # `SimulationCache` the same way — `pro-sim-02`'s own other half. The core
-  # package, not `flutter3d_particles` itself, which depends on the Flutter
-  # SDK for the contributor that draws a system rather than the system.
-  flutter3d_particles_core: ^0.6.0
-
-  # `retargetTracks`, `bindWeights` and the rig vocabulary they read — what a
-  # project's own `retargetClip` and rig jobs run. The document depends on the
-  # algorithms and not the other way round: `flutter3d_rig` reads a rig as
-  # nodes and tracks and has no idea what a project is.
-  flutter3d_rig: ^0.6.0
+  # `SimulationCache` the same way — `pro-sim-02`'s own other half. The
+  # contributors that draw a system come along and cost nothing: they draw
+  # through `flutter3d_core`, already a dependency here, and name no Flutter.
+  flutter3d_particles: ^0.7.0
 
   vector_math: ^2.2.0
 

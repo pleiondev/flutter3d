@@ -5,6 +5,7 @@ library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter3d_model_core/flutter3d_model_core.dart';
+import 'package:flutter3d_modeler/l10n/app_localizations.dart';
 import 'package:flutter3d_modeler/src/ui/scene_environment_panel.dart';
 import 'package:flutter3d_modeler/src/ui/theme.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -15,8 +16,14 @@ Future<void> _pump(
   double ambientIntensity = 0.3,
   ValueChanged<SceneEnvironmentPreset>? onEnvironmentChanged,
   ValueChanged<double>? onAmbientChanged,
+  String? panoramaName,
+  VoidCallback? onChoosePanorama,
+  VoidCallback? onClearPanorama,
 }) => tester.pumpWidget(
   MaterialApp(
+    locale: const Locale('en'),
+    localizationsDelegates: AppLocalizations.localizationsDelegates,
+    supportedLocales: AppLocalizations.supportedLocales,
     theme: modelerTheme(),
     home: Scaffold(
       body: SceneEnvironmentPanel(
@@ -24,6 +31,9 @@ Future<void> _pump(
         ambientIntensity: ambientIntensity,
         onEnvironmentChanged: onEnvironmentChanged ?? (_) {},
         onAmbientChanged: onAmbientChanged ?? (_) {},
+        panoramaName: panoramaName,
+        onChoosePanorama: onChoosePanorama,
+        onClearPanorama: onClearPanorama,
       ),
     ),
   ),
@@ -78,8 +88,7 @@ void main() {
     await tester.tap(find.byType(DropdownButton<SceneEnvironmentPreset>));
     await tester.pumpAndSettle();
 
-    for (final SceneEnvironmentPreset preset
-        in SceneEnvironmentPreset.values) {
+    for (final SceneEnvironmentPreset preset in SceneEnvironmentPreset.values) {
       final label = switch (preset) {
         SceneEnvironmentPreset.studio => 'Studio',
         SceneEnvironmentPreset.daylight => 'Daylight',
@@ -88,5 +97,55 @@ void main() {
       };
       expect(find.text(label), findsWidgets);
     }
+  });
+
+  group('ux-49: the panorama beside the presets', () {
+    testWidgets('a platform with no picker shows no row at all', (
+      tester,
+    ) async {
+      await _pump(tester);
+
+      // Mutation: draw the row regardless. A browser then gets a "Choose…"
+      // that opens nothing, which is worse than not offering it.
+      expect(find.text('Choose…'), findsNothing);
+    });
+
+    testWidgets('with a picker and no panorama, it says the preset lights it', (
+      tester,
+    ) async {
+      var chosen = 0;
+      await _pump(tester, onChoosePanorama: () => chosen++);
+
+      expect(
+        find.text('No panorama — the preset above lights it'),
+        findsOneWidget,
+      );
+      await tester.tap(find.text('Choose…'));
+      await tester.pump();
+      expect(chosen, 1);
+    });
+
+    testWidgets('and with one, it names the picture and offers to clear it', (
+      tester,
+    ) async {
+      var cleared = 0;
+      await _pump(
+        tester,
+        panoramaName: 'overcast-noon.hdr',
+        onChoosePanorama: () {},
+        onClearPanorama: () => cleared++,
+      );
+
+      // **Which of the two is in force.** The dropdown above still shows a
+      // preset, and a panorama is what actually lights the scene while
+      // there is one — a row that only said "a panorama is set" would leave
+      // the preset looking like the answer.
+      expect(find.text('overcast-noon.hdr'), findsOneWidget);
+      expect(find.text('Replace…'), findsOneWidget);
+
+      await tester.tap(find.byTooltip('Clear the panorama'));
+      await tester.pump();
+      expect(cleared, 1);
+    });
   });
 }

@@ -123,6 +123,39 @@ EditMesh _dentedQuad() => EditMesh.fromFaces(
 );
 
 void main() {
+  group("ux-31: Wire draws the mesh's own edges", () {
+    test(
+      'a quad cube is twelve lines, and its triangles would be eighteen',
+      () {
+        final mesh = EditMesh.cuboid();
+        final overlay = _overlay();
+
+        MeshOverlayBuilder().build(
+          overlay,
+          mesh: mesh,
+          selection: Selection.empty(ElementLevel.vertex),
+          meshVersion: 1,
+          selectionVersion: 1,
+          view: _view(),
+        );
+
+        // **Twelve is the number a modeller counts.** The renderer's own
+        // wireframe draws the triangles it rasterises, so the same cube comes
+        // out as eighteen lines with a diagonal across every quad — a picture
+        // of how the GPU was fed. Six quads cut into twelve triangles have
+        // eighteen distinct edges: the twelve real ones plus one diagonal per
+        // face.
+        expect(overlay.lines.vertexCount, 12 * 2);
+
+        // And the number it is not: every quad is cut into two triangles, so
+        // the rasterised shape has one extra diagonal per face on top of the
+        // twelve real edges.
+        expect(mesh.faceCount, 6);
+        expect(12 + mesh.faceCount, 18);
+      },
+    );
+  });
+
   group('a cube with a face selected', () {
     test('is twelve lines, four ribbons and two triangles', () {
       final mesh = EditMesh.cuboid();
@@ -807,6 +840,120 @@ void main() {
       expect(rebuilt, (lines: false, handles: true, fill: false));
       expect(turn, lessThan(20000));
       expect(turn, lessThan(whole ~/ 4));
+    });
+  });
+
+  group('ux-28: what the pointer is resting on', () {
+    final MeshOverlayColours colours = MeshOverlayColours();
+
+    MeshOverlayRebuild over(
+      MeshOverlay overlay,
+      MeshOverlayBuilder builder, {
+      required EditMesh mesh,
+      Selection? hovered,
+      Selection? selection,
+    }) => builder.build(
+      overlay,
+      mesh: mesh,
+      selection: selection ?? Selection.empty(ElementLevel.face),
+      hovered: hovered,
+      meshVersion: 1,
+      selectionVersion: 1,
+      view: _view(),
+    );
+
+    test('hovering one face of a cube outlines exactly that face', () {
+      final mesh = EditMesh.cuboid();
+      final overlay = _overlay();
+
+      over(
+        overlay,
+        MeshOverlayBuilder(colours: colours),
+        mesh: mesh,
+        hovered: Selection.of(ElementLevel.face, <int>[3]),
+      );
+
+      // The acceptance this row states: one face, four edges, a ribbon each
+      // at six vertices. Mutation: draw the hover as a wash instead and this
+      // is zero here and six in the fill — which also puts the mesh's own
+      // triangulator on the path of every pointer move.
+      expect(_countColoured(overlay.handles, colours.hovered), 24);
+      expect(overlay.fill.vertexCount, 0);
+    });
+
+    test('and nothing at all with the pointer over nothing', () {
+      final mesh = EditMesh.cuboid();
+      final overlay = _overlay();
+
+      over(overlay, MeshOverlayBuilder(colours: colours), mesh: mesh);
+
+      expect(_countColoured(overlay.handles, colours.hovered), 0);
+    });
+
+    test('a face that is already selected is not outlined twice', () {
+      final mesh = EditMesh.cuboid();
+      final overlay = _overlay();
+
+      over(
+        overlay,
+        MeshOverlayBuilder(colours: colours),
+        mesh: mesh,
+        selection: Selection.of(ElementLevel.face, <int>[3]),
+        hovered: Selection.of(ElementLevel.face, <int>[3]),
+      );
+
+      // Mutation: draw it anyway. The two ribbons then sit at exactly the
+      // same depth, so which one a pixel shows is the rasteriser's own
+      // business — and what a person sees is the selection going pale and
+      // back as the pointer crosses it.
+      expect(_countColoured(overlay.handles, colours.hovered), 0);
+      expect(_countColoured(overlay.handles, colours.selected), 24);
+    });
+
+    test('the pointer moving to another face rebuilds the handles only', () {
+      final mesh = EditMesh.cuboid();
+      final overlay = _overlay();
+      final builder = MeshOverlayBuilder(colours: colours);
+      over(
+        overlay,
+        builder,
+        mesh: mesh,
+        hovered: Selection.of(ElementLevel.face, <int>[3]),
+      );
+
+      final MeshOverlayRebuild moved = over(
+        overlay,
+        builder,
+        mesh: mesh,
+        hovered: Selection.of(ElementLevel.face, <int>[4]),
+      );
+
+      // Mutation: leave the hover out of the rebuild decision and the
+      // highlight stays on the face the pointer has left until the camera
+      // happens to move.
+      expect(moved, (lines: false, handles: true, fill: false));
+      expect(_countColoured(overlay.handles, colours.hovered), 24);
+    });
+
+    test('and the same face again rebuilds nothing', () {
+      final mesh = EditMesh.cuboid();
+      final overlay = _overlay();
+      final builder = MeshOverlayBuilder(colours: colours);
+      final Selection same = Selection.of(ElementLevel.face, <int>[3]);
+      over(overlay, builder, mesh: mesh, hovered: same);
+
+      // A fresh `Selection` holding the same id, because that is what the
+      // screen hands over: the hover is re-picked on every pointer event and
+      // most of those land on the face the one before did. Mutation: compare
+      // the objects rather than their ids and every pixel of travel rebuilds
+      // the handles of the whole mesh.
+      final MeshOverlayRebuild again = over(
+        overlay,
+        builder,
+        mesh: mesh,
+        hovered: Selection.of(ElementLevel.face, <int>[3]),
+      );
+      expect(again, (lines: false, handles: false, fill: false));
     });
   });
 }

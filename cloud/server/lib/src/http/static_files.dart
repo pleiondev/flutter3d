@@ -30,7 +30,9 @@ Handler staticDirectory(String root, {required String cacheControl}) {
   final base = Directory(root).absolute.path;
   return (Request request) async {
     final relative = request.url.path;
-    if (relative.split('/').any((segment) => segment == '..' || segment.startsWith('.'))) {
+    if (relative
+        .split('/')
+        .any((segment) => segment == '..' || segment.startsWith('.'))) {
       return Response.notFound('Not found');
     }
     final path = relative.isEmpty || relative.endsWith('/')
@@ -39,7 +41,9 @@ Handler staticDirectory(String root, {required String cacheControl}) {
     final file = File(path);
     if (!await file.exists()) return Response.notFound('Not found');
 
-    final extension = path.contains('.') ? path.substring(path.lastIndexOf('.') + 1) : '';
+    final extension = path.contains('.')
+        ? path.substring(path.lastIndexOf('.') + 1)
+        : '';
     return Response.ok(
       file.openRead(),
       headers: {

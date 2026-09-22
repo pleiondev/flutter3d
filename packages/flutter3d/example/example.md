@@ -5,7 +5,7 @@ into a widget — the whole engine is behind these seventy lines.
 
 Three dependencies, and the second one is the point: `flutter3d` draws and
 names no graphics API, so something has to say which backend draws for it.
-`flutter3d_backend` is that something — it picks Impeller or WebGL2 by
+`flutter3d_app` is that something — it picks Impeller or WebGL2 by
 conditional import and falls back to the software rasteriser at run time, which
 is why the code below says `openDevice()` and not `GpuRenderBackend.create()`.
 
@@ -14,13 +14,13 @@ dependencies:
   flutter:
     sdk: flutter
 
-  flutter3d: ^0.6.0
-  flutter3d_backend: ^0.6.0
+  flutter3d: ^0.7.0
+  flutter3d_app: ^0.7.0
   vector_math: ^2.2.0
 ```
 
 The compiled shader bundle rides inside `flutter3d_impeller`, which
-`flutter3d_backend` brings with it, so there is nothing to build and no asset to
+`flutter3d_app` brings with it, so there is nothing to build and no asset to
 declare. On macOS, set `FLTEnableFlutterGPU` and `FLTEnableImpeller` in
 `macos/Runner/Info.plist`, or the app draws through the software fallback and
 says so on the console.
@@ -28,7 +28,7 @@ says so on the console.
 ```dart
 import 'package:flutter/material.dart' hide Material;
 import 'package:flutter3d/flutter3d.dart';
-import 'package:flutter3d_backend/flutter3d_backend.dart';
+import 'package:flutter3d_app/flutter3d_app.dart';
 import 'package:vector_math/vector_math.dart' show Vector3, Vector4;
 
 void main() => runApp(const MinimalApp());

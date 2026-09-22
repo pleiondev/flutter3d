@@ -18,6 +18,8 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_model_core/flutter3d_model_core.dart';
 
+import 'scene_sync.dart';
+
 /// The coarse half of a timeline's own transport — what a `Cubit` would hold
 /// as `playback`.
 enum PlaybackStatus {
@@ -37,6 +39,7 @@ final class Playback {
     this.status = PlaybackStatus.stopped,
     this.clipIndex = -1,
     this.speed = 1.0,
+    this.wrap = AnimationWrap.loop,
   });
 
   final PlaybackStatus status;
@@ -48,27 +51,83 @@ final class Playback {
 
   final double speed;
 
+  /// [AnimationPlayer.wrap] as of the last change this class made — `S2`'s
+  /// own row, [TimelinePlayback.setWrap]'s coarse half. Defaults to
+  /// [AnimationWrap.loop], the same default [AnimationPlayer.wrap] itself
+  /// starts at, so a `Playback` built before anyone has touched the loop
+  /// toggle already agrees with the player it describes.
+  final AnimationWrap wrap;
+
   bool get isPlaying => status.isPlaying;
 
-  Playback copyWith({PlaybackStatus? status, int? clipIndex, double? speed}) =>
-      Playback(
-        status: status ?? this.status,
-        clipIndex: clipIndex ?? this.clipIndex,
-        speed: speed ?? this.speed,
-      );
+  Playback copyWith({
+    PlaybackStatus? status,
+    int? clipIndex,
+    double? speed,
+    AnimationWrap? wrap,
+  }) => Playback(
+    status: status ?? this.status,
+    clipIndex: clipIndex ?? this.clipIndex,
+    speed: speed ?? this.speed,
+    wrap: wrap ?? this.wrap,
+  );
 
   @override
   bool operator ==(Object other) =>
       other is Playback &&
       other.status == status &&
       other.clipIndex == clipIndex &&
-      other.speed == speed;
+      other.speed == speed &&
+      other.wrap == wrap;
 
   @override
-  int get hashCode => Object.hash(status, clipIndex, speed);
+  int get hashCode => Object.hash(status, clipIndex, speed, wrap);
 
   @override
-  String toString() => 'Playback($status, clip $clipIndex, ${speed}x)';
+  String toString() => 'Playback($status, clip $clipIndex, ${speed}x, $wrap)';
+}
+
+/// An [AnimationPlayer] over [project]'s own clips, targeting the live scene
+/// [sync] tracks — the same [ProjectTrack.objectId] → node remap
+/// `ProjectModelDocument.toModelDocument` already does for an export, done
+/// here against [SceneSync.nodeOf] instead of a fresh [ModelNode] list.
+///
+/// **One player for every clip, not one per clip**, because
+/// [AnimationPlayer.targets] is shared across whichever of [AnimationPlayer.clips]
+/// is playing — the same reason [AnimationPanel.onSelectClip] hands this
+/// class a clip *index* rather than asking for a new player each time.
+///
+/// A target is null wherever [SceneSync] has not built a node for that
+/// object — closed over a socket, say, or a track outliving the object it
+/// named — and [AnimationPlayer] already skips a null target on its own.
+AnimationPlayer buildPreviewPlayer(ModelProject project, SceneSync sync) {
+  final ids = <int>{
+    for (final ProjectClip clip in project.clips)
+      for (final ProjectTrack track in clip.tracks) track.objectId,
+  }.toList(growable: false);
+  final indexOfId = <int, int>{for (var i = 0; i < ids.length; i++) ids[i]: i};
+
+  return AnimationPlayer(
+    clips: <AnimationClip>[
+      for (final ProjectClip clip in project.clips)
+        AnimationClip(
+          name: clip.name,
+          extras: clip.extras,
+          tracks: <AnimationTrack>[
+            for (final ProjectTrack track in clip.tracks)
+              AnimationTrack(
+                nodeIndex: indexOfId[track.objectId]!,
+                path: track.track.path,
+                interpolation: track.track.interpolation,
+                times: track.track.times,
+                values: track.track.values,
+                componentCount: track.track.componentCount,
+              ),
+          ],
+        ),
+    ],
+    targets: <AnimationTarget?>[for (final int id in ids) sync.nodeOf(id)],
+  );
 }
 
 /// Drives one [AnimationPlayer] — play, pause, seek, and a per-frame tick a
@@ -141,6 +200,29 @@ final class TimelinePlayback {
   void setSpeed(double speed) {
     player.speed = speed;
     _setPlayback(_playback.copyWith(speed: speed));
+  }
+
+  /// Sets [AnimationPlayer.wrap] — the loop toggle's own transport control —
+  /// and folds it into the coarse [playback] the same way [setSpeed] does
+  /// for the speed control beside it.
+  void setWrap(AnimationWrap wrap) {
+    player.wrap = wrap;
+    _setPlayback(_playback.copyWith(wrap: wrap));
+  }
+
+  /// [AnimationPlayer.crossFadeTo], reported through the same coarse/frame
+  /// split every other transition on this class uses — a transport's own
+  /// "switch action" is a play, not a seek, so both hooks fire the way
+  /// [play] itself makes them.
+  void crossFadeTo(int index, {double duration = 0.15}) {
+    player.crossFadeTo(index, duration: duration);
+    _setPlayback(
+      _playback.copyWith(
+        status: PlaybackStatus.playing,
+        clipIndex: player.clipIndex,
+      ),
+    );
+    _notifyFrame();
   }
 
   /// Advances by [deltaSeconds] while playing; a no-op otherwise, so a

@@ -35,7 +35,7 @@ library;
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
-import 'dart:math';
+import 'dart:math' as math;
 
 import 'package:stream_channel/stream_channel.dart';
 
@@ -180,7 +180,7 @@ final class LoopbackMcpServer {
   }
 
   static String _randomToken() {
-    final Random random = Random.secure();
+    final math.Random random = math.Random.secure();
     return base64Url.encode(List<int>.generate(32, (_) => random.nextInt(256)));
   }
 

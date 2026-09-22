@@ -17,18 +17,18 @@
 /// failure, and three of them are invisible in any single frame.
 library;
 
-import 'package:flutter3d/src/engine/render/frame_graph.dart';
-import 'package:flutter3d/src/engine/render/frame_plan.dart';
-import 'package:flutter3d/src/engine/render/frame_resources.dart';
-import 'package:flutter3d/src/engine/render/material.dart';
-import 'package:flutter3d/src/engine/render/pass_contributor.dart';
-import 'package:flutter3d/src/engine/render/render_node.dart';
-import 'package:flutter3d/src/engine/render/renderer.dart';
-import 'package:flutter3d/src/engine/render/view_model_node.dart';
-import 'package:flutter3d/src/engine/scene/camera_node.dart';
-import 'package:flutter3d/src/engine/scene/mesh_node.dart';
-import 'package:flutter3d/src/engine/scene/scene.dart';
-import 'package:flutter3d_geometry/flutter3d_geometry.dart';
+import 'package:flutter3d_core/geometry.dart';
+import 'package:flutter3d_core/src/engine/render/frame_graph.dart';
+import 'package:flutter3d_core/src/engine/render/frame_plan.dart';
+import 'package:flutter3d_core/src/engine/render/frame_resources.dart';
+import 'package:flutter3d_core/src/engine/render/material.dart';
+import 'package:flutter3d_core/src/engine/render/pass_contributor.dart';
+import 'package:flutter3d_core/src/engine/render/render_node.dart';
+import 'package:flutter3d_core/src/engine/render/renderer.dart';
+import 'package:flutter3d_core/src/engine/render/view_model_node.dart';
+import 'package:flutter3d_core/src/engine/scene/camera_node.dart';
+import 'package:flutter3d_core/src/engine/scene/mesh_node.dart';
+import 'package:flutter3d_core/src/engine/scene/scene.dart';
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:flutter3d_hardware/testing.dart';
 import 'package:flutter_test/flutter_test.dart';

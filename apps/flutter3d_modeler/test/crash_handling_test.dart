@@ -18,26 +18,34 @@ import 'dart:typed_data';
 
 import 'package:flutter/material.dart' hide Matrix4;
 import 'package:flutter3d/flutter3d.dart' hide Material;
-import 'package:flutter3d_cpu/testing.dart';
+import 'package:flutter3d_app/flutter3d_app.dart';
 import 'package:flutter3d_mesh/flutter3d_mesh.dart';
 import 'package:flutter3d_model_core/flutter3d_model_core.dart';
+import 'package:flutter3d_modeler/l10n/app_localizations.dart';
 import 'package:flutter3d_modeler/src/crash_handling.dart';
 import 'package:flutter3d_modeler/src/modeler_cubit.dart';
 import 'package:flutter3d_modeler/src/staging.dart';
-import 'package:flutter3d_screens/flutter3d_screens.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vector_math/vector_math.dart';
+
+import 'support/fake_graphics_backend.dart';
 
 /// A storage kept in memory — the same fake `autosaving_test.dart` and
 /// `main_recovery_test.dart` already use for `BinaryStorage`.
 final class FakeBinaryStorage implements BinaryStorage {
   final Map<String, Uint8List> documents = <String, Uint8List>{};
 
+  /// Refuses every write, the way a real storage with nowhere to write does —
+  /// `ux-01`'s own case, where the dialog used to promise a recovery copy
+  /// anyway.
+  bool refuse = false;
+
   @override
   Future<Uint8List?> read(String name) async => documents[name];
 
   @override
   Future<bool> write(String name, Uint8List contents) async {
+    if (refuse) return false;
     documents[name] = contents;
     return true;
   }
@@ -62,7 +70,7 @@ ModelProject cubes(int count) {
 }
 
 ModelerCubit opened({int count = 2}) {
-  final it = cpuTestDevice(width: 8, height: 8);
+  final it = fakeTestDevice(width: 8, height: 8);
   final history = ModelHistory(cubes(count));
   final stage = ModelerStage.fromProject(
     device: it.device,
@@ -81,10 +89,17 @@ void main() {
   // `FlutterError.onError` is a mutable static the test framework itself
   // relies on to fail a test that throws — every test here replaces it on
   // purpose, so it has to come back for whichever test runs next.
-  final void Function(FlutterErrorDetails)? defaultOnError = FlutterError.onError;
+  final void Function(FlutterErrorDetails)? defaultOnError =
+      FlutterError.onError;
+  // `ux-08` folds a repeated error into one dialog, and the memory that does
+  // it is a top-level one — which is right for an application and wrong for a
+  // file of tests that all crash on purpose. Cleared between them, so the
+  // second test's own crash is its first sight of it.
+  setUp(resetCrashDialogMemory);
   tearDown(() {
     FlutterError.onError = defaultOnError;
     lastAttemptedCommand = null;
+    resetCrashDialogMemory();
   });
 
   testWidgets(
@@ -118,6 +133,9 @@ void main() {
 
       await tester.pumpWidget(
         MaterialApp(
+          locale: const Locale('en'),
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
           navigatorKey: navigatorKey,
           home: Scaffold(
             body: Builder(
@@ -153,52 +171,245 @@ void main() {
       // a person typed as an argument, which is not a stable label a bug
       // report should be filtered or grouped by.
       expect(find.textContaining('Command: rename'), findsOneWidget);
-      expect(find.textContaining('Recent commands: rename, rename'), findsOneWidget);
+      expect(
+        find.textContaining('Recent commands: rename, rename'),
+        findsOneWidget,
+      );
     },
   );
 
-  testWidgets(
-    'no open document: the dialog still shows, with nothing to log',
-    (WidgetTester tester) async {
-      final storage = FakeBinaryStorage();
-      final navigatorKey = GlobalKey<NavigatorState>();
+  testWidgets('no open document: the dialog still shows, with nothing to log', (
+    WidgetTester tester,
+  ) async {
+    final storage = FakeBinaryStorage();
+    final navigatorKey = GlobalKey<NavigatorState>();
 
-      FlutterError.onError = (FlutterErrorDetails details) {
-        unawaited(
-          handleCrash(
-            error: details.exception,
-            stackTrace: details.stack ?? StackTrace.current,
-            cubit: null,
-            storage: storage,
-            sessionId: 'crash-test-session',
-            environment: 'Flutter, test',
-            dialogContext: () => navigatorKey.currentContext,
-          ),
-        );
-      };
+    FlutterError.onError = (FlutterErrorDetails details) {
+      unawaited(
+        handleCrash(
+          error: details.exception,
+          stackTrace: details.stack ?? StackTrace.current,
+          cubit: null,
+          storage: storage,
+          sessionId: 'crash-test-session',
+          environment: 'Flutter, test',
+          dialogContext: () => navigatorKey.currentContext,
+        ),
+      );
+    };
 
-      await tester.pumpWidget(
-        MaterialApp(
-          navigatorKey: navigatorKey,
-          home: Scaffold(
-            body: Builder(
-              builder: (BuildContext context) => ElevatedButton(
-                onPressed: () => throw StateError('no document was open yet'),
-                child: const Text('crash'),
-              ),
+    await tester.pumpWidget(
+      MaterialApp(
+        locale: const Locale('en'),
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
+        navigatorKey: navigatorKey,
+        home: Scaffold(
+          body: Builder(
+            builder: (BuildContext context) => ElevatedButton(
+              onPressed: () => throw StateError('no document was open yet'),
+              child: const Text('crash'),
             ),
           ),
         ),
+      ),
+    );
+
+    await tester.tap(find.text('crash'));
+    await tester.pumpAndSettle();
+
+    expect(storage.documents, isEmpty);
+    expect(find.text('Something went wrong'), findsOneWidget);
+    expect(find.textContaining('Command:'), findsNothing);
+  });
+
+  // `ux-01`: the live run ended a session in which not one autosave had been
+  // written, and this dialog still said "an emergency autosave was written".
+  testWidgets('a write that failed is said so, not promised', (
+    WidgetTester tester,
+  ) async {
+    const report = CrashReport(error: 'boom', stackTrace: StackTrace.empty);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        locale: const Locale('en'),
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
+        home: const Scaffold(
+          body: CrashDialog(
+            report: report,
+            environment: 'Flutter, test',
+            autosaved: false,
+          ),
+        ),
+      ),
+    );
+
+    // Mutation: keep the one unconditional sentence. The dialog then makes
+    // the promise on the day it is false, which is the whole finding.
+    expect(find.textContaining('could not be written'), findsOneWidget);
+    expect(find.textContaining('save your work now'), findsOneWidget);
+    expect(find.textContaining('should not be lost'), findsNothing);
+  });
+
+  testWidgets('and a write that landed still says so', (
+    WidgetTester tester,
+  ) async {
+    const report = CrashReport(error: 'boom', stackTrace: StackTrace.empty);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        locale: const Locale('en'),
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
+        home: const Scaffold(
+          body: CrashDialog(report: report, environment: 'Flutter, test'),
+        ),
+      ),
+    );
+
+    expect(find.textContaining('should not be lost'), findsOneWidget);
+  });
+
+  testWidgets('a storage that refuses reaches the dialog as the honest text', (
+    WidgetTester tester,
+  ) async {
+    final cubit = opened();
+    final storage = FakeBinaryStorage()..refuse = true;
+    final navigatorKey = GlobalKey<NavigatorState>();
+
+    await tester.pumpWidget(
+      MaterialApp(
+        locale: const Locale('en'),
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
+        navigatorKey: navigatorKey,
+        home: const Scaffold(),
+      ),
+    );
+
+    // Not awaited: `handleCrash` only returns once the dialog it shows has
+    // been dismissed, and dismissing it is what this test does last.
+    unawaited(
+      handleCrash(
+        error: 'boom',
+        stackTrace: StackTrace.empty,
+        cubit: cubit,
+        storage: storage,
+        sessionId: 'crash-test-session',
+        environment: 'Flutter, test',
+        dialogContext: () => navigatorKey.currentContext,
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    // Mutation: ignore what `emergencyAutosave` answered and pass `true`.
+    // The document really is not in the storage, and the dialog says it is.
+    expect(storage.documents, isEmpty);
+    expect(find.textContaining('could not be written'), findsOneWidget);
+
+    await tester.tap(find.text('Dismiss'));
+    await tester.pumpAndSettle();
+  });
+
+  // `ux-08`: an assert thrown from a build throws again on the next build,
+  // and the next. The live run got a crash dialog per frame stacked over a
+  // black window, with Dismiss unable to keep up.
+  testWidgets('the same error twice shows one dialog', (
+    WidgetTester tester,
+  ) async {
+    resetCrashDialogMemory();
+    addTearDown(resetCrashDialogMemory);
+    final cubit = opened();
+    final storage = FakeBinaryStorage();
+    final navigatorKey = GlobalKey<NavigatorState>();
+
+    await tester.pumpWidget(
+      MaterialApp(
+        locale: const Locale('en'),
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
+        navigatorKey: navigatorKey,
+        home: const Scaffold(),
+      ),
+    );
+
+    Future<void> crash(Object error) async {
+      unawaited(
+        handleCrash(
+          error: error,
+          stackTrace: StackTrace.empty,
+          cubit: cubit,
+          storage: storage,
+          sessionId: 'crash-test-session',
+          environment: 'Flutter, test',
+          dialogContext: () => navigatorKey.currentContext,
+        ),
       );
-
-      await tester.tap(find.text('crash'));
       await tester.pumpAndSettle();
+    }
 
-      expect(storage.documents, isEmpty);
-      expect(find.text('Something went wrong'), findsOneWidget);
-      expect(find.textContaining('Command:'), findsNothing);
-    },
-  );
+    await crash('the same assert');
+    await crash('the same assert');
+    await crash('the same assert');
+
+    // Mutation: show one per call, which is what this did. Three dialogs
+    // stack, and the count below reads three.
+    expect(find.text('Something went wrong'), findsOne);
+
+    await tester.tap(find.text('Dismiss'));
+    await tester.pumpAndSettle();
+    expect(find.text('Something went wrong'), findsNothing);
+  });
+
+  testWidgets('and a different error still gets its own', (
+    WidgetTester tester,
+  ) async {
+    resetCrashDialogMemory();
+    addTearDown(resetCrashDialogMemory);
+    final cubit = opened();
+    final storage = FakeBinaryStorage();
+    final navigatorKey = GlobalKey<NavigatorState>();
+
+    await tester.pumpWidget(
+      MaterialApp(
+        locale: const Locale('en'),
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
+        navigatorKey: navigatorKey,
+        home: const Scaffold(),
+      ),
+    );
+
+    Future<void> crash(Object error) async {
+      unawaited(
+        handleCrash(
+          error: error,
+          stackTrace: StackTrace.empty,
+          cubit: cubit,
+          storage: storage,
+          sessionId: 'crash-test-session',
+          environment: 'Flutter, test',
+          dialogContext: () => navigatorKey.currentContext,
+        ),
+      );
+      await tester.pumpAndSettle();
+    }
+
+    await crash('the first problem');
+    await tester.tap(find.text('Dismiss'));
+    await tester.pumpAndSettle();
+
+    await crash('a different problem');
+
+    // Mutation: fold on any second crash rather than on the same one. The
+    // second, unrelated fault is then silent, which is worse than a stack of
+    // dialogs — a person is left with a window that quietly stopped working.
+    expect(find.textContaining('a different problem'), findsOne);
+
+    await tester.tap(find.text('Dismiss'));
+    await tester.pumpAndSettle();
+  });
 
   test('describe() puts the command and the trail in one paragraph', () {
     const report = CrashReport(

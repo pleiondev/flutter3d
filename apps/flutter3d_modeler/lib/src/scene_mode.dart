@@ -50,12 +50,9 @@ final class SceneStatus {
   /// renderer could not honour drawing this frame.
   final bool warning;
 
-  /// `Источников N · теневых M из 6` — `mat-24`'s own row, verbatim.
-  String get text =>
-      'Источников $lightCount · теневых $shadowedCount из $shadowCap';
-
   @override
-  String toString() => 'SceneStatus($text, warning: $warning)';
+  String toString() =>
+      'SceneStatus($lightCount/$shadowedCount/$shadowCap, warning: $warning)';
 }
 
 /// [lights]' own status, as of a frame that reported [lightsDropped] and

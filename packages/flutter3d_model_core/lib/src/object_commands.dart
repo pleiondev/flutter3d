@@ -365,6 +365,73 @@ final class BakeToMesh extends ModelCommand {
   }
 }
 
+/// Builds topology for an imported object, so its mesh can be edited —
+/// `ux-16`.
+///
+/// **`BakeToMesh` refuses an import and says why, and until now that was the
+/// end of the road.** The sentence pointed at the import screen, which is
+/// where the welding choice belongs — and which nobody can get back to for a
+/// file already open. So this is that choice, offered again on the object:
+/// one number, the distance under which two vertices are the same point.
+///
+/// **A separate command from `BakeToMesh` rather than a branch inside it**,
+/// because the two ask different questions. Baking a cylinder is a
+/// conversion with no arguments and exactly one answer; building topology is
+/// a weld, and a weld at the wrong distance is a model with seams that will
+/// not extrude or one whose sharp edges have been fused.
+final class BuildTopology extends ModelCommand {
+  const BuildTopology({required this.id, this.weld});
+
+  final int id;
+
+  /// How close two vertices have to be to become one, or null for the
+  /// import's own scale-aware default — see `importMeshData`.
+  final double? weld;
+
+  @override
+  String get name => 'buildTopology';
+
+  @override
+  String get says => 'build topology';
+
+  @override
+  Map<String, Object?> get arguments => <String, Object?>{
+    'id': id,
+    if (weld != null) 'weld': weld,
+  };
+
+  @override
+  Map<String, ParamHint> get hints => const <String, ParamHint>{
+    'weld': DoubleHint(min: 0.0, step: 0.0001, unit: 'm'),
+  };
+
+  @override
+  Outcome apply(ModelProject project, ProjectSelection selection) {
+    final ModelObject? object = project[id];
+    if (object == null) return Outcome.refused('there is no object $id');
+    return switch (object.geometry) {
+      ImportedGeometry(:final data) => switch (importMeshData(
+        data,
+        weldEpsilon: weld,
+      )) {
+        (final EditMesh mesh, _, _) => Outcome.done(
+          project.withObject(object.copyWith(geometry: EditedGeometry(mesh))),
+        ),
+      },
+      EditedGeometry() => Outcome.refused(
+        '"${object.name}" already has topology to edit',
+      ),
+      ParametricGeometry() => Outcome.refused(
+        '"${object.name}" is still a shape — "Convert to a mesh" is what '
+        'turns one of those into geometry',
+      ),
+      SocketGeometry() => Outcome.refused(
+        '"${object.name}" is a socket and has no shape underneath it',
+      ),
+    };
+  }
+}
+
 /// Hangs one object under another.
 final class SetParent extends ModelCommand {
   const SetParent({required this.id, required this.to});
@@ -796,6 +863,74 @@ ModelProject _compensateChildren(ModelProject project, int parent, Matrix4 by) {
     );
   }
   return next;
+}
+
+/// Shows or hides one object — `ux-14`.
+///
+/// **A command rather than a field the screen writes**, so it is on the undo
+/// stack, in the journal and reachable over MCP like everything else that
+/// changes the document. Hiding the walls to get at what is inside them is
+/// an edit somebody comes back to tomorrow; a session-local flag would lose
+/// it on the way.
+final class SetObjectVisible extends ModelCommand {
+  const SetObjectVisible({required this.id, required this.to});
+
+  final int id;
+  final bool to;
+
+  @override
+  String get name => 'setObjectVisible';
+
+  @override
+  String get says => to ? 'show' : 'hide';
+
+  @override
+  Map<String, Object?> get arguments => <String, Object?>{'id': id, 'to': to};
+
+  @override
+  Outcome apply(ModelProject project, ProjectSelection selection) {
+    final ModelObject? object = project[id];
+    if (object == null) return Outcome.refused('there is no object $id');
+    if (object.visible == to) {
+      return Outcome.refused(
+        '"${object.name}" is already ${to ? 'visible' : 'hidden'}',
+      );
+    }
+    return Outcome.done(project.withObject(object.copyWith(visible: to)));
+  }
+}
+
+/// Locks or unlocks one object — `ux-14`.
+///
+/// Locked is not hidden: the floor a person keeps catching with the pointer
+/// has to stay on screen and stop answering it. What honours the flag is the
+/// application's own picking, since the document has no pointer.
+final class SetObjectLocked extends ModelCommand {
+  const SetObjectLocked({required this.id, required this.to});
+
+  final int id;
+  final bool to;
+
+  @override
+  String get name => 'setObjectLocked';
+
+  @override
+  String get says => to ? 'lock' : 'unlock';
+
+  @override
+  Map<String, Object?> get arguments => <String, Object?>{'id': id, 'to': to};
+
+  @override
+  Outcome apply(ModelProject project, ProjectSelection selection) {
+    final ModelObject? object = project[id];
+    if (object == null) return Outcome.refused('there is no object $id');
+    if (object.locked == to) {
+      return Outcome.refused(
+        '"${object.name}" is already ${to ? 'locked' : 'unlocked'}',
+      );
+    }
+    return Outcome.done(project.withObject(object.copyWith(locked: to)));
+  }
 }
 
 /// Whether [matrix] is the identity, to within what single-precision positions

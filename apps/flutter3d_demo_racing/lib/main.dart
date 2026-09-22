@@ -15,18 +15,20 @@ library;
 import 'dart:async';
 import 'dart:convert';
 
+import 'package:flutter/foundation.dart' show defaultTargetPlatform;
 import 'package:flutter/material.dart' hide Material;
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart'
     show KeyDownEvent, LogicalKeyboardKey, rootBundle;
 import 'package:flutter3d/flutter3d.dart' hide Material;
 import 'package:flutter3d_audio/flutter3d_audio.dart';
-import 'package:flutter3d_bridge/flutter3d_bridge.dart';
 import 'package:flutter3d_game/flutter3d_game.dart';
 import 'package:flutter3d_game_racing/bridge.dart';
 import 'package:flutter3d_game_racing/flutter3d_game_racing.dart';
 import 'package:flutter3d_particles/flutter3d_particles.dart';
+import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:pad_input/pad_input.dart';
 import 'package:vector_math/vector_math.dart' hide Colors;
 
 import 'src/backend.dart';
@@ -55,6 +57,13 @@ import 'src/touch_drive.dart';
 /// the person launching this build knows".
 final Uri kRelayBase = Uri.parse(
   const String.fromEnvironment('relay', defaultValue: 'ws://127.0.0.1:8199/'),
+);
+
+/// `rp-04`'s own build stamp, the same convention `flutter3d_demo_dungeon`
+/// established: whatever the release process passes in, `dev` otherwise.
+const String _buildStamp = String.fromEnvironment(
+  'FLUTTER3D_BUILD_STAMP',
+  defaultValue: 'dev',
 );
 
 void main() {
@@ -92,6 +101,13 @@ class _RaceScreenState extends State<RaceScreen>
   /// uploading meshes to the device the first one was built on.
   GraphicsDevice? _device;
   Ticker? _ticker;
+
+  /// The grid the next circuit starts on — null for the first one of a
+  /// season, and for one started over, both of which start level. Computed
+  /// in [_finishedHere] from the circuit that just ended, while its
+  /// [RaceState] is still the one this screen holds and before [_leaveCircuit]
+  /// lets it go.
+  List<int>? _nextGridOrder;
 
   /// The scene, empty until the circuit is read, and **drawn from the first
   /// frame either way**.
@@ -310,6 +326,48 @@ class _RaceScreenState extends State<RaceScreen>
 
   final InputState _input = InputState();
 
+  /// `rp-04`'s last ten seconds, every step of them — the same window and the
+  /// same reasoning as `flutter3d_demo_dungeon`'s own `_rewind`.
+  final RewindBuffer _rewind = RewindBuffer(stepsPerSecond: 60, history: 10.0);
+
+  /// `rp-02`'s door onto this run, over the VM service. Reads `_simulation`
+  /// fresh on every call rather than capturing it, since which simulation
+  /// that field answers changes every time a circuit does.
+  late final RunTimeline _timeline = RunTimeline(
+    rewind: _rewind,
+    input: _input,
+    stepSim: (double dt) => _simulation?.step(dt),
+    restore: (Snapshot snapshot) => _simulation?.restore(snapshot),
+  );
+
+  /// `rp-04`'s "send this run", called remotely rather than from a button
+  /// this game draws itself — the last few seconds `_rewind` has kept, as
+  /// plain JSON. Null (and the extension answers with an error) when there
+  /// is nothing to report yet, the same case `bugReportTape` itself returns
+  /// null for.
+  ///
+  /// **The `levelHash` is the demo's, not one computed here.** `TrackDocument`
+  /// does not write JSON back and does not give a `Level` the way the other
+  /// genres' `Demo` rows hash — `rp-01`'s own finding — and reading the raw
+  /// track document again just to hash it would make this callback
+  /// asynchronous. [_beginDemo] is handed the digest of the JSON
+  /// `_loadCircuit` had already decoded, so this names the same circuit the
+  /// same way for nothing; empty only before the first circuit is ready.
+  Map<String, Object?> _remoteBugReport() {
+    final report = bugReportTape(_rewind);
+    if (report == null) {
+      throw StateError('nothing has been recorded yet');
+    }
+    return <String, Object?>{
+      'level': _circuit.track,
+      'levelHash': _demoCircuitHash ?? '',
+      'start': report.start.toJson(),
+      'tape': report.tape.toJson(),
+      'buildStamp': _buildStamp,
+      'platform': defaultTargetPlatform.name,
+    };
+  }
+
   /// What the player has changed, and where it is kept.
   ///
   /// **This game had none of it**: no volumes, no rebinding, no way to turn
@@ -357,13 +415,90 @@ class _RaceScreenState extends State<RaceScreen>
     routes: PadRoutes.driving(steerLeft: Drive.left, steerRight: Drive.right),
   )..applySettings(_config);
 
+  /// `rp-01`/`rp-04`: this game's own `.f3drun` files, on disk. The dungeon's
+  /// and the platformer's own field, mirrored — see either's `_beginDemo`/
+  /// `_endDemo` for the mechanism this repeats rather than reinvents.
+  DemoFile? _demos;
+
+  /// Where the run being recorded started, and on which circuit.
+  Snapshot? _demoStart;
+  String? _demoCircuit;
+  String? _demoCircuitHash;
+
+  /// A checkpoint every so many steps, taken live while the run is recorded.
+  DigestTrace? _demoCheckpoints;
+
+  /// The demo's own recorder.
+  InputTapeRecorder? _demoRecorder;
+
+  /// Starts writing the circuit down, from the grid.
+  ///
+  /// **No mid-circuit resume to start it later from**, unlike the other two
+  /// games: a season has no snapshot of its own (see [RaceProgress]'s own
+  /// doc comment for why), so a circuit always begins here, once, right after
+  /// [_loadCircuit] puts a simulation in [_simulation].
+  void _beginDemo(String circuit, String circuitHash, RacingSimulation sim) {
+    final start = sim.save();
+    _demoStart = start;
+    _demoCircuit = circuit;
+    _demoCircuitHash = circuitHash;
+    _demoCheckpoints = DigestTrace();
+    _endRecording();
+    final recorder = InputTapeRecorder(seed: start.data.integer('random'));
+    _demoRecorder = recorder;
+    _loop.recorders.add(recorder);
+  }
+
+  /// Stops the demo's recorder.
+  InputTapeRecorder? _endRecording() {
+    final recorder = _demoRecorder;
+    if (recorder != null) _loop.recorders.remove(recorder);
+    _demoRecorder = null;
+    return recorder;
+  }
+
+  /// Writes the circuit down once it is won.
+  ///
+  /// **Only once, and only here.** A circuit that is not raced to the flag —
+  /// the season abandoned mid-lap for another one — is not a run anybody
+  /// would replay, and this game has no restart that reaches one still in
+  /// progress: [_startOver] is only ever offered once the season is over or a
+  /// circuit failed to load, both moments after this has already run or
+  /// never started.
+  void _endDemo() {
+    final recorder = _endRecording();
+    final start = _demoStart;
+    final circuit = _demoCircuit;
+    final circuitHash = _demoCircuitHash;
+    final checkpoints = _demoCheckpoints;
+    if (recorder == null ||
+        start == null ||
+        circuit == null ||
+        circuitHash == null ||
+        checkpoints == null) {
+      return;
+    }
+    _demos?.write(
+      Demo(
+        level: circuit,
+        levelHash: circuitHash,
+        start: start,
+        tape: recorder.tape,
+        buildStamp: _buildStamp,
+        checkpoints: checkpoints,
+        platform: defaultTargetPlatform.name,
+      ),
+    );
+  }
+
   /// The loop, rather than a bare `FixedStep`.
   ///
   /// **This game drove the clock itself and got none of the loop's services**:
   /// no pause, no `beginStep`/`endStep` around a step — so `InputState.pressed`
   /// never worked here at all — and no reading of the simulated time the clock
   /// refused to run.
-  late final GameLoop _loop = GameLoop(input: _input, onStep: _driveOneStep);
+  late final GameLoop _loop = GameLoop(input: _input, onStep: _driveOneStep)
+    ..recorders.add(_rewind.recorder);
 
   /// Whether the machine is keeping up, and what it cost when it was not.
   final Pace _pace = Pace();
@@ -415,6 +550,7 @@ class _RaceScreenState extends State<RaceScreen>
       file: _settingsFile,
       apply: _applyConfig,
     );
+    _demos = DemoFile(appName: 'racing', onIssue: printIssue);
     super.initState();
     unawaited(_open());
   }
@@ -493,6 +629,9 @@ class _RaceScreenState extends State<RaceScreen>
     // the loop simply returns early until it is.
     _ticker = createTicker(_onTick)..start();
     _timings.start();
+    // `rp-02`: harmless where the VM service is off — `registerExtension`
+    // just adds an entry nothing ever asks for.
+    registerTimelineExtensions(_timeline, bugReport: _remoteBugReport);
     await _loadCircuit(device);
   }
 
@@ -556,9 +695,11 @@ class _RaceScreenState extends State<RaceScreen>
       // one script and read by two loaders: the spline is this genre's and the
       // level is the engine's, which has read brushes since the first game.
       final text = await rootBundle.loadString(_circuit.track);
-      final document = TrackDocument.fromJson(
-        jsonDecode(text) as Map<String, Object?>,
-      );
+      // Kept rather than decoded twice: `rp-04`'s own demo names a circuit by
+      // this same digest, and `TrackDocument` has no `toJson()` of its own to
+      // take it from instead — see `test/demo_test.dart`'s identical comment.
+      final trackJson = jsonDecode(text) as Map<String, Object?>;
+      final document = TrackDocument.fromJson(trackJson);
       reading = _circuit.level;
       final loaded = await const LevelLoader().load(
         _circuit.level,
@@ -576,7 +717,11 @@ class _RaceScreenState extends State<RaceScreen>
 
       // The one assembly this game has. What is left here is what needs a
       // device: the road mesh, the cars and the scene they go in.
-      final staged = stage(document, loaded.collision);
+      final staged = stage(
+        document,
+        loaded.collision,
+        gridOrder: _nextGridOrder,
+      );
       final track = staged.track;
       final scene = loaded.scene;
       addTrackTo(scene, track, device: device);
@@ -708,6 +853,7 @@ class _RaceScreenState extends State<RaceScreen>
       // After the render fields are in place, not before: a status of
       // `Racing` is a promise that there is something to draw.
       _raceCubit.ready();
+      _beginDemo(_circuit.track, contentDigestHex(trackJson), staged.sim);
     } catch (error, stack) {
       debugPrint('circuit: $error\n$stack');
       // With the document's name: every failure here is a content mistake in
@@ -727,6 +873,9 @@ class _RaceScreenState extends State<RaceScreen>
   /// The player has finished the race. On to the next circuit, or that was the
   /// season.
   void _finishedHere() {
+    // Written down the instant the circuit is won — see [_endDemo] for why
+    // this is the only moment that calls it.
+    _endDemo();
     // Deciding what comes next and saying so are both `_raceCubit.finish()`'s
     // job now — see `RaceProgress.finish` for the season-complete clause this
     // used to hold directly.
@@ -736,6 +885,11 @@ class _RaceScreenState extends State<RaceScreen>
     // this circuit had. The race's own lap count rather than the player's
     // counter, which stops at the flag.
     final race = _race;
+    // Read before `_leaveCircuit` clears `_race`, from the standing this
+    // circuit actually ended on — the player has already crossed the line
+    // here, so every racer's `positionOf` is a finish rather than a place in
+    // a race still moving.
+    _nextGridOrder = race == null ? null : gridOrderFrom(race);
     final next = _raceCubit.finish(
       laps: race?.laps ?? 0,
       bestLap: race?.progress[0].bestLap,
@@ -778,6 +932,10 @@ class _RaceScreenState extends State<RaceScreen>
     final device = _device;
     if (device == null) return;
     _leaveCircuit();
+    // A season raced again starts level, the same as the first one did — see
+    // `RaceProgress.startOver`'s own reasoning for why the season itself
+    // resets rather than only the circuit.
+    _nextGridOrder = null;
     _raceCubit.startOver();
     await _loadCircuit(device);
   }
@@ -898,7 +1056,17 @@ class _RaceScreenState extends State<RaceScreen>
     _readDriver(simulation);
     _readPitStop();
     _driveTheRest(simulation, race);
+    // Before the step, so the keyframe is the state this step's recorded
+    // entry acts on — the moment `RewindBuffer` and the loop agree about.
+    if (_rewind.keyframeDue) _rewind.keyframe(simulation.save());
     simulation.step(stepSeconds);
+    final demoRecorder = _demoRecorder;
+    if (demoRecorder != null) {
+      _demoCheckpoints?.observe(
+        demoRecorder.tape.steps,
+        simulation.save().toJson(),
+      );
+    }
     // Drained once, here, and kept for the frame. `_listen` runs before the
     // step and so reads the step before it — which is exactly what the
     // per-step flags it replaces did, since those were cleared at the top of
@@ -1264,6 +1432,7 @@ class _RaceScreenState extends State<RaceScreen>
                   resolution: kShadowResolution,
                 ),
               ),
+              presentFrame: presentFrame,
             ),
             // A platform view takes the pointer events over it, so the click
             // that hands the keyboard back has to be caught above the frame

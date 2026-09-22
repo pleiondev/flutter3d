@@ -95,29 +95,36 @@ void main() {
       },
     );
 
-    test('an orthographic view sizes every marker alike regardless of depth', () {
-      final view = GizmoView(eye: Vector3.zero(), pixel: 0.05, perspective: false);
-      const offset = 0.5;
+    test(
+      'an orthographic view sizes every marker alike regardless of depth',
+      () {
+        final view = GizmoView(
+          eye: Vector3.zero(),
+          pixel: 0.05,
+          perspective: false,
+        );
+        const offset = 0.5;
 
-      final near = pickLightMarker(
-        positions: <Vector3>[Vector3(offset, 0, -1)],
-        eye: Vector3.zero(),
-        along: Vector3(0, 0, -1),
-        view: view,
-      );
-      final far = pickLightMarker(
-        positions: <Vector3>[Vector3(offset, 0, -50)],
-        eye: Vector3.zero(),
-        along: Vector3(0, 0, -1),
-        view: view,
-      );
+        final near = pickLightMarker(
+          positions: <Vector3>[Vector3(offset, 0, -1)],
+          eye: Vector3.zero(),
+          along: Vector3(0, 0, -1),
+          view: view,
+        );
+        final far = pickLightMarker(
+          positions: <Vector3>[Vector3(offset, 0, -50)],
+          eye: Vector3.zero(),
+          along: Vector3(0, 0, -1),
+          view: view,
+        );
 
-      // Mutation: multiply the marker radius by distance even when the view
-      // says it is not a perspective one — both would then disagree on
-      // whether `offset` is inside the marker, and this catches it because
-      // an orthographic view must answer the same either way.
-      expect(near, far);
-    });
+        // Mutation: multiply the marker radius by distance even when the view
+        // says it is not a perspective one — both would then disagree on
+        // whether `offset` is inside the marker, and this catches it because
+        // an orthographic view must answer the same either way.
+        expect(near, far);
+      },
+    );
   });
 
   test('no positions at all picks nothing', () {

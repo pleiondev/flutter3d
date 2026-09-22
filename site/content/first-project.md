@@ -50,7 +50,7 @@ flutter run -d macos
 
 <div class="warn">
 <p><strong>Then add two keys to <code>macos/Runner/Info.plist</code>:</strong> <code>FLTEnableFlutterGPU</code> and <code>FLTEnableImpeller</code>, both <code>&lt;true/&gt;</code>, inside the top-level <code>&lt;dict&gt;</code>. Flutter GPU is enabled per application rather than per channel, and Impeller is not yet the default renderer on macOS. A scaffolded project has no <code>macos/</code> at all until <code>flutter create</code> makes one, so this is the step nobody can do for you — the README the scaffold writes says the same thing beside the same commands.</p>
-<p><strong>Skipping them does not fail</strong>, which is what makes it worth a box. The game opens and draws, through the Dart software rasteriser, because that is what <code>flutter3d_backend</code> falls back to when Impeller will not start. The only sign is a console line beginning <code>flutter3d_backend: Impeller would not start</code> and a frame rate that is the fallback's rather than the engine's. If you see that line, these keys are why. The exact wording of the failures that <em>do</em> stop the app is in <a href="/reference/pitfalls/">Pitfalls</a>.</p>
+<p><strong>Skipping them does not fail</strong>, which is what makes it worth a box. The game opens and draws, through the Dart software rasteriser, because that is what <code>flutter3d_app</code> falls back to when Impeller will not start. The only sign is a console line beginning <code>flutter3d_app: Impeller would not start</code> and a frame rate that is the fallback's rather than the engine's. If you see that line, these keys are why. The exact wording of the failures that <em>do</em> stop the app is in <a href="/reference/pitfalls/">Pitfalls</a>.</p>
 </div>
 
 <div class="warn">
@@ -68,7 +68,7 @@ flutter run -d macos
 | `assets/models/*.glb` | One model per kind of thing the level names |
 | `test/widget_test.dart` | It loads the level through a software device, with no window |
 
-The imports at the top of `main.dart` say where the halves are: `flutter3d` draws, `flutter3d_game` simulates, `flutter3d_session` owns loading, and `flutter3d_bridge` is the only one allowed to see both sides. [Assembling an application](/core/session/) is that seam in detail.
+The imports at the top of `main.dart` say where the halves are: `flutter3d` draws, `flutter3d_sim` simulates, `flutter3d_app` loads a level into a scene, and `flutter3d_game` holds the input and the run. [Assembling an application](/core/session/) is that seam in detail.
 
 <div class="note">
 <p><strong><code>main.dart</code> is a seed, not a game.</strong> It reads the level, builds it, and puts a body in it that walks, looks and jumps. What it deliberately leaves out is everything a <em>genre</em> is: no weapons, no monsters, no coins, no doors that open, no score, no menu, no saving. Those live in <code>flutter3d_game_shooter</code> and <code>flutter3d_game_platformer</code>, and adding one is the last step below.</p>

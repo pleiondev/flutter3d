@@ -7,7 +7,7 @@ library;
 
 import 'dart:typed_data';
 
-import 'package:flutter3d_formats/flutter3d_formats.dart';
+import 'package:flutter3d_core/formats.dart';
 import 'package:flutter3d_mesh/flutter3d_mesh.dart';
 import 'package:flutter3d_model_core/flutter3d_model_core.dart';
 import 'package:test/test.dart';
@@ -84,21 +84,24 @@ void main() {
     );
   });
 
-  test('more joints than the profile budget, under the hard cap, is a warning', () {
-    final project = _cleanRig(jointCount: 3);
-    final issues = rigIssues(project, const ProjectProfile(maxJoints: 2));
-    expect(
-      issues,
-      contains(
-        predicate<ExportIssue>(
-          (i) =>
-              i.severity == ExportSeverity.warning &&
-              i.message.contains('joints') &&
-              i.message.contains('2'),
+  test(
+    'more joints than the profile budget, under the hard cap, is a warning',
+    () {
+      final project = _cleanRig(jointCount: 3);
+      final issues = rigIssues(project, const ProjectProfile(maxJoints: 2));
+      expect(
+        issues,
+        contains(
+          predicate<ExportIssue>(
+            (i) =>
+                i.severity == ExportSeverity.warning &&
+                i.message.contains('joints') &&
+                i.message.contains('2'),
+          ),
         ),
-      ),
-    );
-  });
+      );
+    },
+  );
 
   test('a joint with a non-uniform scale is a warning naming that object', () {
     var project = _cleanRig();
@@ -128,14 +131,19 @@ void main() {
     final mesh = (body.geometry as EditedGeometry).mesh;
     mesh
       ..beginStep()
-      ..setSkin(0, VertexAttributes(joints: Vector4.zero(), weights: Vector4.zero()))
+      ..setSkin(
+        0,
+        VertexAttributes(joints: Vector4.zero(), weights: Vector4.zero()),
+      )
       ..endStep();
     final issues = rigIssues(project, const ProjectProfile());
     expect(
       issues,
       contains(
         predicate<ExportIssue>(
-          (i) => i.severity == ExportSeverity.warning && i.message.contains('no weight'),
+          (i) =>
+              i.severity == ExportSeverity.warning &&
+              i.message.contains('no weight'),
         ),
       ),
     );
@@ -149,7 +157,10 @@ void main() {
       ..beginStep()
       ..setSkin(
         0,
-        VertexAttributes(joints: Vector4(0, 0, 0, 0), weights: Vector4(0.5, 0.2, 0, 0)),
+        VertexAttributes(
+          joints: Vector4(0, 0, 0, 0),
+          weights: Vector4(0.5, 0.2, 0, 0),
+        ),
       )
       ..endStep();
     final issues = rigIssues(project, const ProjectProfile());
@@ -184,7 +195,9 @@ void main() {
       issues,
       contains(
         predicate<ExportIssue>(
-          (i) => i.severity == ExportSeverity.warning && i.message.contains('influences'),
+          (i) =>
+              i.severity == ExportSeverity.warning &&
+              i.message.contains('influences'),
         ),
       ),
     );
@@ -198,7 +211,10 @@ void main() {
       ..beginStep()
       ..setSkin(
         0,
-        VertexAttributes(joints: Vector4(7, 0, 0, 0), weights: Vector4(1, 0, 0, 0)),
+        VertexAttributes(
+          joints: Vector4(7, 0, 0, 0),
+          weights: Vector4(1, 0, 0, 0),
+        ),
       )
       ..endStep();
     final issues = rigIssues(project, const ProjectProfile());

@@ -9,7 +9,7 @@ library;
 import 'dart:typed_data';
 
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
-import 'package:flutter_test/flutter_test.dart';
+import 'package:test/test.dart';
 
 /// A texture of one flat colour, so an average has a known answer.
 ByteData _flat(int width, int height, int value) {

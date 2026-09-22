@@ -6,7 +6,7 @@ library;
 import 'dart:typed_data';
 
 import 'package:convert_asset/convert_asset.dart';
-import 'package:flutter3d_formats/flutter3d_formats.dart';
+import 'package:flutter3d_core/formats.dart';
 import 'package:test/test.dart';
 
 void main() {
@@ -30,8 +30,12 @@ void main() {
         'teapot.obj': Uint8List(0),
         'teapot.mtl': Uint8List(0),
       },
-      writerWarnings: const <String>['1 skin(s) were not written; OBJ has no skinning'],
-      differences: <DocumentDifference>[const DocumentDifference('nodes: 2 in, 1 out')],
+      writerWarnings: const <String>[
+        '1 skin(s) were not written; OBJ has no skinning',
+      ],
+      differences: <DocumentDifference>[
+        const DocumentDifference('nodes: 2 in, 1 out'),
+      ],
     );
     final out = StringBuffer();
     writeReport(report, out);

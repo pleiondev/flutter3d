@@ -30,9 +30,15 @@ void main() {
 
     test('a damaged hash fails verification instead of throwing', () {
       expect(verifyPassword('anything', ''), isFalse);
-      expect(verifyPassword('anything', r'$argon2id$v=19$m=x$abc$def'), isFalse);
+      expect(
+        verifyPassword('anything', r'$argon2id$v=19$m=x$abc$def'),
+        isFalse,
+      );
       expect(verifyPassword('anything', r'$bcrypt$whatever'), isFalse);
-      expect(verifyPassword('anything', r'$argon2id$v=19$m=64,t=1,p=1$!!!$@@@'), isFalse);
+      expect(
+        verifyPassword('anything', r'$argon2id$v=19$m=64,t=1,p=1$!!!$@@@'),
+        isFalse,
+      );
     });
 
     test('a hash made under a weaker cost asks to be remade', () {

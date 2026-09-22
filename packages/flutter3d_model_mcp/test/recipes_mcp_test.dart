@@ -63,42 +63,51 @@ void main() {
     return (did: result.isError != true, says: (content as TextContent).text);
   }
 
-  test('a spec list of objects survives tools/call and builds a hierarchy', () async {
-    final built = await call('buildFrom', <String, Object?>{
-      'spec': <Map<String, Object?>>[
-        <String, Object?>{'kind': 'box', 'name': 'trunk'},
-        <String, Object?>{
-          'kind': 'sphere',
-          'name': 'leaves',
-          'parent': 0,
-          'at': <double>[0, 2, 0],
-        },
-      ],
-    });
-    expect(built.did, isTrue, reason: built.says);
+  test(
+    'a spec list of objects survives tools/call and builds a hierarchy',
+    () async {
+      final built = await call('buildFrom', <String, Object?>{
+        'spec': <Map<String, Object?>>[
+          <String, Object?>{'kind': 'box', 'name': 'trunk'},
+          <String, Object?>{
+            'kind': 'sphere',
+            'name': 'leaves',
+            'parent': 0,
+            'at': <double>[0, 2, 0],
+          },
+        ],
+      });
+      expect(built.did, isTrue, reason: built.says);
 
-    final listing = await call('list');
-    expect(listing.says, contains('trunk'));
-    expect(listing.says, contains('leaves'));
-  });
+      final listing = await call('list');
+      expect(listing.says, contains('trunk'));
+      expect(listing.says, contains('leaves'));
+    },
+  );
 
-  test('cleanup with nothing to clean answers plainly over the protocol', () async {
-    await call('addPrimitive', <String, Object?>{'kind': 'box'});
-    // A still-parametric box has no mesh at all; baking gives cleanup an
-    // already-clean one to find nothing wrong with.
-    await call('bakeToMesh', <String, Object?>{'id': 1});
-    final cleaned = await call('cleanup');
-    expect(cleaned.did, isFalse);
-    expect(cleaned.says, contains('nothing needed cleaning'));
-  });
+  test(
+    'cleanup with nothing to clean answers plainly over the protocol',
+    () async {
+      await call('addPrimitive', <String, Object?>{'kind': 'box'});
+      // A still-parametric box has no mesh at all; baking gives cleanup an
+      // already-clean one to find nothing wrong with.
+      await call('bakeToMesh', <String, Object?>{'id': 1});
+      final cleaned = await call('cleanup');
+      expect(cleaned.did, isFalse);
+      expect(cleaned.says, contains('nothing needed cleaning'));
+    },
+  );
 
-  test('makeGameReady refuses an unknown profile name over the protocol', () async {
-    final refused = await call('makeGameReady', <String, Object?>{
-      'profile': 'potato',
-    });
-    expect(refused.did, isFalse);
-    expect(refused.says, contains('potato'));
-  });
+  test(
+    'makeGameReady refuses an unknown profile name over the protocol',
+    () async {
+      final refused = await call('makeGameReady', <String, Object?>{
+        'profile': 'potato',
+      });
+      expect(refused.did, isFalse);
+      expect(refused.says, contains('potato'));
+    },
+  );
 
   test('makeGameReady triangulates a baked mesh over the protocol', () async {
     await call('addPrimitive', <String, Object?>{'kind': 'box'});

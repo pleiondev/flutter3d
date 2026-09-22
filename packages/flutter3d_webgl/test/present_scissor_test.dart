@@ -68,7 +68,7 @@ void main() {
         )
         .submit();
 
-    device.present(target);
+    device.blitToCanvas(target);
 
     // The far corner from GL's origin, and the one the clipped blit missed.
     final List<int> farCorner = device.debugCanvasPixelAt(

@@ -1,4 +1,4 @@
-/// `mat-24`'s own pure logic: the status line's text, when it warns, and
+/// `mat-24`'s own pure logic: the status line's numbers, when it warns, and
 /// which lights are pickable.
 ///
 ///     flutter test test/scene_mode_test.dart
@@ -15,21 +15,25 @@ List<ProjectLight> _lights(int count, {bool shadowed = false}) =>
     );
 
 void main() {
-  group('the status text', () {
+  group('the status numbers', () {
     test('names the light count and the shadowed count out of the cap', () {
-      final status = computeSceneStatus(
-        lights: _lights(3, shadowed: true),
-      );
+      final status = computeSceneStatus(lights: _lights(3, shadowed: true));
 
       // Mutation: swap the two numbers, or hard-code the cap as something
-      // other than what `kSceneShadowCap` names.
-      expect(status.text, 'Источников 3 · теневых 3 из 6');
+      // other than what `kSceneShadowCap` names. The words themselves are
+      // `sceneStatusLabel`'s, in `scene_shadows_panel.dart` — this checks
+      // only the numbers a caller substitutes into it (`ui-22`).
+      expect(status.lightCount, 3);
+      expect(status.shadowedCount, 3);
+      expect(status.shadowCap, kSceneShadowCap);
     });
 
     test('a project with no lights reads zero of six, not a blank line', () {
       final status = computeSceneStatus(lights: const <ProjectLight>[]);
 
-      expect(status.text, 'Источников 0 · теневых 0 из 6');
+      expect(status.lightCount, 0);
+      expect(status.shadowedCount, 0);
+      expect(status.shadowCap, kSceneShadowCap);
       expect(status.warning, isFalse);
     });
   });
@@ -66,10 +70,7 @@ void main() {
       // dropped drawing the frame — passed in here exactly as `Renderer
       // .render` would hand it back on its `FrameResult` — not a threshold
       // this file invents from `lights.length` alone.
-      final status = computeSceneStatus(
-        lights: _lights(9),
-        lightsDropped: 1,
-      );
+      final status = computeSceneStatus(lights: _lights(9), lightsDropped: 1);
 
       expect(status.warning, isTrue);
     });
@@ -94,9 +95,7 @@ void main() {
     });
 
     test('neither dropped nor denied leaves the status green', () {
-      final status = computeSceneStatus(
-        lights: _lights(6, shadowed: true),
-      );
+      final status = computeSceneStatus(lights: _lights(6, shadowed: true));
 
       expect(status.warning, isFalse);
     });

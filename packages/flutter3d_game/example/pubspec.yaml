@@ -1,0 +1,64 @@
+name: flutter3d_game_example
+description: "The application a new game starts as: a level you can walk around. Copied into the editor's templates."
+publish_to: 'none'
+version: 0.4.0+1
+resolution: workspace
+
+environment:
+  sdk: ^3.12.2
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # The assembly layer: the backend chooser with its software fallback, the
+  # settings and rebinding screens, the save file, the gamepad and the pointer
+  # capture. This seed used to name `flutter3d_impeller` instead — one backend,
+  # no web build, no fallback, and none of the screens a game needs before it
+  # is a game. See `lib/src/backend.dart`.
+  flutter3d_app:
+    path: ../../flutter3d_app
+
+  # Sound, which the seed had none of.
+  flutter3d_audio:
+    path: ../../flutter3d_audio
+
+  flutter3d:
+    path: ../../flutter3d
+
+  # The document, the input and the level format.
+  flutter3d_game:
+    path: ../
+  flutter3d_sim:
+    path: ../../flutter3d_sim
+
+  vector_math: ^2.2.0
+
+  # Screen state — loading, the error panel — kept in a Cubit rather than
+  # spread across `setState` calls. See `RunSession`'s doc comment in
+  # `flutter3d_game` for where the line between this and the render loop
+  # is drawn.
+  flutter_bloc: ^9.1.1
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+
+  # A renderer with no GPU under it, so a test can load a level the way the
+  # game does. `LevelLoader` needs a device and does not need a window.
+  flutter3d_cpu:
+    path: ../../flutter3d_cpu
+
+  flutter_lints: ^6.0.0
+
+# **No `macos/` here on purpose.** This application exists to be analysed and to
+# be copied; it is `flutter create --platforms=macos .` in the project it is
+# copied into that gives it a window. Thirty files of platform tree per
+# template, for an application nobody in this repository runs, is cost with no
+# coverage.
+flutter:
+  uses-material-design: true
+
+  assets:
+    - assets/levels/
+    - assets/models/

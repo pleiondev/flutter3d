@@ -24,18 +24,12 @@ bool metallicIsMeaningful(LightingModel lighting) => lighting.usesMetallic;
 
 /// The shader [surface]'s own fields should be shown for.
 ///
-/// **Derived from [SurfaceMaterial.unlit], the one shader bit a project
-/// material actually carries today.** Nothing in `ProjectMaterial` or
-/// `SurfaceMaterial` names a lighting model the way a linked `.fmat`'s own
-/// `MaterialDocument.lighting` does — seeing that field's own doc comment —
-/// so there is no way yet for a material authored inside this project to
-/// read back as Lambert; [bindSurfaceMaterial] itself always paints with
-/// [LightingModel.pbr] unless a material is unlit. [metallicIsMeaningful] is
-/// written against [LightingModel] rather than against this function so that
-/// the day a material gets a shader field of its own (`mat-04`'s fuller
-/// row), the gate needs no change — only this mapping does.
+/// [SurfaceMaterial.lightingModel] wins when the material names one; failing
+/// that, [SurfaceMaterial.unlit] still picks between the engine's two
+/// defaults, the same fallback [bindSurfaceMaterial] itself makes.
 LightingModel lightingModelOf(SurfaceMaterial surface) =>
-    surface.unlit ? LightingModel.unlit : LightingModel.pbr;
+    surface.lightingModel ??
+    (surface.unlit ? LightingModel.unlit : LightingModel.pbr);
 
 /// The row [bytes] already sits at in [images], or null when nothing there
 /// matches — the same content match [AddImage] itself makes before it

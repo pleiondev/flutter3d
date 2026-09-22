@@ -1,11 +1,11 @@
 import 'dart:math' as math;
 import 'dart:typed_data';
 
-import 'package:flutter3d/src/engine/render/material.dart';
-import 'package:flutter3d/src/engine/render/render_list.dart';
-import 'package:flutter3d/src/engine/render/render_view.dart';
-import 'package:flutter3d/src/engine/scene/scene_graph.dart';
-import 'package:flutter3d_geometry/flutter3d_geometry.dart';
+import 'package:flutter3d_core/geometry.dart';
+import 'package:flutter3d_core/src/engine/render/material.dart';
+import 'package:flutter3d_core/src/engine/render/render_list.dart';
+import 'package:flutter3d_core/src/engine/render/render_view.dart';
+import 'package:flutter3d_core/src/engine/scene/scene_graph.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vector_math/vector_math.dart' hide Ray;
 
@@ -25,6 +25,21 @@ Scene gridScene(int count, {double spacing = 3.0}) {
         .setPosition(x * spacing, ((i * 7) % 5) - 2.0, z * spacing);
   }
   return scene;
+}
+
+/// Everything `RenderList` would draw without a tree, as a set of names.
+///
+/// The box, because that is what the render list tests since `gfx-61n`.
+/// [linearVisible] below is the sphere version and stays that way: it is the
+/// reference for the tree's own property, and the tree is built over spheres,
+/// so a box reference there would be comparing two different questions.
+Set<String> boxVisible(Scene scene, Frustum frustum) {
+  final visible = <String>{};
+  for (final node in scene.meshes) {
+    if (!node.visibleInHierarchy) continue;
+    if (frustum.intersectsWithAabb3(node.worldBounds)) visible.add(node.name!);
+  }
+  return visible;
 }
 
 /// Everything the linear pass would consider visible, as a set of names.
@@ -247,7 +262,7 @@ void main() {
     });
 
     test('a large scene uses the tree and finds the same draws', () {
-      final scene = gridScene(RenderList.bvhThreshold + 100);
+      final scene = gridScene(RenderList.defaultBvhThreshold + 100);
       final camera = scene.add(CameraNode())..setPosition(0.0, 30.0, 90.0);
       camera.lookAt(Vector3.zero());
       final view = RenderView(camera: camera);
@@ -257,10 +272,14 @@ void main() {
         ..build(scene, view, viewMatrix: camera.viewMatrix, frustum: frustum);
       expect(accelerated.usedBvh, isTrue);
 
-      // No `..remove(null)`: `linearVisible` answers `Set<String>`, so the call
+      // No `..remove(null)`: `boxVisible` answers `Set<String>`, so the call
       // never removed anything and only read as though unnamed nodes were being
       // filtered out. The 3.47 analyser flags it as unrelated-type.
-      final expected = linearVisible(scene, frustum);
+      //
+      // The reference is the box one, because the claim here is about the tree
+      // and not about the shape of the test: whichever volume the render list
+      // culls against, going through the tree has to reach the same answer.
+      final expected = boxVisible(scene, frustum);
       final actual = <String>{
         for (var i = 0; i < accelerated.length; i++)
           accelerated.itemAt(i).requireNode.name!,

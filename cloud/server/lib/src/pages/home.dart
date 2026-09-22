@@ -23,7 +23,9 @@ class HomePage extends StatelessComponent {
       signedIn: signedIn,
       children: [
         section([
-          h1([Component.text('Your models, kept somewhere they can be opened')]),
+          h1([
+            Component.text('Your models, kept somewhere they can be opened'),
+          ]),
           p([
             Component.text(
               'Upload a glTF, an OBJ or a flutter3d project, and it is here on '
@@ -34,30 +36,45 @@ class HomePage extends StatelessComponent {
           ], classes: 'lead'),
           if (signedIn == null)
             div([
-              a([Component.text('Create an account')], href: '/register', classes: 'button'),
-              a([Component.text('Sign in')], href: '/login', classes: 'button quiet'),
+              a(
+                [Component.text('Create an account')],
+                href: '/register',
+                classes: 'button',
+              ),
+              a(
+                [Component.text('Sign in')],
+                href: '/login',
+                classes: 'button quiet',
+              ),
             ], classes: 'row')
           else
             div([
-              a([Component.text('Go to my models')], href: '/me', classes: 'button'),
+              a(
+                [Component.text('Go to my models')],
+                href: '/me',
+                classes: 'button',
+              ),
             ], classes: 'row'),
         ], classes: 'hero'),
         section([
           _Point(
             title: 'Private until you say otherwise',
-            body: 'An upload is yours alone. Publishing is a separate step, '
+            body:
+                'An upload is yours alone. Publishing is a separate step, '
                 'and it asks which licence the model goes out under.',
           ),
           _Point(
             title: 'Checked before it is stored',
-            body: 'The server reads every upload with the same decoders the '
+            body:
+                'The server reads every upload with the same decoders the '
                 'editor uses. A file that does not parse never reaches the '
                 'disk, and the triangle count comes from the file rather than '
                 'from whoever sent it.',
           ),
           _Point(
             title: 'Attribution travels with the file',
-            body: 'A published model carries its author and licence inside the '
+            body:
+                'A published model carries its author and licence inside the '
                 'exported file, not only on the page it was downloaded from.',
           ),
         ], classes: 'points'),

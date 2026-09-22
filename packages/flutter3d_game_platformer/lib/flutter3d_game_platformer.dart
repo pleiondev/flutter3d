@@ -12,8 +12,8 @@
 /// snapshot. What it had to bring itself: its own jump policy, its own purse,
 /// its own collectible, and its own step order.
 ///
-/// Nothing here imports the renderer, so all of it runs in a test with no
-/// device.
+/// Nothing here imports the renderer or names Flutter, so all of it runs in a
+/// test with no device. The readouts are widgets and live in `bridge.dart`.
 library;
 
 export 'src/actions.dart';
@@ -26,7 +26,6 @@ export 'src/entity_kinds.dart';
 export 'src/events.dart';
 export 'src/follow_camera.dart';
 export 'src/hazard.dart';
-export 'src/hud.dart';
 export 'src/platformer_entities.dart';
 export 'src/purse.dart';
 export 'src/runner.dart';

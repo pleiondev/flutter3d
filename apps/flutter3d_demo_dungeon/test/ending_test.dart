@@ -22,7 +22,13 @@ import 'package:flutter3d_demo_dungeon/src/run_cubit.dart' show Crawl;
 import 'package:flutter_test/flutter_test.dart';
 
 Widget _ending({bool touch = false}) => MaterialApp(
-  home: CryptEnding(kills: 47, seconds: 754.0, levels: 5, touch: touch),
+  home: CryptEnding(
+    kills: 47,
+    seconds: 754.0,
+    levels: 5,
+    bestStreak: 12,
+    touch: touch,
+  ),
 );
 
 void main() {
@@ -31,9 +37,9 @@ void main() {
       // Mutation: drop `kills += killed` from `Crawl.step` and the second
       // expectation fails; drop `seconds += dt` and the first does.
       final crawl = Crawl()
-        ..step(0.5, killed: 2)
-        ..step(0.5, killed: 0)
-        ..step(0.5, killed: 1);
+        ..step(0.5, killed: 2, hurt: false)
+        ..step(0.5, killed: 0, hurt: false)
+        ..step(0.5, killed: 1, hurt: false);
       crawl.levels = 3;
 
       expect(crawl.seconds, closeTo(1.5, 1e-9));
@@ -47,15 +53,49 @@ void main() {
       // second crawl of an evening reported the first one's total. `startFresh`
       // is what calls this, on the same line that rebuilds the inventory.
       //
-      // Mutation: delete the body of `Crawl.reset` — all three fail.
-      final crawl = Crawl()..step(1.0, killed: 9);
+      // Mutation: delete the body of `Crawl.reset` — all four fail.
+      final crawl = Crawl()..step(1.0, killed: 9, hurt: false);
       crawl.levels = 4;
       crawl.reset();
 
       expect(crawl.kills, 0);
       expect(crawl.seconds, 0.0);
       expect(crawl.levels, 0);
+      expect(crawl.bestStreak, 0);
     });
+  });
+
+  group('the streak', () {
+    test('grows with kills and remembers its longest', () {
+      // Mutation: drop `streak += killed` — stays at nought; drop the
+      // `bestStreak` update — reports nought after the streak resets below.
+      final crawl = Crawl()
+        ..step(1.0, killed: 2, hurt: false)
+        ..step(1.0, killed: 1, hurt: false);
+
+      expect(crawl.streak, 3);
+
+      crawl.step(1.0, killed: 0, hurt: true);
+
+      expect(crawl.streak, 0, reason: 'hurt ends it');
+      expect(crawl.bestStreak, 3, reason: 'but the longest it reached stays');
+    });
+
+    test(
+      'a kill on the same step as the hit that provoked it does not save it',
+      () {
+        // **The step that ends a streak and the step that would have extended
+        // it can be the same one** — a monster's last swing lands the same
+        // step its death does. Mutation: reset `streak` after adding `killed`
+        // instead of before — this reads `1`, not `0`.
+        final crawl = Crawl()
+          ..step(1.0, killed: 3, hurt: false)
+          ..step(1.0, killed: 1, hurt: true);
+
+        expect(crawl.streak, 0);
+        expect(crawl.bestStreak, 3);
+      },
+    );
   });
 
   group('the screen at the end', () {
@@ -71,6 +111,8 @@ void main() {
       expect(find.text('47'), findsOneWidget);
       expect(find.text('5'), findsOneWidget);
       expect(find.text('levels'), findsOneWidget);
+      expect(find.text('12'), findsOneWidget);
+      expect(find.text('best streak'), findsOneWidget);
     });
 
     testWidgets('and names everybody it has to', (WidgetTester tester) async {
@@ -117,7 +159,7 @@ void main() {
       // Mutation: hard-code the label to `'levels'` — this fails.
       await tester.pumpWidget(
         const MaterialApp(
-          home: CryptEnding(kills: 3, seconds: 61.0, levels: 1),
+          home: CryptEnding(kills: 3, seconds: 61.0, levels: 1, bestStreak: 0),
         ),
       );
 

@@ -32,7 +32,7 @@ void main() {
   test('the pass answers with the hall the cursor is over', () async {
     final it = cpuTestDevice(width: _width, height: _height);
     final renderer = Renderer.create(device: it.device);
-    final staged = stage(
+    final staged = await stage(
       device: it.device,
       map: await StrategyMap.load(),
       workers: 8,

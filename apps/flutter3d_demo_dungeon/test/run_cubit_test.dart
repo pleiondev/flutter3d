@@ -18,13 +18,13 @@ library;
 
 import 'package:flutter/widgets.dart' show SizedBox, WidgetBuilder;
 import 'package:flutter3d/flutter3d.dart';
-import 'package:flutter3d_app/flutter3d_app.dart'; // RunSession, SettingsOverlay
-import 'package:flutter3d_bridge/flutter3d_bridge.dart';
+import 'package:flutter3d_app/flutter3d_app.dart';
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
 import 'package:flutter3d_demo_dungeon/src/run_cubit.dart';
 import 'package:flutter3d_demo_dungeon/src/staging.dart';
-import 'package:flutter3d_game/flutter3d_game.dart';
+import 'package:flutter3d_game/flutter3d_game.dart'; // RunSession, SettingsOverlay
 import 'package:flutter3d_game_shooter/sample.dart';
+import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 const String _crypt = 'assets/levels/crypt.json';
@@ -292,13 +292,16 @@ void main() {
       },
     );
 
-    test('an unregistered widget name reports an issue but still loads', () async {
-      final it = _game();
-      await it.run.begin();
-      final level = (it.run.state as RunPlaying<LevelReady>).level;
+    test(
+      'an unregistered widget name reports an issue but still loads',
+      () async {
+        final it = _game();
+        await it.run.begin();
+        final level = (it.run.state as RunPlaying<LevelReady>).level;
 
-      expect(level.widgetSurfaces.surfaces, isEmpty);
-      expect(it.run.state, isA<RunPlaying<LevelReady>>());
-    });
+        expect(level.widgetSurfaces.surfaces, isEmpty);
+        expect(it.run.state, isA<RunPlaying<LevelReady>>());
+      },
+    );
   });
 }

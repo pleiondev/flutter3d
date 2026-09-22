@@ -15,8 +15,8 @@ library;
 
 import 'dart:typed_data';
 
-import 'package:flutter3d/src/engine/animation/skin_blend.dart';
-import 'package:flutter3d_geometry/flutter3d_geometry.dart';
+import 'package:flutter3d_core/geometry.dart';
+import 'package:flutter3d_core/src/engine/animation/skin_blend.dart';
 import 'package:vector_math/vector_math.dart' hide Ray;
 
 /// A grid of `(side + 1)²` vertices, [VertexLayout.skinned], each rigidly
@@ -96,7 +96,8 @@ void bench(String name, int iterations, void Function() body, {int? items}) {
       : '${perIteration.toStringAsFixed(1)} us';
   var line = '${name.padRight(44)} $label';
   if (items != null && items > 0) {
-    line += '   (${(perIteration * 1000 / items).toStringAsFixed(2)} ns/vertex)';
+    line +=
+        '   (${(perIteration * 1000 / items).toStringAsFixed(2)} ns/vertex)';
   }
   print(line);
 }
@@ -111,7 +112,9 @@ void main() {
   final rest = identityJoints(jointCount);
   final moved = identityJoints(jointCount);
   for (var j = 0; j < jointCount; j++) {
-    Matrix4.translation(Vector3(0, 0.1 * (j.isEven ? 1 : -1), 0)).copyIntoArray(moved, j * 16);
+    Matrix4.translation(
+      Vector3(0, 0.1 * (j.isEven ? 1 : -1), 0),
+    ).copyIntoArray(moved, j * 16);
   }
   print('');
   print('$side x $side grid: ${mesh.vertexCount} vertices, $jointCount joints');
@@ -120,16 +123,11 @@ void main() {
   // paused rig is not what this measures, `blend`'s own early return
   // already covers that case for free.
   var toggle = false;
-  bench(
-    'SkinBlend.blend (every call moves something)',
-    5,
-    () {
-      final skin = SkinBlend(mesh);
-      toggle = !toggle;
-      skin.blend(toggle ? moved : rest);
-    },
-    items: mesh.vertexCount,
-  );
+  bench('SkinBlend.blend (every call moves something)', 5, () {
+    final skin = SkinBlend(mesh);
+    toggle = !toggle;
+    skin.blend(toggle ? moved : rest);
+  }, items: mesh.vertexCount);
 
   final skin = SkinBlend(mesh);
   skin.blend(rest);

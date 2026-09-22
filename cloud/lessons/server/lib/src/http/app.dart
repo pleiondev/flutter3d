@@ -52,8 +52,11 @@ Response _notFound(Request request) => _html(notFoundPage(), status: 404);
 
 Response _lessonNotFound() => _html(lessonNotFoundPage(), status: 404);
 
-Response _html(String body, {int status = 200}) =>
-    Response(status, body: body, headers: {'content-type': 'text/html; charset=utf-8'});
+Response _html(String body, {int status = 200}) => Response(
+  status,
+  body: body,
+  headers: {'content-type': 'text/html; charset=utf-8'},
+);
 
 /// `/e/` gets none of `x-frame-options`/`frame-ancestors` added HERE: their
 /// absence from this map is what should let a third-party page frame it —
@@ -73,14 +76,15 @@ Response _html(String body, {int status = 200}) =>
 /// `/e/` lives one layer out: `cloud/lessons/deploy/nginx-lessons.pleion.dev.conf`'s
 /// `location /e/` block strips it with `proxy_hide_header`, since nginx sees
 /// the finished upstream response and can drop a header this process cannot.
-Middleware _securityHeaders() => (Handler inner) => (Request request) async {
-  final response = await inner(request);
-  final isEmbed = request.url.path.startsWith('e/');
-  return response.change(
-    headers: {
-      'x-content-type-options': 'nosniff',
-      'referrer-policy': 'same-origin',
-      if (!isEmbed) 'x-frame-options': 'SAMEORIGIN',
-    },
-  );
-};
+Middleware _securityHeaders() =>
+    (Handler inner) => (Request request) async {
+      final response = await inner(request);
+      final isEmbed = request.url.path.startsWith('e/');
+      return response.change(
+        headers: {
+          'x-content-type-options': 'nosniff',
+          'referrer-policy': 'same-origin',
+          if (!isEmbed) 'x-frame-options': 'SAMEORIGIN',
+        },
+      );
+    };

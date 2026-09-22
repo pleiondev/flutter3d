@@ -32,59 +32,71 @@ void main() {
     });
 
     test('an empty file is refused', () async {
-      expect(await inspectUpload(Uint8List(0), fileName: 'empty.glb'), isA<Rejected>());
-    });
-
-    test('text that is not a model is refused rather than stored empty', () async {
-      final result = await inspectUpload(
-        _text('Dear diary, today I uploaded a letter instead of a model.'),
-        fileName: 'diary.obj',
+      expect(
+        await inspectUpload(Uint8List(0), fileName: 'empty.glb'),
+        isA<Rejected>(),
       );
-      expect(result, isA<Rejected>());
-      expect((result as Rejected).because, contains('nothing in diary.obj'));
     });
 
-    test('a .gltf that needs a file beside it is refused, and says why', () async {
-      final gltf = jsonEncode({
-        'asset': {'version': '2.0'},
-        'buffers': [
-          {'uri': 'triangle.bin', 'byteLength': 36},
-        ],
-        'bufferViews': [
-          {'buffer': 0, 'byteLength': 36},
-        ],
-        'accessors': [
-          {
-            'bufferView': 0,
-            'componentType': 5126,
-            'count': 3,
-            'type': 'VEC3',
-            'min': [0, 0, 0],
-            'max': [1, 1, 0],
-          },
-        ],
-        'meshes': [
-          {
-            'primitives': [
-              {
-                'attributes': {'POSITION': 0},
-              },
-            ],
-          },
-        ],
-        'nodes': [
-          {'mesh': 0},
-        ],
-        'scenes': [
-          {
-            'nodes': [0],
-          },
-        ],
-      });
-      final result = await inspectUpload(_text(gltf), fileName: 'external.gltf');
-      expect(result, isA<Rejected>());
-      expect((result as Rejected).because, contains('separate file'));
-    });
+    test(
+      'text that is not a model is refused rather than stored empty',
+      () async {
+        final result = await inspectUpload(
+          _text('Dear diary, today I uploaded a letter instead of a model.'),
+          fileName: 'diary.obj',
+        );
+        expect(result, isA<Rejected>());
+        expect((result as Rejected).because, contains('nothing in diary.obj'));
+      },
+    );
+
+    test(
+      'a .gltf that needs a file beside it is refused, and says why',
+      () async {
+        final gltf = jsonEncode({
+          'asset': {'version': '2.0'},
+          'buffers': [
+            {'uri': 'triangle.bin', 'byteLength': 36},
+          ],
+          'bufferViews': [
+            {'buffer': 0, 'byteLength': 36},
+          ],
+          'accessors': [
+            {
+              'bufferView': 0,
+              'componentType': 5126,
+              'count': 3,
+              'type': 'VEC3',
+              'min': [0, 0, 0],
+              'max': [1, 1, 0],
+            },
+          ],
+          'meshes': [
+            {
+              'primitives': [
+                {
+                  'attributes': {'POSITION': 0},
+                },
+              ],
+            },
+          ],
+          'nodes': [
+            {'mesh': 0},
+          ],
+          'scenes': [
+            {
+              'nodes': [0],
+            },
+          ],
+        });
+        final result = await inspectUpload(
+          _text(gltf),
+          fileName: 'external.gltf',
+        );
+        expect(result, isA<Rejected>());
+        expect((result as Rejected).because, contains('separate file'));
+      },
+    );
 
     test('a flutter3d project is accepted as a project', () async {
       final result = await inspectUpload(
@@ -95,12 +107,15 @@ void main() {
       expect((result as Accepted).format, SourceFormat.project);
     });
 
-    test('a damaged project is refused with the reader\'s own sentence', () async {
-      final bytes = writeProject(const ModelProject());
-      final truncated = Uint8List.sublistView(bytes, 0, 14);
-      final result = await inspectUpload(truncated, fileName: 'cut.f3dproj');
-      expect(result, isA<Rejected>());
-    });
+    test(
+      'a damaged project is refused with the reader\'s own sentence',
+      () async {
+        final bytes = writeProject(const ModelProject());
+        final truncated = Uint8List.sublistView(bytes, 0, 14);
+        final result = await inspectUpload(truncated, fileName: 'cut.f3dproj');
+        expect(result, isA<Rejected>());
+      },
+    );
   });
 
   group('titleFromFileName', () {

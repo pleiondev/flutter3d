@@ -7,6 +7,7 @@ import 'package:flutter_test/flutter_test.dart';
 const _addBox = ModelerTool(
   id: 'object.add',
   label: 'Add a box',
+  about: 'Puts a new box at the origin.',
   icon: Icons.add_box_outlined,
   shortcut: LogicalKeyboardKey.keyA,
   group: 'create',
@@ -15,6 +16,7 @@ const _addBox = ModelerTool(
 const _extrude = ModelerTool(
   id: 'mesh.extrude',
   label: 'Extrude',
+  about: 'Pulls new geometry out of the picked faces.',
   icon: Icons.expand,
   shortcut: LogicalKeyboardKey.keyE,
   group: 'mesh',
@@ -22,23 +24,20 @@ const _extrude = ModelerTool(
 
 void main() {
   group("view-24n's own acceptance", () {
-    test(
-      'A selects all when no tool in this mode already claims that key',
-      () {
-        var calls = 0;
-        final bindings = selectionKeyBindings(
-          tools: const <ModelerTool>[_extrude],
-          onSelectAll: () => calls++,
-          onSelectNone: () {},
-          onInvertSelection: () {},
-        );
-        final activator = bindings.keys.firstWhere(
-          (a) => a == const SingleActivator(LogicalKeyboardKey.keyA),
-        );
-        bindings[activator]!();
-        expect(calls, 1);
-      },
-    );
+    test('A selects all when no tool in this mode already claims that key', () {
+      var calls = 0;
+      final bindings = selectionKeyBindings(
+        tools: const <ModelerTool>[_extrude],
+        onSelectAll: () => calls++,
+        onSelectNone: () {},
+        onInvertSelection: () {},
+      );
+      final activator = bindings.keys.firstWhere(
+        (a) => a == const SingleActivator(LogicalKeyboardKey.keyA),
+      );
+      bindings[activator]!();
+      expect(calls, 1);
+    });
 
     test(
       'A is left for object.add in object mode, not offered for select-all',

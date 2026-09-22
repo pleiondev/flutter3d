@@ -2,7 +2,7 @@
 ///
 /// **What was missing here was not a feature but a shape.** The other three
 /// demos read a document, watch how it is going, save it and resume it through
-/// one class — `RunSession`, in `flutter3d_session` — and this one did none of
+/// one class — `RunSession`, in `flutter3d_game` — and this one did none of
 /// those things: the map was read in the widget's `initState`, the match was
 /// stepped straight off a `Ticker` at a constant sixtieth, and nothing was ever
 /// written anywhere. A match that cannot be written down is also a match that
@@ -11,7 +11,7 @@
 ///
 /// **The genre package does not know this file exists, and that is the
 /// boundary.** No genre package in this repository depends on
-/// `flutter3d_session`; a session is what an *application* has, because only an
+/// `flutter3d_game`; a session is what an *application* has, because only an
 /// application knows where a save lives and which side the person at the mouse
 /// is playing. What the package owes one is two methods — `Match.save` and
 /// `Match.restore` — and both were written before there was a session to call
@@ -30,7 +30,7 @@ library;
 import 'package:flutter3d/flutter3d.dart' show GraphicsDevice;
 import 'package:flutter3d_game/flutter3d_game.dart';
 import 'package:flutter3d_game_strategy/flutter3d_game_strategy.dart';
-import 'package:flutter3d_session/flutter3d_session.dart';
+import 'package:flutter3d_sim/flutter3d_sim.dart';
 
 import 'level_document.dart';
 import 'staging.dart';
@@ -100,7 +100,13 @@ final class StrategyRun extends RunSession<Staged> {
   /// visuals in its scene, open a command post over the crowd. Handed in
   /// because it touches the widget's own fields, which a run has no business
   /// holding.
-  final void Function(Staged staged) onLevelBuilt;
+  ///
+  /// [asset] and [levelHash] are `rp-01`/`rp-04`'s own reason for being here
+  /// at all: `_beginDemo` needs the map's own name and digest to write a
+  /// demo down, and neither survives past [open] — [Staged] holds the match
+  /// this staged, not the [StrategyMap] it was staged from.
+  final void Function(String asset, String levelHash, Staged staged)
+  onLevelBuilt;
 
   /// Whose run this is. A number rather than a nought written out, for the
   /// reason the rest of this genre gives: how many sides a match has is read
@@ -117,8 +123,8 @@ final class StrategyRun extends RunSession<Staged> {
   @override
   Future<Staged> open(String asset) async {
     final StrategyMap map = await StrategyMap.load(asset: asset);
-    final Staged staged = stage(device: await openDevice(), map: map);
-    onLevelBuilt(staged);
+    final Staged staged = await stage(device: await openDevice(), map: map);
+    onLevelBuilt(asset, map.level.digestHex, staged);
     return staged;
   }
 

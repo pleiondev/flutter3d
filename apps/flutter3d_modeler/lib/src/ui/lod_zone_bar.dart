@@ -16,6 +16,8 @@ library;
 import 'package:flutter/material.dart';
 import 'package:flutter3d_model_core/flutter3d_model_core.dart';
 
+import '../../../l10n/app_localizations.dart';
+
 /// Up to how many zones this bar tells apart by eye before two share a
 /// colour — the three roles `kModelerScheme` already gives a dark theme,
 /// plus outline for whatever falls off the end of that list. Reused rather
@@ -114,9 +116,8 @@ class _ZoneBands extends StatelessWidget {
     // laid out left to right in the same order the axis reads in.
     final List<int> byThreshold = List<int>.generate(lods.length, (i) => i)
       ..sort(
-        (int a, int b) => lods[a].maxScreenFraction.compareTo(
-          lods[b].maxScreenFraction,
-        ),
+        (int a, int b) =>
+            lods[a].maxScreenFraction.compareTo(lods[b].maxScreenFraction),
       );
 
     final List<Widget> segments = <Widget>[];
@@ -194,9 +195,9 @@ class _MarkerState extends State<_Marker> {
 
   void _dragUpdate(DragUpdateDetails details) {
     if (widget.width <= 0) return;
-    final double next = ((_dragFraction ?? widget.fraction) +
-            details.delta.dx / widget.width)
-        .clamp(0.0, 1.0);
+    final double next =
+        ((_dragFraction ?? widget.fraction) + details.delta.dx / widget.width)
+            .clamp(0.0, 1.0);
     _dragFraction = next;
     widget.onChanged(widget.lodIndex, next);
   }
@@ -208,6 +209,7 @@ class _MarkerState extends State<_Marker> {
   @override
   Widget build(BuildContext context) {
     final double x = widget.fraction * widget.width;
+    final AppLocalizations l = AppLocalizations.of(context);
     return Positioned(
       left: (x - _Marker.handleWidth / 2).clamp(
         0.0,
@@ -217,7 +219,7 @@ class _MarkerState extends State<_Marker> {
       bottom: 0,
       width: _Marker.handleWidth,
       child: Semantics(
-        label: 'LOD ${widget.lodIndex} threshold',
+        label: l.lodThreshold(widget.lodIndex),
         value: '${(widget.fraction * 100).round()}%',
         slider: true,
         child: GestureDetector(

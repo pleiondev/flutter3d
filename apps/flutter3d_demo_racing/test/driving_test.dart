@@ -17,9 +17,10 @@ library;
 import 'dart:async';
 import 'dart:io';
 
-import 'package:flutter3d_app/flutter3d_app.dart'; // GamepadPlatform, from pad_input
 import 'package:flutter3d_game/flutter3d_game.dart';
+import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:pad_input/pad_input.dart'; // GamepadPlatform, from pad_input
 
 /// A gamepad that does whatever the test says.
 final class _FakePad extends GamepadPlatform {

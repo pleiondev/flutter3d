@@ -22,9 +22,9 @@ import 'dart:io';
 
 import 'package:flutter3d_demo_racing/src/net_race.dart';
 import 'package:flutter3d_demo_racing/src/staging.dart';
-import 'package:flutter3d_game/flutter3d_game.dart';
 import 'package:flutter3d_game_racing/flutter3d_game_racing.dart';
 import 'package:flutter3d_net/flutter3d_net.dart';
+import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 const GameAction _throttle = GameAction('throttle');
@@ -91,141 +91,128 @@ Future<({Process process, int port})> _startRelay() async {
 }
 
 void main() {
-  test(
-    'two devices racing each other over a real relay end the race agreeing '
-    'on every settled checkpoint',
-    () async {
-      final relay = await _startRelay();
-      addTearDown(() => relay.process.kill());
-      final room = 'race-${DateTime.now().microsecondsSinceEpoch}';
-      final roomUri = Uri.parse('ws://127.0.0.1:${relay.port}/room/$room');
+  test('two devices racing each other over a real relay end the race agreeing '
+      'on every settled checkpoint', () async {
+    final relay = await _startRelay();
+    addTearDown(() => relay.process.kill());
+    final room = 'race-${DateTime.now().microsecondsSinceEpoch}';
+    final roomUri = Uri.parse('ws://127.0.0.1:${relay.port}/room/$room');
 
-      final transportA = await WebSocketTransport.connect(roomUri);
-      final transportB = await WebSocketTransport.connect(roomUri);
-      addTearDown(transportA.close);
-      addTearDown(transportB.close);
+    final transportA = await WebSocketTransport.connect(roomUri);
+    final transportB = await WebSocketTransport.connect(roomUri);
+    addTearDown(transportA.close);
+    addTearDown(transportB.close);
 
-      final deviceA = _stageTwoCars();
-      final deviceB = _stageTwoCars();
-      final digestsA = DigestTrace();
-      final digestsB = DigestTrace();
+    final deviceA = _stageTwoCars();
+    final deviceB = _stageTwoCars();
+    final digestsA = DigestTrace();
+    final digestsB = DigestTrace();
 
-      // The one thing a real "create/join" screen would agree on before a
-      // single frame moves: who is car 0. Here, whoever created the room.
-      final raceA = NetRace(
-        sim: deviceA.sim,
-        localCarIndex: 0,
-        localInput: deviceA.input,
-        transport: transportA,
-        inputDelay: 3,
-        maxRollbackFrames: 24,
-        onSettled: (step, after) =>
-            digestsA.observe(step + 1, after.toJson()),
-      );
-      final raceB = NetRace(
-        sim: deviceB.sim,
-        localCarIndex: 1,
-        localInput: deviceB.input,
-        transport: transportB,
-        inputDelay: 3,
-        maxRollbackFrames: 24,
-        onSettled: (step, after) =>
-            digestsB.observe(step + 1, after.toJson()),
-      );
+    // The one thing a real "create/join" screen would agree on before a
+    // single frame moves: who is car 0. Here, whoever created the room.
+    final raceA = NetRace(
+      sim: deviceA.sim,
+      localCarIndex: 0,
+      localInput: deviceA.input,
+      transport: transportA,
+      inputDelay: 3,
+      maxRollbackFrames: 24,
+      onSettled: (step, after) => digestsA.observe(step + 1, after.toJson()),
+    );
+    final raceB = NetRace(
+      sim: deviceB.sim,
+      localCarIndex: 1,
+      localInput: deviceB.input,
+      transport: transportB,
+      inputDelay: 3,
+      maxRollbackFrames: 24,
+      onSettled: (step, after) => digestsB.observe(step + 1, after.toJson()),
+    );
 
-      const raceSteps = 400;
-      for (var i = 0; i < raceSteps + 60; i++) {
-        _drive(deviceA.input, i);
-        raceA.advance();
-        deviceA.input.endStep();
+    const raceSteps = 400;
+    for (var i = 0; i < raceSteps + 60; i++) {
+      _drive(deviceA.input, i);
+      raceA.advance();
+      deviceA.input.endStep();
 
-        _drive(deviceB.input, i, offset: 37);
-        raceB.advance();
-        deviceB.input.endStep();
+      _drive(deviceB.input, i, offset: 37);
+      raceB.advance();
+      deviceB.input.endStep();
 
-        // A real socket delivers on the event loop, not synchronously —
-        // without yielding here, both sides would run the whole race
-        // before either one's `listen` callback ever got a turn to fire.
-        await Future<void>.delayed(const Duration(milliseconds: 2));
-      }
+      // A real socket delivers on the event loop, not synchronously —
+      // without yielding here, both sides would run the whole race
+      // before either one's `listen` callback ever got a turn to fire.
+      await Future<void>.delayed(const Duration(milliseconds: 2));
+    }
 
-      expect(
-        raceA.connected,
-        isTrue,
-        reason: 'a race this long over a local relay must have connected',
-      );
-      expect(raceB.connected, isTrue);
+    expect(
+      raceA.connected,
+      isTrue,
+      reason: 'a race this long over a local relay must have connected',
+    );
+    expect(raceB.connected, isTrue);
 
-      final divergence = digestsA.divergenceFromHex(digestsB.hexDigests);
-      expect(
-        divergence,
-        isNull,
-        reason:
-            'both devices played the same two-car race and should reach '
-            'the same settled state at every checkpoint: $divergence',
-      );
-      expect(digestsA.steps, isNotEmpty);
-      expect(raceA.session.droppedCorrections, 0);
-      expect(raceB.session.droppedCorrections, 0);
-    },
-    timeout: const Timeout(Duration(seconds: 30)),
-  );
+    final divergence = digestsA.divergenceFromHex(digestsB.hexDigests);
+    expect(
+      divergence,
+      isNull,
+      reason:
+          'both devices played the same two-car race and should reach '
+          'the same settled state at every checkpoint: $divergence',
+    );
+    expect(digestsA.steps, isNotEmpty);
+    expect(raceA.session.droppedCorrections, 0);
+    expect(raceB.session.droppedCorrections, 0);
+  }, timeout: const Timeout(Duration(seconds: 30)));
 
-  test(
-    'the very first inputDelay steps — before either side has sent a '
-    'message the other could possibly receive — are symmetric',
-    () {
-      // **A fast, deterministic regression guard for a real bug this file
-      // found.** An earlier version ghosted only the remote car while
-      // `inputDelay` held the local one at a bare default — so device A
-      // believed its own car did nothing and the other ghosted forward,
-      // while device B believed the exact opposite about the same steps,
-      // and neither side's timeline was ever addressed by a message that
-      // could correct it: the very first frame either side sends is
-      // tagged for step `inputDelay`, so steps before it are never
-      // confirmed by anyone. `LoopbackTransport` with zero delay makes
-      // this reproduce in a few milliseconds rather than needing the real
-      // relay above to catch it again.
-      final (transportA, transportB) = LoopbackTransport.pair(
-        stepsPerSecond: 60,
-      );
-      final deviceA = _stageTwoCars();
-      final deviceB = _stageTwoCars();
-      final digestsA = DigestTrace(every: 1);
-      final digestsB = DigestTrace(every: 1);
+  test('the very first inputDelay steps — before either side has sent a '
+      'message the other could possibly receive — are symmetric', () {
+    // **A fast, deterministic regression guard for a real bug this file
+    // found.** An earlier version ghosted only the remote car while
+    // `inputDelay` held the local one at a bare default — so device A
+    // believed its own car did nothing and the other ghosted forward,
+    // while device B believed the exact opposite about the same steps,
+    // and neither side's timeline was ever addressed by a message that
+    // could correct it: the very first frame either side sends is
+    // tagged for step `inputDelay`, so steps before it are never
+    // confirmed by anyone. `LoopbackTransport` with zero delay makes
+    // this reproduce in a few milliseconds rather than needing the real
+    // relay above to catch it again.
+    final (transportA, transportB) = LoopbackTransport.pair(stepsPerSecond: 60);
+    final deviceA = _stageTwoCars();
+    final deviceB = _stageTwoCars();
+    final digestsA = DigestTrace(every: 1);
+    final digestsB = DigestTrace(every: 1);
 
-      final raceA = NetRace(
-        sim: deviceA.sim,
-        localCarIndex: 0,
-        localInput: deviceA.input,
-        transport: transportA,
-        inputDelay: 3,
-        onSettled: (step, after) =>
-            digestsA.observe(step + 1, after.toJson()),
-      );
-      final raceB = NetRace(
-        sim: deviceB.sim,
-        localCarIndex: 1,
-        localInput: deviceB.input,
-        transport: transportB,
-        inputDelay: 3,
-        onSettled: (step, after) =>
-            digestsB.observe(step + 1, after.toJson()),
-      );
+    final raceA = NetRace(
+      sim: deviceA.sim,
+      localCarIndex: 0,
+      localInput: deviceA.input,
+      transport: transportA,
+      inputDelay: 3,
+      onSettled: (step, after) => digestsA.observe(step + 1, after.toJson()),
+    );
+    final raceB = NetRace(
+      sim: deviceB.sim,
+      localCarIndex: 1,
+      localInput: deviceB.input,
+      transport: transportB,
+      inputDelay: 3,
+      onSettled: (step, after) => digestsB.observe(step + 1, after.toJson()),
+    );
 
-      for (var i = 0; i < 460; i++) {
-        _drive(deviceA.input, i);
-        raceA.advance();
-        deviceA.input.endStep();
-        transportA.tick();
+    for (var i = 0; i < 460; i++) {
+      _drive(deviceA.input, i);
+      raceA.advance();
+      deviceA.input.endStep();
+      transportA.tick();
 
-        _drive(deviceB.input, i, offset: 37);
-        raceB.advance();
-        deviceB.input.endStep();
-        transportB.tick();
-      }
+      _drive(deviceB.input, i, offset: 37);
+      raceB.advance();
+      deviceB.input.endStep();
+      transportB.tick();
+    }
 
-      expect(digestsA.divergenceFromHex(digestsB.hexDigests), isNull);
-    },
-  );
+    expect(digestsA.divergenceFromHex(digestsB.hexDigests), isNull);
+  });
 }

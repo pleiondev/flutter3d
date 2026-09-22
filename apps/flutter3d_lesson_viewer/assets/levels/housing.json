@@ -1,0 +1,118 @@
+{
+  "version": 1,
+  "name": "ls-i-03/ls-e-04 control box",
+  "fogColor": [0.05, 0.04, 0.06],
+  "fogDensity": 0.0,
+  "materials": {
+    "floor": { "baseColor": [0.42, 0.4, 0.38, 1.0], "roughness": 0.9 },
+    "wall": { "baseColor": [0.5, 0.47, 0.44, 1.0], "roughness": 0.85 },
+    "pedestal": { "baseColor": [0.6, 0.56, 0.4, 1.0], "roughness": 0.5 },
+    "case": { "baseColor": [0.82, 0.35, 0.1, 1.0], "roughness": 0.4 },
+    "lid": { "baseColor": [0.82, 0.35, 0.1, 1.0], "roughness": 0.45 },
+    "board": { "baseColor": [0.1, 0.35, 0.15, 1.0], "roughness": 0.55 },
+    "battery": { "baseColor": [0.15, 0.16, 0.18, 1.0], "roughness": 0.25 }
+  },
+  "brushes": [
+    { "at": [0.0, -0.5, 0.0], "size": [12.0, 1.0, 12.0], "material": "floor" },
+    { "at": [0.0, 4.5, 0.0], "size": [12.0, 1.0, 12.0], "material": "wall" },
+    { "at": [0.0, 2.0, -6.5], "size": [12.0, 4.0, 1.0], "material": "wall" },
+    { "at": [0.0, 2.0, 6.5], "size": [12.0, 4.0, 1.0], "material": "wall" },
+    { "at": [-6.5, 2.0, 0.0], "size": [1.0, 4.0, 14.0], "material": "wall" },
+    { "at": [6.5, 2.0, 0.0], "size": [1.0, 4.0, 14.0], "material": "wall" },
+    { "at": [0.0, 0.4, 0.0], "size": [2.0, 0.8, 2.0], "material": "pedestal" }
+  ],
+  "lights": [
+    { "type": "point", "at": [0.0, 3.2, 0.0], "color": [1.0, 0.95, 0.85], "intensity": 9.0, "range": 14.0 }
+  ],
+  "entities": [
+    {
+      "type": "edu_sequence",
+      "name": "control-box-service",
+      "title": "Замена батареи в блоке управления",
+      "steps": ["step-1", "step-2", "step-3", "step-4", "step-5", "step-6", "step-7"]
+    },
+    {
+      "type": "part",
+      "name": "case-base",
+      "at": [0.0, 1.0, 0.0],
+      "size": [0.9, 0.5, 0.6],
+      "material": "case"
+    },
+    {
+      "type": "part",
+      "name": "housing-lid",
+      "at": [0.0, 1.35, 0.0],
+      "size": [0.95, 0.15, 0.65],
+      "material": "lid"
+    },
+    {
+      "type": "part",
+      "name": "circuit-board",
+      "at": [0.0, 1.1, 0.0],
+      "size": [0.75, 0.05, 0.45],
+      "material": "board"
+    },
+    {
+      "type": "part",
+      "name": "battery",
+      "at": [0.25, 1.15, 0.0],
+      "size": [0.25, 0.15, 0.35],
+      "material": "battery"
+    },
+    {
+      "type": "edu_step",
+      "name": "step-1",
+      "at": [2.0, 1.6, 2.0],
+      "yaw": 2.5,
+      "caption": "Блок управления в сборе"
+    },
+    {
+      "type": "edu_step",
+      "name": "step-2",
+      "at": [1.4, 1.7, 1.4],
+      "yaw": 2.4,
+      "caption": "Снимаем крышку",
+      "hidden": ["housing-lid"]
+    },
+    {
+      "type": "edu_step",
+      "name": "step-3",
+      "at": [1.4, 1.7, 1.4],
+      "yaw": 2.4,
+      "caption": "Снимаем плату",
+      "hidden": ["circuit-board"]
+    },
+    {
+      "type": "edu_step",
+      "name": "step-4",
+      "at": [1.4, 1.7, 1.4],
+      "yaw": 2.4,
+      "caption": "Снимаем батарею — корпус пуст",
+      "hidden": ["battery"]
+    },
+    {
+      "type": "edu_step",
+      "name": "step-5",
+      "at": [1.4, 1.7, 1.4],
+      "yaw": 2.4,
+      "caption": "Устанавливаем новую батарею",
+      "visible": ["battery"]
+    },
+    {
+      "type": "edu_step",
+      "name": "step-6",
+      "at": [1.4, 1.7, 1.4],
+      "yaw": 2.4,
+      "caption": "Возвращаем плату на место",
+      "visible": ["circuit-board"]
+    },
+    {
+      "type": "edu_step",
+      "name": "step-7",
+      "at": [2.0, 1.6, 2.0],
+      "yaw": 2.5,
+      "caption": "Закрываем крышку — блок в сборе",
+      "visible": ["housing-lid"]
+    }
+  ]
+}

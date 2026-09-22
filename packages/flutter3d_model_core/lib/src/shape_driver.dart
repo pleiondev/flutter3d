@@ -31,7 +31,7 @@ library;
 import 'dart:math' as math;
 import 'dart:typed_data';
 
-import 'package:flutter3d_formats/flutter3d_formats.dart';
+import 'package:flutter3d_core/formats.dart';
 import 'package:vector_math/vector_math.dart';
 
 import 'key_table.dart';
@@ -119,6 +119,73 @@ final class ShapeDriver {
 
   final ShapeDriverCurve curve;
 
+  /// A copy with some fields replaced — the same shape [ShapeSet.copyWith]
+  /// gives its own value type, for the same reason: `SetShapeDriverField`
+  /// changes one field of a driver already on [ModelObject.shapeDrivers]
+  /// without spelling the constructor out fresh at every one of its
+  /// branches.
+  ShapeDriver copyWith({
+    int? shapeIndex,
+    int? jointId,
+    DriverAxis? axis,
+    double? from,
+    double? to,
+    ShapeDriverCurve? curve,
+  }) => ShapeDriver(
+    shapeIndex: shapeIndex ?? this.shapeIndex,
+    jointId: jointId ?? this.jointId,
+    axis: axis ?? this.axis,
+    from: from ?? this.from,
+    to: to ?? this.to,
+    curve: curve ?? this.curve,
+  );
+
+  /// This driver, as the journal and `AddShapeDriver`'s own arguments write
+  /// it — [from]/[to] straight through in radians, the same "the number is
+  /// what the maths uses" rule `RotateBy`'s own `radians` argument already
+  /// keeps; a UI showing degrees converts at its own edge, the way
+  /// `transform_fields.dart`'s own doc comment converts a turn for its
+  /// panel without the document ever holding anything but radians.
+  Map<String, Object?> toJson() => <String, Object?>{
+    'shapeIndex': shapeIndex,
+    'jointId': jointId,
+    'axis': axis.name,
+    'from': from,
+    'to': to,
+    'curve': curve.name,
+  };
+
+  /// A [ShapeDriver] from its own [toJson], or null when [json] is missing a
+  /// field or has one of the wrong type — the same "null and not an
+  /// exception" rule `modelCommandFromJson` itself keeps, since this feeds
+  /// straight into one of its own readers. [curve] always reads back as
+  /// [ShapeDriverCurve.linear] — the only kind that exists yet, so there is
+  /// nothing else a name in the file could mean, the same reasoning
+  /// [DriverAxis]'s own `x` fallback gives for a name this build does not
+  /// know.
+  static ShapeDriver? fromJson(Object? json) {
+    if (json case {
+      'shapeIndex': final int shapeIndex,
+      'jointId': final int jointId,
+      'from': final num from,
+      'to': final num to,
+    }) {
+      final axis = switch (json['axis']) {
+        'y' => DriverAxis.y,
+        'z' => DriverAxis.z,
+        _ => DriverAxis.x,
+      };
+      return ShapeDriver(
+        shapeIndex: shapeIndex,
+        jointId: jointId,
+        axis: axis,
+        from: from.toDouble(),
+        to: to.toDouble(),
+      );
+    }
+    return null;
+  }
+
   /// The twist [rotation] carries about [axis], in radians — see this
   /// library's own doc comment for the formula.
   double angleOf(Quaternion rotation) {
@@ -135,7 +202,9 @@ final class ShapeDriver {
   /// past 1 or back down the far side of the curve.
   double evaluate(Quaternion rotation) {
     final span = to - from;
-    final t = span == 0.0 ? 0.0 : ((angleOf(rotation) - from) / span).clamp(0.0, 1.0);
+    final t = span == 0.0
+        ? 0.0
+        : ((angleOf(rotation) - from) / span).clamp(0.0, 1.0);
     return curve.apply(t);
   }
 
@@ -179,7 +248,8 @@ List<double> evaluateShapeDriversLive({
   final weights = List<double>.filled(shapeCount, 0.0);
   for (final driver in drivers) {
     if (driver.shapeIndex < 0 || driver.shapeIndex >= shapeCount) continue;
-    final rotation = _jointRotationAt(clip, driver.jointId, time) ?? Quaternion.identity();
+    final rotation =
+        _jointRotationAt(clip, driver.jointId, time) ?? Quaternion.identity();
     weights[driver.shapeIndex] += driver.evaluate(rotation);
   }
   return weights;
@@ -233,7 +303,10 @@ ProjectClip bakeShapeDrivers({
       ...clip.tracks,
       ProjectTrack(
         objectId: shapeTargetObjectId,
-        track: table.toAnimationTrack(nodeIndex: 0, path: AnimationPath.weights),
+        track: table.toAnimationTrack(
+          nodeIndex: 0,
+          path: AnimationPath.weights,
+        ),
       ),
     ],
     extras: clip.extras,

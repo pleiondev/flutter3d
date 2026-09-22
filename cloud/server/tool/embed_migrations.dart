@@ -15,6 +15,8 @@ library;
 
 import 'dart:io';
 
+import 'package:dart_style/dart_style.dart';
+
 void main(List<String> arguments) {
   final check = arguments.contains('--check');
   final root = Directory.current;
@@ -26,16 +28,26 @@ void main(List<String> arguments) {
     exit(2);
   }
 
-  final files = source
-      .listSync()
-      .whereType<File>()
-      .where((file) => file.path.endsWith('.sql'))
-      .toList()
-    ..sort((a, b) => a.path.compareTo(b.path));
+  final files =
+      source
+          .listSync()
+          .whereType<File>()
+          .where((file) => file.path.endsWith('.sql'))
+          .toList()
+        ..sort((a, b) => a.path.compareTo(b.path));
 
-  final generated = _render([
-    for (final file in files) (name: _basename(file.path), sql: file.readAsStringSync()),
-  ]);
+  // Formatted here rather than left raw and formatted afterward by hand, so
+  // this tool's own `--check` (a byte comparison) and the repository's own
+  // `dart format` step are always comparing the same shape of file.
+  final generated =
+      DartFormatter(
+        languageVersion: DartFormatter.latestLanguageVersion,
+      ).format(
+        _render([
+          for (final file in files)
+            (name: _basename(file.path), sql: file.readAsStringSync()),
+        ]),
+      );
 
   if (check) {
     final current = target.existsSync() ? target.readAsStringSync() : '';

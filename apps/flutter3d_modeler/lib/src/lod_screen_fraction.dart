@@ -51,6 +51,34 @@ double screenFractionForSize({
   return math.min(1.0, radius / halfHeight);
 }
 
+/// Which of [thresholds] is drawn for an object covering [screenFraction] of
+/// the screen — an index into the list as given, or null for none of them,
+/// which is the full mesh.
+///
+/// **`LodGroup.select`'s own rule, asked of a list rather than of a scene.**
+/// A level is drawn while the object is no bigger than its threshold, and of
+/// the levels that qualify the engine takes the one with the *smallest*
+/// threshold: the coarsest mesh that is still allowed. An object bigger than
+/// every threshold is drawn in full, which is why a project's levels are
+/// extra surfaces beside the base mesh rather than replacements for it
+/// (`project_document.dart`'s own `withLods`).
+///
+/// The list is not assumed sorted. `AddLod` appends in whatever order a
+/// person adds, and `LodGroup` sorts its own copy — the panel reads the
+/// project's.
+int? lodLevelAt(List<double> thresholds, double screenFraction) {
+  final List<int> allowed = <int>[
+    for (var i = 0; i < thresholds.length; i++)
+      if (screenFraction <= thresholds[i]) i,
+  ];
+  return allowed.isEmpty
+      ? null
+      : allowed.reduce(
+          (int best, int each) =>
+              thresholds[each] < thresholds[best] ? each : best,
+        );
+}
+
 /// The inverse of [screenFractionForSize]: the real-world diameter, in
 /// meters, that would cover [screenFraction] of the viewport's height at
 /// [distanceMeters] through [projection] — what the editor solves for when

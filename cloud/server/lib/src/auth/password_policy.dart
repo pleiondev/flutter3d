@@ -41,13 +41,19 @@ const _mixSentence =
 ///
 /// [email] and [displayName] are the account's own, so that a password made of
 /// them is refused: they are the first thing anybody who knows the person tries.
-List<String> passwordProblems(String password, {String? email, String? displayName}) {
+List<String> passwordProblems(
+  String password, {
+  String? email,
+  String? displayName,
+}) {
   final length = password.runes.length;
   if (length < minPasswordLength) {
     return ['Use at least $minPasswordLength characters.'];
   }
   if (length > maxPasswordLength) {
-    return ['That password is too long; keep it under $maxPasswordLength characters.'];
+    return [
+      'That password is too long; keep it under $maxPasswordLength characters.',
+    ];
   }
 
   final lower = password.toLowerCase();
@@ -65,7 +71,9 @@ List<String> passwordProblems(String password, {String? email, String? displayNa
       'Too repetitive: use more different characters.',
     if (_isRun(compact))
       'That is a keyboard or alphabet sequence, which is among the first things tried.',
-    if (_common.contains(lower) || _common.contains(compact) || _commonStems.contains(letters))
+    if (_common.contains(lower) ||
+        _common.contains(compact) ||
+        _commonStems.contains(letters))
       'That password is on lists of the most common ones.',
     if (personal.any(lower.contains))
       'Leave your address and your name out of the password.',
@@ -90,7 +98,9 @@ bool _isRun(String compact) {
     '1qaz2wsx3edc4rfv5tgb6yhn7ujm8ik9ol0p',
     'йцукенгшщзхъфывапролджэячсмитьбю',
   ];
-  final runs = [for (final row in rows) ...[row, row.split('').reversed.join()]];
+  final runs = [
+    for (final row in rows) ...[row, row.split('').reversed.join()],
+  ];
   var rest = compact;
   // Peel the longest run off the front until nothing is left or nothing fits.
   while (rest.isNotEmpty) {
@@ -109,22 +119,77 @@ bool _isRun(String compact) {
 /// list. Short on purpose: the length and mixing rules already refuse the
 /// shorter entries of those lists, and this is for the ones that slip past.
 const _common = {
-  'password123', 'password1234', 'password12345', 'p@ssw0rd123', 'passw0rd123',
-  'password1!', 'password123!', 'qwerty12345', 'qwerty123456', 'qwertyuiop1',
-  'iloveyou123', 'princess123', 'football123', 'baseball123', 'sunshine123',
-  'superman123', 'starwars123', 'welcome123', 'welcome1234', 'letmein123',
-  'admin12345', 'administrator', 'changeme123', 'monkey12345', 'dragon12345',
-  'master12345', 'trustno1234', '123456789a', 'a123456789', 'abc1234567',
-  'zaq12wsxcde', 'qazwsxedc123', 'asdfghjkl1', '1q2w3e4r5t6y', 'q1w2e3r4t5y6',
-  'correct horse battery staple', 'correcthorsebatterystaple', 'flutter3dmodels',
+  'password123',
+  'password1234',
+  'password12345',
+  'p@ssw0rd123',
+  'passw0rd123',
+  'password1!',
+  'password123!',
+  'qwerty12345',
+  'qwerty123456',
+  'qwertyuiop1',
+  'iloveyou123',
+  'princess123',
+  'football123',
+  'baseball123',
+  'sunshine123',
+  'superman123',
+  'starwars123',
+  'welcome123',
+  'welcome1234',
+  'letmein123',
+  'admin12345',
+  'administrator',
+  'changeme123',
+  'monkey12345',
+  'dragon12345',
+  'master12345',
+  'trustno1234',
+  '123456789a',
+  'a123456789',
+  'abc1234567',
+  'zaq12wsxcde',
+  'qazwsxedc123',
+  'asdfghjkl1',
+  '1q2w3e4r5t6y',
+  'q1w2e3r4t5y6',
+  'correct horse battery staple',
+  'correcthorsebatterystaple',
+  'flutter3dmodels',
 };
 
 /// The words those lists are built from. A password whose letters are only one
 /// of these — `Password2024!`, `Qwerty!!1234` — is that word with decoration,
 /// and the decoration is exactly what cracking rules add.
 const _commonStems = {
-  'password', 'passw', 'qwerty', 'qwertyuiop', 'letmein', 'welcome', 'admin',
-  'iloveyou', 'monkey', 'dragon', 'football', 'baseball', 'sunshine', 'princess',
-  'master', 'shadow', 'superman', 'starwars', 'trustno', 'changeme', 'abc',
-  'pa', 'pass', 'passwd', 'secret', 'login', 'hello', 'freedom', 'whatever',
+  'password',
+  'passw',
+  'qwerty',
+  'qwertyuiop',
+  'letmein',
+  'welcome',
+  'admin',
+  'iloveyou',
+  'monkey',
+  'dragon',
+  'football',
+  'baseball',
+  'sunshine',
+  'princess',
+  'master',
+  'shadow',
+  'superman',
+  'starwars',
+  'trustno',
+  'changeme',
+  'abc',
+  'pa',
+  'pass',
+  'passwd',
+  'secret',
+  'login',
+  'hello',
+  'freedom',
+  'whatever',
 };

@@ -12,13 +12,16 @@ void main() {
   const policy = InputPolicy();
 
   group('classify', () {
-    test('touch in sculpt goes to the camera — the row\'s own worked example', () {
-      final intent = policy.classify(
-        kind: PointerKind.touch,
-        tool: ToolCategory.sculpting,
-      );
-      expect(intent, isA<CameraInput>());
-    });
+    test(
+      'touch in sculpt goes to the camera — the row\'s own worked example',
+      () {
+        final intent = policy.classify(
+          kind: PointerKind.touch,
+          tool: ToolCategory.sculpting,
+        );
+        expect(intent, isA<CameraInput>());
+      },
+    );
 
     test('a mouse strokes at full force — the row\'s own worked example', () {
       final intent = policy.classify(
@@ -90,5 +93,34 @@ void main() {
 
   test('the touch tap target is Material\'s own 48dp guideline', () {
     expect(InputPolicy.touchTapTarget, 48.0);
+  });
+
+  group('ToolCategory.weightPainting — S5\'s own weight brush', () {
+    test('touch still goes to the camera, not the brush', () {
+      final intent = policy.classify(
+        kind: PointerKind.touch,
+        tool: ToolCategory.weightPainting,
+      );
+      expect(intent, isA<CameraInput>());
+    });
+
+    test('a stylus strokes at its own normalised pressure', () {
+      final intent = policy.classify(
+        kind: PointerKind.stylus,
+        tool: ToolCategory.weightPainting,
+        pressure: 0.35,
+      );
+      expect(intent, isA<ToolStroke>());
+      expect((intent as ToolStroke).force, 0.35);
+    });
+
+    test('a mouse still strokes at full force', () {
+      final intent = policy.classify(
+        kind: PointerKind.mouse,
+        tool: ToolCategory.weightPainting,
+      );
+      expect(intent, isA<ToolStroke>());
+      expect((intent as ToolStroke).force, 1.0);
+    });
   });
 }

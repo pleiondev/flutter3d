@@ -128,37 +128,34 @@ void main() {
       expect(read.valueAt(1), trace.valueAt(1));
     });
 
-    test(
-      'branchAt keeps the prefix, diverges after, and never touches the '
-      'trace it branched from',
-      () {
-        final original = DataSourceTrace();
-        for (var s = 0; s <= 10; s++) {
-          original.record(s, <String, Object?>{'temperature': 20.0 + s});
-        }
-        final originalJsonBefore = jsonEncode(original.toJson());
+    test('branchAt keeps the prefix, diverges after, and never touches the '
+        'trace it branched from', () {
+      final original = DataSourceTrace();
+      for (var s = 0; s <= 10; s++) {
+        original.record(s, <String, Object?>{'temperature': 20.0 + s});
+      }
+      final originalJsonBefore = jsonEncode(original.toJson());
 
-        final branch = original.branchAt(
-          5,
-          10,
-          (s) => <String, Object?>{'temperature': 999.0},
-        );
+      final branch = original.branchAt(
+        5,
+        10,
+        (s) => <String, Object?>{'temperature': 999.0},
+      );
 
-        // The prefix is copied, not shared by reference into a mutable spot —
-        // the original is re-serialised below to prove it, not just re-read.
-        for (var s = 0; s <= 5; s++) {
-          expect(branch.valueAt(s), original.valueAt(s));
-        }
-        for (var s = 6; s <= 10; s++) {
-          expect(branch.valueAt(s), <String, Object?>{'temperature': 999.0});
-          expect(branch.valueAt(s), isNot(original.valueAt(s)));
-        }
+      // The prefix is copied, not shared by reference into a mutable spot —
+      // the original is re-serialised below to prove it, not just re-read.
+      for (var s = 0; s <= 5; s++) {
+        expect(branch.valueAt(s), original.valueAt(s));
+      }
+      for (var s = 6; s <= 10; s++) {
+        expect(branch.valueAt(s), <String, Object?>{'temperature': 999.0});
+        expect(branch.valueAt(s), isNot(original.valueAt(s)));
+      }
 
-        expect(jsonEncode(original.toJson()), originalJsonBefore);
-        expect(original.length, 11);
-        expect(branch.length, 11);
-      },
-    );
+      expect(jsonEncode(original.toJson()), originalJsonBefore);
+      expect(original.length, 11);
+      expect(branch.length, 11);
+    });
   });
 
   group('Demo.dataSources', () {
@@ -184,7 +181,9 @@ void main() {
       );
       expect(read.dataSources, isNotNull);
       expect(read.dataSources!.steps, <int>[0, 1]);
-      expect(read.dataSources!.valueAt(1), <String, Object?>{'temperature': 20.5});
+      expect(read.dataSources!.valueAt(1), <String, Object?>{
+        'temperature': 20.5,
+      });
     });
 
     test('an older demo with no "dataSources" key still reads', () {

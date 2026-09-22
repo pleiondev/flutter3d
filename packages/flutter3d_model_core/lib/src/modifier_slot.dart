@@ -14,20 +14,47 @@ import 'param_hint.dart';
 /// mesh; whether a particular step even runs is a fact about the *project*,
 /// the same way `mesh-40`'s own doc comment already says — closed by Ж3
 /// (2026-09-09): one flag, `enabled`, and no `showInViewport` in v1.
+///
+/// **`ux-13` reopened that and added the second flag, 2026-09-16.** The
+/// reason Ж3 gave for one flag was that nobody had a use for two; the
+/// review found the use, and it is the one every package in the field has:
+/// a subdivision at four levels is what the model is *for* and is not what
+/// anybody wants in the viewport while they work, and a cage a boolean cuts
+/// with has to be drawn and must not reach the GLB. So [enabled] is the
+/// viewport and [inExport] is the file, and a modifier can be either, both
+/// or neither.
 final class ModifierSlot {
-  const ModifierSlot({required this.modifier, this.enabled = true});
+  const ModifierSlot({
+    required this.modifier,
+    this.enabled = true,
+    this.inExport = true,
+  });
 
-  final Modifier modifier;
+  /// Whether the stack runs it for the picture.
   final bool enabled;
 
-  ModifierSlot copyWith({Modifier? modifier, bool? enabled}) => ModifierSlot(
-    modifier: modifier ?? this.modifier,
-    enabled: enabled ?? this.enabled,
-  );
+  /// Whether the stack runs it for the file — `ux-13`.
+  ///
+  /// True by default, which is what every slot written before this existed
+  /// means: a modifier a person added is a modifier they want in the model
+  /// unless they say otherwise.
+  final bool inExport;
+
+  final Modifier modifier;
+
+  ModifierSlot copyWith({Modifier? modifier, bool? enabled, bool? inExport}) =>
+      ModifierSlot(
+        modifier: modifier ?? this.modifier,
+        enabled: enabled ?? this.enabled,
+        inExport: inExport ?? this.inExport,
+      );
 
   Map<String, Object?> toJson() => <String, Object?>{
     'modifier': modifier.toJson(),
     'enabled': enabled,
+    // Written only when it is not the default, and absent reads back as
+    // true — so a file written before `ux-13` says what it always said.
+    if (!inExport) 'inExport': false,
   };
 
   /// A slot from its own [toJson], or null when [json] is missing a field or
@@ -40,6 +67,7 @@ final class ModifierSlot {
         final Modifier modifier => ModifierSlot(
           modifier: modifier,
           enabled: enabled,
+          inExport: (json as Map<String, Object?>)['inExport'] != false,
         ),
         null => null,
       },

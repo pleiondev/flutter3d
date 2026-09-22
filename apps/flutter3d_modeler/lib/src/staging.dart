@@ -33,6 +33,7 @@ final class ModelerStage {
     this.editMesh,
     this.sync,
     this.materials,
+    this.lighting,
   );
 
   /// What is in front of the camera: a model that was opened, or the cube a
@@ -74,6 +75,18 @@ final class ModelerStage {
   /// in clay.
   final MaterialPool? materials;
 
+  /// `ux-49`: keeps [scene]'s own environment cube in step with
+  /// [SceneLighting.panorama]. Its own object rather than a call, because it
+  /// remembers which image is on the scene so an ordinary edit costs a
+  /// comparison rather than a convolution.
+  final PanoramaSync panorama = PanoramaSync();
+
+  /// Keeps [scene]'s own lights in step with [ModelProject.lighting] —
+  /// `tut-07`'s own fix. Null for the measurement stands, the same reason
+  /// [sync] is: they have no document, only the fixed key/fill pair [_light]
+  /// always builds, and nothing on a lattice to light differently.
+  final LightingSync? lighting;
+
   /// The colour behind everything, and a decision rather than a default.
   ///
   /// Flat, not a sky. A modeller is looked at for hours and every judgement
@@ -107,6 +120,11 @@ final class ModelerStage {
     final scene = Scene();
     final root = SceneNode(name: 'objects');
     scene.add(root);
+    // The fixed key/fill pair every stage starts from — see [_light]'s own
+    // doc comment. [lighting] then adds whatever the project's own
+    // `SceneLighting` carries on top, never replacing this baseline: a
+    // project that has never added a light of its own looks exactly as it
+    // always did.
     _light(scene);
 
     final camera = CameraNode(name: 'viewport');
@@ -120,7 +138,17 @@ final class ModelerStage {
       root: root,
       materials: materials,
     )..apply(project);
-    return ModelerStage._(scene, camera, orbit, root, null, sync, materials);
+    final lighting = LightingSync()..sync(scene, project.lighting);
+    return ModelerStage._(
+      scene,
+      camera,
+      orbit,
+      root,
+      null,
+      sync,
+      materials,
+      lighting,
+    );
   }
 
   factory ModelerStage.build({
@@ -165,7 +193,49 @@ final class ModelerStage {
     scene.add(camera);
     final orbit = OrbitController(camera, distance: 3.2, yaw: 0.6, pitch: 0.45);
 
-    return ModelerStage._(scene, camera, orbit, subject, edit, null, null);
+    return ModelerStage._(
+      scene,
+      camera,
+      orbit,
+      subject,
+      edit,
+      null,
+      null,
+      null,
+    );
+  }
+
+  /// A second view of the same stage — `ux-38`.
+  ///
+  /// **One scene, two cameras.** Everything a stage holds besides the camera
+  /// belongs to the document: the scene graph, the [SceneSync] keeping it in
+  /// step, the material pool, the lighting. A second view that rebuilt any
+  /// of those would be a second document, drifting from the first the moment
+  /// anybody edited either — so this adds exactly the two things a view
+  /// needs of its own, a [CameraNode] and the orbit that drives it, and
+  /// shares the rest by reference.
+  ///
+  /// It starts a quarter turn round from [of], because two views of one
+  /// model from the same angle are one view drawn twice.
+  factory ModelerStage.secondViewOf(ModelerStage of) {
+    final camera = CameraNode(name: 'viewport-2');
+    of.scene.add(camera);
+    final orbit = OrbitController(
+      camera,
+      distance: of.orbit.distance,
+      yaw: of.orbit.yaw + math.pi / 2,
+      pitch: of.orbit.pitch,
+    );
+    return ModelerStage._(
+      of.scene,
+      camera,
+      orbit,
+      of.subject,
+      of.editMesh,
+      of.sync,
+      of.materials,
+      of.lighting,
+    );
   }
 
   /// **Two lights and no shadow.** A single light leaves half of every object
@@ -281,6 +351,32 @@ final class ModelerStage {
     final bounds = subjectBounds();
     if (bounds == null) return;
     orbit.frameBounds(bounds);
+  }
+
+  /// Frames just the objects [ids] names — `ux-10`'s own "frame selected",
+  /// the thing `.` does in every package in the field and nothing did here.
+  ///
+  /// Falls back to [frameSubject] when nothing is selected or nothing
+  /// selected has a mesh: a key that does nothing at all reads as broken,
+  /// and "put the camera on everything" is the nearest true answer to "put
+  /// the camera on what I mean".
+  void frameObjects(Iterable<int> ids) {
+    Aabb3? total;
+    for (final int id in ids) {
+      final MeshNode? node = sync?.nodeOf(id);
+      if (node == null) continue;
+      final Aabb3 box = node.worldBounds;
+      if (total == null) {
+        total = Aabb3.copy(box);
+      } else {
+        total.hull(box);
+      }
+    }
+    if (total == null) {
+      frameSubject();
+      return;
+    }
+    orbit.frameBounds(total);
   }
 
   /// The box every mesh under [subject] fits in, or null when none has one.

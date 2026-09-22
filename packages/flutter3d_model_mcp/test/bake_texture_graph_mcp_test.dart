@@ -21,9 +21,7 @@ void main() {
   late ServerConnection connection;
 
   setUp(() async {
-    workspace = Directory.systemTemp.createTempSync(
-      'flutter3d_model_mcp_bake',
-    );
+    workspace = Directory.systemTemp.createTempSync('flutter3d_model_mcp_bake');
     final pipe = StreamChannelController<String>(sync: true);
     ModelMcpServer(
       pipe.local,

@@ -6,7 +6,7 @@ library;
 
 import 'dart:typed_data';
 
-import 'package:flutter3d_formats/flutter3d_formats.dart';
+import 'package:flutter3d_core/formats.dart';
 import 'package:flutter3d_model_core/flutter3d_model_core.dart';
 import 'package:test/test.dart';
 
@@ -57,14 +57,7 @@ void main() {
         rgba[i + 2] = 56;
         rgba[i + 3] = 255;
       }
-      final resized = resizeRgba(
-        rgba,
-        6,
-        6,
-        3,
-        3,
-        filter: ResizeFilter.box,
-      );
+      final resized = resizeRgba(rgba, 6, 6, 3, 3, filter: ResizeFilter.box);
       for (var i = 0; i < resized.length; i += 4) {
         expect(resized.sublist(i, i + 4), <int>[12, 34, 56, 255]);
       }
@@ -95,7 +88,9 @@ void main() {
       // Mutation: sample nearest instead of interpolating — the middle two
       // output pixels would then jump straight from 0 to 200 rather than
       // stepping through, which is exactly what this checks for.
-      final reds = <int>[for (var i = 0; i < resized.length; i += 4) resized[i]];
+      final reds = <int>[
+        for (var i = 0; i < resized.length; i += 4) resized[i],
+      ];
       expect(reds[0], lessThan(reds[1]));
       expect(reds[1], lessThan(reds[2]));
       expect(reds[2], lessThan(reds[3]));

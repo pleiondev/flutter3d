@@ -18,8 +18,8 @@ library;
 
 import 'dart:typed_data';
 
-import 'package:flutter3d/src/engine/scene/scene_node.dart';
-import 'package:flutter3d/src/engine/scene/skeleton.dart';
+import 'package:flutter3d_core/src/engine/scene/scene_node.dart';
+import 'package:flutter3d_core/src/engine/scene/skeleton.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vector_math/vector_math.dart';
 
