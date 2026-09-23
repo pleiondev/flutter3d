@@ -63,7 +63,9 @@ final class PackedKeys {
     for (var i = 0; i < count; i++) {
       _order[i] = i;
     }
-    // A view, so the sort touches only the entries this frame filled.
+    // A copy of the entries this frame filled, so the sort touches only them.
+    // Not a view: `List.sublist` allocates, which on this path is the price
+    // of sorting a prefix of a fixed-length list with a comparator.
     final slice = _order.sublist(0, count)
       ..sort((int a, int b) {
         final byKey = _keys[a].compareTo(_keys[b]);

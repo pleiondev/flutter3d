@@ -48,16 +48,10 @@ final class FrameGraph {
 
   int get length => _nodes.length;
 
-  /// Works out which nodes run and in what order to produce [outputs].
-  ///
-  /// Throws [FrameGraphError] for anything a person can fix: a resource nobody
-  /// produces, a cycle, a requested output that does not exist. All of it at
-  /// compile rather than mid-frame, which is the difference between a message
-  /// naming two passes and a blank screen.
   /// Node names this graph refuses to switch off, and why each one.
   ///
   /// Not a matter of taste: every other node degrades correctly when it is
-  /// suppressed, and these four do not. `scene` and `composite` are the sole
+  /// suppressed, and these three do not. `scene` and `composite` are the sole
   /// producers of the frame itself, and the renderer's own fallback would hand
   /// a caller a texture holding whatever was in it last rather than an error.
   /// `object ids` answers picks that have already been taken off the queue, so
@@ -72,6 +66,12 @@ final class FrameGraph {
     'object ids',
   };
 
+  /// Works out which nodes run and in what order to produce [outputs].
+  ///
+  /// Throws [FrameGraphError] for anything a person can fix: a resource nobody
+  /// produces, a cycle, a requested output that does not exist. All of it at
+  /// compile rather than mid-frame, which is the difference between a message
+  /// naming two passes and a blank screen.
   CompiledFrameGraph compile({
     required List<ResourceId> outputs,
     Set<String> disabled = const <String>{},
@@ -119,8 +119,8 @@ final class FrameGraph {
     // typed 'fxaa' for the node called 'antialias' would otherwise get exactly
     // the frame they asked to change, and conclude the switch does nothing.
     //
-    // Registration order, not the disabled set's order, so the message is
-    // stable enough to assert on.
+    // The registered names are listed sorted, not in the disabled set's order
+    // or the registration order, so the message is stable enough to assert on.
     final registered = <String>{for (final node in _nodes) node.name};
     for (final name in disabled) {
       if (registered.contains(name)) continue;

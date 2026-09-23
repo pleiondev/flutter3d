@@ -24,10 +24,6 @@ library;
 import 'package:flutter3d_core/flutter3d_core.dart';
 import 'package:vector_math/vector_math.dart';
 
-/// Builds the shared comparison scene on `device`.
-///
-/// Returns the scene and the camera to view it through; the caller supplies the
-/// renderer, because that is the part that differs.
 /// Which of the engine's features a comparison scene exercises.
 ///
 /// One fixture per feature rather than one that does everything, because a
@@ -146,6 +142,10 @@ enum ParityScene {
   look,
 }
 
+/// Builds the shared comparison scene on `device`.
+///
+/// Returns the scene and the camera to view it through; the caller supplies the
+/// renderer, because that is the part that differs.
 ({Scene scene, CameraNode camera}) buildParityScene(
   GraphicsDevice device, {
   ParityScene which = ParityScene.plain,

@@ -56,7 +56,8 @@ final class SkySettings {
   final bool enabled;
 
   // Nullable with a `resolved` accessor beside each, which is the shape
-  // `FogSettings` in this same file already takes and for the same reason:
+  // `FogSettings` in `render_settings.dart` already takes and for the same
+  // reason:
   // `Vector3` has no const constructor, so a default cannot be written in the
   // parameter list of a const constructor.
 

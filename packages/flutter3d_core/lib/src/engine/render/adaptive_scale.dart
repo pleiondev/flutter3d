@@ -89,18 +89,27 @@ final class AdaptiveScaleSettings {
 /// Holds its own state, so an application feeds it every frame and reads
 /// [scale] — there is nothing to arrange and nothing to reset between scenes.
 final class AdaptiveScale {
-  AdaptiveScale(this.settings) : _scale = settings.maximum;
+  AdaptiveScale(this.settings);
 
   final AdaptiveScaleSettings settings;
 
-  double _scale;
+  /// How many steps below [AdaptiveScaleSettings.maximum] the scale sits.
+  ///
+  /// **A count rather than a running sum.** Adding and subtracting 0.1 walks
+  /// off the grid in the last bits — five steps down from 1.0 land on
+  /// 0.5000000000000001 rather than the floor, and five back up on
+  /// 0.9999999999999999 rather than full — so each end cost one extra step,
+  /// and one extra hold, before the scale was where it said it was.
+  int _stepsDown = 0;
   final List<int> _window = <int>[];
   int _cleanWindows = 0;
 
   /// What the next frame should be drawn at.
-  double get scale => _scale;
+  double get scale =>
+      math.max(settings.minimum, settings.maximum - _stepsDown * settings.step);
 
-  /// How many clean windows have passed since the scale last moved — what
+  /// How many clean windows in a row have passed since the scale last moved
+  /// or a window landed in the band between the thresholds — what
   /// [AdaptiveScaleSettings.holdWindows] is counted against.
   int get cleanWindows => _cleanWindows;
 
@@ -113,12 +122,12 @@ final class AdaptiveScale {
     if (!settings.enabled) {
       _window.clear();
       _cleanWindows = 0;
-      _scale = settings.maximum;
-      return _scale;
+      _stepsDown = 0;
+      return scale;
     }
 
     _window.add(cpuMicros);
-    if (_window.length < settings.window) return _scale;
+    if (_window.length < settings.window) return scale;
 
     final mean = _window.reduce((int a, int b) => a + b) / _window.length;
     _window.clear();
@@ -131,17 +140,17 @@ final class AdaptiveScale {
       // costing somebody something now, and the risk of shrinking once too
       // often is a picture slightly softer than it had to be.
       _cleanWindows = 0;
-      _scale = math.max(settings.minimum, _scale - settings.step);
-      return _scale;
+      if (scale > settings.minimum) _stepsDown++;
+      return scale;
     }
 
     if (mean < fast) {
       _cleanWindows++;
       if (_cleanWindows >= settings.holdWindows) {
         _cleanWindows = 0;
-        _scale = math.min(settings.maximum, _scale + settings.step);
+        if (_stepsDown > 0) _stepsDown--;
       }
-      return _scale;
+      return scale;
     }
 
     // Between the two: the band that exists so nothing moves. A window in
@@ -149,6 +158,6 @@ final class AdaptiveScale {
     // it as clean would walk the resolution up into the slow threshold one
     // step at a time.
     _cleanWindows = 0;
-    return _scale;
+    return scale;
   }
 }

@@ -74,9 +74,17 @@ final class ContributorRegistry {
     // application can actually control. Recomputed on change rather than per
     // frame: the set moves once at startup and the frame runs sixty times a
     // second.
-    _ordered = List<PassContributor>.of(_plugins)
-      ..sort(
-        (PassContributor a, PassContributor b) => a.order.compareTo(b.order),
-      );
+    //
+    // Stability is arranged rather than assumed: `List.sort` promises none,
+    // and past a few dozen entries it is a quicksort that reorders ties. The
+    // registration index is the tie-break, so the promise holds at any size.
+    final indexed =
+        <(int, PassContributor)>[
+          for (var i = 0; i < _plugins.length; i++) (i, _plugins[i]),
+        ]..sort(((int, PassContributor) a, (int, PassContributor) b) {
+          final byOrder = a.$2.order.compareTo(b.$2.order);
+          return byOrder != 0 ? byOrder : a.$1.compareTo(b.$1);
+        });
+    _ordered = <PassContributor>[for (final (_, plugin) in indexed) plugin];
   }
 }

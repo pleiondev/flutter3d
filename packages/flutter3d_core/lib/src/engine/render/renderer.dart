@@ -211,10 +211,13 @@ final class Renderer implements RenderServices {
   /// did not know that got the [FramePhase.overlay] default, which is the
   /// arrangement `FramePhase.present` was added because it silently fails:
   /// the pass runs, costs its time, and the composite overwrites it.
-  T addNode<T extends RenderNode>(
-    T node, {
-    FramePhase phase = FramePhase.overlay,
-  }) => nodes.add(node, phase: phase);
+  ///
+  /// Left off, the phase is the node's own [RenderNode.preferredPhase], as it
+  /// is through [RenderNodeRegistry.add]. A default of `overlay` here used to
+  /// override that answer, so `FullscreenEffect.present` registered through
+  /// this method landed before the composite — the exact failure above.
+  T addNode<T extends RenderNode>(T node, {FramePhase? phase}) =>
+      nodes.add(node, phase: phase);
 
   /// Takes a contributor back out, and says whether it was there.
   ///
@@ -456,6 +459,7 @@ final class Renderer implements RenderServices {
       _cubeShadow,
       _cubeShadowStatic,
       _cubeShadowDepth,
+      _lightListTexture,
       for (final probe in _probeStates.values) ...<TextureHandle>[
         probe.capture,
         probe.filtered,
@@ -474,8 +478,19 @@ final class Renderer implements RenderServices {
     _cubeShadowStatic = null;
     _cubeShadowDepth = null;
     _cubeShadowTile = 0;
+    _lightListTexture = null;
+    _lightListUploaded = Float32List(0);
 
     _debugIndices.release(device);
+    final fullscreen = _fullscreenVertices;
+    if (fullscreen != null) device.releaseGeometry(fullscreen);
+    _fullscreenVertices = null;
+
+    // The batches hold their mesh and material strongly — the same reason the
+    // sort-id table below went weak — so a renderer kept past a level would
+    // otherwise keep that level's geometry and textures with it.
+    _batchPool.clear();
+    _batchesUsed.clear();
 
     _renderList.materialIds.clear();
 
@@ -657,6 +672,7 @@ final class Renderer implements RenderServices {
     _instancedMaskedCubeShadowPipeline = null;
     _bloomUpsamplePipeline = null;
     _compositePipeline = null;
+    _probePrefilterPipeline = null;
     _skyPipeline = null;
     _skyCubePipeline = null;
     _cubeShadowPipeline = null;
@@ -911,11 +927,6 @@ final class Renderer implements RenderServices {
   /// empty frames, not once per empty frame and not once per renderer.
   bool _emptyFrameReported = false;
 
-  /// Depth for the view-model pass, made on demand.
-  ///
-  /// Lazily rather than alongside the scene's targets, because most frames of
-  /// most applications never draw one and a full-size depth buffer is megabytes
-  /// nobody asked for.
   final Float32List _bloomParams = Float32List(4);
   final Float32List _fxaaParams = Float32List(4);
 
@@ -1389,21 +1400,12 @@ final class Renderer implements RenderServices {
     return (lights: _drawLights, shadowSlots: _drawShadowSlots);
   }
 
-  /// Renders the scene from the light's point of view into a depth map.
-  ///
-  /// A shadow pass is a render view whose camera happens to be a light — which
-  /// is exactly what `RenderView` was shaped for — so the only new machinery is
-  /// fitting an orthographic volume to the scene and a fragment shader that
-  /// writes depth and nothing else.
-  ///
-  /// Returns false when there is nothing to shadow, leaving [_shadowParams] at
-  /// zero strength so the lighting shaders skip the lookup entirely.
   /// The six directions a cube shadow looks in, and the up vector for each.
   ///
   /// Order fixes the atlas layout, so the shader's face selection and this
   /// list are one decision written twice — which is why they are both spelled
-  /// out rather than derived: +X, -X, +Y, -Y, +Z, -Z, left to right then top
-  /// to bottom in a three-by-two grid.
+  /// out rather than derived: +X, -X, +Y, -Y, +Z, -Z, left to right along the
+  /// light's own row of six tiles.
   static final List<(vm.Vector3, vm.Vector3)> _cubeFaces =
       <(vm.Vector3, vm.Vector3)>[
         (vm.Vector3(1.0, 0.0, 0.0), vm.Vector3(0.0, 1.0, 0.0)),
@@ -1414,16 +1416,6 @@ final class Renderer implements RenderServices {
         (vm.Vector3(0.0, 0.0, -1.0), vm.Vector3(0.0, 1.0, 0.0)),
       ];
 
-  /// Renders one point light's six faces into the cube atlas.
-  ///
-  /// One pass, six viewports. That is the whole reason this is affordable and
-  /// it is not an assumption: setViewport is pass state on this backend, which
-  /// a spike established by drawing two casters into two halves of one map.
-  /// Six passes would have been six command buffers and six submissions.
-  ///
-  /// The faces store radial distance from the light, normalised by its range,
-  /// rather than clip depth — see shadow_distance.frag for why a cube cannot
-  /// use depth without showing a seam at every face boundary.
   /// Allocates the two cube atlases, or reallocates them when the tile size
   /// changed.
   ///
@@ -1520,14 +1512,14 @@ final class Renderer implements RenderServices {
 
   final Float32List _cubeFaceMatrices = Float32List(16 * 6 * kShadowedLights);
 
-  /// What a surface facing up, and one facing down, receive from the
-  /// environment. Recomputed once a frame — see [_updateAmbient].
   /// Scratch for the two irradiance samples a draw takes — `gfx-81n`. Kept
   /// here for the reason every other staging buffer is: a draw must allocate
   /// nothing, and a scene with a field takes two of these per object.
   final vm.Vector3 _irradianceUp = vm.Vector3.zero();
   final vm.Vector3 _irradianceDown = vm.Vector3.zero();
 
+  /// What a surface facing up, and one facing down, receive from the
+  /// environment. Recomputed once a frame — see [_updateAmbient].
   final Float32List _ambientSky = Float32List(4);
   final Float32List _ambientGround = Float32List(4);
 
@@ -2137,8 +2129,17 @@ final class Renderer implements RenderServices {
   /// This frame's light rows, or null while the scene fits in eight slots —
   /// `gfx-74n`. See `renderer_light_list.dart`.
   TextureHandle? _lightListTexture;
-  int _lightListEpoch = -1;
   int _lightListRows = 0;
+
+  /// The rows [_lightListTexture] was last uploaded with, compared against
+  /// this frame's rather than trusting `SceneNode.changeEpoch`: a light's
+  /// colour, intensity, range and cone are plain fields that advance no epoch,
+  /// so a torch that flickers without moving kept its first frame's row.
+  Float32List _lightListUploaded = Float32List(0);
+
+  /// Where this frame's rows are written before they are compared. Grown,
+  /// never shrunk, so a steady scene allocates nothing.
+  Float32List _lightListScratch = Float32List(0);
 
   /// Staging for the per-draw list, beside every other uniform this renderer
   /// writes: arrays reused rather than allocated per draw.
@@ -2213,6 +2214,12 @@ final class Renderer implements RenderServices {
   final Map<_BatchKey, InstancedMeshNode> _batchPool =
       <_BatchKey, InstancedMeshNode>{};
 
+  /// The pool entries some view drew with this frame. What the previous frame
+  /// did not use is dropped at the top of the next, so a mesh and material
+  /// that left the scene — or a scene with batching switched off — stop being
+  /// held by the pool.
+  final Set<_BatchKey> _batchesUsed = <_BatchKey>{};
+
   /// How many individual draws the last frame's batching replaced.
   ///
   /// The reading the row is about: a hundred identical meshes drawn in one call
@@ -2272,13 +2279,11 @@ final class Renderer implements RenderServices {
     return view;
   }
 
-  /// The one triangle every full-screen pass draws, uploaded once.
+  /// The triangle every full-screen pass is drawn with, uploaded once and
+  /// wound for this backend.
   ///
   /// A triangle rather than a quad: a quad has a diagonal seam where the GPU
-  /// rasterizes the 2x2 fragment quads along it twice. The UVs are authored so
-  /// that NDC +1 in Y maps to texture row zero, matching where Metal puts the
-  /// origin of a render target.
-  /// The triangle every full-screen pass is drawn with, wound for this backend.
+  /// rasterizes the 2x2 fragment quads along it twice.
   ///
   /// **The texture coordinates depend on where the backend's row zero is, and
   /// that is not a detail.** The positions are clip space directly — a
@@ -2651,43 +2656,10 @@ final class Renderer implements RenderServices {
     }
   }
 
-  /// Draws the world into the HDR target, and submits it.
-  ///
-  /// The body of [_SceneNode], extracted before the node existed so that the
-  /// move was verifiable on its own: it changed no behaviour, so the goldens had
-  /// to match byte for byte, and a refactor that moves the picture moved
-  /// something else too.
-  ///
-  /// It owns the render target, the command buffer and the pass, which is what
-  /// a node has to own. Ordering against the shadow passes is by *submission* —
-  /// they build and submit their own command buffers before this one, and the
-  /// queue runs buffers in the order they were submitted. That is the fact that
-  /// makes the graph cheap to adopt here: it has to derive a submission order,
-  /// not take over how passes are built.
-  ///
-  /// [surfaceIsRead] is the graph's answer about the frame that is running, not
-  /// a setting: it decides both whether the second attachment is present and
-  /// whether the pass may multisample, and those two must agree.
-  ///
-  /// [shadows] is the same shape of answer: every map this pass samples, taken
-  /// from the frame by the node that declared it and handed down rather than
-  /// looked up here. The atlases used to be the exception — bound deep in
-  /// [_encodeNode] straight out of a renderer field, because the view model
-  /// reaches that same code through [RenderServices.encodeScene] and only one
-  /// of the two callers declared the read. Two nodes and one binding site is
-  /// still true; what changed is that each of them now answers for itself.
-  ///
-  /// [contributors] are handed in rather than looked up. A node that reaches
-  /// into a global registry cannot be a node somebody else supplies, which is
-  /// the whole point of the extension model — and the distinction it makes is
-  /// the one the migration keeps running into: a contributor draws *into* this
-  /// pass, so it takes the pass as an argument, while a node *owns* one and
-  /// therefore cannot be handed one. That is why there are two contexts:
-  /// `ContributorFrame` carries a pass and `NodeFrame` does not.
   /// The camera's view-projection, in the clip space this backend uses.
   ///
-  /// Cameras build for [DepthRange.zeroToOne], which is what Metal, Vulkan and
-  /// Vulkan want. A backend on OpenGL conventions gets the same matrix with
+  /// Cameras build for [DepthRange.zeroToOne], which is what Metal and Vulkan
+  /// want. A backend on OpenGL conventions gets the same matrix with
   /// depth remapped: `z' = 2z - w` turns near-at-0/far-at-1 into
   /// near-at-minus-one/far-at-1.
   ///
@@ -2699,6 +2671,32 @@ final class Renderer implements RenderServices {
   /// that were fine on the other backend.
   vm.Matrix4 _viewProjection(CameraNode camera, double aspect) =>
       toDepthRange(camera.viewProjection(aspect), device.depthRange);
+
+  /// A view's rectangle in pixels of a [width] × [height] target.
+  ///
+  /// **Held inside the target**, which rounding each term on its own did not
+  /// do: a view at `x: 0.5, width: 0.5` of a target 101 pixels wide rounded
+  /// both halves up and asked for 51 + 51. A viewport the hardware clips, but
+  /// a scissor outside the attachment is a validation error on Metal. Every
+  /// pass that draws a view per rectangle takes it from here, so the scene,
+  /// the id pass and the composite cannot disagree about where a view is.
+  static ScreenRect _viewportPixels(
+    ViewportRect fraction,
+    int width,
+    int height,
+  ) {
+    final x = math.min((fraction.x * width).round(), math.max(width - 1, 0));
+    final y = math.min((fraction.y * height).round(), math.max(height - 1, 0));
+    return ScreenRect(
+      x: x,
+      y: y,
+      width: math.max(1, math.min((fraction.width * width).round(), width - x)),
+      height: math.max(
+        1,
+        math.min((fraction.height * height).round(), height - y),
+      ),
+    );
+  }
 
   /// Makes another finished-frame texture, at the size the targets are.
   ///
@@ -2939,6 +2937,7 @@ final class Renderer implements RenderServices {
     _shadowParams[3] = 0.0;
     _shadowCasters = 0;
     _batchedDraws = 0;
+    _retireUnusedBatches();
     // One cascade until a pass says otherwise, so a shader reading these
     // between frames sees the arrangement it has always seen.
     _shadowCascades[2] = 1.0;
@@ -3259,6 +3258,12 @@ final class Renderer implements RenderServices {
             );
     } catch (error, stack) {
       _failPicks(picks, error, stack);
+      // The same three things the catch around the passes owes, for the same
+      // reasons: `_ensureTargets` and a retired probe may already have queued
+      // releases into this frame's slot, the finished-frame texture taken
+      // above has to go back into rotation, and the timeline block opened at
+      // the top has to close.
+      _abandonFrame();
       rethrow;
     }
 
@@ -3363,7 +3368,7 @@ final class Renderer implements RenderServices {
       // it happens on the path where a frame is *already* going wrong. The
       // comment beside the increment below explains why one frame is not
       // enough; zero is worse.
-      _frameIndex++;
+      _abandonFrame();
       rethrow;
     } finally {
       // Cleared whichever way the frame ended: a counter left pointing at a
@@ -3398,25 +3403,7 @@ final class Renderer implements RenderServices {
     // And the picture goes back into rotation when the work that read it is
     // done — not a fixed number of frames later, which is a guess this engine
     // got wrong three times.
-    final drawnInto = _ldrCurrent;
-    if (drawnInto != null) {
-      // **The membership test belongs inside the callback, not beside it.**
-      // Asked here it is a question about the world at registration time, and
-      // the callback runs later — on Impeller, from the command buffer's
-      // completion or from the next `beginFrame`. In between, a resize can run
-      // `_ensureTargets`, which empties `_ldrFrames` and `_ldrFree` because
-      // every one of them is the wrong size now. The callback then pushed a
-      // texture of the previous window size into the freshly emptied free
-      // list, `_takeLdrFrame` popped it without rechecking, and the next
-      // composite went into a target the size of the window before last.
-      //
-      // WebGL and the software backend never showed it: their
-      // `onFrameComplete` runs synchronously, so there is no in-between. That
-      // is every desktop and mobile build, on any window drag.
-      device.onFrameComplete(() {
-        if (_ldrFrames.contains(drawnInto)) _ldrFree.add(drawnInto);
-      });
-    }
+    _recycleLdrFrame();
     frameClock.stop();
     developer.Timeline.finishSync();
 
@@ -3477,6 +3464,44 @@ final class Renderer implements RenderServices {
       // thing to disagree with the frame.
       skipped: frameGraph.skipped,
     );
+  }
+
+  /// Puts this frame's finished-frame texture back into rotation once the
+  /// work that read it is done.
+  void _recycleLdrFrame() {
+    final drawnInto = _ldrCurrent;
+    if (drawnInto == null) return;
+    // **The membership test belongs inside the callback, not beside it.**
+    // Asked here it is a question about the world at registration time, and
+    // the callback runs later — on Impeller, from the command buffer's
+    // completion or from the next `beginFrame`. In between, a resize can run
+    // `_ensureTargets`, which empties `_ldrFrames` and `_ldrFree` because
+    // every one of them is the wrong size now. The callback then pushed a
+    // texture of the previous window size into the freshly emptied free
+    // list, `_takeLdrFrame` popped it without rechecking, and the next
+    // composite went into a target the size of the window before last.
+    //
+    // WebGL and the software backend never showed it: their
+    // `onFrameComplete` runs synchronously, so there is no in-between. That
+    // is every desktop and mobile build, on any window drag.
+    device.onFrameComplete(() {
+      if (_ldrFrames.contains(drawnInto)) _ldrFree.add(drawnInto);
+    });
+  }
+
+  /// What a frame that threw still owes before the exception leaves [render].
+  ///
+  /// **The counter moves**, or the releases this frame queued are retired by
+  /// the very next `render` with no deferral at all. **The finished-frame
+  /// texture goes back into rotation**: it was taken off the free list at the
+  /// top, and a frame that failed without returning it left it in
+  /// `_ldrFrames` for ever, so every failed frame grew the ring by one
+  /// full-screen texture. **And the timeline block closes**, or every later
+  /// frame's markers nest inside one that never ends.
+  void _abandonFrame() {
+    _frameIndex++;
+    _recycleLdrFrame();
+    developer.Timeline.finishSync();
   }
 
   /// Bloom and the composite — tone map, look, debug overlay — over an
@@ -3648,8 +3673,8 @@ final class Renderer implements RenderServices {
   /// project already, and the deferred-style effects that would depend on it are
   /// worth nothing if the second attachment is silently dropped.
   ///
-  /// Returns a human-readable verdict. Costs two 4x4 textures and one draw, and
-  /// is only called when asked for.
+  /// Returns a human-readable verdict. Costs two 4x4 textures, released before
+  /// it returns, and one draw, and is only called when asked for.
   Future<String> probeMultipleRenderTargets() async {
     final probe = shaders['MrtProbe'];
     if (probe == null) return 'MRT probe: the bundle has no MrtProbe entry.';
@@ -3724,6 +3749,13 @@ final class Renderer implements RenderServices {
                     'honoured' : 'distinct, so MRT works'}.';
     } catch (error) {
       return 'MRT probe: threw $error';
+    } finally {
+      // Given back whichever way the probe ended: both readbacks have been
+      // awaited, so nothing is still reading them, and on WebGL2 a texture
+      // nobody releases is a driver object for the life of the context.
+      device
+        ..releaseTexture(first)
+        ..releaseTexture(second);
     }
   }
 
@@ -3792,9 +3824,10 @@ final class Renderer implements RenderServices {
   /// Builds and submits the debug overlay for one view. Returns false when there
   /// was nothing to draw.
   ///
-  /// The whole overlay is a single non-indexed `PrimitiveType.line` draw out of
-  /// the per-frame host buffer, so switching it on costs one buffer write and one
-  /// draw call no matter how much it shows.
+  /// The whole overlay is a single `PrimitiveType.line` draw out of the
+  /// per-frame host buffer, indexed through the identity sequence because the
+  /// API has no unindexed draw, so switching it on costs one buffer write and
+  /// one draw call no matter how much it shows.
   bool _encodeDebugLines({
     required PassEncoder encoder,
     required Scene scene,
