@@ -11,9 +11,12 @@ extension _F3dScene on F3dDocument {
   // ----------------------------------------------------------------- surfaces
 
   List<ModelSurface> _readSurfaces() {
-    final table = _section(F3dSection.surfaces);
-    final attributeTable = _section(F3dSection.surfaceAttributes);
-    final meshNameTable = _section(F3dSection.meshNames);
+    final table = _table(F3dSection.surfaces, F3dRecord.surface);
+    final attributeTable = _table(
+      F3dSection.surfaceAttributes,
+      F3dRecord.surfaceAttributes,
+    );
+    final meshNameTable = _table(F3dSection.meshNames, F3dRecord.meshName);
     return <ModelSurface>[
       for (var i = 0; i < table.count; i++)
         () {
@@ -91,7 +94,7 @@ extension _F3dScene on F3dDocument {
   /// written before this section existed) reads as an empty map, and
   /// [_readNodes] below turns a missing entry into `const <ModelLod>[]`.
   Map<int, List<ModelLod>> _readLods() {
-    final table = _section(F3dSection.lods);
+    final table = _table(F3dSection.lods, F3dRecord.lod);
     final grouped = <int, List<ModelLod>>{};
 
     for (var i = 0; i < table.count; i++) {
@@ -114,7 +117,7 @@ extension _F3dScene on F3dDocument {
   }
 
   List<ModelNode> _readNodes() {
-    final table = _section(F3dSection.nodes);
+    final table = _table(F3dSection.nodes, F3dRecord.node);
     return <ModelNode>[
       for (var i = 0; i < table.count; i++)
         () {
@@ -168,7 +171,8 @@ extension _F3dScene on F3dDocument {
   }
 
   List<int> _readRoots() {
-    final table = _section(F3dSection.roots);
+    // Four bytes a root: the table is a bare `Int32List`, not a record type.
+    final table = _table(F3dSection.roots, 4);
     return <int>[
       for (var i = 0; i < table.count; i++)
         _view.getInt32(table.offset + i * 4, Endian.little),

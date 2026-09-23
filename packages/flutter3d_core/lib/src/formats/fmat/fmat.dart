@@ -191,6 +191,7 @@ String writeFmat(MaterialDocument document) {
     if (sampling.magLinear == plain.magLinear &&
         sampling.minLinear == plain.minLinear &&
         sampling.useMipmaps == plain.useMipmaps &&
+        sampling.mipLinear == plain.mipLinear &&
         sampling.wrapS == plain.wrapS &&
         sampling.wrapT == plain.wrapT) {
       // A slot that asks for nothing unusual is written as the path alone,
@@ -203,6 +204,7 @@ String writeFmat(MaterialDocument document) {
       if (!sampling.magLinear) 'magLinear': false,
       if (!sampling.minLinear) 'minLinear': false,
       if (!sampling.useMipmaps) 'mipmaps': false,
+      if (!sampling.mipLinear) 'mipLinear': false,
       if (sampling.wrapS != TextureWrap.repeat) 'wrapS': sampling.wrapS.name,
       if (sampling.wrapT != TextureWrap.repeat) 'wrapT': sampling.wrapT.name,
     };
@@ -366,6 +368,7 @@ TextureSampling _readSampling(Map<String, Object?> json) => TextureSampling(
   magLinear: json['magLinear'] as bool? ?? true,
   minLinear: json['minLinear'] as bool? ?? true,
   useMipmaps: json['mipmaps'] as bool? ?? true,
+  mipLinear: json['mipLinear'] as bool? ?? true,
   wrapS: _wrap(json['wrapS']),
   wrapT: _wrap(json['wrapT']),
 );
@@ -410,6 +413,7 @@ LightingModel? _readLighting(
   return LightingModel(
     value['label'] as String? ?? shader,
     shader,
+    vertexShaderName: value['vertexShader'] as String?,
     usesFragInfo: value['fragInfo'] as bool? ?? true,
     usesAlbedoTexture: value['albedoTexture'] as bool? ?? true,
     usesMaterialMaps: value['materialMaps'] as bool? ?? true,
@@ -430,6 +434,10 @@ Object _writeLighting(LightingModel model) {
   return <String, Object?>{
     'shader': model.shaderName,
     if (model.label != model.shaderName) 'label': model.label,
+    // The vertex stage a material brings (`gfx-75n`). Left out, a material
+    // saved and read back drew with the engine's own vertex stage — an ocean
+    // gone flat, with nothing in the file to say why.
+    if (model.vertexShaderName case final String vertex) 'vertexShader': vertex,
     if (model.usesFragInfo != plain.usesFragInfo)
       'fragInfo': model.usesFragInfo,
     if (model.usesAlbedoTexture != plain.usesAlbedoTexture)

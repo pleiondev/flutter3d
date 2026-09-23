@@ -11,7 +11,7 @@ extension _F3dAnimation on F3dDocument {
   // --------------------------------------------------------------- animations
 
   List<AnimationClip> _readAnimations() {
-    final table = _section(F3dSection.animations);
+    final table = _table(F3dSection.animations, F3dRecord.animation);
     return <AnimationClip>[
       for (var i = 0; i < table.count; i++)
         () {
@@ -68,7 +68,7 @@ extension _F3dAnimation on F3dDocument {
   // -------------------------------------------------------------------- skins
 
   List<ModelSkin> _readSkins() {
-    final table = _section(F3dSection.skins);
+    final table = _table(F3dSection.skins, F3dRecord.skin);
     return <ModelSkin>[
       for (var i = 0; i < table.count; i++)
         () {
