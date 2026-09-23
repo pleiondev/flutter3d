@@ -27,7 +27,7 @@ dependencies:
   # see `webgpu_interop.dart`, which declares the slice a triangle needs.
   web: ^1.1.0
 
-  vector_math: ^2.2.0
+  vector_math: ^2.4.3
 
 dev_dependencies:
   flutter_test:

@@ -39,7 +39,7 @@ dependencies:
   # every server here shares.
   flutter3d_mcp_kit: ^0.7.0
 
-  vector_math: ^2.2.0
+  vector_math: ^2.4.3
 
 dev_dependencies:
   test: ^1.25.0

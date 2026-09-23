@@ -23,7 +23,7 @@ dependencies:
   # first without the second.
   flutter3d_physics: ^0.7.0
 
-  vector_math: ^2.2.0
+  vector_math: ^2.4.3
 
 dev_dependencies:
   test: ^1.25.0
