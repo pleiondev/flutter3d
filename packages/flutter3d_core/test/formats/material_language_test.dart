@@ -300,6 +300,22 @@ void main() {
     );
   });
 
+  test('and the model built from its bindings says so too', () {
+    // A hand-built model with maps defaults the list on, which is the bind
+    // the emitted stage cannot take. `lightingModel` carries every flag off
+    // the program instead.
+    //
+    // Mutation: leave `usesLightList` out of `MaterialBindings.lightingModel`.
+    final model = describeMaterial(
+      parseMaterial(
+        'material M { texture n = normal_texture; fragment { '
+        'return vec4(sample(n, uv).rgb, alpha); } }',
+      ),
+    ).lightingModel(label: 'M', shaderName: 'M');
+    expect(model.usesMaterialMaps, isTrue);
+    expect(model.usesLightList, isFalse);
+  });
+
   test('a program nothing specialised refuses to emit rather than guess', () {
     // The default is *a* value, and using it here would mean the GPU's shader
     // and this package disagreeing about what a variant that set the parameter

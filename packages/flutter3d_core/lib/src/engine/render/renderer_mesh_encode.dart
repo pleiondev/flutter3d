@@ -269,16 +269,16 @@ extension _MeshEncode on Renderer {
     // Always for the engine's own mesh stages, even when nothing morphs: all
     // four declare the block and the sampler. See [_bindMorph].
     //
-    // **A material's own stage only when the node morphs.** `PolylineVertex`
-    // declares neither, and binding the morph texture to it is a thrown
-    // "Failed to bind texture" on Impeller at the first draw of every
-    // `Material.polyline`; WebGL and the software backend let the extra bind
-    // pass, so nothing but a Metal run saw it. A node that does morph still
-    // binds, and a stage that cannot take it then fails by name, which is
-    // what it should do.
+    // **A material's own stage when it says it declares them**, which is
+    // `LightingModel.vertexStageMorphs`. `PolylineVertex` declares neither,
+    // and binding the morph texture to it is a thrown "Failed to bind
+    // texture" on Impeller at the first draw of every `Material.polyline`.
+    // 0.7.2 keyed this on whether the node morphed instead, which left a stage
+    // written from `mesh.vert` without its block on every plain mesh. Asking
+    // the node is the wrong question: a stage declares what it declares.
     final ownStage =
         !batched && !lightmapped && material.lighting.vertexShaderName != null;
-    if (!ownStage || node.morph != null) {
+    if (!ownStage || material.lighting.vertexStageMorphs) {
       _bindMorph(encoder, activeVertexShader, node.morph);
     }
     if (batched) _bindInstanceMorph(encoder, activeVertexShader, instanced);

@@ -385,6 +385,40 @@ void main() {
       expect(input.value(throttle), closeTo(0.42, 1e-6));
     });
 
+    test('two on one action answer with the harder press', () {
+      // Read in a fixed order, the last trigger used to win: 1.0 and 0.2 gave
+      // a throttle of 0.2. And letting one go withdrew the value the other had
+      // just written, so for that frame the action fell back to its held 1.0.
+      //
+      // Mutation: set the action value from this control's magnitude alone.
+      final fake = FakePad()
+        ..state.setAxis(PadAxis.triggerLeft, 1.0)
+        ..state.setAxis(PadAxis.triggerRight, 0.2);
+      final input = InputState();
+      final pad = PadInput(
+        state: input,
+        pad: _bare(fake),
+        bindings: Bindings()
+          ..bind(InputSource.pad(PadButton.triggerLeft.id), throttle)
+          ..bind(InputSource.pad(PadButton.triggerRight.id), throttle),
+      );
+
+      pad.tick(1 / 60);
+      expect(input.value(throttle), closeTo(1.0, 1e-6));
+
+      fake.state.setAxis(PadAxis.triggerLeft, 0.0);
+      pad.tick(1 / 60);
+      expect(
+        input.value(throttle),
+        closeTo(0.2, 1e-6),
+        reason: 'the right trigger is still at 0.2',
+      );
+
+      fake.state.setAxis(PadAxis.triggerRight, 0.0);
+      pad.tick(1 / 60);
+      expect(input.value(throttle), 0.0);
+    });
+
     test('and does not chatter at the threshold', () {
       // **The mutation this exists for**: one threshold instead of two, and a
       // trigger resting against it sends a press and a release every frame — a
