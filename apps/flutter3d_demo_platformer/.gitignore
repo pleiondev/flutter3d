@@ -51,5 +51,7 @@ app.*.map.json
 # The directory itself is kept, and only kept: `pubspec.yaml` names it as
 # an asset directory, and `flutter analyze` fails on one that is not there
 # — which, before the first build in a fresh checkout, it would not be.
-/flutter3d_generated/*
+/flutter3d_generated/**
 !/flutter3d_generated/.gitkeep
+!/flutter3d_generated/models/
+!/flutter3d_generated/models/.gitkeep

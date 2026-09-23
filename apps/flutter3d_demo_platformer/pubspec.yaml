@@ -88,4 +88,8 @@ flutter:
     - assets/levels/
     - assets/sounds/
     - assets/textures/
+    # Both lines, because Flutter takes the files directly inside a listed
+    # directory and none from below it. With only the first, the penguin and
+    # the coins the hook wrote into `models/` were left out of the bundle.
     - flutter3d_generated/
+    - flutter3d_generated/models/

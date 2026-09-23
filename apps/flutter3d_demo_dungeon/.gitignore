@@ -51,5 +51,7 @@ node_modules/
 # Kept as a directory, and only that: `pubspec.yaml` names it as an asset
 # directory, and `flutter analyze` fails on one that is not there — which
 # in a fresh checkout, before the first build, it would not be.
-/flutter3d_generated/*
+/flutter3d_generated/**
 !/flutter3d_generated/.gitkeep
+!/flutter3d_generated/models/
+!/flutter3d_generated/models/.gitkeep
