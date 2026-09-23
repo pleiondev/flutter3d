@@ -16,7 +16,7 @@ description: Your own project, from the editor's template: scaffold it, run it, 
 </ul>
 </div>
 
-Two things before starting. The editor is run from the checkout, so the workspace has to be resolved and its shader bundle built, both from [Quickstart](/quickstart/) — that is about running the *editor*, not about the project it writes. The project it writes depends on hosted versions from pub.dev and never on a path into this checkout, and the compiled bundle rides inside `flutter3d_impeller`, so a scaffolded project has nothing to build. And this is macOS. The browser is the other supported target, but the editor runs on the desktop.
+Two things before starting. The editor is run from the checkout, so the workspace has to be resolved and its shader bundle built, both from [Quickstart](/quickstart/). That is about running the *editor*, not about the project it writes. The project it writes depends on hosted versions from pub.dev and never on a path into this checkout, and the compiled bundle rides inside `flutter3d_impeller`, so a scaffolded project has nothing to build. And this is macOS. The browser is the other supported target, but the editor runs on the desktop.
 
 ## Write the project {.step}
 
@@ -49,12 +49,12 @@ flutter run -d macos
 `flutter create` adds `macos/` beside what is already there and leaves `pubspec.yaml`, `lib/` and `test/` alone.
 
 <div class="warn">
-<p><strong>Then add two keys to <code>macos/Runner/Info.plist</code>:</strong> <code>FLTEnableFlutterGPU</code> and <code>FLTEnableImpeller</code>, both <code>&lt;true/&gt;</code>, inside the top-level <code>&lt;dict&gt;</code>. Flutter GPU is enabled per application rather than per channel, and Impeller is not yet the default renderer on macOS. A scaffolded project has no <code>macos/</code> at all until <code>flutter create</code> makes one, so this is the step nobody can do for you — the README the scaffold writes says the same thing beside the same commands.</p>
-<p><strong>Skipping them does not fail</strong>, which is what makes it worth a box. The game opens and draws, through the Dart software rasteriser, because that is what <code>flutter3d_app</code> falls back to when Impeller will not start. The only sign is a console line beginning <code>flutter3d_app: Impeller would not start</code> and a frame rate that is the fallback's rather than the engine's. If you see that line, these keys are why. The exact wording of the failures that <em>do</em> stop the app is in <a href="/reference/pitfalls/">Pitfalls</a>.</p>
+<p><strong>Then add two keys to <code>macos/Runner/Info.plist</code>:</strong> <code>FLTEnableFlutterGPU</code> and <code>FLTEnableImpeller</code>, both <code>&lt;true/&gt;</code>, inside the top-level <code>&lt;dict&gt;</code>. Flutter GPU is enabled per application rather than per channel, and Impeller is not yet the default renderer on macOS. A scaffolded project has no <code>macos/</code> at all until <code>flutter create</code> makes one, so this is the step nobody can do for you. The README the scaffold writes says the same thing beside the same commands.</p>
+<p><strong>Skipping them does not fail</strong>, which is why this gets a box of its own. The game opens and draws, through the Dart software rasteriser, because that is what <code>flutter3d_app</code> falls back to when Impeller will not start. The only sign is a console line beginning <code>flutter3d_app: Impeller would not start</code> and a frame rate that is the fallback's rather than the engine's. If you see that line, these keys are why. The exact wording of the failures that <em>do</em> stop the app is in <a href="/reference/pitfalls/">Pitfalls</a>.</p>
 </div>
 
 <div class="warn">
-<p>One that bites once. The pubspec names hosted versions from <a href="https://pub.dev/publishers/pleion.dev/packages">pub.dev</a> — <code>pubspecFor</code> in the editor's <code>scaffold_templates.dart</code> writes them, and it pointed into the checkout by <code>path:</code> only while the packages were unpublished, so a project made in that window travels only with its lines fixed. Use a Flutter at least as new as the engine's: an older one writes a macOS project targeting an older system than the packages support, and the build then fails with a deployment-target error that mentions none of this.</p>
+<p>One that bites once. The pubspec names hosted versions from <a href="https://pub.dev/publishers/pleion.dev/packages">pub.dev</a>. <code>pubspecFor</code> in the editor's <code>scaffold_templates.dart</code> writes them, and it pointed into the checkout by <code>path:</code> only while the packages were unpublished, so a project made in that window travels only with its lines fixed. Use a Flutter at least as new as the engine's: an older one writes a macOS project targeting an older system than the packages support, and the build then fails with a deployment-target error that mentions none of this.</p>
 </div>
 
 ## Read what you got {.step}
@@ -71,19 +71,19 @@ flutter run -d macos
 The imports at the top of `main.dart` say where the halves are: `flutter3d` draws, `flutter3d_sim` simulates, `flutter3d_app` loads a level into a scene, and `flutter3d_game` holds the input and the run. [Assembling an application](/core/session/) is that seam in detail.
 
 <div class="note">
-<p><strong><code>main.dart</code> is a seed, not a game.</strong> It reads the level, builds it, and puts a body in it that walks, looks and jumps. What it deliberately leaves out is everything a <em>genre</em> is: no weapons, no monsters, no coins, no doors that open, no score, no menu, no saving. Those live in <code>flutter3d_game_shooter</code> and <code>flutter3d_game_platformer</code>, and adding one is the last step below.</p>
+<p><strong><code>main.dart</code> is a seed, not a game.</strong> It reads the level, builds it, and puts a body in it that walks, looks and jumps. It leaves out, on purpose, everything a <em>genre</em> is: weapons, monsters, coins, doors that open, a score, a menu and saving. Those live in <code>flutter3d_game_shooter</code> and <code>flutter3d_game_platformer</code>, and adding one is the last step below.</p>
 </div>
 
 ## Change the level {.step}
 
-Run the editor again with the same command — the path exists now, so it opens rather than offers. `W A S D` walks, `Q`/`E` go down and up, drag looks, scroll moves forward.
+Run the editor again with the same command. The path exists now, so it opens the level instead of offering to create one. `W A S D` walks, `Q`/`E` go down and up, drag looks, scroll moves forward.
 
 Click a palette row on the left, then click a surface: that puts one down where you clicked. Click a brush to select it; arrows move it on the grid, `R`/`F` raise and lower it, `1` `2` `3` pick an axis and `−` `=` resize along it. `G` cycles the grid between 0.25 m, 1 m and off. `⌘Z` steps back.
 
 `⌘S` saves.
 
 <div class="note">
-<p><code>⌘S</code> refuses to save over a document whose JSON carries a <code>generatedBy</code> key, and every level shipped in this repository carries one: they are written by a Python generator, so a hand-edit survives right up until somebody reruns it. <code>⇧⌘S</code> writes a copy and takes ownership of that. A scaffolded level has no such key — it is yours from the first save.</p>
+<p><code>⌘S</code> refuses to save over a document whose JSON carries a <code>generatedBy</code> key, and every level the games ship carries one: they are written by Python generators, so a hand-edit survives only until somebody reruns the generator. <code>⇧⌘S</code> writes a copy and takes ownership of that. A scaffolded level has no such key, so it is yours from the first save.</p>
 </div>
 
 ## Change how it feels {.step}

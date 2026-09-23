@@ -8,7 +8,7 @@ A tree of nodes, a camera, some lights. Everything on this page needs no device 
 
 ## Nodes
 
-`SceneNode` holds a local transform and caches a world matrix. Children are attached, the world matrix invalidates down the subtree, and a **version stamp**, not a dirty flag — records that it changed.
+`SceneNode` holds a local transform and caches a world matrix. When children are attached, the world matrix invalidates down the subtree, and a **version stamp** (not a dirty flag) records that it changed.
 
 ```dart
 final node = SceneNode(name: 'pivot')
@@ -156,7 +156,7 @@ final bounds = skeleton.computeBounds(reach: 0.1);
 ```
 
 - **64 joint matrices** in a uniform array, four weights a vertex.
-- A skinned primitive gets the **skinned vertex layout**, chosen from the data instead of from the caller — the layout and the shader are one decision, so a mesh has both or neither.
+- A skinned primitive gets the **skinned vertex layout**, chosen from the data instead of from the caller. The layout and the shader are one decision, so a mesh has both or neither.
 - Bounds come from the **posed** skeleton rather than the bind pose, because a character that reaches out of its bind-pose box gets culled at exactly the moment it becomes interesting.
 
 ## View-model nodes
