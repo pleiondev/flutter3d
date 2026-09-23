@@ -1,5 +1,5 @@
 ---
-description: A 3D engine on Flutter GPU, a game layer on top of it, and two shipped games of different genres built from both.
+description: A 3D engine on Flutter GPU, a game layer on top of it, and three shipped games of different genres built from both.
 ---
 
 <p class="hero-kicker">A 3D engine on Flutter GPU</p>
@@ -28,7 +28,7 @@ flutter3d is a renderer, a game layer, and three finished games of different gen
 | | |
 |---|---|
 | Platforms | macOS and the browser are supported and exercised; Android is played on a real handset (Impeller Vulkan, touch controls); iOS runs clean in the simulator on Metal; Windows and Linux are unverified |
-| Published | Yes — 27 packages on [pub.dev](https://pub.dev/publishers/pleion.dev/packages) under the pleion.dev publisher, at the 0.6.0 set. The workspace holds 37 and carries 0.7.0, which is prepared and not out yet: fourteen packages go up for the first time with it, `flutter3d_game_strategy`, `flame_flutter3d` and the modeller's among them |
+| Published | Yes: all 38 packages are on [pub.dev](https://pub.dev/publishers/pleion.dev/packages). Thirty-five carry 0.7.0, published on 2026-09-21, so any `^0.7.0` resolves against every other; `pad_input` and `pointer_lock` keep their own line at 0.4.1 and `flutter3d_samples` at 0.4.3 |
 | Stability | Pre-1.0. The graphics HAL carries a written compatibility promise; nothing else does |
 
 ## Where to start
@@ -52,7 +52,7 @@ flutter3d is a renderer, a game layer, and three finished games of different gen
   <li><a href="/modeler/">
     <span class="card-kind">Tool · in progress</span>
     <h3>Modeler</h3>
-    <p>Import, clean up, rig, pose and light a model — ten modes over one document of commands, drivable by an agent through the same doors a person uses.</p>
+    <p>Import, clean up, rig, pose and light a model: ten modes over one document of commands, which an agent can drive through the same doors a person uses.</p>
   </a></li>
   <li><a href="/shooter/demo/">
     <span class="card-kind">Genre · playable</span>
@@ -71,11 +71,11 @@ flutter3d is a renderer, a game layer, and three finished games of different gen
   </a></li>
 </ul>
 
-All three run in a browser on the WebGL2 backend and are embedded on their demo pages. The racing game was the holdout — well under a frame a second for months — and [its demo page keeps the hunt](/racing/demo/): the cost was a cube shadow atlas sized from the sun's setting, four hundred megabytes of texture on a platform with less, which no reduction in frame size could touch.
+All three run in a browser on the WebGL2 backend and are embedded on their demo pages. The racing game was the holdout, at well under a frame a second for months, and [its demo page keeps the hunt](/racing/demo/). The cost turned out to be a cube shadow atlas sized from the sun's setting: four hundred megabytes of texture on a platform with less, which no reduction in frame size could touch.
 
 ## The package split
 
-Twenty-four packages. Each boundary is a rule that a test enforces.
+Thirty-eight packages in all. The diagram shows the ones an application stands on, and each boundary in it is a rule that a check enforces.
 
 ```mermaid
 flowchart TB
@@ -87,7 +87,7 @@ flowchart TB
     gameSeed["flutter3d_game/example<br>the game scaffold"]
   end
 
-  subgraph genre["genres — vocabulary"]
+  subgraph genre["genres: vocabulary"]
     shooter["flutter3d_game_shooter<br>weapons, monsters, inventory"]
     plat["flutter3d_game_platformer<br>runner, springs, surfaces"]
     race["flutter3d_game_racing<br>track, car, tire, lap"]
@@ -128,15 +128,15 @@ flowchart TB
   simp --> physics
 ```
 
-Three more packages exist that this diagram deliberately leaves out, because none of them changes what an app may know: `pad_input` and `pointer_lock` are gamepad and mouse capture, read once per frame by `flutter3d_game`, and `flutter3d_conformance` is test-only — it is what a backend has to pass before it can appear in the table below. `flutter3d_app` makes one decision of its own: which device to open, web or native at compile time and which of the two on each side at run time, so the conditional import an app needs is written once and not per project. [Assembling an application](/core/session/) walks all of it with the real code that uses them. The rules this diagram states are not a package at all — they are `tool/structure.dart`, thirty-five checks that read source text and run before a build.
+Three more packages are left out of the diagram on purpose, because none of them changes what an app may know. `pad_input` and `pointer_lock` are gamepad and mouse capture, read once per frame by `flutter3d_game`, and `flutter3d_conformance` is test-only: it is what a backend has to pass before it can appear in the table below. `flutter3d_app` makes one decision of its own, which device to open (web or native at compile time, and which of the two on each side at run time), so the conditional import an app needs is written once and not per project. [Assembling an application](/core/session/) walks through all of it with the real code that uses them. The rules the diagram states live outside any package, in `tool/structure.dart`: thirty-five checks that read source text and run before a build.
 
-Three rules hold the picture up, and `tool/structure.dart` checks each one before a build.
+Three of those rules hold the picture up:
 
 - **`flutter3d_game` does not depend on `flutter3d`.** Simulation, input and collision say nothing about how a frame is drawn. That is what lets the failures which never show up in a screenshot be reached from a plain unit test: a collision that passes through a wall once in a thousand steps, a jump that is a different height on a faster monitor, a press swallowed at a low frame rate.
-- **A genre is a package.** `flutter3d_game_shooter` holds what only a shooter wants, so a platformer inherits none of its vocabulary. Two rules check it: no package outside a genre may import one, and none may *say* a genre word — `oneWay`, `ammo` and `lapTime` import nothing and are the same leak.
-- **The engine names no graphics API.** `flutter3d` is written against a hardware abstraction layer, `flutter3d_hardware`, and four backends implement it. Checked in both directions: the engine may not name `flutter_gpu`, and the layer may not name Flutter.
+- **A genre is a package.** `flutter3d_game_shooter` holds what only a shooter wants, so a platformer inherits none of its vocabulary. Two rules check it: no package outside a genre may import one, and none may *say* a genre word, because `oneWay`, `ammo` and `lapTime` import nothing and are the same leak.
+- **The engine names no graphics API.** `flutter3d` is written against a hardware abstraction layer, `flutter3d_hardware`, and four backends implement it. The check runs in both directions: the engine may not name `flutter_gpu`, and the layer may not name Flutter.
 
-The bridge exists because neither of the first two rules leaves anywhere for the mapping to live. Level geometry has to become mesh nodes and an actor has to get a visual, while the game layer must not learn what a mesh is and the renderer must not learn what a monster is. One package is allowed to know both.
+The application layer exists because the first two rules leave nowhere else for one mapping to live. Level geometry has to become mesh nodes and an actor has to get a visual, while the game rules must not learn what a mesh is and the renderer must not learn what a monster is. `flutter3d_app` loads a level into a scene and `flutter3d_game` gives actors and fixtures their visuals, so those two packages are the only ones allowed to know both sides.
 
 ## One HAL, four backends
 
@@ -145,21 +145,21 @@ The renderer talks to a hardware abstraction layer and never to a graphics API. 
 | Backend | Runs on | Status |
 |---|---|---|
 | `flutter3d_impeller` | `flutter_gpu`: Metal on Apple platforms, Vulkan elsewhere | Complete. All three games ship on it |
-| `flutter3d_webgl` | WebGL2, in the browser | Runs all three games, slower and at a fixed resolution. The racing game was the holdout for months and drives now — the cost was a cube shadow atlas sized from the sun's setting, not the frame |
+| `flutter3d_webgl` | WebGL2, in the browser | Runs all three games, slower and at a fixed resolution. The racing game was the holdout for months and drives now; the cost was a cube shadow atlas sized from the sun's setting, not the frame |
 | `flutter3d_cpu` | Nothing. It rasterises in Dart | Complete for the golden set. A dev dependency of every game, and now `flutter3d_app`'s last resort too |
-| `flutter3d_webgpu` | WebGPU, in a browser that has an adapter | Draws, and answers the whole conformance suite against a live device. Declines three capabilities by name. Reached by asking for it, not by default — see below |
+| `flutter3d_webgpu` | WebGPU, in a browser that has an adapter | Draws, and answers the whole conformance suite against a live device. Declines three capabilities by name. You get it by asking for it, not by default; see below |
 
-`flutter3d_conformance` is the suite a backend has to pass before it belongs in this table — clears that cover the whole attachment, upload/readback row order, HDR renderability, shader stage linking. It runs against all four, including Impeller through `packages/flutter3d_impeller/tool/conformance.sh`, which the harness itself has to be, since Flutter GPU requires Impeller and a headless `flutter test` cannot give it one. WebGPU is the opposite case and the easiest of the four: Chrome has a real WebGPU device inside `flutter test`, so the suite is an ordinary test file there.
+`flutter3d_conformance` is the suite a backend has to pass before it belongs in this table: clears that cover the whole attachment, upload and readback row order, HDR renderability, shader stage linking. It runs against all four, including Impeller through `packages/flutter3d_impeller/tool/conformance.sh`, which is what the harness for Impeller has to be, since Flutter GPU requires Impeller and a headless `flutter test` cannot give it one. WebGPU is the opposite case and the easiest of the four: Chrome has a real WebGPU device inside `flutter test`, so the suite is an ordinary test file there.
 
-`flutter3d_app` — the assembly-layer package picking which of these an application gets — tries Impeller first on every native build and only reaches for the CPU backend at runtime, if Impeller throws. In a browser it opens WebGL2, and tries WebGPU first only when the build says `--dart-define=FLUTTER3D_WEBGPU=true`. [Assembling an application](/core/session/) is where those fallbacks are documented.
+`flutter3d_app`, the assembly-layer package, picks which of these an application gets. It tries Impeller first on every native build and only reaches for the CPU backend at runtime, if Impeller throws. In a browser it opens WebGL2, and tries WebGPU first only when the build says `--dart-define=FLUTTER3D_WEBGPU=true`. [Assembling an application](/core/session/) documents those fallbacks.
 
 <div class="why">
-<p><strong>WebGPU is not the browser default, and the reason is a number.</strong> Whether <code>navigator.gpu</code> hands out an adapter depends on the browser, the driver and the machine's blocklist, so finding out means trying — and code that can try is code dart2js ships. Measured on the strategy demo, <code>flutter build web --release</code> writes 2,529,865 bytes of <code>main.dart.js</code> without the flag and 2,906,514 with it: <strong>376,649 bytes, 14.9%</strong>, of a second backend a build may never open. WebGL2 is also the browser backend three shipped games have been looked at on and the one whose reference set is recorded. Switching the probe on for everybody would change what those games draw and charge each of them the bytes, so it stays a game's own call, and making it is one flag.</p>
+<p><strong>WebGPU is not the browser default, and the reason is a number.</strong> Whether <code>navigator.gpu</code> hands out an adapter depends on the browser, the driver and the machine's blocklist, so finding out means trying, and code that can try is code dart2js ships. Measured on the strategy demo, <code>flutter build web --release</code> writes 2,529,865 bytes of <code>main.dart.js</code> without the flag and 2,906,514 with it: <strong>376,649 bytes, 14.9%</strong>, for a second backend a build may never open. WebGL2 is also the browser backend the three shipped games have been checked on, and the one whose reference set is recorded. Switching the probe on for everybody would change what those games draw and charge each of them the bytes, so it stays a game's own call, and making it takes one flag.</p>
 </div>
 
-An application names a backend in its pubspec and hands the device to `Renderer.create`. Moving between them is that line and one constructor call.
+An application names a backend in its pubspec and hands the device to `Renderer.create`. Moving between backends is that line and one constructor call.
 
-Each backend exists for a different reason. Impeller is the production one. WebGL2 answers whether the HAL is a seam or a description of Impeller, because a fake backend can only show that an interface is callable, never that it is implementable. The CPU rasteriser shares no driver, shading language or command buffer with either of the others, so agreement with it means more than agreement between two GPU backends would. WebGPU is the first one whose *shaders* are not the same text — WGSL rather than GLSL, translated by a second toolchain — which is a different question again: whether the shader half of the contract is a seam too.
+Each backend exists for a different reason. Impeller is the production one. WebGL2 answers whether the HAL is a real seam or only a description of Impeller, because a fake backend can only show that an interface is callable, never that it is implementable. The CPU rasteriser shares no driver, shading language or command buffer with either of the others, so agreement with it means more than agreement between two GPU backends would. WebGPU is the first one whose *shaders* are not the same text (WGSL instead of GLSL, translated by a second toolchain), which asks a different question again: whether the shader half of the contract is a seam too.
 
 [How the HAL is put together](/core/architecture/#the-hal) · [Writing a backend](/core/backends/)
 
@@ -167,13 +167,13 @@ Each backend exists for a different reason. Impeller is the production one. WebG
 
 | | |
 |---|---|
-| Rendering | Six lighting models as pre-built shaders. HDR pipeline with tone mapping and exposure, bloom from a half-size chain, cascaded directional shadows with PCF, point-light shadows with a static half baked once, instanced batches, precomputed visibility and baked lightmaps with bounces for brush levels, screen-space reflections, fog, 4× MSAA, wireframe (Impeller only — the WebGL and software backends decline it, and the frame says so through `FrameResult.wireframeDeclined`) |
+| Rendering | Six lighting models as pre-built shaders. HDR pipeline with tone mapping and exposure, bloom from a half-size chain, cascaded directional shadows with PCF, point-light shadows with a static half baked once, instanced batches, precomputed visibility and baked lightmaps with bounces for brush levels, screen-space reflections, fog, 4× MSAA, wireframe (Impeller only: the WebGL and software backends decline it, and the frame says so through `FrameResult.wireframeDeclined`) |
 | Geometry | Surfaces of revolution as the base generator, `MeshData` and `MeshBuilder`, custom vertex layouts, tangent generation with Lengyel's method |
 | Assets | glTF 2.0 / GLB, Wavefront OBJ, and `.f3d`, the engine's own container. Decoding on a background isolate, a reference-counted cache |
 | Animation | All three glTF interpolations, skinning with 64 joint matrices, an `AnimationPlayer` with crossfades, transport and once/loop/ping-pong |
 | Scene | Version-stamped nodes, a BVH shared by culling and picking, LOD groups by screen coverage, orbit and follow cameras, CPU raycasting |
 | Simulation | A fixed step with interpolation, device-agnostic input with latched edges, a level format with a validator, holes blown in its walls, mechanisms, actors and brains, a navigation grid with flow fields and an automap drawn from it, an ECS, snapshots, demos that replay a run exactly, a rewind buffer for a kill camera |
-| Input | Gamepad through `pad_input` on macOS, iOS, Web and Android, read as a per-frame snapshot; mouse capture for FPS-style cameras through `pointer_lock`, on macOS through a method channel and in a browser through the Pointer Lock API, which is pure Dart and needs no registration |
+| Input | Gamepad through `pad_input` on macOS, iOS, Web and Android, read as a per-frame snapshot; mouse capture for FPS-style cameras through `pointer_lock`, on macOS through a method channel and in a browser through the Pointer Lock API, which is pure Dart and needs no registration; on-screen touch controls in `flutter3d_game` |
 | Physics | Overlap, sweeps and rays over a uniform-grid broadphase, a character controller that walks, jumps, climbs a step and rides a lift, and rigid bodies without rotation |
 | Driving | A track as a spline with width, camber and surface bands, a sphere-and-frame vehicle, a tire curve with a friction circle, lap counting through checkpoints, AI drivers and ghost tapes |
 | Extras | A pooled particle system that draws in one call, positional audio with attenuation, panning, voice limiting, and occlusion through the level's walls that muffles a sound as well as quietening it |
@@ -181,7 +181,7 @@ Each backend exists for a different reason. Impeller is the production one. WebG
 ## What it does not do
 
 - **No runtime shader compilation.** Shaders are compiled ahead of time into a bundle, so a material graph assembled while the game runs is not possible. Every lighting model is a separate pre-built shader and every shader is a separate pipeline.
-- **No compute passes.** That is what `flutter_gpu` still lacks, and it is why the bloom chain is half-size targets rather than a workgroup. Compressed textures and rendering into a mip level have both arrived since this line was written: `GraphicsDevice.supportsTextureFormat` answers per format and a device that says no leaves the texture out with a warning, and `supportsRenderToMip` is true on Metal and Vulkan and false elsewhere — the one capability that splits a single backend by platform.
-- **No navmesh, no flanking, no squads.** Navigation gets an agent there, not around you.
-- **No touch backend, and no gamepad or mouse capture on Windows or Linux.** `pad_input` covers macOS, iOS, Web and Android; `pointer_lock` covers macOS and the web. `InputState` is device-agnostic, so the remaining platforms are new implementations of an existing seam, not a design change.
+- **No compute passes.** `flutter_gpu` still lacks them, which is why the bloom chain is half-size targets and not a workgroup. Compressed textures and rendering into a mip level have both arrived since this line was written: `GraphicsDevice.supportsTextureFormat` answers per format, and a device that says no leaves the texture out with a warning. `supportsRenderToMip` is true on Metal and Vulkan and false elsewhere, the one capability that splits a single backend by platform.
+- **No navmesh, and no flanking or squads.** Navigation gets an agent to where it is going; it does not work its way around you.
+- **No gamepad or mouse capture on Windows or Linux.** `pad_input` covers macOS, iOS, Web and Android; `pointer_lock` covers macOS and the web. `InputState` is device-agnostic, so the remaining platforms are new implementations of an existing seam, not a design change.
 - **Basis Universal textures unpack to RGBA8.** ETC1S and UASTC are both read, with or without Zstandard, but as pixels: neither is repacked into the BC, ETC2 or ASTC blocks a device samples, so a Basis texture costs four bytes a texel once loaded. A KTX2 file's own BC, ETC2 and ASTC blocks do upload as they are where the device samples them. Draco-compressed geometry is decoded.
