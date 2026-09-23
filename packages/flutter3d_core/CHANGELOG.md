@@ -46,6 +46,13 @@
   positions across UV seams, USDZ flips winding under a mirror, JPEG decodes
   non-interleaved and multi-scan files, and `.fmat` keeps `mipLinear` and a
   custom vertex stage.
+- **`LightNode.castsShadow` is read on the sun too.** The renderer cast the
+  first directional light whatever its flag said, because only the cube
+  shadows read it, so "this sun does not cast" could only be said by turning
+  shadows off for the frame. It now picks the first directional light that
+  asks. **The default follows the type**: left out of the constructor, it is
+  true for a directional light and false for the others, which is what every
+  scene already drew. A sun built with `castsShadow: false` stops casting.
 
 Its `flutter3d_*` dependencies ask for `^0.7.1`, and it asks for `vector_math` ^2.4.3, `image` ^4.10.1.
 

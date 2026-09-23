@@ -1283,7 +1283,8 @@ final class Renderer implements RenderServices {
     _targetHeight = height;
   }
 
-  /// Index of the first directional light in the packed buffer, or -1.
+  /// Index of the first directional light in the packed buffer that asks to
+  /// cast, or -1.
   ///
   /// Only a directional light casts today: it is the one whose shadow volume is
   /// a box rather than a frustum or a cube, so it needs neither cascades nor six
@@ -1295,8 +1296,15 @@ final class Renderer implements RenderServices {
   /// `gfx-41n` needs it: a plan gathers the scene's lights into a buffer of
   /// its own so that asking what a frame *would* do cannot disturb what the
   /// last frame did.
+  ///
+  /// **[LightNode.castsShadow] is read here, and was not until 0.7.1.** Only
+  /// the cube shadows read it, so clearing it on the sun did nothing and the
+  /// nearest way to say "not this one" was to turn shadows off for the frame
+  /// or mesh by mesh. A light with no node behind it casts: that is
+  /// [LightBuffer.useDefaultLight]'s, which has no flag to clear.
   static int _directionalIndexIn(LightBuffer buffer) {
     for (var i = 0; i < buffer.count; i++) {
+      if (i < buffer.packed.length && !buffer.packed[i].castsShadow) continue;
       if (buffer.positions[i * 4 + 3] == ShaderLightType.directional) return i;
     }
     return -1;
