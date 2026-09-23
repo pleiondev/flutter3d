@@ -9,7 +9,7 @@ import 'sim_tools.dart';
 /// A constant, because a compiled server has no pubspec to read. It said
 /// 0.1.0 while the package moved on, since "kept beside the pubspec's" was a
 /// comment and nothing checked it; `server_version_test.dart` does now.
-const String simMcpVersion = '0.7.0';
+const String simMcpVersion = '0.7.1';
 
 /// A level of whatever game [SimSession.game] is, offered to an agent as a
 /// table of tools — `ai-00`.

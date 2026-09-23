@@ -46,11 +46,12 @@ final class LightNode extends SceneNode {
     Vector3? color,
     this.intensity = 1.0,
     this.range = 0.0,
-    this.castsShadow = false,
+    bool? castsShadow,
     this.innerConeAngle = 0.0,
     this.outerConeAngle = math.pi / 4.0,
     super.name,
-  }) : color = color ?? Vector3(1.0, 1.0, 1.0);
+  }) : castsShadow = castsShadow ?? type == LightType.directional,
+       color = color ?? Vector3(1.0, 1.0, 1.0);
 
   LightType type;
 
@@ -59,10 +60,17 @@ final class LightNode extends SceneNode {
 
   /// Whether this light wants a shadow map.
   ///
-  /// A request, not a promise: the renderer shadows one directional light and
-  /// one point light, and asking does not put a light at the front of that
-  /// queue. The level format has carried the flag since it was written and
-  /// nothing read it, which is why a torch lit the far side of a wall.
+  /// A request, not a promise: the renderer shadows a limited number of lights
+  /// and asking does not put a light at the front of that queue. Clearing it
+  /// is a promise, and on a directional light that used to be the half that
+  /// was missing: the sun cast whether or not the flag said so, because only
+  /// the cube shadows read it.
+  ///
+  /// **Left out of the constructor, it depends on [type]**: true for a
+  /// directional light, false for a point, spot or area light. That is what
+  /// every scene already drew, since the sun cast regardless and a point light
+  /// cast only when asked. It is decided once, when the node is made;
+  /// changing [type] afterwards leaves it as it was.
   bool castsShadow;
 
   /// Which channels this light shines on — `gfx-12n`'s own row.

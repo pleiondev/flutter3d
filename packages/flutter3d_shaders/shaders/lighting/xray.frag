@@ -27,6 +27,7 @@
 // passes; the reverse — declaring an output the target has no slot for — is
 // the one that crashes Metal.
 #define F3D_NO_POINT_SHADOW
+#define F3D_NO_LIGHT_LIST
 #define F3D_NO_SURFACE_BUFFER
 #include <lib/surface.glsl>
 

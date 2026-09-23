@@ -1283,7 +1283,8 @@ final class Renderer implements RenderServices {
     _targetHeight = height;
   }
 
-  /// Index of the first directional light in the packed buffer, or -1.
+  /// Index of the first directional light in the packed buffer that asks to
+  /// cast, or -1.
   ///
   /// Only a directional light casts today: it is the one whose shadow volume is
   /// a box rather than a frustum or a cube, so it needs neither cascades nor six
@@ -1295,8 +1296,15 @@ final class Renderer implements RenderServices {
   /// `gfx-41n` needs it: a plan gathers the scene's lights into a buffer of
   /// its own so that asking what a frame *would* do cannot disturb what the
   /// last frame did.
+  ///
+  /// **[LightNode.castsShadow] is read here, and was not until 0.7.1.** Only
+  /// the cube shadows read it, so clearing it on the sun did nothing and the
+  /// nearest way to say "not this one" was to turn shadows off for the frame
+  /// or mesh by mesh. A light with no node behind it casts: that is
+  /// [LightBuffer.useDefaultLight]'s, which has no flag to clear.
   static int _directionalIndexIn(LightBuffer buffer) {
     for (var i = 0; i < buffer.count; i++) {
+      if (i < buffer.packed.length && !buffer.packed[i].castsShadow) continue;
       if (buffer.positions[i * 4 + 3] == ShaderLightType.directional) return i;
     }
     return -1;
@@ -2621,7 +2629,9 @@ final class Renderer implements RenderServices {
       passShadowSlots = _shadowSlots;
     } else {
       _passLights.gather(scene.lights);
-      if (_passLights.count == 0) _passLights.useDefaultLight();
+      if (_passLights.count == 0 && scene.defaultLightWhenUnlit) {
+        _passLights.useDefaultLight();
+      }
       passLights = _passLights;
       passShadowSlots = _noShadowSlots;
     }
@@ -2763,7 +2773,9 @@ final class Renderer implements RenderServices {
     // default light included, because a scene with none is lit by one and a
     // plan that said otherwise would be planning a different picture.
     final planLights = LightBuffer()..gather(scene.lights);
-    if (planLights.count == 0) planLights.useDefaultLight();
+    if (planLights.count == 0 && scene.defaultLightWhenUnlit) {
+      planLights.useDefaultLight();
+    }
     final shadowCaster = _directionalIndexIn(planLights);
 
     // This plan's own allocator. A fresh one assigns rows by the same rule
@@ -2915,7 +2927,9 @@ final class Renderer implements RenderServices {
     // caster before any view is drawn — and the packed buffer is per frame, not
     // per view.
     lights.gather(scene.lights);
-    if (lights.count == 0) lights.useDefaultLight();
+    if (lights.count == 0 && scene.defaultLightWhenUnlit) {
+      lights.useDefaultLight();
+    }
     _lightsScene = scene;
     // **What was actually lost, not what did not fit the slots — `gfx-74n`.**
     // The frame's own `gather` fills eight slots in scene order and calls the

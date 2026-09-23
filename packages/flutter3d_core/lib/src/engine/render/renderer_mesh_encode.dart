@@ -385,7 +385,12 @@ extension _MeshEncode on Renderer {
         MaterialAlphaMode.hashed => -2.0,
         _ => -1.0,
       };
-      _material2Data[1] = material.normalScale;
+      // Zero without a normal map of its own. The fallback's 0.5 lands on
+      // byte 128, which decodes to 0.0039 rather than 0, so the flat normal
+      // tilted every map-less surface by a third of a degree along its
+      // tangent and made its shading depend on how the tangent ran.
+      // Scaling xy to nothing leaves exactly (0, 0, 1) on every backend.
+      _material2Data[1] = material.normal == null ? 0.0 : material.normalScale;
       _material2Data[2] = material.occlusionStrength;
       _material2Data[3] = material.emissiveStrength;
 
@@ -512,12 +517,18 @@ extension _MeshEncode on Renderer {
       // declared sampler nobody binds is a native crash on Metal and a declared
       // block nobody writes is the other way this repository has drawn a wrong
       // picture with no error anywhere.
-      _bindLightList(
-        encoder,
-        fragmentShader,
-        drawLights,
-        _buildLightList(lights),
-      );
+      //
+      // **Lit, and only lit.** The reverse is a crash too: an unlit stage
+      // keeps neither half, and binding them was the first frame of every
+      // unlit scene dying inside Metal's `setFragmentBuffer` on 0.7.0.
+      if (material.lighting.usesLightList) {
+        _bindLightList(
+          encoder,
+          fragmentShader,
+          drawLights,
+          _buildLightList(lights),
+        );
+      }
       encoder.bindUniformBlock(fragmentShader, _kFragInfoBlock, {
         // Whole arrays written from their reflected base offset. A backend
         // reflects the array, not its elements — `lights[0]` comes back

@@ -1,3 +1,12 @@
+## 0.7.1
+
+**`firstLabDivergence`: the step a student's run left the assignment.** It
+compares the recorded parameters step by step and answers the first that
+differs, which is the step the student acted on rather than the later one
+where the simulation state caught up.
+
+Its `flutter3d_*` dependencies ask for `^0.7.1`.
+
 ## 0.7.0
 
 - **The first publication, and the number skips from 0.1.0.** That number was

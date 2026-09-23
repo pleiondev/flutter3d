@@ -11,16 +11,16 @@ dependencies:
   flutter:
     sdk: flutter
 
-  flutter3d: ^0.7.0
-  flutter3d_app: ^0.7.0
-  flame_flutter3d: ^0.7.0
-  flutter3d_sim: ^0.7.0
-  flutter3d_physics: ^0.7.0
+  flutter3d: ^0.7.1
+  flutter3d_app: ^0.7.1
+  flame_flutter3d: ^0.7.1
+  flutter3d_sim: ^0.7.1
+  flutter3d_physics: ^0.7.1
 
   # `Bindings`, the same table `DesktopInput`/`PadInput` write into — see
   # `FlameInputBridge`'s own doc comment for why this app reuses it rather
   # than inventing a second input model.
-  flutter3d_game: ^0.7.0
+  flutter3d_game: ^0.7.1
 
   flame: ^1.38.2
   vector_math: ^2.4.3
@@ -30,7 +30,7 @@ dev_dependencies:
     sdk: flutter
 
   # A device with no GPU behind it, for the frame test.
-  flutter3d_cpu: ^0.7.0
+  flutter3d_cpu: ^0.7.1
   flutter_lints: ^6.0.0
 
 flutter:

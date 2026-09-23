@@ -1,3 +1,15 @@
+## 0.7.1
+
+* **A zero tolerance was never byte for byte, and now the README says so.**
+  `tolerance` is the share of pixels allowed to differ, but a pixel only
+  counted as differing when red, green or blue moved by more than 8 steps,
+  and alpha was not compared at all. The README called that "zero". The
+  defaults stay as they were, and `expectMatchesGolden` takes `channel` and
+  `alpha`, so a test with byte-exact references passes
+  `channel: 0, alpha: true`.
+
+Its `flutter3d_*` dependencies ask for `^0.7.1`, and it asks for `vector_math` ^2.4.3.
+
 ## 0.7.0
 
 * **Breaking for code that builds a `RenderedFrame` by hand.** The record

@@ -94,4 +94,9 @@ flutter:
     - assets/levels/
     - assets/textures/
     - assets/sounds/
+    # Both lines, because Flutter takes the files directly inside a listed
+    # directory and none from below it. With only the first, every model the
+    # hook wrote into `models/` was left out of the bundle and the crypt ran
+    # without monsters, weapons, keys or an exit.
     - flutter3d_generated/
+    - flutter3d_generated/models/

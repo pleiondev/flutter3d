@@ -1,3 +1,61 @@
+## 0.7.1
+
+- **A surface with no normal map is flat again, whichever way its tangent
+  runs.** The fallback normal texture stores 0.5 as byte 128, which decodes
+  to 0.0039 rather than 0, so every map-less material was tilted by about a
+  third of a degree along its tangent and its shading depended on the
+  tangent's direction. The renderer now sends a normal scale of zero with the
+  fallback, which leaves exactly (0, 0, 1) on every backend. Setting
+  `normalScale: 0` by hand is no longer needed for that.
+- **`Scene.defaultLightWhenUnlit`, a switch for the light nobody added.** A
+  scene with no live light is still lit by one directional light by default.
+  A light counts as live only when it is visible and above zero intensity, so
+  turning off the only lamp used to switch a bright default light on. Set the
+  flag to false and an unlit scene stays unlit, with no black light parked in
+  it to keep the count above zero.
+- **`Material.baseColor` is documented as what it is: sRGB in rgb, linear in
+  alpha.** The doc said linear, and every shader converts it with `toLinear`,
+  so a colour converted by hand went through the curve twice. Nothing about
+  the rendering changed.
+- **An unlit draw no longer crashes Metal on the first frame.** 0.7.0 bound
+  the light list, the `LightListInfo` block and `light_list_texture`, to
+  every draw. The Unlit stage (and the polyline, which uses it) gathers no
+  lights and keeps neither in its compiled Metal function, so the bind went to
+  a slot index the driver does not have and the process died inside
+  `setFragmentBuffer:offset:atIndex:` on macOS and iOS alike. Vulkan accepted
+  the same bind, which is why Android drew. The list is now bound only when
+  `LightingModel.usesLightList` says the stage reads it. That is new, defaults
+  to `usesMaterialMaps`, round-trips through `.fmat` as `lightList`, and is
+  false for anything the material language emits.
+
+- **The rest of a full read of the engine.** A failed frame no longer keeps its
+  texture out of rotation or leaves the timeline block open; a new shadow
+  resolution, a resize, `dispose` and `FrameResources.provide` release what
+  they replace. A flickering torch past the first eight lights keeps flickering,
+  a spot light taking over a point light's atlas row clears its tiles, and a
+  replaced `Sky` draws. `lookAt` and the IK solvers work under a scaled parent,
+  a skinned mesh is picked in its current pose and an instanced batch against
+  every instance, and morphs and skinned bounds stop culling a visible mesh.
+  `Scene.clear` is linear. `Material.copy` keeps the parameter block,
+  parameters and extra textures.
+- **The decoders refuse a bad file instead of hanging or reading past it.**
+  meshopt, sparse glTF accessors, `.f3d` record counts, zstd and HDR sizes and
+  KTX2 universal levels are checked, each with its own `FormatException`.
+  meshopt filters are refused by name rather than decoded as noise, OBJ keeps
+  corners with different UVs apart on the web, smooth OBJ normals follow
+  positions across UV seams, USDZ flips winding under a mirror, JPEG decodes
+  non-interleaved and multi-scan files, and `.fmat` keeps `mipLinear` and a
+  custom vertex stage.
+- **`LightNode.castsShadow` is read on the sun too.** The renderer cast the
+  first directional light whatever its flag said, because only the cube
+  shadows read it, so "this sun does not cast" could only be said by turning
+  shadows off for the frame. It now picks the first directional light that
+  asks. **The default follows the type**: left out of the constructor, it is
+  true for a directional light and false for the others, which is what every
+  scene already drew. A sun built with `castsShadow: false` stops casting.
+
+Its `flutter3d_*` dependencies ask for `^0.7.1`, and it asks for `vector_math` ^2.4.3, `image` ^4.10.1.
+
 ## 0.7.0
 
 - **The first publication: the engine with no Flutter SDK behind it.** The

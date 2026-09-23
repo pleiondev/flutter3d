@@ -1,5 +1,5 @@
 ---
-description: Twelve steps from an empty project to a racing game — a track as a curve, a car that slides, laps that cannot be cheated, AI drivers, a chase camera and a ghost.
+description: Twelve steps from an empty project to a racing game, with a track as a curve, a car that slides, laps that cannot be cheated, AI drivers, a chase camera and a ghost.
 ---
 
 # Tutorial: build a racing game
@@ -22,24 +22,24 @@ Twelve steps. The engine underneath is the one the [shooter](/shooter/tutorial/)
 dependencies:
   flutter: { sdk: flutter }
 
-  flutter3d_impeller: ^0.7.0
-  flutter3d:          ^0.6.0
-  flutter3d_game:     ^0.6.0
-  flutter3d_game_racing:   ^0.6.0
-  flutter3d_app:      ^0.7.0
-  flutter3d_audio:    ^0.6.0
+  flutter3d_impeller: ^0.7.1
+  flutter3d:          ^0.7.1
+  flutter3d_game:     ^0.7.1
+  flutter3d_game_racing: ^0.7.1
+  flutter3d_app:      ^0.7.1
+  flutter3d_audio:    ^0.7.1
   vector_math: ^2.2.0
 ```
 
 <div class="warn">
-<p>The versions come from <a href="https://pub.dev/publishers/pleion.dev/packages">pub.dev</a>. Working against a checkout instead — for engine changes of your own — means swapping each line for a <code>path:</code> into it. <a href="/first-project/">Your first project</a> covers the Flutter version that goes with the pubspec.</p>
+<p>The versions come from <a href="https://pub.dev/publishers/pleion.dev/packages">pub.dev</a>. Every line is on the same 0.7.0 set, and the lines have to agree: <code>flutter3d_app</code> 0.7.0 asks for <code>flutter3d</code> 0.7.0, so one package left on 0.6.0 stops <code>pub get</code>. To work against a checkout instead, for engine changes of your own, swap each line for a <code>path:</code> into it. <a href="/first-project/">Your first project</a> covers the Flutter version that goes with the pubspec.</p>
 </div>
 
 No `flutter3d_game_shooter` and no `flutter3d_game_platformer`. A genre is a package, and this one inherits nothing from either.
 
 ## Decide what a driver may ask for {.step}
 
-A car has a throttle and a brake, not a forward and a back. `GameAction` is a string rather than an enum for exactly this: a genre declares its own verbs without editing the engine.
+A car has a throttle and a brake, not a forward and a back. `GameAction` is a string, not an enum, for this reason: a genre declares its own verbs without editing the engine.
 
 ```dart
 abstract final class Drive {
@@ -157,7 +157,7 @@ abstract interface class GroundField {
 ```
 
 <div class="why">
-<p><code>nearHint</code> is the car's last known arc length, and it is the reason this is affordable. Finding the nearest point on a closed kilometre-long spline from nothing is a global search; from a hint it is a window of a few metres. <code>CatmullRom</code> offers both — <code>closestS(point, nearS:, window:)</code> and <code>closestSGlobal</code> — and only the first belongs in a step.</p>
+<p><code>nearHint</code> is the car's last known arc length, and it is the reason this is affordable. Finding the nearest point on a closed kilometre-long spline from nothing is a global search; from a hint it is a window of a few metres. <code>CatmullRom</code> offers both, <code>closestS(point, nearS:, window:)</code> and <code>closestSGlobal</code>, and only the first belongs in a step.</p>
 </div>
 
 ## Build the grid {.step}

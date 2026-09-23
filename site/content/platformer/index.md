@@ -10,9 +10,9 @@ Three hardcoded object types had already been dug out of the engine by *imaginin
 
 | Taken from core, unchanged | Brought by this genre |
 |---|---|
-| The fixed step, `CharacterController` | Its own jump policy — the controller's is a shooter's |
+| The fixed step, `CharacterController` | Its own jump policy; the controller's is a shooter's |
 | The level format and its validator | `Purse`, `Collectible`, `Checkpoint`, `Hazard` |
-| `EntityRegistry`, mechanisms, movers | `Surfaces` — the table from a brush's word to movement numbers |
+| `EntityRegistry`, mechanisms, movers | `Surfaces`, the table from a brush's word to movement numbers |
 | Riders, exits, health, the ECS, snapshots | `FollowCamera`, and its own step order |
 
 Nothing here imports the renderer, so all of it runs in a test with no device.
@@ -55,14 +55,14 @@ Every one of those is a number in `RunnerTuning`, and each number has a reason:
 | `mantleLow` / `mantleHigh` | 0.35 / 1.5 | Below the low figure the controller's step-up already handles it; above the high one, deliberately under a jump's 1.88 m, a mantle is for the ledge you *just* missed |
 | `dashSpeed` / `dashCooldown` | 18.0 / 0.55 | On the press edge only. A dash you can hold is a second walk speed |
 | `slideSpeed` / `slideTime` | 11.0 / 0.55 | Faster than a sprint or nobody slides; short-lived or it replaces running |
-| `longJumpUp` / `longJumpPush` | 6.0 / 12.0 | A low, long arc: crosses gaps a normal jump cannot and reaches ledges it can — worth learning rather than strictly better |
+| `longJumpUp` / `longJumpPush` | 6.0 / 12.0 | A low, long arc: crosses gaps a normal jump cannot and reaches ledges it can. Worth learning, though not strictly better |
 | `poundSpeed` | 26.0 | Well past terminal velocity, because the point is that it arrives *now* |
 | `stompBounce` / `stompBounceHeld` | 7.5 / 11.0 | The held figure is above a standing jump, so a chain of stomps climbs |
-| `dropThroughTime` | 0.25 | About 40 cm of fall — enough to clear any platform a level authors |
+| `dropThroughTime` | 0.25 | About 40 cm of fall, enough to clear any platform a level authors |
 | `crouchHeight` | 0.45 | Half of standing, which makes a one-metre gap a crawlspace rather than a decoration |
 
 <div class="why">
-<p>The runner owns its jump and the controller does not mind. <code>CharacterController.tuning.jumpSpeed</code> is still there and still works; what it cannot do is a second jump in the air, a variable height, a wall jump or a cut. Rather than growing four flags on a type a shooter also uses, the runner sets <code>body.velocity.y</code> itself, which is exactly what a kinematic controller is for.</p>
+<p>The runner owns its jump and the controller does not mind. <code>CharacterController.tuning.jumpSpeed</code> is still there and still works; what it cannot do is a second jump in the air, a variable height, a wall jump or a cut. Instead of growing four flags on a type a shooter also uses, the runner sets <code>body.velocity.y</code> itself, which is what a kinematic controller is for.</p>
 </div>
 
 ## Surfaces
@@ -145,7 +145,7 @@ final class Leaper extends Patrol {
 }
 ```
 
-Both are ordinary `Brain`s driven by the engine's `ActorSystem`. No genre-specific system, no monster type — the platformer's enemies and the shooter's use the same machinery and share none of the vocabulary. For a while nothing stepped the system at all, and so there were no enemies; the [tutorial's simulation step](/platformer/tutorial/#the-simulation-and-the-camera-that-owns-forward) keeps that story.
+Both are ordinary `Brain`s driven by the engine's `ActorSystem`, with no genre-specific system or monster type. The platformer's enemies and the shooter's use the same machinery and share none of the vocabulary. For a while nothing stepped the system at all, and so there were no enemies; the [tutorial's simulation step](/platformer/tutorial/#the-simulation-and-the-camera-that-owns-forward) keeps that story.
 
 ## The follow camera
 
@@ -217,7 +217,7 @@ final sim = PlatformerSimulation(
 <p><code>killPlane</code> is something a platformer needs and a shooter does not: a shooter's floor is continuous, and a platformer's floor is the interesting part. Without it a player who misses a jump falls at terminal velocity for ever and the game looks hung rather than lost.</p>
 </div>
 
-`lives` and `levelNext` are the two fields that make a *run* rather than a level. `lives` defaults to −1, which is endless; a game that sets it counts down and ends the run at zero. `levelNext` is whatever the level document's `"next"` said, and the application follows it — which is how the demo ships five levels and no list of them anywhere in its Dart. **First Steps** teaches one verb a room, **Ascent** is the long one the game is named after, **Cisterns** makes water the hazard, **Foundry** takes the floor away under you, and **Spire** is ten flights over a drop with something following you up. A game that kept its own order of levels would have two orders, and the second one is always the wrong one; lives, deaths, elapsed time and coins are what the application carries across the boundary.
+`lives` and `levelNext` are the two fields that make a *run* rather than a level. `lives` defaults to −1, which is endless; a game that sets it counts down and ends the run at zero. `levelNext` is whatever the level document's `"next"` said, and the application follows it, which is how the demo ships five levels and no list of them anywhere in its Dart. **First Steps** teaches one verb a room, **Ascent** is the long one the game is named after, **Cisterns** makes water the hazard, **Foundry** takes the floor away under you, and **Spire** is ten flights over a drop with something following you up. A game that kept its own order of levels would have two orders, and the second one is always the wrong one; lives, deaths, elapsed time and coins are what the application carries across the boundary.
 
 ## Events, per step
 

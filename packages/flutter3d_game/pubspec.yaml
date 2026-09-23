@@ -1,6 +1,6 @@
 name: flutter3d_game
 description: "What a game on flutter3d adds to an application: touch, keyboard, mouse and gamepad input, the run being played, the screens that are not the game, and the actors and fixtures a simulation moves, drawn."
-version: 0.7.0
+version: 0.7.1
 repository: https://github.com/pleiondev/flutter3d
 homepage: https://flutter3d.pleion.dev
 issue_tracker: https://github.com/pleiondev/flutter3d/issues
@@ -21,10 +21,10 @@ dependencies:
   # The application layer a game stands on: the surface, storage and what a
   # document says when it cannot be read, and the level loader a fixture's
   # visual reads its materials through.
-  flutter3d_app: ^0.7.0
+  flutter3d_app: ^0.7.1
 
   # The renderer, for the actors and fixtures drawn.
-  flutter3d: ^0.7.0
+  flutter3d: ^0.7.1
 
   # Relative mouse deltas, which Flutter offers on no desktop platform.
   pointer_lock: ^0.4.0
@@ -39,13 +39,13 @@ dependencies:
   # to advance a step — see that package's pubspec for the whole reason.
   # Not re-exported: a caller that steps a simulation names this package
   # itself.
-  flutter3d_sim: ^0.7.0
+  flutter3d_sim: ^0.7.1
 
   # Volumes are a mixer's, and the settings panel is where they are turned.
-  flutter3d_audio: ^0.7.0
+  flutter3d_audio: ^0.7.1
 
   # A torch's flame, which is the particles its light is measured from.
-  flutter3d_particles: ^0.7.0
+  flutter3d_particles: ^0.7.1
 
   # State management. The screens here are state machines — a panel that is
   # open, a rebinding that is waiting for a key, a settings document that has
@@ -67,11 +67,11 @@ dev_dependencies:
 
   # A renderer with no GPU under it, so a visual can be built and a screen
   # pumped.
-  flutter3d_cpu: ^0.7.0
+  flutter3d_cpu: ^0.7.1
 
   # For `FakeBackend`, which is what lets the teardown tests assert that
   # uploaded meshes are actually handed back rather than merely forgotten.
-  flutter3d_hardware: ^0.7.0
+  flutter3d_hardware: ^0.7.1
 
   # An external client for `run_timeline_extensions_test.dart` — the same
   # package DevTools and `flutter attach` use to reach a running app's VM

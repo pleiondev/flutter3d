@@ -1,5 +1,5 @@
 ---
-description: The dependency rules, the HAL and its four rendering backends — flutter_gpu, WebGL2, WebGPU and CPU, and the one consequence that shapes everything else.
+description: The dependency rules, the HAL and its four rendering backends (flutter_gpu, WebGL2, WebGPU and CPU), and the one consequence that shapes everything else.
 ---
 
 # Architecture
@@ -8,7 +8,7 @@ Four rules, each enforced by a test instead of by intention, and one consequence
 
 ## The rules
 
-### The engine names no graphics API — the HAL {#the-hal}
+### The HAL: the engine names no graphics API {#the-hal}
 
 `flutter3d` depends on `flutter3d_hardware` and nothing below it. That package is the **HAL**: the hardware abstraction layer, and the vocabulary the engine is written against. It contains no implementation at all, a backend implements it, the engine talks to it, and neither has to know about the other.
 
@@ -40,7 +40,7 @@ final renderer = Renderer.create(device: device);
 
 | Backend | Runs on | Entry point | Status |
 |---|---|---|---|
-| **`flutter3d_impeller`** | `flutter_gpu` — Metal on Apple platforms, Vulkan elsewhere | `GpuRenderBackend.create()` | The production one. Everything in these docs runs on it |
+| **`flutter3d_impeller`** | `flutter_gpu`: Metal on Apple platforms, Vulkan elsewhere | `GpuRenderBackend.create()` | The production one. Everything in these docs runs on it |
 | **`flutter3d_webgl`** | WebGL2, in the browser | `WebGlDevice` | Runs all three games. Slower, at a fixed resolution. What an ordinary web build opens |
 | **`flutter3d_cpu`** | Nothing. It rasterises in Dart | `CpuDevice()` | Complete for the golden set. A dev dependency of every game |
 | **`flutter3d_webgpu`** | WebGPU, in a browser that hands out an adapter | `openWebGpu()` | Draws, and passes the whole conformance suite against a live device. Declines four capabilities by name. Asked for rather than defaulted to |
@@ -51,11 +51,11 @@ Each exists for a different reason, and none of them is a fallback for another.
 
 **`flutter3d_webgl`** is how you find out whether the HAL is a seam or a description of Impeller. A fake backend can only confirm that an interface is *callable*, never that it is *implementable*. All three games run on it, at a fixed internal resolution and a lower frame rate, and all three are embedded in these docs. [The racing game](/racing/demo/) was the last of them: it drew the circuit at well under a frame a second for months, and what was wrong was a cube shadow atlas sized from the sun's setting rather than anything about the seam.
 
-Its shaders are GLSL ES 3.00 generated from `flutter3d_shaders`. Nothing checked that the generated file was current for a long time, and it cost two silent failures — a uniform member the browser's copy had never heard of, and a sky shader from before the sky was rewritten. `tool/ci.sh` regenerates it and fails on the diff now, and the compiled Impeller bundle, which cannot be diffed, is held by a freshness rule instead.
+Its shaders are GLSL ES 3.00 generated from `flutter3d_shaders`. Nothing checked that the generated file was current for a long time, and it cost two failures that reported nothing: a uniform member the browser's copy had never heard of, and a sky shader from before the sky was rewritten. `tool/ci.sh` regenerates it and fails on the diff now, and the compiled Impeller bundle, which cannot be diffed, is held by a freshness rule instead.
 
 **`flutter3d_cpu`** is the one that makes the agreement mean something. Two hardware backends agreeing proves less than it looks like: both are driven by a C API and both rasterise on a GPU, so an assumption shared by graphics hardware would be invisible to the pair of them. This one shares nothing with either, no driver, no shading language, no command buffer. It is also what makes 44 golden scenes checkable in a headless run, and what caught three bugs that every simulation test passed.
 
-**`flutter3d_webgpu`** asks a question none of the other three could: whether the *shader* half of the contract is a seam. The first three all read one text — `impellerc` compiles the GLSL, the WebGL generator translates it, the software rasteriser transcribes it into Dart by hand — and WebGPU cannot, because WGSL is a different language and a browser will not take SPIR-V. So its table is generated down a second toolchain, the same manifest through `glslangValidator` and then `naga`, and all thirty-nine stages come out. What it declines it declines by name: no blend constant (WebGPU has no colour/alpha pair for one) and no wireframe (no polygon fill mode in the API at all). Two more used to be on that list. Rendering into a mip is on now and cost no code: a reflection probe convolves its own chain, and a face and a level are `baseArrayLayer` and `baseMipLevel` on an ordinary view here. Block compression is on too, and what it cost was the asking: a WebGPU device gets exactly the features it requested, and requesting one the adapter does not carry rejects the device rather than handing back a lesser one — so the adapter is asked, the intersection is requested, and the capability answers from what was granted.
+**`flutter3d_webgpu`** asks a question none of the other three could: whether the *shader* half of the contract is a seam. The first three all read one text (`impellerc` compiles the GLSL, the WebGL generator translates it, the software rasteriser transcribes it into Dart by hand), and WebGPU cannot, because WGSL is a different language and a browser will not take SPIR-V. So its table is generated down a second toolchain, the same manifest through `glslangValidator` and then `naga`, and all thirty-nine stages come out. What it declines it declines by name: no blend constant (WebGPU has no colour/alpha pair for one) and no wireframe (no polygon fill mode in the API at all). Two more used to be on that list. Rendering into a mip is on now and cost no code: a reflection probe convolves its own chain, and a face and a level are `baseArrayLayer` and `baseMipLevel` on an ordinary view here. Block compression is on too, and what it cost was the asking: a WebGPU device gets exactly the features it requested, and requesting one the adapter does not carry rejects the device instead of handing back a lesser one, so the adapter is asked, the intersection is requested, and the capability answers from what was granted.
 
 A browser build opens WebGL2 unless it says otherwise. That is a decision about bytes: a probe that can call either opener keeps both backends reachable and dart2js ships what it can reach, which the strategy demo measures at 376,649 bytes of `main.dart.js`, 14.9%. `--dart-define=FLUTTER3D_WEBGPU=true` is how a game decides for itself.
 
@@ -86,7 +86,7 @@ abstract interface class GraphicsDevice implements TextureAllocator {
 
 Plus `PassEncoder` (state, bindings, draws), `PassState` as one value, the enums a caller has to name (`formats.dart`, `vertex_layout_spec.dart`), opaque handles for the things a backend owns (`GeometryBuffer`, `ShaderHandle`, `TextureHandle`), sampling (`SamplerOptions`, `MipChain`), and a render target pool with the description that makes two targets interchangeable.
 
-Two rules in `tool/structure.dart` hold the boundary: `the hardware layer names no graphics API` refuses a `flutter_gpu` import anywhere in the HAL, and `the engine names no backend` refuses one in `flutter3d` — and refuses the *dependency* too, which the import scan alone would miss. The HAL also refuses `dart:ui` and the rest of Flutter outright now: `GraphicsDevice.present`, its one Flutter member, is gone, and what a finished frame becomes is decided by a device registry in `flutter3d_hardware` that a backend registers its own presenter with, looked up by `presentFrame` in `flutter3d_app`.
+Two rules in `tool/structure.dart` hold the boundary: `the hardware layer names no graphics API` refuses a `flutter_gpu` import anywhere in the HAL, and `the engine names no backend` refuses one in `flutter3d`, and refuses the *dependency* too, which the import scan alone would miss. The HAL also refuses `dart:ui` and the rest of Flutter outright now: `GraphicsDevice.present`, its one Flutter member, is gone, and what a finished frame becomes is decided by a device registry in `flutter3d_hardware` that a backend registers its own presenter with, looked up by `presentFrame` in `flutter3d_app`.
 
 <div class="note">
 <p>The compiled shader bundle is an asset of <code>flutter3d_impeller</code>, which is where it belongs: a bundle is one backend's output, and the backend that reads it is the one that ships it. The GLSL it is built from is shared, in <code>flutter3d_shaders</code>, because the other two backends compile from the same sources. It used to sit in <code>flutter3d</code>, which made the engine carry one backend's build output.</p>
@@ -98,7 +98,7 @@ Two rules in `tool/structure.dart` hold the boundary: `the hardware layer names 
 
 ### The game layer does not depend on the renderer
 
-`flutter3d_game` imports Flutter in exactly one file — `src/input/desktop_input.dart`, because a key event is a Flutter type. Everything else is plain Dart over `vector_math`. `flutter3d_physics` imports nothing at all.
+`flutter3d_game` imports Flutter in exactly one file, `src/input/desktop_input.dart`, because a key event is a Flutter type. Everything else is plain Dart over `vector_math`. `flutter3d_physics` imports nothing at all.
 
 Simulation, input and collision have nothing to say about how a frame is drawn, and the bugs they have are invisible in a screenshot. All of them are reachable from a plain unit test, and all of them have been caught by one.
 
@@ -145,7 +145,7 @@ There is no runtime shader compilation on this platform. `tool/build_shaders.sh`
 - **A material graph is impossible** while the game runs. Every lighting model is a separate pre-built shader.
 - **Every shader is a separate `RenderPipeline`**, so a pipeline switch is the most expensive state change in a pass. That is why it is the high-order key when the render list is sorted.
 - **Lighting is a uniform array, not a permutation per light count.** `vec4 lights[8]` with the count as a uniform, so switching a light on or off never rebuilds a pipeline. A capture with three lights and one with a single light both report **one** pipeline.
-- **The bundle grows with every permutation** — 12.5 KB with one shader, 97 KB with seven.
+- **The bundle grows with every permutation**: 12.5 KB with one shader, 97 KB with seven.
 - **A shared GLSL header** (`shaders/lib/surface.glsl`) guarantees an identical uniform block across permutations, and the engine tolerates missing members: a shader that never reads `light_direction` loses it from reflection entirely.
 
 <div class="warn">
@@ -177,7 +177,7 @@ Material(
 
 ## Where the frame graph fits
 
-The renderer does not hardcode a list of passes. `FrameGraph` takes nodes that declare what they read and write, and compiles an order — culling anything nothing consumes, and reporting when a resource is last used so a pool can hand its target to somebody else.
+The renderer does not hardcode a list of passes. `FrameGraph` takes nodes that declare what they read and write, and compiles an order, culling anything nothing consumes and reporting when a resource is last used so a pool can hand its target to somebody else.
 
 ```mermaid
 flowchart LR
@@ -196,7 +196,7 @@ Reading it as data rather than as a call sequence is what makes two things possi
 
 Two seams exist for adding to a frame without editing the renderer.
 
-**`PassContributor`** draws inside an existing pass. The particle system is one — `renderer.addContributor(ParticleContributor(particles))`, and nothing in `flutter3d` names a particle as a result.
+**`PassContributor`** draws inside an existing pass. The particle system is one: `renderer.addContributor(ParticleContributor(particles))`, and as a result nothing in `flutter3d` names a particle.
 
 ```dart
 final particles = ParticleSystem(capacity: 2000);

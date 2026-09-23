@@ -41,6 +41,7 @@ final class LightingModel {
     this.usesMaterialParameters = true,
     this.usesMetallic = false,
     this.usesEnvironment = false,
+    this._usesLightList,
   }) : assert(
          !usesMetallicRoughnessMap || usesMaterialMaps,
          'the metallic-roughness map is one of the material maps, so a model '
@@ -211,6 +212,22 @@ final class LightingModel {
   /// The build script's table is what says so, and `lighting-unlit` is what
   /// noticed.
   bool get usesPointShadow => usesMaterialMaps;
+
+  /// Whether the shader reads the light list: the `LightListInfo` block and
+  /// `light_list_texture`.
+  ///
+  /// The same set once more, and again its own name because it was missing.
+  /// The list was bound to every draw, and Unlit keeps neither half: it
+  /// accumulates no lights, so the compiled Metal function has no index for
+  /// either, and binding them crashed inside the driver on the first frame of
+  /// any scene with an unlit or polyline material. Vulkan took the same bind
+  /// without complaint.
+  ///
+  /// Defaults to [usesMaterialMaps], which is right for every model this
+  /// package ships. A stage that samples maps and still gathers no lights,
+  /// such as one emitted from the material language, says `false`.
+  bool get usesLightList => _usesLightList ?? usesMaterialMaps;
+  final bool? _usesLightList;
 
   /// Whether the shader samples `metallic_roughness_texture`.
   ///

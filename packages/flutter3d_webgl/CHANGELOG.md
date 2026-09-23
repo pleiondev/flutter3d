@@ -1,3 +1,17 @@
+## 0.7.1
+
+**Every texture format uploads with its own type and size.** Everything but
+the two float RGBA formats went up as RGBA bytes, so an `r32Sfloat` texture
+sampled as zeros and an `r8` upload was refused; 2D and cube uploads use one
+transfer table now. `readPixels` of a float target returns its values, an
+overwrite of a rendered target is no longer upside down, the MSAA resolve
+covers the whole target instead of the last scissor, integer vertex attributes
+go through the integer pointer, and a released buffer leaves the target map.
+
+The shader table is regenerated from `flutter3d_shaders` 0.7.1.
+
+Its `flutter3d_*` dependencies ask for `^0.7.1`, and it asks for `vector_math` ^2.4.3.
+
 ## 0.7.0
 
 **Breaking.** `WebGlDevice.present` is gone with `GraphicsDevice.present`

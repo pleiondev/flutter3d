@@ -41,15 +41,26 @@ in `tool/structure.dart` holds it to that.
 
 So neither of them can hold something that needs both, and this needs both.
 
-## The tolerance is zero, deliberately
+## What a match means
+
+`tolerance` is the share of pixels allowed to differ, and it is zero by
+default. What counts as a differing pixel is a separate setting, and its
+default is not byte for byte: a pixel differs when red, green or blue is more
+than `channel` steps off, 8 unless you say otherwise, and alpha is not compared
+unless you pass `alpha: true`. This README used to say the tolerance was zero
+and stop there, which read as "exact" to anyone keeping byte-exact references.
+It was not, and a reference that moved by eight steps everywhere still passed.
+
+For an exact comparison:
+
+```dart
+await expectMatchesGolden(frame, path, channel: 0, alpha: true);
+```
 
 The frame comes from a software rasteriser. The same scene drawn twice is the
 same bytes twice: there is no driver, no clock and no thread to disagree. A
-difference is therefore a change, not noise.
-
-A test that allows a few pixels of drift is a test that has stopped watching the
-drift. Raise `tolerance` only when something is measured to move, and say in the
-call why.
+difference is therefore a change, not noise. Raise `tolerance` only when
+something is measured to move, and say in the call why.
 
 ## What it does not do
 

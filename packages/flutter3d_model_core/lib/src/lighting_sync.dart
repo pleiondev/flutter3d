@@ -73,7 +73,13 @@ final class LightingSync {
         color: light.color,
         intensity: light.intensity,
         range: light.range,
-        castsShadow: light.castsShadow,
+        // A directional light casts whatever the project says, as it always
+        // drew. The renderer reads the flag on the sun since 0.7.1, and every
+        // saved project wrote `castsShadow: false` for its sun as a default
+        // nobody chose, so passing it through would take the shadow out of
+        // every project that exists.
+        castsShadow:
+            light.castsShadow || light.type == ProjectLightType.directional,
         innerConeAngle: light.innerConeAngle,
         outerConeAngle: light.outerConeAngle,
       )..setLocalMatrix(light.transform);

@@ -1,3 +1,30 @@
+## 0.7.1
+
+**Installed from pub.dev, it builds again.** 0.7.0's build hook looked for
+`.dart_tool/package_config.json` above its own root, which for an installed
+package is the pub cache, where there is none. Every `flutter test`, `flutter
+run` and `flutter build` of a consuming project failed before its first test,
+although the archive already carried the compiled bundle. The hook now keeps
+the bundle that is there when the GLSL sources cannot be seen, and still
+recompiles in a checkout that can see them.
+
+**`build_shader_bundle` writes into this package, wherever it is run from.**
+It used `Directory.current` as the package root, so run from a consuming
+project it wrote the bundle into that project's `assets/`, where nothing loads
+it. It now resolves this package through the package config.
+
+**On Windows the compiler is `impellerc.exe`**, and the hook looks for that
+name. It looked for `impellerc`, so the Windows desktop build could not make a
+bundle.
+
+**A region overwrite on a BGRA texture keeps red and blue where they were**, and
+a half-float radiance cube with mips is no longer refused for a size check
+that assumed four bytes a texel.
+
+The compiled bundle in this archive is built from `flutter3d_shaders` 0.7.1.
+
+Its `flutter3d_*` dependencies ask for `^0.7.1`, and it asks for `vector_math` ^2.4.3.
+
 ## 0.7.0
 
 **Breaking.** `GpuRenderBackend.present` is gone with `GraphicsDevice.present`
