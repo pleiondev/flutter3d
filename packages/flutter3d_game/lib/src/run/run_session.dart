@@ -291,8 +291,14 @@ abstract base class RunSession<L> {
       return;
     }
     carryFrom(playing.level, next);
+    final generation = _loadGeneration;
     await beforeNext(next);
+    // A restart or a start-over pressed during the wait has already loaded
+    // what the player asked for. Moving on now would throw that away for the
+    // level this finished run was heading to, and save it on top.
+    if (generation != _loadGeneration) return;
     await load(next);
+    if (generation + 1 != _loadGeneration) return;
     // Written once the level is up, so the save describes where the player
     // actually is rather than a level they have not entered.
     save();

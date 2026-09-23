@@ -13,17 +13,6 @@ import 'visibility_culler.dart';
 
 export 'loaded_level.dart';
 
-/// Reads a level asset and turns it into something playable.
-///
-/// The oldest half of the bridge, and still the clearest statement of what the
-/// bridge is for: everything above it is simulation and everything below is
-/// rendering, and the whole binding is the interleaving in `_toMeshData` —
-/// about twenty lines, which is the price of keeping the two packages
-/// independent and worth paying.
-///
-/// Nothing here knows what game it is loading. A level is brushes, materials,
-/// lights and entities; which entity means what is the game's business, and it
-/// is settled elsewhere.
 /// How a level's own files are found.
 ///
 /// **A level belongs to an application, and it is not always the one running.**
@@ -33,6 +22,7 @@ export 'loaded_level.dart';
 /// beside it and in nobody's bundle. Without this the crypt draws in flat grey
 /// in the one program whose whole job is to show somebody what their level
 /// looks like.
+///
 /// Takes the engine's [AssetRequest] rather than a bare path, and takes the
 /// engine's rather than one of its own: a game reading a texture and a decoder
 /// reading a sibling file are the same question asked one level apart, and two
@@ -95,6 +85,17 @@ final class _LevelMaterialSource extends AssetSource {
       data.buffer.asUint8List(data.offsetInBytes, data.lengthInBytes);
 }
 
+/// Reads a level asset and turns it into something playable.
+///
+/// The oldest half of the bridge, and still the clearest statement of what the
+/// bridge is for: everything above it is simulation and everything below is
+/// rendering, and the whole binding is the interleaving in `meshDataOf` —
+/// about twenty lines, which is the price of keeping the two packages
+/// independent and worth paying.
+///
+/// Nothing here knows what game it is loading. A level is brushes, materials,
+/// lights and entities; which entity means what is the game's business, and it
+/// is settled elsewhere.
 final class LevelLoader {
   const LevelLoader();
 
@@ -176,7 +177,7 @@ final class LevelLoader {
       return (null, null);
     }
     try {
-      return (Lightmap.fromBytes(bytes.buffer.asUint8List()), null);
+      return (Lightmap.fromBytes(_LevelMaterialSource._bytes(bytes)), null);
     } catch (error) {
       return (
         null,
@@ -584,6 +585,19 @@ final class LevelLoader {
             : VisibilityCuller(visibility, batches),
       )
       ..brushNodes.addAll(brushNodes)
+      // A `.fmat`'s maps are uploaded by `bindMaterial` and named nowhere but
+      // on the material, so they are collected here or never released.
+      ..boundTextures.addAll(<TextureHandle>{
+        for (final material in deferred.values)
+          ...<TextureHandle?>[
+            material.albedo,
+            material.normal,
+            material.metallicRoughness,
+            material.occlusion,
+            material.emissiveTexture,
+            ...material.extraTextures.values,
+          ].nonNulls,
+      })
       ..lightmap = lightmapTexture
       // Kept for the rebuild after a breach, which has to plan nothing: the
       // atlas is a pure function of the authored level, and this is that
@@ -742,7 +756,9 @@ final class LevelLoader {
       // crawls as the camera moves.
       return await uploadEncodedImage(
         device,
-        bytes.buffer.asUint8List(),
+        // The view, not the whole buffer: a reader may hand back a window
+        // onto a larger one, and the bytes outside it are not this file.
+        _LevelMaterialSource._bytes(bytes),
         decodeImage: defaultImageDecoder,
         sampling: const TextureSampling(),
         // A KTX2 the device does not sample, or a feature of one the reader

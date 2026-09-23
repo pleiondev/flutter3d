@@ -44,6 +44,8 @@ import 'package:flutter/widgets.dart';
 // nothing here has one.
 import 'package:flutter3d/flutter3d.dart' hide RenderView;
 
+import 'widget_surface_pipeline.dart' show unmountWidgetTree;
+
 /// Draws widgets into textures on one device.
 ///
 /// Holds nothing between calls but the device: each [draw] builds its pipeline,
@@ -157,7 +159,9 @@ final class WidgetTexture {
     } finally {
       // Unmounts the element tree this built, so the widgets it made are not
       // left holding tickers, listeners or images after their picture is taken.
-      build.finalizeTree();
+      // `finalizeTree` on its own disposes only what was already deactivated,
+      // which here is nothing — see [unmountWidgetTree].
+      unmountWidgetTree(build, element, boundary);
     }
   }
 }

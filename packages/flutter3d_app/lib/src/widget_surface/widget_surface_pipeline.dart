@@ -220,7 +220,31 @@ final class WidgetSurfacePipeline {
   /// Unmounts the element tree, the way [WidgetTexture.rasterise] does on its
   /// way out — for a [State] that holds a ticker, a listener or an image and
   /// should not keep it once the surface it drew for is gone.
+  ///
+  /// **`finalizeTree` alone unmounts nothing.** It only disposes elements that
+  /// were already deactivated, and a root that was never told to drop its
+  /// child has none — so every `State.dispose` below it was skipped. The root
+  /// is handed an empty adapter first, which deactivates the whole subtree,
+  /// and only then does `finalizeTree` have something to unmount.
   void dispose() {
-    _build.finalizeTree();
+    unmountWidgetTree(_build, _element, _boundary);
   }
+}
+
+/// Drops everything [element] built into [container], and unmounts it.
+///
+/// Shared by [WidgetSurfacePipeline.dispose] and [WidgetTexture.rasterise]:
+/// both attach a root through `RenderObjectToWidgetAdapter`, and the only way
+/// to make that root let go of its subtree is to re-attach it with no child
+/// and run one more build.
+void unmountWidgetTree(
+  BuildOwner build,
+  RenderObjectToWidgetElement<RenderBox> element,
+  RenderObjectWithChildMixin<RenderBox> container,
+) {
+  RenderObjectToWidgetAdapter<RenderBox>(
+    container: container,
+  ).attachToRenderTree(build, element);
+  build.buildScope(element);
+  build.finalizeTree();
 }

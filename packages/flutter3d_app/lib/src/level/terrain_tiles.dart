@@ -98,6 +98,24 @@ final class TerrainTiles {
     }
   }
 
+  /// Takes every tile out of whatever scene holds it and gives every level of
+  /// every tile back to [device].
+  ///
+  /// The kept uploads are the whole point of this class and, without this,
+  /// the whole of its leak: a mesh per tile per level ever visited, which on
+  /// WebGL2 is buffers nothing reclaims but `gl.deleteBuffer`. [material] is
+  /// the caller's and is left alone.
+  void dispose() {
+    for (final node in nodes) {
+      node.removeFromParent();
+    }
+    for (final mesh in _uploaded.values) {
+      device.releaseGeometry(mesh.vertices);
+      device.releaseGeometry(mesh.indices);
+    }
+    _uploaded.clear();
+  }
+
   DeviceMesh _mesh(int x, int z, int level) =>
       _uploaded.putIfAbsent((x, z, level), () {
         final surface = tiles.build(

@@ -196,8 +196,8 @@ Directory? resolveApplicationDirectory({
 
 /// Documents kept as files, the binary half of [FileStorage].
 ///
-/// Same directory, same atomic-write discipline — [writeBytesAtomically]
-/// rather than [writeFileAtomically] — different bytes.
+/// Same directory, same atomic-write discipline — [writeBytesAtomicallySync]
+/// rather than [writeFileAtomicallySync] — different bytes.
 final class FileBinaryStorage implements BinaryStorage {
   FileBinaryStorage({
     required this.appName,
