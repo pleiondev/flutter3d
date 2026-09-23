@@ -53,7 +53,7 @@ rules:
 
 | Key | Meaning |
 |---|---|
-| `glob` | Matched against the path relative to `assets_src/`. `package:glob`'s own rule applies: `**/*.obj` does not match a root-level `a.obj` — `**.obj` (no slash) matches both |
+| `glob` | Matched against the path relative to `assets_src/`. `package:glob`'s own rule applies, and since `glob` 2.2.0 `**/*.obj` matches a root-level `a.obj` as well as `props/a.obj` |
 | `textures` | `auto` \| `bc` \| `etc2` \| `universal` \| `none`, overriding the build's own family for files this rule matches |
 | `mips` | `true`/`false` — skip the mip chain for files this rule matches |
 | `objNormals` | `smooth` \| `flat` \| `none`, for an OBJ with no normals of its own |

@@ -45,7 +45,7 @@ dependencies:
   # through `flutter3d_core`, already a dependency here, and name no Flutter.
   flutter3d_particles: ^0.7.0
 
-  vector_math: ^2.2.0
+  vector_math: ^2.4.3
 
 dev_dependencies:
   test: ^1.25.0

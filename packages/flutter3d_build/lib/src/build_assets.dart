@@ -178,18 +178,6 @@ Future<AssetBuildReport> runAssetBuild(
   );
 }
 
-/// `hook/build.dart`'s own body — what `ap-10` writes into a consumer's
-/// project is a `main` that hands `arguments` and this function straight to
-/// `package:hooks`' own `build()`.
-///
-/// ```dart
-/// import 'package:flutter3d_build/flutter3d_build.dart';
-/// import 'package:hooks/hooks.dart';
-///
-/// void main(List<String> arguments) async {
-///   await build(arguments, buildAssets);
-/// }
-/// ```
 /// The compression family the platform being built for guarantees —
 /// `gfx-69n`, and `ap-09`'s own table.
 ///
@@ -227,6 +215,18 @@ TextureFamily _familyForTarget(BuildInput input) => familyForTargetOS(
   input.config.buildCodeAssets ? input.config.code.targetOS : null,
 );
 
+/// `hook/build.dart`'s own body — what `ap-10` writes into a consumer's
+/// project is a `main` that hands `arguments` and this function straight to
+/// `package:hooks`' own `build()`.
+///
+/// ```dart
+/// import 'package:flutter3d_build/flutter3d_build.dart';
+/// import 'package:hooks/hooks.dart';
+///
+/// void main(List<String> arguments) async {
+///   await build(arguments, buildAssets);
+/// }
+/// ```
 Future<void> buildAssets(BuildInput input, BuildOutputBuilder output) async {
   // `packageRoot` is a directory `Uri` — its own path ends in `/`, and
   // `Directory.fromUri(...).path` keeps that trailing slash rather than

@@ -44,7 +44,7 @@ dependencies:
   flutter3d_particles:
     path: ../../packages/flutter3d_particles
 
-  vector_math: ^2.2.0
+  vector_math: ^2.4.3
   # State management — see the note in `packages/flutter3d_game/pubspec.yaml`.
   # What goes through it is the screen: loading, pause, settings, the run's
   # state and what the HUD shows. What does **not** is the sixty-hertz step,
