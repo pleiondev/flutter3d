@@ -4,7 +4,7 @@ description: Resolve the workspace, build the shader bundle, run the demo, and p
 
 # Quickstart
 
-Fifteen minutes from a fresh checkout to a lit mesh turning on screen. Two of those minutes are a shader bundle that a fresh checkout does not have and cannot run without.
+This takes about fifteen minutes, from a fresh checkout to a lit mesh turning on screen. Two of those minutes go on a shader bundle that a fresh checkout does not have and cannot run without.
 
 <div class="goal">
 <ul>
@@ -25,7 +25,7 @@ Fifteen minutes from a fresh checkout to a lit mesh turning on screen. Two of th
 
 ## Resolve the workspace
 
-The repository is a [pub workspace](https://dart.dev/tools/pub/workspaces): one resolve covers all thirty-seven packages and nine applications against a single lock file. Packages that depend on each other by path drift apart at the first version bump otherwise, and the drift only shows up as an unbuildable checkout on somebody else's machine.
+The repository is a [pub workspace](https://dart.dev/tools/pub/workspaces): one resolve covers all thirty-eight packages and twelve applications against a single lock file. Without it, packages that depend on each other by path drift apart at the first version bump, and the drift only shows up as an unbuildable checkout on somebody else's machine.
 
 ```bash
 git clone https://github.com/pleiondev/flutter3d.git
@@ -35,12 +35,12 @@ flutter pub get
 
 ## Build the shader bundles
 
-There are two: the engine's own canonical bundle, which every application
-links, and the engine demo's own separate one, which it loads at runtime and
-names as an asset.
+There are two: the engine's canonical bundle, which every application links,
+and a separate one belonging to the engine's demo, which the demo loads at
+runtime and names as an asset.
 
 <div class="note">
-<p>The engine's own bundle no longer needs this step. <code>packages/flutter3d_impeller/hook/build.dart</code> (<code>ap-06</code> in <code>doc/asset-pipeline-plan.md</code>) runs it during <code>flutter build</code>/<code>flutter run</code> automatically — a fresh checkout, <code>flutter pub get</code>, and <code>flutter run -d macos</code> in any of the three games below draws a frame with no shader step in between. Left here only for the one thing the hook does not cover.</p>
+<p>The engine's own bundle no longer needs this step. <code>packages/flutter3d_impeller/hook/build.dart</code> (<code>ap-06</code> in <code>doc/asset-pipeline-plan.md</code>) builds it during <code>flutter build</code> and <code>flutter run</code>, so after a fresh checkout and <code>flutter pub get</code>, <code>flutter run -d macos</code> in any of the three games below draws a frame with no shader step in between. The step stays here only for the one bundle the hook does not cover.</p>
 </div>
 
 ```bash
@@ -48,16 +48,16 @@ names as an asset.
 ```
 
 <div class="warn">
-<p>This one bundle is still generated, gitignored, and tied to the Flutter version — a fresh checkout has none, and the symptom is a missing-asset error at startup rather than a build failure. After <code>flutter upgrade</code>, run it again. It has not moved onto the hook because it is the demo's own separate bundle, outside <code>ap-06</code>'s own canonical one — see that entry's "Not done" for why.</p>
+<p>That bundle is still generated, gitignored and tied to the Flutter version. A fresh checkout has none, and the symptom is a missing-asset error at startup, not a build failure. Run the script again after <code>flutter upgrade</code>. It has not moved onto the hook because it is the demo's own bundle, separate from the canonical one <code>ap-06</code> covers; that entry's "Not done" says why.</p>
 </div>
 
-The script calls `impellerc` directly rather than going through Native Assets, and prints the compiled binding table on the way out. That table is worth reading once: the compiler drops a uniform block or a sampler whose result never reaches the output, so what a shader *declares* and what it actually *binds* are different lists.
+The script calls `impellerc` directly instead of going through Native Assets, and prints the compiled binding table on the way out. Read that table once. The compiler drops a uniform block or a sampler whose result never reaches the output, so what a shader *declares* and what it actually *binds* are different lists.
 
 ## Run something
 
 ```bash
 # The engine's demo: a model browser with every feature switchable.
-# Needs the shader step above — it is the one bundle that still asks for it.
+# Needs the shader step above; it is the one bundle that still asks for it.
 (cd packages/flutter3d/example && flutter run -d macos)
 
 # The shooter
@@ -70,13 +70,13 @@ The script calls `impellerc` directly rather than going through Native Assets, a
 (cd apps/flutter3d_demo_racing && flutter run -d macos)
 
 # Any of them in a browser: the same command, a different device. No shader
-# bundle is involved — the WebGL backend translates the same GLSL and the
-# browser compiles it.
+# bundle is involved, because the WebGL backend translates the same GLSL and
+# the browser compiles it.
 (cd apps/flutter3d_demo_platformer && flutter run -d chrome)
 ```
 
 <div class="note">
-<p>For something to hand out rather than to run, build it: <code>flutter build web --wasm --release</code> produces the WebAssembly output and the JavaScript one beside it, and <code>flutter_bootstrap.js</code> picks between them at load. That is what the <a href="/platformer/demo/">playable demos</a> on this site are.</p>
+<p>To produce something you can hand out, build it with <code>flutter build web --release</code>. That is how the <a href="/platformer/demo/">playable demos</a> on this site are built. Leave out <code>--wasm</code> for now: the dart2wasm build of the WebGL backend throws on its first frame, and <code>site/tool/demos.sh</code> records the details.</p>
 </div>
 
 <div class="note">
@@ -91,14 +91,14 @@ tool/ci.sh                                  # shaders, analyze, every test
 (cd packages/flutter3d_physics && dart test) # plain Dart, no Flutter needed
 ```
 
-9848 tests across 38 packages and nine applications, and only about thirty need a GPU: the Impeller half of the golden set. The other half renders through the software backend, so forty-four scenes stay checkable in a headless run.
+There are 9848 tests across 38 packages and twelve applications, and only about thirty need a GPU: the Impeller half of the golden set. The other half renders through the software backend, so forty-four scenes stay checkable in a headless run.
 
 ## Your own application
 
-A new app needs three things in its pubspec: the engine, a backend, and whatever else it draws with. The backend is named on purpose. It is the one line an application changes to run on a different graphics API.
+A new app needs three things in its pubspec: the engine, a backend, and whatever else it draws with. The backend is named on purpose, because it is the one line an application changes to run on a different graphics API.
 
-<div class="warn">
-<p>The <code>^0.7.0</code> below names the tree this documentation was built from, not what <code>pub get</code> can resolve today: pub.dev's published set is still <strong>0.6.0</strong>, and 0.7.0 goes out once <a href="https://models.pleion.dev">the modeller</a>'s own tutorial has been walked by people other than its author — see the <a href="https://github.com/pleiondev/flutter3d#readme">README</a>'s own note on this. Building against the tree in the meantime means cloning the repository and running it from source, the way <a href="#run-something">Run something</a> above does, or pinning <code>^0.6.0</code> and reading <code>doc/boundary-0.7.0.md</code> for which import lines move.</p>
+<div class="note">
+<p>The 0.7.0 set is on <a href="https://pub.dev/publishers/pleion.dev/packages">pub.dev</a>, so the <code>^0.7.0</code> lines below resolve as written. If you are moving a project from 0.6.0, several packages were folded into others; <code>doc/boundary-0.7.0.md</code> in the repository lists which import lines move.</p>
 </div>
 
 ```yaml
@@ -116,6 +116,7 @@ dependencies:
   # graphics API, so this is the one line that picks which one runs:
   #   flutter3d_impeller -> flutter_gpu (Metal, Vulkan)  <- the production one
   #   flutter3d_webgl    -> WebGL2, in the browser
+  #   flutter3d_webgpu   -> WebGPU, in a browser that has an adapter
   #   flutter3d_cpu      -> software, rasterises in Dart (tests, goldens)
   flutter3d_impeller: ^0.7.0
 
@@ -124,7 +125,7 @@ dependencies:
   vector_math: ^2.2.0
 ```
 
-Then open a device, create a renderer, and hand it a scene. Everything below is real API; the [core tutorial](/core/tutorial/) walks the whole thing line by line.
+Then open a device, create a renderer, and hand it a scene. Everything below is real API; the [core tutorial](/core/tutorial/) walks through it line by line.
 
 ```dart
 import 'package:flutter/material.dart' hide Material;
@@ -134,9 +135,9 @@ import 'package:vector_math/vector_math.dart' hide Colors;
 
 Future<Renderer> openRenderer() async {
   final device = await GpuRenderBackend.create();
-  // The fallbacks a material without a map samples — white, and the neutral
-  // normal — are the renderer's own unless you hand it others. Neutral
-  // fallbacks rather than per-map flags: the shader then needs no branch and
+  // The fallbacks a material without a map samples (white, and the neutral
+  // normal) are the renderer's own unless you hand it others. Neutral
+  // fallbacks instead of per-map flags: the shader then needs no branch and
   // the engine no bookkeeping about which maps a material has.
   return Renderer.create(device: device);
 }
@@ -167,15 +168,15 @@ Scene buildScene(GraphicsDevice device) {
 ```
 
 <div class="note">
-<p>None of the three shipped games open a device this way. Hand-rolling <code>GpuRenderBackend.create()</code> and a bare <code>Ticker</code> is what this page teaches because it is what is actually happening underneath, but by the second game the same conditional import, frame surface and level lifecycle had been copy-pasted three times. <a href="/core/session/">Assembling an application</a> is the guide for the pattern the games use instead: <code>flutter3d_app</code> and <code>flutter3d_game</code>.</p>
+<p>None of the shipped games open a device this way. This page hand-rolls <code>GpuRenderBackend.create()</code> and a bare <code>Ticker</code> because that is what happens underneath, but by the second game the same conditional import, frame surface and level lifecycle had been copy-pasted three times. <a href="/core/session/">Assembling an application</a> covers the pattern the games use instead: <code>flutter3d_app</code> and <code>flutter3d_game</code>.</p>
 </div>
 
 ## Where to go next
 
 - [Your first project](/first-project/): a project of your own, scaffolded from a template, in a directory that is not this one
 - [Core: what core is](/core/): the shape of the engine and which package owns what
-- [The frame](/core/rendering/): what the renderer actually does with a scene
+- [The frame](/core/rendering/): what the renderer does with a scene
 - [Tutorial: first scene](/core/tutorial/): the whole application, step by step
-- [Assembling an application](/core/session/): the device, frame surface and level lifecycle the shipped games actually use
+- [Assembling an application](/core/session/): the device, frame surface and level lifecycle the shipped games use
 - [The asset pipeline](/reference/asset-pipeline/): converting your own models and textures on every build, instead of committing what a script produced once
-- [Pitfalls](/reference/pitfalls/): the conditions without which Flutter GPU silently renders nothing
+- [Pitfalls](/reference/pitfalls/): the conditions without which Flutter GPU renders nothing and reports no error

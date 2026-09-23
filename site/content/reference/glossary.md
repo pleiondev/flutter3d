@@ -27,7 +27,7 @@ Every word below is a type or a file in this repository, not a general graphics 
   <div><dt>Cube atlas</dt><dd>Where point and spot shadows live: six faces across, one row per shadowed light, six lights at once. Sized by <code>ShadowSettings.cubeResolution</code>, which is <em>not</em> the cascade's <code>resolution</code></dd></div>
   <div><dt>Static / dynamic atlas</dt><dd>Two cube atlases. The static one holds what never moves and is drawn once at load; the dynamic one is redrawn as things move. The shader samples both and keeps the nearer occluder</dd></div>
   <div><dt>Shadow casting mode</dt><dd>A <code>ShadowCastingMode</code> on a mesh node: <code>on</code>, <code>off</code> for a floor or a view model, <code>doubleSided</code> for leaves, <code>shadowsOnly</code> for a stand-in that casts for a mesh too expensive to draw six times</dd></div>
-  <div><dt>Normal offset</dt><dd>How far a shadow lookup moves along the surface normal before it measures, in <strong>texels</strong> of the face it lands on. It clears the width of one texel, which grows with distance — a fixed offset in metres is why a floor once shadowed itself</dd></div>
+  <div><dt>Normal offset</dt><dd>How far a shadow lookup moves along the surface normal before it measures, in <strong>texels</strong> of the face it lands on. It clears the width of one texel, which grows with distance. A fixed offset in metres is why a floor once shadowed itself</dd></div>
   <div><dt>Penumbra</dt><dd>The soft edge. Estimated from how far the blocker is, which is why the filter searches before it filters</dd></div>
 </dl>
 
@@ -91,7 +91,7 @@ A level is JSON. These are its parts, and a game reads all of them through `Leve
 ## Testing
 
 <dl class="keys">
-  <div><dt>Golden</dt><dd>A reference image a scene is compared against. Three complete independent sets — Impeller, software and WebGL2 — each held to zero differing pixels against its own, with a fourth being recorded for WebGPU</dd></div>
+  <div><dt>Golden</dt><dd>A reference image a scene is compared against. There are three complete independent sets (Impeller, software and WebGL2), each held to zero differing pixels against its own, with a fourth being recorded for WebGPU</dd></div>
   <div><dt>Parity fixture</dt><dd>One scene drawn by two backends and compared as a grid of average brightness. Answers "do these two draw the same picture", which a golden cannot</dd></div>
   <div><dt>Conformance</dt><dd>The suite a backend has to pass before it counts as one. Split in two: what needs no shaders, and the rest</dd></div>
   <div><dt>Structure rule</dt><dd>One of thirty-five scans in <code>tool/structure.dart</code>. They read source text and hold the architecture: that a genre package stays out of another genre, that the documents' numbers are true</dd></div>

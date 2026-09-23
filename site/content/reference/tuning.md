@@ -95,11 +95,11 @@ const WeaponDef(
 );
 ```
 
-`loudness` is the one worth knowing about: firing is a noise with a radius in metres, and it is what wakes the room next door. A quiet weapon is a design decision rather than an audio setting.
+`loudness` is the one to know about: firing is a noise with a radius in metres, and it is what wakes the room next door. A quiet weapon is a design decision, not an audio setting.
 
 `AmmoType.none` exists so a starting weapon can never run out. A player stranded with nothing to fire is a player reloading a save.
 
-A monster is a `MonsterDef` — `health`, `speed`, `attack`, `radius`, `height`, and then `sightRange` (26 m), `turnRate` (6.0 rad/s), `painChance` (1.0) and `painCooldown` (0.2). The last two are what make a heavy monster feel heavy: a `painChance` under one means some hits do not interrupt it, and it keeps walking at you.
+A monster is a `MonsterDef`: `health`, `speed`, `attack`, `radius`, `height`, and then `sightRange` (26 m), `turnRate` (6.0 rad/s), `painChance` (1.0) and `painCooldown` (0.2). The last two are what make a heavy monster feel heavy: a `painChance` under one means some hits do not interrupt it, and it keeps walking at you.
 
 The catalogue is handed to `Bestiary` rather than reached for, so a second shooter brings its own and inherits none of this one's.
 
@@ -124,7 +124,7 @@ Grip lives in `Tyres` instead, and `Tyres.road` is the shipped set. That split i
 `AiTuning.skill` is 1.0, and it scales the rest. Under it sit the numbers that decide *how* a driver is fast: `brakeHorizon` (45 m of lookahead for a corner), `corneringGrip` (14.0, how much the driver believes the car has), `lookAheadPerSpeed` (0.55) and `rubberBandClamp` (0.22, the ceiling on catching up).
 
 <div class="warn">
-<p>Rubber banding is capped at 22% on purpose. A rubber band with no ceiling turns every race into the same race, and players notice within two laps — not as "the AI is cheating", but as "nothing I do matters".</p>
+<p>Rubber banding is capped at 22% on purpose. A rubber band with no ceiling turns every race into the same race, and players notice within two laps. What they notice is less "the AI is cheating" than "nothing I do matters".</p>
 </div>
 
 ## The picture
@@ -142,6 +142,6 @@ Grip lives in `Tyres` instead, and `Tyres.road` is the shipped set. That split i
 
 ## Changing them honestly
 
-Every class on this page is reachable from a plain `test()` with no window and no GPU, because the packages they live in import no renderer. That is the difference between tuning and guessing: a jump height that has to clear a specific ledge, an AI lap that has to come in under a time, a car that has to still be on the grid after ten seconds — each is a test that runs in milliseconds and says what happened, where a playthrough shows you a frame and leaves you to judge it.
+Every class on this page is reachable from a plain `test()` with no window and no GPU, because the packages they live in import no renderer. That is the difference between tuning and guessing: a jump height that has to clear a specific ledge, an AI lap that has to come in under a time, a car that has to still be on the grid after ten seconds. Each is a test that runs in milliseconds and says what happened, where a playthrough shows you a frame and leaves you to judge it.
 
 [Testing](/reference/testing/) is how this repository does that, and the racing package's `test/parked_test.dart` is a short worked example of a feel bug caught that way.

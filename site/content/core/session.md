@@ -29,10 +29,10 @@ final device = await openDevice(width: 1280, height: 720);
 <p>The software fallback is <code>flutter3d_cpu</code>, which the rest of this site describes as a golden-test backend and a dev dependency, not a production one. It is a Dart rasteriser with no GPU under it, and a frame that would take a millisecond on Impeller takes a great deal longer here. It exists as a last resort, so that a broken Impeller start shows <em>something</em>, playable if slow, instead of nothing at all. It is not a supported way to ship a game. <code>debugPrint</code> logs which one actually ran; <code>openDevice</code>'s return type does not say, on purpose, so every existing caller keeps compiling unchanged.</p>
 </div>
 
-What it does not decide is `kFixedResolution` — whether the backend renders to a fixed internal target that Flutter then stretches. It's `false` on native (Impeller allocates its frame targets at whatever size the widget was laid out at) and `true` on the web (a WebGL canvas resets its drawing buffer on resize, so `WebGlDevice` owns a canvas at one size and `presentFrame` takes a `BoxFit` to stretch it). *What* size is left to the application: the crypt and the platformer draw at 720p, the racing game at 960×540, and each says why where the number is.
+What it does not decide is `kFixedResolution`: whether the backend renders to a fixed internal target that Flutter then stretches. It's `false` on native (Impeller allocates its frame targets at whatever size the widget was laid out at) and `true` on the web (a WebGL canvas resets its drawing buffer on resize, so `WebGlDevice` owns a canvas at one size and `presentFrame` takes a `BoxFit` to stretch it). *What* size is left to the application: the crypt and the platformer draw at 720p, the racing game at 960×540, and each says why where the number is.
 
 <div class="note">
-<p>The backend choice lives in <code>flutter3d_app</code>, which every application stands on — <code>apps/flutter3d_editor</code> included, which is desktop only and resolves the WebGL backend anyway; the conditional import is what keeps a native build from compiling it. It was its own package once, until most of its consumers turned out to already reach it through that same barrel and the few that didn't cost nothing to repoint.</p>
+<p>The backend choice lives in <code>flutter3d_app</code>, which every application stands on, <code>apps/flutter3d_editor</code> included, even though the editor is desktop only and resolves the WebGL backend anyway; the conditional import is what keeps a native build from compiling it. It was its own package once, until most of its consumers turned out to already reach it through that same barrel and the few that didn't cost nothing to repoint.</p>
 </div>
 
 ## The frame surface
@@ -60,7 +60,7 @@ SceneSurface(
 
 ## The run
 
-`RunSession<L>` is loading a level, restarting it, moving to the next one, saving, resuming, and reporting how a run ended — the sequence three games wrote out separately: a 278-line cubit in the dungeon, nine private methods in a 1441-line platformer widget, and nothing at all in the racing game, whose saves never worked. A game answers five questions and gets the sequence for free:
+`RunSession<L>` is loading a level, restarting it, moving to the next one, saving, resuming, and reporting how a run ended. Three games wrote that sequence out separately: a 278-line cubit in the dungeon, nine private methods in a 1441-line platformer widget, and nothing at all in the racing game, whose saves never worked. A game answers five questions and gets the sequence for free:
 
 ```dart
 final class DungeonRun extends RunSession<LevelReady> {
@@ -125,7 +125,7 @@ It was extracted when the second game wanted rebinding, which mattered for acces
 
 ## Input
 
-A game rarely calls `pad_input` or `pointer_lock` directly. `flutter3d_game`'s `DesktopInput` and pad-action layer already wrap both, and that is what `_devices.isCaptured` and `_devices.captureMouse()` in an app's `main.dart` reach. The two packages underneath are worth knowing because they're where a fifth platform gets implemented:
+A game rarely calls `pad_input` or `pointer_lock` directly. `flutter3d_game`'s `DesktopInput` and pad-action layer already wrap both, and that is what `_devices.isCaptured` and `_devices.captureMouse()` in an app's `main.dart` reach. The two packages underneath matter because they're where a fifth platform gets implemented:
 
 ```dart
 final pad = Gamepad.instance;
@@ -134,7 +134,7 @@ pad.read(snapshot);                                  // once per frame
 if (snapshot.down(PadButton.faceSouth)) jump();
 ```
 
-`Gamepad` is pull, not push — a fixed-step simulation asks *what is the pad doing now* exactly once per step, and a stream would push edge detection into every caller differently. Button identifiers are physical positions (`face.south`, not `a`), because the string is what lands in a player's config file, read back on a possibly different pad. Implemented on macOS, iOS, Web and Android; Windows and Linux are not yet.
+`Gamepad` is pull, not push. A fixed-step simulation asks *what is the pad doing now* exactly once per step, and a stream would push edge detection into every caller differently. Button identifiers are physical positions (`face.south`, not `a`), because the string is what lands in a player's config file, read back on a possibly different pad. Implemented on macOS, iOS, Web and Android; Windows and Linux are not yet.
 
 ```dart
 final lock = PointerLock.instance;
@@ -158,9 +158,9 @@ What is deliberately not behind it: `flutter3d`, `flutter3d_sim`, `flutter3d_gam
 
 ## Where one application has not caught up
 
-The four demo games import `flutter3d_app`, and so does `packages/flutter3d_game/example`, the game a new project starts as: the scaffold names `flutter3d_app` in its pubspec and opens its device through `openDevice`, which picks Impeller or WebGL for the build and falls back to the software rasteriser at run time when flutter_gpu will not start — the pattern this page teaches, including the fallback. It also names `flutter3d_game`, for the input and the run.
+The four demo games import `flutter3d_app`, and so does `packages/flutter3d_game/example`, the game a new project starts as: the scaffold names `flutter3d_app` in its pubspec and opens its device through `openDevice`, which picks Impeller or WebGL for the build and falls back to the software rasteriser at run time when flutter_gpu will not start. That is the pattern this page teaches, fallback included. It also names `flutter3d_game`, for the input and the run.
 
-`apps/flutter3d_editor` is the one that does not: it names `flutter3d_impeller` and opens its device with `GpuRenderBackend.create()`, the way [the tutorial](/core/tutorial/) does. That is defensible where it is, since the editor is desktop-only and there is no backend to choose between — but it is the reason the editor cannot be the thing you copy. Copy the scaffold, which is what it is for.
+`apps/flutter3d_editor` is the one that does not: it names `flutter3d_impeller` and opens its device with `GpuRenderBackend.create()`, the way [the tutorial](/core/tutorial/) does. That is defensible where it is, since the editor is desktop-only and there is no backend to choose between, but it is the reason the editor is not the thing to copy. Copy the scaffold, which is what it is for.
 
 ## Next
 
