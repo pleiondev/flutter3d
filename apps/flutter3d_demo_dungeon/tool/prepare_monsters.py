@@ -4,7 +4,7 @@
     python3 tool/prepare_monsters.py ~/Downloads
 
 Every step here is a change to somebody else's asset, so every step is also a
-line in `assets/models/LICENSES.md`. These are CC0, which asks for nothing at
+line in `assets_src/models/LICENSES.md`. These are CC0, which asks for nothing at
 all — the record is kept anyway, because not being required to say where
 something came from is a poor reason not to.
 
@@ -31,7 +31,7 @@ import sys
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
-MODELS = HERE.parent / "assets" / "models"
+MODELS = HERE.parent / "assets_src" / "models"
 
 #: Which download becomes which monster, and how tall it should end up.
 #:

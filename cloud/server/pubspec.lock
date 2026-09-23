@@ -223,7 +223,7 @@ packages:
       path: "../../packages/flutter3d_core"
       relative: true
     source: path
-    version: "0.1.0"
+    version: "0.7.0"
   flutter3d_hardware:
     dependency: "direct overridden"
     description:
@@ -237,21 +237,21 @@ packages:
       path: "../../packages/flutter3d_mesh"
       relative: true
     source: path
-    version: "0.6.0"
+    version: "0.7.0"
   flutter3d_model_core:
     dependency: "direct main"
     description:
       path: "../../packages/flutter3d_model_core"
       relative: true
     source: path
-    version: "0.6.0"
+    version: "0.7.0"
   flutter3d_particles:
     dependency: "direct main"
     description:
       path: "../../packages/flutter3d_particles"
       relative: true
     source: path
-    version: "0.6.0"
+    version: "0.7.0"
   flutter3d_physics:
     dependency: "direct main"
     description:

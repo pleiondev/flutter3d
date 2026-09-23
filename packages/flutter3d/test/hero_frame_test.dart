@@ -38,7 +38,7 @@ const int _width = 160;
 const int _height = 160;
 
 /// The penguin, which is the platformer's runner and therefore a game's asset.
-const String _models = '../../apps/flutter3d_demo_platformer/assets/models';
+const String _models = '../../apps/flutter3d_demo_platformer/assets_src/models';
 
 /// The rig, which is **not**. It used to sit beside the penguin, in a directory
 /// declared whole, so 424 KB went into every download of a game that stopped

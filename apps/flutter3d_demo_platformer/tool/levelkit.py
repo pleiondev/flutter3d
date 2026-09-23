@@ -21,7 +21,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[3] / "tool"))
 from leveldoc import dump, rounded  # noqa: E402
 
 LEVELS = Path(__file__).resolve().parent.parent / "assets" / "levels"
-COIN = "assets/models/coin.glb"
+COIN = "assets_src/models/coin.glb"
 
 brushes: list[dict] = []
 entities: list[dict] = []
@@ -267,7 +267,7 @@ def key(name, at, color):
     """A key on the floor. `color` is the word a gate names to ask for it."""
     entities.append({
         "type": "key", "name": name, "at": _r(at), "color": color,
-        "material": "brass", "model": "assets/models/key.glb",
+        "material": "brass", "model": "assets_src/models/key.glb",
     })
 
 
