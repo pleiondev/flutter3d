@@ -4,7 +4,7 @@
     python3 tool/prepare_models.py ~/Downloads
 
 Every step here is a change to somebody else's asset, so every step is also a
-line in `assets/models/LICENSES.md` — both models are CC BY, which asks that
+line in `assets_src/models/LICENSES.md` — both models are CC BY, which asks that
 modifications be stated.
 
 Run it again after re-downloading and the result is byte-identical; that is the
@@ -20,7 +20,7 @@ import tempfile
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
-MODELS = HERE.parent / 'assets' / 'models'
+MODELS = HERE.parent / 'assets_src' / 'models'
 
 
 def main() -> int:

@@ -18,7 +18,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:vector_math/vector_math.dart';
 
 const String _runner =
-    '../flutter3d_demo_dungeon/assets/models/monster_runner.glb';
+    '../flutter3d_demo_dungeon/assets_src/models/monster_runner.glb';
 
 const int _width = 160;
 const int _height = 160;

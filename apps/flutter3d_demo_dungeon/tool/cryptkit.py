@@ -373,7 +373,7 @@ def key(colour, at, *, name=None):
     entities.append({
         "type": "key", "at": rounded(at), "color": colour,
         "name": name or f"{colour}_key",
-        "model": "assets/models/key.glb", "material": "keymetal",
+        "model": "assets_src/models/key.glb", "material": "keymetal",
         "size": [0.7, 0.7, 0.7], "tint": [0.95, 0.6, 0.2],
     })
 

@@ -4,7 +4,7 @@
 Why a script rather than two files somebody once downloaded: the same reason
 `fetch_textures.py` gives. The provenance of every asset in this game has to be
 checkable, and the only honest way to record where one came from is to keep the
-thing that fetches it. Re-running this reproduces `assets/models/weapon_*.glb`
+thing that fetches it. Re-running this reproduces `assets_src/models/weapon_*.glb`
 exactly, and LICENSES.md is written from the same table that drives the
 download, so the two cannot drift.
 
@@ -36,7 +36,7 @@ import urllib.request
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
-MODELS = HERE.parent / "assets" / "models"
+MODELS = HERE.parent / "assets_src" / "models"
 
 #: Which download becomes which weapon, and how long it should end up.
 #:

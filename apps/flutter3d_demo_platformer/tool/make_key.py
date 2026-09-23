@@ -89,8 +89,11 @@ def main() -> int:
     _centre(positions)
 
     blob = _glb(positions, normals, indices)
-    for game in ('platformer', 'dungeon'):
-        out = GAMES / game / 'assets' / 'models' / 'key.glb'
+    # The directories' own names. They were `platformer` and `dungeon` until
+    # every application took the repository's prefix, and the rename left this
+    # line writing into two directories that no longer existed.
+    for game in ('flutter3d_demo_platformer', 'flutter3d_demo_dungeon'):
+        out = GAMES / game / 'assets_src' / 'models' / 'key.glb'
         out.write_bytes(blob)
         print(f'{out.relative_to(GAMES.parent)}  '
               f'{len(positions)} vertices, {len(blob) // 1024} KB')
