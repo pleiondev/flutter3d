@@ -60,9 +60,11 @@ final class SolidColorTexture extends ProceduralTexture {
 
   /// The neutral tangent-space normal, `(0, 0, 1)` encoded into 0..1.
   ///
-  /// What the renderer binds when a material has no normal map. Sampling it
-  /// perturbs nothing, so the shader needs no branch and the engine needs no
-  /// "has a normal map" flag to keep in step with the GLSL.
+  /// What the renderer binds when a material has no normal map, so the
+  /// shader needs no branch. On its own it is not quite neutral: 0.5 is
+  /// stored as byte 128, which decodes to 0.0039, not 0. The renderer sends
+  /// a normal scale of zero alongside it, and that is what makes sampling it
+  /// perturb nothing.
   static SolidColorTexture get flatNormal =>
       SolidColorTexture(Vector4(0.5, 0.5, 1.0, 1.0));
 

@@ -12,23 +12,32 @@ import 'render_frame.dart';
 /// [frame] is what [renderFrame] returns, pixels and size together. [tolerance]
 /// is the share of pixels allowed to differ at all, as a percentage.
 ///
+/// **What "differ" means is [channel] and [alpha], and the default is not
+/// byte for byte.** A pixel differs when one of its red, green and blue
+/// values is more than [channel] steps away, 8 by default, and alpha is not
+/// compared unless [alpha] is true. So a zero [tolerance] with the defaults
+/// still passes a frame whose every pixel moved by 8. A test that keeps
+/// byte-exact references passes `channel: 0, alpha: true`.
+///
 /// **Writes the reference and passes when there is none.** A first run records
 /// what the game draws today rather than failing for want of a file nobody could
 /// have written by hand. It says so on the console, because a recorded golden
 /// nobody looked at is a test that will pass forever whatever it draws — the
 /// image is meant to be opened and the commit is meant to say it was.
 ///
-/// **Zero tolerance by default, and that is on purpose.** The frame comes from a
-/// software rasteriser: the same scene drawn twice is the same bytes twice,
-/// because nothing here depends on a driver, a clock or a thread. A test that
-/// allows a few pixels of drift is a test that stops watching the drift, and
-/// when it is not needed it should not be there. Raise it only when something is
-/// measured to move — an animation sampled on a real clock, a scene with a
-/// deliberate random in it — and say in the call why.
+/// **Zero [tolerance] by default, and that is on purpose.** The frame comes
+/// from a software rasteriser: the same scene drawn twice is the same bytes
+/// twice, because nothing here depends on a driver, a clock or a thread. A
+/// test that allows a few pixels of drift is a test that stops watching the
+/// drift, and when it is not needed it should not be there. Raise it only when
+/// something is measured to move (an animation sampled on a real clock, a
+/// scene with a deliberate random in it) and say in the call why.
 Future<void> expectMatchesGolden(
   RenderedFrame frame,
   String path, {
   double tolerance = 0.0,
+  int channel = 8,
+  bool alpha = false,
   String? reason,
   bool? recordMissing,
 }) async {
@@ -72,7 +81,12 @@ Future<void> expectMatchesGolden(
         'count, which a transposed frame passes.',
   );
 
-  final difference = compareFrames(frame.pixels, expected.pixels);
+  final difference = compareFrames(
+    frame.pixels,
+    expected.pixels,
+    channel: channel,
+    alpha: alpha,
+  );
   expect(
     difference.percent,
     lessThanOrEqualTo(tolerance),

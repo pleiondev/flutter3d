@@ -2621,7 +2621,9 @@ final class Renderer implements RenderServices {
       passShadowSlots = _shadowSlots;
     } else {
       _passLights.gather(scene.lights);
-      if (_passLights.count == 0) _passLights.useDefaultLight();
+      if (_passLights.count == 0 && scene.defaultLightWhenUnlit) {
+        _passLights.useDefaultLight();
+      }
       passLights = _passLights;
       passShadowSlots = _noShadowSlots;
     }
@@ -2763,7 +2765,9 @@ final class Renderer implements RenderServices {
     // default light included, because a scene with none is lit by one and a
     // plan that said otherwise would be planning a different picture.
     final planLights = LightBuffer()..gather(scene.lights);
-    if (planLights.count == 0) planLights.useDefaultLight();
+    if (planLights.count == 0 && scene.defaultLightWhenUnlit) {
+      planLights.useDefaultLight();
+    }
     final shadowCaster = _directionalIndexIn(planLights);
 
     // This plan's own allocator. A fresh one assigns rows by the same rule
@@ -2915,7 +2919,9 @@ final class Renderer implements RenderServices {
     // caster before any view is drawn — and the packed buffer is per frame, not
     // per view.
     lights.gather(scene.lights);
-    if (lights.count == 0) lights.useDefaultLight();
+    if (lights.count == 0 && scene.defaultLightWhenUnlit) {
+      lights.useDefaultLight();
+    }
     _lightsScene = scene;
     // **What was actually lost, not what did not fit the slots — `gfx-74n`.**
     // The frame's own `gather` fills eight slots in scene order and calls the

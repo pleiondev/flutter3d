@@ -19,7 +19,20 @@ import 'package:flutter3d_impeller/src/shader_bundle_build.dart';
 
 Future<void> main(List<String> arguments) async {
   try {
-    await buildShaderBundle(packageRoot: Directory.current);
+    // This package's own root, resolved through the package config of
+    // whatever project invoked us — **not** `Directory.current`, which was a
+    // real bug: `buildShaderBundle` writes to `<packageRoot>/assets/shaders/`,
+    // so run the way the comment above recommends (from a consuming project,
+    // to unblock its `flutter analyze`) it wrote the bundle into *that
+    // project's* `assets/`, where nothing loads it, and left the one
+    // `ShaderLibrary.fromAsset` actually reads untouched. Run from a
+    // checkout this resolves to the same directory `cd`-ing here used to
+    // give; run from a consumer it resolves into the pub cache, where the
+    // archive's own bundle already sits and `buildShaderBundle` says so and
+    // compiles nothing.
+    await buildShaderBundle(
+      packageRoot: resolvePackageRoot('flutter3d_impeller', Directory.current),
+    );
   } on ShaderBundleBuildException catch (error) {
     stderr.writeln(error.message);
     exitCode = 1;

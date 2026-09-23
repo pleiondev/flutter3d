@@ -44,24 +44,36 @@ final class FrameDifference {
 
 /// Compares two RGBA frames of the same size.
 ///
-/// Alpha is ignored, deliberately: what is being compared is a picture, and a
-/// backend that writes a different alpha into an opaque frame has not drawn
-/// anything a person would see.
+/// A pixel counts as differing when one of its channels is more than
+/// [channel] steps apart, so the default of 8 lets a pixel move by up to 8
+/// in each of red, green and blue and still count as the same. `channel: 0`
+/// is a byte-for-byte comparison.
+///
+/// Alpha is left out unless [alpha] is true: what is usually being compared
+/// is a picture, and a backend that writes a different alpha into an opaque
+/// frame has not drawn anything a person would see. A caller keeping
+/// byte-exact references wants it in.
 ///
 /// Throws if the two are different sizes rather than comparing what they have
 /// in common, because two frames of different sizes is a broken test rather
 /// than a failing one.
-FrameDifference compareFrames(Uint8List a, Uint8List b, {int channel = 8}) {
+FrameDifference compareFrames(
+  Uint8List a,
+  Uint8List b, {
+  int channel = 8,
+  bool alpha = false,
+}) {
   if (a.length != b.length) {
     throw ArgumentError(
       'the two frames are different sizes: ${a.length} and ${b.length} bytes',
     );
   }
+  final channels = alpha ? 4 : 3;
   var differing = 0;
   var worst = 0;
   for (var i = 0; i < a.length; i += 4) {
     var d = 0;
-    for (var c = 0; c < 3; c++) {
+    for (var c = 0; c < channels; c++) {
       final delta = (a[i + c] - b[i + c]).abs();
       if (delta > d) d = delta;
     }
@@ -76,5 +88,9 @@ FrameDifference compareFrames(Uint8List a, Uint8List b, {int channel = 8}) {
 }
 
 /// How many pixels differ, for a caller that only wants the count.
-int differingPixels(Uint8List a, Uint8List b, {int channel = 8}) =>
-    compareFrames(a, b, channel: channel).differing;
+int differingPixels(
+  Uint8List a,
+  Uint8List b, {
+  int channel = 8,
+  bool alpha = false,
+}) => compareFrames(a, b, channel: channel, alpha: alpha).differing;
