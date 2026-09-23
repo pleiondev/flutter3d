@@ -232,7 +232,7 @@ String writeFmat(MaterialDocument document) {
     if (document.parameters.isNotEmpty)
       'parameters': <String, Object?>{
         for (final entry in document.parameters.entries)
-          entry.key: entry.value.toList(),
+          entry.key: <double>[for (final v in entry.value) _cleanFloat32(v)],
       },
     if (document.hints.isNotEmpty) 'hints': _writeHints(document.hints),
   });
@@ -261,17 +261,14 @@ final RegExp _bareIntegerLine = RegExp(
   r'^(\s*(?:"[^"]+"\s*:\s*)?)(-?\d+)(,?)\s*$',
 );
 
-String _ensureFloatLiterals(String json) {
-  final lines = json.split('\n');
-  for (var i = 0; i < lines.length; i++) {
-    final line = lines[i];
-    if (line.trimLeft().startsWith('"fmat"')) continue;
-    final match = _bareIntegerLine.firstMatch(line);
-    if (match == null) continue;
-    lines[i] = '${match[1]}${match[2]}.0${match[3]}';
-  }
-  return lines.join('\n');
-}
+String _ensureFloatLiterals(String json) => json
+    .split('\n')
+    .map((line) {
+      if (line.trimLeft().startsWith('"fmat"')) return line;
+      final match = _bareIntegerLine.firstMatch(line);
+      return match == null ? line : '${match[1]}${match[2]}.0${match[3]}';
+    })
+    .join('\n');
 
 /// [surface]'s own scalar and colour fields, keyed the way [writeFmat] nests
 /// them into a `.fmat` — everything but its texture slots, which
@@ -582,9 +579,10 @@ SurfaceAlphaMode _alphaMode(Object? value, List<String> warnings) =>
 double _number(Object? value, double fallback) =>
     value is num ? value.toDouble() : fallback;
 
-/// [v] came out of a [Vector4]/[Vector3] component, so it is already a
-/// float32 value widened to a double — `0.55` written in comes back as
-/// `0.550000011920929`, float32's honest opinion of it. Writing that verbatim
+/// [v] came out of a [Vector4]/[Vector3] component or a parameter's own
+/// [Float32List], so it is already a float32 value widened to a double —
+/// `0.55` written in comes back as `0.550000011920929`, float32's honest
+/// opinion of it. Writing that verbatim
 /// would defeat the doc comment above [writeFmat]: a `.fmat` an artist edits
 /// and diffs should show the number they typed, not the bits it landed on.
 ///

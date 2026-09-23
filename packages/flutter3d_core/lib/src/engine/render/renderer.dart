@@ -27,6 +27,7 @@ import 'frame_capture.dart';
 import 'frame_graph.dart';
 import 'frame_plan.dart';
 import 'frame_resources.dart';
+import 'identity_indices.dart';
 import 'material.dart';
 import 'pass_contributor.dart';
 import 'probe_faces.dart';
@@ -474,9 +475,7 @@ final class Renderer implements RenderServices {
     _cubeShadowDepth = null;
     _cubeShadowTile = 0;
 
-    final indices = _debugIndexBuffer;
-    if (indices != null) device.releaseGeometry(indices);
-    _debugIndexBuffer = null;
+    _debugIndices.release(device);
 
     _renderList.materialIds.clear();
 
@@ -583,8 +582,7 @@ final class Renderer implements RenderServices {
   /// and there is no non-indexed entry point in the API. Keeping the identity
   /// sequence in a device buffer that only grows means the cost is one upload
   /// when the overlay gets bigger, not one per frame.
-  GeometryBuffer? _debugIndexBuffer;
-  int _debugIndexCapacity = 0;
+  final IdentityIndices _debugIndices = IdentityIndices();
 
   /// Pipelines keyed by both stages; creating one compiles and links state on
   /// the backend, far too expensive to repeat per frame.
@@ -3855,22 +3853,6 @@ final class Renderer implements RenderServices {
 
   /// A view over the identity index sequence, growing the backing buffer when
   /// the overlay outgrows it.
-  GeometryBuffer _identityIndices(int count) {
-    if (count > _debugIndexCapacity) {
-      var capacity = math.max(_debugIndexCapacity * 2, 1024);
-      while (capacity < count) {
-        capacity *= 2;
-      }
-      final indices = Uint32List(capacity);
-      for (var i = 0; i < capacity; i++) {
-        indices[i] = i;
-      }
-      _debugIndexBuffer = device.uploadGeometry(
-        indices.buffer.asByteData(),
-        GeometryUsage.indices,
-      );
-      _debugIndexCapacity = capacity;
-    }
-    return _debugIndexBuffer!.slice(length: count * 4);
-  }
+  GeometryBuffer _identityIndices(int count) =>
+      _debugIndices.view(device, count);
 }

@@ -148,6 +148,14 @@ final class LightBuffer {
     final evicted = _extraScore[weakest];
     extraIndices[weakest] = candidate;
     _extraScore[weakest] = score;
+    // The same tie, met from the other side: the evicted light was picked
+    // over its equals by scene order alone, so while one of them still holds
+    // a row its score is no water line either. Without this the ring of
+    // torches above still fades to black the moment any light scoring
+    // between them and the slots arrives after them in scene order.
+    for (var i = 0; i < maxExtraLights; i++) {
+      if (_extraScore[i] == evicted) return 0.0;
+    }
     return evicted;
   }
 
