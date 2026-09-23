@@ -24,7 +24,7 @@ import 'layout.dart';
 /// names, the way every sibling in the workspace writes its constraint on
 /// another, and updated by whatever release bumps that version. `init_test`
 /// reads the pubspec and holds the two together.
-const String kFlutter3dBuildVersionConstraint = '^0.7.0';
+const String kFlutter3dBuildVersionConstraint = '^0.8.0';
 
 /// `hook/build.dart`'s own body — [buildAssets]'s doc comment names this
 /// exact text, kept here as the one place that spells it out so the two
