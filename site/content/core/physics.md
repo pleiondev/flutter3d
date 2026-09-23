@@ -4,7 +4,7 @@ description: Collision shapes, a uniform-grid broadphase, sweeps and rays that d
 
 # Collision & physics
 
-`flutter3d_physics` is plain Dart. No Flutter, no renderer, no `dart:io`, so all of it runs under `dart test` on the VM.
+`flutter3d_physics` is plain Dart. It uses neither Flutter nor the renderer, and not even `dart:io`, so all of it runs under `dart test` on the VM.
 
 That is not tidiness. The failures this code has happen once in a thousand steps: a body that ends up inside geometry, a sweep that passes through a wall at speed, a platform that stops carrying its passenger. Finding those means running thousands of steps in a loop, which is possible exactly because none of it needs a device.
 
@@ -16,7 +16,7 @@ CollisionSphere(0.35);
 CollisionCapsule(radius: 0.35, halfHeight: 0.55);
 ```
 
-`CollisionShape` is sealed and every pair is implemented exactly — box/box, box/sphere, box/capsule, sphere/sphere, sphere/capsule, capsule/capsule, plus a raycast per shape. No GJK, no approximation: three shapes are nine cases, and nine exact cases are cheaper to trust than one general algorithm nobody can debug.
+`CollisionShape` is sealed and every pair is implemented exactly: box/box, box/sphere, box/capsule, sphere/sphere, sphere/capsule, capsule/capsule, plus a raycast per shape. There is no GJK and no approximation. Three shapes make nine cases, and nine exact cases are cheaper to trust than one general algorithm nobody can debug.
 
 ## The world
 
@@ -42,7 +42,7 @@ final trigger = world.add(Collider(
 |---|---|
 | `ColliderKind` | `static` (level geometry), `kinematic` (doors, lifts, platforms) or `trigger` (blocks nothing, reports overlap) |
 | `layer` / `mask` | Two colliders meet when **each is in the other's mask** |
-| `userData` | Who this collider *is* — the one question it answers |
+| `userData` | Who this collider *is*, the one question it answers |
 | `listener` | `onCollisionStart`, `onCollision`, `onCollisionEnd` |
 | `delta` | How far a kinematic mover travelled this step, for a passenger to read |
 | `surfaceVelocity` | What a conveyor adds to whatever stands on it |
@@ -58,10 +58,10 @@ flowchart TB
   movers --> query
 ```
 
-`SpatialGrid` is a uniform grid keyed on `(x, z)` — the cell is four metres. Statics are indexed once; movers are rebuilt by `reindex()`, which is why the step order calls it right after mechanisms have moved.
+`SpatialGrid` is a uniform grid keyed on `(x, z)`, with four-metre cells. Statics are indexed once; movers are rebuilt by `reindex()`, which is why the step order calls it right after mechanisms have moved.
 
 <div class="note">
-<p><code>reindex()</code> before the body steps is <strong>ordering by argument, not by test</strong>. It is right — the broadphase should match geometry that already moved, but the narrow phase reads live positions and a cell is four metres, so a stale index loses a mover only if it left its cell inside one step. No door does. Nothing here claims a test covers it.</p>
+<p><code>reindex()</code> before the body steps is <strong>ordering by argument, not by test</strong>. It is right, since the broadphase should match geometry that already moved. But the narrow phase reads live positions and a cell is four metres, so a stale index loses a mover only if it left its cell inside one step. No door does. Nothing here claims a test covers it.</p>
 </div>
 
 ## Queries
@@ -121,13 +121,13 @@ body.step(dt, wishDirection: wish, sprint: input.held(GameAction.sprint));
 | `tryResize(shape, keepFeet: true)` | Crouch and stand, refused when there is no headroom |
 | `teleport(to)` | A cut, not a move, no sweep, no carry |
 | `solidFilter` | A `ContactFilter` that decides what counts as solid *for this body* |
-| `suppressFloorSnap()` | "I meant to leave the ground" — say it whenever you write `velocity.y` yourself |
+| `suppressFloorSnap()` | "I meant to leave the ground". Say it whenever you write `velocity.y` yourself |
 
 ### Walking down stairs
 
 `groundProbe` asks whether there is a floor within a few centimetres of the
 feet. A staircase is further than that, so on every tread the body is briefly
-in free fall — measured at 116 airborne steps out of 600 walking down 0.2 m
+in free fall: measured at 116 airborne steps out of 600 walking down 0.2 m
 stairs, with everything that hangs off `isGrounded` flickering along with it.
 
 `floorSnapLength` is how far the probe may reach **to keep a floor it already
@@ -211,7 +211,7 @@ Bodies sleep when they stop, and wake when something touches them. A `Physical` 
 
 ## Layers are numbers here
 
-A collider carries a `layer` and a `mask`, and two of them meet when each is in the other's mask. **Which bit means what is a game's business.** This package shipped as part of one for a while and its layer list named `monster`, `pickup` and `projectile` — exactly the knowledge a collision world must not have. `Layers.all` is the only constant left, because "every bit" means the same thing in every game.
+A collider carries a `layer` and a `mask`, and two of them meet when each is in the other's mask. **Which bit means what is a game's business.** This package shipped as part of one for a while, and its layer list named `monster`, `pickup` and `projectile`, which is exactly the knowledge a collision world must not have. `Layers.all` is the only constant left, because "every bit" means the same thing in every game.
 
 The names live in [`flutter3d_game`](/core/simulation/#layers) as `CollisionLayers`, and a genre adds its own: the platformer's `PlatformerLayers.oneWay` is bit six.
 

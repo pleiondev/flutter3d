@@ -1,10 +1,10 @@
 ---
-description: Fourteen steps from an empty project to a third-person platformer — double jump, dash, wall slides, ice and conveyors, springs, checkpoints, enemies and a follow camera.
+description: Fourteen steps from an empty project to a third-person platformer with double jump, dash, wall slides, ice and conveyors, springs, checkpoints, enemies and a follow camera.
 ---
 
 # Tutorial: build a platformer
 
-Fourteen steps. The engine underneath is the one the [shooter tutorial](/shooter/tutorial/) uses, and not one line of it changes, which is the point of doing both.
+Fourteen steps. The engine underneath is the one the [shooter tutorial](/shooter/tutorial/) uses, and not one line of it changes; doing both tutorials is how you see that.
 
 <div class="goal">
 <ul>
@@ -12,7 +12,7 @@ Fourteen steps. The engine underneath is the one the [shooter tutorial](/shooter
 <li>Ice, mud and conveyor floors; one-way platforms, springs, crumbling ledges and breakable blocks</li>
 <li>Coins, checkpoints, hazards, a kill plane and patrolling enemies you can stomp</li>
 <li>A follow camera that gets out of walls, kicks on landing and cuts on death</li>
-<li>A rigged model whose clip is chosen by a pure function — eight of them, and a box when there is no model at all</li>
+<li>A rigged model whose clip, one of eight, is chosen by a pure function, and a box when there is no model at all</li>
 </ul>
 </div>
 
@@ -23,12 +23,12 @@ dependencies:
   flutter: { sdk: flutter }
 
   # The backend; why it is the one named line is covered in the quickstart.
-  flutter3d_impeller:  ^0.6.0
-  flutter3d:           ^0.6.0
-  flutter3d_game:      ^0.6.0
-  flutter3d_game_platformer:^0.6.0
+  flutter3d_impeller:  ^0.7.0
+  flutter3d:           ^0.7.0
+  flutter3d_game:      ^0.7.0
+  flutter3d_game_platformer: ^0.7.0
   flutter3d_app:       ^0.7.0
-  flutter3d_audio:     ^0.6.0
+  flutter3d_audio:     ^0.7.0
   flutter3d_particles: ^0.7.0
   vector_math: ^2.2.0
 ```
@@ -36,7 +36,7 @@ dependencies:
 Note what is *not* there: `flutter3d_game_shooter`. A genre is a package, and this game inherits none of the other one's vocabulary.
 
 <div class="warn">
-<p>The versions come from <a href="https://pub.dev/publishers/pleion.dev/packages">pub.dev</a>. Working against a checkout instead — for engine changes of your own — means swapping each line for a <code>path:</code> into it. <a href="/first-project/">Your first project</a> covers the deployment-target trap that lives beside the pubspec.</p>
+<p>The versions come from <a href="https://pub.dev/publishers/pleion.dev/packages">pub.dev</a>. Every line is on the same 0.7.0 set, and the lines have to agree: <code>flutter3d_app</code> 0.7.0 asks for <code>flutter3d</code> 0.7.0, so one package left on 0.6.0 stops <code>pub get</code>. To work against a checkout instead, for engine changes of your own, swap each line for a <code>path:</code> into it. <a href="/first-project/">Your first project</a> covers the deployment-target trap that lives beside the pubspec.</p>
 </div>
 
 ## Bind the two keys the genre adds {.step}
@@ -145,7 +145,7 @@ The `surface` word on a brush is the whole of the ice mechanic in the document. 
 
 <div class="note">
 <p>The textures, the level and the model this page names are not shipped as a starter kit; the real ones live in the demo at <code>apps/flutter3d_demo_platformer/assets/</code>, including <code>textures/moss_*.png</code> and <code>ice_*.png</code>, <code>levels/ascent.json</code> and the runner model <code>models/penguin.glb</code>. Point your paths there, or at your own files. The box-runner fallback below means the game runs before any of them exist.</p>
-<p>One level is where a tutorial stops; the demo ships five, chained by each document's <code>"next"</code> — <code>first_steps</code>, <code>ascent</code>, <code>cisterns</code>, <code>foundry</code>, <code>spire</code> — with no list of them in its Dart at all. <code>levelNext</code> in the step below is the whole of the mechanism.</p>
+<p>One level is where a tutorial stops; the demo ships five, chained by each document's <code>"next"</code> (<code>first_steps</code>, <code>ascent</code>, <code>cisterns</code>, <code>foundry</code>, <code>spire</code>) with no list of them in its Dart at all. <code>levelNext</code> in the step below is the whole of the mechanism.</p>
 </div>
 
 ## Load the level, and spawn into it {.step}
@@ -259,7 +259,7 @@ void _step(double dt) {
 ```
 
 <div class="warn">
-<p>Pass <code>ActorSystem</code> to the simulation, or there are no enemies. It was built by the application from the day the package existed and never stepped — the system was there, the brains were there, and nothing called them.</p>
+<p>Pass <code>ActorSystem</code> to the simulation, or there are no enemies. It was built by the application from the day the package existed and never stepped: the system was there, the brains were there, and nothing called them.</p>
 </div>
 
 ## Run the loop {.step}
@@ -338,7 +338,7 @@ _runnerDrop = runner.body.halfExtents.y - asset.localBounds.min.y;
 
 ## Dress the runner, and let the clips drive themselves {.step}
 
-A box now, the model when it arrives — the game is playable either way, and a missing asset should not be the difference between playing and staring at an error. The demo ships `penguin.glb`, which has geometry and no clips at all, so what it actually shows is the box replaced by a model that stands still; a rigged file makes the rest of this step do something. `RunnerClips` names the eight the game asks for — idle, walk, run, jump, falling, landing, duck and death — and `crossFadeToNamed` on a player that has none of them is what the `null` check below is for.
+A box now and the model when it arrives, so the game is playable either way and a missing asset never stands between the player and the game. The demo ships `penguin.glb`, which has geometry and no clips at all, so what it actually shows is the box replaced by a model that stands still; a rigged file makes the rest of this step do something. `RunnerClips` names the eight the game asks for (idle, walk, run, jump, falling, landing, duck and death), and `crossFadeToNamed` on a player that has none of them is what the `null` check below is for.
 
 ```dart
 SceneNode _boxRunner(GraphicsDevice device, Scene scene, Runner runner) {
@@ -543,7 +543,7 @@ test('a frame renders', () {
 ```
 
 <div class="why">
-<p>Three bugs shipped that every simulation test passed and a single rendered frame would have caught. That is why <code>flutter3d_cpu</code> is a dev dependency of the games rather than a curiosity.</p>
+<p>Three bugs shipped that every simulation test passed and a single rendered frame would have caught. That is why <code>flutter3d_cpu</code> is a dev dependency of the games.</p>
 </div>
 
 ## Where to go from here

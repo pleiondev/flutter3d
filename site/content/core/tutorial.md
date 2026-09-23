@@ -67,7 +67,7 @@ On Android the key is `io.flutter.embedding.android.EnableFlutterGPU` in `Androi
 
 Nothing to build. The compiled bundle rides inside `flutter3d_impeller`: the package's `.pubignore` takes back the repository's `*.shaderbundle` exclusion, so the published archive carries one, and the backend loads it from `packages/flutter3d_impeller/assets/shaders/flutter3d.shaderbundle` without your project declaring an asset of its own. You installed it three blocks ago.
 
-Two cases do want the builder. A checkout of this repository has no bundle at all — it is generated and gitignored — so it is built once and again after every SDK change:
+Two cases do want the builder. A checkout of this repository has no bundle at all, because it is generated and gitignored, so it is built once and again after every SDK change:
 
 ```bash
 (cd packages/flutter3d_impeller && ./tool/build_shaders.sh)
@@ -148,7 +148,7 @@ Scene _scene = Scene();
 ```
 
 <div class="warn">
-<p>This is the one line worth copying verbatim. The renderer must build its frame targets before anything else has taken device memory, and waiting for a model to load means a dozen textures are uploaded first. On some machines that combination fails to allocate — <em>every frame, from the first</em>, and the picture is an error screen. Start with an empty scene and add to it.</p>
+<p>Copy this line verbatim. The renderer must build its frame targets before anything else has taken device memory, and waiting for a model to load means a dozen textures are uploaded first. On some machines that combination fails to allocate <em>every frame, from the first</em>, and the picture is an error screen. Start with an empty scene and add to it.</p>
 </div>
 
 ## Draw a frame {.step}
@@ -400,7 +400,7 @@ void _animate(double dt) {
 Non-fatal decoding problems land in `warnings` rather than failing the file, a skipped primitive or an ignored extension explains a model that looks odd but still loaded.
 
 <div class="note">
-<p>There is no <code>hero.glb</code> in this repository; the name stands for whatever animated <code>.glb</code> you have. The demo applications keep theirs under <code>apps/flutter3d_demo_*/assets/models/</code> (the platformer's runner is <code>penguin.glb</code>), and the catch above means a missing file leaves the scene running rather than broken.</p>
+<p>There is no <code>hero.glb</code> in this repository; the name stands for whatever animated <code>.glb</code> you have. The shooter, the platformer and the racing game keep theirs under <code>assets_src/models/</code> in their application directories, where the build hook picks them up (the platformer's runner is <code>penguin.glb</code>), and the catch above means a missing file leaves the scene running rather than broken.</p>
 </div>
 
 ## Click on something {.step}
@@ -473,13 +473,13 @@ _settings = _settings.copyWith(
 
 ## When nothing appears {.step}
 
-The failures that produce a picture rather than an error, in the order they are worth checking.
+The failures that produce a picture instead of an error, in the order to check them.
 
 | Symptom | Cause |
 |---|---|
 | `Failed to initialize ShaderLibrary` | The bundle is missing or stale, or `FLTEnableFlutterGPU` is not in `Info.plist` |
 | Black viewport, no errors at all | `Viewport` and `Scissor` default to a zero-sized rect and the API does not complain |
-| The model is clipped against the near plane | The projection's depth convention — Impeller wants `[0, 1]`, not OpenGL's `[-1, 1]` |
+| The model is clipped against the near plane | The projection's depth convention: Impeller wants `[0, 1]`, not OpenGL's `[-1, 1]` |
 | Everything is culled away | Y flipped in the projection, which reverses on-screen winding |
 | Draw count goes up, nothing appears | There is no non-indexed draw. Bind an index buffer even for the identity sequence |
 | The scene is all ambient | A light direction that was normalised into a new vector instead of in place |
@@ -490,7 +490,7 @@ The full list, with the fix for each, is on the [Pitfalls](/reference/pitfalls/)
 
 ## Where to go from here
 
-You now have a renderer, a scene and a loop. What you do not have is a *game*, no fixed step, no collision, no level, no input that survives a slow frame. That is the [simulation layer](/core/simulation/), and the two genre tutorials build a whole game on top of it:
+You now have a renderer, a scene and a loop. What you do not have yet is a *game*: a fixed step, collision, a level, and input that survives a slow frame. That is the [simulation layer](/core/simulation/), and the two genre tutorials build a whole game on top of it:
 
 - [Build a shooter](/shooter/tutorial/): weapons, monsters that path around corners, an inventory, locked doors, saves
 - [Build a platformer](/platformer/tutorial/): a double jump with coyote time, wall slides, ice and conveyors, springs, checkpoints

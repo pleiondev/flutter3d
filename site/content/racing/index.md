@@ -1,12 +1,12 @@
 ---
-description: What flutter3d_game_racing adds — a track as a measured curve rather than geometry, a sphere-and-frame car, a Pacejka-shaped tire, lap counting that cannot be cheated, AI drivers and ghosts.
+description: What flutter3d_game_racing adds: a track as a measured curve instead of geometry, a sphere-and-frame car, a Pacejka-shaped tire, lap counting that cannot be cheated, AI drivers and ghosts.
 ---
 
 # What a racing game adds
 
 The third genre, and the first one where the ground stops being geometry.
 
-A shooter and a platformer both stand on brushes: axis-aligned boxes in a collision world, swept against. A track is not that. It is a measured curve with a width and a camber, and the surface under a car is worked out from the curve instead of found by a sweep. Everything that is really an object — barriers, kerbs, scenery — stays in the collision world as before.
+A shooter and a platformer both stand on brushes: axis-aligned boxes in a collision world, swept against. A track is not that. It is a measured curve with a width and a camber, and the surface under a car is worked out from the curve instead of found by a sweep. Everything that is really an object (barriers, kerbs, scenery) stays in the collision world as before.
 
 | Taken from core, unchanged | Brought by this genre |
 |---|---|
@@ -40,7 +40,7 @@ Everything a car needs is a question asked at an arc length `s`:
 | `widthAt(s)` | Full road width there, kerb to kerb |
 | `bankAt(s)` | Camber in radians |
 | `surfacePoint(s, lateral, out)` | A point on the road surface, `lateral` metres off the centre |
-| `surfaceAt(s, lateral)` | Which surface that is — the name a grip table looks up |
+| `surfaceAt(s, lateral)` | Which surface that is: the name a grip table looks up |
 | `barrierAt(s, left: true)` | Whether there is a wall on that side there |
 | `startSlot(i, position, forward)` | Where car `i` starts on the grid |
 | `length` | A lap, in metres |
@@ -55,7 +55,7 @@ abstract interface class GroundField {
 }
 ```
 
-`TrackField` implements it over a `TrackSpline`, with a `CollisionWorld` behind it for everything the curve does not describe. Ask it where the ground is and it answers with a point, a normal, an arc length and a surface name — or falls back to a probe against the world when the car has left the road.
+`TrackField` implements it over a `TrackSpline`, with a `CollisionWorld` behind it for everything the curve does not describe. Ask it where the ground is and it answers with a point, a normal, an arc length and a surface name, or falls back to a probe against the world when the car has left the road.
 
 `nearHint` is the last known arc length. Without it, finding the nearest point on a closed kilometre-long spline is a global search every frame for every car.
 
@@ -122,7 +122,7 @@ final race = RaceState(
 );
 ```
 
-`RacerProgress` is derived once per step from where a car is, and none of it is stored on the car — a car does not know what a lap is, and that is why `RaceMode.freeRoam` works at all.
+`RacerProgress` is derived once per step from where a car is, and none of it is stored on the car. A car does not know what a lap is, which is why `RaceMode.freeRoam` works at all.
 
 | Field | |
 |---|---|

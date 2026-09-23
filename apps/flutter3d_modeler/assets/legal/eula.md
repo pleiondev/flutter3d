@@ -1,6 +1,6 @@
 ---
 title: End User Licence Agreement
-description: The terms the Modeller is licensed under — MIT at the core, plus what happens to your documents, what reaches a network, and what an AI agent connected to it can do.
+description: The terms the Modeller is licensed under, MIT at the core, plus what happens to your documents, what reaches a network, and what an AI agent connected to it can do.
 version: 1.0
 effective: 2026-09-16
 ---
@@ -69,8 +69,8 @@ only times the Modeller touches a network are ones you start yourself, and the
 Privacy Policy lists each one.
 
 **Agent access, specifically.** The Modeller can expose a local
-[Model Context Protocol](https://modelcontextprotocol.io) server — started only
-when you pass `--mcp-port` — so that an AI assistant running on your own
+[Model Context Protocol](https://modelcontextprotocol.io) server, started only
+when you pass `--mcp-port`, so that an AI assistant running on your own
 machine can read and edit the open document. If you connect an assistant that
 sends its input to a third-party model provider, then the content of your
 document goes to that provider under *their* terms, not ours. That is a
@@ -90,13 +90,13 @@ emergency save when it crashes, and neither is a substitute for a backup.
 ## 7. Limitation of liability
 
 To the fullest extent permitted by applicable law, the Licensor shall not be
-liable for any claim, damages or other liability — whether in contract, tort or
-otherwise — arising from, out of or in connection with the Modeller or its use,
+liable for any claim, damages or other liability, whether in contract, tort or
+otherwise, arising from, out of or in connection with the Modeller or its use,
 including lost profits, lost data and business interruption.
 
 **If you are a consumer**, nothing in this agreement excludes or limits
 liability that cannot be excluded or limited under the law of your country of
-residence — in particular liability for death or personal injury caused by
+residence, in particular liability for death or personal injury caused by
 negligence, for fraud, and for gross negligence or wilful misconduct. Your
 statutory rights as a consumer are unaffected.
 
@@ -189,7 +189,7 @@ agreement, and the store may require terms that override parts of this one.
 
 ## 14. Changes to this agreement
 
-We may change this agreement — for a new feature, or because the law changed.
+We may change this agreement, for a new feature or because the law changed.
 The current version always carries a version number and an effective date at
 the top, every version is kept in the public source repository under `legal/`,
 and the history of changes is the repository's own commit history. Continuing
