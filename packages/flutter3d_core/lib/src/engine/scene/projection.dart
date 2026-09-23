@@ -34,9 +34,11 @@ import 'package:vector_math/vector_math.dart';
 ///
 /// A subclass owes [toMatrix], [near] and [far], and owes them in this file's
 /// depth convention: `[0, 1]`, +Y up, Y not flipped. Everything above is the
-/// contract, not a description of the two below.
+/// contract, not a description of the ones below.
+///
 /// `base` rather than merely open: extend it, do not implement it, so that a
-/// member added here later is inherited rather than missing. See [Shape].
+/// member added here later is inherited rather than missing — the same choice
+/// the geometry layer's `Shape` makes.
 abstract base class Projection {
   const Projection();
 

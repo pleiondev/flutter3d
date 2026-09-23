@@ -20,14 +20,14 @@ import 'pose.dart';
 void _rotateJointWorld(Pose pose, int joint, Quaternion delta) {
   final world = pose.worldMatrices();
   final parent = pose.parents[joint];
-  final currentWorld = Quaternion.fromRotation(world[joint].getRotation());
+  final currentWorld = _rotationOf(world[joint]);
   final newWorld = (delta * currentWorld)..normalize();
 
   final Quaternion newLocal;
   if (parent < 0 || parent >= pose.nodeCount) {
     newLocal = newWorld;
   } else {
-    final parentWorld = Quaternion.fromRotation(world[parent].getRotation());
+    final parentWorld = _rotationOf(world[parent]);
     newLocal = (parentWorld.inverted() * newWorld)..normalize();
   }
 
@@ -36,6 +36,19 @@ void _rotateJointWorld(Pose pose, int joint, Quaternion delta) {
   pose.rotations[at + 1] = newLocal.y;
   pose.rotations[at + 2] = newLocal.z;
   pose.rotations[at + 3] = newLocal.w;
+}
+
+/// The rotation part of [world], with its scale taken out first.
+///
+/// `Quaternion.fromRotation(world.getRotation())` reads the upper 3x3 as it
+/// stands, and on a scaled matrix that is not a rotation: the quaternion it
+/// builds points somewhere else, and normalising it does not bring it back. A
+/// rig authored at a hundredth of a metre — every rig in this repository —
+/// carries that scale in every joint's world matrix.
+Quaternion _rotationOf(Matrix4 world) {
+  final rotation = Quaternion.identity();
+  world.decompose(Vector3.zero(), rotation, Vector3.zero());
+  return rotation..normalize();
 }
 
 /// The interior angle opposite a side of length [opposite] in a triangle

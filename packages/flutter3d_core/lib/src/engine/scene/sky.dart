@@ -153,10 +153,10 @@ void paintSky(MeshData mesh, SkyColour colour) {
 
 /// A node holding [mesh], flagged so that it behaves as a sky.
 ///
-/// A function rather than a subclass: `MeshNode` is `final`, and it is final for
-/// a good reason — the renderer reads its fields directly on the hot path. What
-/// would have been a class is four flags, and they are worth naming because
-/// each one is a distinct thing that goes wrong without it:
+/// A function rather than a subclass: what would have been a class is four
+/// flags on an ordinary `MeshNode`, and a subclass adding no behaviour would be
+/// one more type for the renderer's `is` checks to meet. The flags are worth
+/// naming because each one is a distinct thing that goes wrong without it:
 ///
 /// * `drawBucket = -1` — drawn before the scene. Ordinary materials sit at
 ///   zero, so this is the only way to be first, and first is where a backdrop

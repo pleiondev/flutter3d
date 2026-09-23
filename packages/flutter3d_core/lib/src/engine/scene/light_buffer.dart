@@ -148,14 +148,6 @@ final class LightBuffer {
     final evicted = _extraScore[weakest];
     extraIndices[weakest] = candidate;
     _extraScore[weakest] = score;
-    // The same tie, met from the other side: the evicted light was picked
-    // over its equals by scene order alone, so while one of them still holds
-    // a row its score is no water line either. Without this the ring of
-    // torches above still fades to black the moment any light scoring
-    // between them and the slots arrives after them in scene order.
-    for (var i = 0; i < maxExtraLights; i++) {
-      if (_extraScore[i] == evicted) return 0.0;
-    }
     return evicted;
   }
 
@@ -233,12 +225,6 @@ final class LightBuffer {
   final Int32List _chosen = Int32List(maxLights);
   final Float64List _chosenScore = Float64List(maxLights);
 
-  /// Reads every live light of [lights] into the candidate table.
-  ///
-  /// Live means visible in its hierarchy and switched on; a light failing
-  /// either is not a light that lost a slot, it is a light that is not there,
-  /// and counting it in [overflow] would report a scene as crowded because
-  /// somebody turned a lamp off.
   /// Whether any candidate asks for a channel — `gfx-12n`.
   ///
   /// Read by the per-draw selection to keep the fast path exactly as fast as
@@ -252,6 +238,12 @@ final class LightBuffer {
   static bool reaches(LightNode light, int channels) =>
       light.channels & channels != 0;
 
+  /// Reads every live light of [lights] into the candidate table.
+  ///
+  /// Live means visible in its hierarchy and switched on; a light failing
+  /// either is not a light that lost a slot, it is a light that is not there,
+  /// and counting it in [overflow] would report a scene as crowded because
+  /// somebody turned a lamp off.
   void collect(List<LightNode> lights) {
     candidates.clear();
     _anyChannelled = false;
@@ -605,13 +597,6 @@ final class LightBuffer {
     packed.clear();
   }
 
-  /// Writes one light into the next free slot, its intensity scaled by
-  /// [scale] — nought to one, and one for every caller but the edge fade.
-  ///
-  /// The intensity and not the colour, because they are the same multiply to
-  /// the shader and only one of them is a number nobody authored: dimming a
-  /// light by writing a darker colour would show up in a debug view as a lamp
-  /// somebody tinted.
   /// Writes candidate [index] into [out] at [at], as one row of the light list
   /// texture — `gfx-74n`.
   ///
@@ -640,6 +625,26 @@ final class LightBuffer {
     out[at + 6] = light.color.z;
     out[at + 7] = light.intensity;
 
+    // A rectangle's row carries its two edge vectors where a punctual light
+    // keeps its direction and cone, exactly as [_pack] lays out its slot —
+    // `surface.glsl` reads a row and a slot with the same code, so a row
+    // written the punctual way hands it a direction as the half-width and two
+    // cosines as the half-height.
+    if (light.type == LightType.area) {
+      light.readHalfWidth(_halfWidth);
+      light.readHalfHeight(_halfHeight);
+      out[at + 8] = _halfWidth.x;
+      out[at + 9] = _halfWidth.y;
+      out[at + 10] = _halfWidth.z;
+      out[at + 11] = math.max(light.range, 0.0);
+      // Negated for the reason [_pack] gives.
+      out[at + 12] = -_halfHeight.x;
+      out[at + 13] = -_halfHeight.y;
+      out[at + 14] = -_halfHeight.z;
+      out[at + 15] = 0.0;
+      return;
+    }
+
     out[at + 8] = _direction.x;
     out[at + 9] = _direction.y;
     out[at + 10] = _direction.z;
@@ -657,6 +662,13 @@ final class LightBuffer {
     out[at + 15] = 0.0;
   }
 
+  /// Writes one light into the next free slot, its intensity scaled by
+  /// [scale] — nought to one, and one for every caller but the edge fade.
+  ///
+  /// The intensity and not the colour, because they are the same multiply to
+  /// the shader and only one of them is a number nobody authored: dimming a
+  /// light by writing a darker colour would show up in a debug view as a lamp
+  /// somebody tinted.
   void _pack(LightNode light, {double scale = 1.0}) {
     packed.add(light);
     final slot = _count * 4;
