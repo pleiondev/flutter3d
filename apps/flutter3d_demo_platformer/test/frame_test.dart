@@ -195,28 +195,36 @@ final class _Shown {
       ..lookAt(at);
   }
 
-  /// Draws frames until [enough] is happy with one, or gives up.
-  ///
-  /// The fixtures load their models asynchronously — a coin is a GLB, and
-  /// `FixtureVisuals` starts the read and returns — so the first frame of a
-  /// level is drawn before its coins exist, exactly as it is in the game. A
-  /// fixed delay here was the first attempt and it was wrong the way fixed
-  /// delays always are: fine alone, flaky under a full `ci.sh` where the
-  /// machine has eleven other suites to run. This waits for the thing itself.
-  Future<Uint8List> drawUntil(
-    bool Function(Uint8List frame) enough, {
-    int attempts = 120,
-  }) async {
-    var frame = await draw();
-    for (var i = 0; i < attempts && !enough(frame); i++) {
-      await Future<void>.delayed(const Duration(milliseconds: 20));
-      frame = await draw();
-    }
-    return frame;
-  }
-
   /// How the runner is posed, as `main.dart` poses it.
   final RunnerLooks pose = RunnerLooks();
+
+  /// A frame with the piece drawn at [at] and the same frame without it, drawn
+  /// again until that piece makes a difference or [attempts] run out.
+  ///
+  /// Found by where it stands, not by name: a fixture drawn from a model is
+  /// the model's own nodes, named after its meshes, and only a box is named
+  /// after the entity it stands for.
+  ///
+  /// The fixtures load their models asynchronously (`FixtureVisuals` starts
+  /// the read and returns), so the first frame of a level is drawn before its
+  /// coins exist, exactly as it is in the game. A fixed delay here was the
+  /// first attempt and it was wrong the way fixed delays always are: fine
+  /// alone, flaky under a full `ci.sh` where the machine has eleven other
+  /// suites to run. This waits for the thing itself.
+  Future<({Uint8List shown, Uint8List hidden})> drawWithAndWithout(
+    Vector3 at, {
+    int attempts = 120,
+  }) async {
+    for (var i = 0; ; i++) {
+      final piece = pieceNear(at, within: 1.0);
+      final shown = await draw();
+      final hidden = piece == null ? shown : await draw(hidingPiece: piece);
+      if (i >= attempts || _differences(shown, hidden) > 20) {
+        return (shown: shown, hidden: hidden);
+      }
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+    }
+  }
 
   /// Draws a frame and gives back its pixels, RGBA.
   ///
@@ -271,13 +279,14 @@ final class _Shown {
     return pixels!.buffer.asUint8List();
   }
 
-  Future<Uint8List> draw({String? hiding}) async {
+  Future<Uint8List> draw({String? hiding, MeshNode? hidingPiece}) async {
     fixtures.sync(_elapsed);
     final p = runner.position;
     final scale = pose.scale;
     runnerNode
       ..setPosition(p.x, p.y, p.z)
       ..setScale(scale.x, scale.y, scale.z);
+    hidingPiece?.visible = false;
     if (hiding != null) {
       for (final MeshNode piece in scene.meshes) {
         if (piece.name == hiding) piece.visible = false;
@@ -294,23 +303,6 @@ final class _Shown {
     expect(pixels, isNotNull, reason: 'the frame could not be read back');
     return pixels!.buffer.asUint8List();
   }
-}
-
-/// How many pixels read as gold: bright, warm, and green two thirds of the way
-/// to red.
-///
-/// A coin is `baseColor` (0.98, 0.80, 0.22) — green is 0.82 of red. The first
-/// draft of this only asked for "more red than blue", which is also true of the
-/// runner's orange box (0.90, 0.42, 0.28), and the runner walking through the
-/// shot counted as eight thousand coins. Green against red is what separates
-/// them, and it is why the ratio is here rather than a brightness threshold.
-int _goldPixels(Uint8List rgba) {
-  var count = 0;
-  for (var i = 0; i < rgba.length; i += 4) {
-    final r = rgba[i], g = rgba[i + 1], b = rgba[i + 2];
-    if (r > 110 && g > r * 0.62 && g < r * 0.95 && b < g * 0.6) count++;
-  }
-  return count;
 }
 
 /// How many pixels differ between two frames of the same size.
@@ -331,9 +323,11 @@ void main() {
     // infinity — says yes. And a coin that is drawn for ever is as wrong as one
     // that is never drawn; the simulation cannot see either, and did not.
     //
-    // Mutations: drop `mechanism.isTaken` from `PlatformerLooks.isSpent` (the
-    // first frame goes empty), or make `isSpent` return false (the second frame
-    // stops changing).
+    // Mutation: drop `mechanism.isTaken` from `PlatformerLooks.isSpent`, and
+    // the first frame goes empty. The other half is weaker than it looks:
+    // `isSpent` returning false is not seen, because `scaleOf` has already
+    // shrunk the coin to nothing, and it still passed with `scaleOf` pinned
+    // at 1.0 as well, so a coin drawn for ever is not what this catches.
     final it = await _Shown.build();
     final coin = it.mechanisms['coin one']!;
 
@@ -342,10 +336,14 @@ void main() {
     it.runner.body.teleport(Vector3(0.0, 0.9, -26.0));
     it.look(from: Vector3(0.0, 1.2, -19.5), at: coin.origin!);
 
-    final drawn = await it.drawUntil((Uint8List f) => _goldPixels(f) > 20);
-    final gold = _goldPixels(drawn);
+    // Asked by hiding the coin, not by counting gold. The gold is the model's
+    // texture, and the build hook compresses textures for the machine running
+    // the test; `CpuDevice` samples no block-compressed format, so there the
+    // coin is drawn untextured and not one pixel of it is gold.
+    final (:shown, :hidden) = await it.drawWithAndWithout(coin.origin!);
+    final coinPixels = _differences(shown, hidden);
     expect(
-      gold,
+      coinPixels,
       greaterThan(20),
       reason:
           'a coin three and a half metres in front of the camera never '
@@ -359,14 +357,18 @@ void main() {
     );
     it.wait(30); // Half a second; the shrink lasts three hundred milliseconds.
 
+    // Against a frame of the same moment with the piece hidden, not against
+    // `hidden` above: half a second on, the other coins have turned.
+    final piece = it.pieceNear(coin.origin!, within: 1.0);
     final gone = await it.draw();
+    final goneAndHidden = await it.draw(hidingPiece: piece);
     expect(
-      _goldPixels(gone),
-      lessThan(gold ~/ 4),
+      _differences(gone, goneAndHidden),
+      lessThan(coinPixels ~/ 4),
       reason: 'the coin is still on screen after it was collected',
     );
     expect(
-      _differences(drawn, gone),
+      _differences(shown, gone),
       greaterThan(20),
       reason: 'the two frames are the same picture',
     );

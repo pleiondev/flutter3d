@@ -76,7 +76,7 @@ abstract final class MyActions {
 `setStickAxis` is the seam a gamepad or touch backend would write to. None exists yet.
 
 <div class="note">
-<p>Relative mouse deltas need pointer lock, which Flutter exposes on no desktop platform and does not surface in a browser either. <code>packages/pointer_lock</code> supplies it on macOS by breaking the association between the physical mouse and the on-screen cursor, so <code>mouseMoved</code> events keep arriving with their deltas while the cursor stays put — and in a browser through <code>requestPointerLock</code>, which is why a web build of a first-person game is now played with the mouse instead of by dragging the world around.</p>
+<p>Relative mouse deltas need pointer lock, which Flutter exposes on no desktop platform and does not surface in a browser either. <code>packages/pointer_lock</code> supplies it on macOS by breaking the association between the physical mouse and the on-screen cursor, so <code>mouseMoved</code> events keep arriving with their deltas while the cursor stays put, and in a browser through <code>requestPointerLock</code>, which is why a web build of a first-person game is now played with the mouse instead of by dragging the world around.</p>
 </div>
 
 ## The level format
@@ -113,7 +113,7 @@ A level is JSON: brushes, materials, lights, entities, fog, and where to go next
 
 `Level.ofType('torch')`, `Level.named('east door')` and `Level.materialFor(brush)` are the read side. `brush_geometry.dart` turns brushes into mesh data and `level_collision.dart` turns them into colliders.
 
-The format's own entity words are `EntityTypes`: `player_spawn`, `key`, `door`, `lift`, `platform`, `button`, `trigger`, `exit`, and `reflection_probe` — a point the room around it is [reflected from](/core/rendering/#reflection-probes), with optional `radius`, `intensity`, `faceSize`, `levels`, `near` and `far`. Pure data to the simulation: `ReflectionProbeKind` validates one and spawns nothing, and the bridge's `LevelLoader` builds the probe the way it builds a light node.
+The format's own entity words are `EntityTypes`: `player_spawn`, `key`, `door`, `lift`, `platform`, `button`, `trigger`, `exit`, and `reflection_probe`, a point the room around it is [reflected from](/core/rendering/#reflection-probes), with optional `radius`, `intensity`, `faceSize`, `levels`, `near` and `far`. Pure data to the simulation: `ReflectionProbeKind` validates one and spawns nothing, and the bridge's `LevelLoader` builds the probe the way it builds a light node.
 
 ### Holes in the walls
 
@@ -142,7 +142,7 @@ final kinds = EntityRegistry(<EntityKind>[
 ]);
 ```
 
-Writing one is two methods — validate, and spawn:
+Writing one takes two methods, validate and spawn:
 
 ```dart
 final class TurretKind extends EntityKind {
@@ -168,7 +168,7 @@ final class TurretKind extends EntityKind {
 
 ### The validator
 
-`LevelValidator` checks what is true of any level whatever the game is: names unique, references resolving, brushes not degenerate, something to stand on, something to see by. Rules about a level *as a whole* — "exactly one player spawn", "warn about a missing exit" — are a shooter's rules, not the format's, so they are `LevelRule`s a game passes in.
+`LevelValidator` checks what is true of any level whatever the game is: names unique, references resolving, brushes not degenerate, something to stand on, something to see by. Rules about a level *as a whole*, such as "exactly one player spawn" or "warn about a missing exit", are a shooter's rules, not the format's, so they are `LevelRule`s a game passes in.
 
 ```dart
 final issues = LevelValidator(registry: kinds, rules: myRules()).validate(level);
@@ -205,7 +205,7 @@ for (final String message in mechanisms.events.messages) { /* a line of HUD */ }
 
 <div class="why">
 <p>Lists, not streams. A <code>Stream</code> delivers <em>after</em> the step that produced the event, which is the one property this package exists to protect. A list cleared at the top of each step is synchronous, typed, and allocates nothing.</p>
-<p><code>publish()</code> is called at the <strong>end</strong> of the simulation step, not from <code>step()</code>. A button pressed with the use key runs after mechanisms have stepped, so a door it starts is not yet moving when <code>step</code> returns — publishing there would report every such door a step late.</p>
+<p><code>publish()</code> is called at the <strong>end</strong> of the simulation step, not from <code>step()</code>. A button pressed with the use key runs after mechanisms have stepped, so a door it starts is not yet moving when <code>step</code> returns. Publishing there would report every such door a step late.</p>
 </div>
 
 ### The order a step runs in
@@ -288,8 +288,8 @@ Three decisions, each with an alternative that looks better and is not:
 - **Baked from `Level.brushes`, not from the `CollisionWorld`.** The world holds the doors, and whichever position one happened to be in at load would be frozen into the grid as architecture.
 
 <div class="warn">
-<p><strong>Cell size is the setting that matters, and half a metre is often too coarse.</strong> A grid is conservative: a cell touching a wall has a clearance of one however far the wall actually is. At <code>cellSize: 0.5</code> a one-metre corridor is two cells, both touching, so a monster 0.7 wide, which physically fits — is refused the whole passage, and the grid silently falls back to walking straight at the player in exactly the places a route is worth having. The dungeon bakes at 0.25 for that reason.</p>
-<p><strong>One <code>Navigation</code> means one goal.</strong> <code>update</code> re-targets every field it holds. Two callers with different destinations must not share one, or the second one's fields quietly flow to the first one's goal and the symptom is an agent that looks stuck.</p>
+<p><strong>Cell size is the setting that matters, and half a metre is often too coarse.</strong> A grid is conservative: a cell touching a wall has a clearance of one however far the wall actually is. At <code>cellSize: 0.5</code> a one-metre corridor is two cells, both touching, so a monster 0.7 wide, which physically fits, is refused the whole passage. The grid then falls back, with no warning, to walking straight at the player in exactly the places a route would help most. The dungeon bakes at 0.25 for that reason.</p>
+<p><strong>One <code>Navigation</code> means one goal.</strong> <code>update</code> re-targets every field it holds. Two callers with different destinations must not share one, or the second one's fields flow to the first one's goal without any error, and the symptom is an agent that looks stuck.</p>
 </div>
 
 ### Jump links
@@ -333,7 +333,7 @@ final projectiles = ProjectileSystem(world: collision, entities: entities);
 final data = entities.save();   // refuses a component type nobody registered
 ```
 
-It is **not** accepted for cache locality and delivers none — components live in maps keyed by entity index. The condition that would change that is written in the file: a query walking thousands of entities per step, showing up in a profile.
+It is **not** accepted for cache locality and delivers none: components live in maps keyed by entity index. The condition that would change that is written in the file: a query walking thousands of entities per step, showing up in a profile.
 
 `registerInPlace` exists because a `CharacterController` owns a collider in a live world and a `Brain` is code as much as data. Neither can be rebuilt from a file, and neither needs to be, because a snapshot restores a world that already exists, so those components take their numbers back rather than being reconstructed.
 
@@ -408,10 +408,10 @@ The names live here instead of in `flutter3d_physics`, because a collision world
 
 ## What it does not do
 
-- **Navigation gets you there, not around you.** No flanking, no cover, no squads, no doors opened by monsters, and nothing reserves the space it is walking into.
-- **A game flow with nowhere to go.** `GameState` is `playing`, `dead` or `complete`, and an `Exit` reports where to go next, but nothing restarts a level and nothing loads the next one.
+- **Navigation gets you there, not around you.** Monsters do not flank, take cover, move in squads or open doors, and nothing reserves the space an agent is walking into.
+- **A game flow with nowhere to go.** `GameState` is `playing`, `dead` or `complete`, and an `Exit` reports where to go next, but nothing in this package restarts a level or loads the next one. That is `RunSession`'s job, in `flutter3d_game`; see [assembling an application](/core/session/).
 - **No camera, and that is not an omission.** What a projection matrix should do about the player's eye belongs to the renderer. Third-person, over-the-shoulder and fixed cameras are all a caller reading `eye` and `aim` differently.
-- **No animation, no persistence, no timers.** Nothing here schedules anything; a game that wants a delayed event counts down itself.
+- **Animation, persistence and timers live elsewhere.** Nothing here schedules anything; a game that wants a delayed event counts down itself.
 
 ## Next
 

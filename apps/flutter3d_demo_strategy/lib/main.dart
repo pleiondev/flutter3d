@@ -84,6 +84,9 @@ class StrategyDemo extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => const MaterialApp(
+    // What a browser tab shows. Without it the web build's tab was blank,
+    // while the three other games each named themselves.
+    title: 'Strategy',
     debugShowCheckedModeBanner: false,
     home: Scaffold(backgroundColor: Color(0xFF10131A), body: _Map()),
   );

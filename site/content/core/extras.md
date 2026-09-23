@@ -18,7 +18,7 @@ renderer.addContributor(ParticleContributor(particles));
 particles.advance(dt);
 ```
 
-That is the whole integration. `ParticleContributor` is a `PassContributor` — the seam that lets something draw inside an existing pass without the renderer learning what it is.
+That is the whole integration. `ParticleContributor` is a `PassContributor`, the seam that lets something draw inside an existing pass without the renderer learning what it is.
 
 {{golden particles-burst | A seeded burst a little over half a second in: spread, drag and gravity bending the paths, colour and size changing over life.}}
 
@@ -46,7 +46,7 @@ abstract final class Effects {
 | `SphereEmitter` | Outward from a shell, `speed` and `radius` ranges |
 | `ConeEmitter` | A cone about a direction, `halfAngleDegrees` |
 | `BoxEmitter` | From inside a box, optionally along an axis |
-| `DriftEmitter` | Slow and spread — smoke, motes |
+| `DriftEmitter` | Slow and spread: smoke, motes |
 
 ### Two ways to emit
 
@@ -59,7 +59,7 @@ particles.emit(fire, Effects.flame, origin, perSecond: 34.0, direction: up);
 ```
 
 <div class="note">
-<p>A continuous rate that is <strong>not restated goes out</strong>. That is the design, not a leak: a torch that was destroyed stops smoking because nobody told it to keep going, and no code had to remember to stop it.</p>
+<p>A continuous rate that is <strong>not restated goes out</strong>, by design. A torch that was destroyed stops smoking because nobody told it to keep going, and no code had to remember to stop it.</p>
 </div>
 
 `advance` sub-steps internally with a ceiling, because a debugger pause hands it a delta of several seconds and catching all of it up takes longer than the stall did.
@@ -81,17 +81,17 @@ final class TorchFire with LightEmitter {
 
 ### Mesh particles and flipbooks
 
-`MeshParticleContributor` draws instanced meshes rather than quads — debris, sparks with volume. `Flipbook` walks a sprite sheet over a particle's lifetime.
+`MeshParticleContributor` draws instanced meshes instead of quads, for debris and sparks with volume. `Flipbook` walks a sprite sheet over a particle's lifetime.
 
 {{golden particles-mesh | Five spheres in a row, one instanced draw, sizes ascending so a backend that drew instance zero five times would be caught.}}
 
 <div class="note">
-<p>The particle shaders live in <code>flutter3d_shaders</code> rather than here. That package is already the shared GLSL every backend compiles from — Impeller into a bundle, WebGL by translation, the CPU backend as Dart transcriptions, so <code>particle.vert</code> living there while the simulation lives here is the arrangement that package exists for.</p>
+<p>The particle shaders live in <code>flutter3d_shaders</code>, not here. That package is already the shared GLSL every backend compiles from (Impeller into a bundle, WebGL by translation, the CPU backend as Dart transcriptions), and keeping <code>particle.vert</code> there while the simulation lives here is what that package exists for.</p>
 </div>
 
 ## Audio
 
-The spatialisation — attenuation, panning, occlusion and voice limiting — is computed in Dart. Making noise is a backend's job.
+The spatialisation (attenuation, panning, occlusion and voice limiting) is computed in Dart. Making noise is a backend's job.
 
 ```dart
 AudioScene audio = AudioScene(backend: SilentBackend());
@@ -109,7 +109,7 @@ try {
 ```
 
 <div class="why">
-<p>Starting with <code>SilentBackend</code> and swapping is not defensive coding for its own sake. A machine with no audio device, or a CI runner, keeps the silent backend and plays the game, and the alternative, awaiting the device before the first frame, makes a missing sound card the difference between playing and staring at a spinner.</p>
+<p>Starting with <code>SilentBackend</code> and swapping has a concrete reason. A machine with no audio device, or a CI runner, keeps the silent backend and plays the game. Awaiting the device before the first frame instead would make a missing sound card the difference between playing and staring at a spinner.</p>
 </div>
 
 ### Sounds are definitions
@@ -149,7 +149,7 @@ audio.update(ears);
 ```
 
 <div class="note">
-<p><code>aimAt(position, yaw)</code> reads an angle the way a first-person camera does. A follow camera is not one, so it uses <code>aimAlong</code> with its own forward vector — passing a yaw would put the ears where the player is facing rather than where the camera is looking.</p>
+<p><code>aimAt(position, yaw)</code> reads an angle the way a first-person camera does. A follow camera is not one, so it uses <code>aimAlong</code> with its own forward vector. Passing a yaw would put the ears where the player is facing, when they belong where the camera is looking.</p>
 </div>
 
 ### Voice limiting and occlusion

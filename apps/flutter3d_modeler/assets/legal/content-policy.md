@@ -1,6 +1,6 @@
 ---
 title: Content Policy and Copyright Notices
-description: We host nothing you make. What that leaves — the repository and the site — and the copyright notice and counter-notice procedure for both.
+description: We host nothing you make. What that leaves, the repository and the site, and the copyright notice and counter-notice procedure for both.
 version: 1.0
 effective: 2026-09-16
 ---
@@ -20,7 +20,7 @@ take down, because nothing arrives.
 This policy therefore applies to the places where content *does* reach us or
 the public through something we operate:
 
-- the source repository at <https://github.com/pleiondev/flutter3d> — issues,
+- the source repository at <https://github.com/pleiondev/flutter3d>: issues,
   discussions, pull requests and anything attached to them;
 - the website at <https://flutter3d.pleion.dev>, including the gallery, the
   demos and the sample assets shipped with them.
@@ -57,14 +57,14 @@ Copyright Act (17 U.S.C. § 512) and under the European Union's Directive
 Include:
 
 1. Your name, address, telephone number and email address.
-2. Identification of the work you claim is infringed — a URL, a registration,
+2. Identification of the work you claim is infringed: a URL, a registration,
    or enough detail to identify it.
 3. Identification of the material you say infringes it, with a URL or a path
    specific enough for us to find it.
 4. A statement that you have a good-faith belief that the use is not authorised
    by the rights owner, its agent, or the law.
-5. A statement that the information in your notice is accurate, and — under
-   penalty of perjury — that you are the rights owner or authorised to act on
+5. A statement that the information in your notice is accurate, and, under
+   penalty of perjury, that you are the rights owner or authorised to act on
    their behalf.
 6. Your physical or electronic signature.
 
@@ -80,8 +80,8 @@ and giving your name, address, telephone number and consent to the jurisdiction
 of the courts where you live. We will pass the counter-notice on to the
 complainant and may restore the material where the law allows.
 
-**Abuse of this process.** A notice sent in bad faith — to silence criticism,
-or over material you do not own — carries consequences under § 512(f) DMCA and
+**Abuse of this process.** A notice sent in bad faith, to silence criticism
+or over material you do not own, carries consequences under § 512(f) DMCA and
 under Article 23 of the Digital Services Act, and we treat repeat bad-faith
 notices as such.
 
@@ -90,12 +90,11 @@ notices as such.
 The repository and the demos include sample models from the **Khronos glTF
 Sample Models** set, under their own licences and attributions, together with
 the attribution files that came with them. They are there so that a performance
-measurement runs on the same mesh everywhere; they are not ours, and their
-terms — not ours — govern what you may do with them.
+measurement runs on the same mesh everywhere. They are not ours, and their own
+terms govern what you may do with them.
 
-If you believe an asset we ship is misattributed or wrongly licensed, the same
-address above is the way to tell us, and it is the kind of report we would
-rather have than not.
+If you believe an asset we ship is misattributed or wrongly licensed, tell us
+at the same address above. We want those reports.
 
 ## 6. Contributions
 

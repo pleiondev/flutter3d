@@ -1,6 +1,6 @@
 ---
 title: Export Compliance and Sanctions Notice
-description: Publicly available open-source software with no cryptography of its own — the classification, the App Store export answers that follow from it, and the sanctions obligation that is yours.
+description: Publicly available open-source software with no cryptography of its own, the classification, the App Store export answers that follow from it, and the sanctions obligation that is yours.
 version: 1.0
 effective: 2026-09-16
 ---
@@ -18,10 +18,10 @@ distributed free of charge, with the complete source code published at
 
 **The software contains no cryptography of its own.** It implements no
 encryption algorithm, ships no cryptographic library, and has no encryption
-feature. Where a platform underneath it uses encryption — an operating system's
-file encryption, a browser's TLS when you fetch a model from a URL — that is
-the platform's, used through its ordinary public interfaces, and is not a
-capability this software adds.
+feature. Where a platform underneath it uses encryption (an operating system's
+file encryption, or a browser's TLS when you fetch a model from a URL), that
+encryption is the platform's, used through its ordinary public interfaces, and
+is not a capability this software adds.
 
 ## 2. United States (EAR)
 
@@ -37,22 +37,22 @@ entry, because the software implements no encryption function.
 For Apple's App Store export compliance questionnaire, the answers that follow
 from the above are:
 
-- "Does your app use encryption?" — **No.** The app implements no encryption
+- "Does your app use encryption?": **No.** The app implements no encryption
   and does not call platform encryption APIs beyond standard HTTPS/TLS made by
   the operating system on the app's behalf.
 - Consequently no CCATS, no ERN and no annual self-classification report is
   required.
 
-These answers are ours as the developer, and are stated here so that anyone
-distributing a build can check them against the source rather than take them on
-trust.
+These answers are ours as the developer. They are stated here so that anyone
+distributing a build can check them against the source instead of taking them
+on trust.
 
 ## 3. European Union
 
 Under Regulation (EU) 2021/821 (the EU dual-use recast), software "in the
-public domain" — generally available and not subject to restriction on further
-dissemination — falls outside the control lists by the General Software Note.
-The Modeller is published in exactly that way. No export authorisation is
+public domain", meaning generally available and not subject to restriction on
+further dissemination, falls outside the control lists by the General Software
+Note. The Modeller is published in exactly that way. No export authorisation is
 required for its download or redistribution.
 
 ## 4. Sanctions
@@ -74,8 +74,8 @@ one, and that you are not located in a territory subject to a comprehensive
 embargo where doing so would breach the law that applies to you.
 
 We do not operate a server, a store or an account system, and therefore run no
-screening of our own: there is nobody to screen, because there is no
-transaction. This section states an obligation on you, not a check we perform.
+screening of our own: with no transaction, there is nobody to screen. This
+section states an obligation on you. It does not describe a check we perform.
 
 ## 5. App store distribution
 
