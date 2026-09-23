@@ -128,6 +128,24 @@ final class _BindGroupKey {
   );
 }
 
+/// A stage pair by the identity of its two compiled modules.
+final class _StagePairKey {
+  const _StagePairKey(this.vertex, this.fragment);
+
+  final Object vertex;
+  final Object fragment;
+
+  @override
+  bool operator ==(Object other) =>
+      other is _StagePairKey &&
+      identical(other.vertex, vertex) &&
+      identical(other.fragment, fragment);
+
+  @override
+  int get hashCode =>
+      Object.hash(identityHashCode(vertex), identityHashCode(fragment));
+}
+
 /// WebGPU as a [GraphicsDevice], and as the compiler its shader libraries reach
 /// a browser through.
 final class WebGpuDevice implements GraphicsDevice, WgslModuleCompiler {
@@ -331,8 +349,8 @@ final class WebGpuDevice implements GraphicsDevice, WgslModuleCompiler {
   final WebGpuPipelineCache<GPURenderPipeline> pipelines =
       WebGpuPipelineCache<GPURenderPipeline>();
 
-  final Map<String, WebGpuBindingLayouts> _bindingLayouts =
-      <String, WebGpuBindingLayouts>{};
+  final Map<_StagePairKey, WebGpuBindingLayouts> _bindingLayouts =
+      <_StagePairKey, WebGpuBindingLayouts>{};
   final Map<SamplerOptions, GPUSampler> _samplers =
       <SamplerOptions, GPUSampler>{};
   final Map<_BindGroupKey, GPUBindGroup> _bindGroups =
@@ -407,12 +425,20 @@ final class WebGpuDevice implements GraphicsDevice, WgslModuleCompiler {
 
   /// The bind group layouts [pipeline]'s stage pair needs, made once.
   ///
-  /// Keyed on the pair's name rather than on the pipeline object, because the
-  /// layouts come out of the two stages' reflection and nothing else: two
-  /// pipelines over one pair with different vertex layouts are two pipelines
-  /// and one set of bind group layouts.
+  /// Keyed on the pair's compiled modules rather than on the pipeline object,
+  /// because the layouts come out of the two stages' reflection and nothing
+  /// else: two pipelines over one pair with different vertex layouts are two
+  /// pipelines and one set of bind group layouts.
+  ///
+  /// **Not on the pair's name.** A reload replaces the code *and* the
+  /// reflection behind a name, and a layered library answers a name the
+  /// engine's library also answers; a name-keyed cache handed either of those
+  /// the layouts of whichever pair was drawn first.
   WebGpuBindingLayouts bindingsFor(WebGpuPipeline pipeline) =>
-      _bindingLayouts[pipeline.name] ??= guard(
+      _bindingLayouts[_StagePairKey(
+        pipeline.vertexModule,
+        pipeline.fragmentModule,
+      )] ??= guard(
         'the bind group layouts of ${pipeline.name}',
         () => WebGpuBindingLayouts.of(gpuDevice, pipeline),
       );
@@ -916,7 +942,19 @@ final class WebGpuDevice implements GraphicsDevice, WgslModuleCompiler {
   void releaseTexture(TextureHandle texture) {
     final backend = texture.backend;
     if (backend is! WebGpuTexture) return;
-    webgpuReleaseTexture(backend, _textures);
+    if (!webgpuReleaseTexture(backend, _textures)) return;
+    // The bind groups that named this texture go with it. The cache is keyed
+    // by identity, so nothing would ever ask for them again — but it holds
+    // them, and through them a destroyed texture's view, for the life of the
+    // device: every resize remakes the full-screen targets and would leave one
+    // more generation of groups behind.
+    final view = backend.sampledViewIfMade;
+    if (view != null) {
+      _bindGroups.removeWhere(
+        (_BindGroupKey key, GPUBindGroup _) =>
+            key.resources.any((Object it) => identical(it, view)),
+      );
+    }
   }
 
   @override
@@ -1125,7 +1163,11 @@ final class WebGpuDevice implements GraphicsDevice, WgslModuleCompiler {
     if (texture.sampleCount != 1) return null;
     if (texture.type != TextureType.texture2D) return null;
     if (readbackFormats.contains(texture.format)) {
-      return _copyBack(backend, ScreenRect.of(texture));
+      return _copyBack(
+        backend,
+        ScreenRect.of(texture),
+        bgra: texture.format == TextureFormat.b8g8r8a8UNormInt,
+      );
     }
     if (!_convertibleFormats.contains(texture.format)) return null;
     final converted = _toEightBit(texture, backend);
@@ -1341,7 +1383,11 @@ fn fs_main(@builtin(position) at: vec4<f32>) -> @location(0) vec4<f32> {
     // and synchronously, because a refusal that arrives as a failed future is a
     // readback that was accepted.
     final rect = readbackRegionOf(texture, region);
-    return _copyBack(texture.backend as WebGpuTexture, rect);
+    return _copyBack(
+      texture.backend as WebGpuTexture,
+      rect,
+      bgra: texture.format == TextureFormat.b8g8r8a8UNormInt,
+    );
   }
 
   /// [rect] copied out through a staging buffer, repacked to the width the
@@ -1354,7 +1400,16 @@ fn fs_main(@builtin(position) at: vec4<f32>) -> @location(0) vec4<f32> {
   /// order is already what was promised — and a flip carried across "just in
   /// case" would give a frame that reads back correctly and presents upside
   /// down, which is the pair this engine has pulled apart once already.
-  Future<ByteData> _copyBack(WebGpuTexture texture, ScreenRect rect) async {
+  ///
+  /// [bgra] says the texture stores its channels blue first. The copy hands
+  /// over the bytes as stored, and the contract promises RGBA — the order
+  /// Impeller's `toByteData(rawRgba)` and every other backend answer in — so
+  /// the swap is made here, on the way out.
+  Future<ByteData> _copyBack(
+    WebGpuTexture texture,
+    ScreenRect rect, {
+    bool bgra = false,
+  }) async {
     // `copyTextureToBuffer` will not write rows packed tighter than 256 bytes,
     // whatever the region is — so the copy is made wide and the answer is
     // repacked. The editor's one-pixel pick is the case where the padding is
@@ -1367,41 +1422,47 @@ fn fs_main(@builtin(position) at: vec4<f32>) -> @location(0) vec4<f32> {
         label: 'readback ${rect.width}x${rect.height}',
       ),
     );
-    guard('the readback copy of $rect', () {
-      final encoder = gpuDevice.createCommandEncoder()
-        ..copyTextureToBuffer(
-          GPUTexelCopyTextureInfo(
-            texture: texture.texture,
-            mipLevel: 0,
-            origin: GPUOrigin3DDict(x: rect.x, y: rect.y, z: 0),
-            aspect: 'all',
-          ),
-          GPUTexelCopyBufferInfo(
-            buffer: staging,
-            offset: 0,
-            bytesPerRow: stride,
-            rowsPerImage: rect.height,
-          ),
-          GPUExtent3DDict(
-            width: rect.width,
-            height: rect.height,
-            depthOrArrayLayers: 1,
-          ),
-        );
-      gpuDevice.queue.submit(<GPUCommandBuffer>[encoder.finish()].toJS);
-    });
+    // Destroyed on every path out, the refused ones included: a copy that
+    // throws or a map that rejects — a lost device — would otherwise leave
+    // one staging buffer per failed readback for the life of the device.
+    try {
+      guard('the readback copy of $rect', () {
+        final encoder = gpuDevice.createCommandEncoder()
+          ..copyTextureToBuffer(
+            GPUTexelCopyTextureInfo(
+              texture: texture.texture,
+              mipLevel: 0,
+              origin: GPUOrigin3DDict(x: rect.x, y: rect.y, z: 0),
+              aspect: 'all',
+            ),
+            GPUTexelCopyBufferInfo(
+              buffer: staging,
+              offset: 0,
+              bytesPerRow: stride,
+              rowsPerImage: rect.height,
+            ),
+            GPUExtent3DDict(
+              width: rect.width,
+              height: rect.height,
+              depthOrArrayLayers: 1,
+            ),
+          );
+        gpuDevice.queue.submit(<GPUCommandBuffer>[encoder.finish()].toJS);
+      });
 
-    await staging.mapAsync(GpuMapMode.read).toDart;
-    final mapped = staging.getMappedRange().toDart.asUint8List();
-    final out = Uint8List(rect.width * rect.height * 4);
-    final row = rect.width * 4;
-    for (var y = 0; y < rect.height; y++) {
-      out.setRange(y * row, (y + 1) * row, mapped, y * stride);
+      await staging.mapAsync(GpuMapMode.read).toDart;
+      final mapped = staging.getMappedRange().toDart.asUint8List();
+      final out = Uint8List(rect.width * rect.height * 4);
+      final row = rect.width * 4;
+      for (var y = 0; y < rect.height; y++) {
+        out.setRange(y * row, (y + 1) * row, mapped, y * stride);
+      }
+      staging.unmap();
+      if (bgra) swapRedAndBlue(out);
+      return ByteData.sublistView(out);
+    } finally {
+      staging.destroy();
     }
-    staging
-      ..unmap()
-      ..destroy();
-    return ByteData.sublistView(out);
   }
 
   /// Releases everything: the textures and buffers handed out, the arenas, the

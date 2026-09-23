@@ -518,14 +518,30 @@ final class WebGlEncoder implements CommandEncoder {
       if (location < 0) continue;
       _gl.enableVertexAttribArray(location);
       _enabledLocations.add(location);
-      _gl.vertexAttribPointer(
-        location,
-        attribute.format.componentCount,
-        web.WebGLRenderingContext.FLOAT,
-        false,
-        buffer.strideInBytes,
-        attribute.offsetInBytes,
-      );
+      // An integer format goes through `vertexAttribIPointer`, which hands the
+      // shader the integers as stored. `vertexAttribPointer` with `FLOAT`
+      // would read the same four bytes as a float's bit pattern — a joint
+      // index of 3 arriving as 4.2e-45 — and a `uvec4` input fed that way is
+      // undefined besides.
+      final integer = _integerTypeOf(attribute.format);
+      if (integer != null) {
+        _gl.vertexAttribIPointer(
+          location,
+          attribute.format.componentCount,
+          integer,
+          buffer.strideInBytes,
+          attribute.offsetInBytes,
+        );
+      } else {
+        _gl.vertexAttribPointer(
+          location,
+          attribute.format.componentCount,
+          web.WebGLRenderingContext.FLOAT,
+          false,
+          buffer.strideInBytes,
+          attribute.offsetInBytes,
+        );
+      }
       _gl.vertexAttribDivisor(location, divisor);
       // **Divisors are sticky per attribute location, not per buffer and not
       // per draw.** Remembering which ones were set is what lets
@@ -535,6 +551,22 @@ final class WebGlEncoder implements CommandEncoder {
       if (divisor != 0) _instancedLocations.add(location);
     }
   }
+
+  /// The GL component type for an integer [format], or null for a float one.
+  static int? _integerTypeOf(VertexFormat format) => switch (format) {
+    VertexFormat.uint32 ||
+    VertexFormat.uint32x2 ||
+    VertexFormat.uint32x3 ||
+    VertexFormat.uint32x4 => web.WebGLRenderingContext.UNSIGNED_INT,
+    VertexFormat.sint32 ||
+    VertexFormat.sint32x2 ||
+    VertexFormat.sint32x3 ||
+    VertexFormat.sint32x4 => web.WebGLRenderingContext.INT,
+    VertexFormat.float32 ||
+    VertexFormat.float32x2 ||
+    VertexFormat.float32x3 ||
+    VertexFormat.float32x4 => null,
+  };
 
   /// Attribute locations carrying a non-zero divisor, wherever they were set.
   /// Held by the device, because the state is the context's — see
@@ -777,6 +809,15 @@ final class WebGlEncoder implements CommandEncoder {
     // it. On flutter_gpu this is `StoreAction.multisampleResolve` and the
     // driver does it at pass end; here it is an explicit blit, which is the
     // same operation said out loud.
+    //
+    // **Under a scissor widened to the whole target first.** `blitFramebuffer`
+    // is clipped by the scissor test, which this backend leaves enabled, and
+    // the rectangle is whatever the pass's last `setScissor` named — a split
+    // view, an overlay tile — so the resolve copied that rectangle and left the
+    // rest of the resolve target as the previous frame had it. Widened rather
+    // than switched off for the reason `WebGlDevice.blitToCanvas` gives, and
+    // with nothing to put back: the pass is ending, and the next one sets its
+    // own. Set per resolve, below, to the extent that resolve is written at.
     for (var i = 0; i < _resolves.length; i++) {
       final resolve = _resolves[i];
       if (resolve == null) continue;
@@ -805,6 +846,9 @@ final class WebGlEncoder implements CommandEncoder {
       // nothing. Written the same way here so the first pass that does resolve
       // into a level finds this already right.
       final level = _mipLevels[i];
+      final resolveWidth = _levelSize(resolve.width, level);
+      final resolveHeight = _levelSize(resolve.height, level);
+      _gl.scissor(0, 0, resolveWidth, resolveHeight);
       _gl.blitFramebuffer(
         0,
         0,
@@ -812,8 +856,8 @@ final class WebGlEncoder implements CommandEncoder {
         _levelSize(source.height, level), //
         0,
         0,
-        _levelSize(resolve.width, level),
-        _levelSize(resolve.height, level), //
+        resolveWidth,
+        resolveHeight, //
         web.WebGLRenderingContext.COLOR_BUFFER_BIT,
         web.WebGLRenderingContext.NEAREST,
       );

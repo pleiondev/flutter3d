@@ -497,7 +497,10 @@ final class WebGpuEncoder implements CommandEncoder {
 
   @override
   void draw({int instanceCount = 1}) {
-    if (instanceCount == 0) return;
+    // Below one draws nothing, as it does on the other backends. A negative
+    // count handed on would reach `drawIndexed` as an unsigned number in the
+    // billions.
+    if (instanceCount <= 0) return;
     final pipeline = _pipeline;
     if (pipeline == null) {
       throw StateError('a draw with no pipeline bound');
@@ -562,6 +565,10 @@ final class WebGpuEncoder implements CommandEncoder {
         _primitive == PrimitiveType.lineStrip;
     return WebGpuPipelineSignature(
       pipeline: pipeline.name,
+      // The modules, not only the name: a reload and a layered library both
+      // put different code under one `vertex+fragment` string.
+      vertexModule: pipeline.vertexModule,
+      fragmentModule: pipeline.fragmentModule,
       vertexLayout: webgpuVertexLayoutFingerprint(pipeline.layout),
       topology: gpuPrimitiveTopology(_primitive),
       stripIndexFormat: strip ? gpuIndexFormat(_indexType) : null,
