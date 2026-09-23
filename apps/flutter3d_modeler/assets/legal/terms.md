@@ -8,7 +8,7 @@ effective: 2026-09-16
 # Website Terms of Use
 
 Version 1.0, effective 16 September 2026. These terms cover
-<https://flutter3d.pleion.dev> — the documentation, the gallery, the playable
+<https://flutter3d.pleion.dev>: the documentation, the gallery, the playable
 demos and the browser build of the Modeller. Use of the Modeller application
 itself is governed by the End User Licence Agreement; where the two overlap,
 the EULA governs the software and these terms govern the site.
@@ -39,10 +39,10 @@ people; do not use it to distribute malware; and do not use it in breach of the
 Export Compliance notice.
 
 The demos run in your own browser. Running them is not access to a system of
-ours, and finding a bug in one is not a security finding against a server —
-but if you do find something that looks like a real vulnerability, the process
-in `SECURITY.md` in the source repository is how to report it, and doing so
-responsibly is welcome.
+ours, and finding a bug in one is not a security finding against a server.
+If you do find something that looks like a real vulnerability, report it
+through the process in `SECURITY.md` in the source repository; responsible
+reports are welcome.
 
 ## 4. Accuracy, and the benchmarks in particular
 
@@ -52,10 +52,10 @@ here is a promise about what a future version will do.
 
 Performance numbers on this site are measurements, taken on named hardware on a
 named date, and are reported with the machine and the date beside them for
-exactly that reason. **They are not a guarantee of what you will see.** Frame
-times depend on your device, your driver, your scene and your build.
+that reason. **They are not a guarantee of what you will see.** Frame times
+depend on your device, your driver, your scene and your build.
 
-Nothing on this site is professional advice of any kind — legal, financial or
+Nothing on this site is professional advice of any kind, legal, financial or
 otherwise.
 
 ## 5. Third-party links and content
