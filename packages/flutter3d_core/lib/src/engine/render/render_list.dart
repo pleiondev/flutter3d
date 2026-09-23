@@ -147,8 +147,10 @@ final class RenderList {
 
   /// Collects the visible meshes of [scene] for [view].
   ///
-  /// A linear pass over the scene's flat mesh registry — the hierarchy is never
-  /// walked here.
+  /// Below [bvhThreshold] meshes, a walk down the hierarchy that rejects a
+  /// whole branch whose subtree bounds miss the frustum — `gfx-66n`; at or
+  /// above it, a query of the scene's spatial tree. Either way every candidate
+  /// goes through the same per-mesh tests.
   void build(
     Scene scene,
     RenderView view, {
@@ -361,15 +363,15 @@ final class RenderList {
         return bucket * _b35 +
             pipeline * _b29 +
             materialId * _b14 +
-            _quantize(item.viewDepth, 64.0, 14, invert: false);
+            _quantize(item.viewDepth, 64.0, _b14 - 1, invert: false);
 
       case SortMode.frontToBack:
         return bucket * _b35 +
-            _quantize(item.viewDepth, 1024.0, 35, invert: false);
+            _quantize(item.viewDepth, 1024.0, _b35 - 1, invert: false);
 
       case SortMode.backToFront:
         return bucket * _b35 +
-            _quantize(item.viewDepth, 1024.0, 35, invert: true);
+            _quantize(item.viewDepth, 1024.0, _b35 - 1, invert: true);
 
       case SortMode.manual:
         return bucket * _b35;
@@ -392,21 +394,22 @@ final class RenderList {
   static const int _b29 = 536870912;
   static const int _b35 = 34359738368;
 
-  /// Two to the [bits], for widths a shift cannot express on the web.
-  static int _pow2(int bits) {
-    var value = 1;
-    for (var i = 0; i < bits; i++) {
-      value *= 2;
-    }
-    return value;
-  }
-
-  /// Quantizes a view depth into [bits] bits, optionally reversed for far-to-near.
-  int _quantize(double depth, double scale, int bits, {required bool invert}) {
-    final limit = _pow2(bits) - 1;
-    var scaled = (depth * scale).round();
-    if (scaled < 0) scaled = 0;
-    if (scaled > limit) scaled = limit;
+  /// Quantizes a view depth into `[0, limit]`, optionally reversed for
+  /// far-to-near.
+  ///
+  /// [limit] is one of the field widths above less one — a constant rather
+  /// than a width turned into a power of two per call, which was a loop of
+  /// thirty-five multiplications for every draw of every sort.
+  ///
+  /// A depth that is not finite — a node whose transform went to NaN — is
+  /// clamped like any other rather than rounded: `double.round` refuses NaN
+  /// and infinity, and one bad node would otherwise take the whole frame down
+  /// in the sort. NaN lands at the near end, an infinity at its own end.
+  int _quantize(double depth, double scale, int limit, {required bool invert}) {
+    final product = depth * scale;
+    final scaled = !product.isFinite
+        ? (product == double.infinity ? limit : 0)
+        : product.round().clamp(0, limit);
     return invert ? limit - scaled : scaled;
   }
 }

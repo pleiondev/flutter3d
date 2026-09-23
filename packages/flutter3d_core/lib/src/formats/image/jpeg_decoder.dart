@@ -229,6 +229,17 @@ int _extend(int value, int count) {
 /// Huffman code with no match, or entropy data that runs out before every
 /// MCU is accounted for.
 DecodedImage? decodeJpeg(Uint8List bytes) {
+  // Segment payloads are read by index rather than checked field by field, so
+  // a segment that claims more than the file holds surfaces as a RangeError —
+  // a malformed file, which is answered with null like every other one.
+  try {
+    return _decodeJpeg(bytes);
+  } on RangeError {
+    return null;
+  }
+}
+
+DecodedImage? _decodeJpeg(Uint8List bytes) {
   if (bytes.length < 4 || bytes[0] != 0xFF || bytes[1] != 0xD8) return null;
 
   final quantTables = <int, Uint8List>{};
@@ -238,6 +249,10 @@ DecodedImage? decodeJpeg(Uint8List bytes) {
   int? width;
   int? height;
   List<_Component>? components;
+  // Which components some scan has filled in. A baseline frame may split its
+  // components across several scans, one each, and the picture is whole only
+  // once every one of them has been through one.
+  final scanned = <_Component>{};
 
   var offset = 2;
   while (offset + 1 < bytes.length) {
@@ -260,6 +275,9 @@ DecodedImage? decodeJpeg(Uint8List bytes) {
     if (length < 2 || offset + length > bytes.length) return null;
     final segmentStart = offset + 2;
     final segmentEnd = offset + length;
+    // Where the next marker is: straight after the segment, except after a
+    // scan, whose entropy-coded data follows its header.
+    var next = segmentEnd;
 
     switch (marker) {
       case 0xDB: // DQT — one or more tables in one segment.
@@ -314,22 +332,26 @@ DecodedImage? decodeJpeg(Uint8List bytes) {
         width = (bytes[segmentStart + 3] << 8) | bytes[segmentStart + 4];
         if (width == 0 || height == 0) return null;
         final count = bytes[segmentStart + 5];
-        components = <_Component>[];
-        var p = segmentStart + 6;
-        for (var i = 0; i < count; i++) {
-          final id = bytes[p];
-          final sampling = bytes[p + 1];
-          final quant = bytes[p + 2];
-          components.add(
+        // Grey, or YCbCr (a fourth component rides along unread). Two has no
+        // colour model to convert from.
+        if (count != 1 && count != 3 && count != 4) return null;
+        components = <_Component>[
+          for (
+            var p = segmentStart + 6;
+            p < segmentStart + 6 + count * 3;
+            p += 3
+          )
             _Component(
-              id: id,
-              h: sampling >> 4,
-              v: sampling & 0x0F,
-              quantTable: quant,
+              id: bytes[p],
+              h: bytes[p + 1] >> 4,
+              v: bytes[p + 1] & 0x0F,
+              quantTable: bytes[p + 2],
             ),
-          );
-          p += 3;
+        ];
+        if (components.any((c) => c.h < 1 || c.h > 4 || c.v < 1 || c.v > 4)) {
+          return null;
         }
+        scanned.clear();
       case 0xC1:
       case 0xC2:
       case 0xC3: // Extended/progressive/lossless SOF.
@@ -350,107 +372,150 @@ DecodedImage? decodeJpeg(Uint8List bytes) {
           return null;
         }
         final scanCount = bytes[segmentStart];
-        var p = segmentStart + 1;
         final scanComponents = <_Component>[];
         for (var i = 0; i < scanCount; i++) {
-          final id = bytes[p];
-          final tables = bytes[p + 1];
-          final component = components.firstWhere(
-            (_Component c) => c.id == id,
-            orElse: () => throw StateError('unknown component'),
-          );
-          component.dcTable = tables >> 4;
-          component.acTable = tables & 0x0F;
+          final p = segmentStart + 1 + i * 2;
+          final component = components
+              .where((_Component c) => c.id == bytes[p])
+              .firstOrNull;
+          if (component == null) return null;
+          component.dcTable = bytes[p + 1] >> 4;
+          component.acTable = bytes[p + 1] & 0x0F;
           scanComponents.add(component);
-          p += 2;
         }
+        if (scanComponents.isEmpty) return null;
         // Ss, Se, AhAl — fixed at 0, 63, 0 for baseline; not read.
-        final scanDataStart = segmentEnd;
-        final decoded = _decodeScan(
+        final scanEnd = _decodeScan(
           bytes: bytes,
-          start: scanDataStart,
+          start: segmentEnd,
           width: width,
           height: height,
           components: components,
+          scan: scanComponents,
           quantTables: quantTables,
           dcTables: dcTables,
           acTables: acTables,
           restartInterval: restartInterval,
         );
-        if (decoded == null) return null;
-        return decoded;
+        if (scanEnd == null) return null;
+        scanned.addAll(scanComponents);
+        next = scanEnd;
       default:
         // APPn, COM, and anything else with a length-prefixed payload this
         // reader does not need — skipped whole.
         break;
     }
-    offset = segmentEnd;
+    offset = next;
   }
-  return null; // Ran off the end without a scan, or without EOI.
+  // Ran off the end, or reached EOI: a picture only if every component of the
+  // frame came through a scan.
+  if (width == null ||
+      height == null ||
+      components == null ||
+      !components.every(scanned.contains)) {
+    return null;
+  }
+  return _toRgba(width, height, components);
 }
 
-DecodedImage? _decodeScan({
+/// Decodes one scan into its components' planes, and answers where the marker
+/// after its entropy-coded data starts — or null if the data runs out, or
+/// names a table no segment defined.
+///
+/// **One component is not interleaved.** A scan of several components walks
+/// MCUs, each holding `h × v` blocks of every component; a scan of one walks
+/// that component's own blocks in raster order, one block a unit, whatever
+/// its sampling factors say — ITU T.81 A.2.2. A grey image written with 2×2
+/// sampling, or a colour one written a component a scan, reads as shuffled
+/// blocks under the interleaved walk.
+int? _decodeScan({
   required Uint8List bytes,
   required int start,
   required int width,
   required int height,
   required List<_Component> components,
+  required List<_Component> scan,
   required Map<int, Uint8List> quantTables,
   required Map<int, _HuffmanTable> dcTables,
   required Map<int, _HuffmanTable> acTables,
   required int restartInterval,
 }) {
-  var maxH = 1;
-  var maxV = 1;
-  for (final c in components) {
-    if (c.h > maxH) maxH = c.h;
-    if (c.v > maxV) maxV = c.v;
-  }
-  final mcuWidth = maxH * 8;
-  final mcuHeight = maxV * 8;
-  final mcusAcross = (width + mcuWidth - 1) ~/ mcuWidth;
-  final mcusDown = (height + mcuHeight - 1) ~/ mcuHeight;
+  final maxH = components.map((c) => c.h).reduce(math.max);
+  final maxV = components.map((c) => c.v).reduce(math.max);
+  final mcusAcross = (width + maxH * 8 - 1) ~/ (maxH * 8);
+  final mcusDown = (height + maxV * 8 - 1) ~/ (maxV * 8);
 
   for (final c in components) {
     c.planeWidth = mcusAcross * c.h * 8;
     c.planeHeight = mcusDown * c.v * 8;
-    c.plane = Uint8List(c.planeWidth * c.planeHeight);
+    c.plane ??= Uint8List(c.planeWidth * c.planeHeight);
+  }
+  for (final c in scan) {
     if (!quantTables.containsKey(c.quantTable) ||
         !dcTables.containsKey(c.dcTable) ||
         !acTables.containsKey(c.acTable)) {
       return null;
     }
+    c.dcPredictor = 0;
   }
+
+  final single = scan.length == 1 ? scan.first : null;
+  final unitsAcross = single == null
+      ? mcusAcross
+      : ((width * single.h + maxH - 1) ~/ maxH + 7) ~/ 8;
+  final unitsDown = single == null
+      ? mcusDown
+      : ((height * single.v + maxV - 1) ~/ maxV + 7) ~/ 8;
+  final totalUnits = unitsAcross * unitsDown;
 
   final reader = _BitReader(bytes, start);
   final block = Int32List(64);
-  var mcusSinceRestart = 0;
-  final totalMcus = mcusAcross * mcusDown;
 
-  for (var mcuIndex = 0; mcuIndex < totalMcus; mcuIndex++) {
-    final mcuX = mcuIndex % mcusAcross;
-    final mcuY = mcuIndex ~/ mcusAcross;
+  // One 8×8 block of [c], at block column [x] and row [y] of its own plane.
+  bool decodeBlockAt(_Component c, int x, int y) {
+    block.fillRange(0, 64, 0);
+    if (!_decodeBlock(
+      reader,
+      dcTables[c.dcTable]!,
+      acTables[c.acTable]!,
+      c,
+      block,
+    )) {
+      return false;
+    }
+    _writeBlock(
+      c.plane!,
+      c.planeWidth,
+      x * 8,
+      y * 8,
+      _idctBlock(block, quantTables[c.quantTable]!),
+    );
+    return true;
+  }
 
-    for (final c in components) {
-      final quant = quantTables[c.quantTable]!;
-      final dcTable = dcTables[c.dcTable]!;
-      final acTable = acTables[c.acTable]!;
-      for (var by = 0; by < c.v; by++) {
-        for (var bx = 0; bx < c.h; bx++) {
-          block.fillRange(0, 64, 0);
-          if (!_decodeBlock(reader, dcTable, acTable, c, block)) return null;
-          final pixels = _idctBlock(block, quant);
-          final planeX = (mcuX * c.h + bx) * 8;
-          final planeY = (mcuY * c.v + by) * 8;
-          _writeBlock(c.plane!, c.planeWidth, planeX, planeY, pixels);
+  var unitsSinceRestart = 0;
+  for (var unit = 0; unit < totalUnits; unit++) {
+    final unitX = unit % unitsAcross;
+    final unitY = unit ~/ unitsAcross;
+
+    if (single != null) {
+      if (!decodeBlockAt(single, unitX, unitY)) return null;
+    } else {
+      for (final c in scan) {
+        for (var by = 0; by < c.v; by++) {
+          for (var bx = 0; bx < c.h; bx++) {
+            if (!decodeBlockAt(c, unitX * c.h + bx, unitY * c.v + by)) {
+              return null;
+            }
+          }
         }
       }
     }
 
-    mcusSinceRestart++;
+    unitsSinceRestart++;
     if (restartInterval > 0 &&
-        mcusSinceRestart == restartInterval &&
-        mcuIndex != totalMcus - 1) {
+        unitsSinceRestart == restartInterval &&
+        unit != totalUnits - 1) {
       reader.alignToByte();
       // Expect FF Dn — skip it if present; a truncated/odd stream without
       // one is treated as a hard failure rather than guessed past.
@@ -461,21 +526,37 @@ DecodedImage? _decodeScan({
       } else {
         return null;
       }
-      for (final c in components) {
+      for (final c in scan) {
         c.dcPredictor = 0;
       }
-      mcusSinceRestart = 0;
+      unitsSinceRestart = 0;
     }
   }
 
+  // The data ends part way through its last byte; the next marker is the
+  // first `FF` after it that is neither stuffing nor a restart.
+  var at = reader.position;
+  while (at + 1 < bytes.length &&
+      !(bytes[at] == 0xFF &&
+          bytes[at + 1] != 0x00 &&
+          (bytes[at + 1] & 0xF8) != 0xD0)) {
+    at++;
+  }
+  return at;
+}
+
+/// The decoded planes of a frame, upsampled and converted to RGBA8.
+DecodedImage _toRgba(int width, int height, List<_Component> components) {
+  final maxH = components.map((c) => c.h).reduce(math.max);
+  final maxV = components.map((c) => c.v).reduce(math.max);
   final rgba = Uint8List(width * height * 4);
   if (components.length == 1) {
     final y = components[0];
     for (var py = 0; py < height; py++) {
-      final sy = py * y.planeHeight ~/ (mcusDown * y.v * 8);
       for (var px = 0; px < width; px++) {
-        final sx = px * y.planeWidth ~/ (mcusAcross * y.h * 8);
-        final g = y.plane![sy * y.planeWidth + sx];
+        final g =
+            y.plane![_planeYFor(py, y, maxV) * y.planeWidth +
+                _planeXFor(px, y, maxH)];
         final out = (py * width + px) * 4;
         rgba[out] = g;
         rgba[out + 1] = g;

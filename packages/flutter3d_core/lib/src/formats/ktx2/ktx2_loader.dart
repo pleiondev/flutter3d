@@ -585,6 +585,15 @@ Ktx2Texture _parseUniversal(
     );
   }
 
+  final levelIndexEnd =
+      kKtx2LevelIndexOffset + levelCount * kKtx2LevelIndexEntryBytes;
+  if (levelIndexEnd > bytes.lengthInBytes) {
+    throw Ktx2FormatException(
+      'Level index claims $levelCount entries, which runs past the end of '
+      'a ${bytes.lengthInBytes}-byte file.',
+    );
+  }
+
   final levels = <ByteData>[];
   for (var i = 0; i < levelCount; i++) {
     final entry = kKtx2LevelIndexOffset + i * kKtx2LevelIndexEntryBytes;
@@ -598,6 +607,20 @@ Ktx2Texture _parseUniversal(
     }
     final width = pixelWidth >> i;
     final height = pixelHeight >> i;
+    // One block per 4×4 tile, and the writer only ever makes whole ones — its
+    // chain stops before a level that is not. A level holding any other count
+    // would transcode to the wrong size for its dimensions, and the upload
+    // would read past its end.
+    if (width < 4 ||
+        height < 4 ||
+        width % 4 != 0 ||
+        height % 4 != 0 ||
+        byteLength != (width ~/ 4) * (height ~/ 4) * kUniversalBlockBytes) {
+      throw Ktx2FormatException(
+        'Level $i is ${width}x$height and $byteLength bytes; a universal '
+        'level is whole 4x4 blocks of $kUniversalBlockBytes bytes.',
+      );
+    }
     final blocks = Uint8List.view(
       bytes.buffer,
       bytes.offsetInBytes + byteOffset,
@@ -606,8 +629,8 @@ Ktx2Texture _parseUniversal(
     final transcoded = transcodeUniversal(
       blocks,
       target,
-      width: width < 1 ? 1 : width,
-      height: height < 1 ? 1 : height,
+      width: width,
+      height: height,
     );
     levels.add(ByteData.sublistView(transcoded));
   }

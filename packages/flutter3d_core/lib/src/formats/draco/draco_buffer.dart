@@ -208,6 +208,11 @@ final class RAnsDecoder {
       }
       filled = cumulative;
     }
+    // Short of the precision, the tail of the table names symbol 0 whatever
+    // its probability — the reference refuses such a table, and so does this.
+    if (cumulative != precision) {
+      _fail('rANS probabilities sum to $cumulative, not $precision');
+    }
   }
 
   /// Positions the decoder at the end of [data], which is where a rANS stream

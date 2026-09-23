@@ -217,9 +217,10 @@ Uint8List decodeDataUri(String uri) {
   final payload = uri.substring(comma + 1);
 
   if (!meta.contains('base64')) {
-    // Percent-encoded text payloads are legal but never used for glTF binary
-    // data; decoding them as UTF-8 would silently corrupt buffers.
-    return Uint8List.fromList(utf8.encode(Uri.decodeComponent(payload)));
+    // Percent-encoded payloads are legal and rare. Each `%XX` is one byte, so
+    // they are unescaped straight to bytes — going through a UTF-8 string
+    // would turn `%FF` into two bytes, or refuse it outright.
+    return UriData.parse(uri).contentAsBytes();
   }
   return base64Decode(payload);
 }

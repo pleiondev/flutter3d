@@ -172,14 +172,23 @@ final class Scene {
   /// whatever loaded them — see `ResourceCache` — and a scene that freed them
   /// would free them out from under the next level that shares one.
   void clear() {
-    for (final child in root.childrenView.toList(growable: false)) {
-      child.removeFromParent();
-    }
+    // Registries first. Detaching a node unregisters it, and each unregister
+    // is a linear scan and shift of its list — so emptying them *after* the
+    // detach left the N² in place, one `List.remove` per mesh. Emptied first,
+    // every unregister below meets an empty list and returns at once.
     _meshes.clear();
     _lights.clear();
     _cameras.clear();
     _lodGroups.clear();
     _probes.clear();
+
+    // Back to front, because `SceneNode.remove` takes the last child without
+    // searching for it or shifting the rest; front to back shifted the whole
+    // list once per child.
+    final children = root.childrenView;
+    while (children.isNotEmpty) {
+      root.remove(children.last);
+    }
   }
 
   void registerMesh(MeshNode node) => _meshes.add(node);

@@ -61,13 +61,18 @@ final class CapturedImage {
   /// different facts, and each one is the answer to a different question.
   final String? refused;
 
-  /// The channel at [x], [y], or null when there are no pixels.
+  /// The channel at [x], [y], or null when there are no pixels or the
+  /// coordinate is outside the image.
   ///
   /// [channel] is 0 for red through 3 for alpha. For a reader walking a capture
-  /// by hand, which is what a capture is for.
+  /// by hand, which is what a capture is for. Each coordinate is checked on
+  /// its own: a column past the right edge is otherwise the first pixel of the
+  /// next row, which reads as a real answer about the wrong place.
   int? channelAt(int x, int y, int channel) {
     final bytes = pixels;
     if (bytes == null) return null;
+    if (x < 0 || x >= width || y < 0 || y >= height) return null;
+    if (channel < 0 || channel > 3) return null;
     final at = (y * width + x) * 4 + channel;
     if (at < 0 || at >= bytes.lengthInBytes) return null;
     return bytes.getUint8(at);

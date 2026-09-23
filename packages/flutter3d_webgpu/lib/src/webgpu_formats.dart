@@ -349,6 +349,20 @@ int paddedBytesPerRow(int width) {
   return over == 0 ? packed : packed + (alignment - over);
 }
 
+/// Exchanges the first and third byte of every four in [pixels], in place.
+///
+/// RGBA to BGRA and back, which is the same operation both ways. A
+/// `bgra8unorm` texture is copied in and out as the bytes it stores, and the
+/// contract's pixels are RGBA whatever the texture's layout — so a readback
+/// turns them over on the way out and an overwrite on the way in.
+void swapRedAndBlue(Uint8List pixels) {
+  for (var i = 0; i + 3 < pixels.length; i += 4) {
+    final red = pixels[i];
+    pixels[i] = pixels[i + 2];
+    pixels[i + 2] = red;
+  }
+}
+
 /// [bytes] as `queue.writeBuffer` will take them: a length that is a multiple of
 /// four, padded with zeros where it is not.
 ///

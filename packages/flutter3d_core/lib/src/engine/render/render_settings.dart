@@ -77,37 +77,6 @@ final class ReflectionSettings {
   final bool debugOnly;
 }
 
-/// Screen-space ambient occlusion.
-///
-/// What it darkens is the ambient term, and that is why it arrived *after* the
-/// hemispheric ambient rather than before: with one grey scalar at 0.06, a
-/// correctly applied occlusion took six per cent off the corners of the frame
-/// and was invisible. The temptation then is to apply it to everything, which
-/// is no longer occlusion but dirt in the corners, and it reads as a mistake
-/// under direct light.
-///
-/// **Off by default, and switching it on changes more than the corners.**
-/// Reading the surface buffer turns MSAA off for the whole scene pass — the
-/// average of two octahedral normals encodes no normal — so the antialiasing of
-/// the entire frame changes with it. That is measured and written down here
-/// rather than discovered by a reviewer who blames the occlusion for the edges,
-/// and it is why the one frame that turns this on is a scene of its own rather
-/// than a flag added to an existing one.
-///
-/// **One backend drew it in a check; the other two only proved it links, and
-/// that lasted long enough to hide a real defect.** The software rasteriser's
-/// `flutter3d/test/ssao_test.dart` was the only place in the tree where the
-/// occlusion was compared against a picture, and even there the two rows it
-/// compared had been read off a frame the pass was drawing upside down: it
-/// turned clip space into a texture coordinate the opposite way from every
-/// other lookup in the engine, so each pixel's occlusion was computed for the
-/// pixel mirrored about the middle of the frame. What Impeller and WebGL had
-/// was that the shader compiles into the bundle and that
-/// `('FullscreenVertex', 'Ssao')` links, which says nothing about what it
-/// darkens.
-///
-/// The `ambient-occlusion-corner` golden closes that: one frame, recorded on
-/// three backends, of a corner this pass has something to darken.
 /// Contact shadows: a short march toward the light, in screen space —
 /// `gfx-76n`.
 ///
@@ -185,6 +154,37 @@ final class ContactShadowSettings {
   );
 }
 
+/// Screen-space ambient occlusion.
+///
+/// What it darkens is the ambient term, and that is why it arrived *after* the
+/// hemispheric ambient rather than before: with one grey scalar at 0.06, a
+/// correctly applied occlusion took six per cent off the corners of the frame
+/// and was invisible. The temptation then is to apply it to everything, which
+/// is no longer occlusion but dirt in the corners, and it reads as a mistake
+/// under direct light.
+///
+/// **Off by default, and switching it on changes more than the corners.**
+/// Reading the surface buffer turns MSAA off for the whole scene pass — the
+/// average of two octahedral normals encodes no normal — so the antialiasing of
+/// the entire frame changes with it. That is measured and written down here
+/// rather than discovered by a reviewer who blames the occlusion for the edges,
+/// and it is why the one frame that turns this on is a scene of its own rather
+/// than a flag added to an existing one.
+///
+/// **One backend drew it in a check; the other two only proved it links, and
+/// that lasted long enough to hide a real defect.** The software rasteriser's
+/// `flutter3d/test/ssao_test.dart` was the only place in the tree where the
+/// occlusion was compared against a picture, and even there the two rows it
+/// compared had been read off a frame the pass was drawing upside down: it
+/// turned clip space into a texture coordinate the opposite way from every
+/// other lookup in the engine, so each pixel's occlusion was computed for the
+/// pixel mirrored about the middle of the frame. What Impeller and WebGL had
+/// was that the shader compiles into the bundle and that
+/// `('FullscreenVertex', 'Ssao')` links, which says nothing about what it
+/// darkens.
+///
+/// The `ambient-occlusion-corner` golden closes that: one frame, recorded on
+/// three backends, of a corner this pass has something to darken.
 final class AmbientOcclusionSettings {
   const AmbientOcclusionSettings({
     this.enabled = false,
@@ -1215,6 +1215,9 @@ final class RenderSettings {
   static const Set<String> pixelAlteringPasses = <String>{
     'bloom',
     'ssao',
+    // Multiplied into the ambient term in the composite beside the occlusion,
+    // so it moves a measured pixel exactly as `ssao` does.
+    'contact shadows',
     'reflections',
     'antialias',
     'luminance',
@@ -1267,23 +1270,6 @@ final class RenderSettings {
   );
 }
 
-/// How much of the frame's light spills into a glow.
-/// The look put on the frame after it has been tone mapped.
-///
-/// **Everything here defaults to doing nothing, exactly.** Not nearly nothing:
-/// a vignette of zero multiplies by one and grain of zero adds zero, so a scene
-/// that asks for none of it composites to the same bytes it did before this
-/// existed. Forty-four goldens depend on that being exact, and the composite
-/// pass already keeps the same promise for ambient occlusion.
-///
-/// Applied in the composite rather than as passes of their own, which is the
-/// trade this makes against a chain of full-screen effects: one pass, one read
-/// of the scene, and no intermediate target — at the cost that the order is
-/// fixed. The order is the one a camera imposes and is not arbitrary: the lens
-/// disperses colour *before* the sensor sees it, so chromatic aberration reads
-/// the scene at offset coordinates; grading is a decision about a displayable
-/// image and so follows the tone map; grain and vignette are the film and the
-/// barrel, and come last.
 /// Which curve the composite rolls highlights off with — `gfx-17n`.
 ///
 /// **A final class with const instances rather than an enum**, the shape
@@ -1342,6 +1328,22 @@ final class TonemapCurve {
   String toString() => 'TonemapCurve.$name';
 }
 
+/// The look put on the frame after it has been tone mapped.
+///
+/// **Everything here defaults to doing nothing, exactly.** Not nearly nothing:
+/// a vignette of zero multiplies by one and grain of zero adds zero, so a scene
+/// that asks for none of it composites to the same bytes it did before this
+/// existed. Forty-four goldens depend on that being exact, and the composite
+/// pass already keeps the same promise for ambient occlusion.
+///
+/// Applied in the composite rather than as passes of their own, which is the
+/// trade this makes against a chain of full-screen effects: one pass, one read
+/// of the scene, and no intermediate target — at the cost that the order is
+/// fixed. The order is the one a camera imposes and is not arbitrary: the lens
+/// disperses colour *before* the sensor sees it, so chromatic aberration reads
+/// the scene at offset coordinates; grading is a decision about a displayable
+/// image and so follows the tone map; grain and vignette are the film and the
+/// barrel, and come last.
 final class LookSettings {
   const LookSettings({
     this.contrast = 1.0,
@@ -1476,8 +1478,11 @@ final class LookSettings {
 
   /// Whether any of this changes the picture at all.
   ///
-  /// Read by the renderer to skip packing the second uniform, and by tests to
-  /// say what "off" means in one place rather than seven.
+  /// For a caller or a test to say what "off" means in one place rather than
+  /// fifteen. Every field that moves a pixel is asked, including the grade
+  /// `gfx-27n` added and the dither `gfx-24n` did: a look with only a lift in
+  /// it used to report itself neutral. [vignetteRoundness] alone is not asked,
+  /// because it shapes a vignette and does nothing while [vignette] is zero.
   bool get isNeutral =>
       contrast == 1.0 &&
       saturation == 1.0 &&
@@ -1485,7 +1490,18 @@ final class LookSettings {
       vignette == 0.0 &&
       grain == 0.0 &&
       chromaticAberration == 0.0 &&
+      dither == 0.0 &&
+      whiteBalance == 0.0 &&
+      tint == 0.0 &&
+      _isNeutralTriple(lift, 0.0) &&
+      _isNeutralTriple(gamma, 1.0) &&
+      _isNeutralTriple(gain, 1.0) &&
       !gradesThroughLut;
+
+  /// Null, or all three components at [neutral].
+  static bool _isNeutralTriple(vm.Vector3? value, double neutral) =>
+      value == null ||
+      (value.x == neutral && value.y == neutral && value.z == neutral);
 
   LookSettings copyWith({
     double? contrast,
@@ -1522,21 +1538,6 @@ final class LookSettings {
   );
 }
 
-/// Edges smoothed on the finished picture — `gfx-04n`'s own row.
-///
-/// **It exists to end a choice nobody should have to make.** The scene pass
-/// turns MSAA off whenever anything consumes the surface buffer, because a
-/// multisampled attachment and a buffer a later pass reads are the same
-/// decision made twice — so switching ambient occlusion on cost every edge in
-/// the frame its smoothing, and a game got shadows in its corners or clean
-/// silhouettes and not both.
-///
-/// Off by default, because it is a pass and a texture, and because MSAA is
-/// the better answer wherever it is still available: it sees edges this
-/// cannot, a thin wire that fell between two pixel centres among them. On by
-/// default *with* the surface buffer would be a reasonable policy and is
-/// deliberately not taken here — the renderer does not turn passes on behind
-/// a caller's back.
 /// How many halvings the bloom chain does on a frame [frameHeight] tall —
 /// `gfx-31n`.
 ///
@@ -1560,6 +1561,21 @@ int bloomLevelsFor(BloomSettings settings, {required int frameHeight}) {
   return settings.levels + doublings.round();
 }
 
+/// Edges smoothed on the finished picture — `gfx-04n`'s own row.
+///
+/// **It exists to end a choice nobody should have to make.** The scene pass
+/// turns MSAA off whenever anything consumes the surface buffer, because a
+/// multisampled attachment and a buffer a later pass reads are the same
+/// decision made twice — so switching ambient occlusion on cost every edge in
+/// the frame its smoothing, and a game got shadows in its corners or clean
+/// silhouettes and not both.
+///
+/// Off by default, because it is a pass and a texture, and because MSAA is
+/// the better answer wherever it is still available: it sees edges this
+/// cannot, a thin wire that fell between two pixel centres among them. On by
+/// default *with* the surface buffer would be a reasonable policy and is
+/// deliberately not taken here — the renderer does not turn passes on behind
+/// a caller's back.
 final class AntiAliasSettings {
   const AntiAliasSettings({
     this.enabled = false,
@@ -1655,6 +1671,7 @@ Uint8List buildIdentityLut({int size = 33}) {
   return pixels;
 }
 
+/// How much of the frame's light spills into a glow.
 final class BloomSettings {
   const BloomSettings({
     this.enabled = true,

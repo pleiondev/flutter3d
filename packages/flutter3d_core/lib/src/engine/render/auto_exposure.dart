@@ -43,7 +43,8 @@ final class AutoExposureSettings {
   /// Two limits rather than none, because a meter with none is a meter that
   /// turns a black frame — a loading screen, a fade, the first frame before
   /// anything has drawn — into a blown-out one the moment something appears.
-  /// The defaults span five stops either side of the engine's own 1.6.
+  /// The defaults span five stops in all, from about two and a half below the
+  /// engine's own 1.6 to about two and a half above it.
   final double minExposure;
   final double maxExposure;
 

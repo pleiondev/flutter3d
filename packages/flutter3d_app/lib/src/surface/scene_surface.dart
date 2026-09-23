@@ -1,14 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter3d/flutter3d.dart' hide Material;
 
-/// The shape of `presentFrame` in `flutter3d_app`.
+/// The shape of `presentFrame`, and of every presenter a backend registers.
 ///
-/// Named here rather than reached by depending on that package, because
-/// `flutter3d_app` depends on this one — for [SceneSurface] among other
-/// things — and a package cannot depend on its own dependent. [SceneSurface]
-/// takes one of these as a constructor argument instead; every real caller
-/// already depends on both packages, so passing `presentFrame` itself costs
-/// nothing.
+/// A parameter of [SceneSurface] rather than a call it makes: `presentFrame`
+/// is picked by a conditional export between `backend_native.dart` and
+/// `backend_web.dart`, and a caller that wants to show a frame some other way
+/// — a test with no backend, a presenter of its own — passes that instead.
+/// A caller that does not simply passes `presentFrame`.
 typedef FramePresenter =
     Widget Function(
       GraphicsDevice device,
@@ -73,8 +72,8 @@ class SceneSurface extends StatelessWidget {
   /// visuals, advance whatever is drawn but not simulated.
   final VoidCallback onBeforeFrame;
 
-  /// `presentFrame` from `flutter3d_app` — see [FramePresenter] for why this
-  /// is a parameter rather than an import.
+  /// `presentFrame`, normally — see [FramePresenter] for why this is a
+  /// parameter rather than an import.
   final FramePresenter presentFrame;
 
   @override
@@ -86,9 +85,12 @@ class SceneSurface extends StatelessWidget {
         final frame = renderer.render(
           // Clamped because a zero-sized surface is a real state — a panel
           // being animated open, a window dragged to nothing — and a render
-          // target of zero pixels is not.
-          width: (constraints.maxWidth * dpr).round().clamp(1, 8192),
-          height: (constraints.maxHeight * dpr).round().clamp(1, 8192),
+          // target of zero pixels is not. Clamped *before* rounding: an
+          // unbounded axis — a surface inside a `Column` or a scroll view — is
+          // infinite, and `double.infinity.round()` throws rather than
+          // reaching a clamp after it.
+          width: (constraints.maxWidth * dpr).clamp(1.0, 8192.0).round(),
+          height: (constraints.maxHeight * dpr).clamp(1.0, 8192.0).round(),
           scene: scene,
           views: <RenderView>[view],
           settings: settings(),

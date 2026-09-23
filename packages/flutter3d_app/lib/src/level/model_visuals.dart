@@ -32,8 +32,8 @@ final class ModelVisuals {
   final GraphicsDevice device;
   final IssueSink onIssue;
 
-  /// How a `model` entity's `asset` path becomes something [decodeModelInIsolate]
-  /// can read. [BundleAssetSource] by default — the same source every
+  /// How [loadModelByPath] reads a `model` entity's `asset` out of the
+  /// bundle. [BundleAssetSource] by default — the same source every
   /// shipping level in this repo loads a model through — swappable so a test
   /// can hand it [FileAssetSource] and read a real fixture off disk without
   /// faking Flutter's asset bundle.
@@ -78,11 +78,13 @@ final class ModelVisuals {
       return null;
     }
 
+    final generation = _generation;
     final ModelAsset asset;
     try {
-      final document = await decodeModelInIsolate(
-        ModelLoadRequest(source: _source(path)),
-      );
+      // Whichever kind of path the level wrote: an `assets_src/` source goes
+      // to the file the build hook converted it into, anything else is read
+      // as it stands — see [loadModelByPath].
+      final document = await loadModelByPath(path, bundleSource: _source);
       asset = await ModelAsset.fromDocument(
         document,
         device: device,
@@ -94,6 +96,13 @@ final class ModelVisuals {
           '$entityType "${entity.name ?? '?'}" could not load "$path": $error',
         ),
       );
+      return null;
+    }
+    // [dispose] ran while the file was being read: the upload is released
+    // here, since no list [dispose] walks will ever hold it, and nothing goes
+    // into a scene nobody draws any more.
+    if (generation != _generation) {
+      asset.release(device);
       return null;
     }
     _assets.add(asset);
@@ -121,6 +130,7 @@ final class ModelVisuals {
   /// caches, kept here for the ones this class owns outright rather than
   /// shares.
   void dispose() {
+    _generation++;
     for (final instance in _instances) {
       instance.removeFromScene();
     }
@@ -131,4 +141,7 @@ final class ModelVisuals {
     _assets.clear();
     _nodes.clear();
   }
+
+  /// Bumped by [dispose], so a model that arrives late can tell.
+  int _generation = 0;
 }

@@ -39,7 +39,8 @@ final class _DeferredTextureSource implements FrameTextureSource {
 /// pass in the frame, and each is what a mechanical migration would have got
 /// wrong.
 ///
-/// **Both atlases are external and must stay external.** `cube_shadow_static`
+/// **Both atlases are the renderer's own textures and must stay so — kept,
+/// never pooled.** `cube_shadow_static`
 /// is written once and read for many frames; a pooled texture handed back at
 /// the end of this node would be lent to somebody else and
 /// [ShadowSlotAllocator]'s record of which lights it holds would be an
@@ -620,6 +621,27 @@ final class _SceneNode extends RenderNode {
   }
 }
 
+/// A pass that cannot run without the surface buffer — `gfx-50n`.
+///
+/// **Five nodes read that buffer unconditionally, and every one of them needs
+/// the same sentence**: the buffer is the scene pass's second colour
+/// attachment, and a device that opens one attachment cannot have it. Written
+/// once here rather than five times, so a sixth reader joins by mixing this in
+/// and cannot join by forgetting.
+///
+/// The refusal is [FrameGraphNode.supported] rather than
+/// [FrameGraphNode.isActive], because a caller who switched occlusion on and
+/// got nothing deserves to be told that their device cannot, rather than to go
+/// looking through settings they already set correctly.
+base mixin _NeedsSurfaceBuffer on RenderNode {
+  /// The renderer whose device this asks. Each node already holds one
+  /// privately; this is the one line that makes it reachable from here.
+  Renderer get owner;
+
+  @override
+  bool get supported => owner.device.maxColorAttachments > 1;
+}
+
 /// Screen-space reflections, as a graph node.
 ///
 /// Internal rather than something an application registers: it is one of the
@@ -642,27 +664,6 @@ final class _SceneNode extends RenderNode {
 /// wrong frame — it produced a node that could not be addressed. A caller
 /// asking why reflections did not run got no answer, because with the
 /// setting off there was no node to have an answer about.
-/// A pass that cannot run without the surface buffer — `gfx-50n`.
-///
-/// **Five nodes read that buffer unconditionally, and every one of them needs
-/// the same sentence**: the buffer is the scene pass's second colour
-/// attachment, and a device that opens one attachment cannot have it. Written
-/// once here rather than five times, so a sixth reader joins by mixing this in
-/// and cannot join by forgetting.
-///
-/// The refusal is [FrameGraphNode.supported] rather than
-/// [FrameGraphNode.isActive], because a caller who switched occlusion on and
-/// got nothing deserves to be told that their device cannot, rather than to go
-/// looking through settings they already set correctly.
-base mixin _NeedsSurfaceBuffer on RenderNode {
-  /// The renderer whose device this asks. Each node already holds one
-  /// privately; this is the one line that makes it reachable from here.
-  Renderer get owner;
-
-  @override
-  bool get supported => owner.device.maxColorAttachments > 1;
-}
-
 final class _ReflectionsNode extends RenderNode with _NeedsSurfaceBuffer {
   _ReflectionsNode(this._renderer, this._view, this._settings);
 

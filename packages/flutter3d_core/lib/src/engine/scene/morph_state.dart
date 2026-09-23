@@ -1,3 +1,6 @@
+import 'dart:collection';
+import 'dart:typed_data';
+
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:vector_math/vector_math.dart';
 
@@ -20,8 +23,9 @@ final class MorphState implements MorphSink {
     required this.texture,
     required int targetCount,
     List<Aabb3>? reaches,
-  }) : weights = List<double>.filled(targetCount, 0.0),
-       _reaches = reaches ?? const <Aabb3>[];
+  }) : _reaches = reaches ?? const <Aabb3>[] {
+    weights = _MorphWeights(targetCount, this);
+  }
 
   /// The packed deltas, uploaded once with the mesh.
   final TextureHandle texture;
@@ -31,7 +35,12 @@ final class MorphState implements MorphSink {
   /// Mutable and mutable in place: this is written every frame by whatever is
   /// driving the face, and a list rebuilt per frame would be an allocation per
   /// model per frame for a value that almost never changes.
-  final List<double> weights;
+  ///
+  /// A write through the index operator advances [version] like
+  /// [setWeights] does. It used to be a plain list, and a slider writing
+  /// `node.morphWeights[i] = v` — the example app's does — moved the face
+  /// without telling the bounds, so a jaw opened past the box was culled.
+  late final List<double> weights;
 
   int get targetCount => weights.length;
 
@@ -100,15 +109,38 @@ final class MorphState implements MorphSink {
   /// a shape relaxes it instead of freezing it.
   @override
   void setWeights(List<double> values) {
+    // The list's own setter compares and advances [version].
     for (var i = 0; i < weights.length; i++) {
-      final value = i < values.length ? values[i] : 0.0;
-      if (weights[i] != value) {
-        weights[i] = value;
-        _version++;
-      }
+      weights[i] = i < values.length ? values[i] : 0.0;
     }
   }
 
   @override
   String toString() => 'MorphState($targetCount targets)';
+}
+
+/// [MorphState.weights]: a fixed-length list whose writes advance the state's
+/// [MorphState.version] when they change a value.
+final class _MorphWeights extends ListBase<double> {
+  _MorphWeights(int count, this._state) : _values = Float64List(count);
+
+  final Float64List _values;
+  final MorphState _state;
+
+  @override
+  int get length => _values.length;
+
+  @override
+  set length(int value) =>
+      throw UnsupportedError('A morph has as many weights as it has targets.');
+
+  @override
+  double operator [](int index) => _values[index];
+
+  @override
+  void operator []=(int index, double value) {
+    if (_values[index] == value) return;
+    _values[index] = value;
+    _state._version++;
+  }
 }

@@ -109,17 +109,58 @@ int indexSizeInBytes(IndexType type) => switch (type) {
   IndexType.int32 => 4,
 };
 
-/// How many bytes one texel of [format] occupies in an upload.
+/// How the host's bytes for [format] are handed to `texSubImage2D`: the
+/// transfer format and type, and how many bytes one texel takes — or null for
+/// a format this backend cannot fill from the host.
 ///
-/// Only the uncompressed formats the engine uploads from the host, which is
-/// what `webglCreateTextureFromPixels` checks its buffer against. Anything
-/// unlisted answers four, and a caller handing over a buffer of another size is
-/// refused by that check rather than uploaded from its prefix.
-int webglTexelBytes(TextureFormat format) => switch (format) {
-  TextureFormat.r32g32b32a32Float => 16,
-  TextureFormat.r16g16b16a16Float => 8,
-  TextureFormat.r32Float => 4,
-  _ => 4,
+/// **The transfer pair is not the internal format, and each sized format
+/// accepts exactly one.** `R32F` storage is filled by `RED`/`FLOAT`, `R8` by
+/// `RED`/`UNSIGNED_BYTE`, `RG8` by `RG`/`UNSIGNED_BYTE`; anything else is an
+/// `INVALID_OPERATION` that leaves the texture as it was allocated — sampling
+/// as zeros, which reads as a feature that does nothing rather than as an
+/// error. This used to answer four bytes and `RGBA`/`UNSIGNED_BYTE` for every
+/// format it did not list, so a KTX2 `r32Sfloat` image — which
+/// `supportsTextureFormat` said yes to — passed the size check and uploaded
+/// nothing, and an `r8` one was refused for being a quarter of the size four
+/// bytes a texel expected.
+///
+/// Null for the depth formats, which no caller fills from bytes and whose
+/// transfer types this backend has never been asked for, and for everything
+/// [textureFormatToGl] refuses.
+({int format, int type, int texelBytes})? webglTransferOf(
+  TextureFormat format,
+) => switch (format) {
+  TextureFormat.r8UNormInt => (
+    format: web.WebGL2RenderingContext.RED,
+    type: web.WebGLRenderingContext.UNSIGNED_BYTE,
+    texelBytes: 1,
+  ),
+  TextureFormat.r8g8UNormInt => (
+    format: web.WebGL2RenderingContext.RG,
+    type: web.WebGLRenderingContext.UNSIGNED_BYTE,
+    texelBytes: 2,
+  ),
+  TextureFormat.r8g8b8a8UNormInt || TextureFormat.r8g8b8a8UNormIntSRGB => (
+    format: web.WebGLRenderingContext.RGBA,
+    type: web.WebGLRenderingContext.UNSIGNED_BYTE,
+    texelBytes: 4,
+  ),
+  TextureFormat.r16g16b16a16Float => (
+    format: web.WebGLRenderingContext.RGBA,
+    type: web.WebGL2RenderingContext.HALF_FLOAT,
+    texelBytes: 8,
+  ),
+  TextureFormat.r32g32b32a32Float => (
+    format: web.WebGLRenderingContext.RGBA,
+    type: web.WebGLRenderingContext.FLOAT,
+    texelBytes: 16,
+  ),
+  TextureFormat.r32Float => (
+    format: web.WebGL2RenderingContext.RED,
+    type: web.WebGLRenderingContext.FLOAT,
+    texelBytes: 4,
+  ),
+  _ => null,
 };
 
 /// The sized internal format for `texStorage2D`.

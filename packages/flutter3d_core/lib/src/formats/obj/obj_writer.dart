@@ -71,9 +71,9 @@ final class ObjWriter {
   /// writes a warning about the skin it could not keep, not a file that
   /// looks like a faithful copy and is not.
   ///
-  /// Computed once, lazily, over the same baked meshes [write] itself
-  /// reads, so this costs nothing [write] was not already paying for the
-  /// moment something actually asks.
+  /// Computed once, lazily, over each surface's own mesh rather than the
+  /// baked copy [write] reads — nothing asked here depends on placement, and
+  /// the baked copy has no morph targets to count.
   late final List<String> warnings = _buildWarnings();
 
   List<String> _buildWarnings() {
@@ -93,9 +93,13 @@ final class ObjWriter {
     var withColor = 0;
     var withMorphs = 0;
     for (final surface in document.surfaces) {
-      final mesh = _bake(surface);
+      // The surface's own mesh, not the baked one: baking goes through
+      // `MeshData.transformed`, which carries no morph targets, so a placed
+      // surface's shape keys were dropped without this saying so — and
+      // neither question here depends on where the surface is placed.
+      final mesh = surface.mesh;
       if (mesh.triangleCount == 0) continue;
-      if (_usedOffset(mesh, VertexLayout.color) >= 0) withColor++;
+      if (_carriesColour(mesh)) withColor++;
       if (mesh.morphTargets.isNotEmpty) withMorphs++;
     }
     if (withColor > 0) {
@@ -331,6 +335,25 @@ final class ObjWriter {
       }
     }
     return -1;
+  }
+
+  /// Whether [mesh] has a vertex colour that is not the neutral white.
+  ///
+  /// Not [_usedOffset]'s all-zero test: zero is what an absent texture
+  /// coordinate reads as, but an absent colour reads as opaque white —
+  /// `MeshBuilder` fills the standard layout's colour with exactly that when a
+  /// source has none — so testing for zero warned about a lost colour on every
+  /// OBJ, STL and generated shape written back out.
+  bool _carriesColour(MeshData mesh) {
+    final offset = mesh.layout.floatOffsetOf(VertexLayout.color.name);
+    if (offset < 0) return false;
+    final stride = mesh.layout.floatsPerVertex;
+    for (var o = offset; o < mesh.vertices.length; o += stride) {
+      for (var c = 0; c < VertexLayout.color.componentCount; c++) {
+        if (mesh.vertices[o + c] != 1.0) return true;
+      }
+    }
+    return false;
   }
 
   // --------------------------------------------------------------- materials

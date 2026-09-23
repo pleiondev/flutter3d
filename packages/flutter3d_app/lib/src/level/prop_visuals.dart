@@ -7,10 +7,9 @@ import 'level_loader.dart';
 /// `edu-07`'s answer to the gap `doc/tooling-plan.md` names: neither a brush
 /// (batched by material, `configurator.json`'s own doc comment already says
 /// there is "no way to address this one box in `scene.meshes`") nor a
-/// `type: "model"` entity (not read by [LevelLoader] at all — that path
-/// needs an isolate-safe glTF/`.f3d` decode, a separate, larger piece) gives
-/// a level document one *named*, individually addressable piece of
-/// geometry. A `prop` entity does: one primitive shape, one [MeshNode] of
+/// `type: "model"` entity (a decoded asset, loaded by `ModelVisuals` rather
+/// than by [LevelLoader]) gives a level document one *named*, individually
+/// addressable piece of procedural geometry. A `prop` entity does: one primitive shape, one [MeshNode] of
 /// its own, not merged into any batch — so it can be found by
 /// [EntityDef.name] the same way a `widget_surface`'s own node already can,
 /// and `applyLessonStepToCamera`'s `nodes`/`restPositions` can reach it.
@@ -21,7 +20,7 @@ import 'level_loader.dart';
 /// author would replace, not a finished asset. What this closes is narrower
 /// and immediate: `ls-i-01`'s configurator retinting the product it shows,
 /// and any lesson content that wants `offsets`/`visible`/`highlight` to
-/// move or hide something real before a model pipeline exists to load.
+/// move or hide a simple shape without authoring a model for it.
 final class PropVisuals {
   PropVisuals(this.scene, {required this.device, required this.level});
 
@@ -103,7 +102,7 @@ final class PropVisuals {
   ///
   /// **Nothing in this repository calls it, and it is published anyway.**
   /// What reaches for it is an application swapping a finish while a lesson
-  /// runs — the case a named `part` entity exists for at all, since a brush
+  /// runs — the case a named `prop` entity exists for at all, since a brush
   /// carries no name to address. The lessons that ship today take models
   /// apart rather than retint them, so the caller is outside this tree.
   void setMaterial(String name, String materialName) {

@@ -161,9 +161,34 @@ extension _GltfMesh on GltfLoader {
     required List<String> warnings,
   }) {
     final positionAccessor = _asInt(attributes['POSITION'])!;
+    if (reader.typeOf(positionAccessor) != GltfAccessorType.vec3) {
+      throw FormatException(
+        'POSITION is ${reader.typeOf(positionAccessor).name}, not VEC3',
+      );
+    }
     final positions = reader.readAsFloats(positionAccessor);
     final vertexCount = reader.countOf(positionAccessor);
     if (vertexCount == 0) return null;
+
+    // Every attribute is read one element per POSITION vertex and at the width
+    // its name implies, so an accessor that is shorter, or of another type, is
+    // dropped with a warning here rather than indexed past its end below.
+    int? usable(String name, Set<GltfAccessorType> types) {
+      final accessor = _asInt(attributes[name]);
+      if (accessor == null) return null;
+      final type = reader.typeOf(accessor);
+      final count = reader.countOf(accessor);
+      if (count == vertexCount && types.contains(type)) return accessor;
+      warnings.add(
+        '$label $name is $count ${type.name} elements for $vertexCount '
+        'vertices; ignored.',
+      );
+      return null;
+    }
+
+    const vec2 = <GltfAccessorType>{GltfAccessorType.vec2};
+    const vec3 = <GltfAccessorType>{GltfAccessorType.vec3};
+    const vec4 = <GltfAccessorType>{GltfAccessorType.vec4};
 
     // A primitive with joint attributes is a skinned mesh, whichever node ends
     // up drawing it, so the layout follows the data rather than the caller.
@@ -179,37 +204,39 @@ extension _GltfMesh on GltfLoader {
     final wantsColor = primitiveLayout.has(VertexLayout.color);
     final wantsSkinning = primitiveLayout.isSkinned;
 
-    Float32List? normals;
-    final normalAccessor = _asInt(attributes['NORMAL']);
-    if (wantsNormal && normalAccessor != null) {
-      normals = reader.readAsFloats(normalAccessor);
-    }
+    final normalAccessor = wantsNormal ? usable('NORMAL', vec3) : null;
+    final normals = normalAccessor == null
+        ? null
+        : reader.readAsFloats(normalAccessor);
 
-    Float32List? texcoords;
-    final texcoordAccessor = _asInt(attributes['TEXCOORD_0']);
-    if (wantsTexcoord && texcoordAccessor != null) {
-      texcoords = reader.readAsFloats(texcoordAccessor);
-    }
+    final texcoordAccessor = wantsTexcoord ? usable('TEXCOORD_0', vec2) : null;
+    final texcoords = texcoordAccessor == null
+        ? null
+        : reader.readAsFloats(texcoordAccessor);
 
-    Float32List? tangents;
-    final tangentAccessor = _asInt(attributes['TANGENT']);
-    if (wantsTangent && tangentAccessor != null) {
-      tangents = reader.readAsFloats(tangentAccessor);
-    }
+    final tangentAccessor = wantsTangent ? usable('TANGENT', vec4) : null;
+    final tangents = tangentAccessor == null
+        ? null
+        : reader.readAsFloats(tangentAccessor);
 
-    Float32List? colors;
-    var colorComponents = 4;
-    final colorAccessor = _asInt(attributes['COLOR_0']);
-    if (wantsColor && colorAccessor != null) {
-      colors = reader.readAsFloats(colorAccessor);
-      colorComponents = reader.typeOf(colorAccessor).componentCount;
-    }
+    final colorAccessor = wantsColor
+        ? usable('COLOR_0', const {
+            GltfAccessorType.vec3,
+            GltfAccessorType.vec4,
+          })
+        : null;
+    final colors = colorAccessor == null
+        ? null
+        : reader.readAsFloats(colorAccessor);
+    final colorComponents = colorAccessor == null
+        ? 4
+        : reader.typeOf(colorAccessor).componentCount;
 
     Uint32List? joints;
     Float32List? weights;
     if (wantsSkinning) {
-      final jointAccessor = _asInt(attributes['JOINTS_0']);
-      final weightAccessor = _asInt(attributes['WEIGHTS_0']);
+      final jointAccessor = usable('JOINTS_0', vec4);
+      final weightAccessor = usable('WEIGHTS_0', vec4);
       // Joints are read as integers, not floats: the accessor is an unsigned
       // byte or short, and running it through the normalization path would turn
       // joint 3 of 200 into 0.015.
@@ -562,18 +589,25 @@ List<MorphTarget> _readMorphTargets({
       warnings.add('$label morph target $i has no POSITION and was skipped.');
       continue;
     }
-    if (reader.countOf(positionAccessor) != sourceVertexCount) {
+    if (reader.countOf(positionAccessor) != sourceVertexCount ||
+        reader.typeOf(positionAccessor) != GltfAccessorType.vec3) {
       warnings.add(
         '$label morph target $i covers ${reader.countOf(positionAccessor)} '
-        'vertices and the primitive has $sourceVertexCount; skipped.',
+        '${reader.typeOf(positionAccessor).name} vertices and the primitive '
+        'has $sourceVertexCount VEC3; skipped.',
       );
       continue;
     }
 
+    // A target's NORMAL and TANGENT deltas are both VEC3 — a tangent delta
+    // has no handedness to move.
     Float32List? deltasOf(String name) {
       final accessor = _asInt(target[name]);
       if (accessor == null) return null;
-      if (reader.countOf(accessor) != sourceVertexCount) return null;
+      if (reader.countOf(accessor) != sourceVertexCount ||
+          reader.typeOf(accessor) != GltfAccessorType.vec3) {
+        return null;
+      }
       return reader.readAsFloats(accessor);
     }
 

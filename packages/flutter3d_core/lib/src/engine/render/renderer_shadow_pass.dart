@@ -85,14 +85,14 @@ extension _ShadowPasses on Renderer {
   /// [_cubeLightData], which the frame fills before any of the atlas is drawn.
   ///
   /// The colour attachment is a renderer field and stays one — see
-  /// [_CubeShadowStaticNode] for why neither atlas can be pooled. The depth
-  /// attachment is the opposite case: nothing names it, nothing reads it, and
-  /// it goes through [FrameResources.transient] so the release is deferred by
-  /// the frame ring. It used to go straight back to the pool after `submit`,
+  /// [_CubeShadowStaticNode] for why neither atlas can be pooled. So is the
+  /// depth attachment, [_cubeShadowDepth], allocated beside the atlases by
+  /// [_ensureCubeAtlas] and kept for as long as they are: a pooled depth is a
+  /// different texture every frame, which a backend that caches framebuffers
+  /// pairs with the wrong attachment — see [_shadowDepth]. Before that it went
+  /// through the pool, and earlier still straight back to it after `submit`,
   /// which handed the very same texture to the *other* atlas pass while the
-  /// first one's command buffer was still in flight — the two passes have
-  /// identical depth specs, so the pool could not have handed back anything
-  /// else.
+  /// first one's command buffer was still in flight.
   bool _renderCubeShadow({
     required FrameResources resources,
     required Scene scene,
@@ -195,44 +195,58 @@ extension _ShadowPasses on Renderer {
         far: range,
       ).toMatrix(1.0);
 
-      final faceCount = isSpot ? 1 : Renderer._cubeFaces.length;
-      for (var face = 0; face < faceCount; face++) {
-        // The matrix is recorded for every face, drawn or not: the shading
-        // projects through it whatever this frame chose to redraw, and a face
-        // left out of the schedule still holds a picture that has to be read
-        // with the matrix that made it.
-        final vm.Vector3 faceAim;
-        final vm.Vector3 faceUp;
-        if (isSpot) {
-          faceAim = _spotAim
-            ..setValues(
-              _cubeLightAim[slot * 4],
-              _cubeLightAim[slot * 4 + 1],
-              _cubeLightAim[slot * 4 + 2],
-            );
-          // Chosen against the aim rather than fixed at +Y, because `Renderer._lookAt`
-          // of a straight-down spot with a +Y up vector is a cross product of
-          // two parallel vectors — a zero-length basis, and a matrix of NaN.
-          // A downlight is the single most ordinary spot there is, so the
-          // degenerate case here is the common one, not the exotic one.
-          faceUp = faceAim.y.abs() > 0.99
-              ? (_spotUp..setValues(0.0, 0.0, 1.0))
-              : (_spotUp..setValues(0.0, 1.0, 0.0));
-        } else {
-          (faceAim, faceUp) = Renderer._cubeFaces[face];
-        }
-        final faceView = Renderer._lookAt(position, position + faceAim, faceUp);
-        _cubeMatrix
-          ..setFrom(projection)
-          ..multiply(faceView);
-        final at = (slot * 6 + face) * 16;
-        _cubeFaceMatrices.setRange(at, at + 16, _cubeMatrix.storage);
+      for (var face = 0; face < Renderer._cubeFaces.length; face++) {
+        // A spot casts into one column. The five beside it still hold what the
+        // row's previous owner drew there, and `_computeFaceSignatures` gives
+        // them a blank signature so the schedule names them once — which only
+        // means something if this loop visits them. It used to stop after the
+        // first column, the scheduler recorded the other five as drawn, and
+        // the stale picture stayed for as long as the spot held the row.
+        final casts = !isSpot || face == 0;
+        if (casts) {
+          // The matrix is recorded for every face, drawn or not: the shading
+          // projects through it whatever this frame chose to redraw, and a
+          // face left out of the schedule still holds a picture that has to
+          // be read with the matrix that made it.
+          final vm.Vector3 faceAim;
+          final vm.Vector3 faceUp;
+          if (isSpot) {
+            faceAim = _spotAim
+              ..setValues(
+                _cubeLightAim[slot * 4],
+                _cubeLightAim[slot * 4 + 1],
+                _cubeLightAim[slot * 4 + 2],
+              );
+            // Chosen against the aim rather than fixed at +Y, because
+            // `Renderer._lookAt` of a straight-down spot with a +Y up vector
+            // is a cross product of two parallel vectors — a zero-length
+            // basis, and a matrix of NaN. A downlight is the single most
+            // ordinary spot there is, so the degenerate case here is the
+            // common one, not the exotic one.
+            faceUp = faceAim.y.abs() > 0.99
+                ? (_spotUp..setValues(0.0, 0.0, 1.0))
+                : (_spotUp..setValues(0.0, 1.0, 0.0));
+          } else {
+            (faceAim, faceUp) = Renderer._cubeFaces[face];
+          }
+          final faceView = Renderer._lookAt(
+            position,
+            position + faceAim,
+            faceUp,
+          );
+          _cubeMatrix
+            ..setFrom(projection)
+            ..multiply(faceView);
+          final at = (slot * 6 + face) * 16;
+          _cubeFaceMatrices.setRange(at, at + 16, _cubeMatrix.storage);
 
-        // For drawing, in this backend's clip space. The stored value is a
-        // distance rather than a depth, so the convention cannot corrupt it —
-        // but the depth *test* between casters in a tile runs in clip space,
-        // and the lookup reads the tile through the unremapped matrix above.
-        _cubeDrawMatrix.setFrom(toDepthRange(_cubeMatrix, device.depthRange));
+          // For drawing, in this backend's clip space. The stored value is a
+          // distance rather than a depth, so the convention cannot corrupt it
+          // — but the depth *test* between casters in a tile runs in clip
+          // space, and the lookup reads the tile through the unremapped
+          // matrix above.
+          _cubeDrawMatrix.setFrom(toDepthRange(_cubeMatrix, device.depthRange));
+        }
 
         if (tiles != null && !tiles.contains(slot * 6 + face)) continue;
 
@@ -261,6 +275,8 @@ extension _ShadowPasses on Renderer {
         pass.bindIndexBuffer(_identityIndices(3), IndexType.int32, 3);
         pass.draw();
         _frameCounters?.drawCalls++;
+        // A spot's idle column: blanked, and nothing casts into it.
+        if (!casts) continue;
 
         pass.setState(casterState);
         // Which cull the pass is currently in. A node that casts from every
@@ -418,7 +434,11 @@ extension _ShadowPasses on Renderer {
               'joint_matrices': skeleton.matrices,
             });
           }
-          pass.bindUniformBlock(shader, 'ShadowLight', {'light': _cubeLight});
+          // Through the stage the pipeline was built with. A cut-out caster's
+          // fragment stage is `ShadowDistanceMasked`, which declares its own
+          // `ShadowLight`; binding it through the plain stage's handle landed
+          // in the right slot only because both happen to declare it first.
+          pass.bindUniformBlock(fragment, 'ShadowLight', {'light': _cubeLight});
           pass.draw(instanceCount: instanced?.count ?? 1);
           _frameCounters?.drawCalls++;
           drawn++;
@@ -501,6 +521,18 @@ extension _ShadowPasses on Renderer {
   }) {
     if (!settings.enabled || settings.strength <= 0.0) return false;
     if (casterIndex < 0) return false;
+
+    // Before anything is decided, rather than after the pass was opened and
+    // the bake key recorded: a bundle without the stage used to leave a
+    // render pass begun and never submitted, and a key that said the atlas
+    // held this frame's casters — so the next frame skipped the pass and
+    // reported a map nobody had drawn.
+    final shadowShader = shaders['ShadowDepth'];
+    if (shadowShader == null) return false;
+    // `gfx-60n`. Falls back to the plain stage in a bundle that predates the
+    // row, which is the shadow a cut-out caster used to get rather than no
+    // shadow at all, and `masked` below then never fires.
+    final maskedShadowShader = shaders['ShadowDepthMasked'] ?? shadowShader;
 
     // Casters only. The last cascade is fitted to this, so anything counted
     // here that cannot cast a shadow spends texels on nothing: a sky dome or a
@@ -717,6 +749,10 @@ extension _ShadowPasses on Renderer {
         _shadowResolution != resolution ||
         _shadowCascadeCount != count) {
       // Sampled by the lighting pass, so devicePrivate rather than transient.
+      // The one it replaces goes back to the device once no frame in flight
+      // can still be sampling it — dropping it was a free on one backend and a
+      // driver object leaked per resolution or cascade change on WebGL2.
+      _destroyAfterFrame(_shadowMap);
       _shadowMap = device.createTexture(
         RenderTargetSpec(
           width: atlasWidth,
@@ -771,15 +807,6 @@ extension _ShadowPasses on Renderer {
       ),
     );
 
-    final shadowShader = shaders['ShadowDepth'];
-    if (shadowShader == null) {
-      developer.Timeline.finishSync();
-      return false;
-    }
-    // `gfx-60n`. Falls back to the plain stage in a bundle that predates the
-    // row, which is the shadow a cut-out caster used to get rather than no
-    // shadow at all, and `masked` below then never fires.
-    final maskedShadowShader = shaders['ShadowDepthMasked'] ?? shadowShader;
     // Two pipelines, for the same reason the main pass has two: a skinned mesh
     // has a different vertex layout, so it needs the skinned stage here too.
     // Drawing it with the static one would read joints and weights as position

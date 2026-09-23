@@ -109,8 +109,9 @@ final class CompositeMix {
   /// Multiplies the bloom slot. Zero unless [usesGlow].
   final double bloomIntensity;
 
-  /// One to tone map, zero not to. A float because it goes straight into the
-  /// uniform the shader compares against a half.
+  /// Zero not to tone map; otherwise the chosen curve's [TonemapCurve.code].
+  /// A float because it goes straight into the uniform the shader selects the
+  /// curve by.
   final double tonemap;
 
   /// Whether this mix would multiply in a texture that is not a glow.

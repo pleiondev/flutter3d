@@ -47,12 +47,57 @@ final class F3dWriter {
   final BytesBuilder _attributes = BytesBuilder();
   int _attributeCount = 0;
 
-  /// What [write] could not carry — `fmt-12`'s own row. `.f3d` is this
-  /// engine's own container, built to hold everything a `ModelDocument`
-  /// can, so this is empty for every document today — present for the
-  /// same uniform shape `ExportReport` reads off every writer, not
-  /// because this format is known to drop anything yet.
-  List<String> get warnings => const <String>[];
+  /// What [write] could not carry — `fmt-12`'s own row.
+  ///
+  /// **Not empty by assumption.** `.f3d` holds geometry, materials, the
+  /// hierarchy, skins and clips, and a document has grown fields since that
+  /// the container has no record for: a texture's `KHR_texture_transform`, a
+  /// material's own lighting model, lights, cameras, `extras` and an additive
+  /// clip's reference time. Each is named here when the document has one, so a
+  /// converted asset that draws differently from its source says why.
+  late final List<String> warnings = _buildWarnings();
+
+  List<String> _buildWarnings() {
+    final materials = document.materials;
+    int count(bool Function(SurfaceMaterial) test) =>
+        materials.where(test).length;
+    bool transformed(TextureBinding? binding) =>
+        !(binding?.transform?.isIdentity ?? true);
+
+    final withTransform = count(
+      (m) =>
+          transformed(m.baseColorTexture) ||
+          transformed(m.metallicRoughnessTexture) ||
+          transformed(m.normalTexture) ||
+          transformed(m.occlusionTexture) ||
+          transformed(m.emissiveTexture),
+    );
+    final withLighting = count((m) => m.lightingModel != null);
+    final withExtras =
+        count((m) => m.extras != null) +
+        document.nodes.where((n) => n.extras != null).length +
+        document.skins.where((s) => s.extras != null).length +
+        document.animations.where((a) => a.extras != null).length +
+        (document.asset?.extras != null ? 1 : 0);
+    final additive = document.animations
+        .where((a) => a.referenceTime != null)
+        .length;
+
+    String dropped(int count, String what) =>
+        '$count $what not written; .f3d has no record for it';
+
+    return <String>[
+      if (withTransform > 0)
+        dropped(withTransform, 'material(s) with a KHR_texture_transform'),
+      if (withLighting > 0) dropped(withLighting, 'material lighting model(s)'),
+      if (document.lights.isNotEmpty)
+        dropped(document.lights.length, 'light(s)'),
+      if (document.cameras.isNotEmpty)
+        dropped(document.cameras.length, 'camera(s)'),
+      if (withExtras > 0) dropped(withExtras, 'extras block(s)'),
+      if (additive > 0) dropped(additive, 'additive clip reference time(s)'),
+    ];
+  }
 
   /// Encodes the document. The result is a complete file.
   Uint8List write() {

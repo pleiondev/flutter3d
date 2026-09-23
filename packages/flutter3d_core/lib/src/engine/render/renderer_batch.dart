@@ -107,15 +107,29 @@ extension _BatchedDraws on Renderer {
   ///
   /// Pooled by the pair rather than made per frame, so a scene whose runs are
   /// the same every frame allocates nothing after the first: the buffer is
-  /// refilled in place and `ensureCapacity` only grows.
+  /// refilled in place and `ensureCapacity` only grows. A pair no view drew
+  /// with for a whole frame is dropped by [_retireUnusedBatches].
   InstancedMeshNode _batchFor(MeshNode node) {
     final key = _BatchKey(node.mesh, node.material);
+    _batchesUsed.add(key);
     return _batchPool[key] ??= InstancedMeshNode(
       node.mesh,
       node.material,
       capacity: RenderSettings.batchRunMinimum,
       name: 'auto batch',
     );
+  }
+
+  /// Drops every pooled batch the last frame did not draw with.
+  ///
+  /// Called once at the top of a frame. The pool is keyed by the mesh and the
+  /// material themselves, so without this it held both — and the material's
+  /// textures — for as long as the renderer lived, whatever the scene had
+  /// since let go of.
+  void _retireUnusedBatches() {
+    if (_batchPool.isEmpty) return;
+    _batchPool.removeWhere((key, _) => !_batchesUsed.contains(key));
+    _batchesUsed.clear();
   }
 }
 

@@ -159,6 +159,15 @@ final class _SurfaceBuilder {
     final normal = Vector3.zero();
     final texcoord = Vector2.zero();
 
+    // **Smoothed per position, not per output vertex.** The dedup below splits
+    // a position wherever its texture coordinates differ — every UV seam — and
+    // smoothing the split copies separately gave each one only the faces on its
+    // own side of the seam, which draws the seam as a hard crease on a model
+    // that has no crease there.
+    final smoothNormals = !hasFileNormals && normalMode == ObjNormals.smooth
+        ? _smoothNormalsByPosition(positions)
+        : null;
+
     void writeVertex(_Corner corner) {
       final p = corner.position * 3;
       position.setValues(positions[p], positions[p + 1], positions[p + 2]);
@@ -171,7 +180,10 @@ final class _SurfaceBuilder {
       }
 
       final n = corner.normal;
-      if (n != null && n * 3 + 2 < normalData.length) {
+      final smoothed = smoothNormals?[corner.position];
+      if (smoothed != null) {
+        normal.setFrom(smoothed);
+      } else if (n != null && n * 3 + 2 < normalData.length) {
         normal.setValues(
           normalData[n * 3],
           normalData[n * 3 + 1],
@@ -221,12 +233,15 @@ final class _SurfaceBuilder {
     }
 
     // Deduplicate by the (position, texcoord, normal) triple, which is the unit
-    // OBJ actually addresses.
-    final lookup = <int, int>{};
+    // OBJ actually addresses. A record rather than the three packed into one
+    // int: packing needs 63 bits, which the web does not have — its shifts are
+    // 32-bit, so the texcoord and normal fields collapsed and two corners that
+    // differed only there shared one vertex and one set of UVs.
+    final lookup = <(int, int, int), int>{};
     final indices = <int>[];
 
     for (final corner in _corners) {
-      final key = _cornerKey(corner);
+      final key = (corner.position, corner.texcoord ?? -1, corner.normal ?? -1);
       var index = lookup[key];
       if (index == null) {
         writeVertex(corner);
@@ -245,9 +260,6 @@ final class _SurfaceBuilder {
     }
 
     final mesh = builder.build();
-    if (!hasFileNormals && normalMode == ObjNormals.smooth) {
-      _accumulateSmoothNormals(mesh);
-    }
     // OBJ has no tangent record at all, so a layout that wants one always has
     // to derive it. After the smoothing pass, because the frame is built
     // relative to the final normals.
@@ -265,64 +277,34 @@ final class _SurfaceBuilder {
     out.setValues(positions[o], positions[o + 1], positions[o + 2]);
   }
 
-  /// Packs the three indices into one int for the dedup map.
-  ///
-  /// 21 bits each covers two million of each attribute, far past anything an OBJ
-  /// file carries; beyond that the key is still unique per position, so the worst
-  /// case is extra shared vertices, never wrong geometry.
-  static int _cornerKey(_Corner corner) {
-    final t = (corner.texcoord ?? 0) & 0x1FFFFF;
-    final n = (corner.normal ?? 0) & 0x1FFFFF;
-    return (corner.position & 0x1FFFFF) | (t << 21) | (n << 42);
-  }
-
-  /// Area-weighted vertex normals, computed in place.
+  /// Area-weighted normals for every position this surface's triangles touch,
+  /// keyed by position index.
   ///
   /// Unnormalized cross products are accumulated, so each face contributes in
   /// proportion to its area — the standard approach, and the reason a large
-  /// smooth face is not outvoted by a cluster of slivers next to it.
-  static void _accumulateSmoothNormals(MeshData mesh) {
-    final stride = mesh.layout.floatsPerVertex;
-    final normalOffset = mesh.layout.floatOffsetOf(VertexLayout.normal.name);
-    if (normalOffset < 0) return;
-
-    for (var o = normalOffset; o < mesh.vertices.length; o += stride) {
-      mesh.vertices[o] = 0.0;
-      mesh.vertices[o + 1] = 0.0;
-      mesh.vertices[o + 2] = 0.0;
-    }
-
+  /// smooth face is not outvoted by a cluster of slivers next to it. A map
+  /// rather than an array the size of the file's position list, because a file
+  /// of many groups builds one of these per group.
+  Map<int, Vector3> _smoothNormalsByPosition(List<double> positions) {
+    final sums = <int, Vector3>{};
     final a = Vector3.zero();
     final b = Vector3.zero();
     final c = Vector3.zero();
     final faceNormal = Vector3.zero();
 
-    for (var i = 0; i + 2 < mesh.indices.length; i += 3) {
-      final i0 = mesh.indices[i];
-      final i1 = mesh.indices[i + 1];
-      final i2 = mesh.indices[i + 2];
-      mesh.positionAt(i0, a);
-      mesh.positionAt(i1, b);
-      mesh.positionAt(i2, c);
+    for (var i = 0; i + 2 < _corners.length; i += 3) {
+      _readPosition(positions, _corners[i].position, a);
+      _readPosition(positions, _corners[i + 1].position, b);
+      _readPosition(positions, _corners[i + 2].position, c);
       (b - a).crossInto(c - a, faceNormal);
-
-      for (final index in <int>[i0, i1, i2]) {
-        final o = index * stride + normalOffset;
-        mesh.vertices[o] += faceNormal.x;
-        mesh.vertices[o + 1] += faceNormal.y;
-        mesh.vertices[o + 2] += faceNormal.z;
+      for (var k = 0; k < 3; k++) {
+        (sums[_corners[i + k].position] ??= Vector3.zero()).add(faceNormal);
       }
     }
 
-    for (var o = normalOffset; o < mesh.vertices.length; o += stride) {
-      final x = mesh.vertices[o];
-      final y = mesh.vertices[o + 1];
-      final z = mesh.vertices[o + 2];
-      final length = math.sqrt(x * x + y * y + z * z);
-      if (length <= 0.0) continue;
-      mesh.vertices[o] = x / length;
-      mesh.vertices[o + 1] = y / length;
-      mesh.vertices[o + 2] = z / length;
+    for (final sum in sums.values) {
+      if (sum.length2 > 0.0) sum.normalize();
     }
+    return sums;
   }
 }

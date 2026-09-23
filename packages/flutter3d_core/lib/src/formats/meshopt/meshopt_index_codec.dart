@@ -60,16 +60,30 @@ class _Fifo {
 /// Decodes one `EXT_meshopt_compression` index buffer — every shape the
 /// format's own reference decoder reads, not only what
 /// [encodeMeshoptIndexBuffer] produces.
+///
+/// Throws [FormatException] for anything it cannot decode, a truncated
+/// stream included.
 Uint32List decodeMeshoptIndexBuffer(Uint8List source, int count) {
   if (source.isEmpty || source[0] != kMeshoptIndexHeader) {
     throw const FormatException(
       'not a meshopt index buffer (wrong header byte)',
     );
   }
-  if (count % 3 != 0) {
-    throw ArgumentError('a triangle list has a multiple of 3 indices');
+  if (count < 0 || count % 3 != 0) {
+    throw FormatException(
+      'a triangle list has a multiple of 3 indices, and this one has $count',
+    );
   }
+  try {
+    return _decodeIndexBuffer(source, count);
+  } on RangeError {
+    throw const FormatException(
+      'meshopt index buffer: the stream ends part way through',
+    );
+  }
+}
 
+Uint32List _decodeIndexBuffer(Uint8List source, int count) {
   final dst = Uint32List(count);
   final triCount = count ~/ 3;
 

@@ -269,10 +269,18 @@ final class Material {
   ///
   /// Textures are shared on purpose: they are device handles, and two materials
   /// pointing at one uploaded image is the arrangement everything downstream
-  /// already assumes.
+  /// already assumes. The [parameters] lists are cloned like the vectors,
+  /// because they are written in place — [polylineViewport] is one — and a
+  /// copy sharing them would resize its original.
   Material copy() =>
       Material(
           name: name,
+          parameterBlock: parameterBlock,
+          parameters: <String, Float32List>{
+            for (final entry in parameters.entries)
+              entry.key: Float32List.fromList(entry.value),
+          },
+          extraTextures: Map<String, TextureHandle>.of(extraTextures),
           lighting: lighting,
           baseColor: baseColor.clone(),
           metallic: metallic,
