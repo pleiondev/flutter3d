@@ -3,7 +3,7 @@ description: >-
   The behaviour a flutter3d_hardware backend has to have, as tests it can run
   against itself. Flat: no Flutter import of its own, and flutter3d_shaders
   (its one dependency that used to carry the SDK in) no longer does either.
-version: 0.7.1
+version: 0.8.0
 repository: https://github.com/pleiondev/flutter3d
 homepage: https://flutter3d.pleion.dev
 issue_tracker: https://github.com/pleiondev/flutter3d/issues
@@ -21,10 +21,10 @@ dependencies:
   # deliberate and unusual: this package *is* tests, and the backends that run
   # them take it as a dev dependency of their own.
   test: ^1.25.0
-  flutter3d_hardware: ^0.7.1
+  flutter3d_hardware: ^0.8.0
   vector_math: ^2.4.3
   # The list of entry points a bundle must answer to.
-  flutter3d_shaders: ^0.7.1
+  flutter3d_shaders: ^0.8.0
 
 dev_dependencies:
   flutter_lints: ^6.0.0

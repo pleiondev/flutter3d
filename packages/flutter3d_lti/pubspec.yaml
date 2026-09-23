@@ -1,6 +1,6 @@
 name: flutter3d_lti
 description: "LTI 1.3 launch and xAPI reporting: OIDC login, id_token verification against a platform's JWKS, an Assignment and Grade Services client, and an xAPI statement client — no shelf, no jaspr, no Flutter."
-version: 0.7.1
+version: 0.8.0
 resolution: workspace
 repository: https://github.com/pleiondev/flutter3d
 homepage: https://flutter3d.pleion.dev
