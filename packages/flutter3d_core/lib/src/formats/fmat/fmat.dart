@@ -424,7 +424,13 @@ LightingModel? _readLighting(
     usesMetallic: value['metallic'] as bool? ?? false,
     usesEnvironment: value['environment'] as bool? ?? false,
     usesLightList: value['lightList'] as bool?,
-    vertexStageMorphs: value['vertexMorphs'] as bool? ?? true,
+    // Absent in every file written before 0.7.3, a saved polyline among them,
+    // and `PolylineVertex` declares no morphs: reading it as true brought back
+    // the "Failed to bind texture" 0.7.2 fixed. Any other stage is written
+    // from `MeshVertex` and does.
+    vertexStageMorphs:
+        value['vertexMorphs'] as bool? ??
+        (LightingModel.polyline.vertexShaderName != value['vertexShader']),
   );
 }
 
