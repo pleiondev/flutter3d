@@ -345,8 +345,13 @@ final class GpuRenderBackend implements GraphicsDevice {
     for (final level in levels) {
       if (level.length != 6) return null;
       side = side > 1 ? side >> 1 : 1;
+      // Through the same arithmetic as the base below. Four bytes a texel was
+      // right for RGBA8 alone: a half-float radiance cube's chain — eight
+      // bytes a texel, the one use this parameter names — was refused level
+      // by level while its base passed.
+      final expected = _baseLevelLengthInBytes(side, side, format);
       for (final face in level) {
-        if (face.lengthInBytes != side * side * 4) return null;
+        if (face.lengthInBytes != expected) return null;
       }
     }
     // The base faces too, and before the allocation rather than after it, as
@@ -536,6 +541,20 @@ final class GpuRenderBackend implements GraphicsDevice {
           rect.width * 4,
         ),
       );
+    }
+    // **Written back in the texture's own byte order.** The level came back
+    // through `toByteData(rawRgba)`, which converts to RGBA whatever the
+    // texture stores, and the caller's region is RGBA by contract — but
+    // `overwrite` copies bytes as the texture lays them out. A
+    // `b8g8r8a8UNormInt` target, which is this backend's default colour
+    // format on Metal, would otherwise come back with red and blue exchanged
+    // across the whole level, not only inside the region.
+    if (target.format == TextureFormat.b8g8r8a8UNormInt) {
+      for (var i = 0; i < patched.length; i += 4) {
+        final red = patched[i];
+        patched[i] = patched[i + 2];
+        patched[i + 2] = red;
+      }
     }
     target.gpuTexture.overwrite(ByteData.sublistView(patched), mipLevel: 0);
   }

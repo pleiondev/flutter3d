@@ -142,6 +142,10 @@ final class BakedPoses {
 
     final int wasPlaying = player.clipIndex;
     final double wasAt = player.time;
+    // `play` starts the player as well as selecting a clip, so whether it was
+    // running is part of what has to be put back: a paused rig that is baked
+    // from must not come out of it walking.
+    final bool wasRunning = player.isPlaying;
 
     var at = 0;
     for (var clip = 0; clip < player.clips.length; clip++) {
@@ -169,6 +173,7 @@ final class BakedPoses {
         ..play(wasPlaying)
         ..seek(wasAt);
     }
+    if (!wasRunning) player.pause();
 
     return BakedPoses._(
       joints: joints,

@@ -503,6 +503,14 @@ void webgpuOverwriteTexture(
   ScreenRect rect,
 ) {
   final texture = (target.backend as WebGpuTexture).texture;
+  final bytes = rgba.buffer.asUint8List(rgba.offsetInBytes, rgba.lengthInBytes);
+  // `writeTexture` stores the bytes as the texture lays them out, and the
+  // contract hands over RGBA whatever the target is. A `bgra8unorm` target —
+  // one of the two formats the caller already let through — takes them with
+  // red and blue exchanged, on a copy, so the caller's buffer is left alone.
+  final stored = target.format == TextureFormat.b8g8r8a8UNormInt
+      ? _swappedCopy(bytes)
+      : bytes;
   // Not `gpuBlockLayoutOf`: that reads `TextureFormat.blockLayout`, which
   // only a compressed format carries — `r8g8b8a8UNormInt` is what this
   // function's own doc comment says it always is, four bytes a pixel with
@@ -514,7 +522,7 @@ void webgpuOverwriteTexture(
       origin: GPUOrigin3DDict(x: rect.x, y: rect.y, z: 0),
       aspect: 'all',
     ),
-    rgba.buffer.asUint8List(rgba.offsetInBytes, rgba.lengthInBytes).toJS,
+    stored.toJS,
     GPUTexelCopyBufferLayout(
       offset: 0,
       bytesPerRow: rect.width * 4,
@@ -526,6 +534,13 @@ void webgpuOverwriteTexture(
       depthOrArrayLayers: 1,
     ),
   );
+}
+
+/// A copy of [bytes] with red and blue exchanged in every texel.
+Uint8List _swappedCopy(Uint8List bytes) {
+  final copy = Uint8List.fromList(bytes);
+  swapRedAndBlue(copy);
+  return copy;
 }
 
 /// [faces] in `+X, −X, +Y, −Y, +Z, −Z` order as one cube texture. See
@@ -650,6 +665,15 @@ TextureHandle? webgpuCreateCubeRenderTarget(
 }) {
   final spelling = gpuTextureFormat(format);
   if (spelling == null || format.isCompressed) return null;
+  // Trimmed to a chain that reaches one by one and no further, as the contract
+  // says a chain longer than the device will allocate is — and as the WebGL2
+  // backend trims it. WebGPU refuses a `mipLevelCount` past the full chain,
+  // and refuses it asynchronously: the handle comes back over an invalid
+  // texture and every pass that names a face of it draws nothing.
+  final fullChain = size <= 1 ? 1 : size.bitLength;
+  final levels = mipLevels < 1
+      ? 1
+      : (mipLevels > fullChain ? fullChain : mipLevels);
   final texture = gpu.createTexture(
     GPUTextureDescriptor(
       size: GPUExtent3DDict(width: size, height: size, depthOrArrayLayers: 6),
@@ -660,7 +684,7 @@ TextureHandle? webgpuCreateCubeRenderTarget(
           GpuTextureUsage.copyDst |
           GpuTextureUsage.copySrc,
       sampleCount: 1,
-      mipLevelCount: mipLevels,
+      mipLevelCount: levels,
       dimension: '2d',
       label: 'cube target ${size}x$size $spelling',
     ),

@@ -18,21 +18,37 @@ import 'widget_surface_pipeline.dart';
 final class WidgetSurface {
   WidgetSurface({
     required Widget child,
-    required this.device,
-    this.width = 1.0,
-    this.height = 1.0,
+    required GraphicsDevice device,
+    double width = 1.0,
+    double height = 1.0,
     double pixelsPerMetre = 512.0,
     String? name,
-  }) : pipeline = WidgetSurfacePipeline(
-         child: child,
-         width: (width * pixelsPerMetre).round(),
-         height: (height * pixelsPerMetre).round(),
-       ),
-       node = MeshNode(
-         DeviceMesh.upload(
+  }) : this._(
+         device: device,
+         width: width,
+         height: height,
+         name: name,
+         pipeline: WidgetSurfacePipeline(
+           child: child,
+           width: (width * pixelsPerMetre).round(),
+           height: (height * pixelsPerMetre).round(),
+         ),
+         mesh: DeviceMesh.upload(
            device,
            PlaneShape(width: width, depth: height).build(),
          ),
+       );
+
+  WidgetSurface._({
+    required this.device,
+    required this.width,
+    required this.height,
+    required this.pipeline,
+    required DeviceMesh mesh,
+    String? name,
+  }) : _mesh = mesh,
+       node = MeshNode(
+         mesh,
          Material(name: name, lighting: LightingModel.unlit),
          name: name,
        ) {
@@ -54,6 +70,20 @@ final class WidgetSurface {
   /// The mesh this surface draws onto. Add it to a [Scene] like any other
   /// node; nothing about it is special once it is placed.
   final MeshNode node;
+
+  /// The plane [node] draws, kept as the type [dispose] can give back —
+  /// [MeshNode.mesh] is the opaque geometry, not the upload.
+  final DeviceMesh _mesh;
+
+  /// The frame [node] currently samples, released when the next one replaces
+  /// it and by [dispose]. Every redraw is a fresh upload, so without this a
+  /// control under a thumb was a texture per frame that nothing gave back.
+  TextureHandle? _texture;
+
+  /// Bumped by every [tick] that uploads and by [dispose], so an upload that
+  /// finishes after a newer one — or after the surface is gone — can tell.
+  int _generation = 0;
+  bool _disposed = false;
 
   /// World-space size, metres.
   final double width;
@@ -91,20 +121,28 @@ final class WidgetSurface {
   /// because [WidgetSurfacePipeline.redrawIfDirty] already is that cheap —
   /// `wg-00`'s own measurement is what this relies on rather than re-proves.
   Future<void> tick() async {
+    if (_disposed) return;
     final dirty = pipeline.redrawIfDirty();
     if (!dirty && _uploaded) return;
     _uploaded = true;
+    final generation = ++_generation;
     final image = await pipeline.currentImage();
     try {
       final pixels = await image.toByteData(format: ui.ImageByteFormat.rawRgba);
-      if (pixels == null) return;
+      // Overtaken by a newer frame, or by [dispose]: this one's pixels are
+      // older than what is (or is no longer) on the plane.
+      if (pixels == null || generation != _generation) return;
       final handle = device.createTextureFromPixels(
         width: image.width,
         height: image.height,
         format: TextureFormat.r8g8b8a8UNormInt,
         pixels: pixels,
       );
-      if (handle != null) node.material.albedo = handle;
+      if (handle == null) return;
+      final previous = _texture;
+      _texture = handle;
+      node.material.albedo = handle;
+      if (previous != null) device.releaseTexture(previous);
     } finally {
       image.dispose();
     }
@@ -153,11 +191,22 @@ final class WidgetSurface {
     return ui.Offset(u.clamp(0.0, 1.0), v.clamp(0.0, 1.0));
   }
 
-  /// Releases the pipeline's element tree and takes the mesh out of whatever
-  /// scene it is in — the two things a `dispose()` on either half already
-  /// does on its own, done together because nothing here outlives its mesh.
+  /// Releases the pipeline's element tree, takes the mesh out of whatever
+  /// scene it is in, and gives the plane and its last frame back to
+  /// [device] — done together because nothing here outlives its mesh.
   void dispose() {
+    if (_disposed) return;
+    _disposed = true;
+    _generation++;
     pipeline.dispose();
     node.removeFromParent();
+    device.releaseGeometry(_mesh.vertices);
+    device.releaseGeometry(_mesh.indices);
+    final texture = _texture;
+    _texture = null;
+    if (texture != null) {
+      node.material.albedo = null;
+      device.releaseTexture(texture);
+    }
   }
 }

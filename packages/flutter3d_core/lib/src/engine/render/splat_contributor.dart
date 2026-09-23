@@ -26,6 +26,7 @@ import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:vector_math/vector_math.dart';
 
 import '../../formats/splat/splat_cloud.dart';
+import 'identity_indices.dart';
 import 'pass_contributor.dart';
 
 /// How far out the quad reaches, in standard deviations.
@@ -203,27 +204,7 @@ final class SplatContributor extends PassContributor {
   /// same reason: `CommandEncoder.draw` has no unindexed path, and a draw
   /// left with a vertex buffer and no index buffer bound draws nothing, with
   /// no refusal to say so.
-  GeometryBuffer? _indices;
-  int _indexCapacity = 0;
-
-  GeometryBuffer _identityIndices(GraphicsDevice device, int count) {
-    if (count > _indexCapacity) {
-      var capacity = math.max(_indexCapacity * 2, 1024);
-      while (capacity < count) {
-        capacity *= 2;
-      }
-      final indices = Uint32List(capacity);
-      for (var i = 0; i < capacity; i++) {
-        indices[i] = i;
-      }
-      _indices = device.uploadGeometry(
-        indices.buffer.asByteData(),
-        GeometryUsage.indices,
-      );
-      _indexCapacity = capacity;
-    }
-    return _indices!.slice(length: count * 4);
-  }
+  final IdentityIndices _identityIndices = IdentityIndices();
 
   /// After the opaque scene, because every splat is translucent and has to
   /// land on top of whatever solid geometry is behind it.
@@ -280,7 +261,7 @@ final class SplatContributor extends PassContributor {
       ..setState(_kSplatState)
       ..bindVertexData(bytes, quads.vertexCount)
       ..bindIndexBuffer(
-        _identityIndices(frame.device, quads.vertexCount),
+        _identityIndices.view(frame.device, quads.vertexCount),
         IndexType.int32,
         quads.vertexCount,
       )

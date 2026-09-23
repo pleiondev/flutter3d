@@ -176,11 +176,16 @@ final class MaterialBuiltin {
   /// widest argument.
   final int? resultComponents;
 
+  // `dot` and `length` collapse a vector to a number, so — as [componentWise]
+  // says of them — a float beside a vector is not spread: GLSL has no
+  // `dot(vec3, float)`, and accepting one here parsed a material whose shader
+  // then failed to compile.
   static const MaterialBuiltin dot = MaterialBuiltin._(
     'dot',
     arity: 2,
     glsl: 'dot',
     apply: _dot,
+    componentWise: false,
     resultComponents: 1,
   );
   static const MaterialBuiltin length = MaterialBuiltin._(
@@ -188,6 +193,7 @@ final class MaterialBuiltin {
     arity: 1,
     glsl: 'length',
     apply: _length,
+    componentWise: false,
     resultComponents: 1,
   );
   static const MaterialBuiltin normalize = MaterialBuiltin._(

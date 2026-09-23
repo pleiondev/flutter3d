@@ -44,8 +44,14 @@ final class UsdzWriter {
   /// nothing else is ever stored ahead of it.
   Uint8List write() {
     final usda = _buildUsda();
+    // The entry name through the same sanitizer as the prim: `UsdzZip` writes
+    // a name's code units as single bytes, so a non-ASCII [name] would reach
+    // the archive truncated to garbage rather than as the name given.
     final zip = UsdzZip()
-      ..store('$name.usda', Uint8List.fromList(utf8.encode(usda)));
+      ..store(
+        '${_identifier(name, fallback: 'model')}.usda',
+        Uint8List.fromList(utf8.encode(usda)),
+      );
     return zip.build();
   }
 
@@ -91,8 +97,20 @@ final class UsdzWriter {
     out.write(List<String>.filled(mesh.triangleCount, '3').join(', '));
     out.writeln(']');
 
+    // A mirroring transform, once baked into the points, turns every triangle
+    // inside out; the corners are written in the opposite order to undo it —
+    // the same `determinant() < 0.0` check `StlWriter` and `ObjWriter` make.
+    final reversed = surface.transform.determinant() < 0.0;
     out.write('        int[] faceVertexIndices = [');
-    out.write(mesh.indices.join(', '));
+    out.write(
+      <int>[
+        for (var t = 0; t + 2 < mesh.indices.length; t += 3) ...[
+          mesh.indices[reversed ? t + 2 : t],
+          mesh.indices[t + 1],
+          mesh.indices[reversed ? t : t + 2],
+        ],
+      ].join(', '),
+    );
     out.writeln(']');
 
     if (normalAt >= 0) {

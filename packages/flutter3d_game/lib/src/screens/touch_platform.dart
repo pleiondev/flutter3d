@@ -8,9 +8,10 @@
 /// handset, with the status bar over the lap counter, is not a bug anybody
 /// would file; it is a game that feels wrong.
 ///
-/// Here rather than in `flutter3d_app`, which says in its own first paragraph
-/// that it re-exports and holds no code: this is code, and it is the same kind
-/// of not-the-game screen concern as everything else in this package.
+/// Here rather than in `flutter3d_app`, which holds only what every
+/// application uses — the modeller and the lessons among them — and a phone
+/// locked to landscape is a game's decision, the same kind of not-the-game
+/// screen concern as everything else in this package.
 library;
 
 import 'package:flutter/services.dart';
@@ -30,7 +31,7 @@ import '../input/playing.dart';
 /// brings them back as an overlay that fades, rather than pushing the game's
 /// layout about every time somebody reaches for a corner.
 ///
-/// Returns the futures rather than awaiting them, so `main()` stays
+/// Fires the two calls and does not wait for them, so `main()` stays
 /// synchronous — a `runApp` that waited on a platform channel would show
 /// nothing until the operating system answered.
 void configureForTouch() {

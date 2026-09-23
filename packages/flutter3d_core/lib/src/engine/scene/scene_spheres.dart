@@ -12,11 +12,6 @@ import 'mesh_node.dart';
 ///
 /// Returns the version stamp for the packed data.
 int packSceneSpheres(List<MeshNode> meshes, Float32List out) {
-  // A rolling hash of the transform versions. Versions come from one global
-  // counter and never repeat, so two different scene states cannot produce the
-  // same stamp by reusing a number — only by hash collision, which costs a
-  // stale tree for one frame rather than a wrong answer forever.
-  var hash = meshes.length;
   for (var i = 0; i < meshes.length; i++) {
     final node = meshes[i];
     final centre = node.worldBoundsCentre;
@@ -24,7 +19,26 @@ int packSceneSpheres(List<MeshNode> meshes, Float32List out) {
     out[i * 4 + 1] = centre.y;
     out[i * 4 + 2] = centre.z;
     out[i * 4 + 3] = node.worldBoundsRadius;
-    hash = 0x1fffffff & (hash * 31 + node.worldVersion);
+  }
+
+  // **A rolling hash of the spheres themselves, not of the transforms.** It
+  // was the transform versions, and a sphere moves without its node's
+  // transform moving more often than that suggests: a skinned mesh's bounds
+  // follow its joints, an instanced batch's follow its instances, a morph's
+  // follow its weights, and `MeshNode.markBoundsDirty` exists for all the rest.
+  // Each of those left the stamp alone, so the tree kept the old sphere and
+  // rejected the mesh wherever it had gone until something else in the scene
+  // happened to move. Hashing the packed bits asks the question the tree
+  // actually depends on. A collision leaves the tree stale until the next
+  // change, which at 29 bits is a chance a caller can ignore.
+  final bits = Uint32List.view(
+    out.buffer,
+    out.offsetInBytes,
+    meshes.length * 4,
+  );
+  var hash = meshes.length;
+  for (var i = 0; i < bits.length; i++) {
+    hash = 0x1fffffff & (hash * 31 + bits[i]);
   }
   // Zero is the tree's "never built" stamp, so never hand it back as a real one.
   return hash == 0 ? 1 : hash;

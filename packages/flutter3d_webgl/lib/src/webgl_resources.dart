@@ -44,9 +44,17 @@ TextureHandle? webglCreateCubeTextureFromPixels(
   List<List<ByteData>>? mipLevels,
 }) {
   if (faces.length != 6) return null;
+  // Measured and uploaded in [format]'s own texels, through the same table the
+  // 2D path reads. Four bytes and `RGBA`/`UNSIGNED_BYTE` for every face was
+  // right for RGBA8 alone: a half-float radiance cube was refused at the size
+  // check, and one whose bytes happened to measure four a texel was uploaded
+  // through a transfer pair its storage does not accept — `INVALID_OPERATION`,
+  // and a cube of zeros.
+  final transfer = webglTransferOf(format);
+  if (transfer == null) return null;
+  final texelBytes = transfer.texelBytes;
   for (final face in faces) {
-    // RGBA8, four bytes a texel, as everywhere the CPU uploads.
-    if (face.lengthInBytes != size * size * 4) return null;
+    if (face.lengthInBytes != size * size * texelBytes) return null;
   }
   // Checked before a single byte is uploaded: `texStorage2D` fixes the level
   // count immutably, so a chain that turns out to be malformed halfway through
@@ -57,7 +65,7 @@ TextureHandle? webglCreateCubeTextureFromPixels(
     if (level.length != 6) return null;
     check = check > 1 ? check >> 1 : 1;
     for (final face in level) {
-      if (face.lengthInBytes != check * check * 4) return null;
+      if (face.lengthInBytes != check * check * texelBytes) return null;
     }
   }
 
@@ -79,7 +87,6 @@ TextureHandle? webglCreateCubeTextureFromPixels(
   // are consecutive is what makes this a loop rather than a table.
   void upload(int level, int side, List<ByteData> six) {
     for (var i = 0; i < 6; i++) {
-      final bytes = six[i];
       gl.texSubImage2D(
         web.WebGLRenderingContext.TEXTURE_CUBE_MAP_POSITIVE_X + i,
         level,
@@ -87,19 +94,23 @@ TextureHandle? webglCreateCubeTextureFromPixels(
         0,
         side.toJS,
         side.toJS,
-        web.WebGLRenderingContext.RGBA.toJS,
-        web.WebGLRenderingContext.UNSIGNED_BYTE,
-        bytes.buffer.asUint8List(bytes.offsetInBytes, bytes.lengthInBytes).toJS,
+        transfer.format.toJS,
+        transfer.type,
+        webglTransferView(six[i], transfer.type),
       );
     }
   }
 
+  // See the 2D path: rows of one- and two-byte texels are not four-aligned.
+  final tight = texelBytes < 4;
+  if (tight) gl.pixelStorei(web.WebGLRenderingContext.UNPACK_ALIGNMENT, 1);
   upload(0, size, faces);
   var side = size;
   for (var level = 0; level < levels.length; level++) {
     side = side > 1 ? side >> 1 : 1;
     upload(level + 1, side, levels[level]);
   }
+  if (tight) gl.pixelStorei(web.WebGLRenderingContext.UNPACK_ALIGNMENT, 4);
 
   return TextureHandle(
     backend: WebGlTexture(
@@ -245,8 +256,11 @@ TextureHandle? webglCreateTextureFromPixels(
   // are `r32g32b32a32Float` — sixteen — and a constant four refused them
   // silently, which is a model drawing its base shape and no error anywhere.
   // WebGL has no padding to ask about, unlike Impeller's base mip size, so the
-  // texel size is still the whole of it.
-  final texelBytes = webglTexelBytes(format);
+  // texel size is still the whole of it — and the transfer pair travels with
+  // it, because each sized format accepts one. See [webglTransferOf].
+  final transfer = webglTransferOf(format);
+  if (transfer == null) return null;
+  final texelBytes = transfer.texelBytes;
   if (pixels.lengthInBytes != width * height * texelBytes) return null;
 
   // The levels are held to the same rule, and were held to none. `texSubImage2D`
@@ -284,30 +298,15 @@ TextureHandle? webglCreateTextureFromPixels(
   gl.bindTexture(web.WebGLRenderingContext.TEXTURE_2D, backend.texture);
 
   // `texSubImage2D` wants the *transfer* format and type, which are not the
-  // internal format the storage was allocated with: RGBA32F storage is filled
-  // by RGBA/FLOAT, and handing it RGBA/UNSIGNED_BYTE is an INVALID_OPERATION
-  // that leaves the texture as it was allocated — sampling as zeros, which
-  // reads as a feature that does nothing rather than as an error.
-  final (int type, JSAny Function(ByteData) view) = switch (format) {
-    TextureFormat.r32g32b32a32Float => (
-      web.WebGLRenderingContext.FLOAT,
-      (ByteData b) => Float32List.view(
-        b.buffer,
-        b.offsetInBytes,
-        b.lengthInBytes ~/ 4,
-      ).toJS,
-    ),
-    TextureFormat.r16g16b16a16Float => (
-      web.WebGL2RenderingContext.HALF_FLOAT,
-      (ByteData b) =>
-          Uint16List.view(b.buffer, b.offsetInBytes, b.lengthInBytes ~/ 2).toJS,
-    ),
-    _ => (
-      web.WebGLRenderingContext.UNSIGNED_BYTE,
-      (ByteData b) =>
-          Uint8List.view(b.buffer, b.offsetInBytes, b.lengthInBytes).toJS,
-    ),
-  };
+  // internal format the storage was allocated with — [webglTransferOf] says
+  // which pair this storage accepts.
+  //
+  // One- and two-byte texels leave rows whose length is not a multiple of
+  // four, and GL's default unpack alignment of four would read each such row
+  // from the wrong place. Set for the upload and put back after it, because
+  // the setting is context state and every other upload here assumes four.
+  final tight = texelBytes < 4;
+  if (tight) gl.pixelStorei(web.WebGLRenderingContext.UNPACK_ALIGNMENT, 1);
 
   void upload(int level, int w, int h, ByteData bytes) {
     gl.texSubImage2D(
@@ -317,9 +316,9 @@ TextureHandle? webglCreateTextureFromPixels(
       0,
       w.toJS,
       h.toJS,
-      web.WebGLRenderingContext.RGBA.toJS,
-      type,
-      view(bytes),
+      transfer.format.toJS,
+      transfer.type,
+      webglTransferView(bytes, transfer.type),
     );
   }
 
@@ -343,8 +342,33 @@ TextureHandle? webglCreateTextureFromPixels(
       mipLevels.length,
     );
   }
+  if (tight) gl.pixelStorei(web.WebGLRenderingContext.UNPACK_ALIGNMENT, 4);
   return handle;
 }
+
+/// [bytes] as the typed array `texSubImage2D` wants beside [type].
+///
+/// `FLOAT` wants a `Float32Array` and `HALF_FLOAT` a `Uint16Array`; handing
+/// either a byte view is a type error in the browser rather than a
+/// reinterpretation. Views, not copies — the bytes are read before this
+/// returns to the caller.
+JSAny webglTransferView(ByteData bytes, int type) => switch (type) {
+  web.WebGLRenderingContext.FLOAT => Float32List.view(
+    bytes.buffer,
+    bytes.offsetInBytes,
+    bytes.lengthInBytes ~/ 4,
+  ).toJS,
+  web.WebGL2RenderingContext.HALF_FLOAT => Uint16List.view(
+    bytes.buffer,
+    bytes.offsetInBytes,
+    bytes.lengthInBytes ~/ 2,
+  ).toJS,
+  _ => Uint8List.view(
+    bytes.buffer,
+    bytes.offsetInBytes,
+    bytes.lengthInBytes,
+  ).toJS,
+};
 
 /// Writes [rgba] into [rect] of [target]'s base level. See
 /// `GraphicsDevice.overwriteTexture` — the caller already refused any
@@ -357,18 +381,56 @@ void webglOverwriteTexture(
   ScreenRect rect,
 ) {
   final backend = target.backend as WebGlTexture;
-  gl.bindTexture(web.WebGLRenderingContext.TEXTURE_2D, backend.texture);
+  final texture = backend.texture;
+  if (texture == null) {
+    // A renderbuffer — a multisampled or `deviceTransient` target — has no
+    // `texSubImage2D`, and binding null in its place makes the write an
+    // `INVALID_OPERATION` that nothing reports.
+    throw UnsupportedError(
+      'overwriteTexture: this target is attachment-only (multisampled or '
+      'deviceTransient) and has no texels to write on this backend',
+    );
+  }
+  final bytes = Uint8List.view(
+    rgba.buffer,
+    rgba.offsetInBytes,
+    rgba.lengthInBytes,
+  );
+  // **A texture a pass drew is stored the other way up**, which is the
+  // distinction `WebGlTexture.rendered` carries and `readback` already draws:
+  // the region is stated from the top, and GL counts a rendered texture's rows
+  // from the bottom. So the rectangle moves to `height - y - h` and its rows go
+  // in reversed — or a region read back, edited and written back lands
+  // mirrored about the texture's middle, upside down.
+  final y = backend.rendered ? target.height - rect.y - rect.height : rect.y;
+  final rows = backend.rendered ? _rowsReversed(bytes, rect) : bytes;
+  gl.bindTexture(web.WebGLRenderingContext.TEXTURE_2D, texture);
   gl.texSubImage2D(
     web.WebGLRenderingContext.TEXTURE_2D,
     0,
     rect.x,
-    rect.y,
+    y,
     rect.width.toJS,
     rect.height.toJS,
     web.WebGLRenderingContext.RGBA.toJS,
     web.WebGLRenderingContext.UNSIGNED_BYTE,
-    Uint8List.view(rgba.buffer, rgba.offsetInBytes, rgba.lengthInBytes).toJS,
+    rows.toJS,
   );
+}
+
+/// [bytes], [rect]'s rows of RGBA8, in the opposite order.
+Uint8List _rowsReversed(Uint8List bytes, ScreenRect rect) {
+  final stride = rect.width * 4;
+  final out = Uint8List(bytes.length);
+  for (var row = 0; row < rect.height; row++) {
+    out.setRange(
+      row * stride,
+      row * stride + stride,
+      bytes,
+      (rect.height - 1 - row) * stride,
+    );
+  }
+  return out;
 }
 
 /// The compressed-format half of [webglCreateTextureFromPixels].

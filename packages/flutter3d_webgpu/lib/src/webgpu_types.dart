@@ -63,6 +63,12 @@ final class WebGpuTexture {
     GPUTextureViewDescriptor(dimension: dimension.gpuName, aspect: 'all'),
   );
 
+  /// [sampledView] if anything has asked for it, without making one.
+  ///
+  /// What a release asks: the view is what the device's bind group cache
+  /// holds, and a texture never sampled is in no bind group.
+  GPUTextureView? get sampledViewIfMade => _sampledView;
+
   /// The view a pass attaches: one [face] of one [level], always as a flat
   /// image.
   ///

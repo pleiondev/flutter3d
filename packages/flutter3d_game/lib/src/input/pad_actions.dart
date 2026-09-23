@@ -160,8 +160,9 @@ final class PadInput {
   /// action release it once — when the second of them comes up, not the first.
   final Map<String, GameAction> _holding = <String, GameAction>{};
 
-  /// Actions carrying a magnitude the pad supplied, so it can withdraw them.
-  final Set<GameAction> _speaking = <GameAction>{};
+  /// Actions carrying a magnitude the pad supplied, by the control that
+  /// supplied it, so it can withdraw them.
+  final Map<String, GameAction> _speaking = <String, GameAction>{};
 
   final Vector2 _look = Vector2.zero();
 
@@ -223,8 +224,9 @@ final class PadInput {
 
     for (final entry in routes.axisActions.entries) {
       final value = _snapshot.axis(entry.key);
-      _analogue(entry.value.positive, value > 0.0 ? value : 0.0);
-      _analogue(entry.value.negative, value < 0.0 ? -value : 0.0);
+      final axis = entry.key.name;
+      _analogue('$axis+', entry.value.positive, value > 0.0 ? value : 0.0);
+      _analogue('$axis-', entry.value.negative, value < 0.0 ? -value : 0.0);
     }
 
     for (final button in PadButton.known) {
@@ -248,7 +250,7 @@ final class PadInput {
         final axis = button == PadButton.triggerLeft
             ? PadAxis.triggerLeft
             : PadAxis.triggerRight;
-        _analogue(action, _snapshot.axis(axis));
+        _analogue(button.id, action, _snapshot.axis(axis));
         continue;
       }
 
@@ -305,14 +307,19 @@ final class PadInput {
       use.route(_target, x, y, dt);
 
   /// A control that has a magnitude as well as a bit.
-  void _analogue(GameAction action, double magnitude) {
-    final key = '$_analogueMark${action.name}';
+  ///
+  /// Keyed by [control] — the trigger or the half-axis — and not by [action],
+  /// for the reason [_holding] gives: two triggers bound to one action used
+  /// to share one entry, so the one at rest released what the other had just
+  /// pressed, and the action chattered down and up every frame it was held.
+  void _analogue(String control, GameAction action, double magnitude) {
+    final key = '$_analogueMark$control';
     final wasDown = _holding.containsKey(key);
 
     if (magnitude > 0.0) {
       state.setActionValue(action, magnitude);
-      _speaking.add(action);
-    } else if (_speaking.remove(action)) {
+      _speaking[key] = action;
+    } else if (_speaking.remove(key) != null) {
       // Withdrawn rather than zeroed, so a key bound to the same action starts
       // meaning something again. See the class doc.
       state.clearActionValue(action);
@@ -346,7 +353,7 @@ final class PadInput {
       if (action == _slotSentinel) continue;
       state.release(action);
     }
-    for (final action in _speaking) {
+    for (final action in _speaking.values) {
       state.clearActionValue(action);
     }
     _holding.clear();

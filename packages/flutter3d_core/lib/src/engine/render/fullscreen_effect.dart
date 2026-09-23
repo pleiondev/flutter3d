@@ -15,7 +15,7 @@
 /// not decoration: `RenderSettings.disabledPasses` is a key space, and an
 /// effect whose name a caller cannot type is an effect outside it. A frame
 /// with a caller's effect in it reports that effect in `FrameResult.passes`
-/// and in `skipped`, with the same four reasons, beside the engine's own.
+/// and in `skipped`, with the same `PassSkip` reasons, beside the engine's own.
 library;
 
 import 'dart:typed_data';

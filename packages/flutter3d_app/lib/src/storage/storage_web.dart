@@ -146,9 +146,9 @@ final class IndexedDbBinaryStorage implements BinaryStorage {
         'readonly',
       ).get(name.toJS).complete<JSAny?>();
       if (result == null) return null;
-      // Mutation: read this back as a `JSArrayBuffer` instead of the
-      // `JSUint8Array` `write` actually stored — the two are different JS
-      // types and the cast below would throw rather than silently misread.
+      // Read back as the `JSUint8Array` [write] stores. Reading it as a
+      // `JSArrayBuffer` instead would be a different JS type, and the cast
+      // would throw rather than silently misread.
       return (result as JSUint8Array).toDart;
     } catch (error) {
       onIssue(Issue('storage: could not read $name ($error)'));

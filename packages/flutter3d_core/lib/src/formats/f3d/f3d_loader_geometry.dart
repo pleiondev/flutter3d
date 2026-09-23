@@ -12,7 +12,7 @@ extension _F3dGeometry on F3dDocument {
   // ------------------------------------------------------------------ layouts
 
   List<VertexLayout> _readLayouts() {
-    final table = _section(F3dSection.layouts);
+    final table = _table(F3dSection.layouts, F3dRecord.layout);
     return <VertexLayout>[for (var i = 0; i < table.count; i++) _readLayout(i)];
   }
 
@@ -79,7 +79,7 @@ extension _F3dGeometry on F3dDocument {
   /// from before the section existed has none, and every mesh gets an empty
   /// list without anything special being said about it.
   Map<int, List<MorphTarget>> _readMorphTargets() {
-    final table = _section(F3dSection.morphTargets);
+    final table = _table(F3dSection.morphTargets, F3dRecord.morphTarget);
     final grouped = <int, List<MorphTarget>>{};
 
     for (var i = 0; i < table.count; i++) {
@@ -111,7 +111,7 @@ extension _F3dGeometry on F3dDocument {
 
   /// The rest weights of the surfaces that carry any, by surface index.
   Map<int, List<double>> _readMorphWeights() {
-    final table = _section(F3dSection.morphWeights);
+    final table = _table(F3dSection.morphWeights, F3dRecord.morphWeights);
     return Map<int, List<double>>.fromEntries(<MapEntry<int, List<double>>>[
       for (var i = 0; i < table.count; i++)
         () {

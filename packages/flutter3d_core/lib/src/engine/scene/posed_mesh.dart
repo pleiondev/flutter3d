@@ -38,20 +38,27 @@ final class PosedMesh {
   MeshData? _mesh;
   Skeleton? _skeleton;
   int _pose = -1;
+  int _update = -1;
 
   /// Three floats a vertex, in the mesh's own space, or null when [mesh] is
   /// not skinned or [skeleton] cannot pose it.
   ///
-  /// Recomputed only when the mesh, the skeleton or the pose has changed —
-  /// identity for the first two and [Skeleton.poseVersion] for the third, the
-  /// same stamp everything else in this engine watches a skeleton with.
+  /// Reads [Skeleton.matrices] as they stand, so the caller brings them up to
+  /// date first with [Skeleton.update] for the node being tested.
+  ///
+  /// Recomputed only when the mesh, the skeleton or its matrices have changed
+  /// — identity for the first two, and for the third [Skeleton.poseVersion]
+  /// together with [Skeleton.updateCount]. The pose stamp alone is not enough:
+  /// two nodes sharing a skeleton at different transforms leave it with one
+  /// pose and two sets of matrices in turn.
   Float32List? positionsOf(MeshData mesh, Skeleton skeleton) {
     if (!mesh.layout.isSkinned) return null;
     if (skeleton.jointCount == 0) return null;
 
     if (identical(_mesh, mesh) &&
         identical(_skeleton, skeleton) &&
-        _pose == skeleton.poseVersion) {
+        _pose == skeleton.poseVersion &&
+        _update == skeleton.updateCount) {
       return _positions;
     }
 
@@ -171,6 +178,7 @@ final class PosedMesh {
     _mesh = mesh;
     _skeleton = skeleton;
     _pose = skeleton.poseVersion;
+    _update = skeleton.updateCount;
     return _positions;
   }
 

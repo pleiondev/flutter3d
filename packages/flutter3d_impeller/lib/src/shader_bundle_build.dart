@@ -230,10 +230,6 @@ String flutterSdkRootFrom(String executable) {
   );
 }
 
-/// The artifact directory name for this host, tried in the same order
-/// `tool/build_shaders.sh` does — macOS ships one universal `darwin-x64`
-/// bundle even on Apple silicon, so the candidate that actually exists on
-/// disk wins rather than a guess from `Platform.operatingSystem`.
 /// What the compiler is called on this host.
 ///
 /// **Windows ships it as `impellerc.exe`**, which is the whole of the
@@ -245,6 +241,10 @@ String flutterSdkRootFrom(String executable) {
 @visibleForTesting
 String get impellercName => Platform.isWindows ? 'impellerc.exe' : 'impellerc';
 
+/// The artifact directory name for this host, tried in the same order
+/// `tool/build_shaders.sh` does — macOS ships one universal `darwin-x64`
+/// bundle even on Apple silicon, so the candidate that actually exists on
+/// disk wins rather than a guess from `Platform.operatingSystem`.
 String _hostArtifactPlatform(String sdkRoot) {
   final artifacts = Directory('$sdkRoot/bin/cache/artifacts/engine');
   final candidates = switch (Platform.operatingSystem) {

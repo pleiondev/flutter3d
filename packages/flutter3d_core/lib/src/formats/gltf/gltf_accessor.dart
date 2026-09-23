@@ -220,6 +220,12 @@ final class GltfAccessorReader {
       // A declared byteStride means the data is interleaved with other
       // attributes; without one, elements are tightly packed.
       final stride = view.byteStride ?? elementSize;
+      if (accessorOffset < 0 || count < 0 || stride < elementSize) {
+        throw FormatException(
+          'accessors[$accessorIndex] has byteOffset $accessorOffset, count '
+          '$count and a stride of $stride for $elementSize-byte elements.',
+        );
+      }
 
       final available = view.data.lengthInBytes - accessorOffset;
       final needed = count == 0 ? 0 : (count - 1) * stride + elementSize;
@@ -287,11 +293,33 @@ final class GltfAccessorReader {
         _optionalInt(values.cast<String, Object?>(), 'byteOffset') ?? 0;
     final elementSize = type.componentCount * componentType.sizeInBytes;
 
+    // Both runs are read by position, so both have to hold `count` entries;
+    // and every index names an element the caller allocated room for.
+    final count = countOf(accessorIndex);
+    if (sparseCount < 0 ||
+        indexOffset < 0 ||
+        valueOffset < 0 ||
+        indexOffset + sparseCount * indexComponent.sizeInBytes >
+            indexView.data.lengthInBytes ||
+        valueOffset + sparseCount * elementSize >
+            valueView.data.lengthInBytes) {
+      throw FormatException(
+        'accessors[$accessorIndex].sparse names $sparseCount entries, more '
+        'than its indices or values buffer views hold.',
+      );
+    }
+
     for (var i = 0; i < sparseCount; i++) {
       final target = indexComponent.readInt(
         indexView.data,
         indexOffset + i * indexComponent.sizeInBytes,
       );
+      if (target < 0 || target >= count) {
+        throw FormatException(
+          'accessors[$accessorIndex].sparse replaces element $target of '
+          '$count.',
+        );
+      }
       visit(target, valueView.data, valueOffset + i * elementSize);
     }
   }
@@ -332,7 +360,9 @@ final class GltfAccessorReader {
     final byteOffset = _optionalInt(view, 'byteOffset') ?? 0;
     final byteLength = _requireInt(view, 'byteLength', index);
 
-    if (byteOffset + byteLength > buffer.length) {
+    if (byteOffset < 0 ||
+        byteLength < 0 ||
+        byteOffset + byteLength > buffer.length) {
       throw FormatException(
         'bufferViews[$index] spans ${byteOffset + byteLength} bytes but '
         'buffers[$bufferIndex] holds only ${buffer.length}.',
@@ -350,11 +380,18 @@ final class GltfAccessorReader {
   /// `byteLength` name where the *compressed* bytes actually live (not the
   /// outer view, which this writer never gives a fallback of its own —
   /// `fmt-30n`'s own row), and `mode`/`count`/`byteStride` say how to read
-  /// them back. `filter` is not read: this package's own writer never
-  /// requests one, and a file that does would need the same octahedral/
-  /// quaternion/exponential/colour math `meshopt_vertex_codec.dart`'s own
-  /// top comment already named as out of scope.
+  /// them back. A `filter` other than `NONE` is refused by name: this
+  /// package's own writer never requests one, and decoding a filtered view
+  /// without undoing the filter's octahedral/quaternion/exponential/colour
+  /// math would hand back bytes that read as plausible, wrong numbers.
   Uint8List _decodeMeshopt(Map<String, Object?> compression, int viewIndex) {
+    final filter = compression['filter'] ?? 'NONE';
+    if (filter != 'NONE') {
+      throw FormatException(
+        'bufferViews[$viewIndex]\'s EXT_meshopt_compression names filter '
+        '"$filter", which this reader does not undo (only NONE).',
+      );
+    }
     final bufferIndex = _requireInt(compression, 'buffer', viewIndex);
     if (bufferIndex < 0 || bufferIndex >= buffers.length) {
       throw FormatException(
@@ -369,7 +406,10 @@ final class GltfAccessorReader {
     final byteStride = _optionalInt(compression, 'byteStride') ?? 0;
     final mode = compression['mode'] as String?;
 
-    if (byteOffset + byteLength > buffer.length) {
+    if (byteOffset < 0 ||
+        byteLength < 0 ||
+        count < 0 ||
+        byteOffset + byteLength > buffer.length) {
       throw FormatException(
         'bufferViews[$viewIndex]\'s EXT_meshopt_compression spans '
         '${byteOffset + byteLength} bytes but buffers[$bufferIndex] holds '
@@ -394,6 +434,16 @@ final class GltfAccessorReader {
         byteStride,
         viewIndex,
       ),
+      // The extension's own bound on an attribute stride, and the one the
+      // codec's block size is derived from: past 256 bytes the block holds
+      // no elements at all.
+      'ATTRIBUTES'
+          when byteStride < 4 || byteStride > 256 || byteStride % 4 != 0 =>
+        throw FormatException(
+          'bufferViews[$viewIndex]\'s EXT_meshopt_compression names an '
+          'ATTRIBUTES byteStride of $byteStride; it must be a multiple of 4 '
+          'from 4 to 256.',
+        ),
       'ATTRIBUTES' => decodeMeshoptVertexBufferV0(
         compressed,
         count,

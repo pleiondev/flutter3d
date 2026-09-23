@@ -35,10 +35,14 @@ extension _SkyPass on Renderer {
     final textured = cubemap != null;
     final fragmentName = textured ? 'SkyCube' : 'Sky';
 
-    final shaders = device.shaders;
     // Two vertex stages, one per fragment stage: the layout each draw carries
     // is derived from the stage's own declarations, and the gradient and the
     // cube want different things on their vertices. See `sky.vert`.
+    //
+    // Through the renderer's own library rather than `device.shaders`, like
+    // every other stage it resolves by name: a bundle handed in as
+    // `materials:` wins any name it shares with the engine's, and a sky it
+    // replaced — or reloaded, see `relinkShaders` — was otherwise never seen.
     final vertexName = textured ? 'SkyCubeVertex' : 'SkyVertex';
     final vertex = shaders[vertexName];
     final fragment = shaders[fragmentName];

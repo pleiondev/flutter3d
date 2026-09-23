@@ -7,7 +7,6 @@
 /// this is a move rather than a design change.
 library;
 
-/// Directional shadow mapping settings.
 /// Which faces of a caster are drawn into a shadow map.
 ///
 /// The two ways a shadow map fails are opposites, and this picks which one to
@@ -32,6 +31,8 @@ enum ShadowCasterFaces {
   both,
 }
 
+/// Shadow mapping settings: the directional cascades and the point and spot
+/// cube atlas.
 final class ShadowSettings {
   const ShadowSettings({
     this.enabled = true,

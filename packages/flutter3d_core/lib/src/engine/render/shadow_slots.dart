@@ -195,6 +195,13 @@ final class ShadowSlotAllocator {
       final weakest = _weakestSlot();
       if (weakest == null) break;
       if (entry.candidate.priority <= _priorities[weakest] * hysteresis) break;
+      // The row changes hands, and so does which of the two is denied: the
+      // challenger holds a row now and the incumbent does not. Without this
+      // [ShadowAssignment.denied] named the light that had just won a row and
+      // left out the one that had just lost it.
+      final evicted = _owners[weakest];
+      if (evicted != null) placed.remove(evicted);
+      placed.add(entry.candidate.light);
       _owners[weakest] = entry.candidate.light;
       _priorities[weakest] = entry.candidate.priority;
       _bakeKeys[weakest] = entry.candidate.bakeKey;

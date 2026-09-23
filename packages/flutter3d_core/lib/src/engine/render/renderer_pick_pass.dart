@@ -131,12 +131,10 @@ extension _PickPass on Renderer {
     final drawn = <MeshNode>[];
     final mvp = vm.Matrix4.identity();
     for (final view in ordered) {
-      final fraction = view.viewportFraction;
-      final rect = ScreenRect(
-        x: (fraction.x * width).round(),
-        y: (fraction.y * height).round(),
-        width: math.max(1, (fraction.width * width).round()),
-        height: math.max(1, (fraction.height * height).round()),
+      final rect = Renderer._viewportPixels(
+        view.viewportFraction,
+        width,
+        height,
       );
       // The scene pass's own state, with two things it leaves per material
       // decided once: no blending — an id is not a colour and half of one is

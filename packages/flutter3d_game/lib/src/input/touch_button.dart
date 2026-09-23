@@ -26,10 +26,25 @@ class TouchButton extends StatefulWidget {
 class _TouchButtonState extends State<TouchButton> {
   int? _pointer;
 
+  /// What the finger on this button pressed, and where.
+  ///
+  /// Remembered rather than read back off [widget] at the release: the
+  /// buttons are laid out by position, so a game that changes its list while
+  /// a thumb is down — out of the car, into a menu — hands this state a
+  /// different action, and releasing *that* one leaves the pressed action
+  /// held for good.
+  (InputState, GameAction)? _pressed;
+
   void _release() {
     _pointer = null;
     setState(() {});
-    widget.state.release(widget.action);
+    _letGo();
+  }
+
+  void _letGo() {
+    final pressed = _pressed;
+    _pressed = null;
+    if (pressed != null) pressed.$1.release(pressed.$2);
   }
 
   @override
@@ -38,7 +53,7 @@ class _TouchButtonState extends State<TouchButton> {
     // out under it — is a normal path, and no pointer-up ever reaches a widget
     // that is gone. The [InputState] is shared and outlives this button, so
     // the press has to be let go here or the action stays held for good.
-    if (_pointer != null) widget.state.release(widget.action);
+    _letGo();
     super.dispose();
   }
 
@@ -55,6 +70,7 @@ class _TouchButtonState extends State<TouchButton> {
         if (_pointer != null) return;
         _pointer = event.pointer;
         setState(() {});
+        _pressed = (widget.state, widget.action);
         widget.state.press(widget.action);
       },
       onPointerUp: (PointerUpEvent event) {

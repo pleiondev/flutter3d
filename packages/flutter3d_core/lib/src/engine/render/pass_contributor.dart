@@ -239,19 +239,16 @@ final class FullscreenDraw {
 /// An interface rather than the [Renderer] class so a plugin cannot reach past
 /// what it was offered, and so a test can drive one without a GPU context.
 abstract interface class RenderServices {
-  /// Draws every visible mesh of [scene], as the renderer draws the world.
+  /// Draws every visible mesh of [scene] into an open pass, as the renderer
+  /// draws the world.
   ///
   /// For a plugin whose content is ordinary geometry in an unordinary place —
   /// a first person weapon, a portal's far side — so it inherits materials,
   /// skinning and lighting instead of growing a second copy of them.
   ///
-  /// `shadows` is required and has no default, which is the point of it: what
-  /// a draw samples is now something the caller states out of the frame it
-  /// declared, rather than something this method reaches for. [SceneShadows.none]
-  /// is the way to say "none", and saying it is cheap; not being able to say
-  /// anything at all is what left the view model sampling an atlas it had never
-  /// declared.
-  /// Draws [scene] into an open pass.
+  /// The shadows a draw samples come from [SceneShadows.from] over [frame]:
+  /// only what the calling node declared a read of, so a node that never
+  /// claimed the atlas gets nothing to sample rather than a renderer field.
   ///
   /// Takes the [NodeFrame] rather than the settings, the pass state and the
   /// shadows separately. Those three came off the frame at every call site, and

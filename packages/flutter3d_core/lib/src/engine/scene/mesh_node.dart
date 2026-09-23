@@ -213,6 +213,7 @@ base class MeshNode extends SceneNode {
   /// even being drawn as itself.
   void markBoundsDirty() {
     _boundsVersion = -1;
+    _poseVersion = -1;
     if (scene != null) SceneNode.noteChange();
   }
 
@@ -293,10 +294,23 @@ base class MeshNode extends SceneNode {
     if (skin != null) {
       // A skinned mesh's own bounds describe the bind pose, which is not where
       // the animation has put it. The joints are, so cull against those.
+      //
+      // Keyed on the expression as well as the pose: the reach below grows
+      // with the morph, and a face that opened its jaw on a character standing
+      // still kept the box it had with its mouth shut.
       final stamp = skin.poseVersion;
-      if (stamp == _poseVersion && mesh == _boundsMesh) return;
+      final expression = morph?.version ?? 0;
+      if (stamp == _poseVersion &&
+          mesh == _boundsMesh &&
+          expression == _boundsShape) {
+        return;
+      }
       _poseVersion = stamp;
       _boundsMesh = mesh;
+      _boundsShape = expression;
+      // The rigid path's cache no longer describes what is stored here, so a
+      // skeleton taken away later recomputes rather than returning this box.
+      _boundsVersion = -1;
 
       // The morph's reach rides with the skin's: a morphed vertex is moved in
       // the mesh's rest pose and then posed, so it can end up that much further
@@ -387,6 +401,8 @@ base class MeshNode extends SceneNode {
 
     _boundsVersion = version;
     _boundsMesh = mesh;
+    // And the other way round: a skeleton given back later recomputes.
+    _poseVersion = -1;
   }
 
   @override
