@@ -1,3 +1,11 @@
+## 0.8.0
+
+**Moves with the stack to 0.8.0**, whose `flutter3d_hardware` changes
+`PassEncoder.bindTexture` to return `bool` and makes every backend forget its
+bindings at `bindPipeline`. Nothing in this package changed.
+
+Its `flutter3d_*` dependencies ask for `^0.8.0`.
+
 ## 0.7.1
 
 **New projects ask for `^0.7.1`.** The scaffold templates wrote `^0.7.0`,

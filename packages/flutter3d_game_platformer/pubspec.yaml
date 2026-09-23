@@ -1,6 +1,6 @@
 name: flutter3d_game_platformer
 description: "A second genre: a runner who jumps twice and dashes, things to collect, hazards to fall into, and checkpoints to come back at."
-version: 0.7.1
+version: 0.8.0
 repository: https://github.com/pleiondev/flutter3d
 homepage: https://flutter3d.pleion.dev
 issue_tracker: https://github.com/pleiondev/flutter3d/issues
@@ -21,7 +21,7 @@ dependencies:
   # The engine half. Everything here is content it takes as an argument. The
   # runner switches on `CollisionHeightfield`, and only a floor can say that
   # the version underneath has it.
-  flutter3d_sim: ^0.7.1
+  flutter3d_sim: ^0.8.0
 
   vector_math: ^2.4.3
 

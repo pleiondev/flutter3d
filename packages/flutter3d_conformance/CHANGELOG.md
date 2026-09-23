@@ -1,3 +1,11 @@
+## 0.8.0
+
+**A texture bound to a slot the stage lacks is false**, a new check: a name
+no stage declares, and a fragment sampler bound through the vertex stage's
+handle, on every backend that reflects its stages. Thirty-eight checks.
+
+Its `flutter3d_*` dependencies ask for `^0.8.0`.
+
 ## 0.7.1
 
 **Released with the rest of the stack at 0.7.1.** Nothing in this package

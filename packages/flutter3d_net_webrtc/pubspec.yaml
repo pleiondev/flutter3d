@@ -1,6 +1,6 @@
 name: flutter3d_net_webrtc
 description: "A NetTransport over a real WebRTC data channel — net-01's rollback engine, P2P, with net-02's relay carrying only the SDP/ICE handshake."
-version: 0.7.1
+version: 0.8.0
 repository: https://github.com/pleiondev/flutter3d
 homepage: https://flutter3d.pleion.dev
 issue_tracker: https://github.com/pleiondev/flutter3d/issues
@@ -22,7 +22,7 @@ dependencies:
   # The `NetTransport` interface this implements, and nothing else from it —
   # `flutter3d_net` itself stays flat Dart, so the Flutter and native cost of
   # a real peer connection lives only in a package that opted into it.
-  flutter3d_net: ^0.7.1
+  flutter3d_net: ^0.8.0
 
   # The actual peer connection: `RTCPeerConnection`, `RTCDataChannel`, ICE
   # candidate gathering. Native platform code on every platform but the web,

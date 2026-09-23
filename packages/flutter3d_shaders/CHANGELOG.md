@@ -1,3 +1,13 @@
+## 0.8.0
+
+**`stageBindings`**, in `package:flutter3d_shaders/stage_bindings.dart`: what
+every stage in the bundle keeps once compiled, the blocks and samplers a draw
+must bind and may bind. Generated from the compiler's own reflection by
+`flutter3d_impeller/tool/stage_bindings.dart`. `FakeBackend` takes it so a
+renderer's binds are held to the real bundle on the VM.
+
+Its `flutter3d_*` dependencies ask for `^0.8.0`.
+
 ## 0.7.1
 
 * **Stages that read no light list declare none.** `F3D_NO_LIGHT_LIST` leaves

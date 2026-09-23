@@ -1,3 +1,13 @@
+## 0.8.0
+
+**A declared slot left unbound is named.** The bind group still fills it with
+a zeroed block or a white texel, because WebGPU refuses an incomplete group,
+but now says which slot in `debugDrainErrors`; it used to fill it in silence
+and drew cleanly through a missing bind Metal failed on. `bindTexture` returns
+false for a sampler the stage does not declare.
+
+Its `flutter3d_*` dependencies ask for `^0.8.0`.
+
 ## 0.7.1
 
 **Pipelines are cached on the compiled modules, not on stage names**, so a hot

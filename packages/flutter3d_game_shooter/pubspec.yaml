@@ -1,6 +1,6 @@
 name: flutter3d_game_shooter
 description: "The parts of a first-person shooter that are not parts of an engine: monsters, weapons, an inventory, and the step order that ties them together."
-version: 0.7.1
+version: 0.8.0
 repository: https://github.com/pleiondev/flutter3d
 homepage: https://flutter3d.pleion.dev
 issue_tracker: https://github.com/pleiondev/flutter3d/issues
@@ -21,13 +21,13 @@ dependencies:
   # This package builds colliders and worlds itself, and a dependency you use is
   # a dependency you declare. The simulation is where the fixed step, the
   # levels, the actors and the saves live since they stopped needing Flutter.
-  flutter3d_physics: ^0.7.1
-  flutter3d_sim: ^0.7.1
+  flutter3d_physics: ^0.8.0
+  flutter3d_sim: ^0.8.0
 
   # Only `bridge.dart` imports this — the view model of a weapon held in the
   # hands is a shooter's, not a renderer's and not a bridge's. The simulation
   # library imports nothing from it, and a test holds that.
-  flutter3d: ^0.7.1
+  flutter3d: ^0.8.0
 
   vector_math: ^2.4.3
 

@@ -1,3 +1,27 @@
+## 0.8.0
+
+**Breaking: `PassEncoder.bindTexture` returns `bool`.** False when the stage
+declares no such sampler, never a throw, asked of the stage and not of the
+program; a backend with no reflection answers true, as it does for
+`bindUniformBlock`. Every implementation of `PassEncoder` changes its
+signature. Until now each backend answered a slot the stage lacks its own way:
+Impeller threw, WebGL and WebGPU did nothing, the software rasteriser bound it.
+
+**`bindPipeline` forgets every binding, on every backend.** Uniform blocks,
+textures, vertex slots and the index buffer, as `clearBindings` does, even
+when the same pipeline is bound again. The contract said a backend was "free
+to" drop them, and one kept them, which hid a missing bind there.
+
+**A declared slot left unbound is the caller's mistake**, named by a backend
+that can see it and never served another draw's resource.
+
+**`FakeBackend` takes `stageBindings`**, a table of what each stage declares,
+and holds binds to it: false for a slot a stage lacks, and every declared slot
+a draw leaves unbound in `bindingViolations`. `RecordedTexture` records the
+stage it was bound through.
+
+Its `flutter3d_*` dependencies ask for `^0.8.0`.
+
 ## 0.7.1
 
 **Released with the rest of the stack at 0.7.1.** Nothing in this package

@@ -1,3 +1,20 @@
+## 0.8.0
+
+**`bindTexture` returns false for a slot the stage does not declare**, which
+flutter_gpu reports by throwing "Failed to bind texture". It was the one
+uncaught throw behind every polyline from 0.7.0 to 0.7.2.
+
+**A uniform member that overruns its block is refused by name**, as the web
+backends refuse it. It used to land on the next member's bytes, or throw an
+anonymous `RangeError`.
+
+**`tool/stage_bindings.dart` writes `flutter3d_shaders`' `stageBindings`** off
+impellerc's Metal reflection, and `stage_bindings_test.dart` holds the
+committed table to a fresh compile. `impellercPath()` finds the compiler for
+both.
+
+Its `flutter3d_*` dependencies ask for `^0.8.0`.
+
 ## 0.7.1
 
 **Installed from pub.dev, it builds again.** 0.7.0's build hook looked for

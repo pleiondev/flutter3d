@@ -1,3 +1,11 @@
+## 0.8.0
+
+**Moves with the stack to 0.8.0**, whose `flutter3d_hardware` changes
+`PassEncoder.bindTexture` to return `bool` and makes every backend forget its
+bindings at `bindPipeline`. Nothing in this package changed.
+
+Its `flutter3d_*` dependencies ask for `^0.8.0`.
+
 ## 0.7.1
 
 **The manifest's doc says what `glob` 2.2.0 does:** `**/*.obj` matches a
