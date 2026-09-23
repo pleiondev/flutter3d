@@ -73,6 +73,24 @@ Future<List<int>> _pixels(
         Material(name: 'ball', baseColor: Vector4(0.8, 0.3, 0.2, 1.0)),
       ),
     )
+    // A floor for the ball to sit on, so occlusion has a contact to darken
+    // and reflections a surface to show. With the ball alone the two effects
+    // changed the frame only through the fallback normal's tilt, and the
+    // test below went quiet the day that tilt was fixed.
+    ..add(
+      MeshNode(
+        DeviceMesh.upload(
+          device,
+          const PlaneShape(width: 4.0, depth: 4.0).build(),
+        ),
+        Material(
+          name: 'floor',
+          baseColor: Vector4(0.7, 0.7, 0.7, 1.0),
+          roughness: 0.1,
+          metallic: 0.8,
+        ),
+      )..setPosition(0.0, -0.6, 0.0),
+    )
     ..add(
       LightNode(intensity: 6.0)
         ..setPosition(2.0, 3.0, 4.0)
