@@ -55,9 +55,9 @@ rules:
 |---|---|
 | `glob` | Matched against the path relative to `assets_src/`. `package:glob`'s own rule applies, and since `glob` 2.2.0 `**/*.obj` matches a root-level `a.obj` as well as `props/a.obj` |
 | `textures` | `auto` \| `bc` \| `etc2` \| `universal` \| `none`, overriding the build's own family for files this rule matches |
-| `mips` | `true`/`false` — skip the mip chain for files this rule matches |
+| `mips` | `true`/`false`: skip the mip chain for files this rule matches |
 | `objNormals` | `smooth` \| `flat` \| `none`, for an OBJ with no normals of its own |
-| `exclude` | Leaves the file alone — no conversion, no entry in `flutter3d_generated/` |
+| `exclude` | Leaves the file alone: no conversion, no entry in `flutter3d_generated/` |
 
 <div class="warn">
 <p><strong>Only <code>exclude</code> reaches the build hook today.</strong> The manifest parses all five keys and <code>AssetLayout.plan</code> carries the matching rule with every file it plans, but <code>buildAssets</code> converts each one with the converter's defaults: a rule's <code>textures</code>, <code>mips</code> and <code>objNormals</code> are read, checked, and not yet applied.</p>
@@ -107,7 +107,7 @@ Reads the converted `flutter3d_generated/models/chair.f3d`. Missing it means two
 
 The debug fallback reads the source straight off disk, which only exists during `flutter run`/`flutter test` from a checkout: never in a shipped build, and never on the web, which has no `dart:io`. There, a missing generated file is the release error in every build mode.
 
-A path somebody else wrote, such as a level document naming a coin's model, goes through `loadModelByPath` instead: `assets_src/…` is handed to `loadModelAsset`, anything else is read from the bundle exactly as it always was. `FixtureVisuals` and `ActorVisuals` in `flutter3d_game`, the level-driven loaders every game shares, both load through it, so a game that has not moved onto the pipeline keeps working unchanged. **The three shipped games are such games**: their models still live in `assets/models/` and are bundled as they stand.
+A path somebody else wrote, such as a level document naming a coin's model, goes through `loadModelByPath` instead: `assets_src/…` is handed to `loadModelAsset`, anything else is read from the bundle exactly as it always was. `FixtureVisuals` and `ActorVisuals` in `flutter3d_game`, the level-driven loaders every game shares, both load through it, so a game that has not moved onto the pipeline keeps working unchanged. The strategy game is one: its models still live in `assets/models/` and are bundled as they stand, while the dungeon, the platformer and the racer load theirs from `assets_src/`.
 
 ## When the hook fails
 
