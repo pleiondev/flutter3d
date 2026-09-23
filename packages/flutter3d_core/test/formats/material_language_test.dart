@@ -282,6 +282,24 @@ void main() {
     expect(full.usesMetallic, isTrue);
   });
 
+  test('a material gathers no lights, so it declares and binds no list', () {
+    // Maps and all, it still returns the light its surface emits. Declaring
+    // the list and binding it would be the phantom Metal crashes on; one
+    // without the other is a dropped draw on WebGL. Both halves, then.
+    //
+    // Mutation: drop the `#define F3D_NO_LIGHT_LIST` line from the emitter.
+    final program = parseMaterial(
+      'material M { texture n = normal_texture; fragment { '
+      'return vec4(sample(n, uv).rgb, alpha); } }',
+    );
+    expect(describeMaterial(program).usesMaterialMaps, isTrue);
+    expect(describeMaterial(program).usesLightList, isFalse);
+    expect(
+      emitMaterialFragment(program),
+      contains('#define F3D_NO_LIGHT_LIST'),
+    );
+  });
+
   test('a program nothing specialised refuses to emit rather than guess', () {
     // The default is *a* value, and using it here would mean the GPU's shader
     // and this package disagreeing about what a variant that set the parameter

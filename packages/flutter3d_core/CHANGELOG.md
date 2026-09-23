@@ -1,3 +1,16 @@
+## Unreleased
+
+- **An unlit draw no longer crashes Metal on the first frame.** 0.7.0 bound
+  the light list, the `LightListInfo` block and `light_list_texture`, to
+  every draw. The Unlit stage (and the polyline, which uses it) gathers no
+  lights and keeps neither in its compiled Metal function, so the bind went to
+  a slot index the driver does not have and the process died inside
+  `setFragmentBuffer:offset:atIndex:` on macOS and iOS alike. Vulkan accepted
+  the same bind, which is why Android drew. The list is now bound only when
+  `LightingModel.usesLightList` says the stage reads it. That is new, defaults
+  to `usesMaterialMaps`, round-trips through `.fmat` as `lightList`, and is
+  false for anything the material language emits.
+
 ## 0.7.0
 
 - **The first publication: the engine with no Flutter SDK behind it.** The

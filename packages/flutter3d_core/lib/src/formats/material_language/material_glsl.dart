@@ -35,6 +35,9 @@ String emitMaterialFragment(MaterialProgram program) {
     ..writeln('// what the shader build compiles and what the three GPU')
     ..writeln('// backends translate. The software backend evaluates the same')
     ..writeln('// tree instead of reading this.')
+    // It gathers no lights, so it keeps no light list: see
+    // `LightingModel.usesLightList`.
+    ..writeln('#define F3D_NO_LIGHT_LIST')
     ..writeln('#include <lib/surface.glsl>')
     ..writeln();
 
@@ -128,6 +131,11 @@ final class MaterialBindings {
   final bool usesMaterialMaps;
   final bool usesMetallicRoughnessMap;
   final bool usesMetallic;
+
+  /// Always false: a material in this language returns the light its surface
+  /// emits and gathers none, so the emitted stage declares no light list. A
+  /// `LightingModel` built from these bindings passes it on.
+  bool get usesLightList => false;
 }
 
 String _glsl(MaterialExpression expression) {

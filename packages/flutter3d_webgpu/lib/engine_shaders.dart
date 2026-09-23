@@ -2519,12 +2519,6 @@ struct FragInfo {
     ambient_ground: vec4<f32>,
 }
 
-struct LightListInfo {
-    list: vec4<f32>,
-    indices: array<vec4<f32>, 6>,
-    scales: array<vec4<f32>, 6>,
-}
-
 struct FragmentOutput {
     @location(1) member: vec4<f32>,
     @location(0) member_1: vec4<f32>,
@@ -2538,9 +2532,9 @@ var<uniform> fog_info: FogInfo;
 var<private> frag_surface: vec4<f32>;
 var<private> v_normal_1: vec3<f32>;
 var<private> frag_color: vec4<f32>;
-@group(1) @binding(3) 
+@group(1) @binding(2) 
 var base_color_texture_tex: texture_2d<f32>;
-@group(1) @binding(4) 
+@group(1) @binding(3) 
 var base_color_texture_smp: sampler;
 var<private> v_texcoord_1: vec2<f32>;
 @group(1) @binding(1) 
@@ -2548,97 +2542,91 @@ var<uniform> frag_info: FragInfo;
 var<private> v_color_1: vec4<f32>;
 var<private> v_tangent_1: vec4<f32>;
 var<private> v_lightmap_uv_1: vec2<f32>;
-@group(1) @binding(5) 
-var light_list_texture_tex: texture_2d<f32>;
-@group(1) @binding(6) 
-var light_list_texture_smp: sampler;
-@group(1) @binding(2) 
-var<uniform> light_list_info: LightListInfo;
 
 fn EncodeOctahedral_u0028_vf3_u003b(n: ptr<function, vec3<f32>>) -> vec2<f32> {
     var e: vec2<f32>;
 
-    let _e63 = (*n)[0u];
-    let _e66 = (*n)[1u];
-    let _e70 = (*n)[2u];
-    let _e73 = (*n);
-    (*n) = (_e73 / vec3(((abs(_e63) + abs(_e66)) + abs(_e70))));
-    let _e76 = (*n);
-    e = _e76.xy;
-    let _e79 = (*n)[2u];
-    if (_e79 < 0f) {
-        let _e81 = (*n);
-        let _e87 = (*n)[0u];
-        let _e91 = (*n)[1u];
-        e = ((vec2(1f) - abs(_e81.yx)) * vec2<f32>(select(-1f, 1f, (_e87 >= 0f)), select(-1f, 1f, (_e91 >= 0f))));
+    let _e59 = (*n)[0u];
+    let _e62 = (*n)[1u];
+    let _e66 = (*n)[2u];
+    let _e69 = (*n);
+    (*n) = (_e69 / vec3(((abs(_e59) + abs(_e62)) + abs(_e66))));
+    let _e72 = (*n);
+    e = _e72.xy;
+    let _e75 = (*n)[2u];
+    if (_e75 < 0f) {
+        let _e77 = (*n);
+        let _e83 = (*n)[0u];
+        let _e87 = (*n)[1u];
+        e = ((vec2(1f) - abs(_e77.yx)) * vec2<f32>(select(-1f, 1f, (_e83 >= 0f)), select(-1f, 1f, (_e87 >= 0f))));
     }
-    let _e96 = e;
-    return ((_e96 * 0.5f) + vec2(0.5f));
+    let _e92 = e;
+    return ((_e92 * 0.5f) + vec2(0.5f));
 }
 
 fn ViewDepth_u0028_() -> f32 {
-    let _e60 = v_world_position_1;
-    let _e62 = fog_info.eye;
-    let _e66 = fog_info.forward;
-    return dot((_e60 - _e62.xyz), _e66.xyz);
+    let _e56 = v_world_position_1;
+    let _e58 = fog_info.eye;
+    let _e62 = fog_info.forward;
+    return dot((_e56 - _e58.xyz), _e62.xyz);
 }
 
 fn WriteSurfaceGeometry_u0028_f1_u003b(roughness: ptr<function, f32>) {
     var param: vec3<f32>;
 
-    let _e62 = g_debug_surface_on;
-    if _e62 {
-        let _e63 = g_debug_surface;
-        let _e64 = ViewDepth_u0028_();
-        frag_surface = vec4<f32>(_e63.x, _e63.y, _e63.z, _e64);
+    let _e58 = g_debug_surface_on;
+    if _e58 {
+        let _e59 = g_debug_surface;
+        let _e60 = ViewDepth_u0028_();
+        frag_surface = vec4<f32>(_e59.x, _e59.y, _e59.z, _e60);
         return;
     }
-    let _e69 = v_normal_1;
-    param = normalize(_e69);
-    let _e71 = EncodeOctahedral_u0028_vf3_u003b((&param));
-    let _e72 = (*roughness);
-    let _e74 = ViewDepth_u0028_();
-    frag_surface = vec4<f32>(_e71.x, _e71.y, clamp(_e72, 0f, 1f), _e74);
+    let _e65 = v_normal_1;
+    param = normalize(_e65);
+    let _e67 = EncodeOctahedral_u0028_vf3_u003b((&param));
+    let _e68 = (*roughness);
+    let _e70 = ViewDepth_u0028_();
+    frag_surface = vec4<f32>(_e67.x, _e67.y, clamp(_e68, 0f, 1f), _e70);
     return;
 }
 
 fn EyeDistance_u0028_() -> f32 {
-    let _e60 = v_world_position_1;
-    let _e62 = fog_info.eye;
-    return distance(_e60, _e62.xyz);
+    let _e56 = v_world_position_1;
+    let _e58 = fog_info.eye;
+    return distance(_e56, _e58.xyz);
 }
 
 fn ApplyFog_u0028_vf3_u003b(color: ptr<function, vec3<f32>>) -> vec3<f32> {
     var density: f32;
     var d: f32;
 
-    let _e65 = fog_info.fog[3u];
-    density = _e65;
-    let _e66 = density;
-    if (_e66 <= 0f) {
-        let _e68 = (*color);
-        return _e68;
+    let _e61 = fog_info.fog[3u];
+    density = _e61;
+    let _e62 = density;
+    if (_e62 <= 0f) {
+        let _e64 = (*color);
+        return _e64;
     }
-    let _e69 = EyeDistance_u0028_();
-    d = _e69;
-    let _e71 = fog_info.fog;
-    let _e73 = (*color);
-    let _e74 = density;
-    let _e76 = d;
-    return mix(_e71.xyz, _e73, vec3(clamp(exp((-(_e74) * _e76)), 0f, 1f)));
+    let _e65 = EyeDistance_u0028_();
+    d = _e65;
+    let _e67 = fog_info.fog;
+    let _e69 = (*color);
+    let _e70 = density;
+    let _e72 = d;
+    return mix(_e67.xyz, _e69, vec3(clamp(exp((-(_e70) * _e72)), 0f, 1f)));
 }
 
 fn WriteSurface_u0028_vf3_u003b_f1_u003b_f1_u003b(linearColor: ptr<function, vec3<f32>>, alpha: ptr<function, f32>, roughness_1: ptr<function, f32>) {
     var param_1: vec3<f32>;
     var param_2: f32;
 
-    let _e65 = (*linearColor);
-    param_1 = _e65;
-    let _e66 = ApplyFog_u0028_vf3_u003b((&param_1));
-    let _e67 = (*alpha);
-    frag_color = vec4<f32>(_e66.x, _e66.y, _e66.z, _e67);
-    let _e72 = (*roughness_1);
-    param_2 = _e72;
+    let _e61 = (*linearColor);
+    param_1 = _e61;
+    let _e62 = ApplyFog_u0028_vf3_u003b((&param_1));
+    let _e63 = (*alpha);
+    frag_color = vec4<f32>(_e62.x, _e62.y, _e62.z, _e63);
+    let _e68 = (*roughness_1);
+    param_2 = _e68;
     WriteSurfaceGeometry_u0028_f1_u003b((&param_2));
     return;
 }
@@ -2648,20 +2636,20 @@ fn WriteSurface_u0028_vf3_u003b_f1_u003b(linearColor_1: ptr<function, vec3<f32>>
     var param_4: f32;
     var param_5: f32;
 
-    let _e65 = (*linearColor_1);
-    param_3 = _e65;
-    let _e66 = (*alpha_1);
-    param_4 = _e66;
+    let _e61 = (*linearColor_1);
+    param_3 = _e61;
+    let _e62 = (*alpha_1);
+    param_4 = _e62;
     param_5 = 1f;
     WriteSurface_u0028_vf3_u003b_f1_u003b_f1_u003b((&param_3), (&param_4), (&param_5));
     return;
 }
 
 fn SrgbToLinear_u0028_vf3_u003b(srgb: ptr<function, vec3<f32>>) -> vec3<f32> {
-    let _e61 = (*srgb);
-    let _e64 = (*srgb);
-    let _e69 = (*srgb);
-    return mix((_e61 / vec3(12.92f)), pow(((_e64 + vec3<f32>(0.055f, 0.055f, 0.055f)) / vec3(1.055f)), vec3<f32>(2.4f, 2.4f, 2.4f)), step(vec3<f32>(0.04045f, 0.04045f, 0.04045f), _e69));
+    let _e57 = (*srgb);
+    let _e60 = (*srgb);
+    let _e65 = (*srgb);
+    return mix((_e57 / vec3(12.92f)), pow(((_e60 + vec3<f32>(0.055f, 0.055f, 0.055f)) / vec3(1.055f)), vec3<f32>(2.4f, 2.4f, 2.4f)), step(vec3<f32>(0.04045f, 0.04045f, 0.04045f), _e65));
 }
 
 fn ReadSurface_u0028_() -> Surface {
@@ -2673,67 +2661,67 @@ fn ReadSurface_u0028_() -> Surface {
     var anchored: vec3<f32>;
     var noise: f32;
 
-    let _e67 = v_texcoord_1;
-    let _e68 = textureSample(base_color_texture_tex, base_color_texture_smp, _e67);
-    texel = _e68;
-    let _e69 = texel;
-    param_6 = _e69.xyz;
-    let _e71 = SrgbToLinear_u0028_vf3_u003b((&param_6));
-    let _e73 = frag_info.base_color;
-    param_7 = _e73.xyz;
-    let _e75 = SrgbToLinear_u0028_vf3_u003b((&param_7));
-    let _e77 = v_color_1;
-    s.albedo = ((_e71 * _e75) * _e77.xyz);
-    let _e82 = texel[3u];
-    let _e85 = frag_info.base_color[3u];
-    let _e88 = v_color_1[3u];
-    s.alpha = ((_e82 * _e85) * _e88);
-    let _e93 = frag_info.material2_[0u];
-    cutoff = _e93;
-    let _e94 = cutoff;
-    if (_e94 >= 0f) {
-        let _e97 = s.alpha;
-        let _e98 = cutoff;
-        if (_e97 < _e98) {
+    let _e63 = v_texcoord_1;
+    let _e64 = textureSample(base_color_texture_tex, base_color_texture_smp, _e63);
+    texel = _e64;
+    let _e65 = texel;
+    param_6 = _e65.xyz;
+    let _e67 = SrgbToLinear_u0028_vf3_u003b((&param_6));
+    let _e69 = frag_info.base_color;
+    param_7 = _e69.xyz;
+    let _e71 = SrgbToLinear_u0028_vf3_u003b((&param_7));
+    let _e73 = v_color_1;
+    s.albedo = ((_e67 * _e71) * _e73.xyz);
+    let _e78 = texel[3u];
+    let _e81 = frag_info.base_color[3u];
+    let _e84 = v_color_1[3u];
+    s.alpha = ((_e78 * _e81) * _e84);
+    let _e89 = frag_info.material2_[0u];
+    cutoff = _e89;
+    let _e90 = cutoff;
+    if (_e90 >= 0f) {
+        let _e93 = s.alpha;
+        let _e94 = cutoff;
+        if (_e93 < _e94) {
             discard;
         }
     } else {
-        let _e100 = cutoff;
-        if (_e100 < -1.5f) {
-            let _e102 = v_world_position_1;
-            anchored = floor((_e102 * 16f));
-            let _e105 = anchored;
-            noise = fract((sin(dot(_e105, vec3<f32>(12.9898f, 78.233f, 37.719f))) * 43758.547f));
-            let _e111 = s.alpha;
-            let _e112 = noise;
-            if (_e111 < _e112) {
+        let _e96 = cutoff;
+        if (_e96 < -1.5f) {
+            let _e98 = v_world_position_1;
+            anchored = floor((_e98 * 16f));
+            let _e101 = anchored;
+            noise = fract((sin(dot(_e101, vec3<f32>(12.9898f, 78.233f, 37.719f))) * 43758.547f));
+            let _e107 = s.alpha;
+            let _e108 = noise;
+            if (_e107 < _e108) {
                 discard;
             }
         }
     }
-    let _e114 = v_normal_1;
-    s.n = normalize(_e114);
-    let _e118 = frag_info.camera_position;
-    let _e120 = v_world_position_1;
-    s.v = normalize((_e118.xyz - _e120));
-    let _e125 = s.n;
-    let _e127 = s.v;
-    s.n_dot_v = max(dot(_e125, _e127), 0.0001f);
-    let _e133 = frag_info.material[0u];
-    s.metallic = clamp(_e133, 0f, 1f);
-    let _e138 = frag_info.material[1u];
-    s.roughness = clamp(_e138, 0.02f, 1f);
-    let _e142 = frag_info.ambient_ground;
-    let _e145 = frag_info.ambient_sky;
-    let _e149 = s.n[1u];
-    let _e156 = frag_info.material[2u];
-    s.ambient = (mix(_e142.xyz, _e145.xyz, vec3(((_e149 * 0.5f) + 0.5f))) * _e156);
-    let _e161 = frag_info.frame_params[0u];
-    s.exposure = max(_e161, 0f);
+    let _e110 = v_normal_1;
+    s.n = normalize(_e110);
+    let _e114 = frag_info.camera_position;
+    let _e116 = v_world_position_1;
+    s.v = normalize((_e114.xyz - _e116));
+    let _e121 = s.n;
+    let _e123 = s.v;
+    s.n_dot_v = max(dot(_e121, _e123), 0.0001f);
+    let _e129 = frag_info.material[0u];
+    s.metallic = clamp(_e129, 0f, 1f);
+    let _e134 = frag_info.material[1u];
+    s.roughness = clamp(_e134, 0.02f, 1f);
+    let _e138 = frag_info.ambient_ground;
+    let _e141 = frag_info.ambient_sky;
+    let _e145 = s.n[1u];
+    let _e152 = frag_info.material[2u];
+    s.ambient = (mix(_e138.xyz, _e141.xyz, vec3(((_e145 * 0.5f) + 0.5f))) * _e152);
+    let _e157 = frag_info.frame_params[0u];
+    s.exposure = max(_e157, 0f);
     s.occlusion = 1f;
     s.emissive = vec3<f32>(0f, 0f, 0f);
-    let _e166 = s;
-    return _e166;
+    let _e162 = s;
+    return _e162;
 }
 
 fn main_1() {
@@ -2743,12 +2731,12 @@ fn main_1() {
 
     g_debug_surface = vec3<f32>(0f, 0f, 0f);
     g_debug_surface_on = false;
-    let _e63 = ReadSurface_u0028_();
-    s_1 = _e63;
-    let _e65 = s_1.albedo;
-    param_8 = _e65;
-    let _e67 = s_1.alpha;
-    param_9 = _e67;
+    let _e59 = ReadSurface_u0028_();
+    s_1 = _e59;
+    let _e61 = s_1.albedo;
+    param_8 = _e61;
+    let _e63 = s_1.alpha;
+    param_9 = _e63;
     WriteSurface_u0028_vf3_u003b_f1_u003b((&param_8), (&param_9));
     return;
 }
@@ -2877,39 +2865,13 @@ fn main(@location(6) v_world_position: vec3<f32>, @location(2) v_normal: vec3<f3
             ),
           ],
         ),
-        WebGpuBlock(
-          name: 'LightListInfo',
-          group: 1,
-          binding: 2,
-          sizeInBytes: 208,
-          members: <WebGpuBlockMember>[
-            WebGpuBlockMember(name: 'list', offsetInBytes: 0, sizeInBytes: 16),
-            WebGpuBlockMember(
-              name: 'indices',
-              offsetInBytes: 16,
-              sizeInBytes: 96,
-            ),
-            WebGpuBlockMember(
-              name: 'scales',
-              offsetInBytes: 112,
-              sizeInBytes: 96,
-            ),
-          ],
-        ),
       ],
       samplers: <WebGpuSampler>[
         WebGpuSampler(
           name: 'base_color_texture',
           group: 1,
-          textureBinding: 3,
-          samplerBinding: 4,
-          dimension: WebGpuTextureDimension.twoDimensional,
-        ),
-        WebGpuSampler(
-          name: 'light_list_texture',
-          group: 1,
-          textureBinding: 5,
-          samplerBinding: 6,
+          textureBinding: 2,
+          samplerBinding: 3,
           dimension: WebGpuTextureDimension.twoDimensional,
         ),
       ],
@@ -2956,21 +2918,15 @@ struct FragInfo {
     ambient_ground: vec4<f32>,
 }
 
-struct LightListInfo {
-    list: vec4<f32>,
-    indices: array<vec4<f32>, 6>,
-    scales: array<vec4<f32>, 6>,
-}
-
 var<private> g_debug_surface: vec3<f32>;
 var<private> g_debug_surface_on: bool;
 var<private> v_world_position_1: vec3<f32>;
 @group(1) @binding(0) 
 var<uniform> fog_info: FogInfo;
 var<private> frag_color: vec4<f32>;
-@group(1) @binding(3) 
+@group(1) @binding(2) 
 var base_color_texture_tex: texture_2d<f32>;
-@group(1) @binding(4) 
+@group(1) @binding(3) 
 var base_color_texture_smp: sampler;
 var<private> v_texcoord_1: vec2<f32>;
 @group(1) @binding(1) 
@@ -2979,54 +2935,48 @@ var<private> v_color_1: vec4<f32>;
 var<private> v_normal_1: vec3<f32>;
 var<private> v_tangent_1: vec4<f32>;
 var<private> v_lightmap_uv_1: vec2<f32>;
-@group(1) @binding(5) 
-var light_list_texture_tex: texture_2d<f32>;
-@group(1) @binding(6) 
-var light_list_texture_smp: sampler;
-@group(1) @binding(2) 
-var<uniform> light_list_info: LightListInfo;
 
 fn WriteSurfaceGeometry_u0028_f1_u003b(roughness: ptr<function, f32>) {
     return;
 }
 
 fn EyeDistance_u0028_() -> f32 {
-    let _e58 = v_world_position_1;
-    let _e60 = fog_info.eye;
-    return distance(_e58, _e60.xyz);
+    let _e54 = v_world_position_1;
+    let _e56 = fog_info.eye;
+    return distance(_e54, _e56.xyz);
 }
 
 fn ApplyFog_u0028_vf3_u003b(color: ptr<function, vec3<f32>>) -> vec3<f32> {
     var density: f32;
     var d: f32;
 
-    let _e63 = fog_info.fog[3u];
-    density = _e63;
-    let _e64 = density;
-    if (_e64 <= 0f) {
-        let _e66 = (*color);
-        return _e66;
+    let _e59 = fog_info.fog[3u];
+    density = _e59;
+    let _e60 = density;
+    if (_e60 <= 0f) {
+        let _e62 = (*color);
+        return _e62;
     }
-    let _e67 = EyeDistance_u0028_();
-    d = _e67;
-    let _e69 = fog_info.fog;
-    let _e71 = (*color);
-    let _e72 = density;
-    let _e74 = d;
-    return mix(_e69.xyz, _e71, vec3(clamp(exp((-(_e72) * _e74)), 0f, 1f)));
+    let _e63 = EyeDistance_u0028_();
+    d = _e63;
+    let _e65 = fog_info.fog;
+    let _e67 = (*color);
+    let _e68 = density;
+    let _e70 = d;
+    return mix(_e65.xyz, _e67, vec3(clamp(exp((-(_e68) * _e70)), 0f, 1f)));
 }
 
 fn WriteSurface_u0028_vf3_u003b_f1_u003b_f1_u003b(linearColor: ptr<function, vec3<f32>>, alpha: ptr<function, f32>, roughness_1: ptr<function, f32>) {
     var param: vec3<f32>;
     var param_1: f32;
 
-    let _e63 = (*linearColor);
-    param = _e63;
-    let _e64 = ApplyFog_u0028_vf3_u003b((&param));
-    let _e65 = (*alpha);
-    frag_color = vec4<f32>(_e64.x, _e64.y, _e64.z, _e65);
-    let _e70 = (*roughness_1);
-    param_1 = _e70;
+    let _e59 = (*linearColor);
+    param = _e59;
+    let _e60 = ApplyFog_u0028_vf3_u003b((&param));
+    let _e61 = (*alpha);
+    frag_color = vec4<f32>(_e60.x, _e60.y, _e60.z, _e61);
+    let _e66 = (*roughness_1);
+    param_1 = _e66;
     WriteSurfaceGeometry_u0028_f1_u003b((&param_1));
     return;
 }
@@ -3036,20 +2986,20 @@ fn WriteSurface_u0028_vf3_u003b_f1_u003b(linearColor_1: ptr<function, vec3<f32>>
     var param_3: f32;
     var param_4: f32;
 
-    let _e63 = (*linearColor_1);
-    param_2 = _e63;
-    let _e64 = (*alpha_1);
-    param_3 = _e64;
+    let _e59 = (*linearColor_1);
+    param_2 = _e59;
+    let _e60 = (*alpha_1);
+    param_3 = _e60;
     param_4 = 1f;
     WriteSurface_u0028_vf3_u003b_f1_u003b_f1_u003b((&param_2), (&param_3), (&param_4));
     return;
 }
 
 fn SrgbToLinear_u0028_vf3_u003b(srgb: ptr<function, vec3<f32>>) -> vec3<f32> {
-    let _e59 = (*srgb);
-    let _e62 = (*srgb);
-    let _e67 = (*srgb);
-    return mix((_e59 / vec3(12.92f)), pow(((_e62 + vec3<f32>(0.055f, 0.055f, 0.055f)) / vec3(1.055f)), vec3<f32>(2.4f, 2.4f, 2.4f)), step(vec3<f32>(0.04045f, 0.04045f, 0.04045f), _e67));
+    let _e55 = (*srgb);
+    let _e58 = (*srgb);
+    let _e63 = (*srgb);
+    return mix((_e55 / vec3(12.92f)), pow(((_e58 + vec3<f32>(0.055f, 0.055f, 0.055f)) / vec3(1.055f)), vec3<f32>(2.4f, 2.4f, 2.4f)), step(vec3<f32>(0.04045f, 0.04045f, 0.04045f), _e63));
 }
 
 fn ReadSurface_u0028_() -> Surface {
@@ -3061,67 +3011,67 @@ fn ReadSurface_u0028_() -> Surface {
     var anchored: vec3<f32>;
     var noise: f32;
 
-    let _e65 = v_texcoord_1;
-    let _e66 = textureSample(base_color_texture_tex, base_color_texture_smp, _e65);
-    texel = _e66;
-    let _e67 = texel;
-    param_5 = _e67.xyz;
-    let _e69 = SrgbToLinear_u0028_vf3_u003b((&param_5));
-    let _e71 = frag_info.base_color;
-    param_6 = _e71.xyz;
-    let _e73 = SrgbToLinear_u0028_vf3_u003b((&param_6));
-    let _e75 = v_color_1;
-    s.albedo = ((_e69 * _e73) * _e75.xyz);
-    let _e80 = texel[3u];
-    let _e83 = frag_info.base_color[3u];
-    let _e86 = v_color_1[3u];
-    s.alpha = ((_e80 * _e83) * _e86);
-    let _e91 = frag_info.material2_[0u];
-    cutoff = _e91;
-    let _e92 = cutoff;
-    if (_e92 >= 0f) {
-        let _e95 = s.alpha;
-        let _e96 = cutoff;
-        if (_e95 < _e96) {
+    let _e61 = v_texcoord_1;
+    let _e62 = textureSample(base_color_texture_tex, base_color_texture_smp, _e61);
+    texel = _e62;
+    let _e63 = texel;
+    param_5 = _e63.xyz;
+    let _e65 = SrgbToLinear_u0028_vf3_u003b((&param_5));
+    let _e67 = frag_info.base_color;
+    param_6 = _e67.xyz;
+    let _e69 = SrgbToLinear_u0028_vf3_u003b((&param_6));
+    let _e71 = v_color_1;
+    s.albedo = ((_e65 * _e69) * _e71.xyz);
+    let _e76 = texel[3u];
+    let _e79 = frag_info.base_color[3u];
+    let _e82 = v_color_1[3u];
+    s.alpha = ((_e76 * _e79) * _e82);
+    let _e87 = frag_info.material2_[0u];
+    cutoff = _e87;
+    let _e88 = cutoff;
+    if (_e88 >= 0f) {
+        let _e91 = s.alpha;
+        let _e92 = cutoff;
+        if (_e91 < _e92) {
             discard;
         }
     } else {
-        let _e98 = cutoff;
-        if (_e98 < -1.5f) {
-            let _e100 = v_world_position_1;
-            anchored = floor((_e100 * 16f));
-            let _e103 = anchored;
-            noise = fract((sin(dot(_e103, vec3<f32>(12.9898f, 78.233f, 37.719f))) * 43758.547f));
-            let _e109 = s.alpha;
-            let _e110 = noise;
-            if (_e109 < _e110) {
+        let _e94 = cutoff;
+        if (_e94 < -1.5f) {
+            let _e96 = v_world_position_1;
+            anchored = floor((_e96 * 16f));
+            let _e99 = anchored;
+            noise = fract((sin(dot(_e99, vec3<f32>(12.9898f, 78.233f, 37.719f))) * 43758.547f));
+            let _e105 = s.alpha;
+            let _e106 = noise;
+            if (_e105 < _e106) {
                 discard;
             }
         }
     }
-    let _e112 = v_normal_1;
-    s.n = normalize(_e112);
-    let _e116 = frag_info.camera_position;
-    let _e118 = v_world_position_1;
-    s.v = normalize((_e116.xyz - _e118));
-    let _e123 = s.n;
-    let _e125 = s.v;
-    s.n_dot_v = max(dot(_e123, _e125), 0.0001f);
-    let _e131 = frag_info.material[0u];
-    s.metallic = clamp(_e131, 0f, 1f);
-    let _e136 = frag_info.material[1u];
-    s.roughness = clamp(_e136, 0.02f, 1f);
-    let _e140 = frag_info.ambient_ground;
-    let _e143 = frag_info.ambient_sky;
-    let _e147 = s.n[1u];
-    let _e154 = frag_info.material[2u];
-    s.ambient = (mix(_e140.xyz, _e143.xyz, vec3(((_e147 * 0.5f) + 0.5f))) * _e154);
-    let _e159 = frag_info.frame_params[0u];
-    s.exposure = max(_e159, 0f);
+    let _e108 = v_normal_1;
+    s.n = normalize(_e108);
+    let _e112 = frag_info.camera_position;
+    let _e114 = v_world_position_1;
+    s.v = normalize((_e112.xyz - _e114));
+    let _e119 = s.n;
+    let _e121 = s.v;
+    s.n_dot_v = max(dot(_e119, _e121), 0.0001f);
+    let _e127 = frag_info.material[0u];
+    s.metallic = clamp(_e127, 0f, 1f);
+    let _e132 = frag_info.material[1u];
+    s.roughness = clamp(_e132, 0.02f, 1f);
+    let _e136 = frag_info.ambient_ground;
+    let _e139 = frag_info.ambient_sky;
+    let _e143 = s.n[1u];
+    let _e150 = frag_info.material[2u];
+    s.ambient = (mix(_e136.xyz, _e139.xyz, vec3(((_e143 * 0.5f) + 0.5f))) * _e150);
+    let _e155 = frag_info.frame_params[0u];
+    s.exposure = max(_e155, 0f);
     s.occlusion = 1f;
     s.emissive = vec3<f32>(0f, 0f, 0f);
-    let _e164 = s;
-    return _e164;
+    let _e160 = s;
+    return _e160;
 }
 
 fn main_1() {
@@ -3131,12 +3081,12 @@ fn main_1() {
 
     g_debug_surface = vec3<f32>(0f, 0f, 0f);
     g_debug_surface_on = false;
-    let _e61 = ReadSurface_u0028_();
-    s_1 = _e61;
-    let _e63 = s_1.albedo;
-    param_7 = _e63;
-    let _e65 = s_1.alpha;
-    param_8 = _e65;
+    let _e57 = ReadSurface_u0028_();
+    s_1 = _e57;
+    let _e59 = s_1.albedo;
+    param_7 = _e59;
+    let _e61 = s_1.alpha;
+    param_8 = _e61;
     WriteSurface_u0028_vf3_u003b_f1_u003b((&param_7), (&param_8));
     return;
 }
@@ -3264,39 +3214,13 @@ fn main(@location(6) v_world_position: vec3<f32>, @location(4) v_texcoord: vec2<
             ),
           ],
         ),
-        WebGpuBlock(
-          name: 'LightListInfo',
-          group: 1,
-          binding: 2,
-          sizeInBytes: 208,
-          members: <WebGpuBlockMember>[
-            WebGpuBlockMember(name: 'list', offsetInBytes: 0, sizeInBytes: 16),
-            WebGpuBlockMember(
-              name: 'indices',
-              offsetInBytes: 16,
-              sizeInBytes: 96,
-            ),
-            WebGpuBlockMember(
-              name: 'scales',
-              offsetInBytes: 112,
-              sizeInBytes: 96,
-            ),
-          ],
-        ),
       ],
       samplers: <WebGpuSampler>[
         WebGpuSampler(
           name: 'base_color_texture',
           group: 1,
-          textureBinding: 3,
-          samplerBinding: 4,
-          dimension: WebGpuTextureDimension.twoDimensional,
-        ),
-        WebGpuSampler(
-          name: 'light_list_texture',
-          group: 1,
-          textureBinding: 5,
-          samplerBinding: 6,
+          textureBinding: 2,
+          samplerBinding: 3,
           dimension: WebGpuTextureDimension.twoDimensional,
         ),
       ],
@@ -16620,15 +16544,9 @@ struct ShadowLight {
     light: vec4<f32>,
 }
 
-struct FogInfo {
-    fog: vec4<f32>,
-    eye: vec4<f32>,
-    forward: vec4<f32>,
-}
-
 var<private> g_debug_surface: vec3<f32>;
 var<private> g_debug_surface_on: bool;
-@group(1) @binding(1) 
+@group(1) @binding(0) 
 var<uniform> shadow_light: ShadowLight;
 var<private> v_world_position_1: vec3<f32>;
 var<private> frag_color: vec4<f32>;
@@ -16637,8 +16555,6 @@ var<private> v_texcoord_1: vec2<f32>;
 var<private> v_tangent_1: vec4<f32>;
 var<private> v_color_1: vec4<f32>;
 var<private> v_lightmap_uv_1: vec2<f32>;
-@group(1) @binding(0) 
-var<uniform> fog_info: FogInfo;
 
 fn main_1() {
     var range: f32;
@@ -16646,14 +16562,14 @@ fn main_1() {
 
     g_debug_surface = vec3<f32>(0f, 0f, 0f);
     g_debug_surface_on = false;
-    let _e23 = shadow_light.light[3u];
-    range = max(_e23, 0.0001f);
-    let _e25 = v_world_position_1;
-    let _e27 = shadow_light.light;
-    distance_ = length((_e25 - _e27.xyz));
-    let _e31 = distance_;
-    let _e32 = range;
-    frag_color = vec4<f32>(clamp((_e31 / _e32), 0f, 1f), 0f, 0f, 1f);
+    let _e22 = shadow_light.light[3u];
+    range = max(_e22, 0.0001f);
+    let _e24 = v_world_position_1;
+    let _e26 = shadow_light.light;
+    distance_ = length((_e24 - _e26.xyz));
+    let _e30 = distance_;
+    let _e31 = range;
+    frag_color = vec4<f32>(clamp((_e30 / _e31), 0f, 1f), 0f, 0f, 1f);
     return;
 }
 
@@ -16673,24 +16589,9 @@ fn main(@location(6) v_world_position: vec3<f32>, @location(2) v_normal: vec3<f3
       attributes: <WebGpuAttribute>[],
       blocks: <WebGpuBlock>[
         WebGpuBlock(
-          name: 'FogInfo',
-          group: 1,
-          binding: 0,
-          sizeInBytes: 48,
-          members: <WebGpuBlockMember>[
-            WebGpuBlockMember(name: 'fog', offsetInBytes: 0, sizeInBytes: 16),
-            WebGpuBlockMember(name: 'eye', offsetInBytes: 16, sizeInBytes: 16),
-            WebGpuBlockMember(
-              name: 'forward',
-              offsetInBytes: 32,
-              sizeInBytes: 16,
-            ),
-          ],
-        ),
-        WebGpuBlock(
           name: 'ShadowLight',
           group: 1,
-          binding: 1,
+          binding: 0,
           sizeInBytes: 16,
           members: <WebGpuBlockMember>[
             WebGpuBlockMember(name: 'light', offsetInBytes: 0, sizeInBytes: 16),
@@ -16787,22 +16688,16 @@ struct ShadowLight {
     light: vec4<f32>,
 }
 
-struct FogInfo {
-    fog: vec4<f32>,
-    eye: vec4<f32>,
-    forward: vec4<f32>,
-}
-
 var<private> g_debug_surface: vec3<f32>;
 var<private> g_debug_surface_on: bool;
-@group(1) @binding(3) 
+@group(1) @binding(2) 
 var base_color_texture_tex: texture_2d<f32>;
-@group(1) @binding(4) 
+@group(1) @binding(3) 
 var base_color_texture_smp: sampler;
 var<private> v_texcoord_1: vec2<f32>;
-@group(1) @binding(1) 
+@group(1) @binding(0) 
 var<uniform> mask_info: MaskInfo;
-@group(1) @binding(2) 
+@group(1) @binding(1) 
 var<uniform> shadow_light: ShadowLight;
 var<private> v_world_position_1: vec3<f32>;
 var<private> frag_color: vec4<f32>;
@@ -16810,8 +16705,6 @@ var<private> v_normal_1: vec3<f32>;
 var<private> v_tangent_1: vec4<f32>;
 var<private> v_color_1: vec4<f32>;
 var<private> v_lightmap_uv_1: vec2<f32>;
-@group(1) @binding(0) 
-var<uniform> fog_info: FogInfo;
 
 fn main_1() {
     var alpha: f32;
@@ -16820,23 +16713,23 @@ fn main_1() {
 
     g_debug_surface = vec3<f32>(0f, 0f, 0f);
     g_debug_surface_on = false;
-    let _e27 = v_texcoord_1;
-    let _e28 = textureSample(base_color_texture_tex, base_color_texture_smp, _e27);
-    let _e32 = mask_info.mask[1u];
-    alpha = (_e28.w * _e32);
-    let _e34 = alpha;
-    let _e37 = mask_info.mask[0u];
-    if (_e34 < _e37) {
+    let _e26 = v_texcoord_1;
+    let _e27 = textureSample(base_color_texture_tex, base_color_texture_smp, _e26);
+    let _e31 = mask_info.mask[1u];
+    alpha = (_e27.w * _e31);
+    let _e33 = alpha;
+    let _e36 = mask_info.mask[0u];
+    if (_e33 < _e36) {
         discard;
     }
-    let _e41 = shadow_light.light[3u];
-    range = max(_e41, 0.0001f);
-    let _e43 = v_world_position_1;
-    let _e45 = shadow_light.light;
-    distance_ = length((_e43 - _e45.xyz));
-    let _e49 = distance_;
-    let _e50 = range;
-    frag_color = vec4<f32>(clamp((_e49 / _e50), 0f, 1f), 0f, 0f, 1f);
+    let _e40 = shadow_light.light[3u];
+    range = max(_e40, 0.0001f);
+    let _e42 = v_world_position_1;
+    let _e44 = shadow_light.light;
+    distance_ = length((_e42 - _e44.xyz));
+    let _e48 = distance_;
+    let _e49 = range;
+    frag_color = vec4<f32>(clamp((_e48 / _e49), 0f, 1f), 0f, 0f, 1f);
     return;
 }
 
@@ -16856,24 +16749,9 @@ fn main(@location(4) v_texcoord: vec2<f32>, @location(6) v_world_position: vec3<
       attributes: <WebGpuAttribute>[],
       blocks: <WebGpuBlock>[
         WebGpuBlock(
-          name: 'FogInfo',
-          group: 1,
-          binding: 0,
-          sizeInBytes: 48,
-          members: <WebGpuBlockMember>[
-            WebGpuBlockMember(name: 'fog', offsetInBytes: 0, sizeInBytes: 16),
-            WebGpuBlockMember(name: 'eye', offsetInBytes: 16, sizeInBytes: 16),
-            WebGpuBlockMember(
-              name: 'forward',
-              offsetInBytes: 32,
-              sizeInBytes: 16,
-            ),
-          ],
-        ),
-        WebGpuBlock(
           name: 'MaskInfo',
           group: 1,
-          binding: 1,
+          binding: 0,
           sizeInBytes: 16,
           members: <WebGpuBlockMember>[
             WebGpuBlockMember(name: 'mask', offsetInBytes: 0, sizeInBytes: 16),
@@ -16882,7 +16760,7 @@ fn main(@location(4) v_texcoord: vec2<f32>, @location(6) v_world_position: vec3<
         WebGpuBlock(
           name: 'ShadowLight',
           group: 1,
-          binding: 2,
+          binding: 1,
           sizeInBytes: 16,
           members: <WebGpuBlockMember>[
             WebGpuBlockMember(name: 'light', offsetInBytes: 0, sizeInBytes: 16),
@@ -16893,8 +16771,8 @@ fn main(@location(4) v_texcoord: vec2<f32>, @location(6) v_world_position: vec3<
         WebGpuSampler(
           name: 'base_color_texture',
           group: 1,
-          textureBinding: 3,
-          samplerBinding: 4,
+          textureBinding: 2,
+          samplerBinding: 3,
           dimension: WebGpuTextureDimension.twoDimensional,
         ),
       ],
@@ -17195,19 +17073,13 @@ struct IdInfo {
     mask: vec4<f32>,
 }
 
-struct FogInfo {
-    fog: vec4<f32>,
-    eye: vec4<f32>,
-    forward: vec4<f32>,
-}
-
 var<private> g_debug_surface: vec3<f32>;
 var<private> g_debug_surface_on: bool;
-@group(1) @binding(1) 
+@group(1) @binding(0) 
 var<uniform> id_info: IdInfo;
-@group(1) @binding(2) 
+@group(1) @binding(1) 
 var base_color_texture_tex: texture_2d<f32>;
-@group(1) @binding(3) 
+@group(1) @binding(2) 
 var base_color_texture_smp: sampler;
 var<private> v_texcoord_1: vec2<f32>;
 var<private> v_color_1: vec4<f32>;
@@ -17216,8 +17088,6 @@ var<private> v_world_position_1: vec3<f32>;
 var<private> v_normal_1: vec3<f32>;
 var<private> v_tangent_1: vec4<f32>;
 var<private> v_lightmap_uv_1: vec2<f32>;
-@group(1) @binding(0) 
-var<uniform> fog_info: FogInfo;
 
 fn main_1() {
     var cutoff: f32;
@@ -17225,24 +17095,24 @@ fn main_1() {
 
     g_debug_surface = vec3<f32>(0f, 0f, 0f);
     g_debug_surface_on = false;
-    let _e27 = id_info.mask[0u];
-    cutoff = _e27;
-    let _e28 = cutoff;
-    if (_e28 >= 0f) {
-        let _e30 = v_texcoord_1;
-        let _e31 = textureSample(base_color_texture_tex, base_color_texture_smp, _e30);
-        let _e35 = id_info.mask[1u];
-        let _e38 = v_color_1[3u];
-        alpha = ((_e31.w * _e35) * _e38);
-        let _e40 = alpha;
-        let _e41 = cutoff;
-        if (_e40 < _e41) {
+    let _e26 = id_info.mask[0u];
+    cutoff = _e26;
+    let _e27 = cutoff;
+    if (_e27 >= 0f) {
+        let _e29 = v_texcoord_1;
+        let _e30 = textureSample(base_color_texture_tex, base_color_texture_smp, _e29);
+        let _e34 = id_info.mask[1u];
+        let _e37 = v_color_1[3u];
+        alpha = ((_e30.w * _e34) * _e37);
+        let _e39 = alpha;
+        let _e40 = cutoff;
+        if (_e39 < _e40) {
             discard;
         }
     }
-    let _e44 = id_info.id;
-    let _e45 = _e44.xyz;
-    frag_color = vec4<f32>(_e45.x, _e45.y, _e45.z, 1f);
+    let _e43 = id_info.id;
+    let _e44 = _e43.xyz;
+    frag_color = vec4<f32>(_e44.x, _e44.y, _e44.z, 1f);
     return;
 }
 
@@ -17262,24 +17132,9 @@ fn main(@location(4) v_texcoord: vec2<f32>, @location(0) v_color: vec4<f32>, @lo
       attributes: <WebGpuAttribute>[],
       blocks: <WebGpuBlock>[
         WebGpuBlock(
-          name: 'FogInfo',
-          group: 1,
-          binding: 0,
-          sizeInBytes: 48,
-          members: <WebGpuBlockMember>[
-            WebGpuBlockMember(name: 'fog', offsetInBytes: 0, sizeInBytes: 16),
-            WebGpuBlockMember(name: 'eye', offsetInBytes: 16, sizeInBytes: 16),
-            WebGpuBlockMember(
-              name: 'forward',
-              offsetInBytes: 32,
-              sizeInBytes: 16,
-            ),
-          ],
-        ),
-        WebGpuBlock(
           name: 'IdInfo',
           group: 1,
-          binding: 1,
+          binding: 0,
           sizeInBytes: 32,
           members: <WebGpuBlockMember>[
             WebGpuBlockMember(name: 'id', offsetInBytes: 0, sizeInBytes: 16),
@@ -17291,8 +17146,8 @@ fn main(@location(4) v_texcoord: vec2<f32>, @location(0) v_color: vec4<f32>, @lo
         WebGpuSampler(
           name: 'base_color_texture',
           group: 1,
-          textureBinding: 2,
-          samplerBinding: 3,
+          textureBinding: 1,
+          samplerBinding: 2,
           dimension: WebGpuTextureDimension.twoDimensional,
         ),
       ],
