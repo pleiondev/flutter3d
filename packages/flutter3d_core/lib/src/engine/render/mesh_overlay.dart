@@ -4,6 +4,7 @@ import 'dart:typed_data';
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:vector_math/vector_math.dart';
 
+import 'identity_indices.dart';
 import 'pass_contributor.dart';
 
 /// What a modeller draws on top of the surface: edges, vertices, the selection.
@@ -312,28 +313,7 @@ final class MeshOverlay extends PassContributor {
   /// went a whole commit drawing nothing for exactly that reason, and every
   /// test it had still passed, because they all read the batch. `DebugDraw`
   /// keeps the same sequence for the same reason.
-  GeometryBuffer? _indices;
-  int _indexCapacity = 0;
-
-  /// A view over that sequence long enough for [count] vertices.
-  GeometryBuffer _identityIndices(GraphicsDevice device, int count) {
-    if (count > _indexCapacity) {
-      var capacity = math.max(_indexCapacity * 2, 1024);
-      while (capacity < count) {
-        capacity *= 2;
-      }
-      final indices = Uint32List(capacity);
-      for (var i = 0; i < capacity; i++) {
-        indices[i] = i;
-      }
-      _indices = device.uploadGeometry(
-        indices.buffer.asByteData(),
-        GeometryUsage.indices,
-      );
-      _indexCapacity = capacity;
-    }
-    return _indices!.slice(length: count * 4);
-  }
+  final IdentityIndices _identityIndices = IdentityIndices();
 
   @override
   void encode(ContributorFrame frame) {
@@ -368,7 +348,7 @@ final class MeshOverlay extends PassContributor {
       ..setState(state)
       ..bindVertexData(batch.vertexBytes, batch.vertexCount)
       ..bindIndexBuffer(
-        _identityIndices(frame.device, batch.vertexCount),
+        _identityIndices.view(frame.device, batch.vertexCount),
         IndexType.int32,
         batch.vertexCount,
       )
