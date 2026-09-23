@@ -1,3 +1,18 @@
+## 0.7.3
+
+- **A material's own vertex stage gets the morph state when it declares it.**
+  0.7.2 fixed `Material.polyline` on Impeller by binding morphs to a
+  material's own stage only when the node morphed. A stage written from
+  `MeshVertex` declares the morph block and texture either way, so on a plain
+  mesh it went without them: another draw's weights on the software backend,
+  garbage on WebGL, a native failure on Metal. The bind now follows
+  `LightingModel.vertexStageMorphs`, which is new, true by default, false for
+  `LightingModel.polyline`, and round-trips through `.fmat` as `vertexMorphs`.
+- **`MaterialBindings.lightingModel` builds the model a material in the
+  language needs.** Every flag comes off the program, `usesLightList: false`
+  included. A hand-built model that samples maps defaulted the light list on,
+  and the emitted stage never declares it.
+
 ## 0.7.2
 
 - **`Material.polyline` draws on Impeller.** The renderer bound the morph

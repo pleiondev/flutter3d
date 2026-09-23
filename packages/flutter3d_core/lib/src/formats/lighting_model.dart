@@ -42,6 +42,7 @@ final class LightingModel {
     this.usesMetallic = false,
     this.usesEnvironment = false,
     this._usesLightList,
+    this.vertexStageMorphs = true,
   }) : assert(
          !usesMetallicRoughnessMap || usesMaterialMaps,
          'the metallic-roughness map is one of the material maps, so a model '
@@ -97,6 +98,7 @@ final class LightingModel {
     usesMaterialMaps: false,
     usesMetallicRoughnessMap: false,
     usesMaterialParameters: false,
+    vertexStageMorphs: false,
   );
 
   static const LightingModel lambert = LightingModel(
@@ -228,6 +230,20 @@ final class LightingModel {
   /// such as one emitted from the material language, says `false`.
   bool get usesLightList => _usesLightList ?? usesMaterialMaps;
   final bool? _usesLightList;
+
+  /// Whether the material's own vertex stage declares the morph block and
+  /// texture, and so has to be handed them on every draw.
+  ///
+  /// **True by default**, because a stage of one's own is written from
+  /// `MeshVertex`, and `mesh.vert` includes `lib/morph.glsl`: the block and the
+  /// sampler are declared whether or not the node morphs, and a stage that
+  /// declares them and is not handed them reads another draw's weights on the
+  /// software backend and garbage on WebGL, and is a native failure on Metal.
+  /// False for [polyline], whose `PolylineVertex` declares neither; binding
+  /// the texture to it is a thrown "Failed to bind texture" on Impeller.
+  /// Ignored when [vertexShaderName] is null: the engine's own mesh stages all
+  /// declare them.
+  final bool vertexStageMorphs;
 
   /// Whether the shader samples `metallic_roughness_texture`.
   ///
