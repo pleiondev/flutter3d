@@ -21,7 +21,7 @@ dependencies:
   flutter3d:
     path: ../../flutter3d
 
-  vector_math: ^2.2.0
+  vector_math: ^2.4.3
 
 dev_dependencies:
   flutter_test:

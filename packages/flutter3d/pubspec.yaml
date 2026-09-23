@@ -33,7 +33,7 @@ dependencies:
   # backend exist without touching the engine.
   flutter3d_hardware: ^0.7.0
 
-  vector_math: ^2.2.0
+  vector_math: ^2.4.3
 
   # Not `flutter3d_build`. The converter's command is that package's own
   # `dart run flutter3d_build:convert`; a runtime engine that named it would put

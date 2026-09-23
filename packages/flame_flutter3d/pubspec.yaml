@@ -43,7 +43,7 @@ dependencies:
   # guide points a reader back to rather than duplicating.
   flutter3d_game: ^0.7.0
 
-  vector_math: ^2.2.0
+  vector_math: ^2.4.3
 
 dev_dependencies:
   flutter_test:

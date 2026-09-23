@@ -78,7 +78,7 @@ dependencies:
   # `src/recent_projects.dart`, and both are tested with no plugin registered.
   file_selector: ^1.1.0
 
-  vector_math: ^2.2.0
+  vector_math: ^2.4.3
 
   # `TimelineAttachScreen` connects to a running game's VM service to drive
   # its `RunTimeline` — `rp-02`'s answer to "the editor runs the project",
@@ -86,7 +86,7 @@ dependencies:
   # `doc/tooling-plan.md`. Not a plugin: this package speaks the VM service
   # protocol over a plain WebSocket, which this application already has
   # through `dart:io` on every platform it ships to.
-  vm_service: ^15.0.0
+  vm_service: ^15.3.0
 
   # State management — see the note in `packages/flutter3d_game/pubspec.yaml`.
   # What goes through it is the screen: which document is open, why one is
