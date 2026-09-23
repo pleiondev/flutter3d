@@ -1,6 +1,6 @@
 name: flutter3d_core
 description: "The engine's rendering core with no Flutter SDK behind it: scene graph, animation, the render graph, and model/material loading down to the one call each still needs an injected reader or decoder for."
-version: 0.7.1
+version: 0.7.2
 repository: https://github.com/pleiondev/flutter3d
 homepage: https://flutter3d.pleion.dev
 issue_tracker: https://github.com/pleiondev/flutter3d/issues

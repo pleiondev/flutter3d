@@ -1,3 +1,15 @@
+## 0.7.2
+
+- **`Material.polyline` draws on Impeller.** The renderer bound the morph
+  block and texture to whichever vertex stage drew, and `PolylineVertex`
+  declares neither. The missing block was skipped, but flutter_gpu refuses a
+  texture bound to a slot the stage does not have, so every polyline threw
+  "Failed to bind texture" at its first draw on macOS and iOS, in 0.7.0 and
+  0.7.1 alike. WebGL and the software backend let the extra bind pass. A
+  material's own vertex stage now gets the morph state only when the node
+  morphs; the engine's four mesh stages still get it on every draw. Found by
+  drawing an unlit sphere, a polyline and a lit cube one at a time on Metal.
+
 ## 0.7.1
 
 - **A surface with no normal map is flat again, whichever way its tangent
