@@ -126,7 +126,21 @@ abstract class ModelDocument {
   }
 
   /// Indices into [nodes] with no parent.
-  List<int> get roots => <int>[for (var i = 0; i < nodes.length; i++) i];
+  ///
+  /// **Worked out from [nodes], not assumed to be all of them.** Every node was
+  /// a root while the only default hierarchy was the flat one above; a
+  /// document handed a real tree of nodes and no roots of its own — the
+  /// converter rebuilding a glTF scene as a `PlainModelDocument` is one — then
+  /// listed every child as a root as well, so a scene built from it placed the
+  /// child twice and a glTF written from it named a child in `scene.nodes`.
+  List<int> get roots {
+    final all = nodes;
+    final children = <int>{for (final node in all) ...node.children};
+    return <int>[
+      for (var i = 0; i < all.length; i++)
+        if (!children.contains(i)) i,
+    ];
+  }
 
   /// Clips that drive [nodes]. Empty for formats that carry no animation.
   List<AnimationClip> get animations => const <AnimationClip>[];

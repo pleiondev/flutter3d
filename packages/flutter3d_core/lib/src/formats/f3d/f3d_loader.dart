@@ -110,13 +110,43 @@ final class F3dDocument extends ModelDocument {
 
   _Section _section(int kind) => _sections[kind] ?? const _Section(0, 0, 0);
 
+  /// [kind]'s section, checked to hold `count` records of [recordBytes] each.
+  ///
+  /// **Every table reader goes through this rather than trusting `count`.** The
+  /// directory only promises that a section lies inside the file; a record
+  /// count larger than the section would otherwise walk into whichever section
+  /// the writer happened to put next and decode its bytes as this one's.
+  _Section _table(int kind, int recordBytes) {
+    final section = _section(kind);
+    if (section.count * recordBytes > section.length) {
+      throw F3dFormatException(
+        'Section $kind claims ${section.count} records of $recordBytes bytes, '
+        'more than its ${section.length} bytes hold.',
+      );
+    }
+    return section;
+  }
+
   /// Absolute byte offset of a blob entry, as seen by the underlying buffer.
   ///
   /// [_bytes] may itself be a view into a larger buffer, so its own offset has
   /// to be added — reading a file straight from disk gives zero, but a `.f3d`
   /// carved out of an archive would not.
-  int _blobOffset(int relative) =>
-      _bytes.offsetInBytes + _section(F3dSection.blob).offset + relative;
+  ///
+  /// [byteLength] is checked against the blob section: a record naming a range
+  /// past it would otherwise be read out of the next section, or — when the
+  /// file is a view into a larger buffer — out of bytes that are not this file
+  /// at all.
+  int _blobOffset(int relative, int byteLength) {
+    final blob = _section(F3dSection.blob);
+    if (byteLength < 0 || relative + byteLength > blob.length) {
+      throw F3dFormatException(
+        'A record names blob bytes $relative..${relative + byteLength}, past '
+        'the end of a ${blob.length}-byte blob.',
+      );
+    }
+    return _bytes.offsetInBytes + blob.offset + relative;
+  }
 
   /// A `Float32List` over the file bytes, copying only if it has to.
   ///
@@ -125,21 +155,19 @@ final class F3dDocument extends ModelDocument {
   /// caller handing over bytes whose own offset is not a multiple of four, where
   /// `Float32List.view` throws rather than returning something wrong.
   Float32List _floats(int relative, int count) {
-    final absolute = _blobOffset(relative);
+    final absolute = _blobOffset(relative, count * 4);
     if (absolute % 4 != 0) {
-      return Float32List.fromList(
-        Float32List.sublistView(
-          Uint8List.fromList(
-            _bytes.buffer.asUint8List(absolute, count * 4),
-          ).buffer.asUint8List(),
-        ),
+      return Float32List.view(
+        Uint8List.fromList(
+          _bytes.buffer.asUint8List(absolute, count * 4),
+        ).buffer,
       );
     }
     return Float32List.view(_bytes.buffer, absolute, count);
   }
 
   Uint32List _uint32s(int relative, int count) {
-    final absolute = _blobOffset(relative);
+    final absolute = _blobOffset(relative, count * 4);
     if (absolute % 4 != 0) {
       final out = Uint32List(count);
       for (var i = 0; i < count; i++) {
@@ -154,7 +182,7 @@ final class F3dDocument extends ModelDocument {
   }
 
   Int32List _int32s(int relative, int count) {
-    final absolute = _blobOffset(relative);
+    final absolute = _blobOffset(relative, count * 4);
     if (absolute % 4 != 0) {
       final out = Int32List(count);
       for (var i = 0; i < count; i++) {
@@ -171,12 +199,29 @@ final class F3dDocument extends ModelDocument {
   String? _string(int offset, int length) {
     if (length == 0) return null;
     final strings = _section(F3dSection.strings);
+    if (offset + length > strings.length) {
+      throw F3dFormatException(
+        'A record names string bytes $offset..${offset + length}, past the '
+        'end of a ${strings.length}-byte string table.',
+      );
+    }
     final start = _bytes.offsetInBytes + strings.offset + offset;
     return utf8.decode(_bytes.buffer.asUint8List(start, length));
   }
 
-  int _recordOffset(int kind, int index, int recordBytes) =>
-      _section(kind).offset + index * recordBytes;
+  /// Where record [index] of [kind] starts, refusing an index past the table —
+  /// a surface naming mesh 9 of a file with three is otherwise a read of
+  /// whatever follows the mesh table.
+  int _recordOffset(int kind, int index, int recordBytes) {
+    final section = _section(kind);
+    if (index < 0 || (index + 1) * recordBytes > section.length) {
+      throw F3dFormatException(
+        'Record $index of section $kind lies past the end of its '
+        '${section.length} bytes.',
+      );
+    }
+    return section.offset + index * recordBytes;
+  }
 
   // Each field below caches one section's decode, done lazily and once; the
   // method it calls lives in the theme's `part` file (see the imports above).
@@ -218,7 +263,7 @@ final class F3dDocument extends ModelDocument {
   /// The one `asset` record, or null when the section is empty — a file
   /// written before `fmt-04`, or one whose document genuinely said nothing.
   DocumentAsset? _readAsset() {
-    final table = _section(F3dSection.asset);
+    final table = _table(F3dSection.asset, F3dRecord.asset);
     if (table.count == 0) return null;
     final generator = _string(
       _view.getUint32(table.offset, Endian.little),
@@ -230,7 +275,7 @@ final class F3dDocument extends ModelDocument {
   // ----------------------------------------------------------------- warnings
 
   List<String> _readWarnings() {
-    final table = _section(F3dSection.warnings);
+    final table = _table(F3dSection.warnings, F3dRecord.warning);
     return <String>[
       for (var i = 0; i < table.count; i++)
         _string(

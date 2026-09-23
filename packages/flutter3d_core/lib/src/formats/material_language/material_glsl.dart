@@ -161,7 +161,26 @@ String _glsl(MaterialExpression expression) {
       // it could put the brackets somewhere the tree does not mean.
       return '(${_glsl(left)} $op ${_glsl(right)})';
     case MaterialCall(:final builtin, :final arguments):
-      return '${builtin.glsl}(${arguments.map(_glsl).join(', ')})';
+      // The language spreads a float beside a vector for every component-wise
+      // builtin, and `broadcastArguments` evaluates it that way; GLSL does only
+      // for some positions of some of them — `pow(vec3, float)`,
+      // `mix(float, vec3, float)` and `min(float, vec3)` do not compile. So the
+      // spread is written out, which every overload accepts and which says
+      // what the software backend computes.
+      var width = 1;
+      for (final argument in arguments) {
+        if (argument.type.components > width) width = argument.type.components;
+      }
+      String spread(MaterialExpression argument) {
+        final text = _glsl(argument);
+        return builtin.componentWise &&
+                width > 1 &&
+                argument.type.components == 1
+            ? '${MaterialType.numeric[width]!.name}($text)'
+            : text;
+      }
+
+      return '${builtin.glsl}(${arguments.map(spread).join(', ')})';
     case MaterialSample(:final slot, :final uv):
       return 'texture(${slot.bindingName}, ${_glsl(uv)})';
   }

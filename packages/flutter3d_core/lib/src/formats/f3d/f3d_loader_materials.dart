@@ -10,7 +10,7 @@ extension _F3dMaterials on F3dDocument {
   // ---------------------------------------------------------------- materials
 
   List<SurfaceMaterial> _readMaterials() {
-    final table = _section(F3dSection.materials);
+    final table = _table(F3dSection.materials, F3dRecord.material);
     return <SurfaceMaterial>[
       for (var i = 0; i < table.count; i++) _readMaterial(i),
     ];
@@ -111,7 +111,7 @@ extension _F3dMaterials on F3dDocument {
   // ------------------------------------------------------------------- images
 
   List<EncodedImage> _readImages() {
-    final table = _section(F3dSection.images);
+    final table = _table(F3dSection.images, F3dRecord.image);
     final uriTable = _section(F3dSection.imageUris);
     return <EncodedImage>[
       for (var i = 0; i < table.count; i++)
@@ -124,7 +124,7 @@ extension _F3dMaterials on F3dDocument {
             // A view, not a copy: image bytes are the largest thing in the file
             // and the decoder downstream only reads them.
             bytes: _bytes.buffer.asUint8List(
-              _blobOffset(dataOffset),
+              _blobOffset(dataOffset, dataLength),
               dataLength,
             ),
             name: _string(

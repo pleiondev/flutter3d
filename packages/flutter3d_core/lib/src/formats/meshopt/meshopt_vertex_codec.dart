@@ -52,6 +52,9 @@ int _maxBlockElements(int byteStride) =>
 /// version 0 only — [encodeMeshoptVertexBufferV0]'s own inverse, and the
 /// reference decoder's `decodeVertexBuffer` with its filters and its
 /// version-1 channel logic removed, since this codec produces neither.
+///
+/// Throws [FormatException] for anything it cannot decode, a truncated
+/// stream included.
 Uint8List decodeMeshoptVertexBufferV0(
   Uint8List source,
   int elementCount,
@@ -62,7 +65,29 @@ Uint8List decodeMeshoptVertexBufferV0(
       'not a version-0 meshopt vertex buffer (wrong header byte)',
     );
   }
+  // Past 256 bytes a block holds no elements, and the block loop below would
+  // never advance.
+  if (byteStride <= 0 || byteStride > 256 || elementCount < 0) {
+    throw FormatException(
+      'meshopt vertex buffer: $elementCount elements of $byteStride bytes',
+    );
+  }
+  try {
+    return _decodeVertexBufferV0(source, elementCount, byteStride);
+  } on RangeError {
+    // A truncated stream indexes past its own end somewhere in the block
+    // loop; the caller was promised one kind of exception.
+    throw const FormatException(
+      'meshopt vertex buffer: the stream ends part way through',
+    );
+  }
+}
 
+Uint8List _decodeVertexBufferV0(
+  Uint8List source,
+  int elementCount,
+  int byteStride,
+) {
   final target = Uint8List(elementCount * byteStride);
   final maxBlockElements = _maxBlockElements(byteStride);
   final deltas = Uint8List(maxBlockElements * byteStride);

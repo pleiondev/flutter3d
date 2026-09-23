@@ -169,6 +169,33 @@ List<_Token> _lex(String source) {
   return tokens;
 }
 
+/// Names a `let` would collide with once `emitMaterialFragment` writes it into
+/// `main()` beside what is already there.
+///
+/// **A local is emitted under its own name**, so that the shader reads like
+/// the source, and that makes these its namespace too: `s` and `result` are
+/// the emitter's own locals (a second declaration does not compile), the
+/// samplers and `v_…` varyings are what `sample(…)` and the `uv`/`world`
+/// inputs are written as (shadowing them compiles and reads the wrong value),
+/// and the rest are GLSL words a declaration cannot take.
+const Set<String> _reservedNames = <String>{
+  // The emitter's own.
+  's', 'result', 'main',
+  // `surface.glsl`'s, as the emitted shader spells them.
+  'Surface', 'LightSample', 'ReadSurface', 'WriteSurface', 'ShadeLight',
+  'LightVisibility', 'v_texcoord', 'v_world_position',
+  ...kMaterialTextureBindings,
+  // GLSL: the one builtin the emitter calls that is not a [MaterialBuiltin],
+  // and the keywords and type names a declaration cannot reuse.
+  'texture', 'in', 'out', 'inout', 'uniform', 'const', 'void', 'bool', 'int',
+  'uint', 'true', 'false', 'if', 'else', 'for', 'while', 'do', 'switch',
+  'case', 'default', 'break', 'continue', 'return', 'discard', 'struct',
+  'layout', 'precision', 'highp', 'mediump', 'lowp', 'flat', 'smooth',
+  'centroid', 'invariant', 'attribute', 'varying', 'sampler2D',
+  'samplerCube', 'mat2', 'mat3', 'mat4', 'ivec2', 'ivec3', 'ivec4', 'uvec2',
+  'uvec3', 'uvec4', 'bvec2', 'bvec3', 'bvec4',
+};
+
 bool _isDigit(String ch) => ch.compareTo('0') >= 0 && ch.compareTo('9') <= 0;
 
 bool _isNameStart(String ch) =>
@@ -359,6 +386,17 @@ final class _Parser {
       if (takeWordIf('let')) {
         final nameToken = take('name', 'the name being bound');
         checkFreeName(nameToken);
+        // Only a `let` is written into the shader under its own name; a
+        // parameter is folded to a number and a slot to its binding.
+        final name = nameToken.text;
+        if (_reservedNames.contains(name) || name.startsWith('gl_')) {
+          fail(
+            '"$name" is a name the generated shader already uses — GLSL, '
+            '`surface.glsl` or the emitter itself — so a binding of it would '
+            'not compile, or would quietly replace what the engine reads.',
+            nameToken,
+          );
+        }
         take('=', '"=" after the name');
         final value = parseExpression();
         if (!value.type.isNumeric) {

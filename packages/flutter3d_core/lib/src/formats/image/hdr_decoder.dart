@@ -70,6 +70,20 @@ HdrImage readHdr(Uint8List bytes) {
   final int height = header.height;
   var at = header.pixelsFrom;
 
+  // The fewest bytes a scanline can take: a run-length row is its four-byte
+  // marker and, per channel, a two-byte run for every 127 pixels; a flat row
+  // is four bytes a pixel. A header that names more rows than the file could
+  // hold is refused here, before the float buffer it sizes is allocated.
+  final int leastPerRow = width >= 8 && width < 32768
+      ? 4 + 4 * 2 * ((width + 126) ~/ 127)
+      : 4 * width;
+  if (height * leastPerRow > bytes.length - at) {
+    throw HdrFormatException(
+      'a $width by $height image runs off the end of the file: '
+      '${bytes.length - at} bytes of pixels cannot hold that many rows',
+    );
+  }
+
   final Float32List rgb = Float32List(width * height * 3);
   final Uint8List scanline = Uint8List(width * 4);
 

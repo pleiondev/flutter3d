@@ -541,8 +541,17 @@ final class _Decoder {
     _out = Uint8List(size)..setRange(0, _written, _out);
   }
 
+  /// The most [sizeHint] is trusted for up front. The hint comes from the
+  /// container, not the stream, and a KTX2 level index can name four gigabytes
+  /// in front of a handful of compressed bytes; past this the output grows as
+  /// the stream actually produces it.
+  static const int _maxPreallocation = 1 << 26;
+
   Uint8List run() {
-    _out = Uint8List(sizeHint ?? 1024);
+    final hint = sizeHint;
+    _out = Uint8List(
+      hint != null && hint >= 0 && hint <= _maxPreallocation ? hint : 1024,
+    );
     var at = 0;
     var frames = 0;
     while (at + 4 <= bytes.length) {
