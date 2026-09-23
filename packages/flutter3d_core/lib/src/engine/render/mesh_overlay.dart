@@ -167,7 +167,7 @@ final class MeshOverlay extends PassContributor {
   /// The world size of [pixels] logical pixels at [at].
   double worldSize(double pixels, Vector3 at) => pixels * _pixel * _depth(at);
 
-  /// Empties all three batches, keeping the buffers they grew.
+  /// Empties all five batches, keeping the buffers they grew.
   void clear() {
     lines.clear();
     handles.clear();

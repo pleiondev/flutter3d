@@ -1039,12 +1039,10 @@ extension _PostPasses on Renderer {
     } else {
       draws = views.length;
       for (var i = 0; i < views.length; i++) {
-        final fraction = views[i].viewportFraction;
-        final rect = ScreenRect(
-          x: (fraction.x * width).round(),
-          y: (fraction.y * height).round(),
-          width: math.max(1, (fraction.width * width).round()),
-          height: math.max(1, (fraction.height * height).round()),
+        final rect = Renderer._viewportPixels(
+          views[i].viewportFraction,
+          width,
+          height,
         );
         // The scissor as well as the viewport: the covering triangle is
         // oversized on purpose, so a viewport alone would leave each draw
@@ -1072,19 +1070,16 @@ extension _PostPasses on Renderer {
 
     var lines = 0;
     for (final view in views) {
-      final fraction = view.viewportFraction;
-      final vw = math.max(1, (fraction.width * width).round());
-      final vh = math.max(1, (fraction.height * height).round());
+      final rect = Renderer._viewportPixels(
+        view.viewportFraction,
+        width,
+        height,
+      );
+      final vw = rect.width;
+      final vh = rect.height;
       // The viewport alone, inside a scissor that already covers the whole
       // frame: the overlay is clipped by the pass, not by the view.
-      pass.setViewport(
-        ScreenRect(
-          x: (fraction.x * width).round(),
-          y: (fraction.y * height).round(),
-          width: vw,
-          height: vh,
-        ),
-      );
+      pass.setViewport(rect);
 
       if (_encodeDebugLines(
         encoder: pass,

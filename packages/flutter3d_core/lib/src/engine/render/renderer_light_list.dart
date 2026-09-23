@@ -41,20 +41,23 @@ extension _LightList on Renderer {
     final count = lights.candidates.length;
     if (count <= LightBuffer.maxLights) return null;
 
-    // The rows only change when the lights do, and a scene's lamps mostly do
-    // not move. `SceneNode.changeEpoch` is the same signal the spatial tree and
-    // the shadow cascades read, and it covers a light that moved, appeared or
-    // vanished, because a light is a node.
-    final epoch = SceneNode.changeEpoch;
-    if (_lightListTexture != null &&
-        _lightListEpoch == epoch &&
-        _lightListRows == count) {
-      return _lightListTexture;
+    // **Compared, not keyed on `SceneNode.changeEpoch`.** The epoch covers a
+    // light that moved, appeared or vanished, and nothing else: colour,
+    // intensity, range and the cone are plain fields on `LightNode` that
+    // advance no counter, so a torch flickering in place kept the row it was
+    // first uploaded with for as long as nothing else in the scene moved.
+    // Writing the rows costs sixteen floats a light, far less than the upload
+    // it decides about, and the comparison is what makes skipping it honest.
+    final length = count * _kLightRowFloats;
+    if (_lightListScratch.length < length) {
+      _lightListScratch = Float32List(length);
     }
-
-    final rows = Float32List(count * _kLightRowFloats);
+    final rows = Float32List.sublistView(_lightListScratch, 0, length);
     for (var i = 0; i < count; i++) {
       lights.writeCandidateRow(i, rows, i * _kLightRowFloats);
+    }
+    if (_lightListTexture != null && _sameRows(rows, _lightListUploaded)) {
+      return _lightListTexture;
     }
 
     final previous = _lightListTexture;
@@ -64,12 +67,20 @@ extension _LightList on Renderer {
       format: TextureFormat.r32g32b32a32Float,
       pixels: ByteData.sublistView(rows),
     );
-    _lightListEpoch = epoch;
+    _lightListUploaded = Float32List.fromList(rows);
     _lightListRows = count;
     // After the new one is made rather than before: a device that refuses the
     // upload leaves the frame with the texture it had rather than with none.
     if (previous != null) _destroyAfterFrame(previous);
     return _lightListTexture;
+  }
+
+  static bool _sameRows(Float32List a, Float32List b) {
+    if (a.length != b.length) return false;
+    for (var i = 0; i < a.length; i++) {
+      if (a[i] != b[i]) return false;
+    }
+    return true;
   }
 
   /// Binds the list a draw reads, and the stand-in when it reads none.

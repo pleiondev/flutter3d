@@ -121,10 +121,19 @@ final class FrameResources {
   /// node declared, and a second way of saying it here is a second knob that
   /// can disagree with the first. What the declaration changes is when the call
   /// is *required* — see [endNode] — and what [originOf] tells a reader.
+  ///
+  /// A pooled texture this replaces — one the node took through [texture]
+  /// before deciding to hand in its own — goes back to the source here. It is
+  /// in nobody else's hands, and once the key names the provided texture no
+  /// retirement would ever find it again.
   void provide(ResourceId id, TextureHandle texture) {
     final key = ResourceVersion(id, _writeVersionFor(id));
+    final replaced = _live[key];
+    final wasExternal = !_external.add(key);
     _live[key] = texture;
-    _external.add(key);
+    if (replaced == null || wasExternal || identical(replaced, texture)) return;
+    if (_live.values.any((other) => identical(other, replaced))) return;
+    source.release(replaced);
   }
 
   /// The texture for [id] as the running node sees it, acquiring it on first
@@ -180,8 +189,19 @@ final class FrameResources {
   /// caller would be handed the composite's output regardless — the effect
   /// running, costing its time, and being invisible. That is the worst failure
   /// available here, because everything about it looks like it works.
-  TextureHandle? output(ResourceId id) =>
-      _live[ResourceVersion(id, graph.currentVersionOf(id))];
+  ///
+  /// The newest version *anything actually bound*, walking down from the
+  /// newest the graph assigned. A writer that starved still took a version
+  /// number at compile, and the graph keeps the last surviving writer instead
+  /// — see `FrameGraph._reachable` — so the frame's picture is behind an
+  /// earlier version, not missing.
+  TextureHandle? output(ResourceId id) {
+    for (var version = graph.currentVersionOf(id); version >= 0; version--) {
+      final texture = _live[ResourceVersion(id, version)];
+      if (texture != null) return texture;
+    }
+    return null;
+  }
 
   /// Whether the texture [tryTexture] would hand back was drawn this frame or
   /// is maintained across frames; null when there is no texture at all.

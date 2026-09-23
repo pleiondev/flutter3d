@@ -12,12 +12,17 @@ import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 /// and `SplatContributor` all draw vertex lists that way, and each keeps one
 /// of these rather than its own copy of the growth arithmetic.
 ///
-/// The buffer only grows. A grown buffer does not release the one before it,
-/// because a draw encoded earlier in the same frame may still be reading a
-/// slice of it; [release] gives back the current one when its owner is done.
+/// The buffer only grows. A grown buffer does not release the one before it
+/// at once, because a draw encoded earlier in the same frame may still be
+/// reading a slice of it; the outgrown ones are held until [release], which
+/// gives back every buffer this ever uploaded when its owner is done.
 final class IdentityIndices {
   GeometryBuffer? _buffer;
   int _capacity = 0;
+
+  /// Buffers a growth replaced, kept rather than dropped: nothing else holds
+  /// them, so a buffer left out of here is one [release] can never return.
+  final List<GeometryBuffer> _outgrown = <GeometryBuffer>[];
 
   /// A view over the sequence long enough for [count] vertices, uploaded to
   /// [device] the first time [count] outgrows what is already there.
@@ -31,6 +36,8 @@ final class IdentityIndices {
       for (var i = 0; i < capacity; i++) {
         indices[i] = i;
       }
+      final previous = _buffer;
+      if (previous != null) _outgrown.add(previous);
       _buffer = device.uploadGeometry(
         indices.buffer.asByteData(),
         GeometryUsage.indices,
@@ -40,11 +47,14 @@ final class IdentityIndices {
     return _buffer!.slice(length: count * 4);
   }
 
-  /// Gives the current buffer back to [device]; the next [view] uploads a
-  /// fresh one.
+  /// Gives the current buffer, and every one it outgrew, back to [device];
+  /// the next [view] uploads a fresh one.
   void release(GraphicsDevice device) {
     final buffer = _buffer;
     if (buffer != null) device.releaseGeometry(buffer);
+    _outgrown
+      ..forEach(device.releaseGeometry)
+      ..clear();
     _buffer = null;
     _capacity = 0;
   }

@@ -13,11 +13,44 @@
 part of 'renderer.dart';
 
 extension _ScenePasses on Renderer {
-  /// Renders every view into one target and returns the composited image.
+  /// Draws every view of the world into the HDR target, submits it, and
+  /// returns what the pass counted.
   ///
   /// Views share a single render pass and clear: viewports do not overlap in the
   /// split-screen case, and one pass is both cheaper and simpler than a pass per
   /// view. Views are drawn in ascending priority, as in PlayCanvas.
+  ///
+  /// The body of [_SceneNode], extracted before the node existed so that the
+  /// move was verifiable on its own: it changed no behaviour, so the goldens had
+  /// to match byte for byte, and a refactor that moves the picture moved
+  /// something else too.
+  ///
+  /// It owns the render target, the command buffer and the pass, which is what
+  /// a node has to own. Ordering against the shadow passes is by *submission* —
+  /// they build and submit their own command buffers before this one, and the
+  /// queue runs buffers in the order they were submitted. That is the fact that
+  /// makes the graph cheap to adopt here: it has to derive a submission order,
+  /// not take over how passes are built.
+  ///
+  /// [surfaceIsRead] is the graph's answer about the frame that is running, not
+  /// a setting: it decides both whether the second attachment is present and
+  /// whether the pass may multisample, and those two must agree.
+  ///
+  /// [shadows] is the same shape of answer: every map this pass samples, taken
+  /// from the frame by the node that declared it and handed down rather than
+  /// looked up here. The atlases used to be the exception — bound deep in
+  /// [_encodeNode] straight out of a renderer field, because the view model
+  /// reaches that same code through [RenderServices.encodeScene] and only one
+  /// of the two callers declared the read. Two nodes and one binding site is
+  /// still true; what changed is that each of them now answers for itself.
+  ///
+  /// [contributors] are handed in rather than looked up. A node that reaches
+  /// into a global registry cannot be a node somebody else supplies, which is
+  /// the whole point of the extension model — and the distinction it makes is
+  /// the one the migration keeps running into: a contributor draws *into* this
+  /// pass, so it takes the pass as an argument, while a node *owns* one and
+  /// therefore cannot be handed one. That is why there are two contexts:
+  /// `ContributorFrame` carries a pass and `NodeFrame` does not.
   _ScenePass _encodeScene({
     required Scene scene,
     required List<RenderView> ordered,
@@ -106,13 +139,13 @@ extension _ScenePasses on Renderer {
       // built for it, which is geometry work and not a backend's to invent.
       final wireframe = settings.wireframe && device.supportsWireframe;
 
-      final fraction = view.viewportFraction;
-      final vx = (fraction.x * width).round();
-      final vy = (fraction.y * height).round();
-      final vw = math.max(1, (fraction.width * width).round());
-      final vh = math.max(1, (fraction.height * height).round());
-
-      final viewRect = ScreenRect(x: vx, y: vy, width: vw, height: vh);
+      final viewRect = Renderer._viewportPixels(
+        view.viewportFraction,
+        width,
+        height,
+      );
+      final vw = viewRect.width;
+      final vh = viewRect.height;
       pass.setState(
         Renderer._kSceneViewState.copyWith(
           viewport: viewRect,

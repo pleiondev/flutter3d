@@ -137,8 +137,23 @@ final class ViewModelNode extends RenderNode {
   /// From the device it was handed rather than from a global, which is what
   /// lets this node run against a fake.
   TextureHandle _depthFor(GraphicsDevice device, int width, int height) {
-    if (_depth != null && _depthWidth == width && _depthHeight == height) {
-      return _depth!;
+    _executions++;
+    // Buffers a resize replaced, given back once no frame in flight can still
+    // be drawing with them — the renderer's own ring length, counted in this
+    // node's executions since the node has no ring of its own to join.
+    while (_retired.isNotEmpty && _retired.first.$2 <= _executions) {
+      device.releaseTexture(_retired.removeAt(0).$1);
+    }
+
+    final previous = _depth;
+    if (previous != null && _depthWidth == width && _depthHeight == height) {
+      return previous;
+    }
+    // Retired rather than dropped: a resize used to leave the old buffer to
+    // the collector, which is a free on one backend and a leaked driver object
+    // per window drag on WebGL2.
+    if (previous != null) {
+      _retired.add((previous, _executions + _kFramesInFlight));
     }
     _depth = device.createTexture(
       RenderTargetSpec(
@@ -156,5 +171,15 @@ final class ViewModelNode extends RenderNode {
   TextureHandle? _depth;
   int _depthWidth = 0;
   int _depthHeight = 0;
+
+  /// How many times [_depthFor] has been asked, which is once a frame.
+  int _executions = 0;
+
+  /// Replaced depth buffers, each with the execution it may be released at.
+  final List<(TextureHandle, int)> _retired = <(TextureHandle, int)>[];
+
+  /// Frames a submitted pass may still be in flight for — the same three the
+  /// renderer's deferred-release ring waits out.
+  static const int _kFramesInFlight = 3;
   final vm.Vector3 _cameraPosition = vm.Vector3.zero();
 }
