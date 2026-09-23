@@ -148,6 +148,29 @@ void main() {
       expect(lighting.label, 'Water', reason: 'the name doubles as the label');
     });
 
+    test('a polyline saved before 0.7.3 still binds no morphs', () {
+      // Those files carry no `vertexMorphs` key, and reading its absence as
+      // true for `PolylineVertex` handed the stage a morph texture it never
+      // declared: "Failed to bind texture" on Impeller, the bug 0.7.2 fixed.
+      //
+      // Mutation: read an absent `vertexMorphs` as true for every stage.
+      final polyline = readFmat(
+        _bytes(
+          '{"fmat": 1, "lighting": {"shader": "Unlit", "label": "Polyline", '
+          '"vertexShader": "PolylineVertex", "materialMaps": false}}',
+        ),
+      ).lighting!;
+      expect(polyline.vertexStageMorphs, isFalse);
+
+      final displaced = readFmat(
+        _bytes(
+          '{"fmat": 1, "lighting": {"shader": "Unlit", '
+          '"vertexShader": "Displace", "materialMaps": false}}',
+        ),
+      ).lighting!;
+      expect(displaced.vertexStageMorphs, isTrue);
+    });
+
     test('and its parameters arrive as the floats a block wants', () {
       // Mutation: read a single number as an empty list — the shader gets a
       // block of zeroes and the material looks wrong rather than failing.

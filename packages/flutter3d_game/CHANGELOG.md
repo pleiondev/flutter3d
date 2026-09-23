@@ -1,3 +1,12 @@
+## 0.7.2
+
+**Two triggers on one action answer with the harder press.** The value was
+whichever trigger `PadInput` read last, so 1.0 on the left and 0.2 on the right
+gave a throttle of 0.2. Letting one go also withdrew the value the other had
+just written, and for that frame the action fell back to its held 1.0. The
+action now takes the largest magnitude among the controls pressing it, and is
+withdrawn only when none is.
+
 ## 0.7.1
 
 **A restart chosen while the next level was loading stays a restart.**

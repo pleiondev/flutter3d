@@ -21,6 +21,7 @@
 /// could turn off the surface buffer and lie to every screen-space effect.
 library;
 
+import '../lighting_model.dart';
 import 'material_ast.dart';
 
 /// The `.frag` source for [program], which should already be specialised.
@@ -133,9 +134,33 @@ final class MaterialBindings {
   final bool usesMetallic;
 
   /// Always false: a material in this language returns the light its surface
-  /// emits and gathers none, so the emitted stage declares no light list. A
-  /// `LightingModel` built from these bindings passes it on.
+  /// emits and gathers none, so the emitted stage declares no light list.
   bool get usesLightList => false;
+
+  /// The [LightingModel] these bindings describe, with the label and entry
+  /// point the application chose.
+  ///
+  /// **Build the model here, not by hand.** Every flag comes off the program,
+  /// [usesLightList] included, which a hand-built model gets wrong the moment
+  /// the material samples a map: `LightingModel` defaults the list to its maps,
+  /// the emitted stage never declares it, and the bind is a thrown "Failed to
+  /// bind texture" on Impeller and a dropped draw on WebGL.
+  LightingModel lightingModel({
+    required String label,
+    required String shaderName,
+    String? vertexShaderName,
+    bool vertexStageMorphs = true,
+  }) => LightingModel(
+    label,
+    shaderName,
+    vertexShaderName: vertexShaderName,
+    usesAlbedoTexture: usesAlbedoTexture,
+    usesMaterialMaps: usesMaterialMaps,
+    usesMetallicRoughnessMap: usesMetallicRoughnessMap,
+    usesMetallic: usesMetallic,
+    usesLightList: usesLightList,
+    vertexStageMorphs: vertexStageMorphs,
+  );
 }
 
 String _glsl(MaterialExpression expression) {
