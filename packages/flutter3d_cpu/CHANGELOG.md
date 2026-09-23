@@ -1,3 +1,10 @@
+## Unreleased
+
+**`compareFrames` and `differingPixels` can compare alpha.** Both take
+`alpha: true` now, and `channel: 0` together with it is a byte-for-byte
+comparison. The defaults are unchanged: a pixel differs when red, green or
+blue is more than 8 steps off, and alpha is left out.
+
 ## 0.7.0
 
 **Breaking.** `CpuDevice.present` is gone with `GraphicsDevice.present`

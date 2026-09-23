@@ -158,7 +158,17 @@ final class Material {
   /// Selects the pre-built fragment shader, and therefore the pipeline.
   LightingModel lighting;
 
-  /// Linear RGBA tint applied on top of [albedo].
+  /// RGBA tint applied on top of [albedo], **sRGB-encoded in rgb** and linear
+  /// in alpha — the same colour space the albedo texture's own texels are in,
+  /// which is the point: a tint is how you would have painted that texture.
+  ///
+  /// So `Vector4(0.9, 0.35, 0.12, 1)` is the colour a paint program shows for
+  /// bytes 230, 90, 30, not a linear intensity. Every shader converts it
+  /// before multiplying — `toLinear(tint)` in `flutter3d_cpu`, the same call
+  /// in `lib/surface.glsl` — and this doc used to say "linear", which sent
+  /// anybody who converted by hand through the curve twice: a tint meant to
+  /// read 230, 90, 30 came out 202, 26, 3, and a mid-grey came out about half
+  /// as bright as it should.
   final Vector4 baseColor;
 
   double metallic;

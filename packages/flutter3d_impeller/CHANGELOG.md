@@ -1,3 +1,18 @@
+## Unreleased
+
+**Installed from pub.dev, it builds again.** 0.7.0's build hook looked for
+`.dart_tool/package_config.json` above its own root, which for an installed
+package is the pub cache, where there is none. Every `flutter test`, `flutter
+run` and `flutter build` of a consuming project failed before its first test,
+although the archive already carried the compiled bundle. The hook now keeps
+the bundle that is there when the GLSL sources cannot be seen, and still
+recompiles in a checkout that can see them.
+
+**`build_shader_bundle` writes into this package, wherever it is run from.**
+It used `Directory.current` as the package root, so run from a consuming
+project it wrote the bundle into that project's `assets/`, where nothing loads
+it. It now resolves this package through the package config.
+
 ## 0.7.0
 
 **Breaking.** `GpuRenderBackend.present` is gone with `GraphicsDevice.present`

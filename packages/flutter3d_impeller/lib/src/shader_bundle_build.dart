@@ -25,22 +25,56 @@ final class ShaderBundleBuildException implements Exception {
   String toString() => message;
 }
 
+/// Where the compiled bundle lives inside this package, relative to its own
+/// root — the path `pubspec.yaml` lists under `flutter.assets` and the path
+/// `ShaderLibrary.fromAsset` loads at run time. One spelling, because the
+/// three have to agree.
+const String bundlePath = 'assets/shaders/flutter3d.shaderbundle';
+
 /// Compiles `flutter3d_shaders`'s own manifest into
 /// `<packageRoot>/assets/shaders/flutter3d.shaderbundle` through
 /// `impellerc`, and returns the sources it read — the manifest and every
 /// GLSL file under `flutter3d_shaders/shaders/` — so a caller with a build
 /// hook's own dependency list can declare them.
+///
+/// **Returns an empty list, having compiled nothing, when the GLSL sources
+/// are not reachable from [packageRoot] but a bundle is already sitting
+/// there.** That is not a fallback for a broken checkout, it is the normal
+/// case for everybody who is not working on this engine: a package
+/// installed from pub.dev carries [bundlePath] inside its own archive
+/// (`flutter.assets` lists it), and it sits in the pub cache, where there
+/// is no `.dart_tool/package_config.json` above it and never will be. 0.7.0
+/// shipped without this branch and failed every consumer's `flutter test`,
+/// `flutter run` and `flutter build` alike, before a single frame — the
+/// hook tried to compile a bundle the archive already contained, and could
+/// not find the sources to compile it from.
+///
+/// The check is "can I see the GLSL", not "does a bundle exist", so a
+/// checkout that *can* see it still recompiles on every shader edit.
 Future<List<Uri>> buildShaderBundle({
   required Directory packageRoot,
   IOSink? log,
 }) async {
   final sink = log ?? stdout;
-  final shadersRoot = _resolvePackageRoot('flutter3d_shaders', packageRoot);
-  final manifest = File(
-    '${shadersRoot.path}/shaders/flutter3d.shaderbundle.json',
-  );
-  if (!manifest.existsSync()) {
-    throw ShaderBundleBuildException('no manifest at ${manifest.path}');
+  final outFile = File('${packageRoot.path}/$bundlePath');
+
+  final File manifest;
+  final Directory shadersRoot;
+  try {
+    shadersRoot = resolvePackageRoot('flutter3d_shaders', packageRoot);
+    manifest = File('${shadersRoot.path}/shaders/flutter3d.shaderbundle.json');
+    if (!manifest.existsSync()) {
+      throw ShaderBundleBuildException('no manifest at ${manifest.path}');
+    }
+  } on ShaderBundleBuildException catch (error) {
+    if (!outFile.existsSync()) rethrow;
+    sink.writeln(
+      'flutter3d_impeller: keeping the bundle already at ${outFile.path} — '
+      'the GLSL sources are not reachable from here (${error.message}), '
+      'which is what an installed package looks like from inside the pub '
+      'cache.',
+    );
+    return const <Uri>[];
   }
 
   final sdkRoot = _flutterSdkRoot();
@@ -56,9 +90,7 @@ Future<List<Uri>> buildShaderBundle({
   }
   final shaderLib = '$sdkRoot/bin/cache/artifacts/engine/$platform/shader_lib';
 
-  final outFile = File(
-    '${packageRoot.path}/assets/shaders/flutter3d.shaderbundle',
-  )..parent.createSync(recursive: true);
+  outFile.parent.createSync(recursive: true);
 
   final result = await Process.run(impellerc.path, <String>[
     '--shader-bundle=${manifest.readAsStringSync()}',
@@ -104,10 +136,16 @@ Future<List<Uri>> buildShaderBundle({
 /// pub already writes for every consumer of this package, workspace member
 /// or not.
 ///
+/// **[from] decides what this can see, and it is not always a project.**
 /// `flutter3d_impeller` names `flutter3d_shaders` as a real dependency (see
-/// its pubspec) specifically so this resolves for an external consumer
-/// too, not only inside this workspace.
-Directory _resolvePackageRoot(String packageName, Directory from) {
+/// its pubspec), so a consumer's own `package_config.json` does list it —
+/// but a build hook is handed *this package's* root, and for an installed
+/// package that root is in the pub cache, with nothing but `hosted/pub.dev/`
+/// above it. This finds no config there, by design: reaching sideways into
+/// the consuming project's config would find the GLSL and then compile into
+/// somebody's read-only pub cache, when the archive already carries the
+/// compiled bundle. [buildShaderBundle] treats the failure as the answer.
+Directory resolvePackageRoot(String packageName, Directory from) {
   final configFile = _findPackageConfig(from);
   if (configFile == null) {
     throw ShaderBundleBuildException(

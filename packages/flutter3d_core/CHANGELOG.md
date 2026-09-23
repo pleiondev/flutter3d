@@ -1,3 +1,23 @@
+## Unreleased
+
+- **A surface with no normal map is flat again, whichever way its tangent
+  runs.** The fallback normal texture stores 0.5 as byte 128, which decodes
+  to 0.0039 rather than 0, so every map-less material was tilted by about a
+  third of a degree along its tangent and its shading depended on the
+  tangent's direction. The renderer now sends a normal scale of zero with the
+  fallback, which leaves exactly (0, 0, 1) on every backend. Setting
+  `normalScale: 0` by hand is no longer needed for that.
+- **`Scene.defaultLightWhenUnlit`, a switch for the light nobody added.** A
+  scene with no live light is still lit by one directional light by default.
+  A light counts as live only when it is visible and above zero intensity, so
+  turning off the only lamp used to switch a bright default light on. Set the
+  flag to false and an unlit scene stays unlit, with no black light parked in
+  it to keep the count above zero.
+- **`Material.baseColor` is documented as what it is: sRGB in rgb, linear in
+  alpha.** The doc said linear, and every shader converts it with `toLinear`,
+  so a colour converted by hand went through the curve twice. Nothing about
+  the rendering changed.
+
 ## 0.7.0
 
 - **The first publication: the engine with no Flutter SDK behind it.** The

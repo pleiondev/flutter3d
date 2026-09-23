@@ -59,6 +59,24 @@ void main() {
     );
   });
 
+  test('unless the caller keeps byte-exact references and asks for it', () {
+    expect(
+      differingPixels(
+        _frame(10, 10, 10),
+        _frame(10, 10, 10, alpha: 0),
+        alpha: true,
+      ),
+      4,
+    );
+  });
+
+  test('channel zero is byte for byte', () {
+    // What a zero tolerance was read as meaning, and did not: one step in one
+    // channel passed at the default.
+    expect(differingPixels(_frame(0, 0, 0), _frame(1, 0, 0), channel: 0), 4);
+    expect(differingPixels(_frame(0, 0, 0), _frame(0, 0, 0), channel: 0), 0);
+  });
+
   test('the worst channel is the largest single step anywhere', () {
     // The number that says whether a comparison passed comfortably or only
     // just: a per cent of pixels one step apart and a per cent two hundred
