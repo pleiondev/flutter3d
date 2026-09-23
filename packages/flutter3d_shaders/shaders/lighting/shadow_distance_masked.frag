@@ -13,6 +13,8 @@
 // tile than it would in a cascade.
 
 #define F3D_NO_SURFACE_BUFFER
+// No fog: shadow_depth.frag gives the reason.
+#define F3D_NO_FOG
 #include <lib/color.glsl>
 
 uniform ShadowLight {
