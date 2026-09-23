@@ -30,7 +30,7 @@ dependencies:
   # without this — and the encoder is the next thing written here. Adding it
   # then would mean three parallel branches each editing this file, which is the
   # merge this package was created early to avoid.
-  vector_math: ^2.2.0
+  vector_math: ^2.4.3
 
 dev_dependencies:
   # For `compareFrames` alone, in `cross_backend_test.dart`, which measures this

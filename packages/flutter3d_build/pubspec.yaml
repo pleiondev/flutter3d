@@ -35,13 +35,13 @@ dependencies:
   # worse one. This package builds no code assets and never will; `code_assets`
   # is where `HookConfig.code.targetOS` lives, and `buildCodeAssets` is the
   # guard that says whether the invoker is offering it at all.
-  code_assets: ^1.2.0
+  code_assets: ^2.1.0
 
   # `ap-04`'s manifest: `glob` matches a rule's pattern against a source
   # path, `yaml` parses `flutter3d_assets.yaml` as a node tree rather than a
   # plain `Map` so a bad key or a bad glob can name the line it came from.
-  glob: ^2.1.0
-  yaml: ^3.1.0
+  glob: ^2.2.0
+  yaml: ^3.1.4
 
   # `ap-05`'s cache key — a content hash of each source, alongside the
   # format and pipeline version stamps, so a rebuild with nothing changed
@@ -52,7 +52,7 @@ dependencies:
   # bytes — decoding one is the one thing `dart:ui` usually does that this
   # package cannot reach. Pure Dart, no Flutter SDK behind it either, the
   # same as every other dependency here.
-  image: ^4.9.0
+  image: ^4.10.1
 
 dev_dependencies:
   test: ^1.25.0
@@ -60,7 +60,7 @@ dev_dependencies:
 
   # `Vector3` and friends, for the one-triangle document
   # `convert_decoders_test.dart`'s own decoder builds.
-  vector_math: ^2.2.0
+  vector_math: ^2.4.3
 
 # **A plain Dart package, same reasoning as `flutter3d_sim`/`flutter3d_net`.**
 # `hook/build.dart` is invoked by the Flutter tool as a separate process with

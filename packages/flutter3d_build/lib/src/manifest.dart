@@ -12,11 +12,12 @@
 /// rule near the top and a narrower exception below it behave the way a
 /// `.gitignore` override would.
 ///
-/// **`"**/*.obj"` does not match a root-level `a.obj`** — `package:glob`'s
-/// own rule for `**/`, proven by a test rather than assumed, because a
-/// manifest for a project whose sources sit directly under `assets_src/`
-/// with no subdirectory is exactly the case a "just write `**/*.ext`"
-/// habit misses silently. `"**.obj"` (no slash) matches both.
+/// **`"**/*.obj"` matches a root-level `a.obj` too.** That is
+/// `package:glob`'s rule since 2.2.0, where `**` at the start of a pattern
+/// may match no directory at all; before it, the same pattern skipped every
+/// source sitting directly under `assets_src/`, and a manifest for a project
+/// with no subdirectories excluded nothing. A test holds the current rule,
+/// so a later `glob` that changes it again fails there first.
 library;
 
 import 'dart:io';

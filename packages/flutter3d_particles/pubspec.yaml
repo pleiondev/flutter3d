@@ -23,7 +23,7 @@ dependencies:
   # a pass encoder, never a widget.
   flutter3d_core: ^0.7.0
   flutter3d_hardware: ^0.7.0
-  vector_math: ^2.2.0
+  vector_math: ^2.4.3
 
 dev_dependencies:
 

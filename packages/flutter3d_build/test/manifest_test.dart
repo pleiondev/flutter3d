@@ -40,15 +40,16 @@ rules:
       expect(rule.exclude, isFalse);
     });
 
-    test('"**/*.obj" does not match a root-level file — package:glob\'s own '
-        'rule, worth a test rather than a surprise the first time somebody '
-        'writes a manifest for a project with no subdirectories', () {
+    test('"**/*.obj" matches a root-level file as well as a nested one, '
+        'package:glob\'s rule since 2.2.0, held here so a later glob that '
+        'changes it again fails in this test and not in somebody\'s '
+        'manifest', () {
       final manifest = AssetManifest.parse('''
 rules:
   - glob: "**/*.obj"
     exclude: true
 ''');
-      expect(manifest.ruleFor('a.obj'), isNull);
+      expect(manifest.ruleFor('a.obj'), isNotNull);
       expect(manifest.ruleFor('props/a.obj'), isNotNull);
     });
 

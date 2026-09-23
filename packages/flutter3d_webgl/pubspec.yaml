@@ -28,7 +28,7 @@ dependencies:
   # the legacy path and are not available under Wasm.
   web: ^1.1.0
 
-  vector_math: ^2.2.0
+  vector_math: ^2.4.3
 
 dev_dependencies:
   # For `compareFrames` alone, in `cross_backend_test.dart`, which measures this
