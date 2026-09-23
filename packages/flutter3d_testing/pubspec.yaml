@@ -43,7 +43,7 @@ dependencies:
   # rather than a rendering one.
   flutter_test:
     sdk: flutter
-  vector_math: ^2.2.0
+  vector_math: ^2.4.3
 
 dev_dependencies:
   flutter_lints: ^6.0.0

@@ -27,7 +27,7 @@ dependencies:
   # so this one stays off the Flutter SDK adding it.
   flutter3d_core: ^0.7.0
 
-  vector_math: ^2.2.0
+  vector_math: ^2.4.3
 
 dev_dependencies:
   test: ^1.25.0

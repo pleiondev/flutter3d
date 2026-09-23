@@ -36,7 +36,7 @@ dependencies:
   # `paintWeights`, `bakeIk`) build these directly from a tool call's own
   # JSON, rather than only using them in a test the way this package once
   # did.
-  vector_math: ^2.2.0
+  vector_math: ^2.4.3
 
   # The protocol, pinned to one minor for the reason `flutter3d_editor_mcp`
   # gives: its own README opens with "still experimental and likely to evolve

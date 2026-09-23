@@ -52,11 +52,11 @@ dependencies:
   # The wall clock `FrameClock.tick` reads. Not a `Stopwatch`: this one is
   # what `flutter_test` fakes, so a widget test's `pump` advances the frame
   # clock the way a real frame does.
-  clock: ^1.1.1
+  clock: ^1.1.3
 
   # `Vector3`/`Vector2`/`Matrix4` for `WidgetSurface`'s own placement and UV
   # math and for the level loader's geometry.
-  vector_math: ^2.2.0
+  vector_math: ^2.4.3
 
   # `localStorage`, which is where a browser build keeps what a user changed.
   web: ^1.1.0

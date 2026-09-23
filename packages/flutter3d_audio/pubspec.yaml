@@ -19,8 +19,8 @@ resolution: workspace
 dependencies:
   flutter:
     sdk: flutter
-  vector_math: ^2.2.0
-  flutter_soloud: ^4.1.7
+  vector_math: ^2.4.3
+  flutter_soloud: ^5.1.2
 
 dev_dependencies:
 

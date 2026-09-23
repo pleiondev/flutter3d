@@ -58,7 +58,7 @@ dependencies:
   # is actually about.
   flutter_bloc: ^9.1.1
 
-  vector_math: ^2.2.0
+  vector_math: ^2.4.3
 
 dev_dependencies:
   flutter_test:
@@ -76,7 +76,7 @@ dev_dependencies:
   # An external client for `run_timeline_extensions_test.dart` — the same
   # package DevTools and `flutter attach` use to reach a running app's VM
   # service, standing in for the editor this proves the door is open for.
-  vm_service: ^15.0.0
+  vm_service: ^15.3.0
 
   # `@TestOn('vm')` and plain `test()`/`expect()` in
   # `run_timeline_extensions_test.dart` — `flutter_test` re-exports these,
