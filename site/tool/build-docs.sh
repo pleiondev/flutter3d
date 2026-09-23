@@ -18,15 +18,22 @@ set -euo pipefail
 here="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 repo="$(cd "$here/.." && pwd)"
 out="$here/docs-dist"
+logs="$here/.docs-logs"
 
 only="${1:-}"
-rm -rf "$out"
+rm -rf "$out" "$logs"
 mkdir -p "$out"
 
 generated=()
 for dir in "$repo"/packages/*/; do
   name="$(basename "$dir")"
   if [ -n "$only" ] && [ "$name" != "$only" ]; then continue; fi
+  # **A directory is not a package.** The twelve folded into others for 0.7.0
+  # left their ignored `.dart_tool/` and `build/` behind in any checkout that
+  # had built them, so `packages/flutter3d_bridge/` and eleven more were still
+  # on disk with no pubspec in them. `dart doc` documented each as an empty
+  # package, and the reference went on listing packages that no longer exist.
+  [ -f "$dir/pubspec.yaml" ] || continue
 
   printf '%-26s ' "$name"
   # Retried once, because a failure here is not always about the package.
@@ -42,7 +49,15 @@ for dir in "$repo"/packages/*/; do
   else
     # A package that cannot be documented after that is reported and skipped
     # rather than taking the whole reference down with it; the log is left to read.
-    echo "FAILED — see docs-dist/$name.log"
+    #
+    # **Left outside `docs-dist/`, and so is nothing else.** The log used to stay
+    # beside the trees and went out with them, so the public site served a
+    # dartdoc stack trace, and the empty directory `dart doc` had already made
+    # was listed by `docs-index.sh` as a package whose link answered 403.
+    mkdir -p "$logs"
+    mv "$out/$name.log" "$logs/$name.log"
+    rm -rf "${out:?}/$name"
+    echo "FAILED — see site/.docs-logs/$name.log"
   fi
 done
 
