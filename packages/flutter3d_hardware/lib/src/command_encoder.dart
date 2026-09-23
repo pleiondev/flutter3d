@@ -221,13 +221,23 @@ abstract interface class PassEncoder {
 
   /// Binds the pair of stages the following draws run.
   ///
-  /// **Bindings do not survive this call.** A backend is free to drop every
-  /// buffer, uniform and texture binding when the pipeline changes — the
-  /// flutter_gpu backend must, because its pass replays every binding it has
-  /// ever been handed at each draw, keyed by the shader that bound it, and a
-  /// stale block from the previous pipeline's shader can land on a slot the
-  /// new pipeline reads. Every site in this engine therefore binds what a
-  /// draw needs *after* binding its pipeline, never before.
+  /// **Bindings do not survive this call, on any backend.** Every buffer,
+  /// uniform block and texture binding is forgotten, as [clearBindings]
+  /// forgets them, even when the same pipeline is bound again. The flutter_gpu
+  /// backend must: its pass replays every binding it has ever been handed at
+  /// each draw, keyed by the shader that bound it, and a stale block from the
+  /// previous pipeline's shader can land on a slot the new pipeline reads.
+  /// Until 0.8.0 the rule said "free to drop", and the software rasteriser
+  /// kept everything, so a draw that forgot a block read the previous draw's
+  /// there and drew a plausible picture while Metal failed. Every site in this
+  /// engine therefore binds what a draw needs *after* binding its pipeline,
+  /// never before.
+  ///
+  /// **A slot the stage declares and the draw leaves unbound is the caller's
+  /// mistake, and never another draw's resource.** A backend that can see it
+  /// (WebGL2 and WebGPU reflect every stage) names it in its debug errors; one
+  /// that cannot must at least not serve it something bound for a different
+  /// slot or a different draw.
   void bindPipeline(PipelineHandle pipeline);
 
   /// Binds geometry the device already holds — a mesh, or the one triangle
@@ -303,13 +313,27 @@ abstract interface class PassEncoder {
     Map<String, Float32List> members,
   );
 
-  /// Binds [texture] to the sampler called [slot] in [shader].
+  /// Binds [texture] to the sampler called [slot] in [shader]. False when that
+  /// stage declares no such sampler.
   ///
-  /// A shader that declares a sampler must have something bound to it, so
-  /// "no texture" is a neutral texture rather than an absent binding — and
-  /// binding a slot the compiler dropped is a native crash rather than a no-op,
-  /// which is why every call site here is gated on what the material's lighting
-  /// model declares.
+  /// **False, never a throw and never a silent success, on every backend.**
+  /// Until 0.8.0 this returned nothing and each backend answered a slot the
+  /// stage does not have in its own way: Impeller threw "Failed to bind
+  /// texture", WebGL and WebGPU did nothing, and the software rasteriser bound
+  /// it anyway. So a renderer that handed `PolylineVertex` a morph texture it
+  /// never declared drew every golden on three backends and failed on Metal
+  /// at the first frame, for three releases. [bindUniformBlock] has always
+  /// answered the same question with a bool, and now both do. A backend with
+  /// no reflection of its stages answers true, for the reason
+  /// [bindUniformBlock] gives.
+  ///
+  /// **Asked of the stage, not of the program.** A sampler the fragment stage
+  /// declares is false through the vertex stage's handle, on every backend
+  /// that can tell the two apart.
+  ///
+  /// A shader that declares a sampler must still have something bound to it,
+  /// so "no texture" is a neutral texture rather than an absent binding.
+  ///
   /// A null [sampler] means [SamplerOptions.linearRepeat], not the
   /// `SamplerOptions` constructor's own defaults.
   ///
@@ -320,18 +344,21 @@ abstract interface class PassEncoder {
   /// hard seams where the others had soft ones. Two percent of every textured
   /// golden, and it looked like a filtering bug in the new backend rather than
   /// a question the contract had never answered.
-  void bindTexture(
+  bool bindTexture(
     ShaderHandle shader,
     String slot,
     TextureHandle texture, {
     SamplerOptions? sampler,
   });
 
-  /// Forgets every binding, leaving rasteriser state alone.
+  /// Forgets every binding, leaving rasteriser state alone: uniform blocks,
+  /// textures, every vertex slot and the index buffer with its count.
   ///
   /// Needed because bindings outlive a draw: the mesh loop leaves an index
   /// buffer and a pipeline bound, and the next thing in the pass may have a
-  /// different vertex layout or no indices at all.
+  /// different vertex layout or no indices at all. Every backend forgets all
+  /// of it; the software rasteriser used to keep the geometry, so a draw after
+  /// this call re-drew the last mesh there and drew nothing everywhere else.
   void clearBindings();
 
   /// Draws what is bound. Always indexed — there is no non-indexed path in this

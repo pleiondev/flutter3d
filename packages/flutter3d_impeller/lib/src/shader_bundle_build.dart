@@ -229,6 +229,14 @@ File? _findPackageConfig(Directory start) {
 /// `impellerc` itself. Both are real, both are checked.
 String _flutterSdkRoot() => flutterSdkRootFrom(Platform.resolvedExecutable);
 
+/// Where this SDK's `impellerc` is, for tools and tests that compile a stage
+/// on their own: the same path [buildShaderBundle] runs.
+String impellercPath() {
+  final sdkRoot = _flutterSdkRoot();
+  return '$sdkRoot/bin/cache/artifacts/engine/'
+      '${_hostArtifactPlatform(sdkRoot)}/$impellercName';
+}
+
 /// The parsing half of [_flutterSdkRoot], taking the executable path rather
 /// than reading [Platform.resolvedExecutable] itself — the only way a test
 /// hands this the Windows shape without running on Windows to get one.

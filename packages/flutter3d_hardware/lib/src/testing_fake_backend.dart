@@ -91,7 +91,21 @@ final class FakeBackend implements GraphicsDevice {
     this.unsupportedFormats = const <TextureFormat>{},
     this.maxAnisotropy = 16,
     this.maxColorAttachments = 2,
+    this.stageBindings,
   }) : shaders = FakeShaderLibrary(missing: missingShaders);
+
+  /// What each stage declares, by name, or null to accept every bind.
+  ///
+  /// Given it, every pass this device opens holds binds to the contract and
+  /// writes each declared slot a draw left unbound to [bindingViolations]. The
+  /// engine's own map is compiled from the real bundle: `stageBindings` in
+  /// `flutter3d_shaders`. This is what lets a missing or misdirected bind fail
+  /// on the VM instead of on the one backend that happens to crash on it.
+  final Map<String, StageBindings>? stageBindings;
+
+  /// Declared slots left unbound at a draw, across every pass. See
+  /// [stageBindings].
+  final List<String> bindingViolations = <String>[];
 
   /// Settable for the same reason [supportsWireframe] is: the case worth a
   /// test is the device that says no, where the x-ray stage has to draw
@@ -481,7 +495,11 @@ final class FakeBackend implements GraphicsDevice {
       maxColorAttachments,
       backend: 'this fake device',
     );
-    final pass = FakePass(descriptor);
+    final pass = FakePass(
+      descriptor,
+      stageBindings: stageBindings,
+      violations: bindingViolations,
+    );
     passes.add(pass);
     return pass;
   }

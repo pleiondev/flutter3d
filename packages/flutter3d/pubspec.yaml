@@ -62,6 +62,11 @@ dev_dependencies:
   # built here and uploaded through `flutter3d_cpu`. Not a real dependency —
   # nothing in `lib/` reaches it.
   flutter3d_mesh: ^0.7.1
+  # `stageBindings`, the compiled bundle's own table of what each stage keeps,
+  # which `binding_contract_test.dart` hands `FakeBackend` so a bind the
+  # renderer misses or misdirects fails here and not only on Metal. Test only:
+  # the engine names shaders and never reads their sources.
+  flutter3d_shaders: ^0.7.1
 
 # **This package declares no assets, and that is a decision worth the paragraph.**
 #
