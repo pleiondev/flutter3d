@@ -270,7 +270,7 @@ final class WebGpuSpikeEncoder implements CommandEncoder {
   );
 
   @override
-  void bindTexture(
+  bool bindTexture(
     ShaderHandle shader,
     String slot,
     TextureHandle texture, {

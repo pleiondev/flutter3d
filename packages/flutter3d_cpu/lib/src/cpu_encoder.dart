@@ -192,9 +192,18 @@ final class CpuEncoder implements CommandEncoder {
   @override
   void setBlendColor(Vector4 color) => _blendColor.setFrom(color);
 
+  /// Forgets every binding, as the contract says every backend does.
+  ///
+  /// It used to replace the pipeline and keep the rest, so a draw that forgot
+  /// a block read the previous draw's here and drew a plausible picture, while
+  /// Impeller, which clears on this call, failed. The software set is the
+  /// cross-backend reference; it cannot be the backend that hides a missing
+  /// bind.
   @override
-  void bindPipeline(PipelineHandle pipeline) =>
-      _pipeline = pipeline.backend as CpuPipeline;
+  void bindPipeline(PipelineHandle pipeline) {
+    _pipeline = pipeline.backend as CpuPipeline;
+    clearBindings();
+  }
 
   @override
   void bindVertexBuffer(
@@ -203,8 +212,20 @@ final class CpuEncoder implements CommandEncoder {
     int slot = 0,
   }) {
     final backend = buffer.backend as ({ByteData bytes, GeometryUsage usage});
-    _bindSlot(slot, backend.bytes, vertexCount);
+    _bindSlot(slot, _range(backend.bytes, buffer), vertexCount);
   }
+
+  /// The bytes [buffer] names within [bytes]: its offset and length, which
+  /// `GeometryBuffer.slice` sets and this used to ignore, reading from byte
+  /// zero with a stride worked out from the whole buffer.
+  static ByteData _range(ByteData bytes, GeometryBuffer buffer) =>
+      buffer.offsetInBytes == 0 && buffer.lengthInBytes == bytes.lengthInBytes
+      ? bytes
+      : ByteData.sublistView(
+          bytes,
+          buffer.offsetInBytes,
+          buffer.offsetInBytes + buffer.lengthInBytes,
+        );
 
   @override
   void bindVertexData(ByteData bytes, int vertexCount, {int slot = 0}) =>
@@ -229,7 +250,7 @@ final class CpuEncoder implements CommandEncoder {
   @override
   void bindIndexBuffer(GeometryBuffer buffer, IndexType type, int indexCount) {
     final backend = buffer.backend as ({ByteData bytes, GeometryUsage usage});
-    _indices = backend.bytes;
+    _indices = _range(backend.bytes, buffer);
     _indexType = type;
     _indexCount = indexCount;
   }
@@ -251,29 +272,43 @@ final class CpuEncoder implements CommandEncoder {
     return true;
   }
 
+  /// True always: a Dart stage declares no samplers, so "this stage has no
+  /// such slot" is not a state this backend has. See
+  /// `CommandEncoder.bindUniformBlock` for why that is the honest answer.
   @override
-  void bindTexture(
+  bool bindTexture(
     ShaderHandle shader,
     String slot,
     TextureHandle texture, {
     SamplerOptions? sampler,
-  }) =>
-      // linearRepeat for a null sampler, which is now written down in
-      // `CommandEncoder.bindTexture` — it was not, and this backend picked the
-      // constructor's own defaults instead, nearest and clamped. Both hardware
-      // backends had independently chosen linearRepeat, so the two agreed and
-      // the rule stayed unstated until a third implementation read the
-      // interface and answered differently. It cost two percent of every
-      // textured golden and looked like a rendering bug.
-      _textures[slot] = BoundTexture(
-        texture.backend as CpuTexture,
-        sampler ?? SamplerOptions.linearRepeat,
-      );
+  }) {
+    // linearRepeat for a null sampler, which is now written down in
+    // `CommandEncoder.bindTexture` — it was not, and this backend picked the
+    // constructor's own defaults instead, nearest and clamped. Both hardware
+    // backends had independently chosen linearRepeat, so the two agreed and
+    // the rule stayed unstated until a third implementation read the
+    // interface and answered differently. It cost two percent of every
+    // textured golden and looked like a rendering bug.
+    _textures[slot] = BoundTexture(
+      texture.backend as CpuTexture,
+      sampler ?? SamplerOptions.linearRepeat,
+    );
+    return true;
+  }
 
+  /// Every binding, geometry included, as the contract says. It used to keep
+  /// the vertex slots and the index buffer, so a draw after this re-drew the
+  /// previous mesh here and an instanced slot the next layout declares and
+  /// did not bind passed with the previous batch's instances in it.
   @override
   void clearBindings() {
     _blocks.clear();
     _textures.clear();
+    _vertices = null;
+    _vertexCount = 0;
+    _slots = null;
+    _indices = null;
+    _indexCount = 0;
   }
 
   @override

@@ -481,10 +481,14 @@ final class WebGpuDevice implements GraphicsDevice, WgslModuleCompiler {
   /// has bound and cached by what went into it.
   ///
   /// A binding the pass never filled gets a neutral resource rather than being
-  /// left out: WebGPU refuses an incomplete group outright, and the contract
-  /// already says a declared sampler must have something bound to it. An
-  /// unfilled block reads the zeroed buffer, which is what GL would have given
-  /// it.
+  /// left out: WebGPU refuses an incomplete group outright. An unfilled block
+  /// reads the zeroed buffer and an unfilled sampler a white texel.
+  ///
+  /// **And says so, into [debugDrainErrors].** The contract makes a declared
+  /// slot left unbound the caller's mistake, and this is the one backend that
+  /// sees every stage's declarations at the draw. It used to fill the hole in
+  /// silence, which made it the backend that drew cleanly through the 0.7.2
+  /// regression that Metal failed on natively.
   GPUBindGroup bindGroupFor(
     WebGpuBindingLayouts layouts,
     int group,
@@ -497,7 +501,9 @@ final class WebGpuDevice implements GraphicsDevice, WgslModuleCompiler {
     final entries = <GPUBindGroupEntry>[];
     for (final bound in shape.blocks) {
       final block = bound.block;
-      final buffer = blocks?[block.binding]?.buffer ?? _zeroBlock;
+      final filled = blocks?[block.binding]?.buffer;
+      if (filled == null) _unbound('uniform block "${block.name}"');
+      final buffer = filled ?? _zeroBlock;
       resources.add(buffer);
       entries.add(
         GPUBindGroupEntry.buffer(
@@ -515,8 +521,9 @@ final class WebGpuDevice implements GraphicsDevice, WgslModuleCompiler {
     }
     for (final bound in shape.samplers) {
       final sampler = bound.sampler;
-      final view =
-          views?[sampler.textureBinding] ?? _blankView(sampler.dimension);
+      final filledView = views?[sampler.textureBinding];
+      if (filledView == null) _unbound('sampler "${sampler.name}"');
+      final view = filledView ?? _blankView(sampler.dimension);
       final object =
           samplers?[sampler.samplerBinding] ??
           samplerFor(SamplerOptions.linearRepeat);
@@ -551,6 +558,16 @@ final class WebGpuDevice implements GraphicsDevice, WgslModuleCompiler {
       ),
     );
   }
+
+  /// Reports a declared slot a draw left unbound, once per slot per device, so
+  /// a mistake repeated every frame is one line and not a flood.
+  void _unbound(String what) {
+    if (_reportedUnbound.add(what)) {
+      _errors.add('$what is declared and nothing was bound to it');
+    }
+  }
+
+  final Set<String> _reportedUnbound = <String>{};
 
   /// One white texel, in the shape a slot with nothing bound to it wants.
   ///

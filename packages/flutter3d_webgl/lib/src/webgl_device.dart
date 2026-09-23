@@ -1065,8 +1065,13 @@ final class WebGlDevice implements GraphicsDevice {
   /// exactly once. WebGL reports nothing when a call is rejected: the draw is
   /// dropped and the frame comes back the clear colour, which is
   /// indistinguishable from a scene that drew nothing.
+  ///
+  /// Declared slots a draw left unbound come first: the contract makes them
+  /// the caller's mistake, and this backend sees them at every draw. See
+  /// [reportUnbound].
   String? debugDrainErrors(String where) {
-    final seen = <String>[];
+    final seen = <String>[..._unbound];
+    _unbound.clear();
     for (var i = 0; i < 8; i++) {
       final error = _gl.getError();
       if (error == web.WebGLRenderingContext.NO_ERROR) break;
@@ -1082,6 +1087,17 @@ final class WebGlDevice implements GraphicsDevice {
     }
     return seen.isEmpty ? null : '$where: ${seen.join(', ')}';
   }
+
+  /// Records a declared slot a draw left unbound, once per slot per device, so
+  /// a mistake repeated every frame is one line rather than a flood.
+  void reportUnbound(String what) {
+    if (_reportedUnbound.add(what)) {
+      _unbound.add('$what is declared and nothing was bound to it');
+    }
+  }
+
+  final Set<String> _reportedUnbound = <String>{};
+  final List<String> _unbound = <String>[];
 
   /// Whether the currently bound framebuffer can be drawn to, in words.
   String debugFramebufferStatus() {

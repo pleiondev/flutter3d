@@ -442,17 +442,16 @@ final class WebGpuEncoder implements CommandEncoder {
   /// in GLSL and two in WGSL, as it is in Vulkan and Metal, so the reflection
   /// carries the pair and this splits the bind across them.
   ///
-  /// A slot the translator dropped is ignored rather than refused, which is
-  /// what the WebGL2 backend does for the same reason: the engine gates its
-  /// call sites on what a material's lighting model declares, and a stage that
-  /// legitimately optimised a sampler away is not a caller mistake.
+  /// False for a slot this stage does not declare, as the contract says, and
+  /// never a throw: a stage that optimised a sampler away is not a caller
+  /// mistake, and the caller that did make one is told by the return value.
   ///
   /// A null [sampler] is `SamplerOptions.linearRepeat` — the contract's
   /// default, not the constructor's, which is nearest and clamp and which cost
   /// a third backend two percent of every textured golden before the rule was
   /// written down.
   @override
-  void bindTexture(
+  bool bindTexture(
     ShaderHandle shader,
     String slot,
     TextureHandle texture, {
@@ -460,7 +459,7 @@ final class WebGpuEncoder implements CommandEncoder {
   }) {
     final stage = shader.backend as WebGpuShader;
     final declared = stage.samplerNamed(slot);
-    if (declared == null) return;
+    if (declared == null) return false;
 
     final backend = texture.backend as WebGpuTexture;
     assert(
@@ -479,6 +478,7 @@ final class WebGpuEncoder implements CommandEncoder {
     )[declared.samplerBinding] = _device.samplerFor(
       sampler ?? SamplerOptions.linearRepeat,
     );
+    return true;
   }
 
   @override

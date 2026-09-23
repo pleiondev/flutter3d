@@ -8,11 +8,48 @@ import 'package:vector_math/vector_math.dart' show Vector4;
 
 import 'testing_recorded.dart';
 
+/// What one compiled stage declares: the uniform blocks and samplers its
+/// compiled binary kept, by name.
+typedef StageBindings = ({Set<String> blocks, Set<String> samplers});
+
 /// A pass that was opened, and everything that went into it.
+///
+/// **Given [stageBindings], it holds binds to the contract** the way a real
+/// backend does: a block or sampler bound to a stage that does not declare it
+/// answers false, bindings do not survive [bindPipeline], and a draw that
+/// leaves a declared slot unbound is written to [violations]. A stage the map
+/// does not name is taken on trust. Without the map it records and accepts
+/// everything, which is what every test written before 0.8.0 expects.
 final class FakePass implements CommandEncoder {
-  FakePass(this.descriptor);
+  FakePass(
+    this.descriptor, {
+    this.stageBindings,
+    List<String>? violations,
+  }) : violations = violations ?? <String>[];
 
   final RenderPassDescriptor descriptor;
+
+  /// Stage name to what it declares, or null to accept every bind.
+  final Map<String, StageBindings>? stageBindings;
+
+  /// Declared slots a draw left unbound, one line each, with the pipeline and
+  /// the stage. Shared with the device that opened the pass.
+  final List<String> violations;
+
+  String? _pipelineName;
+  final Map<String, Set<String>> _boundBlocks = <String, Set<String>>{};
+  final Map<String, Set<String>> _boundSamplers = <String, Set<String>>{};
+
+  bool _declares(ShaderHandle shader, String name, {required bool sampler}) {
+    final declared = stageBindings?[shader.name];
+    if (declared == null) return true;
+    return (sampler ? declared.samplers : declared.blocks).contains(name);
+  }
+
+  void _forget() {
+    _boundBlocks.clear();
+    _boundSamplers.clear();
+  }
 
   /// Everything recorded, in order.
   final List<Recorded> commands = <Recorded>[];
@@ -105,8 +142,11 @@ final class FakePass implements CommandEncoder {
       commands.add(RecordedBlendColor(color.clone()));
 
   @override
-  void bindPipeline(PipelineHandle pipeline) =>
-      commands.add(RecordedPipeline(pipeline));
+  void bindPipeline(PipelineHandle pipeline) {
+    commands.add(RecordedPipeline(pipeline));
+    _pipelineName = pipeline.name;
+    _forget();
+  }
 
   @override
   void bindVertexBuffer(
@@ -135,23 +175,52 @@ final class FakePass implements CommandEncoder {
     Map<String, Float32List> members,
   ) {
     commands.add(RecordedUniformBlock(shader, blockName, members));
+    if (!_declares(shader, blockName, sampler: false)) return false;
+    _boundBlocks.putIfAbsent(shader.name, () => <String>{}).add(blockName);
     return true;
   }
 
   @override
-  void bindTexture(
+  bool bindTexture(
     ShaderHandle shader,
     String slot,
     TextureHandle texture, {
     SamplerOptions? sampler,
-  }) => commands.add(RecordedTexture(slot, texture, sampler));
+  }) {
+    commands.add(RecordedTexture(slot, texture, sampler, shader: shader));
+    if (!_declares(shader, slot, sampler: true)) return false;
+    _boundSamplers.putIfAbsent(shader.name, () => <String>{}).add(slot);
+    return true;
+  }
 
   @override
-  void clearBindings() => commands.add(const RecordedClearBindings());
+  void clearBindings() {
+    commands.add(const RecordedClearBindings());
+    _forget();
+  }
 
   @override
-  void draw({int instanceCount = 1}) =>
-      commands.add(RecordedDraw(instanceCount: instanceCount));
+  void draw({int instanceCount = 1}) {
+    commands.add(RecordedDraw(instanceCount: instanceCount));
+    final bindings = stageBindings;
+    final pipeline = _pipelineName;
+    if (bindings == null || pipeline == null) return;
+    // The fake names its pipelines 'Vertex+Fragment'; see FakeBackend.
+    for (final stage in pipeline.split('+')) {
+      final declared = bindings[stage];
+      if (declared == null) continue;
+      for (final block in declared.blocks) {
+        if (_boundBlocks[stage]?.contains(block) ?? false) continue;
+        violations.add('$pipeline: $stage declares block "$block", unbound');
+      }
+      for (final sampler in declared.samplers) {
+        if (_boundSamplers[stage]?.contains(sampler) ?? false) continue;
+        violations.add(
+          '$pipeline: $stage declares sampler "$sampler", unbound',
+        );
+      }
+    }
+  }
 
   @override
   void submit() => submitted = true;
