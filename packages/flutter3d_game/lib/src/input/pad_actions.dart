@@ -161,8 +161,10 @@ final class PadInput {
   final Map<String, GameAction> _holding = <String, GameAction>{};
 
   /// Actions carrying a magnitude the pad supplied, by the control that
-  /// supplied it, so it can withdraw them.
-  final Map<String, GameAction> _speaking = <String, GameAction>{};
+  /// supplied it and with how far it is pressed, so it can withdraw them and
+  /// so two controls on one action are answered by the harder press.
+  final Map<String, ({GameAction action, double magnitude})> _speaking =
+      <String, ({GameAction action, double magnitude})>{};
 
   final Vector2 _look = Vector2.zero();
 
@@ -315,13 +317,28 @@ final class PadInput {
   void _analogue(String control, GameAction action, double magnitude) {
     final key = '$_analogueMark$control';
     final wasDown = _holding.containsKey(key);
+    final wasSpeaking = _speaking.containsKey(key);
 
     if (magnitude > 0.0) {
-      state.setActionValue(action, magnitude);
-      _speaking[key] = action;
-    } else if (_speaking.remove(key) != null) {
-      // Withdrawn rather than zeroed, so a key bound to the same action starts
-      // meaning something again. See the class doc.
+      _speaking[key] = (action: action, magnitude: magnitude);
+    } else {
+      _speaking.remove(key);
+    }
+    // **The harder press answers**, not whichever control was read last: two
+    // triggers on one action at 1.0 and 0.2 used to give 0.2, and letting one
+    // go withdrew the value the other had just written, so for that frame the
+    // action fell back to its held 1.0. Withdrawn rather than zeroed once no
+    // control speaks for it, so a key bound to the same action starts meaning
+    // something again. See the class doc.
+    final strongest = _speaking.values
+        .where((s) => s.action == action)
+        .fold<double>(
+          0.0,
+          (best, s) => s.magnitude > best ? s.magnitude : best,
+        );
+    if (strongest > 0.0) {
+      state.setActionValue(action, strongest);
+    } else if (magnitude <= 0.0 && wasSpeaking) {
       state.clearActionValue(action);
     }
 
@@ -353,8 +370,8 @@ final class PadInput {
       if (action == _slotSentinel) continue;
       state.release(action);
     }
-    for (final action in _speaking.values) {
-      state.clearActionValue(action);
+    for (final spoken in _speaking.values) {
+      state.clearActionValue(spoken.action);
     }
     _holding.clear();
     _speaking.clear();

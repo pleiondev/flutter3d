@@ -67,4 +67,30 @@ void main() {
     );
     expect(binds, greaterThan(0));
   });
+
+  test('and so does a stage of its own written from MeshVertex', () {
+    // **0.7.2 got this one wrong.** It keyed the bind on whether the node
+    // morphed, so a stage built on `mesh.vert`, which declares the morph block
+    // and texture whether or not anything morphs, drew a plain mesh without
+    // them: another draw's weights on the software backend, garbage on WebGL,
+    // a native failure on Metal. The stage says what it declares.
+    //
+    // Mutation: bind for a material's own stage only when the node morphs.
+    final binds = _morphBinds(
+      (FakeBackend device) => MeshNode(
+        DeviceMesh.upload(device, SphereShape(radius: 0.5).build()),
+        Material(
+          name: 'displaced',
+          lighting: const LightingModel(
+            'Displaced',
+            'Unlit',
+            vertexShaderName: 'MeshVertex',
+            usesMaterialMaps: false,
+            usesMetallicRoughnessMap: false,
+          ),
+        ),
+      ),
+    );
+    expect(binds, greaterThan(0));
+  });
 }

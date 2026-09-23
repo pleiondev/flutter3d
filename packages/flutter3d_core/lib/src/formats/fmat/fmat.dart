@@ -424,6 +424,7 @@ LightingModel? _readLighting(
     usesMetallic: value['metallic'] as bool? ?? false,
     usesEnvironment: value['environment'] as bool? ?? false,
     usesLightList: value['lightList'] as bool?,
+    vertexStageMorphs: value['vertexMorphs'] as bool? ?? true,
   );
 }
 
@@ -449,6 +450,8 @@ Object _writeLighting(LightingModel model) {
       'metallicRoughnessMap': model.usesMetallicRoughnessMap,
     if (model.usesLightList != model.usesMaterialMaps)
       'lightList': model.usesLightList,
+    if (model.vertexStageMorphs != plain.vertexStageMorphs)
+      'vertexMorphs': model.vertexStageMorphs,
     if (model.usesMaterialParameters != plain.usesMaterialParameters)
       'materialParameters': model.usesMaterialParameters,
     if (model.usesMetallic != plain.usesMetallic)
