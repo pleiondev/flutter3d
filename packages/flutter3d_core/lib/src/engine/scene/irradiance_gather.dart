@@ -30,6 +30,7 @@ import 'dart:typed_data';
 import 'package:vector_math/vector_math.dart';
 
 import 'irradiance_field.dart';
+import 'light_buffer.dart';
 import 'light_node.dart';
 import 'raycaster.dart';
 import 'scene.dart';
@@ -180,10 +181,18 @@ void gatherProbe(
 void _directLight(Scene scene, HitResult hit, Vector3 out) {
   out.setZero();
   final toLight = Vector3.zero();
+  final aim = Vector3.zero();
+  final channels = hit.node?.lightChannels ?? LightChannels.all;
   for (final light in scene.lights) {
     if (!light.visibleInHierarchy) continue;
+    // The same three things the shader applies before a light reaches a
+    // surface — its channel, its range window, its cone. Leaving them out
+    // lit a probe from a spot aimed the other way and from a lamp whose range
+    // stops a room short, and the bounce carried that light into places the
+    // direct term never put it.
+    if (!LightBuffer.reaches(light, channels)) continue;
 
-    final double attenuation;
+    double attenuation;
     if (light.type == LightType.directional) {
       light.readDirectionToLight(toLight);
       attenuation = 1.0;
@@ -194,6 +203,25 @@ void _directLight(Scene scene, HitResult hit, Vector3 out) {
       if (distance < 1e-6) continue;
       toLight.scale(1.0 / distance);
       attenuation = 1.0 / math.max(distance * distance, 1e-4);
+      // `PunctualAttenuation`'s range window, from `surface.glsl`.
+      if (light.range > 0.0) {
+        final ratio = distance / light.range;
+        final window = (1.0 - ratio * ratio * ratio * ratio).clamp(0.0, 1.0);
+        attenuation *= window * window;
+      }
+      if (light.type == LightType.spot) {
+        // The shader's ramp between the two cone cosines, with the inner one
+        // held inside the outer the way `LightBuffer` packs them.
+        final outer = light.outerConeAngle.clamp(0.0, math.pi / 2.0);
+        final inner = light.innerConeAngle.clamp(0.0, outer);
+        final cosOuter = math.cos(outer);
+        final cosInner = math.max(math.cos(inner), cosOuter + 1e-4);
+        final cosAngle = -light.readDirection(aim).dot(toLight);
+        attenuation *= ((cosAngle - cosOuter) / (cosInner - cosOuter)).clamp(
+          0.0,
+          1.0,
+        );
+      }
     }
 
     final facing = hit.normal.dot(toLight);

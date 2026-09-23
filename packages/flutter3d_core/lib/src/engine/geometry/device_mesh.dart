@@ -76,9 +76,11 @@ abstract interface class DrawableGeometry implements MeshGeometry {
 /// What is left is arithmetic and two opaque handles, so one class serves every
 /// backend and the device that made it is the only thing that knows which.
 ///
-/// There is still no explicit release: the buffers are freed when the last
-/// reference to this goes, which is what both backends give us and less than a
-/// real resource layer would.
+/// Nothing here releases the buffers. The owner does, with
+/// `GraphicsDevice.releaseGeometry` on [vertices] and [indices] once nothing
+/// draws the mesh: a backend whose collector frees them treats that as a no-op,
+/// and one that does not — WebGL, WebGPU — otherwise keeps them until the
+/// device itself goes.
 final class DeviceMesh implements DrawableGeometry {
   DeviceMesh._({
     required this.vertices,

@@ -5,6 +5,7 @@ import 'package:vector_math/vector_math.dart' hide Ray;
 
 import 'bvh.dart';
 import 'camera_node.dart';
+import 'instanced_mesh_node.dart';
 import 'mesh_node.dart';
 import 'posed_mesh.dart';
 import 'scene.dart';
@@ -95,7 +96,7 @@ final class HitResult {
 /// a mesh built from its output is one this hits exactly.
 ///
 /// The bounding volumes follow both — see `MeshNode.skinReach` and
-/// `MorphState.reach` — so a deformed model is found as a candidate and
+/// `MorphState.growth` — so a deformed model is found as a candidate and
 /// culled correctly either way.
 final class Raycaster {
   Raycaster();
@@ -135,8 +136,12 @@ final class Raycaster {
   /// the rebuild cost to answer the same question.
   SceneBvh? bvh;
 
-  /// Above this many meshes a tree is worth using, matching the render list's
-  /// threshold so a scene does not end up with one consumer on each path.
+  /// Above this many meshes a tree is worth using.
+  ///
+  /// Higher than the render list's `defaultBvhThreshold` of 256, so a scene
+  /// between the two culls through the tree and casts along the list. That
+  /// costs nothing in answers — both paths run the same per-node tests — only
+  /// in which one a cast takes.
   static const int bvhThreshold = 512;
 
   Float32List _spheres = Float32List(0);

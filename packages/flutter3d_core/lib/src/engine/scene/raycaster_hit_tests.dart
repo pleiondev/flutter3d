@@ -20,10 +20,16 @@ extension _RaycasterHitTests on Raycaster {
     ray.transformInto(node.inverseWorldMatrix, _localRay);
 
     final source = node.mesh.source;
-    if (source == null) {
+    if (source == null || node is InstancedMeshNode) {
       // No CPU geometry: the bounding box is the best answer available, and
       // saying so beats reporting nothing or pretending it is exact.
-      final t = rayAabb(_localRay, node.mesh.bounds);
+      //
+      // An instanced batch lands here too, and against its own bounds rather
+      // than its mesh's: the triangles below are the mesh once, at the node,
+      // which is where no instance of the batch need be. `localBounds` is the
+      // union of the instances, so the batch is picked as the box its own doc
+      // comment promises instead of as a copy of the mesh nobody drew.
+      final t = rayAabb(_localRay, node.localBounds);
       if (t == kNoHit || t >= best) return false;
       _writeApproximateHit(node, t);
       return true;
@@ -36,7 +42,14 @@ extension _RaycasterHitTests on Raycaster {
     // ray through a raised arm misses the box the arm was exported in, and
     // the triangles below never run. [PosedMesh] gathers the right box while
     // it poses, at one comparison a vertex.
+    //
+    // The skeleton is brought up to date for this node first. Its matrices are
+    // whatever the last draw left there — a pose behind the one being cast
+    // against when the animation stepped since, and all zeros before the first
+    // frame, which poses every vertex onto the origin. The call is a no-op when
+    // the pose and the transform are the ones already computed.
     final skeleton = node.skeleton;
+    if (posed && skeleton != null) skeleton.update(node.worldMatrix);
     final Float32List? skinned = posed && skeleton != null
         ? _posed.positionsOf(source, skeleton)
         : null;

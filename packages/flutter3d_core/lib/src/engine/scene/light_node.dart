@@ -16,10 +16,6 @@ import 'scene_node.dart';
 /// window painted behind it.
 enum LightType { directional, point, spot, area }
 
-/// A light placed in the scene graph.
-///
-/// Direction comes from the node's local -Z, the same forward axis cameras use,
-/// so [SceneNode.lookAt] aims a spot light exactly as it aims a camera.
 /// The bit masks [LightNode.channels] and [SceneNode.lightChannels] meet on.
 ///
 /// Plain integers rather than an enum, because the whole point is that a
@@ -40,6 +36,10 @@ abstract final class LightChannels {
   static int only(int index) => 1 << index;
 }
 
+/// A light placed in the scene graph.
+///
+/// Direction comes from the node's local -Z, the same forward axis cameras use,
+/// so [SceneNode.lookAt] aims a spot light exactly as it aims a camera.
 final class LightNode extends SceneNode {
   LightNode({
     this.type = LightType.directional,

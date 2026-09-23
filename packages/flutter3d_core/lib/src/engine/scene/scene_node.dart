@@ -355,10 +355,22 @@ base class SceneNode implements AnimationTarget {
       return;
     }
     // The stored rotation is local, so strip the parent's world rotation.
-    final parentRotation =
-        Quaternion.fromRotation(parent.worldMatrix.getRotation())
-          ..normalize()
-          ..inverse();
+    //
+    // Decomposed rather than read with `getRotation`, which copies the upper
+    // 3x3 scale and all. `Quaternion.fromRotation` assumes a pure rotation, and
+    // normalising afterwards does not undo a scale: a parent at a hundredth —
+    // the size both rigs in this repository are authored at — turned a quarter
+    // turn into a couple of degrees, and a camera parented under one looked
+    // nowhere near its target.
+    final parentRotation = Quaternion.identity();
+    parent.worldMatrix.decompose(
+      Vector3.zero(),
+      parentRotation,
+      Vector3.zero(),
+    );
+    parentRotation
+      ..normalize()
+      ..inverse();
     setRotation(parentRotation * worldRotation);
   }
 
@@ -420,7 +432,13 @@ base class SceneNode implements AnimationTarget {
 
   void remove(SceneNode child) {
     if (child._parent != this) return;
-    _children.remove(child);
+    // The last child without a search: `Scene.clear` empties a root from the
+    // back, and `List.remove` would scan to the end to find each one.
+    if (identical(_children.last, child)) {
+      _children.removeLast();
+    } else {
+      _children.remove(child);
+    }
     child._parent = null;
     child._invalidateWorld();
     if (child._scene != null) child._propagateScene(null);
