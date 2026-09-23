@@ -1,8 +1,10 @@
 ## 0.7.1
 
-**Released with the rest of the stack at 0.7.1.** Nothing in this package
-changed. The release it resolves against builds from pub.dev again and no
-longer crashes Metal on the first unlit draw.
+**A project's sun keeps its shadow.** The renderer reads `castsShadow` on a
+directional light since 0.7.1, and every saved project wrote `false` for its
+sun as a default nobody chose. `LightingSync` hands a directional light
+`castsShadow: true` whatever the project says, which is what it always drew;
+the flag still decides for point and spot lights.
 
 Its `flutter3d_*` dependencies ask for `^0.7.1`, and it asks for `vector_math` ^2.4.3.
 

@@ -103,7 +103,7 @@ What works today:
   `CUBICSPLINE` with authored tangents), slerped rotations, an `AnimationPlayer`
   with play/pause/seek/speed and once/loop/ping-pong, and the decoded node
   hierarchy rebuilt on instantiation so an animated parent carries its subtree;
-- 1492 tests — projection, scene, sorting, debug draw, raycasting, animation,
+- 1494 tests — projection, scene, sorting, debug draw, raycasting, animation,
   skinning, lighting, render targets, BVH, LOD, glTF, OBJ and `.f3d`, plus a
   real frame drawn through `flutter3d_cpu`'s software rasteriser for the ones
   that need one — all without a GPU. The geometry the engine is written in —
@@ -321,7 +321,7 @@ lib/src/engine/assets/          glTF, OBJ and .f3d decoders, isolate loading, ca
 example/lib/                    the demo, and the frame capture hook
 skills/                         the conventions, as agent skills — see below
 bin/skills.dart                 what copies them into a project that uses this
-test/                           1492 tests, all runnable without a GPU
+test/                           1494 tests, all runnable without a GPU
 ```
 
 The GLSL is not here. Every shader this package draws with lives in
