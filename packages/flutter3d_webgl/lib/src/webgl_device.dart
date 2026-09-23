@@ -294,9 +294,22 @@ final class WebGlDevice implements GraphicsDevice {
     );
   }
 
+  /// Deletes the buffer and forgets which target it was made against.
+  ///
+  /// The second half is not bookkeeping for its own sake. [_bufferTargets] is
+  /// what [overwriteGeometry] recognises this device's buffers by, so an entry
+  /// left behind was a map growing by one per released mesh for the life of
+  /// the tab — and an overwrite of a released buffer found its target, bound a
+  /// deleted object and wrote into nothing, where it should have been refused
+  /// as a buffer this device does not hold.
   @override
-  void releaseGeometry(GeometryBuffer geometry) =>
-      webglReleaseBuffer(_gl, geometry.backend, _persistentBuffers);
+  void releaseGeometry(GeometryBuffer geometry) {
+    final backend = geometry.backend;
+    if (!webglReleaseBuffer(_gl, backend, _persistentBuffers)) return;
+    _bufferTargets.removeWhere(
+      (web.WebGLBuffer buffer, int _) => identical(buffer, backend),
+    );
+  }
 
   @override
   void dispose() {
@@ -310,6 +323,7 @@ final class WebGlDevice implements GraphicsDevice {
       _persistentRenderbuffers,
       _persistentBuffers,
     );
+    _bufferTargets.clear();
     // The shader library's programs and shaders go with the device that made
     // them: the library has no life of its own — it is built in [create] and
     // reachable only through this device — so this is the one moment they can
@@ -813,17 +827,9 @@ final class WebGlDevice implements GraphicsDevice {
       texture,
     );
 
-    final pixels = Uint8List(texture.width * texture.height * 4);
-    final js = pixels.toJS;
-    _gl.readPixels(
-      0,
-      0,
-      texture.width,
-      texture.height,
-      web.WebGLRenderingContext.RGBA,
-      web.WebGLRenderingContext.UNSIGNED_BYTE,
-      js,
-    );
+    final rows = _floatReadFormats.contains(texture.format)
+        ? _readFloatAsBytes(texture.width, texture.height)
+        : _readBytes(texture.width, texture.height);
     _gl.deleteFramebuffer(framebuffer);
 
     // **Flipped for a frame, not for an upload**, and this is the subtle one.
@@ -848,7 +854,6 @@ final class WebGlDevice implements GraphicsDevice {
     // Established by measurement, not by reasoning about conventions, which is
     // the only way anybody gets this right: put the light above and check which
     // half of the returned image is lit.
-    final rows = Uint8List.fromList(js.toDart);
     if (!backend.rendered) return ByteData.sublistView(rows);
     final stride = texture.width * 4;
     final flipped = Uint8List(rows.length);
@@ -857,6 +862,65 @@ final class WebGlDevice implements GraphicsDevice {
       flipped.setRange(y * stride, y * stride + stride, rows, from);
     }
     return ByteData.sublistView(flipped);
+  }
+
+  /// The float colour formats [readPixels] reads as floats and converts, rather
+  /// than asking for bytes.
+  ///
+  /// **The contract names `readPixels` as the way to read a float target** —
+  /// `readback` refuses one and says so — and `readPixels(RGBA, UNSIGNED_BYTE)`
+  /// on a float colour buffer is an `INVALID_OPERATION` that leaves the
+  /// destination at the zeros it was made with. So this read a half-float
+  /// frame as transparent black and completed successfully. `RGBA`/`FLOAT` is
+  /// the pair WebGL2 does accept for a float buffer once
+  /// `EXT_color_buffer_float` is on, which [create] insists on; see
+  /// `test/float_readback_probe_test.dart` for the measurement.
+  static const Set<TextureFormat> _floatReadFormats = <TextureFormat>{
+    TextureFormat.r16g16b16a16Float,
+    TextureFormat.r32g32b32a32Float,
+    TextureFormat.r32Float,
+  };
+
+  /// The bound read framebuffer's bottom-left [width] by [height], as RGBA8.
+  ///
+  /// Filled on the JS side and copied back: under dart2wasm `toJS` is a copy,
+  /// and a Dart list handed across that way comes back as the zeros it was
+  /// made with.
+  Uint8List _readBytes(int width, int height) {
+    final js = Uint8List(width * height * 4).toJS;
+    _gl.readPixels(
+      0,
+      0,
+      width,
+      height,
+      web.WebGLRenderingContext.RGBA,
+      web.WebGLRenderingContext.UNSIGNED_BYTE,
+      js,
+    );
+    return Uint8List.fromList(js.toDart);
+  }
+
+  /// The same rectangle of a float colour buffer, read as floats and stored as
+  /// RGBA8 — each channel clamped to `[0, 1]` and rounded, which is what the
+  /// WebGPU backend's conversion into an `rgba8unorm` target does and what the
+  /// software rasteriser's float-to-byte does. A one-channel float comes back
+  /// `(r, 0, 0, 1)`, which is what GL hands back for it and what a shader
+  /// sampling it reads.
+  Uint8List _readFloatAsBytes(int width, int height) {
+    final js = Float32List(width * height * 4).toJS;
+    _gl.readPixels(
+      0,
+      0,
+      width,
+      height,
+      web.WebGLRenderingContext.RGBA,
+      web.WebGLRenderingContext.FLOAT,
+      js,
+    );
+    final floats = js.toDart;
+    return Uint8List.fromList(<int>[
+      for (final value in floats) (value.clamp(0.0, 1.0) * 255).round(),
+    ]);
   }
 
   /// `readPixels` into a pixel-pack buffer behind a fence, and the bytes

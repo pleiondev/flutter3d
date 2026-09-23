@@ -105,11 +105,27 @@ final class WebGpuPipelineSignature {
     required List<String> colorFormats,
     required this.depthFormat,
     required this.sampleCount,
+    this.vertexModule,
+    this.fragmentModule,
   }) : blends = List<BlendState?>.unmodifiable(blends),
        colorFormats = List<String>.unmodifiable(colorFormats);
 
   /// The stage pair, by the name `PipelineHandle` carries.
+  ///
+  /// **Not unique on its own**, which is why [vertexModule] and
+  /// [fragmentModule] sit beside it. Two layered libraries both answering
+  /// `Pbr` make one string for two different stage pairs, and a reload swaps
+  /// the code behind a name without changing the name — so a cache keyed on
+  /// this alone hands back the pipeline built from whichever modules got there
+  /// first, and a refreshed bundle draws its old code for ever.
   final String pipeline;
+
+  /// The compiled modules the pipeline is built from, compared by identity.
+  ///
+  /// Null in a signature built without a device, which is what the VM tests
+  /// do; the encoder always fills both.
+  final Object? vertexModule;
+  final Object? fragmentModule;
 
   /// The vertex layout, as [webgpuVertexLayoutFingerprint] renders it. See the
   /// library comment for why leaving this out draws a picture instead of
@@ -148,6 +164,8 @@ final class WebGpuPipelineSignature {
   bool operator ==(Object other) =>
       other is WebGpuPipelineSignature &&
       other.pipeline == pipeline &&
+      identical(other.vertexModule, vertexModule) &&
+      identical(other.fragmentModule, fragmentModule) &&
       other.vertexLayout == vertexLayout &&
       other.topology == topology &&
       other.stripIndexFormat == stripIndexFormat &&
@@ -172,6 +190,8 @@ final class WebGpuPipelineSignature {
   @override
   int get hashCode => Object.hash(
     pipeline,
+    identityHashCode(vertexModule),
+    identityHashCode(fragmentModule),
     vertexLayout,
     topology,
     stripIndexFormat,
