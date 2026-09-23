@@ -37,29 +37,48 @@ _startAndConnect() async {
     'test/fixtures/timeline_target.dart',
   ], workingDirectory: Directory.current.path);
 
+  // **Both streams are read for as long as the process lives.** This used to
+  // stop reading stdout once the URI turned up and never read stderr at all.
+  // `-v` keeps talking after the URI — the tool is still compiling and
+  // loading the fixture — and with nobody reading, the pipe fills and the
+  // tool blocks on its next write, before the fixture's `main` has run. On a
+  // laptop with a warm compile cache the rest fits in the pipe; on a cold CI
+  // runner it did not, and the extension was never registered at all.
+  final tail = <String>[];
+  void keep(String line) {
+    tail.add(line);
+    if (tail.length > 40) tail.removeAt(0);
+  }
+
   final uriFound = Completer<String>();
-  final lines = process.stdout
+  process.stdout.transform(utf8.decoder).transform(const LineSplitter()).listen(
+    (line) {
+      keep(line);
+      // The line `-v` prints once DDS has wrapped the raw VM service — the
+      // same URI a tool attaching from outside would be handed.
+      final match = RegExp(
+        r'VM Service uri is available at (\S+)',
+      ).firstMatch(line);
+      if (match != null && !uriFound.isCompleted) {
+        uriFound.complete(match.group(1));
+      }
+    },
+  );
+  process.stderr
       .transform(utf8.decoder)
-      .transform(const LineSplitter());
-  final subscription = lines.listen((line) {
-    // The line `-v` prints once DDS has wrapped the raw VM service — the
-    // same URI a tool attaching from outside would be handed.
-    final match = RegExp(
-      r'VM Service uri is available at (\S+)',
-    ).firstMatch(line);
-    if (match != null && !uriFound.isCompleted) {
-      uriFound.complete(match.group(1));
-    }
-  });
+      .transform(const LineSplitter())
+      .listen((line) => keep('stderr: $line'));
 
   final httpUri = await uriFound.future.timeout(
     const Duration(seconds: 30),
     onTimeout: () {
       process.kill();
-      throw StateError('the fixture never printed a VM service uri within 30s');
+      throw StateError(
+        'the fixture never printed a VM service uri within 30s; '
+        'its last lines:\n${tail.join('\n')}',
+      );
     },
   );
-  await subscription.cancel();
 
   // `package:vm_service` speaks WebSocket; the printed uri is http(s).
   final wsUri = httpUri
@@ -69,6 +88,7 @@ _startAndConnect() async {
   final isolateId = await _isolateWith(
     service,
     'ext.flutter3d.timeline.status',
+    tail: tail,
   );
 
   return (process: process, service: service, isolateId: isolateId);
@@ -85,7 +105,14 @@ _startAndConnect() async {
 /// what it has registered is the answer the protocol already gives, and
 /// looking through every isolate rather than the first is what keeps the
 /// harness's own isolates from being mistaken for the fixture.
-Future<String> _isolateWith(VmService service, String extension) async {
+///
+/// [tail] is the fixture's latest output, quoted when nothing turns up, so a
+/// failure here says where the fixture stopped rather than only that it did.
+Future<String> _isolateWith(
+  VmService service,
+  String extension, {
+  required List<String> tail,
+}) async {
   final deadline = DateTime.now().add(const Duration(seconds: 30));
   while (DateTime.now().isBefore(deadline)) {
     final vm = await service.getVM();
@@ -95,7 +122,10 @@ Future<String> _isolateWith(VmService service, String extension) async {
     }
     await Future<void>.delayed(const Duration(milliseconds: 100));
   }
-  throw StateError('no isolate registered $extension within 30s');
+  throw StateError(
+    'no isolate registered $extension within 30s; '
+    'the fixture\'s last lines:\n${tail.join('\n')}',
+  );
 }
 
 Map<String, Object?> _decode(Response response) =>
