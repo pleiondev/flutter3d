@@ -1,3 +1,13 @@
+## 0.7.1
+
+**A project's sun keeps its shadow.** The renderer reads `castsShadow` on a
+directional light since 0.7.1, and every saved project wrote `false` for its
+sun as a default nobody chose. `LightingSync` hands a directional light
+`castsShadow: true` whatever the project says, which is what it always drew;
+the flag still decides for point and spot lights.
+
+Its `flutter3d_*` dependencies ask for `^0.7.1`, and it asks for `vector_math` ^2.4.3.
+
 ## 0.7.0
 
 **The first publication.** The 0.6.0 below was a number carried inside the

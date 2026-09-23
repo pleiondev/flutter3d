@@ -1,6 +1,6 @@
 name: flutter3d_model_mcp
 description: "A model editor an agent can drive: an MCP server over stdio whose tools are the editor's own commands, one project per process."
-version: 0.7.0
+version: 0.7.1
 repository: https://github.com/pleiondev/flutter3d
 homepage: https://flutter3d.pleion.dev
 issue_tracker: https://github.com/pleiondev/flutter3d/issues
@@ -19,7 +19,7 @@ dependencies:
   # is that the commands are already values with a name, a `toJson` and a
   # `fromJson`, so a tool call is a map handed to `ModelCommand.fromJson` rather
   # than a switch written a second time here.
-  flutter3d_model_core: ^0.7.0
+  flutter3d_model_core: ^0.7.1
 
   # `ModelDocument`, `F3dWriter`/`ObjWriter`, `decodeModel` — the export and
   # import verbs go through the same document abstraction the rest of the
@@ -27,10 +27,10 @@ dependencies:
   # `FbxDecoder`, handed to `import`'s decode, so an agent asking for an FBX
   # is told what the file is and why it will not read rather than handed an
   # empty OBJ. All of it `flutter3d_core`'s formats library.
-  flutter3d_core: ^0.7.0
+  flutter3d_core: ^0.7.1
 
   # `ElementLevel`, for the `select` verb's mesh-mode argument.
-  flutter3d_mesh: ^0.7.0
+  flutter3d_mesh: ^0.7.1
 
   # `Vector3`/`Matrix4` — `anim-30`'s rig-pipeline tools (`autoRig`,
   # `paintWeights`, `bakeIk`) build these directly from a tool call's own
@@ -45,7 +45,7 @@ dependencies:
 
   # The tool table, the answers and the server underneath this one — what
   # every server here shares.
-  flutter3d_mcp_kit: ^0.7.0
+  flutter3d_mcp_kit: ^0.7.1
 
   # The channel `ModelMcpServer` is built on. `model_http_server.dart` wires
   # one to a pair of controllers fed by real HTTP requests — the same
@@ -58,12 +58,12 @@ dependencies:
   # GPU and no display needed to exist. Flat itself now (see
   # `tool/structure/repository.dart`'s own `flatDartPackages` entry for it),
   # so this does not cost this package its own place in that same map.
-  flutter3d_cpu: ^0.7.0
+  flutter3d_cpu: ^0.7.1
 
   # `GraphicsDevice` — the type `render_tool.dart`'s own device factory
   # returns, spelled directly rather than left to resolve only transitively
   # through `flutter3d_cpu`.
-  flutter3d_hardware: ^0.7.0
+  flutter3d_hardware: ^0.7.1
 
 dev_dependencies:
   test: ^1.25.0

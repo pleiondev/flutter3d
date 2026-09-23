@@ -37,12 +37,76 @@ void main() {
     timeout: const Timeout(Duration(minutes: 2)),
   );
 
-  // Not tested here: `buildShaderBundle` failing to resolve
-  // `flutter3d_shaders`. `Isolate.resolvePackageUri` resolves against
-  // *this test process's own* `package_config.json` regardless of
-  // `packageRoot`, and this test's own package genuinely has that
-  // dependency — forcing the "cannot resolve" branch honestly needs a
-  // second process started from a package with no such edge, which is
-  // more machinery than the one finding is worth. The success path above
-  // is the real invocation this package's own build actually depends on.
+  // What an installed package looks like from inside the pub cache: a root
+  // with the compiled bundle in it and no `.dart_tool/package_config.json`
+  // anywhere above. This is the shape 0.7.0 shipped broken — the hook threw
+  // "no .dart_tool/package_config.json at or above <pub cache>" before a
+  // single test or frame ran, on a package whose own archive already carried
+  // the bundle. A temporary directory reproduces it exactly, and reproduces
+  // it without a pub cache, a network or a published version.
+  group('a package root with no package config above it', () {
+    late Directory root;
+
+    setUp(() => root = Directory.systemTemp.createTempSync('f3d_impeller_'));
+    tearDown(() => root.deleteSync(recursive: true));
+
+    test(
+      'keeps the bundle that is already there, and compiles nothing',
+      () async {
+        final bundle = File('${root.path}/$bundlePath')
+          ..parent.createSync(recursive: true)
+          ..writeAsBytesSync(List<int>.filled(64, 7));
+        final log = _StringSink();
+
+        final dependencies = await buildShaderBundle(
+          packageRoot: root,
+          log: log,
+        );
+
+        // No dependencies, because nothing was read: a hook that declared the
+        // GLSL here would be declaring files it cannot see.
+        expect(dependencies, isEmpty);
+        expect(bundle.readAsBytesSync(), List<int>.filled(64, 7));
+        expect(log.text, contains('keeping the bundle already at'));
+      },
+    );
+
+    test('still fails when there is no bundle either', () {
+      expect(
+        buildShaderBundle(packageRoot: root, log: _StringSink()),
+        throwsA(
+          isA<ShaderBundleBuildException>().having(
+            (e) => e.message,
+            'message',
+            contains('no .dart_tool/package_config.json'),
+          ),
+        ),
+      );
+    });
+  });
+
+  test('resolvePackageRoot finds this package from its own checkout', () {
+    // What `bin/build_shader_bundle.dart` does instead of trusting the
+    // working directory. `flutter test` runs with the package root as cwd,
+    // so the two agree here — the point is that the answer comes from the
+    // package config rather than from wherever the command was typed.
+    expect(
+      resolvePackageRoot('flutter3d_impeller', Directory.current).path,
+      Directory.current.resolveSymbolicLinksSync(),
+    );
+  });
+}
+
+/// An [IOSink] that keeps what was written to it. Only [writeln] is reached
+/// by the code under test; the rest would be scaffolding for nobody.
+final class _StringSink implements IOSink {
+  final StringBuffer _buffer = StringBuffer();
+
+  String get text => _buffer.toString();
+
+  @override
+  void writeln([Object? object = '']) => _buffer.writeln(object);
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }

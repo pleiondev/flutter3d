@@ -69,6 +69,33 @@ void main() {
       }
     });
 
+    test('only a model that gathers lights is handed the light list', () {
+      // **The 0.7.0 Metal crash, as metadata.** Unlit and the line keep no
+      // light list, so binding one is a bind to a slot the compiled Metal
+      // function does not have. `metal_bindings_test.dart` in
+      // flutter3d_impeller holds the shader side of the same promise.
+      //
+      // Mutation: make `usesLightList` answer true.
+      for (final model in <LightingModel>[
+        LightingModel.unlit,
+        LightingModel.xray,
+        LightingModel.polyline,
+        LightingModel.normals,
+      ]) {
+        expect(model.usesLightList, isFalse, reason: model.label);
+      }
+      for (final model in <LightingModel>[
+        LightingModel.lambert,
+        LightingModel.blinnPhong,
+        LightingModel.pbr,
+        LightingModel.toon,
+      ]) {
+        expect(model.usesLightList, isTrue, reason: model.label);
+      }
+      const emitted = LightingModel('Rim', 'Rim', usesLightList: false);
+      expect(emitted.usesLightList, isFalse);
+    });
+
     test('only the physical model interprets metallic', () {
       for (final model in LightingModel.builtIn) {
         expect(

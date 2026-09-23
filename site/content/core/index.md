@@ -6,14 +6,14 @@ description: The engine under all three games: the HAL and its four backends, th
 
 Core is everything all three games use and none of them owns. Six packages that never learn what a monster, a coin or a lap is, plus four backends that never learn what a scene is.
 
-Nothing in this section is genre knowledge. That is not a stylistic preference. It is the property that made the second game possible to write, and every page here says which test enforces it.
+Nothing in this section is genre knowledge. That property is what made the second game possible to write, and every page here says which test enforces it.
 
 ## The six packages
 
 | Package | What it owns | Depends on |
 |---|---|---|
 | [`flutter3d`](/core/rendering/) | The renderer, the scene graph, geometry, decoders, animation | `flutter3d_hardware` and nothing below it |
-| [`flutter3d_hardware`](/core/architecture/#the-hal) | **The HAL** — devices, encoders, buffers, textures, pipelines, passes. No implementation at all | nothing |
+| [`flutter3d_hardware`](/core/architecture/#the-hal) | **The HAL**: devices, encoders, buffers, textures, pipelines, passes. No implementation at all | nothing |
 | [`flutter3d_sim`](/core/simulation/) | Fixed step, input, levels and holes in them, mechanisms, actors, navigation and the automap, ECS, snapshots, demos, rewind | `flutter3d_physics`, `vector_math`. Plain Dart, no Flutter |
 | [`flutter3d_app`](/core/session/) | The backend choice, the surface a frame reaches Flutter through, a level loaded into a scene, storage | `flutter3d`, `flutter3d_sim` and Flutter |
 | `flutter3d_game` | The devices, the run, the settings and save screens, actor and fixture visuals | `flutter3d_app`, `flutter3d_sim` and Flutter |
@@ -23,9 +23,9 @@ Nothing in this section is genre knowledge. That is not a stylistic preference. 
 
 | Backend | Runs on |
 |---|---|
-| `flutter3d_impeller` | `flutter_gpu` — Metal and Vulkan. The production one |
+| `flutter3d_impeller` | `flutter_gpu`, over Metal and Vulkan. The production one |
 | `flutter3d_webgl` | WebGL2 in the browser. Runs all three games at a fixed resolution and a lower frame rate, and is what an ordinary web build opens |
-| `flutter3d_cpu` | Nothing — it rasterises in Dart, so 44 golden scenes stay checkable with no GPU in the room |
+| `flutter3d_cpu` | Nothing: it rasterises in Dart, so 44 golden scenes stay checkable with no GPU in the room |
 | `flutter3d_webgpu` | WebGPU in a browser that has an adapter. Reached by `--dart-define=FLUTTER3D_WEBGPU=true`, because a build that can try it ships it |
 
 `flutter3d_conformance` is the suite each of them passed before it belonged in that table, and [Writing a HAL backend](/core/backends/) is the guide for writing the fifth.
@@ -34,7 +34,7 @@ Nothing in this section is genre knowledge. That is not a stylistic preference. 
 
 ```mermaid
 flowchart LR
-  subgraph drawn["drawn — needs a device"]
+  subgraph drawn["drawn: needs a device"]
     direction TB
     renderer["Renderer"]
     passes["passes: shadow, opaque,<br>transparent, bloom, composite"]
@@ -42,7 +42,7 @@ flowchart LR
     renderer --> passes --> device
   end
 
-  subgraph headless["headless — plain Dart"]
+  subgraph headless["headless: plain Dart"]
     direction TB
     step["FixedStep · GameLoop"]
     input["InputState"]
@@ -71,7 +71,7 @@ The middle band is the part people expect to need a GPU and does not. Bounds, cu
 
 ## What to read, in what order
 
-Each page below stands alone, but this is the order in which each one stops being surprising.
+Each page below stands alone, but in this order each one builds on what the previous one explained.
 
 <ul class="cards">
   <li><a href="/core/architecture/">

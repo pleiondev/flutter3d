@@ -112,6 +112,23 @@ final class Scene {
 
   Vector3 ambientColor = Vector3(1.0, 1.0, 1.0);
 
+  /// Whether a scene with nothing lighting it gets a key light anyway.
+  ///
+  /// **On by default, and that default is a guess about intent**: a first
+  /// scene with no [LightNode] in it renders as flat ambient, which reads as a
+  /// broken renderer rather than as a missing light, so the renderer supplies
+  /// one — a directional light of intensity 1, warm-white, over the shoulder.
+  ///
+  /// **Set it false when unlit is the picture you want.** "No lights" is
+  /// counted after hiding and dimming, so a scene whose only lamp is hidden
+  /// ([SceneNode.visibleInHierarchy]) or at zero intensity counts as empty
+  /// too, and
+  /// turning the lamp off used to turn a bright default light on instead —
+  /// the opposite of what the author asked for, and awkward to work around
+  /// except by parking a black light in the scene to keep the count above
+  /// zero. This is the switch that was missing.
+  bool defaultLightWhenUnlit = true;
+
   /// Indirect light measured in the room rather than assumed — `gfx-81n`.
   ///
   /// **Null by default, and null is not a degraded mode.** Without one the

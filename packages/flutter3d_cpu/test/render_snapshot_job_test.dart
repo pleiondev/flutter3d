@@ -105,13 +105,24 @@ Future<Rgba8Image> _decode(Uint8List png) async =>
 
 void main() {
   test('SSAA x1 matches a golden byte for byte', () async {
-    final frame = await _decode(await _job(_project(), _preset()).run());
-    final golden = await _decode(
-      // Not under `test/goldens`: that directory is this backend's own
-      // golden set, which `tool/structure.dart` counts scene by scene, and a
-      // snapshot of a project is not one of its scenes.
-      File('test/snapshot/render_snapshot_ssaa1.png').readAsBytesSync(),
-    );
+    final png = await _job(_project(), _preset()).run();
+    final frame = await _decode(png);
+    // Not under `test/goldens`: that directory is this backend's own golden
+    // set, which `tool/structure.dart` counts scene by scene, and a snapshot
+    // of a project is not one of its scenes.
+    final file = File('test/snapshot/render_snapshot_ssaa1.png');
+    // Recorded when missing, off CI only, the rule `expectMatchesGolden`
+    // keeps: a machine running the suite must not write its own answer.
+    if (!file.existsSync() &&
+        !const bool.fromEnvironment('CI') &&
+        Platform.environment['CI'] == null) {
+      file
+        ..parent.createSync(recursive: true)
+        ..writeAsBytesSync(png);
+      markTestSkipped('recorded ${file.path}; open it before committing');
+      return;
+    }
+    final golden = await _decode(file.readAsBytesSync());
 
     expect((frame.width, frame.height), (480, 360));
     expect(frame.pixels, orderedEquals(golden.pixels));

@@ -27,7 +27,7 @@ final DeviceMesh mesh = DeviceMesh.upload(device, data);
 | `TorusShape` | major and minor radius |
 | `CapsuleShape` | `radius`, `height` |
 | `DiscShape` | `radius`, `segments` |
-| `LatheShape` | an arbitrary profile — everything above the first two derives from it |
+| `LatheShape` | an arbitrary profile; everything above the first two derives from it |
 
 ### Surfaces of revolution
 
@@ -45,15 +45,15 @@ final vase = LatheShape(
 );
 ```
 
-Four properties are worth knowing before authoring a profile:
+Four properties to know before authoring a profile:
 
-- **Orientation follows the profile direction.** Bottom-to-top gives outward normals and counter-clockwise front faces. Reverse it for an inside-out surface, a skybox — without touching any other flag.
+- **Orientation follows the profile direction.** Bottom-to-top gives outward normals and counter-clockwise front faces. Reverse it for an inside-out surface such as a skybox, without touching any other flag.
 - **Normals are analytic**, derived from the profile tangent rather than by averaging face normals, which keeps cones and poles exact.
 - **A repeated profile point is a hard edge.** The duplicated pair has a zero-length delta on one side, so each copy falls back to its own one-sided tangent. That is how a cylinder gets crisp rims where the caps meet the wall.
 - **UVs use arc length**, not point index, so texels do not bunch up where the profile is finely subdivided.
 
 <div class="note">
-<p>Chord-derived normals are exact for straight segments and first-order wrong at the ends of a curved one: at a sphere pole built from 16 rings the error is about 5.6°. Pass <code>profileNormals</code> when the profile has a known analytic normal — <code>SphereShape</code> and <code>CapsuleShape</code> do.</p>
+<p>Chord-derived normals are exact for straight segments and first-order wrong at the ends of a curved one: at a sphere pole built from 16 rings the error is about 5.6°. Pass <code>profileNormals</code> when the profile has a known analytic normal, as <code>SphereShape</code> and <code>CapsuleShape</code> do.</p>
 </div>
 
 ## Vertex layouts
@@ -92,7 +92,7 @@ builder.addTriangle(a, b, c);
 final MeshData data = builder.build();
 ```
 
-Attributes absent from the layout are silently ignored, which lets one piece of generator code build for several layouts. Attributes the layout *declares* but the caller does not supply get a **neutral** value rather than zero, a zero vertex colour multiplies the surface to black and a zero tangent yields a degenerate TBN full of NaN.
+Attributes absent from the layout are silently ignored, which lets one piece of generator code build for several layouts. Attributes the layout *declares* but the caller does not supply get a **neutral** value instead of zero, because a zero vertex colour multiplies the surface to black and a zero tangent yields a degenerate TBN full of NaN.
 
 ## MeshData and the GPU
 
@@ -107,7 +107,7 @@ final mesh = DeviceMesh.upload(device, data, keepSourceData: true);
 `keepSourceData` is what lets picking test triangles rather than falling back to bounds. `CpuMesh` is the implementation for geometry that is queried but never drawn.
 
 <div class="warn">
-<p>There is <strong>no non-indexed draw</strong>. <code>draw()</code> with only a vertex buffer bound succeeds and renders nothing — the counter goes up and the screen does not change. Bind an index buffer even when the indices are the identity sequence; the debug line overlay keeps one in a device buffer that only grows.</p>
+<p>There is <strong>no non-indexed draw</strong>. <code>draw()</code> with only a vertex buffer bound succeeds and renders nothing: the counter goes up and the screen does not change. Bind an index buffer even when the indices are the identity sequence; the debug line overlay keeps one in a device buffer that only grows.</p>
 </div>
 
 ## Tangents
@@ -115,7 +115,7 @@ final mesh = DeviceMesh.upload(device, data, keepSourceData: true);
 Generated with Lengyel's method where a mesh has none, taken analytically where the surface knows them, and checked against a real exporter's output on `NormalTangentMirrorTest`.
 
 <div class="why">
-<p>The bitangent sign is the part that goes wrong quietly. glTF's bitangent is <code>cross(normal, tangent) * w</code>, and it is <strong>minus</strong> dP/dv — texture V grows downwards while a normal map's green channel points up. Deriving <code>w</code> from <code>+dP/dv</code> gives tangent directions that agree with an exporter to seven digits and signs that are backwards everywhere, which only shows up on mirrored UV islands. The symptom is a normal-mapped surface lighting from the wrong side, on half the model.</p>
+<p>The bitangent sign is the part that goes wrong without any error. glTF's bitangent is <code>cross(normal, tangent) * w</code>, and it is <strong>minus</strong> dP/dv, because texture V grows downwards while a normal map's green channel points up. Deriving <code>w</code> from <code>+dP/dv</code> gives tangent directions that agree with an exporter to seven digits and signs that are backwards everywhere, which only shows up on mirrored UV islands. The symptom is a normal-mapped surface lighting from the wrong side, on half the model.</p>
 </div>
 
 {{golden normal-mapping | A normal map lit from the side, with the tangents the generator emits.}}
@@ -174,7 +174,7 @@ final white = SolidColorTexture.white.upload(device);
 final flat  = SolidColorTexture.flatNormal.upload(device);
 ```
 
-Enough for placeholder materials and for a level whose author has not decided yet. The renderer's own fallbacks are these two and it makes them itself — pass `fallbackAlbedo` or `fallbackNormal` only when neutral is not what you want.
+Enough for placeholder materials and for a level whose author has not decided yet. The renderer's own fallbacks are these two and it makes them itself, so pass `fallbackAlbedo` or `fallbackNormal` only when neutral is not what you want.
 
 ## Next
 

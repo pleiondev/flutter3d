@@ -7,6 +7,9 @@
 // header must therefore not declare one: a block declared and unbound is a
 // dropped draw on WebGL2 and a phantom bind on Impeller. See surface.glsl.
 #define F3D_NO_POINT_SHADOW
+// The light list too, for the same reason, and that one was not caught before
+// 0.7.0 shipped: see surface.glsl.
+#define F3D_NO_LIGHT_LIST
 #include <lib/surface.glsl>
 
 // Never called — nothing here accumulates lights — but the prototype in

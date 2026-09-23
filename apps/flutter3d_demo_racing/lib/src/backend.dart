@@ -22,7 +22,8 @@ export 'package:flutter3d_app/flutter3d_app.dart';
 /// `ShadowSettings.resolution` — the number a game picks for the sun — so this
 /// game's 1024 made two 201 MB atlases on a platform where a tab has less.
 /// `ShadowSettings.cubeResolution` is its own number now, defaulting to 512,
-/// and the demos are built with `--wasm`. The circuit drives in a browser.
+/// and the circuit drives in a browser. (The demos were built with `--wasm`
+/// for a while; `site/tool/demos.sh` says why they are dart2js again.)
 ///
 /// What is left of the original reason to keep this smaller than the other two
 /// demos is fill rate, which is real and which this still buys.

@@ -199,7 +199,7 @@ stateDiagram-v2
     dead --> [*]
 ```
 
-`alertDuration` is the pause between noticing and moving — the beat that makes a monster look like it decided rather than teleported into motion. `painChance` and `painCooldown` decide whether being shot interrupts what it was doing: a tank flinches 15% of the time and no more often than every 1.4 s, so it keeps coming.
+`alertDuration` is the pause between noticing and moving. That beat makes a monster look as if it decided to move, where without it the monster would jump straight into motion. `painChance` and `painCooldown` decide whether being shot interrupts what it was doing: a tank flinches 15% of the time and no more often than every 1.4 s, so it keeps coming.
 
 ### The bestiary
 
@@ -217,7 +217,7 @@ final bestiary = Bestiary(
 
 ## The step order
 
-The part that is easy to get wrong and impossible to see.
+This is the part that is easy to get wrong, and nothing on screen shows it when you do.
 
 ```dart
 void step(double dt) {

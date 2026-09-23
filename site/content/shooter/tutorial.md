@@ -1,10 +1,10 @@
 ---
-description: Fourteen steps from an empty project to a playable first-person shooter — weapons, monsters that path around corners, an inventory, locked doors, saves and a HUD.
+description: Fourteen steps from an empty project to a playable first-person shooter with weapons, monsters that path around corners, an inventory, locked doors, saves and a HUD.
 ---
 
 # Tutorial: build a shooter
 
-Fourteen steps. Every one of them runs, and the first nine need no GPU at all — the simulation is headless, which is how you find out whether the game works before deciding what it looks like.
+Fourteen steps. Every one of them runs, and the first nine need no GPU at all. The simulation is headless, so you find out whether the game works before deciding what it looks like.
 
 <div class="goal">
 <ul>
@@ -23,25 +23,25 @@ dependencies:
   flutter:
     sdk: flutter
 
-  flutter3d_impeller: ^0.7.0
-  flutter3d:          ^0.6.0
-  flutter3d_game:     ^0.6.0
-  flutter3d_game_shooter:  ^0.6.0
-  flutter3d_app:      ^0.7.0
-  flutter3d_audio:    ^0.6.0
-  flutter3d_particles:^0.6.0
+  flutter3d_impeller: ^0.7.1
+  flutter3d:          ^0.7.1
+  flutter3d_game:     ^0.7.1
+  flutter3d_game_shooter: ^0.7.1
+  flutter3d_app:      ^0.7.1
+  flutter3d_audio:    ^0.7.1
+  flutter3d_particles: ^0.7.1
   vector_math: ^2.2.0
 
 dev_dependencies:
   flutter_test: { sdk: flutter }
   # Only the tests use it, and only to draw a frame without a GPU.
-  flutter3d_cpu: ^0.7.0
+  flutter3d_cpu: ^0.7.1
 ```
 
 Set `FLTEnableFlutterGPU` and `FLTEnableImpeller` in `macos/Runner/Info.plist`. That is the whole of the setup: the shader bundle rides inside `flutter3d_impeller` and is loaded from there, so a project installed from pub.dev has nothing to build. The [quickstart](/quickstart/) covers the plist keys, and its bundle step is for the checkout it opens with.
 
 <div class="warn">
-<p>The versions come from <a href="https://pub.dev/publishers/pleion.dev/packages">pub.dev</a>. Working against a checkout instead — for engine changes of your own — means swapping each line for a <code>path:</code> into it. <a href="/first-project/">Your first project</a> covers the deployment-target trap that lives beside the pubspec.</p>
+<p>The versions come from <a href="https://pub.dev/publishers/pleion.dev/packages">pub.dev</a>. Every line is on the same 0.7.0 set, and the lines have to agree: <code>flutter3d_app</code> 0.7.0 asks for <code>flutter3d</code> 0.7.0, so one package left on 0.6.0 stops <code>pub get</code>. To work against a checkout instead, for engine changes of your own, swap each line for a <code>path:</code> into it. <a href="/first-project/">Your first project</a> covers the deployment-target trap that lives beside the pubspec.</p>
 </div>
 
 ## Decide what a weapon is {.step}
@@ -116,7 +116,7 @@ abstract final class Weapons {
 
 ## Decide what a monster is {.step}
 
-A monster's attack is a `WeaponDef` — the same type the player's shotgun is. That is what makes a claw, a fireball and a rocket one code path.
+A monster's attack is a `WeaponDef`, the same type the player's shotgun is. That is what makes a claw, a fireball and a rocket one code path.
 
 ```dart
 abstract final class Monsters {
@@ -243,7 +243,7 @@ final issues = LevelValidator(registry: kinds, rules: shooterRules())
 for (final issue in issues) debugPrint('level: $issue');
 ```
 
-The validator checks what is true of any level — names unique, references resolving, brushes not degenerate, something to stand on, something to see by, and your rules check the rest.
+The validator checks what is true of any level (names unique, references resolving, brushes not degenerate, something to stand on, something to see by), and your rules check the rest.
 
 <div class="note">
 <p>The textures and levels this page names are not shipped as a starter kit. The real ones are in the demo at <code>apps/flutter3d_demo_dungeon/assets/</code>: <code>levels/crypt.json</code>, and stone as <code>textures/stone_albedo.jpg</code> with <code>stone_normal.png</code> and <code>stone_orm.png</code>. Point your paths there, or at your own files.</p>
@@ -322,7 +322,7 @@ final sim = GameSimulation(
 
 ## Give the monsters a map {.step}
 
-Optional, and null keeps the plain behaviour — see the player, walk straight, get stuck on the corner.
+Optional, and null keeps the plain behaviour: see the player, walk straight, get stuck on the corner.
 
 ```dart
 final navIssues = <LevelIssue>[];
@@ -330,7 +330,7 @@ actors.navigation = Navigation.bake(level, cellSize: 0.25, issues: navIssues);
 ```
 
 <div class="warn">
-<p><strong>Quarter-metre cells, not the default half.</strong> A grid is conservative: a cell touching a wall has a clearance of one however far the wall actually is. At 0.5 a one-metre corridor is two cells, both touching, so a monster 0.7 wide, which physically fits — is refused the whole passage, and the grid silently falls back to walking straight at the player in exactly the places a route is worth having. Four times the cells and twice the bake, both at load time.</p>
+<p><strong>Quarter-metre cells, not the default half.</strong> A grid is conservative: a cell touching a wall has a clearance of one however far the wall actually is. At 0.5 a one-metre corridor is two cells, both touching, so a monster 0.7 wide, which physically fits, is refused the whole passage. The grid then falls back, with no warning, to walking straight at the player in exactly the places a route would help most. Four times the cells and twice the bake, both at load time.</p>
 </div>
 
 Baked from `level.brushes`, deliberately **not** from `collision`: the world holds the doors, and whichever position one happened to be in at load would be frozen into the grid as architecture, a closed door becoming a wall nothing ever paths through again.
@@ -378,7 +378,7 @@ void _afterStep() {
 }
 ```
 
-Lists filled during the step and drained after it. Nothing here decides anything — it turns facts into sound and light.
+Lists filled during the step and drained after it. Nothing here decides anything; it turns facts into sound and light.
 
 <div class="note">
 <p><code>Effects</code> is this application's own catalogue of <code>ParticleEffect</code> constants, not a package export; the demo's lives in <code>apps/flutter3d_demo_dungeon/lib/src/effects.dart</code>.</p>
@@ -419,7 +419,7 @@ loaded.level.spawnInto(
 );
 ```
 
-`ActorAppearance` and `FixtureAppearance` are the seams where the game says what things look like — everything in the bridge is mechanism.
+`ActorAppearance` and `FixtureAppearance` are the seams where the game says what things look like. Everything else in the bridge is mechanism.
 
 ```dart
 final class DungeonMonsters implements ActorAppearance {
@@ -506,7 +506,7 @@ Hud(
 )
 ```
 
-`Inventory` is one object rather than four fields precisely so this is one read, and so it can hang off the player's collider, which is how a locked door asks what the body in front of it holds without the physics knowing what a key is.
+`Inventory` is one object instead of four fields so that this is one read, and so it can hang off the player's collider, which is how a locked door asks what the body in front of it holds without the physics knowing what a key is.
 
 ## Save the game {.step}
 

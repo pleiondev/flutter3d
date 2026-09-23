@@ -70,7 +70,7 @@ asked for. We are not that server and receive nothing.
 
 **"Report a problem".** This opens your browser at a GitHub issue form with the
 environment fields pre-filled (Flutter version, platform). **Nothing is sent
-when you press the button** — the report exists only once you review it and
+when you press the button**: the report exists only once you review it and
 submit it on GitHub, at which point GitHub's own privacy policy applies and
 what you typed becomes a public issue. Crash details, including an excerpt of
 your command journal, are shown to you first and go only where you choose to
@@ -80,9 +80,9 @@ paste them.
 `--mcp-port`, this binds a server on your own machine (localhost) so an AI
 assistant can read and edit the open document. We receive nothing from it. If
 the assistant you connect sends its context to a model provider's servers, your
-document content goes to that provider under their privacy policy — that
-transfer is between you and them, and is worth understanding before you connect
-an assistant to a document you care about.
+document content goes to that provider under their privacy policy. That
+transfer is between you and them; understand it before you connect an
+assistant to a document you care about.
 
 ### 2.3 What the Modeller never does
 
@@ -99,8 +99,8 @@ cookies**, embeds no analytics, and loads no third-party trackers or fonts from
 a third-party CDN. See the Cookie and Local Storage Notice for the detail.
 
 Like every website, it is delivered by a hosting provider whose servers keep
-standard access logs — IP address, timestamp, requested URL, user agent, and
-response status — for the purposes of delivering the page, keeping the service
+standard access logs (IP address, timestamp, requested URL, user agent, and
+response status) for the purposes of delivering the page, keeping the service
 available, and defending against abuse and attack.
 
 - **Legal basis:** Article 6(1)(f) GDPR, our legitimate interest in operating
@@ -118,15 +118,15 @@ the Cookie and Local Storage Notice.
 ## 4. If you write to us
 
 If you send an email to privacy@pleion.dev or legal@pleion.dev, or open a
-GitHub issue, we process what you sent — your address, your name if you gave
-one, and the content of the message — in order to answer.
+GitHub issue, we process what you sent (your address, your name if you gave
+one, and the content of the message) in order to answer.
 
 - **Legal basis:** Article 6(1)(b) GDPR where your message concerns the
   agreement between us; Article 6(1)(f) GDPR, our legitimate interest in
   answering correspondence, otherwise; Article 6(1)(c) GDPR where answering is
   a legal obligation, as with a data subject request.
 - **Retention:** as long as the matter is open, and then for as long as we may
-  need to show that it was handled properly — normally no more than three
+  need to show that it was handled properly, normally no more than three
   years, and longer only where a limitation period requires it.
 - **Recipients:** our email provider, as a processor. Correspondence in a
   GitHub issue is public by its nature and is processed by GitHub, Inc. under
@@ -137,8 +137,8 @@ one, and the content of the message — in order to answer.
 We do not transfer personal data outside the EEA ourselves, because for the
 Modeller there is no personal data to transfer.
 
-Where you choose to use a service that is outside the EEA — submitting a GitHub
-issue, fetching a model from a server abroad, connecting an AI assistant — that
+Where you choose to use a service that is outside the EEA (submitting a GitHub
+issue, fetching a model from a server abroad, connecting an AI assistant), that
 transfer is yours to make and is governed by that service's own terms and
 safeguards. Where a processor we engage for the website or for email is outside
 the EEA, the transfer rests on the European Commission's Standard Contractual
@@ -162,8 +162,8 @@ knowingly collect it from a child.
   to Apple's and Google's questionnaires are listed in `legal/README.md` in the
   source repository so that they can be checked against this document.
 
-If you believe a child has sent us personal data — by writing to us, for
-instance — tell us at privacy@pleion.dev and we will delete it.
+If you believe a child has sent us personal data, for instance by writing to
+us, tell us at privacy@pleion.dev and we will delete it.
 
 ## 7. Your rights
 
@@ -174,7 +174,7 @@ time where processing rests on consent, without affecting the lawfulness of
 what was done before.
 
 In practice, for a Modeller user, **these rights have almost nothing to attach
-to** — we hold nothing about you. They matter for correspondence and for
+to**, because we hold nothing about you. They matter for correspondence and for
 website logs, and we will honour them there. We answer within one month, and
 tell you if we need the extension Article 12(3) allows.
 
@@ -189,7 +189,7 @@ you need us for:
   `flutter3d/*` keys from `localStorage`. This deletes any project you had only
   in the browser, so export first.
 
-You also have the right to lodge a complaint with a supervisory authority — in
+You also have the right to lodge a complaint with a supervisory authority: in
 the EU, the authority of your habitual residence, place of work, or of the
 place where you believe an infringement occurred. The list is at
 <https://edpb.europa.eu/about-edpb/about-edpb/members_en>.

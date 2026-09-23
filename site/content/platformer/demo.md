@@ -6,10 +6,10 @@ description: The platformer, built against the WebGL2 backend and running in thi
 
 *Ascent*, running on `flutter3d_webgl`. Same engine, same level files, same simulation; the only thing that changed is which backend the application asks for.
 
-The title card is the first thing you meet, and it names the terms: two hundred and sixty metres, three lives, and a summit. A run is five levels, not one — the game opens on `first_steps.json` and each document names the next, so the chain runs **First Steps → Ascent → Cisterns → Foundry → Spire**, and the lives, deaths, elapsed time and coins are carried across all of them. Three lives are three lives for the *run*; spending the last one ends it and clears the save. *Ascent* is the level the game is named after and the one this page's pictures come from, but it is the second of five.
+The title card is the first thing you meet, and it names the terms: two hundred and sixty metres, three lives, and a summit. A run is five levels, not one: the game opens on `first_steps.json` and each document names the next, so the chain runs **First Steps → Ascent → Cisterns → Foundry → Spire**, and the lives, deaths, elapsed time and coins are carried across all of them. Three lives are three lives for the *run*; spending the last one ends it and clears the save. *Ascent* is the level the game is named after and the one this page's pictures come from, but it is the second of five.
 
 <div class="demo">
-  <iframe class="demo-frame" src="/demo/platformer/" title="Ascent — the platformer demo" allow="autoplay; pointer-lock"></iframe>
+  <iframe class="demo-frame" src="/demo/platformer/" title="Ascent, the platformer demo" allow="autoplay; pointer-lock"></iframe>
   <p class="demo-bar">
     <span>WebGL2 · <b>1280×720</b> internal, scaled by CSS</span>
     <span><a href="/demo/platformer/" target="_blank" rel="noopener">Open full screen ↗</a></span>
@@ -17,7 +17,7 @@ The title card is the first thing you meet, and it names the terms: two hundred 
 </div>
 
 <div class="note">
-<p>Click the frame first; the keyboard goes to whatever was clicked last. It takes a few seconds to start: the level's textures and the runner's <code>.glb</code> are fetched before the first frame. Until the model arrives the runner is an orange box the size of its own collider, which is also what stays there if the model will not load — a missing asset should not be the difference between playing and staring at an error.</p>
+<p>Click the frame first; the keyboard goes to whatever was clicked last. It takes a few seconds to start: the level's textures and the runner's <code>.glb</code> are fetched before the first frame. Until the model arrives the runner is an orange box the size of its own collider, and the box stays if the model will not load, so a missing asset never stands between you and playing.</p>
 </div>
 
 ## Controls
@@ -68,7 +68,7 @@ Everything above that line is the ordinary frame: a `Scene`, a `CameraNode`, a `
 
 ## What the browser costs
 
-Stated up front rather than left to be discovered. Three entries used to be here and are not any more; the page claimed them for months, so they are worth naming.
+Three entries used to be here and are not any more. The page claimed them for months, so they are named below.
 
 **Pointer capture works.** `pointer_lock` grew a browser backend over `document.requestPointerLock`, so the camera is the mouse. A page embedding the game needs `allow="pointer-lock"` on the iframe; this one has it.
 
@@ -85,7 +85,7 @@ Stated up front rather than left to be discovered. Three entries used to be here
 
 The WebGL backend shipped with every shader entry point the engine asked for and could not draw a single sphere.
 
-`lib/engine_shaders.dart` is generated — `flutter3d_shaders` translated to GLSL ES 3.00 by `tool/generate_shaders.dart` — and at the time nothing checked that it was current; its own header said as much. Cascaded shadows added `shadow_matrix_far` to the fragment uniform block, the generated file still had the old one, and the failure was exactly the one the HAL's contract names:
+`lib/engine_shaders.dart` is generated (`flutter3d_shaders` translated to GLSL ES 3.00 by `tool/generate_shaders.dart`), and at the time nothing checked that it was current; its own header said as much. Cascaded shadows added `shadow_matrix_far` to the fragment uniform block, the generated file still had the old one, and the failure was exactly the one the HAL's contract names:
 
 ```
 Bad state: uniform block "FragInfo" has no member "shadow_matrix_far".
@@ -97,7 +97,7 @@ shadow_matrix. The engine and the shader disagree about this block.
 Re-running the generator fixed it. **A caller naming a member the block does not have is an error rather than a zero**, which is the one direction of that mismatch that fails loudly, and it is why the block is checked by name at all. The other direction, a shader reading a member nobody wrote, gets zeros and draws an unlit scene with nothing reported anywhere.
 
 <div class="warn">
-<p>That generated file is the seam's weak point, and it is weak by design instead of by accident: the compiled Impeller bundle makes the same bargain. Both are build outputs that could go stale silently, and both are watched now — because this bug was not the last of them. <code>tool/ci.sh</code> regenerates the translation and fails on the diff, which is how the table was found holding a sky shader from before the sky was rewritten. The bundle cannot be diffed — it is a binary nothing on CI can build — so it is held by freshness instead: the <code>the compiled shader bundle is not older than its sources</code> rule compares it against the GLSL it was built from, for the engine's bundle and the demo's alike.</p>
+<p>That generated file is the seam's weak point, by design: the compiled Impeller bundle makes the same bargain. Both are build outputs that could go stale without anyone noticing, and both are watched now, because this bug was not the last of its kind. <code>tool/ci.sh</code> regenerates the translation and fails on the diff, which is how the table was found holding a sky shader from before the sky was rewritten. The bundle cannot be diffed, since it is a binary nothing on CI can build, so it is held to freshness instead: the <code>the compiled shader bundle is not older than its sources</code> rule compares it against the GLSL it was built from, for the engine's bundle and the demo's alike.</p>
 </div>
 
 ## Building it yourself
