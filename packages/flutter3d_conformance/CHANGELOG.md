@@ -1,3 +1,11 @@
+## 0.7.1
+
+**Released with the rest of the stack at 0.7.1.** Nothing in this package
+changed. The release it resolves against builds from pub.dev again and no
+longer crashes Metal on the first unlit draw.
+
+Its `flutter3d_*` dependencies ask for `^0.7.1`, and it asks for `vector_math` ^2.4.3.
+
 ## 0.7.0
 
 **Breaking.** `markTestSkipped` and `test`, this package's one Flutter

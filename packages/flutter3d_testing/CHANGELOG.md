@@ -1,4 +1,4 @@
-## Unreleased
+## 0.7.1
 
 * **A zero tolerance was never byte for byte, and now the README says so.**
   `tolerance` is the share of pixels allowed to differ, but a pixel only
@@ -7,6 +7,8 @@
   defaults stay as they were, and `expectMatchesGolden` takes `channel` and
   `alpha`, so a test with byte-exact references passes
   `channel: 0, alpha: true`.
+
+Its `flutter3d_*` dependencies ask for `^0.7.1`, and it asks for `vector_math` ^2.4.3.
 
 ## 0.7.0
 

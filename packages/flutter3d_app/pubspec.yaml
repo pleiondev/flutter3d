@@ -1,6 +1,6 @@
 name: flutter3d_app
 description: "What any Flutter application on flutter3d is assembled from: which backend to open and the runtime fallback, the surface a frame reaches Flutter through, widgets drawn in the scene, a level loaded into a scene, and storage."
-version: 0.7.0
+version: 0.7.1
 resolution: workspace
 repository: https://github.com/pleiondev/flutter3d
 homepage: https://flutter3d.pleion.dev
@@ -25,29 +25,29 @@ dependencies:
 
   # The renderer: the `Scene` and `RenderSettings` a surface hands over, and
   # the mesh nodes, lights and probes a level becomes.
-  flutter3d: ^0.7.0
+  flutter3d: ^0.7.1
 
   # The vocabulary the backend choice is made in. Neither backend appears in
   # any signature here — `openDevice` returns a `GraphicsDevice`.
-  flutter3d_hardware: ^0.7.0
+  flutter3d_hardware: ^0.7.1
 
   # The two implementations the conditional export in `backend_native.dart`/
   # `backend_web.dart` picks between by `dart.library.js_interop`, because the
   # two pull in incompatible worlds — `flutter_gpu` does not compile for the
   # web and `dart:js_interop` does not compile for macOS.
-  flutter3d_impeller: ^0.7.0
-  flutter3d_webgl: ^0.7.0
+  flutter3d_impeller: ^0.7.1
+  flutter3d_webgl: ^0.7.1
 
   # Two more that are not branches of that export — each is what one half
   # falls back to, or up to, at runtime, because the question each answers is
   # one no `dart.library.*` check can see.
-  flutter3d_cpu: ^0.7.0
-  flutter3d_webgpu: ^0.7.0
+  flutter3d_cpu: ^0.7.1
+  flutter3d_webgpu: ^0.7.1
 
   # The level document `LevelLoader` reads, and the collision world it builds.
   # Plain Dart, so an application that loads no level pays a resolve for it
   # and nothing else.
-  flutter3d_sim: ^0.7.0
+  flutter3d_sim: ^0.7.1
 
   # The wall clock `FrameClock.tick` reads. Not a `Stopwatch`: this one is
   # what `flutter_test` fakes, so a widget test's `pump` advances the frame
@@ -73,4 +73,4 @@ dev_dependencies:
   # written in the material language, and `MaterialProgramStage` is what lets
   # the software backend draw one. Not a real dependency: nothing in `lib/`
   # reaches it.
-  flutter3d_testing: ^0.7.0
+  flutter3d_testing: ^0.7.1

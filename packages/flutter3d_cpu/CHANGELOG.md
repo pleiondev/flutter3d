@@ -1,9 +1,17 @@
-## Unreleased
+## 0.7.1
 
 **`compareFrames` and `differingPixels` can compare alpha.** Both take
 `alpha: true` now, and `channel: 0` together with it is a byte-for-byte
 comparison. The defaults are unchanged: a pixel differs when red, green or
 blue is more than 8 steps off, and alpha is left out.
+
+**The mip level a texel reads is the same on every platform.** It came from
+`math.log`, which is the platform's libm, so the last bit of a footprint's
+logarithm could pick a different level on Linux than on a Mac. `portableLog2`
+takes the exponent from the bit pattern and the mantissa's logarithm from a
+series of plain arithmetic, and answers the same everywhere.
+
+Its `flutter3d_*` dependencies ask for `^0.7.1`, and it asks for `vector_math` ^2.4.3.
 
 ## 0.7.0
 

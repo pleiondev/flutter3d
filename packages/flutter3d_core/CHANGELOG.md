@@ -1,4 +1,4 @@
-## Unreleased
+## 0.7.1
 
 - **A surface with no normal map is flat again, whichever way its tangent
   runs.** The fallback normal texture stores 0.5 as byte 128, which decodes
@@ -27,6 +27,27 @@
   `LightingModel.usesLightList` says the stage reads it. That is new, defaults
   to `usesMaterialMaps`, round-trips through `.fmat` as `lightList`, and is
   false for anything the material language emits.
+
+- **The rest of a full read of the engine.** A failed frame no longer keeps its
+  texture out of rotation or leaves the timeline block open; a new shadow
+  resolution, a resize, `dispose` and `FrameResources.provide` release what
+  they replace. A flickering torch past the first eight lights keeps flickering,
+  a spot light taking over a point light's atlas row clears its tiles, and a
+  replaced `Sky` draws. `lookAt` and the IK solvers work under a scaled parent,
+  a skinned mesh is picked in its current pose and an instanced batch against
+  every instance, and morphs and skinned bounds stop culling a visible mesh.
+  `Scene.clear` is linear. `Material.copy` keeps the parameter block,
+  parameters and extra textures.
+- **The decoders refuse a bad file instead of hanging or reading past it.**
+  meshopt, sparse glTF accessors, `.f3d` record counts, zstd and HDR sizes and
+  KTX2 universal levels are checked, each with its own `FormatException`.
+  meshopt filters are refused by name rather than decoded as noise, OBJ keeps
+  corners with different UVs apart on the web, smooth OBJ normals follow
+  positions across UV seams, USDZ flips winding under a mirror, JPEG decodes
+  non-interleaved and multi-scan files, and `.fmat` keeps `mipLinear` and a
+  custom vertex stage.
+
+Its `flutter3d_*` dependencies ask for `^0.7.1`, and it asks for `vector_math` ^2.4.3, `image` ^4.10.1.
 
 ## 0.7.0
 

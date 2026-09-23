@@ -29,9 +29,9 @@ dependencies:
   flutter:
     sdk: flutter
 
-  flutter3d: ^0.7.0
-  flutter3d_impeller: ^0.7.0
-  flutter3d_particles: ^0.7.0
+  flutter3d: ^0.7.1
+  flutter3d_impeller: ^0.7.1
+  flutter3d_particles: ^0.7.1
 
   vector_math: ^2.2.0
 

@@ -28,7 +28,7 @@ flutter3d is a renderer, a game layer, and three finished games of different gen
 | | |
 |---|---|
 | Platforms | macOS and the browser are supported and exercised; Android is played on a real handset (Impeller Vulkan, touch controls); iOS runs clean in the simulator on Metal; Windows and Linux are unverified |
-| Published | Yes: all 38 packages are on [pub.dev](https://pub.dev/publishers/pleion.dev/packages). Thirty-five carry 0.7.0, published on 2026-09-21, so any `^0.7.0` resolves against every other; `pad_input` and `pointer_lock` keep their own line at 0.4.1 and `flutter3d_samples` at 0.4.3 |
+| Published | Yes: all 38 packages are on [pub.dev](https://pub.dev/publishers/pleion.dev/packages). Thirty-six carry 0.7.1, so any `^0.7.1` resolves against every other; `pad_input` and `pointer_lock` keep their own line at 0.4.1 |
 | Stability | Pre-1.0. The graphics HAL carries a written compatibility promise; nothing else does |
 
 ## Where to start

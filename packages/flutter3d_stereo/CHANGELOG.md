@@ -1,3 +1,11 @@
+## 0.7.1
+
+**`applyLessonStep` takes `restPositions`**, so a step's `offsets` place each
+node at its rest position plus what the step names: a model taken apart in
+layers, as the flat lesson player already did.
+
+Its `flutter3d_*` dependencies ask for `^0.7.1`, and it asks for `vector_math` ^2.4.3.
+
 ## 0.7.0
 
 * **The first publication, and the number skips from 0.1.1.** 0.1.0 and 0.1.1

@@ -91,14 +91,14 @@ tool/ci.sh                                  # shaders, analyze, every test
 (cd packages/flutter3d_physics && dart test) # plain Dart, no Flutter needed
 ```
 
-There are 9848 tests across 38 packages and twelve applications, and only about thirty need a GPU: the Impeller half of the golden set. The other half renders through the software backend, so forty-four scenes stay checkable in a headless run.
+There are 9862 tests across 38 packages and twelve applications, and only about thirty need a GPU: the Impeller half of the golden set. The other half renders through the software backend, so forty-four scenes stay checkable in a headless run.
 
 ## Your own application
 
 A new app needs three things in its pubspec: the engine, a backend, and whatever else it draws with. The backend is named on purpose, because it is the one line an application changes to run on a different graphics API.
 
 <div class="note">
-<p>The 0.7.0 set is on <a href="https://pub.dev/publishers/pleion.dev/packages">pub.dev</a>, so the <code>^0.7.0</code> lines below resolve as written. If you are moving a project from 0.6.0, several packages were folded into others; <code>doc/boundary-0.7.0.md</code> in the repository lists which import lines move.</p>
+<p>The 0.7.1 set is on <a href="https://pub.dev/publishers/pleion.dev/packages">pub.dev</a>, so the <code>^0.7.1</code> lines below resolve as written. Skip 0.7.0: installed from pub.dev, its Impeller build hook fails before the first test, and on macOS and iOS an unlit material crashes the first frame. If you are moving a project from 0.6.0, several packages were folded into others; <code>doc/boundary-0.7.0.md</code> in the repository lists which import lines move.</p>
 </div>
 
 ```yaml
@@ -118,9 +118,9 @@ dependencies:
   #   flutter3d_webgl    -> WebGL2, in the browser
   #   flutter3d_webgpu   -> WebGPU, in a browser that has an adapter
   #   flutter3d_cpu      -> software, rasterises in Dart (tests, goldens)
-  flutter3d_impeller: ^0.7.0
+  flutter3d_impeller: ^0.7.1
 
-  flutter3d: ^0.7.0
+  flutter3d: ^0.7.1
 
   vector_math: ^2.2.0
 ```

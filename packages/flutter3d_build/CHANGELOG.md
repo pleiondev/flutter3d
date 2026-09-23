@@ -1,3 +1,10 @@
+## 0.7.1
+
+**The manifest's doc says what `glob` 2.2.0 does:** `**/*.obj` matches a
+root-level `a.obj` as well as `props/a.obj`.
+
+Its `flutter3d_*` dependencies ask for `^0.7.1`, and it asks for `code_assets` ^2.1.0, `glob` ^2.2.0, `yaml` ^3.1.4, `image` ^4.10.1, `vector_math` ^2.4.3.
+
 ## 0.7.0
 
 * **The first publication.** The 0.6.0 below was a number carried inside the

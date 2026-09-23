@@ -1,6 +1,6 @@
 name: flutter3d
 description: "A 3D engine on Flutter GPU: scene graph, glTF/OBJ/.f3d loading, PBR, shadows, bloom, skinning."
-version: 0.7.0
+version: 0.7.1
 repository: https://github.com/pleiondev/flutter3d
 homepage: https://flutter3d.pleion.dev
 issue_tracker: https://github.com/pleiondev/flutter3d/issues
@@ -25,13 +25,13 @@ dependencies:
   # `assetUriResolver`, `defaultImageDecoder`, `ModelAsset` and
   # `bindMaterial`/`loadMaterial` are what stayed, each because a default
   # value or a Flutter type has to be declared somewhere that can name one.
-  flutter3d_core: ^0.7.0
+  flutter3d_core: ^0.7.1
 
   # The graphics vocabulary this package is written against. **Not** a
   # backend: `flutter3d` names no graphics API at all, which is what lets an
   # application choose one — `flutter3d_impeller` today — and what would let a WebGL
   # backend exist without touching the engine.
-  flutter3d_hardware: ^0.7.0
+  flutter3d_hardware: ^0.7.1
 
   vector_math: ^2.4.3
 
@@ -49,7 +49,7 @@ dev_dependencies:
   # The Khronos test models, which every decoder test reads from disk. A dev
   # dependency and not a real one: an application that draws a scene needs the
   # decoders and not the fixtures they were checked with.
-  flutter3d_samples: ^0.4.3
+  flutter3d_samples: ^0.7.1
 
   # The one direction this dependency can run in: `flutter3d_cpu` depends on
   # `flutter3d_hardware`, never on this package, so the tests that draw a real
@@ -57,11 +57,11 @@ dev_dependencies:
   # pinned elsewhere in this suite live here instead, dev-depending on the
   # backend rather than the reverse (mcp-02n, once `flutter3d_cpu` could no
   # longer carry a test naming the Flutter SDK-dependent engine).
-  flutter3d_cpu: ^0.7.0
+  flutter3d_cpu: ^0.7.1
   # `pro-sc-01`'s own benchmark alone: an `EditMesh` big enough to sculpt is
   # built here and uploaded through `flutter3d_cpu`. Not a real dependency —
   # nothing in `lib/` reaches it.
-  flutter3d_mesh: ^0.7.0
+  flutter3d_mesh: ^0.7.1
 
 # **This package declares no assets, and that is a decision worth the paragraph.**
 #

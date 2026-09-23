@@ -1,3 +1,10 @@
+## 0.7.1
+
+**New projects ask for `^0.7.1`.** The scaffold templates wrote `^0.7.0`,
+which resolves to a release that does not build from pub.dev.
+
+Its `flutter3d_*` dependencies ask for `^0.7.1`, and it asks for `vector_math` ^2.4.3.
+
 ## 0.7.0
 
 * **`scaffold` writes a project against the packages that exist now.** The
