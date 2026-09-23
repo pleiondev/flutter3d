@@ -1508,6 +1508,9 @@ precision highp samplerCube;
 // header must therefore not declare one: a block declared and unbound is a
 // dropped draw on WebGL2 and a phantom bind on Impeller. See surface.glsl.
 #define F3D_NO_POINT_SHADOW
+// The light list too, for the same reason, and that one was not caught before
+// 0.7.0 shipped: see surface.glsl.
+#define F3D_NO_LIGHT_LIST
 // --- lib/surface.glsl ---
 // Shared material and lighting interface for the lighting models.
 //
@@ -1829,6 +1832,15 @@ void WriteDisplayColor(vec3 displayColor, float alpha) {
 ///
 /// The same four vectors the uniform arrays hold, in the same order, so one
 /// reader serves both.
+///
+/// **`F3D_NO_LIGHT_LIST` leaves both out**, for a model that accumulates no
+/// lights. Such a model never reaches the reader below, so the compiler drops
+/// the block and the sampler from the Metal function while reflection still
+/// lists them, with no buffer or texture index assigned. The renderer used to
+/// bind them for every draw, Unlit included, and that bind is a crash inside
+/// `setFragmentBuffer:offset:atIndex:` on Metal. Vulkan took the same draw
+/// without a word, which is how 0.7.0 shipped with it.
+#ifndef F3D_NO_LIGHT_LIST
 uniform sampler2D light_list_texture;
 
 layout(std140) uniform LightListInfo {
@@ -1873,6 +1885,7 @@ float LightListRow(int slot) {
 float LightListScale(int slot) {
   return LightListLane(light_list_info.scales[slot / 4], slot);
 }
+#endif  // F3D_NO_LIGHT_LIST
 
 layout(std140) uniform FragInfo {
   /// xyz: world position (point and spot). w: type, 0 directional 1 point 2 spot.
@@ -2062,8 +2075,12 @@ Surface ReadSurface() {
 }
 
 int LightCount() {
+#ifdef F3D_NO_LIGHT_LIST
+  return clamp(int(frag_info.frame_params.y + 0.5), 0, kMaxLights);
+#else
   return clamp(int(frag_info.frame_params.y + 0.5), 0, kMaxLights) +
       clamp(int(light_list_info.list.x + 0.5), 0, kExtraLights);
+#endif
 }
 
 /// Whether light [index] carries a shadow — `gfx-74n`.
@@ -2201,6 +2218,13 @@ LightSample SampleLight(int index, Surface s) {
     direction = frag_info.light_direction[index];
     cone = frag_info.light_cone[index];
   } else {
+#ifdef F3D_NO_LIGHT_LIST
+    // Unreachable: `LightCount` stops at the slots without a list.
+    position = vec4(0.0);
+    color = vec4(0.0);
+    direction = vec4(0.0);
+    cone = vec4(0.0);
+#else
     // A row of the light list — `gfx-74n`. Sampled at texel centres so a
     // driver's rounding cannot land a fetch on a neighbour, and the four texels
     // across the row are the same four vectors the arrays above hold.
@@ -2219,6 +2243,7 @@ LightSample SampleLight(int index, Surface s) {
     // The intensity and not the colour, for `LightBuffer._pack`'s own reason:
     // the same multiply here, and only one of them is a number nobody authored.
     color.w *= LightListScale(slot);
+#endif  // F3D_NO_LIGHT_LIST
   }
 
   float type = position.w;
@@ -2818,6 +2843,7 @@ precision highp samplerCube;
 // passes; the reverse — declaring an output the target has no slot for — is
 // the one that crashes Metal.
 #define F3D_NO_POINT_SHADOW
+#define F3D_NO_LIGHT_LIST
 #define F3D_NO_SURFACE_BUFFER
 // --- lib/surface.glsl ---
 // Shared material and lighting interface for the lighting models.
@@ -3140,6 +3166,15 @@ void WriteDisplayColor(vec3 displayColor, float alpha) {
 ///
 /// The same four vectors the uniform arrays hold, in the same order, so one
 /// reader serves both.
+///
+/// **`F3D_NO_LIGHT_LIST` leaves both out**, for a model that accumulates no
+/// lights. Such a model never reaches the reader below, so the compiler drops
+/// the block and the sampler from the Metal function while reflection still
+/// lists them, with no buffer or texture index assigned. The renderer used to
+/// bind them for every draw, Unlit included, and that bind is a crash inside
+/// `setFragmentBuffer:offset:atIndex:` on Metal. Vulkan took the same draw
+/// without a word, which is how 0.7.0 shipped with it.
+#ifndef F3D_NO_LIGHT_LIST
 uniform sampler2D light_list_texture;
 
 layout(std140) uniform LightListInfo {
@@ -3184,6 +3219,7 @@ float LightListRow(int slot) {
 float LightListScale(int slot) {
   return LightListLane(light_list_info.scales[slot / 4], slot);
 }
+#endif  // F3D_NO_LIGHT_LIST
 
 layout(std140) uniform FragInfo {
   /// xyz: world position (point and spot). w: type, 0 directional 1 point 2 spot.
@@ -3373,8 +3409,12 @@ Surface ReadSurface() {
 }
 
 int LightCount() {
+#ifdef F3D_NO_LIGHT_LIST
+  return clamp(int(frag_info.frame_params.y + 0.5), 0, kMaxLights);
+#else
   return clamp(int(frag_info.frame_params.y + 0.5), 0, kMaxLights) +
       clamp(int(light_list_info.list.x + 0.5), 0, kExtraLights);
+#endif
 }
 
 /// Whether light [index] carries a shadow — `gfx-74n`.
@@ -3512,6 +3552,13 @@ LightSample SampleLight(int index, Surface s) {
     direction = frag_info.light_direction[index];
     cone = frag_info.light_cone[index];
   } else {
+#ifdef F3D_NO_LIGHT_LIST
+    // Unreachable: `LightCount` stops at the slots without a list.
+    position = vec4(0.0);
+    color = vec4(0.0);
+    direction = vec4(0.0);
+    cone = vec4(0.0);
+#else
     // A row of the light list — `gfx-74n`. Sampled at texel centres so a
     // driver's rounding cannot land a fetch on a neighbour, and the four texels
     // across the row are the same four vectors the arrays above hold.
@@ -3530,6 +3577,7 @@ LightSample SampleLight(int index, Surface s) {
     // The intensity and not the colour, for `LightBuffer._pack`'s own reason:
     // the same multiply here, and only one of them is a number nobody authored.
     color.w *= LightListScale(slot);
+#endif  // F3D_NO_LIGHT_LIST
   }
 
   float type = position.w;
@@ -4441,6 +4489,15 @@ void WriteDisplayColor(vec3 displayColor, float alpha) {
 ///
 /// The same four vectors the uniform arrays hold, in the same order, so one
 /// reader serves both.
+///
+/// **`F3D_NO_LIGHT_LIST` leaves both out**, for a model that accumulates no
+/// lights. Such a model never reaches the reader below, so the compiler drops
+/// the block and the sampler from the Metal function while reflection still
+/// lists them, with no buffer or texture index assigned. The renderer used to
+/// bind them for every draw, Unlit included, and that bind is a crash inside
+/// `setFragmentBuffer:offset:atIndex:` on Metal. Vulkan took the same draw
+/// without a word, which is how 0.7.0 shipped with it.
+#ifndef F3D_NO_LIGHT_LIST
 uniform sampler2D light_list_texture;
 
 layout(std140) uniform LightListInfo {
@@ -4485,6 +4542,7 @@ float LightListRow(int slot) {
 float LightListScale(int slot) {
   return LightListLane(light_list_info.scales[slot / 4], slot);
 }
+#endif  // F3D_NO_LIGHT_LIST
 
 layout(std140) uniform FragInfo {
   /// xyz: world position (point and spot). w: type, 0 directional 1 point 2 spot.
@@ -4674,8 +4732,12 @@ Surface ReadSurface() {
 }
 
 int LightCount() {
+#ifdef F3D_NO_LIGHT_LIST
+  return clamp(int(frag_info.frame_params.y + 0.5), 0, kMaxLights);
+#else
   return clamp(int(frag_info.frame_params.y + 0.5), 0, kMaxLights) +
       clamp(int(light_list_info.list.x + 0.5), 0, kExtraLights);
+#endif
 }
 
 /// Whether light [index] carries a shadow — `gfx-74n`.
@@ -4813,6 +4875,13 @@ LightSample SampleLight(int index, Surface s) {
     direction = frag_info.light_direction[index];
     cone = frag_info.light_cone[index];
   } else {
+#ifdef F3D_NO_LIGHT_LIST
+    // Unreachable: `LightCount` stops at the slots without a list.
+    position = vec4(0.0);
+    color = vec4(0.0);
+    direction = vec4(0.0);
+    cone = vec4(0.0);
+#else
     // A row of the light list — `gfx-74n`. Sampled at texel centres so a
     // driver's rounding cannot land a fetch on a neighbour, and the four texels
     // across the row are the same four vectors the arrays above hold.
@@ -4831,6 +4900,7 @@ LightSample SampleLight(int index, Surface s) {
     // The intensity and not the colour, for `LightBuffer._pack`'s own reason:
     // the same multiply here, and only one of them is a number nobody authored.
     color.w *= LightListScale(slot);
+#endif  // F3D_NO_LIGHT_LIST
   }
 
   float type = position.w;
@@ -6038,6 +6108,15 @@ void WriteDisplayColor(vec3 displayColor, float alpha) {
 ///
 /// The same four vectors the uniform arrays hold, in the same order, so one
 /// reader serves both.
+///
+/// **`F3D_NO_LIGHT_LIST` leaves both out**, for a model that accumulates no
+/// lights. Such a model never reaches the reader below, so the compiler drops
+/// the block and the sampler from the Metal function while reflection still
+/// lists them, with no buffer or texture index assigned. The renderer used to
+/// bind them for every draw, Unlit included, and that bind is a crash inside
+/// `setFragmentBuffer:offset:atIndex:` on Metal. Vulkan took the same draw
+/// without a word, which is how 0.7.0 shipped with it.
+#ifndef F3D_NO_LIGHT_LIST
 uniform sampler2D light_list_texture;
 
 layout(std140) uniform LightListInfo {
@@ -6082,6 +6161,7 @@ float LightListRow(int slot) {
 float LightListScale(int slot) {
   return LightListLane(light_list_info.scales[slot / 4], slot);
 }
+#endif  // F3D_NO_LIGHT_LIST
 
 layout(std140) uniform FragInfo {
   /// xyz: world position (point and spot). w: type, 0 directional 1 point 2 spot.
@@ -6271,8 +6351,12 @@ Surface ReadSurface() {
 }
 
 int LightCount() {
+#ifdef F3D_NO_LIGHT_LIST
+  return clamp(int(frag_info.frame_params.y + 0.5), 0, kMaxLights);
+#else
   return clamp(int(frag_info.frame_params.y + 0.5), 0, kMaxLights) +
       clamp(int(light_list_info.list.x + 0.5), 0, kExtraLights);
+#endif
 }
 
 /// Whether light [index] carries a shadow — `gfx-74n`.
@@ -6410,6 +6494,13 @@ LightSample SampleLight(int index, Surface s) {
     direction = frag_info.light_direction[index];
     cone = frag_info.light_cone[index];
   } else {
+#ifdef F3D_NO_LIGHT_LIST
+    // Unreachable: `LightCount` stops at the slots without a list.
+    position = vec4(0.0);
+    color = vec4(0.0);
+    direction = vec4(0.0);
+    cone = vec4(0.0);
+#else
     // A row of the light list — `gfx-74n`. Sampled at texel centres so a
     // driver's rounding cannot land a fetch on a neighbour, and the four texels
     // across the row are the same four vectors the arrays above hold.
@@ -6428,6 +6519,7 @@ LightSample SampleLight(int index, Surface s) {
     // The intensity and not the colour, for `LightBuffer._pack`'s own reason:
     // the same multiply here, and only one of them is a number nobody authored.
     color.w *= LightListScale(slot);
+#endif  // F3D_NO_LIGHT_LIST
   }
 
   float type = position.w;
@@ -7650,6 +7742,15 @@ void WriteDisplayColor(vec3 displayColor, float alpha) {
 ///
 /// The same four vectors the uniform arrays hold, in the same order, so one
 /// reader serves both.
+///
+/// **`F3D_NO_LIGHT_LIST` leaves both out**, for a model that accumulates no
+/// lights. Such a model never reaches the reader below, so the compiler drops
+/// the block and the sampler from the Metal function while reflection still
+/// lists them, with no buffer or texture index assigned. The renderer used to
+/// bind them for every draw, Unlit included, and that bind is a crash inside
+/// `setFragmentBuffer:offset:atIndex:` on Metal. Vulkan took the same draw
+/// without a word, which is how 0.7.0 shipped with it.
+#ifndef F3D_NO_LIGHT_LIST
 uniform sampler2D light_list_texture;
 
 layout(std140) uniform LightListInfo {
@@ -7694,6 +7795,7 @@ float LightListRow(int slot) {
 float LightListScale(int slot) {
   return LightListLane(light_list_info.scales[slot / 4], slot);
 }
+#endif  // F3D_NO_LIGHT_LIST
 
 layout(std140) uniform FragInfo {
   /// xyz: world position (point and spot). w: type, 0 directional 1 point 2 spot.
@@ -7883,8 +7985,12 @@ Surface ReadSurface() {
 }
 
 int LightCount() {
+#ifdef F3D_NO_LIGHT_LIST
+  return clamp(int(frag_info.frame_params.y + 0.5), 0, kMaxLights);
+#else
   return clamp(int(frag_info.frame_params.y + 0.5), 0, kMaxLights) +
       clamp(int(light_list_info.list.x + 0.5), 0, kExtraLights);
+#endif
 }
 
 /// Whether light [index] carries a shadow — `gfx-74n`.
@@ -8022,6 +8128,13 @@ LightSample SampleLight(int index, Surface s) {
     direction = frag_info.light_direction[index];
     cone = frag_info.light_cone[index];
   } else {
+#ifdef F3D_NO_LIGHT_LIST
+    // Unreachable: `LightCount` stops at the slots without a list.
+    position = vec4(0.0);
+    color = vec4(0.0);
+    direction = vec4(0.0);
+    cone = vec4(0.0);
+#else
     // A row of the light list — `gfx-74n`. Sampled at texel centres so a
     // driver's rounding cannot land a fetch on a neighbour, and the four texels
     // across the row are the same four vectors the arrays above hold.
@@ -8040,6 +8153,7 @@ LightSample SampleLight(int index, Surface s) {
     // The intensity and not the colour, for `LightBuffer._pack`'s own reason:
     // the same multiply here, and only one of them is a number nobody authored.
     color.w *= LightListScale(slot);
+#endif  // F3D_NO_LIGHT_LIST
   }
 
   float type = position.w;
@@ -9355,6 +9469,15 @@ void WriteDisplayColor(vec3 displayColor, float alpha) {
 ///
 /// The same four vectors the uniform arrays hold, in the same order, so one
 /// reader serves both.
+///
+/// **`F3D_NO_LIGHT_LIST` leaves both out**, for a model that accumulates no
+/// lights. Such a model never reaches the reader below, so the compiler drops
+/// the block and the sampler from the Metal function while reflection still
+/// lists them, with no buffer or texture index assigned. The renderer used to
+/// bind them for every draw, Unlit included, and that bind is a crash inside
+/// `setFragmentBuffer:offset:atIndex:` on Metal. Vulkan took the same draw
+/// without a word, which is how 0.7.0 shipped with it.
+#ifndef F3D_NO_LIGHT_LIST
 uniform sampler2D light_list_texture;
 
 layout(std140) uniform LightListInfo {
@@ -9399,6 +9522,7 @@ float LightListRow(int slot) {
 float LightListScale(int slot) {
   return LightListLane(light_list_info.scales[slot / 4], slot);
 }
+#endif  // F3D_NO_LIGHT_LIST
 
 layout(std140) uniform FragInfo {
   /// xyz: world position (point and spot). w: type, 0 directional 1 point 2 spot.
@@ -9588,8 +9712,12 @@ Surface ReadSurface() {
 }
 
 int LightCount() {
+#ifdef F3D_NO_LIGHT_LIST
+  return clamp(int(frag_info.frame_params.y + 0.5), 0, kMaxLights);
+#else
   return clamp(int(frag_info.frame_params.y + 0.5), 0, kMaxLights) +
       clamp(int(light_list_info.list.x + 0.5), 0, kExtraLights);
+#endif
 }
 
 /// Whether light [index] carries a shadow — `gfx-74n`.
@@ -9727,6 +9855,13 @@ LightSample SampleLight(int index, Surface s) {
     direction = frag_info.light_direction[index];
     cone = frag_info.light_cone[index];
   } else {
+#ifdef F3D_NO_LIGHT_LIST
+    // Unreachable: `LightCount` stops at the slots without a list.
+    position = vec4(0.0);
+    color = vec4(0.0);
+    direction = vec4(0.0);
+    cone = vec4(0.0);
+#else
     // A row of the light list — `gfx-74n`. Sampled at texel centres so a
     // driver's rounding cannot land a fetch on a neighbour, and the four texels
     // across the row are the same four vectors the arrays above hold.
@@ -9745,6 +9880,7 @@ LightSample SampleLight(int index, Surface s) {
     // The intensity and not the colour, for `LightBuffer._pack`'s own reason:
     // the same multiply here, and only one of them is a number nobody authored.
     color.w *= LightListScale(slot);
+#endif  // F3D_NO_LIGHT_LIST
   }
 
   float type = position.w;
@@ -13901,6 +14037,8 @@ precision highp samplerCube;
 // One attachment: this writes a shadow atlas, and the surface buffer belongs
 // to the scene pass.
 #define F3D_NO_SURFACE_BUFFER
+// No fog: shadow_depth.frag gives the reason.
+#define F3D_NO_FOG
 // --- lib/color.glsl ---
 // Colour space helpers and the fragment output interface.
 //
@@ -14498,6 +14636,8 @@ precision highp samplerCube;
 // tile than it would in a cascade.
 
 #define F3D_NO_SURFACE_BUFFER
+// No fog: shadow_depth.frag gives the reason.
+#define F3D_NO_FOG
 // --- lib/color.glsl ---
 // Colour space helpers and the fragment output interface.
 //
@@ -15072,6 +15212,8 @@ precision highp samplerCube;
 // that phantom block is a native crash on Metal. This stage declares a block of
 // its own and reads that.
 #define F3D_NO_SURFACE_BUFFER
+// No fog: shadow_depth.frag gives the reason.
+#define F3D_NO_FOG
 // --- lib/color.glsl ---
 // Colour space helpers and the fragment output interface.
 //

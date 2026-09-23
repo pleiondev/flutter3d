@@ -517,12 +517,18 @@ extension _MeshEncode on Renderer {
       // declared sampler nobody binds is a native crash on Metal and a declared
       // block nobody writes is the other way this repository has drawn a wrong
       // picture with no error anywhere.
-      _bindLightList(
-        encoder,
-        fragmentShader,
-        drawLights,
-        _buildLightList(lights),
-      );
+      //
+      // **Lit, and only lit.** The reverse is a crash too: an unlit stage
+      // keeps neither half, and binding them was the first frame of every
+      // unlit scene dying inside Metal's `setFragmentBuffer` on 0.7.0.
+      if (material.lighting.usesLightList) {
+        _bindLightList(
+          encoder,
+          fragmentShader,
+          drawLights,
+          _buildLightList(lights),
+        );
+      }
       encoder.bindUniformBlock(fragmentShader, _kFragInfoBlock, {
         // Whole arrays written from their reflected base offset. A backend
         // reflects the array, not its elements — `lights[0]` comes back

@@ -19,6 +19,8 @@
 // that phantom block is a native crash on Metal. This stage declares a block of
 // its own and reads that.
 #define F3D_NO_SURFACE_BUFFER
+// No fog: shadow_depth.frag gives the reason.
+#define F3D_NO_FOG
 #include <lib/color.glsl>
 
 uniform IdInfo {
