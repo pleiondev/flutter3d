@@ -15,7 +15,7 @@ dependencies:
   # Everything this tool does — decoding, encoding, `ExportReport` — is
   # already `flutter3d_core`'s formats library; this package is the CLI
   # around it, not a second copy of any of it.
-  flutter3d_core: ^0.7.1
+  flutter3d_core: ^0.8.0
 
 dev_dependencies:
   test: ^1.24.0

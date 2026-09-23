@@ -266,6 +266,18 @@ final class GpuCommandEncoder implements CommandEncoder {
           'arrives here.',
         );
       }
+      // Refused by name, as WebGL and WebGPU refuse it. It used to write on:
+      // an overrun short of the end landed on the next member's offset, a wrong
+      // picture with no error, and one past the end was an anonymous
+      // RangeError from `setFloat32` naming neither block nor member.
+      if (offset + values.length * 4 > size) {
+        throw StateError(
+          'uniform block "$blockName" member "$name" wants ${values.length} '
+          'floats at byte $offset, past the block\'s $size bytes. std140 pads '
+          'array elements to sixteen bytes; a tightly packed array of scalars '
+          'overruns exactly like this.',
+        );
+      }
       // Whole arrays written from their reflected base offset. Impeller
       // reflects the array, not its elements — `lights[0]` comes back null —
       // but the std140 stride for a vec4 array is a flat 16 bytes, so a
@@ -279,8 +291,13 @@ final class GpuCommandEncoder implements CommandEncoder {
     return true;
   }
 
+  /// False when the stage declares no sampler [slot], which flutter_gpu
+  /// reports by throwing "Failed to bind texture" after its native bind
+  /// returned false. Caught here and answered as the contract says, so the
+  /// same mistake is the same bool on every backend; it was the one uncaught
+  /// throw of 0.7.0 to 0.7.2, at the first draw of every polyline.
   @override
-  void bindTexture(
+  bool bindTexture(
     ShaderHandle shader,
     String slot,
     TextureHandle texture, {
@@ -295,11 +312,17 @@ final class GpuCommandEncoder implements CommandEncoder {
       'the "$slot" slot was handed a deviceTransient texture, which lives in '
       'tile memory and can only ever be an attachment',
     );
-    _pass.bindTexture(
-      (shader.backend as gpu.Shader).getUniformSlot(slot),
-      texture.gpuTexture,
-      sampler: (sampler ?? SamplerOptions.linearRepeat).toGpu(),
-    );
+    try {
+      _pass.bindTexture(
+        (shader.backend as gpu.Shader).getUniformSlot(slot),
+        texture.gpuTexture,
+        sampler: (sampler ?? SamplerOptions.linearRepeat).toGpu(),
+      );
+      return true;
+    } on Exception catch (error) {
+      if ('$error'.contains('Failed to bind texture')) return false;
+      rethrow;
+    }
   }
 
   @override

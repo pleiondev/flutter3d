@@ -14,8 +14,8 @@
 ///
 /// **Two tiers, and the split is a correction.** This file used to say it was
 /// shader-free as a whole, and that stopped being true the day a check needed a
-/// pipeline: twenty-eight of the thirty-seven link stages and draw. A new
-/// backend following the old promise would have met twenty-eight shader checks
+/// pipeline: twenty-nine of the thirty-eight link stages and draw. A new
+/// backend following the old promise would have met twenty-nine shader checks
 /// it could do nothing about, so the lists say which is which — [coreChecks]
 /// needs clears, uploads and readback alone, [shaderChecks] needs the bundle.
 /// The tiers answer "can this be asked yet", not "does this matter": the
@@ -212,7 +212,7 @@ void runDeviceConformance({
 /// **This list is why the two exist separately.** The library used to say it
 /// was shader-free as a whole, and it stopped being true the day the third
 /// check needed a pipeline — so a new backend, following the promise, would
-/// have hit twenty-eight shader checks it had no way to act on yet. Clears,
+/// have hit twenty-nine shader checks it had no way to act on yet. Clears,
 /// uploads and readback only: the answers here are the cheapest ones to get,
 /// and they are the ones worth having first.
 List<ConformanceCheck> get coreChecks => <ConformanceCheck>[
@@ -308,6 +308,12 @@ List<ConformanceCheck> get shaderChecks => <ConformanceCheck>[
   (
     name: 'a block missing a member the caller named is refused',
     run: checkUniformMemberMismatchIsRefused,
+  ),
+  // `bindTexture`'s own answer since 0.8.0: false for a slot the stage does
+  // not declare, on every backend that can tell.
+  (
+    name: 'a texture bound to a slot the stage lacks is false',
+    run: checkUndeclaredSamplerIsFalse,
   ),
   // The clamp the HAL promises for `SamplerOptions.anisotropy`: a request
   // above `maxAnisotropy` is lowered, never refused, on every backend.

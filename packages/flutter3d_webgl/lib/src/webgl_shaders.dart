@@ -39,7 +39,7 @@ final class ShaderSources {
 
 /// What a [ShaderHandle] carries here: a compiled stage and which kind it is.
 final class WebGlShader {
-  WebGlShader(this.shader, this.isVertex);
+  WebGlShader(this._shader, this.isVertex);
 
   /// The compiled object this stage currently is.
   ///
@@ -49,9 +49,52 @@ final class WebGlShader {
   /// one source — so keeping the `ShaderHandle` the renderer holds means
   /// swapping what sits behind it. `WebGlLoadedShaderLibrary.refresh` is the
   /// one writer, and it deletes the object it replaces.
-  web.WebGLShader shader;
+  web.WebGLShader get shader => _shader;
+  set shader(web.WebGLShader value) {
+    _shader = value;
+    _declared = null;
+  }
+
+  web.WebGLShader _shader;
   final bool isVertex;
+
+  /// The uniform blocks and samplers this stage's own source declares.
+  ///
+  /// **The program's reflection covers both stages; the contract asks of
+  /// one.** A block or sampler bound through the vertex handle that only the
+  /// fragment stage declares is false on Impeller and WebGPU, and was a quiet
+  /// success here. GL has no per-stage reflection, so the declarations are read
+  /// off the source the stage was compiled from, once per compile.
+  ({Set<String> blocks, Set<String> samplers}) declaredIn(
+    web.WebGL2RenderingContext gl,
+  ) => _declared ??= declarationsOf(gl.getShaderSource(_shader) ?? '');
+
+  ({Set<String> blocks, Set<String> samplers})? _declared;
 }
+
+/// The uniform block type names and sampler names a GLSL ES source declares.
+///
+/// Public for the test that holds it to the engine's own generated sources.
+({Set<String> blocks, Set<String> samplers}) declarationsOf(String source) {
+  // Comments first: the generated sources carry the GLSL's own, and those
+  // talk about uniform blocks in prose.
+  final code = source
+      .replaceAll(RegExp(r'/\*.*?\*/', dotAll: true), '')
+      .replaceAll(RegExp(r'//[^\n]*'), '');
+  return (
+    blocks: <String>{
+      for (final m in _blockDeclaration.allMatches(code)) m.group(1)!,
+    },
+    samplers: <String>{
+      for (final m in _samplerDeclaration.allMatches(code)) m.group(1)!,
+    },
+  );
+}
+
+final RegExp _blockDeclaration = RegExp(r'\buniform\s+(\w+)\s*\{');
+final RegExp _samplerDeclaration = RegExp(
+  r'\buniform\s+(?:(?:lowp|mediump|highp)\s+)?\w*sampler\w*\s+(\w+)\s*;',
+);
 
 /// Compiles one stage, or throws naming it and quoting the driver's log.
 ///
@@ -412,7 +455,7 @@ final class WebGlShaderLibrary implements ShaderLibrary {
     0x8DD4, // UNSIGNED_INT_SAMPLER_CUBE
   ].contains(type);
 
-  Map<String, int> _reflectSamplers(web.WebGLProgram program) {
+  Map<String, WebGlSampler> _reflectSamplers(web.WebGLProgram program) {
     final count =
         (_gl.getProgramParameter(
                   program,
@@ -420,14 +463,23 @@ final class WebGlShaderLibrary implements ShaderLibrary {
                 )!
                 as JSNumber)
             .toDartInt;
-    final samplers = <String, int>{};
+    final samplers = <String, WebGlSampler>{};
     for (var i = 0; i < count; i++) {
       final info = _gl.getActiveUniform(program, i);
       if (info == null) continue;
       final type = info.type;
       if (type == web.WebGLRenderingContext.SAMPLER_2D ||
           type == web.WebGLRenderingContext.SAMPLER_CUBE) {
-        samplers[info.name] = i;
+        // **Its own texture unit, for the life of the program.** Units used to
+        // be handed out per draw in bind order, while the sampler's `uniform1i`
+        // kept whatever number it was last given, so a sampler a draw did not
+        // bind read the unit another slot now held: a morph texture sampling
+        // the base colour, or a cube and a 2D texture on one unit and the draw
+        // dropped. The ordinal among the program's samplers never collides.
+        samplers[info.name] = (
+          unit: samplers.length,
+          cube: type == web.WebGLRenderingContext.SAMPLER_CUBE,
+        );
         continue;
       }
       // Anything else is not something this reflection knows how to bind, and

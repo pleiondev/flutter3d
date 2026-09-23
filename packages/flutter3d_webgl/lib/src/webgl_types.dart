@@ -55,17 +55,22 @@ final class WebGlTexture {
   bool get isSampleable => texture != null;
 }
 
+/// A sampler of a linked program: the texture unit it owns, and whether it
+/// samples a cube, which is the target a draw clears it on when it was left
+/// unbound.
+typedef WebGlSampler = ({int unit, bool cube});
+
 /// A linked program plus what reflection told us about it.
 final class WebGlProgram {
   WebGlProgram(
     this.program,
     List<WebGlAttribute> attributes,
     Map<String, WebGlBlock> blocks,
-    Map<String, int> samplers, {
+    Map<String, WebGlSampler> samplers, {
     this.layout,
   }) : attributes = List<WebGlAttribute>.unmodifiable(attributes),
        blocks = Map<String, WebGlBlock>.unmodifiable(blocks),
-       samplers = Map<String, int>.unmodifiable(samplers);
+       samplers = Map<String, WebGlSampler>.unmodifiable(samplers);
 
   final web.WebGLProgram program;
 
@@ -95,8 +100,9 @@ final class WebGlProgram {
   /// Uniform block name to its index and size.
   final Map<String, WebGlBlock> blocks;
 
-  /// Sampler uniform name to its texture unit.
-  final Map<String, int> samplers;
+  /// Sampler uniform name to the texture unit it owns for the life of the
+  /// program, and whether it samples a cube. See `_reflectSamplers`.
+  final Map<String, WebGlSampler> samplers;
 
   int get vertexFloats {
     var total = 0;

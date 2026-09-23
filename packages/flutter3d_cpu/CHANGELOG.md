@@ -1,3 +1,16 @@
+## 0.8.0
+
+**Bindings follow the contract.** `bindPipeline` forgets every binding, as
+the other backends do, and `clearBindings` forgets the vertex slots and the
+index buffer as well as the blocks and textures. This backend used to keep
+them, so a draw that missed a bind read the previous draw's and drew a
+plausible picture while Metal failed. `bindTexture` returns true.
+
+**`GeometryBuffer`'s offset and length are honoured**; a slice was read from
+byte zero with a stride worked out from the whole buffer.
+
+Its `flutter3d_*` dependencies ask for `^0.8.0`.
+
 ## 0.7.1
 
 **`compareFrames` and `differingPixels` can compare alpha.** Both take

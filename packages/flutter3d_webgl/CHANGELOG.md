@@ -1,3 +1,24 @@
+## 0.8.0
+
+**Each uniform block and sampler owns its binding point or texture unit for
+the life of the program.** They were numbered per draw while the program
+kept the old numbers, so a slot a draw did not bind read whatever another
+slot now held: a morph block reading `FragInfo`, or a cube and a 2D texture on
+one unit and the draw dropped. A declared slot left unbound now gets a zeroed
+block or an empty texture on its own number and is named in
+`debugDrainErrors`.
+
+**Binds are asked of the stage.** `bindUniformBlock` and `bindTexture` answer
+false for a block or sampler the given stage's source does not declare, even
+when the other stage does, as Impeller and WebGPU do.
+
+**`bindPipeline` forgets every binding every time**, the same program
+included, and a draw turns off its per-instance arrays: an instanced batch's
+buffer no longer steps per vertex into the next draw on the same pipeline.
+`GeometryBuffer`'s offset is honoured for vertices and indices.
+
+Its `flutter3d_*` dependencies ask for `^0.8.0`.
+
 ## 0.7.1
 
 **Every texture format uploads with its own type and size.** Everything but

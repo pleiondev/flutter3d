@@ -1,6 +1,6 @@
 name: flutter3d_game_strategy
 description: "A fourth genre: ground made of samples, units that move as a crowd rather than one at a time, and orders given to a selection instead of to a body."
-version: 0.7.1
+version: 0.8.0
 repository: https://github.com/pleiondev/flutter3d
 homepage: https://flutter3d.pleion.dev
 issue_tracker: https://github.com/pleiondev/flutter3d/issues
@@ -22,15 +22,15 @@ dependencies:
   # `Heightfield`, `HeightfieldGeometry` and `NavGrid.bakeHeightfield` are the
   # ground this genre is played on, and a floor is the one place that can say
   # the simulation underneath has them.
-  flutter3d_sim: ^0.7.1
+  flutter3d_sim: ^0.8.0
 
   # For `bridge.dart` and nothing else. The simulation under `src/` names
   # neither of these, and the structure rule that allows exactly one drawing
   # file is what keeps that true. `bridge.dart` calls `flutter3d_app`'s
   # `meshDataOf` to turn the ground's triangles into a mesh, the way the level
   # loader turns a brush into one.
-  flutter3d: ^0.7.1
-  flutter3d_app: ^0.7.1
+  flutter3d: ^0.8.0
+  flutter3d_app: ^0.8.0
 
   vector_math: ^2.4.3
 
@@ -40,7 +40,7 @@ dev_dependencies:
   flutter_lints: ^6.0.0
 
   # A device with no GPU behind it, so the drawing half is testable too.
-  flutter3d_cpu: ^0.7.1
+  flutter3d_cpu: ^0.8.0
 
 # The simulation half depends on nothing that draws, the same way the
 # platformer's does: a crowd of ten thousand was measured stepping in under a

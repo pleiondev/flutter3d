@@ -8,7 +8,7 @@ import 'editor_tools.dart';
 /// A constant, because a compiled server has no pubspec to read. It said
 /// 0.1.0 while the package moved on, since "kept beside the pubspec's" was a
 /// comment and nothing checked it; `server_version_test.dart` does now.
-const String editorMcpVersion = '0.7.1';
+const String editorMcpVersion = '0.8.0';
 
 /// A level editor, offered to an agent as a table of tools.
 ///

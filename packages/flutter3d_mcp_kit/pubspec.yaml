@@ -1,6 +1,6 @@
 name: flutter3d_mcp_kit
 description: "What every flutter3d MCP server shares: a table of tools that are their own handlers, answers that refuse without failing, and a loopback HTTP transport a running application can offer a session over."
-version: 0.7.1
+version: 0.8.0
 repository: https://github.com/pleiondev/flutter3d
 homepage: https://flutter3d.pleion.dev
 issue_tracker: https://github.com/pleiondev/flutter3d/issues
