@@ -423,6 +423,7 @@ LightingModel? _readLighting(
     usesMaterialParameters: value['materialParameters'] as bool? ?? true,
     usesMetallic: value['metallic'] as bool? ?? false,
     usesEnvironment: value['environment'] as bool? ?? false,
+    usesLightList: value['lightList'] as bool?,
   );
 }
 
@@ -446,6 +447,8 @@ Object _writeLighting(LightingModel model) {
       'materialMaps': model.usesMaterialMaps,
     if (model.usesMetallicRoughnessMap != model.usesMaterialMaps)
       'metallicRoughnessMap': model.usesMetallicRoughnessMap,
+    if (model.usesLightList != model.usesMaterialMaps)
+      'lightList': model.usesLightList,
     if (model.usesMaterialParameters != plain.usesMaterialParameters)
       'materialParameters': model.usesMaterialParameters,
     if (model.usesMetallic != plain.usesMetallic)
