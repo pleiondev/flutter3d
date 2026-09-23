@@ -31,7 +31,7 @@ dependencies:
   flutter3d_stereo:
     path: ../../packages/flutter3d_stereo
 
-  vector_math: ^2.2.0
+  vector_math: ^2.4.3
 
   flutter_bloc: ^9.1.1
 

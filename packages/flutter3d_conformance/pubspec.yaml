@@ -22,7 +22,7 @@ dependencies:
   # them take it as a dev dependency of their own.
   test: ^1.25.0
   flutter3d_hardware: ^0.7.0
-  vector_math: ^2.2.0
+  vector_math: ^2.4.3
   # The list of entry points a bundle must answer to.
   flutter3d_shaders: ^0.7.0
 

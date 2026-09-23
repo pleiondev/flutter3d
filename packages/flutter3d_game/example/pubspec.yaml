@@ -32,7 +32,7 @@ dependencies:
   flutter3d_sim:
     path: ../../flutter3d_sim
 
-  vector_math: ^2.2.0
+  vector_math: ^2.4.3
 
   # Screen state — loading, the error panel — kept in a Cubit rather than
   # spread across `setState` calls. See `RunSession`'s doc comment in

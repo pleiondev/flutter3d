@@ -53,7 +53,7 @@ dependencies:
   flutter3d_physics:
     path: ../../packages/flutter3d_physics
 
-  vector_math: ^2.2.0
+  vector_math: ^2.4.3
 
   # `net-03`: the second player's input arrives through this rather than
   # through a controller — see `lib/src/net_race.dart`.

@@ -42,7 +42,7 @@ dependencies:
   # Named directly because the HAL's own signatures do: a clear value and a
   # blend constant are `Vector4`, and an implementation of `PassEncoder` cannot
   # spell them without this.
-  vector_math: ^2.2.0
+  vector_math: ^2.4.3
 
   # `ap-06`: `hook/build.dart`'s own contract (`package:hooks`, the same
   # half `ap-00`'s spike proved stable, not `package:data_assets`), and a
