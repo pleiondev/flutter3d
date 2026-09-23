@@ -166,6 +166,12 @@ final class PadInput {
   final Map<String, ({GameAction action, double magnitude})> _speaking =
       <String, ({GameAction action, double magnitude})>{};
 
+  /// The analogue controls [tick] read this time round. One that spoke and
+  /// was not read (its binding removed, or [routes] swapped while it was
+  /// pressed) would otherwise hold its last magnitude for good, and win every
+  /// maximum its action takes.
+  final Set<String> _readThisTick = <String>{};
+
   final Vector2 _look = Vector2.zero();
 
   /// The only handle a [PadStickUse] gets on this pad.
@@ -210,6 +216,7 @@ final class PadInput {
       return;
     }
     _wasConnected = true;
+    _readThisTick.clear();
 
     _routeStick(
       routes.leftStick,
@@ -257,6 +264,14 @@ final class PadInput {
       }
 
       _digital(button.id, action, down: _snapshot.down(button));
+    }
+
+    // Whatever spoke and was not read this tick has been unbound or rerouted
+    // from under a press: it stops speaking, and its action is answered by
+    // what is left.
+    final gone = _speaking.keys.where((k) => !_readThisTick.contains(k));
+    for (final key in gone.toList()) {
+      _answer(_speaking.remove(key)!.action);
     }
   }
 
@@ -317,19 +332,38 @@ final class PadInput {
   void _analogue(String control, GameAction action, double magnitude) {
     final key = '$_analogueMark$control';
     final wasDown = _holding.containsKey(key);
-    final wasSpeaking = _speaking.containsKey(key);
+    _readThisTick.add(key);
 
+    final before = _speaking[key];
     if (magnitude > 0.0) {
       _speaking[key] = (action: action, magnitude: magnitude);
     } else {
       _speaking.remove(key);
     }
-    // **The harder press answers**, not whichever control was read last: two
-    // triggers on one action at 1.0 and 0.2 used to give 0.2, and letting one
-    // go withdrew the value the other had just written, so for that frame the
-    // action fell back to its held 1.0. Withdrawn rather than zeroed once no
-    // control speaks for it, so a key bound to the same action starts meaning
-    // something again. See the class doc.
+    // A control rebound to another action leaves the old one to be answered
+    // by whatever still presses it.
+    if (before != null && before.action != action) _answer(before.action);
+    _answer(action, spoke: before != null || magnitude > 0.0);
+
+    if (!wasDown && magnitude >= pressAt) {
+      _holding[key] = action;
+      state.press(action);
+    } else if (wasDown && magnitude <= releaseAt) {
+      _holding.remove(key);
+      state.release(action);
+    }
+  }
+
+  /// Sets [action] to the hardest press among the controls speaking for it.
+  ///
+  /// **The harder press answers**, not whichever control was read last: two
+  /// triggers on one action at 1.0 and 0.2 used to give 0.2, and letting one
+  /// go withdrew the value the other had just written, so for that frame the
+  /// action fell back to its held 1.0. Withdrawn rather than zeroed once no
+  /// control speaks for it, so a key bound to the same action starts meaning
+  /// something again; and only when one did, or an idle trigger would
+  /// withdraw a key's value every frame. See the class doc.
+  void _answer(GameAction action, {bool spoke = true}) {
     final strongest = _speaking.values
         .where((s) => s.action == action)
         .fold<double>(
@@ -338,16 +372,8 @@ final class PadInput {
         );
     if (strongest > 0.0) {
       state.setActionValue(action, strongest);
-    } else if (magnitude <= 0.0 && wasSpeaking) {
+    } else if (spoke) {
       state.clearActionValue(action);
-    }
-
-    if (!wasDown && magnitude >= pressAt) {
-      _holding[key] = action;
-      state.press(action);
-    } else if (wasDown && magnitude <= releaseAt) {
-      _holding.remove(key);
-      state.release(action);
     }
   }
 
