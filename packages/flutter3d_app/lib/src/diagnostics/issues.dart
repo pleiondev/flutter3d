@@ -1,5 +1,3 @@
-import 'package:flutter/foundation.dart' show debugPrint;
-
 /// Where a library says what it could not do.
 ///
 /// **Twelve places in three packages swallowed a failure into `debugPrint`**:
@@ -14,6 +12,10 @@ import 'package:flutter/foundation.dart' show debugPrint;
 ///
 /// The default is what the code did before — print it and carry on — so that
 /// nothing regresses for a caller that has not thought about it yet.
+library;
+
+import 'package:flutter/foundation.dart' show debugPrint;
+
 /// What a library is reporting.
 ///
 /// **One object rather than a bare string, so this can grow.** A function type

@@ -97,6 +97,13 @@ final class LoadedLevel {
   /// old ones first.
   List<DeviceMesh> brushMeshes;
 
+  /// Every map a `.fmat` material the level defers to uploaded for itself.
+  ///
+  /// Kept apart from [materialTextures] because nothing built after the load
+  /// shares these — they belong to one bound material each — and recorded at
+  /// all because [dispose] is the only place they can be given back.
+  final List<TextureHandle> boundTextures = <TextureHandle>[];
+
   /// The baked lightmap the brush batches sample, when the level came with
   /// one that matched it. Uploaded by the loader, released by [dispose].
   TextureHandle? lightmap;
@@ -125,6 +132,9 @@ final class LoadedLevel {
     }
     for (final texture in materialTextures.values) {
       if (texture != null) device.releaseTexture(texture);
+    }
+    for (final texture in boundTextures) {
+      device.releaseTexture(texture);
     }
     final map = lightmap;
     if (map != null) device.releaseTexture(map);
