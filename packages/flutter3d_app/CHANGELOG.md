@@ -1,3 +1,25 @@
+## 0.7.1
+
+**A widget drawn into a scene is unmounted when it goes.** `WidgetSurface` and
+`WidgetTexture` only finalized their tree, so no `State.dispose` ran and every
+ticker, controller and focus node stayed alive. `WidgetSurface` also releases
+the texture it replaces and its mesh, and ignores an upload that lands after a
+newer frame or after `dispose`. Textures bound for a level's `.fmat` materials
+and every terrain tile mesh are released with the level.
+
+**`ModelVisuals` and `PropVisuals`**, for a level's `model` and `prop`
+entities, live here beside `LevelLoader`. A `model` entity is a whole decoded
+hierarchy, so a lesson step can address a node inside it. Its asset loads
+through `loadModelByPath`, so an `assets_src/` path the build hook converted is
+found, and a model that finishes decoding after `dispose` is released instead
+of added to a scene nobody draws.
+
+`SceneSurface` clamps an unbounded constraint before rounding it and no longer
+throws inside a `Column`, and the level loader reads a `ByteData` view rather
+than its whole backing buffer.
+
+Its `flutter3d_*` dependencies ask for `^0.7.1`, and it asks for `clock` ^1.1.3, `vector_math` ^2.4.3.
+
 ## 0.7.0
 
 **Breaking.** What any application needs from `flutter3d_session` and

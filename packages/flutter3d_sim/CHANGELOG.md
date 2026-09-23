@@ -1,3 +1,11 @@
+## 0.7.1
+
+**A level without fog comes back without fog.** `Level.toJson` wrote
+`fogColor` even when the document never named one, and wrote the default back
+through float32, so a hand-written level failed a round trip on that key.
+
+Its `flutter3d_*` dependencies ask for `^0.7.1`, and it asks for `vector_math` ^2.4.3.
+
 ## 0.7.0
 
 * **Breaking. A `Demo` carries what a replay is verified against.** The

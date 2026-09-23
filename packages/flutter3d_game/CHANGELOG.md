@@ -1,3 +1,14 @@
+## 0.7.1
+
+**A restart chosen while the next level was loading stays a restart.**
+`RunSession.advance` loaded the next level on top of it and saved that.
+`TouchButton` releases the action it pressed, not whatever it holds at
+pointer-up, so a relaid-out button list no longer leaves an action held for
+good. `PadInput` tracks analogue state per control, so two triggers bound to
+one action stop cancelling each other.
+
+Its `flutter3d_*` dependencies ask for `^0.7.1`, and it asks for `vector_math` ^2.4.3, `vm_service` ^15.3.0.
+
 ## 0.7.0
 
 **Breaking.** Everything a game adds to an application is here, and

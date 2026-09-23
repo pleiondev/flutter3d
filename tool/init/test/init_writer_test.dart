@@ -64,7 +64,7 @@ void main() {
         final pubspec = File('${target.path}/pubspec.yaml').readAsStringSync();
         expect(pubspec, contains('name: my_${genre}_game'));
         expect(pubspec, isNot(contains('path:')));
-        expect(pubspec, contains('flutter3d: ^0.7.0'));
+        expect(pubspec, contains('flutter3d: ^0.7.1'));
       });
 
       test('writes a starter level a genre-agnostic reader can parse', () {

@@ -1,4 +1,4 @@
-## Unreleased
+## 0.7.1
 
 * **Stages that read no light list declare none.** `F3D_NO_LIGHT_LIST` leaves
   the block and its texture out of `lib/surface.glsl`, and `unlit.frag` and
@@ -7,6 +7,8 @@
   bound on 0.7.0. `object_id.frag` and the two point-shadow distance stages
   set `F3D_NO_FOG` for the same reason: they declared a fog block they never
   read, which on Vulkan collides with the vertex stage's binding.
+
+Its `flutter3d_*` dependencies ask for `^0.7.1`.
 
 ## 0.7.0
 

@@ -1,3 +1,8 @@
+## 0.7.1
+
+**Joins the stack's number.** Nothing in the assets changed; the package moves
+from 0.4.3 to 0.7.1 so that every `flutter3d_*` package carries one version.
+
 ## 0.4.3
 
 * `teapot.stl`: the same geometry as `teapot.obj`, converted by this

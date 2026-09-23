@@ -1,3 +1,15 @@
+## 0.7.1
+
+**Pipelines are cached on the compiled modules, not on stage names**, so a hot
+reload takes effect and an application's `Pbr` no longer collides with the
+engine's. A BGRA readback returns RGBA as the contract says, releasing a
+texture drops its cached bind groups, and a cube mip chain that is too long is
+refused when it is made.
+
+The shader table is regenerated from `flutter3d_shaders` 0.7.1.
+
+Its `flutter3d_*` dependencies ask for `^0.7.1`, and it asks for `vector_math` ^2.4.3.
+
 ## 0.7.0
 
 **Breaking.** `WebGpuDevice.present` is gone with `GraphicsDevice.present`
