@@ -67,10 +67,13 @@ void main() {
 /// in one 64×128 rgba16f texture, indexed by `(roughness, sqrt(1 − n·v))`
 /// scaled into texel centres. Rows 0–63 hold the inverse matrix, normalised
 /// by its middle element, as (m00, m02, m20, m22); rows 64–127 hold the
-/// fitted norm and Fresnel term in x and y, nothing in z, and the form
-/// factor of a sphere by the clipped cosine in w.
+/// fitted norm and Fresnel term in x and y, the directional albedo of the
+/// Charlie sheen lobe in z — `M2`, indexed by the sheen's own roughness —
+/// and the form factor of a sphere by the clipped cosine in w.
 ///
-/// The published fit of Heitz, Dupuy, Hill and Neubelt, "Real-Time
+/// The z lane is this engine's own: the Charlie distribution and Neubelt's
+/// visibility, as `lib/pbr.glsl` evaluates them, integrated over the
+/// hemisphere by `tool/make_tables.dart`. The rest is the published fit of Heitz, Dupuy, Hill and Neubelt, "Real-Time
 /// Polygonal-Light Shading with Linearly Transformed Cosines", ACM TOG 35(4),
 /// 2016, copied half for half from `tool/third_party/ltc/`:
 ///
@@ -98,7 +101,68 @@ Uint8List ltcTable() {
     return Uint8List.sublistView(dds, header);
   }
 
-  return Uint8List.fromList(<int>[...body('ltc_1.dds'), ...body('ltc_2.dds')]);
+  final table = Uint8List.fromList(<int>[
+    ...body('ltc_1.dds'),
+    ...body('ltc_2.dds'),
+  ]);
+  // `M2`: the sheen's albedo in the second table's empty z lane, on the same
+  // axes — roughness across, sqrt(1 − n·v) down.
+  final view = ByteData.sublistView(table);
+  for (var row = 0; row < 64; row++) {
+    final y = row / 63.0;
+    final nDotV = 1.0 - y * y;
+    for (var column = 0; column < 64; column++) {
+      final at = ((64 + row) * 64 + column) * 8 + 4;
+      view.setUint16(
+        at,
+        _toHalf(sheenAlbedo(nDotV, column / 63.0)),
+        Endian.little,
+      );
+    }
+  }
+  return table;
+}
+
+/// The least sheen roughness `lib/pbr.glsl` shades with: below it the
+/// Charlie lobe's exponent outgrows a half float.
+const double kSheenRoughnessFloor = 0.07;
+
+/// How much light the Charlie sheen lobe of [roughness] reflects towards a
+/// view at [nDotV], over a white hemisphere — the albedo `M2` scales the
+/// layer beneath by. The lobe is `D_Charlie · V_Neubelt · n·l`, with the
+/// floors `lib/pbr.glsl` applies, integrated by the midpoint rule in
+/// `cos θ` and `φ` (the view lies in the xz plane, so φ is folded in half).
+double sheenAlbedo(double nDotV, double roughness) {
+  final r = math.max(roughness, kSheenRoughnessFloor);
+  final invAlpha = 1.0 / (r * r);
+  final mu = math.max(nDotV, 1e-4);
+  final vx = math.sqrt(math.max(1.0 - mu * mu, 0.0));
+  const steps = 96;
+  const turns = 64;
+  var sum = 0.0;
+  for (var i = 0; i < steps; i++) {
+    final cosL = (i + 0.5) / steps;
+    final sinL = math.sqrt(1.0 - cosL * cosL);
+    for (var j = 0; j < turns; j++) {
+      final phi = (j + 0.5) / turns * math.pi;
+      final lx = sinL * math.cos(phi);
+      final ly = sinL * math.sin(phi);
+      final hx = lx + vx;
+      final hy = ly;
+      final hz = cosL + mu;
+      final nDotH = hz / math.sqrt(hx * hx + hy * hy + hz * hz);
+      final sin2h = math.max(1.0 - nDotH * nDotH, 0.0078125);
+      final d =
+          (2.0 + invAlpha) * math.pow(sin2h, invAlpha * 0.5) / (2.0 * math.pi);
+      final visibility = 1.0 / (4.0 * (cosL + mu - cosL * mu));
+      sum += d * visibility * cosL;
+    }
+  }
+  // dω = d(cos θ) dφ over φ in [0, 2π), folded: twice the half. Held to
+  // one: Neubelt's visibility is a fit, not a conserving term, and at the
+  // grazing edge of a smooth sheen it integrates to a hair over, which would
+  // scale the layer beneath below nothing.
+  return math.min(sum * (1.0 / steps) * (math.pi / turns) * 2.0, 1.0);
 }
 
 /// Entries per axis of a display transform table.

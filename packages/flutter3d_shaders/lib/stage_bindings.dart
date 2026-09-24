@@ -200,6 +200,7 @@ stageBindings = <String, ({Set<String> blocks, Set<String> samplers})>{
       'point_shadow_static_texture',
       'point_shadow_texture',
       'shadow_texture',
+      'sheen_texture',
     },
   ),
   'PolylineVertex': (

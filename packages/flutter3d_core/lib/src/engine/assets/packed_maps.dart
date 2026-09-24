@@ -55,6 +55,10 @@ Rgba8Image? packLanes(List<PackedLane> lanes) {
   return Rgba8Image(width: width, height: height, pixels: pixels);
 }
 
+/// A packed map on [device], as [uploadCoatMap] and [uploadSheenMap] share
+/// it.
+typedef PackedMap = ({TextureHandle texture, SamplerOptions sampler});
+
 /// [layers]' coat map on [device]: red the clear coat, green its roughness,
 /// blue and alpha white until transmission reads them. Null when neither
 /// texture is there or none of them decodes, which binds white — the factors
@@ -63,22 +67,39 @@ Rgba8Image? packLanes(List<PackedLane> lanes) {
 /// [image] decodes one binding's image; a caller that has already decoded it
 /// for another slot hands back the same pixels. The sampler is the first
 /// source's: a coat and its roughness authored together are sampled alike.
-Future<({TextureHandle texture, SamplerOptions sampler})?> uploadCoatMap(
+Future<PackedMap?> uploadCoatMap(
   GraphicsDevice device,
   MaterialExtensions layers, {
   required Future<Rgba8Image?> Function(TextureBinding binding) image,
-}) async {
-  final sources = layers.coatMapSources;
+}) => _uploadPacked(device, <({TextureBinding binding, int channel})?>[
+  for (final (lane, binding) in layers.coatMapSources.indexed)
+    binding == null ? null : (binding: binding, channel: lane),
+], image);
+
+/// [layers]' sheen map on [device] — `M2`: the sheen colour's red, green and
+/// blue, still sRGB as authored, and its roughness in alpha. Null, and white,
+/// as [uploadCoatMap].
+Future<PackedMap?> uploadSheenMap(
+  GraphicsDevice device,
+  MaterialExtensions layers, {
+  required Future<Rgba8Image?> Function(TextureBinding binding) image,
+}) => _uploadPacked(device, layers.sheenMapSources, image);
+
+Future<PackedMap?> _uploadPacked(
+  GraphicsDevice device,
+  List<({TextureBinding binding, int channel})?> sources,
+  Future<Rgba8Image?> Function(TextureBinding binding) image,
+) async {
   final lanes = <PackedLane>[
-    for (final (lane, binding) in sources.indexed)
-      switch (binding == null ? null : await image(binding)) {
-        final Rgba8Image decoded => (image: decoded, channel: lane),
+    for (final source in sources)
+      switch (source == null ? null : await image(source.binding)) {
+        final Rgba8Image decoded => (image: decoded, channel: source!.channel),
         null => null,
       },
   ];
   final packed = packLanes(lanes);
   if (packed == null) return null;
-  final sampling = sources.nonNulls.first.sampling;
+  final sampling = sources.nonNulls.first.binding.sampling;
   final texture = uploadRgba8(device, packed, sampling: sampling);
   return texture == null
       ? null

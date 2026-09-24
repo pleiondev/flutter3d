@@ -890,6 +890,8 @@ uniformBlocks = <String, Map<String, Map<String, UniformMemberLayout>>>{
     'LayerInfo': <String, UniformMemberLayout>{
       'specular': (offset: 0, byteLength: 16, elements: 1, type: 'Vector4'),
       'coat': (offset: 16, byteLength: 16, elements: 1, type: 'Vector4'),
+      'sheen': (offset: 32, byteLength: 16, elements: 1, type: 'Vector4'),
+      'anisotropy': (offset: 48, byteLength: 16, elements: 1, type: 'Vector4'),
     },
     'LightListInfo': <String, UniformMemberLayout>{
       'list': (offset: 0, byteLength: 16, elements: 1, type: 'Vector4'),

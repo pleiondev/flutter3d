@@ -196,8 +196,8 @@ final class ModelAsset {
       return uploaded;
     }
 
-    // The pixels of each image a coat map packs, decoded once however many
-    // materials pack it — `M1`.
+    // The pixels of each image the layers' maps pack, decoded once however
+    // many materials pack it — `M1`.
     final decodedCache = <int, Future<Rgba8Image?>>{};
     Future<Rgba8Image?> decodedImage(int imageIndex) {
       if (imageIndex < 0 || imageIndex >= document.images.length) {
@@ -208,7 +208,7 @@ final class ModelAsset {
           return await decodeImage(document.images[imageIndex].bytes);
         } catch (_) {
           warnings.add(
-            'images[$imageIndex] could not be decoded for a coat map; the '
+            'images[$imageIndex] could not be decoded for a packed map; the '
             'material falls back to its factors.',
           );
           return null;
@@ -285,9 +285,8 @@ final class ModelAsset {
           document.materials[index],
           lighting: lighting,
           textureFor: textureFor,
-          coatMapFor: (layers) => uploadCoatMap(
-            device,
-            layers,
+          layerImages: (
+            device: device,
             image: (binding) => decodedImage(binding.imageIndex),
           ),
         );
