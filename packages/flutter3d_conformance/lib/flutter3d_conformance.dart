@@ -71,6 +71,21 @@ import 'src/shader_link_checks.dart';
 import 'src/stencil_checks.dart';
 import 'src/vertex_texture_checks.dart';
 
+export 'src/fuzz/fuzz.dart'
+    show
+        FoldPowerOfTwo,
+        FuzzDraw,
+        FuzzFinding,
+        FuzzProgram,
+        FuzzRandom,
+        FuzzTransform,
+        SplitDraw,
+        SwapDisjointDraws,
+        drawFuzzProgram,
+        fuzzSeed,
+        generateFuzzProgram,
+        shrinkFinding,
+        transformsFor;
 export 'src/loaded_bundle_checks.dart'
     show OwnShaderSection, loadedBundleChecks;
 
