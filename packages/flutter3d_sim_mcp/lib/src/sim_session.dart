@@ -151,15 +151,31 @@ final class SimSession {
     // The step counter is the loop's own state; the claim is asked once a
     // step, after the step has run.
     var holds = already;
-    while (!holds && _step - from < limit) {
+    // A game that removes what it kills can take the claim's subject out of
+    // the reading mid-run; that ends the run as a claim about nobody, with
+    // the tape that got there still written.
+    String? lost;
+    while (!holds && lost == null && _step - from < limit) {
       _advance(run, moveX, moveY, lookX, lookY);
-      holds = claim.holds(run.reading);
+      try {
+        holds = claim.holds(run.reading);
+      } on ReadingPredicateException catch (error) {
+        lost = error.message;
+      }
     }
 
     final digest = StateDigest.of(run.save().toJson());
     final hex = digest.toRadixString(16).padLeft(8, '0');
-    final wrote = _writeDemo(path);
-    final evidence = wrote ?? 'wrote $path';
+    final failed = _writeDemo(path);
+    final evidence = failed ?? 'wrote $path';
+    // A claim that held but left no file behind is only the agent's word.
+    if (lost != null || failed != null) {
+      return _refuse(
+        '${claim.describe()}: ${holds ? 'held' : 'stopped'} at step $_step, '
+        'digest $hex${lost == null ? '' : ' — $lost'}. $evidence. '
+        '${run.summary}',
+      );
+    }
     return holds
         ? _ok(
             '${claim.describe()}: holds at step $_step, digest $hex, '
