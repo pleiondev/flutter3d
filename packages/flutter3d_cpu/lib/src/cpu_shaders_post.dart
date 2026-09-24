@@ -495,6 +495,25 @@ final class LuminanceShader implements CpuFragmentShader {
   }
 }
 
+/// `field_decay.frag`: every texel times a factor plus a constant — `H5`.
+final class FieldDecayShader implements CpuFragmentShader {
+  const FieldDecayShader();
+
+  @override
+  Vector4? run(Float32List v, ShaderBindings bindings, FragmentContext c) {
+    final field = bindings.textures['field_texture'];
+    if (field == null) return Vector4.zero();
+    final params = bindings.vec4('FieldDecayInfo', 'params', Vector4.zero());
+    final s = field.sample(v[0], v[1]);
+    return Vector4(
+      s.x * params.x + params.y,
+      s.y * params.x + params.y,
+      s.z * params.x + params.y,
+      s.w * params.x + params.y,
+    );
+  }
+}
+
 /// `mrt_probe.frag`: two constants into two attachments.
 ///
 /// It exists to answer whether a backend writes the second target at all, so

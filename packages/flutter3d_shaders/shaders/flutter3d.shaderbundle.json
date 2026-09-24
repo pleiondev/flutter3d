@@ -194,5 +194,9 @@
   "VertexTextureProbe": {
     "type": "fragment",
     "file": "shaders/probe/vertex_texture.frag"
+  },
+  "FieldDecay": {
+    "type": "fragment",
+    "file": "shaders/probe/field_decay.frag"
   }
 }

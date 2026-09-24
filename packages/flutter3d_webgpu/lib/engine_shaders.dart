@@ -18507,5 +18507,63 @@ fn main(@location(0) v_sampled: vec4<f32>) -> @location(0) vec4<f32> {
       blocks: <WebGpuBlock>[],
       samplers: <WebGpuSampler>[],
     ),
+    'FieldDecay': WebGpuStage(
+      wgsl: r'''
+struct FieldDecayInfo {
+    params: vec4<f32>,
+}
+
+var<private> frag_color: vec4<f32>;
+@group(1) @binding(1) 
+var field_texture_tex: texture_2d<f32>;
+@group(1) @binding(2) 
+var field_texture_smp: sampler;
+var<private> v_uv_1: vec2<f32>;
+@group(1) @binding(0) 
+var<uniform> field_decay: FieldDecayInfo;
+
+fn main_1() {
+    let _e9 = v_uv_1;
+    let _e10 = textureSampleLevel(field_texture_tex, field_texture_smp, _e9, 0f);
+    let _e13 = field_decay.params[0u];
+    let _e17 = field_decay.params[1u];
+    frag_color = ((_e10 * _e13) + vec4(_e17));
+    return;
+}
+
+@fragment 
+fn main(@location(5) v_uv: vec2<f32>) -> @location(0) vec4<f32> {
+    v_uv_1 = v_uv;
+    main_1();
+    let _e3 = frag_color;
+    return _e3;
+}
+''',
+      attributes: <WebGpuAttribute>[],
+      blocks: <WebGpuBlock>[
+        WebGpuBlock(
+          name: 'FieldDecayInfo',
+          group: 1,
+          binding: 0,
+          sizeInBytes: 16,
+          members: <WebGpuBlockMember>[
+            WebGpuBlockMember(
+              name: 'params',
+              offsetInBytes: 0,
+              sizeInBytes: 16,
+            ),
+          ],
+        ),
+      ],
+      samplers: <WebGpuSampler>[
+        WebGpuSampler(
+          name: 'field_texture',
+          group: 1,
+          textureBinding: 1,
+          samplerBinding: 2,
+          dimension: WebGpuTextureDimension.twoDimensional,
+        ),
+      ],
+    ),
   },
 );

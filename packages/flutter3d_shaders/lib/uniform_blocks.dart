@@ -213,6 +213,11 @@ uniformBlocks = <String, Map<String, Map<String, UniformMemberLayout>>>{
       'origin': (offset: 0, byteLength: 16, elements: 1, type: 'Vector4'),
     },
   },
+  'FieldDecay': <String, Map<String, UniformMemberLayout>>{
+    'FieldDecayInfo': <String, UniformMemberLayout>{
+      'params': (offset: 0, byteLength: 16, elements: 1, type: 'Vector4'),
+    },
+  },
   'Fxaa': <String, Map<String, UniformMemberLayout>>{
     'FxaaInfo': <String, UniformMemberLayout>{
       'params': (offset: 0, byteLength: 16, elements: 1, type: 'Vector4'),

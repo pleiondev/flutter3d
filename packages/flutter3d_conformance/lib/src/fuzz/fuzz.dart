@@ -567,8 +567,7 @@ Future<FuzzFinding> shrinkFinding(
 /// premultiplied RGBA8 rows from the top.
 Future<Uint8List> drawFuzzProgram(
   FuzzProgram program,
-  GraphicsDevice Function({required int width, required int height})
-  makeDevice,
+  GraphicsDevice Function({required int width, required int height}) makeDevice,
 ) => _draw(program, makeDevice);
 
 Future<Uint8List> _draw(
