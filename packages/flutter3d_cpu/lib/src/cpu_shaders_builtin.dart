@@ -60,6 +60,7 @@ import 'cpu_shaders_particles.dart';
 import 'cpu_shaders_polyline.dart';
 import 'cpu_shaders_post.dart';
 import 'cpu_shaders_probe.dart';
+import 'cpu_shaders_reactive.dart';
 import 'cpu_shaders_reflections.dart';
 import 'cpu_shaders_shadow_passes.dart';
 import 'cpu_shaders_sky.dart';
@@ -82,6 +83,7 @@ export 'cpu_shaders_motion_blur.dart';
 export 'cpu_shaders_particles.dart';
 export 'cpu_shaders_post.dart';
 export 'cpu_shaders_probe.dart';
+export 'cpu_shaders_reactive.dart';
 export 'cpu_shaders_reflections.dart';
 export 'cpu_shaders_shadow_directional.dart';
 export 'cpu_shaders_shadow_passes.dart';
@@ -176,6 +178,8 @@ Map<String, CpuStage> builtinCpuShaders() {
     'ContactShadow': const CpuStage.fragment(ContactShadowShader()),
     'CameraVelocity': const CpuStage.fragment(CameraVelocityShader()),
     'Velocity': const CpuStage.fragment(VelocityShader()),
+    'Reactive': const CpuStage.fragment(ReactiveShader()),
+    'ReactiveSprite': const CpuStage.fragment(ReactiveSpriteShader()),
     'TemporalResolve': const CpuStage.fragment(TemporalResolveShader()),
     'TemporalAccumulate': const CpuStage.fragment(TemporalAccumulateShader()),
     'IrradianceConvolve': const CpuStage.fragment(IrradianceConvolveShader()),

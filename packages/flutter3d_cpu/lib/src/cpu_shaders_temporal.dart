@@ -1,8 +1,9 @@
 /// `post/temporal_resolve.frag`, on the software rasteriser — `R2`.
 ///
 /// Line for line: the jittered read, the nearest-depth velocity, the
-/// Catmull-Rom history, the YCoCg box and the depth test on the history's
-/// alpha. See the GLSL for why each is there.
+/// Catmull-Rom history, the YCoCg box, the depth test on the history's
+/// alpha and the reactive mark in the velocity's blue (`R4`). See the GLSL
+/// for why each is there.
 library;
 
 import 'dart:math' as math;
@@ -192,7 +193,9 @@ final class TemporalResolveShader implements CpuFragmentShader {
       exposure,
     );
 
-    final keep = jitter.z * trust;
+    // `R4`: the reactive mark, at the pixel itself.
+    final reactive = velocity.sample(cu, cw).z.clamp(0.0, 1.0);
+    final keep = jitter.z * trust * (1.0 - reactive);
     final wCurrent = (1.0 - keep) / (1.0 + _luma(current) * exposure);
     final wHistory = keep / (1.0 + _luma(past) * exposure);
     final resolved =

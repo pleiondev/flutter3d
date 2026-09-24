@@ -95,12 +95,13 @@ Future<void> checkLinking(GraphicsDevice device) async {
     ]) ...<(String, String)>[(vertex, 'ObjectId'), (vertex, 'Xray')],
     // `R1`: the three stages a moved node is drawn through into the velocity
     // buffer, each with the one fragment stage that differences them.
+    // `R4`: and with the stage that marks a blended surface reactive, which
+    // reads one of the three things they hand on.
     for (final vertex in <String>[
       'VelocityVertex',
       'VelocitySkinnedVertex',
       'VelocityInstancedVertex',
-    ])
-      (vertex, 'Velocity'),
+    ]) ...<(String, String)>[(vertex, 'Velocity'), (vertex, 'Reactive')],
     ('ShadowTileResetVertex', 'ShadowTileReset'),
     // Every post stage the renderer builds a pipeline for, through the one
     // vertex stage they all share. The probe's convolution reads a cube through
@@ -159,6 +160,8 @@ Future<void> checkLinking(GraphicsDevice device) async {
     // this pair is the check that it really does read the same three
     // attributes and the same two varyings.
     ('ParticleVertex', 'Splat'),
+    // `R4`: both of them marked reactive, through the same vertex stage.
+    ('ParticleVertex', 'ReactiveSprite'),
     ('ParticleMeshVertex', 'ParticleMesh'),
     // The sky is the only pair where both stages are new at once, so it is the
     // one where a varying can disagree with nothing to compare against. Both

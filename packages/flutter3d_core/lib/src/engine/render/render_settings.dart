@@ -1604,6 +1604,8 @@ final class RenderSettings {
     // `R1`: the motion of every pixel, and then of what moved over it.
     'camera velocity',
     'object velocity',
+    // `R4`: what blends marked over it, for the resolve to trust less.
+    'reactive mask',
     // `R3`: the two noisy effects carried into their own histories.
     'ssao history',
     'contact shadow history',
@@ -2176,6 +2178,7 @@ final class TemporalSettings {
     this.sequenceLength = 16,
     this.historyWeight = 0.9,
     this.sharpen = 0.25,
+    this.reactive = 0.0,
   });
 
   final bool enabled;
@@ -2193,16 +2196,38 @@ final class TemporalSettings {
   /// one, to put back the softness a history always adds.
   final double sharpen;
 
+  /// How far particles, splats and blended surfaces cut the history under
+  /// them, from nought to one — `R4`. Nought, the default, is off exactly:
+  /// the pass that marks them is not run.
+  ///
+  /// **What it is for.** Nothing that blends writes a velocity, so an ember
+  /// crossing a wall is reprojected as the wall, and the resolve keeps
+  /// [historyWeight] of a past in which the ember was not there: it shows
+  /// dimmed and trails. Glass is the same with what moves across it. Each of
+  /// these marks the pixels it covers, by how much it covers them, in the
+  /// velocity target's blue; the resolve keeps `1 − reactive × coverage` of
+  /// its usual share of history there. One takes such a pixel almost wholly
+  /// from this frame, which is sharp and follows the ember, and gives up the
+  /// smoothing there — the trade every temporal resolve makes for what it
+  /// cannot track.
+  ///
+  /// A contributor takes part by overriding `PassContributor.encodeReactive`;
+  /// the engine's particles and splats do. Of the blended meshes, the
+  /// material's own alpha is the coverage — a texture's alpha is not read.
+  final double reactive;
+
   TemporalSettings copyWith({
     bool? enabled,
     int? sequenceLength,
     double? historyWeight,
     double? sharpen,
+    double? reactive,
   }) => TemporalSettings(
     enabled: enabled ?? this.enabled,
     sequenceLength: sequenceLength ?? this.sequenceLength,
     historyWeight: historyWeight ?? this.historyWeight,
     sharpen: sharpen ?? this.sharpen,
+    reactive: reactive ?? this.reactive,
   );
 }
 

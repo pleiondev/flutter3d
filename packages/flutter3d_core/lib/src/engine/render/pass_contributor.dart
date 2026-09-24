@@ -2,6 +2,7 @@ import 'dart:typed_data';
 
 import 'package:flutter3d_core/formats.dart';
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
+import 'package:flutter3d_shaders/typed_blocks.dart';
 import 'package:vector_math/vector_math.dart' as vm;
 
 import '../scene/scene.dart';
@@ -351,4 +352,111 @@ final class ContributorFrame {
   /// The view being drawn.
   final RenderView? view;
   final vm.Matrix4? viewProjection;
+}
+
+/// How a reactive sprite's coverage is worked out — `R4`, and the shapes
+/// `post/reactive_sprite.frag` knows, in its order.
+enum ReactiveShape {
+  /// `particle.frag`'s procedural disc: a squared smoothstep from the middle.
+  disc,
+
+  /// `splat.frag`'s Gaussian, with the quad's coordinates in standard
+  /// deviations.
+  gaussian,
+
+  /// The sprite texture's own alpha.
+  sprite,
+}
+
+/// Everything a contributor is handed to mark its pixels reactive — `R4`.
+///
+/// **A pass of its own, after the scene.** The mark lives in the velocity
+/// target's blue, and the velocity is drawn after the scene from the surface
+/// buffer the scene wrote, so a contributor draws its particles a second time
+/// here rather than into the scene pass. [PassContributor.encodeReactive] is
+/// that second draw: the same geometry, through its own vertex stage, with a
+/// fragment stage that writes how much of the pixel it covers instead of a
+/// colour.
+///
+/// The target has no depth attachment; the fragment stages test against the
+/// surface buffer instead, as the velocity passes do, which is why a draw
+/// here binds through [bindSprite] rather than naming the buffer itself.
+final class ReactiveFrame {
+  ReactiveFrame({
+    required this.encoder,
+    required this.device,
+    required this.view,
+    required this.viewProjection,
+    required TextureHandle surface,
+    required TextureHandle white,
+    required ReactiveInfoBlock info,
+  }) : // Private for the reason `Renderer`'s fallbacks are: a contributor
+       // binds these through [bindSprite] and has no business holding them.
+       // ignore: prefer_initializing_formals
+       _surface = surface,
+       // ignore: prefer_initializing_formals
+       _white = white,
+       // ignore: prefer_initializing_formals
+       _info = info;
+
+  /// The pass, open on the velocity target with the view's viewport set.
+  final PassEncoder encoder;
+
+  final GraphicsDevice device;
+
+  /// The view the velocity belongs to.
+  final RenderView view;
+
+  /// The matrix the scene pass drew [view] with — jittered while the resolve
+  /// runs — so a mark lands on the pixels the draw covered there.
+  final vm.Matrix4 viewProjection;
+
+  final TextureHandle _surface;
+  final TextureHandle _white;
+  final ReactiveInfoBlock _info;
+
+  /// What a reactive draw sets: added in, so the zeros in red, green and
+  /// alpha leave the velocity alone and overlapping sprites sum (the resolve
+  /// clamps the sum to one); no depth, since the target has none; no
+  /// culling, as a billboard has no back.
+  static const PassState state = PassState(
+    primitiveType: PrimitiveType.triangle,
+    polygonMode: PolygonMode.fill,
+    cullMode: CullMode.none,
+    blend: BlendState.additive,
+    depthWrite: false,
+    depthCompare: CompareFunction.always,
+  );
+
+  /// The fragment stage for what `particle.vert` draws, or null when the
+  /// bundle predates it — in which case a contributor draws nothing here, as
+  /// it would with any other missing stage.
+  ShaderHandle? get spriteStage => device.shaders['ReactiveSprite'];
+
+  /// Binds [fragment] — [spriteStage] — for sprites of [shape], with
+  /// [texture] as the sprite when the shape reads one.
+  ///
+  /// The stage declares a sprite whatever the shape, so a draw without one
+  /// is bound a white texel rather than leaving the slot empty.
+  void bindSprite(
+    ShaderHandle fragment,
+    ReactiveShape shape, {
+    TextureHandle? texture,
+  }) {
+    _info.params[1] = shape.index.toDouble();
+    encoder
+      ..bindBlock(fragment, _info)
+      ..bindTexture(
+        fragment,
+        'surface_texture',
+        _surface,
+        sampler: SamplerOptions.nearestClamp,
+      )
+      ..bindTexture(
+        fragment,
+        'sprite_texture',
+        texture ?? _white,
+        sampler: SamplerOptions.trilinearRepeat,
+      );
+  }
 }
