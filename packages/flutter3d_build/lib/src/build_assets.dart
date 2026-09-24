@@ -51,6 +51,7 @@ final class _CacheEntry {
     required this.formatVersion,
     required this.pipelineVersion,
     required this.textures,
+    required this.lods,
   });
 
   final String hash;
@@ -66,11 +67,18 @@ final class _CacheEntry {
   /// once, which is the right amount of rebuilding.
   final String textures;
 
+  /// Which level-of-detail ratios the manifest asked for — `C5` — and
+  /// whether an impostor ends them — `C4`. A rule that gains or changes either
+  /// changes nothing about the source's bytes, so without this the old file
+  /// would stand.
+  final String lods;
+
   factory _CacheEntry.fromJson(Map<String, Object?> json) => _CacheEntry(
     hash: json['hash']! as String,
     formatVersion: json['formatVersion']! as int,
     pipelineVersion: json['pipelineVersion']! as int,
     textures: json['textures'] as String? ?? '(unrecorded)',
+    lods: json['lods'] as String? ?? '',
   );
 
   Map<String, Object?> toJson() => <String, Object?>{
@@ -78,13 +86,15 @@ final class _CacheEntry {
     'formatVersion': formatVersion,
     'pipelineVersion': pipelineVersion,
     'textures': textures,
+    'lods': lods,
   };
 
   bool matches(_CacheEntry other) =>
       hash == other.hash &&
       formatVersion == other.formatVersion &&
       pipelineVersion == other.pipelineVersion &&
-      textures == other.textures;
+      textures == other.textures &&
+      lods == other.lods;
 }
 
 String _cachePath(AssetLayout layout) =>
@@ -141,11 +151,14 @@ Future<AssetBuildReport> runAssetBuild(
 
   for (final job in plan) {
     final bytes = File(job.source).readAsBytesSync();
+    final lods = job.rule?.lods ?? const <double>[];
+    final impostor = job.rule?.impostor ?? false;
     final entry = _CacheEntry(
       hash: sha256.convert(bytes).toString(),
       formatVersion: kF3dVersion,
       pipelineVersion: kAssetPipelineVersion,
       textures: textures.name,
+      lods: '${lods.join(',')}${impostor ? ' impostor' : ''}',
     );
     next[job.source] = entry;
 
@@ -161,6 +174,8 @@ Future<AssetBuildReport> runAssetBuild(
       sink,
       sink,
       textures: textures,
+      lods: lods,
+      impostor: impostor,
     );
     if (ok) converted.add(job.source);
   }

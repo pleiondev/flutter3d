@@ -795,28 +795,100 @@ class _EdgeHeap {
 /// the collapsed edge. Skin weights are merged and renormalized through
 /// [VertexAttributes.lerp], the same truncate-to-four-and-renormalize
 /// `mesh-61`'s own vertex split already relies on — not reimplemented here.
+///
+/// [targetError], when given, refuses every collapse whose error — see
+/// [SimplifiedMesh.error] for what that number measures — would exceed it, so
+/// the run stops short of [targetTriangleCount] rather than bend the shape
+/// further than asked. [simplifyMeshWithAttributesMeasured] is the same pass
+/// and also says how far it went.
 MeshData simplifyMeshWithAttributes(
   MeshData mesh, {
   required int targetTriangleCount,
+  double? targetError,
+  double flipThreshold = 0.0,
+  double boundaryWeight = 1000.0,
+  void Function(int collapsesDone, int collapsesTotal)? onProgress,
+  bool Function()? isCancelled,
+}) => simplifyMeshWithAttributesMeasured(
+  mesh,
+  targetTriangleCount: targetTriangleCount,
+  targetError: targetError,
+  flipThreshold: flipThreshold,
+  boundaryWeight: boundaryWeight,
+  onProgress: onProgress,
+  isCancelled: isCancelled,
+).mesh;
+
+/// What [simplifyMeshWithAttributesMeasured] made, and how far it had to bend
+/// the surface to make it.
+typedef SimplifiedMesh = ({
+  MeshData mesh,
+
+  /// The largest geometric error any accepted collapse reached, in the
+  /// mesh's own units: the square root of the merged vertex's quadric —
+  /// the summed squared distances from where it landed to the planes of
+  /// every original face it absorbed. Zero for a mesh returned unchanged or
+  /// simplified only across flat regions. **An upper bound, and a loose
+  /// one**: the planes are summed rather than maximised, so on a sphere cut
+  /// to a tenth it reads about six times the furthest any vertex actually
+  /// moved off the original. Good for comparing levels and for a budget, not
+  /// for a tolerance in millimetres.
+  ///
+  /// **The faces alone, not the boundary penalty.** The heap orders collapses
+  /// by the penalised cost so an open edge holds, but that penalty is a
+  /// thousand times a real plane and would report a hole's rim as having
+  /// moved thirty times further than it did.
+  ///
+  /// **Monotonic in the target.** The pass is deterministic, so a run to a
+  /// lower target is a run to a higher one continued, and the maximum over a
+  /// longer run is never below the maximum over its prefix — which is what
+  /// lets a chain of levels cut from one base promise errors that only grow.
+  double error,
+});
+
+/// [simplifyMeshWithAttributes], also reporting [SimplifiedMesh.error] — the
+/// number an automatic LOD chain (`C5`) writes beside each level and checks
+/// grows from one level to the next.
+SimplifiedMesh simplifyMeshWithAttributesMeasured(
+  MeshData mesh, {
+  required int targetTriangleCount,
+  double? targetError,
   double flipThreshold = 0.0,
   double boundaryWeight = 1000.0,
   void Function(int collapsesDone, int collapsesTotal)? onProgress,
   bool Function()? isCancelled,
 }) {
-  if (mesh.triangleCount <= targetTriangleCount) return mesh;
+  if (mesh.triangleCount <= targetTriangleCount) {
+    return (mesh: mesh, error: 0.0);
+  }
 
   final simplifier = _AttributedSimplifier.fromMesh(
     mesh,
     boundaryWeight: boundaryWeight,
   );
-  simplifier.run(
+  final worstCost = simplifier.run(
     targetTriangleCount: targetTriangleCount,
+    targetError: targetError,
     flipThreshold: flipThreshold,
     onProgress: onProgress,
     isCancelled: isCancelled,
   );
-  return simplifier.toMeshData();
+  return (mesh: simplifier.toMeshData(), error: math.sqrt(worstCost));
 }
+
+/// A quadric's value at a point: the summed squared distances from it to
+/// every plane the quadric holds.
+double _quadricCost(Float64List q, int o, double x, double y, double z) =>
+    q[o] * x * x +
+    q[o + 4] * y * y +
+    q[o + 7] * z * z +
+    2 * q[o + 1] * x * y +
+    2 * q[o + 2] * x * z +
+    2 * q[o + 5] * y * z +
+    2 * q[o + 3] * x +
+    2 * q[o + 6] * y +
+    2 * q[o + 8] * z +
+    q[o + 9];
 
 class _AttributedSimplifier {
   _AttributedSimplifier._(
@@ -826,6 +898,7 @@ class _AttributedSimplifier {
     this._vertexAlive,
     this._vertexVersion,
     this._quadrics,
+    this._faceQuadrics,
     this._vertexTriangles,
     this._isBoundary,
     this._normals,
@@ -912,6 +985,9 @@ class _AttributedSimplifier {
       if (triangleAlive[t] == 0) continue;
       _Simplifier._accumulatePlaneQuadric(positions, triangles, t, quadrics);
     }
+    // Taken before the boundary planes go in: what a collapse reports as its
+    // error is how far it moved off the real faces, not the penalty.
+    final faceQuadrics = Float64List.fromList(quadrics);
 
     // An edge touched by exactly one triangle is a boundary edge. Counted
     // once per triangle rather than deduplicated up front, since a triangle
@@ -988,6 +1064,7 @@ class _AttributedSimplifier {
       vertexAlive,
       vertexVersion,
       quadrics,
+      faceQuadrics,
       vertexTriangles,
       isBoundary,
       normals,
@@ -1003,6 +1080,10 @@ class _AttributedSimplifier {
   final Uint8List _vertexAlive;
   final Int32List _vertexVersion;
   final Float64List _quadrics;
+
+  /// [_quadrics] without the boundary penalty — what [run] measures a
+  /// collapse's error against.
+  final Float64List _faceQuadrics;
   final List<Set<int>> _vertexTriangles;
   final Uint8List _isBoundary;
   final Float64List? _normals;
@@ -1147,9 +1228,13 @@ class _AttributedSimplifier {
     return false;
   }
 
-  void run({
+  /// Collapses until [targetTriangleCount], and returns the largest face
+  /// quadric cost any accepted collapse reached — the square of
+  /// [SimplifiedMesh.error].
+  double run({
     required int targetTriangleCount,
     required double flipThreshold,
+    double? targetError,
     void Function(int collapsesDone, int collapsesTotal)? onProgress,
     bool Function()? isCancelled,
   }) {
@@ -1158,7 +1243,9 @@ class _AttributedSimplifier {
       (sum, alive) => sum + alive,
     );
     final collapsesNeeded = liveTriangleCount - targetTriangleCount;
-    if (collapsesNeeded <= 0) return;
+    if (collapsesNeeded <= 0) return 0.0;
+    final maxCost = targetError == null ? null : targetError * targetError;
+    var worstCost = 0.0;
 
     final heap = _EdgeHeap(math.max(64, _triangles.length));
     final seenEdges = <int>{};
@@ -1198,6 +1285,29 @@ class _AttributedSimplifier {
       if (_wouldFlip(b, a, target, flipThreshold)) {
         continue;
       }
+
+      // Measured against the faces the two vertices absorbed, both halves
+      // summed the way the merge below will sum them. A collapse past
+      // [targetError] is refused rather than ending the run: the heap is
+      // ordered by the penalised cost, so a cheaper-in-faces collapse can
+      // still be waiting behind this one.
+      final faceCost =
+          _quadricCost(
+            _faceQuadrics,
+            a * _quadricSize,
+            target.x,
+            target.y,
+            target.z,
+          ) +
+          _quadricCost(
+            _faceQuadrics,
+            b * _quadricSize,
+            target.x,
+            target.y,
+            target.z,
+          );
+      if (maxCost != null && faceCost > maxCost) continue;
+      worstCost = math.max(worstCost, faceCost);
 
       final removedTriangles = <int>[];
       for (final t in _vertexTriangles[a]) {
@@ -1293,6 +1403,8 @@ class _AttributedSimplifier {
       _positions[a * 3 + 2] = target.z;
       for (var k = 0; k < _quadricSize; k++) {
         _quadrics[a * _quadricSize + k] += _quadrics[b * _quadricSize + k];
+        _faceQuadrics[a * _quadricSize + k] +=
+            _faceQuadrics[b * _quadricSize + k];
       }
       _vertexVersion[a]++;
 
@@ -1313,10 +1425,11 @@ class _AttributedSimplifier {
       collapsesDone++;
       if (collapsesDone % 1000 == 0) {
         onProgress?.call(collapsesDone, collapsesNeeded);
-        if (isCancelled?.call() ?? false) return;
+        if (isCancelled?.call() ?? false) return worstCost;
       }
     }
     onProgress?.call(collapsesDone, collapsesNeeded);
+    return worstCost;
   }
 
   void _pushEdge(_EdgeHeap heap, int a, int b) {

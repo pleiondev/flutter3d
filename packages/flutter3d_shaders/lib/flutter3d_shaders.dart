@@ -103,4 +103,6 @@ const List<RequiredShader> kRequiredShaders = <RequiredShader>[
   (name: 'FieldDecay', fragment: true),
   (name: 'Xray', fragment: true),
   (name: 'WboitResolve', fragment: true),
+  (name: 'ImpostorVertex', fragment: false),
+  (name: 'Impostor', fragment: true),
 ];

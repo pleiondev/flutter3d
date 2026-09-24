@@ -15,6 +15,13 @@ export 'package:flutter3d_core/flutter3d_core.dart' show ModelPart;
 
 part 'model_instance.dart';
 
+/// An impostor level's uploaded card and atlases — see [ModelAsset.impostors].
+typedef ImpostorPart = ({
+  DeviceMesh card,
+  TextureHandle albedo,
+  TextureHandle normalDepth,
+});
+
 /// An immutable, GPU-resident model that can be placed in a scene any number of
 /// times.
 ///
@@ -33,11 +40,20 @@ final class ModelAsset {
     this.name,
     this.variants = const <String>[],
     this.materials = const <int, Material>{},
-  }) : skins = List.unmodifiable(skins),
+    Map<ModelImpostor, ImpostorPart> impostors =
+        const <ModelImpostor, ImpostorPart>{},
+  }) : impostors = Map.unmodifiable(impostors),
+       skins = List.unmodifiable(skins),
        nodes = nodes ?? _flatNodesFor(parts),
        roots = roots ?? <int>[for (var i = 0; i < parts.length; i++) i];
 
   final List<ModelPart> parts;
+
+  /// What each impostor level in [nodes] draws with — `C4`: its card and its
+  /// two atlases, uploaded once however many instances stand in a scene.
+  /// Keyed by the level's own [ModelImpostor]; empty for the model with none,
+  /// which is nearly every model.
+  final Map<ModelImpostor, ImpostorPart> impostors;
 
   /// The model's hierarchy, index-aligned with whatever the decoder produced.
   ///
@@ -326,6 +342,43 @@ final class ModelAsset {
       );
     }
 
+    // `C4`: an impostor's atlases are read by view, so no mip chain — a chain
+    // averages each view's cell into its neighbours'. A level whose atlases
+    // will not decode is dropped with a warning, and the chain ends at the
+    // coarsest mesh instead.
+    const atlasSampling = TextureSampling(
+      useMipmaps: false,
+      wrapS: TextureWrap.clampToEdge,
+      wrapT: TextureWrap.clampToEdge,
+    );
+    final impostors = <ModelImpostor, ImpostorPart>{};
+    for (final node in document.nodes) {
+      for (final lod in node.lods) {
+        final impostor = lod.impostor;
+        if (impostor == null) continue;
+        final albedo = await textureFor(impostor.albedoImage, atlasSampling);
+        final normalDepth = await textureFor(
+          impostor.normalDepthImage,
+          atlasSampling,
+        );
+        if (albedo == null || normalDepth == null) {
+          warnings.add(
+            '${node.name ?? 'a node'}: its impostor atlases did not decode; '
+            'its levels end at the coarsest mesh.',
+          );
+          continue;
+        }
+        impostors[impostor] = (
+          card: DeviceMesh.upload(
+            device,
+            impostorCard(centre: impostor.centre, radius: impostor.radius),
+          ),
+          albedo: albedo,
+          normalDepth: normalDepth,
+        );
+      }
+    }
+
     return ModelAsset(
       variants: document.variants,
       materials: <int, Material>{
@@ -334,6 +387,7 @@ final class ModelAsset {
       },
       name: name,
       parts: parts,
+      impostors: impostors,
       nodes: document.nodes,
       roots: document.roots,
       skins: document.skins,
@@ -359,6 +413,12 @@ final class ModelAsset {
   void release(GraphicsDevice device) {
     final meshes = Set<DeviceMesh>.identity();
     final textures = Set<TextureHandle>.identity();
+    for (final impostor in impostors.values) {
+      meshes.add(impostor.card);
+      textures
+        ..add(impostor.albedo)
+        ..add(impostor.normalDepth);
+    }
     for (final part in parts) {
       meshes.add(part.mesh);
       // A variant's material holds textures the default one may not.

@@ -286,5 +286,13 @@
   "WboitResolve": {
     "type": "fragment",
     "file": "shaders/post/wboit_resolve.frag"
+  },
+  "ImpostorVertex": {
+    "type": "vertex",
+    "file": "shaders/impostor.vert"
+  },
+  "Impostor": {
+    "type": "fragment",
+    "file": "shaders/lighting/impostor.frag"
   }
 }

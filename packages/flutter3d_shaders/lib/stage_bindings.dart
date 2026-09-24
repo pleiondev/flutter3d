@@ -89,6 +89,18 @@ stageBindings = <String, ({Set<String> blocks, Set<String> samplers})>{
   ),
   'FullscreenVertex': (blocks: <String>{}, samplers: <String>{}),
   'Fxaa': (blocks: <String>{'FxaaInfo'}, samplers: <String>{'source_texture'}),
+  'Impostor': (
+    blocks: <String>{'FogInfo', 'FragInfo', 'LightListInfo', 'PointShadow'},
+    samplers: <String>{
+      'base_color_texture',
+      'light_list_texture',
+      'normal_texture',
+      'point_shadow_static_texture',
+      'point_shadow_texture',
+      'shadow_texture',
+    },
+  ),
+  'ImpostorVertex': (blocks: <String>{'FrameInfo'}, samplers: <String>{}),
   'IrradianceConvolve': (
     blocks: <String>{'ConvolveInfo'},
     samplers: <String>{

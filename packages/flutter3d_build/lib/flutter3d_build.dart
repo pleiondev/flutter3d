@@ -6,8 +6,10 @@ library;
 
 export 'src/build_assets.dart';
 export 'src/convert.dart';
+export 'src/impostor_bake.dart';
 export 'src/init.dart';
 export 'src/layout.dart';
+export 'src/lod_generate.dart';
 export 'src/manifest.dart';
 export 'src/pipeline_version.dart';
 export 'src/texture_encode.dart';
