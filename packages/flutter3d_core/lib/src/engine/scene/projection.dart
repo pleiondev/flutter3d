@@ -420,6 +420,74 @@ final class TiledProjection extends Projection {
   }
 }
 
+/// [base] moved a fraction of a pixel across the screen — `R1`.
+///
+/// The same crop of NDC space [TiledProjection] makes, with a scale of one:
+/// a translation added after the projection, so every projection, off-axis
+/// and orthographic included, is jittered by the same amount on screen. The
+/// offset is in NDC units, where a pixel of a frame `width` wide is
+/// `2 / width`; [JitteredProjection.frame] does that conversion.
+final class JitteredProjection extends Projection {
+  const JitteredProjection(this.base, {required this.dx, required this.dy});
+
+  /// Frame [frame]'s offset from a Halton(2, 3) sequence of [length], for a
+  /// target [width] × [height] pixels.
+  factory JitteredProjection.frame(
+    Projection base, {
+    required int frame,
+    required int length,
+    required int width,
+    required int height,
+  }) {
+    final (x, y) = jitterOffset(frame, length);
+    return JitteredProjection(base, dx: 2.0 * x / width, dy: 2.0 * y / height);
+  }
+
+  final Projection base;
+
+  /// The offset in NDC units.
+  final double dx;
+  final double dy;
+
+  @override
+  double get near => base.near;
+
+  @override
+  double get far => base.far;
+
+  @override
+  double? get verticalFieldOfView => base.verticalFieldOfView;
+
+  @override
+  Matrix4 toMatrix(double aspect) {
+    final shift = Matrix4.identity()
+      ..setEntry(0, 3, dx)
+      ..setEntry(1, 3, dy);
+    return shift * base.toMatrix(aspect);
+  }
+}
+
+/// Frame [frame]'s sub-pixel offset, in pixels within `[-0.5, 0.5)`, from a
+/// Halton(2, 3) sequence that repeats every [length] frames — `R1`.
+///
+/// Counted from one, as the sequence usually is: its first point, (0, 0), is
+/// the pixel centre on both axes, and a cycle that spent a frame there would
+/// weight the centre twice.
+(double, double) jitterOffset(int frame, int length) {
+  final index = frame % (length < 1 ? 1 : length) + 1;
+  return (_halton(index, 2) - 0.5, _halton(index, 3) - 0.5);
+}
+
+double _halton(int index, int base) {
+  var fraction = 1.0;
+  var result = 0.0;
+  for (var i = index; i > 0; i ~/= base) {
+    fraction /= base;
+    result += fraction * (i % base);
+  }
+  return result;
+}
+
 /// [projection] expressed for [range].
 ///
 /// Cameras here build for [DepthRange.zeroToOne] — the Metal and Vulkan

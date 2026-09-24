@@ -16348,6 +16348,146 @@ fn main(@builtin(position) gl_FragCoord: vec4<f32>, @location(5) v_uv: vec2<f32>
         ),
       ],
     ),
+    'CameraVelocity': WebGpuStage(
+      wgsl: r'''
+struct CameraVelocityInfo {
+    inverse_view_projection: mat4x4<f32>,
+    previous_view_projection: mat4x4<f32>,
+    camera: vec4<f32>,
+    forward: vec4<f32>,
+}
+
+@group(1) @binding(1) 
+var surface_texture_tex: texture_2d<f32>;
+@group(1) @binding(2) 
+var surface_texture_smp: sampler;
+var<private> v_uv_1: vec2<f32>;
+@group(1) @binding(0) 
+var<uniform> velocity_info: CameraVelocityInfo;
+var<private> frag_color: vec4<f32>;
+
+fn UvFromNdc_u0028_vf2_u003b(ndc: ptr<function, vec2<f32>>) -> vec2<f32> {
+    let _e19 = (*ndc)[0u];
+    let _e23 = (*ndc)[1u];
+    return vec2<f32>(((_e19 * 0.5f) + 0.5f), (0.5f - (_e23 * 0.5f)));
+}
+
+fn main_1() {
+    var surface: vec4<f32>;
+    var xy: vec2<f32>;
+    var nearH: vec4<f32>;
+    var farH: vec4<f32>;
+    var origin: vec3<f32>;
+    var along: vec3<f32>;
+    var then: vec4<f32>;
+    var axis: vec3<f32>;
+    var world: vec3<f32>;
+    var param: vec2<f32>;
+
+    let _e27 = v_uv_1;
+    let _e28 = textureSample(surface_texture_tex, surface_texture_smp, _e27);
+    surface = _e28;
+    let _e30 = v_uv_1[0u];
+    let _e34 = v_uv_1[1u];
+    xy = vec2<f32>(((_e30 * 2f) - 1f), (1f - (_e34 * 2f)));
+    let _e39 = velocity_info.inverse_view_projection;
+    let _e40 = xy;
+    nearH = (_e39 * vec4<f32>(_e40.x, _e40.y, 0f, 1f));
+    let _e46 = velocity_info.inverse_view_projection;
+    let _e47 = xy;
+    farH = (_e46 * vec4<f32>(_e47.x, _e47.y, 1f, 1f));
+    let _e52 = nearH;
+    let _e55 = nearH[3u];
+    origin = (_e52.xyz / vec3(_e55));
+    let _e58 = farH;
+    let _e61 = farH[3u];
+    let _e64 = origin;
+    along = normalize(((_e58.xyz / vec3(_e61)) - _e64));
+    let _e68 = surface[3u];
+    if (_e68 <= 0f) {
+        let _e71 = velocity_info.previous_view_projection;
+        let _e72 = along;
+        then = (_e71 * vec4<f32>(_e72.x, _e72.y, _e72.z, 0f));
+    } else {
+        let _e79 = velocity_info.forward;
+        axis = _e79.xyz;
+        let _e81 = origin;
+        let _e82 = along;
+        let _e84 = surface[3u];
+        let _e85 = origin;
+        let _e87 = velocity_info.camera;
+        let _e90 = axis;
+        let _e93 = along;
+        let _e94 = axis;
+        world = (_e81 + (_e82 * ((_e84 - dot((_e85 - _e87.xyz), _e90)) / dot(_e93, _e94))));
+        let _e100 = velocity_info.previous_view_projection;
+        let _e101 = world;
+        then = (_e100 * vec4<f32>(_e101.x, _e101.y, _e101.z, 1f));
+    }
+    let _e108 = then[3u];
+    if (_e108 <= 0f) {
+        frag_color = vec4<f32>(0f, 0f, 0f, 1f);
+        return;
+    }
+    let _e110 = v_uv_1;
+    let _e111 = then;
+    let _e114 = then[3u];
+    param = (_e111.xy / vec2(_e114));
+    let _e117 = UvFromNdc_u0028_vf2_u003b((&param));
+    let _e118 = (_e110 - _e117);
+    frag_color = vec4<f32>(_e118.x, _e118.y, 0f, 1f);
+    return;
+}
+
+@fragment 
+fn main(@location(5) v_uv: vec2<f32>) -> @location(0) vec4<f32> {
+    v_uv_1 = v_uv;
+    main_1();
+    let _e3 = frag_color;
+    return _e3;
+}
+''',
+      attributes: <WebGpuAttribute>[],
+      blocks: <WebGpuBlock>[
+        WebGpuBlock(
+          name: 'CameraVelocityInfo',
+          group: 1,
+          binding: 0,
+          sizeInBytes: 160,
+          members: <WebGpuBlockMember>[
+            WebGpuBlockMember(
+              name: 'inverse_view_projection',
+              offsetInBytes: 0,
+              sizeInBytes: 64,
+            ),
+            WebGpuBlockMember(
+              name: 'previous_view_projection',
+              offsetInBytes: 64,
+              sizeInBytes: 64,
+            ),
+            WebGpuBlockMember(
+              name: 'camera',
+              offsetInBytes: 128,
+              sizeInBytes: 16,
+            ),
+            WebGpuBlockMember(
+              name: 'forward',
+              offsetInBytes: 144,
+              sizeInBytes: 16,
+            ),
+          ],
+        ),
+      ],
+      samplers: <WebGpuSampler>[
+        WebGpuSampler(
+          name: 'surface_texture',
+          group: 1,
+          textureBinding: 1,
+          samplerBinding: 2,
+          dimension: WebGpuTextureDimension.twoDimensional,
+        ),
+      ],
+    ),
     'LightShafts': WebGpuStage(
       wgsl: r'''
 struct FragCoordInfo {

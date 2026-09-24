@@ -109,6 +109,8 @@ Future<void> checkLinking(GraphicsDevice device) async {
       'Ssao',
       'SsaoBlur',
       'ContactShadow',
+      // `R1`: the reconstruction the temporal resolve reprojects through.
+      'CameraVelocity',
       'LightShafts',
       'DepthOfField',
       'ViewportShade',

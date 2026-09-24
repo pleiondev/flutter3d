@@ -28,6 +28,31 @@ final class BloomInfoBlock extends UniformBlock {
   };
 }
 
+/// `CameraVelocityInfo`.
+final class CameraVelocityInfoBlock extends UniformBlock {
+  CameraVelocityInfoBlock() : super('CameraVelocityInfo');
+
+  /// `inverse_view_projection`: Matrix, at byte 0.
+  final Float32List inverseViewProjection = Float32List(16);
+
+  /// `previous_view_projection`: Matrix, at byte 64.
+  final Float32List previousViewProjection = Float32List(16);
+
+  /// `camera`: Vector4, at byte 128.
+  final Float32List camera = Float32List(4);
+
+  /// `forward`: Vector4, at byte 144.
+  final Float32List forward = Float32List(4);
+
+  @override
+  late final Map<String, Float32List> members = <String, Float32List>{
+    'inverse_view_projection': inverseViewProjection,
+    'previous_view_projection': previousViewProjection,
+    'camera': camera,
+    'forward': forward,
+  };
+}
+
 /// `CompositeInfo`.
 final class CompositeInfoBlock extends UniformBlock {
   CompositeInfoBlock() : super('CompositeInfo');

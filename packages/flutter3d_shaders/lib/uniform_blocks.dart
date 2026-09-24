@@ -150,6 +150,24 @@ uniformBlocks = <String, Map<String, Map<String, UniformMemberLayout>>>{
       'tint': (offset: 16, byteLength: 16, elements: 1, type: 'Vector4'),
     },
   },
+  'CameraVelocity': <String, Map<String, UniformMemberLayout>>{
+    'CameraVelocityInfo': <String, UniformMemberLayout>{
+      'inverse_view_projection': (
+        offset: 0,
+        byteLength: 64,
+        elements: 1,
+        type: 'Matrix',
+      ),
+      'previous_view_projection': (
+        offset: 64,
+        byteLength: 64,
+        elements: 1,
+        type: 'Matrix',
+      ),
+      'camera': (offset: 128, byteLength: 16, elements: 1, type: 'Vector4'),
+      'forward': (offset: 144, byteLength: 16, elements: 1, type: 'Vector4'),
+    },
+  },
   'Composite': <String, Map<String, UniformMemberLayout>>{
     'CompositeInfo': <String, UniformMemberLayout>{
       'params': (offset: 0, byteLength: 16, elements: 1, type: 'Vector4'),
