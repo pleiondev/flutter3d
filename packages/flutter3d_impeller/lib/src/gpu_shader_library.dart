@@ -2,6 +2,8 @@
 library;
 
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
+import 'package:flutter3d_shaders/stage_bindings.dart';
+import 'package:flutter3d_shaders/uniform_blocks.dart' show uniformBlocks;
 import 'package:flutter_gpu/gpu.dart' as gpu;
 
 /// Handles are cached per name so that two lookups of the same stage give the
@@ -36,6 +38,13 @@ final class GpuShaderLibrary implements ShaderLibrary {
       if (shader != null) return ShaderHandle(backend: shader, name: name);
     }
     final shader = _library[name];
-    return shader == null ? null : ShaderHandle(backend: shader, name: name);
+    return shader == null
+        ? null
+        : ShaderHandle(
+            backend: shader,
+            name: name,
+            kept: stageBindings[name],
+            layouts: uniformBlocks[name],
+          );
   });
 }

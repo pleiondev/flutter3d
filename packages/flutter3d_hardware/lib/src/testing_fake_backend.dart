@@ -14,9 +14,13 @@ import 'testing_fake_pass.dart';
 /// Withholding matters: `ParticleContributor` draws nothing when its stages are
 /// missing, and that path had never been exercised.
 final class FakeShaderLibrary implements ShaderLibrary {
-  FakeShaderLibrary({this.missing = const <String>{}});
+  FakeShaderLibrary({this.missing = const <String>{}, this.stageBindings});
 
   final Set<String> missing;
+
+  /// Handed to every stage as `ShaderHandle.kept`, the way a real backend
+  /// hands the compiled bundle's table — `gfx-92n`.
+  final Map<String, StageBindings>? stageBindings;
   final Map<String, ShaderHandle> _handles = <String, ShaderHandle>{};
 
   @override
@@ -24,7 +28,11 @@ final class FakeShaderLibrary implements ShaderLibrary {
       ? null
       : _handles.putIfAbsent(
           name,
-          () => ShaderHandle(backend: name, name: name),
+          () => ShaderHandle(
+            backend: name,
+            name: name,
+            kept: stageBindings?[name],
+          ),
         );
 }
 
@@ -140,7 +148,10 @@ final class FakeBackend implements GraphicsDevice {
     this.maxAnisotropy = 16,
     this.maxColorAttachments = 2,
     this.stageBindings,
-  }) : shaders = FakeShaderLibrary(missing: missingShaders);
+  }) : shaders = FakeShaderLibrary(
+         missing: missingShaders,
+         stageBindings: stageBindings,
+       );
 
   /// What each stage declares, by name, or null to accept every bind.
   ///

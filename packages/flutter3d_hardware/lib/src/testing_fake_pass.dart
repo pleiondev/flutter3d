@@ -8,10 +8,6 @@ import 'package:vector_math/vector_math.dart' show Vector4;
 
 import 'testing_recorded.dart';
 
-/// What one compiled stage declares: the uniform blocks and samplers its
-/// compiled binary kept, by name.
-typedef StageBindings = ({Set<String> blocks, Set<String> samplers});
-
 /// A pass that was opened, and everything that went into it.
 ///
 /// **Given [stageBindings], it holds binds to the contract** the way a real
@@ -174,6 +170,9 @@ final class FakePass implements CommandEncoder {
     String blockName,
     Map<String, Float32List> members,
   ) {
+    // `gfx-92n`: a block the compiled stage dropped is refused here, before
+    // anything reaches the driver — binding one is a native crash on Metal.
+    if (!shader.mayBindBlock(blockName)) return false;
     commands.add(RecordedUniformBlock(shader, blockName, members));
     if (!_declares(shader, blockName, sampler: false)) return false;
     _boundBlocks.putIfAbsent(shader.name, () => <String>{}).add(blockName);
@@ -187,6 +186,7 @@ final class FakePass implements CommandEncoder {
     TextureHandle texture, {
     SamplerOptions? sampler,
   }) {
+    if (!shader.mayBindSampler(slot)) return false;
     commands.add(RecordedTexture(slot, texture, sampler, shader: shader));
     if (!_declares(shader, slot, sampler: true)) return false;
     _boundSamplers.putIfAbsent(shader.name, () => <String>{}).add(slot);

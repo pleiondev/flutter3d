@@ -32,6 +32,11 @@ dependencies:
   # merge this package was created early to avoid.
   vector_math: ^2.4.3
 
+  # `stageBindings`: what each of the engine's compiled stages keeps, which
+  # the library hands every stage as `ShaderHandle.kept` and the encoder
+  # refuses binds against — `gfx-92n`. A table of names and nothing else.
+  flutter3d_shaders: ^0.8.0
+
 dev_dependencies:
   # For `compareFrames` alone, in `cross_backend_test.dart`, which measures this
   # backend's committed reference set against Impeller's. The WebGL2 package
@@ -44,13 +49,6 @@ dev_dependencies:
   # flutter3d_conformance, and `test/conformance_test.dart` for what this
   # backend declines and why.
   flutter3d_conformance: ^0.8.0
-  # For `kRequiredShaders` in `engine_shaders_test.dart`, which is the list the
-  # bundle manifest is generated from. The counts in that test were literals and
-  # went stale the moment a row added a pass; holding the committed table to the
-  # manifest instead needs the manifest readable from here. A dev dependency,
-  # like the rest: nothing in `lib/` reaches it, and the generator in `tool/`
-  # already did through the workspace.
-  flutter3d_shaders: ^0.8.0
   # The material language's emitter — `gfx-84n`. For
   # `material_language_generators_test.dart` alone: a material written as
   # source has to reach both generators, and this is the one package that has

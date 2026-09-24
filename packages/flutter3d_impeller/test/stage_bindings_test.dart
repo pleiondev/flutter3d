@@ -13,6 +13,7 @@ library;
 import 'dart:io';
 
 import 'package:flutter3d_shaders/stage_bindings.dart';
+import 'package:flutter3d_shaders/uniform_blocks.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import '../tool/stage_bindings.dart';
@@ -37,6 +38,25 @@ void main() {
         stage.samplers,
         reason: '$name: $stale',
       );
+      // `H1`: the layouts beside the names, which the software rasteriser
+      // checks members against and the typed blocks are built from.
+      final blocks = reflectedBlocks[name] ?? const {};
+      expect(
+        uniformBlocks[name]?.keys.toSet() ?? const <String>{},
+        blocks.keys.toSet(),
+        reason: '$name: $stale',
+      );
+      for (final MapEntry(key: block, value: members) in blocks.entries) {
+        expect(
+          <String, Object?>{
+            for (final MapEntry(:key, :value)
+                in uniformBlocks[name]![block]!.entries)
+              key: value,
+          },
+          members,
+          reason: '$name.$block: $stale',
+        );
+      }
     }
   }, timeout: const Timeout(Duration(minutes: 3)));
 }

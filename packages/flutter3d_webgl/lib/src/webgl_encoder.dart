@@ -635,6 +635,9 @@ final class WebGlEncoder implements CommandEncoder {
     String blockName,
     Map<String, Float32List> members,
   ) {
+    // `gfx-92n`: a block the compiled stage dropped is refused here, before
+    // anything reaches the driver — binding one is a native crash on Metal.
+    if (!shader.mayBindBlock(blockName)) return false;
     final program = _program;
     if (program == null) return false;
     final block = program.blocks[blockName];
@@ -711,6 +714,7 @@ final class WebGlEncoder implements CommandEncoder {
     TextureHandle texture, {
     SamplerOptions? sampler,
   }) {
+    if (!shader.mayBindSampler(slot)) return false;
     final program = _program;
     if (program == null) return false;
     final declared = program.samplers[slot];
