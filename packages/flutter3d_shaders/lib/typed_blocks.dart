@@ -199,6 +199,23 @@ final class EasuInfoBlock extends UniformBlock {
   };
 }
 
+/// `EvsmFilterInfo`.
+final class EvsmFilterInfoBlock extends UniformBlock {
+  EvsmFilterInfoBlock() : super('EvsmFilterInfo');
+
+  /// `axis`: Vector4, at byte 0.
+  final Float32List axis = Float32List(4);
+
+  /// `tile`: Vector4, at byte 16.
+  final Float32List tile = Float32List(4);
+
+  @override
+  late final Map<String, Float32List> members = <String, Float32List>{
+    'axis': axis,
+    'tile': tile,
+  };
+}
+
 /// `FieldDecayInfo`.
 final class FieldDecayInfoBlock extends UniformBlock {
   FieldDecayInfoBlock() : super('FieldDecayInfo');

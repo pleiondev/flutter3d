@@ -7350,8 +7350,87 @@ void ApplyCommonMaps(inout Surface s) {
 #ifndef SHADOW_GLSL_
 #define SHADOW_GLSL_
 
+// --- lib/evsm.glsl ---
+// Exponential variance shadow maps — `S2`.
+//
+// Shared by the pass that turns the directional depth atlas into moments
+// (`evsm_filter.frag`) and by `ShadowFactor`, which reads them back: the two
+// halves must warp depth with the same two exponents, or every comparison is
+// between numbers on different scales.
+//
+// A header of its own rather than a section of `shadow.glsl`, because that
+// one declares the lit stages' shadow sampler and the filter pass has no
+// business declaring it.
 
-/// Linear depth from the light's point of view, in the red channel.
+#ifndef EVSM_GLSL_
+#define EVSM_GLSL_
+
+precision highp float;
+
+// The two exponents depth is warped by. **Forty and five, and the ceiling is
+// the format.** The moments are stored squared, so the positive side reaches
+// e^80 at the far plane, about 5.5e34 — inside a 32-bit float with three
+// orders of magnitude to spare, and far outside a half float, which is why
+// the moments live in an rgba32f atlas and the depth atlas does not. The
+// negative side only has to catch what the positive side lets through at a
+// receiver just behind a caster, and five is the usual answer.
+const float kEvsmPositive = 40.0;
+const float kEvsmNegative = 5.0;
+
+/// [depth], in [0, 1], warped onto both exponentials: x positive, y negative.
+///
+/// Depth is first spread to [-1, 1] so the two sides share the range evenly
+/// rather than the negative one flattening to nothing at the far end.
+vec2 EvsmWarp(float depth) {
+  float d = 2.0 * clamp(depth, 0.0, 1.0) - 1.0;
+  return vec2(exp(kEvsmPositive * d), -exp(-kEvsmNegative * d));
+}
+
+/// What one texel of the depth atlas stores in the moments atlas: each warp
+/// and its square, which a blur then averages into a mean and a variance.
+vec4 EvsmMoments(float depth) {
+  vec2 warped = EvsmWarp(depth);
+  return vec4(warped.x, warped.x * warped.x, warped.y, warped.y * warped.y);
+}
+
+/// Chebyshev's upper bound on the share of [moments]'s distribution at or
+/// beyond [t], with the light-bleeding cut [bleed] taken off the bottom.
+///
+/// A select at the end rather than an early return of one, because a phi of
+/// constants is what SPIRV-Cross refuses when it writes the WGSL.
+float EvsmChebyshev(vec2 moments, float t, float minVariance, float bleed) {
+  float variance = max(moments.y - moments.x * moments.x, minVariance);
+  float d = t - moments.x;
+  float pMax = variance / (variance + d * d);
+  // Light bleeding: where two casters overlap, the bound admits light the
+  // nearer one should block. Everything under [bleed] is called shadow and
+  // the rest stretched back over [0, 1].
+  float reduced = clamp((pMax - bleed) / max(1.0 - bleed, 1e-4), 0.0, 1.0);
+  return t <= moments.x ? 1.0 : reduced;
+}
+
+/// How much light reaches a receiver at [depth] past filtered [moments].
+///
+/// The smaller of the two bounds: each exponential lets through a different
+/// kind of error, and neither lets through what the other stops.
+float EvsmVisibility(vec4 moments, float depth, float bleed) {
+  vec2 warped = EvsmWarp(depth);
+  // A floor on the variance proportional to the warped depth's own slope,
+  // so a flat receiver compared against its own texel does not divide
+  // nought by nought — the variance of one depth is zero.
+  vec2 scale = 0.0001 * vec2(kEvsmPositive, kEvsmNegative) * warped;
+  float positive = EvsmChebyshev(moments.xy, warped.x, scale.x * scale.x, bleed);
+  float negative = EvsmChebyshev(moments.zw, warped.y, scale.y * scale.y, bleed);
+  return min(positive, negative);
+}
+
+#endif  // EVSM_GLSL_
+
+
+/// Linear depth from the light's point of view, in the red channel — or,
+/// with the `evsm` filter (`S2`), the blurred moments `evsm_filter.frag`
+/// made of it, bound to the same slot so the lit stages spend no sampler on
+/// the choice.
 uniform sampler2D shadow_texture;
 
 /// Point [i] of [n] on a Vogel disc turned by [turn] radians — `S3`: the
@@ -7515,9 +7594,21 @@ float ShadowFactor(Surface s, LightSample light, int lightIndex) {
   // recorded golden where it is. Above zero the edge widens with the distance
   // between the occluder and what it falls on — what a real light does, and
   // what no fixed kernel can.
+  //
+  // **Below zero is the `evsm` filter** (`S2`), and the texture bound here is
+  // then the moments atlas rather than depth: one filtered tap replaces the
+  // kernel, and how far under minus one the value sits is the light-bleeding
+  // cut. A sign rather than another uniform, for the reason the softness
+  // itself rides here.
   float softness = frag_info.ambient_ground.w;
   float lit = 0.0;
-  if (softness <= 0.0) {
+  if (softness < 0.0) {
+    // The blur already happened, once for the whole atlas, so the one tap
+    // is the filter: the sampler's own bilinear step is all it adds.
+    vec4 moments = textureLod(shadow_texture, clamp(uv, tileLo, tileHi), 0.0);
+    lit = EvsmVisibility(moments, projected.z - bias,
+                         clamp(-softness - 1.0, 0.0, 0.95));
+  } else if (softness <= 0.0) {
     // PCF 3x3. Four samples would band visibly at this map size and nine is
     // the smallest kernel that reads as a soft edge rather than as stair
     // steps.
@@ -9468,8 +9559,87 @@ void ApplyCommonMaps(inout Surface s) {
 #ifndef SHADOW_GLSL_
 #define SHADOW_GLSL_
 
+// --- lib/evsm.glsl ---
+// Exponential variance shadow maps — `S2`.
+//
+// Shared by the pass that turns the directional depth atlas into moments
+// (`evsm_filter.frag`) and by `ShadowFactor`, which reads them back: the two
+// halves must warp depth with the same two exponents, or every comparison is
+// between numbers on different scales.
+//
+// A header of its own rather than a section of `shadow.glsl`, because that
+// one declares the lit stages' shadow sampler and the filter pass has no
+// business declaring it.
 
-/// Linear depth from the light's point of view, in the red channel.
+#ifndef EVSM_GLSL_
+#define EVSM_GLSL_
+
+precision highp float;
+
+// The two exponents depth is warped by. **Forty and five, and the ceiling is
+// the format.** The moments are stored squared, so the positive side reaches
+// e^80 at the far plane, about 5.5e34 — inside a 32-bit float with three
+// orders of magnitude to spare, and far outside a half float, which is why
+// the moments live in an rgba32f atlas and the depth atlas does not. The
+// negative side only has to catch what the positive side lets through at a
+// receiver just behind a caster, and five is the usual answer.
+const float kEvsmPositive = 40.0;
+const float kEvsmNegative = 5.0;
+
+/// [depth], in [0, 1], warped onto both exponentials: x positive, y negative.
+///
+/// Depth is first spread to [-1, 1] so the two sides share the range evenly
+/// rather than the negative one flattening to nothing at the far end.
+vec2 EvsmWarp(float depth) {
+  float d = 2.0 * clamp(depth, 0.0, 1.0) - 1.0;
+  return vec2(exp(kEvsmPositive * d), -exp(-kEvsmNegative * d));
+}
+
+/// What one texel of the depth atlas stores in the moments atlas: each warp
+/// and its square, which a blur then averages into a mean and a variance.
+vec4 EvsmMoments(float depth) {
+  vec2 warped = EvsmWarp(depth);
+  return vec4(warped.x, warped.x * warped.x, warped.y, warped.y * warped.y);
+}
+
+/// Chebyshev's upper bound on the share of [moments]'s distribution at or
+/// beyond [t], with the light-bleeding cut [bleed] taken off the bottom.
+///
+/// A select at the end rather than an early return of one, because a phi of
+/// constants is what SPIRV-Cross refuses when it writes the WGSL.
+float EvsmChebyshev(vec2 moments, float t, float minVariance, float bleed) {
+  float variance = max(moments.y - moments.x * moments.x, minVariance);
+  float d = t - moments.x;
+  float pMax = variance / (variance + d * d);
+  // Light bleeding: where two casters overlap, the bound admits light the
+  // nearer one should block. Everything under [bleed] is called shadow and
+  // the rest stretched back over [0, 1].
+  float reduced = clamp((pMax - bleed) / max(1.0 - bleed, 1e-4), 0.0, 1.0);
+  return t <= moments.x ? 1.0 : reduced;
+}
+
+/// How much light reaches a receiver at [depth] past filtered [moments].
+///
+/// The smaller of the two bounds: each exponential lets through a different
+/// kind of error, and neither lets through what the other stops.
+float EvsmVisibility(vec4 moments, float depth, float bleed) {
+  vec2 warped = EvsmWarp(depth);
+  // A floor on the variance proportional to the warped depth's own slope,
+  // so a flat receiver compared against its own texel does not divide
+  // nought by nought — the variance of one depth is zero.
+  vec2 scale = 0.0001 * vec2(kEvsmPositive, kEvsmNegative) * warped;
+  float positive = EvsmChebyshev(moments.xy, warped.x, scale.x * scale.x, bleed);
+  float negative = EvsmChebyshev(moments.zw, warped.y, scale.y * scale.y, bleed);
+  return min(positive, negative);
+}
+
+#endif  // EVSM_GLSL_
+
+
+/// Linear depth from the light's point of view, in the red channel — or,
+/// with the `evsm` filter (`S2`), the blurred moments `evsm_filter.frag`
+/// made of it, bound to the same slot so the lit stages spend no sampler on
+/// the choice.
 uniform sampler2D shadow_texture;
 
 /// Point [i] of [n] on a Vogel disc turned by [turn] radians — `S3`: the
@@ -9633,9 +9803,21 @@ float ShadowFactor(Surface s, LightSample light, int lightIndex) {
   // recorded golden where it is. Above zero the edge widens with the distance
   // between the occluder and what it falls on — what a real light does, and
   // what no fixed kernel can.
+  //
+  // **Below zero is the `evsm` filter** (`S2`), and the texture bound here is
+  // then the moments atlas rather than depth: one filtered tap replaces the
+  // kernel, and how far under minus one the value sits is the light-bleeding
+  // cut. A sign rather than another uniform, for the reason the softness
+  // itself rides here.
   float softness = frag_info.ambient_ground.w;
   float lit = 0.0;
-  if (softness <= 0.0) {
+  if (softness < 0.0) {
+    // The blur already happened, once for the whole atlas, so the one tap
+    // is the filter: the sampler's own bilinear step is all it adds.
+    vec4 moments = textureLod(shadow_texture, clamp(uv, tileLo, tileHi), 0.0);
+    lit = EvsmVisibility(moments, projected.z - bias,
+                         clamp(-softness - 1.0, 0.0, 0.95));
+  } else if (softness <= 0.0) {
     // PCF 3x3. Four samples would band visibly at this map size and nine is
     // the smallest kernel that reads as a soft edge rather than as stair
     // steps.
@@ -11603,8 +11785,87 @@ void ApplyCommonMaps(inout Surface s) {
 #ifndef SHADOW_GLSL_
 #define SHADOW_GLSL_
 
+// --- lib/evsm.glsl ---
+// Exponential variance shadow maps — `S2`.
+//
+// Shared by the pass that turns the directional depth atlas into moments
+// (`evsm_filter.frag`) and by `ShadowFactor`, which reads them back: the two
+// halves must warp depth with the same two exponents, or every comparison is
+// between numbers on different scales.
+//
+// A header of its own rather than a section of `shadow.glsl`, because that
+// one declares the lit stages' shadow sampler and the filter pass has no
+// business declaring it.
 
-/// Linear depth from the light's point of view, in the red channel.
+#ifndef EVSM_GLSL_
+#define EVSM_GLSL_
+
+precision highp float;
+
+// The two exponents depth is warped by. **Forty and five, and the ceiling is
+// the format.** The moments are stored squared, so the positive side reaches
+// e^80 at the far plane, about 5.5e34 — inside a 32-bit float with three
+// orders of magnitude to spare, and far outside a half float, which is why
+// the moments live in an rgba32f atlas and the depth atlas does not. The
+// negative side only has to catch what the positive side lets through at a
+// receiver just behind a caster, and five is the usual answer.
+const float kEvsmPositive = 40.0;
+const float kEvsmNegative = 5.0;
+
+/// [depth], in [0, 1], warped onto both exponentials: x positive, y negative.
+///
+/// Depth is first spread to [-1, 1] so the two sides share the range evenly
+/// rather than the negative one flattening to nothing at the far end.
+vec2 EvsmWarp(float depth) {
+  float d = 2.0 * clamp(depth, 0.0, 1.0) - 1.0;
+  return vec2(exp(kEvsmPositive * d), -exp(-kEvsmNegative * d));
+}
+
+/// What one texel of the depth atlas stores in the moments atlas: each warp
+/// and its square, which a blur then averages into a mean and a variance.
+vec4 EvsmMoments(float depth) {
+  vec2 warped = EvsmWarp(depth);
+  return vec4(warped.x, warped.x * warped.x, warped.y, warped.y * warped.y);
+}
+
+/// Chebyshev's upper bound on the share of [moments]'s distribution at or
+/// beyond [t], with the light-bleeding cut [bleed] taken off the bottom.
+///
+/// A select at the end rather than an early return of one, because a phi of
+/// constants is what SPIRV-Cross refuses when it writes the WGSL.
+float EvsmChebyshev(vec2 moments, float t, float minVariance, float bleed) {
+  float variance = max(moments.y - moments.x * moments.x, minVariance);
+  float d = t - moments.x;
+  float pMax = variance / (variance + d * d);
+  // Light bleeding: where two casters overlap, the bound admits light the
+  // nearer one should block. Everything under [bleed] is called shadow and
+  // the rest stretched back over [0, 1].
+  float reduced = clamp((pMax - bleed) / max(1.0 - bleed, 1e-4), 0.0, 1.0);
+  return t <= moments.x ? 1.0 : reduced;
+}
+
+/// How much light reaches a receiver at [depth] past filtered [moments].
+///
+/// The smaller of the two bounds: each exponential lets through a different
+/// kind of error, and neither lets through what the other stops.
+float EvsmVisibility(vec4 moments, float depth, float bleed) {
+  vec2 warped = EvsmWarp(depth);
+  // A floor on the variance proportional to the warped depth's own slope,
+  // so a flat receiver compared against its own texel does not divide
+  // nought by nought — the variance of one depth is zero.
+  vec2 scale = 0.0001 * vec2(kEvsmPositive, kEvsmNegative) * warped;
+  float positive = EvsmChebyshev(moments.xy, warped.x, scale.x * scale.x, bleed);
+  float negative = EvsmChebyshev(moments.zw, warped.y, scale.y * scale.y, bleed);
+  return min(positive, negative);
+}
+
+#endif  // EVSM_GLSL_
+
+
+/// Linear depth from the light's point of view, in the red channel — or,
+/// with the `evsm` filter (`S2`), the blurred moments `evsm_filter.frag`
+/// made of it, bound to the same slot so the lit stages spend no sampler on
+/// the choice.
 uniform sampler2D shadow_texture;
 
 /// Point [i] of [n] on a Vogel disc turned by [turn] radians — `S3`: the
@@ -11768,9 +12029,21 @@ float ShadowFactor(Surface s, LightSample light, int lightIndex) {
   // recorded golden where it is. Above zero the edge widens with the distance
   // between the occluder and what it falls on — what a real light does, and
   // what no fixed kernel can.
+  //
+  // **Below zero is the `evsm` filter** (`S2`), and the texture bound here is
+  // then the moments atlas rather than depth: one filtered tap replaces the
+  // kernel, and how far under minus one the value sits is the light-bleeding
+  // cut. A sign rather than another uniform, for the reason the softness
+  // itself rides here.
   float softness = frag_info.ambient_ground.w;
   float lit = 0.0;
-  if (softness <= 0.0) {
+  if (softness < 0.0) {
+    // The blur already happened, once for the whole atlas, so the one tap
+    // is the filter: the sampler's own bilinear step is all it adds.
+    vec4 moments = textureLod(shadow_texture, clamp(uv, tileLo, tileHi), 0.0);
+    lit = EvsmVisibility(moments, projected.z - bias,
+                         clamp(-softness - 1.0, 0.0, 0.95));
+  } else if (softness <= 0.0) {
     // PCF 3x3. Four samples would band visibly at this map size and nine is
     // the smallest kernel that reads as a soft edge rather than as stair
     // steps.
@@ -13863,8 +14136,87 @@ void ApplyCommonMaps(inout Surface s) {
 #ifndef SHADOW_GLSL_
 #define SHADOW_GLSL_
 
+// --- lib/evsm.glsl ---
+// Exponential variance shadow maps — `S2`.
+//
+// Shared by the pass that turns the directional depth atlas into moments
+// (`evsm_filter.frag`) and by `ShadowFactor`, which reads them back: the two
+// halves must warp depth with the same two exponents, or every comparison is
+// between numbers on different scales.
+//
+// A header of its own rather than a section of `shadow.glsl`, because that
+// one declares the lit stages' shadow sampler and the filter pass has no
+// business declaring it.
 
-/// Linear depth from the light's point of view, in the red channel.
+#ifndef EVSM_GLSL_
+#define EVSM_GLSL_
+
+precision highp float;
+
+// The two exponents depth is warped by. **Forty and five, and the ceiling is
+// the format.** The moments are stored squared, so the positive side reaches
+// e^80 at the far plane, about 5.5e34 — inside a 32-bit float with three
+// orders of magnitude to spare, and far outside a half float, which is why
+// the moments live in an rgba32f atlas and the depth atlas does not. The
+// negative side only has to catch what the positive side lets through at a
+// receiver just behind a caster, and five is the usual answer.
+const float kEvsmPositive = 40.0;
+const float kEvsmNegative = 5.0;
+
+/// [depth], in [0, 1], warped onto both exponentials: x positive, y negative.
+///
+/// Depth is first spread to [-1, 1] so the two sides share the range evenly
+/// rather than the negative one flattening to nothing at the far end.
+vec2 EvsmWarp(float depth) {
+  float d = 2.0 * clamp(depth, 0.0, 1.0) - 1.0;
+  return vec2(exp(kEvsmPositive * d), -exp(-kEvsmNegative * d));
+}
+
+/// What one texel of the depth atlas stores in the moments atlas: each warp
+/// and its square, which a blur then averages into a mean and a variance.
+vec4 EvsmMoments(float depth) {
+  vec2 warped = EvsmWarp(depth);
+  return vec4(warped.x, warped.x * warped.x, warped.y, warped.y * warped.y);
+}
+
+/// Chebyshev's upper bound on the share of [moments]'s distribution at or
+/// beyond [t], with the light-bleeding cut [bleed] taken off the bottom.
+///
+/// A select at the end rather than an early return of one, because a phi of
+/// constants is what SPIRV-Cross refuses when it writes the WGSL.
+float EvsmChebyshev(vec2 moments, float t, float minVariance, float bleed) {
+  float variance = max(moments.y - moments.x * moments.x, minVariance);
+  float d = t - moments.x;
+  float pMax = variance / (variance + d * d);
+  // Light bleeding: where two casters overlap, the bound admits light the
+  // nearer one should block. Everything under [bleed] is called shadow and
+  // the rest stretched back over [0, 1].
+  float reduced = clamp((pMax - bleed) / max(1.0 - bleed, 1e-4), 0.0, 1.0);
+  return t <= moments.x ? 1.0 : reduced;
+}
+
+/// How much light reaches a receiver at [depth] past filtered [moments].
+///
+/// The smaller of the two bounds: each exponential lets through a different
+/// kind of error, and neither lets through what the other stops.
+float EvsmVisibility(vec4 moments, float depth, float bleed) {
+  vec2 warped = EvsmWarp(depth);
+  // A floor on the variance proportional to the warped depth's own slope,
+  // so a flat receiver compared against its own texel does not divide
+  // nought by nought — the variance of one depth is zero.
+  vec2 scale = 0.0001 * vec2(kEvsmPositive, kEvsmNegative) * warped;
+  float positive = EvsmChebyshev(moments.xy, warped.x, scale.x * scale.x, bleed);
+  float negative = EvsmChebyshev(moments.zw, warped.y, scale.y * scale.y, bleed);
+  return min(positive, negative);
+}
+
+#endif  // EVSM_GLSL_
+
+
+/// Linear depth from the light's point of view, in the red channel — or,
+/// with the `evsm` filter (`S2`), the blurred moments `evsm_filter.frag`
+/// made of it, bound to the same slot so the lit stages spend no sampler on
+/// the choice.
 uniform sampler2D shadow_texture;
 
 /// Point [i] of [n] on a Vogel disc turned by [turn] radians — `S3`: the
@@ -14028,9 +14380,21 @@ float ShadowFactor(Surface s, LightSample light, int lightIndex) {
   // recorded golden where it is. Above zero the edge widens with the distance
   // between the occluder and what it falls on — what a real light does, and
   // what no fixed kernel can.
+  //
+  // **Below zero is the `evsm` filter** (`S2`), and the texture bound here is
+  // then the moments atlas rather than depth: one filtered tap replaces the
+  // kernel, and how far under minus one the value sits is the light-bleeding
+  // cut. A sign rather than another uniform, for the reason the softness
+  // itself rides here.
   float softness = frag_info.ambient_ground.w;
   float lit = 0.0;
-  if (softness <= 0.0) {
+  if (softness < 0.0) {
+    // The blur already happened, once for the whole atlas, so the one tap
+    // is the filter: the sampler's own bilinear step is all it adds.
+    vec4 moments = textureLod(shadow_texture, clamp(uv, tileLo, tileHi), 0.0);
+    lit = EvsmVisibility(moments, projected.z - bias,
+                         clamp(-softness - 1.0, 0.0, 0.95));
+  } else if (softness <= 0.0) {
     // PCF 3x3. Four samples would band visibly at this map size and nine is
     // the smallest kernel that reads as a soft edge rather than as stair
     // steps.
@@ -20718,6 +21082,158 @@ void main() {
                     : 1.0;
   frag_color = vec4(depth, 0.0, 0.0, 1.0);
   gl_FragDepth = depth;
+}
+
+''',
+    'EvsmFilter': r'''#version 300 es
+precision highp float;
+precision highp int;
+precision highp sampler2D;
+precision highp samplerCube;
+
+// The directional atlas as exponential variance moments, blurred — `S2`.
+//
+// Drawn twice over the whole atlas: first across, reading the depth atlas
+// and warping each tap into moments before it is averaged, then down,
+// reading what the first pass wrote. A separable Gaussian, so a radius of r
+// texels costs 2r + 1 taps a pass rather than (2r + 1)² in one.
+//
+// **After the static and dynamic casters are combined, not instead of
+// them.** `S1` puts the two halves together by drawing dynamic casters over
+// a copy of the static tile, which works because depth combines by keeping
+// the nearer. Moments do not combine that way — the average of two
+// distributions is not the nearer of them — so the depth atlas stays as it
+// is and this pass is the step after it.
+//
+// **Every tap stays inside its own cascade's tile**, clamped half a texel in
+// from the edge: the cascades sit side by side, and a blur that crossed a
+// seam would average in depths measured through another projection.
+
+in vec2 v_uv;
+
+layout(location = 0) out vec4 frag_color;
+
+// --- lib/evsm.glsl ---
+// Exponential variance shadow maps — `S2`.
+//
+// Shared by the pass that turns the directional depth atlas into moments
+// (`evsm_filter.frag`) and by `ShadowFactor`, which reads them back: the two
+// halves must warp depth with the same two exponents, or every comparison is
+// between numbers on different scales.
+//
+// A header of its own rather than a section of `shadow.glsl`, because that
+// one declares the lit stages' shadow sampler and the filter pass has no
+// business declaring it.
+
+#ifndef EVSM_GLSL_
+#define EVSM_GLSL_
+
+precision highp float;
+
+// The two exponents depth is warped by. **Forty and five, and the ceiling is
+// the format.** The moments are stored squared, so the positive side reaches
+// e^80 at the far plane, about 5.5e34 — inside a 32-bit float with three
+// orders of magnitude to spare, and far outside a half float, which is why
+// the moments live in an rgba32f atlas and the depth atlas does not. The
+// negative side only has to catch what the positive side lets through at a
+// receiver just behind a caster, and five is the usual answer.
+const float kEvsmPositive = 40.0;
+const float kEvsmNegative = 5.0;
+
+/// [depth], in [0, 1], warped onto both exponentials: x positive, y negative.
+///
+/// Depth is first spread to [-1, 1] so the two sides share the range evenly
+/// rather than the negative one flattening to nothing at the far end.
+vec2 EvsmWarp(float depth) {
+  float d = 2.0 * clamp(depth, 0.0, 1.0) - 1.0;
+  return vec2(exp(kEvsmPositive * d), -exp(-kEvsmNegative * d));
+}
+
+/// What one texel of the depth atlas stores in the moments atlas: each warp
+/// and its square, which a blur then averages into a mean and a variance.
+vec4 EvsmMoments(float depth) {
+  vec2 warped = EvsmWarp(depth);
+  return vec4(warped.x, warped.x * warped.x, warped.y, warped.y * warped.y);
+}
+
+/// Chebyshev's upper bound on the share of [moments]'s distribution at or
+/// beyond [t], with the light-bleeding cut [bleed] taken off the bottom.
+///
+/// A select at the end rather than an early return of one, because a phi of
+/// constants is what SPIRV-Cross refuses when it writes the WGSL.
+float EvsmChebyshev(vec2 moments, float t, float minVariance, float bleed) {
+  float variance = max(moments.y - moments.x * moments.x, minVariance);
+  float d = t - moments.x;
+  float pMax = variance / (variance + d * d);
+  // Light bleeding: where two casters overlap, the bound admits light the
+  // nearer one should block. Everything under [bleed] is called shadow and
+  // the rest stretched back over [0, 1].
+  float reduced = clamp((pMax - bleed) / max(1.0 - bleed, 1e-4), 0.0, 1.0);
+  return t <= moments.x ? 1.0 : reduced;
+}
+
+/// How much light reaches a receiver at [depth] past filtered [moments].
+///
+/// The smaller of the two bounds: each exponential lets through a different
+/// kind of error, and neither lets through what the other stops.
+float EvsmVisibility(vec4 moments, float depth, float bleed) {
+  vec2 warped = EvsmWarp(depth);
+  // A floor on the variance proportional to the warped depth's own slope,
+  // so a flat receiver compared against its own texel does not divide
+  // nought by nought — the variance of one depth is zero.
+  vec2 scale = 0.0001 * vec2(kEvsmPositive, kEvsmNegative) * warped;
+  float positive = EvsmChebyshev(moments.xy, warped.x, scale.x * scale.x, bleed);
+  float negative = EvsmChebyshev(moments.zw, warped.y, scale.y * scale.y, bleed);
+  return min(positive, negative);
+}
+
+#endif  // EVSM_GLSL_
+
+
+uniform sampler2D evsm_source;
+
+layout(std140) uniform EvsmFilterInfo {
+  /// xy: one texel of the atlas along the axis this pass blurs, nought on
+  /// the other. z: taps to each side, nought to eight. w: 1 when the source
+  /// is the depth atlas and each tap is warped first, 0 when it already
+  /// holds moments.
+  vec4 axis;
+
+  /// x: how many cascades share the atlas across. y, z: half a texel of the
+  /// atlas, across and down, which is how far in from a tile's edge a tap is
+  /// held.
+  vec4 tile;
+}
+evsm_info;
+
+void main() {
+  float count = max(evsm_info.tile.x, 1.0);
+  float which = min(floor(v_uv.x * count), count - 1.0);
+  vec2 lo = vec2(which / count + evsm_info.tile.y, evsm_info.tile.z);
+  vec2 hi = vec2((which + 1.0) / count - evsm_info.tile.y,
+                 1.0 - evsm_info.tile.z);
+
+  float taps = clamp(evsm_info.axis.z, 0.0, 8.0);
+  // A Gaussian whose tail is two deviations out at the last tap, which is
+  // where its weight has fallen to an eighth and a tap still earns its read.
+  float sigma = max(taps * 0.5, 0.5);
+  bool warp = evsm_info.axis.w > 0.5;
+
+  vec4 total = vec4(0.0);
+  float weightSum = 0.0;
+  // Bounded at eight to each side whatever the uniform says, the rule every
+  // blur here keeps: a loop a uniform can lengthen is a hang, not a slow frame.
+  for (int i = -8; i <= 8; i++) {
+    float offset = float(i);
+    if (abs(offset) > taps) continue;
+    vec2 at = clamp(v_uv + evsm_info.axis.xy * offset, lo, hi);
+    vec4 texel = textureLod(evsm_source, at, 0.0);
+    vec4 value = warp ? EvsmMoments(texel.r) : texel;
+    float weight = exp(-(offset * offset) / (2.0 * sigma * sigma));
+    total += value * weight;
+    weightSum += weight;
+  }
+  frag_color = total / weightSum;
 }
 
 ''',

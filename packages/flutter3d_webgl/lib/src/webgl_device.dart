@@ -73,8 +73,12 @@ final class WebGlDevice implements GraphicsDevice {
       'WebGL2 runs no compute: supportsCompute is false. Ask before '
       'creating a storage buffer, a compute pipeline or a compute pass.';
 
+  /// Whether `OES_texture_float_linear` was granted — `S2`. Rendering into
+  /// a 32-bit float target is `EXT_color_buffer_float`, which [open]
+  /// already requires; filtering one is this extension alone, and without it
+  /// such a texture samples as zero.
   @override
-  bool get supportsFloat32Filtering => false;
+  bool get supportsFloat32Filtering => _floatLinear;
 
   @override
   bool get supportsIndependentBlend => false;

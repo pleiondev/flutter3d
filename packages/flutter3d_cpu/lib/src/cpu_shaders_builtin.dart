@@ -51,6 +51,7 @@ import 'cpu_shaders_bloom.dart';
 import 'cpu_shaders_compute.dart';
 import 'cpu_shaders_contact_shadow.dart';
 import 'cpu_shaders_debug.dart';
+import 'cpu_shaders_evsm.dart';
 import 'cpu_shaders_irradiance.dart';
 import 'cpu_shaders_lit.dart';
 import 'cpu_shaders_mesh_vertex.dart';
@@ -205,6 +206,7 @@ Map<String, CpuStage> builtinCpuShaders() {
     'ShadowDepth': const CpuStage.fragment(ShadowDepthShader()),
     'ShadowDistance': const CpuStage.fragment(ShadowDistanceShader()),
     'ShadowCopy': const CpuStage.fragment(ShadowCopyShader()),
+    'EvsmFilter': const CpuStage.fragment(EvsmFilterShader()),
     'ShadowTileReset': const CpuStage.fragment(ShadowTileResetShader()),
     'ShadowTileResetVertex': const CpuStage.vertex(
       ShadowTileResetVertexShader(),
