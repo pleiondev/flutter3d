@@ -129,11 +129,16 @@ void main() {
     test('darkens the corners and leaves the middle alone', () async {
       // Mutation: drop the `clamp` on the radius, or measure it from the corner
       // instead of the centre — the middle darkens and this fails.
+      // Undithered: at the centre the vignette's factor is one to within a
+      // float, and the dither is what would turn that last bit into a byte.
       final it = _room();
-      final plain = await _draw(it, const RenderSettings());
+      final plain = await _draw(
+        it,
+        const RenderSettings(look: LookSettings(dither: 0)),
+      );
       final dark = await _draw(
         it,
-        const RenderSettings(look: LookSettings(vignette: 0.8)),
+        const RenderSettings(look: LookSettings(vignette: 0.8, dither: 0)),
       );
 
       expect(
@@ -170,22 +175,35 @@ void main() {
       // pivot at mid grey pushes values apart *around* it: below the pivot they
       // darken, above it they brighten.
       //
-      // This wall lands at about 0.30 in the working space — measured, not
-      // assumed, since exposure and the tone map both sit between the material
-      // and here — which is below the pivot. So raising contrast must make it
-      // **darker**. Under `c * k` it would come out brighter, and that is the
-      // mutation: drop the `- 0.5` and `+ 0.5` and this fails.
+      // The pivot is 0.18, linear light's mid grey (0.7.4; it was 0.5, which
+      // in linear light is a bright highlight and made every contrast also a
+      // darkening). This wall lands at about 0.30 in the working space —
+      // measured, not assumed — which is above the pivot, so raising contrast
+      // brightens it. At a third of the exposure it lands near 0.09, below the
+      // pivot, and there raising contrast must make it **darker**. Under
+      // `c * k` it would come out brighter both times, and that is the
+      // mutation: pivot about black and the second half fails.
       final it = _room();
       final plain = await _draw(it, const RenderSettings());
       final punchy = await _draw(
         it,
         const RenderSettings(look: LookSettings(contrast: 1.6)),
       );
-
       final middle = _red(plain, _width ~/ 2, _height ~/ 2);
       expect(
         _red(punchy, _width ~/ 2, _height ~/ 2),
-        lessThan(middle),
+        greaterThan(middle),
+        reason: 'a value above the pivot brightens',
+      );
+
+      final dim = await _draw(it, const RenderSettings(exposure: 0.5));
+      final dimPunchy = await _draw(
+        it,
+        const RenderSettings(exposure: 0.5, look: LookSettings(contrast: 1.6)),
+      );
+      expect(
+        _red(dimPunchy, _width ~/ 2, _height ~/ 2),
+        lessThan(_red(dim, _width ~/ 2, _height ~/ 2)),
         reason: 'a value below the pivot darkens; about black it would not',
       );
     });

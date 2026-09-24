@@ -42,8 +42,8 @@ const int _height = 72;
 /// A polished floor with a bright cube standing on it.
 ///
 /// The floor is a slab rather than a plane so the march has something with a
-/// thickness to step into, and its roughness is well under the shader's
-/// `polish` cut-off of 0.18 — a rough floor reflects nothing by design, and a
+/// thickness to step into, and its roughness sits at the bottom of the shader's
+/// `polish` window (0.05 to 0.25) — a rough floor reflects nothing by design, and a
 /// fixture that forgot that would compare two black frames and agree.
 ///
 /// The cube is emissive rather than lit: what the reflection is *of* has to be

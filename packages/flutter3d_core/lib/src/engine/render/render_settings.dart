@@ -31,12 +31,28 @@ export 'shadow_settings.dart';
 /// And it compared [thickness] in window depth, which is not a distance. Both
 /// are covered now by `flutter3d/test/reflections_test.dart` and by the
 /// `screen-space-reflections` golden.
+///
+/// **0.7.4 took the ghost copies out.** A floor of roughness 0.3 under an
+/// object showed shifted, smeared copies of it, and four things added up to
+/// them: the march started every pixel on the same step, so neighbours crossed
+/// the object with the same overshoot (now jittered, and refined by halving the
+/// last stride); a roughness of 0.3 still reflected like a mirror at 58%
+/// (now gone by 0.25, since this pass has no blur); a hit at the far end of
+/// the march weighed as much as one beside the surface (now faded with the
+/// length of the ray); and the Fresnel term floored at 15% where a dielectric
+/// reflects 4% head-on (now Schlick with F0 = 0.04). The defaults follow
+/// Filament's: a ten-centimetre stride over about three metres.
+///
+/// **Every surface is a dielectric here.** The surface buffer carries a
+/// normal, a roughness and a depth, not a metalness, so the pass cannot tell
+/// chrome from plastic: a polished metal floor seen head-on reflects the same
+/// 4% a plastic one does, where a real one would reflect most of the light.
 final class ReflectionSettings {
   const ReflectionSettings({
     this.enabled = false,
-    this.steps = 24,
-    this.stride = 0.18,
-    this.thickness = 0.25,
+    this.steps = 32,
+    this.stride = 0.1,
+    this.thickness = 0.12,
     this.intensity = 0.7,
     this.debugOnly = false,
   });
@@ -193,7 +209,7 @@ final class AmbientOcclusionSettings {
     this.strength = 0.8,
     this.bias = 0.02,
     this.blurTaps = 0,
-    this.blurDepthFalloff = 0.1,
+    this.blurDepthFalloff = 0.02,
   });
 
   final bool enabled;
@@ -228,14 +244,20 @@ final class AmbientOcclusionSettings {
   /// switched on.
   final int blurTaps;
 
-  /// How much difference in depth, in world metres, halves a tap's weight in
-  /// that blur.
+  /// How much difference in depth takes a tap's weight in that blur down to
+  /// 1/e, **as a fraction of the centre pixel's own depth**.
   ///
   /// The number that decides whether occlusion bleeds past a silhouette. Too
   /// large and the dark of a corner spreads out over whatever is in front of
   /// it, which is the halo that makes people switch ambient occlusion off;
   /// too small and a curved surface loses the smoothing the blur is for,
   /// because its own depth changes faster than the falloff allows.
+  ///
+  /// Relative since 0.7.4, as XeGTAO's denoiser takes it. In metres it was
+  /// right at one distance only: ten centimetres smeared small edges a metre
+  /// from the camera and switched the blur off on a floor seen at twenty,
+  /// whose depth changes by more than that from one pixel to the next. 0.02
+  /// is the old ten centimetres at five metres.
   final double blurDepthFalloff;
 
   /// How far, in metres, the sample origin is lifted off its own surface.
@@ -262,13 +284,26 @@ final class AmbientOcclusionSettings {
 /// where the shape comes from. A scene with no caster gets nothing, silently:
 /// that is the honest answer rather than an error, since a light being added
 /// later is the ordinary case.
+///
+/// **Single scattering since 0.7.4, and that is what took the white veil
+/// away.** It used to add `strength × colour` to every pixel in proportion to
+/// how much of its ray was lit — the same for a wall two metres off as for
+/// forty metres of air, the same looking at the sun as with it behind you,
+/// and white whatever colour the sun was. In an open daylight scene nearly
+/// all the air is lit, so the whole frame rose by a flat 0.15 and lost its
+/// saturation. Now the air in-scatters the caster's own light: in proportion
+/// to how much air there is (`1 − e^(−σd)` over the ray), weighted by a
+/// Henyey–Greenstein phase that puts it towards the sun and almost none away
+/// from it — Pestana's shadow-map march, and Godot's volumetric fog, both do
+/// the same. The scene behind is not dimmed; [FogSettings] does that.
 final class LightShaftSettings {
   const LightShaftSettings({
     this.enabled = false,
     this.steps = 16,
     this.distance = 40.0,
-    this.strength = 0.15,
+    this.strength = 0.005,
     this.color,
+    this.anisotropy = 0.6,
   });
 
   /// Off by default. It is a full-screen pass with sixteen shadow lookups a
@@ -290,15 +325,27 @@ final class LightShaftSettings {
   /// shaft; longer spreads them and softens it.
   final double distance;
 
-  /// How much the air scatters, 0 to about 1. Multiplied into [color] before
-  /// it reaches the shader, so "off" is a colour of exactly zero rather than
-  /// a branch.
+  /// How thick the air is: its scattering coefficient σ, per metre.
+  ///
+  /// **A density since 0.7.4, where it was a brightness.** 0.005 is a clear
+  /// day's haze — forty metres of it in-scatter `1 − e^(−0.2)`, about a fifth
+  /// of the light passing through; 0.02 to 0.05 is a dusty interior. The old
+  /// default of 0.15 read as a density is thick fog. Zero is off.
   final double strength;
 
-  /// What the air scatters, or null for white. The colour of the light
-  /// rather than of the fog: a shaft is the light you can see because
-  /// something is in the way of it.
+  /// The air's albedo, or null for white — a tint on the light it scatters.
+  /// The light's own colour and intensity come from the sun that casts the
+  /// shadow, so a sunset's shafts are orange without being told.
   final vm.Vector3? color;
+
+  /// Which way the air scatters: Henyey–Greenstein's g, from −1 (back
+  /// towards the light) through 0 (every direction alike) to 1 (straight on).
+  ///
+  /// 0.6, the default, is forward scattering of the kind haze does: looking
+  /// towards the sun the shafts are bright, and with it behind you they are
+  /// about a sixtieth as bright, which is why a frame no longer washes out
+  /// when the sun is at your back.
+  final double anisotropy;
 
   LightShaftSettings copyWith({
     bool? enabled,
@@ -306,12 +353,14 @@ final class LightShaftSettings {
     double? distance,
     double? strength,
     vm.Vector3? color,
+    double? anisotropy,
   }) => LightShaftSettings(
     enabled: enabled ?? this.enabled,
     steps: steps ?? this.steps,
     distance: distance ?? this.distance,
     strength: strength ?? this.strength,
     color: color ?? this.color,
+    anisotropy: anisotropy ?? this.anisotropy,
   );
 }
 
@@ -1299,20 +1348,23 @@ final class TonemapCurve {
   /// ACES, the Narkowicz fit.
   static const TonemapCurve aces = TonemapCurve._('aces', 2.0);
 
-  /// AgX's curve, without the gamut rotation — see `composite.frag`.
+  /// AgX: the gamut rotation, the log sigmoid, and back to linear — see
+  /// `composite.frag`.
+  ///
+  /// Until 0.7.4 this was the bare sigmoid, and its display-encoded output
+  /// went through the sRGB encode a second time: 18% grey landed at 187/255
+  /// rather than 128/255, and saturated colours came out pastel.
   static const TonemapCurve agx = TonemapCurve._('agx', 3.0);
 
   /// Reinhard, extended so white reaches white.
   static const TonemapCurve reinhard = TonemapCurve._('reinhard', 4.0);
 
-  /// AgX with the gamut rotation, so a hue survives being over-bright —
-  /// `gfx-26n`.
+  /// The same transform as [agx] — `gfx-26n`.
   ///
-  /// A fifth member rather than a fix to [agx], because 18% grey lands
-  /// somewhere else through the rotation and every golden that names `agx`
-  /// names the bare curve on purpose. Reach for this when a deep blue or a
-  /// saturated lamp has to keep its hue four stops over white; reach for
-  /// [agx] when the recorded look is the one that matters.
+  /// Added as the rotated variant while [agx] was the bare sigmoid; now that
+  /// [agx] is the whole of AgX the two draw the same picture. Kept so a
+  /// setting that names it keeps working.
+  @Deprecated('Use TonemapCurve.agx, which is now the full AgX transform.')
   static const TonemapCurve agxFull = TonemapCurve._('agxFull', 5.0);
 
   /// All of them, in the order their codes run.
@@ -1353,7 +1405,7 @@ final class LookSettings {
     this.vignetteRoundness = 1.0,
     this.grain = 0.0,
     this.chromaticAberration = 0.0,
-    this.dither = 0.0,
+    this.dither = 1.0 / 255.0,
     this.lift,
     this.gamma,
     this.gain,
@@ -1364,6 +1416,10 @@ final class LookSettings {
   });
 
   /// Pivoted about mid grey, so raising it does not also raise exposure.
+  ///
+  /// A power about 0.18, linear light's mid grey, since 0.7.4: it pivoted on
+  /// 0.5, which in linear light is a bright highlight, so a contrast of 1.2
+  /// also took about a stop off the picture.
   final double contrast;
 
   /// Zero is luminance alone; above one pushes past the original chroma.
@@ -1394,8 +1450,10 @@ final class LookSettings {
   /// visible without reading as a fault.
   final double chromaticAberration;
 
-  /// What is **added**, per channel, so the shadows move and white stays —
-  /// `gfx-27n`. Null is neutral, the same as zero.
+  /// Where black is **lifted to**, per channel, so the shadows move and white
+  /// stays — `gfx-27n`. Null is neutral, the same as zero. Applied as
+  /// `c * (1 - lift) + lift`; until 0.7.4 it was a plain add, which moved
+  /// white to one plus the lift and clipped it.
   ///
   /// **Lift, gamma and gain are three ranges rather than three strengths.**
   /// [contrast] and [saturation] move the whole picture at once; these move
@@ -1435,8 +1493,15 @@ final class LookSettings {
 
   /// Ordered noise added after the sRGB encode, in output steps — `gfx-24n`.
   ///
-  /// `1 / 255` is one 8-bit step and is the value to reach for; 0 is off,
-  /// exactly, and is the default because every golden was recorded without it.
+  /// `1 / 255` is one 8-bit step, and the default since 0.7.4; 0 is off,
+  /// exactly. It was off by default so the goldens would not move, and every
+  /// bloom around a small bright light came out in coloured rings — one per
+  /// 8-bit code, and at a different radius for each channel. The goldens were
+  /// recorded again with it on.
+  ///
+  /// **Centred**, so a flat colour stays the colour it was: only where a
+  /// gradient's bands fall changes. That is also why [isNeutral] does not ask
+  /// about it.
   ///
   /// **What it is for: a dark gradient that arrives in six flat bands.** The
   /// frame is computed in floating point and written to an 8-bit target, and
@@ -1479,10 +1544,12 @@ final class LookSettings {
   /// Whether any of this changes the picture at all.
   ///
   /// For a caller or a test to say what "off" means in one place rather than
-  /// fifteen. Every field that moves a pixel is asked, including the grade
-  /// `gfx-27n` added and the dither `gfx-24n` did: a look with only a lift in
-  /// it used to report itself neutral. [vignetteRoundness] alone is not asked,
-  /// because it shapes a vignette and does nothing while [vignette] is zero.
+  /// fifteen. Every field that changes a colour is asked, including the grade
+  /// `gfx-27n` added: a look with only a lift in it used to report itself
+  /// neutral. [vignetteRoundness] is not asked, because it shapes a vignette
+  /// and does nothing while [vignette] is zero, and neither is [dither],
+  /// which is centred and moves where a gradient's bands fall rather than
+  /// what colour anything is — and which is on by default.
   bool get isNeutral =>
       contrast == 1.0 &&
       saturation == 1.0 &&
@@ -1490,7 +1557,6 @@ final class LookSettings {
       vignette == 0.0 &&
       grain == 0.0 &&
       chromaticAberration == 0.0 &&
-      dither == 0.0 &&
       whiteBalance == 0.0 &&
       tint == 0.0 &&
       _isNeutralTriple(lift, 0.0) &&
@@ -1682,6 +1748,7 @@ final class BloomSettings {
     this.filterRadius = 1.0,
     this.referenceHeight = 0,
     this.halation = 0.0,
+    this.scatter = 1.0,
   });
 
   final bool enabled;
@@ -1722,7 +1789,29 @@ final class BloomSettings {
   /// It costs nothing new: the pyramid is the expensive half and bloom has
   /// already paid for it. 0.5 is visible as warmth without reading as a
   /// filter.
+  ///
+  /// **Each level warmed once, since 0.7.4.** On the way up a level already
+  /// holds every level below it, so warming each one compounded: at 0.5 over
+  /// five levels the widest came out with red at 1.78 and blue at 0.63 rather
+  /// than the 1.25 and 0.83 promised, and the core was not neutral. Each step
+  /// now carries only the ratio between its warmth and the one above.
+  ///
+  /// Read as between 0 and 2.5: past that the blue weight of the widest level
+  /// would reach zero and then go negative.
   final double halation;
+
+  /// How much each level of the chain weighs against the one above it —
+  /// `scatter` to the power of the level, level zero at one.
+  ///
+  /// **One, the default, is every level at full weight**, which is what this
+  /// bloom has always been: five levels sum to five times the energy that
+  /// passed the threshold, and the widest level, a thirty-second of the frame,
+  /// throws a skirt a hundred and fifty pixels round a small lamp. Below one
+  /// the wide levels fade and the glow tightens: Godot's default weights fall
+  /// off roughly like 0.6 to 0.7, Unity's `scatter` is the same idea. The
+  /// default stays one so every frame recorded before this is where it was.
+  /// A negative value is read as zero.
+  final double scatter;
 
   /// The frame height [levels] was chosen at, or 0 to leave it alone —
   /// `gfx-31n`.
@@ -1753,6 +1842,7 @@ final class BloomSettings {
     double? filterRadius,
     int? referenceHeight,
     double? halation,
+    double? scatter,
   }) => BloomSettings(
     enabled: enabled ?? this.enabled,
     threshold: threshold ?? this.threshold,
@@ -1762,5 +1852,6 @@ final class BloomSettings {
     filterRadius: filterRadius ?? this.filterRadius,
     referenceHeight: referenceHeight ?? this.referenceHeight,
     halation: halation ?? this.halation,
+    scatter: scatter ?? this.scatter,
   );
 }

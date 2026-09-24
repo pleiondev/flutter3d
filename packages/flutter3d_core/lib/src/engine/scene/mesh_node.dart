@@ -33,6 +33,10 @@ enum ShadowCastingMode {
   /// the shadow with nothing behind it and light leaks through the seam; this
   /// records both sides at the cost of the acne the biases are there to hold
   /// off.
+  ///
+  /// A node whose material is `doubleSided` casts this way already, without
+  /// being set to it — see [MeshNode.castsShadowFromEveryFace]. This mode is
+  /// for a surface whose material is not: a wall drawn from one side only.
   doubleSided,
 
   /// Drawn into the shadow maps and never into the colour image.
@@ -137,6 +141,17 @@ base class MeshNode extends SceneNode {
 
   ShadowCastingMode _shadowCasting = ShadowCastingMode.on;
 
+  /// Hiding a static caster takes it out of a bake nothing would redraw, for
+  /// the reason [shadowCasting] gives: without this its shadow stayed on the
+  /// walls after the object was gone. Hiding a *parent* of one is not seen
+  /// here — call `Scene.invalidateStaticShadows` for that.
+  @override
+  set visible(bool value) {
+    if (value == visible) return;
+    super.visible = value;
+    if (shadowIsStatic) scene?.invalidateStaticShadows();
+  }
+
   /// Whether this node is drawn into the shadow maps.
   ///
   /// A two-state view of [shadowCasting], kept because every level document,
@@ -149,6 +164,19 @@ base class MeshNode extends SceneNode {
 
   set castsShadow(bool value) =>
       shadowCasting = value ? ShadowCastingMode.on : ShadowCastingMode.off;
+
+  /// Whether the shadow passes record every face of this node rather than the
+  /// side `ShadowSettings.casterFaces` names.
+  ///
+  /// The node asks for it with [ShadowCastingMode.doubleSided], or its
+  /// material has no back to cull. A `doubleSided` material is a surface seen
+  /// from both sides — a cloth, a leaf card, a sail — and culling one side of
+  /// it in the shadow pass casts the shadow of whichever half happens to face
+  /// away from the light: a sheet over a ball threw a detached crescent
+  /// rather than its outline. Godot, Filament and Unity all take the shadow
+  /// pass's cull from the material for the same reason.
+  bool get castsShadowFromEveryFace =>
+      shadowCasting.castsFromEveryFace || material.doubleSided;
 
   /// Whether this caster never moves.
   ///

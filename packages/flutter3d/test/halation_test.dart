@@ -54,8 +54,12 @@ Future<({List<int> red, List<int> blue})> _glow({
         clearColor: Vector4(0.0, 0.0, 0.0, 1.0),
       ),
     ],
+    // Undithered, so the core is compared byte for byte: the per-level ratio
+    // at level zero is one to within a float, and the dither would round
+    // that last bit into a step.
     settings: RenderSettings(
       bloom: BloomSettings(intensity: 0.8, halation: halation),
+      look: const LookSettings(dither: 0),
     ),
   );
 

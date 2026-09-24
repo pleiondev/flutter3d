@@ -135,11 +135,12 @@ final class CompositeShader implements CpuFragmentShader {
     // Grading after the tone map, then the barrel, then the film. The order is
     // the one a camera imposes and it is the order `composite.frag` uses; the
     // two are compared by thirty golden images and have to agree.
-    colour = Vector3(
-      (colour.x - 0.5) * look.x + 0.5,
-      (colour.y - 0.5) * look.x + 0.5,
-      (colour.z - 0.5) * look.x + 0.5,
-    );
+    // A power about mid grey (0.18 in linear light), as `composite.frag`.
+    if (look.x != 1.0) {
+      double pivot(double x) =>
+          0.18 * math.pow(math.max(x, 0.0) / 0.18, look.x).toDouble();
+      colour = Vector3(pivot(colour.x), pivot(colour.y), pivot(colour.z));
+    }
     final luma = 0.2126 * colour.x + 0.7152 * colour.y + 0.0722 * colour.z;
     colour = Vector3(
       luma + (colour.x - luma) * look.y,
@@ -162,10 +163,11 @@ final class CompositeShader implements CpuFragmentShader {
       'gain',
       Vector4(1.0, 1.0, 1.0, 0.0),
     );
+    // `c * (1 - lift) + lift`: black rises, white stays.
     colour = Vector3(
-      math.max(colour.x + lift.x, 0.0),
-      math.max(colour.y + lift.y, 0.0),
-      math.max(colour.z + lift.z, 0.0),
+      math.max(colour.x * (1.0 - lift.x) + lift.x, 0.0),
+      math.max(colour.y * (1.0 - lift.y) + lift.y, 0.0),
+      math.max(colour.z * (1.0 - lift.z) + lift.z, 0.0),
     );
     if (gammaCurve.x != 1.0 || gammaCurve.y != 1.0 || gammaCurve.z != 1.0) {
       colour = Vector3(
@@ -196,7 +198,22 @@ final class CompositeShader implements CpuFragmentShader {
     final aoTexel = bindings.vec4('CompositeInfo', 'ao_texel', Vector4.zero());
     final lut = bindings.textures['lut_texture'];
     if (lut != null && aoTexel.z > 0.0) {
-      final graded = _sampleLut(lut, colour, math.max(aoTexel.w, 2.0));
+      // Indexed and answered in sRGB, the space a `.cube` is written in.
+      final encodedIn = Vector3(
+        toSrgb(colour.x.clamp(0.0, 1.0)),
+        toSrgb(colour.y.clamp(0.0, 1.0)),
+        toSrgb(colour.z.clamp(0.0, 1.0)),
+      );
+      final gradedEncoded = _sampleLut(
+        lut,
+        encodedIn,
+        math.max(aoTexel.w, 2.0),
+      );
+      final graded = Vector3(
+        toLinear(gradedEncoded.x),
+        toLinear(gradedEncoded.y),
+        toLinear(gradedEncoded.z),
+      );
       final amount = aoTexel.z.clamp(0.0, 1.0);
       colour = Vector3(
         colour.x + (graded.x - colour.x) * amount,
@@ -254,7 +271,9 @@ final class CompositeShader implements CpuFragmentShader {
       // is an integer table and a divide, so there is no precision to lose —
       // which is the argument for an ordered matrix over a hash said in
       // arithmetic rather than in taste.
-      final offset = _bayerCell(c.coord.x, c.coord.y) * outputEncode.x;
+      // Centred: the cells' mean is -1/32, and the thirty-second undoes it.
+      final offset =
+          (_bayerCell(c.coord.x, c.coord.y) + 0.03125) * outputEncode.x;
       encoded = Vector3(
         encoded.x + offset,
         encoded.y + offset,

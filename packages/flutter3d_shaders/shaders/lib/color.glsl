@@ -178,7 +178,11 @@ void WriteSurfaceGeometry(float roughness) {
     frag_surface = vec4(g_debug_surface, ViewDepth());
     return;
   }
-  frag_surface = vec4(EncodeOctahedral(normalize(v_normal)),
+  // Reversed on a back face, as the lit normal is, so the occlusion and
+  // reflection passes see the side of a double-sided surface that faces them.
+  vec3 geometric = normalize(v_normal);
+  if (!gl_FrontFacing) geometric = -geometric;
+  frag_surface = vec4(EncodeOctahedral(geometric),
                       clamp(roughness, 0.0, 1.0), ViewDepth());
 #endif
 }

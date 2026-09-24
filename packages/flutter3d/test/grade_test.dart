@@ -91,8 +91,8 @@ void main() {
         lifted.last,
         plain.last,
         reason:
-            'and white is where lift is supposed to leave it — it adds, '
-            'and the encode clamps, so the top of the ramp cannot move',
+            'and white is where lift is supposed to leave it: '
+            '`c * (1 - lift) + lift` holds one at one',
       );
     });
 

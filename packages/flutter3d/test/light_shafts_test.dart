@@ -23,6 +23,7 @@ Future<List<int>> _frame({
   required bool shafts,
   required bool shadows,
   double strength = 0.6,
+  double anisotropy = 0.6,
 }) async {
   final device = CpuDevice(
     width: _size,
@@ -62,6 +63,7 @@ Future<List<int>> _frame({
         enabled: shafts,
         strength: strength,
         distance: 20.0,
+        anisotropy: anisotropy,
       ),
     ),
   );
@@ -120,22 +122,40 @@ void main() {
     );
   });
 
-  test('strength scales what is added', () async {
+  int sum(List<int> frame) => frame.fold<int>(0, (int a, int b) => a + b);
+
+  test('thicker air scatters more', () async {
+    // The strength is the air's density since 0.7.4: more of it in-scatters
+    // more of the light, up to `1 − e^(−σd)` of it.
     final faint = await _frame(shafts: true, shadows: true, strength: 0.1);
     final strong = await _frame(shafts: true, shadows: true, strength: 0.9);
-
-    var faintSum = 0;
-    var strongSum = 0;
-    for (var i = 0; i < faint.length; i++) {
-      faintSum += faint[i];
-      strongSum += strong[i];
-    }
     expect(
-      strongSum,
-      greaterThan(faintSum),
-      reason:
-          'the strength is folded into the scatter colour, so more of it '
-          'has to mean more light in the air',
+      sum(strong),
+      greaterThan(sum(faint)),
+      reason: 'more air has to mean more light in the air',
     );
   });
+
+  test(
+    'the phase reaches the shader: which way the air scatters matters',
+    () async {
+      // The sun here is behind and above the camera's right shoulder, so the
+      // eye looks away from it. Forward-scattering air (g = 0.6, the default)
+      // sends little of the sun's light back this way; backward-scattering air
+      // (g = −0.6) sends more. Without the phase the two would be one frame —
+      // which is what every frame was until 0.7.4, and why a scene with the sun
+      // at its back washed out as much as one looking into it.
+      final forward = await _frame(
+        shafts: true,
+        shadows: true,
+        anisotropy: 0.6,
+      );
+      final backward = await _frame(
+        shafts: true,
+        shadows: true,
+        anisotropy: -0.6,
+      );
+      expect(sum(backward), greaterThan(sum(forward)));
+    },
+  );
 }
