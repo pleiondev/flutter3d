@@ -232,6 +232,18 @@ void main() {
       expect(_reading(session)['step'], 0);
     });
 
+    test('a claim that holds but could not write its run is refused', () {
+      final session = _session()..open(_crypt);
+      final claimed = session.expect(
+        predicate: <String, Object?>{'kind': 'alive'},
+        limit: 10,
+        path: '${workspace.path}/no/such/dir/held.f3drun',
+      );
+      expect(claimed.did, isFalse, reason: claimed.says);
+      expect(claimed.says, contains('held at step 0'));
+      expect(claimed.says, contains('could not write'));
+    });
+
     test('a run whose tape was changed is caught at the first checkpoint '
         'after the change', () {
       final session = _session()..open(_crypt);
