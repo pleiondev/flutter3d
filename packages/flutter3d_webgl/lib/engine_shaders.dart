@@ -15322,7 +15322,8 @@ layout(std140) uniform SsaoInfo {
   vec4 params;
 
   /// x: 1/width, y: 1/height of *this* target, which is half the scene's.
-  /// z, w unused.
+  /// z: the method — nought the kernel below, one ground-truth horizon
+  /// search (`L5`). w unused.
   vec4 screen;
 
   /// xyz: where the eye is. w unused.
@@ -15517,6 +15518,86 @@ vec2 Rotation(vec2 uv) {
   return vec2(1.0, 0.0);
 }
 
+/// Ground-truth ambient occlusion (Jimenez et al. 2016) — `L5`.
+///
+/// Two slices through the point, turned by the pixel's noise; along each,
+/// the highest horizon on either side within the radius, as the cosine of
+/// its angle from the eye; and the cosine-weighted visibility between the
+/// two horizons integrated in closed form against the normal projected into
+/// the slice. What the kernel above estimates by twelve taps into a
+/// hemisphere this answers per slice exactly, which is why its corners are
+/// the right darkness rather than a matter of tuning.
+///
+/// The steps are the sample count spread over the two sides of two slices,
+/// and falloff towards the radius is a smooth fade of each horizon back to
+/// the eye's own, so a wall just past the radius does not snap in.
+float GtaoVisibility(vec2 uv, vec3 point, vec3 normal) {
+  vec3 view = normalize(ssao_info.camera.xyz - point);
+  float radius = max(ssao_info.params.x, 1e-4);
+  int steps = clamp(int(ssao_info.params.y + 0.5) / 4, 1, 4);
+
+  // How far the radius reaches on screen, at this point's depth.
+  vec3 across = normalize(
+      cross(view, abs(view.y) < 0.99 ? vec3(0.0, 1.0, 0.0) : vec3(1.0, 0.0, 0.0)));
+  vec4 here = ssao_info.view_projection * vec4(point, 1.0);
+  vec4 there = ssao_info.view_projection * vec4(point + across * radius, 1.0);
+  float uvRadius = length(UvFromNdc(there.xy / there.w) - UvFromNdc(here.xy / here.w));
+
+  vec2 pixel = floor(uv / ssao_info.screen.xy);
+  float noise = PixelNoise(pixel);
+  float depth = texture(surface_texture, uv).a;
+
+  float visibility = 0.0;
+  float slices = 0.0;
+  for (int slice = 0; slice < 2; slice++) {
+    float phi = (float(slice) + noise) * 1.5707963;
+    vec2 direction = vec2(cos(phi), sin(phi));
+
+    // The slice's direction in the world: the same screen step taken at this
+    // point's depth, with the eye's component removed.
+    vec3 along = WorldAtDepth(uv + direction * 1e-3, depth) - point;
+    vec3 tangent = along - view * dot(along, view);
+    float tangentLength = length(tangent);
+    if (tangentLength < 1e-6) continue;
+    tangent /= tangentLength;
+    vec3 axis = normalize(cross(tangent, view));
+    vec3 projected = normal - axis * dot(normal, axis);
+    float projectedLength = length(projected);
+    if (projectedLength < 1e-4) continue;
+    float n = sign(dot(projected, tangent)) *
+              acos(clamp(dot(projected / projectedLength, view), -1.0, 1.0));
+
+    float horizons[2];
+    for (int side = 0; side < 2; side++) {
+      float s = side == 0 ? -1.0 : 1.0;
+      float best = -1.0;
+      for (int i = 0; i < 4; i++) {
+        if (i >= steps) break;
+        float t = (float(i) + 0.5 + 0.5 * noise) / float(steps);
+        vec2 at = uv + s * direction * uvRadius * t;
+        if (at.x < 0.0 || at.x > 1.0 || at.y < 0.0 || at.y > 1.0) continue;
+        float d = textureLod(surface_texture, at, 0.0).a;
+        if (d <= 0.0) continue;
+        vec3 toSample = WorldAtDepth(at, d) - point;
+        float distance = length(toSample);
+        if (distance < 1e-5) continue;
+        float cosine = dot(toSample / distance, view);
+        float fade = clamp(1.0 - (distance * distance) / (radius * radius), 0.0,
+                           1.0);
+        best = max(best, mix(-1.0, cosine, fade));
+      }
+      horizons[side] = s * acos(clamp(best, -1.0, 1.0));
+    }
+    float h1 = n + max(horizons[0] - n, -1.5707963);
+    float h2 = n + min(horizons[1] - n, 1.5707963);
+    visibility += projectedLength * 0.25 *
+                  ((-cos(2.0 * h1 - n) + cos(n) + 2.0 * h1 * sin(n)) +
+                   (-cos(2.0 * h2 - n) + cos(n) + 2.0 * h2 * sin(n)));
+    slices += 1.0;
+  }
+  return slices > 0.0 ? clamp(visibility / slices, 0.0, 1.0) : 1.0;
+}
+
 void main() {
   vec4 surface = texture(surface_texture, v_uv);
 
@@ -15529,6 +15610,13 @@ void main() {
   }
 
   vec3 normal = DecodeOctahedral(surface.rg);
+
+  if (ssao_info.screen.z > 0.5) {
+    float visible =
+        GtaoVisibility(v_uv, WorldAtDepth(v_uv, surface.a), normal);
+    frag_color = vec4(visible);
+    return;
+  }
 
   float radius = max(ssao_info.params.x, 1e-4);
   int samples = clamp(int(ssao_info.params.y + 0.5), 1, 12);

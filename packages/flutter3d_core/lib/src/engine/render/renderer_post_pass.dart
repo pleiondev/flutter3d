@@ -480,6 +480,8 @@ extension _PostPasses on Renderer {
     _ssaoParams[3] = options.bias;
     _ssaoScreen[0] = 1.0 / math.max(target.width, 1);
     _ssaoScreen[1] = 1.0 / math.max(target.height, 1);
+    // `L5`: which method, read by the stage.
+    _ssaoScreen[2] = options.method.code;
 
     _ssaoInfo.inverseViewProjection.setAll(0, inverse.storage);
     _ssaoInfo.viewProjection.setAll(0, viewProjection.storage);

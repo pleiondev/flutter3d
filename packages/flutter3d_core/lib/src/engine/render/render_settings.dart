@@ -210,9 +210,14 @@ final class AmbientOcclusionSettings {
     this.bias = 0.02,
     this.blurTaps = 0,
     this.blurDepthFalloff = 0.02,
+    this.method = AmbientOcclusionMethod.ssao,
   });
 
   final bool enabled;
+
+  /// How the occlusion is found — `L5`. [AmbientOcclusionMethod.ssao], the
+  /// hemisphere kernel, stays the default.
+  final AmbientOcclusionMethod method;
 
   /// How far, in world metres, a surface looks for things blocking its sky.
   ///
@@ -266,6 +271,42 @@ final class AmbientOcclusionSettings {
   /// a different physical distance at every range, so one tuned against a near
   /// wall leaves acne on a far one.
   final double bias;
+}
+
+/// How the occlusion pass finds what hides a point — `L5`.
+///
+/// A final class with const instances, like [TonemapCurve], because [code]
+/// goes into a uniform four backends read.
+final class AmbientOcclusionMethod {
+  const AmbientOcclusionMethod._(this.name, this.code);
+
+  final String name;
+
+  /// What goes into `SsaoInfo.screen.z`. Part of the shader contract.
+  final double code;
+
+  /// Twelve taps into the hemisphere, rotated by the pixel — what the
+  /// engine has always drawn.
+  static const AmbientOcclusionMethod ssao = AmbientOcclusionMethod._(
+    'ssao',
+    0.0,
+  );
+
+  /// Ground-truth ambient occlusion: the horizon on either side of two
+  /// slices, integrated against the projected normal in closed form. The
+  /// sample count is spread over the slices' steps.
+  static const AmbientOcclusionMethod gtao = AmbientOcclusionMethod._(
+    'gtao',
+    1.0,
+  );
+
+  static const List<AmbientOcclusionMethod> values = <AmbientOcclusionMethod>[
+    ssao,
+    gtao,
+  ];
+
+  @override
+  String toString() => 'AmbientOcclusionMethod.$name';
 }
 
 /// Volumetric light shafts, marched through the directional shadow map —
