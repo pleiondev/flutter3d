@@ -1538,7 +1538,9 @@ final class _CompositeNode extends RenderNode {
     final temporal = _settings.antiAlias.temporal;
     final smoothing =
         _settings.antiAlias.enabled ||
-        (temporal.enabled && temporal.sharpen > 0.0);
+        (temporal.enabled && temporal.sharpen > 0.0) ||
+        // `R5`: the upscale reads the composite's picture and writes its own.
+        _renderer._upscales(_settings);
     final target = smoothing
         ? frame.resources.transient(
             RenderTargetSpec(
@@ -1606,10 +1608,13 @@ final class _CompositeNode extends RenderNode {
 /// renderer's, because a pooled one would be handed back to the pool while
 /// the compositor was still sampling it.
 final class _FxaaNode extends RenderNode {
-  _FxaaNode(this._renderer, this._settings);
+  _FxaaNode(this._renderer, this._settings, {this.upscaleSharpen = 0.0});
 
   final Renderer _renderer;
   final AntiAliasSettings _settings;
+
+  /// The sharpening a spatial upscale asks for — `R5` — nought otherwise.
+  final double upscaleSharpen;
 
   @override
   String get name => 'antialias';
@@ -1619,7 +1624,8 @@ final class _FxaaNode extends RenderNode {
   @override
   bool get isActive =>
       _settings.enabled ||
-      (_settings.temporal.enabled && _settings.temporal.sharpen > 0.0);
+      (_settings.temporal.enabled && _settings.temporal.sharpen > 0.0) ||
+      upscaleSharpen > 0.0;
 
   @override
   List<ResourceId> get reads => const <ResourceId>[FrameResourceIds.frame];
@@ -1633,7 +1639,62 @@ final class _FxaaNode extends RenderNode {
     final source = frame.resources.texture(FrameResourceIds.frame);
     final target = _renderer._ldrColor!;
     frame.resources.provide(FrameResourceIds.frame, target);
-    _renderer._encodeFxaa(target: target, source: source, settings: _settings);
+    _renderer._encodeFxaa(
+      target: target,
+      source: source,
+      settings: _settings,
+      upscaleSharpen: upscaleSharpen,
+    );
+    developer.Timeline.finishSync();
+  }
+}
+
+/// The finished picture brought up to the asked-for size — `R5`.
+///
+/// Registered after the composite and before the sharpening, so it reads the
+/// tone-mapped picture the composite drew at the scene's size and hands the
+/// next node one at the output's. Into the renderer's own finished-frame
+/// texture when nothing follows, for the reason [_FxaaNode] gives; into
+/// scratch when the sharpening does.
+final class _EasuNode extends RenderNode {
+  _EasuNode(this._renderer, this._settings, this._next);
+
+  final Renderer _renderer;
+  final RenderSettings _settings;
+  final _FxaaNode _next;
+
+  @override
+  String get name => 'spatial upscale';
+
+  @override
+  bool get isActive => _renderer._upscales(_settings);
+
+  @override
+  List<ResourceId> get reads => const <ResourceId>[FrameResourceIds.frame];
+
+  @override
+  List<ResourceId> get writes => const <ResourceId>[FrameResourceIds.frame];
+
+  @override
+  void execute(NodeFrame frame) {
+    developer.Timeline.startSync('Renderer.spatialUpscale');
+    final source = frame.resources.texture(FrameResourceIds.frame);
+    final target = _next.isActive
+        ? frame.resources.transient(
+            RenderTargetSpec(
+              width: frame.width,
+              height: frame.height,
+              format: _renderer.device.defaultColorFormat,
+            ),
+          )
+        : _renderer._ldrColor!;
+    frame.resources.provide(FrameResourceIds.frame, target);
+    _renderer._encodeEasu(
+      target: target,
+      source: source,
+      grain: math.max(_settings.look.grain, 0.0),
+    );
+    frame.state.drawCalls++;
     developer.Timeline.finishSync();
   }
 }

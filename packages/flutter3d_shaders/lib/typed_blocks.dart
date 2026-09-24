@@ -182,6 +182,23 @@ final class DofInfoBlock extends UniformBlock {
   };
 }
 
+/// `EasuInfo`.
+final class EasuInfoBlock extends UniformBlock {
+  EasuInfoBlock() : super('EasuInfo');
+
+  /// `source`: Vector4, at byte 0.
+  final Float32List source = Float32List(4);
+
+  /// `params`: Vector4, at byte 16.
+  final Float32List params = Float32List(4);
+
+  @override
+  late final Map<String, Float32List> members = <String, Float32List>{
+    'source': source,
+    'params': params,
+  };
+}
+
 /// `FieldDecayInfo`.
 final class FieldDecayInfoBlock extends UniformBlock {
   FieldDecayInfoBlock() : super('FieldDecayInfo');

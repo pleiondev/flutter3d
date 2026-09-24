@@ -260,6 +260,15 @@ uniformBlocks = <String, Map<String, Map<String, UniformMemberLayout>>>{
       'origin': (offset: 0, byteLength: 16, elements: 1, type: 'Vector4'),
     },
   },
+  'Easu': <String, Map<String, UniformMemberLayout>>{
+    'EasuInfo': <String, UniformMemberLayout>{
+      'source': (offset: 0, byteLength: 16, elements: 1, type: 'Vector4'),
+      'params': (offset: 16, byteLength: 16, elements: 1, type: 'Vector4'),
+    },
+    'FragCoordInfo': <String, UniformMemberLayout>{
+      'origin': (offset: 0, byteLength: 16, elements: 1, type: 'Vector4'),
+    },
+  },
   'FieldDecay': <String, Map<String, UniformMemberLayout>>{
     'FieldDecayInfo': <String, UniformMemberLayout>{
       'params': (offset: 0, byteLength: 16, elements: 1, type: 'Vector4'),

@@ -358,6 +358,33 @@ final class AmbientOcclusionMethod {
 /// Henyey–Greenstein phase that puts it towards the sun and almost none away
 /// from it — Pestana's shadow-map march, and Godot's volumetric fog, both do
 /// the same. The scene behind is not dimmed; [FogSettings] does that.
+/// Bringing a frame drawn below full size up to it without a temporal
+/// resolve — `R5`.
+///
+/// **For the path that has no history to reconstruct from.** With the
+/// resolve on, the frame is rebuilt at full size from jittered frames; with
+/// it off, [RenderSettings.renderScale] used to hand back the smaller texture
+/// for the presenter to stretch. Enabled, the finished picture is brought up
+/// to the asked-for size by an edge-adaptive twelve-tap filter, which keeps
+/// an edge an edge where a stretch blurs it, and then sharpened. After the
+/// tone map, because in HDR a highlight rings around any lobed filter.
+final class SpatialUpscaleSettings {
+  const SpatialUpscaleSettings({this.enabled = false, this.sharpen = 0.2});
+
+  final bool enabled;
+
+  /// How much the sharpening pass that follows adds back, nought to one.
+  /// The same robust kernel a temporal resolve is followed by; nought skips
+  /// it.
+  final double sharpen;
+
+  /// Whether a frame with [settings] is upscaled.
+  static bool runsFor(RenderSettings settings) =>
+      settings.spatialUpscale.enabled &&
+      settings.renderScale < 1.0 &&
+      !settings.antiAlias.temporal.enabled;
+}
+
 final class LightShaftSettings {
   const LightShaftSettings({
     this.enabled = false,
@@ -783,6 +810,7 @@ final class RenderSettings {
     this.xray = const XraySettings(),
     this.disabledPasses = const <String>{},
     this.renderScale = 1.0,
+    this.spatialUpscale = const SpatialUpscaleSettings(),
     this.energyCompensation = false,
     this.clusteredLights = false,
     this.lightShafts = const LightShaftSettings(),
@@ -1024,6 +1052,12 @@ final class RenderSettings {
   /// and the one a measurement wants.
   final double renderScale;
 
+  /// An edge-adaptive upscale of the finished picture to the asked-for size
+  /// — `R5`. Off by default, which is [renderScale]'s smaller texture as
+  /// before; takes effect only below a scale of one with the temporal resolve
+  /// off, since the resolve already reconstructs the full size.
+  final SpatialUpscaleSettings spatialUpscale;
+
   /// Puts back the light single-scattering GGX loses on rough surfaces —
   /// `L1`. Off by default.
   ///
@@ -1205,6 +1239,7 @@ final class RenderSettings {
     XraySettings? xray,
     Set<String>? disabledPasses,
     double? renderScale,
+    SpatialUpscaleSettings? spatialUpscale,
     bool? energyCompensation,
     bool? clusteredLights,
     LightShaftSettings? lightShafts,
@@ -1241,6 +1276,7 @@ final class RenderSettings {
     xray: xray ?? this.xray,
     disabledPasses: disabledPasses ?? this.disabledPasses,
     renderScale: renderScale ?? this.renderScale,
+    spatialUpscale: spatialUpscale ?? this.spatialUpscale,
     energyCompensation: energyCompensation ?? this.energyCompensation,
     clusteredLights: clusteredLights ?? this.clusteredLights,
     lightShafts: lightShafts ?? this.lightShafts,
@@ -1341,6 +1377,9 @@ final class RenderSettings {
     'temporal resolve',
     'bloom',
     'composite',
+    // `R5`: the finished picture brought up to the asked-for size, before
+    // the sharpening that follows it.
+    'spatial upscale',
     'antialias',
     // `gfx-43n`/`44n`/`45n`, last: a mode here is about the finished picture,
     // so it runs after the tone map and after the edges are smoothed.
@@ -1383,6 +1422,7 @@ final class RenderSettings {
     // so it moves a measured pixel exactly as `ssao` does.
     'contact shadows',
     'reflections',
+    'spatial upscale',
     'antialias',
     'luminance',
     // Both of these are off by default, so a measurement frame taken from

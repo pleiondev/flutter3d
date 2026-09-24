@@ -652,6 +652,7 @@ final class Renderer implements RenderServices {
   final FragCoordInfoBlock _fragCoordInfo = FragCoordInfoBlock();
   final FragInfoBlock _fragInfo = FragInfoBlock();
   final FxaaInfoBlock _fxaaInfo = FxaaInfoBlock();
+  final EasuInfoBlock _easuInfo = EasuInfoBlock();
   final LightListInfoBlock _lightListInfo = LightListInfoBlock();
   final LuminanceInfoBlock _luminanceInfo = LuminanceInfoBlock();
   final MaskInfoBlock _maskInfo = MaskInfoBlock();
@@ -2333,7 +2334,14 @@ final class Renderer implements RenderServices {
     // setting is off would make that read conditional too, which is the branch
     // moved rather than deleted. Registered and inactive, nothing produces the
     // glow, the graph culls the node, and the optional read comes back null.
-    final fxaa = _FxaaNode(this, s.antiAlias);
+    final fxaa = _FxaaNode(
+      this,
+      s.antiAlias,
+      upscaleSharpen: _upscales(s) ? s.spatialUpscale.sharpen : 0.0,
+    );
+    // `R5`: after the composite and before the sharpening, inactive (and so
+    // culled) unless the frame is upscaled.
+    final easu = _EasuNode(this, s, fxaa);
     final shade = _ViewportShadeNode(this, view, s);
     // `R2`: after everything that reads the scene's own buffers and before
     // bloom, so the glow is taken from the resolved picture and the
@@ -2343,6 +2351,7 @@ final class Renderer implements RenderServices {
       ..addNode(resolve)
       ..addNode(bloom)
       ..addNode(composite)
+      ..addNode(easu)
       // And the smoothing after the composite, which is what lets it read a
       // finished picture — `gfx-04n`. Registered whether or not it is on, for
       // the same reason bloom is: registration order is the version chain, and
@@ -2366,8 +2375,11 @@ final class Renderer implements RenderServices {
 
     // `R2`: everything after the resolve works on the picture it
     // reconstructed, at the size that was asked for.
+    // `R5`: with the spatial upscale, everything after it.
     _outputSized = s.antiAlias.temporal.enabled
         ? <FrameGraphNode>{resolve, bloom, composite, fxaa, shade, ...present}
+        : _upscales(s)
+        ? <FrameGraphNode>{easu, fxaa, shade, ...present}
         : const <FrameGraphNode>{};
 
     return graph.compile(
@@ -2580,6 +2592,11 @@ final class Renderer implements RenderServices {
   /// that drew it — `gfx-68n`, per cascade since `S1`. Null until a first
   /// pass, and a null entry is a tile that has to be drawn.
   final List<int?> _directionalBaked = <int?>[null, null, null];
+
+  /// Whether a frame with [settings] runs the spatial upscale — `R5`: asked
+  /// for, below full size, no temporal resolve, and a bundle with the stage.
+  bool _upscales(RenderSettings settings) =>
+      SpatialUpscaleSettings.runsFor(settings) && shaders['Easu'] != null;
 
   /// What each tile of [_shadowMapStatic] holds, as the key that drew it.
   final List<int?> _directionalStaticBaked = <int?>[null, null, null];
@@ -3334,8 +3351,11 @@ final class Renderer implements RenderServices {
       width = math.max(1, (width * scale).round());
       height = math.max(1, (height * scale).round());
     }
-    final outputWidth = temporal ? requestedWidth : width;
-    final outputHeight = temporal ? requestedHeight : height;
+    // `R5`: and with the spatial upscale, the composite draws small and the
+    // upscale brings it to the asked-for size.
+    final upscaled = temporal || _upscales(settings);
+    final outputWidth = upscaled ? requestedWidth : width;
+    final outputHeight = upscaled ? requestedHeight : height;
     _outputWidth = outputWidth;
     _outputHeight = outputHeight;
     // A frame drawn without the resolve leaves the history describing a
