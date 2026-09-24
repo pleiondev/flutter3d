@@ -121,6 +121,9 @@ Future<void> checkLinking(GraphicsDevice device) async {
       'CameraVelocity',
       // `R2`: four samplers and the history it keeps.
       'TemporalResolve',
+      // `R3`: the history the occlusion and the contact shadow are blended
+      // into.
+      'TemporalAccumulate',
       'LightShafts',
       'DepthOfField',
       'ViewportShade',

@@ -23,6 +23,7 @@
 precision highp float;
 
 #include <lib/frag_coord_info.glsl>
+#include <lib/blue_noise.glsl>
 
 in vec2 v_uv;
 
@@ -115,33 +116,6 @@ float DepthOf(vec3 at) {
   return dot(at - reflection_info.camera.xyz, reflection_info.forward.xyz);
 }
 
-// One cell of a 4x4 Bayer matrix, in [0, 1). The same table
-// `light_shafts.frag` and `composite.frag` keep: a pattern rather than a hash,
-// so the software backend lands on the same offsets bit for bit.
-float BayerCell(vec2 at) {
-  int x = int(mod(at.x, 4.0));
-  int y = int(mod(at.y, 4.0));
-  int index = y * 4 + x;
-  float value = 0.0;
-  if (index == 0) value = 0.0;
-  else if (index == 1) value = 8.0;
-  else if (index == 2) value = 2.0;
-  else if (index == 3) value = 10.0;
-  else if (index == 4) value = 12.0;
-  else if (index == 5) value = 4.0;
-  else if (index == 6) value = 14.0;
-  else if (index == 7) value = 6.0;
-  else if (index == 8) value = 3.0;
-  else if (index == 9) value = 11.0;
-  else if (index == 10) value = 1.0;
-  else if (index == 11) value = 9.0;
-  else if (index == 12) value = 15.0;
-  else if (index == 13) value = 7.0;
-  else if (index == 14) value = 13.0;
-  else value = 5.0;
-  return value / 16.0;
-}
-
 /// Where [at] lands in the textures this pass reads, or a negative x when it
 /// is behind the camera.
 vec2 UvOf(vec3 at) {
@@ -212,7 +186,7 @@ void main() {
   // the reflection comes back as a stack of shifted copies of it. Half a
   // stride at least, off a centimetre of normal bias, so the first sample does
   // not land on the pixel it came from.
-  float jitter = 0.5 + BayerCell(TargetFragCoord());
+  float jitter = 0.5 + PixelNoise(TargetFragCoord());
   float travelled = stride * jitter;
   vec3 march = position + normal * 0.01 + ray * travelled;
   float reach = stride * (float(steps) + 0.5);

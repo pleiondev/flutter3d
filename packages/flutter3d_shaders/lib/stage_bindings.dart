@@ -53,8 +53,8 @@ stageBindings = <String, ({Set<String> blocks, Set<String> samplers})>{
     },
   ),
   'ContactShadow': (
-    blocks: <String>{'ContactShadowInfo', 'FragCoordInfo'},
-    samplers: <String>{'surface_texture'},
+    blocks: <String>{'ContactShadowInfo', 'FragCoordInfo', 'NoiseInfo'},
+    samplers: <String>{'blue_noise_texture', 'surface_texture'},
   ),
   'DebugLine': (blocks: <String>{}, samplers: <String>{}),
   'DebugLineVertex': (blocks: <String>{'LineInfo'}, samplers: <String>{}),
@@ -83,8 +83,13 @@ stageBindings = <String, ({Set<String> blocks, Set<String> samplers})>{
     },
   ),
   'LightShafts': (
-    blocks: <String>{'FragCoordInfo', 'ShaftInfo'},
-    samplers: <String>{'scene_texture', 'shadow_texture', 'surface_texture'},
+    blocks: <String>{'FragCoordInfo', 'NoiseInfo', 'ShaftInfo'},
+    samplers: <String>{
+      'blue_noise_texture',
+      'scene_texture',
+      'shadow_texture',
+      'surface_texture',
+    },
   ),
   'Luminance': (
     blocks: <String>{'LuminanceInfo'},
@@ -148,8 +153,12 @@ stageBindings = <String, ({Set<String> blocks, Set<String> samplers})>{
     samplers: <String>{'capture_texture'},
   ),
   'Reflections': (
-    blocks: <String>{'FragCoordInfo', 'ReflectionInfo'},
-    samplers: <String>{'scene_texture', 'surface_texture'},
+    blocks: <String>{'FragCoordInfo', 'NoiseInfo', 'ReflectionInfo'},
+    samplers: <String>{
+      'blue_noise_texture',
+      'scene_texture',
+      'surface_texture',
+    },
   ),
   'ShadowDepth': (blocks: <String>{}, samplers: <String>{}),
   'ShadowDepthMasked': (
@@ -168,10 +177,21 @@ stageBindings = <String, ({Set<String> blocks, Set<String> samplers})>{
   'SkyCubeVertex': (blocks: <String>{}, samplers: <String>{}),
   'SkyVertex': (blocks: <String>{}, samplers: <String>{}),
   'Splat': (blocks: <String>{'FogInfo'}, samplers: <String>{}),
-  'Ssao': (blocks: <String>{'SsaoInfo'}, samplers: <String>{'surface_texture'}),
+  'Ssao': (
+    blocks: <String>{'NoiseInfo', 'SsaoInfo'},
+    samplers: <String>{'blue_noise_texture', 'surface_texture'},
+  ),
   'SsaoBlur': (
     blocks: <String>{'SsaoBlurInfo'},
     samplers: <String>{'ao_texture', 'surface_texture'},
+  ),
+  'TemporalAccumulate': (
+    blocks: <String>{'AccumulateInfo'},
+    samplers: <String>{
+      'current_texture',
+      'history_texture',
+      'velocity_texture',
+    },
   ),
   'TemporalResolve': (
     blocks: <String>{'TemporalInfo'},

@@ -170,6 +170,7 @@ Map<String, CpuStage> builtinCpuShaders() {
     'CameraVelocity': const CpuStage.fragment(CameraVelocityShader()),
     'Velocity': const CpuStage.fragment(VelocityShader()),
     'TemporalResolve': const CpuStage.fragment(TemporalResolveShader()),
+    'TemporalAccumulate': const CpuStage.fragment(TemporalAccumulateShader()),
     'VelocityVertex': const CpuStage.vertex(VelocityVertexShader()),
     'VelocitySkinnedVertex': const CpuStage.vertex(
       VelocitySkinnedVertexShader(),

@@ -21,6 +21,30 @@ double bayerCell(double x, double y) {
   return table[index] / 16.0;
 }
 
+/// `BlueNoise` from `lib/blue_noise.glsl` — `R3`: this frame's slice of the
+/// engine's blue noise at the pixel ([x], [y]), in [0, 1).
+double blueNoise(ShaderBindings b, double x, double y) {
+  final table = b.textures['blue_noise_texture'];
+  if (table == null) return bayerCell(x, y);
+  final slice = b.vec4('NoiseInfo', 'noise', Vector4.zero()).y;
+  final cellX = x.floorToDouble() % 64.0;
+  final cellY = y.floorToDouble() % 64.0;
+  final cornerX = (slice % 8.0).floorToDouble() * 64.0;
+  final cornerY = (slice / 8.0).floorToDouble() * 64.0;
+  final texel = table.sample(
+    (cornerX + cellX + 0.5) / 512.0,
+    (cornerY + cellY + 0.5) / 256.0,
+  );
+  return texel.x * (255.0 / 256.0);
+}
+
+/// `PixelNoise` from `lib/blue_noise.glsl`: the blue noise while a temporal
+/// resolve runs, [bayerCell] otherwise.
+double pixelNoise(ShaderBindings b, double x, double y) =>
+    b.vec4('NoiseInfo', 'noise', Vector4.zero()).x > 0.5
+    ? blueNoise(b, x, y)
+    : bayerCell(x, y);
+
 /// `reflections.frag`: screen-space reflections, marched against the surface
 /// buffer.
 ///
@@ -110,7 +134,7 @@ final class ReflectionsShader implements CpuFragmentShader {
 
     // Jittered start and reach, as the GLSL: half a stride at least, plus a
     // Bayer cell of one.
-    final jitter = 0.5 + bayerCell(c.coord.x, c.coord.y);
+    final jitter = 0.5 + pixelNoise(b, c.coord.x, c.coord.y);
     var travelled = stride * jitter;
     final march = position + normal * 0.01 + ray * travelled;
     final reach = stride * (steps + 0.5);
@@ -185,9 +209,6 @@ final class ReflectionsShader implements CpuFragmentShader {
 final class LightShaftsShader implements CpuFragmentShader {
   const LightShaftsShader();
 
-  /// `BayerCell` from the shader, in [0, 1).
-  static double _bayer(double x, double y) => bayerCell(x, y);
-
   @override
   Vector4? run(Float32List v, ShaderBindings b, FragmentContext c) {
     final sceneTexture = b.textures['scene_texture'];
@@ -224,7 +245,7 @@ final class LightShaftsShader implements CpuFragmentShader {
     if (distance <= 0.0) return scene;
 
     final stride = distance / steps;
-    final offset = _bayer(c.coord.x, c.coord.y) * stride;
+    final offset = pixelNoise(b, c.coord.x, c.coord.y) * stride;
 
     final matrices = <Matrix4>[
       b.mat4('ShaftInfo', 'shadow_matrix'),

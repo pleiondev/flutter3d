@@ -151,6 +151,10 @@
     "type": "fragment",
     "file": "shaders/post/temporal_resolve.frag"
   },
+  "TemporalAccumulate": {
+    "type": "fragment",
+    "file": "shaders/post/temporal_accumulate.frag"
+  },
   "LightShafts": {
     "type": "fragment",
     "file": "shaders/post/light_shafts.frag"

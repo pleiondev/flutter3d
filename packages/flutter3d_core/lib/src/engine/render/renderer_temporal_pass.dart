@@ -6,7 +6,81 @@
 /// `post/temporal_resolve.frag`, which says what each step is for.
 part of 'renderer.dart';
 
+/// One noisy effect's history — `R3`: two textures of the effect's size, one
+/// read and one written, swapped each frame.
+final class _EffectHistory {
+  final List<TextureHandle?> textures = <TextureHandle?>[null, null];
+  int read = 0;
+
+  /// Whether [textures] holds a frame worth blending.
+  bool valid = false;
+}
+
 extension _TemporalPass on Renderer {
+  /// Blends [current] into the history kept for [resource] and returns the
+  /// blend, which is the effect's answer from here on — `R3`.
+  ///
+  /// Nine tenths history: an effect drawn with half its samples and a new
+  /// offset each frame has, after a dozen frames, the samples of several
+  /// frames' worth of full passes. The clamp to this frame's neighbourhood
+  /// is what stops that from lagging behind anything that moves.
+  TextureHandle _encodeAccumulate({
+    required ResourceId resource,
+    required TextureHandle current,
+    required TextureHandle velocity,
+    required RenderView view,
+  }) {
+    developer.Timeline.startSync('Renderer.accumulate');
+    final history = _effectHistories.putIfAbsent(resource, _EffectHistory.new);
+    final existing = history.textures[0];
+    if (existing == null ||
+        existing.width != current.width ||
+        existing.height != current.height) {
+      for (var i = 0; i < 2; i++) {
+        _destroyAfterFrame(history.textures[i]);
+        history.textures[i] = device.createTexture(
+          RenderTargetSpec(
+            width: current.width,
+            height: current.height,
+            format: current.format,
+            storageMode: StorageMode.devicePrivate,
+          ),
+        );
+      }
+      history.valid = false;
+    }
+    final previous = history.textures[history.read]!;
+    final next = history.textures[1 - history.read]!;
+
+    _accumulateInfo.params
+      ..[0] = 0.9
+      ..[1] = history.valid && !view.cut ? 1.0 : 0.0
+      ..[2] = 1.0 / current.width
+      ..[3] = 1.0 / current.height;
+    drawFullscreen(
+      FullscreenDraw(
+        target: next,
+        fragment: temporalAccumulateShader,
+        textures: <String, TextureHandle>{
+          'current_texture': current,
+          'history_texture': previous,
+          'velocity_texture': velocity,
+        },
+        uniforms: <String, Map<String, Float32List>>{
+          _accumulateInfo.name: _accumulateInfo.members,
+        },
+        samplers: const <String, SamplerOptions>{
+          'velocity_texture': SamplerOptions.nearestClamp,
+        },
+      ),
+    );
+    history
+      ..read = 1 - history.read
+      ..valid = true;
+    developer.Timeline.finishSync();
+    return next;
+  }
+
   /// Makes the two histories [width] × [height], or keeps them if they are.
   void _ensureHistory(int width, int height) {
     final current = _history[0];

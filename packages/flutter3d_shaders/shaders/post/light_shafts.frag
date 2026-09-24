@@ -25,6 +25,7 @@
 // else, so a golden recorded with shafts on stays recorded.
 
 #include <lib/frag_coord_info.glsl>
+#include <lib/blue_noise.glsl>
 
 in vec2 v_uv;
 
@@ -74,32 +75,6 @@ float HenyeyGreenstein(float cosine, float g) {
   float g2 = g * g;
   float denominator = max(1.0 + g2 - 2.0 * g * cosine, 1e-4);
   return (1.0 - g2) / (12.566371 * denominator * sqrt(denominator));
-}
-
-// One cell of a 4x4 Bayer matrix, in [0, 1). The same table
-// `composite.frag` keeps, for the same reason.
-float BayerCell(vec2 at) {
-  int x = int(mod(at.x, 4.0));
-  int y = int(mod(at.y, 4.0));
-  int index = y * 4 + x;
-  float value = 0.0;
-  if (index == 0) value = 0.0;
-  else if (index == 1) value = 8.0;
-  else if (index == 2) value = 2.0;
-  else if (index == 3) value = 10.0;
-  else if (index == 4) value = 12.0;
-  else if (index == 5) value = 4.0;
-  else if (index == 6) value = 14.0;
-  else if (index == 7) value = 6.0;
-  else if (index == 8) value = 3.0;
-  else if (index == 9) value = 11.0;
-  else if (index == 10) value = 1.0;
-  else if (index == 11) value = 9.0;
-  else if (index == 12) value = 15.0;
-  else if (index == 13) value = 7.0;
-  else if (index == 14) value = 13.0;
-  else value = 5.0;
-  return value / 16.0;
 }
 
 // Whether [world] is lit by the caster: 1 in the light, 0 in shadow.
@@ -185,7 +160,7 @@ void main() {
   float stride = distance / float(steps);
   // The dithered start: a fraction of a step, so the banding sixteen samples
   // would otherwise draw is broken into a pattern the eye integrates.
-  float offset = BayerCell(TargetFragCoord()) * stride;
+  float offset = PixelNoise(TargetFragCoord()) * stride;
 
   // **Single scattering with transmittance.** Each step in-scatters the
   // share of the light its own length of air catches, `1 − e^(−σ·stride)`,
