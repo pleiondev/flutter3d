@@ -355,8 +355,12 @@ final class LevelLoader {
   /// noticed — but an editor holds a document it has just changed and has no
   /// asset to point at, and a test that wants to draw a level it built in
   /// memory had the same problem. Splitting them costs one call and gives both.
+  ///
+  /// [authored]'s recipes are expanded first, and everything after — the
+  /// validator, the colliders, the batches, the entities — sees the level as
+  /// it is played.
   Future<LoadedLevel> build(
-    Level level, {
+    Level authored, {
     required GraphicsDevice device,
     required EntityRegistry registry,
     List<LevelRule> rules = const <LevelRule>[],
@@ -365,6 +369,7 @@ final class LevelLoader {
     Lightmap? lightmap,
     List<LevelIssue> issues = const <LevelIssue>[],
   }) async {
+    final level = expandRecipes(authored);
     // Errors throw with every one listed, because a level with a door whose key
     // is in no room is a level that cannot be finished, and finding that out
     // twenty minutes in is worse than not starting.

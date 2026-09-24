@@ -43,7 +43,17 @@ final class LevelValidator {
   /// *which* entities a level ought to contain is a game's own business.
   final List<LevelRule> rules;
 
-  List<LevelIssue> validate(Level level) {
+  /// Everything wrong with [authored] as it will be played — with its recipes
+  /// expanded, since a recipe's doorway blocked by a hand-placed brush is as
+  /// much a problem as two hand-placed brushes. A recipe that cannot be
+  /// expanded at all is the one error reported.
+  List<LevelIssue> validate(Level authored) {
+    final Level level;
+    try {
+      level = expandRecipes(authored);
+    } on LevelFormatException catch (e) {
+      return <LevelIssue>[LevelIssue(LevelIssueSeverity.error, e.message)];
+    }
     final issues = <LevelIssue>[];
     final scope = LevelScope(level);
 

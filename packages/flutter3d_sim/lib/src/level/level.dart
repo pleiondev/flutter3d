@@ -9,12 +9,15 @@ import 'json_write_through.dart';
 import 'level_format_exception.dart';
 import 'level_light.dart';
 import 'level_material.dart';
+import 'level_recipes.dart';
 
 export 'brush.dart';
 export 'entity_def.dart';
 export 'level_format_exception.dart';
 export 'level_light.dart';
 export 'level_material.dart';
+export 'level_recipes.dart';
+export 'level_sketch.dart';
 
 /// Everything one playable space is made of.
 ///
@@ -35,8 +38,10 @@ final class Level {
     this.fogDensity = 0.0,
     this.music,
     this.next,
+    List<LevelRecipe>? recipes,
     Map<String, Object?> source = const <String, Object?>{},
   }) : brushes = brushes ?? <Brush>[],
+       recipes = recipes ?? <LevelRecipe>[],
        // ignore: prefer_initializing_formals
        _source = source,
        entities = entities ?? <EntityDef>[],
@@ -89,6 +94,16 @@ final class Level {
 
   /// Which level follows this one, if any.
   final String? next;
+
+  /// Pieces of the level written as the instruction that builds them.
+  ///
+  /// **Kept, not expanded.** [brushes], [entities] and [lights] are what the
+  /// document spells out and nothing more; what a recipe stands for appears
+  /// only in `expandRecipes(level)`, which everything that *uses* a level
+  /// calls. So an editor that opens a level and saves it writes the recipe
+  /// back as a recipe, rather than baking forty brushes into the file and a
+  /// second copy of them on the next load.
+  final List<LevelRecipe> recipes;
 
   Iterable<EntityDef> ofType(String type) =>
       entities.where((EntityDef e) => e.type == type);
@@ -145,6 +160,7 @@ final class Level {
       fogDensity: json.numberOr('fogDensity', 0.0),
       music: json.textOrNull('music'),
       next: json.textOrNull('next'),
+      recipes: json.objects('recipes').map(LevelRecipe.fromJson).toList(),
       source: json,
     );
   }
@@ -188,6 +204,11 @@ final class Level {
       'heightfield',
       heightfield?.toJson(),
       whenAbsent: heightfield != null,
+    ),
+    WriteThroughField(
+      'recipes',
+      recipes.map((LevelRecipe r) => r.toJson()).toList(),
+      whenAbsent: recipes.isNotEmpty,
     ),
   ]);
 }
