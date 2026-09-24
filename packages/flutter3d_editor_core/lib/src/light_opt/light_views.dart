@@ -73,7 +73,7 @@ List<LightView> defaultLightViews(
 }
 
 LightView _looking(Vector3 eye, double yaw) =>
-    (from: eye, at: eye + Vector3(-math.sin(yaw), 0.0, -math.cos(yaw)));
+    (from: eye, at: eye + Vector3(-Portable.sin(yaw), 0.0, -Portable.cos(yaw)));
 
 /// The middle of the level's brushes, at the height of their lowest point:
 /// the floor of a room, near enough, for a level with nowhere to start.
