@@ -230,3 +230,79 @@ final class SplatShader implements CpuFragmentShader {
     return Vector4(r * alpha, g * alpha, bl * alpha, alpha);
   }
 }
+
+/// `splat_hashed.frag` — `N5`: the splat kept or dropped whole at a pixel,
+/// against noise, and written opaque.
+///
+/// The identity hash is the GLSL's formula in doubles rather than floats, so a
+/// splat's offset into the noise can differ from a GPU's; what has to agree is
+/// how often a splat is kept, which is its opacity either way.
+final class SplatHashedShader implements CpuFragmentShader {
+  const SplatHashedShader();
+
+  static double _fract(double x) => x - x.floorToDouble();
+
+  @override
+  Vector4? run(Float32List v, ShaderBindings b, FragmentContext c) {
+    final power = -0.5 * (v[4] * v[4] + v[5] * v[5]);
+    if (power < -4.5) return null;
+
+    final alpha = v[3] * math.exp(power);
+    if (alpha < 1.0 / 255.0) return null;
+
+    // The splat's identity as a whole number — millimetres along the view
+    // axis, the colour in 8-bit steps — and the offset into the noise it
+    // hashes to.
+    final eye = b.vec4('SplatHashInfo', 'eye', Vector4.zero());
+    final forward = b.vec4('SplatHashInfo', 'forward', Vector4.zero());
+    final along =
+        (v[6] - eye.x) * forward.x +
+        (v[7] - eye.y) * forward.y +
+        (v[8] - eye.z) * forward.z;
+    final identity =
+        ((along * 1000.0).floorToDouble() +
+            (v[0] * 255.0 +
+                    v[1] * 255.0 * 7.0 +
+                    v[2] * 255.0 * 31.0 +
+                    v[3] * 255.0 * 127.0)
+                .floorToDouble()) %
+        4096.0;
+    final offsetX = (_fract(math.sin(identity * 12.9898) * 43758.5453) * 64.0)
+        .floorToDouble();
+    final offsetY = (_fract(math.sin(identity * 78.233) * 43758.5453) * 64.0)
+        .floorToDouble();
+
+    // This frame's slice of the blue noise, at the pixel moved by the offset.
+    final table = b.textures['blue_noise_texture'];
+    if (table == null) return null;
+    final slice = b.vec4('SplatHashInfo', 'frame', Vector4.zero()).x;
+    final cellX = (c.coord.x.floorToDouble() + offsetX) % 64.0;
+    final cellY = (c.coord.y.floorToDouble() + offsetY) % 64.0;
+    final cornerX = (slice % 8.0).floorToDouble() * 64.0;
+    final cornerY = (slice / 8.0).floorToDouble() * 64.0;
+    final threshold =
+        table
+            .sample(
+              (cornerX + cellX + 0.5) / 512.0,
+              (cornerY + cellY + 0.5) / 256.0,
+            )
+            .x *
+        (255.0 / 256.0);
+
+    if (alpha <= threshold) return null;
+
+    final fog = b.vec4('FogInfo', 'fog', Vector4.zero());
+    if (fog.w <= 0.0) return Vector4(v[0], v[1], v[2], 1.0);
+    final fogEye = b.vec4('FogInfo', 'eye', Vector4.zero());
+    final d =
+        (Vector3(v[6], v[7], v[8]) - Vector3(fogEye.x, fogEye.y, fogEye.z))
+            .length;
+    final visibility = math.exp(-fog.w * d).clamp(0.0, 1.0);
+    return Vector4(
+      fog.x + (v[0] - fog.x) * visibility,
+      fog.y + (v[1] - fog.y) * visibility,
+      fog.z + (v[2] - fog.z) * visibility,
+      1.0,
+    );
+  }
+}

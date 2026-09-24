@@ -893,6 +893,17 @@ uniformBlocks = <String, Map<String, Map<String, UniformMemberLayout>>>{
       'eye': (offset: 16, byteLength: 16, elements: 1, type: 'Vector4'),
     },
   },
+  'SplatHashed': <String, Map<String, UniformMemberLayout>>{
+    'FogInfo': <String, UniformMemberLayout>{
+      'fog': (offset: 0, byteLength: 16, elements: 1, type: 'Vector4'),
+      'eye': (offset: 16, byteLength: 16, elements: 1, type: 'Vector4'),
+    },
+    'SplatHashInfo': <String, UniformMemberLayout>{
+      'frame': (offset: 0, byteLength: 16, elements: 1, type: 'Vector4'),
+      'eye': (offset: 16, byteLength: 16, elements: 1, type: 'Vector4'),
+      'forward': (offset: 32, byteLength: 16, elements: 1, type: 'Vector4'),
+    },
+  },
   'Ssao': <String, Map<String, UniformMemberLayout>>{
     'NoiseInfo': <String, UniformMemberLayout>{
       'noise': (offset: 0, byteLength: 16, elements: 1, type: 'Vector4'),

@@ -171,6 +171,7 @@ Map<String, CpuStage> builtinCpuShaders() {
     'ParticleTextured': const CpuStage.fragment(ParticleTexturedShader()),
     'Particle': const CpuStage.fragment(ParticleShader()),
     'Splat': const CpuStage.fragment(SplatShader()),
+    'SplatHashed': const CpuStage.fragment(SplatHashedShader()),
     'Reflections': const CpuStage.fragment(ReflectionsShader()),
     'Ssao': const CpuStage.fragment(SsaoShader()),
     'ContactShadow': const CpuStage.fragment(ContactShadowShader()),

@@ -28,6 +28,7 @@ import 'package:vector_math/vector_math.dart';
 
 import '../../formats/splat/splat_cloud.dart';
 import '../scene/scene_node.dart';
+import 'engine_tables.dart';
 import 'identity_indices.dart';
 import 'pass_contributor.dart';
 import 'splat_sort.dart';
@@ -108,24 +109,30 @@ final class SplatQuads {
   /// The quads are rebuilt every call, since their axes follow the camera's
   /// own; the sort, which is most of the cost, runs only when the eye has
   /// moved further than [resortFraction] allows or [model] has changed.
+  ///
+  /// With [sorted] false there is no sort at all and the quads come out in
+  /// the cloud's own order — `N5`'s hashed splats, which the depth test
+  /// orders. The last sort is kept, so going back to sorting re-sorts only if
+  /// the eye has moved since.
   void build({
     required Vector3 eye,
     required Vector3 right,
     required Vector3 up,
     Matrix4? model,
+    bool sorted = true,
   }) {
     final count = cloud.count;
     final needed = count * kSplatVerticesPerSplat * kSplatFloatsPerVertex;
     if (_vertices.length < needed) _vertices = Float32List(needed);
 
-    if (_needsSort(eye, model)) {
+    if (sorted && _needsSort(eye, model)) {
       _sorter.sort(cloud, eye, model: model);
       _sorts++;
       _sortedEye = eye.clone();
       _sortedWithModel = model != null;
       if (model != null) _sortedModel.setAll(0, model.storage);
     }
-    final order = _sorter.order;
+    final order = sorted ? _sorter.order : null;
 
     // The camera's axes as the cloud's own space sees them, when it has one.
     // The ellipse is `[r; u] M Σ Mᵀ [r; u]ᵀ` for a cloud placed by `M`, and
@@ -151,7 +158,7 @@ final class SplatQuads {
 
     var at = 0;
     for (var n = 0; n < count; n++) {
-      final i = order[n];
+      final i = order == null ? n : order[n];
       cloud.covarianceOf(i, _covariance);
 
       // The 3D covariance seen from the camera, restricted to the plane of the
@@ -259,14 +266,43 @@ final class SplatQuads {
   }
 }
 
+/// How a cloud's overlapping splats are combined — `N5`.
+enum SplatComposite {
+  /// [hashed] while a temporal resolve runs, [sorted] otherwise: the noise is
+  /// only worth having when something averages it.
+  automatic,
+
+  /// Sorted back to front and alpha blended, the way a cloud has always been
+  /// drawn. Exact in a single frame; costs a sort whenever the eye moves.
+  sorted,
+
+  /// Unsorted: each splat kept or dropped whole at a pixel against noise, with
+  /// its opacity as the chance of keeping it, and written opaque with its
+  /// depth. One frame of it is speckle; a temporal resolve averages it into
+  /// the blended picture without the cloud ever being sorted.
+  ///
+  /// The cores come out as the sorted blend does. The faint tails come out
+  /// darker: their kept pixels are sparse, and the resolve clips its history
+  /// to each pixel's neighbourhood, which there often holds none of them.
+  hashed,
+}
+
 /// Draws a cloud into the scene pass.
 final class SplatContributor extends PassContributor {
   final ParticleInfoBlock _particleInfo = ParticleInfoBlock();
+  final SplatHashInfoBlock _hashInfo = SplatHashInfoBlock();
 
-  SplatContributor(this.cloud, {this.node}) : quads = SplatQuads(cloud);
+  SplatContributor(
+    this.cloud, {
+    this.node,
+    this.composite = SplatComposite.automatic,
+  }) : quads = SplatQuads(cloud);
 
   final SplatCloud cloud;
   final SplatQuads quads;
+
+  /// Sorted, hashed, or whichever the frame's temporal setting calls for.
+  SplatComposite composite;
 
   /// The node the cloud hangs from, when it has one: its world matrix places
   /// the cloud, and hiding it hides the cloud. Null draws [cloud] in world
@@ -278,6 +314,7 @@ final class SplatContributor extends PassContributor {
   final SceneNode? node;
 
   PipelineHandle? _pipeline;
+  PipelineHandle? _hashedPipeline;
 
   /// The index sequence 0, 1, 2, … every draw in this engine needs — see
   /// `MeshOverlay._identityIndices`, which keeps the same sequence for the
@@ -306,8 +343,14 @@ final class SplatContributor extends PassContributor {
     // called `Splat` and not `SplatFragment`. A missing name draws nothing
     // rather than throwing, because a backend whose bundle predates this row is
     // a backend that should still start.
+    final hashed = switch (composite) {
+      SplatComposite.automatic => frame.temporal,
+      SplatComposite.sorted => false,
+      SplatComposite.hashed => true,
+    };
     final vertexShader = frame.device.shaders['ParticleVertex'];
-    final fragmentShader = frame.device.shaders['Splat'];
+    final fragmentShader =
+        frame.device.shaders[hashed ? 'SplatHashed' : 'Splat'];
     if (vertexShader == null || fragmentShader == null) return;
 
     // The camera's own basis, out of its world matrix: local +X is right and
@@ -320,13 +363,27 @@ final class SplatContributor extends PassContributor {
     final up = Vector3(m[4], m[5], m[6])..normalize();
     final eye = camera.readWorldPosition();
 
-    quads.build(eye: eye, right: right, up: up, model: node?.worldMatrix);
+    quads.build(
+      eye: eye,
+      right: right,
+      up: up,
+      model: node?.worldMatrix,
+      sorted: !hashed,
+    );
     if (quads.vertexCount == 0) return;
 
     frame.encoder
       ..clearBindings()
       ..bindPipeline(
-        _pipeline ??= frame.device.createPipeline(vertexShader, fragmentShader),
+        hashed
+            ? _hashedPipeline ??= frame.device.createPipeline(
+                vertexShader,
+                fragmentShader,
+              )
+            : _pipeline ??= frame.device.createPipeline(
+                vertexShader,
+                fragmentShader,
+              ),
       );
     frame.state.invalidatePipeline();
 
@@ -338,15 +395,38 @@ final class SplatContributor extends PassContributor {
 
     _particleInfo.viewProjection.setAll(0, viewProjection.storage);
     frame.encoder
-      ..setState(_kSplatState)
+      ..setState(hashed ? _kHashedState : _kSplatState)
       ..bindVertexData(bytes, quads.vertexCount)
       ..bindIndexBuffer(
         _identityIndices.view(frame.device, quads.vertexCount),
         IndexType.int32,
         quads.vertexCount,
       )
-      ..bindBlock(vertexShader, _particleInfo)
-      ..draw();
+      ..bindBlock(vertexShader, _particleInfo);
+    if (hashed) {
+      // The frame's slice of the engine's blue noise, the same slice the
+      // post effects read; the eye and the view axis, from which each splat
+      // measures the distance its offset into that noise is hashed from.
+      _hashInfo.frame[0] = (frame.frameIndex % 32).toDouble();
+      _hashInfo.eye
+        ..[0] = eye.x
+        ..[1] = eye.y
+        ..[2] = eye.z;
+      final forward = Vector3(-m[8], -m[9], -m[10])..normalize();
+      _hashInfo.forward
+        ..[0] = forward.x
+        ..[1] = forward.y
+        ..[2] = forward.z;
+      frame.encoder
+        ..bindBlock(fragmentShader, _hashInfo)
+        ..bindTexture(
+          fragmentShader,
+          'blue_noise_texture',
+          EngineTables.of(frame.device).blueNoise,
+          sampler: SamplerOptions.nearestClamp,
+        );
+    }
+    frame.encoder.draw();
     frame.state.drawCalls++;
   }
 
@@ -365,5 +445,16 @@ final class SplatContributor extends PassContributor {
     cullMode: CullMode.none,
     blend: BlendState.alphaBlend,
     depthWrite: false,
+  );
+
+  /// **Unblended and depth written**, which is the whole of `N5`: a hashed
+  /// splat is either wholly here or not at all, so the depth test can decide
+  /// which of the ones that survived is nearest, and the sort is not needed.
+  static const PassState _kHashedState = PassState(
+    primitiveType: PrimitiveType.triangle,
+    polygonMode: PolygonMode.fill,
+    cullMode: CullMode.none,
+    blend: null,
+    depthWrite: true,
   );
 }
