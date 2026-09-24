@@ -29,6 +29,8 @@ import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:flutter3d_hardware/trace.dart';
 import 'package:vector_math/vector_math.dart' show Vector4;
 
+import '../../flutter3d_conformance.dart' show DeviceFactory;
+
 /// A deterministic generator, the same on the VM and in a browser.
 ///
 /// Park and Miller's minimal standard: every product stays below 2^53, so a
@@ -502,10 +504,7 @@ final class FuzzFinding {
 
 /// Draws [seed]'s program and each of its rewrites on fresh devices from
 /// [makeDevice] and returns the rewrites that came out different.
-Future<List<FuzzFinding>> fuzzSeed(
-  int seed,
-  GraphicsDevice Function({required int width, required int height}) makeDevice,
-) async {
+Future<List<FuzzFinding>> fuzzSeed(int seed, DeviceFactory makeDevice) async {
   final program = generateFuzzProgram(seed);
   final original = await _draw(program, makeDevice);
   return <FuzzFinding>[
@@ -532,7 +531,7 @@ Future<List<FuzzFinding>> fuzzSeed(
 /// put back.
 Future<FuzzFinding> shrinkFinding(
   FuzzFinding finding,
-  GraphicsDevice Function({required int width, required int height}) makeDevice,
+  DeviceFactory makeDevice,
 ) async {
   var program = finding.program;
   var bytes = finding.differingBytes;
@@ -563,18 +562,44 @@ Future<FuzzFinding> shrinkFinding(
   );
 }
 
+/// How far one device's frame for [seed]'s program is from a reference
+/// device's — `H4`'s other oracle, for a backend whose rounding is its own.
+///
+/// The fraction of pixels in which any channel differs by more than
+/// [threshold] steps. A hardware backend is not held to the software
+/// rasteriser's bytes, only to its picture: edge coverage and blending round
+/// differently from one driver to the next, and a threshold of a few steps is
+/// where the cross-backend golden tests draw the same line.
+Future<double> fuzzDifference(
+  int seed, {
+  required DeviceFactory device,
+  required DeviceFactory reference,
+  int threshold = 8,
+}) async {
+  final program = generateFuzzProgram(seed);
+  final a = await _draw(program, device);
+  final b = await _draw(program, reference);
+  var differing = 0;
+  for (var i = 0; i < a.length; i += 4) {
+    for (var c = 0; c < 4; c++) {
+      if ((a[i + c] - b[i + c]).abs() > threshold) {
+        differing++;
+        break;
+      }
+    }
+  }
+  return differing / (a.length / 4);
+}
+
 /// The frame [program] draws on a fresh device from [makeDevice], as
 /// premultiplied RGBA8 rows from the top.
 Future<Uint8List> drawFuzzProgram(
   FuzzProgram program,
-  GraphicsDevice Function({required int width, required int height}) makeDevice,
+  DeviceFactory makeDevice,
 ) => _draw(program, makeDevice);
 
-Future<Uint8List> _draw(
-  FuzzProgram program,
-  GraphicsDevice Function({required int width, required int height}) makeDevice,
-) async {
-  final device = makeDevice(width: program.width, height: program.height);
+Future<Uint8List> _draw(FuzzProgram program, DeviceFactory makeDevice) async {
+  final device = await makeDevice(width: program.width, height: program.height);
   final replay = await replayTrace(
     program.toTrace(depthFormat: device.defaultDepthStencilFormat),
     device,

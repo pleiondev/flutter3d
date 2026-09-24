@@ -513,18 +513,17 @@ final class CpuEncoder implements CommandEncoder {
     // which says nothing about how fast a coordinate moves across the pixel.
     // Left unset, `BoundTexture.sample` takes the base level — the sharpest
     // one, and the only defensible choice for a primitive one pixel wide.
-    final scissor = _scissor;
+    // The viewport and the scissor both — see `_clipRect`.
+    final clipRect = _clipRect(view, target);
 
     for (var step = 0; step <= steps; step++) {
       final t = step / steps;
       final x = (sx[0] + dx * t).floor();
       final y = (sy[0] + dy * t).floor();
-      if (x < 0 || y < 0 || x >= target.width || y >= target.height) continue;
-      if (scissor != null &&
-          (x < scissor.x ||
-              y < scissor.y ||
-              x >= scissor.x + scissor.width ||
-              y >= scissor.y + scissor.height)) {
+      if (x < clipRect.x ||
+          y < clipRect.y ||
+          x >= clipRect.x + clipRect.width ||
+          y >= clipRect.y + clipRect.height) {
         continue;
       }
 
@@ -676,6 +675,64 @@ final class CpuEncoder implements CommandEncoder {
   int _indexAt(int i) => _indexType == IndexType.int16
       ? _indices!.getUint16(i * 2, Endian.little)
       : _indices!.getUint32(i * 4, Endian.little);
+
+  /// How a target keeps what is written to it — `H4`.
+  static _Storage _storageOf(TextureFormat format) => switch (format) {
+    TextureFormat.r8g8b8a8UNormInt ||
+    TextureFormat.b8g8r8a8UNormInt ||
+    TextureFormat.r8UNormInt ||
+    TextureFormat.r8g8UNormInt ||
+    TextureFormat.a8UNormInt => _Storage.unorm8,
+    TextureFormat.r8g8b8a8UNormIntSRGB ||
+    TextureFormat.b8g8r8a8UNormIntSRGB => _Storage.unorm8Srgb,
+    _ => _Storage.float,
+  };
+
+  /// What an eight-bit target would have kept of [v]: clamped to the unit
+  /// interval and, on a linear target, rounded to the nearest of its 256
+  /// steps — `H4`. What blending reads as its destination.
+  ///
+  /// **A GPU stores what it writes; this keeps every float.** Pixels are
+  /// floats here whatever the format, so a reverse subtraction left a negative
+  /// value in an eight-bit target — which reads back as black and looks the
+  /// same — and the next additive draw added to the negative number where the
+  /// GPU had stored nought. The fuzzer's programs blend over one another in a
+  /// way the engine's passes never do and found it against WebGPU. The float
+  /// stays in the target, because `readHdrPixels` exists to show it; what
+  /// the pipeline reads back through the blend is what the hardware would
+  /// have kept. An sRGB target is clamped only: its steps are in the encoded
+  /// space, and the value here is linear.
+  static double _settled(double v, _Storage storage) {
+    if (storage == _Storage.float) return v;
+    final clamped = v < 0.0 ? 0.0 : (v > 1.0 ? 1.0 : v);
+    return storage == _Storage.unorm8
+        ? (clamped * 255.0).round() / 255.0
+        : clamped;
+  }
+
+  /// Where a primitive may write: the viewport, the scissor and the target,
+  /// intersected. Empty (zero width or height) where they do not meet.
+  ScreenRect _clipRect(ScreenRect view, CpuTexture target) {
+    final scissor = _scissor;
+    var x0 = view.x < 0 ? 0 : view.x;
+    var y0 = view.y < 0 ? 0 : view.y;
+    var x1 = view.x + view.width;
+    var y1 = view.y + view.height;
+    if (scissor != null) {
+      if (scissor.x > x0) x0 = scissor.x;
+      if (scissor.y > y0) y0 = scissor.y;
+      if (scissor.x + scissor.width < x1) x1 = scissor.x + scissor.width;
+      if (scissor.y + scissor.height < y1) y1 = scissor.y + scissor.height;
+    }
+    if (x1 > target.width) x1 = target.width;
+    if (y1 > target.height) y1 = target.height;
+    return ScreenRect(
+      x: x0,
+      y: y0,
+      width: x1 > x0 ? x1 - x0 : 0,
+      height: y1 > y0 ? y1 - y0 : 0,
+    );
+  }
 
   /// Smallest `w` a vertex may have and still be divided by.
   static const double _nearEpsilon = 1e-5;
@@ -856,21 +913,28 @@ final class CpuEncoder implements CommandEncoder {
     final fill1 = topLeft(sx[1], sy[1], sx[2], sy[2]);
     final fill2 = topLeft(sx[2], sy[2], sx[0], sy[0]);
 
-    final clipRect = _scissor;
+    // **The viewport and the scissor both, not one or the other — `H4`.** A
+    // GPU clips a triangle to the clip volume, which in window space is the
+    // viewport's rectangle, and then the scissor takes what it takes. This
+    // used the scissor where there was one and the viewport only where there
+    // was not, so a triangle reaching past ±1 drew outside a viewport that had
+    // a scissor beside it — up to the edge of the target. Nothing the engine
+    // draws had shown it, because its passes set the two to the same
+    // rectangle; the fuzzer's programs do not, and found it on its first run
+    // against WebGPU.
+    final clipRect = _clipRect(view, target);
     var minX = sx.reduce((a, b) => a < b ? a : b).floor();
     var maxX = sx.reduce((a, b) => a > b ? a : b).ceil();
     var minY = sy.reduce((a, b) => a < b ? a : b).floor();
     var maxY = sy.reduce((a, b) => a > b ? a : b).ceil();
-    minX = minX.clamp(clipRect?.x ?? view.x, target.width - 1);
-    maxX = maxX.clamp(
-      0,
-      ((clipRect?.x ?? view.x) + (clipRect?.width ?? view.width)) - 1,
-    );
-    minY = minY.clamp(clipRect?.y ?? view.y, target.height - 1);
-    maxY = maxY.clamp(
-      0,
-      ((clipRect?.y ?? view.y) + (clipRect?.height ?? view.height)) - 1,
-    );
+    if (minX < clipRect.x) minX = clipRect.x;
+    if (minY < clipRect.y) minY = clipRect.y;
+    if (maxX > clipRect.x + clipRect.width - 1) {
+      maxX = clipRect.x + clipRect.width - 1;
+    }
+    if (maxY > clipRect.y + clipRect.height - 1) {
+      maxY = clipRect.y + clipRect.height - 1;
+    }
 
     final depth = _depthTarget?.depthBuffer();
     // Per face, decided before the winding swap above changed what "front"
@@ -880,6 +944,7 @@ final class CpuEncoder implements CommandEncoder {
     final stencilState = frontFacing ? _stencilFront : _stencilBack;
     final interpolated = Float32List(varyingCount);
     final context = FragmentContext()..frontFacing = frontFacing;
+    final storage = _storageOf(target.format);
 
     // **Screen-space gradients, which the triangle path did not have and the
     // line path did.** `CpuTexture.sample` picks the base level when it is
@@ -994,7 +1059,7 @@ final class CpuEncoder implements CommandEncoder {
           target.pixels[at + 2] = colour.z;
           target.pixels[at + 3] = colour.w;
         } else {
-          _blendInto(blend, _blendColor, target.pixels, at, colour);
+          _blendInto(blend, _blendColor, target.pixels, at, colour, storage);
         }
 
         if (depth != null && _depthWrite) depth[index] = z;
@@ -1018,13 +1083,14 @@ final class CpuEncoder implements CommandEncoder {
     Float32List pixels,
     int at,
     Vector4 source,
+    _Storage storage,
   ) {
     final sa = source.w;
-    final da = pixels[at + 3];
+    final da = _settled(pixels[at + 3], storage);
     final ba = constant.w;
     for (var channel = 0; channel < 3; channel++) {
       final s = source[channel];
-      final d = pixels[at + channel];
+      final d = _settled(pixels[at + channel], storage);
       final bc = constant[channel];
       pixels[at + channel] = _combine(
         blend.colorOperation,
@@ -1123,3 +1189,6 @@ final class CpuEncoder implements CommandEncoder {
     CompareFunction.notEqual => incoming != stored,
   };
 }
+
+/// How a target keeps what is written to it.
+enum _Storage { float, unorm8, unorm8Srgb }
