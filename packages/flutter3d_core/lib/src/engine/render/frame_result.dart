@@ -37,6 +37,11 @@ typedef FramePass = ({
   /// Wall-clock time inside this node's own `execute`.
   int micros,
 
+  /// What the GPU spent in the passes this node opened, or null where the
+  /// device does not measure it — `H2`. See
+  /// `GraphicsDevice.supportsGpuTimestamps`.
+  int? gpuMicros,
+
   /// Draws this node encoded. Zero for a node that only moves textures
   /// about — the composite's own full-screen triangle is a draw and counts.
   int drawCalls,

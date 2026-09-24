@@ -126,6 +126,7 @@ extension _ShadowPasses on Renderer {
     developer.Timeline.startSync('Renderer.cubeShadow');
     final pass = device.beginRenderPass(
       RenderPassDescriptor(
+        label: _passLabel,
         colors: <ColorTarget>[
           ColorTarget(
             texture: static ? _cubeShadowStatic! : _cubeShadow!,
@@ -814,6 +815,7 @@ extension _ShadowPasses on Renderer {
     developer.Timeline.startSync('Renderer.shadowPass');
     final pass = device.beginRenderPass(
       RenderPassDescriptor(
+        label: _passLabel,
         colors: <ColorTarget>[
           ColorTarget(
             texture: _shadowMap!,

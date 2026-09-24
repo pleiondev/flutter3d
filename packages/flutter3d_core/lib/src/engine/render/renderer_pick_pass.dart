@@ -119,6 +119,7 @@ extension _PickPass on Renderer {
     );
     final pass = device.beginRenderPass(
       RenderPassDescriptor(
+        label: _passLabel,
         colors: <ColorTarget>[
           // Zero is the id nothing has, so the clear is the answer for a pixel
           // no mesh reaches.

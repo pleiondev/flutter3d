@@ -113,6 +113,7 @@ extension _ScenePasses on Renderer {
 
     final pass = device.beginRenderPass(
       RenderPassDescriptor(
+        label: _passLabel,
         colors: <ColorTarget>[colorAttachment, ?surfaceAttachment],
         // Standard depth: clear to the far plane, nearer fragments win.
         depth: DepthTarget(

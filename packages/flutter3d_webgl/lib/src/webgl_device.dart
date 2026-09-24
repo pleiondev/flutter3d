@@ -34,6 +34,54 @@ export 'webgl_types.dart';
 
 /// WebGL2 as a [GraphicsDevice].
 final class WebGlDevice implements GraphicsDevice {
+  // The 0.8 cycle's half of the contract, declared in 0.8.0 and not built
+  // here yet — see the end of `GraphicsDevice`. Each answer is the one that
+  // makes a caller take its fallback.
+
+  @override
+  bool get supportsGpuTimestamps => false;
+
+  @override
+  void onGpuTimings(void Function(GpuFrameTimings timings)? listener) {}
+
+  @override
+  bool get supportsCompute => false;
+
+  @override
+  StorageBuffer createStorageBuffer(
+    ByteData bytes, {
+    bool hostReadable = false,
+  }) => throw UnsupportedError(_noCompute);
+
+  @override
+  ComputePipelineHandle createComputePipeline(ShaderHandle shader) =>
+      throw UnsupportedError(_noCompute);
+
+  @override
+  ComputeEncoder beginComputePass({String? label}) =>
+      throw UnsupportedError(_noCompute);
+
+  @override
+  Future<ByteData> readBuffer(StorageBuffer buffer) =>
+      throw UnsupportedError(_noCompute);
+
+  @override
+  void releaseStorageBuffer(StorageBuffer buffer) =>
+      throw UnsupportedError(_noCompute);
+
+  static const String _noCompute =
+      'WebGL2 runs no compute: supportsCompute is false. Ask before '
+      'creating a storage buffer, a compute pipeline or a compute pass.';
+
+  @override
+  bool get supportsFloat32Filtering => false;
+
+  @override
+  bool get supportsIndependentBlend => false;
+
+  @override
+  List<TextureFormat> get hdrOutputFormats => const <TextureFormat>[];
+
   WebGlDevice._(this._gl, this.canvas, this._library);
 
   /// Vertex attribute locations currently switched on in this context.
