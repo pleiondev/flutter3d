@@ -24,6 +24,17 @@ abstract base class PassContributor {
   bool get isActive => true;
 
   void encode(ContributorFrame frame);
+
+  /// Marks where this contributor's draws cover the frame, for the temporal
+  /// resolve to keep less history there — `R4`. Called only while the
+  /// resolve runs with `TemporalSettings.reactive` above nought, after
+  /// [encode] has drawn the same frame.
+  ///
+  /// Nothing by default: a contributor that draws solid geometry, which the
+  /// velocity can follow, has nothing to mark. One that draws what blends —
+  /// particles, splats, anything without a depth of its own — redraws it here
+  /// through [ReactiveFrame.spriteStage] or a stage of its own.
+  void encodeReactive(ReactiveFrame frame) {}
 }
 
 /// The contributors a renderer draws, and the order it draws them in.

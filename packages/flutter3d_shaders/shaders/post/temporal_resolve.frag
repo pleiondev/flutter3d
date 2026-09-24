@@ -26,6 +26,12 @@
 //     has no past worth blending. The history's alpha is that depth.
 //   * **The blend** weighs each side by one over one plus its exposed
 //     luminance, so a flickering highlight does not dominate its neighbours.
+//   * **A reactive pixel keeps less history** — `R4`. Particles, splats and
+//     blended surfaces write how much of the pixel they cover into the
+//     velocity's blue, and the history's share is lowered by that fraction:
+//     what moves without a velocity of its own is taken from this frame.
+//     Blue is nought wherever nothing reactive was drawn, and the share is
+//     then exactly what it was.
 //
 // The history is linear scene light, like the scene: the exposure is only a
 // weight here, and the composite applies it as it always did.
@@ -170,7 +176,12 @@ void main() {
   vec3 history = Unweigh(
       YCoCgToRgb(ClipToBox(lo, hi, RgbToYCoCg(Weigh(HistoryAt(then))))));
 
-  float keep = temporal_info.jitter.z * trust;
+  // Read at the pixel itself rather than at the nearest surface: a particle
+  // writes no depth, so the nearest surface around it is whatever it flew
+  // over, and the mark belongs to where the particle is.
+  float reactive =
+      clamp(textureLod(velocity_texture, centre, 0.0).b, 0.0, 1.0);
+  float keep = temporal_info.jitter.z * trust * (1.0 - reactive);
   float exposure = temporal_info.params.x;
   float wCurrent = (1.0 - keep) / (1.0 + Luma(current) * exposure);
   float wHistory = keep / (1.0 + Luma(history) * exposure);

@@ -1109,6 +1109,60 @@ final class _ObjectVelocityNode extends RenderNode with _NeedsSurfaceBuffer {
   }
 }
 
+/// `R4`'s reactive mask: what blends, marked over the velocity for the
+/// resolve to keep less history under.
+///
+/// Another link in the velocity chain, after the object velocity, loading
+/// what is there and adding into blue alone. Active only while
+/// `TemporalSettings.reactive` is above nought, so a resolve without it reads
+/// the velocity exactly as the two passes before left it.
+final class _ReactiveNode extends RenderNode with _NeedsSurfaceBuffer {
+  _ReactiveNode(this._renderer, this._view, this._settings, this._scene);
+
+  @override
+  Renderer get owner => _renderer;
+
+  final Renderer _renderer;
+  final RenderView _view;
+  final RenderSettings _settings;
+  final Scene _scene;
+
+  @override
+  String get name => 'reactive mask';
+
+  @override
+  bool get isActive =>
+      _settings.antiAlias.temporal.enabled &&
+      _settings.antiAlias.temporal.reactive > 0.0;
+
+  @override
+  List<ResourceId> get reads => const <ResourceId>[
+    FrameResourceIds.velocity,
+    FrameResourceIds.surfaceBuffer,
+  ];
+
+  @override
+  List<ResourceId> get writes => const <ResourceId>[FrameResourceIds.velocity];
+
+  @override
+  void execute(NodeFrame frame) {
+    final velocity = frame.resources.texture(FrameResourceIds.velocity);
+    frame.resources.provide(FrameResourceIds.velocity, velocity);
+    final surface = frame.resources.tryTexture(FrameResourceIds.surfaceBuffer);
+    if (surface == null) return;
+    _renderer._encodeReactive(
+      target: velocity,
+      surface: surface,
+      scene: _scene,
+      view: _view,
+      settings: _settings,
+      contributors: _renderer.contributors.active.toList(growable: false),
+      width: frame.width,
+      height: frame.height,
+    );
+  }
+}
+
 /// `R3`: a noisy effect carried into its own history, as a link in that
 /// effect's chain.
 ///

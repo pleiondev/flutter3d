@@ -211,6 +211,14 @@ stageBindings = <String, ({Set<String> blocks, Set<String> samplers})>{
     blocks: <String>{'ProbeInfo'},
     samplers: <String>{'capture_texture'},
   ),
+  'Reactive': (
+    blocks: <String>{'ReactiveInfo'},
+    samplers: <String>{'surface_texture'},
+  ),
+  'ReactiveSprite': (
+    blocks: <String>{'ReactiveInfo'},
+    samplers: <String>{'sprite_texture', 'surface_texture'},
+  ),
   'Reflections': (
     blocks: <String>{'FragCoordInfo', 'NoiseInfo', 'ReflectionInfo'},
     samplers: <String>{
