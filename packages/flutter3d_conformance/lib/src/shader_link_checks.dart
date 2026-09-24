@@ -141,6 +141,11 @@ Future<void> checkLinking(GraphicsDevice device) async {
     // that is least likely to have been copied right — the line writes a normal
     // and a tangent it has no geometry for.
     ('PolylineVertex', 'Unlit'),
+    // `C4`: the card and the stage that reads the atlases through it. The
+    // vertex stage repacks the varyings — the eye's direction rides in the
+    // colour — so this is the other pair where a copied varying could be
+    // missing.
+    ('ImpostorVertex', 'Impostor'),
     // Both particle fragment stages, and the mesh particle's own vertex stage,
     // which is the only one in the bundle with a per-instance buffer.
     ('ParticleVertex', 'Particle'),

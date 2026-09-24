@@ -51,6 +51,7 @@ import 'cpu_shaders_bloom.dart';
 import 'cpu_shaders_compute.dart';
 import 'cpu_shaders_contact_shadow.dart';
 import 'cpu_shaders_debug.dart';
+import 'cpu_shaders_impostor.dart';
 import 'cpu_shaders_irradiance.dart';
 import 'cpu_shaders_lit.dart';
 import 'cpu_shaders_mesh_vertex.dart';
@@ -155,6 +156,10 @@ Map<String, CpuStage> builtinCpuShaders() {
     ),
     'DebugLineVertex': const CpuStage.vertex(DebugLineVertexShader()),
     'PolylineVertex': const CpuStage.vertex(PolylineVertexShader()),
+    // `C4`: the octahedral impostor's card and the stage that reads its
+    // atlases.
+    'ImpostorVertex': const CpuStage.vertex(ImpostorVertexShader()),
+    'Impostor': const CpuStage.fragment(ImpostorShader()),
     'VertexTextureProbeVertex': const CpuStage.vertex(
       VertexTextureProbeVertexShader(),
     ),

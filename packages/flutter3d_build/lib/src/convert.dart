@@ -13,6 +13,7 @@ import 'dart:typed_data';
 import 'package:flutter3d_core/formats.dart';
 import 'package:flutter3d_core/geometry.dart';
 
+import 'impostor_bake.dart';
 import 'lod_generate.dart';
 import 'texture_encode.dart';
 
@@ -95,6 +96,10 @@ Options:
                              that draws something gains one simplified level
                              per ratio, cut from its full mesh and switched
                              in by screen size. Also --lods=<ratios>.
+  --impostor                Bake an octahedral impostor for every node that
+                             draws something: 8x8 views of its colour and its
+                             normals, drawn by the software rasteriser into
+                             two atlases, as the level its chain ends in.
   -h, --help                Show this text.
 ''';
 
@@ -105,6 +110,7 @@ final class ConvertOptions {
     this.textures = TextureFamily.auto,
     this.mips = true,
     this.lods = const <double>[],
+    this.impostor = false,
   });
 
   final String input;
@@ -116,6 +122,10 @@ final class ConvertOptions {
   /// [generateLods].
   final List<double> lods;
 
+  /// Whether `--impostor` asked for a baked card at the end of each chain —
+  /// see [bakeImpostors].
+  final bool impostor;
+
   /// Parses [arguments], or returns null for anything [usage] should answer
   /// — an unknown flag, a missing value, more than one positional argument.
   static ConvertOptions? parse(List<String> arguments) {
@@ -124,6 +134,7 @@ final class ConvertOptions {
     var textures = TextureFamily.auto;
     var mips = true;
     var lods = const <double>[];
+    var impostor = false;
 
     for (var i = 0; i < arguments.length; i++) {
       final argument = arguments[i];
@@ -138,6 +149,8 @@ final class ConvertOptions {
           textures = family;
         case '--no-mips':
           mips = false;
+        case '--impostor':
+          impostor = true;
         case '--lods':
           if (i + 1 >= arguments.length) return null;
           lods = parseLodRatios(arguments[++i]) ?? const <double>[];
@@ -165,6 +178,7 @@ final class ConvertOptions {
       textures: textures,
       mips: mips,
       lods: lods,
+      impostor: impostor,
     );
   }
 }
@@ -233,6 +247,7 @@ Future<int> runConvert(
       textures: options.textures,
       mips: options.mips,
       lods: options.lods,
+      impostor: options.impostor,
       decoders: decoders,
     );
     if (!ok) failures++;
@@ -304,6 +319,7 @@ Future<bool> convertOne(
   TextureFamily textures = TextureFamily.auto,
   bool mips = true,
   List<double> lods = const <double>[],
+  bool impostor = false,
   List<ModelDecoder> decoders = const <ModelDecoder>[],
 }) async {
   final input = File(inputPath);
@@ -324,19 +340,30 @@ Future<bool> convertOne(
   }
   readClock.stop();
 
+  // The mesh levels first: a level is one more surface sharing its base's
+  // material, so it rides on whatever the images become, and the impostor
+  // below goes after the coarsest of them.
+  document = generateLods(
+    document,
+    lods,
+    report: (level) => out.writeln('  $level'),
+  );
+
+  // Before the textures: the bake reads the source's own images, and a
+  // block-compressed one is not something it can decode. The atlases it adds
+  // are then compressed with the rest.
+  if (impostor) {
+    document = await bakeImpostors(
+      document,
+      report: (message) => out.writeln('  impostor: $message'),
+    );
+  }
+
   document = await encodeDocumentTextures(
     document,
     textures,
     mips: mips,
     report: (message) => out.writeln('  texture: $message'),
-  );
-
-  // After the textures, before the writer: a level is one more surface
-  // sharing its base's material, so it rides on whatever the images became.
-  document = generateLods(
-    document,
-    lods,
-    report: (level) => out.writeln('  $level'),
   );
 
   final writeClock = Stopwatch()..start();

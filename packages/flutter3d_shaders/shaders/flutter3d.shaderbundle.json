@@ -234,5 +234,13 @@
   "IrradianceConvolve": {
     "type": "fragment",
     "file": "shaders/probe/irradiance_convolve.frag"
+  },
+  "ImpostorVertex": {
+    "type": "vertex",
+    "file": "shaders/impostor.vert"
+  },
+  "Impostor": {
+    "type": "fragment",
+    "file": "shaders/lighting/impostor.frag"
   }
 }

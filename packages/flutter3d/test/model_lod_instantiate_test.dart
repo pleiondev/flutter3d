@@ -8,6 +8,7 @@ library;
 import 'dart:typed_data';
 
 import 'package:flutter3d/src/engine/assets/model_asset.dart';
+import 'package:flutter3d_core/flutter3d_core.dart' show ImpostorNode;
 import 'package:flutter3d_core/formats.dart';
 import 'package:flutter3d_core/geometry.dart';
 import 'package:flutter3d_core/src/engine/scene/scene_graph.dart';
@@ -109,5 +110,68 @@ void main() {
     // case cannot become an LodGroup — this catches losing the second one.
     expect(instance.nodes.single.children.whereType<LodGroup>(), isEmpty);
     expect(instance.meshes, hasLength(2));
+  });
+
+  test('a chain that ends in an impostor ends in an ImpostorNode', () async {
+    // `C4`. The atlases' bytes stand for PNGs; the decoder handed in answers
+    // for them, so the test is about the wiring and not about decoding.
+    final document = PlainModelDocument(
+      surfaces: <ModelSurface>[_triangle(size: 1.0), _triangle(size: 0.5)],
+      images: <EncodedImage>[
+        EncodedImage(bytes: Uint8List.fromList(<int>[1]), name: 'albedo'),
+        EncodedImage(bytes: Uint8List.fromList(<int>[2]), name: 'normals'),
+      ],
+      nodes: <ModelNode>[
+        ModelNode(
+          name: 'tree',
+          surfaces: <int>[0],
+          lods: <ModelLod>[
+            const ModelLod(surfaceIndices: <int>[1], maxScreenFraction: 0.3),
+            ModelLod.impostor(
+              maxScreenFraction: 0.05,
+              impostor: ModelImpostor(
+                albedoImage: 0,
+                normalDepthImage: 1,
+                grid: 8,
+                centre: Vector3(0, 0.5, 0),
+                radius: 1.2,
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+
+    final asset = await ModelAsset.fromDocument(
+      document,
+      device: FakeBackend(),
+      decodeImage: (_) async =>
+          Rgba8Image(width: 8, height: 8, pixels: Uint8List(8 * 8 * 4)),
+    );
+    expect(asset.impostors, hasLength(1));
+
+    final group = asset
+        .instantiate(Scene())
+        .nodes
+        .single
+        .children
+        .whereType<LodGroup>()
+        .single;
+    // Mutation: leave the impostor level out of the chain, as before `C4` —
+    // the group then ends at the simplified mesh.
+    expect(group.levels, hasLength(3));
+    final card = group.levels.last.node;
+    expect(card, isA<ImpostorNode>());
+    expect(group.levels.last.maxScreenFraction, 0.05);
+    expect((card as ImpostorNode).radius, closeTo(1.2, 1e-6));
+    // A second instance shares the card rather than uploading its own.
+    final again = asset
+        .instantiate(Scene())
+        .nodes
+        .single
+        .children
+        .whereType<LodGroup>()
+        .single;
+    expect(again.levels.last.node.mesh, same(card.mesh));
   });
 }

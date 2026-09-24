@@ -116,6 +116,7 @@ final class F3dWriter {
     final imageTable = _writeImages();
     final nodeTable = _writeNodes();
     final (lodTable, lodCount) = _writeLods();
+    final (impostorTable, impostorCount) = _writeImpostors();
     final rootTable = _writeRoots();
     final (animationTable, trackTable, animationCount, trackCount) =
         _writeAnimations();
@@ -142,6 +143,10 @@ final class F3dWriter {
       (F3dSection.images, imageTable, document.images.length),
       (F3dSection.nodes, nodeTable, document.nodes.length),
       (F3dSection.lods, lodTable, lodCount),
+      // Only when there is one, so a file with no impostor is byte for byte
+      // the file this writer produced before the section existed.
+      if (impostorCount > 0)
+        (F3dSection.impostors, impostorTable, impostorCount),
       (F3dSection.roots, rootTable, document.roots.length),
       (F3dSection.animations, animationTable, animationCount),
       (F3dSection.tracks, trackTable, trackCount),

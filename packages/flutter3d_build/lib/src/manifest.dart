@@ -51,6 +51,7 @@ final class AssetRule {
     this.mips,
     this.objNormals,
     this.lods,
+    this.impostor = false,
     this.exclude = false,
   });
 
@@ -63,6 +64,10 @@ final class AssetRule {
   /// — `lods: [0.5, 0.25, 0.1]`, the manifest's spelling of `convert
   /// --lods`. Null leaves the model's own levels, if it has any, alone.
   final List<double>? lods;
+
+  /// `C4`: whether a matched model's chains end in a baked impostor —
+  /// `impostor: true`, the manifest's spelling of `convert --impostor`.
+  final bool impostor;
   final bool exclude;
 }
 
@@ -73,6 +78,7 @@ const Set<String> _ruleKeys = <String>{
   'mips',
   'objNormals',
   'lods',
+  'impostor',
   'exclude',
 };
 
@@ -150,6 +156,7 @@ final class AssetManifest {
     bool? mips;
     ObjNormals? objNormals;
     List<double>? lods;
+    var impostor = false;
     var exclude = false;
 
     for (final entry in node.nodes.entries) {
@@ -201,6 +208,8 @@ final class AssetManifest {
           }
         case 'lods':
           lods = _lodsOf(valueNode);
+        case 'impostor':
+          impostor = _boolOf(valueNode, 'impostor');
         case 'exclude':
           exclude = _boolOf(valueNode, 'exclude');
       }
@@ -218,6 +227,7 @@ final class AssetManifest {
       mips: mips,
       objNormals: objNormals,
       lods: lods,
+      impostor: impostor,
       exclude: exclude,
     );
   }
