@@ -33,6 +33,7 @@ import 'frame_graph.dart';
 import 'frame_history.dart';
 import 'frame_plan.dart';
 import 'frame_resources.dart';
+import 'frame_work_budget.dart';
 import 'identity_indices.dart';
 import 'light_clusters.dart';
 import 'material.dart';
@@ -852,6 +853,14 @@ final class Renderer implements RenderServices {
 
   /// Whether this frame is encoded for an extended-range display — `R9`.
   bool _extendedOutput = false;
+
+  /// This frame's allowance for work that can wait — `N3`. Remade when the
+  /// setting changes, started again at the top of every frame.
+  FrameWorkBudget _workBudget = FrameWorkBudget();
+
+  /// The allowance the last frame ran under, for a caller or a test to read
+  /// what it spent and what it put off.
+  FrameWorkBudget get frameWorkBudget => _workBudget;
 
   /// This frame's output size, as [render] worked it out.
   int _outputWidth = 0;
@@ -3337,6 +3346,61 @@ final class Renderer implements RenderServices {
     );
   }
 
+  /// Links, before the first frame, every pipeline drawing [scene] through
+  /// [views] with [settings] will need — `N3`, for a loading screen.
+  ///
+  /// **A pipeline linked in the middle of play is a hitch.** Linking is the
+  /// slowest thing a frame can ask the device to do, and a renderer links on
+  /// first use: the frame a door opens on a room with a new material pays
+  /// for it, and that frame is the spike a player notices. So every mesh the
+  /// scene holds gets its lit pipeline here whether or not any view can see
+  /// it yet, and then one frame is drawn, which links what the frame graph's
+  /// passes use at these settings — shadows, the post chain, the composite.
+  ///
+  /// A mesh added later, or a setting switched on later, links on first use
+  /// as before.
+  void warmUp({
+    required int width,
+    required int height,
+    required Scene scene,
+    required List<RenderView> views,
+    RenderSettings settings = const RenderSettings(),
+  }) {
+    for (final node in scene.meshes) {
+      final skinned = node.skeleton != null;
+      final instanced = node is InstancedMeshNode;
+      _pipelineFor(
+        node.material.lighting,
+        skinned: skinned,
+        instanced: instanced,
+        lightmapped: node.lightmapped && !skinned && !instanced,
+      );
+    }
+    // And what only a later frame reaches: the tile reset a kept cascade
+    // atlas redraws a tile with (`S1`), and the copy a static one is read
+    // through — neither runs on a first frame, which draws every tile from a
+    // clear.
+    final reset = shaders['ShadowTileReset'];
+    final resetVertex = shaders['ShadowTileResetVertex'];
+    if (reset != null && resetVertex != null) {
+      _cubeShadowResetPipeline ??= device.createPipeline(resetVertex, reset);
+    }
+    final copy = shaders['ShadowCopy'];
+    final fullscreen = shaders['FullscreenVertex'];
+    if (copy != null &&
+        fullscreen != null &&
+        scene.meshes.any((node) => node.shadowIsStatic)) {
+      _shadowCopyPipeline ??= device.createPipeline(fullscreen, copy);
+    }
+    render(
+      width: width,
+      height: height,
+      scene: scene,
+      views: views,
+      settings: settings,
+    );
+  }
+
   FrameResult render({
     required int width,
     required int height,
@@ -3374,6 +3438,11 @@ final class Renderer implements RenderServices {
     final outputHeight = upscaled ? requestedHeight : height;
     _outputWidth = outputWidth;
     _outputHeight = outputHeight;
+    // `N3`: the allowance for work that can wait, from nothing each frame.
+    if (_workBudget.microseconds != settings.frameWorkBudget) {
+      _workBudget = FrameWorkBudget(microseconds: settings.frameWorkBudget);
+    }
+    _workBudget.beginFrame();
     // `R9`: the extended output where it was asked for and the device can
     // present it; the standard frame everywhere else.
     final hdrFormats = device.hdrOutputFormats;
