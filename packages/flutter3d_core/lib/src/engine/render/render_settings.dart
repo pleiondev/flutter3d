@@ -426,6 +426,111 @@ final class LightShaftSettings {
   );
 }
 
+/// Air with a thickness, lit by the sun and by the torches in it — `S4`.
+///
+/// **What [LightShaftSettings] does not.** The shafts add the sun's
+/// in-scatter and leave the scene behind untouched; [FogSettings] dims the
+/// scene towards one colour and knows about no light at all. This marches
+/// each view ray through a medium whose density falls off with height, and at
+/// every step asks the shadow map whether the sun reaches that point and the
+/// view's light clusters which torches do. What comes out is the light the air
+/// sends towards the eye *and* the share of the scene it lets through, so a
+/// corridor of torches fills with a glow around each flame and the far wall
+/// fades behind it.
+///
+/// **Marched at half resolution and brought up with the depth.** The four fog
+/// texels nearest a pixel are weighed by how close the depth their rays
+/// stopped at is to the pixel's own, so a halo behind a pillar stops at the
+/// pillar's edge rather than bleeding a texel over it.
+///
+/// **The torches come from `L6`'s cells**, and only while
+/// [RenderSettings.clusteredLights] is on and the scene has more lights than
+/// a draw's eight slots — the case the cells are built for. Otherwise the fog
+/// is lit by the sun and [ambient] alone. Point lights cast no shadow into
+/// the air: the cube atlas is not consulted, so a torch's glow reaches
+/// through the wall beside it.
+///
+/// **The sun is the shadow caster when there is one**, shadowed through the
+/// cascades, and otherwise the first directional light, unshadowed. With
+/// [LightShaftSettings] on as well the sun is scattered twice; the two are
+/// alternatives rather than layers.
+///
+/// The step offset comes from the engine's noise: the fixed pattern without a
+/// temporal resolve, a new slice of blue noise every frame with one, which the
+/// history averages away.
+final class VolumetricFogSettings {
+  const VolumetricFogSettings({
+    this.enabled = false,
+    this.density = 0.02,
+    this.heightFalloff = 0.0,
+    this.baseHeight = 0.0,
+    this.anisotropy = 0.3,
+    this.steps = 24,
+    this.distance = 40.0,
+    this.color,
+    this.ambient,
+  });
+
+  /// Off by default: two full-screen passes, one of them a march with a
+  /// shadow lookup and a cell's lights at every step.
+  final bool enabled;
+
+  /// The air's extinction σ at [baseHeight], per metre. 0.02 keeps about a
+  /// third of a wall fifty metres off; 0.2 is a smoky crypt. Zero is off.
+  final double density;
+
+  /// How fast the air thins with height, per metre: the density is
+  /// `density · e^(−heightFalloff · (y − baseHeight))`. Nought is uniform
+  /// air; 0.5 halves it about every metre and a half, the ground fog of a
+  /// marsh.
+  final double heightFalloff;
+
+  /// The height at which the air is [density] thick, in world metres.
+  final double baseHeight;
+
+  /// Which way the air scatters: Henyey–Greenstein's g, from −1 through 0
+  /// (every direction alike) to 1. 0.3 is a mild forward lobe, which makes a
+  /// torch glow more when looked past than when looked away from.
+  final double anisotropy;
+
+  /// Samples along each view ray, at most sixty-four in the shader.
+  final int steps;
+
+  /// How far along the ray to march, in world metres. Past it the air stops,
+  /// and the sky beyond keeps what the marched part let through.
+  final double distance;
+
+  /// The air's albedo, or null for white — a tint on every light it scatters.
+  final vm.Vector3? color;
+
+  /// Light reaching the air from every direction, in the units a light's
+  /// colour times intensity has, or null for none. Without it fog in shadow
+  /// only dims the scene; with a little, it reads as air.
+  final vm.Vector3? ambient;
+
+  VolumetricFogSettings copyWith({
+    bool? enabled,
+    double? density,
+    double? heightFalloff,
+    double? baseHeight,
+    double? anisotropy,
+    int? steps,
+    double? distance,
+    vm.Vector3? color,
+    vm.Vector3? ambient,
+  }) => VolumetricFogSettings(
+    enabled: enabled ?? this.enabled,
+    density: density ?? this.density,
+    heightFalloff: heightFalloff ?? this.heightFalloff,
+    baseHeight: baseHeight ?? this.baseHeight,
+    anisotropy: anisotropy ?? this.anisotropy,
+    steps: steps ?? this.steps,
+    distance: distance ?? this.distance,
+    color: color ?? this.color,
+    ambient: ambient ?? this.ambient,
+  );
+}
+
 /// Depth of field, from a lens rather than from a ramp — `gfx-34n`.
 ///
 /// **Every number here is one a photographer already knows.** A focus
@@ -786,6 +891,7 @@ final class RenderSettings {
     this.energyCompensation = false,
     this.clusteredLights = false,
     this.lightShafts = const LightShaftSettings(),
+    this.volumetricFog = const VolumetricFogSettings(),
     this.depthOfField = const DepthOfFieldSettings(),
     this.viewportShading = const ViewportShadingSettings(),
   }) : assert(anisotropy >= 1, 'anisotropy is a count of taps, one or more'),
@@ -981,6 +1087,10 @@ final class RenderSettings {
 
   /// `gfx-33n`'s volumetric shafts through the directional shadow map.
   final LightShaftSettings lightShafts;
+
+  /// `S4`'s fog: a medium with a height, lit by the sun and the clustered
+  /// lights, marched at half resolution.
+  final VolumetricFogSettings volumetricFog;
 
   /// `gfx-34n`'s lens, which decides what is sharp and by how much the rest
   /// is not.
@@ -1208,6 +1318,7 @@ final class RenderSettings {
     bool? energyCompensation,
     bool? clusteredLights,
     LightShaftSettings? lightShafts,
+    VolumetricFogSettings? volumetricFog,
     DepthOfFieldSettings? depthOfField,
     ViewportShadingSettings? viewportShading,
   }) => RenderSettings(
@@ -1244,6 +1355,7 @@ final class RenderSettings {
     energyCompensation: energyCompensation ?? this.energyCompensation,
     clusteredLights: clusteredLights ?? this.clusteredLights,
     lightShafts: lightShafts ?? this.lightShafts,
+    volumetricFog: volumetricFog ?? this.volumetricFog,
     depthOfField: depthOfField ?? this.depthOfField,
     viewportShading: viewportShading ?? this.viewportShading,
   );
@@ -1335,6 +1447,9 @@ final class RenderSettings {
     // `R3`: the two noisy effects carried into their own histories.
     'ssao history',
     'contact shadow history',
+    // `S4`: before the shafts, so the air the fog dims is not the shafts'
+    // own light a second time.
+    'volumetric fog',
     'light shafts',
     'depth of field',
     // `R2`: the frames blended into one, before the glow is taken from it.
@@ -1393,6 +1508,7 @@ final class RenderSettings {
     // averages a neighbourhood of values that each meant something on their
     // own.
     'light shafts',
+    'volumetric fog',
     'depth of field',
   };
 

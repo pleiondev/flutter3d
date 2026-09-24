@@ -216,6 +216,19 @@ final class FogInfoBlock extends UniformBlock {
   };
 }
 
+/// `FogUpsampleInfo`.
+final class FogUpsampleInfoBlock extends UniformBlock {
+  FogUpsampleInfoBlock() : super('FogUpsampleInfo');
+
+  /// `size`: Vector4, at byte 0.
+  final Float32List size = Float32List(4);
+
+  @override
+  late final Map<String, Float32List> members = <String, Float32List>{
+    'size': size,
+  };
+}
+
 /// `FragCoordInfo`.
 final class FragCoordInfoBlock extends UniformBlock {
   FragCoordInfoBlock() : super('FragCoordInfo');
@@ -858,5 +871,82 @@ final class VelocityInfoBlock extends UniformBlock {
   @override
   late final Map<String, Float32List> members = <String, Float32List>{
     'target': target,
+  };
+}
+
+/// `VolumeFogInfo`.
+final class VolumeFogInfoBlock extends UniformBlock {
+  VolumeFogInfoBlock() : super('VolumeFogInfo');
+
+  /// `inverse_view_projection`: Matrix, at byte 0.
+  final Float32List inverseViewProjection = Float32List(16);
+
+  /// `shadow_matrix`: Matrix, at byte 64.
+  final Float32List shadowMatrix = Float32List(16);
+
+  /// `shadow_matrix_far`: Matrix, at byte 128.
+  final Float32List shadowMatrixFar = Float32List(16);
+
+  /// `shadow_matrix_farthest`: Matrix, at byte 192.
+  final Float32List shadowMatrixFarthest = Float32List(16);
+
+  /// `cluster_view_projection`: Matrix, at byte 256.
+  final Float32List clusterViewProjection = Float32List(16);
+
+  /// `camera`: Vector4, at byte 320.
+  final Float32List camera = Float32List(4);
+
+  /// `forward`: Vector4, at byte 336.
+  final Float32List forward = Float32List(4);
+
+  /// `sun`: Vector4, at byte 352.
+  final Float32List sun = Float32List(4);
+
+  /// `sun_radiance`: Vector4, at byte 368.
+  final Float32List sunRadiance = Float32List(4);
+
+  /// `cascades`: Vector4, at byte 384.
+  final Float32List cascades = Float32List(4);
+
+  /// `bias`: Vector4, at byte 400.
+  final Float32List bias = Float32List(4);
+
+  /// `medium`: Vector4, at byte 416.
+  final Float32List medium = Float32List(4);
+
+  /// `albedo`: Vector4, at byte 432.
+  final Float32List albedo = Float32List(4);
+
+  /// `ambient`: Vector4, at byte 448.
+  final Float32List ambient = Float32List(4);
+
+  /// `cluster_grid`: Vector4, at byte 464.
+  final Float32List clusterGrid = Float32List(4);
+
+  /// `cluster_depth`: Vector4, at byte 480.
+  final Float32List clusterDepth = Float32List(4);
+
+  /// `list`: Vector4, at byte 496.
+  final Float32List list = Float32List(4);
+
+  @override
+  late final Map<String, Float32List> members = <String, Float32List>{
+    'inverse_view_projection': inverseViewProjection,
+    'shadow_matrix': shadowMatrix,
+    'shadow_matrix_far': shadowMatrixFar,
+    'shadow_matrix_farthest': shadowMatrixFarthest,
+    'cluster_view_projection': clusterViewProjection,
+    'camera': camera,
+    'forward': forward,
+    'sun': sun,
+    'sun_radiance': sunRadiance,
+    'cascades': cascades,
+    'bias': bias,
+    'medium': medium,
+    'albedo': albedo,
+    'ambient': ambient,
+    'cluster_grid': clusterGrid,
+    'cluster_depth': clusterDepth,
+    'list': list,
   };
 }
