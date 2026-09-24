@@ -162,6 +162,10 @@ step "webgpu shaders" bash -c 'cd packages/flutter3d_webgpu && dart run tool/gen
 # and naga. The same shape of check: regenerate, and fail on any difference.
 step "webgpu compute shaders" bash -c 'cd packages/flutter3d_webgpu && dart run tool/generate_compute_shaders.dart >/dev/null && git diff --exit-code -- lib/engine_compute_shaders.dart'
 
+# `G1`: the engine's data tables are generated and seeded, so running the
+# generator again must write the same bytes the test pins by hash.
+step "engine tables" bash -c 'cd packages/flutter3d_core && dart run tool/make_tables.dart >/dev/null && git diff --exit-code -- lib/src/engine/render/tables'
+
 # **`qa-09`: the real Khronos validator, against a fresh `GltfWriter` export.**
 # `fmt-11`'s own checker
 # (`packages/flutter3d_core/lib/src/formats/gltf/gltf_validate.dart`) only ever

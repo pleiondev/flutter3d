@@ -77,6 +77,7 @@ export 'src/engine/render/debug_draw_gizmos.dart';
 export 'src/engine/render/empty_frame.dart';
 export 'src/engine/render/environment_map.dart';
 export 'src/engine/render/field_pass.dart';
+export 'src/engine/render/frame_history.dart';
 export 'src/engine/render/frame_capture.dart';
 export 'src/engine/render/frame_graph.dart';
 export 'src/engine/render/frame_plan.dart';

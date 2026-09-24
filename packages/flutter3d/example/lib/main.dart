@@ -228,6 +228,9 @@ class _SpikePageState extends State<SpikePage>
   /// Set only when `--dart-define=FLUTTER3D_GOLDEN=...` named a scene.
   final GoldenRunner? _golden = GoldenRunner.fromEnvironment();
 
+  /// Frames drawn since the scene was staged, for `GoldenScene.cameraAt`.
+  int _cameraFrame = 0;
+
   /// Reused across taps: picking allocates nothing per cast, and the result
   /// object is owned by the caster.
   final Raycaster _raycaster = Raycaster();
@@ -1100,6 +1103,17 @@ class _SpikePageState extends State<SpikePage>
       _moverFrame++;
       final held = _moverFrame < frames ? _moverFrame : frames;
       _modelPivot.setRotationYawPitchRoll(held * 0.02, 0.0, 0.0);
+    }
+
+    // `G0`: a golden that moves its camera, by frame count rather than by the
+    // clock, for the reason the mover above counts frames.
+    if (_golden?.scene.cameraAt case final at? when _staged) {
+      final orbit = at(_cameraFrame++);
+      _orbit
+        ..yaw = orbit.yaw
+        ..pitch = orbit.pitch
+        ..apply();
+      _orbit.syncProjectionDepth(_camera);
     }
 
     // The model's own clips advance on the same clock. A delta rather than the

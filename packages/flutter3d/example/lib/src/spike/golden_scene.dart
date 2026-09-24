@@ -32,6 +32,7 @@ final class GoldenScene {
     this.spotShadow = false,
     this.extraPointShadows = 0,
     this.moverFrames = 0,
+    this.cameraAt,
     this.groundDrop = 0.0,
     this.groundScale = 3.0,
     this.sky = const SkySettings(),
@@ -186,6 +187,17 @@ final class GoldenScene {
   /// whose contents changed. Counting frames rather than reading the clock
   /// keeps it reproducible; stopping well before the capture keeps it still.
   final int moverFrames;
+
+  /// Where the orbit camera is on each frame, counted from the first frame of
+  /// the staged scene — `G0`. Null holds [yaw] and [pitch] for the whole run.
+  ///
+  /// A golden is always many frames: the runner captures frame
+  /// `GoldenRunner.captureFrame` of one renderer, so anything temporal (a
+  /// jitter, a history, a velocity) has settled or accumulated by the time it
+  /// is compared. What a still scene could not do was move its camera, and
+  /// that is what a temporal resolve has to be tested against. A function of
+  /// the frame and nothing else, so the capture is the same every run.
+  final ({double yaw, double pitch}) Function(int frame)? cameraAt;
 
   /// Extra shadow-casting point lights added around the model, so more than one
   /// row of the atlas is occupied.
