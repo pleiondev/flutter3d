@@ -11,6 +11,7 @@ library;
 import 'dart:typed_data';
 
 import 'package:flutter3d_core/src/engine/render/engine_tables.dart';
+import 'package:flutter3d_hardware/flutter3d_hardware.dart' show TextureFormat;
 import 'package:flutter3d_hardware/testing.dart';
 import 'package:test/test.dart';
 
@@ -22,9 +23,14 @@ int _fnv1a(Uint8List bytes) => bytes.fold(
 void main() {
   test('each table is the size its descriptor says', () {
     for (final table in EngineTables.all) {
+      final texel = switch (table.format) {
+        TextureFormat.r8UNormInt => 1,
+        TextureFormat.r16g16b16a16Float => 8,
+        _ => throw StateError('no size known for ${table.format}'),
+      };
       expect(
         table.bytes.length,
-        table.width * table.height,
+        table.width * table.height * texel,
         reason: table.name,
       );
     }
@@ -36,11 +42,16 @@ void main() {
     final hashes = <String, int>{
       for (final table in EngineTables.all) table.name: _fnv1a(table.bytes),
     };
-    expect(hashes, <String, int>{'blueNoise': 1332832323});
+    expect(hashes, <String, int>{
+      'blueNoise': 1332832323,
+      'aces2Display': 3566240564,
+    });
   });
 
   group('blue noise', () {
-    final atlas = EngineTables.all.single.bytes;
+    final atlas = EngineTables.all
+        .firstWhere((table) => table.name == 'blueNoise')
+        .bytes;
     Uint8List slice(int s) => Uint8List.fromList([
       for (var y = 0; y < 64; y++)
         for (var x = 0; x < 64; x++)

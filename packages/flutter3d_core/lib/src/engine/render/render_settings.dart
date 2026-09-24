@@ -1402,6 +1402,15 @@ final class TonemapCurve {
   @Deprecated('Use TonemapCurve.agx, which is now the full AgX transform.')
   static const TonemapCurve agxFull = TonemapCurve._('agxFull', 5.0);
 
+  /// The ACES 2.0 tonescale through the engine's display transform table —
+  /// `L2`. See `EngineTables.aces2Display` for what the table holds and does
+  /// not: the SDR tonescale applied with the hue held, not the reference
+  /// transform's appearance-model gamut work.
+  ///
+  /// Code 6 is "read a display transform", and this curve is the table the
+  /// engine ships; [LookSettings.displayTransform] puts another in its place.
+  static const TonemapCurve aces2 = TonemapCurve._('aces2', 6.0);
+
   /// All of them, in the order their codes run.
   static const List<TonemapCurve> values = <TonemapCurve>[
     neutral,
@@ -1409,10 +1418,35 @@ final class TonemapCurve {
     agx,
     reinhard,
     agxFull,
+    aces2,
   ];
 
   @override
   String toString() => 'TonemapCurve.$name';
+}
+
+/// A display transform read in place of the tone curve — `L2`.
+///
+/// **Scene-referred in, display-linear out**, in the colour table's strip
+/// shape (N slices of N × N, blue picking the slice) but float, and indexed
+/// through a log2 shaper: entry `i` of N holds the output for the input
+/// `0.18 · 2^(−10 + 16 · i / (N − 1))`. So −10 stops below mid grey to +6
+/// above it are covered, which is where a real output transform does all of
+/// its work.
+///
+/// Whatever a tool can bake into that shape goes here: the ACES 2.0
+/// reference output transform through OCIO, a studio's own, a filmic curve.
+/// Applied after exposure and before the grade, exactly where a tone curve
+/// is.
+final class DisplayTransform {
+  const DisplayTransform({required this.texture, required this.size});
+
+  /// The strip, `size²` × `size`, in a float format the device samples
+  /// filtered.
+  final TextureHandle texture;
+
+  /// Entries per axis, N.
+  final int size;
 }
 
 /// The look put on the frame after it has been tone mapped.
@@ -1448,6 +1482,7 @@ final class LookSettings {
     this.tint = 0.0,
     this.lut,
     this.lutStrength = 1.0,
+    this.displayTransform,
   });
 
   /// Pivoted about mid grey, so raising it does not also raise exposure.
@@ -1573,6 +1608,11 @@ final class LookSettings {
   /// mixes towards the graded colour.
   final double lutStrength;
 
+  /// A display transform read instead of the tone curve — `L2`. Null uses
+  /// the curve, as always; set, it wins over whichever curve is chosen, and
+  /// `RenderSettings.tonemap` off still turns it off with the rest.
+  final DisplayTransform? displayTransform;
+
   /// Whether [lut] will actually be sampled this frame.
   bool get gradesThroughLut => lut != null && lutStrength > 0.0;
 
@@ -1620,6 +1660,7 @@ final class LookSettings {
     double? tint,
     TextureHandle? lut,
     double? lutStrength,
+    DisplayTransform? displayTransform,
   }) => LookSettings(
     contrast: contrast ?? this.contrast,
     saturation: saturation ?? this.saturation,
@@ -1636,6 +1677,7 @@ final class LookSettings {
     tint: tint ?? this.tint,
     lut: lut ?? this.lut,
     lutStrength: lutStrength ?? this.lutStrength,
+    displayTransform: displayTransform ?? this.displayTransform,
   );
 }
 

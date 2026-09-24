@@ -130,7 +130,18 @@ final class CompositeShader implements CpuFragmentShader {
     }
 
     colour.scale(math.max(params.x, 0.0));
-    colour = tonemapBy(colour, (params.z + 0.5).floor());
+    final curve = (params.z + 0.5).floor();
+    final display = bindings.textures['display_texture'];
+    colour = curve == 6 && display != null
+        ? _sampleDisplay(
+            display,
+            colour,
+            math.max(
+              bindings.vec4('CompositeInfo', 'contact', Vector4.zero()).y,
+              2.0,
+            ),
+          )
+        : tonemapBy(colour, curve);
 
     // Grading after the tone map, then the barrel, then the film. The order is
     // the one a camera imposes and it is the order `composite.frag` uses; the
@@ -461,6 +472,21 @@ Vector4 _sharpen(
     blend(centre.y, n.y, s.y, w.y, e.y),
     blend(centre.z, n.z, s.z, w.z, e.z),
     1.0,
+  );
+}
+
+/// `SampleDisplay` from `composite.frag` — `L2`: the log2 shaper of −10…+6
+/// stops about 0.18, then [_sampleLut]'s lookup.
+Vector3 _sampleDisplay(BoundTexture table, Vector3 colour, double size) {
+  double shaped(double x) =>
+      ((math.log(math.max(x, 1e-10) / 0.18) / math.ln2 + 10.0) / 16.0).clamp(
+        0.0,
+        1.0,
+      );
+  return _sampleLut(
+    table,
+    Vector3(shaped(colour.x), shaped(colour.y), shaped(colour.z)),
+    size,
   );
 }
 

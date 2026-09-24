@@ -48,6 +48,7 @@ stageBindings = <String, ({Set<String> blocks, Set<String> samplers})>{
       'ao_texture',
       'bloom_texture',
       'contact_shadow_texture',
+      'display_texture',
       'lut_texture',
       'scene_texture',
     },

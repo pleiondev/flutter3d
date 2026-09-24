@@ -1010,7 +1010,20 @@ extension _PostPasses on Renderer {
     );
     _compositeParams[0] = mix.exposure;
     _compositeParams[1] = mix.bloomIntensity;
-    _compositeParams[2] = mix.tonemap;
+    // `L2`: a display transform in place of the curve, when one is set or
+    // the curve is the table the engine ships — and never for a raw view,
+    // which the mix has already told to leave the colour alone.
+    final display = mix.tonemap == 0.0
+        ? null
+        : settings.look.displayTransform ??
+              (settings.tonemapCurve == TonemapCurve.aces2
+                  ? DisplayTransform(
+                      texture: EngineTables.of(device).aces2Display,
+                      size: EngineTables.aces2DisplaySize,
+                    )
+                  : null);
+    _compositeParams[2] = display != null ? 6.0 : mix.tonemap;
+    _compositeContact[1] = display?.size.toDouble() ?? 0.0;
 
     pass.bindPipeline(
       _postPipeline(
@@ -1094,6 +1107,14 @@ extension _PostPasses on Renderer {
       compositeShader,
       _kLutTextureSlot,
       lut ?? fallbackAlbedo,
+      sampler: Renderer._clampSampler,
+    );
+    // `L2`, the same pairing: the table when the curve reads one, the
+    // stand-in otherwise, never unbound.
+    pass.bindTexture(
+      compositeShader,
+      'display_texture',
+      display?.texture ?? fallbackAlbedo,
       sampler: Renderer._clampSampler,
     );
 
