@@ -487,6 +487,9 @@ final class LayerInfoBlock extends UniformBlock {
   /// `iridescence`: Vector4, at byte 96.
   final Float32List iridescence = Float32List(4);
 
+  /// `uv_transform`: 10 × Vector4, at byte 112.
+  final Float32List uvTransform = Float32List(40);
+
   @override
   late final Map<String, Float32List> members = <String, Float32List>{
     'specular': specular,
@@ -496,6 +499,7 @@ final class LayerInfoBlock extends UniformBlock {
     'transmission': transmission,
     'attenuation': attenuation,
     'iridescence': iridescence,
+    'uv_transform': uvTransform,
   };
 }
 
