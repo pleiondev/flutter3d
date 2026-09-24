@@ -55,6 +55,7 @@ Future<ModelDocument> encodeDocumentTextures(
     cameras: document.cameras,
     warnings: document.warnings,
     asset: document.asset,
+    variants: document.variants,
   );
 }
 

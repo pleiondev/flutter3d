@@ -13,8 +13,10 @@ final class ModelSurface {
     this.meshName,
     List<double>? morphWeights,
     Set<String>? authoredAttributes,
+    Map<int, int>? variantMaterials,
   }) : transform = transform ?? Matrix4.identity(),
        morphWeights = morphWeights ?? const <double>[],
+       variantMaterials = variantMaterials ?? const <int, int>{},
        authoredAttributes =
            authoredAttributes ??
            <String>{for (final a in mesh.layout.attributes) a.name};
@@ -25,6 +27,16 @@ final class ModelSurface {
   final Matrix4 transform;
 
   final int? materialIndex;
+
+  /// The material this surface wears in each variant it takes part in, from
+  /// an index into `ModelDocument.variants` to one into
+  /// `ModelDocument.materials` — `KHR_materials_variants`' own per-primitive
+  /// `mappings`, turned the right way round for a lookup.
+  ///
+  /// A variant missing here leaves the surface in [materialIndex], which is
+  /// what the extension says: a primitive a variant does not mention keeps
+  /// its default look. Empty for almost every surface.
+  final Map<int, int> variantMaterials;
 
   /// Index into `ModelDocument.skins`, when this surface is skinned.
   ///

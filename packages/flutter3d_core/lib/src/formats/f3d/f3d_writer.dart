@@ -119,6 +119,8 @@ final class F3dWriter {
     final rootTable = _writeRoots();
     final (animationTable, trackTable, animationCount, trackCount) =
         _writeAnimations();
+    final (pointerTrackTable, pointerTrackCount) = _writePointerTracks();
+    final variantTable = _writeVariants();
     final warningTable = _writeWarnings();
     final skinTable = _writeSkins();
     final layoutTable = _writeLayouts();
@@ -145,6 +147,13 @@ final class F3dWriter {
       (F3dSection.roots, rootTable, document.roots.length),
       (F3dSection.animations, animationTable, animationCount),
       (F3dSection.tracks, trackTable, trackCount),
+      // Only when there is something to say, so a document with neither
+      // writes the same bytes it did before these sections existed — a
+      // converted asset should not change on disk for a feature it lacks.
+      if (pointerTrackCount > 0)
+        (F3dSection.pointerTracks, pointerTrackTable, pointerTrackCount),
+      if (document.variants.isNotEmpty)
+        (F3dSection.variants, variantTable, document.variants.length),
       (F3dSection.warnings, warningTable, document.warnings.length),
       (F3dSection.skins, skinTable, document.skins.length),
       (F3dSection.strings, _strings.toBytes(), 0),

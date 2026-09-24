@@ -194,12 +194,37 @@ extension _GltfWriterMesh on GltfWriter {
   Map<String, Object?> _primitiveFor(int surfaceIndex) {
     final surface = document.surfaces[surfaceIndex];
     final encoded = _accessorsFor(surface.mesh);
+    final mappings = _variantMappingsFor(surface);
     return <String, Object?>{
       'attributes': encoded.attributes,
       'indices': encoded.indicesAccessor,
       if (surface.materialIndex != null) 'material': surface.materialIndex,
       if (encoded.targets.isNotEmpty) 'targets': encoded.targets,
+      if (mappings.isNotEmpty)
+        'extensions': <String, Object?>{
+          'KHR_materials_variants': <String, Object?>{'mappings': mappings},
+        },
     };
+  }
+
+  /// [surface]'s variant → material map folded back into the file's shape:
+  /// one mapping per material, listing the variants that choose it, in
+  /// material order so the same document always writes the same bytes.
+  List<Map<String, Object?>> _variantMappingsFor(ModelSurface surface) {
+    if (surface.variantMaterials.isEmpty) return const <Map<String, Object?>>[];
+    _extensionsUsed.add('KHR_materials_variants');
+    final byMaterial = <int, List<int>>{};
+    for (final MapEntry(key: variant, value: material)
+        in surface.variantMaterials.entries) {
+      (byMaterial[material] ??= <int>[]).add(variant);
+    }
+    return <Map<String, Object?>>[
+      for (final material in byMaterial.keys.toList()..sort())
+        <String, Object?>{
+          'material': material,
+          'variants': byMaterial[material]!..sort(),
+        },
+    ];
   }
 
   /// Morph target names for `document.surfaces[i].mesh`, for the mesh-level

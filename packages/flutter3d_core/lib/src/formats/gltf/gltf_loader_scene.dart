@@ -19,6 +19,7 @@ extension _GltfSceneWalk on GltfLoader {
     List<String> warnings,
     int lightCount,
     int cameraCount,
+    _VariantScope variantScope,
   ) {
     final nodes = _mapList(json['nodes']);
     final meshes = _mapList(json['meshes']);
@@ -80,7 +81,13 @@ extension _GltfSceneWalk on GltfLoader {
       if (meshIndex != null && meshIndex >= 0 && meshIndex < meshes.length) {
         final primitives = meshCache.putIfAbsent(
           meshIndex,
-          () => _decodeMesh(meshes[meshIndex], meshIndex, reader, warnings),
+          () => _decodeMesh(
+            meshes[meshIndex],
+            meshIndex,
+            reader,
+            warnings,
+            variantScope,
+          ),
         );
         // A mirroring transform reverses on-screen winding, so record it here
         // rather than making the renderer recompute the determinant per draw.
@@ -109,6 +116,7 @@ extension _GltfSceneWalk on GltfLoader {
               morphWeights: weights,
               authoredAttributes: primitive.authoredAttributes,
               meshName: primitive.meshName,
+              variantMaterials: primitive.variantMaterials,
             ),
           );
         }
@@ -153,6 +161,7 @@ extension _GltfSceneWalk on GltfLoader {
                 siblingMeshIndex,
                 reader,
                 warnings,
+                variantScope,
               ),
             );
             final surfaceIndices = <int>[];
@@ -169,6 +178,7 @@ extension _GltfSceneWalk on GltfLoader {
                   materialIndex: primitive.materialIndex,
                   authoredAttributes: primitive.authoredAttributes,
                   meshName: primitive.meshName,
+                  variantMaterials: primitive.variantMaterials,
                 ),
               );
             }

@@ -19,7 +19,11 @@ final class GltfAsset extends ModelDocument {
     this.lights = const <ModelLight>[],
     this.cameras = const <ModelCamera>[],
     this.asset,
+    this.variants = const <String>[],
   });
+
+  @override
+  final List<String> variants;
 
   @override
   final List<ModelSurface> surfaces;

@@ -60,6 +60,7 @@ extension _GltfWriterAnimation on GltfWriter {
             AnimationPath.rotation => 4,
             AnimationPath.weights => 1,
             AnimationPath.translation || AnimationPath.scale => 3,
+            AnimationPath.pointer => track.componentCount,
           };
           final outputAccessor = _addAccessor(<String, Object?>{
             'bufferView': _appendBufferView(track.values),
@@ -67,6 +68,7 @@ extension _GltfWriterAnimation on GltfWriter {
             'type': switch (accessorComponents) {
               4 => GltfAccessorType.vec4.name,
               3 => GltfAccessorType.vec3.name,
+              2 => GltfAccessorType.vec2.name,
               _ => GltfAccessorType.scalar.name,
             },
             'count': track.values.length ~/ accessorComponents,
@@ -78,11 +80,20 @@ extension _GltfWriterAnimation on GltfWriter {
             'output': outputAccessor,
             'interpolation': track.interpolation.toGltf(),
           });
+          final pointer = track.pointer;
+          if (pointer != null) _extensionsUsed.add('KHR_animation_pointer');
           channels.add(<String, Object?>{
             'sampler': samplerIndex,
             'target': <String, Object?>{
-              'node': track.nodeIndex,
+              // A pointer channel names no node: the pointer is its target.
+              if (pointer == null) 'node': track.nodeIndex,
               'path': track.path.toGltf(),
+              if (pointer != null)
+                'extensions': <String, Object?>{
+                  'KHR_animation_pointer': <String, Object?>{
+                    'pointer': pointer.pointer,
+                  },
+                },
             },
           });
         }

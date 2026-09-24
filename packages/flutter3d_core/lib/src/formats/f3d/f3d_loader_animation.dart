@@ -12,6 +12,7 @@ extension _F3dAnimation on F3dDocument {
 
   List<AnimationClip> _readAnimations() {
     final table = _table(F3dSection.animations, F3dRecord.animation);
+    final pointerTracks = _readPointerTracks();
     return <AnimationClip>[
       for (var i = 0; i < table.count; i++)
         () {
@@ -28,12 +29,65 @@ extension _F3dAnimation on F3dDocument {
               _view.getUint32(o, Endian.little),
               _view.getUint32(o + 4, Endian.little),
             ),
-            tracks: <AnimationTrack>[
+            tracks: _interleave(<AnimationTrack>[
               for (var t = 0; t < trackCount; t++) _readTrack(firstTrack + t),
-            ],
+            ], pointerTracks[i] ?? const <(int, AnimationTrack)>[]),
           );
         }(),
     ];
+  }
+
+  /// [nodeTracks] with each of [pointerTracks] put back at the position it
+  /// was written from, in ascending position order.
+  static List<AnimationTrack> _interleave(
+    List<AnimationTrack> nodeTracks,
+    List<(int, AnimationTrack)> pointerTracks,
+  ) {
+    if (pointerTracks.isEmpty) return nodeTracks;
+    final ordered = [...pointerTracks]..sort((a, b) => a.$1.compareTo(b.$1));
+    final tracks = [...nodeTracks];
+    for (final (position, track) in ordered) {
+      tracks.insert(position.clamp(0, tracks.length), track);
+    }
+    return tracks;
+  }
+
+  /// Section 24's tracks by clip, each with its position in that clip.
+  ///
+  /// A pointer this build cannot resolve — a property added by a later one —
+  /// is dropped here, the same as a glTF channel naming it would be.
+  Map<int, List<(int, AnimationTrack)>> _readPointerTracks() {
+    final table = _table(F3dSection.pointerTracks, F3dRecord.pointerTrack);
+    final byClip = <int, List<(int, AnimationTrack)>>{};
+    for (var i = 0; i < table.count; i++) {
+      final o = table.offset + i * F3dRecord.pointerTrack;
+      int word(int at) => _view.getUint32(o + at, Endian.little);
+
+      final interpolation = word(8);
+      if (interpolation >= AnimationInterpolation.values.length) {
+        throw F3dFormatException(
+          'pointerTracks[$i] names interpolation $interpolation, which this '
+          'build does not have.',
+        );
+      }
+      final text = _string(word(32), word(36));
+      final pointer = text == null ? null : AnimationPointer.parse(text);
+      if (pointer == null) continue;
+
+      (byClip[word(0)] ??= <(int, AnimationTrack)>[]).add((
+        word(4),
+        AnimationTrack(
+          nodeIndex: -1,
+          path: AnimationPath.pointer,
+          interpolation: AnimationInterpolation.values[interpolation],
+          componentCount: word(12),
+          times: _floats(word(16), word(20)),
+          values: _floats(word(24), word(28)),
+          pointer: pointer,
+        ),
+      ));
+    }
+    return byClip;
   }
 
   AnimationTrack _readTrack(int index) {
