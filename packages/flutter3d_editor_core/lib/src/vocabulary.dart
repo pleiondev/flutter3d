@@ -24,7 +24,24 @@ final class OpenKind extends EntityKind {
 ///
 /// A game that wants its own vocabulary checked has one already — the same
 /// registry it loads with — and can hand it to [Editing.issuesFor].
-EntityRegistry vocabularyOf(Level level) => EntityRegistry(<EntityKind>[
-  for (final type in level.entities.map((EntityDef e) => e.type).toSet())
-    OpenKind(type),
-]);
+///
+/// **What the level's recipes build is named too.** A room recipe places
+/// reflection probes, and the validator checks the level as it will be used,
+/// recipes expanded — so a registry of the document's own rows alone reports
+/// the room's probes as unknown. A recipe that cannot be expanded adds
+/// nothing here; the validator says what is wrong with it.
+EntityRegistry vocabularyOf(Level level) {
+  final used = _usable(level);
+  return EntityRegistry(<EntityKind>[
+    for (final type in used.entities.map((EntityDef e) => e.type).toSet())
+      OpenKind(type),
+  ]);
+}
+
+Level _usable(Level level) {
+  try {
+    return expandRecipes(level);
+  } on LevelFormatException {
+    return level;
+  }
+}

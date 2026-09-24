@@ -4,7 +4,8 @@
 ///
 /// **What this covers is a move.** The hillside was a sum of sines in
 /// `staging.dart` and the camps were coordinates beside it; both now live in
-/// `assets/levels/map_a.json`, written by `tool/make_map.py`. A move like that
+/// `assets/levels/map_a.json`, written by `tool/levels/strategy.dart` in
+/// `flutter3d_editor_core`. A move like that
 /// fails quietly in two ways — the ground comes back transposed, or a camp
 /// arrives somewhere plausible and wrong — and neither shows up in a picture of
 /// a hillside, because any hillside looks like a hillside.

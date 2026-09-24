@@ -161,7 +161,7 @@ void main() {
       expect(
         Directory(template.where).existsSync(),
         isTrue,
-        reason: 'run tool/make_templates.py',
+        reason: 'run the level generators in flutter3d_editor_core (dart run tool/regenerate_levels.dart)',
       );
     }
   });

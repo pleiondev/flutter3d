@@ -307,7 +307,8 @@ void main() {
     // inside brushes when it was first run — eight here, six in Ascent, several
     // of them placed by hand in the session that added the crawlspace.
     //
-    // Mutation: put any of them back. `python3 tool/make_first_steps.py` now
+    // Mutation: put any of them back. The generator (`firstSteps` in
+    // `flutter3d_editor_core/tool/levels/platformer.dart`) now
     // refuses outright, and if a document is edited past the generator this
     // catches it.
     //

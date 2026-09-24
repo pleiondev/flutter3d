@@ -41,6 +41,7 @@ built from `editorCommandNames` rather than from a copy of it.
 | `setField` | Write any field the format has, including ones added after this was released |
 | `brighten`, `turn` | A light's strength; an entity's facing |
 | `undo`, `redo` | Sixty-four steps of whole-document snapshots |
+| `generate` | Add a room, corridor or scatter as a seeded recipe |
 | `validate` | What the game would object to |
 | `save` | Write it out, or say why it will not |
 | `screenshot` | A flat picture of the level from a camera you may name |
