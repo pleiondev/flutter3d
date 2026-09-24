@@ -197,6 +197,12 @@ abstract class ModelDocument {
   /// Empty for formats that carry none — OBJ and `.f3d` among them.
   List<ModelCamera> get cameras => const <ModelCamera>[];
 
+  /// Gaussian splat clouds, each with the node that carries it — `C1`.
+  /// Empty for every format except glTF with `KHR_gaussian_splatting`; a PLY
+  /// capture is read by `parseSplatPly` into a bare `SplatCloud` instead,
+  /// since it has no nodes to attach one to.
+  List<ModelSplat> get splats => const <ModelSplat>[];
+
   /// Non-fatal findings from decoding: ignored extensions, skipped primitives,
   /// unresolved references. Surfaced rather than logged so callers can decide
   /// whether to care.

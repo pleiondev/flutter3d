@@ -39,6 +39,11 @@ extension _GltfMesh on GltfLoader {
       final primitive = primitives[i];
       final label = 'meshes[$meshIndex].primitives[$i]';
 
+      // A splat primitive is POINTS by rule and is read by
+      // `_decodeMeshSplats` instead; warning here that points are not drawn
+      // would be wrong about it.
+      if (_splatExtensionOf(primitive) != null) continue;
+
       final modeCode = _asInt(primitive['mode']) ?? 4;
       final GltfPrimitiveMode mode;
       try {

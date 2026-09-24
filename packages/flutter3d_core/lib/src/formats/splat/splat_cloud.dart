@@ -39,7 +39,10 @@ final class SplatCloud {
     required this.colours,
     required this.scales,
     required this.rotations,
-  }) : count = centres.length ~/ 3 {
+    this.shDegree = 0,
+    Float32List? shRest,
+  }) : count = centres.length ~/ 3,
+       shRest = shRest ?? Float32List(0) {
     if (colours.length != count * 4 ||
         scales.length != count * 3 ||
         rotations.length != count * 4) {
@@ -48,6 +51,16 @@ final class SplatCloud {
         '${count * 4} colour floats, ${count * 3} scale floats and '
         '${count * 4} rotation floats; got ${centres.length}, '
         '${colours.length}, ${scales.length} and ${rotations.length}.',
+      );
+    }
+    if (shDegree < 0 || shDegree > 3) {
+      throw ArgumentError('shDegree is $shDegree; a cloud carries 0 to 3.');
+    }
+    if (this.shRest.length != count * shRestFloatsPerSplat) {
+      throw ArgumentError(
+        'A cloud of $count splats at spherical-harmonic degree $shDegree '
+        'needs ${count * shRestFloatsPerSplat} higher-band floats; got '
+        '${this.shRest.length}.',
       );
     }
   }
@@ -69,6 +82,24 @@ final class SplatCloud {
   /// `xyzw`, normalised. The file's own order is `w` first; this is not, so
   /// that it matches every other quaternion in this engine.
   final Float32List rotations;
+
+  /// The highest spherical-harmonic band the source carried, 0 to 3.
+  ///
+  /// **Carried, not drawn.** [colours] is band 0 alone, which is the colour a
+  /// splat has from every direction; the higher bands are what makes it
+  /// change with the viewing angle, and nothing in the draw evaluates them
+  /// yet. They are kept rather than dropped so that the stage which does
+  /// evaluate them finds them already loaded, from any file that had them.
+  final int shDegree;
+
+  /// Bands 1 to [shDegree], [shRestFloatsPerSplat] floats a splat: each
+  /// coefficient's `rgb` in the order the band lists them (lowest `m`
+  /// first), band 1 before band 2. Empty at degree 0.
+  final Float32List shRest;
+
+  /// How many floats of [shRest] each splat owns: `3 × ((d + 1)² − 1)`, so
+  /// 9, 24 or 45 for degrees 1, 2 and 3.
+  int get shRestFloatsPerSplat => 3 * ((shDegree + 1) * (shDegree + 1) - 1);
 
   /// The 3×3 covariance of splat [index], written into [out] as six floats:
   /// `xx, xy, xz, yy, yz, zz`.

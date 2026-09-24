@@ -55,7 +55,6 @@ void _build(SplatQuads quads) => quads.build(
   eye: Vector3.zero(),
   right: Vector3(_right.x, _right.y, _right.z),
   up: Vector3(0.0, 1.0, 0.0),
-  forward: Vector3(0.0, 0.0, -1.0),
 );
 
 /// The [component]th float of vertex [vertex].
@@ -212,6 +211,130 @@ void main() {
     final first = quads.vertices;
     _build(quads);
     expect(identical(quads.vertices, first), isTrue);
+  });
+
+  group('when it sorts — C1', () {
+    SplatQuads grid() => SplatQuads(
+      _cloud(
+        centres: <Vector3>[
+          for (var i = 0; i < 10; i++) Vector3(0.0, 0.0, -1.0 - i),
+        ],
+        scales: <Vector3>[for (var i = 0; i < 10; i++) Vector3.all(0.1)],
+      ),
+    );
+
+    test('a camera that only turns does not sort again', () {
+      // Mutation: make `_needsSort` return true — `sorts` counts every build.
+      final quads = grid();
+      _build(quads);
+      quads.build(
+        eye: Vector3.zero(),
+        right: Vector3(0.0, 0.0, 1.0),
+        up: Vector3(0.0, 1.0, 0.0),
+      );
+      expect(quads.sorts, 1);
+    });
+
+    test('a small step does not sort again and a long one does', () {
+      // The range is 9 m, so the default 0.2 % allows 18 mm.
+      final quads = grid();
+      _build(quads);
+      void at(double x) => quads.build(
+        eye: Vector3(x, 0.0, 0.0),
+        right: Vector3(1.0, 0.0, 0.0),
+        up: Vector3(0.0, 1.0, 0.0),
+      );
+      at(0.01);
+      expect(quads.sorts, 1, reason: '10 mm is inside the threshold');
+      at(0.05);
+      expect(quads.sorts, 2, reason: '50 mm is outside it');
+    });
+
+    test('a threshold of nought sorts on every move', () {
+      final quads = grid()..resortFraction = 0.0;
+      _build(quads);
+      quads.build(
+        eye: Vector3(0.001, 0.0, 0.0),
+        right: Vector3(1.0, 0.0, 0.0),
+        up: Vector3(0.0, 1.0, 0.0),
+      );
+      expect(quads.sorts, 2);
+    });
+
+    test('invalidateSort and a moved model both force one', () {
+      final quads = grid();
+      _build(quads);
+      quads.invalidateSort();
+      _build(quads);
+      expect(quads.sorts, 2);
+      quads.build(
+        eye: Vector3.zero(),
+        right: Vector3(1.0, 0.0, 0.0),
+        up: Vector3(0.0, 1.0, 0.0),
+        model: Matrix4.translationValues(0.0, 0.0, 20.0),
+      );
+      expect(quads.sorts, 3);
+    });
+
+    test('the order a skipped sort keeps is still the one drawn', () {
+      // The far splat at −10 is first in the buffer, and stays first when
+      // the camera turns without the sort running.
+      final quads = grid();
+      _build(quads);
+      quads.build(
+        eye: Vector3.zero(),
+        right: Vector3(0.0, 0.0, 1.0),
+        up: Vector3(0.0, 1.0, 0.0),
+      );
+      expect(_at(quads, 0, 2), closeTo(-10.0, 1.0));
+    });
+  });
+
+  test('a cloud placed by a matrix builds what the placed cloud builds', () {
+    // The claim `SplatQuads.build` makes for `model`: the ellipse of a cloud
+    // placed by `M` is the ellipse of the cloud whose covariance is
+    // `M Σ Mᵀ`. Checked against a cloud placed by hand — centres moved,
+    // quaternions turned, extents scaled — for a turn, a uniform scale and a
+    // move together.
+    // Mutation: use the world `right` in place of `Mᵀ right` in the 2×2 —
+    // the placed quad keeps the unscaled, unturned extents.
+    final turn = Quaternion.axisAngle(Vector3(0.3, 1.0, 0.2).normalized(), 0.7);
+    const s = 1.7;
+    final move = Vector3(0.4, -0.2, -3.0);
+    final model = Matrix4.compose(move, turn, Vector3.all(s));
+
+    final local = <Vector3>[Vector3(0.1, 0.2, 0.3), Vector3(-0.5, 0.0, 0.8)];
+    final extents = <Vector3>[Vector3(0.3, 0.1, 0.05), Vector3(0.05, 0.2, 0.1)];
+    final spins = <Quaternion>[
+      Quaternion.axisAngle(Vector3(0.0, 0.0, 1.0), 0.4),
+      Quaternion.axisAngle(Vector3(1.0, 0.0, 0.0), 1.1),
+    ];
+
+    final placed = SplatQuads(
+      _cloud(centres: local, scales: extents, rotations: spins),
+    );
+    final byHand = SplatQuads(
+      _cloud(
+        centres: <Vector3>[for (final c in local) model.transformed3(c)],
+        scales: <Vector3>[for (final e in extents) e * s],
+        rotations: <Quaternion>[for (final q in spins) turn * q],
+      ),
+    );
+
+    final eye = Vector3(0.2, 0.5, 4.0);
+    final right = Vector3(1.0, 0.0, 0.2)..normalize();
+    final up = Vector3(0.0, 1.0, 0.0);
+    placed.build(eye: eye, right: right, up: up, model: model);
+    byHand.build(eye: eye, right: right, up: up);
+
+    expect(placed.vertexCount, byHand.vertexCount);
+    for (var k = 0; k < placed.vertexCount * kSplatFloatsPerVertex; k++) {
+      expect(
+        placed.vertices[k],
+        closeTo(byHand.vertices[k], 1e-4),
+        reason: 'float $k',
+      );
+    }
   });
 
   test('an empty cloud builds nothing at all', () {

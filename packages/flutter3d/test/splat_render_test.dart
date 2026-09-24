@@ -159,12 +159,15 @@ void main() {
     ], sigma: 0.05);
 
     final quads = SplatQuads(cloud);
-    void once() => quads.build(
-      eye: Vector3(0.0, 0.0, 6.0),
-      right: Vector3(1.0, 0.0, 0.0),
-      up: Vector3(0.0, 1.0, 0.0),
-      forward: Vector3(0.0, 0.0, -1.0),
-    );
+    // Sorted every time, which is the worst case: a camera that stood still
+    // or only turned would skip the sort and cost less than this.
+    void once() => quads
+      ..invalidateSort()
+      ..build(
+        eye: Vector3(0.0, 0.0, 6.0),
+        right: Vector3(1.0, 0.0, 0.0),
+        up: Vector3(0.0, 1.0, 0.0),
+      );
 
     once();
     final clock = Stopwatch()..start();
@@ -183,8 +186,8 @@ void main() {
 
     // A bound rather than a budget: what this asserts is that the cost is
     // linear and small per splat, so the printed number above is the fact and
-    // this is the guard against it becoming quadratic. The sort inside is
-    // `O(n log n)` and everything else is per splat.
+    // this is the guard against it becoming quadratic. The sort inside is a
+    // two-pass counting sort and everything else is per splat.
     expect(
       micros,
       lessThan(2000000),
