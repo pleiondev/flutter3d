@@ -15,7 +15,7 @@ import 'package:vector_math/vector_math.dart';
 
 import 'cpu_shader.dart';
 import 'cpu_shaders_color.dart';
-import 'cpu_shaders_reflections.dart' show bayerCell;
+import 'cpu_shaders_reflections.dart' show pixelNoise;
 
 /// `contact_shadow.frag`: whether the sun reaches this point over the first few
 /// centimetres, which is the stretch a shadow map cannot answer for.
@@ -68,7 +68,7 @@ final class ContactShadowShader implements CpuFragmentShader {
 
     // Jittered start and a tolerance of at least twice a step's depth, as
     // `contact_shadow.frag`.
-    final jitter = bayerCell(c.coord.x, c.coord.y);
+    final jitter = pixelNoise(b, c.coord.x, c.coord.y);
     double depthOf(Vector3 p) => (p - eye).dot(axis);
     final stepDepth = (depthOf(origin + toLight * stride) - depthOf(origin))
         .abs();

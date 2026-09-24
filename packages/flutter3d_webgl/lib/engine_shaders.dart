@@ -14229,6 +14229,75 @@ vec2 TargetFragCoord() {
 
 #endif  // FRAG_COORD_INFO_GLSL_
 
+// --- lib/blue_noise.glsl ---
+// A per-pixel offset for a march or a kernel rotation — `R3`.
+//
+// **The engine's blue noise while a temporal resolve runs, the fixed 4 × 4
+// pattern otherwise.** A march jittered by a pattern that never changes puts
+// the same dither on every frame, and the eye finds it; with the resolve on,
+// each frame reads the next of 32 slices of blue noise and the history
+// averages them into a smooth answer. Off, the pattern is exactly what the
+// passes read before, so a frame without the resolve is the frame it was.
+//
+// The table is `EngineTables.blueNoise`: 32 slices of 64 × 64 in an 8 × 4
+// atlas, one byte a texel. Read at texel centres through a nearest sampler.
+//
+// Include after `lib/frag_coord_info.glsl` or anything else that gives the
+// pixel from the top.
+
+#ifndef BLUE_NOISE_GLSL_
+#define BLUE_NOISE_GLSL_
+
+uniform sampler2D blue_noise_texture;
+
+layout(std140) uniform NoiseInfo {
+  /// x: one to read the blue noise, nought for the pattern. y: this frame's
+  /// slice, the frame index modulo 32. zw unused.
+  vec4 noise;
+}
+noise_info;
+
+/// One cell of a 4 × 4 Bayer matrix, in [0, 1).
+float BayerCell(vec2 at) {
+  int x = int(mod(at.x, 4.0));
+  int y = int(mod(at.y, 4.0));
+  int index = y * 4 + x;
+  float value = 0.0;
+  if (index == 0) value = 0.0;
+  else if (index == 1) value = 8.0;
+  else if (index == 2) value = 2.0;
+  else if (index == 3) value = 10.0;
+  else if (index == 4) value = 12.0;
+  else if (index == 5) value = 4.0;
+  else if (index == 6) value = 14.0;
+  else if (index == 7) value = 6.0;
+  else if (index == 8) value = 3.0;
+  else if (index == 9) value = 11.0;
+  else if (index == 10) value = 1.0;
+  else if (index == 11) value = 9.0;
+  else if (index == 12) value = 15.0;
+  else if (index == 13) value = 7.0;
+  else if (index == 14) value = 13.0;
+  else value = 5.0;
+  return value / 16.0;
+}
+
+/// This frame's blue noise at the pixel [at], in [0, 1).
+float BlueNoise(vec2 at) {
+  float slice = noise_info.noise.y;
+  vec2 cell = mod(floor(at), 64.0);
+  vec2 corner = vec2(mod(slice, 8.0), floor(slice / 8.0)) * 64.0;
+  vec2 uv = (corner + cell + 0.5) / vec2(512.0, 256.0);
+  return textureLod(blue_noise_texture, uv, 0.0).r * (255.0 / 256.0);
+}
+
+/// The offset for the pixel [at]: blue noise or the pattern, per `noise.x`.
+float PixelNoise(vec2 at) {
+  return noise_info.noise.x > 0.5 ? BlueNoise(at) : BayerCell(at);
+}
+
+#endif  // BLUE_NOISE_GLSL_
+
 
 in vec2 v_uv;
 
@@ -14321,33 +14390,6 @@ float DepthOf(vec3 at) {
   return dot(at - reflection_info.camera.xyz, reflection_info.forward.xyz);
 }
 
-// One cell of a 4x4 Bayer matrix, in [0, 1). The same table
-// `light_shafts.frag` and `composite.frag` keep: a pattern rather than a hash,
-// so the software backend lands on the same offsets bit for bit.
-float BayerCell(vec2 at) {
-  int x = int(mod(at.x, 4.0));
-  int y = int(mod(at.y, 4.0));
-  int index = y * 4 + x;
-  float value = 0.0;
-  if (index == 0) value = 0.0;
-  else if (index == 1) value = 8.0;
-  else if (index == 2) value = 2.0;
-  else if (index == 3) value = 10.0;
-  else if (index == 4) value = 12.0;
-  else if (index == 5) value = 4.0;
-  else if (index == 6) value = 14.0;
-  else if (index == 7) value = 6.0;
-  else if (index == 8) value = 3.0;
-  else if (index == 9) value = 11.0;
-  else if (index == 10) value = 1.0;
-  else if (index == 11) value = 9.0;
-  else if (index == 12) value = 15.0;
-  else if (index == 13) value = 7.0;
-  else if (index == 14) value = 13.0;
-  else value = 5.0;
-  return value / 16.0;
-}
-
 /// Where [at] lands in the textures this pass reads, or a negative x when it
 /// is behind the camera.
 vec2 UvOf(vec3 at) {
@@ -14418,7 +14460,7 @@ void main() {
   // the reflection comes back as a stack of shifted copies of it. Half a
   // stride at least, off a centimetre of normal bias, so the first sample does
   // not land on the pixel it came from.
-  float jitter = 0.5 + BayerCell(TargetFragCoord());
+  float jitter = 0.5 + PixelNoise(TargetFragCoord());
   float travelled = stride * jitter;
   vec3 march = position + normal * 0.01 + ray * travelled;
   float reach = stride * (float(steps) + 0.5);
@@ -14586,6 +14628,76 @@ layout(std140) uniform SsaoInfo {
 }
 ssao_info;
 
+// --- lib/blue_noise.glsl ---
+// A per-pixel offset for a march or a kernel rotation — `R3`.
+//
+// **The engine's blue noise while a temporal resolve runs, the fixed 4 × 4
+// pattern otherwise.** A march jittered by a pattern that never changes puts
+// the same dither on every frame, and the eye finds it; with the resolve on,
+// each frame reads the next of 32 slices of blue noise and the history
+// averages them into a smooth answer. Off, the pattern is exactly what the
+// passes read before, so a frame without the resolve is the frame it was.
+//
+// The table is `EngineTables.blueNoise`: 32 slices of 64 × 64 in an 8 × 4
+// atlas, one byte a texel. Read at texel centres through a nearest sampler.
+//
+// Include after `lib/frag_coord_info.glsl` or anything else that gives the
+// pixel from the top.
+
+#ifndef BLUE_NOISE_GLSL_
+#define BLUE_NOISE_GLSL_
+
+uniform sampler2D blue_noise_texture;
+
+layout(std140) uniform NoiseInfo {
+  /// x: one to read the blue noise, nought for the pattern. y: this frame's
+  /// slice, the frame index modulo 32. zw unused.
+  vec4 noise;
+}
+noise_info;
+
+/// One cell of a 4 × 4 Bayer matrix, in [0, 1).
+float BayerCell(vec2 at) {
+  int x = int(mod(at.x, 4.0));
+  int y = int(mod(at.y, 4.0));
+  int index = y * 4 + x;
+  float value = 0.0;
+  if (index == 0) value = 0.0;
+  else if (index == 1) value = 8.0;
+  else if (index == 2) value = 2.0;
+  else if (index == 3) value = 10.0;
+  else if (index == 4) value = 12.0;
+  else if (index == 5) value = 4.0;
+  else if (index == 6) value = 14.0;
+  else if (index == 7) value = 6.0;
+  else if (index == 8) value = 3.0;
+  else if (index == 9) value = 11.0;
+  else if (index == 10) value = 1.0;
+  else if (index == 11) value = 9.0;
+  else if (index == 12) value = 15.0;
+  else if (index == 13) value = 7.0;
+  else if (index == 14) value = 13.0;
+  else value = 5.0;
+  return value / 16.0;
+}
+
+/// This frame's blue noise at the pixel [at], in [0, 1).
+float BlueNoise(vec2 at) {
+  float slice = noise_info.noise.y;
+  vec2 cell = mod(floor(at), 64.0);
+  vec2 corner = vec2(mod(slice, 8.0), floor(slice / 8.0)) * 64.0;
+  vec2 uv = (corner + cell + 0.5) / vec2(512.0, 256.0);
+  return textureLod(blue_noise_texture, uv, 0.0).r * (255.0 / 256.0);
+}
+
+/// The offset for the pixel [at]: blue noise or the pattern, per `noise.x`.
+float PixelNoise(vec2 at) {
+  return noise_info.noise.x > 0.5 ? BlueNoise(at) : BayerCell(at);
+}
+
+#endif  // BLUE_NOISE_GLSL_
+
+
 vec3 DecodeOctahedral(vec2 e) {
   e = e * 2.0 - 1.0;
   vec3 n = vec3(e.xy, 1.0 - abs(e.x) - abs(e.y));
@@ -14676,8 +14788,16 @@ vec3 KernelTap(int i) {
 /// a table. It leaves a 2×2 pattern in the result, which is exactly what the
 /// composite's 2×2 average cancels — the blur is sized to the artefact rather
 /// than guessed at, and the two have to change together or neither works.
+///
+/// **An angle from the blue noise while a temporal resolve runs** — `R3`:
+/// a different one each frame, which the occlusion's own history averages,
+/// so the pattern the composite's blur was sized for is not there to cancel.
 vec2 Rotation(vec2 uv) {
   vec2 pixel = floor(uv / ssao_info.screen.xy);
+  if (noise_info.noise.x > 0.5) {
+    float angle = 6.2831853 * BlueNoise(pixel);
+    return vec2(cos(angle), sin(angle));
+  }
   bool oddX = mod(pixel.x, 2.0) >= 1.0;
   bool oddY = mod(pixel.y, 2.0) >= 1.0;
   if (oddX && oddY) return vec2(-0.7071, -0.7071);
@@ -14960,6 +15080,75 @@ vec2 TargetFragCoord() {
 
 #endif  // FRAG_COORD_INFO_GLSL_
 
+// --- lib/blue_noise.glsl ---
+// A per-pixel offset for a march or a kernel rotation — `R3`.
+//
+// **The engine's blue noise while a temporal resolve runs, the fixed 4 × 4
+// pattern otherwise.** A march jittered by a pattern that never changes puts
+// the same dither on every frame, and the eye finds it; with the resolve on,
+// each frame reads the next of 32 slices of blue noise and the history
+// averages them into a smooth answer. Off, the pattern is exactly what the
+// passes read before, so a frame without the resolve is the frame it was.
+//
+// The table is `EngineTables.blueNoise`: 32 slices of 64 × 64 in an 8 × 4
+// atlas, one byte a texel. Read at texel centres through a nearest sampler.
+//
+// Include after `lib/frag_coord_info.glsl` or anything else that gives the
+// pixel from the top.
+
+#ifndef BLUE_NOISE_GLSL_
+#define BLUE_NOISE_GLSL_
+
+uniform sampler2D blue_noise_texture;
+
+layout(std140) uniform NoiseInfo {
+  /// x: one to read the blue noise, nought for the pattern. y: this frame's
+  /// slice, the frame index modulo 32. zw unused.
+  vec4 noise;
+}
+noise_info;
+
+/// One cell of a 4 × 4 Bayer matrix, in [0, 1).
+float BayerCell(vec2 at) {
+  int x = int(mod(at.x, 4.0));
+  int y = int(mod(at.y, 4.0));
+  int index = y * 4 + x;
+  float value = 0.0;
+  if (index == 0) value = 0.0;
+  else if (index == 1) value = 8.0;
+  else if (index == 2) value = 2.0;
+  else if (index == 3) value = 10.0;
+  else if (index == 4) value = 12.0;
+  else if (index == 5) value = 4.0;
+  else if (index == 6) value = 14.0;
+  else if (index == 7) value = 6.0;
+  else if (index == 8) value = 3.0;
+  else if (index == 9) value = 11.0;
+  else if (index == 10) value = 1.0;
+  else if (index == 11) value = 9.0;
+  else if (index == 12) value = 15.0;
+  else if (index == 13) value = 7.0;
+  else if (index == 14) value = 13.0;
+  else value = 5.0;
+  return value / 16.0;
+}
+
+/// This frame's blue noise at the pixel [at], in [0, 1).
+float BlueNoise(vec2 at) {
+  float slice = noise_info.noise.y;
+  vec2 cell = mod(floor(at), 64.0);
+  vec2 corner = vec2(mod(slice, 8.0), floor(slice / 8.0)) * 64.0;
+  vec2 uv = (corner + cell + 0.5) / vec2(512.0, 256.0);
+  return textureLod(blue_noise_texture, uv, 0.0).r * (255.0 / 256.0);
+}
+
+/// The offset for the pixel [at]: blue noise or the pattern, per `noise.x`.
+float PixelNoise(vec2 at) {
+  return noise_info.noise.x > 0.5 ? BlueNoise(at) : BayerCell(at);
+}
+
+#endif  // BLUE_NOISE_GLSL_
+
 
 in vec2 v_uv;
 
@@ -14996,32 +15185,6 @@ layout(std140) uniform ContactShadowInfo {
   vec4 to_light;
 }
 contact_info;
-
-// One cell of a 4x4 Bayer matrix, in [0, 1). The same table
-// `reflections.frag` and `light_shafts.frag` keep.
-float BayerCell(vec2 at) {
-  int x = int(mod(at.x, 4.0));
-  int y = int(mod(at.y, 4.0));
-  int index = y * 4 + x;
-  float value = 0.0;
-  if (index == 0) value = 0.0;
-  else if (index == 1) value = 8.0;
-  else if (index == 2) value = 2.0;
-  else if (index == 3) value = 10.0;
-  else if (index == 4) value = 12.0;
-  else if (index == 5) value = 4.0;
-  else if (index == 6) value = 14.0;
-  else if (index == 7) value = 6.0;
-  else if (index == 8) value = 3.0;
-  else if (index == 9) value = 11.0;
-  else if (index == 10) value = 1.0;
-  else if (index == 11) value = 9.0;
-  else if (index == 12) value = 15.0;
-  else if (index == 13) value = 7.0;
-  else if (index == 14) value = 13.0;
-  else value = 5.0;
-  return value / 16.0;
-}
 
 vec3 DecodeOctahedral(vec2 e) {
   e = e * 2.0 - 1.0;
@@ -15093,7 +15256,7 @@ void main() {
   // below into eight flat levels, a staircase across every penumbra. Each
   // sample lands somewhere in its own step rather than at its end. A pattern
   // rather than a hash so the software backend matches bit for bit.
-  float jitter = BayerCell(TargetFragCoord());
+  float jitter = PixelNoise(TargetFragCoord());
 
   // **A tolerance at least twice what one step moves in depth**, as Unreal's
   // `CompareTolerance`: a ray running steeply away from the camera crosses
@@ -15500,6 +15663,65 @@ void main() {
 }
 
 ''',
+    'TemporalAccumulate': r'''#version 300 es
+precision highp float;
+precision highp int;
+precision highp sampler2D;
+precision highp samplerCube;
+
+// A noisy effect blended into its own history — `R3`.
+//
+// The occlusion and the contact shadow are drawn with fewer samples while a
+// temporal resolve runs, each frame rotated or offset by the next slice of
+// blue noise. This pass carries last frame's answer to where each pixel is
+// now, through the velocity the resolve uses, clamps it to what this frame
+// found around the pixel so a moved edge cannot drag a stale shadow along,
+// and blends. What comes out is many frames' worth of samples.
+//
+// One pass for both, at whatever size the effect is drawn: the velocity is
+// read by UV, and a half-size occlusion reads it at its own coarser UV.
+
+in vec2 v_uv;
+
+layout(location = 0) out vec4 frag_color;
+
+uniform sampler2D current_texture;
+uniform sampler2D history_texture;
+uniform sampler2D velocity_texture;
+
+layout(std140) uniform AccumulateInfo {
+  /// x: how much of each pixel is history, nought to one. y: one when there
+  /// is a history to read, nought on the first frame and after a cut.
+  /// zw: one texel of the effect.
+  vec4 params;
+}
+accumulate_info;
+
+void main() {
+  vec4 now = texture(current_texture, v_uv);
+  vec2 then = v_uv - texture(velocity_texture, v_uv).xy;
+  if (accumulate_info.params.y < 0.5 || then.x < 0.0 || then.x > 1.0 ||
+      then.y < 0.0 || then.y > 1.0) {
+    frag_color = now;
+    return;
+  }
+
+  vec2 texel = accumulate_info.params.zw;
+  vec4 lowest = now;
+  vec4 highest = now;
+  for (int dy = -1; dy <= 1; dy++) {
+    for (int dx = -1; dx <= 1; dx++) {
+      vec4 around =
+          texture(current_texture, v_uv + vec2(float(dx), float(dy)) * texel);
+      lowest = min(lowest, around);
+      highest = max(highest, around);
+    }
+  }
+  vec4 past = clamp(texture(history_texture, then), lowest, highest);
+  frag_color = mix(now, past, accumulate_info.params.x);
+}
+
+''',
     'LightShafts': r'''#version 300 es
 precision highp float;
 precision highp int;
@@ -15585,6 +15807,75 @@ vec2 TargetFragCoord() {
 
 #endif  // FRAG_COORD_INFO_GLSL_
 
+// --- lib/blue_noise.glsl ---
+// A per-pixel offset for a march or a kernel rotation — `R3`.
+//
+// **The engine's blue noise while a temporal resolve runs, the fixed 4 × 4
+// pattern otherwise.** A march jittered by a pattern that never changes puts
+// the same dither on every frame, and the eye finds it; with the resolve on,
+// each frame reads the next of 32 slices of blue noise and the history
+// averages them into a smooth answer. Off, the pattern is exactly what the
+// passes read before, so a frame without the resolve is the frame it was.
+//
+// The table is `EngineTables.blueNoise`: 32 slices of 64 × 64 in an 8 × 4
+// atlas, one byte a texel. Read at texel centres through a nearest sampler.
+//
+// Include after `lib/frag_coord_info.glsl` or anything else that gives the
+// pixel from the top.
+
+#ifndef BLUE_NOISE_GLSL_
+#define BLUE_NOISE_GLSL_
+
+uniform sampler2D blue_noise_texture;
+
+layout(std140) uniform NoiseInfo {
+  /// x: one to read the blue noise, nought for the pattern. y: this frame's
+  /// slice, the frame index modulo 32. zw unused.
+  vec4 noise;
+}
+noise_info;
+
+/// One cell of a 4 × 4 Bayer matrix, in [0, 1).
+float BayerCell(vec2 at) {
+  int x = int(mod(at.x, 4.0));
+  int y = int(mod(at.y, 4.0));
+  int index = y * 4 + x;
+  float value = 0.0;
+  if (index == 0) value = 0.0;
+  else if (index == 1) value = 8.0;
+  else if (index == 2) value = 2.0;
+  else if (index == 3) value = 10.0;
+  else if (index == 4) value = 12.0;
+  else if (index == 5) value = 4.0;
+  else if (index == 6) value = 14.0;
+  else if (index == 7) value = 6.0;
+  else if (index == 8) value = 3.0;
+  else if (index == 9) value = 11.0;
+  else if (index == 10) value = 1.0;
+  else if (index == 11) value = 9.0;
+  else if (index == 12) value = 15.0;
+  else if (index == 13) value = 7.0;
+  else if (index == 14) value = 13.0;
+  else value = 5.0;
+  return value / 16.0;
+}
+
+/// This frame's blue noise at the pixel [at], in [0, 1).
+float BlueNoise(vec2 at) {
+  float slice = noise_info.noise.y;
+  vec2 cell = mod(floor(at), 64.0);
+  vec2 corner = vec2(mod(slice, 8.0), floor(slice / 8.0)) * 64.0;
+  vec2 uv = (corner + cell + 0.5) / vec2(512.0, 256.0);
+  return textureLod(blue_noise_texture, uv, 0.0).r * (255.0 / 256.0);
+}
+
+/// The offset for the pixel [at]: blue noise or the pattern, per `noise.x`.
+float PixelNoise(vec2 at) {
+  return noise_info.noise.x > 0.5 ? BlueNoise(at) : BayerCell(at);
+}
+
+#endif  // BLUE_NOISE_GLSL_
+
 
 in vec2 v_uv;
 
@@ -15634,32 +15925,6 @@ float HenyeyGreenstein(float cosine, float g) {
   float g2 = g * g;
   float denominator = max(1.0 + g2 - 2.0 * g * cosine, 1e-4);
   return (1.0 - g2) / (12.566371 * denominator * sqrt(denominator));
-}
-
-// One cell of a 4x4 Bayer matrix, in [0, 1). The same table
-// `composite.frag` keeps, for the same reason.
-float BayerCell(vec2 at) {
-  int x = int(mod(at.x, 4.0));
-  int y = int(mod(at.y, 4.0));
-  int index = y * 4 + x;
-  float value = 0.0;
-  if (index == 0) value = 0.0;
-  else if (index == 1) value = 8.0;
-  else if (index == 2) value = 2.0;
-  else if (index == 3) value = 10.0;
-  else if (index == 4) value = 12.0;
-  else if (index == 5) value = 4.0;
-  else if (index == 6) value = 14.0;
-  else if (index == 7) value = 6.0;
-  else if (index == 8) value = 3.0;
-  else if (index == 9) value = 11.0;
-  else if (index == 10) value = 1.0;
-  else if (index == 11) value = 9.0;
-  else if (index == 12) value = 15.0;
-  else if (index == 13) value = 7.0;
-  else if (index == 14) value = 13.0;
-  else value = 5.0;
-  return value / 16.0;
 }
 
 // Whether [world] is lit by the caster: 1 in the light, 0 in shadow.
@@ -15745,7 +16010,7 @@ void main() {
   float stride = distance / float(steps);
   // The dithered start: a fraction of a step, so the banding sixteen samples
   // would otherwise draw is broken into a pattern the eye integrates.
-  float offset = BayerCell(TargetFragCoord()) * stride;
+  float offset = PixelNoise(TargetFragCoord()) * stride;
 
   // **Single scattering with transmittance.** Each step in-scatters the
   // share of the light its own length of air catches, `1 − e^(−σ·stride)`,

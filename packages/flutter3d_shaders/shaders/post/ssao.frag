@@ -66,6 +66,8 @@ uniform SsaoInfo {
 }
 ssao_info;
 
+#include <lib/blue_noise.glsl>
+
 vec3 DecodeOctahedral(vec2 e) {
   e = e * 2.0 - 1.0;
   vec3 n = vec3(e.xy, 1.0 - abs(e.x) - abs(e.y));
@@ -156,8 +158,16 @@ vec3 KernelTap(int i) {
 /// a table. It leaves a 2×2 pattern in the result, which is exactly what the
 /// composite's 2×2 average cancels — the blur is sized to the artefact rather
 /// than guessed at, and the two have to change together or neither works.
+///
+/// **An angle from the blue noise while a temporal resolve runs** — `R3`:
+/// a different one each frame, which the occlusion's own history averages,
+/// so the pattern the composite's blur was sized for is not there to cancel.
 vec2 Rotation(vec2 uv) {
   vec2 pixel = floor(uv / ssao_info.screen.xy);
+  if (noise_info.noise.x > 0.5) {
+    float angle = 6.2831853 * BlueNoise(pixel);
+    return vec2(cos(angle), sin(angle));
+  }
   bool oddX = mod(pixel.x, 2.0) >= 1.0;
   bool oddY = mod(pixel.y, 2.0) >= 1.0;
   if (oddX && oddY) return vec2(-0.7071, -0.7071);

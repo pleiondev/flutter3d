@@ -932,6 +932,56 @@ final class _ObjectVelocityNode extends RenderNode with _NeedsSurfaceBuffer {
   }
 }
 
+/// `R3`: a noisy effect carried into its own history, as a link in that
+/// effect's chain.
+///
+/// Reads the effect's version so far and the velocity, and writes the next
+/// version: the blend, which is the renderer's own history texture. With
+/// the effect off, nothing produced the version it reads and the graph
+/// culls this too.
+final class _AccumulateNode extends RenderNode {
+  _AccumulateNode(
+    this._renderer,
+    this._view,
+    this._settings,
+    this._resource,
+    this.name,
+  );
+
+  final Renderer _renderer;
+  final RenderView _view;
+  final RenderSettings _settings;
+  final ResourceId _resource;
+
+  @override
+  final String name;
+
+  @override
+  bool get isActive =>
+      _settings.antiAlias.temporal.enabled &&
+      _renderer.device.maxColorAttachments > 1;
+
+  @override
+  List<ResourceId> get reads => <ResourceId>[
+    _resource,
+    FrameResourceIds.velocity,
+  ];
+
+  @override
+  List<ResourceId> get writes => <ResourceId>[_resource];
+
+  @override
+  void execute(NodeFrame frame) {
+    final blended = _renderer._encodeAccumulate(
+      resource: _resource,
+      current: frame.resources.texture(_resource),
+      velocity: frame.resources.texture(FrameResourceIds.velocity),
+      view: _view,
+    );
+    frame.resources.provide(_resource, blended);
+  }
+}
+
 /// `R2`'s temporal resolve, as a link in the lit-colour chain.
 ///
 /// Reads this frame's scene, its velocity and its surface buffer, and writes

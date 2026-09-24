@@ -653,6 +653,8 @@ int _texelBytes(TextureFormat format) => switch (format) {
   TextureFormat.r32g32b32a32Float => 16,
   TextureFormat.r16g16b16a16Float => 8,
   TextureFormat.r32Float => 4,
+  TextureFormat.r8UNormInt || TextureFormat.a8UNormInt => 1,
+  TextureFormat.r8g8UNormInt => 2,
   _ => 4,
 };
 
@@ -684,6 +686,31 @@ void _decodeInto(
       for (var i = 0; i < count; i++) {
         into[i * 4] = pixels.getFloat32(i * 4, Endian.little);
         into[i * 4 + 1] = 0.0;
+        into[i * 4 + 2] = 0.0;
+        into[i * 4 + 3] = 1.0;
+      }
+    // The narrow unorm formats, one and two bytes a texel, as every other
+    // backend samples them: the channels there are, nought for the rest, and
+    // alpha at one — except for alpha-only, whose one channel is alpha. The
+    // engine's blue noise is the first table to arrive in one — `G1`.
+    case TextureFormat.r8UNormInt:
+      for (var i = 0; i < count; i++) {
+        into[i * 4] = pixels.getUint8(i) / 255.0;
+        into[i * 4 + 1] = 0.0;
+        into[i * 4 + 2] = 0.0;
+        into[i * 4 + 3] = 1.0;
+      }
+    case TextureFormat.a8UNormInt:
+      for (var i = 0; i < count; i++) {
+        into[i * 4] = 0.0;
+        into[i * 4 + 1] = 0.0;
+        into[i * 4 + 2] = 0.0;
+        into[i * 4 + 3] = pixels.getUint8(i) / 255.0;
+      }
+    case TextureFormat.r8g8UNormInt:
+      for (var i = 0; i < count; i++) {
+        into[i * 4] = pixels.getUint8(i * 2) / 255.0;
+        into[i * 4 + 1] = pixels.getUint8(i * 2 + 1) / 255.0;
         into[i * 4 + 2] = 0.0;
         into[i * 4 + 3] = 1.0;
       }

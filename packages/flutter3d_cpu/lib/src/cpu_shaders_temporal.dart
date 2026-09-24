@@ -43,6 +43,55 @@ Vector3 _clipToBox(Vector3 lo, Vector3 hi, Vector3 q) {
 
 Vector3 _rgb(Vector4 v) => Vector3(v.x, v.y, v.z);
 
+/// `temporal_accumulate.frag` — `R3`: a noisy effect blended into its own
+/// history, clamped to this frame's neighbourhood.
+final class TemporalAccumulateShader implements CpuFragmentShader {
+  const TemporalAccumulateShader();
+
+  @override
+  Vector4? run(Float32List v, ShaderBindings b, FragmentContext c) {
+    final current = b.textures['current_texture'];
+    final history = b.textures['history_texture'];
+    final velocity = b.textures['velocity_texture'];
+    if (current == null || history == null || velocity == null) {
+      return Vector4(1.0, 1.0, 1.0, 1.0);
+    }
+    final params = b.vec4('AccumulateInfo', 'params', Vector4.zero());
+    final now = current.sample(v[0], v[1]);
+    final motion = velocity.sample(v[0], v[1]);
+    final thenU = v[0] - motion.x;
+    final thenW = v[1] - motion.y;
+    if (params.y < 0.5 ||
+        thenU < 0.0 ||
+        thenU > 1.0 ||
+        thenW < 0.0 ||
+        thenW > 1.0) {
+      return now;
+    }
+
+    final lowest = now.clone();
+    final highest = now.clone();
+    for (var dy = -1; dy <= 1; dy++) {
+      for (var dx = -1; dx <= 1; dx++) {
+        final around = current.sample(
+          v[0] + dx * params.z,
+          v[1] + dy * params.w,
+        );
+        Vector4.min(lowest, around, lowest);
+        Vector4.max(highest, around, highest);
+      }
+    }
+    final past = history.sample(thenU, thenW);
+    final clamped = Vector4(
+      past.x.clamp(lowest.x, highest.x),
+      past.y.clamp(lowest.y, highest.y),
+      past.z.clamp(lowest.z, highest.z),
+      past.w.clamp(lowest.w, highest.w),
+    );
+    return now + (clamped - now) * params.x;
+  }
+}
+
 /// `temporal_resolve.frag`: this frame blended into the ones before it.
 final class TemporalResolveShader implements CpuFragmentShader {
   const TemporalResolveShader();

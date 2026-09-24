@@ -15958,6 +15958,10 @@ struct FragCoordInfo {
     origin: vec4<f32>,
 }
 
+struct NoiseInfo {
+    noise: vec4<f32>,
+}
+
 struct ReflectionInfo {
     view_projection: mat4x4<f32>,
     inverse_view_projection: mat4x4<f32>,
@@ -15971,47 +15975,53 @@ var<private> gl_FragCoord_1: vec4<f32>;
 @group(1) @binding(0) 
 var<uniform> frag_coord_info: FragCoordInfo;
 @group(1) @binding(1) 
-var<uniform> reflection_info: ReflectionInfo;
+var<uniform> noise_info: NoiseInfo;
+@group(1) @binding(3) 
+var blue_noise_texture_tex: texture_2d<f32>;
 @group(1) @binding(4) 
+var blue_noise_texture_smp: sampler;
+@group(1) @binding(2) 
+var<uniform> reflection_info: ReflectionInfo;
+@group(1) @binding(7) 
 var surface_texture_tex: texture_2d<f32>;
-@group(1) @binding(5) 
+@group(1) @binding(8) 
 var surface_texture_smp: sampler;
 var<private> v_uv_1: vec2<f32>;
-@group(1) @binding(2) 
+@group(1) @binding(5) 
 var scene_texture_tex: texture_2d<f32>;
-@group(1) @binding(3) 
+@group(1) @binding(6) 
 var scene_texture_smp: sampler;
 var<private> frag_color: vec4<f32>;
 
 fn DepthOf_u0028_vf3_u003b(at: ptr<function, vec3<f32>>) -> f32 {
-    let _e58 = (*at);
-    let _e60 = reflection_info.camera;
-    let _e64 = reflection_info.forward;
-    return dot((_e58 - _e60.xyz), _e64.xyz);
+    let _e66 = (*at);
+    let _e68 = reflection_info.camera;
+    let _e72 = reflection_info.forward;
+    return dot((_e66 - _e68.xyz), _e72.xyz);
 }
 
 fn UvFromNdc_u0028_vf2_u003b(ndc: ptr<function, vec2<f32>>) -> vec2<f32> {
-    let _e59 = (*ndc)[0u];
-    let _e63 = (*ndc)[1u];
-    return vec2<f32>(((_e59 * 0.5f) + 0.5f), (0.5f - (_e63 * 0.5f)));
+    let _e67 = (*ndc)[0u];
+    let _e71 = (*ndc)[1u];
+    return vec2<f32>(((_e67 * 0.5f) + 0.5f), (0.5f - (_e71 * 0.5f)));
 }
 
 fn UvOf_u0028_vf3_u003b(at_1: ptr<function, vec3<f32>>) -> vec2<f32> {
     var clip: vec4<f32>;
     var param: vec2<f32>;
 
-    let _e61 = reflection_info.view_projection;
-    let _e62 = (*at_1);
-    clip = (_e61 * vec4<f32>(_e62.x, _e62.y, _e62.z, 1f));
-    let _e69 = clip[3u];
-    if (_e69 <= 0f) {
+    let _e69 = reflection_info.view_projection;
+    let _e70 = (*at_1);
+    clip = (_e69 * vec4<f32>(_e70.x, _e70.y, _e70.z, 1f));
+    let _e77 = clip[3u];
+    if (_e77 <= 0f) {
         return vec2<f32>(-1f, -1f);
     }
-    let _e71 = clip;
-    let _e74 = clip[3u];
-    param = (_e71.xy / vec2(_e74));
-    let _e77 = UvFromNdc_u0028_vf2_u003b((&param));
-    return _e77;
+    let _e79 = clip;
+    let _e82 = clip[3u];
+    param = (_e79.xy / vec2(_e82));
+    let _e85 = UvFromNdc_u0028_vf2_u003b((&param));
+    return _e85;
 }
 
 fn BayerCell_u0028_vf2_u003b(at_2: ptr<function, vec2<f32>>) -> f32 {
@@ -16020,72 +16030,72 @@ fn BayerCell_u0028_vf2_u003b(at_2: ptr<function, vec2<f32>>) -> f32 {
     var index: i32;
     var value: f32;
 
-    let _e63 = (*at_2)[0u];
-    x = i32((_e63 - (floor((_e63 / 4f)) * 4f)));
-    let _e70 = (*at_2)[1u];
-    y = i32((_e70 - (floor((_e70 / 4f)) * 4f)));
-    let _e76 = y;
-    let _e78 = x;
-    index = ((_e76 * 4i) + _e78);
+    let _e71 = (*at_2)[0u];
+    x = i32((_e71 - (floor((_e71 / 4f)) * 4f)));
+    let _e78 = (*at_2)[1u];
+    y = i32((_e78 - (floor((_e78 / 4f)) * 4f)));
+    let _e84 = y;
+    let _e86 = x;
+    index = ((_e84 * 4i) + _e86);
     value = 0f;
-    let _e80 = index;
-    if (_e80 == 0i) {
+    let _e88 = index;
+    if (_e88 == 0i) {
         value = 0f;
     } else {
-        let _e82 = index;
-        if (_e82 == 1i) {
+        let _e90 = index;
+        if (_e90 == 1i) {
             value = 8f;
         } else {
-            let _e84 = index;
-            if (_e84 == 2i) {
+            let _e92 = index;
+            if (_e92 == 2i) {
                 value = 2f;
             } else {
-                let _e86 = index;
-                if (_e86 == 3i) {
+                let _e94 = index;
+                if (_e94 == 3i) {
                     value = 10f;
                 } else {
-                    let _e88 = index;
-                    if (_e88 == 4i) {
+                    let _e96 = index;
+                    if (_e96 == 4i) {
                         value = 12f;
                     } else {
-                        let _e90 = index;
-                        if (_e90 == 5i) {
+                        let _e98 = index;
+                        if (_e98 == 5i) {
                             value = 4f;
                         } else {
-                            let _e92 = index;
-                            if (_e92 == 6i) {
+                            let _e100 = index;
+                            if (_e100 == 6i) {
                                 value = 14f;
                             } else {
-                                let _e94 = index;
-                                if (_e94 == 7i) {
+                                let _e102 = index;
+                                if (_e102 == 7i) {
                                     value = 6f;
                                 } else {
-                                    let _e96 = index;
-                                    if (_e96 == 8i) {
+                                    let _e104 = index;
+                                    if (_e104 == 8i) {
                                         value = 3f;
                                     } else {
-                                        let _e98 = index;
-                                        if (_e98 == 9i) {
+                                        let _e106 = index;
+                                        if (_e106 == 9i) {
                                             value = 11f;
                                         } else {
-                                            let _e100 = index;
-                                            if (_e100 == 10i) {
+                                            let _e108 = index;
+                                            if (_e108 == 10i) {
                                                 value = 1f;
                                             } else {
-                                                let _e102 = index;
-                                                if (_e102 == 11i) {
+                                                let _e110 = index;
+                                                if (_e110 == 11i) {
                                                     value = 9f;
                                                 } else {
-                                                    let _e104 = index;
-                                                    if (_e104 == 12i) {
+                                                    let _e112 = index;
+                                                    if (_e112 == 12i) {
                                                         value = 15f;
                                                     } else {
-                                                        let _e106 = index;
-                                                        if (_e106 == 13i) {
+                                                        let _e114 = index;
+                                                        if (_e114 == 13i) {
                                                             value = 7f;
                                                         } else {
-                                                            let _e108 = index;
-                                                            if (_e108 == 14i) {
+                                                            let _e116 = index;
+                                                            if (_e116 == 14i) {
                                                                 value = 13f;
                                                             } else {
                                                                 value = 5f;
@@ -16104,126 +16114,170 @@ fn BayerCell_u0028_vf2_u003b(at_2: ptr<function, vec2<f32>>) -> f32 {
             }
         }
     }
-    let _e110 = value;
-    return (_e110 / 16f);
+    let _e118 = value;
+    return (_e118 / 16f);
+}
+
+fn BlueNoise_u0028_vf2_u003b(at_3: ptr<function, vec2<f32>>) -> f32 {
+    var slice: f32;
+    var cell: vec2<f32>;
+    var corner: vec2<f32>;
+    var uv: vec2<f32>;
+
+    let _e72 = noise_info.noise[1u];
+    slice = _e72;
+    let _e73 = (*at_3);
+    let _e74 = floor(_e73);
+    let _e75 = vec2(64f);
+    cell = (_e74 - (floor((_e74 / _e75)) * _e75));
+    let _e80 = slice;
+    let _e85 = slice;
+    corner = (vec2<f32>((_e80 - (floor((_e80 / 8f)) * 8f)), floor((_e85 / 8f))) * 64f);
+    let _e90 = corner;
+    let _e91 = cell;
+    uv = (((_e90 + _e91) + vec2(0.5f)) / vec2<f32>(512f, 256f));
+    let _e96 = uv;
+    let _e97 = textureSampleLevel(blue_noise_texture_tex, blue_noise_texture_smp, _e96, 0f);
+    return (_e97.x * 0.99609375f);
+}
+
+fn PixelNoise_u0028_vf2_u003b(at_4: ptr<function, vec2<f32>>) -> f32 {
+    var local: f32;
+    var param_1: vec2<f32>;
+    var param_2: vec2<f32>;
+
+    let _e71 = noise_info.noise[0u];
+    if (_e71 > 0.5f) {
+        let _e73 = (*at_4);
+        param_1 = _e73;
+        let _e74 = BlueNoise_u0028_vf2_u003b((&param_1));
+        local = _e74;
+    } else {
+        let _e75 = (*at_4);
+        param_2 = _e75;
+        let _e76 = BayerCell_u0028_vf2_u003b((&param_2));
+        local = _e76;
+    }
+    let _e77 = local;
+    return _e77;
 }
 
 fn FragCoordFromTop_u0028_f1_u003b(rows: ptr<function, f32>) -> vec2<f32> {
-    var local: vec2<f32>;
+    var local_1: vec2<f32>;
 
-    let _e59 = (*rows);
-    if (_e59 > 0f) {
-        let _e62 = gl_FragCoord_1[0u];
-        let _e63 = (*rows);
-        let _e65 = gl_FragCoord_1[1u];
-        local = vec2<f32>(_e62, (_e63 - _e65));
+    let _e67 = (*rows);
+    if (_e67 > 0f) {
+        let _e70 = gl_FragCoord_1[0u];
+        let _e71 = (*rows);
+        let _e73 = gl_FragCoord_1[1u];
+        local_1 = vec2<f32>(_e70, (_e71 - _e73));
     } else {
-        let _e68 = gl_FragCoord_1;
-        local = _e68.xy;
+        let _e76 = gl_FragCoord_1;
+        local_1 = _e76.xy;
     }
-    let _e70 = local;
-    return _e70;
+    let _e78 = local_1;
+    return _e78;
 }
 
 fn TargetFragCoord_u0028_() -> vec2<f32> {
-    var param_1: f32;
+    var param_3: f32;
 
-    let _e60 = frag_coord_info.origin[0u];
-    param_1 = _e60;
-    let _e61 = FragCoordFromTop_u0028_f1_u003b((&param_1));
-    return _e61;
+    let _e68 = frag_coord_info.origin[0u];
+    param_3 = _e68;
+    let _e69 = FragCoordFromTop_u0028_f1_u003b((&param_3));
+    return _e69;
 }
 
-fn PixelRay_u0028_vf2_u003b_vf3_u003b_vf3_u003b(uv: ptr<function, vec2<f32>>, origin: ptr<function, vec3<f32>>, along: ptr<function, vec3<f32>>) {
+fn PixelRay_u0028_vf2_u003b_vf3_u003b_vf3_u003b(uv_1: ptr<function, vec2<f32>>, origin: ptr<function, vec3<f32>>, along: ptr<function, vec3<f32>>) {
     var xy: vec2<f32>;
     var nearH: vec4<f32>;
     var farH: vec4<f32>;
 
-    let _e64 = (*uv)[0u];
-    let _e68 = (*uv)[1u];
-    xy = vec2<f32>(((_e64 * 2f) - 1f), (1f - (_e68 * 2f)));
-    let _e73 = reflection_info.inverse_view_projection;
-    let _e74 = xy;
-    nearH = (_e73 * vec4<f32>(_e74.x, _e74.y, 0f, 1f));
-    let _e80 = reflection_info.inverse_view_projection;
-    let _e81 = xy;
-    farH = (_e80 * vec4<f32>(_e81.x, _e81.y, 1f, 1f));
-    let _e86 = nearH;
-    let _e89 = nearH[3u];
-    (*origin) = (_e86.xyz / vec3(_e89));
-    let _e92 = farH;
-    let _e95 = farH[3u];
-    let _e98 = (*origin);
-    (*along) = normalize(((_e92.xyz / vec3(_e95)) - _e98));
+    let _e72 = (*uv_1)[0u];
+    let _e76 = (*uv_1)[1u];
+    xy = vec2<f32>(((_e72 * 2f) - 1f), (1f - (_e76 * 2f)));
+    let _e81 = reflection_info.inverse_view_projection;
+    let _e82 = xy;
+    nearH = (_e81 * vec4<f32>(_e82.x, _e82.y, 0f, 1f));
+    let _e88 = reflection_info.inverse_view_projection;
+    let _e89 = xy;
+    farH = (_e88 * vec4<f32>(_e89.x, _e89.y, 1f, 1f));
+    let _e94 = nearH;
+    let _e97 = nearH[3u];
+    (*origin) = (_e94.xyz / vec3(_e97));
+    let _e100 = farH;
+    let _e103 = farH[3u];
+    let _e106 = (*origin);
+    (*along) = normalize(((_e100.xyz / vec3(_e103)) - _e106));
     return;
 }
 
-fn WorldAt_u0028_vf2_u003b_f1_u003b(uv_1: ptr<function, vec2<f32>>, depth: ptr<function, f32>) -> vec3<f32> {
+fn WorldAt_u0028_vf2_u003b_f1_u003b(uv_2: ptr<function, vec2<f32>>, depth: ptr<function, f32>) -> vec3<f32> {
     var origin_1: vec3<f32>;
     var along_1: vec3<f32>;
-    var param_2: vec2<f32>;
-    var param_3: vec3<f32>;
-    var param_4: vec3<f32>;
+    var param_4: vec2<f32>;
+    var param_5: vec3<f32>;
+    var param_6: vec3<f32>;
     var axis: vec3<f32>;
 
-    let _e65 = (*uv_1);
-    param_2 = _e65;
-    PixelRay_u0028_vf2_u003b_vf3_u003b_vf3_u003b((&param_2), (&param_3), (&param_4));
-    let _e66 = param_3;
-    origin_1 = _e66;
-    let _e67 = param_4;
-    along_1 = _e67;
-    let _e69 = reflection_info.forward;
-    axis = _e69.xyz;
-    let _e71 = origin_1;
-    let _e72 = along_1;
-    let _e73 = (*depth);
-    let _e74 = origin_1;
-    let _e76 = reflection_info.camera;
-    let _e79 = axis;
-    let _e82 = along_1;
-    let _e83 = axis;
-    return (_e71 + (_e72 * ((_e73 - dot((_e74 - _e76.xyz), _e79)) / dot(_e82, _e83))));
+    let _e73 = (*uv_2);
+    param_4 = _e73;
+    PixelRay_u0028_vf2_u003b_vf3_u003b_vf3_u003b((&param_4), (&param_5), (&param_6));
+    let _e74 = param_5;
+    origin_1 = _e74;
+    let _e75 = param_6;
+    along_1 = _e75;
+    let _e77 = reflection_info.forward;
+    axis = _e77.xyz;
+    let _e79 = origin_1;
+    let _e80 = along_1;
+    let _e81 = (*depth);
+    let _e82 = origin_1;
+    let _e84 = reflection_info.camera;
+    let _e87 = axis;
+    let _e90 = along_1;
+    let _e91 = axis;
+    return (_e79 + (_e80 * ((_e81 - dot((_e82 - _e84.xyz), _e87)) / dot(_e90, _e91))));
 }
 
 fn DecodeOctahedral_u0028_vf2_u003b(e: ptr<function, vec2<f32>>) -> vec3<f32> {
     var n: vec3<f32>;
     var t: f32;
-    var local_1: f32;
     var local_2: f32;
+    var local_3: f32;
 
-    let _e62 = (*e);
-    (*e) = ((_e62 * 2f) - vec2(1f));
-    let _e66 = (*e);
-    let _e68 = (*e)[0u];
-    let _e72 = (*e)[1u];
-    n = vec3<f32>(_e66.x, _e66.y, ((1f - abs(_e68)) - abs(_e72)));
-    let _e79 = n[2u];
-    t = max(-(_e79), 0f);
-    let _e83 = n[0u];
-    if (_e83 >= 0f) {
-        let _e85 = t;
-        local_1 = -(_e85);
+    let _e70 = (*e);
+    (*e) = ((_e70 * 2f) - vec2(1f));
+    let _e74 = (*e);
+    let _e76 = (*e)[0u];
+    let _e80 = (*e)[1u];
+    n = vec3<f32>(_e74.x, _e74.y, ((1f - abs(_e76)) - abs(_e80)));
+    let _e87 = n[2u];
+    t = max(-(_e87), 0f);
+    let _e91 = n[0u];
+    if (_e91 >= 0f) {
+        let _e93 = t;
+        local_2 = -(_e93);
     } else {
-        let _e87 = t;
-        local_1 = _e87;
+        let _e95 = t;
+        local_2 = _e95;
     }
-    let _e88 = local_1;
-    let _e90 = n[0u];
-    n[0u] = (_e90 + _e88);
-    let _e94 = n[1u];
-    if (_e94 >= 0f) {
-        let _e96 = t;
-        local_2 = -(_e96);
+    let _e96 = local_2;
+    let _e98 = n[0u];
+    n[0u] = (_e98 + _e96);
+    let _e102 = n[1u];
+    if (_e102 >= 0f) {
+        let _e104 = t;
+        local_3 = -(_e104);
     } else {
-        let _e98 = t;
-        local_2 = _e98;
+        let _e106 = t;
+        local_3 = _e106;
     }
-    let _e99 = local_2;
-    let _e101 = n[1u];
-    n[1u] = (_e101 + _e99);
-    let _e104 = n;
-    return normalize(_e104);
+    let _e107 = local_3;
+    let _e109 = n[1u];
+    n[1u] = (_e109 + _e107);
+    let _e112 = n;
+    return normalize(_e112);
 }
 
 fn main_1() {
@@ -16232,17 +16286,17 @@ fn main_1() {
     var debugOnly: bool;
     var background: vec3<f32>;
     var normal: vec3<f32>;
-    var param_5: vec2<f32>;
+    var param_7: vec2<f32>;
     var roughness: f32;
     var polish: f32;
     var position: vec3<f32>;
-    var param_6: vec2<f32>;
-    var param_7: f32;
+    var param_8: vec2<f32>;
+    var param_9: f32;
     var rayOrigin: vec3<f32>;
     var viewRay: vec3<f32>;
-    var param_8: vec2<f32>;
-    var param_9: vec3<f32>;
-    var param_10: vec3<f32>;
+    var param_10: vec2<f32>;
+    var param_11: vec3<f32>;
+    var param_12: vec3<f32>;
     var toEye: vec3<f32>;
     var facing: f32;
     var ray: vec3<f32>;
@@ -16251,322 +16305,322 @@ fn main_1() {
     var thickness: f32;
     var intensity: f32;
     var jitter: f32;
-    var param_11: vec2<f32>;
+    var param_13: vec2<f32>;
     var travelled: f32;
     var march: vec3<f32>;
     var reach: f32;
     var hitColor: vec3<f32>;
     var hit: f32;
     var i: i32;
-    var uv_2: vec2<f32>;
-    var param_12: vec3<f32>;
+    var uv_3: vec2<f32>;
+    var param_14: vec3<f32>;
     var sceneDepth: f32;
     var marchDepth: f32;
-    var param_13: vec3<f32>;
+    var param_15: vec3<f32>;
     var seen: vec3<f32>;
-    var param_14: vec2<f32>;
-    var param_15: f32;
+    var param_16: vec2<f32>;
+    var param_17: f32;
     var behind: f32;
     var seenNormal: vec3<f32>;
-    var param_16: vec2<f32>;
+    var param_18: vec2<f32>;
     var lo: vec3<f32>;
     var hi: vec3<f32>;
     var j: i32;
     var mid: vec3<f32>;
-    var at_3: vec2<f32>;
-    var param_17: vec3<f32>;
-    var d: f32;
-    var local_3: f32;
-    var param_18: vec3<f32>;
-    var hitUv: vec2<f32>;
+    var at_5: vec2<f32>;
     var param_19: vec3<f32>;
+    var d: f32;
+    var local_4: f32;
+    var param_20: vec3<f32>;
+    var hitUv: vec2<f32>;
+    var param_21: vec3<f32>;
     var edge: vec2<f32>;
     var border: f32;
     var along_2: f32;
     var fresnel: f32;
     var reflection: vec3<f32>;
-    var local_4: vec3<f32>;
-    var phi_589_: bool;
-    var phi_596_: bool;
-    var phi_603_: bool;
-    var phi_654_: bool;
-    var phi_706_: bool;
+    var local_5: vec3<f32>;
+    var phi_653_: bool;
+    var phi_660_: bool;
+    var phi_667_: bool;
+    var phi_718_: bool;
+    var phi_770_: bool;
 
-    let _e116 = v_uv_1;
-    let _e117 = textureSample(surface_texture_tex, surface_texture_smp, _e116);
-    surface = _e117;
-    let _e118 = v_uv_1;
-    let _e119 = textureSample(scene_texture_tex, scene_texture_smp, _e118);
-    scene = _e119.xyz;
-    let _e123 = reflection_info.screen[3u];
-    debugOnly = (_e123 > 0.5f);
-    let _e125 = debugOnly;
-    let _e126 = scene;
-    background = select(_e126, vec3<f32>(0f, 0f, 0f), vec3(_e125));
-    let _e130 = surface[3u];
-    if (_e130 <= 0f) {
-        let _e132 = background;
-        frag_color = vec4<f32>(_e132.x, _e132.y, _e132.z, 1f);
+    let _e124 = v_uv_1;
+    let _e125 = textureSample(surface_texture_tex, surface_texture_smp, _e124);
+    surface = _e125;
+    let _e126 = v_uv_1;
+    let _e127 = textureSample(scene_texture_tex, scene_texture_smp, _e126);
+    scene = _e127.xyz;
+    let _e131 = reflection_info.screen[3u];
+    debugOnly = (_e131 > 0.5f);
+    let _e133 = debugOnly;
+    let _e134 = scene;
+    background = select(_e134, vec3<f32>(0f, 0f, 0f), vec3(_e133));
+    let _e138 = surface[3u];
+    if (_e138 <= 0f) {
+        let _e140 = background;
+        frag_color = vec4<f32>(_e140.x, _e140.y, _e140.z, 1f);
         return;
     }
-    let _e137 = surface;
-    param_5 = _e137.xy;
-    let _e139 = DecodeOctahedral_u0028_vf2_u003b((&param_5));
-    normal = _e139;
-    let _e141 = surface[2u];
-    roughness = _e141;
-    let _e142 = roughness;
-    polish = (1f - smoothstep(0.05f, 0.25f, _e142));
-    let _e145 = polish;
-    if (_e145 <= 0f) {
-        let _e147 = background;
-        frag_color = vec4<f32>(_e147.x, _e147.y, _e147.z, 1f);
+    let _e145 = surface;
+    param_7 = _e145.xy;
+    let _e147 = DecodeOctahedral_u0028_vf2_u003b((&param_7));
+    normal = _e147;
+    let _e149 = surface[2u];
+    roughness = _e149;
+    let _e150 = roughness;
+    polish = (1f - smoothstep(0.05f, 0.25f, _e150));
+    let _e153 = polish;
+    if (_e153 <= 0f) {
+        let _e155 = background;
+        frag_color = vec4<f32>(_e155.x, _e155.y, _e155.z, 1f);
         return;
     }
-    let _e152 = v_uv_1;
-    param_6 = _e152;
-    let _e154 = surface[3u];
-    param_7 = _e154;
-    let _e155 = WorldAt_u0028_vf2_u003b_f1_u003b((&param_6), (&param_7));
-    position = _e155;
-    let _e156 = v_uv_1;
-    param_8 = _e156;
-    PixelRay_u0028_vf2_u003b_vf3_u003b_vf3_u003b((&param_8), (&param_9), (&param_10));
-    let _e157 = param_9;
-    rayOrigin = _e157;
-    let _e158 = param_10;
-    viewRay = _e158;
-    let _e159 = viewRay;
-    toEye = -(_e159);
-    let _e161 = normal;
-    let _e162 = toEye;
-    facing = dot(_e161, _e162);
-    let _e164 = facing;
-    if (_e164 <= 0.05f) {
-        let _e166 = background;
-        frag_color = vec4<f32>(_e166.x, _e166.y, _e166.z, 1f);
+    let _e160 = v_uv_1;
+    param_8 = _e160;
+    let _e162 = surface[3u];
+    param_9 = _e162;
+    let _e163 = WorldAt_u0028_vf2_u003b_f1_u003b((&param_8), (&param_9));
+    position = _e163;
+    let _e164 = v_uv_1;
+    param_10 = _e164;
+    PixelRay_u0028_vf2_u003b_vf3_u003b_vf3_u003b((&param_10), (&param_11), (&param_12));
+    let _e165 = param_11;
+    rayOrigin = _e165;
+    let _e166 = param_12;
+    viewRay = _e166;
+    let _e167 = viewRay;
+    toEye = -(_e167);
+    let _e169 = normal;
+    let _e170 = toEye;
+    facing = dot(_e169, _e170);
+    let _e172 = facing;
+    if (_e172 <= 0.05f) {
+        let _e174 = background;
+        frag_color = vec4<f32>(_e174.x, _e174.y, _e174.z, 1f);
         return;
     }
-    let _e171 = toEye;
-    let _e173 = normal;
-    ray = reflect(-(_e171), _e173);
-    let _e177 = reflection_info.params[0u];
-    steps = i32(_e177);
-    let _e181 = reflection_info.params[1u];
-    stride = _e181;
-    let _e184 = reflection_info.params[2u];
-    thickness = _e184;
-    let _e187 = reflection_info.params[3u];
-    intensity = _e187;
-    let _e188 = TargetFragCoord_u0028_();
-    param_11 = _e188;
-    let _e189 = BayerCell_u0028_vf2_u003b((&param_11));
-    jitter = (0.5f + _e189);
-    let _e191 = stride;
-    let _e192 = jitter;
-    travelled = (_e191 * _e192);
-    let _e194 = position;
-    let _e195 = normal;
-    let _e198 = ray;
-    let _e199 = travelled;
-    march = ((_e194 + (_e195 * 0.01f)) + (_e198 * _e199));
-    let _e202 = stride;
-    let _e203 = steps;
-    reach = (_e202 * (f32(_e203) + 0.5f));
+    let _e179 = toEye;
+    let _e181 = normal;
+    ray = reflect(-(_e179), _e181);
+    let _e185 = reflection_info.params[0u];
+    steps = i32(_e185);
+    let _e189 = reflection_info.params[1u];
+    stride = _e189;
+    let _e192 = reflection_info.params[2u];
+    thickness = _e192;
+    let _e195 = reflection_info.params[3u];
+    intensity = _e195;
+    let _e196 = TargetFragCoord_u0028_();
+    param_13 = _e196;
+    let _e197 = PixelNoise_u0028_vf2_u003b((&param_13));
+    jitter = (0.5f + _e197);
+    let _e199 = stride;
+    let _e200 = jitter;
+    travelled = (_e199 * _e200);
+    let _e202 = position;
+    let _e203 = normal;
+    let _e206 = ray;
+    let _e207 = travelled;
+    march = ((_e202 + (_e203 * 0.01f)) + (_e206 * _e207));
+    let _e210 = stride;
+    let _e211 = steps;
+    reach = (_e210 * (f32(_e211) + 0.5f));
     hitColor = vec3<f32>(0f, 0f, 0f);
     hit = 0f;
     i = 0i;
     loop {
-        let _e207 = i;
-        if (_e207 < 64i) {
-            let _e209 = i;
-            let _e210 = steps;
-            if (_e209 >= _e210) {
+        let _e215 = i;
+        if (_e215 < 64i) {
+            let _e217 = i;
+            let _e218 = steps;
+            if (_e217 >= _e218) {
                 break;
             }
-            let _e212 = march;
-            param_12 = _e212;
-            let _e213 = UvOf_u0028_vf3_u003b((&param_12));
-            uv_2 = _e213;
-            let _e215 = uv_2[0u];
-            if (_e215 < -0.5f) {
+            let _e220 = march;
+            param_14 = _e220;
+            let _e221 = UvOf_u0028_vf3_u003b((&param_14));
+            uv_3 = _e221;
+            let _e223 = uv_3[0u];
+            if (_e223 < -0.5f) {
                 break;
             }
-            let _e218 = uv_2[0u];
-            let _e219 = (_e218 < 0f);
-            phi_589_ = _e219;
-            if !(_e219) {
-                let _e222 = uv_2[0u];
-                phi_589_ = (_e222 > 1f);
+            let _e226 = uv_3[0u];
+            let _e227 = (_e226 < 0f);
+            phi_653_ = _e227;
+            if !(_e227) {
+                let _e230 = uv_3[0u];
+                phi_653_ = (_e230 > 1f);
             }
-            let _e225 = phi_589_;
-            phi_596_ = _e225;
-            if !(_e225) {
-                let _e228 = uv_2[1u];
-                phi_596_ = (_e228 < 0f);
+            let _e233 = phi_653_;
+            phi_660_ = _e233;
+            if !(_e233) {
+                let _e236 = uv_3[1u];
+                phi_660_ = (_e236 < 0f);
             }
-            let _e231 = phi_596_;
-            phi_603_ = _e231;
-            if !(_e231) {
-                let _e234 = uv_2[1u];
-                phi_603_ = (_e234 > 1f);
+            let _e239 = phi_660_;
+            phi_667_ = _e239;
+            if !(_e239) {
+                let _e242 = uv_3[1u];
+                phi_667_ = (_e242 > 1f);
             }
-            let _e237 = phi_603_;
-            if _e237 {
+            let _e245 = phi_667_;
+            if _e245 {
                 break;
             }
-            let _e238 = uv_2;
-            let _e239 = textureSampleLevel(surface_texture_tex, surface_texture_smp, _e238, 0f);
-            sceneDepth = _e239.w;
-            let _e241 = march;
-            param_13 = _e241;
-            let _e242 = DepthOf_u0028_vf3_u003b((&param_13));
-            marchDepth = _e242;
-            let _e243 = sceneDepth;
-            let _e245 = marchDepth;
-            let _e246 = sceneDepth;
-            if ((_e243 > 0f) && (_e245 > _e246)) {
-                let _e249 = uv_2;
-                param_14 = _e249;
-                let _e250 = sceneDepth;
-                param_15 = _e250;
-                let _e251 = WorldAt_u0028_vf2_u003b_f1_u003b((&param_14), (&param_15));
-                seen = _e251;
-                let _e252 = march;
-                let _e253 = seen;
-                behind = distance(_e252, _e253);
-                let _e255 = uv_2;
-                let _e256 = textureSampleLevel(surface_texture_tex, surface_texture_smp, _e255, 0f);
-                param_16 = _e256.xy;
-                let _e258 = DecodeOctahedral_u0028_vf2_u003b((&param_16));
-                seenNormal = _e258;
-                let _e259 = behind;
-                let _e260 = thickness;
-                let _e261 = (_e259 < _e260);
-                phi_654_ = _e261;
-                if _e261 {
-                    let _e262 = seenNormal;
-                    let _e263 = ray;
-                    phi_654_ = (dot(_e262, _e263) < 0f);
+            let _e246 = uv_3;
+            let _e247 = textureSampleLevel(surface_texture_tex, surface_texture_smp, _e246, 0f);
+            sceneDepth = _e247.w;
+            let _e249 = march;
+            param_15 = _e249;
+            let _e250 = DepthOf_u0028_vf3_u003b((&param_15));
+            marchDepth = _e250;
+            let _e251 = sceneDepth;
+            let _e253 = marchDepth;
+            let _e254 = sceneDepth;
+            if ((_e251 > 0f) && (_e253 > _e254)) {
+                let _e257 = uv_3;
+                param_16 = _e257;
+                let _e258 = sceneDepth;
+                param_17 = _e258;
+                let _e259 = WorldAt_u0028_vf2_u003b_f1_u003b((&param_16), (&param_17));
+                seen = _e259;
+                let _e260 = march;
+                let _e261 = seen;
+                behind = distance(_e260, _e261);
+                let _e263 = uv_3;
+                let _e264 = textureSampleLevel(surface_texture_tex, surface_texture_smp, _e263, 0f);
+                param_18 = _e264.xy;
+                let _e266 = DecodeOctahedral_u0028_vf2_u003b((&param_18));
+                seenNormal = _e266;
+                let _e267 = behind;
+                let _e268 = thickness;
+                let _e269 = (_e267 < _e268);
+                phi_718_ = _e269;
+                if _e269 {
+                    let _e270 = seenNormal;
+                    let _e271 = ray;
+                    phi_718_ = (dot(_e270, _e271) < 0f);
                 }
-                let _e267 = phi_654_;
-                if _e267 {
-                    let _e268 = march;
-                    let _e269 = ray;
-                    let _e270 = stride;
-                    lo = (_e268 - (_e269 * _e270));
-                    let _e273 = march;
-                    hi = _e273;
+                let _e275 = phi_718_;
+                if _e275 {
+                    let _e276 = march;
+                    let _e277 = ray;
+                    let _e278 = stride;
+                    lo = (_e276 - (_e277 * _e278));
+                    let _e281 = march;
+                    hi = _e281;
                     j = 0i;
                     loop {
-                        let _e274 = j;
-                        if (_e274 < 5i) {
-                            let _e276 = lo;
-                            let _e277 = hi;
-                            mid = ((_e276 + _e277) * 0.5f);
-                            let _e280 = mid;
-                            param_17 = _e280;
-                            let _e281 = UvOf_u0028_vf3_u003b((&param_17));
-                            at_3 = _e281;
-                            let _e283 = at_3[0u];
-                            if (_e283 < -0.5f) {
-                                local_3 = 0f;
+                        let _e282 = j;
+                        if (_e282 < 5i) {
+                            let _e284 = lo;
+                            let _e285 = hi;
+                            mid = ((_e284 + _e285) * 0.5f);
+                            let _e288 = mid;
+                            param_19 = _e288;
+                            let _e289 = UvOf_u0028_vf3_u003b((&param_19));
+                            at_5 = _e289;
+                            let _e291 = at_5[0u];
+                            if (_e291 < -0.5f) {
+                                local_4 = 0f;
                             } else {
-                                let _e285 = at_3;
-                                let _e286 = textureSampleLevel(surface_texture_tex, surface_texture_smp, _e285, 0f);
-                                local_3 = _e286.w;
+                                let _e293 = at_5;
+                                let _e294 = textureSampleLevel(surface_texture_tex, surface_texture_smp, _e293, 0f);
+                                local_4 = _e294.w;
                             }
-                            let _e288 = local_3;
-                            d = _e288;
-                            let _e289 = d;
-                            let _e290 = (_e289 > 0f);
-                            phi_706_ = _e290;
-                            if _e290 {
-                                let _e291 = mid;
-                                param_18 = _e291;
-                                let _e292 = DepthOf_u0028_vf3_u003b((&param_18));
-                                let _e293 = d;
-                                phi_706_ = (_e292 > _e293);
+                            let _e296 = local_4;
+                            d = _e296;
+                            let _e297 = d;
+                            let _e298 = (_e297 > 0f);
+                            phi_770_ = _e298;
+                            if _e298 {
+                                let _e299 = mid;
+                                param_20 = _e299;
+                                let _e300 = DepthOf_u0028_vf3_u003b((&param_20));
+                                let _e301 = d;
+                                phi_770_ = (_e300 > _e301);
                             }
-                            let _e296 = phi_706_;
-                            if _e296 {
-                                let _e297 = mid;
-                                hi = _e297;
+                            let _e304 = phi_770_;
+                            if _e304 {
+                                let _e305 = mid;
+                                hi = _e305;
                             } else {
-                                let _e298 = mid;
-                                lo = _e298;
+                                let _e306 = mid;
+                                lo = _e306;
                             }
                             continue;
                         } else {
                             break;
                         }
                         continuing {
-                            let _e299 = j;
-                            j = (_e299 + 1i);
+                            let _e307 = j;
+                            j = (_e307 + 1i);
                         }
                     }
-                    let _e301 = hi;
-                    param_19 = _e301;
-                    let _e302 = UvOf_u0028_vf3_u003b((&param_19));
-                    hitUv = _e302;
-                    let _e304 = hitUv[0u];
-                    if (_e304 < -0.5f) {
-                        let _e306 = uv_2;
-                        hitUv = _e306;
+                    let _e309 = hi;
+                    param_21 = _e309;
+                    let _e310 = UvOf_u0028_vf3_u003b((&param_21));
+                    hitUv = _e310;
+                    let _e312 = hitUv[0u];
+                    if (_e312 < -0.5f) {
+                        let _e314 = uv_3;
+                        hitUv = _e314;
                     }
-                    let _e307 = hitUv;
-                    let _e308 = textureSampleLevel(scene_texture_tex, scene_texture_smp, _e307, 0f);
-                    hitColor = _e308.xyz;
-                    let _e310 = hitUv;
-                    edge = abs(((_e310 * 2f) - vec2(1f)));
-                    let _e316 = edge[0u];
-                    let _e318 = edge[1u];
-                    border = (1f - max(_e316, _e318));
-                    let _e321 = travelled;
-                    let _e322 = reach;
-                    along_2 = clamp((1f - (_e321 / _e322)), 0f, 1f);
-                    let _e326 = border;
-                    let _e328 = along_2;
-                    let _e330 = along_2;
-                    hit = ((smoothstep(0f, 0.15f, _e326) * _e328) * _e330);
+                    let _e315 = hitUv;
+                    let _e316 = textureSampleLevel(scene_texture_tex, scene_texture_smp, _e315, 0f);
+                    hitColor = _e316.xyz;
+                    let _e318 = hitUv;
+                    edge = abs(((_e318 * 2f) - vec2(1f)));
+                    let _e324 = edge[0u];
+                    let _e326 = edge[1u];
+                    border = (1f - max(_e324, _e326));
+                    let _e329 = travelled;
+                    let _e330 = reach;
+                    along_2 = clamp((1f - (_e329 / _e330)), 0f, 1f);
+                    let _e334 = border;
+                    let _e336 = along_2;
+                    let _e338 = along_2;
+                    hit = ((smoothstep(0f, 0.15f, _e334) * _e336) * _e338);
                     break;
                 }
             }
-            let _e332 = ray;
-            let _e333 = stride;
-            let _e335 = march;
-            march = (_e335 + (_e332 * _e333));
-            let _e337 = stride;
-            let _e338 = travelled;
-            travelled = (_e338 + _e337);
+            let _e340 = ray;
+            let _e341 = stride;
+            let _e343 = march;
+            march = (_e343 + (_e340 * _e341));
+            let _e345 = stride;
+            let _e346 = travelled;
+            travelled = (_e346 + _e345);
             continue;
         } else {
             break;
         }
         continuing {
-            let _e340 = i;
-            i = (_e340 + 1i);
+            let _e348 = i;
+            i = (_e348 + 1i);
         }
     }
-    let _e342 = facing;
-    fresnel = (0.04f + (0.96f * pow((1f - _e342), 5f)));
-    let _e347 = hitColor;
-    let _e348 = hit;
-    let _e350 = intensity;
-    let _e352 = polish;
-    let _e354 = fresnel;
-    reflection = ((((_e347 * _e348) * _e350) * _e352) * _e354);
-    let _e356 = debugOnly;
-    if _e356 {
-        let _e357 = reflection;
-        local_4 = _e357;
+    let _e350 = facing;
+    fresnel = (0.04f + (0.96f * pow((1f - _e350), 5f)));
+    let _e355 = hitColor;
+    let _e356 = hit;
+    let _e358 = intensity;
+    let _e360 = polish;
+    let _e362 = fresnel;
+    reflection = ((((_e355 * _e356) * _e358) * _e360) * _e362);
+    let _e364 = debugOnly;
+    if _e364 {
+        let _e365 = reflection;
+        local_5 = _e365;
     } else {
-        let _e358 = scene;
-        let _e359 = reflection;
-        local_4 = (_e358 + _e359);
+        let _e366 = scene;
+        let _e367 = reflection;
+        local_5 = (_e366 + _e367);
     }
-    let _e361 = local_4;
-    frag_color = vec4<f32>(_e361.x, _e361.y, _e361.z, 1f);
+    let _e369 = local_5;
+    frag_color = vec4<f32>(_e369.x, _e369.y, _e369.z, 1f);
     return;
 }
 
@@ -16595,9 +16649,18 @@ fn main(@builtin(position) gl_FragCoord: vec4<f32>, @location(5) v_uv: vec2<f32>
           ],
         ),
         WebGpuBlock(
-          name: 'ReflectionInfo',
+          name: 'NoiseInfo',
           group: 1,
           binding: 1,
+          sizeInBytes: 16,
+          members: <WebGpuBlockMember>[
+            WebGpuBlockMember(name: 'noise', offsetInBytes: 0, sizeInBytes: 16),
+          ],
+        ),
+        WebGpuBlock(
+          name: 'ReflectionInfo',
+          group: 1,
+          binding: 2,
           sizeInBytes: 192,
           members: <WebGpuBlockMember>[
             WebGpuBlockMember(
@@ -16635,23 +16698,34 @@ fn main(@builtin(position) gl_FragCoord: vec4<f32>, @location(5) v_uv: vec2<f32>
       ],
       samplers: <WebGpuSampler>[
         WebGpuSampler(
+          name: 'blue_noise_texture',
+          group: 1,
+          textureBinding: 3,
+          samplerBinding: 4,
+          dimension: WebGpuTextureDimension.twoDimensional,
+        ),
+        WebGpuSampler(
           name: 'scene_texture',
           group: 1,
-          textureBinding: 2,
-          samplerBinding: 3,
+          textureBinding: 5,
+          samplerBinding: 6,
           dimension: WebGpuTextureDimension.twoDimensional,
         ),
         WebGpuSampler(
           name: 'surface_texture',
           group: 1,
-          textureBinding: 4,
-          samplerBinding: 5,
+          textureBinding: 7,
+          samplerBinding: 8,
           dimension: WebGpuTextureDimension.twoDimensional,
         ),
       ],
     ),
     'Ssao': WebGpuStage(
       wgsl: r'''
+struct NoiseInfo {
+    noise: vec4<f32>,
+}
+
 struct SsaoInfo {
     inverse_view_projection: mat4x4<f32>,
     view_projection: mat4x4<f32>,
@@ -16662,104 +16736,145 @@ struct SsaoInfo {
 }
 
 @group(1) @binding(0) 
-var<uniform> ssao_info: SsaoInfo;
-@group(1) @binding(1) 
-var surface_texture_tex: texture_2d<f32>;
+var<uniform> noise_info: NoiseInfo;
 @group(1) @binding(2) 
+var blue_noise_texture_tex: texture_2d<f32>;
+@group(1) @binding(3) 
+var blue_noise_texture_smp: sampler;
+@group(1) @binding(1) 
+var<uniform> ssao_info: SsaoInfo;
+@group(1) @binding(4) 
+var surface_texture_tex: texture_2d<f32>;
+@group(1) @binding(5) 
 var surface_texture_smp: sampler;
 var<private> v_uv_1: vec2<f32>;
 var<private> frag_color: vec4<f32>;
 
 fn DepthOf_u0028_vf3_u003b(at: ptr<function, vec3<f32>>) -> f32 {
-    let _e82 = (*at);
-    let _e84 = ssao_info.camera;
-    let _e88 = ssao_info.forward;
-    return dot((_e82 - _e84.xyz), _e88.xyz);
+    let _e92 = (*at);
+    let _e94 = ssao_info.camera;
+    let _e98 = ssao_info.forward;
+    return dot((_e92 - _e94.xyz), _e98.xyz);
 }
 
 fn UvFromNdc_u0028_vf2_u003b(ndc: ptr<function, vec2<f32>>) -> vec2<f32> {
-    let _e83 = (*ndc)[0u];
-    let _e87 = (*ndc)[1u];
-    return vec2<f32>(((_e83 * 0.5f) + 0.5f), (0.5f - (_e87 * 0.5f)));
+    let _e93 = (*ndc)[0u];
+    let _e97 = (*ndc)[1u];
+    return vec2<f32>(((_e93 * 0.5f) + 0.5f), (0.5f - (_e97 * 0.5f)));
 }
 
 fn KernelTap_u0028_i1_u003b(i: ptr<function, i32>) -> vec3<f32> {
-    let _e82 = (*i);
-    if (_e82 == 0i) {
+    let _e92 = (*i);
+    if (_e92 == 0i) {
         return vec3<f32>(0.5381f, 0.1856f, 0.4319f);
     }
-    let _e84 = (*i);
-    if (_e84 == 1i) {
+    let _e94 = (*i);
+    if (_e94 == 1i) {
         return vec3<f32>(0.1379f, 0.2486f, 0.443f);
     }
-    let _e86 = (*i);
-    if (_e86 == 2i) {
+    let _e96 = (*i);
+    if (_e96 == 2i) {
         return vec3<f32>(0.3371f, 0.5679f, 0.0057f);
     }
-    let _e88 = (*i);
-    if (_e88 == 3i) {
+    let _e98 = (*i);
+    if (_e98 == 3i) {
         return vec3<f32>(-0.6999f, -0.0451f, 0.0019f);
     }
-    let _e90 = (*i);
-    if (_e90 == 4i) {
+    let _e100 = (*i);
+    if (_e100 == 4i) {
         return vec3<f32>(0.0689f, -0.1598f, -0.8547f);
     }
-    let _e92 = (*i);
-    if (_e92 == 5i) {
+    let _e102 = (*i);
+    if (_e102 == 5i) {
         return vec3<f32>(0.056f, 0.0069f, -0.1843f);
     }
-    let _e94 = (*i);
-    if (_e94 == 6i) {
+    let _e104 = (*i);
+    if (_e104 == 6i) {
         return vec3<f32>(-0.0146f, 0.1402f, 0.0762f);
     }
-    let _e96 = (*i);
-    if (_e96 == 7i) {
+    let _e106 = (*i);
+    if (_e106 == 7i) {
         return vec3<f32>(0.01f, -0.1924f, -0.0344f);
     }
-    let _e98 = (*i);
-    if (_e98 == 8i) {
+    let _e108 = (*i);
+    if (_e108 == 8i) {
         return vec3<f32>(-0.3577f, -0.5301f, -0.4358f);
     }
-    let _e100 = (*i);
-    if (_e100 == 9i) {
+    let _e110 = (*i);
+    if (_e110 == 9i) {
         return vec3<f32>(-0.3169f, 0.1063f, 0.0158f);
     }
-    let _e102 = (*i);
-    if (_e102 == 10i) {
+    let _e112 = (*i);
+    if (_e112 == 10i) {
         return vec3<f32>(0.0103f, -0.5869f, 0.0046f);
     }
     return vec3<f32>(-0.0897f, -0.494f, 0.3287f);
 }
 
-fn Rotation_u0028_vf2_u003b(uv: ptr<function, vec2<f32>>) -> vec2<f32> {
+fn BlueNoise_u0028_vf2_u003b(at_1: ptr<function, vec2<f32>>) -> f32 {
+    var slice: f32;
+    var cell: vec2<f32>;
+    var corner: vec2<f32>;
+    var uv: vec2<f32>;
+
+    let _e98 = noise_info.noise[1u];
+    slice = _e98;
+    let _e99 = (*at_1);
+    let _e100 = floor(_e99);
+    let _e101 = vec2(64f);
+    cell = (_e100 - (floor((_e100 / _e101)) * _e101));
+    let _e106 = slice;
+    let _e111 = slice;
+    corner = (vec2<f32>((_e106 - (floor((_e106 / 8f)) * 8f)), floor((_e111 / 8f))) * 64f);
+    let _e116 = corner;
+    let _e117 = cell;
+    uv = (((_e116 + _e117) + vec2(0.5f)) / vec2<f32>(512f, 256f));
+    let _e122 = uv;
+    let _e123 = textureSampleLevel(blue_noise_texture_tex, blue_noise_texture_smp, _e122, 0f);
+    return (_e123.x * 0.99609375f);
+}
+
+fn Rotation_u0028_vf2_u003b(uv_1: ptr<function, vec2<f32>>) -> vec2<f32> {
     var pixel: vec2<f32>;
+    var angle: f32;
+    var param: vec2<f32>;
     var oddX: bool;
     var oddY: bool;
 
-    let _e85 = (*uv);
-    let _e87 = ssao_info.screen;
-    pixel = floor((_e85 / _e87.xy));
-    let _e92 = pixel[0u];
-    oddX = ((_e92 - (floor((_e92 / 2f)) * 2f)) >= 1f);
-    let _e99 = pixel[1u];
-    oddY = ((_e99 - (floor((_e99 / 2f)) * 2f)) >= 1f);
-    let _e105 = oddX;
-    let _e106 = oddY;
-    if (_e105 && _e106) {
+    let _e97 = (*uv_1);
+    let _e99 = ssao_info.screen;
+    pixel = floor((_e97 / _e99.xy));
+    let _e105 = noise_info.noise[0u];
+    if (_e105 > 0.5f) {
+        let _e107 = pixel;
+        param = _e107;
+        let _e108 = BlueNoise_u0028_vf2_u003b((&param));
+        angle = (6.2831855f * _e108);
+        let _e110 = angle;
+        let _e112 = angle;
+        return vec2<f32>(cos(_e110), sin(_e112));
+    }
+    let _e116 = pixel[0u];
+    oddX = ((_e116 - (floor((_e116 / 2f)) * 2f)) >= 1f);
+    let _e123 = pixel[1u];
+    oddY = ((_e123 - (floor((_e123 / 2f)) * 2f)) >= 1f);
+    let _e129 = oddX;
+    let _e130 = oddY;
+    if (_e129 && _e130) {
         return vec2<f32>(-0.7071f, -0.7071f);
     }
-    let _e108 = oddX;
-    if _e108 {
+    let _e132 = oddX;
+    if _e132 {
         return vec2<f32>(0.7071f, -0.7071f);
     }
-    let _e109 = oddY;
-    if _e109 {
+    let _e133 = oddY;
+    if _e133 {
         return vec2<f32>(-0.7071f, 0.7071f);
     }
     return vec2<f32>(1f, 0f);
 }
 
-fn WorldAtDepth_u0028_vf2_u003b_f1_u003b(uv_1: ptr<function, vec2<f32>>, depth: ptr<function, f32>) -> vec3<f32> {
+fn WorldAtDepth_u0028_vf2_u003b_f1_u003b(uv_2: ptr<function, vec2<f32>>, depth: ptr<function, f32>) -> vec3<f32> {
     var xy: vec2<f32>;
     var nearH: vec4<f32>;
     var farH: vec4<f32>;
@@ -16767,33 +16882,33 @@ fn WorldAtDepth_u0028_vf2_u003b_f1_u003b(uv_1: ptr<function, vec2<f32>>, depth: 
     var along: vec3<f32>;
     var axis: vec3<f32>;
 
-    let _e90 = (*uv_1)[0u];
-    let _e94 = (*uv_1)[1u];
-    xy = vec2<f32>(((_e90 * 2f) - 1f), (1f - (_e94 * 2f)));
-    let _e99 = ssao_info.inverse_view_projection;
-    let _e100 = xy;
-    nearH = (_e99 * vec4<f32>(_e100.x, _e100.y, 0f, 1f));
-    let _e106 = ssao_info.inverse_view_projection;
-    let _e107 = xy;
-    farH = (_e106 * vec4<f32>(_e107.x, _e107.y, 1f, 1f));
-    let _e112 = nearH;
-    let _e115 = nearH[3u];
-    origin = (_e112.xyz / vec3(_e115));
-    let _e118 = farH;
-    let _e121 = farH[3u];
-    let _e124 = origin;
-    along = normalize(((_e118.xyz / vec3(_e121)) - _e124));
-    let _e128 = ssao_info.forward;
-    axis = _e128.xyz;
-    let _e130 = origin;
-    let _e131 = along;
-    let _e132 = (*depth);
-    let _e133 = origin;
-    let _e135 = ssao_info.camera;
-    let _e138 = axis;
+    let _e100 = (*uv_2)[0u];
+    let _e104 = (*uv_2)[1u];
+    xy = vec2<f32>(((_e100 * 2f) - 1f), (1f - (_e104 * 2f)));
+    let _e109 = ssao_info.inverse_view_projection;
+    let _e110 = xy;
+    nearH = (_e109 * vec4<f32>(_e110.x, _e110.y, 0f, 1f));
+    let _e116 = ssao_info.inverse_view_projection;
+    let _e117 = xy;
+    farH = (_e116 * vec4<f32>(_e117.x, _e117.y, 1f, 1f));
+    let _e122 = nearH;
+    let _e125 = nearH[3u];
+    origin = (_e122.xyz / vec3(_e125));
+    let _e128 = farH;
+    let _e131 = farH[3u];
+    let _e134 = origin;
+    along = normalize(((_e128.xyz / vec3(_e131)) - _e134));
+    let _e138 = ssao_info.forward;
+    axis = _e138.xyz;
+    let _e140 = origin;
     let _e141 = along;
-    let _e142 = axis;
-    return (_e130 + (_e131 * ((_e132 - dot((_e133 - _e135.xyz), _e138)) / dot(_e141, _e142))));
+    let _e142 = (*depth);
+    let _e143 = origin;
+    let _e145 = ssao_info.camera;
+    let _e148 = axis;
+    let _e151 = along;
+    let _e152 = axis;
+    return (_e140 + (_e141 * ((_e142 - dot((_e143 - _e145.xyz), _e148)) / dot(_e151, _e152))));
 }
 
 fn DecodeOctahedral_u0028_vf2_u003b(e: ptr<function, vec2<f32>>) -> vec3<f32> {
@@ -16802,192 +16917,192 @@ fn DecodeOctahedral_u0028_vf2_u003b(e: ptr<function, vec2<f32>>) -> vec3<f32> {
     var local: f32;
     var local_1: f32;
 
-    let _e86 = (*e);
-    (*e) = ((_e86 * 2f) - vec2(1f));
-    let _e90 = (*e);
-    let _e92 = (*e)[0u];
-    let _e96 = (*e)[1u];
-    n = vec3<f32>(_e90.x, _e90.y, ((1f - abs(_e92)) - abs(_e96)));
-    let _e103 = n[2u];
-    t = max(-(_e103), 0f);
-    let _e107 = n[0u];
-    if (_e107 >= 0f) {
-        let _e109 = t;
-        local = -(_e109);
+    let _e96 = (*e);
+    (*e) = ((_e96 * 2f) - vec2(1f));
+    let _e100 = (*e);
+    let _e102 = (*e)[0u];
+    let _e106 = (*e)[1u];
+    n = vec3<f32>(_e100.x, _e100.y, ((1f - abs(_e102)) - abs(_e106)));
+    let _e113 = n[2u];
+    t = max(-(_e113), 0f);
+    let _e117 = n[0u];
+    if (_e117 >= 0f) {
+        let _e119 = t;
+        local = -(_e119);
     } else {
-        let _e111 = t;
-        local = _e111;
+        let _e121 = t;
+        local = _e121;
     }
-    let _e112 = local;
-    let _e114 = n[0u];
-    n[0u] = (_e114 + _e112);
-    let _e118 = n[1u];
-    if (_e118 >= 0f) {
-        let _e120 = t;
-        local_1 = -(_e120);
+    let _e122 = local;
+    let _e124 = n[0u];
+    n[0u] = (_e124 + _e122);
+    let _e128 = n[1u];
+    if (_e128 >= 0f) {
+        let _e130 = t;
+        local_1 = -(_e130);
     } else {
-        let _e122 = t;
-        local_1 = _e122;
+        let _e132 = t;
+        local_1 = _e132;
     }
-    let _e123 = local_1;
-    let _e125 = n[1u];
-    n[1u] = (_e125 + _e123);
-    let _e128 = n;
-    return normalize(_e128);
+    let _e133 = local_1;
+    let _e135 = n[1u];
+    n[1u] = (_e135 + _e133);
+    let _e138 = n;
+    return normalize(_e138);
 }
 
 fn main_1() {
     var surface: vec4<f32>;
     var normal: vec3<f32>;
-    var param: vec2<f32>;
+    var param_1: vec2<f32>;
     var radius: f32;
     var samples: i32;
     var origin_1: vec3<f32>;
-    var param_1: vec2<f32>;
-    var param_2: f32;
+    var param_2: vec2<f32>;
+    var param_3: f32;
     var rot: vec2<f32>;
-    var param_3: vec2<f32>;
+    var param_4: vec2<f32>;
     var occluded: f32;
     var i_1: i32;
     var tap: vec3<f32>;
-    var param_4: i32;
+    var param_5: i32;
     var spun: vec3<f32>;
-    var at_1: vec3<f32>;
+    var at_2: vec3<f32>;
     var clip: vec4<f32>;
     var ndc_1: vec3<f32>;
-    var uv_2: vec2<f32>;
-    var param_5: vec2<f32>;
+    var uv_3: vec2<f32>;
+    var param_6: vec2<f32>;
     var there: vec4<f32>;
-    var param_6: vec3<f32>;
+    var param_7: vec3<f32>;
     var seen: vec3<f32>;
-    var param_7: vec2<f32>;
-    var param_8: f32;
-    var phi_506_: bool;
+    var param_8: vec2<f32>;
+    var param_9: f32;
+    var phi_570_: bool;
 
-    let _e106 = v_uv_1;
-    let _e107 = textureSample(surface_texture_tex, surface_texture_smp, _e106);
-    surface = _e107;
-    let _e109 = surface[3u];
-    if (_e109 <= 0f) {
+    let _e116 = v_uv_1;
+    let _e117 = textureSample(surface_texture_tex, surface_texture_smp, _e116);
+    surface = _e117;
+    let _e119 = surface[3u];
+    if (_e119 <= 0f) {
         frag_color = vec4<f32>(1f, 1f, 1f, 1f);
         return;
     }
-    let _e111 = surface;
-    param = _e111.xy;
-    let _e113 = DecodeOctahedral_u0028_vf2_u003b((&param));
-    normal = _e113;
-    let _e116 = ssao_info.params[0u];
-    radius = max(_e116, 0.0001f);
-    let _e120 = ssao_info.params[1u];
-    samples = clamp(i32((_e120 + 0.5f)), 1i, 12i);
-    let _e124 = v_uv_1;
-    param_1 = _e124;
-    let _e126 = surface[3u];
-    param_2 = _e126;
-    let _e127 = WorldAtDepth_u0028_vf2_u003b_f1_u003b((&param_1), (&param_2));
-    let _e128 = normal;
-    let _e131 = ssao_info.params[3u];
-    origin_1 = (_e127 + (_e128 * _e131));
+    let _e121 = surface;
+    param_1 = _e121.xy;
+    let _e123 = DecodeOctahedral_u0028_vf2_u003b((&param_1));
+    normal = _e123;
+    let _e126 = ssao_info.params[0u];
+    radius = max(_e126, 0.0001f);
+    let _e130 = ssao_info.params[1u];
+    samples = clamp(i32((_e130 + 0.5f)), 1i, 12i);
     let _e134 = v_uv_1;
-    param_3 = _e134;
-    let _e135 = Rotation_u0028_vf2_u003b((&param_3));
-    rot = _e135;
+    param_2 = _e134;
+    let _e136 = surface[3u];
+    param_3 = _e136;
+    let _e137 = WorldAtDepth_u0028_vf2_u003b_f1_u003b((&param_2), (&param_3));
+    let _e138 = normal;
+    let _e141 = ssao_info.params[3u];
+    origin_1 = (_e137 + (_e138 * _e141));
+    let _e144 = v_uv_1;
+    param_4 = _e144;
+    let _e145 = Rotation_u0028_vf2_u003b((&param_4));
+    rot = _e145;
     occluded = 0f;
     i_1 = 0i;
     loop {
-        let _e136 = i_1;
-        if (_e136 < 12i) {
-            let _e138 = i_1;
-            let _e139 = samples;
-            if (_e138 >= _e139) {
+        let _e146 = i_1;
+        if (_e146 < 12i) {
+            let _e148 = i_1;
+            let _e149 = samples;
+            if (_e148 >= _e149) {
                 break;
             }
-            let _e141 = i_1;
-            param_4 = _e141;
-            let _e142 = KernelTap_u0028_i1_u003b((&param_4));
-            tap = _e142;
-            let _e144 = tap[0u];
-            let _e146 = rot[0u];
-            let _e149 = tap[1u];
-            let _e151 = rot[1u];
-            let _e155 = tap[0u];
-            let _e157 = rot[1u];
-            let _e160 = tap[1u];
-            let _e162 = rot[0u];
-            let _e166 = tap[2u];
-            spun = vec3<f32>(((_e144 * _e146) - (_e149 * _e151)), ((_e155 * _e157) + (_e160 * _e162)), _e166);
-            let _e168 = spun;
-            let _e169 = normal;
-            if (dot(_e168, _e169) < 0f) {
-                let _e172 = spun;
-                spun = -(_e172);
+            let _e151 = i_1;
+            param_5 = _e151;
+            let _e152 = KernelTap_u0028_i1_u003b((&param_5));
+            tap = _e152;
+            let _e154 = tap[0u];
+            let _e156 = rot[0u];
+            let _e159 = tap[1u];
+            let _e161 = rot[1u];
+            let _e165 = tap[0u];
+            let _e167 = rot[1u];
+            let _e170 = tap[1u];
+            let _e172 = rot[0u];
+            let _e176 = tap[2u];
+            spun = vec3<f32>(((_e154 * _e156) - (_e159 * _e161)), ((_e165 * _e167) + (_e170 * _e172)), _e176);
+            let _e178 = spun;
+            let _e179 = normal;
+            if (dot(_e178, _e179) < 0f) {
+                let _e182 = spun;
+                spun = -(_e182);
             }
-            let _e174 = origin_1;
-            let _e175 = spun;
-            let _e176 = radius;
-            at_1 = (_e174 + (_e175 * _e176));
-            let _e180 = ssao_info.view_projection;
-            let _e181 = at_1;
-            clip = (_e180 * vec4<f32>(_e181.x, _e181.y, _e181.z, 1f));
-            let _e188 = clip[3u];
-            if (_e188 <= 0f) {
+            let _e184 = origin_1;
+            let _e185 = spun;
+            let _e186 = radius;
+            at_2 = (_e184 + (_e185 * _e186));
+            let _e190 = ssao_info.view_projection;
+            let _e191 = at_2;
+            clip = (_e190 * vec4<f32>(_e191.x, _e191.y, _e191.z, 1f));
+            let _e198 = clip[3u];
+            if (_e198 <= 0f) {
                 continue;
             }
-            let _e190 = clip;
-            let _e193 = clip[3u];
-            ndc_1 = (_e190.xyz / vec3(_e193));
-            let _e197 = ndc_1[0u];
-            let _e199 = (abs(_e197) > 1f);
-            phi_506_ = _e199;
-            if !(_e199) {
-                let _e202 = ndc_1[1u];
-                phi_506_ = (abs(_e202) > 1f);
+            let _e200 = clip;
+            let _e203 = clip[3u];
+            ndc_1 = (_e200.xyz / vec3(_e203));
+            let _e207 = ndc_1[0u];
+            let _e209 = (abs(_e207) > 1f);
+            phi_570_ = _e209;
+            if !(_e209) {
+                let _e212 = ndc_1[1u];
+                phi_570_ = (abs(_e212) > 1f);
             }
-            let _e206 = phi_506_;
-            if _e206 {
+            let _e216 = phi_570_;
+            if _e216 {
                 continue;
             }
-            let _e207 = ndc_1;
-            param_5 = _e207.xy;
-            let _e209 = UvFromNdc_u0028_vf2_u003b((&param_5));
-            uv_2 = _e209;
-            let _e210 = uv_2;
-            let _e211 = textureSampleLevel(surface_texture_tex, surface_texture_smp, _e210, 0f);
-            there = _e211;
-            let _e213 = there[3u];
-            if (_e213 <= 0f) {
+            let _e217 = ndc_1;
+            param_6 = _e217.xy;
+            let _e219 = UvFromNdc_u0028_vf2_u003b((&param_6));
+            uv_3 = _e219;
+            let _e220 = uv_3;
+            let _e221 = textureSampleLevel(surface_texture_tex, surface_texture_smp, _e220, 0f);
+            there = _e221;
+            let _e223 = there[3u];
+            if (_e223 <= 0f) {
                 continue;
             }
-            let _e216 = there[3u];
-            let _e217 = at_1;
-            param_6 = _e217;
-            let _e218 = DepthOf_u0028_vf3_u003b((&param_6));
-            if (_e216 >= _e218) {
+            let _e226 = there[3u];
+            let _e227 = at_2;
+            param_7 = _e227;
+            let _e228 = DepthOf_u0028_vf3_u003b((&param_7));
+            if (_e226 >= _e228) {
                 continue;
             }
-            let _e220 = uv_2;
-            param_7 = _e220;
-            let _e222 = there[3u];
-            param_8 = _e222;
-            let _e223 = WorldAtDepth_u0028_vf2_u003b_f1_u003b((&param_7), (&param_8));
-            seen = _e223;
-            let _e224 = radius;
-            let _e225 = seen;
-            let _e226 = origin_1;
-            let _e231 = occluded;
-            occluded = (_e231 + smoothstep(0f, 1f, (_e224 / max(distance(_e225, _e226), 0.0001f))));
+            let _e230 = uv_3;
+            param_8 = _e230;
+            let _e232 = there[3u];
+            param_9 = _e232;
+            let _e233 = WorldAtDepth_u0028_vf2_u003b_f1_u003b((&param_8), (&param_9));
+            seen = _e233;
+            let _e234 = radius;
+            let _e235 = seen;
+            let _e236 = origin_1;
+            let _e241 = occluded;
+            occluded = (_e241 + smoothstep(0f, 1f, (_e234 / max(distance(_e235, _e236), 0.0001f))));
             continue;
         } else {
             break;
         }
         continuing {
-            let _e233 = i_1;
-            i_1 = (_e233 + 1i);
+            let _e243 = i_1;
+            i_1 = (_e243 + 1i);
         }
     }
-    let _e235 = occluded;
-    let _e236 = samples;
-    frag_color = vec4(clamp((1f - (_e235 / f32(_e236))), 0f, 1f));
+    let _e245 = occluded;
+    let _e246 = samples;
+    frag_color = vec4(clamp((1f - (_e245 / f32(_e246))), 0f, 1f));
     return;
 }
 
@@ -17002,9 +17117,18 @@ fn main(@location(5) v_uv: vec2<f32>) -> @location(0) vec4<f32> {
       attributes: <WebGpuAttribute>[],
       blocks: <WebGpuBlock>[
         WebGpuBlock(
-          name: 'SsaoInfo',
+          name: 'NoiseInfo',
           group: 1,
           binding: 0,
+          sizeInBytes: 16,
+          members: <WebGpuBlockMember>[
+            WebGpuBlockMember(name: 'noise', offsetInBytes: 0, sizeInBytes: 16),
+          ],
+        ),
+        WebGpuBlock(
+          name: 'SsaoInfo',
+          group: 1,
+          binding: 1,
           sizeInBytes: 192,
           members: <WebGpuBlockMember>[
             WebGpuBlockMember(
@@ -17042,10 +17166,17 @@ fn main(@location(5) v_uv: vec2<f32>) -> @location(0) vec4<f32> {
       ],
       samplers: <WebGpuSampler>[
         WebGpuSampler(
+          name: 'blue_noise_texture',
+          group: 1,
+          textureBinding: 2,
+          samplerBinding: 3,
+          dimension: WebGpuTextureDimension.twoDimensional,
+        ),
+        WebGpuSampler(
           name: 'surface_texture',
           group: 1,
-          textureBinding: 1,
-          samplerBinding: 2,
+          textureBinding: 4,
+          samplerBinding: 5,
           dimension: WebGpuTextureDimension.twoDimensional,
         ),
       ],
@@ -17228,6 +17359,10 @@ struct FragCoordInfo {
     origin: vec4<f32>,
 }
 
+struct NoiseInfo {
+    noise: vec4<f32>,
+}
+
 struct ContactShadowInfo {
     inverse_view_projection: mat4x4<f32>,
     view_projection: mat4x4<f32>,
@@ -17240,26 +17375,32 @@ struct ContactShadowInfo {
 var<private> gl_FragCoord_1: vec4<f32>;
 @group(1) @binding(1) 
 var<uniform> frag_coord_info: FragCoordInfo;
+@group(1) @binding(2) 
+var<uniform> noise_info: NoiseInfo;
+@group(1) @binding(3) 
+var blue_noise_texture_tex: texture_2d<f32>;
+@group(1) @binding(4) 
+var blue_noise_texture_smp: sampler;
 @group(1) @binding(0) 
 var<uniform> contact_info: ContactShadowInfo;
-@group(1) @binding(2) 
+@group(1) @binding(5) 
 var surface_texture_tex: texture_2d<f32>;
-@group(1) @binding(3) 
+@group(1) @binding(6) 
 var surface_texture_smp: sampler;
 var<private> v_uv_1: vec2<f32>;
 var<private> frag_color: vec4<f32>;
 
 fn UvFromNdc_u0028_vf2_u003b(ndc: ptr<function, vec2<f32>>) -> vec2<f32> {
-    let _e49 = (*ndc)[0u];
-    let _e53 = (*ndc)[1u];
-    return vec2<f32>(((_e49 * 0.5f) + 0.5f), (0.5f - (_e53 * 0.5f)));
+    let _e57 = (*ndc)[0u];
+    let _e61 = (*ndc)[1u];
+    return vec2<f32>(((_e57 * 0.5f) + 0.5f), (0.5f - (_e61 * 0.5f)));
 }
 
 fn DepthOf_u0028_vf3_u003b(at: ptr<function, vec3<f32>>) -> f32 {
-    let _e48 = (*at);
-    let _e50 = contact_info.camera;
-    let _e54 = contact_info.forward;
-    return dot((_e48 - _e50.xyz), _e54.xyz);
+    let _e56 = (*at);
+    let _e58 = contact_info.camera;
+    let _e62 = contact_info.forward;
+    return dot((_e56 - _e58.xyz), _e62.xyz);
 }
 
 fn BayerCell_u0028_vf2_u003b(at_1: ptr<function, vec2<f32>>) -> f32 {
@@ -17268,72 +17409,72 @@ fn BayerCell_u0028_vf2_u003b(at_1: ptr<function, vec2<f32>>) -> f32 {
     var index: i32;
     var value: f32;
 
-    let _e53 = (*at_1)[0u];
-    x = i32((_e53 - (floor((_e53 / 4f)) * 4f)));
-    let _e60 = (*at_1)[1u];
-    y = i32((_e60 - (floor((_e60 / 4f)) * 4f)));
-    let _e66 = y;
-    let _e68 = x;
-    index = ((_e66 * 4i) + _e68);
+    let _e61 = (*at_1)[0u];
+    x = i32((_e61 - (floor((_e61 / 4f)) * 4f)));
+    let _e68 = (*at_1)[1u];
+    y = i32((_e68 - (floor((_e68 / 4f)) * 4f)));
+    let _e74 = y;
+    let _e76 = x;
+    index = ((_e74 * 4i) + _e76);
     value = 0f;
-    let _e70 = index;
-    if (_e70 == 0i) {
+    let _e78 = index;
+    if (_e78 == 0i) {
         value = 0f;
     } else {
-        let _e72 = index;
-        if (_e72 == 1i) {
+        let _e80 = index;
+        if (_e80 == 1i) {
             value = 8f;
         } else {
-            let _e74 = index;
-            if (_e74 == 2i) {
+            let _e82 = index;
+            if (_e82 == 2i) {
                 value = 2f;
             } else {
-                let _e76 = index;
-                if (_e76 == 3i) {
+                let _e84 = index;
+                if (_e84 == 3i) {
                     value = 10f;
                 } else {
-                    let _e78 = index;
-                    if (_e78 == 4i) {
+                    let _e86 = index;
+                    if (_e86 == 4i) {
                         value = 12f;
                     } else {
-                        let _e80 = index;
-                        if (_e80 == 5i) {
+                        let _e88 = index;
+                        if (_e88 == 5i) {
                             value = 4f;
                         } else {
-                            let _e82 = index;
-                            if (_e82 == 6i) {
+                            let _e90 = index;
+                            if (_e90 == 6i) {
                                 value = 14f;
                             } else {
-                                let _e84 = index;
-                                if (_e84 == 7i) {
+                                let _e92 = index;
+                                if (_e92 == 7i) {
                                     value = 6f;
                                 } else {
-                                    let _e86 = index;
-                                    if (_e86 == 8i) {
+                                    let _e94 = index;
+                                    if (_e94 == 8i) {
                                         value = 3f;
                                     } else {
-                                        let _e88 = index;
-                                        if (_e88 == 9i) {
+                                        let _e96 = index;
+                                        if (_e96 == 9i) {
                                             value = 11f;
                                         } else {
-                                            let _e90 = index;
-                                            if (_e90 == 10i) {
+                                            let _e98 = index;
+                                            if (_e98 == 10i) {
                                                 value = 1f;
                                             } else {
-                                                let _e92 = index;
-                                                if (_e92 == 11i) {
+                                                let _e100 = index;
+                                                if (_e100 == 11i) {
                                                     value = 9f;
                                                 } else {
-                                                    let _e94 = index;
-                                                    if (_e94 == 12i) {
+                                                    let _e102 = index;
+                                                    if (_e102 == 12i) {
                                                         value = 15f;
                                                     } else {
-                                                        let _e96 = index;
-                                                        if (_e96 == 13i) {
+                                                        let _e104 = index;
+                                                        if (_e104 == 13i) {
                                                             value = 7f;
                                                         } else {
-                                                            let _e98 = index;
-                                                            if (_e98 == 14i) {
+                                                            let _e106 = index;
+                                                            if (_e106 == 14i) {
                                                                 value = 13f;
                                                             } else {
                                                                 value = 5f;
@@ -17352,37 +17493,81 @@ fn BayerCell_u0028_vf2_u003b(at_1: ptr<function, vec2<f32>>) -> f32 {
             }
         }
     }
-    let _e100 = value;
-    return (_e100 / 16f);
+    let _e108 = value;
+    return (_e108 / 16f);
+}
+
+fn BlueNoise_u0028_vf2_u003b(at_2: ptr<function, vec2<f32>>) -> f32 {
+    var slice: f32;
+    var cell: vec2<f32>;
+    var corner: vec2<f32>;
+    var uv: vec2<f32>;
+
+    let _e62 = noise_info.noise[1u];
+    slice = _e62;
+    let _e63 = (*at_2);
+    let _e64 = floor(_e63);
+    let _e65 = vec2(64f);
+    cell = (_e64 - (floor((_e64 / _e65)) * _e65));
+    let _e70 = slice;
+    let _e75 = slice;
+    corner = (vec2<f32>((_e70 - (floor((_e70 / 8f)) * 8f)), floor((_e75 / 8f))) * 64f);
+    let _e80 = corner;
+    let _e81 = cell;
+    uv = (((_e80 + _e81) + vec2(0.5f)) / vec2<f32>(512f, 256f));
+    let _e86 = uv;
+    let _e87 = textureSampleLevel(blue_noise_texture_tex, blue_noise_texture_smp, _e86, 0f);
+    return (_e87.x * 0.99609375f);
+}
+
+fn PixelNoise_u0028_vf2_u003b(at_3: ptr<function, vec2<f32>>) -> f32 {
+    var local: f32;
+    var param: vec2<f32>;
+    var param_1: vec2<f32>;
+
+    let _e61 = noise_info.noise[0u];
+    if (_e61 > 0.5f) {
+        let _e63 = (*at_3);
+        param = _e63;
+        let _e64 = BlueNoise_u0028_vf2_u003b((&param));
+        local = _e64;
+    } else {
+        let _e65 = (*at_3);
+        param_1 = _e65;
+        let _e66 = BayerCell_u0028_vf2_u003b((&param_1));
+        local = _e66;
+    }
+    let _e67 = local;
+    return _e67;
 }
 
 fn FragCoordFromTop_u0028_f1_u003b(rows: ptr<function, f32>) -> vec2<f32> {
-    var local: vec2<f32>;
+    var local_1: vec2<f32>;
 
-    let _e49 = (*rows);
-    if (_e49 > 0f) {
-        let _e52 = gl_FragCoord_1[0u];
-        let _e53 = (*rows);
-        let _e55 = gl_FragCoord_1[1u];
-        local = vec2<f32>(_e52, (_e53 - _e55));
+    let _e57 = (*rows);
+    if (_e57 > 0f) {
+        let _e60 = gl_FragCoord_1[0u];
+        let _e61 = (*rows);
+        let _e63 = gl_FragCoord_1[1u];
+        local_1 = vec2<f32>(_e60, (_e61 - _e63));
     } else {
-        let _e58 = gl_FragCoord_1;
-        local = _e58.xy;
+        let _e66 = gl_FragCoord_1;
+        local_1 = _e66.xy;
     }
-    let _e60 = local;
-    return _e60;
+    let _e68 = local_1;
+    return _e68;
 }
 
 fn TargetFragCoord_u0028_() -> vec2<f32> {
-    var param: f32;
+    var param_2: f32;
 
-    let _e50 = frag_coord_info.origin[0u];
-    param = _e50;
-    let _e51 = FragCoordFromTop_u0028_f1_u003b((&param));
-    return _e51;
+    let _e58 = frag_coord_info.origin[0u];
+    param_2 = _e58;
+    let _e59 = FragCoordFromTop_u0028_f1_u003b((&param_2));
+    return _e59;
 }
 
-fn WorldAtDepth_u0028_vf2_u003b_f1_u003b(uv: ptr<function, vec2<f32>>, depth: ptr<function, f32>) -> vec3<f32> {
+fn WorldAtDepth_u0028_vf2_u003b_f1_u003b(uv_1: ptr<function, vec2<f32>>, depth: ptr<function, f32>) -> vec3<f32> {
     var xy: vec2<f32>;
     var nearH: vec4<f32>;
     var farH: vec4<f32>;
@@ -17390,233 +17575,233 @@ fn WorldAtDepth_u0028_vf2_u003b_f1_u003b(uv: ptr<function, vec2<f32>>, depth: pt
     var along: vec3<f32>;
     var axis: vec3<f32>;
 
-    let _e56 = (*uv)[0u];
-    let _e60 = (*uv)[1u];
-    xy = vec2<f32>(((_e56 * 2f) - 1f), (1f - (_e60 * 2f)));
-    let _e65 = contact_info.inverse_view_projection;
-    let _e66 = xy;
-    nearH = (_e65 * vec4<f32>(_e66.x, _e66.y, 0f, 1f));
-    let _e72 = contact_info.inverse_view_projection;
-    let _e73 = xy;
-    farH = (_e72 * vec4<f32>(_e73.x, _e73.y, 1f, 1f));
-    let _e78 = nearH;
-    let _e81 = nearH[3u];
-    origin = (_e78.xyz / vec3(_e81));
-    let _e84 = farH;
-    let _e87 = farH[3u];
-    let _e90 = origin;
-    along = normalize(((_e84.xyz / vec3(_e87)) - _e90));
-    let _e94 = contact_info.forward;
-    axis = _e94.xyz;
-    let _e96 = origin;
-    let _e97 = along;
-    let _e98 = (*depth);
-    let _e99 = origin;
-    let _e101 = contact_info.camera;
-    let _e104 = axis;
-    let _e107 = along;
-    let _e108 = axis;
-    return (_e96 + (_e97 * ((_e98 - dot((_e99 - _e101.xyz), _e104)) / dot(_e107, _e108))));
+    let _e64 = (*uv_1)[0u];
+    let _e68 = (*uv_1)[1u];
+    xy = vec2<f32>(((_e64 * 2f) - 1f), (1f - (_e68 * 2f)));
+    let _e73 = contact_info.inverse_view_projection;
+    let _e74 = xy;
+    nearH = (_e73 * vec4<f32>(_e74.x, _e74.y, 0f, 1f));
+    let _e80 = contact_info.inverse_view_projection;
+    let _e81 = xy;
+    farH = (_e80 * vec4<f32>(_e81.x, _e81.y, 1f, 1f));
+    let _e86 = nearH;
+    let _e89 = nearH[3u];
+    origin = (_e86.xyz / vec3(_e89));
+    let _e92 = farH;
+    let _e95 = farH[3u];
+    let _e98 = origin;
+    along = normalize(((_e92.xyz / vec3(_e95)) - _e98));
+    let _e102 = contact_info.forward;
+    axis = _e102.xyz;
+    let _e104 = origin;
+    let _e105 = along;
+    let _e106 = (*depth);
+    let _e107 = origin;
+    let _e109 = contact_info.camera;
+    let _e112 = axis;
+    let _e115 = along;
+    let _e116 = axis;
+    return (_e104 + (_e105 * ((_e106 - dot((_e107 - _e109.xyz), _e112)) / dot(_e115, _e116))));
 }
 
 fn DecodeOctahedral_u0028_vf2_u003b(e: ptr<function, vec2<f32>>) -> vec3<f32> {
     var n: vec3<f32>;
     var t: f32;
-    var local_1: f32;
     var local_2: f32;
+    var local_3: f32;
 
-    let _e52 = (*e);
-    (*e) = ((_e52 * 2f) - vec2(1f));
-    let _e56 = (*e);
-    let _e58 = (*e)[0u];
-    let _e62 = (*e)[1u];
-    n = vec3<f32>(_e56.x, _e56.y, ((1f - abs(_e58)) - abs(_e62)));
-    let _e69 = n[2u];
-    t = max(-(_e69), 0f);
-    let _e73 = n[0u];
-    if (_e73 >= 0f) {
-        let _e75 = t;
-        local_1 = -(_e75);
+    let _e60 = (*e);
+    (*e) = ((_e60 * 2f) - vec2(1f));
+    let _e64 = (*e);
+    let _e66 = (*e)[0u];
+    let _e70 = (*e)[1u];
+    n = vec3<f32>(_e64.x, _e64.y, ((1f - abs(_e66)) - abs(_e70)));
+    let _e77 = n[2u];
+    t = max(-(_e77), 0f);
+    let _e81 = n[0u];
+    if (_e81 >= 0f) {
+        let _e83 = t;
+        local_2 = -(_e83);
     } else {
-        let _e77 = t;
-        local_1 = _e77;
+        let _e85 = t;
+        local_2 = _e85;
     }
-    let _e78 = local_1;
-    let _e80 = n[0u];
-    n[0u] = (_e80 + _e78);
-    let _e84 = n[1u];
-    if (_e84 >= 0f) {
-        let _e86 = t;
-        local_2 = -(_e86);
+    let _e86 = local_2;
+    let _e88 = n[0u];
+    n[0u] = (_e88 + _e86);
+    let _e92 = n[1u];
+    if (_e92 >= 0f) {
+        let _e94 = t;
+        local_3 = -(_e94);
     } else {
-        let _e88 = t;
-        local_2 = _e88;
+        let _e96 = t;
+        local_3 = _e96;
     }
-    let _e89 = local_2;
-    let _e91 = n[1u];
-    n[1u] = (_e91 + _e89);
-    let _e94 = n;
-    return normalize(_e94);
+    let _e97 = local_3;
+    let _e99 = n[1u];
+    n[1u] = (_e99 + _e97);
+    let _e102 = n;
+    return normalize(_e102);
 }
 
 fn main_1() {
     var surface: vec4<f32>;
     var normal: vec3<f32>;
-    var param_1: vec2<f32>;
+    var param_3: vec2<f32>;
     var toLight: vec3<f32>;
     var reach: f32;
     var steps: i32;
     var thickness: f32;
     var origin_1: vec3<f32>;
-    var param_2: vec2<f32>;
-    var param_3: f32;
+    var param_4: vec2<f32>;
+    var param_5: f32;
     var stride: f32;
     var jitter: f32;
-    var param_4: vec2<f32>;
+    var param_6: vec2<f32>;
     var stepDepth: f32;
-    var param_5: vec3<f32>;
-    var param_6: vec3<f32>;
+    var param_7: vec3<f32>;
+    var param_8: vec3<f32>;
     var tolerance: f32;
     var i: i32;
     var along_1: f32;
-    var at_2: vec3<f32>;
+    var at_4: vec3<f32>;
     var clip: vec4<f32>;
-    var uv_1: vec2<f32>;
-    var param_7: vec2<f32>;
+    var uv_2: vec2<f32>;
+    var param_9: vec2<f32>;
     var there: vec4<f32>;
     var marched: f32;
-    var param_8: vec3<f32>;
+    var param_10: vec3<f32>;
     var gap: f32;
-    var phi_516_: bool;
-    var phi_523_: bool;
-    var phi_530_: bool;
+    var phi_580_: bool;
+    var phi_587_: bool;
+    var phi_594_: bool;
 
-    let _e74 = v_uv_1;
-    let _e75 = textureSample(surface_texture_tex, surface_texture_smp, _e74);
-    surface = _e75;
-    let _e77 = surface[3u];
-    if (_e77 <= 0f) {
+    let _e82 = v_uv_1;
+    let _e83 = textureSample(surface_texture_tex, surface_texture_smp, _e82);
+    surface = _e83;
+    let _e85 = surface[3u];
+    if (_e85 <= 0f) {
         frag_color = vec4<f32>(1f, 1f, 1f, 1f);
         return;
     }
-    let _e79 = surface;
-    param_1 = _e79.xy;
-    let _e81 = DecodeOctahedral_u0028_vf2_u003b((&param_1));
-    normal = _e81;
-    let _e83 = contact_info.to_light;
-    toLight = normalize(_e83.xyz);
-    let _e86 = normal;
-    let _e87 = toLight;
-    if (dot(_e86, _e87) <= 0f) {
+    let _e87 = surface;
+    param_3 = _e87.xy;
+    let _e89 = DecodeOctahedral_u0028_vf2_u003b((&param_3));
+    normal = _e89;
+    let _e91 = contact_info.to_light;
+    toLight = normalize(_e91.xyz);
+    let _e94 = normal;
+    let _e95 = toLight;
+    if (dot(_e94, _e95) <= 0f) {
         frag_color = vec4<f32>(1f, 1f, 1f, 1f);
         return;
     }
-    let _e92 = contact_info.params[0u];
-    reach = max(_e92, 0.0001f);
-    let _e96 = contact_info.params[1u];
-    steps = clamp(i32((_e96 + 0.5f)), 1i, 16i);
-    let _e102 = contact_info.params[2u];
-    thickness = max(_e102, 0.0001f);
-    let _e104 = v_uv_1;
-    param_2 = _e104;
-    let _e106 = surface[3u];
-    param_3 = _e106;
-    let _e107 = WorldAtDepth_u0028_vf2_u003b_f1_u003b((&param_2), (&param_3));
-    let _e108 = normal;
-    let _e111 = contact_info.params[3u];
-    origin_1 = (_e107 + (_e108 * _e111));
-    let _e114 = reach;
-    let _e115 = steps;
-    stride = (_e114 / f32(_e115));
-    let _e118 = TargetFragCoord_u0028_();
-    param_4 = _e118;
-    let _e119 = BayerCell_u0028_vf2_u003b((&param_4));
-    jitter = _e119;
-    let _e120 = origin_1;
-    let _e121 = toLight;
-    let _e122 = stride;
-    param_5 = (_e120 + (_e121 * _e122));
-    let _e125 = DepthOf_u0028_vf3_u003b((&param_5));
-    let _e126 = origin_1;
+    let _e100 = contact_info.params[0u];
+    reach = max(_e100, 0.0001f);
+    let _e104 = contact_info.params[1u];
+    steps = clamp(i32((_e104 + 0.5f)), 1i, 16i);
+    let _e110 = contact_info.params[2u];
+    thickness = max(_e110, 0.0001f);
+    let _e112 = v_uv_1;
+    param_4 = _e112;
+    let _e114 = surface[3u];
+    param_5 = _e114;
+    let _e115 = WorldAtDepth_u0028_vf2_u003b_f1_u003b((&param_4), (&param_5));
+    let _e116 = normal;
+    let _e119 = contact_info.params[3u];
+    origin_1 = (_e115 + (_e116 * _e119));
+    let _e122 = reach;
+    let _e123 = steps;
+    stride = (_e122 / f32(_e123));
+    let _e126 = TargetFragCoord_u0028_();
     param_6 = _e126;
-    let _e127 = DepthOf_u0028_vf3_u003b((&param_6));
-    stepDepth = abs((_e125 - _e127));
-    let _e130 = thickness;
-    let _e131 = stepDepth;
-    tolerance = max(_e130, (2f * _e131));
+    let _e127 = PixelNoise_u0028_vf2_u003b((&param_6));
+    jitter = _e127;
+    let _e128 = origin_1;
+    let _e129 = toLight;
+    let _e130 = stride;
+    param_7 = (_e128 + (_e129 * _e130));
+    let _e133 = DepthOf_u0028_vf3_u003b((&param_7));
+    let _e134 = origin_1;
+    param_8 = _e134;
+    let _e135 = DepthOf_u0028_vf3_u003b((&param_8));
+    stepDepth = abs((_e133 - _e135));
+    let _e138 = thickness;
+    let _e139 = stepDepth;
+    tolerance = max(_e138, (2f * _e139));
     i = 0i;
     loop {
-        let _e134 = i;
-        if (_e134 < 16i) {
-            let _e136 = i;
-            let _e137 = steps;
-            if (_e136 >= _e137) {
+        let _e142 = i;
+        if (_e142 < 16i) {
+            let _e144 = i;
+            let _e145 = steps;
+            if (_e144 >= _e145) {
                 break;
             }
-            let _e139 = i;
-            let _e142 = jitter;
-            along_1 = ((f32(_e139) + 1f) - _e142);
-            let _e144 = origin_1;
-            let _e145 = toLight;
-            let _e146 = stride;
-            let _e147 = along_1;
-            at_2 = (_e144 + (_e145 * (_e146 * _e147)));
-            let _e152 = contact_info.view_projection;
-            let _e153 = at_2;
-            clip = (_e152 * vec4<f32>(_e153.x, _e153.y, _e153.z, 1f));
-            let _e160 = clip[3u];
-            if (_e160 <= 0f) {
+            let _e147 = i;
+            let _e150 = jitter;
+            along_1 = ((f32(_e147) + 1f) - _e150);
+            let _e152 = origin_1;
+            let _e153 = toLight;
+            let _e154 = stride;
+            let _e155 = along_1;
+            at_4 = (_e152 + (_e153 * (_e154 * _e155)));
+            let _e160 = contact_info.view_projection;
+            let _e161 = at_4;
+            clip = (_e160 * vec4<f32>(_e161.x, _e161.y, _e161.z, 1f));
+            let _e168 = clip[3u];
+            if (_e168 <= 0f) {
                 break;
             }
-            let _e162 = clip;
-            let _e165 = clip[3u];
-            param_7 = (_e162.xy / vec2(_e165));
-            let _e168 = UvFromNdc_u0028_vf2_u003b((&param_7));
-            uv_1 = _e168;
-            let _e170 = uv_1[0u];
-            let _e171 = (_e170 < 0f);
-            phi_516_ = _e171;
-            if !(_e171) {
-                let _e174 = uv_1[0u];
-                phi_516_ = (_e174 > 1f);
+            let _e170 = clip;
+            let _e173 = clip[3u];
+            param_9 = (_e170.xy / vec2(_e173));
+            let _e176 = UvFromNdc_u0028_vf2_u003b((&param_9));
+            uv_2 = _e176;
+            let _e178 = uv_2[0u];
+            let _e179 = (_e178 < 0f);
+            phi_580_ = _e179;
+            if !(_e179) {
+                let _e182 = uv_2[0u];
+                phi_580_ = (_e182 > 1f);
             }
-            let _e177 = phi_516_;
-            phi_523_ = _e177;
-            if !(_e177) {
-                let _e180 = uv_1[1u];
-                phi_523_ = (_e180 < 0f);
+            let _e185 = phi_580_;
+            phi_587_ = _e185;
+            if !(_e185) {
+                let _e188 = uv_2[1u];
+                phi_587_ = (_e188 < 0f);
             }
-            let _e183 = phi_523_;
-            phi_530_ = _e183;
-            if !(_e183) {
-                let _e186 = uv_1[1u];
-                phi_530_ = (_e186 > 1f);
+            let _e191 = phi_587_;
+            phi_594_ = _e191;
+            if !(_e191) {
+                let _e194 = uv_2[1u];
+                phi_594_ = (_e194 > 1f);
             }
-            let _e189 = phi_530_;
-            if _e189 {
+            let _e197 = phi_594_;
+            if _e197 {
                 break;
             }
-            let _e190 = uv_1;
-            let _e191 = textureSampleLevel(surface_texture_tex, surface_texture_smp, _e190, 0f);
-            there = _e191;
-            let _e193 = there[3u];
-            if (_e193 <= 0f) {
+            let _e198 = uv_2;
+            let _e199 = textureSampleLevel(surface_texture_tex, surface_texture_smp, _e198, 0f);
+            there = _e199;
+            let _e201 = there[3u];
+            if (_e201 <= 0f) {
                 continue;
             }
-            let _e195 = at_2;
-            param_8 = _e195;
-            let _e196 = DepthOf_u0028_vf3_u003b((&param_8));
-            marched = _e196;
-            let _e197 = marched;
-            let _e199 = there[3u];
-            gap = (_e197 - _e199);
-            let _e201 = gap;
-            let _e203 = gap;
-            let _e204 = tolerance;
-            if ((_e201 > 0f) && (_e203 < _e204)) {
-                let _e207 = along_1;
-                let _e210 = steps;
-                frag_color = vec4((max((_e207 - 1f), 0f) / f32(_e210)));
+            let _e203 = at_4;
+            param_10 = _e203;
+            let _e204 = DepthOf_u0028_vf3_u003b((&param_10));
+            marched = _e204;
+            let _e205 = marched;
+            let _e207 = there[3u];
+            gap = (_e205 - _e207);
+            let _e209 = gap;
+            let _e211 = gap;
+            let _e212 = tolerance;
+            if ((_e209 > 0f) && (_e211 < _e212)) {
+                let _e215 = along_1;
+                let _e218 = steps;
+                frag_color = vec4((max((_e215 - 1f), 0f) / f32(_e218)));
                 return;
             }
             continue;
@@ -17624,8 +17809,8 @@ fn main_1() {
             break;
         }
         continuing {
-            let _e214 = i;
-            i = (_e214 + 1i);
+            let _e222 = i;
+            i = (_e222 + 1i);
         }
     }
     frag_color = vec4<f32>(1f, 1f, 1f, 1f);
@@ -17694,13 +17879,29 @@ fn main(@builtin(position) gl_FragCoord: vec4<f32>, @location(5) v_uv: vec2<f32>
             ),
           ],
         ),
+        WebGpuBlock(
+          name: 'NoiseInfo',
+          group: 1,
+          binding: 2,
+          sizeInBytes: 16,
+          members: <WebGpuBlockMember>[
+            WebGpuBlockMember(name: 'noise', offsetInBytes: 0, sizeInBytes: 16),
+          ],
+        ),
       ],
       samplers: <WebGpuSampler>[
         WebGpuSampler(
+          name: 'blue_noise_texture',
+          group: 1,
+          textureBinding: 3,
+          samplerBinding: 4,
+          dimension: WebGpuTextureDimension.twoDimensional,
+        ),
+        WebGpuSampler(
           name: 'surface_texture',
           group: 1,
-          textureBinding: 2,
-          samplerBinding: 3,
+          textureBinding: 5,
+          samplerBinding: 6,
           dimension: WebGpuTextureDimension.twoDimensional,
         ),
       ],
@@ -18535,10 +18736,194 @@ fn main(@location(5) v_uv: vec2<f32>) -> @location(0) vec4<f32> {
         ),
       ],
     ),
+    'TemporalAccumulate': WebGpuStage(
+      wgsl: r'''
+struct AccumulateInfo {
+    params: vec4<f32>,
+}
+
+@group(1) @binding(1) 
+var current_texture_tex: texture_2d<f32>;
+@group(1) @binding(2) 
+var current_texture_smp: sampler;
+var<private> v_uv_1: vec2<f32>;
+@group(1) @binding(5) 
+var velocity_texture_tex: texture_2d<f32>;
+@group(1) @binding(6) 
+var velocity_texture_smp: sampler;
+@group(1) @binding(0) 
+var<uniform> accumulate_info: AccumulateInfo;
+var<private> frag_color: vec4<f32>;
+@group(1) @binding(3) 
+var history_texture_tex: texture_2d<f32>;
+@group(1) @binding(4) 
+var history_texture_smp: sampler;
+
+fn main_1() {
+    var now: vec4<f32>;
+    var then: vec2<f32>;
+    var texel: vec2<f32>;
+    var lowest: vec4<f32>;
+    var highest: vec4<f32>;
+    var dy: i32;
+    var dx: i32;
+    var around: vec4<f32>;
+    var past: vec4<f32>;
+    var phi_59_: bool;
+    var phi_67_: bool;
+    var phi_74_: bool;
+    var phi_81_: bool;
+
+    let _e26 = v_uv_1;
+    let _e27 = textureSample(current_texture_tex, current_texture_smp, _e26);
+    now = _e27;
+    let _e28 = v_uv_1;
+    let _e29 = v_uv_1;
+    let _e30 = textureSample(velocity_texture_tex, velocity_texture_smp, _e29);
+    then = (_e28 - _e30.xy);
+    let _e35 = accumulate_info.params[1u];
+    let _e36 = (_e35 < 0.5f);
+    phi_59_ = _e36;
+    if !(_e36) {
+        let _e39 = then[0u];
+        phi_59_ = (_e39 < 0f);
+    }
+    let _e42 = phi_59_;
+    phi_67_ = _e42;
+    if !(_e42) {
+        let _e45 = then[0u];
+        phi_67_ = (_e45 > 1f);
+    }
+    let _e48 = phi_67_;
+    phi_74_ = _e48;
+    if !(_e48) {
+        let _e51 = then[1u];
+        phi_74_ = (_e51 < 0f);
+    }
+    let _e54 = phi_74_;
+    phi_81_ = _e54;
+    if !(_e54) {
+        let _e57 = then[1u];
+        phi_81_ = (_e57 > 1f);
+    }
+    let _e60 = phi_81_;
+    if _e60 {
+        let _e61 = now;
+        frag_color = _e61;
+        return;
+    }
+    let _e63 = accumulate_info.params;
+    texel = _e63.zw;
+    let _e65 = now;
+    lowest = _e65;
+    let _e66 = now;
+    highest = _e66;
+    dy = -1i;
+    loop {
+        let _e67 = dy;
+        if (_e67 <= 1i) {
+            dx = -1i;
+            loop {
+                let _e69 = dx;
+                if (_e69 <= 1i) {
+                    let _e71 = v_uv_1;
+                    let _e72 = dx;
+                    let _e74 = dy;
+                    let _e77 = texel;
+                    let _e80 = textureSample(current_texture_tex, current_texture_smp, (_e71 + (vec2<f32>(f32(_e72), f32(_e74)) * _e77)));
+                    around = _e80;
+                    let _e81 = lowest;
+                    let _e82 = around;
+                    lowest = min(_e81, _e82);
+                    let _e84 = highest;
+                    let _e85 = around;
+                    highest = max(_e84, _e85);
+                    continue;
+                } else {
+                    break;
+                }
+                continuing {
+                    let _e87 = dx;
+                    dx = (_e87 + 1i);
+                }
+            }
+            continue;
+        } else {
+            break;
+        }
+        continuing {
+            let _e89 = dy;
+            dy = (_e89 + 1i);
+        }
+    }
+    let _e91 = then;
+    let _e92 = textureSample(history_texture_tex, history_texture_smp, _e91);
+    let _e93 = lowest;
+    let _e94 = highest;
+    past = clamp(_e92, _e93, _e94);
+    let _e96 = now;
+    let _e97 = past;
+    let _e100 = accumulate_info.params[0u];
+    frag_color = mix(_e96, _e97, vec4(_e100));
+    return;
+}
+
+@fragment 
+fn main(@location(5) v_uv: vec2<f32>) -> @location(0) vec4<f32> {
+    v_uv_1 = v_uv;
+    main_1();
+    let _e3 = frag_color;
+    return _e3;
+}
+''',
+      attributes: <WebGpuAttribute>[],
+      blocks: <WebGpuBlock>[
+        WebGpuBlock(
+          name: 'AccumulateInfo',
+          group: 1,
+          binding: 0,
+          sizeInBytes: 16,
+          members: <WebGpuBlockMember>[
+            WebGpuBlockMember(
+              name: 'params',
+              offsetInBytes: 0,
+              sizeInBytes: 16,
+            ),
+          ],
+        ),
+      ],
+      samplers: <WebGpuSampler>[
+        WebGpuSampler(
+          name: 'current_texture',
+          group: 1,
+          textureBinding: 1,
+          samplerBinding: 2,
+          dimension: WebGpuTextureDimension.twoDimensional,
+        ),
+        WebGpuSampler(
+          name: 'history_texture',
+          group: 1,
+          textureBinding: 3,
+          samplerBinding: 4,
+          dimension: WebGpuTextureDimension.twoDimensional,
+        ),
+        WebGpuSampler(
+          name: 'velocity_texture',
+          group: 1,
+          textureBinding: 5,
+          samplerBinding: 6,
+          dimension: WebGpuTextureDimension.twoDimensional,
+        ),
+      ],
+    ),
     'LightShafts': WebGpuStage(
       wgsl: r'''
 struct FragCoordInfo {
     origin: vec4<f32>,
+}
+
+struct NoiseInfo {
+    noise: vec4<f32>,
 }
 
 struct ShaftInfo {
@@ -18558,37 +18943,43 @@ var<private> gl_FragCoord_1: vec4<f32>;
 @group(1) @binding(0) 
 var<uniform> frag_coord_info: FragCoordInfo;
 @group(1) @binding(1) 
-var<uniform> shaft_info: ShaftInfo;
-@group(1) @binding(4) 
-var shadow_texture_tex: texture_2d<f32>;
-@group(1) @binding(5) 
-var shadow_texture_smp: sampler;
-@group(1) @binding(2) 
-var scene_texture_tex: texture_2d<f32>;
+var<uniform> noise_info: NoiseInfo;
 @group(1) @binding(3) 
+var blue_noise_texture_tex: texture_2d<f32>;
+@group(1) @binding(4) 
+var blue_noise_texture_smp: sampler;
+@group(1) @binding(2) 
+var<uniform> shaft_info: ShaftInfo;
+@group(1) @binding(7) 
+var shadow_texture_tex: texture_2d<f32>;
+@group(1) @binding(8) 
+var shadow_texture_smp: sampler;
+@group(1) @binding(5) 
+var scene_texture_tex: texture_2d<f32>;
+@group(1) @binding(6) 
 var scene_texture_smp: sampler;
 var<private> v_uv_1: vec2<f32>;
 var<private> frag_color: vec4<f32>;
-@group(1) @binding(6) 
+@group(1) @binding(9) 
 var surface_texture_tex: texture_2d<f32>;
-@group(1) @binding(7) 
+@group(1) @binding(10) 
 var surface_texture_smp: sampler;
 
 fn HenyeyGreenstein_u0028_f1_u003b_f1_u003b(cosine: ptr<function, f32>, g: ptr<function, f32>) -> f32 {
     var g2_: f32;
     var denominator: f32;
 
-    let _e56 = (*g);
-    let _e57 = (*g);
-    g2_ = (_e56 * _e57);
-    let _e59 = g2_;
-    let _e61 = (*g);
-    let _e63 = (*cosine);
-    denominator = max(((1f + _e59) - ((2f * _e61) * _e63)), 0.0001f);
+    let _e64 = (*g);
+    let _e65 = (*g);
+    g2_ = (_e64 * _e65);
     let _e67 = g2_;
-    let _e69 = denominator;
-    let _e71 = denominator;
-    return ((1f - _e67) / ((12.566371f * _e69) * sqrt(_e71)));
+    let _e69 = (*g);
+    let _e71 = (*cosine);
+    denominator = max(((1f + _e67) - ((2f * _e69) * _e71)), 0.0001f);
+    let _e75 = g2_;
+    let _e77 = denominator;
+    let _e79 = denominator;
+    return ((1f - _e75) / ((12.566371f * _e77) * sqrt(_e79)));
 }
 
 fn LitAt_u0028_vf3_u003b_f1_u003b(world: ptr<function, vec3<f32>>, viewDistance: ptr<function, f32>) -> f32 {
@@ -18607,150 +18998,150 @@ fn LitAt_u0028_vf3_u003b_f1_u003b(world: ptr<function, vec3<f32>>, viewDistance:
     var bias: f32;
     var local_2: f32;
     var local_3: f32;
-    var phi_243_: bool;
-    var phi_254_: bool;
-    var phi_340_: bool;
-    var phi_347_: bool;
-    var phi_354_: bool;
+    var phi_312_: bool;
+    var phi_323_: bool;
+    var phi_409_: bool;
+    var phi_416_: bool;
+    var phi_423_: bool;
 
-    let _e71 = shaft_info.cascades[2u];
-    cascadeCount = i32((_e71 + 0.5f));
+    let _e79 = shaft_info.cascades[2u];
+    cascadeCount = i32((_e79 + 0.5f));
     cascade = 0i;
-    let _e74 = cascadeCount;
-    let _e75 = (_e74 > 1i);
-    phi_243_ = _e75;
-    if _e75 {
-        let _e76 = (*viewDistance);
-        let _e79 = shaft_info.cascades[0u];
-        phi_243_ = (_e76 > _e79);
+    let _e82 = cascadeCount;
+    let _e83 = (_e82 > 1i);
+    phi_312_ = _e83;
+    if _e83 {
+        let _e84 = (*viewDistance);
+        let _e87 = shaft_info.cascades[0u];
+        phi_312_ = (_e84 > _e87);
     }
-    let _e82 = phi_243_;
-    if _e82 {
+    let _e90 = phi_312_;
+    if _e90 {
         cascade = 1i;
     }
-    let _e83 = cascadeCount;
-    let _e84 = (_e83 > 2i);
-    phi_254_ = _e84;
-    if _e84 {
-        let _e85 = (*viewDistance);
-        let _e88 = shaft_info.cascades[1u];
-        phi_254_ = (_e85 > _e88);
+    let _e91 = cascadeCount;
+    let _e92 = (_e91 > 2i);
+    phi_323_ = _e92;
+    if _e92 {
+        let _e93 = (*viewDistance);
+        let _e96 = shaft_info.cascades[1u];
+        phi_323_ = (_e93 > _e96);
     }
-    let _e91 = phi_254_;
-    if _e91 {
+    let _e99 = phi_323_;
+    if _e99 {
         cascade = 2i;
     }
     attempt = 0i;
     loop {
-        let _e92 = attempt;
-        if (_e92 < 3i) {
-            let _e94 = cascade;
-            let _e95 = attempt;
-            which = (_e94 + _e95);
-            let _e97 = which;
-            let _e98 = cascadeCount;
-            if (_e97 >= _e98) {
+        let _e100 = attempt;
+        if (_e100 < 3i) {
+            let _e102 = cascade;
+            let _e103 = attempt;
+            which = (_e102 + _e103);
+            let _e105 = which;
+            let _e106 = cascadeCount;
+            if (_e105 >= _e106) {
                 break;
             }
-            let _e100 = which;
-            if (_e100 == 0i) {
-                let _e103 = shaft_info.shadow_matrix;
-                local = _e103;
+            let _e108 = which;
+            if (_e108 == 0i) {
+                let _e111 = shaft_info.shadow_matrix;
+                local = _e111;
             } else {
-                let _e104 = which;
-                if (_e104 == 1i) {
-                    let _e107 = shaft_info.shadow_matrix_far;
-                    local_1 = _e107;
+                let _e112 = which;
+                if (_e112 == 1i) {
+                    let _e115 = shaft_info.shadow_matrix_far;
+                    local_1 = _e115;
                 } else {
-                    let _e109 = shaft_info.shadow_matrix_farthest;
-                    local_1 = _e109;
+                    let _e117 = shaft_info.shadow_matrix_farthest;
+                    local_1 = _e117;
                 }
-                let _e110 = local_1;
-                local = _e110;
+                let _e118 = local_1;
+                local = _e118;
             }
-            let _e111 = local;
-            matrix = _e111;
-            let _e112 = matrix;
-            let _e113 = (*world);
-            lightSpace = (_e112 * vec4<f32>(_e113.x, _e113.y, _e113.z, 1f));
-            let _e120 = lightSpace[3u];
-            if (_e120 <= 0f) {
+            let _e119 = local;
+            matrix = _e119;
+            let _e120 = matrix;
+            let _e121 = (*world);
+            lightSpace = (_e120 * vec4<f32>(_e121.x, _e121.y, _e121.z, 1f));
+            let _e128 = lightSpace[3u];
+            if (_e128 <= 0f) {
                 continue;
             }
-            let _e122 = lightSpace;
-            let _e125 = lightSpace[3u];
-            candidate = (_e122.xyz / vec3(_e125));
-            let _e129 = candidate[0u];
-            let _e133 = candidate[1u];
-            inTile = vec2<f32>(((_e129 * 0.5f) + 0.5f), (0.5f - (_e133 * 0.5f)));
-            let _e138 = inTile[0u];
-            let _e139 = (_e138 < 0f);
-            phi_340_ = _e139;
-            if !(_e139) {
-                let _e142 = inTile[0u];
-                phi_340_ = (_e142 > 1f);
+            let _e130 = lightSpace;
+            let _e133 = lightSpace[3u];
+            candidate = (_e130.xyz / vec3(_e133));
+            let _e137 = candidate[0u];
+            let _e141 = candidate[1u];
+            inTile = vec2<f32>(((_e137 * 0.5f) + 0.5f), (0.5f - (_e141 * 0.5f)));
+            let _e146 = inTile[0u];
+            let _e147 = (_e146 < 0f);
+            phi_409_ = _e147;
+            if !(_e147) {
+                let _e150 = inTile[0u];
+                phi_409_ = (_e150 > 1f);
             }
-            let _e145 = phi_340_;
-            phi_347_ = _e145;
-            if !(_e145) {
-                let _e148 = inTile[1u];
-                phi_347_ = (_e148 < 0f);
+            let _e153 = phi_409_;
+            phi_416_ = _e153;
+            if !(_e153) {
+                let _e156 = inTile[1u];
+                phi_416_ = (_e156 < 0f);
             }
-            let _e151 = phi_347_;
-            phi_354_ = _e151;
-            if !(_e151) {
-                let _e154 = inTile[1u];
-                phi_354_ = (_e154 > 1f);
+            let _e159 = phi_416_;
+            phi_423_ = _e159;
+            if !(_e159) {
+                let _e162 = inTile[1u];
+                phi_423_ = (_e162 > 1f);
             }
-            let _e157 = phi_354_;
-            if _e157 {
+            let _e165 = phi_423_;
+            if _e165 {
                 continue;
             }
-            let _e159 = candidate[2u];
-            if (_e159 > 1f) {
-                let _e161 = which;
-                let _e162 = cascadeCount;
-                if (_e161 < (_e162 - 1i)) {
+            let _e167 = candidate[2u];
+            if (_e167 > 1f) {
+                let _e169 = which;
+                let _e170 = cascadeCount;
+                if (_e169 < (_e170 - 1i)) {
                     continue;
                 }
                 candidate[2u] = 1f;
             }
-            let _e167 = inTile[0u];
-            let _e168 = which;
-            let _e171 = cascadeCount;
-            let _e175 = inTile[1u];
-            uv = vec2<f32>(((_e167 + f32(_e168)) / f32(_e171)), _e175);
-            let _e177 = uv;
-            let _e178 = textureSampleLevel(shadow_texture_tex, shadow_texture_smp, _e177, 0f);
-            stored = _e178.x;
-            let _e180 = which;
-            if (_e180 == 0i) {
-                let _e184 = shaft_info.bias[0u];
-                local_2 = _e184;
+            let _e175 = inTile[0u];
+            let _e176 = which;
+            let _e179 = cascadeCount;
+            let _e183 = inTile[1u];
+            uv = vec2<f32>(((_e175 + f32(_e176)) / f32(_e179)), _e183);
+            let _e185 = uv;
+            let _e186 = textureSampleLevel(shadow_texture_tex, shadow_texture_smp, _e185, 0f);
+            stored = _e186.x;
+            let _e188 = which;
+            if (_e188 == 0i) {
+                let _e192 = shaft_info.bias[0u];
+                local_2 = _e192;
             } else {
-                let _e185 = which;
-                if (_e185 == 1i) {
-                    let _e189 = shaft_info.bias[1u];
-                    local_3 = _e189;
+                let _e193 = which;
+                if (_e193 == 1i) {
+                    let _e197 = shaft_info.bias[1u];
+                    local_3 = _e197;
                 } else {
-                    let _e192 = shaft_info.bias[2u];
-                    local_3 = _e192;
+                    let _e200 = shaft_info.bias[2u];
+                    local_3 = _e200;
                 }
-                let _e193 = local_3;
-                local_2 = _e193;
+                let _e201 = local_3;
+                local_2 = _e201;
             }
-            let _e194 = local_2;
-            bias = _e194;
-            let _e196 = candidate[2u];
-            let _e197 = bias;
-            let _e199 = stored;
-            return select(1f, 0f, ((_e196 - _e197) > _e199));
+            let _e202 = local_2;
+            bias = _e202;
+            let _e204 = candidate[2u];
+            let _e205 = bias;
+            let _e207 = stored;
+            return select(1f, 0f, ((_e204 - _e205) > _e207));
         } else {
             break;
         }
         continuing {
-            let _e202 = attempt;
-            attempt = (_e202 + 1i);
+            let _e210 = attempt;
+            attempt = (_e210 + 1i);
         }
     }
     return 1f;
@@ -18762,72 +19153,72 @@ fn BayerCell_u0028_vf2_u003b(at: ptr<function, vec2<f32>>) -> f32 {
     var index: i32;
     var value: f32;
 
-    let _e58 = (*at)[0u];
-    x = i32((_e58 - (floor((_e58 / 4f)) * 4f)));
-    let _e65 = (*at)[1u];
-    y = i32((_e65 - (floor((_e65 / 4f)) * 4f)));
-    let _e71 = y;
-    let _e73 = x;
-    index = ((_e71 * 4i) + _e73);
+    let _e66 = (*at)[0u];
+    x = i32((_e66 - (floor((_e66 / 4f)) * 4f)));
+    let _e73 = (*at)[1u];
+    y = i32((_e73 - (floor((_e73 / 4f)) * 4f)));
+    let _e79 = y;
+    let _e81 = x;
+    index = ((_e79 * 4i) + _e81);
     value = 0f;
-    let _e75 = index;
-    if (_e75 == 0i) {
+    let _e83 = index;
+    if (_e83 == 0i) {
         value = 0f;
     } else {
-        let _e77 = index;
-        if (_e77 == 1i) {
+        let _e85 = index;
+        if (_e85 == 1i) {
             value = 8f;
         } else {
-            let _e79 = index;
-            if (_e79 == 2i) {
+            let _e87 = index;
+            if (_e87 == 2i) {
                 value = 2f;
             } else {
-                let _e81 = index;
-                if (_e81 == 3i) {
+                let _e89 = index;
+                if (_e89 == 3i) {
                     value = 10f;
                 } else {
-                    let _e83 = index;
-                    if (_e83 == 4i) {
+                    let _e91 = index;
+                    if (_e91 == 4i) {
                         value = 12f;
                     } else {
-                        let _e85 = index;
-                        if (_e85 == 5i) {
+                        let _e93 = index;
+                        if (_e93 == 5i) {
                             value = 4f;
                         } else {
-                            let _e87 = index;
-                            if (_e87 == 6i) {
+                            let _e95 = index;
+                            if (_e95 == 6i) {
                                 value = 14f;
                             } else {
-                                let _e89 = index;
-                                if (_e89 == 7i) {
+                                let _e97 = index;
+                                if (_e97 == 7i) {
                                     value = 6f;
                                 } else {
-                                    let _e91 = index;
-                                    if (_e91 == 8i) {
+                                    let _e99 = index;
+                                    if (_e99 == 8i) {
                                         value = 3f;
                                     } else {
-                                        let _e93 = index;
-                                        if (_e93 == 9i) {
+                                        let _e101 = index;
+                                        if (_e101 == 9i) {
                                             value = 11f;
                                         } else {
-                                            let _e95 = index;
-                                            if (_e95 == 10i) {
+                                            let _e103 = index;
+                                            if (_e103 == 10i) {
                                                 value = 1f;
                                             } else {
-                                                let _e97 = index;
-                                                if (_e97 == 11i) {
+                                                let _e105 = index;
+                                                if (_e105 == 11i) {
                                                     value = 9f;
                                                 } else {
-                                                    let _e99 = index;
-                                                    if (_e99 == 12i) {
+                                                    let _e107 = index;
+                                                    if (_e107 == 12i) {
                                                         value = 15f;
                                                     } else {
-                                                        let _e101 = index;
-                                                        if (_e101 == 13i) {
+                                                        let _e109 = index;
+                                                        if (_e109 == 13i) {
                                                             value = 7f;
                                                         } else {
-                                                            let _e103 = index;
-                                                            if (_e103 == 14i) {
+                                                            let _e111 = index;
+                                                            if (_e111 == 14i) {
                                                                 value = 13f;
                                                             } else {
                                                                 value = 5f;
@@ -18846,34 +19237,78 @@ fn BayerCell_u0028_vf2_u003b(at: ptr<function, vec2<f32>>) -> f32 {
             }
         }
     }
-    let _e105 = value;
-    return (_e105 / 16f);
+    let _e113 = value;
+    return (_e113 / 16f);
+}
+
+fn BlueNoise_u0028_vf2_u003b(at_1: ptr<function, vec2<f32>>) -> f32 {
+    var slice: f32;
+    var cell: vec2<f32>;
+    var corner: vec2<f32>;
+    var uv_1: vec2<f32>;
+
+    let _e67 = noise_info.noise[1u];
+    slice = _e67;
+    let _e68 = (*at_1);
+    let _e69 = floor(_e68);
+    let _e70 = vec2(64f);
+    cell = (_e69 - (floor((_e69 / _e70)) * _e70));
+    let _e75 = slice;
+    let _e80 = slice;
+    corner = (vec2<f32>((_e75 - (floor((_e75 / 8f)) * 8f)), floor((_e80 / 8f))) * 64f);
+    let _e85 = corner;
+    let _e86 = cell;
+    uv_1 = (((_e85 + _e86) + vec2(0.5f)) / vec2<f32>(512f, 256f));
+    let _e91 = uv_1;
+    let _e92 = textureSampleLevel(blue_noise_texture_tex, blue_noise_texture_smp, _e91, 0f);
+    return (_e92.x * 0.99609375f);
+}
+
+fn PixelNoise_u0028_vf2_u003b(at_2: ptr<function, vec2<f32>>) -> f32 {
+    var local_4: f32;
+    var param: vec2<f32>;
+    var param_1: vec2<f32>;
+
+    let _e66 = noise_info.noise[0u];
+    if (_e66 > 0.5f) {
+        let _e68 = (*at_2);
+        param = _e68;
+        let _e69 = BlueNoise_u0028_vf2_u003b((&param));
+        local_4 = _e69;
+    } else {
+        let _e70 = (*at_2);
+        param_1 = _e70;
+        let _e71 = BayerCell_u0028_vf2_u003b((&param_1));
+        local_4 = _e71;
+    }
+    let _e72 = local_4;
+    return _e72;
 }
 
 fn FragCoordFromTop_u0028_f1_u003b(rows: ptr<function, f32>) -> vec2<f32> {
-    var local_4: vec2<f32>;
+    var local_5: vec2<f32>;
 
-    let _e54 = (*rows);
-    if (_e54 > 0f) {
-        let _e57 = gl_FragCoord_1[0u];
-        let _e58 = (*rows);
-        let _e60 = gl_FragCoord_1[1u];
-        local_4 = vec2<f32>(_e57, (_e58 - _e60));
+    let _e62 = (*rows);
+    if (_e62 > 0f) {
+        let _e65 = gl_FragCoord_1[0u];
+        let _e66 = (*rows);
+        let _e68 = gl_FragCoord_1[1u];
+        local_5 = vec2<f32>(_e65, (_e66 - _e68));
     } else {
-        let _e63 = gl_FragCoord_1;
-        local_4 = _e63.xy;
+        let _e71 = gl_FragCoord_1;
+        local_5 = _e71.xy;
     }
-    let _e65 = local_4;
-    return _e65;
+    let _e73 = local_5;
+    return _e73;
 }
 
 fn TargetFragCoord_u0028_() -> vec2<f32> {
-    var param: f32;
+    var param_2: f32;
 
-    let _e55 = frag_coord_info.origin[0u];
-    param = _e55;
-    let _e56 = FragCoordFromTop_u0028_f1_u003b((&param));
-    return _e56;
+    let _e63 = frag_coord_info.origin[0u];
+    param_2 = _e63;
+    let _e64 = FragCoordFromTop_u0028_f1_u003b((&param_2));
+    return _e64;
 }
 
 fn main_1() {
@@ -18887,11 +19322,11 @@ fn main_1() {
     var surfaceDepth: f32;
     var cosine_1: f32;
     var toSurface: f32;
-    var local_5: f32;
+    var local_6: f32;
     var distance_: f32;
     var stride: f32;
     var offset: f32;
-    var param_1: vec2<f32>;
+    var param_3: vec2<f32>;
     var sigma: f32;
     var stepTransmittance: f32;
     var transmittance: f32;
@@ -18899,143 +19334,143 @@ fn main_1() {
     var inscatter: f32;
     var i: i32;
     var travelled: f32;
-    var at_1: vec3<f32>;
+    var at_3: vec3<f32>;
     var lit: f32;
-    var param_2: vec3<f32>;
-    var param_3: f32;
-    var phase: f32;
-    var param_4: f32;
+    var param_4: vec3<f32>;
     var param_5: f32;
+    var phase: f32;
+    var param_6: f32;
+    var param_7: f32;
     var shaft: vec3<f32>;
 
-    let _e82 = v_uv_1;
-    let _e83 = textureSample(scene_texture_tex, scene_texture_smp, _e82);
-    scene = _e83;
-    let _e86 = shaft_info.forward[3u];
-    steps = i32((_e86 + 0.5f));
-    let _e89 = steps;
-    if (_e89 < 1i) {
-        let _e91 = scene;
-        frag_color = _e91;
+    let _e90 = v_uv_1;
+    let _e91 = textureSample(scene_texture_tex, scene_texture_smp, _e90);
+    scene = _e91;
+    let _e94 = shaft_info.forward[3u];
+    steps = i32((_e94 + 0.5f));
+    let _e97 = steps;
+    if (_e97 < 1i) {
+        let _e99 = scene;
+        frag_color = _e99;
         return;
     }
-    let _e93 = v_uv_1[0u];
-    let _e97 = v_uv_1[1u];
-    xy = vec2<f32>(((_e93 * 2f) - 1f), (1f - (_e97 * 2f)));
-    let _e102 = shaft_info.inverse_view_projection;
-    let _e103 = xy;
-    nearH = (_e102 * vec4<f32>(_e103.x, _e103.y, 0f, 1f));
-    let _e109 = shaft_info.inverse_view_projection;
-    let _e110 = xy;
-    farH = (_e109 * vec4<f32>(_e110.x, _e110.y, 1f, 1f));
-    let _e115 = nearH;
-    let _e118 = nearH[3u];
-    origin = (_e115.xyz / vec3(_e118));
-    let _e121 = farH;
-    let _e124 = farH[3u];
-    let _e127 = origin;
-    along = normalize(((_e121.xyz / vec3(_e124)) - _e127));
-    let _e130 = v_uv_1;
-    let _e131 = textureSample(surface_texture_tex, surface_texture_smp, _e130);
-    surfaceDepth = _e131.w;
-    let _e133 = along;
-    let _e135 = shaft_info.forward;
-    cosine_1 = max(dot(_e133, _e135.xyz), 0.0001f);
-    let _e139 = surfaceDepth;
-    if (_e139 > 0f) {
-        let _e141 = surfaceDepth;
-        let _e142 = cosine_1;
-        local_5 = (_e141 / _e142);
+    let _e101 = v_uv_1[0u];
+    let _e105 = v_uv_1[1u];
+    xy = vec2<f32>(((_e101 * 2f) - 1f), (1f - (_e105 * 2f)));
+    let _e110 = shaft_info.inverse_view_projection;
+    let _e111 = xy;
+    nearH = (_e110 * vec4<f32>(_e111.x, _e111.y, 0f, 1f));
+    let _e117 = shaft_info.inverse_view_projection;
+    let _e118 = xy;
+    farH = (_e117 * vec4<f32>(_e118.x, _e118.y, 1f, 1f));
+    let _e123 = nearH;
+    let _e126 = nearH[3u];
+    origin = (_e123.xyz / vec3(_e126));
+    let _e129 = farH;
+    let _e132 = farH[3u];
+    let _e135 = origin;
+    along = normalize(((_e129.xyz / vec3(_e132)) - _e135));
+    let _e138 = v_uv_1;
+    let _e139 = textureSample(surface_texture_tex, surface_texture_smp, _e138);
+    surfaceDepth = _e139.w;
+    let _e141 = along;
+    let _e143 = shaft_info.forward;
+    cosine_1 = max(dot(_e141, _e143.xyz), 0.0001f);
+    let _e147 = surfaceDepth;
+    if (_e147 > 0f) {
+        let _e149 = surfaceDepth;
+        let _e150 = cosine_1;
+        local_6 = (_e149 / _e150);
     } else {
-        local_5 = 1000000000f;
+        local_6 = 1000000000f;
     }
-    let _e144 = local_5;
-    toSurface = _e144;
-    let _e147 = shaft_info.camera[3u];
-    let _e148 = toSurface;
-    distance_ = min(_e147, _e148);
-    let _e150 = distance_;
-    if (_e150 <= 0f) {
-        let _e152 = scene;
-        frag_color = _e152;
+    let _e152 = local_6;
+    toSurface = _e152;
+    let _e155 = shaft_info.camera[3u];
+    let _e156 = toSurface;
+    distance_ = min(_e155, _e156);
+    let _e158 = distance_;
+    if (_e158 <= 0f) {
+        let _e160 = scene;
+        frag_color = _e160;
         return;
     }
-    let _e153 = distance_;
-    let _e154 = steps;
-    stride = (_e153 / f32(_e154));
-    let _e157 = TargetFragCoord_u0028_();
-    param_1 = _e157;
-    let _e158 = BayerCell_u0028_vf2_u003b((&param_1));
-    let _e159 = stride;
-    offset = (_e158 * _e159);
-    let _e163 = shaft_info.scatter[3u];
-    sigma = max(_e163, 0f);
-    let _e165 = sigma;
+    let _e161 = distance_;
+    let _e162 = steps;
+    stride = (_e161 / f32(_e162));
+    let _e165 = TargetFragCoord_u0028_();
+    param_3 = _e165;
+    let _e166 = PixelNoise_u0028_vf2_u003b((&param_3));
     let _e167 = stride;
-    stepTransmittance = exp((-(_e165) * _e167));
-    let _e170 = sigma;
-    let _e172 = offset;
-    transmittance = exp((-(_e170) * _e172));
-    let _e176 = shaft_info.camera;
-    eye = _e176.xyz;
+    offset = (_e166 * _e167);
+    let _e171 = shaft_info.scatter[3u];
+    sigma = max(_e171, 0f);
+    let _e173 = sigma;
+    let _e175 = stride;
+    stepTransmittance = exp((-(_e173) * _e175));
+    let _e178 = sigma;
+    let _e180 = offset;
+    transmittance = exp((-(_e178) * _e180));
+    let _e184 = shaft_info.camera;
+    eye = _e184.xyz;
     inscatter = 0f;
     i = 0i;
     loop {
-        let _e178 = i;
-        if (_e178 < 64i) {
-            let _e180 = i;
-            let _e181 = steps;
-            if (_e180 >= _e181) {
+        let _e186 = i;
+        if (_e186 < 64i) {
+            let _e188 = i;
+            let _e189 = steps;
+            if (_e188 >= _e189) {
                 break;
             }
-            let _e183 = offset;
-            let _e184 = i;
-            let _e186 = stride;
-            travelled = (_e183 + (f32(_e184) * _e186));
-            let _e189 = origin;
-            let _e190 = along;
-            let _e191 = travelled;
-            at_1 = (_e189 + (_e190 * _e191));
-            let _e194 = at_1;
-            let _e195 = eye;
-            let _e198 = at_1;
-            param_2 = _e198;
-            param_3 = length((_e194 - _e195));
-            let _e199 = LitAt_u0028_vf3_u003b_f1_u003b((&param_2), (&param_3));
-            lit = _e199;
-            let _e200 = transmittance;
-            let _e201 = stepTransmittance;
-            let _e204 = lit;
-            let _e206 = inscatter;
-            inscatter = (_e206 + ((_e200 * (1f - _e201)) * _e204));
-            let _e208 = stepTransmittance;
-            let _e209 = transmittance;
-            transmittance = (_e209 * _e208);
+            let _e191 = offset;
+            let _e192 = i;
+            let _e194 = stride;
+            travelled = (_e191 + (f32(_e192) * _e194));
+            let _e197 = origin;
+            let _e198 = along;
+            let _e199 = travelled;
+            at_3 = (_e197 + (_e198 * _e199));
+            let _e202 = at_3;
+            let _e203 = eye;
+            let _e206 = at_3;
+            param_4 = _e206;
+            param_5 = length((_e202 - _e203));
+            let _e207 = LitAt_u0028_vf3_u003b_f1_u003b((&param_4), (&param_5));
+            lit = _e207;
+            let _e208 = transmittance;
+            let _e209 = stepTransmittance;
+            let _e212 = lit;
+            let _e214 = inscatter;
+            inscatter = (_e214 + ((_e208 * (1f - _e209)) * _e212));
+            let _e216 = stepTransmittance;
+            let _e217 = transmittance;
+            transmittance = (_e217 * _e216);
             continue;
         } else {
             break;
         }
         continuing {
-            let _e211 = i;
-            i = (_e211 + 1i);
+            let _e219 = i;
+            i = (_e219 + 1i);
         }
     }
-    let _e213 = along;
-    let _e215 = shaft_info.sun;
-    param_4 = dot(_e213, _e215.xyz);
-    let _e220 = shaft_info.sun[3u];
-    param_5 = _e220;
-    let _e221 = HenyeyGreenstein_u0028_f1_u003b_f1_u003b((&param_4), (&param_5));
-    phase = _e221;
-    let _e223 = shaft_info.scatter;
-    let _e225 = phase;
-    let _e226 = inscatter;
-    shaft = (_e223.xyz * (_e225 * _e226));
-    let _e229 = scene;
-    let _e231 = shaft;
-    let _e232 = (_e229.xyz + _e231);
-    let _e234 = scene[3u];
-    frag_color = vec4<f32>(_e232.x, _e232.y, _e232.z, _e234);
+    let _e221 = along;
+    let _e223 = shaft_info.sun;
+    param_6 = dot(_e221, _e223.xyz);
+    let _e228 = shaft_info.sun[3u];
+    param_7 = _e228;
+    let _e229 = HenyeyGreenstein_u0028_f1_u003b_f1_u003b((&param_6), (&param_7));
+    phase = _e229;
+    let _e231 = shaft_info.scatter;
+    let _e233 = phase;
+    let _e234 = inscatter;
+    shaft = (_e231.xyz * (_e233 * _e234));
+    let _e237 = scene;
+    let _e239 = shaft;
+    let _e240 = (_e237.xyz + _e239);
+    let _e242 = scene[3u];
+    frag_color = vec4<f32>(_e240.x, _e240.y, _e240.z, _e242);
     return;
 }
 
@@ -19064,9 +19499,18 @@ fn main(@builtin(position) gl_FragCoord: vec4<f32>, @location(5) v_uv: vec2<f32>
           ],
         ),
         WebGpuBlock(
-          name: 'ShaftInfo',
+          name: 'NoiseInfo',
           group: 1,
           binding: 1,
+          sizeInBytes: 16,
+          members: <WebGpuBlockMember>[
+            WebGpuBlockMember(name: 'noise', offsetInBytes: 0, sizeInBytes: 16),
+          ],
+        ),
+        WebGpuBlock(
+          name: 'ShaftInfo',
+          group: 1,
+          binding: 2,
           sizeInBytes: 352,
           members: <WebGpuBlockMember>[
             WebGpuBlockMember(
@@ -19120,24 +19564,31 @@ fn main(@builtin(position) gl_FragCoord: vec4<f32>, @location(5) v_uv: vec2<f32>
       ],
       samplers: <WebGpuSampler>[
         WebGpuSampler(
+          name: 'blue_noise_texture',
+          group: 1,
+          textureBinding: 3,
+          samplerBinding: 4,
+          dimension: WebGpuTextureDimension.twoDimensional,
+        ),
+        WebGpuSampler(
           name: 'scene_texture',
           group: 1,
-          textureBinding: 2,
-          samplerBinding: 3,
+          textureBinding: 5,
+          samplerBinding: 6,
           dimension: WebGpuTextureDimension.twoDimensional,
         ),
         WebGpuSampler(
           name: 'shadow_texture',
           group: 1,
-          textureBinding: 4,
-          samplerBinding: 5,
+          textureBinding: 7,
+          samplerBinding: 8,
           dimension: WebGpuTextureDimension.twoDimensional,
         ),
         WebGpuSampler(
           name: 'surface_texture',
           group: 1,
-          textureBinding: 6,
-          samplerBinding: 7,
+          textureBinding: 9,
+          samplerBinding: 10,
           dimension: WebGpuTextureDimension.twoDimensional,
         ),
       ],

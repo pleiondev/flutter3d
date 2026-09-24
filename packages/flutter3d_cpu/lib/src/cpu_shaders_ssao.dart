@@ -11,6 +11,7 @@ import 'package:vector_math/vector_math.dart';
 
 import 'cpu_shader.dart';
 import 'cpu_shaders_color.dart';
+import 'cpu_shaders_reflections.dart' show blueNoise;
 
 /// The twelve kernel taps of `ssao.frag`, in the same order.
 ///
@@ -93,7 +94,12 @@ final class SsaoShader implements CpuFragmentShader {
     final oddX = px % 2 != 0;
     final oddY = py % 2 != 0;
     final double rotX, rotY;
-    if (oddX && oddY) {
+    // `R3`: an angle from the blue noise while a temporal resolve runs.
+    if (b.vec4('NoiseInfo', 'noise', Vector4.zero()).x > 0.5) {
+      final angle = 6.2831853 * blueNoise(b, px.toDouble(), py.toDouble());
+      rotX = math.cos(angle);
+      rotY = math.sin(angle);
+    } else if (oddX && oddY) {
       rotX = -0.7071;
       rotY = -0.7071;
     } else if (oddX) {

@@ -1234,8 +1234,16 @@ final class RenderSettings {
     // Beside the occlusion because it reads the same buffer and its result is
     // applied in the same place — `gfx-76n`.
     'contact shadows',
+    // `R1`: the motion of every pixel, and then of what moved over it.
+    'camera velocity',
+    'object velocity',
+    // `R3`: the two noisy effects carried into their own histories.
+    'ssao history',
+    'contact shadow history',
     'light shafts',
     'depth of field',
+    // `R2`: the frames blended into one, before the glow is taken from it.
+    'temporal resolve',
     'bloom',
     'composite',
     'antialias',

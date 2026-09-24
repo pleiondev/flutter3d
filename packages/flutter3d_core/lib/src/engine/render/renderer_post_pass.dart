@@ -324,7 +324,12 @@ extension _PostPasses on Renderer {
     _contactLight[2] = toLight.z;
 
     _contactParams[0] = math.max(options.length, 1e-4);
-    _contactParams[1] = options.steps.clamp(1, 16).toDouble();
+    // `R3`: half the steps while a resolve runs, each frame's offset from the
+    // blue noise and a history to carry the rest.
+    _contactParams[1] =
+        (_temporalEffects ? math.max(4, options.steps ~/ 2) : options.steps)
+            .clamp(1, 16)
+            .toDouble();
     _contactParams[2] = math.max(options.thickness, 1e-4);
     // The strength is the composite's, for the reason the occlusion's is: "off"
     // has to be a multiplier of exactly one, and that is a property of one
@@ -337,9 +342,13 @@ extension _PostPasses on Renderer {
       FullscreenDraw(
         target: target,
         fragment: contactShadowShader,
-        textures: <String, TextureHandle>{'surface_texture': surface},
+        textures: <String, TextureHandle>{
+          'surface_texture': surface,
+          'blue_noise_texture': _blueNoise,
+        },
         uniforms: <String, Map<String, Float32List>>{
           _contactShadowInfo.name: _contactShadowInfo.members,
+          _noiseInfo.name: _noiseInfo.members,
         },
         // Unfiltered, for `_encodeSsao`'s measured reason below: a filtered tap
         // across a silhouette averages a foreground depth with the cleared
@@ -461,7 +470,11 @@ extension _PostPasses on Renderer {
     _ssaoForwardData[2] = _ssaoForward.z;
 
     _ssaoParams[0] = options.radius;
-    _ssaoParams[1] = options.samples.toDouble();
+    // `R3`: half the taps while a resolve runs, with a new rotation each
+    // frame and a history to carry the rest.
+    _ssaoParams[1] =
+        (_temporalEffects ? math.max(4, options.samples ~/ 2) : options.samples)
+            .toDouble();
     // z is the composite's to apply; see the block's docstring in ssao.frag.
     _ssaoParams[2] = 0.0;
     _ssaoParams[3] = options.bias;
@@ -474,9 +487,13 @@ extension _PostPasses on Renderer {
       FullscreenDraw(
         target: target,
         fragment: ssaoShader,
-        textures: <String, TextureHandle>{'surface_texture': surface},
+        textures: <String, TextureHandle>{
+          'surface_texture': surface,
+          'blue_noise_texture': _blueNoise,
+        },
         uniforms: <String, Map<String, Float32List>>{
           _ssaoInfo.name: _ssaoInfo.members,
+          _noiseInfo.name: _noiseInfo.members,
         },
         // **Unfiltered**, unlike every other full-screen read in this renderer,
         // and measured rather than assumed: with linear filtering an isolated
@@ -577,9 +594,11 @@ extension _PostPasses on Renderer {
           'scene_texture': scene,
           'surface_texture': surface,
           'shadow_texture': shadow,
+          'blue_noise_texture': _blueNoise,
         },
         uniforms: <String, Map<String, Float32List>>{
           _shaftInfo.name: _shaftInfo.members,
+          _noiseInfo.name: _noiseInfo.members,
         },
         // Nearest on the surface buffer, as every other reader of it takes: a
         // filtered depth at a silhouette against the sky averages with the
@@ -809,9 +828,11 @@ extension _PostPasses on Renderer {
         textures: <String, TextureHandle>{
           'scene_texture': scene,
           'surface_texture': surface,
+          'blue_noise_texture': _blueNoise,
         },
         uniforms: <String, Map<String, Float32List>>{
           _reflectionInfo.name: _reflectionInfo.members,
+          _noiseInfo.name: _noiseInfo.members,
         },
         // Nearest on the surface buffer, as every other reader of it takes:
         // a filtered tap at a silhouette averages the object's depth with the

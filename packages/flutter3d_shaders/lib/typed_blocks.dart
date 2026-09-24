@@ -11,6 +11,19 @@ import 'dart:typed_data';
 
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 
+/// `AccumulateInfo`.
+final class AccumulateInfoBlock extends UniformBlock {
+  AccumulateInfoBlock() : super('AccumulateInfo');
+
+  /// `params`: Vector4, at byte 0.
+  final Float32List params = Float32List(4);
+
+  @override
+  late final Map<String, Float32List> members = <String, Float32List>{
+    'params': params,
+  };
+}
+
 /// `BloomInfo`.
 final class BloomInfoBlock extends UniformBlock {
   BloomInfoBlock() : super('BloomInfo');
@@ -435,6 +448,19 @@ final class MorphInstanceInfoBlock extends UniformBlock {
   @override
   late final Map<String, Float32List> members = <String, Float32List>{
     'instance_params': instanceParams,
+  };
+}
+
+/// `NoiseInfo`.
+final class NoiseInfoBlock extends UniformBlock {
+  NoiseInfoBlock() : super('NoiseInfo');
+
+  /// `noise`: Vector4, at byte 0.
+  final Float32List noise = Float32List(4);
+
+  @override
+  late final Map<String, Float32List> members = <String, Float32List>{
+    'noise': noise,
   };
 }
 

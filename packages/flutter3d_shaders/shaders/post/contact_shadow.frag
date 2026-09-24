@@ -33,6 +33,7 @@
 // every other pass in this directory does: `lib/color.glsl` is the mesh
 // fragment's preamble and brings a surface this pass does not have.
 #include <lib/frag_coord_info.glsl>
+#include <lib/blue_noise.glsl>
 
 in vec2 v_uv;
 
@@ -69,32 +70,6 @@ uniform ContactShadowInfo {
   vec4 to_light;
 }
 contact_info;
-
-// One cell of a 4x4 Bayer matrix, in [0, 1). The same table
-// `reflections.frag` and `light_shafts.frag` keep.
-float BayerCell(vec2 at) {
-  int x = int(mod(at.x, 4.0));
-  int y = int(mod(at.y, 4.0));
-  int index = y * 4 + x;
-  float value = 0.0;
-  if (index == 0) value = 0.0;
-  else if (index == 1) value = 8.0;
-  else if (index == 2) value = 2.0;
-  else if (index == 3) value = 10.0;
-  else if (index == 4) value = 12.0;
-  else if (index == 5) value = 4.0;
-  else if (index == 6) value = 14.0;
-  else if (index == 7) value = 6.0;
-  else if (index == 8) value = 3.0;
-  else if (index == 9) value = 11.0;
-  else if (index == 10) value = 1.0;
-  else if (index == 11) value = 9.0;
-  else if (index == 12) value = 15.0;
-  else if (index == 13) value = 7.0;
-  else if (index == 14) value = 13.0;
-  else value = 5.0;
-  return value / 16.0;
-}
 
 vec3 DecodeOctahedral(vec2 e) {
   e = e * 2.0 - 1.0;
@@ -166,7 +141,7 @@ void main() {
   // below into eight flat levels, a staircase across every penumbra. Each
   // sample lands somewhere in its own step rather than at its end. A pattern
   // rather than a hash so the software backend matches bit for bit.
-  float jitter = BayerCell(TargetFragCoord());
+  float jitter = PixelNoise(TargetFragCoord());
 
   // **A tolerance at least twice what one step moves in depth**, as Unreal's
   // `CompareTolerance`: a ray running steeply away from the camera crosses

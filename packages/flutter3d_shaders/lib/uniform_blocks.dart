@@ -211,6 +211,9 @@ uniformBlocks = <String, Map<String, Map<String, UniformMemberLayout>>>{
     'FragCoordInfo': <String, UniformMemberLayout>{
       'origin': (offset: 0, byteLength: 16, elements: 1, type: 'Vector4'),
     },
+    'NoiseInfo': <String, UniformMemberLayout>{
+      'noise': (offset: 0, byteLength: 16, elements: 1, type: 'Vector4'),
+    },
   },
   'DebugLineVertex': <String, Map<String, UniformMemberLayout>>{
     'LineInfo': <String, UniformMemberLayout>{
@@ -361,6 +364,9 @@ uniformBlocks = <String, Map<String, Map<String, UniformMemberLayout>>>{
   'LightShafts': <String, Map<String, UniformMemberLayout>>{
     'FragCoordInfo': <String, UniformMemberLayout>{
       'origin': (offset: 0, byteLength: 16, elements: 1, type: 'Vector4'),
+    },
+    'NoiseInfo': <String, UniformMemberLayout>{
+      'noise': (offset: 0, byteLength: 16, elements: 1, type: 'Vector4'),
     },
     'ShaftInfo': <String, UniformMemberLayout>{
       'inverse_view_projection': (
@@ -711,6 +717,9 @@ uniformBlocks = <String, Map<String, Map<String, UniformMemberLayout>>>{
     'FragCoordInfo': <String, UniformMemberLayout>{
       'origin': (offset: 0, byteLength: 16, elements: 1, type: 'Vector4'),
     },
+    'NoiseInfo': <String, UniformMemberLayout>{
+      'noise': (offset: 0, byteLength: 16, elements: 1, type: 'Vector4'),
+    },
     'ReflectionInfo': <String, UniformMemberLayout>{
       'view_projection': (
         offset: 0,
@@ -755,6 +764,9 @@ uniformBlocks = <String, Map<String, Map<String, UniformMemberLayout>>>{
     },
   },
   'Ssao': <String, Map<String, UniformMemberLayout>>{
+    'NoiseInfo': <String, UniformMemberLayout>{
+      'noise': (offset: 0, byteLength: 16, elements: 1, type: 'Vector4'),
+    },
     'SsaoInfo': <String, UniformMemberLayout>{
       'inverse_view_projection': (
         offset: 0,
@@ -776,6 +788,11 @@ uniformBlocks = <String, Map<String, Map<String, UniformMemberLayout>>>{
   },
   'SsaoBlur': <String, Map<String, UniformMemberLayout>>{
     'SsaoBlurInfo': <String, UniformMemberLayout>{
+      'params': (offset: 0, byteLength: 16, elements: 1, type: 'Vector4'),
+    },
+  },
+  'TemporalAccumulate': <String, Map<String, UniformMemberLayout>>{
+    'AccumulateInfo': <String, UniformMemberLayout>{
       'params': (offset: 0, byteLength: 16, elements: 1, type: 'Vector4'),
     },
   },

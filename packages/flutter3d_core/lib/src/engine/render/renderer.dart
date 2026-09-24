@@ -24,6 +24,7 @@ import 'composite_mix.dart';
 import 'debug_draw.dart';
 import 'debug_draw_gizmos.dart';
 import 'empty_frame.dart';
+import 'engine_tables.dart';
 import 'frame_capture.dart';
 import 'frame_graph.dart';
 import 'frame_history.dart';
@@ -134,6 +135,7 @@ final class Renderer implements RenderServices {
     required this.velocitySkinnedVertexShader,
     required this.velocityInstancedVertexShader,
     required this.temporalResolveShader,
+    required this.temporalAccumulateShader,
     required this.ssaoBlurShader,
     required this.lightShaftsShader,
     required this.depthOfFieldShader,
@@ -280,6 +282,9 @@ final class Renderer implements RenderServices {
 
   /// `post/temporal_resolve.frag` — `R2`.
   final ShaderHandle temporalResolveShader;
+
+  /// `post/temporal_accumulate.frag` — `R3`.
+  final ShaderHandle temporalAccumulateShader;
 
   /// The temporal resolve's two histories, at the output's size: one read,
   /// one written, swapped each frame. The renderer's own, like the cube
@@ -442,9 +447,11 @@ final class Renderer implements RenderServices {
       _depthStencilSingle,
       ..._ldrFrames,
       ..._history,
+      for (final effect in _effectHistories.values) ...effect.textures,
     ]) {
       if (texture != null) device.releaseTexture(texture);
     }
+    _effectHistories.clear();
     _history
       ..[0] = null
       ..[1] = null;
@@ -593,6 +600,31 @@ final class Renderer implements RenderServices {
   final PrevFrameInfoBlock _prevFrameInfo = PrevFrameInfoBlock();
   final VelocityInfoBlock _velocityInfo = VelocityInfoBlock();
   final TemporalInfoBlock _temporalInfo = TemporalInfoBlock();
+  final NoiseInfoBlock _noiseInfo = NoiseInfoBlock();
+  final AccumulateInfoBlock _accumulateInfo = AccumulateInfoBlock();
+
+  /// Whether this frame's screen-space effects read the blue noise and keep
+  /// histories — `R3`: while a temporal resolve runs, on a device that can
+  /// run one. Set at the top of [render].
+  bool _temporalEffects = false;
+
+  /// The noisy effects' histories, by the resource each one smooths — `R3`.
+  final Map<ResourceId, _EffectHistory> _effectHistories =
+      <ResourceId, _EffectHistory>{};
+
+  /// The texture every noise-reading effect binds this frame, with
+  /// [_noiseInfo] filled to match — `R3`. The engine's blue noise while
+  /// [_temporalEffects], uploaded on first use; the one-texel stand-in
+  /// otherwise, which the shader does not read.
+  TextureHandle get _blueNoise {
+    _noiseInfo.noise
+      ..[0] = _temporalEffects ? 1.0 : 0.0
+      ..[1] = (_frameIndex % 32).toDouble();
+    return _temporalEffects
+        ? EngineTables.of(device).blueNoise
+        : fallbackAlbedo;
+  }
+
   final DofInfoBlock _dofInfo = DofInfoBlock();
   final FogInfoBlock _fogInfo = FogInfoBlock();
   final FrameInfoBlock _frameInfo = FrameInfoBlock();
@@ -1289,6 +1321,7 @@ final class Renderer implements RenderServices {
         velocitySkinnedVertexShader: require('VelocitySkinnedVertex'),
         velocityInstancedVertexShader: require('VelocityInstancedVertex'),
         temporalResolveShader: require('TemporalResolve'),
+        temporalAccumulateShader: require('TemporalAccumulate'),
         ssaoBlurShader: require('SsaoBlur'),
         lightShaftsShader: require('LightShafts'),
         depthOfFieldShader: require('DepthOfField'),
@@ -2196,7 +2229,22 @@ final class Renderer implements RenderServices {
       ..addNode(_CameraVelocityNode(this, view, s))
       // And the nodes that moved, over it: the next version of the same
       // resource, so registration order is what puts them on top.
-      ..addNode(_ObjectVelocityNode(this, view, s, composite._scene));
+      ..addNode(_ObjectVelocityNode(this, view, s, composite._scene))
+      // `R3`: the two effects that march with noise, each carried into a
+      // history of its own. After the velocity, which they reproject by, and
+      // before anything reads them: the composite takes the last version.
+      ..addNode(
+        _AccumulateNode(this, view, s, FrameResourceIds.ao, 'ssao history'),
+      )
+      ..addNode(
+        _AccumulateNode(
+          this,
+          view,
+          s,
+          FrameResourceIds.contactShadow,
+          'contact shadow history',
+        ),
+      );
     // `gfx-33n`. After the occlusion and before bloom: a shaft is light in
     // the air, so it should glow the way any other light does. It is not a
     // surface, and the occlusion should have nothing to say about it — but
@@ -3200,6 +3248,12 @@ final class Renderer implements RenderServices {
     // A frame drawn without the resolve leaves the history describing a
     // picture from before it; turning it back on starts again.
     if (!temporal) _historyValid = false;
+    _temporalEffects = temporal && device.maxColorAttachments > 1;
+    if (!_temporalEffects) {
+      for (final history in _effectHistories.values) {
+        history.valid = false;
+      }
+    }
     // Timeline markers, not print statements: the phases below are only
     // meaningful next to Flutter's own build and raster spans, and only in
     // profile or release, where the debug interpreter is not the bottleneck.
