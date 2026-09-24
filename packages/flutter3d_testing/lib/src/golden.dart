@@ -5,6 +5,7 @@ import 'dart:ui' as ui;
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'flip.dart';
 import 'render_frame.dart';
 
 /// Fails unless [frame] matches the image at [path], within [tolerance].
@@ -32,6 +33,13 @@ import 'render_frame.dart';
 /// drift, and when it is not needed it should not be there. Raise it only when
 /// something is measured to move (an animation sampled on a real clock, a
 /// scene with a deliberate random in it) and say in the call why.
+///
+/// **[flipBudget] asks a different question** — `N2`: not how many pixels
+/// moved, but how different the two pictures look, as the mean FLIP error
+/// between them (see [flip]). Given, it replaces the pixel count. It is the
+/// budget for a frame that is *meant* to differ a little everywhere — a lower
+/// render scale, a stochastic effect against its sorted reference — where a
+/// share of moved pixels says nothing about how much worse it looks.
 Future<void> expectMatchesGolden(
   RenderedFrame frame,
   String path, {
@@ -40,6 +48,7 @@ Future<void> expectMatchesGolden(
   bool alpha = false,
   String? reason,
   bool? recordMissing,
+  double? flipBudget,
 }) async {
   // **Recording is for a person authoring a test, not for a machine running
   // one.** A missing file used to be recorded and *passed*, which is right
@@ -80,6 +89,25 @@ Future<void> expectMatchesGolden(
         'into the pixels. Compared as width and height rather than as a byte '
         'count, which a transposed frame passes.',
   );
+
+  if (flipBudget != null) {
+    final perceived = flip(
+      frame.pixels,
+      expected.pixels,
+      width: frame.width,
+      height: frame.height,
+    ).mean;
+    expect(
+      perceived,
+      lessThanOrEqualTo(flipBudget),
+      reason: <String>[
+        '$path: mean FLIP ${perceived.toStringAsFixed(5)}',
+        ?reason,
+        'If this change is meant, delete the file and run again to re-record it.',
+      ].join('\n'),
+    );
+    return;
+  }
 
   final difference = compareFrames(
     frame.pixels,

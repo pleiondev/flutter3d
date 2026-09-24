@@ -38,6 +38,7 @@
 /// picture alters it on both.
 library;
 
+export 'src/flip.dart';
 export 'src/golden.dart';
 export 'src/material_stage.dart';
 export 'src/render_frame.dart';
