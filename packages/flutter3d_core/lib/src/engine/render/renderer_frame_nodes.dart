@@ -767,10 +767,24 @@ final class _SsaoNode extends RenderNode with _NeedsSurfaceBuffer {
       _settings.ambientOcclusion.enabled &&
       _settings.ambientOcclusion.strength > 0.0;
 
+  bool get _indirect =>
+      _settings.ambientOcclusion.method == AmbientOcclusionMethod.ssil;
+
+  // `L5`: the indirect method bounces the lit scene, so it reads it.
   @override
-  List<ResourceId> get reads => const <ResourceId>[
-    FrameResourceIds.surfaceBuffer,
-  ];
+  List<ResourceId> get reads => _indirect
+      ? const <ResourceId>[
+          FrameResourceIds.surfaceBuffer,
+          FrameResourceIds.hdrColour,
+        ]
+      : const <ResourceId>[FrameResourceIds.surfaceBuffer];
+
+  // And the albedo buffer, which a device with two attachments cannot give:
+  // there the bounce takes a neutral grey instead.
+  @override
+  List<ResourceId> get optionalReads => _indirect
+      ? const <ResourceId>[FrameResourceIds.albedoBuffer]
+      : const <ResourceId>[];
 
   @override
   List<ResourceId> get writes => const <ResourceId>[FrameResourceIds.ao];
@@ -788,6 +802,12 @@ final class _SsaoNode extends RenderNode with _NeedsSurfaceBuffer {
       surface: surface,
       options: _settings.ambientOcclusion,
       view: _view,
+      scene: _indirect
+          ? frame.resources.tryTexture(FrameResourceIds.hdrColour)
+          : null,
+      albedo: _indirect
+          ? frame.resources.tryTexture(FrameResourceIds.albedoBuffer)
+          : null,
     );
   }
 }

@@ -210,7 +210,12 @@ stageBindings = <String, ({Set<String> blocks, Set<String> samplers})>{
   'Splat': (blocks: <String>{'FogInfo'}, samplers: <String>{}),
   'Ssao': (
     blocks: <String>{'NoiseInfo', 'SsaoInfo'},
-    samplers: <String>{'blue_noise_texture', 'surface_texture'},
+    samplers: <String>{
+      'albedo_texture',
+      'blue_noise_texture',
+      'scene_texture',
+      'surface_texture',
+    },
   ),
   'SsaoBlur': (
     blocks: <String>{'SsaoBlurInfo'},
