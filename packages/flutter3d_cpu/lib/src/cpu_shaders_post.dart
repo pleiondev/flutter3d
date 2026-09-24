@@ -587,8 +587,8 @@ final class DepthPyramidShader implements CpuFragmentShader {
     if (surface == null) return Vector4.zero();
     final block = bindings.vec4('DepthPyramidInfo', 'block', Vector4.zero());
     final range = bindings.vec4('DepthPyramidInfo', 'range', Vector4.zero());
-    final tapsX = (block.z - 1e-3).ceilToDouble().clamp(1.0, 16.0).toInt();
-    final tapsY = (block.w - 1e-3).ceilToDouble().clamp(1.0, 16.0).toInt();
+    final tapsX = (block.z - 1e-3).ceilToDouble().clamp(1.0, 32.0).toInt();
+    final tapsY = (block.w - 1e-3).ceilToDouble().clamp(1.0, 32.0).toInt();
     final cornerU = v[0] - 0.5 * block.x;
     final cornerV = v[1] - 0.5 * block.y;
     final stepU = block.x / tapsX;

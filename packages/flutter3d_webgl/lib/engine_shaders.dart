@@ -20216,18 +20216,21 @@ pyramid_info;
 
 void main() {
   vec2 blockUv = pyramid_info.block.xy;
-  // One tap a source texel up to sixteen across, then spread: a bound a
-  // uniform cannot lengthen, for the reason `ssao_blur.frag` keeps one.
-  float tapsX = clamp(ceil(pyramid_info.block.z - 1e-3), 1.0, 16.0);
-  float tapsY = clamp(ceil(pyramid_info.block.w - 1e-3), 1.0, 16.0);
+  // One tap a source texel up to thirty-two across, then spread: a bound a
+  // uniform cannot lengthen, for the reason `ssao_blur.frag` keeps one. Not
+  // sixteen: a phone held upright is over 2 048 pixels tall, a block of it
+  // is then more than sixteen rows, and a row no tap lands on is a gap of
+  // sky or a far wall the reading would cover over.
+  float tapsX = clamp(ceil(pyramid_info.block.z - 1e-3), 1.0, 32.0);
+  float tapsY = clamp(ceil(pyramid_info.block.w - 1e-3), 1.0, 32.0);
   vec2 corner = v_uv - 0.5 * blockUv;
   vec2 stepUv = blockUv / vec2(tapsX, tapsY);
 
   float farthest = 0.0;
   float empty = 0.0;
-  for (int j = 0; j < 16; j++) {
+  for (int j = 0; j < 32; j++) {
     if (float(j) >= tapsY) break;
-    for (int i = 0; i < 16; i++) {
+    for (int i = 0; i < 32; i++) {
       if (float(i) >= tapsX) break;
       vec2 at = corner + (vec2(float(i), float(j)) + 0.5) * stepUv;
       float depth = textureLod(surface_texture, at, 0.0).a;
