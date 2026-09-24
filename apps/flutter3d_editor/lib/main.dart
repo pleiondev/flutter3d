@@ -47,6 +47,7 @@ import 'src/editor_legend.dart';
 import 'src/editor_palette.dart';
 import 'src/editor_theme.dart';
 import 'src/fly_camera.dart';
+import 'src/light_plan_dialog.dart';
 import 'src/open_run_channel.dart';
 import 'src/playtest_report_screen.dart';
 import 'src/recent_projects.dart';
@@ -1189,6 +1190,54 @@ class _EditorScreenState extends State<EditorScreen>
     ),
   );
 
+  /// Runs the light optimizer, shows what it found, and applies it as one
+  /// step of undo if asked to.
+  ///
+  /// Looked at from where players start, four ways round — or, in a level
+  /// with no spawn, from where the editor's camera is now, the same four
+  /// ways — since that is where the lighting has to hold up.
+  Future<void> _fewerLights() async {
+    final editing = _editing;
+    if (editing == null) return;
+    final spawned = defaultLightViews(editing.level);
+    final views = spawned.isNotEmpty
+        ? spawned
+        : <LightView>[
+            for (var turn = 0; turn < 4; turn++)
+              (
+                from: _fly.position.clone(),
+                at:
+                    _fly.position +
+                    Vector3(
+                      -math.sin(turn * math.pi / 2.0),
+                      0.0,
+                      -math.cos(turn * math.pi / 2.0),
+                    ),
+              ),
+          ];
+    // The lights as the optimizer was asked about them. The search takes a
+    // while and the editor stays live, so a light moved or added meanwhile
+    // would be dropped by a set made from the old ones.
+    String lightsNow() => jsonEncode(<Object?>[
+      for (final light in editing.level.lights) light.toJson(),
+    ]);
+    final asked = lightsNow();
+    _cubit.say('looking for lights to spare…');
+    final plan = await planLights(editing.level, views);
+    if (!mounted || editing != _editing) return;
+    if (!await showLightPlan(context, plan) || !mounted) {
+      _cubit.say('lights left as they were');
+      return;
+    }
+    if (lightsNow() != asked) {
+      _cubit.say('the lights changed while they were judged; ask again');
+      return;
+    }
+    editing.history.run(SetLights(plan.after, why: plan.says));
+    _placeMarker();
+    _changed(plan.says);
+  }
+
   /// Asks what to do about unsaved work, and does it.
   ///
   /// Three answers rather than two, because "save" is the one a person
@@ -1327,7 +1376,10 @@ class _EditorScreenState extends State<EditorScreen>
                   left: 0,
                   right: 0,
                   top: 0,
-                  child: EditorBar(state: state),
+                  child: EditorBar(
+                    state: state,
+                    onFewerLights: () => unawaited(_fewerLights()),
+                  ),
                 ),
                 // Below the bar and above the legend, so nothing it covers is
                 // anything the other two are saying.

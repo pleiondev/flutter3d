@@ -27,6 +27,11 @@ dependencies:
   # so this one stays off the Flutter SDK adding it.
   flutter3d_core: ^0.8.0
 
+  # What the light optimizer draws with (`light_opt/`): the software
+  # rasteriser, whose floats are the linear light a lighting decision is made
+  # in. Plain Dart like everything else here, so the boundary below holds.
+  flutter3d_cpu: ^0.8.0
+
   vector_math: ^2.4.3
 
 dev_dependencies:
