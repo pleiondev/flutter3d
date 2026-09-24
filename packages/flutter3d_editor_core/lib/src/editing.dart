@@ -287,13 +287,6 @@ final class Editing {
   /// size to step by.
   double get _step => grid <= 0.0 ? 1.0 : grid * 4;
 
-  /// Adds a light where somebody is looking.
-  ///
-  /// **A light the editor may invent, unlike an entity.** A `LevelLight` is a
-  /// typed thing the engine defines — a place, a colour, a strength and a
-  /// reach — so writing a new one down is not the editor guessing at a game's
-  /// vocabulary. What a `monster` needs in it is not knowable here; what a
-  /// point light needs is.
   /// Adds [recipe] to the document and answers what it builds, on its own.
   ///
   /// **The recipe goes in, not what it expands to.** A room written as its
@@ -313,6 +306,13 @@ final class Editing {
     return alone;
   }
 
+  /// Adds a light where somebody is looking.
+  ///
+  /// **A light the editor may invent, unlike an entity.** A `LevelLight` is a
+  /// typed thing the engine defines — a place, a colour, a strength and a
+  /// reach — so writing a new one down is not the editor guessing at a game's
+  /// vocabulary. What a `monster` needs in it is not knowable here; what a
+  /// point light needs is.
   void addLight(Vector3 at, {double intensity = 4.0, double range = 8.0}) {
     _remember('add a light');
     level.lights.add(
