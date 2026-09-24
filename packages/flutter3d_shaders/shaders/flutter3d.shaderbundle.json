@@ -63,6 +63,14 @@
     "type": "fragment",
     "file": "shaders/post/easu.frag"
   },
+  "LocalExposure": {
+    "type": "fragment",
+    "file": "shaders/post/local_exposure.frag"
+  },
+  "LocalExposureBlur": {
+    "type": "fragment",
+    "file": "shaders/post/local_exposure_blur.frag"
+  },
   "Fxaa": {
     "type": "fragment",
     "file": "shaders/post/fxaa.frag"

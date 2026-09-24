@@ -469,6 +469,17 @@ uniformBlocks = <String, Map<String, Map<String, UniformMemberLayout>>>{
       'bias': (offset: 336, byteLength: 16, elements: 1, type: 'Vector4'),
     },
   },
+  'LocalExposure': <String, Map<String, UniformMemberLayout>>{
+    'LocalExposureInfo': <String, UniformMemberLayout>{
+      'stops': (offset: 0, byteLength: 16, elements: 1, type: 'Vector4'),
+    },
+  },
+  'LocalExposureBlur': <String, Map<String, UniformMemberLayout>>{
+    'LocalExposureBlurInfo': <String, UniformMemberLayout>{
+      'step': (offset: 0, byteLength: 16, elements: 1, type: 'Vector4'),
+      'stops': (offset: 16, byteLength: 16, elements: 1, type: 'Vector4'),
+    },
+  },
   'Luminance': <String, Map<String, UniformMemberLayout>>{
     'LuminanceInfo': <String, UniformMemberLayout>{
       'params': (offset: 0, byteLength: 16, elements: 1, type: 'Vector4'),

@@ -41,6 +41,8 @@ const List<RequiredShader> kRequiredShaders = <RequiredShader>[
   (name: 'FullscreenVertex', fragment: false),
   (name: 'Easu', fragment: true),
   (name: 'Fxaa', fragment: true),
+  (name: 'LocalExposure', fragment: true),
+  (name: 'LocalExposureBlur', fragment: true),
   (name: 'Lambert', fragment: true),
   (name: 'Luminance', fragment: true),
   (name: 'MeshInstancedVertex', fragment: false),

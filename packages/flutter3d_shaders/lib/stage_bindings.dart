@@ -56,6 +56,7 @@ stageBindings = <String, ({Set<String> blocks, Set<String> samplers})>{
       'bloom_texture',
       'contact_shadow_texture',
       'display_texture',
+      'local_exposure_texture',
       'lut_texture',
       'scene_texture',
     },
@@ -118,6 +119,14 @@ stageBindings = <String, ({Set<String> blocks, Set<String> samplers})>{
       'shadow_texture',
       'surface_texture',
     },
+  ),
+  'LocalExposure': (
+    blocks: <String>{'LocalExposureInfo'},
+    samplers: <String>{'scene_texture'},
+  ),
+  'LocalExposureBlur': (
+    blocks: <String>{'LocalExposureBlurInfo'},
+    samplers: <String>{'weight_texture'},
   ),
   'Luminance': (
     blocks: <String>{'LuminanceInfo'},

@@ -35,6 +35,11 @@ uniform sampler2D ao_texture;
 /// crash on Metal rather than a black texture.
 uniform sampler2D contact_shadow_texture;
 
+/// The local exposure, in stops, at an eighth of the frame — `R7`. A black
+/// stand-in when it is off, which is nought stops, and `contact.w` is nought
+/// beside it.
+uniform sampler2D local_exposure_texture;
+
 /// The colour table, as a strip: N slices of N×N laid out left to right, so
 /// the image is N² wide and N tall. Bound to whatever the engine has when no
 /// table is set — the strength is zero then and nothing samples it, but a
@@ -104,7 +109,7 @@ uniform CompositeInfo {
   /// `gfx-76n`. y: the display transform's entries per axis, its N — `L2`;
   /// read only when the curve is 6. z: one when the occlusion buffer carries
   /// indirect light in rgb as well — `L5`'s SSIL — nought otherwise.
-  /// w unclaimed.
+  /// w: how much of the local exposure applies, nought to one — `R7`.
   ///
   /// Appended after everything else, the way this block has grown before: a
   /// std140 block is laid out in declaration order, so adding here leaves every
@@ -468,7 +473,12 @@ void main() {
   // would mean a third attachment and rewriting all six lit stages. So an
   // emissive strip in a corner dims, which is physically wrong — the same
   // compromise `pbr.frag` already makes with the occlusion map from a glTF.
-  vec3 color = scene.rgb * ao + bloom * composite_info.params.y;
+  // `R7`: each place of the scene at the exposure that shows it best, before
+  // the glow is added and the curve applied. Bilinear from an eighth of the
+  // frame: the stops were blurred wide, so there is no edge in them to keep.
+  float localStops = texture(local_exposure_texture, v_uv).r;
+  vec3 exposed = scene.rgb * exp2(localStops * composite_info.contact.w);
+  vec3 color = exposed * ao + bloom * composite_info.params.y;
 
   // `L5`: the light that bounced onto the point off what it sees, by the same
   // strength as the occlusion beside it, so a strength of nought is no light

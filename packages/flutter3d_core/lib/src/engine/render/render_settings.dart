@@ -358,6 +358,33 @@ final class AmbientOcclusionMethod {
 /// Henyey–Greenstein phase that puts it towards the sun and almost none away
 /// from it — Pestana's shadow-map march, and Godot's volumetric fog, both do
 /// the same. The scene behind is not dimmed; [FogSettings] does that.
+/// Local exposure by exposure fusion — `R7`.
+///
+/// **What one exposure cannot do.** A dark room with a bright window has two
+/// right exposures, and auto exposure has to pick one: the room black or the
+/// window white. This takes the scene three times over — [shadowStops] up,
+/// as it is, [highlightStops] down — weighs at each place how near mid-grey
+/// each would come out, blurs the weights wide so no edge grows a halo, and
+/// gives each place the exposure its weights choose, before the tone curve.
+/// [strength] is how much of that shift applies: nought is the one global
+/// exposure, one the full local answer.
+///
+/// Measured at an eighth of the frame and applied bilinearly: the blur is
+/// wide enough that nothing finer survives it.
+final class LocalExposureSettings {
+  const LocalExposureSettings({
+    this.enabled = false,
+    this.strength = 0.7,
+    this.shadowStops = 2.0,
+    this.highlightStops = 2.0,
+  });
+
+  final bool enabled;
+  final double strength;
+  final double shadowStops;
+  final double highlightStops;
+}
+
 /// Bringing a frame drawn below full size up to it without a temporal
 /// resolve — `R5`.
 ///
@@ -811,6 +838,7 @@ final class RenderSettings {
     this.disabledPasses = const <String>{},
     this.renderScale = 1.0,
     this.spatialUpscale = const SpatialUpscaleSettings(),
+    this.localExposure = const LocalExposureSettings(),
     this.energyCompensation = false,
     this.clusteredLights = false,
     this.lightShafts = const LightShaftSettings(),
@@ -1058,6 +1086,10 @@ final class RenderSettings {
   /// off, since the resolve already reconstructs the full size.
   final SpatialUpscaleSettings spatialUpscale;
 
+  /// Each place of the frame at the exposure that shows it best — `R7`. Off
+  /// by default.
+  final LocalExposureSettings localExposure;
+
   /// Puts back the light single-scattering GGX loses on rough surfaces —
   /// `L1`. Off by default.
   ///
@@ -1240,6 +1272,7 @@ final class RenderSettings {
     Set<String>? disabledPasses,
     double? renderScale,
     SpatialUpscaleSettings? spatialUpscale,
+    LocalExposureSettings? localExposure,
     bool? energyCompensation,
     bool? clusteredLights,
     LightShaftSettings? lightShafts,
@@ -1277,6 +1310,7 @@ final class RenderSettings {
     disabledPasses: disabledPasses ?? this.disabledPasses,
     renderScale: renderScale ?? this.renderScale,
     spatialUpscale: spatialUpscale ?? this.spatialUpscale,
+    localExposure: localExposure ?? this.localExposure,
     energyCompensation: energyCompensation ?? this.energyCompensation,
     clusteredLights: clusteredLights ?? this.clusteredLights,
     lightShafts: lightShafts ?? this.lightShafts,
@@ -1375,6 +1409,8 @@ final class RenderSettings {
     'depth of field',
     // `R2`: the frames blended into one, before the glow is taken from it.
     'temporal resolve',
+    // `R7`: measured on the resolved picture, applied in the composite.
+    'local exposure',
     'bloom',
     'composite',
     // `R5`: the finished picture brought up to the asked-for size, before
@@ -1423,6 +1459,7 @@ final class RenderSettings {
     'contact shadows',
     'reflections',
     'spatial upscale',
+    'local exposure',
     'antialias',
     'luminance',
     // Both of these are off by default, so a measurement frame taken from

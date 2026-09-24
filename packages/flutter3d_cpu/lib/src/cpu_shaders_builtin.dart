@@ -194,6 +194,8 @@ Map<String, CpuStage> builtinCpuShaders() {
     'Composite': const CpuStage.fragment(CompositeShader()),
     'Easu': const CpuStage.fragment(EasuShader()),
     'Fxaa': const CpuStage.fragment(FxaaShader()),
+    'LocalExposure': const CpuStage.fragment(LocalExposureShader()),
+    'LocalExposureBlur': const CpuStage.fragment(LocalExposureBlurShader()),
     'ShadowDepth': const CpuStage.fragment(ShadowDepthShader()),
     'ShadowDistance': const CpuStage.fragment(ShadowDistanceShader()),
     'ShadowCopy': const CpuStage.fragment(ShadowCopyShader()),

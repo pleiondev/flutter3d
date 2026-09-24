@@ -14771,6 +14771,11 @@ uniform sampler2D ao_texture;
 /// crash on Metal rather than a black texture.
 uniform sampler2D contact_shadow_texture;
 
+/// The local exposure, in stops, at an eighth of the frame — `R7`. A black
+/// stand-in when it is off, which is nought stops, and `contact.w` is nought
+/// beside it.
+uniform sampler2D local_exposure_texture;
+
 /// The colour table, as a strip: N slices of N×N laid out left to right, so
 /// the image is N² wide and N tall. Bound to whatever the engine has when no
 /// table is set — the strength is zero then and nothing samples it, but a
@@ -14840,7 +14845,7 @@ layout(std140) uniform CompositeInfo {
   /// `gfx-76n`. y: the display transform's entries per axis, its N — `L2`;
   /// read only when the curve is 6. z: one when the occlusion buffer carries
   /// indirect light in rgb as well — `L5`'s SSIL — nought otherwise.
-  /// w unclaimed.
+  /// w: how much of the local exposure applies, nought to one — `R7`.
   ///
   /// Appended after everything else, the way this block has grown before: a
   /// std140 block is laid out in declaration order, so adding here leaves every
@@ -15204,7 +15209,12 @@ void main() {
   // would mean a third attachment and rewriting all six lit stages. So an
   // emissive strip in a corner dims, which is physically wrong — the same
   // compromise `pbr.frag` already makes with the occlusion map from a glTF.
-  vec3 color = scene.rgb * ao + bloom * composite_info.params.y;
+  // `R7`: each place of the scene at the exposure that shows it best, before
+  // the glow is added and the curve applied. Bilinear from an eighth of the
+  // frame: the stops were blurred wide, so there is no edge in them to keep.
+  float localStops = texture(local_exposure_texture, v_uv).r;
+  vec3 exposed = scene.rgb * exp2(localStops * composite_info.contact.w);
+  vec3 color = exposed * ao + bloom * composite_info.params.y;
 
   // `L5`: the light that bounced onto the point off what it sees, by the same
   // strength as the occlusion beside it, so a strength of nought is no light
@@ -15566,6 +15576,108 @@ void main() {
   float grain = easu_info.params.x;
   color += vec3((Hash(TargetFragCoord()) - 0.5) * grain);
   frag_color = vec4(color, 1.0);
+}
+
+''',
+    'LocalExposure': r'''#version 300 es
+precision highp float;
+precision highp int;
+precision highp sampler2D;
+precision highp samplerCube;
+
+// How well exposed each part of the frame would be at three exposures —
+// `R7`, the first step of local exposure.
+//
+// Exposure fusion: a picture taken three times, the shadows pushed up, as
+// shot, and the highlights pulled down, and at each place whichever of them
+// shows it best. "Best" is how near mid-grey the place comes out, which is
+// the well-exposedness weight of exposure fusion. Here it is measured at an
+// eighth of the frame's size, from the scene before the tone map; the blur
+// that follows turns the three weights into one exposure per place, and the
+// composite applies it before the curve. A dark room keeps its bright window
+// and a window keeps its dark room, where one global exposure has to choose.
+
+in vec2 v_uv;
+
+layout(location = 0) out vec4 frag_color;
+
+uniform sampler2D scene_texture;
+
+layout(std140) uniform LocalExposureInfo {
+  /// x: how many stops the shadow exposure lifts by. y: how many the
+  /// highlight exposure pulls down by. zw: one texel of the scene.
+  vec4 stops;
+}
+local_exposure_info;
+
+float Luma(vec3 c) { return dot(c, vec3(0.2126, 0.7152, 0.0722)); }
+
+/// How near mid-grey a scene luminance [y] comes out, from nought to one.
+float WellExposed(float y) {
+  float display = pow(y / (1.0 + y), 1.0 / 2.2);
+  float off = display - 0.5;
+  return exp(-off * off / 0.08);
+}
+
+void main() {
+  // Four taps across the eighth's block, so a small bright thing counts.
+  vec2 t = local_exposure_info.stops.zw * 2.0;
+  float y = 0.25 * (Luma(texture(scene_texture, v_uv + vec2(-t.x, -t.y)).rgb) +
+                    Luma(texture(scene_texture, v_uv + vec2(t.x, -t.y)).rgb) +
+                    Luma(texture(scene_texture, v_uv + vec2(-t.x, t.y)).rgb) +
+                    Luma(texture(scene_texture, v_uv + vec2(t.x, t.y)).rgb));
+  y = max(y, 0.0);
+  float shadow = exp2(local_exposure_info.stops.x);
+  float highlight = exp2(-local_exposure_info.stops.y);
+  frag_color = vec4(WellExposed(y * shadow) + 1e-4, WellExposed(y) + 1e-4,
+                    WellExposed(y * highlight) + 1e-4, 1.0);
+}
+
+''',
+    'LocalExposureBlur': r'''#version 300 es
+precision highp float;
+precision highp int;
+precision highp sampler2D;
+precision highp samplerCube;
+
+// The three well-exposedness weights, blurred wide along one axis — `R7`.
+//
+// Run twice, across and then down. Wide, because an exposure that changed
+// from one texel to the next would be a halo round every edge: the weights
+// are what fusion blends through its pyramid, and a blur this wide at an
+// eighth of the frame stands in for the coarse levels of it. The second run
+// turns the weights into the exposure itself, in stops: each exposure's
+// shift weighted by how well it shows the place.
+
+in vec2 v_uv;
+
+layout(location = 0) out vec4 frag_color;
+
+uniform sampler2D weight_texture;
+
+layout(std140) uniform LocalExposureBlurInfo {
+  /// xy: one step of the blur, in texture coordinates. z: one on the second
+  /// run, which writes the exposure rather than the weights. w unused.
+  vec4 step;
+  /// x: the shadow exposure's lift in stops, y: the highlight's pull. zw
+  /// unused.
+  vec4 stops;
+}
+blur_info;
+
+void main() {
+  vec3 sum = vec3(0.0);
+  float total = 0.0;
+  for (int i = -6; i <= 6; i++) {
+    float w = exp(-float(i * i) / 18.0);
+    sum += texture(weight_texture, v_uv + blur_info.step.xy * float(i)).rgb * w;
+    total += w;
+  }
+  vec3 weights = sum / total;
+  float stops = (weights.x * blur_info.stops.x - weights.z * blur_info.stops.y) /
+                max(weights.x + weights.y + weights.z, 1e-6);
+  frag_color = blur_info.step.z > 0.5 ? vec4(stops, stops, stops, 1.0)
+                                      : vec4(weights, 1.0);
 }
 
 ''',
