@@ -42,13 +42,33 @@ final class SplatSpzException implements Exception {
 }
 
 /// Which axes a cloud read by [parseSplatSpz] comes back in.
-enum SplatAxes {
-  /// Right, up, back: what an SPZ stores, what glTF and this engine use.
-  rightUpBack,
+///
+/// A class with const instances rather than an enum: the reference names
+/// sixteen axis conventions, and a third one wanted here later should be an
+/// addition, not a break in somebody's `switch`.
+final class SplatAxes {
+  const SplatAxes._(this.name, {required this.halfTurnAboutX});
+
+  final String name;
+
+  /// Whether reaching these axes from the stored ones negates `y` and `z`.
+  final bool halfTurnAboutX;
+
+  /// Right, up, back: what an SPZ stores — OpenGL's axes, and this engine's.
+  static const SplatAxes rightUpBack = SplatAxes._(
+    'rightUpBack',
+    halfTurnAboutX: false,
+  );
 
   /// Right, down, front: what a PLY capture holds, so a cloud read this way
   /// matches `parseSplatPly` on the file it was made from.
-  rightDownFront,
+  static const SplatAxes rightDownFront = SplatAxes._(
+    'rightDownFront',
+    halfTurnAboutX: true,
+  );
+
+  @override
+  String toString() => name;
 }
 
 /// The `NGSP` magic at the head of the packed header, little-endian.
@@ -308,7 +328,7 @@ void _checkExtensions(Uint8List bytes, int from, int to) {
 
 SplatCloud _decode(_Packed p, SplatAxes axes, bool keepHigherBands) {
   final n = p.count;
-  final flip = axes == SplatAxes.rightDownFront ? -1.0 : 1.0;
+  final flip = axes.halfTurnAboutX ? -1.0 : 1.0;
 
   final centres = Float32List(n * 3);
   if (p.version == 1) {
