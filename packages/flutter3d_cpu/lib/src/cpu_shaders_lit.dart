@@ -194,6 +194,13 @@ final class _Layers {
     required this.coatNDotV,
     required this.sheen,
     required this.sheenRoughness,
+    required this.transmission,
+    required this.thickness,
+    required this.transmittance,
+    required this.iridescence,
+    required this.dispersion,
+    required this.filmIor,
+    required this.filmThickness,
   }) : coatThrough =
            1.0 -
            coat * (0.04 + 0.96 * math.pow(1.0 - coatNDotV, 5.0).toDouble());
@@ -216,9 +223,18 @@ final class _Layers {
     final coatTexel = texel('coat_texture');
     final sheenTexel = texel('sheen_texture');
     final sheen = b.vec4('LayerInfo', 'sheen', Vector4.zero());
+    final transmission = b.vec4('LayerInfo', 'transmission', Vector4.zero());
+    final attenuation = b.vec4('LayerInfo', 'attenuation', Vector4(1, 1, 1, 0));
+    final film = b.vec4('LayerInfo', 'iridescence', Vector4.zero());
+    final thickness = math.max(transmission.y * coatTexel.w, 0.0);
+    // Beer's law over the thickness, as `ReadLayers` takes it.
+    final distance = transmission.z;
+    double through(double colour) => distance > 0.0
+        ? math.pow(math.max(colour, 1e-4), thickness / distance).toDouble()
+        : 1.0;
     final ior = math.max(coat.z, 1.0);
     final r = (ior - 1.0) / (ior + 1.0);
-    return _Layers(
+    final layers = _Layers(
       f0Dielectric: Vector3(
         math.min(r * r * specular.x, 1.0) * specular.w,
         math.min(r * r * specular.y, 1.0) * specular.w,
@@ -235,7 +251,19 @@ final class _Layers {
         sheen.z * toLinear(sheenTexel.z),
       ),
       sheenRoughness: (sheen.w * sheenTexel.w).clamp(0.07, 1.0),
+      transmission: (transmission.x * coatTexel.z).clamp(0.0, 1.0),
+      thickness: thickness,
+      transmittance: (
+        through(attenuation.x),
+        through(attenuation.y),
+        through(attenuation.z),
+      ),
+      iridescence: film.x.clamp(0.0, 1.0),
+      dispersion: transmission.w,
+      filmIor: film.y,
+      filmThickness: film.z,
     );
+    return layers.._ior = ior;
   }
 
   /// `ReadLayersOnMaps`: the sheen's albedo at this view and the anisotropy's
@@ -265,6 +293,52 @@ final class _Layers {
     anisotropy = usable && along.length2 > 1e-12 ? turn.x.clamp(0.0, 1.0) : 0.0;
     anisotropyT = anisotropy > 0.0 ? (along..normalize()) : t;
     anisotropyB = s.normal.cross(anisotropyT);
+
+    // `ReadIridescence`.
+    final metallic = s.metallic.clamp(0.0, 1.0);
+    iridFresnel = _fresnelIridescence(
+      filmIor,
+      s.nDotV,
+      filmThickness,
+      Vector3(
+        f0Dielectric.x + (s.albedo.x - f0Dielectric.x) * metallic,
+        f0Dielectric.y + (s.albedo.y - f0Dielectric.y) * metallic,
+        f0Dielectric.z + (s.albedo.z - f0Dielectric.z) * metallic,
+      ),
+    );
+  }
+
+  /// [f] with the thin film's colours mixed in, as the stage mixes them.
+  Vector3 withFilm(Vector3 f) => Vector3(
+    f.x + (iridFresnel.x - f.x) * iridescence,
+    f.y + (iridFresnel.y - f.y) * iridescence,
+    f.z + (iridFresnel.z - f.z) * iridescence,
+  );
+
+  /// `TransmittedRadiance`: the environment through the surface, bent by
+  /// the index when there is a volume and spread by the dispersion.
+  Vector3 transmitted(Surface s, BoundTexture environment, double levels) {
+    final ior = f0Ior;
+    final spread = (ior - 1.0) * 0.025 * dispersion;
+    final lod = s.roughness * (ior * 2.0 - 2.0).clamp(0.0, 1.0) * levels;
+    final incident = -s.view;
+    Vector3 ray(double eta) =>
+        thickness <= 0.0 ? incident : _refract(incident, s.normal, eta);
+    final red = ray(1.0 / math.max(ior - spread, 1.0));
+    final green = ray(1.0 / ior);
+    final blue = ray(1.0 / (ior + spread));
+    return Vector3(
+      environment.sampleCube(red.x, red.y, red.z, lod).x,
+      environment.sampleCube(green.x, green.y, green.z, lod).y,
+      environment.sampleCube(blue.x, blue.y, blue.z, lod).z,
+    );
+  }
+
+  /// GLSL's `refract`.
+  static Vector3 _refract(Vector3 i, Vector3 n, double eta) {
+    final d = n.dot(i);
+    final k = 1.0 - eta * eta * (1.0 - d * d);
+    return k < 0.0 ? Vector3.zero() : (i * eta - n * (eta * d + math.sqrt(k)));
   }
 
   final Vector3 f0Dielectric;
@@ -281,7 +355,25 @@ final class _Layers {
   final Vector3 sheen;
   final double sheenRoughness;
 
+  /// The transmission — `M3`: how much passes, through how much medium,
+  /// and what of each colour survives it.
+  final double transmission;
+  final double thickness;
+  final (double, double, double) transmittance;
+
+  /// The thin film: how much, spread and index — see `ReadIridescence`.
+  final double iridescence;
+  final double dispersion;
+  final double filmIor;
+  final double filmThickness;
+
+  /// The index `ReadLayers` took the dielectric's reflectance from, read back
+  /// out of it for the refraction.
+  double get f0Ior => _ior;
+  double _ior = 1.5;
+
   /// Filled by [readOnMaps].
+  Vector3 iridFresnel = Vector3.all(0.04);
   double sheenAlbedoAtView = 0.0;
   double sheenScale = 1.0;
   double anisotropy = 0.0;
@@ -461,7 +553,9 @@ final class PbrShader implements CpuFragmentShader {
             _vSmith(s.nDotV, light.nDotL, alpha),
           ),
         };
-        final f = _fSchlick(f0, light.vDotH, f90);
+        final plainF = _fSchlick(f0, light.vDotH, f90);
+        // `M3`: the thin film's colours in place of the plain Fresnel.
+        final f = layers == null ? plainF : layers.withFilm(plainF);
 
         final ltc = light.ltc;
         final specular = ltc == null
@@ -481,6 +575,8 @@ final class PbrShader implements CpuFragmentShader {
           diffuseColour.y * (1.0 - f.y) / _pi,
           diffuseColour.z * (1.0 - f.z) / _pi,
         );
+        // `M3`: what passes through is not scattered back.
+        if (layers != null) diffuse.scale(1.0 - layers.transmission);
         // The pi puts the result back on the scale the tone mapper and the
         // exposure default were calibrated against.
         final base = diffuse + specular;
@@ -510,6 +606,18 @@ final class PbrShader implements CpuFragmentShader {
     var ambient = (diffuseColour.clone()..multiply(s.ambient)).scaled(
       s.occlusion,
     );
+    if (layers != null) {
+      // `M3`: without an environment, the flat ambient passes through too.
+      final (tr, tg, tb) = layers.transmittance;
+      final t = layers.transmission;
+      ambient.multiply(
+        Vector3(
+          1.0 + (tr - 1.0) * t,
+          1.0 + (tg - 1.0) * t,
+          1.0 + (tb - 1.0) * t,
+        ),
+      );
+    }
     var coatAmbient = Vector3.zero();
     var sheenIncoming = s.ambient.clone();
 
@@ -560,7 +668,9 @@ final class PbrShader implements CpuFragmentShader {
       final strength = b.vec4('FragInfo', 'material', Vector4.zero()).z;
       final diffusePart = diffuseColour.clone()
         ..multiply(Vector3(irradiance.x, irradiance.y, irradiance.z));
-      final single = f0 * ab.x + Vector3.all(f90 * ab.y);
+      final single =
+          (layers == null ? f0 : layers.withFilm(f0)) * ab.x +
+          Vector3.all(f90 * ab.y);
       final specularPart = Vector3(prefiltered.x, prefiltered.y, prefiltered.z)
         ..multiply(single);
       if (compensate) {
@@ -580,6 +690,27 @@ final class PbrShader implements CpuFragmentShader {
       }
       ambient = ((diffusePart + specularPart) * strength).scaled(s.occlusion);
       if (layers != null) {
+        // `M3`: the transmitted share of the diffuse light is the
+        // environment behind, less what the dielectric reflects and the
+        // medium takes.
+        final reflects =
+            layers.withFilm(layers.f0Dielectric) * ab.x +
+            Vector3.all(layers.f90 * ab.y);
+        final (tr, tg, tb) = layers.transmittance;
+        final passed = layers.transmitted(s, environment, levels)
+          ..multiply(
+            Vector3(
+              tr * (1.0 - math.min(reflects.x, 1.0)),
+              tg * (1.0 - math.min(reflects.y, 1.0)),
+              tb * (1.0 - math.min(reflects.z, 1.0)),
+            ),
+          );
+        ambient.add(
+          (diffuseColour.clone()..multiply(
+                passed - Vector3(irradiance.x, irradiance.y, irradiance.z),
+              ))
+              .scaled(layers.transmission * strength * s.occlusion),
+        );
         // The coat's own reflection of the environment, on its normal.
         final n = layers.coatNormal;
         final coatReflected = n * (2.0 * n.dot(s.view)) - s.view;
@@ -636,6 +767,102 @@ final class PbrShader implements CpuFragmentShader {
       roughness: s.roughness,
     );
   }
+}
+
+/// `IridescenceSensitivity` — Belcour and Barla's spectral sensitivity,
+/// taken to linear Rec. 709.
+Vector3 _iridescenceSensitivity(double opd, Vector3 shift) {
+  const pi = 3.141592653589793;
+  final phase = 2.0 * pi * opd * 1.0e-9;
+  const val = <double>[5.4856e-13, 4.4201e-13, 5.2481e-13];
+  const pos = <double>[1.6810e+06, 1.7953e+06, 2.2084e+06];
+  const variance = <double>[4.3278e+09, 9.3046e+09, 6.6121e+09];
+  final xyz = <double>[
+    for (var i = 0; i < 3; i++)
+      val[i] *
+          math.sqrt(2.0 * pi * variance[i]) *
+          math.cos(pos[i] * phase + shift[i]) *
+          math.exp(-(phase * phase) * variance[i]),
+  ];
+  xyz[0] +=
+      9.7470e-14 *
+      math.sqrt(2.0 * pi * 4.5282e+09) *
+      math.cos(2.2399e+06 * phase + shift.x) *
+      math.exp(-4.5282e+09 * phase * phase);
+  final x = xyz[0] / 1.0685e-7;
+  final y = xyz[1] / 1.0685e-7;
+  final z = xyz[2] / 1.0685e-7;
+  return Vector3(
+    3.2404542 * x - 1.5371385 * y - 0.4985314 * z,
+    -0.9692660 * x + 1.8760108 * y + 0.0415560 * z,
+    0.0556434 * x - 0.2040259 * y + 1.0572252 * z,
+  );
+}
+
+/// `FresnelIridescence`: the two-bounce Airy sum of a thin film of index
+/// [film] and [thickness] nanometres over a base of reflectance [base].
+Vector3 _fresnelIridescence(
+  double film,
+  double cos1,
+  double thickness,
+  Vector3 base,
+) {
+  const pi = 3.141592653589793;
+  final t = (thickness / 0.03).clamp(0.0, 1.0);
+  final eta2 = 1.0 + (film - 1.0) * (t * t * (3.0 - 2.0 * t));
+  final sin2Sq = (1.0 - cos1 * cos1) / (eta2 * eta2);
+  final cos2Sq = 1.0 - sin2Sq;
+  if (cos2Sq < 0.0) return Vector3.all(1.0);
+  final cos2 = math.sqrt(cos2Sq);
+
+  final r0 = (eta2 - 1.0) / (eta2 + 1.0);
+  final r12 = r0 * r0 + (1.0 - r0 * r0) * math.pow(1.0 - cos1, 5.0).toDouble();
+  final t121 = 1.0 - r12;
+  final phi12 = eta2 < 1.0 ? pi : 0.0;
+  final phi21 = pi - phi12;
+
+  double channel(int i, List<double> phis) {
+    final root = math.sqrt(base[i].clamp(0.0, 0.9999));
+    final baseIor = (1.0 + root) / (1.0 - root);
+    final r1 = math.pow((baseIor - eta2) / (baseIor + eta2), 2.0).toDouble();
+    final r23 = r1 + (1.0 - r1) * math.pow(1.0 - cos2, 5.0).toDouble();
+    phis.add(phi21 + (baseIor < eta2 ? pi : 0.0));
+    return r23;
+  }
+
+  final phis = <double>[];
+  final r23 = Vector3(channel(0, phis), channel(1, phis), channel(2, phis));
+  final phi = Vector3(phis[0], phis[1], phis[2]);
+  final opd = 2.0 * eta2 * thickness * cos2;
+  final total = Vector3.zero();
+  for (var i = 0; i < 3; i++) {
+    final r123 = (r12 * r23[i]).clamp(1e-5, 0.9999);
+    final rs = t121 * t121 * r23[i] / (1.0 - r123);
+    total[i] = r12 + rs;
+  }
+  final cm = Vector3(
+    (t121 * t121 * r23.x / (1.0 - (r12 * r23.x).clamp(1e-5, 0.9999))) - t121,
+    (t121 * t121 * r23.y / (1.0 - (r12 * r23.y).clamp(1e-5, 0.9999))) - t121,
+    (t121 * t121 * r23.z / (1.0 - (r12 * r23.z).clamp(1e-5, 0.9999))) - t121,
+  );
+  final root123 = Vector3(
+    math.sqrt((r12 * r23.x).clamp(1e-5, 0.9999)),
+    math.sqrt((r12 * r23.y).clamp(1e-5, 0.9999)),
+    math.sqrt((r12 * r23.z).clamp(1e-5, 0.9999)),
+  );
+  for (var m = 1; m <= 2; m++) {
+    cm.multiply(root123);
+    final sensitivity = _iridescenceSensitivity(m * opd, phi * m.toDouble());
+    total.add(
+      Vector3(cm.x * sensitivity.x, cm.y * sensitivity.y, cm.z * sensitivity.z)
+        ..scale(2.0),
+    );
+  }
+  return Vector3(
+    math.max(total.x, 0.0),
+    math.max(total.y, 0.0),
+    math.max(total.z, 0.0),
+  );
 }
 
 /// `toon.frag`: the diffuse response quantised into bands, plus a rim term.

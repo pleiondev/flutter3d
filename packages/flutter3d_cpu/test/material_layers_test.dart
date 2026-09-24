@@ -17,8 +17,9 @@ const int _size = 48;
 /// The HDR frame of a sphere drawn with [material], lit from the camera's
 /// side, and the device it was drawn on.
 ({Float32List hdr, CpuDevice device}) _render(
-  Material Function(CpuDevice device) material,
-) {
+  Material Function(CpuDevice device) material, {
+  bool environment = false,
+}) {
   final device = CpuDevice(
     width: _size,
     height: _size,
@@ -35,6 +36,35 @@ const int _size = 48;
     ..add(sphere)
     ..add(light)
     ..add(camera);
+  if (environment) {
+    // Dark grey all round but for the face behind the sphere, -Z, which is
+    // green on one half and blue on the other: what the glass lets through
+    // is told apart by its colour, and where a ray bent to by its hue.
+    const cube = 8;
+    final faces = <ByteData>[
+      for (var face = 0; face < 6; face++)
+        ByteData.sublistView(
+          Uint8List.fromList(<int>[
+            for (var i = 0; i < cube * cube; i++)
+              ...(face != 5
+                  ? <int>[30, 30, 30, 255]
+                  : (i % cube < cube ~/ 2
+                        ? <int>[0, 230, 0, 255]
+                        : <int>[0, 0, 230, 255])),
+          ]),
+        ),
+    ];
+    const levels = 4;
+    scene
+      ..environment = device.createCubeTextureFromPixels(
+        size: cube,
+        format: TextureFormat.r8g8b8a8UNormInt,
+        faces: faces,
+        mipLevels: EnvironmentMap.prefilter(faces, size: cube, levels: levels),
+      )
+      ..environmentLevels = levels
+      ..ambientIntensity = 1.0;
+  }
   final result = Renderer.create(device: device).render(
     width: _size,
     height: _size,
@@ -241,9 +271,7 @@ void main() {
           width: 1,
           height: 1,
           format: TextureFormat.r8g8b8a8UNormInt,
-          pixels: ByteData.sublistView(
-            Uint8List.fromList(<int>[0, 0, 0, 255]),
-          ),
+          pixels: ByteData.sublistView(Uint8List.fromList(<int>[0, 0, 0, 255])),
         ),
       ),
     );
@@ -279,5 +307,92 @@ void main() {
       ),
     );
     expect(_largestDifference(plain, zero), 0.0);
+  });
+
+  group('transmission', () {
+    /// A white glass sphere in the green-backed environment.
+    Float32List glass(MaterialExtensions? layers) => _render(
+      (_) => Material(
+        lighting: LightingModel.pbrLayered,
+        baseColor: Vector4(1.0, 1.0, 1.0, 1.0),
+        roughness: 0.05,
+        extensions: layers,
+      ),
+      environment: true,
+    ).hdr;
+
+    /// The centre pixel's colour.
+    Vector3 centre(Float32List hdr) {
+      final i = ((_size ~/ 2) * _size + _size ~/ 2) * 4;
+      return Vector3(hdr[i], hdr[i + 1], hdr[i + 2]);
+    }
+
+    test('transmission-glass: the environment behind shows through', () {
+      final white = centre(glass(null));
+      final clear = centre(glass(MaterialExtensions(transmission: 1.0)));
+      // White scatters the room's light back, all colours alike; clear
+      // glass shows what is behind it, which has no red in it.
+      //
+      // Mutation: drop the `ambient +=` of the transmitted light from the
+      // mirror. The centre is the diffuse white's grey again.
+      expect(white.y, lessThan(white.x * 1.5));
+      expect(clear.y + clear.z, greaterThan(clear.x * 3.0));
+    });
+
+    test('a volume takes away the colours its attenuation says', () {
+      final clear = centre(
+        glass(MaterialExtensions(transmission: 1.0, thickness: 1.0)),
+      );
+      final tinted = centre(
+        glass(
+          MaterialExtensions(
+            transmission: 1.0,
+            thickness: 1.0,
+            attenuationDistance: 0.5,
+            attenuationColor: Vector3(1.0, 0.2, 0.2),
+          ),
+        ),
+      );
+      // Two attenuation distances of green at 0.2 leave four per cent of it.
+      // Mutation: leave `transmittance` at one. The two match.
+      expect(tinted.y, lessThan(clear.y * 0.5));
+    });
+
+    test('dispersion parts the colours of a refracting sphere', () {
+      final plain = glass(
+        MaterialExtensions(transmission: 1.0, thickness: 1.0),
+      );
+      final spread = glass(
+        MaterialExtensions(transmission: 1.0, thickness: 1.0, dispersion: 20.0),
+      );
+      // Mutation: use one ray for all three channels in `transmitted`.
+      expect(_largestDifference(plain, spread), greaterThan(0.01));
+    });
+
+    test('a thick sphere bends what is behind it, a thin one does not', () {
+      final thin = glass(MaterialExtensions(transmission: 1.0, ior: 1.8));
+      final thick = glass(
+        MaterialExtensions(transmission: 1.0, ior: 1.8, thickness: 1.0),
+      );
+      expect(_largestDifference(thin, thick), greaterThan(0.01));
+    });
+  });
+
+  test('iridescence colours the reflection, and at nought changes nothing', () {
+    final plain = _hdr((_) => _paint(roughness: 0.3));
+    final film = _hdr(
+      (_) =>
+          _paint(roughness: 0.3, layers: MaterialExtensions(iridescence: 1.0)),
+    );
+    final none = _hdr(
+      (_) => _paint(
+        roughness: 0.3,
+        layers: MaterialExtensions(iridescenceThicknessMaximum: 250.0),
+      ),
+    );
+    // Mutation: drop `withFilm` from the mirror's `shade`. The film is the
+    // plain picture.
+    expect(_largestDifference(plain, film), greaterThan(0.01));
+    expect(_largestDifference(plain, none), 0.0);
   });
 }

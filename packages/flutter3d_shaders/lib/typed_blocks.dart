@@ -414,12 +414,24 @@ final class LayerInfoBlock extends UniformBlock {
   /// `anisotropy`: Vector4, at byte 48.
   final Float32List anisotropy = Float32List(4);
 
+  /// `transmission`: Vector4, at byte 64.
+  final Float32List transmission = Float32List(4);
+
+  /// `attenuation`: Vector4, at byte 80.
+  final Float32List attenuation = Float32List(4);
+
+  /// `iridescence`: Vector4, at byte 96.
+  final Float32List iridescence = Float32List(4);
+
   @override
   late final Map<String, Float32List> members = <String, Float32List>{
     'specular': specular,
     'coat': coat,
     'sheen': sheen,
     'anisotropy': anisotropy,
+    'transmission': transmission,
+    'attenuation': attenuation,
+    'iridescence': iridescence,
   };
 }
 

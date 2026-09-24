@@ -892,6 +892,14 @@ uniformBlocks = <String, Map<String, Map<String, UniformMemberLayout>>>{
       'coat': (offset: 16, byteLength: 16, elements: 1, type: 'Vector4'),
       'sheen': (offset: 32, byteLength: 16, elements: 1, type: 'Vector4'),
       'anisotropy': (offset: 48, byteLength: 16, elements: 1, type: 'Vector4'),
+      'transmission': (
+        offset: 64,
+        byteLength: 16,
+        elements: 1,
+        type: 'Vector4',
+      ),
+      'attenuation': (offset: 80, byteLength: 16, elements: 1, type: 'Vector4'),
+      'iridescence': (offset: 96, byteLength: 16, elements: 1, type: 'Vector4'),
     },
     'LightListInfo': <String, UniformMemberLayout>{
       'list': (offset: 0, byteLength: 16, elements: 1, type: 'Vector4'),

@@ -127,8 +127,11 @@ final class LightingModel {
     usesMetallic: true,
     usesEnvironment: true,
   );
-  /// [pbr] with the layers glTF adds on top of it — `M1`: a clear coat, a
-  /// specular strength and tint, an index of refraction. See
+
+  /// [pbr] with the layers glTF adds on top of it — `M1`–`M3`: a clear coat,
+  /// a specular strength and tint, an index of refraction, a sheen,
+  /// anisotropy, transmission through a volume, dispersion and a thin film.
+  /// See
   /// `MaterialExtensions` for what each is.
   ///
   /// **A model of its own rather than a branch in [pbr]**, so a plain

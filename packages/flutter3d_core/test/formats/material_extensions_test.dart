@@ -198,6 +198,67 @@ void main() {
       check(reread.materials.single.extensions);
     });
 
+    test('reads and writes transmission, volume, dispersion and '
+        'iridescence', () async {
+      final asset = await GltfLoader().load(
+        _gltf(
+          <String, Object?>{
+            'KHR_materials_transmission': <String, Object?>{
+              'transmissionFactor': 0.9,
+              'transmissionTexture': <String, Object?>{'index': 0},
+            },
+            'KHR_materials_volume': <String, Object?>{
+              'thicknessFactor': 0.25,
+              'thicknessTexture': <String, Object?>{'index': 0},
+              'attenuationDistance': 2.0,
+              'attenuationColor': <Object?>[1.0, 0.5, 0.25],
+            },
+            'KHR_materials_dispersion': <String, Object?>{'dispersion': 0.5},
+            'KHR_materials_iridescence': <String, Object?>{
+              'iridescenceFactor': 1.0,
+              'iridescenceIor': 1.6,
+              'iridescenceThicknessMaximum': 600.0,
+            },
+          },
+          required: <String>['KHR_materials_transmission'],
+        ),
+      );
+      void check(MaterialExtensions? layers) {
+        expect(layers, isNotNull);
+        expect(layers!.transmission, closeTo(0.9, 1e-6));
+        expect(layers.thickness, 0.25);
+        expect(layers.attenuationDistance, 2.0);
+        expect(layers.attenuationColor.z, 0.25);
+        expect(layers.dispersion, 0.5);
+        expect(layers.iridescence, 1.0);
+        expect(layers.iridescenceIor, closeTo(1.6, 1e-6));
+        expect(layers.iridescenceThicknessMaximum, 600.0);
+        // Transmission from the red of its image into the coat map's blue,
+        // thickness from the green into its alpha.
+        expect(layers.coatMapSources.map((lane) => lane?.channel), <int?>[
+          null,
+          null,
+          0,
+          1,
+        ]);
+      }
+
+      // Mutation: drop the volume from `materialExtensionsFromJson`. The
+      // thickness reads nought.
+      check(asset.materials.single.extensions);
+      check(
+        (await GltfLoader().load(
+          GltfWriter(asset).writeGlb(),
+        )).materials.single.extensions,
+      );
+      // An infinite attenuation distance, the default, is not written.
+      final plain = materialExtensionsToJson(
+        MaterialExtensions(transmission: 1.0),
+        texture: (binding) => binding.imageIndex,
+      );
+      expect(plain.containsKey('KHR_materials_volume'), isFalse);
+    });
+
     test('the textures not drawn are named in the warnings', () async {
       final asset = await GltfLoader().load(
         _gltf(<String, Object?>{
