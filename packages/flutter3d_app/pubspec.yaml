@@ -49,6 +49,12 @@ dependencies:
   # and nothing else.
   flutter3d_sim: ^0.8.0
 
+  # `LevelScene`: the part of loading a level that needs no Flutter — brushes
+  # into meshes, materials, lights and probes — which `LevelLoader` hands the
+  # textures it decoded and wraps in a `LoadedLevel`. It lives there so a
+  # program started by `dart run` can draw a level too.
+  flutter3d_editor_core: ^0.8.0
+
   # The wall clock `FrameClock.tick` reads. Not a `Stopwatch`: this one is
   # what `flutter_test` fakes, so a widget test's `pump` advances the frame
   # clock the way a real frame does.

@@ -13,10 +13,15 @@ final class SurfaceBuilder {
     this.material, {
     required this.shadowCasting,
     this.lightmapped = false,
+    this.brush,
   });
 
   final String material;
   final ShadowCasting shadowCasting;
+
+  /// The one brush these triangles belong to, when every brush is its own
+  /// surface. See [BrushSurface.brush].
+  final int? brush;
 
   /// Whether the vertices carry a second texture coordinate into the
   /// lightmap. See [BrushSurface.lightmapUvs].
@@ -80,5 +85,6 @@ final class SurfaceBuilder {
     tangents: Float32List.fromList(_tangents),
     lightmapUvs: lightmapped ? Float32List.fromList(_lightmapUvs) : null,
     indices: Uint32List.fromList(_indices),
+    brush: brush,
   );
 }

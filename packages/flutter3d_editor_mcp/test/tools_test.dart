@@ -26,9 +26,9 @@ void main() {
     );
   });
 
-  test('every tool is a command or one of the six session verbs', () {
+  test('every tool is a command, a session verb or a way to look', () {
     // Named rather than counted: a count would pass a rename, and what a reader
-    // of this file wants to know is *which* six are not document commands.
+    // of this file wants to know is *which* ones are not document commands.
     const beyondTheCommands = <String>{
       'list',
       'select',
@@ -37,6 +37,7 @@ void main() {
       'validate',
       'save',
       'screenshot',
+      'report',
     };
     expect(
       namesOf(editorTools).difference(editorCommandNames.toSet()),

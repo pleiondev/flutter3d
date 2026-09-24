@@ -1,13 +1,19 @@
 import 'dart:io';
 
 import 'package:flutter3d_editor_core/flutter3d_editor_core.dart';
-import 'package:flutter3d_mcp_kit/flutter3d_mcp_kit.dart' show Answer;
+import 'package:flutter3d_mcp_kit/flutter3d_mcp_kit.dart'
+    show Answer, PictureAnswer;
 import 'package:flutter3d_sim/flutter3d_sim.dart';
+import 'package:vector_math/vector_math.dart';
+
+import 'level_view.dart';
 
 // What a tool call did, and the sentence to say about it — the one `Answer`
-// every server here shares. A refusal is an answer, not an exception:
-// `EditorCommand.apply` already decided that.
-export 'package:flutter3d_mcp_kit/flutter3d_mcp_kit.dart' show Answer;
+// every server here shares, and the `PictureAnswer` that carries a PNG
+// beside it. A refusal is an answer, not an exception: `EditorCommand.apply`
+// already decided that.
+export 'package:flutter3d_mcp_kit/flutter3d_mcp_kit.dart'
+    show Answer, PictureAnswer;
 
 /// One level document, open, with the editor's own verbs on it.
 ///
@@ -139,6 +145,61 @@ final class EditorSession {
       for (final issue in issues) '  $issue',
     ].join('\n');
   }
+
+  /// Where a picture is taken from: [from] and [at] where the call named
+  /// them, the level's default view for whichever it left out. Null for a
+  /// level with nothing in it to look at.
+  LevelCamera? _camera(Vector3? from, Vector3? at) {
+    final fallback = LevelView.defaultCamera(editing.level);
+    if (fallback == null) return null;
+    return (from: from ?? fallback.from, at: at ?? fallback.at);
+  }
+
+  /// A picture of the level from [from] looking at [at].
+  Future<PictureAnswer> screenshot(Vector3? from, Vector3? at) async {
+    final camera = _camera(from, at);
+    if (camera == null) {
+      return (did: false, says: 'the level is empty', png: null);
+    }
+    final png = await LevelView.of(editing.level).picture(camera);
+    return (
+      did: true,
+      says:
+          'the level from ${_place(camera.from)} looking at '
+          '${_place(camera.at)}, ${LevelView.width}×${LevelView.height}',
+      png: png,
+    );
+  }
+
+  /// What the camera from [from] looking at [at] sees, one line per brush,
+  /// light and entity.
+  ///
+  /// **Answered from the frame's own object ids**, not from boxes against a
+  /// ray: the renderer draws the level once more with every draw's number in
+  /// place of its colour (`Renderer.captureObjectIds`), so a pixel counted as
+  /// a wall's is a pixel the wall was drawn at, after the depth test. The
+  /// level is built one draw per brush for this, so a pixel names a brush and
+  /// not a material.
+  Future<Answer> report(Vector3? from, Vector3? at) async {
+    final camera = _camera(from, at);
+    if (camera == null) return (did: false, says: 'the level is empty');
+    final rows = await LevelView.of(editing.level).report(camera);
+    final headline =
+        'from ${_place(camera.from)} looking at ${_place(camera.at)}, '
+        '${LevelView.width}×${LevelView.height}:';
+    return (
+      did: true,
+      says: <String>[headline, for (final row in rows) row.says].join('\n'),
+    );
+  }
+
+  static String _place(Vector3 it) => <double>[it.x, it.y, it.z]
+      .map(
+        (double v) => v == v.roundToDouble()
+            ? v.toStringAsFixed(0)
+            : v.toStringAsFixed(2),
+      )
+      .join(', ');
 
   /// Writes the document, to [path] or over the one it came from.
   ///

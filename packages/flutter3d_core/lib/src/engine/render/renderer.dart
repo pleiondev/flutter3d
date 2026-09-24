@@ -37,6 +37,7 @@ import 'frame_work_budget.dart';
 import 'identity_indices.dart';
 import 'light_clusters.dart';
 import 'material.dart';
+import 'object_id_frame.dart';
 import 'pass_contributor.dart';
 import 'probe_faces.dart';
 import 'procedural_texture.dart';
@@ -52,6 +53,9 @@ import 'static_bake_key.dart';
 // of `Renderer`'s own concerns, so they live in their own file. Re-exported
 // here rather than added to `flutter3d.dart` directly, so this file keeps
 // being the one place that decides what a consumer reaches through.
+//
+// What `Renderer.captureObjectIds` answers with, for the same reason.
+export 'object_id_frame.dart';
 export 'render_settings.dart';
 
 part 'renderer_batch.dart';
@@ -550,11 +554,11 @@ final class Renderer implements RenderServices {
 
     _renderList.materialIds.clear();
 
-    // A question no frame will ever answer is answered now, with nothing:
-    // a future that never completes is a caller waiting for a renderer that
-    // is gone.
+    // A question no frame will ever answer is answered now — a pixel with
+    // nothing, a whole frame with an error: a future that never completes is
+    // a caller waiting for a renderer that is gone.
     for (final pick in _pendingPicks) {
-      pick.completer.complete(null);
+      pick.abandon();
     }
     _pendingPicks.clear();
   }
@@ -1294,7 +1298,27 @@ final class Renderer implements RenderServices {
   /// copy is refused or a fence never signals. A caller that awaits this from
   /// a pointer handler catches, and treats the error as "nothing there".
   Future<MeshNode?> pickPixel(double u, double v) {
-    final request = _PickRequest(u, v);
+    final request = _PixelPick(u, v);
+    _pendingPicks.add(request);
+    return request.completer.future;
+  }
+
+  /// Which mesh the next frame draws at every pixel: [pickPixel]'s pass, run
+  /// for the whole frame and read back whole.
+  ///
+  /// Answered the way [pickPixel] is — by the frame after this call, when its
+  /// readback arrives — and with the same rules about masked, blended and
+  /// instanced meshes, since it is the same pass; a frame with both kinds of
+  /// question pending draws the ids once. It costs a scene's worth of draws
+  /// and a readback of the whole frame, so it is for a tool that has to say
+  /// what is on the screen — how much of a wall shows, and what hides a torch
+  /// — and not for anything that runs every frame.
+  ///
+  /// Fails with the frame when the frame fails, and with a [StateError] when
+  /// the renderer is disposed before any frame answers: an empty frame would
+  /// read as a scene with nothing in it.
+  Future<ObjectIdFrame> captureObjectIds() {
+    final request = _FramePick();
     _pendingPicks.add(request);
     return request.completer.future;
   }

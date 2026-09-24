@@ -21,14 +21,13 @@
 /// much harder program — two writers on one undo stack — and this is the half
 /// that can be tested without a device.
 ///
-/// **It cannot draw, and says so rather than going quiet.** [editorTools]
-/// offers a `screenshot` that refuses with its reason: every backend in this
-/// repository reaches a `GraphicsDevice` whose finished frame is a Flutter
-/// widget, so a process that can render a level is a Flutter process — and
-/// `dart run` cannot resolve a package that depends on the Flutter SDK, which
-/// `packages/flutter3d/tool/dump_fixture.dart` records finding out. An
-/// absent tool would have an agent inventing ways around it; a refusal with a
-/// reason ends the question.
+/// **It draws with no GPU and no Flutter.** `screenshot` renders the level
+/// through the software rasteriser, and `report` reads the same frame's
+/// object ids to say how much of each brush, light and entity a camera sees
+/// and what is in its way — see [LevelView]. It used to refuse, when every
+/// renderer here reached a device whose finished frame was a Flutter widget
+/// and the level's scene was built inside a Flutter package; neither is true
+/// any more, and `dart run` resolves everything it needs.
 ///
 /// ```sh
 /// dart run flutter3d_editor_mcp:editor_mcp apps/flutter3d_demo_dungeon/assets/levels/crypt.json
@@ -38,3 +37,4 @@ library;
 export 'src/editor_server.dart';
 export 'src/editor_session.dart';
 export 'src/editor_tools.dart';
+export 'src/level_view.dart';

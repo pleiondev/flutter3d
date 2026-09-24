@@ -22,9 +22,20 @@ final class BrushSurface {
     required this.tangents,
     required this.indices,
     this.lightmapUvs,
+    this.brush,
   });
 
   final String material;
+
+  /// Which of the level's brushes this surface is, when the level was built
+  /// one surface per brush (`BrushGeometry.build`'s `perBrush`), and null
+  /// when it is a batch of many.
+  ///
+  /// **The answer a batch cannot give.** A batch is a material's worth of the
+  /// whole level, so a pixel of it names a material and not a brush; a tool
+  /// that has to say *which* wall hides the torch builds the level this way
+  /// instead, and pays a draw per brush for it.
+  final int? brush;
 
   /// Two floats per vertex: where the vertex is in the level's lightmap.
   ///

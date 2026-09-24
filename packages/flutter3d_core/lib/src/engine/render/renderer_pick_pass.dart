@@ -19,15 +19,138 @@
 /// node is culled before it costs a texture.
 part of 'renderer.dart';
 
-/// One question the next frame answers: what is drawn at a point.
-final class _PickRequest {
-  _PickRequest(this.u, this.v);
+/// One question the next frame's id pass answers: what is drawn at a point
+/// ([_PixelPick]), or what is drawn everywhere ([_FramePick]).
+///
+/// **Two kinds of one question, on one queue**, because both are answered by
+/// the same pass reading the same target: a frame that has either pending
+/// draws the ids once, and each question reads the part of it it wants.
+sealed class _PickRequest {
+  Completer<Object?> get _completer;
+
+  /// Asks [device] for this question's part of [target], queued behind the
+  /// pass that filled it, and answers from what comes back. [nodes] maps an
+  /// id back to its node, one-based.
+  ///
+  /// **Asked through `Future.sync`**, because a device refuses synchronously:
+  /// `readbackRegionOf` throws before any future exists, and so does a WebGL2
+  /// context that has lost its fence or a flutter_gpu copy that is turned
+  /// down. Called bare, the first refusal would come out of the node and fail
+  /// the whole frame — the picture with it — where what it is is one question
+  /// that cannot be answered. Wrapped, it lands in the handler below, the
+  /// question is completed with the error the caller is told to catch, and
+  /// every other question in the list still gets asked.
+  ///
+  /// Both answers check before they complete. A frame that fails after the
+  /// node has run answers its questions with the failure — see the catch in
+  /// `render` — and the device still hands back what it read; the readback
+  /// arriving second at a completer already finished would throw from inside
+  /// a `then`, where nothing is listening.
+  void ask(GraphicsDevice device, TextureHandle target, List<MeshNode> nodes) {
+    Future<ByteData>.sync(
+      () => device.readback(target, region: _regionOf(target)),
+    ).then(
+      (ByteData pixels) {
+        if (_completer.isCompleted) return;
+        _completer.complete(_answer(pixels, target, nodes));
+      },
+      onError: (Object error, StackTrace stack) {
+        if (_completer.isCompleted) return;
+        _completer.completeError(error, stack);
+      },
+    );
+  }
+
+  /// The part of the id target this question reads; null is all of it.
+  ScreenRect? _regionOf(TextureHandle target);
+
+  /// What [pixels] — [_regionOf]'s bytes — say to this question.
+  Object? _answer(ByteData pixels, TextureHandle target, List<MeshNode> nodes);
+
+  /// Answers a question no frame will ever answer, from `Renderer.dispose`.
+  void abandon();
+}
+
+/// The id in the three low bytes of the RGBA8 pixel at [offset] of [pixels]:
+/// red is the lowest, as `_encodeObjectIds` writes it.
+int _idAt(ByteData pixels, int offset) =>
+    pixels.getUint8(offset) |
+    (pixels.getUint8(offset + 1) << 8) |
+    (pixels.getUint8(offset + 2) << 16);
+
+/// What is drawn at one point — [Renderer.pickPixel].
+final class _PixelPick extends _PickRequest {
+  _PixelPick(this.u, this.v);
 
   /// Where, as fractions of the frame from the top left.
   final double u;
   final double v;
 
   final Completer<MeshNode?> completer = Completer<MeshNode?>();
+
+  @override
+  Completer<Object?> get _completer => completer;
+
+  @override
+  ScreenRect _regionOf(TextureHandle target) => ScreenRect(
+    x: (u * target.width).floor().clamp(0, target.width - 1),
+    y: (v * target.height).floor().clamp(0, target.height - 1),
+    width: 1,
+    height: 1,
+  );
+
+  @override
+  MeshNode? _answer(
+    ByteData pixels,
+    TextureHandle target,
+    List<MeshNode> nodes,
+  ) {
+    final id = _idAt(pixels, 0);
+    return id == 0 || id > nodes.length ? null : nodes[id - 1];
+  }
+
+  /// Nothing, which is what a pick that finds no mesh answers too.
+  @override
+  void abandon() => completer.complete(null);
+}
+
+/// What is drawn at every pixel — [Renderer.captureObjectIds].
+final class _FramePick extends _PickRequest {
+  final Completer<ObjectIdFrame> completer = Completer<ObjectIdFrame>();
+
+  @override
+  Completer<Object?> get _completer => completer;
+
+  @override
+  ScreenRect? _regionOf(TextureHandle target) => null;
+
+  @override
+  ObjectIdFrame _answer(
+    ByteData pixels,
+    TextureHandle target,
+    List<MeshNode> nodes,
+  ) {
+    final ids = Uint32List(target.width * target.height);
+    for (var i = 0; i < ids.length; i++) {
+      final id = _idAt(pixels, i * 4);
+      // An id past the list is a byte the pass did not write, which the pixel
+      // pick reads as nothing; the frame says the same.
+      ids[i] = id > nodes.length ? 0 : id;
+    }
+    return ObjectIdFrame(
+      width: target.width,
+      height: target.height,
+      ids: ids,
+      nodes: nodes,
+    );
+  }
+
+  /// An error rather than an empty frame: a picture of nothing would read as
+  /// a scene with nothing in it, and the scene was never drawn.
+  @override
+  void abandon() => completer.completeError(
+    StateError('the renderer was disposed before a frame answered'),
+  );
 }
 
 /// Answers every question in [picks] still open with [error]: the frame they
@@ -42,7 +165,9 @@ final class _PickRequest {
 /// fails, and the one around running it.
 void _failPicks(List<_PickRequest> picks, Object error, StackTrace stack) {
   for (final pick in picks) {
-    if (!pick.completer.isCompleted) pick.completer.completeError(error, stack);
+    if (!pick._completer.isCompleted) {
+      pick._completer.completeError(error, stack);
+    }
   }
 }
 
@@ -303,46 +428,11 @@ extension _PickPass on Renderer {
 
     // After the submit, so the copy is queued behind the pass that fills the
     // target — which is the whole of what `readback` promises about order.
-    //
-    // Both answers check before they complete. A frame that fails after this
-    // node has run answers its questions with the failure — see the catch in
-    // `render` — and the device still hands back what it read; the readback
-    // arriving second at a completer already finished would throw from inside
-    // a `then`, where nothing is listening.
-    //
-    // **Asked through `Future.sync`**, because a device refuses synchronously:
-    // `readbackRegionOf` throws before any future exists, and so does a WebGL2
-    // context that has lost its fence or a flutter_gpu copy that is turned
-    // down. Called bare, the first refusal would come out of this node and
-    // fail the whole frame — the picture with it — where what it is is one
-    // question that cannot be answered. Wrapped, it lands in the handler
-    // below, the pick is completed with the error the caller is told to catch,
-    // and every other question in the list still gets asked.
+    // How each question reads it, and why a refusal is one question's answer
+    // rather than the frame's failure, is `_PickRequest.ask`.
     final answers = List<MeshNode>.unmodifiable(drawn);
     for (final pick in picks) {
-      final x = (pick.u * target.width).floor().clamp(0, target.width - 1);
-      final y = (pick.v * target.height).floor().clamp(0, target.height - 1);
-      Future<ByteData>.sync(
-        () => device.readback(
-          target,
-          region: ScreenRect(x: x, y: y, width: 1, height: 1),
-        ),
-      ).then(
-        (ByteData pixel) {
-          if (pick.completer.isCompleted) return;
-          final id =
-              pixel.getUint8(0) |
-              (pixel.getUint8(1) << 8) |
-              (pixel.getUint8(2) << 16);
-          pick.completer.complete(
-            id == 0 || id > answers.length ? null : answers[id - 1],
-          );
-        },
-        onError: (Object error, StackTrace stack) {
-          if (pick.completer.isCompleted) return;
-          pick.completer.completeError(error, stack);
-        },
-      );
+      pick.ask(device, target, answers);
     }
     developer.Timeline.finishSync();
     return drawn.length;
