@@ -119,6 +119,8 @@ Future<void> checkLinking(GraphicsDevice device) async {
       'ContactShadow',
       // `R1`: the reconstruction the temporal resolve reprojects through.
       'CameraVelocity',
+      // `R2`: four samplers and the history it keeps.
+      'TemporalResolve',
       'LightShafts',
       'DepthOfField',
       'ViewportShade',

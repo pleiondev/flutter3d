@@ -61,6 +61,7 @@ import 'cpu_shaders_reflections.dart';
 import 'cpu_shaders_shadow_passes.dart';
 import 'cpu_shaders_sky.dart';
 import 'cpu_shaders_ssao.dart';
+import 'cpu_shaders_temporal.dart';
 import 'cpu_shaders_velocity.dart';
 import 'cpu_shaders_vertex_probe.dart';
 
@@ -82,6 +83,7 @@ export 'cpu_shaders_shadow_point.dart';
 export 'cpu_shaders_sky.dart';
 export 'cpu_shaders_ssao.dart';
 export 'cpu_shaders_surface.dart';
+export 'cpu_shaders_temporal.dart';
 export 'cpu_shaders_velocity.dart';
 export 'cpu_shaders_vertex_probe.dart';
 
@@ -167,6 +169,7 @@ Map<String, CpuStage> builtinCpuShaders() {
     'ContactShadow': const CpuStage.fragment(ContactShadowShader()),
     'CameraVelocity': const CpuStage.fragment(CameraVelocityShader()),
     'Velocity': const CpuStage.fragment(VelocityShader()),
+    'TemporalResolve': const CpuStage.fragment(TemporalResolveShader()),
     'VelocityVertex': const CpuStage.vertex(VelocityVertexShader()),
     'VelocitySkinnedVertex': const CpuStage.vertex(
       VelocitySkinnedVertexShader(),

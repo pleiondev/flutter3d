@@ -41,34 +41,34 @@ Future<Uint8List> _draw(
 }
 
 void main() {
-  test('with temporal on, the scene moves each frame and comes back after '
-      'sixteen', () async {
-    // `R1`'s jitter, seen in pixels: two consecutive frames of a still scene
-    // differ, and the seventeenth is the first again, because the offset is
-    // a function of the frame index and of nothing else.
-    const which = ParityScene.plain;
-    final device = CpuDevice(
-      width: kParityWidth,
-      height: kParityHeight,
-      shaders: CpuShaderLibrary(builtinCpuShaders()),
-    );
-    final renderer = Renderer.create(device: device);
-    final built = buildParityScene(device, which: which);
-    final first = await _draw(renderer, device, built, which, temporal: true);
-    final second = await _draw(renderer, device, built, which, temporal: true);
-    expect(second, isNot(first));
-    for (var i = 2; i < 16; i++) {
-      await _draw(renderer, device, built, which, temporal: true);
-    }
-    final seventeenth = await _draw(
-      renderer,
-      device,
-      built,
-      which,
-      temporal: true,
-    );
-    expect(seventeenth, first);
-  });
+  test(
+    'with temporal on, a sequence of frames is the same sequence twice',
+    () async {
+      // `R1`'s jitter and `R2`'s history, seen in pixels: two consecutive
+      // frames of a still scene differ, and two renderers drawing the same
+      // seventeen frames end on the same picture, because the offset and the
+      // blend are functions of the frame index and of nothing else.
+      const which = ParityScene.plain;
+      Future<List<Uint8List>> run() async {
+        final device = CpuDevice(
+          width: kParityWidth,
+          height: kParityHeight,
+          shaders: CpuShaderLibrary(builtinCpuShaders()),
+        );
+        final renderer = Renderer.create(device: device);
+        final built = buildParityScene(device, which: which);
+        return <Uint8List>[
+          for (var i = 0; i < 17; i++)
+            await _draw(renderer, device, built, which, temporal: true),
+        ];
+      }
+
+      final a = await run();
+      final b = await run();
+      expect(a[1], isNot(a[0]));
+      expect(b.last, a.last);
+    },
+  );
 
   test('frameIndex counts the frames drawn, from zero', () {
     final device = CpuDevice(

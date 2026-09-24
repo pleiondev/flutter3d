@@ -59,6 +59,7 @@ part 'renderer_resources.dart';
 part 'renderer_scene_pass.dart';
 part 'renderer_shadow_pass.dart';
 part 'renderer_sky_pass.dart';
+part 'renderer_temporal_pass.dart';
 part 'renderer_velocity_pass.dart';
 part 'renderer_xray_pass.dart';
 
@@ -132,6 +133,7 @@ final class Renderer implements RenderServices {
     required this.velocityVertexShader,
     required this.velocitySkinnedVertexShader,
     required this.velocityInstancedVertexShader,
+    required this.temporalResolveShader,
     required this.ssaoBlurShader,
     required this.lightShaftsShader,
     required this.depthOfFieldShader,
@@ -275,6 +277,19 @@ final class Renderer implements RenderServices {
   final ShaderHandle velocityVertexShader;
   final ShaderHandle velocitySkinnedVertexShader;
   final ShaderHandle velocityInstancedVertexShader;
+
+  /// `post/temporal_resolve.frag` — `R2`.
+  final ShaderHandle temporalResolveShader;
+
+  /// The temporal resolve's two histories, at the output's size: one read,
+  /// one written, swapped each frame. The renderer's own, like the cube
+  /// atlases, because what they hold outlives the frame.
+  final List<TextureHandle?> _history = <TextureHandle?>[null, null];
+  int _historyRead = 0;
+
+  /// Whether [_history] holds a frame worth blending: false at first, after a
+  /// resize, and after a frame drawn with temporal anti-aliasing off.
+  bool _historyValid = false;
 
   /// `gfx-32n`'s depth-aware blur over what that pass produced.
   final ShaderHandle ssaoBlurShader;
@@ -426,9 +441,14 @@ final class Renderer implements RenderServices {
       _depthStencil,
       _depthStencilSingle,
       ..._ldrFrames,
+      ..._history,
     ]) {
       if (texture != null) device.releaseTexture(texture);
     }
+    _history
+      ..[0] = null
+      ..[1] = null;
+    _historyValid = false;
     _hdrColor = null;
     _hdrMsaa = null;
     _surfaceColor = null;
@@ -441,6 +461,8 @@ final class Renderer implements RenderServices {
     _ldrCurrent = null;
     _targetWidth = 0;
     _targetHeight = 0;
+    _frameTargetWidth = 0;
+    _frameTargetHeight = 0;
 
     // Released rather than merely dropped, and nulled so a second call is the
     // no-op this method promises to be.
@@ -570,6 +592,7 @@ final class Renderer implements RenderServices {
   final CameraVelocityInfoBlock _cameraVelocityInfo = CameraVelocityInfoBlock();
   final PrevFrameInfoBlock _prevFrameInfo = PrevFrameInfoBlock();
   final VelocityInfoBlock _velocityInfo = VelocityInfoBlock();
+  final TemporalInfoBlock _temporalInfo = TemporalInfoBlock();
   final DofInfoBlock _dofInfo = DofInfoBlock();
   final FogInfoBlock _fogInfo = FogInfoBlock();
   final FrameInfoBlock _frameInfo = FrameInfoBlock();
@@ -760,6 +783,19 @@ final class Renderer implements RenderServices {
 
   int _targetWidth = 0;
   int _targetHeight = 0;
+
+  /// The finished frame's size, which is [_targetWidth] × [_targetHeight]
+  /// except while temporal anti-aliasing reconstructs a larger one — `R2`.
+  int _frameTargetWidth = 0;
+  int _frameTargetHeight = 0;
+
+  /// This frame's output size, as [render] worked it out.
+  int _outputWidth = 0;
+  int _outputHeight = 0;
+
+  /// The nodes that run at the output size rather than the scene's: those
+  /// registered after the temporal resolve. Empty while it is off.
+  Set<FrameGraphNode> _outputSized = const <FrameGraphNode>{};
 
   /// The scene, in linear light with no upper bound. Everything post-processing
   /// does depends on values above display white surviving this far, which is
@@ -1252,6 +1288,7 @@ final class Renderer implements RenderServices {
         velocityVertexShader: require('VelocityVertex'),
         velocitySkinnedVertexShader: require('VelocitySkinnedVertex'),
         velocityInstancedVertexShader: require('VelocityInstancedVertex'),
+        temporalResolveShader: require('TemporalResolve'),
         ssaoBlurShader: require('SsaoBlur'),
         lightShaftsShader: require('LightShafts'),
         depthOfFieldShader: require('DepthOfField'),
@@ -1288,8 +1325,20 @@ final class Renderer implements RenderServices {
   // `_fragmentShaderFor` and `_pipelineFor` are declared in
   // `renderer_resources.dart`, next to the caches they read and fill.
 
-  void _ensureTargets(int width, int height) {
-    if (width == _targetWidth && height == _targetHeight) return;
+  void _ensureTargets(
+    int width,
+    int height, [
+    int? outputWidth,
+    int? outputHeight,
+  ]) {
+    final frameWidth = outputWidth ?? width;
+    final frameHeight = outputHeight ?? height;
+    if (width == _targetWidth &&
+        height == _targetHeight &&
+        frameWidth == _frameTargetWidth &&
+        frameHeight == _frameTargetHeight) {
+      return;
+    }
 
     // **Everything below is about to be replaced by assigning over a field.**
     // Where the collector frees a texture that is the whole story; where it
@@ -1354,8 +1403,17 @@ final class Renderer implements RenderServices {
     _ldrFrames.clear();
     _ldrFree.clear();
     _ldrCurrent = null;
-    _makeLdrFrame = () =>
-        make(StorageMode.devicePrivate, device.defaultColorFormat);
+    //
+    // At the output size, which is the scene's except while temporal
+    // anti-aliasing reconstructs a larger picture — `R2`.
+    _makeLdrFrame = () => device.createTexture(
+      RenderTargetSpec(
+        width: frameWidth,
+        height: frameHeight,
+        format: device.defaultColorFormat,
+        storageMode: StorageMode.devicePrivate,
+      ),
+    );
 
     // The surface buffer: world-space normal and depth, for whatever runs after
     // the scene. Allocated with the rest rather than on demand, because a
@@ -1384,6 +1442,8 @@ final class Renderer implements RenderServices {
 
     _targetWidth = width;
     _targetHeight = height;
+    _frameTargetWidth = frameWidth;
+    _frameTargetHeight = frameHeight;
   }
 
   /// Index of the first directional light in the packed buffer that asks to
@@ -2160,28 +2220,42 @@ final class Renderer implements RenderServices {
     // setting is off would make that read conditional too, which is the branch
     // moved rather than deleted. Registered and inactive, nothing produces the
     // glow, the graph culls the node, and the optional read comes back null.
+    final fxaa = _FxaaNode(this, s.antiAlias);
+    final shade = _ViewportShadeNode(this, view, s);
+    // `R2`: after everything that reads the scene's own buffers and before
+    // bloom, so the glow is taken from the resolved picture and the
+    // screen-space effects work at the scene's size.
+    final resolve = _TemporalResolveNode(this, view, s);
     graph
+      ..addNode(resolve)
       ..addNode(bloom)
       ..addNode(composite)
       // And the smoothing after the composite, which is what lets it read a
       // finished picture — `gfx-04n`. Registered whether or not it is on, for
       // the same reason bloom is: registration order is the version chain, and
       // an inactive node is culled rather than branched around.
-      ..addNode(_FxaaNode(this, s.antiAlias))
+      ..addNode(fxaa)
       // `gfx-43n`/`44n`/`45n`, last: a mode here is about the finished
       // picture, so it goes after the tone map and after the edges are
       // smoothed. Before the antialias it would have had its own outline
       // blurred, which is the one thing an outline must not be.
-      ..addNode(_ViewportShadeNode(this, view, s));
+      ..addNode(shade);
 
     // After the composite, which is the whole of what [FramePhase.present]
     // means: registration order is the version chain, so a node here reads the
     // version the composite wrote and produces the next one. Nothing about the
     // node changes between the two phases — it is where it is registered that
     // decides what it sees.
-    for (final node in nodes.of(FramePhase.present)) {
+    final present = nodes.of(FramePhase.present).toList();
+    for (final node in present) {
       graph.addNode(node);
     }
+
+    // `R2`: everything after the resolve works on the picture it
+    // reconstructed, at the size that was asked for.
+    _outputSized = s.antiAlias.temporal.enabled
+        ? <FrameGraphNode>{resolve, bloom, composite, fxaa, shade, ...present}
+        : const <FrameGraphNode>{};
 
     return graph.compile(
       disabled: s.disabledPasses,
@@ -2894,7 +2968,12 @@ final class Renderer implements RenderServices {
   ) {
     final aspect = rect.width / rect.height;
     final temporal = settings.antiAlias.temporal;
-    if (!temporal.enabled) return _viewProjection(camera, aspect);
+    // No jitter where there can be no resolve: a device that opens one colour
+    // attachment has no surface buffer, and a jittered picture nobody
+    // averages is a picture that shakes.
+    if (!temporal.enabled || device.maxColorAttachments < 2) {
+      return _viewProjection(camera, aspect);
+    }
     final jittered = JitteredProjection.frame(
       camera.projection,
       frame: _frameIndex,
@@ -3099,17 +3178,34 @@ final class Renderer implements RenderServices {
     // chain and the composite all take their size from these two numbers.
     // Clamped to at least one pixel: a viewport animating open is a real
     // state and a zero-pixel target is not.
+    //
+    // **Two sizes while temporal anti-aliasing is on — `R2`.** The scene and
+    // everything that reads its buffers draw at the scaled size, and the
+    // resolve reconstructs the asked-for size from the jittered frames, so
+    // bloom, the composite and the frame are output-sized. Off, the output is
+    // the scaled size too, which is the frame this setting has always
+    // returned.
+    final temporal = settings.antiAlias.temporal.enabled;
+    final requestedWidth = width;
+    final requestedHeight = height;
     final scale = settings.renderScale.clamp(0.1, 1.0);
     if (scale != 1.0) {
       width = math.max(1, (width * scale).round());
       height = math.max(1, (height * scale).round());
     }
+    final outputWidth = temporal ? requestedWidth : width;
+    final outputHeight = temporal ? requestedHeight : height;
+    _outputWidth = outputWidth;
+    _outputHeight = outputHeight;
+    // A frame drawn without the resolve leaves the history describing a
+    // picture from before it; turning it back on starts again.
+    if (!temporal) _historyValid = false;
     // Timeline markers, not print statements: the phases below are only
     // meaningful next to Flutter's own build and raster spans, and only in
     // profile or release, where the debug interpreter is not the bottleneck.
     developer.Timeline.startSync('Renderer.render');
     final frameClock = Stopwatch()..start();
-    _ensureTargets(width, height);
+    _ensureTargets(width, height, outputWidth, outputHeight);
 
     // A texture nothing is reading, so that what is drawn now is not what a
     // compositor is still showing — see [_ldrFrames].
@@ -3460,11 +3556,19 @@ final class Renderer implements RenderServices {
             // Not const any more: the format comes from the device, which is
             // the point — a description of a resource cannot be a compile-time
             // constant once it depends on which backend is drawing.
+            //
+            // Half the *output* while temporal anti-aliasing is on, because
+            // the glow is taken from the resolved picture — `R2`.
             ..declare(
               ResourceDesc(
                 id: FrameResourceIds.bloom,
                 format: hdrFormat,
-                size: const FrameFraction(2),
+                size: temporal
+                    ? AbsolutePixels(
+                        math.max(1, outputWidth ~/ 2),
+                        math.max(1, outputHeight ~/ 2),
+                      )
+                    : const FrameFraction(2),
               ),
             )
             // Half again, and the same format for the same reason: HDR is the
@@ -3574,8 +3678,9 @@ final class Renderer implements RenderServices {
               services: this,
               state: passState,
               settings: settings,
-              width: width,
-              height: height,
+              // `R2`: after the temporal resolve, the output's size.
+              width: _outputSized.contains(node) ? _outputWidth : width,
+              height: _outputSized.contains(node) ? _outputHeight : height,
               // Only for a node that asked for it. This convenience used to
               // hand the scene colour to every node in the frame, including
               // the shadow passes that run before one exists and never wanted
@@ -3741,7 +3846,10 @@ final class Renderer implements RenderServices {
         msaaSamples: scenePass.msaaSamples,
         fxaa: passTimings.any((p) => p.name == 'antialias'),
         msaaDeclined: scenePass.msaaDeclined,
-        temporal: settings.antiAlias.temporal.enabled,
+        // Whether the resolve ran, which asking the setting would not say: a
+        // device with one colour attachment has no surface buffer, and the
+        // node is refused there.
+        temporal: passTimings.any((p) => p.name == 'temporal resolve'),
       ),
       cpuMicros: frameClock.elapsedMicroseconds,
       submitMicros: scenePass.submitMicros,

@@ -64,6 +64,7 @@ const List<RequiredShader> kRequiredShaders = <RequiredShader>[
   (name: 'ContactShadow', fragment: true),
   (name: 'CameraVelocity', fragment: true),
   (name: 'Velocity', fragment: true),
+  (name: 'TemporalResolve', fragment: true),
   (name: 'VelocityVertex', fragment: false),
   (name: 'VelocitySkinnedVertex', fragment: false),
   (name: 'VelocityInstancedVertex', fragment: false),

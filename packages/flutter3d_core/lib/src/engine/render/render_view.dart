@@ -40,7 +40,14 @@ final class RenderView {
     Vector4? clearColor,
     this.opaqueSort = SortMode.stateThenDepth,
     this.transparentSort = SortMode.backToFront,
+    this.cut = false,
   }) : clearColor = clearColor ?? Vector4(0.055, 0.062, 0.078, 1.0);
+
+  /// Whether this frame is a cut: the camera jumped rather than moved, and
+  /// nothing the temporal resolve remembers is worth keeping — `R2`. Set for
+  /// the one frame after a jump and cleared again; a cut every frame is a
+  /// resolve that never resolves anything.
+  bool cut;
 
   CameraNode camera;
 

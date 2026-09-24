@@ -147,6 +147,10 @@
     "type": "fragment",
     "file": "shaders/post/velocity.frag"
   },
+  "TemporalResolve": {
+    "type": "fragment",
+    "file": "shaders/post/temporal_resolve.frag"
+  },
   "LightShafts": {
     "type": "fragment",
     "file": "shaders/post/light_shafts.frag"

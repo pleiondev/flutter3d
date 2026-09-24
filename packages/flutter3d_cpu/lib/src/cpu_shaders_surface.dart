@@ -33,12 +33,28 @@ import 'cpu_shaders_layout.dart';
 /// takes and for the same reason: a hardware sampler uses the longer side of
 /// the footprint parallelogram, and the maximum of the axis-aligned components
 /// is that for a surface facing the camera.
+///
+/// [bias] is `texture`'s third argument, [materialLodBias] in the GLSL —
+/// `R2`: a level of detail is the log of the footprint, so a bias of `b`
+/// is the footprint times `2^b`. Nought leaves it exactly as it was.
 ({double du, double dv, double dudx, double dvdx, double dudy, double dvdy})
-uvFootprint(FragmentContext c) {
+uvFootprint(FragmentContext c, {double bias = 0.0}) {
   final ddx = c.ddx;
   final ddy = c.ddy;
   if (ddx == null || ddy == null) {
     return (du: 0.0, dv: 0.0, dudx: 0.0, dvdx: 0.0, dudy: 0.0, dvdy: 0.0);
+  }
+  if (bias != 0.0) {
+    final scale = math.pow(2.0, bias).toDouble();
+    final plain = uvFootprint(c);
+    return (
+      du: plain.du * scale,
+      dv: plain.dv * scale,
+      dudx: plain.dudx * scale,
+      dvdx: plain.dvdx * scale,
+      dudy: plain.dudy * scale,
+      dvdy: plain.dvdy * scale,
+    );
   }
   // **Both vectors, as well as the axis maxima** — `gfx-02n`. `du`/`dv` are
   // what every caller here has always used and what the mip level is still
@@ -59,6 +75,10 @@ uvFootprint(FragmentContext c) {
     dvdy: ddy[kVUv + 1],
   );
 }
+
+/// `MaterialLodBias()`: the bias every material map is read with — `R2`.
+double materialLodBias(ShaderBindings b) =>
+    b.vec4('FragInfo', 'target_origin', Vector4.zero()).y;
 
 /// What `ReadSurface` produces, for the models that need more than the albedo.
 /// Mutable, because the GLSL passes it as `inout` to every map function and
@@ -118,7 +138,7 @@ Surface? readSurface(
   ShaderBindings bindings,
   FragmentContext c,
 ) {
-  final uv = uvFootprint(c);
+  final uv = uvFootprint(c, bias: materialLodBias(bindings));
   final tint = bindings.vec4('FragInfo', 'base_color', Vector4(1, 1, 1, 1));
   final texture = bindings.textures['base_color_texture'];
   final texel = texture == null
@@ -234,7 +254,7 @@ void applyMetallicRoughnessMap(
 ) {
   final orm = b.textures['metallic_roughness_texture'];
   if (orm == null) return;
-  final uv = uvFootprint(c);
+  final uv = uvFootprint(c, bias: materialLodBias(b));
   final texel = orm.sample(v[kVUv], v[kVUv + 1], du: uv.du, dv: uv.dv);
   s.metallic = (s.metallic * texel.z).clamp(0.0, 1.0);
   s.roughness = (s.roughness * texel.y).clamp(0.02, 1.0);
@@ -250,7 +270,7 @@ void applyOcclusionMap(
 ) {
   final map = b.textures['occlusion_texture'];
   if (map == null) return;
-  final uv = uvFootprint(c);
+  final uv = uvFootprint(c, bias: materialLodBias(b));
   final occlusion = map.sample(v[kVUv], v[kVUv + 1], du: uv.du, dv: uv.dv).x;
   final strength = b
       .vec4('FragInfo', 'material2', Vector4.zero())
@@ -282,7 +302,7 @@ void applyEmissiveMap(
 ) {
   final map = b.textures['emissive_texture'];
   if (map == null) return;
-  final uv = uvFootprint(c);
+  final uv = uvFootprint(c, bias: materialLodBias(b));
   final texel = map.sample(v[kVUv], v[kVUv + 1], du: uv.du, dv: uv.dv);
   final factor = b.vec4('FragInfo', 'emissive', Vector4.zero());
   final strength = b.vec4('FragInfo', 'material2', Vector4.zero()).w;
@@ -318,7 +338,7 @@ void applyNormalMap(
   // `material_maps.glsl`.
   if (!c.frontFacing) t.negate();
 
-  final uv = uvFootprint(c);
+  final uv = uvFootprint(c, bias: materialLodBias(b));
   final texel = map.sample(v[kVUv], v[kVUv + 1], du: uv.du, dv: uv.dv);
   final scale = b.vec4('FragInfo', 'material2', Vector4.zero()).y;
   final sx = (texel.x * 2.0 - 1.0) * scale;
