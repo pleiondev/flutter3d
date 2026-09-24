@@ -623,6 +623,22 @@ extension _MeshEncode on Renderer {
         ..[0] = layers?.anisotropyStrength ?? 0.0
         ..[1] = math.cos(rotation)
         ..[2] = math.sin(rotation);
+      // An infinite attenuation distance, the default, is nought here: the
+      // stage reads nought as a medium that takes nothing away.
+      final distance = layers?.attenuationDistance ?? double.infinity;
+      _layerInfo.transmission
+        ..[0] = layers?.transmission ?? 0.0
+        ..[1] = layers?.thickness ?? 0.0
+        ..[2] = distance.isFinite ? distance : 0.0
+        ..[3] = layers?.dispersion ?? 0.0;
+      _layerInfo.attenuation
+        ..[0] = layers?.attenuationColor.x ?? 1.0
+        ..[1] = layers?.attenuationColor.y ?? 1.0
+        ..[2] = layers?.attenuationColor.z ?? 1.0;
+      _layerInfo.iridescence
+        ..[0] = layers?.iridescence ?? 0.0
+        ..[1] = layers?.iridescenceIor ?? 1.3
+        ..[2] = layers?.iridescenceThicknessMaximum ?? 400.0;
       encoder.bindBlock(fragmentShader, _layerInfo);
     }
 

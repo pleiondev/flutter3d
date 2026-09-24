@@ -60,7 +60,7 @@ Rgba8Image? packLanes(List<PackedLane> lanes) {
 typedef PackedMap = ({TextureHandle texture, SamplerOptions sampler});
 
 /// [layers]' coat map on [device]: red the clear coat, green its roughness,
-/// blue and alpha white until transmission reads them. Null when neither
+/// blue the transmission and alpha the thickness — `M3`. Null when no such
 /// texture is there or none of them decodes, which binds white — the factors
 /// alone.
 ///
@@ -71,10 +71,7 @@ Future<PackedMap?> uploadCoatMap(
   GraphicsDevice device,
   MaterialExtensions layers, {
   required Future<Rgba8Image?> Function(TextureBinding binding) image,
-}) => _uploadPacked(device, <({TextureBinding binding, int channel})?>[
-  for (final (lane, binding) in layers.coatMapSources.indexed)
-    binding == null ? null : (binding: binding, channel: lane),
-], image);
+}) => _uploadPacked(device, layers.coatMapSources, image);
 
 /// [layers]' sheen map on [device] — `M2`: the sheen colour's red, green and
 /// blue, still sRGB as authored, and its roughness in alpha. Null, and white,

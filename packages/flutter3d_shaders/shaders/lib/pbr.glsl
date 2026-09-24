@@ -44,6 +44,18 @@ uniform LayerInfo {
   /// x: `KHR_materials_anisotropy`'s strength, y and z: the cosine and sine
   /// of its rotation from the tangent. w: unused.
   vec4 anisotropy;
+
+  /// x: `KHR_materials_transmission`, y: the volume's thickness, z: its
+  /// attenuation distance, nought for a medium that takes nothing away, w:
+  /// `KHR_materials_dispersion` — `M3`.
+  vec4 transmission;
+
+  /// rgb: the volume's attenuation colour, linear. w: unused.
+  vec4 attenuation;
+
+  /// x: `KHR_materials_iridescence`, y: the film's index of refraction, z:
+  /// its thickness in nanometres. w: unused.
+  vec4 iridescence;
 }
 layer_info;
 
@@ -81,6 +93,15 @@ float g_aniso = 0.0;
 vec3 g_aniso_t = vec3(1.0, 0.0, 0.0);
 vec3 g_aniso_b = vec3(0.0, 1.0, 0.0);
 
+/// The transmission — `M3`: how much passes through, how thick the medium
+/// is, and what of each colour survives that thickness. And the thin film:
+/// how much, and the Fresnel its interference gives at this view.
+float g_transmission = 0.0;
+float g_thickness = 0.0;
+vec3 g_transmittance = vec3(1.0);
+float g_iridescence = 0.0;
+vec3 g_irid_fresnel = vec3(0.04);
+
 /// Fills the globals above from the block and the coat map.
 ///
 /// Called before the normal map bends `s.n`, because the coat is lit on the
@@ -105,6 +126,18 @@ void ReadLayers(Surface s) {
   g_f90 = layer_info.specular.w;
   g_coat = clamp(layer_info.coat.x * coatTexel.r, 0.0, 1.0);
   g_coat_roughness = clamp(layer_info.coat.y * coatTexel.g, 0.02, 1.0);
+  // `M3`: the coat map's other two lanes.
+  g_transmission = clamp(layer_info.transmission.x * coatTexel.b, 0.0, 1.0);
+  g_thickness = max(layer_info.transmission.y * coatTexel.a, 0.0);
+  // Beer's law over the thickness: what is left of each colour after the
+  // attenuation distance is the attenuation colour.
+  float distance = layer_info.transmission.z;
+  g_transmittance =
+      distance > 0.0
+          ? pow(max(layer_info.attenuation.rgb, vec3(1e-4)),
+                vec3(g_thickness / distance))
+          : vec3(1.0);
+  g_iridescence = clamp(layer_info.iridescence.x, 0.0, 1.0);
   g_coat_n = s.n;
   g_coat_n_dot_v = max(dot(s.n, s.v), 1e-4);
   // The coat is a dielectric of index 1.5, and what it reflects towards the
@@ -217,6 +250,98 @@ float D_Charlie(float roughness, float n_dot_h) {
   return (2.0 + inv_alpha) * pow(sin2h, inv_alpha * 0.5) / (2.0 * kPi);
 }
 
+/// What a thin film's interference does to the colours it reflects, at an
+/// optical path difference [opd] in nanometres and a phase [shift]: the
+/// spectral sensitivity of the eye, as Gaussians in XYZ, taken to linear
+/// Rec. 709. Belcour and Barla, "A Practical Extension to Microfacet Theory
+/// for the Modeling of Varying Iridescence", 2017, with the constants the
+/// glTF sample viewer uses.
+vec3 IridescenceSensitivity(float opd, vec3 shift) {
+  float phase = 2.0 * kPi * opd * 1.0e-9;
+  vec3 val = vec3(5.4856e-13, 4.4201e-13, 5.2481e-13);
+  vec3 pos = vec3(1.6810e+06, 1.7953e+06, 2.2084e+06);
+  vec3 variance = vec3(4.3278e+09, 9.3046e+09, 6.6121e+09);
+  vec3 xyz = val * sqrt(2.0 * kPi * variance) * cos(pos * phase + shift) *
+             exp(-(phase * phase) * variance);
+  xyz.x += 9.7470e-14 * sqrt(2.0 * kPi * 4.5282e+09) *
+           cos(2.2399e+06 * phase + shift.x) *
+           exp(-4.5282e+09 * phase * phase);
+  xyz /= 1.0685e-7;
+  return mat3(3.2404542, -0.9692660, 0.0556434, -1.5371385, 1.8760108,
+              -0.2040259, -0.4985314, 0.0415560, 1.0572252) *
+         xyz;
+}
+
+/// The reflectance of a film of index [film] and [thickness] nanometres over
+/// a base of reflectance [base], seen at [cos1] — the two-bounce Airy sum of
+/// Belcour and Barla. Total internal reflection inside the film reflects
+/// everything, chosen at the end rather than returned early.
+vec3 FresnelIridescence(float film, float cos1, float thickness, vec3 base) {
+  // A film thinning to nothing fades to the base, not to a step.
+  float eta2 = mix(1.0, film, smoothstep(0.0, 0.03, thickness));
+  float sin2Sq = (1.0 - cos1 * cos1) / (eta2 * eta2);
+  float cos2Sq = 1.0 - sin2Sq;
+  float cos2 = sqrt(max(cos2Sq, 0.0));
+
+  float r0 = (eta2 - 1.0) / (eta2 + 1.0);
+  float r12 = r0 * r0 + (1.0 - r0 * r0) * pow(1.0 - cos1, 5.0);
+  float t121 = 1.0 - r12;
+  float phi12 = eta2 < 1.0 ? kPi : 0.0;
+  float phi21 = kPi - phi12;
+
+  vec3 sqrtBase = sqrt(clamp(base, vec3(0.0), vec3(0.9999)));
+  vec3 baseIor = (vec3(1.0) + sqrtBase) / (vec3(1.0) - sqrtBase);
+  vec3 r1 = (baseIor - vec3(eta2)) / (baseIor + vec3(eta2));
+  r1 *= r1;
+  vec3 r23 = r1 + (vec3(1.0) - r1) * pow(1.0 - cos2, 5.0);
+  vec3 phi23 = vec3(baseIor.x < eta2 ? kPi : 0.0, baseIor.y < eta2 ? kPi : 0.0,
+                    baseIor.z < eta2 ? kPi : 0.0);
+
+  float opd = 2.0 * eta2 * thickness * cos2;
+  vec3 phi = vec3(phi21) + phi23;
+  vec3 r123 = clamp(r12 * r23, vec3(1e-5), vec3(0.9999));
+  vec3 rootR123 = sqrt(r123);
+  vec3 rs = t121 * t121 * r23 / (vec3(1.0) - r123);
+  vec3 total = vec3(r12) + rs;
+  vec3 cm = rs - vec3(t121);
+  for (int m = 1; m <= 2; m++) {
+    cm *= rootR123;
+    total += cm * 2.0 * IridescenceSensitivity(float(m) * opd, float(m) * phi);
+  }
+  return cos2Sq < 0.0 ? vec3(1.0) : max(total, vec3(0.0));
+}
+
+/// Fills the thin film's Fresnel for this fragment, on the base reflectance
+/// the maps left. Called after `ReadLayersOnMaps`.
+void ReadIridescence(Surface s) {
+  vec3 f0 = mix(g_f0_dielectric, s.albedo, clamp(s.metallic, 0.0, 1.0));
+  g_irid_fresnel = FresnelIridescence(layer_info.iridescence.y, s.n_dot_v,
+                                      layer_info.iridescence.z, f0);
+}
+
+/// The environment seen through the surface — `M3`.
+///
+/// **The environment, not the scene behind.** What passes through glass is
+/// read from the cube the reflections read, bent by the index when the
+/// material has a volume and straight through when it is thin-walled, as
+/// the volume extension distinguishes them. The objects behind the glass are
+/// not in that cube, which is the limit this has: a scene-colour copy
+/// between an opaque and a transparent pass would lift it. Dispersion
+/// spreads the index over red, green and blue and reads each on its own ray.
+vec3 TransmittedRadiance(Surface s, float levels) {
+  float ior = max(layer_info.coat.z, 1.0);
+  float spread = (ior - 1.0) * 0.025 * layer_info.transmission.w;
+  // A rough glass blurs what is behind it more the denser it is.
+  float lod = s.roughness * clamp(ior * 2.0 - 2.0, 0.0, 1.0) * levels;
+  bool thin = g_thickness <= 0.0;
+  vec3 red = thin ? -s.v : refract(-s.v, s.n, 1.0 / max(ior - spread, 1.0));
+  vec3 green = thin ? -s.v : refract(-s.v, s.n, 1.0 / ior);
+  vec3 blue = thin ? -s.v : refract(-s.v, s.n, 1.0 / (ior + spread));
+  return vec3(textureLod(environment_texture, red, lod).r,
+              textureLod(environment_texture, green, lod).g,
+              textureLod(environment_texture, blue, lod).b);
+}
+
 /// Neubelt and Pettineo's visibility for cloth.
 float V_Neubelt(float n_dot_v, float n_dot_l) {
   return 1.0 / (4.0 * (n_dot_l + n_dot_v - n_dot_l * n_dot_v));
@@ -290,6 +415,8 @@ vec3 ShadeLight(Surface s, LightSample light) {
                            dot(g_aniso_b, light.l), at, ab);
   }
   vec3 f = F_SchlickF90(f0, f90, light.v_dot_h);
+  // `M3`: the thin film's colours in place of the plain Fresnel.
+  f = mix(f, g_irid_fresnel, g_iridescence);
 #else
   vec3 f = F_Schlick(f0, light.v_dot_h);
 #endif
@@ -311,6 +438,11 @@ vec3 ShadeLight(Surface s, LightSample light) {
   if (EnergyCompensation()) specular *= MultiscatterScale(f0, s);
   // Energy left over after reflection is what scatters diffusely.
   vec3 diffuse = diffuseColor * (vec3(1.0) - f) / kPi;
+#ifdef F3D_LAYERED
+  // `M3`: what passes through is not scattered back; a light on the viewer's
+  // side reaches the eye through transmission only by the environment.
+  diffuse *= 1.0 - g_transmission;
+#endif
 
   // The pi puts the result back on the scale the tone mapper and the exposure
   // default were calibrated against.
@@ -336,6 +468,7 @@ void main() {
   ApplyMetallicRoughnessMap(s);
 #ifdef F3D_LAYERED
   ReadLayersOnMaps(s);
+  ReadIridescence(s);
 #endif
 
   float metallic = clamp(s.metallic, 0.0, 1.0);
@@ -345,6 +478,11 @@ void main() {
   // too, which is not physical, but with no environment the flat ambient is far
   // too weak for an occlusion map to be visible otherwise.
   vec3 ambient = diffuseColor * s.ambient * s.occlusion;
+#ifdef F3D_LAYERED
+  // `M3`: without an environment the light passing through is the flat
+  // ambient too, less what the medium takes.
+  ambient *= mix(vec3(1.0), g_transmittance, g_transmission);
+#endif
 
   float levels = frag_info.frame_params.w;
 #ifdef F3D_LAYERED
@@ -396,7 +534,8 @@ void main() {
     // light already measured. The renderer decides which — see `_encodeNode`
     // in renderer_mesh_encode.dart — and this stage cannot tell them apart.
 #ifdef F3D_LAYERED
-    vec3 specular = prefiltered * (f0 * ab.x + f90 * ab.y);
+    vec3 specular =
+        prefiltered * (mix(f0, g_irid_fresnel, g_iridescence) * ab.x + f90 * ab.y);
 #else
     vec3 specular = prefiltered * (f0 * ab.x + ab.y);
 #endif
@@ -417,6 +556,15 @@ void main() {
     ambient = (diffuseColor * irradiance + specular) * frag_info.material.z *
               s.occlusion;
 #ifdef F3D_LAYERED
+    // `M3`: the transmitted share of the diffuse light is the environment
+    // behind the surface instead, less what the dielectric reflects and what
+    // the medium takes, tinted by the base colour as glTF tints it.
+    vec3 reflects =
+        mix(g_f0_dielectric, g_irid_fresnel, g_iridescence) * ab.x + g_f90 * ab.y;
+    vec3 through = TransmittedRadiance(s, levels) * g_transmittance *
+                   (vec3(1.0) - min(reflects, vec3(1.0)));
+    ambient += diffuseColor * (through - irradiance) * g_transmission *
+               frag_info.material.z * s.occlusion;
     // The coat reflects the environment too, on its own normal and at its
     // own roughness, over what it lets through of the layer beneath.
     vec3 coatPrefiltered = textureLod(environment_texture,

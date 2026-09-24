@@ -22,11 +22,12 @@ import 'surface_material.dart';
 ///
 /// The texture bindings are carried for the writers, and read by the renderer
 /// only as far as `uploadCoatMap` and `uploadSheenMap` pack them: a coat map
-/// holds the clear coat and its roughness, a sheen map the sheen's colour and
-/// roughness, one texture each (the lit stages have no sampler to spare for
-/// every one). The specular textures, the clear coat's own normal map and the
-/// anisotropy texture are kept here so a round trip loses nothing, and not
-/// drawn — a loader says so.
+/// holds the clear coat, its roughness, the transmission and the thickness, a
+/// sheen map the sheen's colour and roughness, one texture each (the lit
+/// stages have no sampler to spare for every one). The specular textures, the
+/// clear coat's own normal map, the anisotropy texture and the iridescence
+/// textures are kept here so a round trip loses nothing, and not drawn — a
+/// loader says so.
 final class MaterialExtensions {
   MaterialExtensions({
     this.ior = 1.5,
@@ -47,8 +48,22 @@ final class MaterialExtensions {
     this.anisotropyStrength = 0.0,
     this.anisotropyRotation = 0.0,
     this.anisotropyTexture,
+    this.transmission = 0.0,
+    this.transmissionTexture,
+    this.thickness = 0.0,
+    this.thicknessTexture,
+    this.attenuationDistance = double.infinity,
+    Vector3? attenuationColor,
+    this.dispersion = 0.0,
+    this.iridescence = 0.0,
+    this.iridescenceTexture,
+    this.iridescenceIor = 1.3,
+    this.iridescenceThicknessMinimum = 100.0,
+    this.iridescenceThicknessMaximum = 400.0,
+    this.iridescenceThicknessTexture,
   }) : specularColor = specularColor ?? Vector3(1.0, 1.0, 1.0),
-       sheenColor = sheenColor ?? Vector3.zero();
+       sheenColor = sheenColor ?? Vector3.zero(),
+       attenuationColor = attenuationColor ?? Vector3(1.0, 1.0, 1.0);
 
   /// `KHR_materials_ior`: the dielectric's index of refraction. 1.5 is the
   /// four per cent a plain metal-rough dielectric reflects head-on.
@@ -100,6 +115,39 @@ final class MaterialExtensions {
   /// direction is the rotation alone.
   final TextureBinding? anisotropyTexture;
 
+  /// `KHR_materials_transmission`: how much of the light that is not
+  /// reflected passes through the surface instead of scattering off it —
+  /// glass, water, a thin film — `M3`. Its texture is read from red.
+  final double transmission;
+  final TextureBinding? transmissionTexture;
+
+  /// `KHR_materials_volume`'s thickness, in the mesh's own units, over which
+  /// the light passing through is attenuated. Its texture is read from green.
+  final double thickness;
+  final TextureBinding? thicknessTexture;
+
+  /// How far light travels in the medium before it is [attenuationColor]:
+  /// infinite, the default, is a medium that takes nothing away.
+  final double attenuationDistance;
+  final Vector3 attenuationColor;
+
+  /// `KHR_materials_dispersion`: how far apart the index of refraction is
+  /// spread over the spectrum, in the extension's own units (20 / Abbe
+  /// number). Nought refracts every colour alike.
+  final double dispersion;
+
+  /// `KHR_materials_iridescence`: how much of the reflection is a thin film's
+  /// interference — a soap bubble, an oil slick. Its texture is read from red,
+  /// and carried rather than drawn, as is the thickness texture: the film is
+  /// [iridescenceThicknessMaximum] thick everywhere, which is what the
+  /// extension says a film without a thickness texture is.
+  final double iridescence;
+  final TextureBinding? iridescenceTexture;
+  final double iridescenceIor;
+  final double iridescenceThicknessMinimum;
+  final double iridescenceThicknessMaximum;
+  final TextureBinding? iridescenceThicknessTexture;
+
   /// Whether any of this changes how the surface is shaded.
   ///
   /// A texture alone does not: every map here multiplies its factor, so a
@@ -114,14 +162,24 @@ final class MaterialExtensions {
       sheenColor.x != 0.0 ||
       sheenColor.y != 0.0 ||
       sheenColor.z != 0.0 ||
-      anisotropyStrength != 0.0;
+      anisotropyStrength != 0.0 ||
+      transmission != 0.0 ||
+      iridescence != 0.0;
 
-  /// The textures a coat map packs, in its channel order: red the clear coat,
-  /// green its roughness. Null where a channel keeps its neutral white.
-  List<TextureBinding?> get coatMapSources => <TextureBinding?>[
-    clearcoatTexture,
-    clearcoatRoughnessTexture,
-  ];
+  /// The textures a coat map packs, lane by lane, each with the channel of
+  /// its own image the lane takes: red the clear coat (its red), green its
+  /// roughness (its green), blue the transmission (its red), alpha the
+  /// thickness (its green). Null where a lane keeps its neutral white.
+  List<({TextureBinding binding, int channel})?> get coatMapSources =>
+      <({TextureBinding binding, int channel})?>[
+        for (final (binding, channel) in <(TextureBinding?, int)>[
+          (clearcoatTexture, 0),
+          (clearcoatRoughnessTexture, 1),
+          (transmissionTexture, 0),
+          (thicknessTexture, 1),
+        ])
+          binding == null ? null : (binding: binding, channel: channel),
+      ];
 
   /// The textures a sheen map packs: the colour's red, green and blue, and
   /// the roughness in alpha. Null where a lane keeps its neutral white.
@@ -149,6 +207,10 @@ final class MaterialExtensions {
     ?sheenColorTexture,
     ?sheenRoughnessTexture,
     ?anisotropyTexture,
+    ?transmissionTexture,
+    ?thicknessTexture,
+    ?iridescenceTexture,
+    ?iridescenceThicknessTexture,
   ];
 
   /// The same layers with each texture binding passed through [map] — for a
@@ -177,6 +239,19 @@ final class MaterialExtensions {
       anisotropyStrength: anisotropyStrength,
       anisotropyRotation: anisotropyRotation,
       anisotropyTexture: each(anisotropyTexture),
+      transmission: transmission,
+      transmissionTexture: each(transmissionTexture),
+      thickness: thickness,
+      thicknessTexture: each(thicknessTexture),
+      attenuationDistance: attenuationDistance,
+      attenuationColor: attenuationColor.clone(),
+      dispersion: dispersion,
+      iridescence: iridescence,
+      iridescenceTexture: each(iridescenceTexture),
+      iridescenceIor: iridescenceIor,
+      iridescenceThicknessMinimum: iridescenceThicknessMinimum,
+      iridescenceThicknessMaximum: iridescenceThicknessMaximum,
+      iridescenceThicknessTexture: each(iridescenceThicknessTexture),
     );
   }
 
@@ -187,6 +262,10 @@ final class MaterialExtensions {
     'KHR_materials_clearcoat',
     'KHR_materials_sheen',
     'KHR_materials_anisotropy',
+    'KHR_materials_transmission',
+    'KHR_materials_volume',
+    'KHR_materials_dispersion',
+    'KHR_materials_iridescence',
   };
 
   @override
@@ -221,11 +300,19 @@ MaterialExtensions? materialExtensionsFromJson(
   final clearcoat = object('KHR_materials_clearcoat');
   final sheen = object('KHR_materials_sheen');
   final anisotropy = object('KHR_materials_anisotropy');
+  final transmission = object('KHR_materials_transmission');
+  final volume = object('KHR_materials_volume');
+  final dispersion = object('KHR_materials_dispersion');
+  final iridescence = object('KHR_materials_iridescence');
   if (ior == null &&
       specular == null &&
       clearcoat == null &&
       sheen == null &&
-      anisotropy == null) {
+      anisotropy == null &&
+      transmission == null &&
+      volume == null &&
+      dispersion == null &&
+      iridescence == null) {
     return null;
   }
 
@@ -254,6 +341,33 @@ MaterialExtensions? materialExtensionsFromJson(
     anisotropyStrength: _number(anisotropy?['anisotropyStrength'], 0.0),
     anisotropyRotation: _number(anisotropy?['anisotropyRotation'], 0.0),
     anisotropyTexture: texture(anisotropy?['anisotropyTexture']),
+    transmission: _number(transmission?['transmissionFactor'], 0.0),
+    transmissionTexture: texture(transmission?['transmissionTexture']),
+    thickness: _number(volume?['thicknessFactor'], 0.0),
+    thicknessTexture: texture(volume?['thicknessTexture']),
+    attenuationDistance: _number(
+      volume?['attenuationDistance'],
+      double.infinity,
+    ),
+    attenuationColor: switch (volume?['attenuationColor']) {
+      final Object colour => _vec3(colour),
+      null => null,
+    },
+    dispersion: _number(dispersion?['dispersion'], 0.0),
+    iridescence: _number(iridescence?['iridescenceFactor'], 0.0),
+    iridescenceTexture: texture(iridescence?['iridescenceTexture']),
+    iridescenceIor: _number(iridescence?['iridescenceIor'], 1.3),
+    iridescenceThicknessMinimum: _number(
+      iridescence?['iridescenceThicknessMinimum'],
+      100.0,
+    ),
+    iridescenceThicknessMaximum: _number(
+      iridescence?['iridescenceThicknessMaximum'],
+      400.0,
+    ),
+    iridescenceThicknessTexture: texture(
+      iridescence?['iridescenceThicknessTexture'],
+    ),
   );
   // The plan for 0.8: two packed maps and no more samplers, so these three
   // are carried and not drawn. Said once per material rather than silently.
@@ -267,6 +381,13 @@ MaterialExtensions? materialExtensionsFromJson(
     warnings?.add(
       '$where: KHR_materials_anisotropy\'s texture is kept for export and '
       'not drawn; its strength and rotation shade the surface.',
+    );
+  }
+  if (read.iridescenceTexture != null ||
+      read.iridescenceThicknessTexture != null) {
+    warnings?.add(
+      '$where: KHR_materials_iridescence\'s textures are kept for export and '
+      'not drawn; the film is its factor strong and its maximum thick.',
     );
   }
   if (read.clearcoatNormalTexture != null) {
@@ -331,12 +452,46 @@ Map<String, Object?> materialExtensionsToJson(
     if (e.anisotropyRotation != 0.0) 'anisotropyRotation': e.anisotropyRotation,
     'anisotropyTexture': ?slot(e.anisotropyTexture),
   };
+  final transmission = <String, Object?>{
+    if (e.transmission != 0.0) 'transmissionFactor': e.transmission,
+    'transmissionTexture': ?slot(e.transmissionTexture),
+  };
+  final attenuationColor = e.attenuationColor;
+  final volume = <String, Object?>{
+    if (e.thickness != 0.0) 'thicknessFactor': e.thickness,
+    'thicknessTexture': ?slot(e.thicknessTexture),
+    if (e.attenuationDistance.isFinite)
+      'attenuationDistance': e.attenuationDistance,
+    if (attenuationColor.x != 1.0 ||
+        attenuationColor.y != 1.0 ||
+        attenuationColor.z != 1.0)
+      'attenuationColor': <double>[
+        attenuationColor.x,
+        attenuationColor.y,
+        attenuationColor.z,
+      ],
+  };
+  final iridescence = <String, Object?>{
+    if (e.iridescence != 0.0) 'iridescenceFactor': e.iridescence,
+    'iridescenceTexture': ?slot(e.iridescenceTexture),
+    if (e.iridescenceIor != 1.3) 'iridescenceIor': e.iridescenceIor,
+    if (e.iridescenceThicknessMinimum != 100.0)
+      'iridescenceThicknessMinimum': e.iridescenceThicknessMinimum,
+    if (e.iridescenceThicknessMaximum != 400.0)
+      'iridescenceThicknessMaximum': e.iridescenceThicknessMaximum,
+    'iridescenceThicknessTexture': ?slot(e.iridescenceThicknessTexture),
+  };
   return <String, Object?>{
     if (e.ior != 1.5) 'KHR_materials_ior': <String, Object?>{'ior': e.ior},
     if (specular.isNotEmpty) 'KHR_materials_specular': specular,
     if (clearcoat.isNotEmpty) 'KHR_materials_clearcoat': clearcoat,
     if (sheen.isNotEmpty) 'KHR_materials_sheen': sheen,
     if (anisotropy.isNotEmpty) 'KHR_materials_anisotropy': anisotropy,
+    if (transmission.isNotEmpty) 'KHR_materials_transmission': transmission,
+    if (volume.isNotEmpty) 'KHR_materials_volume': volume,
+    if (e.dispersion != 0.0)
+      'KHR_materials_dispersion': <String, Object?>{'dispersion': e.dispersion},
+    if (iridescence.isNotEmpty) 'KHR_materials_iridescence': iridescence,
   };
 }
 
