@@ -11,7 +11,7 @@ import 'package:vector_math/vector_math.dart';
 
 import 'cpu_shader.dart';
 import 'cpu_shaders_color.dart';
-import 'cpu_shaders_reflections.dart' show blueNoise;
+import 'cpu_shaders_reflections.dart' show blueNoise, pixelNoise;
 
 /// The twelve kernel taps of `ssao.frag`, in the same order.
 ///
@@ -42,6 +42,91 @@ const List<List<double>> ssaoKernel = <List<double>>[
 /// fact.
 final class SsaoShader implements CpuFragmentShader {
   const SsaoShader();
+
+  /// `GtaoVisibility` from `ssao.frag` — `L5`.
+  static double _gtao(
+    ShaderBindings b,
+    BoundTexture surfaceMap,
+    double u,
+    double w,
+    Vector3 point,
+    Vector3 normal,
+    double depth,
+    Vector3 Function(double, double, double) worldFrom,
+  ) {
+    final params = b.vec4('SsaoInfo', 'params', Vector4.zero());
+    final screen = b.vec4('SsaoInfo', 'screen', Vector4.zero());
+    final projection = b.mat4('SsaoInfo', 'view_projection');
+    final eye4 = b.vec4('SsaoInfo', 'camera', Vector4.zero());
+    final view = (Vector3(eye4.x, eye4.y, eye4.z) - point)..normalize();
+    final radius = math.max(params.x, 1e-4);
+    final steps = ((params.y + 0.5).floor() ~/ 4).clamp(1, 4);
+
+    Vector2 uvOf(Vector3 at) {
+      final Vector4 clip = projection * Vector4(at.x, at.y, at.z, 1.0);
+      return Vector2(clip.x / clip.w * 0.5 + 0.5, 0.5 - clip.y / clip.w * 0.5);
+    }
+
+    final across = view.cross(
+      view.y.abs() < 0.99 ? Vector3(0.0, 1.0, 0.0) : Vector3(1.0, 0.0, 0.0),
+    )..normalize();
+    final uvRadius = (uvOf(point + across * radius) - uvOf(point)).length;
+
+    final px = (u / screen.x).floorToDouble();
+    final py = (w / screen.y).floorToDouble();
+    final noise = pixelNoise(b, px, py);
+
+    var visibility = 0.0;
+    var slices = 0.0;
+    for (var slice = 0; slice < 2; slice++) {
+      final phi = (slice + noise) * 1.5707963;
+      final dx = math.cos(phi);
+      final dy = math.sin(phi);
+      final along = worldFrom(u + dx * 1e-3, w + dy * 1e-3, depth) - point;
+      final tangent = along - view * along.dot(view);
+      final tangentLength = tangent.length;
+      if (tangentLength < 1e-6) continue;
+      tangent.scale(1.0 / tangentLength);
+      final axis = tangent.cross(view)..normalize();
+      final projected = normal - axis * normal.dot(axis);
+      final projectedLength = projected.length;
+      if (projectedLength < 1e-4) continue;
+      final n =
+          projected.dot(tangent).sign *
+          math.acos((projected.dot(view) / projectedLength).clamp(-1.0, 1.0));
+
+      final horizons = <double>[0.0, 0.0];
+      for (var side = 0; side < 2; side++) {
+        final s = side == 0 ? -1.0 : 1.0;
+        var best = -1.0;
+        for (var i = 0; i < steps; i++) {
+          final t = (i + 0.5 + 0.5 * noise) / steps;
+          final au = u + s * dx * uvRadius * t;
+          final av = w + s * dy * uvRadius * t;
+          if (au < 0.0 || au > 1.0 || av < 0.0 || av > 1.0) continue;
+          final d = surfaceMap.sample(au, av).w;
+          if (d <= 0.0) continue;
+          final toSample = worldFrom(au, av, d) - point;
+          final distance = toSample.length;
+          if (distance < 1e-5) continue;
+          final cosine = toSample.dot(view) / distance;
+          final fade = (1.0 - distance * distance / (radius * radius)).clamp(
+            0.0,
+            1.0,
+          );
+          best = math.max(best, -1.0 + (cosine + 1.0) * fade);
+        }
+        horizons[side] = s * math.acos(best.clamp(-1.0, 1.0));
+      }
+      final h1 = n + math.max(horizons[0] - n, -1.5707963);
+      final h2 = n + math.min(horizons[1] - n, 1.5707963);
+      double arc(double h) =>
+          -math.cos(2.0 * h - n) + math.cos(n) + 2.0 * h * math.sin(n);
+      visibility += projectedLength * 0.25 * (arc(h1) + arc(h2));
+      slices += 1.0;
+    }
+    return slices > 0.0 ? (visibility / slices).clamp(0.0, 1.0) : 1.0;
+  }
 
   @override
   Vector4? run(Float32List v, ShaderBindings b, FragmentContext c) {
@@ -83,6 +168,22 @@ final class SsaoShader implements CpuFragmentShader {
     double depthOf(Vector3 at) => (at - eye).dot(axis);
 
     final normal = decodeOctahedral(surface.x, surface.y);
+
+    // `L5`: the horizon search, as `GtaoVisibility`.
+    if (screen.z > 0.5) {
+      final visible = _gtao(
+        b,
+        surfaceMap,
+        u,
+        w,
+        worldFrom(u, w, surface.w),
+        normal,
+        surface.w,
+        worldFrom,
+      );
+      return Vector4(visible, visible, visible, visible);
+    }
+
     // Lifted along the normal, in metres: a bias in window depth is a different
     // physical distance at every range.
     final origin = worldFrom(u, w, surface.w)..addScaled(normal, params.w);
