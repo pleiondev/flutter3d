@@ -38,7 +38,7 @@ final class Navigation {
     List<LevelIssue>? issues,
   }) => Navigation(
     NavGrid.bake(
-      level.brushes,
+      expandRecipes(level).brushes,
       cellSize: cellSize,
       agentHeight: agentHeight,
       stepHeight: stepHeight,

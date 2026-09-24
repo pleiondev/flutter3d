@@ -204,7 +204,11 @@ final class LevelVisibility {
   /// every platform this runs on: a hash of doubles' bits would be too, but a
   /// hash of their text is one a person can reproduce by hand when a table is
   /// refused and they want to know why.
-  static int hashBrushes(Level level) {
+  ///
+  /// Over the brushes with the level's recipes expanded, so a recipe whose
+  /// seed or params changed makes a table stale exactly as a moved brush does.
+  static int hashBrushes(Level authored) {
+    final level = expandRecipes(authored);
     var hash = 0x811C9DC5;
     void mix(String text) {
       for (final unit in text.codeUnits) {
@@ -326,12 +330,15 @@ final class LevelVisibility {
   /// three is twenty-seven points and 729 rays, hid none, and costs the crypt
   /// thirty-six seconds instead of three. A bake is a tool run, not a load.
   static LevelVisibility bake(
-    Level level, {
+    Level authored, {
     double cellSize = 3.0,
     int samplesPerAxis = 3,
   }) {
     assert(cellSize > 0.0);
     assert(samplesPerAxis >= 1);
+    // Baked from the level as it is played: a recipe's walls block sight like
+    // any other.
+    final level = expandRecipes(authored);
     final solids = level.brushes.where((b) => b.solid).toList();
     if (solids.isEmpty) {
       return LevelVisibility._(

@@ -27,9 +27,12 @@ extension LevelCollision on Level {
   /// level that had only a field fell through the picture of a hill. The shape
   /// for it had existed for some time, tested against this same field's
   /// diagonal, and no caller ever built one.
+  ///
+  /// With the level's recipes expanded: a wall a recipe stands for is a wall
+  /// a body stops at.
   void addTo(CollisionWorld world) {
     if (heightfield case final ground?) world.add(_groundCollider(ground));
-    for (final brush in brushes) {
+    for (final brush in expandRecipes(this).brushes) {
       if (!brush.solid) continue;
       final ramp = brush.ramp;
       world.add(
