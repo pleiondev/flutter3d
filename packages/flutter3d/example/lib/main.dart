@@ -1130,6 +1130,14 @@ class _SpikePageState extends State<SpikePage>
     // See [_staged] for what a frame drawn ahead of the staging decides, and
     // for the two pictures that came of it.
     final holdingForStaging = _golden != null && !_staged;
+    // A golden run checking occlusion marks every mesh, the hardest case for
+    // "leaves out only what is hidden" — see `GoldenRunner.occlusion`.
+    final occlusion = _golden?.occlusion ?? OcclusionMode.none;
+    if (occlusion != OcclusionMode.none) {
+      for (final node in _scene.meshes) {
+        node.occluder = true;
+      }
+    }
 
     return Scaffold(
       backgroundColor: const Color(0xFF0E1014),
@@ -1181,6 +1189,7 @@ class _SpikePageState extends State<SpikePage>
                             xray: _xray,
                             reflections: _reflections,
                             ambientOcclusion: _ambientOcclusion,
+                            occlusion: occlusion,
                           ),
                           onFrame: (frame) {
                             _lastFrame = frame;

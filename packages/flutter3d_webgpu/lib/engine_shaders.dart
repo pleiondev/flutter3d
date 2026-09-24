@@ -25213,6 +25213,164 @@ fn main(@location(5) v_uv: vec2<f32>) -> @location(0) vec4<f32> {
         ),
       ],
     ),
+    'DepthPyramid': WebGpuStage(
+      wgsl: r'''
+struct DepthPyramidInfo {
+    block: vec4<f32>,
+    range: vec4<f32>,
+}
+
+@group(1) @binding(0) 
+var<uniform> pyramid_info: DepthPyramidInfo;
+var<private> v_uv_1: vec2<f32>;
+@group(1) @binding(1) 
+var surface_texture_tex: texture_2d<f32>;
+@group(1) @binding(2) 
+var surface_texture_smp: sampler;
+var<private> frag_color: vec4<f32>;
+
+fn main_1() {
+    var blockUv: vec2<f32>;
+    var tapsX: f32;
+    var tapsY: f32;
+    var corner: vec2<f32>;
+    var stepUv: vec2<f32>;
+    var farthest: f32;
+    var empty: f32;
+    var j: i32;
+    var i: i32;
+    var at: vec2<f32>;
+    var depth: f32;
+    var steps: f32;
+    var scaled: f32;
+    var high: f32;
+    var rest: f32;
+    var middle: f32;
+    var low: f32;
+
+    let _e38 = pyramid_info.block;
+    blockUv = _e38.xy;
+    let _e42 = pyramid_info.block[2u];
+    tapsX = clamp(ceil((_e42 - 0.001f)), 1f, 16f);
+    let _e48 = pyramid_info.block[3u];
+    tapsY = clamp(ceil((_e48 - 0.001f)), 1f, 16f);
+    let _e52 = v_uv_1;
+    let _e53 = blockUv;
+    corner = (_e52 - (_e53 * 0.5f));
+    let _e56 = blockUv;
+    let _e57 = tapsX;
+    let _e58 = tapsY;
+    stepUv = (_e56 / vec2<f32>(_e57, _e58));
+    farthest = 0f;
+    empty = 0f;
+    j = 0i;
+    loop {
+        let _e61 = j;
+        if (_e61 < 16i) {
+            let _e63 = j;
+            let _e65 = tapsY;
+            if (f32(_e63) >= _e65) {
+                break;
+            }
+            i = 0i;
+            loop {
+                let _e67 = i;
+                if (_e67 < 16i) {
+                    let _e69 = i;
+                    let _e71 = tapsX;
+                    if (f32(_e69) >= _e71) {
+                        break;
+                    }
+                    let _e73 = corner;
+                    let _e74 = i;
+                    let _e76 = j;
+                    let _e81 = stepUv;
+                    at = (_e73 + ((vec2<f32>(f32(_e74), f32(_e76)) + vec2(0.5f)) * _e81));
+                    let _e84 = at;
+                    let _e85 = textureSampleLevel(surface_texture_tex, surface_texture_smp, _e84, 0f);
+                    depth = _e85.w;
+                    let _e87 = depth;
+                    let _e89 = empty;
+                    empty = select(1f, _e89, (_e87 > 0f));
+                    let _e91 = farthest;
+                    let _e92 = depth;
+                    farthest = max(_e91, _e92);
+                    continue;
+                } else {
+                    break;
+                }
+                continuing {
+                    let _e94 = i;
+                    i = (_e94 + 1i);
+                }
+            }
+            continue;
+        } else {
+            break;
+        }
+        continuing {
+            let _e96 = j;
+            j = (_e96 + 1i);
+        }
+    }
+    steps = 16777215f;
+    let _e98 = farthest;
+    let _e101 = pyramid_info.range[0u];
+    let _e104 = steps;
+    scaled = ceil((clamp((_e98 * _e101), 0f, 1f) * _e104));
+    let _e107 = scaled;
+    high = floor((_e107 / 65536f));
+    let _e110 = scaled;
+    let _e111 = high;
+    rest = (_e110 - (_e111 * 65536f));
+    let _e114 = rest;
+    middle = floor((_e114 / 256f));
+    let _e117 = rest;
+    let _e118 = middle;
+    low = (_e117 - (_e118 * 256f));
+    let _e121 = high;
+    let _e123 = middle;
+    let _e125 = low;
+    let _e127 = empty;
+    frag_color = vec4<f32>((_e121 / 255f), (_e123 / 255f), (_e125 / 255f), select(1f, 0f, (_e127 > 0f)));
+    return;
+}
+
+@fragment 
+fn main(@location(5) v_uv: vec2<f32>) -> @location(0) vec4<f32> {
+    v_uv_1 = v_uv;
+    main_1();
+    let _e3 = frag_color;
+    return _e3;
+}
+''',
+      attributes: <WebGpuAttribute>[],
+      blocks: <WebGpuBlock>[
+        WebGpuBlock(
+          name: 'DepthPyramidInfo',
+          group: 1,
+          binding: 0,
+          sizeInBytes: 32,
+          members: <WebGpuBlockMember>[
+            WebGpuBlockMember(name: 'block', offsetInBytes: 0, sizeInBytes: 16),
+            WebGpuBlockMember(
+              name: 'range',
+              offsetInBytes: 16,
+              sizeInBytes: 16,
+            ),
+          ],
+        ),
+      ],
+      samplers: <WebGpuSampler>[
+        WebGpuSampler(
+          name: 'surface_texture',
+          group: 1,
+          textureBinding: 1,
+          samplerBinding: 2,
+          dimension: WebGpuTextureDimension.twoDimensional,
+        ),
+      ],
+    ),
     'ObjectId': WebGpuStage(
       wgsl: r'''
 struct IdInfo {

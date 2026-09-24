@@ -42,6 +42,12 @@ bool? get updateOverride => switch (_environment('FLUTTER3D_GOLDEN_UPDATE')) {
 /// a build per backend on top of a build per scene.
 String? get directoryOverride => _environment('FLUTTER3D_GOLDEN_DIR');
 
+/// Which occlusion method to draw with, from the environment — `C2`, `C3`.
+/// `software` or `hiZ`; unset draws with none, as every reference was
+/// recorded. With it set a run compares against the same references, which
+/// is the claim being checked: occlusion leaves out only what nobody sees.
+String? get occlusionOverride => _environment('FLUTTER3D_GOLDEN_OCCLUSION');
+
 /// An environment variable, treating empty as absent: a shell that exports a
 /// variable it did not set hands over an empty string, and "unset" is the
 /// answer that lets the compile-time define speak.

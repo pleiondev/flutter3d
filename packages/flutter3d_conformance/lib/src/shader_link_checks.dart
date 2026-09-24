@@ -109,6 +109,8 @@ Future<void> checkLinking(GraphicsDevice device) async {
     for (final post in <String>[
       'Composite',
       'Luminance',
+      // `C3`: the surface buffer reduced for the occlusion readback.
+      'DepthPyramid',
       'ProbePrefilter',
       'BloomThreshold',
       'BloomDownsample',

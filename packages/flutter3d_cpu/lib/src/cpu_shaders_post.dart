@@ -575,6 +575,53 @@ final class LuminanceShader implements CpuFragmentShader {
   }
 }
 
+/// `depth_pyramid.frag`: the farthest view depth under each texel's block of
+/// the surface buffer, as 24 bits of the far plane, and whether the whole
+/// block was drawn — `C3`. `HiZOcclusion.accept` is the other end.
+final class DepthPyramidShader implements CpuFragmentShader {
+  const DepthPyramidShader();
+
+  @override
+  Vector4? run(Float32List v, ShaderBindings bindings, FragmentContext c) {
+    final surface = bindings.textures['surface_texture'];
+    if (surface == null) return Vector4.zero();
+    final block = bindings.vec4('DepthPyramidInfo', 'block', Vector4.zero());
+    final range = bindings.vec4('DepthPyramidInfo', 'range', Vector4.zero());
+    final tapsX = (block.z - 1e-3).ceilToDouble().clamp(1.0, 16.0).toInt();
+    final tapsY = (block.w - 1e-3).ceilToDouble().clamp(1.0, 16.0).toInt();
+    final cornerU = v[0] - 0.5 * block.x;
+    final cornerV = v[1] - 0.5 * block.y;
+    final stepU = block.x / tapsX;
+    final stepV = block.y / tapsY;
+
+    var farthest = 0.0;
+    var empty = false;
+    for (var j = 0; j < tapsY; j++) {
+      for (var i = 0; i < tapsX; i++) {
+        final depth = surface
+            .sample(cornerU + (i + 0.5) * stepU, cornerV + (j + 0.5) * stepV)
+            .w;
+        if (!(depth > 0.0)) empty = true;
+        if (depth > farthest) farthest = depth;
+      }
+    }
+
+    const steps = 16777215.0;
+    final scaled = ((farthest * range.x).clamp(0.0, 1.0) * steps)
+        .ceilToDouble();
+    final high = (scaled / 65536.0).floorToDouble();
+    final rest = scaled - high * 65536.0;
+    final middle = (rest / 256.0).floorToDouble();
+    final low = rest - middle * 256.0;
+    return Vector4(
+      high / 255.0,
+      middle / 255.0,
+      low / 255.0,
+      empty ? 0.0 : 1.0,
+    );
+  }
+}
+
 /// `field_decay.frag`: every texel times a factor plus a constant — `H5`.
 final class FieldDecayShader implements CpuFragmentShader {
   const FieldDecayShader();
