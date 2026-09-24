@@ -453,60 +453,69 @@ extension _ShadowPasses on Renderer {
     return drawn > 0;
   }
 
-  /// Everything that decides a texel of the directional atlas — `gfx-68n`.
+  /// Everything that decides a texel of cascade [shaderMatrix]'s tile —
+  /// `gfx-68n`, per cascade since `S1`.
   ///
-  /// A record rather than a hash, so two frames that differ are never equal by
-  /// accident; the matrices are the one part reduced to a number, because the
-  /// alternative is holding copies of up to four of them and comparing
-  /// sixty-four doubles.
-  ({int matrices, int epoch, int generation, int faces, int casters})
-  _directionalBakeKey(
+  /// **Per cascade, so a caster moving in one does not redraw the others.**
+  /// The whole atlas used to share one key with `SceneNode.changeEpoch` in
+  /// it, so anything moving anywhere, and every step of the camera, drew
+  /// every cascade again. Now a tile keys on its own matrix and on the
+  /// casters its volume holds, each by its own `worldVersion` (and a skinned
+  /// one by its joints'), so the last cascade, which is the whole scene and
+  /// is fitted to the casters rather than to the camera, stays drawn while
+  /// the camera walks, and a character crossing the near cascade leaves the
+  /// far ones alone.
+  ///
+  /// Masked casters read a cutoff and an alpha off their material, and
+  /// neither a material's fields nor the texture it points at reach any
+  /// version, so they are read directly, as are the faces a caster records,
+  /// a swapped mesh, a morph's weights and an instance moved inside a batch.
+  int _cascadeBakeKey(
     Scene scene,
     ShadowSettings settings,
-    List<vm.Matrix4> shaderMatrices,
+    vm.Matrix4 shaderMatrix,
+    vm.Frustum frustum,
   ) {
-    var matrices = shaderMatrices.length;
-    for (final matrix in shaderMatrices) {
-      for (final value in matrix.storage) {
-        matrices = 0x1fffffff & (matrices * 31 + value.hashCode);
-      }
+    int mix(int key, int value) => 0x1fffffff & (key * 31 + value);
+    var key = mix(settings.casterFaces.hashCode, scene.staticShadowGeneration);
+    for (final value in shaderMatrix.storage) {
+      key = mix(key, value.hashCode);
     }
-
-    // Masked casters read a cutoff and an alpha off their material, and neither
-    // a material's fields nor the texture it points at reach `changeEpoch` or
-    // the static generation — a material is not a node. This is that gap
-    // closed, and it costs one pass over the casters against the two or three
-    // passes of drawing them it is deciding about.
-    var casters = 0;
     for (final node in scene.meshes) {
-      if (!node.shadowCasting.casts) continue;
+      if (!_drawsIntoCascade(node, frustum)) continue;
       final material = node.material;
-      casters = 0x1fffffff & (casters * 31 + identityHashCode(material));
-      casters = 0x1fffffff & (casters * 31 + material.alphaMode.hashCode);
-      casters = 0x1fffffff & (casters * 31 + material.alphaCutoff.hashCode);
-      casters = 0x1fffffff & (casters * 31 + material.baseColor.w.hashCode);
-      casters = 0x1fffffff & (casters * 31 + identityHashCode(material.albedo));
-      // Which faces it records. Neither a material's `doubleSided` nor a
-      // dynamic node's casting mode reaches `changeEpoch`, and either one
-      // changes what the cascade holds.
-      casters =
-          0x1fffffff & (casters * 31 + (node.castsShadowFromEveryFace ? 1 : 0));
-      // Nor does a swapped mesh, a morph's weights, or an instance moved
-      // inside a batch — each changes the silhouette in place.
-      casters = 0x1fffffff & (casters * 31 + identityHashCode(node.mesh));
-      casters = 0x1fffffff & (casters * 31 + (node.morph?.version ?? 0));
-      if (node is InstancedMeshNode) {
-        casters = 0x1fffffff & (casters * 31 + node.dataVersion);
+      key = mix(key, identityHashCode(node));
+      key = mix(key, node.worldVersion);
+      key = mix(key, identityHashCode(material));
+      key = mix(key, material.alphaMode.hashCode);
+      key = mix(key, material.alphaCutoff.hashCode);
+      key = mix(key, material.baseColor.w.hashCode);
+      key = mix(key, identityHashCode(material.albedo));
+      key = mix(key, node.castsShadowFromEveryFace ? 1 : 0);
+      key = mix(key, identityHashCode(node.mesh));
+      key = mix(key, node.morph?.version ?? 0);
+      if (node is InstancedMeshNode) key = mix(key, node.dataVersion);
+      final skeleton = node.skeleton;
+      if (skeleton != null) {
+        for (final joint in skeleton.joints) {
+          key = mix(key, joint.worldVersion);
+        }
       }
     }
+    return key;
+  }
 
-    return (
-      matrices: matrices,
-      epoch: SceneNode.changeEpoch,
-      generation: scene.staticShadowGeneration,
-      faces: settings.casterFaces.hashCode,
-      casters: casters,
-    );
+  /// Whether [node] is drawn into the cascade whose volume is [frustum]: the
+  /// tests the draw loop makes, in one place so the key and the loop agree.
+  static bool _drawsIntoCascade(MeshNode node, vm.Frustum frustum) {
+    if (!node.visibleInHierarchy) return false;
+    if (!node.shadowCasting.casts) return false;
+    final mesh = node.mesh;
+    if (mesh is! DrawableGeometry || mesh.indexCount == 0) return false;
+    if (node.frustumCulled && !frustum.intersectsWithAabb3(node.worldBounds)) {
+      return false;
+    }
+    return node is! InstancedMeshNode || node.count > 0;
   }
 
   /// Draws the directional light's shadow map, and says whether it drew one.
@@ -764,11 +773,21 @@ extension _ShadowPasses on Renderer {
       _shadowParams[3] = settings.strength.clamp(0.0, 1.0);
     }
 
-    final bakeKey = _directionalBakeKey(scene, settings, shaderMatrices);
-    if (_shadowMap != null &&
-        _shadowResolution == resolution &&
-        _shadowCascadeCount == count &&
-        _directionalBaked == bakeKey) {
+    // `S1`: which tiles still hold what this frame would draw. A new or
+    // reshaped atlas holds nothing, so every tile is drawn and the pass
+    // clears; otherwise the pass keeps the atlas and redraws only the rest.
+    final fresh =
+        _shadowMap == null ||
+        _shadowResolution != resolution ||
+        _shadowCascadeCount != count;
+    final keys = <int>[
+      for (var i = 0; i < count; i++)
+        _cascadeBakeKey(scene, settings, shaderMatrices[i], cascadeFrusta[i]),
+    ];
+    final dirty = <bool>[
+      for (var i = 0; i < count; i++) fresh || _directionalBaked[i] != keys[i],
+    ];
+    if (!dirty.contains(true)) {
       // Zeroed by the frame, so a pass that draws nothing has to put back what
       // the last one counted or the overlay reports a scene that stopped
       // casting.
@@ -776,10 +795,16 @@ extension _ShadowPasses on Renderer {
       publishShadowParams();
       return true;
     }
-    _directionalBaked = bakeKey;
-    if (_shadowMap == null ||
-        _shadowResolution != resolution ||
-        _shadowCascadeCount != count) {
+    // The tile reset is what lets a pass keep the others; a bundle without it
+    // draws every tile from a clear, as the pass always did.
+    final resetShader = shaders['ShadowTileReset'];
+    final resetVertexShader = shaders['ShadowTileResetVertex'];
+    final keep = !fresh && resetShader != null && resetVertexShader != null;
+    for (var i = 0; i < count; i++) {
+      if (!keep) dirty[i] = true;
+      if (dirty[i]) _directionalBaked[i] = keys[i];
+    }
+    if (fresh) {
       // Sampled by the lighting pass, so devicePrivate rather than transient.
       // The one it replaces goes back to the device once no frame in flight
       // can still be sampling it — dropping it was a free on one backend and a
@@ -816,8 +841,12 @@ extension _ShadowPasses on Renderer {
           ColorTarget(
             texture: _shadowMap!,
             // Cleared to the far plane, so anything the pass does not draw reads
-            // as "nothing between here and the light".
+            // as "nothing between here and the light" — or, since `S1`, kept,
+            // when some tiles still hold this frame's picture. The depth is
+            // cleared either way: it lives only as long as the pass, and a
+            // kept tile draws nothing that would test against it.
             clearValue: vm.Vector4(1.0, 1.0, 1.0, 1.0),
+            loadAction: keep ? LoadAction.load : LoadAction.clear,
           ),
         ],
         depth: DepthTarget(texture: depth),
@@ -849,7 +878,8 @@ extension _ShadowPasses on Renderer {
     // static one, 1 the skinned one, 2 the instanced one. Null for none.
     int? boundKind;
 
-    _shadowCasters = 0;
+    // Counted from the near cascade, which is kept when it did not change.
+    _shadowCasters = dirty[0] ? 0 : _directionalCasters;
     final meshes = scene.meshes;
     final mvp = vm.Matrix4.identity();
 
@@ -863,15 +893,39 @@ extension _ShadowPasses on Renderer {
     var everyFace = casterCull == CullMode.none;
 
     for (var cascade = 0; cascade < count; cascade++) {
+      if (!dirty[cascade]) continue;
       // Each cascade is the same casters drawn again into its own strip of the
       // atlas. A viewport rather than a second pass: the clear has already
       // happened, and the pipelines and buffers are the same.
-      if (count > 1) {
-        final tile = ScreenRect(
-          x: cascade * resolution,
-          width: resolution,
-          height: resolution,
+      final tile = count > 1
+          ? ScreenRect(
+              x: cascade * resolution,
+              width: resolution,
+              height: resolution,
+            )
+          : full;
+      if (keep) {
+        // `S1`: blanked by a draw, since a clear would take the kept tiles
+        // with it. Colour only; the depth was cleared by the pass.
+        pass.setState(
+          Renderer._kShadowTileResetState.copyWith(
+            viewport: tile,
+            scissor: tile,
+          ),
         );
+        pass.bindPipeline(
+          // The cube atlas's own: the same stages into the same format.
+          _cubeShadowResetPipeline ??= device.createPipeline(
+            resetVertexShader,
+            resetShader,
+          ),
+        );
+        pass.bindVertexBuffer(_fullscreenTriangle, 3);
+        pass.bindIndexBuffer(_identityIndices(3), IndexType.int32, 3);
+        pass.draw();
+        _frameCounters?.drawCalls++;
+      }
+      if (count > 1 || keep) {
         pass.setState(
           Renderer._kShadowCasterState.copyWith(
             viewport: tile,
@@ -888,10 +942,6 @@ extension _ShadowPasses on Renderer {
 
       for (var i = 0; i < meshes.length; i++) {
         final node = meshes[i];
-        if (!node.visibleInHierarchy) continue;
-        if (!node.shadowCasting.casts) continue;
-        final mesh = node.mesh;
-        if (mesh is! DrawableGeometry || mesh.indexCount == 0) continue;
         // **A caster outside this cascade is not drawn into it — `gfx-63n`.**
         // Every cascade used to walk the whole scene, so a level larger than
         // the nearest cascade covers was recorded three or four times over,
@@ -902,12 +952,9 @@ extension _ShadowPasses on Renderer {
         // volume does not touch holds no triangle that could have produced a
         // fragment. What is rejected here is what the clipper was going to
         // reject anyway, only without the vertex work first.
-        if (node.frustumCulled &&
-            !casterFrustum.intersectsWithAabb3(node.worldBounds)) {
-          continue;
-        }
+        if (!_drawsIntoCascade(node, casterFrustum)) continue;
+        final mesh = node.mesh as DrawableGeometry;
         final instanced = node is InstancedMeshNode ? node : null;
-        if (instanced != null && instanced.count == 0) continue;
 
         // Both sides recorded for a surface that has only one, so the sun does
         // not come through the seam of a single-sided wall. The state carries
