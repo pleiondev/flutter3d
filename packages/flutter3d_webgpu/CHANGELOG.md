@@ -8,6 +8,14 @@ false for a sampler the stage does not declare.
 
 Its `flutter3d_*` dependencies ask for `^0.8.0`.
 
+## 0.7.4
+
+**The generated WGSL table is rebuilt against `flutter3d_shaders` 0.7.4**,
+which `flutter3d_core` 0.7.4 binds: `BloomInfo.tint` and `ShaftInfo.sun` are
+uniforms only these stages declare, and all forty-nine stages still pass
+glslang and naga. Nothing else in this package changed. It asks for
+`flutter3d_shaders` ^0.7.4.
+
 ## 0.7.1
 
 **Pipelines are cached on the compiled modules, not on stage names**, so a hot

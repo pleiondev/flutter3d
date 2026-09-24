@@ -10,12 +10,13 @@ final class ClothSettings {
   const ClothSettings({
     this.gravity = 9.81,
     this.substeps = 8,
-    this.iterations = 1,
+    this.iterations = 2,
     this.distanceCompliance = 0.0,
     this.bendCompliance = 1e-3,
     this.damping = 0.02,
     this.wind = const WindSettings(),
     this.collisionThickness = 0.01,
+    this.friction = 0.0,
   });
 
   /// Downward acceleration, metres per second squared.
@@ -31,8 +32,16 @@ final class ClothSettings {
   /// before touching a compliance value.
   final int substeps;
 
-  /// Constraint-solve passes per substep. XPBD converges in one; more than
-  /// one trades speed for a stiffer-looking result at the same compliance.
+  /// Constraint-and-contact passes per substep.
+  ///
+  /// **Two, and one is not enough once the sheet wraps something.** A free
+  /// sheet or a hanging curtain converges in one, which is what this used to
+  /// promise for every case. Draped over a ball or a table edge it does not:
+  /// a single sweep and the contacts undo each other every substep, and the
+  /// residual turns into velocity — a 48×48 sheet on a ball went from half a
+  /// metre a second to NaN in about thirty steps, with or without wind. A
+  /// second sweep dissipates instead (measured: the same scene peaks at 0.6
+  /// m/s and stretches 1.5%).
   final int iterations;
 
   /// Compliance of the structural (edge-length) constraints. Zero holds
@@ -44,9 +53,14 @@ final class ClothSettings {
   /// it resists stretching reads as cardboard, not fabric.
   final double bendCompliance;
 
-  /// Fraction of velocity removed every full step, applied after the
-  /// constraint solve. Zero is undamped; this codebase's own default
-  /// leaves the cloth visibly springy rather than dead on the first swing.
+  /// Fraction of velocity removed every **substep**, applied to the old
+  /// velocity before gravity adds the substep's own. Zero is undamped; this
+  /// codebase's own default leaves the cloth visibly springy rather than dead
+  /// on the first swing.
+  ///
+  /// Per substep, so the same value damps harder at a higher [substeps]: at
+  /// the default eight it behaves like a linear drag of about ten per second.
+  /// This said "every full step" until 0.7.4, which it never was.
   final double damping;
 
   /// Aerodynamic wind force, off by default.
@@ -56,6 +70,15 @@ final class ClothSettings {
   /// rests — a small positive margin so repeated pushes do not chatter a
   /// particle in and out of contact by rounding alone.
   final double collisionThickness;
+
+  /// Coulomb friction against obstacles, at position level: how much of a
+  /// contact's push may be taken back from the particle's slide along the
+  /// surface in one substep, measured against the push summed over the
+  /// substep's iterations, so the answer does not depend on [iterations].
+  /// Zero, the default, lets a sheet slide off a ball as it always has; 0.3
+  /// slows the slide, and around 1 holds a sheet dropped off-centre where it
+  /// landed.
+  final double friction;
 }
 
 /// A uniform wind field, applied per triangle as drag along its own normal.
@@ -71,8 +94,15 @@ final class WindSettings {
   final double velocityY;
   final double velocityZ;
 
-  /// How much of the wind-relative normal velocity becomes force. Zero
-  /// turns wind off regardless of [velocityX]/[velocityY]/[velocityZ].
+  /// Newtons per square metre per metre-per-second of air moving through the
+  /// cloth along its normal: how much of the wind-relative normal velocity
+  /// becomes force. Zero turns wind off regardless of
+  /// [velocityX]/[velocityY]/[velocityZ].
+  ///
+  /// A force since 0.7.4. It was applied as a velocity before, which made it
+  /// several hundred times stronger than its value and dependent on the
+  /// substep count; a scene tuned against that needs a drag in the ones to
+  /// tens where it had tenths.
   final double drag;
 
   bool get isNone => drag == 0;

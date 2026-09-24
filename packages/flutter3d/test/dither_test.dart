@@ -178,14 +178,17 @@ void main() {
     },
   );
 
-  test('dither at zero leaves the frame byte for byte', () async {
-    // The promise every golden in the repository depends on, and the reason
-    // the shader skips the branch at zero rather than adding a noise that
-    // rounds away: "rounds away" is a claim about the target's bit depth
-    // rather than about the arithmetic.
-    expect(const LookSettings().dither, 0.0);
-    expect(await _composited(0.0), await _composited(0.0));
-  });
+  test(
+    'one step of dither is the default, and zero is still exactly off',
+    () async {
+      // On by default since 0.7.4: without it a glow or a dark ramp arrives in
+      // coloured rings on every 8-bit target. Zero still skips the branch
+      // rather than adding a noise that rounds away, because "rounds away" is
+      // a claim about the target's bit depth rather than about the arithmetic.
+      expect(const LookSettings().dither, closeTo(1.0 / 255.0, 1e-12));
+      expect(await _composited(0.0), await _composited(0.0));
+    },
+  );
 
   test('the noise is fixed to the pixel, so a golden stays recorded', () async {
     // The constraint `LookSettings.grain` documents from the other side: an
@@ -195,43 +198,37 @@ void main() {
     expect(await _composited(1.0 / 255.0), await _composited(1.0 / 255.0));
   });
 
-  test(
-    'the amount reaches the shader, and is zero when nobody asked',
-    () async {
-      // The plumbing half, on a backend that records what was bound: a fifth
-      // uniform block is exactly the kind of thing that compiles everywhere and
-      // is never written, and the frame would still look right, because zero is
-      // also what "never written" produces.
-      final device = FakeBackend();
-      final renderer = Renderer.create(device: device);
-      final scene = Scene()..add(CameraNode());
+  test('the amount reaches the shader, one step when nobody asked', () async {
+    // The plumbing half, on a backend that records what was bound: a fifth
+    // uniform block is exactly the kind of thing that compiles everywhere and
+    // is never written, and the frame would still look right, because zero is
+    // also what "never written" produces.
+    final device = FakeBackend();
+    final renderer = Renderer.create(device: device);
+    final scene = Scene()..add(CameraNode());
 
-      List<double> outputEncode(RenderSettings settings) {
-        renderer.render(
-          width: 32,
-          height: 32,
-          scene: scene,
-          views: <RenderView>[RenderView(camera: scene.cameras.single)],
-          settings: settings,
-        );
-        return device.passes.last
-            .recordedOf<RecordedUniformBlock>()
-            .firstWhere((RecordedUniformBlock b) => b.block == 'CompositeInfo')
-            .members['output_encode']!;
-      }
-
-      expect(outputEncode(const RenderSettings()), <double>[
-        0.0,
-        0.0,
-        0.0,
-        0.0,
-      ]);
-      expect(
-        outputEncode(
-          const RenderSettings(look: LookSettings(dither: 4.0 / 255.0)),
-        )[0],
-        closeTo(4.0 / 255.0, 1e-9),
+    List<double> outputEncode(RenderSettings settings) {
+      renderer.render(
+        width: 32,
+        height: 32,
+        scene: scene,
+        views: <RenderView>[RenderView(camera: scene.cameras.single)],
+        settings: settings,
       );
-    },
-  );
+      return device.passes.last
+          .recordedOf<RecordedUniformBlock>()
+          .firstWhere((RecordedUniformBlock b) => b.block == 'CompositeInfo')
+          .members['output_encode']!;
+    }
+
+    final byDefault = outputEncode(const RenderSettings());
+    expect(byDefault[0], closeTo(1.0 / 255.0, 1e-7));
+    expect(byDefault.sublist(1), <double>[0.0, 0.0, 0.0]);
+    expect(
+      outputEncode(
+        const RenderSettings(look: LookSettings(dither: 4.0 / 255.0)),
+      )[0],
+      closeTo(4.0 / 255.0, 1e-9),
+    );
+  });
 }

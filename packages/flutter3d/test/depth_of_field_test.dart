@@ -174,12 +174,15 @@ void main() {
       expect(_circle(1e9, maxRadius: 1.0), 1.0);
     });
 
-    test('depth behind the eye has no circle', () {
-      // The cleared background of the surface buffer reads zero, and a lens
-      // that blurred by a screenful wherever nothing was drawn would put a
-      // halo around every silhouette against the sky.
-      expect(_circle(0.0), 0.0);
-      expect(_circle(-3.0), 0.0);
+    test('nothing drawn is infinitely far, so the sky blurs as far does', () {
+      // The cleared background of the surface buffer reads zero. Until 0.7.4
+      // that meant no circle, and a lens focused on a face kept the horizon
+      // behind it sharp. The worry that answer was guarding against — a halo
+      // around every silhouette against the sky — is the gather's to prevent,
+      // and it does now: a sharp sample in front of the blurred sky does not
+      // reach it.
+      expect(_circle(0.0), closeTo(_circle(1e9), 1e-6));
+      expect(_circle(-3.0), closeTo(_circle(1e9), 1e-6));
     });
 
     test('the blur is a share of the picture, not a count of pixels', () {

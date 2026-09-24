@@ -104,6 +104,11 @@ void ApplyNormalMap(inout Surface s) {
   // every mirrored half of a symmetric model light from the wrong side, which
   // is exactly what NormalTangentTest is built to show.
   vec3 b = cross(s.n, t) * v_tangent.w;
+  // On a back face `ReadSurface` has already turned the normal round, and
+  // the bitangent above turned with it. The tangent has to follow, or the
+  // frame is half-mirrored and relief along u lights from the wrong side —
+  // glTF turns the whole frame, not the normal alone.
+  if (!gl_FrontFacing) t = -t;
 
   vec3 sampled = sampledTexel.xyz * 2.0 - 1.0;
   // normalScale attenuates the tangent-space xy, per the glTF spec.

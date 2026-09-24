@@ -49,15 +49,27 @@ uniform ShaftInfo {
   // xyz: the direction the camera looks. w: how many steps.
   vec4 forward;
 
-  // xyz: the colour the air scatters, already multiplied by the strength.
-  // w: unused.
+  // xyz: what a lit point sends towards the eye before phase and path — the
+  // sun's colour times its intensity, tinted by the air's albedo. w: the
+  // air's density σ, per metre.
   vec4 scatter;
 
   // x, y: the two cascade split distances. z: how many cascades. w: the
   // depth bias, in the same units the map holds.
   vec4 cascades;
+
+  // xyz: towards the sun, a unit vector. w: Henyey–Greenstein's g.
+  vec4 sun;
 }
 shaft_info;
+
+// How much of the light a point in the air sends along [cosine] from the
+// sun's direction — Henyey–Greenstein, normalised over the sphere.
+float HenyeyGreenstein(float cosine, float g) {
+  float g2 = g * g;
+  float denominator = max(1.0 + g2 - 2.0 * g * cosine, 1e-4);
+  return (1.0 - g2) / (12.566371 * denominator * sqrt(denominator));
+}
 
 // One cell of a 4x4 Bayer matrix, in [0, 1). The same table
 // `composite.frag` keeps, for the same reason.
@@ -113,7 +125,12 @@ float LitAt(vec3 world, float viewDistance) {
     if (inTile.x < 0.0 || inTile.x > 1.0 || inTile.y < 0.0 || inTile.y > 1.0) {
       continue;
     }
-    if (candidate.z > 1.0) continue;
+    // Past the far plane is behind every caster, as in `shadow.glsl`: the
+    // last cascade clamps rather than letting the air behind a caster glow.
+    if (candidate.z > 1.0) {
+      if (which < cascadeCount - 1) continue;
+      candidate.z = 1.0;
+    }
 
     vec2 uv = vec2((inTile.x + float(which)) / float(cascadeCount), inTile.y);
     // `textureLod`, for `shadow.glsl`'s own reason: the cascade search above
@@ -162,17 +179,34 @@ void main() {
   // would otherwise draw is broken into a pattern the eye integrates.
   float offset = BayerCell(gl_FragCoord.xy) * stride;
 
-  float lit = 0.0;
+  // **Single scattering with transmittance.** Each step in-scatters the
+  // share of the light its own length of air catches, `1 − e^(−σ·stride)`,
+  // times what is left of the path to the eye. Summed, a fully lit ray comes
+  // to `1 − e^(−σd)`: brighter with more air, and never past one — where the
+  // old average of lit samples gave a wall two metres off the same shaft as
+  // forty metres of sky. The step count still changes the quality and not
+  // the brightness, because the sum converges to the same integral.
+  float sigma = max(shaft_info.scatter.w, 0.0);
+  float stepTransmittance = exp(-sigma * stride);
+  float transmittance = exp(-sigma * offset);
+  vec3 eye = shaft_info.camera.xyz;
+  float inscatter = 0.0;
   for (int i = 0; i < 64; i++) {
     if (i >= steps) break;
     float travelled = offset + float(i) * stride;
     vec3 at = origin + along * travelled;
-    lit += LitAt(at, travelled * cosine);
+    // The cascade chosen by distance from the eye, the metric `shadow.glsl`
+    // picks a surface's cascade by, so a shaft and the ground under it agree.
+    float lit = LitAt(at, length(at - eye));
+    inscatter += transmittance * (1.0 - stepTransmittance) * lit;
+    transmittance *= stepTransmittance;
   }
 
-  // The average share of the ray that was in light, times the scatter colour.
-  // An average rather than a sum, so changing the step count changes the
-  // quality and not the brightness.
-  vec3 shaft = shaft_info.scatter.rgb * (lit / float(steps));
+  // Towards the sun the air glows; away from it, with forward scattering,
+  // almost not at all — which is what keeps a frame with the sun behind the
+  // camera clear. `along` runs from the eye, so looking into the sun is
+  // `dot(along, toSun)` near one.
+  float phase = HenyeyGreenstein(dot(along, shaft_info.sun.xyz), shaft_info.sun.w);
+  vec3 shaft = shaft_info.scatter.rgb * (phase * inscatter);
   frag_color = vec4(scene.rgb + shaft, scene.a);
 }

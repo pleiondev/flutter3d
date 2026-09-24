@@ -8,6 +8,32 @@ renderer's binds are held to the real bundle on the VM.
 
 Its `flutter3d_*` dependencies ask for `^0.8.0`.
 
+## 0.7.4
+
+The stages behind `flutter3d_core` 0.7.4's corrections; its CHANGELOG has the
+reasons. What a caller of these sources sees:
+
+* `composite.frag`: AgX linearised and without the extra desaturation; the
+  contrast pivot at 0.18; the classic lift; the LUT through sRGB; the dither
+  centred. `SrgbToLinear` is new beside `LinearToSrgb`.
+* `lib/surface.glsl` and `lib/color.glsl`: a back face reverses its normal
+  (`gl_FrontFacing`), for the lit term and the surface buffer.
+  `lib/material_maps.glsl` turns the tangent with it.
+* `lib/shadow.glsl`: the normal offset adds one cascade texel scaled by the
+  slope to the light, and past the last cascade's far plane a point is clamped
+  to it, not called lit. `light_shafts.frag` clamps the same way.
+* `reflections.frag`: jittered, refined, faded with distance, back faces
+  rejected, Schlick's Fresnel, the roughness window 0.05 to 0.25.
+* `light_shafts.frag`: single scattering with transmittance and a
+  Henyey–Greenstein phase; `ShaftInfo` gains `sun`.
+* `bloom_threshold.frag`: Karis's weighted average. `bloom_upsample.frag`:
+  `BloomInfo` gains `tint`, the per-level ratio the caller computes, in place
+  of the halation it read from `params.w`.
+* `depth_of_field.frag`: the reach test that held for every sample, the sky at
+  infinity, a spiral turned per pixel.
+* `contact_shadow.frag`: jittered steps and a tolerance of two steps' depth.
+* `ssao_blur.frag`: the depth weight relative to the centre's depth.
+
 ## 0.7.1
 
 * **Stages that read no light list declare none.** `F3D_NO_LIGHT_LIST` leaves

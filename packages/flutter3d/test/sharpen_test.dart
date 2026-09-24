@@ -66,9 +66,12 @@ Future<List<int>> _edge({
         clearColor: Vector4(background, background, background, 1.0),
       ),
     ],
+    // Undithered: the composite's dither is a pattern a flat frame carries
+    // into this pass, and sharpening a pattern is what sharpening is for.
     settings: RenderSettings(
       tonemap: false,
       antiAlias: AntiAliasSettings(enabled: true, sharpen: sharpen),
+      look: const LookSettings(dither: 0),
     ),
   );
 

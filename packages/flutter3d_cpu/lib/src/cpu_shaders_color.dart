@@ -268,8 +268,8 @@ Vector3 tonemapAces(Vector3 colour) {
   return Vector3(curve(colour.x), curve(colour.y), curve(colour.z));
 }
 
-/// `TonemapAgx` from `composite.frag`: the log sigmoid and its desaturation.
-Vector3 tonemapAgx(Vector3 colour) {
+/// `AgxSigmoid` from `composite.frag`: the log sigmoid, display-encoded out.
+Vector3 agxSigmoid(Vector3 colour) {
   const minEv = -12.47393;
   const maxEv = 4.026069;
 
@@ -292,17 +292,14 @@ Vector3 tonemapAgx(Vector3 colour) {
     return shaped.clamp(0.0, 1.0);
   }
 
-  final shaped = Vector3(curve(colour.x), curve(colour.y), curve(colour.z));
-  final luma = 0.2126 * shaped.x + 0.7152 * shaped.y + 0.0722 * shaped.z;
-  return Vector3(
-    luma + (shaped.x - luma) * 0.84,
-    luma + (shaped.y - luma) * 0.84,
-    luma + (shaped.z - luma) * 0.84,
-  );
+  return Vector3(curve(colour.x), curve(colour.y), curve(colour.z));
 }
 
-/// `TonemapAgxFull` from `composite.frag`: the curve with the gamut rotation
-/// around it — `gfx-26n`.
+/// `TonemapAgxFull` from `composite.frag`: code 5, now the same transform as
+/// [tonemapAgx].
+Vector3 tonemapAgxFull(Vector3 colour) => tonemapAgx(colour);
+
+/// `TonemapAgx` from `composite.frag`: inset, sigmoid, outset, linearise.
 ///
 /// **The matrices are written out row by row here on purpose.** GLSL's `mat3`
 /// takes its arguments column-major and this backend has no `mat3` at all, so
@@ -311,7 +308,7 @@ Vector3 tonemapAgx(Vector3 colour) {
 /// visible instead of hiding it inside a constructor whose order has to be
 /// remembered — and `tonemap_curve_test.dart` checks the two backends against
 /// each other on a colour whose hue would drift if either were transposed.
-Vector3 tonemapAgxFull(Vector3 colour) {
+Vector3 tonemapAgx(Vector3 colour) {
   Vector3 apply(Vector3 v, List<double> r0, List<double> r1, List<double> r2) =>
       Vector3(
         r0[0] * v.x + r0[1] * v.y + r0[2] * v.z,
@@ -351,14 +348,23 @@ Vector3 tonemapAgxFull(Vector3 colour) {
     1.15107367264116,
   ];
 
-  final inset = apply(colour, inset0, inset1, inset2);
-  final shaped = tonemapAgx(inset);
-  final out = apply(shaped, outset0, outset1, outset2);
-  return Vector3(
-    out.x.clamp(0.0, 1.0),
-    out.y.clamp(0.0, 1.0),
-    out.z.clamp(0.0, 1.0),
+  final inset = apply(
+    Vector3(
+      math.max(colour.x, 0.0),
+      math.max(colour.y, 0.0),
+      math.max(colour.z, 0.0),
+    ),
+    inset0,
+    inset1,
+    inset2,
   );
+  final out = apply(agxSigmoid(inset), outset0, outset1, outset2);
+  // Back to linear, as the shader's `pow(max(v, 0.0), 2.2)`: the sigmoid's
+  // output is display-encoded, and the sRGB encode after the grade is the
+  // only encode this frame should get.
+  double linear(double v) =>
+      (math.pow(math.max(v, 0.0), 2.2) as double).clamp(0.0, 1.0);
+  return Vector3(linear(out.x), linear(out.y), linear(out.z));
 }
 
 /// `TonemapReinhard` from `composite.frag`, extended so white reaches white.

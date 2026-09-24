@@ -197,7 +197,10 @@ final class SsaoBlurShader implements CpuFragmentShader {
         final u = v[0] + step[0];
         final w = v[1] + step[1];
         final depth = surface.sample(u, w).w;
-        final closeness = math.exp(-(depth - centreDepth).abs() / falloff);
+        final closeness = math.exp(
+          -(depth - centreDepth).abs() /
+              (falloff * math.max(centreDepth, 1e-3)),
+        );
         final weight = closeness / offset;
         total += ao.sample(u, w).x * weight;
         weightSum += weight;
