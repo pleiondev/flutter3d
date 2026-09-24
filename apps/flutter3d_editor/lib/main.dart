@@ -1215,11 +1215,22 @@ class _EditorScreenState extends State<EditorScreen>
                     ),
               ),
           ];
+    // The lights as the optimizer was asked about them. The search takes a
+    // while and the editor stays live, so a light moved or added meanwhile
+    // would be dropped by a set made from the old ones.
+    String lightsNow() => jsonEncode(<Object?>[
+      for (final light in editing.level.lights) light.toJson(),
+    ]);
+    final asked = lightsNow();
     _cubit.say('looking for lights to spare…');
     final plan = await planLights(editing.level, views);
     if (!mounted || editing != _editing) return;
     if (!await showLightPlan(context, plan) || !mounted) {
       _cubit.say('lights left as they were');
+      return;
+    }
+    if (lightsNow() != asked) {
+      _cubit.say('the lights changed while they were judged; ask again');
       return;
     }
     editing.history.run(SetLights(plan.after, why: plan.says));
