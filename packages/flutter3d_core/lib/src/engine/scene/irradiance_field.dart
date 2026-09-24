@@ -135,6 +135,79 @@ final class IrradianceField {
 
   static int _stride(int interior) => interior + 2;
 
+  /// Bumped whenever the field's contents change — `L3`: by every write here
+  /// and by [fillGutters], which is how a bake finishes. The renderer uploads
+  /// the atlas again when this moved and not otherwise. Anything that writes
+  /// [irradiance], [depth] or [active] directly calls [markChanged].
+  int get version => _version;
+  int _version = 0;
+
+  /// Says the contents changed, for a writer that went past the methods here.
+  void markChanged() => _version++;
+
+  /// The field as one float texture — `L3`.
+  ///
+  /// Every probe's irradiance tile (gutter included) in a grid of [columns]
+  /// tiles across, rgb with the probe's [active] flag in alpha; below them,
+  /// starting at row [momentsTop], every probe's depth tile in the same grid,
+  /// mean and mean square in red and green. Row-major from the top, four
+  /// floats a texel. `lib/irradiance.glsl` reads it.
+  ({int width, int height, int columns, int momentsTop, Float32List texels})
+  toAtlas() {
+    final probes = probeCount;
+    final columns = math.sqrt(probes).ceil();
+    final rows = (probes + columns - 1) ~/ columns;
+    final irradianceStride = _stride(tile);
+    final depthStride = _stride(depthTile);
+    final width =
+        columns *
+        (irradianceStride > depthStride ? irradianceStride : depthStride);
+    final momentsTop = rows * irradianceStride;
+    final height = momentsTop + rows * depthStride;
+    final texels = Float32List(width * height * 4);
+
+    for (var probe = 0; probe < probes; probe++) {
+      final column = probe % columns;
+      final row = probe ~/ columns;
+      final flag = active[probe].toDouble();
+      for (var y = 0; y < irradianceStride; y++) {
+        for (var x = 0; x < irradianceStride; x++) {
+          final from =
+              ((probe * irradianceStride + y) * irradianceStride + x) * 3;
+          final to =
+              ((row * irradianceStride + y) * width +
+                  column * irradianceStride +
+                  x) *
+              4;
+          texels[to] = irradiance[from];
+          texels[to + 1] = irradiance[from + 1];
+          texels[to + 2] = irradiance[from + 2];
+          texels[to + 3] = flag;
+        }
+      }
+      for (var y = 0; y < depthStride; y++) {
+        for (var x = 0; x < depthStride; x++) {
+          final from = ((probe * depthStride + y) * depthStride + x) * 2;
+          final to =
+              ((momentsTop + row * depthStride + y) * width +
+                  column * depthStride +
+                  x) *
+              4;
+          texels[to] = depth[from];
+          texels[to + 1] = depth[from + 1];
+          texels[to + 3] = 1.0;
+        }
+      }
+    }
+    return (
+      width: width,
+      height: height,
+      columns: columns,
+      momentsTop: momentsTop,
+      texels: texels,
+    );
+  }
+
   /// The index of the probe at grid position [x], [y], [z].
   int probeIndex(int x, int y, int z) => (z * countY + y) * countX + x;
 
@@ -148,6 +221,7 @@ final class IrradianceField {
 
   /// Writes [colour] as the irradiance probe [probe] receives from [direction].
   void writeIrradiance(int probe, Vector3 direction, Vector3 colour) {
+    _version++;
     final uv = encodeOctahedral(direction);
     final at = _texelOf(probe, uv, tile, 3);
     irradiance[at] = colour.x;
@@ -157,6 +231,7 @@ final class IrradianceField {
 
   /// Writes the two moments probe [probe] sees along [direction].
   void writeDepth(int probe, Vector3 direction, double distance) {
+    _version++;
     final uv = encodeOctahedral(direction);
     final at = _texelOf(probe, uv, depthTile, 2);
     depth[at] = distance;
@@ -178,6 +253,7 @@ final class IrradianceField {
   /// one side tints nothing at all — which is exactly the effect the row exists
   /// to produce.
   void writeIrradianceTexel(int probe, int tx, int ty, Vector3 colour) {
+    _version++;
     final stride = _stride(tile);
     final at = ((probe * stride + ty + 1) * stride + tx + 1) * 3;
     irradiance[at] = colour.x;
@@ -187,6 +263,7 @@ final class IrradianceField {
 
   /// Writes one texel of the depth tile directly. See [writeIrradianceTexel].
   void writeDepthTexel(int probe, int tx, int ty, double mean, double square) {
+    _version++;
     final stride = _stride(depthTile);
     final at = ((probe * stride + ty + 1) * stride + tx + 1) * 2;
     depth[at] = mean;
@@ -209,6 +286,7 @@ final class IrradianceField {
   /// direction as, and copying it there is what makes the read continuous. Skip
   /// this and every probe shows as a bright dot.
   void fillGutters() {
+    _version++;
     _fillGutter(irradiance, tile, 3);
     _fillGutter(depth, depthTile, 2);
   }

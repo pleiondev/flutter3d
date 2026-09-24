@@ -551,19 +551,17 @@ extension _MeshEncode on Renderer {
       _fogInfo.eye.setAll(0, _cameraData);
       encoder.bindBlock(fragmentShader, _fogInfo);
 
-      // **The irradiance field, where there is one — `gfx-81n`.** It replaces
-      // the two ambient colours for this draw and nothing else, which is the
-      // whole of why a scene without one is byte for byte what it was: the
-      // staged arrays are rewritten per draw either way, and with no field the
-      // values written are the ones `_updateAmbient` put there.
-      //
-      // Per object rather than per pixel, and that is the granularity this
-      // costs: a large floor reads one point of the field, so it takes the
-      // bounce of its own middle. The two samples are the surface facing up and
-      // the surface facing down, which is exactly the pair the shader already
-      // blends between — so the field arrives through a uniform that exists
-      // rather than through a texture and a fifth set of bindings.
-      _applyIrradiance(scene, node);
+      // **The irradiance field, per pixel — `L3`.** It replaces the
+      // hemisphere ambient in the shader wherever the scene has a field, and
+      // the atlas and its block are bound on every lit draw whether or not it
+      // does: a declared sampler nobody binds is a native crash on Metal.
+      if (_keepsBlock(
+        fragmentShader,
+        _irradianceInfo.name,
+        declared: material.lighting.usesLightList,
+      )) {
+        _bindIrradiance(encoder, fragmentShader, scene);
+      }
 
       // **Every lit draw, both halves — `gfx-74n`.** A draw with no tail binds
       // a count of nought and a one-by-one stand-in it never samples, because a
@@ -738,32 +736,77 @@ extension _MeshEncode on Renderer {
     if (instanced != null) state.instances += instanced.count;
   }
 
-  /// Rewrites the two ambient colours for [node] from the scene's irradiance
-  /// field — `gfx-81n`. Does nothing at all when there is no field, which is
-  /// what keeps every recorded frame where it was.
-  void _applyIrradiance(Scene scene, MeshNode node) {
+  /// Binds [scene]'s irradiance field to [stage] — `L3`: the atlas, uploaded
+  /// again only when the field's version moved, and the block that says how
+  /// to read it. With no field, the block says "off" and a stand-in fills
+  /// the sampler.
+  void _bindIrradiance(PassEncoder encoder, ShaderHandle stage, Scene scene) {
     final field = scene.irradianceField;
-    if (field == null) return;
+    final atlas = field == null ? null : _irradianceAtlasFor(field);
+    final info = _irradianceInfo;
+    if (field == null || atlas == null) {
+      info.origin[3] = 0.0;
+    } else {
+      final nearest = math.min(
+        field.spacing.x,
+        math.min(field.spacing.y, field.spacing.z),
+      );
+      info.origin
+        ..[0] = field.origin.x
+        ..[1] = field.origin.y
+        ..[2] = field.origin.z
+        ..[3] = 1.0;
+      // A tenth of the nearest spacing off the surface and towards the eye:
+      // enough that a surface is not read as the wall its own probe sees, and
+      // too little to carry the read through a wall of any real thickness.
+      info.spacing
+        ..[0] = field.spacing.x
+        ..[1] = field.spacing.y
+        ..[2] = field.spacing.z
+        ..[3] = nearest * 0.1;
+      info.counts
+        ..[0] = field.countX.toDouble()
+        ..[1] = field.countY.toDouble()
+        ..[2] = field.countZ.toDouble()
+        ..[3] = nearest * 0.1;
+      info.tiles
+        ..[0] = field.tile.toDouble()
+        ..[1] = field.depthTile.toDouble()
+        ..[2] = _irradianceColumns.toDouble()
+        ..[3] = _irradianceMomentsTop.toDouble();
+      info.atlas
+        ..[0] = 1.0 / atlas.width
+        ..[1] = 1.0 / atlas.height;
+    }
+    encoder
+      ..bindBlock(stage, info)
+      ..bindTexture(
+        stage,
+        'irradiance_texture',
+        atlas ?? fallbackAlbedo,
+        // Nearest: the shader filters inside each tile itself.
+        sampler: SamplerOptions.nearestClamp,
+      );
+  }
 
-    // The node's own middle. A point on its surface would be better and is not
-    // available here — the encode sees a bounding box, not the geometry — and
-    // the middle is the one point that is certainly inside the thing being lit.
-    final at = node.worldBoundsCentre;
-    final up = field.sample(at, _kUp, _irradianceUp);
-    final down = field.sample(at, _kDown, _irradianceDown);
-
-    // Scaled by the scene's own ambient knob, so the one control still dials
-    // indirect light: a field is a measurement of the room and this is how much
-    // of that measurement the author wants.
-    final tint = scene.ambientIntensity;
-    _ambientSky[0] = up.x * tint;
-    _ambientSky[1] = up.y * tint;
-    _ambientSky[2] = up.z * tint;
-    _ambientGround[0] = down.x * tint;
-    _ambientGround[1] = down.y * tint;
-    _ambientGround[2] = down.z * tint;
+  /// [field]'s atlas on this device, uploaded when the field changed.
+  TextureHandle? _irradianceAtlasFor(IrradianceField field) {
+    if (identical(field, _irradianceField) &&
+        field.version == _irradianceVersion) {
+      return _irradianceAtlas;
+    }
+    final packed = field.toAtlas();
+    _destroyAfterFrame(_irradianceAtlas);
+    _irradianceAtlas = device.createTextureFromPixels(
+      width: packed.width,
+      height: packed.height,
+      format: TextureFormat.r32g32b32a32Float,
+      pixels: ByteData.sublistView(packed.texels),
+    );
+    _irradianceField = field;
+    _irradianceVersion = field.version;
+    _irradianceColumns = packed.columns;
+    _irradianceMomentsTop = packed.momentsTop;
+    return _irradianceAtlas;
   }
 }
-
-final vm.Vector3 _kUp = vm.Vector3(0.0, 1.0, 0.0);
-final vm.Vector3 _kDown = vm.Vector3(0.0, -1.0, 0.0);

@@ -17,6 +17,7 @@
 #define MATERIAL_MAPS_GLSL_
 
 #include <lib/surface.glsl>
+#include <lib/irradiance.glsl>
 
 /// Tangent-space normal map. Neutral is (0.5, 0.5, 1.0).
 uniform sampler2D normal_texture;
@@ -121,6 +122,14 @@ void ApplyNormalMap(inout Surface s) {
 /// The three maps every lit model uses. Metal-rough is separate because only
 /// the models that actually respond to metallic or roughness may sample it.
 void ApplyCommonMaps(inout Surface s) {
+  // `L3`: the field in place of the hemisphere, read before the normal map
+  // for the reason the hemisphere is — which half of the room a face sees is
+  // not a question about millimetres of relief. At the same strength the
+  // hemisphere was.
+  if (IrradianceEnabled()) {
+    s.ambient = SampleIrradiance(v_world_position, s.n, s.v) *
+                frag_info.material.z;
+  }
   ApplyNormalMap(s);
   ApplyOcclusionMap(s);
   ApplyEmissiveMap(s);

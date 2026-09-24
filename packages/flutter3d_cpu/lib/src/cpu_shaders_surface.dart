@@ -15,6 +15,7 @@ import 'package:vector_math/vector_math.dart';
 
 import 'cpu_shader.dart';
 import 'cpu_shaders_color.dart';
+import 'cpu_shaders_irradiance.dart';
 import 'cpu_shaders_layout.dart';
 
 /// How far the texture coordinate moves per screen pixel, for mip selection.
@@ -357,6 +358,14 @@ void applyCommonMaps(
   ShaderBindings b,
   FragmentContext c,
 ) {
+  // `L3`: the field in place of the hemisphere, before the normal map, as
+  // `ApplyCommonMaps` does it.
+  if (irradianceEnabled(b)) {
+    final strength = b.vec4('FragInfo', 'material', Vector4.zero()).z;
+    s.ambient.setFrom(
+      sampleIrradiance(b, s.world, s.normal, s.view)..scale(strength),
+    );
+  }
   applyNormalMap(s, v, b, c);
   applyOcclusionMap(s, v, b, c);
   applyEmissiveMap(s, v, b, c);
