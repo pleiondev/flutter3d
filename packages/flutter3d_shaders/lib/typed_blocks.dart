@@ -144,6 +144,27 @@ final class ContactShadowInfoBlock extends UniformBlock {
   };
 }
 
+/// `ConvolveInfo`.
+final class ConvolveInfoBlock extends UniformBlock {
+  ConvolveInfoBlock() : super('ConvolveInfo');
+
+  /// `probe`: Vector4, at byte 0.
+  final Float32List probe = Float32List(4);
+
+  /// `tiles`: Vector4, at byte 16.
+  final Float32List tiles = Float32List(4);
+
+  /// `atlas`: Vector4, at byte 32.
+  final Float32List atlas = Float32List(4);
+
+  @override
+  late final Map<String, Float32List> members = <String, Float32List>{
+    'probe': probe,
+    'tiles': tiles,
+    'atlas': atlas,
+  };
+}
+
 /// `DofInfo`.
 final class DofInfoBlock extends UniformBlock {
   DofInfoBlock() : super('DofInfo');
@@ -345,6 +366,35 @@ final class IdInfoBlock extends UniformBlock {
   late final Map<String, Float32List> members = <String, Float32List>{
     'id': id,
     'mask': mask,
+  };
+}
+
+/// `IrradianceInfo`.
+final class IrradianceInfoBlock extends UniformBlock {
+  IrradianceInfoBlock() : super('IrradianceInfo');
+
+  /// `origin`: Vector4, at byte 0.
+  final Float32List origin = Float32List(4);
+
+  /// `spacing`: Vector4, at byte 16.
+  final Float32List spacing = Float32List(4);
+
+  /// `counts`: Vector4, at byte 32.
+  final Float32List counts = Float32List(4);
+
+  /// `tiles`: Vector4, at byte 48.
+  final Float32List tiles = Float32List(4);
+
+  /// `atlas`: Vector4, at byte 64.
+  final Float32List atlas = Float32List(4);
+
+  @override
+  late final Map<String, Float32List> members = <String, Float32List>{
+    'origin': origin,
+    'spacing': spacing,
+    'counts': counts,
+    'tiles': tiles,
+    'atlas': atlas,
   };
 }
 

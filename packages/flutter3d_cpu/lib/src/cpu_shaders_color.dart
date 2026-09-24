@@ -384,11 +384,55 @@ Vector3 tonemapReinhard(Vector3 colour) {
 ///
 /// The numbers are `TonemapCurve`'s own and are part of the uniform layout —
 /// see `composite.frag`'s note on why 1 is the default rather than 0.
+///
+/// Code 6 is a display transform the composite reads from a table; with no
+/// table to hand, this answers with the function the engine's own table is
+/// baked from — [tonemapAces2] — which the table approximates to its
+/// sampling.
 Vector3 tonemapBy(Vector3 colour, int curve) => switch (curve) {
   1 => tonemapNeutral(colour),
   2 => tonemapAces(colour),
   3 => tonemapAgx(colour),
   4 => tonemapReinhard(colour),
   5 => tonemapAgxFull(colour),
+  6 => tonemapAces2(colour),
   _ => colour,
 };
+
+/// The ACES 2.0 SDR tonescale (100 nits), hue held, with a path to white —
+/// what `make_tables.dart` bakes into `EngineTables.aces2Display` — `L2`.
+Vector3 tonemapAces2(Vector3 colour) {
+  final peak = math.max(colour.x, math.max(colour.y, colour.z));
+  if (peak <= 0.0) return Vector3.zero();
+  final mapped = _aces2Tonescale(peak) / 100.0;
+  final scale = mapped / peak;
+  final white = mapped * mapped * mapped;
+  double channel(double c) =>
+      (c * scale * (1.0 - white) + mapped * white).clamp(0.0, 1.0);
+  return Vector3(channel(colour.x), channel(colour.y), channel(colour.z));
+}
+
+/// `aces2Tonescale` in `make_tables.dart`, at a peak of 100 nits.
+double _aces2Tonescale(double x) {
+  const nR = 100.0;
+  const peak = 100.0;
+  const g = 1.15;
+  const c = 0.18;
+  const cD = 10.013;
+  const t1 = 0.04;
+  const rHit = 128.0;
+  final m0 = peak / nR;
+  final m1 = 0.5 * (m0 + math.sqrt(m0 * (m0 + 4.0 * t1)));
+  final u = math.pow((rHit / m1) / ((rHit / m1) + 1.0), g);
+  final m = m1 / u;
+  const cT = cD / nR;
+  final gIp = 0.5 * (cT + math.sqrt(cT * (cT + 4.0 * t1)));
+  final ratio = math.pow(gIp / m, 1.0 / g);
+  final gIpp2 = -(m1 * ratio) / (ratio - 1.0);
+  final w2 = c / gIpp2;
+  final s2 = w2 * m1;
+  final u2 = math.pow((rHit / m1) / ((rHit / m1) + w2), g);
+  final m2 = m1 / u2;
+  final f = m2 * math.pow(math.max(0.0, x) / (x + s2), g);
+  return math.max(0.0, f * f / (f + t1)) * nR;
+}

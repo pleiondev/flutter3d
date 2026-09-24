@@ -207,8 +207,43 @@ extension _ProbePasses on Renderer {
     required SceneShadows shadows,
     required FramePassState passState,
     required vm.Vector4 clearColor,
+  }) => _captureCubeFace(
+    resources: resources,
+    scene: scene,
+    position: probe.readWorldPosition(_probePosition),
+    near: probe.near,
+    far: probe.far,
+    excluded: probe.excluded,
+    colour: state.capture,
+    size: state.faceSize,
+    face: face,
+    settings: settings,
+    shadows: shadows,
+    passState: passState,
+    clearColor: clearColor,
+  );
+
+  /// Draws [scene] from [position] into [face] of the cube [colour], [size]
+  /// texels a side — and, when [surface] is given, the surface buffer into
+  /// the same face of that cube as the second attachment: the normal and the
+  /// depth along the face's axis, which the irradiance field's update reads
+  /// distances from (`L4`).
+  void _captureCubeFace({
+    required FrameResources resources,
+    required Scene scene,
+    required vm.Vector3 position,
+    required double near,
+    required double far,
+    required Set<SceneNode> excluded,
+    required TextureHandle colour,
+    TextureHandle? surface,
+    required int size,
+    required int face,
+    required RenderSettings settings,
+    required SceneShadows shadows,
+    required FramePassState passState,
+    required vm.Vector4 clearColor,
   }) {
-    final size = state.faceSize;
     final depth = resources.transient(
       RenderTargetSpec(
         width: size,
@@ -223,10 +258,16 @@ extension _ProbePasses on Renderer {
         label: _passLabel,
         colors: <ColorTarget>[
           ColorTarget(
-            texture: state.capture,
+            texture: colour,
             face: face,
             clearValue: Renderer._srgbToLinear(clearColor),
           ),
+          if (surface != null)
+            ColorTarget(
+              texture: surface,
+              face: face,
+              clearValue: vm.Vector4.zero(),
+            ),
         ],
         depth: DepthTarget(texture: depth),
       ),
@@ -251,13 +292,12 @@ extension _ProbePasses on Renderer {
       ..depthCompare = CompareFunction.less
       ..invalidatePipeline();
 
-    final position = probe.readWorldPosition(_probePosition);
     final origin = device.framebufferOrigin;
     final viewProjection = probeFaceViewProjection(
       face,
       position,
-      near: probe.near,
-      far: probe.far,
+      near: near,
+      far: far,
       origin: origin,
       depthRange: device.depthRange,
     );
@@ -280,7 +320,7 @@ extension _ProbePasses on Renderer {
           continue;
         }
         if (node.material.isTransparent != blended) continue;
-        if (probe.excluded.contains(node)) continue;
+        if (excluded.contains(node)) continue;
         final mesh = node.mesh;
         if (mesh is! DrawableGeometry || mesh.indexCount == 0) continue;
         _encodeNode(

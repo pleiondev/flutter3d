@@ -6457,6 +6457,158 @@ vec3 AccumulateLights(Surface s) {
 
 #endif  // SURFACE_GLSL_
 
+// --- lib/irradiance.glsl ---
+// The irradiance field, read per pixel — `L3`.
+//
+// **Per pixel where it was per object.** The field used to be sampled once
+// per draw at the node's centre, twice (up and down), and handed to the shader
+// as the hemisphere ambient. A floor that runs from a red wall to a blue one
+// then took one colour, whichever its middle saw. Read here, at each point,
+// the red bleeds onto the floor near the red wall and fades across it.
+//
+// The field arrives as one float texture: every probe's irradiance tile (rgb,
+// with the probe's "active" flag in alpha) in a grid of `columns` × `rows`
+// tiles at the top, and every probe's depth-moment tile (mean and mean
+// square) in the same grid below. Each tile carries a one-texel gutter, so a
+// bilinear read inside it never needs to know where the tile ends. The read
+// is done here, four nearest taps at a time, rather than by a filtered
+// sampler: a filtered float texture is a capability three backends answer
+// differently, and four taps are the same on all of them.
+//
+// Weights per probe, as `IrradianceField.sample` on the host: trilinear by
+// the point's place in its cell, the square of a half-cosine towards the
+// probe, and Chebyshev's bound from the depth moments. The point is moved
+// off its surface along the normal and towards the eye first, so a surface
+// does not read the probe's own view of it as a wall.
+//
+// Included by the lit models only, through `material_maps.glsl`.
+
+#ifndef IRRADIANCE_GLSL_
+#define IRRADIANCE_GLSL_
+
+uniform sampler2D irradiance_texture;
+
+layout(std140) uniform IrradianceInfo {
+  /// xyz: where probe (0, 0, 0) stands. w: one when the field is read,
+  /// nought when the hemisphere ambient stands.
+  vec4 origin;
+
+  /// xyz: the spacing between probes per axis. w: how far the point is
+  /// moved along the normal, in metres.
+  vec4 spacing;
+
+  /// xyz: probes per axis. w: how far the point is moved towards the eye.
+  vec4 counts;
+
+  /// x: an irradiance tile's interior, y: a moment tile's, in texels.
+  /// z: tiles per row of the atlas. w: the row the moment tiles start at.
+  vec4 tiles;
+
+  /// xy: one over the atlas's size. zw unused.
+  vec4 atlas;
+}
+irradiance_info;
+
+bool IrradianceEnabled() { return irradiance_info.origin.w > 0.5; }
+
+/// `encodeOctahedral` in `irradiance_field.dart`.
+vec2 ProbeOctahedral(vec3 direction) {
+  float sum = abs(direction.x) + abs(direction.y) + abs(direction.z);
+  if (sum <= 0.0) return vec2(0.5);
+  vec3 n = direction / sum;
+  vec2 xy = n.xy;
+  if (n.z < 0.0) {
+    xy = vec2((1.0 - abs(n.y)) * (n.x >= 0.0 ? 1.0 : -1.0),
+              (1.0 - abs(n.x)) * (n.y >= 0.0 ? 1.0 : -1.0));
+  }
+  return xy * 0.5 + 0.5;
+}
+
+vec4 AtlasTexel(vec2 texel) {
+  return textureLod(irradiance_texture, (texel + 0.5) * irradiance_info.atlas.xy,
+                    0.0);
+}
+
+/// A bilinear read of the tile whose top-left stored texel is [corner],
+/// [interior] wide, at the octahedral [uv].
+vec4 TileBilinear(vec2 corner, float interior, vec2 uv) {
+  vec2 at = 1.0 + uv * interior - 0.5;
+  vec2 low = floor(at);
+  vec2 f = at - low;
+  vec4 a = AtlasTexel(corner + low);
+  vec4 b = AtlasTexel(corner + low + vec2(1.0, 0.0));
+  vec4 c = AtlasTexel(corner + low + vec2(0.0, 1.0));
+  vec4 d = AtlasTexel(corner + low + vec2(1.0, 1.0));
+  return mix(mix(a, b, f.x), mix(c, d, f.x), f.y);
+}
+
+/// The irradiance arriving at [world] on a surface facing [normal], seen
+/// from the direction [view] (a unit vector towards the eye).
+vec3 SampleIrradiance(vec3 world, vec3 normal, vec3 view) {
+  vec3 origin = irradiance_info.origin.xyz;
+  vec3 spacing = irradiance_info.spacing.xyz;
+  vec3 counts = irradiance_info.counts.xyz;
+  float irradianceTile = irradiance_info.tiles.x;
+  float depthTile = irradiance_info.tiles.y;
+  float columns = irradiance_info.tiles.z;
+  float momentsTop = irradiance_info.tiles.w;
+  vec3 unit = normalize(normal);
+
+  vec3 biased = world + unit * irradiance_info.spacing.w +
+                view * irradiance_info.counts.w;
+  vec3 grid = (biased - origin) / spacing;
+  vec3 base = clamp(floor(grid), vec3(0.0), counts - 2.0);
+  vec3 f = clamp(grid - base, vec3(0.0), vec3(1.0));
+
+  vec3 total = vec3(0.0);
+  float weights = 0.0;
+  for (int corner = 0; corner < 8; corner++) {
+    vec3 offset = vec3(float(corner & 1), float((corner >> 1) & 1),
+                       float((corner >> 2) & 1));
+    vec3 cell = base + offset;
+    float probe = (cell.z * counts.y + cell.y) * counts.x + cell.x;
+    vec2 tile = vec2(mod(probe, columns), floor(probe / columns));
+
+    vec2 irradianceCorner = tile * (irradianceTile + 2.0);
+    vec2 momentCorner = vec2(tile.x * (depthTile + 2.0),
+                             momentsTop + tile.y * (depthTile + 2.0));
+
+    // The probe's own flag, on the tile's first interior texel.
+    if (AtlasTexel(irradianceCorner + 1.0).a < 0.5) continue;
+
+    vec3 trilinear = mix(vec3(1.0) - f, f, offset);
+    float weight = max(trilinear.x * trilinear.y * trilinear.z, 0.001);
+
+    vec3 probePosition = origin + spacing * cell;
+    vec3 toProbe = probePosition - biased;
+    float distance = length(toProbe);
+    if (distance > 1e-6) {
+      vec3 direction = toProbe / distance;
+      float facing = dot(unit, normalize(probePosition - world)) * 0.5 + 0.5;
+      weight *= facing * facing;
+      if (weight <= 0.0) continue;
+
+      vec2 moments = TileBilinear(momentCorner, depthTile,
+                                  ProbeOctahedral(-direction)).xy;
+      if (distance > moments.x) {
+        float variance = max(moments.y - moments.x * moments.x, 1e-6);
+        float difference = distance - moments.x;
+        float chebyshev = variance / (variance + difference * difference);
+        weight *= max(chebyshev * chebyshev * chebyshev, 0.0);
+      }
+      if (weight <= 0.0) continue;
+    }
+
+    total += TileBilinear(irradianceCorner, irradianceTile,
+                          ProbeOctahedral(unit)).rgb *
+             weight;
+    weights += weight;
+  }
+  return weights > 1e-6 ? total / weights : vec3(0.0);
+}
+
+#endif  // IRRADIANCE_GLSL_
+
 
 /// Tangent-space normal map. Neutral is (0.5, 0.5, 1.0).
 uniform sampler2D normal_texture;
@@ -6561,6 +6713,14 @@ void ApplyNormalMap(inout Surface s) {
 /// The three maps every lit model uses. Metal-rough is separate because only
 /// the models that actually respond to metallic or roughness may sample it.
 void ApplyCommonMaps(inout Surface s) {
+  // `L3`: the field in place of the hemisphere, read before the normal map
+  // for the reason the hemisphere is — which half of the room a face sees is
+  // not a question about millimetres of relief. At the same strength the
+  // hemisphere was.
+  if (IrradianceEnabled()) {
+    s.ambient = SampleIrradiance(v_world_position, s.n, s.v) *
+                frag_info.material.z;
+  }
   ApplyNormalMap(s);
   ApplyOcclusionMap(s);
   ApplyEmissiveMap(s);
@@ -8190,6 +8350,158 @@ vec3 AccumulateLights(Surface s) {
 
 #endif  // SURFACE_GLSL_
 
+// --- lib/irradiance.glsl ---
+// The irradiance field, read per pixel — `L3`.
+//
+// **Per pixel where it was per object.** The field used to be sampled once
+// per draw at the node's centre, twice (up and down), and handed to the shader
+// as the hemisphere ambient. A floor that runs from a red wall to a blue one
+// then took one colour, whichever its middle saw. Read here, at each point,
+// the red bleeds onto the floor near the red wall and fades across it.
+//
+// The field arrives as one float texture: every probe's irradiance tile (rgb,
+// with the probe's "active" flag in alpha) in a grid of `columns` × `rows`
+// tiles at the top, and every probe's depth-moment tile (mean and mean
+// square) in the same grid below. Each tile carries a one-texel gutter, so a
+// bilinear read inside it never needs to know where the tile ends. The read
+// is done here, four nearest taps at a time, rather than by a filtered
+// sampler: a filtered float texture is a capability three backends answer
+// differently, and four taps are the same on all of them.
+//
+// Weights per probe, as `IrradianceField.sample` on the host: trilinear by
+// the point's place in its cell, the square of a half-cosine towards the
+// probe, and Chebyshev's bound from the depth moments. The point is moved
+// off its surface along the normal and towards the eye first, so a surface
+// does not read the probe's own view of it as a wall.
+//
+// Included by the lit models only, through `material_maps.glsl`.
+
+#ifndef IRRADIANCE_GLSL_
+#define IRRADIANCE_GLSL_
+
+uniform sampler2D irradiance_texture;
+
+layout(std140) uniform IrradianceInfo {
+  /// xyz: where probe (0, 0, 0) stands. w: one when the field is read,
+  /// nought when the hemisphere ambient stands.
+  vec4 origin;
+
+  /// xyz: the spacing between probes per axis. w: how far the point is
+  /// moved along the normal, in metres.
+  vec4 spacing;
+
+  /// xyz: probes per axis. w: how far the point is moved towards the eye.
+  vec4 counts;
+
+  /// x: an irradiance tile's interior, y: a moment tile's, in texels.
+  /// z: tiles per row of the atlas. w: the row the moment tiles start at.
+  vec4 tiles;
+
+  /// xy: one over the atlas's size. zw unused.
+  vec4 atlas;
+}
+irradiance_info;
+
+bool IrradianceEnabled() { return irradiance_info.origin.w > 0.5; }
+
+/// `encodeOctahedral` in `irradiance_field.dart`.
+vec2 ProbeOctahedral(vec3 direction) {
+  float sum = abs(direction.x) + abs(direction.y) + abs(direction.z);
+  if (sum <= 0.0) return vec2(0.5);
+  vec3 n = direction / sum;
+  vec2 xy = n.xy;
+  if (n.z < 0.0) {
+    xy = vec2((1.0 - abs(n.y)) * (n.x >= 0.0 ? 1.0 : -1.0),
+              (1.0 - abs(n.x)) * (n.y >= 0.0 ? 1.0 : -1.0));
+  }
+  return xy * 0.5 + 0.5;
+}
+
+vec4 AtlasTexel(vec2 texel) {
+  return textureLod(irradiance_texture, (texel + 0.5) * irradiance_info.atlas.xy,
+                    0.0);
+}
+
+/// A bilinear read of the tile whose top-left stored texel is [corner],
+/// [interior] wide, at the octahedral [uv].
+vec4 TileBilinear(vec2 corner, float interior, vec2 uv) {
+  vec2 at = 1.0 + uv * interior - 0.5;
+  vec2 low = floor(at);
+  vec2 f = at - low;
+  vec4 a = AtlasTexel(corner + low);
+  vec4 b = AtlasTexel(corner + low + vec2(1.0, 0.0));
+  vec4 c = AtlasTexel(corner + low + vec2(0.0, 1.0));
+  vec4 d = AtlasTexel(corner + low + vec2(1.0, 1.0));
+  return mix(mix(a, b, f.x), mix(c, d, f.x), f.y);
+}
+
+/// The irradiance arriving at [world] on a surface facing [normal], seen
+/// from the direction [view] (a unit vector towards the eye).
+vec3 SampleIrradiance(vec3 world, vec3 normal, vec3 view) {
+  vec3 origin = irradiance_info.origin.xyz;
+  vec3 spacing = irradiance_info.spacing.xyz;
+  vec3 counts = irradiance_info.counts.xyz;
+  float irradianceTile = irradiance_info.tiles.x;
+  float depthTile = irradiance_info.tiles.y;
+  float columns = irradiance_info.tiles.z;
+  float momentsTop = irradiance_info.tiles.w;
+  vec3 unit = normalize(normal);
+
+  vec3 biased = world + unit * irradiance_info.spacing.w +
+                view * irradiance_info.counts.w;
+  vec3 grid = (biased - origin) / spacing;
+  vec3 base = clamp(floor(grid), vec3(0.0), counts - 2.0);
+  vec3 f = clamp(grid - base, vec3(0.0), vec3(1.0));
+
+  vec3 total = vec3(0.0);
+  float weights = 0.0;
+  for (int corner = 0; corner < 8; corner++) {
+    vec3 offset = vec3(float(corner & 1), float((corner >> 1) & 1),
+                       float((corner >> 2) & 1));
+    vec3 cell = base + offset;
+    float probe = (cell.z * counts.y + cell.y) * counts.x + cell.x;
+    vec2 tile = vec2(mod(probe, columns), floor(probe / columns));
+
+    vec2 irradianceCorner = tile * (irradianceTile + 2.0);
+    vec2 momentCorner = vec2(tile.x * (depthTile + 2.0),
+                             momentsTop + tile.y * (depthTile + 2.0));
+
+    // The probe's own flag, on the tile's first interior texel.
+    if (AtlasTexel(irradianceCorner + 1.0).a < 0.5) continue;
+
+    vec3 trilinear = mix(vec3(1.0) - f, f, offset);
+    float weight = max(trilinear.x * trilinear.y * trilinear.z, 0.001);
+
+    vec3 probePosition = origin + spacing * cell;
+    vec3 toProbe = probePosition - biased;
+    float distance = length(toProbe);
+    if (distance > 1e-6) {
+      vec3 direction = toProbe / distance;
+      float facing = dot(unit, normalize(probePosition - world)) * 0.5 + 0.5;
+      weight *= facing * facing;
+      if (weight <= 0.0) continue;
+
+      vec2 moments = TileBilinear(momentCorner, depthTile,
+                                  ProbeOctahedral(-direction)).xy;
+      if (distance > moments.x) {
+        float variance = max(moments.y - moments.x * moments.x, 1e-6);
+        float difference = distance - moments.x;
+        float chebyshev = variance / (variance + difference * difference);
+        weight *= max(chebyshev * chebyshev * chebyshev, 0.0);
+      }
+      if (weight <= 0.0) continue;
+    }
+
+    total += TileBilinear(irradianceCorner, irradianceTile,
+                          ProbeOctahedral(unit)).rgb *
+             weight;
+    weights += weight;
+  }
+  return weights > 1e-6 ? total / weights : vec3(0.0);
+}
+
+#endif  // IRRADIANCE_GLSL_
+
 
 /// Tangent-space normal map. Neutral is (0.5, 0.5, 1.0).
 uniform sampler2D normal_texture;
@@ -8294,6 +8606,14 @@ void ApplyNormalMap(inout Surface s) {
 /// The three maps every lit model uses. Metal-rough is separate because only
 /// the models that actually respond to metallic or roughness may sample it.
 void ApplyCommonMaps(inout Surface s) {
+  // `L3`: the field in place of the hemisphere, read before the normal map
+  // for the reason the hemisphere is — which half of the room a face sees is
+  // not a question about millimetres of relief. At the same strength the
+  // hemisphere was.
+  if (IrradianceEnabled()) {
+    s.ambient = SampleIrradiance(v_world_position, s.n, s.v) *
+                frag_info.material.z;
+  }
   ApplyNormalMap(s);
   ApplyOcclusionMap(s);
   ApplyEmissiveMap(s);
@@ -9938,6 +10258,158 @@ vec3 AccumulateLights(Surface s) {
 
 #endif  // SURFACE_GLSL_
 
+// --- lib/irradiance.glsl ---
+// The irradiance field, read per pixel — `L3`.
+//
+// **Per pixel where it was per object.** The field used to be sampled once
+// per draw at the node's centre, twice (up and down), and handed to the shader
+// as the hemisphere ambient. A floor that runs from a red wall to a blue one
+// then took one colour, whichever its middle saw. Read here, at each point,
+// the red bleeds onto the floor near the red wall and fades across it.
+//
+// The field arrives as one float texture: every probe's irradiance tile (rgb,
+// with the probe's "active" flag in alpha) in a grid of `columns` × `rows`
+// tiles at the top, and every probe's depth-moment tile (mean and mean
+// square) in the same grid below. Each tile carries a one-texel gutter, so a
+// bilinear read inside it never needs to know where the tile ends. The read
+// is done here, four nearest taps at a time, rather than by a filtered
+// sampler: a filtered float texture is a capability three backends answer
+// differently, and four taps are the same on all of them.
+//
+// Weights per probe, as `IrradianceField.sample` on the host: trilinear by
+// the point's place in its cell, the square of a half-cosine towards the
+// probe, and Chebyshev's bound from the depth moments. The point is moved
+// off its surface along the normal and towards the eye first, so a surface
+// does not read the probe's own view of it as a wall.
+//
+// Included by the lit models only, through `material_maps.glsl`.
+
+#ifndef IRRADIANCE_GLSL_
+#define IRRADIANCE_GLSL_
+
+uniform sampler2D irradiance_texture;
+
+layout(std140) uniform IrradianceInfo {
+  /// xyz: where probe (0, 0, 0) stands. w: one when the field is read,
+  /// nought when the hemisphere ambient stands.
+  vec4 origin;
+
+  /// xyz: the spacing between probes per axis. w: how far the point is
+  /// moved along the normal, in metres.
+  vec4 spacing;
+
+  /// xyz: probes per axis. w: how far the point is moved towards the eye.
+  vec4 counts;
+
+  /// x: an irradiance tile's interior, y: a moment tile's, in texels.
+  /// z: tiles per row of the atlas. w: the row the moment tiles start at.
+  vec4 tiles;
+
+  /// xy: one over the atlas's size. zw unused.
+  vec4 atlas;
+}
+irradiance_info;
+
+bool IrradianceEnabled() { return irradiance_info.origin.w > 0.5; }
+
+/// `encodeOctahedral` in `irradiance_field.dart`.
+vec2 ProbeOctahedral(vec3 direction) {
+  float sum = abs(direction.x) + abs(direction.y) + abs(direction.z);
+  if (sum <= 0.0) return vec2(0.5);
+  vec3 n = direction / sum;
+  vec2 xy = n.xy;
+  if (n.z < 0.0) {
+    xy = vec2((1.0 - abs(n.y)) * (n.x >= 0.0 ? 1.0 : -1.0),
+              (1.0 - abs(n.x)) * (n.y >= 0.0 ? 1.0 : -1.0));
+  }
+  return xy * 0.5 + 0.5;
+}
+
+vec4 AtlasTexel(vec2 texel) {
+  return textureLod(irradiance_texture, (texel + 0.5) * irradiance_info.atlas.xy,
+                    0.0);
+}
+
+/// A bilinear read of the tile whose top-left stored texel is [corner],
+/// [interior] wide, at the octahedral [uv].
+vec4 TileBilinear(vec2 corner, float interior, vec2 uv) {
+  vec2 at = 1.0 + uv * interior - 0.5;
+  vec2 low = floor(at);
+  vec2 f = at - low;
+  vec4 a = AtlasTexel(corner + low);
+  vec4 b = AtlasTexel(corner + low + vec2(1.0, 0.0));
+  vec4 c = AtlasTexel(corner + low + vec2(0.0, 1.0));
+  vec4 d = AtlasTexel(corner + low + vec2(1.0, 1.0));
+  return mix(mix(a, b, f.x), mix(c, d, f.x), f.y);
+}
+
+/// The irradiance arriving at [world] on a surface facing [normal], seen
+/// from the direction [view] (a unit vector towards the eye).
+vec3 SampleIrradiance(vec3 world, vec3 normal, vec3 view) {
+  vec3 origin = irradiance_info.origin.xyz;
+  vec3 spacing = irradiance_info.spacing.xyz;
+  vec3 counts = irradiance_info.counts.xyz;
+  float irradianceTile = irradiance_info.tiles.x;
+  float depthTile = irradiance_info.tiles.y;
+  float columns = irradiance_info.tiles.z;
+  float momentsTop = irradiance_info.tiles.w;
+  vec3 unit = normalize(normal);
+
+  vec3 biased = world + unit * irradiance_info.spacing.w +
+                view * irradiance_info.counts.w;
+  vec3 grid = (biased - origin) / spacing;
+  vec3 base = clamp(floor(grid), vec3(0.0), counts - 2.0);
+  vec3 f = clamp(grid - base, vec3(0.0), vec3(1.0));
+
+  vec3 total = vec3(0.0);
+  float weights = 0.0;
+  for (int corner = 0; corner < 8; corner++) {
+    vec3 offset = vec3(float(corner & 1), float((corner >> 1) & 1),
+                       float((corner >> 2) & 1));
+    vec3 cell = base + offset;
+    float probe = (cell.z * counts.y + cell.y) * counts.x + cell.x;
+    vec2 tile = vec2(mod(probe, columns), floor(probe / columns));
+
+    vec2 irradianceCorner = tile * (irradianceTile + 2.0);
+    vec2 momentCorner = vec2(tile.x * (depthTile + 2.0),
+                             momentsTop + tile.y * (depthTile + 2.0));
+
+    // The probe's own flag, on the tile's first interior texel.
+    if (AtlasTexel(irradianceCorner + 1.0).a < 0.5) continue;
+
+    vec3 trilinear = mix(vec3(1.0) - f, f, offset);
+    float weight = max(trilinear.x * trilinear.y * trilinear.z, 0.001);
+
+    vec3 probePosition = origin + spacing * cell;
+    vec3 toProbe = probePosition - biased;
+    float distance = length(toProbe);
+    if (distance > 1e-6) {
+      vec3 direction = toProbe / distance;
+      float facing = dot(unit, normalize(probePosition - world)) * 0.5 + 0.5;
+      weight *= facing * facing;
+      if (weight <= 0.0) continue;
+
+      vec2 moments = TileBilinear(momentCorner, depthTile,
+                                  ProbeOctahedral(-direction)).xy;
+      if (distance > moments.x) {
+        float variance = max(moments.y - moments.x * moments.x, 1e-6);
+        float difference = distance - moments.x;
+        float chebyshev = variance / (variance + difference * difference);
+        weight *= max(chebyshev * chebyshev * chebyshev, 0.0);
+      }
+      if (weight <= 0.0) continue;
+    }
+
+    total += TileBilinear(irradianceCorner, irradianceTile,
+                          ProbeOctahedral(unit)).rgb *
+             weight;
+    weights += weight;
+  }
+  return weights > 1e-6 ? total / weights : vec3(0.0);
+}
+
+#endif  // IRRADIANCE_GLSL_
+
 
 /// Tangent-space normal map. Neutral is (0.5, 0.5, 1.0).
 uniform sampler2D normal_texture;
@@ -10042,6 +10514,14 @@ void ApplyNormalMap(inout Surface s) {
 /// The three maps every lit model uses. Metal-rough is separate because only
 /// the models that actually respond to metallic or roughness may sample it.
 void ApplyCommonMaps(inout Surface s) {
+  // `L3`: the field in place of the hemisphere, read before the normal map
+  // for the reason the hemisphere is — which half of the room a face sees is
+  // not a question about millimetres of relief. At the same strength the
+  // hemisphere was.
+  if (IrradianceEnabled()) {
+    s.ambient = SampleIrradiance(v_world_position, s.n, s.v) *
+                frag_info.material.z;
+  }
   ApplyNormalMap(s);
   ApplyOcclusionMap(s);
   ApplyEmissiveMap(s);
@@ -11805,6 +12285,158 @@ vec3 AccumulateLights(Surface s) {
 
 #endif  // SURFACE_GLSL_
 
+// --- lib/irradiance.glsl ---
+// The irradiance field, read per pixel — `L3`.
+//
+// **Per pixel where it was per object.** The field used to be sampled once
+// per draw at the node's centre, twice (up and down), and handed to the shader
+// as the hemisphere ambient. A floor that runs from a red wall to a blue one
+// then took one colour, whichever its middle saw. Read here, at each point,
+// the red bleeds onto the floor near the red wall and fades across it.
+//
+// The field arrives as one float texture: every probe's irradiance tile (rgb,
+// with the probe's "active" flag in alpha) in a grid of `columns` × `rows`
+// tiles at the top, and every probe's depth-moment tile (mean and mean
+// square) in the same grid below. Each tile carries a one-texel gutter, so a
+// bilinear read inside it never needs to know where the tile ends. The read
+// is done here, four nearest taps at a time, rather than by a filtered
+// sampler: a filtered float texture is a capability three backends answer
+// differently, and four taps are the same on all of them.
+//
+// Weights per probe, as `IrradianceField.sample` on the host: trilinear by
+// the point's place in its cell, the square of a half-cosine towards the
+// probe, and Chebyshev's bound from the depth moments. The point is moved
+// off its surface along the normal and towards the eye first, so a surface
+// does not read the probe's own view of it as a wall.
+//
+// Included by the lit models only, through `material_maps.glsl`.
+
+#ifndef IRRADIANCE_GLSL_
+#define IRRADIANCE_GLSL_
+
+uniform sampler2D irradiance_texture;
+
+layout(std140) uniform IrradianceInfo {
+  /// xyz: where probe (0, 0, 0) stands. w: one when the field is read,
+  /// nought when the hemisphere ambient stands.
+  vec4 origin;
+
+  /// xyz: the spacing between probes per axis. w: how far the point is
+  /// moved along the normal, in metres.
+  vec4 spacing;
+
+  /// xyz: probes per axis. w: how far the point is moved towards the eye.
+  vec4 counts;
+
+  /// x: an irradiance tile's interior, y: a moment tile's, in texels.
+  /// z: tiles per row of the atlas. w: the row the moment tiles start at.
+  vec4 tiles;
+
+  /// xy: one over the atlas's size. zw unused.
+  vec4 atlas;
+}
+irradiance_info;
+
+bool IrradianceEnabled() { return irradiance_info.origin.w > 0.5; }
+
+/// `encodeOctahedral` in `irradiance_field.dart`.
+vec2 ProbeOctahedral(vec3 direction) {
+  float sum = abs(direction.x) + abs(direction.y) + abs(direction.z);
+  if (sum <= 0.0) return vec2(0.5);
+  vec3 n = direction / sum;
+  vec2 xy = n.xy;
+  if (n.z < 0.0) {
+    xy = vec2((1.0 - abs(n.y)) * (n.x >= 0.0 ? 1.0 : -1.0),
+              (1.0 - abs(n.x)) * (n.y >= 0.0 ? 1.0 : -1.0));
+  }
+  return xy * 0.5 + 0.5;
+}
+
+vec4 AtlasTexel(vec2 texel) {
+  return textureLod(irradiance_texture, (texel + 0.5) * irradiance_info.atlas.xy,
+                    0.0);
+}
+
+/// A bilinear read of the tile whose top-left stored texel is [corner],
+/// [interior] wide, at the octahedral [uv].
+vec4 TileBilinear(vec2 corner, float interior, vec2 uv) {
+  vec2 at = 1.0 + uv * interior - 0.5;
+  vec2 low = floor(at);
+  vec2 f = at - low;
+  vec4 a = AtlasTexel(corner + low);
+  vec4 b = AtlasTexel(corner + low + vec2(1.0, 0.0));
+  vec4 c = AtlasTexel(corner + low + vec2(0.0, 1.0));
+  vec4 d = AtlasTexel(corner + low + vec2(1.0, 1.0));
+  return mix(mix(a, b, f.x), mix(c, d, f.x), f.y);
+}
+
+/// The irradiance arriving at [world] on a surface facing [normal], seen
+/// from the direction [view] (a unit vector towards the eye).
+vec3 SampleIrradiance(vec3 world, vec3 normal, vec3 view) {
+  vec3 origin = irradiance_info.origin.xyz;
+  vec3 spacing = irradiance_info.spacing.xyz;
+  vec3 counts = irradiance_info.counts.xyz;
+  float irradianceTile = irradiance_info.tiles.x;
+  float depthTile = irradiance_info.tiles.y;
+  float columns = irradiance_info.tiles.z;
+  float momentsTop = irradiance_info.tiles.w;
+  vec3 unit = normalize(normal);
+
+  vec3 biased = world + unit * irradiance_info.spacing.w +
+                view * irradiance_info.counts.w;
+  vec3 grid = (biased - origin) / spacing;
+  vec3 base = clamp(floor(grid), vec3(0.0), counts - 2.0);
+  vec3 f = clamp(grid - base, vec3(0.0), vec3(1.0));
+
+  vec3 total = vec3(0.0);
+  float weights = 0.0;
+  for (int corner = 0; corner < 8; corner++) {
+    vec3 offset = vec3(float(corner & 1), float((corner >> 1) & 1),
+                       float((corner >> 2) & 1));
+    vec3 cell = base + offset;
+    float probe = (cell.z * counts.y + cell.y) * counts.x + cell.x;
+    vec2 tile = vec2(mod(probe, columns), floor(probe / columns));
+
+    vec2 irradianceCorner = tile * (irradianceTile + 2.0);
+    vec2 momentCorner = vec2(tile.x * (depthTile + 2.0),
+                             momentsTop + tile.y * (depthTile + 2.0));
+
+    // The probe's own flag, on the tile's first interior texel.
+    if (AtlasTexel(irradianceCorner + 1.0).a < 0.5) continue;
+
+    vec3 trilinear = mix(vec3(1.0) - f, f, offset);
+    float weight = max(trilinear.x * trilinear.y * trilinear.z, 0.001);
+
+    vec3 probePosition = origin + spacing * cell;
+    vec3 toProbe = probePosition - biased;
+    float distance = length(toProbe);
+    if (distance > 1e-6) {
+      vec3 direction = toProbe / distance;
+      float facing = dot(unit, normalize(probePosition - world)) * 0.5 + 0.5;
+      weight *= facing * facing;
+      if (weight <= 0.0) continue;
+
+      vec2 moments = TileBilinear(momentCorner, depthTile,
+                                  ProbeOctahedral(-direction)).xy;
+      if (distance > moments.x) {
+        float variance = max(moments.y - moments.x * moments.x, 1e-6);
+        float difference = distance - moments.x;
+        float chebyshev = variance / (variance + difference * difference);
+        weight *= max(chebyshev * chebyshev * chebyshev, 0.0);
+      }
+      if (weight <= 0.0) continue;
+    }
+
+    total += TileBilinear(irradianceCorner, irradianceTile,
+                          ProbeOctahedral(unit)).rgb *
+             weight;
+    weights += weight;
+  }
+  return weights > 1e-6 ? total / weights : vec3(0.0);
+}
+
+#endif  // IRRADIANCE_GLSL_
+
 
 /// Tangent-space normal map. Neutral is (0.5, 0.5, 1.0).
 uniform sampler2D normal_texture;
@@ -11909,6 +12541,14 @@ void ApplyNormalMap(inout Surface s) {
 /// The three maps every lit model uses. Metal-rough is separate because only
 /// the models that actually respond to metallic or roughness may sample it.
 void ApplyCommonMaps(inout Surface s) {
+  // `L3`: the field in place of the hemisphere, read before the normal map
+  // for the reason the hemisphere is — which half of the room a face sees is
+  // not a question about millimetres of relief. At the same strength the
+  // hemisphere was.
+  if (IrradianceEnabled()) {
+    s.ambient = SampleIrradiance(v_world_position, s.n, s.v) *
+                frag_info.material.z;
+  }
   ApplyNormalMap(s);
   ApplyOcclusionMap(s);
   ApplyEmissiveMap(s);
@@ -18209,6 +18849,163 @@ void main() {
   // asks for an implicit derivative.
   frag_color = textureLod(field_texture, v_uv, 0.0) * field_decay.params.x +
                vec4(field_decay.params.y);
+}
+
+''',
+    'IrradianceConvolve': r'''#version 300 es
+precision highp float;
+precision highp int;
+precision highp sampler2D;
+precision highp samplerCube;
+
+// One probe of the irradiance field, updated from a capture — `L4`.
+//
+// A `FieldPass` kernel over the whole atlas `lib/irradiance.glsl` reads: every
+// texel that is not one of this probe's two tiles is copied through, and
+// every texel that is gets the capture convolved into it and blended with
+// what it held, by the field's hysteresis. Each step updates one probe; the
+// renderer schedules a few a frame, round robin, so the field follows a
+// changing room over a second or two rather than all at once.
+//
+// **The same arithmetic as `gatherProbe` on the host**, over the six cube
+// faces the probe's capture drew instead of over rays: a cosine-weighted
+// mean of the radiance for irradiance, and a mean and mean square of the
+// distance under a cosine to the sixth for the moments. The capture's
+// second attachment is the surface buffer, whose alpha is the depth along
+// the face's own axis; the distance along a direction is that over the
+// direction's component on the axis.
+//
+// Gutters are filled here too, from the interior texel `fillGutters` would
+// copy, so a probe's tiles stay continuous without a second pass.
+//
+// Mode 1 is a plain copy from `seed_texture`, which is how the atlas the
+// host baked becomes the one the GPU keeps updating.
+
+in vec2 v_uv;
+
+layout(location = 0) out vec4 frag_color;
+
+uniform sampler2D field_texture;
+uniform sampler2D seed_texture;
+uniform samplerCube radiance_texture;
+uniform samplerCube surface_texture;
+
+layout(std140) uniform ConvolveInfo {
+  /// x: the probe being updated. y: nought to update, one to seed. z: the
+  /// hysteresis, the share of the old value kept. w: tiles per row.
+  vec4 probe;
+
+  /// x: an irradiance tile's interior, y: a moment tile's, in texels.
+  /// z: the row the moment tiles start at. w: the distance a direction that
+  /// saw only sky is given.
+  vec4 tiles;
+
+  /// xy: the atlas's size in texels. zw unused.
+  vec4 atlas;
+}
+convolve_info;
+
+const int kSamples = 64;
+
+vec3 SphereDirection(int i) {
+  float z = 1.0 - (2.0 * float(i) + 1.0) / float(kSamples);
+  float r = sqrt(max(1.0 - z * z, 0.0));
+  float phi = float(i) * 2.39996323;
+  return vec3(r * cos(phi), r * sin(phi), z);
+}
+
+/// `decodeOctahedral` in `irradiance_field.dart`.
+vec3 DecodeProbeOctahedral(vec2 uv) {
+  vec2 xy = uv * 2.0 - 1.0;
+  float z = 1.0 - abs(xy.x) - abs(xy.y);
+  float t = max(-z, 0.0);
+  vec3 n = vec3(xy.x + (xy.x >= 0.0 ? -t : t), xy.y + (xy.y >= 0.0 ? -t : t),
+                z);
+  return normalize(n);
+}
+
+/// The interior texel the stored texel [local] of a tile [interior] wide
+/// stands for — itself inside, the one `fillGutters` copies in the gutter.
+vec2 InteriorOf(vec2 local, float interior) {
+  float last = interior - 1.0;
+  vec2 i = local - 1.0;
+  bool left = local.x < 0.5;
+  bool right = local.x > interior + 0.5;
+  bool top = local.y < 0.5;
+  bool bottom = local.y > interior + 0.5;
+  if ((left || right) && (top || bottom)) {
+    return vec2(left ? last : 0.0, top ? last : 0.0);
+  }
+  if (top) return vec2(last - i.x, 0.0);
+  if (bottom) return vec2(last - i.x, last);
+  if (left) return vec2(0.0, last - i.y);
+  if (right) return vec2(last, last - i.y);
+  return i;
+}
+
+float DistanceAlong(vec3 direction) {
+  float depth = texture(surface_texture, direction).a;
+  if (depth <= 0.0) return convolve_info.tiles.w;
+  float axis = max(abs(direction.x), max(abs(direction.y), abs(direction.z)));
+  return depth / max(axis, 1e-4);
+}
+
+void main() {
+  vec2 size = convolve_info.atlas.xy;
+  vec2 pixel = floor(v_uv * size);
+  vec4 old = texture(field_texture, (pixel + 0.5) / size);
+
+  if (convolve_info.probe.y > 0.5) {
+    frag_color = texture(seed_texture, (pixel + 0.5) / size);
+    return;
+  }
+
+  float columns = convolve_info.probe.w;
+  float target = convolve_info.probe.x;
+  float irradianceTile = convolve_info.tiles.x;
+  float depthTile = convolve_info.tiles.y;
+  float momentsTop = convolve_info.tiles.z;
+  bool moments = pixel.y >= momentsTop;
+  float stride = (moments ? depthTile : irradianceTile) + 2.0;
+  vec2 local = moments ? vec2(pixel.x, pixel.y - momentsTop) : pixel;
+  vec2 tile = floor(local / stride);
+  if (tile.y * columns + tile.x != target || tile.x >= columns) {
+    frag_color = old;
+    return;
+  }
+
+  float interior = moments ? depthTile : irradianceTile;
+  vec2 texel = InteriorOf(local - tile * stride, interior);
+  vec3 normal = DecodeProbeOctahedral((texel + 0.5) / interior);
+
+  vec3 light = vec3(0.0);
+  float mean = 0.0;
+  float square = 0.0;
+  float weight = 0.0;
+  for (int i = 0; i < kSamples; i++) {
+    vec3 direction = SphereDirection(i);
+    float cosine = dot(normal, direction);
+    if (cosine <= 0.0) continue;
+    if (moments) {
+      float c2 = cosine * cosine;
+      float w = c2 * c2 * c2;
+      float distance = DistanceAlong(direction);
+      mean += distance * w;
+      square += distance * distance * w;
+      weight += w;
+    } else {
+      light += texture(radiance_texture, direction).rgb * cosine;
+      weight += cosine;
+    }
+  }
+  float keep = convolve_info.probe.z;
+  if (moments) {
+    vec2 fresh = weight > 0.0 ? vec2(mean, square) / weight : old.xy;
+    frag_color = vec4(mix(fresh, old.xy, keep), 0.0, 1.0);
+  } else {
+    vec3 fresh = weight > 0.0 ? light / weight : old.rgb;
+    frag_color = vec4(mix(fresh, old.rgb, keep), old.a);
+  }
 }
 
 ''',

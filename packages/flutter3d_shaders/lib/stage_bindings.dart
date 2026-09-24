@@ -12,10 +12,17 @@ library;
 const Map<String, ({Set<String> blocks, Set<String> samplers})>
 stageBindings = <String, ({Set<String> blocks, Set<String> samplers})>{
   'BlinnPhong': (
-    blocks: <String>{'FogInfo', 'FragInfo', 'LightListInfo', 'PointShadow'},
+    blocks: <String>{
+      'FogInfo',
+      'FragInfo',
+      'IrradianceInfo',
+      'LightListInfo',
+      'PointShadow',
+    },
     samplers: <String>{
       'base_color_texture',
       'emissive_texture',
+      'irradiance_texture',
       'light_list_texture',
       'lightmap_texture',
       'metallic_roughness_texture',
@@ -69,11 +76,27 @@ stageBindings = <String, ({Set<String> blocks, Set<String> samplers})>{
   ),
   'FullscreenVertex': (blocks: <String>{}, samplers: <String>{}),
   'Fxaa': (blocks: <String>{'FxaaInfo'}, samplers: <String>{'source_texture'}),
+  'IrradianceConvolve': (
+    blocks: <String>{'ConvolveInfo'},
+    samplers: <String>{
+      'field_texture',
+      'radiance_texture',
+      'seed_texture',
+      'surface_texture',
+    },
+  ),
   'Lambert': (
-    blocks: <String>{'FogInfo', 'FragInfo', 'LightListInfo', 'PointShadow'},
+    blocks: <String>{
+      'FogInfo',
+      'FragInfo',
+      'IrradianceInfo',
+      'LightListInfo',
+      'PointShadow',
+    },
     samplers: <String>{
       'base_color_texture',
       'emissive_texture',
+      'irradiance_texture',
       'light_list_texture',
       'lightmap_texture',
       'normal_texture',
@@ -130,11 +153,18 @@ stageBindings = <String, ({Set<String> blocks, Set<String> samplers})>{
   ),
   'ParticleVertex': (blocks: <String>{'ParticleInfo'}, samplers: <String>{}),
   'Pbr': (
-    blocks: <String>{'FogInfo', 'FragInfo', 'LightListInfo', 'PointShadow'},
+    blocks: <String>{
+      'FogInfo',
+      'FragInfo',
+      'IrradianceInfo',
+      'LightListInfo',
+      'PointShadow',
+    },
     samplers: <String>{
       'base_color_texture',
       'emissive_texture',
       'environment_texture',
+      'irradiance_texture',
       'light_list_texture',
       'lightmap_texture',
       'metallic_roughness_texture',
@@ -204,10 +234,17 @@ stageBindings = <String, ({Set<String> blocks, Set<String> samplers})>{
     },
   ),
   'Toon': (
-    blocks: <String>{'FogInfo', 'FragInfo', 'LightListInfo', 'PointShadow'},
+    blocks: <String>{
+      'FogInfo',
+      'FragInfo',
+      'IrradianceInfo',
+      'LightListInfo',
+      'PointShadow',
+    },
     samplers: <String>{
       'base_color_texture',
       'emissive_texture',
+      'irradiance_texture',
       'light_list_texture',
       'lightmap_texture',
       'metallic_roughness_texture',

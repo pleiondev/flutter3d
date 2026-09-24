@@ -51,6 +51,7 @@ import 'cpu_shaders_bloom.dart';
 import 'cpu_shaders_compute.dart';
 import 'cpu_shaders_contact_shadow.dart';
 import 'cpu_shaders_debug.dart';
+import 'cpu_shaders_irradiance.dart';
 import 'cpu_shaders_lit.dart';
 import 'cpu_shaders_mesh_vertex.dart';
 import 'cpu_shaders_particles.dart';
@@ -69,6 +70,7 @@ export 'cpu_shaders_bloom.dart';
 export 'cpu_shaders_color.dart';
 export 'cpu_shaders_contact_shadow.dart';
 export 'cpu_shaders_debug.dart';
+export 'cpu_shaders_irradiance.dart';
 export 'cpu_shaders_layout.dart';
 export 'cpu_shaders_lighting.dart';
 export 'cpu_shaders_lit.dart';
@@ -171,6 +173,7 @@ Map<String, CpuStage> builtinCpuShaders() {
     'Velocity': const CpuStage.fragment(VelocityShader()),
     'TemporalResolve': const CpuStage.fragment(TemporalResolveShader()),
     'TemporalAccumulate': const CpuStage.fragment(TemporalAccumulateShader()),
+    'IrradianceConvolve': const CpuStage.fragment(IrradianceConvolveShader()),
     'VelocityVertex': const CpuStage.vertex(VelocityVertexShader()),
     'VelocitySkinnedVertex': const CpuStage.vertex(
       VelocitySkinnedVertexShader(),

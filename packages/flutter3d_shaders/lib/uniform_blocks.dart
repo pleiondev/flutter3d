@@ -120,6 +120,13 @@ uniformBlocks = <String, Map<String, Map<String, UniformMemberLayout>>>{
         type: 'Vector4',
       ),
     },
+    'IrradianceInfo': <String, UniformMemberLayout>{
+      'origin': (offset: 0, byteLength: 16, elements: 1, type: 'Vector4'),
+      'spacing': (offset: 16, byteLength: 16, elements: 1, type: 'Vector4'),
+      'counts': (offset: 32, byteLength: 16, elements: 1, type: 'Vector4'),
+      'tiles': (offset: 48, byteLength: 16, elements: 1, type: 'Vector4'),
+      'atlas': (offset: 64, byteLength: 16, elements: 1, type: 'Vector4'),
+    },
     'LightListInfo': <String, UniformMemberLayout>{
       'list': (offset: 0, byteLength: 16, elements: 1, type: 'Vector4'),
       'indices': (offset: 16, byteLength: 96, elements: 6, type: 'Vector4'),
@@ -245,6 +252,13 @@ uniformBlocks = <String, Map<String, Map<String, UniformMemberLayout>>>{
       'sharpen': (offset: 16, byteLength: 16, elements: 1, type: 'Vector4'),
     },
   },
+  'IrradianceConvolve': <String, Map<String, UniformMemberLayout>>{
+    'ConvolveInfo': <String, UniformMemberLayout>{
+      'probe': (offset: 0, byteLength: 16, elements: 1, type: 'Vector4'),
+      'tiles': (offset: 16, byteLength: 16, elements: 1, type: 'Vector4'),
+      'atlas': (offset: 32, byteLength: 16, elements: 1, type: 'Vector4'),
+    },
+  },
   'Lambert': <String, Map<String, UniformMemberLayout>>{
     'FogInfo': <String, UniformMemberLayout>{
       'fog': (offset: 0, byteLength: 16, elements: 1, type: 'Vector4'),
@@ -346,6 +360,13 @@ uniformBlocks = <String, Map<String, Map<String, UniformMemberLayout>>>{
         elements: 1,
         type: 'Vector4',
       ),
+    },
+    'IrradianceInfo': <String, UniformMemberLayout>{
+      'origin': (offset: 0, byteLength: 16, elements: 1, type: 'Vector4'),
+      'spacing': (offset: 16, byteLength: 16, elements: 1, type: 'Vector4'),
+      'counts': (offset: 32, byteLength: 16, elements: 1, type: 'Vector4'),
+      'tiles': (offset: 48, byteLength: 16, elements: 1, type: 'Vector4'),
+      'atlas': (offset: 64, byteLength: 16, elements: 1, type: 'Vector4'),
     },
     'LightListInfo': <String, UniformMemberLayout>{
       'list': (offset: 0, byteLength: 16, elements: 1, type: 'Vector4'),
@@ -679,6 +700,13 @@ uniformBlocks = <String, Map<String, Map<String, UniformMemberLayout>>>{
         type: 'Vector4',
       ),
     },
+    'IrradianceInfo': <String, UniformMemberLayout>{
+      'origin': (offset: 0, byteLength: 16, elements: 1, type: 'Vector4'),
+      'spacing': (offset: 16, byteLength: 16, elements: 1, type: 'Vector4'),
+      'counts': (offset: 32, byteLength: 16, elements: 1, type: 'Vector4'),
+      'tiles': (offset: 48, byteLength: 16, elements: 1, type: 'Vector4'),
+      'atlas': (offset: 64, byteLength: 16, elements: 1, type: 'Vector4'),
+    },
     'LightListInfo': <String, UniformMemberLayout>{
       'list': (offset: 0, byteLength: 16, elements: 1, type: 'Vector4'),
       'indices': (offset: 16, byteLength: 96, elements: 6, type: 'Vector4'),
@@ -904,6 +932,13 @@ uniformBlocks = <String, Map<String, Map<String, UniformMemberLayout>>>{
         elements: 1,
         type: 'Vector4',
       ),
+    },
+    'IrradianceInfo': <String, UniformMemberLayout>{
+      'origin': (offset: 0, byteLength: 16, elements: 1, type: 'Vector4'),
+      'spacing': (offset: 16, byteLength: 16, elements: 1, type: 'Vector4'),
+      'counts': (offset: 32, byteLength: 16, elements: 1, type: 'Vector4'),
+      'tiles': (offset: 48, byteLength: 16, elements: 1, type: 'Vector4'),
+      'atlas': (offset: 64, byteLength: 16, elements: 1, type: 'Vector4'),
     },
     'LightListInfo': <String, UniformMemberLayout>{
       'list': (offset: 0, byteLength: 16, elements: 1, type: 'Vector4'),

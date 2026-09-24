@@ -12,6 +12,7 @@ import 'package:vector_math/vector_math.dart' as vm;
 import '../geometry/device_mesh.dart';
 import '../scene/camera_node.dart';
 import '../scene/instanced_mesh_node.dart';
+import '../scene/irradiance_field.dart';
 import '../scene/light_buffer.dart';
 import '../scene/light_node.dart';
 import '../scene/mesh_node.dart';
@@ -448,6 +449,7 @@ final class Renderer implements RenderServices {
       ..._ldrFrames,
       ..._history,
       for (final effect in _effectHistories.values) ...effect.textures,
+      _irradianceAtlas,
     ]) {
       if (texture != null) device.releaseTexture(texture);
     }
@@ -1750,11 +1752,14 @@ final class Renderer implements RenderServices {
 
   Float32List get _cubeFaceMatrices => _pointShadow.faces;
 
-  /// Scratch for the two irradiance samples a draw takes — `gfx-81n`. Kept
-  /// here for the reason every other staging buffer is: a draw must allocate
-  /// nothing, and a scene with a field takes two of these per object.
-  final vm.Vector3 _irradianceUp = vm.Vector3.zero();
-  final vm.Vector3 _irradianceDown = vm.Vector3.zero();
+  /// The irradiance field's atlas and how to read it — `L3`. Uploaded when
+  /// the scene's field changes identity or version; see `_bindIrradiance`.
+  final IrradianceInfoBlock _irradianceInfo = IrradianceInfoBlock();
+  IrradianceField? _irradianceField;
+  int _irradianceVersion = -1;
+  TextureHandle? _irradianceAtlas;
+  int _irradianceColumns = 1;
+  int _irradianceMomentsTop = 0;
 
   /// What a surface facing up, and one facing down, receive from the
   /// environment. Recomputed once a frame — see [_updateAmbient].

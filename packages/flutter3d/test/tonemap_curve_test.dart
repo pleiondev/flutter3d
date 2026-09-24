@@ -368,7 +368,8 @@ void main() {
       // setting that stored code 5 keeps working.
       // ignore: deprecated_member_use_from_same_package, deprecated_member_use
       expect(TonemapCurve.agxFull.code, 5.0);
-      expect(TonemapCurve.values.length, 5);
+      // Six since `L2` added the display transform ACES 2.0 is read through.
+      expect(TonemapCurve.values.length, 6);
       for (final Vector3 sample in <Vector3>[
         Vector3(0.18, 0.18, 0.18),
         Vector3(4.0, 2.0, 1.0),

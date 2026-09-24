@@ -66,6 +66,7 @@ const List<RequiredShader> kRequiredShaders = <RequiredShader>[
   (name: 'Velocity', fragment: true),
   (name: 'TemporalResolve', fragment: true),
   (name: 'TemporalAccumulate', fragment: true),
+  (name: 'IrradianceConvolve', fragment: true),
   (name: 'VelocityVertex', fragment: false),
   (name: 'VelocitySkinnedVertex', fragment: false),
   (name: 'VelocityInstancedVertex', fragment: false),
