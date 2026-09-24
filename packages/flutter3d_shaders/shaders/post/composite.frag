@@ -158,6 +158,14 @@ vec3 LinearToSrgb(vec3 linear) {
       step(vec3(0.0031308), linear));
 }
 
+/// The inverse of [LinearToSrgb], for the colour a LUT hands back.
+vec3 SrgbToLinear(vec3 encoded) {
+  return mix(
+      encoded / 12.92,
+      pow((max(encoded, vec3(0.0)) + vec3(0.055)) / 1.055, vec3(2.4)),
+      step(vec3(0.04045), encoded));
+}
+
 /// Khronos PBR Neutral tone mapper.
 ///
 /// The mapper the glTF ecosystem settled on, which matters because the renderer
@@ -213,29 +221,14 @@ vec3 TonemapAces(vec3 color) {
                vec3(0.0), vec3(1.0));
 }
 
-/// AgX, as a curve without the rotation matrices.
+/// AgX's log-encoded sigmoid, one channel at a time.
 ///
-/// **What it is for: bright saturated light that does not turn into a flat
-/// disc of colour.** A coloured lamp four stops over white comes out of ACES
-/// with its channels 0.36 apart and out of this with 0.22 — the highlight
-/// walks towards white rather than towards its own primary. And it keeps
-/// separating values long after ACES has stopped: at 8 and at 40 ACES returns
-/// one and one, where this returns 0.971 and 0.999, so the inside of a bright
-/// patch still has shape in it.
-///
-/// **It is a much more exposed curve than the other three**, which is a
-/// decision to make with open eyes rather than a side effect: 18% grey lands
-/// at 0.50 here against 0.14 through the neutral curve, because AgX is built
-/// to put middle grey at middle display and the log encoding below does
-/// exactly that. A scene switched to this without re-lighting looks washed
-/// out, and correctly so.
-///
-/// A log-encoded sigmoid on each channel, then a pull towards the luminance
-/// by how far each channel climbed. The full transform rotates into and out
-/// of a wider gamut first; that rotation is what keeps deep blues from going
-/// purple, and it needs two matrices this pass has nowhere to keep. Named as
-/// missing rather than implied: this is AgX's curve, not AgX.
-vec3 TonemapAgx(vec3 color) {
+/// Its output is display-encoded (roughly a 2.2 gamma), not linear. That is
+/// the fact the first version of this curve missed: it handed the sigmoid's
+/// value straight to the sRGB encode at the end of `main`, so every AgX frame
+/// was encoded twice — 18% grey arrived at 187/255 instead of 128/255 and a
+/// saturated red came out pastel. [TonemapAgx] linearises it again.
+vec3 AgxSigmoid(vec3 color) {
   const float kMinEv = -12.47393;
   const float kMaxEv = 4.026069;
 
@@ -248,41 +241,29 @@ vec3 TonemapAgx(vec3 color) {
   vec3 v4 = v2 * v2;
   v = 15.5 * v4 * v2 - 40.14 * v4 * v + 31.96 * v4 - 6.868 * v2 * v +
       0.4298 * v2 + 0.1191 * v - 0.00232;
-  v = clamp(v, vec3(0.0), vec3(1.0));
-
-  // The desaturation AgX is known for, applied where the curve lifted the
-  // most. Without it the sigmoid alone leaves highlights as saturated as ACES
-  // does and the point of the curve is lost.
-  float luma = Luma(v);
-  return mix(vec3(luma), v, 0.84);
+  return clamp(v, vec3(0.0), vec3(1.0));
 }
 
-/// AgX with the rotation this pass used to have nowhere to keep — `gfx-26n`.
+/// AgX: inset, sigmoid, outset, linearise — Wrensch's "Minimal AgX".
 ///
-/// **What the two matrices buy, and it is one specific thing.** [TonemapAgx]
-/// compresses each channel on its own, so a channel that clips takes its hue
-/// with it: a deep blue four stops over white loses blue last and arrives at
-/// the display having drifted through purple, because red and green were
-/// driven up towards it while blue was already at the ceiling. The inset
-/// matrix mixes a little of each channel into the others *before* the curve,
-/// which means no channel is ever compressed alone, and the outset matrix —
-/// its inverse — takes the mixing back out afterwards. The hue that comes out
-/// is the hue that went in. That is the whole of the rotation, and it is why
-/// the comment on [TonemapAgx] named the absence rather than implying the
-/// curve was the transform.
+/// **What it is for: bright saturated light that does not turn into a flat
+/// disc of colour.** The inset matrix mixes a little of each channel into the
+/// others before the curve, so no channel is compressed alone and a hue that
+/// is over-bright walks towards white rather than through another primary;
+/// the outset matrix takes the mixing back out afterwards.
 ///
-/// **A fifth curve rather than a correction to the fourth.** Every golden in
-/// this repository that names a curve names one of the four codes, and 18%
-/// grey lands in a different place through the rotation than through the bare
-/// sigmoid — so quietly improving `agx` would move pictures somebody recorded
-/// on purpose. `agx` stays exactly the curve it was, and this is the one to
-/// reach for when a hue has to survive being over-bright.
+/// **Linear in, linear out**, like every other curve here, so the sRGB encode
+/// at the end of `main` is the only encode. The `pow(2.2)` is the reference
+/// implementation's own last step ("we're linearizing the output here"); the
+/// default look is the identity, so there is no extra desaturation — the
+/// `mix(luma, v, 0.84)` this curve used to end with was not AgX's and took a
+/// sixth of the saturation off the whole frame.
 ///
 /// The matrices are the published AgX ones, written out rather than derived,
 /// and they are inverses to about six decimal places — checked as arithmetic
 /// in `tonemap_curve_test.dart` rather than trusted, because a transposed row
 /// here would look like a subtle grade rather than like a bug.
-vec3 TonemapAgxFull(vec3 color) {
+vec3 TonemapAgx(vec3 color) {
   // The published pair, written in the same layout and used in the same order
   // as the reference implementation — `M * v`, with the literals as that
   // implementation lists them. Taken as a matched pair on purpose: an inset
@@ -298,12 +279,22 @@ vec3 TonemapAgxFull(vec3 color) {
       -0.0980208811401368, 1.15190312990417, -0.0980434501171241,
       -0.0990297440797205, -0.0989611768448433, 1.15107367264116);
 
-  vec3 v = kInset * color;
-  v = TonemapAgx(v);
-  // Out of the wider gamut, then clamped: the outset can push a channel a
-  // little past one or a little below zero on a colour that was already at
-  // the edge, and anything above display white is display white.
-  return clamp(kOutset * v, vec3(0.0), vec3(1.0));
+  vec3 v = AgxSigmoid(kInset * max(color, vec3(0.0)));
+  // Out of the wider gamut, then back to linear. The outset can push a
+  // channel a little below zero on a colour that was already at the edge,
+  // which the `max` keeps out of `pow`; anything above display white is
+  // display white.
+  v = kOutset * v;
+  return clamp(pow(max(v, vec3(0.0)), vec3(2.2)), vec3(0.0), vec3(1.0));
+}
+
+/// The same transform as [TonemapAgx], kept for code 5 — `gfx-26n`.
+///
+/// It was added as the rotated variant when [TonemapAgx] was the bare
+/// sigmoid. Now that [TonemapAgx] is the whole of AgX, the two codes draw
+/// the same picture; the code stays so a setting that names it keeps working.
+vec3 TonemapAgxFull(vec3 color) {
+  return TonemapAgx(color);
 }
 
 /// Reinhard, extended so that white maps to white.
@@ -453,8 +444,14 @@ void main() {
   float saturation = composite_info.look.y;
   float temperature = composite_info.look.z;
 
-  // Pivoted about mid grey, so contrast does not double as an exposure knob.
-  color = (color - vec3(0.5)) * contrast + vec3(0.5);
+  // Pivoted about mid grey, so contrast does not double as an exposure knob —
+  // and mid grey here is 0.18, not 0.5: this is linear light, where 0.5 is a
+  // bright highlight, and pivoting on it darkened a 1.2 contrast by about a
+  // stop. A power about 0.18 rather than a line through it, so black stays
+  // black and grey stays exactly where it was. One is the identity.
+  if (contrast != 1.0) {
+    color = vec3(0.18) * pow(max(color, vec3(0.0)) / 0.18, vec3(contrast));
+  }
   color = mix(vec3(Luma(color)), color, saturation);
   // A gain on the ends against the middle. Not a white-balance conversion —
   // a scene lit at the wrong temperature is fixed at the light, not here.
@@ -464,8 +461,10 @@ void main() {
 
   // **Lift, gamma, gain — `gfx-27n`, and the three ranges a colourist
   // actually reaches for.** Contrast and saturation move the whole picture at
-  // once; these move one end of it. Lift adds, so it raises the shadows and
-  // leaves white alone. Gain multiplies, so it moves the highlights and
+  // once; these move one end of it. Lift raises black towards itself and
+  // leaves white where it was — `c * (1 - lift) + lift`, the classic form;
+  // it used to be a plain add, which moved white to one plus the lift and
+  // clipped it. Gain multiplies, so it moves the highlights and
   // leaves black alone. Gamma is the exponent between them, so it moves the
   // midtones and leaves both ends. Applied in that order, which is the order
   // they are named in and the order a grading panel applies them.
@@ -475,7 +474,7 @@ void main() {
   vec3 lift = composite_info.lift.xyz;
   vec3 gammaCurve = composite_info.gamma.xyz;
   vec3 gain = composite_info.gain.xyz;
-  color = color + lift;
+  color = color * (vec3(1.0) - lift) + lift;
   // Guarded, because a channel at zero under a fractional exponent is a
   // divide by zero on some drivers and a black pixel on others, and the
   // defaults have to be an exact identity rather than nearly one.
@@ -512,9 +511,17 @@ void main() {
   // Branched on the strength rather than mixed by it, so a frame with no
   // table does not sample one. The branch is on a uniform, so the whole draw
   // takes the same side of it.
+  //
+  // **Indexed and answered in sRGB**, which is the space a grading tool's
+  // `.cube` is written in: Resolve and Photoshop export a table that takes a
+  // display-encoded colour and gives one back. Looked up with linear values it
+  // shifted every tone, and put nearly everything below a linear 0.03 into
+  // the first of 33 slices.
   float lutStrength = composite_info.ao_texel.z;
   if (lutStrength > 0.0) {
-    vec3 graded = SampleLut(color, max(composite_info.ao_texel.w, 2.0));
+    vec3 encodedIn = LinearToSrgb(clamp(color, vec3(0.0), vec3(1.0)));
+    vec3 graded = SrgbToLinear(
+        SampleLut(encodedIn, max(composite_info.ao_texel.w, 2.0)));
     color = mix(color, graded, clamp(lutStrength, 0.0, 1.0));
   }
 
@@ -558,8 +565,14 @@ void main() {
   if (grain > 0.0) encoded += vec3((Hash(gl_FragCoord.xy) - 0.5) * grain);
 
   // Dither last, because it is the one aimed at the quantiser itself.
+  // **Centred exactly.** The cells run from -1/2 to 7/16, whose mean is
+  // -1/32; the thirty-second puts it at nought, so with dithering on by
+  // default (0.7.4) a flat colour stays the colour it was and only where a
+  // gradient's bands fall changes.
   float dither = composite_info.output_encode.x;
-  if (dither > 0.0) encoded += vec3(BayerCell(gl_FragCoord.xy) * dither);
+  if (dither > 0.0) {
+    encoded += vec3((BayerCell(gl_FragCoord.xy) + 0.03125) * dither);
+  }
 
   frag_color = vec4(encoded, scene.a);
 }

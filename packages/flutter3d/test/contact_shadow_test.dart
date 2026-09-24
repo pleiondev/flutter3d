@@ -53,7 +53,10 @@ const int _height = 64;
 /// beside it. The map itself is off in every case below — with it on, the seam
 /// this test measures would sit inside a shadow the map already drew, and the
 /// test would be measuring the map.
-({Scene scene, CameraNode camera}) _boxOnPlane({required bool sun}) {
+({Scene scene, CameraNode camera}) _boxOnPlane({
+  required bool sun,
+  bool sunCasts = true,
+}) {
   final scene = Scene()..ambientIntensity = 0.35;
   final device = CpuDevice(
     width: 4,
@@ -78,7 +81,12 @@ const int _height = 64;
 
   if (sun) {
     scene.add(
-      LightNode(type: LightType.directional, intensity: 2.0, name: 'sun')
+      LightNode(
+          type: LightType.directional,
+          intensity: 2.0,
+          castsShadow: sunCasts,
+          name: 'sun',
+        )
         // Pointing down and to the right, so the sun is up and to the left and
         // the floor on the box's right is the side the seam belongs on.
         ..setLocalForward(Vector3(0.55, -0.83, -0.1)),
@@ -119,9 +127,13 @@ RenderSettings _settings({required bool contact}) => RenderSettings(
   ),
 );
 
-Future<Uint8List> _draw(RenderSettings settings, {bool sun = true}) async {
+Future<Uint8List> _draw(
+  RenderSettings settings, {
+  bool sun = true,
+  bool sunCasts = true,
+}) async {
   final engine = _engine();
-  final room = _boxOnPlane(sun: sun);
+  final room = _boxOnPlane(sun: sun, sunCasts: sunCasts);
   final frame = engine.renderer.render(
     width: _width,
     height: _height,
@@ -214,6 +226,26 @@ void main() {
       with_,
       orderedEquals(without),
       reason: 'a scene with no directional light drew a contact shadow anyway',
+    );
+  });
+
+  test('a sun that casts no map still gets its seam', () async {
+    // The march reads the surface buffer and no shadow map, so a sun with
+    // `castsShadow` cleared — contact shadows without paying for a map — is
+    // the setup the pass is cheapest in. It took its direction from the map's
+    // caster and switched off with the map.
+    final casting = await _draw(_settings(contact: true));
+    final without = await _draw(_settings(contact: false), sunCasts: false);
+    final with_ = await _draw(_settings(contact: true), sunCasts: false);
+    expect(
+      with_,
+      isNot(orderedEquals(without)),
+      reason: 'clearing castsShadow on the sun switched contact shadows off',
+    );
+    expect(
+      with_,
+      orderedEquals(casting),
+      reason: 'the seam should not depend on whether the sun casts a map',
     );
   });
 }

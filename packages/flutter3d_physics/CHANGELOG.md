@@ -1,3 +1,37 @@
+## 0.7.4
+
+- **Cloth meets a sphere and a capsule as themselves.** Every obstacle pushed a
+  particle out through its `expandedPlanes`, which is exact for a box and a
+  wedge and the bounding cube for a sphere and a capsule: a sheet dropped on a
+  ball draped over a box. A heightfield answered no planes at all, and the
+  plane walk pushed by nought times infinity — every particle NaN.
+  `pushParticleOutside` is new and answers per shape, in doubles; a sphere and
+  a capsule are their nearest surface point, a heightfield the ground under
+  the particle. `pushOutsideObstacle` keeps its signature.
+- **A draped sheet no longer blows up.** Contacts were resolved once after the
+  constraint sweep, and with `iterations: 1` a sheet wrapped round a ball
+  pumped itself from half a metre a second to NaN in about thirty steps —
+  with or without wind. Contacts are solved inside the iteration loop now, as
+  XPBD and Flex do, and `iterations` defaults to 2.
+- **Wind is a force, relative to the cloth.** It was added to a position as a
+  velocity — several hundred times its value at eight substeps, and growing
+  with the substep count — and ignored the cloth's own velocity, so a sheet in
+  a one-metre-a-second wind reached forty. It is `Δx = F·w·h²` on the air's
+  velocity relative to each triangle, bounded so a drag cannot reverse it in a
+  substep. A scene tuned against the old wind needs a `drag` in the ones where
+  it had tenths.
+- **`ClothSettings.friction`**, new: position-level Coulomb friction against
+  obstacles, measured against a particle's push summed over the substep's
+  iterations, so the iteration count does not decide how much it holds. Zero,
+  the default, slides as before.
+- A heightfield obstacle holds cloth only over its own footprint. Past the
+  edge its height is the edge's, which a body walking off the map wants and a
+  hem hanging over the side would catch on.
+- **`damping` says what it does**: a fraction per substep, which it always was,
+  not per step.
+- A particle is no longer rounded to single precision through a `Vector3` for
+  every obstacle, and the solver allocates nothing per substep.
+
 ## 0.7.1
 
 **Released with the rest of the stack at 0.7.1.** Nothing in this package

@@ -7,6 +7,8 @@
 /// for the same fragment.
 library;
 
+import 'dart:math' as math;
+
 import 'package:vector_math/vector_math.dart';
 
 import 'cpu_shader.dart';
@@ -17,7 +19,12 @@ import 'cpu_shaders_surface.dart';
 /// One — not zero — outside the map, off the caster, or with shadows off. A
 /// fragment beyond the shadow volume is unshadowed, and getting that backwards
 /// puts a hard edge across the scene at the edge of the map.
-double shadowFactor(Surface s, ShaderBindings b, int lightIndex) {
+double shadowFactor(
+  Surface s,
+  ShaderBindings b,
+  int lightIndex,
+  double lightNDotL,
+) {
   final params = b.vec4('FragInfo', 'shadow_params', Vector4.zero());
   final strength = params.w;
   if (strength <= 0.0) return 1.0;
@@ -29,8 +36,14 @@ double shadowFactor(Surface s, ShaderBindings b, int lightIndex) {
 
   // Normal offset: move the sample along the normal before projecting. It
   // fixes acne a depth bias cannot, because that error is proportional to the
-  // surface's slope relative to the light rather than to depth.
-  final origin = s.world + s.normal * params.z;
+  // surface's slope relative to the light rather than to depth. A flat
+  // distance plus one texel of the cascade scaled by the slope, for the reason
+  // `shadow.glsl` gives.
+  final nDotL = math.max(lightNDotL, 0.15);
+  final slope = math.min(
+    math.sqrt(math.max(1.0 - nDotL * nDotL, 0.0)) / (nDotL * nDotL),
+    8.0,
+  );
 
   // Which cascade covers this fragment. The mirror of shadow.glsl, and it has
   // to stay one: the parity suite compares this backend's picture against
@@ -57,6 +70,17 @@ double shadowFactor(Surface s, ShaderBindings b, int lightIndex) {
           ? 'shadow_matrix'
           : (which == 1 ? 'shadow_matrix_far' : 'shadow_matrix_farthest'),
     );
+    // One texel of this cascade in metres: the first row of an orthographic
+    // projection is 2 / width.
+    final rowX = Vector3(
+      matrix.entry(0, 0),
+      matrix.entry(0, 1),
+      matrix.entry(0, 2),
+    ).length;
+    final tileTexel = cascades.w > 0.0 ? cascades.w : params.x;
+    final texelMetres = 2.0 * tileTexel / math.max(rowX, 1e-6);
+    final origin =
+        s.world + s.normal * (params.z + texelMetres * (1.0 + slope));
     final Vector4 lightSpace =
         matrix * Vector4(origin.x, origin.y, origin.z, 1.0);
     if (lightSpace.w <= 0.0) continue;
@@ -66,7 +90,12 @@ double shadowFactor(Surface s, ShaderBindings b, int lightIndex) {
     final tileU = candidate.x * 0.5 + 0.5;
     final tileV = 0.5 - candidate.y * 0.5;
     if (tileU < 0.0 || tileU > 1.0 || tileV < 0.0 || tileV > 1.0) continue;
-    if (candidate.z > 1.0) continue;
+    // Past the far plane is behind every caster: the last cascade clamps
+    // rather than calling the point lit — see `shadow.glsl`.
+    if (candidate.z > 1.0) {
+      if (which < count - 1) continue;
+      candidate.z = 1.0;
+    }
 
     u = (tileU + which) / count;
     vv = tileV;

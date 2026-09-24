@@ -1,3 +1,9 @@
+## 0.7.4
+
+**The generated shader table is rebuilt against `flutter3d_shaders` 0.7.4**,
+which `flutter3d_core` 0.7.4 binds: `BloomInfo.tint` and `ShaftInfo.sun` are
+uniforms only these stages declare. Nothing else in this package changed.
+
 ## 0.7.1
 
 **Every texture format uploads with its own type and size.** Everything but

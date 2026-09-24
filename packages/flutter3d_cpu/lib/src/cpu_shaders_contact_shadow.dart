@@ -15,6 +15,7 @@ import 'package:vector_math/vector_math.dart';
 
 import 'cpu_shader.dart';
 import 'cpu_shaders_color.dart';
+import 'cpu_shaders_reflections.dart' show bayerCell;
 
 /// `contact_shadow.frag`: whether the sun reaches this point over the first few
 /// centimetres, which is the stretch a shadow map cannot answer for.
@@ -65,8 +66,17 @@ final class ContactShadowShader implements CpuFragmentShader {
       ..addScaled(normal, params.w);
     final stride = reach / steps;
 
+    // Jittered start and a tolerance of at least twice a step's depth, as
+    // `contact_shadow.frag`.
+    final jitter = bayerCell(c.coord.x, c.coord.y);
+    double depthOf(Vector3 p) => (p - eye).dot(axis);
+    final stepDepth = (depthOf(origin + toLight * stride) - depthOf(origin))
+        .abs();
+    final tolerance = math.max(thickness, 2.0 * stepDepth);
+
     for (var i = 0; i < steps; i++) {
-      final at = origin + toLight * (stride * (i + 1));
+      final along = i + 1.0 - jitter;
+      final at = origin + toLight * (stride * along);
       final Vector4 clip = projection * Vector4(at.x, at.y, at.z, 1.0);
       // Behind the eye: the march has left the frame, and dividing by a
       // negative w would fold it back into view somewhere it is not.
@@ -90,13 +100,13 @@ final class ContactShadowShader implements CpuFragmentShader {
       // object seen past the one casting: without the thickness test a wall four
       // metres nearer than the floor shadows everything the ray crosses, which
       // is the halo the occlusion pass's range check exists to stop.
-      if (gap > 0.0 && gap < thickness) {
+      if (gap > 0.0 && gap < tolerance) {
         // Darker the nearer the blocker, which is what makes this a contact
         // shadow rather than a stencil: a hit on the first step is a surface
         // touching this one, a hit at the far end of the march is most of a
         // metre off and barely counts. Without it the pass writes zero or one
         // and the march's reach shows up as a hard band on the floor.
-        final fade = i / steps;
+        final fade = math.max(along - 1.0, 0.0) / steps;
         return Vector4(fade, fade, fade, fade);
       }
     }

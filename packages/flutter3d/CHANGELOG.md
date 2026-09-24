@@ -1,3 +1,11 @@
+## 0.7.4
+
+**Asks for `flutter3d_core` ^0.7.4.** Nothing in this package changed. The
+renderer in core 0.7.4 binds uniforms that only the 0.7.4 shaders declare, so
+upgrade the backend you draw with (`flutter3d_impeller`, `flutter3d_webgl`,
+`flutter3d_webgpu` or `flutter3d_cpu`) to 0.7.4 alongside it: a 0.7.3 backend
+refuses the first bloom frame.
+
 ## 0.7.1
 
 **Released with the rest of the stack at 0.7.1.** Nothing in this package

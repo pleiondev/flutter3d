@@ -1,6 +1,6 @@
 name: flutter3d_webgpu
 description: "A WebGPU backend for flutter3d: the fourth implementation of flutter3d_hardware, and the first one whose API bakes per-draw state into the pipeline object."
-version: 0.7.1
+version: 0.7.4
 repository: https://github.com/pleiondev/flutter3d
 homepage: https://flutter3d.pleion.dev
 issue_tracker: https://github.com/pleiondev/flutter3d/issues
@@ -50,7 +50,7 @@ dev_dependencies:
   # manifest instead needs the manifest readable from here. A dev dependency,
   # like the rest: nothing in `lib/` reaches it, and the generator in `tool/`
   # already did through the workspace.
-  flutter3d_shaders: ^0.7.1
+  flutter3d_shaders: ^0.7.4
   # The material language's emitter — `gfx-84n`. For
   # `material_language_generators_test.dart` alone: a material written as
   # source has to reach both generators, and this is the one package that has

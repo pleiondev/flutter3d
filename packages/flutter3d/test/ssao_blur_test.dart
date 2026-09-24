@@ -21,7 +21,8 @@ import 'package:vector_math/vector_math.dart';
 /// is the golden scene built on the same idea.
 Future<List<int>> _frame({
   required int blurTaps,
-  double depthFalloff = 0.1,
+  // A fraction of the centre's depth since 0.7.4; 0.02 is the default.
+  double depthFalloff = 0.02,
   int width = 96,
   int height = 96,
 }) async {

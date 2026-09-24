@@ -816,7 +816,7 @@ final class CpuEncoder implements CommandEncoder {
     final stencil = _activeStencil;
     final stencilState = frontFacing ? _stencilFront : _stencilBack;
     final interpolated = Float32List(varyingCount);
-    final context = FragmentContext();
+    final context = FragmentContext()..frontFacing = frontFacing;
 
     // **Screen-space gradients, which the triangle path did not have and the
     // line path did.** `CpuTexture.sample` picks the base level when it is

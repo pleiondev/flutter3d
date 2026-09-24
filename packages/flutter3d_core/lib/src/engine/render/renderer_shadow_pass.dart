@@ -317,10 +317,10 @@ extension _ShadowPasses on Renderer {
           final skinned = skeleton != null;
 
           // A single-sided wall recorded from one side only leaks light along
-          // its seam, so a node that asks records both.
+          // its seam, so a node that asks records both — and so does one whose
+          // material is double-sided, which has no back to cull.
           final wantsEveryFace =
-              node.shadowCasting.castsFromEveryFace ||
-              casterCull == CullMode.none;
+              node.castsShadowFromEveryFace || casterCull == CullMode.none;
           if (wantsEveryFace != everyFace) {
             pass.setState(
               wantsEveryFace
@@ -489,6 +489,18 @@ extension _ShadowPasses on Renderer {
       casters = 0x1fffffff & (casters * 31 + material.alphaCutoff.hashCode);
       casters = 0x1fffffff & (casters * 31 + material.baseColor.w.hashCode);
       casters = 0x1fffffff & (casters * 31 + identityHashCode(material.albedo));
+      // Which faces it records. Neither a material's `doubleSided` nor a
+      // dynamic node's casting mode reaches `changeEpoch`, and either one
+      // changes what the cascade holds.
+      casters =
+          0x1fffffff & (casters * 31 + (node.castsShadowFromEveryFace ? 1 : 0));
+      // Nor does a swapped mesh, a morph's weights, or an instance moved
+      // inside a batch — each changes the silhouette in place.
+      casters = 0x1fffffff & (casters * 31 + identityHashCode(node.mesh));
+      casters = 0x1fffffff & (casters * 31 + (node.morph?.version ?? 0));
+      if (node is InstancedMeshNode) {
+        casters = 0x1fffffff & (casters * 31 + node.dataVersion);
+      }
     }
 
     return (
@@ -881,8 +893,7 @@ extension _ShadowPasses on Renderer {
         // the cascade's own strip with it, or restating the cull would put the
         // rest of this cascade back into the full atlas.
         final wantsEveryFace =
-            node.shadowCasting.castsFromEveryFace ||
-            casterCull == CullMode.none;
+            node.castsShadowFromEveryFace || casterCull == CullMode.none;
         if (wantsEveryFace != everyFace) {
           pass.setState(
             Renderer._kShadowCasterState.copyWith(
