@@ -20,6 +20,11 @@ dependencies:
   # pub get` inside a `hook/build.dart` process has no window to ask for.
   flutter3d_core: ^0.8.0
 
+  # `C5`'s automatic levels of detail: `simplifyMeshWithAttributesMeasured`
+  # cuts each level from the base and says how far it bent it. Plain Dart,
+  # like everything else here.
+  flutter3d_mesh: ^0.8.0
+
   # `hook/build.dart`'s own contract — `ap-00`'s spike proved this is the half
   # of the build-hook feature that is stable on Flutter 3.47/Dart 3.13; the
   # other half, `package:data_assets`, stays out (see `ap-00`'s own writeup
