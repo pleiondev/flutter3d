@@ -174,6 +174,9 @@ extension type GPUDevice._(JSObject _) implements JSObject {
   external GPUBindGroup createBindGroup(GPUBindGroupDescriptor d);
   external GPUCommandEncoder createCommandEncoder();
 
+  /// A set of queries — `H2`'s timestamps.
+  external GPUQuerySet createQuerySet(GPUQuerySetDescriptor d);
+
   /// A compute pipeline — `H6`.
   external GPUComputePipeline createComputePipeline(
     GPUComputePipelineDescriptor d,
@@ -370,6 +373,16 @@ extension type GPUCommandEncoder._(JSObject _) implements JSObject {
     GPUTexelCopyTextureInfo source,
     GPUTexelCopyBufferInfo destination,
     GPUExtent3DDict copySize,
+  );
+
+  /// Writes [queryCount] query results from [querySet] into [destination] —
+  /// `H2`. Timestamps come out as 64-bit nanoseconds.
+  external void resolveQuerySet(
+    GPUQuerySet querySet,
+    int firstQuery,
+    int queryCount,
+    GPUBuffer destination,
+    int destinationOffset,
   );
 
   external GPUCommandBuffer finish();
@@ -831,6 +844,33 @@ extension type GPURenderPassDescriptor._(JSObject _) implements JSObject {
     GPURenderPassDepthStencilAttachment depthStencilAttachment,
     String label,
   });
+
+  /// Where the pass writes its start and end times — `H2`. Set after the
+  /// descriptor is built, only when there is one: the member left out means
+  /// "none", and `null` is refused.
+  external set timestampWrites(GPURenderPassTimestampWrites value);
+}
+
+/// The two queries a pass writes its start and end times into.
+extension type GPURenderPassTimestampWrites._(JSObject _) implements JSObject {
+  external factory GPURenderPassTimestampWrites({
+    GPUQuerySet querySet,
+    int beginningOfPassWriteIndex,
+    int endOfPassWriteIndex,
+  });
+}
+
+/// A set of queries — here only ever timestamps — `H2`.
+extension type GPUQuerySet._(JSObject _) implements JSObject {
+  external void destroy();
+}
+
+extension type GPUQuerySetDescriptor._(JSObject _) implements JSObject {
+  external factory GPUQuerySetDescriptor({
+    String type,
+    int count,
+    String label,
+  });
 }
 
 // -------------------------------------------------------------- the pipeline
@@ -1228,6 +1268,9 @@ abstract final class GpuFeature {
   /// `"unfilterable-float"` in a bind group layout and can only be read
   /// texel by texel.
   static const String float32Filterable = 'float32-filterable';
+
+  /// Timestamps written at the start and end of a pass — `H2`.
+  static const String timestampQuery = 'timestamp-query';
 }
 
 // ------------------------------------------------------------------ compute

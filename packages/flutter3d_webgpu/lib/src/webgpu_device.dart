@@ -51,6 +51,7 @@ import 'webgpu_loaded_shaders.dart';
 import 'webgpu_pipeline_cache.dart';
 import 'webgpu_resources.dart';
 import 'webgpu_shaders.dart';
+import 'webgpu_timer.dart';
 import 'webgpu_types.dart';
 
 @JS('document')
@@ -155,11 +156,18 @@ final class WebGpuDevice implements GraphicsDevice, WgslModuleCompiler {
   // here yet — see the end of `GraphicsDevice`. Each answer is the one that
   // makes a caller take its fallback.
 
+  // `H2`: timestamps where the adapter granted `timestamp-query`, written
+  // per labelled pass and read back a frame or two later.
   @override
-  bool get supportsGpuTimestamps => false;
+  bool get supportsGpuTimestamps =>
+      gpuDevice.features.has(GpuFeature.timestampQuery);
+
+  void Function(GpuFrameTimings timings)? _timingListener;
+  late final WebGpuTimer _timer = WebGpuTimer(gpuDevice);
 
   @override
-  void onGpuTimings(void Function(GpuFrameTimings timings)? listener) {}
+  void onGpuTimings(void Function(GpuFrameTimings timings)? listener) =>
+      _timingListener = supportsGpuTimestamps ? listener : null;
 
   // Compute — `H6`: storage buffers, pipelines built from the generated
   // compute table, passes encoded as they go, and a readback through a
@@ -208,8 +216,11 @@ final class WebGpuDevice implements GraphicsDevice, WgslModuleCompiler {
   void releaseStorageBuffer(StorageBuffer buffer) =>
       (buffer.backend as WebGpuStorage).buffer.destroy();
 
+  /// True where the adapter granted `float32-filterable`, which [create]
+  /// asks for whenever it is offered.
   @override
-  bool get supportsFloat32Filtering => false;
+  bool get supportsFloat32Filtering =>
+      gpuDevice.features.has(GpuFeature.float32Filterable);
 
   @override
   bool get supportsIndependentBlend => false;
@@ -345,6 +356,7 @@ final class WebGpuDevice implements GraphicsDevice, WgslModuleCompiler {
         GpuFeature.textureCompressionBc,
         GpuFeature.textureCompressionEtc2,
         GpuFeature.textureCompressionAstc,
+        GpuFeature.timestampQuery,
       ])
         if (adapter.features.has(feature)) feature,
     ];
@@ -1056,6 +1068,7 @@ final class WebGpuDevice implements GraphicsDevice, WgslModuleCompiler {
   /// finished with is safe, which is the only surprising thing about it.
   @override
   void beginFrame() {
+    _timer.endFrame(_timingListener);
     uniformArena.reset();
     vertexArena.reset();
     indexArena.reset();
@@ -1079,7 +1092,14 @@ final class WebGpuDevice implements GraphicsDevice, WgslModuleCompiler {
       maxColorAttachments,
       backend: 'this WebGPU device',
     );
-    return WebGpuEncoder(this, descriptor);
+    final label = descriptor.label;
+    return WebGpuEncoder(
+      this,
+      descriptor,
+      timestampWrites: _timingListener != null && label != null
+          ? _timer.next(label)
+          : null,
+    );
   }
 
   // --------------------------------------------------------------- output

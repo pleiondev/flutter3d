@@ -62,8 +62,11 @@ import 'webgpu_types.dart';
 
 /// One pass, recorded and submitted.
 final class WebGpuEncoder implements CommandEncoder {
-  WebGpuEncoder(this._device, RenderPassDescriptor descriptor)
-    : _colorFormats = <String>[
+  WebGpuEncoder(
+    this._device,
+    RenderPassDescriptor descriptor, {
+    GPURenderPassTimestampWrites? timestampWrites,
+  }) : _colorFormats = <String>[
         for (final target in descriptor.colors)
           gpuTextureFormat(target.texture.format)!,
       ],
@@ -79,18 +82,22 @@ final class WebGpuEncoder implements CommandEncoder {
     ];
     final depth = descriptor.depth;
     _encoder = _device.gpuDevice.createCommandEncoder();
-    _pass = _encoder.beginRenderPass(
-      depth == null
-          ? GPURenderPassDescriptor(
-              colorAttachments: colors.toJS,
-              label: descriptor.label ?? 'flutter3d pass',
-            )
-          : GPURenderPassDescriptor.withDepth(
-              colorAttachments: colors.toJS,
-              depthStencilAttachment: _depthAttachment(depth),
-              label: descriptor.label ?? 'flutter3d pass',
-            ),
-    );
+    final gpuDescriptor = depth == null
+        ? GPURenderPassDescriptor(
+            colorAttachments: colors.toJS,
+            label: descriptor.label ?? 'flutter3d pass',
+          )
+        : GPURenderPassDescriptor.withDepth(
+            colorAttachments: colors.toJS,
+            depthStencilAttachment: _depthAttachment(depth),
+            label: descriptor.label ?? 'flutter3d pass',
+          );
+    // `H2`: only when the device is timing this pass; the member left out is
+    // "none", and a null would be refused.
+    if (timestampWrites != null) {
+      gpuDescriptor.timestampWrites = timestampWrites;
+    }
+    _pass = _encoder.beginRenderPass(gpuDescriptor);
   }
 
   /// One colour attachment, with its resolve target where the store action asks
