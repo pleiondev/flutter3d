@@ -302,7 +302,45 @@ List<EditorTool> get _commandTools => <EditorTool>[
     ),
     _command('turn'),
   ),
+  _told(
+    Tool(
+      name: 'setLights',
+      description:
+          'Replace every light in the level with the ones given, as one '
+          'change that one undo takes back. Each light is written the way the '
+          'level file spells one: type, at, direction, color, intensity, '
+          'range, castsShadow, name. optimizeLights uses this to apply what '
+          'it found.',
+      inputSchema: ObjectSchema(
+        properties: <String, Schema>{
+          'lights': ListSchema(
+            description: 'the whole new set, in order',
+            items: ObjectSchema(),
+          ),
+          'why': StringSchema(
+            description: 'what the change is called in the undo history',
+          ),
+        },
+        required: <String>['lights'],
+      ),
+    ),
+    _command('setLights'),
+  ),
 ];
+
+/// The views a call names under `views`, or null when it names none — each
+/// an object with `from` and `at`, three numbers each.
+List<LightView>? _views(Map<String, Object?> arguments) {
+  final rows = arguments['views'];
+  if (rows is! List || rows.isEmpty) return null;
+  final views = <LightView>[
+    for (final row in rows.whereType<Map<Object?, Object?>>())
+      if (_point(row.cast<String, Object?>(), 'from') case final Vector3 from)
+        if (_point(row.cast<String, Object?>(), 'at') case final Vector3 at)
+          (from: from, at: at),
+  ];
+  return views.isEmpty ? null : views;
+}
 
 /// Everything this server offers: the ten commands, the six verbs that are
 /// about the session rather than about the document, and the two that look
@@ -446,5 +484,43 @@ List<EditorTool> get editorTools => <EditorTool>[
     ),
     (EditorSession session, Map<String, Object?> arguments) =>
         session.report(_point(arguments, 'from'), _point(arguments, 'at')),
+  ),
+  EditorTool(
+    Tool(
+      name: 'optimizeLights',
+      description:
+          'Fewer lights that light the level the way it is lit now. Draws '
+          'every light alone from the views, then removes the lights others '
+          'already cover and merges pairs close enough to be one, retuning '
+          'the strengths of the rest, and keeps only changes whose picture '
+          'stays within a small difference of the original with almost no '
+          'pixel going dark. Applied as one change that undo takes back; '
+          'answers with the moves, the numbers (lights, shading cost, '
+          'difference, darkened pixels) and a picture of the new lighting.',
+      inputSchema: ObjectSchema(
+        properties: <String, Schema>{
+          'views': ListSchema(
+            description:
+                'where players stand and look, each {from, at}; leave out to '
+                'look four ways from every player spawn',
+            items: ObjectSchema(
+              properties: <String, Schema>{
+                'from': _vector('the eye'),
+                'at': _vector('the point it looks at'),
+              },
+              required: <String>['from', 'at'],
+            ),
+          ),
+          'apply': BooleanSchema(
+            description: 'false to only say what would change; default true',
+          ),
+        },
+      ),
+    ),
+    (EditorSession session, Map<String, Object?> arguments) =>
+        session.optimizeLights(
+          views: _views(arguments),
+          apply: arguments['apply'] != false,
+        ),
   ),
 ];
