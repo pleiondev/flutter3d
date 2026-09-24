@@ -120,6 +120,63 @@ void main() {
     expect(lightsIn(level), 1);
   });
 
+  test('judges under every lighting state it is given', () async {
+    // One dim lamp, and a noon sun (a bright lamp the state adds) that
+    // drowns it out. Under noon alone the lamp goes; with night as well it
+    // stays. Mutation: drop `states:` from the `optimize` call in
+    // `runLights`. The level is judged as it is, and the lamp stays both
+    // times.
+    File(level).writeAsStringSync(
+      jsonEncode(
+        _room()
+          ..['lights'] = <Object?>[
+            <String, Object?>{
+              'type': 'point',
+              'at': <double>[1.2, 1.0, -1.2],
+              'intensity': 0.6,
+              'range': 4.0,
+            },
+          ],
+      ),
+    );
+    final noon = '${scratch.path}/noon.json';
+    final night = '${scratch.path}/night.json';
+    File(noon).writeAsStringSync(
+      jsonEncode(<String, Object?>{
+        'name': 'noon',
+        'lights': <Object?>[
+          <String, Object?>{
+            'type': 'point',
+            'at': <double>[0.0, 2.2, 0.0],
+            'intensity': 60.0,
+            'range': 8.0,
+          },
+        ],
+      }),
+    );
+    File(
+      night,
+    ).writeAsStringSync(jsonEncode(<String, Object?>{'name': 'night'}));
+
+    Future<int> lightsAfter(List<String> states) async {
+      final copy = '${scratch.path}/out.json';
+      final said = StringBuffer();
+      final code = await runLights(<String>[
+        '--optimize',
+        level,
+        for (final state in states) ...<String>['--state', state],
+        '--out',
+        copy,
+      ], out: IOSink(_Into(said)));
+      expect(code, 0, reason: '$said');
+      return File(copy).existsSync() ? lightsIn(copy) : lightsIn(level);
+    }
+
+    expect(await lightsAfter(<String>[noon]), 0);
+    File('${scratch.path}/out.json').deleteSync();
+    expect(await lightsAfter(<String>[noon, night]), 1);
+  });
+
   test('refuses arguments it cannot read', () async {
     final err = StringBuffer();
     expect(

@@ -160,8 +160,10 @@ final class LightOptimizer {
     bool fits(_Fit fit) =>
         fit.difference <= maxDifference && fit.underLit <= maxUnderLit;
 
-    // One accepted move per round; a round with none ends the search.
-    while (set.length > 1) {
+    // One accepted move per round; a round with none ends the search. Down
+    // to no level light at all, which a state's own lights can make right:
+    // the lamp a noon sun drowns out.
+    while (set.isNotEmpty) {
       final overlap = problem.overlaps(set);
       final order = List<int>.generate(set.length, (i) => i)
         ..sort((a, b) {
