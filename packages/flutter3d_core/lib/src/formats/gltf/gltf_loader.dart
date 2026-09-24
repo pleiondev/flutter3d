@@ -211,6 +211,21 @@ final class GltfLoader implements ModelDecoder {
     const supported = <String>{
       'KHR_materials_unlit',
       'KHR_materials_emissive_strength',
+      // `M1`: shaded by the layered model — see `MaterialExtensions`, which
+      // also says which of their textures are carried and not drawn.
+      'KHR_materials_ior',
+      'KHR_materials_specular',
+      'KHR_materials_clearcoat',
+      // `M2`, the same way.
+      'KHR_materials_sheen',
+      'KHR_materials_anisotropy',
+      // `M3`: transmission sees the environment rather than the scene behind
+      // it — see `lib/pbr.glsl` — and a file that requires it still draws
+      // glass that looks like glass.
+      'KHR_materials_transmission',
+      'KHR_materials_volume',
+      'KHR_materials_dispersion',
+      'KHR_materials_iridescence',
       // Supported as far as the KTX2 reader goes — both Basis Universal
       // encodings, ETC1S and UASTC LDR, and a file's own BC/ETC2/ASTC where the
       // device samples them. A texture the reader still refuses (UASTC HDR, a

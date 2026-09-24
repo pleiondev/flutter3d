@@ -11,12 +11,55 @@ extension _F3dMaterials on F3dDocument {
 
   List<SurfaceMaterial> _readMaterials() {
     final table = _table(F3dSection.materials, F3dRecord.material);
+    final layers = _readMaterialExtensions();
     return <SurfaceMaterial>[
-      for (var i = 0; i < table.count; i++) _readMaterial(i),
+      for (var i = 0; i < table.count; i++) _readMaterial(i, layers[i]),
     ];
   }
 
-  SurfaceMaterial _readMaterial(int index) {
+  /// Section 22, by material index. Absent in a file written before `M1`,
+  /// which reads as no material having any layer.
+  Map<int, MaterialExtensions> _readMaterialExtensions() {
+    final table = _table(
+      F3dSection.materialExtensions,
+      F3dRecord.materialExtensions,
+    );
+    final layers = <int, MaterialExtensions>{};
+    for (var i = 0; i < table.count; i++) {
+      final o = _recordOffset(
+        F3dSection.materialExtensions,
+        i,
+        F3dRecord.materialExtensions,
+      );
+      final json = _string(
+        _view.getUint32(o + 4, Endian.little),
+        _view.getUint32(o + 8, Endian.little),
+      );
+      final decoded = json == null ? null : jsonDecode(json);
+      if (decoded is! Map<String, Object?>) continue;
+      final read = materialExtensionsFromJson(
+        decoded,
+        texture: _bindingFromJson,
+      );
+      if (read != null) layers[_view.getUint32(o, Endian.little)] = read;
+    }
+    return layers;
+  }
+
+  TextureBinding? _bindingFromJson(Object? json) {
+    if (json is! Map<String, Object?>) return null;
+    final image = json['image'];
+    if (image is! int || image < 0) return null;
+    final texCoord = json['texCoord'];
+    final flags = json['sampling'];
+    return TextureBinding(
+      imageIndex: image,
+      texCoordSet: texCoord is int ? texCoord : 0,
+      sampling: flags is int ? _samplingFrom(flags) : const TextureSampling(),
+    );
+  }
+
+  SurfaceMaterial _readMaterial(int index, MaterialExtensions? extensions) {
     var o = _recordOffset(F3dSection.materials, index, F3dRecord.material);
 
     final name = _string(
@@ -79,6 +122,7 @@ extension _F3dMaterials on F3dDocument {
       alphaCutoff: alphaCutoff,
       doubleSided: doubleSided,
       unlit: unlit,
+      extensions: extensions,
     );
   }
 
@@ -86,7 +130,14 @@ extension _F3dMaterials on F3dDocument {
     final imageIndex = _view.getInt32(offset, Endian.little);
     if (imageIndex < 0) return null;
 
-    final flags = _view.getUint32(offset + 8, Endian.little);
+    return TextureBinding(
+      imageIndex: imageIndex,
+      texCoordSet: _view.getUint32(offset + 4, Endian.little),
+      sampling: _samplingFrom(_view.getUint32(offset + 8, Endian.little)),
+    );
+  }
+
+  TextureSampling _samplingFrom(int flags) {
     TextureWrap wrap(int shift) {
       final value = (flags >> shift) & F3dSamplingFlags.wrapMask;
       return value < TextureWrap.values.length
@@ -94,17 +145,13 @@ extension _F3dMaterials on F3dDocument {
           : TextureWrap.repeat;
     }
 
-    return TextureBinding(
-      imageIndex: imageIndex,
-      texCoordSet: _view.getUint32(offset + 4, Endian.little),
-      sampling: TextureSampling(
-        magLinear: flags & F3dSamplingFlags.magLinear != 0,
-        minLinear: flags & F3dSamplingFlags.minLinear != 0,
-        useMipmaps: flags & F3dSamplingFlags.useMipmaps != 0,
-        mipLinear: flags & F3dSamplingFlags.mipNearest == 0,
-        wrapS: wrap(F3dSamplingFlags.wrapSShift),
-        wrapT: wrap(F3dSamplingFlags.wrapTShift),
-      ),
+    return TextureSampling(
+      magLinear: flags & F3dSamplingFlags.magLinear != 0,
+      minLinear: flags & F3dSamplingFlags.minLinear != 0,
+      useMipmaps: flags & F3dSamplingFlags.useMipmaps != 0,
+      mipLinear: flags & F3dSamplingFlags.mipNearest == 0,
+      wrapS: wrap(F3dSamplingFlags.wrapSShift),
+      wrapT: wrap(F3dSamplingFlags.wrapTShift),
     );
   }
 

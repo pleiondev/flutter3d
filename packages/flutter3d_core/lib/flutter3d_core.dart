@@ -63,6 +63,7 @@ export 'src/engine/assets/ktx2/ktx2.dart';
 export 'src/engine/assets/model_loader.dart';
 export 'src/engine/assets/model_part.dart';
 export 'src/engine/assets/model_writer.dart';
+export 'src/engine/assets/packed_maps.dart';
 export 'src/engine/assets/pointer_targets.dart';
 export 'src/engine/assets/resource_cache.dart';
 export 'src/engine/assets/texture_upload.dart';

@@ -806,17 +806,40 @@ void main() {
         GltfLoader().load(
           buildGlb(<String, Object?>{
             'asset': {'version': '2.0'},
-            'extensionsRequired': <Object?>['KHR_materials_transmission'],
+            'extensionsRequired': <Object?>[
+              'KHR_materials_diffuse_transmission',
+            ],
           }),
         ),
         throwsA(
           isA<FormatException>().having(
             (e) => e.message,
             'message',
-            contains('KHR_materials_transmission'),
+            contains('KHR_materials_diffuse_transmission'),
           ),
         ),
       );
+    });
+
+    // `M3`: this was the refusal above until the layered model drew
+    // transmission. Mutation: take 'KHR_materials_transmission' back out of
+    // `_checkRequiredExtensions`' supported set. The load throws.
+    test('a required KHR_materials_transmission loads', () async {
+      final asset = await GltfLoader().load(
+        buildGlb(<String, Object?>{
+          'asset': {'version': '2.0'},
+          'extensionsUsed': <Object?>['KHR_materials_transmission'],
+          'extensionsRequired': <Object?>['KHR_materials_transmission'],
+          'materials': <Object?>[
+            {
+              'extensions': {
+                'KHR_materials_transmission': {'transmissionFactor': 1.0},
+              },
+            },
+          ],
+        }),
+      );
+      expect(asset.materials.single.extensions?.transmission, 1.0);
     });
 
     test('a merely used extension does not block loading', () async {

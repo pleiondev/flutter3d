@@ -94,6 +94,10 @@ const String _kMetallicRoughnessTextureSlot = 'metallic_roughness_texture';
 
 /// The LTC tables — `L7`. Metal-rough only; see `lib/ltc.glsl`.
 const String _kLtcTextureSlot = 'ltc_texture';
+
+/// The layered model's coat map and its block — `M1`. See `lib/pbr.glsl`.
+const String _kCoatTextureSlot = 'coat_texture';
+const String _kSheenTextureSlot = 'sheen_texture';
 const String _kOcclusionTextureSlot = 'occlusion_texture';
 const String _kEmissiveTextureSlot = 'emissive_texture';
 const String _kLightmapTextureSlot = 'lightmap_texture';
@@ -696,6 +700,7 @@ final class Renderer implements RenderServices {
   final NeighborMaxInfoBlock _neighborMaxInfo = NeighborMaxInfoBlock();
   final MotionBlurInfoBlock _motionBlurInfo = MotionBlurInfoBlock();
   final FogInfoBlock _fogInfo = FogInfoBlock();
+  final LayerInfoBlock _layerInfo = LayerInfoBlock();
   final FrameInfoBlock _frameInfo = FrameInfoBlock();
   final IdInfoBlock _idInfo = IdInfoBlock();
   final LineInfoBlock _lineInfo = LineInfoBlock();

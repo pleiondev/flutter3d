@@ -175,5 +175,6 @@ SurfaceMaterial _remapMaterial(SurfaceMaterial surface, Map<int, int> imageAt) {
     alphaCutoff: surface.alphaCutoff,
     doubleSided: surface.doubleSided,
     unlit: surface.unlit,
+    extensions: surface.extensions?.mapTextures(remap),
   );
 }
