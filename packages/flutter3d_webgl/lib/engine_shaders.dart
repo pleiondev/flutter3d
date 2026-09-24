@@ -3074,7 +3074,9 @@ layout(std140) uniform FragInfo {
   vec4 shadow_cascades;
 
   /// rgb: what a surface facing straight up receives from the environment.
-  /// w unused.
+  /// w: one when the metal-rough models' diffuse is EON rather than Lambert —
+  /// `L8`, `RenderSettings.diffuseModel`; a frame-wide switch in a frame-wide
+  /// vector, and the block's offsets stay where four backends agree on them.
   ///
   /// Appended after everything else on purpose: std140 lays a block out in
   /// declaration order, so adding here leaves every offset above unchanged and
@@ -4725,7 +4727,9 @@ layout(std140) uniform FragInfo {
   vec4 shadow_cascades;
 
   /// rgb: what a surface facing straight up receives from the environment.
-  /// w unused.
+  /// w: one when the metal-rough models' diffuse is EON rather than Lambert —
+  /// `L8`, `RenderSettings.diffuseModel`; a frame-wide switch in a frame-wide
+  /// vector, and the block's offsets stay where four backends agree on them.
   ///
   /// Appended after everything else on purpose: std140 lays a block out in
   /// declaration order, so adding here leaves every offset above unchanged and
@@ -6362,7 +6366,9 @@ layout(std140) uniform FragInfo {
   vec4 shadow_cascades;
 
   /// rgb: what a surface facing straight up receives from the environment.
-  /// w unused.
+  /// w: one when the metal-rough models' diffuse is EON rather than Lambert —
+  /// `L8`, `RenderSettings.diffuseModel`; a frame-wide switch in a frame-wide
+  /// vector, and the block's offsets stay where four backends agree on them.
   ///
   /// Appended after everything else on purpose: std140 lays a block out in
   /// declaration order, so adding here leaves every offset above unchanged and
@@ -8618,7 +8624,9 @@ layout(std140) uniform FragInfo {
   vec4 shadow_cascades;
 
   /// rgb: what a surface facing straight up receives from the environment.
-  /// w unused.
+  /// w: one when the metal-rough models' diffuse is EON rather than Lambert —
+  /// `L8`, `RenderSettings.diffuseModel`; a frame-wide switch in a frame-wide
+  /// vector, and the block's offsets stay where four backends agree on them.
   ///
   /// Appended after everything else on purpose: std140 lays a block out in
   /// declaration order, so adding here leaves every offset above unchanged and
@@ -10903,7 +10911,9 @@ layout(std140) uniform FragInfo {
   vec4 shadow_cascades;
 
   /// rgb: what a surface facing straight up receives from the environment.
-  /// w unused.
+  /// w: one when the metal-rough models' diffuse is EON rather than Lambert —
+  /// `L8`, `RenderSettings.diffuseModel`; a frame-wide switch in a frame-wide
+  /// vector, and the block's offsets stay where four backends agree on them.
   ///
   /// Appended after everything else on purpose: std140 lays a block out in
   /// declaration order, so adding here leaves every offset above unchanged and
@@ -12871,6 +12881,68 @@ vec3 MultiscatterScale(vec3 f0, Surface s) {
   return vec3(1.0) + f0 * (1.0 / ess - 1.0);
 }
 
+/// Whether the diffuse lobe is EON rather than Lambert — `L8`,
+/// `RenderSettings.diffuseModel`, in `FragInfo.ambient_sky.w`.
+bool EonDiffuse() { return frag_info.ambient_sky.w > 0.5; }
+
+/// The two constants of the Fujii Oren–Nayar lobe EON is built on:
+/// `1/2 − 2/(3π)`, which normalises its A term, and `2/3 − 28/(15π)`, which
+/// with it gives the lobe's albedo averaged over the hemisphere.
+const float kFonA = 0.5 - 2.0 / (3.0 * kPi);
+const float kFonAverage = 2.0 / 3.0 - 28.0 / (15.0 * kPi);
+
+/// The Fujii Oren–Nayar lobe's directional albedo at a cosine [mu] and
+/// roughness [r]: Portsmouth, Kutz and Hill's quartic fit of the exact
+/// integral, which trades an `acos` and a division by [mu] for four
+/// multiply-adds.
+float FonAlbedo(float mu, float r) {
+  float m = 1.0 - mu;
+  float g = m * (0.0571085289 +
+                 m * (0.491881867 + m * (-0.332181442 + m * 0.0714429953)));
+  return (1.0 + r * g) / (1.0 + kFonA * r);
+}
+
+/// The single-scattering lobe's albedo averaged over the hemisphere.
+float FonAverage(float r) {
+  return (1.0 + kFonAverage * r) / (1.0 + kFonA * r);
+}
+
+/// The albedo the light bouncing between the facets comes back with: one
+/// more factor of [rho] per bounce, summed. This is what saturates a rough
+/// colour, and what makes a white surface keep every bit of the light.
+vec3 EonMultiAlbedo(vec3 rho, float average) {
+  return rho * rho * average / (vec3(1.0) - rho * (1.0 - average));
+}
+
+/// EON, "An energy-preserving Oren–Nayar model", Portsmouth, Kutz and Hill,
+/// 2024: the Fujii Oren–Nayar lobe for one bounce off the facets, plus a
+/// lobe shaped by what that one misses at each end for the rest. [rho] the
+/// diffuse colour, [r] the roughness, [mu_i] and [mu_o] the cosines to the
+/// light and to the eye, [l_dot_v] the cosine between them. Divided by π,
+/// as `diffuseColor / kPi` is, so it stands in for it.
+vec3 EonLobe(vec3 rho, float r, float mu_i, float mu_o, float l_dot_v) {
+  // Oren–Nayar's `s / t`: how far the light and the eye stand on the same
+  // side of the normal, which is where the facets turned to both are seen.
+  float s = l_dot_v - mu_i * mu_o;
+  float s_over_t = s > 0.0 ? s / max(mu_i, mu_o) : s;
+  float af = 1.0 / (1.0 + kFonA * r);
+  vec3 single = rho * (af * (1.0 + r * s_over_t));
+  float average = FonAverage(r);
+  vec3 multi = EonMultiAlbedo(rho, average) *
+               (max(1.0 - FonAlbedo(mu_o, r), 1e-7) *
+                max(1.0 - FonAlbedo(mu_i, r), 1e-7) /
+                max(1.0 - average, 1e-7));
+  return (single + multi) / kPi;
+}
+
+/// [EonLobe] integrated over the hemisphere of light at a cosine [mu] to the
+/// eye: what it reflects of light that comes from everywhere alike, as an
+/// ambient, an environment's irradiance and a lightmap are taken to.
+vec3 EonAlbedo(vec3 rho, float r, float mu) {
+  float e = FonAlbedo(mu, r);
+  return rho * e + EonMultiAlbedo(rho, FonAverage(r)) * (1.0 - e);
+}
+
 vec3 ShadeLight(Surface s, LightSample light) {
   // Perceptual roughness is squared to get the GGX alpha; this is what makes
   // the roughness slider feel linear.
@@ -12925,6 +12997,14 @@ vec3 ShadeLight(Surface s, LightSample light) {
   if (EnergyCompensation()) specular *= MultiscatterScale(f0, s);
   // Energy left over after reflection is what scatters diffusely.
   vec3 diffuse = diffuseColor * (vec3(1.0) - f) / kPi;
+  if (EonDiffuse()) {
+    // `L8`: on the direction to the light rather than `n_dot_l`, which for
+    // a rectangle is a form factor and not a cosine.
+    diffuse = EonLobe(diffuseColor, s.roughness,
+                      clamp(dot(s.n, light.l), 1e-4, 1.0), s.n_dot_v,
+                      dot(light.l, s.v)) *
+              (vec3(1.0) - f);
+  }
 #ifdef F3D_LAYERED
   // `M3`: what passes through is not scattered back; a light on the viewer's
   // side reaches the eye through transmission only by the environment.
@@ -12960,6 +13040,13 @@ void main() {
 
   float metallic = clamp(s.metallic, 0.0, 1.0);
   vec3 diffuseColor = s.albedo * (1.0 - metallic);
+  // `L8`: light that arrives from everywhere alike — the flat ambient, the
+  // environment's irradiance, a lightmap, and under glass what passes
+  // through — is reflected by the EON lobe's albedo at this view rather than
+  // by the colour itself.
+  if (EonDiffuse()) {
+    diffuseColor = EonAlbedo(diffuseColor, s.roughness, s.n_dot_v);
+  }
 
   // Ambient occlusion darkens indirect light. It is applied to the direct term
   // too, which is not physical, but with no environment the flat ambient is far
@@ -13757,7 +13844,9 @@ layout(std140) uniform FragInfo {
   vec4 shadow_cascades;
 
   /// rgb: what a surface facing straight up receives from the environment.
-  /// w unused.
+  /// w: one when the metal-rough models' diffuse is EON rather than Lambert —
+  /// `L8`, `RenderSettings.diffuseModel`; a frame-wide switch in a frame-wide
+  /// vector, and the block's offsets stay where four backends agree on them.
   ///
   /// Appended after everything else on purpose: std140 lays a block out in
   /// declaration order, so adding here leaves every offset above unchanged and
@@ -15725,6 +15814,68 @@ vec3 MultiscatterScale(vec3 f0, Surface s) {
   return vec3(1.0) + f0 * (1.0 / ess - 1.0);
 }
 
+/// Whether the diffuse lobe is EON rather than Lambert — `L8`,
+/// `RenderSettings.diffuseModel`, in `FragInfo.ambient_sky.w`.
+bool EonDiffuse() { return frag_info.ambient_sky.w > 0.5; }
+
+/// The two constants of the Fujii Oren–Nayar lobe EON is built on:
+/// `1/2 − 2/(3π)`, which normalises its A term, and `2/3 − 28/(15π)`, which
+/// with it gives the lobe's albedo averaged over the hemisphere.
+const float kFonA = 0.5 - 2.0 / (3.0 * kPi);
+const float kFonAverage = 2.0 / 3.0 - 28.0 / (15.0 * kPi);
+
+/// The Fujii Oren–Nayar lobe's directional albedo at a cosine [mu] and
+/// roughness [r]: Portsmouth, Kutz and Hill's quartic fit of the exact
+/// integral, which trades an `acos` and a division by [mu] for four
+/// multiply-adds.
+float FonAlbedo(float mu, float r) {
+  float m = 1.0 - mu;
+  float g = m * (0.0571085289 +
+                 m * (0.491881867 + m * (-0.332181442 + m * 0.0714429953)));
+  return (1.0 + r * g) / (1.0 + kFonA * r);
+}
+
+/// The single-scattering lobe's albedo averaged over the hemisphere.
+float FonAverage(float r) {
+  return (1.0 + kFonAverage * r) / (1.0 + kFonA * r);
+}
+
+/// The albedo the light bouncing between the facets comes back with: one
+/// more factor of [rho] per bounce, summed. This is what saturates a rough
+/// colour, and what makes a white surface keep every bit of the light.
+vec3 EonMultiAlbedo(vec3 rho, float average) {
+  return rho * rho * average / (vec3(1.0) - rho * (1.0 - average));
+}
+
+/// EON, "An energy-preserving Oren–Nayar model", Portsmouth, Kutz and Hill,
+/// 2024: the Fujii Oren–Nayar lobe for one bounce off the facets, plus a
+/// lobe shaped by what that one misses at each end for the rest. [rho] the
+/// diffuse colour, [r] the roughness, [mu_i] and [mu_o] the cosines to the
+/// light and to the eye, [l_dot_v] the cosine between them. Divided by π,
+/// as `diffuseColor / kPi` is, so it stands in for it.
+vec3 EonLobe(vec3 rho, float r, float mu_i, float mu_o, float l_dot_v) {
+  // Oren–Nayar's `s / t`: how far the light and the eye stand on the same
+  // side of the normal, which is where the facets turned to both are seen.
+  float s = l_dot_v - mu_i * mu_o;
+  float s_over_t = s > 0.0 ? s / max(mu_i, mu_o) : s;
+  float af = 1.0 / (1.0 + kFonA * r);
+  vec3 single = rho * (af * (1.0 + r * s_over_t));
+  float average = FonAverage(r);
+  vec3 multi = EonMultiAlbedo(rho, average) *
+               (max(1.0 - FonAlbedo(mu_o, r), 1e-7) *
+                max(1.0 - FonAlbedo(mu_i, r), 1e-7) /
+                max(1.0 - average, 1e-7));
+  return (single + multi) / kPi;
+}
+
+/// [EonLobe] integrated over the hemisphere of light at a cosine [mu] to the
+/// eye: what it reflects of light that comes from everywhere alike, as an
+/// ambient, an environment's irradiance and a lightmap are taken to.
+vec3 EonAlbedo(vec3 rho, float r, float mu) {
+  float e = FonAlbedo(mu, r);
+  return rho * e + EonMultiAlbedo(rho, FonAverage(r)) * (1.0 - e);
+}
+
 vec3 ShadeLight(Surface s, LightSample light) {
   // Perceptual roughness is squared to get the GGX alpha; this is what makes
   // the roughness slider feel linear.
@@ -15779,6 +15930,14 @@ vec3 ShadeLight(Surface s, LightSample light) {
   if (EnergyCompensation()) specular *= MultiscatterScale(f0, s);
   // Energy left over after reflection is what scatters diffusely.
   vec3 diffuse = diffuseColor * (vec3(1.0) - f) / kPi;
+  if (EonDiffuse()) {
+    // `L8`: on the direction to the light rather than `n_dot_l`, which for
+    // a rectangle is a form factor and not a cosine.
+    diffuse = EonLobe(diffuseColor, s.roughness,
+                      clamp(dot(s.n, light.l), 1e-4, 1.0), s.n_dot_v,
+                      dot(light.l, s.v)) *
+              (vec3(1.0) - f);
+  }
 #ifdef F3D_LAYERED
   // `M3`: what passes through is not scattered back; a light on the viewer's
   // side reaches the eye through transmission only by the environment.
@@ -15814,6 +15973,13 @@ void main() {
 
   float metallic = clamp(s.metallic, 0.0, 1.0);
   vec3 diffuseColor = s.albedo * (1.0 - metallic);
+  // `L8`: light that arrives from everywhere alike — the flat ambient, the
+  // environment's irradiance, a lightmap, and under glass what passes
+  // through — is reflected by the EON lobe's albedo at this view rather than
+  // by the colour itself.
+  if (EonDiffuse()) {
+    diffuseColor = EonAlbedo(diffuseColor, s.roughness, s.n_dot_v);
+  }
 
   // Ambient occlusion darkens indirect light. It is applied to the direct term
   // too, which is not physical, but with no environment the flat ambient is far
@@ -16585,7 +16751,9 @@ layout(std140) uniform FragInfo {
   vec4 shadow_cascades;
 
   /// rgb: what a surface facing straight up receives from the environment.
-  /// w unused.
+  /// w: one when the metal-rough models' diffuse is EON rather than Lambert —
+  /// `L8`, `RenderSettings.diffuseModel`; a frame-wide switch in a frame-wide
+  /// vector, and the block's offsets stay where four backends agree on them.
   ///
   /// Appended after everything else on purpose: std140 lays a block out in
   /// declaration order, so adding here leaves every offset above unchanged and
@@ -27542,7 +27710,9 @@ layout(std140) uniform FragInfo {
   vec4 shadow_cascades;
 
   /// rgb: what a surface facing straight up receives from the environment.
-  /// w unused.
+  /// w: one when the metal-rough models' diffuse is EON rather than Lambert —
+  /// `L8`, `RenderSettings.diffuseModel`; a frame-wide switch in a frame-wide
+  /// vector, and the block's offsets stay where four backends agree on them.
   ///
   /// Appended after everything else on purpose: std140 lays a block out in
   /// declaration order, so adding here leaves every offset above unchanged and

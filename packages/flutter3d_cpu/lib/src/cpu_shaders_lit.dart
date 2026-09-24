@@ -445,6 +445,57 @@ final class PbrShader implements CpuFragmentShader {
         (2.0 * _pi);
   }
 
+  /// `kFonA` and `kFonAverage` in `pbr.glsl` — `L8`.
+  static const double _fonA = 0.5 - 2.0 / (3.0 * _pi);
+  static const double _fonAverage = 2.0 / 3.0 - 28.0 / (15.0 * _pi);
+
+  /// `FonAlbedo`: the Fujii Oren–Nayar lobe's directional albedo, fitted.
+  static double _fonAlbedo(double mu, double r) {
+    final m = 1.0 - mu;
+    final g =
+        m *
+        (0.0571085289 +
+            m * (0.491881867 + m * (-0.332181442 + m * 0.0714429953)));
+    return (1.0 + r * g) / (1.0 + _fonA * r);
+  }
+
+  /// `FonAverage`.
+  static double _fonAverageAlbedo(double r) =>
+      (1.0 + _fonAverage * r) / (1.0 + _fonA * r);
+
+  /// `EonMultiAlbedo`, one channel.
+  static double _eonMulti(double rho, double average) =>
+      rho * rho * average / (1.0 - rho * (1.0 - average));
+
+  /// `EonLobe`: EON for the diffuse colour [rho], divided by π.
+  static Vector3 eonLobe(
+    Vector3 rho,
+    double r,
+    double muI,
+    double muO,
+    double lDotV,
+  ) {
+    final s = lDotV - muI * muO;
+    final sOverT = s > 0.0 ? s / math.max(muI, muO) : s;
+    final single = 1.0 / (1.0 + _fonA * r) * (1.0 + r * sOverT);
+    final average = _fonAverageAlbedo(r);
+    final shape =
+        math.max(1.0 - _fonAlbedo(muO, r), 1e-7) *
+        math.max(1.0 - _fonAlbedo(muI, r), 1e-7) /
+        math.max(1.0 - average, 1e-7);
+    double channel(double c) =>
+        (c * single + _eonMulti(c, average) * shape) / _pi;
+    return Vector3(channel(rho.x), channel(rho.y), channel(rho.z));
+  }
+
+  /// `EonAlbedo`: [eonLobe] over the hemisphere of light, at [mu] to the eye.
+  static Vector3 eonAlbedo(Vector3 rho, double r, double mu) {
+    final e = _fonAlbedo(mu, r);
+    final average = _fonAverageAlbedo(r);
+    double channel(double c) => c * e + _eonMulti(c, average) * (1.0 - e);
+    return Vector3(channel(rho.x), channel(rho.y), channel(rho.z));
+  }
+
   /// `V_Neubelt`.
   static double _vNeubelt(double nDotV, double nDotL) =>
       1.0 / (4.0 * (nDotL + nDotV - nDotL * nDotV));
@@ -495,6 +546,9 @@ final class PbrShader implements CpuFragmentShader {
     // `EnergyCompensation()` — `L1`.
     final compensate =
         b.vec4('FragInfo', 'target_origin', Vector4.zero()).z > 0.5;
+    // `EonDiffuse()` — `L8`. Read on its own, with a zero default: the
+    // surface reads this vector with a white one for the colour.
+    final eon = b.vec4('FragInfo', 'ambient_sky', Vector4.zero()).w > 0.5;
     // Plain metal-rough reflects four per cent head-on and all of it at
     // grazing; the layered stage takes both from its layers. Doubles, not a
     // `Vector3`: its float32 lanes would round the plain stage's 0.04.
@@ -570,11 +624,20 @@ final class PbrShader implements CpuFragmentShader {
                   (ltc.x * specularStrength / math.max(light.nDotL, 1e-6));
         if (compensate) specular.multiply(_multiscatterScale(f0, s));
         // Energy left over after reflection is what scatters diffusely.
-        final diffuse = Vector3(
-          diffuseColour.x * (1.0 - f.x) / _pi,
-          diffuseColour.y * (1.0 - f.y) / _pi,
-          diffuseColour.z * (1.0 - f.z) / _pi,
-        );
+        final diffuse = eon
+            // `L8`: on the direction to the light, as `pbr.glsl` has it.
+            ? (eonLobe(
+                diffuseColour,
+                s.roughness,
+                s.normal.dot(light.direction).clamp(1e-4, 1.0),
+                s.nDotV,
+                light.direction.dot(s.view),
+              )..multiply(Vector3(1.0 - f.x, 1.0 - f.y, 1.0 - f.z)))
+            : Vector3(
+                diffuseColour.x * (1.0 - f.x) / _pi,
+                diffuseColour.y * (1.0 - f.y) / _pi,
+                diffuseColour.z * (1.0 - f.z) / _pi,
+              );
         // `M3`: what passes through is not scattered back.
         if (layers != null) diffuse.scale(1.0 - layers.transmission);
         // The pi puts the result back on the scale the tone mapper and the
@@ -602,7 +665,11 @@ final class PbrShader implements CpuFragmentShader {
     // Not physical; with no IBL the flat ambient is far too weak for an
     // occlusion map to be visible otherwise.
     final metallic = s.metallic.clamp(0.0, 1.0);
-    final diffuseColour = s.albedo * (1.0 - metallic);
+    // `L8`: light from everywhere alike meets the EON lobe's albedo at this
+    // view rather than the colour itself.
+    final diffuseColour = eon
+        ? eonAlbedo(s.albedo * (1.0 - metallic), s.roughness, s.nDotV)
+        : s.albedo * (1.0 - metallic);
     var ambient = (diffuseColour.clone()..multiply(s.ambient)).scaled(
       s.occlusion,
     );
