@@ -135,6 +135,8 @@ extension _ScenePasses on Renderer {
     _targetOrigin[1] = temporal
         ? math.log(settings.renderScale.clamp(0.1, 1.0)) / math.ln2 - 0.5
         : 0.0;
+    // `L1`: the metal-rough model's multiple scattering, on or off.
+    _targetOrigin[2] = settings.energyCompensation ? 1.0 : 0.0;
     final cameraPosition = vm.Vector3.zero();
 
     for (final view in ordered) {

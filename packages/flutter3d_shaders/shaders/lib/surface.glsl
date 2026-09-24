@@ -213,7 +213,9 @@ uniform FragInfo {
   /// which the shadow kernel's rotation reads through. y: the mip bias every
   /// material map is read with — `R2`: nought, except while a temporal
   /// resolve reconstructs a picture larger than the scene is drawn at, when
-  /// the maps are read as sharp as the output they end up in. zw unused.
+  /// the maps are read as sharp as the output they end up in. z: one when
+  /// the metal-rough model puts back the energy single scattering loses —
+  /// `L1`, `RenderSettings.energyCompensation`. w unused.
   vec4 target_origin;
 }
 frag_info;

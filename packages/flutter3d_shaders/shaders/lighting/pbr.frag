@@ -58,6 +58,20 @@ float LightVisibility(Surface s, LightSample light, int index) {
   return ShadowFactor(s, light, index);
 }
 
+/// Whether the energy lost to single scattering is put back — `L1`,
+/// `RenderSettings.energyCompensation`, in `FragInfo.target_origin.z`.
+bool EnergyCompensation() { return frag_info.target_origin.z > 0.5; }
+
+/// The light GGX loses on a rough metal, returned as the factor its single
+/// scattering has to be multiplied by: one plus f0 times the share of the
+/// hemisphere the single-scattering albedo misses. Fdez-Agüera's term, with
+/// the albedo the split sum already computes.
+vec3 MultiscatterScale(vec3 f0, Surface s) {
+  vec2 ab = EnvBrdfApprox(s.roughness, s.n_dot_v);
+  float ess = max(ab.x + ab.y, 1e-4);
+  return vec3(1.0) + f0 * (1.0 / ess - 1.0);
+}
+
 vec3 ShadeLight(Surface s, LightSample light) {
   // Perceptual roughness is squared to get the GGX alpha; this is what makes
   // the roughness slider feel linear.
@@ -73,6 +87,7 @@ vec3 ShadeLight(Surface s, LightSample light) {
   vec3 f = F_Schlick(f0, light.v_dot_h);
 
   vec3 specular = d * vis * f * frag_info.material.w;
+  if (EnergyCompensation()) specular *= MultiscatterScale(f0, s);
   // Energy left over after reflection is what scatters diffusely.
   vec3 diffuse = diffuseColor * (vec3(1.0) - f) / kPi;
 
@@ -120,8 +135,19 @@ void main() {
     // `ReflectionProbeNode.intensity` instead, because a probe is the room's
     // light already measured. The renderer decides which — see `_encodeNode`
     // in renderer_mesh_encode.dart — and this stage cannot tell them apart.
-    ambient = (diffuseColor * irradiance + prefiltered * (f0 * ab.x + ab.y)) *
-              frag_info.material.z * s.occlusion;
+    vec3 specular = prefiltered * (f0 * ab.x + ab.y);
+    if (EnergyCompensation()) {
+      // Fdez-Agüera: the single-scattered part as it was, and the multiple
+      // scattering it misses added from the irradiance, tinted by the average
+      // Fresnel — `L1`.
+      vec3 single = f0 * ab.x + ab.y;
+      float missed = 1.0 - (ab.x + ab.y);
+      vec3 average = f0 + (vec3(1.0) - f0) / 21.0;
+      vec3 multiple = single * average / (vec3(1.0) - missed * average);
+      specular += multiple * missed * irradiance;
+    }
+    ambient = (diffuseColor * irradiance + specular) * frag_info.material.z *
+              s.occlusion;
   }
   // The light the level's walls throw on each other, baked: diffuse only,
   // since a lightmap holds irradiance and a metal has no diffuse response.

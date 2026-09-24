@@ -155,6 +155,13 @@ final class BlinnPhongShader implements CpuFragmentShader {
 /// count and is zero when there is none, and the flat hemispheric ambient
 /// stands in then. Operation for operation with `pbr.frag`, because thirty
 /// golden images compare the two.
+/// `MultiscatterScale` from `pbr.frag` — `L1`.
+Vector3 _multiscatterScale(Vector3 f0, Surface s) {
+  final ab = _envBrdfApprox(s.roughness, s.nDotV);
+  final ess = math.max(ab.x + ab.y, 1e-4);
+  return Vector3.all(1.0) + f0 * (1.0 / ess - 1.0);
+}
+
 /// `EnvBrdfApprox` from `pbr.frag`: the split-sum BRDF as arithmetic.
 ///
 /// Karis' analytic fit, in place of the 2D lookup table this would otherwise
@@ -205,6 +212,9 @@ final class PbrShader implements CpuFragmentShader {
     applyCommonMaps(s, v, b, c);
     applyMetallicRoughnessMap(s, v, b, c);
     final specularStrength = b.vec4('FragInfo', 'material', Vector4.zero()).w;
+    // `EnergyCompensation()` — `L1`.
+    final compensate =
+        b.vec4('FragInfo', 'target_origin', Vector4.zero()).z > 0.5;
 
     final lit = accumulateLights(
       s,
@@ -230,6 +240,7 @@ final class PbrShader implements CpuFragmentShader {
         final f = _fSchlick(f0, light.vDotH);
 
         final specular = f * (d * vis * specularStrength);
+        if (compensate) specular.multiply(_multiscatterScale(f0, s));
         // Energy left over after reflection is what scatters diffusely.
         final diffuse = Vector3(
           diffuseColour.x * (1.0 - f.x) / _pi,
@@ -284,8 +295,24 @@ final class PbrShader implements CpuFragmentShader {
       final strength = b.vec4('FragInfo', 'material', Vector4.zero()).z;
       final diffusePart = diffuseColour.clone()
         ..multiply(Vector3(irradiance.x, irradiance.y, irradiance.z));
+      final single = f0 * ab.x + Vector3(ab.y, ab.y, ab.y);
       final specularPart = Vector3(prefiltered.x, prefiltered.y, prefiltered.z)
-        ..multiply(f0 * ab.x + Vector3(ab.y, ab.y, ab.y));
+        ..multiply(single);
+      if (compensate) {
+        // Fdez-Agüera, as `pbr.frag` adds it — `L1`.
+        final missed = 1.0 - (ab.x + ab.y);
+        final average = f0 + (Vector3.all(1.0) - f0) / 21.0;
+        final multiple = Vector3(
+          single.x * average.x / (1.0 - missed * average.x),
+          single.y * average.y / (1.0 - missed * average.y),
+          single.z * average.z / (1.0 - missed * average.z),
+        );
+        specularPart.add(
+          multiple
+            ..multiply(Vector3(irradiance.x, irradiance.y, irradiance.z))
+            ..scale(missed),
+        );
+      }
       ambient = ((diffusePart + specularPart) * strength).scaled(s.occlusion);
     }
     // The baked bounce light, diffuse only, as `pbr.frag` adds it.
