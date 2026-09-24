@@ -24042,6 +24042,798 @@ fn main(@builtin(position) gl_FragCoord: vec4<f32>, @location(5) v_uv: vec2<f32>
         ),
       ],
     ),
+    'VelocityTileMax': WebGpuStage(
+      wgsl: r'''
+struct TileMaxInfo {
+    source: vec4<f32>,
+    params: vec4<f32>,
+    target_: vec4<f32>,
+}
+
+@group(1) @binding(0) 
+var<uniform> tile_info: TileMaxInfo;
+var<private> v_uv_1: vec2<f32>;
+@group(1) @binding(1) 
+var velocity_texture_tex: texture_2d<f32>;
+@group(1) @binding(2) 
+var velocity_texture_smp: sampler;
+var<private> frag_color: vec4<f32>;
+
+fn HalfMotion_u0028_vf2_u003b(motion: ptr<function, vec2<f32>>) -> vec2<f32> {
+    var pixels: vec2<f32>;
+    var span: f32;
+    var most: f32;
+    var local: vec2<f32>;
+
+    let _e21 = (*motion);
+    let _e23 = tile_info.params;
+    pixels = (_e21 * _e23.xy);
+    let _e26 = pixels;
+    span = length(_e26);
+    let _e30 = tile_info.params[2u];
+    most = max(_e30, 0f);
+    let _e32 = span;
+    let _e33 = most;
+    if (_e32 > _e33) {
+        let _e35 = pixels;
+        let _e36 = most;
+        let _e37 = span;
+        local = (_e35 * (_e36 / _e37));
+    } else {
+        let _e40 = pixels;
+        local = _e40;
+    }
+    let _e41 = local;
+    return _e41;
+}
+
+fn main_1() {
+    var walk: vec2<f32>;
+    var tile: vec2<f32>;
+    var taps: i32;
+    var start: vec2<f32>;
+    var longest: vec2<f32>;
+    var longestSpan: f32;
+    var i: i32;
+    var at: vec2<f32>;
+    var motion_1: vec2<f32>;
+    var param: vec2<f32>;
+    var span_1: f32;
+
+    let _e28 = tile_info.source;
+    walk = _e28.zw;
+    let _e30 = v_uv_1;
+    let _e32 = tile_info.target_;
+    tile = floor((_e30 * _e32.xy));
+    let _e38 = tile_info.params[3u];
+    taps = i32((_e38 + 0.5f));
+    let _e41 = tile;
+    let _e42 = taps;
+    let _e45 = walk;
+    start = (_e41 * mix(vec2<f32>(1f, 1f), vec2(f32(_e42)), _e45));
+    longest = vec2<f32>(0f, 0f);
+    longestSpan = 0f;
+    i = 0i;
+    loop {
+        let _e48 = i;
+        if (_e48 < 64i) {
+            let _e50 = i;
+            let _e51 = taps;
+            if (_e50 >= _e51) {
+                break;
+            }
+            let _e53 = start;
+            let _e54 = walk;
+            let _e55 = i;
+            let _e62 = tile_info.source;
+            at = (((_e53 + (_e54 * f32(_e55))) + vec2(0.5f)) * _e62.xy);
+            let _e65 = at;
+            let _e66 = textureSampleLevel(velocity_texture_tex, velocity_texture_smp, _e65, 0f);
+            param = _e66.xy;
+            let _e68 = HalfMotion_u0028_vf2_u003b((&param));
+            motion_1 = _e68;
+            let _e69 = motion_1;
+            let _e70 = motion_1;
+            span_1 = dot(_e69, _e70);
+            let _e72 = span_1;
+            let _e73 = longestSpan;
+            if (_e72 > _e73) {
+                let _e75 = motion_1;
+                longest = _e75;
+                let _e76 = span_1;
+                longestSpan = _e76;
+            }
+            continue;
+        } else {
+            break;
+        }
+        continuing {
+            let _e77 = i;
+            i = (_e77 + 1i);
+        }
+    }
+    let _e79 = longest;
+    frag_color = vec4<f32>(_e79.x, _e79.y, 0f, 1f);
+    return;
+}
+
+@fragment 
+fn main(@location(5) v_uv: vec2<f32>) -> @location(0) vec4<f32> {
+    v_uv_1 = v_uv;
+    main_1();
+    let _e3 = frag_color;
+    return _e3;
+}
+''',
+      attributes: <WebGpuAttribute>[],
+      blocks: <WebGpuBlock>[
+        WebGpuBlock(
+          name: 'TileMaxInfo',
+          group: 1,
+          binding: 0,
+          sizeInBytes: 48,
+          members: <WebGpuBlockMember>[
+            WebGpuBlockMember(
+              name: 'source',
+              offsetInBytes: 0,
+              sizeInBytes: 16,
+            ),
+            WebGpuBlockMember(
+              name: 'params',
+              offsetInBytes: 16,
+              sizeInBytes: 16,
+            ),
+            WebGpuBlockMember(
+              name: 'target',
+              offsetInBytes: 32,
+              sizeInBytes: 16,
+            ),
+          ],
+        ),
+      ],
+      samplers: <WebGpuSampler>[
+        WebGpuSampler(
+          name: 'velocity_texture',
+          group: 1,
+          textureBinding: 1,
+          samplerBinding: 2,
+          dimension: WebGpuTextureDimension.twoDimensional,
+        ),
+      ],
+    ),
+    'VelocityNeighborMax': WebGpuStage(
+      wgsl: r'''
+struct NeighborMaxInfo {
+    texel: vec4<f32>,
+}
+
+var<private> v_uv_1: vec2<f32>;
+@group(1) @binding(0) 
+var<uniform> neighbor_info: NeighborMaxInfo;
+@group(1) @binding(1) 
+var tile_texture_tex: texture_2d<f32>;
+@group(1) @binding(2) 
+var tile_texture_smp: sampler;
+var<private> frag_color: vec4<f32>;
+
+fn main_1() {
+    var longest: vec2<f32>;
+    var longestSpan: f32;
+    var dy: i32;
+    var dx: i32;
+    var at: vec2<f32>;
+    var motion: vec2<f32>;
+    var span: f32;
+
+    longest = vec2<f32>(0f, 0f);
+    longestSpan = 0f;
+    dy = -1i;
+    loop {
+        let _e18 = dy;
+        if (_e18 <= 1i) {
+            dx = -1i;
+            loop {
+                let _e20 = dx;
+                if (_e20 <= 1i) {
+                    let _e22 = v_uv_1;
+                    let _e23 = dx;
+                    let _e25 = dy;
+                    let _e29 = neighbor_info.texel;
+                    at = (_e22 + (vec2<f32>(f32(_e23), f32(_e25)) * _e29.xy));
+                    let _e33 = at;
+                    let _e34 = textureSampleLevel(tile_texture_tex, tile_texture_smp, _e33, 0f);
+                    motion = _e34.xy;
+                    let _e36 = motion;
+                    let _e37 = motion;
+                    span = dot(_e36, _e37);
+                    let _e39 = span;
+                    let _e40 = longestSpan;
+                    if (_e39 > _e40) {
+                        let _e42 = motion;
+                        longest = _e42;
+                        let _e43 = span;
+                        longestSpan = _e43;
+                    }
+                    continue;
+                } else {
+                    break;
+                }
+                continuing {
+                    let _e44 = dx;
+                    dx = (_e44 + 1i);
+                }
+            }
+            continue;
+        } else {
+            break;
+        }
+        continuing {
+            let _e46 = dy;
+            dy = (_e46 + 1i);
+        }
+    }
+    let _e48 = longest;
+    frag_color = vec4<f32>(_e48.x, _e48.y, 0f, 1f);
+    return;
+}
+
+@fragment 
+fn main(@location(5) v_uv: vec2<f32>) -> @location(0) vec4<f32> {
+    v_uv_1 = v_uv;
+    main_1();
+    let _e3 = frag_color;
+    return _e3;
+}
+''',
+      attributes: <WebGpuAttribute>[],
+      blocks: <WebGpuBlock>[
+        WebGpuBlock(
+          name: 'NeighborMaxInfo',
+          group: 1,
+          binding: 0,
+          sizeInBytes: 16,
+          members: <WebGpuBlockMember>[
+            WebGpuBlockMember(name: 'texel', offsetInBytes: 0, sizeInBytes: 16),
+          ],
+        ),
+      ],
+      samplers: <WebGpuSampler>[
+        WebGpuSampler(
+          name: 'tile_texture',
+          group: 1,
+          textureBinding: 1,
+          samplerBinding: 2,
+          dimension: WebGpuTextureDimension.twoDimensional,
+        ),
+      ],
+    ),
+    'MotionBlur': WebGpuStage(
+      wgsl: r'''
+struct FragCoordInfo {
+    origin: vec4<f32>,
+}
+
+struct NoiseInfo {
+    noise: vec4<f32>,
+}
+
+struct MotionBlurInfo {
+    scene: vec4<f32>,
+    params: vec4<f32>,
+    tiles: vec4<f32>,
+}
+
+var<private> gl_FragCoord_1: vec4<f32>;
+@group(1) @binding(0) 
+var<uniform> frag_coord_info: FragCoordInfo;
+@group(1) @binding(2) 
+var<uniform> noise_info: NoiseInfo;
+@group(1) @binding(3) 
+var blue_noise_texture_tex: texture_2d<f32>;
+@group(1) @binding(4) 
+var blue_noise_texture_smp: sampler;
+@group(1) @binding(1) 
+var<uniform> blur_info: MotionBlurInfo;
+@group(1) @binding(7) 
+var scene_texture_tex: texture_2d<f32>;
+@group(1) @binding(8) 
+var scene_texture_smp: sampler;
+var<private> v_uv_1: vec2<f32>;
+@group(1) @binding(5) 
+var neighbor_texture_tex: texture_2d<f32>;
+@group(1) @binding(6) 
+var neighbor_texture_smp: sampler;
+var<private> frag_color: vec4<f32>;
+@group(1) @binding(11) 
+var velocity_texture_tex: texture_2d<f32>;
+@group(1) @binding(12) 
+var velocity_texture_smp: sampler;
+@group(1) @binding(9) 
+var surface_texture_tex: texture_2d<f32>;
+@group(1) @binding(10) 
+var surface_texture_smp: sampler;
+
+fn Cylinder_u0028_f1_u003b_f1_u003b(gap: ptr<function, f32>, span: ptr<function, f32>) -> f32 {
+    let _e66 = (*span);
+    let _e68 = (*span);
+    let _e70 = (*gap);
+    return (1f - smoothstep((0.95f * _e66), (1.05f * _e68), _e70));
+}
+
+fn Cone_u0028_f1_u003b_f1_u003b(gap_1: ptr<function, f32>, span_1: ptr<function, f32>) -> f32 {
+    let _e66 = (*gap_1);
+    let _e67 = (*span_1);
+    return clamp((1f - (_e66 / _e67)), 0f, 1f);
+}
+
+fn BayerCell_u0028_vf2_u003b(at: ptr<function, vec2<f32>>) -> f32 {
+    var x: i32;
+    var y: i32;
+    var index: i32;
+    var value: f32;
+
+    let _e70 = (*at)[0u];
+    x = i32((_e70 - (floor((_e70 / 4f)) * 4f)));
+    let _e77 = (*at)[1u];
+    y = i32((_e77 - (floor((_e77 / 4f)) * 4f)));
+    let _e83 = y;
+    let _e85 = x;
+    index = ((_e83 * 4i) + _e85);
+    value = 0f;
+    let _e87 = index;
+    if (_e87 == 0i) {
+        value = 0f;
+    } else {
+        let _e89 = index;
+        if (_e89 == 1i) {
+            value = 8f;
+        } else {
+            let _e91 = index;
+            if (_e91 == 2i) {
+                value = 2f;
+            } else {
+                let _e93 = index;
+                if (_e93 == 3i) {
+                    value = 10f;
+                } else {
+                    let _e95 = index;
+                    if (_e95 == 4i) {
+                        value = 12f;
+                    } else {
+                        let _e97 = index;
+                        if (_e97 == 5i) {
+                            value = 4f;
+                        } else {
+                            let _e99 = index;
+                            if (_e99 == 6i) {
+                                value = 14f;
+                            } else {
+                                let _e101 = index;
+                                if (_e101 == 7i) {
+                                    value = 6f;
+                                } else {
+                                    let _e103 = index;
+                                    if (_e103 == 8i) {
+                                        value = 3f;
+                                    } else {
+                                        let _e105 = index;
+                                        if (_e105 == 9i) {
+                                            value = 11f;
+                                        } else {
+                                            let _e107 = index;
+                                            if (_e107 == 10i) {
+                                                value = 1f;
+                                            } else {
+                                                let _e109 = index;
+                                                if (_e109 == 11i) {
+                                                    value = 9f;
+                                                } else {
+                                                    let _e111 = index;
+                                                    if (_e111 == 12i) {
+                                                        value = 15f;
+                                                    } else {
+                                                        let _e113 = index;
+                                                        if (_e113 == 13i) {
+                                                            value = 7f;
+                                                        } else {
+                                                            let _e115 = index;
+                                                            if (_e115 == 14i) {
+                                                                value = 13f;
+                                                            } else {
+                                                                value = 5f;
+                                                            }
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    let _e117 = value;
+    return (_e117 / 16f);
+}
+
+fn BlueNoise_u0028_vf2_u003b(at_1: ptr<function, vec2<f32>>) -> f32 {
+    var slice: f32;
+    var cell: vec2<f32>;
+    var corner: vec2<f32>;
+    var uv: vec2<f32>;
+
+    let _e71 = noise_info.noise[1u];
+    slice = _e71;
+    let _e72 = (*at_1);
+    let _e73 = floor(_e72);
+    let _e74 = vec2(64f);
+    cell = (_e73 - (floor((_e73 / _e74)) * _e74));
+    let _e79 = slice;
+    let _e84 = slice;
+    corner = (vec2<f32>((_e79 - (floor((_e79 / 8f)) * 8f)), floor((_e84 / 8f))) * 64f);
+    let _e89 = corner;
+    let _e90 = cell;
+    uv = (((_e89 + _e90) + vec2(0.5f)) / vec2<f32>(512f, 256f));
+    let _e95 = uv;
+    let _e96 = textureSampleLevel(blue_noise_texture_tex, blue_noise_texture_smp, _e95, 0f);
+    return (_e96.x * 0.99609375f);
+}
+
+fn PixelNoise_u0028_vf2_u003b(at_2: ptr<function, vec2<f32>>) -> f32 {
+    var local: f32;
+    var param: vec2<f32>;
+    var param_1: vec2<f32>;
+
+    let _e70 = noise_info.noise[0u];
+    if (_e70 > 0.5f) {
+        let _e72 = (*at_2);
+        param = _e72;
+        let _e73 = BlueNoise_u0028_vf2_u003b((&param));
+        local = _e73;
+    } else {
+        let _e74 = (*at_2);
+        param_1 = _e74;
+        let _e75 = BayerCell_u0028_vf2_u003b((&param_1));
+        local = _e75;
+    }
+    let _e76 = local;
+    return _e76;
+}
+
+fn FragCoordFromTop_u0028_f1_u003b(rows: ptr<function, f32>) -> vec2<f32> {
+    var local_1: vec2<f32>;
+
+    let _e66 = (*rows);
+    if (_e66 > 0f) {
+        let _e69 = gl_FragCoord_1[0u];
+        let _e70 = (*rows);
+        let _e72 = gl_FragCoord_1[1u];
+        local_1 = vec2<f32>(_e69, (_e70 - _e72));
+    } else {
+        let _e75 = gl_FragCoord_1;
+        local_1 = _e75.xy;
+    }
+    let _e77 = local_1;
+    return _e77;
+}
+
+fn TargetFragCoord_u0028_() -> vec2<f32> {
+    var param_2: f32;
+
+    let _e67 = frag_coord_info.origin[0u];
+    param_2 = _e67;
+    let _e68 = FragCoordFromTop_u0028_f1_u003b((&param_2));
+    return _e68;
+}
+
+fn Far_u0028_f1_u003b(depth: ptr<function, f32>) -> f32 {
+    let _e65 = (*depth);
+    let _e67 = (*depth);
+    return select(_e67, 1000000000f, (_e65 <= 0f));
+}
+
+fn HalfMotion_u0028_vf2_u003b(motion: ptr<function, vec2<f32>>) -> vec2<f32> {
+    var pixels: vec2<f32>;
+    var span_2: f32;
+    var most: f32;
+    var local_2: vec2<f32>;
+
+    let _e69 = (*motion);
+    let _e71 = blur_info.params;
+    pixels = (_e69 * _e71.xy);
+    let _e74 = pixels;
+    span_2 = length(_e74);
+    let _e78 = blur_info.params[2u];
+    most = max(_e78, 0f);
+    let _e80 = span_2;
+    let _e81 = most;
+    if (_e80 > _e81) {
+        let _e83 = pixels;
+        let _e84 = most;
+        let _e85 = span_2;
+        local_2 = (_e83 * (_e84 / _e85));
+    } else {
+        let _e88 = pixels;
+        local_2 = _e88;
+    }
+    let _e89 = local_2;
+    return _e89;
+}
+
+fn main_1() {
+    var centre: vec4<f32>;
+    var here: vec2<f32>;
+    var tile: vec2<f32>;
+    var dominant: vec2<f32>;
+    var samples: i32;
+    var ownSpan: f32;
+    var param_3: vec2<f32>;
+    var ownDepth: f32;
+    var param_4: f32;
+    var extent: f32;
+    var weight: f32;
+    var total: vec3<f32>;
+    var jitter: f32;
+    var param_5: vec2<f32>;
+    var middle: i32;
+    var i: i32;
+    var t: f32;
+    var there: vec2<f32>;
+    var at_3: vec2<f32>;
+    var gap_2: f32;
+    var tap: vec4<f32>;
+    var tapSpan: f32;
+    var param_6: vec2<f32>;
+    var tapDepth: f32;
+    var param_7: f32;
+    var front: f32;
+    var back: f32;
+    var reach: f32;
+    var param_8: f32;
+    var param_9: f32;
+    var param_10: f32;
+    var param_11: f32;
+    var param_12: f32;
+    var param_13: f32;
+    var param_14: f32;
+    var param_15: f32;
+
+    let _e100 = v_uv_1;
+    let _e101 = textureSampleLevel(scene_texture_tex, scene_texture_smp, _e100, 0f);
+    centre = _e101;
+    let _e102 = v_uv_1;
+    let _e104 = blur_info.scene;
+    here = (_e102 * _e104.zw);
+    let _e107 = here;
+    let _e110 = blur_info.tiles[2u];
+    tile = floor((_e107 / vec2(max(_e110, 1f))));
+    let _e115 = tile;
+    let _e119 = blur_info.tiles;
+    let _e122 = textureSampleLevel(neighbor_texture_tex, neighbor_texture_smp, ((_e115 + vec2(0.5f)) / _e119.xy), 0f);
+    dominant = _e122.xy;
+    let _e126 = blur_info.params[3u];
+    samples = i32((_e126 + 0.5f));
+    let _e129 = dominant;
+    let _e132 = samples;
+    if ((length(_e129) <= 0.5f) || (_e132 < 1i)) {
+        let _e135 = centre;
+        frag_color = _e135;
+        return;
+    }
+    let _e136 = v_uv_1;
+    let _e137 = textureSampleLevel(velocity_texture_tex, velocity_texture_smp, _e136, 0f);
+    param_3 = _e137.xy;
+    let _e139 = HalfMotion_u0028_vf2_u003b((&param_3));
+    ownSpan = max(length(_e139), 0.5f);
+    let _e142 = v_uv_1;
+    let _e143 = textureSampleLevel(surface_texture_tex, surface_texture_smp, _e142, 0f);
+    param_4 = _e143.w;
+    let _e145 = Far_u0028_f1_u003b((&param_4));
+    ownDepth = _e145;
+    let _e148 = blur_info.tiles[3u];
+    extent = max(_e148, 0.0001f);
+    let _e150 = ownSpan;
+    weight = (1f / _e150);
+    let _e152 = centre;
+    let _e154 = weight;
+    total = (_e152.xyz * _e154);
+    let _e156 = TargetFragCoord_u0028_();
+    param_5 = _e156;
+    let _e157 = PixelNoise_u0028_vf2_u003b((&param_5));
+    jitter = (_e157 - 0.5f);
+    let _e159 = samples;
+    middle = ((_e159 - 1i) / 2i);
+    i = 0i;
+    loop {
+        let _e162 = i;
+        if (_e162 < 64i) {
+            let _e164 = i;
+            let _e165 = samples;
+            if (_e164 >= _e165) {
+                break;
+            }
+            let _e167 = i;
+            let _e168 = middle;
+            if (_e167 == _e168) {
+                continue;
+            }
+            let _e170 = i;
+            let _e172 = jitter;
+            let _e175 = samples;
+            t = mix(-1f, 1f, (((f32(_e170) + _e172) + 1f) / f32((_e175 + 1i))));
+            let _e180 = here;
+            let _e181 = dominant;
+            let _e182 = t;
+            there = (floor((_e180 + (_e181 * _e182))) + vec2(0.5f));
+            let _e188 = there;
+            let _e190 = blur_info.scene;
+            at_3 = (_e188 * _e190.xy);
+            let _e193 = there;
+            let _e194 = here;
+            gap_2 = length((_e193 - _e194));
+            let _e197 = at_3;
+            let _e198 = textureSampleLevel(scene_texture_tex, scene_texture_smp, _e197, 0f);
+            tap = _e198;
+            let _e199 = at_3;
+            let _e200 = textureSampleLevel(velocity_texture_tex, velocity_texture_smp, _e199, 0f);
+            param_6 = _e200.xy;
+            let _e202 = HalfMotion_u0028_vf2_u003b((&param_6));
+            tapSpan = max(length(_e202), 0.5f);
+            let _e205 = at_3;
+            let _e206 = textureSampleLevel(surface_texture_tex, surface_texture_smp, _e205, 0f);
+            param_7 = _e206.w;
+            let _e208 = Far_u0028_f1_u003b((&param_7));
+            tapDepth = _e208;
+            let _e209 = tapDepth;
+            let _e210 = ownDepth;
+            let _e212 = extent;
+            front = clamp((1f - ((_e209 - _e210) / _e212)), 0f, 1f);
+            let _e216 = ownDepth;
+            let _e217 = tapDepth;
+            let _e219 = extent;
+            back = clamp((1f - ((_e216 - _e217) / _e219)), 0f, 1f);
+            let _e223 = front;
+            let _e224 = gap_2;
+            param_8 = _e224;
+            let _e225 = tapSpan;
+            param_9 = _e225;
+            let _e226 = Cone_u0028_f1_u003b_f1_u003b((&param_8), (&param_9));
+            let _e228 = back;
+            let _e229 = gap_2;
+            param_10 = _e229;
+            let _e230 = ownSpan;
+            param_11 = _e230;
+            let _e231 = Cone_u0028_f1_u003b_f1_u003b((&param_10), (&param_11));
+            let _e234 = gap_2;
+            param_12 = _e234;
+            let _e235 = tapSpan;
+            param_13 = _e235;
+            let _e236 = Cylinder_u0028_f1_u003b_f1_u003b((&param_12), (&param_13));
+            let _e237 = gap_2;
+            param_14 = _e237;
+            let _e238 = ownSpan;
+            param_15 = _e238;
+            let _e239 = Cylinder_u0028_f1_u003b_f1_u003b((&param_14), (&param_15));
+            reach = (((_e223 * _e226) + (_e228 * _e231)) + ((_e236 * _e239) * 2f));
+            let _e243 = tap;
+            let _e245 = reach;
+            let _e247 = total;
+            total = (_e247 + (_e243.xyz * _e245));
+            let _e249 = reach;
+            let _e250 = weight;
+            weight = (_e250 + _e249);
+            continue;
+        } else {
+            break;
+        }
+        continuing {
+            let _e252 = i;
+            i = (_e252 + 1i);
+        }
+    }
+    let _e254 = total;
+    let _e255 = weight;
+    let _e257 = (_e254 / vec3(_e255));
+    let _e259 = centre[3u];
+    frag_color = vec4<f32>(_e257.x, _e257.y, _e257.z, _e259);
+    return;
+}
+
+@fragment 
+fn main(@builtin(position) gl_FragCoord: vec4<f32>, @location(5) v_uv: vec2<f32>) -> @location(0) vec4<f32> {
+    gl_FragCoord_1 = gl_FragCoord;
+    v_uv_1 = v_uv;
+    main_1();
+    let _e5 = frag_color;
+    return _e5;
+}
+''',
+      attributes: <WebGpuAttribute>[],
+      blocks: <WebGpuBlock>[
+        WebGpuBlock(
+          name: 'FragCoordInfo',
+          group: 1,
+          binding: 0,
+          sizeInBytes: 16,
+          members: <WebGpuBlockMember>[
+            WebGpuBlockMember(
+              name: 'origin',
+              offsetInBytes: 0,
+              sizeInBytes: 16,
+            ),
+          ],
+        ),
+        WebGpuBlock(
+          name: 'MotionBlurInfo',
+          group: 1,
+          binding: 1,
+          sizeInBytes: 48,
+          members: <WebGpuBlockMember>[
+            WebGpuBlockMember(name: 'scene', offsetInBytes: 0, sizeInBytes: 16),
+            WebGpuBlockMember(
+              name: 'params',
+              offsetInBytes: 16,
+              sizeInBytes: 16,
+            ),
+            WebGpuBlockMember(
+              name: 'tiles',
+              offsetInBytes: 32,
+              sizeInBytes: 16,
+            ),
+          ],
+        ),
+        WebGpuBlock(
+          name: 'NoiseInfo',
+          group: 1,
+          binding: 2,
+          sizeInBytes: 16,
+          members: <WebGpuBlockMember>[
+            WebGpuBlockMember(name: 'noise', offsetInBytes: 0, sizeInBytes: 16),
+          ],
+        ),
+      ],
+      samplers: <WebGpuSampler>[
+        WebGpuSampler(
+          name: 'blue_noise_texture',
+          group: 1,
+          textureBinding: 3,
+          samplerBinding: 4,
+          dimension: WebGpuTextureDimension.twoDimensional,
+        ),
+        WebGpuSampler(
+          name: 'neighbor_texture',
+          group: 1,
+          textureBinding: 5,
+          samplerBinding: 6,
+          dimension: WebGpuTextureDimension.twoDimensional,
+        ),
+        WebGpuSampler(
+          name: 'scene_texture',
+          group: 1,
+          textureBinding: 7,
+          samplerBinding: 8,
+          dimension: WebGpuTextureDimension.twoDimensional,
+        ),
+        WebGpuSampler(
+          name: 'surface_texture',
+          group: 1,
+          textureBinding: 9,
+          samplerBinding: 10,
+          dimension: WebGpuTextureDimension.twoDimensional,
+        ),
+        WebGpuSampler(
+          name: 'velocity_texture',
+          group: 1,
+          textureBinding: 11,
+          samplerBinding: 12,
+          dimension: WebGpuTextureDimension.twoDimensional,
+        ),
+      ],
+    ),
     'ViewportShade': WebGpuStage(
       wgsl: r'''
 struct ShadeInfo {

@@ -517,6 +517,40 @@ final class MorphInstanceInfoBlock extends UniformBlock {
   };
 }
 
+/// `MotionBlurInfo`.
+final class MotionBlurInfoBlock extends UniformBlock {
+  MotionBlurInfoBlock() : super('MotionBlurInfo');
+
+  /// `scene`: Vector4, at byte 0.
+  final Float32List scene = Float32List(4);
+
+  /// `params`: Vector4, at byte 16.
+  final Float32List params = Float32List(4);
+
+  /// `tiles`: Vector4, at byte 32.
+  final Float32List tiles = Float32List(4);
+
+  @override
+  late final Map<String, Float32List> members = <String, Float32List>{
+    'scene': scene,
+    'params': params,
+    'tiles': tiles,
+  };
+}
+
+/// `NeighborMaxInfo`.
+final class NeighborMaxInfoBlock extends UniformBlock {
+  NeighborMaxInfoBlock() : super('NeighborMaxInfo');
+
+  /// `texel`: Vector4, at byte 0.
+  final Float32List texel = Float32List(4);
+
+  @override
+  late final Map<String, Float32List> members = <String, Float32List>{
+    'texel': texel,
+  };
+}
+
 /// `NoiseInfo`.
 final class NoiseInfoBlock extends UniformBlock {
   NoiseInfoBlock() : super('NoiseInfo');
@@ -845,6 +879,27 @@ final class TemporalInfoBlock extends UniformBlock {
     'scene_texel': sceneTexel,
     'jitter': jitter,
     'params': params,
+  };
+}
+
+/// `TileMaxInfo`.
+final class TileMaxInfoBlock extends UniformBlock {
+  TileMaxInfoBlock() : super('TileMaxInfo');
+
+  /// `source`: Vector4, at byte 0.
+  final Float32List source = Float32List(4);
+
+  /// `params`: Vector4, at byte 16.
+  final Float32List params = Float32List(4);
+
+  /// `target`: Vector4, at byte 32.
+  final Float32List target = Float32List(4);
+
+  @override
+  late final Map<String, Float32List> members = <String, Float32List>{
+    'source': source,
+    'params': params,
+    'target': target,
   };
 }
 
