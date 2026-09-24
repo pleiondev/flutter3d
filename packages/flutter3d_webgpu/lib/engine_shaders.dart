@@ -24599,6 +24599,7 @@ fn main(@location(4) v_texcoord: vec2<f32>, @location(6) v_world_position: vec3<
       wgsl: r'''
 struct ShadowCopyInfo {
     tile: vec4<f32>,
+    shift: vec4<f32>,
 }
 
 struct FragmentOutput {
@@ -24606,28 +24607,56 @@ struct FragmentOutput {
     @builtin(frag_depth) member_1: f32,
 }
 
+var<private> v_uv_1: vec2<f32>;
+@group(1) @binding(0) 
+var<uniform> copy_info: ShadowCopyInfo;
 @group(1) @binding(1) 
 var static_shadow_texture_tex: texture_2d<f32>;
 @group(1) @binding(2) 
 var static_shadow_texture_smp: sampler;
-@group(1) @binding(0) 
-var<uniform> copy_info: ShadowCopyInfo;
-var<private> v_uv_1: vec2<f32>;
 var<private> frag_color: vec4<f32>;
 var<private> gl_FragDepth: f32 = 0f;
 
 fn main_1() {
+    var from_: vec2<f32>;
+    var inside: bool;
+    var stored: f32;
     var depth: f32;
+    var local: f32;
+    var phi_40_: bool;
 
-    let _e12 = copy_info.tile;
-    let _e14 = v_uv_1;
-    let _e16 = copy_info.tile;
-    let _e20 = textureSampleLevel(static_shadow_texture_tex, static_shadow_texture_smp, (_e12.xy + (_e14 * _e16.zw)), 0f);
-    depth = _e20.x;
-    let _e22 = depth;
-    frag_color = vec4<f32>(_e22, 0f, 0f, 1f);
-    let _e24 = depth;
-    gl_FragDepth = _e24;
+    let _e19 = v_uv_1;
+    let _e21 = copy_info.shift;
+    from_ = (_e19 - _e21.xy);
+    let _e24 = from_;
+    let _e26 = all((_e24 >= vec2<f32>(0f, 0f)));
+    phi_40_ = _e26;
+    if _e26 {
+        let _e27 = from_;
+        phi_40_ = all((_e27 <= vec2<f32>(1f, 1f)));
+    }
+    let _e31 = phi_40_;
+    inside = _e31;
+    let _e33 = copy_info.tile;
+    let _e35 = from_;
+    let _e40 = copy_info.tile;
+    let _e44 = textureSampleLevel(static_shadow_texture_tex, static_shadow_texture_smp, (_e33.xy + (clamp(_e35, vec2(0f), vec2(1f)) * _e40.zw)), 0f);
+    stored = _e44.x;
+    let _e46 = inside;
+    let _e47 = stored;
+    if (_e46 && (_e47 < 1f)) {
+        let _e50 = stored;
+        let _e53 = copy_info.shift[2u];
+        local = clamp((_e50 + _e53), 0f, 1f);
+    } else {
+        local = 1f;
+    }
+    let _e56 = local;
+    depth = _e56;
+    let _e57 = depth;
+    frag_color = vec4<f32>(_e57, 0f, 0f, 1f);
+    let _e59 = depth;
+    gl_FragDepth = _e59;
     return;
 }
 
@@ -24646,9 +24675,14 @@ fn main(@location(5) v_uv: vec2<f32>) -> FragmentOutput {
           name: 'ShadowCopyInfo',
           group: 1,
           binding: 0,
-          sizeInBytes: 16,
+          sizeInBytes: 32,
           members: <WebGpuBlockMember>[
             WebGpuBlockMember(name: 'tile', offsetInBytes: 0, sizeInBytes: 16),
+            WebGpuBlockMember(
+              name: 'shift',
+              offsetInBytes: 16,
+              sizeInBytes: 16,
+            ),
           ],
         ),
       ],

@@ -494,6 +494,7 @@ final class Renderer implements RenderServices {
       _fallbackEnvironment,
       _shadowMap,
       _shadowMapStatic,
+      _shadowMapStaticSpare,
       _shadowDepth,
       _cubeShadow,
       _cubeShadowStatic,
@@ -513,6 +514,7 @@ final class Renderer implements RenderServices {
     _fallbackEnvironment = null;
     _shadowMap = null;
     _shadowMapStatic = null;
+    _shadowMapStaticSpare = null;
     _shadowDepth = null;
     _cubeShadow = null;
     _cubeShadowStatic = null;
@@ -1066,6 +1068,20 @@ final class Renderer implements RenderServices {
   /// change, and copied tile by tile into [_shadowMap] under the dynamic
   /// ones. Null while nothing in the scene is marked static.
   TextureHandle? _shadowMapStatic;
+
+  /// The other static atlas, which a frame that changes a static tile draws
+  /// into from [_shadowMapStatic] before the two change places — `S1`.
+  TextureHandle? _shadowMapStaticSpare;
+
+  /// The matrices each static tile was drawn with, for the next frame to
+  /// scroll it by, and the static casters' key it was drawn under.
+  final List<vm.Matrix4?> _staticShaderMatrices = <vm.Matrix4?>[
+    null,
+    null,
+    null,
+  ];
+  final List<vm.Matrix4?> _staticRawMatrices = <vm.Matrix4?>[null, null, null];
+  int? _staticSceneKey;
 
   /// The depth buffer the cascade atlas is drawn with, kept for as long as the
   /// atlas is rather than borrowed from the pool a frame at a time.
