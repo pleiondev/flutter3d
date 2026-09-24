@@ -26,6 +26,7 @@ import 'debug_draw_gizmos.dart';
 import 'empty_frame.dart';
 import 'frame_capture.dart';
 import 'frame_graph.dart';
+import 'frame_history.dart';
 import 'frame_plan.dart';
 import 'frame_resources.dart';
 import 'identity_indices.dart';
@@ -491,6 +492,18 @@ final class Renderer implements RenderServices {
   /// `GraphicsDevice.beginFrame` rotates them. The ring length is the same fact
   /// twice, which is why it is named once here and once there.
   int _frameIndex = 0;
+
+  /// How many frames this renderer has drawn — `G2`.
+  ///
+  /// Public because everything temporal is a function of it and of nothing
+  /// else: a jitter sequence, a noise layer, a history's age. Two runs that
+  /// draw the same frames in the same order see the same numbers, which is
+  /// what keeps a multi-frame golden as deterministic as a still.
+  int get frameIndex => _frameIndex;
+
+  /// What the previous frame looked like — `G2`. Recorded at the end of each
+  /// frame while [FrameHistory.tracking] is on, and read during the next.
+  final FrameHistory frameHistory = FrameHistory();
 
   static const int _kFramesInFlight = 3;
 
@@ -3596,6 +3609,24 @@ final class Renderer implements RenderServices {
     // produced no version of `frame` at all — where the engine's own target is
     // genuinely all there is.
     final frame = resources.output(FrameResourceIds.frame) ?? _ldrColor!;
+
+    // After every pass, so that nothing drawn this frame read its own state
+    // back as last frame's. The view-projections are the unjittered ones, the
+    // same matrices the scene pass derived, because a reprojection has to
+    // undo motion and not the jitter.
+    if (frameHistory.tracking) {
+      frameHistory.endFrame(
+        frame: _frameIndex,
+        meshes: scene.meshes,
+        viewProjections: <vm.Matrix4>[
+          for (final view in views)
+            if (_viewportPixels(view.viewportFraction, width, height)
+                case final rect)
+              _viewProjection(view.camera, rect.width / rect.height),
+        ],
+      );
+    }
+
     // The frame is encoded and submitted: everything it released is in this
     // slot, and the next two frames must not touch it.
     _frameIndex++;
