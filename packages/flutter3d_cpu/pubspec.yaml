@@ -17,17 +17,16 @@ environment:
 
 dependencies:
   flutter3d_hardware: ^0.8.0
+  # `stageBindings`: what each of the engine's compiled stages keeps, which
+  # the library hands every stage as `ShaderHandle.kept` and the encoder
+  # refuses binds against — `gfx-92n`. A table of names and nothing else.
+  flutter3d_shaders: ^0.8.0
   vector_math: ^2.4.3
 
 dev_dependencies:
   test: ^1.25.0
   flutter_lints: ^6.0.0
   flutter3d_conformance: ^0.8.0
-  # For `shader_names_test.dart` alone: the entry-point names it checks
-  # against are `flutter3d_shaders`'s own. Not a real dependency — nothing in
-  # `lib/` reaches it. Both this and `flutter3d_conformance` above are flat
-  # themselves now, so neither carries the Flutter SDK in here any more.
-  flutter3d_shaders: ^0.8.0
   # For `render_project_test.dart` alone: `renderProject` itself
   # (`flutter3d_model_core`) and `ParametricCuboid` to build a project to hand
   # it (`flutter3d_mesh`). Not a real dependency — nothing in `lib/` reaches

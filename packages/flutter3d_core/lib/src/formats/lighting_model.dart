@@ -29,6 +29,15 @@
 /// The truth is printed by `tool/build_shaders.sh` after every build, as a table
 /// of what each entry point actually kept. When this metadata and that table
 /// disagree, the table is right.
+///
+/// **And since 0.8.0 the table is what binds — `gfx-92n`.** Every backend hands
+/// the engine's own stages that table as `ShaderHandle.kept`, the renderer asks
+/// it first, and an encoder refuses anything it names as dropped. The binding
+/// flags below are the answer only for a stage the device cannot answer for —
+/// one from an application's own bundle, or a material language stage — and
+/// on the built-in models they are the fallback a device without the table
+/// would use. `usesMaterialParameters` and `usesMetallic` are not about
+/// binding at all: they tell an editor which controls do something.
 final class LightingModel {
   const LightingModel(
     this.label,

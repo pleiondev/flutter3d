@@ -49,6 +49,8 @@
 library;
 
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
+import 'package:flutter3d_shaders/stage_bindings.dart';
+import 'package:flutter3d_shaders/uniform_blocks.dart' show uniformBlocks;
 
 import 'webgpu_bundle_section.dart';
 
@@ -179,7 +181,11 @@ ShaderHandle compileWebGpuStage(
   String name,
   WebGpuStage stage, {
   required bool isVertex,
+  StageBindings? kept,
+  Map<String, Map<String, UniformMemberLayout>>? layouts,
 }) => ShaderHandle(
+  kept: kept,
+  layouts: layouts,
   backend: WebGpuShader(
     name: name,
     isVertex: isVertex,
@@ -226,7 +232,14 @@ final class WebGpuShaderLibrary implements ShaderLibrary {
     if (stage == null) return null;
     // A failed compile throws out of `putIfAbsent`, so it is never cached and
     // the next ask tries again.
-    return compileWebGpuStage(_compiler, name, stage, isVertex: isVertex);
+    return compileWebGpuStage(
+      _compiler,
+      name,
+      stage,
+      isVertex: isVertex,
+      kept: stageBindings[name],
+      layouts: uniformBlocks[name],
+    );
   }
 
   /// Drops the handles this library has handed out.

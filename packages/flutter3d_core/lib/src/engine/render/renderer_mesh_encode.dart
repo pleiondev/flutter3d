@@ -45,6 +45,21 @@ extension _MeshEncode on Renderer {
   /// this file already gives about the material binding: two copies of a
   /// binding eventually disagree, and the disagreement arrives as a picture
   /// nobody can explain.
+  /// Whether [stage] keeps [block]: what its compiled bundle says, and
+  /// [declared] only where the device cannot say — `gfx-92n`.
+  bool _keepsBlock(
+    ShaderHandle stage,
+    String block, {
+    required bool declared,
+  }) => stage.kept?.blocks.contains(block) ?? declared;
+
+  /// Whether [stage] keeps [sampler], as [_keepsBlock].
+  bool _keepsSampler(
+    ShaderHandle stage,
+    String sampler, {
+    required bool declared,
+  }) => stage.kept?.samplers.contains(sampler) ?? declared;
+
   void _bindMorph(PassEncoder pass, ShaderHandle stage, [MorphState? morph]) {
     final count = morph == null
         ? 0
@@ -278,7 +293,11 @@ extension _MeshEncode on Renderer {
     // the node is the wrong question: a stage declares what it declares.
     final ownStage =
         !batched && !lightmapped && material.lighting.vertexShaderName != null;
-    if (!ownStage || material.lighting.vertexStageMorphs) {
+    if (_keepsBlock(
+      activeVertexShader,
+      _kMorphInfoBlock,
+      declared: !ownStage || material.lighting.vertexStageMorphs,
+    )) {
       _bindMorph(encoder, activeVertexShader, node.morph);
     }
     if (batched) _bindInstanceMorph(encoder, activeVertexShader, instanced);
@@ -338,7 +357,12 @@ extension _MeshEncode on Renderer {
     // coordinate, which is why the local `lightmapped` is the one asked here
     // rather than `node.lightmapped`. What a wall gives up is its specular
     // lobe, and a rough dielectric's is very nearly nothing.
-    final probe = material.lighting.usesEnvironment && !lightmapped
+    final readsEnvironment = _keepsSampler(
+      fragmentShader,
+      _kEnvironmentTextureSlot,
+      declared: material.lighting.usesEnvironment,
+    );
+    final probe = readsEnvironment && !lightmapped
         ? probes.nearest(node.worldBoundsCentre)
         : null;
     final environment =
@@ -366,7 +390,18 @@ extension _MeshEncode on Renderer {
     final drawLights = draw.lights;
     final drawShadowSlots = draw.shadowSlots;
 
-    if (material.lighting.usesFragInfo) {
+    // **What the compiled stage kept decides, not what the model says —
+    // `gfx-92n`.** Each gate below asks `ShaderHandle.kept`, which the
+    // device fills from the bundle's own table for every stage of the
+    // engine's, and falls back to the model's declared flag only for a stage
+    // the device cannot answer for: one from an application's own bundle.
+    // The flags were kept in step with the shaders by hand, and 0.7.1 was
+    // the frame where one was not.
+    if (_keepsBlock(
+      fragmentShader,
+      _kFragInfoBlock,
+      declared: material.lighting.usesFragInfo,
+    )) {
       _baseColorData[0] = material.baseColor.x;
       _baseColorData[1] = material.baseColor.y;
       _baseColorData[2] = material.baseColor.z;
@@ -457,7 +492,11 @@ extension _MeshEncode on Renderer {
       // declares FragInfo but reaches no lighting loop, so the compiler drops
       // all three of these — and binding a block the compiled shader does not
       // have is a native failure, not a no-op.
-      if (material.lighting.usesPointShadow) {
+      if (_keepsBlock(
+        fragmentShader,
+        'PointShadow',
+        declared: material.lighting.usesPointShadow,
+      )) {
         // Half a texel, in tile-local uv: what every tap is held inside its
         // tile by, so none of them can reach the next face along.
         final texel = _cubeShadowTile > 0 ? 1.0 / _cubeShadowTile : 0.0;
@@ -549,7 +588,11 @@ extension _MeshEncode on Renderer {
       // **Lit, and only lit.** The reverse is a crash too: an unlit stage
       // keeps neither half, and binding them was the first frame of every
       // unlit scene dying inside Metal's `setFragmentBuffer` on 0.7.0.
-      if (material.lighting.usesLightList) {
+      if (_keepsBlock(
+        fragmentShader,
+        _kLightListBlock,
+        declared: material.lighting.usesLightList,
+      )) {
         _bindLightList(
           encoder,
           fragmentShader,
@@ -613,7 +656,7 @@ extension _MeshEncode on Renderer {
       encoder.bindTexture(fragmentShader, slot.key, slot.value);
     }
 
-    if (material.lighting.usesEnvironment && environment != null) {
+    if (readsEnvironment && environment != null) {
       encoder.bindTexture(
         fragmentShader,
         _kEnvironmentTextureSlot,
@@ -626,7 +669,11 @@ extension _MeshEncode on Renderer {
     // once for the up-to-five binds below. The lightmap and the shadow map
     // are not model textures and keep their clamped samplers as they are.
     final anisotropy = _anisotropyLevel(settings.anisotropy);
-    if (material.lighting.usesAlbedoTexture) {
+    if (_keepsSampler(
+      fragmentShader,
+      _kAlbedoTextureSlot,
+      declared: material.lighting.usesAlbedoTexture,
+    )) {
       encoder.bindTexture(
         fragmentShader,
         _kAlbedoTextureSlot,
@@ -634,29 +681,51 @@ extension _MeshEncode on Renderer {
         sampler: _anisotropic(material.albedoSampler, anisotropy),
       );
     }
-    if (material.lighting.usesMaterialMaps) {
+    if (_keepsSampler(
+      fragmentShader,
+      _kNormalTextureSlot,
+      declared: material.lighting.usesMaterialMaps,
+    )) {
       encoder.bindTexture(
         fragmentShader,
         _kNormalTextureSlot,
         material.normal ?? fallbackNormal,
         sampler: _anisotropic(material.normalSampler, anisotropy),
       );
+    }
+    if (_keepsSampler(
+      fragmentShader,
+      _kOcclusionTextureSlot,
+      declared: material.lighting.usesMaterialMaps,
+    )) {
       encoder.bindTexture(
         fragmentShader,
         _kOcclusionTextureSlot,
         material.occlusion ?? fallbackAlbedo,
         sampler: _anisotropic(material.occlusionSampler, anisotropy),
       );
+    }
+    if (_keepsSampler(
+      fragmentShader,
+      _kEmissiveTextureSlot,
+      declared: material.lighting.usesMaterialMaps,
+    )) {
       encoder.bindTexture(
         fragmentShader,
         _kEmissiveTextureSlot,
         material.emissiveTexture ?? fallbackAlbedo,
         sampler: _anisotropic(material.emissiveSampler, anisotropy),
       );
-      // Black, not white: the lightmap is added, and a material without one
-      // adds nothing. Bound for every lit model because the shader samples
-      // the slot unconditionally, which is a texel cheaper than a branch and
-      // the same arrangement every other map here uses.
+    }
+    // Black, not white: the lightmap is added, and a material without one
+    // adds nothing. Bound for every lit model because the shader samples
+    // the slot unconditionally, which is a texel cheaper than a branch and
+    // the same arrangement every other map here uses.
+    if (_keepsSampler(
+      fragmentShader,
+      _kLightmapTextureSlot,
+      declared: material.lighting.usesMaterialMaps,
+    )) {
       encoder.bindTexture(
         fragmentShader,
         _kLightmapTextureSlot,
@@ -664,7 +733,11 @@ extension _MeshEncode on Renderer {
         sampler: material.lightmapSampler ?? Renderer._clampSampler,
       );
     }
-    if (material.lighting.usesShadowMap) {
+    if (_keepsSampler(
+      fragmentShader,
+      _kShadowTextureSlot,
+      declared: material.lighting.usesShadowMap,
+    )) {
       encoder.bindTexture(
         fragmentShader,
         _kShadowTextureSlot,
@@ -675,7 +748,11 @@ extension _MeshEncode on Renderer {
         sampler: Renderer._clampSampler,
       );
     }
-    if (material.lighting.usesMetallicRoughnessMap) {
+    if (_keepsSampler(
+      fragmentShader,
+      _kMetallicRoughnessTextureSlot,
+      declared: material.lighting.usesMetallicRoughnessMap,
+    )) {
       encoder.bindTexture(
         fragmentShader,
         _kMetallicRoughnessTextureSlot,

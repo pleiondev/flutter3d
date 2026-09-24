@@ -5,6 +5,8 @@ library;
 import 'dart:typed_data';
 
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
+import 'package:flutter3d_shaders/stage_bindings.dart';
+import 'package:flutter3d_shaders/uniform_blocks.dart' show uniformBlocks;
 
 import 'cpu_shader.dart';
 
@@ -26,7 +28,15 @@ final class CpuShaderLibrary implements ShaderLibrary {
     if (stage == null) return null;
     return _handles.putIfAbsent(
       name,
-      () => ShaderHandle(backend: stage, name: name),
+      // The table is the GLSL stage's, and the Dart stage standing in for it
+      // is held to the same bindings, so a draw binds the same slots here as
+      // on the GPU.
+      () => ShaderHandle(
+        backend: stage,
+        name: name,
+        kept: stageBindings[name],
+        layouts: uniformBlocks[name],
+      ),
     );
   }
 }

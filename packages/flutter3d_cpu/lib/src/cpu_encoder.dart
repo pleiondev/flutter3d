@@ -268,6 +268,33 @@ final class CpuEncoder implements CommandEncoder {
     String blockName,
     Map<String, Float32List> members,
   ) {
+    // `gfx-92n`: a block the compiled stage dropped is refused here, before
+    // anything reaches the driver — binding one is a native crash on Metal.
+    if (!shader.mayBindBlock(blockName)) return false;
+    // `H1`: where the stage's layout is known, a member it does not have, or
+    // more floats than the member holds, is refused by name — the same
+    // refusal Impeller, WebGL and WebGPU make from their own reflection. A
+    // Dart stage reads members by name, so without this a misspelt member
+    // read as zero here and threw on every other backend.
+    final layout = shader.layouts?[blockName];
+    if (layout != null) {
+      members.forEach((name, values) {
+        final member = layout[name];
+        if (member == null) {
+          throw StateError(
+            'uniform block "$blockName" has no member "$name" in stage '
+            '"${shader.name}". The engine and the shader disagree about this '
+            'block.',
+          );
+        }
+        if (values.length * 4 > member.byteLength) {
+          throw StateError(
+            'uniform block "$blockName" member "$name" wants ${values.length} '
+            'floats and has room for ${member.byteLength ~/ 4}.',
+          );
+        }
+      });
+    }
     _blocks[blockName] = members;
     return true;
   }
@@ -282,6 +309,7 @@ final class CpuEncoder implements CommandEncoder {
     TextureHandle texture, {
     SamplerOptions? sampler,
   }) {
+    if (!shader.mayBindSampler(slot)) return false;
     // linearRepeat for a null sampler, which is now written down in
     // `CommandEncoder.bindTexture` — it was not, and this backend picked the
     // constructor's own defaults instead, nearest and clamped. Both hardware

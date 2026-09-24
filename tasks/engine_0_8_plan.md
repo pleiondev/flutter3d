@@ -892,6 +892,12 @@ own item is the reason. Titles follow the repository's narrative style.
 
 ## 0.8.0 — the contract release
 
+**Superseded the same day (owner, 2026-09-24): the whole plan goes into
+0.8.0** — phases 0–7 and 10, as the original decision said; phases 8 and 9
+stay on their triggers and in the lab. What follows still describes the
+order the work was started in: the contract and the small fixes first,
+then the phases in the commit order above.
+
 Decided 2026-09-24. `GraphicsDevice`, `PassEncoder` and `CommandEncoder` are
 `abstract interface class`es and `Recorded` is `sealed`, and every backend is
 its own package pinned `^0.8.0` to `flutter3d_hardware`. A member added to

@@ -15,6 +15,8 @@ library;
 import 'dart:js_interop';
 
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
+import 'package:flutter3d_shaders/stage_bindings.dart';
+import 'package:flutter3d_shaders/uniform_blocks.dart' show uniformBlocks;
 import 'package:web/web.dart' as web;
 
 import 'webgl_device.dart';
@@ -168,7 +170,12 @@ final class WebGlShaderLibrary implements ShaderLibrary {
     if (source == null) return null;
     // A failed compile throws out of `putIfAbsent`, so it is never cached.
     final shader = compileWebGlShader(_gl, name, source, isVertex: isVertex);
-    return ShaderHandle(backend: WebGlShader(shader, isVertex), name: name);
+    return ShaderHandle(
+      backend: WebGlShader(shader, isVertex),
+      name: name,
+      kept: stageBindings[name],
+      layouts: uniformBlocks[name],
+    );
   }
 
   /// Links a pair of stages and reflects what the engine will need to bind.

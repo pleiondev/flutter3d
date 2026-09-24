@@ -69,4 +69,5 @@ export 'src/shader.dart';
 /// section of, and the refusal a device answers with when it cannot.
 export 'src/shader_bundle.dart';
 export 'src/texture.dart';
+export 'src/uniform_block.dart';
 export 'src/vertex_layout_spec.dart';

@@ -239,6 +239,9 @@ final class GpuCommandEncoder implements CommandEncoder {
     String blockName,
     Map<String, Float32List> members,
   ) {
+    // `gfx-92n`: a block the compiled stage dropped is refused here, before
+    // anything reaches the driver — binding one is a native crash on Metal.
+    if (!shader.mayBindBlock(blockName)) return false;
     final slot = (shader.backend as gpu.Shader).getUniformSlot(blockName);
     final size = slot.sizeInBytes;
     if (size == null || size == 0) return false;
@@ -303,6 +306,7 @@ final class GpuCommandEncoder implements CommandEncoder {
     TextureHandle texture, {
     SamplerOptions? sampler,
   }) {
+    if (!shader.mayBindSampler(slot)) return false;
     // Tile memory cannot be sampled, and the backend's own assertion for this
     // fires from inside `bindTexture` with no idea which slot or which pass.
     // The handle carries the storage mode, so this can be said here, where the

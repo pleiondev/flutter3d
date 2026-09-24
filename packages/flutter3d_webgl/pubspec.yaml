@@ -24,6 +24,10 @@ dependencies:
     sdk: flutter
 
   flutter3d_hardware: ^0.8.0
+  # `stageBindings`: what each of the engine's compiled stages keeps, which
+  # the library hands every stage as `ShaderHandle.kept` and the encoder
+  # refuses binds against — `gfx-92n`. A table of names and nothing else.
+  flutter3d_shaders: ^0.8.0
   # Browser APIs through static JS interop. `dart:html` and `dart:web_gl` are
   # the legacy path and are not available under Wasm.
   web: ^1.1.0
