@@ -149,6 +149,8 @@ Map<String, CpuStage> builtinCpuShaders() {
     'Normals': const CpuStage.fragment(NormalsShader()),
     'ObjectId': const CpuStage.fragment(ObjectIdShader()),
     'Luminance': const CpuStage.fragment(LuminanceShader()),
+    // `C3`: the surface buffer reduced for the occlusion readback.
+    'DepthPyramid': const CpuStage.fragment(DepthPyramidShader()),
     'FieldDecay': const CpuStage.fragment(FieldDecayShader()),
     // `H6`: the compute stages, from `flutter3d.compute.json`.
     'PrefixSum': const CpuStage.compute(PrefixSumShader()),

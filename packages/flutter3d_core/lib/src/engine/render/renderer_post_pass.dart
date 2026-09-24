@@ -1228,6 +1228,82 @@ extension _PostPasses on Renderer {
         .whenComplete(() => _meterInFlight = false);
   }
 
+  /// Reduces [surface] into [target], the small grid the occlusion readback
+  /// takes — `C3`, `depth_pyramid.frag`.
+  void _encodeDepthPyramid({
+    required TextureHandle target,
+    required TextureHandle surface,
+    required double far,
+  }) {
+    developer.Timeline.startSync('Renderer.depthPyramid');
+    final shader = shaders['DepthPyramid'];
+    if (shader == null) {
+      throw StateError(
+        'The bundle has no "DepthPyramid" fragment shader, which hi-Z '
+        'occlusion reads the depth back through. Rebuild it with '
+        'tool/build_shaders.sh.',
+      );
+    }
+    final block = _depthPyramidInfo.block;
+    block[0] = 1.0 / math.max(target.width, 1);
+    block[1] = 1.0 / math.max(target.height, 1);
+    block[2] = surface.width / math.max(target.width, 1);
+    block[3] = surface.height / math.max(target.height, 1);
+    _depthPyramidInfo.range[0] = far > 0.0 ? 1.0 / far : 0.0;
+    drawFullscreen(
+      FullscreenDraw(
+        target: target,
+        fragment: shader,
+        textures: <String, TextureHandle>{'surface_texture': surface},
+        uniforms: <String, Map<String, Float32List>>{
+          _depthPyramidInfo.name: _depthPyramidInfo.members,
+        },
+        // Nearest: a depth filtered across a silhouette is the depth of
+        // neither surface, and the reduction wants the ones that are there.
+        samplers: const <String, SamplerOptions>{
+          'surface_texture': SamplerOptions.nearestClamp,
+        },
+      ),
+    );
+    developer.Timeline.finishSync();
+  }
+
+  /// Asks for the depth pyramid's bytes and hands them to [_hiZ] with the
+  /// view they were seen through. Returns at once; the reading lands a frame
+  /// or two later, and until then the occlusion test answers "visible".
+  ///
+  /// One ask at a time, and a refused copy costs nothing but the reading —
+  /// the same shape as [_meterExposure], for its reasons.
+  void _readDepthPyramid(
+    TextureHandle target, {
+    required CameraNode camera,
+    required double aspect,
+  }) {
+    final hiZ = _hiZ;
+    if (hiZ == null || _pyramidInFlight) return;
+    _pyramidInFlight = true;
+    final epoch = _hiZEpoch;
+    final viewProjection = camera.viewProjection(aspect);
+    final eye = camera.readWorldPosition();
+    final forward = camera.readForward();
+    final far = camera.projection.far;
+    Future<ByteData>.sync(() => device.readback(target))
+        .then((ByteData bytes) {
+          // Thrown away while it was in the air: a frame since has run
+          // without hi-Z, and the scene this saw is not one to trust.
+          if (epoch != _hiZEpoch) return;
+          hiZ.accept(
+            bytes,
+            viewProjection: viewProjection,
+            eye: eye,
+            forward: forward,
+            far: far,
+            camera: camera,
+          );
+        }, onError: (Object _, StackTrace _) {})
+        .whenComplete(() => _pyramidInFlight = false);
+  }
+
   /// The final pass: bloom in, tone map, sRGB, then the debug overlay on top.
   ///
   /// One pass for both because the overlay has to land on the finished image

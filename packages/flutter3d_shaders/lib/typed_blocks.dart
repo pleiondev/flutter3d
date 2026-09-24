@@ -165,6 +165,23 @@ final class ConvolveInfoBlock extends UniformBlock {
   };
 }
 
+/// `DepthPyramidInfo`.
+final class DepthPyramidInfoBlock extends UniformBlock {
+  DepthPyramidInfoBlock() : super('DepthPyramidInfo');
+
+  /// `block`: Vector4, at byte 0.
+  final Float32List block = Float32List(4);
+
+  /// `range`: Vector4, at byte 16.
+  final Float32List range = Float32List(4);
+
+  @override
+  late final Map<String, Float32List> members = <String, Float32List>{
+    'block': block,
+    'range': range,
+  };
+}
+
 /// `DofInfo`.
 final class DofInfoBlock extends UniformBlock {
   DofInfoBlock() : super('DofInfo');

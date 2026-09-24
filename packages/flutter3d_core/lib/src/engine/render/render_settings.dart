@@ -4,6 +4,7 @@ import 'dart:typed_data';
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:vector_math/vector_math.dart' as vm;
 
+import '../scene/occlusion/occlusion_test.dart';
 import '../scene/scene_node.dart';
 import 'auto_exposure.dart';
 import 'debug_draw.dart';
@@ -1039,6 +1040,7 @@ final class RenderSettings {
     this.energyCompensation = false,
     this.clusteredLights = false,
     this.aliasTargets = false,
+    this.occlusion = OcclusionMode.none,
     this.lightShafts = const LightShaftSettings(),
     this.volumetricFog = const VolumetricFogSettings(),
     this.depthOfField = const DepthOfFieldSettings(),
@@ -1359,6 +1361,24 @@ final class RenderSettings {
   /// pixels rather than an older frame's.
   final bool aliasTargets;
 
+  /// Leaves out meshes hidden behind others before they are drawn — `C2`,
+  /// `C3`. [OcclusionMode.none] by default.
+  ///
+  /// [OcclusionMode.software] rasterises the nodes marked
+  /// `MeshNode.occluder` into a 256 × 128 depth buffer on the CPU each view
+  /// and tests every mesh's box against it; nothing is marked by default, so
+  /// switching it on alone changes nothing. [OcclusionMode.hiZ] needs no
+  /// marking: it reads last frame's surface buffer back at the same size and
+  /// reprojects it, answering "visible" until a reading has arrived, after a
+  /// camera cut, with more than one view and wherever there is no surface
+  /// buffer. Reading the surface buffer turns multisampling off, so on a
+  /// device that multisamples the picture's edges change with it.
+  ///
+  /// Neither changes what is drawn, only what is asked to be:
+  /// `FrameResult.culled` counts what either left out. Ignored in wireframe,
+  /// where nothing is solid.
+  final OcclusionMode occlusion;
+
   /// Frame-graph nodes to leave out of this frame, by name — `gfx-37n`.
   ///
   /// The name is the node's own [FrameGraphNode.name], exactly as
@@ -1522,6 +1542,7 @@ final class RenderSettings {
     bool? energyCompensation,
     bool? clusteredLights,
     bool? aliasTargets,
+    OcclusionMode? occlusion,
     LightShaftSettings? lightShafts,
     VolumetricFogSettings? volumetricFog,
     DepthOfFieldSettings? depthOfField,
@@ -1566,6 +1587,7 @@ final class RenderSettings {
     energyCompensation: energyCompensation ?? this.energyCompensation,
     clusteredLights: clusteredLights ?? this.clusteredLights,
     aliasTargets: aliasTargets ?? this.aliasTargets,
+    occlusion: occlusion ?? this.occlusion,
     lightShafts: lightShafts ?? this.lightShafts,
     volumetricFog: volumetricFog ?? this.volumetricFog,
     depthOfField: depthOfField ?? this.depthOfField,
@@ -1652,6 +1674,8 @@ final class RenderSettings {
     'object ids',
     'reflections',
     'luminance',
+    // `C3`: the surface buffer reduced for the occlusion readback.
+    'depth pyramid',
     'ssao',
     'ssao blur',
     // Beside the occlusion because it reads the same buffer and its result is
