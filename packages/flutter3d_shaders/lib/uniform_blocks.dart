@@ -1278,6 +1278,78 @@ uniformBlocks = <String, Map<String, Map<String, UniformMemberLayout>>>{
       'light': (offset: 32, byteLength: 16, elements: 1, type: 'Vector4'),
     },
   },
+  'VolumetricFog': <String, Map<String, UniformMemberLayout>>{
+    'FragCoordInfo': <String, UniformMemberLayout>{
+      'origin': (offset: 0, byteLength: 16, elements: 1, type: 'Vector4'),
+    },
+    'NoiseInfo': <String, UniformMemberLayout>{
+      'noise': (offset: 0, byteLength: 16, elements: 1, type: 'Vector4'),
+    },
+    'VolumeFogInfo': <String, UniformMemberLayout>{
+      'inverse_view_projection': (
+        offset: 0,
+        byteLength: 64,
+        elements: 1,
+        type: 'Matrix',
+      ),
+      'shadow_matrix': (
+        offset: 64,
+        byteLength: 64,
+        elements: 1,
+        type: 'Matrix',
+      ),
+      'shadow_matrix_far': (
+        offset: 128,
+        byteLength: 64,
+        elements: 1,
+        type: 'Matrix',
+      ),
+      'shadow_matrix_farthest': (
+        offset: 192,
+        byteLength: 64,
+        elements: 1,
+        type: 'Matrix',
+      ),
+      'cluster_view_projection': (
+        offset: 256,
+        byteLength: 64,
+        elements: 1,
+        type: 'Matrix',
+      ),
+      'camera': (offset: 320, byteLength: 16, elements: 1, type: 'Vector4'),
+      'forward': (offset: 336, byteLength: 16, elements: 1, type: 'Vector4'),
+      'sun': (offset: 352, byteLength: 16, elements: 1, type: 'Vector4'),
+      'sun_radiance': (
+        offset: 368,
+        byteLength: 16,
+        elements: 1,
+        type: 'Vector4',
+      ),
+      'cascades': (offset: 384, byteLength: 16, elements: 1, type: 'Vector4'),
+      'bias': (offset: 400, byteLength: 16, elements: 1, type: 'Vector4'),
+      'medium': (offset: 416, byteLength: 16, elements: 1, type: 'Vector4'),
+      'albedo': (offset: 432, byteLength: 16, elements: 1, type: 'Vector4'),
+      'ambient': (offset: 448, byteLength: 16, elements: 1, type: 'Vector4'),
+      'cluster_grid': (
+        offset: 464,
+        byteLength: 16,
+        elements: 1,
+        type: 'Vector4',
+      ),
+      'cluster_depth': (
+        offset: 480,
+        byteLength: 16,
+        elements: 1,
+        type: 'Vector4',
+      ),
+      'list': (offset: 496, byteLength: 16, elements: 1, type: 'Vector4'),
+    },
+  },
+  'VolumetricFogUpsample': <String, Map<String, UniformMemberLayout>>{
+    'FogUpsampleInfo': <String, UniformMemberLayout>{
+      'size': (offset: 0, byteLength: 16, elements: 1, type: 'Vector4'),
+    },
+  },
   'Xray': <String, Map<String, UniformMemberLayout>>{
     'FogInfo': <String, UniformMemberLayout>{
       'fog': (offset: 0, byteLength: 16, elements: 1, type: 'Vector4'),

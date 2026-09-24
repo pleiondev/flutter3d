@@ -294,6 +294,19 @@ stageBindings = <String, ({Set<String> blocks, Set<String> samplers})>{
     blocks: <String>{'ShadeInfo'},
     samplers: <String>{'scene_texture', 'surface_texture'},
   ),
+  'VolumetricFog': (
+    blocks: <String>{'FragCoordInfo', 'NoiseInfo', 'VolumeFogInfo'},
+    samplers: <String>{
+      'blue_noise_texture',
+      'light_list_texture',
+      'shadow_texture',
+      'surface_texture',
+    },
+  ),
+  'VolumetricFogUpsample': (
+    blocks: <String>{'FogUpsampleInfo'},
+    samplers: <String>{'fog_texture', 'scene_texture', 'surface_texture'},
+  ),
   'Xray': (
     blocks: <String>{'FogInfo', 'FragInfo'},
     samplers: <String>{'base_color_texture'},
