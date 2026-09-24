@@ -383,6 +383,24 @@ final class Editing {
     });
   }
 
+  /// Puts [lights] where the level's lights were, all at once.
+  ///
+  /// One change rather than a delete and an add per light, because what
+  /// produces a whole set — the light optimizer — made one decision about all
+  /// of them, and one undo is what puts that decision back. A light selected
+  /// before is selected no longer: the index it had now names another light,
+  /// or none.
+  void setLights(List<LevelLight> lights) {
+    _remember('set the lights');
+    level.lights
+      ..clear()
+      ..addAll(lights);
+    if (kind == Piece.light) {
+      kind = null;
+      selected = null;
+    }
+  }
+
   /// Turns the selected entity about the vertical, in radians.
   ///
   /// Entities only: a brush has no facing in this format, and a light's is its

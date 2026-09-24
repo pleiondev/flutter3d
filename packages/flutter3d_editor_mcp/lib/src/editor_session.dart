@@ -219,6 +219,44 @@ final class EditorSession {
     );
   }
 
+  /// Fewer lights, judged by the pictures they make from [views] — from the
+  /// spawn when none are given — and applied as one step of undo unless
+  /// [apply] is false.
+  ///
+  /// The picture is the new set's, from the first view; the sentence carries
+  /// the moves and the numbers, so an agent can judge the change before
+  /// keeping it and undo it after.
+  PictureAnswer optimizeLights({List<LightView>? views, bool apply = true}) {
+    final level = editing.level;
+    if (level.lights.isEmpty) {
+      return (did: false, says: 'the level has no lights', png: null);
+    }
+    final seen = views ?? defaultLightViews(level);
+    if (seen.isEmpty) {
+      return (
+        did: false,
+        says: 'no view to judge the lights from — name one, or add a spawn',
+        png: null,
+      );
+    }
+    final plan = const LightOptimizer().optimize(level, views: seen);
+    final said = <String>[
+      plan.says,
+      for (final move in plan.moves) '  $move',
+    ].join('\n');
+    if (!plan.changes) {
+      return (did: false, says: 'nothing to gain: $said', png: plan.pngs.after);
+    }
+    if (apply) editing.history.run(SetLights(plan.after, why: plan.says));
+    return (
+      did: apply,
+      says: apply
+          ? '$said\n(undo puts the old lights back)'
+          : 'proposed: $said',
+      png: plan.pngs.after,
+    );
+  }
+
   static String _place(Vector3 it) => <double>[it.x, it.y, it.z]
       .map(
         (double v) => v == v.roundToDouble()

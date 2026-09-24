@@ -40,6 +40,7 @@ void main() {
       'save',
       'screenshot',
       'report',
+      'optimizeLights',
     };
     expect(
       namesOf(editorTools).difference(editorCommandNames.toSet()),
@@ -178,7 +179,59 @@ void main() {
       expect(session.editing.canUndo, isFalse);
     });
   });
+
+  test('optimizeLights keeps one of three lamps in one place, and undo '
+      'puts all three back', () async {
+    // The agent's way to the light optimizer: the same core, applied as one
+    // `setLights` step. Mutation: drop the `editing.history.run` in
+    // `EditorSession.optimizeLights`. The level keeps three lamps.
+    final session = EditorSession(
+      Editing.parse(_litRoom, path: 'nowhere.json'),
+    );
+    final optimize = editorTools.firstWhere(
+      (EditorTool it) => it.name == 'optimizeLights',
+    );
+    final answer = await optimize.run(session, <String, Object?>{
+      'views': <Object?>[
+        <String, Object?>{
+          'from': <double>[1.5, 1.6, 1.5],
+          'at': <double>[-1.0, 0.5, -1.0],
+        },
+      ],
+    });
+    expect(answer.did, isTrue, reason: answer.says);
+    expect(answer.says, startsWith('3 → 1 lights'));
+    expect(answer.png, isNotNull);
+    expect(session.editing.level.lights, hasLength(1));
+
+    expect(session.undo().did, isTrue);
+    expect(session.editing.level.lights, hasLength(3));
+  });
 }
+
+/// A closed grey box of a room with three lamps hanging in one place.
+final String _litRoom = () {
+  String box(List<double> at, List<double> size) =>
+      '{"at": $at, "size": $size, "material": "stone"}';
+  const lamp =
+      '{"type": "point", "at": [0.0, 2.2, 0.0], "intensity": 2.0, '
+      '"range": 8.0}';
+  return '''
+{
+  "version": 1,
+  "materials": {"stone": {"baseColor": [0.6, 0.6, 0.6, 1.0]}},
+  "brushes": [
+    ${box(<double>[0.0, -0.25, 0.0], <double>[5.0, 0.5, 5.0])},
+    ${box(<double>[0.0, 2.75, 0.0], <double>[5.0, 0.5, 5.0])},
+    ${box(<double>[-2.25, 1.25, 0.0], <double>[0.5, 2.5, 4.0])},
+    ${box(<double>[2.25, 1.25, 0.0], <double>[0.5, 2.5, 4.0])},
+    ${box(<double>[0.0, 1.25, -2.25], <double>[4.0, 2.5, 0.5])},
+    ${box(<double>[0.0, 1.25, 2.25], <double>[4.0, 2.5, 0.5])}
+  ],
+  "lights": [$lamp, $lamp, $lamp]
+}
+''';
+}();
 
 /// The smallest document `Level.fromJson` accepts: one brush, one material.
 const String _bareLevel = '''
