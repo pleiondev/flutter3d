@@ -296,6 +296,32 @@ frag_info;
 /// The bias a material map is read with — see `target_origin.y`.
 float MaterialLodBias() { return frag_info.target_origin.y; }
 
+/// The maps a lit material reads, by the index [MapUv] takes — `C8`. The
+/// order `LayerInfo.uv_transform` keeps them in, and `MaterialMap`'s on the
+/// Dart side.
+#define kMapBaseColor 0
+#define kMapMetallicRoughness 1
+#define kMapNormal 2
+#define kMapOcclusion 3
+#define kMapEmissive 4
+
+/// Where map [slot] is read — `C8`, `KHR_texture_transform` at the sampler.
+///
+/// **A macro everywhere but the one stage that has the matrices.** A stage
+/// that defines `F3D_TEXTURE_TRANSFORM` supplies [MapUv] and [MapMatrix] from
+/// a block of its own; every other stage reads each map at the vertex's own
+/// coordinate, and the macro leaves its source exactly what it was, so none of
+/// them compiles to anything new.
+#ifdef F3D_TEXTURE_TRANSFORM
+vec2 MapUv(int slot);
+
+/// The 2×2 part of map [slot]'s transform: x and y its first row, z and w
+/// its second.
+vec4 MapMatrix(int slot);
+#else
+#define MapUv(slot) v_texcoord
+#endif
+
 uniform sampler2D base_color_texture;
 
 /// Everything about the surface that does not depend on which light is being
@@ -334,7 +360,7 @@ struct LightSample {
 Surface ReadSurface() {
   Surface s;
 
-  vec4 texel = texture(base_color_texture, v_texcoord, MaterialLodBias());
+  vec4 texel = texture(base_color_texture, MapUv(kMapBaseColor), MaterialLodBias());
   // Vertex colour is authored linear per the glTF spec, unlike the base colour
   // texture and the tint, which are sRGB.
   s.albedo = SrgbToLinear(texel.rgb) *

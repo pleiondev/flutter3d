@@ -31,10 +31,9 @@ enum AnimationPointerProperty {
 
   /// `KHR_texture_transform`'s `offset` on any of a material's textures.
   ///
-  /// One property for all of them, because the engine keeps one transform
-  /// per material — see `sharedTextureTransform` — so moving the base colour
-  /// map's offset moves every map the material samples. The pointer string
-  /// says which texture the file named, and a writer puts it back there.
+  /// One property for all of them: the pointer string says which texture the
+  /// file named, a writer puts it back there, and the sink moves that map's
+  /// offset alone — `C8`, `PointerTargets.textureMapOf`.
   textureOffset(AnimationPointerTarget.material, 2),
 
   /// `KHR_lights_punctual`'s `color`, linear RGB.

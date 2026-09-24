@@ -38,8 +38,7 @@ import 'cpu_shaders_layout.dart';
 /// [bias] is `texture`'s third argument, [materialLodBias] in the GLSL —
 /// `R2`: a level of detail is the log of the footprint, so a bias of `b`
 /// is the footprint times `2^b`. Nought leaves it exactly as it was.
-({double du, double dv, double dudx, double dvdx, double dudy, double dvdy})
-uvFootprint(FragmentContext c, {double bias = 0.0}) {
+UvFootprint uvFootprint(FragmentContext c, {double bias = 0.0}) {
   final ddx = c.ddx;
   final ddy = c.ddy;
   if (ddx == null || ddy == null) {
@@ -80,6 +79,64 @@ uvFootprint(FragmentContext c, {double bias = 0.0}) {
 /// `MaterialLodBias()`: the bias every material map is read with — `R2`.
 double materialLodBias(ShaderBindings b) =>
     b.vec4('FragInfo', 'target_origin', Vector4.zero()).y;
+
+/// What [uvFootprint] returns.
+typedef UvFootprint = ({
+  double du,
+  double dv,
+  double dudx,
+  double dvdx,
+  double dudy,
+  double dvdy,
+});
+
+/// The maps a lit material reads, in `kMapBaseColor`'s order — `C8`.
+const int kMapBaseColor = 0;
+const int kMapMetallicRoughness = 1;
+const int kMapNormal = 2;
+const int kMapOcclusion = 3;
+const int kMapEmissive = 4;
+
+/// `MapUv(slot)`: where map [slot] is read, with the footprint there — `C8`.
+///
+/// The vertex's own coordinate unless [transformed], which only the layered
+/// stage is: every other stage's `MapUv` is a macro for `v_texcoord`, and
+/// reading `LayerInfo` here for them would read whatever an earlier layered
+/// draw left in the encoder. The footprint is the vertex coordinate's carried
+/// through the matrix, which is what a GPU's derivative of the transformed
+/// coordinate is. The identity reads both back to the bit.
+({double u, double v, UvFootprint footprint}) mapUv(
+  int slot,
+  Float32List v,
+  ShaderBindings b,
+  FragmentContext c, {
+  bool transformed = false,
+}) {
+  final plain = uvFootprint(c, bias: materialLodBias(b));
+  final rows = transformed ? b.read('LayerInfo', 'uv_transform') : null;
+  if (rows == null || rows.length < slot * 8 + 8) {
+    return (u: v[kVUv], v: v[kVUv + 1], footprint: plain);
+  }
+  final o = slot * 8;
+  final (m00, m01, m02) = (rows[o], rows[o + 1], rows[o + 2]);
+  final (m10, m11, m12) = (rows[o + 4], rows[o + 5], rows[o + 6]);
+  final dudx = m00 * plain.dudx + m01 * plain.dvdx;
+  final dvdx = m10 * plain.dudx + m11 * plain.dvdx;
+  final dudy = m00 * plain.dudy + m01 * plain.dvdy;
+  final dvdy = m10 * plain.dudy + m11 * plain.dvdy;
+  return (
+    u: m00 * v[kVUv] + m01 * v[kVUv + 1] + m02,
+    v: m10 * v[kVUv] + m11 * v[kVUv + 1] + m12,
+    footprint: (
+      du: math.max(dudx.abs(), dudy.abs()),
+      dv: math.max(dvdx.abs(), dvdy.abs()),
+      dudx: dudx,
+      dvdx: dvdx,
+      dudy: dudy,
+      dvdy: dvdy,
+    ),
+  );
+}
 
 /// What `ReadSurface` produces, for the models that need more than the albedo.
 /// Mutable, because the GLSL passes it as `inout` to every map function and
@@ -134,19 +191,28 @@ final class Surface {
 /// needed the same hole — an id pass that saw a fence where the picture shows
 /// the thing behind it would be picking something the eye cannot see — and a
 /// scene pass without it would then have disagreed with the pick.
+///
+/// [transformed] is the layered stage's `MapUv` — see [mapUv].
 Surface? readSurface(
   Float32List v,
   ShaderBindings bindings,
-  FragmentContext c,
-) {
-  final uv = uvFootprint(c, bias: materialLodBias(bindings));
+  FragmentContext c, {
+  bool transformed = false,
+}) {
+  final (u: mapU, v: mapV, footprint: uv) = mapUv(
+    kMapBaseColor,
+    v,
+    bindings,
+    c,
+    transformed: transformed,
+  );
   final tint = bindings.vec4('FragInfo', 'base_color', Vector4(1, 1, 1, 1));
   final texture = bindings.textures['base_color_texture'];
   final texel = texture == null
       ? Vector4(1, 1, 1, 1)
       : texture.sample(
-          v[kVUv],
-          v[kVUv + 1],
+          mapU,
+          mapV,
           du: uv.du,
           dv: uv.dv,
           // The albedo is the one map a floor's checks live in, and the one
@@ -259,12 +325,19 @@ void applyMetallicRoughnessMap(
   Surface s,
   Float32List v,
   ShaderBindings b,
-  FragmentContext c,
-) {
+  FragmentContext c, {
+  bool transformed = false,
+}) {
   final orm = b.textures['metallic_roughness_texture'];
   if (orm == null) return;
-  final uv = uvFootprint(c, bias: materialLodBias(b));
-  final texel = orm.sample(v[kVUv], v[kVUv + 1], du: uv.du, dv: uv.dv);
+  final (u: mu, v: mv, footprint: uv) = mapUv(
+    kMapMetallicRoughness,
+    v,
+    b,
+    c,
+    transformed: transformed,
+  );
+  final texel = orm.sample(mu, mv, du: uv.du, dv: uv.dv);
   s.metallic = (s.metallic * texel.z).clamp(0.0, 1.0);
   s.roughness = (s.roughness * texel.y).clamp(0.02, 1.0);
 }
@@ -275,12 +348,19 @@ void applyOcclusionMap(
   Surface s,
   Float32List v,
   ShaderBindings b,
-  FragmentContext c,
-) {
+  FragmentContext c, {
+  bool transformed = false,
+}) {
   final map = b.textures['occlusion_texture'];
   if (map == null) return;
-  final uv = uvFootprint(c, bias: materialLodBias(b));
-  final occlusion = map.sample(v[kVUv], v[kVUv + 1], du: uv.du, dv: uv.dv).x;
+  final (u: mu, v: mv, footprint: uv) = mapUv(
+    kMapOcclusion,
+    v,
+    b,
+    c,
+    transformed: transformed,
+  );
+  final occlusion = map.sample(mu, mv, du: uv.du, dv: uv.dv).x;
   final strength = b
       .vec4('FragInfo', 'material2', Vector4.zero())
       .z
@@ -307,12 +387,19 @@ void applyEmissiveMap(
   Surface s,
   Float32List v,
   ShaderBindings b,
-  FragmentContext c,
-) {
+  FragmentContext c, {
+  bool transformed = false,
+}) {
   final map = b.textures['emissive_texture'];
   if (map == null) return;
-  final uv = uvFootprint(c, bias: materialLodBias(b));
-  final texel = map.sample(v[kVUv], v[kVUv + 1], du: uv.du, dv: uv.dv);
+  final (u: mu, v: mv, footprint: uv) = mapUv(
+    kMapEmissive,
+    v,
+    b,
+    c,
+    transformed: transformed,
+  );
+  final texel = map.sample(mu, mv, du: uv.du, dv: uv.dv);
   final factor = b.vec4('FragInfo', 'emissive', Vector4.zero());
   final strength = b.vec4('FragInfo', 'material2', Vector4.zero()).w;
   s.emissive = Vector3(
@@ -327,8 +414,9 @@ void applyNormalMap(
   Surface s,
   Float32List v,
   ShaderBindings b,
-  FragmentContext c,
-) {
+  FragmentContext c, {
+  bool transformed = false,
+}) {
   final map = b.textures['normal_texture'];
   if (map == null) return;
 
@@ -342,13 +430,39 @@ void applyNormalMap(
   // The bitangent sign encodes a mirrored UV island. Dropping it lights every
   // mirrored half of a symmetric model from the wrong side.
   final bitangent = s.normal.cross(t)..scale(s.tangent.w);
+  // `C8`: the frame turns with a map its transform turns or mirrors, as
+  // `ApplyNormalMap` turns it, on the front face's frame.
+  final rows = transformed ? b.read('LayerInfo', 'uv_transform') : null;
+  if (rows != null && rows.length >= kMapNormal * 8 + 8) {
+    const o = kMapNormal * 8;
+    final (m00, m01, m10, m11) = (
+      rows[o],
+      rows[o + 1],
+      rows[o + 4],
+      rows[o + 5],
+    );
+    final flip = m00 * m11 - m01 * m10 < 0.0 ? -1.0 : 1.0;
+    final front = c.frontFacing ? bitangent : -bitangent;
+    final turned = (t * m11 - front * m10)..scale(flip);
+    if ((m01 != 0.0 || m10 != 0.0 || m00 < 0.0 || m11 < 0.0) &&
+        turned.length2 > 1e-12) {
+      t.setFrom(turned..normalize());
+      bitangent.setFrom(s.normal.cross(t)..scale(s.tangent.w * flip));
+    }
+  }
   // The back face turns the whole frame: the normal and the bitangent built
   // from it have turned already, the tangent follows — see
   // `material_maps.glsl`.
   if (!c.frontFacing) t.negate();
 
-  final uv = uvFootprint(c, bias: materialLodBias(b));
-  final texel = map.sample(v[kVUv], v[kVUv + 1], du: uv.du, dv: uv.dv);
+  final (u: mu, v: mv, footprint: uv) = mapUv(
+    kMapNormal,
+    v,
+    b,
+    c,
+    transformed: transformed,
+  );
+  final texel = map.sample(mu, mv, du: uv.du, dv: uv.dv);
   final scale = b.vec4('FragInfo', 'material2', Vector4.zero()).y;
   final sx = (texel.x * 2.0 - 1.0) * scale;
   final sy = (texel.y * 2.0 - 1.0) * scale;
@@ -364,8 +478,9 @@ void applyCommonMaps(
   Surface s,
   Float32List v,
   ShaderBindings b,
-  FragmentContext c,
-) {
+  FragmentContext c, {
+  bool transformed = false,
+}) {
   // `L3`: the field in place of the hemisphere, before the normal map, as
   // `ApplyCommonMaps` does it.
   if (irradianceEnabled(b)) {
@@ -374,7 +489,7 @@ void applyCommonMaps(
       sampleIrradiance(b, s.world, s.normal, s.view)..scale(strength),
     );
   }
-  applyNormalMap(s, v, b, c);
-  applyOcclusionMap(s, v, b, c);
-  applyEmissiveMap(s, v, b, c);
+  applyNormalMap(s, v, b, c, transformed: transformed);
+  applyOcclusionMap(s, v, b, c, transformed: transformed);
+  applyEmissiveMap(s, v, b, c, transformed: transformed);
 }

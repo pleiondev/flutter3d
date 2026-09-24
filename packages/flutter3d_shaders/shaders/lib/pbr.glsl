@@ -23,6 +23,12 @@
 #ifndef PBR_GLSL_
 #define PBR_GLSL_
 
+// `C8`: the layered stage reads each map through its own transform — see
+// `MapUv` in `lib/surface.glsl`, and the definitions under `LayerInfo` below.
+#ifdef F3D_LAYERED
+#define F3D_TEXTURE_TRANSFORM
+#endif
+
 #include <lib/material_maps.glsl>
 #include <lib/shadow.glsl>
 
@@ -56,8 +62,31 @@ uniform LayerInfo {
   /// x: `KHR_materials_iridescence`, y: the film's index of refraction, z:
   /// its thickness in nanometres. w: unused.
   vec4 iridescence;
+
+  /// `KHR_texture_transform` per map — `C8`: two rows of a 2×3 matrix each,
+  /// the map's coordinate being `(dot(row0.xyz, uvw), dot(row1.xyz, uvw))`
+  /// with `uvw = (u, v, 1)`, in the order `kMapBaseColor` and the rest count.
+  /// The identity for a map that names none, which reads the coordinate
+  /// unchanged to the bit: one times `u`, plus nought twice.
+  ///
+  /// **Here and not baked into the vertices**, which is what an atlas export
+  /// gets: one set of coordinates can carry one transform, and this is the
+  /// material whose maps disagree, or whose offset a clip moves.
+  vec4 uv_transform[10];
 }
 layer_info;
+
+vec2 MapUv(int slot) {
+  vec3 uvw = vec3(v_texcoord, 1.0);
+  return vec2(dot(layer_info.uv_transform[slot * 2].xyz, uvw),
+              dot(layer_info.uv_transform[slot * 2 + 1].xyz, uvw));
+}
+
+vec4 MapMatrix(int slot) {
+  vec4 u = layer_info.uv_transform[slot * 2];
+  vec4 v = layer_info.uv_transform[slot * 2 + 1];
+  return vec4(u.x, u.y, v.x, v.y);
+}
 
 /// The coat map: r the clear coat, g its roughness, b the transmission and a
 /// the thickness, each multiplying its factor — `M3` reads b and a. White when a

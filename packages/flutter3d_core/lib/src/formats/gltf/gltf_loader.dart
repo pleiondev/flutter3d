@@ -12,7 +12,6 @@ import '../model_document.dart';
 import '../model_loader.dart';
 import '../splat/splat_cloud.dart';
 import '../srgb.dart';
-import '../texture_transform_bake.dart';
 import 'glb_container.dart';
 import 'gltf_accessor.dart';
 import 'gltf_asset.dart';
@@ -199,15 +198,7 @@ final class GltfLoader implements ModelDecoder {
     final required = json['extensionsRequired'];
     if (required is! List) return;
 
-    // Only what something downstream actually reads. `KHR_texture_transform`
-    // was on this list and nothing anywhere applied a transform: an
-    // atlas-packed model — the export that needs it — passed the gate and
-    // then drew every material sampling the whole atlas. A file that requires
-    // it is still refused here, because requiring it promises every transform
-    // in the file and only some can be kept: one shared by a material's
-    // textures is honoured in the coordinates by whoever draws the surface,
-    // and textures that disagree are not, which `_decodeMaterials` warns
-    // about. A file that merely uses it loads.
+    // Only what something downstream actually reads.
     const supported = <String>{
       'KHR_materials_unlit',
       'KHR_materials_emissive_strength',
@@ -266,6 +257,12 @@ final class GltfLoader implements ModelDecoder {
       // that one channel rather than the file.
       'KHR_materials_variants',
       'KHR_animation_pointer',
+      // `C8`: every transform in the file is kept. One a material's textures
+      // share is honoured in the coordinates by whoever draws the surface;
+      // textures that disagree are read each through its own matrix at the
+      // sampler, by the layered model — see `ModelAsset.fromDocument`, which
+      // warns about the one case left, a material another model draws.
+      'KHR_texture_transform',
     };
     final unsupported = required.whereType<String>().where(
       (e) => !supported.contains(e),

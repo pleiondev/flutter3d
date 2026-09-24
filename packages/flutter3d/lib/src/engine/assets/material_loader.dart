@@ -271,9 +271,16 @@ Future<Material> loadMaterial(
 /// in rather than taking a list of images is what lets a caller cache: a model
 /// whose nine materials sample one atlas uploads it once, and a modeller
 /// rebuilding one material after an edit re-uploads nothing at all.
+///
+/// [transformsAtSampler] carries the maps' `KHR_texture_transform`s into
+/// [Material.textureTransforms] and draws a metal-rough material with the
+/// layered model, which reads them — `C8`. For a caller that does not bake
+/// them into the coordinates; see `ModelAsset.fromDocument`, which decides.
+/// A material another model draws gets none, since no other stage reads them.
 Future<Material> bindSurfaceMaterial(
   SurfaceMaterial source, {
   LightingModel lighting = LightingModel.pbr,
+  bool transformsAtSampler = false,
   required Future<TextureHandle?> Function(int, TextureSampling) textureFor,
   ({
     GraphicsDevice device,
@@ -309,18 +316,25 @@ Future<Material> bindSurfaceMaterial(
     _ => (null, null),
   };
 
+  // A material that names its own model wins outright; failing that, an
+  // unlit material asks for unlit shading regardless of the scene's
+  // preferred model, since ignoring the flag would light something
+  // authored flat.
+  //
+  // `M1`: a metal-rough surface with layers is drawn by the layered model,
+  // and so is one whose transforms are read at the sampler — `C8`.
+  final model =
+      (source.lightingModel ?? (source.unlit ? LightingModel.unlit : lighting))
+          .withLayers(
+            source.extensions,
+            textureTransforms: transformsAtSampler,
+          );
+  final atSampler =
+      transformsAtSampler && identical(model, LightingModel.pbrLayered);
+
   return Material(
     name: source.name,
-    // A material that names its own model wins outright; failing that, an
-    // unlit material asks for unlit shading regardless of the scene's
-    // preferred model, since ignoring the flag would light something
-    // authored flat.
-    //
-    // `M1`: a metal-rough surface with layers is drawn by the layered model.
-    lighting:
-        (source.lightingModel ??
-                (source.unlit ? LightingModel.unlit : lighting))
-            .withLayers(source.extensions),
+    lighting: model,
     baseColor: source.baseColor.clone(),
     metallic: source.metallic,
     roughness: source.roughness,
@@ -350,5 +364,12 @@ Future<Material> bindSurfaceMaterial(
     coatMapSampler: coat?.sampler,
     sheenMap: sheen?.texture,
     sheenMapSampler: sheen?.sampler,
+    textureTransforms: atSampler
+        ? <MaterialMap, TextureTransform>{
+            for (final map in MaterialMap.values)
+              if (map.of(source)?.transform case final transform?)
+                map: transform.clone(),
+          }
+        : null,
   );
 }

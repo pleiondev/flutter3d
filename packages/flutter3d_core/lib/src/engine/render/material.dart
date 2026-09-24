@@ -71,6 +71,7 @@ final class Material {
     this.coatMapSampler,
     this.sheenMap,
     this.sheenMapSampler,
+    Map<MaterialMap, TextureTransform>? textureTransforms,
     this.drawBucket = 0,
     this.depthWrite,
     this.depthCompare,
@@ -78,6 +79,8 @@ final class Material {
     Map<String, Float32List>? parameters,
     Map<String, TextureHandle>? extraTextures,
   }) : parameters = parameters ?? const <String, Float32List>{},
+       textureTransforms =
+           textureTransforms ?? <MaterialMap, TextureTransform>{},
        extraTextures = extraTextures ?? const <String, TextureHandle>{},
        baseColor = baseColor ?? Vector4(1.0, 1.0, 1.0, 1.0),
        emissive = emissive ?? Vector3.zero();
@@ -282,6 +285,19 @@ final class Material {
   TextureHandle? sheenMap;
   SamplerOptions? sheenMapSampler;
 
+  /// `KHR_texture_transform` per map, applied at the sampler — `C8`. A map
+  /// with no entry is read at the vertex's own coordinate.
+  ///
+  /// **Read only by [LightingModel.pbrLayered]**, whose block has the room: a
+  /// matrix per map for every draw of every model would be a widening of the
+  /// block six stages share, for a feature most models never meet. What most
+  /// models do meet — one transform on every map, an atlas export — is baked
+  /// into the coordinates at upload and leaves this empty; a loader fills it
+  /// for the material whose maps disagree, or whose offset a clip moves, and
+  /// hands that material the layered model. Mutable, so a clip moves an
+  /// [TextureTransform.offset] in place.
+  final Map<MaterialMap, TextureTransform> textureTransforms;
+
   /// Coarse manual ordering, borrowed from PlayCanvas: it outranks every other
   /// sort term, so a skybox or an overlay can be forced to a fixed position
   /// without touching the sorting policy.
@@ -374,6 +390,10 @@ final class Material {
           coatMapSampler: coatMapSampler,
           sheenMap: sheenMap,
           sheenMapSampler: sheenMapSampler,
+          textureTransforms: <MaterialMap, TextureTransform>{
+            for (final MapEntry(:key, :value) in textureTransforms.entries)
+              key: value.clone(),
+          },
           drawBucket: drawBucket,
           depthWrite: depthWrite,
           depthCompare: depthCompare,

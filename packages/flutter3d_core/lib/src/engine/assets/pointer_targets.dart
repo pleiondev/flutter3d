@@ -41,10 +41,11 @@ final class PointerTargets implements AnimationPointerSink {
 
   /// Writes [values] to [material]'s property named by [pointer].
   ///
-  /// [AnimationPointerProperty.textureOffset] is accepted and not applied:
-  /// the offset is baked into a mesh's coordinates at upload and no stage
-  /// reads a per-material offset, so moving one at runtime has nowhere to
-  /// go yet. The track still loads, plays and round-trips.
+  /// [AnimationPointerProperty.textureOffset] moves the offset of the map
+  /// the pointer names in [Material.textureTransforms] — `C8`. A loader keeps
+  /// such a material's transforms there, at the sampler, rather than baking
+  /// them into the mesh, so the offset a clip moves is the one drawn; a map
+  /// that named no transform gains one, the identity with this offset.
   static void applyToMaterial(
     Material material,
     AnimationPointer pointer,
@@ -65,10 +66,36 @@ final class PointerTargets implements AnimationPointerSink {
       case AnimationPointerProperty.metallic:
         material.metallic = values[0];
       case AnimationPointerProperty.textureOffset:
+        final map = textureMapOf(pointer);
+        if (map == null) return;
+        (material.textureTransforms[map] ??= TextureTransform()).offset
+            .setValues(values[0], values[1]);
       case AnimationPointerProperty.lightColor:
       case AnimationPointerProperty.lightIntensity:
         break;
     }
+  }
+
+  /// Which map a [AnimationPointerProperty.textureOffset] pointer names, from
+  /// the texture info its string goes through.
+  ///
+  /// Read from the string rather than resolved into [AnimationPointer], which
+  /// keeps the one property for all five maps a writer has always known. Five
+  /// substring tests a track a frame, against a pointer whose shape
+  /// `AnimationPointer.parse` has already checked.
+  static MaterialMap? textureMapOf(AnimationPointer pointer) {
+    final path = pointer.pointer;
+    return path.contains('/baseColorTexture/')
+        ? MaterialMap.baseColor
+        : path.contains('/metallicRoughnessTexture/')
+        ? MaterialMap.metallicRoughness
+        : path.contains('/normalTexture/')
+        ? MaterialMap.normal
+        : path.contains('/occlusionTexture/')
+        ? MaterialMap.occlusion
+        : path.contains('/emissiveTexture/')
+        ? MaterialMap.emissive
+        : null;
   }
 
   /// Writes [values] to [light]'s property named by [pointer].

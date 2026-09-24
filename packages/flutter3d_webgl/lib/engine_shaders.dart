@@ -3127,6 +3127,32 @@ frag_info;
 /// The bias a material map is read with — see `target_origin.y`.
 float MaterialLodBias() { return frag_info.target_origin.y; }
 
+/// The maps a lit material reads, by the index [MapUv] takes — `C8`. The
+/// order `LayerInfo.uv_transform` keeps them in, and `MaterialMap`'s on the
+/// Dart side.
+#define kMapBaseColor 0
+#define kMapMetallicRoughness 1
+#define kMapNormal 2
+#define kMapOcclusion 3
+#define kMapEmissive 4
+
+/// Where map [slot] is read — `C8`, `KHR_texture_transform` at the sampler.
+///
+/// **A macro everywhere but the one stage that has the matrices.** A stage
+/// that defines `F3D_TEXTURE_TRANSFORM` supplies [MapUv] and [MapMatrix] from
+/// a block of its own; every other stage reads each map at the vertex's own
+/// coordinate, and the macro leaves its source exactly what it was, so none of
+/// them compiles to anything new.
+#ifdef F3D_TEXTURE_TRANSFORM
+vec2 MapUv(int slot);
+
+/// The 2×2 part of map [slot]'s transform: x and y its first row, z and w
+/// its second.
+vec4 MapMatrix(int slot);
+#else
+#define MapUv(slot) v_texcoord
+#endif
+
 uniform sampler2D base_color_texture;
 
 /// Everything about the surface that does not depend on which light is being
@@ -3165,7 +3191,7 @@ struct LightSample {
 Surface ReadSurface() {
   Surface s;
 
-  vec4 texel = texture(base_color_texture, v_texcoord, MaterialLodBias());
+  vec4 texel = texture(base_color_texture, MapUv(kMapBaseColor), MaterialLodBias());
   // Vertex colour is authored linear per the glTF spec, unlike the base colour
   // texture and the tint, which are sRGB.
   s.albedo = SrgbToLinear(texel.rgb) *
@@ -4778,6 +4804,32 @@ frag_info;
 /// The bias a material map is read with — see `target_origin.y`.
 float MaterialLodBias() { return frag_info.target_origin.y; }
 
+/// The maps a lit material reads, by the index [MapUv] takes — `C8`. The
+/// order `LayerInfo.uv_transform` keeps them in, and `MaterialMap`'s on the
+/// Dart side.
+#define kMapBaseColor 0
+#define kMapMetallicRoughness 1
+#define kMapNormal 2
+#define kMapOcclusion 3
+#define kMapEmissive 4
+
+/// Where map [slot] is read — `C8`, `KHR_texture_transform` at the sampler.
+///
+/// **A macro everywhere but the one stage that has the matrices.** A stage
+/// that defines `F3D_TEXTURE_TRANSFORM` supplies [MapUv] and [MapMatrix] from
+/// a block of its own; every other stage reads each map at the vertex's own
+/// coordinate, and the macro leaves its source exactly what it was, so none of
+/// them compiles to anything new.
+#ifdef F3D_TEXTURE_TRANSFORM
+vec2 MapUv(int slot);
+
+/// The 2×2 part of map [slot]'s transform: x and y its first row, z and w
+/// its second.
+vec4 MapMatrix(int slot);
+#else
+#define MapUv(slot) v_texcoord
+#endif
+
 uniform sampler2D base_color_texture;
 
 /// Everything about the surface that does not depend on which light is being
@@ -4816,7 +4868,7 @@ struct LightSample {
 Surface ReadSurface() {
   Surface s;
 
-  vec4 texel = texture(base_color_texture, v_texcoord, MaterialLodBias());
+  vec4 texel = texture(base_color_texture, MapUv(kMapBaseColor), MaterialLodBias());
   // Vertex colour is authored linear per the glTF spec, unlike the base colour
   // texture and the tint, which are sRGB.
   s.albedo = SrgbToLinear(texel.rgb) *
@@ -6415,6 +6467,32 @@ frag_info;
 /// The bias a material map is read with — see `target_origin.y`.
 float MaterialLodBias() { return frag_info.target_origin.y; }
 
+/// The maps a lit material reads, by the index [MapUv] takes — `C8`. The
+/// order `LayerInfo.uv_transform` keeps them in, and `MaterialMap`'s on the
+/// Dart side.
+#define kMapBaseColor 0
+#define kMapMetallicRoughness 1
+#define kMapNormal 2
+#define kMapOcclusion 3
+#define kMapEmissive 4
+
+/// Where map [slot] is read — `C8`, `KHR_texture_transform` at the sampler.
+///
+/// **A macro everywhere but the one stage that has the matrices.** A stage
+/// that defines `F3D_TEXTURE_TRANSFORM` supplies [MapUv] and [MapMatrix] from
+/// a block of its own; every other stage reads each map at the vertex's own
+/// coordinate, and the macro leaves its source exactly what it was, so none of
+/// them compiles to anything new.
+#ifdef F3D_TEXTURE_TRANSFORM
+vec2 MapUv(int slot);
+
+/// The 2×2 part of map [slot]'s transform: x and y its first row, z and w
+/// its second.
+vec4 MapMatrix(int slot);
+#else
+#define MapUv(slot) v_texcoord
+#endif
+
 uniform sampler2D base_color_texture;
 
 /// Everything about the surface that does not depend on which light is being
@@ -6453,7 +6531,7 @@ struct LightSample {
 Surface ReadSurface() {
   Surface s;
 
-  vec4 texel = texture(base_color_texture, v_texcoord, MaterialLodBias());
+  vec4 texel = texture(base_color_texture, MapUv(kMapBaseColor), MaterialLodBias());
   // Vertex colour is authored linear per the glTF spec, unlike the base colour
   // texture and the tint, which are sRGB.
   s.albedo = SrgbToLinear(texel.rgb) *
@@ -7554,20 +7632,20 @@ vec3 SampleLightmap() {
 /// glTF's ORM packing: roughness in g, metallic in b, both multiplying the
 /// material factors.
 void ApplyMetallicRoughnessMap(inout Surface s) {
-  vec3 orm = texture(metallic_roughness_texture, v_texcoord, MaterialLodBias()).rgb;
+  vec3 orm = texture(metallic_roughness_texture, MapUv(kMapMetallicRoughness), MaterialLodBias()).rgb;
   s.metallic = clamp(s.metallic * orm.b, 0.0, 1.0);
   s.roughness = clamp(s.roughness * orm.g, 0.02, 1.0);
 }
 
 void ApplyOcclusionMap(inout Surface s) {
-  float occlusion = texture(occlusion_texture, v_texcoord, MaterialLodBias()).r;
+  float occlusion = texture(occlusion_texture, MapUv(kMapOcclusion), MaterialLodBias()).r;
   // glTF's occlusionStrength lerps between "ignore the map" and "apply it in
   // full", which is why it is a mix and not a multiply.
   s.occlusion = mix(1.0, occlusion, clamp(frag_info.material2.z, 0.0, 1.0));
 }
 
 void ApplyEmissiveMap(inout Surface s) {
-  vec3 emissive = SrgbToLinear(texture(emissive_texture, v_texcoord, MaterialLodBias()).rgb);
+  vec3 emissive = SrgbToLinear(texture(emissive_texture, MapUv(kMapEmissive), MaterialLodBias()).rgb);
   s.emissive = emissive * frag_info.emissive.rgb * frag_info.material2.w;
 }
 
@@ -7584,7 +7662,7 @@ void ApplyNormalMap(inout Surface s) {
   // the sample is the cure that is not. A degenerate tangent is rare enough
   // that paying for its unused texel is nothing, and the texel it reads is the
   // same one the branch would have read.
-  vec4 sampledTexel = texture(normal_texture, v_texcoord, MaterialLodBias());
+  vec4 sampledTexel = texture(normal_texture, MapUv(kMapNormal), MaterialLodBias());
 
   // The tangent is re-orthogonalized against the normal because interpolating
   // both across a triangle does not preserve the right angle between them.
@@ -7597,6 +7675,25 @@ void ApplyNormalMap(inout Surface s) {
   // every mirrored half of a symmetric model light from the wrong side, which
   // is exactly what NormalTangentTest is built to show.
   vec3 b = cross(s.n, t) * v_tangent.w;
+#ifdef F3D_TEXTURE_TRANSFORM
+  // `C8`: a map turned or mirrored by its transform is read along axes the
+  // vertex tangent no longer names, so the frame turns with it — the rule
+  // `withTextureTransform` applies to a baked mesh, here at the sampler. The
+  // new tangent is where the map's own `u` increases: the first column of the
+  // matrix's inverse, times its determinant, whose sign a mirror flips and the
+  // bitangent's sign with it. Measured on the front face's frame, which is
+  // the frame the transform was authored on. A plain scale leaves the frame
+  // as it was, bit for bit, which is why the test is on the matrix.
+  vec4 m = MapMatrix(kMapNormal);
+  float det = m.x * m.w - m.y * m.z;
+  float flip = det < 0.0 ? -1.0 : 1.0;
+  vec3 front = gl_FrontFacing ? b : -b;
+  vec3 turned = (t * m.w - front * m.z) * flip;
+  bool turns = (m.y != 0.0 || m.z != 0.0 || m.x < 0.0 || m.w < 0.0) &&
+               dot(turned, turned) > 1e-12;
+  t = turns ? normalize(turned) : t;
+  b = turns ? cross(s.n, t) * v_tangent.w * flip : b;
+#endif
   // On a back face `ReadSurface` has already turned the normal round, and
   // the bitangent above turned with it. The tangent has to follow, or the
   // frame is half-mirrored and relief along u lights from the wrong side —
@@ -8671,6 +8768,32 @@ frag_info;
 /// The bias a material map is read with — see `target_origin.y`.
 float MaterialLodBias() { return frag_info.target_origin.y; }
 
+/// The maps a lit material reads, by the index [MapUv] takes — `C8`. The
+/// order `LayerInfo.uv_transform` keeps them in, and `MaterialMap`'s on the
+/// Dart side.
+#define kMapBaseColor 0
+#define kMapMetallicRoughness 1
+#define kMapNormal 2
+#define kMapOcclusion 3
+#define kMapEmissive 4
+
+/// Where map [slot] is read — `C8`, `KHR_texture_transform` at the sampler.
+///
+/// **A macro everywhere but the one stage that has the matrices.** A stage
+/// that defines `F3D_TEXTURE_TRANSFORM` supplies [MapUv] and [MapMatrix] from
+/// a block of its own; every other stage reads each map at the vertex's own
+/// coordinate, and the macro leaves its source exactly what it was, so none of
+/// them compiles to anything new.
+#ifdef F3D_TEXTURE_TRANSFORM
+vec2 MapUv(int slot);
+
+/// The 2×2 part of map [slot]'s transform: x and y its first row, z and w
+/// its second.
+vec4 MapMatrix(int slot);
+#else
+#define MapUv(slot) v_texcoord
+#endif
+
 uniform sampler2D base_color_texture;
 
 /// Everything about the surface that does not depend on which light is being
@@ -8709,7 +8832,7 @@ struct LightSample {
 Surface ReadSurface() {
   Surface s;
 
-  vec4 texel = texture(base_color_texture, v_texcoord, MaterialLodBias());
+  vec4 texel = texture(base_color_texture, MapUv(kMapBaseColor), MaterialLodBias());
   // Vertex colour is authored linear per the glTF spec, unlike the base colour
   // texture and the tint, which are sRGB.
   s.albedo = SrgbToLinear(texel.rgb) *
@@ -9810,20 +9933,20 @@ vec3 SampleLightmap() {
 /// glTF's ORM packing: roughness in g, metallic in b, both multiplying the
 /// material factors.
 void ApplyMetallicRoughnessMap(inout Surface s) {
-  vec3 orm = texture(metallic_roughness_texture, v_texcoord, MaterialLodBias()).rgb;
+  vec3 orm = texture(metallic_roughness_texture, MapUv(kMapMetallicRoughness), MaterialLodBias()).rgb;
   s.metallic = clamp(s.metallic * orm.b, 0.0, 1.0);
   s.roughness = clamp(s.roughness * orm.g, 0.02, 1.0);
 }
 
 void ApplyOcclusionMap(inout Surface s) {
-  float occlusion = texture(occlusion_texture, v_texcoord, MaterialLodBias()).r;
+  float occlusion = texture(occlusion_texture, MapUv(kMapOcclusion), MaterialLodBias()).r;
   // glTF's occlusionStrength lerps between "ignore the map" and "apply it in
   // full", which is why it is a mix and not a multiply.
   s.occlusion = mix(1.0, occlusion, clamp(frag_info.material2.z, 0.0, 1.0));
 }
 
 void ApplyEmissiveMap(inout Surface s) {
-  vec3 emissive = SrgbToLinear(texture(emissive_texture, v_texcoord, MaterialLodBias()).rgb);
+  vec3 emissive = SrgbToLinear(texture(emissive_texture, MapUv(kMapEmissive), MaterialLodBias()).rgb);
   s.emissive = emissive * frag_info.emissive.rgb * frag_info.material2.w;
 }
 
@@ -9840,7 +9963,7 @@ void ApplyNormalMap(inout Surface s) {
   // the sample is the cure that is not. A degenerate tangent is rare enough
   // that paying for its unused texel is nothing, and the texel it reads is the
   // same one the branch would have read.
-  vec4 sampledTexel = texture(normal_texture, v_texcoord, MaterialLodBias());
+  vec4 sampledTexel = texture(normal_texture, MapUv(kMapNormal), MaterialLodBias());
 
   // The tangent is re-orthogonalized against the normal because interpolating
   // both across a triangle does not preserve the right angle between them.
@@ -9853,6 +9976,25 @@ void ApplyNormalMap(inout Surface s) {
   // every mirrored half of a symmetric model light from the wrong side, which
   // is exactly what NormalTangentTest is built to show.
   vec3 b = cross(s.n, t) * v_tangent.w;
+#ifdef F3D_TEXTURE_TRANSFORM
+  // `C8`: a map turned or mirrored by its transform is read along axes the
+  // vertex tangent no longer names, so the frame turns with it — the rule
+  // `withTextureTransform` applies to a baked mesh, here at the sampler. The
+  // new tangent is where the map's own `u` increases: the first column of the
+  // matrix's inverse, times its determinant, whose sign a mirror flips and the
+  // bitangent's sign with it. Measured on the front face's frame, which is
+  // the frame the transform was authored on. A plain scale leaves the frame
+  // as it was, bit for bit, which is why the test is on the matrix.
+  vec4 m = MapMatrix(kMapNormal);
+  float det = m.x * m.w - m.y * m.z;
+  float flip = det < 0.0 ? -1.0 : 1.0;
+  vec3 front = gl_FrontFacing ? b : -b;
+  vec3 turned = (t * m.w - front * m.z) * flip;
+  bool turns = (m.y != 0.0 || m.z != 0.0 || m.x < 0.0 || m.w < 0.0) &&
+               dot(turned, turned) > 1e-12;
+  t = turns ? normalize(turned) : t;
+  b = turns ? cross(s.n, t) * v_tangent.w * flip : b;
+#endif
   // On a back face `ReadSurface` has already turned the normal round, and
   // the bitangent above turned with it. The tangent has to follow, or the
   // frame is half-mirrored and relief along u lights from the wrong side —
@@ -10290,6 +10432,12 @@ precision highp samplerCube;
 #define F3D_LTC
 #ifndef PBR_GLSL_
 #define PBR_GLSL_
+
+// `C8`: the layered stage reads each map through its own transform — see
+// `MapUv` in `lib/surface.glsl`, and the definitions under `LayerInfo` below.
+#ifdef F3D_LAYERED
+#define F3D_TEXTURE_TRANSFORM
+#endif
 
 // --- lib/material_maps.glsl ---
 // The texture maps a lit material can carry, beyond base colour.
@@ -10956,6 +11104,32 @@ frag_info;
 /// The bias a material map is read with — see `target_origin.y`.
 float MaterialLodBias() { return frag_info.target_origin.y; }
 
+/// The maps a lit material reads, by the index [MapUv] takes — `C8`. The
+/// order `LayerInfo.uv_transform` keeps them in, and `MaterialMap`'s on the
+/// Dart side.
+#define kMapBaseColor 0
+#define kMapMetallicRoughness 1
+#define kMapNormal 2
+#define kMapOcclusion 3
+#define kMapEmissive 4
+
+/// Where map [slot] is read — `C8`, `KHR_texture_transform` at the sampler.
+///
+/// **A macro everywhere but the one stage that has the matrices.** A stage
+/// that defines `F3D_TEXTURE_TRANSFORM` supplies [MapUv] and [MapMatrix] from
+/// a block of its own; every other stage reads each map at the vertex's own
+/// coordinate, and the macro leaves its source exactly what it was, so none of
+/// them compiles to anything new.
+#ifdef F3D_TEXTURE_TRANSFORM
+vec2 MapUv(int slot);
+
+/// The 2×2 part of map [slot]'s transform: x and y its first row, z and w
+/// its second.
+vec4 MapMatrix(int slot);
+#else
+#define MapUv(slot) v_texcoord
+#endif
+
 uniform sampler2D base_color_texture;
 
 /// Everything about the surface that does not depend on which light is being
@@ -10994,7 +11168,7 @@ struct LightSample {
 Surface ReadSurface() {
   Surface s;
 
-  vec4 texel = texture(base_color_texture, v_texcoord, MaterialLodBias());
+  vec4 texel = texture(base_color_texture, MapUv(kMapBaseColor), MaterialLodBias());
   // Vertex colour is authored linear per the glTF spec, unlike the base colour
   // texture and the tint, which are sRGB.
   s.albedo = SrgbToLinear(texel.rgb) *
@@ -12095,20 +12269,20 @@ vec3 SampleLightmap() {
 /// glTF's ORM packing: roughness in g, metallic in b, both multiplying the
 /// material factors.
 void ApplyMetallicRoughnessMap(inout Surface s) {
-  vec3 orm = texture(metallic_roughness_texture, v_texcoord, MaterialLodBias()).rgb;
+  vec3 orm = texture(metallic_roughness_texture, MapUv(kMapMetallicRoughness), MaterialLodBias()).rgb;
   s.metallic = clamp(s.metallic * orm.b, 0.0, 1.0);
   s.roughness = clamp(s.roughness * orm.g, 0.02, 1.0);
 }
 
 void ApplyOcclusionMap(inout Surface s) {
-  float occlusion = texture(occlusion_texture, v_texcoord, MaterialLodBias()).r;
+  float occlusion = texture(occlusion_texture, MapUv(kMapOcclusion), MaterialLodBias()).r;
   // glTF's occlusionStrength lerps between "ignore the map" and "apply it in
   // full", which is why it is a mix and not a multiply.
   s.occlusion = mix(1.0, occlusion, clamp(frag_info.material2.z, 0.0, 1.0));
 }
 
 void ApplyEmissiveMap(inout Surface s) {
-  vec3 emissive = SrgbToLinear(texture(emissive_texture, v_texcoord, MaterialLodBias()).rgb);
+  vec3 emissive = SrgbToLinear(texture(emissive_texture, MapUv(kMapEmissive), MaterialLodBias()).rgb);
   s.emissive = emissive * frag_info.emissive.rgb * frag_info.material2.w;
 }
 
@@ -12125,7 +12299,7 @@ void ApplyNormalMap(inout Surface s) {
   // the sample is the cure that is not. A degenerate tangent is rare enough
   // that paying for its unused texel is nothing, and the texel it reads is the
   // same one the branch would have read.
-  vec4 sampledTexel = texture(normal_texture, v_texcoord, MaterialLodBias());
+  vec4 sampledTexel = texture(normal_texture, MapUv(kMapNormal), MaterialLodBias());
 
   // The tangent is re-orthogonalized against the normal because interpolating
   // both across a triangle does not preserve the right angle between them.
@@ -12138,6 +12312,25 @@ void ApplyNormalMap(inout Surface s) {
   // every mirrored half of a symmetric model light from the wrong side, which
   // is exactly what NormalTangentTest is built to show.
   vec3 b = cross(s.n, t) * v_tangent.w;
+#ifdef F3D_TEXTURE_TRANSFORM
+  // `C8`: a map turned or mirrored by its transform is read along axes the
+  // vertex tangent no longer names, so the frame turns with it — the rule
+  // `withTextureTransform` applies to a baked mesh, here at the sampler. The
+  // new tangent is where the map's own `u` increases: the first column of the
+  // matrix's inverse, times its determinant, whose sign a mirror flips and the
+  // bitangent's sign with it. Measured on the front face's frame, which is
+  // the frame the transform was authored on. A plain scale leaves the frame
+  // as it was, bit for bit, which is why the test is on the matrix.
+  vec4 m = MapMatrix(kMapNormal);
+  float det = m.x * m.w - m.y * m.z;
+  float flip = det < 0.0 ? -1.0 : 1.0;
+  vec3 front = gl_FrontFacing ? b : -b;
+  vec3 turned = (t * m.w - front * m.z) * flip;
+  bool turns = (m.y != 0.0 || m.z != 0.0 || m.x < 0.0 || m.w < 0.0) &&
+               dot(turned, turned) > 1e-12;
+  t = turns ? normalize(turned) : t;
+  b = turns ? cross(s.n, t) * v_tangent.w * flip : b;
+#endif
   // On a back face `ReadSurface` has already turned the normal round, and
   // the bitangent above turned with it. The tangent has to follow, or the
   // frame is half-mirrored and relief along u lights from the wrong side —
@@ -12543,8 +12736,31 @@ layout(std140) uniform LayerInfo {
   /// x: `KHR_materials_iridescence`, y: the film's index of refraction, z:
   /// its thickness in nanometres. w: unused.
   vec4 iridescence;
+
+  /// `KHR_texture_transform` per map — `C8`: two rows of a 2×3 matrix each,
+  /// the map's coordinate being `(dot(row0.xyz, uvw), dot(row1.xyz, uvw))`
+  /// with `uvw = (u, v, 1)`, in the order `kMapBaseColor` and the rest count.
+  /// The identity for a map that names none, which reads the coordinate
+  /// unchanged to the bit: one times `u`, plus nought twice.
+  ///
+  /// **Here and not baked into the vertices**, which is what an atlas export
+  /// gets: one set of coordinates can carry one transform, and this is the
+  /// material whose maps disagree, or whose offset a clip moves.
+  vec4 uv_transform[10];
 }
 layer_info;
+
+vec2 MapUv(int slot) {
+  vec3 uvw = vec3(v_texcoord, 1.0);
+  return vec2(dot(layer_info.uv_transform[slot * 2].xyz, uvw),
+              dot(layer_info.uv_transform[slot * 2 + 1].xyz, uvw));
+}
+
+vec4 MapMatrix(int slot) {
+  vec4 u = layer_info.uv_transform[slot * 2];
+  vec4 v = layer_info.uv_transform[slot * 2 + 1];
+  return vec4(u.x, u.y, v.x, v.y);
+}
 
 /// The coat map: r the clear coat, g its roughness, b the transmission and a
 /// the thickness, each multiplying its factor — `M3` reads b and a. White when a
@@ -13145,6 +13361,12 @@ precision highp samplerCube;
 #ifndef PBR_GLSL_
 #define PBR_GLSL_
 
+// `C8`: the layered stage reads each map through its own transform — see
+// `MapUv` in `lib/surface.glsl`, and the definitions under `LayerInfo` below.
+#ifdef F3D_LAYERED
+#define F3D_TEXTURE_TRANSFORM
+#endif
+
 // --- lib/material_maps.glsl ---
 // The texture maps a lit material can carry, beyond base colour.
 //
@@ -13810,6 +14032,32 @@ frag_info;
 /// The bias a material map is read with — see `target_origin.y`.
 float MaterialLodBias() { return frag_info.target_origin.y; }
 
+/// The maps a lit material reads, by the index [MapUv] takes — `C8`. The
+/// order `LayerInfo.uv_transform` keeps them in, and `MaterialMap`'s on the
+/// Dart side.
+#define kMapBaseColor 0
+#define kMapMetallicRoughness 1
+#define kMapNormal 2
+#define kMapOcclusion 3
+#define kMapEmissive 4
+
+/// Where map [slot] is read — `C8`, `KHR_texture_transform` at the sampler.
+///
+/// **A macro everywhere but the one stage that has the matrices.** A stage
+/// that defines `F3D_TEXTURE_TRANSFORM` supplies [MapUv] and [MapMatrix] from
+/// a block of its own; every other stage reads each map at the vertex's own
+/// coordinate, and the macro leaves its source exactly what it was, so none of
+/// them compiles to anything new.
+#ifdef F3D_TEXTURE_TRANSFORM
+vec2 MapUv(int slot);
+
+/// The 2×2 part of map [slot]'s transform: x and y its first row, z and w
+/// its second.
+vec4 MapMatrix(int slot);
+#else
+#define MapUv(slot) v_texcoord
+#endif
+
 uniform sampler2D base_color_texture;
 
 /// Everything about the surface that does not depend on which light is being
@@ -13848,7 +14096,7 @@ struct LightSample {
 Surface ReadSurface() {
   Surface s;
 
-  vec4 texel = texture(base_color_texture, v_texcoord, MaterialLodBias());
+  vec4 texel = texture(base_color_texture, MapUv(kMapBaseColor), MaterialLodBias());
   // Vertex colour is authored linear per the glTF spec, unlike the base colour
   // texture and the tint, which are sRGB.
   s.albedo = SrgbToLinear(texel.rgb) *
@@ -14949,20 +15197,20 @@ vec3 SampleLightmap() {
 /// glTF's ORM packing: roughness in g, metallic in b, both multiplying the
 /// material factors.
 void ApplyMetallicRoughnessMap(inout Surface s) {
-  vec3 orm = texture(metallic_roughness_texture, v_texcoord, MaterialLodBias()).rgb;
+  vec3 orm = texture(metallic_roughness_texture, MapUv(kMapMetallicRoughness), MaterialLodBias()).rgb;
   s.metallic = clamp(s.metallic * orm.b, 0.0, 1.0);
   s.roughness = clamp(s.roughness * orm.g, 0.02, 1.0);
 }
 
 void ApplyOcclusionMap(inout Surface s) {
-  float occlusion = texture(occlusion_texture, v_texcoord, MaterialLodBias()).r;
+  float occlusion = texture(occlusion_texture, MapUv(kMapOcclusion), MaterialLodBias()).r;
   // glTF's occlusionStrength lerps between "ignore the map" and "apply it in
   // full", which is why it is a mix and not a multiply.
   s.occlusion = mix(1.0, occlusion, clamp(frag_info.material2.z, 0.0, 1.0));
 }
 
 void ApplyEmissiveMap(inout Surface s) {
-  vec3 emissive = SrgbToLinear(texture(emissive_texture, v_texcoord, MaterialLodBias()).rgb);
+  vec3 emissive = SrgbToLinear(texture(emissive_texture, MapUv(kMapEmissive), MaterialLodBias()).rgb);
   s.emissive = emissive * frag_info.emissive.rgb * frag_info.material2.w;
 }
 
@@ -14979,7 +15227,7 @@ void ApplyNormalMap(inout Surface s) {
   // the sample is the cure that is not. A degenerate tangent is rare enough
   // that paying for its unused texel is nothing, and the texel it reads is the
   // same one the branch would have read.
-  vec4 sampledTexel = texture(normal_texture, v_texcoord, MaterialLodBias());
+  vec4 sampledTexel = texture(normal_texture, MapUv(kMapNormal), MaterialLodBias());
 
   // The tangent is re-orthogonalized against the normal because interpolating
   // both across a triangle does not preserve the right angle between them.
@@ -14992,6 +15240,25 @@ void ApplyNormalMap(inout Surface s) {
   // every mirrored half of a symmetric model light from the wrong side, which
   // is exactly what NormalTangentTest is built to show.
   vec3 b = cross(s.n, t) * v_tangent.w;
+#ifdef F3D_TEXTURE_TRANSFORM
+  // `C8`: a map turned or mirrored by its transform is read along axes the
+  // vertex tangent no longer names, so the frame turns with it — the rule
+  // `withTextureTransform` applies to a baked mesh, here at the sampler. The
+  // new tangent is where the map's own `u` increases: the first column of the
+  // matrix's inverse, times its determinant, whose sign a mirror flips and the
+  // bitangent's sign with it. Measured on the front face's frame, which is
+  // the frame the transform was authored on. A plain scale leaves the frame
+  // as it was, bit for bit, which is why the test is on the matrix.
+  vec4 m = MapMatrix(kMapNormal);
+  float det = m.x * m.w - m.y * m.z;
+  float flip = det < 0.0 ? -1.0 : 1.0;
+  vec3 front = gl_FrontFacing ? b : -b;
+  vec3 turned = (t * m.w - front * m.z) * flip;
+  bool turns = (m.y != 0.0 || m.z != 0.0 || m.x < 0.0 || m.w < 0.0) &&
+               dot(turned, turned) > 1e-12;
+  t = turns ? normalize(turned) : t;
+  b = turns ? cross(s.n, t) * v_tangent.w * flip : b;
+#endif
   // On a back face `ReadSurface` has already turned the normal round, and
   // the bitangent above turned with it. The tangent has to follow, or the
   // frame is half-mirrored and relief along u lights from the wrong side —
@@ -15397,8 +15664,31 @@ layout(std140) uniform LayerInfo {
   /// x: `KHR_materials_iridescence`, y: the film's index of refraction, z:
   /// its thickness in nanometres. w: unused.
   vec4 iridescence;
+
+  /// `KHR_texture_transform` per map — `C8`: two rows of a 2×3 matrix each,
+  /// the map's coordinate being `(dot(row0.xyz, uvw), dot(row1.xyz, uvw))`
+  /// with `uvw = (u, v, 1)`, in the order `kMapBaseColor` and the rest count.
+  /// The identity for a map that names none, which reads the coordinate
+  /// unchanged to the bit: one times `u`, plus nought twice.
+  ///
+  /// **Here and not baked into the vertices**, which is what an atlas export
+  /// gets: one set of coordinates can carry one transform, and this is the
+  /// material whose maps disagree, or whose offset a clip moves.
+  vec4 uv_transform[10];
 }
 layer_info;
+
+vec2 MapUv(int slot) {
+  vec3 uvw = vec3(v_texcoord, 1.0);
+  return vec2(dot(layer_info.uv_transform[slot * 2].xyz, uvw),
+              dot(layer_info.uv_transform[slot * 2 + 1].xyz, uvw));
+}
+
+vec4 MapMatrix(int slot) {
+  vec4 u = layer_info.uv_transform[slot * 2];
+  vec4 v = layer_info.uv_transform[slot * 2 + 1];
+  return vec4(u.x, u.y, v.x, v.y);
+}
 
 /// The coat map: r the clear coat, g its roughness, b the transmission and a
 /// the thickness, each multiplying its factor — `M3` reads b and a. White when a
@@ -16638,6 +16928,32 @@ frag_info;
 /// The bias a material map is read with — see `target_origin.y`.
 float MaterialLodBias() { return frag_info.target_origin.y; }
 
+/// The maps a lit material reads, by the index [MapUv] takes — `C8`. The
+/// order `LayerInfo.uv_transform` keeps them in, and `MaterialMap`'s on the
+/// Dart side.
+#define kMapBaseColor 0
+#define kMapMetallicRoughness 1
+#define kMapNormal 2
+#define kMapOcclusion 3
+#define kMapEmissive 4
+
+/// Where map [slot] is read — `C8`, `KHR_texture_transform` at the sampler.
+///
+/// **A macro everywhere but the one stage that has the matrices.** A stage
+/// that defines `F3D_TEXTURE_TRANSFORM` supplies [MapUv] and [MapMatrix] from
+/// a block of its own; every other stage reads each map at the vertex's own
+/// coordinate, and the macro leaves its source exactly what it was, so none of
+/// them compiles to anything new.
+#ifdef F3D_TEXTURE_TRANSFORM
+vec2 MapUv(int slot);
+
+/// The 2×2 part of map [slot]'s transform: x and y its first row, z and w
+/// its second.
+vec4 MapMatrix(int slot);
+#else
+#define MapUv(slot) v_texcoord
+#endif
+
 uniform sampler2D base_color_texture;
 
 /// Everything about the surface that does not depend on which light is being
@@ -16676,7 +16992,7 @@ struct LightSample {
 Surface ReadSurface() {
   Surface s;
 
-  vec4 texel = texture(base_color_texture, v_texcoord, MaterialLodBias());
+  vec4 texel = texture(base_color_texture, MapUv(kMapBaseColor), MaterialLodBias());
   // Vertex colour is authored linear per the glTF spec, unlike the base colour
   // texture and the tint, which are sRGB.
   s.albedo = SrgbToLinear(texel.rgb) *
@@ -17777,20 +18093,20 @@ vec3 SampleLightmap() {
 /// glTF's ORM packing: roughness in g, metallic in b, both multiplying the
 /// material factors.
 void ApplyMetallicRoughnessMap(inout Surface s) {
-  vec3 orm = texture(metallic_roughness_texture, v_texcoord, MaterialLodBias()).rgb;
+  vec3 orm = texture(metallic_roughness_texture, MapUv(kMapMetallicRoughness), MaterialLodBias()).rgb;
   s.metallic = clamp(s.metallic * orm.b, 0.0, 1.0);
   s.roughness = clamp(s.roughness * orm.g, 0.02, 1.0);
 }
 
 void ApplyOcclusionMap(inout Surface s) {
-  float occlusion = texture(occlusion_texture, v_texcoord, MaterialLodBias()).r;
+  float occlusion = texture(occlusion_texture, MapUv(kMapOcclusion), MaterialLodBias()).r;
   // glTF's occlusionStrength lerps between "ignore the map" and "apply it in
   // full", which is why it is a mix and not a multiply.
   s.occlusion = mix(1.0, occlusion, clamp(frag_info.material2.z, 0.0, 1.0));
 }
 
 void ApplyEmissiveMap(inout Surface s) {
-  vec3 emissive = SrgbToLinear(texture(emissive_texture, v_texcoord, MaterialLodBias()).rgb);
+  vec3 emissive = SrgbToLinear(texture(emissive_texture, MapUv(kMapEmissive), MaterialLodBias()).rgb);
   s.emissive = emissive * frag_info.emissive.rgb * frag_info.material2.w;
 }
 
@@ -17807,7 +18123,7 @@ void ApplyNormalMap(inout Surface s) {
   // the sample is the cure that is not. A degenerate tangent is rare enough
   // that paying for its unused texel is nothing, and the texel it reads is the
   // same one the branch would have read.
-  vec4 sampledTexel = texture(normal_texture, v_texcoord, MaterialLodBias());
+  vec4 sampledTexel = texture(normal_texture, MapUv(kMapNormal), MaterialLodBias());
 
   // The tangent is re-orthogonalized against the normal because interpolating
   // both across a triangle does not preserve the right angle between them.
@@ -17820,6 +18136,25 @@ void ApplyNormalMap(inout Surface s) {
   // every mirrored half of a symmetric model light from the wrong side, which
   // is exactly what NormalTangentTest is built to show.
   vec3 b = cross(s.n, t) * v_tangent.w;
+#ifdef F3D_TEXTURE_TRANSFORM
+  // `C8`: a map turned or mirrored by its transform is read along axes the
+  // vertex tangent no longer names, so the frame turns with it — the rule
+  // `withTextureTransform` applies to a baked mesh, here at the sampler. The
+  // new tangent is where the map's own `u` increases: the first column of the
+  // matrix's inverse, times its determinant, whose sign a mirror flips and the
+  // bitangent's sign with it. Measured on the front face's frame, which is
+  // the frame the transform was authored on. A plain scale leaves the frame
+  // as it was, bit for bit, which is why the test is on the matrix.
+  vec4 m = MapMatrix(kMapNormal);
+  float det = m.x * m.w - m.y * m.z;
+  float flip = det < 0.0 ? -1.0 : 1.0;
+  vec3 front = gl_FrontFacing ? b : -b;
+  vec3 turned = (t * m.w - front * m.z) * flip;
+  bool turns = (m.y != 0.0 || m.z != 0.0 || m.x < 0.0 || m.w < 0.0) &&
+               dot(turned, turned) > 1e-12;
+  t = turns ? normalize(turned) : t;
+  b = turns ? cross(s.n, t) * v_tangent.w * flip : b;
+#endif
   // On a back face `ReadSurface` has already turned the normal round, and
   // the bitangent above turned with it. The tangent has to follow, or the
   // frame is half-mirrored and relief along u lights from the wrong side —
@@ -27595,6 +27930,32 @@ frag_info;
 /// The bias a material map is read with — see `target_origin.y`.
 float MaterialLodBias() { return frag_info.target_origin.y; }
 
+/// The maps a lit material reads, by the index [MapUv] takes — `C8`. The
+/// order `LayerInfo.uv_transform` keeps them in, and `MaterialMap`'s on the
+/// Dart side.
+#define kMapBaseColor 0
+#define kMapMetallicRoughness 1
+#define kMapNormal 2
+#define kMapOcclusion 3
+#define kMapEmissive 4
+
+/// Where map [slot] is read — `C8`, `KHR_texture_transform` at the sampler.
+///
+/// **A macro everywhere but the one stage that has the matrices.** A stage
+/// that defines `F3D_TEXTURE_TRANSFORM` supplies [MapUv] and [MapMatrix] from
+/// a block of its own; every other stage reads each map at the vertex's own
+/// coordinate, and the macro leaves its source exactly what it was, so none of
+/// them compiles to anything new.
+#ifdef F3D_TEXTURE_TRANSFORM
+vec2 MapUv(int slot);
+
+/// The 2×2 part of map [slot]'s transform: x and y its first row, z and w
+/// its second.
+vec4 MapMatrix(int slot);
+#else
+#define MapUv(slot) v_texcoord
+#endif
+
 uniform sampler2D base_color_texture;
 
 /// Everything about the surface that does not depend on which light is being
@@ -27633,7 +27994,7 @@ struct LightSample {
 Surface ReadSurface() {
   Surface s;
 
-  vec4 texel = texture(base_color_texture, v_texcoord, MaterialLodBias());
+  vec4 texel = texture(base_color_texture, MapUv(kMapBaseColor), MaterialLodBias());
   // Vertex colour is authored linear per the glTF spec, unlike the base colour
   // texture and the tint, which are sRGB.
   s.albedo = SrgbToLinear(texel.rgb) *

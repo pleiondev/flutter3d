@@ -853,28 +853,21 @@ void main() {
       expect(asset.materials, hasLength(1));
     });
 
-    // The extension was on the supported list and read by nothing, so an
-    // atlas-packed model — the export that needs it — loaded and drew every
-    // material sampling the whole atlas. Mutation: putting
-    // 'KHR_texture_transform' back in `_checkRequiredExtensions`'s
-    // `supported` set makes the load succeed and this expectation report
-    // false.
-    test('a required KHR_texture_transform is refused, not claimed', () async {
-      await expectLater(
-        GltfLoader().load(
-          buildGlb(<String, Object?>{
-            'asset': {'version': '2.0'},
-            'extensionsRequired': <Object?>['KHR_texture_transform'],
-          }),
-        ),
-        throwsA(
-          isA<FormatException>().having(
-            (e) => e.message,
-            'message',
-            contains('KHR_texture_transform'),
-          ),
-        ),
+    // `C8`: requiring the extension promises every transform in the file,
+    // and every one is kept now — one a material's maps share in the
+    // coordinates, maps that disagree each at the sampler. Mutation: taking
+    // 'KHR_texture_transform' out of `_checkRequiredExtensions`'s `supported`
+    // set refuses the file again.
+    test('a required KHR_texture_transform loads', () async {
+      final asset = await GltfLoader().load(
+        buildGlb(<String, Object?>{
+          'asset': {'version': '2.0'},
+          'extensionsUsed': <Object?>['KHR_texture_transform'],
+          'extensionsRequired': <Object?>['KHR_texture_transform'],
+          'materials': <Object?>[<String, Object?>{}],
+        }),
       );
+      expect(asset.materials, hasLength(1));
     });
 
     // The commoner half: a file that lists the extension under
@@ -935,11 +928,15 @@ void main() {
       },
     );
 
-    // The case nothing here can honour: two textures of one material, two
-    // transforms, one set of coordinates. Mutation: deleting the `checked`
-    // wrapper in `_decodeMaterials` empties `warnings`.
+    // Two textures of one material, two transforms, one set of coordinates:
+    // the decoder carries both and says nothing, because whether they can be
+    // honoured depends on the model that draws the material — the layered
+    // one reads each at the sampler (`C8`), and `ModelAsset` warns for any
+    // other; see `model_texture_transform_test.dart`. Mutation: dropping
+    // `transform:` from the `TextureBinding` in `textureRef` makes the
+    // emissive expectation report null.
     test(
-      'textures of one material that disagree are warned about, once',
+      'textures of one material that disagree are both carried, unwarned',
       () async {
         final asset = await GltfLoader().load(
           buildGlb(
@@ -955,10 +952,13 @@ void main() {
         );
 
         expect(
-          asset.warnings.where((w) => w.contains('KHR_texture_transform')),
-          hasLength(1),
+          asset.materials.single.emissiveTexture?.transform?.offset,
+          Vector2(0.0, 0.5),
         );
-        expect(asset.warnings.join(), contains('materials[0]'));
+        expect(
+          asset.warnings.where((w) => w.contains('KHR_texture_transform')),
+          isEmpty,
+        );
       },
     );
   });

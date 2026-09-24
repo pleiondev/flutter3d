@@ -62,20 +62,20 @@ vec3 SampleLightmap() {
 /// glTF's ORM packing: roughness in g, metallic in b, both multiplying the
 /// material factors.
 void ApplyMetallicRoughnessMap(inout Surface s) {
-  vec3 orm = texture(metallic_roughness_texture, v_texcoord, MaterialLodBias()).rgb;
+  vec3 orm = texture(metallic_roughness_texture, MapUv(kMapMetallicRoughness), MaterialLodBias()).rgb;
   s.metallic = clamp(s.metallic * orm.b, 0.0, 1.0);
   s.roughness = clamp(s.roughness * orm.g, 0.02, 1.0);
 }
 
 void ApplyOcclusionMap(inout Surface s) {
-  float occlusion = texture(occlusion_texture, v_texcoord, MaterialLodBias()).r;
+  float occlusion = texture(occlusion_texture, MapUv(kMapOcclusion), MaterialLodBias()).r;
   // glTF's occlusionStrength lerps between "ignore the map" and "apply it in
   // full", which is why it is a mix and not a multiply.
   s.occlusion = mix(1.0, occlusion, clamp(frag_info.material2.z, 0.0, 1.0));
 }
 
 void ApplyEmissiveMap(inout Surface s) {
-  vec3 emissive = SrgbToLinear(texture(emissive_texture, v_texcoord, MaterialLodBias()).rgb);
+  vec3 emissive = SrgbToLinear(texture(emissive_texture, MapUv(kMapEmissive), MaterialLodBias()).rgb);
   s.emissive = emissive * frag_info.emissive.rgb * frag_info.material2.w;
 }
 
@@ -92,7 +92,7 @@ void ApplyNormalMap(inout Surface s) {
   // the sample is the cure that is not. A degenerate tangent is rare enough
   // that paying for its unused texel is nothing, and the texel it reads is the
   // same one the branch would have read.
-  vec4 sampledTexel = texture(normal_texture, v_texcoord, MaterialLodBias());
+  vec4 sampledTexel = texture(normal_texture, MapUv(kMapNormal), MaterialLodBias());
 
   // The tangent is re-orthogonalized against the normal because interpolating
   // both across a triangle does not preserve the right angle between them.
@@ -105,6 +105,25 @@ void ApplyNormalMap(inout Surface s) {
   // every mirrored half of a symmetric model light from the wrong side, which
   // is exactly what NormalTangentTest is built to show.
   vec3 b = cross(s.n, t) * v_tangent.w;
+#ifdef F3D_TEXTURE_TRANSFORM
+  // `C8`: a map turned or mirrored by its transform is read along axes the
+  // vertex tangent no longer names, so the frame turns with it — the rule
+  // `withTextureTransform` applies to a baked mesh, here at the sampler. The
+  // new tangent is where the map's own `u` increases: the first column of the
+  // matrix's inverse, times its determinant, whose sign a mirror flips and the
+  // bitangent's sign with it. Measured on the front face's frame, which is
+  // the frame the transform was authored on. A plain scale leaves the frame
+  // as it was, bit for bit, which is why the test is on the matrix.
+  vec4 m = MapMatrix(kMapNormal);
+  float det = m.x * m.w - m.y * m.z;
+  float flip = det < 0.0 ? -1.0 : 1.0;
+  vec3 front = gl_FrontFacing ? b : -b;
+  vec3 turned = (t * m.w - front * m.z) * flip;
+  bool turns = (m.y != 0.0 || m.z != 0.0 || m.x < 0.0 || m.w < 0.0) &&
+               dot(turned, turned) > 1e-12;
+  t = turns ? normalize(turned) : t;
+  b = turns ? cross(s.n, t) * v_tangent.w * flip : b;
+#endif
   // On a back face `ReadSurface` has already turned the normal round, and
   // the bitangent above turned with it. The tangent has to follow, or the
   // frame is half-mirrored and relief along u lights from the wrong side —
