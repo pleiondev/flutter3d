@@ -93,6 +93,14 @@ Future<void> checkLinking(GraphicsDevice device) async {
       'MeshSkinnedVertex',
       'MeshInstancedVertex',
     ]) ...<(String, String)>[(vertex, 'ObjectId'), (vertex, 'Xray')],
+    // `R1`: the three stages a moved node is drawn through into the velocity
+    // buffer, each with the one fragment stage that differences them.
+    for (final vertex in <String>[
+      'VelocityVertex',
+      'VelocitySkinnedVertex',
+      'VelocityInstancedVertex',
+    ])
+      (vertex, 'Velocity'),
     ('ShadowTileResetVertex', 'ShadowTileReset'),
     // Every post stage the renderer builds a pipeline for, through the one
     // vertex stage they all share. The probe's convolution reads a cube through

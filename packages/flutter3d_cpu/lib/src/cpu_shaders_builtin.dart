@@ -166,6 +166,14 @@ Map<String, CpuStage> builtinCpuShaders() {
     'Ssao': const CpuStage.fragment(SsaoShader()),
     'ContactShadow': const CpuStage.fragment(ContactShadowShader()),
     'CameraVelocity': const CpuStage.fragment(CameraVelocityShader()),
+    'Velocity': const CpuStage.fragment(VelocityShader()),
+    'VelocityVertex': const CpuStage.vertex(VelocityVertexShader()),
+    'VelocitySkinnedVertex': const CpuStage.vertex(
+      VelocitySkinnedVertexShader(),
+    ),
+    'VelocityInstancedVertex': const CpuStage.vertex(
+      VelocityInstancedVertexShader(),
+    ),
     'SsaoBlur': const CpuStage.fragment(SsaoBlurShader()),
     'LightShafts': const CpuStage.fragment(LightShaftsShader()),
     'DepthOfField': const CpuStage.fragment(DepthOfFieldShader()),

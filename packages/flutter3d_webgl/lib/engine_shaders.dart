@@ -1051,6 +1051,828 @@ void main() {
 }
 
 ''',
+    'VelocityVertex': r'''#version 300 es
+
+// A moved mesh, drawn into the velocity buffer — `R1`. See
+// `lib/velocity.glsl` for the two matrices and why the depth goes through a
+// third.
+//
+// Only the position is declared: the pipeline is built with an explicit
+// layout over the standard sixty-four-byte vertex, so the rest of the vertex
+// is stepped over rather than read.
+
+in vec3 position;
+
+// --- lib/morph.glsl ---
+// Morph targets, applied in the vertex stage from a texture of deltas.
+//
+// ## Why a texture and not attributes
+//
+// The vertex layout in this engine is **structural**: the `in` declarations of
+// `mesh.vert` are the layout, and one layout serves every model so that a
+// lighting model needs one pipeline rather than one per attribute set. Morph
+// deltas as attributes would mean a second layout, and with it a second vertex
+// shader for every lighting model — six of them — and a second pipeline for
+// each. A texture read by vertex index costs one sampler and no layout at all.
+//
+// That the read is possible is measured rather than assumed:
+// `checkVertexTextureSampling` in `flutter3d_conformance` draws through a
+// vertex stage that samples, on all three backends. It answers yes on each,
+// Impeller included, which was the one that could not be settled by reading a
+// header.
+//
+// ## The layout of the texture
+//
+// `r32g32b32a32Float`, width = the mesh's vertex count, height = one row per
+// delta stream per target. Target *t* occupies rows `t * MORPH_ROWS` upwards:
+//
+//     row + 0   position delta, xyz
+//     row + 1   normal delta, xyz     (zero when the file carried none)
+//     row + 2   tangent delta, xyz    (zero when the file carried none)
+//
+// Three rows always, so the arithmetic is a multiply rather than a table: a
+// target that morphs only positions costs two rows of zeros, which is memory
+// and not branches. `MorphTargetTexture` on the Dart side packs exactly this.
+//
+// **`texture` at a texel centre, and it should have been `texelFetch`.** There
+// is nothing to filter — a vertex has exactly one delta per target — so the
+// fetch is the operation this wants: no size arithmetic, no sampler state, no
+// half-texel to get wrong.
+//
+// It is not used because **impellerc crashes on `texelFetch` in a vertex
+// stage**: SIGABRT, no diagnostic, exit 134. Bisected — the same call in a
+// *fragment* stage compiles, `gl_VertexID` alone compiles, and `texture()`
+// in a vertex stage compiles, so it is that one combination. So the coordinate
+// is built by hand, `(index + 0.5) / size`, and the sampler is bound nearest
+// and clamped: exactly the texel, reached the long way round. The size comes
+// down in `morph_params` rather than from `textureSize`, which is one more
+// thing that would have to survive the same compiler.
+
+#ifndef MORPH_GLSL_
+#define MORPH_GLSL_
+
+/// Rows of the delta texture each target occupies. See the header.
+const int kMorphRows = 3;
+
+/// The most targets one draw can blend.
+///
+/// Eight because glTF's own guidance is that an engine support at least eight
+/// active targets, and because a `vec4[2]` is two registers. A model carrying
+/// more is not refused — the renderer sends the first eight and says so, which
+/// is a face missing an expression rather than a face that will not load.
+const int kMorphMax = 8;
+
+uniform sampler2D morph_texture;
+
+layout(std140) uniform MorphInfo {
+  /// Weight of target *i* at `morph_weights[i / 4][i % 4]`.
+  vec4 morph_weights[2];
+
+  /// x: how many targets are active, as a float.
+  /// y: one texel across, `1 / width`. z: one texel down, `1 / height`.
+  /// w unused.
+  ///
+  /// A count rather than a convention that a zero weight means absent: a
+  /// target held at exactly nought is a face that is not smiling, and reading
+  /// it as "the list ends here" would stop the ones after it.
+  vec4 morph_params;
+}
+morph_info;
+
+/// How many targets this draw blends.
+int MorphCount() { return int(morph_info.morph_params.x + 0.5); }
+
+/// The vertex's own column in the delta texture.
+///
+/// **`gl_VertexID`, spelt the way SPIR-V spells it.** GLSL ES 3.00 calls the
+/// same builtin `gl_VertexID`, and the browser backend's translator rewrites
+/// the name on its way out — one substitution beside the ones it already makes
+/// for `#version` and `layout(std140)`. Written the other way round, impellerc
+/// refuses it outright: "undeclared identifier (Did you mean gl_VertexID?)",
+/// which is the friendliest error in this repository.
+float MorphColumn() {
+  return (float(gl_VertexID) + 0.5) * morph_info.morph_params.y;
+}
+
+/// Adds target *t*'s deltas onto one vertex, scaled by [weight].
+///
+/// Split out of [ApplyMorph] so that a stage which gets its weights from
+/// somewhere else — `lib/morph_instanced.glsl`, where each instance of a batch
+/// wears its own — reads the deltas through the same three lines rather than
+/// through a second copy of them.
+///
+/// [column] and [rowStep] are the caller's, worked out once rather than per
+/// target.
+///
+/// **Splitting this out moved the picture, by 31 pixels of silhouette on
+/// Impeller**, and the reference set was re-recorded rather than the split
+/// abandoned. The arithmetic is the same arithmetic — it was checked against
+/// the software backend, which draws it identically either way — so what moved
+/// is what impellerc's optimiser does with a function call it can no longer
+/// see through. Hoisting the coordinates was the first guess at the cause and
+/// was not it: the same 31 pixels moved with them hoisted. Worth writing down,
+/// because the next person to factor a line out of a vertex stage will see a
+/// golden fail and reach for the same wrong explanation.
+void AddMorphTargetAt(int t, float weight, float column, float rowStep,
+                      inout vec3 position, inout vec3 normal,
+                      inout vec4 tangent) {
+  float row = (float(t * kMorphRows) + 0.5) * rowStep;
+
+  position += texture(morph_texture, vec2(column, row)).xyz * weight;
+  normal += texture(morph_texture, vec2(column, row + rowStep)).xyz * weight;
+  tangent.xyz +=
+      texture(morph_texture, vec2(column, row + rowStep * 2.0)).xyz * weight;
+}
+
+/// Adds the blended deltas onto one vertex.
+///
+/// Called with the attributes as they were read and before anything else
+/// touches them — skinning included, which is the order glTF specifies: a
+/// skinned morphed mesh morphs in its rest pose and is then posed by the
+/// skeleton.
+///
+/// The tangent is a `vec4` and only its xyz move: w is the bitangent sign, a
+/// handedness rather than a direction, and glTF does not morph it.
+void ApplyMorph(inout vec3 position, inout vec3 normal, inout vec4 tangent) {
+  int count = MorphCount();
+  if (count <= 0) return;
+
+  float column = MorphColumn();
+  float rowStep = morph_info.morph_params.z;
+
+  for (int i = 0; i < kMorphMax; i++) {
+    if (i >= count) break;
+    float weight = morph_info.morph_weights[i / 4][i % 4];
+    if (weight == 0.0) continue;
+    AddMorphTargetAt(i, weight, column, rowStep, position, normal, tangent);
+  }
+}
+
+#endif  // MORPH_GLSL_
+
+
+layout(std140) uniform FrameInfo {
+  mat4 mvp;
+  mat4 model;
+  mat4 normal_matrix;
+}
+frame_info;
+
+// --- lib/velocity.glsl ---
+// What the three velocity vertex stages share — `R1`.
+//
+// A node that moved is drawn again over the camera's velocity, and each of
+// its vertices is carried through two matrices: this frame's and last
+// frame's. Both are unjittered and carry the framebuffer origin, the way
+// `post/camera_velocity.frag`'s are; the fragment stage turns the two clip
+// positions into a difference in UV. The pass's own `gl_Position` goes
+// through the jittered `FrameInfo.mvp`, so a fragment lands on the pixel the
+// scene drew it on.
+//
+// **Hidden parts are rejected against the surface buffer, not a depth
+// attachment.** Every pass in this engine clears depth on entry, so the
+// scene's depth is not there to test against; the surface buffer holds the
+// same answer in metres along the camera's axis. Each vertex hands on its
+// own distance along that axis, and the fragment stage drops a fragment
+// that lies behind what the scene drew there.
+//
+// Included after `lib/morph.glsl`: the position is morphed twice, by this
+// frame's weights and by last frame's, through the one texture of deltas.
+
+#ifndef VELOCITY_GLSL_
+#define VELOCITY_GLSL_
+
+layout(std140) uniform PrevFrameInfo {
+  /// World to clip for this frame, unjittered, times the model matrix.
+  mat4 current_mvp;
+
+  /// The same product as it stood last frame: last frame's camera, last
+  /// frame's model matrix.
+  mat4 previous_mvp;
+
+  /// Last frame's morph weights, packed as `MorphInfo.morph_weights` is.
+  vec4 previous_morph_weights[2];
+
+  /// xyz: where the eye is now.
+  vec4 camera;
+
+  /// xyz: the direction the camera looks now — the axis the surface
+  /// buffer's depths are measured along.
+  vec4 forward;
+}
+prev_info;
+
+out vec4 v_current;
+out vec4 v_previous;
+
+/// This vertex's distance along the camera's axis, in metres.
+out float v_depth;
+
+float DepthAlongAxis(vec4 world) {
+  return dot(world.xyz - prev_info.camera.xyz, prev_info.forward.xyz);
+}
+
+/// [position] moved towards the mesh's targets by [w0] and [w1] — the
+/// position half of `ApplyMorph`, with the weights passed in.
+vec3 MorphPositionWith(vec3 position, vec4 w0, vec4 w1) {
+  int count = MorphCount();
+  if (count <= 0) return position;
+
+  float column = MorphColumn();
+  float rowStep = morph_info.morph_params.z;
+  vec3 normal = vec3(0.0);
+  vec4 tangent = vec4(0.0);
+  for (int i = 0; i < kMorphMax; i++) {
+    if (i >= count) break;
+    float weight = i < 4 ? w0[i] : w1[i - 4];
+    if (weight == 0.0) continue;
+    AddMorphTargetAt(i, weight, column, rowStep, position, normal, tangent);
+  }
+  return position;
+}
+
+#endif  // VELOCITY_GLSL_
+
+
+void main() {
+  vec3 now = MorphPositionWith(position, morph_info.morph_weights[0],
+                               morph_info.morph_weights[1]);
+  vec3 then = MorphPositionWith(position, prev_info.previous_morph_weights[0],
+                                prev_info.previous_morph_weights[1]);
+  v_current = prev_info.current_mvp * vec4(now, 1.0);
+  v_depth = DepthAlongAxis(frame_info.model * vec4(now, 1.0));
+  v_previous = prev_info.previous_mvp * vec4(then, 1.0);
+  gl_Position = frame_info.mvp * vec4(now, 1.0);
+}
+
+''',
+    'VelocitySkinnedVertex': r'''#version 300 es
+
+// A moved skinned mesh, drawn into the velocity buffer — `R1`.
+//
+// Skinned twice: by this frame's palette and by last frame's, which the
+// renderer keeps in its frame history. A character standing still on a
+// moving platform and a character running in place both move on screen,
+// and only the two palettes together can tell those apart.
+//
+// **Last frame's palette is a texture**, four texels a joint and one joint a
+// row, because a second 4 KB block beside `SkinInfo` is past the uniform
+// space impellerc allows one stage. Read at texel centres through a nearest
+// sampler, the way `lib/morph.glsl` reads its deltas and for its reason:
+// `texelFetch` crashes impellerc in a vertex stage.
+
+in vec3 position;
+
+// --- lib/morph.glsl ---
+// Morph targets, applied in the vertex stage from a texture of deltas.
+//
+// ## Why a texture and not attributes
+//
+// The vertex layout in this engine is **structural**: the `in` declarations of
+// `mesh.vert` are the layout, and one layout serves every model so that a
+// lighting model needs one pipeline rather than one per attribute set. Morph
+// deltas as attributes would mean a second layout, and with it a second vertex
+// shader for every lighting model — six of them — and a second pipeline for
+// each. A texture read by vertex index costs one sampler and no layout at all.
+//
+// That the read is possible is measured rather than assumed:
+// `checkVertexTextureSampling` in `flutter3d_conformance` draws through a
+// vertex stage that samples, on all three backends. It answers yes on each,
+// Impeller included, which was the one that could not be settled by reading a
+// header.
+//
+// ## The layout of the texture
+//
+// `r32g32b32a32Float`, width = the mesh's vertex count, height = one row per
+// delta stream per target. Target *t* occupies rows `t * MORPH_ROWS` upwards:
+//
+//     row + 0   position delta, xyz
+//     row + 1   normal delta, xyz     (zero when the file carried none)
+//     row + 2   tangent delta, xyz    (zero when the file carried none)
+//
+// Three rows always, so the arithmetic is a multiply rather than a table: a
+// target that morphs only positions costs two rows of zeros, which is memory
+// and not branches. `MorphTargetTexture` on the Dart side packs exactly this.
+//
+// **`texture` at a texel centre, and it should have been `texelFetch`.** There
+// is nothing to filter — a vertex has exactly one delta per target — so the
+// fetch is the operation this wants: no size arithmetic, no sampler state, no
+// half-texel to get wrong.
+//
+// It is not used because **impellerc crashes on `texelFetch` in a vertex
+// stage**: SIGABRT, no diagnostic, exit 134. Bisected — the same call in a
+// *fragment* stage compiles, `gl_VertexID` alone compiles, and `texture()`
+// in a vertex stage compiles, so it is that one combination. So the coordinate
+// is built by hand, `(index + 0.5) / size`, and the sampler is bound nearest
+// and clamped: exactly the texel, reached the long way round. The size comes
+// down in `morph_params` rather than from `textureSize`, which is one more
+// thing that would have to survive the same compiler.
+
+#ifndef MORPH_GLSL_
+#define MORPH_GLSL_
+
+/// Rows of the delta texture each target occupies. See the header.
+const int kMorphRows = 3;
+
+/// The most targets one draw can blend.
+///
+/// Eight because glTF's own guidance is that an engine support at least eight
+/// active targets, and because a `vec4[2]` is two registers. A model carrying
+/// more is not refused — the renderer sends the first eight and says so, which
+/// is a face missing an expression rather than a face that will not load.
+const int kMorphMax = 8;
+
+uniform sampler2D morph_texture;
+
+layout(std140) uniform MorphInfo {
+  /// Weight of target *i* at `morph_weights[i / 4][i % 4]`.
+  vec4 morph_weights[2];
+
+  /// x: how many targets are active, as a float.
+  /// y: one texel across, `1 / width`. z: one texel down, `1 / height`.
+  /// w unused.
+  ///
+  /// A count rather than a convention that a zero weight means absent: a
+  /// target held at exactly nought is a face that is not smiling, and reading
+  /// it as "the list ends here" would stop the ones after it.
+  vec4 morph_params;
+}
+morph_info;
+
+/// How many targets this draw blends.
+int MorphCount() { return int(morph_info.morph_params.x + 0.5); }
+
+/// The vertex's own column in the delta texture.
+///
+/// **`gl_VertexID`, spelt the way SPIR-V spells it.** GLSL ES 3.00 calls the
+/// same builtin `gl_VertexID`, and the browser backend's translator rewrites
+/// the name on its way out — one substitution beside the ones it already makes
+/// for `#version` and `layout(std140)`. Written the other way round, impellerc
+/// refuses it outright: "undeclared identifier (Did you mean gl_VertexID?)",
+/// which is the friendliest error in this repository.
+float MorphColumn() {
+  return (float(gl_VertexID) + 0.5) * morph_info.morph_params.y;
+}
+
+/// Adds target *t*'s deltas onto one vertex, scaled by [weight].
+///
+/// Split out of [ApplyMorph] so that a stage which gets its weights from
+/// somewhere else — `lib/morph_instanced.glsl`, where each instance of a batch
+/// wears its own — reads the deltas through the same three lines rather than
+/// through a second copy of them.
+///
+/// [column] and [rowStep] are the caller's, worked out once rather than per
+/// target.
+///
+/// **Splitting this out moved the picture, by 31 pixels of silhouette on
+/// Impeller**, and the reference set was re-recorded rather than the split
+/// abandoned. The arithmetic is the same arithmetic — it was checked against
+/// the software backend, which draws it identically either way — so what moved
+/// is what impellerc's optimiser does with a function call it can no longer
+/// see through. Hoisting the coordinates was the first guess at the cause and
+/// was not it: the same 31 pixels moved with them hoisted. Worth writing down,
+/// because the next person to factor a line out of a vertex stage will see a
+/// golden fail and reach for the same wrong explanation.
+void AddMorphTargetAt(int t, float weight, float column, float rowStep,
+                      inout vec3 position, inout vec3 normal,
+                      inout vec4 tangent) {
+  float row = (float(t * kMorphRows) + 0.5) * rowStep;
+
+  position += texture(morph_texture, vec2(column, row)).xyz * weight;
+  normal += texture(morph_texture, vec2(column, row + rowStep)).xyz * weight;
+  tangent.xyz +=
+      texture(morph_texture, vec2(column, row + rowStep * 2.0)).xyz * weight;
+}
+
+/// Adds the blended deltas onto one vertex.
+///
+/// Called with the attributes as they were read and before anything else
+/// touches them — skinning included, which is the order glTF specifies: a
+/// skinned morphed mesh morphs in its rest pose and is then posed by the
+/// skeleton.
+///
+/// The tangent is a `vec4` and only its xyz move: w is the bitangent sign, a
+/// handedness rather than a direction, and glTF does not morph it.
+void ApplyMorph(inout vec3 position, inout vec3 normal, inout vec4 tangent) {
+  int count = MorphCount();
+  if (count <= 0) return;
+
+  float column = MorphColumn();
+  float rowStep = morph_info.morph_params.z;
+
+  for (int i = 0; i < kMorphMax; i++) {
+    if (i >= count) break;
+    float weight = morph_info.morph_weights[i / 4][i % 4];
+    if (weight == 0.0) continue;
+    AddMorphTargetAt(i, weight, column, rowStep, position, normal, tangent);
+  }
+}
+
+#endif  // MORPH_GLSL_
+
+
+in vec4 joints;
+in vec4 weights;
+
+layout(std140) uniform FrameInfo {
+  mat4 mvp;
+  mat4 model;
+  mat4 normal_matrix;
+}
+frame_info;
+
+#define kMaxJoints 64
+
+layout(std140) uniform SkinInfo {
+  mat4 joint_matrices[kMaxJoints];
+}
+skin_info;
+
+/// Last frame's `SkinInfo`: joint j's columns at texels (0..3, j) of a 4 ×
+/// kMaxJoints float texture.
+uniform sampler2D prev_joint_texture;
+
+// --- lib/velocity.glsl ---
+// What the three velocity vertex stages share — `R1`.
+//
+// A node that moved is drawn again over the camera's velocity, and each of
+// its vertices is carried through two matrices: this frame's and last
+// frame's. Both are unjittered and carry the framebuffer origin, the way
+// `post/camera_velocity.frag`'s are; the fragment stage turns the two clip
+// positions into a difference in UV. The pass's own `gl_Position` goes
+// through the jittered `FrameInfo.mvp`, so a fragment lands on the pixel the
+// scene drew it on.
+//
+// **Hidden parts are rejected against the surface buffer, not a depth
+// attachment.** Every pass in this engine clears depth on entry, so the
+// scene's depth is not there to test against; the surface buffer holds the
+// same answer in metres along the camera's axis. Each vertex hands on its
+// own distance along that axis, and the fragment stage drops a fragment
+// that lies behind what the scene drew there.
+//
+// Included after `lib/morph.glsl`: the position is morphed twice, by this
+// frame's weights and by last frame's, through the one texture of deltas.
+
+#ifndef VELOCITY_GLSL_
+#define VELOCITY_GLSL_
+
+layout(std140) uniform PrevFrameInfo {
+  /// World to clip for this frame, unjittered, times the model matrix.
+  mat4 current_mvp;
+
+  /// The same product as it stood last frame: last frame's camera, last
+  /// frame's model matrix.
+  mat4 previous_mvp;
+
+  /// Last frame's morph weights, packed as `MorphInfo.morph_weights` is.
+  vec4 previous_morph_weights[2];
+
+  /// xyz: where the eye is now.
+  vec4 camera;
+
+  /// xyz: the direction the camera looks now — the axis the surface
+  /// buffer's depths are measured along.
+  vec4 forward;
+}
+prev_info;
+
+out vec4 v_current;
+out vec4 v_previous;
+
+/// This vertex's distance along the camera's axis, in metres.
+out float v_depth;
+
+float DepthAlongAxis(vec4 world) {
+  return dot(world.xyz - prev_info.camera.xyz, prev_info.forward.xyz);
+}
+
+/// [position] moved towards the mesh's targets by [w0] and [w1] — the
+/// position half of `ApplyMorph`, with the weights passed in.
+vec3 MorphPositionWith(vec3 position, vec4 w0, vec4 w1) {
+  int count = MorphCount();
+  if (count <= 0) return position;
+
+  float column = MorphColumn();
+  float rowStep = morph_info.morph_params.z;
+  vec3 normal = vec3(0.0);
+  vec4 tangent = vec4(0.0);
+  for (int i = 0; i < kMorphMax; i++) {
+    if (i >= count) break;
+    float weight = i < 4 ? w0[i] : w1[i - 4];
+    if (weight == 0.0) continue;
+    AddMorphTargetAt(i, weight, column, rowStep, position, normal, tangent);
+  }
+  return position;
+}
+
+#endif  // VELOCITY_GLSL_
+
+
+mat4 PrevJoint(float joint) {
+  float v = (joint + 0.5) / float(kMaxJoints);
+  return mat4(texture(prev_joint_texture, vec2(0.125, v)),
+              texture(prev_joint_texture, vec2(0.375, v)),
+              texture(prev_joint_texture, vec2(0.625, v)),
+              texture(prev_joint_texture, vec2(0.875, v)));
+}
+
+vec4 BlendWeights() {
+  float total = weights.x + weights.y + weights.z + weights.w;
+  return total > 1e-5 ? weights / total : vec4(1.0, 0.0, 0.0, 0.0);
+}
+
+void main() {
+  vec4 w = BlendWeights();
+  mat4 skin = w.x * skin_info.joint_matrices[int(joints.x)] +
+              w.y * skin_info.joint_matrices[int(joints.y)] +
+              w.z * skin_info.joint_matrices[int(joints.z)] +
+              w.w * skin_info.joint_matrices[int(joints.w)];
+  mat4 prevSkin = w.x * PrevJoint(joints.x) + w.y * PrevJoint(joints.y) +
+                  w.z * PrevJoint(joints.z) + w.w * PrevJoint(joints.w);
+
+  vec3 now = MorphPositionWith(position, morph_info.morph_weights[0],
+                               morph_info.morph_weights[1]);
+  vec3 then = MorphPositionWith(position, prev_info.previous_morph_weights[0],
+                                prev_info.previous_morph_weights[1]);
+  vec4 posed = skin * vec4(now, 1.0);
+  v_current = prev_info.current_mvp * posed;
+  v_depth = DepthAlongAxis(frame_info.model * posed);
+  v_previous = prev_info.previous_mvp * (prevSkin * vec4(then, 1.0));
+  gl_Position = frame_info.mvp * posed;
+}
+
+''',
+    'VelocityInstancedVertex': r'''#version 300 es
+
+// A moved batch, drawn into the velocity buffer — `R1`.
+//
+// Each instance is placed twice: by the transform it has now (slot 1) and by
+// the one it had last frame (slot 2, the frame history's copy of the batch's
+// bytes, laid out the same). Per-instance morph weights are not reprojected;
+// a batch's morph moves by the batch-wide weights alone.
+
+in vec3 position;
+
+// --- lib/morph.glsl ---
+// Morph targets, applied in the vertex stage from a texture of deltas.
+//
+// ## Why a texture and not attributes
+//
+// The vertex layout in this engine is **structural**: the `in` declarations of
+// `mesh.vert` are the layout, and one layout serves every model so that a
+// lighting model needs one pipeline rather than one per attribute set. Morph
+// deltas as attributes would mean a second layout, and with it a second vertex
+// shader for every lighting model — six of them — and a second pipeline for
+// each. A texture read by vertex index costs one sampler and no layout at all.
+//
+// That the read is possible is measured rather than assumed:
+// `checkVertexTextureSampling` in `flutter3d_conformance` draws through a
+// vertex stage that samples, on all three backends. It answers yes on each,
+// Impeller included, which was the one that could not be settled by reading a
+// header.
+//
+// ## The layout of the texture
+//
+// `r32g32b32a32Float`, width = the mesh's vertex count, height = one row per
+// delta stream per target. Target *t* occupies rows `t * MORPH_ROWS` upwards:
+//
+//     row + 0   position delta, xyz
+//     row + 1   normal delta, xyz     (zero when the file carried none)
+//     row + 2   tangent delta, xyz    (zero when the file carried none)
+//
+// Three rows always, so the arithmetic is a multiply rather than a table: a
+// target that morphs only positions costs two rows of zeros, which is memory
+// and not branches. `MorphTargetTexture` on the Dart side packs exactly this.
+//
+// **`texture` at a texel centre, and it should have been `texelFetch`.** There
+// is nothing to filter — a vertex has exactly one delta per target — so the
+// fetch is the operation this wants: no size arithmetic, no sampler state, no
+// half-texel to get wrong.
+//
+// It is not used because **impellerc crashes on `texelFetch` in a vertex
+// stage**: SIGABRT, no diagnostic, exit 134. Bisected — the same call in a
+// *fragment* stage compiles, `gl_VertexID` alone compiles, and `texture()`
+// in a vertex stage compiles, so it is that one combination. So the coordinate
+// is built by hand, `(index + 0.5) / size`, and the sampler is bound nearest
+// and clamped: exactly the texel, reached the long way round. The size comes
+// down in `morph_params` rather than from `textureSize`, which is one more
+// thing that would have to survive the same compiler.
+
+#ifndef MORPH_GLSL_
+#define MORPH_GLSL_
+
+/// Rows of the delta texture each target occupies. See the header.
+const int kMorphRows = 3;
+
+/// The most targets one draw can blend.
+///
+/// Eight because glTF's own guidance is that an engine support at least eight
+/// active targets, and because a `vec4[2]` is two registers. A model carrying
+/// more is not refused — the renderer sends the first eight and says so, which
+/// is a face missing an expression rather than a face that will not load.
+const int kMorphMax = 8;
+
+uniform sampler2D morph_texture;
+
+layout(std140) uniform MorphInfo {
+  /// Weight of target *i* at `morph_weights[i / 4][i % 4]`.
+  vec4 morph_weights[2];
+
+  /// x: how many targets are active, as a float.
+  /// y: one texel across, `1 / width`. z: one texel down, `1 / height`.
+  /// w unused.
+  ///
+  /// A count rather than a convention that a zero weight means absent: a
+  /// target held at exactly nought is a face that is not smiling, and reading
+  /// it as "the list ends here" would stop the ones after it.
+  vec4 morph_params;
+}
+morph_info;
+
+/// How many targets this draw blends.
+int MorphCount() { return int(morph_info.morph_params.x + 0.5); }
+
+/// The vertex's own column in the delta texture.
+///
+/// **`gl_VertexID`, spelt the way SPIR-V spells it.** GLSL ES 3.00 calls the
+/// same builtin `gl_VertexID`, and the browser backend's translator rewrites
+/// the name on its way out — one substitution beside the ones it already makes
+/// for `#version` and `layout(std140)`. Written the other way round, impellerc
+/// refuses it outright: "undeclared identifier (Did you mean gl_VertexID?)",
+/// which is the friendliest error in this repository.
+float MorphColumn() {
+  return (float(gl_VertexID) + 0.5) * morph_info.morph_params.y;
+}
+
+/// Adds target *t*'s deltas onto one vertex, scaled by [weight].
+///
+/// Split out of [ApplyMorph] so that a stage which gets its weights from
+/// somewhere else — `lib/morph_instanced.glsl`, where each instance of a batch
+/// wears its own — reads the deltas through the same three lines rather than
+/// through a second copy of them.
+///
+/// [column] and [rowStep] are the caller's, worked out once rather than per
+/// target.
+///
+/// **Splitting this out moved the picture, by 31 pixels of silhouette on
+/// Impeller**, and the reference set was re-recorded rather than the split
+/// abandoned. The arithmetic is the same arithmetic — it was checked against
+/// the software backend, which draws it identically either way — so what moved
+/// is what impellerc's optimiser does with a function call it can no longer
+/// see through. Hoisting the coordinates was the first guess at the cause and
+/// was not it: the same 31 pixels moved with them hoisted. Worth writing down,
+/// because the next person to factor a line out of a vertex stage will see a
+/// golden fail and reach for the same wrong explanation.
+void AddMorphTargetAt(int t, float weight, float column, float rowStep,
+                      inout vec3 position, inout vec3 normal,
+                      inout vec4 tangent) {
+  float row = (float(t * kMorphRows) + 0.5) * rowStep;
+
+  position += texture(morph_texture, vec2(column, row)).xyz * weight;
+  normal += texture(morph_texture, vec2(column, row + rowStep)).xyz * weight;
+  tangent.xyz +=
+      texture(morph_texture, vec2(column, row + rowStep * 2.0)).xyz * weight;
+}
+
+/// Adds the blended deltas onto one vertex.
+///
+/// Called with the attributes as they were read and before anything else
+/// touches them — skinning included, which is the order glTF specifies: a
+/// skinned morphed mesh morphs in its rest pose and is then posed by the
+/// skeleton.
+///
+/// The tangent is a `vec4` and only its xyz move: w is the bitangent sign, a
+/// handedness rather than a direction, and glTF does not morph it.
+void ApplyMorph(inout vec3 position, inout vec3 normal, inout vec4 tangent) {
+  int count = MorphCount();
+  if (count <= 0) return;
+
+  float column = MorphColumn();
+  float rowStep = morph_info.morph_params.z;
+
+  for (int i = 0; i < kMorphMax; i++) {
+    if (i >= count) break;
+    float weight = morph_info.morph_weights[i / 4][i % 4];
+    if (weight == 0.0) continue;
+    AddMorphTargetAt(i, weight, column, rowStep, position, normal, tangent);
+  }
+}
+
+#endif  // MORPH_GLSL_
+
+
+in vec4 i_row0;
+in vec4 i_row1;
+in vec4 i_row2;
+
+in vec4 i_prev_row0;
+in vec4 i_prev_row1;
+in vec4 i_prev_row2;
+
+layout(std140) uniform FrameInfo {
+  mat4 mvp;
+  mat4 model;
+  mat4 normal_matrix;
+}
+frame_info;
+
+// --- lib/velocity.glsl ---
+// What the three velocity vertex stages share — `R1`.
+//
+// A node that moved is drawn again over the camera's velocity, and each of
+// its vertices is carried through two matrices: this frame's and last
+// frame's. Both are unjittered and carry the framebuffer origin, the way
+// `post/camera_velocity.frag`'s are; the fragment stage turns the two clip
+// positions into a difference in UV. The pass's own `gl_Position` goes
+// through the jittered `FrameInfo.mvp`, so a fragment lands on the pixel the
+// scene drew it on.
+//
+// **Hidden parts are rejected against the surface buffer, not a depth
+// attachment.** Every pass in this engine clears depth on entry, so the
+// scene's depth is not there to test against; the surface buffer holds the
+// same answer in metres along the camera's axis. Each vertex hands on its
+// own distance along that axis, and the fragment stage drops a fragment
+// that lies behind what the scene drew there.
+//
+// Included after `lib/morph.glsl`: the position is morphed twice, by this
+// frame's weights and by last frame's, through the one texture of deltas.
+
+#ifndef VELOCITY_GLSL_
+#define VELOCITY_GLSL_
+
+layout(std140) uniform PrevFrameInfo {
+  /// World to clip for this frame, unjittered, times the model matrix.
+  mat4 current_mvp;
+
+  /// The same product as it stood last frame: last frame's camera, last
+  /// frame's model matrix.
+  mat4 previous_mvp;
+
+  /// Last frame's morph weights, packed as `MorphInfo.morph_weights` is.
+  vec4 previous_morph_weights[2];
+
+  /// xyz: where the eye is now.
+  vec4 camera;
+
+  /// xyz: the direction the camera looks now — the axis the surface
+  /// buffer's depths are measured along.
+  vec4 forward;
+}
+prev_info;
+
+out vec4 v_current;
+out vec4 v_previous;
+
+/// This vertex's distance along the camera's axis, in metres.
+out float v_depth;
+
+float DepthAlongAxis(vec4 world) {
+  return dot(world.xyz - prev_info.camera.xyz, prev_info.forward.xyz);
+}
+
+/// [position] moved towards the mesh's targets by [w0] and [w1] — the
+/// position half of `ApplyMorph`, with the weights passed in.
+vec3 MorphPositionWith(vec3 position, vec4 w0, vec4 w1) {
+  int count = MorphCount();
+  if (count <= 0) return position;
+
+  float column = MorphColumn();
+  float rowStep = morph_info.morph_params.z;
+  vec3 normal = vec3(0.0);
+  vec4 tangent = vec4(0.0);
+  for (int i = 0; i < kMorphMax; i++) {
+    if (i >= count) break;
+    float weight = i < 4 ? w0[i] : w1[i - 4];
+    if (weight == 0.0) continue;
+    AddMorphTargetAt(i, weight, column, rowStep, position, normal, tangent);
+  }
+  return position;
+}
+
+#endif  // VELOCITY_GLSL_
+
+
+mat4 Affine(vec4 row0, vec4 row1, vec4 row2) {
+  return mat4(vec4(row0.x, row1.x, row2.x, 0.0),
+              vec4(row0.y, row1.y, row2.y, 0.0),
+              vec4(row0.z, row1.z, row2.z, 0.0),
+              vec4(row0.w, row1.w, row2.w, 1.0));
+}
+
+void main() {
+  vec3 now = MorphPositionWith(position, morph_info.morph_weights[0],
+                               morph_info.morph_weights[1]);
+  vec3 then = MorphPositionWith(position, prev_info.previous_morph_weights[0],
+                                prev_info.previous_morph_weights[1]);
+  vec4 local = Affine(i_row0, i_row1, i_row2) * vec4(now, 1.0);
+  vec4 before = Affine(i_prev_row0, i_prev_row1, i_prev_row2) * vec4(then, 1.0);
+  v_current = prev_info.current_mvp * local;
+  v_depth = DepthAlongAxis(frame_info.model * local);
+  v_previous = prev_info.previous_mvp * before;
+  gl_Position = frame_info.mvp * local;
+}
+
+''',
     'PolylineVertex': r'''#version 300 es
 
 // A polyline of constant screen width, widened here rather than on the CPU —
@@ -14341,6 +15163,92 @@ void main() {
     return;
   }
   frag_color = vec4(v_uv - UvFromNdc(then.xy / then.w), 0.0, 1.0);
+}
+
+''',
+    'Velocity': r'''#version 300 es
+precision highp float;
+precision highp int;
+precision highp sampler2D;
+precision highp samplerCube;
+
+// A moved node's velocity, from the two clip positions its vertex stage
+// wrote — `R1`. Now minus then, in UV, as `camera_velocity.frag` writes it.
+//
+// Divided per fragment rather than per vertex: the perspective divide does
+// not interpolate linearly across a triangle, and a velocity divided at the
+// corners would bend across a large polygon seen at a slant.
+//
+// A fragment behind what the scene drew at this pixel is dropped, which is
+// the depth test done against the surface buffer — see `lib/velocity.glsl`.
+
+// --- lib/frag_coord.glsl ---
+// Where a fragment sits, counted from the top of its target on every backend.
+
+#ifndef FRAG_COORD_GLSL_
+#define FRAG_COORD_GLSL_
+
+/// `gl_FragCoord.xy` with row zero at the top of the picture.
+///
+/// [rows] is the target's height where the backend's row zero is the bottom
+/// of the picture, and zero where it is the top. WebGL2 is the first kind:
+/// window coordinates start at the lower left, and the engine draws the
+/// picture upright there rather than mirroring every projection. Metal,
+/// WebGPU and the software rasteriser are the second.
+///
+/// **Why a pattern cares and a picture does not.** Every screen-space pattern
+/// in the engine — the Bayer dither, the grain, the jitter a ray march starts
+/// from, the rotation of a shadow kernel — is a function of the pixel's row.
+/// Read from the bottom, the same frame gets the pattern turned upside down,
+/// and a four-row Bayer cell lands on different rows unless the height is a
+/// multiple of four. The picture underneath is identical; the pattern on top
+/// of it is not, and a comparison across backends counts every pixel it
+/// moved.
+vec2 FragCoordFromTop(float rows) {
+  return rows > 0.0 ? vec2(gl_FragCoord.x, rows - gl_FragCoord.y)
+                    : gl_FragCoord.xy;
+}
+
+#endif  // FRAG_COORD_GLSL_
+
+
+in vec4 v_current;
+in vec4 v_previous;
+in float v_depth;
+
+layout(location = 0) out vec4 frag_color;
+
+uniform sampler2D surface_texture;
+
+layout(std140) uniform VelocityInfo {
+  /// xy: one over the target's size in pixels. z: the target's rows when
+  /// its row zero is the bottom, zero when it is the top — see
+  /// `FragCoordFromTop`. w: how far behind the stored depth a fragment may
+  /// lie and still count as the surface, as a fraction of that depth.
+  vec4 target;
+}
+velocity_info;
+
+vec2 UvFromClip(vec4 clip) {
+  vec2 ndc = clip.xy / clip.w;
+  return vec2(ndc.x * 0.5 + 0.5, 0.5 - ndc.y * 0.5);
+}
+
+void main() {
+  vec2 uv = FragCoordFromTop(velocity_info.target.z) * velocity_info.target.xy;
+  float stored = textureLod(surface_texture, uv, 0.0).a;
+  // Sky, or something nearer: this fragment is not what the pixel shows.
+  // The tolerance is relative, for the reason every comparison against this
+  // buffer is: a fixed one is a different share of a pixel at every range.
+  if (stored <= 0.0 ||
+      v_depth > stored * (1.0 + velocity_info.target.w) + 1e-3) {
+    discard;
+  }
+  if (v_previous.w <= 0.0) {
+    frag_color = vec4(0.0, 0.0, 0.0, 1.0);
+    return;
+  }
+  frag_color = vec4(UvFromClip(v_current) - UvFromClip(v_previous), 0.0, 1.0);
 }
 
 ''',

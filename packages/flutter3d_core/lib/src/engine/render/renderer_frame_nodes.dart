@@ -880,6 +880,58 @@ final class _CameraVelocityNode extends RenderNode with _NeedsSurfaceBuffer {
   }
 }
 
+/// `R1`'s object velocity: the nodes that moved, drawn over the camera's.
+///
+/// A link in the velocity chain rather than a second producer: it reads the
+/// camera's version and writes the next into the same texture, loading what
+/// is there. The surface buffer is its depth test — see
+/// `renderer_velocity_pass.dart`.
+final class _ObjectVelocityNode extends RenderNode with _NeedsSurfaceBuffer {
+  _ObjectVelocityNode(this._renderer, this._view, this._settings, this._scene);
+
+  @override
+  Renderer get owner => _renderer;
+
+  final Renderer _renderer;
+  final RenderView _view;
+  final RenderSettings _settings;
+  final Scene _scene;
+
+  @override
+  String get name => 'object velocity';
+
+  @override
+  bool get isActive => _settings.antiAlias.temporal.enabled;
+
+  @override
+  List<ResourceId> get reads => const <ResourceId>[
+    FrameResourceIds.velocity,
+    FrameResourceIds.surfaceBuffer,
+  ];
+
+  @override
+  List<ResourceId> get writes => const <ResourceId>[FrameResourceIds.velocity];
+
+  @override
+  void execute(NodeFrame frame) {
+    final velocity = frame.resources.texture(FrameResourceIds.velocity);
+    // The same texture carries on as the next version: this pass draws over
+    // it rather than into a new one.
+    frame.resources.provide(FrameResourceIds.velocity, velocity);
+    final surface = frame.resources.tryTexture(FrameResourceIds.surfaceBuffer);
+    if (surface == null) return;
+    _renderer._encodeObjectVelocity(
+      target: velocity,
+      surface: surface,
+      scene: _scene,
+      view: _view,
+      settings: _settings,
+      width: frame.width,
+      height: frame.height,
+    );
+  }
+}
+
 /// `gfx-33n`'s volumetric shafts, as a link in the lit-colour chain.
 ///
 /// **Reads the shadow map optionally, which is the whole of how it declines.**

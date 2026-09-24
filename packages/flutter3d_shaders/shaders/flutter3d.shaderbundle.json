@@ -83,6 +83,18 @@
     "type": "vertex",
     "file": "shaders/mesh_lightmapped.vert"
   },
+  "VelocityVertex": {
+    "type": "vertex",
+    "file": "shaders/velocity.vert"
+  },
+  "VelocitySkinnedVertex": {
+    "type": "vertex",
+    "file": "shaders/velocity_skinned.vert"
+  },
+  "VelocityInstancedVertex": {
+    "type": "vertex",
+    "file": "shaders/velocity_instanced.vert"
+  },
   "PolylineVertex": {
     "type": "vertex",
     "file": "shaders/polyline.vert"
@@ -130,6 +142,10 @@
   "CameraVelocity": {
     "type": "fragment",
     "file": "shaders/post/camera_velocity.frag"
+  },
+  "Velocity": {
+    "type": "fragment",
+    "file": "shaders/post/velocity.frag"
   },
   "LightShafts": {
     "type": "fragment",
