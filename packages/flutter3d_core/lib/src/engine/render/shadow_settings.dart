@@ -250,18 +250,17 @@ final class ShadowSettings {
   /// Unlike the point version it is cheaper than what it replaces, since the
   /// filter itself drops from nine taps to five; the search is what it adds.
   ///
-  /// **Texels of penumbra per unit of the map's own depth**, and that unit is
-  /// scene-dependent in exactly the way [AmbientOcclusionSettings.radius] is:
-  /// the shadow map stores linear depth across the cascade's own volume, so
-  /// the same physical gap reads as a different number in a room and on a
-  /// hillside. The blocker search measures that gap and this scales it into
-  /// the radius the sampler needs.
+  /// **The light's apparent radius, in radians**, since 0.8 (`S3`). The
+  /// sun's is about 0.0047. The penumbra a caster leaves is twice its tangent
+  /// times the gap between the caster and what it shadows, in metres, and
+  /// the shader turns that into texels of whichever cascade the fragment
+  /// lands in, so a shadow keeps its softness crossing from one into the
+  /// next. It used to be texels per unit of the cascade's own stored depth,
+  /// which was a different length in every cascade and in every scene.
   ///
-  /// Measured on a box above a floor with `viewDistance: 20`: a 0.4 m gap
-  /// comes back as about 0.10 of stored depth, so 10 gives a one-texel
-  /// penumbra there and 100 gives ten. Pick it against a scene rather than
-  /// from this sentence; the number that matters is what it looks like at the
-  /// distance the camera actually stands.
+  /// Sixteen taps search for what is blocking and sixteen filter, on a disc
+  /// turned per pixel (and per frame while a temporal resolve runs, which
+  /// then averages the grain away).
   ///
   /// Capped at sixteen texels inside the shader, which is what stops an
   /// occluder near the light from smearing its shadow across a cascade.

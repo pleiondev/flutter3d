@@ -390,7 +390,7 @@ Vector3 accumulateLights(
     // has no row to read and asking would index past the table.
     var visibility = 1.0;
     if (i < kMaxLights) {
-      visibility = shadowed ? shadowFactor(s, b, i, light.nDotL) : 1.0;
+      visibility = shadowed ? shadowFactor(s, b, i, light.nDotL, c) : 1.0;
       visibility *= pointShadowFactor(b, s.world, s.normal, i, c);
     }
     if (visibility <= 0.0) continue;

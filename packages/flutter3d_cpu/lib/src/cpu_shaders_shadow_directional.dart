@@ -23,8 +23,9 @@ double shadowFactor(
   Surface s,
   ShaderBindings b,
   int lightIndex,
-  double lightNDotL,
-) {
+  double lightNDotL, [
+  FragmentContext? c,
+]) {
   final params = b.vec4('FragInfo', 'shadow_params', Vector4.zero());
   final strength = params.w;
   if (strength <= 0.0) return 1.0;
@@ -61,6 +62,10 @@ double shadowFactor(
   var vv = 0.0;
   var cascadeIndex = 0;
   Vector3? projected;
+  // `S3`: metres per texel across, and per unit of stored depth along the
+  // light, of the cascade the fragment lands in.
+  var cascadeTexel = 1.0;
+  var cascadeDepth = 1.0;
   for (var attempt = 0; attempt < 3; attempt++) {
     final which = cascade + attempt;
     if (which >= count) break;
@@ -102,6 +107,17 @@ double shadowFactor(
     vv = tileV;
     cascadeIndex = which;
     projected = candidate;
+    cascadeTexel = texelMetres;
+    cascadeDepth =
+        1.0 /
+        math.max(
+          Vector3(
+            matrix.entry(2, 0),
+            matrix.entry(2, 1),
+            matrix.entry(2, 2),
+          ).length,
+          1e-6,
+        );
     break;
   }
   if (projected == null) return 1.0;
@@ -136,13 +152,16 @@ double shadowFactor(
     }
     lit /= 9.0;
   } else {
-    // The blocker search, then the filter sized by what it found — mirroring
-    // `shadow.glsl` step for step.
-    // Bounded, not proportional: see `shadow.glsl`.
-    final searchRadius = (softness * 0.25).clamp(2.0, 16.0);
+    // `S3`: sixteen taps each way on a Vogel disc turned per pixel, and the
+    // penumbra in metres — mirroring `shadow.glsl` step for step.
+    final spread = 2.0 * math.tan(math.min(softness, 0.5));
+    final turn = shadowNoise(b, c) * 6.2831853;
+    final searchRadius = (spread * projected.z * cascadeDepth / cascadeTexel)
+        .clamp(1.0, 16.0);
     var blockerSum = 0.0;
     var blockerCount = 0.0;
-    for (final (double dx, double dy) in kShadowDisc) {
+    for (var i = 0; i < 16; i++) {
+      final (dx, dy) = vogelDisc(i, 16, turn);
       final occluder = tap(
         dx * texelU * searchRadius,
         dy * texelV * searchRadius,
@@ -155,22 +174,33 @@ double shadowFactor(
     if (blockerCount <= 0.0) return 1.0;
 
     final averaged = projected.z - blockerSum / blockerCount;
-    final gap = averaged > 0.0 ? averaged : 0.0;
-    final radius = (gap * softness).clamp(1.0, 16.0);
-    for (final (double dx, double dy) in kShadowDisc) {
+    final gap = (averaged > 0.0 ? averaged : 0.0) * cascadeDepth;
+    final radius = (spread * gap / cascadeTexel).clamp(1.0, 16.0);
+    for (var i = 0; i < 16; i++) {
+      final (dx, dy) = vogelDisc(i, 16, turn + 1.0);
       final occluder = tap(dx * texelU * radius, dy * texelV * radius);
       lit += projected.z - bias > occluder ? 0.0 : 1.0;
     }
-    lit /= 5.0;
+    lit /= 16.0;
   }
   return 1.0 + (lit - 1.0) * strength.clamp(0.0, 1.0);
 }
 
-/// `kShadowDisc` from `shadow.glsl`: the centre and four diagonals.
-const List<(double, double)> kShadowDisc = <(double, double)>[
-  (0.0, 0.0),
-  (0.7071, 0.7071),
-  (-0.7071, 0.7071),
-  (0.7071, -0.7071),
-  (-0.7071, -0.7071),
-];
+/// `VogelDisc` from `shadow.glsl` — `S3`.
+(double, double) vogelDisc(int i, int n, double turn) {
+  final r = math.sqrt((i + 0.5) / n);
+  final theta = i * 2.3999632 + turn;
+  return (r * math.cos(theta), r * math.sin(theta));
+}
+
+/// `ShadowNoise` from `shadow.glsl` — `S3`: interleaved gradient noise at
+/// the pixel, stepped by the frame's slice while a resolve runs.
+double shadowNoise(ShaderBindings b, FragmentContext? c) {
+  if (c == null) return 0.0;
+  final slice = b.vec4('FragInfo', 'target_origin', Vector4.zero()).w;
+  final step = 5.588238 * (slice > 0.0 ? slice : 0.0);
+  final x = c.coord.x + step;
+  final y = c.coord.y + step;
+  double fract(double v) => v - v.floorToDouble();
+  return fract(52.9829189 * fract(x * 0.06711056 + y * 0.00583715));
+}

@@ -145,6 +145,10 @@ extension _ScenePasses on Renderer {
         : 0.0;
     // `L1`: the metal-rough model's multiple scattering, on or off.
     _targetOrigin[2] = settings.energyCompensation ? 1.0 : 0.0;
+    // `S3`: the frame's slice while a resolve runs, which turns the soft
+    // shadow's taps anew each frame for the history to average; minus one
+    // otherwise, and the turn stays put.
+    _targetOrigin[3] = temporal ? (_frameIndex % 32).toDouble() : -1.0;
     final cameraPosition = vm.Vector3.zero();
 
     for (final view in ordered) {
