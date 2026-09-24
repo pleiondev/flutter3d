@@ -173,7 +173,15 @@ final class FakePass implements CommandEncoder {
     // `gfx-92n`: a block the compiled stage dropped is refused here, before
     // anything reaches the driver — binding one is a native crash on Metal.
     if (!shader.mayBindBlock(blockName)) return false;
-    commands.add(RecordedUniformBlock(shader, blockName, members));
+    // Copied, as every real backend copies at the bind: the engine refills
+    // one block object per draw (`H1`), and a recording that kept the map
+    // would show every draw the last draw's values.
+    commands.add(
+      RecordedUniformBlock(shader, blockName, <String, Float32List>{
+        for (final MapEntry(:key, :value) in members.entries)
+          key: Float32List.fromList(value),
+      }),
+    );
     if (!_declares(shader, blockName, sampler: false)) return false;
     _boundBlocks.putIfAbsent(shader.name, () => <String>{}).add(blockName);
     return true;

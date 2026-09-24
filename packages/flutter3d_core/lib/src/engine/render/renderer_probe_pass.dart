@@ -365,9 +365,7 @@ extension _ProbePasses on Renderer {
           state.capture,
           sampler: Renderer._clampSampler,
         );
-        pass.bindUniformBlock(shader, _kProbeInfoBlock, <String, Float32List>{
-          'params': _probeParams,
-        });
+        pass.bindBlock(shader, _probeInfo);
         pass.draw();
         pass.submit();
       }

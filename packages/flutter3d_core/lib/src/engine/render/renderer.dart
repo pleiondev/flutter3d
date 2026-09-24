@@ -6,6 +6,7 @@ import 'dart:typed_data';
 import 'package:flutter3d_core/formats.dart';
 import 'package:flutter3d_core/geometry.dart';
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
+import 'package:flutter3d_shaders/typed_blocks.dart';
 import 'package:vector_math/vector_math.dart' as vm;
 
 import '../geometry/device_mesh.dart';
@@ -59,40 +60,16 @@ part 'renderer_shadow_pass.dart';
 part 'renderer_sky_pass.dart';
 part 'renderer_xray_pass.dart';
 
-/// Uniform-block names as seen by shader reflection.
-///
-/// A backend may reflect a uniform block under its struct TYPE name, so
-/// `uniform FrameInfo { ... } frame_info;` is looked up as `FrameInfo`. Using
-/// the variable name instead is not an error at bind time — it just reflects as
-/// a missing block, which surfaces much later as "no uniform block named ...".
-const String _kReflectionInfoBlock = 'ReflectionInfo';
-const String _kSsaoInfoBlock = 'SsaoInfo';
-const String _kFrameInfoBlock = 'FrameInfo';
 const String _kFragInfoBlock = 'FragInfo';
 
 /// The per-draw half of the light list — `gfx-74n`.
 const String _kLightListBlock = 'LightListInfo';
 
-/// The contact shadow's own block — `gfx-76n`.
-const String _kContactShadowBlock = 'ContactShadowInfo';
-const String _kFogInfoBlock = 'FogInfo';
 const String _kMorphInfoBlock = 'MorphInfo';
-const String _kMorphInstanceInfoBlock = 'MorphInstanceInfo';
-const String _kLineInfoBlock = 'LineInfo';
-const String _kSkinInfoBlock = 'SkinInfo';
-const String _kBloomInfoBlock = 'BloomInfo';
-const String _kFxaaInfoBlock = 'FxaaInfo';
-const String _kCompositeInfoBlock = 'CompositeInfo';
-const String _kFragCoordInfoBlock = 'FragCoordInfo';
-const String _kLuminanceInfoBlock = 'LuminanceInfo';
-const String _kIdInfoBlock = 'IdInfo';
-const String _kProbeInfoBlock = 'ProbeInfo';
 
 /// Texture slots, unlike uniform blocks, are reflected under the variable name.
 const String _kAlbedoTextureSlot = 'base_color_texture';
 
-/// `gfx-60n`: the cutoff and the base alpha a cut-out shadow stage reads.
-const String _kShadowMaskBlock = 'MaskInfo';
 const String _kNormalTextureSlot = 'normal_texture';
 const String _kMetallicRoughnessTextureSlot = 'metallic_roughness_texture';
 const String _kOcclusionTextureSlot = 'occlusion_texture';
@@ -554,25 +531,55 @@ final class Renderer implements RenderServices {
   /// Written on every mesh draw, neutral when the mesh has no targets: the
   /// vertex stage declares the block whatever is drawn through it, so leaving
   /// it unbound is the arrangement that killed Metal in `sky.frag`.
-  final Float32List _morphWeights = Float32List(8);
-  final Float32List _morphParams = Float32List(4);
-  final Float32List _morphInstanceParams = Float32List(4);
+  // The uniform blocks the renderer fills, one object each and laid out as
+  // the compiler lays them out — `H1`. The scratch arrays below were fields
+  // of their own and are now the blocks' members under their old names, so
+  // every write that filled them fills the block.
+  final BloomInfoBlock _bloomInfo = BloomInfoBlock();
+  final CompositeInfoBlock _compositeInfo = CompositeInfoBlock();
+  final ContactShadowInfoBlock _contactShadowInfo = ContactShadowInfoBlock();
+  final DofInfoBlock _dofInfo = DofInfoBlock();
+  final FogInfoBlock _fogInfo = FogInfoBlock();
+  final FrameInfoBlock _frameInfo = FrameInfoBlock();
+  final IdInfoBlock _idInfo = IdInfoBlock();
+  final LineInfoBlock _lineInfo = LineInfoBlock();
+  final SkinInfoBlock _skinInfo = SkinInfoBlock();
+  final FragCoordInfoBlock _fragCoordInfo = FragCoordInfoBlock();
+  final FragInfoBlock _fragInfo = FragInfoBlock();
+  final FxaaInfoBlock _fxaaInfo = FxaaInfoBlock();
+  final LightListInfoBlock _lightListInfo = LightListInfoBlock();
+  final LuminanceInfoBlock _luminanceInfo = LuminanceInfoBlock();
+  final MaskInfoBlock _maskInfo = MaskInfoBlock();
+  final MorphInfoBlock _morphInfo = MorphInfoBlock();
+  final MorphInstanceInfoBlock _morphInstanceInfo = MorphInstanceInfoBlock();
+  final PointShadowBlock _pointShadow = PointShadowBlock();
+  final ProbeInfoBlock _probeInfo = ProbeInfoBlock();
+  final ReflectionInfoBlock _reflectionInfo = ReflectionInfoBlock();
+  final ShadeInfoBlock _shadeInfo = ShadeInfoBlock();
+  final ShadowLightBlock _shadowLight = ShadowLightBlock();
+  final ShaftInfoBlock _shaftInfo = ShaftInfoBlock();
+  final SsaoBlurInfoBlock _ssaoBlurInfo = SsaoBlurInfoBlock();
+  final SsaoInfoBlock _ssaoInfo = SsaoInfoBlock();
 
-  final Float32List _fogData = Float32List(4);
-  final Float32List _cameraData = Float32List(4);
+  Float32List get _morphWeights => _morphInfo.morphWeights;
+  Float32List get _morphParams => _morphInfo.morphParams;
+  Float32List get _morphInstanceParams => _morphInstanceInfo.instanceParams;
+
+  Float32List get _fogData => _fogInfo.fog;
+  Float32List get _cameraData => _fragInfo.cameraPosition;
 
   /// Which way the camera of the pass being encoded looks, in world space.
   ///
   /// Beside the camera position because the surface buffer's depth is measured
   /// along it — see `ViewDepth` in `lib/color.glsl`. Written wherever
   /// [_cameraData] is, and the two are meaningless apart.
-  final Float32List _forwardData = Float32List(4);
+  Float32List get _forwardData => _fogInfo.forward;
   final vm.Vector3 _forward = vm.Vector3.zero();
-  final Float32List _baseColorData = Float32List(4);
-  final Float32List _emissiveData = Float32List(4);
-  final Float32List _materialData = Float32List(4);
-  final Float32List _material2Data = Float32List(4);
-  final Float32List _frameParams = Float32List(4);
+  Float32List get _baseColorData => _fragInfo.baseColor;
+  Float32List get _emissiveData => _fragInfo.emissive;
+  Float32List get _materialData => _fragInfo.material;
+  Float32List get _material2Data => _fragInfo.material2;
+  Float32List get _frameParams => _fragInfo.frameParams;
 
   /// The reflection probes this renderer has drawn, by the node that placed
   /// them. Two cubes each, kept across frames — see `renderer_probe_pass.dart`.
@@ -585,7 +592,7 @@ final class Renderer implements RenderServices {
   /// `_claimWholeProbeCapture`. Cleared where the probe nodes are built,
   /// which is once per `render`.
   bool _wholeProbeCaptured = false;
-  final Float32List _probeParams = Float32List(4);
+  Float32List get _probeParams => _probeInfo.params;
   final vm.Vector3 _probePosition = vm.Vector3.zero();
   PipelineHandle? _probePrefilterPipeline;
 
@@ -779,11 +786,11 @@ final class Renderer implements RenderServices {
 
   /// The frame currently being drawn into.
   TextureHandle? get _ldrColor => _ldrCurrent;
-  final Float32List _reflectionParams = Float32List(4);
-  final Float32List _reflectionScreen = Float32List(4);
-  final Float32List _reflectionCameraData = Float32List(4);
+  Float32List get _reflectionParams => _reflectionInfo.params;
+  Float32List get _reflectionScreen => _reflectionInfo.screen;
+  Float32List get _reflectionCameraData => _reflectionInfo.camera;
   final vm.Vector3 _reflectionCamera = vm.Vector3.zero();
-  final Float32List _reflectionForwardData = Float32List(4);
+  Float32List get _reflectionForwardData => _reflectionInfo.forward;
   final vm.Vector3 _reflectionForward = vm.Vector3.zero();
   TextureHandle? _reflectionColor;
   TextureHandle? _surfaceColor;
@@ -844,7 +851,7 @@ final class Renderer implements RenderServices {
   PipelineHandle? _instancedMaskedCubeShadowPipeline;
 
   /// `gfx-60n`: the cutoff and the base alpha, packed for the shadow stages.
-  final Float32List _shadowMask = Float32List(4);
+  Float32List get _shadowMask => _maskInfo.mask;
   PipelineHandle? _instancedShadowPipeline;
   PipelineHandle? _bloomUpsamplePipeline;
   PipelineHandle? _compositePipeline;
@@ -875,7 +882,7 @@ final class Renderer implements RenderServices {
 
   /// x, y: where cascades 0 and 1 end, in metres from the camera. z: how many
   /// there are. w: one texel of a tile, vertically.
-  final Float32List _shadowCascades = Float32List(4);
+  Float32List get _shadowCascades => _fragInfo.shadowCascades;
 
   int _shadowCascadeCount = 1;
 
@@ -900,15 +907,15 @@ final class Renderer implements RenderServices {
 
   /// [_shadowMatrix] in the backend's clip space, for drawing the map with.
   final vm.Matrix4 _shadowDrawMatrix = vm.Matrix4.identity();
-  final Float32List _shadowParams = Float32List(4);
+  Float32List get _shadowParams => _fragInfo.shadowParams;
 
   /// `FragInfo.target_origin`: the rows of the target the scene draws into
   /// when its row zero is the bottom of the picture — see
   /// `lib/frag_coord.glsl`. Set where each pass that draws meshes begins.
-  final Float32List _targetOrigin = Float32List(4);
+  Float32List get _targetOrigin => _fragInfo.targetOrigin;
 
   /// `FragCoordInfo.origin`, the same number for a full-screen pass.
-  final Float32List _fragCoordOrigin = Float32List(4);
+  Float32List get _fragCoordOrigin => _fragCoordInfo.origin;
 
   /// How many rows [target] has if this backend counts them from the bottom,
   /// and zero if it counts from the top — what `FragCoordFromTop` turns
@@ -926,14 +933,12 @@ final class Renderer implements RenderServices {
     TextureHandle target,
   ) {
     _fragCoordOrigin[0] = _rowsFromBottom(target);
-    pass.bindUniformBlock(stage, _kFragCoordInfoBlock, <String, Float32List>{
-      'origin': _fragCoordOrigin,
-    });
+    pass.bindBlock(stage, _fragCoordInfo);
   }
 
   /// `ShadowSettings.bias` per cascade, in each cascade's own depth: see
   /// `shadow_bias` in `surface.glsl`.
-  final Float32List _shadowCascadeBias = Float32List(4);
+  Float32List get _shadowCascadeBias => _fragInfo.shadowBias;
   final List<double> _shadowCascadeBiasScale = <double>[1.0, 1.0, 1.0];
   TextureHandle? _shadowMap;
 
@@ -962,40 +967,40 @@ final class Renderer implements RenderServices {
   /// empty frames, not once per empty frame and not once per renderer.
   bool _emptyFrameReported = false;
 
-  final Float32List _bloomParams = Float32List(4);
+  Float32List get _bloomParams => _bloomInfo.params;
 
   /// The upsample step's per-channel factor: the ratio of this level's
   /// halation and scatter weight to the one above's. See `_renderBloom`.
-  final Float32List _bloomTint = Float32List(4);
-  final Float32List _fxaaParams = Float32List(4);
+  Float32List get _bloomTint => _bloomInfo.tint;
+  Float32List get _fxaaParams => _fxaaInfo.params;
 
   /// `gfx-29n`: x is the sharpening amount, the rest unclaimed.
-  final Float32List _fxaaSharpen = Float32List(4);
+  Float32List get _fxaaSharpen => _fxaaInfo.sharpen;
 
   /// `gfx-32n`: one texel of the occlusion buffer, the tap count, and how
   /// fast a tap's weight falls off with depth.
-  final Float32List _ssaoBlurParams = Float32List(4);
+  Float32List get _ssaoBlurParams => _ssaoBlurInfo.params;
 
   /// `gfx-33n`'s own four vectors. The three matrices it also needs are the
   /// shadow pass's, reused rather than recomputed.
-  final Float32List _shaftCamera = Float32List(4);
-  final Float32List _shaftForward = Float32List(4);
-  final Float32List _shaftScatter = Float32List(4);
+  Float32List get _shaftCamera => _shaftInfo.camera;
+  Float32List get _shaftForward => _shaftInfo.forward;
+  Float32List get _shaftScatter => _shaftInfo.scatter;
 
   /// The shafts' `sun`: the direction towards the caster, and the phase's g.
-  final Float32List _shaftSun = Float32List(4);
-  final Float32List _shaftCascades = Float32List(4);
+  Float32List get _shaftSun => _shaftInfo.sun;
+  Float32List get _shaftCascades => _shaftInfo.cascades;
   final vm.Vector3 _shaftCameraVec = vm.Vector3.zero();
   final vm.Vector3 _shaftForwardVec = vm.Vector3.zero();
-  final Float32List _dofLens = Float32List(4);
-  final Float32List _dofParams = Float32List(4);
-  final Float32List _shadeParams = Float32List(4);
-  final Float32List _shadeScreen = Float32List(4);
-  final Float32List _shadeLight = Float32List(4);
+  Float32List get _dofLens => _dofInfo.lens;
+  Float32List get _dofParams => _dofInfo.params;
+  Float32List get _shadeParams => _shadeInfo.params;
+  Float32List get _shadeScreen => _shadeInfo.screen;
+  Float32List get _shadeLight => _shadeInfo.light;
   final vm.Vector3 _shadeLightVec = vm.Vector3.zero();
-  final Float32List _compositeParams = Float32List(4);
-  final Float32List _compositeAoTexel = Float32List(4);
-  final Float32List _luminanceParams = Float32List(4);
+  Float32List get _compositeParams => _compositeInfo.params;
+  Float32List get _compositeAoTexel => _compositeInfo.aoTexel;
+  Float32List get _luminanceParams => _luminanceInfo.params;
 
   /// The exposure as it stands, while auto exposure is on; null until a frame
   /// has asked for it.
@@ -1127,26 +1132,26 @@ final class Renderer implements RenderServices {
   /// Two vectors rather than one because std140 pads a `vec3` to sixteen bytes
   /// anyway, so seven floats cost the same as eight and the split reads better
   /// on the shader's side: grading in one, the lens and the film in the other.
-  final Float32List _compositeLook = Float32List(4);
-  final Float32List _compositeLookMore = Float32List(4);
+  Float32List get _compositeLook => _compositeInfo.look;
+  Float32List get _compositeLookMore => _compositeInfo.lookMore;
 
   /// `gfx-24n`'s fifth block: x is the dither amount, y and z the white
   /// balance pair `gfx-27n` added. Allocated once and zero on every frame
   /// that does not ask for any of them.
-  final Float32List _compositeOutputEncode = Float32List(4);
+  Float32List get _compositeOutputEncode => _compositeInfo.outputEncode;
 
   /// `gfx-27n`'s three ranges. Neutral is (0,0,0) for the lift and (1,1,1)
   /// for the other two, which is what the composite reads as "do nothing".
-  final Float32List _compositeLift = Float32List(4);
-  final Float32List _compositeGamma = Float32List(4);
-  final Float32List _compositeGain = Float32List(4);
+  Float32List get _compositeLift => _compositeInfo.lift;
+  Float32List get _compositeGamma => _compositeInfo.gamma;
+  Float32List get _compositeGain => _compositeInfo.gain;
 
   /// `gfx-76n`'s strength, in x. Neutral is zero, which the composite reads as
   /// a multiplier of exactly one — the same arrangement the occlusion's
   /// strength has, and for the same reason: forty-four goldens go through this
   /// block and "off" has to be a number the shader cancels, not one it nearly
   /// cancels.
-  final Float32List _compositeContact = Float32List(4);
+  Float32List get _compositeContact => _compositeInfo.contact;
 
   /// Builds a renderer on [device].
   ///
@@ -1594,7 +1599,7 @@ final class Renderer implements RenderServices {
   /// level with five torches had one that could never cast a shadow anywhere.
   static const int kShadowedLights = 6;
 
-  final Float32List _cubeFaceMatrices = Float32List(16 * 6 * kShadowedLights);
+  Float32List get _cubeFaceMatrices => _pointShadow.faces;
 
   /// Scratch for the two irradiance samples a draw takes — `gfx-81n`. Kept
   /// here for the reason every other staging buffer is: a draw must allocate
@@ -1604,8 +1609,8 @@ final class Renderer implements RenderServices {
 
   /// What a surface facing up, and one facing down, receive from the
   /// environment. Recomputed once a frame — see [_updateAmbient].
-  final Float32List _ambientSky = Float32List(4);
-  final Float32List _ambientGround = Float32List(4);
+  Float32List get _ambientSky => _fragInfo.ambientSky;
+  Float32List get _ambientGround => _fragInfo.ambientGround;
 
   /// Resolves the two ends of the hemispheric ambient for this frame.
   ///
@@ -1663,7 +1668,7 @@ final class Renderer implements RenderServices {
   /// a spot's tile through the matrix in `faces[]`, which already carries the
   /// aim. This is what the *pass* needs in order to build that matrix.
   final Float32List _cubeLightAim = Float32List(4 * kShadowedLights);
-  final Float32List _cubeLightData = Float32List(4 * kShadowedLights);
+  Float32List get _cubeLightData => _pointShadow.lights;
 
   /// One vec4 per light the shading knows about; x is its atlas row or -1.
   final Float32List _shadowSlots = Float32List(4 * LightBuffer.maxLights);
@@ -1688,11 +1693,11 @@ final class Renderer implements RenderServices {
   final LightBuffer _drawLights = LightBuffer();
   final Float32List _drawShadowSlots = Float32List(4 * LightBuffer.maxLights);
 
-  final Float32List _pointShadowParams = Float32List(4);
-  final Float32List _pointShadowParams2 = Float32List(4);
+  Float32List get _pointShadowParams => _pointShadow.params;
+  Float32List get _pointShadowParams2 => _pointShadow.params2;
 
   /// x: whether this backend stores the cube atlas bottom-up. See surface.glsl.
-  final Float32List _pointShadowParams3 = Float32List(4);
+  Float32List get _pointShadowParams3 => _pointShadow.params3;
 
   /// Number of atlas rows in use, or -1 when none are.
   int _cubeShadowLight = -1;
@@ -2238,7 +2243,7 @@ final class Renderer implements RenderServices {
 
   /// [_cubeMatrix] in the backend's clip space, for drawing a face with.
   final vm.Matrix4 _cubeDrawMatrix = vm.Matrix4.identity();
-  final Float32List _cubeLight = Float32List(4);
+  Float32List get _cubeLight => _shadowLight.light;
 
   /// This frame's light rows, or null while the scene fits in eight slots —
   /// `gfx-74n`. See `renderer_light_list.dart`.
@@ -2257,15 +2262,15 @@ final class Renderer implements RenderServices {
 
   /// Staging for the per-draw list, beside every other uniform this renderer
   /// writes: arrays reused rather than allocated per draw.
-  final Float32List _lightListParams = Float32List(4);
-  final Float32List _lightListIndices = Float32List(LightBuffer.maxExtraLights);
-  final Float32List _lightListScales = Float32List(LightBuffer.maxExtraLights);
+  Float32List get _lightListParams => _lightListInfo.list;
+  Float32List get _lightListIndices => _lightListInfo.indices;
+  Float32List get _lightListScales => _lightListInfo.scales;
 
   /// Staging for the contact shadow's block — `gfx-76n`.
-  final Float32List _contactParams = Float32List(4);
-  final Float32List _contactCamera = Float32List(4);
-  final Float32List _contactForward = Float32List(4);
-  final Float32List _contactLight = Float32List(4);
+  Float32List get _contactParams => _contactShadowInfo.params;
+  Float32List get _contactCamera => _contactShadowInfo.camera;
+  Float32List get _contactForward => _contactShadowInfo.forward;
+  Float32List get _contactLight => _contactShadowInfo.toLight;
 
   /// The capture being filled, or null — `gfx-70n`.
   FrameCaptureBuilder? _capture;
@@ -2494,8 +2499,23 @@ final class Renderer implements RenderServices {
     // Before the draw's own blocks, so an application stage that happens to
     // name `FragCoordInfo` itself is the one that wins.
     _bindFragCoord(pass, draw.fragment, draw.target);
+    // Through the stage's layout where it is known, like `bindBlock`: an
+    // engine block handed to a stage that declares a narrower one of the same
+    // name — bloom's threshold and its upsample — keeps only what that stage
+    // has. An application's stage has no layout here and takes its map as it
+    // is.
     draw.uniforms.forEach((block, members) {
-      pass.bindUniformBlock(draw.fragment, block, members);
+      final layout = draw.fragment.layouts?[block];
+      pass.bindUniformBlock(
+        draw.fragment,
+        block,
+        layout == null || layout.length >= members.length
+            ? members
+            : <String, Float32List>{
+                for (final MapEntry(:key, :value) in members.entries)
+                  if (layout.containsKey(key)) key: value,
+              },
+      );
     });
 
     pass.draw();
@@ -3818,11 +3838,11 @@ final class Renderer implements RenderServices {
     );
   }
 
-  final Float32List _ssaoParams = Float32List(4);
-  final Float32List _ssaoScreen = Float32List(4);
-  final Float32List _ssaoCameraData = Float32List(4);
+  Float32List get _ssaoParams => _ssaoInfo.params;
+  Float32List get _ssaoScreen => _ssaoInfo.screen;
+  Float32List get _ssaoCameraData => _ssaoInfo.camera;
   final vm.Vector3 _ssaoCamera = vm.Vector3.zero();
-  final Float32List _ssaoForwardData = Float32List(4);
+  Float32List get _ssaoForwardData => _ssaoInfo.forward;
   final vm.Vector3 _ssaoForward = vm.Vector3.zero();
 
   /// Draws into two colour attachments and reports what came back.
@@ -4036,9 +4056,8 @@ final class Renderer implements RenderServices {
       IndexType.int32,
       vertexCount,
     );
-    encoder.bindUniformBlock(debugLineVertexShader, _kLineInfoBlock, {
-      'view_projection': viewProjection.storage,
-    });
+    _lineInfo.viewProjection.setAll(0, viewProjection.storage);
+    encoder.bindBlock(debugLineVertexShader, _lineInfo);
 
     encoder.draw();
     developer.Timeline.finishSync();

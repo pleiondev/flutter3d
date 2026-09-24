@@ -70,9 +70,7 @@ extension _ShadowPasses on Renderer {
     pass.bindTexture(stage, _kAlbedoTextureSlot, texture);
     _shadowMask[0] = material.alphaCutoff;
     _shadowMask[1] = material.baseColor.w;
-    pass.bindUniformBlock(stage, _kShadowMaskBlock, <String, Float32List>{
-      'mask': _shadowMask,
-    });
+    pass.bindBlock(stage, _maskInfo);
   }
 
   /// Draws [slotCount] lights' cube faces into one atlas, in one pass.
@@ -387,11 +385,10 @@ extension _ShadowPasses on Renderer {
           mvp
             ..setFrom(_cubeDrawMatrix)
             ..multiply(node.worldMatrix);
-          pass.bindUniformBlock(stage, _kFrameInfoBlock, {
-            'mvp': mvp.storage,
-            'model': node.worldMatrix.storage,
-            'normal_matrix': node.worldNormalMatrix.storage,
-          });
+          _frameInfo.mvp.setAll(0, mvp.storage);
+          _frameInfo.model.setAll(0, node.worldMatrix.storage);
+          _frameInfo.normalMatrix.setAll(0, node.worldNormalMatrix.storage);
+          pass.bindBlock(stage, _frameInfo);
           _bindMorph(pass, stage, node.morph);
           if (instanced != null) {
             _bindInstanceMorph(pass, stage, instanced);
@@ -431,15 +428,14 @@ extension _ShadowPasses on Renderer {
             // pass, the pick pass and mesh encoding, all of which reached this
             // same call once per primitive and none of which had a guard.
             skeleton.update(node.worldMatrix);
-            pass.bindUniformBlock(skinnedVertexShader, _kSkinInfoBlock, {
-              'joint_matrices': skeleton.matrices,
-            });
+            _skinInfo.jointMatrices.setAll(0, skeleton.matrices);
+            pass.bindBlock(skinnedVertexShader, _skinInfo);
           }
           // Through the stage the pipeline was built with. A cut-out caster's
           // fragment stage is `ShadowDistanceMasked`, which declares its own
           // `ShadowLight`; binding it through the plain stage's handle landed
           // in the right slot only because both happen to declare it first.
-          pass.bindUniformBlock(fragment, 'ShadowLight', {'light': _cubeLight});
+          pass.bindBlock(fragment, _shadowLight);
           pass.draw(instanceCount: instanced?.count ?? 1);
           _frameCounters?.drawCalls++;
           drawn++;
@@ -994,11 +990,10 @@ extension _ShadowPasses on Renderer {
           1 => skinnedVertexShader,
           _ => vertexShader,
         };
-        pass.bindUniformBlock(stage, _kFrameInfoBlock, {
-          'mvp': mvp.storage,
-          'model': node.worldMatrix.storage,
-          'normal_matrix': node.worldNormalMatrix.storage,
-        });
+        _frameInfo.mvp.setAll(0, mvp.storage);
+        _frameInfo.model.setAll(0, node.worldMatrix.storage);
+        _frameInfo.normalMatrix.setAll(0, node.worldNormalMatrix.storage);
+        pass.bindBlock(stage, _frameInfo);
         _bindMorph(pass, stage, node.morph);
         if (instanced != null) {
           _bindInstanceMorph(pass, stage, instanced);
@@ -1012,9 +1007,8 @@ extension _ShadowPasses on Renderer {
         }
         if (skeleton != null) {
           skeleton.update(node.worldMatrix);
-          pass.bindUniformBlock(skinnedVertexShader, _kSkinInfoBlock, {
-            'joint_matrices': skeleton.matrices,
-          });
+          _skinInfo.jointMatrices.setAll(0, skeleton.matrices);
+          pass.bindBlock(skinnedVertexShader, _skinInfo);
         }
         pass.draw(instanceCount: instanced?.count ?? 1);
         // Counted once, not once per cascade: the number answers "how many things

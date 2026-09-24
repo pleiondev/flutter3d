@@ -2,6 +2,7 @@ import 'dart:math' as math;
 import 'dart:typed_data';
 
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
+import 'package:flutter3d_shaders/typed_blocks.dart';
 import 'package:vector_math/vector_math.dart';
 
 import 'identity_indices.dart';
@@ -38,6 +39,8 @@ import 'pass_contributor.dart';
 /// space — and letting equal depths pass is what makes an edge sit on its face
 /// rather than flicker through it.
 final class MeshOverlay extends PassContributor {
+  final LineInfoBlock _lineInfo = LineInfoBlock();
+
   /// Built with the two stages of the line pipeline, which the renderer holds
   /// as `debugLineVertexShader` and `debugLineFragmentShader`.
   ///
@@ -344,6 +347,7 @@ final class MeshOverlay extends PassContributor {
     Matrix4 viewProjection,
   ) {
     if (batch.isEmpty) return;
+    _lineInfo.viewProjection.setAll(0, viewProjection.storage);
     frame.encoder
       ..setState(state)
       ..bindVertexData(batch.vertexBytes, batch.vertexCount)
@@ -352,9 +356,7 @@ final class MeshOverlay extends PassContributor {
         IndexType.int32,
         batch.vertexCount,
       )
-      ..bindUniformBlock(vertexShader, 'LineInfo', {
-        'view_projection': viewProjection.storage,
-      })
+      ..bindBlock(vertexShader, _lineInfo)
       ..draw();
     frame.state.drawCalls++;
   }

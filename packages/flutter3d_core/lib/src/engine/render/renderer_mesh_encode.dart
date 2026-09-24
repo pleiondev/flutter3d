@@ -79,10 +79,7 @@ extension _MeshEncode on Renderer {
     _morphParams[2] = morph == null ? 0.0 : 1.0 / morph.texture.height;
 
     pass
-      ..bindUniformBlock(stage, _kMorphInfoBlock, {
-        'morph_weights': _morphWeights,
-        'morph_params': _morphParams,
-      })
+      ..bindBlock(stage, _morphInfo)
       ..bindTexture(
         stage,
         'morph_texture',
@@ -116,9 +113,7 @@ extension _MeshEncode on Renderer {
     _morphInstanceParams[2] = texture == null ? 0.0 : 1.0 / texture.height;
 
     pass
-      ..bindUniformBlock(stage, _kMorphInstanceInfoBlock, {
-        'instance_params': _morphInstanceParams,
-      })
+      ..bindBlock(stage, _morphInstanceInfo)
       ..bindTexture(
         stage,
         'morph_instance_weights',
@@ -275,11 +270,10 @@ extension _MeshEncode on Renderer {
     // annotation `.storage` here is an unchecked call on an untyped value,
     // and a typo in it would compile and fail at the draw.
     final vm.Matrix4 mvp = viewProjection * modelMatrix;
-    encoder.bindUniformBlock(activeVertexShader, _kFrameInfoBlock, {
-      'mvp': mvp.storage,
-      'model': modelMatrix.storage,
-      'normal_matrix': normalMatrix.storage,
-    });
+    _frameInfo.mvp.setAll(0, mvp.storage);
+    _frameInfo.model.setAll(0, modelMatrix.storage);
+    _frameInfo.normalMatrix.setAll(0, normalMatrix.storage);
+    encoder.bindBlock(activeVertexShader, _frameInfo);
 
     // Always for the engine's own mesh stages, even when nothing morphs: all
     // four declare the block and the sampler. See [_bindMorph].
@@ -307,9 +301,8 @@ extension _MeshEncode on Renderer {
       // the mesh node's own world transform, which is exactly what the
       // renderer is holding at this point.
       skeleton.update(modelMatrix);
-      encoder.bindUniformBlock(activeVertexShader, _kSkinInfoBlock, {
-        'joint_matrices': skeleton.matrices,
-      });
+      _skinInfo.jointMatrices.setAll(0, skeleton.matrices);
+      encoder.bindBlock(activeVertexShader, _skinInfo);
       state.skinnedDraws++;
     }
 
@@ -529,14 +522,10 @@ extension _MeshEncode on Renderer {
         _pointShadowParams3[1] = _cubeShadowTile > 0
             ? 1.0 / _cubeShadowTile
             : 0.0;
-        encoder.bindUniformBlock(fragmentShader, 'PointShadow', {
-          'faces': _cubeFaceMatrices,
-          'lights': _cubeLightData,
-          'slots': drawShadowSlots,
-          'params': _pointShadowParams,
-          'params2': _pointShadowParams2,
-          'params3': _pointShadowParams3,
-        });
+        // The slots are this draw's own packing; everything else in the
+        // block is the frame's, written where it was worked out.
+        _pointShadow.slots.setAll(0, drawShadowSlots);
+        encoder.bindBlock(fragmentShader, _pointShadow);
         encoder.bindTexture(
           fragmentShader,
           'point_shadow_texture',
@@ -559,11 +548,8 @@ extension _MeshEncode on Renderer {
         );
       }
 
-      encoder.bindUniformBlock(fragmentShader, _kFogInfoBlock, {
-        'fog': _fogData,
-        'eye': _cameraData,
-        'forward': _forwardData,
-      });
+      _fogInfo.eye.setAll(0, _cameraData);
+      encoder.bindBlock(fragmentShader, _fogInfo);
 
       // **The irradiance field, where there is one — `gfx-81n`.** It replaces
       // the two ambient colours for this draw and nothing else, which is the
@@ -600,31 +586,16 @@ extension _MeshEncode on Renderer {
           _buildLightList(lights),
         );
       }
-      encoder.bindUniformBlock(fragmentShader, _kFragInfoBlock, {
-        // Whole arrays written from their reflected base offset. A backend
-        // reflects the array, not its elements — `lights[0]` comes back
-        // null — but the std140 stride for a vec4 array is a flat 16
-        // bytes, so a contiguous write lands each element correctly.
-        'light_position': drawLights.positions,
-        'light_color': drawLights.colors,
-        'light_direction': drawLights.directions,
-        'light_cone': drawLights.cones,
-        'base_color': _baseColorData,
-        'emissive': _emissiveData,
-        'camera_position': _cameraData,
-        'material': _materialData,
-        'material2': _material2Data,
-        'frame_params': _frameParams,
-        'shadow_params': _shadowParams,
-        'shadow_matrix': _shadowMatrix.storage,
-        'shadow_matrix_far': _shadowMatrixFar.storage,
-        'shadow_matrix_farthest': _shadowMatrixFarthest.storage,
-        'shadow_cascades': _shadowCascades,
-        'ambient_sky': _ambientSky,
-        'ambient_ground': _ambientGround,
-        'shadow_bias': _shadowCascadeBias,
-        'target_origin': _targetOrigin,
-      });
+      // The lights are this draw's selection and the cascade matrices are
+      // vector_math's; everything else in the block is written in place.
+      _fragInfo.lightPosition.setAll(0, drawLights.positions);
+      _fragInfo.lightColor.setAll(0, drawLights.colors);
+      _fragInfo.lightDirection.setAll(0, drawLights.directions);
+      _fragInfo.lightCone.setAll(0, drawLights.cones);
+      _fragInfo.shadowMatrix.setAll(0, _shadowMatrix.storage);
+      _fragInfo.shadowMatrixFar.setAll(0, _shadowMatrixFar.storage);
+      _fragInfo.shadowMatrixFarthest.setAll(0, _shadowMatrixFarthest.storage);
+      encoder.bindBlock(fragmentShader, _fragInfo);
     }
 
     // Bound strictly according to the model's declared slots. The

@@ -78,7 +78,7 @@ extension _PostPasses on Renderer {
           fragment: isFirst ? bloomThresholdShader : bloomDownsampleShader,
           textures: <String, TextureHandle>{_kPostSourceSlot: source},
           uniforms: <String, Map<String, Float32List>>{
-            _kBloomInfoBlock: <String, Float32List>{'params': _bloomParams},
+            _bloomInfo.name: _bloomInfo.members,
           },
         ),
       );
@@ -179,10 +179,7 @@ extension _PostPasses on Renderer {
       source,
       sampler: Renderer._clampSampler,
     );
-    pass.bindUniformBlock(bloomUpsampleShader, _kBloomInfoBlock, {
-      'params': _bloomParams,
-      'tint': _bloomTint,
-    });
+    pass.bindBlock(bloomUpsampleShader, _bloomInfo);
     pass.draw();
     pass.submit();
   }
@@ -211,10 +208,7 @@ extension _PostPasses on Renderer {
         fragment: fxaaShader,
         textures: <String, TextureHandle>{_kPostSourceSlot: source},
         uniforms: <String, Map<String, Float32List>>{
-          _kFxaaInfoBlock: <String, Float32List>{
-            'params': _fxaaParams,
-            'sharpen': _fxaaSharpen,
-          },
+          _fxaaInfo.name: _fxaaInfo.members,
         },
       ),
     );
@@ -256,7 +250,7 @@ extension _PostPasses on Renderer {
           'surface_texture': surface,
         },
         uniforms: <String, Map<String, Float32List>>{
-          'SsaoBlurInfo': <String, Float32List>{'params': _ssaoBlurParams},
+          _ssaoBlurInfo.name: _ssaoBlurInfo.members,
         },
         // Nearest on the surface buffer, as the occlusion pass itself reads
         // it: this pass is at half resolution, so a filtered tap lands on the
@@ -323,20 +317,15 @@ extension _PostPasses on Renderer {
     // `mix` rather than of arithmetic in two places.
     _contactParams[3] = options.bias;
 
+    _contactShadowInfo.inverseViewProjection.setAll(0, inverse.storage);
+    _contactShadowInfo.viewProjection.setAll(0, viewProjection.storage);
     drawFullscreen(
       FullscreenDraw(
         target: target,
         fragment: contactShadowShader,
         textures: <String, TextureHandle>{'surface_texture': surface},
         uniforms: <String, Map<String, Float32List>>{
-          _kContactShadowBlock: <String, Float32List>{
-            'inverse_view_projection': inverse.storage,
-            'view_projection': viewProjection.storage,
-            'params': _contactParams,
-            'camera': _contactCamera,
-            'forward': _contactForward,
-            'to_light': _contactLight,
-          },
+          _contactShadowInfo.name: _contactShadowInfo.members,
         },
         // Unfiltered, for `_encodeSsao`'s measured reason below: a filtered tap
         // across a silhouette averages a foreground depth with the cleared
@@ -411,20 +400,15 @@ extension _PostPasses on Renderer {
     _ssaoScreen[0] = 1.0 / math.max(target.width, 1);
     _ssaoScreen[1] = 1.0 / math.max(target.height, 1);
 
+    _ssaoInfo.inverseViewProjection.setAll(0, inverse.storage);
+    _ssaoInfo.viewProjection.setAll(0, viewProjection.storage);
     drawFullscreen(
       FullscreenDraw(
         target: target,
         fragment: ssaoShader,
         textures: <String, TextureHandle>{'surface_texture': surface},
         uniforms: <String, Map<String, Float32List>>{
-          _kSsaoInfoBlock: <String, Float32List>{
-            'inverse_view_projection': inverse.storage,
-            'view_projection': viewProjection.storage,
-            'params': _ssaoParams,
-            'screen': _ssaoScreen,
-            'camera': _ssaoCameraData,
-            'forward': _ssaoForwardData,
-          },
+          _ssaoInfo.name: _ssaoInfo.members,
         },
         // **Unfiltered**, unlike every other full-screen read in this renderer,
         // and measured rather than assumed: with linear filtering an isolated
@@ -512,6 +496,11 @@ extension _PostPasses on Renderer {
     // the air has no surface to lift off, so this is the only guard against a
     // shaft shadowing itself along the map's own quantisation.
 
+    _shaftInfo.inverseViewProjection.setAll(0, inverse.storage);
+    _shaftInfo.shadowMatrix.setAll(0, _shadowMatrix.storage);
+    _shaftInfo.shadowMatrixFar.setAll(0, _shadowMatrixFar.storage);
+    _shaftInfo.shadowMatrixFarthest.setAll(0, _shadowMatrixFarthest.storage);
+    _shaftInfo.bias.setAll(0, _shadowCascadeBias);
     drawFullscreen(
       FullscreenDraw(
         target: target,
@@ -522,18 +511,7 @@ extension _PostPasses on Renderer {
           'shadow_texture': shadow,
         },
         uniforms: <String, Map<String, Float32List>>{
-          'ShaftInfo': <String, Float32List>{
-            'inverse_view_projection': inverse.storage,
-            'shadow_matrix': _shadowMatrix.storage,
-            'shadow_matrix_far': _shadowMatrixFar.storage,
-            'shadow_matrix_farthest': _shadowMatrixFarthest.storage,
-            'camera': _shaftCamera,
-            'forward': _shaftForward,
-            'scatter': _shaftScatter,
-            'cascades': _shaftCascades,
-            'sun': _shaftSun,
-            'bias': _shadowCascadeBias,
-          },
+          _shaftInfo.name: _shaftInfo.members,
         },
         // Nearest on the surface buffer, as every other reader of it takes: a
         // filtered depth at a silhouette against the sky averages with the
@@ -599,10 +577,7 @@ extension _PostPasses on Renderer {
           'surface_texture': surface,
         },
         uniforms: <String, Map<String, Float32List>>{
-          'DofInfo': <String, Float32List>{
-            'lens': _dofLens,
-            'params': _dofParams,
-          },
+          _dofInfo.name: _dofInfo.members,
         },
         // Nearest on the depth: a filtered tap at a silhouette against the
         // sky mixes the object's depth with the sky's zero into a nearer
@@ -684,11 +659,7 @@ extension _PostPasses on Renderer {
           'surface_texture': surface,
         },
         uniforms: <String, Map<String, Float32List>>{
-          'ShadeInfo': <String, Float32List>{
-            'params': _shadeParams,
-            'screen': _shadeScreen,
-            'light': _shadeLight,
-          },
+          _shadeInfo.name: _shadeInfo.members,
         },
         // **Nearest on the surface buffer, for the reason the occlusion pass
         // gives at length**: a filtered tap at a silhouette averages a
@@ -761,6 +732,8 @@ extension _PostPasses on Renderer {
     _reflectionForwardData[1] = _reflectionForward.y;
     _reflectionForwardData[2] = _reflectionForward.z;
 
+    _reflectionInfo.viewProjection.setAll(0, viewProjection.storage);
+    _reflectionInfo.inverseViewProjection.setAll(0, inverse.storage);
     drawFullscreen(
       FullscreenDraw(
         target: target,
@@ -770,14 +743,7 @@ extension _PostPasses on Renderer {
           'surface_texture': surface,
         },
         uniforms: <String, Map<String, Float32List>>{
-          _kReflectionInfoBlock: <String, Float32List>{
-            'view_projection': viewProjection.storage,
-            'inverse_view_projection': inverse.storage,
-            'camera': _reflectionCameraData,
-            'forward': _reflectionForwardData,
-            'params': _reflectionParams,
-            'screen': _reflectionScreen,
-          },
+          _reflectionInfo.name: _reflectionInfo.members,
         },
         // Nearest on the surface buffer, as every other reader of it takes:
         // a filtered tap at a silhouette averages the object's depth with the
@@ -819,9 +785,7 @@ extension _PostPasses on Renderer {
         fragment: shader,
         textures: <String, TextureHandle>{_kSceneTextureSlot: scene},
         uniforms: <String, Map<String, Float32List>>{
-          _kLuminanceInfoBlock: <String, Float32List>{
-            'params': _luminanceParams,
-          },
+          _luminanceInfo.name: _luminanceInfo.members,
         },
       ),
     );
@@ -1080,21 +1044,11 @@ extension _PostPasses on Renderer {
     _compositeGain[1] = gain?.y ?? 1.0;
     _compositeGain[2] = gain?.z ?? 1.0;
 
-    // The whole block, in one map, because a bind replaces the block rather
-    // than patching it: rebinding with `params` alone would leave a per-view
-    // frame with no look, no grade and an occlusion texel of zero.
-    final block = <String, Float32List>{
-      'params': _compositeParams,
-      'ao_texel': _compositeAoTexel,
-      'look': _compositeLook,
-      'look_more': _compositeLookMore,
-      'output_encode': _compositeOutputEncode,
-      'lift': _compositeLift,
-      'gamma': _compositeGamma,
-      'gain': _compositeGain,
-      'contact': _compositeContact,
-    };
-    pass.bindUniformBlock(compositeShader, _kCompositeInfoBlock, block);
+    // The whole block, every member at once, because a bind replaces the
+    // block rather than patching it: rebinding with `params` alone would
+    // leave a per-view frame with no look, no grade and an occlusion texel of
+    // zero.
+    pass.bindBlock(compositeShader, _compositeInfo);
     _bindFragCoord(pass, compositeShader, target);
     var draws = 1;
     if (!perView) {
@@ -1116,7 +1070,7 @@ extension _PostPasses on Renderer {
           ..setScissor(rect);
         _compositeParams[0] = _exposureForView(settings, i);
         pass
-          ..bindUniformBlock(compositeShader, _kCompositeInfoBlock, block)
+          ..bindBlock(compositeShader, _compositeInfo)
           ..draw();
       }
       // Back to the whole frame, because the overlay loop below sets its own
