@@ -38,6 +38,10 @@ stageBindings = <String, ({Set<String> blocks, Set<String> samplers})>{
     blocks: <String>{'BloomInfo'},
     samplers: <String>{'source_texture'},
   ),
+  'CameraVelocity': (
+    blocks: <String>{'CameraVelocityInfo'},
+    samplers: <String>{'surface_texture'},
+  ),
   'Composite': (
     blocks: <String>{'CompositeInfo', 'FragCoordInfo'},
     samplers: <String>{

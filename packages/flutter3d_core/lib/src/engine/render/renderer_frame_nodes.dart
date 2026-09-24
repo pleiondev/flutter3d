@@ -839,6 +839,47 @@ final class _ContactShadowNode extends RenderNode with _NeedsSurfaceBuffer {
   }
 }
 
+/// `R1`'s camera velocity, as the producer of the velocity resource.
+///
+/// Active only while temporal anti-aliasing is on, and reading the surface
+/// buffer is what switches that buffer on — and multisampling off — for a
+/// frame that asked for the resolve.
+final class _CameraVelocityNode extends RenderNode with _NeedsSurfaceBuffer {
+  _CameraVelocityNode(this._renderer, this._view, this._settings);
+
+  @override
+  Renderer get owner => _renderer;
+
+  final Renderer _renderer;
+  final RenderView _view;
+  final RenderSettings _settings;
+
+  @override
+  String get name => 'camera velocity';
+
+  @override
+  bool get isActive => _settings.antiAlias.temporal.enabled;
+
+  @override
+  List<ResourceId> get reads => const <ResourceId>[
+    FrameResourceIds.surfaceBuffer,
+  ];
+
+  @override
+  List<ResourceId> get writes => const <ResourceId>[FrameResourceIds.velocity];
+
+  @override
+  void execute(NodeFrame frame) {
+    final surface = frame.resources.tryTexture(FrameResourceIds.surfaceBuffer);
+    if (surface == null) return;
+    _renderer._encodeCameraVelocity(
+      target: frame.resources.texture(FrameResourceIds.velocity),
+      surface: surface,
+      view: _view,
+    );
+  }
+}
+
 /// `gfx-33n`'s volumetric shafts, as a link in the lit-colour chain.
 ///
 /// **Reads the shadow map optionally, which is the whole of how it declines.**
@@ -1205,6 +1246,9 @@ final class _CompositeNode extends RenderNode {
     // `RenderSettings.showStaticShadowMap`: there are two, the lighting
     // shader samples both, and only one of them had ever been looked at.
     if (_settings.showStaticShadowMap) FrameResourceIds.cubeShadowStatic,
+    // `R1`'s debug view, declared only when it is asked for, for the reason
+    // the surface buffer is.
+    if (_settings.showVelocity) FrameResourceIds.velocity,
   ];
 
   @override
@@ -1267,6 +1311,9 @@ final class _CompositeNode extends RenderNode {
           : _settings.showShadowMap
           ? frame.resources.tryTexture(FrameResourceIds.cubeShadow) ??
                 frame.resources.tryTexture(FrameResourceIds.shadowMap)
+          : null,
+      velocity: _settings.showVelocity
+          ? frame.resources.tryTexture(FrameResourceIds.velocity)
           : null,
       sceneGraph: _scene,
       views: _views,

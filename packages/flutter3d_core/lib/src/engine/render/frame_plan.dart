@@ -58,6 +58,14 @@ abstract final class FrameResourceIds {
   /// hemisphere, and only where a surface faces the light.
   static const ResourceId contactShadow = ResourceId('contact_shadow');
 
+  /// How far each pixel moved on screen since the last frame, in UV units,
+  /// now minus then — `R1`. Red and green; produced only while temporal
+  /// anti-aliasing is on.
+  ///
+  /// The HDR format because it holds signed fractions, and there is no
+  /// two-channel float format in `TextureFormat` to be smaller with.
+  static const ResourceId velocity = ResourceId('velocity');
+
   /// The scene's log luminance at a fixed small size, for the exposure meter
   /// to read back. Produced only while auto exposure is on.
   static const ResourceId luminance = ResourceId('luminance');

@@ -708,6 +708,7 @@ final class RenderSettings {
     this.showSurfaceBuffer = false,
     this.showShadowMap = false,
     this.showStaticShadowMap = false,
+    this.showVelocity = false,
     this.showPointShadowDebug = false,
     this.reflections = const ReflectionSettings(),
     this.ambientOcclusion = const AmbientOcclusionSettings(),
@@ -1013,6 +1014,15 @@ final class RenderSettings {
   /// said about a backend whose second atlas nobody had looked at.
   final bool showStaticShadowMap;
 
+  /// Shows the velocity buffer instead of the lit image — `R1`. Red and green
+  /// are the motion in UV units, now minus then, through the output encoding
+  /// the way every raw view goes: a still frame is black, and only motion
+  /// down and to the right shows, since a negative channel has nothing to
+  /// light. A test that needs both signs reads the resource itself. Only while
+  /// temporal anti-aliasing is on, which is when there is a buffer; off, the
+  /// lit image is shown.
+  final bool showVelocity;
+
   /// Paints the point shadow's penumbra estimate into the surface buffer, and
   /// shows that instead of the lit image.
   ///
@@ -1093,6 +1103,7 @@ final class RenderSettings {
     bool? showSurfaceBuffer,
     bool? showShadowMap,
     bool? showStaticShadowMap,
+    bool? showVelocity,
     bool? showPointShadowDebug,
     ReflectionSettings? reflections,
     AmbientOcclusionSettings? ambientOcclusion,
@@ -1126,6 +1137,7 @@ final class RenderSettings {
     showSurfaceBuffer: showSurfaceBuffer ?? this.showSurfaceBuffer,
     showShadowMap: showShadowMap ?? this.showShadowMap,
     showStaticShadowMap: showStaticShadowMap ?? this.showStaticShadowMap,
+    showVelocity: showVelocity ?? this.showVelocity,
     showPointShadowDebug: showPointShadowDebug ?? this.showPointShadowDebug,
     reflections: reflections ?? this.reflections,
     ambientOcclusion: ambientOcclusion ?? this.ambientOcclusion,
@@ -1648,9 +1660,15 @@ final class AntiAliasSettings {
     this.contrastThreshold = 0.125,
     this.blend = 0.75,
     this.sharpen = 0.0,
+    this.temporal = const TemporalSettings(),
   });
 
   final bool enabled;
+
+  /// Anti-aliasing across frames — `R1`, `R2`. Independent of [enabled]: the
+  /// temporal resolve and the edge pass can run together, and the resolve is
+  /// the one that replaces multisampling.
+  final TemporalSettings temporal;
 
   /// How much local contrast a pixel needs before it is worth touching, as a
   /// fraction of the local maximum.
@@ -1692,10 +1710,64 @@ final class AntiAliasSettings {
     double? contrastThreshold,
     double? blend,
     double? sharpen,
+    TemporalSettings? temporal,
   }) => AntiAliasSettings(
     enabled: enabled ?? this.enabled,
     contrastThreshold: contrastThreshold ?? this.contrastThreshold,
     blend: blend ?? this.blend,
+    sharpen: sharpen ?? this.sharpen,
+    temporal: temporal ?? this.temporal,
+  );
+}
+
+/// Edges smoothed across frames — `R1`, `R2`.
+///
+/// **The scene is drawn a fraction of a pixel off each frame**, along a
+/// Halton(2, 3) sequence of [sequenceLength] offsets, and a resolve pass
+/// blends each frame into the history of the ones before it, reprojected
+/// through the motion the velocity passes measured. Sixteen frames of a still
+/// picture are sixteen samples of every pixel, which is what multisampling
+/// buys with memory and this buys with time.
+///
+/// **It turns multisampling off**, because the velocity pass reads the
+/// surface buffer and the surface buffer cannot be multisampled; the frame
+/// result says so through `EffectiveAntiAliasing.temporal`.
+///
+/// Off by default: a still frame on its own is as sharp as without it, but a
+/// frame one draws once — a golden, a thumbnail — would come out a fraction
+/// of a pixel off and never be resolved.
+final class TemporalSettings {
+  const TemporalSettings({
+    this.enabled = false,
+    this.sequenceLength = 16,
+    this.historyWeight = 0.9,
+    this.sharpen = 0.25,
+  });
+
+  final bool enabled;
+
+  /// How many offsets the jitter cycles through before it repeats. Sixteen
+  /// covers a pixel evenly enough that a still frame converges to within a
+  /// grey level of its 16× supersampled self.
+  final int sequenceLength;
+
+  /// How much of each resolved pixel is history, from nought to one. Higher
+  /// is smoother and slower to follow change.
+  final double historyWeight;
+
+  /// Robust contrast-adaptive sharpening after the resolve, from nought to
+  /// one, to put back the softness a history always adds.
+  final double sharpen;
+
+  TemporalSettings copyWith({
+    bool? enabled,
+    int? sequenceLength,
+    double? historyWeight,
+    double? sharpen,
+  }) => TemporalSettings(
+    enabled: enabled ?? this.enabled,
+    sequenceLength: sequenceLength ?? this.sequenceLength,
+    historyWeight: historyWeight ?? this.historyWeight,
     sharpen: sharpen ?? this.sharpen,
   );
 }

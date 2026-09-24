@@ -70,15 +70,18 @@ void main() {
     expect(renderer.frameHistory.of(batch)!.instanceCount, 1);
   });
 
-  test('each view keeps last frame\'s view-projection', () {
+  test('each camera keeps last frame\'s view-projection', () {
     final (:renderer, :scene, moving: _, still: _) = staged();
-    expect(renderer.frameHistory.viewProjection(0), isNull);
+    final camera = scene.cameras.single;
+    expect(renderer.frameHistory.viewProjection(camera), isNull);
     draw(renderer, scene);
-    final before = renderer.frameHistory.viewProjection(0)!.clone();
-    scene.cameras.single.setPosition(0.0, 1.0, 0.0);
+    final before = renderer.frameHistory.viewProjection(camera)!.clone();
+    expect(before, camera.viewProjection(64 / 48));
+    camera.setPosition(0.0, 1.0, 0.0);
     draw(renderer, scene);
-    expect(renderer.frameHistory.viewProjection(0), isNot(before));
-    expect(renderer.frameHistory.viewProjection(1), isNull);
+    expect(renderer.frameHistory.viewProjection(camera), isNot(before));
+    // A camera no view looked through last frame has no past.
+    expect(renderer.frameHistory.viewProjection(CameraNode()), isNull);
   });
 
   test('a renderer that is not tracking records nothing', () {

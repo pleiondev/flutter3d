@@ -21,6 +21,7 @@ import 'dart:typed_data';
 
 import 'package:vector_math/vector_math.dart' as vm;
 
+import '../scene/camera_node.dart';
 import '../scene/instanced_mesh_node.dart';
 import '../scene/mesh_node.dart';
 
@@ -50,14 +51,19 @@ final class NodeHistory {
   (int, int, int, int) _key = (-1, -1, -1, -1);
 }
 
+final class _ViewHistory {
+  final vm.Matrix4 matrix = vm.Matrix4.zero();
+  int frame = -1;
+}
+
 final class FrameHistory {
   /// Whether the renderer records a history at all. Set by whatever needs
   /// one; nothing in 0.8.0's defaults does.
   bool tracking = false;
 
   final Expando<NodeHistory> _nodes = Expando<NodeHistory>('frame history');
-  final List<vm.Matrix4> _views = <vm.Matrix4>[];
-  int _viewsRecorded = 0;
+  final Expando<_ViewHistory> _views = Expando<_ViewHistory>('view history');
+  int _lastFrame = -1;
 
   /// Buffers this history has created, for tests: an entry, a palette, a set
   /// of weights, an instance copy or a view matrix, each counted once when it
@@ -81,29 +87,42 @@ final class FrameHistory {
     return entry != null && entry._key != _keyOf(node);
   }
 
-  /// View [index]'s unjittered view-projection at the end of the last
-  /// recorded frame, or null when the last frame had fewer views.
-  vm.Matrix4? viewProjection(int index) =>
-      index < _viewsRecorded ? _views[index] : null;
+  /// The unjittered view-projection [camera] was drawn with at the end of the
+  /// last recorded frame, or null when that frame had no view through it.
+  ///
+  /// By camera rather than by the view's place in a list, because the list
+  /// is the caller's and may be reordered between frames; a camera is the
+  /// thing whose motion a velocity measures. The matrix is the camera's own
+  /// ([CameraNode.viewProjection]), before any backend's depth range or
+  /// framebuffer origin, so a reader adjusts it the way it adjusts the
+  /// current one.
+  vm.Matrix4? viewProjection(CameraNode camera) {
+    final entry = _views[camera];
+    return entry != null && entry.frame == _lastFrame ? entry.matrix : null;
+  }
 
-  /// Records every node in [meshes] and every matrix in [viewProjections] as
-  /// frame [frame]. The renderer's to call, once, when a frame is done.
+  /// Records every node in [meshes] and every camera in [views] with the
+  /// matrix it drew with, as frame [frame]. The renderer's to call, once,
+  /// when a frame is done.
   void endFrame({
     required int frame,
     required Iterable<MeshNode> meshes,
-    required List<vm.Matrix4> viewProjections,
+    required Iterable<(CameraNode, vm.Matrix4)> views,
   }) {
     for (final node in meshes) {
       _record(node, frame);
     }
-    for (var i = 0; i < viewProjections.length; i++) {
-      if (i == _views.length) {
-        _views.add(vm.Matrix4.zero());
-        _allocations++;
-      }
-      _views[i].setFrom(viewProjections[i]);
+    for (final (camera, matrix) in views) {
+      (_views[camera] ??= _viewCreated())
+        ..matrix.setFrom(matrix)
+        ..frame = frame;
     }
-    _viewsRecorded = viewProjections.length;
+    _lastFrame = frame;
+  }
+
+  _ViewHistory _viewCreated() {
+    _allocations++;
+    return _ViewHistory();
   }
 
   void _record(MeshNode node, int frame) {

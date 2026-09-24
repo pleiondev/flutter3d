@@ -338,6 +338,60 @@ extension _PostPasses on Renderer {
     developer.Timeline.finishSync();
   }
 
+  /// Writes how far each pixel moved because the camera did — `R1`.
+  ///
+  /// The reconstruction `_encodeContactShadow` does, carried one step
+  /// further through last frame's matrix from [frameHistory]. A camera with
+  /// no past — the first frame, a view that just appeared — is given its own
+  /// matrix as its past, which is a velocity of zero: the resolve has nothing
+  /// to reproject yet either way.
+  void _encodeCameraVelocity({
+    required TextureHandle target,
+    required TextureHandle surface,
+    required RenderView view,
+  }) {
+    developer.Timeline.startSync('Renderer.cameraVelocity');
+
+    final aspect = surface.height == 0 ? 1.0 : surface.width / surface.height;
+    final current = view.camera.viewProjection(aspect);
+    final previous = frameHistory.viewProjection(view.camera) ?? current;
+    final origin = device.framebufferOrigin;
+    final inverse = vm.Matrix4.copy(toFramebufferOrigin(current, origin))
+      ..invert();
+
+    view.camera.readWorldPosition(_ssaoCamera);
+    view.camera.readForward(_ssaoForward);
+    _cameraVelocityInfo.inverseViewProjection.setAll(0, inverse.storage);
+    _cameraVelocityInfo.previousViewProjection.setAll(
+      0,
+      toFramebufferOrigin(previous, origin).storage,
+    );
+    _cameraVelocityInfo.camera
+      ..[0] = _ssaoCamera.x
+      ..[1] = _ssaoCamera.y
+      ..[2] = _ssaoCamera.z;
+    _cameraVelocityInfo.forward
+      ..[0] = _ssaoForward.x
+      ..[1] = _ssaoForward.y
+      ..[2] = _ssaoForward.z;
+
+    drawFullscreen(
+      FullscreenDraw(
+        target: target,
+        fragment: cameraVelocityShader,
+        textures: <String, TextureHandle>{'surface_texture': surface},
+        uniforms: <String, Map<String, Float32List>>{
+          _cameraVelocityInfo.name: _cameraVelocityInfo.members,
+        },
+        // Unfiltered, for the contact shadow's reason: a filtered depth
+        // across a silhouette is a depth where nothing stands, and its motion
+        // is the motion of nothing.
+        sampler: SamplerOptions.nearestClamp,
+      ),
+    );
+    developer.Timeline.finishSync();
+  }
+
   /// Draws ambient occlusion into [target] from the surface buffer.
   ///
   /// A node that *produces* a resource, the way bloom does, rather than one
@@ -875,6 +929,7 @@ extension _PostPasses on Renderer {
     required TextureHandle? contactShadow,
     required TextureHandle? surface,
     required TextureHandle? shadowView,
+    TextureHandle? velocity,
     required Scene sceneGraph,
     required List<RenderView> views,
     required RenderSettings settings,
@@ -915,6 +970,8 @@ extension _PostPasses on Renderer {
       bloomIntensity: settings.bloom.intensity,
       tonemap: settings.tonemap,
       curve: settings.tonemapCurve,
+      showVelocity: settings.showVelocity,
+      hasVelocity: velocity != null,
     );
     _compositeParams[0] = mix.exposure;
     _compositeParams[1] = mix.bloomIntensity;
@@ -935,6 +992,7 @@ extension _PostPasses on Renderer {
       CompositeView.shadowMap => shadowView!,
       CompositeView.surfaceBuffer => surface ?? scene,
       CompositeView.scene => scene,
+      CompositeView.velocity => velocity!,
     }, sampler: Renderer._clampSampler);
     // With bloom culled there is still a sampler to satisfy, and the scene
     // itself is the cheapest texture to hand it — [CompositeMix] set the

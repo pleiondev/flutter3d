@@ -146,8 +146,6 @@ extension _ScenePasses on Renderer {
         width,
         height,
       );
-      final vw = viewRect.width;
-      final vh = viewRect.height;
       pass.setState(
         Renderer._kSceneViewState.copyWith(
           viewport: viewRect,
@@ -162,9 +160,8 @@ extension _ScenePasses on Renderer {
       passState.depthCompare = CompareFunction.less;
 
       final camera = view.camera;
-      final aspect = vw / vh;
       final viewMatrix = camera.viewMatrix;
-      final viewProjection = _viewProjection(camera, aspect);
+      final viewProjection = _drawViewProjection(camera, viewRect, settings);
 
       // Before the render list is built, because choosing a level changes which
       // nodes are visible and the list is built from what is.

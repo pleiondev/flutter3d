@@ -127,6 +127,10 @@
     "type": "fragment",
     "file": "shaders/post/contact_shadow.frag"
   },
+  "CameraVelocity": {
+    "type": "fragment",
+    "file": "shaders/post/camera_velocity.frag"
+  },
   "LightShafts": {
     "type": "fragment",
     "file": "shaders/post/light_shafts.frag"

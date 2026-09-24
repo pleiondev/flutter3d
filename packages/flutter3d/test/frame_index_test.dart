@@ -20,19 +20,56 @@ Future<Uint8List> _draw(
   Renderer renderer,
   CpuDevice device,
   ({Scene scene, CameraNode camera}) built,
-  ParityScene which,
-) async {
+  ParityScene which, {
+  bool temporal = false,
+}) async {
+  final base = paritySettingsFor(which);
   final frame = renderer.render(
     width: kParityWidth,
     height: kParityHeight,
     scene: built.scene,
     views: <RenderView>[RenderView(camera: built.camera)],
-    settings: paritySettingsFor(which),
+    settings: temporal
+        ? base.copyWith(
+            antiAlias: base.antiAlias.copyWith(
+              temporal: const TemporalSettings(enabled: true),
+            ),
+          )
+        : base,
   );
   return (await device.readPixels(frame.frame))!.buffer.asUint8List();
 }
 
 void main() {
+  test('with temporal on, the scene moves each frame and comes back after '
+      'sixteen', () async {
+    // `R1`'s jitter, seen in pixels: two consecutive frames of a still scene
+    // differ, and the seventeenth is the first again, because the offset is
+    // a function of the frame index and of nothing else.
+    const which = ParityScene.plain;
+    final device = CpuDevice(
+      width: kParityWidth,
+      height: kParityHeight,
+      shaders: CpuShaderLibrary(builtinCpuShaders()),
+    );
+    final renderer = Renderer.create(device: device);
+    final built = buildParityScene(device, which: which);
+    final first = await _draw(renderer, device, built, which, temporal: true);
+    final second = await _draw(renderer, device, built, which, temporal: true);
+    expect(second, isNot(first));
+    for (var i = 2; i < 16; i++) {
+      await _draw(renderer, device, built, which, temporal: true);
+    }
+    final seventeenth = await _draw(
+      renderer,
+      device,
+      built,
+      which,
+      temporal: true,
+    );
+    expect(seventeenth, first);
+  });
+
   test('frameIndex counts the frames drawn, from zero', () {
     final device = CpuDevice(
       width: kParityWidth,

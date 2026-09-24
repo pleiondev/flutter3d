@@ -68,10 +68,15 @@ final class EffectiveAntiAliasing {
     required this.msaaSamples,
     required this.fxaa,
     required this.msaaDeclined,
+    this.temporal = false,
   });
 
   /// Samples the scene pass actually drew with. One means none.
   final int msaaSamples;
+
+  /// Whether the scene was jittered and resolved across frames — `R1`. On,
+  /// this is the reason [msaaSamples] is one.
+  final bool temporal;
 
   /// Whether the post-process pass ran.
   ///
@@ -89,11 +94,12 @@ final class EffectiveAntiAliasing {
   final String? msaaDeclined;
 
   /// Whether the frame got no anti-aliasing at all.
-  bool get none => msaaSamples <= 1 && !fxaa;
+  bool get none => msaaSamples <= 1 && !fxaa && !temporal;
 
   @override
   String toString() =>
       'EffectiveAntiAliasing(msaa $msaaSamples, fxaa $fxaa'
+      '${temporal ? ", temporal" : ""}'
       '${msaaDeclined == null ? "" : ", msaa declined: $msaaDeclined"})';
 }
 

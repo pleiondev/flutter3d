@@ -126,6 +126,7 @@ final class Renderer implements RenderServices {
     required this.reflectionShader,
     required this.ssaoShader,
     required this.contactShadowShader,
+    required this.cameraVelocityShader,
     required this.ssaoBlurShader,
     required this.lightShaftsShader,
     required this.depthOfFieldShader,
@@ -259,6 +260,9 @@ final class Renderer implements RenderServices {
 
   /// The short march toward the light — `gfx-76n`. See `post/contact_shadow.frag`.
   final ShaderHandle contactShadowShader;
+
+  /// `post/camera_velocity.frag` — `R1`.
+  final ShaderHandle cameraVelocityShader;
 
   /// `gfx-32n`'s depth-aware blur over what that pass produced.
   final ShaderHandle ssaoBlurShader;
@@ -551,6 +555,7 @@ final class Renderer implements RenderServices {
   final BloomInfoBlock _bloomInfo = BloomInfoBlock();
   final CompositeInfoBlock _compositeInfo = CompositeInfoBlock();
   final ContactShadowInfoBlock _contactShadowInfo = ContactShadowInfoBlock();
+  final CameraVelocityInfoBlock _cameraVelocityInfo = CameraVelocityInfoBlock();
   final DofInfoBlock _dofInfo = DofInfoBlock();
   final FogInfoBlock _fogInfo = FogInfoBlock();
   final FrameInfoBlock _frameInfo = FrameInfoBlock();
@@ -1228,6 +1233,7 @@ final class Renderer implements RenderServices {
         reflectionShader: require('Reflections'),
         ssaoShader: require('Ssao'),
         contactShadowShader: require('ContactShadow'),
+        cameraVelocityShader: require('CameraVelocity'),
         ssaoBlurShader: require('SsaoBlur'),
         lightShaftsShader: require('LightShafts'),
         depthOfFieldShader: require('DepthOfField'),
@@ -2106,6 +2112,9 @@ final class Renderer implements RenderServices {
     // not matter here — it writes a name nothing else writes — and this is
     // simply where the pass it belongs next to is.
     graph.addNode(_ContactShadowNode(this, view, s, contactToLight));
+    // `R1`: the motion of every pixel, for the temporal resolve. Before any
+    // reader of it, which is all registration order has to promise here.
+    graph.addNode(_CameraVelocityNode(this, view, s));
     // `gfx-33n`. After the occlusion and before bloom: a shaft is light in
     // the air, so it should glow the way any other light does. It is not a
     // surface, and the occlusion should have nothing to say about it — but
@@ -2848,6 +2857,35 @@ final class Renderer implements RenderServices {
   vm.Matrix4 _viewProjection(CameraNode camera, double aspect) =>
       toDepthRange(camera.viewProjection(aspect), device.depthRange);
 
+  /// The matrix the scene's own draws use: [_viewProjection], moved by this
+  /// frame's jitter while temporal anti-aliasing is on — `R1`.
+  ///
+  /// Only the draws that feed the resolve take it: the meshes, the sky and
+  /// the contributors in the scene pass. Everything drawn after the resolve,
+  /// or read back at a pixel — picking, the debug overlay, the post passes
+  /// that reconstruct positions — keeps the unjittered matrix, because the
+  /// picture they work on has had the jitter averaged out of it.
+  vm.Matrix4 _drawViewProjection(
+    CameraNode camera,
+    ScreenRect rect,
+    RenderSettings settings,
+  ) {
+    final aspect = rect.width / rect.height;
+    final temporal = settings.antiAlias.temporal;
+    if (!temporal.enabled) return _viewProjection(camera, aspect);
+    final jittered = JitteredProjection.frame(
+      camera.projection,
+      frame: _frameIndex,
+      length: temporal.sequenceLength,
+      width: rect.width,
+      height: rect.height,
+    );
+    return toDepthRange(
+      jittered.toMatrix(aspect) * camera.viewMatrix,
+      device.depthRange,
+    );
+  }
+
   /// A view's rectangle in pixels of a [width] × [height] target.
   ///
   /// **Held inside the target**, which rounding each term on its own did not
@@ -3431,6 +3469,11 @@ final class Renderer implements RenderServices {
                 format: hdrFormat,
               ),
             )
+            // The frame's size: a velocity is per pixel of the picture the
+            // resolve reprojects.
+            ..declare(
+              ResourceDesc(id: FrameResourceIds.velocity, format: hdrFormat),
+            )
             // A fixed small square of bytes, whatever the window does: the
             // meter reads it back, and sixteen kilobytes is what a readback
             // per frame may cost. Eight bits because that is what comes back
@@ -3614,15 +3657,19 @@ final class Renderer implements RenderServices {
     // back as last frame's. The view-projections are the unjittered ones, the
     // same matrices the scene pass derived, because a reprojection has to
     // undo motion and not the jitter.
+    if (settings.antiAlias.temporal.enabled) frameHistory.tracking = true;
     if (frameHistory.tracking) {
       frameHistory.endFrame(
         frame: _frameIndex,
         meshes: scene.meshes,
-        viewProjections: <vm.Matrix4>[
+        views: <(CameraNode, vm.Matrix4)>[
           for (final view in views)
             if (_viewportPixels(view.viewportFraction, width, height)
                 case final rect)
-              _viewProjection(view.camera, rect.width / rect.height),
+              (
+                view.camera,
+                view.camera.viewProjection(rect.width / rect.height),
+              ),
         ],
       );
     }
@@ -3672,6 +3719,7 @@ final class Renderer implements RenderServices {
         msaaSamples: scenePass.msaaSamples,
         fxaa: passTimings.any((p) => p.name == 'antialias'),
         msaaDeclined: scenePass.msaaDeclined,
+        temporal: settings.antiAlias.temporal.enabled,
       ),
       cpuMicros: frameClock.elapsedMicroseconds,
       submitMicros: scenePass.submitMicros,
