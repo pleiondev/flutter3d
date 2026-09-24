@@ -832,6 +832,15 @@ final class Renderer implements RenderServices {
   /// that owns its own renderer calls it from wherever its platform says.
   void releaseTransientTargets() => targetPool.trim();
 
+  /// Called with every pooled target of a [render] frame at the moment its
+  /// lifetime in the frame ends — `H7`. Null, and so nothing, by default.
+  ///
+  /// A test hook, and the way `RenderSettings.aliasTargets` is proved safe: a
+  /// callback that fills the texture with garbage makes a pass that reads a
+  /// resource after its last declared use, or loads a target it never wrote,
+  /// show up as a changed picture.
+  void Function(TextureHandle texture)? debugOnTargetRetired;
+
   int _targetWidth = 0;
   int _targetHeight = 0;
 
@@ -3703,6 +3712,8 @@ final class Renderer implements RenderServices {
               graph: frameGraph,
               frameWidth: width,
               frameHeight: height,
+              alias: settings.aliasTargets,
+              onRetire: debugOnTargetRetired,
             )
             // Half the frame, in the same HDR format, which is what the bloom
             // chain's top level has always been.
