@@ -328,6 +328,8 @@ final class ContributorFrame {
     required this.height,
     this.view,
     this.viewProjection,
+    this.frameIndex = 0,
+    this.temporal = false,
   });
 
   /// The pass being built. Drawing into it is the point.
@@ -352,6 +354,15 @@ final class ContributorFrame {
   /// The view being drawn.
   final RenderView? view;
   final vm.Matrix4? viewProjection;
+
+  /// `Renderer.frameIndex` for this frame, for a contributor whose noise has
+  /// to change from frame to frame for a temporal resolve to average it.
+  final int frameIndex;
+
+  /// Whether a temporal resolve integrates this frame — the setting, on a
+  /// device that can run it. What a contributor asks before it trades a
+  /// sorted blend for noise the resolve will average away (`N5`).
+  final bool temporal;
 }
 
 /// How a reactive sprite's coverage is worked out — `R4`, and the shapes

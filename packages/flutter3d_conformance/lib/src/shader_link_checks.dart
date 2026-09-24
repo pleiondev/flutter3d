@@ -173,6 +173,8 @@ Future<void> checkLinking(GraphicsDevice device) async {
     ('ParticleVertex', 'Splat'),
     // `R4`: both of them marked reactive, through the same vertex stage.
     ('ParticleVertex', 'ReactiveSprite'),
+    // `N5`: the unsorted splat reads what the sorted one reads.
+    ('ParticleVertex', 'SplatHashed'),
     ('ParticleMeshVertex', 'ParticleMesh'),
     // The sky is the only pair where both stages are new at once, so it is the
     // one where a varying can disagree with nothing to compare against. Both
