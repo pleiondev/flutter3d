@@ -779,12 +779,14 @@ final class _SsaoNode extends RenderNode with _NeedsSurfaceBuffer {
         ]
       : const <ResourceId>[FrameResourceIds.surfaceBuffer];
 
-  // And the albedo buffer, which a device with two attachments cannot give:
-  // there the bounce takes a neutral grey instead.
+  // And the albedo buffer, for the indirect light and for the horizon
+  // method's bounces. A device with two attachments cannot give it: there
+  // the one takes a neutral grey and the other no bounces.
   @override
-  List<ResourceId> get optionalReads => _indirect
-      ? const <ResourceId>[FrameResourceIds.albedoBuffer]
-      : const <ResourceId>[];
+  List<ResourceId> get optionalReads =>
+      _settings.ambientOcclusion.method == AmbientOcclusionMethod.ssao
+      ? const <ResourceId>[]
+      : const <ResourceId>[FrameResourceIds.albedoBuffer];
 
   @override
   List<ResourceId> get writes => const <ResourceId>[FrameResourceIds.ao];
@@ -805,9 +807,9 @@ final class _SsaoNode extends RenderNode with _NeedsSurfaceBuffer {
       scene: _indirect
           ? frame.resources.tryTexture(FrameResourceIds.hdrColour)
           : null,
-      albedo: _indirect
-          ? frame.resources.tryTexture(FrameResourceIds.albedoBuffer)
-          : null,
+      albedo: _settings.ambientOcclusion.method == AmbientOcclusionMethod.ssao
+          ? null
+          : frame.resources.tryTexture(FrameResourceIds.albedoBuffer),
     );
   }
 }

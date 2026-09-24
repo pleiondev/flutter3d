@@ -264,8 +264,8 @@ float GtaoVisibility(vec2 uv, vec3 point, vec3 normal) {
 uniform sampler2D scene_texture;
 
 /// The albedo buffer — `L5`: the receiving surface's own colour. A stand-in
-/// when the device has none, which `params.z` says, and a neutral grey is
-/// taken instead.
+/// when the device has none, which `params.z` says: then the indirect method
+/// takes a neutral grey and the horizon method no bounces.
 uniform sampler2D albedo_texture;
 
 vec3 SrgbToLinearAlbedo(vec3 srgb) {
@@ -286,6 +286,20 @@ void SectorRun(float low, float high, out vec4 m0, out vec4 m1, out vec4 m2,
   m1 = step(vec4(low), base + 0.25) * step(base + 0.25, vec4(high));
   m2 = step(vec4(low), base + 0.5) * step(base + 0.5, vec4(high));
   m3 = step(vec4(low), base + 0.75) * step(base + 0.75, vec4(high));
+}
+
+/// Visibility with the light the surroundings pass back — `L5`: the fit of
+/// Jimenez et al. 2016 to many bounces between surfaces of this [albedo],
+/// taken per channel and brought to one number by Rec. 709 luma, since the
+/// composite multiplies by one. A dark room stays as dark as the horizon
+/// says; a white one gives back much of what the crease took.
+float MultiBounce(float visible, vec3 albedo) {
+  vec3 a = 2.0404 * albedo - 0.3324;
+  vec3 b = -4.7951 * albedo + 0.6417;
+  vec3 c = 2.7552 * albedo + 0.6903;
+  vec3 v = vec3(visible);
+  vec3 bounced = max(v, ((v * a + b) * v + c) * v);
+  return dot(bounced, vec3(0.2126, 0.7152, 0.0722));
 }
 
 float SectorCount(vec4 m0, vec4 m1, vec4 m2, vec4 m3) {
@@ -410,7 +424,12 @@ void main() {
   if (ssao_info.screen.z > 0.5) {
     float visible =
         GtaoVisibility(v_uv, WorldAtDepth(v_uv, surface.a), normal);
-    frag_color = vec4(visible);
+    // With the albedo buffer, the bounces too; without it, the horizon alone.
+    float shaded = ssao_info.params.z > 0.5
+                       ? MultiBounce(visible, SrgbToLinearAlbedo(
+                                                  texture(albedo_texture, v_uv).rgb))
+                       : visible;
+    frag_color = vec4(shaded);
     return;
   }
 

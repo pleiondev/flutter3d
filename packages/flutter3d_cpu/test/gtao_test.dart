@@ -49,11 +49,15 @@ final class _AoProbe extends RenderNode {
 }
 
 /// The occlusion of a floor with a wall standing on it across the back.
-({Float32List ao, int width}) _occlusion(AmbientOcclusionMethod method) {
+({Float32List ao, int width}) _occlusion(
+  AmbientOcclusionMethod method, {
+  int attachments = 3,
+}) {
   final device = CpuDevice(
     width: _width,
     height: _height,
     shaders: CpuShaderLibrary(builtinCpuShaders()),
+    maxColorAttachments: attachments,
   );
   final cube = DeviceMesh.upload(device, CuboidShape().build());
   MeshNode slab(Vector3 at, Vector3 scale) => MeshNode(cube, Material())
@@ -90,7 +94,8 @@ double _column(({Float32List ao, int width}) it, int row) {
 
 void main() {
   test('the crease is darker than the open floor', () {
-    final it = _occlusion(AmbientOcclusionMethod.gtao);
+    // Two attachments, so no albedo buffer and the horizon alone.
+    final it = _occlusion(AmbientOcclusionMethod.gtao, attachments: 2);
     final rows = it.ao.length ~/ 4 ~/ it.width;
     // Scan up the middle column from the bottom (the open floor near the
     // camera) and find the darkest point, which should be at the foot of the
@@ -104,6 +109,25 @@ void main() {
     // Mutation: return 1.0 from `_gtao`. Nothing is dark anywhere.
     expect(open, greaterThan(0.85));
     expect(darkest, lessThan(open - 0.2));
+  });
+
+  test('white walls give back some of what the crease took', () {
+    final bare = _occlusion(AmbientOcclusionMethod.gtao, attachments: 2);
+    final bounced = _occlusion(AmbientOcclusionMethod.gtao);
+    final rows = bare.ao.length ~/ 4 ~/ bare.width;
+    final darkest = List<int>.generate(
+      rows,
+      (row) => row,
+    ).reduce((a, b) => _column(bare, b) < _column(bare, a) ? b : a);
+    // Mutation: return `visible` from `_multiBounce`. The two agree.
+    expect(_column(bounced, darkest), greaterThan(_column(bare, darkest)));
+    // Never darker, and the fit leaves an open point open.
+    for (var row = 0; row < rows; row++) {
+      expect(
+        _column(bounced, row),
+        greaterThanOrEqualTo(_column(bare, row) - 1e-6),
+      );
+    }
   });
 
   test('the method is a choice, and the kernel stays the default', () {
