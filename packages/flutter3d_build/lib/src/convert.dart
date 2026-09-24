@@ -7,6 +7,7 @@
 /// exists.
 library;
 
+import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 
@@ -277,7 +278,8 @@ List<(String, String)> _planDirectory(
   return <(String, String)>[
     for (final entity in root.listSync(recursive: true))
       if (entity is File &&
-          (_recognised(entity.path, decoders) || _isSplat(entity.path)))
+          (_recognised(entity.path, decoders) ||
+              _looksLikeSplatCapture(entity.path)))
         (
           entity.path,
           outputRoot == null
@@ -301,6 +303,23 @@ String _relativeF3d(String root, String path) {
 const Set<String> splatExtensions = <String>{'.ply', '.spz'};
 
 bool _isSplat(String path) => splatExtensions.contains(_extensionOf(path));
+
+/// Whether a file found by a directory walk is a capture: any `.spz`, and a
+/// `.ply` only when its header names the fitted colour `f_dc_0`. A mesh or
+/// point cloud saved as PLY is left alone there, as it was before splats
+/// were converted at all; named on its own it is still tried and refused.
+bool _looksLikeSplatCapture(String path) {
+  if (!_isSplat(path)) return false;
+  if (_extensionOf(path) != '.ply') return true;
+  final file = File(path).openSync();
+  try {
+    final head = latin1.decode(file.readSync(4096));
+    final end = head.indexOf('end_header');
+    return head.substring(0, end < 0 ? head.length : end).contains('f_dc_0');
+  } finally {
+    file.closeSync();
+  }
+}
 
 /// `.f3dsplat` for a splat capture, `.f3d` for everything else.
 String _outputSuffix(String path) =>
