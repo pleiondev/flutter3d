@@ -1,6 +1,8 @@
 import 'package:flutter3d_core/geometry.dart';
 import 'package:vector_math/vector_math.dart';
 
+import 'splat/splat_cloud.dart';
+
 /// One drawable piece of a decoded model.
 final class ModelSurface {
   ModelSurface({
@@ -111,6 +113,57 @@ final class ModelLod {
   String toString() =>
       'ModelLod(${surfaceIndices.length} surfaces, '
       'maxScreenFraction: $maxScreenFraction)';
+}
+
+/// The colour space a splat's colours were fitted in, as
+/// `KHR_gaussian_splatting`'s `colorSpace` names it.
+enum SplatColourSpace {
+  /// `srgb_rec709_display`: the fitted colours are sRGB-encoded.
+  srgb,
+
+  /// `lin_rec709_display`: the fitted colours are already linear.
+  linear,
+}
+
+/// A cloud of Gaussian splats a node of a decoded model carries — `C1`.
+///
+/// **Beside the surfaces, not one of them.** A splat primitive is a glTF mesh
+/// primitive, but nothing about it is a mesh: no triangles, no material (the
+/// extension says the primitive's material is ignored), and a draw of its own
+/// through `SplatContributor`. So it is listed here with the node that
+/// instantiates it rather than bent into a [ModelSurface] every surface
+/// consumer would then have to know to skip.
+final class ModelSplat {
+  ModelSplat({
+    required this.node,
+    required this.cloud,
+    required this.colourSpace,
+    Matrix4? transform,
+    this.meshIndex,
+  }) : transform = transform ?? Matrix4.identity();
+
+  /// Index into `ModelDocument.nodes` of the node that instantiates it.
+  final int node;
+
+  /// The splats, in the node's own space, with linear colours whatever
+  /// [colourSpace] the file declared — see `gltf_loader_splats.dart`.
+  final SplatCloud cloud;
+
+  /// What the file declared, kept for a writer and for anyone who wants to
+  /// know why the colours were decoded.
+  final SplatColourSpace colourSpace;
+
+  /// The node's placement relative to the model's origin, the same thing
+  /// [ModelSurface.transform] is for a surface.
+  final Matrix4 transform;
+
+  /// The source mesh's index, when the format has meshes. Two nodes drawing
+  /// one mesh share one [cloud].
+  final int? meshIndex;
+
+  @override
+  String toString() =>
+      'ModelSplat(node $node, ${cloud.count} splats, ${colourSpace.name})';
 }
 
 /// A node in a decoded model's hierarchy.

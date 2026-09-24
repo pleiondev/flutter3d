@@ -94,6 +94,8 @@ final class F3dWriter {
         dropped(document.lights.length, 'light(s)'),
       if (document.cameras.isNotEmpty)
         dropped(document.cameras.length, 'camera(s)'),
+      if (document.splats.isNotEmpty)
+        dropped(document.splats.length, 'splat cloud(s)'),
       if (withExtras > 0) dropped(withExtras, 'extras block(s)'),
       if (additive > 0) dropped(additive, 'additive clip reference time(s)'),
     ];

@@ -27,8 +27,10 @@ import 'package:flutter3d_shaders/typed_blocks.dart';
 import 'package:vector_math/vector_math.dart';
 
 import '../../formats/splat/splat_cloud.dart';
+import '../scene/scene_node.dart';
 import 'identity_indices.dart';
 import 'pass_contributor.dart';
+import 'splat_sort.dart';
 
 /// How far out the quad reaches, in standard deviations.
 ///
@@ -56,12 +58,35 @@ final class SplatQuads {
 
   final SplatCloud cloud;
 
+  /// How far the eye may travel before the cloud is sorted again, as a
+  /// fraction of the distance between its nearest and farthest splat at the
+  /// last sort.
+  ///
+  /// **Why a fraction of the cloud's own depth.** A move of `δ` changes the
+  /// distance between the eye and any splat by at most `δ`, so two splats can
+  /// only swap places if they were within `2δ` of each other; measured
+  /// against the depth the sort quantised over, the default of 0.2 % is a
+  /// few hundred of the sixteen-bit key's 65 536 steps — splats that close
+  /// together are covering the same pixels at nearly the same depth, and
+  /// which lands on top of the other is not something a viewer can see. Zero
+  /// sorts on every move, the behaviour before this existed.
+  double resortFraction = 0.002;
+
+  final SplatSorter _sorter = SplatSorter();
+
+  /// Where the eye was, and where the cloud was placed, at the last sort.
+  /// Null until the first, and after [invalidateSort].
+  Vector3? _sortedEye;
+  final Float64List _sortedModel = Float64List(16);
+  bool _sortedWithModel = false;
+
+  /// How many times [build] has sorted. For the tests that hold it to not
+  /// sorting on every frame.
+  int get sorts => _sorts;
+  int _sorts = 0;
+
   /// The vertex floats, refilled in place every time the camera moves.
   Float32List _vertices = Float32List(0);
-
-  /// Sort scratch, kept so a camera turn allocates nothing.
-  Int32List _order = Int32List(0);
-  Float32List _depths = Float32List(0);
   final Float32List _covariance = Float32List(6);
 
   /// How many vertices [vertices] currently holds.
@@ -69,30 +94,60 @@ final class SplatQuads {
 
   Float32List get vertices => _vertices;
 
-  /// Fills the buffer for a camera at [eye] whose axes are [right], [up] and
-  /// [forward].
+  /// Makes the next [build] sort, however little the eye moved — for a
+  /// caller that has edited [cloud]'s centres in place.
+  void invalidateSort() => _sortedEye = null;
+
+  /// Fills the buffer for a camera at [eye] whose axes are [right] and [up],
+  /// with the cloud placed in the world by [model] when it is given.
   ///
-  /// All three are expected orthonormal, which is what a camera's own basis is.
+  /// Both axes are expected orthonormal, which is what a camera's own basis
+  /// is. The camera's forward axis is not needed: the order is by distance
+  /// from [eye], which a turn does not change — see `splat_sort.dart`.
+  ///
+  /// The quads are rebuilt every call, since their axes follow the camera's
+  /// own; the sort, which is most of the cost, runs only when the eye has
+  /// moved further than [resortFraction] allows or [model] has changed.
   void build({
     required Vector3 eye,
     required Vector3 right,
     required Vector3 up,
-    required Vector3 forward,
+    Matrix4? model,
   }) {
     final count = cloud.count;
     final needed = count * kSplatVerticesPerSplat * kSplatFloatsPerVertex;
     if (_vertices.length < needed) _vertices = Float32List(needed);
-    if (_order.length < count) {
-      _order = Int32List(count);
-      _depths = Float32List(count);
-    }
 
-    final order = cloud.sortedBackToFront(
-      eye,
-      forward,
-      into: _order,
-      depths: _depths,
-    );
+    if (_needsSort(eye, model)) {
+      _sorter.sort(cloud, eye, model: model);
+      _sorts++;
+      _sortedEye = eye.clone();
+      _sortedWithModel = model != null;
+      if (model != null) _sortedModel.setAll(0, model.storage);
+    }
+    final order = _sorter.order;
+
+    // The camera's axes as the cloud's own space sees them, when it has one.
+    // The ellipse is `[r; u] M Σ Mᵀ [r; u]ᵀ` for a cloud placed by `M`, and
+    // that is the unplaced formula with `Mᵀr` and `Mᵀu` in place of `r` and
+    // `u` — so the placement costs six dot products once, not a matrix
+    // product per splat. The quad's own corners stay in world space, built
+    // from the world `r` and `u` below.
+    final m = model?.storage;
+    final rx = m == null
+        ? right.x
+        : m[0] * right.x + m[1] * right.y + m[2] * right.z;
+    final ry = m == null
+        ? right.y
+        : m[4] * right.x + m[5] * right.y + m[6] * right.z;
+    final rz = m == null
+        ? right.z
+        : m[8] * right.x + m[9] * right.y + m[10] * right.z;
+    final ux = m == null ? up.x : m[0] * up.x + m[1] * up.y + m[2] * up.z;
+    final uy = m == null ? up.y : m[4] * up.x + m[5] * up.y + m[6] * up.z;
+    final uz = m == null ? up.z : m[8] * up.x + m[9] * up.y + m[10] * up.z;
+    final wrx = right.x, wry = right.y, wrz = right.z;
+    final wux = up.x, wuy = up.y, wuz = up.z;
 
     var at = 0;
     for (var n = 0; n < count; n++) {
@@ -105,9 +160,6 @@ final class SplatQuads {
       // three rows of the result are never used.
       final sxx = _covariance[0], sxy = _covariance[1], sxz = _covariance[2];
       final syy = _covariance[3], syz = _covariance[4], szz = _covariance[5];
-
-      final rx = right.x, ry = right.y, rz = right.z;
-      final ux = up.x, uy = up.y, uz = up.z;
 
       // Σ·right and Σ·up.
       final arx = sxx * rx + sxy * ry + sxz * rz;
@@ -147,16 +199,19 @@ final class SplatQuads {
       final sigma2 = math.sqrt(minor) * kSplatReach;
 
       // The two quad axes, back in world space.
-      final axX = (e1x * sigma1) * rx + (e1y * sigma1) * ux;
-      final axY = (e1x * sigma1) * ry + (e1y * sigma1) * uy;
-      final axZ = (e1x * sigma1) * rz + (e1y * sigma1) * uz;
-      final ayX = (-e1y * sigma2) * rx + (e1x * sigma2) * ux;
-      final ayY = (-e1y * sigma2) * ry + (e1x * sigma2) * uy;
-      final ayZ = (-e1y * sigma2) * rz + (e1x * sigma2) * uz;
+      final axX = (e1x * sigma1) * wrx + (e1y * sigma1) * wux;
+      final axY = (e1x * sigma1) * wry + (e1y * sigma1) * wuy;
+      final axZ = (e1x * sigma1) * wrz + (e1y * sigma1) * wuz;
+      final ayX = (-e1y * sigma2) * wrx + (e1x * sigma2) * wux;
+      final ayY = (-e1y * sigma2) * wry + (e1x * sigma2) * wuy;
+      final ayZ = (-e1y * sigma2) * wrz + (e1x * sigma2) * wuz;
 
-      final cx = cloud.centres[i * 3];
-      final cy = cloud.centres[i * 3 + 1];
-      final cz = cloud.centres[i * 3 + 2];
+      final lx = cloud.centres[i * 3];
+      final ly = cloud.centres[i * 3 + 1];
+      final lz = cloud.centres[i * 3 + 2];
+      final cx = m == null ? lx : m[0] * lx + m[4] * ly + m[8] * lz + m[12];
+      final cy = m == null ? ly : m[1] * lx + m[5] * ly + m[9] * lz + m[13];
+      final cz = m == null ? lz : m[2] * lx + m[6] * ly + m[10] * lz + m[14];
       final r = cloud.colours[i * 4];
       final g = cloud.colours[i * 4 + 1];
       final bl = cloud.colours[i * 4 + 2];
@@ -189,16 +244,38 @@ final class SplatQuads {
 
     vertexCount = count * kSplatVerticesPerSplat;
   }
+
+  bool _needsSort(Vector3 eye, Matrix4? model) {
+    final last = _sortedEye;
+    if (last == null) return true;
+    if ((model != null) != _sortedWithModel) return true;
+    if (model != null) {
+      final storage = model.storage;
+      for (var k = 0; k < 16; k++) {
+        if (storage[k] != _sortedModel[k]) return true;
+      }
+    }
+    return last.distanceTo(eye) > resortFraction * _sorter.lastRange;
+  }
 }
 
 /// Draws a cloud into the scene pass.
 final class SplatContributor extends PassContributor {
   final ParticleInfoBlock _particleInfo = ParticleInfoBlock();
 
-  SplatContributor(this.cloud) : quads = SplatQuads(cloud);
+  SplatContributor(this.cloud, {this.node}) : quads = SplatQuads(cloud);
 
   final SplatCloud cloud;
   final SplatQuads quads;
+
+  /// The node the cloud hangs from, when it has one: its world matrix places
+  /// the cloud, and hiding it hides the cloud. Null draws [cloud] in world
+  /// units as stored, which is what a PLY capture is.
+  ///
+  /// A glTF splat primitive belongs to the node that instantiates its mesh —
+  /// `ModelSplat.node` names it — and the node's scale and rotation reach
+  /// each splat's covariance, not only its centre, as the extension asks.
+  final SceneNode? node;
 
   PipelineHandle? _pipeline;
 
@@ -215,7 +292,7 @@ final class SplatContributor extends PassContributor {
   int get order => 100;
 
   @override
-  bool get isActive => cloud.count > 0;
+  bool get isActive => cloud.count > 0 && (node?.visibleInHierarchy ?? true);
 
   @override
   void encode(ContributorFrame frame) {
@@ -233,18 +310,17 @@ final class SplatContributor extends PassContributor {
     final fragmentShader = frame.device.shaders['Splat'];
     if (vertexShader == null || fragmentShader == null) return;
 
-    // The camera's own basis, out of its world matrix: local +X is right, +Y
-    // is up, −Z is forward. Taken here rather than asked of the node, because
-    // `CameraNode` publishes only the forward axis — the other two have had no
-    // caller until now.
+    // The camera's own basis, out of its world matrix: local +X is right and
+    // +Y is up. Taken here rather than asked of the node, because
+    // `CameraNode` publishes only the forward axis — which the quads do not
+    // need, since the order is by distance.
     final camera = view.camera;
     final m = camera.worldMatrix.storage;
     final right = Vector3(m[0], m[1], m[2])..normalize();
     final up = Vector3(m[4], m[5], m[6])..normalize();
-    final forward = Vector3(-m[8], -m[9], -m[10])..normalize();
     final eye = camera.readWorldPosition();
 
-    quads.build(eye: eye, right: right, up: up, forward: forward);
+    quads.build(eye: eye, right: right, up: up, model: node?.worldMatrix);
     if (quads.vertexCount == 0) return;
 
     frame.encoder
