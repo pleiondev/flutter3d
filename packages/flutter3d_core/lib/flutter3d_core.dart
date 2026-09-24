@@ -99,6 +99,7 @@ export 'src/engine/render/renderer.dart';
 export 'src/engine/render/shadow_slots.dart';
 export 'src/engine/render/sky_settings.dart';
 export 'src/engine/render/splat_contributor.dart';
+export 'src/engine/render/splat_lod.dart';
 export 'src/engine/render/splat_sort.dart';
 export 'src/engine/render/view_model_node.dart';
 // The scene graph and everything that walks it.

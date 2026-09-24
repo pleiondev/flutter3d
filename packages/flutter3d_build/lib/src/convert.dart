@@ -61,7 +61,9 @@ const String usage = '''
 Usage: dart run flutter3d_build:convert <model-or-directory> [options]
 
 Converts a glTF, GLB, OBJ or STL model into the engine's .f3d container. A
-directory converts every recognised model file under it, recursively.
+Gaussian splat capture (.ply or .spz) becomes a .f3dsplat instead: a tree of
+merged levels of detail, paged so a viewer loads only what it draws. A
+directory converts every recognised file under it, recursively.
 
 Options:
   -o, --output <path>       Where to write the result. For a single input
@@ -203,15 +205,17 @@ Future<int> runConvert(
 
   var failures = 0;
   for (final (source, destination) in jobs) {
-    final ok = await convertOne(
-      source,
-      destination,
-      stdoutSink,
-      stderrSink,
-      textures: options.textures,
-      mips: options.mips,
-      decoders: decoders,
-    );
+    final ok = _isSplat(source)
+        ? await convertSplat(source, destination, stdoutSink, stderrSink)
+        : await convertOne(
+            source,
+            destination,
+            stdoutSink,
+            stderrSink,
+            textures: options.textures,
+            mips: options.mips,
+            decoders: decoders,
+          );
     if (!ok) failures++;
   }
   return failures == 0 ? 0 : 1;
@@ -234,7 +238,8 @@ List<(String, String)> _planDirectory(
   final root = Directory(directory);
   return <(String, String)>[
     for (final entity in root.listSync(recursive: true))
-      if (entity is File && _recognised(entity.path, decoders))
+      if (entity is File &&
+          (_recognised(entity.path, decoders) || _isSplat(entity.path)))
         (
           entity.path,
           outputRoot == null
@@ -248,9 +253,20 @@ String _relativeF3d(String root, String path) {
   final relative = path.startsWith('$root/')
       ? path.substring(root.length + 1)
       : path;
+  final suffix = _outputSuffix(path);
   final dot = relative.lastIndexOf('.');
-  return dot < 0 ? '$relative.f3d' : '${relative.substring(0, dot)}.f3d';
+  return dot < 0 ? '$relative$suffix' : '${relative.substring(0, dot)}$suffix';
 }
+
+/// The suffixes read as a splat capture rather than a model: a binary PLY
+/// of fitted Gaussians, or its compressed SPZ form.
+const Set<String> splatExtensions = <String>{'.ply', '.spz'};
+
+bool _isSplat(String path) => splatExtensions.contains(_extensionOf(path));
+
+/// `.f3dsplat` for a splat capture, `.f3d` for everything else.
+String _outputSuffix(String path) =>
+    _isSplat(path) ? kSplatOctreeExtension : '.f3d';
 
 String _extensionOf(String path) {
   final dot = path.lastIndexOf('.');
@@ -261,8 +277,72 @@ String _extensionOf(String path) {
 String _defaultOutput(String input) {
   final dot = input.lastIndexOf('.');
   final slash = input.lastIndexOf('/');
-  if (dot > slash) return '${input.substring(0, dot)}.f3d';
-  return '$input.f3d';
+  final suffix = _outputSuffix(input);
+  if (dot > slash) return '${input.substring(0, dot)}$suffix';
+  return '$input$suffix';
+}
+
+/// Converts one splat capture — a `.ply` or `.spz` — into the paged tree of
+/// levels of detail `SplatLod` draws from (`.f3dsplat`), and writes what
+/// happened to [out]/[err]. Returns whether it succeeded.
+///
+/// The cloud keeps the axes its source file stores: a PLY as written, an SPZ
+/// in its right, up, back. The written tree is read back and its leaves
+/// counted against the source, the same double-check [convertOne] makes: a
+/// tree that silently lost a box of splats draws a hole nobody would trace
+/// to the converter.
+Future<bool> convertSplat(
+  String inputPath,
+  String outputPath,
+  IOSink out,
+  IOSink err, {
+  int leafCapacity = 512,
+  int grid = 8,
+}) async {
+  final input = File(inputPath);
+  if (!input.existsSync()) {
+    err.writeln('No such file: $inputPath');
+    return false;
+  }
+  final bytes = input.readAsBytesSync();
+  final clock = Stopwatch()..start();
+  final SplatCloud cloud;
+  try {
+    cloud = _extensionOf(inputPath) == '.spz'
+        ? parseSplatSpz(bytes, keepHigherBands: false)
+        : parseSplatPly(bytes);
+  } on Object catch (error) {
+    err.writeln('Could not read $inputPath as a splat capture: $error');
+    return false;
+  }
+  final tree = buildSplatOctree(cloud, leafCapacity: leafCapacity, grid: grid);
+  final encoded = encodeSplatOctree(tree);
+  clock.stop();
+
+  final output = File(outputPath);
+  output.parent.createSync(recursive: true);
+  output.writeAsBytesSync(encoded);
+
+  final back = parseSplatOctree(encoded);
+  if (back.leafSplatCount != cloud.count) {
+    err.writeln(
+      'Round trip disagrees with the source ($inputPath): '
+      '${cloud.count} splats in, ${back.leafSplatCount} in the tree',
+    );
+    return false;
+  }
+
+  out
+    ..writeln('$inputPath -> $outputPath')
+    ..writeln(
+      '  ${cloud.count} splats, ${tree.nodes.length} nodes, root of '
+      '${tree.nodes.first.splatCount}',
+    )
+    ..writeln(
+      '  ${_bytes(bytes.length)} in, ${_bytes(encoded.length)} out, built in '
+      '${clock.elapsedMilliseconds} ms',
+    );
+  return true;
 }
 
 /// Converts one recognised model file, and writes what happened to [out]/
