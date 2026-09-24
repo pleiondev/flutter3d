@@ -68,6 +68,8 @@ Future<void> checkLinking(GraphicsDevice device) async {
     'Pbr',
     'Toon',
     'Normals',
+    // `M1`: not in `builtIn`, and drawn through every mesh stage all the same.
+    'PbrLayered',
   ];
   final pairs = <(String, String)>[
     for (final vertex in meshVertices) ...<(String, String)>[

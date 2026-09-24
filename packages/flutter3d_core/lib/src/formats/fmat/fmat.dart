@@ -91,6 +91,7 @@ MaterialDocument readFmat(Uint8List bytes, {String name = ''}) {
     'parameterBlock',
     'parameters',
     'hints',
+    'extensions',
   };
   final warnings = <String>[
     for (final key in parsed.keys)
@@ -143,6 +144,18 @@ MaterialDocument readFmat(Uint8List bytes, {String name = ''}) {
     normalTexture: binding(textures['normal']),
     occlusionTexture: binding(textures['occlusion']),
     emissiveTexture: binding(textures['emissive']),
+    // glTF's own shape, with a `.fmat` slot — a path or an object — wherever
+    // glTF puts a texture info, so an extension reads the same here as in the
+    // file it was imported from.
+    extensions: switch (parsed['extensions']) {
+      final Map<String, Object?> layers => materialExtensionsFromJson(
+        layers,
+        texture: binding,
+        warnings: warnings,
+        where: name.isEmpty ? 'this material' : name,
+      ),
+      _ => null,
+    },
   );
 
   return MaterialDocument(
@@ -229,6 +242,10 @@ String writeFmat(MaterialDocument document) {
     if (lighting != null) 'lighting': _writeLighting(lighting),
     ...surfaceMaterialToJson(surface),
     if (textures.isNotEmpty) 'textures': textures,
+    if (surface.extensions case final layers?)
+      if (materialExtensionsToJson(layers, texture: slot) case final written
+          when written.isNotEmpty)
+        'extensions': written,
     if (document.parameterBlock != 'MaterialParams')
       'parameterBlock': document.parameterBlock,
     if (document.parameters.isNotEmpty)
@@ -339,6 +356,7 @@ SurfaceMaterial surfaceMaterialFromJson(
   TextureBinding? metallicRoughnessTexture,
   TextureBinding? occlusionTexture,
   TextureBinding? emissiveTexture,
+  MaterialExtensions? extensions,
 }) => SurfaceMaterial(
   name: json['name'] as String? ?? name,
   baseColor: _vec4(json['baseColor']) ?? Vector4(1.0, 1.0, 1.0, 1.0),
@@ -362,6 +380,7 @@ SurfaceMaterial surfaceMaterialFromJson(
     warnings ?? <String>[],
     key: 'lightingModel',
   ),
+  extensions: extensions,
 );
 
 TextureSampling _readSampling(Map<String, Object?> json) => TextureSampling(

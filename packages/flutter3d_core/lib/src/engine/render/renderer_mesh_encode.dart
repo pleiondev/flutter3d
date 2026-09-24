@@ -598,6 +598,24 @@ extension _MeshEncode on Renderer {
       encoder.bindBlock(fragmentShader, _fragInfo);
     }
 
+    // **The layers, for the one stage that reads them — `M1`.** A material
+    // with none drawn with the layered model binds the defaults, which draw
+    // plain metal-rough.
+    final layered = identical(material.lighting, LightingModel.pbrLayered);
+    if (_keepsBlock(fragmentShader, _layerInfo.name, declared: layered)) {
+      final layers = material.extensions;
+      _layerInfo.specular
+        ..[0] = layers?.specularColor.x ?? 1.0
+        ..[1] = layers?.specularColor.y ?? 1.0
+        ..[2] = layers?.specularColor.z ?? 1.0
+        ..[3] = layers?.specular ?? 1.0;
+      _layerInfo.coat
+        ..[0] = layers?.clearcoat ?? 0.0
+        ..[1] = layers?.clearcoatRoughness ?? 0.0
+        ..[2] = layers?.ior ?? 1.5;
+      encoder.bindBlock(fragmentShader, _layerInfo);
+    }
+
     // Bound strictly according to the model's declared slots. The
     // compiler drops a sampler the shader never reads, and binding one
     // Metal does not have is a native crash rather than a no-op.
@@ -743,6 +761,15 @@ extension _MeshEncode on Renderer {
         _kLtcTextureSlot,
         EngineTables.of(device).ltc,
         sampler: Renderer._clampSampler,
+      );
+    }
+    if (_keepsSampler(fragmentShader, _kCoatTextureSlot, declared: layered)) {
+      // White where there is no map, which leaves every factor as it is.
+      encoder.bindTexture(
+        fragmentShader,
+        _kCoatTextureSlot,
+        material.coatMap ?? fallbackAlbedo,
+        sampler: _anisotropic(material.coatMapSampler, anisotropy),
       );
     }
 

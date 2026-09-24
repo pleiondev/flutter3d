@@ -66,6 +66,9 @@ final class Material {
     this.alphaMode = MaterialAlphaMode.opaque,
     this.alphaCutoff = 0.5,
     this.doubleSided = false,
+    this.extensions,
+    this.coatMap,
+    this.coatMapSampler,
     this.drawBucket = 0,
     this.depthWrite,
     this.depthCompare,
@@ -225,6 +228,26 @@ final class Material {
   double alphaCutoff;
   bool doubleSided;
 
+  /// The layers beyond metal-rough — clear coat, specular, index of
+  /// refraction — `M1`. Read only by [LightingModel.pbrLayered]: a material
+  /// that has them and asks for [LightingModel.pbr] is drawn without them,
+  /// which is why the loaders hand such a material the layered model.
+  ///
+  /// Only the factors are read from here; the texture bindings it carries
+  /// are the document's and reach the renderer packed into [coatMap].
+  MaterialExtensions? extensions;
+
+  /// The coat map: red the clear coat, green its roughness, each multiplying
+  /// its factor in [extensions]. Blue and alpha are reserved for the
+  /// transmission and thickness a later model reads. Null binds white, which
+  /// leaves the factors as they are.
+  ///
+  /// One texture for what glTF gives as up to four, because the layered
+  /// stage has two samplers left under WebGL2's sixteen and this is one of
+  /// them — see `binding_budget_test.dart`.
+  TextureHandle? coatMap;
+  SamplerOptions? coatMapSampler;
+
   /// Coarse manual ordering, borrowed from PlayCanvas: it outranks every other
   /// sort term, so a skybox or an overlay can be forced to a fixed position
   /// without touching the sorting policy.
@@ -312,6 +335,9 @@ final class Material {
           alphaMode: alphaMode,
           alphaCutoff: alphaCutoff,
           doubleSided: doubleSided,
+          extensions: extensions,
+          coatMap: coatMap,
+          coatMapSampler: coatMapSampler,
           drawBucket: drawBucket,
           depthWrite: depthWrite,
           depthCompare: depthCompare,

@@ -398,6 +398,23 @@ final class IrradianceInfoBlock extends UniformBlock {
   };
 }
 
+/// `LayerInfo`.
+final class LayerInfoBlock extends UniformBlock {
+  LayerInfoBlock() : super('LayerInfo');
+
+  /// `specular`: Vector4, at byte 0.
+  final Float32List specular = Float32List(4);
+
+  /// `coat`: Vector4, at byte 16.
+  final Float32List coat = Float32List(4);
+
+  @override
+  late final Map<String, Float32List> members = <String, Float32List>{
+    'specular': specular,
+    'coat': coat,
+  };
+}
+
 /// `LightListInfo`.
 final class LightListInfoBlock extends UniformBlock {
   LightListInfoBlock() : super('LightListInfo');

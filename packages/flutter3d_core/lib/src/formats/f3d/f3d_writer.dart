@@ -113,6 +113,7 @@ final class F3dWriter {
     final (assetTable, assetCount) = _writeAsset();
     final imageUriTable = _writeImageUris();
     final materialTable = _writeMaterials();
+    final (extensionTable, extensionCount) = _writeMaterialExtensions();
     final imageTable = _writeImages();
     final nodeTable = _writeNodes();
     final (lodTable, lodCount) = _writeLods();
@@ -139,6 +140,7 @@ final class F3dWriter {
       (F3dSection.asset, assetTable, assetCount),
       (F3dSection.imageUris, imageUriTable, document.images.length),
       (F3dSection.materials, materialTable, document.materials.length),
+      (F3dSection.materialExtensions, extensionTable, extensionCount),
       (F3dSection.images, imageTable, document.images.length),
       (F3dSection.nodes, nodeTable, document.nodes.length),
       (F3dSection.lods, lodTable, lodCount),
