@@ -890,10 +890,21 @@ final class WebGpuDevice implements GraphicsDevice, WgslModuleCompiler {
 
   // ------------------------------------------------------------- resources
 
+  /// Whether `deviceTransient` targets are allocated as WebGPU transient
+  /// attachments — `H7`. Asked of the browser once, since the answer is a
+  /// property of its API and not of this device.
+  late final bool _transientAttachments = gpuKnowsTransientAttachments();
+
   @override
   TextureHandle createTexture(RenderTargetSpec spec, {int levels = 1}) => guard(
     'a ${spec.width}x${spec.height} ${spec.format.name} target',
-    () => webgpuCreateTexture(gpuDevice, _textures, spec, levels: levels),
+    () => webgpuCreateTexture(
+      gpuDevice,
+      _textures,
+      spec,
+      levels: levels,
+      transientAttachments: _transientAttachments,
+    ),
   );
 
   @override

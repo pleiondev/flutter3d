@@ -52,6 +52,8 @@ final class FrameResources {
     required this.graph,
     required this.frameWidth,
     required this.frameHeight,
+    this.alias = false,
+    this.onRetire,
   });
 
   final FrameTextureSource source;
@@ -59,10 +61,103 @@ final class FrameResources {
   final int frameWidth;
   final int frameHeight;
 
+  /// Whether a texture whose lifetime has ended is lent again within this
+  /// frame — `H7`.
+  ///
+  /// **Off, a frame holds one texture per resource it touched.** Everything
+  /// retired goes to [source], which is right about *across* frames — the GPU
+  /// may still be reading it — and needlessly cautious *within* one: the
+  /// passes of a frame reach the queue in the order they were encoded, so a
+  /// target whose last reader has been encoded can be drawn over by any later
+  /// pass, and the queue orders the draw after the read. Readbacks are queued
+  /// the same way — `GraphicsDevice.readback` promises the copy lands behind
+  /// the pass that filled the texture, and so ahead of whatever the next
+  /// owner draws.
+  ///
+  /// On, a retired texture waits in a free list of its own spec for the rest
+  /// of the frame, and [texture] and [transient] take from there before they
+  /// ask the source. The lifetimes are intervals over the graph's order —
+  /// first use at the first ask, last use at [CompiledFrameGraph.retiredAfter]
+  /// — and taking any free texture of the right spec at each first use, in
+  /// order, is the greedy colouring of those intervals, which for intervals is
+  /// optimal: a frame holds exactly as many textures of a spec as it ever has
+  /// live at once. Everything still in the free lists goes to [source] after
+  /// the last node, so the ring of frames in flight defers them as before.
+  ///
+  /// Off by default, because the recorded frames were drawn without it and a
+  /// pass that loads a target instead of clearing it would now load another
+  /// resource's pixels rather than a previous frame's. None of the built-in
+  /// passes does, and `transient_aliasing_test.dart` holds that by poisoning
+  /// every texture as its lifetime ends.
+  final bool alias;
+
+  /// Told about every texture whose lifetime in this frame has just ended,
+  /// before anything else can be handed it.
+  ///
+  /// For tests: a hook that fills the texture with garbage turns a pass that
+  /// reads a resource after its last declared use — or loads a target it
+  /// never wrote — into a changed picture instead of a picture that happens
+  /// to be right because the pixels were still there.
+  final void Function(TextureHandle texture)? onRetire;
+
+  /// Textures retired this frame and free to be lent again before it ends,
+  /// by spec. Empty unless [alias] is on.
+  final Map<RenderTargetSpec, List<TextureHandle>> _reusable =
+      <RenderTargetSpec, List<TextureHandle>>{};
+
+  /// A texture for [spec]: one retired earlier this frame when there is one,
+  /// otherwise the source's.
+  TextureHandle _acquire(RenderTargetSpec spec) {
+    final free = _reusable[spec];
+    return free != null && free.isNotEmpty
+        ? free.removeLast()
+        : source.acquire(spec);
+  }
+
+  /// Ends a texture's lifetime in this frame.
+  ///
+  /// The newest version of a frame output is never lent again: it is read
+  /// after the last node, from outside the graph, by whoever asked for the
+  /// output, so its lifetime has not ended and [onRetire] is not told. Asked
+  /// by texture rather than by version, because an older version standing on
+  /// the same texture may be the one that retires last.
+  void _retire(TextureHandle texture) {
+    final isOutput = _handedBack.any(
+      (bound) => identical(_live[bound], texture),
+    );
+    if (!isOutput) onRetire?.call(texture);
+    if (!alias || isOutput) {
+      source.release(texture);
+      return;
+    }
+    (_reusable[RenderTargetSpec.of(texture)] ??= <TextureHandle>[]).add(
+      texture,
+    );
+  }
+
+  /// Whether [key] is the newest version of something the frame was asked to
+  /// produce, which [output] reads after the last node.
+  bool _isNewestOutput(ResourceVersion key) =>
+      graph.outputs.any((id) => id.name == key.id.name) &&
+      key.version == graph.currentVersionOf(key.id);
+
+  /// Hands whatever is waiting in the free lists to [source].
+  void _flushReusable() {
+    for (final free in _reusable.values) {
+      free.forEach(source.release);
+    }
+    _reusable.clear();
+  }
+
   final Map<String, ResourceDesc> _declared = <String, ResourceDesc>{};
   final Map<ResourceVersion, TextureHandle> _live =
       <ResourceVersion, TextureHandle>{};
   final Set<ResourceVersion> _external = <ResourceVersion>{};
+
+  /// Output versions whose lifetime has ended and whose texture has gone back
+  /// to [source], left bound only so [output] can find them. They hold nothing:
+  /// neither a retirement nor [releaseAll] counts them.
+  final Set<ResourceVersion> _handedBack = <ResourceVersion>{};
 
   /// Scratch the node running right now asked for, freed when it ends.
   final List<TextureHandle> _scratch = <TextureHandle>[];
@@ -109,7 +204,9 @@ final class FrameResources {
 
   /// Hands in a texture the engine owns — the swapchain image, the frame's
   /// colour target, or a long-lived buffer a node writes into rather than
-  /// allocating. Never released here, because it was never acquired here.
+  /// allocating. Never released here, because it was never acquired here —
+  /// unless it is the node's own [transient], which stays pooled and retires
+  /// with the version it now stands for.
   ///
   /// Called between nodes it binds the frame's *input*, version zero. Called
   /// from inside a node it binds that node's output, which is how a pass that
@@ -129,11 +226,23 @@ final class FrameResources {
   void provide(ResourceId id, TextureHandle texture) {
     final key = ResourceVersion(id, _writeVersionFor(id));
     final replaced = _live[key];
-    final wasExternal = !_external.add(key);
+    // **The node's own scratch, handed in as its output, is still pooled** —
+    // the way every post effect produces its new version: it cannot sample and
+    // write one texture, so it draws into a [transient] and provides that. It
+    // used to count as the engine's own and go back with the node's scratch
+    // when the node ended, while the graph still named it and later nodes
+    // read it. The ring of frames in flight hid that; a texture lent again
+    // within the frame — `H7` — would be drawn over under its reader. So it
+    // leaves the scratch and retires with its version instead.
+    final scratch = _scratch.indexWhere((other) => identical(other, texture));
+    if (scratch >= 0) _scratch.removeAt(scratch);
+    final wasExternal = scratch >= 0
+        ? _external.remove(key)
+        : !_external.add(key);
     _live[key] = texture;
     if (replaced == null || wasExternal || identical(replaced, texture)) return;
     if (_live.values.any((other) => identical(other, replaced))) return;
-    source.release(replaced);
+    _retire(replaced);
   }
 
   /// The texture for [id] as the running node sees it, acquiring it on first
@@ -157,7 +266,7 @@ final class FrameResources {
       );
     }
 
-    final texture = source.acquire(desc.resolve(frameWidth, frameHeight));
+    final texture = _acquire(desc.resolve(frameWidth, frameHeight));
     _live[key] = texture;
     return texture;
   }
@@ -228,7 +337,7 @@ final class FrameResources {
   /// that through [FrameTextureSource] is what makes the deferral automatic
   /// rather than something each call site has to remember.
   TextureHandle transient(RenderTargetSpec spec) {
-    final texture = source.acquire(spec);
+    final texture = _acquire(spec);
     _scratch.add(texture);
     return texture;
   }
@@ -300,19 +409,37 @@ final class FrameResources {
     }
     for (final key in graph.retiredAfter(index)) {
       if (_external.contains(key)) continue;
-      final texture = _live.remove(key);
+      final texture = _live[key];
       if (texture == null) continue;
+      // **The newest version of a frame output stays bound** for [output] to
+      // find after the last node — a pass's own scratch provided as `frame`,
+      // viewport shading's, is exactly that since [provide] stopped counting
+      // it as the engine's. It still goes back to the source here, so the ring
+      // defers it as before, and it is marked as handed back, so [releaseAll]
+      // and the check below both pass over it.
+      if (_isNewestOutput(key)) {
+        _handedBack.add(key);
+      } else {
+        _live.remove(key);
+      }
       // A later version of the same name may still be this very texture — an
       // in-place pass produced no new one — and it goes back when the last
       // version standing on it does, not when the first one retires.
-      if (_live.values.any((other) => identical(other, texture))) continue;
-      source.release(texture);
+      final held = _live.entries.any(
+        (other) =>
+            !_handedBack.contains(other.key) && identical(other.value, texture),
+      );
+      if (held) continue;
+      _retire(texture);
     }
     for (final texture in _scratch) {
-      source.release(texture);
+      _retire(texture);
     }
     _scratch.clear();
     _node = -1;
+    // Nothing after the last node can take from the free lists, so what is
+    // left in them goes to the source for the ring to defer.
+    if (index == graph.order.length - 1) _flushReusable();
   }
 
   /// Hands back anything still held, for a frame that ended early.
@@ -327,15 +454,18 @@ final class FrameResources {
     final given = <TextureHandle>[];
     for (final entry in _live.entries) {
       if (_external.contains(entry.key)) continue;
+      if (_handedBack.contains(entry.key)) continue;
       if (given.any((other) => identical(other, entry.value))) continue;
       given.add(entry.value);
       source.release(entry.value);
     }
     _live.removeWhere((key, _) => !_external.contains(key));
+    _handedBack.clear();
     for (final texture in _scratch) {
       source.release(texture);
     }
     _scratch.clear();
+    _flushReusable();
   }
 
   /// Which version of [id] the running node reads, writes, or — for a name it

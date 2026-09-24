@@ -117,8 +117,16 @@ final class WebGpuEncoder implements CommandEncoder {
       level: target.mipLevel,
     );
     final clear = _colorOf(target.clearValue);
-    final load = gpuLoadOp(target.loadAction);
-    final store = gpuStoreOp(target.storeAction);
+    // A transient attachment is cleared and discarded whatever the pass
+    // asked — `H7`, and see [WebGpuTexture.transient].
+    final load = gpuAttachmentLoadOp(
+      target.loadAction,
+      transient: texture.transient,
+    );
+    final store = gpuAttachmentStoreOp(
+      target.storeAction,
+      transient: texture.transient,
+    );
     final resolve = target.resolveTexture;
     if (!gpuResolves(target.storeAction) || resolve == null) {
       return GPURenderPassColorAttachment(
@@ -150,24 +158,35 @@ final class WebGpuEncoder implements CommandEncoder {
   static GPURenderPassDepthStencilAttachment _depthAttachment(
     DepthTarget target,
   ) {
-    final view = (target.texture.backend as WebGpuTexture).attachmentView();
+    final texture = target.texture.backend as WebGpuTexture;
+    final view = texture.attachmentView();
     final depthLoadOp = gpuLoadOp(target.loadAction);
+    // Stored unless it is a transient attachment, which WebGPU will only
+    // discard — `H7`: tile memory is exactly the saving the paragraph above
+    // says there is none of on an ordinary texture.
+    final depthStore = texture.transient ? 'discard' : 'store';
     if (!target.texture.format.hasStencil) {
       return GPURenderPassDepthStencilAttachment.depthOnly(
         view: view,
         depthClearValue: target.clearValue,
         depthLoadOp: depthLoadOp,
-        depthStoreOp: 'store',
+        depthStoreOp: depthStore,
       );
     }
     return GPURenderPassDepthStencilAttachment(
       view: view,
       depthClearValue: target.clearValue,
       depthLoadOp: depthLoadOp,
-      depthStoreOp: 'store',
+      depthStoreOp: depthStore,
       stencilClearValue: StencilState.narrowReference(target.stencilClearValue),
-      stencilLoadOp: gpuLoadOp(target.stencilLoadAction),
-      stencilStoreOp: gpuStoreOp(target.stencilStoreAction),
+      stencilLoadOp: gpuAttachmentLoadOp(
+        target.stencilLoadAction,
+        transient: texture.transient,
+      ),
+      stencilStoreOp: gpuAttachmentStoreOp(
+        target.stencilStoreAction,
+        transient: texture.transient,
+      ),
     );
   }
 
