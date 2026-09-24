@@ -49,6 +49,7 @@ Float32List _render({
   List<int>? order,
   SortMode sort = SortMode.none,
   bool independentBlend = true,
+  bool? paneDepthWrite,
 }) {
   final glass = panes ?? _glassStack;
   final device = CpuDevice(
@@ -89,6 +90,7 @@ Float32List _render({
             lighting: LightingModel.unlit,
             baseColor: pane.colour,
             alphaMode: MaterialAlphaMode.blend,
+            depthWrite: paneDepthWrite,
             doubleSided: true,
           ),
         )
@@ -143,14 +145,35 @@ void main() {
     final a = _render(mode: TransparencyMode.weightedBlended, order: forward);
     final b = _render(mode: TransparencyMode.weightedBlended, order: backward);
     final c = _render(mode: TransparencyMode.weightedBlended, order: shuffled);
-    // Mutation: let a transparent draw write depth under the mode (drop the
-    // `orderIndependent == null &&` in `_encodeNode`). A pane drawn first
-    // then hides the ones behind it, and the three orders part.
     expect(_bytes(a), orderedEquals(_bytes(b)));
     expect(_bytes(a), orderedEquals(_bytes(c)));
     // And the floats themselves within rounding of each other everywhere.
     expect(_differing(a, b, by: 1e-5), 0);
     expect(_differing(a, c, by: 1e-5), 0);
+  });
+
+  test('glass whose material asks to write depth writes none either', () {
+    // A blended material writes no depth unless it says so, so the default
+    // panes above cannot tell whether the mode forbids it. These say so.
+    // Mutation: drop the `orderIndependent == null &&` in `_encodeNode`. A
+    // pane drawn first then hides the ones behind it, and the orders part.
+    final a = _render(
+      mode: TransparencyMode.weightedBlended,
+      order: forward,
+      paneDepthWrite: true,
+    );
+    final b = _render(
+      mode: TransparencyMode.weightedBlended,
+      order: backward,
+      paneDepthWrite: true,
+    );
+    expect(_bytes(a), orderedEquals(_bytes(b)));
+    expect(
+      _bytes(a),
+      orderedEquals(
+        _bytes(_render(mode: TransparencyMode.weightedBlended, order: forward)),
+      ),
+    );
   });
 
   test('sorted, the same draws in two orders are different pictures', () {
