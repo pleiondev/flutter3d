@@ -9,6 +9,7 @@ import 'package:vector_math/vector_math.dart';
 
 import 'cpu_shader.dart';
 import 'cpu_shaders_color.dart';
+import 'cpu_shaders_lighting.dart';
 
 /// `particle.vert`: a billboard corner, and the world position for the fog.
 final class ParticleVertexShader implements CpuVertexShader {
@@ -79,6 +80,91 @@ final class ParticleTexturedShader implements CpuFragmentShader {
       v[1] * texel.y * scale,
       v[2] * texel.z * scale,
       1.0,
+    );
+  }
+}
+
+/// `particle_six_way.frag` — `N6`: smoke lit by the scene's lights through
+/// six pictures of itself, blended over what is behind it.
+///
+/// The same varyings as the sprite stage: colour in 0..3, the cell's texture
+/// coordinate in 4..5, the world position in 6..8.
+final class ParticleSixWayShader implements CpuFragmentShader {
+  const ParticleSixWayShader();
+
+  static const String _block = 'SixWayInfo';
+
+  @override
+  Vector4? run(Float32List v, ShaderBindings b, FragmentContext c) {
+    var du = 0.0;
+    var dv = 0.0;
+    final ddx = c.ddx;
+    final ddy = c.ddy;
+    if (ddx != null && ddy != null) {
+      du = math.max(ddx[4].abs(), ddy[4].abs());
+      dv = math.max(ddx[5].abs(), ddy[5].abs());
+    }
+    Vector4 read(String name) =>
+        b.textures[name]?.sample(v[4], v[5], du: du, dv: dv) ??
+        Vector4(1.0, 1.0, 1.0, 1.0);
+    final positive = read('six_way_positive');
+    final negative = read('six_way_negative');
+
+    final right = b.vec4(_block, 'right', Vector4.zero()).xyz;
+    final up = b.vec4(_block, 'up', Vector4.zero()).xyz;
+    final forward = b.vec4(_block, 'forward', Vector4.zero()).xyz;
+    double response(Vector3 l) {
+      final x = l.dot(right);
+      final y = l.dot(up);
+      final z = l.dot(forward);
+      return x * x * (x > 0.0 ? positive.x : negative.x) +
+          y * y * (y > 0.0 ? positive.y : negative.y) +
+          z * z * (z > 0.0 ? positive.z : negative.z);
+    }
+
+    final world = Vector3(v[6], v[7], v[8]);
+    final lit = Vector3.zero();
+    final count = contributorLightCount(b, world);
+    for (var i = 0; i < count; i++) {
+      final light = contributorLight(b, i, world);
+      lit.addScaled(light.radiance, response(light.toLight));
+    }
+
+    final mean =
+        (positive.x +
+            positive.y +
+            positive.z +
+            negative.x +
+            negative.y +
+            negative.z) /
+        6.0;
+    final ambient = b.vec4(_block, 'ambient', Vector4.zero());
+    final emission = b.vec4(_block, 'emission', Vector4.zero());
+    final colour = Vector3(
+      v[0] * (lit.x + ambient.x * mean) + emission.x * negative.w,
+      v[1] * (lit.y + ambient.y * mean) + emission.y * negative.w,
+      v[2] * (lit.z + ambient.z * mean) + emission.z * negative.w,
+    );
+
+    // A mix toward the fog, not the additive stages' attenuation: this one
+    // covers what is behind it.
+    final fog = b.vec4('FogInfo', 'fog', Vector4.zero());
+    if (fog.w > 0.0) {
+      final eye = b.vec4('FogInfo', 'eye', Vector4.zero());
+      final d = (world - Vector3(eye.x, eye.y, eye.z)).length;
+      final fogged = math.exp(-fog.w * d).clamp(0.0, 1.0);
+      colour
+        ..x = fog.x + (colour.x - fog.x) * fogged
+        ..y = fog.y + (colour.y - fog.y) * fogged
+        ..z = fog.z + (colour.z - fog.z) * fogged;
+    }
+
+    final coverage = (v[3] * positive.w).clamp(0.0, 1.0);
+    return Vector4(
+      colour.x * coverage,
+      colour.y * coverage,
+      colour.z * coverage,
+      coverage,
     );
   }
 }

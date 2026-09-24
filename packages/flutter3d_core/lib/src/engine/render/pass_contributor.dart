@@ -327,6 +327,7 @@ final class ContributorFrame {
     required this.height,
     this.view,
     this.viewProjection,
+    this.lights,
   });
 
   /// The pass being built. Drawing into it is the point.
@@ -351,4 +352,32 @@ final class ContributorFrame {
   /// The view being drawn.
   final RenderView? view;
   final vm.Matrix4? viewProjection;
+
+  /// The frame's lights, for a contributor whose draw is lit — `N6`. Null
+  /// outside the scene pass, where there are none to give.
+  final ContributorLights? lights;
+}
+
+/// The scene's lights, bound to a contributor's own stage — `N6`.
+///
+/// A contributor that wants its draw lit needs what a mesh of the same bounds
+/// would be given: the eight lights that reach it, the list's tail past those,
+/// and, in a clustered view, the cells. All of that is chosen and packed inside
+/// the renderer, and a second copy of the choosing would eventually choose
+/// differently — a puff of smoke lit by one set of torches beside a wall lit by
+/// another. So the renderer answers, as it answers `encodeScene`.
+///
+/// The stage declares `lib/contributor_lights.glsl`: the
+/// `ContributorLightInfo` block with the eight slots, and the light list's
+/// `LightListInfo` block and `light_list_texture` sampler. [bind] writes all
+/// three, and binds a stand-in for the texture when the frame has no list,
+/// because a declared sampler nobody binds is a native crash on Metal.
+abstract interface class ContributorLights {
+  /// Binds the lights reaching a sphere at [centre] of [radius] to [stage].
+  void bind(
+    PassEncoder encoder,
+    ShaderHandle stage, {
+    required vm.Vector3 centre,
+    required double radius,
+  });
 }

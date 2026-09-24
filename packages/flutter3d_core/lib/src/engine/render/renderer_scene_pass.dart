@@ -302,6 +302,9 @@ extension _ScenePasses on Renderer {
       );
       developer.Timeline.finishSync();
 
+      // `N6`: this view's lights, cells and all, for a contributor that
+      // binds them. One that does not never asks, and nothing is built for it.
+      _contributorLights.begin(lights, settings);
       for (final plugin in contributors) {
         plugin.encode(
           ContributorFrame(
@@ -314,9 +317,11 @@ extension _ScenePasses on Renderer {
             height: height,
             view: view,
             viewProjection: viewProjection,
+            lights: _contributorLights,
           ),
         );
       }
+      _contributorLights.end();
 
       // The debug overlay is deliberately NOT drawn here. Anything written into
       // the HDR target is scene light: it would be tone mapped, and a bright

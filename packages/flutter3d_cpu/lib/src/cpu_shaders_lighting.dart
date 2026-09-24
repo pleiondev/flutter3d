@@ -403,3 +403,78 @@ Vector3 accumulateLights(
   }
   return total;
 }
+
+/// `ContributorLightCount` from `lib/contributor_lights.glsl` — `N6`: the
+/// slots a contributor's draw holds, and the list's tail or the cell's.
+int contributorLightCount(ShaderBindings bindings, Vector3 world) {
+  final slots = bindings.vec4('ContributorLightInfo', 'slots', Vector4.zero());
+  final list = bindings.vec4('LightListInfo', 'list', Vector4.zero());
+  final tail = list.y > 0.0 && clustered(bindings)
+      ? clusterAt(bindings, world).count
+      : list.x;
+  return (slots.x + 0.5).floor().clamp(0, kMaxLights) +
+      (tail + 0.5).floor().clamp(0, kExtraLights);
+}
+
+/// `ContributorLight` — `N6`: light [index] as [world] receives it, with no
+/// surface to face. A rectangle is read as a point at its centre, as the GLSL
+/// reads it.
+({Vector3 toLight, Vector3 radiance}) contributorLight(
+  ShaderBindings bindings,
+  int index,
+  Vector3 world,
+) {
+  const block = 'ContributorLightInfo';
+  final fromList = index >= kMaxLights;
+  final slot = index - kMaxLights;
+  final fromCell = fromList && clustered(bindings);
+  final row = !fromList
+      ? -1
+      : fromCell
+      ? clusterRow(bindings, world, slot)
+      : lightListRow(bindings, slot).round();
+
+  Vector4 read(String member, int column) => fromList
+      ? lightListTexel(bindings, row, column)
+      : bindings.vec4(block, member, Vector4.zero(), at: index);
+  final position = read('light_position', 0);
+  final colour = read('light_color', 1);
+  if (fromList) {
+    colour.w *= fromCell
+        ? (inSlots(bindings, row) ? 0.0 : 1.0)
+        : lightListScale(bindings, slot);
+  }
+  final direction = read('light_direction', 2);
+  final cone = read('light_cone', 3);
+
+  final type = position.w;
+  final directional = type < 0.5;
+  final offset = Vector3(position.x, position.y, position.z) - world;
+  final distance = offset.length;
+  final aim = Vector3(direction.x, direction.y, direction.z);
+  final aimLength = aim.length;
+  if (aimLength > 0.0) aim.scale(1.0 / aimLength);
+
+  final degenerate = !directional && distance < 1e-6;
+  final toLight = directional
+      ? -aim
+      : (offset..scale(1.0 / math.max(distance, 1e-6)));
+
+  final ratio = direction.w > 0.0 ? distance / direction.w : 0.0;
+  final window = (1.0 - ratio * ratio * ratio * ratio).clamp(0.0, 1.0);
+  final falloff = window * window / math.max(distance * distance, 1e-4);
+
+  final spot = type > 1.5 && type < 2.5;
+  final ramp = spot
+      ? ((aim.dot(-toLight) - cone.y) / math.max(cone.x - cone.y, 1e-4)).clamp(
+          0.0,
+          1.0,
+        )
+      : 1.0;
+
+  final attenuation = directional ? 1.0 : (degenerate ? 0.0 : falloff * ramp);
+  return (
+    toLight: toLight,
+    radiance: Vector3(colour.x, colour.y, colour.z) * (colour.w * attenuation),
+  );
+}

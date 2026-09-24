@@ -44,3 +44,4 @@ export 'src/particle_emitter.dart';
 export 'src/particle_random.dart';
 export 'src/particle_system.dart';
 export 'src/shown.dart';
+export 'src/six_way.dart';

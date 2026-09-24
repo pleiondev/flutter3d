@@ -6,6 +6,7 @@ import 'package:vector_math/vector_math.dart' as vm;
 
 import 'flipbook.dart';
 import 'particle_system.dart';
+import 'six_way.dart';
 
 /// Draws every live particle as one batch of camera-facing quads.
 ///
@@ -36,8 +37,30 @@ const PassState _kParticleState = PassState(
   depthCompare: CompareFunction.less,
 );
 
+/// How six-way particles are drawn — `N6`: over what is behind them, sorted
+/// farthest first, and otherwise as the additive ones are.
+///
+/// Smoke darkens what it covers, and addition can only brighten, so this is
+/// the premultiplied "over" every transparent material draws with. Over is not
+/// commutative, which is what the sort in `writeQuads` is for; depth writes
+/// stay off for the additive state's reason, one puff must not cut a hole in
+/// the puff behind it.
+const PassState _kSixWayState = PassState(
+  primitiveType: PrimitiveType.triangle,
+  polygonMode: PolygonMode.fill,
+  cullMode: CullMode.none,
+  blend: BlendState.alphaBlend,
+  depthWrite: false,
+  depthCompare: CompareFunction.less,
+);
+
 final class ParticleContributor extends PassContributor {
-  ParticleContributor(this.particles, {this.texture, this.flipbook});
+  ParticleContributor(
+    this.particles, {
+    this.texture,
+    this.flipbook,
+    this.sixWay,
+  });
 
   final ParticleSystem particles;
 
@@ -63,6 +86,14 @@ final class ParticleContributor extends PassContributor {
   /// neither.
   final Flipbook? flipbook;
 
+  /// A six-way sheet to light every particle by the scene's lights — `N6` —
+  /// or null for the additive stages.
+  ///
+  /// Takes the place of [texture]: the sheet is two textures of its own, drawn
+  /// through a stage of its own, so a contributor given both draws the sheet.
+  /// [flipbook] is the sheet's grid, as it is the sprite's.
+  final SixWayMaterial? sixWay;
+
   static const String _infoBlock = 'ParticleInfo';
 
   @override
@@ -87,6 +118,8 @@ final class ParticleContributor extends PassContributor {
     final world = view.camera.worldMatrix;
     _right.setValues(world.entry(0, 0), world.entry(1, 0), world.entry(2, 0));
     _up.setValues(world.entry(0, 1), world.entry(1, 1), world.entry(2, 1));
+    final sheet = sixWay;
+    if (sheet != null) view.camera.readForward(_forward);
 
     final written = particles.writeQuads(
       _right,
@@ -94,6 +127,7 @@ final class ParticleContributor extends PassContributor {
       vertices,
       indices,
       flipbook: flipbook,
+      farthestAlong: sheet == null ? null : _forward,
     );
     if (written == 0) {
       developer.Timeline.finishSync();
@@ -107,9 +141,19 @@ final class ParticleContributor extends PassContributor {
     final vertexShader = _shader(frame, 'ParticleVertex');
     final fragmentShader = _shader(
       frame,
-      texture == null ? 'Particle' : 'ParticleTextured',
+      sheet != null
+          ? 'ParticleSixWay'
+          : texture == null
+          ? 'Particle'
+          : 'ParticleTextured',
     );
-    if (vertexShader == null || fragmentShader == null) {
+    // A six-way stage declares the light list's sampler, and one left unbound
+    // is a native crash on Metal; outside a renderer's scene pass there are no
+    // lights to bind, so it draws nothing rather than that.
+    final lights = frame.lights;
+    if (vertexShader == null ||
+        fragmentShader == null ||
+        (sheet != null && lights == null)) {
       developer.Timeline.finishSync();
       return;
     }
@@ -122,7 +166,7 @@ final class ParticleContributor extends PassContributor {
     encoder.bindPipeline(
       _pipelineFor(frame.device, vertexShader, fragmentShader),
     );
-    encoder.setState(_kParticleState);
+    encoder.setState(sheet == null ? _kParticleState : _kSixWayState);
 
     final vertexCount = written * 4;
     final indexCount = written * 6;
@@ -161,8 +205,12 @@ final class ParticleContributor extends PassContributor {
       'eye': _eyeData,
     });
 
+    if (sheet != null && lights != null) {
+      _bindSixWay(frame, encoder, fragmentShader, sheet, lights);
+    }
+
     final sprite = texture;
-    if (sprite != null) {
+    if (sheet == null && sprite != null) {
       // Trilinear rather than `linearRepeat`, which is the engine's default and
       // has its mip filter off. A particle is a quad that shrinks as it
       // recedes; without the chain being blended it sparkles on the way out,
@@ -182,6 +230,50 @@ final class ParticleContributor extends PassContributor {
     // just replaced whatever it thought was bound.
     frame.state.invalidatePipeline();
     developer.Timeline.finishSync();
+  }
+
+  /// The six-way stage's own block, its sheet, and the lights reaching the
+  /// particles' bounds.
+  void _bindSixWay(
+    ContributorFrame frame,
+    PassEncoder encoder,
+    ShaderHandle stage,
+    SixWayMaterial sheet,
+    ContributorLights lights,
+  ) {
+    _sixWayRight.setAll(0, _right.storage);
+    _sixWayUp.setAll(0, _up.storage);
+    _sixWayForward.setAll(0, _forward.storage);
+    _sixWayEmission.setAll(0, sheet.emission.storage);
+    _sixWayAmbient.setAll(0, sheet.ambient.storage);
+    encoder.bindUniformBlock(stage, 'SixWayInfo', <String, Float32List>{
+      'right': _sixWayRight,
+      'up': _sixWayUp,
+      'forward': _sixWayForward,
+      'emission': _sixWayEmission,
+      'ambient': _sixWayAmbient,
+    });
+
+    // Trilinear, for the sprite's reason: a puff shrinks as it recedes.
+    encoder
+      ..bindTexture(
+        stage,
+        'six_way_positive',
+        sheet.positive,
+        sampler: SamplerOptions.trilinearRepeat,
+      )
+      ..bindTexture(
+        stage,
+        'six_way_negative',
+        sheet.negative,
+        sampler: SamplerOptions.trilinearRepeat,
+      );
+
+    // One selection for the whole batch, as an instanced mesh gets one for
+    // its bounds: a cloud of smoke is local, and the stage reads a light's
+    // falloff per fragment, so near and far puffs still differ.
+    final radius = particles.boundsInto(_centre);
+    lights.bind(encoder, stage, centre: _centre, radius: radius);
   }
 
   /// Looks a stage up, and complains once if it is missing.
@@ -239,4 +331,11 @@ final class ParticleContributor extends PassContributor {
   Uint32List? _indices;
   final vm.Vector3 _right = vm.Vector3.zero();
   final vm.Vector3 _up = vm.Vector3.zero();
+  final vm.Vector3 _forward = vm.Vector3.zero();
+  final vm.Vector3 _centre = vm.Vector3.zero();
+  final Float32List _sixWayRight = Float32List(4);
+  final Float32List _sixWayUp = Float32List(4);
+  final Float32List _sixWayForward = Float32List(4);
+  final Float32List _sixWayEmission = Float32List(4);
+  final Float32List _sixWayAmbient = Float32List(4);
 }
