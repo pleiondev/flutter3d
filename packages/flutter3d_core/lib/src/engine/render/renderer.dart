@@ -2052,6 +2052,10 @@ final class Renderer implements RenderServices {
     _ambientGround[0] = downX * tint.x;
     _ambientGround[1] = downY * tint.y;
     _ambientGround[2] = downZ * tint.z;
+    // `L8`: the metal-rough models' diffuse lobe rides in the sky colour's
+    // spare lane — frame-wide, as this is, and set here rather than in the
+    // scene pass so a probe captured before it shades the room the same way.
+    _ambientSky[3] = settings.diffuseModel == DiffuseModel.eon ? 1.0 : 0.0;
   }
 
   /// Per atlas row: xyz the direction a spot aims, w the tangent of half its
