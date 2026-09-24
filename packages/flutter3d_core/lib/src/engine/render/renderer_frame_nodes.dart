@@ -231,6 +231,14 @@ final class _CubeShadowNode extends RenderNode {
         .select(_renderer._computeFaceSignatures(scene, slotCount, settings))
         .toSet();
     if (scheduled.isNotEmpty) {
+      // `N3`: with an allowance for deferred work, each face is a piece of
+      // it. The faces the allowance refuses are not recorded as drawn, so
+      // they stay pending and the first of them leads the next frame's scan.
+      // Without one, the frame draws every face it selected, as it always
+      // did.
+      final budget = _renderer._workBudget;
+      final limited = budget.microseconds > 0;
+      final drawnTiles = limited ? <int>{} : null;
       _renderer._renderCubeShadow(
         resources: frame.resources,
         scene: scene,
@@ -238,8 +246,11 @@ final class _CubeShadowNode extends RenderNode {
         static: false,
         slotCount: slotCount,
         tiles: scheduled,
+        firstTile: _renderer._shadowFaceScheduler.scanStart,
+        budget: limited ? budget : null,
+        drawnTiles: drawnTiles,
       );
-      _renderer._shadowFaceScheduler.recordDrawn();
+      _renderer._shadowFaceScheduler.recordDrawn(drawnTiles);
     }
 
     // Even when nothing was drawn. The tiles hold the pictures earlier frames
