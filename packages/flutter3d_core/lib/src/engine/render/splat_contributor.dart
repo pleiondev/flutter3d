@@ -31,6 +31,7 @@ import '../scene/scene_node.dart';
 import 'engine_tables.dart';
 import 'identity_indices.dart';
 import 'pass_contributor.dart';
+import 'splat_lod.dart';
 import 'splat_sort.dart';
 
 /// How far out the quad reaches, in standard deviations.
@@ -55,9 +56,31 @@ const int kSplatVerticesPerSplat = 6;
 /// checked without a device — the same split `MeshOverlay` makes between
 /// filling a batch and encoding one.
 final class SplatQuads {
-  SplatQuads(this.cloud);
+  SplatQuads(SplatCloud cloud) : _cloud = cloud, lod = null;
 
-  final SplatCloud cloud;
+  /// Draws a splat tree at [lod]'s budget instead of one fixed cloud: every
+  /// time this would sort, the cut is chosen again first and the cut is what
+  /// is sorted and drawn — see `splat_lod.dart`.
+  SplatQuads.lod(SplatLod this.lod) : _cloud = _noSplats();
+
+  static SplatCloud _noSplats() => SplatCloud(
+    centres: Float32List(0),
+    colours: Float32List(0),
+    scales: Float32List(0),
+    rotations: Float32List(0),
+  );
+
+  /// The tree and budget this draws from, or null for a fixed cloud.
+  final SplatLod? lod;
+
+  /// What is drawn: the cloud given, or the last cut [lod] chose.
+  SplatCloud get cloud => _cloud;
+  SplatCloud _cloud;
+
+  /// The tree's page version and the budget at the last cut: either moving
+  /// means a finer or coarser cut is on offer, so the next [build] sorts.
+  int _sortedPageVersion = -1;
+  int _sortedBudget = -1;
 
   /// How far the eye may travel before the cloud is sorted again, as a
   /// fraction of the distance between its nearest and farthest splat at the
@@ -121,11 +144,19 @@ final class SplatQuads {
     Matrix4? model,
     bool sorted = true,
   }) {
-    final count = cloud.count;
-    final needed = count * kSplatVerticesPerSplat * kSplatFloatsPerVertex;
-    if (_vertices.length < needed) _vertices = Float32List(needed);
-
-    if (sorted && _needsSort(eye, model)) {
+    // A tree's cut is chosen where the sort runs, so a hashed build still
+    // sorts when the cut moves: the order and the cut have to agree.
+    if ((sorted || lod != null) && _needsSort(eye, model)) {
+      final lod = this.lod;
+      if (lod != null) {
+        // The cut is chosen by distance in the tree's own space, so the eye
+        // is taken there once rather than every node taken to the world.
+        _cloud = lod.choose(
+          model == null ? eye : Matrix4.inverted(model).transformed3(eye),
+        );
+        _sortedPageVersion = lod.tree.pageVersion;
+        _sortedBudget = lod.budget;
+      }
       _sorter.sort(cloud, eye, model: model);
       _sorts++;
       _sortedEye = eye.clone();
@@ -133,6 +164,9 @@ final class SplatQuads {
       if (model != null) _sortedModel.setAll(0, model.storage);
     }
     final order = sorted ? _sorter.order : null;
+    final count = cloud.count;
+    final needed = count * kSplatVerticesPerSplat * kSplatFloatsPerVertex;
+    if (_vertices.length < needed) _vertices = Float32List(needed);
 
     // The camera's axes as the cloud's own space sees them, when it has one.
     // The ellipse is `[r; u] M Σ Mᵀ [r; u]ᵀ` for a cloud placed by `M`, and
@@ -255,6 +289,12 @@ final class SplatQuads {
   bool _needsSort(Vector3 eye, Matrix4? model) {
     final last = _sortedEye;
     if (last == null) return true;
+    final lod = this.lod;
+    if (lod != null &&
+        (lod.tree.pageVersion != _sortedPageVersion ||
+            lod.budget != _sortedBudget)) {
+      return true;
+    }
     if ((model != null) != _sortedWithModel) return true;
     if (model != null) {
       final storage = model.storage;
@@ -293,12 +333,22 @@ final class SplatContributor extends PassContributor {
   final SplatHashInfoBlock _hashInfo = SplatHashInfoBlock();
 
   SplatContributor(
-    this.cloud, {
+    SplatCloud cloud, {
     this.node,
     this.composite = SplatComposite.automatic,
   }) : quads = SplatQuads(cloud);
 
-  final SplatCloud cloud;
+  /// Draws a splat tree at [lod]'s budget — the cut is chosen again each
+  /// time the cloud is re-sorted, and pages [lod] asks for are drawn as they
+  /// arrive. Off unless asked for: the plain constructor draws every splat.
+  SplatContributor.lod(
+    SplatLod lod, {
+    this.node,
+    this.composite = SplatComposite.automatic,
+  }) : quads = SplatQuads.lod(lod);
+
+  /// What is drawn: the cloud given, or the cut last chosen from a tree.
+  SplatCloud get cloud => quads.cloud;
   final SplatQuads quads;
 
   /// Sorted, hashed, or whichever the frame's temporal setting calls for.
@@ -329,7 +379,11 @@ final class SplatContributor extends PassContributor {
   int get order => 100;
 
   @override
-  bool get isActive => cloud.count > 0 && (node?.visibleInHierarchy ?? true);
+  bool get isActive =>
+      // A tree has drawn nothing before its first cut, which is made in
+      // encode; asking the cut would keep it from ever being made.
+      (quads.lod != null || cloud.count > 0) &&
+      (node?.visibleInHierarchy ?? true);
 
   @override
   void encode(ContributorFrame frame) {
