@@ -83,7 +83,10 @@ _Staged _staged({void Function(CpuDevice device, Scene scene)? extra}) {
   );
   final camera = CameraNode();
   final wall = MeshNode(
-    DeviceMesh.upload(device, CuboidShape(size: Vector3(20.0, 20.0, 1.0)).build()),
+    DeviceMesh.upload(
+      device,
+      CuboidShape(size: Vector3(20.0, 20.0, 1.0)).build(),
+    ),
     Material(
       lighting: LightingModel.unlit,
       baseColor: Vector4(0.2, 0.2, 0.2, 1.0),
@@ -124,8 +127,8 @@ double _peak(Float32List pixels) {
   return peak;
 }
 
-/// An ember crossing the wall, a little more than its own width a frame, [frames] frames, and
-/// the last frame drawn.
+/// An ember crossing the wall, a little more than its own width a frame, for
+/// [frames] frames, and the last frame drawn.
 Float32List _embers(RenderSettings settings, {int frames = 12}) {
   final particles = ParticleSystem(capacity: 4, seed: 1);
   final ember = ParticleEffect(
@@ -232,7 +235,10 @@ void main() {
           ..add(box)
           ..add(
             MeshNode(
-              DeviceMesh.upload(device, CuboidShape(size: Vector3(1.0, 1.0, 0.01)).build()),
+              DeviceMesh.upload(
+                device,
+                CuboidShape(size: Vector3(1.0, 1.0, 0.01)).build(),
+              ),
               Material(
                 lighting: LightingModel.unlit,
                 baseColor: Vector4(1.0, 1.0, 1.0, 0.5),
@@ -259,7 +265,13 @@ void main() {
       expect(on[i + 3], off[i + 3], reason: 'alpha at pixel ${i ~/ 4}');
       if (on[i + 2] > 0.0) marked++;
     }
-    expect(off.where((x) => x != 0.0), isNotEmpty);
+    // Alpha is one everywhere, so it is red and green that show a motion was
+    // there to be kept.
+    var moving = 0;
+    for (var i = 0; i < off.length; i += 4) {
+      if (off[i] != 0.0 || off[i + 1] != 0.0) moving++;
+    }
+    expect(moving, greaterThan(0));
     expect(marked, greaterThan(0));
   });
 
