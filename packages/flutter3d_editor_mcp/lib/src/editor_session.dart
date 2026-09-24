@@ -98,6 +98,32 @@ final class EditorSession {
     );
   }
 
+  /// Adds a recipe to the level — a room, a corridor or a scatter, built by a
+  /// seeded kit — and says what it builds.
+  ///
+  /// The document keeps the recipe rather than its brushes, which is why the
+  /// answer counts them: `list` shows what the document holds, and a recipe
+  /// is expanded only where the level is used. Undoable like any change.
+  Answer generate(LevelRecipe recipe) {
+    try {
+      final built = editing.addRecipe(recipe);
+      String count(int n, String one, String many) =>
+          '$n ${n == 1 ? one : many}';
+      return (
+        did: true,
+        says:
+            'added a ${recipe.kind} from seed ${recipe.seed}: it builds '
+            '${count(built.brushes.length, 'brush', 'brushes')}, '
+            '${count(built.entities.length, 'entity', 'entities')} and '
+            '${count(built.lights.length, 'light', 'lights')} — the document '
+            'keeps the recipe, and the same seed builds the same thing every '
+            'time',
+      );
+    } on LevelFormatException catch (e) {
+      return (did: false, says: 'no ${recipe.kind} was added: ${e.message}');
+    }
+  }
+
   /// Puts the document back the way it was before the last change.
   Answer undo() {
     final says = editing.history.undoSays;
@@ -145,7 +171,7 @@ final class EditorSession {
   /// **The refusal is half of what this tool is for.** A document that says
   /// `generatedBy` belongs to the program that generated it: editing
   /// `level.first.json` by hand and saving it produces a file that looks edited
-  /// right up until somebody runs `make_templates.py` again, at which point the
+  /// right up until somebody runs its generator again, at which point the
   /// work is gone and nothing ever said so. So a generated document may be
   /// opened, changed and saved *somewhere else*, and the copy claims itself —
   /// a file saved beside the original still naming the generator is a file that

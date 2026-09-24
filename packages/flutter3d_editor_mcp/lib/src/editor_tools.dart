@@ -1,6 +1,7 @@
 import 'package:dart_mcp/server.dart';
 import 'package:flutter3d_editor_core/flutter3d_editor_core.dart';
 import 'package:flutter3d_mcp_kit/flutter3d_mcp_kit.dart';
+import 'package:flutter3d_sim/flutter3d_sim.dart' show LevelRecipe, levelKits;
 
 import 'editor_session.dart';
 
@@ -331,6 +332,48 @@ List<EditorTool> get editorTools => <EditorTool>[
       inputSchema: ObjectSchema(),
     ),
     (EditorSession session, Map<String, Object?> arguments) => session.redo(),
+  ),
+  EditorTool(
+    Tool(
+      name: 'generate',
+      description:
+          'Add a piece of level built by a seeded kit: a room with doorways '
+          'cut in its walls, a corridor, or a scatter of copies of one thing. '
+          'The document keeps the recipe — kind, seed and params — and the '
+          'level is built from it wherever it is used, so the same seed builds '
+          'the same brushes every time; the answer says how many. room reads '
+          'size [w, h, d] (required), at, doors [{side, offset, width, '
+          'height}], materials {floor, wall, ceiling} and clutter {count, '
+          'size, material}. corridor reads from, to, width, height, doors, '
+          'materials and clutter. scatter reads at, size, count, spacing, and '
+          'an entity row or a brush {size, material} to copy.',
+      inputSchema: ObjectSchema(
+        properties: <String, Schema>{
+          'kind': UntitledSingleSelectEnumSchema(
+            description: 'which kit builds it',
+            values: levelKits.keys.toList(),
+          ),
+          'seed': IntegerSchema(
+            description: 'what its chances are drawn from; default 0',
+          ),
+          'params': ObjectSchema(description: "the kit's settings"),
+        },
+        required: <String>['kind'],
+      ),
+    ),
+    (EditorSession session, Map<String, Object?> arguments) {
+      final seed = arguments['seed'];
+      final params = arguments['params'];
+      return session.generate(
+        LevelRecipe(
+          kind: arguments['kind']! as String,
+          seed: seed is int ? seed : 0,
+          params: params is Map<String, Object?>
+              ? params
+              : const <String, Object?>{},
+        ),
+      );
+    },
   ),
   EditorTool(
     Tool(

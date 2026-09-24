@@ -294,6 +294,25 @@ final class Editing {
   /// reach — so writing a new one down is not the editor guessing at a game's
   /// vocabulary. What a `monster` needs in it is not knowable here; what a
   /// point light needs is.
+  /// Adds [recipe] to the document and answers what it builds, on its own.
+  ///
+  /// **The recipe goes in, not what it expands to.** A room written as its
+  /// recipe stays one line that a seed and a size decide, and the level is
+  /// expanded wherever it is used — loaded, validated, baked — so the brushes
+  /// in the answer are the brushes a player gets.
+  ///
+  /// Expanded once before it is added, so a recipe no kit can build throws the
+  /// kit's own [LevelFormatException] and leaves the document as it was,
+  /// rather than being written into a document that then fails to validate.
+  Level addRecipe(LevelRecipe recipe) {
+    final alone = expandRecipes(
+      Level(name: level.name, recipes: <LevelRecipe>[recipe]),
+    );
+    _remember('generate a ${recipe.kind} from seed ${recipe.seed}');
+    level.recipes.add(recipe);
+    return alone;
+  }
+
   void addLight(Vector3 at, {double intensity = 4.0, double range = 8.0}) {
     _remember('add a light');
     level.lights.add(
