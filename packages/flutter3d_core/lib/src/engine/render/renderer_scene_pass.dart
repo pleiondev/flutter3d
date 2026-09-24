@@ -230,8 +230,24 @@ extension _ScenePasses on Renderer {
       final frustum = vm.Frustum.matrix(viewProjection);
 
       final visibleBefore = scene.meshes.length;
+      developer.Timeline.startSync('Renderer.occlusion');
+      final occlusion = _occlusionFor(
+        scene: scene,
+        view: view,
+        settings: settings,
+        frustum: frustum,
+        aspect: viewRect.width / viewRect.height,
+        views: ordered.length,
+      );
+      developer.Timeline.finishSync();
       developer.Timeline.startSync('RenderList.build');
-      _renderList.build(scene, view, viewMatrix: viewMatrix, frustum: frustum);
+      _renderList.build(
+        scene,
+        view,
+        viewMatrix: viewMatrix,
+        frustum: frustum,
+        occlusion: occlusion,
+      );
       developer.Timeline.finishSync();
 
       developer.Timeline.startSync('RenderList.sort');
@@ -424,5 +440,56 @@ extension _ScenePasses on Renderer {
                                   'layers against a one-sample depth'
                             : null))),
     );
+  }
+
+  /// The test [view]'s render list is built against, or null for none —
+  /// `C2`, `C3`.
+  ///
+  /// Through the view's own unjittered matrix in the engine's `[0, 1]` depth,
+  /// whatever the device's convention: both methods compare depths with each
+  /// other and never with the depth buffer, so they only have to agree among
+  /// themselves. Nothing in wireframe, where no surface hides another.
+  ///
+  /// A frame without hi-Z throws the reading away. A reading kept across
+  /// frames that did not ask for one describes a scene nothing has been
+  /// watching, and would be reprojected the moment the setting came back.
+  OcclusionTest? _occlusionFor({
+    required Scene scene,
+    required RenderView view,
+    required RenderSettings settings,
+    required vm.Frustum frustum,
+    required double aspect,
+    required int views,
+  }) {
+    final mode = settings.wireframe ? OcclusionMode.none : settings.occlusion;
+    if (mode != OcclusionMode.hiZ && _hiZ != null) {
+      _hiZ!.reset();
+      _hiZEpoch++;
+    }
+    final camera = view.camera;
+    switch (mode) {
+      case OcclusionMode.none:
+        return null;
+      case OcclusionMode.software:
+        return (_softwareOcclusion ??= SoftwareOcclusion()).prepare(
+          meshes: scene.meshes,
+          viewProjection: camera.viewProjection(aspect),
+          frustum: frustum,
+          eye: camera.readWorldPosition(),
+          layerMask: view.layerMask,
+          cullBackFaces: settings.backfaceCulling,
+        );
+      case OcclusionMode.hiZ:
+        final hiZ = _hiZ ??= HiZOcclusion();
+        // The pyramid reduces the whole frame for one camera, so with a
+        // second view there is no reading to have; see `_DepthPyramidNode`.
+        if (views != 1) return null;
+        return hiZ.prepare(
+          camera.viewProjection(aspect),
+          eye: camera.readWorldPosition(),
+          forward: camera.readForward(),
+          camera: camera,
+        );
+    }
   }
 }

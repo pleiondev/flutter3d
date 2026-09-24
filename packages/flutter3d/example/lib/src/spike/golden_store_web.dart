@@ -70,6 +70,13 @@ bool get updateOverride => Uri.base.queryParameters['update'] == '1';
 /// there is no directory to name and nothing for a caller to override.
 String? get directoryOverride => null;
 
+/// Which occlusion method to draw with, from the page's URL — `C2`, `C3`.
+/// `?occlusion=software` or `?occlusion=hiZ`; absent draws with none.
+String? get occlusionOverride {
+  final name = Uri.base.queryParameters['occlusion'];
+  return (name == null || name.isEmpty) ? null : name;
+}
+
 /// Whether a run has to be told where the references live.
 ///
 /// False: there is no path here to resolve one against. The references are

@@ -33,6 +33,20 @@ final class GoldenRunner {
   final bool update;
   final String directory;
 
+  /// The occlusion method this run draws with — `C2`, `C3`. None unless
+  /// `FLUTTER3D_GOLDEN_OCCLUSION` (or `?occlusion=` in a browser) names one;
+  /// with one named, every mesh is marked an occluder and the run compares
+  /// against the ordinary references, since occlusion must move no pixel.
+  /// Recording with it set would record what it was meant to be checked
+  /// against, so an update run ignores it.
+  OcclusionMode get occlusion => update
+      ? OcclusionMode.none
+      : switch (occlusionOverride) {
+          'software' => OcclusionMode.software,
+          'hiZ' => OcclusionMode.hiZ,
+          _ => OcclusionMode.none,
+        };
+
   /// Fraction of pixels allowed to differ beyond [channelTolerance].
   ///
   /// **Zero**, and it was not always. It stood at 0.002 — 345 pixels of this

@@ -2066,6 +2066,75 @@ final class _LuminanceNode extends RenderNode {
   }
 }
 
+/// The depth pyramid, as a graph node, and the readback that feeds hi-Z
+/// occlusion — `C3`.
+///
+/// Reads the surface buffer the scene wrote and reduces its depth into a
+/// fixed 256 × 128 target; then asks for the bytes, which land in the
+/// renderer's [HiZOcclusion] and are reprojected by the next frames' scene
+/// passes. A frame output while it is active, for the luminance node's
+/// reason: its consumer is a readback the graph cannot see.
+///
+/// Its read of the surface buffer is a hard one, so on a device that cannot
+/// attach the buffer the node is culled with it and the occlusion test simply
+/// never gets a reading. One view only: the buffer is the whole frame's, and
+/// with a second view in it no one camera saw all of it.
+final class _DepthPyramidNode extends RenderNode {
+  _DepthPyramidNode(this._renderer, this._view, this._settings, this._views);
+
+  final Renderer _renderer;
+  final RenderView _view;
+  final RenderSettings _settings;
+  final int _views;
+
+  @override
+  String get name => 'depth pyramid';
+
+  @override
+  bool get isActive =>
+      _settings.occlusion == OcclusionMode.hiZ &&
+      !_settings.wireframe &&
+      _views == 1 &&
+      _fillsFrame(_view.viewportFraction);
+
+  /// Whether a view covers the whole frame, which is the only view the
+  /// reduction's cells line up with.
+  static bool _fillsFrame(ViewportRect rect) =>
+      rect.x == 0.0 && rect.y == 0.0 && rect.width == 1.0 && rect.height == 1.0;
+
+  @override
+  List<ResourceId> get reads => const <ResourceId>[
+    FrameResourceIds.surfaceBuffer,
+  ];
+
+  @override
+  List<ResourceId> get writes => const <ResourceId>[
+    FrameResourceIds.depthPyramid,
+  ];
+
+  @override
+  void execute(NodeFrame frame) {
+    final target = frame.resources.texture(FrameResourceIds.depthPyramid);
+    final camera = _view.camera;
+    _renderer._encodeDepthPyramid(
+      target: target,
+      surface: frame.resources.texture(FrameResourceIds.surfaceBuffer),
+      far: camera.projection.far,
+    );
+    final rect = Renderer._viewportPixels(
+      _view.viewportFraction,
+      frame.width,
+      frame.height,
+    );
+    _renderer._readDepthPyramid(
+      target,
+      camera: camera,
+      aspect: rect.width / rect.height,
+    );
+    frame.state.drawCalls++;
+  }
+}
+
 /// The picking pass, as a graph node. Active only on a frame somebody asked
 /// [Renderer.pickPixel] on; see `renderer_pick_pass.dart`.
 ///

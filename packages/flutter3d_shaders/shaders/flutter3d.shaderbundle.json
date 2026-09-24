@@ -259,6 +259,10 @@
     "type": "fragment",
     "file": "shaders/post/luminance.frag"
   },
+  "DepthPyramid": {
+    "type": "fragment",
+    "file": "shaders/post/depth_pyramid.frag"
+  },
   "ObjectId": {
     "type": "fragment",
     "file": "shaders/lighting/object_id.frag"
