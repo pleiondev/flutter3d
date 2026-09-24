@@ -164,6 +164,8 @@ final class FuzzProgram {
             ? (
                 texture: 1,
                 clearValue: 1.0,
+                loadAction: LoadAction.clear,
+                storeAction: StoreAction.dontCare,
                 stencilLoadAction: LoadAction.clear,
                 stencilStoreAction: StoreAction.dontCare,
                 stencilClearValue: 0,

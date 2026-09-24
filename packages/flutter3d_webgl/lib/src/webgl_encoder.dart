@@ -89,10 +89,13 @@ final class WebGlEncoder implements CommandEncoder {
         depth.texture,
       );
       // Depth must be writable for a clear to land, whatever the pass sets
-      // afterwards.
+      // afterwards. Not cleared at all when the pass loads it — `R8`: a
+      // texture keeps what was drawn into it, so loading is doing nothing.
       _gl.depthMask(true);
-      _gl.clearDepth(depth.clearValue);
-      _gl.clear(web.WebGLRenderingContext.DEPTH_BUFFER_BIT);
+      if (depth.loadAction == LoadAction.clear) {
+        _gl.clearDepth(depth.clearValue);
+        _gl.clear(web.WebGLRenderingContext.DEPTH_BUFFER_BIT);
+      }
 
       // The stencil starts every pass switched off, whatever the last pass
       // left — the contract says so, and here the setters are context state
@@ -372,16 +375,42 @@ final class WebGlEncoder implements CommandEncoder {
   void setDepthCompare(CompareFunction compare) =>
       _gl.depthFunc(compareFunctionToGl(compare));
 
-  /// [attachment] is ignored, and that is a real limitation rather than an
-  /// oversight.
+  /// Attachment zero through the plain blend functions, which set every draw
+  /// buffer at once; any other through `OES_draw_buffers_indexed`, for that
+  /// buffer alone — `R8`. Without the extension the index is ignored and the
+  /// call sets them all, which is what `supportsIndependentBlend` answering
+  /// false promises.
   ///
-  /// Per-attachment blend state needs `EXT_draw_buffers_indexed`, which is an
-  /// optional WebGL2 extension. The engine uses the index exactly once — the
-  /// MRT probe switching blending off on attachment 1 — and it sets the same
-  /// state on both, so nothing it draws depends on them differing. If that ever
-  /// changes, this needs the extension and a capability query beside it.
+  /// Zero stays on the plain functions even with the extension, because they
+  /// are what put every *other* buffer back: the scene pass sets attachment
+  /// zero only and has always had the surface buffer blended with it, and a
+  /// pass after weighted blended transparency would otherwise inherit the
+  /// revealage target's equation on draw buffer one, since here the state
+  /// belongs to the context rather than to the pass.
   @override
   void setBlend(BlendState? state, {int attachment = 0}) {
+    final indexed = _device.drawBuffersIndexed;
+    if (attachment != 0 && indexed != null) {
+      if (state == null) {
+        indexed.disableiOES(web.WebGLRenderingContext.BLEND, attachment);
+        return;
+      }
+      indexed
+        ..enableiOES(web.WebGLRenderingContext.BLEND, attachment)
+        ..blendEquationSeparateiOES(
+          attachment,
+          blendOperationToGl(state.colorOperation),
+          blendOperationToGl(state.alphaOperation),
+        )
+        ..blendFuncSeparateiOES(
+          attachment,
+          blendFactorToGl(state.sourceColorFactor),
+          blendFactorToGl(state.destinationColorFactor),
+          blendFactorToGl(state.sourceAlphaFactor),
+          blendFactorToGl(state.destinationAlphaFactor),
+        );
+      return;
+    }
     if (state == null) {
       _gl.disable(web.WebGLRenderingContext.BLEND);
       return;
