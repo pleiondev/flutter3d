@@ -169,6 +169,7 @@ Map<String, CpuStage> builtinCpuShaders() {
     'ParticleMeshVertex': const CpuStage.vertex(ParticleMeshVertexShader()),
     'ParticleMesh': const CpuStage.fragment(ParticleMeshShader()),
     'ParticleTextured': const CpuStage.fragment(ParticleTexturedShader()),
+    'ParticleSixWay': const CpuStage.fragment(ParticleSixWayShader()),
     'Particle': const CpuStage.fragment(ParticleShader()),
     'Splat': const CpuStage.fragment(SplatShader()),
     'Reflections': const CpuStage.fragment(ReflectionsShader()),

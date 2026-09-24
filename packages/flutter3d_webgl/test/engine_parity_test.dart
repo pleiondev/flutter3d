@@ -3168,6 +3168,7 @@ void _linkTests() {
     ('DebugLineVertex', 'DebugLine'),
     ('ParticleVertex', 'Particle'),
     ('ParticleVertex', 'ParticleTextured'),
+    ('ParticleVertex', 'ParticleSixWay'),
     ('ParticleMeshVertex', 'ParticleMesh'),
     ('SkyVertex', 'Sky'),
     ('SkyCubeVertex', 'SkyCube'),

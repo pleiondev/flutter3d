@@ -557,21 +557,29 @@ final class ParticleSystem {
   /// is already known here.
   ///
   /// Pure arithmetic, so this file needs no GPU and can be tested without one.
+  ///
+  /// [farthestAlong], when given, writes them farthest first along that axis —
+  /// the camera's forward, for particles that blend over what is behind them
+  /// (`N6`'s smoke). Addition needs no order and the default keeps the pool's;
+  /// "over" is not commutative, and a near puff drawn before a far one is
+  /// covered by it.
   int writeQuads(
     Vector3 cameraRight,
     Vector3 cameraUp,
     Float32List vertices,
     Uint32List indices, {
     Flipbook? flipbook,
+    Vector3? farthestAlong,
   }) {
     var written = 0;
     final maxParticles = math.min(
       vertices.length ~/ floatsPerParticle,
       indices.length ~/ 6,
     );
+    final order = farthestAlong == null ? null : _farthestFirst(farthestAlong);
 
     for (var i = 0; i < _alive; i++) {
-      final particle = _pool[i];
+      final particle = _pool[order == null ? i : order[i]];
       if (written >= maxParticles) break;
       if (particle.size <= 0.0 || particle.color.w <= 0.0) continue;
 
@@ -642,4 +650,54 @@ final class ParticleSystem {
     }
     return written;
   }
+
+  /// Writes the middle of the live particles' box into [centre] and returns
+  /// the radius of a sphere around it holding every quad — `N6`.
+  ///
+  /// What a lit draw of them asks the renderer for its lights with, as a mesh
+  /// is asked by its bounds. Nought, with [centre] at the origin, when nothing
+  /// is alive.
+  double boundsInto(Vector3 centre) {
+    if (_alive == 0) {
+      centre.setZero();
+      return 0.0;
+    }
+    final low = Vector3.all(double.infinity);
+    final high = Vector3.all(double.negativeInfinity);
+    var largest = 0.0;
+    for (var i = 0; i < _alive; i++) {
+      final particle = _pool[i];
+      Vector3.min(low, particle.position, low);
+      Vector3.max(high, particle.position, high);
+      largest = math.max(largest, particle.size);
+    }
+    centre
+      ..setFrom(low)
+      ..add(high)
+      ..scale(0.5);
+    // Half the largest quad's diagonal past the box, which holds every corner
+    // whichever way the quad turns.
+    return high.distanceTo(low) * 0.5 + largest * math.sqrt1_2;
+  }
+
+  /// The live particles' pool indices, farthest along [axis] first.
+  ///
+  /// Kept between frames, and a tie goes to the lower index so the order is a
+  /// function of the pool alone.
+  List<int> _farthestFirst(Vector3 axis) {
+    final depth = _depth ??= Float64List(capacity);
+    for (var i = 0; i < _alive; i++) {
+      depth[i] = _pool[i].position.dot(axis);
+    }
+    return _order
+      ..clear()
+      ..addAll(Iterable<int>.generate(_alive))
+      ..sort((a, b) {
+        final byDepth = depth[b].compareTo(depth[a]);
+        return byDepth != 0 ? byDepth : a.compareTo(b);
+      });
+  }
+
+  Float64List? _depth;
+  final List<int> _order = <int>[];
 }
