@@ -51,6 +51,8 @@ export 'src/binding_lookup.dart';
 export 'src/editing.dart';
 export 'src/editor_command.dart';
 export 'src/editor_history.dart';
+export 'src/generators/document_text.dart';
+export 'src/generators/generator.dart';
 export 'src/gizmos.dart';
 export 'src/lesson_authoring.dart';
 export 'src/listing.dart';

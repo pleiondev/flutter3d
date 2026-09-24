@@ -181,7 +181,8 @@ and rules. The room's walls surround its floor rather than standing on it —
 shared faces, no shared volume — and its light has a range; the racing field's
 fence posts stand exactly on the turf's top face for the same arithmetic.
 
-Templates are written by `tool/make_templates.py` and their models by
+Templates are written by `flutter3d_editor_core`'s `tool/levels/templates.dart`
+(through `dart run tool/regenerate_levels.dart`) and their models by
 `tool/make_models.py`, which writes real glTF out of primitives: no textures, no
 skins, no animation, no licences, and coordinates quantised onto a 1/4096 m grid
 so the bytes are the same on every machine. `ci.sh` regenerates both and fails if
@@ -210,7 +211,7 @@ So the template is the level half, and only that. A new racing project gets
 somewhere to drive and no road on it: editing the curve means dragging control
 points, seeing the line a car would take, and watching a lap change — which is a
 different editor, and one that does not exist. Until it does, circuits are
-written by `apps/flutter3d_demo_racing/tool/make_track.py`, which is where the
+written by `flutter3d_editor_core`'s `tool/levels/racing.dart`, which is where the
 five in the demo come from.
 
 What the level half still buys is the part that is genuinely shared: the ground,

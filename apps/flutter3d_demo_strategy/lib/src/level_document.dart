@@ -16,7 +16,8 @@
 /// the vocabulary — what a `camp` is, what a `worker` block means — and the
 /// pass that turns those into a running match.
 ///
-/// Written by `tool/make_map.py`. Edit that, not the JSON.
+/// Written by `map` in `flutter3d_editor_core/tool/levels/strategy.dart`.
+/// Edit that, not the JSON.
 library;
 
 import 'dart:convert';
