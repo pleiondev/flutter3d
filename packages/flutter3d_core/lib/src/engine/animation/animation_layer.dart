@@ -5,8 +5,17 @@ import 'animation_target.dart';
 ///
 /// Shared by the player's crossfade and by every layer, so the two cannot
 /// disagree about which track matches which.
-int animationTrackKey(AnimationTrack track) =>
-    track.nodeIndex * AnimationPath.values.length + track.path.index;
+///
+/// A pointer track has no node, so it keys on what it drives instead, and on
+/// the negative side: material 3's roughness must not meet node 3's
+/// translation in a crossfade.
+int animationTrackKey(AnimationTrack track) => switch (track.pointer) {
+  final pointer? =>
+    -1 -
+        (pointer.index * AnimationPointerProperty.values.length +
+            pointer.property.index),
+  null => track.nodeIndex * AnimationPath.values.length + track.path.index,
+};
 
 /// How a layer's pose meets the base's — `gfx-10n`.
 enum AnimationBlend {

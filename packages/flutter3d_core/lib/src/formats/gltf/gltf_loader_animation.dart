@@ -17,8 +17,10 @@ extension _GltfAnimation on GltfLoader {
     Map<String, Object?> json,
     GltfAccessorReader reader,
     List<ModelNode> nodes,
-    List<String> warnings,
-  ) {
+    List<String> warnings, {
+    required int materialCount,
+    required int lightCount,
+  }) {
     final animations = _mapList(json['animations']);
     if (animations.isEmpty) return const <AnimationClip>[];
 
@@ -39,13 +41,27 @@ extension _GltfAnimation on GltfLoader {
           warnings.add('$channelLabel has no target; skipped.');
           continue;
         }
-        final nodeIndex = _asInt(target['node']);
+        // `KHR_animation_pointer`: no node, a JSON pointer instead, resolved
+        // here once so the player never walks the string.
+        final isPointer = target['path'] == 'pointer';
+        final pointer = isPointer
+            ? _resolvePointer(
+                target.cast<String, Object?>(),
+                channelLabel,
+                materialCount: materialCount,
+                lightCount: lightCount,
+                warnings: warnings,
+              )
+            : null;
+        if (isPointer && pointer == null) continue;
+
+        final nodeIndex = isPointer ? -1 : _asInt(target['node']);
         if (nodeIndex == null) {
           // A channel with no node is legal and means "do nothing", which the
           // spec allows so that a clip can be authored before its target is.
           continue;
         }
-        if (nodeIndex < 0 || nodeIndex >= nodes.length) {
+        if (!isPointer && (nodeIndex < 0 || nodeIndex >= nodes.length)) {
           warnings.add(
             '$channelLabel targets node $nodeIndex, which does not '
             'exist; skipped.',
@@ -110,9 +126,11 @@ extension _GltfAnimation on GltfLoader {
         // Weight tracks carry one value per morph target, and only the value
         // count knows how many that is.
         final perKey = interpolation.valuesPerKey;
-        final componentCount = path == AnimationPath.weights
-            ? values.length ~/ (times.length * perKey)
-            : path.componentCount;
+        final componentCount = switch (path) {
+          AnimationPath.weights => values.length ~/ (times.length * perKey),
+          AnimationPath.pointer => pointer!.property.componentCount,
+          _ => path.componentCount,
+        };
 
         if (componentCount <= 0 ||
             values.length != times.length * componentCount * perKey) {
@@ -138,6 +156,7 @@ extension _GltfAnimation on GltfLoader {
             times: times,
             values: values,
             componentCount: componentCount,
+            pointer: pointer,
           ),
         );
       }
@@ -158,5 +177,48 @@ extension _GltfAnimation on GltfLoader {
     }
 
     return clips;
+  }
+
+  /// The property a `pointer` channel's [target] names, or null — with a
+  /// warning saying why — when it names nothing this engine can move or an
+  /// object the file does not have.
+  AnimationPointer? _resolvePointer(
+    Map<String, Object?> target,
+    String channelLabel, {
+    required int materialCount,
+    required int lightCount,
+    required List<String> warnings,
+  }) {
+    final extensions = target['extensions'];
+    final block = extensions is Map
+        ? extensions['KHR_animation_pointer']
+        : null;
+    final text = block is Map ? block['pointer'] : null;
+    if (text is! String) {
+      warnings.add(
+        '$channelLabel is a pointer channel with no pointer; '
+        'skipped.',
+      );
+      return null;
+    }
+    final pointer = AnimationPointer.parse(text);
+    if (pointer == null) {
+      warnings.add(
+        '$channelLabel points at "$text", which is not a property this engine '
+        'animates; skipped.',
+      );
+      return null;
+    }
+    final count = switch (pointer.target) {
+      AnimationPointerTarget.material => materialCount,
+      AnimationPointerTarget.light => lightCount,
+    };
+    if (pointer.index >= count) {
+      warnings.add(
+        '$channelLabel points at "$text", which does not exist; skipped.',
+      );
+      return null;
+    }
+    return pointer;
   }
 }

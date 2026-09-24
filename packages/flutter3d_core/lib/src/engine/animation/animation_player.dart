@@ -56,7 +56,13 @@ final class AnimationPlayer {
     required this.clips,
     required this.targets,
     List<MorphSink?>? morphs,
+    this.pointers,
   }) : morphs = morphs ?? const <MorphSink?>[];
+
+  /// Where a `KHR_animation_pointer` track goes — the materials and lights
+  /// of the instance this player drives. Null for a player that animates
+  /// nodes only, and a pointer track then plays and writes nothing.
+  final AnimationPointerSink? pointers;
 
   final List<AnimationClip> clips;
 
@@ -528,6 +534,10 @@ final class AnimationPlayer {
         _applyWeights(track);
         continue;
       }
+      if (track.pointer case final pointer?) {
+        _applyPointer(track, pointer);
+        continue;
+      }
 
       if (track.nodeIndex < 0 || track.nodeIndex >= targets.length) continue;
       final node = targets[track.nodeIndex];
@@ -624,6 +634,47 @@ final class AnimationPlayer {
     final added = _addLayerWeights(_sample, _trackKey(track), count);
     _sendWeights(sink, _sample, count, bounded: added);
   }
+
+  /// Samples a pointer track and hands the value to [pointers].
+  ///
+  /// **The base clip and its crossfade only; layers leave pointer tracks
+  /// alone.** A layer is a clip over part of a skeleton, and its mask names
+  /// joints: a material has no place in it, so there is no answer to whether
+  /// an upper-body reload covers the gun's glow. A crossfade is a transition
+  /// between two whole clips, and a colour halfway through one is halfway
+  /// between the two colours — the same straight line a translation takes.
+  void _applyPointer(AnimationTrack track, AnimationPointer pointer) {
+    final sink = pointers;
+    if (sink == null) return;
+
+    final count = track.componentCount;
+    if (_sample.length < count) _sample = Float32List(count);
+    track.sample(_time, _sample);
+
+    final fade = fadeWeight;
+    if (fade < 1.0) {
+      final previous = _fadeFromTracks?[_trackKey(track)];
+      if (previous != null && previous.componentCount == count) {
+        if (_fadeSample.length < count) _fadeSample = Float32List(count);
+        previous.sample(_fadeFromTime, _fadeSample);
+        for (var i = 0; i < count; i++) {
+          _sample[i] = _mix(_fadeSample[i], _sample[i], fade);
+        }
+      }
+    }
+
+    if (_pointerScratch.length != count) {
+      _pointerScratch = List<double>.filled(count, 0.0);
+    }
+    for (var i = 0; i < count; i++) {
+      _pointerScratch[i] = _sample[i];
+    }
+    sink.setPointer(pointer, _pointerScratch);
+  }
+
+  /// The value handed to a pointer sink, reused for the reason
+  /// [_weightScratch] is.
+  List<double> _pointerScratch = const <double>[];
 
   /// Adds every layer's weights for [key] into [into], and says whether any
   /// layer had something to add.
@@ -752,6 +803,7 @@ final class AnimationPlayer {
         }
 
       case AnimationPath.weights:
+      case AnimationPath.pointer:
         break;
     }
   }
@@ -839,6 +891,10 @@ final class AnimationPlayer {
         // Weights are summed across every layer at once rather than folded in
         // one at a time — [_addLayerWeights] is where their delta is taken.
         break;
+
+      case AnimationPath.pointer:
+        // Layers leave pointer tracks alone — see [_applyPointer].
+        break;
     }
   }
 
@@ -907,7 +963,11 @@ final class AnimationPlayer {
         // Weights are added rather than written over, and by every layer at
         // once — see [_applyLayerWeightsWhereBaseIsSilent], which runs after
         // this and is where they go.
-        if (track.path == AnimationPath.weights) continue;
+        // Pointer tracks are the base clip's alone — see [_applyPointer].
+        if (track.path == AnimationPath.weights ||
+            track.path == AnimationPath.pointer) {
+          continue;
+        }
         if (_baseKeys.contains(_trackKey(track))) continue;
         if (!layer.mask.covers(track.nodeIndex)) continue;
         if (track.nodeIndex < 0 || track.nodeIndex >= targets.length) continue;
@@ -945,8 +1005,9 @@ final class AnimationPlayer {
         node.setScale(pose[0], pose[1], pose[2]);
 
       case AnimationPath.weights:
-        // Answered before the node lookup — see `_applyWeights`. Nothing
-        // reaches here.
+      case AnimationPath.pointer:
+        // Answered before the node lookup — see `_applyWeights` and
+        // `_applyPointer`. Nothing reaches here.
         break;
     }
   }
