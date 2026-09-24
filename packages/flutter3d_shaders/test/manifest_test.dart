@@ -41,4 +41,15 @@ void main() {
       );
     }
   });
+
+  test('kComputeShaders matches the compute manifest', () {
+    // `H6`: the list a computing backend answers to, and the manifest the
+    // WebGPU generator compiles, kept to one set of names.
+    final manifest =
+        jsonDecode(
+              File('shaders/flutter3d.compute.json').readAsStringSync(),
+            )
+            as Map<String, Object?>;
+    expect(kComputeShaders.toSet(), manifest.keys.toSet());
+  });
 }

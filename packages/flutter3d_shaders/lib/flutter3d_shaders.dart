@@ -18,6 +18,13 @@ library;
 /// One entry point the engine requires.
 typedef RequiredShader = ({String name, bool fragment});
 
+/// Every compute stage, as `shaders/flutter3d.compute.json` lists them —
+/// `H6`. A manifest of its own because neither impellerc nor the WebGL2
+/// generator reads it; a backend that computes answers to these names, and
+/// one that does not answers `supportsCompute` false instead. Checked
+/// against the manifest by `test/manifest_test.dart`.
+const List<String> kComputeShaders = <String>['PrefixSum'];
+
 /// Every entry point, as the manifest lists them.
 ///
 /// Generated from `shaders/flutter3d.shaderbundle.json` and checked against it

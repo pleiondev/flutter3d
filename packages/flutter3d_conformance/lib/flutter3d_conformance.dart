@@ -85,6 +85,7 @@ export 'src/fuzz/fuzz.dart'
         SplitDraw,
         SwapDisjointDraws,
         drawFuzzProgram,
+        fuzzDifference,
         fuzzSeed,
         generateFuzzProgram,
         shrinkFinding,
