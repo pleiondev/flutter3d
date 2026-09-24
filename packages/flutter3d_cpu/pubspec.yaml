@@ -43,5 +43,9 @@ dev_dependencies:
   # Kaiser-filtered chain from its formats library. Flat, like everything else
   # in this list.
   flutter3d_core: ^0.8.0
+  # For `reactive_mask_test.dart`: an ember is a particle, and `R4` is about
+  # what the temporal resolve does to one — drawn through the engine's own
+  # contributor rather than a stand-in for it.
+  flutter3d_particles: ^0.8.0
 
 resolution: workspace

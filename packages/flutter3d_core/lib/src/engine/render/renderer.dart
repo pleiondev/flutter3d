@@ -142,6 +142,7 @@ final class Renderer implements RenderServices {
     required this.velocityVertexShader,
     required this.velocitySkinnedVertexShader,
     required this.velocityInstancedVertexShader,
+    required this.reactiveShader,
     required this.temporalResolveShader,
     required this.temporalAccumulateShader,
     required this.ssaoBlurShader,
@@ -287,6 +288,10 @@ final class Renderer implements RenderServices {
   final ShaderHandle velocityVertexShader;
   final ShaderHandle velocitySkinnedVertexShader;
   final ShaderHandle velocityInstancedVertexShader;
+
+  /// `post/reactive.frag` — `R4`: a blended surface marked in the velocity's
+  /// blue, through the same three vertex stages.
+  final ShaderHandle reactiveShader;
 
   /// `post/temporal_resolve.frag` — `R2`.
   final ShaderHandle temporalResolveShader;
@@ -617,6 +622,7 @@ final class Renderer implements RenderServices {
   final CameraVelocityInfoBlock _cameraVelocityInfo = CameraVelocityInfoBlock();
   final PrevFrameInfoBlock _prevFrameInfo = PrevFrameInfoBlock();
   final VelocityInfoBlock _velocityInfo = VelocityInfoBlock();
+  final ReactiveInfoBlock _reactiveInfo = ReactiveInfoBlock();
   final TemporalInfoBlock _temporalInfo = TemporalInfoBlock();
   final NoiseInfoBlock _noiseInfo = NoiseInfoBlock();
   final AccumulateInfoBlock _accumulateInfo = AccumulateInfoBlock();
@@ -1361,6 +1367,7 @@ final class Renderer implements RenderServices {
         velocityVertexShader: require('VelocityVertex'),
         velocitySkinnedVertexShader: require('VelocitySkinnedVertex'),
         velocityInstancedVertexShader: require('VelocityInstancedVertex'),
+        reactiveShader: require('Reactive'),
         temporalResolveShader: require('TemporalResolve'),
         temporalAccumulateShader: require('TemporalAccumulate'),
         ssaoBlurShader: require('SsaoBlur'),
@@ -2295,6 +2302,8 @@ final class Renderer implements RenderServices {
       // And the nodes that moved, over it: the next version of the same
       // resource, so registration order is what puts them on top.
       ..addNode(_ObjectVelocityNode(this, view, s, composite._scene))
+      // `R4`: what blends, marked over both for the resolve to trust less.
+      ..addNode(_ReactiveNode(this, view, s, composite._scene))
       // `R3`: the two effects that march with noise, each carried into a
       // history of its own. After the velocity, which they reproject by, and
       // before anything reads them: the composite takes the last version.

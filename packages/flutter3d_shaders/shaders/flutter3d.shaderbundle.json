@@ -147,6 +147,14 @@
     "type": "fragment",
     "file": "shaders/post/velocity.frag"
   },
+  "Reactive": {
+    "type": "fragment",
+    "file": "shaders/post/reactive.frag"
+  },
+  "ReactiveSprite": {
+    "type": "fragment",
+    "file": "shaders/post/reactive_sprite.frag"
+  },
   "TemporalResolve": {
     "type": "fragment",
     "file": "shaders/post/temporal_resolve.frag"

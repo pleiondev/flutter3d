@@ -17791,6 +17791,212 @@ void main() {
 }
 
 ''',
+    'Reactive': r'''#version 300 es
+precision highp float;
+precision highp int;
+precision highp sampler2D;
+precision highp samplerCube;
+
+// A blended surface, marked as reactive in the velocity target's blue — `R4`.
+//
+// **What the mark is for.** The temporal resolve keeps most of each pixel
+// from the frames before, and that is right for anything the velocity can
+// follow. Glass cannot be followed: it wrote no depth, so the velocity under
+// it is the motion of what is behind it, and whatever moves across the glass
+// itself (a reflection, the light it tints) is remembered for a dozen frames
+// after it went. Where this is drawn the resolve keeps less of the past, in
+// proportion to the value written here.
+//
+// Drawn through the three velocity vertex stages, so a skinned, morphed or
+// batched surface lands where the scene drew it; of what they hand on only
+// the depth along the camera's axis is read. The other two are declared
+// because a stage's inputs are matched to the vertex stage's outputs by
+// position on some targets, and a stage that declared the depth alone would
+// read `v_current` in its place.
+//
+// Added into blue under an additive blend that finds red, green and alpha
+// the velocity passes left and adds nought to each, which leaves them exactly
+// as they were: flutter_gpu has no colour write mask, and adding zero is the
+// one blend that is a mask.
+
+// --- lib/frag_coord.glsl ---
+// Where a fragment sits, counted from the top of its target on every backend.
+
+#ifndef FRAG_COORD_GLSL_
+#define FRAG_COORD_GLSL_
+
+/// `gl_FragCoord.xy` with row zero at the top of the picture.
+///
+/// [rows] is the target's height where the backend's row zero is the bottom
+/// of the picture, and zero where it is the top. WebGL2 is the first kind:
+/// window coordinates start at the lower left, and the engine draws the
+/// picture upright there rather than mirroring every projection. Metal,
+/// WebGPU and the software rasteriser are the second.
+///
+/// **Why a pattern cares and a picture does not.** Every screen-space pattern
+/// in the engine — the Bayer dither, the grain, the jitter a ray march starts
+/// from, the rotation of a shadow kernel — is a function of the pixel's row.
+/// Read from the bottom, the same frame gets the pattern turned upside down,
+/// and a four-row Bayer cell lands on different rows unless the height is a
+/// multiple of four. The picture underneath is identical; the pattern on top
+/// of it is not, and a comparison across backends counts every pixel it
+/// moved.
+vec2 FragCoordFromTop(float rows) {
+  return rows > 0.0 ? vec2(gl_FragCoord.x, rows - gl_FragCoord.y)
+                    : gl_FragCoord.xy;
+}
+
+#endif  // FRAG_COORD_GLSL_
+
+
+in vec4 v_current;
+in vec4 v_previous;
+in float v_depth;
+
+layout(location = 0) out vec4 frag_color;
+
+uniform sampler2D surface_texture;
+
+layout(std140) uniform ReactiveInfo {
+  /// xy: one over the target's size in pixels. z: the target's rows when
+  /// its row zero is the bottom, zero when it is the top. w: how far behind
+  /// the stored depth a fragment may lie and still count as in front of it,
+  /// as a fraction of that depth.
+  vec4 target;
+
+  /// xyz: where the eye is. Read by the sprite stage, which has no depth of
+  /// its own handed on.
+  vec4 eye;
+
+  /// xyz: the direction the camera looks, the surface buffer's axis.
+  vec4 forward;
+
+  /// x: how reactive full coverage is, nought to one. y: the sprite stage's
+  /// shape — nought a disc, one a Gaussian, two the sprite's own alpha.
+  /// z: this draw's coverage, for a surface: its material's alpha.
+  vec4 params;
+}
+reactive_info;
+
+void main() {
+  vec2 uv = FragCoordFromTop(reactive_info.target.z) * reactive_info.target.xy;
+  float stored = textureLod(surface_texture, uv, 0.0).a;
+  // Behind what the opaque scene drew here: the glass is hidden and so is
+  // whatever it would have smeared. Over the sky, or over a pixel the blend
+  // left no depth in, it is in front of everything there is.
+  bool hidden = stored > 0.0 &&
+                v_depth > stored * (1.0 + reactive_info.target.w) + 1e-3;
+  float coverage = reactive_info.params.x * reactive_info.params.z;
+  if (hidden || coverage <= 0.0) discard;
+  frag_color = vec4(0.0, 0.0, coverage, 0.0);
+}
+
+''',
+    'ReactiveSprite': r'''#version 300 es
+precision highp float;
+precision highp int;
+precision highp sampler2D;
+precision highp samplerCube;
+
+// A particle or a splat, marked as reactive in the velocity target's blue —
+// `R4`. See `reactive.frag` for what the mark is for; this is the same mark
+// for what `particle.vert` draws.
+//
+// **Particles have no motion the resolve can see.** They write no depth and
+// no velocity, so an ember that flew across a wall is reprojected as the
+// wall, the history there is the wall, and the neighbourhood clip lets most
+// of that wall through: the ember shows at a tenth of its brightness and
+// trails. Marked here, the resolve takes that pixel mostly from this frame.
+//
+// **How much of a pixel a sprite covers**, which is what is written, comes
+// from the same falloff its own stage draws with, so a spark's soft edge is
+// only a little reactive and its core is fully so:
+//
+//   * a disc — `particle.frag`'s squared smoothstep, times the particle's
+//     alpha;
+//   * a Gaussian — `splat.frag`'s falloff, cut off at the same three
+//     standard deviations, times the splat's alpha;
+//   * a sprite — the texture's alpha, times the particle's.
+//
+// All three are worked out and one is chosen, rather than branching into
+// one: the texture read has to sit in uniform control flow for WGSL, and the
+// sprite stage is bound a white texel when the draw has none.
+
+// --- lib/frag_coord.glsl ---
+// Where a fragment sits, counted from the top of its target on every backend.
+
+#ifndef FRAG_COORD_GLSL_
+#define FRAG_COORD_GLSL_
+
+/// `gl_FragCoord.xy` with row zero at the top of the picture.
+///
+/// [rows] is the target's height where the backend's row zero is the bottom
+/// of the picture, and zero where it is the top. WebGL2 is the first kind:
+/// window coordinates start at the lower left, and the engine draws the
+/// picture upright there rather than mirroring every projection. Metal,
+/// WebGPU and the software rasteriser are the second.
+///
+/// **Why a pattern cares and a picture does not.** Every screen-space pattern
+/// in the engine — the Bayer dither, the grain, the jitter a ray march starts
+/// from, the rotation of a shadow kernel — is a function of the pixel's row.
+/// Read from the bottom, the same frame gets the pattern turned upside down,
+/// and a four-row Bayer cell lands on different rows unless the height is a
+/// multiple of four. The picture underneath is identical; the pattern on top
+/// of it is not, and a comparison across backends counts every pixel it
+/// moved.
+vec2 FragCoordFromTop(float rows) {
+  return rows > 0.0 ? vec2(gl_FragCoord.x, rows - gl_FragCoord.y)
+                    : gl_FragCoord.xy;
+}
+
+#endif  // FRAG_COORD_GLSL_
+
+
+in vec4 v_color;
+in vec2 v_uv;
+in vec3 v_world_position;
+
+layout(location = 0) out vec4 frag_color;
+
+uniform sampler2D surface_texture;
+uniform sampler2D sprite_texture;
+
+/// The same block `reactive.frag` declares, member for member.
+layout(std140) uniform ReactiveInfo {
+  vec4 target;
+  vec4 eye;
+  vec4 forward;
+  vec4 params;
+}
+reactive_info;
+
+void main() {
+  float spriteAlpha = texture(sprite_texture, v_uv).a;
+
+  vec2 centred = v_uv * 2.0 - 1.0;
+  float falloff = 1.0 - smoothstep(0.0, 1.0, length(centred));
+  float disc = falloff * falloff;
+
+  float power = -0.5 * dot(v_uv, v_uv);
+  float gaussian = power < -4.5 ? 0.0 : exp(power);
+
+  float shape = reactive_info.params.y;
+  float coverage =
+      v_color.a *
+      (shape < 0.5 ? disc : (shape < 1.5 ? gaussian : spriteAlpha));
+
+  vec2 uv = FragCoordFromTop(reactive_info.target.z) * reactive_info.target.xy;
+  float stored = textureLod(surface_texture, uv, 0.0).a;
+  float depth = dot(v_world_position - reactive_info.eye.xyz,
+                    reactive_info.forward.xyz);
+  bool hidden = stored > 0.0 &&
+                depth > stored * (1.0 + reactive_info.target.w) + 1e-3;
+  float reactive = reactive_info.params.x * coverage;
+  if (hidden || reactive <= 0.0) discard;
+  frag_color = vec4(0.0, 0.0, reactive, 0.0);
+}
+
+''',
     'TemporalResolve': r'''#version 300 es
 precision highp float;
 precision highp int;
@@ -17823,6 +18029,12 @@ precision highp samplerCube;
 //     has no past worth blending. The history's alpha is that depth.
 //   * **The blend** weighs each side by one over one plus its exposed
 //     luminance, so a flickering highlight does not dominate its neighbours.
+//   * **A reactive pixel keeps less history** — `R4`. Particles, splats and
+//     blended surfaces write how much of the pixel they cover into the
+//     velocity's blue, and the history's share is lowered by that fraction:
+//     what moves without a velocity of its own is taken from this frame.
+//     Blue is nought wherever nothing reactive was drawn, and the share is
+//     then exactly what it was.
 //
 // The history is linear scene light, like the scene: the exposure is only a
 // weight here, and the composite applies it as it always did.
@@ -17967,7 +18179,12 @@ void main() {
   vec3 history = Unweigh(
       YCoCgToRgb(ClipToBox(lo, hi, RgbToYCoCg(Weigh(HistoryAt(then))))));
 
-  float keep = temporal_info.jitter.z * trust;
+  // Read at the pixel itself rather than at the nearest surface: a particle
+  // writes no depth, so the nearest surface around it is whatever it flew
+  // over, and the mark belongs to where the particle is.
+  float reactive =
+      clamp(textureLod(velocity_texture, centre, 0.0).b, 0.0, 1.0);
+  float keep = temporal_info.jitter.z * trust * (1.0 - reactive);
   float exposure = temporal_info.params.x;
   float wCurrent = (1.0 - keep) / (1.0 + Luma(current) * exposure);
   float wHistory = keep / (1.0 + Luma(history) * exposure);

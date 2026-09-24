@@ -68,15 +68,20 @@ final VertexLayoutSpec _kVelocityInstancedLayout = VertexLayoutSpec(
 );
 
 extension _VelocityPass on Renderer {
+  /// The pipeline that draws through the velocity vertex stage the node
+  /// needs and [fragment] — `Velocity`, or `R4`'s `Reactive`, which [name]
+  /// says for the cache.
   PipelineHandle _velocityPipelineFor({
     required bool skinned,
     required bool instanced,
+    required ShaderHandle fragment,
+    required String name,
   }) {
     final key = instanced
-        ? 'instanced/Velocity'
+        ? 'instanced/$name'
         : skinned
-        ? 'skinned/Velocity'
-        : 'Velocity';
+        ? 'skinned/$name'
+        : name;
     return _pipelineCache.putIfAbsent(
       key,
       () => device.createPipeline(
@@ -85,7 +90,7 @@ extension _VelocityPass on Renderer {
             : skinned
             ? velocitySkinnedVertexShader
             : velocityVertexShader,
-        velocityShader,
+        fragment,
         layout: instanced
             ? _kVelocityInstancedLayout
             : skinned
@@ -93,6 +98,141 @@ extension _VelocityPass on Renderer {
             : _kVelocityLayout,
       ),
     );
+  }
+
+  /// Writes where the eye is and which way it looks into the block the
+  /// velocity vertex stages measure depth with, for [camera].
+  void _velocityCamera(CameraNode camera) {
+    final eye = vm.Vector3.zero();
+    final forward = vm.Vector3.zero();
+    camera
+      ..readWorldPosition(eye)
+      ..readForward(forward);
+    _prevFrameInfo.camera
+      ..[0] = eye.x
+      ..[1] = eye.y
+      ..[2] = eye.z;
+    _prevFrameInfo.forward
+      ..[0] = forward.x
+      ..[1] = forward.y
+      ..[2] = forward.z;
+  }
+
+  /// Binds everything the velocity vertex stages read for [node] and its
+  /// geometry, through a pipeline ending in [fragment], and returns the
+  /// vertex stage — or null when there is nothing of the node to draw.
+  ///
+  /// [past] is what the frame history kept of the node; null takes last
+  /// frame's placement, pose and weights to be this frame's, which is what a
+  /// caller that reads no motion — `R4`'s reactive mask — wants.
+  ShaderHandle? _bindVelocityNode({
+    required PassEncoder pass,
+    required MeshNode node,
+    required NodeHistory? past,
+    required vm.Matrix4 jittered,
+    required vm.Matrix4 current,
+    required vm.Matrix4 previous,
+    required ShaderHandle fragment,
+    required String name,
+    required RenderSettings settings,
+  }) {
+    final mesh = node.mesh as DrawableGeometry;
+    if (mesh.indexCount == 0) return null;
+    final instanced = node is InstancedMeshNode ? node : null;
+    if (instanced != null && instanced.count == 0) return null;
+    final skeleton = node.skeleton;
+    final stage = instanced != null
+        ? velocityInstancedVertexShader
+        : skeleton != null
+        ? velocitySkinnedVertexShader
+        : velocityVertexShader;
+
+    pass.bindPipeline(
+      _velocityPipelineFor(
+        skinned: skeleton != null,
+        instanced: instanced != null,
+        fragment: fragment,
+        name: name,
+      ),
+    );
+    pass
+      ..setWindingOrder(
+        node.worldIsMirrored
+            ? WindingOrder.clockwise
+            : WindingOrder.counterClockwise,
+      )
+      ..setCullMode(
+        settings.backfaceCulling && !node.material.doubleSided
+            ? CullMode.backFace
+            : CullMode.none,
+      )
+      ..bindVertexBuffer(mesh.vertices, mesh.vertexCount)
+      ..bindIndexBuffer(mesh.indices, mesh.indexType, mesh.indexCount);
+
+    if (instanced != null) {
+      final before = past?.instances;
+      final bytes = instanced.instanceBytes;
+      pass
+        ..bindVertexData(bytes, instanced.count, slot: 1)
+        ..bindVertexData(
+          // A batch whose count changed has no instance-for-instance past;
+          // its placements are taken as unmoved and the node's own motion
+          // is what shows.
+          before != null && past!.instanceCount == instanced.count
+              ? ByteData.sublistView(before)
+              : bytes,
+          instanced.count,
+          slot: 2,
+        );
+    }
+
+    final model = node.worldMatrix;
+    final mvp = vm.Matrix4.copy(jittered)..multiply(model);
+    _frameInfo.mvp.setAll(0, mvp.storage);
+    _frameInfo.model.setAll(0, model.storage);
+    _frameInfo.normalMatrix.setAll(0, node.worldNormalMatrix.storage);
+    pass.bindBlock(stage, _frameInfo);
+
+    mvp
+      ..setFrom(current)
+      ..multiply(model);
+    _prevFrameInfo.currentMvp.setAll(0, mvp.storage);
+    mvp
+      ..setFrom(previous)
+      ..multiply(past?.world ?? model);
+    _prevFrameInfo.previousMvp.setAll(0, mvp.storage);
+    final weights = past == null ? node.morph?.weights : past.morphWeights;
+    for (var i = 0; i < _prevFrameInfo.previousMorphWeights.length; i++) {
+      _prevFrameInfo.previousMorphWeights[i] =
+          weights != null && i < weights.length ? weights[i] : 0.0;
+    }
+    pass.bindBlock(stage, _prevFrameInfo);
+    _bindMorph(pass, stage, node.morph);
+
+    if (skeleton != null) {
+      skeleton.update(model);
+      _skinInfo.jointMatrices.setAll(0, skeleton.matrices);
+      pass.bindBlock(stage, _skinInfo);
+      // Last frame's palette as a texture of columns, one joint a row —
+      // see `velocity_skinned.vert`. Made for this draw and released after
+      // the frame; a skinned node that moves every frame pays one small
+      // upload a frame, as a batch with per-instance weights already does.
+      final palette = past?.joints ?? skeleton.matrices;
+      final texture = device.createTextureFromPixels(
+        width: 4,
+        height: palette.length ~/ 16,
+        format: TextureFormat.r32g32b32a32Float,
+        pixels: ByteData.sublistView(palette),
+      );
+      if (texture != null) _destroyAfterFrame(texture);
+      pass.bindTexture(
+        stage,
+        'prev_joint_texture',
+        texture ?? fallbackAlbedo,
+        sampler: SamplerOptions.nearestClamp,
+      );
+    }
+    return stage;
   }
 
   /// Draws every opaque node [frameHistory] says moved into [target], which
@@ -137,19 +277,7 @@ extension _VelocityPass on Renderer {
     );
     final jittered = _drawViewProjection(camera, rect, settings);
 
-    final eye = vm.Vector3.zero();
-    final forward = vm.Vector3.zero();
-    camera
-      ..readWorldPosition(eye)
-      ..readForward(forward);
-    _prevFrameInfo.camera
-      ..[0] = eye.x
-      ..[1] = eye.y
-      ..[2] = eye.z;
-    _prevFrameInfo.forward
-      ..[0] = forward.x
-      ..[1] = forward.y
-      ..[2] = forward.z;
+    _velocityCamera(camera);
     _velocityInfo.target
       ..[0] = 1.0 / target.width
       ..[1] = 1.0 / target.height
@@ -179,106 +307,19 @@ extension _VelocityPass on Renderer {
       ),
     );
 
-    final mvp = vm.Matrix4.identity();
     for (final node in moved) {
-      final mesh = node.mesh as DrawableGeometry;
-      if (mesh.indexCount == 0) continue;
-      final instanced = node is InstancedMeshNode ? node : null;
-      if (instanced != null && instanced.count == 0) continue;
-      final skeleton = node.skeleton;
-      final past = frameHistory.of(node)!;
-      final stage = instanced != null
-          ? velocityInstancedVertexShader
-          : skeleton != null
-          ? velocitySkinnedVertexShader
-          : velocityVertexShader;
-
-      pass.bindPipeline(
-        _velocityPipelineFor(
-          skinned: skeleton != null,
-          instanced: instanced != null,
-        ),
+      final stage = _bindVelocityNode(
+        pass: pass,
+        node: node,
+        past: frameHistory.of(node),
+        jittered: jittered,
+        current: current,
+        previous: previous,
+        fragment: velocityShader,
+        name: 'Velocity',
+        settings: settings,
       );
-      pass
-        ..setWindingOrder(
-          node.worldIsMirrored
-              ? WindingOrder.clockwise
-              : WindingOrder.counterClockwise,
-        )
-        ..setCullMode(
-          settings.backfaceCulling && !node.material.doubleSided
-              ? CullMode.backFace
-              : CullMode.none,
-        )
-        ..bindVertexBuffer(mesh.vertices, mesh.vertexCount)
-        ..bindIndexBuffer(mesh.indices, mesh.indexType, mesh.indexCount);
-
-      if (instanced != null) {
-        final before = past.instances;
-        final bytes = instanced.instanceBytes;
-        pass
-          ..bindVertexData(bytes, instanced.count, slot: 1)
-          ..bindVertexData(
-            // A batch whose count changed has no instance-for-instance past;
-            // its placements are taken as unmoved and the node's own motion
-            // is what shows.
-            before != null && past.instanceCount == instanced.count
-                ? ByteData.sublistView(before)
-                : bytes,
-            instanced.count,
-            slot: 2,
-          );
-      }
-
-      final model = node.worldMatrix;
-      mvp
-        ..setFrom(jittered)
-        ..multiply(model);
-      _frameInfo.mvp.setAll(0, mvp.storage);
-      _frameInfo.model.setAll(0, model.storage);
-      _frameInfo.normalMatrix.setAll(0, node.worldNormalMatrix.storage);
-      pass.bindBlock(stage, _frameInfo);
-
-      mvp
-        ..setFrom(current)
-        ..multiply(model);
-      _prevFrameInfo.currentMvp.setAll(0, mvp.storage);
-      mvp
-        ..setFrom(previous)
-        ..multiply(past.world);
-      _prevFrameInfo.previousMvp.setAll(0, mvp.storage);
-      final weights = past.morphWeights;
-      for (var i = 0; i < _prevFrameInfo.previousMorphWeights.length; i++) {
-        _prevFrameInfo.previousMorphWeights[i] =
-            weights != null && i < weights.length ? weights[i] : 0.0;
-      }
-      pass.bindBlock(stage, _prevFrameInfo);
-      _bindMorph(pass, stage, node.morph);
-
-      if (skeleton != null) {
-        skeleton.update(model);
-        _skinInfo.jointMatrices.setAll(0, skeleton.matrices);
-        pass.bindBlock(stage, _skinInfo);
-        // Last frame's palette as a texture of columns, one joint a row —
-        // see `velocity_skinned.vert`. Made for this draw and released after
-        // the frame; a skinned node that moves every frame pays one small
-        // upload a frame, as a batch with per-instance weights already does.
-        final palette = past.joints ?? skeleton.matrices;
-        final texture = device.createTextureFromPixels(
-          width: 4,
-          height: palette.length ~/ 16,
-          format: TextureFormat.r32g32b32a32Float,
-          pixels: ByteData.sublistView(palette),
-        );
-        if (texture != null) _destroyAfterFrame(texture);
-        pass.bindTexture(
-          stage,
-          'prev_joint_texture',
-          texture ?? fallbackAlbedo,
-          sampler: SamplerOptions.nearestClamp,
-        );
-      }
-
+      if (stage == null) continue;
       pass
         ..bindBlock(velocityShader, _velocityInfo)
         ..bindTexture(
@@ -287,10 +328,134 @@ extension _VelocityPass on Renderer {
           surface,
           sampler: SamplerOptions.nearestClamp,
         )
-        ..draw(instanceCount: instanced?.count ?? 1);
+        ..draw(instanceCount: node is InstancedMeshNode ? node.count : 1);
     }
     pass.submit();
     developer.Timeline.finishSync();
     return moved.length;
+  }
+
+  /// Marks, in [target]'s blue, how much of each pixel a blended surface or
+  /// a contributor's particles and splats cover — `R4`. [target] holds the
+  /// velocity already, and adding nought to its other three channels leaves
+  /// them as they were.
+  ///
+  /// Blended meshes are drawn through the velocity vertex stages, so they
+  /// land where the scene drew them however they are skinned, morphed or
+  /// batched; each [contributors] entry draws its own through
+  /// [PassContributor.encodeReactive].
+  ///
+  /// Returns how many meshes were marked.
+  int _encodeReactive({
+    required TextureHandle target,
+    required TextureHandle surface,
+    required Scene scene,
+    required RenderView view,
+    required RenderSettings settings,
+    required List<PassContributor> contributors,
+    required int width,
+    required int height,
+  }) {
+    final rect = Renderer._viewportPixels(view.viewportFraction, width, height);
+    final camera = view.camera;
+    final aspect = rect.width / rect.height;
+    final unjittered = camera.viewProjection(aspect);
+    _renderList.build(
+      scene,
+      view,
+      viewMatrix: camera.viewMatrix,
+      frustum: vm.Frustum.matrix(unjittered),
+    );
+    final blended = <MeshNode>[
+      for (final index in _renderList.transparent)
+        if (_renderList.itemAt(index).requireNode case final node
+            when node.mesh is DrawableGeometry &&
+                node.material.baseColor.w > 0.0)
+          node,
+    ];
+    if (blended.isEmpty && contributors.isEmpty) return 0;
+
+    developer.Timeline.startSync('Renderer.reactive');
+    final current = toFramebufferOrigin(unjittered, device.framebufferOrigin);
+    final jittered = _drawViewProjection(camera, rect, settings);
+
+    _velocityCamera(camera);
+    _reactiveInfo.eye.setAll(0, _prevFrameInfo.camera);
+    _reactiveInfo.forward.setAll(0, _prevFrameInfo.forward);
+    _reactiveInfo.target
+      ..[0] = 1.0 / target.width
+      ..[1] = 1.0 / target.height
+      ..[2] = _rowsFromBottom(target)
+      // The velocity pass's hundredth, for the same reason: a surface drawn
+      // over itself agrees with the buffer to rounding.
+      ..[3] = 0.01;
+    _reactiveInfo.params
+      ..[0] = settings.antiAlias.temporal.reactive.clamp(0.0, 1.0)
+      ..[1] = 0.0
+      ..[2] = 0.0;
+
+    final pass = device.beginRenderPass(
+      RenderPassDescriptor(
+        label: _passLabel,
+        colors: <ColorTarget>[
+          ColorTarget(texture: target, loadAction: LoadAction.load),
+        ],
+      ),
+    );
+    pass.setState(
+      Renderer._kSceneViewState.copyWith(
+        viewport: rect,
+        scissor: rect,
+        polygonMode: PolygonMode.fill,
+        blend: ReactiveFrame.state.blend,
+        depthWrite: false,
+        depthCompare: CompareFunction.always,
+      ),
+    );
+
+    for (final node in blended) {
+      final stage = _bindVelocityNode(
+        pass: pass,
+        node: node,
+        past: null,
+        jittered: jittered,
+        current: current,
+        previous: current,
+        fragment: reactiveShader,
+        name: 'Reactive',
+        settings: settings,
+      );
+      if (stage == null) continue;
+      // The material's alpha is how much of the pixel it covers: glass at a
+      // fifth is a fifth reactive.
+      _reactiveInfo.params[2] = node.material.baseColor.w.clamp(0.0, 1.0);
+      pass
+        ..bindBlock(reactiveShader, _reactiveInfo)
+        ..bindTexture(
+          reactiveShader,
+          'surface_texture',
+          surface,
+          sampler: SamplerOptions.nearestClamp,
+        )
+        ..draw(instanceCount: node is InstancedMeshNode ? node.count : 1);
+    }
+
+    if (contributors.isNotEmpty) {
+      final frame = ReactiveFrame(
+        encoder: pass,
+        device: device,
+        view: view,
+        viewProjection: jittered,
+        surface: surface,
+        white: fallbackAlbedo,
+        info: _reactiveInfo,
+      );
+      for (final contributor in contributors) {
+        contributor.encodeReactive(frame);
+      }
+    }
+    pass.submit();
+    developer.Timeline.finishSync();
+    return blended.length;
   }
 }
