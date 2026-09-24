@@ -352,6 +352,8 @@ final class RecordingDevice implements GraphicsDevice {
           final d => (
             texture: _texture(d.texture),
             clearValue: d.clearValue,
+            loadAction: d.loadAction,
+            storeAction: d.storeAction,
             stencilLoadAction: d.stencilLoadAction,
             stencilStoreAction: d.stencilStoreAction,
             stencilClearValue: d.stencilClearValue,

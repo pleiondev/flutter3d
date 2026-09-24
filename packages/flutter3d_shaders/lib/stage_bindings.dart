@@ -294,6 +294,10 @@ stageBindings = <String, ({Set<String> blocks, Set<String> samplers})>{
     blocks: <String>{'ShadeInfo'},
     samplers: <String>{'scene_texture', 'surface_texture'},
   ),
+  'WboitResolve': (
+    blocks: <String>{},
+    samplers: <String>{'accumulation_texture', 'revealage_texture'},
+  ),
   'Xray': (
     blocks: <String>{'FogInfo', 'FragInfo'},
     samplers: <String>{'base_color_texture'},

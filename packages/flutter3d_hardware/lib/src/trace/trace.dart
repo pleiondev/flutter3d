@@ -214,6 +214,8 @@ Future<TraceReplay> replayTrace(Trace trace, GraphicsDevice device) async {
               final d => DepthTarget(
                 texture: texture(d.texture),
                 clearValue: d.clearValue,
+                loadAction: d.loadAction,
+                storeAction: d.storeAction,
                 stencilLoadAction: d.stencilLoadAction,
                 stencilStoreAction: d.stencilStoreAction,
                 stencilClearValue: d.stencilClearValue,

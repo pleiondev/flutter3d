@@ -607,3 +607,27 @@ final class MrtProbeShader implements CpuFragmentShader {
     return Vector4(0.25, 0.5, 0.75, 1.0);
   }
 }
+
+/// `wboit_resolve.frag` — `R8`: the weighted average of the transparent
+/// layers, covering as much of the pixel as they do together, premultiplied
+/// for the source-over it is drawn with.
+final class WboitResolveShader implements CpuFragmentShader {
+  const WboitResolveShader();
+
+  @override
+  Vector4? run(Float32List v, ShaderBindings b, FragmentContext c) {
+    final accumulation = b.textures['accumulation_texture'];
+    final revealage = b.textures['revealage_texture'];
+    // Nothing bound covers nothing, which source-over leaves alone.
+    if (accumulation == null || revealage == null) return Vector4.zero();
+    final sum = accumulation.sample(v[0], v[1]);
+    final coverage = 1.0 - revealage.sample(v[0], v[1]).x;
+    final weight = sum.w.clamp(1e-5, 65504.0);
+    return Vector4(
+      math.min(sum.x, 65504.0) / weight * coverage,
+      math.min(sum.y, 65504.0) / weight * coverage,
+      math.min(sum.z, 65504.0) / weight * coverage,
+      coverage,
+    );
+  }
+}

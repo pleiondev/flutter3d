@@ -13,7 +13,7 @@ import 'cpu_vertex_fetch.dart';
 
 /// Records state and rasterises on `draw`.
 final class CpuEncoder implements CommandEncoder {
-  CpuEncoder(this._descriptor) {
+  CpuEncoder(this._descriptor, [this._independentBlend = true]) {
     for (final color in _descriptor.colors) {
       final texture = _attachment(color);
       if (color.loadAction != LoadAction.clear) continue;
@@ -31,11 +31,16 @@ final class CpuEncoder implements CommandEncoder {
     final depth = _descriptor.depth;
     if (depth != null) {
       final texture = depth.texture.backend as CpuTexture;
-      texture.depthBuffer().fillRange(
-        0,
-        texture.width * texture.height,
-        depth.clearValue,
-      );
+      // Kept as the last pass left it when the pass loads — `R8`'s
+      // transparent passes test against the opaque pass's depth. Every
+      // buffer here is stored, so the store action has nothing to decide.
+      if (depth.loadAction == LoadAction.clear) {
+        texture.depthBuffer().fillRange(
+          0,
+          texture.width * texture.height,
+          depth.clearValue,
+        );
+      }
       _depthTarget = texture;
       // The stencil only where the format says there is one — the test
       // against an attachment without a stencil is specified to pass always,
@@ -51,6 +56,11 @@ final class CpuEncoder implements CommandEncoder {
   }
 
   final RenderPassDescriptor _descriptor;
+
+  /// What the device answered for `supportsIndependentBlend`. False only for
+  /// a test drawing the fallback; then an index is ignored, as the contract
+  /// says of a backend without it.
+  final bool _independentBlend;
   CpuTexture? _depthTarget;
   Uint8List? _stencilTarget;
 
@@ -92,6 +102,11 @@ final class CpuEncoder implements CommandEncoder {
   bool _depthWrite = false;
   CompareFunction _depthCompare = CompareFunction.less;
   BlendState? _blend;
+
+  /// Attachment one's blend — `R8`. Null, which here means the stage's value
+  /// is written as it is, until a call names that attachment: that is what
+  /// attachment one has always had, so no pass that never names it moves.
+  BlendState? _surfaceBlend;
 
   /// The constant the four constant-reading factors multiply by.
   ///
@@ -179,15 +194,23 @@ final class CpuEncoder implements CommandEncoder {
   void setStencilReference(int value) =>
       _stencilReference = StencilState.narrowReference(value);
 
-  /// [attachment] is ignored, as it is on WebGL2 and for a plainer reason:
-  /// this pass keeps one blend state and every attachment it writes uses it.
+  /// Attachments zero and one each keep their own state; a higher index is
+  /// ignored, since the albedo buffer is never blended — `R8`.
   ///
-  /// The contract allows that — `CommandEncoder.setBlend` says the index is
-  /// honoured by one backend of three and what a caller may rely on instead —
-  /// and the engine's one indexed caller sets the same state on both
-  /// attachments, so nothing it draws depends on them differing.
+  /// Until weighted blended transparency asked, this pass kept one state and
+  /// ignored the index. Attachment one was never blended even so: the
+  /// surface buffer took the stage's value as it came, and still does until
+  /// something names it. A device built without independent blending goes
+  /// back to one state, whatever the index, which is the contract's word for
+  /// a backend that has none.
   @override
-  void setBlend(BlendState? state, {int attachment = 0}) => _blend = state;
+  void setBlend(BlendState? state, {int attachment = 0}) {
+    if (attachment == 0 || !_independentBlend) {
+      _blend = state;
+    } else if (attachment == 1) {
+      _surfaceBlend = state;
+    }
+  }
 
   @override
   void setBlendColor(Vector4 color) => _blendColor.setFrom(color);
@@ -995,6 +1018,8 @@ final class CpuEncoder implements CommandEncoder {
     final albedoTarget = _descriptor.colors.length > 2
         ? _attachment(_descriptor.colors[2])
         : null;
+    final surfaceBlend = _surfaceBlend;
+    final extraStorage = extra == null ? null : _storageOf(extra.format);
 
     for (var y = minY; y <= maxY; y++) {
       for (var x = minX; x <= maxX; x++) {
@@ -1055,10 +1080,21 @@ final class CpuEncoder implements CommandEncoder {
         final surface = context.surface;
         if (surface != null && extra != null) {
           final e = index * 4;
-          extra.pixels[e] = surface.x;
-          extra.pixels[e + 1] = surface.y;
-          extra.pixels[e + 2] = surface.z;
-          extra.pixels[e + 3] = surface.w;
+          if (surfaceBlend == null) {
+            extra.pixels[e] = surface.x;
+            extra.pixels[e + 1] = surface.y;
+            extra.pixels[e + 2] = surface.z;
+            extra.pixels[e + 3] = surface.w;
+          } else {
+            _blendInto(
+              surfaceBlend,
+              _blendColor,
+              extra.pixels,
+              e,
+              surface,
+              extraStorage!,
+            );
+          }
         }
         // Attachment two with it: whatever writes the surface writes its
         // colour, black when it named none, as `WriteSurfaceGeometry` does.
