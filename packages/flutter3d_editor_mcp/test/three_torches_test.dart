@@ -16,6 +16,7 @@
 /// number moves one line of a diff a person can read.
 library;
 
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:dart_mcp/client.dart';
@@ -225,10 +226,83 @@ void main() {
     expect((await call('list')).says, contains('entity 4 · torch'));
   });
 
-  test('the server says why it cannot draw', () async {
-    final refused = await call('screenshot');
-    expect(refused.did, isFalse);
-    expect(refused.says, contains('cannot draw'));
-    expect(refused.says, contains('Flutter'));
+  /// Puts the three torches of the scenario above on the walls.
+  Future<void> placeThreeTorches() async {
+    for (final where in <List<double>>[
+      <double>[7.75, 2.5, 0.0],
+      <double>[0.0, 2.5, -8.0],
+      <double>[0.0, 2.5, 8.0],
+    ]) {
+      await call('place', <String, Object?>{
+        'kind': 'entity',
+        'what': 'torch',
+        'at': where,
+      });
+    }
+  }
+
+  test('a screenshot is a picture of the level', () async {
+    await placeThreeTorches();
+    final result = await connection.callTool(
+      CallToolRequest(name: 'screenshot'),
+    );
+    expect(result.isError, isNot(true));
+    expect(result.content, hasLength(2));
+    expect((result.content.first as TextContent).text, contains('320×200'));
+    final image = result.content.last as ImageContent;
+    expect(image.mimeType, 'image/png');
+    final png = base64Decode(image.data);
+    // The signature, then a picture that is not one flat colour: the room's
+    // walls, floor and ceiling are three materials under one lamp.
+    expect(png.sublist(0, 8), <int>[137, 80, 78, 71, 13, 10, 26, 10]);
+    expect(png.length, greaterThan(2000));
+  });
+
+  test('the report says what the camera sees of each torch', () async {
+    await placeThreeTorches();
+    final report = await call('report');
+    expect(report.did, isTrue, reason: report.says);
+    final lines = report.says.split('\n');
+    String lineOf(String label) =>
+        lines.firstWhere((String it) => it.startsWith('$label ·'));
+
+    // From the default view — inside the room near the +x, +z corner,
+    // looking at its middle — the torches on the far wall and on the
+    // left wall are in plain sight, and the two on the walls beside the eye
+    // are out of the frame altogether.
+    expect(lineOf('entity 5 · torch'), matches(RegExp(r' · \d+ px · box ')));
+    expect(lineOf('entity 1 · torch'), matches(RegExp(r' · \d+ px · box ')));
+    expect(lineOf('entity 4 · torch'), contains(' · outside the view · '));
+    expect(lineOf('entity 6 · torch'), contains(' · outside the view · '));
+    // **The wall a torch hangs on is behind it, not over it.** Mutation:
+    // count every pixel of the torch's screen rectangle rather than only
+    // those whose ray passes through its box — the far wall around it is
+    // then named as covering the torch that stands in front of it.
+    expect(lineOf('entity 5 · torch'), isNot(contains('covered by')));
+    expect(lineOf('entity 1 · torch'), isNot(contains('covered by')));
+    // The floor owns more of the frame than any torch does.
+    int pixelsOf(String label) =>
+        int.parse(RegExp(r' · (\d+) px').firstMatch(lineOf(label))!.group(1)!);
+    expect(
+      pixelsOf('brush 0 · floor'),
+      greaterThan(pixelsOf('entity 5 · torch')),
+    );
+  });
+
+  test('a torch behind a wall is hidden, and the wall is named', () async {
+    await placeThreeTorches();
+    // Outside the room, beyond the +z wall, looking back through it: the
+    // torch hung on that wall's inside face cannot be seen, and what is in
+    // front of it is that wall, over every pixel of it.
+    final report = await call('report', <String, Object?>{
+      'from': <double>[0.0, 2.5, 20.0],
+      'at': <double>[0.0, 2.5, 0.0],
+    });
+    expect(report.did, isTrue, reason: report.says);
+    final torch = report.says
+        .split('\n')
+        .firstWhere((String it) => it.startsWith('entity 6 · torch ·'));
+    expect(torch, contains(' · hidden · '));
+    expect(torch, contains('covered by brush 3 · wall 100%'));
   });
 }

@@ -43,7 +43,8 @@ built from `editorCommandNames` rather than from a copy of it.
 | `undo`, `redo` | Sixty-four steps of whole-document snapshots |
 | `validate` | What the game would object to |
 | `save` | Write it out, or say why it will not |
-| `screenshot` | Refuses, with the reason |
+| `screenshot` | A flat picture of the level from a camera you may name |
+| `report` | What that camera sees of every brush, light and entity, and what is in the way |
 
 Ten of those are the document commands. The two that are not, and were missing
 from every sketch of this, are `list` and `validate` — and they are missing in
@@ -51,18 +52,20 @@ the same way. Every other verb works on *the selection*, which is a kind and an
 index that a program with no screen cannot guess; and without `validate` the
 first news of a broken level is a diff somebody reads later.
 
-## It cannot draw, and says so
+## It draws in software, flat
 
-`screenshot` is offered and refuses with its reason. Every backend in this
-repository reaches a `GraphicsDevice` whose finished frame is a Flutter widget,
-so a process that can render a level is a Flutter process — and `dart run`,
-which is how this server starts, cannot resolve a package that depends on the
-Flutter SDK.
+`screenshot` renders the level through `flutter3d_cpu`'s rasteriser, 320×200,
+so it needs no GPU and no Flutter. The scene comes from `flutter3d_editor_core`'s
+`LevelScene`, the same brushes, lights and probes a game loads. Textures are not
+drawn, because decoding them is the application's job, so every brush shows in
+its material's colour and every light and entity as a small box.
 
-The tool exists rather than being absent on purpose: an agent that finds no
-`screenshot` concludes the server is incomplete and goes looking for another way,
-while one that is told why stops asking. Open the level in
-`apps/flutter3d_editor` to look at it; `validate` is the better question anyway.
+`report` is the question a picture only half answers. It draws the same frame
+once more with the level split into one draw per brush and reads back which
+draw owns each pixel. For every brush, light and entity it says how many pixels
+it owns, where on the screen, how far away, and which pieces cover the part of
+the screen it would fill. "The torch is hidden by brush 3" is a count of pixels
+after the depth test.
 
 ## It will not overwrite a generated document
 

@@ -2695,18 +2695,20 @@ first thing that would answer the ring's gap properly.
 moving the step to a thread is a message protocol and a copy of the frame's state
 rather than a flag.
 
-**An agent editing a level cannot see it, and cannot join a session somebody
+**An agent editing a level sees it flat, and cannot join a session somebody
 else has open.** `flutter3d_editor_mcp` is a `dart run` process holding one
-document, and both of its limits follow from that. It cannot draw, because
-`presentFrame` in `flutter3d_app` — the one place a finished frame becomes a
-Flutter widget, whichever backend drew it — needs a Flutter process, and
-`dart run` cannot resolve a package that depends on the Flutter SDK, which
-`packages/flutter3d/tool/dump_fixture.dart` records finding out. The
-`screenshot` tool is therefore declared and refuses with that reason rather than
-being left out, because a missing tool reads as an incomplete server and sends
-whatever is calling it looking for another way. `validate` is the question this
-process can answer instead, and for a caller that writes coordinates rather than
-clicking on things it is the more useful one.
+document, and both of its limits follow from that. It draws through the
+software rasteriser: the level's scene is built by `LevelScene` in
+`flutter3d_editor_core`, the Flutter-free half of what `LevelLoader` used to do
+alone, and rendered on a `CpuDevice` at 320×200. What it cannot do is decode
+the level's textures, since `LevelLoader` decodes them through `dart:ui`, so
+`screenshot` shows every brush in its material's colour, with a small box at
+each light and entity. `report` asks the same frame for its object ids
+(`Renderer.captureObjectIds`, the pick pass read back whole) with the level
+built one draw per brush, and says for every brush, light and entity how many
+pixels it owns, where, how far away, and which pieces own the pixels its box
+would fill with their ray entering first — so "the torch is hidden by brush 3"
+is a pixel count after the depth test, not a guess from boxes.
 
 The second limit is a design decision rather than a platform's. A socket into a
 running editor — an agent and a person watching one level change together — is
