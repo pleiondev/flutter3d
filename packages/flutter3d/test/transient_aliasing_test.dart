@@ -77,6 +77,7 @@ Future<_Shot> _draw({
   required bool alias,
   required bool poison,
   int frames = 3,
+  RenderSettings settings = _tenPasses,
 }) async {
   final device = CpuDevice(
     width: _width,
@@ -129,7 +130,7 @@ Future<_Shot> _draw({
       height: _height,
       scene: scene,
       views: <RenderView>[view],
-      settings: _tenPasses.copyWith(aliasTargets: alias),
+      settings: settings.copyWith(aliasTargets: alias),
     );
   }
   return (
@@ -194,4 +195,33 @@ void main() {
     );
     expect(shared.pixels, separate.pixels);
   });
+
+  test(
+    'a scratch handed in as the finished frame is still the frame',
+    () async {
+      // Viewport shading is the last pass and draws into its own scratch, which
+      // it provides as `frame`: the newest version of an output, read after the
+      // last node. It must stay bound for `FrameResources.output`, and must not
+      // be lent to anyone or poisoned.
+      final shaded = _tenPasses.copyWith(
+        viewportShading: const ViewportShadingSettings(
+          mode: ViewportShading.normals,
+        ),
+      );
+      final lit = await _draw(alias: false, poison: false);
+      final plain = await _draw(alias: false, poison: false, settings: shaded);
+      final aliased = await _draw(alias: true, poison: true, settings: shaded);
+
+      expect(plain.ran.last, 'viewport shading');
+      // Mutation: let `FrameResources.endNode` unbind the newest version of an
+      // output like any other, and the frame falls back to the composite's
+      // target — the shading ran and nobody sees it.
+      expect(
+        plain.pixels,
+        isNot(lit.pixels),
+        reason: 'the shaded frame came out as the lit one',
+      );
+      expect(aliased.pixels, plain.pixels);
+    },
+  );
 }
