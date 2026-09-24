@@ -298,6 +298,25 @@ map_Kd textured.png
     expect(File('${scratch.path}/out/a.f3d').existsSync(), isTrue);
   });
 
+  test('a directory walk leaves a PLY that is not a capture alone', () async {
+    final models = Directory('${scratch.path}/in')..createSync();
+    File('${models.path}/mesh.ply').writeAsStringSync(
+      'ply\nformat ascii 1.0\nelement vertex 0\nend_header\n',
+    );
+    File(_fixture).copySync('${models.path}/a.obj');
+    final err = _BufferSink();
+
+    final code = await runConvert(<String>[
+      models.path,
+      '-o',
+      '${scratch.path}/out',
+    ], err: err);
+
+    expect(code, 0, reason: err.text);
+    expect(File('${scratch.path}/out/a.f3d').existsSync(), isTrue);
+    expect(File('${scratch.path}/out/mesh.f3dsplat').existsSync(), isFalse);
+  });
+
   test('a PLY that is not a splat capture refuses and says why', () async {
     final source = '${scratch.path}/mesh.ply';
     File(source).writeAsStringSync(
