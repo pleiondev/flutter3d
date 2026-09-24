@@ -53,8 +53,8 @@ final class SplatCloud {
         '${colours.length}, ${scales.length} and ${rotations.length}.',
       );
     }
-    if (shDegree < 0 || shDegree > 3) {
-      throw ArgumentError('shDegree is $shDegree; a cloud carries 0 to 3.');
+    if (shDegree < 0 || shDegree > 4) {
+      throw ArgumentError('shDegree is $shDegree; a cloud carries 0 to 4.');
     }
     if (this.shRest.length != count * shRestFloatsPerSplat) {
       throw ArgumentError(
@@ -83,7 +83,8 @@ final class SplatCloud {
   /// that it matches every other quaternion in this engine.
   final Float32List rotations;
 
-  /// The highest spherical-harmonic band the source carried, 0 to 3.
+  /// The highest spherical-harmonic band the source carried, 0 to 4 — glTF
+  /// stops at 3, SPZ goes to 4.
   ///
   /// **Carried, not drawn.** [colours] is band 0 alone, which is the colour a
   /// splat has from every direction; the higher bands are what makes it
@@ -98,7 +99,7 @@ final class SplatCloud {
   final Float32List shRest;
 
   /// How many floats of [shRest] each splat owns: `3 × ((d + 1)² − 1)`, so
-  /// 9, 24 or 45 for degrees 1, 2 and 3.
+  /// 9, 24, 45 or 72 for degrees 1 to 4.
   int get shRestFloatsPerSplat => 3 * ((shDegree + 1) * (shDegree + 1) - 1);
 
   /// The 3×3 covariance of splat [index], written into [out] as six floats:
