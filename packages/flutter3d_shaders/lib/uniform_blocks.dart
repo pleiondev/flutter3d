@@ -1092,6 +1092,30 @@ uniformBlocks = <String, Map<String, Map<String, UniformMemberLayout>>>{
       ),
       'attenuation': (offset: 80, byteLength: 16, elements: 1, type: 'Vector4'),
       'iridescence': (offset: 96, byteLength: 16, elements: 1, type: 'Vector4'),
+      'scene_colour': (
+        offset: 112,
+        byteLength: 16,
+        elements: 1,
+        type: 'Vector4',
+      ),
+      'scene_viewport': (
+        offset: 128,
+        byteLength: 16,
+        elements: 1,
+        type: 'Vector4',
+      ),
+      'scene_levels': (
+        offset: 144,
+        byteLength: 96,
+        elements: 6,
+        type: 'Vector4',
+      ),
+      'scene_view_projection': (
+        offset: 240,
+        byteLength: 64,
+        elements: 1,
+        type: 'Matrix',
+      ),
     },
     'LightListInfo': <String, UniformMemberLayout>{
       'list': (offset: 0, byteLength: 16, elements: 1, type: 'Vector4'),
@@ -1186,6 +1210,11 @@ uniformBlocks = <String, Map<String, Map<String, UniformMemberLayout>>>{
       'forward': (offset: 144, byteLength: 16, elements: 1, type: 'Vector4'),
       'params': (offset: 160, byteLength: 16, elements: 1, type: 'Vector4'),
       'screen': (offset: 176, byteLength: 16, elements: 1, type: 'Vector4'),
+    },
+  },
+  'SceneColourCopy': <String, Map<String, UniformMemberLayout>>{
+    'SceneCopyInfo': <String, UniformMemberLayout>{
+      'params': (offset: 0, byteLength: 16, elements: 1, type: 'Vector4'),
     },
   },
   'ShadowCopy': <String, Map<String, UniformMemberLayout>>{

@@ -291,6 +291,10 @@
     "type": "fragment",
     "file": "shaders/post/wboit_resolve.frag"
   },
+  "SceneColourCopy": {
+    "type": "fragment",
+    "file": "shaders/post/scene_colour_copy.frag"
+  },
   "ImpostorVertex": {
     "type": "vertex",
     "file": "shaders/impostor.vert"

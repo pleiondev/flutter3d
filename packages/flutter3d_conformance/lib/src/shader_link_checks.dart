@@ -149,6 +149,8 @@ Future<void> checkLinking(GraphicsDevice device) async {
       'EvsmFilter',
       // `R8`: the transparent layers, averaged back over the scene.
       'WboitResolve',
+      // `M3`: the levels of the scene the transmissive draws read.
+      'SceneColourCopy',
     ])
       ('FullscreenVertex', post),
     ('DebugLineVertex', 'DebugLine'),
