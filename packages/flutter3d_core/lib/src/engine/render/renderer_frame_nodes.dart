@@ -130,8 +130,22 @@ final class _CubeShadowStaticNode extends RenderNode {
     // casting — changed pixels only this bake holds, and neither the rows nor
     // the settings moved. `Scene.staticShadowGeneration` counts those, and a
     // change to it is as much a reason to redraw as a change to the key.
+    // A material that became double-sided changes which faces a static caster
+    // records too, and a material is not a node: it reaches neither the
+    // generation nor the rows. Hashed here over the static casters rather than
+    // counted in a setter, because the x-ray pass writes `doubleSided` on its
+    // override materials every frame and would re-bake every frame with it.
     final generation = scene.staticShadowGeneration;
-    final castersChanged = _renderer._staticBakeGeneration != generation;
+    var faces = 0;
+    for (final node in scene.meshes) {
+      if (!node.shadowIsStatic || !node.shadowCasting.casts) continue;
+      faces = 0x1fffffff & (faces * 31 + identityHashCode(node));
+      faces =
+          0x1fffffff & (faces * 31 + (node.castsShadowFromEveryFace ? 1 : 0));
+    }
+    final castersChanged =
+        _renderer._staticBakeGeneration != generation ||
+        _renderer._staticBakeFaces != faces;
     final key = StaticBakeKey.of(settings);
     if (shouldBakeStatic(
       rowsChanged: staticDirty || castersChanged,
@@ -149,6 +163,7 @@ final class _CubeShadowStaticNode extends RenderNode {
       _renderer._staticShadowBaked = true;
       _renderer._staticBakeKey = key;
       _renderer._staticBakeGeneration = generation;
+      _renderer._staticBakeFaces = faces;
       // After drawing, not after deciding: a flag cleared by the decision would
       // promise walls that a skipped pass never drew.
       _renderer._shadowSlotAllocator.recordStaticBake();
@@ -213,7 +228,7 @@ final class _CubeShadowNode extends RenderNode {
     // casters are standing still, and a face whose picture would come out the
     // same is a face worth leaving alone.
     final scheduled = _renderer._shadowFaceScheduler
-        .select(_renderer._computeFaceSignatures(scene, slotCount))
+        .select(_renderer._computeFaceSignatures(scene, slotCount, settings))
         .toSet();
     if (scheduled.isNotEmpty) {
       _renderer._renderCubeShadow(
@@ -837,7 +852,13 @@ final class _ContactShadowNode extends RenderNode with _NeedsSurfaceBuffer {
 /// air. Declaring it is what attaches the buffer, the same way the occlusion
 /// pass's own declaration does.
 final class _LightShaftsNode extends RenderNode with _NeedsSurfaceBuffer {
-  _LightShaftsNode(this._renderer, this._view, this._settings);
+  _LightShaftsNode(
+    this._renderer,
+    this._view,
+    this._settings,
+    this._toLight,
+    this._radiance,
+  );
 
   @override
   Renderer get owner => _renderer;
@@ -845,6 +866,12 @@ final class _LightShaftsNode extends RenderNode with _NeedsSurfaceBuffer {
   final Renderer _renderer;
   final RenderView _view;
   final RenderSettings _settings;
+
+  /// Towards the shadow-casting sun, and its colour times intensity — what
+  /// the air scatters. Null when no directional light casts, and then there
+  /// is no shadow map to march either.
+  final vm.Vector3? _toLight;
+  final vm.Vector3? _radiance;
 
   @override
   String get name => 'light shafts';
@@ -873,8 +900,13 @@ final class _LightShaftsNode extends RenderNode with _NeedsSurfaceBuffer {
   void execute(NodeFrame frame) {
     final surface = frame.resources.tryTexture(FrameResourceIds.surfaceBuffer);
     final shadow = frame.resources.tryTexture(FrameResourceIds.shadowMap);
+    final toLight = _toLight;
+    final radiance = _radiance;
     if (surface == null || shadow == null) return;
+    if (toLight == null || radiance == null) return;
     final lit = _renderer._encodeLightShafts(
+      toLight: toLight,
+      radiance: radiance,
       scene: frame.resources.texture(FrameResourceIds.hdrColour),
       surface: surface,
       shadow: shadow,

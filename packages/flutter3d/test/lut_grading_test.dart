@@ -249,9 +249,16 @@ void main() {
       // eight-bit target — rather than about the table alone. A float
       // target or a wider gamut would have to be measured again, which is
       // why the sentence is here and not only in the plan.
+      //
+      // Undithered. The half step the table is off by is still under one
+      // byte, but the dither adds up to half a step of its own, and the two
+      // together cross a rounding edge where either alone does not.
       final it = _engine();
-      final without = await _draw(it, const LookSettings());
-      final through = await _draw(it, LookSettings(lut: _identity(it.device)));
+      final without = await _draw(it, const LookSettings(dither: 0));
+      final through = await _draw(
+        it,
+        LookSettings(lut: _identity(it.device), dither: 0),
+      );
 
       final worst = _largestDifference(without, through);
       expect(worst, 0, reason: 'an identity table moved a channel by $worst');

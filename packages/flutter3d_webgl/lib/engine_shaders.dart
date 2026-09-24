@@ -1714,7 +1714,11 @@ void WriteSurfaceGeometry(float roughness) {
     frag_surface = vec4(g_debug_surface, ViewDepth());
     return;
   }
-  frag_surface = vec4(EncodeOctahedral(normalize(v_normal)),
+  // Reversed on a back face, as the lit normal is, so the occlusion and
+  // reflection passes see the side of a double-sided surface that faces them.
+  vec3 geometric = normalize(v_normal);
+  if (!gl_FrontFacing) geometric = -geometric;
+  frag_surface = vec4(EncodeOctahedral(geometric),
                       clamp(roughness, 0.0, 1.0), ViewDepth());
 #endif
 }
@@ -2044,6 +2048,12 @@ Surface ReadSurface() {
   }
 
   s.n = normalize(v_normal);
+  // The back of a double-sided surface is lit from its own side: glTF asks
+  // for the normal to be reversed there, and without it the underside of a
+  // cloth turned to the sun reads n·l below zero and stays unlit. Only a
+  // double-sided material ever draws a back face, since everything else has
+  // them culled.
+  if (!gl_FrontFacing) s.n = -s.n;
   s.v = normalize(frag_info.camera_position.xyz - v_world_position);
   // Clamped away from zero: a grazing view direction otherwise divides by zero
   // in the specular visibility term.
@@ -3048,7 +3058,11 @@ void WriteSurfaceGeometry(float roughness) {
     frag_surface = vec4(g_debug_surface, ViewDepth());
     return;
   }
-  frag_surface = vec4(EncodeOctahedral(normalize(v_normal)),
+  // Reversed on a back face, as the lit normal is, so the occlusion and
+  // reflection passes see the side of a double-sided surface that faces them.
+  vec3 geometric = normalize(v_normal);
+  if (!gl_FrontFacing) geometric = -geometric;
+  frag_surface = vec4(EncodeOctahedral(geometric),
                       clamp(roughness, 0.0, 1.0), ViewDepth());
 #endif
 }
@@ -3378,6 +3392,12 @@ Surface ReadSurface() {
   }
 
   s.n = normalize(v_normal);
+  // The back of a double-sided surface is lit from its own side: glTF asks
+  // for the normal to be reversed there, and without it the underside of a
+  // cloth turned to the sun reads n·l below zero and stays unlit. Only a
+  // double-sided material ever draws a back face, since everything else has
+  // them culled.
+  if (!gl_FrontFacing) s.n = -s.n;
   s.v = normalize(frag_info.camera_position.xyz - v_world_position);
   // Clamped away from zero: a grazing view direction otherwise divides by zero
   // in the specular visibility term.
@@ -4371,7 +4391,11 @@ void WriteSurfaceGeometry(float roughness) {
     frag_surface = vec4(g_debug_surface, ViewDepth());
     return;
   }
-  frag_surface = vec4(EncodeOctahedral(normalize(v_normal)),
+  // Reversed on a back face, as the lit normal is, so the occlusion and
+  // reflection passes see the side of a double-sided surface that faces them.
+  vec3 geometric = normalize(v_normal);
+  if (!gl_FrontFacing) geometric = -geometric;
+  frag_surface = vec4(EncodeOctahedral(geometric),
                       clamp(roughness, 0.0, 1.0), ViewDepth());
 #endif
 }
@@ -4701,6 +4725,12 @@ Surface ReadSurface() {
   }
 
   s.n = normalize(v_normal);
+  // The back of a double-sided surface is lit from its own side: glTF asks
+  // for the normal to be reversed there, and without it the underside of a
+  // cloth turned to the sun reads n·l below zero and stays unlit. Only a
+  // double-sided material ever draws a back face, since everything else has
+  // them culled.
+  if (!gl_FrontFacing) s.n = -s.n;
   s.v = normalize(frag_info.camera_position.xyz - v_world_position);
   // Clamped away from zero: a grazing view direction otherwise divides by zero
   // in the specular visibility term.
@@ -5530,6 +5560,11 @@ void ApplyNormalMap(inout Surface s) {
   // every mirrored half of a symmetric model light from the wrong side, which
   // is exactly what NormalTangentTest is built to show.
   vec3 b = cross(s.n, t) * v_tangent.w;
+  // On a back face `ReadSurface` has already turned the normal round, and
+  // the bitangent above turned with it. The tangent has to follow, or the
+  // frame is half-mirrored and relief along u lights from the wrong side —
+  // glTF turns the whole frame, not the normal alone.
+  if (!gl_FrontFacing) t = -t;
 
   vec3 sampled = sampledTexel.xyz * 2.0 - 1.0;
   // normalScale attenuates the tangent-space xy, per the glTF spec.
@@ -5591,7 +5626,17 @@ float ShadowFactor(Surface s, LightSample light, int lightIndex) {
   // projecting it. It costs nothing and fixes the shadow acne that a depth bias
   // alone cannot, because the error is proportional to the surface's slope
   // relative to the light rather than to depth.
-  vec3 origin = v_world_position + s.n * frag_info.shadow_params.z;
+  //
+  // **A flat distance plus one texel of the cascade, scaled by the slope.**
+  // The flat part alone was tuned for surfaces the map never recorded: with
+  // the default `casterFaces: back` a closed mesh writes only the faces turned
+  // away from the sun, so a lit face compares against its own far side. A
+  // double-sided material writes its lit faces too, and then the error the
+  // offset has to clear is the patch one texel covers, which is centimetres
+  // in the near cascade and decimetres in the far one. The same measure
+  // `PointShadowFactor` takes, for the same reason.
+  float nDotL = max(light.n_dot_l, 0.15);
+  float slope = min(sqrt(max(1.0 - nDotL * nDotL, 0.0)) / (nDotL * nDotL), 8.0);
 
   // Which cascade covers this fragment.
   //
@@ -5618,6 +5663,13 @@ float ShadowFactor(Surface s, LightSample light, int lightIndex) {
         ? frag_info.shadow_matrix
         : (which == 1 ? frag_info.shadow_matrix_far
                       : frag_info.shadow_matrix_farthest);
+    // One texel of this cascade in metres. The projection is orthographic,
+    // so its first row is 2 / width, and a tile texel is `shadow_cascades.w`
+    // of the width.
+    float rowX = length(vec3(matrix[0][0], matrix[1][0], matrix[2][0]));
+    float texelMetres = 2.0 * frag_info.shadow_cascades.w / max(rowX, 1e-6);
+    vec3 origin = v_world_position +
+        s.n * (frag_info.shadow_params.z + texelMetres * (1.0 + slope));
     vec4 lightSpace = matrix * vec4(origin, 1.0);
     if (lightSpace.w <= 0.0) continue;
     vec3 candidate = lightSpace.xyz / lightSpace.w;
@@ -5629,8 +5681,17 @@ float ShadowFactor(Surface s, LightSample light, int lightIndex) {
       continue;
     }
     // Depth is already in [0, 1] here, as every projection in this engine
-    // produces; beyond the far plane there is nothing left to shadow.
-    if (candidate.z > 1.0) continue;
+    // produces. **Past the far plane is behind every caster, not outside the
+    // map.** The last cascade's depth is fitted to the casters alone, so a
+    // floor that runs on past them — the tip of a long evening shadow — sits
+    // beyond it. Skipping that point called it lit and cut the shadow off
+    // along the line where the far plane meets the floor. A nearer cascade
+    // may still be missing casters and hands the point on; the last one
+    // clamps, and 1.0 compares lit only against a texel nothing was drawn in.
+    if (candidate.z > 1.0) {
+      if (which < cascadeCount - 1) continue;
+      candidate.z = 1.0;
+    }
 
     // Into the atlas: the cascades sit side by side in one texture.
     uv = vec2((inTile.x + float(which)) / float(cascadeCount), inTile.y);
@@ -5990,7 +6051,11 @@ void WriteSurfaceGeometry(float roughness) {
     frag_surface = vec4(g_debug_surface, ViewDepth());
     return;
   }
-  frag_surface = vec4(EncodeOctahedral(normalize(v_normal)),
+  // Reversed on a back face, as the lit normal is, so the occlusion and
+  // reflection passes see the side of a double-sided surface that faces them.
+  vec3 geometric = normalize(v_normal);
+  if (!gl_FrontFacing) geometric = -geometric;
+  frag_surface = vec4(EncodeOctahedral(geometric),
                       clamp(roughness, 0.0, 1.0), ViewDepth());
 #endif
 }
@@ -6320,6 +6385,12 @@ Surface ReadSurface() {
   }
 
   s.n = normalize(v_normal);
+  // The back of a double-sided surface is lit from its own side: glTF asks
+  // for the normal to be reversed there, and without it the underside of a
+  // cloth turned to the sun reads n·l below zero and stays unlit. Only a
+  // double-sided material ever draws a back face, since everything else has
+  // them culled.
+  if (!gl_FrontFacing) s.n = -s.n;
   s.v = normalize(frag_info.camera_position.xyz - v_world_position);
   // Clamped away from zero: a grazing view direction otherwise divides by zero
   // in the specular visibility term.
@@ -7149,6 +7220,11 @@ void ApplyNormalMap(inout Surface s) {
   // every mirrored half of a symmetric model light from the wrong side, which
   // is exactly what NormalTangentTest is built to show.
   vec3 b = cross(s.n, t) * v_tangent.w;
+  // On a back face `ReadSurface` has already turned the normal round, and
+  // the bitangent above turned with it. The tangent has to follow, or the
+  // frame is half-mirrored and relief along u lights from the wrong side —
+  // glTF turns the whole frame, not the normal alone.
+  if (!gl_FrontFacing) t = -t;
 
   vec3 sampled = sampledTexel.xyz * 2.0 - 1.0;
   // normalScale attenuates the tangent-space xy, per the glTF spec.
@@ -7210,7 +7286,17 @@ float ShadowFactor(Surface s, LightSample light, int lightIndex) {
   // projecting it. It costs nothing and fixes the shadow acne that a depth bias
   // alone cannot, because the error is proportional to the surface's slope
   // relative to the light rather than to depth.
-  vec3 origin = v_world_position + s.n * frag_info.shadow_params.z;
+  //
+  // **A flat distance plus one texel of the cascade, scaled by the slope.**
+  // The flat part alone was tuned for surfaces the map never recorded: with
+  // the default `casterFaces: back` a closed mesh writes only the faces turned
+  // away from the sun, so a lit face compares against its own far side. A
+  // double-sided material writes its lit faces too, and then the error the
+  // offset has to clear is the patch one texel covers, which is centimetres
+  // in the near cascade and decimetres in the far one. The same measure
+  // `PointShadowFactor` takes, for the same reason.
+  float nDotL = max(light.n_dot_l, 0.15);
+  float slope = min(sqrt(max(1.0 - nDotL * nDotL, 0.0)) / (nDotL * nDotL), 8.0);
 
   // Which cascade covers this fragment.
   //
@@ -7237,6 +7323,13 @@ float ShadowFactor(Surface s, LightSample light, int lightIndex) {
         ? frag_info.shadow_matrix
         : (which == 1 ? frag_info.shadow_matrix_far
                       : frag_info.shadow_matrix_farthest);
+    // One texel of this cascade in metres. The projection is orthographic,
+    // so its first row is 2 / width, and a tile texel is `shadow_cascades.w`
+    // of the width.
+    float rowX = length(vec3(matrix[0][0], matrix[1][0], matrix[2][0]));
+    float texelMetres = 2.0 * frag_info.shadow_cascades.w / max(rowX, 1e-6);
+    vec3 origin = v_world_position +
+        s.n * (frag_info.shadow_params.z + texelMetres * (1.0 + slope));
     vec4 lightSpace = matrix * vec4(origin, 1.0);
     if (lightSpace.w <= 0.0) continue;
     vec3 candidate = lightSpace.xyz / lightSpace.w;
@@ -7248,8 +7341,17 @@ float ShadowFactor(Surface s, LightSample light, int lightIndex) {
       continue;
     }
     // Depth is already in [0, 1] here, as every projection in this engine
-    // produces; beyond the far plane there is nothing left to shadow.
-    if (candidate.z > 1.0) continue;
+    // produces. **Past the far plane is behind every caster, not outside the
+    // map.** The last cascade's depth is fitted to the casters alone, so a
+    // floor that runs on past them — the tip of a long evening shadow — sits
+    // beyond it. Skipping that point called it lit and cut the shadow off
+    // along the line where the far plane meets the floor. A nearer cascade
+    // may still be missing casters and hands the point on; the last one
+    // clamps, and 1.0 compares lit only against a texel nothing was drawn in.
+    if (candidate.z > 1.0) {
+      if (which < cascadeCount - 1) continue;
+      candidate.z = 1.0;
+    }
 
     // Into the atlas: the cascades sit side by side in one texture.
     uv = vec2((inTile.x + float(which)) / float(cascadeCount), inTile.y);
@@ -7624,7 +7726,11 @@ void WriteSurfaceGeometry(float roughness) {
     frag_surface = vec4(g_debug_surface, ViewDepth());
     return;
   }
-  frag_surface = vec4(EncodeOctahedral(normalize(v_normal)),
+  // Reversed on a back face, as the lit normal is, so the occlusion and
+  // reflection passes see the side of a double-sided surface that faces them.
+  vec3 geometric = normalize(v_normal);
+  if (!gl_FrontFacing) geometric = -geometric;
+  frag_surface = vec4(EncodeOctahedral(geometric),
                       clamp(roughness, 0.0, 1.0), ViewDepth());
 #endif
 }
@@ -7954,6 +8060,12 @@ Surface ReadSurface() {
   }
 
   s.n = normalize(v_normal);
+  // The back of a double-sided surface is lit from its own side: glTF asks
+  // for the normal to be reversed there, and without it the underside of a
+  // cloth turned to the sun reads n·l below zero and stays unlit. Only a
+  // double-sided material ever draws a back face, since everything else has
+  // them culled.
+  if (!gl_FrontFacing) s.n = -s.n;
   s.v = normalize(frag_info.camera_position.xyz - v_world_position);
   // Clamped away from zero: a grazing view direction otherwise divides by zero
   // in the specular visibility term.
@@ -8783,6 +8895,11 @@ void ApplyNormalMap(inout Surface s) {
   // every mirrored half of a symmetric model light from the wrong side, which
   // is exactly what NormalTangentTest is built to show.
   vec3 b = cross(s.n, t) * v_tangent.w;
+  // On a back face `ReadSurface` has already turned the normal round, and
+  // the bitangent above turned with it. The tangent has to follow, or the
+  // frame is half-mirrored and relief along u lights from the wrong side —
+  // glTF turns the whole frame, not the normal alone.
+  if (!gl_FrontFacing) t = -t;
 
   vec3 sampled = sampledTexel.xyz * 2.0 - 1.0;
   // normalScale attenuates the tangent-space xy, per the glTF spec.
@@ -8844,7 +8961,17 @@ float ShadowFactor(Surface s, LightSample light, int lightIndex) {
   // projecting it. It costs nothing and fixes the shadow acne that a depth bias
   // alone cannot, because the error is proportional to the surface's slope
   // relative to the light rather than to depth.
-  vec3 origin = v_world_position + s.n * frag_info.shadow_params.z;
+  //
+  // **A flat distance plus one texel of the cascade, scaled by the slope.**
+  // The flat part alone was tuned for surfaces the map never recorded: with
+  // the default `casterFaces: back` a closed mesh writes only the faces turned
+  // away from the sun, so a lit face compares against its own far side. A
+  // double-sided material writes its lit faces too, and then the error the
+  // offset has to clear is the patch one texel covers, which is centimetres
+  // in the near cascade and decimetres in the far one. The same measure
+  // `PointShadowFactor` takes, for the same reason.
+  float nDotL = max(light.n_dot_l, 0.15);
+  float slope = min(sqrt(max(1.0 - nDotL * nDotL, 0.0)) / (nDotL * nDotL), 8.0);
 
   // Which cascade covers this fragment.
   //
@@ -8871,6 +8998,13 @@ float ShadowFactor(Surface s, LightSample light, int lightIndex) {
         ? frag_info.shadow_matrix
         : (which == 1 ? frag_info.shadow_matrix_far
                       : frag_info.shadow_matrix_farthest);
+    // One texel of this cascade in metres. The projection is orthographic,
+    // so its first row is 2 / width, and a tile texel is `shadow_cascades.w`
+    // of the width.
+    float rowX = length(vec3(matrix[0][0], matrix[1][0], matrix[2][0]));
+    float texelMetres = 2.0 * frag_info.shadow_cascades.w / max(rowX, 1e-6);
+    vec3 origin = v_world_position +
+        s.n * (frag_info.shadow_params.z + texelMetres * (1.0 + slope));
     vec4 lightSpace = matrix * vec4(origin, 1.0);
     if (lightSpace.w <= 0.0) continue;
     vec3 candidate = lightSpace.xyz / lightSpace.w;
@@ -8882,8 +9016,17 @@ float ShadowFactor(Surface s, LightSample light, int lightIndex) {
       continue;
     }
     // Depth is already in [0, 1] here, as every projection in this engine
-    // produces; beyond the far plane there is nothing left to shadow.
-    if (candidate.z > 1.0) continue;
+    // produces. **Past the far plane is behind every caster, not outside the
+    // map.** The last cascade's depth is fitted to the casters alone, so a
+    // floor that runs on past them — the tip of a long evening shadow — sits
+    // beyond it. Skipping that point called it lit and cut the shadow off
+    // along the line where the far plane meets the floor. A nearer cascade
+    // may still be missing casters and hands the point on; the last one
+    // clamps, and 1.0 compares lit only against a texel nothing was drawn in.
+    if (candidate.z > 1.0) {
+      if (which < cascadeCount - 1) continue;
+      candidate.z = 1.0;
+    }
 
     // Into the atlas: the cascades sit side by side in one texture.
     uv = vec2((inTile.x + float(which)) / float(cascadeCount), inTile.y);
@@ -9351,7 +9494,11 @@ void WriteSurfaceGeometry(float roughness) {
     frag_surface = vec4(g_debug_surface, ViewDepth());
     return;
   }
-  frag_surface = vec4(EncodeOctahedral(normalize(v_normal)),
+  // Reversed on a back face, as the lit normal is, so the occlusion and
+  // reflection passes see the side of a double-sided surface that faces them.
+  vec3 geometric = normalize(v_normal);
+  if (!gl_FrontFacing) geometric = -geometric;
+  frag_surface = vec4(EncodeOctahedral(geometric),
                       clamp(roughness, 0.0, 1.0), ViewDepth());
 #endif
 }
@@ -9681,6 +9828,12 @@ Surface ReadSurface() {
   }
 
   s.n = normalize(v_normal);
+  // The back of a double-sided surface is lit from its own side: glTF asks
+  // for the normal to be reversed there, and without it the underside of a
+  // cloth turned to the sun reads n·l below zero and stays unlit. Only a
+  // double-sided material ever draws a back face, since everything else has
+  // them culled.
+  if (!gl_FrontFacing) s.n = -s.n;
   s.v = normalize(frag_info.camera_position.xyz - v_world_position);
   // Clamped away from zero: a grazing view direction otherwise divides by zero
   // in the specular visibility term.
@@ -10510,6 +10663,11 @@ void ApplyNormalMap(inout Surface s) {
   // every mirrored half of a symmetric model light from the wrong side, which
   // is exactly what NormalTangentTest is built to show.
   vec3 b = cross(s.n, t) * v_tangent.w;
+  // On a back face `ReadSurface` has already turned the normal round, and
+  // the bitangent above turned with it. The tangent has to follow, or the
+  // frame is half-mirrored and relief along u lights from the wrong side —
+  // glTF turns the whole frame, not the normal alone.
+  if (!gl_FrontFacing) t = -t;
 
   vec3 sampled = sampledTexel.xyz * 2.0 - 1.0;
   // normalScale attenuates the tangent-space xy, per the glTF spec.
@@ -10571,7 +10729,17 @@ float ShadowFactor(Surface s, LightSample light, int lightIndex) {
   // projecting it. It costs nothing and fixes the shadow acne that a depth bias
   // alone cannot, because the error is proportional to the surface's slope
   // relative to the light rather than to depth.
-  vec3 origin = v_world_position + s.n * frag_info.shadow_params.z;
+  //
+  // **A flat distance plus one texel of the cascade, scaled by the slope.**
+  // The flat part alone was tuned for surfaces the map never recorded: with
+  // the default `casterFaces: back` a closed mesh writes only the faces turned
+  // away from the sun, so a lit face compares against its own far side. A
+  // double-sided material writes its lit faces too, and then the error the
+  // offset has to clear is the patch one texel covers, which is centimetres
+  // in the near cascade and decimetres in the far one. The same measure
+  // `PointShadowFactor` takes, for the same reason.
+  float nDotL = max(light.n_dot_l, 0.15);
+  float slope = min(sqrt(max(1.0 - nDotL * nDotL, 0.0)) / (nDotL * nDotL), 8.0);
 
   // Which cascade covers this fragment.
   //
@@ -10598,6 +10766,13 @@ float ShadowFactor(Surface s, LightSample light, int lightIndex) {
         ? frag_info.shadow_matrix
         : (which == 1 ? frag_info.shadow_matrix_far
                       : frag_info.shadow_matrix_farthest);
+    // One texel of this cascade in metres. The projection is orthographic,
+    // so its first row is 2 / width, and a tile texel is `shadow_cascades.w`
+    // of the width.
+    float rowX = length(vec3(matrix[0][0], matrix[1][0], matrix[2][0]));
+    float texelMetres = 2.0 * frag_info.shadow_cascades.w / max(rowX, 1e-6);
+    vec3 origin = v_world_position +
+        s.n * (frag_info.shadow_params.z + texelMetres * (1.0 + slope));
     vec4 lightSpace = matrix * vec4(origin, 1.0);
     if (lightSpace.w <= 0.0) continue;
     vec3 candidate = lightSpace.xyz / lightSpace.w;
@@ -10609,8 +10784,17 @@ float ShadowFactor(Surface s, LightSample light, int lightIndex) {
       continue;
     }
     // Depth is already in [0, 1] here, as every projection in this engine
-    // produces; beyond the far plane there is nothing left to shadow.
-    if (candidate.z > 1.0) continue;
+    // produces. **Past the far plane is behind every caster, not outside the
+    // map.** The last cascade's depth is fitted to the casters alone, so a
+    // floor that runs on past them — the tip of a long evening shadow — sits
+    // beyond it. Skipping that point called it lit and cut the shadow off
+    // along the line where the far plane meets the floor. A nearer cascade
+    // may still be missing casters and hands the point on; the last one
+    // clamps, and 1.0 compares lit only against a texel nothing was drawn in.
+    if (candidate.z > 1.0) {
+      if (which < cascadeCount - 1) continue;
+      candidate.z = 1.0;
+    }
 
     // Into the atlas: the cascades sit side by side in one texture.
     uv = vec2((inTile.x + float(which)) / float(cascadeCount), inTile.y);
@@ -10953,7 +11137,11 @@ void WriteSurfaceGeometry(float roughness) {
     frag_surface = vec4(g_debug_surface, ViewDepth());
     return;
   }
-  frag_surface = vec4(EncodeOctahedral(normalize(v_normal)),
+  // Reversed on a back face, as the lit normal is, so the occlusion and
+  // reflection passes see the side of a double-sided surface that faces them.
+  vec3 geometric = normalize(v_normal);
+  if (!gl_FrontFacing) geometric = -geometric;
+  frag_surface = vec4(EncodeOctahedral(geometric),
                       clamp(roughness, 0.0, 1.0), ViewDepth());
 #endif
 }
@@ -11100,11 +11288,22 @@ void main() {
   // A four-tap box at the corners of the source pixel quad: a plain single tap
   // would alias a one-pixel specular highlight in and out of existence as the
   // camera moves, which reads as flickering rather than as bloom.
-  vec3 sum = texture(source_texture, v_uv + texel * vec2(-0.5, -0.5)).rgb +
-             texture(source_texture, v_uv + texel * vec2(0.5, -0.5)).rgb +
-             texture(source_texture, v_uv + texel * vec2(-0.5, 0.5)).rgb +
-             texture(source_texture, v_uv + texel * vec2(0.5, 0.5)).rgb;
-  vec3 color = sum * 0.25;
+  //
+  // **Weighted by Karis's `1 / (1 + luma)`**, as Jimenez's Call of Duty chain
+  // does on its first step down and nowhere after. A plain average lets one
+  // texel of a glossy floor's highlight, a hundred times brighter than its
+  // neighbours, own the whole quad, and it flickers as it crosses texels —
+  // "fireflies". The weight takes the energy of a lone outlier down to about
+  // its neighbours' and leaves a uniformly bright quad an exact average.
+  vec3 s0 = texture(source_texture, v_uv + texel * vec2(-0.5, -0.5)).rgb;
+  vec3 s1 = texture(source_texture, v_uv + texel * vec2(0.5, -0.5)).rgb;
+  vec3 s2 = texture(source_texture, v_uv + texel * vec2(-0.5, 0.5)).rgb;
+  vec3 s3 = texture(source_texture, v_uv + texel * vec2(0.5, 0.5)).rgb;
+  float w0 = 1.0 / (1.0 + Luminance(s0));
+  float w1 = 1.0 / (1.0 + Luminance(s1));
+  float w2 = 1.0 / (1.0 + Luminance(s2));
+  float w3 = 1.0 / (1.0 + Luminance(s3));
+  vec3 color = (s0 * w0 + s1 * w1 + s2 * w2 + s3 * w3) / (w0 + w1 + w2 + w3);
 
   float threshold = bloom_info.params.z;
   float knee = max(bloom_info.params.w, 1e-4);
@@ -11208,8 +11407,11 @@ uniform sampler2D source_texture;
 
 layout(std140) uniform BloomInfo {
   /// x: 1/width, y: 1/height of the SOURCE texture. z: filter radius in source
-  /// texels. w: halation for this level of the chain, 0 for none.
+  /// texels. w: unused.
   vec4 params;
+  /// rgb: what this step multiplies the level it carries up by — the ratio of
+  /// this level's weight and warmth to the one above's. w: unused.
+  vec4 tint;
 }
 bloom_info;
 
@@ -11241,12 +11443,14 @@ void main() {
   // core stays neutral and only the broad skirt warms. The composite sees one
   // glow and could not tell them apart.
   //
-  // Zero is an exact identity — the multiplier is one on every channel — and
-  // that is what keeps every recorded frame where it is.
-  float halation = bloom_info.params.w;
-  if (halation > 0.0) {
-    result *= vec3(1.0 + halation * 0.5, 1.0, 1.0 - halation * 0.35);
-  }
+  // **A ratio, not the warmth itself.** On the way up this level already
+  // holds every level below it, so multiplying it by its own warmth warmed
+  // the narrower levels again at every step and the factors compounded. The
+  // caller hands the ratio between this level's weight and the one above's,
+  // and the product down the chain is each level's own, once. With no
+  // halation and a scatter of one it is one on every channel, which keeps
+  // every recorded frame where it is.
+  result *= bloom_info.tint.rgb;
 
   frag_color = vec4(result, 1.0);
 }
@@ -11416,6 +11620,14 @@ vec3 LinearToSrgb(vec3 linear) {
       step(vec3(0.0031308), linear));
 }
 
+/// The inverse of [LinearToSrgb], for the colour a LUT hands back.
+vec3 SrgbToLinear(vec3 encoded) {
+  return mix(
+      encoded / 12.92,
+      pow((max(encoded, vec3(0.0)) + vec3(0.055)) / 1.055, vec3(2.4)),
+      step(vec3(0.04045), encoded));
+}
+
 /// Khronos PBR Neutral tone mapper.
 ///
 /// The mapper the glTF ecosystem settled on, which matters because the renderer
@@ -11471,29 +11683,14 @@ vec3 TonemapAces(vec3 color) {
                vec3(0.0), vec3(1.0));
 }
 
-/// AgX, as a curve without the rotation matrices.
+/// AgX's log-encoded sigmoid, one channel at a time.
 ///
-/// **What it is for: bright saturated light that does not turn into a flat
-/// disc of colour.** A coloured lamp four stops over white comes out of ACES
-/// with its channels 0.36 apart and out of this with 0.22 — the highlight
-/// walks towards white rather than towards its own primary. And it keeps
-/// separating values long after ACES has stopped: at 8 and at 40 ACES returns
-/// one and one, where this returns 0.971 and 0.999, so the inside of a bright
-/// patch still has shape in it.
-///
-/// **It is a much more exposed curve than the other three**, which is a
-/// decision to make with open eyes rather than a side effect: 18% grey lands
-/// at 0.50 here against 0.14 through the neutral curve, because AgX is built
-/// to put middle grey at middle display and the log encoding below does
-/// exactly that. A scene switched to this without re-lighting looks washed
-/// out, and correctly so.
-///
-/// A log-encoded sigmoid on each channel, then a pull towards the luminance
-/// by how far each channel climbed. The full transform rotates into and out
-/// of a wider gamut first; that rotation is what keeps deep blues from going
-/// purple, and it needs two matrices this pass has nowhere to keep. Named as
-/// missing rather than implied: this is AgX's curve, not AgX.
-vec3 TonemapAgx(vec3 color) {
+/// Its output is display-encoded (roughly a 2.2 gamma), not linear. That is
+/// the fact the first version of this curve missed: it handed the sigmoid's
+/// value straight to the sRGB encode at the end of `main`, so every AgX frame
+/// was encoded twice — 18% grey arrived at 187/255 instead of 128/255 and a
+/// saturated red came out pastel. [TonemapAgx] linearises it again.
+vec3 AgxSigmoid(vec3 color) {
   const float kMinEv = -12.47393;
   const float kMaxEv = 4.026069;
 
@@ -11506,41 +11703,29 @@ vec3 TonemapAgx(vec3 color) {
   vec3 v4 = v2 * v2;
   v = 15.5 * v4 * v2 - 40.14 * v4 * v + 31.96 * v4 - 6.868 * v2 * v +
       0.4298 * v2 + 0.1191 * v - 0.00232;
-  v = clamp(v, vec3(0.0), vec3(1.0));
-
-  // The desaturation AgX is known for, applied where the curve lifted the
-  // most. Without it the sigmoid alone leaves highlights as saturated as ACES
-  // does and the point of the curve is lost.
-  float luma = Luma(v);
-  return mix(vec3(luma), v, 0.84);
+  return clamp(v, vec3(0.0), vec3(1.0));
 }
 
-/// AgX with the rotation this pass used to have nowhere to keep — `gfx-26n`.
+/// AgX: inset, sigmoid, outset, linearise — Wrensch's "Minimal AgX".
 ///
-/// **What the two matrices buy, and it is one specific thing.** [TonemapAgx]
-/// compresses each channel on its own, so a channel that clips takes its hue
-/// with it: a deep blue four stops over white loses blue last and arrives at
-/// the display having drifted through purple, because red and green were
-/// driven up towards it while blue was already at the ceiling. The inset
-/// matrix mixes a little of each channel into the others *before* the curve,
-/// which means no channel is ever compressed alone, and the outset matrix —
-/// its inverse — takes the mixing back out afterwards. The hue that comes out
-/// is the hue that went in. That is the whole of the rotation, and it is why
-/// the comment on [TonemapAgx] named the absence rather than implying the
-/// curve was the transform.
+/// **What it is for: bright saturated light that does not turn into a flat
+/// disc of colour.** The inset matrix mixes a little of each channel into the
+/// others before the curve, so no channel is compressed alone and a hue that
+/// is over-bright walks towards white rather than through another primary;
+/// the outset matrix takes the mixing back out afterwards.
 ///
-/// **A fifth curve rather than a correction to the fourth.** Every golden in
-/// this repository that names a curve names one of the four codes, and 18%
-/// grey lands in a different place through the rotation than through the bare
-/// sigmoid — so quietly improving `agx` would move pictures somebody recorded
-/// on purpose. `agx` stays exactly the curve it was, and this is the one to
-/// reach for when a hue has to survive being over-bright.
+/// **Linear in, linear out**, like every other curve here, so the sRGB encode
+/// at the end of `main` is the only encode. The `pow(2.2)` is the reference
+/// implementation's own last step ("we're linearizing the output here"); the
+/// default look is the identity, so there is no extra desaturation — the
+/// `mix(luma, v, 0.84)` this curve used to end with was not AgX's and took a
+/// sixth of the saturation off the whole frame.
 ///
 /// The matrices are the published AgX ones, written out rather than derived,
 /// and they are inverses to about six decimal places — checked as arithmetic
 /// in `tonemap_curve_test.dart` rather than trusted, because a transposed row
 /// here would look like a subtle grade rather than like a bug.
-vec3 TonemapAgxFull(vec3 color) {
+vec3 TonemapAgx(vec3 color) {
   // The published pair, written in the same layout and used in the same order
   // as the reference implementation — `M * v`, with the literals as that
   // implementation lists them. Taken as a matched pair on purpose: an inset
@@ -11556,12 +11741,22 @@ vec3 TonemapAgxFull(vec3 color) {
       -0.0980208811401368, 1.15190312990417, -0.0980434501171241,
       -0.0990297440797205, -0.0989611768448433, 1.15107367264116);
 
-  vec3 v = kInset * color;
-  v = TonemapAgx(v);
-  // Out of the wider gamut, then clamped: the outset can push a channel a
-  // little past one or a little below zero on a colour that was already at
-  // the edge, and anything above display white is display white.
-  return clamp(kOutset * v, vec3(0.0), vec3(1.0));
+  vec3 v = AgxSigmoid(kInset * max(color, vec3(0.0)));
+  // Out of the wider gamut, then back to linear. The outset can push a
+  // channel a little below zero on a colour that was already at the edge,
+  // which the `max` keeps out of `pow`; anything above display white is
+  // display white.
+  v = kOutset * v;
+  return clamp(pow(max(v, vec3(0.0)), vec3(2.2)), vec3(0.0), vec3(1.0));
+}
+
+/// The same transform as [TonemapAgx], kept for code 5 — `gfx-26n`.
+///
+/// It was added as the rotated variant when [TonemapAgx] was the bare
+/// sigmoid. Now that [TonemapAgx] is the whole of AgX, the two codes draw
+/// the same picture; the code stays so a setting that names it keeps working.
+vec3 TonemapAgxFull(vec3 color) {
+  return TonemapAgx(color);
 }
 
 /// Reinhard, extended so that white maps to white.
@@ -11711,8 +11906,14 @@ void main() {
   float saturation = composite_info.look.y;
   float temperature = composite_info.look.z;
 
-  // Pivoted about mid grey, so contrast does not double as an exposure knob.
-  color = (color - vec3(0.5)) * contrast + vec3(0.5);
+  // Pivoted about mid grey, so contrast does not double as an exposure knob —
+  // and mid grey here is 0.18, not 0.5: this is linear light, where 0.5 is a
+  // bright highlight, and pivoting on it darkened a 1.2 contrast by about a
+  // stop. A power about 0.18 rather than a line through it, so black stays
+  // black and grey stays exactly where it was. One is the identity.
+  if (contrast != 1.0) {
+    color = vec3(0.18) * pow(max(color, vec3(0.0)) / 0.18, vec3(contrast));
+  }
   color = mix(vec3(Luma(color)), color, saturation);
   // A gain on the ends against the middle. Not a white-balance conversion —
   // a scene lit at the wrong temperature is fixed at the light, not here.
@@ -11722,8 +11923,10 @@ void main() {
 
   // **Lift, gamma, gain — `gfx-27n`, and the three ranges a colourist
   // actually reaches for.** Contrast and saturation move the whole picture at
-  // once; these move one end of it. Lift adds, so it raises the shadows and
-  // leaves white alone. Gain multiplies, so it moves the highlights and
+  // once; these move one end of it. Lift raises black towards itself and
+  // leaves white where it was — `c * (1 - lift) + lift`, the classic form;
+  // it used to be a plain add, which moved white to one plus the lift and
+  // clipped it. Gain multiplies, so it moves the highlights and
   // leaves black alone. Gamma is the exponent between them, so it moves the
   // midtones and leaves both ends. Applied in that order, which is the order
   // they are named in and the order a grading panel applies them.
@@ -11733,7 +11936,7 @@ void main() {
   vec3 lift = composite_info.lift.xyz;
   vec3 gammaCurve = composite_info.gamma.xyz;
   vec3 gain = composite_info.gain.xyz;
-  color = color + lift;
+  color = color * (vec3(1.0) - lift) + lift;
   // Guarded, because a channel at zero under a fractional exponent is a
   // divide by zero on some drivers and a black pixel on others, and the
   // defaults have to be an exact identity rather than nearly one.
@@ -11770,9 +11973,17 @@ void main() {
   // Branched on the strength rather than mixed by it, so a frame with no
   // table does not sample one. The branch is on a uniform, so the whole draw
   // takes the same side of it.
+  //
+  // **Indexed and answered in sRGB**, which is the space a grading tool's
+  // `.cube` is written in: Resolve and Photoshop export a table that takes a
+  // display-encoded colour and gives one back. Looked up with linear values it
+  // shifted every tone, and put nearly everything below a linear 0.03 into
+  // the first of 33 slices.
   float lutStrength = composite_info.ao_texel.z;
   if (lutStrength > 0.0) {
-    vec3 graded = SampleLut(color, max(composite_info.ao_texel.w, 2.0));
+    vec3 encodedIn = LinearToSrgb(clamp(color, vec3(0.0), vec3(1.0)));
+    vec3 graded = SrgbToLinear(
+        SampleLut(encodedIn, max(composite_info.ao_texel.w, 2.0)));
     color = mix(color, graded, clamp(lutStrength, 0.0, 1.0));
   }
 
@@ -11816,8 +12027,14 @@ void main() {
   if (grain > 0.0) encoded += vec3((Hash(gl_FragCoord.xy) - 0.5) * grain);
 
   // Dither last, because it is the one aimed at the quantiser itself.
+  // **Centred exactly.** The cells run from -1/2 to 7/16, whose mean is
+  // -1/32; the thirty-second puts it at nought, so with dithering on by
+  // default (0.7.4) a flat colour stays the colour it was and only where a
+  // gradient's bands fall changes.
   float dither = composite_info.output_encode.x;
-  if (dither > 0.0) encoded += vec3(BayerCell(gl_FragCoord.xy) * dither);
+  if (dither > 0.0) {
+    encoded += vec3((BayerCell(gl_FragCoord.xy) + 0.03125) * dither);
+  }
 
   frag_color = vec4(encoded, scene.a);
 }
@@ -12246,7 +12463,11 @@ void WriteSurfaceGeometry(float roughness) {
     frag_surface = vec4(g_debug_surface, ViewDepth());
     return;
   }
-  frag_surface = vec4(EncodeOctahedral(normalize(v_normal)),
+  // Reversed on a back face, as the lit normal is, so the occlusion and
+  // reflection passes see the side of a double-sided surface that faces them.
+  vec3 geometric = normalize(v_normal);
+  if (!gl_FrontFacing) geometric = -geometric;
+  frag_surface = vec4(EncodeOctahedral(geometric),
                       clamp(roughness, 0.0, 1.0), ViewDepth());
 #endif
 }
@@ -12752,6 +12973,41 @@ float DepthOf(vec3 at) {
   return dot(at - reflection_info.camera.xyz, reflection_info.forward.xyz);
 }
 
+// One cell of a 4x4 Bayer matrix, in [0, 1). The same table
+// `light_shafts.frag` and `composite.frag` keep: a pattern rather than a hash,
+// so the software backend lands on the same offsets bit for bit.
+float BayerCell(vec2 at) {
+  int x = int(mod(at.x, 4.0));
+  int y = int(mod(at.y, 4.0));
+  int index = y * 4 + x;
+  float value = 0.0;
+  if (index == 0) value = 0.0;
+  else if (index == 1) value = 8.0;
+  else if (index == 2) value = 2.0;
+  else if (index == 3) value = 10.0;
+  else if (index == 4) value = 12.0;
+  else if (index == 5) value = 4.0;
+  else if (index == 6) value = 14.0;
+  else if (index == 7) value = 6.0;
+  else if (index == 8) value = 3.0;
+  else if (index == 9) value = 11.0;
+  else if (index == 10) value = 1.0;
+  else if (index == 11) value = 9.0;
+  else if (index == 12) value = 15.0;
+  else if (index == 13) value = 7.0;
+  else if (index == 14) value = 13.0;
+  else value = 5.0;
+  return value / 16.0;
+}
+
+/// Where [at] lands in the textures this pass reads, or a negative x when it
+/// is behind the camera.
+vec2 UvOf(vec3 at) {
+  vec4 clip = reflection_info.view_projection * vec4(at, 1.0);
+  if (clip.w <= 0.0) return vec2(-1.0);
+  return UvFromNdc(clip.xy / clip.w);
+}
+
 void main() {
   vec4 surface = texture(surface_texture, v_uv);
   vec3 scene = texture(scene_texture, v_uv).rgb;
@@ -12771,8 +13027,12 @@ void main() {
 
   // Rough surfaces scatter: a sharp screen-space reflection off one is a lie,
   // and the honest thing is to stop rather than to blur something that was
-  // never sampled widely enough to blur.
-  float polish = 1.0 - smoothstep(0.18, 0.45, roughness);
+  // never sampled widely enough to blur. **Gone by 0.25, not by 0.45.** At a
+  // perceptual roughness of 0.3 the GGX lobe is several degrees wide — tens of
+  // centimetres of blur three metres out — and this pass has no blur: the old
+  // window left such a floor a sharp mirror at 58% weight, which is where the
+  // ghostly copies of objects standing on it came from.
+  float polish = 1.0 - smoothstep(0.05, 0.25, roughness);
   if (polish <= 0.0) {
     frag_color = vec4(background, 1.0);
     return;
@@ -12804,20 +13064,24 @@ void main() {
   float thickness = reflection_info.params.z;
   float intensity = reflection_info.params.w;
 
-  // Started one stride out. Beginning at the surface makes the first sample
-  // hit the pixel we came from, and every surface reflects itself.
-  vec3 march = position + normal * 0.02 + ray * stride;
+  // **Started a jittered fraction of a stride out** — McGuire and Mara's
+  // answer to the banding a fixed world stride leaves: neighbouring pixels
+  // otherwise cross an object on the same step with the same overshoot, and
+  // the reflection comes back as a stack of shifted copies of it. Half a
+  // stride at least, off a centimetre of normal bias, so the first sample does
+  // not land on the pixel it came from.
+  float jitter = 0.5 + BayerCell(gl_FragCoord.xy);
+  float travelled = stride * jitter;
+  vec3 march = position + normal * 0.01 + ray * travelled;
+  float reach = stride * (float(steps) + 0.5);
   vec3 hitColor = vec3(0.0);
   float hit = 0.0;
-  float travelled = stride;
 
   for (int i = 0; i < 64; i++) {
     if (i >= steps) break;
 
-    vec4 clip = reflection_info.view_projection * vec4(march, 1.0);
-    if (clip.w <= 0.0) break;
-    vec3 ndc = clip.xyz / clip.w;
-    vec2 uv = UvFromNdc(ndc.xy);
+    vec2 uv = UvOf(march);
+    if (uv.x < -0.5) break;
 
     // Off screen is where this technique ends. Fading rather than cutting,
     // because a hard edge at the border of the frame is more distracting than
@@ -12853,13 +13117,37 @@ void main() {
       // Thickness is a size in the world, so it is compared against one.
       vec3 seen = WorldAt(uv, sceneDepth);
       float behind = distance(march, seen);
-      if (behind < thickness) {
-        hitColor = textureLod(scene_texture, uv, 0.0).rgb;
-        // Fade at the edges of the frame and with distance travelled, so a
-        // reflection thins out instead of stopping.
-        vec2 edge = abs(uv * 2.0 - 1.0);
+      // A surface turned away from the ray is the back of something: the ray
+      // would have met its front first, so it is not what this pixel sees.
+      vec3 seenNormal = DecodeOctahedral(textureLod(surface_texture, uv, 0.0).rg);
+      if (behind < thickness && dot(seenNormal, ray) < 0.0) {
+        // **Refined before it is read.** The step that crossed the surface
+        // overshot it by up to a stride; halving the last stride five times
+        // lands within a thirty-second of it, so the colour is read where the
+        // ray met the surface rather than where the step happened to stop.
+        vec3 lo = march - ray * stride;
+        vec3 hi = march;
+        for (int j = 0; j < 5; j++) {
+          vec3 mid = 0.5 * (lo + hi);
+          vec2 at = UvOf(mid);
+          float d = at.x < -0.5 ? 0.0 : textureLod(surface_texture, at, 0.0).a;
+          if (d > 0.0 && DepthOf(mid) > d) {
+            hi = mid;
+          } else {
+            lo = mid;
+          }
+        }
+        vec2 hitUv = UvOf(hi);
+        if (hitUv.x < -0.5) hitUv = uv;
+        hitColor = textureLod(scene_texture, hitUv, 0.0).rgb;
+        // Fade at the edges of the frame, and with the length of the ray: a
+        // hit at the far end of the march weighs nothing, so the reflection
+        // thins out instead of stopping where the march does (three.js's
+        // `(1 - d / max)^2`).
+        vec2 edge = abs(hitUv * 2.0 - 1.0);
         float border = 1.0 - max(edge.x, edge.y);
-        hit = smoothstep(0.0, 0.15, border);
+        float along = clamp(1.0 - travelled / reach, 0.0, 1.0);
+        hit = smoothstep(0.0, 0.15, border) * along * along;
         break;
       }
     }
@@ -12868,10 +13156,12 @@ void main() {
     travelled += stride;
   }
 
-  // Grazing angles reflect more, straight-on less: the Fresnel term, minus the
-  // parts that need a material.
-  float fresnel = pow(1.0 - facing, 4.0);
-  vec3 reflection = hitColor * hit * intensity * polish * (0.15 + 0.85 * fresnel);
+  // Schlick's Fresnel for a dielectric, F0 = 0.04: four percent head-on, all
+  // of it at grazing. The buffer carries no metalness to tint it with. This
+  // used to floor at fifteen percent with a fourth power, which put nearly
+  // four times the reflection on a floor seen from above.
+  float fresnel = 0.04 + 0.96 * pow(1.0 - facing, 5.0);
+  vec3 reflection = hitColor * hit * intensity * polish * fresnel;
   frag_color = vec4(debugOnly ? reflection : scene + reflection, 1.0);
 }
 
@@ -13211,7 +13501,11 @@ void main() {
       // whole reason this is depth-aware is that it must not count. The
       // weight falls off with the difference rather than cutting at a
       // threshold, so a curved surface does not band where the cut would be.
-      float closeness = exp(-abs(depth - centreDepth) / falloff);
+      // Relative to the centre's own depth, as XeGTAO's denoiser: a
+      // difference that is a silhouette a metre away is one pixel's worth of
+      // a floor at twenty.
+      float closeness =
+          exp(-abs(depth - centreDepth) / (falloff * max(centreDepth, 1e-3)));
       // And further taps count for less, which is what makes this a blur
       // rather than a box.
       float weight = closeness / offset;
@@ -13299,6 +13593,32 @@ layout(std140) uniform ContactShadowInfo {
 }
 contact_info;
 
+// One cell of a 4x4 Bayer matrix, in [0, 1). The same table
+// `reflections.frag` and `light_shafts.frag` keep.
+float BayerCell(vec2 at) {
+  int x = int(mod(at.x, 4.0));
+  int y = int(mod(at.y, 4.0));
+  int index = y * 4 + x;
+  float value = 0.0;
+  if (index == 0) value = 0.0;
+  else if (index == 1) value = 8.0;
+  else if (index == 2) value = 2.0;
+  else if (index == 3) value = 10.0;
+  else if (index == 4) value = 12.0;
+  else if (index == 5) value = 4.0;
+  else if (index == 6) value = 14.0;
+  else if (index == 7) value = 6.0;
+  else if (index == 8) value = 3.0;
+  else if (index == 9) value = 11.0;
+  else if (index == 10) value = 1.0;
+  else if (index == 11) value = 9.0;
+  else if (index == 12) value = 15.0;
+  else if (index == 13) value = 7.0;
+  else if (index == 14) value = 13.0;
+  else value = 5.0;
+  return value / 16.0;
+}
+
 vec3 DecodeOctahedral(vec2 e) {
   e = e * 2.0 - 1.0;
   vec3 n = vec3(e.xy, 1.0 - abs(e.x) - abs(e.y));
@@ -13364,10 +13684,25 @@ void main() {
   vec3 origin = WorldAtDepth(v_uv, surface.a) + normal * contact_info.params.w;
   float stride = reach / float(steps);
 
+  // **Jittered by a Bayer cell**, as Unreal's march is by its dither and
+  // Bend's by its offsets: eight fixed steps otherwise quantise the fade
+  // below into eight flat levels, a staircase across every penumbra. Each
+  // sample lands somewhere in its own step rather than at its end. A pattern
+  // rather than a hash so the software backend matches bit for bit.
+  float jitter = BayerCell(gl_FragCoord.xy);
+
+  // **A tolerance at least twice what one step moves in depth**, as Unreal's
+  // `CompareTolerance`: a ray running steeply away from the camera crosses
+  // more depth per step than a fixed thickness, and a thin blocker passed
+  // between two samples was never found.
+  float stepDepth = abs(DepthOf(origin + toLight * stride) - DepthOf(origin));
+  float tolerance = max(thickness, 2.0 * stepDepth);
+
   for (int i = 0; i < 16; i++) {
     if (i >= steps) break;
 
-    vec3 at = origin + toLight * (stride * float(i + 1));
+    float along = float(i) + 1.0 - jitter;
+    vec3 at = origin + toLight * (stride * along);
     vec4 clip = contact_info.view_projection * vec4(at, 1.0);
     // Behind the eye: the march has left the frame, and a division by a
     // negative w would fold it back into view somewhere it is not.
@@ -13386,7 +13721,7 @@ void main() {
     // object seen past the one casting: without the thickness test a wall four
     // metres nearer than the floor shadows everything the ray crosses, which
     // is the same halo `ssao.frag`'s range check exists to stop.
-    if (gap > 0.0 && gap < thickness) {
+    if (gap > 0.0 && gap < tolerance) {
       // **Darker the nearer the blocker, which is what makes this a contact
       // shadow rather than a stencil.** A hit on the first step is a surface
       // touching this one and gets nothing; a hit at the far end of the march
@@ -13394,7 +13729,7 @@ void main() {
       // writes zero or one and the march's own reach becomes a visible edge on
       // the floor — a hard band that ends where the loop does, which is a
       // number in a settings object rather than anything in the scene.
-      frag_color = vec4(float(i) / float(steps));
+      frag_color = vec4(max(along - 1.0, 0.0) / float(steps));
       return;
     }
   }
@@ -13458,15 +13793,27 @@ layout(std140) uniform ShaftInfo {
   // xyz: the direction the camera looks. w: how many steps.
   vec4 forward;
 
-  // xyz: the colour the air scatters, already multiplied by the strength.
-  // w: unused.
+  // xyz: what a lit point sends towards the eye before phase and path — the
+  // sun's colour times its intensity, tinted by the air's albedo. w: the
+  // air's density σ, per metre.
   vec4 scatter;
 
   // x, y: the two cascade split distances. z: how many cascades. w: the
   // depth bias, in the same units the map holds.
   vec4 cascades;
+
+  // xyz: towards the sun, a unit vector. w: Henyey–Greenstein's g.
+  vec4 sun;
 }
 shaft_info;
+
+// How much of the light a point in the air sends along [cosine] from the
+// sun's direction — Henyey–Greenstein, normalised over the sphere.
+float HenyeyGreenstein(float cosine, float g) {
+  float g2 = g * g;
+  float denominator = max(1.0 + g2 - 2.0 * g * cosine, 1e-4);
+  return (1.0 - g2) / (12.566371 * denominator * sqrt(denominator));
+}
 
 // One cell of a 4x4 Bayer matrix, in [0, 1). The same table
 // `composite.frag` keeps, for the same reason.
@@ -13522,7 +13869,12 @@ float LitAt(vec3 world, float viewDistance) {
     if (inTile.x < 0.0 || inTile.x > 1.0 || inTile.y < 0.0 || inTile.y > 1.0) {
       continue;
     }
-    if (candidate.z > 1.0) continue;
+    // Past the far plane is behind every caster, as in `shadow.glsl`: the
+    // last cascade clamps rather than letting the air behind a caster glow.
+    if (candidate.z > 1.0) {
+      if (which < cascadeCount - 1) continue;
+      candidate.z = 1.0;
+    }
 
     vec2 uv = vec2((inTile.x + float(which)) / float(cascadeCount), inTile.y);
     // `textureLod`, for `shadow.glsl`'s own reason: the cascade search above
@@ -13571,18 +13923,35 @@ void main() {
   // would otherwise draw is broken into a pattern the eye integrates.
   float offset = BayerCell(gl_FragCoord.xy) * stride;
 
-  float lit = 0.0;
+  // **Single scattering with transmittance.** Each step in-scatters the
+  // share of the light its own length of air catches, `1 − e^(−σ·stride)`,
+  // times what is left of the path to the eye. Summed, a fully lit ray comes
+  // to `1 − e^(−σd)`: brighter with more air, and never past one — where the
+  // old average of lit samples gave a wall two metres off the same shaft as
+  // forty metres of sky. The step count still changes the quality and not
+  // the brightness, because the sum converges to the same integral.
+  float sigma = max(shaft_info.scatter.w, 0.0);
+  float stepTransmittance = exp(-sigma * stride);
+  float transmittance = exp(-sigma * offset);
+  vec3 eye = shaft_info.camera.xyz;
+  float inscatter = 0.0;
   for (int i = 0; i < 64; i++) {
     if (i >= steps) break;
     float travelled = offset + float(i) * stride;
     vec3 at = origin + along * travelled;
-    lit += LitAt(at, travelled * cosine);
+    // The cascade chosen by distance from the eye, the metric `shadow.glsl`
+    // picks a surface's cascade by, so a shaft and the ground under it agree.
+    float lit = LitAt(at, length(at - eye));
+    inscatter += transmittance * (1.0 - stepTransmittance) * lit;
+    transmittance *= stepTransmittance;
   }
 
-  // The average share of the ray that was in light, times the scatter colour.
-  // An average rather than a sum, so changing the step count changes the
-  // quality and not the brightness.
-  vec3 shaft = shaft_info.scatter.rgb * (lit / float(steps));
+  // Towards the sun the air glows; away from it, with forward scattering,
+  // almost not at all — which is what keeps a frame with the sun behind the
+  // camera clear. `along` runs from the eye, so looking into the sun is
+  // `dot(along, toSun)` near one.
+  float phase = HenyeyGreenstein(dot(along, shaft_info.sun.xyz), shaft_info.sun.w);
+  vec3 shaft = shaft_info.scatter.rgb * (phase * inscatter);
   frag_color = vec4(scene.rgb + shaft, scene.a);
 }
 
@@ -13644,16 +14013,45 @@ layout(std140) uniform DofInfo {
 }
 dof_info;
 
+// One cell of a 4x4 Bayer matrix, in [0, 1). The same table
+// `reflections.frag` and `light_shafts.frag` keep.
+float BayerCell(vec2 at) {
+  int x = int(mod(at.x, 4.0));
+  int y = int(mod(at.y, 4.0));
+  int index = y * 4 + x;
+  float value = 0.0;
+  if (index == 0) value = 0.0;
+  else if (index == 1) value = 8.0;
+  else if (index == 2) value = 2.0;
+  else if (index == 3) value = 10.0;
+  else if (index == 4) value = 12.0;
+  else if (index == 5) value = 4.0;
+  else if (index == 6) value = 14.0;
+  else if (index == 7) value = 6.0;
+  else if (index == 8) value = 3.0;
+  else if (index == 9) value = 11.0;
+  else if (index == 10) value = 1.0;
+  else if (index == 11) value = 9.0;
+  else if (index == 12) value = 15.0;
+  else if (index == 13) value = 7.0;
+  else if (index == 14) value = 13.0;
+  else value = 5.0;
+  return value / 16.0;
+}
+
 // The circle of confusion at [depth], as a radius in texels.
 float CircleAt(float depth) {
   float focus = max(dof_info.lens.x, 1e-3);
   float focal = max(dof_info.lens.y, 1e-4);
   float fnumber = max(dof_info.lens.z, 1e-3);
-  if (depth <= 0.0) return 0.0;
 
-  // The thin-lens diameter, in metres on the sensor.
+  // The thin-lens diameter, in metres on the sensor. Nothing drawn — the sky,
+  // the cleared background — is infinitely far, where `|d - s| / d` tends to
+  // one and the circle to its largest: a lens focused on a face blurs the
+  // horizon behind it. This used to answer zero there and kept the sky sharp.
   float denominator = max(fnumber * (focus - focal), 1e-6);
-  float diameter = abs(depth - focus) / depth * (focal * focal) / denominator;
+  float ratio = depth <= 0.0 ? 1.0 : abs(depth - focus) / depth;
+  float diameter = ratio * (focal * focal) / denominator;
 
   // Metres on the sensor into texels on the screen, and a diameter into a
   // radius. The conversion needs a sensor size, which is what makes a
@@ -13691,25 +14089,44 @@ void main() {
   vec3 total = centre.rgb;
   float weight = 1.0;
 
+  // Nothing drawn is infinitely far, for the comparison below as for the
+  // circle above.
+  float centreFar = centreDepth <= 0.0 ? 1e9 : centreDepth;
+
+  // The spiral turned by a different angle at each pixel of a 4x4 block, so
+  // twenty-odd taps across a wide disc read as grain rather than as twenty-odd
+  // copies of a bright highlight. A Bayer cell rather than Jimenez's
+  // interleaved gradient noise, which is a `fract` of a large product and
+  // would not land on the same angle in the software backend's doubles.
+  float turn = 6.2831853 * BayerCell(gl_FragCoord.xy);
+
   // The golden angle, so consecutive samples never line up into a spoke.
   const float kGolden = 2.39996323;
   for (int i = 1; i <= 64; i++) {
     if (i > samples) break;
-    float t = float(i) / float(samples);
+    // The middle of each ring's share of the area rather than its outer edge.
+    float t = (float(i) - 0.5) / float(samples);
     // sqrt so the samples spread evenly over the disc's *area* rather than
     // bunching at the middle, which would leave the rim of a bokeh thin.
     float r = sqrt(t) * radius;
-    float angle = float(i) * kGolden;
+    float angle = float(i) * kGolden + turn;
     vec2 at = v_uv + vec2(cos(angle), sin(angle)) * r * dof_info.params.xy;
 
     vec4 tap = textureLod(scene_texture, at, 0.0);
     float tapDepth = textureLod(surface_texture, at, 0.0).a;
     float tapRadius = CircleAt(tapDepth);
+    float tapFar = tapDepth <= 0.0 ? 1e9 : tapDepth;
 
-    // Would this sample's own disc have reached here? A sharp background
-    // pixel behind a blurred foreground says no, and letting it in anyway is
-    // the bleed that makes a distant object glow through a near one.
-    float reach = r <= max(tapRadius, radius) ? 1.0 : 0.0;
+    // Would this sample's own disc have reached here? A sharp pixel in front
+    // of a blurred background says no — its disc is smaller than the
+    // distance to here — and letting it in anyway is the bleed that makes a
+    // sharp object glow into the blur behind it. A sample *behind* this pixel
+    // reaches no further than this pixel's own disc either. The test used to
+    // be `r <= max(tapRadius, radius)`, which with `r <= radius` always held
+    // and let every sample in. Half a texel of soft edge, so the reach does
+    // not step.
+    float tapReach = tapFar > centreFar ? min(tapRadius, radius) : tapRadius;
+    float reach = clamp(tapReach - r + 0.5, 0.0, 1.0);
     total += tap.rgb * reach;
     weight += reach;
   }
@@ -14220,7 +14637,11 @@ void WriteSurfaceGeometry(float roughness) {
     frag_surface = vec4(g_debug_surface, ViewDepth());
     return;
   }
-  frag_surface = vec4(EncodeOctahedral(normalize(v_normal)),
+  // Reversed on a back face, as the lit normal is, so the occlusion and
+  // reflection passes see the side of a double-sided surface that faces them.
+  vec3 geometric = normalize(v_normal);
+  if (!gl_FrontFacing) geometric = -geometric;
+  frag_surface = vec4(EncodeOctahedral(geometric),
                       clamp(roughness, 0.0, 1.0), ViewDepth());
 #endif
 }
@@ -14522,7 +14943,11 @@ void WriteSurfaceGeometry(float roughness) {
     frag_surface = vec4(g_debug_surface, ViewDepth());
     return;
   }
-  frag_surface = vec4(EncodeOctahedral(normalize(v_normal)),
+  // Reversed on a back face, as the lit normal is, so the occlusion and
+  // reflection passes see the side of a double-sided surface that faces them.
+  vec3 geometric = normalize(v_normal);
+  if (!gl_FrontFacing) geometric = -geometric;
+  frag_surface = vec4(EncodeOctahedral(geometric),
                       clamp(roughness, 0.0, 1.0), ViewDepth());
 #endif
 }
@@ -14819,7 +15244,11 @@ void WriteSurfaceGeometry(float roughness) {
     frag_surface = vec4(g_debug_surface, ViewDepth());
     return;
   }
-  frag_surface = vec4(EncodeOctahedral(normalize(v_normal)),
+  // Reversed on a back face, as the lit normal is, so the occlusion and
+  // reflection passes see the side of a double-sided surface that faces them.
+  vec3 geometric = normalize(v_normal);
+  if (!gl_FrontFacing) geometric = -geometric;
+  frag_surface = vec4(EncodeOctahedral(geometric),
                       clamp(roughness, 0.0, 1.0), ViewDepth());
 #endif
 }
@@ -15395,7 +15824,11 @@ void WriteSurfaceGeometry(float roughness) {
     frag_surface = vec4(g_debug_surface, ViewDepth());
     return;
   }
-  frag_surface = vec4(EncodeOctahedral(normalize(v_normal)),
+  // Reversed on a back face, as the lit normal is, so the occlusion and
+  // reflection passes see the side of a double-sided surface that faces them.
+  vec3 geometric = normalize(v_normal);
+  if (!gl_FrontFacing) geometric = -geometric;
+  frag_surface = vec4(EncodeOctahedral(geometric),
                       clamp(roughness, 0.0, 1.0), ViewDepth());
 #endif
 }

@@ -2,7 +2,7 @@ name: flutter3d_cpu
 description: >-
   A software backend for flutter3d_hardware: no GPU, no shading language, and
   therefore the sharpest test of whether the interface is an interface.
-version: 0.7.1
+version: 0.7.4
 repository: https://github.com/pleiondev/flutter3d
 homepage: https://flutter3d.pleion.dev
 issue_tracker: https://github.com/pleiondev/flutter3d/issues
@@ -27,7 +27,7 @@ dev_dependencies:
   # against are `flutter3d_shaders`'s own. Not a real dependency — nothing in
   # `lib/` reaches it. Both this and `flutter3d_conformance` above are flat
   # themselves now, so neither carries the Flutter SDK in here any more.
-  flutter3d_shaders: ^0.7.1
+  flutter3d_shaders: ^0.7.4
   # For `render_project_test.dart` alone: `renderProject` itself
   # (`flutter3d_model_core`) and `ParametricCuboid` to build a project to hand
   # it (`flutter3d_mesh`). Not a real dependency — nothing in `lib/` reaches

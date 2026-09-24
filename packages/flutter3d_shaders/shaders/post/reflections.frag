@@ -113,6 +113,41 @@ float DepthOf(vec3 at) {
   return dot(at - reflection_info.camera.xyz, reflection_info.forward.xyz);
 }
 
+// One cell of a 4x4 Bayer matrix, in [0, 1). The same table
+// `light_shafts.frag` and `composite.frag` keep: a pattern rather than a hash,
+// so the software backend lands on the same offsets bit for bit.
+float BayerCell(vec2 at) {
+  int x = int(mod(at.x, 4.0));
+  int y = int(mod(at.y, 4.0));
+  int index = y * 4 + x;
+  float value = 0.0;
+  if (index == 0) value = 0.0;
+  else if (index == 1) value = 8.0;
+  else if (index == 2) value = 2.0;
+  else if (index == 3) value = 10.0;
+  else if (index == 4) value = 12.0;
+  else if (index == 5) value = 4.0;
+  else if (index == 6) value = 14.0;
+  else if (index == 7) value = 6.0;
+  else if (index == 8) value = 3.0;
+  else if (index == 9) value = 11.0;
+  else if (index == 10) value = 1.0;
+  else if (index == 11) value = 9.0;
+  else if (index == 12) value = 15.0;
+  else if (index == 13) value = 7.0;
+  else if (index == 14) value = 13.0;
+  else value = 5.0;
+  return value / 16.0;
+}
+
+/// Where [at] lands in the textures this pass reads, or a negative x when it
+/// is behind the camera.
+vec2 UvOf(vec3 at) {
+  vec4 clip = reflection_info.view_projection * vec4(at, 1.0);
+  if (clip.w <= 0.0) return vec2(-1.0);
+  return UvFromNdc(clip.xy / clip.w);
+}
+
 void main() {
   vec4 surface = texture(surface_texture, v_uv);
   vec3 scene = texture(scene_texture, v_uv).rgb;
@@ -132,8 +167,12 @@ void main() {
 
   // Rough surfaces scatter: a sharp screen-space reflection off one is a lie,
   // and the honest thing is to stop rather than to blur something that was
-  // never sampled widely enough to blur.
-  float polish = 1.0 - smoothstep(0.18, 0.45, roughness);
+  // never sampled widely enough to blur. **Gone by 0.25, not by 0.45.** At a
+  // perceptual roughness of 0.3 the GGX lobe is several degrees wide — tens of
+  // centimetres of blur three metres out — and this pass has no blur: the old
+  // window left such a floor a sharp mirror at 58% weight, which is where the
+  // ghostly copies of objects standing on it came from.
+  float polish = 1.0 - smoothstep(0.05, 0.25, roughness);
   if (polish <= 0.0) {
     frag_color = vec4(background, 1.0);
     return;
@@ -165,20 +204,24 @@ void main() {
   float thickness = reflection_info.params.z;
   float intensity = reflection_info.params.w;
 
-  // Started one stride out. Beginning at the surface makes the first sample
-  // hit the pixel we came from, and every surface reflects itself.
-  vec3 march = position + normal * 0.02 + ray * stride;
+  // **Started a jittered fraction of a stride out** — McGuire and Mara's
+  // answer to the banding a fixed world stride leaves: neighbouring pixels
+  // otherwise cross an object on the same step with the same overshoot, and
+  // the reflection comes back as a stack of shifted copies of it. Half a
+  // stride at least, off a centimetre of normal bias, so the first sample does
+  // not land on the pixel it came from.
+  float jitter = 0.5 + BayerCell(gl_FragCoord.xy);
+  float travelled = stride * jitter;
+  vec3 march = position + normal * 0.01 + ray * travelled;
+  float reach = stride * (float(steps) + 0.5);
   vec3 hitColor = vec3(0.0);
   float hit = 0.0;
-  float travelled = stride;
 
   for (int i = 0; i < 64; i++) {
     if (i >= steps) break;
 
-    vec4 clip = reflection_info.view_projection * vec4(march, 1.0);
-    if (clip.w <= 0.0) break;
-    vec3 ndc = clip.xyz / clip.w;
-    vec2 uv = UvFromNdc(ndc.xy);
+    vec2 uv = UvOf(march);
+    if (uv.x < -0.5) break;
 
     // Off screen is where this technique ends. Fading rather than cutting,
     // because a hard edge at the border of the frame is more distracting than
@@ -214,13 +257,37 @@ void main() {
       // Thickness is a size in the world, so it is compared against one.
       vec3 seen = WorldAt(uv, sceneDepth);
       float behind = distance(march, seen);
-      if (behind < thickness) {
-        hitColor = textureLod(scene_texture, uv, 0.0).rgb;
-        // Fade at the edges of the frame and with distance travelled, so a
-        // reflection thins out instead of stopping.
-        vec2 edge = abs(uv * 2.0 - 1.0);
+      // A surface turned away from the ray is the back of something: the ray
+      // would have met its front first, so it is not what this pixel sees.
+      vec3 seenNormal = DecodeOctahedral(textureLod(surface_texture, uv, 0.0).rg);
+      if (behind < thickness && dot(seenNormal, ray) < 0.0) {
+        // **Refined before it is read.** The step that crossed the surface
+        // overshot it by up to a stride; halving the last stride five times
+        // lands within a thirty-second of it, so the colour is read where the
+        // ray met the surface rather than where the step happened to stop.
+        vec3 lo = march - ray * stride;
+        vec3 hi = march;
+        for (int j = 0; j < 5; j++) {
+          vec3 mid = 0.5 * (lo + hi);
+          vec2 at = UvOf(mid);
+          float d = at.x < -0.5 ? 0.0 : textureLod(surface_texture, at, 0.0).a;
+          if (d > 0.0 && DepthOf(mid) > d) {
+            hi = mid;
+          } else {
+            lo = mid;
+          }
+        }
+        vec2 hitUv = UvOf(hi);
+        if (hitUv.x < -0.5) hitUv = uv;
+        hitColor = textureLod(scene_texture, hitUv, 0.0).rgb;
+        // Fade at the edges of the frame, and with the length of the ray: a
+        // hit at the far end of the march weighs nothing, so the reflection
+        // thins out instead of stopping where the march does (three.js's
+        // `(1 - d / max)^2`).
+        vec2 edge = abs(hitUv * 2.0 - 1.0);
         float border = 1.0 - max(edge.x, edge.y);
-        hit = smoothstep(0.0, 0.15, border);
+        float along = clamp(1.0 - travelled / reach, 0.0, 1.0);
+        hit = smoothstep(0.0, 0.15, border) * along * along;
         break;
       }
     }
@@ -229,9 +296,11 @@ void main() {
     travelled += stride;
   }
 
-  // Grazing angles reflect more, straight-on less: the Fresnel term, minus the
-  // parts that need a material.
-  float fresnel = pow(1.0 - facing, 4.0);
-  vec3 reflection = hitColor * hit * intensity * polish * (0.15 + 0.85 * fresnel);
+  // Schlick's Fresnel for a dielectric, F0 = 0.04: four percent head-on, all
+  // of it at grazing. The buffer carries no metalness to tint it with. This
+  // used to floor at fifteen percent with a fourth power, which put nearly
+  // four times the reflection on a floor seen from above.
+  float fresnel = 0.04 + 0.96 * pow(1.0 - facing, 5.0);
+  vec3 reflection = hitColor * hit * intensity * polish * fresnel;
   frag_color = vec4(debugOnly ? reflection : scene + reflection, 1.0);
 }

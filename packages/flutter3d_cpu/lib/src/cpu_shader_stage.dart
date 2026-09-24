@@ -69,6 +69,11 @@ final class FragmentContext {
   /// leaving it out means `ShadowDepth` cannot be written at all.
   final Vector4 coord = Vector4.zero();
 
+  /// `gl_FrontFacing`: whether the triangle being shaded faces the camera by
+  /// the pass's winding. True for a line, which has no facing and takes the
+  /// front state, as GL does.
+  bool frontFacing = true;
+
   /// How fast each varying moves across the screen, per pixel.
   ///
   /// Filled once per triangle, and only when something bound to the pass has a

@@ -17,8 +17,11 @@ uniform sampler2D source_texture;
 
 uniform BloomInfo {
   /// x: 1/width, y: 1/height of the SOURCE texture. z: filter radius in source
-  /// texels. w: halation for this level of the chain, 0 for none.
+  /// texels. w: unused.
   vec4 params;
+  /// rgb: what this step multiplies the level it carries up by — the ratio of
+  /// this level's weight and warmth to the one above's. w: unused.
+  vec4 tint;
 }
 bloom_info;
 
@@ -50,12 +53,14 @@ void main() {
   // core stays neutral and only the broad skirt warms. The composite sees one
   // glow and could not tell them apart.
   //
-  // Zero is an exact identity — the multiplier is one on every channel — and
-  // that is what keeps every recorded frame where it is.
-  float halation = bloom_info.params.w;
-  if (halation > 0.0) {
-    result *= vec3(1.0 + halation * 0.5, 1.0, 1.0 - halation * 0.35);
-  }
+  // **A ratio, not the warmth itself.** On the way up this level already
+  // holds every level below it, so multiplying it by its own warmth warmed
+  // the narrower levels again at every step and the factors compounded. The
+  // caller hands the ratio between this level's weight and the one above's,
+  // and the product down the chain is each level's own, once. With no
+  // halation and a scatter of one it is one on every channel, which keeps
+  // every recorded frame where it is.
+  result *= bloom_info.tint.rgb;
 
   frag_color = vec4(result, 1.0);
 }

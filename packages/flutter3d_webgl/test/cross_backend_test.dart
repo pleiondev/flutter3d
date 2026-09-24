@@ -106,7 +106,15 @@ const Map<String, double> _budgets = <String, double>{
   // is why nothing else in the suite ever noticed. Held at a hundredth rather
   // than at zero: a budget of zero on a march between two rasterisers is a
   // budget that will fail on a driver update rather than on a mistake.
-  'screen-space-reflections': 0.01,
+  //
+  // **0.035% since 0.7.4**, sixty scattered pixels along the edges of the
+  // reflections. The march starts each pixel at a Bayer offset keyed on
+  // `gl_FragCoord`, and WebGL counts those rows from the bottom: the same
+  // pattern, turned upside down, so a pixel at an edge takes a different
+  // stride here than on Impeller and lands on the other side of it. The
+  // dither shows the same turn as one step on half of every flat area,
+  // under the eight this compares at.
+  'screen-space-reflections': 0.04,
   // **0.253% measured, and it was 4.861%.** Two bugs, in the order they were
   // found. The depth-range one described above was most of the first drop: a
   // shader comparing a window depth against a clip depth from the other
@@ -121,8 +129,9 @@ const Map<String, double> _budgets = <String, double>{
   //
   // What is left is a floor rather than a defect — a twelve-tap march over a
   // half-resolution buffer, where a tap landing a texel either side of an edge
-  // changes an eighth of the answer.
-  'ambient-occlusion-corner': 0.26,
+  // changes an eighth of the answer. 0.263% since the dither came on by
+  // default in 0.7.4.
+  'ambient-occlusion-corner': 0.27,
   // 0.098% measured. It was 0.6 while this backend sampled a normal map's
   // base level where Impeller sampled its chain; the minification filter now
   // follows the sampler's `mipFilter`, and what is left is the silhouette.
@@ -142,7 +151,8 @@ const Map<String, double> _budgets = <String, double>{
   'lighting-blinnphong': 0.2,
   'lighting-lambert': 0.2,
   'view-model-point-shadow': 0.2,
-  'bloom-sphere': 0.1,
+  // 0.1001% since the dither came on by default in 0.7.4.
+  'bloom-sphere': 0.11,
   'skinned-figure': 0.1,
   // **Exactly zero, and it was 0.1.** Four sprites at four distances, each
   // landing on a different level of a chain — the one scene in the set whose
