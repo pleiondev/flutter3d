@@ -231,18 +231,19 @@ final class Material {
   bool doubleSided;
 
   /// The layers beyond metal-rough — clear coat, specular, index of
-  /// refraction — `M1`. Read only by [LightingModel.pbrLayered]: a material
-  /// that has them and asks for [LightingModel.pbr] is drawn without them,
-  /// which is why the loaders hand such a material the layered model.
+  /// refraction, sheen, anisotropy, transmission and the rest — `M1`–`M3`.
+  /// Read only by [LightingModel.pbrLayered]: a material that has them and
+  /// asks for [LightingModel.pbr] is drawn without them, which is why the
+  /// loaders hand such a material the layered model.
   ///
   /// Only the factors are read from here; the texture bindings it carries
-  /// are the document's and reach the renderer packed into [coatMap].
+  /// are the document's and reach the renderer packed into [coatMap] and
+  /// [sheenMap].
   MaterialExtensions? extensions;
 
-  /// The coat map: red the clear coat, green its roughness, each multiplying
-  /// its factor in [extensions]. Blue and alpha are reserved for the
-  /// transmission and thickness a later model reads. Null binds white, which
-  /// leaves the factors as they are.
+  /// The coat map: red the clear coat, green its roughness, blue the
+  /// transmission and alpha the thickness, each multiplying its factor in
+  /// [extensions]. Null binds white, which leaves the factors as they are.
   ///
   /// One texture for what glTF gives as up to four, because the layered
   /// stage has two samplers left under WebGL2's sixteen and this is one of

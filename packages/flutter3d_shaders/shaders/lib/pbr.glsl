@@ -59,8 +59,8 @@ uniform LayerInfo {
 }
 layer_info;
 
-/// The coat map: r the clear coat, g its roughness, each multiplying its
-/// factor; b and a are reserved for transmission and thickness. White when a
+/// The coat map: r the clear coat, g its roughness, b the transmission and a
+/// the thickness, each multiplying its factor — `M3` reads b and a. White when a
 /// material has none. One texture where glTF gives up to four, because the
 /// lit stages have two samplers left under WebGL2's sixteen.
 uniform sampler2D coat_texture;
