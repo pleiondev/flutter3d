@@ -41,19 +41,28 @@ double impostorScreenFraction(List<ModelLod> lods) =>
 /// **The source's own images must still be decodable** — a converter bakes
 /// before it compresses textures. A texture this package cannot decode is
 /// baked as its material's base colour alone, and [report] hears which.
+///
+/// **Everything the bake puts on [device] it takes off again** — meshes,
+/// decoded textures and the renderer's own targets — so a converter that bakes
+/// a whole directory does not hold every model it has seen. [device] is a
+/// [cell]-square software rasteriser made here when null; one passed in is
+/// left open for its owner, and is how a test counts what a bake leaves.
 Future<ModelDocument> bakeImpostors(
   ModelDocument document, {
   int cell = 64,
   void Function(String message)? report,
+  GraphicsDevice? device,
 }) async {
   final grid = kImpostorGrid;
   final side = cell * grid;
-  final device = CpuDevice(
-    width: cell,
-    height: cell,
-    shaders: CpuShaderLibrary(builtinCpuShaders()),
-  );
-  final renderer = Renderer.create(device: device);
+  final gpu =
+      device ??
+      CpuDevice(
+        width: cell,
+        height: cell,
+        shaders: CpuShaderLibrary(builtinCpuShaders()),
+      );
+  final renderer = Renderer.create(device: gpu);
   final settings = const RenderSettings().forMeasurement();
   final normalsMaterial = Material(
     lighting: LightingModel.normals,
@@ -72,7 +81,7 @@ Future<ModelDocument> bakeImpostors(
       return null;
     }
     final rgba = decoded.convert(numChannels: 4, format: img.Format.uint8);
-    return device.createTextureFromPixels(
+    return gpu.createTextureFromPixels(
       width: rgba.width,
       height: rgba.height,
       format: TextureFormat.r8g8b8a8UNormInt,
@@ -100,163 +109,197 @@ Future<ModelDocument> bakeImpostors(
 
   final images = <EncodedImage>[...document.images];
   final nodes = <ModelNode>[];
-  for (final node in document.nodes) {
-    final surfaces = <ModelSurface>[
-      for (final s in node.surfaces)
-        if (s >= 0 && s < document.surfaces.length) document.surfaces[s],
-    ];
-    if (surfaces.isEmpty ||
-        node.lods.any((lod) => lod.impostor != null) ||
-        surfaces.every((s) => s.mesh.vertexCount == 0)) {
-      nodes.add(node);
-      continue;
-    }
+  try {
+    for (final node in document.nodes) {
+      final surfaces = <ModelSurface>[
+        for (final s in node.surfaces)
+          if (s >= 0 && s < document.surfaces.length) document.surfaces[s],
+      ];
+      if (surfaces.isEmpty ||
+          node.lods.any((lod) => lod.impostor != null) ||
+          surfaces.every((s) => s.mesh.vertexCount == 0)) {
+        nodes.add(node);
+        continue;
+      }
 
-    final (centre, radius) = _boundingSphere(surfaces);
-    final drawn = <ModelSurface>[
-      for (final s in surfaces)
-        if (s.mesh.vertexCount > 0) s,
-    ];
-    // Once a node, not once a view: sixty-four views draw the same vertices.
-    final uploaded = <DeviceMesh>[
-      for (final s in drawn) DeviceMesh.upload(device, s.mesh),
-    ];
-    final albedoAtlas = Uint8List(side * side * 4);
-    final normalAtlas = Uint8List(side * side * 4);
+      final (centre, radius) = _boundingSphere(surfaces);
+      final drawn = <ModelSurface>[
+        for (final s in surfaces)
+          if (s.mesh.vertexCount > 0) s,
+      ];
+      // Once a node, not once a view: sixty-four views draw the same vertices.
+      final uploaded = <DeviceMesh>[
+        for (final s in drawn) DeviceMesh.upload(gpu, s.mesh),
+      ];
+      // The depth copies too: a view changes only their normals, which are
+      // written over in place rather than uploaded again sixty-four times.
+      final depthSources = <MeshData>[
+        for (final s in drawn) s.mesh.convertedTo(VertexLayout.standard),
+      ];
+      final depthMeshes = <DeviceMesh>[
+        for (final m in depthSources) DeviceMesh.upload(gpu, m),
+      ];
+      final albedoAtlas = Uint8List(side * side * 4);
+      final normalAtlas = Uint8List(side * side * 4);
 
-    for (var row = 0; row < grid; row++) {
-      for (var column = 0; column < grid; column++) {
-        final d = impostorViewDirection(column, row);
-        final camera = _cameraFor(d, centre, radius);
+      try {
+        for (var row = 0; row < grid; row++) {
+          for (var column = 0; column < grid; column++) {
+            final d = impostorViewDirection(column, row);
+            final camera = _cameraFor(d, centre, radius);
 
-        Future<Uint8List> shoot(List<MeshNode> draws, Vector4 clear) async {
-          final scene = Scene();
-          for (final draw in draws) {
-            scene.add(draw);
+            Future<Uint8List> shoot(List<MeshNode> draws, Vector4 clear) async {
+              final scene = Scene();
+              for (final draw in draws) {
+                scene.add(draw);
+              }
+              scene.add(camera);
+              final result = renderer.render(
+                width: cell,
+                height: cell,
+                scene: scene,
+                views: <RenderView>[
+                  RenderView(camera: camera, clearColor: clear),
+                ],
+                settings: settings,
+              );
+              for (final draw in draws) {
+                scene.remove(draw);
+              }
+              scene.remove(camera);
+              final pixels = await gpu.readPixels(result.frame);
+              return pixels!.buffer.asUint8List(
+                pixels.offsetInBytes,
+                pixels.lengthInBytes,
+              );
+            }
+
+            List<MeshNode> drawsOf(
+              List<DeviceMesh> meshes,
+              Material Function(int surface) materialOf,
+            ) => <MeshNode>[
+              for (var i = 0; i < drawn.length; i++)
+                MeshNode(meshes[i], materialOf(i)),
+            ];
+
+            final colour = drawsOf(
+              uploaded,
+              (i) => albedoMaterial(drawn[i].materialIndex),
+            );
+            final onBlack = await shoot(colour, Vector4(0, 0, 0, 0));
+            final onWhite = await shoot(colour, Vector4(1, 1, 1, 1));
+            final normals = await shoot(
+              drawsOf(uploaded, (_) => normalsMaterial),
+              Vector4(0, 0, 0, 0),
+            );
+            for (var i = 0; i < drawn.length; i++) {
+              depthMeshes[i].overwriteVertices(
+                gpu,
+                0,
+                ByteData.sublistView(
+                  _depthCoded(depthSources[i], d, centre, radius),
+                ),
+              );
+            }
+            final depths = await shoot(
+              drawsOf(depthMeshes, (_) => normalsMaterial),
+              Vector4(0, 0, 0, 0),
+            );
+
+            for (var y = 0; y < cell; y++) {
+              for (var x = 0; x < cell; x++) {
+                final from = (y * cell + x) * 4;
+                final to = ((row * cell + y) * side + column * cell + x) * 4;
+                final gap =
+                    (onWhite[from] - onBlack[from]).abs() +
+                    (onWhite[from + 1] - onBlack[from + 1]).abs() +
+                    (onWhite[from + 2] - onBlack[from + 2]).abs();
+                // Nothing drawn reads 255 apart on every channel; a surface
+                // reads the same against either. Rounding in the encoder can
+                // leave a covered texel a step or two apart.
+                final covered = gap < 24;
+                if (!covered) continue;
+                albedoAtlas[to] = onBlack[from];
+                albedoAtlas[to + 1] = onBlack[from + 1];
+                albedoAtlas[to + 2] = onBlack[from + 2];
+                albedoAtlas[to + 3] = 255;
+                normalAtlas[to] = normals[from];
+                normalAtlas[to + 1] = normals[from + 1];
+                normalAtlas[to + 2] = normals[from + 2];
+                final dx = depths[from] / 255 * 2 - 1;
+                final dy = depths[from + 1] / 255 * 2 - 1;
+                final t = dx + dy > 1e-6
+                    ? (dx / (dx + dy)).clamp(0.0, 1.0)
+                    : 0.5;
+                normalAtlas[to + 3] = (t * 255).round();
+              }
+            }
           }
-          scene.add(camera);
-          final result = renderer.render(
-            width: cell,
-            height: cell,
-            scene: scene,
-            views: <RenderView>[RenderView(camera: camera, clearColor: clear)],
-            settings: settings,
-          );
-          for (final draw in draws) {
-            scene.remove(draw);
-          }
-          scene.remove(camera);
-          final pixels = await device.readPixels(result.frame);
-          return pixels!.buffer.asUint8List(
-            pixels.offsetInBytes,
-            pixels.lengthInBytes,
-          );
         }
-
-        List<MeshNode> drawsOf(
-          List<DeviceMesh> meshes,
-          Material Function(int surface) materialOf,
-        ) => <MeshNode>[
-          for (var i = 0; i < drawn.length; i++)
-            MeshNode(meshes[i], materialOf(i)),
-        ];
-
-        final colour = drawsOf(
-          uploaded,
-          (i) => albedoMaterial(drawn[i].materialIndex),
-        );
-        final onBlack = await shoot(colour, Vector4(0, 0, 0, 0));
-        final onWhite = await shoot(colour, Vector4(1, 1, 1, 1));
-        final normals = await shoot(
-          drawsOf(uploaded, (_) => normalsMaterial),
-          Vector4(0, 0, 0, 0),
-        );
-        final depths = await shoot(
-          drawsOf(<DeviceMesh>[
-            for (final s in drawn)
-              DeviceMesh.upload(device, _depthCoded(s.mesh, d, centre, radius)),
-          ], (_) => normalsMaterial),
-          Vector4(0, 0, 0, 0),
-        );
-
-        for (var y = 0; y < cell; y++) {
-          for (var x = 0; x < cell; x++) {
-            final from = (y * cell + x) * 4;
-            final to = ((row * cell + y) * side + column * cell + x) * 4;
-            final gap =
-                (onWhite[from] - onBlack[from]).abs() +
-                (onWhite[from + 1] - onBlack[from + 1]).abs() +
-                (onWhite[from + 2] - onBlack[from + 2]).abs();
-            // Nothing drawn reads 255 apart on every channel; a surface
-            // reads the same against either. Rounding in the encoder can
-            // leave a covered texel a step or two apart.
-            final covered = gap < 24;
-            if (!covered) continue;
-            albedoAtlas[to] = onBlack[from];
-            albedoAtlas[to + 1] = onBlack[from + 1];
-            albedoAtlas[to + 2] = onBlack[from + 2];
-            albedoAtlas[to + 3] = 255;
-            normalAtlas[to] = normals[from];
-            normalAtlas[to + 1] = normals[from + 1];
-            normalAtlas[to + 2] = normals[from + 2];
-            final dx = depths[from] / 255 * 2 - 1;
-            final dy = depths[from + 1] / 255 * 2 - 1;
-            final t = dx + dy > 1e-6 ? (dx / (dx + dy)).clamp(0.0, 1.0) : 0.5;
-            normalAtlas[to + 3] = (t * 255).round();
-          }
+      } finally {
+        for (final mesh in <DeviceMesh>[...uploaded, ...depthMeshes]) {
+          gpu
+            ..releaseGeometry(mesh.vertices)
+            ..releaseGeometry(mesh.indices);
         }
       }
-    }
 
-    _bleed(albedoAtlas, normalAtlas, side: side, cell: cell);
+      _bleed(albedoAtlas, normalAtlas, side: side, cell: cell);
 
-    final albedoIndex = images.length;
-    images.add(
-      EncodedImage(
-        bytes: encodePng(albedoAtlas, side, side),
-        name: '${node.name ?? 'node'} impostor albedo',
-        mimeType: 'image/png',
-      ),
-    );
-    final normalIndex = images.length;
-    images.add(
-      EncodedImage(
-        bytes: encodePng(normalAtlas, side, side),
-        name: '${node.name ?? 'node'} impostor normal-depth',
-        mimeType: 'image/png',
-      ),
-    );
+      final albedoIndex = images.length;
+      images.add(
+        EncodedImage(
+          bytes: encodePng(albedoAtlas, side, side),
+          name: '${node.name ?? 'node'} impostor albedo',
+          mimeType: 'image/png',
+        ),
+      );
+      final normalIndex = images.length;
+      images.add(
+        EncodedImage(
+          bytes: encodePng(normalAtlas, side, side),
+          name: '${node.name ?? 'node'} impostor normal-depth',
+          mimeType: 'image/png',
+        ),
+      );
 
-    nodes.add(
-      ModelNode(
-        name: node.name,
-        translation: node.translation,
-        rotation: node.rotation,
-        scale: node.scale,
-        children: node.children,
-        surfaces: node.surfaces,
-        extras: node.extras,
-        lightIndex: node.lightIndex,
-        cameraIndex: node.cameraIndex,
-        lods: <ModelLod>[
-          ...node.lods,
-          ModelLod.impostor(
-            maxScreenFraction: impostorScreenFraction(node.lods),
-            impostor: ModelImpostor(
-              albedoImage: albedoIndex,
-              normalDepthImage: normalIndex,
-              grid: grid,
-              centre: centre,
-              radius: radius,
+      nodes.add(
+        ModelNode(
+          name: node.name,
+          translation: node.translation,
+          rotation: node.rotation,
+          scale: node.scale,
+          children: node.children,
+          surfaces: node.surfaces,
+          extras: node.extras,
+          lightIndex: node.lightIndex,
+          cameraIndex: node.cameraIndex,
+          lods: <ModelLod>[
+            ...node.lods,
+            ModelLod.impostor(
+              maxScreenFraction: impostorScreenFraction(node.lods),
+              impostor: ModelImpostor(
+                albedoImage: albedoIndex,
+                normalDepthImage: normalIndex,
+                grid: grid,
+                centre: centre,
+                radius: radius,
+              ),
             ),
-          ),
-        ],
-      ),
-    );
-    report?.call(
-      '${node.name ?? 'a node'}: impostor ${grid}x$grid views of $cell, '
-      'radius ${radius.toStringAsFixed(3)}',
-    );
+          ],
+        ),
+      );
+      report?.call(
+        '${node.name ?? 'a node'}: impostor ${grid}x$grid views of $cell, '
+        'radius ${radius.toStringAsFixed(3)}',
+      );
+    }
+  } finally {
+    for (final texture in textures.values) {
+      if (texture != null) gpu.releaseTexture(texture);
+    }
+    renderer.dispose();
+    if (device == null) gpu.dispose();
   }
 
   return PlainModelDocument(
@@ -276,6 +319,12 @@ Future<ModelDocument> bakeImpostors(
 /// The middle of [surfaces]' box, and the furthest any vertex is from it —
 /// in the node's own space, which is where each surface's vertices already
 /// are.
+///
+/// **`ModelSurface.transform` is not applied, on purpose.** It is the node's
+/// placement in the model, the same matrix the node's own TRS composes to,
+/// kept on the surface for a reader that draws a flat list. `instantiate`
+/// draws the mesh at identity under the node and the card beside it, so a
+/// centre moved by that matrix would be carried by the node a second time.
 (Vector3, double) _boundingSphere(List<ModelSurface> surfaces) {
   final box = Aabb3.copy(surfaces.first.mesh.computeBounds());
   for (final s in surfaces.skip(1)) {
@@ -336,10 +385,15 @@ CameraNode _cameraFor(Vector3 d, Vector3 centre, double radius) {
   );
 }
 
-/// [mesh] with each normal replaced by its depth along the view [d] coded as
-/// `(t, 1 - t, 0)` — `t` nought at the near side of the sphere, one at the far.
-MeshData _depthCoded(MeshData mesh, Vector3 d, Vector3 centre, double radius) {
-  final standard = mesh.convertedTo(VertexLayout.standard);
+/// The vertices of [standard], a mesh in [VertexLayout.standard], with each
+/// normal replaced by its depth along the view [d] coded as `(t, 1 - t, 0)` —
+/// `t` nought at the near side of the sphere, one at the far.
+Float32List _depthCoded(
+  MeshData standard,
+  Vector3 d,
+  Vector3 centre,
+  double radius,
+) {
   final vertices = Float32List.fromList(standard.vertices);
   final stride = VertexLayout.standard.floatsPerVertex;
   final position = VertexLayout.standard.floatOffsetOf(
@@ -357,11 +411,7 @@ MeshData _depthCoded(MeshData mesh, Vector3 d, Vector3 centre, double radius) {
     vertices[o + normal + 1] = 1.0 - t;
     vertices[o + normal + 2] = 0.0;
   }
-  return MeshData(
-    layout: VertexLayout.standard,
-    vertices: vertices,
-    indices: standard.indices,
-  );
+  return vertices;
 }
 
 /// Spreads each covered texel's colour and normal a few texels into the
