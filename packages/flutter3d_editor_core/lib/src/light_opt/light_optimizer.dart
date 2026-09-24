@@ -276,6 +276,7 @@ final class LightOptimizer {
       overlapAfter: problem.totalOverlap(set),
       difference: fit.difference,
       underLit: fit.underLit,
+      holds: fits(fit),
       width: width,
       height: height,
       previewBefore: display(
@@ -396,6 +397,7 @@ final class LightPlan {
     required this.overlapAfter,
     required this.difference,
     required this.underLit,
+    this.holds = true,
     required this.width,
     required this.height,
     required this.previewBefore,
@@ -428,14 +430,21 @@ final class LightPlan {
   /// `darkening` of what they were.
   final double underLit;
 
+  /// Whether the new set, drawn, stays inside the bounds the search judged
+  /// every move by. The search adds lights' pictures, and a merged light's
+  /// real shadow can land where its parents' did not, so the drawn set is
+  /// held to the bounds again; a plan that misses them changes nothing.
+  final bool holds;
+
   /// The size of the two previews, which are RGBA bytes of the first view.
   final int width;
   final int height;
   final Uint8List previewBefore;
   final Uint8List previewAfter;
 
-  /// Whether anything would change.
-  bool get changes => moves.isNotEmpty;
+  /// Whether anything would change: a move was kept and the set it leaves
+  /// [holds] when drawn.
+  bool get changes => moves.isNotEmpty && holds;
 
   /// The two previews as PNG files.
   ({Uint8List before, Uint8List after}) get pngs => (
@@ -450,7 +459,8 @@ final class LightPlan {
     return '${before.length} → ${after.length} lights, shading cost '
         '${share(saved)} lower, difference ${difference.toStringAsFixed(4)}, '
         '${share(underLit)} of pixels darker, overlap '
-        '${share(overlapBefore)} → ${share(overlapAfter)}';
+        '${share(overlapBefore)} → ${share(overlapAfter)}'
+        '${holds ? '' : ', and drawn it misses the bounds, so it is not taken'}';
   }
 }
 

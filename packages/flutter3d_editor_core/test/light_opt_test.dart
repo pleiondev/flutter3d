@@ -4,6 +4,7 @@
 library;
 
 import 'dart:convert';
+import 'dart:typed_data';
 
 import 'package:flutter3d_editor_core/flutter3d_editor_core.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
@@ -119,7 +120,35 @@ void main() {
       expect(plan.overlapBefore, greaterThan(0.6));
       expect(plan.overlapAfter, 0.0);
       expect(plan.moves, hasLength(greaterThanOrEqualTo(2)));
+      expect(plan.holds, isTrue);
+      expect(plan.changes, isTrue);
       expect(level.lights, hasLength(3), reason: 'the level was changed');
+    });
+
+    test('a set that misses the bounds once drawn changes nothing', () {
+      // The search judges moves on the lights' pictures added together; the
+      // drawn set is judged again, and a miss there is not a plan to take.
+      // Mutation: drop `&& holds` from `LightPlan.changes` and the command
+      // line, the agent's tool and the editor's button all apply it.
+      final plan = LightPlan(
+        before: const <LevelLight>[],
+        after: const <LevelLight>[],
+        moves: const <String>['removed a lamp'],
+        costBefore: 2.0,
+        costAfter: 1.0,
+        overlapBefore: 0.5,
+        overlapAfter: 0.0,
+        difference: 0.2,
+        underLit: 0.3,
+        holds: false,
+        width: 1,
+        height: 1,
+        previewBefore: Uint8List(4),
+        previewAfter: Uint8List(4),
+      );
+
+      expect(plan.changes, isFalse);
+      expect(plan.says, contains('misses the bounds'));
     });
 
     test('keeps a lamp nothing else stands in for', () {
