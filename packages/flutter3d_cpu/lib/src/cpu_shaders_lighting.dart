@@ -12,6 +12,7 @@ import 'package:vector_math/vector_math.dart';
 
 import 'cpu_shader.dart';
 import 'cpu_shaders_layout.dart';
+import 'cpu_shaders_ltc.dart';
 import 'cpu_shaders_shadow_directional.dart';
 import 'cpu_shaders_shadow_point.dart';
 import 'cpu_shaders_surface.dart';
@@ -155,6 +156,9 @@ typedef LightSample = ({
   double nDotL,
   double nDotH,
   double vDotH,
+  // `L7`: the GGX lobe integrated over a rectangle, its norm and Fresnel
+  // term, when the model binds the LTC tables; null otherwise.
+  Vector3? ltc,
 });
 
 /// `RectangleFormFactor` — `gfx-77n`.
@@ -301,6 +305,16 @@ LightSample? sampleLight(ShaderBindings bindings, int index, Surface s) {
       nDotL: formFactor,
       nDotH: math.max(s.normal.dot(h), 0.0),
       vDotH: math.max(s.view.dot(h), 0.0),
+      ltc: switch (bindings.textures['ltc_texture']) {
+        final table? => ltcRectangle(
+          table,
+          s.normal,
+          s.view,
+          s.roughness,
+          corners,
+        ),
+        null => null,
+      },
     );
   }
 
@@ -351,6 +365,7 @@ LightSample? sampleLight(ShaderBindings bindings, int index, Surface s) {
     nDotL: nDotL,
     nDotH: math.max(s.normal.dot(half), 0.0),
     vDotH: math.max(s.view.dot(half), 0.0),
+    ltc: null,
   );
 }
 

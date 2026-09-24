@@ -320,6 +320,13 @@ struct LightSample {
   float n_dot_l;
   float n_dot_h;
   float v_dot_h;
+
+  /// One when the specular below is already integrated over the light —
+  /// `L7`, a rectangle under a model that defines `F3D_LTC` — and nought
+  /// otherwise. Then `ltc.x` is the GGX lobe over the rectangle, `ltc.y` the
+  /// fitted norm and `ltc.z` the Fresnel term; see `LtcRectangle`.
+  float integrated;
+  vec3 ltc;
 };
 
 Surface ReadSurface() {
@@ -546,8 +553,14 @@ vec3 RectangleClosestPoint(vec3 centre, vec3 halfWidth, vec3 halfHeight,
 /// Returns `n_dot_l == 0` for anything that contributes nothing — behind the
 /// surface, out of range, outside the spot cone — so a model can skip it with
 /// one test instead of repeating the classification.
+#ifdef F3D_LTC
+#include <lib/ltc.glsl>
+#endif
+
 LightSample SampleLight(int index, Surface s) {
   LightSample light;
+  light.integrated = 0.0;
+  light.ltc = vec3(0.0);
 
   vec4 position;
   vec4 color;
@@ -643,6 +656,12 @@ LightSample SampleLight(int index, Surface s) {
     light.n_dot_h = max(dot(s.n, light.h), 0.0);
     light.v_dot_h = max(dot(s.v, light.h), 0.0);
     light.radiance = color.rgb * color.w * radiance;
+#ifdef F3D_LTC
+    // `L7`: the specular over the whole panel rather than at one point of
+    // it. The diffuse keeps the exact form factor above.
+    light.integrated = 1.0;
+    light.ltc = LtcRectangle(s.n, s.v, s.roughness, corners);
+#endif
     return light;
   }
 

@@ -81,6 +81,9 @@ const String _kAlbedoTextureSlot = 'base_color_texture';
 
 const String _kNormalTextureSlot = 'normal_texture';
 const String _kMetallicRoughnessTextureSlot = 'metallic_roughness_texture';
+
+/// The LTC tables — `L7`. Metal-rough only; see `lib/ltc.glsl`.
+const String _kLtcTextureSlot = 'ltc_texture';
 const String _kOcclusionTextureSlot = 'occlusion_texture';
 const String _kEmissiveTextureSlot = 'emissive_texture';
 const String _kLightmapTextureSlot = 'lightmap_texture';

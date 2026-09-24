@@ -45,6 +45,7 @@ void main() {
     expect(hashes, <String, int>{
       'blueNoise': 1332832323,
       'aces2Display': 3566240564,
+      'ltc': 3759136739,
     });
   });
 

@@ -58,6 +58,47 @@ void main() {
     format: 'r16g16b16a16Float',
     bytes: aces2DisplayTable(),
   );
+
+  _write(
+    'ltc.dart',
+    name: 'ltc',
+    doc: '''
+/// The linearly transformed cosines of GGX — `L7`: two 64×64 tables stacked
+/// in one 64×128 rgba16f texture, indexed by `(roughness, sqrt(1 − n·v))`
+/// scaled into texel centres. Rows 0–63 hold the inverse matrix, normalised
+/// by its middle element, as (m00, m02, m20, m22); rows 64–127 hold the
+/// fitted norm and Fresnel term in x and y, nothing in z, and the form
+/// factor of a sphere by the clipped cosine in w.
+///
+/// The published fit of Heitz, Dupuy, Hill and Neubelt, "Real-Time
+/// Polygonal-Light Shading with Linearly Transformed Cosines", ACM TOG 35(4),
+/// 2016, copied half for half from `tool/third_party/ltc/`:
+///
+/// Copyright (c) 2017, Eric Heitz, Jonathan Dupuy, Stephen Hill and David
+/// Neubelt. All rights reserved. Redistributed under the conditions in
+/// `tool/third_party/ltc/LICENSE`.''',
+    width: 64,
+    height: 128,
+    format: 'r16g16b16a16Float',
+    bytes: ltcTable(),
+  );
+}
+
+/// The two published LTC tables, headers dropped, one under the other.
+Uint8List ltcTable() {
+  Uint8List body(String name) {
+    final dds = File('tool/third_party/ltc/$name').readAsBytesSync();
+    // A plain DDS: four bytes of magic, a 124-byte header, then 64×64
+    // rgba16f with no DX10 extension.
+    const header = 128;
+    const size = 64 * 64 * 8;
+    if (dds.length != header + size) {
+      throw StateError('$name is not the 64×64 rgba16f table it should be');
+    }
+    return Uint8List.sublistView(dds, header);
+  }
+
+  return Uint8List.fromList(<int>[...body('ltc_1.dds'), ...body('ltc_2.dds')]);
 }
 
 /// Entries per axis of a display transform table.
