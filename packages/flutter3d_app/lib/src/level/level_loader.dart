@@ -1,16 +1,17 @@
 import 'dart:convert';
-import 'dart:math' as math;
 import 'dart:typed_data';
 
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:flutter3d/flutter3d.dart';
+import 'package:flutter3d_editor_core/flutter3d_editor_core.dart'
+    show LevelBatching, LevelScene;
 import 'package:flutter3d_sim/flutter3d_sim.dart';
-import 'package:vector_math/vector_math.dart';
 
 import 'loaded_level.dart';
-import 'surface_mesh.dart';
 import 'visibility_culler.dart';
 
+export 'package:flutter3d_editor_core/flutter3d_editor_core.dart'
+    show LevelBatching;
 export 'loaded_level.dart';
 
 /// How a level's own files are found.
@@ -126,6 +127,10 @@ final class LevelLoader {
   /// every web build, and the alternative — shipping the table anyway — is
   /// 2.5 MB per game that culls nothing. Saying so here is cheaper than
   /// leaving each caller to discover it.
+  ///
+  /// [batching] is how the brushes are grouped into draws — see
+  /// [LevelBatching]; a game keeps the default, a tool that has to name the
+  /// brush under a pixel asks for one draw per brush.
   Future<LoadedLevel> load(
     String assetPath, {
     required GraphicsDevice device,
@@ -134,6 +139,7 @@ final class LevelLoader {
     AssetBytes? readAsset,
     DocumentText? readDocument,
     bool sidecars = true,
+    LevelBatching batching = LevelBatching.perMaterial,
   }) async {
     final read = readDocument ?? _bundleDocument;
     final level = Level.fromJson(
@@ -154,6 +160,7 @@ final class LevelLoader {
       visibility: visibility,
       lightmap: lightmap,
       issues: <LevelIssue>[?issue, ?lightmapIssue],
+      batching: batching,
     );
   }
 
@@ -232,20 +239,10 @@ final class LevelLoader {
     }
   }
 
-  /// The engine's shadow mode for the one a level document asked for.
-  ///
-  /// **Case by case rather than by name**, though the four words are spelled
-  /// the same on both sides: `flutter3d_sim` may not import the engine, so the
-  /// two enums are two enums, and a `switch` with no default is the thing that
-  /// makes the compiler point at this line the day either of them grows a
-  /// fifth answer. Matching on `name` would compile and quietly fall back.
+  /// The engine's shadow mode for the one a level document asked for —
+  /// [LevelScene.shadowModeOf], where the reason it is a `switch` is written.
   static ShadowCastingMode shadowModeOf(ShadowCasting casting) =>
-      switch (casting) {
-        ShadowCasting.on => ShadowCastingMode.on,
-        ShadowCasting.off => ShadowCastingMode.off,
-        ShadowCasting.doubleSided => ShadowCastingMode.doubleSided,
-        ShadowCasting.shadowsOnly => ShadowCastingMode.shadowsOnly,
-      };
+      LevelScene.shadowModeOf(casting);
 
   /// Draws the level's walls again from [brushes], which are no longer the
   /// document's — a blast has cut some of them.
@@ -304,39 +301,19 @@ final class LevelLoader {
     // a piece's place in it. A layout with no way back to the authored brushes
     // is worse than none: every face past the hole would sample a stranger's
     // texels, which reads as scrambled light rather than as a missing bake.
-    final lightmapTexture = loaded.lightmap;
-    final layout = origins == null ? null : loaded.lightmapLayout;
-    final surfaces = const BrushGeometry().build(
+    final batches = LevelScene(batching: loaded.batching).brushBatches(
       cut,
-      lightmap: lightmapTexture == null ? null : layout,
+      device: device,
+      textures: loaded.materialTextures,
+      lightmapLayout: origins == null ? null : loaded.lightmapLayout,
+      lightmapTexture: loaded.lightmap,
       origins: origins,
     );
-    final tiling = tilingSamplerFor(device);
-    final meshes = <DeviceMesh>[];
-    for (final surface in surfaces) {
-      final mesh = DeviceMesh.upload(device, meshDataOf(surface));
-      meshes.add(mesh);
-      final node =
-          MeshNode(
-              mesh,
-              materialFrom(
-                  level.materials[surface.material] ?? LevelMaterial(),
-                  loaded.materialTextures,
-                  name: surface.material,
-                  tiling: tiling,
-                )
-                ..lightmap = surface.lightmapUvs == null
-                    ? null
-                    : lightmapTexture,
-              name: surface.material,
-            )
-            ..lightmapped = surface.lightmapUvs != null
-            ..shadowIsStatic = true
-            ..shadowCasting = shadowModeOf(surface.shadowCasting);
-      loaded.scene.add(node);
-      loaded.brushNodes.add(node);
+    for (final batch in batches) {
+      loaded.scene.add(batch.node);
+      loaded.brushNodes.add(batch.node);
     }
-    loaded.brushMeshes = meshes;
+    loaded.brushMeshes = <DeviceMesh>[for (final batch in batches) batch.mesh];
     // The static half of the point shadows was drawn from walls that are no
     // longer there; without this a hole keeps casting the wall's shadow.
     loaded.scene.invalidateStaticShadows();
@@ -364,6 +341,7 @@ final class LevelLoader {
     LevelVisibility? visibility,
     Lightmap? lightmap,
     List<LevelIssue> issues = const <LevelIssue>[],
+    LevelBatching batching = LevelBatching.perMaterial,
   }) async {
     // Errors throw with every one listed, because a level with a door whose key
     // is in no room is a level that cannot be finished, and finding that out
@@ -371,7 +349,6 @@ final class LevelLoader {
     final validator = LevelValidator(registry: registry, rules: rules);
     validator.assertValid(level);
 
-    final scene = Scene();
     final collision = CollisionWorld();
     level.addTo(collision);
 
@@ -509,82 +486,44 @@ final class LevelLoader {
         ),
       );
     }
-    final surfaces = const BrushGeometry().build(
+    // Everything from here on needs no Flutter, and lives where a program
+    // with none can reach it: the textures and `.fmat` materials this method
+    // loaded are handed over already on the device.
+    final parts = LevelScene(batching: batching).build(
       level,
+      device: device,
+      textures: textures,
+      deferred: deferred,
       visibility: visibility,
-      lightmap: lightmapTexture == null ? null : layout,
+      lightmapLayout: layout,
+      lightmapTexture: lightmapTexture,
     );
-    // Remembered on the way in, so `LoadedLevel.dispose` can release exactly
-    // what this loop uploaded and nothing else.
-    final brushMeshes = <DeviceMesh>[];
-    // And with their boxes, so the culler can ask which of them a cell sees.
-    final batches = <VisibilityBatch>[];
-    final brushNodes = <MeshNode>[];
-    // Once per level, as `tilingSamplerFor` promises: one object, shared by
-    // every brush surface below.
-    final tiling = tilingSamplerFor(device);
-    for (final surface in surfaces) {
-      final mesh = DeviceMesh.upload(device, meshDataOf(surface));
-      brushMeshes.add(mesh);
-      final node =
-          MeshNode(
-              mesh,
-              (deferred[surface.material] ??
-                    LevelLoader.materialFrom(
-                      level.materials[surface.material] ?? LevelMaterial(),
-                      textures,
-                      name: surface.material,
-                      tiling: tiling,
-                    ))
-                ..lightmap = surface.lightmapUvs == null
-                    ? null
-                    : lightmapTexture,
-              name: surface.material,
-            )
-            ..lightmapped = surface.lightmapUvs != null
-            // Brushes are the level: they never move, so their shadow is baked
-            // once rather than redrawn six times a frame.
-            ..shadowIsStatic = true
-            // A fence is not architecture, and a wall one brush thick casts
-            // from both faces. See `Brush.shadowCasting` — and note that this
-            // is why surfaces are batched by that answer as well as by
-            // material: a batch is the smallest thing that can answer it.
-            ..shadowCasting = shadowModeOf(surface.shadowCasting);
-      scene.add(node);
-      batches.add((node: node, bounds: surface.bounds));
-      brushNodes.add(node);
-    }
-
-    for (final light in level.lights) {
-      scene.add(_toLightNode(light));
-    }
-
-    // A probe wherever the document asks for one, built the way the lights
-    // are rather than spawned: it is a scene node and the simulation has no
-    // use for it. The kind that validates the entity is the game's to speak
-    // — see `ReflectionProbeKind` — and by now it has.
-    final probes = <ReflectionProbeNode>[
-      for (final entity in level.ofType(EntityTypes.reflectionProbe))
-        _toProbeNode(entity),
-    ];
-    for (final probe in probes) {
-      scene.add(probe);
-    }
 
     return LoadedLevel(
         level: level,
-        scene: scene,
+        scene: parts.scene,
         collision: collision,
         issues: <LevelIssue>[...validator.validate(level), ...loadIssues],
-        drawCallCount: surfaces.length,
+        drawCallCount: parts.batches.length,
         materialTextures: textures,
-        brushMeshes: brushMeshes,
-        probes: probes,
+        // Remembered so `LoadedLevel.dispose` can release exactly what was
+        // uploaded for the brushes and nothing else.
+        brushMeshes: <DeviceMesh>[
+          for (final batch in parts.batches) batch.mesh,
+        ],
+        probes: parts.probes,
+        // With their boxes, so the culler can ask which of them a cell sees.
         culler: visibility == null
             ? null
-            : VisibilityCuller(visibility, batches),
+            : VisibilityCuller(visibility, <VisibilityBatch>[
+                for (final batch in parts.batches)
+                  (node: batch.node, bounds: batch.bounds),
+              ]),
+        batching: batching,
       )
-      ..brushNodes.addAll(brushNodes)
+      ..brushNodes.addAll(<MeshNode>[
+        for (final batch in parts.batches) batch.node,
+      ])
       // A `.fmat`'s maps are uploaded by `bindMaterial` and named nowhere but
       // on the material, so they are collected here or never released.
       ..boundTextures.addAll(<TextureHandle>{
@@ -605,93 +544,24 @@ final class LevelLoader {
       ..lightmapLayout = lightmapTexture == null ? null : layout;
   }
 
-  /// A kept probe at the entity's position, with the document's numbers
-  /// where it gave any and the probe's own defaults where it did not.
-  ///
-  /// The defaults are restated rather than reached for because the node's
-  /// are constructor defaults, and a document that says nothing means those.
-  /// Kept, never rolling: a level's rooms do not move, and a probe that
-  /// redrew a face a frame would spend a view of the level on a picture it
-  /// already has.
-  static ReflectionProbeNode _toProbeNode(EntityDef entity) =>
-      ReflectionProbeNode(
-        name: entity.name,
-        radius: entity.number('radius') ?? 0.0,
-        intensity: entity.number('intensity') ?? 1.0,
-        faceSize: entity.integer('faceSize') ?? 64,
-        levels: entity.integer('levels') ?? 4,
-        near: entity.number('near') ?? 0.05,
-        far: entity.number('far') ?? 200.0,
-      )..setPositionFrom(entity.position);
-
-  /// Builds an engine material from a level material and the loaded maps.
-  ///
-  /// A free function rather than a method on either type: [LevelMaterial] lives
-  /// in the game package, which must not know that textures exist, and
-  /// [Material] lives in the renderer, which must not know that levels do. This
-  /// is the seam, and it is the only place that knows both.
+  /// Builds an engine material from a level material and the loaded maps —
+  /// [LevelScene.materialFrom], kept here under its old name because props,
+  /// fixtures and the lesson viewers bind their looks through it.
   static Material materialFrom(
     LevelMaterial source,
     Map<String, TextureHandle?> textures, {
     String? name,
-    SamplerOptions tiling = _tiling,
-  }) {
-    final material = Material(
-      name: name,
-      baseColor: source.baseColor,
-      roughness: source.roughness,
-      metallic: source.metallic,
-      // A level material's `emissive` is a strength, not a colour: the surface
-      // glows in the base colour it already has, that much. A separate
-      // emissive colour would be a second value an author has to keep in step
-      // with the first, and everything that has reached for the key so far —
-      // the platformer's hazard "lit from inside", its checkpoints, its exit —
-      // wanted exactly the tint it had already written.
-      emissive: Vector3(
-        source.baseColor.x,
-        source.baseColor.y,
-        source.baseColor.z,
-      ),
-      emissiveStrength: source.emissive,
-    );
-    if (!source.hasMaps) return material;
+    SamplerOptions tiling = SamplerOptions.trilinearRepeat,
+  }) => LevelScene.materialFrom(source, textures, name: name, tiling: tiling);
 
-    material
-      ..albedo = textures[source.albedo]
-      ..normal = textures[source.normal]
-      // The same image in both slots. glTF packs occlusion, roughness and
-      // metallic into one texture; the renderer reads red from the occlusion
-      // slot and green and blue from the metallic-roughness slot, so binding
-      // it twice is not waste — it is what the two slots are for.
-      ..metallicRoughness = textures[source.orm]
-      ..occlusion = textures[source.orm]
-      ..albedoSampler = tiling
-      ..normalSampler = tiling
-      ..metallicRoughnessSampler = tiling
-      ..occlusionSampler = tiling;
-    return material;
-  }
+  /// How far the filter may reach across a brush surface at a grazing angle
+  /// — [LevelScene.tilingAnisotropy].
+  static const int tilingAnisotropy = LevelScene.tilingAnisotropy;
 
-  /// How far the filter may reach across a brush surface at a grazing angle.
-  ///
-  /// Eight, not sixteen. Sixteen is what the hardware offers and eight is where
-  /// a corridor floor stops visibly improving; past it the taps cost fill rate
-  /// on a phone for a difference nobody has pointed at. Clamped to what the
-  /// device answers, so a device without the filter gets the sampler it always
-  /// had and the software rasteriser — which answers one — draws its own set.
-  static const int tilingAnisotropy = 8;
-
-  /// [_tiling] with the taps this [device] can take, up to
-  /// [tilingAnisotropy].
-  ///
-  /// Decided once per level rather than per bind: the renderer's own
-  /// `RenderSettings.anisotropy` leaves a sampler that already carries a
-  /// level alone, so a level's walls are not turned up twice, and a game that
-  /// turns the setting down for a slower phone still has the level's floors
-  /// filtered — which is deliberate, because a brush floor seen along its
-  /// length is the surface the filter is for.
+  /// The tiling sampler with the taps this [device] can take —
+  /// [LevelScene.tilingSamplerFor].
   static SamplerOptions tilingSamplerFor(GraphicsDevice device) =>
-      _tiling.withAnisotropy(math.min(tilingAnisotropy, device.maxAnisotropy));
+      LevelScene.tilingSamplerFor(device);
 
   /// Reads the `.fmat` at [path] and binds it, or says why it could not.
   ///
@@ -782,44 +652,5 @@ final class LevelLoader {
       );
       return null;
     }
-  }
-
-  /// Repeat, not clamp.
-  ///
-  /// A wall fourteen metres wide at half a metre per tile has texture
-  /// coordinates running from zero to twenty-eight, and clamping would stretch
-  /// the atlas's last texel across the whole thing.
-  /// Trilinear, so the chain built at upload is blended rather than merely
-  /// allocated: with `MipFilter.nearest` — the default — the levels are there
-  /// and the picture is the one that has no levels at all.
-  ///
-  /// Isotropic here, which is the default a caller of [materialFrom] gets
-  /// with no device to ask; a level loaded through this class gets
-  /// [tilingSamplerFor] instead.
-  static const SamplerOptions _tiling = SamplerOptions.trilinearRepeat;
-
-  static LightNode _toLightNode(LevelLight light) {
-    final node = LightNode(
-      type: switch (light.type) {
-        LevelLightType.directional => LightType.directional,
-        LevelLightType.point => LightType.point,
-        LevelLightType.spot => LightType.spot,
-      },
-      color: light.color,
-      intensity: light.intensity,
-      range: light.range,
-      // The second place this flag was dropped. It travels from the document
-      // to LevelLight and stopped here, so a light marked as a caster in the
-      // level has never been one in the scene.
-      castsShadow: light.castsShadow,
-      name: light.name,
-    )..setPositionFrom(light.position);
-
-    if (light.type != LevelLightType.point) {
-      // A light aims along its node's local -Z, the same forward axis a camera
-      // uses, so it is pointed rather than given a vector.
-      node.lookAt(light.position + light.direction);
-    }
-    return node;
   }
 }
