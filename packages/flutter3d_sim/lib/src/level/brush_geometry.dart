@@ -97,11 +97,18 @@ final class BrushGeometry {
   /// face it is part of, and measures where in that face it lies. A piece's
   /// face towards the hole is on no planned plane and takes the neutral texel,
   /// which is the one part of a breached wall that genuinely has no baked light.
+  ///
+  /// [perBrush] makes every brush a surface of its own, with
+  /// [BrushSurface.brush] saying which — a draw per brush instead of a
+  /// handful, for a caller that has to name the brush a pixel belongs to
+  /// rather than draw the level fast. Off, the batches are exactly what they
+  /// were.
   List<BrushSurface> build(
     Level level, {
     LevelVisibility? visibility,
     LightmapLayout? lightmap,
     List<int>? origins,
+    bool perBrush = false,
   }) {
     final builders = <String, SurfaceBuilder>{};
 
@@ -109,15 +116,18 @@ final class BrushGeometry {
     // smallest thing that can be taken out of the shadow pass — and by the
     // cell, when there is a table to say which cell a face is in. A level
     // with no fences and no table produces exactly the batches it always did.
-    SurfaceBuilder builderFor(Brush brush, double x, double y, double z) {
+    SurfaceBuilder builderFor(int index, double x, double y, double z) {
+      final brush = level.brushes[index];
       final slot = visibility == null ? -1 : visibility.slotOf(x, y, z);
-      final key = '${brush.material}|${brush.shadowCasting.name}|$slot';
+      final own = perBrush ? '|#$index' : '';
+      final key = '${brush.material}|${brush.shadowCasting.name}|$slot$own';
       return builders.putIfAbsent(
         key,
         () => SurfaceBuilder(
           brush.material,
           shadowCasting: brush.shadowCasting,
           lightmapped: lightmap != null,
+          brush: perBrush ? index : null,
         ),
       );
     }
@@ -144,13 +154,14 @@ final class BrushGeometry {
       _emitFace(
         face,
         level.materialFor(brush),
-        builderFor(brush, face.centreX, face.centreY, face.centreZ),
+        builderFor(face.brush, face.centreX, face.centreY, face.centreZ),
         lightmap,
         placed,
         measured: measured,
       );
     }
-    for (final brush in level.brushes) {
+    for (var index = 0; index < level.brushes.length; index++) {
+      final brush = level.brushes[index];
       final ramp = brush.ramp;
       if (ramp == null) continue;
       final centre = brush.centre;
@@ -158,7 +169,7 @@ final class BrushGeometry {
         brush,
         ramp,
         level.materialFor(brush),
-        builderFor(brush, centre.x, centre.y, centre.z),
+        builderFor(index, centre.x, centre.y, centre.z),
         lightmap,
       );
     }

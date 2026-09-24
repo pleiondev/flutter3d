@@ -278,6 +278,62 @@ void main() {
     expect(channel(0.25, 0.5, 0), greaterThan(200), reason: 'and it is red');
   });
 
+  test('the whole frame of ids agrees with the pick at every point', () async {
+    // `captureObjectIds` is the pick pass read back whole, so every pixel of
+    // it must say what a one-pixel pick at that pixel says, and the two
+    // boxes must own the two halves the picture puts them in. Asked in the
+    // same frame as a pixel pick, which is also the claim that one frame
+    // with both kinds of question draws the ids once and answers both.
+    //
+    // Mutation: read the frame's ids from the green byte — every pixel is
+    // nothing; number the nodes from zero — the left box's pixels name the
+    // right box.
+    final it = _twoBoxes();
+    final whole = it.renderer.captureObjectIds();
+    final left = it.renderer.pickPixel(0.25, 0.5);
+    it.renderer.render(
+      width: _width,
+      height: _height,
+      scene: it.scene,
+      views: <RenderView>[it.view],
+    );
+    final frame = await whole;
+    expect(frame.width, _width);
+    expect(frame.height, _height);
+    expect(frame.ids, hasLength(_width * _height));
+    expect(
+      identical(frame.nodeAt(_width ~/ 4, _height ~/ 2), await left),
+      isTrue,
+    );
+    expect(frame.nodeAt(_width ~/ 4, _height ~/ 2)?.name, 'left');
+    expect(frame.nodeAt(_width * 3 ~/ 4, _height ~/ 2)?.name, 'right');
+    expect(frame.nodeAt(_width ~/ 2, _height ~/ 2), isNull);
+    expect(frame.nodeAt(_width ~/ 2, 1), isNull);
+
+    // Each box owns a sizeable block, the same size either side of the
+    // middle, and the empty pixels are what is left.
+    final counts = frame.pixelCounts();
+    final idOf = <String, int>{
+      for (var id = 1; id <= frame.nodes.length; id++)
+        frame.nodes[id - 1].name!: id,
+    };
+    final leftPixels = counts[idOf['left']!];
+    final rightPixels = counts[idOf['right']!];
+    expect(leftPixels, greaterThan(_width * _height ~/ 10));
+    expect((leftPixels - rightPixels).abs(), lessThan(leftPixels ~/ 10));
+    expect(counts.reduce((a, b) => a + b), _width * _height);
+  });
+
+  test('a frame of ids asked of a disposed renderer is an error', () async {
+    // Not an empty frame, which would read as a scene with nothing in it.
+    // Mutation: answer it with an empty frame — the future completes with a
+    // value and this expectation fails.
+    final it = _twoBoxes();
+    final asked = it.renderer.captureObjectIds();
+    it.renderer.dispose();
+    await expectLater(asked, throwsStateError);
+  });
+
   test('the picture is not touched by the pass', () async {
     // The id pass draws into a target of its own. Mutation: draw into the
     // frame — the frame comes back as ids.

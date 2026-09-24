@@ -205,5 +205,26 @@ void main() {
         reason: 'both of them cast; that is what the boolean could see',
       );
     });
+
+    test('per brush, the two walls that agree are two, each named', () {
+      // What a tool that has to name the brush under a pixel builds: the
+      // batch a game draws with, split so that each surface is one brush and
+      // says which. Mutation: leave the brush out of `builderFor`'s key —
+      // the two walls fall back into one surface, which names only one.
+      final level = walls(ShadowCasting.on);
+      final batched = const BrushGeometry().build(level);
+      final split = const BrushGeometry().build(level, perBrush: true);
+
+      expect(batched.single.brush, isNull);
+      expect(split, hasLength(2));
+      expect(split.map((BrushSurface it) => it.brush), <int>[0, 1]);
+      // Each surface is where its brush is, and only there.
+      expect(split[0].bounds.center.x, closeTo(0.0, 1e-9));
+      expect(split[1].bounds.center.x, closeTo(20.0, 1e-9));
+      expect(
+        split[0].indices.length + split[1].indices.length,
+        batched.single.indices.length,
+      );
+    });
   });
 }

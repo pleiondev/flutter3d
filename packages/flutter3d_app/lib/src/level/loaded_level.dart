@@ -1,4 +1,6 @@
 import 'package:flutter3d/flutter3d.dart';
+import 'package:flutter3d_editor_core/flutter3d_editor_core.dart'
+    show LevelBatching;
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:vector_math/vector_math.dart';
 
@@ -22,6 +24,7 @@ final class LoadedLevel {
     List<DeviceMesh>? brushMeshes,
     List<ReflectionProbeNode>? probes,
     this.culler,
+    this.batching = LevelBatching.perMaterial,
   }) : issues = List.unmodifiable(issues),
        materialTextures = materialTextures ?? const <String, TextureHandle?>{},
        brushMeshes = brushMeshes ?? const <DeviceMesh>[],
@@ -70,6 +73,10 @@ final class LoadedLevel {
   /// The nodes the brush batches are drawn through, in [scene], so a rebuild
   /// can take them out before putting the new ones in.
   final List<MeshNode> brushNodes = <MeshNode>[];
+
+  /// How the brushes were grouped into draws at load, so a rebuild after a
+  /// breach groups them the same way.
+  final LevelBatching batching;
 
   final Level level;
   final Scene scene;
