@@ -523,6 +523,9 @@ final class _SceneNode extends RenderNode {
     // the world still draws.
     for (var i = 0; i < scene.probes.length; i++)
       FrameResourceIds.reflectionProbe(i),
+    // `L4`: the irradiance atlas the GPU keeps, for the same reason — the
+    // lit draws read it when it is there and the bake when it is not.
+    FrameResourceIds.irradianceAtlas,
   ];
 
   /// **Both names always, including on a device that cannot attach the
@@ -835,6 +838,67 @@ final class _ContactShadowNode extends RenderNode with _NeedsSurfaceBuffer {
       options: _settings.contactShadows,
       view: _view,
       toLight: toLight,
+    );
+  }
+}
+
+/// `L4`: the irradiance field's probes, a few a frame, drawn and folded into
+/// the atlas the lit stages read.
+///
+/// After the shadows, which the capture samples, and before the scene, which
+/// reads the atlas — the same place a reflection probe stands, for the same
+/// reasons.
+final class _IrradianceUpdateNode extends RenderNode {
+  _IrradianceUpdateNode(
+    this._renderer, {
+    required this.scene,
+    required this.shadowCaster,
+    required this.clearColor,
+  });
+
+  final Renderer _renderer;
+  final Scene scene;
+  final int shadowCaster;
+  final vm.Vector4 clearColor;
+
+  @override
+  String get name => 'irradiance update';
+
+  @override
+  bool get isActive {
+    final field = scene.irradianceField;
+    return field != null && _renderer._updatesIrradianceOnGpu(field);
+  }
+
+  @override
+  List<ResourceId> get optionalReads => const <ResourceId>[
+    FrameResourceIds.shadowMap,
+    FrameResourceIds.cubeShadow,
+    FrameResourceIds.cubeShadowStatic,
+  ];
+
+  @override
+  List<ResourceId> get keeps => const <ResourceId>[
+    FrameResourceIds.irradianceAtlas,
+  ];
+
+  @override
+  void execute(NodeFrame frame) {
+    final field = scene.irradianceField!;
+    developer.Timeline.startSync('Renderer.irradianceUpdate');
+    _renderer._updateIrradiance(
+      field: field,
+      resources: frame.resources,
+      scene: scene,
+      settings: frame.settings,
+      shadows: SceneShadows.from(frame, casterIndex: shadowCaster),
+      passState: frame.state,
+      clearColor: clearColor,
+    );
+    developer.Timeline.finishSync();
+    frame.resources.provide(
+      FrameResourceIds.irradianceAtlas,
+      _renderer._irradianceGpu!.atlas.current,
     );
   }
 }

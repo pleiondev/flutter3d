@@ -72,6 +72,10 @@ abstract final class FrameResourceIds {
   /// since the last cut.
   static const ResourceId temporalHistory = ResourceId('temporal_history');
 
+  /// The irradiance field's atlas as the GPU keeps it — `L4`. Maintained
+  /// across frames, a `keeps` of the update node.
+  static const ResourceId irradianceAtlas = ResourceId('irradiance_atlas');
+
   /// The scene's log luminance at a fixed small size, for the exposure meter
   /// to read back. Produced only while auto exposure is on.
   static const ResourceId luminance = ResourceId('luminance');

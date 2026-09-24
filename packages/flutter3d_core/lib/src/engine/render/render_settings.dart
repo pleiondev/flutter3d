@@ -1238,6 +1238,8 @@ final class RenderSettings {
     'point shadows (static)',
     'point shadows',
     'directional shadows',
+    // `L4`: the irradiance field's probes, a few a frame.
+    'irradiance update',
     // Reflection probes are registered here, one per probe in the scene, and
     // are named by index rather than by a constant — see [probePassName].
     'scene',

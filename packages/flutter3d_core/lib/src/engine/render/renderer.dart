@@ -13,6 +13,7 @@ import '../geometry/device_mesh.dart';
 import '../scene/camera_node.dart';
 import '../scene/instanced_mesh_node.dart';
 import '../scene/irradiance_field.dart';
+import '../scene/irradiance_gather.dart' show kIrradianceReach;
 import '../scene/light_buffer.dart';
 import '../scene/light_node.dart';
 import '../scene/mesh_node.dart';
@@ -26,6 +27,7 @@ import 'debug_draw.dart';
 import 'debug_draw_gizmos.dart';
 import 'empty_frame.dart';
 import 'engine_tables.dart';
+import 'field_pass.dart';
 import 'frame_capture.dart';
 import 'frame_graph.dart';
 import 'frame_history.dart';
@@ -52,6 +54,7 @@ export 'render_settings.dart';
 
 part 'renderer_batch.dart';
 part 'renderer_frame_nodes.dart';
+part 'renderer_irradiance_pass.dart';
 part 'renderer_light_list.dart';
 part 'renderer_mesh_encode.dart';
 part 'renderer_pick_pass.dart';
@@ -450,6 +453,9 @@ final class Renderer implements RenderServices {
       ..._history,
       for (final effect in _effectHistories.values) ...effect.textures,
       _irradianceAtlas,
+      _irradianceGpu?.atlas.current,
+      _irradianceGpu?.radiance,
+      _irradianceGpu?.surface,
     ]) {
       if (texture != null) device.releaseTexture(texture);
     }
@@ -1761,6 +1767,17 @@ final class Renderer implements RenderServices {
   int _irradianceColumns = 1;
   int _irradianceMomentsTop = 0;
 
+  /// The field being updated on the GPU, when one is — `L4`.
+  _IrradianceGpu? _irradianceGpu;
+  final ConvolveInfoBlock _convolveInfo = ConvolveInfoBlock();
+
+  /// The texture the lit stages read the irradiance field from this frame:
+  /// the GPU-updated atlas when the field is kept current there, the
+  /// uploaded bake otherwise, null with no field — `L4`. For tools and tests
+  /// that want to look at what the field has become.
+  TextureHandle? get irradianceAtlas =>
+      _irradianceGpu?.atlas.current ?? _irradianceAtlas;
+
   /// What a surface facing up, and one facing down, receive from the
   /// environment. Recomputed once a frame — see [_updateAmbient].
   Float32List get _ambientSky => _fragInfo.ambientSky;
@@ -2149,6 +2166,7 @@ final class Renderer implements RenderServices {
     required _CubeShadowNode cube,
     required _ShadowMapNode shadow,
     required List<_ReflectionProbeNode> probes,
+    required _IrradianceUpdateNode irradiance,
     required _SceneNode scene,
     required _BloomNode bloom,
     required _CompositeNode composite,
@@ -2190,6 +2208,9 @@ final class Renderer implements RenderServices {
     for (final probe in probes) {
       graph.addNode(probe);
     }
+    // `L4`: beside the probes, for their reason — it draws the lit scene and
+    // the scene reads what it writes.
+    graph.addNode(irradiance);
     graph
       ..addNode(scene)
       // After the scene, whose render list it builds and sorts again the same
@@ -3184,6 +3205,12 @@ final class Renderer implements RenderServices {
         casterIndex: shadowCaster,
         camera: ordered.isEmpty ? null : ordered.first.camera,
       ),
+      irradiance: _IrradianceUpdateNode(
+        this,
+        scene: scene,
+        shadowCaster: shadowCaster,
+        clearColor: ordered.first.clearColor,
+      ),
       probes: <_ReflectionProbeNode>[
         for (var i = 0; i < scene.probes.length; i++)
           _ReflectionProbeNode(
@@ -3584,6 +3611,12 @@ final class Renderer implements RenderServices {
         cube: cubeNode,
         shadow: shadowNode,
         probes: probeNodes,
+        irradiance: _IrradianceUpdateNode(
+          this,
+          scene: scene,
+          shadowCaster: shadowCaster,
+          clearColor: ordered.first.clearColor,
+        ),
         scene: sceneNode,
         bloom: bloomNode,
         composite: compositeNode,
