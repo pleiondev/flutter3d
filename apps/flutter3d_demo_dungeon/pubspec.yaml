@@ -67,6 +67,13 @@ dev_dependencies:
   integration_test:
     sdk: flutter
 
+  # The host half of `flutter drive`, which is how `tool/pacing.sh` runs
+  # `integration_test/pacing_test.dart` in profile mode — `flutter test` on
+  # a device builds debug, and a JIT frame time is not a frame time. Already
+  # in the lock through `integration_test`.
+  flutter_driver:
+    sdk: flutter
+
   # A renderer with no GPU under it, so a test can load a level the way the game
   # does. `LevelLoader` needs a device and does not need a window.
   flutter3d_cpu:

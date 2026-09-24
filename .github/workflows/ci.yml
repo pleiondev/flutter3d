@@ -520,6 +520,45 @@ jobs:
       - run: flutter build ios --no-codesign
         working-directory: apps/flutter3d_demo_strategy
 
+  # **Frame pacing — `N3`.** The sample run from `site/assets/samples` played
+  # through Impeller on this runner's GPU a step a frame, and the job fails on
+  # any frame longer than 50 ms. `tool/pacing.sh` does all of it, so a failure
+  # here is one anybody can reproduce on a Mac with the same command.
+  #
+  # A job of its own rather than a step in `macos`: that job builds for iOS and
+  # this one builds the dungeon for macOS in profile mode, and a spike here
+  # should not hide whether the iOS builds still compile, nor wait for them.
+  #
+  # The report goes up as an artifact rather than into the repository: a
+  # shared runner's numbers describe the runner as much as the engine. The
+  # one in `doc/pacing/` is written on a known machine by hand, like the
+  # release phone's.
+  pacing:
+    runs-on: macos-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.47.0'
+          channel: stable
+          cache: true
+
+      - run: flutter precache --macos
+      - run: flutter pub get
+      - run: (cd packages/flutter3d_impeller && dart run bin/build_shader_bundle.dart)
+
+      - name: pacing
+        run: tool/pacing.sh --label macos-ci
+
+      - if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: pacing-report
+          path: doc/pacing/macos-ci.md
+          if-no-files-found: ignore
+
   # **Four applications configured for Android, and nothing had ever compiled
   # one.** `tool/ci.sh` said so in its own header until this job existed: both
   # mobile platforms configured, neither built, "for platforms nothing has yet

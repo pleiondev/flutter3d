@@ -42,3 +42,4 @@ export 'src/golden.dart';
 export 'src/material_stage.dart';
 export 'src/render_frame.dart';
 export 'src/replay_golden.dart';
+export 'src/replay_pacing.dart';
