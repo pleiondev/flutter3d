@@ -910,8 +910,13 @@ The contract, in 0.8.0:
 - H2 surface: `RenderPassDescriptor.label`, `supportsGpuTimestamps`,
   `FramePass.gpuMicros`, the `FrameTimings` callback, `Timeline` spans per
   node. WebGPU timestamps may follow in a patch.
-- H3 surface: `RecordedPassBegin`, `RecordedSubmit`, `RecordedVertexData`,
-  `RecordingDevice`, trace writer, reader and replay.
+- H3: `RecordingDevice`, `Trace` with its `.f3dtrace` writer and reader,
+  and `replayTrace`, in `package:flutter3d_hardware/trace.dart`. **Its own
+  sealed `TraceEvent` rather than new `Recorded` variants**, decided while
+  building it: `Recorded` is what tests assert against and is lossy on
+  purpose (a vertex binding records a count, not the buffer), so it cannot
+  be replayed. `TraceEvent` has one variant per call of the whole contract,
+  compute included, so it too is complete in 0.8.0.
 - H6 surface: `supportsCompute`, `StorageBuffer`, `ComputePipelineHandle`,
   `ComputeEncoder`, `beginComputePass`, `readBuffer`; every backend answers
   false in 0.8.0, WebGPU and CPU implement it in a patch.
