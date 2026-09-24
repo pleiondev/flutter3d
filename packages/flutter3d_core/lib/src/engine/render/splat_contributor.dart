@@ -274,6 +274,46 @@ final class SplatContributor extends PassContributor {
     frame.state.drawCalls++;
   }
 
+  /// Marks the cloud reactive — `R4`: each splat by its own falloff and
+  /// alpha, over the quads [encode] built for this frame's camera.
+  ///
+  /// Reused rather than rebuilt: the sort is the expensive half of a cloud,
+  /// and the camera has not moved since the scene pass drew it.
+  @override
+  void encodeReactive(ReactiveFrame frame) {
+    final vertexShader = frame.device.shaders['ParticleVertex'];
+    final fragmentShader = frame.spriteStage;
+    if (vertexShader == null || fragmentShader == null) return;
+    if (quads.vertexCount == 0) return;
+
+    final bytes = ByteData.view(
+      quads.vertices.buffer,
+      quads.vertices.offsetInBytes,
+      quads.vertexCount * kSplatFloatsPerVertex * 4,
+    );
+    _particleInfo.viewProjection.setAll(0, frame.viewProjection.storage);
+    frame.encoder
+      ..clearBindings()
+      ..bindPipeline(
+        _reactivePipeline ??= frame.device.createPipeline(
+          vertexShader,
+          fragmentShader,
+        ),
+      )
+      ..setState(ReactiveFrame.state)
+      ..bindVertexData(bytes, quads.vertexCount)
+      ..bindIndexBuffer(
+        _identityIndices.view(frame.device, quads.vertexCount),
+        IndexType.int32,
+        quads.vertexCount,
+      )
+      ..bindBlock(vertexShader, _particleInfo);
+    frame.bindSprite(fragmentShader, ReactiveShape.gaussian);
+    frame.encoder.draw();
+  }
+
+  PipelineHandle? _reactivePipeline;
+
   /// **Blended and depth tested, but not depth written.** A splat is
   /// translucent everywhere, so writing its depth would hide the splats behind
   /// it — which is the whole of what back-to-front ordering exists to get

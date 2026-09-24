@@ -798,6 +798,22 @@ uniformBlocks = <String, Map<String, Map<String, UniformMemberLayout>>>{
       'params': (offset: 0, byteLength: 16, elements: 1, type: 'Vector4'),
     },
   },
+  'Reactive': <String, Map<String, UniformMemberLayout>>{
+    'ReactiveInfo': <String, UniformMemberLayout>{
+      'target': (offset: 0, byteLength: 16, elements: 1, type: 'Vector4'),
+      'eye': (offset: 16, byteLength: 16, elements: 1, type: 'Vector4'),
+      'forward': (offset: 32, byteLength: 16, elements: 1, type: 'Vector4'),
+      'params': (offset: 48, byteLength: 16, elements: 1, type: 'Vector4'),
+    },
+  },
+  'ReactiveSprite': <String, Map<String, UniformMemberLayout>>{
+    'ReactiveInfo': <String, UniformMemberLayout>{
+      'target': (offset: 0, byteLength: 16, elements: 1, type: 'Vector4'),
+      'eye': (offset: 16, byteLength: 16, elements: 1, type: 'Vector4'),
+      'forward': (offset: 32, byteLength: 16, elements: 1, type: 'Vector4'),
+      'params': (offset: 48, byteLength: 16, elements: 1, type: 'Vector4'),
+    },
+  },
   'Reflections': <String, Map<String, UniformMemberLayout>>{
     'FragCoordInfo': <String, UniformMemberLayout>{
       'origin': (offset: 0, byteLength: 16, elements: 1, type: 'Vector4'),

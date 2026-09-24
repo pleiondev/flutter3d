@@ -75,26 +75,7 @@ final class ParticleContributor extends PassContributor {
     if (view == null || viewProjection == null) return;
     developer.Timeline.startSync('ParticleContributor.encode');
 
-    final capacity = particles.capacity;
-    final vertices = _vertices ??= Float32List(
-      capacity * ParticleSystem.floatsPerParticle,
-    );
-    final indices = _indices ??= Uint32List(capacity * 6);
-
-    // The camera's right and up in world space, which is what turns a point
-    // into a quad that faces the viewer. Read off the view matrix's rows
-    // rather than recomputed from angles the plugin does not have.
-    final world = view.camera.worldMatrix;
-    _right.setValues(world.entry(0, 0), world.entry(1, 0), world.entry(2, 0));
-    _up.setValues(world.entry(0, 1), world.entry(1, 1), world.entry(2, 1));
-
-    final written = particles.writeQuads(
-      _right,
-      _up,
-      vertices,
-      indices,
-      flipbook: flipbook,
-    );
+    final written = _writeQuads(view);
     if (written == 0) {
       developer.Timeline.finishSync();
       return;
@@ -104,9 +85,9 @@ final class ParticleContributor extends PassContributor {
     // worth a comment because guessing it wrong is invisible: the lookup
     // returns null, the plugin draws nothing, and the frame is merely a frame
     // without particles in it. The golden caught it; nothing else would have.
-    final vertexShader = _shader(frame, 'ParticleVertex');
+    final vertexShader = _shader(frame.device, 'ParticleVertex');
     final fragmentShader = _shader(
-      frame,
+      frame.device,
       texture == null ? 'Particle' : 'ParticleTextured',
     );
     if (vertexShader == null || fragmentShader == null) {
@@ -124,24 +105,7 @@ final class ParticleContributor extends PassContributor {
     );
     encoder.setState(_kParticleState);
 
-    final vertexCount = written * 4;
-    final indexCount = written * 6;
-    encoder.bindVertexData(
-      ByteData.sublistView(
-        vertices,
-        0,
-        written * ParticleSystem.floatsPerParticle,
-      ),
-      vertexCount,
-    );
-    encoder.bindIndexData(
-      ByteData.sublistView(indices, 0, indexCount),
-      IndexType.int32,
-      indexCount,
-    );
-    encoder.bindUniformBlock(vertexShader, _infoBlock, <String, Float32List>{
-      'view_projection': viewProjection.storage,
-    });
+    _bindQuads(encoder, vertexShader, written, viewProjection);
 
     // Fog is attenuation here rather than a mix — see the fragment shader.
     // Without it a distant flame stays vivid against a wall that has faded
@@ -184,13 +148,95 @@ final class ParticleContributor extends PassContributor {
     developer.Timeline.finishSync();
   }
 
+  /// Marks every live particle reactive — `R4`: by the disc's falloff, or by
+  /// the sprite's alpha when there is a sprite, times the particle's alpha.
+  ///
+  /// The quads are written again for [ReactiveFrame.view], which is the view
+  /// the scene pass drew them for; a fade or a flipbook frame is the same as
+  /// it was there, because nothing steps the system between the two.
+  @override
+  void encodeReactive(ReactiveFrame frame) {
+    final vertexShader = _shader(frame.device, 'ParticleVertex');
+    final fragmentShader = frame.spriteStage;
+    if (vertexShader == null || fragmentShader == null) return;
+    final written = _writeQuads(frame.view);
+    if (written == 0) return;
+
+    final encoder = frame.encoder
+      ..clearBindings()
+      ..bindPipeline(
+        _reactivePipelineFor(frame.device, vertexShader, fragmentShader),
+      )
+      ..setState(ReactiveFrame.state);
+    _bindQuads(encoder, vertexShader, written, frame.viewProjection);
+    frame.bindSprite(
+      fragmentShader,
+      texture == null ? ReactiveShape.disc : ReactiveShape.sprite,
+      texture: texture,
+    );
+    encoder.draw();
+  }
+
+  /// Fills the quad buffers for [view]'s camera and returns how many
+  /// particles they hold.
+  int _writeQuads(RenderView view) {
+    final capacity = particles.capacity;
+    final vertices = _vertices ??= Float32List(
+      capacity * ParticleSystem.floatsPerParticle,
+    );
+    final indices = _indices ??= Uint32List(capacity * 6);
+
+    // The camera's right and up in world space, which is what turns a point
+    // into a quad that faces the viewer. Read off the view matrix's rows
+    // rather than recomputed from angles the plugin does not have.
+    final world = view.camera.worldMatrix;
+    _right.setValues(world.entry(0, 0), world.entry(1, 0), world.entry(2, 0));
+    _up.setValues(world.entry(0, 1), world.entry(1, 1), world.entry(2, 1));
+
+    return particles.writeQuads(
+      _right,
+      _up,
+      vertices,
+      indices,
+      flipbook: flipbook,
+    );
+  }
+
+  /// Binds the first [written] quads [_writeQuads] filled, and the matrix
+  /// [vertexShader] carries them through.
+  void _bindQuads(
+    PassEncoder encoder,
+    ShaderHandle vertexShader,
+    int written,
+    vm.Matrix4 viewProjection,
+  ) {
+    final vertexCount = written * 4;
+    final indexCount = written * 6;
+    encoder.bindVertexData(
+      ByteData.sublistView(
+        _vertices!,
+        0,
+        written * ParticleSystem.floatsPerParticle,
+      ),
+      vertexCount,
+    );
+    encoder.bindIndexData(
+      ByteData.sublistView(_indices!, 0, indexCount),
+      IndexType.int32,
+      indexCount,
+    );
+    encoder.bindUniformBlock(vertexShader, _infoBlock, <String, Float32List>{
+      'view_projection': viewProjection.storage,
+    });
+  }
+
   /// Looks a stage up, and complains once if it is missing.
   ///
   /// Once rather than every frame, because sixty identical lines a second is
   /// how a real message gets scrolled away — and silently is how this bug
   /// survived being written in the first place.
-  ShaderHandle? _shader(ContributorFrame frame, String name) {
-    final shader = frame.device.shaders[name];
+  ShaderHandle? _shader(GraphicsDevice device, String name) {
+    final shader = device.shaders[name];
     if (shader == null && _missing.add(name)) {
       assert(() {
         developer.log(
@@ -228,6 +274,23 @@ final class ParticleContributor extends PassContributor {
   }
 
   int? _pipelineDevice;
+
+  /// `R4`'s pipeline, keyed on the device the way [_pipelineFor]'s is.
+  PipelineHandle _reactivePipelineFor(
+    GraphicsDevice device,
+    ShaderHandle vertex,
+    ShaderHandle fragment,
+  ) {
+    final key = identityHashCode(device);
+    if (_reactiveDevice != key) {
+      _reactivePipeline = device.createPipeline(vertex, fragment);
+      _reactiveDevice = key;
+    }
+    return _reactivePipeline!;
+  }
+
+  int? _reactiveDevice;
+  PipelineHandle? _reactivePipeline;
 
   final Set<String> _missing = <String>{};
 

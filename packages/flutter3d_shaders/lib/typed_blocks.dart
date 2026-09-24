@@ -635,6 +635,31 @@ final class ProbeInfoBlock extends UniformBlock {
   };
 }
 
+/// `ReactiveInfo`.
+final class ReactiveInfoBlock extends UniformBlock {
+  ReactiveInfoBlock() : super('ReactiveInfo');
+
+  /// `target`: Vector4, at byte 0.
+  final Float32List target = Float32List(4);
+
+  /// `eye`: Vector4, at byte 16.
+  final Float32List eye = Float32List(4);
+
+  /// `forward`: Vector4, at byte 32.
+  final Float32List forward = Float32List(4);
+
+  /// `params`: Vector4, at byte 48.
+  final Float32List params = Float32List(4);
+
+  @override
+  late final Map<String, Float32List> members = <String, Float32List>{
+    'target': target,
+    'eye': eye,
+    'forward': forward,
+    'params': params,
+  };
+}
+
 /// `ReflectionInfo`.
 final class ReflectionInfoBlock extends UniformBlock {
   ReflectionInfoBlock() : super('ReflectionInfo');
