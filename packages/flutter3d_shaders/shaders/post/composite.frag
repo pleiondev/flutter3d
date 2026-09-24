@@ -43,6 +43,12 @@ uniform sampler2D contact_shadow_texture;
 /// already follows.
 uniform sampler2D lut_texture;
 
+/// The display transform, as a strip in the colour table's shape but float
+/// and indexed through a log2 shaper — `L2`. Read **instead of** a tone curve
+/// when `params.z` is 6, bound to a stand-in otherwise, for the rule every
+/// sampler here follows.
+uniform sampler2D display_texture;
+
 uniform CompositeInfo {
   /// x: exposure, y: bloom intensity, z: which tone curve, w: how much of the
   /// occlusion to apply, 0 for none.
@@ -95,7 +101,8 @@ uniform CompositeInfo {
   vec4 gain;
 
   /// x: how much of the contact shadow reaches the picture, nought to one —
-  /// `gfx-76n`. y, z, w unclaimed.
+  /// `gfx-76n`. y: the display transform's entries per axis, its N — `L2`;
+  /// read only when the curve is 6. z, w unclaimed.
   ///
   /// Appended after everything else, the way this block has grown before: a
   /// std140 block is laid out in declaration order, so adding here leaves every
@@ -359,7 +366,33 @@ vec3 SampleLut(vec3 color, float size) {
   return mix(a, b, slice - lower);
 }
 
+/// [color] through the display transform — `L2`: shaped to log2 stops about
+/// 0.18 over −10…+6, then looked up in the strip exactly as [SampleLut]
+/// looks up the grade. Scene-linear in, display-linear out, which is what a
+/// tone curve returns.
+vec3 SampleDisplay(vec3 color) {
+  float size = max(composite_info.contact.y, 2.0);
+  vec3 c = clamp((log2(max(color, vec3(1e-10)) / 0.18) + 10.0) / 16.0,
+                 vec3(0.0), vec3(1.0));
+
+  float sliceWidth = 1.0 / size;
+  float texel = 1.0 / (size * size);
+  float innerWidth = texel * (size - 1.0);
+
+  float u = texel * 0.5 + c.r * innerWidth;
+  float v = (0.5 / size) + c.g * ((size - 1.0) / size);
+
+  float slice = c.b * (size - 1.0);
+  float lower = floor(slice);
+  float upper = min(lower + 1.0, size - 1.0);
+
+  vec3 a = texture(display_texture, vec2(lower * sliceWidth + u, v)).rgb;
+  vec3 b = texture(display_texture, vec2(upper * sliceWidth + u, v)).rgb;
+  return mix(a, b, slice - lower);
+}
+
 vec3 TonemapBy(vec3 color, int curve) {
+  if (curve == 6) return SampleDisplay(color);
   if (curve == 1) return TonemapNeutral(color);
   if (curve == 2) return TonemapAces(color);
   if (curve == 3) return TonemapAgx(color);

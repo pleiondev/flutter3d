@@ -35,6 +35,124 @@ void main() {
     format: 'r8UNormInt',
     bytes: _atlas(noise, size: 64, columns: 8, rows: 4),
   );
+
+  _write(
+    'aces2_display.dart',
+    name: 'aces2Display',
+    doc: '''
+/// A display transform for `TonemapCurve.aces2` — `L2`: 33³ entries as a
+/// strip of 33 slices (1089×33, blue picks the slice, red runs across it,
+/// green down), rgba16f, indexed through a log2 shaper of −10…+6 stops about
+/// 0.18 (`kDisplayShaperLow`, `kDisplayShaperStops`).
+///
+/// **The ACES 2.0 tonescale, not the whole ACES 2.0 output transform.** Each
+/// entry is the SDR (100 nit, Rec.709) tonescale Daniele Siragusano wrote for
+/// ACES 2.0, applied to the largest channel and the colour scaled with it so
+/// its hue holds, with a path to white that desaturates what the curve
+/// compresses. The reference transform does its chroma and gamut work in a
+/// colour appearance model; this table does not. A table baked from the
+/// reference implementation drops into `LookSettings.displayTransform` in
+/// the same shape.''',
+    width: _kDisplaySize * _kDisplaySize,
+    height: _kDisplaySize,
+    format: 'r16g16b16a16Float',
+    bytes: aces2DisplayTable(),
+  );
+}
+
+/// Entries per axis of a display transform table.
+const int _kDisplaySize = 33;
+
+/// The shaper: an entry `i` of `n` holds the colour
+/// `0.18 · 2^(low + stops · i / (n − 1))`.
+const double _kShaperLow = -10.0;
+const double _kShaperStops = 16.0;
+
+/// The ACES 2.0 tonescale for a peak of [peak] nits, as nits — the forward
+/// half of `Lib.Academy.Tonescale` with its published constants.
+double aces2Tonescale(double x, {double peak = 100.0}) {
+  const nR = 100.0;
+  const g = 1.15;
+  const c = 0.18;
+  const cD = 10.013;
+  const wG = 0.14;
+  const t1 = 0.04;
+  const rHitMin = 128.0;
+  const rHitMax = 896.0;
+
+  final rHit =
+      rHitMin + (rHitMax - rHitMin) * (math.log(peak / nR) / math.log(100.0));
+  final m0 = peak / nR;
+  final m1 = 0.5 * (m0 + math.sqrt(m0 * (m0 + 4.0 * t1)));
+  final u = math.pow((rHit / m1) / ((rHit / m1) + 1.0), g);
+  final m = m1 / u;
+  final wI = math.log(peak / 100.0) / math.ln2;
+  final cT = cD / nR * (1.0 + wI * wG);
+  final gIp = 0.5 * (cT + math.sqrt(cT * (cT + 4.0 * t1)));
+  final gIpRatio = math.pow(gIp / m, 1.0 / g);
+  final gIpp2 = -(m1 * gIpRatio) / (gIpRatio - 1.0);
+  final w2 = c / gIpp2;
+  final s2 = w2 * m1;
+  final u2 = math.pow((rHit / m1) / ((rHit / m1) + w2), g);
+  final m2 = m1 / u2;
+
+  final f = m2 * math.pow(math.max(0.0, x) / (x + s2), g);
+  final h = math.max(0.0, f * f / (f + t1));
+  return h * nR;
+}
+
+/// One entry of the ACES 2.0 SDR table: [rgb] scene-linear in, display-linear
+/// Rec.709 in [0, 1] out.
+List<double> aces2Display(List<double> rgb) {
+  final peak = math.max(rgb[0], math.max(rgb[1], rgb[2]));
+  if (peak <= 0.0) return const <double>[0.0, 0.0, 0.0];
+  final mapped = aces2Tonescale(peak) / 100.0;
+  final scale = mapped / peak;
+  // The path to white: as the curve flattens towards the display's peak, the
+  // colour is pulled towards its own mapped peak, so a light brighter than
+  // the display can show turns white rather than clipping to a flat hue.
+  final white = math.pow(mapped, 3.0).toDouble();
+  return <double>[
+    for (final channel in rgb)
+      (channel * scale * (1.0 - white) + mapped * white).clamp(0.0, 1.0),
+  ];
+}
+
+/// The whole table, as rgba16f bytes.
+Uint8List aces2DisplayTable() {
+  const n = _kDisplaySize;
+  final out = ByteData(n * n * n * 8);
+  double shaped(int i) =>
+      0.18 * math.pow(2.0, _kShaperLow + _kShaperStops * i / (n - 1));
+  for (var b = 0; b < n; b++) {
+    for (var g = 0; g < n; g++) {
+      for (var r = 0; r < n; r++) {
+        final value = aces2Display(<double>[shaped(r), shaped(g), shaped(b)]);
+        final at = (g * n * n + b * n + r) * 8;
+        for (var ch = 0; ch < 3; ch++) {
+          out.setUint16(at + ch * 2, _toHalf(value[ch]), Endian.little);
+        }
+        out.setUint16(at + 6, _toHalf(1.0), Endian.little);
+      }
+    }
+  }
+  return out.buffer.asUint8List();
+}
+
+/// [value] as an IEEE half, rounded to nearest. Finite and non-negative here.
+int _toHalf(double value) {
+  final bits = ByteData(4)..setFloat32(0, value, Endian.little);
+  final f = bits.getUint32(0, Endian.little);
+  final sign = (f >> 16) & 0x8000;
+  final exponent = ((f >> 23) & 0xff) - 127 + 15;
+  final mantissa = f & 0x7fffff;
+  if (exponent <= 0) {
+    if (exponent < -10) return sign;
+    final m = (mantissa | 0x800000) >> (1 - exponent);
+    return sign | ((m + 0x1000) >> 13);
+  }
+  if (exponent >= 31) return sign | 0x7c00;
+  return sign | (exponent << 10) | ((mantissa + 0x1000) >> 13);
 }
 
 /// [slices] rankings of a [size]×[size] torus, each as bytes 0–255.
