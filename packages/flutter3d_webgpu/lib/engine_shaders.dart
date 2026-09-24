@@ -25671,6 +25671,784 @@ fn main(@location(5) v_uv: vec2<f32>, @location(6) v_world_position: vec3<f32>, 
         ),
       ],
     ),
+    'ParticleSixWay': WebGpuStage(
+      wgsl: r'''
+struct LightListInfo {
+    list: vec4<f32>,
+    indices: array<vec4<f32>, 6>,
+    scales: array<vec4<f32>, 6>,
+    cluster_view_projection: mat4x4<f32>,
+    cluster_grid: vec4<f32>,
+    cluster_depth: vec4<f32>,
+    slot_rows: array<vec4<f32>, 2>,
+}
+
+struct ContributorLightInfo {
+    light_position: array<vec4<f32>, 8>,
+    light_color: array<vec4<f32>, 8>,
+    light_direction: array<vec4<f32>, 8>,
+    light_cone: array<vec4<f32>, 8>,
+    slots: vec4<f32>,
+}
+
+struct SixWayInfo {
+    right: vec4<f32>,
+    up: vec4<f32>,
+    forward: vec4<f32>,
+    emission: vec4<f32>,
+    ambient: vec4<f32>,
+}
+
+struct FogInfo {
+    fog: vec4<f32>,
+    eye: vec4<f32>,
+}
+
+var<private> g_cluster_offset: f32;
+var<private> g_cluster_count: f32;
+@group(1) @binding(2) 
+var<uniform> light_list_info: LightListInfo;
+@group(1) @binding(4) 
+var light_list_texture_tex: texture_2d<f32>;
+@group(1) @binding(5) 
+var light_list_texture_smp: sampler;
+@group(1) @binding(0) 
+var<uniform> contributor_light_info: ContributorLightInfo;
+@group(1) @binding(3) 
+var<uniform> six_way_info: SixWayInfo;
+@group(1) @binding(8) 
+var six_way_positive_tex: texture_2d<f32>;
+@group(1) @binding(9) 
+var six_way_positive_smp: sampler;
+var<private> v_uv_1: vec2<f32>;
+@group(1) @binding(6) 
+var six_way_negative_tex: texture_2d<f32>;
+@group(1) @binding(7) 
+var six_way_negative_smp: sampler;
+var<private> v_world_position_1: vec3<f32>;
+var<private> v_color_1: vec4<f32>;
+@group(1) @binding(1) 
+var<uniform> fog_info: FogInfo;
+var<private> frag_color: vec4<f32>;
+
+fn SixWayResponse_u0028_vf3_u003b_vf3_u003b_vf3_u003b(l: ptr<function, vec3<f32>>, positive: ptr<function, vec3<f32>>, negative: ptr<function, vec3<f32>>) -> f32 {
+    var x: f32;
+    var y: f32;
+    var z: f32;
+    var local: f32;
+    var local_1: f32;
+    var local_2: f32;
+
+    let _e53 = (*l);
+    let _e55 = six_way_info.right;
+    x = dot(_e53, _e55.xyz);
+    let _e58 = (*l);
+    let _e60 = six_way_info.up;
+    y = dot(_e58, _e60.xyz);
+    let _e63 = (*l);
+    let _e65 = six_way_info.forward;
+    z = dot(_e63, _e65.xyz);
+    let _e68 = x;
+    let _e69 = x;
+    let _e71 = x;
+    if (_e71 > 0f) {
+        let _e74 = (*positive)[0u];
+        local = _e74;
+    } else {
+        let _e76 = (*negative)[0u];
+        local = _e76;
+    }
+    let _e77 = local;
+    let _e79 = y;
+    let _e80 = y;
+    let _e82 = y;
+    if (_e82 > 0f) {
+        let _e85 = (*positive)[1u];
+        local_1 = _e85;
+    } else {
+        let _e87 = (*negative)[1u];
+        local_1 = _e87;
+    }
+    let _e88 = local_1;
+    let _e91 = z;
+    let _e92 = z;
+    let _e94 = z;
+    if (_e94 > 0f) {
+        let _e97 = (*positive)[2u];
+        local_2 = _e97;
+    } else {
+        let _e99 = (*negative)[2u];
+        local_2 = _e99;
+    }
+    let _e100 = local_2;
+    return ((((_e68 * _e69) * _e77) + ((_e79 * _e80) * _e88)) + ((_e91 * _e92) * _e100));
+}
+
+fn LightListLane_u0028_vf4_u003b_i1_u003b(four: ptr<function, vec4<f32>>, slot: ptr<function, i32>) -> f32 {
+    var lane: i32;
+    var local_3: f32;
+    var local_4: f32;
+    var local_5: f32;
+
+    let _e50 = (*slot);
+    let _e51 = (*slot);
+    lane = (_e50 - ((_e51 / 4i) * 4i));
+    let _e55 = lane;
+    if (_e55 == 0i) {
+        let _e58 = (*four)[0u];
+        local_3 = _e58;
+    } else {
+        let _e59 = lane;
+        if (_e59 == 1i) {
+            let _e62 = (*four)[1u];
+            local_4 = _e62;
+        } else {
+            let _e63 = lane;
+            if (_e63 == 2i) {
+                let _e66 = (*four)[2u];
+                local_5 = _e66;
+            } else {
+                let _e68 = (*four)[3u];
+                local_5 = _e68;
+            }
+            let _e69 = local_5;
+            local_4 = _e69;
+        }
+        let _e70 = local_4;
+        local_3 = _e70;
+    }
+    let _e71 = local_3;
+    return _e71;
+}
+
+fn LightListScale_u0028_i1_u003b(slot_1: ptr<function, i32>) -> f32 {
+    var param: vec4<f32>;
+    var param_1: i32;
+
+    let _e47 = (*slot_1);
+    let _e51 = light_list_info.scales[(_e47 / 4i)];
+    param = _e51;
+    let _e52 = (*slot_1);
+    param_1 = _e52;
+    let _e53 = LightListLane_u0028_vf4_u003b_i1_u003b((&param), (&param_1));
+    return _e53;
+}
+
+fn InSlots_u0028_f1_u003b(row: ptr<function, f32>) -> bool {
+    var a: vec4<f32>;
+    var b: vec4<f32>;
+
+    let _e49 = light_list_info.slot_rows[0i];
+    let _e50 = (*row);
+    a = abs((_e49 - vec4(_e50)));
+    let _e56 = light_list_info.slot_rows[1i];
+    let _e57 = (*row);
+    b = abs((_e56 - vec4(_e57)));
+    let _e62 = a[0u];
+    let _e64 = a[1u];
+    let _e67 = a[2u];
+    let _e69 = a[3u];
+    let _e73 = b[0u];
+    let _e75 = b[1u];
+    let _e78 = b[2u];
+    let _e80 = b[3u];
+    return (min(min(min(_e62, _e64), min(_e67, _e69)), min(min(_e73, _e75), min(_e78, _e80))) < 0.5f);
+}
+
+fn LightListRow_u0028_i1_u003b(slot_2: ptr<function, i32>) -> f32 {
+    var param_2: vec4<f32>;
+    var param_3: i32;
+
+    let _e47 = (*slot_2);
+    let _e51 = light_list_info.indices[(_e47 / 4i)];
+    param_2 = _e51;
+    let _e52 = (*slot_2);
+    param_3 = _e52;
+    let _e53 = LightListLane_u0028_vf4_u003b_i1_u003b((&param_2), (&param_3));
+    return _e53;
+}
+
+fn LightListTexel_u0028_f1_u003b_f1_u003b(texel: ptr<function, f32>, row_1: ptr<function, f32>) -> vec4<f32> {
+    let _e46 = (*texel);
+    let _e50 = light_list_info.list[1u];
+    let _e52 = (*row_1);
+    let _e56 = light_list_info.list[2u];
+    let _e59 = textureSampleLevel(light_list_texture_tex, light_list_texture_smp, vec2<f32>(((_e46 + 0.5f) * _e50), ((_e52 + 0.5f) * _e56)), 0f);
+    return _e59;
+}
+
+fn ClusterRow_u0028_i1_u003b(slot_3: ptr<function, i32>) -> f32 {
+    var entry: f32;
+    var row_2: f32;
+    var within: f32;
+    var texel_1: f32;
+    var four_1: vec4<f32>;
+    var param_4: f32;
+    var param_5: f32;
+    var param_6: vec4<f32>;
+    var param_7: i32;
+
+    let _e54 = g_cluster_offset;
+    let _e55 = (*slot_3);
+    entry = (_e54 + f32(_e55));
+    let _e58 = entry;
+    row_2 = floor((_e58 / 16f));
+    let _e61 = entry;
+    let _e62 = row_2;
+    within = (_e61 - (_e62 * 16f));
+    let _e65 = within;
+    texel_1 = floor((_e65 / 4f));
+    let _e70 = light_list_info.cluster_depth[3u];
+    let _e71 = row_2;
+    let _e73 = texel_1;
+    param_4 = _e73;
+    param_5 = (_e70 + _e71);
+    let _e74 = LightListTexel_u0028_f1_u003b_f1_u003b((&param_4), (&param_5));
+    four_1 = _e74;
+    let _e75 = within;
+    let _e76 = texel_1;
+    let _e81 = four_1;
+    param_6 = _e81;
+    param_7 = i32(((_e75 - (_e76 * 4f)) + 0.5f));
+    let _e82 = LightListLane_u0028_vf4_u003b_i1_u003b((&param_6), (&param_7));
+    return _e82;
+}
+
+fn Clustered_u0028_() -> bool {
+    let _e46 = light_list_info.cluster_grid[3u];
+    return (_e46 > 0.5f);
+}
+
+fn ContributorLight_u0028_i1_u003b_vf3_u003b_vf3_u003b_vf3_u003b(index: ptr<function, i32>, world: ptr<function, vec3<f32>>, toLight: ptr<function, vec3<f32>>, radiance: ptr<function, vec3<f32>>) {
+    var position: vec4<f32>;
+    var color: vec4<f32>;
+    var direction: vec4<f32>;
+    var cone: vec4<f32>;
+    var slot_4: i32;
+    var clustered: bool;
+    var listRow: f32;
+    var local_6: f32;
+    var param_8: i32;
+    var param_9: i32;
+    var v: f32;
+    var u: f32;
+    var local_7: f32;
+    var param_10: f32;
+    var param_11: i32;
+    var type_30: f32;
+    var directional: bool;
+    var offset: vec3<f32>;
+    var distance_: f32;
+    var aim: vec3<f32>;
+    var degenerate: bool;
+    var local_8: vec3<f32>;
+    var ratio: f32;
+    var local_9: f32;
+    var window: f32;
+    var falloff: f32;
+    var spot: bool;
+    var ramp: f32;
+    var local_10: f32;
+    var attenuation: f32;
+    var local_11: f32;
+    var local_12: f32;
+
+    let _e80 = (*index);
+    if (_e80 < 8i) {
+        let _e82 = (*index);
+        let _e85 = contributor_light_info.light_position[_e82];
+        position = _e85;
+        let _e86 = (*index);
+        let _e89 = contributor_light_info.light_color[_e86];
+        color = _e89;
+        let _e90 = (*index);
+        let _e93 = contributor_light_info.light_direction[_e90];
+        direction = _e93;
+        let _e94 = (*index);
+        let _e97 = contributor_light_info.light_cone[_e94];
+        cone = _e97;
+    } else {
+        let _e98 = (*index);
+        slot_4 = (_e98 - 8i);
+        let _e100 = Clustered_u0028_();
+        clustered = _e100;
+        let _e101 = clustered;
+        if _e101 {
+            let _e102 = slot_4;
+            param_8 = _e102;
+            let _e103 = ClusterRow_u0028_i1_u003b((&param_8));
+            local_6 = _e103;
+        } else {
+            let _e104 = slot_4;
+            param_9 = _e104;
+            let _e105 = LightListRow_u0028_i1_u003b((&param_9));
+            local_6 = _e105;
+        }
+        let _e106 = local_6;
+        listRow = _e106;
+        let _e107 = listRow;
+        let _e111 = light_list_info.list[2u];
+        v = ((_e107 + 0.5f) * _e111);
+        let _e115 = light_list_info.list[1u];
+        u = _e115;
+        let _e116 = u;
+        let _e118 = v;
+        let _e120 = textureSampleLevel(light_list_texture_tex, light_list_texture_smp, vec2<f32>((0.5f * _e116), _e118), 0f);
+        position = _e120;
+        let _e121 = u;
+        let _e123 = v;
+        let _e125 = textureSampleLevel(light_list_texture_tex, light_list_texture_smp, vec2<f32>((1.5f * _e121), _e123), 0f);
+        color = _e125;
+        let _e126 = u;
+        let _e128 = v;
+        let _e130 = textureSampleLevel(light_list_texture_tex, light_list_texture_smp, vec2<f32>((2.5f * _e126), _e128), 0f);
+        direction = _e130;
+        let _e131 = u;
+        let _e133 = v;
+        let _e135 = textureSampleLevel(light_list_texture_tex, light_list_texture_smp, vec2<f32>((3.5f * _e131), _e133), 0f);
+        cone = _e135;
+        let _e136 = clustered;
+        if _e136 {
+            let _e137 = listRow;
+            param_10 = _e137;
+            let _e138 = InSlots_u0028_f1_u003b((&param_10));
+            local_7 = select(1f, 0f, _e138);
+        } else {
+            let _e140 = slot_4;
+            param_11 = _e140;
+            let _e141 = LightListScale_u0028_i1_u003b((&param_11));
+            local_7 = _e141;
+        }
+        let _e142 = local_7;
+        let _e144 = color[3u];
+        color[3u] = (_e144 * _e142);
+    }
+    let _e148 = position[3u];
+    type_30 = _e148;
+    let _e149 = type_30;
+    directional = (_e149 < 0.5f);
+    let _e151 = position;
+    let _e153 = (*world);
+    offset = (_e151.xyz - _e153);
+    let _e155 = offset;
+    distance_ = length(_e155);
+    let _e157 = direction;
+    aim = normalize(_e157.xyz);
+    let _e160 = directional;
+    let _e162 = distance_;
+    degenerate = (!(_e160) && (_e162 < 0.000001f));
+    let _e165 = directional;
+    if _e165 {
+        let _e166 = aim;
+        local_8 = -(_e166);
+    } else {
+        let _e168 = offset;
+        let _e169 = distance_;
+        local_8 = (_e168 / vec3(max(_e169, 0.000001f)));
+    }
+    let _e173 = local_8;
+    (*toLight) = _e173;
+    let _e175 = direction[3u];
+    if (_e175 > 0f) {
+        let _e177 = distance_;
+        let _e179 = direction[3u];
+        local_9 = (_e177 / _e179);
+    } else {
+        local_9 = 0f;
+    }
+    let _e181 = local_9;
+    ratio = _e181;
+    let _e182 = ratio;
+    let _e183 = ratio;
+    let _e185 = ratio;
+    let _e187 = ratio;
+    window = clamp((1f - (((_e182 * _e183) * _e185) * _e187)), 0f, 1f);
+    let _e191 = window;
+    let _e192 = window;
+    let _e194 = distance_;
+    let _e195 = distance_;
+    falloff = ((_e191 * _e192) / max((_e194 * _e195), 0.0001f));
+    let _e199 = type_30;
+    let _e201 = type_30;
+    spot = ((_e199 > 1.5f) && (_e201 < 2.5f));
+    let _e204 = spot;
+    if _e204 {
+        let _e205 = aim;
+        let _e206 = (*toLight);
+        let _e210 = cone[1u];
+        let _e213 = cone[0u];
+        let _e215 = cone[1u];
+        local_10 = clamp(((dot(_e205, -(_e206)) - _e210) / max((_e213 - _e215), 0.0001f)), 0f, 1f);
+    } else {
+        local_10 = 1f;
+    }
+    let _e220 = local_10;
+    ramp = _e220;
+    let _e221 = directional;
+    if _e221 {
+        local_11 = 1f;
+    } else {
+        let _e222 = degenerate;
+        if _e222 {
+            local_12 = 0f;
+        } else {
+            let _e223 = falloff;
+            let _e224 = ramp;
+            local_12 = (_e223 * _e224);
+        }
+        let _e226 = local_12;
+        local_11 = _e226;
+    }
+    let _e227 = local_11;
+    attenuation = _e227;
+    let _e228 = color;
+    let _e231 = color[3u];
+    let _e233 = attenuation;
+    (*radiance) = ((_e228.xyz * _e231) * _e233);
+    return;
+}
+
+fn FindCluster_u0028_vf3_u003b(world_1: ptr<function, vec3<f32>>) {
+    var clip: vec4<f32>;
+    var ndc: vec2<f32>;
+    var grid: vec3<f32>;
+    var near: f32;
+    var tx: f32;
+    var ty: f32;
+    var tz: f32;
+    var local_13: f32;
+    var cell: f32;
+    var row_3: f32;
+    var header: vec4<f32>;
+    var param_12: f32;
+    var param_13: f32;
+
+    let _e59 = light_list_info.cluster_view_projection;
+    let _e60 = (*world_1);
+    clip = (_e59 * vec4<f32>(_e60.x, _e60.y, _e60.z, 1f));
+    let _e66 = clip;
+    let _e69 = clip[3u];
+    ndc = (_e66.xy / vec2(max(_e69, 0.000001f)));
+    let _e74 = light_list_info.cluster_grid;
+    grid = _e74.xyz;
+    let _e78 = light_list_info.cluster_depth[0u];
+    near = _e78;
+    let _e80 = ndc[0u];
+    let _e84 = grid[0u];
+    let _e88 = grid[0u];
+    tx = clamp(floor((((_e80 * 0.5f) + 0.5f) * _e84)), 0f, (_e88 - 1f));
+    let _e92 = ndc[1u];
+    let _e96 = grid[1u];
+    let _e100 = grid[1u];
+    ty = clamp(floor((((_e92 * 0.5f) + 0.5f) * _e96)), 0f, (_e100 - 1f));
+    let _e104 = clip[3u];
+    let _e105 = near;
+    if (_e104 <= _e105) {
+        local_13 = 0f;
+    } else {
+        let _e108 = clip[3u];
+        let _e109 = near;
+        let _e114 = light_list_info.cluster_depth[1u];
+        let _e118 = grid[2u];
+        local_13 = clamp(floor((log((_e108 / _e109)) * _e114)), 0f, (_e118 - 1f));
+    }
+    let _e121 = local_13;
+    tz = _e121;
+    let _e122 = tx;
+    let _e123 = ty;
+    let _e125 = grid[0u];
+    let _e128 = tz;
+    let _e130 = grid[0u];
+    let _e133 = grid[1u];
+    cell = ((_e122 + (_e123 * _e125)) + ((_e128 * _e130) * _e133));
+    let _e136 = cell;
+    row_3 = floor((_e136 / 4f));
+    let _e139 = cell;
+    let _e140 = row_3;
+    let _e145 = light_list_info.cluster_depth[2u];
+    let _e146 = row_3;
+    param_12 = (_e139 - (_e140 * 4f));
+    param_13 = (_e145 + _e146);
+    let _e148 = LightListTexel_u0028_f1_u003b_f1_u003b((&param_12), (&param_13));
+    header = _e148;
+    let _e150 = header[0u];
+    g_cluster_offset = _e150;
+    let _e152 = header[1u];
+    g_cluster_count = _e152;
+    return;
+}
+
+fn ContributorLightCount_u0028_vf3_u003b(world_2: ptr<function, vec3<f32>>) -> i32 {
+    var tail: f32;
+    var param_14: vec3<f32>;
+
+    let _e49 = light_list_info.list[0u];
+    tail = _e49;
+    let _e50 = Clustered_u0028_();
+    if _e50 {
+        let _e51 = (*world_2);
+        param_14 = _e51;
+        FindCluster_u0028_vf3_u003b((&param_14));
+        let _e52 = g_cluster_count;
+        tail = _e52;
+    }
+    let _e55 = contributor_light_info.slots[0u];
+    let _e59 = tail;
+    return (clamp(i32((_e55 + 0.5f)), 0i, 8i) + clamp(i32((_e59 + 0.5f)), 0i, 24i));
+}
+
+fn main_1() {
+    var positive_1: vec4<f32>;
+    var negative_1: vec4<f32>;
+    var lit: vec3<f32>;
+    var count: i32;
+    var param_15: vec3<f32>;
+    var i: i32;
+    var l_1: vec3<f32>;
+    var radiance_1: vec3<f32>;
+    var param_16: i32;
+    var param_17: vec3<f32>;
+    var param_18: vec3<f32>;
+    var param_19: vec3<f32>;
+    var param_20: vec3<f32>;
+    var param_21: vec3<f32>;
+    var param_22: vec3<f32>;
+    var mean: f32;
+    var color_1: vec3<f32>;
+    var fogged: f32;
+    var coverage: f32;
+
+    g_cluster_offset = 0f;
+    g_cluster_count = 0f;
+    let _e63 = v_uv_1;
+    let _e64 = textureSample(six_way_positive_tex, six_way_positive_smp, _e63);
+    positive_1 = _e64;
+    let _e65 = v_uv_1;
+    let _e66 = textureSample(six_way_negative_tex, six_way_negative_smp, _e65);
+    negative_1 = _e66;
+    lit = vec3<f32>(0f, 0f, 0f);
+    let _e67 = v_world_position_1;
+    param_15 = _e67;
+    let _e68 = ContributorLightCount_u0028_vf3_u003b((&param_15));
+    count = _e68;
+    i = 0i;
+    loop {
+        let _e69 = i;
+        if (_e69 < 32i) {
+            let _e71 = i;
+            let _e72 = count;
+            if (_e71 >= _e72) {
+                break;
+            }
+            let _e74 = i;
+            param_16 = _e74;
+            let _e75 = v_world_position_1;
+            param_17 = _e75;
+            ContributorLight_u0028_i1_u003b_vf3_u003b_vf3_u003b_vf3_u003b((&param_16), (&param_17), (&param_18), (&param_19));
+            let _e76 = param_18;
+            l_1 = _e76;
+            let _e77 = param_19;
+            radiance_1 = _e77;
+            let _e78 = radiance_1;
+            let _e79 = l_1;
+            param_20 = _e79;
+            let _e80 = positive_1;
+            param_21 = _e80.xyz;
+            let _e82 = negative_1;
+            param_22 = _e82.xyz;
+            let _e84 = SixWayResponse_u0028_vf3_u003b_vf3_u003b_vf3_u003b((&param_20), (&param_21), (&param_22));
+            let _e86 = lit;
+            lit = (_e86 + (_e78 * _e84));
+            continue;
+        } else {
+            break;
+        }
+        continuing {
+            let _e88 = i;
+            i = (_e88 + 1i);
+        }
+    }
+    let _e91 = positive_1[0u];
+    let _e93 = positive_1[1u];
+    let _e96 = positive_1[2u];
+    let _e99 = negative_1[0u];
+    let _e102 = negative_1[1u];
+    let _e105 = negative_1[2u];
+    mean = ((((((_e91 + _e93) + _e96) + _e99) + _e102) + _e105) / 6f);
+    let _e108 = v_color_1;
+    let _e110 = lit;
+    let _e112 = six_way_info.ambient;
+    let _e114 = mean;
+    let _e119 = six_way_info.emission;
+    let _e122 = negative_1[3u];
+    color_1 = ((_e108.xyz * (_e110 + (_e112.xyz * _e114))) + (_e119.xyz * _e122));
+    fogged = 1f;
+    let _e127 = fog_info.fog[3u];
+    if (_e127 > 0f) {
+        let _e131 = fog_info.fog[3u];
+        let _e133 = v_world_position_1;
+        let _e135 = fog_info.eye;
+        fogged = clamp(exp((-(_e131) * distance(_e133, _e135.xyz))), 0f, 1f);
+    }
+    let _e142 = fog_info.fog;
+    let _e144 = color_1;
+    let _e145 = fogged;
+    color_1 = mix(_e142.xyz, _e144, vec3(_e145));
+    let _e149 = v_color_1[3u];
+    let _e151 = positive_1[3u];
+    coverage = clamp((_e149 * _e151), 0f, 1f);
+    let _e154 = color_1;
+    let _e155 = coverage;
+    let _e156 = (_e154 * _e155);
+    let _e157 = coverage;
+    frag_color = vec4<f32>(_e156.x, _e156.y, _e156.z, _e157);
+    return;
+}
+
+@fragment 
+fn main(@location(5) v_uv: vec2<f32>, @location(6) v_world_position: vec3<f32>, @location(0) v_color: vec4<f32>) -> @location(0) vec4<f32> {
+    v_uv_1 = v_uv;
+    v_world_position_1 = v_world_position;
+    v_color_1 = v_color;
+    main_1();
+    let _e7 = frag_color;
+    return _e7;
+}
+''',
+      attributes: <WebGpuAttribute>[],
+      blocks: <WebGpuBlock>[
+        WebGpuBlock(
+          name: 'ContributorLightInfo',
+          group: 1,
+          binding: 0,
+          sizeInBytes: 528,
+          members: <WebGpuBlockMember>[
+            WebGpuBlockMember(
+              name: 'light_position',
+              offsetInBytes: 0,
+              sizeInBytes: 128,
+            ),
+            WebGpuBlockMember(
+              name: 'light_color',
+              offsetInBytes: 128,
+              sizeInBytes: 128,
+            ),
+            WebGpuBlockMember(
+              name: 'light_direction',
+              offsetInBytes: 256,
+              sizeInBytes: 128,
+            ),
+            WebGpuBlockMember(
+              name: 'light_cone',
+              offsetInBytes: 384,
+              sizeInBytes: 128,
+            ),
+            WebGpuBlockMember(
+              name: 'slots',
+              offsetInBytes: 512,
+              sizeInBytes: 16,
+            ),
+          ],
+        ),
+        WebGpuBlock(
+          name: 'FogInfo',
+          group: 1,
+          binding: 1,
+          sizeInBytes: 32,
+          members: <WebGpuBlockMember>[
+            WebGpuBlockMember(name: 'fog', offsetInBytes: 0, sizeInBytes: 16),
+            WebGpuBlockMember(name: 'eye', offsetInBytes: 16, sizeInBytes: 16),
+          ],
+        ),
+        WebGpuBlock(
+          name: 'LightListInfo',
+          group: 1,
+          binding: 2,
+          sizeInBytes: 336,
+          members: <WebGpuBlockMember>[
+            WebGpuBlockMember(name: 'list', offsetInBytes: 0, sizeInBytes: 16),
+            WebGpuBlockMember(
+              name: 'indices',
+              offsetInBytes: 16,
+              sizeInBytes: 96,
+            ),
+            WebGpuBlockMember(
+              name: 'scales',
+              offsetInBytes: 112,
+              sizeInBytes: 96,
+            ),
+            WebGpuBlockMember(
+              name: 'cluster_view_projection',
+              offsetInBytes: 208,
+              sizeInBytes: 64,
+            ),
+            WebGpuBlockMember(
+              name: 'cluster_grid',
+              offsetInBytes: 272,
+              sizeInBytes: 16,
+            ),
+            WebGpuBlockMember(
+              name: 'cluster_depth',
+              offsetInBytes: 288,
+              sizeInBytes: 16,
+            ),
+            WebGpuBlockMember(
+              name: 'slot_rows',
+              offsetInBytes: 304,
+              sizeInBytes: 32,
+            ),
+          ],
+        ),
+        WebGpuBlock(
+          name: 'SixWayInfo',
+          group: 1,
+          binding: 3,
+          sizeInBytes: 80,
+          members: <WebGpuBlockMember>[
+            WebGpuBlockMember(name: 'right', offsetInBytes: 0, sizeInBytes: 16),
+            WebGpuBlockMember(name: 'up', offsetInBytes: 16, sizeInBytes: 16),
+            WebGpuBlockMember(
+              name: 'forward',
+              offsetInBytes: 32,
+              sizeInBytes: 16,
+            ),
+            WebGpuBlockMember(
+              name: 'emission',
+              offsetInBytes: 48,
+              sizeInBytes: 16,
+            ),
+            WebGpuBlockMember(
+              name: 'ambient',
+              offsetInBytes: 64,
+              sizeInBytes: 16,
+            ),
+          ],
+        ),
+      ],
+      samplers: <WebGpuSampler>[
+        WebGpuSampler(
+          name: 'light_list_texture',
+          group: 1,
+          textureBinding: 4,
+          samplerBinding: 5,
+          dimension: WebGpuTextureDimension.twoDimensional,
+        ),
+        WebGpuSampler(
+          name: 'six_way_negative',
+          group: 1,
+          textureBinding: 6,
+          samplerBinding: 7,
+          dimension: WebGpuTextureDimension.twoDimensional,
+        ),
+        WebGpuSampler(
+          name: 'six_way_positive',
+          group: 1,
+          textureBinding: 8,
+          samplerBinding: 9,
+          dimension: WebGpuTextureDimension.twoDimensional,
+        ),
+      ],
+    ),
     'Splat': WebGpuStage(
       wgsl: r'''
 struct FogInfo {

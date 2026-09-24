@@ -127,6 +127,10 @@
     "type": "fragment",
     "file": "shaders/lighting/particle_textured.frag"
   },
+  "ParticleSixWay": {
+    "type": "fragment",
+    "file": "shaders/lighting/particle_six_way.frag"
+  },
   "Splat": {
     "type": "fragment",
     "file": "shaders/lighting/splat.frag"

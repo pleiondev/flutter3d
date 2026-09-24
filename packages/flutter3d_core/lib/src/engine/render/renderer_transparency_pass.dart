@@ -272,9 +272,12 @@ extension _TransparencyPasses on Renderer {
     passState.invalidatePipeline();
 
     if (contributors.isNotEmpty) {
+      final temporal =
+          settings.antiAlias.temporal.enabled && device.maxColorAttachments > 1;
       for (final deferred in views) {
         _restoreView(deferred, rebuildClusters: multiView);
         _beginView(pass, deferred, passState);
+        _contributorLights.begin(lights, settings);
         for (final plugin in contributors) {
           plugin.encode(
             ContributorFrame(
@@ -287,9 +290,13 @@ extension _TransparencyPasses on Renderer {
               height: height,
               view: deferred.view,
               viewProjection: deferred.viewProjection,
+              frameIndex: _frameIndex,
+              temporal: temporal,
+              lights: _contributorLights,
             ),
           );
         }
+        _contributorLights.end();
       }
     }
     _clustersActive = false;

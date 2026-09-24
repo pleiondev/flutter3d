@@ -167,6 +167,9 @@ Future<void> checkLinking(GraphicsDevice device) async {
     // which is the only one in the bundle with a per-instance buffer.
     ('ParticleVertex', 'Particle'),
     ('ParticleVertex', 'ParticleTextured'),
+    // `N6`: the six-way stage reads the same three varyings, and is the one
+    // particle stage that also reads the light list.
+    ('ParticleVertex', 'ParticleSixWay'),
     // `gfx-80n` shares that vertex stage rather than adding a third one, so
     // this pair is the check that it really does read the same three
     // attributes and the same two varyings.

@@ -12,4 +12,5 @@ export 'src/layout.dart';
 export 'src/lod_generate.dart';
 export 'src/manifest.dart';
 export 'src/pipeline_version.dart';
+export 'src/six_way_bake.dart';
 export 'src/texture_encode.dart';

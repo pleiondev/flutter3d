@@ -812,6 +812,70 @@ uniformBlocks = <String, Map<String, Map<String, UniformMemberLayout>>>{
       ),
     },
   },
+  'ParticleSixWay': <String, Map<String, UniformMemberLayout>>{
+    'ContributorLightInfo': <String, UniformMemberLayout>{
+      'light_position': (
+        offset: 0,
+        byteLength: 128,
+        elements: 8,
+        type: 'Vector4',
+      ),
+      'light_color': (
+        offset: 128,
+        byteLength: 128,
+        elements: 8,
+        type: 'Vector4',
+      ),
+      'light_direction': (
+        offset: 256,
+        byteLength: 128,
+        elements: 8,
+        type: 'Vector4',
+      ),
+      'light_cone': (
+        offset: 384,
+        byteLength: 128,
+        elements: 8,
+        type: 'Vector4',
+      ),
+      'slots': (offset: 512, byteLength: 16, elements: 1, type: 'Vector4'),
+    },
+    'FogInfo': <String, UniformMemberLayout>{
+      'fog': (offset: 0, byteLength: 16, elements: 1, type: 'Vector4'),
+      'eye': (offset: 16, byteLength: 16, elements: 1, type: 'Vector4'),
+    },
+    'LightListInfo': <String, UniformMemberLayout>{
+      'list': (offset: 0, byteLength: 16, elements: 1, type: 'Vector4'),
+      'indices': (offset: 16, byteLength: 96, elements: 6, type: 'Vector4'),
+      'scales': (offset: 112, byteLength: 96, elements: 6, type: 'Vector4'),
+      'cluster_view_projection': (
+        offset: 208,
+        byteLength: 64,
+        elements: 1,
+        type: 'Matrix',
+      ),
+      'cluster_grid': (
+        offset: 272,
+        byteLength: 16,
+        elements: 1,
+        type: 'Vector4',
+      ),
+      'cluster_depth': (
+        offset: 288,
+        byteLength: 16,
+        elements: 1,
+        type: 'Vector4',
+      ),
+      'slot_rows': (offset: 304, byteLength: 32, elements: 2, type: 'Vector4'),
+    },
+    'SixWayInfo': <String, UniformMemberLayout>{
+      'right': (offset: 0, byteLength: 16, elements: 1, type: 'Vector4'),
+      'up': (offset: 16, byteLength: 16, elements: 1, type: 'Vector4'),
+      'forward': (offset: 32, byteLength: 16, elements: 1, type: 'Vector4'),
+      'emission': (offset: 48, byteLength: 16, elements: 1, type: 'Vector4'),
+      'ambient': (offset: 64, byteLength: 16, elements: 1, type: 'Vector4'),
+    },
+  },
   'ParticleTextured': <String, Map<String, UniformMemberLayout>>{
     'FogInfo': <String, UniformMemberLayout>{
       'fog': (offset: 0, byteLength: 16, elements: 1, type: 'Vector4'),
