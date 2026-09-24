@@ -886,7 +886,56 @@ own item is the reason. Titles follow the repository's narrative style.
   `flutter3d_editor_core` with seeds; regenerated levels must match today's
   JSON byte for byte, and the Python goes when they do.
 - The A55 target is 60 Hz (16.6 ms); a frame over 50 ms is a spike.
-- One 0.8 release, with a `0.8.0-dev.N` pre-release after each phase.
+- ~~One 0.8 release, with a `0.8.0-dev.N` pre-release after each phase.~~
+  Replaced 2026-09-24 (owner): **0.8.0 fixes the contract, 0.8.x fills it
+  in.** See §0.8.0 below.
+
+## 0.8.0 — the contract release
+
+Decided 2026-09-24. `GraphicsDevice`, `PassEncoder` and `CommandEncoder` are
+`abstract interface class`es and `Recorded` is `sealed`, and every backend is
+its own package pinned `^0.8.0` to `flutter3d_hardware`. A member added to
+any of them in 0.8.1 breaks `flutter3d_webgl 0.8.0` resolved against it, and
+a new `Recorded` variant breaks every exhaustive switch. So every member and
+variant the cycle needs goes in now, answered conservatively (`false`, empty,
+`UnsupportedError`) where the implementation is large, and each later item
+ships as a 0.8.x patch that only turns an answer on.
+
+The contract, in 0.8.0:
+
+- Bind contract: `bindTexture` returns `bool`, `bindPipeline` forgets
+  (done, `2fe2213c`).
+- H1 typed uniform blocks and the `UniformBlock` interface, all call sites
+  moved.
+- H2 surface: `RenderPassDescriptor.label`, `supportsGpuTimestamps`,
+  `FramePass.gpuMicros`, the `FrameTimings` callback, `Timeline` spans per
+  node. WebGPU timestamps may follow in a patch.
+- H3 surface: `RecordedPassBegin`, `RecordedSubmit`, `RecordedVertexData`,
+  `RecordingDevice`, trace writer, reader and replay.
+- H6 surface: `supportsCompute`, `StorageBuffer`, `ComputePipelineHandle`,
+  `ComputeEncoder`, `beginComputePass`, `readBuffer`; every backend answers
+  false in 0.8.0, WebGPU and CPU implement it in a patch.
+- Capabilities reserved for later phases, all false or empty in 0.8.0:
+  `supportsFloat32Filtering` (S2), `supportsIndependentBlend` (R8),
+  `hdrOutputFormats` (R9), `StorageMode.deviceTransient` (H7, treated as
+  `devicePrivate`).
+- gfx-92n: built-in `LightingModel`s bind what their stages declare, read
+  from `stageBindings`; the hand-kept `usesX` flags go.
+
+Fixes and small items, in 0.8.0:
+
+- PCF taps clamped to their own atlas tile; near cascades' depth range
+  pulled toward the light to catch casters behind the near plane.
+- WebGL frame orientation for the Bayer dither; the raised WebGL budgets
+  go back down.
+- glTF `baseColorFactor` converted once; rect lights normalised.
+- gfx-90n: the CPU sRGB conversion without `pow`, the render lane back on.
+- G3 sampler budget test; the CPU IBL `n·v` clamped as the GLSL does (L1's
+  first commit); H4 fuzzing on the CPU (browser suites in a patch); spot
+  lights wider than the atlas tile allows shadowed through the cube atlas.
+
+Everything else in this plan is 0.8.x, one item or phase per patch, each
+additive: new settings off by default, new goldens, no contract change.
 
 ## Documentation
 
