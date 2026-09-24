@@ -84,18 +84,37 @@ final class CompositeShader implements CpuFragmentShader {
     // corner that should not dim.
     final ao = bindings.textures['ao_texture'];
     final strength = params.w.clamp(0.0, 1.0);
+    // Read once: the occlusion, the contact shadow and the display transform
+    // each take a lane of it, and this runs for every pixel of the frame.
+    final contactInfo = bindings.vec4(
+      'CompositeInfo',
+      'contact',
+      Vector4.zero(),
+    );
     var shade = 1.0;
+    // `L5`: the light the indirect method left in rgb, added below.
+    Vector3? bounced;
     if (ao != null && strength > 0.0) {
       final texel = bindings.vec4('CompositeInfo', 'ao_texel', Vector4.zero());
       final hx = texel.x * 0.5;
       final hy = texel.y * 0.5;
-      final occlusion =
-          0.25 *
-          (ao.sample(v[0] + hx, v[1] + hy).x +
-              ao.sample(v[0] - hx, v[1] + hy).x +
-              ao.sample(v[0] + hx, v[1] - hy).x +
-              ao.sample(v[0] - hx, v[1] - hy).x);
+      final t0 = ao.sample(v[0] + hx, v[1] + hy);
+      final t1 = ao.sample(v[0] - hx, v[1] + hy);
+      final t2 = ao.sample(v[0] + hx, v[1] - hy);
+      final t3 = ao.sample(v[0] - hx, v[1] - hy);
+      // The share left open is in a; the occlusion methods write it into
+      // every channel.
+      final occlusion = 0.25 * (t0.w + t1.w + t2.w + t3.w);
       shade = 1.0 + (occlusion - 1.0) * strength;
+      final indirect = contactInfo.z;
+      if (indirect != 0.0) {
+        final k = 0.25 * indirect * strength;
+        bounced = Vector3(
+          (t0.x + t1.x + t2.x + t3.x) * k,
+          (t0.y + t1.y + t2.y + t3.y) * k,
+          (t0.z + t1.z + t2.z + t3.z) * k,
+        );
+      }
     }
 
     // `gfx-76n`, into the same multiplier and with a strength of its own: the
@@ -105,10 +124,7 @@ final class CompositeShader implements CpuFragmentShader {
     // is no rotated kernel to average away — see `composite.frag`, which this
     // mirrors operation for operation.
     final contactMap = bindings.textures['contact_shadow_texture'];
-    final contactStrength = bindings
-        .vec4('CompositeInfo', 'contact', Vector4.zero())
-        .x
-        .clamp(0.0, 1.0);
+    final contactStrength = contactInfo.x.clamp(0.0, 1.0);
     if (contactMap != null && contactStrength > 0.0) {
       final contact = contactMap.sample(v[0], v[1]).x;
       shade *= 1.0 + (contact - 1.0) * contactStrength;
@@ -128,19 +144,13 @@ final class CompositeShader implements CpuFragmentShader {
       final b = bloom.sample(v[0], v[1]);
       colour += Vector3(b.x, b.y, b.z) * params.y;
     }
+    if (bounced != null) colour += bounced;
 
     colour.scale(math.max(params.x, 0.0));
     final curve = (params.z + 0.5).floor();
     final display = bindings.textures['display_texture'];
     colour = curve == 6 && display != null
-        ? _sampleDisplay(
-            display,
-            colour,
-            math.max(
-              bindings.vec4('CompositeInfo', 'contact', Vector4.zero()).y,
-              2.0,
-            ),
-          )
+        ? _sampleDisplay(display, colour, math.max(contactInfo.y, 2.0))
         : tonemapBy(colour, curve);
 
     // Grading after the tone map, then the barrel, then the film. The order is

@@ -429,6 +429,8 @@ extension _PostPasses on Renderer {
     required TextureHandle surface,
     required AmbientOcclusionSettings options,
     required RenderView view,
+    TextureHandle? scene,
+    TextureHandle? albedo,
   }) {
     developer.Timeline.startSync('Renderer.ssao');
 
@@ -475,13 +477,14 @@ extension _PostPasses on Renderer {
     _ssaoParams[1] =
         (_temporalEffects ? math.max(4, options.samples ~/ 2) : options.samples)
             .toDouble();
-    // z is the composite's to apply; see the block's docstring in ssao.frag.
-    _ssaoParams[2] = 0.0;
+    // `L5`: whether the albedo buffer is the one bound, or a stand-in.
+    _ssaoParams[2] = albedo == null ? 0.0 : 1.0;
     _ssaoParams[3] = options.bias;
     _ssaoScreen[0] = 1.0 / math.max(target.width, 1);
     _ssaoScreen[1] = 1.0 / math.max(target.height, 1);
     // `L5`: which method, read by the stage.
     _ssaoScreen[2] = options.method.code;
+    _ssaoScreen[3] = math.max(options.thickness, 1e-3);
 
     _ssaoInfo.inverseViewProjection.setAll(0, inverse.storage);
     _ssaoInfo.viewProjection.setAll(0, viewProjection.storage);
@@ -492,6 +495,10 @@ extension _PostPasses on Renderer {
         textures: <String, TextureHandle>{
           'surface_texture': surface,
           'blue_noise_texture': _blueNoise,
+          // Read only by the indirect method; the other two get the
+          // cheapest textures that satisfy the samplers.
+          'scene_texture': scene ?? fallbackAlbedo,
+          'albedo_texture': albedo ?? fallbackAlbedo,
         },
         uniforms: <String, Map<String, Float32List>>{
           _ssaoInfo.name: _ssaoInfo.members,
@@ -1067,6 +1074,13 @@ extension _PostPasses on Renderer {
     _compositeParams[3] = occlusion == null
         ? 0.0
         : settings.ambientOcclusion.strength;
+    // `L5`: the buffer's rgb is light only when the indirect method drew it;
+    // otherwise it is the occlusion again, or the white stand-in.
+    _compositeContact[2] =
+        occlusion != null &&
+            settings.ambientOcclusion.method == AmbientOcclusionMethod.ssil
+        ? 1.0
+        : 0.0;
     _compositeAoTexel[0] = 1.0 / math.max(occlusion?.width ?? 1, 1);
     _compositeAoTexel[1] = 1.0 / math.max(occlusion?.height ?? 1, 1);
     pass.bindTexture(

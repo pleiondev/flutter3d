@@ -42,7 +42,8 @@ uniform SsaoInfo {
   /// x: radius in world metres. y: how many samples. w: bias in metres, which
   /// keeps a flat surface from occluding itself.
   ///
-  /// z is unused: the strength belongs to the composite, which is the pass that
+  /// z: one when `albedo_texture` holds the albedo buffer (`L5`); otherwise
+  /// the strength's old slot, unused: the strength belongs to the composite, which is the pass that
   /// has to make "off" mean a multiplier of exactly one. It is left in place
   /// rather than removed so the block's layout does not depend on that staying
   /// true.
@@ -50,7 +51,8 @@ uniform SsaoInfo {
 
   /// x: 1/width, y: 1/height of *this* target, which is half the scene's.
   /// z: the method — nought the kernel below, one ground-truth horizon
-  /// search (`L5`). w unused.
+  /// search, two the horizon search with indirect light (`L5`). w: the
+  /// thickness the indirect method gives each sample, in metres.
   vec4 screen;
 
   /// xyz: where the eye is. w unused.
@@ -257,6 +259,134 @@ float GtaoVisibility(vec2 uv, vec3 point, vec3 normal) {
   return slices > 0.0 ? clamp(visibility / slices, 0.0, 1.0) : 1.0;
 }
 
+/// The lit scene, for the light the indirect method bounces — `L5`. Bound
+/// to the scene's colour on every draw; read only by that method.
+uniform sampler2D scene_texture;
+
+/// The albedo buffer — `L5`: the receiving surface's own colour. A stand-in
+/// when the device has none, which `params.z` says, and a neutral grey is
+/// taken instead.
+uniform sampler2D albedo_texture;
+
+vec3 SrgbToLinearAlbedo(vec3 srgb) {
+  return mix(srgb / 12.92, pow((srgb + vec3(0.055)) / 1.055, vec3(2.4)),
+             step(vec3(0.04045), srgb));
+}
+
+/// The sectors a run from [low] to [high] covers, each in nought to one
+/// across the slice's half circle: sixteen of them, four to a vector, one
+/// where the run takes in a sector's centre and nought where it does not.
+///
+/// Floats rather than the bits of a `uint`: the OpenGL ES target impellerc
+/// compiles for has no unsigned integers, and aborts on the shifts.
+void SectorRun(float low, float high, out vec4 m0, out vec4 m1, out vec4 m2,
+               out vec4 m3) {
+  const vec4 base = vec4(0.5, 1.5, 2.5, 3.5) / 16.0;
+  m0 = step(vec4(low), base) * step(base, vec4(high));
+  m1 = step(vec4(low), base + 0.25) * step(base + 0.25, vec4(high));
+  m2 = step(vec4(low), base + 0.5) * step(base + 0.5, vec4(high));
+  m3 = step(vec4(low), base + 0.75) * step(base + 0.75, vec4(high));
+}
+
+float SectorCount(vec4 m0, vec4 m1, vec4 m2, vec4 m3) {
+  return dot(m0 + m1 + m2 + m3, vec4(1.0));
+}
+
+/// Screen-space indirect light with a visibility bitmask (Therrien et al.
+/// 2023) — `L5`. rgb: the light that bounces onto this point off what it
+/// sees, times its own albedo; a: the share of the hemisphere left open.
+///
+/// The slices and steps of [GtaoVisibility], but each sample is a slab of
+/// the given thickness rather than a height field: its front and back
+/// angles cover a run of 16 sectors across the slice, and only sectors no
+/// nearer sample covered yet let its light through. So a thin pole shades
+/// what is behind it and lets the light past it on either side, where a
+/// horizon would have hidden everything behind the pole.
+vec4 SsilLight(vec2 uv, vec3 point, vec3 normal) {
+  vec3 view = normalize(ssao_info.camera.xyz - point);
+  float radius = max(ssao_info.params.x, 1e-4);
+  float thickness = max(ssao_info.screen.w, 1e-3);
+  int steps = clamp(int(ssao_info.params.y + 0.5) / 4, 1, 4);
+
+  vec3 across = normalize(
+      cross(view, abs(view.y) < 0.99 ? vec3(0.0, 1.0, 0.0) : vec3(1.0, 0.0, 0.0)));
+  vec4 here = ssao_info.view_projection * vec4(point, 1.0);
+  vec4 there = ssao_info.view_projection * vec4(point + across * radius, 1.0);
+  float uvRadius = length(UvFromNdc(there.xy / there.w) - UvFromNdc(here.xy / here.w));
+
+  vec2 pixel = floor(uv / ssao_info.screen.xy);
+  float noise = PixelNoise(pixel);
+  float depth = texture(surface_texture, uv).a;
+
+  vec3 light = vec3(0.0);
+  float open = 0.0;
+  float slices = 0.0;
+  for (int slice = 0; slice < 2; slice++) {
+    float phi = (float(slice) + noise) * 1.5707963;
+    vec2 direction = vec2(cos(phi), sin(phi));
+    vec3 along = WorldAtDepth(uv + direction * 1e-3, depth) - point;
+    vec3 tangent = along - view * dot(along, view);
+    float tangentLength = length(tangent);
+    if (tangentLength < 1e-6) continue;
+    tangent /= tangentLength;
+    vec3 axis = normalize(cross(tangent, view));
+    vec3 projected = normal - axis * dot(normal, axis);
+    float projectedLength = length(projected);
+    if (projectedLength < 1e-4) continue;
+    float n = sign(dot(projected, tangent)) *
+              acos(clamp(dot(projected / projectedLength, view), -1.0, 1.0));
+
+    vec4 c0 = vec4(0.0);
+    vec4 c1 = vec4(0.0);
+    vec4 c2 = vec4(0.0);
+    vec4 c3 = vec4(0.0);
+    for (int side = 0; side < 2; side++) {
+      float s = side == 0 ? -1.0 : 1.0;
+      for (int i = 0; i < 4; i++) {
+        if (i >= steps) break;
+        float t = (float(i) + 0.5 + 0.5 * noise) / float(steps);
+        vec2 at = uv + s * direction * uvRadius * t;
+        if (at.x < 0.0 || at.x > 1.0 || at.y < 0.0 || at.y > 1.0) continue;
+        float d = textureLod(surface_texture, at, 0.0).a;
+        if (d <= 0.0) continue;
+        vec3 front = WorldAtDepth(at, d) - point;
+        if (length(front) > radius) continue;
+        vec3 back = front - view * thickness;
+        // Angles from the eye, signed by the side, over the half circle
+        // centred on the normal: nought at one end, one at the other.
+        float a = s * acos(clamp(dot(normalize(front), view), -1.0, 1.0));
+        float b = s * acos(clamp(dot(normalize(back), view), -1.0, 1.0));
+        float lowAngle = (min(a, b) - n + 1.5707963) / 3.1415927;
+        float highAngle = (max(a, b) - n + 1.5707963) / 3.1415927;
+        vec4 m0;
+        vec4 m1;
+        vec4 m2;
+        vec4 m3;
+        SectorRun(lowAngle, highAngle, m0, m1, m2, m3);
+        float fresh = SectorCount(m0 * (1.0 - c0), m1 * (1.0 - c1),
+                                  m2 * (1.0 - c2), m3 * (1.0 - c3));
+        vec3 radiance = textureLod(scene_texture, at, 0.0).rgb;
+        float cosine = max(dot(normal, normalize(front)), 0.0);
+        light += radiance * cosine * fresh / 16.0;
+        c0 = max(c0, m0);
+        c1 = max(c1, m1);
+        c2 = max(c2, m2);
+        c3 = max(c3, m3);
+      }
+    }
+    open += 1.0 - SectorCount(c0, c1, c2, c3) / 16.0;
+    slices += 1.0;
+  }
+  float count = max(slices, 1.0);
+  vec3 albedo = ssao_info.params.z > 0.5
+                     ? SrgbToLinearAlbedo(texture(albedo_texture, uv).rgb)
+                     : vec3(0.5);
+  // With no slice to measure, open and unlit — as a select: impellerc's
+  // SPIR-V to Metal step aborts on a phi of constants.
+  return slices > 0.0 ? vec4(light / count * albedo, open / count)
+                      : vec4(0.0, 0.0, 0.0, 1.0);
+}
+
 void main() {
   vec4 surface = texture(surface_texture, v_uv);
 
@@ -264,12 +394,19 @@ void main() {
   // the sky, not a surface sitting on the near plane — the same test
   // `reflections.frag` makes, and for the same reason.
   if (surface.a <= 0.0) {
-    frag_color = vec4(1.0);
+    // Open sky: nothing occludes it, and with the indirect method nothing
+    // bounces onto it either.
+    frag_color = ssao_info.screen.z > 1.5 ? vec4(0.0, 0.0, 0.0, 1.0)
+                                           : vec4(1.0);
     return;
   }
 
   vec3 normal = DecodeOctahedral(surface.rg);
 
+  if (ssao_info.screen.z > 1.5) {
+    frag_color = SsilLight(v_uv, WorldAtDepth(v_uv, surface.a), normal);
+    return;
+  }
   if (ssao_info.screen.z > 0.5) {
     float visible =
         GtaoVisibility(v_uv, WorldAtDepth(v_uv, surface.a), normal);

@@ -211,6 +211,7 @@ final class AmbientOcclusionSettings {
     this.blurTaps = 0,
     this.blurDepthFalloff = 0.02,
     this.method = AmbientOcclusionMethod.ssao,
+    this.thickness = 0.3,
   });
 
   final bool enabled;
@@ -218,6 +219,15 @@ final class AmbientOcclusionSettings {
   /// How the occlusion is found — `L5`. [AmbientOcclusionMethod.ssao], the
   /// hemisphere kernel, stays the default.
   final AmbientOcclusionMethod method;
+
+  /// How deep, in metres, the indirect method takes each thing it sees to
+  /// be — `L5`. Read only by [AmbientOcclusionMethod.ssil].
+  ///
+  /// The horizon methods treat the depth buffer as a height field: whatever
+  /// rises above a point hides everything behind it. A slab this thick hides
+  /// only what is behind it, so a pole a few centimetres across shades the
+  /// wall behind it and lets the light past on either side.
+  final double thickness;
 
   /// How far, in world metres, a surface looks for things blocking its sky.
   ///
@@ -300,9 +310,20 @@ final class AmbientOcclusionMethod {
     1.0,
   );
 
+  /// Screen-space indirect light: the slices of [gtao], each sample a slab
+  /// of [AmbientOcclusionSettings.thickness] covering a run of sixteen
+  /// sectors, and the light of the sectors it uncovers first bounced onto
+  /// the point by the albedo buffer. Occlusion and one bounce from one
+  /// march; the composite adds the light by the same strength it darkens by.
+  static const AmbientOcclusionMethod ssil = AmbientOcclusionMethod._(
+    'ssil',
+    2.0,
+  );
+
   static const List<AmbientOcclusionMethod> values = <AmbientOcclusionMethod>[
     ssao,
     gtao,
+    ssil,
   ];
 
   @override

@@ -128,6 +128,122 @@ final class SsaoShader implements CpuFragmentShader {
     return slices > 0.0 ? (visibility / slices).clamp(0.0, 1.0) : 1.0;
   }
 
+  /// `SsilLight` from `ssao.frag` — `L5`: rgb the light bounced onto the
+  /// point, a the share of the hemisphere left open.
+  static Vector4 _ssil(
+    ShaderBindings b,
+    BoundTexture surfaceMap,
+    double u,
+    double w,
+    Vector3 point,
+    Vector3 normal,
+    double depth,
+    Vector3 Function(double, double, double) worldFrom,
+  ) {
+    final params = b.vec4('SsaoInfo', 'params', Vector4.zero());
+    final screen = b.vec4('SsaoInfo', 'screen', Vector4.zero());
+    final projection = b.mat4('SsaoInfo', 'view_projection');
+    final eye4 = b.vec4('SsaoInfo', 'camera', Vector4.zero());
+    final view = (Vector3(eye4.x, eye4.y, eye4.z) - point)..normalize();
+    final radius = math.max(params.x, 1e-4);
+    final thickness = math.max(screen.w, 1e-3);
+    final steps = ((params.y + 0.5).floor() ~/ 4).clamp(1, 4);
+    final sceneMap = b.textures['scene_texture'];
+
+    Vector2 uvOf(Vector3 at) {
+      final Vector4 clip = projection * Vector4(at.x, at.y, at.z, 1.0);
+      return Vector2(clip.x / clip.w * 0.5 + 0.5, 0.5 - clip.y / clip.w * 0.5);
+    }
+
+    final across = view.cross(
+      view.y.abs() < 0.99 ? Vector3(0.0, 1.0, 0.0) : Vector3(1.0, 0.0, 0.0),
+    )..normalize();
+    final uvRadius = (uvOf(point + across * radius) - uvOf(point)).length;
+
+    final px = (u / screen.x).floorToDouble();
+    final py = (w / screen.y).floorToDouble();
+    final noise = pixelNoise(b, px, py);
+
+    // The sixteen sectors of `SectorRun`, one where a run takes in a
+    // sector's centre.
+    List<double> run(double low, double high) => <double>[
+      for (var k = 0; k < 16; k++)
+        (k + 0.5) / 16.0 >= low && (k + 0.5) / 16.0 <= high ? 1.0 : 0.0,
+    ];
+
+    final light = Vector3.zero();
+    var open = 0.0;
+    var slices = 0.0;
+    for (var slice = 0; slice < 2; slice++) {
+      final phi = (slice + noise) * 1.5707963;
+      final dx = math.cos(phi);
+      final dy = math.sin(phi);
+      final along = worldFrom(u + dx * 1e-3, w + dy * 1e-3, depth) - point;
+      final tangent = along - view * along.dot(view);
+      final tangentLength = tangent.length;
+      if (tangentLength < 1e-6) continue;
+      tangent.scale(1.0 / tangentLength);
+      final axis = tangent.cross(view)..normalize();
+      final projected = normal - axis * normal.dot(axis);
+      final projectedLength = projected.length;
+      if (projectedLength < 1e-4) continue;
+      final n =
+          projected.dot(tangent).sign *
+          math.acos((projected.dot(view) / projectedLength).clamp(-1.0, 1.0));
+
+      final covered = List<double>.filled(16, 0.0);
+      for (var side = 0; side < 2; side++) {
+        final s = side == 0 ? -1.0 : 1.0;
+        for (var i = 0; i < steps; i++) {
+          final t = (i + 0.5 + 0.5 * noise) / steps;
+          final au = u + s * dx * uvRadius * t;
+          final av = w + s * dy * uvRadius * t;
+          if (au < 0.0 || au > 1.0 || av < 0.0 || av > 1.0) continue;
+          final d = surfaceMap.sample(au, av).w;
+          if (d <= 0.0) continue;
+          final front = worldFrom(au, av, d) - point;
+          if (front.length > radius) continue;
+          final back = front - view * thickness;
+          final a =
+              s * math.acos(front.normalized().dot(view).clamp(-1.0, 1.0));
+          final bb =
+              s * math.acos(back.normalized().dot(view).clamp(-1.0, 1.0));
+          final m = run(
+            (math.min(a, bb) - n + 1.5707963) / 3.1415927,
+            (math.max(a, bb) - n + 1.5707963) / 3.1415927,
+          );
+          var fresh = 0.0;
+          for (var k = 0; k < 16; k++) {
+            fresh += m[k] * (1.0 - covered[k]);
+            covered[k] = math.max(covered[k], m[k]);
+          }
+          final radiance = sceneMap?.sample(au, av) ?? Vector4.zero();
+          final cosine = math.max(normal.dot(front.normalized()), 0.0);
+          light.addScaled(
+            Vector3(radiance.x, radiance.y, radiance.z),
+            cosine * fresh / 16.0,
+          );
+        }
+      }
+      open += 1.0 - covered.fold(0.0, (sum, k) => sum + k) / 16.0;
+      slices += 1.0;
+    }
+    if (slices <= 0.0) return Vector4(0.0, 0.0, 0.0, 1.0);
+    double linear(double c) =>
+        c < 0.04045 ? c / 12.92 : math.pow((c + 0.055) / 1.055, 2.4).toDouble();
+    final albedoMap = b.textures['albedo_texture'];
+    final Vector3 albedo;
+    if (params.z > 0.5 && albedoMap != null) {
+      final srgb = albedoMap.sample(u, w);
+      albedo = Vector3(linear(srgb.x), linear(srgb.y), linear(srgb.z));
+    } else {
+      albedo = Vector3.all(0.5);
+    }
+    final bounced = light / slices
+      ..multiply(albedo);
+    return Vector4(bounced.x, bounced.y, bounced.z, open / slices);
+  }
+
   @override
   Vector4? run(Float32List v, ShaderBindings b, FragmentContext c) {
     final surfaceMap = b.textures['surface_texture'];
@@ -138,8 +254,13 @@ final class SsaoShader implements CpuFragmentShader {
     final surface = surfaceMap.sample(u, w);
 
     // Nothing was drawn here: the buffer is cleared to zero, and a zero alpha
-    // is the sky rather than a surface on the near plane.
-    if (surface.w <= 0.0) return Vector4(1.0, 1.0, 1.0, 1.0);
+    // is the sky rather than a surface on the near plane. Open, and with the
+    // indirect method nothing bounces onto it.
+    if (surface.w <= 0.0) {
+      return b.vec4('SsaoInfo', 'screen', Vector4.zero()).z > 1.5
+          ? Vector4(0.0, 0.0, 0.0, 1.0)
+          : Vector4(1.0, 1.0, 1.0, 1.0);
+    }
 
     final params = b.vec4('SsaoInfo', 'params', Vector4.zero());
     final screen = b.vec4('SsaoInfo', 'screen', Vector4.zero());
@@ -168,6 +289,20 @@ final class SsaoShader implements CpuFragmentShader {
     double depthOf(Vector3 at) => (at - eye).dot(axis);
 
     final normal = decodeOctahedral(surface.x, surface.y);
+
+    // `L5`: the horizon search with its light, as `SsilLight`.
+    if (screen.z > 1.5) {
+      return _ssil(
+        b,
+        surfaceMap,
+        u,
+        w,
+        worldFrom(u, w, surface.w),
+        normal,
+        surface.w,
+        worldFrom,
+      );
+    }
 
     // `L5`: the horizon search, as `GtaoVisibility`.
     if (screen.z > 0.5) {
@@ -277,17 +412,18 @@ final class SsaoBlurShader implements CpuFragmentShader {
     if (ao == null) return Vector4(1.0, 1.0, 1.0, 1.0);
     final params = bindings.vec4('SsaoBlurInfo', 'params', Vector4.zero());
 
-    final centre = ao.sample(v[0], v[1]).x;
+    // All four channels, as the shader since `L5`.
+    final centre = ao.sample(v[0], v[1]);
     final taps = params.z;
-    if (taps < 1.0) return Vector4(centre, centre, centre, 1.0);
+    if (taps < 1.0) return centre;
 
     final surface = bindings.textures['surface_texture'];
-    if (surface == null) return Vector4(centre, centre, centre, 1.0);
+    if (surface == null) return centre;
 
     final centreDepth = surface.sample(v[0], v[1]).w;
     final falloff = math.max(params.w, 1e-4);
 
-    var total = centre;
+    final total = Vector4.copy(centre);
     var weightSum = 1.0;
     // Bounded at eight to each side whatever the uniform says, the same rule
     // the shader keeps and for the same reason.
@@ -309,12 +445,11 @@ final class SsaoBlurShader implements CpuFragmentShader {
               (falloff * math.max(centreDepth, 1e-3)),
         );
         final weight = closeness / offset;
-        total += ao.sample(u, w).x * weight;
+        total.addScaled(ao.sample(u, w), weight);
         weightSum += weight;
       }
     }
 
-    final blurred = total / weightSum;
-    return Vector4(blurred, blurred, blurred, 1.0);
+    return total..scale(1.0 / weightSum);
   }
 }

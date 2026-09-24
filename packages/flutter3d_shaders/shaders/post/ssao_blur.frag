@@ -20,6 +20,10 @@
 // Depth comes from the surface buffer's alpha, which carries view-axis
 // distance in metres — the same channel `ssao.frag` reconstructs positions
 // from, and the reason this pass needs no depth attachment of its own.
+//
+// All four channels, since `L5`: the occlusion methods write their one number
+// four times over, and the indirect one puts its light in rgb and what is left
+// open in a, so a blur of the whole texel smooths both at once.
 
 in vec2 v_uv;
 
@@ -38,16 +42,16 @@ blur_info;
 
 void main() {
   float taps = blur_info.params.z;
-  float centre = texture(ao_texture, v_uv).r;
+  vec4 centre = texture(ao_texture, v_uv);
   if (taps < 1.0) {
-    frag_color = vec4(centre, centre, centre, 1.0);
+    frag_color = centre;
     return;
   }
 
   float centreDepth = texture(surface_texture, v_uv).a;
   float falloff = max(blur_info.params.w, 1e-4);
 
-  float total = centre;
+  vec4 total = centre;
   float weightSum = 1.0;
   // Bounded at eight to each side whatever the uniform says, the same rule
   // `ssao.frag`'s own sample loop keeps: a loop a uniform can lengthen
@@ -76,11 +80,10 @@ void main() {
       // And further taps count for less, which is what makes this a blur
       // rather than a box.
       float weight = closeness / offset;
-      total += texture(ao_texture, at).r * weight;
+      total += texture(ao_texture, at) * weight;
       weightSum += weight;
     }
   }
 
-  float blurred = total / weightSum;
-  frag_color = vec4(blurred, blurred, blurred, 1.0);
+  frag_color = total / weightSum;
 }

@@ -102,7 +102,9 @@ uniform CompositeInfo {
 
   /// x: how much of the contact shadow reaches the picture, nought to one —
   /// `gfx-76n`. y: the display transform's entries per axis, its N — `L2`;
-  /// read only when the curve is 6. z, w unclaimed.
+  /// read only when the curve is 6. z: one when the occlusion buffer carries
+  /// indirect light in rgb as well — `L5`'s SSIL — nought otherwise.
+  /// w unclaimed.
   ///
   /// Appended after everything else, the way this block has grown before: a
   /// std140 block is laid out in declaration order, so adding here leaves every
@@ -429,10 +431,13 @@ void main() {
   // one without the other either leaves the pattern or smears the contact
   // shadows this whole pass exists to draw.
   vec2 half_texel = composite_info.ao_texel.xy * 0.5;
-  float ao = 0.25 * (texture(ao_texture, v_uv + vec2(half_texel.x, half_texel.y)).r +
-                     texture(ao_texture, v_uv + vec2(-half_texel.x, half_texel.y)).r +
-                     texture(ao_texture, v_uv + vec2(half_texel.x, -half_texel.y)).r +
-                     texture(ao_texture, v_uv + vec2(-half_texel.x, -half_texel.y)).r);
+  vec4 occlusion = 0.25 * (texture(ao_texture, v_uv + vec2(half_texel.x, half_texel.y)) +
+                           texture(ao_texture, v_uv + vec2(-half_texel.x, half_texel.y)) +
+                           texture(ao_texture, v_uv + vec2(half_texel.x, -half_texel.y)) +
+                           texture(ao_texture, v_uv + vec2(-half_texel.x, -half_texel.y)));
+  // The share left open is in a; the occlusion methods write it into every
+  // channel, and the indirect one keeps its light in rgb.
+  float ao = occlusion.a;
   // Lerped towards one by the strength, so "off" is exactly one and multiplies
   // nothing — every golden in the repository depends on that being exact rather
   // than nearly so.
@@ -464,6 +469,12 @@ void main() {
   // emissive strip in a corner dims, which is physically wrong — the same
   // compromise `pbr.frag` already makes with the occlusion map from a glTF.
   vec3 color = scene.rgb * ao + bloom * composite_info.params.y;
+
+  // `L5`: the light that bounced onto the point off what it sees, by the same
+  // strength as the occlusion beside it, so a strength of nought is no light
+  // added as it is no darkening.
+  color += occlusion.rgb * composite_info.contact.z *
+           clamp(composite_info.params.w, 0.0, 1.0);
 
   // Exposure before the tone map, so it behaves like a camera stop — it moves
   // which part of the scene's range lands in the mapper's shoulder instead of
