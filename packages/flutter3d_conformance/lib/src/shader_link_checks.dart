@@ -159,6 +159,8 @@ Future<void> checkLinking(GraphicsDevice device) async {
     // this pair is the check that it really does read the same three
     // attributes and the same two varyings.
     ('ParticleVertex', 'Splat'),
+    // `N5`: the unsorted splat reads what the sorted one reads.
+    ('ParticleVertex', 'SplatHashed'),
     ('ParticleMeshVertex', 'ParticleMesh'),
     // The sky is the only pair where both stages are new at once, so it is the
     // one where a varying can disagree with nothing to compare against. Both

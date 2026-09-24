@@ -127,6 +127,10 @@
     "type": "fragment",
     "file": "shaders/lighting/splat.frag"
   },
+  "SplatHashed": {
+    "type": "fragment",
+    "file": "shaders/lighting/splat_hashed.frag"
+  },
   "ParticleMeshVertex": {
     "type": "vertex",
     "file": "shaders/particle_mesh.vert"

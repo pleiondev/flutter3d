@@ -63,6 +63,7 @@ const List<RequiredShader> kRequiredShaders = <RequiredShader>[
   (name: 'Reflections', fragment: true),
   (name: 'Ssao', fragment: true),
   (name: 'Splat', fragment: true),
+  (name: 'SplatHashed', fragment: true),
   (name: 'SsaoBlur', fragment: true),
   (name: 'ContactShadow', fragment: true),
   (name: 'CameraVelocity', fragment: true),
