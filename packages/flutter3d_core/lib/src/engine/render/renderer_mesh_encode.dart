@@ -742,7 +742,21 @@ extension _MeshEncode on Renderer {
   /// the sampler.
   void _bindIrradiance(PassEncoder encoder, ShaderHandle stage, Scene scene) {
     final field = scene.irradianceField;
-    final atlas = field == null ? null : _irradianceAtlasFor(field);
+    // The atlas the GPU keeps when the field is updated there (`L4`), the
+    // uploaded bake otherwise. Both have the same layout, so the block below
+    // is the same either way.
+    final gpu = _irradianceGpu;
+    final live =
+        field != null &&
+        gpu != null &&
+        identical(gpu.field, field) &&
+        gpu.seeded >= 0 &&
+        _updatesIrradianceOnGpu(field);
+    final atlas = field == null
+        ? null
+        : live
+        ? gpu.atlas.current
+        : _irradianceAtlasFor(field);
     final info = _irradianceInfo;
     if (field == null || atlas == null) {
       info.origin[3] = 0.0;

@@ -120,6 +120,17 @@ final class IrradianceField {
   /// Mean distance and mean square distance per texel, per probe.
   late final Float32List depth;
 
+  /// How many probes the renderer updates a frame on the GPU — `L4`. Nought,
+  /// the default, leaves the field exactly what was baked; above it, the
+  /// renderer draws that many probes' views each frame, round robin, and
+  /// folds them into the atlas the lit stages read. Needs a device with cube
+  /// textures and a second colour attachment; elsewhere the bake stands.
+  int gpuUpdates = 0;
+
+  /// How much of a probe's old value survives each GPU update, nought to
+  /// one — `L4`. Higher is steadier and slower to follow a changed room.
+  double hysteresis = 0.9;
+
   /// Whether each probe stands somewhere worth reading.
   ///
   /// **A probe inside a wall is the other way a field goes wrong**, and it is

@@ -130,6 +130,8 @@ Future<void> checkLinking(GraphicsDevice device) async {
       'MrtProbe',
       // `H5`: the field kernel the conformance suite steps `FieldPass` with.
       'FieldDecay',
+      // `L4`: the kernel that folds a probe's capture into the field.
+      'IrradianceConvolve',
     ])
       ('FullscreenVertex', post),
     ('DebugLineVertex', 'DebugLine'),
