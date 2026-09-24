@@ -164,7 +164,8 @@ extension _ScenePasses on Renderer {
     _targetOrigin[3] = temporal ? (_frameIndex % 32).toDouble() : -1.0;
     final cameraPosition = vm.Vector3.zero();
 
-    for (final view in ordered) {
+    for (var viewNumber = 0; viewNumber < ordered.length; viewNumber++) {
+      final view = ordered[viewNumber];
       // Per view rather than once: the debug overlay at the end of each view
       // leaves the pass in line-drawing state, so the next view has to
       // re-establish its own.
@@ -254,6 +255,15 @@ extension _ScenePasses on Renderer {
       _renderList.sort(view);
       developer.Timeline.finishSync();
       culled += visibleBefore - _renderList.length;
+
+      // `C9`: a split mesh's clusters are culled against what its node was,
+      // at the draw, with the matrix the draw uses.
+      _clusterView = (
+        view: viewNumber,
+        frustum: frustum,
+        viewProjection: viewProjection,
+        occlusion: occlusion,
+      );
 
       camera.readWorldPosition(cameraPosition);
 
@@ -366,6 +376,8 @@ extension _ScenePasses on Renderer {
           ),
         );
       }
+
+      _clusterView = null;
 
       // The debug overlay is deliberately NOT drawn here. Anything written into
       // the HDR target is scene light: it would be tone mapped, and a bright

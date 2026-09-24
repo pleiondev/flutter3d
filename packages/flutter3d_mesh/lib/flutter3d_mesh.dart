@@ -22,6 +22,7 @@ export 'src/bevel.dart';
 export 'src/bridge.dart';
 export 'src/bsp.dart';
 export 'src/checks.dart';
+export 'src/cluster_mesh.dart';
 export 'src/collision_shapes.dart';
 export 'src/cut.dart';
 export 'src/edge_slide.dart';

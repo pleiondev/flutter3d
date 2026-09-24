@@ -128,5 +128,8 @@ MeshData withTextureTransform(MeshData mesh, TextureTransform transform) {
     vertices: out,
     indices: mesh.indices,
     morphTargets: mesh.morphTargets,
+    // The positions and the order of the triangles are untouched, so the
+    // boxes and cones still describe them — `C9`.
+    clusters: mesh.clusters,
   );
 }
