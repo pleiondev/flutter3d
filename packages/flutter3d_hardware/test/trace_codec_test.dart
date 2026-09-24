@@ -112,6 +112,8 @@ List<TraceEvent> _everyEvent() => <TraceEvent>[
     depth: (
       texture: 1,
       clearValue: 0.5,
+      loadAction: LoadAction.load,
+      storeAction: StoreAction.store,
       stencilLoadAction: LoadAction.load,
       stencilStoreAction: StoreAction.store,
       stencilClearValue: 7,

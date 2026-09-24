@@ -734,6 +734,33 @@ final class XraySettings {
   static final vm.Vector3 _defaultColor = vm.Vector3(1.0, 0.32, 0.08);
 }
 
+/// How the transparent half of a view is composited — `R8`.
+enum TransparencyMode {
+  /// Back to front, each draw blended over the last: exact where the list
+  /// sorts, and wrong where it cannot — two panes through each other, a
+  /// mesh whose own triangles overlap, a draw whose centre is nearer than
+  /// the part of it that matters. The default.
+  sorted,
+
+  /// Weighted blended order-independent transparency, after McGuire and
+  /// Bavoil. Every transparent draw adds its colour, weighted by its depth
+  /// and alpha, into an accumulation target and multiplies a revealage target
+  /// by what it lets through, in any order; a resolve then lays the weighted
+  /// average over the scene. Order never matters, so intersecting glass is
+  /// drawn the same from every side — at the price of an approximation: the
+  /// nearer of two layers wins by its weight rather than by covering the
+  /// other, so a stack of strongly coloured glass reads more mixed than it
+  /// would sorted.
+  ///
+  /// Costs two targets the size of the scene, a depth buffer kept across
+  /// passes, and multisampling in the scene pass. A device whose
+  /// `supportsIndependentBlend` is false draws the transparent list twice,
+  /// once per target. Transparent draws write nothing to the surface buffer,
+  /// and a material with a fragment stage of its own that does not go
+  /// through `WriteSurface` is added into the targets as it wrote itself.
+  weightedBlended,
+}
+
 /// Scene-wide shading knobs that are not per-material.
 ///
 /// **One value passed to `Renderer.render`, and nothing here is state.** A
@@ -788,6 +815,7 @@ final class RenderSettings {
     this.lightShafts = const LightShaftSettings(),
     this.depthOfField = const DepthOfFieldSettings(),
     this.viewportShading = const ViewportShadingSettings(),
+    this.transparency = TransparencyMode.sorted,
   }) : assert(anisotropy >= 1, 'anisotropy is a count of taps, one or more'),
        assert(lightFadeBand >= 0.0, 'a fade band is a width, not a direction');
 
@@ -1049,6 +1077,11 @@ final class RenderSettings {
   /// has more lights than the slots and no light channels are in use.
   final bool clusteredLights;
 
+  /// How the transparent half is composited — `R8`. [TransparencyMode.sorted]
+  /// by default, which is every frame this engine drew before the other
+  /// existed; see [TransparencyMode.weightedBlended] for what it costs.
+  final TransparencyMode transparency;
+
   /// Frame-graph nodes to leave out of this frame, by name — `gfx-37n`.
   ///
   /// The name is the node's own [FrameGraphNode.name], exactly as
@@ -1210,6 +1243,7 @@ final class RenderSettings {
     LightShaftSettings? lightShafts,
     DepthOfFieldSettings? depthOfField,
     ViewportShadingSettings? viewportShading,
+    TransparencyMode? transparency,
   }) => RenderSettings(
     specular: specular ?? this.specular,
     exposure: exposure ?? this.exposure,
@@ -1246,6 +1280,7 @@ final class RenderSettings {
     lightShafts: lightShafts ?? this.lightShafts,
     depthOfField: depthOfField ?? this.depthOfField,
     viewportShading: viewportShading ?? this.viewportShading,
+    transparency: transparency ?? this.transparency,
   );
 
   /// These settings with the effects a stereo pair cannot have taken out.

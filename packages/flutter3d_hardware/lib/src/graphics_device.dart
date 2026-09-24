@@ -700,9 +700,12 @@ abstract interface class GraphicsDevice implements TextureAllocator {
 
   /// Whether a pass with several colour targets can blend each differently.
   ///
-  /// Reserved for weighted blended transparency (`R8`), whose two targets
-  /// blend additively and multiplicatively in one draw; without it the draws
-  /// go twice, once per target. False everywhere in 0.8.0.
+  /// Asked by weighted blended transparency (`R8`), whose two targets blend
+  /// additively and multiplicatively in one draw; without it the draws go
+  /// twice, once per target. True on Impeller, WebGPU and the software
+  /// rasteriser (for its first two attachments), and on WebGL2 where the
+  /// context offers `OES_draw_buffers_indexed`. See `PassEncoder.setBlend` for
+  /// what the index means where it is honoured.
   bool get supportsIndependentBlend;
 
   /// The formats this device can present an extended-range frame in, empty

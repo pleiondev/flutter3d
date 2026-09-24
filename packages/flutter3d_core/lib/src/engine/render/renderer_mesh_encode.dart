@@ -159,6 +159,11 @@ extension _MeshEncode on Renderer {
     // through one — see `probeFaceViewProjection` — and a mirror reverses
     // which way every triangle winds, so the winding set below flips with it.
     bool mirrored = false,
+    // `R8`'s, and null for every other draw: a transparent draw into the
+    // weighted blended targets takes their blends instead of its material's,
+    // and writes no depth whatever the material says. See
+    // `renderer_transparency_pass.dart`.
+    _OrderIndependentBlend? orderIndependent,
   }) {
     final mesh = node.mesh;
     // The scene deals in MeshGeometry so that culling and picking need no
@@ -225,15 +230,28 @@ extension _MeshEncode on Renderer {
     encoder.setCullMode(cull ? CullMode.backFace : CullMode.none);
 
     final blend = material.alphaMode == MaterialAlphaMode.blend;
-    encoder.setBlend(
-      override != null
-          ? override.blend
-          : (blend ? BlendState.alphaBlend : null),
-    );
+    if (orderIndependent == null) {
+      encoder.setBlend(
+        override != null
+            ? override.blend
+            : (blend ? BlendState.alphaBlend : null),
+      );
+    } else {
+      // Attachment zero first, then one: on WebGL2 the first call sets every
+      // draw buffer, and only the second is for one buffer alone.
+      encoder.setBlend(orderIndependent.first);
+      if (orderIndependent.second case final second?) {
+        encoder.setBlend(second, attachment: 1);
+      }
+    }
     // Transparent surfaces must not occlude what is behind them — unless the
     // material has an opinion, which is how a backdrop says it is drawn but
-    // is not there.
-    encoder.setDepthWrite(material.depthWrite ?? !blend);
+    // is not there. Never under weighted blended transparency: a layer that
+    // wrote depth would hide the layers drawn after it and not those drawn
+    // before, which is the order the targets exist to forget.
+    encoder.setDepthWrite(
+      orderIndependent == null && (material.depthWrite ?? !blend),
+    );
 
     // Only when it changes. A scene where nothing overrides the test never
     // emits this call, so the pass's own `less` stands and every frame the

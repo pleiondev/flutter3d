@@ -111,7 +111,8 @@ uniform FogInfo {
   vec4 eye;
 
   /// xyz: the direction the camera looks, as a unit vector in world space.
-  /// w unused.
+  /// w: what a transparent draw writes under weighted blended transparency —
+  /// `R8`, see `WriteWeightedBlended`. Zero for every other draw.
   ///
   /// Here rather than in a block of its own because it answers the same
   /// question [eye] does — where the camera is and which way it faces — and
@@ -243,9 +244,55 @@ vec3 ApplyFog(vec3 color) {
 #endif
 }
 
+/// How much a transparent fragment counts for against the others over its
+/// pixel — `R8`. McGuire and Bavoil's depth weight (their equation 9): a near
+/// layer outweighs a far one, which is all the ordering a weighted average
+/// can keep. [alpha] multiplies it, as theirs does, so a faint layer counts
+/// faintly. Depth along the view axis, in metres, the surface buffer's.
+float WeightedBlendedWeight(float alpha) {
+  float z = abs(ViewDepth());
+  float near = z / 5.0;
+  float far = z / 200.0;
+  float far3 = far * far * far;
+  return alpha *
+         clamp(10.0 / (1e-5 + near * near + far3 * far3), 1e-2, 3e3);
+}
+
+/// What a transparent draw writes when the frame composites transparency
+/// order-independently — `R8`. `fog_info.forward.w` says which:
+///
+/// - 0: [frag_color] as it stands, the sorted blend's source. Every opaque
+///   draw, and every draw in a frame that sorts.
+/// - 1: the accumulation target's share — the colour, which the engine keeps
+///   premultiplied, and the alpha, both times the weight. Added.
+/// - 2: the revealage target's — the alpha alone, in every channel, which the
+///   blend multiplies the target by one minus of.
+/// - 3: both at once, the second into attachment one, where the surface
+///   buffer would be; the pass that asks has no surface buffer attached.
+///
+/// Selects rather than returns, because a phi of constants is what
+/// SPIRV-Cross refuses. At nought the branch is not taken and [frag_color]
+/// is untouched, which is what keeps a sorting frame byte-identical.
+void WriteWeightedBlended() {
+#ifndef F3D_NO_FOG
+  float mode = fog_info.forward.w;
+  if (mode > 0.5) {
+    float alpha = frag_color.a;
+    float weight = WeightedBlendedWeight(alpha);
+    vec4 accumulate = vec4(frag_color.rgb * weight, alpha * weight);
+    bool revealage = mode > 1.5 && mode < 2.5;
+    frag_color = revealage ? vec4(alpha) : accumulate;
+#ifndef F3D_NO_SURFACE_BUFFER
+    if (mode > 2.5) frag_surface = vec4(alpha);
+#endif
+  }
+#endif
+}
+
 void WriteSurface(vec3 linearColor, float alpha, float roughness) {
   frag_color = vec4(ApplyFog(linearColor), alpha);
   WriteSurfaceGeometry(roughness);
+  WriteWeightedBlended();
 }
 
 /// For a stage with no material to speak of.

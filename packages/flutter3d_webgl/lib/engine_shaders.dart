@@ -2469,7 +2469,8 @@ layout(std140) uniform FogInfo {
   vec4 eye;
 
   /// xyz: the direction the camera looks, as a unit vector in world space.
-  /// w unused.
+  /// w: what a transparent draw writes under weighted blended transparency —
+  /// `R8`, see `WriteWeightedBlended`. Zero for every other draw.
   ///
   /// Here rather than in a block of its own because it answers the same
   /// question [eye] does — where the camera is and which way it faces — and
@@ -2601,9 +2602,55 @@ vec3 ApplyFog(vec3 color) {
 #endif
 }
 
+/// How much a transparent fragment counts for against the others over its
+/// pixel — `R8`. McGuire and Bavoil's depth weight (their equation 9): a near
+/// layer outweighs a far one, which is all the ordering a weighted average
+/// can keep. [alpha] multiplies it, as theirs does, so a faint layer counts
+/// faintly. Depth along the view axis, in metres, the surface buffer's.
+float WeightedBlendedWeight(float alpha) {
+  float z = abs(ViewDepth());
+  float near = z / 5.0;
+  float far = z / 200.0;
+  float far3 = far * far * far;
+  return alpha *
+         clamp(10.0 / (1e-5 + near * near + far3 * far3), 1e-2, 3e3);
+}
+
+/// What a transparent draw writes when the frame composites transparency
+/// order-independently — `R8`. `fog_info.forward.w` says which:
+///
+/// - 0: [frag_color] as it stands, the sorted blend's source. Every opaque
+///   draw, and every draw in a frame that sorts.
+/// - 1: the accumulation target's share — the colour, which the engine keeps
+///   premultiplied, and the alpha, both times the weight. Added.
+/// - 2: the revealage target's — the alpha alone, in every channel, which the
+///   blend multiplies the target by one minus of.
+/// - 3: both at once, the second into attachment one, where the surface
+///   buffer would be; the pass that asks has no surface buffer attached.
+///
+/// Selects rather than returns, because a phi of constants is what
+/// SPIRV-Cross refuses. At nought the branch is not taken and [frag_color]
+/// is untouched, which is what keeps a sorting frame byte-identical.
+void WriteWeightedBlended() {
+#ifndef F3D_NO_FOG
+  float mode = fog_info.forward.w;
+  if (mode > 0.5) {
+    float alpha = frag_color.a;
+    float weight = WeightedBlendedWeight(alpha);
+    vec4 accumulate = vec4(frag_color.rgb * weight, alpha * weight);
+    bool revealage = mode > 1.5 && mode < 2.5;
+    frag_color = revealage ? vec4(alpha) : accumulate;
+#ifndef F3D_NO_SURFACE_BUFFER
+    if (mode > 2.5) frag_surface = vec4(alpha);
+#endif
+  }
+#endif
+}
+
 void WriteSurface(vec3 linearColor, float alpha, float roughness) {
   frag_color = vec4(ApplyFog(linearColor), alpha);
   WriteSurfaceGeometry(roughness);
+  WriteWeightedBlended();
 }
 
 /// For a stage with no material to speak of.
@@ -4073,7 +4120,8 @@ layout(std140) uniform FogInfo {
   vec4 eye;
 
   /// xyz: the direction the camera looks, as a unit vector in world space.
-  /// w unused.
+  /// w: what a transparent draw writes under weighted blended transparency —
+  /// `R8`, see `WriteWeightedBlended`. Zero for every other draw.
   ///
   /// Here rather than in a block of its own because it answers the same
   /// question [eye] does — where the camera is and which way it faces — and
@@ -4205,9 +4253,55 @@ vec3 ApplyFog(vec3 color) {
 #endif
 }
 
+/// How much a transparent fragment counts for against the others over its
+/// pixel — `R8`. McGuire and Bavoil's depth weight (their equation 9): a near
+/// layer outweighs a far one, which is all the ordering a weighted average
+/// can keep. [alpha] multiplies it, as theirs does, so a faint layer counts
+/// faintly. Depth along the view axis, in metres, the surface buffer's.
+float WeightedBlendedWeight(float alpha) {
+  float z = abs(ViewDepth());
+  float near = z / 5.0;
+  float far = z / 200.0;
+  float far3 = far * far * far;
+  return alpha *
+         clamp(10.0 / (1e-5 + near * near + far3 * far3), 1e-2, 3e3);
+}
+
+/// What a transparent draw writes when the frame composites transparency
+/// order-independently — `R8`. `fog_info.forward.w` says which:
+///
+/// - 0: [frag_color] as it stands, the sorted blend's source. Every opaque
+///   draw, and every draw in a frame that sorts.
+/// - 1: the accumulation target's share — the colour, which the engine keeps
+///   premultiplied, and the alpha, both times the weight. Added.
+/// - 2: the revealage target's — the alpha alone, in every channel, which the
+///   blend multiplies the target by one minus of.
+/// - 3: both at once, the second into attachment one, where the surface
+///   buffer would be; the pass that asks has no surface buffer attached.
+///
+/// Selects rather than returns, because a phi of constants is what
+/// SPIRV-Cross refuses. At nought the branch is not taken and [frag_color]
+/// is untouched, which is what keeps a sorting frame byte-identical.
+void WriteWeightedBlended() {
+#ifndef F3D_NO_FOG
+  float mode = fog_info.forward.w;
+  if (mode > 0.5) {
+    float alpha = frag_color.a;
+    float weight = WeightedBlendedWeight(alpha);
+    vec4 accumulate = vec4(frag_color.rgb * weight, alpha * weight);
+    bool revealage = mode > 1.5 && mode < 2.5;
+    frag_color = revealage ? vec4(alpha) : accumulate;
+#ifndef F3D_NO_SURFACE_BUFFER
+    if (mode > 2.5) frag_surface = vec4(alpha);
+#endif
+  }
+#endif
+}
+
 void WriteSurface(vec3 linearColor, float alpha, float roughness) {
   frag_color = vec4(ApplyFog(linearColor), alpha);
   WriteSurfaceGeometry(roughness);
+  WriteWeightedBlended();
 }
 
 /// For a stage with no material to speak of.
@@ -5663,7 +5757,8 @@ layout(std140) uniform FogInfo {
   vec4 eye;
 
   /// xyz: the direction the camera looks, as a unit vector in world space.
-  /// w unused.
+  /// w: what a transparent draw writes under weighted blended transparency —
+  /// `R8`, see `WriteWeightedBlended`. Zero for every other draw.
   ///
   /// Here rather than in a block of its own because it answers the same
   /// question [eye] does — where the camera is and which way it faces — and
@@ -5795,9 +5890,55 @@ vec3 ApplyFog(vec3 color) {
 #endif
 }
 
+/// How much a transparent fragment counts for against the others over its
+/// pixel — `R8`. McGuire and Bavoil's depth weight (their equation 9): a near
+/// layer outweighs a far one, which is all the ordering a weighted average
+/// can keep. [alpha] multiplies it, as theirs does, so a faint layer counts
+/// faintly. Depth along the view axis, in metres, the surface buffer's.
+float WeightedBlendedWeight(float alpha) {
+  float z = abs(ViewDepth());
+  float near = z / 5.0;
+  float far = z / 200.0;
+  float far3 = far * far * far;
+  return alpha *
+         clamp(10.0 / (1e-5 + near * near + far3 * far3), 1e-2, 3e3);
+}
+
+/// What a transparent draw writes when the frame composites transparency
+/// order-independently — `R8`. `fog_info.forward.w` says which:
+///
+/// - 0: [frag_color] as it stands, the sorted blend's source. Every opaque
+///   draw, and every draw in a frame that sorts.
+/// - 1: the accumulation target's share — the colour, which the engine keeps
+///   premultiplied, and the alpha, both times the weight. Added.
+/// - 2: the revealage target's — the alpha alone, in every channel, which the
+///   blend multiplies the target by one minus of.
+/// - 3: both at once, the second into attachment one, where the surface
+///   buffer would be; the pass that asks has no surface buffer attached.
+///
+/// Selects rather than returns, because a phi of constants is what
+/// SPIRV-Cross refuses. At nought the branch is not taken and [frag_color]
+/// is untouched, which is what keeps a sorting frame byte-identical.
+void WriteWeightedBlended() {
+#ifndef F3D_NO_FOG
+  float mode = fog_info.forward.w;
+  if (mode > 0.5) {
+    float alpha = frag_color.a;
+    float weight = WeightedBlendedWeight(alpha);
+    vec4 accumulate = vec4(frag_color.rgb * weight, alpha * weight);
+    bool revealage = mode > 1.5 && mode < 2.5;
+    frag_color = revealage ? vec4(alpha) : accumulate;
+#ifndef F3D_NO_SURFACE_BUFFER
+    if (mode > 2.5) frag_surface = vec4(alpha);
+#endif
+  }
+#endif
+}
+
 void WriteSurface(vec3 linearColor, float alpha, float roughness) {
   frag_color = vec4(ApplyFog(linearColor), alpha);
   WriteSurfaceGeometry(roughness);
+  WriteWeightedBlended();
 }
 
 /// For a stage with no material to speak of.
@@ -7781,7 +7922,8 @@ layout(std140) uniform FogInfo {
   vec4 eye;
 
   /// xyz: the direction the camera looks, as a unit vector in world space.
-  /// w unused.
+  /// w: what a transparent draw writes under weighted blended transparency —
+  /// `R8`, see `WriteWeightedBlended`. Zero for every other draw.
   ///
   /// Here rather than in a block of its own because it answers the same
   /// question [eye] does — where the camera is and which way it faces — and
@@ -7913,9 +8055,55 @@ vec3 ApplyFog(vec3 color) {
 #endif
 }
 
+/// How much a transparent fragment counts for against the others over its
+/// pixel — `R8`. McGuire and Bavoil's depth weight (their equation 9): a near
+/// layer outweighs a far one, which is all the ordering a weighted average
+/// can keep. [alpha] multiplies it, as theirs does, so a faint layer counts
+/// faintly. Depth along the view axis, in metres, the surface buffer's.
+float WeightedBlendedWeight(float alpha) {
+  float z = abs(ViewDepth());
+  float near = z / 5.0;
+  float far = z / 200.0;
+  float far3 = far * far * far;
+  return alpha *
+         clamp(10.0 / (1e-5 + near * near + far3 * far3), 1e-2, 3e3);
+}
+
+/// What a transparent draw writes when the frame composites transparency
+/// order-independently — `R8`. `fog_info.forward.w` says which:
+///
+/// - 0: [frag_color] as it stands, the sorted blend's source. Every opaque
+///   draw, and every draw in a frame that sorts.
+/// - 1: the accumulation target's share — the colour, which the engine keeps
+///   premultiplied, and the alpha, both times the weight. Added.
+/// - 2: the revealage target's — the alpha alone, in every channel, which the
+///   blend multiplies the target by one minus of.
+/// - 3: both at once, the second into attachment one, where the surface
+///   buffer would be; the pass that asks has no surface buffer attached.
+///
+/// Selects rather than returns, because a phi of constants is what
+/// SPIRV-Cross refuses. At nought the branch is not taken and [frag_color]
+/// is untouched, which is what keeps a sorting frame byte-identical.
+void WriteWeightedBlended() {
+#ifndef F3D_NO_FOG
+  float mode = fog_info.forward.w;
+  if (mode > 0.5) {
+    float alpha = frag_color.a;
+    float weight = WeightedBlendedWeight(alpha);
+    vec4 accumulate = vec4(frag_color.rgb * weight, alpha * weight);
+    bool revealage = mode > 1.5 && mode < 2.5;
+    frag_color = revealage ? vec4(alpha) : accumulate;
+#ifndef F3D_NO_SURFACE_BUFFER
+    if (mode > 2.5) frag_surface = vec4(alpha);
+#endif
+  }
+#endif
+}
+
 void WriteSurface(vec3 linearColor, float alpha, float roughness) {
   frag_color = vec4(ApplyFog(linearColor), alpha);
   WriteSurfaceGeometry(roughness);
+  WriteWeightedBlended();
 }
 
 /// For a stage with no material to speak of.
@@ -9916,7 +10104,8 @@ layout(std140) uniform FogInfo {
   vec4 eye;
 
   /// xyz: the direction the camera looks, as a unit vector in world space.
-  /// w unused.
+  /// w: what a transparent draw writes under weighted blended transparency —
+  /// `R8`, see `WriteWeightedBlended`. Zero for every other draw.
   ///
   /// Here rather than in a block of its own because it answers the same
   /// question [eye] does — where the camera is and which way it faces — and
@@ -10048,9 +10237,55 @@ vec3 ApplyFog(vec3 color) {
 #endif
 }
 
+/// How much a transparent fragment counts for against the others over its
+/// pixel — `R8`. McGuire and Bavoil's depth weight (their equation 9): a near
+/// layer outweighs a far one, which is all the ordering a weighted average
+/// can keep. [alpha] multiplies it, as theirs does, so a faint layer counts
+/// faintly. Depth along the view axis, in metres, the surface buffer's.
+float WeightedBlendedWeight(float alpha) {
+  float z = abs(ViewDepth());
+  float near = z / 5.0;
+  float far = z / 200.0;
+  float far3 = far * far * far;
+  return alpha *
+         clamp(10.0 / (1e-5 + near * near + far3 * far3), 1e-2, 3e3);
+}
+
+/// What a transparent draw writes when the frame composites transparency
+/// order-independently — `R8`. `fog_info.forward.w` says which:
+///
+/// - 0: [frag_color] as it stands, the sorted blend's source. Every opaque
+///   draw, and every draw in a frame that sorts.
+/// - 1: the accumulation target's share — the colour, which the engine keeps
+///   premultiplied, and the alpha, both times the weight. Added.
+/// - 2: the revealage target's — the alpha alone, in every channel, which the
+///   blend multiplies the target by one minus of.
+/// - 3: both at once, the second into attachment one, where the surface
+///   buffer would be; the pass that asks has no surface buffer attached.
+///
+/// Selects rather than returns, because a phi of constants is what
+/// SPIRV-Cross refuses. At nought the branch is not taken and [frag_color]
+/// is untouched, which is what keeps a sorting frame byte-identical.
+void WriteWeightedBlended() {
+#ifndef F3D_NO_FOG
+  float mode = fog_info.forward.w;
+  if (mode > 0.5) {
+    float alpha = frag_color.a;
+    float weight = WeightedBlendedWeight(alpha);
+    vec4 accumulate = vec4(frag_color.rgb * weight, alpha * weight);
+    bool revealage = mode > 1.5 && mode < 2.5;
+    frag_color = revealage ? vec4(alpha) : accumulate;
+#ifndef F3D_NO_SURFACE_BUFFER
+    if (mode > 2.5) frag_surface = vec4(alpha);
+#endif
+  }
+#endif
+}
+
 void WriteSurface(vec3 linearColor, float alpha, float roughness) {
   frag_color = vec4(ApplyFog(linearColor), alpha);
   WriteSurfaceGeometry(roughness);
+  WriteWeightedBlended();
 }
 
 /// For a stage with no material to speak of.
@@ -12176,7 +12411,8 @@ layout(std140) uniform FogInfo {
   vec4 eye;
 
   /// xyz: the direction the camera looks, as a unit vector in world space.
-  /// w unused.
+  /// w: what a transparent draw writes under weighted blended transparency —
+  /// `R8`, see `WriteWeightedBlended`. Zero for every other draw.
   ///
   /// Here rather than in a block of its own because it answers the same
   /// question [eye] does — where the camera is and which way it faces — and
@@ -12308,9 +12544,55 @@ vec3 ApplyFog(vec3 color) {
 #endif
 }
 
+/// How much a transparent fragment counts for against the others over its
+/// pixel — `R8`. McGuire and Bavoil's depth weight (their equation 9): a near
+/// layer outweighs a far one, which is all the ordering a weighted average
+/// can keep. [alpha] multiplies it, as theirs does, so a faint layer counts
+/// faintly. Depth along the view axis, in metres, the surface buffer's.
+float WeightedBlendedWeight(float alpha) {
+  float z = abs(ViewDepth());
+  float near = z / 5.0;
+  float far = z / 200.0;
+  float far3 = far * far * far;
+  return alpha *
+         clamp(10.0 / (1e-5 + near * near + far3 * far3), 1e-2, 3e3);
+}
+
+/// What a transparent draw writes when the frame composites transparency
+/// order-independently — `R8`. `fog_info.forward.w` says which:
+///
+/// - 0: [frag_color] as it stands, the sorted blend's source. Every opaque
+///   draw, and every draw in a frame that sorts.
+/// - 1: the accumulation target's share — the colour, which the engine keeps
+///   premultiplied, and the alpha, both times the weight. Added.
+/// - 2: the revealage target's — the alpha alone, in every channel, which the
+///   blend multiplies the target by one minus of.
+/// - 3: both at once, the second into attachment one, where the surface
+///   buffer would be; the pass that asks has no surface buffer attached.
+///
+/// Selects rather than returns, because a phi of constants is what
+/// SPIRV-Cross refuses. At nought the branch is not taken and [frag_color]
+/// is untouched, which is what keeps a sorting frame byte-identical.
+void WriteWeightedBlended() {
+#ifndef F3D_NO_FOG
+  float mode = fog_info.forward.w;
+  if (mode > 0.5) {
+    float alpha = frag_color.a;
+    float weight = WeightedBlendedWeight(alpha);
+    vec4 accumulate = vec4(frag_color.rgb * weight, alpha * weight);
+    bool revealage = mode > 1.5 && mode < 2.5;
+    frag_color = revealage ? vec4(alpha) : accumulate;
+#ifndef F3D_NO_SURFACE_BUFFER
+    if (mode > 2.5) frag_surface = vec4(alpha);
+#endif
+  }
+#endif
+}
+
 void WriteSurface(vec3 linearColor, float alpha, float roughness) {
   frag_color = vec4(ApplyFog(linearColor), alpha);
   WriteSurfaceGeometry(roughness);
+  WriteWeightedBlended();
 }
 
 /// For a stage with no material to speak of.
@@ -14277,7 +14559,8 @@ layout(std140) uniform FogInfo {
   vec4 eye;
 
   /// xyz: the direction the camera looks, as a unit vector in world space.
-  /// w unused.
+  /// w: what a transparent draw writes under weighted blended transparency —
+  /// `R8`, see `WriteWeightedBlended`. Zero for every other draw.
   ///
   /// Here rather than in a block of its own because it answers the same
   /// question [eye] does — where the camera is and which way it faces — and
@@ -14409,9 +14692,55 @@ vec3 ApplyFog(vec3 color) {
 #endif
 }
 
+/// How much a transparent fragment counts for against the others over its
+/// pixel — `R8`. McGuire and Bavoil's depth weight (their equation 9): a near
+/// layer outweighs a far one, which is all the ordering a weighted average
+/// can keep. [alpha] multiplies it, as theirs does, so a faint layer counts
+/// faintly. Depth along the view axis, in metres, the surface buffer's.
+float WeightedBlendedWeight(float alpha) {
+  float z = abs(ViewDepth());
+  float near = z / 5.0;
+  float far = z / 200.0;
+  float far3 = far * far * far;
+  return alpha *
+         clamp(10.0 / (1e-5 + near * near + far3 * far3), 1e-2, 3e3);
+}
+
+/// What a transparent draw writes when the frame composites transparency
+/// order-independently — `R8`. `fog_info.forward.w` says which:
+///
+/// - 0: [frag_color] as it stands, the sorted blend's source. Every opaque
+///   draw, and every draw in a frame that sorts.
+/// - 1: the accumulation target's share — the colour, which the engine keeps
+///   premultiplied, and the alpha, both times the weight. Added.
+/// - 2: the revealage target's — the alpha alone, in every channel, which the
+///   blend multiplies the target by one minus of.
+/// - 3: both at once, the second into attachment one, where the surface
+///   buffer would be; the pass that asks has no surface buffer attached.
+///
+/// Selects rather than returns, because a phi of constants is what
+/// SPIRV-Cross refuses. At nought the branch is not taken and [frag_color]
+/// is untouched, which is what keeps a sorting frame byte-identical.
+void WriteWeightedBlended() {
+#ifndef F3D_NO_FOG
+  float mode = fog_info.forward.w;
+  if (mode > 0.5) {
+    float alpha = frag_color.a;
+    float weight = WeightedBlendedWeight(alpha);
+    vec4 accumulate = vec4(frag_color.rgb * weight, alpha * weight);
+    bool revealage = mode > 1.5 && mode < 2.5;
+    frag_color = revealage ? vec4(alpha) : accumulate;
+#ifndef F3D_NO_SURFACE_BUFFER
+    if (mode > 2.5) frag_surface = vec4(alpha);
+#endif
+  }
+#endif
+}
+
 void WriteSurface(vec3 linearColor, float alpha, float roughness) {
   frag_color = vec4(ApplyFog(linearColor), alpha);
   WriteSurfaceGeometry(roughness);
+  WriteWeightedBlended();
 }
 
 /// For a stage with no material to speak of.
@@ -15742,7 +16071,8 @@ layout(std140) uniform FogInfo {
   vec4 eye;
 
   /// xyz: the direction the camera looks, as a unit vector in world space.
-  /// w unused.
+  /// w: what a transparent draw writes under weighted blended transparency —
+  /// `R8`, see `WriteWeightedBlended`. Zero for every other draw.
   ///
   /// Here rather than in a block of its own because it answers the same
   /// question [eye] does — where the camera is and which way it faces — and
@@ -15874,9 +16204,55 @@ vec3 ApplyFog(vec3 color) {
 #endif
 }
 
+/// How much a transparent fragment counts for against the others over its
+/// pixel — `R8`. McGuire and Bavoil's depth weight (their equation 9): a near
+/// layer outweighs a far one, which is all the ordering a weighted average
+/// can keep. [alpha] multiplies it, as theirs does, so a faint layer counts
+/// faintly. Depth along the view axis, in metres, the surface buffer's.
+float WeightedBlendedWeight(float alpha) {
+  float z = abs(ViewDepth());
+  float near = z / 5.0;
+  float far = z / 200.0;
+  float far3 = far * far * far;
+  return alpha *
+         clamp(10.0 / (1e-5 + near * near + far3 * far3), 1e-2, 3e3);
+}
+
+/// What a transparent draw writes when the frame composites transparency
+/// order-independently — `R8`. `fog_info.forward.w` says which:
+///
+/// - 0: [frag_color] as it stands, the sorted blend's source. Every opaque
+///   draw, and every draw in a frame that sorts.
+/// - 1: the accumulation target's share — the colour, which the engine keeps
+///   premultiplied, and the alpha, both times the weight. Added.
+/// - 2: the revealage target's — the alpha alone, in every channel, which the
+///   blend multiplies the target by one minus of.
+/// - 3: both at once, the second into attachment one, where the surface
+///   buffer would be; the pass that asks has no surface buffer attached.
+///
+/// Selects rather than returns, because a phi of constants is what
+/// SPIRV-Cross refuses. At nought the branch is not taken and [frag_color]
+/// is untouched, which is what keeps a sorting frame byte-identical.
+void WriteWeightedBlended() {
+#ifndef F3D_NO_FOG
+  float mode = fog_info.forward.w;
+  if (mode > 0.5) {
+    float alpha = frag_color.a;
+    float weight = WeightedBlendedWeight(alpha);
+    vec4 accumulate = vec4(frag_color.rgb * weight, alpha * weight);
+    bool revealage = mode > 1.5 && mode < 2.5;
+    frag_color = revealage ? vec4(alpha) : accumulate;
+#ifndef F3D_NO_SURFACE_BUFFER
+    if (mode > 2.5) frag_surface = vec4(alpha);
+#endif
+  }
+#endif
+}
+
 void WriteSurface(vec3 linearColor, float alpha, float roughness) {
   frag_color = vec4(ApplyFog(linearColor), alpha);
   WriteSurfaceGeometry(roughness);
+  WriteWeightedBlended();
 }
 
 /// For a stage with no material to speak of.
@@ -19029,7 +19405,8 @@ layout(std140) uniform FogInfo {
   vec4 eye;
 
   /// xyz: the direction the camera looks, as a unit vector in world space.
-  /// w unused.
+  /// w: what a transparent draw writes under weighted blended transparency —
+  /// `R8`, see `WriteWeightedBlended`. Zero for every other draw.
   ///
   /// Here rather than in a block of its own because it answers the same
   /// question [eye] does — where the camera is and which way it faces — and
@@ -19161,9 +19538,55 @@ vec3 ApplyFog(vec3 color) {
 #endif
 }
 
+/// How much a transparent fragment counts for against the others over its
+/// pixel — `R8`. McGuire and Bavoil's depth weight (their equation 9): a near
+/// layer outweighs a far one, which is all the ordering a weighted average
+/// can keep. [alpha] multiplies it, as theirs does, so a faint layer counts
+/// faintly. Depth along the view axis, in metres, the surface buffer's.
+float WeightedBlendedWeight(float alpha) {
+  float z = abs(ViewDepth());
+  float near = z / 5.0;
+  float far = z / 200.0;
+  float far3 = far * far * far;
+  return alpha *
+         clamp(10.0 / (1e-5 + near * near + far3 * far3), 1e-2, 3e3);
+}
+
+/// What a transparent draw writes when the frame composites transparency
+/// order-independently — `R8`. `fog_info.forward.w` says which:
+///
+/// - 0: [frag_color] as it stands, the sorted blend's source. Every opaque
+///   draw, and every draw in a frame that sorts.
+/// - 1: the accumulation target's share — the colour, which the engine keeps
+///   premultiplied, and the alpha, both times the weight. Added.
+/// - 2: the revealage target's — the alpha alone, in every channel, which the
+///   blend multiplies the target by one minus of.
+/// - 3: both at once, the second into attachment one, where the surface
+///   buffer would be; the pass that asks has no surface buffer attached.
+///
+/// Selects rather than returns, because a phi of constants is what
+/// SPIRV-Cross refuses. At nought the branch is not taken and [frag_color]
+/// is untouched, which is what keeps a sorting frame byte-identical.
+void WriteWeightedBlended() {
+#ifndef F3D_NO_FOG
+  float mode = fog_info.forward.w;
+  if (mode > 0.5) {
+    float alpha = frag_color.a;
+    float weight = WeightedBlendedWeight(alpha);
+    vec4 accumulate = vec4(frag_color.rgb * weight, alpha * weight);
+    bool revealage = mode > 1.5 && mode < 2.5;
+    frag_color = revealage ? vec4(alpha) : accumulate;
+#ifndef F3D_NO_SURFACE_BUFFER
+    if (mode > 2.5) frag_surface = vec4(alpha);
+#endif
+  }
+#endif
+}
+
 void WriteSurface(vec3 linearColor, float alpha, float roughness) {
   frag_color = vec4(ApplyFog(linearColor), alpha);
   WriteSurfaceGeometry(roughness);
+  WriteWeightedBlended();
 }
 
 /// For a stage with no material to speak of.
@@ -19348,7 +19771,8 @@ layout(std140) uniform FogInfo {
   vec4 eye;
 
   /// xyz: the direction the camera looks, as a unit vector in world space.
-  /// w unused.
+  /// w: what a transparent draw writes under weighted blended transparency —
+  /// `R8`, see `WriteWeightedBlended`. Zero for every other draw.
   ///
   /// Here rather than in a block of its own because it answers the same
   /// question [eye] does — where the camera is and which way it faces — and
@@ -19480,9 +19904,55 @@ vec3 ApplyFog(vec3 color) {
 #endif
 }
 
+/// How much a transparent fragment counts for against the others over its
+/// pixel — `R8`. McGuire and Bavoil's depth weight (their equation 9): a near
+/// layer outweighs a far one, which is all the ordering a weighted average
+/// can keep. [alpha] multiplies it, as theirs does, so a faint layer counts
+/// faintly. Depth along the view axis, in metres, the surface buffer's.
+float WeightedBlendedWeight(float alpha) {
+  float z = abs(ViewDepth());
+  float near = z / 5.0;
+  float far = z / 200.0;
+  float far3 = far * far * far;
+  return alpha *
+         clamp(10.0 / (1e-5 + near * near + far3 * far3), 1e-2, 3e3);
+}
+
+/// What a transparent draw writes when the frame composites transparency
+/// order-independently — `R8`. `fog_info.forward.w` says which:
+///
+/// - 0: [frag_color] as it stands, the sorted blend's source. Every opaque
+///   draw, and every draw in a frame that sorts.
+/// - 1: the accumulation target's share — the colour, which the engine keeps
+///   premultiplied, and the alpha, both times the weight. Added.
+/// - 2: the revealage target's — the alpha alone, in every channel, which the
+///   blend multiplies the target by one minus of.
+/// - 3: both at once, the second into attachment one, where the surface
+///   buffer would be; the pass that asks has no surface buffer attached.
+///
+/// Selects rather than returns, because a phi of constants is what
+/// SPIRV-Cross refuses. At nought the branch is not taken and [frag_color]
+/// is untouched, which is what keeps a sorting frame byte-identical.
+void WriteWeightedBlended() {
+#ifndef F3D_NO_FOG
+  float mode = fog_info.forward.w;
+  if (mode > 0.5) {
+    float alpha = frag_color.a;
+    float weight = WeightedBlendedWeight(alpha);
+    vec4 accumulate = vec4(frag_color.rgb * weight, alpha * weight);
+    bool revealage = mode > 1.5 && mode < 2.5;
+    frag_color = revealage ? vec4(alpha) : accumulate;
+#ifndef F3D_NO_SURFACE_BUFFER
+    if (mode > 2.5) frag_surface = vec4(alpha);
+#endif
+  }
+#endif
+}
+
 void WriteSurface(vec3 linearColor, float alpha, float roughness) {
   frag_color = vec4(ApplyFog(linearColor), alpha);
   WriteSurfaceGeometry(roughness);
+  WriteWeightedBlended();
 }
 
 /// For a stage with no material to speak of.
@@ -19662,7 +20132,8 @@ layout(std140) uniform FogInfo {
   vec4 eye;
 
   /// xyz: the direction the camera looks, as a unit vector in world space.
-  /// w unused.
+  /// w: what a transparent draw writes under weighted blended transparency —
+  /// `R8`, see `WriteWeightedBlended`. Zero for every other draw.
   ///
   /// Here rather than in a block of its own because it answers the same
   /// question [eye] does — where the camera is and which way it faces — and
@@ -19794,9 +20265,55 @@ vec3 ApplyFog(vec3 color) {
 #endif
 }
 
+/// How much a transparent fragment counts for against the others over its
+/// pixel — `R8`. McGuire and Bavoil's depth weight (their equation 9): a near
+/// layer outweighs a far one, which is all the ordering a weighted average
+/// can keep. [alpha] multiplies it, as theirs does, so a faint layer counts
+/// faintly. Depth along the view axis, in metres, the surface buffer's.
+float WeightedBlendedWeight(float alpha) {
+  float z = abs(ViewDepth());
+  float near = z / 5.0;
+  float far = z / 200.0;
+  float far3 = far * far * far;
+  return alpha *
+         clamp(10.0 / (1e-5 + near * near + far3 * far3), 1e-2, 3e3);
+}
+
+/// What a transparent draw writes when the frame composites transparency
+/// order-independently — `R8`. `fog_info.forward.w` says which:
+///
+/// - 0: [frag_color] as it stands, the sorted blend's source. Every opaque
+///   draw, and every draw in a frame that sorts.
+/// - 1: the accumulation target's share — the colour, which the engine keeps
+///   premultiplied, and the alpha, both times the weight. Added.
+/// - 2: the revealage target's — the alpha alone, in every channel, which the
+///   blend multiplies the target by one minus of.
+/// - 3: both at once, the second into attachment one, where the surface
+///   buffer would be; the pass that asks has no surface buffer attached.
+///
+/// Selects rather than returns, because a phi of constants is what
+/// SPIRV-Cross refuses. At nought the branch is not taken and [frag_color]
+/// is untouched, which is what keeps a sorting frame byte-identical.
+void WriteWeightedBlended() {
+#ifndef F3D_NO_FOG
+  float mode = fog_info.forward.w;
+  if (mode > 0.5) {
+    float alpha = frag_color.a;
+    float weight = WeightedBlendedWeight(alpha);
+    vec4 accumulate = vec4(frag_color.rgb * weight, alpha * weight);
+    bool revealage = mode > 1.5 && mode < 2.5;
+    frag_color = revealage ? vec4(alpha) : accumulate;
+#ifndef F3D_NO_SURFACE_BUFFER
+    if (mode > 2.5) frag_surface = vec4(alpha);
+#endif
+  }
+#endif
+}
+
 void WriteSurface(vec3 linearColor, float alpha, float roughness) {
   frag_color = vec4(ApplyFog(linearColor), alpha);
   WriteSurfaceGeometry(roughness);
+  WriteWeightedBlended();
 }
 
 /// For a stage with no material to speak of.
@@ -20314,7 +20831,8 @@ layout(std140) uniform FogInfo {
   vec4 eye;
 
   /// xyz: the direction the camera looks, as a unit vector in world space.
-  /// w unused.
+  /// w: what a transparent draw writes under weighted blended transparency —
+  /// `R8`, see `WriteWeightedBlended`. Zero for every other draw.
   ///
   /// Here rather than in a block of its own because it answers the same
   /// question [eye] does — where the camera is and which way it faces — and
@@ -20446,9 +20964,55 @@ vec3 ApplyFog(vec3 color) {
 #endif
 }
 
+/// How much a transparent fragment counts for against the others over its
+/// pixel — `R8`. McGuire and Bavoil's depth weight (their equation 9): a near
+/// layer outweighs a far one, which is all the ordering a weighted average
+/// can keep. [alpha] multiplies it, as theirs does, so a faint layer counts
+/// faintly. Depth along the view axis, in metres, the surface buffer's.
+float WeightedBlendedWeight(float alpha) {
+  float z = abs(ViewDepth());
+  float near = z / 5.0;
+  float far = z / 200.0;
+  float far3 = far * far * far;
+  return alpha *
+         clamp(10.0 / (1e-5 + near * near + far3 * far3), 1e-2, 3e3);
+}
+
+/// What a transparent draw writes when the frame composites transparency
+/// order-independently — `R8`. `fog_info.forward.w` says which:
+///
+/// - 0: [frag_color] as it stands, the sorted blend's source. Every opaque
+///   draw, and every draw in a frame that sorts.
+/// - 1: the accumulation target's share — the colour, which the engine keeps
+///   premultiplied, and the alpha, both times the weight. Added.
+/// - 2: the revealage target's — the alpha alone, in every channel, which the
+///   blend multiplies the target by one minus of.
+/// - 3: both at once, the second into attachment one, where the surface
+///   buffer would be; the pass that asks has no surface buffer attached.
+///
+/// Selects rather than returns, because a phi of constants is what
+/// SPIRV-Cross refuses. At nought the branch is not taken and [frag_color]
+/// is untouched, which is what keeps a sorting frame byte-identical.
+void WriteWeightedBlended() {
+#ifndef F3D_NO_FOG
+  float mode = fog_info.forward.w;
+  if (mode > 0.5) {
+    float alpha = frag_color.a;
+    float weight = WeightedBlendedWeight(alpha);
+    vec4 accumulate = vec4(frag_color.rgb * weight, alpha * weight);
+    bool revealage = mode > 1.5 && mode < 2.5;
+    frag_color = revealage ? vec4(alpha) : accumulate;
+#ifndef F3D_NO_SURFACE_BUFFER
+    if (mode > 2.5) frag_surface = vec4(alpha);
+#endif
+  }
+#endif
+}
+
 void WriteSurface(vec3 linearColor, float alpha, float roughness) {
   frag_color = vec4(ApplyFog(linearColor), alpha);
   WriteSurfaceGeometry(roughness);
+  WriteWeightedBlended();
 }
 
 /// For a stage with no material to speak of.
@@ -20720,6 +21284,46 @@ void main() {
     vec3 fresh = weight > 0.0 ? light / weight : old.rgb;
     frag_color = vec4(mix(fresh, old.rgb, keep), old.a);
   }
+}
+
+''',
+    'WboitResolve': r'''#version 300 es
+precision highp float;
+precision highp int;
+precision highp sampler2D;
+precision highp samplerCube;
+
+// Weighted blended transparency's resolve — `R8`.
+//
+// The transparent draws went into two targets instead of the picture: the
+// accumulation target holds the sum of every layer's premultiplied colour and
+// alpha, each times its weight, and the revealage target the product of one
+// minus every layer's alpha — how much of what is behind still shows. This
+// turns the pair into one layer over the lit scene: the weighted average
+// colour, covering as much of the pixel as the layers together do. Drawn with
+// the engine's premultiplied source-over, so a pixel no layer touched —
+// revealage one — writes nothing and leaves the scene exactly as it was.
+//
+// Addition and multiplication do not care about order, which is the point:
+// the transparent list needs no sort, and two intersecting panes composite
+// the same whichever was drawn first.
+precision highp float;
+
+in vec2 v_uv;
+
+layout(location = 0) out vec4 frag_color;
+
+uniform sampler2D accumulation_texture;
+uniform sampler2D revealage_texture;
+
+void main() {
+  vec4 accumulation = texture(accumulation_texture, v_uv);
+  float coverage = 1.0 - texture(revealage_texture, v_uv).r;
+  // Sums past half float's range come back infinite; clamped, their ratio is
+  // still a colour rather than a NaN.
+  vec3 average = min(accumulation.rgb, vec3(65504.0)) /
+                 clamp(accumulation.a, 1e-5, 65504.0);
+  frag_color = vec4(average * coverage, coverage);
 }
 
 ''',

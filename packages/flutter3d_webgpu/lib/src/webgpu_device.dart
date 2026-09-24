@@ -222,8 +222,11 @@ final class WebGpuDevice implements GraphicsDevice, WgslModuleCompiler {
   bool get supportsFloat32Filtering =>
       gpuDevice.features.has(GpuFeature.float32Filterable);
 
+  /// Every colour target in a WebGPU pipeline carries its own equation, and
+  /// the pipeline signature keys on the list of them, so the index has always
+  /// been honoured here — `R8` only asked.
   @override
-  bool get supportsIndependentBlend => false;
+  bool get supportsIndependentBlend => true;
 
   @override
   List<TextureFormat> get hdrOutputFormats => const <TextureFormat>[];

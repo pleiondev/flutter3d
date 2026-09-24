@@ -103,8 +103,16 @@ final class CpuDevice implements GraphicsDevice {
   @override
   bool get supportsFloat32Filtering => false;
 
+  /// True unless a test asks otherwise: the pass keeps a blend state for each
+  /// of its first two attachments — `R8`. A third, the albedo buffer, is
+  /// written unblended whatever is set, as it always was.
+  ///
+  /// A constructor argument, like [maxColorAttachments], so the fallback a
+  /// device without it takes — weighted blended transparency drawing its
+  /// list once per target — can be drawn here and compared with the path it
+  /// stands in for.
   @override
-  bool get supportsIndependentBlend => false;
+  final bool supportsIndependentBlend;
 
   @override
   List<TextureFormat> get hdrOutputFormats => const <TextureFormat>[];
@@ -114,6 +122,7 @@ final class CpuDevice implements GraphicsDevice {
     required this.height,
     required this.shaders,
     this.maxColorAttachments = 3,
+    this.supportsIndependentBlend = true,
   });
 
   final int width;
@@ -563,7 +572,7 @@ final class CpuDevice implements GraphicsDevice {
       maxColorAttachments,
       backend: 'the software rasteriser',
     );
-    return CpuEncoder(descriptor);
+    return CpuEncoder(descriptor, supportsIndependentBlend);
   }
 
   @override

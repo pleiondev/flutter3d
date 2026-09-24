@@ -132,6 +132,8 @@ Future<void> checkLinking(GraphicsDevice device) async {
       'FieldDecay',
       // `L4`: the kernel that folds a probe's capture into the field.
       'IrradianceConvolve',
+      // `R8`: the transparent layers, averaged back over the scene.
+      'WboitResolve',
     ])
       ('FullscreenVertex', post),
     ('DebugLineVertex', 'DebugLine'),

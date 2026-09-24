@@ -76,8 +76,11 @@ final class WebGlDevice implements GraphicsDevice {
   @override
   bool get supportsFloat32Filtering => false;
 
+  /// Where `OES_draw_buffers_indexed` is offered, which is most desktop
+  /// browsers and not every phone — `R8`. Without it weighted blended
+  /// transparency draws its list once per target.
   @override
-  bool get supportsIndependentBlend => false;
+  bool get supportsIndependentBlend => _drawBuffersIndexed != null;
 
   @override
   List<TextureFormat> get hdrOutputFormats => const <TextureFormat>[];
@@ -175,6 +178,9 @@ final class WebGlDevice implements GraphicsDevice {
     final floatLinear = gl.getExtension('OES_texture_float_linear');
     return WebGlDevice._(gl, canvas, WebGlShaderLibrary(gl, sources))
       .._floatLinear = floatLinear != null
+      .._drawBuffersIndexed =
+          gl.getExtension('OES_draw_buffers_indexed')
+              as web.OES_draw_buffers_indexed?
       .._msaaSamples = _provenMsaaSamples(gl)
       .._maxAnisotropy = _queryMaxAnisotropy(gl)
       .._maxColorAttachments = _queryMaxColorAttachments(gl)
@@ -422,6 +428,14 @@ final class WebGlDevice implements GraphicsDevice {
   /// Whether this context can sample a half-float texture with linear
   /// filtering. False makes every shadow map read as zero.
   bool get supportsFloatLinearFiltering => _floatLinear;
+
+  /// `OES_draw_buffers_indexed`, when the context offers it — `R8`. What a
+  /// blend for one draw buffer is set through; null leaves the plain blend
+  /// functions, which set every draw buffer at once.
+  web.OES_draw_buffers_indexed? _drawBuffersIndexed;
+
+  /// The extension [_drawBuffersIndexed] holds, for the encoder.
+  web.OES_draw_buffers_indexed? get drawBuffersIndexed => _drawBuffersIndexed;
 
   /// What [_queryMaxAnisotropy] found at [create]. One without the extension.
   int _maxAnisotropy = 1;

@@ -234,5 +234,9 @@
   "IrradianceConvolve": {
     "type": "fragment",
     "file": "shaders/probe/irradiance_convolve.frag"
+  },
+  "WboitResolve": {
+    "type": "fragment",
+    "file": "shaders/post/wboit_resolve.frag"
   }
 }

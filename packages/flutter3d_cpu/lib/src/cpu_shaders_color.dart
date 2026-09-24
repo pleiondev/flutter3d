@@ -227,7 +227,46 @@ Vector4 writeLit(
 }) {
   writeSurface(c, v, b, normal, roughness);
   final fogged = applyFog(colour, v, b);
-  return Vector4(fogged.x, fogged.y, fogged.z, alpha);
+  return writeWeightedBlended(
+    c,
+    v,
+    b,
+    Vector4(fogged.x, fogged.y, fogged.z, alpha),
+  );
+}
+
+/// `WeightedBlendedWeight` from `color.glsl` — `R8`: McGuire and Bavoil's
+/// depth weight, times [alpha].
+double weightedBlendedWeight(double alpha, Float32List v, ShaderBindings b) {
+  final z = viewDepth(v, b).abs();
+  final near = z / 5.0;
+  final far = z / 200.0;
+  final far3 = far * far * far;
+  return alpha * (10.0 / (1e-5 + near * near + far3 * far3)).clamp(1e-2, 3e3);
+}
+
+/// `WriteWeightedBlended` from `color.glsl` — `R8`: [colour] as it stands
+/// unless `FogInfo.forward.w` asks for the accumulation target's share (1),
+/// the revealage target's (2), or both, the second into attachment one (3).
+Vector4 writeWeightedBlended(
+  FragmentContext c,
+  Float32List v,
+  ShaderBindings b,
+  Vector4 colour,
+) {
+  final mode = b.vec4('FogInfo', 'forward', Vector4.zero()).w;
+  if (mode <= 0.5) return colour;
+  final alpha = colour.w;
+  final weight = weightedBlendedWeight(alpha, v, b);
+  if (mode > 2.5) c.surface = Vector4.all(alpha);
+  return mode > 1.5 && mode < 2.5
+      ? Vector4.all(alpha)
+      : Vector4(
+          colour.x * weight,
+          colour.y * weight,
+          colour.z * weight,
+          alpha * weight,
+        );
 }
 
 /// The Khronos PBR Neutral tone mapper, from `composite.frag`.
