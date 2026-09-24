@@ -130,6 +130,10 @@ Future<void> checkLinking(GraphicsDevice device) async {
       'VolumetricFog',
       'VolumetricFogUpsample',
       'DepthOfField',
+      // `R6`: the two tile passes and the gather behind them.
+      'VelocityTileMax',
+      'VelocityNeighborMax',
+      'MotionBlur',
       'ViewportShade',
       'MrtProbe',
       // `H5`: the field kernel the conformance suite steps `FieldPass` with.

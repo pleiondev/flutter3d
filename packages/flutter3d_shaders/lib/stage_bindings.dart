@@ -152,6 +152,16 @@ stageBindings = <String, ({Set<String> blocks, Set<String> samplers})>{
     blocks: <String>{'FrameInfo', 'MorphInfo'},
     samplers: <String>{'morph_texture'},
   ),
+  'MotionBlur': (
+    blocks: <String>{'FragCoordInfo', 'MotionBlurInfo', 'NoiseInfo'},
+    samplers: <String>{
+      'blue_noise_texture',
+      'neighbor_texture',
+      'scene_texture',
+      'surface_texture',
+      'velocity_texture',
+    },
+  ),
   'MrtProbe': (blocks: <String>{}, samplers: <String>{}),
   'Normals': (blocks: <String>{'FogInfo'}, samplers: <String>{}),
   'ObjectId': (
@@ -294,9 +304,17 @@ stageBindings = <String, ({Set<String> blocks, Set<String> samplers})>{
     blocks: <String>{'FrameInfo', 'MorphInfo', 'PrevFrameInfo'},
     samplers: <String>{'morph_texture'},
   ),
+  'VelocityNeighborMax': (
+    blocks: <String>{'NeighborMaxInfo'},
+    samplers: <String>{'tile_texture'},
+  ),
   'VelocitySkinnedVertex': (
     blocks: <String>{'FrameInfo', 'MorphInfo', 'PrevFrameInfo', 'SkinInfo'},
     samplers: <String>{'morph_texture', 'prev_joint_texture'},
+  ),
+  'VelocityTileMax': (
+    blocks: <String>{'TileMaxInfo'},
+    samplers: <String>{'velocity_texture'},
   ),
   'VelocityVertex': (
     blocks: <String>{'FrameInfo', 'MorphInfo', 'PrevFrameInfo'},

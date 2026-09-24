@@ -786,6 +786,182 @@ extension _PostPasses on Renderer {
     return target;
   }
 
+  /// `R6`: blurs the lit colour along the velocity buffer.
+  ///
+  /// Four draws: the longest motion in each tile's rows, then in its columns
+  /// — `VelocityTileMax` twice, the step between taps telling it which —
+  /// then the longest in each tile's neighbourhood, and the gather that
+  /// walks it. Everything but the last is a tile per texel and the whole
+  /// chain is scratch nobody outside this frame names, so all of it comes
+  /// from [FrameResources.transient].
+  ///
+  /// The tile is as wide as the longest streak, which is what makes one tile
+  /// either side enough for the neighbourhood: nothing further away can
+  /// reach a pixel.
+  TextureHandle _encodeMotionBlur({
+    required TextureHandle scene,
+    required TextureHandle velocity,
+    required TextureHandle surface,
+    required MotionBlurSettings settings,
+    required FrameResources resources,
+  }) {
+    developer.Timeline.startSync('Renderer.motionBlur');
+    final radius = settings.maxRadius.clamp(0.0, 64.0);
+    final tile = math.max(1, radius.ceil());
+    final width = velocity.width;
+    final height = velocity.height;
+    final tilesAcross = (width + tile - 1) ~/ tile;
+    final tilesDown = (height + tile - 1) ~/ tile;
+
+    // Half the exposed part of a frame's motion, in pixels: the velocity is
+    // a whole frame's worth in UV units, and the streak reaches half of the
+    // exposure either side of the pixel.
+    final shutter = settings.shutterFraction.clamp(0.0, 1.0);
+    final scaleX = 0.5 * shutter * width;
+    final scaleY = 0.5 * shutter * height;
+
+    TextureHandle tileMax({
+      required TextureHandle source,
+      required int across,
+      required int down,
+      required bool rows,
+      required double sx,
+      required double sy,
+    }) {
+      final target = resources.transient(
+        RenderTargetSpec(width: across, height: down, format: velocity.format),
+      );
+      _tileMaxInfo.source
+        ..[0] = 1.0 / source.width
+        ..[1] = 1.0 / source.height
+        ..[2] = rows ? 1.0 : 0.0
+        ..[3] = rows ? 0.0 : 1.0;
+      _tileMaxInfo.params
+        ..[0] = sx
+        ..[1] = sy
+        ..[2] = radius
+        ..[3] = tile.toDouble();
+      _tileMaxInfo.target
+        ..[0] = across.toDouble()
+        ..[1] = down.toDouble();
+      drawFullscreen(
+        FullscreenDraw(
+          target: target,
+          fragment: velocityTileMaxShader,
+          textures: <String, TextureHandle>{'velocity_texture': source},
+          uniforms: <String, Map<String, Float32List>>{
+            _tileMaxInfo.name: _tileMaxInfo.members,
+          },
+          // A motion is a value, not a colour: a filtered read between two
+          // texels is a motion neither pixel had.
+          sampler: SamplerOptions.nearestClamp,
+        ),
+      );
+      return target;
+    }
+
+    // The first pass scales into pixels; the second reads pixels already.
+    final alongRows = tileMax(
+      source: velocity,
+      across: tilesAcross,
+      down: height,
+      rows: true,
+      sx: scaleX,
+      sy: scaleY,
+    );
+    final tiles = tileMax(
+      source: alongRows,
+      across: tilesAcross,
+      down: tilesDown,
+      rows: false,
+      sx: 1.0,
+      sy: 1.0,
+    );
+
+    final neighbors = resources.transient(
+      RenderTargetSpec(
+        width: tilesAcross,
+        height: tilesDown,
+        format: velocity.format,
+      ),
+    );
+    _neighborMaxInfo.texel
+      ..[0] = 1.0 / tilesAcross
+      ..[1] = 1.0 / tilesDown;
+    drawFullscreen(
+      FullscreenDraw(
+        target: neighbors,
+        fragment: velocityNeighborMaxShader,
+        textures: <String, TextureHandle>{'tile_texture': tiles},
+        uniforms: <String, Map<String, Float32List>>{
+          _neighborMaxInfo.name: _neighborMaxInfo.members,
+        },
+        sampler: SamplerOptions.nearestClamp,
+      ),
+    );
+
+    // A transient of the scene's own shape, for the lens's reason: a pass
+    // cannot sample and write a single texture.
+    final target = resources.transient(
+      RenderTargetSpec(
+        width: scene.width,
+        height: scene.height,
+        format: scene.format,
+      ),
+    );
+    _motionBlurInfo.scene
+      ..[0] = 1.0 / scene.width
+      ..[1] = 1.0 / scene.height
+      ..[2] = scene.width.toDouble()
+      ..[3] = scene.height.toDouble();
+    _motionBlurInfo.params
+      ..[0] = scaleX
+      ..[1] = scaleY
+      ..[2] = radius
+      // Fifteen, the reconstruction's own count: enough that the steps
+      // between samples are grain under the noise rather than copies.
+      ..[3] = 15.0;
+    _motionBlurInfo.tiles
+      ..[0] = tilesAcross.toDouble()
+      ..[1] = tilesDown.toDouble()
+      ..[2] = tile.toDouble()
+      // Five centimetres: two depths closer than that are one surface for
+      // the question of which is in front, so a surface at a grazing angle
+      // does not hide itself from its own streak.
+      ..[3] = 0.05;
+    drawFullscreen(
+      FullscreenDraw(
+        target: target,
+        fragment: motionBlurShader,
+        textures: <String, TextureHandle>{
+          'scene_texture': scene,
+          'velocity_texture': velocity,
+          'surface_texture': surface,
+          'neighbor_texture': neighbors,
+          'blue_noise_texture': _blueNoise,
+        },
+        uniforms: <String, Map<String, Float32List>>{
+          _motionBlurInfo.name: _motionBlurInfo.members,
+          _noiseInfo.name: _noiseInfo.members,
+        },
+        // Nearest on everything. The three buffers hold motions and depths,
+        // which a filtered read would invent; the scene is only ever read at
+        // texel centres, where nearest is the texel itself and a filtered
+        // read is that texel plus whatever rounding put the centre a hair
+        // off — enough, after the tone map, to move a still frame by a level.
+        samplers: const <String, SamplerOptions>{
+          'scene_texture': SamplerOptions.nearestClamp,
+          'velocity_texture': SamplerOptions.nearestClamp,
+          'surface_texture': SamplerOptions.nearestClamp,
+          'neighbor_texture': SamplerOptions.nearestClamp,
+          'blue_noise_texture': SamplerOptions.nearestClamp,
+        },
+      ),
+    );
+    developer.Timeline.finishSync();
+    return target;
+  }
+
   /// `gfx-43n`/`44n`/`45n`: shades the picture from the surface buffer.
   ///
   /// [surface] is nullable and a null is not an error: the buffer is an

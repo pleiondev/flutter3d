@@ -697,6 +697,56 @@ final class DepthOfFieldSettings {
   );
 }
 
+/// `R6`'s motion blur: what moved during the exposure, smeared along the way
+/// it moved.
+///
+/// **Built on the velocity buffer temporal anti-aliasing already fills**, and
+/// switching this on fills it whether or not the resolve runs: the camera's
+/// motion reconstructed from the surface buffer, and every node that moved
+/// drawn over it. A frame with no past — the first, or the first after the
+/// camera appears — has no motion to blur and is drawn sharp.
+///
+/// **Two numbers a camera has rather than a strength.** [shutterFraction] is
+/// the share of the frame the shutter stays open, a 180° shutter at the
+/// default half; [maxRadius] bounds the streak in pixels, which is also the
+/// width of the tiles the pass finds each neighbourhood's motion in.
+///
+/// Off by default: a scene in motion comes out softer, and every recorded
+/// frame is sharp.
+final class MotionBlurSettings {
+  const MotionBlurSettings({
+    this.enabled = false,
+    this.shutterFraction = 0.5,
+    this.maxRadius = 20.0,
+  });
+
+  final bool enabled;
+
+  /// How much of a frame's motion the exposure sees, from nought (a still)
+  /// to one (the shutter open for the whole frame). Half, the default, is
+  /// film's 180° shutter.
+  final double shutterFraction;
+
+  /// The longest streak either side of a pixel, in pixels at the render
+  /// resolution; clamped to sixty-four, the bound every loop in this engine
+  /// keeps.
+  ///
+  /// A bound on the cost as much as on the look: it is the width of a tile,
+  /// and the gather reaches one tile in every direction. Something moving
+  /// faster than this is blurred as though it moved exactly this far.
+  final double maxRadius;
+
+  MotionBlurSettings copyWith({
+    bool? enabled,
+    double? shutterFraction,
+    double? maxRadius,
+  }) => MotionBlurSettings(
+    enabled: enabled ?? this.enabled,
+    shutterFraction: shutterFraction ?? this.shutterFraction,
+    maxRadius: maxRadius ?? this.maxRadius,
+  );
+}
+
 /// Which viewport shading a frame is drawn with — `gfx-43n`, `44n`, `45n`.
 ///
 /// **A final class with const instances rather than an enum**, the shape
@@ -964,6 +1014,7 @@ final class RenderSettings {
     this.lightShafts = const LightShaftSettings(),
     this.volumetricFog = const VolumetricFogSettings(),
     this.depthOfField = const DepthOfFieldSettings(),
+    this.motionBlur = const MotionBlurSettings(),
     this.viewportShading = const ViewportShadingSettings(),
   }) : assert(anisotropy >= 1, 'anisotropy is a count of taps, one or more'),
        assert(lightFadeBand >= 0.0, 'a fade band is a width, not a direction');
@@ -1167,6 +1218,9 @@ final class RenderSettings {
   /// is not.
   final DepthOfFieldSettings depthOfField;
 
+  /// `R6`'s motion blur along the velocity buffer.
+  final MotionBlurSettings motionBlur;
+
   /// `gfx-43n`/`44n`/`45n`'s shading read out of the surface buffer rather
   /// than out of the materials.
   final ViewportShadingSettings viewportShading;
@@ -1312,8 +1366,8 @@ final class RenderSettings {
   /// the way every raw view goes: a still frame is black, and only motion
   /// down and to the right shows, since a negative channel has nothing to
   /// light. A test that needs both signs reads the resource itself. Only while
-  /// temporal anti-aliasing is on, which is when there is a buffer; off, the
-  /// lit image is shown.
+  /// temporal anti-aliasing or [motionBlur] is on, which is when there is a
+  /// buffer; off, the lit image is shown.
   final bool showVelocity;
 
   /// Paints the point shadow's penumbra estimate into the surface buffer, and
@@ -1418,6 +1472,7 @@ final class RenderSettings {
     LightShaftSettings? lightShafts,
     VolumetricFogSettings? volumetricFog,
     DepthOfFieldSettings? depthOfField,
+    MotionBlurSettings? motionBlur,
     ViewportShadingSettings? viewportShading,
   }) => RenderSettings(
     specular: specular ?? this.specular,
@@ -1459,6 +1514,7 @@ final class RenderSettings {
     lightShafts: lightShafts ?? this.lightShafts,
     volumetricFog: volumetricFog ?? this.volumetricFog,
     depthOfField: depthOfField ?? this.depthOfField,
+    motionBlur: motionBlur ?? this.motionBlur,
     viewportShading: viewportShading ?? this.viewportShading,
   );
 
@@ -1556,6 +1612,9 @@ final class RenderSettings {
     'volumetric fog',
     'light shafts',
     'depth of field',
+    // `R6`: after the lens and before the resolve, which blends the blurred
+    // frames as it would the sharp ones.
+    'motion blur',
     // `R2`: the frames blended into one, before the glow is taken from it.
     'temporal resolve',
     // `R7`: measured on the resolved picture, applied in the composite.
@@ -1621,6 +1680,9 @@ final class RenderSettings {
     'light shafts',
     'volumetric fog',
     'depth of field',
+    // `R6`, for the lens's reason: a streak averages values that each meant
+    // something on their own.
+    'motion blur',
   };
 
   /// These settings, arranged so the frame's bytes are the numbers the

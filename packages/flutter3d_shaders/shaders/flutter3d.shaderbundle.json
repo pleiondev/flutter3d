@@ -183,6 +183,18 @@
     "type": "fragment",
     "file": "shaders/post/depth_of_field.frag"
   },
+  "VelocityTileMax": {
+    "type": "fragment",
+    "file": "shaders/post/velocity_tile_max.frag"
+  },
+  "VelocityNeighborMax": {
+    "type": "fragment",
+    "file": "shaders/post/velocity_neighbor_max.frag"
+  },
+  "MotionBlur": {
+    "type": "fragment",
+    "file": "shaders/post/motion_blur.frag"
+  },
   "ViewportShade": {
     "type": "fragment",
     "file": "shaders/post/viewport_shade.frag"

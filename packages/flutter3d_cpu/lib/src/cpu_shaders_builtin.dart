@@ -55,6 +55,7 @@ import 'cpu_shaders_evsm.dart';
 import 'cpu_shaders_irradiance.dart';
 import 'cpu_shaders_lit.dart';
 import 'cpu_shaders_mesh_vertex.dart';
+import 'cpu_shaders_motion_blur.dart';
 import 'cpu_shaders_particles.dart';
 import 'cpu_shaders_polyline.dart';
 import 'cpu_shaders_post.dart';
@@ -77,6 +78,7 @@ export 'cpu_shaders_layout.dart';
 export 'cpu_shaders_lighting.dart';
 export 'cpu_shaders_lit.dart';
 export 'cpu_shaders_mesh_vertex.dart';
+export 'cpu_shaders_motion_blur.dart';
 export 'cpu_shaders_particles.dart';
 export 'cpu_shaders_post.dart';
 export 'cpu_shaders_probe.dart';
@@ -191,6 +193,9 @@ Map<String, CpuStage> builtinCpuShaders() {
       VolumetricFogUpsampleShader(),
     ),
     'DepthOfField': const CpuStage.fragment(DepthOfFieldShader()),
+    'VelocityTileMax': const CpuStage.fragment(VelocityTileMaxShader()),
+    'VelocityNeighborMax': const CpuStage.fragment(VelocityNeighborMaxShader()),
+    'MotionBlur': const CpuStage.fragment(MotionBlurShader()),
     'ViewportShade': const CpuStage.fragment(ViewportShadeShader()),
     'ShadowDepthMasked': const CpuStage.fragment(ShadowDepthMaskedShader()),
     'ShadowDistanceMasked': const CpuStage.fragment(
