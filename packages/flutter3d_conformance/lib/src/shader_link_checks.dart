@@ -113,6 +113,8 @@ Future<void> checkLinking(GraphicsDevice device) async {
       'DepthOfField',
       'ViewportShade',
       'MrtProbe',
+      // `H5`: the field kernel the conformance suite steps `FieldPass` with.
+      'FieldDecay',
     ])
       ('FullscreenVertex', post),
     ('DebugLineVertex', 'DebugLine'),

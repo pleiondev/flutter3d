@@ -58,6 +58,10 @@ stageBindings = <String, ({Set<String> blocks, Set<String> samplers})>{
     blocks: <String>{'DofInfo', 'FragCoordInfo'},
     samplers: <String>{'scene_texture', 'surface_texture'},
   ),
+  'FieldDecay': (
+    blocks: <String>{'FieldDecayInfo'},
+    samplers: <String>{'field_texture'},
+  ),
   'FullscreenVertex': (blocks: <String>{}, samplers: <String>{}),
   'Fxaa': (blocks: <String>{'FxaaInfo'}, samplers: <String>{'source_texture'}),
   'Lambert': (

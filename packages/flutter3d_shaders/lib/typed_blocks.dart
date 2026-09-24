@@ -123,6 +123,19 @@ final class DofInfoBlock extends UniformBlock {
   };
 }
 
+/// `FieldDecayInfo`.
+final class FieldDecayInfoBlock extends UniformBlock {
+  FieldDecayInfoBlock() : super('FieldDecayInfo');
+
+  /// `params`: Vector4, at byte 0.
+  final Float32List params = Float32List(4);
+
+  @override
+  late final Map<String, Float32List> members = <String, Float32List>{
+    'params': params,
+  };
+}
+
 /// `FogInfo`.
 final class FogInfoBlock extends UniformBlock {
   FogInfoBlock() : super('FogInfo');

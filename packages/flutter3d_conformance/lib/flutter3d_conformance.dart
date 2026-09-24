@@ -57,6 +57,7 @@ import 'src/blend_checks.dart';
 import 'src/compressed_checks.dart';
 import 'src/core_checks.dart';
 import 'src/draw_checks.dart';
+import 'src/field_checks.dart';
 import 'src/geometry_overwrite_checks.dart';
 import 'src/loaded_bundle_checks.dart';
 import 'src/multisample_checks.dart';
@@ -280,6 +281,10 @@ List<ConformanceCheck> get shaderChecks => <ConformanceCheck>[
     run: checkVertexTextureSampling,
   ),
   (name: 'a float texture uploads as floats', run: checkFloatTextureUpload),
+  (
+    name: 'a field steps in a float target and reads back through a vertex',
+    run: checkFloatFieldSteps,
+  ),
   (
     name: 'a buffer is uploaded for its declared use, and draws as it',
     run: checkGeometryUsage,
