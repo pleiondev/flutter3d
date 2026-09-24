@@ -57,6 +57,7 @@ const List<RequiredShader> kRequiredShaders = <RequiredShader>[
   (name: 'ParticleMesh', fragment: true),
   (name: 'ParticleMeshVertex', fragment: false),
   (name: 'ParticleTextured', fragment: true),
+  (name: 'ParticleSixWay', fragment: true),
   (name: 'ParticleVertex', fragment: false),
   (name: 'Pbr', fragment: true),
   (name: 'PbrLayered', fragment: true),

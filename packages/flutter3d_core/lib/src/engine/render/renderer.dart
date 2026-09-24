@@ -62,6 +62,7 @@ export 'object_id_frame.dart';
 export 'render_settings.dart';
 
 part 'renderer_batch.dart';
+part 'renderer_contributor_lights.dart';
 part 'renderer_fog_pass.dart';
 part 'renderer_frame_nodes.dart';
 part 'renderer_irradiance_pass.dart';
@@ -2086,6 +2087,10 @@ final class Renderer implements RenderServices {
   /// like the uniform staging beside it. See [_drawLightsFor].
   final LightBuffer _drawLights = LightBuffer();
   final Float32List _drawShadowSlots = Float32List(4 * LightBuffer.maxLights);
+
+  /// What a lit contributor binds its lights through — `N6`. One for the
+  /// renderer, pointed at each view's lights as its contributors run.
+  late final _ContributorLights _contributorLights = _ContributorLights(this);
 
   Float32List get _pointShadowParams => _pointShadow.params;
   Float32List get _pointShadowParams2 => _pointShadow.params2;

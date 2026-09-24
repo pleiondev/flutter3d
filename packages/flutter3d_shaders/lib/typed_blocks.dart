@@ -144,6 +144,35 @@ final class ContactShadowInfoBlock extends UniformBlock {
   };
 }
 
+/// `ContributorLightInfo`.
+final class ContributorLightInfoBlock extends UniformBlock {
+  ContributorLightInfoBlock() : super('ContributorLightInfo');
+
+  /// `light_position`: 8 × Vector4, at byte 0.
+  final Float32List lightPosition = Float32List(32);
+
+  /// `light_color`: 8 × Vector4, at byte 128.
+  final Float32List lightColor = Float32List(32);
+
+  /// `light_direction`: 8 × Vector4, at byte 256.
+  final Float32List lightDirection = Float32List(32);
+
+  /// `light_cone`: 8 × Vector4, at byte 384.
+  final Float32List lightCone = Float32List(32);
+
+  /// `slots`: Vector4, at byte 512.
+  final Float32List slots = Float32List(4);
+
+  @override
+  late final Map<String, Float32List> members = <String, Float32List>{
+    'light_position': lightPosition,
+    'light_color': lightColor,
+    'light_direction': lightDirection,
+    'light_cone': lightCone,
+    'slots': slots,
+  };
+}
+
 /// `ConvolveInfo`.
 final class ConvolveInfoBlock extends UniformBlock {
   ConvolveInfoBlock() : super('ConvolveInfo');
@@ -955,6 +984,35 @@ final class ShaftInfoBlock extends UniformBlock {
     'cascades': cascades,
     'sun': sun,
     'bias': bias,
+  };
+}
+
+/// `SixWayInfo`.
+final class SixWayInfoBlock extends UniformBlock {
+  SixWayInfoBlock() : super('SixWayInfo');
+
+  /// `right`: Vector4, at byte 0.
+  final Float32List right = Float32List(4);
+
+  /// `up`: Vector4, at byte 16.
+  final Float32List up = Float32List(4);
+
+  /// `forward`: Vector4, at byte 32.
+  final Float32List forward = Float32List(4);
+
+  /// `emission`: Vector4, at byte 48.
+  final Float32List emission = Float32List(4);
+
+  /// `ambient`: Vector4, at byte 64.
+  final Float32List ambient = Float32List(4);
+
+  @override
+  late final Map<String, Float32List> members = <String, Float32List>{
+    'right': right,
+    'up': up,
+    'forward': forward,
+    'emission': emission,
+    'ambient': ambient,
   };
 }
 

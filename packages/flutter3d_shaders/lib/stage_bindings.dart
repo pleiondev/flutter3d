@@ -190,6 +190,19 @@ stageBindings = <String, ({Set<String> blocks, Set<String> samplers})>{
     blocks: <String>{'ParticleMeshInfo'},
     samplers: <String>{},
   ),
+  'ParticleSixWay': (
+    blocks: <String>{
+      'ContributorLightInfo',
+      'FogInfo',
+      'LightListInfo',
+      'SixWayInfo',
+    },
+    samplers: <String>{
+      'light_list_texture',
+      'six_way_negative',
+      'six_way_positive',
+    },
+  ),
   'ParticleTextured': (
     blocks: <String>{'FogInfo'},
     samplers: <String>{'particle_texture'},
