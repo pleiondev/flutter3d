@@ -15,6 +15,9 @@ environment:
 
 dependencies:
   flutter3d_hardware: ^0.8.0
+  # The typed uniform blocks the renderer fills, generated from the compiled
+  # bundle's own layout — `H1`. Pure Dart: the shader sources and two tables.
+  flutter3d_shaders: ^0.8.0
   vector_math: ^2.4.3
 
 dev_dependencies:

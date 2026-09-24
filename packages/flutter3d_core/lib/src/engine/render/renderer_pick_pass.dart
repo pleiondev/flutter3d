@@ -235,28 +235,22 @@ extension _PickPass on Renderer {
         mvp
           ..setFrom(viewProjection)
           ..multiply(modelMatrix);
-        pass.bindUniformBlock(stage, _kFrameInfoBlock, {
-          'mvp': mvp.storage,
-          'model': modelMatrix.storage,
-          'normal_matrix': node.worldNormalMatrix.storage,
-        });
+        _frameInfo.mvp.setAll(0, mvp.storage);
+        _frameInfo.model.setAll(0, modelMatrix.storage);
+        _frameInfo.normalMatrix.setAll(0, node.worldNormalMatrix.storage);
+        pass.bindBlock(stage, _frameInfo);
         _bindMorph(pass, stage, node.morph);
         if (instanced != null) {
           _bindInstanceMorph(pass, stage, instanced);
         }
         if (skeleton != null) {
           skeleton.update(modelMatrix);
-          pass.bindUniformBlock(skinnedVertexShader, _kSkinInfoBlock, {
-            'joint_matrices': skeleton.matrices,
-          });
+          _skinInfo.jointMatrices.setAll(0, skeleton.matrices);
+          pass.bindBlock(skinnedVertexShader, _skinInfo);
         }
 
         drawn.add(node);
         final id = drawn.length;
-        // A fresh list per draw rather than the renderer's usual reused
-        // scratch: this pass runs on the frame somebody clicked, not on every
-        // frame, and a recording backend keeps the list it was handed.
-        //
         // **What the scene pass throws away is thrown away here too.** A
         // masked material — glTF's `MASK`: a fence, a leaf, a grate —
         // discards every fragment whose alpha falls under its cutoff, and
@@ -279,20 +273,17 @@ extension _PickPass on Renderer {
         final cutoff = material.alphaMode == MaterialAlphaMode.hashed
             ? 0.5
             : material.alphaCutoff;
-        pass.bindUniformBlock(_objectIdShader, _kIdInfoBlock, {
-          'id': Float32List.fromList(<double>[
-            (id & 0xFF) / 255.0,
-            ((id >> 8) & 0xFF) / 255.0,
-            ((id >> 16) & 0xFF) / 255.0,
-            1.0,
-          ]),
-          'mask': Float32List.fromList(<double>[
-            masked ? cutoff : -1.0,
-            material.baseColor.w,
-            0.0,
-            0.0,
-          ]),
-        });
+        _idInfo.id
+          ..[0] = (id & 0xFF) / 255.0
+          ..[1] = ((id >> 8) & 0xFF) / 255.0
+          ..[2] = ((id >> 16) & 0xFF) / 255.0
+          ..[3] = 1.0;
+        _idInfo.mask
+          ..[0] = masked ? cutoff : -1.0
+          ..[1] = material.baseColor.w
+          ..[2] = 0.0
+          ..[3] = 0.0;
+        pass.bindBlock(_objectIdShader, _idInfo);
         // For every draw, not only the masked ones: the stage declares the
         // sampler, and a sampler a stage has that nothing was bound to is
         // undefined on one backend and a dropped draw on another. An unmasked

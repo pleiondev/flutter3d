@@ -23,6 +23,7 @@ import 'dart:math' as math;
 import 'dart:typed_data';
 
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
+import 'package:flutter3d_shaders/typed_blocks.dart';
 import 'package:vector_math/vector_math.dart';
 
 import '../../formats/splat/splat_cloud.dart';
@@ -192,6 +193,8 @@ final class SplatQuads {
 
 /// Draws a cloud into the scene pass.
 final class SplatContributor extends PassContributor {
+  final ParticleInfoBlock _particleInfo = ParticleInfoBlock();
+
   SplatContributor(this.cloud) : quads = SplatQuads(cloud);
 
   final SplatCloud cloud;
@@ -257,6 +260,7 @@ final class SplatContributor extends PassContributor {
       quads.vertexCount * kSplatFloatsPerVertex * 4,
     );
 
+    _particleInfo.viewProjection.setAll(0, viewProjection.storage);
     frame.encoder
       ..setState(_kSplatState)
       ..bindVertexData(bytes, quads.vertexCount)
@@ -265,9 +269,7 @@ final class SplatContributor extends PassContributor {
         IndexType.int32,
         quads.vertexCount,
       )
-      ..bindUniformBlock(vertexShader, 'ParticleInfo', <String, Float32List>{
-        'view_projection': viewProjection.storage,
-      })
+      ..bindBlock(vertexShader, _particleInfo)
       ..draw();
     frame.state.drawCalls++;
   }

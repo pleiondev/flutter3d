@@ -112,11 +112,7 @@ extension _LightList on Renderer {
     }
 
     pass
-      ..bindUniformBlock(stage, _kLightListBlock, {
-        'list': _lightListParams,
-        'indices': _lightListIndices,
-        'scales': _lightListScales,
-      })
+      ..bindBlock(stage, _lightListInfo)
       ..bindTexture(
         stage,
         'light_list_texture',
