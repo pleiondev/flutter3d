@@ -144,7 +144,9 @@ final class XpbdClothDemo extends ShowcaseDemo {
     final double gust = wind * (0.5 + 0.5 * math.sin(_clock * 0.7));
     stepCloth(
       _cloth,
-      ClothSettings(wind: WindSettings(velocityZ: gust, drag: 0.3)),
+      // Drag 4, not 0.3: until 0.7.4 the wind was added as a velocity, which
+      // made 0.3 several hundred times stronger than its value.
+      ClothSettings(wind: WindSettings(velocityZ: gust, drag: 4.0)),
       _step,
       obstacles: <ClothObstacle>[_obstacle],
     );

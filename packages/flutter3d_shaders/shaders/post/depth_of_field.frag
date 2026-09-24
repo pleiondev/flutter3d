@@ -51,16 +51,45 @@ uniform DofInfo {
 }
 dof_info;
 
+// One cell of a 4x4 Bayer matrix, in [0, 1). The same table
+// `reflections.frag` and `light_shafts.frag` keep.
+float BayerCell(vec2 at) {
+  int x = int(mod(at.x, 4.0));
+  int y = int(mod(at.y, 4.0));
+  int index = y * 4 + x;
+  float value = 0.0;
+  if (index == 0) value = 0.0;
+  else if (index == 1) value = 8.0;
+  else if (index == 2) value = 2.0;
+  else if (index == 3) value = 10.0;
+  else if (index == 4) value = 12.0;
+  else if (index == 5) value = 4.0;
+  else if (index == 6) value = 14.0;
+  else if (index == 7) value = 6.0;
+  else if (index == 8) value = 3.0;
+  else if (index == 9) value = 11.0;
+  else if (index == 10) value = 1.0;
+  else if (index == 11) value = 9.0;
+  else if (index == 12) value = 15.0;
+  else if (index == 13) value = 7.0;
+  else if (index == 14) value = 13.0;
+  else value = 5.0;
+  return value / 16.0;
+}
+
 // The circle of confusion at [depth], as a radius in texels.
 float CircleAt(float depth) {
   float focus = max(dof_info.lens.x, 1e-3);
   float focal = max(dof_info.lens.y, 1e-4);
   float fnumber = max(dof_info.lens.z, 1e-3);
-  if (depth <= 0.0) return 0.0;
 
-  // The thin-lens diameter, in metres on the sensor.
+  // The thin-lens diameter, in metres on the sensor. Nothing drawn — the sky,
+  // the cleared background — is infinitely far, where `|d - s| / d` tends to
+  // one and the circle to its largest: a lens focused on a face blurs the
+  // horizon behind it. This used to answer zero there and kept the sky sharp.
   float denominator = max(fnumber * (focus - focal), 1e-6);
-  float diameter = abs(depth - focus) / depth * (focal * focal) / denominator;
+  float ratio = depth <= 0.0 ? 1.0 : abs(depth - focus) / depth;
+  float diameter = ratio * (focal * focal) / denominator;
 
   // Metres on the sensor into texels on the screen, and a diameter into a
   // radius. The conversion needs a sensor size, which is what makes a
@@ -98,25 +127,44 @@ void main() {
   vec3 total = centre.rgb;
   float weight = 1.0;
 
+  // Nothing drawn is infinitely far, for the comparison below as for the
+  // circle above.
+  float centreFar = centreDepth <= 0.0 ? 1e9 : centreDepth;
+
+  // The spiral turned by a different angle at each pixel of a 4x4 block, so
+  // twenty-odd taps across a wide disc read as grain rather than as twenty-odd
+  // copies of a bright highlight. A Bayer cell rather than Jimenez's
+  // interleaved gradient noise, which is a `fract` of a large product and
+  // would not land on the same angle in the software backend's doubles.
+  float turn = 6.2831853 * BayerCell(gl_FragCoord.xy);
+
   // The golden angle, so consecutive samples never line up into a spoke.
   const float kGolden = 2.39996323;
   for (int i = 1; i <= 64; i++) {
     if (i > samples) break;
-    float t = float(i) / float(samples);
+    // The middle of each ring's share of the area rather than its outer edge.
+    float t = (float(i) - 0.5) / float(samples);
     // sqrt so the samples spread evenly over the disc's *area* rather than
     // bunching at the middle, which would leave the rim of a bokeh thin.
     float r = sqrt(t) * radius;
-    float angle = float(i) * kGolden;
+    float angle = float(i) * kGolden + turn;
     vec2 at = v_uv + vec2(cos(angle), sin(angle)) * r * dof_info.params.xy;
 
     vec4 tap = textureLod(scene_texture, at, 0.0);
     float tapDepth = textureLod(surface_texture, at, 0.0).a;
     float tapRadius = CircleAt(tapDepth);
+    float tapFar = tapDepth <= 0.0 ? 1e9 : tapDepth;
 
-    // Would this sample's own disc have reached here? A sharp background
-    // pixel behind a blurred foreground says no, and letting it in anyway is
-    // the bleed that makes a distant object glow through a near one.
-    float reach = r <= max(tapRadius, radius) ? 1.0 : 0.0;
+    // Would this sample's own disc have reached here? A sharp pixel in front
+    // of a blurred background says no — its disc is smaller than the
+    // distance to here — and letting it in anyway is the bleed that makes a
+    // sharp object glow into the blur behind it. A sample *behind* this pixel
+    // reaches no further than this pixel's own disc either. The test used to
+    // be `r <= max(tapRadius, radius)`, which with `r <= radius` always held
+    // and let every sample in. Half a texel of soft edge, so the reach does
+    // not step.
+    float tapReach = tapFar > centreFar ? min(tapRadius, radius) : tapRadius;
+    float reach = clamp(tapReach - r + 0.5, 0.0, 1.0);
     total += tap.rgb * reach;
     weight += reach;
   }

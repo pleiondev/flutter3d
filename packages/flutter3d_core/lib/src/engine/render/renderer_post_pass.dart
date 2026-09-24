@@ -100,14 +100,37 @@ extension _PostPasses on Renderer {
       _bloomParams[0] = 1.0 / from.width;
       _bloomParams[1] = 1.0 / from.height;
       _bloomParams[2] = settings.filterRadius;
-      // `gfx-30n`: the wider the level, the warmer it goes. Level zero is the
-      // tight core and stays exactly neutral; the broadest level carries the
-      // whole amount. One over the chain rather than a constant, because
-      // halation that warmed the core too would be a tint on the glow rather
-      // than a halo around it.
-      _bloomParams[3] = chain.length > 1
-          ? settings.halation * (level / (chain.length - 1))
-          : 0.0;
+      _bloomParams[3] = 0.0;
+
+      // What this step multiplies the level it carries up by. On the way up a
+      // level already holds every level below it, so a factor applied here
+      // reaches all of them: the step carries only the *ratio* between this
+      // level's weight and the one above, and the product down the chain is
+      // each level's own weight, applied once.
+      //
+      // `gfx-30n`'s warmth: the wider the level, the warmer — level zero
+      // exactly neutral, the widest carrying the whole [BloomSettings.halation]
+      // — and [BloomSettings.scatter] to the power of the level for its
+      // weight. Both at their defaults make every factor one, which is the
+      // bloom this has always drawn.
+      //
+      // Halation stops at 2.5, where the blue weight is an eighth: at 1/0.35
+      // it reaches zero, the ratio divides by it and the pyramid fills with
+      // NaN, and past that the sign alternates from level to level. A
+      // negative scatter would alternate the same way.
+      (double, double) warmth(int k) {
+        final t = chain.length > 1 ? k / (chain.length - 1) : 0.0;
+        final h = settings.halation.clamp(0.0, 2.5) * t;
+        return (1.0 + h * 0.5, 1.0 - h * 0.35);
+      }
+
+      final scatter = math.max(settings.scatter, 0.0);
+      final here = warmth(level);
+      final above = warmth(level - 1);
+      _bloomTint[0] = here.$1 / above.$1 * scatter;
+      _bloomTint[1] = scatter;
+      _bloomTint[2] = here.$2 / above.$2 * scatter;
+      _bloomTint[3] = 1.0;
 
       _drawFullscreenAdditive(target: into, source: from);
       _frameCounters?.drawCalls++;
@@ -157,6 +180,7 @@ extension _PostPasses on Renderer {
     );
     pass.bindUniformBlock(bloomUpsampleShader, _kBloomInfoBlock, {
       'params': _bloomParams,
+      'tint': _bloomTint,
     });
     pass.draw();
     pass.submit();
@@ -232,6 +256,13 @@ extension _PostPasses on Renderer {
         },
         uniforms: <String, Map<String, Float32List>>{
           'SsaoBlurInfo': <String, Float32List>{'params': _ssaoBlurParams},
+        },
+        // Nearest on the surface buffer, as the occlusion pass itself reads
+        // it: this pass is at half resolution, so a filtered tap lands on the
+        // corner of four full-resolution pixels and averages depths across a
+        // silhouette — exactly the edge the depth weight is there to respect.
+        samplers: const <String, SamplerOptions>{
+          'surface_texture': SamplerOptions.nearestClamp,
         },
       ),
     );
@@ -421,6 +452,8 @@ extension _PostPasses on Renderer {
     required FrameResources resources,
     required int width,
     required int height,
+    required vm.Vector3 toLight,
+    required vm.Vector3 radiance,
   }) {
     developer.Timeline.startSync('Renderer.lightShafts');
     // A transient of the scene's own shape: a pass cannot sample and write
@@ -456,14 +489,20 @@ extension _PostPasses on Renderer {
     _shaftForward[2] = _shaftForwardVec.z;
     _shaftForward[3] = settings.steps.clamp(0, 64).toDouble();
 
-    // The strength is folded into the colour here, so the shader adds a
-    // vector that is exactly zero when nobody asked rather than branching on
-    // a separate number.
+    // What a lit point in the air sends towards the eye before the phase and
+    // the path: the sun's own colour and intensity, tinted by the air's
+    // albedo. The density rides in w.
     final colour = settings.color;
-    final strength = math.max(settings.strength, 0.0);
-    _shaftScatter[0] = (colour?.x ?? 1.0) * strength;
-    _shaftScatter[1] = (colour?.y ?? 1.0) * strength;
-    _shaftScatter[2] = (colour?.z ?? 1.0) * strength;
+    _shaftScatter[0] = (colour?.x ?? 1.0) * radiance.x;
+    _shaftScatter[1] = (colour?.y ?? 1.0) * radiance.y;
+    _shaftScatter[2] = (colour?.z ?? 1.0) * radiance.z;
+    _shaftScatter[3] = math.max(settings.strength, 0.0);
+
+    // Which way the sun is, for the phase, and how forward it scatters.
+    _shaftSun[0] = toLight.x;
+    _shaftSun[1] = toLight.y;
+    _shaftSun[2] = toLight.z;
+    _shaftSun[3] = settings.anisotropy.clamp(-0.95, 0.95);
 
     _shaftCascades[0] = _shadowCascades[0];
     _shaftCascades[1] = _shadowCascades[1];
@@ -492,7 +531,14 @@ extension _PostPasses on Renderer {
             'forward': _shaftForward,
             'scatter': _shaftScatter,
             'cascades': _shaftCascades,
+            'sun': _shaftSun,
           },
+        },
+        // Nearest on the surface buffer, as every other reader of it takes: a
+        // filtered depth at a silhouette against the sky averages with the
+        // cleared zero, halves, and stops the march early along the edge.
+        samplers: const <String, SamplerOptions>{
+          'surface_texture': SamplerOptions.nearestClamp,
         },
       ),
     );
@@ -556,6 +602,13 @@ extension _PostPasses on Renderer {
             'lens': _dofLens,
             'params': _dofParams,
           },
+        },
+        // Nearest on the depth: a filtered tap at a silhouette against the
+        // sky mixes the object's depth with the sky's zero into a nearer
+        // point that belongs to neither, and the gather then counts it as a
+        // blurred foreground — a halo of the sharp object spread into the sky.
+        samplers: const <String, SamplerOptions>{
+          'surface_texture': SamplerOptions.nearestClamp,
         },
       ),
     );
@@ -724,6 +777,13 @@ extension _PostPasses on Renderer {
             'params': _reflectionParams,
             'screen': _reflectionScreen,
           },
+        },
+        // Nearest on the surface buffer, as every other reader of it takes:
+        // a filtered tap at a silhouette averages the object's depth with the
+        // background behind it and reports a surface where there is none,
+        // which the march then "hits".
+        samplers: const <String, SamplerOptions>{
+          'surface_texture': SamplerOptions.nearestClamp,
         },
       ),
     );

@@ -1,8 +1,6 @@
 import 'dart:math' as math;
 import 'dart:typed_data';
 
-import 'package:vector_math/vector_math.dart';
-
 import 'cloth_collision.dart';
 import 'cloth_mesh.dart';
 import 'cloth_settings.dart';
@@ -34,12 +32,24 @@ void stepCloth(
   final subDt = dt / settings.substeps;
   final n = mesh.particleCount;
   final predicted = Float64List(3 * n);
+  final structuralLambda = Float64List(mesh.structuralRestLength.length);
+  final bendLambda = Float64List(mesh.bendRestLength.length);
+  final push = Float64List(3);
+  final friction = settings.friction;
+  // Each particle's contact push, summed over the substep's iterations — the
+  // normal force friction is measured against. Only when there is friction
+  // to measure.
+  final contact = friction > 0.0 && obstacles.isNotEmpty
+      ? Float64List(3 * n)
+      : null;
 
   for (var sub = 0; sub < settings.substeps; sub++) {
     _predict(mesh, settings, subDt, predicted);
 
-    final structuralLambda = Float64List(mesh.structuralRestLength.length);
-    final bendLambda = Float64List(mesh.bendRestLength.length);
+    // Every multiplier starts the substep at zero, and so does the contact.
+    structuralLambda.fillRange(0, structuralLambda.length, 0.0);
+    bendLambda.fillRange(0, bendLambda.length, 0.0);
+    contact?.fillRange(0, contact.length, 0.0);
     for (var iter = 0; iter < settings.iterations; iter++) {
       _solveDistance(
         predicted,
@@ -59,14 +69,27 @@ void stepCloth(
         settings.bendCompliance,
         subDt,
       );
+      // **Inside the iteration loop, as XPBD and Flex solve contacts, not
+      // once after it.** Wrapping a ball or a table edge needs the sheet to
+      // compress in its own plane, which a rigid edge constraint refuses; a
+      // collision pass run once after the constraints and a constraint pass
+      // run once before it undo each other every substep, and the residual
+      // becomes velocity. That pumped a 48×48 sheet on a ball from half a
+      // metre a second to NaN in thirty steps.
+      _resolveCollisions(
+        predicted,
+        mesh,
+        obstacles,
+        settings.collisionThickness,
+        push,
+        contact,
+      );
     }
-
-    _resolveCollisions(
-      predicted,
-      mesh.invMass,
-      obstacles,
-      settings.collisionThickness,
-    );
+    // **Friction once per substep, against the whole substep's push.** The
+    // first iteration does nearly all of the pushing out; measured against
+    // the last iteration's push alone, which is close to nothing, 0.3 let a
+    // sheet slide off a ball as if there were none.
+    if (contact != null) _applyFriction(predicted, mesh, contact, friction);
     _integrate(mesh, predicted, subDt);
   }
 }
@@ -114,10 +137,20 @@ void _predict(
 
 /// Drag along each triangle's own normal, split evenly across its three
 /// corners — the standard "flat plate in a flow" proxy: only the component
-/// of the wind's own velocity relative to the cloth that points along the
-/// normal pushes on it, so wind blowing parallel to a taut sheet does
-/// nothing to it, which is the visible difference between cloth flapping
-/// and cloth being dragged sideways bodily.
+/// of the air's velocity relative to the cloth that points along the normal
+/// pushes on it, so wind blowing parallel to a taut sheet does nothing to it,
+/// which is the visible difference between cloth flapping and cloth being
+/// dragged sideways bodily.
+///
+/// **A force, integrated as gravity is: `Δx = F·w·h²`.** It used to add
+/// `F·w·h` to a position, which is a velocity, so the push grew with the
+/// substep count — 480 times the formula at eight substeps — and it ignored
+/// the cloth's own velocity, so a sheet in a one-metre-a-second wind was
+/// still accelerating at forty. The air speed is now relative to the
+/// triangle, the way NvCloth's is, which is what makes drag a drag: a sheet
+/// moving with the wind feels none of it. The normals come from the start of
+/// the substep rather than from positions this loop is still moving, so no
+/// triangle's answer depends on which came before it.
 void _applyWind(
   ClothMesh mesh,
   Float64List predicted,
@@ -125,21 +158,18 @@ void _applyWind(
   Float64List invMass,
   double subDt,
 ) {
+  final x = mesh.positions;
+  final v = mesh.velocities;
   final tris = mesh.triangles;
+  final h2 = subDt * subDt;
   for (var t = 0; t < tris.length; t += 3) {
     final a = tris[t], b = tris[t + 1], c = tris[t + 2];
-    final ax = predicted[3 * a],
-        ay = predicted[3 * a + 1],
-        az = predicted[3 * a + 2];
-    final bx = predicted[3 * b],
-        by = predicted[3 * b + 1],
-        bz = predicted[3 * b + 2];
-    final cx = predicted[3 * c],
-        cy = predicted[3 * c + 1],
-        cz = predicted[3 * c + 2];
-
-    final e1x = bx - ax, e1y = by - ay, e1z = bz - az;
-    final e2x = cx - ax, e2y = cy - ay, e2z = cz - az;
+    final e1x = x[3 * b] - x[3 * a];
+    final e1y = x[3 * b + 1] - x[3 * a + 1];
+    final e1z = x[3 * b + 2] - x[3 * a + 2];
+    final e2x = x[3 * c] - x[3 * a];
+    final e2y = x[3 * c + 1] - x[3 * a + 1];
+    final e2z = x[3 * c + 2] - x[3 * a + 2];
     // Cross product e1 x e2; its length is twice the triangle's own area,
     // which folds the area weighting into the force for free.
     var nx = e1y * e2z - e1z * e2y;
@@ -151,22 +181,45 @@ void _applyWind(
     ny /= len;
     nz /= len;
 
-    final relative =
-        nx * wind.velocityX + ny * wind.velocityY + nz * wind.velocityZ;
-    // Half the cross product's own length is the triangle's own area; the
-    // force below is already split three ways, so a sixth of it each.
-    final force = relative * wind.drag * (len * 0.5) / 3.0;
-    final fx = nx * force * subDt;
-    final fy = ny * force * subDt;
-    final fz = nz * force * subDt;
+    // The air's velocity relative to the triangle's own.
+    final rx = wind.velocityX - (v[3 * a] + v[3 * b] + v[3 * c]) / 3.0;
+    final ry =
+        wind.velocityY - (v[3 * a + 1] + v[3 * b + 1] + v[3 * c + 1]) / 3.0;
+    final rz =
+        wind.velocityZ - (v[3 * a + 2] + v[3 * b + 2] + v[3 * c + 2]) / 3.0;
+    final relative = nx * rx + ny * ry + nz * rz;
+    // Newtons per corner: half the cross product's length is the area, and
+    // the force is split three ways.
+    final force = wind.drag * relative * (len * 0.5) / 3.0;
 
-    for (final i in [a, b, c]) {
-      if (invMass[i] == 0) continue;
-      predicted[3 * i] += fx * invMass[i];
-      predicted[3 * i + 1] += fy * invMass[i];
-      predicted[3 * i + 2] += fz * invMass[i];
-    }
+    _windOn(a, force, nx, ny, nz, relative, invMass, subDt, h2, predicted);
+    _windOn(b, force, nx, ny, nz, relative, invMass, subDt, h2, predicted);
+    _windOn(c, force, nx, ny, nz, relative, invMass, subDt, h2, predicted);
   }
+}
+
+void _windOn(
+  int i,
+  double force,
+  double nx,
+  double ny,
+  double nz,
+  double relative,
+  Float64List invMass,
+  double subDt,
+  double h2,
+  Float64List predicted,
+) {
+  final w = invMass[i];
+  if (w == 0) return;
+  // A drag cannot turn the relative velocity round in one substep; a light
+  // corner on a large triangle in a gale otherwise would, and oscillate.
+  final dv = (force * w * subDt).abs();
+  final scale = dv > relative.abs() && dv > 0.0 ? relative.abs() / dv : 1.0;
+  final dx = force * w * h2 * scale;
+  predicted[3 * i] += nx * dx;
+  predicted[3 * i + 1] += ny * dx;
+  predicted[3 * i + 2] += nz * dx;
 }
 
 /// One XPBD pass over every constraint in [pairs]/[restLength]: for a pair
@@ -217,29 +270,65 @@ void _solveDistance(
   }
 }
 
-final _scratchPoint = Vector3.zero();
-
+/// Pushes every free particle out of [obstacles], adding each push to
+/// [contact] when there is one to keep.
+///
+/// In doubles throughout: a particle used to be copied into a `Vector3` and
+/// back for every obstacle, which rounded it to single precision, so an
+/// obstacle nothing touched still moved the sheet.
 void _resolveCollisions(
   Float64List predicted,
-  Float64List invMass,
+  ClothMesh mesh,
   List<ClothObstacle> obstacles,
   double thickness,
+  Float64List push,
+  Float64List? contact,
 ) {
   if (obstacles.isEmpty) return;
-  final n = predicted.length ~/ 3;
-  for (var i = 0; i < n; i++) {
+  final invMass = mesh.invMass;
+  for (var i = 0; i < mesh.particleCount; i++) {
     if (invMass[i] == 0) continue;
-    _scratchPoint.setValues(
-      predicted[3 * i],
-      predicted[3 * i + 1],
-      predicted[3 * i + 2],
-    );
     for (final obstacle in obstacles) {
-      pushOutsideObstacle(_scratchPoint, obstacle, thickness);
+      if (!pushParticleOutside(predicted, i, obstacle, thickness, push)) {
+        continue;
+      }
+      if (contact == null) continue;
+      contact[3 * i] += push[0];
+      contact[3 * i + 1] += push[1];
+      contact[3 * i + 2] += push[2];
     }
-    predicted[3 * i] = _scratchPoint.x;
-    predicted[3 * i + 1] = _scratchPoint.y;
-    predicted[3 * i + 2] = _scratchPoint.z;
+  }
+}
+
+/// Takes back up to [friction] times each particle's [contact] push from how
+/// far it slid along the surface this substep — position-level Coulomb
+/// friction, as Macklin et al. (Flex, §6.1) and Müller et al. (2020, §3.5)
+/// apply it.
+void _applyFriction(
+  Float64List predicted,
+  ClothMesh mesh,
+  Float64List contact,
+  double friction,
+) {
+  final invMass = mesh.invMass;
+  final positions = mesh.positions;
+  for (var i = 0; i < mesh.particleCount; i++) {
+    if (invMass[i] == 0) continue;
+    final cx = contact[3 * i], cy = contact[3 * i + 1], cz = contact[3 * i + 2];
+    final depth = math.sqrt(cx * cx + cy * cy + cz * cz);
+    if (depth < 1e-12) continue;
+    final nx = cx / depth, ny = cy / depth, nz = cz / depth;
+    final mx = predicted[3 * i] - positions[3 * i];
+    final my = predicted[3 * i + 1] - positions[3 * i + 1];
+    final mz = predicted[3 * i + 2] - positions[3 * i + 2];
+    final along = mx * nx + my * ny + mz * nz;
+    final tx = mx - along * nx, ty = my - along * ny, tz = mz - along * nz;
+    final slid = math.sqrt(tx * tx + ty * ty + tz * tz);
+    if (slid < 1e-12) continue;
+    final cut = slid <= friction * depth ? 1.0 : friction * depth / slid;
+    predicted[3 * i] -= tx * cut;
+    predicted[3 * i + 1] -= ty * cut;
+    predicted[3 * i + 2] -= tz * cut;
   }
 }
 

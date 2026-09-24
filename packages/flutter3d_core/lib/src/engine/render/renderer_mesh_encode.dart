@@ -409,9 +409,24 @@ extension _MeshEncode on Renderer {
 
       _frameParams[0] = settings.exposure;
       _frameParams[1] = drawLights.count.toDouble();
-      _frameParams[2] = shadows.directional == null
-          ? -1.0
-          : shadows.casterIndex.toDouble();
+      // The caster's index in *this draw's* list, which the shader compares
+      // its light loop against. A draw that re-gathered its lights — by
+      // channel, or out of more than eight — has them in another order, and
+      // the frame's index then named some other light or none: the sun's
+      // shadow vanished and a lamp at that position was tested against the
+      // sun's cascades instead.
+      _frameParams[2] = switch (shadows.directional) {
+        null => -1.0,
+        _ when identical(drawLights, lights) => shadows.casterIndex.toDouble(),
+        _
+            when shadows.casterIndex < 0 ||
+                shadows.casterIndex >= lights.packed.length =>
+          -1.0,
+        _ =>
+          drawLights.packed
+              .indexOf(lights.packed[shadows.casterIndex])
+              .toDouble(),
+      };
       // The slot `surface.glsl` reserved for a frame-wide parameter, now
       // spent: the environment's level count, and zero when there is none.
       // One number carrying both the roughness scale and the "is there one"

@@ -113,7 +113,14 @@ Future<List<int>> _frame({
         clearColor: Vector4(0.0, 0.0, 0.0, 1.0),
       ),
     ],
-    settings: const RenderSettings(shadows: ShadowSettings(enabled: true)),
+    // Undithered: the frames are compared byte for byte, a caster discarded
+    // and a caster switched off draw the same floor to within the last bits
+    // of a float, and
+    // the dither would round those bits into a step on part of the pattern.
+    settings: const RenderSettings(
+      shadows: ShadowSettings(enabled: true),
+      look: LookSettings(dither: 0),
+    ),
   );
   final bytes = await device.readPixels(frame.frame);
   return <int>[for (var i = 0; i < _size * _size * 4; i++) bytes!.getUint8(i)];

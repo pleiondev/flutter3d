@@ -32,11 +32,22 @@ void main() {
   // A four-tap box at the corners of the source pixel quad: a plain single tap
   // would alias a one-pixel specular highlight in and out of existence as the
   // camera moves, which reads as flickering rather than as bloom.
-  vec3 sum = texture(source_texture, v_uv + texel * vec2(-0.5, -0.5)).rgb +
-             texture(source_texture, v_uv + texel * vec2(0.5, -0.5)).rgb +
-             texture(source_texture, v_uv + texel * vec2(-0.5, 0.5)).rgb +
-             texture(source_texture, v_uv + texel * vec2(0.5, 0.5)).rgb;
-  vec3 color = sum * 0.25;
+  //
+  // **Weighted by Karis's `1 / (1 + luma)`**, as Jimenez's Call of Duty chain
+  // does on its first step down and nowhere after. A plain average lets one
+  // texel of a glossy floor's highlight, a hundred times brighter than its
+  // neighbours, own the whole quad, and it flickers as it crosses texels —
+  // "fireflies". The weight takes the energy of a lone outlier down to about
+  // its neighbours' and leaves a uniformly bright quad an exact average.
+  vec3 s0 = texture(source_texture, v_uv + texel * vec2(-0.5, -0.5)).rgb;
+  vec3 s1 = texture(source_texture, v_uv + texel * vec2(0.5, -0.5)).rgb;
+  vec3 s2 = texture(source_texture, v_uv + texel * vec2(-0.5, 0.5)).rgb;
+  vec3 s3 = texture(source_texture, v_uv + texel * vec2(0.5, 0.5)).rgb;
+  float w0 = 1.0 / (1.0 + Luminance(s0));
+  float w1 = 1.0 / (1.0 + Luminance(s1));
+  float w2 = 1.0 / (1.0 + Luminance(s2));
+  float w3 = 1.0 / (1.0 + Luminance(s3));
+  vec3 color = (s0 * w0 + s1 * w1 + s2 * w2 + s3 * w3) / (w0 + w1 + w2 + w3);
 
   float threshold = bloom_info.params.z;
   float knee = max(bloom_info.params.w, 1e-4);

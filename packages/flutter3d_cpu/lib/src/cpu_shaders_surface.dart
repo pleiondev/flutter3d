@@ -175,6 +175,9 @@ Surface? readSurface(
   final normal = Vector3(v[kVNormal], v[kVNormal + 1], v[kVNormal + 2]);
   final length = normal.length;
   if (length > 1e-6) normal.scale(1.0 / length);
+  // `if (!gl_FrontFacing) s.n = -s.n;`: the back of a double-sided surface
+  // is lit from its own side.
+  if (!c.frontFacing) normal.negate();
 
   final material = bindings.vec4('FragInfo', 'material', Vector4.zero());
   final camera = bindings.vec4('FragInfo', 'camera_position', Vector4.zero());
@@ -310,6 +313,10 @@ void applyNormalMap(
   // The bitangent sign encodes a mirrored UV island. Dropping it lights every
   // mirrored half of a symmetric model from the wrong side.
   final bitangent = s.normal.cross(t)..scale(s.tangent.w);
+  // The back face turns the whole frame: the normal and the bitangent built
+  // from it have turned already, the tangent follows — see
+  // `material_maps.glsl`.
+  if (!c.frontFacing) t.negate();
 
   final uv = uvFootprint(c);
   final texel = map.sample(v[kVUv], v[kVUv + 1], du: uv.du, dv: uv.dv);

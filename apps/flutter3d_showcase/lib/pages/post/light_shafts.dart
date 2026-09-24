@@ -9,7 +9,10 @@ import 'package:flutter3d_showcase/src/demo/demo.dart';
 import 'package:vector_math/vector_math.dart';
 
 final class LightShaftsDemo extends ShowcaseDemo {
-  double strength = 0.25;
+  // A density per metre since 0.7.4 — a dusty doorway rather than a clear
+  // day — and the phase that puts the glow towards the sun.
+  double strength = 0.03;
+  double anisotropy = 0.6;
   double distance = 30.0;
 
   @override
@@ -81,6 +84,7 @@ final class LightShaftsDemo extends ShowcaseDemo {
     lightShafts: LightShaftSettings(
       enabled: true,
       strength: strength,
+      anisotropy: anisotropy,
       distance: distance,
     ),
     // #endregion settings
@@ -89,11 +93,20 @@ final class LightShaftsDemo extends ShowcaseDemo {
   @override
   List<DemoControl> controls(DemoContext context) => <DemoControl>[
     SliderControl(
-      'Strength',
+      'Density',
       min: 0,
-      max: 1,
+      max: 0.1,
       value: () => strength,
       onChanged: (double v) => strength = v,
+      format: (double v) => '${v.toStringAsFixed(3)} /m',
+    ),
+    SliderControl(
+      'Forward scattering',
+      min: -0.9,
+      max: 0.9,
+      value: () => anisotropy,
+      onChanged: (double v) => anisotropy = v,
+      format: (double v) => v.toStringAsFixed(2),
     ),
     SliderControl(
       'Reach',

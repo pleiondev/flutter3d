@@ -68,7 +68,11 @@ void main() {
       // whole reason this is depth-aware is that it must not count. The
       // weight falls off with the difference rather than cutting at a
       // threshold, so a curved surface does not band where the cut would be.
-      float closeness = exp(-abs(depth - centreDepth) / falloff);
+      // Relative to the centre's own depth, as XeGTAO's denoiser: a
+      // difference that is a silhouette a metre away is one pixel's worth of
+      // a floor at twenty.
+      float closeness =
+          exp(-abs(depth - centreDepth) / (falloff * max(centreDepth, 1e-3)));
       // And further taps count for less, which is what makes this a blur
       // rather than a box.
       float weight = closeness / offset;
