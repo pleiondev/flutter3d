@@ -34,6 +34,7 @@ import 'frame_history.dart';
 import 'frame_plan.dart';
 import 'frame_resources.dart';
 import 'identity_indices.dart';
+import 'light_clusters.dart';
 import 'material.dart';
 import 'pass_contributor.dart';
 import 'probe_faces.dart';
@@ -2471,6 +2472,16 @@ final class Renderer implements RenderServices {
   /// `gfx-74n`. See `renderer_light_list.dart`.
   TextureHandle? _lightListTexture;
   int _lightListRows = 0;
+
+  /// `L6`: the cells of the view being drawn, and whether its draws read
+  /// them. Set per view in the scene pass and cleared after it, so a pass
+  /// with another camera — a probe's — never reads a view's cells.
+  final LightClusters _lightClusters = LightClusters();
+  bool _clustersActive = false;
+
+  /// Where the cells' headers and entries start in [_lightListTexture].
+  int _clusterHeaderRow = 0;
+  int _clusterEntryRow = 0;
 
   /// The rows [_lightListTexture] was last uploaded with, compared against
   /// this frame's rather than trusting `SceneNode.changeEpoch`: a light's

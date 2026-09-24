@@ -378,7 +378,9 @@ extension _MeshEncode on Renderer {
       frameLights: lights,
       frameShadowSlots: shadowSlots,
       node: node,
-      fadeBand: settings.lightFadeBand,
+      // `L6`: with cells, a light that leaves the slots is still in the
+      // tail, so there is no edge to fade at.
+      fadeBand: _clustersActive ? 0.0 : settings.lightFadeBand,
     );
     final drawLights = draw.lights;
     final drawShadowSlots = draw.shadowSlots;

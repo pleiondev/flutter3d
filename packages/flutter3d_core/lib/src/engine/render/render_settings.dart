@@ -784,6 +784,7 @@ final class RenderSettings {
     this.disabledPasses = const <String>{},
     this.renderScale = 1.0,
     this.energyCompensation = false,
+    this.clusteredLights = false,
     this.lightShafts = const LightShaftSettings(),
     this.depthOfField = const DepthOfFieldSettings(),
     this.viewportShading = const ViewportShadingSettings(),
@@ -1035,6 +1036,19 @@ final class RenderSettings {
   /// environment's. Dielectrics barely move; rough metals brighten.
   final bool energyCompensation;
 
+  /// Lights each fragment by the lights that reach its part of the view
+  /// rather than by the ones ranked against its whole draw — `L6`. Off by
+  /// default.
+  ///
+  /// A draw is handed eight slots and a tail of twenty-four, ranked against
+  /// its bounding sphere, so a floor that spans the map is lit by the
+  /// thirty-two brightest lights anywhere on it. On, the view is cut into
+  /// 16 × 9 × 24 cells each frame with the lights whose range reaches each,
+  /// and the tail comes from the fragment's own cell. The eight slots stay,
+  /// and with them the only shadowed lights. Takes effect only when a scene
+  /// has more lights than the slots and no light channels are in use.
+  final bool clusteredLights;
+
   /// Frame-graph nodes to leave out of this frame, by name — `gfx-37n`.
   ///
   /// The name is the node's own [FrameGraphNode.name], exactly as
@@ -1192,6 +1206,7 @@ final class RenderSettings {
     Set<String>? disabledPasses,
     double? renderScale,
     bool? energyCompensation,
+    bool? clusteredLights,
     LightShaftSettings? lightShafts,
     DepthOfFieldSettings? depthOfField,
     ViewportShadingSettings? viewportShading,
@@ -1227,6 +1242,7 @@ final class RenderSettings {
     disabledPasses: disabledPasses ?? this.disabledPasses,
     renderScale: renderScale ?? this.renderScale,
     energyCompensation: energyCompensation ?? this.energyCompensation,
+    clusteredLights: clusteredLights ?? this.clusteredLights,
     lightShafts: lightShafts ?? this.lightShafts,
     depthOfField: depthOfField ?? this.depthOfField,
     viewportShading: viewportShading ?? this.viewportShading,

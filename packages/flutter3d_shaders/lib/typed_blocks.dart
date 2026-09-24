@@ -411,11 +411,27 @@ final class LightListInfoBlock extends UniformBlock {
   /// `scales`: 6 × Vector4, at byte 112.
   final Float32List scales = Float32List(24);
 
+  /// `cluster_view_projection`: Matrix, at byte 208.
+  final Float32List clusterViewProjection = Float32List(16);
+
+  /// `cluster_grid`: Vector4, at byte 272.
+  final Float32List clusterGrid = Float32List(4);
+
+  /// `cluster_depth`: Vector4, at byte 288.
+  final Float32List clusterDepth = Float32List(4);
+
+  /// `slot_rows`: 2 × Vector4, at byte 304.
+  final Float32List slotRows = Float32List(8);
+
   @override
   late final Map<String, Float32List> members = <String, Float32List>{
     'list': list,
     'indices': indices,
     'scales': scales,
+    'cluster_view_projection': clusterViewProjection,
+    'cluster_grid': clusterGrid,
+    'cluster_depth': clusterDepth,
+    'slot_rows': slotRows,
   };
 }
 

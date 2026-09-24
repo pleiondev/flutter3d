@@ -131,6 +131,25 @@ uniformBlocks = <String, Map<String, Map<String, UniformMemberLayout>>>{
       'list': (offset: 0, byteLength: 16, elements: 1, type: 'Vector4'),
       'indices': (offset: 16, byteLength: 96, elements: 6, type: 'Vector4'),
       'scales': (offset: 112, byteLength: 96, elements: 6, type: 'Vector4'),
+      'cluster_view_projection': (
+        offset: 208,
+        byteLength: 64,
+        elements: 1,
+        type: 'Matrix',
+      ),
+      'cluster_grid': (
+        offset: 272,
+        byteLength: 16,
+        elements: 1,
+        type: 'Vector4',
+      ),
+      'cluster_depth': (
+        offset: 288,
+        byteLength: 16,
+        elements: 1,
+        type: 'Vector4',
+      ),
+      'slot_rows': (offset: 304, byteLength: 32, elements: 2, type: 'Vector4'),
     },
     'PointShadow': <String, UniformMemberLayout>{
       'faces': (offset: 0, byteLength: 2304, elements: 36, type: 'Matrix'),
@@ -372,6 +391,25 @@ uniformBlocks = <String, Map<String, Map<String, UniformMemberLayout>>>{
       'list': (offset: 0, byteLength: 16, elements: 1, type: 'Vector4'),
       'indices': (offset: 16, byteLength: 96, elements: 6, type: 'Vector4'),
       'scales': (offset: 112, byteLength: 96, elements: 6, type: 'Vector4'),
+      'cluster_view_projection': (
+        offset: 208,
+        byteLength: 64,
+        elements: 1,
+        type: 'Matrix',
+      ),
+      'cluster_grid': (
+        offset: 272,
+        byteLength: 16,
+        elements: 1,
+        type: 'Vector4',
+      ),
+      'cluster_depth': (
+        offset: 288,
+        byteLength: 16,
+        elements: 1,
+        type: 'Vector4',
+      ),
+      'slot_rows': (offset: 304, byteLength: 32, elements: 2, type: 'Vector4'),
     },
     'PointShadow': <String, UniformMemberLayout>{
       'faces': (offset: 0, byteLength: 2304, elements: 36, type: 'Matrix'),
@@ -711,6 +749,25 @@ uniformBlocks = <String, Map<String, Map<String, UniformMemberLayout>>>{
       'list': (offset: 0, byteLength: 16, elements: 1, type: 'Vector4'),
       'indices': (offset: 16, byteLength: 96, elements: 6, type: 'Vector4'),
       'scales': (offset: 112, byteLength: 96, elements: 6, type: 'Vector4'),
+      'cluster_view_projection': (
+        offset: 208,
+        byteLength: 64,
+        elements: 1,
+        type: 'Matrix',
+      ),
+      'cluster_grid': (
+        offset: 272,
+        byteLength: 16,
+        elements: 1,
+        type: 'Vector4',
+      ),
+      'cluster_depth': (
+        offset: 288,
+        byteLength: 16,
+        elements: 1,
+        type: 'Vector4',
+      ),
+      'slot_rows': (offset: 304, byteLength: 32, elements: 2, type: 'Vector4'),
     },
     'PointShadow': <String, UniformMemberLayout>{
       'faces': (offset: 0, byteLength: 2304, elements: 36, type: 'Matrix'),
@@ -944,6 +1001,25 @@ uniformBlocks = <String, Map<String, Map<String, UniformMemberLayout>>>{
       'list': (offset: 0, byteLength: 16, elements: 1, type: 'Vector4'),
       'indices': (offset: 16, byteLength: 96, elements: 6, type: 'Vector4'),
       'scales': (offset: 112, byteLength: 96, elements: 6, type: 'Vector4'),
+      'cluster_view_projection': (
+        offset: 208,
+        byteLength: 64,
+        elements: 1,
+        type: 'Matrix',
+      ),
+      'cluster_grid': (
+        offset: 272,
+        byteLength: 16,
+        elements: 1,
+        type: 'Vector4',
+      ),
+      'cluster_depth': (
+        offset: 288,
+        byteLength: 16,
+        elements: 1,
+        type: 'Vector4',
+      ),
+      'slot_rows': (offset: 304, byteLength: 32, elements: 2, type: 'Vector4'),
     },
     'PointShadow': <String, UniformMemberLayout>{
       'faces': (offset: 0, byteLength: 2304, elements: 36, type: 'Matrix'),
