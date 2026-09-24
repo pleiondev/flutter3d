@@ -146,7 +146,7 @@ final class ModelSplat {
   final int node;
 
   /// The splats, in the node's own space, with linear colours whatever
-  /// [colourSpace] the file declared — see `gltf_loader_mesh.dart`.
+  /// [colourSpace] the file declared — see `gltf_loader_splats.dart`.
   final SplatCloud cloud;
 
   /// What the file declared, kept for a writer and for anyone who wants to
