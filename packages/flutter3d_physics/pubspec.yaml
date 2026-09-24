@@ -1,6 +1,6 @@
 name: flutter3d_physics
 description: "Collision shapes, a broadphase, queries, a character controller and an XPBD cloth solver. No Flutter, no renderer, no game."
-version: 0.7.1
+version: 0.7.4
 repository: https://github.com/pleiondev/flutter3d
 homepage: https://flutter3d.pleion.dev
 issue_tracker: https://github.com/pleiondev/flutter3d/issues

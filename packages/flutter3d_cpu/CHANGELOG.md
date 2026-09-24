@@ -1,3 +1,20 @@
+## 0.7.4
+
+**The Dart transcriptions follow `flutter3d_shaders` 0.7.4 operation for
+operation** — AgX linearised, the grade's pivot, lift and LUT, the dither
+centred, reflections jittered and refined, shafts scattered with a phase,
+bloom's Karis average and per-level tint, depth of field's reach and sky,
+contact shadows jittered, the occlusion blur's relative weight, the sun's
+normal offset scaled by texel and slope and clamped past the last cascade,
+the back face's tangent turned with its normal. `shadowFactor` takes the
+light's `nDotL` for the slope. See
+`flutter3d_core`'s CHANGELOG for why each moved.
+
+**`FragmentContext.frontFacing`**, new: `gl_FrontFacing`, set from the pass's
+winding, so the back of a double-sided surface is lit from its own side here
+as it is on the GPU. `bayerCell` is public, the one 4x4 table the jittered
+passes share. It asks for `flutter3d_shaders` ^0.7.4.
+
 ## 0.7.1
 
 **`compareFrames` and `differingPixels` can compare alpha.** Both take

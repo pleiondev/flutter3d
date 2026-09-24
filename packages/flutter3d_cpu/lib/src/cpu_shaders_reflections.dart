@@ -11,6 +11,16 @@ import 'package:vector_math/vector_math.dart';
 import 'cpu_shader.dart';
 import 'cpu_shaders_color.dart';
 
+/// `BayerCell` from `reflections.frag` and `light_shafts.frag`: one cell of a
+/// 4x4 Bayer matrix at window position ([x], [y]), in [0, 1).
+double bayerCell(double x, double y) {
+  const table = <int>[0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5];
+  final cx = x.floor() % 4;
+  final cy = y.floor() % 4;
+  final index = ((cy < 0 ? cy + 4 : cy) * 4) + (cx < 0 ? cx + 4 : cx);
+  return table[index] / 16.0;
+}
+
 /// `reflections.frag`: screen-space reflections, marched against the surface
 /// buffer.
 ///
@@ -48,7 +58,7 @@ final class ReflectionsShader implements CpuFragmentShader {
 
     final normal = decodeOctahedral(surface.x, surface.y);
     final roughness = surface.z;
-    final polish = 1.0 - smoothstep(0.18, 0.45, roughness);
+    final polish = 1.0 - smoothstep(0.05, 0.25, roughness);
     if (polish <= 0.0) return done(background);
 
     final inverse = b.mat4('ReflectionInfo', 'inverse_view_projection');
@@ -88,7 +98,22 @@ final class ReflectionsShader implements CpuFragmentShader {
     final intensity = params.w;
 
     final viewProjection = b.mat4('ReflectionInfo', 'view_projection');
-    final march = position + normal * 0.02 + ray * stride;
+
+    /// `UvOf`: where [at] lands in the textures, or null behind the camera.
+    ({double u, double v})? uvOf(Vector3 at) {
+      final Vector4 clip = viewProjection * Vector4(at.x, at.y, at.z, 1.0);
+      if (clip.w <= 0.0) return null;
+      return (u: clip.x / clip.w * 0.5 + 0.5, v: vFromNdc(clip.y / clip.w));
+    }
+
+    double depthOf(Vector3 at) => (at - eye).dot(axis);
+
+    // Jittered start and reach, as the GLSL: half a stride at least, plus a
+    // Bayer cell of one.
+    final jitter = 0.5 + bayerCell(c.coord.x, c.coord.y);
+    var travelled = stride * jitter;
+    final march = position + normal * 0.01 + ray * travelled;
+    final reach = stride * (steps + 0.5);
     var hitColour = Vector3.zero();
     var hit = 0.0;
 
@@ -96,17 +121,15 @@ final class ReflectionsShader implements CpuFragmentShader {
     // a constant bound. Kept so the two loops end in the same place.
     for (var i = 0; i < 64; i++) {
       if (i >= steps) break;
-      final Vector4 clip =
-          viewProjection * Vector4(march.x, march.y, march.z, 1.0);
-      if (clip.w <= 0.0) break;
-      final nx = clip.x / clip.w;
-      final ny = clip.y / clip.w;
-      final su = nx * 0.5 + 0.5;
-      final sv = vFromNdc(ny);
+      final at = uvOf(march);
+      if (at == null) break;
+      final su = at.u;
+      final sv = at.v;
       if (su < 0.0 || su > 1.0 || sv < 0.0 || sv > 1.0) break;
 
-      final sceneDepth = surfaceMap.sample(su, sv).w;
-      final marchDepth = (march - eye).dot(axis);
+      final seenSurface = surfaceMap.sample(su, sv);
+      final sceneDepth = seenSurface.w;
+      final marchDepth = depthOf(march);
       // Behind what was drawn here, then how far behind. The second in the
       // world rather than in depths: the two points sit on one ray, and along a
       // ray running away from the camera a depth difference is shorter than the
@@ -114,21 +137,42 @@ final class ReflectionsShader implements CpuFragmentShader {
       if (sceneDepth > 0.0 && marchDepth > sceneDepth) {
         final seen = worldFrom(su, sv, sceneDepth);
         final behind = march.distanceTo(seen);
-        if (behind < thickness) {
-          final tex = sceneMap.sample(su, sv);
+        final seenNormal = decodeOctahedral(seenSurface.x, seenSurface.y);
+        if (behind < thickness && seenNormal.dot(ray) < 0.0) {
+          // Five halvings of the last stride, as the GLSL.
+          var lo = march - ray * stride;
+          var hi = march.clone();
+          for (var j = 0; j < 5; j++) {
+            final mid = (lo + hi)..scale(0.5);
+            final m = uvOf(mid);
+            final d = m == null ? 0.0 : surfaceMap.sample(m.u, m.v).w;
+            if (d > 0.0 && depthOf(mid) > d) {
+              hi = mid;
+            } else {
+              lo = mid;
+            }
+          }
+          final landed = uvOf(hi) ?? (u: su, v: sv);
+          final tex = sceneMap.sample(landed.u, landed.v);
           hitColour = Vector3(tex.x, tex.y, tex.z);
           final border =
-              1.0 - math.max((su * 2.0 - 1.0).abs(), (sv * 2.0 - 1.0).abs());
-          hit = smoothstep(0.0, 0.15, border);
+              1.0 -
+              math.max(
+                (landed.u * 2.0 - 1.0).abs(),
+                (landed.v * 2.0 - 1.0).abs(),
+              );
+          final along = (1.0 - travelled / reach).clamp(0.0, 1.0);
+          hit = smoothstep(0.0, 0.15, border) * along * along;
           break;
         }
       }
       march.add(ray * stride);
+      travelled += stride;
     }
 
-    final fresnel = math.pow(1.0 - facing, 4.0).toDouble();
-    final reflection =
-        hitColour * (hit * intensity * polish * (0.15 + 0.85 * fresnel));
+    // Schlick, F0 = 0.04, as the GLSL.
+    final fresnel = 0.04 + 0.96 * math.pow(1.0 - facing, 5.0).toDouble();
+    final reflection = hitColour * (hit * intensity * polish * fresnel);
     return done(debugOnly ? reflection : scene + reflection);
   }
 }
@@ -142,13 +186,7 @@ final class LightShaftsShader implements CpuFragmentShader {
   const LightShaftsShader();
 
   /// `BayerCell` from the shader, in [0, 1).
-  static double _bayer(double x, double y) {
-    const table = <int>[0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5];
-    final cx = x.floor() % 4;
-    final cy = y.floor() % 4;
-    final index = ((cy < 0 ? cy + 4 : cy) * 4) + (cx < 0 ? cx + 4 : cx);
-    return table[index] / 16.0;
-  }
+  static double _bayer(double x, double y) => bayerCell(x, y);
 
   @override
   Vector4? run(Float32List v, ShaderBindings b, FragmentContext c) {
@@ -211,7 +249,11 @@ final class LightShaftsShader implements CpuFragmentShader {
         final tileX = candidate.x * 0.5 + 0.5;
         final tileY = 0.5 - candidate.y * 0.5;
         if (tileX < 0.0 || tileX > 1.0 || tileY < 0.0 || tileY > 1.0) continue;
-        if (candidate.z > 1.0) continue;
+        // Past the far plane is behind every caster: the last cascade clamps.
+        if (candidate.z > 1.0) {
+          if (which < cascadeCount - 1) continue;
+          candidate.z = 1.0;
+        }
         final stored = shadow.sample((tileX + which) / cascadeCount, tileY).x;
         return candidate.z - cascades.w > stored ? 0.0 : 1.0;
       }
@@ -221,14 +263,32 @@ final class LightShaftsShader implements CpuFragmentShader {
       return 1.0;
     }
 
-    var lit = 0.0;
+    // Single scattering with transmittance, as the GLSL.
+    final sigma = math.max(scatter.w, 0.0);
+    final stepTransmittance = math.exp(-sigma * stride);
+    var transmittance = math.exp(-sigma * offset);
+    final eye = Vector3(camera.x, camera.y, camera.z);
+    var inscatter = 0.0;
     for (var i = 0; i < steps && i < 64; i++) {
       final travelled = offset + i * stride;
       final at = origin + along * travelled;
-      lit += litAt(at, travelled * cosine);
+      final lit = litAt(at, (at - eye).length);
+      inscatter += transmittance * (1.0 - stepTransmittance) * lit;
+      transmittance *= stepTransmittance;
     }
 
-    final share = lit / steps;
+    // `HenyeyGreenstein` from the shader.
+    final sun = b.vec4('ShaftInfo', 'sun', Vector4.zero());
+    final g = sun.w;
+    final g2 = g * g;
+    final denominator = math.max(
+      1.0 + g2 - 2.0 * g * along.dot(Vector3(sun.x, sun.y, sun.z)),
+      1e-4,
+    );
+    final phase =
+        (1.0 - g2) / (12.566371 * denominator * math.sqrt(denominator));
+
+    final share = phase * inscatter;
     return Vector4(
       scene.x + scatter.x * share,
       scene.y + scatter.y * share,
@@ -266,13 +326,13 @@ final class DepthOfFieldShader implements CpuFragmentShader {
     required double maxRadius,
     required double texelsPerMetre,
   }) {
-    if (depth <= 0.0) return 0.0;
     final focus = math.max(focusDistance, 1e-3);
     final focal = math.max(focalLength, 1e-4);
     final fnumber = math.max(aperture, 1e-3);
     final denominator = math.max(fnumber * (focus - focal), 1e-6);
-    final diameter =
-        (depth - focus).abs() / depth * (focal * focal) / denominator;
+    // Nothing drawn is infinitely far, where the ratio tends to one.
+    final ratio = depth <= 0.0 ? 1.0 : (depth - focus).abs() / depth;
+    final diameter = ratio * (focal * focal) / denominator;
     return math.min(diameter * 0.5 * texelsPerMetre, math.max(maxRadius, 0.0));
   }
 
@@ -311,24 +371,30 @@ final class DepthOfFieldShader implements CpuFragmentShader {
     var totalZ = centre.z;
     var weight = 1.0;
 
+    final centreFar = centreDepth <= 0.0 ? 1e9 : centreDepth;
+    final turn = 6.2831853 * bayerCell(c.coord.x, c.coord.y);
+
     for (var i = 1; i <= samples && i <= 64; i++) {
-      final t = i / samples;
+      final t = (i - 0.5) / samples;
       final r = math.sqrt(t) * radius;
-      final angle = i * _golden;
+      final angle = i * _golden + turn;
       final atU = v[0] + math.cos(angle) * r * params.x;
       final atV = v[1] + math.sin(angle) * r * params.y;
 
       final tap = sceneTexture.sample(atU, atV);
       final tapDepth = surfaceTexture.sample(atU, atV).w;
       final tapRadius = circleAt(tapDepth);
+      final tapFar = tapDepth <= 0.0 ? 1e9 : tapDepth;
 
-      // Would this sample's own disc have reached here? A sharp background
-      // pixel behind a blurred foreground says no.
-      if (r > math.max(tapRadius, radius)) continue;
-      totalX += tap.x;
-      totalY += tap.y;
-      totalZ += tap.z;
-      weight += 1.0;
+      // Would this sample's own disc have reached here? See the GLSL.
+      final tapReach = tapFar > centreFar
+          ? math.min(tapRadius, radius)
+          : tapRadius;
+      final reach = (tapReach - r + 0.5).clamp(0.0, 1.0);
+      totalX += tap.x * reach;
+      totalY += tap.y * reach;
+      totalZ += tap.z * reach;
+      weight += reach;
     }
 
     return Vector4(totalX / weight, totalY / weight, totalZ / weight, centre.w);

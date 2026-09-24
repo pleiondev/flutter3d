@@ -68,6 +68,32 @@ uniform ContactShadowInfo {
 }
 contact_info;
 
+// One cell of a 4x4 Bayer matrix, in [0, 1). The same table
+// `reflections.frag` and `light_shafts.frag` keep.
+float BayerCell(vec2 at) {
+  int x = int(mod(at.x, 4.0));
+  int y = int(mod(at.y, 4.0));
+  int index = y * 4 + x;
+  float value = 0.0;
+  if (index == 0) value = 0.0;
+  else if (index == 1) value = 8.0;
+  else if (index == 2) value = 2.0;
+  else if (index == 3) value = 10.0;
+  else if (index == 4) value = 12.0;
+  else if (index == 5) value = 4.0;
+  else if (index == 6) value = 14.0;
+  else if (index == 7) value = 6.0;
+  else if (index == 8) value = 3.0;
+  else if (index == 9) value = 11.0;
+  else if (index == 10) value = 1.0;
+  else if (index == 11) value = 9.0;
+  else if (index == 12) value = 15.0;
+  else if (index == 13) value = 7.0;
+  else if (index == 14) value = 13.0;
+  else value = 5.0;
+  return value / 16.0;
+}
+
 vec3 DecodeOctahedral(vec2 e) {
   e = e * 2.0 - 1.0;
   vec3 n = vec3(e.xy, 1.0 - abs(e.x) - abs(e.y));
@@ -133,10 +159,25 @@ void main() {
   vec3 origin = WorldAtDepth(v_uv, surface.a) + normal * contact_info.params.w;
   float stride = reach / float(steps);
 
+  // **Jittered by a Bayer cell**, as Unreal's march is by its dither and
+  // Bend's by its offsets: eight fixed steps otherwise quantise the fade
+  // below into eight flat levels, a staircase across every penumbra. Each
+  // sample lands somewhere in its own step rather than at its end. A pattern
+  // rather than a hash so the software backend matches bit for bit.
+  float jitter = BayerCell(gl_FragCoord.xy);
+
+  // **A tolerance at least twice what one step moves in depth**, as Unreal's
+  // `CompareTolerance`: a ray running steeply away from the camera crosses
+  // more depth per step than a fixed thickness, and a thin blocker passed
+  // between two samples was never found.
+  float stepDepth = abs(DepthOf(origin + toLight * stride) - DepthOf(origin));
+  float tolerance = max(thickness, 2.0 * stepDepth);
+
   for (int i = 0; i < 16; i++) {
     if (i >= steps) break;
 
-    vec3 at = origin + toLight * (stride * float(i + 1));
+    float along = float(i) + 1.0 - jitter;
+    vec3 at = origin + toLight * (stride * along);
     vec4 clip = contact_info.view_projection * vec4(at, 1.0);
     // Behind the eye: the march has left the frame, and a division by a
     // negative w would fold it back into view somewhere it is not.
@@ -155,7 +196,7 @@ void main() {
     // object seen past the one casting: without the thickness test a wall four
     // metres nearer than the floor shadows everything the ray crosses, which
     // is the same halo `ssao.frag`'s range check exists to stop.
-    if (gap > 0.0 && gap < thickness) {
+    if (gap > 0.0 && gap < tolerance) {
       // **Darker the nearer the blocker, which is what makes this a contact
       // shadow rather than a stencil.** A hit on the first step is a surface
       // touching this one and gets nothing; a hit at the far end of the march
@@ -163,7 +204,7 @@ void main() {
       // writes zero or one and the march's own reach becomes a visible edge on
       // the floor — a hard band that ends where the loop does, which is a
       // number in a settings object rather than anything in the scene.
-      frag_color = vec4(float(i) / float(steps));
+      frag_color = vec4(max(along - 1.0, 0.0) / float(steps));
       return;
     }
   }

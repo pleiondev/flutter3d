@@ -1,3 +1,111 @@
+## 0.7.4
+
+Every effect below was checked against the paper or engine it comes from, and
+most of what was wrong was wrong the same way: a number in the right units at
+one distance, one resolution or one substep count. Pictures move, and the
+goldens that show them were recorded again on all four backends. Upgrade
+`flutter3d_impeller`, `flutter3d_webgl`, `flutter3d_webgpu` and
+`flutter3d_cpu` with this: the renderer binds uniforms (`BloomInfo.tint`,
+`ShaftInfo.sun`) that only their 0.7.4 shaders declare.
+
+- **AgX is AgX, and it is linear.** `TonemapCurve.agx` returned its sigmoid's
+  display-encoded value as if it were linear, and the composite encoded it to
+  sRGB a second time: 18% grey reached the screen at 187/255 rather than 128,
+  and a red velvet (0.6, 0.07, 0.1) came out pastel. It is now Wrensch's
+  "Minimal AgX" whole — inset, sigmoid, outset, `pow(2.2)` — without the
+  `mix(luma, v, 0.84)` that took a sixth of the saturation off every frame.
+  `TonemapCurve.agxFull` draws the same picture and is deprecated.
+- **A double-sided material casts its shadow from both sides.**
+  `MeshNode.castsShadowFromEveryFace` is new: true for
+  `ShadowCastingMode.doubleSided`, as before, and now also for a node whose
+  material is `doubleSided`, as Godot, Filament and Unity take the shadow
+  pass's cull from the material. A sheet draped over a ball threw a detached
+  crescent — the half of it facing away from the light — and every
+  double-sided leaf card cast only its back. The cascade and cube caches
+  notice the change without the node moving. And the back of a double-sided
+  surface is now lit from its own side: `gl_FrontFacing` reverses the normal,
+  as glTF asks, in the lit shaders and in the surface buffer, and the tangent
+  frame of a normal map turns with it.
+- **The sun's normal offset grows with the cascade's texel and the slope.**
+  A flat two centimetres was enough while a closed mesh recorded only the
+  faces turned away from the sun; a double-sided one records its lit faces
+  too, and a cube shadowed itself in a diagonal along its triangle split. The
+  offset is now that distance plus one texel of the cascade scaled by the
+  slope to the light, the measure point and spot shadows already took.
+- **A long shadow no longer ends in a straight line.** The last cascade's
+  depth is fitted to the casters, and a floor past its far plane was treated as
+  outside the map and lit: an evening shadow was cut off where the far plane
+  met the ground, straight across the teapot's. Past the far plane is behind
+  every caster, and the last cascade now clamps there, in the lit shaders and
+  in the light shafts.
+- **The sun's shadow survives a light list gathered per draw.** A node on a
+  light channel, or in a scene of more than eight lights, gets its own list,
+  and the shader was told the caster's index in the frame's list: the sun's
+  shadow vanished from that node and a lamp at that position was tested
+  against the sun's cascades.
+- **Shadow caches notice what they missed.** A swapped mesh, morph weights,
+  an instance moved inside a batch, and `ShadowSettings.casterFaces` changed
+  at runtime redraw the cascade and the cube faces that show them, and hiding
+  a static caster drops it from the static bake.
+- **Screen-space reflections lose their ghosts.** A floor of roughness 0.3
+  showed shifted, smeared copies of what stood on it. The march now starts at
+  a jittered fraction of a stride and halves the last stride five times
+  before it reads a colour (McGuire and Mara); a hit fades with the length of
+  the ray; a surface turned away from the ray is not a hit; roughness removes
+  the reflection by 0.25 rather than 0.45, since this pass has no blur; the
+  Fresnel term is Schlick's with F0 = 0.04 rather than a 15% floor; and the
+  surface buffer is read nearest. Defaults follow Filament: `steps` 32,
+  `stride` 0.1, `thickness` 0.12.
+- **Light shafts scatter the sun's light instead of veiling the frame.** They
+  added `strength × colour` in proportion to how much of a ray was lit — a
+  flat 0.15 over nearly every pixel of a daylight scene. They are now single
+  scattering with transmittance and a Henyey–Greenstein phase, in the
+  caster's own colour and intensity: bright towards the sun, faint with it
+  behind. `LightShaftSettings.strength` is now the air's density per metre
+  (default 0.005, a clear day's haze), `anisotropy` is new (default 0.6), and
+  `color` tints rather than supplies the light. The cascade is chosen by
+  distance from the eye, as `shadow.glsl` chooses a surface's.
+- **Dithering is on by default, and centred.** `LookSettings.dither` defaults
+  to one 8-bit step, which is what turns the coloured rings round a small
+  bright lamp's bloom back into a gradient. The Bayer cell's mean was -1/32
+  of a step; it is nought now, so a flat colour stays the colour it was.
+  `LookSettings.isNeutral` no longer asks about it.
+- **The grade does what its documentation says.** Contrast pivots on linear
+  light's mid grey (0.18, as a power) rather than on 0.5, which in linear light
+  is a bright highlight — a contrast of 1.2 also took about a stop off. Lift is
+  `c · (1 − lift) + lift`, so white stays white. A LUT is indexed and answered
+  in sRGB, the space a `.cube` is written in.
+- **Bloom's halation warms each level once.** On the way up a level already
+  holds every level below it, and warming each compounded: at 0.5 the widest
+  came out red 1.78 and blue 0.63 rather than 1.25 and 0.83. Each step now
+  carries the ratio between its level and the one above. `BloomSettings.scatter`
+  is new — each level weighs `scatter^level`; one, the default, is the bloom
+  this has always drawn. The first step down averages its four taps with
+  Karis's `1 / (1 + luma)`, so a one-texel highlight no longer flickers.
+- **Depth of field.** The test of whether a sample's disc reached the pixel was
+  `r <= max(tapRadius, radius)`, which always held, so a sharp object bled into
+  the blur behind it; it now keeps a sample only as far as its own disc reaches.
+  Nothing drawn — the sky — is infinitely far, so it blurs as the far field
+  does rather than staying sharp. The spiral turns per pixel.
+- **Contact shadows** start each step at a jittered point, so eight steps are
+  not eight flat bands across a penumbra, and accept a blocker within twice a
+  step's own depth as well as within `thickness`.
+- **Ambient occlusion's blur** reads the surface buffer nearest and weighs
+  depth relative to the centre's own: `AmbientOcclusionSettings.blurDepthFalloff`
+  is a fraction of depth now, default 0.02 (the old ten centimetres at five
+  metres).
+- **Contact shadows march without a shadow map.** They took their direction
+  from the light that casts the map, so clearing `castsShadow` on the sun,
+  the cheap setup the pass exists for, switched them off as well. They now
+  follow the first directional light when no light casts one.
+- **Depth of field reads depth nearest.** A filtered tap at a silhouette
+  against the sky mixed the object's depth with the sky's zero, and the
+  gather spread the sharp object into the blurred sky around it.
+- **Bloom's `halation` is read up to 2.5 and a negative `scatter` as zero.**
+  Past 2.86 the blue weight divided by zero and the pyramid filled with NaN.
+- `ReflectionSettings` says what the pass cannot know: the surface buffer
+  holds no metalness, so every surface reflects as a dielectric.
+
 ## 0.7.3
 
 - **A material's own vertex stage gets the morph state when it declares it.**

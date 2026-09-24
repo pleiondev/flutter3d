@@ -1,3 +1,10 @@
+## 0.7.4
+
+**The shader bundle is `flutter3d_shaders` 0.7.4's**, which `flutter3d_core`
+0.7.4 binds: `BloomInfo.tint` and `ShaftInfo.sun` are uniforms only these
+stages declare, so the two move together. Nothing else in this package
+changed. It asks for `flutter3d_shaders` ^0.7.4.
+
 ## 0.7.1
 
 **Installed from pub.dev, it builds again.** 0.7.0's build hook looked for

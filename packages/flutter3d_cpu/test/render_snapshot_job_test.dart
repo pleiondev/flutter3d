@@ -94,7 +94,15 @@ RenderPreset _preset({int ssaa = 1, int tilesX = 1, int tilesY = 1}) =>
       tilesX: tilesX,
       tilesY: tilesY,
       // Bloom off — see this file's own library comment for why.
-      settings: const RenderSettings(bloom: BloomSettings(enabled: false)),
+      // Dither off too. A tile's projection differs from the whole frame's in
+      // the last bits of a float, far under one step of the output; the
+      // dither offset is what carried one pixel of this scene across a
+      // rounding edge, and the stitch is about geometry, not about which
+      // side of a half the dither lands on.
+      settings: const RenderSettings(
+        bloom: BloomSettings(enabled: false),
+        look: LookSettings(dither: 0),
+      ),
     );
 
 RenderSnapshotJob _job(ModelProject project, RenderPreset preset) =>

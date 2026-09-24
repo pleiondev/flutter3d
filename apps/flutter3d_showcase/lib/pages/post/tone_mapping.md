@@ -12,7 +12,7 @@ Three small emissive spheres in the primary colours, each with an `emissiveStren
 
 `RenderSettings.tonemapCurve` takes one of the five `TonemapCurve` values. Open the Curve choice and step through them while you watch the lamps and the lit side of the shapes.
 
-`neutral` leaves the middle of the picture where the materials put it. `aces` gives a filmic shoulder and heavier midtones. `agx` and `agxFull` keep a gradient inside very bright saturated colour, which you can see on the blue lamp, and `agxFull` also keeps the hue where the plain curve loses it. `reinhard` touches little except the highlights.
+`neutral` leaves the middle of the picture where the materials put it. `aces` gives a filmic shoulder and heavier midtones. `agx` keeps a gradient inside very bright saturated colour, which you can see on the blue lamp, and keeps its hue while it walks towards white; `agxFull` is the same transform under its older name. `reinhard` touches little except the highlights.
 
 {{code curve}}
 

@@ -1,6 +1,6 @@
 name: flutter3d
 description: "A 3D engine on Flutter GPU: scene graph, glTF/OBJ/.f3d loading, PBR, shadows, bloom, skinning."
-version: 0.7.1
+version: 0.7.4
 repository: https://github.com/pleiondev/flutter3d
 homepage: https://flutter3d.pleion.dev
 issue_tracker: https://github.com/pleiondev/flutter3d/issues
@@ -25,7 +25,7 @@ dependencies:
   # `assetUriResolver`, `defaultImageDecoder`, `ModelAsset` and
   # `bindMaterial`/`loadMaterial` are what stayed, each because a default
   # value or a Flutter type has to be declared somewhere that can name one.
-  flutter3d_core: ^0.7.1
+  flutter3d_core: ^0.7.4
 
   # The graphics vocabulary this package is written against. **Not** a
   # backend: `flutter3d` names no graphics API at all, which is what lets an

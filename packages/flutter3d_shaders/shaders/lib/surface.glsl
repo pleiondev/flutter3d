@@ -275,6 +275,12 @@ Surface ReadSurface() {
   }
 
   s.n = normalize(v_normal);
+  // The back of a double-sided surface is lit from its own side: glTF asks
+  // for the normal to be reversed there, and without it the underside of a
+  // cloth turned to the sun reads n·l below zero and stays unlit. Only a
+  // double-sided material ever draws a back face, since everything else has
+  // them culled.
+  if (!gl_FrontFacing) s.n = -s.n;
   s.v = normalize(frag_info.camera_position.xyz - v_world_position);
   // Clamped away from zero: a grazing view direction otherwise divides by zero
   // in the specular visibility term.

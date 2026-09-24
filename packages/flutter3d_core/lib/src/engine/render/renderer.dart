@@ -928,6 +928,10 @@ final class Renderer implements RenderServices {
   bool _emptyFrameReported = false;
 
   final Float32List _bloomParams = Float32List(4);
+
+  /// The upsample step's per-channel factor: the ratio of this level's
+  /// halation and scatter weight to the one above's. See `_renderBloom`.
+  final Float32List _bloomTint = Float32List(4);
   final Float32List _fxaaParams = Float32List(4);
 
   /// `gfx-29n`: x is the sharpening amount, the rest unclaimed.
@@ -942,6 +946,9 @@ final class Renderer implements RenderServices {
   final Float32List _shaftCamera = Float32List(4);
   final Float32List _shaftForward = Float32List(4);
   final Float32List _shaftScatter = Float32List(4);
+
+  /// The shafts' `sun`: the direction towards the caster, and the phase's g.
+  final Float32List _shaftSun = Float32List(4);
   final Float32List _shaftCascades = Float32List(4);
   final vm.Vector3 _shaftCameraVec = vm.Vector3.zero();
   final vm.Vector3 _shaftForwardVec = vm.Vector3.zero();
@@ -1302,9 +1309,16 @@ final class Renderer implements RenderServices {
   /// nearest way to say "not this one" was to turn shadows off for the frame
   /// or mesh by mesh. A light with no node behind it casts: that is
   /// [LightBuffer.useDefaultLight]'s, which has no flag to clear.
-  static int _directionalIndexIn(LightBuffer buffer) {
+  static int _directionalIndexIn(
+    LightBuffer buffer, {
+    bool castingOnly = true,
+  }) {
     for (var i = 0; i < buffer.count; i++) {
-      if (i < buffer.packed.length && !buffer.packed[i].castsShadow) continue;
+      if (castingOnly &&
+          i < buffer.packed.length &&
+          !buffer.packed[i].castsShadow) {
+        continue;
+      }
       if (buffer.positions[i * 4 + 3] == ShaderLightType.directional) return i;
     }
     return -1;
@@ -1328,6 +1342,33 @@ final class Renderer implements RenderServices {
     // toward, and normalising a zero vector is how you get a frame of NaN.
     if (direction.length2 == 0.0) return null;
     return -direction.normalized();
+  }
+
+  /// Which way the contact shadows march: towards the shadow map's caster when
+  /// there is one, so the seam continues the shadow the map drew, and towards
+  /// the first directional light otherwise.
+  ///
+  /// **Not only the caster.** The march reads the surface buffer and no
+  /// shadow map, and a sun with `castsShadow` cleared — the cheap setup this
+  /// pass exists for, contact shadows without paying for a map — used to
+  /// switch the pass off with the map.
+  static vm.Vector3? _contactToLightIn(LightBuffer buffer, int caster) =>
+      _toLightIn(
+        buffer,
+        caster >= 0 ? caster : _directionalIndexIn(buffer, castingOnly: false),
+      );
+
+  /// The colour times the intensity of the light at [index] in [buffer], or
+  /// null when there is none — what the light shafts scatter.
+  static vm.Vector3? _radianceIn(LightBuffer buffer, int index) {
+    if (index < 0) return null;
+    final at = index * 4;
+    final intensity = buffer.colors[at + 3];
+    return vm.Vector3(
+      buffer.colors[at] * intensity,
+      buffer.colors[at + 1] * intensity,
+      buffer.colors[at + 2] * intensity,
+    );
   }
 
   /// Restates this frame's atlas assignment in the slot order [buffer] packed.
@@ -1741,7 +1782,11 @@ final class Renderer implements RenderServices {
   /// angular radius. Naming one face too many costs a redraw of something that
   /// did not change; naming one too few leaves a stale shadow on screen, and
   /// those are not the same mistake.
-  List<int?> _computeFaceSignatures(Scene scene, int slotCount) {
+  List<int?> _computeFaceSignatures(
+    Scene scene,
+    int slotCount,
+    ShadowSettings settings,
+  ) {
     const int faces = 6;
     // The half-angle from a face's axis to its corner: a ninety degree square
     // frustum reaches 45 degrees at the edge and atan(sqrt(2)) at the corner.
@@ -1769,10 +1814,16 @@ final class Renderer implements RenderServices {
       );
 
       // The light's own placement is part of every one of its faces: move the
-      // light and every face of that row draws something different.
-      final base = isSpot
-          ? _bakeKeyFor(_cubePosition, range, _shadowAim, spotTanHalf)
-          : _bakeKeyFor(_cubePosition, range);
+      // light and every face of that row draws something different. So does
+      // the settings' choice of faces and padding: only the resolution resets
+      // the atlas, and a `casterFaces` changed at runtime otherwise left every
+      // face of a still scene as it was drawn before.
+      final base = _mix(
+        isSpot
+            ? _bakeKeyFor(_cubePosition, range, _shadowAim, spotTanHalf)
+            : _bakeKeyFor(_cubePosition, range),
+        StaticBakeKey.of(settings).hashCode,
+      );
       for (var face = 0; face < faces; face++) {
         // A spot uses one column, and the five beside it are not "unused" in
         // the sense that a whole empty row is: they hold whatever the previous
@@ -1857,6 +1908,15 @@ final class Renderer implements RenderServices {
     }
     final skeleton = node.skeleton;
     if (skeleton != null) hash = _mix(hash, skeleton.poseVersion);
+    // Which faces it records, for the same reason as the pose: a node that
+    // starts casting from both sides changes the face without moving.
+    hash = _mix(hash, node.castsShadowFromEveryFace ? 1 : 0);
+    // And what it is made of: a swapped mesh, a changed expression, or an
+    // instance moved inside a batch changes the silhouette with the node's own
+    // matrix standing still.
+    hash = _mix(hash, identityHashCode(node.mesh));
+    hash = _mix(hash, node.morph?.version ?? 0);
+    if (node is InstancedMeshNode) hash = _mix(hash, node.dataVersion);
     return hash;
   }
 
@@ -1901,6 +1961,8 @@ final class Renderer implements RenderServices {
     required _LuminanceNode luminance,
     required _ObjectIdNode objectIds,
     required vm.Vector3? sunToLight,
+    required vm.Vector3? sunRadiance,
+    required vm.Vector3? contactToLight,
   }) {
     final graph = FrameGraph()
       // The atlas before the directional map, which is the order they were
@@ -1971,11 +2033,15 @@ final class Renderer implements RenderServices {
     // either can be off without the other having to be. Registration order does
     // not matter here — it writes a name nothing else writes — and this is
     // simply where the pass it belongs next to is.
-    graph.addNode(_ContactShadowNode(this, view, s, sunToLight));
+    graph.addNode(_ContactShadowNode(this, view, s, contactToLight));
     // `gfx-33n`. After the occlusion and before bloom: a shaft is light in
-    // the air, so it should glow the way any other light does, and it is not
-    // a surface so the occlusion has nothing to say about it.
-    graph.addNode(_LightShaftsNode(this, view, s));
+    // the air, so it should glow the way any other light does. It is not a
+    // surface, and the occlusion should have nothing to say about it — but
+    // the composite multiplies the occlusion into this whole colour, shafts
+    // included, so a crease darkens the air in front of it too. A known
+    // compromise rather than a claim: separating them needs the in-scatter as
+    // a resource of its own, which would also take it out of bloom and focus.
+    graph.addNode(_LightShaftsNode(this, view, s, sunToLight, sunRadiance));
     // `gfx-34n`. After the shafts, because a lens is in front of everything
     // the scene emits and light in the air defocuses exactly as the geometry
     // behind it does; before bloom, because a glow is what the sensor does
@@ -2126,6 +2192,11 @@ final class Renderer implements RenderServices {
   /// at, so a static caster that changed how it casts redraws the walls it is
   /// in. The key above answers the same question about the settings.
   int _staticBakeGeneration = 0;
+
+  /// Which faces each static caster recorded in the standing bake, hashed —
+  /// the one thing about a static caster that a material can change without
+  /// the node or the generation knowing.
+  int _staticBakeFaces = 0;
 
   int _cubeShadowTile = 0;
   final vm.Matrix4 _cubeMatrix = vm.Matrix4.identity();
@@ -2802,6 +2873,8 @@ final class Renderer implements RenderServices {
       // the live lights whether a sun exists would answer about a different
       // scene.
       sunToLight: _toLightIn(planLights, shadowCaster),
+      sunRadiance: _radianceIn(planLights, shadowCaster),
+      contactToLight: _contactToLightIn(planLights, shadowCaster),
       cubeStatic: _CubeShadowStaticNode(
         this,
         scene: scene,
@@ -3197,6 +3270,8 @@ final class Renderer implements RenderServices {
         // The same light the shadow map casts from, so the seam the march draws
         // continues the shadow the map drew rather than crossing it.
         sunToLight: _toLightIn(lights, shadowCaster),
+        sunRadiance: _radianceIn(lights, shadowCaster),
+        contactToLight: _contactToLightIn(lights, shadowCaster),
       );
 
       // The frame's own resources: the graph names the lit scene and each

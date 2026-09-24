@@ -37,7 +37,10 @@ final class BloomThresholdShader implements CpuFragmentShader {
     // A four-tap box at the corners of the source quad. A single tap aliases a
     // one-pixel highlight in and out of existence as the camera moves, which
     // reads as flickering rather than as bloom.
+    //
+    // Weighted by Karis's `1 / (1 + luma)`, as `bloom_threshold.frag`.
     var sum = Vector3.zero();
+    var weights = 0.0;
     for (final d in const <List<double>>[
       <double>[-0.5, -0.5],
       <double>[0.5, -0.5],
@@ -45,9 +48,12 @@ final class BloomThresholdShader implements CpuFragmentShader {
       <double>[0.5, 0.5],
     ]) {
       final t = src.source.sample(u + src.tx * d[0], w + src.ty * d[1]);
-      sum += Vector3(t.x, t.y, t.z);
+      final tap = Vector3(t.x, t.y, t.z);
+      final weight = 1.0 / (1.0 + _luminance(tap));
+      sum += tap * weight;
+      weights += weight;
     }
-    final colour = sum..scale(0.25);
+    final colour = sum..scale(1.0 / weights);
 
     final threshold = src.params.z;
     final knee = math.max(src.params.w, 1e-4);
@@ -124,16 +130,10 @@ final class BloomUpsampleShader implements CpuFragmentShader {
     var result = e * 4.0 + (bb + d + f + h) * 2.0 + (a + cc + g + i);
     result.scale(1.0 / 16.0);
 
-    // `gfx-30n`: the broad levels of the chain go warm, the tight core does
-    // not — see `bloom_upsample.frag` for why the asymmetry is the effect.
-    final halation = src.params.w;
-    if (halation > 0.0) {
-      result = Vector3(
-        result.x * (1.0 + halation * 0.5),
-        result.y,
-        result.z * (1.0 - halation * 0.35),
-      );
-    }
+    // The ratio of this level's weight and warmth to the one above's — see
+    // `bloom_upsample.frag` for why a ratio and not the warmth itself.
+    final tint = b.vec4('BloomInfo', 'tint', Vector4(1.0, 1.0, 1.0, 1.0));
+    result = Vector3(result.x * tint.x, result.y * tint.y, result.z * tint.z);
     return Vector4(result.x, result.y, result.z, 1.0);
   }
 }

@@ -104,44 +104,59 @@ void main() {
     });
 
     test('the four differ at mid grey, and the numbers are written down', () {
-      // **Measured, not recited.** Two of the claims this file started with
-      // were received wisdom and wrong: ACES is usually described as
-      // darkening midtones and this fit lifts them, because it carries about
-      // a stop of exposure inside it; and AgX is built to put middle grey at
-      // middle display, which is a far bigger change than "a look".
+      // **Measured, not recited.** ACES is usually described as darkening
+      // midtones and this fit lifts them, because it carries about a stop of
+      // exposure inside it. AgX puts middle grey at middle *display*: 0.2145
+      // linear, which the sRGB encode turns into 128/255.
       const double grey = 0.18;
       double at(TonemapCurve curve) =>
           _through(curve, Vector3(grey, grey, grey)).x;
 
       expect(at(TonemapCurve.neutral), closeTo(0.140, 0.002));
       expect(at(TonemapCurve.aces), closeTo(0.267, 0.002));
-      expect(at(TonemapCurve.agx), closeTo(0.497, 0.002));
+      expect(at(TonemapCurve.agx), closeTo(0.2145, 0.002));
       expect(at(TonemapCurve.reinhard), closeTo(0.154, 0.002));
 
-      // Which is the sentence a reader needs before switching a scene over:
-      // only two of the four leave an asset looking like its author's.
       expect((at(TonemapCurve.neutral) - grey).abs(), lessThan(0.05));
       expect((at(TonemapCurve.reinhard) - grey).abs(), lessThan(0.05));
       expect(at(TonemapCurve.aces), greaterThan(grey + 0.05));
-      expect(at(TonemapCurve.agx), greaterThan(grey + 0.05));
     });
 
-    test('agx desaturates a bright coloured lamp more than aces', () {
-      // A red lamp two stops over white, which is where the two curves
-      // actually differ: ACES pushes it towards its own primary and AgX walks
-      // it towards white. Two stops and not six, because past ACES's ceiling
-      // the comparison stops meaning anything — see the next test.
-      final lamp = Vector3(4.0, 0.5, 0.5);
+    test('agx comes out linear, so the frame is encoded once', () {
+      // **The regression 0.7.4 fixes.** AgX's sigmoid is display-encoded, and
+      // until 0.7.4 its value went into the sRGB encode as though it were
+      // linear: grey reached the screen at 187/255 and a red velvet
+      // (0.6, 0.07, 0.1) at 212/159/169, pastel. Linearised, grey lands at
+      // mid display and the velvet stays red.
+      double encode(double linear) => linear <= 0.0031308
+          ? linear * 12.92
+          : 1.055 * math.pow(linear, 1.0 / 2.4) - 0.055;
+
+      final grey = _through(TonemapCurve.agx, Vector3.all(0.18)).x;
+      expect(encode(grey) * 255.0, closeTo(128.0, 1.5));
+
+      final velvet = _through(TonemapCurve.agx, Vector3(0.6, 0.07, 0.1));
+      expect(velvet.x, greaterThan(velvet.y * 3.0));
+      expect(velvet.x, greaterThan(velvet.z * 3.0));
+    });
+
+    test('far over white, agx still has a colour where aces has none', () {
+      // A red lamp six stops over white: ACES has clipped every channel to
+      // one and draws a white disc, AgX walks the lamp towards white and has
+      // not arrived. Measured: 0.044 against 0.000. At two stops the order is
+      // the other way round (0.45 against 0.36), which is why the lamp is
+      // six stops over and not two.
+      final lamp = Vector3(64.0, 8.0, 8.0);
 
       double spreadOf(TonemapCurve curve) {
         final out = _through(curve, lamp.clone());
         expect(_luma(out), greaterThan(0.0));
         final channels = <double>[out.x, out.y, out.z];
-        return channels.reduce((double a, double b) => a > b ? a : b) -
-            channels.reduce((double a, double b) => a < b ? a : b);
+        return channels.reduce(math.max) - channels.reduce(math.min);
       }
 
-      expect(spreadOf(TonemapCurve.agx), lessThan(spreadOf(TonemapCurve.aces)));
+      expect(spreadOf(TonemapCurve.aces), lessThan(0.001));
+      expect(spreadOf(TonemapCurve.agx), greaterThan(0.02));
     });
 
     test(
@@ -218,7 +233,6 @@ void main() {
         TonemapCurve.aces,
         TonemapCurve.agx,
         TonemapCurve.reinhard,
-        TonemapCurve.agxFull,
       ]) {
         expect(
           await draw(curve),
@@ -276,29 +290,30 @@ void main() {
       Vector3(0.4, 0.1, 0.02),
     ];
 
+    /// AgX's sigmoid on each channel with no rotation around it, linearised
+    /// the way [TonemapCurve.agx] is — what the rotation is measured against.
+    Vector3 bare(Vector3 c) {
+      final s = agxSigmoid(c);
+      double linear(double v) => math.pow(v, 2.2).toDouble();
+      return Vector3(linear(s.x), linear(s.y), linear(s.z));
+    }
+
     test('the rotation holds a hue better than the bare curve, on every '
         'saturated sample', () {
-      // **These numbers were measured before they were asserted, and the first
-      // version of this test asserted something false.** It claimed the
-      // rotation brings a hue within five degrees, because the plan row
-      // claimed it. It does not and cannot with these matrices: over the
-      // spread below the best sample lands at 7.4 degrees and the worst at
-      // 24.8. What the rotation buys is a little over a third off the error,
-      // everywhere — worth a curve, and not what was written down.
-      //
-      // The first version also chose (0, 0, 4) as its example, where red and
-      // green are equal and the bare curve therefore holds the hue *exactly*,
-      // so the comparison could never have shown anything either way. Only a
-      // colour with three different channels asks this question.
+      // It does not bring a hue within a few degrees and cannot with these
+      // matrices; what it buys is about a third off the error, everywhere.
+      // (0, 0, 4) is not among the samples on purpose: with two equal
+      // channels the bare curve holds the hue exactly and the comparison
+      // could not show anything either way.
       for (final Vector3 input in overBright) {
         final wanted = hue(input)!;
-        final bare = hue(_through(TonemapCurve.agx, input.clone()));
-        final full = hue(_through(TonemapCurve.agxFull, input.clone()));
-        expect(bare, isNotNull);
-        expect(full, isNotNull);
+        final withoutRotation = hue(bare(input.clone()));
+        final withRotation = hue(_through(TonemapCurve.agx, input.clone()));
+        expect(withoutRotation, isNotNull);
+        expect(withRotation, isNotNull);
         expect(
-          hueGap(full!, wanted),
-          lessThan(hueGap(bare!, wanted)),
+          hueGap(withRotation!, wanted),
+          lessThan(hueGap(withoutRotation!, wanted)),
           reason:
               '$input: the rotation is meant to help everywhere and cost '
               'nothing; here it helped nowhere',
@@ -307,37 +322,28 @@ void main() {
     });
 
     test('it takes about a third off the hue error across that spread', () {
-      // The size of the win, pinned so a later change to a matrix or to the
-      // curve cannot quietly hand it back. Measured over exactly the ten
-      // samples above: 26.21 mean degrees bare, 17.04 with the rotation, a
-      // ratio of 0.65.
-      //
-      // The first numbers written here were 23.83 and 15.49, which were
-      // measured over a *different* set — the same ten plus (0, 0, 4), whose
-      // error is zero through both curves and which dragged both means down.
-      // Asserting a number measured on one set against another is how a
-      // threshold ends up being fitted to whatever the code happens to do.
-      var bareTotal = 0.0;
-      var fullTotal = 0.0;
+      // Measured over exactly the ten samples above, with the linearised
+      // curve of 0.7.4: 19.78 mean degrees without the rotation, 13.47 with
+      // it, a ratio of 0.68. Pinned so a later change to a matrix or to the
+      // curve cannot quietly hand the win back.
+      var withoutTotal = 0.0;
+      var withTotal = 0.0;
       for (final Vector3 input in overBright) {
         final wanted = hue(input)!;
-        bareTotal += hueGap(
+        withoutTotal += hueGap(hue(bare(input.clone()))!, wanted);
+        withTotal += hueGap(
           hue(_through(TonemapCurve.agx, input.clone()))!,
           wanted,
         );
-        fullTotal += hueGap(
-          hue(_through(TonemapCurve.agxFull, input.clone()))!,
-          wanted,
-        );
       }
-      final bareMean = bareTotal / overBright.length;
-      final fullMean = fullTotal / overBright.length;
+      final withoutMean = withoutTotal / overBright.length;
+      final withMean = withTotal / overBright.length;
 
-      expect(bareMean, greaterThan(26.0));
-      expect(fullMean, lessThan(17.5));
+      expect(withoutMean, greaterThan(19.5));
+      expect(withMean, lessThan(13.8));
       expect(
-        fullMean,
-        lessThan(bareMean * 0.7),
+        withMean,
+        lessThan(withoutMean * 0.7),
         reason: 'the rotation stopped earning its two matrices',
       );
     });
@@ -345,23 +351,22 @@ void main() {
     test('the two matrices are inverses, so a mid grey is not re-graded', () {
       // The transpose and mismatched-pair check. An inset from one published
       // variant beside an outset from another is a product that is *nearly*
-      // the identity, which reads as a grade nobody asked for; running a grey
-      // through both and comparing against the bare curve catches it, because
-      // a grey is the one input the rotation must leave exactly alone.
+      // the identity, which reads as a grade nobody asked for; a grey is the
+      // one input the rotation must leave exactly alone.
       final grey = Vector3(0.18, 0.18, 0.18);
-      final bare = _through(TonemapCurve.agx, grey.clone());
-      final full = _through(TonemapCurve.agxFull, grey.clone());
+      final withoutRotation = bare(grey.clone());
+      final withRotation = _through(TonemapCurve.agx, grey.clone());
 
-      expect((full.x - bare.x).abs(), lessThan(1e-4));
-      expect((full.y - bare.y).abs(), lessThan(1e-4));
-      expect((full.z - bare.z).abs(), lessThan(1e-4));
+      expect((withRotation.x - withoutRotation.x).abs(), lessThan(1e-4));
+      expect((withRotation.y - withoutRotation.y).abs(), lessThan(1e-4));
+      expect((withRotation.z - withoutRotation.z).abs(), lessThan(1e-4));
     });
 
-    test('it is a fifth curve and the fourth is untouched', () {
-      // Every golden that names `agx` names the bare curve deliberately. If
-      // this row had improved `agx` in place, those pictures would move for a
-      // reason nobody would connect to a tone curve — which is the mistake
-      // `gfx-17n` already documents at the top of this file.
+    test('code 5 is kept, and draws what agx draws', () {
+      // `agxFull` was the rotated variant while `agx` was the bare sigmoid.
+      // Now that `agx` is the whole transform the two are one curve, and a
+      // setting that stored code 5 keeps working.
+      // ignore: deprecated_member_use_from_same_package, deprecated_member_use
       expect(TonemapCurve.agxFull.code, 5.0);
       expect(TonemapCurve.values.length, 5);
       for (final Vector3 sample in <Vector3>[
@@ -369,11 +374,11 @@ void main() {
         Vector3(4.0, 2.0, 1.0),
         Vector3(0.0, 0.0, 4.0),
       ]) {
-        final was = tonemapAgx(sample.clone());
-        final now = _through(TonemapCurve.agx, sample.clone());
-        expect(now.x, was.x);
-        expect(now.y, was.y);
-        expect(now.z, was.z);
+        final agx = tonemapBy(sample.clone(), 3);
+        final code5 = tonemapBy(sample.clone(), 5);
+        expect(code5.x, agx.x);
+        expect(code5.y, agx.y);
+        expect(code5.z, agx.z);
       }
     });
 
@@ -386,7 +391,7 @@ void main() {
         Vector3(0.0, 0.0, 40.0),
         Vector3(40.0, 40.0, 40.0),
       ]) {
-        final out = _through(TonemapCurve.agxFull, sample.clone());
+        final out = _through(TonemapCurve.agx, sample.clone());
         for (final double channel in <double>[out.x, out.y, out.z]) {
           expect(channel, inInclusiveRange(0.0, 1.0));
         }
