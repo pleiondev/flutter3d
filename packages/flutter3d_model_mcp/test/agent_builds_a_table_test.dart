@@ -83,6 +83,8 @@ void main() {
       // `pro-rn-04`: the full-quality snapshot, which is not `render` with
       // more arguments — see `render_tool.dart` for why the two are apart.
       renderSnapshotTool.name,
+      // A3: an arrived asset checked, with all seven views.
+      auditTool.name,
     ], reason: 'tools/list and the table this server was built from disagree');
     for (final tool in offered.tools) {
       expect(tool.description, isNotEmpty, reason: '${tool.name} says nothing');
