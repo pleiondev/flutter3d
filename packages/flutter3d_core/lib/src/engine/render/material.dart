@@ -69,6 +69,8 @@ final class Material {
     this.extensions,
     this.coatMap,
     this.coatMapSampler,
+    this.sheenMap,
+    this.sheenMapSampler,
     this.drawBucket = 0,
     this.depthWrite,
     this.depthCompare,
@@ -248,6 +250,13 @@ final class Material {
   TextureHandle? coatMap;
   SamplerOptions? coatMapSampler;
 
+  /// The sheen map — `M2`: the sheen colour in red, green and blue, sRGB as
+  /// it was authored, and its roughness in alpha, each multiplying its factor
+  /// in [extensions]. Null binds white. The layered stage's sixteenth sampler,
+  /// and its last.
+  TextureHandle? sheenMap;
+  SamplerOptions? sheenMapSampler;
+
   /// Coarse manual ordering, borrowed from PlayCanvas: it outranks every other
   /// sort term, so a skybox or an overlay can be forced to a fixed position
   /// without touching the sorting policy.
@@ -338,6 +347,8 @@ final class Material {
           extensions: extensions,
           coatMap: coatMap,
           coatMapSampler: coatMapSampler,
+          sheenMap: sheenMap,
+          sheenMapSampler: sheenMapSampler,
           drawBucket: drawBucket,
           depthWrite: depthWrite,
           depthCompare: depthCompare,

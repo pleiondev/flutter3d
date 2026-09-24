@@ -11868,6 +11868,13 @@ layout(std140) uniform LayerInfo {
   /// x: the clear coat, y: its perceptual roughness, z: the index of
   /// refraction, w: unused.
   vec4 coat;
+
+  /// rgb: `KHR_materials_sheen`'s colour, linear. w: its roughness — `M2`.
+  vec4 sheen;
+
+  /// x: `KHR_materials_anisotropy`'s strength, y and z: the cosine and sine
+  /// of its rotation from the tangent. w: unused.
+  vec4 anisotropy;
 }
 layer_info;
 
@@ -11876,6 +11883,11 @@ layer_info;
 /// material has none. One texture where glTF gives up to four, because the
 /// lit stages have two samplers left under WebGL2's sixteen.
 uniform sampler2D coat_texture;
+
+/// The sheen map — `M2`: rgb the sheen colour, sRGB as authored, and a its
+/// roughness, each multiplying its factor. White when a material has none.
+/// The stage's sixteenth sampler, and the last WebGL2 promises.
+uniform sampler2D sheen_texture;
 
 /// The layers at this fragment, resolved once by [ReadLayers] and read by
 /// every light: the dielectric's reflectance head-on and at grazing, and the
@@ -11889,6 +11901,17 @@ vec3 g_coat_n = vec3(0.0, 0.0, 1.0);
 float g_coat_n_dot_v = 1.0;
 float g_coat_through = 1.0;
 
+/// The sheen — `M2`: its colour and roughness, and what its albedo leaves of
+/// the layer beneath. And the anisotropy: how strong, and the frame the
+/// highlight stretches along, on the normal the maps leave.
+vec3 g_sheen = vec3(0.0);
+float g_sheen_roughness = 0.07;
+float g_sheen_albedo = 0.0;
+float g_sheen_scale = 1.0;
+float g_aniso = 0.0;
+vec3 g_aniso_t = vec3(1.0, 0.0, 0.0);
+vec3 g_aniso_b = vec3(0.0, 1.0, 0.0);
+
 /// Fills the globals above from the block and the coat map.
 ///
 /// Called before the normal map bends `s.n`, because the coat is lit on the
@@ -11896,6 +11919,11 @@ float g_coat_through = 1.0;
 /// makes car paint read as car paint.
 void ReadLayers(Surface s) {
   vec4 coatTexel = texture(coat_texture, v_texcoord, MaterialLodBias());
+  vec4 sheenTexel = texture(sheen_texture, v_texcoord, MaterialLodBias());
+  g_sheen = layer_info.sheen.rgb * SrgbToLinear(sheenTexel.rgb);
+  // Floored where the Charlie lobe's exponent would outgrow a half float,
+  // which is also where `tool/make_tables.dart` floors its albedo.
+  g_sheen_roughness = clamp(layer_info.sheen.w * sheenTexel.a, 0.07, 1.0);
   // `KHR_materials_ior` and `KHR_materials_specular`: the reflectance a
   // dielectric of this index has head-on, tinted and scaled, and the
   // strength alone at grazing. 1.5, white and one give 0.04 and 1 — plain
@@ -11915,6 +11943,37 @@ void ReadLayers(Surface s) {
   // what its Fresnel lets through.
   float fc = 0.04 + 0.96 * pow(1.0 - g_coat_n_dot_v, 5.0);
   g_coat_through = 1.0 - g_coat * fc;
+}
+
+/// The half of the layers that depends on the normal the maps leave: the
+/// sheen's albedo at this view, and the anisotropy's frame. Called after
+/// the maps, before any light.
+void ReadLayersOnMaps(Surface s) {
+  // `M2`: the sheen's directional albedo, from the LTC table's spare lane,
+  // and what it leaves of everything under the sheen.
+  g_sheen_albedo =
+      textureLod(ltc_texture,
+                 LtcUv(g_sheen_roughness,
+                       sqrt(clamp(1.0 - s.n_dot_v, 0.0, 1.0)), 1.0),
+                 0.0)
+          .z;
+  g_sheen_scale =
+      1.0 - max(max(g_sheen.r, g_sheen.g), g_sheen.b) * g_sheen_albedo;
+
+  // The tangent frame `ApplyNormalMap` builds, on the normal it left, turned
+  // by the rotation. A surface without a usable tangent stays isotropic.
+  vec3 t = v_tangent.xyz - s.n * dot(s.n, v_tangent.xyz);
+  bool usable = dot(t, t) > 1e-12;
+  t = usable ? normalize(t) : vec3(1.0, 0.0, 0.0);
+  vec3 b = cross(s.n, t) * v_tangent.w;
+  if (!gl_FrontFacing) t = -t;
+  vec2 turn = layer_info.anisotropy.yz;
+  vec3 along = t * turn.x + b * turn.y;
+  g_aniso = usable && dot(along, along) > 1e-12
+                ? clamp(layer_info.anisotropy.x, 0.0, 1.0)
+                : 0.0;
+  g_aniso_t = g_aniso > 0.0 ? normalize(along) : t;
+  g_aniso_b = cross(s.n, g_aniso_t);
 }
 #endif  // F3D_LAYERED
 
@@ -11980,6 +12039,37 @@ float CoatLobe(LightSample light) {
                     : n_dot_l / max(light.n_dot_l, 1e-6);
   return d * vis * f * frag_info.material.w * scale;
 }
+
+/// The Charlie sheen distribution, Estevez and Kulla's, with Filament's
+/// floor on `sin²θ` so the power stays inside a half float.
+float D_Charlie(float roughness, float n_dot_h) {
+  float inv_alpha = 1.0 / (roughness * roughness);
+  float sin2h = max(1.0 - n_dot_h * n_dot_h, 0.0078125);
+  return (2.0 + inv_alpha) * pow(sin2h, inv_alpha * 0.5) / (2.0 * kPi);
+}
+
+/// Neubelt and Pettineo's visibility for cloth.
+float V_Neubelt(float n_dot_v, float n_dot_l) {
+  return 1.0 / (4.0 * (n_dot_l + n_dot_v - n_dot_l * n_dot_v));
+}
+
+/// GGX stretched along [t] — `KHR_materials_anisotropy`, the form its
+/// specification gives: [at] the roughness along the tangent, [ab] across.
+float D_GGXAnisotropic(float n_dot_h, float t_dot_h, float b_dot_h, float at,
+                       float ab) {
+  float a2 = at * ab;
+  vec3 f = vec3(ab * t_dot_h, at * b_dot_h, a2 * n_dot_h);
+  float w2 = a2 / max(dot(f, f), 1e-12);
+  return a2 * w2 * w2 / kPi;
+}
+
+float V_GGXAnisotropic(float n_dot_l, float n_dot_v, float b_dot_v,
+                       float t_dot_v, float t_dot_l, float b_dot_l, float at,
+                       float ab) {
+  float ggx_v = n_dot_l * length(vec3(at * t_dot_v, ab * b_dot_v, n_dot_v));
+  float ggx_l = n_dot_v * length(vec3(at * t_dot_l, ab * b_dot_l, n_dot_l));
+  return clamp(0.5 / max(ggx_v + ggx_l, 1e-5), 0.0, 1.0);
+}
 #endif  // F3D_LAYERED
 
 float LightVisibility(Surface s, LightSample light, int index) {
@@ -12019,6 +12109,17 @@ vec3 ShadeLight(Surface s, LightSample light) {
   float d = D_GGX(light.n_dot_h, alpha);
   float vis = V_SmithGGXCorrelated(s.n_dot_v, light.n_dot_l, alpha);
 #ifdef F3D_LAYERED
+  if (g_aniso > 0.0) {
+    // `M2`: the lobe stretched along the tangent, as far as the strength
+    // says; across it, the roughness as it was.
+    float at = mix(alpha, 1.0, g_aniso * g_aniso);
+    float ab = max(alpha, 1e-3);
+    d = D_GGXAnisotropic(light.n_dot_h, dot(g_aniso_t, light.h),
+                         dot(g_aniso_b, light.h), at, ab);
+    vis = V_GGXAnisotropic(light.n_dot_l, s.n_dot_v, dot(g_aniso_b, s.v),
+                           dot(g_aniso_t, s.v), dot(g_aniso_t, light.l),
+                           dot(g_aniso_b, light.l), at, ab);
+  }
   vec3 f = F_SchlickF90(f0, f90, light.v_dot_h);
 #else
   vec3 f = F_Schlick(f0, light.v_dot_h);
@@ -12045,8 +12146,11 @@ vec3 ShadeLight(Surface s, LightSample light) {
   // The pi puts the result back on the scale the tone mapper and the exposure
   // default were calibrated against.
 #ifdef F3D_LAYERED
-  // Under the coat, what its Fresnel lets through; on top, its own lobe.
-  return ((diffuse + specular) * g_coat_through +
+  // Under the sheen, what its albedo leaves; under the coat, what its
+  // Fresnel lets through; on top, the coat's own lobe.
+  vec3 sheen = g_sheen * D_Charlie(g_sheen_roughness, light.n_dot_h) *
+               V_Neubelt(s.n_dot_v, light.n_dot_l);
+  return (((diffuse + specular) * g_sheen_scale + sheen) * g_coat_through +
           vec3(g_coat * CoatLobe(light))) *
          kPi;
 #else
@@ -12061,6 +12165,9 @@ void main() {
 #endif
   ApplyCommonMaps(s);
   ApplyMetallicRoughnessMap(s);
+#ifdef F3D_LAYERED
+  ReadLayersOnMaps(s);
+#endif
 
   float metallic = clamp(s.metallic, 0.0, 1.0);
   vec3 diffuseColor = s.albedo * (1.0 - metallic);
@@ -12073,8 +12180,10 @@ void main() {
   float levels = frag_info.frame_params.w;
 #ifdef F3D_LAYERED
   // What the coat reflects of the environment; nothing without one, since
-  // the flat ambient has no specular part for it to have.
+  // the flat ambient has no specular part for it to have. The sheen's
+  // incoming light, which without an environment is the flat ambient.
   vec3 coatAmbient = vec3(0.0);
+  vec3 sheenIncoming = s.ambient;
 #endif
   if (levels > 0.0) {
     // **This is the term that made metal black.** A metal has no diffuse
@@ -12084,10 +12193,21 @@ void main() {
 #ifdef F3D_LAYERED
     vec3 f0 = mix(g_f0_dielectric, s.albedo, metallic);
     float f90 = mix(g_f90, 1.0, metallic);
+    // `M2`: an anisotropic surface reflects along a normal bent towards the
+    // stretch, the specification's own approximation.
+    vec3 bent = s.n;
+    if (g_aniso > 0.0) {
+      vec3 across = cross(g_aniso_t, s.v);
+      vec3 anisoN = cross(across, g_aniso_t);
+      float bend = 1.0 - g_aniso * (1.0 - s.roughness);
+      float bend4 = bend * bend * bend * bend;
+      bent = normalize(mix(anisoN, s.n, bend4));
+    }
+    vec3 reflected = reflect(-s.v, bent);
 #else
     vec3 f0 = mix(vec3(0.04), s.albedo, metallic);
-#endif
     vec3 reflected = reflect(-s.v, s.n);
+#endif
 
     // The roughest level stands in for irradiance. Not a true Lambert
     // convolution — see `EnvironmentMap.diffuseLevel`, which says the same
@@ -12137,6 +12257,9 @@ void main() {
     vec2 coatAb = EnvBrdfApprox(g_coat_roughness, g_coat_n_dot_v);
     coatAmbient = coatPrefiltered * (0.04 * coatAb.x + coatAb.y) * g_coat *
                   frag_info.material.z * s.occlusion;
+    sheenIncoming =
+        textureLod(environment_texture, s.n, g_sheen_roughness * levels).rgb *
+        frag_info.material.z;
 #endif
   }
   // The light the level's walls throw on each other, baked: diffuse only,
@@ -12159,9 +12282,12 @@ void main() {
   // What shines from under the coat is dimmed by it on the way out, the
   // emission included — glTF's own layering. The direct light was scaled in
   // `ShadeLight`.
+  vec3 sheenAmbient = g_sheen * g_sheen_albedo * sheenIncoming * s.occlusion;
   WriteSurface(
       AccumulateLights(s) * s.occlusion +
-          (ambient + s.emissive) * g_coat_through + coatAmbient,
+          (ambient * g_sheen_scale + sheenAmbient + s.emissive) *
+              g_coat_through +
+          coatAmbient,
       s.alpha,
       s.roughness);
 #else
@@ -14308,6 +14434,13 @@ layout(std140) uniform LayerInfo {
   /// x: the clear coat, y: its perceptual roughness, z: the index of
   /// refraction, w: unused.
   vec4 coat;
+
+  /// rgb: `KHR_materials_sheen`'s colour, linear. w: its roughness — `M2`.
+  vec4 sheen;
+
+  /// x: `KHR_materials_anisotropy`'s strength, y and z: the cosine and sine
+  /// of its rotation from the tangent. w: unused.
+  vec4 anisotropy;
 }
 layer_info;
 
@@ -14316,6 +14449,11 @@ layer_info;
 /// material has none. One texture where glTF gives up to four, because the
 /// lit stages have two samplers left under WebGL2's sixteen.
 uniform sampler2D coat_texture;
+
+/// The sheen map — `M2`: rgb the sheen colour, sRGB as authored, and a its
+/// roughness, each multiplying its factor. White when a material has none.
+/// The stage's sixteenth sampler, and the last WebGL2 promises.
+uniform sampler2D sheen_texture;
 
 /// The layers at this fragment, resolved once by [ReadLayers] and read by
 /// every light: the dielectric's reflectance head-on and at grazing, and the
@@ -14329,6 +14467,17 @@ vec3 g_coat_n = vec3(0.0, 0.0, 1.0);
 float g_coat_n_dot_v = 1.0;
 float g_coat_through = 1.0;
 
+/// The sheen — `M2`: its colour and roughness, and what its albedo leaves of
+/// the layer beneath. And the anisotropy: how strong, and the frame the
+/// highlight stretches along, on the normal the maps leave.
+vec3 g_sheen = vec3(0.0);
+float g_sheen_roughness = 0.07;
+float g_sheen_albedo = 0.0;
+float g_sheen_scale = 1.0;
+float g_aniso = 0.0;
+vec3 g_aniso_t = vec3(1.0, 0.0, 0.0);
+vec3 g_aniso_b = vec3(0.0, 1.0, 0.0);
+
 /// Fills the globals above from the block and the coat map.
 ///
 /// Called before the normal map bends `s.n`, because the coat is lit on the
@@ -14336,6 +14485,11 @@ float g_coat_through = 1.0;
 /// makes car paint read as car paint.
 void ReadLayers(Surface s) {
   vec4 coatTexel = texture(coat_texture, v_texcoord, MaterialLodBias());
+  vec4 sheenTexel = texture(sheen_texture, v_texcoord, MaterialLodBias());
+  g_sheen = layer_info.sheen.rgb * SrgbToLinear(sheenTexel.rgb);
+  // Floored where the Charlie lobe's exponent would outgrow a half float,
+  // which is also where `tool/make_tables.dart` floors its albedo.
+  g_sheen_roughness = clamp(layer_info.sheen.w * sheenTexel.a, 0.07, 1.0);
   // `KHR_materials_ior` and `KHR_materials_specular`: the reflectance a
   // dielectric of this index has head-on, tinted and scaled, and the
   // strength alone at grazing. 1.5, white and one give 0.04 and 1 — plain
@@ -14355,6 +14509,37 @@ void ReadLayers(Surface s) {
   // what its Fresnel lets through.
   float fc = 0.04 + 0.96 * pow(1.0 - g_coat_n_dot_v, 5.0);
   g_coat_through = 1.0 - g_coat * fc;
+}
+
+/// The half of the layers that depends on the normal the maps leave: the
+/// sheen's albedo at this view, and the anisotropy's frame. Called after
+/// the maps, before any light.
+void ReadLayersOnMaps(Surface s) {
+  // `M2`: the sheen's directional albedo, from the LTC table's spare lane,
+  // and what it leaves of everything under the sheen.
+  g_sheen_albedo =
+      textureLod(ltc_texture,
+                 LtcUv(g_sheen_roughness,
+                       sqrt(clamp(1.0 - s.n_dot_v, 0.0, 1.0)), 1.0),
+                 0.0)
+          .z;
+  g_sheen_scale =
+      1.0 - max(max(g_sheen.r, g_sheen.g), g_sheen.b) * g_sheen_albedo;
+
+  // The tangent frame `ApplyNormalMap` builds, on the normal it left, turned
+  // by the rotation. A surface without a usable tangent stays isotropic.
+  vec3 t = v_tangent.xyz - s.n * dot(s.n, v_tangent.xyz);
+  bool usable = dot(t, t) > 1e-12;
+  t = usable ? normalize(t) : vec3(1.0, 0.0, 0.0);
+  vec3 b = cross(s.n, t) * v_tangent.w;
+  if (!gl_FrontFacing) t = -t;
+  vec2 turn = layer_info.anisotropy.yz;
+  vec3 along = t * turn.x + b * turn.y;
+  g_aniso = usable && dot(along, along) > 1e-12
+                ? clamp(layer_info.anisotropy.x, 0.0, 1.0)
+                : 0.0;
+  g_aniso_t = g_aniso > 0.0 ? normalize(along) : t;
+  g_aniso_b = cross(s.n, g_aniso_t);
 }
 #endif  // F3D_LAYERED
 
@@ -14420,6 +14605,37 @@ float CoatLobe(LightSample light) {
                     : n_dot_l / max(light.n_dot_l, 1e-6);
   return d * vis * f * frag_info.material.w * scale;
 }
+
+/// The Charlie sheen distribution, Estevez and Kulla's, with Filament's
+/// floor on `sin²θ` so the power stays inside a half float.
+float D_Charlie(float roughness, float n_dot_h) {
+  float inv_alpha = 1.0 / (roughness * roughness);
+  float sin2h = max(1.0 - n_dot_h * n_dot_h, 0.0078125);
+  return (2.0 + inv_alpha) * pow(sin2h, inv_alpha * 0.5) / (2.0 * kPi);
+}
+
+/// Neubelt and Pettineo's visibility for cloth.
+float V_Neubelt(float n_dot_v, float n_dot_l) {
+  return 1.0 / (4.0 * (n_dot_l + n_dot_v - n_dot_l * n_dot_v));
+}
+
+/// GGX stretched along [t] — `KHR_materials_anisotropy`, the form its
+/// specification gives: [at] the roughness along the tangent, [ab] across.
+float D_GGXAnisotropic(float n_dot_h, float t_dot_h, float b_dot_h, float at,
+                       float ab) {
+  float a2 = at * ab;
+  vec3 f = vec3(ab * t_dot_h, at * b_dot_h, a2 * n_dot_h);
+  float w2 = a2 / max(dot(f, f), 1e-12);
+  return a2 * w2 * w2 / kPi;
+}
+
+float V_GGXAnisotropic(float n_dot_l, float n_dot_v, float b_dot_v,
+                       float t_dot_v, float t_dot_l, float b_dot_l, float at,
+                       float ab) {
+  float ggx_v = n_dot_l * length(vec3(at * t_dot_v, ab * b_dot_v, n_dot_v));
+  float ggx_l = n_dot_v * length(vec3(at * t_dot_l, ab * b_dot_l, n_dot_l));
+  return clamp(0.5 / max(ggx_v + ggx_l, 1e-5), 0.0, 1.0);
+}
 #endif  // F3D_LAYERED
 
 float LightVisibility(Surface s, LightSample light, int index) {
@@ -14459,6 +14675,17 @@ vec3 ShadeLight(Surface s, LightSample light) {
   float d = D_GGX(light.n_dot_h, alpha);
   float vis = V_SmithGGXCorrelated(s.n_dot_v, light.n_dot_l, alpha);
 #ifdef F3D_LAYERED
+  if (g_aniso > 0.0) {
+    // `M2`: the lobe stretched along the tangent, as far as the strength
+    // says; across it, the roughness as it was.
+    float at = mix(alpha, 1.0, g_aniso * g_aniso);
+    float ab = max(alpha, 1e-3);
+    d = D_GGXAnisotropic(light.n_dot_h, dot(g_aniso_t, light.h),
+                         dot(g_aniso_b, light.h), at, ab);
+    vis = V_GGXAnisotropic(light.n_dot_l, s.n_dot_v, dot(g_aniso_b, s.v),
+                           dot(g_aniso_t, s.v), dot(g_aniso_t, light.l),
+                           dot(g_aniso_b, light.l), at, ab);
+  }
   vec3 f = F_SchlickF90(f0, f90, light.v_dot_h);
 #else
   vec3 f = F_Schlick(f0, light.v_dot_h);
@@ -14485,8 +14712,11 @@ vec3 ShadeLight(Surface s, LightSample light) {
   // The pi puts the result back on the scale the tone mapper and the exposure
   // default were calibrated against.
 #ifdef F3D_LAYERED
-  // Under the coat, what its Fresnel lets through; on top, its own lobe.
-  return ((diffuse + specular) * g_coat_through +
+  // Under the sheen, what its albedo leaves; under the coat, what its
+  // Fresnel lets through; on top, the coat's own lobe.
+  vec3 sheen = g_sheen * D_Charlie(g_sheen_roughness, light.n_dot_h) *
+               V_Neubelt(s.n_dot_v, light.n_dot_l);
+  return (((diffuse + specular) * g_sheen_scale + sheen) * g_coat_through +
           vec3(g_coat * CoatLobe(light))) *
          kPi;
 #else
@@ -14501,6 +14731,9 @@ void main() {
 #endif
   ApplyCommonMaps(s);
   ApplyMetallicRoughnessMap(s);
+#ifdef F3D_LAYERED
+  ReadLayersOnMaps(s);
+#endif
 
   float metallic = clamp(s.metallic, 0.0, 1.0);
   vec3 diffuseColor = s.albedo * (1.0 - metallic);
@@ -14513,8 +14746,10 @@ void main() {
   float levels = frag_info.frame_params.w;
 #ifdef F3D_LAYERED
   // What the coat reflects of the environment; nothing without one, since
-  // the flat ambient has no specular part for it to have.
+  // the flat ambient has no specular part for it to have. The sheen's
+  // incoming light, which without an environment is the flat ambient.
   vec3 coatAmbient = vec3(0.0);
+  vec3 sheenIncoming = s.ambient;
 #endif
   if (levels > 0.0) {
     // **This is the term that made metal black.** A metal has no diffuse
@@ -14524,10 +14759,21 @@ void main() {
 #ifdef F3D_LAYERED
     vec3 f0 = mix(g_f0_dielectric, s.albedo, metallic);
     float f90 = mix(g_f90, 1.0, metallic);
+    // `M2`: an anisotropic surface reflects along a normal bent towards the
+    // stretch, the specification's own approximation.
+    vec3 bent = s.n;
+    if (g_aniso > 0.0) {
+      vec3 across = cross(g_aniso_t, s.v);
+      vec3 anisoN = cross(across, g_aniso_t);
+      float bend = 1.0 - g_aniso * (1.0 - s.roughness);
+      float bend4 = bend * bend * bend * bend;
+      bent = normalize(mix(anisoN, s.n, bend4));
+    }
+    vec3 reflected = reflect(-s.v, bent);
 #else
     vec3 f0 = mix(vec3(0.04), s.albedo, metallic);
-#endif
     vec3 reflected = reflect(-s.v, s.n);
+#endif
 
     // The roughest level stands in for irradiance. Not a true Lambert
     // convolution — see `EnvironmentMap.diffuseLevel`, which says the same
@@ -14577,6 +14823,9 @@ void main() {
     vec2 coatAb = EnvBrdfApprox(g_coat_roughness, g_coat_n_dot_v);
     coatAmbient = coatPrefiltered * (0.04 * coatAb.x + coatAb.y) * g_coat *
                   frag_info.material.z * s.occlusion;
+    sheenIncoming =
+        textureLod(environment_texture, s.n, g_sheen_roughness * levels).rgb *
+        frag_info.material.z;
 #endif
   }
   // The light the level's walls throw on each other, baked: diffuse only,
@@ -14599,9 +14848,12 @@ void main() {
   // What shines from under the coat is dimmed by it on the way out, the
   // emission included — glTF's own layering. The direct light was scaled in
   // `ShadeLight`.
+  vec3 sheenAmbient = g_sheen * g_sheen_albedo * sheenIncoming * s.occlusion;
   WriteSurface(
       AccumulateLights(s) * s.occlusion +
-          (ambient + s.emissive) * g_coat_through + coatAmbient,
+          (ambient * g_sheen_scale + sheenAmbient + s.emissive) *
+              g_coat_through +
+          coatAmbient,
       s.alpha,
       s.roughness);
 #else

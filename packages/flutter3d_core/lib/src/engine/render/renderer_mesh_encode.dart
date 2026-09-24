@@ -613,6 +613,16 @@ extension _MeshEncode on Renderer {
         ..[0] = layers?.clearcoat ?? 0.0
         ..[1] = layers?.clearcoatRoughness ?? 0.0
         ..[2] = layers?.ior ?? 1.5;
+      _layerInfo.sheen
+        ..[0] = layers?.sheenColor.x ?? 0.0
+        ..[1] = layers?.sheenColor.y ?? 0.0
+        ..[2] = layers?.sheenColor.z ?? 0.0
+        ..[3] = layers?.sheenRoughness ?? 0.0;
+      final rotation = layers?.anisotropyRotation ?? 0.0;
+      _layerInfo.anisotropy
+        ..[0] = layers?.anisotropyStrength ?? 0.0
+        ..[1] = math.cos(rotation)
+        ..[2] = math.sin(rotation);
       encoder.bindBlock(fragmentShader, _layerInfo);
     }
 
@@ -770,6 +780,14 @@ extension _MeshEncode on Renderer {
         _kCoatTextureSlot,
         material.coatMap ?? fallbackAlbedo,
         sampler: _anisotropic(material.coatMapSampler, anisotropy),
+      );
+    }
+    if (_keepsSampler(fragmentShader, _kSheenTextureSlot, declared: layered)) {
+      encoder.bindTexture(
+        fragmentShader,
+        _kSheenTextureSlot,
+        material.sheenMap ?? fallbackAlbedo,
+        sampler: _anisotropic(material.sheenMapSampler, anisotropy),
       );
     }
 

@@ -21,10 +21,12 @@ import 'surface_material.dart';
 /// needs the layered model at all.
 ///
 /// The texture bindings are carried for the writers, and read by the renderer
-/// only as far as `packCoatMap` packs them: a coat map holds the clear coat and
-/// its roughness in one texture (the lit stages have no sampler to spare for
-/// each). The specular textures and the clear coat's own normal map are kept
-/// here so a round trip loses nothing, and not drawn — a loader says so.
+/// only as far as `uploadCoatMap` and `uploadSheenMap` pack them: a coat map
+/// holds the clear coat and its roughness, a sheen map the sheen's colour and
+/// roughness, one texture each (the lit stages have no sampler to spare for
+/// every one). The specular textures, the clear coat's own normal map and the
+/// anisotropy texture are kept here so a round trip loses nothing, and not
+/// drawn — a loader says so.
 final class MaterialExtensions {
   MaterialExtensions({
     this.ior = 1.5,
@@ -38,7 +40,15 @@ final class MaterialExtensions {
     this.clearcoatRoughnessTexture,
     this.clearcoatNormalTexture,
     this.clearcoatNormalScale = 1.0,
-  }) : specularColor = specularColor ?? Vector3(1.0, 1.0, 1.0);
+    Vector3? sheenColor,
+    this.sheenColorTexture,
+    this.sheenRoughness = 0.0,
+    this.sheenRoughnessTexture,
+    this.anisotropyStrength = 0.0,
+    this.anisotropyRotation = 0.0,
+    this.anisotropyTexture,
+  }) : specularColor = specularColor ?? Vector3(1.0, 1.0, 1.0),
+       sheenColor = sheenColor ?? Vector3.zero();
 
   /// `KHR_materials_ior`: the dielectric's index of refraction. 1.5 is the
   /// four per cent a plain metal-rough dielectric reflects head-on.
@@ -68,6 +78,28 @@ final class MaterialExtensions {
   final TextureBinding? clearcoatNormalTexture;
   final double clearcoatNormalScale;
 
+  /// `KHR_materials_sheen`'s colour, linear: the back-scattering of fibres
+  /// that makes velvet bright at its edges. Black is no sheen. Its texture is
+  /// sRGB, read from red, green and blue — `M2`.
+  final Vector3 sheenColor;
+  final TextureBinding? sheenColorTexture;
+
+  /// The sheen's own perceptual roughness. Its texture is read from alpha.
+  final double sheenRoughness;
+  final TextureBinding? sheenRoughnessTexture;
+
+  /// `KHR_materials_anisotropy`: how far the highlight stretches along the
+  /// surface's tangent, nought to one — brushed metal.
+  final double anisotropyStrength;
+
+  /// Which way it stretches, in radians from the tangent towards the
+  /// bitangent.
+  final double anisotropyRotation;
+
+  /// Direction in red and green, strength in blue. Carried, not drawn: the
+  /// direction is the rotation alone.
+  final TextureBinding? anisotropyTexture;
+
   /// Whether any of this changes how the surface is shaded.
   ///
   /// A texture alone does not: every map here multiplies its factor, so a
@@ -78,7 +110,11 @@ final class MaterialExtensions {
       specularColor.x != 1.0 ||
       specularColor.y != 1.0 ||
       specularColor.z != 1.0 ||
-      clearcoat != 0.0;
+      clearcoat != 0.0 ||
+      sheenColor.x != 0.0 ||
+      sheenColor.y != 0.0 ||
+      sheenColor.z != 0.0 ||
+      anisotropyStrength != 0.0;
 
   /// The textures a coat map packs, in its channel order: red the clear coat,
   /// green its roughness. Null where a channel keeps its neutral white.
@@ -86,6 +122,21 @@ final class MaterialExtensions {
     clearcoatTexture,
     clearcoatRoughnessTexture,
   ];
+
+  /// The textures a sheen map packs: the colour's red, green and blue, and
+  /// the roughness in alpha. Null where a lane keeps its neutral white.
+  List<({TextureBinding binding, int channel})?> get sheenMapSources =>
+      <({TextureBinding binding, int channel})?>[
+        for (var channel = 0; channel < 3; channel++)
+          if (sheenColorTexture case final binding?)
+            (binding: binding, channel: channel)
+          else
+            null,
+        if (sheenRoughnessTexture case final binding?)
+          (binding: binding, channel: 3)
+        else
+          null,
+      ];
 
   /// Every texture this carries, for a writer that has to know which images
   /// a material still refers to.
@@ -95,6 +146,9 @@ final class MaterialExtensions {
     ?clearcoatTexture,
     ?clearcoatRoughnessTexture,
     ?clearcoatNormalTexture,
+    ?sheenColorTexture,
+    ?sheenRoughnessTexture,
+    ?anisotropyTexture,
   ];
 
   /// The same layers with each texture binding passed through [map] — for a
@@ -116,6 +170,13 @@ final class MaterialExtensions {
       clearcoatRoughnessTexture: each(clearcoatRoughnessTexture),
       clearcoatNormalTexture: each(clearcoatNormalTexture),
       clearcoatNormalScale: clearcoatNormalScale,
+      sheenColor: sheenColor.clone(),
+      sheenColorTexture: each(sheenColorTexture),
+      sheenRoughness: sheenRoughness,
+      sheenRoughnessTexture: each(sheenRoughnessTexture),
+      anisotropyStrength: anisotropyStrength,
+      anisotropyRotation: anisotropyRotation,
+      anisotropyTexture: each(anisotropyTexture),
     );
   }
 
@@ -124,6 +185,8 @@ final class MaterialExtensions {
     'KHR_materials_ior',
     'KHR_materials_specular',
     'KHR_materials_clearcoat',
+    'KHR_materials_sheen',
+    'KHR_materials_anisotropy',
   };
 
   @override
@@ -156,7 +219,15 @@ MaterialExtensions? materialExtensionsFromJson(
   final ior = object('KHR_materials_ior');
   final specular = object('KHR_materials_specular');
   final clearcoat = object('KHR_materials_clearcoat');
-  if (ior == null && specular == null && clearcoat == null) return null;
+  final sheen = object('KHR_materials_sheen');
+  final anisotropy = object('KHR_materials_anisotropy');
+  if (ior == null &&
+      specular == null &&
+      clearcoat == null &&
+      sheen == null &&
+      anisotropy == null) {
+    return null;
+  }
 
   final read = MaterialExtensions(
     ior: _number(ior?['ior'], 1.5),
@@ -173,6 +244,16 @@ MaterialExtensions? materialExtensionsFromJson(
       {'scale': final num scale} => scale.toDouble(),
       _ => 1.0,
     },
+    sheenColor: switch (sheen?['sheenColorFactor']) {
+      final Object colour => _vec3(colour),
+      null => null,
+    },
+    sheenColorTexture: texture(sheen?['sheenColorTexture']),
+    sheenRoughness: _number(sheen?['sheenRoughnessFactor'], 0.0),
+    sheenRoughnessTexture: texture(sheen?['sheenRoughnessTexture']),
+    anisotropyStrength: _number(anisotropy?['anisotropyStrength'], 0.0),
+    anisotropyRotation: _number(anisotropy?['anisotropyRotation'], 0.0),
+    anisotropyTexture: texture(anisotropy?['anisotropyTexture']),
   );
   // The plan for 0.8: two packed maps and no more samplers, so these three
   // are carried and not drawn. Said once per material rather than silently.
@@ -180,6 +261,12 @@ MaterialExtensions? materialExtensionsFromJson(
     warnings?.add(
       '$where: KHR_materials_specular\'s textures are kept for export and '
       'not drawn; only its factors shade the surface.',
+    );
+  }
+  if (read.anisotropyTexture != null) {
+    warnings?.add(
+      '$where: KHR_materials_anisotropy\'s texture is kept for export and '
+      'not drawn; its strength and rotation shade the surface.',
     );
   }
   if (read.clearcoatNormalTexture != null) {
@@ -231,10 +318,25 @@ Map<String, Object?> materialExtensionsToJson(
           ? <String, Object?>{...coatNormal, 'scale': e.clearcoatNormalScale}
           : coatNormal,
   };
+  final sheenColor = e.sheenColor;
+  final sheen = <String, Object?>{
+    if (sheenColor.x != 0.0 || sheenColor.y != 0.0 || sheenColor.z != 0.0)
+      'sheenColorFactor': <double>[sheenColor.x, sheenColor.y, sheenColor.z],
+    'sheenColorTexture': ?slot(e.sheenColorTexture),
+    if (e.sheenRoughness != 0.0) 'sheenRoughnessFactor': e.sheenRoughness,
+    'sheenRoughnessTexture': ?slot(e.sheenRoughnessTexture),
+  };
+  final anisotropy = <String, Object?>{
+    if (e.anisotropyStrength != 0.0) 'anisotropyStrength': e.anisotropyStrength,
+    if (e.anisotropyRotation != 0.0) 'anisotropyRotation': e.anisotropyRotation,
+    'anisotropyTexture': ?slot(e.anisotropyTexture),
+  };
   return <String, Object?>{
     if (e.ior != 1.5) 'KHR_materials_ior': <String, Object?>{'ior': e.ior},
     if (specular.isNotEmpty) 'KHR_materials_specular': specular,
     if (clearcoat.isNotEmpty) 'KHR_materials_clearcoat': clearcoat,
+    if (sheen.isNotEmpty) 'KHR_materials_sheen': sheen,
+    if (anisotropy.isNotEmpty) 'KHR_materials_anisotropy': anisotropy,
   };
 }
 

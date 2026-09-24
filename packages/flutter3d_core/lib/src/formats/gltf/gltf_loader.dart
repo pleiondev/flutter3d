@@ -183,6 +183,9 @@ final class GltfLoader implements ModelDecoder {
       'KHR_materials_ior',
       'KHR_materials_specular',
       'KHR_materials_clearcoat',
+      // `M2`, the same way.
+      'KHR_materials_sheen',
+      'KHR_materials_anisotropy',
       // Supported as far as the KTX2 reader goes — both Basis Universal
       // encodings, ETC1S and UASTC LDR, and a file's own BC/ETC2/ASTC where the
       // device samples them. A texture the reader still refuses (UASTC HDR, a

@@ -15,6 +15,13 @@ import 'cpu_shader.dart';
   return (u: u, v: (v + half) * 0.5);
 }
 
+/// The sheen's directional albedo from the second table's z lane — `M2`,
+/// as `ReadLayersOnMaps` reads it.
+double sheenAlbedo(BoundTexture table, double roughness, double nDotV) {
+  final uv = _uv(roughness, math.sqrt((1.0 - nDotV).clamp(0.0, 1.0)), 1.0);
+  return table.sample(uv.u, uv.v).z;
+}
+
 /// `LtcEdge`.
 Vector3 _edge(Vector3 a, Vector3 b) {
   final axis = a.cross(b);

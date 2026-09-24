@@ -156,6 +156,48 @@ void main() {
       _expectCarPaint(reread.materials.single.extensions);
     });
 
+    test('reads and writes sheen and anisotropy', () async {
+      final asset = await GltfLoader().load(
+        _gltf(
+          <String, Object?>{
+            'KHR_materials_sheen': <String, Object?>{
+              'sheenColorFactor': <Object?>[0.2, 0.4, 1.0],
+              'sheenColorTexture': <String, Object?>{'index': 0},
+              'sheenRoughnessFactor': 0.5,
+            },
+            'KHR_materials_anisotropy': <String, Object?>{
+              'anisotropyStrength': 0.75,
+              'anisotropyRotation': 1.25,
+            },
+          },
+          required: <String>['KHR_materials_sheen', 'KHR_materials_anisotropy'],
+        ),
+      );
+      void check(MaterialExtensions? layers) {
+        expect(layers, isNotNull);
+        expect(layers!.sheenColor.y, closeTo(0.4, 1e-6));
+        expect(layers.sheenColorTexture?.imageIndex, 0);
+        expect(layers.sheenRoughness, 0.5);
+        expect(layers.anisotropyStrength, 0.75);
+        expect(layers.anisotropyRotation, 1.25);
+        expect(layers.shades, isTrue);
+        // The sheen map packs the colour's three channels and no roughness.
+        expect(layers.sheenMapSources.map((lane) => lane?.channel), <int?>[
+          0,
+          1,
+          2,
+          null,
+        ]);
+      }
+
+      // Mutation: drop the sheen from `materialExtensionsFromJson`. Null.
+      check(asset.materials.single.extensions);
+      final reread = await GltfLoader().load(GltfWriter(asset).writeGlb());
+      // Mutation: drop 'KHR_materials_anisotropy' from the writer's map. The
+      // strength reads back as nought.
+      check(reread.materials.single.extensions);
+    });
+
     test('the textures not drawn are named in the warnings', () async {
       final asset = await GltfLoader().load(
         _gltf(<String, Object?>{

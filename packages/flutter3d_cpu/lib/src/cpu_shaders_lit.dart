@@ -12,6 +12,7 @@ import 'cpu_shader.dart';
 import 'cpu_shaders_color.dart';
 import 'cpu_shaders_layout.dart';
 import 'cpu_shaders_lighting.dart';
+import 'cpu_shaders_ltc.dart';
 import 'cpu_shaders_surface.dart';
 
 /// `unlit.frag`: the albedo, written into the HDR target as light.
@@ -191,21 +192,30 @@ final class _Layers {
     required this.coatRoughness,
     required this.coatNormal,
     required this.coatNDotV,
+    required this.sheen,
+    required this.sheenRoughness,
   }) : coatThrough =
            1.0 -
            coat * (0.04 + 0.96 * math.pow(1.0 - coatNDotV, 5.0).toDouble());
 
   /// `ReadLayers`, from the `LayerInfo` block and the coat map, on [s] as it
   /// is before the normal map bends it.
-  factory _Layers.read(Surface s, Float32List v, ShaderBindings b,
-      FragmentContext c) {
+  factory _Layers.read(
+    Surface s,
+    Float32List v,
+    ShaderBindings b,
+    FragmentContext c,
+  ) {
     final specular = b.vec4('LayerInfo', 'specular', Vector4(1, 1, 1, 1));
     final coat = b.vec4('LayerInfo', 'coat', Vector4(0, 0, 1.5, 0));
-    final map = b.textures['coat_texture'];
     final uv = uvFootprint(c, bias: materialLodBias(b));
-    final texel = map == null
-        ? Vector4(1, 1, 1, 1)
-        : map.sample(v[kVUv], v[kVUv + 1], du: uv.du, dv: uv.dv);
+    Vector4 texel(String slot) => switch (b.textures[slot]) {
+      final map? => map.sample(v[kVUv], v[kVUv + 1], du: uv.du, dv: uv.dv),
+      null => Vector4(1, 1, 1, 1),
+    };
+    final coatTexel = texel('coat_texture');
+    final sheenTexel = texel('sheen_texture');
+    final sheen = b.vec4('LayerInfo', 'sheen', Vector4.zero());
     final ior = math.max(coat.z, 1.0);
     final r = (ior - 1.0) / (ior + 1.0);
     return _Layers(
@@ -215,11 +225,46 @@ final class _Layers {
         math.min(r * r * specular.z, 1.0) * specular.w,
       ),
       f90: specular.w,
-      coat: (coat.x * texel.x).clamp(0.0, 1.0),
-      coatRoughness: (coat.y * texel.y).clamp(0.02, 1.0),
+      coat: (coat.x * coatTexel.x).clamp(0.0, 1.0),
+      coatRoughness: (coat.y * coatTexel.y).clamp(0.02, 1.0),
       coatNormal: s.normal.clone(),
       coatNDotV: math.max(s.normal.dot(s.view), 1e-4),
+      sheen: Vector3(
+        sheen.x * toLinear(sheenTexel.x),
+        sheen.y * toLinear(sheenTexel.y),
+        sheen.z * toLinear(sheenTexel.z),
+      ),
+      sheenRoughness: (sheen.w * sheenTexel.w).clamp(0.07, 1.0),
     );
+  }
+
+  /// `ReadLayersOnMaps`: the sheen's albedo at this view and the anisotropy's
+  /// frame, on the normal the maps left — `M2`.
+  void readOnMaps(Surface s, ShaderBindings b, FragmentContext c) {
+    final table = b.textures['ltc_texture'];
+    sheenAlbedoAtView = table == null
+        ? 0.0
+        : sheenAlbedo(table, sheenRoughness, s.nDotV);
+    sheenScale =
+        1.0 - math.max(math.max(sheen.x, sheen.y), sheen.z) * sheenAlbedoAtView;
+
+    final t = Vector3(s.tangent.x, s.tangent.y, s.tangent.z)
+      ..sub(
+        s.normal * s.normal.dot(Vector3(s.tangent.x, s.tangent.y, s.tangent.z)),
+      );
+    final usable = t.length2 > 1e-12;
+    if (usable) {
+      t.normalize();
+    } else {
+      t.setValues(1.0, 0.0, 0.0);
+    }
+    final bitangent = s.normal.cross(t)..scale(s.tangent.w);
+    if (!c.frontFacing) t.negate();
+    final turn = b.vec4('LayerInfo', 'anisotropy', Vector4.zero());
+    final along = t * turn.y + bitangent * turn.z;
+    anisotropy = usable && along.length2 > 1e-12 ? turn.x.clamp(0.0, 1.0) : 0.0;
+    anisotropyT = anisotropy > 0.0 ? (along..normalize()) : t;
+    anisotropyB = s.normal.cross(anisotropyT);
   }
 
   final Vector3 f0Dielectric;
@@ -231,6 +276,17 @@ final class _Layers {
 
   /// What the coat's Fresnel lets through to the layer beneath.
   final double coatThrough;
+
+  /// The sheen's colour, linear, and its roughness — `M2`.
+  final Vector3 sheen;
+  final double sheenRoughness;
+
+  /// Filled by [readOnMaps].
+  double sheenAlbedoAtView = 0.0;
+  double sheenScale = 1.0;
+  double anisotropy = 0.0;
+  Vector3 anisotropyT = Vector3(1.0, 0.0, 0.0);
+  Vector3 anisotropyB = Vector3(0.0, 1.0, 0.0);
 }
 
 final class PbrShader implements CpuFragmentShader {
@@ -284,10 +340,55 @@ final class PbrShader implements CpuFragmentShader {
     final d = _dGgx(nDotH, alpha);
     final vis = _vSmith(layers.coatNDotV, nDotL, alpha);
     final f = 0.04 + 0.96 * math.pow(1.0 - light.vDotH, 5.0).toDouble();
-    final scale = light.ltc != null
-        ? 1.0
-        : nDotL / math.max(light.nDotL, 1e-6);
+    final scale = light.ltc != null ? 1.0 : nDotL / math.max(light.nDotL, 1e-6);
     return d * vis * f * specularStrength * scale;
+  }
+
+  /// `D_Charlie`.
+  static double _dCharlie(double roughness, double nDotH) {
+    final invAlpha = 1.0 / (roughness * roughness);
+    final sin2h = math.max(1.0 - nDotH * nDotH, 0.0078125);
+    return (2.0 + invAlpha) *
+        math.pow(sin2h, invAlpha * 0.5).toDouble() /
+        (2.0 * _pi);
+  }
+
+  /// `V_Neubelt`.
+  static double _vNeubelt(double nDotV, double nDotL) =>
+      1.0 / (4.0 * (nDotL + nDotV - nDotL * nDotV));
+
+  /// `D_GGXAnisotropic`.
+  static double _dGgxAnisotropic(
+    double nDotH,
+    double tDotH,
+    double bDotH,
+    double at,
+    double ab,
+  ) {
+    final a2 = at * ab;
+    final fx = ab * tDotH;
+    final fy = at * bDotH;
+    final fz = a2 * nDotH;
+    final w2 = a2 / math.max(fx * fx + fy * fy + fz * fz, 1e-12);
+    return a2 * w2 * w2 / _pi;
+  }
+
+  /// `V_GGXAnisotropic`.
+  static double _vGgxAnisotropic(
+    double nDotL,
+    double nDotV,
+    double bDotV,
+    double tDotV,
+    double tDotL,
+    double bDotL,
+    double at,
+    double ab,
+  ) {
+    double length(double x, double y, double z) =>
+        math.sqrt(x * x + y * y + z * z);
+    final ggxV = nDotL * length(at * tDotV, ab * bDotV, nDotV);
+    final ggxL = nDotV * length(at * tDotL, ab * bDotL, nDotL);
+    return (0.5 / math.max(ggxV + ggxL, 1e-5)).clamp(0.0, 1.0);
   }
 
   @override
@@ -297,6 +398,7 @@ final class PbrShader implements CpuFragmentShader {
     final layers = layered ? _Layers.read(s, v, b, c) : null;
     applyCommonMaps(s, v, b, c);
     applyMetallicRoughnessMap(s, v, b, c);
+    layers?.readOnMaps(s, b, c);
     final specularStrength = b.vec4('FragInfo', 'material', Vector4.zero()).w;
     // `EnergyCompensation()` — `L1`.
     final compensate =
@@ -331,8 +433,34 @@ final class PbrShader implements CpuFragmentShader {
             : layers.f90 + (1.0 - layers.f90) * s.metallic;
         final diffuseColour = s.albedo * (1.0 - s.metallic);
 
-        final d = _dGgx(light.nDotH, alpha);
-        final vis = _vSmith(s.nDotV, light.nDotL, alpha);
+        final (d, vis) = switch (layers) {
+          // `M2`: the lobe stretched along the tangent.
+          final layers? when layers.anisotropy > 0.0 => () {
+            final h = (light.direction + s.view)..normalize();
+            final at =
+                alpha + (1.0 - alpha) * layers.anisotropy * layers.anisotropy;
+            final ab = math.max(alpha, 1e-3);
+            final t = layers.anisotropyT;
+            final bt = layers.anisotropyB;
+            return (
+              _dGgxAnisotropic(light.nDotH, t.dot(h), bt.dot(h), at, ab),
+              _vGgxAnisotropic(
+                light.nDotL,
+                s.nDotV,
+                bt.dot(s.view),
+                t.dot(s.view),
+                t.dot(light.direction),
+                bt.dot(light.direction),
+                at,
+                ab,
+              ),
+            );
+          }(),
+          _ => (
+            _dGgx(light.nDotH, alpha),
+            _vSmith(s.nDotV, light.nDotL, alpha),
+          ),
+        };
         final f = _fSchlick(f0, light.vDotH, f90);
 
         final ltc = light.ltc;
@@ -357,10 +485,18 @@ final class PbrShader implements CpuFragmentShader {
         // exposure default were calibrated against.
         final base = diffuse + specular;
         if (layers == null) return base..scale(_pi);
-        // Under the coat, what its Fresnel lets through; on top, its lobe.
+        // Under the sheen, what its albedo leaves; under the coat, what its
+        // Fresnel lets through; on top, the coat's lobe.
+        final sheen =
+            layers.sheen *
+            (_dCharlie(layers.sheenRoughness, light.nDotH) *
+                _vNeubelt(s.nDotV, light.nDotL));
         final coat =
             layers.coat * _coatLobe(layers, s, light, specularStrength);
-        return (base..scale(layers.coatThrough))
+        return (base
+            ..scale(layers.sheenScale)
+            ..add(sheen)
+            ..scale(layers.coatThrough))
           ..add(Vector3.all(coat))
           ..scale(_pi);
       },
@@ -375,6 +511,7 @@ final class PbrShader implements CpuFragmentShader {
       s.occlusion,
     );
     var coatAmbient = Vector3.zero();
+    var sheenIncoming = s.ambient.clone();
 
     final levels = b.vec4('FragInfo', 'frame_params', Vector4.zero()).w;
     final environment = b.textures['environment_texture'];
@@ -386,9 +523,21 @@ final class PbrShader implements CpuFragmentShader {
       final f90 = layers == null
           ? 1.0
           : layers.f90 + (1.0 - layers.f90) * metallic;
+      // `M2`: an anisotropic surface reflects along a normal bent towards the
+      // stretch.
+      final bent = switch (layers) {
+        final layers? when layers.anisotropy > 0.0 => () {
+          final across = layers.anisotropyT.cross(s.view);
+          final anisoN = across.cross(layers.anisotropyT);
+          final bend = 1.0 - layers.anisotropy * (1.0 - s.roughness);
+          final bend4 = bend * bend * bend * bend;
+          return (anisoN + (s.normal - anisoN) * bend4)..normalize();
+        }(),
+        _ => s.normal,
+      };
       // reflect(-v, n) = 2(n·v)n - v, with v already the direction to the eye.
-      final nDotV = s.normal.dot(s.view);
-      final reflected = s.normal * (2.0 * nDotV) - s.view;
+      final nDotV = bent.dot(s.view);
+      final reflected = bent * (2.0 * nDotV) - s.view;
 
       final irradiance = environment.sampleCube(
         s.normal.x,
@@ -441,16 +590,22 @@ final class PbrShader implements CpuFragmentShader {
           layers.coatRoughness * levels,
         );
         final coatAb = _envBrdfApprox(layers.coatRoughness, layers.coatNDotV);
-        coatAmbient = Vector3(
-          coatPrefiltered.x,
-          coatPrefiltered.y,
-          coatPrefiltered.z,
-        )..scale(
-            (0.04 * coatAb.x + coatAb.y) *
-                layers.coat *
-                strength *
-                s.occlusion,
-          );
+        coatAmbient =
+            Vector3(coatPrefiltered.x, coatPrefiltered.y, coatPrefiltered.z)
+              ..scale(
+                (0.04 * coatAb.x + coatAb.y) *
+                    layers.coat *
+                    strength *
+                    s.occlusion,
+              );
+        final incoming = environment.sampleCube(
+          s.normal.x,
+          s.normal.y,
+          s.normal.z,
+          layers.sheenRoughness * levels,
+        );
+        sheenIncoming = Vector3(incoming.x, incoming.y, incoming.z)
+          ..scale(strength);
       }
     }
     // The baked bounce light, diffuse only, as `pbr.frag` adds it.
@@ -459,9 +614,18 @@ final class PbrShader implements CpuFragmentShader {
 
     // Under a coat, the ambient and the emission come out through it.
     final through = layers?.coatThrough ?? 1.0;
-    final total = layers == null
-        ? lit + ambient + s.emissive
-        : lit + (ambient + s.emissive).scaled(through) + coatAmbient;
+    final total = switch (layers) {
+      null => lit + ambient + s.emissive,
+      final layers =>
+        lit +
+            (ambient.scaled(layers.sheenScale) +
+                    (layers.sheen.clone()
+                      ..multiply(sheenIncoming)
+                      ..scale(layers.sheenAlbedoAtView * s.occlusion)) +
+                    s.emissive)
+                .scaled(through) +
+            coatAmbient,
+    };
     return writeLit(
       c,
       v,
