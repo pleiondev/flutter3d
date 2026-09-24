@@ -234,6 +234,75 @@ final ModelPictureTool renderSheetTool = ModelPictureTool(
   },
 );
 
+/// `audit`: [AssetAudit] in words and the asset from all seven views in one
+/// picture, with `repair` to put right what has one right answer.
+///
+/// **A picture tool because the findings are about what the asset looks
+/// like placed.** "The origin is 1.02 m from the base" is a number; the sheet
+/// is the same fact as a crate floating beside the grid, and the underside
+/// the other four-view sheet never shows is where a generated asset hides
+/// its holes. With `repair` the words carry the audit before, what was done
+/// and the audit after, and the picture is the repaired asset.
+final ModelPictureTool auditTool = ModelPictureTool(
+  Tool(
+    name: 'audit',
+    description:
+        'Check an asset that came from somewhere else before it goes into a '
+        'game: its overall size (outside 1 cm…100 m is a unit mistake), its '
+        'origin against the middle of its base, duplicate materials, what '
+        'rebuilding each imported mesh would have to drop or split, and '
+        'every `check` issue including the triangle and texture budgets — '
+        'with a 4×2 sheet of all seven views. repair: true rebuilds imported '
+        'meshes, moves the base onto the origin, bakes transforms, sets '
+        'origins and runs makeGameReady for profile, as one undo step; units '
+        'and duplicate materials are only reported.',
+    inputSchema: ObjectSchema(
+      properties: <String, Schema>{
+        'repair': BooleanSchema(
+          description: 'put right what has one right answer; default false',
+        ),
+        'profile': UntitledSingleSelectEnumSchema(
+          values: <String>['desktop', 'mobile', 'web'],
+          description:
+              'the texture budget repair fits images to, as makeGameReady '
+              'does; default "desktop"',
+        ),
+      },
+    ),
+  ),
+  (ModelSession session, Map<String, Object?> arguments) async {
+    if (session.history.project.objects.isEmpty) {
+      return (
+        did: false,
+        says: 'Nothing to audit: the project has no objects yet.',
+        png: null,
+      );
+    }
+    final String before = session.audit();
+    final Answer? repaired = arguments['repair'] == true
+        ? session.repairAsset(switch (arguments['profile']) {
+            final String profile => profile,
+            _ => 'desktop',
+          })
+        : null;
+    final png = await renderSheet(
+      project: session.history.project,
+      width: 1024,
+      height: 512,
+      views: RenderProjectView.values,
+      deviceFactory: _cpuDevice,
+    );
+    return (
+      did: repaired?.did ?? true,
+      says: repaired == null
+          ? before
+          : 'before:\n$before\n\nrepair: ${repaired.says}\n\n'
+                'after:\n${session.audit()}',
+      png: png,
+    );
+  },
+);
+
 /// `pro-rn-04`: a snapshot at a size and a supersample a person chooses,
 /// through `pro-rn-02`'s own tiled job.
 ///
