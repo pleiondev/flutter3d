@@ -718,6 +718,27 @@ final class SsaoInfoBlock extends UniformBlock {
   };
 }
 
+/// `TemporalInfo`.
+final class TemporalInfoBlock extends UniformBlock {
+  TemporalInfoBlock() : super('TemporalInfo');
+
+  /// `scene_texel`: Vector4, at byte 0.
+  final Float32List sceneTexel = Float32List(4);
+
+  /// `jitter`: Vector4, at byte 16.
+  final Float32List jitter = Float32List(4);
+
+  /// `params`: Vector4, at byte 32.
+  final Float32List params = Float32List(4);
+
+  @override
+  late final Map<String, Float32List> members = <String, Float32List>{
+    'scene_texel': sceneTexel,
+    'jitter': jitter,
+    'params': params,
+  };
+}
+
 /// `VelocityInfo`.
 final class VelocityInfoBlock extends UniformBlock {
   VelocityInfoBlock() : super('VelocityInfo');

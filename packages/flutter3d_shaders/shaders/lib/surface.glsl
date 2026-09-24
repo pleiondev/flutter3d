@@ -210,10 +210,16 @@ uniform FragInfo {
 
   /// x: the target's rows when its row zero is the bottom of the picture,
   /// zero when it is the top — see `FragCoordFromTop` in `frag_coord.glsl`,
-  /// which the shadow kernel's rotation reads through. yzw unused.
+  /// which the shadow kernel's rotation reads through. y: the mip bias every
+  /// material map is read with — `R2`: nought, except while a temporal
+  /// resolve reconstructs a picture larger than the scene is drawn at, when
+  /// the maps are read as sharp as the output they end up in. zw unused.
   vec4 target_origin;
 }
 frag_info;
+
+/// The bias a material map is read with — see `target_origin.y`.
+float MaterialLodBias() { return frag_info.target_origin.y; }
 
 uniform sampler2D base_color_texture;
 
@@ -246,7 +252,7 @@ struct LightSample {
 Surface ReadSurface() {
   Surface s;
 
-  vec4 texel = texture(base_color_texture, v_texcoord);
+  vec4 texel = texture(base_color_texture, v_texcoord, MaterialLodBias());
   // Vertex colour is authored linear per the glTF spec, unlike the base colour
   // texture and the tint, which are sRGB.
   s.albedo = SrgbToLinear(texel.rgb) *

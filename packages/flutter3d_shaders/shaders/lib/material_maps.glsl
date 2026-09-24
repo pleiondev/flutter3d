@@ -61,20 +61,20 @@ vec3 SampleLightmap() {
 /// glTF's ORM packing: roughness in g, metallic in b, both multiplying the
 /// material factors.
 void ApplyMetallicRoughnessMap(inout Surface s) {
-  vec3 orm = texture(metallic_roughness_texture, v_texcoord).rgb;
+  vec3 orm = texture(metallic_roughness_texture, v_texcoord, MaterialLodBias()).rgb;
   s.metallic = clamp(s.metallic * orm.b, 0.0, 1.0);
   s.roughness = clamp(s.roughness * orm.g, 0.02, 1.0);
 }
 
 void ApplyOcclusionMap(inout Surface s) {
-  float occlusion = texture(occlusion_texture, v_texcoord).r;
+  float occlusion = texture(occlusion_texture, v_texcoord, MaterialLodBias()).r;
   // glTF's occlusionStrength lerps between "ignore the map" and "apply it in
   // full", which is why it is a mix and not a multiply.
   s.occlusion = mix(1.0, occlusion, clamp(frag_info.material2.z, 0.0, 1.0));
 }
 
 void ApplyEmissiveMap(inout Surface s) {
-  vec3 emissive = SrgbToLinear(texture(emissive_texture, v_texcoord).rgb);
+  vec3 emissive = SrgbToLinear(texture(emissive_texture, v_texcoord, MaterialLodBias()).rgb);
   s.emissive = emissive * frag_info.emissive.rgb * frag_info.material2.w;
 }
 
@@ -91,7 +91,7 @@ void ApplyNormalMap(inout Surface s) {
   // the sample is the cure that is not. A degenerate tangent is rare enough
   // that paying for its unused texel is nothing, and the texel it reads is the
   // same one the branch would have read.
-  vec4 sampledTexel = texture(normal_texture, v_texcoord);
+  vec4 sampledTexel = texture(normal_texture, v_texcoord, MaterialLodBias());
 
   // The tangent is re-orthogonalized against the normal because interpolating
   // both across a triangle does not preserve the right angle between them.

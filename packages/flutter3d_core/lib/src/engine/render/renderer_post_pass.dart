@@ -196,12 +196,26 @@ extension _PostPasses on Renderer {
   }) {
     _fxaaParams[0] = 1.0 / math.max(source.width, 1);
     _fxaaParams[1] = 1.0 / math.max(source.height, 1);
-    _fxaaParams[2] = settings.contrastThreshold.clamp(0.0, 1.0);
+    // `R2`: with only the sharpening asked for, no pixel is contrasted
+    // enough to be smoothed, and every one takes the sharpen path.
+    _fxaaParams[2] = settings.enabled
+        ? settings.contrastThreshold.clamp(0.0, 1.0)
+        : 1e9;
     _fxaaParams[3] = settings.blend.clamp(0.0, 1.0);
     // `gfx-29n`. Zero exactly when nobody asked: the shader returns the
     // centre untouched at zero rather than running a kernel that rounds to
     // nothing, and forty-four goldens depend on that being the same bytes.
-    _fxaaSharpen[0] = settings.sharpen.clamp(0.0, 1.0);
+    //
+    // After a temporal resolve the robust kernel, at the resolve's own
+    // strength — `R2`: what softens a resolved picture is the history, and
+    // the kernel that follows one should not ring past what it averaged.
+    final temporal = settings.temporal;
+    final robust = temporal.enabled && temporal.sharpen > 0.0;
+    _fxaaSharpen[0] = (robust ? temporal.sharpen : settings.sharpen).clamp(
+      0.0,
+      1.0,
+    );
+    _fxaaSharpen[1] = robust ? 1.0 : 0.0;
     drawFullscreen(
       FullscreenDraw(
         target: target,

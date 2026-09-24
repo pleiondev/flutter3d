@@ -31,7 +31,9 @@ uniform FxaaInfo {
   /// to sample, in texels.
   vec4 params;
 
-  /// x: contrast-adaptive sharpening, 0 for none. y, z, w: unclaimed.
+  /// x: contrast-adaptive sharpening, 0 for none. y: one for the robust
+  /// kernel a temporal resolve is followed by (`R2`), nought for the one
+  /// below. z, w: unclaimed.
   ///
   /// **A second block member rather than a fifth component**, because
   /// `params` is full — and because sharpening is not an anti-aliasing
@@ -43,6 +45,27 @@ fxaa_info;
 
 /// The smallest of the three, which GLSL has no builtin for.
 float MinChannel(vec3 v) { return min(v.x, min(v.y, v.z)); }
+
+/// The largest of the three.
+float MaxChannel(vec3 v) { return max(v.x, max(v.y, v.z)); }
+
+/// Robust contrast-adaptive sharpening, after a temporal resolve — `R2`.
+///
+/// The cross-shaped kernel FSR 1 publishes: the negative lobe each neighbour
+/// gets is the largest that keeps every channel of the result inside the
+/// neighbourhood's own range, so it cannot ring past what was there. Limited
+/// to three sixteenths, where the kernel stops being a sharpen and starts
+/// being noise — which also keeps the denominator at a quarter or more, the
+/// hole the kernel below fell into at a quarter exactly.
+vec3 SharpenRobust(vec3 centre, vec3 n, vec3 s, vec3 w, vec3 e, float amount) {
+  vec3 lowest = min(min(n, s), min(w, e));
+  vec3 highest = max(max(n, s), max(w, e));
+  vec3 hitMin = lowest / max(4.0 * highest, vec3(1e-5));
+  vec3 hitMax = (vec3(1.0) - highest) / min(4.0 * lowest - 4.0, vec3(-1e-5));
+  vec3 lobeRgb = max(-hitMin, hitMax);
+  float lobe = max(-0.1875, min(MaxChannel(lobeRgb), 0.0)) * amount;
+  return (lobe * (n + s + w + e) + centre) / (4.0 * lobe + 1.0);
+}
 
 /// Contrast-adaptive sharpening over the cross this pass already sampled —
 /// `gfx-29n`.
@@ -73,6 +96,9 @@ float MinChannel(vec3 v) { return min(v.x, min(v.y, v.z)); }
 vec3 Sharpen(vec3 centre, vec3 n, vec3 s, vec3 w, vec3 e) {
   float strength = fxaa_info.sharpen.x;
   if (strength <= 0.0) return centre;
+  if (fxaa_info.sharpen.y > 0.5) {
+    return SharpenRobust(centre, n, s, w, e, strength);
+  }
 
   vec3 lowest = min(centre, min(min(n, s), min(w, e)));
   vec3 highest = max(centre, max(max(n, s), max(w, e)));

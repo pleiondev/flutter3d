@@ -66,6 +66,12 @@ abstract final class FrameResourceIds {
   /// two-channel float format in `TextureFormat` to be smaller with.
   static const ResourceId velocity = ResourceId('velocity');
 
+  /// The temporal resolve's history, at the output's size — `R2`. The
+  /// renderer's own texture, maintained across frames, so it is a `keeps`
+  /// rather than a write: what it holds is the running blend of every frame
+  /// since the last cut.
+  static const ResourceId temporalHistory = ResourceId('temporal_history');
+
   /// The scene's log luminance at a fixed small size, for the exposure meter
   /// to read back. Produced only while auto exposure is on.
   static const ResourceId luminance = ResourceId('luminance');

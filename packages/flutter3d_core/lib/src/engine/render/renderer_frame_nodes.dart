@@ -932,6 +932,61 @@ final class _ObjectVelocityNode extends RenderNode with _NeedsSurfaceBuffer {
   }
 }
 
+/// `R2`'s temporal resolve, as a link in the lit-colour chain.
+///
+/// Reads this frame's scene, its velocity and its surface buffer, and writes
+/// the next version of the lit colour — the resolved picture, at the output's
+/// size, which is also the history the next frame reads. So the history is
+/// provided under both names: as the lit colour for bloom and the composite,
+/// and as [FrameResourceIds.temporalHistory], which it keeps.
+final class _TemporalResolveNode extends RenderNode with _NeedsSurfaceBuffer {
+  _TemporalResolveNode(this._renderer, this._view, this._settings);
+
+  @override
+  Renderer get owner => _renderer;
+
+  final Renderer _renderer;
+  final RenderView _view;
+  final RenderSettings _settings;
+
+  @override
+  String get name => 'temporal resolve';
+
+  @override
+  bool get isActive => _settings.antiAlias.temporal.enabled;
+
+  @override
+  List<ResourceId> get reads => const <ResourceId>[
+    FrameResourceIds.hdrColour,
+    FrameResourceIds.velocity,
+    FrameResourceIds.surfaceBuffer,
+  ];
+
+  @override
+  List<ResourceId> get writes => const <ResourceId>[FrameResourceIds.hdrColour];
+
+  @override
+  List<ResourceId> get keeps => const <ResourceId>[
+    FrameResourceIds.temporalHistory,
+  ];
+
+  @override
+  void execute(NodeFrame frame) {
+    final resolved = _renderer._encodeTemporalResolve(
+      scene: frame.resources.texture(FrameResourceIds.hdrColour),
+      velocity: frame.resources.texture(FrameResourceIds.velocity),
+      surface: frame.resources.texture(FrameResourceIds.surfaceBuffer),
+      view: _view,
+      settings: _settings,
+      outputWidth: frame.width,
+      outputHeight: frame.height,
+    );
+    frame.resources
+      ..provide(FrameResourceIds.hdrColour, resolved)
+      ..provide(FrameResourceIds.temporalHistory, resolved);
+  }
+}
+
 /// `gfx-33n`'s volumetric shafts, as a link in the lit-colour chain.
 ///
 /// **Reads the shadow map optionally, which is the whole of how it declines.**
@@ -1327,7 +1382,12 @@ final class _CompositeNode extends RenderNode {
     // stay the renderer's: a pooled one would be handed back while the
     // compositor was still reading it. So the composite draws into scratch
     // and the pass after it draws into the frame.
-    final smoothing = _settings.antiAlias.enabled;
+    // The antialias node's own condition, sharpening after a resolve
+    // included — `R2`.
+    final temporal = _settings.antiAlias.temporal;
+    final smoothing =
+        _settings.antiAlias.enabled ||
+        (temporal.enabled && temporal.sharpen > 0.0);
     final target = smoothing
         ? frame.resources.transient(
             RenderTargetSpec(
@@ -1403,8 +1463,12 @@ final class _FxaaNode extends RenderNode {
   @override
   String get name => 'antialias';
 
+  /// On for the edges, or for the sharpening a temporal resolve asks for —
+  /// `R2` — which rides in this pass for the four taps it shares.
   @override
-  bool get isActive => _settings.enabled;
+  bool get isActive =>
+      _settings.enabled ||
+      (_settings.temporal.enabled && _settings.temporal.sharpen > 0.0);
 
   @override
   List<ResourceId> get reads => const <ResourceId>[FrameResourceIds.frame];

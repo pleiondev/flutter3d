@@ -173,6 +173,15 @@ stageBindings = <String, ({Set<String> blocks, Set<String> samplers})>{
     blocks: <String>{'SsaoBlurInfo'},
     samplers: <String>{'ao_texture', 'surface_texture'},
   ),
+  'TemporalResolve': (
+    blocks: <String>{'TemporalInfo'},
+    samplers: <String>{
+      'history_texture',
+      'scene_texture',
+      'surface_texture',
+      'velocity_texture',
+    },
+  ),
   'Toon': (
     blocks: <String>{'FogInfo', 'FragInfo', 'LightListInfo', 'PointShadow'},
     samplers: <String>{

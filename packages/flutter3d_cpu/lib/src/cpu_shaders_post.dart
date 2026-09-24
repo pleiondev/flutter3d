@@ -332,7 +332,9 @@ final class FxaaShader implements CpuFragmentShader {
     final south = _weight(southRgb);
     final west = _weight(westRgb);
     final east = _weight(eastRgb);
-    final sharpen = bindings.vec4('FxaaInfo', 'sharpen', Vector4.zero()).x;
+    final sharpening = bindings.vec4('FxaaInfo', 'sharpen', Vector4.zero());
+    final sharpen = sharpening.x;
+    final robust = sharpening.y > 0.5;
 
     final lowest = math.min(
       mid,
@@ -344,7 +346,15 @@ final class FxaaShader implements CpuFragmentShader {
     );
     final contrast = highest - lowest;
     if (contrast < math.max(0.0312, highest * params.z)) {
-      return _sharpen(middle, northRgb, southRgb, westRgb, eastRgb, sharpen);
+      return _sharpen(
+        middle,
+        northRgb,
+        southRgb,
+        westRgb,
+        eastRgb,
+        sharpen,
+        robust: robust,
+      );
     }
 
     final vertical = (north + south - 2.0 * mid).abs();
@@ -366,8 +376,40 @@ final class FxaaShader implements CpuFragmentShader {
     final out = horizontalEdge
         ? source.sample(v[0], v[1] + stepLength * blend)
         : source.sample(v[0] + stepLength * blend, v[1]);
-    return _sharpen(out, northRgb, southRgb, westRgb, eastRgb, sharpen);
+    return _sharpen(
+      out,
+      northRgb,
+      southRgb,
+      westRgb,
+      eastRgb,
+      sharpen,
+      robust: robust,
+    );
   }
+}
+
+/// `SharpenRobust` from `fxaa.frag` — `R2`: the lobe that keeps every
+/// channel inside the neighbourhood's range, limited to three sixteenths.
+Vector4 _sharpenRobust(
+  Vector4 centre,
+  Vector4 n,
+  Vector4 s,
+  Vector4 w,
+  Vector4 e,
+  double amount,
+) {
+  var lobe = -1e30;
+  for (var c = 0; c < 3; c++) {
+    final lowest = math.min(math.min(n[c], s[c]), math.min(w[c], e[c]));
+    final highest = math.max(math.max(n[c], s[c]), math.max(w[c], e[c]));
+    final hitMin = lowest / math.max(4.0 * highest, 1e-5);
+    final hitMax = (1.0 - highest) / math.min(4.0 * lowest - 4.0, -1e-5);
+    lobe = math.max(lobe, math.max(-hitMin, hitMax));
+  }
+  lobe = math.max(-0.1875, math.min(lobe, 0.0)) * amount;
+  double mix(int c) =>
+      (lobe * (n[c] + s[c] + w[c] + e[c]) + centre[c]) / (4.0 * lobe + 1.0);
+  return Vector4(mix(0), mix(1), mix(2), 1.0);
 }
 
 /// `Sharpen` from `fxaa.frag`, operation for operation — `gfx-29n`.
@@ -382,9 +424,11 @@ Vector4 _sharpen(
   Vector4 s,
   Vector4 w,
   Vector4 e,
-  double strength,
-) {
+  double strength, {
+  bool robust = false,
+}) {
   if (strength <= 0.0) return Vector4(centre.x, centre.y, centre.z, 1.0);
+  if (robust) return _sharpenRobust(centre, n, s, w, e, strength);
 
   double lowestOf(double a, double b, double cc, double d, double f) =>
       math.min(a, math.min(math.min(b, cc), math.min(d, f)));

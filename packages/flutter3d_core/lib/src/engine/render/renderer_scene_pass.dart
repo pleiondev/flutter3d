@@ -125,6 +125,16 @@ extension _ScenePasses on Renderer {
     );
 
     _targetOrigin[0] = _rowsFromBottom(hdr);
+    // `R2`: while a resolve reconstructs the picture, the material maps are
+    // read at the sharpness of the output rather than of the scene — the
+    // scale's octaves, and half a level more, because the history averages
+    // sixteen jittered reads and would soften a map read at its own level.
+    // Nought otherwise, which is exactly what every map was read with before.
+    final temporal =
+        settings.antiAlias.temporal.enabled && device.maxColorAttachments > 1;
+    _targetOrigin[1] = temporal
+        ? math.log(settings.renderScale.clamp(0.1, 1.0)) / math.ln2 - 0.5
+        : 0.0;
     final cameraPosition = vm.Vector3.zero();
 
     for (final view in ordered) {
