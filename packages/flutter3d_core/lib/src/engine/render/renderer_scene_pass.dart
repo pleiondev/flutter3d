@@ -80,7 +80,14 @@ extension _ScenePasses on Renderer {
     // A golden caught this before any reflection did: surface-buffer sat just
     // outside its tolerance, every differing pixel on an edge, and which
     // pixels differed changed between runs.
-    final msaa = surfaceIsRead ? null : _hdrMsaa;
+    //
+    // Nor under weighted blended transparency — `R8`: its layers are drawn
+    // after this pass against the depth it stores, into one-sample targets
+    // the resolve reads, so the depth is one-sample too.
+    final orderIndependent =
+        settings.transparency == TransparencyMode.weightedBlended;
+    final msaa = surfaceIsRead || orderIndependent ? null : _hdrMsaa;
+    final deferred = <_DeferredTransparency>[];
     // The clear colour is authored the way a colour picker shows it, but the
     // scene target holds linear light and the composite pass encodes on the way
     // out. Clearing with the sRGB value directly would send it through the
@@ -124,11 +131,17 @@ extension _ScenePasses on Renderer {
             ColorTarget(texture: _albedoColor!, clearValue: vm.Vector4.zero()),
         ],
         // Standard depth: clear to the far plane, nearer fragments win.
-        depth: DepthTarget(
-          texture: msaa == null
-              ? (_depthStencilSingle ?? _depthStencil!)
-              : _depthStencil!,
-        ),
+        // Stored for the transparent layers when they are drawn apart.
+        depth: orderIndependent
+            ? DepthTarget(
+                texture: _weightedBlendedTargets().depth,
+                storeAction: StoreAction.store,
+              )
+            : DepthTarget(
+                texture: msaa == null
+                    ? (_depthStencilSingle ?? _depthStencil!)
+                    : _depthStencil!,
+              ),
       ),
     );
 
@@ -284,7 +297,25 @@ extension _ScenePasses on Renderer {
         viewProjection: viewProjection,
         state: passState,
       );
-      encodeHalf(_renderList.transparent);
+      if (orderIndependent) {
+        // Kept rather than drawn, with what the passes after this one need
+        // to draw them as this view would have — `R8`.
+        deferred.add((
+          view: view,
+          rect: viewRect,
+          viewProjection: viewProjection.clone(),
+          wireframe: wireframe,
+          clustered: _clustersActive,
+          eye: cameraPosition.clone(),
+          forward: _forward.clone(),
+          transparent: <MeshNode>[
+            for (final index in _renderList.transparent)
+              _renderList.itemAt(index).requireNode,
+          ],
+        ));
+      } else {
+        encodeHalf(_renderList.transparent);
+      }
       // After everything that writes depth and everything that blends over
       // it, because a silhouette is drawn where the depth test *fails*: the
       // walls have to be in the buffer for a monster to be behind one. Before
@@ -302,7 +333,9 @@ extension _ScenePasses on Renderer {
       );
       developer.Timeline.finishSync();
 
-      for (final plugin in contributors) {
+      // After the resolve instead, when there is one — `R8`.
+      for (final plugin
+          in orderIndependent ? const <PassContributor>[] : contributors) {
         plugin.encode(
           ContributorFrame(
             encoder: pass,
@@ -350,6 +383,20 @@ extension _ScenePasses on Renderer {
     stopwatch.stop();
     developer.Timeline.finishSync();
 
+    if (orderIndependent) {
+      _encodeWeightedBlended(
+        scene: scene,
+        views: deferred,
+        settings: settings,
+        width: width,
+        height: height,
+        shadows: shadows,
+        probes: probes,
+        passState: passState,
+        contributors: contributors,
+      );
+    }
+
     return _ScenePass(
       culled: culled,
       debugLines: debugLines,
@@ -372,7 +419,10 @@ extension _ScenePasses on Renderer {
                       ? 'a pass in this frame reads the surface buffer, and '
                             'attachments in one target must agree on sample '
                             'count'
-                      : null)),
+                      : (orderIndependent
+                            ? 'weighted blended transparency draws its '
+                                  'layers against a one-sample depth'
+                            : null))),
     );
   }
 }

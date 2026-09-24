@@ -72,6 +72,7 @@ part 'renderer_scene_pass.dart';
 part 'renderer_shadow_pass.dart';
 part 'renderer_sky_pass.dart';
 part 'renderer_temporal_pass.dart';
+part 'renderer_transparency_pass.dart';
 part 'renderer_velocity_pass.dart';
 part 'renderer_xray_pass.dart';
 
@@ -160,6 +161,7 @@ final class Renderer implements RenderServices {
     required this.velocityNeighborMaxShader,
     required this.motionBlurShader,
     required this.viewportShadeShader,
+    required this.wboitResolveShader,
     required TextureHandle fallbackAlbedo,
     required TextureHandle fallbackNormal,
     required TextureHandle fallbackBlack,
@@ -343,6 +345,10 @@ final class Renderer implements RenderServices {
   /// `gfx-43n`/`44n`/`45n`'s three branches over the surface buffer.
   final ShaderHandle viewportShadeShader;
 
+  /// `R8`'s resolve: the transparent layers' weighted average, laid over the
+  /// scene.
+  final ShaderHandle wboitResolveShader;
+
   /// 1x1 opaque white, bound when a material has no base-colour texture.
   ///
   /// A shader that declares a sampler must have something bound to it, so
@@ -481,6 +487,9 @@ final class Renderer implements RenderServices {
       _reflectionColor,
       _depthStencil,
       _depthStencilSingle,
+      _wboitAccumulation,
+      _wboitRevealage,
+      _wboitDepth,
       ..._ldrFrames,
       ..._history,
       for (final effect in _effectHistories.values) ...effect.textures,
@@ -504,6 +513,9 @@ final class Renderer implements RenderServices {
     _reflectionColor = null;
     _depthStencil = null;
     _depthStencilSingle = null;
+    _wboitAccumulation = null;
+    _wboitRevealage = null;
+    _wboitDepth = null;
     _ldrFrames.clear();
     _ldrFree.clear();
     _ldrCurrent = null;
@@ -826,6 +838,7 @@ final class Renderer implements RenderServices {
     _skinnedMaskedCubeShadowPipeline = null;
     _instancedMaskedCubeShadowPipeline = null;
     _bloomUpsamplePipeline = null;
+    _wboitResolvePipeline = null;
     _compositePipeline = null;
     _probePrefilterPipeline = null;
     _skyPipeline = null;
@@ -983,6 +996,17 @@ final class Renderer implements RenderServices {
   /// sample count, so a four-sample depth cannot sit beside a resolved colour.
   TextureHandle? _depthStencilSingle;
 
+  /// Weighted blended transparency's targets — `R8`: the accumulation, the
+  /// revealage, and a one-sample depth the scene pass stores for the
+  /// transparent passes to load. Made the first time a frame asks, released
+  /// with the others on a resize; see `renderer_transparency_pass.dart`.
+  ///
+  /// Their own depth rather than [_depthStencilSingle], which is
+  /// `deviceTransient` — memoryless on Apple GPUs, with nothing to load.
+  TextureHandle? _wboitAccumulation;
+  TextureHandle? _wboitRevealage;
+  TextureHandle? _wboitDepth;
+
   // `hdrFormat` is declared in `renderer_resources.dart`, alongside the
   // caches that key off it.
 
@@ -1035,6 +1059,7 @@ final class Renderer implements RenderServices {
   Float32List get _shadowMask => _maskInfo.mask;
   PipelineHandle? _instancedShadowPipeline;
   PipelineHandle? _bloomUpsamplePipeline;
+  PipelineHandle? _wboitResolvePipeline;
   PipelineHandle? _compositePipeline;
 
   /// Positions and UVs of the one triangle every full-screen pass draws.
@@ -1467,6 +1492,7 @@ final class Renderer implements RenderServices {
         velocityNeighborMaxShader: require('VelocityNeighborMax'),
         motionBlurShader: require('MotionBlur'),
         viewportShadeShader: require('ViewportShade'),
+        wboitResolveShader: require('WboitResolve'),
         fallbackAlbedo:
             fallbackAlbedo ?? SolidColorTexture.white.upload(device),
         fallbackNormal:
@@ -1529,6 +1555,14 @@ final class Renderer implements RenderServices {
     _destroyAfterFrame(_reflectionColor);
     _destroyAfterFrame(_depthStencil);
     _destroyAfterFrame(_depthStencilSingle);
+    // `R8`'s, which are made on demand rather than here: dropped, and the
+    // next frame that asks makes them at the new size.
+    _destroyAfterFrame(_wboitAccumulation);
+    _destroyAfterFrame(_wboitRevealage);
+    _destroyAfterFrame(_wboitDepth);
+    _wboitAccumulation = null;
+    _wboitRevealage = null;
+    _wboitDepth = null;
     // The composited frames are the one set with an owner outside this class:
     // `Texture.asImage` hands one to the widget tree, and the compositor may
     // still be holding the last of them. The ring is what covers that, and it

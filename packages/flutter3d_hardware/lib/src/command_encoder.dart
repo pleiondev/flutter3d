@@ -174,22 +174,24 @@ abstract interface class PassEncoder {
   ///
   /// [attachment] is an index into `RenderPassDescriptor.colors`.
   ///
-  /// **One backend of the three honours the index, and that is a term of this
-  /// contract rather than a bug in the other two.** Impeller passes it to
-  /// flutter_gpu's `colorAttachmentIndex`; WebGL2 would need
-  /// `EXT_draw_buffers_indexed`, which is optional there, and the software
-  /// rasteriser keeps one blend state for the pass. Both of those set
-  /// attachment zero whatever index is named — so a caller that sets one state
-  /// on attachment zero and a different one on attachment one gets its second
-  /// call applied to the first attachment on two backends out of three, with no
-  /// error and a plausible picture.
+  /// **Honoured only where `GraphicsDevice.supportsIndependentBlend` is
+  /// true**, and that is a term of this contract rather than a bug in the
+  /// backends that answer false. Impeller passes the index to flutter_gpu's
+  /// `colorAttachmentIndex`, WebGPU keeps an equation per target in the
+  /// pipeline, the software rasteriser keeps one for each of its first two
+  /// attachments, and WebGL2 needs `OES_draw_buffers_indexed`, which is
+  /// optional there. A backend without it sets attachment zero whatever index
+  /// is named — so a caller that sets one state on attachment zero and a
+  /// different one on attachment one gets its second call applied to the
+  /// first, with no error and a plausible picture. Ask before relying on it.
   ///
-  /// Which is why the engine has exactly one caller that passes an index — the
-  /// MRT probe, switching blending *off* on attachment one when it is already
-  /// off on attachment zero, so the substitution is a no-op. Anything wanting
-  /// two attachments to blend *differently* needs the extension and a
-  /// capability query beside it, and neither exists; write the state you want
-  /// on attachment zero and treat the index as a hint until they do.
+  /// **What a call for attachment zero does to the others differs, as it
+  /// always has**: WebGL2's plain blend functions set every draw buffer at
+  /// once, and the other three set attachment zero alone. A caller that wants
+  /// two attachments blended differently sets attachment zero first and every
+  /// other one after it, which is the same pass on all four. Weighted blended
+  /// transparency (`R8`) is that caller; the MRT probe is the other, switching
+  /// attachment one off where attachment zero already is.
   void setBlend(BlendState? state, {int attachment = 0});
 
   /// The constant the four constant-reading [BlendFactor]s multiply by.

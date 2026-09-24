@@ -143,6 +143,8 @@ Future<void> checkLinking(GraphicsDevice device) async {
       'IrradianceConvolve',
       // `S2`: the directional atlas turned into blurred moments.
       'EvsmFilter',
+      // `R8`: the transparent layers, averaged back over the scene.
+      'WboitResolve',
     ])
       ('FullscreenVertex', post),
     ('DebugLineVertex', 'DebugLine'),

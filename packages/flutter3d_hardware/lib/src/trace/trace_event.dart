@@ -41,6 +41,8 @@ typedef TraceColorTarget = ({
 typedef TraceDepthTarget = ({
   int texture,
   double clearValue,
+  LoadAction loadAction,
+  StoreAction storeAction,
   LoadAction stencilLoadAction,
   StoreAction stencilStoreAction,
   int stencilClearValue,
@@ -135,6 +137,14 @@ sealed class TraceEvent {
         final Object d => (
           texture: asInt(asMap(d)['texture']),
           clearValue: asDouble(asMap(d)['clearValue']),
+          // Absent from a trace written before `R8` let a pass load depth,
+          // and absent means what every pass did then.
+          loadAction: asMap(d)['loadAction'] == null
+              ? LoadAction.clear
+              : byName(LoadAction.values, asMap(d)['loadAction']),
+          storeAction: asMap(d)['storeAction'] == null
+              ? StoreAction.dontCare
+              : byName(StoreAction.values, asMap(d)['storeAction']),
           stencilLoadAction: byName(
             LoadAction.values,
             asMap(d)['stencilLoadAction'],
@@ -569,6 +579,8 @@ final class TraceBeginRenderPass extends TraceEvent {
       final d => <String, Object?>{
         'texture': d.texture,
         'clearValue': d.clearValue,
+        'loadAction': d.loadAction.name,
+        'storeAction': d.storeAction.name,
         'stencilLoadAction': d.stencilLoadAction.name,
         'stencilStoreAction': d.stencilStoreAction.name,
         'stencilClearValue': d.stencilClearValue,

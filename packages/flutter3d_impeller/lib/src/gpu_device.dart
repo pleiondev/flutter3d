@@ -82,7 +82,9 @@ final class GpuRenderBackend implements GraphicsDevice {
   bool get supportsFloat32Filtering => false;
 
   @override
-  bool get supportsIndependentBlend => false;
+  // `R8`: flutter_gpu takes a `colorAttachmentIndex` on both blend setters,
+  // and `GpuCommandEncoder.setBlend` has always passed the index through.
+  bool get supportsIndependentBlend => true;
 
   @override
   List<TextureFormat> get hdrOutputFormats => const <TextureFormat>[];
@@ -918,11 +920,13 @@ final class GpuRenderBackend implements GraphicsDevice {
         ],
         depthStencilAttachment: switch (descriptor.depth) {
           null => null,
-          // Depth cleared on entry and discarded on exit, because that is the
-          // only thing any pass in this engine has ever wanted; the stencil
-          // half is the descriptor's to say. See [DepthTarget].
+          // The descriptor's to say, both halves. Its depth defaults — clear on
+          // entry, discard on exit — are flutter_gpu's own, so a pass that
+          // names neither is the pass it always was. See [DepthTarget].
           final DepthTarget depth => gpu.DepthStencilAttachment(
             texture: depth.texture.gpuTexture,
+            depthLoadAction: depth.loadAction.toGpu(),
+            depthStoreAction: depth.storeAction.toGpu(),
             depthClearValue: depth.clearValue,
             stencilLoadAction: depth.stencilLoadAction.toGpu(),
             stencilStoreAction: depth.stencilStoreAction.toGpu(),

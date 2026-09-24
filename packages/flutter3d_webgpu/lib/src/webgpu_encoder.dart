@@ -67,16 +67,16 @@ final class WebGpuEncoder implements CommandEncoder {
     RenderPassDescriptor descriptor, {
     GPURenderPassTimestampWrites? timestampWrites,
   }) : _colorFormats = <String>[
-        for (final target in descriptor.colors)
-          gpuTextureFormat(target.texture.format)!,
-      ],
-      _blends = <BlendState?>[for (final _ in descriptor.colors) null],
-      _depthFormat = descriptor.depth == null
-          ? null
-          : gpuTextureFormat(descriptor.depth!.texture.format),
-      _sampleCount = descriptor.colors.isNotEmpty
-          ? descriptor.colors.first.texture.sampleCount
-          : (descriptor.depth?.texture.sampleCount ?? 1) {
+         for (final target in descriptor.colors)
+           gpuTextureFormat(target.texture.format)!,
+       ],
+       _blends = <BlendState?>[for (final _ in descriptor.colors) null],
+       _depthFormat = descriptor.depth == null
+           ? null
+           : gpuTextureFormat(descriptor.depth!.texture.format),
+       _sampleCount = descriptor.colors.isNotEmpty
+           ? descriptor.colors.first.texture.sampleCount
+           : (descriptor.depth?.texture.sampleCount ?? 1) {
     final colors = <GPURenderPassColorAttachment>[
       for (final target in descriptor.colors) _colorAttachment(target),
     ];
@@ -143,26 +143,27 @@ final class WebGpuEncoder implements CommandEncoder {
   /// than a no-op, which is why the interop layer has two constructors and this
   /// asks `TextureFormatStencil.hasStencil` rather than always filling both.
   ///
-  /// The depth aspect is cleared on entry and stored on exit. The contract says
-  /// every pass in this engine clears and discards, and discarding is what a
-  /// tiler saves bandwidth by; there is no tile memory here to save, and a
-  /// stored depth buffer is one a debugger can look at.
+  /// The depth aspect is loaded or cleared as the descriptor says, and always
+  /// stored. Discarding is what a tiler saves bandwidth by; there is no tile
+  /// memory here to save, and a stored depth buffer is one a debugger can look
+  /// at — and one a later pass may load, which `R8`'s transparent passes do.
   static GPURenderPassDepthStencilAttachment _depthAttachment(
     DepthTarget target,
   ) {
     final view = (target.texture.backend as WebGpuTexture).attachmentView();
+    final depthLoadOp = gpuLoadOp(target.loadAction);
     if (!target.texture.format.hasStencil) {
       return GPURenderPassDepthStencilAttachment.depthOnly(
         view: view,
         depthClearValue: target.clearValue,
-        depthLoadOp: 'clear',
+        depthLoadOp: depthLoadOp,
         depthStoreOp: 'store',
       );
     }
     return GPURenderPassDepthStencilAttachment(
       view: view,
       depthClearValue: target.clearValue,
-      depthLoadOp: 'clear',
+      depthLoadOp: depthLoadOp,
       depthStoreOp: 'store',
       stencilClearValue: StencilState.narrowReference(target.stencilClearValue),
       stencilLoadOp: gpuLoadOp(target.stencilLoadAction),
