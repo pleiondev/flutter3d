@@ -57,6 +57,15 @@ import 'webgpu_types.dart';
 @JS('document')
 external _Document get _document;
 
+/// `window.matchMedia`, for whether the display reports a high dynamic range
+/// — `R9`.
+@JS('matchMedia')
+external _MediaQueryList _matchMedia(String query);
+
+extension type _MediaQueryList._(JSObject _) implements JSObject {
+  external bool get matches;
+}
+
 extension type _Document._(JSObject _) implements JSObject {
   external JSObject createElement(String tag);
 }
@@ -225,8 +234,26 @@ final class WebGpuDevice implements GraphicsDevice, WgslModuleCompiler {
   @override
   bool get supportsIndependentBlend => false;
 
+  /// `rgba16float` on a display the browser says has a high dynamic range —
+  /// `R9` — asked once, when the device is made. A frame in it is presented
+  /// through a canvas configured for extended tone mapping; see
+  /// [copyToCanvas].
   @override
-  List<TextureFormat> get hdrOutputFormats => const <TextureFormat>[];
+  List<TextureFormat> get hdrOutputFormats => _hdrDisplay
+      ? const <TextureFormat>[TextureFormat.r16g16b16a16Float]
+      : const <TextureFormat>[];
+
+  late final bool _hdrDisplay = () {
+    try {
+      return _matchMedia('(dynamic-range: high)').matches;
+    } on Object {
+      return false;
+    }
+  }();
+
+  /// The format the canvas is configured for now: the frame's, since
+  /// presenting is a copy and a copy needs the two to match.
+  TextureFormat _canvasFormat = TextureFormat.r8g8b8a8UNormInt;
 
   WebGpuDevice._(this.gpuDevice, this._canvas, this._context, this._stages)
     : _slot = _CanvasSlot(_canvas),
@@ -1137,6 +1164,24 @@ final class WebGpuDevice implements GraphicsDevice, WgslModuleCompiler {
       _canvas
         ..width = frame.width
         ..height = frame.height;
+    }
+    // `R9`: an extended-range frame needs a canvas of its format, composited
+    // with extended tone mapping; a standard one goes back to the canvas it
+    // had. Reconfigured only when the format changes.
+    if (frame.format != _canvasFormat) {
+      final extended = frame.format != TextureFormat.r8g8b8a8UNormInt;
+      _context.configure(
+        GPUCanvasConfiguration(
+          device: gpuDevice,
+          format: gpuTextureFormat(frame.format)!,
+          usage: GpuTextureUsage.copyDst,
+          alphaMode: 'opaque',
+          toneMapping: GPUCanvasToneMapping(
+            mode: extended ? 'extended' : 'standard',
+          ),
+        ),
+      );
+      _canvasFormat = frame.format;
     }
     final target = _context.getCurrentTexture();
     final source = frame.backend as WebGpuTexture;
