@@ -607,3 +607,129 @@ final class MrtProbeShader implements CpuFragmentShader {
     return Vector4(0.25, 0.5, 0.75, 1.0);
   }
 }
+
+/// `easu.frag`: the edge-adaptive upscale — `R5`. Mirrors the GLSL tap for
+/// tap: twelve taps, the edge's direction and length from the four nearest,
+/// an approximated Lanczos-2 stretched along the edge, and the result held
+/// between the four nearest.
+final class EasuShader implements CpuFragmentShader {
+  const EasuShader();
+
+  @override
+  Vector4? run(Float32List v, ShaderBindings b, FragmentContext c) {
+    final map = b.textures['source_texture'];
+    if (map == null) return Vector4(0.0, 0.0, 0.0, 1.0);
+    final source = b.vec4('EasuInfo', 'source', Vector4.zero());
+    final params = b.vec4('EasuInfo', 'params', Vector4.zero());
+
+    final ppx0 = v[0] * source.x - 0.5;
+    final ppy0 = v[1] * source.y - 0.5;
+    final fx = ppx0.floorToDouble();
+    final fy = ppy0.floorToDouble();
+    final px = ppx0 - fx;
+    final py = ppy0 - fy;
+
+    Vector3 tap(double dx, double dy) {
+      final t = map.sample(
+        (fx + dx + 0.5) * source.z,
+        (fy + dy + 0.5) * source.w,
+      );
+      return Vector3(t.x, t.y, t.z);
+    }
+
+    double luma(Vector3 c) => c.y + 0.5 * (c.x + c.z);
+
+    final tb = tap(0, -1), tc = tap(1, -1), te = tap(-1, 0), tf = tap(0, 0);
+    final tg = tap(1, 0), th = tap(2, 0), ti = tap(-1, 1), tj = tap(0, 1);
+    final tk = tap(1, 1), tl = tap(2, 1), tn = tap(0, 2), to = tap(1, 2);
+    final bL = luma(tb), cL = luma(tc), eL = luma(te), fL = luma(tf);
+    final gL = luma(tg), hL = luma(th), iL = luma(ti), jL = luma(tj);
+    final kL = luma(tk), lL = luma(tl), nL = luma(tn), oL = luma(to);
+
+    var dirX = 0.0;
+    var dirY = 0.0;
+    var len = 0.0;
+    void edgeAt(double w, double a, double bb, double cc, double d, double e) {
+      final lenX = math.max((d - cc).abs(), (cc - bb).abs());
+      final dx = d - bb;
+      final sx = (dx.abs() / math.max(lenX, 1e-6)).clamp(0.0, 1.0);
+      final lenY = math.max((e - cc).abs(), (cc - a).abs());
+      final dy = e - a;
+      final sy = (dy.abs() / math.max(lenY, 1e-6)).clamp(0.0, 1.0);
+      dirX += dx * w;
+      dirY += dy * w;
+      len += (sx * sx + sy * sy) * w;
+    }
+
+    edgeAt((1 - px) * (1 - py), bL, eL, fL, gL, jL);
+    edgeAt(px * (1 - py), cL, fL, gL, hL, kL);
+    edgeAt((1 - px) * py, fL, iL, jL, kL, nL);
+    edgeAt(px * py, gL, jL, kL, lL, oL);
+
+    final dirR = dirX * dirX + dirY * dirY;
+    final featureless = dirR < 1.0 / 32768.0;
+    final inv = featureless ? 1.0 : 1.0 / math.sqrt(math.max(dirR, 1e-12));
+    final ux = featureless ? 1.0 : dirX * inv;
+    final uy = featureless ? 0.0 : dirY * inv;
+
+    len *= 0.5;
+    len *= len;
+    final stretch = (ux * ux + uy * uy) / math.max(ux.abs(), uy.abs());
+    final len2x = 1.0 + (stretch - 1.0) * len;
+    final len2y = 1.0 - 0.5 * len;
+    final lob = 0.5 - 0.29 * len;
+    final clp = 1.0 / lob;
+
+    double weight(double ox, double oy) {
+      final vx = (ox * ux + oy * uy) * len2x;
+      final vy = (ox * -uy + oy * ux) * len2y;
+      final d2 = math.min(vx * vx + vy * vy, clp);
+      var wB = 0.4 * d2 - 1.0;
+      var wA = lob * d2 - 1.0;
+      wB *= wB;
+      wA *= wA;
+      wB = 1.5625 * wB - 0.5625;
+      return wB * wA;
+    }
+
+    final sum = Vector3.zero();
+    var total = 0.0;
+    void add(Vector3 colour, double ox, double oy) {
+      final w = weight(ox - px, oy - py);
+      sum.addScaled(colour, w);
+      total += w;
+    }
+
+    add(tb, 0, -1);
+    add(tc, 1, -1);
+    add(ti, -1, 1);
+    add(tj, 0, 1);
+    add(tf, 0, 0);
+    add(te, -1, 0);
+    add(tk, 1, 1);
+    add(tl, 2, 1);
+    add(th, 2, 0);
+    add(tg, 1, 0);
+    add(to, 1, 2);
+    add(tn, 0, 2);
+
+    final lo = Vector3(
+      math.min(math.min(tf.x, tg.x), math.min(tj.x, tk.x)),
+      math.min(math.min(tf.y, tg.y), math.min(tj.y, tk.y)),
+      math.min(math.min(tf.z, tg.z), math.min(tj.z, tk.z)),
+    );
+    final hi = Vector3(
+      math.max(math.max(tf.x, tg.x), math.max(tj.x, tk.x)),
+      math.max(math.max(tf.y, tg.y), math.max(tj.y, tk.y)),
+      math.max(math.max(tf.z, tg.z), math.max(tj.z, tk.z)),
+    );
+    final scale = 1.0 / math.max(total, 1e-6);
+    final grain = (_hash(c.coord.x, c.coord.y) - 0.5) * params.x;
+    return Vector4(
+      (sum.x * scale).clamp(lo.x, hi.x) + grain,
+      (sum.y * scale).clamp(lo.y, hi.y) + grain,
+      (sum.z * scale).clamp(lo.z, hi.z) + grain,
+      1.0,
+    );
+  }
+}

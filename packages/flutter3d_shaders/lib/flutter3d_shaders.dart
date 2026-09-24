@@ -39,6 +39,7 @@ const List<RequiredShader> kRequiredShaders = <RequiredShader>[
   (name: 'DebugLine', fragment: true),
   (name: 'DebugLineVertex', fragment: false),
   (name: 'FullscreenVertex', fragment: false),
+  (name: 'Easu', fragment: true),
   (name: 'Fxaa', fragment: true),
   (name: 'Lambert', fragment: true),
   (name: 'Luminance', fragment: true),

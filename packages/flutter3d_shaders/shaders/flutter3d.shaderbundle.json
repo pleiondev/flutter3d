@@ -59,6 +59,10 @@
     "type": "fragment",
     "file": "shaders/post/composite.frag"
   },
+  "Easu": {
+    "type": "fragment",
+    "file": "shaders/post/easu.frag"
+  },
   "Fxaa": {
     "type": "fragment",
     "file": "shaders/post/fxaa.frag"

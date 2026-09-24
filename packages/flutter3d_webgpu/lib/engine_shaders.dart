@@ -18300,6 +18300,858 @@ fn main(@builtin(position) gl_FragCoord: vec4<f32>, @location(5) v_uv: vec2<f32>
         ),
       ],
     ),
+    'Easu': WebGpuStage(
+      wgsl: r'''
+struct FragCoordInfo {
+    origin: vec4<f32>,
+}
+
+struct EasuInfo {
+    source: vec4<f32>,
+    params: vec4<f32>,
+}
+
+var<private> gl_FragCoord_1: vec4<f32>;
+@group(1) @binding(1) 
+var<uniform> frag_coord_info: FragCoordInfo;
+@group(1) @binding(2) 
+var source_texture_tex: texture_2d<f32>;
+@group(1) @binding(3) 
+var source_texture_smp: sampler;
+@group(1) @binding(0) 
+var<uniform> easu_info: EasuInfo;
+var<private> v_uv_1: vec2<f32>;
+var<private> frag_color: vec4<f32>;
+
+fn Hash_u0028_vf2_u003b(at: ptr<function, vec2<f32>>) -> f32 {
+    let _e42 = (*at);
+    return fract((sin(dot(_e42, vec2<f32>(12.9898f, 78.233f))) * 43758.547f));
+}
+
+fn FragCoordFromTop_u0028_f1_u003b(rows: ptr<function, f32>) -> vec2<f32> {
+    var local: vec2<f32>;
+
+    let _e43 = (*rows);
+    if (_e43 > 0f) {
+        let _e46 = gl_FragCoord_1[0u];
+        let _e47 = (*rows);
+        let _e49 = gl_FragCoord_1[1u];
+        local = vec2<f32>(_e46, (_e47 - _e49));
+    } else {
+        let _e52 = gl_FragCoord_1;
+        local = _e52.xy;
+    }
+    let _e54 = local;
+    return _e54;
+}
+
+fn TargetFragCoord_u0028_() -> vec2<f32> {
+    var param: f32;
+
+    let _e44 = frag_coord_info.origin[0u];
+    param = _e44;
+    let _e45 = FragCoordFromTop_u0028_f1_u003b((&param));
+    return _e45;
+}
+
+fn TapWeight_u0028_vf2_u003b_vf2_u003b_vf2_u003b_f1_u003b_f1_u003b(off: ptr<function, vec2<f32>>, dir: ptr<function, vec2<f32>>, len2_: ptr<function, vec2<f32>>, lob: ptr<function, f32>, clp: ptr<function, f32>) -> f32 {
+    var v: vec2<f32>;
+    var d2_: f32;
+    var wB: f32;
+    var wA: f32;
+
+    let _e51 = (*off)[0u];
+    let _e53 = (*dir)[0u];
+    let _e56 = (*off)[1u];
+    let _e58 = (*dir)[1u];
+    let _e62 = (*off)[0u];
+    let _e64 = (*dir)[1u];
+    let _e68 = (*off)[1u];
+    let _e70 = (*dir)[0u];
+    v = vec2<f32>(((_e51 * _e53) + (_e56 * _e58)), ((_e62 * -(_e64)) + (_e68 * _e70)));
+    let _e74 = (*len2_);
+    let _e75 = v;
+    v = (_e75 * _e74);
+    let _e77 = v;
+    let _e78 = v;
+    let _e80 = (*clp);
+    d2_ = min(dot(_e77, _e78), _e80);
+    let _e82 = d2_;
+    wB = ((0.4f * _e82) - 1f);
+    let _e85 = (*lob);
+    let _e86 = d2_;
+    wA = ((_e85 * _e86) - 1f);
+    let _e89 = wB;
+    let _e90 = wB;
+    wB = (_e90 * _e89);
+    let _e92 = wA;
+    let _e93 = wA;
+    wA = (_e93 * _e92);
+    let _e95 = wB;
+    wB = ((1.5625f * _e95) - 0.5625f);
+    let _e98 = wB;
+    let _e99 = wA;
+    return (_e98 * _e99);
+}
+
+fn EdgeAt_u0028_vf2_u003b_f1_u003b_f1_u003b_f1_u003b_f1_u003b_f1_u003b_f1_u003b_f1_u003b(dir_1: ptr<function, vec2<f32>>, len: ptr<function, f32>, w: ptr<function, f32>, a: ptr<function, f32>, b: ptr<function, f32>, c: ptr<function, f32>, d: ptr<function, f32>, e: ptr<function, f32>) {
+    var lenX: f32;
+    var dirX: f32;
+    var stretchX: f32;
+    var lenY: f32;
+    var dirY: f32;
+    var stretchY: f32;
+
+    let _e55 = (*d);
+    let _e56 = (*c);
+    let _e59 = (*c);
+    let _e60 = (*b);
+    lenX = max(abs((_e55 - _e56)), abs((_e59 - _e60)));
+    let _e64 = (*d);
+    let _e65 = (*b);
+    dirX = (_e64 - _e65);
+    let _e67 = dirX;
+    let _e69 = lenX;
+    stretchX = clamp((abs(_e67) / max(_e69, 0.000001f)), 0f, 1f);
+    let _e73 = (*e);
+    let _e74 = (*c);
+    let _e77 = (*c);
+    let _e78 = (*a);
+    lenY = max(abs((_e73 - _e74)), abs((_e77 - _e78)));
+    let _e82 = (*e);
+    let _e83 = (*a);
+    dirY = (_e82 - _e83);
+    let _e85 = dirY;
+    let _e87 = lenY;
+    stretchY = clamp((abs(_e85) / max(_e87, 0.000001f)), 0f, 1f);
+    let _e91 = dirX;
+    let _e92 = dirY;
+    let _e94 = (*w);
+    let _e96 = (*dir_1);
+    (*dir_1) = (_e96 + (vec2<f32>(_e91, _e92) * _e94));
+    let _e98 = stretchX;
+    let _e99 = stretchX;
+    let _e101 = stretchY;
+    let _e102 = stretchY;
+    let _e105 = (*w);
+    let _e107 = (*len);
+    (*len) = (_e107 + (((_e98 * _e99) + (_e101 * _e102)) * _e105));
+    return;
+}
+
+fn EasuLuma_u0028_vf3_u003b(c_1: ptr<function, vec3<f32>>) -> f32 {
+    let _e43 = (*c_1)[1u];
+    let _e45 = (*c_1)[0u];
+    let _e47 = (*c_1)[2u];
+    return (_e43 + (0.5f * (_e45 + _e47)));
+}
+
+fn Tap_u0028_vf2_u003b(pixel: ptr<function, vec2<f32>>) -> vec3<f32> {
+    let _e42 = (*pixel);
+    let _e46 = easu_info.source;
+    let _e49 = textureSampleLevel(source_texture_tex, source_texture_smp, ((_e42 + vec2(0.5f)) * _e46.zw), 0f);
+    return _e49.xyz;
+}
+
+fn main_1() {
+    var pp: vec2<f32>;
+    var fp: vec2<f32>;
+    var b_1: vec3<f32>;
+    var param_1: vec2<f32>;
+    var c_2: vec3<f32>;
+    var param_2: vec2<f32>;
+    var e_1: vec3<f32>;
+    var param_3: vec2<f32>;
+    var f: vec3<f32>;
+    var param_4: vec2<f32>;
+    var g: vec3<f32>;
+    var param_5: vec2<f32>;
+    var h: vec3<f32>;
+    var param_6: vec2<f32>;
+    var i: vec3<f32>;
+    var param_7: vec2<f32>;
+    var j: vec3<f32>;
+    var param_8: vec2<f32>;
+    var k: vec3<f32>;
+    var param_9: vec2<f32>;
+    var l: vec3<f32>;
+    var param_10: vec2<f32>;
+    var n: vec3<f32>;
+    var param_11: vec2<f32>;
+    var o: vec3<f32>;
+    var param_12: vec2<f32>;
+    var bL: f32;
+    var param_13: vec3<f32>;
+    var cL: f32;
+    var param_14: vec3<f32>;
+    var eL: f32;
+    var param_15: vec3<f32>;
+    var fL: f32;
+    var param_16: vec3<f32>;
+    var gL: f32;
+    var param_17: vec3<f32>;
+    var hL: f32;
+    var param_18: vec3<f32>;
+    var iL: f32;
+    var param_19: vec3<f32>;
+    var jL: f32;
+    var param_20: vec3<f32>;
+    var kL: f32;
+    var param_21: vec3<f32>;
+    var lL: f32;
+    var param_22: vec3<f32>;
+    var nL: f32;
+    var param_23: vec3<f32>;
+    var oL: f32;
+    var param_24: vec3<f32>;
+    var dir_2: vec2<f32>;
+    var len_1: f32;
+    var param_25: vec2<f32>;
+    var param_26: f32;
+    var param_27: f32;
+    var param_28: f32;
+    var param_29: f32;
+    var param_30: f32;
+    var param_31: f32;
+    var param_32: f32;
+    var param_33: vec2<f32>;
+    var param_34: f32;
+    var param_35: f32;
+    var param_36: f32;
+    var param_37: f32;
+    var param_38: f32;
+    var param_39: f32;
+    var param_40: f32;
+    var param_41: vec2<f32>;
+    var param_42: f32;
+    var param_43: f32;
+    var param_44: f32;
+    var param_45: f32;
+    var param_46: f32;
+    var param_47: f32;
+    var param_48: f32;
+    var param_49: vec2<f32>;
+    var param_50: f32;
+    var param_51: f32;
+    var param_52: f32;
+    var param_53: f32;
+    var param_54: f32;
+    var param_55: f32;
+    var param_56: f32;
+    var dirR: f32;
+    var featureless: bool;
+    var local_1: vec2<f32>;
+    var stretch: f32;
+    var len2_1: vec2<f32>;
+    var lob_1: f32;
+    var clp_1: f32;
+    var sum: vec3<f32>;
+    var weight: f32;
+    var w_1: f32;
+    var param_57: vec2<f32>;
+    var param_58: vec2<f32>;
+    var param_59: vec2<f32>;
+    var param_60: f32;
+    var param_61: f32;
+    var param_62: vec2<f32>;
+    var param_63: vec2<f32>;
+    var param_64: vec2<f32>;
+    var param_65: f32;
+    var param_66: f32;
+    var param_67: vec2<f32>;
+    var param_68: vec2<f32>;
+    var param_69: vec2<f32>;
+    var param_70: f32;
+    var param_71: f32;
+    var param_72: vec2<f32>;
+    var param_73: vec2<f32>;
+    var param_74: vec2<f32>;
+    var param_75: f32;
+    var param_76: f32;
+    var param_77: vec2<f32>;
+    var param_78: vec2<f32>;
+    var param_79: vec2<f32>;
+    var param_80: f32;
+    var param_81: f32;
+    var param_82: vec2<f32>;
+    var param_83: vec2<f32>;
+    var param_84: vec2<f32>;
+    var param_85: f32;
+    var param_86: f32;
+    var param_87: vec2<f32>;
+    var param_88: vec2<f32>;
+    var param_89: vec2<f32>;
+    var param_90: f32;
+    var param_91: f32;
+    var param_92: vec2<f32>;
+    var param_93: vec2<f32>;
+    var param_94: vec2<f32>;
+    var param_95: f32;
+    var param_96: f32;
+    var param_97: vec2<f32>;
+    var param_98: vec2<f32>;
+    var param_99: vec2<f32>;
+    var param_100: f32;
+    var param_101: f32;
+    var param_102: vec2<f32>;
+    var param_103: vec2<f32>;
+    var param_104: vec2<f32>;
+    var param_105: f32;
+    var param_106: f32;
+    var param_107: vec2<f32>;
+    var param_108: vec2<f32>;
+    var param_109: vec2<f32>;
+    var param_110: f32;
+    var param_111: f32;
+    var param_112: vec2<f32>;
+    var param_113: vec2<f32>;
+    var param_114: vec2<f32>;
+    var param_115: f32;
+    var param_116: f32;
+    var lo: vec3<f32>;
+    var hi: vec3<f32>;
+    var color: vec3<f32>;
+    var grain: f32;
+    var param_117: vec2<f32>;
+
+    let _e200 = v_uv_1;
+    let _e202 = easu_info.source;
+    pp = ((_e200 * _e202.xy) - vec2(0.5f));
+    let _e207 = pp;
+    fp = floor(_e207);
+    let _e209 = fp;
+    let _e210 = pp;
+    pp = (_e210 - _e209);
+    let _e212 = fp;
+    param_1 = (_e212 + vec2<f32>(0f, -1f));
+    let _e214 = Tap_u0028_vf2_u003b((&param_1));
+    b_1 = _e214;
+    let _e215 = fp;
+    param_2 = (_e215 + vec2<f32>(1f, -1f));
+    let _e217 = Tap_u0028_vf2_u003b((&param_2));
+    c_2 = _e217;
+    let _e218 = fp;
+    param_3 = (_e218 + vec2<f32>(-1f, 0f));
+    let _e220 = Tap_u0028_vf2_u003b((&param_3));
+    e_1 = _e220;
+    let _e221 = fp;
+    param_4 = _e221;
+    let _e222 = Tap_u0028_vf2_u003b((&param_4));
+    f = _e222;
+    let _e223 = fp;
+    param_5 = (_e223 + vec2<f32>(1f, 0f));
+    let _e225 = Tap_u0028_vf2_u003b((&param_5));
+    g = _e225;
+    let _e226 = fp;
+    param_6 = (_e226 + vec2<f32>(2f, 0f));
+    let _e228 = Tap_u0028_vf2_u003b((&param_6));
+    h = _e228;
+    let _e229 = fp;
+    param_7 = (_e229 + vec2<f32>(-1f, 1f));
+    let _e231 = Tap_u0028_vf2_u003b((&param_7));
+    i = _e231;
+    let _e232 = fp;
+    param_8 = (_e232 + vec2<f32>(0f, 1f));
+    let _e234 = Tap_u0028_vf2_u003b((&param_8));
+    j = _e234;
+    let _e235 = fp;
+    param_9 = (_e235 + vec2<f32>(1f, 1f));
+    let _e237 = Tap_u0028_vf2_u003b((&param_9));
+    k = _e237;
+    let _e238 = fp;
+    param_10 = (_e238 + vec2<f32>(2f, 1f));
+    let _e240 = Tap_u0028_vf2_u003b((&param_10));
+    l = _e240;
+    let _e241 = fp;
+    param_11 = (_e241 + vec2<f32>(0f, 2f));
+    let _e243 = Tap_u0028_vf2_u003b((&param_11));
+    n = _e243;
+    let _e244 = fp;
+    param_12 = (_e244 + vec2<f32>(1f, 2f));
+    let _e246 = Tap_u0028_vf2_u003b((&param_12));
+    o = _e246;
+    let _e247 = b_1;
+    param_13 = _e247;
+    let _e248 = EasuLuma_u0028_vf3_u003b((&param_13));
+    bL = _e248;
+    let _e249 = c_2;
+    param_14 = _e249;
+    let _e250 = EasuLuma_u0028_vf3_u003b((&param_14));
+    cL = _e250;
+    let _e251 = e_1;
+    param_15 = _e251;
+    let _e252 = EasuLuma_u0028_vf3_u003b((&param_15));
+    eL = _e252;
+    let _e253 = f;
+    param_16 = _e253;
+    let _e254 = EasuLuma_u0028_vf3_u003b((&param_16));
+    fL = _e254;
+    let _e255 = g;
+    param_17 = _e255;
+    let _e256 = EasuLuma_u0028_vf3_u003b((&param_17));
+    gL = _e256;
+    let _e257 = h;
+    param_18 = _e257;
+    let _e258 = EasuLuma_u0028_vf3_u003b((&param_18));
+    hL = _e258;
+    let _e259 = i;
+    param_19 = _e259;
+    let _e260 = EasuLuma_u0028_vf3_u003b((&param_19));
+    iL = _e260;
+    let _e261 = j;
+    param_20 = _e261;
+    let _e262 = EasuLuma_u0028_vf3_u003b((&param_20));
+    jL = _e262;
+    let _e263 = k;
+    param_21 = _e263;
+    let _e264 = EasuLuma_u0028_vf3_u003b((&param_21));
+    kL = _e264;
+    let _e265 = l;
+    param_22 = _e265;
+    let _e266 = EasuLuma_u0028_vf3_u003b((&param_22));
+    lL = _e266;
+    let _e267 = n;
+    param_23 = _e267;
+    let _e268 = EasuLuma_u0028_vf3_u003b((&param_23));
+    nL = _e268;
+    let _e269 = o;
+    param_24 = _e269;
+    let _e270 = EasuLuma_u0028_vf3_u003b((&param_24));
+    oL = _e270;
+    dir_2 = vec2<f32>(0f, 0f);
+    len_1 = 0f;
+    let _e272 = pp[0u];
+    let _e275 = pp[1u];
+    let _e278 = dir_2;
+    param_25 = _e278;
+    let _e279 = len_1;
+    param_26 = _e279;
+    param_27 = ((1f - _e272) * (1f - _e275));
+    let _e280 = bL;
+    param_28 = _e280;
+    let _e281 = eL;
+    param_29 = _e281;
+    let _e282 = fL;
+    param_30 = _e282;
+    let _e283 = gL;
+    param_31 = _e283;
+    let _e284 = jL;
+    param_32 = _e284;
+    EdgeAt_u0028_vf2_u003b_f1_u003b_f1_u003b_f1_u003b_f1_u003b_f1_u003b_f1_u003b_f1_u003b((&param_25), (&param_26), (&param_27), (&param_28), (&param_29), (&param_30), (&param_31), (&param_32));
+    let _e285 = param_25;
+    dir_2 = _e285;
+    let _e286 = param_26;
+    len_1 = _e286;
+    let _e288 = pp[0u];
+    let _e290 = pp[1u];
+    let _e293 = dir_2;
+    param_33 = _e293;
+    let _e294 = len_1;
+    param_34 = _e294;
+    param_35 = (_e288 * (1f - _e290));
+    let _e295 = cL;
+    param_36 = _e295;
+    let _e296 = fL;
+    param_37 = _e296;
+    let _e297 = gL;
+    param_38 = _e297;
+    let _e298 = hL;
+    param_39 = _e298;
+    let _e299 = kL;
+    param_40 = _e299;
+    EdgeAt_u0028_vf2_u003b_f1_u003b_f1_u003b_f1_u003b_f1_u003b_f1_u003b_f1_u003b_f1_u003b((&param_33), (&param_34), (&param_35), (&param_36), (&param_37), (&param_38), (&param_39), (&param_40));
+    let _e300 = param_33;
+    dir_2 = _e300;
+    let _e301 = param_34;
+    len_1 = _e301;
+    let _e303 = pp[0u];
+    let _e306 = pp[1u];
+    let _e308 = dir_2;
+    param_41 = _e308;
+    let _e309 = len_1;
+    param_42 = _e309;
+    param_43 = ((1f - _e303) * _e306);
+    let _e310 = fL;
+    param_44 = _e310;
+    let _e311 = iL;
+    param_45 = _e311;
+    let _e312 = jL;
+    param_46 = _e312;
+    let _e313 = kL;
+    param_47 = _e313;
+    let _e314 = nL;
+    param_48 = _e314;
+    EdgeAt_u0028_vf2_u003b_f1_u003b_f1_u003b_f1_u003b_f1_u003b_f1_u003b_f1_u003b_f1_u003b((&param_41), (&param_42), (&param_43), (&param_44), (&param_45), (&param_46), (&param_47), (&param_48));
+    let _e315 = param_41;
+    dir_2 = _e315;
+    let _e316 = param_42;
+    len_1 = _e316;
+    let _e318 = pp[0u];
+    let _e320 = pp[1u];
+    let _e322 = dir_2;
+    param_49 = _e322;
+    let _e323 = len_1;
+    param_50 = _e323;
+    param_51 = (_e318 * _e320);
+    let _e324 = gL;
+    param_52 = _e324;
+    let _e325 = jL;
+    param_53 = _e325;
+    let _e326 = kL;
+    param_54 = _e326;
+    let _e327 = lL;
+    param_55 = _e327;
+    let _e328 = oL;
+    param_56 = _e328;
+    EdgeAt_u0028_vf2_u003b_f1_u003b_f1_u003b_f1_u003b_f1_u003b_f1_u003b_f1_u003b_f1_u003b((&param_49), (&param_50), (&param_51), (&param_52), (&param_53), (&param_54), (&param_55), (&param_56));
+    let _e329 = param_49;
+    dir_2 = _e329;
+    let _e330 = param_50;
+    len_1 = _e330;
+    let _e331 = dir_2;
+    let _e332 = dir_2;
+    dirR = dot(_e331, _e332);
+    let _e334 = dirR;
+    featureless = (_e334 < 0.000030517578f);
+    let _e336 = featureless;
+    if _e336 {
+        local_1 = vec2<f32>(1f, 0f);
+    } else {
+        let _e337 = dir_2;
+        let _e338 = dirR;
+        local_1 = (_e337 * inverseSqrt(max(_e338, 0.000000000001f)));
+    }
+    let _e342 = local_1;
+    dir_2 = _e342;
+    let _e343 = len_1;
+    len_1 = (_e343 * 0.5f);
+    let _e345 = len_1;
+    let _e346 = len_1;
+    len_1 = (_e346 * _e345);
+    let _e348 = dir_2;
+    let _e349 = dir_2;
+    let _e352 = dir_2[0u];
+    let _e355 = dir_2[1u];
+    stretch = (dot(_e348, _e349) / max(abs(_e352), abs(_e355)));
+    let _e359 = stretch;
+    let _e361 = len_1;
+    let _e364 = len_1;
+    len2_1 = vec2<f32>((1f + ((_e359 - 1f) * _e361)), (1f - (0.5f * _e364)));
+    let _e368 = len_1;
+    lob_1 = (0.5f - (0.29f * _e368));
+    let _e371 = lob_1;
+    clp_1 = (1f / _e371);
+    sum = vec3<f32>(0f, 0f, 0f);
+    weight = 0f;
+    let _e373 = pp;
+    param_57 = (vec2<f32>(0f, -1f) - _e373);
+    let _e375 = dir_2;
+    param_58 = _e375;
+    let _e376 = len2_1;
+    param_59 = _e376;
+    let _e377 = lob_1;
+    param_60 = _e377;
+    let _e378 = clp_1;
+    param_61 = _e378;
+    let _e379 = TapWeight_u0028_vf2_u003b_vf2_u003b_vf2_u003b_f1_u003b_f1_u003b((&param_57), (&param_58), (&param_59), (&param_60), (&param_61));
+    w_1 = _e379;
+    let _e380 = b_1;
+    let _e381 = w_1;
+    let _e383 = sum;
+    sum = (_e383 + (_e380 * _e381));
+    let _e385 = w_1;
+    let _e386 = weight;
+    weight = (_e386 + _e385);
+    let _e388 = pp;
+    param_62 = (vec2<f32>(1f, -1f) - _e388);
+    let _e390 = dir_2;
+    param_63 = _e390;
+    let _e391 = len2_1;
+    param_64 = _e391;
+    let _e392 = lob_1;
+    param_65 = _e392;
+    let _e393 = clp_1;
+    param_66 = _e393;
+    let _e394 = TapWeight_u0028_vf2_u003b_vf2_u003b_vf2_u003b_f1_u003b_f1_u003b((&param_62), (&param_63), (&param_64), (&param_65), (&param_66));
+    w_1 = _e394;
+    let _e395 = c_2;
+    let _e396 = w_1;
+    let _e398 = sum;
+    sum = (_e398 + (_e395 * _e396));
+    let _e400 = w_1;
+    let _e401 = weight;
+    weight = (_e401 + _e400);
+    let _e403 = pp;
+    param_67 = (vec2<f32>(-1f, 1f) - _e403);
+    let _e405 = dir_2;
+    param_68 = _e405;
+    let _e406 = len2_1;
+    param_69 = _e406;
+    let _e407 = lob_1;
+    param_70 = _e407;
+    let _e408 = clp_1;
+    param_71 = _e408;
+    let _e409 = TapWeight_u0028_vf2_u003b_vf2_u003b_vf2_u003b_f1_u003b_f1_u003b((&param_67), (&param_68), (&param_69), (&param_70), (&param_71));
+    w_1 = _e409;
+    let _e410 = i;
+    let _e411 = w_1;
+    let _e413 = sum;
+    sum = (_e413 + (_e410 * _e411));
+    let _e415 = w_1;
+    let _e416 = weight;
+    weight = (_e416 + _e415);
+    let _e418 = pp;
+    param_72 = (vec2<f32>(0f, 1f) - _e418);
+    let _e420 = dir_2;
+    param_73 = _e420;
+    let _e421 = len2_1;
+    param_74 = _e421;
+    let _e422 = lob_1;
+    param_75 = _e422;
+    let _e423 = clp_1;
+    param_76 = _e423;
+    let _e424 = TapWeight_u0028_vf2_u003b_vf2_u003b_vf2_u003b_f1_u003b_f1_u003b((&param_72), (&param_73), (&param_74), (&param_75), (&param_76));
+    w_1 = _e424;
+    let _e425 = j;
+    let _e426 = w_1;
+    let _e428 = sum;
+    sum = (_e428 + (_e425 * _e426));
+    let _e430 = w_1;
+    let _e431 = weight;
+    weight = (_e431 + _e430);
+    let _e433 = pp;
+    param_77 = (vec2<f32>(0f, 0f) - _e433);
+    let _e435 = dir_2;
+    param_78 = _e435;
+    let _e436 = len2_1;
+    param_79 = _e436;
+    let _e437 = lob_1;
+    param_80 = _e437;
+    let _e438 = clp_1;
+    param_81 = _e438;
+    let _e439 = TapWeight_u0028_vf2_u003b_vf2_u003b_vf2_u003b_f1_u003b_f1_u003b((&param_77), (&param_78), (&param_79), (&param_80), (&param_81));
+    w_1 = _e439;
+    let _e440 = f;
+    let _e441 = w_1;
+    let _e443 = sum;
+    sum = (_e443 + (_e440 * _e441));
+    let _e445 = w_1;
+    let _e446 = weight;
+    weight = (_e446 + _e445);
+    let _e448 = pp;
+    param_82 = (vec2<f32>(-1f, 0f) - _e448);
+    let _e450 = dir_2;
+    param_83 = _e450;
+    let _e451 = len2_1;
+    param_84 = _e451;
+    let _e452 = lob_1;
+    param_85 = _e452;
+    let _e453 = clp_1;
+    param_86 = _e453;
+    let _e454 = TapWeight_u0028_vf2_u003b_vf2_u003b_vf2_u003b_f1_u003b_f1_u003b((&param_82), (&param_83), (&param_84), (&param_85), (&param_86));
+    w_1 = _e454;
+    let _e455 = e_1;
+    let _e456 = w_1;
+    let _e458 = sum;
+    sum = (_e458 + (_e455 * _e456));
+    let _e460 = w_1;
+    let _e461 = weight;
+    weight = (_e461 + _e460);
+    let _e463 = pp;
+    param_87 = (vec2<f32>(1f, 1f) - _e463);
+    let _e465 = dir_2;
+    param_88 = _e465;
+    let _e466 = len2_1;
+    param_89 = _e466;
+    let _e467 = lob_1;
+    param_90 = _e467;
+    let _e468 = clp_1;
+    param_91 = _e468;
+    let _e469 = TapWeight_u0028_vf2_u003b_vf2_u003b_vf2_u003b_f1_u003b_f1_u003b((&param_87), (&param_88), (&param_89), (&param_90), (&param_91));
+    w_1 = _e469;
+    let _e470 = k;
+    let _e471 = w_1;
+    let _e473 = sum;
+    sum = (_e473 + (_e470 * _e471));
+    let _e475 = w_1;
+    let _e476 = weight;
+    weight = (_e476 + _e475);
+    let _e478 = pp;
+    param_92 = (vec2<f32>(2f, 1f) - _e478);
+    let _e480 = dir_2;
+    param_93 = _e480;
+    let _e481 = len2_1;
+    param_94 = _e481;
+    let _e482 = lob_1;
+    param_95 = _e482;
+    let _e483 = clp_1;
+    param_96 = _e483;
+    let _e484 = TapWeight_u0028_vf2_u003b_vf2_u003b_vf2_u003b_f1_u003b_f1_u003b((&param_92), (&param_93), (&param_94), (&param_95), (&param_96));
+    w_1 = _e484;
+    let _e485 = l;
+    let _e486 = w_1;
+    let _e488 = sum;
+    sum = (_e488 + (_e485 * _e486));
+    let _e490 = w_1;
+    let _e491 = weight;
+    weight = (_e491 + _e490);
+    let _e493 = pp;
+    param_97 = (vec2<f32>(2f, 0f) - _e493);
+    let _e495 = dir_2;
+    param_98 = _e495;
+    let _e496 = len2_1;
+    param_99 = _e496;
+    let _e497 = lob_1;
+    param_100 = _e497;
+    let _e498 = clp_1;
+    param_101 = _e498;
+    let _e499 = TapWeight_u0028_vf2_u003b_vf2_u003b_vf2_u003b_f1_u003b_f1_u003b((&param_97), (&param_98), (&param_99), (&param_100), (&param_101));
+    w_1 = _e499;
+    let _e500 = h;
+    let _e501 = w_1;
+    let _e503 = sum;
+    sum = (_e503 + (_e500 * _e501));
+    let _e505 = w_1;
+    let _e506 = weight;
+    weight = (_e506 + _e505);
+    let _e508 = pp;
+    param_102 = (vec2<f32>(1f, 0f) - _e508);
+    let _e510 = dir_2;
+    param_103 = _e510;
+    let _e511 = len2_1;
+    param_104 = _e511;
+    let _e512 = lob_1;
+    param_105 = _e512;
+    let _e513 = clp_1;
+    param_106 = _e513;
+    let _e514 = TapWeight_u0028_vf2_u003b_vf2_u003b_vf2_u003b_f1_u003b_f1_u003b((&param_102), (&param_103), (&param_104), (&param_105), (&param_106));
+    w_1 = _e514;
+    let _e515 = g;
+    let _e516 = w_1;
+    let _e518 = sum;
+    sum = (_e518 + (_e515 * _e516));
+    let _e520 = w_1;
+    let _e521 = weight;
+    weight = (_e521 + _e520);
+    let _e523 = pp;
+    param_107 = (vec2<f32>(1f, 2f) - _e523);
+    let _e525 = dir_2;
+    param_108 = _e525;
+    let _e526 = len2_1;
+    param_109 = _e526;
+    let _e527 = lob_1;
+    param_110 = _e527;
+    let _e528 = clp_1;
+    param_111 = _e528;
+    let _e529 = TapWeight_u0028_vf2_u003b_vf2_u003b_vf2_u003b_f1_u003b_f1_u003b((&param_107), (&param_108), (&param_109), (&param_110), (&param_111));
+    w_1 = _e529;
+    let _e530 = o;
+    let _e531 = w_1;
+    let _e533 = sum;
+    sum = (_e533 + (_e530 * _e531));
+    let _e535 = w_1;
+    let _e536 = weight;
+    weight = (_e536 + _e535);
+    let _e538 = pp;
+    param_112 = (vec2<f32>(0f, 2f) - _e538);
+    let _e540 = dir_2;
+    param_113 = _e540;
+    let _e541 = len2_1;
+    param_114 = _e541;
+    let _e542 = lob_1;
+    param_115 = _e542;
+    let _e543 = clp_1;
+    param_116 = _e543;
+    let _e544 = TapWeight_u0028_vf2_u003b_vf2_u003b_vf2_u003b_f1_u003b_f1_u003b((&param_112), (&param_113), (&param_114), (&param_115), (&param_116));
+    w_1 = _e544;
+    let _e545 = n;
+    let _e546 = w_1;
+    let _e548 = sum;
+    sum = (_e548 + (_e545 * _e546));
+    let _e550 = w_1;
+    let _e551 = weight;
+    weight = (_e551 + _e550);
+    let _e553 = f;
+    let _e554 = g;
+    let _e556 = j;
+    let _e557 = k;
+    lo = min(min(_e553, _e554), min(_e556, _e557));
+    let _e560 = f;
+    let _e561 = g;
+    let _e563 = j;
+    let _e564 = k;
+    hi = max(max(_e560, _e561), max(_e563, _e564));
+    let _e567 = sum;
+    let _e568 = weight;
+    let _e572 = lo;
+    let _e573 = hi;
+    color = clamp((_e567 / vec3(max(_e568, 0.000001f))), _e572, _e573);
+    let _e577 = easu_info.params[0u];
+    grain = _e577;
+    let _e578 = TargetFragCoord_u0028_();
+    param_117 = _e578;
+    let _e579 = Hash_u0028_vf2_u003b((&param_117));
+    let _e581 = grain;
+    let _e584 = color;
+    color = (_e584 + vec3(((_e579 - 0.5f) * _e581)));
+    let _e586 = color;
+    frag_color = vec4<f32>(_e586.x, _e586.y, _e586.z, 1f);
+    return;
+}
+
+@fragment 
+fn main(@builtin(position) gl_FragCoord: vec4<f32>, @location(5) v_uv: vec2<f32>) -> @location(0) vec4<f32> {
+    gl_FragCoord_1 = gl_FragCoord;
+    v_uv_1 = v_uv;
+    main_1();
+    let _e5 = frag_color;
+    return _e5;
+}
+''',
+      attributes: <WebGpuAttribute>[],
+      blocks: <WebGpuBlock>[
+        WebGpuBlock(
+          name: 'EasuInfo',
+          group: 1,
+          binding: 0,
+          sizeInBytes: 32,
+          members: <WebGpuBlockMember>[
+            WebGpuBlockMember(
+              name: 'source',
+              offsetInBytes: 0,
+              sizeInBytes: 16,
+            ),
+            WebGpuBlockMember(
+              name: 'params',
+              offsetInBytes: 16,
+              sizeInBytes: 16,
+            ),
+          ],
+        ),
+        WebGpuBlock(
+          name: 'FragCoordInfo',
+          group: 1,
+          binding: 1,
+          sizeInBytes: 16,
+          members: <WebGpuBlockMember>[
+            WebGpuBlockMember(
+              name: 'origin',
+              offsetInBytes: 0,
+              sizeInBytes: 16,
+            ),
+          ],
+        ),
+      ],
+      samplers: <WebGpuSampler>[
+        WebGpuSampler(
+          name: 'source_texture',
+          group: 1,
+          textureBinding: 2,
+          samplerBinding: 3,
+          dimension: WebGpuTextureDimension.twoDimensional,
+        ),
+      ],
+    ),
     'Fxaa': WebGpuStage(
       wgsl: r'''
 struct FxaaInfo {

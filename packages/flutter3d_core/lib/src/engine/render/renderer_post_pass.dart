@@ -193,6 +193,7 @@ extension _PostPasses on Renderer {
     required TextureHandle target,
     required TextureHandle source,
     required AntiAliasSettings settings,
+    double upscaleSharpen = 0.0,
   }) {
     _fxaaParams[0] = 1.0 / math.max(source.width, 1);
     _fxaaParams[1] = 1.0 / math.max(source.height, 1);
@@ -210,11 +211,16 @@ extension _PostPasses on Renderer {
     // strength — `R2`: what softens a resolved picture is the history, and
     // the kernel that follows one should not ring past what it averaged.
     final temporal = settings.temporal;
-    final robust = temporal.enabled && temporal.sharpen > 0.0;
-    _fxaaSharpen[0] = (robust ? temporal.sharpen : settings.sharpen).clamp(
-      0.0,
-      1.0,
-    );
+    // `R5`: after a spatial upscale the same robust kernel, at its strength.
+    final upscaled = upscaleSharpen > 0.0;
+    final robust = (temporal.enabled && temporal.sharpen > 0.0) || upscaled;
+    _fxaaSharpen[0] =
+        (upscaled
+                ? upscaleSharpen
+                : robust
+                ? temporal.sharpen
+                : settings.sharpen)
+            .clamp(0.0, 1.0);
     _fxaaSharpen[1] = robust ? 1.0 : 0.0;
     drawFullscreen(
       FullscreenDraw(
@@ -224,6 +230,38 @@ extension _PostPasses on Renderer {
         uniforms: <String, Map<String, Float32List>>{
           _fxaaInfo.name: _fxaaInfo.members,
         },
+      ),
+    );
+  }
+
+  /// `R5`: [source], the composited picture at the scene's size, into
+  /// [target] at the output's, by the edge-adaptive filter in `easu.frag`,
+  /// with the [grain] the composite left out.
+  void _encodeEasu({
+    required TextureHandle target,
+    required TextureHandle source,
+    required double grain,
+  }) {
+    _easuInfo.source
+      ..[0] = source.width.toDouble()
+      ..[1] = source.height.toDouble()
+      ..[2] = 1.0 / math.max(source.width, 1)
+      ..[3] = 1.0 / math.max(source.height, 1);
+    _easuInfo.params
+      ..[0] = grain
+      ..[1] = 0.0
+      ..[2] = 0.0
+      ..[3] = 0.0;
+    drawFullscreen(
+      FullscreenDraw(
+        target: target,
+        fragment: shaders['Easu']!,
+        textures: <String, TextureHandle>{'source_texture': source},
+        uniforms: <String, Map<String, Float32List>>{
+          _easuInfo.name: _easuInfo.members,
+        },
+        // Nearest: the filter picks its own twelve texels and weighs them.
+        sampler: SamplerOptions.nearestClamp,
       ),
     );
   }
@@ -1143,7 +1181,10 @@ extension _PostPasses on Renderer {
     _compositeLook[3] = math.max(look.chromaticAberration, 0.0);
     _compositeLookMore[0] = look.vignette.clamp(0.0, 1.0);
     _compositeLookMore[1] = look.vignetteRoundness.clamp(0.0, 1.0);
-    _compositeLookMore[2] = math.max(look.grain, 0.0);
+    // `R5`: an upscaled frame takes its grain after the upscale instead.
+    _compositeLookMore[2] = _upscales(settings)
+        ? 0.0
+        : math.max(look.grain, 0.0);
     // The vignette is computed in UV space, which is square while the frame is
     // not — without this the falloff is an ellipse on screen.
     _compositeLookMore[3] = height <= 0 ? 1.0 : width / height;
