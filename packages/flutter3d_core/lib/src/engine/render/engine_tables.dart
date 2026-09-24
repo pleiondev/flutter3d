@@ -12,6 +12,7 @@ import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'engine_table.dart';
 import 'tables/aces2_display.dart' as tables;
 import 'tables/blue_noise.dart' as tables;
+import 'tables/ltc.dart' as tables;
 
 export 'engine_table.dart';
 
@@ -30,6 +31,7 @@ final class EngineTables {
   static const List<EngineTable> all = <EngineTable>[
     tables.blueNoise,
     tables.aces2Display,
+    tables.ltc,
   ];
 
   /// Entries per axis of [aces2Display] — `L2`.
@@ -47,6 +49,9 @@ final class EngineTables {
 
   /// See `tables/aces2_display.dart`.
   TextureHandle get aces2Display => this[tables.aces2Display];
+
+  /// See `tables/ltc.dart`.
+  TextureHandle get ltc => this[tables.ltc];
 
   /// [table] on this device, uploaded now if it was not already.
   TextureHandle operator [](EngineTable table) => _uploaded[table] ??=

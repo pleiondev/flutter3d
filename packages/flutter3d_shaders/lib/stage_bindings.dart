@@ -167,6 +167,7 @@ stageBindings = <String, ({Set<String> blocks, Set<String> samplers})>{
       'irradiance_texture',
       'light_list_texture',
       'lightmap_texture',
+      'ltc_texture',
       'metallic_roughness_texture',
       'normal_texture',
       'occlusion_texture',

@@ -241,7 +241,17 @@ final class PbrShader implements CpuFragmentShader {
         final vis = _vSmith(s.nDotV, light.nDotL, alpha);
         final f = _fSchlick(f0, light.vDotH);
 
-        final specular = f * (d * vis * specularStrength);
+        final ltc = light.ltc;
+        final specular = ltc == null
+            ? f * (d * vis * specularStrength)
+            // `L7`: integrated over the rectangle already, with the fit's own
+            // Fresnel, and over `nDotL` for `pbr.frag`'s reason.
+            : Vector3(
+                    f0.x * ltc.y + (1.0 - f0.x) * ltc.z,
+                    f0.y * ltc.y + (1.0 - f0.y) * ltc.z,
+                    f0.z * ltc.y + (1.0 - f0.z) * ltc.z,
+                  ) *
+                  (ltc.x * specularStrength / math.max(light.nDotL, 1e-6));
         if (compensate) specular.multiply(_multiscatterScale(f0, s));
         // Energy left over after reflection is what scatters diffusely.
         final diffuse = Vector3(

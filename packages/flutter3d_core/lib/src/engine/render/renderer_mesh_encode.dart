@@ -731,6 +731,20 @@ extension _MeshEncode on Renderer {
         sampler: _anisotropic(material.metallicRoughnessSampler, anisotropy),
       );
     }
+    // `L7`: the metal-rough model integrates its lobe over a rectangle
+    // light from these; filtered, since the fit is smooth between entries.
+    if (_keepsSampler(
+      fragmentShader,
+      _kLtcTextureSlot,
+      declared: material.lighting.usesMetallicRoughnessMap,
+    )) {
+      encoder.bindTexture(
+        fragmentShader,
+        _kLtcTextureSlot,
+        EngineTables.of(device).ltc,
+        sampler: Renderer._clampSampler,
+      );
+    }
 
     encoder.draw(instanceCount: instanced?.count ?? 1);
     state.drawCalls++;

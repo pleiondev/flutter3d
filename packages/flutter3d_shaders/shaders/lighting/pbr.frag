@@ -14,6 +14,8 @@
 // has no environment. A sampler a shader declares and nobody binds is a native
 // crash on Metal rather than a black texture; the same rule keeps the sky's
 // cube out of `sky.frag` and a white texel under the composite's occlusion.
+// `L7`: rectangle lights integrate the GGX lobe; see `lib/ltc.glsl`.
+#define F3D_LTC
 #include <lib/material_maps.glsl>
 #include <lib/shadow.glsl>
 
@@ -87,6 +89,14 @@ vec3 ShadeLight(Surface s, LightSample light) {
   vec3 f = F_Schlick(f0, light.v_dot_h);
 
   vec3 specular = d * vis * f * frag_info.material.w;
+  if (light.integrated > 0.5) {
+    // `L7`: the lobe already integrated over the rectangle, with the fit's
+    // own Fresnel. Divided by `n_dot_l` because the loop multiplies by it,
+    // and that is the diffuse form factor, not a term of this; the `kPi` the
+    // return applies is the same calibration the diffuse gets.
+    specular = light.ltc.x * (f0 * light.ltc.y + (1.0 - f0) * light.ltc.z) *
+               frag_info.material.w / max(light.n_dot_l, 1e-6);
+  }
   if (EnergyCompensation()) specular *= MultiscatterScale(f0, s);
   // Energy left over after reflection is what scatters diffusely.
   vec3 diffuse = diffuseColor * (vec3(1.0) - f) / kPi;
