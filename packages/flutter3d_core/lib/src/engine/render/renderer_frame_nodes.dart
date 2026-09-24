@@ -1138,6 +1138,78 @@ final class _TemporalResolveNode extends RenderNode with _NeedsSurfaceBuffer {
   }
 }
 
+/// `S4`'s volumetric fog, as a link in the lit-colour chain.
+///
+/// **Reads the shadow map optionally, and unlike the shafts it does not
+/// decline without one.** Fog is a medium before it is a shadow-map product:
+/// with no caster the sun, if there is one, lights all of it, and the
+/// clustered lights and the ambient light it regardless. What it cannot go
+/// without is the surface buffer, which says where each ray stops.
+final class _VolumetricFogNode extends RenderNode with _NeedsSurfaceBuffer {
+  _VolumetricFogNode(
+    this._renderer,
+    this._view,
+    this._settings,
+    this._toLight,
+    this._radiance,
+  );
+
+  @override
+  Renderer get owner => _renderer;
+
+  final Renderer _renderer;
+  final RenderView _view;
+  final RenderSettings _settings;
+
+  /// Towards the light the air scatters as its sun, and its colour times
+  /// intensity; null when nothing directional lights the scene.
+  final vm.Vector3? _toLight;
+  final vm.Vector3? _radiance;
+
+  @override
+  String get name => 'volumetric fog';
+
+  @override
+  bool get isActive =>
+      _settings.volumetricFog.enabled &&
+      _settings.volumetricFog.density > 0.0 &&
+      _settings.volumetricFog.steps > 0;
+
+  @override
+  List<ResourceId> get reads => const <ResourceId>[
+    FrameResourceIds.hdrColour,
+    FrameResourceIds.surfaceBuffer,
+  ];
+
+  @override
+  List<ResourceId> get optionalReads => const <ResourceId>[
+    FrameResourceIds.shadowMap,
+  ];
+
+  @override
+  List<ResourceId> get writes => const <ResourceId>[FrameResourceIds.hdrColour];
+
+  @override
+  void execute(NodeFrame frame) {
+    final surface = frame.resources.tryTexture(FrameResourceIds.surfaceBuffer);
+    if (surface == null) return;
+    final fogged = _renderer._encodeVolumetricFog(
+      scene: frame.resources.texture(FrameResourceIds.hdrColour),
+      surface: surface,
+      shadow: frame.resources.tryTexture(FrameResourceIds.shadowMap),
+      settings: _settings.volumetricFog,
+      view: _view,
+      resources: frame.resources,
+      width: frame.width,
+      height: frame.height,
+      toLight: _toLight,
+      radiance: _radiance,
+    );
+    // A different texture from the one it read, handed on as the shafts do.
+    frame.resources.provide(FrameResourceIds.hdrColour, fogged);
+  }
+}
+
 /// `gfx-33n`'s volumetric shafts, as a link in the lit-colour chain.
 ///
 /// **Reads the shadow map optionally, which is the whole of how it declines.**

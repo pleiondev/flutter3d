@@ -55,6 +55,7 @@ import 'static_bake_key.dart';
 export 'render_settings.dart';
 
 part 'renderer_batch.dart';
+part 'renderer_fog_pass.dart';
 part 'renderer_frame_nodes.dart';
 part 'renderer_irradiance_pass.dart';
 part 'renderer_light_list.dart';
@@ -147,6 +148,8 @@ final class Renderer implements RenderServices {
     required this.temporalAccumulateShader,
     required this.ssaoBlurShader,
     required this.lightShaftsShader,
+    required this.volumetricFogShader,
+    required this.volumetricFogUpsampleShader,
     required this.depthOfFieldShader,
     required this.viewportShadeShader,
     required TextureHandle fallbackAlbedo,
@@ -310,6 +313,11 @@ final class Renderer implements RenderServices {
 
   /// `gfx-33n`'s volumetric shafts through the directional shadow map.
   final ShaderHandle lightShaftsShader;
+
+  /// `S4`'s half-resolution march through the air, and the depth-aware pass
+  /// that lays it over the scene.
+  final ShaderHandle volumetricFogShader;
+  final ShaderHandle volumetricFogUpsampleShader;
 
   /// `gfx-34n`'s thin lens and its gather.
   final ShaderHandle depthOfFieldShader;
@@ -668,6 +676,8 @@ final class Renderer implements RenderServices {
   final ShadeInfoBlock _shadeInfo = ShadeInfoBlock();
   final ShadowLightBlock _shadowLight = ShadowLightBlock();
   final ShaftInfoBlock _shaftInfo = ShaftInfoBlock();
+  final VolumeFogInfoBlock _volumeFogInfo = VolumeFogInfoBlock();
+  final FogUpsampleInfoBlock _fogUpsampleInfo = FogUpsampleInfoBlock();
   final SsaoBlurInfoBlock _ssaoBlurInfo = SsaoBlurInfoBlock();
   final SsaoInfoBlock _ssaoInfo = SsaoInfoBlock();
 
@@ -1387,6 +1397,8 @@ final class Renderer implements RenderServices {
         temporalAccumulateShader: require('TemporalAccumulate'),
         ssaoBlurShader: require('SsaoBlur'),
         lightShaftsShader: require('LightShafts'),
+        volumetricFogShader: require('VolumetricFog'),
+        volumetricFogUpsampleShader: require('VolumetricFogUpsample'),
         depthOfFieldShader: require('DepthOfField'),
         viewportShadeShader: require('ViewportShade'),
         fallbackAlbedo:
@@ -1618,6 +1630,12 @@ final class Renderer implements RenderServices {
         buffer,
         caster >= 0 ? caster : _directionalIndexIn(buffer, castingOnly: false),
       );
+
+  /// Which light the volumetric fog scatters as its sun — `S4`: the shadow
+  /// map's caster when there is one, so the air is shadowed by the map it
+  /// reads, and the first directional light otherwise, unshadowed.
+  static int _airLightIn(LightBuffer buffer, int caster) =>
+      caster >= 0 ? caster : _directionalIndexIn(buffer, castingOnly: false);
 
   /// The colour times the intensity of the light at [index] in [buffer], or
   /// null when there is none — what the light shafts scatter.
@@ -2239,6 +2257,8 @@ final class Renderer implements RenderServices {
     required vm.Vector3? sunToLight,
     required vm.Vector3? sunRadiance,
     required vm.Vector3? contactToLight,
+    required vm.Vector3? fogToLight,
+    required vm.Vector3? fogRadiance,
   }) {
     final graph = FrameGraph()
       // The atlas before the directional map, which is the order they were
@@ -2342,6 +2362,11 @@ final class Renderer implements RenderServices {
     // included, so a crease darkens the air in front of it too. A known
     // compromise rather than a claim: separating them needs the in-scatter as
     // a resource of its own, which would also take it out of bloom and focus.
+    // `S4`. Before the shafts, beside them in what it reads: the air dims
+    // the scene behind it and adds its own light, and the shafts, when both
+    // are on, add theirs to that rather than being dimmed by a fog that has
+    // already scattered the same sun.
+    graph.addNode(_VolumetricFogNode(this, view, s, fogToLight, fogRadiance));
     graph.addNode(_LightShaftsNode(this, view, s, sunToLight, sunRadiance));
     // `gfx-34n`. After the shafts, because a lens is in front of everything
     // the scene emits and light in the air defocuses exactly as the geometry
@@ -2546,6 +2571,13 @@ final class Renderer implements RenderServices {
   /// Where the cells' headers and entries start in [_lightListTexture].
   int _clusterHeaderRow = 0;
   int _clusterEntryRow = 0;
+
+  /// `S4`: the light list the view's cells were written into, and its row
+  /// count, kept past the scene pass for the fog's march — which runs after
+  /// [_clustersActive] is cleared, and after later passes may have rebuilt
+  /// the list without cells. Null when the fog is off or the view drew none.
+  TextureHandle? _fogCells;
+  int _fogCellRows = 0;
 
   /// The rows [_lightListTexture] was last uploaded with, compared against
   /// this frame's rather than trusting `SceneNode.changeEpoch`: a light's
@@ -3286,6 +3318,11 @@ final class Renderer implements RenderServices {
       sunToLight: _toLightIn(planLights, shadowCaster),
       sunRadiance: _radianceIn(planLights, shadowCaster),
       contactToLight: _contactToLightIn(planLights, shadowCaster),
+      fogToLight: _toLightIn(planLights, _airLightIn(planLights, shadowCaster)),
+      fogRadiance: _radianceIn(
+        planLights,
+        _airLightIn(planLights, shadowCaster),
+      ),
       cubeStatic: _CubeShadowStaticNode(
         this,
         scene: scene,
@@ -3802,6 +3839,8 @@ final class Renderer implements RenderServices {
         sunToLight: _toLightIn(lights, shadowCaster),
         sunRadiance: _radianceIn(lights, shadowCaster),
         contactToLight: _contactToLightIn(lights, shadowCaster),
+        fogToLight: _toLightIn(lights, _airLightIn(lights, shadowCaster)),
+        fogRadiance: _radianceIn(lights, _airLightIn(lights, shadowCaster)),
       );
 
       // The frame's own resources: the graph names the lit scene and each

@@ -74,6 +74,8 @@ const List<RequiredShader> kRequiredShaders = <RequiredShader>[
   (name: 'VelocitySkinnedVertex', fragment: false),
   (name: 'VelocityInstancedVertex', fragment: false),
   (name: 'LightShafts', fragment: true),
+  (name: 'VolumetricFog', fragment: true),
+  (name: 'VolumetricFogUpsample', fragment: true),
   (name: 'DepthOfField', fragment: true),
   (name: 'ViewportShade', fragment: true),
   (name: 'ShadowDepth', fragment: true),

@@ -65,6 +65,7 @@ import 'cpu_shaders_ssao.dart';
 import 'cpu_shaders_temporal.dart';
 import 'cpu_shaders_velocity.dart';
 import 'cpu_shaders_vertex_probe.dart';
+import 'cpu_shaders_volumetric_fog.dart';
 
 export 'cpu_shaders_bloom.dart';
 export 'cpu_shaders_color.dart';
@@ -88,6 +89,7 @@ export 'cpu_shaders_surface.dart';
 export 'cpu_shaders_temporal.dart';
 export 'cpu_shaders_velocity.dart';
 export 'cpu_shaders_vertex_probe.dart';
+export 'cpu_shaders_volumetric_fog.dart';
 
 /// A stage that exists so the name resolves and fails if anybody draws with it.
 ///
@@ -183,6 +185,10 @@ Map<String, CpuStage> builtinCpuShaders() {
     ),
     'SsaoBlur': const CpuStage.fragment(SsaoBlurShader()),
     'LightShafts': const CpuStage.fragment(LightShaftsShader()),
+    'VolumetricFog': const CpuStage.fragment(VolumetricFogShader()),
+    'VolumetricFogUpsample': const CpuStage.fragment(
+      VolumetricFogUpsampleShader(),
+    ),
     'DepthOfField': const CpuStage.fragment(DepthOfFieldShader()),
     'ViewportShade': const CpuStage.fragment(ViewportShadeShader()),
     'ShadowDepthMasked': const CpuStage.fragment(ShadowDepthMaskedShader()),

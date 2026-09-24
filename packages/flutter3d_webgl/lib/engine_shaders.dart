@@ -18680,6 +18680,499 @@ void main() {
 }
 
 ''',
+    'VolumetricFog': r'''#version 300 es
+precision highp float;
+precision highp int;
+precision highp sampler2D;
+precision highp samplerCube;
+
+// Volumetric fog, marched at half resolution — `S4`.
+//
+// **The light shafts' march, given a medium.** `light_shafts.frag` asks the
+// shadow map at each step whether a point in the air is lit and adds the sun
+// it scatters. This asks the same question and three more: how thick the air
+// is at that height, which of the view's clustered lights reach that point,
+// and how much of what lies behind it is still seen through what the ray has
+// crossed. What comes out is not a colour to add but a pair — the light the
+// air sends towards the eye, and the share of the scene that survives it —
+// which `volumetric_fog_upsample.frag` lays over the full-resolution picture.
+//
+// **Half resolution, and that is what the upsample is for.** Fog varies
+// slowly across the screen except where the depth jumps, so a quarter of the
+// rays carry nearly all of the picture; the upsample weighs each of the four
+// nearest by how close its depth is to the pixel's own, which keeps a torch's
+// halo from bleeding over the edge of the wall in front of it.
+//
+// **The start is offset by the engine's noise.** The fixed 4 × 4 pattern
+// without a temporal resolve, R3's blue noise with one — the history then
+// averages the next slice every frame into the integral the steps sample.
+
+// --- lib/frag_coord_info.glsl ---
+// The target's orientation, for a full-screen pass.
+//
+// Its own block rather than a member of each pass's, so the renderer binds it
+// in one place, `drawFullscreen`, for every stage that declares it — the
+// contract answers false for a stage that does not, and a pass that adds a
+// screen-space pattern later gets the right rows by including this file.
+
+#ifndef FRAG_COORD_INFO_GLSL_
+#define FRAG_COORD_INFO_GLSL_
+
+// --- lib/frag_coord.glsl ---
+// Where a fragment sits, counted from the top of its target on every backend.
+
+#ifndef FRAG_COORD_GLSL_
+#define FRAG_COORD_GLSL_
+
+/// `gl_FragCoord.xy` with row zero at the top of the picture.
+///
+/// [rows] is the target's height where the backend's row zero is the bottom
+/// of the picture, and zero where it is the top. WebGL2 is the first kind:
+/// window coordinates start at the lower left, and the engine draws the
+/// picture upright there rather than mirroring every projection. Metal,
+/// WebGPU and the software rasteriser are the second.
+///
+/// **Why a pattern cares and a picture does not.** Every screen-space pattern
+/// in the engine — the Bayer dither, the grain, the jitter a ray march starts
+/// from, the rotation of a shadow kernel — is a function of the pixel's row.
+/// Read from the bottom, the same frame gets the pattern turned upside down,
+/// and a four-row Bayer cell lands on different rows unless the height is a
+/// multiple of four. The picture underneath is identical; the pattern on top
+/// of it is not, and a comparison across backends counts every pixel it
+/// moved.
+vec2 FragCoordFromTop(float rows) {
+  return rows > 0.0 ? vec2(gl_FragCoord.x, rows - gl_FragCoord.y)
+                    : gl_FragCoord.xy;
+}
+
+#endif  // FRAG_COORD_GLSL_
+
+
+layout(std140) uniform FragCoordInfo {
+  /// x: the target's rows when its row zero is the bottom of the picture,
+  /// zero when it is the top — see [FragCoordFromTop]. yzw unused.
+  vec4 origin;
+}
+frag_coord_info;
+
+/// This fragment's position with row zero at the top of the target.
+vec2 TargetFragCoord() {
+  return FragCoordFromTop(frag_coord_info.origin.x);
+}
+
+#endif  // FRAG_COORD_INFO_GLSL_
+
+// --- lib/blue_noise.glsl ---
+// A per-pixel offset for a march or a kernel rotation — `R3`.
+//
+// **The engine's blue noise while a temporal resolve runs, the fixed 4 × 4
+// pattern otherwise.** A march jittered by a pattern that never changes puts
+// the same dither on every frame, and the eye finds it; with the resolve on,
+// each frame reads the next of 32 slices of blue noise and the history
+// averages them into a smooth answer. Off, the pattern is exactly what the
+// passes read before, so a frame without the resolve is the frame it was.
+//
+// The table is `EngineTables.blueNoise`: 32 slices of 64 × 64 in an 8 × 4
+// atlas, one byte a texel. Read at texel centres through a nearest sampler.
+//
+// Include after `lib/frag_coord_info.glsl` or anything else that gives the
+// pixel from the top.
+
+#ifndef BLUE_NOISE_GLSL_
+#define BLUE_NOISE_GLSL_
+
+uniform sampler2D blue_noise_texture;
+
+layout(std140) uniform NoiseInfo {
+  /// x: one to read the blue noise, nought for the pattern. y: this frame's
+  /// slice, the frame index modulo 32. zw unused.
+  vec4 noise;
+}
+noise_info;
+
+/// One cell of a 4 × 4 Bayer matrix, in [0, 1).
+float BayerCell(vec2 at) {
+  int x = int(mod(at.x, 4.0));
+  int y = int(mod(at.y, 4.0));
+  int index = y * 4 + x;
+  float value = 0.0;
+  if (index == 0) value = 0.0;
+  else if (index == 1) value = 8.0;
+  else if (index == 2) value = 2.0;
+  else if (index == 3) value = 10.0;
+  else if (index == 4) value = 12.0;
+  else if (index == 5) value = 4.0;
+  else if (index == 6) value = 14.0;
+  else if (index == 7) value = 6.0;
+  else if (index == 8) value = 3.0;
+  else if (index == 9) value = 11.0;
+  else if (index == 10) value = 1.0;
+  else if (index == 11) value = 9.0;
+  else if (index == 12) value = 15.0;
+  else if (index == 13) value = 7.0;
+  else if (index == 14) value = 13.0;
+  else value = 5.0;
+  return value / 16.0;
+}
+
+/// This frame's blue noise at the pixel [at], in [0, 1).
+float BlueNoise(vec2 at) {
+  float slice = noise_info.noise.y;
+  vec2 cell = mod(floor(at), 64.0);
+  vec2 corner = vec2(mod(slice, 8.0), floor(slice / 8.0)) * 64.0;
+  vec2 uv = (corner + cell + 0.5) / vec2(512.0, 256.0);
+  return textureLod(blue_noise_texture, uv, 0.0).r * (255.0 / 256.0);
+}
+
+/// The offset for the pixel [at]: blue noise or the pattern, per `noise.x`.
+float PixelNoise(vec2 at) {
+  return noise_info.noise.x > 0.5 ? BlueNoise(at) : BayerCell(at);
+}
+
+#endif  // BLUE_NOISE_GLSL_
+
+
+in vec2 v_uv;
+
+layout(location = 0) out vec4 frag_color;
+
+uniform sampler2D surface_texture;
+uniform sampler2D shadow_texture;
+uniform sampler2D light_list_texture;
+
+// The most lights one step of the march reads from its cell. A cell lists
+// every light whose range reaches into it, and a loop a scene can lengthen
+// without limit is a hang rather than a slow frame.
+#define kFogCellLights 16
+
+layout(std140) uniform VolumeFogInfo {
+  // Screen to world, for turning a stored depth back into a point.
+  mat4 inverse_view_projection;
+
+  // The three cascade matrices, world to light clip, as `ShaftInfo` has them.
+  mat4 shadow_matrix;
+  mat4 shadow_matrix_far;
+  mat4 shadow_matrix_farthest;
+
+  // `L6`: the view-projection the light clusters were cut with, so a step
+  // finds its cell the way `LightClusters.clusterOf` does.
+  mat4 cluster_view_projection;
+
+  // xyz: where the eye is. w: how far to march, in world metres.
+  vec4 camera;
+
+  // xyz: the direction the camera looks. w: how many steps.
+  vec4 forward;
+
+  // xyz: towards the sun, a unit vector. w: Henyey–Greenstein's g.
+  vec4 sun;
+
+  // rgb: the sun's colour times its intensity, times the air's albedo;
+  // nought with no directional light. w unused.
+  vec4 sun_radiance;
+
+  // x, y: the two cascade split distances. z: how many cascades, nought when
+  // there is no shadow map and every point is lit. w unused.
+  vec4 cascades;
+
+  // x, y, z: each cascade's depth bias. w unused.
+  vec4 bias;
+
+  // x: the air's extinction σ at the base height, per metre. y: how fast it
+  // thins with height, per metre. z: the base height. w unused.
+  vec4 medium;
+
+  // rgb: the air's albedo, which tints what the clustered lights scatter.
+  // w: one when the cells are there to read, nought otherwise.
+  vec4 albedo;
+
+  // rgb: light reaching the air from every direction, times the albedo —
+  // what keeps fog in shadow from reading as a black wall. w unused.
+  vec4 ambient;
+
+  // xyz: tiles across, tiles up, slices deep. w unused.
+  vec4 cluster_grid;
+
+  // x: where slices begin, in clip w. y: slices per unit of `ln(w / x)`.
+  // z: the row the cells' headers start at. w: the row their entries start at.
+  vec4 cluster_depth;
+
+  // x, y: one over the light list texture's width and height. zw unused.
+  vec4 list;
+}
+fog_info;
+
+// How much of the light a point in the air sends along [cosine] from the
+// light's direction — Henyey–Greenstein, normalised over the sphere, as in
+// `light_shafts.frag`.
+float HenyeyGreenstein(float cosine, float g) {
+  float g2 = g * g;
+  float denominator = max(1.0 + g2 - 2.0 * g * cosine, 1e-4);
+  return (1.0 - g2) / (12.566371 * denominator * sqrt(denominator));
+}
+
+// The air's extinction at height [y]: σ at the base, thinning exponentially
+// above it and thickening below. The exponent is clamped so a camera far
+// below the base height reads very thick fog rather than an infinity.
+float Density(float y) {
+  float exponent = clamp(-fog_info.medium.y * (y - fog_info.medium.z),
+                         -30.0, 30.0);
+  return max(fog_info.medium.x, 0.0) * exp(exponent);
+}
+
+// Whether [world] is lit by the sun: `LitAt` from `light_shafts.frag`, one
+// tap per cascade walk. With no map (`cascades.z` nought) everything is lit.
+float LitAt(vec3 world, float viewDistance) {
+  int cascadeCount = int(fog_info.cascades.z + 0.5);
+  int cascade = 0;
+  if (cascadeCount > 1 && viewDistance > fog_info.cascades.x) cascade = 1;
+  if (cascadeCount > 2 && viewDistance > fog_info.cascades.y) cascade = 2;
+
+  for (int attempt = 0; attempt < 3; attempt++) {
+    int which = cascade + attempt;
+    if (which >= cascadeCount) break;
+
+    mat4 matrix = which == 0
+        ? fog_info.shadow_matrix
+        : (which == 1 ? fog_info.shadow_matrix_far
+                      : fog_info.shadow_matrix_farthest);
+    vec4 lightSpace = matrix * vec4(world, 1.0);
+    if (lightSpace.w <= 0.0) continue;
+    vec3 candidate = lightSpace.xyz / lightSpace.w;
+
+    vec2 inTile = vec2(candidate.x * 0.5 + 0.5, 0.5 - candidate.y * 0.5);
+    if (inTile.x < 0.0 || inTile.x > 1.0 || inTile.y < 0.0 || inTile.y > 1.0) {
+      continue;
+    }
+    if (candidate.z > 1.0) {
+      if (which < cascadeCount - 1) continue;
+      candidate.z = 1.0;
+    }
+
+    vec2 uv = vec2((inTile.x + float(which)) / float(cascadeCount), inTile.y);
+    float stored = textureLod(shadow_texture, uv, 0.0).r;
+    float bias = which == 0
+        ? fog_info.bias.x
+        : (which == 1 ? fog_info.bias.y : fog_info.bias.z);
+    return candidate.z - bias > stored ? 0.0 : 1.0;
+  }
+  return 1.0;
+}
+
+// One texel of the light list texture, [texel] across and [row] down.
+vec4 ListTexel(float texel, float row) {
+  return textureLod(light_list_texture,
+                    vec2((texel + 0.5) * fog_info.list.x,
+                         (row + 0.5) * fog_info.list.y),
+                    0.0);
+}
+
+// One lane of a four-vector.
+float Lane(vec4 four, float lane) {
+  return lane < 0.5 ? four.x
+                    : (lane < 1.5 ? four.y : (lane < 2.5 ? four.z : four.w));
+}
+
+// What the clustered lights whose cell holds [world] send towards the eye
+// along [along], before the albedo and the path.
+//
+// `FindCluster` and `ClusterRow` from `surface.glsl`, with nothing of a draw
+// in them: a cell lists every light that reaches it, and the air has no
+// slots holding some of them already. Points and spots only — a rectangle's
+// intensity is spread over its area in a way a point in the air has no
+// normal to integrate against, and a directional light is the sun's job.
+vec3 ClusterLight(vec3 world, vec3 along, float g) {
+  vec4 clip = fog_info.cluster_view_projection * vec4(world, 1.0);
+  vec2 ndc = clip.xy / max(clip.w, 1e-6);
+  vec3 grid = fog_info.cluster_grid.xyz;
+  float near = fog_info.cluster_depth.x;
+  float tx = clamp(floor((ndc.x * 0.5 + 0.5) * grid.x), 0.0, grid.x - 1.0);
+  float ty = clamp(floor((ndc.y * 0.5 + 0.5) * grid.y), 0.0, grid.y - 1.0);
+  float tz = clip.w <= near
+                 ? 0.0
+                 : clamp(floor(log(clip.w / near) * fog_info.cluster_depth.y),
+                         0.0, grid.z - 1.0);
+  float cell = tx + ty * grid.x + tz * grid.x * grid.y;
+  float headerRow = floor(cell / 4.0);
+  vec4 header =
+      ListTexel(cell - headerRow * 4.0, fog_info.cluster_depth.z + headerRow);
+  int count = int(header.y + 0.5);
+
+  vec3 total = vec3(0.0);
+  for (int i = 0; i < kFogCellLights; i++) {
+    if (i >= count) break;
+    float entry = header.x + float(i);
+    float entryRow = floor(entry / 16.0);
+    float within = entry - entryRow * 16.0;
+    float texel = floor(within / 4.0);
+    vec4 four = ListTexel(texel, fog_info.cluster_depth.w + entryRow);
+    float row = Lane(four, within - texel * 4.0);
+
+    vec4 position = ListTexel(0.0, row);
+    vec4 color = ListTexel(1.0, row);
+    vec4 direction = ListTexel(2.0, row);
+    vec4 cone = ListTexel(3.0, row);
+    float type = position.w;
+    vec3 toLight = position.xyz - world;
+    float distance = length(toLight);
+    // Points and spots, at a distance with a direction.
+    float usable = (type > 0.5 && type < 2.5 && distance > 1e-4) ? 1.0 : 0.0;
+    vec3 l = toLight / max(distance, 1e-4);
+
+    // `PunctualAttenuation` from `surface.glsl`.
+    float attenuation = 1.0 / max(distance * distance, 1e-4);
+    if (direction.w > 0.0) {
+      float ratio = distance / direction.w;
+      float window = clamp(1.0 - ratio * ratio * ratio * ratio, 0.0, 1.0);
+      attenuation *= window * window;
+    }
+    // Spots only: a rectangle's `cone` holds an edge, not two cosines, and
+    // the ramp over it could divide by nought into a NaN the `usable`
+    // multiply would not clear.
+    if (type > 1.5 && type < 2.5) {
+      float cosAngle = dot(normalize(direction.xyz), -l);
+      attenuation *= clamp((cosAngle - cone.y) / (cone.x - cone.y), 0.0, 1.0);
+    }
+    total += color.rgb *
+             (color.w * attenuation * usable * HenyeyGreenstein(dot(along, l), g));
+  }
+  return total;
+}
+
+void main() {
+  int steps = int(fog_info.forward.w + 0.5);
+
+  // Where the ray starts and which way it goes.
+  vec2 xy = vec2(v_uv.x * 2.0 - 1.0, 1.0 - v_uv.y * 2.0);
+  vec4 nearH = fog_info.inverse_view_projection * vec4(xy, 0.0, 1.0);
+  vec4 farH = fog_info.inverse_view_projection * vec4(xy, 1.0, 1.0);
+  vec3 origin = nearH.xyz / nearH.w;
+  vec3 along = normalize(farH.xyz / farH.w - origin);
+
+  // How far there is air, as `light_shafts.frag` measures it: the surface
+  // buffer's depth along the view axis over the cosine to this ray.
+  float surfaceDepth = texture(surface_texture, v_uv).a;
+  float cosine = max(dot(along, fog_info.forward.xyz), 1e-4);
+  float toSurface = surfaceDepth > 0.0 ? surfaceDepth / cosine : 1e9;
+  float distance = min(fog_info.camera.w, toSurface);
+  if (steps < 1 || distance <= 0.0) {
+    frag_color = vec4(0.0, 0.0, 0.0, 1.0);
+    return;
+  }
+
+  float stride = distance / float(steps);
+  float offset = PixelNoise(TargetFragCoord()) * stride;
+
+  // **Single scattering with transmittance, per step.** A step of length
+  // `stride` at extinction σ catches `1 − e^(−σ·stride)` of the light that
+  // reaches it and passes on `e^(−σ·stride)` of what is behind it; the light
+  // it catches is weighted by what is left of the path to the eye. Each
+  // sample stands for one stride of the ray, placed at the offset within it,
+  // so the strides add up to the distance exactly and a wall seen through
+  // uniform air keeps `e^(−σd)` of itself whatever the noise says.
+  float g = fog_info.sun.w;
+  float sunPhase = HenyeyGreenstein(dot(along, fog_info.sun.xyz), g);
+  bool clustered = fog_info.albedo.w > 0.5;
+  vec3 eye = fog_info.camera.xyz;
+  float transmittance = 1.0;
+  vec3 inscatter = vec3(0.0);
+  for (int i = 0; i < 64; i++) {
+    if (i >= steps) break;
+    float travelled = offset + float(i) * stride;
+    vec3 at = origin + along * travelled;
+    float stepTransmittance = exp(-Density(at.y) * stride);
+
+    vec3 light = fog_info.sun_radiance.rgb *
+                     (sunPhase * LitAt(at, length(at - eye))) +
+                 fog_info.ambient.rgb * 0.07957747;
+    if (clustered) {
+      light += fog_info.albedo.rgb * ClusterLight(at, along, g);
+    }
+    inscatter += light * (transmittance * (1.0 - stepTransmittance));
+    transmittance *= stepTransmittance;
+  }
+
+  frag_color = vec4(inscatter, transmittance);
+}
+
+''',
+    'VolumetricFogUpsample': r'''#version 300 es
+precision highp float;
+precision highp int;
+precision highp sampler2D;
+precision highp samplerCube;
+
+// The half-resolution fog laid over the full-resolution scene — `S4`.
+//
+// **Depth-aware, which is the whole reason this is its own pass.** A plain
+// bilinear stretch of a half-resolution fog mixes, at every silhouette, a ray
+// that stopped at the near wall with one that ran on to the far one: the
+// torch's halo behind a pillar bleeds a pixel over the pillar's edge, and the
+// pillar's edge brings its clear air into the halo. Here each of the four
+// nearest fog texels is weighted by its bilinear share *and* by how close the
+// depth its ray stopped at is to this pixel's own, so the texels on the other
+// side of an edge all but drop out and the edge stays where the scene has it.
+//
+// The fog texel's depth is read from the full-resolution surface buffer at
+// that texel's centre, which is the very texel the march read — nearest on
+// both — so the depth compared is the one the ray was actually cut at.
+//
+// **Composited before the tone map**: the scene behind keeps the share the
+// air lets through and the in-scatter is added, both in linear light.
+
+in vec2 v_uv;
+
+layout(location = 0) out vec4 frag_color;
+
+uniform sampler2D scene_texture;
+uniform sampler2D fog_texture;
+uniform sampler2D surface_texture;
+
+layout(std140) uniform FogUpsampleInfo {
+  // xy: the fog texture's size in texels. zw unused.
+  vec4 size;
+}
+upsample_info;
+
+// A depth to compare: the surface buffer's, with the cleared sky pushed far
+// away so a sky pixel matches sky texels and not the nearest wall.
+float DepthAt(vec2 uv) {
+  float depth = textureLod(surface_texture, uv, 0.0).a;
+  return depth > 0.0 ? depth : 1e6;
+}
+
+// Adds fog texel [cell], at bilinear share [share], weighted against the
+// pixel's own depth [here].
+void Tap(vec2 cell, float share, float here, inout vec4 sum,
+         inout float weight) {
+  vec2 size = upsample_info.size.xy;
+  vec2 uv = (clamp(cell, vec2(0.0), size - 1.0) + 0.5) / size;
+  float difference = abs(DepthAt(uv) - here) / max(here, 1e-3);
+  float w = share / (0.01 + difference);
+  sum += textureLod(fog_texture, uv, 0.0) * w;
+  weight += w;
+}
+
+void main() {
+  vec4 scene = texture(scene_texture, v_uv);
+  vec2 size = max(upsample_info.size.xy, vec2(1.0));
+  vec2 at = v_uv * size - 0.5;
+  vec2 base = floor(at);
+  vec2 f = at - base;
+  float here = DepthAt(v_uv);
+
+  vec4 sum = vec4(0.0);
+  float weight = 0.0;
+  Tap(base, (1.0 - f.x) * (1.0 - f.y), here, sum, weight);
+  Tap(base + vec2(1.0, 0.0), f.x * (1.0 - f.y), here, sum, weight);
+  Tap(base + vec2(0.0, 1.0), (1.0 - f.x) * f.y, here, sum, weight);
+  Tap(base + vec2(1.0, 1.0), f.x * f.y, here, sum, weight);
+  vec4 fog = weight > 1e-6 ? sum / weight : vec4(0.0, 0.0, 0.0, 1.0);
+
+  frag_color = vec4(scene.rgb * fog.a + fog.rgb, scene.a);
+}
+
+''',
     'DepthOfField': r'''#version 300 es
 precision highp float;
 precision highp int;

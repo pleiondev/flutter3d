@@ -171,6 +171,14 @@
     "type": "fragment",
     "file": "shaders/post/light_shafts.frag"
   },
+  "VolumetricFog": {
+    "type": "fragment",
+    "file": "shaders/post/volumetric_fog.frag"
+  },
+  "VolumetricFogUpsample": {
+    "type": "fragment",
+    "file": "shaders/post/volumetric_fog_upsample.frag"
+  },
   "DepthOfField": {
     "type": "fragment",
     "file": "shaders/post/depth_of_field.frag"
