@@ -184,10 +184,10 @@ kind, a shape or a texture node takes. The `modelling_strategy` prompt is the
 order to do all of it in.
 
 `check` says what is wrong with the project as an export would see it; `audit`
-checks an imported asset's size, origin and meshes, and can repair them. `save` writes the project's own format;
-`export` writes `.f3d`, `.glb`, `.obj`, `.stl` or `.usdz` for something else to
-read. `import` brings another file's objects in. `journal` writes every command
-run this session to a recovery file.
+checks an imported asset's size, origin and meshes, and can repair them. `save`
+writes the project's own format; `export` writes `.f3d`, `.glb`, `.obj`, `.stl`
+or `.usdz` for something else to read. `import` brings another file's objects
+in. `journal` writes every command run this session to a recovery file.
 
 `undo`/`redo` walk the history one step at a time, where a step is whatever one
 tool call did — except a drag of many small changes, which nothing here can
