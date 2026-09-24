@@ -286,7 +286,9 @@ uniform FragInfo {
   /// resolve reconstructs a picture larger than the scene is drawn at, when
   /// the maps are read as sharp as the output they end up in. z: one when
   /// the metal-rough model puts back the energy single scattering loses —
-  /// `L1`, `RenderSettings.energyCompensation`. w unused.
+  /// `L1`, `RenderSettings.energyCompensation`. w: the frame's slice of 32
+  /// while a temporal resolve runs, minus one otherwise — `S3`, which steps
+  /// the soft shadow's rotation by it.
   vec4 target_origin;
 }
 frag_info;

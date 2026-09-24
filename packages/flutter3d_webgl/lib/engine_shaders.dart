@@ -2922,7 +2922,9 @@ layout(std140) uniform FragInfo {
   /// resolve reconstructs a picture larger than the scene is drawn at, when
   /// the maps are read as sharp as the output they end up in. z: one when
   /// the metal-rough model puts back the energy single scattering loses —
-  /// `L1`, `RenderSettings.energyCompensation`. w unused.
+  /// `L1`, `RenderSettings.energyCompensation`. w: the frame's slice of 32
+  /// while a temporal resolve runs, minus one otherwise — `S3`, which steps
+  /// the soft shadow's rotation by it.
   vec4 target_origin;
 }
 frag_info;
@@ -4524,7 +4526,9 @@ layout(std140) uniform FragInfo {
   /// resolve reconstructs a picture larger than the scene is drawn at, when
   /// the maps are read as sharp as the output they end up in. z: one when
   /// the metal-rough model puts back the energy single scattering loses —
-  /// `L1`, `RenderSettings.energyCompensation`. w unused.
+  /// `L1`, `RenderSettings.energyCompensation`. w: the frame's slice of 32
+  /// while a temporal resolve runs, minus one otherwise — `S3`, which steps
+  /// the soft shadow's rotation by it.
   vec4 target_origin;
 }
 frag_info;
@@ -6112,7 +6116,9 @@ layout(std140) uniform FragInfo {
   /// resolve reconstructs a picture larger than the scene is drawn at, when
   /// the maps are read as sharp as the output they end up in. z: one when
   /// the metal-rough model puts back the energy single scattering loses —
-  /// `L1`, `RenderSettings.energyCompensation`. w unused.
+  /// `L1`, `RenderSettings.energyCompensation`. w: the frame's slice of 32
+  /// while a temporal resolve runs, minus one otherwise — `S3`, which steps
+  /// the soft shadow's rotation by it.
   vec4 target_origin;
 }
 frag_info;
@@ -7348,18 +7354,24 @@ void ApplyCommonMaps(inout Surface s) {
 /// Linear depth from the light's point of view, in the red channel.
 uniform sampler2D shadow_texture;
 
-/// Five points on a disc: the centre and four at the diagonals.
-///
-/// **Diagonals rather than the axes.** A cross of four axis-aligned taps
-/// leaves a shadow whose edge is smooth along x and y and hard at forty-five
-/// degrees, which is the angle most edges in a built scene actually run at.
-/// Turned by an eighth of a turn, the four taps straddle a vertical or
-/// horizontal edge evenly and the artefact has nowhere to line up.
-const vec2 kShadowDisc[5] = vec2[5](vec2(0.0, 0.0),
-                                    vec2(0.7071, 0.7071),
-                                    vec2(-0.7071, 0.7071),
-                                    vec2(0.7071, -0.7071),
-                                    vec2(-0.7071, -0.7071));
+/// Point [i] of [n] on a Vogel disc turned by [turn] radians — `S3`: the
+/// golden angle between neighbours, so any prefix of the points covers the
+/// disc evenly, and a radius growing with the square root, so they cover it
+/// at an even density.
+vec2 VogelDisc(int i, int n, float turn) {
+  float r = sqrt((float(i) + 0.5) / float(n));
+  float theta = float(i) * 2.3999632 + turn;
+  return r * vec2(cos(theta), sin(theta));
+}
+
+/// Interleaved gradient noise at this pixel, in [0, 1), stepped on by the
+/// frame's slice while a temporal resolve runs (`target_origin.w`) so the
+/// history averages the rotations. The pattern needs no texture, which keeps
+/// the lit stages at the samplers they have.
+float ShadowNoise() {
+  vec2 at = gl_FragCoord.xy + 5.588238 * max(frag_info.target_origin.w, 0.0);
+  return fract(52.9829189 * fract(dot(at, vec2(0.06711056, 0.00583715))));
+}
 
 /// How much of the light survives at this fragment, from 0 to 1.
 ///
@@ -7405,6 +7417,10 @@ float ShadowFactor(Surface s, LightSample light, int lightIndex) {
   vec2 uv = vec2(0.0);
   vec3 projected = vec3(0.0);
   bool found = false;
+  // `S3`: what the soft path needs of the cascade it lands in — metres per
+  // texel across, and metres per unit of stored depth along the light.
+  float cascadeTexel = 1.0;
+  float cascadeDepth = 1.0;
   for (int attempt = 0; attempt < 3; attempt++) {
     int which = cascade + attempt;
     if (which >= cascadeCount) break;
@@ -7447,6 +7463,9 @@ float ShadowFactor(Surface s, LightSample light, int lightIndex) {
     uv = vec2((inTile.x + float(which)) / float(cascadeCount), inTile.y);
     projected = candidate;
     cascade = which;
+    cascadeTexel = texelMetres;
+    cascadeDepth =
+        1.0 / max(length(vec3(matrix[0][2], matrix[1][2], matrix[2][2])), 1e-6);
     found = true;
     break;
   }
@@ -7513,22 +7532,33 @@ float ShadowFactor(Surface s, LightSample light, int lightIndex) {
     }
     lit *= 1.0 / 9.0;
   } else {
-    // **Find what is casting before deciding how wide to blur.** The five
-    // taps go out at a fixed search radius first and average the depths of
-    // whatever they find in front of this fragment; that average is the
-    // occluder's distance, and the penumbra is proportional to it. A kernel
-    // sized without this step is the fixed one again with a bigger number.
-    // Bounded, and not proportional to the softness: the search only has to
-    // reach far enough to find *a* blocker, and a radius that grew without
-    // limit would start finding occluders from the other side of the scene
-    // and report a gap that belongs to them.
-    float searchRadius = clamp(softness * 0.25, 2.0, 16.0);
+    // **Find what is casting before deciding how wide to blur**, then blur by
+    // what a light of this size would leave — `S3`. Sixteen taps each way on
+    // a Vogel disc turned per pixel, where there were five fixed ones: the
+    // turn trades the five's regular pattern for noise the eye reads as
+    // grain, and a temporal resolve averages away.
+    //
+    // **In metres, per cascade.** The gap between the blocker and this
+    // fragment is measured in the cascade's stored depth, whose unit is a
+    // different length in each cascade; converted to metres, the penumbra is
+    // the gap times the light's apparent diameter, and in texels it is that
+    // over the cascade's own texel. A shadow keeps its softness crossing
+    // from one cascade into the next.
+    float spread = 2.0 * tan(min(softness, 0.5));
+    float turn = ShadowNoise() * 6.2831853;
+
+    // As wide as the widest penumbra could be at this depth, and no wider:
+    // the whole of the distance back to the light is the largest gap there
+    // is.
+    float searchRadius =
+        clamp(spread * projected.z * cascadeDepth / cascadeTexel, 1.0, 16.0);
     float blockerSum = 0.0;
     float blockerCount = 0.0;
-    for (int i = 0; i < 5; i++) {
+    for (int i = 0; i < 16; i++) {
       float occluder = textureLod(
           shadow_texture,
-          clamp(uv + kShadowDisc[i] * texel * searchRadius, tileLo, tileHi),
+          clamp(uv + VogelDisc(i, 16, turn) * texel * searchRadius, tileLo,
+                tileHi),
           0.0).r;
       if (projected.z - bias > occluder) {
         blockerSum += occluder;
@@ -7538,22 +7568,20 @@ float ShadowFactor(Surface s, LightSample light, int lightIndex) {
     // Nothing between this fragment and the light: lit, and no second loop.
     if (blockerCount <= 0.0) return 1.0;
 
-    // Linear depth over the cascade's own volume, so the gap between the
-    // occluder and the receiver *is* the distance — no perspective divide,
-    // which is what an orthographic light means.
-    float gap = max(projected.z - blockerSum / blockerCount, 0.0);
+    float gap = max(projected.z - blockerSum / blockerCount, 0.0) * cascadeDepth;
     // One texel at the tightest, so a contact edge stays an edge; the cap
     // keeps a distant occluder from reaching across a whole cascade.
-    float radius = clamp(gap * softness, 1.0, 16.0);
+    float radius = clamp(spread * gap / cascadeTexel, 1.0, 16.0);
 
-    for (int i = 0; i < 5; i++) {
+    for (int i = 0; i < 16; i++) {
       float occluder = textureLod(
           shadow_texture,
-          clamp(uv + kShadowDisc[i] * texel * radius, tileLo, tileHi),
+          clamp(uv + VogelDisc(i, 16, turn + 1.0) * texel * radius, tileLo,
+                tileHi),
           0.0).r;
       lit += projected.z - bias > occluder ? 0.0 : 1.0;
     }
-    lit *= 1.0 / 5.0;
+    lit *= 1.0 / 16.0;
   }
 
   // Strength lerps towards fully lit, so the control is "how dark", not "how
@@ -8206,7 +8234,9 @@ layout(std140) uniform FragInfo {
   /// resolve reconstructs a picture larger than the scene is drawn at, when
   /// the maps are read as sharp as the output they end up in. z: one when
   /// the metal-rough model puts back the energy single scattering loses —
-  /// `L1`, `RenderSettings.energyCompensation`. w unused.
+  /// `L1`, `RenderSettings.energyCompensation`. w: the frame's slice of 32
+  /// while a temporal resolve runs, minus one otherwise — `S3`, which steps
+  /// the soft shadow's rotation by it.
   vec4 target_origin;
 }
 frag_info;
@@ -9442,18 +9472,24 @@ void ApplyCommonMaps(inout Surface s) {
 /// Linear depth from the light's point of view, in the red channel.
 uniform sampler2D shadow_texture;
 
-/// Five points on a disc: the centre and four at the diagonals.
-///
-/// **Diagonals rather than the axes.** A cross of four axis-aligned taps
-/// leaves a shadow whose edge is smooth along x and y and hard at forty-five
-/// degrees, which is the angle most edges in a built scene actually run at.
-/// Turned by an eighth of a turn, the four taps straddle a vertical or
-/// horizontal edge evenly and the artefact has nowhere to line up.
-const vec2 kShadowDisc[5] = vec2[5](vec2(0.0, 0.0),
-                                    vec2(0.7071, 0.7071),
-                                    vec2(-0.7071, 0.7071),
-                                    vec2(0.7071, -0.7071),
-                                    vec2(-0.7071, -0.7071));
+/// Point [i] of [n] on a Vogel disc turned by [turn] radians — `S3`: the
+/// golden angle between neighbours, so any prefix of the points covers the
+/// disc evenly, and a radius growing with the square root, so they cover it
+/// at an even density.
+vec2 VogelDisc(int i, int n, float turn) {
+  float r = sqrt((float(i) + 0.5) / float(n));
+  float theta = float(i) * 2.3999632 + turn;
+  return r * vec2(cos(theta), sin(theta));
+}
+
+/// Interleaved gradient noise at this pixel, in [0, 1), stepped on by the
+/// frame's slice while a temporal resolve runs (`target_origin.w`) so the
+/// history averages the rotations. The pattern needs no texture, which keeps
+/// the lit stages at the samplers they have.
+float ShadowNoise() {
+  vec2 at = gl_FragCoord.xy + 5.588238 * max(frag_info.target_origin.w, 0.0);
+  return fract(52.9829189 * fract(dot(at, vec2(0.06711056, 0.00583715))));
+}
 
 /// How much of the light survives at this fragment, from 0 to 1.
 ///
@@ -9499,6 +9535,10 @@ float ShadowFactor(Surface s, LightSample light, int lightIndex) {
   vec2 uv = vec2(0.0);
   vec3 projected = vec3(0.0);
   bool found = false;
+  // `S3`: what the soft path needs of the cascade it lands in — metres per
+  // texel across, and metres per unit of stored depth along the light.
+  float cascadeTexel = 1.0;
+  float cascadeDepth = 1.0;
   for (int attempt = 0; attempt < 3; attempt++) {
     int which = cascade + attempt;
     if (which >= cascadeCount) break;
@@ -9541,6 +9581,9 @@ float ShadowFactor(Surface s, LightSample light, int lightIndex) {
     uv = vec2((inTile.x + float(which)) / float(cascadeCount), inTile.y);
     projected = candidate;
     cascade = which;
+    cascadeTexel = texelMetres;
+    cascadeDepth =
+        1.0 / max(length(vec3(matrix[0][2], matrix[1][2], matrix[2][2])), 1e-6);
     found = true;
     break;
   }
@@ -9607,22 +9650,33 @@ float ShadowFactor(Surface s, LightSample light, int lightIndex) {
     }
     lit *= 1.0 / 9.0;
   } else {
-    // **Find what is casting before deciding how wide to blur.** The five
-    // taps go out at a fixed search radius first and average the depths of
-    // whatever they find in front of this fragment; that average is the
-    // occluder's distance, and the penumbra is proportional to it. A kernel
-    // sized without this step is the fixed one again with a bigger number.
-    // Bounded, and not proportional to the softness: the search only has to
-    // reach far enough to find *a* blocker, and a radius that grew without
-    // limit would start finding occluders from the other side of the scene
-    // and report a gap that belongs to them.
-    float searchRadius = clamp(softness * 0.25, 2.0, 16.0);
+    // **Find what is casting before deciding how wide to blur**, then blur by
+    // what a light of this size would leave — `S3`. Sixteen taps each way on
+    // a Vogel disc turned per pixel, where there were five fixed ones: the
+    // turn trades the five's regular pattern for noise the eye reads as
+    // grain, and a temporal resolve averages away.
+    //
+    // **In metres, per cascade.** The gap between the blocker and this
+    // fragment is measured in the cascade's stored depth, whose unit is a
+    // different length in each cascade; converted to metres, the penumbra is
+    // the gap times the light's apparent diameter, and in texels it is that
+    // over the cascade's own texel. A shadow keeps its softness crossing
+    // from one cascade into the next.
+    float spread = 2.0 * tan(min(softness, 0.5));
+    float turn = ShadowNoise() * 6.2831853;
+
+    // As wide as the widest penumbra could be at this depth, and no wider:
+    // the whole of the distance back to the light is the largest gap there
+    // is.
+    float searchRadius =
+        clamp(spread * projected.z * cascadeDepth / cascadeTexel, 1.0, 16.0);
     float blockerSum = 0.0;
     float blockerCount = 0.0;
-    for (int i = 0; i < 5; i++) {
+    for (int i = 0; i < 16; i++) {
       float occluder = textureLod(
           shadow_texture,
-          clamp(uv + kShadowDisc[i] * texel * searchRadius, tileLo, tileHi),
+          clamp(uv + VogelDisc(i, 16, turn) * texel * searchRadius, tileLo,
+                tileHi),
           0.0).r;
       if (projected.z - bias > occluder) {
         blockerSum += occluder;
@@ -9632,22 +9686,20 @@ float ShadowFactor(Surface s, LightSample light, int lightIndex) {
     // Nothing between this fragment and the light: lit, and no second loop.
     if (blockerCount <= 0.0) return 1.0;
 
-    // Linear depth over the cascade's own volume, so the gap between the
-    // occluder and the receiver *is* the distance — no perspective divide,
-    // which is what an orthographic light means.
-    float gap = max(projected.z - blockerSum / blockerCount, 0.0);
+    float gap = max(projected.z - blockerSum / blockerCount, 0.0) * cascadeDepth;
     // One texel at the tightest, so a contact edge stays an edge; the cap
     // keeps a distant occluder from reaching across a whole cascade.
-    float radius = clamp(gap * softness, 1.0, 16.0);
+    float radius = clamp(spread * gap / cascadeTexel, 1.0, 16.0);
 
-    for (int i = 0; i < 5; i++) {
+    for (int i = 0; i < 16; i++) {
       float occluder = textureLod(
           shadow_texture,
-          clamp(uv + kShadowDisc[i] * texel * radius, tileLo, tileHi),
+          clamp(uv + VogelDisc(i, 16, turn + 1.0) * texel * radius, tileLo,
+                tileHi),
           0.0).r;
       lit += projected.z - bias > occluder ? 0.0 : 1.0;
     }
-    lit *= 1.0 / 5.0;
+    lit *= 1.0 / 16.0;
   }
 
   // Strength lerps towards fully lit, so the control is "how dark", not "how
@@ -10317,7 +10369,9 @@ layout(std140) uniform FragInfo {
   /// resolve reconstructs a picture larger than the scene is drawn at, when
   /// the maps are read as sharp as the output they end up in. z: one when
   /// the metal-rough model puts back the energy single scattering loses —
-  /// `L1`, `RenderSettings.energyCompensation`. w unused.
+  /// `L1`, `RenderSettings.energyCompensation`. w: the frame's slice of 32
+  /// while a temporal resolve runs, minus one otherwise — `S3`, which steps
+  /// the soft shadow's rotation by it.
   vec4 target_origin;
 }
 frag_info;
@@ -11553,18 +11607,24 @@ void ApplyCommonMaps(inout Surface s) {
 /// Linear depth from the light's point of view, in the red channel.
 uniform sampler2D shadow_texture;
 
-/// Five points on a disc: the centre and four at the diagonals.
-///
-/// **Diagonals rather than the axes.** A cross of four axis-aligned taps
-/// leaves a shadow whose edge is smooth along x and y and hard at forty-five
-/// degrees, which is the angle most edges in a built scene actually run at.
-/// Turned by an eighth of a turn, the four taps straddle a vertical or
-/// horizontal edge evenly and the artefact has nowhere to line up.
-const vec2 kShadowDisc[5] = vec2[5](vec2(0.0, 0.0),
-                                    vec2(0.7071, 0.7071),
-                                    vec2(-0.7071, 0.7071),
-                                    vec2(0.7071, -0.7071),
-                                    vec2(-0.7071, -0.7071));
+/// Point [i] of [n] on a Vogel disc turned by [turn] radians — `S3`: the
+/// golden angle between neighbours, so any prefix of the points covers the
+/// disc evenly, and a radius growing with the square root, so they cover it
+/// at an even density.
+vec2 VogelDisc(int i, int n, float turn) {
+  float r = sqrt((float(i) + 0.5) / float(n));
+  float theta = float(i) * 2.3999632 + turn;
+  return r * vec2(cos(theta), sin(theta));
+}
+
+/// Interleaved gradient noise at this pixel, in [0, 1), stepped on by the
+/// frame's slice while a temporal resolve runs (`target_origin.w`) so the
+/// history averages the rotations. The pattern needs no texture, which keeps
+/// the lit stages at the samplers they have.
+float ShadowNoise() {
+  vec2 at = gl_FragCoord.xy + 5.588238 * max(frag_info.target_origin.w, 0.0);
+  return fract(52.9829189 * fract(dot(at, vec2(0.06711056, 0.00583715))));
+}
 
 /// How much of the light survives at this fragment, from 0 to 1.
 ///
@@ -11610,6 +11670,10 @@ float ShadowFactor(Surface s, LightSample light, int lightIndex) {
   vec2 uv = vec2(0.0);
   vec3 projected = vec3(0.0);
   bool found = false;
+  // `S3`: what the soft path needs of the cascade it lands in — metres per
+  // texel across, and metres per unit of stored depth along the light.
+  float cascadeTexel = 1.0;
+  float cascadeDepth = 1.0;
   for (int attempt = 0; attempt < 3; attempt++) {
     int which = cascade + attempt;
     if (which >= cascadeCount) break;
@@ -11652,6 +11716,9 @@ float ShadowFactor(Surface s, LightSample light, int lightIndex) {
     uv = vec2((inTile.x + float(which)) / float(cascadeCount), inTile.y);
     projected = candidate;
     cascade = which;
+    cascadeTexel = texelMetres;
+    cascadeDepth =
+        1.0 / max(length(vec3(matrix[0][2], matrix[1][2], matrix[2][2])), 1e-6);
     found = true;
     break;
   }
@@ -11718,22 +11785,33 @@ float ShadowFactor(Surface s, LightSample light, int lightIndex) {
     }
     lit *= 1.0 / 9.0;
   } else {
-    // **Find what is casting before deciding how wide to blur.** The five
-    // taps go out at a fixed search radius first and average the depths of
-    // whatever they find in front of this fragment; that average is the
-    // occluder's distance, and the penumbra is proportional to it. A kernel
-    // sized without this step is the fixed one again with a bigger number.
-    // Bounded, and not proportional to the softness: the search only has to
-    // reach far enough to find *a* blocker, and a radius that grew without
-    // limit would start finding occluders from the other side of the scene
-    // and report a gap that belongs to them.
-    float searchRadius = clamp(softness * 0.25, 2.0, 16.0);
+    // **Find what is casting before deciding how wide to blur**, then blur by
+    // what a light of this size would leave — `S3`. Sixteen taps each way on
+    // a Vogel disc turned per pixel, where there were five fixed ones: the
+    // turn trades the five's regular pattern for noise the eye reads as
+    // grain, and a temporal resolve averages away.
+    //
+    // **In metres, per cascade.** The gap between the blocker and this
+    // fragment is measured in the cascade's stored depth, whose unit is a
+    // different length in each cascade; converted to metres, the penumbra is
+    // the gap times the light's apparent diameter, and in texels it is that
+    // over the cascade's own texel. A shadow keeps its softness crossing
+    // from one cascade into the next.
+    float spread = 2.0 * tan(min(softness, 0.5));
+    float turn = ShadowNoise() * 6.2831853;
+
+    // As wide as the widest penumbra could be at this depth, and no wider:
+    // the whole of the distance back to the light is the largest gap there
+    // is.
+    float searchRadius =
+        clamp(spread * projected.z * cascadeDepth / cascadeTexel, 1.0, 16.0);
     float blockerSum = 0.0;
     float blockerCount = 0.0;
-    for (int i = 0; i < 5; i++) {
+    for (int i = 0; i < 16; i++) {
       float occluder = textureLod(
           shadow_texture,
-          clamp(uv + kShadowDisc[i] * texel * searchRadius, tileLo, tileHi),
+          clamp(uv + VogelDisc(i, 16, turn) * texel * searchRadius, tileLo,
+                tileHi),
           0.0).r;
       if (projected.z - bias > occluder) {
         blockerSum += occluder;
@@ -11743,22 +11821,20 @@ float ShadowFactor(Surface s, LightSample light, int lightIndex) {
     // Nothing between this fragment and the light: lit, and no second loop.
     if (blockerCount <= 0.0) return 1.0;
 
-    // Linear depth over the cascade's own volume, so the gap between the
-    // occluder and the receiver *is* the distance — no perspective divide,
-    // which is what an orthographic light means.
-    float gap = max(projected.z - blockerSum / blockerCount, 0.0);
+    float gap = max(projected.z - blockerSum / blockerCount, 0.0) * cascadeDepth;
     // One texel at the tightest, so a contact edge stays an edge; the cap
     // keeps a distant occluder from reaching across a whole cascade.
-    float radius = clamp(gap * softness, 1.0, 16.0);
+    float radius = clamp(spread * gap / cascadeTexel, 1.0, 16.0);
 
-    for (int i = 0; i < 5; i++) {
+    for (int i = 0; i < 16; i++) {
       float occluder = textureLod(
           shadow_texture,
-          clamp(uv + kShadowDisc[i] * texel * radius, tileLo, tileHi),
+          clamp(uv + VogelDisc(i, 16, turn + 1.0) * texel * radius, tileLo,
+                tileHi),
           0.0).r;
       lit += projected.z - bias > occluder ? 0.0 : 1.0;
     }
-    lit *= 1.0 / 5.0;
+    lit *= 1.0 / 16.0;
   }
 
   // Strength lerps towards fully lit, so the control is "how dark", not "how
@@ -12553,7 +12629,9 @@ layout(std140) uniform FragInfo {
   /// resolve reconstructs a picture larger than the scene is drawn at, when
   /// the maps are read as sharp as the output they end up in. z: one when
   /// the metal-rough model puts back the energy single scattering loses —
-  /// `L1`, `RenderSettings.energyCompensation`. w unused.
+  /// `L1`, `RenderSettings.energyCompensation`. w: the frame's slice of 32
+  /// while a temporal resolve runs, minus one otherwise — `S3`, which steps
+  /// the soft shadow's rotation by it.
   vec4 target_origin;
 }
 frag_info;
@@ -13789,18 +13867,24 @@ void ApplyCommonMaps(inout Surface s) {
 /// Linear depth from the light's point of view, in the red channel.
 uniform sampler2D shadow_texture;
 
-/// Five points on a disc: the centre and four at the diagonals.
-///
-/// **Diagonals rather than the axes.** A cross of four axis-aligned taps
-/// leaves a shadow whose edge is smooth along x and y and hard at forty-five
-/// degrees, which is the angle most edges in a built scene actually run at.
-/// Turned by an eighth of a turn, the four taps straddle a vertical or
-/// horizontal edge evenly and the artefact has nowhere to line up.
-const vec2 kShadowDisc[5] = vec2[5](vec2(0.0, 0.0),
-                                    vec2(0.7071, 0.7071),
-                                    vec2(-0.7071, 0.7071),
-                                    vec2(0.7071, -0.7071),
-                                    vec2(-0.7071, -0.7071));
+/// Point [i] of [n] on a Vogel disc turned by [turn] radians — `S3`: the
+/// golden angle between neighbours, so any prefix of the points covers the
+/// disc evenly, and a radius growing with the square root, so they cover it
+/// at an even density.
+vec2 VogelDisc(int i, int n, float turn) {
+  float r = sqrt((float(i) + 0.5) / float(n));
+  float theta = float(i) * 2.3999632 + turn;
+  return r * vec2(cos(theta), sin(theta));
+}
+
+/// Interleaved gradient noise at this pixel, in [0, 1), stepped on by the
+/// frame's slice while a temporal resolve runs (`target_origin.w`) so the
+/// history averages the rotations. The pattern needs no texture, which keeps
+/// the lit stages at the samplers they have.
+float ShadowNoise() {
+  vec2 at = gl_FragCoord.xy + 5.588238 * max(frag_info.target_origin.w, 0.0);
+  return fract(52.9829189 * fract(dot(at, vec2(0.06711056, 0.00583715))));
+}
 
 /// How much of the light survives at this fragment, from 0 to 1.
 ///
@@ -13846,6 +13930,10 @@ float ShadowFactor(Surface s, LightSample light, int lightIndex) {
   vec2 uv = vec2(0.0);
   vec3 projected = vec3(0.0);
   bool found = false;
+  // `S3`: what the soft path needs of the cascade it lands in — metres per
+  // texel across, and metres per unit of stored depth along the light.
+  float cascadeTexel = 1.0;
+  float cascadeDepth = 1.0;
   for (int attempt = 0; attempt < 3; attempt++) {
     int which = cascade + attempt;
     if (which >= cascadeCount) break;
@@ -13888,6 +13976,9 @@ float ShadowFactor(Surface s, LightSample light, int lightIndex) {
     uv = vec2((inTile.x + float(which)) / float(cascadeCount), inTile.y);
     projected = candidate;
     cascade = which;
+    cascadeTexel = texelMetres;
+    cascadeDepth =
+        1.0 / max(length(vec3(matrix[0][2], matrix[1][2], matrix[2][2])), 1e-6);
     found = true;
     break;
   }
@@ -13954,22 +14045,33 @@ float ShadowFactor(Surface s, LightSample light, int lightIndex) {
     }
     lit *= 1.0 / 9.0;
   } else {
-    // **Find what is casting before deciding how wide to blur.** The five
-    // taps go out at a fixed search radius first and average the depths of
-    // whatever they find in front of this fragment; that average is the
-    // occluder's distance, and the penumbra is proportional to it. A kernel
-    // sized without this step is the fixed one again with a bigger number.
-    // Bounded, and not proportional to the softness: the search only has to
-    // reach far enough to find *a* blocker, and a radius that grew without
-    // limit would start finding occluders from the other side of the scene
-    // and report a gap that belongs to them.
-    float searchRadius = clamp(softness * 0.25, 2.0, 16.0);
+    // **Find what is casting before deciding how wide to blur**, then blur by
+    // what a light of this size would leave — `S3`. Sixteen taps each way on
+    // a Vogel disc turned per pixel, where there were five fixed ones: the
+    // turn trades the five's regular pattern for noise the eye reads as
+    // grain, and a temporal resolve averages away.
+    //
+    // **In metres, per cascade.** The gap between the blocker and this
+    // fragment is measured in the cascade's stored depth, whose unit is a
+    // different length in each cascade; converted to metres, the penumbra is
+    // the gap times the light's apparent diameter, and in texels it is that
+    // over the cascade's own texel. A shadow keeps its softness crossing
+    // from one cascade into the next.
+    float spread = 2.0 * tan(min(softness, 0.5));
+    float turn = ShadowNoise() * 6.2831853;
+
+    // As wide as the widest penumbra could be at this depth, and no wider:
+    // the whole of the distance back to the light is the largest gap there
+    // is.
+    float searchRadius =
+        clamp(spread * projected.z * cascadeDepth / cascadeTexel, 1.0, 16.0);
     float blockerSum = 0.0;
     float blockerCount = 0.0;
-    for (int i = 0; i < 5; i++) {
+    for (int i = 0; i < 16; i++) {
       float occluder = textureLod(
           shadow_texture,
-          clamp(uv + kShadowDisc[i] * texel * searchRadius, tileLo, tileHi),
+          clamp(uv + VogelDisc(i, 16, turn) * texel * searchRadius, tileLo,
+                tileHi),
           0.0).r;
       if (projected.z - bias > occluder) {
         blockerSum += occluder;
@@ -13979,22 +14081,20 @@ float ShadowFactor(Surface s, LightSample light, int lightIndex) {
     // Nothing between this fragment and the light: lit, and no second loop.
     if (blockerCount <= 0.0) return 1.0;
 
-    // Linear depth over the cascade's own volume, so the gap between the
-    // occluder and the receiver *is* the distance — no perspective divide,
-    // which is what an orthographic light means.
-    float gap = max(projected.z - blockerSum / blockerCount, 0.0);
+    float gap = max(projected.z - blockerSum / blockerCount, 0.0) * cascadeDepth;
     // One texel at the tightest, so a contact edge stays an edge; the cap
     // keeps a distant occluder from reaching across a whole cascade.
-    float radius = clamp(gap * softness, 1.0, 16.0);
+    float radius = clamp(spread * gap / cascadeTexel, 1.0, 16.0);
 
-    for (int i = 0; i < 5; i++) {
+    for (int i = 0; i < 16; i++) {
       float occluder = textureLod(
           shadow_texture,
-          clamp(uv + kShadowDisc[i] * texel * radius, tileLo, tileHi),
+          clamp(uv + VogelDisc(i, 16, turn + 1.0) * texel * radius, tileLo,
+                tileHi),
           0.0).r;
       lit += projected.z - bias > occluder ? 0.0 : 1.0;
     }
-    lit *= 1.0 / 5.0;
+    lit *= 1.0 / 16.0;
   }
 
   // Strength lerps towards fully lit, so the control is "how dark", not "how
