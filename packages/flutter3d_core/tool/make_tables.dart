@@ -169,7 +169,9 @@ void _write(
   final encoded = base64.encode(bytes);
   final lines = [
     for (var i = 0; i < encoded.length; i += 76)
-      "    '${encoded.substring(i, math.min(i + 76, encoded.length))}'",
+      // Indented the way `dart format` leaves it, so formatting the package
+      // does not make the generated file stale.
+      "      '${encoded.substring(i, math.min(i + 76, encoded.length))}'",
   ];
   File('$_out/$file')
     ..createSync(recursive: true)
