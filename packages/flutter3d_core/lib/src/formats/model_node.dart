@@ -96,11 +96,28 @@ final class ModelLod {
   const ModelLod({
     required this.surfaceIndices,
     required this.maxScreenFraction,
+    this.impostor,
   });
 
+  /// The last level a node can fall to — `C4`: a card showing [impostor]'s
+  /// baked views in place of any geometry at all.
+  ///
+  /// **A kind of level, not a separate list**, so a chain reads the way it
+  /// is used: the full mesh, the simplified ones, then a picture of it. It is
+  /// always the coarsest, and a reader appends it after the surface levels.
+  const ModelLod.impostor({
+    required ModelImpostor this.impostor,
+    required this.maxScreenFraction,
+  }) : surfaceIndices = const <int>[];
+
   /// Indices into `ModelDocument.surfaces`, replacing the node's own
-  /// [ModelNode.surfaces] when this level is the one in use.
+  /// [ModelNode.surfaces] when this level is the one in use. Empty for an
+  /// [impostor] level.
   final List<int> surfaceIndices;
+
+  /// The baked views this level draws instead of surfaces, or null for an
+  /// ordinary level.
+  final ModelImpostor? impostor;
 
   /// The largest fraction of the screen this level is meant for — a viewer
   /// switches to a coarser level once the node would cover less of the
@@ -108,9 +125,52 @@ final class ModelLod {
   final double maxScreenFraction;
 
   @override
+  String toString() => impostor == null
+      ? 'ModelLod(${surfaceIndices.length} surfaces, '
+            'maxScreenFraction: $maxScreenFraction)'
+      : 'ModelLod($impostor, maxScreenFraction: $maxScreenFraction)';
+}
+
+/// A node baked into two octahedral atlases — `C4`.
+///
+/// [grid] × [grid] views of the node from every direction on the sphere,
+/// laid out by the octahedral map (see `octahedralEncode` in
+/// `flutter3d_core`'s engine), each view an orthographic picture of a sphere
+/// of [radius] around [centre], in the node's own space.
+///
+/// **Two images, not one**, because they are read differently: the albedo is
+/// colour and sRGB like any base colour texture, the normal-depth one is data
+/// — the object-space normal in RGB as `n * 0.5 + 0.5`, and in A how far
+/// along the view each texel's surface is, from 0 at the near side of the
+/// sphere to 1 at the far side. The albedo's alpha is the coverage.
+final class ModelImpostor {
+  ModelImpostor({
+    required this.albedoImage,
+    required this.normalDepthImage,
+    required this.grid,
+    required Vector3 centre,
+    required this.radius,
+  }) : centre = centre.clone();
+
+  /// Index into `ModelDocument.images`.
+  final int albedoImage;
+
+  /// Index into `ModelDocument.images`.
+  final int normalDepthImage;
+
+  /// Views along each side of the atlas.
+  final int grid;
+
+  /// The middle of the sphere every view frames, in the node's own space.
+  final Vector3 centre;
+
+  /// The sphere's radius — half the side of the card that shows a view.
+  final double radius;
+
+  @override
   String toString() =>
-      'ModelLod(${surfaceIndices.length} surfaces, '
-      'maxScreenFraction: $maxScreenFraction)';
+      'ModelImpostor(${grid}x$grid views, radius $radius, images '
+      '$albedoImage and $normalDepthImage)';
 }
 
 /// A node in a decoded model's hierarchy.

@@ -62,7 +62,9 @@ extension _GltfWriterScene on GltfWriter {
     if (document.nodes.any((node) => node.lightIndex != null)) {
       _extensionsUsed.add('KHR_lights_punctual');
     }
-    if (document.nodes.any((node) => node.lods.isNotEmpty)) {
+    if (document.nodes.any(
+      (node) => node.lods.any((lod) => lod.impostor == null),
+    )) {
       _extensionsUsed.add('MSFT_lod');
     }
 
@@ -125,11 +127,18 @@ extension _GltfWriterScene on GltfWriter {
     // and loader exactly.
     for (var i = 0; i < document.nodes.length; i++) {
       final node = document.nodes[i];
-      if (node.lods.isEmpty) continue;
+      // `C4`'s impostor levels are this engine's own: glTF has no word for
+      // a baked card, and a sibling node with no mesh would be a level a
+      // viewer switches to and draws nothing.
+      final levels = <ModelLod>[
+        for (final lod in node.lods)
+          if (lod.impostor == null) lod,
+      ];
+      if (levels.isEmpty) continue;
 
       final ids = <int>[];
       final coverage = <double>[];
-      for (final lod in node.lods) {
+      for (final lod in levels) {
         final meshIndex = meshIndexFor(lod.surfaceIndices);
         ids.add(nodes.length);
         coverage.add(lod.maxScreenFraction);

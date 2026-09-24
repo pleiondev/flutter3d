@@ -123,6 +123,13 @@ abstract final class F3dSection {
   /// record naming its own node index costs less than a table of zeros in
   /// every file that never uses the feature. See `ModelNode.lods`.
   static const int lods = 21;
+
+  /// The impostor level a node falls to last — `C4`, `ModelLod.impostor`.
+  /// Sparse like [lods], one record per node that has one; a reader without
+  /// it sees the surface levels alone and draws the coarsest mesh as far as
+  /// the eye goes, which is the right thing for a build that cannot draw the
+  /// card.
+  static const int impostors = 24;
 }
 
 /// Fixed record sizes, in bytes. All multiples of four.
@@ -200,6 +207,10 @@ abstract final class F3dRecord {
   /// u32 nodeIndex, f32 maxScreenFraction, u32 surfaceOffset, u32
   /// surfaceCount
   static const int lod = 16;
+
+  /// u32 nodeIndex, f32 maxScreenFraction, u32 albedoImage, u32
+  /// normalDepthImage, u32 grid, f32 centre x, y, z, f32 radius
+  static const int impostor = 36;
 }
 
 /// Bit positions inside a `surfaceAttributes` record — one per name

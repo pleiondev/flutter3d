@@ -102,6 +102,7 @@ export 'src/engine/render/view_model_node.dart';
 export 'src/engine/scene/bvh.dart';
 export 'src/engine/scene/camera_node.dart';
 export 'src/engine/scene/free_look.dart';
+export 'src/engine/scene/impostor_node.dart';
 export 'src/engine/scene/instanced_mesh_node.dart';
 export 'src/engine/scene/irradiance_field.dart';
 export 'src/engine/scene/irradiance_gather.dart';

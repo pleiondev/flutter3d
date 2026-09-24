@@ -148,15 +148,34 @@ extension ModelAssetInstantiate on ModelAsset {
       // 1.0), so it is always the finest and always sorts first.
       final singleSurfaceLevels =
           model.surfaces.length == 1 &&
-          model.lods.every((lod) => lod.surfaceIndices.length == 1);
+          model.lods.every(
+            (lod) =>
+                lod.surfaceIndices.length == 1 ||
+                impostors.containsKey(lod.impostor),
+          );
       if (model.lods.isNotEmpty && singleSurfaceLevels) {
         final baseMesh = addSurface(model.surfaces.single);
         if (baseMesh != null) {
           final levels = <LodLevel>[
             LodLevel(node: baseMesh, maxScreenFraction: 2.0),
             for (final lod in model.lods)
-              if (addSurface(lod.surfaceIndices.single) case final MeshNode m)
-                LodLevel(node: m, maxScreenFraction: lod.maxScreenFraction),
+              // `C4`: the card a chain ends in, drawn from the atlases the
+              // asset uploaded once for every instance.
+              if (impostors[lod.impostor] case final ImpostorPart part)
+                LodLevel(
+                  node: ImpostorNode.withCard(
+                    part.card,
+                    albedo: part.albedo,
+                    normalDepth: part.normalDepth,
+                    centre: lod.impostor!.centre,
+                    radius: lod.impostor!.radius,
+                    name: '${model.name ?? 'node'} impostor',
+                  ),
+                  maxScreenFraction: lod.maxScreenFraction,
+                )
+              else if (lod.surfaceIndices.length == 1)
+                if (addSurface(lod.surfaceIndices.single) case final MeshNode m)
+                  LodLevel(node: m, maxScreenFraction: lod.maxScreenFraction),
           ];
           node.add(LodGroup(levels: levels, name: model.name));
         }

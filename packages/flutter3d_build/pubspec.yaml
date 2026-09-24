@@ -25,6 +25,12 @@ dependencies:
   # like everything else here.
   flutter3d_mesh: ^0.8.0
 
+  # `C4`'s impostor bake: the software rasteriser draws every view, so the
+  # atlases a model carries are the same bytes on every machine that converts
+  # it — the device is plain Dart, which is what a build hook needs.
+  flutter3d_cpu: ^0.8.0
+  vector_math: ^2.4.3
+
   # `hook/build.dart`'s own contract — `ap-00`'s spike proved this is the half
   # of the build-hook feature that is stable on Flutter 3.47/Dart 3.13; the
   # other half, `package:data_assets`, stays out (see `ap-00`'s own writeup
@@ -62,10 +68,6 @@ dependencies:
 dev_dependencies:
   test: ^1.25.0
   flutter_lints: ^6.0.0
-
-  # `Vector3` and friends, for the one-triangle document
-  # `convert_decoders_test.dart`'s own decoder builds.
-  vector_math: ^2.4.3
 
 # **A plain Dart package, same reasoning as `flutter3d_sim`/`flutter3d_net`.**
 # `hook/build.dart` is invoked by the Flutter tool as a separate process with

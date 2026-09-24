@@ -67,9 +67,10 @@ final class _CacheEntry {
   /// once, which is the right amount of rebuilding.
   final String textures;
 
-  /// Which level-of-detail ratios the manifest asked for — `C5`. A rule that
-  /// gains or changes `lods:` changes nothing about the source's bytes, so
-  /// without this the old file would stand.
+  /// Which level-of-detail ratios the manifest asked for — `C5` — and
+  /// whether an impostor ends them — `C4`. A rule that gains or changes either
+  /// changes nothing about the source's bytes, so without this the old file
+  /// would stand.
   final String lods;
 
   factory _CacheEntry.fromJson(Map<String, Object?> json) => _CacheEntry(
@@ -151,12 +152,13 @@ Future<AssetBuildReport> runAssetBuild(
   for (final job in plan) {
     final bytes = File(job.source).readAsBytesSync();
     final lods = job.rule?.lods ?? const <double>[];
+    final impostor = job.rule?.impostor ?? false;
     final entry = _CacheEntry(
       hash: sha256.convert(bytes).toString(),
       formatVersion: kF3dVersion,
       pipelineVersion: kAssetPipelineVersion,
       textures: textures.name,
-      lods: lods.join(','),
+      lods: '${lods.join(',')}${impostor ? ' impostor' : ''}',
     );
     next[job.source] = entry;
 
@@ -173,6 +175,7 @@ Future<AssetBuildReport> runAssetBuild(
       sink,
       textures: textures,
       lods: lods,
+      impostor: impostor,
     );
     if (ok) converted.add(job.source);
   }
