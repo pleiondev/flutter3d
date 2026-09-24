@@ -106,18 +106,23 @@ void main() {
     return (did: result.isError != true, says: says ?? '', png: png);
   }
 
-  test('the six tools an agent is offered are the ones it can call', () async {
-    final offered = await connection.listTools(ListToolsRequest());
-    final names = offered.tools.map((t) => t.name).toSet();
-    expect(names, <String>{
-      'open',
-      'step',
-      'snapshot',
-      'digest',
-      'writeRun',
-      'frame',
-    });
-  });
+  test(
+    'the eight tools an agent is offered are the ones it can call',
+    () async {
+      final offered = await connection.listTools(ListToolsRequest());
+      final names = offered.tools.map((t) => t.name).toSet();
+      expect(names, <String>{
+        'open',
+        'step',
+        'snapshot',
+        'digest',
+        'writeRun',
+        'frame',
+        'expect',
+        'verify',
+      });
+    },
+  );
 
   test('a run before opening a level is refused, not crashed', () async {
     final result = await call('step', <String, Object?>{'steps': 1});

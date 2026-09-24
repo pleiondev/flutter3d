@@ -14,8 +14,53 @@ double _number(
   double fallback = 0.0,
 ]) => (args[key] as num?)?.toDouble() ?? fallback;
 
+/// The arguments `step` and `expect` share: one intent, held for every step.
+Map<String, Schema> _intentProperties(HeadlessGame game) => <String, Schema>{
+  'moveX': NumberSchema(description: 'strafe, -1..1, default 0'),
+  'moveY': NumberSchema(description: 'forward/back, -1..1, default 0'),
+  'lookX': NumberSchema(description: 'look delta per step, default 0'),
+  'lookY': NumberSchema(description: 'look delta per step, default 0'),
+  for (final String button in game.buttons.keys)
+    button: BooleanSchema(
+      description: 'held for the whole call, default false',
+    ),
+};
+
+Map<String, bool> _held(HeadlessGame game, Map<String, Object?> args) =>
+    <String, bool>{
+      for (final String button in game.buttons.keys)
+        if (args[button] case final bool down) button: down,
+    };
+
+/// What a claim looks like to an agent — `ReadingPredicate.fromJson`'s shape.
+Schema _predicateSchema(String description) => ObjectSchema(
+  description: description,
+  properties: <String, Schema>{
+    'kind': UntitledSingleSelectEnumSchema(
+      values: <String>['near', 'inside', 'alive', 'health'],
+      description:
+          'near: within `within` metres of `point`; inside: inside the box '
+          '`min`..`max`; alive: up when `is` is true (the default), down when '
+          'false; health: under `below` and/or at least `atLeast`',
+    ),
+    'who': StringSchema(
+      description:
+          '"player" (the default) or an actor\'s name as snapshot gives it',
+    ),
+    'point': ListSchema(items: NumberSchema(), description: 'x, y, z'),
+    'within': NumberSchema(description: 'metres, for near'),
+    'min': ListSchema(items: NumberSchema(), description: 'x, y, z'),
+    'max': ListSchema(items: NumberSchema(), description: 'x, y, z'),
+    'is': BooleanSchema(description: 'for alive, default true'),
+    'below': NumberSchema(description: 'for health'),
+    'atLeast': NumberSchema(description: 'for health'),
+  },
+  required: <String>['kind'],
+);
+
 /// The six verbs `ai-00` asks for, with `step` offering [game]'s own buttons
-/// as its own arguments — `fire` for the shooter, whatever another game names.
+/// as its own arguments — `fire` for the shooter, whatever another game names —
+/// and the two that turn a claim about a run into a file that proves it.
 List<SimTool> simToolsFor(HeadlessGame game) => <SimTool>[
   SimTool(
     Tool(
@@ -48,14 +93,7 @@ List<SimTool> simToolsFor(HeadlessGame game) => <SimTool>[
           'steps': IntegerSchema(
             description: 'how many fixed steps, at least 1',
           ),
-          'moveX': NumberSchema(description: 'strafe, -1..1, default 0'),
-          'moveY': NumberSchema(description: 'forward/back, -1..1, default 0'),
-          'lookX': NumberSchema(description: 'look delta per step, default 0'),
-          'lookY': NumberSchema(description: 'look delta per step, default 0'),
-          for (final String button in game.buttons.keys)
-            button: BooleanSchema(
-              description: 'held for the whole call, default false',
-            ),
+          ..._intentProperties(game),
         },
         required: <String>['steps'],
       ),
@@ -66,10 +104,68 @@ List<SimTool> simToolsFor(HeadlessGame game) => <SimTool>[
       moveY: _number(args, 'moveY'),
       lookX: _number(args, 'lookX'),
       lookY: _number(args, 'lookY'),
-      held: <String, bool>{
-        for (final String button in game.buttons.keys)
-          if (args[button] case final bool down) button: down,
-      },
+      held: _held(game, args),
+    ),
+  ),
+  SimTool(
+    Tool(
+      name: 'expect',
+      description:
+          'Back a claim with a replay: step forward holding one intent (the '
+          'same arguments as step) until the predicate holds or `limit` steps '
+          'pass, then write the whole run so far to `path` as a .f3drun. '
+          'Answers with the step the claim held at and the state digest '
+          'there; verify on the file replays to the same step and digest. '
+          'A claim is about what snapshot reads — near a point, inside a '
+          'box, alive or dead, health above or below — and not about what '
+          'touched what: contacts and hits are game events, events are not '
+          'saved in a run, and a replay cannot back a claim about them.',
+      inputSchema: ObjectSchema(
+        properties: <String, Schema>{
+          'predicate': _predicateSchema('the claim to step until'),
+          'limit': IntegerSchema(
+            description: 'the most steps to try, at least 1',
+          ),
+          'path': StringSchema(description: 'where to write the .f3drun'),
+          ..._intentProperties(game),
+        },
+        required: <String>['predicate', 'limit', 'path'],
+      ),
+    ),
+    (session, args) => session.expect(
+      predicate: (args['predicate']! as Map).cast<String, Object?>(),
+      limit: (args['limit']! as num).toInt(),
+      path: args['path']! as String,
+      moveX: _number(args, 'moveX'),
+      moveY: _number(args, 'moveY'),
+      lookX: _number(args, 'lookX'),
+      lookY: _number(args, 'lookY'),
+      held: _held(game, args),
+    ),
+  ),
+  SimTool(
+    Tool(
+      name: 'verify',
+      description:
+          'Replay a .f3drun into a fresh run of its own level, apart from the '
+          'run this session has open, and say whether it retraces the digest '
+          'checkpoints it was written with — or the first checkpoint where it '
+          'does not. Given a predicate, also says whether that claim holds '
+          'where the replay ends. Contacts are out of reach here too: events '
+          'are not in the file.',
+      inputSchema: ObjectSchema(
+        properties: <String, Schema>{
+          'path': StringSchema(description: 'the .f3drun to replay'),
+          'predicate': _predicateSchema(
+            'optional: a claim to check at the end of the replay',
+          ),
+        },
+        required: <String>['path'],
+      ),
+    ),
+    (session, args) => session.verify(
+      args['path']! as String,
+      predicate: (args['predicate'] as Map?)?.cast<String, Object?>(),
     ),
   ),
   SimTool(
