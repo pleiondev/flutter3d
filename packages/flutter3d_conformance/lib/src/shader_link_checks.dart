@@ -136,6 +136,8 @@ Future<void> checkLinking(GraphicsDevice device) async {
       'FieldDecay',
       // `L4`: the kernel that folds a probe's capture into the field.
       'IrradianceConvolve',
+      // `S2`: the directional atlas turned into blurred moments.
+      'EvsmFilter',
     ])
       ('FullscreenVertex', post),
     ('DebugLineVertex', 'DebugLine'),

@@ -12,6 +12,7 @@ import 'dart:math' as math;
 import 'package:vector_math/vector_math.dart';
 
 import 'cpu_shader.dart';
+import 'cpu_shaders_evsm.dart';
 import 'cpu_shaders_surface.dart';
 
 /// `ShadowFactor`: how much of the directional light survives here.
@@ -138,10 +139,20 @@ double shadowFactor(
   // `gfx-15n`: the directional light's apparent size, riding in
   // `ambient_ground.w` for the reason `surface.glsl` gives. Zero is the 3×3
   // kernel this has always had.
+  // Below zero is the `evsm` filter (`S2`): the texture is the moments
+  // atlas, one filtered tap is the kernel, and how far under minus one the
+  // value sits is the light-bleeding cut.
   final softness = b.vec4('FragInfo', 'ambient_ground', Vector4.zero()).w;
 
   var lit = 0.0;
-  if (softness <= 0.0) {
+  if (softness < 0.0) {
+    final moments = map.sample(u.clamp(loU, hiU), vv.clamp(loV, hiV));
+    lit = evsmVisibility(
+      moments,
+      projected.z - bias,
+      (-softness - 1.0).clamp(0.0, 0.95),
+    );
+  } else if (softness <= 0.0) {
     // PCF 3x3: four samples band visibly at this map size and nine is the
     // smallest kernel that reads as a soft edge rather than as stair steps.
     for (var y = -1; y <= 1; y++) {

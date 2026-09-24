@@ -467,9 +467,21 @@ extension _MeshEncode on Renderer {
       // this is the last unspent component of a block six shaders share, and
       // the slot that was reserved for a frame-wide parameter went to the
       // line above. Zero keeps the 3×3 kernel every recorded golden holds.
-      _ambientGround[3] = settings.shadows.enabled
+      //
+      // `S2`: the filter decides what rides here. Below zero is `evsm`, with
+      // the light-bleeding cut as how far under minus one — but only where
+      // the frame made the moments; a device that refused them draws the
+      // 3×3 kernel rather than nothing. `pcss` asked for with no radius
+      // takes the sun's.
+      _ambientGround[3] = !settings.shadows.enabled
+          ? 0.0
+          : shadows.directionalMoments != null
+          ? -1.0 - settings.shadows.evsmBleedReduction.clamp(0.0, 0.95)
+          : settings.shadows.directionalFilter != ShadowFilter.pcss
+          ? 0.0
+          : settings.shadows.directionalLightRadius > 0.0
           ? settings.shadows.directionalLightRadius
-          : 0.0;
+          : ShadowSettings.sunAngularRadius;
 
       // Its own block, bound beside FragInfo rather than folded into it. See
       // the note in color.glsl: appending to a block six shaders share moves
@@ -714,8 +726,10 @@ extension _MeshEncode on Renderer {
         _kShadowTextureSlot,
         // With shadows off the slot still has to be satisfied, and a white
         // texture reads as "nothing between here and the light" — which is
-        // also what the zero strength above already guarantees.
-        shadows.directional ?? fallbackAlbedo,
+        // also what the zero strength above already guarantees. The moments
+        // in the map's place under `evsm` (`S2`), which the negative
+        // softness packed above tells the shader to expect.
+        shadows.directionalMoments ?? shadows.directional ?? fallbackAlbedo,
         sampler: Renderer._clampSampler,
       );
     }

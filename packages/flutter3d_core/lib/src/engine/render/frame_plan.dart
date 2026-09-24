@@ -38,6 +38,10 @@ abstract final class FrameResourceIds {
   /// The directional light's shadow map.
   static const ResourceId shadowMap = ResourceId('shadow_map');
 
+  /// The directional map as blurred exponential moments, for the `evsm`
+  /// filter — `S2`. Made from [shadowMap], never instead of it.
+  static const ResourceId shadowMoments = ResourceId('shadow_moments');
+
   /// The point lights' cube atlases, dynamic and baked.
   static const ResourceId cubeShadow = ResourceId('cube_shadow');
   static const ResourceId cubeShadowStatic = ResourceId('cube_shadow_static');

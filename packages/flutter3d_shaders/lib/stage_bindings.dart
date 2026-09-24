@@ -75,6 +75,10 @@ stageBindings = <String, ({Set<String> blocks, Set<String> samplers})>{
     blocks: <String>{'EasuInfo', 'FragCoordInfo'},
     samplers: <String>{'source_texture'},
   ),
+  'EvsmFilter': (
+    blocks: <String>{'EvsmFilterInfo'},
+    samplers: <String>{'evsm_source'},
+  ),
   'FieldDecay': (
     blocks: <String>{'FieldDecayInfo'},
     samplers: <String>{'field_texture'},

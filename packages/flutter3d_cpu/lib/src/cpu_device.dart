@@ -100,8 +100,11 @@ final class CpuDevice implements GraphicsDevice {
   @override
   void releaseStorageBuffer(StorageBuffer buffer) {}
 
+  /// True: every texture here is four 32-bit floats a texel whatever its
+  /// format says, and the sampler filters them the same way it filters
+  /// anything — `S2`'s moments atlas is no special case for this backend.
   @override
-  bool get supportsFloat32Filtering => false;
+  bool get supportsFloat32Filtering => true;
 
   @override
   bool get supportsIndependentBlend => false;
