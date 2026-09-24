@@ -260,6 +260,12 @@ uniformBlocks = <String, Map<String, Map<String, UniformMemberLayout>>>{
       'origin': (offset: 0, byteLength: 16, elements: 1, type: 'Vector4'),
     },
   },
+  'DepthPyramid': <String, Map<String, UniformMemberLayout>>{
+    'DepthPyramidInfo': <String, UniformMemberLayout>{
+      'block': (offset: 0, byteLength: 16, elements: 1, type: 'Vector4'),
+      'range': (offset: 16, byteLength: 16, elements: 1, type: 'Vector4'),
+    },
+  },
   'FieldDecay': <String, Map<String, UniformMemberLayout>>{
     'FieldDecayInfo': <String, UniformMemberLayout>{
       'params': (offset: 0, byteLength: 16, elements: 1, type: 'Vector4'),

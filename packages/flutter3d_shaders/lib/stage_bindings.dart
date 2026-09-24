@@ -70,6 +70,10 @@ stageBindings = <String, ({Set<String> blocks, Set<String> samplers})>{
     blocks: <String>{'DofInfo', 'FragCoordInfo'},
     samplers: <String>{'scene_texture', 'surface_texture'},
   ),
+  'DepthPyramid': (
+    blocks: <String>{'DepthPyramidInfo'},
+    samplers: <String>{'surface_texture'},
+  ),
   'FieldDecay': (
     blocks: <String>{'FieldDecayInfo'},
     samplers: <String>{'field_texture'},

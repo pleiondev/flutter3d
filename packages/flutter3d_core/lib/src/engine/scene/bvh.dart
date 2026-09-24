@@ -408,7 +408,31 @@ final class SceneBvh {
     Frustum frustum,
     void Function(int index) visit, {
     Aabb3? scratch,
-  }) {
+  }) => _queryFrustum(frustum, null, visit, scratch);
+
+  /// [queryFrustum], with [accepts] asked of every tree node the frustum
+  /// keeps — `C2`. A node it refuses is rejected with everything under it,
+  /// which is how an occlusion test takes out a whole block of a city in one
+  /// question rather than a question per building.
+  ///
+  /// [accepts] is handed the node's box, a scratch object reused for the
+  /// next node, so it must not keep it. Refusing is a promise about every
+  /// mesh under the box, and the meshes it lets through still get the same
+  /// tests they would have had. The shortcut for a node the frustum fully
+  /// contains is not taken here, since being in view is not being seen.
+  void queryFrustumWhere(
+    Frustum frustum,
+    bool Function(Aabb3 box) accepts,
+    void Function(int index) visit, {
+    Aabb3? scratch,
+  }) => _queryFrustum(frustum, accepts, visit, scratch);
+
+  void _queryFrustum(
+    Frustum frustum,
+    bool Function(Aabb3 box)? accepts,
+    void Function(int index) visit,
+    Aabb3? scratch,
+  ) {
     if (_nodeCount == 0) return;
     final box = scratch ?? Aabb3();
     _visit(0, (node) {
@@ -420,7 +444,13 @@ final class SceneBvh {
         _bounds[base + 5],
       );
       if (!frustum.intersectsWithAabb3(box)) return _rejected;
-      return _containsBox(frustum, box) ? _contained : _straddles;
+      if (accepts == null) {
+        return _containsBox(frustum, box) ? _contained : _straddles;
+      }
+      // With a test beside the frustum, containment says nothing about the
+      // children: a block wholly in view may still be half hidden. So the
+      // descent goes on, and each node gets its own answer.
+      return accepts(box) ? _straddles : _rejected;
     }, visit);
   }
 

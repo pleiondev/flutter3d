@@ -42,6 +42,7 @@ const List<RequiredShader> kRequiredShaders = <RequiredShader>[
   (name: 'Fxaa', fragment: true),
   (name: 'Lambert', fragment: true),
   (name: 'Luminance', fragment: true),
+  (name: 'DepthPyramid', fragment: true),
   (name: 'MeshInstancedVertex', fragment: false),
   (name: 'MeshLightmappedVertex', fragment: false),
   (name: 'MeshSkinnedVertex', fragment: false),

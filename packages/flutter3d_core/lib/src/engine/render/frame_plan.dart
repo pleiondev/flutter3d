@@ -85,6 +85,11 @@ abstract final class FrameResourceIds {
   /// to read back. Produced only while auto exposure is on.
   static const ResourceId luminance = ResourceId('luminance');
 
+  /// The surface buffer's farthest depth over blocks of it, at a fixed small
+  /// size in RGBA8, for the occlusion readback to reproject — `C3`. Produced
+  /// only while `RenderSettings.occlusion` is `OcclusionMode.hiZ`.
+  static const ResourceId depthPyramid = ResourceId('depth_pyramid');
+
   /// Which node drew each pixel, as an id in RGBA8. Produced only on a frame
   /// something asked to pick from.
   static const ResourceId objectIds = ResourceId('object_ids');

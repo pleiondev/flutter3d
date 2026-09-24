@@ -18,6 +18,9 @@ import '../scene/light_buffer.dart';
 import '../scene/light_node.dart';
 import '../scene/mesh_node.dart';
 import '../scene/morph_state.dart';
+import '../scene/occlusion/hi_z_occlusion.dart';
+import '../scene/occlusion/occlusion_test.dart';
+import '../scene/occlusion/software_occlusion.dart';
 import '../scene/projection.dart';
 import '../scene/reflection_probe_node.dart';
 import '../scene/scene.dart';
@@ -654,6 +657,7 @@ final class Renderer implements RenderServices {
   final FxaaInfoBlock _fxaaInfo = FxaaInfoBlock();
   final LightListInfoBlock _lightListInfo = LightListInfoBlock();
   final LuminanceInfoBlock _luminanceInfo = LuminanceInfoBlock();
+  final DepthPyramidInfoBlock _depthPyramidInfo = DepthPyramidInfoBlock();
   final MaskInfoBlock _maskInfo = MaskInfoBlock();
   final MorphInfoBlock _morphInfo = MorphInfoBlock();
   final MorphInstanceInfoBlock _morphInstanceInfo = MorphInstanceInfoBlock();
@@ -1160,6 +1164,29 @@ final class Renderer implements RenderServices {
   /// gains a view gains an adapter starting where the frame's own exposure is
   /// rather than at the setting's number and a fresh climb.
   final List<ExposureAdapter> _viewExposure = <ExposureAdapter>[];
+
+  /// `C2`: the occluders rasterised on the CPU, made on the first frame
+  /// that asks for [OcclusionMode.software] and kept, so a renderer that
+  /// never does allocates no buffer.
+  SoftwareOcclusion? _softwareOcclusion;
+
+  /// `C3`: the last depth reading and the grid it is reprojected into, made
+  /// on the first frame that asks for [OcclusionMode.hiZ].
+  HiZOcclusion? _hiZ;
+
+  /// Advanced whenever the reading is thrown away, so a readback that was
+  /// already in the air lands on nothing rather than restoring a reading of
+  /// a scene the frame has since stopped trusting.
+  int _hiZEpoch = 0;
+
+  /// Whether a depth-pyramid readback has been asked for and not yet
+  /// answered — one at a time, for the reason [_meterInFlight] gives.
+  bool _pyramidInFlight = false;
+
+  /// The occlusion reading, for tests and a profiler: how many readings of
+  /// the depth pyramid have arrived and been kept. Null until a frame has
+  /// asked for [OcclusionMode.hiZ].
+  HiZOcclusion? get debugHiZ => _hiZ;
 
   /// Readbacks of the luminance target that came back as an error. Diagnostic:
   /// a meter that has stopped hearing from the device holds its last answer,
@@ -2211,6 +2238,7 @@ final class Renderer implements RenderServices {
     required _CompositeNode composite,
     required _LuminanceNode luminance,
     required _ObjectIdNode objectIds,
+    required int viewCount,
     required vm.Vector3? sunToLight,
     required vm.Vector3? sunRadiance,
     required vm.Vector3? contactToLight,
@@ -2271,6 +2299,11 @@ final class Renderer implements RenderServices {
     // for the reason every other node is — a name has to be known — and
     // culled when it is off.
     graph.addNode(luminance);
+    // `C3`: beside the meter, for its reason — a small target read back, a
+    // frame output while it is on, culled when it is off. After the scene,
+    // whose surface buffer it reduces.
+    final depthPyramid = _DepthPyramidNode(this, view, s, viewCount);
+    graph.addNode(depthPyramid);
     // Before bloom, because the composite reads both and the registration order
     // is the version chain. Registered whether or not it is switched on, for
     // the reason bloom is: a name has to be known for a read of it to compile,
@@ -2391,6 +2424,7 @@ final class Renderer implements RenderServices {
         // graph cannot see, so both are outputs while their node is active or
         // the node is culled for producing something nobody wants.
         if (luminance.isActive) FrameResourceIds.luminance,
+        if (depthPyramid.isActive) FrameResourceIds.depthPyramid,
         if (objectIds.isActive) FrameResourceIds.objectIds,
       ],
     );
@@ -3301,6 +3335,7 @@ final class Renderer implements RenderServices {
         ordered: ordered,
         picks: const <_PickRequest>[],
       ),
+      viewCount: ordered.length,
     );
   }
 
@@ -3683,6 +3718,7 @@ final class Renderer implements RenderServices {
         composite: compositeNode,
         luminance: luminanceNode,
         objectIds: objectIdNode,
+        viewCount: ordered.length,
         // The same light the shadow map casts from, so the seam the march draws
         // continues the shadow the map drew rather than crossing it.
         sunToLight: _toLightIn(lights, shadowCaster),
@@ -3763,6 +3799,16 @@ final class Renderer implements RenderServices {
                 id: FrameResourceIds.luminance,
                 format: TextureFormat.r8g8b8a8UNormInt,
                 size: AbsolutePixels(ExposureMeter.size, ExposureMeter.size),
+              ),
+            )
+            // `C3`: a fixed grid the occlusion reprojects, in the bytes a
+            // readback hands back. 128 KB a reading, and one in the air at a
+            // time.
+            ..declare(
+              const ResourceDesc(
+                id: FrameResourceIds.depthPyramid,
+                format: TextureFormat.r8g8b8a8UNormInt,
+                size: AbsolutePixels(HiZOcclusion.width, HiZOcclusion.height),
               ),
             )
             // The frame's size, because a pick is a pixel of the frame, and
