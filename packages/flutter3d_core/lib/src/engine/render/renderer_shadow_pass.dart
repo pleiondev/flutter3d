@@ -473,13 +473,13 @@ extension _ShadowPasses on Renderer {
   int _cascadeBakeKey(
     Scene scene,
     ShadowSettings settings,
-    vm.Matrix4 shaderMatrix,
-    vm.Frustum frustum, {
+    vm.Matrix4? shaderMatrix,
+    vm.Frustum? frustum, {
     bool? only,
   }) {
     int mix(int key, int value) => 0x1fffffff & (key * 31 + value);
     var key = mix(settings.casterFaces.hashCode, scene.staticShadowGeneration);
-    for (final value in shaderMatrix.storage) {
+    for (final value in shaderMatrix?.storage ?? const <double>[]) {
       key = mix(key, value.hashCode);
     }
     for (final node in scene.meshes) {
@@ -507,14 +507,25 @@ extension _ShadowPasses on Renderer {
     return key;
   }
 
+  /// [matrix] as a number, for a key.
+  static int _matrixKey(vm.Matrix4 matrix) {
+    var key = 17;
+    for (final value in matrix.storage) {
+      key = 0x1fffffff & (key * 31 + value.hashCode);
+    }
+    return key;
+  }
+
   /// Whether [node] is drawn into the cascade whose volume is [frustum]: the
   /// tests the draw loop makes, in one place so the key and the loop agree.
-  static bool _drawsIntoCascade(MeshNode node, vm.Frustum frustum) {
+  static bool _drawsIntoCascade(MeshNode node, vm.Frustum? frustum) {
     if (!node.visibleInHierarchy) return false;
     if (!node.shadowCasting.casts) return false;
     final mesh = node.mesh;
     if (mesh is! DrawableGeometry || mesh.indexCount == 0) return false;
-    if (node.frustumCulled && !frustum.intersectsWithAabb3(node.worldBounds)) {
+    if (frustum != null &&
+        node.frustumCulled &&
+        !frustum.intersectsWithAabb3(node.worldBounds)) {
       return false;
     }
     return node is! InstancedMeshNode || node.count > 0;
@@ -639,6 +650,9 @@ extension _ShadowPasses on Renderer {
     // planes are extracted for; the drawing copy has been through the backend's
     // depth convention and the shader copy may have had its y flipped.
     final cascadeFrusta = <vm.Frustum>[];
+    // The engine's own, unadjusted: what the frusta and a scroll's strips
+    // are cut from.
+    final rawMatrices = <vm.Matrix4>[];
 
     for (var i = 0; i < centres.length; i++) {
       final radius = radii[i];
@@ -708,6 +722,7 @@ extension _ShadowPasses on Renderer {
       drawMatrices.add(toDepthRange(matrix, device.depthRange));
       shaderMatrices.add(toFramebufferOrigin(matrix, device.framebufferOrigin));
       cascadeFrusta.add(vm.Frustum.matrix(matrix));
+      rawMatrices.add(matrix);
     }
 
     _shadowMatrix.setFrom(shaderMatrices.first);
@@ -810,16 +825,16 @@ extension _ShadowPasses on Renderer {
         _shadowResolution != resolution ||
         _shadowCascadeCount != count;
     final staticFresh = fresh || _shadowMapStatic == null;
+    // `S1`: the static casters keyed as a whole rather than per tile, since
+    // a tile that scrolls gains the casters its new strip holds without any
+    // of them having changed; and each tile's key is that and its matrix.
+    final staticScene = split
+        ? _cascadeBakeKey(scene, settings, null, null, only: true)
+        : 0;
     final staticKeys = <int>[
       for (var i = 0; i < count; i++)
         split
-            ? _cascadeBakeKey(
-                scene,
-                settings,
-                shaderMatrices[i],
-                cascadeFrusta[i],
-                only: true,
-              )
+            ? 0x1fffffff & (_matrixKey(shaderMatrices[i]) * 31 + staticScene)
             : 0,
     ];
     final keys = <int>[
@@ -849,12 +864,29 @@ extension _ShadowPasses on Renderer {
       if (!keep) dirty[i] = true;
       if (dirty[i]) _directionalBaked[i] = keys[i];
     }
-    final staticDirty = <bool>[
-      for (var i = 0; i < count; i++)
-        split &&
-            dirty[i] &&
-            (staticFresh || _directionalStaticBaked[i] != staticKeys[i]),
-    ];
+    // What each static tile does this frame: kept as it is, scrolled by
+    // whole texels with the strip that came into view drawn, or drawn again.
+    final staticModes = List<_StaticTile>.filled(count, _StaticTile.keep);
+    final scrolls = List<_Scroll?>.filled(count, null);
+    for (var i = 0; split && i < count; i++) {
+      if (staticFresh ||
+          _staticSceneKey != staticScene ||
+          _staticShaderMatrices[i] == null) {
+        staticModes[i] = _StaticTile.redraw;
+      } else if (_directionalStaticBaked[i] != staticKeys[i]) {
+        final scroll = _scrollBetween(
+          _staticShaderMatrices[i]!,
+          shaderMatrices[i],
+          _staticRawMatrices[i]!,
+          rawMatrices[i],
+          resolution,
+        );
+        scrolls[i] = scroll;
+        staticModes[i] = scroll == null
+            ? _StaticTile.redraw
+            : _StaticTile.scroll;
+      }
+    }
 
     RenderTargetSpec atlasSpec() => RenderTargetSpec(
       width: atlasWidth,
@@ -870,6 +902,8 @@ extension _ShadowPasses on Renderer {
       _shadowMap = device.createTexture(atlasSpec());
       _destroyAfterFrame(_shadowMapStatic);
       _shadowMapStatic = null;
+      _destroyAfterFrame(_shadowMapStaticSpare);
+      _shadowMapStaticSpare = null;
       // Its own depth, for as long as the atlas lives. See [_shadowDepth].
       _destroyAfterFrame(_shadowDepth);
       _shadowDepth = device.createTexture(
@@ -883,8 +917,8 @@ extension _ShadowPasses on Renderer {
       _shadowResolution = resolution;
       _shadowCascadeCount = count;
     }
-    if (split && _shadowMapStatic == null) {
-      _shadowMapStatic = device.createTexture(atlasSpec());
+    if (split && staticModes.any((mode) => mode != _StaticTile.keep)) {
+      _shadowMapStaticSpare ??= device.createTexture(atlasSpec());
     }
 
     final depth = _shadowDepth!;
@@ -909,7 +943,12 @@ extension _ShadowPasses on Renderer {
 
     /// Draws the casters of [cascade] into [pass] — every caster when [only]
     /// is null, and the static or the dynamic ones otherwise.
-    void drawCasters(CommandEncoder pass, int cascade, {bool? only}) {
+    void drawCasters(
+      CommandEncoder pass,
+      int cascade, {
+      bool? only,
+      List<vm.Frustum>? within,
+    }) {
       final tile = tileOf(cascade);
       pass.setState(
         Renderer._kShadowCasterState.copyWith(
@@ -949,6 +988,12 @@ extension _ShadowPasses on Renderer {
         // fragment. What is rejected here is what the clipper was going to
         // reject anyway, only without the vertex work first.
         if (!_drawsIntoCascade(node, casterFrustum)) continue;
+        // `S1`: a scroll draws only what its new strips hold.
+        if (within != null &&
+            node.frustumCulled &&
+            !within.any((f) => f.intersectsWithAabb3(node.worldBounds))) {
+          continue;
+        }
         final mesh = node.mesh as DrawableGeometry;
         final instanced = node is InstancedMeshNode ? node : null;
 
@@ -1103,15 +1148,79 @@ extension _ShadowPasses on Renderer {
         );
 
     developer.Timeline.startSync('Renderer.shadowPass');
-    if (staticDirty.contains(true)) {
-      final staticPass = open(_shadowMapStatic!, load: !staticFresh);
+
+    /// [source]'s tile of [cascade] into [pass]'s, colour and depth, moved
+    /// by [scroll] when there is one.
+    void copyTile(
+      CommandEncoder pass,
+      TextureHandle source,
+      int cascade, [
+      _Scroll? scroll,
+    ]) {
+      final tile = tileOf(cascade);
+      pass.setState(
+        Renderer._kShadowCopyState.copyWith(viewport: tile, scissor: tile),
+      );
+      pass.bindPipeline(
+        _shadowCopyPipeline ??= device.createPipeline(
+          copyVertexShader!,
+          copyShader!,
+        ),
+      );
+      _shadowCopyInfo.tile
+        ..[0] = count > 1 ? cascade / count : 0.0
+        ..[1] = 0.0
+        ..[2] = 1.0 / count
+        ..[3] = 1.0;
+      _shadowCopyInfo.shift
+        ..[0] = scroll?.du ?? 0.0
+        ..[1] = scroll?.dv ?? 0.0
+        ..[2] = scroll?.dz ?? 0.0
+        ..[3] = 0.0;
+      pass
+        ..bindBlock(copyShader!, _shadowCopyInfo)
+        ..bindTexture(
+          copyShader,
+          'static_shadow_texture',
+          source,
+          sampler: SamplerOptions.nearestClamp,
+        )
+        ..bindVertexBuffer(_fullscreenTriangle, 3)
+        ..bindIndexBuffer(_identityIndices(3), IndexType.int32, 3)
+        ..draw();
+      _frameCounters?.drawCalls++;
+    }
+
+    developer.Timeline.startSync('Renderer.shadowPass');
+    if (split && staticModes.any((mode) => mode != _StaticTile.keep)) {
+      // Into the spare atlas, every tile: a kept one copied across, a
+      // scrolled one copied across moved and its new strips drawn, the rest
+      // drawn whole. A texture cannot be read and written in one pass, which
+      // is the whole reason there are two.
+      final source = _shadowMapStatic;
+      final staticPass = open(_shadowMapStaticSpare!, load: false);
       for (var cascade = 0; cascade < count; cascade++) {
-        if (!staticDirty[cascade]) continue;
-        if (!staticFresh) resetTile(staticPass, cascade);
-        drawCasters(staticPass, cascade, only: true);
+        switch (staticModes[cascade]) {
+          case _StaticTile.keep:
+            copyTile(staticPass, source!, cascade);
+          case _StaticTile.scroll:
+            final scroll = scrolls[cascade]!;
+            copyTile(staticPass, source!, cascade, scroll);
+            drawCasters(staticPass, cascade, only: true, within: scroll.strips);
+          case _StaticTile.redraw:
+            drawCasters(staticPass, cascade, only: true);
+        }
         _directionalStaticBaked[cascade] = staticKeys[cascade];
+        _staticShaderMatrices[cascade] = vm.Matrix4.copy(
+          shaderMatrices[cascade],
+        );
+        _staticRawMatrices[cascade] = vm.Matrix4.copy(rawMatrices[cascade]);
       }
       staticPass.submit();
+      final spare = _shadowMapStatic;
+      _shadowMapStatic = _shadowMapStaticSpare;
+      _shadowMapStaticSpare = spare;
+      _staticSceneKey = staticScene;
     }
 
     final pass = open(_shadowMap!, load: keep);
@@ -1120,33 +1229,7 @@ extension _ShadowPasses on Renderer {
       if (split) {
         // The static tile, into colour and depth, so the dynamic casters that
         // follow test against the walls already there.
-        final tile = tileOf(cascade);
-        pass.setState(
-          Renderer._kShadowCopyState.copyWith(viewport: tile, scissor: tile),
-        );
-        pass.bindPipeline(
-          _shadowCopyPipeline ??= device.createPipeline(
-            copyVertexShader,
-            copyShader,
-          ),
-        );
-        _shadowCopyInfo.tile
-          ..[0] = count > 1 ? cascade / count : 0.0
-          ..[1] = 0.0
-          ..[2] = 1.0 / count
-          ..[3] = 1.0;
-        pass
-          ..bindBlock(copyShader, _shadowCopyInfo)
-          ..bindTexture(
-            copyShader,
-            'static_shadow_texture',
-            _shadowMapStatic!,
-            sampler: SamplerOptions.nearestClamp,
-          )
-          ..bindVertexBuffer(_fullscreenTriangle, 3)
-          ..bindIndexBuffer(_identityIndices(3), IndexType.int32, 3)
-          ..draw();
-        _frameCounters?.drawCalls++;
+        copyTile(pass, _shadowMapStatic!, cascade);
         drawCasters(pass, cascade, only: false);
       } else {
         if (keep) resetTile(pass, cascade);
@@ -1159,4 +1242,85 @@ extension _ShadowPasses on Renderer {
     publishShadowParams();
     return true;
   }
+
+  /// How the static tile drawn with [oldShader] moves to [newShader]'s — `S1`
+  /// — or null when it cannot be scrolled: the two views differ by more than
+  /// a move, or the move is not whole texels of a [resolution]-texel tile.
+  ///
+  /// A cascade is fitted round a centre snapped to whole texels in the
+  /// light's frame, so a camera that walks moves it by whole texels across
+  /// and by some amount along the light; across is a shift of the picture,
+  /// along is the same amount added to every depth it holds.
+  static _Scroll? _scrollBetween(
+    vm.Matrix4 oldShader,
+    vm.Matrix4 newShader,
+    vm.Matrix4 oldRaw,
+    vm.Matrix4 newRaw,
+    int resolution,
+  ) {
+    final inverse = vm.Matrix4.copy(oldShader);
+    if (inverse.invert() == 0.0) return null;
+    final d = (vm.Matrix4.copy(newShader)..multiply(inverse)).storage;
+    const eps = 1e-5;
+    for (var column = 0; column < 3; column++) {
+      for (var row = 0; row < 4; row++) {
+        final want = column == row ? 1.0 : 0.0;
+        if ((d[column * 4 + row] - want).abs() > eps) return null;
+      }
+    }
+    if ((d[15] - 1.0).abs() > eps) return null;
+    final du = d[12] * 0.5;
+    final dv = -d[13] * 0.5;
+    final texelsU = du * resolution;
+    final texelsV = dv * resolution;
+    if ((texelsU - texelsU.roundToDouble()).abs() > 1e-3 ||
+        (texelsV - texelsV.roundToDouble()).abs() > 1e-3 ||
+        du.abs() >= 1.0 ||
+        dv.abs() >= 1.0) {
+      return null;
+    }
+
+    // The strips that came into view, in the engine's own clip space, and a
+    // texel wider than they are so a caster at their edge is not missed.
+    final rawInverse = vm.Matrix4.copy(oldRaw)..invert();
+    final r = (vm.Matrix4.copy(newRaw)..multiply(rawInverse)).storage;
+    final margin = 2.0 / resolution;
+    final strips = <vm.Frustum>[];
+    vm.Frustum band(int axis, double from, double to) {
+      final lo = math.max(from - margin, -1.0);
+      final hi = math.min(to + margin, 1.0);
+      final squeeze = vm.Matrix4.identity();
+      final at = axis == 0 ? 0 : 5;
+      squeeze.storage[at] = 2.0 / (hi - lo);
+      squeeze.storage[axis == 0 ? 12 : 13] = -(hi + lo) / (hi - lo);
+      return vm.Frustum.matrix(squeeze..multiply(newRaw));
+    }
+
+    for (final axis in <int>[0, 1]) {
+      final shift = r[axis == 0 ? 12 : 13];
+      if (shift > 1e-9) strips.add(band(axis, -1.0, -1.0 + shift));
+      if (shift < -1e-9) strips.add(band(axis, 1.0 + shift, 1.0));
+    }
+    return _Scroll(du: du, dv: dv, dz: d[14], strips: strips);
+  }
+}
+
+/// What a static cascade tile does in a frame — `S1`.
+enum _StaticTile { keep, scroll, redraw }
+
+/// A static tile's move — `S1`: how far back, in the tile's own texture
+/// coordinates, a texel's picture was, what the move added to its depth, and
+/// the volumes of the strips that came into view.
+final class _Scroll {
+  const _Scroll({
+    required this.du,
+    required this.dv,
+    required this.dz,
+    required this.strips,
+  });
+
+  final double du;
+  final double dv;
+  final double dz;
+  final List<vm.Frustum> strips;
 }

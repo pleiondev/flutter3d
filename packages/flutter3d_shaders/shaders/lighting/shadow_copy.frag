@@ -25,14 +25,29 @@ uniform ShadowCopyInfo {
   /// xy: where this tile starts in the atlas, zw: its size, both in the
   /// atlas's own texture coordinates.
   vec4 tile;
+
+  /// A scroll — `S1`: xy how far back, in the tile's own coordinates, the
+  /// texel this one shows was held; z what the move added to every stored
+  /// depth. Nought for a plain copy. A texel whose source lies outside the
+  /// tile is the strip that scrolled in, and reads as nothing there, for
+  /// the casters drawn into it next.
+  vec4 shift;
 }
 copy_info;
 
 void main() {
-  float depth =
+  vec2 from = v_uv - copy_info.shift.xy;
+  bool inside = all(greaterThanEqual(from, vec2(0.0))) &&
+                all(lessThanEqual(from, vec2(1.0)));
+  float stored =
       textureLod(static_shadow_texture,
-                 copy_info.tile.xy + v_uv * copy_info.tile.zw, 0.0)
+                 copy_info.tile.xy + clamp(from, 0.0, 1.0) * copy_info.tile.zw,
+                 0.0)
           .r;
+  // Nothing stays nothing: the far end is not a depth the move shifts.
+  float depth = inside && stored < 1.0
+                    ? clamp(stored + copy_info.shift.z, 0.0, 1.0)
+                    : 1.0;
   frag_color = vec4(depth, 0.0, 0.0, 1.0);
   gl_FragDepth = depth;
 }

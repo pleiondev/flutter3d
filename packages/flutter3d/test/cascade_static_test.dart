@@ -51,6 +51,41 @@ const int _size = 64;
   return (scene: scene, mover: mover, camera: camera);
 }
 
+/// A field of small static blocks, sixty of them, for a walk over: enough
+/// that a strip holds a few and a whole tile holds many.
+({Scene scene, CameraNode camera}) _field(CpuDevice device) {
+  final floor = DeviceMesh.upload(
+    device,
+    CuboidShape(size: Vector3(30, 0.1, 30)).build(),
+  );
+  final block = DeviceMesh.upload(
+    device,
+    CuboidShape(size: Vector3(0.4, 0.8, 0.4)).build(),
+  );
+  final scene = Scene()
+    ..add(
+      MeshNode(floor, Material(baseColor: Vector4(0.9, 0.9, 0.9, 1.0)))
+        ..setPosition(0.0, -0.45, 0.0)
+        ..shadowCasting = ShadowCastingMode.off,
+    )
+    ..add(
+      LightNode(intensity: 6.0, castsShadow: true)
+        ..setPosition(4.0, 5.0, 0.01)
+        ..lookAt(Vector3.zero()),
+    );
+  for (var i = 0; i < 12; i++) {
+    for (var j = 0; j < 5; j++) {
+      scene.add(
+        MeshNode(block, Material())
+          ..setPosition(-6.0 + i * 1.1, 0.0, -3.0 + j * 1.2)
+          ..shadowIsStatic = true,
+      );
+    }
+  }
+  final camera = scene.add(CameraNode());
+  return (scene: scene, camera: camera);
+}
+
 const RenderSettings _settings = RenderSettings(
   shadows: ShadowSettings(enabled: true, cascades: 3),
 );
@@ -112,6 +147,56 @@ void main() {
       expect(a, b, reason: 'frame $step');
       split.mover.translate(0.0, 0.0, -0.8);
       whole.mover.translate(0.0, 0.0, -0.8);
+    }
+  });
+
+  test('a camera walking over static walls scrolls their tiles', () async {
+    final gpu = device();
+    Future<List<int>> pixels(FrameResult result) async {
+      final bytes = await gpu.readPixels(result.frame);
+      return <int>[
+        for (var i = 0; i < _size * _size * 4; i++) bytes!.getUint8(i),
+      ];
+    }
+
+    void place(CameraNode camera, int step) {
+      final x = -2.0 + step * 0.35;
+      camera
+        ..setPosition(x, 4.0, 6.0)
+        ..lookAt(Vector3(x, 0.0, -1.0));
+    }
+
+    final walk = _field(gpu);
+    final kept = Renderer.create(device: gpu);
+    final draws = <int>[];
+    for (var step = 0; step < 8; step++) {
+      place(walk.camera, step);
+      final result = render(kept, walk.scene, walk.camera);
+      draws.add(cascadeDraws(result));
+      final cached = await pixels(result);
+
+      final fresh = _field(gpu);
+      place(fresh.camera, step);
+      final drawn = await pixels(
+        render(Renderer.create(device: gpu), fresh.scene, fresh.camera),
+      );
+      // A scrolled tile holds the depths it held, moved and offset, where a
+      // fresh one computes them again; the two may round apart by a hair at
+      // a shadow's very edge, and nowhere else.
+      var differ = 0;
+      for (var i = 0; i < cached.length; i++) {
+        if ((cached[i] - drawn[i]).abs() > 2) differ++;
+      }
+      // Mutation: flip the sign of the scroll in the copy. The walls'
+      // shadows walk the wrong way and most of the floor disagrees.
+      expect(differ, lessThan(cached.length ~/ 200), reason: 'frame $step');
+    }
+    // Every frame after the first draws the blocks of the strips that came
+    // into view, not of whole tiles: measured, a dozen draws a frame where
+    // redrawing the moved tiles takes sixty-eight. Mutation: return null
+    // from `_scrollBetween`. Every moved tile draws all its blocks again.
+    for (final later in draws.skip(1)) {
+      expect(later, lessThan(draws.first ~/ 4));
     }
   });
 }

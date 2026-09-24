@@ -696,9 +696,13 @@ final class ShadowCopyInfoBlock extends UniformBlock {
   /// `tile`: Vector4, at byte 0.
   final Float32List tile = Float32List(4);
 
+  /// `shift`: Vector4, at byte 16.
+  final Float32List shift = Float32List(4);
+
   @override
   late final Map<String, Float32List> members = <String, Float32List>{
     'tile': tile,
+    'shift': shift,
   };
 }
 
