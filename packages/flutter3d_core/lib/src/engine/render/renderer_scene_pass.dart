@@ -63,6 +63,7 @@ extension _ScenePasses on Renderer {
     required int lightOverflowCount,
     required List<PassContributor> contributors,
     required bool surfaceIsRead,
+    bool albedoIsRead = false,
   }) {
     final hdr = _hdrColor!;
     var culled = 0;
@@ -114,7 +115,14 @@ extension _ScenePasses on Renderer {
     final pass = device.beginRenderPass(
       RenderPassDescriptor(
         label: _passLabel,
-        colors: <ColorTarget>[colorAttachment, ?surfaceAttachment],
+        colors: <ColorTarget>[
+          colorAttachment,
+          ?surfaceAttachment,
+          // `L5`: the albedo buffer, beside the surface buffer and only with
+          // it, so the attachments stay consecutive.
+          if (albedoIsRead && surfaceAttachment != null)
+            ColorTarget(texture: _albedoColor!, clearValue: vm.Vector4.zero()),
+        ],
         // Standard depth: clear to the far plane, nearer fragments win.
         depth: DepthTarget(
           texture: msaa == null

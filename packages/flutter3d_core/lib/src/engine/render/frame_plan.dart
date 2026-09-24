@@ -30,6 +30,11 @@ abstract final class FrameResourceIds {
   /// World normal and depth, the second attachment of the scene pass.
   static const ResourceId surfaceBuffer = ResourceId('surface_buffer');
 
+  /// Each surface's own colour, sRGB in eight bits, the scene pass's third
+  /// attachment — `L5`. Present only when a pass reads it, the surface buffer
+  /// is attached too and the device opens three colour attachments.
+  static const ResourceId albedoBuffer = ResourceId('albedo_buffer');
+
   /// The directional light's shadow map.
   static const ResourceId shadowMap = ResourceId('shadow_map');
 

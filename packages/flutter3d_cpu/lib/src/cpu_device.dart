@@ -113,7 +113,7 @@ final class CpuDevice implements GraphicsDevice {
     required this.width,
     required this.height,
     required this.shaders,
-    this.maxColorAttachments = 2,
+    this.maxColorAttachments = 3,
   });
 
   final int width;
@@ -208,13 +208,14 @@ final class CpuDevice implements GraphicsDevice {
   // only by a sampler that asked.
   int get maxAnisotropy => 16;
 
-  /// Two by default, and settable — `gfx-50n`.
+  /// Three by default, and settable — `gfx-50n`, `L5`.
   ///
-  /// The rasteriser could write into any number of arrays, so the two is a
+  /// The rasteriser could write into any number of arrays, so the three is a
   /// choice rather than a limit: it answers what the hardware backends answer
-  /// where they work, because a reference that could do more than the thing
-  /// it is a reference for would record pictures no shipping backend can
-  /// reproduce.
+  /// where they work — the colour, the surface buffer and the albedo buffer,
+  /// which is all any pass here opens — because a reference that could do
+  /// more than the thing it is a reference for would record pictures no
+  /// shipping backend can reproduce.
   ///
   /// **Settable for the harder reason.** The device this stands in for is
   /// Impeller on OpenGL ES, which aborts rather than refusing, so the no-MRT

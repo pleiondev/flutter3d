@@ -539,9 +539,13 @@ final class _SceneNode extends RenderNode {
   /// belongs on the *consumers*, where it is one more reason a pass did not
   /// run. See `RenderNode.supported` and `PassSkip.unsupported`.
   @override
-  List<ResourceId> get writes => const <ResourceId>[
+  List<ResourceId> get writes => <ResourceId>[
     FrameResourceIds.hdrColour,
     FrameResourceIds.surfaceBuffer,
+    // `L5`: always named, as the surface buffer is, and provided only where
+    // the device attached it — a reader that can do without takes it as an
+    // optional read and gets null on a device that opens two.
+    FrameResourceIds.albedoBuffer,
   ];
 
   /// The probes this frame produced, out of the resources this node declared.
@@ -592,8 +596,15 @@ final class _SceneNode extends RenderNode {
     // refuses, which the refusal turned into a throw. The pass attaches what
     // the device can open; the optional reader gets null and declines, which
     // is what optional means.
+    // `L5`: the third attachment on the same terms. The stages write it at
+    // location two, so reading it attaches the surface buffer as well, which
+    // keeps the attachments consecutive.
+    final albedoIsRead =
+        resources.graph.isConsumed(FrameResourceIds.albedoBuffer) &&
+        _renderer.device.maxColorAttachments > 2;
     final surfaceIsRead =
-        resources.graph.isConsumed(FrameResourceIds.surfaceBuffer) &&
+        (resources.graph.isConsumed(FrameResourceIds.surfaceBuffer) ||
+            albedoIsRead) &&
         _renderer.device.maxColorAttachments > 1;
 
     // Every map this pass samples, taken from the frame rather than from the
@@ -622,6 +633,9 @@ final class _SceneNode extends RenderNode {
         _renderer._surfaceColor ?? hdr,
       );
     }
+    if (albedoIsRead) {
+      resources.provide(FrameResourceIds.albedoBuffer, _renderer._albedoColor!);
+    }
 
     result = _renderer._encodeScene(
       scene: scene,
@@ -635,6 +649,7 @@ final class _SceneNode extends RenderNode {
       lightOverflowCount: lightOverflow,
       contributors: contributors,
       surfaceIsRead: surfaceIsRead,
+      albedoIsRead: albedoIsRead,
     );
   }
 }

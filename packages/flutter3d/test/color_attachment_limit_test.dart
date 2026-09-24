@@ -111,13 +111,14 @@ Future<List<int>> _pixels(
 
 void main() {
   group('the device publishes a limit', () {
-    test('the rasteriser answers two, which is what the engine opens', () {
+    test('the rasteriser answers three, which is what the engine opens', () {
+      // Colour, surface buffer and, since `L5`, the albedo buffer.
       final device = CpuDevice(
         width: 4,
         height: 4,
         shaders: CpuShaderLibrary(builtinCpuShaders()),
       );
-      expect(device.maxColorAttachments, 2);
+      expect(device.maxColorAttachments, 3);
     });
 
     test('a pass past the limit throws instead of being opened', () {
