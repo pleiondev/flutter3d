@@ -2446,6 +2446,10 @@ final class Renderer implements RenderServices {
   /// while the set is fixed and closed. An application's stage has no field to
   /// live in, and building the pipeline per frame is the one mistake this
   /// helper exists to make impossible.
+  /// The frame graph node being executed, as the label every pass it opens
+  /// carries — `H2`. Null between nodes.
+  String? _passLabel;
+
   final Map<ShaderHandle, PipelineHandle> _fullscreenPipelines =
       <ShaderHandle, PipelineHandle>{};
 
@@ -2457,6 +2461,7 @@ final class Renderer implements RenderServices {
     // passes need.
     final pass = device.beginRenderPass(
       RenderPassDescriptor(
+        label: _passLabel,
         colors: <ColorTarget>[
           ColorTarget(texture: draw.target, loadAction: draw.loadAction),
         ],
@@ -3438,34 +3443,50 @@ final class Renderer implements RenderServices {
         final trianglesBefore = passState.triangles;
         final switchesBefore = passState.pipelineSwitches;
         final passClock = Stopwatch()..start();
-        node.execute(
-          NodeFrame(
-            device: device,
-            resources: resources,
-            services: this,
-            state: passState,
-            settings: settings,
-            width: width,
-            height: height,
-            // Only for a node that asked for it. This convenience used to hand
-            // the scene colour to every node in the frame, including the shadow
-            // passes that run before one exists and never wanted it — a read
-            // the graph was never told about, ordered against nothing. It was
-            // invisible until an undeclared read became an error.
-            //
-            // Still `tryTexture` for the nodes that did declare it: the scene
-            // runs first and a node drawing over the world has to cope with
-            // there being nothing yet. The view model returns early.
-            sceneColor:
-                frameGraph.readVersionOf(i, FrameResourceIds.hdrColour) == null
-                ? null
-                : resources.tryTexture(FrameResourceIds.hdrColour),
-          ),
-        );
+        // One span and one pass label per node, named by the node — `H2`.
+        // The label reaches every pass the node opens through this renderer,
+        // so a GPU debugger and `GraphicsDevice.onGpuTimings` see the graph's
+        // own names rather than a pass nobody can place.
+        _passLabel = node.name;
+        developer.Timeline.startSync(node.name);
+        try {
+          node.execute(
+            NodeFrame(
+              device: device,
+              resources: resources,
+              services: this,
+              state: passState,
+              settings: settings,
+              width: width,
+              height: height,
+              // Only for a node that asked for it. This convenience used to
+              // hand the scene colour to every node in the frame, including
+              // the shadow passes that run before one exists and never wanted
+              // it — a read the graph was never told about, ordered against
+              // nothing. It was invisible until an undeclared read became an
+              // error.
+              //
+              // Still `tryTexture` for the nodes that did declare it: the
+              // scene runs first and a node drawing over the world has to cope
+              // with there being nothing yet. The view model returns early.
+              sceneColor:
+                  frameGraph.readVersionOf(i, FrameResourceIds.hdrColour) ==
+                      null
+                  ? null
+                  : resources.tryTexture(FrameResourceIds.hdrColour),
+            ),
+          );
+        } finally {
+          developer.Timeline.finishSync();
+          _passLabel = null;
+        }
         passTimings.add((
           name: node.name,
           active: node.isActive,
           micros: passClock.elapsedMicroseconds,
+          // Filled by a backend that measures, a frame or two late, through
+          // `GraphicsDevice.onGpuTimings`; none does in 0.8.0.
+          gpuMicros: null,
           drawCalls: passState.drawCalls - drawsBefore,
           triangles: passState.triangles - trianglesBefore,
           pipelineSwitches: passState.pipelineSwitches - switchesBefore,
@@ -3847,6 +3868,7 @@ final class Renderer implements RenderServices {
     try {
       final pass = device.beginRenderPass(
         RenderPassDescriptor(
+          label: _passLabel,
           colors: <ColorTarget>[
             ColorTarget(texture: first, clearValue: vm.Vector4.zero()),
             ColorTarget(texture: second, clearValue: vm.Vector4.zero()),

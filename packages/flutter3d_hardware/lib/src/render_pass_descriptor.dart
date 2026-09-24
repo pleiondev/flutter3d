@@ -380,7 +380,12 @@ final class DepthTarget {
 
 /// Everything a pass draws into.
 final class RenderPassDescriptor {
-  const RenderPassDescriptor({required this.colors, this.depth});
+  const RenderPassDescriptor({required this.colors, this.depth, this.label});
+
+  /// What the pass is called, for a GPU debugger and for
+  /// `GraphicsDevice.onGpuTimings` — `H2`. The renderer passes its frame
+  /// graph node's name. A backend with nowhere to put it ignores it.
+  final String? label;
 
   /// In shader output order. Two of them exactly once — the scene pass, which
   /// writes lit colour and the surface buffer together.

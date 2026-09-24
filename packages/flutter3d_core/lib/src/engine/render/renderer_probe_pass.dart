@@ -220,6 +220,7 @@ extension _ProbePasses on Renderer {
 
     final pass = device.beginRenderPass(
       RenderPassDescriptor(
+        label: _passLabel,
         colors: <ColorTarget>[
           ColorTarget(
             texture: state.capture,
@@ -341,6 +342,7 @@ extension _ProbePasses on Renderer {
         _probeParams[0] = face.toDouble();
         final pass = device.beginRenderPass(
           RenderPassDescriptor(
+            label: _passLabel,
             colors: <ColorTarget>[
               ColorTarget(
                 texture: state.filtered,

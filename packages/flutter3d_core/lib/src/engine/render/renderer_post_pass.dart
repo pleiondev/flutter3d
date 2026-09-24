@@ -146,6 +146,7 @@ extension _PostPasses on Renderer {
   }) {
     final pass = device.beginRenderPass(
       RenderPassDescriptor(
+        label: _passLabel,
         colors: <ColorTarget>[
           ColorTarget(
             texture: target,
@@ -918,6 +919,7 @@ extension _PostPasses on Renderer {
   }) {
     final pass = device.beginRenderPass(
       RenderPassDescriptor(
+        label: _passLabel,
         colors: <ColorTarget>[
           ColorTarget(texture: target, loadAction: LoadAction.dontCare),
         ],

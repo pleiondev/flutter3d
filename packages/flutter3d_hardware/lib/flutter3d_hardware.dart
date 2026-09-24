@@ -33,6 +33,7 @@ library;
 
 /// Recording a pass — state, bindings, draws.
 export 'src/command_encoder.dart';
+export 'src/compute.dart';
 
 /// How a build opens a `GraphicsDevice`, and how a caller finds what shows a
 /// frame from one — both as a backend registers into, not a list this
@@ -44,6 +45,7 @@ export 'src/formats.dart';
 
 /// Opaque handles for the things a backend owns.
 export 'src/geometry_buffer.dart';
+export 'src/gpu_timings.dart';
 
 /// The device: textures, buffers, pipelines, passes.
 export 'src/graphics_device.dart';

@@ -83,12 +83,12 @@ final class WebGpuEncoder implements CommandEncoder {
       depth == null
           ? GPURenderPassDescriptor(
               colorAttachments: colors.toJS,
-              label: 'flutter3d pass',
+              label: descriptor.label ?? 'flutter3d pass',
             )
           : GPURenderPassDescriptor.withDepth(
               colorAttachments: colors.toJS,
               depthStencilAttachment: _depthAttachment(depth),
-              label: 'flutter3d pass',
+              label: descriptor.label ?? 'flutter3d pass',
             ),
     );
   }
