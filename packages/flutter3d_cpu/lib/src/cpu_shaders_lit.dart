@@ -275,7 +275,11 @@ final class PbrShader implements CpuFragmentShader {
         reflected.z,
         s.roughness * levels,
       );
-      final ab = _envBrdfApprox(s.roughness, math.max(nDotV, 0.0));
+      // The surface's own `n·v`, clamped to 1e-4 as `pbr.frag` passes it —
+      // not this raw one clamped to zero. They part only at grazing angles,
+      // where the split-sum term is steepest, and a multiscatter term built
+      // on top of it would widen the gap it was handed.
+      final ab = _envBrdfApprox(s.roughness, s.nDotV);
 
       final strength = b.vec4('FragInfo', 'material', Vector4.zero()).z;
       final diffusePart = diffuseColour.clone()

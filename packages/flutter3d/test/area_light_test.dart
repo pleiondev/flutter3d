@@ -272,6 +272,69 @@ void main() {
       );
       expect(zero, 0.0);
     });
+
+    test('a panel rated in lumens sends out those lumens', () {
+      // The flux is measured, not assumed: every patch of a large hemisphere
+      // in front of the panel receives `radiance × form factor`, with the
+      // radiance the shader gives it, `intensity / area`, and the patches sum
+      // to what the panel emits. A Lambertian panel emits `π` times its axial
+      // intensity, so that is what [Photometric.toLumens] has to say.
+      //
+      // Mutation: rate the panel over `2π`, the figure for a source equally
+      // bright at every angle. The panel then emits half its rating.
+      final halfWidth = Vector3(0.3, 0.0, 0.0);
+      final halfHeight = Vector3(0.0, 0.0, 0.2);
+      final area = halfWidth.cross(halfHeight).length * 4.0;
+      const intensity = 1.0;
+      final radiance = intensity / area;
+
+      const radius = 40.0;
+      const rings = 180;
+      const segments = 90;
+      var flux = 0.0;
+      for (var i = 0; i < rings; i++) {
+        // The panel emits along −Y, `cross(halfWidth, halfHeight)`.
+        final theta = (i + 0.5) / rings * math.pi / 2.0;
+        final ring = math.sin(theta) * (math.pi / 2.0 / rings);
+        for (var j = 0; j < segments; j++) {
+          final phi = (j + 0.5) / segments * 2.0 * math.pi;
+          final direction = Vector3(
+            math.sin(theta) * math.cos(phi),
+            -math.cos(theta),
+            math.sin(theta) * math.sin(phi),
+          );
+          final at = direction.scaled(radius);
+          final received =
+              radiance *
+              rectangleFormFactor(
+                _cornersFrom(
+                  at,
+                  centre: Vector3.zero(),
+                  halfWidth: halfWidth,
+                  halfHeight: halfHeight,
+                ),
+                -direction,
+              );
+          flux +=
+              received * radius * radius * ring * (2.0 * math.pi / segments);
+        }
+      }
+
+      expect(flux / intensity, closeTo(math.pi, 0.01 * math.pi));
+      expect(
+        Photometric.toLumens(intensity, type: LightType.area) /
+            Photometric.toCandela(intensity),
+        closeTo(flux / intensity, 0.01 * math.pi),
+        reason: 'the rating and what the shader sends out disagree',
+      );
+      expect(
+        Photometric.fromLumens(
+          Photometric.toLumens(intensity, type: LightType.area),
+          type: LightType.area,
+        ),
+        closeTo(intensity, 1e-9),
+      );
+    });
   });
 
   group('the panel lights a floor', () {

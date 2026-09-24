@@ -32,6 +32,8 @@
 // A fullscreen stage declares its own varying and its own output, the way
 // every other pass in this directory does: `lib/color.glsl` is the mesh
 // fragment's preamble and brings a surface this pass does not have.
+#include <lib/frag_coord_info.glsl>
+
 in vec2 v_uv;
 
 out vec4 frag_color;
@@ -164,7 +166,7 @@ void main() {
   // below into eight flat levels, a staircase across every penumbra. Each
   // sample lands somewhere in its own step rather than at its end. A pattern
   // rather than a hash so the software backend matches bit for bit.
-  float jitter = BayerCell(gl_FragCoord.xy);
+  float jitter = BayerCell(TargetFragCoord());
 
   // **A tolerance at least twice what one step moves in depth**, as Unreal's
   // `CompareTolerance`: a ray running steeply away from the camera crosses

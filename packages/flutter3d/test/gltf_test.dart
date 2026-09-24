@@ -724,6 +724,52 @@ void main() {
       expect(material.emissiveStrength, closeTo(3.0, 1e-6));
     });
 
+    test(
+      'a linear base colour factor becomes the authored tint and back',
+      () async {
+        // glTF's factor is linear; `SurfaceMaterial.baseColor` is the authored,
+        // non-linear tint every shader converts. Taken raw, a factor of 0.5 went
+        // through that conversion once more and drew as 0.21, so a model whose
+        // colour lives in its factor came out darker than in any other viewer.
+        //
+        // Mutation: load `baseColorFactor` without `_authoredTint`. The channel
+        // reads 0.5.
+        // Mutation: write `baseColor` without `srgbToLinear`. The file says
+        // 0.735, and the next viewer draws it lighter than it was.
+        final asset = await GltfLoader().load(
+          buildGlb(<String, Object?>{
+            'asset': {'version': '2.0'},
+            'materials': <Object?>[
+              {
+                'pbrMetallicRoughness': {
+                  'baseColorFactor': <Object?>[0.5, 0.0, 1.0, 0.5],
+                },
+              },
+            ],
+          }),
+        );
+        final tint = asset.materials.single.baseColor;
+        // 1.055 · 0.5^(1/2.4) − 0.055, the value a paint program shows for a
+        // linear half.
+        expect(tint.x, closeTo(0.7354, 1e-4));
+        expect(tint.y, 0.0);
+        expect(tint.z, closeTo(1.0, 1e-6));
+        expect(tint.w, 0.5, reason: 'alpha is not a colour');
+
+        final written = GlbContainer.parse(GltfWriter(asset).writeGlb()).json;
+        final factor =
+            ((written['materials']! as List<Object?>).single!
+                    as Map<String, Object?>)['pbrMetallicRoughness']!
+                as Map<String, Object?>;
+        final values = (factor['baseColorFactor']! as List<Object?>)
+            .cast<num>();
+        expect(values[0], closeTo(0.5, 1e-6));
+        expect(values[1], 0.0);
+        expect(values[2], closeTo(1.0, 1e-6));
+        expect(values[3], 0.5);
+      },
+    );
+
     test('decodes sampler wrap modes', () async {
       final asset = await GltfLoader().load(
         buildGlb(<String, Object?>{

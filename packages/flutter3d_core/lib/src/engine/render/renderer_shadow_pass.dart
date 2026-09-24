@@ -668,13 +668,32 @@ extension _ShadowPasses on Renderer {
       if (i == 0) _shadowCascadeCentres.clear();
       _shadowCascadeCentres.add(centre.clone());
 
-      final distance = radius * padding;
+      // **A near cascade reaches back to the furthest caster towards the
+      // light.** Its volume is a sphere around what the camera sees, and its
+      // depth ran from that sphere's own light-side edge: a tree or a wall
+      // standing further out towards the sun than the sphere reaches was cut
+      // by the near plane, and the ground inside the tile it shades came back
+      // lit while the next cascade out had the shadow. The last cascade is the
+      // whole caster set and needs nothing. The reach is rounded up to whole
+      // texels so a camera walking along does not slide the depth under a
+      // still scene; the bias is converted below to keep its distance.
+      final ownReach = radius * padding;
+      var distance = ownReach;
+      if (i < centres.length - 1) {
+        final reach = (centre - sceneCentre).dot(aim) + sceneRadius;
+        if (reach > distance) {
+          distance = (reach / texelWorld).ceilToDouble() * texelWorld;
+        }
+      }
+      _shadowCascadeBiasScale[i] = distance == ownReach
+          ? 1.0
+          : (ownReach + ownReach - 0.01) / (distance + ownReach - 0.01);
       final eye = centre - aim.scaled(distance);
       final view = Renderer._lookAt(eye, centre, up);
       final projection = OrthographicProjection(
         height: radius * 2.0 * padding,
         near: 0.01,
-        far: distance + radius * padding,
+        far: distance + ownReach,
       ).toMatrix(1.0);
 
       final matrix = vm.Matrix4.copy(projection)..multiply(view);
@@ -740,6 +759,10 @@ extension _ShadowPasses on Renderer {
       _shadowCascades[2] = count.toDouble();
       _shadowCascades[3] = 1.0 / resolution;
       _shadowParams[1] = settings.bias;
+      for (var i = 0; i < 3; i++) {
+        _shadowCascadeBias[i] =
+            settings.bias * _shadowCascadeBiasScale[math.min(i, count - 1)];
+      }
       _shadowParams[2] = settings.normalOffset;
       _shadowParams[3] = settings.strength.clamp(0.0, 1.0);
     }

@@ -1793,6 +1793,35 @@ void WriteDisplayColor(vec3 displayColor, float alpha) {
 
 #endif  // COLOR_GLSL_
 
+// --- lib/frag_coord.glsl ---
+// Where a fragment sits, counted from the top of its target on every backend.
+
+#ifndef FRAG_COORD_GLSL_
+#define FRAG_COORD_GLSL_
+
+/// `gl_FragCoord.xy` with row zero at the top of the picture.
+///
+/// [rows] is the target's height where the backend's row zero is the bottom
+/// of the picture, and zero where it is the top. WebGL2 is the first kind:
+/// window coordinates start at the lower left, and the engine draws the
+/// picture upright there rather than mirroring every projection. Metal,
+/// WebGPU and the software rasteriser are the second.
+///
+/// **Why a pattern cares and a picture does not.** Every screen-space pattern
+/// in the engine — the Bayer dither, the grain, the jitter a ray march starts
+/// from, the rotation of a shadow kernel — is a function of the pixel's row.
+/// Read from the bottom, the same frame gets the pattern turned upside down,
+/// and a four-row Bayer cell lands on different rows unless the height is a
+/// multiple of four. The picture underneath is identical; the pattern on top
+/// of it is not, and a comparison across backends counts every pixel it
+/// moved.
+vec2 FragCoordFromTop(float rows) {
+  return rows > 0.0 ? vec2(gl_FragCoord.x, rows - gl_FragCoord.y)
+                    : gl_FragCoord.xy;
+}
+
+#endif  // FRAG_COORD_GLSL_
+
 
 /// Lights per draw. Must match LightBuffer.maxLights on the Dart side.
 ///
@@ -1968,6 +1997,22 @@ layout(std140) uniform FragInfo {
   /// every underside as pale as every upward face — which reads as the model
   /// being flat, and gets blamed on the normals.
   vec4 ambient_ground;
+
+  /// x, y, z: the depth bias of each cascade, in that cascade's own normalized
+  /// depth. w unused.
+  ///
+  /// `ShadowSettings.bias` is one number and a cascade's depth range is not:
+  /// a near cascade is stretched towards the light when a caster stands
+  /// further out than its own volume reaches, and the same bias over a longer
+  /// range is a longer distance. The renderer converts it per cascade so it
+  /// stays the distance it was tuned as; an unstretched cascade gets the
+  /// setting unchanged.
+  vec4 shadow_bias;
+
+  /// x: the target's rows when its row zero is the bottom of the picture,
+  /// zero when it is the top — see `FragCoordFromTop` in `frag_coord.glsl`,
+  /// which the shadow kernel's rotation reads through. yzw unused.
+  vec4 target_origin;
 }
 frag_info;
 
@@ -2709,7 +2754,8 @@ float PointShadowFactor(vec3 world, vec3 normal, int lightIndex) {
   // Written down because three unexplained decimals read as a magic spell, and
   // the next person to touch this line has no way to tell which of them may be
   // changed. The answer is none of them.
-  float noise = fract(52.9829189 * fract(dot(gl_FragCoord.xy,
+  float noise = fract(52.9829189 * fract(dot(FragCoordFromTop(
+                                                frag_info.target_origin.x),
                                             vec2(0.06711056, 0.00583715))));
   float angle = noise * 6.28318530718;
   float ca = cos(angle);
@@ -3137,6 +3183,35 @@ void WriteDisplayColor(vec3 displayColor, float alpha) {
 
 #endif  // COLOR_GLSL_
 
+// --- lib/frag_coord.glsl ---
+// Where a fragment sits, counted from the top of its target on every backend.
+
+#ifndef FRAG_COORD_GLSL_
+#define FRAG_COORD_GLSL_
+
+/// `gl_FragCoord.xy` with row zero at the top of the picture.
+///
+/// [rows] is the target's height where the backend's row zero is the bottom
+/// of the picture, and zero where it is the top. WebGL2 is the first kind:
+/// window coordinates start at the lower left, and the engine draws the
+/// picture upright there rather than mirroring every projection. Metal,
+/// WebGPU and the software rasteriser are the second.
+///
+/// **Why a pattern cares and a picture does not.** Every screen-space pattern
+/// in the engine — the Bayer dither, the grain, the jitter a ray march starts
+/// from, the rotation of a shadow kernel — is a function of the pixel's row.
+/// Read from the bottom, the same frame gets the pattern turned upside down,
+/// and a four-row Bayer cell lands on different rows unless the height is a
+/// multiple of four. The picture underneath is identical; the pattern on top
+/// of it is not, and a comparison across backends counts every pixel it
+/// moved.
+vec2 FragCoordFromTop(float rows) {
+  return rows > 0.0 ? vec2(gl_FragCoord.x, rows - gl_FragCoord.y)
+                    : gl_FragCoord.xy;
+}
+
+#endif  // FRAG_COORD_GLSL_
+
 
 /// Lights per draw. Must match LightBuffer.maxLights on the Dart side.
 ///
@@ -3312,6 +3387,22 @@ layout(std140) uniform FragInfo {
   /// every underside as pale as every upward face — which reads as the model
   /// being flat, and gets blamed on the normals.
   vec4 ambient_ground;
+
+  /// x, y, z: the depth bias of each cascade, in that cascade's own normalized
+  /// depth. w unused.
+  ///
+  /// `ShadowSettings.bias` is one number and a cascade's depth range is not:
+  /// a near cascade is stretched towards the light when a caster stands
+  /// further out than its own volume reaches, and the same bias over a longer
+  /// range is a longer distance. The renderer converts it per cascade so it
+  /// stays the distance it was tuned as; an unstretched cascade gets the
+  /// setting unchanged.
+  vec4 shadow_bias;
+
+  /// x: the target's rows when its row zero is the bottom of the picture,
+  /// zero when it is the top — see `FragCoordFromTop` in `frag_coord.glsl`,
+  /// which the shadow kernel's rotation reads through. yzw unused.
+  vec4 target_origin;
 }
 frag_info;
 
@@ -4053,7 +4144,8 @@ float PointShadowFactor(vec3 world, vec3 normal, int lightIndex) {
   // Written down because three unexplained decimals read as a magic spell, and
   // the next person to touch this line has no way to tell which of them may be
   // changed. The answer is none of them.
-  float noise = fract(52.9829189 * fract(dot(gl_FragCoord.xy,
+  float noise = fract(52.9829189 * fract(dot(FragCoordFromTop(
+                                                frag_info.target_origin.x),
                                             vec2(0.06711056, 0.00583715))));
   float angle = noise * 6.28318530718;
   float ca = cos(angle);
@@ -4470,6 +4562,35 @@ void WriteDisplayColor(vec3 displayColor, float alpha) {
 
 #endif  // COLOR_GLSL_
 
+// --- lib/frag_coord.glsl ---
+// Where a fragment sits, counted from the top of its target on every backend.
+
+#ifndef FRAG_COORD_GLSL_
+#define FRAG_COORD_GLSL_
+
+/// `gl_FragCoord.xy` with row zero at the top of the picture.
+///
+/// [rows] is the target's height where the backend's row zero is the bottom
+/// of the picture, and zero where it is the top. WebGL2 is the first kind:
+/// window coordinates start at the lower left, and the engine draws the
+/// picture upright there rather than mirroring every projection. Metal,
+/// WebGPU and the software rasteriser are the second.
+///
+/// **Why a pattern cares and a picture does not.** Every screen-space pattern
+/// in the engine — the Bayer dither, the grain, the jitter a ray march starts
+/// from, the rotation of a shadow kernel — is a function of the pixel's row.
+/// Read from the bottom, the same frame gets the pattern turned upside down,
+/// and a four-row Bayer cell lands on different rows unless the height is a
+/// multiple of four. The picture underneath is identical; the pattern on top
+/// of it is not, and a comparison across backends counts every pixel it
+/// moved.
+vec2 FragCoordFromTop(float rows) {
+  return rows > 0.0 ? vec2(gl_FragCoord.x, rows - gl_FragCoord.y)
+                    : gl_FragCoord.xy;
+}
+
+#endif  // FRAG_COORD_GLSL_
+
 
 /// Lights per draw. Must match LightBuffer.maxLights on the Dart side.
 ///
@@ -4645,6 +4766,22 @@ layout(std140) uniform FragInfo {
   /// every underside as pale as every upward face — which reads as the model
   /// being flat, and gets blamed on the normals.
   vec4 ambient_ground;
+
+  /// x, y, z: the depth bias of each cascade, in that cascade's own normalized
+  /// depth. w unused.
+  ///
+  /// `ShadowSettings.bias` is one number and a cascade's depth range is not:
+  /// a near cascade is stretched towards the light when a caster stands
+  /// further out than its own volume reaches, and the same bias over a longer
+  /// range is a longer distance. The renderer converts it per cascade so it
+  /// stays the distance it was tuned as; an unstretched cascade gets the
+  /// setting unchanged.
+  vec4 shadow_bias;
+
+  /// x: the target's rows when its row zero is the bottom of the picture,
+  /// zero when it is the top — see `FragCoordFromTop` in `frag_coord.glsl`,
+  /// which the shadow kernel's rotation reads through. yzw unused.
+  vec4 target_origin;
 }
 frag_info;
 
@@ -5386,7 +5523,8 @@ float PointShadowFactor(vec3 world, vec3 normal, int lightIndex) {
   // Written down because three unexplained decimals read as a magic spell, and
   // the next person to touch this line has no way to tell which of them may be
   // changed. The answer is none of them.
-  float noise = fract(52.9829189 * fract(dot(gl_FragCoord.xy,
+  float noise = fract(52.9829189 * fract(dot(FragCoordFromTop(
+                                                frag_info.target_origin.x),
                                             vec2(0.06711056, 0.00583715))));
   float angle = noise * 6.28318530718;
   float ca = cos(angle);
@@ -5702,10 +5840,23 @@ float ShadowFactor(Surface s, LightSample light, int lightIndex) {
   }
   if (!found) return 1.0;
 
-  float bias = frag_info.shadow_params.y;
+  float bias = cascade == 0
+      ? frag_info.shadow_bias.x
+      : (cascade == 1 ? frag_info.shadow_bias.y : frag_info.shadow_bias.z);
   // Horizontally a texel of the atlas, vertically a texel of a tile. With one
   // cascade they are the same number and this is the kernel it has always been.
   vec2 texel = vec2(frag_info.shadow_params.x, frag_info.shadow_cascades.w);
+
+  // **Every tap is held inside its own cascade's tile**, half a texel in from
+  // the edge, and after the offset rather than before: the cube atlas learned
+  // this first (`PointShadowDistance`). The cascades sit side by side, so a
+  // tap that stepped past a seam read the neighbouring cascade's depth,
+  // measured through another projection, and a fragment at the edge of the
+  // near tile took its shadow partly from the far one. With one cascade the
+  // tile is the whole texture and the clamp is the sampler's own edge.
+  vec2 tileLo = vec2(float(cascade) / float(cascadeCount), 0.0) + 0.5 * texel;
+  vec2 tileHi =
+      vec2(float(cascade + 1) / float(cascadeCount), 1.0) - 0.5 * texel;
 
   // **`textureLod` and not `texture`, and the level asked for is the only one
   // there is.** Everything above this loop is a reason not to be here — the
@@ -5742,7 +5893,9 @@ float ShadowFactor(Surface s, LightSample light, int lightIndex) {
     for (int y = -1; y <= 1; y++) {
       for (int x = -1; x <= 1; x++) {
         float occluder = textureLod(
-            shadow_texture, uv + vec2(float(x), float(y)) * texel, 0.0).r;
+            shadow_texture,
+            clamp(uv + vec2(float(x), float(y)) * texel, tileLo, tileHi),
+            0.0).r;
         lit += projected.z - bias > occluder ? 0.0 : 1.0;
       }
     }
@@ -5762,7 +5915,9 @@ float ShadowFactor(Surface s, LightSample light, int lightIndex) {
     float blockerCount = 0.0;
     for (int i = 0; i < 5; i++) {
       float occluder = textureLod(
-          shadow_texture, uv + kShadowDisc[i] * texel * searchRadius, 0.0).r;
+          shadow_texture,
+          clamp(uv + kShadowDisc[i] * texel * searchRadius, tileLo, tileHi),
+          0.0).r;
       if (projected.z - bias > occluder) {
         blockerSum += occluder;
         blockerCount += 1.0;
@@ -5781,7 +5936,9 @@ float ShadowFactor(Surface s, LightSample light, int lightIndex) {
 
     for (int i = 0; i < 5; i++) {
       float occluder = textureLod(
-          shadow_texture, uv + kShadowDisc[i] * texel * radius, 0.0).r;
+          shadow_texture,
+          clamp(uv + kShadowDisc[i] * texel * radius, tileLo, tileHi),
+          0.0).r;
       lit += projected.z - bias > occluder ? 0.0 : 1.0;
     }
     lit *= 1.0 / 5.0;
@@ -6130,6 +6287,35 @@ void WriteDisplayColor(vec3 displayColor, float alpha) {
 
 #endif  // COLOR_GLSL_
 
+// --- lib/frag_coord.glsl ---
+// Where a fragment sits, counted from the top of its target on every backend.
+
+#ifndef FRAG_COORD_GLSL_
+#define FRAG_COORD_GLSL_
+
+/// `gl_FragCoord.xy` with row zero at the top of the picture.
+///
+/// [rows] is the target's height where the backend's row zero is the bottom
+/// of the picture, and zero where it is the top. WebGL2 is the first kind:
+/// window coordinates start at the lower left, and the engine draws the
+/// picture upright there rather than mirroring every projection. Metal,
+/// WebGPU and the software rasteriser are the second.
+///
+/// **Why a pattern cares and a picture does not.** Every screen-space pattern
+/// in the engine — the Bayer dither, the grain, the jitter a ray march starts
+/// from, the rotation of a shadow kernel — is a function of the pixel's row.
+/// Read from the bottom, the same frame gets the pattern turned upside down,
+/// and a four-row Bayer cell lands on different rows unless the height is a
+/// multiple of four. The picture underneath is identical; the pattern on top
+/// of it is not, and a comparison across backends counts every pixel it
+/// moved.
+vec2 FragCoordFromTop(float rows) {
+  return rows > 0.0 ? vec2(gl_FragCoord.x, rows - gl_FragCoord.y)
+                    : gl_FragCoord.xy;
+}
+
+#endif  // FRAG_COORD_GLSL_
+
 
 /// Lights per draw. Must match LightBuffer.maxLights on the Dart side.
 ///
@@ -6305,6 +6491,22 @@ layout(std140) uniform FragInfo {
   /// every underside as pale as every upward face — which reads as the model
   /// being flat, and gets blamed on the normals.
   vec4 ambient_ground;
+
+  /// x, y, z: the depth bias of each cascade, in that cascade's own normalized
+  /// depth. w unused.
+  ///
+  /// `ShadowSettings.bias` is one number and a cascade's depth range is not:
+  /// a near cascade is stretched towards the light when a caster stands
+  /// further out than its own volume reaches, and the same bias over a longer
+  /// range is a longer distance. The renderer converts it per cascade so it
+  /// stays the distance it was tuned as; an unstretched cascade gets the
+  /// setting unchanged.
+  vec4 shadow_bias;
+
+  /// x: the target's rows when its row zero is the bottom of the picture,
+  /// zero when it is the top — see `FragCoordFromTop` in `frag_coord.glsl`,
+  /// which the shadow kernel's rotation reads through. yzw unused.
+  vec4 target_origin;
 }
 frag_info;
 
@@ -7046,7 +7248,8 @@ float PointShadowFactor(vec3 world, vec3 normal, int lightIndex) {
   // Written down because three unexplained decimals read as a magic spell, and
   // the next person to touch this line has no way to tell which of them may be
   // changed. The answer is none of them.
-  float noise = fract(52.9829189 * fract(dot(gl_FragCoord.xy,
+  float noise = fract(52.9829189 * fract(dot(FragCoordFromTop(
+                                                frag_info.target_origin.x),
                                             vec2(0.06711056, 0.00583715))));
   float angle = noise * 6.28318530718;
   float ca = cos(angle);
@@ -7362,10 +7565,23 @@ float ShadowFactor(Surface s, LightSample light, int lightIndex) {
   }
   if (!found) return 1.0;
 
-  float bias = frag_info.shadow_params.y;
+  float bias = cascade == 0
+      ? frag_info.shadow_bias.x
+      : (cascade == 1 ? frag_info.shadow_bias.y : frag_info.shadow_bias.z);
   // Horizontally a texel of the atlas, vertically a texel of a tile. With one
   // cascade they are the same number and this is the kernel it has always been.
   vec2 texel = vec2(frag_info.shadow_params.x, frag_info.shadow_cascades.w);
+
+  // **Every tap is held inside its own cascade's tile**, half a texel in from
+  // the edge, and after the offset rather than before: the cube atlas learned
+  // this first (`PointShadowDistance`). The cascades sit side by side, so a
+  // tap that stepped past a seam read the neighbouring cascade's depth,
+  // measured through another projection, and a fragment at the edge of the
+  // near tile took its shadow partly from the far one. With one cascade the
+  // tile is the whole texture and the clamp is the sampler's own edge.
+  vec2 tileLo = vec2(float(cascade) / float(cascadeCount), 0.0) + 0.5 * texel;
+  vec2 tileHi =
+      vec2(float(cascade + 1) / float(cascadeCount), 1.0) - 0.5 * texel;
 
   // **`textureLod` and not `texture`, and the level asked for is the only one
   // there is.** Everything above this loop is a reason not to be here — the
@@ -7402,7 +7618,9 @@ float ShadowFactor(Surface s, LightSample light, int lightIndex) {
     for (int y = -1; y <= 1; y++) {
       for (int x = -1; x <= 1; x++) {
         float occluder = textureLod(
-            shadow_texture, uv + vec2(float(x), float(y)) * texel, 0.0).r;
+            shadow_texture,
+            clamp(uv + vec2(float(x), float(y)) * texel, tileLo, tileHi),
+            0.0).r;
         lit += projected.z - bias > occluder ? 0.0 : 1.0;
       }
     }
@@ -7422,7 +7640,9 @@ float ShadowFactor(Surface s, LightSample light, int lightIndex) {
     float blockerCount = 0.0;
     for (int i = 0; i < 5; i++) {
       float occluder = textureLod(
-          shadow_texture, uv + kShadowDisc[i] * texel * searchRadius, 0.0).r;
+          shadow_texture,
+          clamp(uv + kShadowDisc[i] * texel * searchRadius, tileLo, tileHi),
+          0.0).r;
       if (projected.z - bias > occluder) {
         blockerSum += occluder;
         blockerCount += 1.0;
@@ -7441,7 +7661,9 @@ float ShadowFactor(Surface s, LightSample light, int lightIndex) {
 
     for (int i = 0; i < 5; i++) {
       float occluder = textureLod(
-          shadow_texture, uv + kShadowDisc[i] * texel * radius, 0.0).r;
+          shadow_texture,
+          clamp(uv + kShadowDisc[i] * texel * radius, tileLo, tileHi),
+          0.0).r;
       lit += projected.z - bias > occluder ? 0.0 : 1.0;
     }
     lit *= 1.0 / 5.0;
@@ -7805,6 +8027,35 @@ void WriteDisplayColor(vec3 displayColor, float alpha) {
 
 #endif  // COLOR_GLSL_
 
+// --- lib/frag_coord.glsl ---
+// Where a fragment sits, counted from the top of its target on every backend.
+
+#ifndef FRAG_COORD_GLSL_
+#define FRAG_COORD_GLSL_
+
+/// `gl_FragCoord.xy` with row zero at the top of the picture.
+///
+/// [rows] is the target's height where the backend's row zero is the bottom
+/// of the picture, and zero where it is the top. WebGL2 is the first kind:
+/// window coordinates start at the lower left, and the engine draws the
+/// picture upright there rather than mirroring every projection. Metal,
+/// WebGPU and the software rasteriser are the second.
+///
+/// **Why a pattern cares and a picture does not.** Every screen-space pattern
+/// in the engine — the Bayer dither, the grain, the jitter a ray march starts
+/// from, the rotation of a shadow kernel — is a function of the pixel's row.
+/// Read from the bottom, the same frame gets the pattern turned upside down,
+/// and a four-row Bayer cell lands on different rows unless the height is a
+/// multiple of four. The picture underneath is identical; the pattern on top
+/// of it is not, and a comparison across backends counts every pixel it
+/// moved.
+vec2 FragCoordFromTop(float rows) {
+  return rows > 0.0 ? vec2(gl_FragCoord.x, rows - gl_FragCoord.y)
+                    : gl_FragCoord.xy;
+}
+
+#endif  // FRAG_COORD_GLSL_
+
 
 /// Lights per draw. Must match LightBuffer.maxLights on the Dart side.
 ///
@@ -7980,6 +8231,22 @@ layout(std140) uniform FragInfo {
   /// every underside as pale as every upward face — which reads as the model
   /// being flat, and gets blamed on the normals.
   vec4 ambient_ground;
+
+  /// x, y, z: the depth bias of each cascade, in that cascade's own normalized
+  /// depth. w unused.
+  ///
+  /// `ShadowSettings.bias` is one number and a cascade's depth range is not:
+  /// a near cascade is stretched towards the light when a caster stands
+  /// further out than its own volume reaches, and the same bias over a longer
+  /// range is a longer distance. The renderer converts it per cascade so it
+  /// stays the distance it was tuned as; an unstretched cascade gets the
+  /// setting unchanged.
+  vec4 shadow_bias;
+
+  /// x: the target's rows when its row zero is the bottom of the picture,
+  /// zero when it is the top — see `FragCoordFromTop` in `frag_coord.glsl`,
+  /// which the shadow kernel's rotation reads through. yzw unused.
+  vec4 target_origin;
 }
 frag_info;
 
@@ -8721,7 +8988,8 @@ float PointShadowFactor(vec3 world, vec3 normal, int lightIndex) {
   // Written down because three unexplained decimals read as a magic spell, and
   // the next person to touch this line has no way to tell which of them may be
   // changed. The answer is none of them.
-  float noise = fract(52.9829189 * fract(dot(gl_FragCoord.xy,
+  float noise = fract(52.9829189 * fract(dot(FragCoordFromTop(
+                                                frag_info.target_origin.x),
                                             vec2(0.06711056, 0.00583715))));
   float angle = noise * 6.28318530718;
   float ca = cos(angle);
@@ -9037,10 +9305,23 @@ float ShadowFactor(Surface s, LightSample light, int lightIndex) {
   }
   if (!found) return 1.0;
 
-  float bias = frag_info.shadow_params.y;
+  float bias = cascade == 0
+      ? frag_info.shadow_bias.x
+      : (cascade == 1 ? frag_info.shadow_bias.y : frag_info.shadow_bias.z);
   // Horizontally a texel of the atlas, vertically a texel of a tile. With one
   // cascade they are the same number and this is the kernel it has always been.
   vec2 texel = vec2(frag_info.shadow_params.x, frag_info.shadow_cascades.w);
+
+  // **Every tap is held inside its own cascade's tile**, half a texel in from
+  // the edge, and after the offset rather than before: the cube atlas learned
+  // this first (`PointShadowDistance`). The cascades sit side by side, so a
+  // tap that stepped past a seam read the neighbouring cascade's depth,
+  // measured through another projection, and a fragment at the edge of the
+  // near tile took its shadow partly from the far one. With one cascade the
+  // tile is the whole texture and the clamp is the sampler's own edge.
+  vec2 tileLo = vec2(float(cascade) / float(cascadeCount), 0.0) + 0.5 * texel;
+  vec2 tileHi =
+      vec2(float(cascade + 1) / float(cascadeCount), 1.0) - 0.5 * texel;
 
   // **`textureLod` and not `texture`, and the level asked for is the only one
   // there is.** Everything above this loop is a reason not to be here — the
@@ -9077,7 +9358,9 @@ float ShadowFactor(Surface s, LightSample light, int lightIndex) {
     for (int y = -1; y <= 1; y++) {
       for (int x = -1; x <= 1; x++) {
         float occluder = textureLod(
-            shadow_texture, uv + vec2(float(x), float(y)) * texel, 0.0).r;
+            shadow_texture,
+            clamp(uv + vec2(float(x), float(y)) * texel, tileLo, tileHi),
+            0.0).r;
         lit += projected.z - bias > occluder ? 0.0 : 1.0;
       }
     }
@@ -9097,7 +9380,9 @@ float ShadowFactor(Surface s, LightSample light, int lightIndex) {
     float blockerCount = 0.0;
     for (int i = 0; i < 5; i++) {
       float occluder = textureLod(
-          shadow_texture, uv + kShadowDisc[i] * texel * searchRadius, 0.0).r;
+          shadow_texture,
+          clamp(uv + kShadowDisc[i] * texel * searchRadius, tileLo, tileHi),
+          0.0).r;
       if (projected.z - bias > occluder) {
         blockerSum += occluder;
         blockerCount += 1.0;
@@ -9116,7 +9401,9 @@ float ShadowFactor(Surface s, LightSample light, int lightIndex) {
 
     for (int i = 0; i < 5; i++) {
       float occluder = textureLod(
-          shadow_texture, uv + kShadowDisc[i] * texel * radius, 0.0).r;
+          shadow_texture,
+          clamp(uv + kShadowDisc[i] * texel * radius, tileLo, tileHi),
+          0.0).r;
       lit += projected.z - bias > occluder ? 0.0 : 1.0;
     }
     lit *= 1.0 / 5.0;
@@ -9573,6 +9860,35 @@ void WriteDisplayColor(vec3 displayColor, float alpha) {
 
 #endif  // COLOR_GLSL_
 
+// --- lib/frag_coord.glsl ---
+// Where a fragment sits, counted from the top of its target on every backend.
+
+#ifndef FRAG_COORD_GLSL_
+#define FRAG_COORD_GLSL_
+
+/// `gl_FragCoord.xy` with row zero at the top of the picture.
+///
+/// [rows] is the target's height where the backend's row zero is the bottom
+/// of the picture, and zero where it is the top. WebGL2 is the first kind:
+/// window coordinates start at the lower left, and the engine draws the
+/// picture upright there rather than mirroring every projection. Metal,
+/// WebGPU and the software rasteriser are the second.
+///
+/// **Why a pattern cares and a picture does not.** Every screen-space pattern
+/// in the engine — the Bayer dither, the grain, the jitter a ray march starts
+/// from, the rotation of a shadow kernel — is a function of the pixel's row.
+/// Read from the bottom, the same frame gets the pattern turned upside down,
+/// and a four-row Bayer cell lands on different rows unless the height is a
+/// multiple of four. The picture underneath is identical; the pattern on top
+/// of it is not, and a comparison across backends counts every pixel it
+/// moved.
+vec2 FragCoordFromTop(float rows) {
+  return rows > 0.0 ? vec2(gl_FragCoord.x, rows - gl_FragCoord.y)
+                    : gl_FragCoord.xy;
+}
+
+#endif  // FRAG_COORD_GLSL_
+
 
 /// Lights per draw. Must match LightBuffer.maxLights on the Dart side.
 ///
@@ -9748,6 +10064,22 @@ layout(std140) uniform FragInfo {
   /// every underside as pale as every upward face — which reads as the model
   /// being flat, and gets blamed on the normals.
   vec4 ambient_ground;
+
+  /// x, y, z: the depth bias of each cascade, in that cascade's own normalized
+  /// depth. w unused.
+  ///
+  /// `ShadowSettings.bias` is one number and a cascade's depth range is not:
+  /// a near cascade is stretched towards the light when a caster stands
+  /// further out than its own volume reaches, and the same bias over a longer
+  /// range is a longer distance. The renderer converts it per cascade so it
+  /// stays the distance it was tuned as; an unstretched cascade gets the
+  /// setting unchanged.
+  vec4 shadow_bias;
+
+  /// x: the target's rows when its row zero is the bottom of the picture,
+  /// zero when it is the top — see `FragCoordFromTop` in `frag_coord.glsl`,
+  /// which the shadow kernel's rotation reads through. yzw unused.
+  vec4 target_origin;
 }
 frag_info;
 
@@ -10489,7 +10821,8 @@ float PointShadowFactor(vec3 world, vec3 normal, int lightIndex) {
   // Written down because three unexplained decimals read as a magic spell, and
   // the next person to touch this line has no way to tell which of them may be
   // changed. The answer is none of them.
-  float noise = fract(52.9829189 * fract(dot(gl_FragCoord.xy,
+  float noise = fract(52.9829189 * fract(dot(FragCoordFromTop(
+                                                frag_info.target_origin.x),
                                             vec2(0.06711056, 0.00583715))));
   float angle = noise * 6.28318530718;
   float ca = cos(angle);
@@ -10805,10 +11138,23 @@ float ShadowFactor(Surface s, LightSample light, int lightIndex) {
   }
   if (!found) return 1.0;
 
-  float bias = frag_info.shadow_params.y;
+  float bias = cascade == 0
+      ? frag_info.shadow_bias.x
+      : (cascade == 1 ? frag_info.shadow_bias.y : frag_info.shadow_bias.z);
   // Horizontally a texel of the atlas, vertically a texel of a tile. With one
   // cascade they are the same number and this is the kernel it has always been.
   vec2 texel = vec2(frag_info.shadow_params.x, frag_info.shadow_cascades.w);
+
+  // **Every tap is held inside its own cascade's tile**, half a texel in from
+  // the edge, and after the offset rather than before: the cube atlas learned
+  // this first (`PointShadowDistance`). The cascades sit side by side, so a
+  // tap that stepped past a seam read the neighbouring cascade's depth,
+  // measured through another projection, and a fragment at the edge of the
+  // near tile took its shadow partly from the far one. With one cascade the
+  // tile is the whole texture and the clamp is the sampler's own edge.
+  vec2 tileLo = vec2(float(cascade) / float(cascadeCount), 0.0) + 0.5 * texel;
+  vec2 tileHi =
+      vec2(float(cascade + 1) / float(cascadeCount), 1.0) - 0.5 * texel;
 
   // **`textureLod` and not `texture`, and the level asked for is the only one
   // there is.** Everything above this loop is a reason not to be here — the
@@ -10845,7 +11191,9 @@ float ShadowFactor(Surface s, LightSample light, int lightIndex) {
     for (int y = -1; y <= 1; y++) {
       for (int x = -1; x <= 1; x++) {
         float occluder = textureLod(
-            shadow_texture, uv + vec2(float(x), float(y)) * texel, 0.0).r;
+            shadow_texture,
+            clamp(uv + vec2(float(x), float(y)) * texel, tileLo, tileHi),
+            0.0).r;
         lit += projected.z - bias > occluder ? 0.0 : 1.0;
       }
     }
@@ -10865,7 +11213,9 @@ float ShadowFactor(Surface s, LightSample light, int lightIndex) {
     float blockerCount = 0.0;
     for (int i = 0; i < 5; i++) {
       float occluder = textureLod(
-          shadow_texture, uv + kShadowDisc[i] * texel * searchRadius, 0.0).r;
+          shadow_texture,
+          clamp(uv + kShadowDisc[i] * texel * searchRadius, tileLo, tileHi),
+          0.0).r;
       if (projected.z - bias > occluder) {
         blockerSum += occluder;
         blockerCount += 1.0;
@@ -10884,7 +11234,9 @@ float ShadowFactor(Surface s, LightSample light, int lightIndex) {
 
     for (int i = 0; i < 5; i++) {
       float occluder = textureLod(
-          shadow_texture, uv + kShadowDisc[i] * texel * radius, 0.0).r;
+          shadow_texture,
+          clamp(uv + kShadowDisc[i] * texel * radius, tileLo, tileHi),
+          0.0).r;
       lit += projected.z - bias > occluder ? 0.0 : 1.0;
     }
     lit *= 1.0 / 5.0;
@@ -11471,6 +11823,62 @@ precision highp samplerCube;
 // entirely a function of what is above display white.
 precision highp float;
 
+// --- lib/frag_coord_info.glsl ---
+// The target's orientation, for a full-screen pass.
+//
+// Its own block rather than a member of each pass's, so the renderer binds it
+// in one place, `drawFullscreen`, for every stage that declares it — the
+// contract answers false for a stage that does not, and a pass that adds a
+// screen-space pattern later gets the right rows by including this file.
+
+#ifndef FRAG_COORD_INFO_GLSL_
+#define FRAG_COORD_INFO_GLSL_
+
+// --- lib/frag_coord.glsl ---
+// Where a fragment sits, counted from the top of its target on every backend.
+
+#ifndef FRAG_COORD_GLSL_
+#define FRAG_COORD_GLSL_
+
+/// `gl_FragCoord.xy` with row zero at the top of the picture.
+///
+/// [rows] is the target's height where the backend's row zero is the bottom
+/// of the picture, and zero where it is the top. WebGL2 is the first kind:
+/// window coordinates start at the lower left, and the engine draws the
+/// picture upright there rather than mirroring every projection. Metal,
+/// WebGPU and the software rasteriser are the second.
+///
+/// **Why a pattern cares and a picture does not.** Every screen-space pattern
+/// in the engine — the Bayer dither, the grain, the jitter a ray march starts
+/// from, the rotation of a shadow kernel — is a function of the pixel's row.
+/// Read from the bottom, the same frame gets the pattern turned upside down,
+/// and a four-row Bayer cell lands on different rows unless the height is a
+/// multiple of four. The picture underneath is identical; the pattern on top
+/// of it is not, and a comparison across backends counts every pixel it
+/// moved.
+vec2 FragCoordFromTop(float rows) {
+  return rows > 0.0 ? vec2(gl_FragCoord.x, rows - gl_FragCoord.y)
+                    : gl_FragCoord.xy;
+}
+
+#endif  // FRAG_COORD_GLSL_
+
+
+layout(std140) uniform FragCoordInfo {
+  /// x: the target's rows when its row zero is the bottom of the picture,
+  /// zero when it is the top — see [FragCoordFromTop]. yzw unused.
+  vec4 origin;
+}
+frag_coord_info;
+
+/// This fragment's position with row zero at the top of the target.
+vec2 TargetFragCoord() {
+  return FragCoordFromTop(frag_coord_info.origin.x);
+}
+
+#endif  // FRAG_COORD_INFO_GLSL_
+
+
 in vec2 v_uv;
 
 layout(location = 0) out vec4 frag_color;
@@ -12024,7 +12432,7 @@ void main() {
   // percent of the output range rather than of the light, which is what a
   // film grain control has always meant on every other tool.
   float grain = composite_info.look_more.z;
-  if (grain > 0.0) encoded += vec3((Hash(gl_FragCoord.xy) - 0.5) * grain);
+  if (grain > 0.0) encoded += vec3((Hash(TargetFragCoord()) - 0.5) * grain);
 
   // Dither last, because it is the one aimed at the quantiser itself.
   // **Centred exactly.** The cells run from -1/2 to 7/16, whose mean is
@@ -12033,7 +12441,7 @@ void main() {
   // gradient's bands fall changes.
   float dither = composite_info.output_encode.x;
   if (dither > 0.0) {
-    encoded += vec3((BayerCell(gl_FragCoord.xy) + 0.03125) * dither);
+    encoded += vec3((BayerCell(TargetFragCoord()) + 0.03125) * dither);
   }
 
   frag_color = vec4(encoded, scene.a);
@@ -12882,6 +13290,62 @@ precision highp samplerCube;
 // the first version did: the walls of the crypt lit up and the floor did not.
 precision highp float;
 
+// --- lib/frag_coord_info.glsl ---
+// The target's orientation, for a full-screen pass.
+//
+// Its own block rather than a member of each pass's, so the renderer binds it
+// in one place, `drawFullscreen`, for every stage that declares it — the
+// contract answers false for a stage that does not, and a pass that adds a
+// screen-space pattern later gets the right rows by including this file.
+
+#ifndef FRAG_COORD_INFO_GLSL_
+#define FRAG_COORD_INFO_GLSL_
+
+// --- lib/frag_coord.glsl ---
+// Where a fragment sits, counted from the top of its target on every backend.
+
+#ifndef FRAG_COORD_GLSL_
+#define FRAG_COORD_GLSL_
+
+/// `gl_FragCoord.xy` with row zero at the top of the picture.
+///
+/// [rows] is the target's height where the backend's row zero is the bottom
+/// of the picture, and zero where it is the top. WebGL2 is the first kind:
+/// window coordinates start at the lower left, and the engine draws the
+/// picture upright there rather than mirroring every projection. Metal,
+/// WebGPU and the software rasteriser are the second.
+///
+/// **Why a pattern cares and a picture does not.** Every screen-space pattern
+/// in the engine — the Bayer dither, the grain, the jitter a ray march starts
+/// from, the rotation of a shadow kernel — is a function of the pixel's row.
+/// Read from the bottom, the same frame gets the pattern turned upside down,
+/// and a four-row Bayer cell lands on different rows unless the height is a
+/// multiple of four. The picture underneath is identical; the pattern on top
+/// of it is not, and a comparison across backends counts every pixel it
+/// moved.
+vec2 FragCoordFromTop(float rows) {
+  return rows > 0.0 ? vec2(gl_FragCoord.x, rows - gl_FragCoord.y)
+                    : gl_FragCoord.xy;
+}
+
+#endif  // FRAG_COORD_GLSL_
+
+
+layout(std140) uniform FragCoordInfo {
+  /// x: the target's rows when its row zero is the bottom of the picture,
+  /// zero when it is the top — see [FragCoordFromTop]. yzw unused.
+  vec4 origin;
+}
+frag_coord_info;
+
+/// This fragment's position with row zero at the top of the target.
+vec2 TargetFragCoord() {
+  return FragCoordFromTop(frag_coord_info.origin.x);
+}
+
+#endif  // FRAG_COORD_INFO_GLSL_
+
+
 in vec2 v_uv;
 
 layout(location = 0) out vec4 frag_color;
@@ -13070,7 +13534,7 @@ void main() {
   // the reflection comes back as a stack of shifted copies of it. Half a
   // stride at least, off a centimetre of normal bias, so the first sample does
   // not land on the pixel it came from.
-  float jitter = 0.5 + BayerCell(gl_FragCoord.xy);
+  float jitter = 0.5 + BayerCell(TargetFragCoord());
   float travelled = stride * jitter;
   vec3 march = position + normal * 0.01 + ray * travelled;
   float reach = stride * (float(steps) + 0.5);
@@ -13557,6 +14021,62 @@ precision highp samplerCube;
 // A fullscreen stage declares its own varying and its own output, the way
 // every other pass in this directory does: `lib/color.glsl` is the mesh
 // fragment's preamble and brings a surface this pass does not have.
+// --- lib/frag_coord_info.glsl ---
+// The target's orientation, for a full-screen pass.
+//
+// Its own block rather than a member of each pass's, so the renderer binds it
+// in one place, `drawFullscreen`, for every stage that declares it — the
+// contract answers false for a stage that does not, and a pass that adds a
+// screen-space pattern later gets the right rows by including this file.
+
+#ifndef FRAG_COORD_INFO_GLSL_
+#define FRAG_COORD_INFO_GLSL_
+
+// --- lib/frag_coord.glsl ---
+// Where a fragment sits, counted from the top of its target on every backend.
+
+#ifndef FRAG_COORD_GLSL_
+#define FRAG_COORD_GLSL_
+
+/// `gl_FragCoord.xy` with row zero at the top of the picture.
+///
+/// [rows] is the target's height where the backend's row zero is the bottom
+/// of the picture, and zero where it is the top. WebGL2 is the first kind:
+/// window coordinates start at the lower left, and the engine draws the
+/// picture upright there rather than mirroring every projection. Metal,
+/// WebGPU and the software rasteriser are the second.
+///
+/// **Why a pattern cares and a picture does not.** Every screen-space pattern
+/// in the engine — the Bayer dither, the grain, the jitter a ray march starts
+/// from, the rotation of a shadow kernel — is a function of the pixel's row.
+/// Read from the bottom, the same frame gets the pattern turned upside down,
+/// and a four-row Bayer cell lands on different rows unless the height is a
+/// multiple of four. The picture underneath is identical; the pattern on top
+/// of it is not, and a comparison across backends counts every pixel it
+/// moved.
+vec2 FragCoordFromTop(float rows) {
+  return rows > 0.0 ? vec2(gl_FragCoord.x, rows - gl_FragCoord.y)
+                    : gl_FragCoord.xy;
+}
+
+#endif  // FRAG_COORD_GLSL_
+
+
+layout(std140) uniform FragCoordInfo {
+  /// x: the target's rows when its row zero is the bottom of the picture,
+  /// zero when it is the top — see [FragCoordFromTop]. yzw unused.
+  vec4 origin;
+}
+frag_coord_info;
+
+/// This fragment's position with row zero at the top of the target.
+vec2 TargetFragCoord() {
+  return FragCoordFromTop(frag_coord_info.origin.x);
+}
+
+#endif  // FRAG_COORD_INFO_GLSL_
+
+
 in vec2 v_uv;
 
 layout(location = 0) out vec4 frag_color;
@@ -13689,7 +14209,7 @@ void main() {
   // below into eight flat levels, a staircase across every penumbra. Each
   // sample lands somewhere in its own step rather than at its end. A pattern
   // rather than a hash so the software backend matches bit for bit.
-  float jitter = BayerCell(gl_FragCoord.xy);
+  float jitter = BayerCell(TargetFragCoord());
 
   // **A tolerance at least twice what one step moves in depth**, as Unreal's
   // `CompareTolerance`: a ray running steeply away from the camera crosses
@@ -13768,6 +14288,62 @@ precision highp samplerCube;
 // `composite.frag` is: it is a function of screen position and of nothing
 // else, so a golden recorded with shafts on stays recorded.
 
+// --- lib/frag_coord_info.glsl ---
+// The target's orientation, for a full-screen pass.
+//
+// Its own block rather than a member of each pass's, so the renderer binds it
+// in one place, `drawFullscreen`, for every stage that declares it — the
+// contract answers false for a stage that does not, and a pass that adds a
+// screen-space pattern later gets the right rows by including this file.
+
+#ifndef FRAG_COORD_INFO_GLSL_
+#define FRAG_COORD_INFO_GLSL_
+
+// --- lib/frag_coord.glsl ---
+// Where a fragment sits, counted from the top of its target on every backend.
+
+#ifndef FRAG_COORD_GLSL_
+#define FRAG_COORD_GLSL_
+
+/// `gl_FragCoord.xy` with row zero at the top of the picture.
+///
+/// [rows] is the target's height where the backend's row zero is the bottom
+/// of the picture, and zero where it is the top. WebGL2 is the first kind:
+/// window coordinates start at the lower left, and the engine draws the
+/// picture upright there rather than mirroring every projection. Metal,
+/// WebGPU and the software rasteriser are the second.
+///
+/// **Why a pattern cares and a picture does not.** Every screen-space pattern
+/// in the engine — the Bayer dither, the grain, the jitter a ray march starts
+/// from, the rotation of a shadow kernel — is a function of the pixel's row.
+/// Read from the bottom, the same frame gets the pattern turned upside down,
+/// and a four-row Bayer cell lands on different rows unless the height is a
+/// multiple of four. The picture underneath is identical; the pattern on top
+/// of it is not, and a comparison across backends counts every pixel it
+/// moved.
+vec2 FragCoordFromTop(float rows) {
+  return rows > 0.0 ? vec2(gl_FragCoord.x, rows - gl_FragCoord.y)
+                    : gl_FragCoord.xy;
+}
+
+#endif  // FRAG_COORD_GLSL_
+
+
+layout(std140) uniform FragCoordInfo {
+  /// x: the target's rows when its row zero is the bottom of the picture,
+  /// zero when it is the top — see [FragCoordFromTop]. yzw unused.
+  vec4 origin;
+}
+frag_coord_info;
+
+/// This fragment's position with row zero at the top of the target.
+vec2 TargetFragCoord() {
+  return FragCoordFromTop(frag_coord_info.origin.x);
+}
+
+#endif  // FRAG_COORD_INFO_GLSL_
+
+
 in vec2 v_uv;
 
 layout(location = 0) out vec4 frag_color;
@@ -13798,12 +14374,15 @@ layout(std140) uniform ShaftInfo {
   // air's density σ, per metre.
   vec4 scatter;
 
-  // x, y: the two cascade split distances. z: how many cascades. w: the
-  // depth bias, in the same units the map holds.
+  // x, y: the two cascade split distances. z: how many cascades. w unused.
   vec4 cascades;
 
   // xyz: towards the sun, a unit vector. w: Henyey–Greenstein's g.
   vec4 sun;
+
+  // x, y, z: each cascade's depth bias, in the units its part of the map
+  // holds — `FragInfo.shadow_bias`, for the reason given there. w unused.
+  vec4 bias;
 }
 shaft_info;
 
@@ -13885,7 +14464,10 @@ float LitAt(vec3 world, float viewDistance) {
     // Outside the map is lit rather than dark: a point beyond the shadow
     // volume has nothing recorded about it, and calling that shadow would
     // put a wall of darkness across the far half of every shaft.
-    return candidate.z - shaft_info.cascades.w > stored ? 0.0 : 1.0;
+    float bias = which == 0
+        ? shaft_info.bias.x
+        : (which == 1 ? shaft_info.bias.y : shaft_info.bias.z);
+    return candidate.z - bias > stored ? 0.0 : 1.0;
   }
   return 1.0;
 }
@@ -13921,7 +14503,7 @@ void main() {
   float stride = distance / float(steps);
   // The dithered start: a fraction of a step, so the banding sixteen samples
   // would otherwise draw is broken into a pattern the eye integrates.
-  float offset = BayerCell(gl_FragCoord.xy) * stride;
+  float offset = BayerCell(TargetFragCoord()) * stride;
 
   // **Single scattering with transmittance.** Each step in-scatters the
   // share of the light its own length of air catches, `1 − e^(−σ·stride)`,
@@ -13992,6 +14574,62 @@ precision highp samplerCube;
 // Sampled on a spiral rather than a grid: a square kernel makes a square
 // bokeh, and the shape of an out-of-focus highlight is the one thing anybody
 // looks at in this effect.
+
+// --- lib/frag_coord_info.glsl ---
+// The target's orientation, for a full-screen pass.
+//
+// Its own block rather than a member of each pass's, so the renderer binds it
+// in one place, `drawFullscreen`, for every stage that declares it — the
+// contract answers false for a stage that does not, and a pass that adds a
+// screen-space pattern later gets the right rows by including this file.
+
+#ifndef FRAG_COORD_INFO_GLSL_
+#define FRAG_COORD_INFO_GLSL_
+
+// --- lib/frag_coord.glsl ---
+// Where a fragment sits, counted from the top of its target on every backend.
+
+#ifndef FRAG_COORD_GLSL_
+#define FRAG_COORD_GLSL_
+
+/// `gl_FragCoord.xy` with row zero at the top of the picture.
+///
+/// [rows] is the target's height where the backend's row zero is the bottom
+/// of the picture, and zero where it is the top. WebGL2 is the first kind:
+/// window coordinates start at the lower left, and the engine draws the
+/// picture upright there rather than mirroring every projection. Metal,
+/// WebGPU and the software rasteriser are the second.
+///
+/// **Why a pattern cares and a picture does not.** Every screen-space pattern
+/// in the engine — the Bayer dither, the grain, the jitter a ray march starts
+/// from, the rotation of a shadow kernel — is a function of the pixel's row.
+/// Read from the bottom, the same frame gets the pattern turned upside down,
+/// and a four-row Bayer cell lands on different rows unless the height is a
+/// multiple of four. The picture underneath is identical; the pattern on top
+/// of it is not, and a comparison across backends counts every pixel it
+/// moved.
+vec2 FragCoordFromTop(float rows) {
+  return rows > 0.0 ? vec2(gl_FragCoord.x, rows - gl_FragCoord.y)
+                    : gl_FragCoord.xy;
+}
+
+#endif  // FRAG_COORD_GLSL_
+
+
+layout(std140) uniform FragCoordInfo {
+  /// x: the target's rows when its row zero is the bottom of the picture,
+  /// zero when it is the top — see [FragCoordFromTop]. yzw unused.
+  vec4 origin;
+}
+frag_coord_info;
+
+/// This fragment's position with row zero at the top of the target.
+vec2 TargetFragCoord() {
+  return FragCoordFromTop(frag_coord_info.origin.x);
+}
+
+#endif  // FRAG_COORD_INFO_GLSL_
+
 
 in vec2 v_uv;
 
@@ -14098,7 +14736,7 @@ void main() {
   // copies of a bright highlight. A Bayer cell rather than Jimenez's
   // interleaved gradient noise, which is a `fract` of a large product and
   // would not land on the same angle in the software backend's doubles.
-  float turn = 6.2831853 * BayerCell(gl_FragCoord.xy);
+  float turn = 6.2831853 * BayerCell(TargetFragCoord());
 
   // The golden angle, so consecutive samples never line up into a spoke.
   const float kGolden = 2.39996323;

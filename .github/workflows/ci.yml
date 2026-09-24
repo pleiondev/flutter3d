@@ -240,19 +240,14 @@ jobs:
   # A job of its own for the reason the `godot` job gives: `check` is already
   # seventeen minutes and is what a push waits for, and this brings a desktop
   # toolchain with it.
-  # **The whole job is off since 2026-09-22, with the rest of the golden lane.**
-  # `tool/ci.sh` carries the reason at its `GOLDEN_EXCLUDE` line: the software
-  # rasteriser reaches `math.pow` per pixel, libm does not agree across
-  # platforms, and a comparison that counts any difference at all reports a
-  # surface nobody could tell apart as most of the frame. Everything this job
-  # does is build a toolchain in order to run that one comparison, so the step
-  # and the job are the same switch. Forty-three minutes a push, for a lane
-  # that cannot be green until the comparator is fixed.
-  #
-  # `if: false` rather than a deletion: what this needs to run took a while to
-  # get right, and none of it is what went wrong.
+  # **Off from 2026-09-22 to 0.8.0 — `gfx-90n`.** The software rasteriser sent
+  # every pixel's sRGB conversion through `math.pow`, libm does not agree
+  # across platforms, and a comparison that counts any difference at all
+  # reported a surface nobody could tell apart as most of the frame. The
+  # conversion now goes through `flutter3d_cpu`'s `portable_root.dart`, which
+  # uses only the arithmetic IEEE 754 rounds one way, and the comparison stays
+  # exact: a difference of one step is still a golden that moved.
   render:
-    if: false
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
@@ -284,15 +279,6 @@ jobs:
 
       # The comparison, not a recording: `--update` is what records, and a lane
       # that recorded would agree with itself for ever.
-      #
-      # **Off since 2026-09-22, with the rest of the golden lane.** `tool/ci.sh`
-      # says why at the `GOLDEN_EXCLUDE` line: the software rasteriser reaches
-      # `math.pow` per pixel and libm does not agree across platforms, so a
-      # comparison that counts any difference at all reports a surface nobody
-      # could tell apart as most of the frame. This step draws through the same
-      # rasteriser and compares the same way, so leaving it on would keep the
-      # lane red for the reason the others were switched off.
-      #
       - name: golden scenes, software backend
         run: xvfb-run -a packages/flutter3d/tool/golden.sh --cpu
 
@@ -309,6 +295,36 @@ jobs:
           name: cpu-goldens-actual
           path: packages/flutter3d_cpu/test/goldens/*.actual.png
           if-no-files-found: ignore
+
+  # **The applications' `golden` tag, beside `check` rather than inside it.**
+  # `tool/ci.sh` excludes the tag from its application steps: every test that
+  # draws a scene at all carries it, each pixel is paid for in Dart, and the
+  # suite is most of an hour — inside `check` it took the job past the limit
+  # it kept overrunning. Here it runs in parallel with that job, so a pull
+  # request that moves a tutorial screenshot fails on the runner rather than
+  # on somebody's machine, and `check` keeps its own time.
+  render-apps:
+    runs-on: ubuntu-latest
+    timeout-minutes: 75
+    strategy:
+      fail-fast: false
+      matrix:
+        app: [flutter3d_modeler, flutter3d_showcase]
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.47.0'
+          channel: stable
+          cache: true
+
+      - run: flutter pub get
+      - run: cd packages/flutter3d_impeller && dart run bin/build_shader_bundle.dart
+
+      - name: golden tag
+        working-directory: apps/${{ matrix.app }}
+        run: flutter test --tags golden
 
   # **Windows and Linux** — `gfx-73n`. The pubspec declared four platform
   # folders across ten applications and neither desktop was among them, so a

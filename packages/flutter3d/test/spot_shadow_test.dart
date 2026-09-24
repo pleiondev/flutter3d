@@ -21,6 +21,8 @@
 ///     as the level runs.
 library;
 
+import 'dart:typed_data';
+
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d/parity_scene.dart';
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
@@ -63,6 +65,7 @@ const double _coneAngle = 0.45;
 ({Scene scene, CameraNode camera, LightNode light}) _room({
   bool castsShadow = true,
   bool staticBlockers = false,
+  double coneAngle = _coneAngle,
 }) {
   final scene = Scene();
   final device = CpuDevice(
@@ -106,8 +109,8 @@ const double _coneAngle = 0.45;
           type: LightType.spot,
           intensity: 60.0,
           range: 20.0,
-          outerConeAngle: _coneAngle,
-          innerConeAngle: _coneAngle * 0.5,
+          outerConeAngle: coneAngle,
+          innerConeAngle: coneAngle * 0.5,
           castsShadow: castsShadow,
           name: 'downlight',
         )
@@ -259,6 +262,86 @@ void main() {
       _darkened(lit, shadowed),
       isNotEmpty,
       reason: 'a point light in this scene stopped casting a shadow',
+    );
+  });
+
+  test('a cone wider than a cube face shadows as the cube does', () async {
+    // A floodlight at 1.5 rad drawn through one tile opens that tile to
+    // fourteen times the width of a cube face, and every texel, the normal
+    // offset measured in them and the filter's radius grow with it. A beam of
+    // fifteen centimetres held under it throws a strip of shadow a few pixels
+    // wide, and through the one tile that strip lands displaced and ragged.
+    // Drawn as the cube, the floodlight's shadow is the point light's, to the
+    // bit, since the cone only attenuates the light and both read the same
+    // six faces.
+    //
+    // Mutation: drop the forty-five degree test on `spot` where `render`
+    // describes the atlas rows, so every spot is one tile again.
+    Future<List<int>> darkMap(LightType type) async {
+      Future<Uint8List> frame({required bool shadows}) async {
+        final room = _room(castsShadow: shadows, coneAngle: 1.5);
+        room.light.type = type;
+        for (final node in room.scene.meshes.toList()) {
+          if (node.name?.startsWith('blocker') ?? false) {
+            room.scene.remove(node);
+          }
+        }
+        final beam = MeshNode(
+          DeviceMesh.upload(
+            CpuDevice(
+              width: 4,
+              height: 4,
+              shaders: CpuShaderLibrary(builtinCpuShaders()),
+            ),
+            CuboidShape(size: Vector3(0.15, 0.15, 6.0)).build(),
+          ),
+          Material(
+            name: 'beam',
+            baseColor: Vector4(0.8, 0.8, 0.8, 1.0),
+            lighting: LightingModel.pbr,
+          ),
+          name: 'beam',
+        )..setPosition(1.0, 3.0, 0.0);
+        room.scene.add(beam);
+        final engine = _engine();
+        final result = engine.renderer.render(
+          width: _width,
+          height: _height,
+          scene: room.scene,
+          views: <RenderView>[RenderView(camera: room.camera)],
+          settings: const RenderSettings(bloom: BloomSettings(enabled: false)),
+        );
+        final pixels = await engine.device.readPixels(result.frame);
+        return pixels!.buffer.asUint8List();
+      }
+
+      final lit = await frame(shadows: false);
+      final shadowed = await frame(shadows: true);
+      return <int>[
+        for (var i = 0; i < lit.length; i += 4) lit[i + 1] - shadowed[i + 1],
+      ];
+    }
+
+    final point = await darkMap(LightType.point);
+    final spot = await darkMap(LightType.spot);
+    expect(
+      point.where((int d) => d > 40).length,
+      greaterThan(20),
+      reason: 'the beam casts no shadow at all',
+    );
+    // Through the single tile the strip is as large but not where the point
+    // light puts it: about a hundred pixels disagree, by up to 86 levels.
+    final disagree = <int>[
+      for (var i = 0; i < point.length; i++)
+        if ((point[i] - spot[i]).abs() > 8) i,
+    ];
+    expect(
+      disagree,
+      isEmpty,
+      reason:
+          'a floodlight shadows a thin beam differently from a point light at '
+          'the same place: it is still drawn through one tile opened past a '
+          'cube face',
     );
   });
 }

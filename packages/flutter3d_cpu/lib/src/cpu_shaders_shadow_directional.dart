@@ -59,6 +59,7 @@ double shadowFactor(
 
   var u = 0.0;
   var vv = 0.0;
+  var cascadeIndex = 0;
   Vector3? projected;
   for (var attempt = 0; attempt < 3; attempt++) {
     final which = cascade + attempt;
@@ -99,15 +100,24 @@ double shadowFactor(
 
     u = (tileU + which) / count;
     vv = tileV;
+    cascadeIndex = which;
     projected = candidate;
     break;
   }
   if (projected == null) return 1.0;
 
-  final bias = params.y;
+  // Each cascade's own bias — `shadow_bias` in `surface.glsl`.
+  final bias = b.vec4('FragInfo', 'shadow_bias', Vector4.zero())[cascadeIndex];
   // Horizontally a texel of the atlas, vertically a texel of a tile.
   final texelU = params.x;
   final texelV = cascades.w > 0.0 ? cascades.w : params.x;
+  // Every tap held inside its own cascade's tile — see `shadow.glsl`.
+  final loU = cascadeIndex / count + 0.5 * texelU;
+  final hiU = (cascadeIndex + 1) / count - 0.5 * texelU;
+  final loV = 0.5 * texelV;
+  final hiV = 1.0 - 0.5 * texelV;
+  double tap(double du, double dv) =>
+      map.sample((u + du).clamp(loU, hiU), (vv + dv).clamp(loV, hiV)).x;
 
   // `gfx-15n`: the directional light's apparent size, riding in
   // `ambient_ground.w` for the reason `surface.glsl` gives. Zero is the 3×3
@@ -120,7 +130,7 @@ double shadowFactor(
     // smallest kernel that reads as a soft edge rather than as stair steps.
     for (var y = -1; y <= 1; y++) {
       for (var x = -1; x <= 1; x++) {
-        final occluder = map.sample(u + x * texelU, vv + y * texelV).x;
+        final occluder = tap(x * texelU, y * texelV);
         lit += projected.z - bias > occluder ? 0.0 : 1.0;
       }
     }
@@ -133,12 +143,10 @@ double shadowFactor(
     var blockerSum = 0.0;
     var blockerCount = 0.0;
     for (final (double dx, double dy) in kShadowDisc) {
-      final occluder = map
-          .sample(
-            u + dx * texelU * searchRadius,
-            vv + dy * texelV * searchRadius,
-          )
-          .x;
+      final occluder = tap(
+        dx * texelU * searchRadius,
+        dy * texelV * searchRadius,
+      );
       if (projected.z - bias > occluder) {
         blockerSum += occluder;
         blockerCount += 1.0;
@@ -150,9 +158,7 @@ double shadowFactor(
     final gap = averaged > 0.0 ? averaged : 0.0;
     final radius = (gap * softness).clamp(1.0, 16.0);
     for (final (double dx, double dy) in kShadowDisc) {
-      final occluder = map
-          .sample(u + dx * texelU * radius, vv + dy * texelV * radius)
-          .x;
+      final occluder = tap(dx * texelU * radius, dy * texelV * radius);
       lit += projected.z - bias > occluder ? 0.0 : 1.0;
     }
     lit /= 5.0;

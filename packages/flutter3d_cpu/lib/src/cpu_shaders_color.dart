@@ -15,15 +15,20 @@ import 'package:vector_math/vector_math.dart';
 
 import 'cpu_shader.dart';
 import 'cpu_shaders_layout.dart';
+import 'portable_root.dart';
 
 /// sRGB to linear, per `color.glsl`.
+///
+/// Through `portable_root.dart` rather than `math.pow`: this runs on every
+/// pixel, and a libm that rounds its last bit differently turned a whole lit
+/// frame one step over on another platform.
 double toLinear(double c) =>
-    c < 0.04045 ? c / 12.92 : math.pow((c + 0.055) / 1.055, 2.4).toDouble();
+    c < 0.04045 ? c / 12.92 : portablePow12Over5((c + 0.055) / 1.055);
 
 /// Linear to sRGB, the inverse.
 double toSrgb(double c) => c < 0.0031308
     ? c * 12.92
-    : 1.055 * math.pow(math.max(c, 0.0), 1.0 / 2.4) - 0.055;
+    : 1.055 * portablePow5Over12(math.max(c, 0.0)) - 0.055;
 
 double smoothstep(double edge0, double edge1, double x) {
   // **Two equal edges are a step, not a division.** GLSL leaves this
@@ -363,7 +368,7 @@ Vector3 tonemapAgx(Vector3 colour) {
   // output is display-encoded, and the sRGB encode after the grade is the
   // only encode this frame should get.
   double linear(double v) =>
-      (math.pow(math.max(v, 0.0), 2.2) as double).clamp(0.0, 1.0);
+      portablePow11Over5(math.max(v, 0.0)).clamp(0.0, 1.0);
   return Vector3(linear(out.x), linear(out.y), linear(out.z));
 }
 

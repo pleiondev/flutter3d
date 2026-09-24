@@ -579,6 +579,8 @@ extension _MeshEncode on Renderer {
         'shadow_cascades': _shadowCascades,
         'ambient_sky': _ambientSky,
         'ambient_ground': _ambientGround,
+        'shadow_bias': _shadowCascadeBias,
+        'target_origin': _targetOrigin,
       });
     }
 

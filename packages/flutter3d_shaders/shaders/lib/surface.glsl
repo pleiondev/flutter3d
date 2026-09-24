@@ -20,6 +20,7 @@
 #define SURFACE_GLSL_
 
 #include <lib/color.glsl>
+#include <lib/frag_coord.glsl>
 
 /// Lights per draw. Must match LightBuffer.maxLights on the Dart side.
 ///
@@ -195,6 +196,22 @@ uniform FragInfo {
   /// every underside as pale as every upward face — which reads as the model
   /// being flat, and gets blamed on the normals.
   vec4 ambient_ground;
+
+  /// x, y, z: the depth bias of each cascade, in that cascade's own normalized
+  /// depth. w unused.
+  ///
+  /// `ShadowSettings.bias` is one number and a cascade's depth range is not:
+  /// a near cascade is stretched towards the light when a caster stands
+  /// further out than its own volume reaches, and the same bias over a longer
+  /// range is a longer distance. The renderer converts it per cascade so it
+  /// stays the distance it was tuned as; an unstretched cascade gets the
+  /// setting unchanged.
+  vec4 shadow_bias;
+
+  /// x: the target's rows when its row zero is the bottom of the picture,
+  /// zero when it is the top — see `FragCoordFromTop` in `frag_coord.glsl`,
+  /// which the shadow kernel's rotation reads through. yzw unused.
+  vec4 target_origin;
 }
 frag_info;
 
@@ -936,7 +953,8 @@ float PointShadowFactor(vec3 world, vec3 normal, int lightIndex) {
   // Written down because three unexplained decimals read as a magic spell, and
   // the next person to touch this line has no way to tell which of them may be
   // changed. The answer is none of them.
-  float noise = fract(52.9829189 * fract(dot(gl_FragCoord.xy,
+  float noise = fract(52.9829189 * fract(dot(FragCoordFromTop(
+                                                frag_info.target_origin.x),
                                             vec2(0.06711056, 0.00583715))));
   float angle = noise * 6.28318530718;
   float ca = cos(angle);

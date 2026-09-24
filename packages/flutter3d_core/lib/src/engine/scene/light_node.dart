@@ -241,13 +241,17 @@ abstract final class Photometric {
     LightType.directional => fromLux(lumens),
     LightType.point => fromCandela(lumens / (4.0 * math.pi)),
     LightType.spot => fromCandela(lumens / _coneSteradians(outerConeAngle)),
-    // A rectangle emits from one face into the hemisphere in front of it, so
-    // its flux is spread over 2π rather than 4π — `gfx-77n`. The panel's own
-    // area does not appear here and should not: [LightNode.intensity] means
-    // the same thing for every kind, and the shader divides by the area itself
-    // so that a window enlarged at a fixed lumen rating gets dimmer per square
-    // metre rather than brighter overall.
-    LightType.area => fromCandela(lumens / (2.0 * math.pi)),
+    // A rectangle emits from one face, and as a Lambertian surface: the
+    // shader gives it one radiance, `intensity / area`, in every direction,
+    // so its intensity falls off as `cos θ` from the axis and the flux into
+    // the hemisphere is `π` times the axial candela, not `2π` — the figure
+    // for a source equally bright at every angle, which a panel seen edge-on
+    // is not. `2π` rated every panel at half the light its lumens promised.
+    // The panel's own area does not appear here and should not:
+    // [LightNode.intensity] means the same thing for every kind, and the
+    // shader divides by the area itself so that a window enlarged at a fixed
+    // lumen rating gets dimmer per square metre rather than brighter overall.
+    LightType.area => fromCandela(lumens / math.pi),
   };
 
   /// [intensity] back in lux, for a panel that shows what a light is set to.
@@ -266,7 +270,7 @@ abstract final class Photometric {
     LightType.directional => toLux(intensity),
     LightType.point => toCandela(intensity) * 4.0 * math.pi,
     LightType.spot => toCandela(intensity) * _coneSteradians(outerConeAngle),
-    LightType.area => toCandela(intensity) * 2.0 * math.pi,
+    LightType.area => toCandela(intensity) * math.pi,
   };
 
   /// The solid angle of a cone of half-angle [outerConeAngle], in steradians.
