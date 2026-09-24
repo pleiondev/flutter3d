@@ -42,11 +42,20 @@ const List<RenderProjectView> renderSheetViews = <RenderProjectView>[
   RenderProjectView.iso,
 ];
 
-/// [project], as a 2×[renderSheetViews.length ~/ 2] grid of PNG bytes.
+/// [project], as PNG bytes of [views] in two rows, left to right then top to
+/// bottom — a 2×2 grid for the default four, 4×2 with one empty tile for all
+/// seven of [RenderProjectView.values].
 ///
-/// [width]/[height] are the whole sheet's own size; each quadrant renders at
-/// half of each, rounded down — an odd [width] or [height] loses at most one
-/// pixel off the sheet's own right or bottom edge rather than off any tile.
+/// **[views] exists for `AssetAudit`'s own sheet**, which wants the back,
+/// the left and the bottom as well: a generated asset is exactly the thing
+/// whose underside nobody has looked at. Two rows whatever the count keeps
+/// the default's layout byte for byte while giving seven a wide sheet rather
+/// than a 3×3 one that is a third empty.
+///
+/// [width]/[height] are the whole sheet's own size; each tile renders at
+/// [width] over the column count and half of [height], rounded down — a
+/// width or height that does not divide loses at most a few pixels off the
+/// sheet's own right or bottom edge rather than off any tile.
 /// [RenderRefusal] surfaces from whichever quadrant [renderProject] refuses
 /// first, at the half-size it was actually asked to draw.
 ///
@@ -60,13 +69,18 @@ Future<Uint8List> renderSheet({
   Set<int> selection = const <int>{},
   int? weightsJoint,
   bool labels = true,
+  List<RenderProjectView> views = renderSheetViews,
   required GraphicsDevice Function(int width, int height) deviceFactory,
 }) async {
-  final tileWidth = width ~/ 2;
+  if (views.isEmpty) {
+    throw ArgumentError.value(views, 'views', 'a sheet needs a view to draw');
+  }
+  final columns = (views.length + 1) ~/ 2;
+  final tileWidth = width ~/ columns;
   final tileHeight = height ~/ 2;
 
   final tiles = <Rgba8Image>[];
-  for (final RenderProjectView view in renderSheetViews) {
+  for (final RenderProjectView view in views) {
     final png = await renderProject(
       RenderRequest(
         project: project,
@@ -82,13 +96,13 @@ Future<Uint8List> renderSheet({
     tiles.add((await decodeImagePure(png))!);
   }
 
-  final sheetWidth = tileWidth * 2;
+  final sheetWidth = tileWidth * columns;
   final sheetHeight = tileHeight * 2;
   final pixels = Uint8List(sheetWidth * sheetHeight * 4);
   for (var i = 0; i < tiles.length; i++) {
     final tile = tiles[i];
-    final originX = (i % 2) * tileWidth;
-    final originY = (i ~/ 2) * tileHeight;
+    final originX = (i % columns) * tileWidth;
+    final originY = (i ~/ columns) * tileHeight;
     for (var y = 0; y < tile.height; y++) {
       final srcStart = y * tile.width * 4;
       final dstStart = ((originY + y) * sheetWidth + originX) * 4;
@@ -114,7 +128,7 @@ Future<Uint8List> renderSheet({
       height: sheetHeight,
       x: originX + inset,
       y: originY + tileHeight - inset - tinyFontHeight * scale,
-      text: renderSheetViews[i].name,
+      text: views[i].name,
       scale: scale,
     );
   }

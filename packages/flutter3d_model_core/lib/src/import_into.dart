@@ -23,15 +23,10 @@
 /// not "the same" by their raw, pre-merge index alone, which could differ
 /// even when the pictures do not.
 ///
-/// **The comparison is a fresh, parallel statement of the same fields
-/// `project_format.dart`'s own `_materialJson`/`_bindingJson` write, not a
-/// shared function.** The two are separate libraries within this package —
-/// `project_format.dart`'s helpers are file-private — and duplicating a
-/// dozen field names here is the honest cost of that, the same trade this
-/// session has made at other package boundaries: a wrong field here
-/// compiles, runs, and is wrong only for the material that hits it, which is
-/// exactly why both copies are covered by their own tests rather than one
-/// standing in for the other.
+/// **The comparison is `material_key.dart`'s [materialKey], name included**,
+/// which `AssetAudit` also reads (without the name) to find the duplicates a
+/// generated asset brings — see that file for why the field list lives there
+/// rather than in either caller.
 ///
 /// **Skeletons are not carried across yet.** The plan's own row asks for
 /// them to come in "as new" alongside the objects and the tables; `anim-*`
@@ -46,6 +41,7 @@ import 'dart:convert';
 import 'package:flutter3d_core/formats.dart';
 
 import 'material.dart';
+import 'material_key.dart';
 import 'project.dart';
 import 'project_document.dart';
 
@@ -85,11 +81,11 @@ ImportReport importInto(
   final materialAt = <int, int>{};
   var materials = project.materials;
   final materialKeys = <String>[
-    for (final ProjectMaterial each in materials) _materialKey(each.surface),
+    for (final ProjectMaterial each in materials) materialKey(each.surface),
   ];
   for (var i = 0; i < incoming.materials.length; i++) {
     final remapped = _remapMaterial(incoming.materials[i].surface, imageAt);
-    final key = _materialKey(remapped);
+    final key = materialKey(remapped);
     final existing = materialKeys.indexOf(key);
     if (existing >= 0) {
       materialAt[i] = existing;
@@ -181,49 +177,3 @@ SurfaceMaterial _remapMaterial(SurfaceMaterial surface, Map<int, int> imageAt) {
     unlit: surface.unlit,
   );
 }
-
-/// [surface], as a string that is equal for two materials that would write
-/// the identical `.f3dproj` manifest entry and different otherwise — see the
-/// library doc comment for why this is a parallel statement of
-/// `project_format.dart`'s own field list rather than a shared function.
-String _materialKey(SurfaceMaterial surface) => jsonEncode(<String, Object?>{
-  'name': surface.name,
-  'baseColor': <double>[
-    surface.baseColor.x,
-    surface.baseColor.y,
-    surface.baseColor.z,
-    surface.baseColor.w,
-  ],
-  'metallic': surface.metallic,
-  'roughness': surface.roughness,
-  'baseColorTexture': _bindingKey(surface.baseColorTexture),
-  'metallicRoughnessTexture': _bindingKey(surface.metallicRoughnessTexture),
-  'normalTexture': _bindingKey(surface.normalTexture),
-  'normalScale': surface.normalScale,
-  'occlusionTexture': _bindingKey(surface.occlusionTexture),
-  'occlusionStrength': surface.occlusionStrength,
-  'emissiveTexture': _bindingKey(surface.emissiveTexture),
-  'emissive': <double>[
-    surface.emissive.x,
-    surface.emissive.y,
-    surface.emissive.z,
-  ],
-  'emissiveStrength': surface.emissiveStrength,
-  'alphaMode': surface.alphaMode.name,
-  'alphaCutoff': surface.alphaCutoff,
-  'doubleSided': surface.doubleSided,
-  'unlit': surface.unlit,
-});
-
-Map<String, Object?>? _bindingKey(TextureBinding? binding) => binding == null
-    ? null
-    : <String, Object?>{
-        'imageIndex': binding.imageIndex,
-        'texCoordSet': binding.texCoordSet,
-        'magLinear': binding.sampling.magLinear,
-        'minLinear': binding.sampling.minLinear,
-        'useMipmaps': binding.sampling.useMipmaps,
-        'mipLinear': binding.sampling.mipLinear,
-        'wrapS': binding.sampling.wrapS.name,
-        'wrapT': binding.sampling.wrapT.name,
-      };

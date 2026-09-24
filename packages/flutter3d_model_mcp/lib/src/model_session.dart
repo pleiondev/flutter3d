@@ -927,11 +927,15 @@ final class ModelSession {
     // mid-way through showing.
     await history.whenNotInTransaction;
     history.run(ReplaceDocument(merged, 'import $from'));
+    // The reader's own warnings, verbatim — a skipped primitive or an
+    // undefined material is something the file said while being read, and an
+    // agent that is only told the object count has no way to ask about it.
     return (
       did: true,
       says:
           'imported ${report.counts.objects} '
-          '${report.counts.objects == 1 ? 'object' : 'objects'} from $from',
+          '${report.counts.objects == 1 ? 'object' : 'objects'} from $from'
+          '${report.issues.isEmpty ? '' : '; the reader said: ${report.issues.join(' ')}'}',
     );
   }
 
@@ -1051,54 +1055,161 @@ final class ModelSession {
   /// `budget` override is for. The project's [ModelProject.profile] comes
   /// back untouched.
   Answer makeGameReady(String profile) {
-    final TextureBudget? budget = switch (profile) {
-      'desktop' => TextureBudget.desktop,
-      'mobile' => TextureBudget.mobile,
-      'web' => TextureBudget.web,
-      _ => null,
-    };
-    if (budget == null) {
-      return (
-        did: false,
-        says:
-            '"$profile" is not a profile this knows; it is desktop, '
-            'mobile or web',
-      );
-    }
-    final ids = <int>[
-      for (final ModelObject object in project.objects)
-        if (object.geometry is EditedGeometry) object.id,
-    ];
-    var didAnything = false;
-    _recipe(() {
-      for (final int id in ids) {
-        // `Triangulate` refuses on an empty selection rather than
-        // defaulting to "every face" the way `MergeByDistance` does, so
-        // every live face is named first — `SelectAll` already does that
-        // correctly in mesh mode (live faces, not dead slots), which is
-        // worth reusing rather than re-deriving here.
-        history.selection = ProjectSelection(
-          mode: SelectionMode.mesh,
-          objects: <int>[id],
-          level: ElementLevel.face,
-        );
-        run(const SelectAll());
-        if (run(const Triangulate()).did) didAnything = true;
-
-        history.selection = ProjectSelection(objects: <int>[id]);
-        if (run(const RecalculateNormals()).did) didAnything = true;
-      }
-      final ModelProject fitted = FitTexturesToProfile(project, budget: budget);
-      if (!identical(fitted, project)) {
-        run(ReplaceDocument(fitted, 'fit textures to $profile'));
-        didAnything = true;
-      }
-    });
+    final TextureBudget? budget = _budgetNamed(profile);
+    if (budget == null) return _unknownProfile(profile);
+    final bool didAnything = _recipe(() => _makeGameReady(profile, budget));
     return (
       did: didAnything,
       says: didAnything
           ? 'made game ready for $profile'
           : 'already game ready for $profile',
+    );
+  }
+
+  static TextureBudget? _budgetNamed(String profile) => switch (profile) {
+    'desktop' => TextureBudget.desktop,
+    'mobile' => TextureBudget.mobile,
+    'web' => TextureBudget.web,
+    _ => null,
+  };
+
+  static Answer _unknownProfile(String profile) => (
+    did: false,
+    says:
+        '"$profile" is not a profile this knows; it is desktop, mobile or '
+        'web',
+  );
+
+  /// [makeGameReady]'s own run of commands, inside a transaction somebody
+  /// else opened — [repairAsset] runs it as the last part of its own step,
+  /// and a history has no nested transactions to give it one of its own.
+  /// Whether anything changed.
+  bool _makeGameReady(String profile, TextureBudget budget) {
+    final ids = <int>[
+      for (final ModelObject object in project.objects)
+        if (object.geometry is EditedGeometry) object.id,
+    ];
+    var didAnything = false;
+    for (final int id in ids) {
+      // `Triangulate` refuses on an empty selection rather than
+      // defaulting to "every face" the way `MergeByDistance` does, so
+      // every live face is named first — `SelectAll` already does that
+      // correctly in mesh mode (live faces, not dead slots), which is
+      // worth reusing rather than re-deriving here.
+      history.selection = ProjectSelection(
+        mode: SelectionMode.mesh,
+        objects: <int>[id],
+        level: ElementLevel.face,
+      );
+      run(const SelectAll());
+      if (run(const Triangulate()).did) didAnything = true;
+
+      history.selection = ProjectSelection(objects: <int>[id]);
+      if (run(const RecalculateNormals()).did) didAnything = true;
+    }
+    final ModelProject fitted = FitTexturesToProfile(project, budget: budget);
+    if (!identical(fitted, project)) {
+      run(ReplaceDocument(fitted, 'fit textures to $profile'));
+      didAnything = true;
+    }
+    return didAnything;
+  }
+
+  static String _count(int n, String one, String many) =>
+      '$n ${n == 1 ? one : many}';
+
+  /// What [AssetAudit] finds in the project, as `audit` says it.
+  String audit() => AssetAudit.of(project).says;
+
+  /// `audit`'s own `repair`: every fault [AssetAudit] finds that has one
+  /// right answer, put right as one undo step.
+  ///
+  /// In order, because each step reads what the one before left: imported
+  /// buffers are rebuilt as editable meshes (the weld drops the degenerate
+  /// triangles and splits the non-manifold edges the audit counted, and
+  /// nothing after this can move a vertex without topology); the root objects
+  /// are moved so the asset's base centre sits on the origin; every mesh has
+  /// its transform baked ([ApplyTransform]) and its origin set to the middle
+  /// of its own base ([SetOrigin]); and then [makeGameReady] for [profile].
+  ///
+  /// **Units and duplicate materials are reported, not repaired.** A size of
+  /// 190 is centimetres far more often than not, and "far more often" is not
+  /// a reason to rescale somebody's asset under them — the audit names the
+  /// unit and `import` takes it. Two identical materials could be merged, but
+  /// which of the two names survives is a choice, and the next edit to one
+  /// of them may be the reason there were two.
+  Answer repairAsset(String profile) {
+    final TextureBudget? budget = _budgetNamed(profile);
+    if (budget == null) return _unknownProfile(profile);
+    if (project.objects.isEmpty) {
+      return (did: false, says: 'there is nothing in this project to repair');
+    }
+    final List<String> done = _recipe(() {
+      final imported = <int>{
+        for (final ModelObject object in project.objects)
+          if (object.geometry case ImportedGeometry(
+            :final data,
+          ) when data.triangleCount > 0)
+            object.id,
+      };
+      final bool rebuilt =
+          imported.isNotEmpty &&
+          run(
+            ReplaceDocument(
+              _cleanedUpImport(
+                project,
+                imported,
+                weld: true,
+                fixNormals: true,
+                triangulate: false,
+              ),
+              'rebuild imported meshes',
+            ),
+          ).did;
+
+      final AssetAudit placed = AssetAudit.of(project);
+      final Vector3? base = placed.baseCentre;
+      final bool offPivot = placed.findings.any(
+        (AuditFinding f) => f.check == AuditCheck.pivot,
+      );
+      if (offPivot) {
+        history.selection = ProjectSelection(
+          objects: <int>[
+            for (final ModelObject object in project.objects)
+              if (object.parent == null) object.id,
+          ],
+        );
+      }
+      final bool moved = offPivot && run(MoveBy(-base!)).did;
+
+      // Parents before children, which is the order `objects` keeps: a
+      // parent's bake compensates its children, so each child is baked from
+      // a transform that already carries its parent's old one.
+      var baked = 0;
+      var origins = 0;
+      for (final ModelObject object in project.objects) {
+        if (object.geometry is! EditedGeometry) continue;
+        if (run(ApplyTransform(object.id)).did) baked++;
+        final placement = SetOrigin(
+          id: object.id,
+          to: OriginPlacement.boundsBottom,
+        );
+        if (run(placement).did) origins++;
+      }
+      final bool ready = _makeGameReady(profile, budget);
+      return <String>[
+        if (rebuilt)
+          'rebuilt ${_count(imported.length, 'imported mesh', 'imported meshes')} as editable',
+        if (moved) 'moved the asset so its base centre sits on the origin',
+        if (baked > 0) 'baked ${_count(baked, 'transform', 'transforms')}',
+        if (origins > 0)
+          'moved ${_count(origins, 'origin', 'origins')} to the base of its object',
+        if (ready) 'made it game ready for $profile',
+      ];
+    });
+    return (
+      did: done.isNotEmpty,
+      says: done.isEmpty ? 'nothing to repair' : done.join('; '),
     );
   }
 
