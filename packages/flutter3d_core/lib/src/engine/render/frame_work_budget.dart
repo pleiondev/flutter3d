@@ -77,6 +77,11 @@ final class FrameWorkBudget {
     _average = _average == 0.0 ? paid.toDouble() : _average * 0.8 + paid * 0.2;
   }
 
+  /// This allowance's clock, in microseconds: for a piece of work whose
+  /// cost is measured across code that cannot sit inside one closure handed
+  /// to [spend], and is then [charge]d the difference.
+  int now() => _clock();
+
   /// Runs [work] if [allows] says so, charging what it took; false when it
   /// did not run.
   bool spend(void Function() work) {
