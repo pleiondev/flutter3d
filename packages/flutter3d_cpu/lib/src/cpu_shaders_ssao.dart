@@ -128,6 +128,25 @@ final class SsaoShader implements CpuFragmentShader {
     return slices > 0.0 ? (visibility / slices).clamp(0.0, 1.0) : 1.0;
   }
 
+  /// `SrgbToLinearAlbedo` from `ssao.frag`, one channel.
+  static double _linear(double c) =>
+      c < 0.04045 ? c / 12.92 : math.pow((c + 0.055) / 1.055, 2.4).toDouble();
+
+  /// `MultiBounce` from `ssao.frag` — `L5`: the fit of Jimenez et al. 2016,
+  /// per channel of the [srgb] albedo, brought to one number by luma.
+  static double _multiBounce(double visible, Vector4 srgb) {
+    double channel(double albedo) {
+      final a = 2.0404 * albedo - 0.3324;
+      final b = -4.7951 * albedo + 0.6417;
+      final c = 2.7552 * albedo + 0.6903;
+      return math.max(visible, ((visible * a + b) * visible + c) * visible);
+    }
+
+    return 0.2126 * channel(_linear(srgb.x)) +
+        0.7152 * channel(_linear(srgb.y)) +
+        0.0722 * channel(_linear(srgb.z));
+  }
+
   /// `SsilLight` from `ssao.frag` — `L5`: rgb the light bounced onto the
   /// point, a the share of the hemisphere left open.
   static Vector4 _ssil(
@@ -229,13 +248,11 @@ final class SsaoShader implements CpuFragmentShader {
       slices += 1.0;
     }
     if (slices <= 0.0) return Vector4(0.0, 0.0, 0.0, 1.0);
-    double linear(double c) =>
-        c < 0.04045 ? c / 12.92 : math.pow((c + 0.055) / 1.055, 2.4).toDouble();
     final albedoMap = b.textures['albedo_texture'];
     final Vector3 albedo;
     if (params.z > 0.5 && albedoMap != null) {
       final srgb = albedoMap.sample(u, w);
-      albedo = Vector3(linear(srgb.x), linear(srgb.y), linear(srgb.z));
+      albedo = Vector3(_linear(srgb.x), _linear(srgb.y), _linear(srgb.z));
     } else {
       albedo = Vector3.all(0.5);
     }
@@ -316,7 +333,12 @@ final class SsaoShader implements CpuFragmentShader {
         surface.w,
         worldFrom,
       );
-      return Vector4(visible, visible, visible, visible);
+      // With the albedo buffer, the bounces too, as `MultiBounce`.
+      final albedoMap = b.textures['albedo_texture'];
+      final shaded = params.z > 0.5 && albedoMap != null
+          ? _multiBounce(visible, albedoMap.sample(u, w))
+          : visible;
+      return Vector4(shaded, shaded, shaded, shaded);
     }
 
     // Lifted along the normal, in metres: a bias in window depth is a different
