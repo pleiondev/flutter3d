@@ -853,6 +853,7 @@ final class RenderSettings {
     this.spatialUpscale = const SpatialUpscaleSettings(),
     this.localExposure = const LocalExposureSettings(),
     this.outputTransform = OutputTransform.sdr,
+    this.frameWorkBudget = 0,
     this.energyCompensation = false,
     this.clusteredLights = false,
     this.lightShafts = const LightShaftSettings(),
@@ -1111,6 +1112,12 @@ final class RenderSettings {
   /// SDR frame.
   final OutputTransform outputTransform;
 
+  /// Microseconds a frame may spend on work that can wait — `N3`: irradiance
+  /// probe updates and point-shadow faces share it, and what does not fit
+  /// waits for the next frame. Nought, the default, is no limit, which is
+  /// every frame before this existed. See `FrameWorkBudget`.
+  final int frameWorkBudget;
+
   /// Puts back the light single-scattering GGX loses on rough surfaces —
   /// `L1`. Off by default.
   ///
@@ -1295,6 +1302,7 @@ final class RenderSettings {
     SpatialUpscaleSettings? spatialUpscale,
     LocalExposureSettings? localExposure,
     OutputTransform? outputTransform,
+    int? frameWorkBudget,
     bool? energyCompensation,
     bool? clusteredLights,
     LightShaftSettings? lightShafts,
@@ -1334,6 +1342,7 @@ final class RenderSettings {
     spatialUpscale: spatialUpscale ?? this.spatialUpscale,
     localExposure: localExposure ?? this.localExposure,
     outputTransform: outputTransform ?? this.outputTransform,
+    frameWorkBudget: frameWorkBudget ?? this.frameWorkBudget,
     energyCompensation: energyCompensation ?? this.energyCompensation,
     clusteredLights: clusteredLights ?? this.clusteredLights,
     lightShafts: lightShafts ?? this.lightShafts,

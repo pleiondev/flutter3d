@@ -153,40 +153,48 @@ extension _IrradiancePass on Renderer {
     var done = 0;
     for (var tried = 0; tried < probes && done < field.gpuUpdates; tried++) {
       final probe = gpu.cursor;
-      gpu.cursor = (gpu.cursor + 1) % probes;
-      if (field.active[probe] == 0) continue;
-      final x = probe % field.countX;
-      final y = (probe ~/ field.countX) % field.countY;
-      final z = probe ~/ (field.countX * field.countY);
-      final position = field.probePosition(x, y, z);
-      for (var face = 0; face < 6; face++) {
-        _captureCubeFace(
-          resources: resources,
-          scene: scene,
-          position: position,
-          near: 0.05,
-          far: kIrradianceReach,
-          excluded: const <SceneNode>{},
-          colour: gpu.radiance,
-          surface: gpu.surface,
-          size: _kIrradianceCaptureSize,
-          face: face,
-          settings: settings,
-          shadows: shadows,
-          passState: passState,
-          clearColor: clearColor,
-        );
+      if (field.active[probe] == 0) {
+        gpu.cursor = (gpu.cursor + 1) % probes;
+        continue;
       }
-      info.probe
-        ..[0] = probe.toDouble()
-        ..[1] = 0.0
-        ..[2] = field.hysteresis.clamp(0.0, 0.99);
-      gpu.atlas.step(
-        shader,
-        label: _passLabel ?? 'irradiance update',
-        bind: (pass) => _bindConvolve(pass, shader, fallbackAlbedo),
-      );
-      gpu.updates++;
+      // `N3`: within the frame's allowance for work that can wait; a probe
+      // refused here is the first one next frame.
+      final ran = _workBudget.spend(() {
+        gpu.cursor = (gpu.cursor + 1) % probes;
+        final x = probe % field.countX;
+        final y = (probe ~/ field.countX) % field.countY;
+        final z = probe ~/ (field.countX * field.countY);
+        final position = field.probePosition(x, y, z);
+        for (var face = 0; face < 6; face++) {
+          _captureCubeFace(
+            resources: resources,
+            scene: scene,
+            position: position,
+            near: 0.05,
+            far: kIrradianceReach,
+            excluded: const <SceneNode>{},
+            colour: gpu.radiance,
+            surface: gpu.surface,
+            size: _kIrradianceCaptureSize,
+            face: face,
+            settings: settings,
+            shadows: shadows,
+            passState: passState,
+            clearColor: clearColor,
+          );
+        }
+        info.probe
+          ..[0] = probe.toDouble()
+          ..[1] = 0.0
+          ..[2] = field.hysteresis.clamp(0.0, 0.99);
+        gpu.atlas.step(
+          shader,
+          label: _passLabel ?? 'irradiance update',
+          bind: (pass) => _bindConvolve(pass, shader, fallbackAlbedo),
+        );
+        gpu.updates++;
+      });
+      if (!ran) break;
       done++;
     }
   }

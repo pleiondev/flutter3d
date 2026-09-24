@@ -147,4 +147,22 @@ void main() {
       reason: 'the black the field was baked with',
     );
   });
+
+  test('a frame allowance too small for two probes updates one — N3', () {
+    final it = _room()..field.gpuUpdates = 4;
+    void frame(int allowance) => it.renderer.render(
+      width: _size,
+      height: _size,
+      scene: it.scene,
+      views: <RenderView>[RenderView(camera: it.camera)],
+      settings: RenderSettings(frameWorkBudget: allowance),
+    );
+    frame(0);
+    expect(it.renderer.frameWorkBudget.items, 4);
+    // One microsecond fits no probe: the first of a frame runs anyway, the
+    // rest wait. Mutation: skip the `spend` in the update loop. All four.
+    frame(1);
+    expect(it.renderer.frameWorkBudget.items, 1);
+    expect(it.renderer.frameWorkBudget.deferred, 1);
+  });
 }
