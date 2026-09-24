@@ -78,10 +78,13 @@ final class LightmapBaker {
   /// Bakes [level]. [log] hears each stage as it completes; the caller keeps
   /// the clock, since this package reads none.
   Lightmap bake(
-    Level level, {
+    Level authored, {
     LightmapLayout? layout,
     void Function(String message)? log,
   }) {
+    // Every brush the level is played with, recipes included — and the same
+    // instances `addTo` puts in the world, so a hit indexes back to its brush.
+    final level = expandRecipes(authored);
     final plan =
         layout ?? LightmapLayout.plan(level, texelsPerMetre: texelsPerMetre);
     final world = CollisionWorld();

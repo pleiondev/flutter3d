@@ -111,7 +111,11 @@ step "icons" python3 tool/check_icons.py
 # same reason the icons are — and for one more: `math.sin` is libm, so a
 # generator that did not quantise its coordinates produces different bytes on a
 # different machine, and this is the step that would say so.
-step "models" bash -c 'python3 tool/make_models.py >/dev/null && python3 tool/make_templates.py >/dev/null && git diff --exit-code -- "apps/flutter3d_editor/assets/templates" "apps/flutter3d_demo_dungeon/assets_src/models"'
+#
+# The templates' own documents — the vocabulary, the first level, the manifest
+# listing these models — are written by the level step below, after this one,
+# because the manifest reads which models are here.
+step "models" bash -c 'python3 tool/make_models.py >/dev/null && git diff --exit-code -- "apps/flutter3d_editor/assets/templates" "apps/flutter3d_demo_dungeon/assets_src/models"'
 
 # **The levels and the tracks, which `ARCHITECTURE.md` claimed were covered and
 # were not.** §13 says anything a tool produces is regenerated here and diffed;
@@ -126,9 +130,10 @@ step "models" bash -c 'python3 tool/make_models.py >/dev/null && python3 tool/ma
 # are byte-reproducible"; by then there were twelve, and two of them —
 # `make_cistern.py` and `make_sanctum.py` — had never been run here at all,
 # though both write a tracked, shipped document. They were reproducible. Nothing
-# had ever asked. `tool/regenerate_levels.py` reads `generatedBy` out of the
+# had ever asked. `tool/regenerate_levels.dart` reads `generatedBy` out of the
 # documents themselves, so a new level is covered the day it is committed and
-# there is no list left to forget.
+# there is no list left to forget. The generators are Dart, in
+# `flutter3d_editor_core/tool/levels/`, and write the templates too.
 # `apps` and not `apps/*/assets`: a wildcard pathspec in the middle of a path
 # matches nothing here, so the diff passed whatever the generators wrote — a
 # check that cannot fail, which is worse than the stale list it replaced. Caught
@@ -136,7 +141,7 @@ step "models" bash -c 'python3 tool/make_models.py >/dev/null && python3 tool/ma
 # clean by the time this step runs, so the wider pathspec costs nothing.
 step "levels" bash -c '
   set -e
-  python3 tool/regenerate_levels.py
+  (cd packages/flutter3d_editor_core && dart run tool/regenerate_levels.dart)
   git diff --exit-code -- apps
 '
 

@@ -287,6 +287,25 @@ final class Editing {
   /// size to step by.
   double get _step => grid <= 0.0 ? 1.0 : grid * 4;
 
+  /// Adds [recipe] to the document and answers what it builds, on its own.
+  ///
+  /// **The recipe goes in, not what it expands to.** A room written as its
+  /// recipe stays one line that a seed and a size decide, and the level is
+  /// expanded wherever it is used — loaded, validated, baked — so the brushes
+  /// in the answer are the brushes a player gets.
+  ///
+  /// Expanded once before it is added, so a recipe no kit can build throws the
+  /// kit's own [LevelFormatException] and leaves the document as it was,
+  /// rather than being written into a document that then fails to validate.
+  Level addRecipe(LevelRecipe recipe) {
+    final alone = expandRecipes(
+      Level(name: level.name, recipes: <LevelRecipe>[recipe]),
+    );
+    _remember('generate a ${recipe.kind} from seed ${recipe.seed}');
+    level.recipes.add(recipe);
+    return alone;
+  }
+
   /// Adds a light where somebody is looking.
   ///
   /// **A light the editor may invent, unlike an entity.** A `LevelLight` is a

@@ -67,7 +67,7 @@ bind(LogicalKeyboardKey.space, Drive.handbrake);
 
 ## Author a track {.step}
 
-A track document holds two halves: the spline this genre reads, and an ordinary level the engine has read since the first game. One script writes both. For the shipped circuits it is `apps/flutter3d_demo_racing/tool/make_track.py` (`python3 tool/make_track.py`, from the app directory), which writes each circuit twice: `ring.json` with the level embedded, and `ring_level.json` beside it for `LevelLoader`. Edit the script rather than the JSON; a circuit is several hundred numbers that have to agree with each other, and a person editing them by hand introduces exactly one disagreement and does not notice.
+A track document holds two halves: the spline this genre reads, and an ordinary level the engine has read since the first game. One script writes both. For the shipped circuits it is `packages/flutter3d_editor_core/tool/levels/racing.dart` (`dart run tool/regenerate_levels.dart`, from that package), which writes each circuit twice: `ring.json` with the level embedded, and `ring_level.json` beside it for `LevelLoader`. Edit the script rather than the JSON; a circuit is several hundred numbers that have to agree with each other, and a person editing them by hand introduces exactly one disagreement and does not notice.
 
 ```json
 {

@@ -10,6 +10,7 @@ library;
 
 import 'package:flutter3d_editor_core/flutter3d_editor_core.dart';
 import 'package:flutter3d_editor_mcp/flutter3d_editor_mcp.dart';
+import 'package:flutter3d_sim/flutter3d_sim.dart' show expandRecipes;
 import 'package:test/test.dart';
 
 void main() {
@@ -34,6 +35,7 @@ void main() {
       'select',
       'undo',
       'redo',
+      'generate',
       'validate',
       'save',
       'screenshot',
@@ -81,6 +83,101 @@ void main() {
     expect(refused.did, isFalse);
     expect(refused.says, contains('cannot be read'));
   });
+
+  group('generate', () {
+    // The picture half is null for every tool but the screenshot.
+    Future<Answer> generate(
+      EditorSession session,
+      Map<String, Object?> arguments,
+    ) async {
+      final answer = await editorTools
+          .firstWhere((EditorTool it) => it.name == 'generate')
+          .run(session, arguments);
+      return (did: answer.did, says: answer.says);
+    }
+
+    const room = <String, Object?>{
+      'kind': 'room',
+      'seed': 7,
+      'params': <String, Object?>{
+        'at': <double>[20.0, 0.0, 0.0],
+        'size': <double>[8.0, 3.0, 6.0],
+        'doors': <Object?>[
+          <String, Object?>{'side': 'north', 'width': 2.0, 'height': 2.4},
+        ],
+        'clutter': <String, Object?>{
+          'count': 3,
+          'size': <double>[1.0, 1.0, 1.0],
+        },
+      },
+    };
+
+    test(
+      'writes the recipe into the document and counts what it builds',
+      () async {
+        final session = EditorSession(
+          Editing.parse(_bareLevel, path: 'nowhere.json'),
+        );
+        final added = await generate(session, room);
+        expect(added.did, isTrue, reason: added.says);
+        expect(added.says, contains('from seed 7'));
+        // The recipe, not its brushes: the document still has its one brush.
+        final level = session.editing.level;
+        expect(level.brushes, hasLength(1));
+        expect(level.recipes.single.seed, 7);
+        // Mutation: count the document's brushes instead of the recipe's and
+        // this says "1 brush".
+        final built = expandRecipes(level).brushes.length - 1;
+        expect(built, greaterThan(6));
+        expect(added.says, contains('$built brushes'));
+      },
+    );
+
+    test('a level built from a recipe validates', () async {
+      final session = EditorSession(
+        Editing.parse(_litLevel, path: 'nowhere.json'),
+      );
+      await generate(session, room);
+      // Mutation: build the vocabulary from the document's own rows only and
+      // the room's reflection probes come back as unknown entities.
+      expect(session.validate(), 'no issues');
+    });
+
+    test('the same seed writes the same level, and undo takes it back', () async {
+      Future<String> written() async {
+        final session = EditorSession(
+          Editing.parse(_bareLevel, path: 'nowhere.json'),
+        );
+        final said = await generate(session, room);
+        return '${said.says}\n${expandRecipes(session.editing.level).toJson()}';
+      }
+
+      expect(await written(), await written());
+      final session = EditorSession(
+        Editing.parse(_bareLevel, path: 'nowhere.json'),
+      );
+      await generate(session, room);
+      final undone = session.undo();
+      expect(undone.says, contains('generate a room from seed 7'));
+      expect(session.editing.level.recipes, isEmpty);
+    });
+
+    test('a recipe no kit can build is refused and leaves no step', () async {
+      final session = EditorSession(
+        Editing.parse(_bareLevel, path: 'nowhere.json'),
+      );
+      final refused = await generate(session, <String, Object?>{
+        'kind': 'room',
+        'params': <String, Object?>{
+          'at': <double>[0.0, 0.0, 0.0],
+        },
+      });
+      expect(refused.did, isFalse);
+      expect(refused.says, startsWith('no room was added'));
+      expect(session.editing.level.recipes, isEmpty);
+      expect(session.editing.canUndo, isFalse);
+    });
+  });
 }
 
 /// The smallest document `Level.fromJson` accepts: one brush, one material.
@@ -89,5 +186,22 @@ const String _bareLevel = '''
   "version": 1,
   "materials": {"stone": {"baseColor": [0.5, 0.5, 0.5, 1.0]}},
   "brushes": [{"at": [0.0, 0.0, 0.0], "size": [1.0, 1.0, 1.0], "material": "stone"}]
+}
+''';
+
+/// [_bareLevel] with a light, and the materials a room recipe uses when its
+/// params do not name any, so what `validate` has left to say is about the
+/// recipe.
+const String _litLevel = '''
+{
+  "version": 1,
+  "materials": {
+    "stone": {"baseColor": [0.5, 0.5, 0.5, 1.0]},
+    "floor": {"baseColor": [0.5, 0.5, 0.5, 1.0]},
+    "wall": {"baseColor": [0.5, 0.5, 0.5, 1.0]},
+    "ceiling": {"baseColor": [0.5, 0.5, 0.5, 1.0]}
+  },
+  "brushes": [{"at": [0.0, 0.0, 0.0], "size": [1.0, 1.0, 1.0], "material": "stone"}],
+  "lights": [{"type": "point", "at": [20.0, 2.0, 0.0], "intensity": 4.0, "range": 8.0}]
 }
 ''';

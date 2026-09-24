@@ -569,8 +569,8 @@ void main() {
     for (final circuit in Season.circuits) {
       group(circuit.name, () {
         test('its sky block is the preset it names', () async {
-          // Mutation: change a number in `SKY_PRESETS` in `make_track.py` and not
-          // in `sky.dart`. The generated circuit and the fallback every fixture
+          // Mutation: change a number in `_skyPresets` in the track generator
+          // and not in `sky.dart`. The generated circuit and the fallback every fixture
           // uses would then be two different afternoons, and nothing else in the
           // repository compares them.
           final document =
@@ -580,7 +580,7 @@ void main() {
           expect(
             block,
             isA<Map<String, Object?>>(),
-            reason: 'run tool/make_track.py',
+            reason: 'run the level generators in flutter3d_editor_core (dart run tool/regenerate_levels.dart)',
           );
 
           final written = SkyPreset.fromJson(block! as Map<String, Object?>);

@@ -225,7 +225,7 @@ void main() {
     });
 
     test('every preset is reachable by the name it writes', () {
-      // Mutation: rename a preset in Dart and not in `make_track.py`. The
+      // Mutation: rename a preset in Dart and not in the track generator. The
       // generator writes a name into the track file and nothing else would
       // notice it had stopped meaning anything.
       for (final preset in SkyPresets.all) {

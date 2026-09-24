@@ -14,8 +14,8 @@ The steps, in the order `tool/ci.sh` runs them:
 | What | How it is checked |
 |---|---|
 | Application icons | `python3 tool/check_icons.py` |
-| Template models and dungeon models | `make_models.py` and `make_templates.py`, then a diff |
-| Level documents | `tool/regenerate_levels.py`, then a diff of `apps` |
+| Template models and dungeon models | `make_models.py`, then a diff |
+| Level documents, tracks and templates | `flutter3d_editor_core`'s `tool/regenerate_levels.dart`, then a diff of `apps` |
 | The WebGL shader table | `flutter3d_webgl/tool/generate_shaders.dart`, then a diff |
 | Shader bundles | built here rather than committed, and a test asserts it happened |
 
@@ -35,8 +35,11 @@ in the repository were not, with their outputs tracked.
 And then the hand-kept list of those generators went stale, which is why there
 is no list any more: it named six and said all six were byte-reproducible, when
 there were twelve and two had never been run there at all.
-`tool/regenerate_levels.py` reads `generatedBy` out of the documents themselves,
-so a new level is covered the day it is committed.
+`tool/regenerate_levels.dart` in `flutter3d_editor_core` reads `generatedBy` out
+of the documents themselves, so a new level is covered the day it is committed.
+The generators are Dart now; a document keeps naming the Python script that
+first wrote it, because the name is part of its digest, and
+`tool/levels/shipped.dart` maps each name to its function.
 
 **The pathspec, again.** `apps` and not `apps/*/assets`, because a wildcard in
 the middle of a path matches nothing here — so the diff passed whatever the
