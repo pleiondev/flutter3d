@@ -1121,7 +1121,8 @@ extension _PostPasses on Renderer {
     // `L2`: a display transform in place of the curve, when one is set or
     // the curve is the table the engine ships — and never for a raw view,
     // which the mix has already told to leave the colour alone.
-    final display = mix.tonemap == 0.0
+    // `R9`: the extended output is exposed but not curved.
+    final display = mix.tonemap == 0.0 || _extendedOutput
         ? null
         : settings.look.displayTransform ??
               (settings.tonemapCurve == TonemapCurve.aces2
@@ -1130,7 +1131,11 @@ extension _PostPasses on Renderer {
                       size: EngineTables.aces2DisplaySize,
                     )
                   : null);
-    _compositeParams[2] = display != null ? 6.0 : mix.tonemap;
+    _compositeParams[2] = _extendedOutput
+        ? 0.0
+        : display != null
+        ? 6.0
+        : mix.tonemap;
     _compositeContact[1] = display?.size.toDouble() ?? 0.0;
 
     pass.bindPipeline(
@@ -1225,7 +1230,8 @@ extension _PostPasses on Renderer {
     // *is* N, and a table whose two dimensions disagree about that is a table
     // the engine should not be guessing about.
     final look = settings.look;
-    final lut = look.gradesThroughLut ? look.lut : null;
+    // `R9`: a table is authored for the SDR range.
+    final lut = look.gradesThroughLut && !_extendedOutput ? look.lut : null;
     _compositeAoTexel[2] = lut == null ? 0.0 : look.lutStrength.clamp(0.0, 1.0);
     _compositeAoTexel[3] = (lut?.height ?? 2).toDouble();
     pass.bindTexture(
@@ -1264,7 +1270,10 @@ extension _PostPasses on Renderer {
     // skips the whole branch at zero rather than adding a noise that rounds
     // to nothing, because "rounds to nothing" is a claim about the target's
     // bit depth and not about the arithmetic.
-    _compositeOutputEncode[0] = math.max(look.dither, 0.0);
+    // `R9`: a float target does not band.
+    _compositeOutputEncode[0] = _extendedOutput
+        ? 0.0
+        : math.max(look.dither, 0.0);
     _compositeOutputEncode[1] = look.whiteBalance.clamp(-1.0, 1.0);
     _compositeOutputEncode[2] = look.tint.clamp(-1.0, 1.0);
 

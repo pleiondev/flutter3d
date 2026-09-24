@@ -1092,7 +1092,15 @@ extension type GPUCanvasConfiguration._(JSObject _) implements JSObject {
     String format,
     int usage,
     String alphaMode,
+    GPUCanvasToneMapping? toneMapping,
   });
+}
+
+/// How the browser maps a canvas's values to the display — `R9`: `standard`
+/// clamps to the SDR range, `extended` lets an `rgba16float` canvas past it
+/// on a display that can show it.
+extension type GPUCanvasToneMapping._(JSObject _) implements JSObject {
+  external factory GPUCanvasToneMapping({String mode});
 }
 
 // -------------------------------------------------------------- error scopes

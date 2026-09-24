@@ -708,6 +708,10 @@ abstract interface class GraphicsDevice implements TextureAllocator {
   /// The formats this device can present an extended-range frame in, empty
   /// when it can only present standard range.
   ///
-  /// Reserved for HDR output (`R9`). Empty everywhere in 0.8.0.
+  /// `R9`: empty on Impeller (whose Apple extended formats upstream
+  /// removed), WebGL2 and the software rasteriser; WebGPU answers
+  /// `rgba16float` on a display that reports a high dynamic range. A frame
+  /// rendered with `OutputTransform.extendedSrgb` is drawn in the first of
+  /// these.
   List<TextureFormat> get hdrOutputFormats;
 }

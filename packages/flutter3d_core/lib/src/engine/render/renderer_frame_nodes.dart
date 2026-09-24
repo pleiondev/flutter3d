@@ -1548,7 +1548,7 @@ final class _CompositeNode extends RenderNode {
             RenderTargetSpec(
               width: frame.width,
               height: frame.height,
-              format: _renderer.device.defaultColorFormat,
+              format: _renderer._frameFormat,
             ),
           )
         : _renderer._ldrColor!;
@@ -1730,7 +1730,7 @@ final class _EasuNode extends RenderNode {
             RenderTargetSpec(
               width: frame.width,
               height: frame.height,
-              format: _renderer.device.defaultColorFormat,
+              format: _renderer._frameFormat,
             ),
           )
         : _renderer._ldrColor!;

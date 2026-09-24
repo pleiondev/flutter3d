@@ -844,6 +844,15 @@ final class Renderer implements RenderServices {
   int _frameTargetWidth = 0;
   int _frameTargetHeight = 0;
 
+  /// The finished frame's format — `R9`: the device's first HDR output
+  /// format under `OutputTransform.extendedSrgb` where it has one, its
+  /// default colour format otherwise. Set per frame by [render].
+  TextureFormat _frameFormat = TextureFormat.r8g8b8a8UNormInt;
+  TextureFormat? _frameTargetFormat;
+
+  /// Whether this frame is encoded for an extended-range display — `R9`.
+  bool _extendedOutput = false;
+
   /// This frame's output size, as [render] worked it out.
   int _outputWidth = 0;
   int _outputHeight = 0;
@@ -1414,7 +1423,8 @@ final class Renderer implements RenderServices {
     if (width == _targetWidth &&
         height == _targetHeight &&
         frameWidth == _frameTargetWidth &&
-        frameHeight == _frameTargetHeight) {
+        frameHeight == _frameTargetHeight &&
+        _frameFormat == _frameTargetFormat) {
       return;
     }
 
@@ -1485,11 +1495,12 @@ final class Renderer implements RenderServices {
     //
     // At the output size, which is the scene's except while temporal
     // anti-aliasing reconstructs a larger picture — `R2`.
+    final frameFormat = _frameFormat;
     _makeLdrFrame = () => device.createTexture(
       RenderTargetSpec(
         width: frameWidth,
         height: frameHeight,
-        format: device.defaultColorFormat,
+        format: frameFormat,
         storageMode: StorageMode.devicePrivate,
       ),
     );
@@ -1528,6 +1539,7 @@ final class Renderer implements RenderServices {
     _targetHeight = height;
     _frameTargetWidth = frameWidth;
     _frameTargetHeight = frameHeight;
+    _frameTargetFormat = _frameFormat;
   }
 
   /// Index of the first directional light in the packed buffer that asks to
@@ -3362,6 +3374,15 @@ final class Renderer implements RenderServices {
     final outputHeight = upscaled ? requestedHeight : height;
     _outputWidth = outputWidth;
     _outputHeight = outputHeight;
+    // `R9`: the extended output where it was asked for and the device can
+    // present it; the standard frame everywhere else.
+    final hdrFormats = device.hdrOutputFormats;
+    _extendedOutput =
+        settings.outputTransform == OutputTransform.extendedSrgb &&
+        hdrFormats.isNotEmpty;
+    _frameFormat = _extendedOutput
+        ? hdrFormats.first
+        : device.defaultColorFormat;
     // A frame drawn without the resolve leaves the history describing a
     // picture from before it; turning it back on starts again.
     if (!temporal) _historyValid = false;

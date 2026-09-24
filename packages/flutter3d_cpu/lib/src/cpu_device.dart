@@ -106,14 +106,17 @@ final class CpuDevice implements GraphicsDevice {
   @override
   bool get supportsIndependentBlend => false;
 
+  /// None unless a test hands some in — `R9`: there is no display here to
+  /// be HDR, and the extended output is exercised by asking for one.
   @override
-  List<TextureFormat> get hdrOutputFormats => const <TextureFormat>[];
+  final List<TextureFormat> hdrOutputFormats;
 
   CpuDevice({
     required this.width,
     required this.height,
     required this.shaders,
     this.maxColorAttachments = 3,
+    this.hdrOutputFormats = const <TextureFormat>[],
   });
 
   final int width;

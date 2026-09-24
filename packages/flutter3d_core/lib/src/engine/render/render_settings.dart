@@ -358,6 +358,19 @@ final class AmbientOcclusionMethod {
 /// Henyey–Greenstein phase that puts it towards the sun and almost none away
 /// from it — Pestana's shadow-map march, and Godot's volumetric fog, both do
 /// the same. The scene behind is not dimmed; [FogSettings] does that.
+/// What the composite encodes the finished frame for — `R9`.
+enum OutputTransform {
+  /// Tone-mapped, graded and dithered into eight bits: a standard display.
+  sdr,
+
+  /// Scene-referred, exposed but not tone-mapped, in the sRGB transfer
+  /// extended past one, into the device's first HDR output format. Reference
+  /// white is one; a highlight above it is brighter than white on a display
+  /// that can show it. No colour table and no dither: a table is authored
+  /// for the SDR range, and a float target does not band.
+  extendedSrgb,
+}
+
 /// Local exposure by exposure fusion — `R7`.
 ///
 /// **What one exposure cannot do.** A dark room with a bright window has two
@@ -839,6 +852,7 @@ final class RenderSettings {
     this.renderScale = 1.0,
     this.spatialUpscale = const SpatialUpscaleSettings(),
     this.localExposure = const LocalExposureSettings(),
+    this.outputTransform = OutputTransform.sdr,
     this.energyCompensation = false,
     this.clusteredLights = false,
     this.lightShafts = const LightShaftSettings(),
@@ -1090,6 +1104,13 @@ final class RenderSettings {
   /// by default.
   final LocalExposureSettings localExposure;
 
+  /// What the finished frame is encoded for — `R9`. [OutputTransform.sdr],
+  /// the default, is the tone-mapped 8-bit frame every earlier version drew.
+  /// [OutputTransform.extendedSrgb] takes effect only on a device whose
+  /// `GraphicsDevice.hdrOutputFormats` is not empty, and elsewhere draws the
+  /// SDR frame.
+  final OutputTransform outputTransform;
+
   /// Puts back the light single-scattering GGX loses on rough surfaces —
   /// `L1`. Off by default.
   ///
@@ -1273,6 +1294,7 @@ final class RenderSettings {
     double? renderScale,
     SpatialUpscaleSettings? spatialUpscale,
     LocalExposureSettings? localExposure,
+    OutputTransform? outputTransform,
     bool? energyCompensation,
     bool? clusteredLights,
     LightShaftSettings? lightShafts,
@@ -1311,6 +1333,7 @@ final class RenderSettings {
     renderScale: renderScale ?? this.renderScale,
     spatialUpscale: spatialUpscale ?? this.spatialUpscale,
     localExposure: localExposure ?? this.localExposure,
+    outputTransform: outputTransform ?? this.outputTransform,
     energyCompensation: energyCompensation ?? this.energyCompensation,
     clusteredLights: clusteredLights ?? this.clusteredLights,
     lightShafts: lightShafts ?? this.lightShafts,
