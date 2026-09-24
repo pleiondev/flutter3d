@@ -1199,34 +1199,53 @@ final class Renderer implements RenderServices {
     }
 
     return Renderer._(
-      device: device,
-      vertexShader: require('MeshVertex'),
-      skinnedVertexShader: require('MeshSkinnedVertex'),
-      instancedVertexShader: require('MeshInstancedVertex'),
-      lightmappedVertexShader: require('MeshLightmappedVertex'),
-      debugLineVertexShader: require('DebugLineVertex'),
-      debugLineFragmentShader: require('DebugLine'),
-      fullscreenVertexShader: require('FullscreenVertex'),
-      bloomThresholdShader: require('BloomThreshold'),
-      bloomDownsampleShader: require('BloomDownsample'),
-      bloomUpsampleShader: require('BloomUpsample'),
-      compositeShader: require('Composite'),
-      fxaaShader: require('Fxaa'),
-      reflectionShader: require('Reflections'),
-      ssaoShader: require('Ssao'),
-      contactShadowShader: require('ContactShadow'),
-      ssaoBlurShader: require('SsaoBlur'),
-      lightShaftsShader: require('LightShafts'),
-      depthOfFieldShader: require('DepthOfField'),
-      viewportShadeShader: require('ViewportShade'),
-      fallbackAlbedo: fallbackAlbedo ?? SolidColorTexture.white.upload(device),
-      fallbackNormal:
-          fallbackNormal ?? SolidColorTexture.flatNormal.upload(device),
-      fallbackBlack: SolidColorTexture(
-        vm.Vector4(0.0, 0.0, 0.0, 1.0),
-      ).upload(device),
-      msaaEnabled: device.supportsOffscreenMsaa,
-    ).._shaders = library;
+        device: device,
+        vertexShader: require('MeshVertex'),
+        skinnedVertexShader: require('MeshSkinnedVertex'),
+        instancedVertexShader: require('MeshInstancedVertex'),
+        lightmappedVertexShader: require('MeshLightmappedVertex'),
+        debugLineVertexShader: require('DebugLineVertex'),
+        debugLineFragmentShader: require('DebugLine'),
+        fullscreenVertexShader: require('FullscreenVertex'),
+        bloomThresholdShader: require('BloomThreshold'),
+        bloomDownsampleShader: require('BloomDownsample'),
+        bloomUpsampleShader: require('BloomUpsample'),
+        compositeShader: require('Composite'),
+        fxaaShader: require('Fxaa'),
+        reflectionShader: require('Reflections'),
+        ssaoShader: require('Ssao'),
+        contactShadowShader: require('ContactShadow'),
+        ssaoBlurShader: require('SsaoBlur'),
+        lightShaftsShader: require('LightShafts'),
+        depthOfFieldShader: require('DepthOfField'),
+        viewportShadeShader: require('ViewportShade'),
+        fallbackAlbedo:
+            fallbackAlbedo ?? SolidColorTexture.white.upload(device),
+        fallbackNormal:
+            fallbackNormal ?? SolidColorTexture.flatNormal.upload(device),
+        fallbackBlack: SolidColorTexture(
+          vm.Vector4(0.0, 0.0, 0.0, 1.0),
+        ).upload(device),
+        msaaEnabled: device.supportsOffscreenMsaa,
+      )
+      .._shaders = library
+      .._listenForGpuTimings();
+  }
+
+  /// What the GPU spent in each graph node's passes, from the last frame a
+  /// device reported on — `H2`. A frame or two behind the one being drawn,
+  /// because the GPU has to finish a frame before its timestamps can be read.
+  Map<String, int> _lastGpuMicros = const <String, int>{};
+
+  void _listenForGpuTimings() {
+    if (!device.supportsGpuTimestamps) return;
+    device.onGpuTimings((GpuFrameTimings timings) {
+      final byNode = <String, int>{};
+      for (final pass in timings.passes) {
+        byNode[pass.label] = (byNode[pass.label] ?? 0) + pass.micros;
+      }
+      _lastGpuMicros = byNode;
+    });
   }
 
   // `_fragmentShaderFor` and `_pipelineFor` are declared in
@@ -3504,9 +3523,10 @@ final class Renderer implements RenderServices {
           name: node.name,
           active: node.isActive,
           micros: passClock.elapsedMicroseconds,
-          // Filled by a backend that measures, a frame or two late, through
-          // `GraphicsDevice.onGpuTimings`; none does in 0.8.0.
-          gpuMicros: null,
+          // The last timings a measuring device reported for this node,
+          // which are a frame or two old — see `_lastGpuMicros`. Null where
+          // the device does not measure, or has not reported this node yet.
+          gpuMicros: _lastGpuMicros[node.name],
           drawCalls: passState.drawCalls - drawsBefore,
           triangles: passState.triangles - trianglesBefore,
           pipelineSwitches: passState.pipelineSwitches - switchesBefore,
