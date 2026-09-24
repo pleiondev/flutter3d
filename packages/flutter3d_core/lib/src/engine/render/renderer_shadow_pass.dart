@@ -1238,9 +1238,96 @@ extension _ShadowPasses on Renderer {
     }
     pass.submit();
     developer.Timeline.finishSync();
+    _shadowMapVersion++;
 
     publishShadowParams();
     return true;
+  }
+
+  /// The directional atlas into blurred exponential moments — `S2`.
+  ///
+  /// Two passes over the whole atlas: across, warping depth as it reads, into
+  /// [_shadowMomentsScratch]; then down, into [_shadowMoments]. Skipped when
+  /// the atlas has not been drawn into since the moments were last made,
+  /// which with `S1`'s static half is most frames of a still camera.
+  ///
+  /// Two atlases the size of the depth one at sixteen bytes a texel, where
+  /// the depth atlas is eight: at the default three 1024 tiles, 50 MB each.
+  /// The price of [ShadowFilter.evsm], and a reason it is not the default.
+  TextureHandle _renderShadowMoments(
+    TextureHandle depth,
+    ShadowSettings settings,
+    ShaderHandle filter,
+  ) {
+    final radius = settings.evsmBlurRadius.clamp(0, 8);
+    final key = (_shadowMapVersion, radius, _shadowCascadeCount);
+    final current = _shadowMoments;
+    if (current != null &&
+        _shadowMomentsKey == key &&
+        current.width == depth.width &&
+        current.height == depth.height) {
+      return current;
+    }
+
+    RenderTargetSpec spec() => RenderTargetSpec(
+      width: depth.width,
+      height: depth.height,
+      format: TextureFormat.r32g32b32a32Float,
+    );
+    if (current == null ||
+        current.width != depth.width ||
+        current.height != depth.height) {
+      // Sampled by the lit draws of frames still in flight, so handed back
+      // once they are done, as the depth atlas is.
+      _destroyAfterFrame(_shadowMoments);
+      _destroyAfterFrame(_shadowMomentsScratch);
+      _shadowMoments = device.createTexture(spec());
+      _shadowMomentsScratch = device.createTexture(spec());
+    }
+    final moments = _shadowMoments!;
+    final scratch = _shadowMomentsScratch!;
+
+    developer.Timeline.startSync('Renderer.shadowMoments');
+    final texelU = 1.0 / math.max(depth.width, 1);
+    final texelV = 1.0 / math.max(depth.height, 1);
+    _evsmFilterInfo.tile
+      ..[0] = _shadowCascadeCount.toDouble()
+      ..[1] = 0.5 * texelU
+      ..[2] = 0.5 * texelV
+      ..[3] = 0.0;
+
+    /// One axis of the blur, from [source] into [target].
+    void blur(
+      TextureHandle source,
+      TextureHandle target, {
+      required bool across,
+    }) {
+      _evsmFilterInfo.axis
+        ..[0] = across ? texelU : 0.0
+        ..[1] = across ? 0.0 : texelV
+        ..[2] = radius.toDouble()
+        ..[3] = across ? 1.0 : 0.0;
+      drawFullscreen(
+        FullscreenDraw(
+          target: target,
+          fragment: filter,
+          textures: <String, TextureHandle>{'evsm_source': source},
+          uniforms: <String, Map<String, Float32List>>{
+            _evsmFilterInfo.name: _evsmFilterInfo.members,
+          },
+          // Nearest: every tap lands on a texel centre, and depth must not be
+          // blended across a silhouette before it is warped — the average of
+          // two warped depths is the point, the warp of an average is not.
+          sampler: SamplerOptions.nearestClamp,
+        ),
+      );
+    }
+
+    blur(depth, scratch, across: true);
+    blur(scratch, moments, across: false);
+    developer.Timeline.finishSync();
+    _shadowMomentsKey = key;
+    return moments;
   }
 
   /// How the static tile drawn with [oldShader] moves to [newShader]'s — `S1`

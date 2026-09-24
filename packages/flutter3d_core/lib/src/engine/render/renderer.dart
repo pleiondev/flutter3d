@@ -496,6 +496,8 @@ final class Renderer implements RenderServices {
       _shadowMapStatic,
       _shadowMapStaticSpare,
       _shadowDepth,
+      _shadowMoments,
+      _shadowMomentsScratch,
       _cubeShadow,
       _cubeShadowStatic,
       _cubeShadowDepth,
@@ -516,6 +518,9 @@ final class Renderer implements RenderServices {
     _shadowMapStatic = null;
     _shadowMapStaticSpare = null;
     _shadowDepth = null;
+    _shadowMoments = null;
+    _shadowMomentsScratch = null;
+    _shadowMomentsKey = null;
     _cubeShadow = null;
     _cubeShadowStatic = null;
     _cubeShadowDepth = null;
@@ -1098,6 +1103,21 @@ final class Renderer implements RenderServices {
   /// Owning it costs one texture the size of the atlas and takes the question
   /// away.
   TextureHandle? _shadowDepth;
+
+  /// The directional atlas as blurred exponential moments, and the atlas the
+  /// first of the two blur passes lands in — `S2`. Null until a frame asks
+  /// for [ShadowFilter.evsm] on a device that can filter them.
+  TextureHandle? _shadowMoments;
+  TextureHandle? _shadowMomentsScratch;
+
+  /// Counts the frames that drew into [_shadowMap], so the moments are made
+  /// again only when the depth they are made of changed — a kept atlas keeps
+  /// its moments too.
+  int _shadowMapVersion = 0;
+
+  /// What [_shadowMoments] was last made from: [_shadowMapVersion], the blur
+  /// radius and the cascade count. Null when it holds nothing yet.
+  (int, int, int)? _shadowMomentsKey;
   int _shadowResolution = 0;
   int _shadowCasters = 0;
   int _shadowsDenied = 0;
@@ -2238,7 +2258,11 @@ final class Renderer implements RenderServices {
       // deleting it.
       ..addNode(cubeStatic)
       ..addNode(cube)
-      ..addNode(shadow);
+      ..addNode(shadow)
+      // `S2`: after the map it is made of and before anything lit reads it.
+      // Active only for the `evsm` filter, and refused as unsupported on a
+      // device that cannot filter the moments.
+      ..addNode(_ShadowMomentsNode(this, s.shadows));
 
     // After the shadows, which a probe's capture samples, and before the
     // scene, which samples the probe. Both orderings are derived from reads —
@@ -2587,6 +2611,7 @@ final class Renderer implements RenderServices {
   /// The copy from the static atlas into the frame's — `S1`.
   PipelineHandle? _shadowCopyPipeline;
   final ShadowCopyInfoBlock _shadowCopyInfo = ShadowCopyInfoBlock();
+  final EvsmFilterInfoBlock _evsmFilterInfo = EvsmFilterInfoBlock();
 
   /// One reusable batch per mesh-and-material pair — `gfx-67n`.
   ///

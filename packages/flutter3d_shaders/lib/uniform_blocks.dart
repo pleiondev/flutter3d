@@ -260,6 +260,12 @@ uniformBlocks = <String, Map<String, Map<String, UniformMemberLayout>>>{
       'origin': (offset: 0, byteLength: 16, elements: 1, type: 'Vector4'),
     },
   },
+  'EvsmFilter': <String, Map<String, UniformMemberLayout>>{
+    'EvsmFilterInfo': <String, UniformMemberLayout>{
+      'axis': (offset: 0, byteLength: 16, elements: 1, type: 'Vector4'),
+      'tile': (offset: 16, byteLength: 16, elements: 1, type: 'Vector4'),
+    },
+  },
   'FieldDecay': <String, Map<String, UniformMemberLayout>>{
     'FieldDecayInfo': <String, UniformMemberLayout>{
       'params': (offset: 0, byteLength: 16, elements: 1, type: 'Vector4'),

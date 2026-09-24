@@ -284,6 +284,12 @@ List<ConformanceCheck> get shaderChecks => <ConformanceCheck>[
     run: checkVertexTextureSampling,
   ),
   (name: 'a float texture uploads as floats', run: checkFloatTextureUpload),
+  // `S2`: what the evsm shadow filter needs, asked of a device that says it
+  // has it.
+  (
+    name: 'a device that filters 32-bit floats filters and renders them',
+    run: checkFloat32Filtering,
+  ),
   (
     name: 'a field steps in a float target and reads back through a vertex',
     run: checkFloatFieldSteps,

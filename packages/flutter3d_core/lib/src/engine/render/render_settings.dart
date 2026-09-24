@@ -1316,6 +1316,8 @@ final class RenderSettings {
     'point shadows (static)',
     'point shadows',
     'directional shadows',
+    // `S2`: the directional map as blurred moments, for the `evsm` filter.
+    'shadow moments',
     // `L4`: the irradiance field's probes, a few a frame.
     'irradiance update',
     // Reflection probes are registered here, one per probe in the scene, and

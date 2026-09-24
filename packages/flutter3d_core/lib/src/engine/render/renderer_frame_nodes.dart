@@ -332,6 +332,72 @@ final class _ShadowMapNode extends RenderNode {
   }
 }
 
+/// The directional map as blurred exponential moments — `S2`.
+///
+/// **A node of its own after the map, not a step inside it.** The map is
+/// where `S1` combines the static and dynamic casters, and depth is what
+/// combines — the nearer of two wins. Moments do not, so they are made from
+/// the combined depth rather than drawn by the casters, and the light shafts
+/// and the debug views keep reading the depth they always read.
+///
+/// **Refused, not faked, on a device that cannot filter a 32-bit float
+/// target**: [supported] is false there, `FrameResult.skipped` names this
+/// pass with `PassSkip.unsupported`, nothing provides the moments, and the
+/// lit draws fall back to the 3×3 kernel.
+final class _ShadowMomentsNode extends RenderNode {
+  _ShadowMomentsNode(this._renderer, this.settings);
+
+  final Renderer _renderer;
+  final ShadowSettings settings;
+
+  /// The bundle's filter stage, or null for a bundle built before it.
+  ShaderHandle? get _filter => _renderer.shaders['EvsmFilter'];
+
+  @override
+  String get name => 'shadow moments';
+
+  @override
+  bool get isActive =>
+      settings.enabled &&
+      settings.strength > 0.0 &&
+      settings.directionalFilter == ShadowFilter.evsm &&
+      _filter != null;
+
+  /// Asked only of a frame that wants the filter, so a device that cannot
+  /// filter the moments is reported as refusing them to the caller who
+  /// asked, and not to every frame that never did.
+  @override
+  bool get supported =>
+      settings.directionalFilter != ShadowFilter.evsm ||
+      _renderer.device.supportsFloat32Filtering;
+
+  @override
+  List<ResourceId> get reads => const <ResourceId>[FrameResourceIds.shadowMap];
+
+  @override
+  List<ResourceId> get writes => const <ResourceId>[
+    FrameResourceIds.shadowMoments,
+  ];
+
+  @override
+  void execute(NodeFrame frame) {
+    // Only a map this frame drew, for the reason `SceneShadows.from` gives:
+    // its matrices are this frame's, and so must be what they project into.
+    final resources = frame.resources;
+    if (resources.originOf(FrameResourceIds.shadowMap) !=
+        ResourceOrigin.drawn) {
+      return;
+    }
+    final depth = resources.tryTexture(FrameResourceIds.shadowMap);
+    final filter = _filter;
+    if (depth == null || filter == null) return;
+    resources.provide(
+      FrameResourceIds.shadowMoments,
+      _renderer._renderShadowMoments(depth, settings, filter),
+    );
+  }
+}
+
 /// One reflection probe, as a graph node: six captures and a chain.
 ///
 /// **Maintained, not written**, like the cube atlases and for the same
@@ -389,6 +455,9 @@ final class _ReflectionProbeNode extends RenderNode {
   @override
   List<ResourceId> get optionalReads => const <ResourceId>[
     FrameResourceIds.shadowMap,
+    // `S2`: what the lit draws sample in the map's place under the `evsm`
+    // filter.
+    FrameResourceIds.shadowMoments,
     FrameResourceIds.cubeShadow,
     FrameResourceIds.cubeShadowStatic,
   ];
@@ -516,6 +585,9 @@ final class _SceneNode extends RenderNode {
   @override
   List<ResourceId> get optionalReads => <ResourceId>[
     FrameResourceIds.shadowMap,
+    // `S2`: what the lit draws sample in the map's place under the `evsm`
+    // filter.
+    FrameResourceIds.shadowMoments,
     FrameResourceIds.cubeShadow,
     FrameResourceIds.cubeShadowStatic,
     // Every probe the scene holds, by index. Optional for the reason the maps
@@ -910,6 +982,9 @@ final class _IrradianceUpdateNode extends RenderNode {
   @override
   List<ResourceId> get optionalReads => const <ResourceId>[
     FrameResourceIds.shadowMap,
+    // `S2`: what the lit draws sample in the map's place under the `evsm`
+    // filter.
+    FrameResourceIds.shadowMoments,
     FrameResourceIds.cubeShadow,
     FrameResourceIds.cubeShadowStatic,
   ];
