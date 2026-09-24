@@ -116,15 +116,15 @@ final class FrameResources {
 
   /// Ends a texture's lifetime in this frame.
   ///
-  /// [key] is the version that retired, or null for a node's scratch. The
-  /// newest version of a frame output is never lent again: it is read after
-  /// the last node, from outside the graph, by whoever asked for the output,
-  /// so its lifetime has not ended and [onRetire] is not told.
-  void _retire(TextureHandle texture, [ResourceVersion? key]) {
-    final isOutput =
-        key != null &&
-        graph.outputs.any((id) => id.name == key.id.name) &&
-        key.version == graph.currentVersionOf(key.id);
+  /// The newest version of a frame output is never lent again: it is read
+  /// after the last node, from outside the graph, by whoever asked for the
+  /// output, so its lifetime has not ended and [onRetire] is not told. Asked
+  /// by texture rather than by version, because an older version standing on
+  /// the same texture may be the one that retires last.
+  void _retire(TextureHandle texture) {
+    final isOutput = _handedBack.any(
+      (bound) => identical(_live[bound], texture),
+    );
     if (!isOutput) onRetire?.call(texture);
     if (!alias || isOutput) {
       source.release(texture);
@@ -134,6 +134,12 @@ final class FrameResources {
       texture,
     );
   }
+
+  /// Whether [key] is the newest version of something the frame was asked to
+  /// produce, which [output] reads after the last node.
+  bool _isNewestOutput(ResourceVersion key) =>
+      graph.outputs.any((id) => id.name == key.id.name) &&
+      key.version == graph.currentVersionOf(key.id);
 
   /// Hands whatever is waiting in the free lists to [source].
   void _flushReusable() {
@@ -147,6 +153,11 @@ final class FrameResources {
   final Map<ResourceVersion, TextureHandle> _live =
       <ResourceVersion, TextureHandle>{};
   final Set<ResourceVersion> _external = <ResourceVersion>{};
+
+  /// Output versions whose lifetime has ended and whose texture has gone back
+  /// to [source], left bound only so [output] can find them. They hold nothing:
+  /// neither a retirement nor [releaseAll] counts them.
+  final Set<ResourceVersion> _handedBack = <ResourceVersion>{};
 
   /// Scratch the node running right now asked for, freed when it ends.
   final List<TextureHandle> _scratch = <TextureHandle>[];
@@ -398,13 +409,28 @@ final class FrameResources {
     }
     for (final key in graph.retiredAfter(index)) {
       if (_external.contains(key)) continue;
-      final texture = _live.remove(key);
+      final texture = _live[key];
       if (texture == null) continue;
+      // **The newest version of a frame output stays bound** for [output] to
+      // find after the last node — a pass's own scratch provided as `frame`,
+      // viewport shading's, is exactly that since [provide] stopped counting
+      // it as the engine's. It still goes back to the source here, so the ring
+      // defers it as before, and it is marked as handed back, so [releaseAll]
+      // and the check below both pass over it.
+      if (_isNewestOutput(key)) {
+        _handedBack.add(key);
+      } else {
+        _live.remove(key);
+      }
       // A later version of the same name may still be this very texture — an
       // in-place pass produced no new one — and it goes back when the last
       // version standing on it does, not when the first one retires.
-      if (_live.values.any((other) => identical(other, texture))) continue;
-      _retire(texture, key);
+      final held = _live.entries.any(
+        (other) =>
+            !_handedBack.contains(other.key) && identical(other.value, texture),
+      );
+      if (held) continue;
+      _retire(texture);
     }
     for (final texture in _scratch) {
       _retire(texture);
@@ -428,11 +454,13 @@ final class FrameResources {
     final given = <TextureHandle>[];
     for (final entry in _live.entries) {
       if (_external.contains(entry.key)) continue;
+      if (_handedBack.contains(entry.key)) continue;
       if (given.any((other) => identical(other, entry.value))) continue;
       given.add(entry.value);
       source.release(entry.value);
     }
     _live.removeWhere((key, _) => !_external.contains(key));
+    _handedBack.clear();
     for (final texture in _scratch) {
       source.release(texture);
     }
