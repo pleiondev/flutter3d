@@ -497,6 +497,35 @@ final class PointShadowBlock extends UniformBlock {
   };
 }
 
+/// `PrevFrameInfo`.
+final class PrevFrameInfoBlock extends UniformBlock {
+  PrevFrameInfoBlock() : super('PrevFrameInfo');
+
+  /// `current_mvp`: Matrix, at byte 0.
+  final Float32List currentMvp = Float32List(16);
+
+  /// `previous_mvp`: Matrix, at byte 64.
+  final Float32List previousMvp = Float32List(16);
+
+  /// `previous_morph_weights`: 2 × Vector4, at byte 128.
+  final Float32List previousMorphWeights = Float32List(8);
+
+  /// `camera`: Vector4, at byte 160.
+  final Float32List camera = Float32List(4);
+
+  /// `forward`: Vector4, at byte 176.
+  final Float32List forward = Float32List(4);
+
+  @override
+  late final Map<String, Float32List> members = <String, Float32List>{
+    'current_mvp': currentMvp,
+    'previous_mvp': previousMvp,
+    'previous_morph_weights': previousMorphWeights,
+    'camera': camera,
+    'forward': forward,
+  };
+}
+
 /// `ProbeInfo`.
 final class ProbeInfoBlock extends UniformBlock {
   ProbeInfoBlock() : super('ProbeInfo');
@@ -686,5 +715,18 @@ final class SsaoInfoBlock extends UniformBlock {
     'screen': screen,
     'camera': camera,
     'forward': forward,
+  };
+}
+
+/// `VelocityInfo`.
+final class VelocityInfoBlock extends UniformBlock {
+  VelocityInfoBlock() : super('VelocityInfo');
+
+  /// `target`: Vector4, at byte 0.
+  final Float32List target = Float32List(4);
+
+  @override
+  late final Map<String, Float32List> members = <String, Float32List>{
+    'target': target,
   };
 }

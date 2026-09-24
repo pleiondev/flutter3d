@@ -998,6 +998,133 @@ uniformBlocks = <String, Map<String, Map<String, UniformMemberLayout>>>{
       ),
     },
   },
+  'Velocity': <String, Map<String, UniformMemberLayout>>{
+    'VelocityInfo': <String, UniformMemberLayout>{
+      'target': (offset: 0, byteLength: 16, elements: 1, type: 'Vector4'),
+    },
+  },
+  'VelocityInstancedVertex': <String, Map<String, UniformMemberLayout>>{
+    'FrameInfo': <String, UniformMemberLayout>{
+      'mvp': (offset: 0, byteLength: 64, elements: 1, type: 'Matrix'),
+      'model': (offset: 64, byteLength: 64, elements: 1, type: 'Matrix'),
+      'normal_matrix': (
+        offset: 128,
+        byteLength: 64,
+        elements: 1,
+        type: 'Matrix',
+      ),
+    },
+    'MorphInfo': <String, UniformMemberLayout>{
+      'morph_weights': (
+        offset: 0,
+        byteLength: 32,
+        elements: 2,
+        type: 'Vector4',
+      ),
+      'morph_params': (
+        offset: 32,
+        byteLength: 16,
+        elements: 1,
+        type: 'Vector4',
+      ),
+    },
+    'PrevFrameInfo': <String, UniformMemberLayout>{
+      'current_mvp': (offset: 0, byteLength: 64, elements: 1, type: 'Matrix'),
+      'previous_mvp': (offset: 64, byteLength: 64, elements: 1, type: 'Matrix'),
+      'previous_morph_weights': (
+        offset: 128,
+        byteLength: 32,
+        elements: 2,
+        type: 'Vector4',
+      ),
+      'camera': (offset: 160, byteLength: 16, elements: 1, type: 'Vector4'),
+      'forward': (offset: 176, byteLength: 16, elements: 1, type: 'Vector4'),
+    },
+  },
+  'VelocitySkinnedVertex': <String, Map<String, UniformMemberLayout>>{
+    'FrameInfo': <String, UniformMemberLayout>{
+      'mvp': (offset: 0, byteLength: 64, elements: 1, type: 'Matrix'),
+      'model': (offset: 64, byteLength: 64, elements: 1, type: 'Matrix'),
+      'normal_matrix': (
+        offset: 128,
+        byteLength: 64,
+        elements: 1,
+        type: 'Matrix',
+      ),
+    },
+    'MorphInfo': <String, UniformMemberLayout>{
+      'morph_weights': (
+        offset: 0,
+        byteLength: 32,
+        elements: 2,
+        type: 'Vector4',
+      ),
+      'morph_params': (
+        offset: 32,
+        byteLength: 16,
+        elements: 1,
+        type: 'Vector4',
+      ),
+    },
+    'PrevFrameInfo': <String, UniformMemberLayout>{
+      'current_mvp': (offset: 0, byteLength: 64, elements: 1, type: 'Matrix'),
+      'previous_mvp': (offset: 64, byteLength: 64, elements: 1, type: 'Matrix'),
+      'previous_morph_weights': (
+        offset: 128,
+        byteLength: 32,
+        elements: 2,
+        type: 'Vector4',
+      ),
+      'camera': (offset: 160, byteLength: 16, elements: 1, type: 'Vector4'),
+      'forward': (offset: 176, byteLength: 16, elements: 1, type: 'Vector4'),
+    },
+    'SkinInfo': <String, UniformMemberLayout>{
+      'joint_matrices': (
+        offset: 0,
+        byteLength: 4096,
+        elements: 64,
+        type: 'Matrix',
+      ),
+    },
+  },
+  'VelocityVertex': <String, Map<String, UniformMemberLayout>>{
+    'FrameInfo': <String, UniformMemberLayout>{
+      'mvp': (offset: 0, byteLength: 64, elements: 1, type: 'Matrix'),
+      'model': (offset: 64, byteLength: 64, elements: 1, type: 'Matrix'),
+      'normal_matrix': (
+        offset: 128,
+        byteLength: 64,
+        elements: 1,
+        type: 'Matrix',
+      ),
+    },
+    'MorphInfo': <String, UniformMemberLayout>{
+      'morph_weights': (
+        offset: 0,
+        byteLength: 32,
+        elements: 2,
+        type: 'Vector4',
+      ),
+      'morph_params': (
+        offset: 32,
+        byteLength: 16,
+        elements: 1,
+        type: 'Vector4',
+      ),
+    },
+    'PrevFrameInfo': <String, UniformMemberLayout>{
+      'current_mvp': (offset: 0, byteLength: 64, elements: 1, type: 'Matrix'),
+      'previous_mvp': (offset: 64, byteLength: 64, elements: 1, type: 'Matrix'),
+      'previous_morph_weights': (
+        offset: 128,
+        byteLength: 32,
+        elements: 2,
+        type: 'Vector4',
+      ),
+      'camera': (offset: 160, byteLength: 16, elements: 1, type: 'Vector4'),
+      'forward': (offset: 176, byteLength: 16, elements: 1, type: 'Vector4'),
+    },
+  },
   'VertexTextureProbeVertex': <String, Map<String, UniformMemberLayout>>{
     'ProbeInfo': <String, UniformMemberLayout>{
       'at': (offset: 0, byteLength: 16, elements: 1, type: 'Vector4'),

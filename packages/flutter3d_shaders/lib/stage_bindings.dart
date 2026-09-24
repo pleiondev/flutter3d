@@ -192,6 +192,22 @@ stageBindings = <String, ({Set<String> blocks, Set<String> samplers})>{
     blocks: <String>{'FogInfo', 'FragInfo'},
     samplers: <String>{'base_color_texture'},
   ),
+  'Velocity': (
+    blocks: <String>{'VelocityInfo'},
+    samplers: <String>{'surface_texture'},
+  ),
+  'VelocityInstancedVertex': (
+    blocks: <String>{'FrameInfo', 'MorphInfo', 'PrevFrameInfo'},
+    samplers: <String>{'morph_texture'},
+  ),
+  'VelocitySkinnedVertex': (
+    blocks: <String>{'FrameInfo', 'MorphInfo', 'PrevFrameInfo', 'SkinInfo'},
+    samplers: <String>{'morph_texture', 'prev_joint_texture'},
+  ),
+  'VelocityVertex': (
+    blocks: <String>{'FrameInfo', 'MorphInfo', 'PrevFrameInfo'},
+    samplers: <String>{'morph_texture'},
+  ),
   'VertexTextureProbe': (blocks: <String>{}, samplers: <String>{}),
   'VertexTextureProbeVertex': (
     blocks: <String>{'ProbeInfo'},

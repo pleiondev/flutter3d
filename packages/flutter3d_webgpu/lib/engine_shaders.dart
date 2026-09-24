@@ -1684,6 +1684,1239 @@ fn main(@builtin(vertex_index) gl_VertexIndex: u32, @location(0) position: vec3<
         ),
       ],
     ),
+    'VelocityVertex': WebGpuStage(
+      wgsl: r'''
+struct MorphInfo {
+    morph_weights: array<vec4<f32>, 2>,
+    morph_params: vec4<f32>,
+}
+
+struct PrevFrameInfo {
+    current_mvp: mat4x4<f32>,
+    previous_mvp: mat4x4<f32>,
+    previous_morph_weights: array<vec4<f32>, 2>,
+    camera: vec4<f32>,
+    forward: vec4<f32>,
+}
+
+struct FrameInfo {
+    mvp: mat4x4<f32>,
+    model: mat4x4<f32>,
+    normal_matrix: mat4x4<f32>,
+}
+
+struct gl_PerVertex {
+    @builtin(position) gl_Position: vec4<f32>,
+    gl_PointSize: f32,
+    gl_ClipDistance: array<f32, 1>,
+    gl_CullDistance: array<f32, 1>,
+}
+
+struct VertexOutput {
+    @location(0) member: vec4<f32>,
+    @location(1) member_1: f32,
+    @location(2) member_2: vec4<f32>,
+    @builtin(position) gl_Position: vec4<f32>,
+}
+
+@group(0) @binding(1) 
+var<uniform> morph_info: MorphInfo;
+var<private> gl_VertexIndex_1: i32;
+@group(0) @binding(3) 
+var morph_texture_tex: texture_2d<f32>;
+@group(0) @binding(4) 
+var morph_texture_smp: sampler;
+@group(0) @binding(2) 
+var<uniform> prev_info: PrevFrameInfo;
+var<private> position_3: vec3<f32>;
+var<private> v_current: vec4<f32>;
+var<private> v_depth: f32;
+@group(0) @binding(0) 
+var<uniform> frame_info: FrameInfo;
+var<private> v_previous: vec4<f32>;
+var<private> unnamed: gl_PerVertex = gl_PerVertex(vec4<f32>(0f, 0f, 0f, 1f), 1f, array<f32, 1>(), array<f32, 1>());
+
+fn DepthAlongAxis_u0028_vf4_u003b(world: ptr<function, vec4<f32>>) -> f32 {
+    let _e27 = (*world);
+    let _e30 = prev_info.camera;
+    let _e34 = prev_info.forward;
+    return dot((_e27.xyz - _e30.xyz), _e34.xyz);
+}
+
+fn AddMorphTargetAt_u0028_i1_u003b_f1_u003b_f1_u003b_f1_u003b_vf3_u003b_vf3_u003b_vf4_u003b(t: ptr<function, i32>, weight: ptr<function, f32>, column: ptr<function, f32>, rowStep: ptr<function, f32>, position_1: ptr<function, vec3<f32>>, normal: ptr<function, vec3<f32>>, tangent: ptr<function, vec4<f32>>) {
+    var row: f32;
+
+    let _e34 = (*t);
+    let _e38 = (*rowStep);
+    row = ((f32((_e34 * 3i)) + 0.5f) * _e38);
+    let _e40 = (*column);
+    let _e41 = row;
+    let _e43 = textureSampleLevel(morph_texture_tex, morph_texture_smp, vec2<f32>(_e40, _e41), 0f);
+    let _e45 = (*weight);
+    let _e47 = (*position_1);
+    (*position_1) = (_e47 + (_e43.xyz * _e45));
+    let _e49 = (*column);
+    let _e50 = row;
+    let _e51 = (*rowStep);
+    let _e54 = textureSampleLevel(morph_texture_tex, morph_texture_smp, vec2<f32>(_e49, (_e50 + _e51)), 0f);
+    let _e56 = (*weight);
+    let _e58 = (*normal);
+    (*normal) = (_e58 + (_e54.xyz * _e56));
+    let _e60 = (*column);
+    let _e61 = row;
+    let _e62 = (*rowStep);
+    let _e66 = textureSampleLevel(morph_texture_tex, morph_texture_smp, vec2<f32>(_e60, (_e61 + (_e62 * 2f))), 0f);
+    let _e68 = (*weight);
+    let _e70 = (*tangent);
+    let _e72 = (_e70.xyz + (_e66.xyz * _e68));
+    (*tangent)[0u] = _e72.x;
+    (*tangent)[1u] = _e72.y;
+    (*tangent)[2u] = _e72.z;
+    return;
+}
+
+fn MorphColumn_u0028_() -> f32 {
+    let _e26 = gl_VertexIndex_1;
+    let _e31 = morph_info.morph_params[1u];
+    return ((f32(_e26) + 0.5f) * _e31);
+}
+
+fn MorphCount_u0028_() -> i32 {
+    let _e28 = morph_info.morph_params[0u];
+    return i32((_e28 + 0.5f));
+}
+
+fn MorphPositionWith_u0028_vf3_u003b_vf4_u003b_vf4_u003b(position_2: ptr<function, vec3<f32>>, w0_: ptr<function, vec4<f32>>, w1_: ptr<function, vec4<f32>>) -> vec3<f32> {
+    var count: i32;
+    var column_1: f32;
+    var rowStep_1: f32;
+    var normal_1: vec3<f32>;
+    var tangent_1: vec4<f32>;
+    var i: i32;
+    var weight_1: f32;
+    var local: f32;
+    var param: i32;
+    var param_1: f32;
+    var param_2: f32;
+    var param_3: f32;
+    var param_4: vec3<f32>;
+    var param_5: vec3<f32>;
+    var param_6: vec4<f32>;
+
+    let _e44 = MorphCount_u0028_();
+    count = _e44;
+    let _e45 = count;
+    if (_e45 <= 0i) {
+        let _e47 = (*position_2);
+        return _e47;
+    }
+    let _e48 = MorphColumn_u0028_();
+    column_1 = _e48;
+    let _e51 = morph_info.morph_params[2u];
+    rowStep_1 = _e51;
+    normal_1 = vec3<f32>(0f, 0f, 0f);
+    tangent_1 = vec4<f32>(0f, 0f, 0f, 0f);
+    i = 0i;
+    loop {
+        let _e52 = i;
+        if (_e52 < 8i) {
+            let _e54 = i;
+            let _e55 = count;
+            if (_e54 >= _e55) {
+                break;
+            }
+            let _e57 = i;
+            if (_e57 < 4i) {
+                let _e59 = i;
+                let _e61 = (*w0_)[_e59];
+                local = _e61;
+            } else {
+                let _e62 = i;
+                let _e65 = (*w1_)[(_e62 - 4i)];
+                local = _e65;
+            }
+            let _e66 = local;
+            weight_1 = _e66;
+            let _e67 = weight_1;
+            if (_e67 == 0f) {
+                continue;
+            }
+            let _e69 = i;
+            param = _e69;
+            let _e70 = weight_1;
+            param_1 = _e70;
+            let _e71 = column_1;
+            param_2 = _e71;
+            let _e72 = rowStep_1;
+            param_3 = _e72;
+            let _e73 = (*position_2);
+            param_4 = _e73;
+            let _e74 = normal_1;
+            param_5 = _e74;
+            let _e75 = tangent_1;
+            param_6 = _e75;
+            AddMorphTargetAt_u0028_i1_u003b_f1_u003b_f1_u003b_f1_u003b_vf3_u003b_vf3_u003b_vf4_u003b((&param), (&param_1), (&param_2), (&param_3), (&param_4), (&param_5), (&param_6));
+            let _e76 = param_4;
+            (*position_2) = _e76;
+            let _e77 = param_5;
+            normal_1 = _e77;
+            let _e78 = param_6;
+            tangent_1 = _e78;
+            continue;
+        } else {
+            break;
+        }
+        continuing {
+            let _e79 = i;
+            i = (_e79 + 1i);
+        }
+    }
+    let _e81 = (*position_2);
+    return _e81;
+}
+
+fn main_1() {
+    var now: vec3<f32>;
+    var param_7: vec3<f32>;
+    var param_8: vec4<f32>;
+    var param_9: vec4<f32>;
+    var then: vec3<f32>;
+    var param_10: vec3<f32>;
+    var param_11: vec4<f32>;
+    var param_12: vec4<f32>;
+    var param_13: vec4<f32>;
+
+    let _e35 = position_3;
+    param_7 = _e35;
+    let _e38 = morph_info.morph_weights[0i];
+    param_8 = _e38;
+    let _e41 = morph_info.morph_weights[1i];
+    param_9 = _e41;
+    let _e42 = MorphPositionWith_u0028_vf3_u003b_vf4_u003b_vf4_u003b((&param_7), (&param_8), (&param_9));
+    now = _e42;
+    let _e43 = position_3;
+    param_10 = _e43;
+    let _e46 = prev_info.previous_morph_weights[0i];
+    param_11 = _e46;
+    let _e49 = prev_info.previous_morph_weights[1i];
+    param_12 = _e49;
+    let _e50 = MorphPositionWith_u0028_vf3_u003b_vf4_u003b_vf4_u003b((&param_10), (&param_11), (&param_12));
+    then = _e50;
+    let _e52 = prev_info.current_mvp;
+    let _e53 = now;
+    v_current = (_e52 * vec4<f32>(_e53.x, _e53.y, _e53.z, 1f));
+    let _e60 = frame_info.model;
+    let _e61 = now;
+    param_13 = (_e60 * vec4<f32>(_e61.x, _e61.y, _e61.z, 1f));
+    let _e67 = DepthAlongAxis_u0028_vf4_u003b((&param_13));
+    v_depth = _e67;
+    let _e69 = prev_info.previous_mvp;
+    let _e70 = then;
+    v_previous = (_e69 * vec4<f32>(_e70.x, _e70.y, _e70.z, 1f));
+    let _e77 = frame_info.mvp;
+    let _e78 = now;
+    unnamed.gl_Position = (_e77 * vec4<f32>(_e78.x, _e78.y, _e78.z, 1f));
+    return;
+}
+
+@vertex 
+fn main(@builtin(vertex_index) gl_VertexIndex: u32, @location(0) position: vec3<f32>) -> VertexOutput {
+    gl_VertexIndex_1 = i32(gl_VertexIndex);
+    position_3 = position;
+    main_1();
+    let _e10 = v_current;
+    let _e11 = v_depth;
+    let _e12 = v_previous;
+    let _e13 = unnamed.gl_Position;
+    return VertexOutput(_e10, _e11, _e12, _e13);
+}
+''',
+      attributes: <WebGpuAttribute>[
+        WebGpuAttribute(
+          name: 'position',
+          location: 0,
+          format: VertexFormat.float32x3,
+        ),
+      ],
+      blocks: <WebGpuBlock>[
+        WebGpuBlock(
+          name: 'FrameInfo',
+          group: 0,
+          binding: 0,
+          sizeInBytes: 192,
+          members: <WebGpuBlockMember>[
+            WebGpuBlockMember(name: 'mvp', offsetInBytes: 0, sizeInBytes: 64),
+            WebGpuBlockMember(
+              name: 'model',
+              offsetInBytes: 64,
+              sizeInBytes: 64,
+            ),
+            WebGpuBlockMember(
+              name: 'normal_matrix',
+              offsetInBytes: 128,
+              sizeInBytes: 64,
+            ),
+          ],
+        ),
+        WebGpuBlock(
+          name: 'MorphInfo',
+          group: 0,
+          binding: 1,
+          sizeInBytes: 48,
+          members: <WebGpuBlockMember>[
+            WebGpuBlockMember(
+              name: 'morph_weights',
+              offsetInBytes: 0,
+              sizeInBytes: 32,
+            ),
+            WebGpuBlockMember(
+              name: 'morph_params',
+              offsetInBytes: 32,
+              sizeInBytes: 16,
+            ),
+          ],
+        ),
+        WebGpuBlock(
+          name: 'PrevFrameInfo',
+          group: 0,
+          binding: 2,
+          sizeInBytes: 192,
+          members: <WebGpuBlockMember>[
+            WebGpuBlockMember(
+              name: 'current_mvp',
+              offsetInBytes: 0,
+              sizeInBytes: 64,
+            ),
+            WebGpuBlockMember(
+              name: 'previous_mvp',
+              offsetInBytes: 64,
+              sizeInBytes: 64,
+            ),
+            WebGpuBlockMember(
+              name: 'previous_morph_weights',
+              offsetInBytes: 128,
+              sizeInBytes: 32,
+            ),
+            WebGpuBlockMember(
+              name: 'camera',
+              offsetInBytes: 160,
+              sizeInBytes: 16,
+            ),
+            WebGpuBlockMember(
+              name: 'forward',
+              offsetInBytes: 176,
+              sizeInBytes: 16,
+            ),
+          ],
+        ),
+      ],
+      samplers: <WebGpuSampler>[
+        WebGpuSampler(
+          name: 'morph_texture',
+          group: 0,
+          textureBinding: 3,
+          samplerBinding: 4,
+          dimension: WebGpuTextureDimension.twoDimensional,
+        ),
+      ],
+    ),
+    'VelocitySkinnedVertex': WebGpuStage(
+      wgsl: r'''
+struct MorphInfo {
+    morph_weights: array<vec4<f32>, 2>,
+    morph_params: vec4<f32>,
+}
+
+struct PrevFrameInfo {
+    current_mvp: mat4x4<f32>,
+    previous_mvp: mat4x4<f32>,
+    previous_morph_weights: array<vec4<f32>, 2>,
+    camera: vec4<f32>,
+    forward: vec4<f32>,
+}
+
+struct SkinInfo {
+    joint_matrices: array<mat4x4<f32>, 64>,
+}
+
+struct FrameInfo {
+    mvp: mat4x4<f32>,
+    model: mat4x4<f32>,
+    normal_matrix: mat4x4<f32>,
+}
+
+struct gl_PerVertex {
+    @builtin(position) gl_Position: vec4<f32>,
+    gl_PointSize: f32,
+    gl_ClipDistance: array<f32, 1>,
+    gl_CullDistance: array<f32, 1>,
+}
+
+struct VertexOutput {
+    @location(0) member: vec4<f32>,
+    @location(1) member_1: f32,
+    @location(2) member_2: vec4<f32>,
+    @builtin(position) gl_Position: vec4<f32>,
+}
+
+@group(0) @binding(1) 
+var<uniform> morph_info: MorphInfo;
+var<private> gl_VertexIndex_1: i32;
+@group(0) @binding(4) 
+var morph_texture_tex: texture_2d<f32>;
+@group(0) @binding(5) 
+var morph_texture_smp: sampler;
+@group(0) @binding(2) 
+var<uniform> prev_info: PrevFrameInfo;
+@group(0) @binding(6) 
+var prev_joint_texture_tex: texture_2d<f32>;
+@group(0) @binding(7) 
+var prev_joint_texture_smp: sampler;
+var<private> weights_1: vec4<f32>;
+@group(0) @binding(3) 
+var<uniform> skin_info: SkinInfo;
+var<private> joints_1: vec4<f32>;
+var<private> position_3: vec3<f32>;
+var<private> v_current: vec4<f32>;
+var<private> v_depth: f32;
+@group(0) @binding(0) 
+var<uniform> frame_info: FrameInfo;
+var<private> v_previous: vec4<f32>;
+var<private> unnamed: gl_PerVertex = gl_PerVertex(vec4<f32>(0f, 0f, 0f, 1f), 1f, array<f32, 1>(), array<f32, 1>());
+
+fn DepthAlongAxis_u0028_vf4_u003b(world: ptr<function, vec4<f32>>) -> f32 {
+    let _e41 = (*world);
+    let _e44 = prev_info.camera;
+    let _e48 = prev_info.forward;
+    return dot((_e41.xyz - _e44.xyz), _e48.xyz);
+}
+
+fn AddMorphTargetAt_u0028_i1_u003b_f1_u003b_f1_u003b_f1_u003b_vf3_u003b_vf3_u003b_vf4_u003b(t: ptr<function, i32>, weight: ptr<function, f32>, column: ptr<function, f32>, rowStep: ptr<function, f32>, position_1: ptr<function, vec3<f32>>, normal: ptr<function, vec3<f32>>, tangent: ptr<function, vec4<f32>>) {
+    var row: f32;
+
+    let _e48 = (*t);
+    let _e52 = (*rowStep);
+    row = ((f32((_e48 * 3i)) + 0.5f) * _e52);
+    let _e54 = (*column);
+    let _e55 = row;
+    let _e57 = textureSampleLevel(morph_texture_tex, morph_texture_smp, vec2<f32>(_e54, _e55), 0f);
+    let _e59 = (*weight);
+    let _e61 = (*position_1);
+    (*position_1) = (_e61 + (_e57.xyz * _e59));
+    let _e63 = (*column);
+    let _e64 = row;
+    let _e65 = (*rowStep);
+    let _e68 = textureSampleLevel(morph_texture_tex, morph_texture_smp, vec2<f32>(_e63, (_e64 + _e65)), 0f);
+    let _e70 = (*weight);
+    let _e72 = (*normal);
+    (*normal) = (_e72 + (_e68.xyz * _e70));
+    let _e74 = (*column);
+    let _e75 = row;
+    let _e76 = (*rowStep);
+    let _e80 = textureSampleLevel(morph_texture_tex, morph_texture_smp, vec2<f32>(_e74, (_e75 + (_e76 * 2f))), 0f);
+    let _e82 = (*weight);
+    let _e84 = (*tangent);
+    let _e86 = (_e84.xyz + (_e80.xyz * _e82));
+    (*tangent)[0u] = _e86.x;
+    (*tangent)[1u] = _e86.y;
+    (*tangent)[2u] = _e86.z;
+    return;
+}
+
+fn MorphColumn_u0028_() -> f32 {
+    let _e40 = gl_VertexIndex_1;
+    let _e45 = morph_info.morph_params[1u];
+    return ((f32(_e40) + 0.5f) * _e45);
+}
+
+fn MorphCount_u0028_() -> i32 {
+    let _e42 = morph_info.morph_params[0u];
+    return i32((_e42 + 0.5f));
+}
+
+fn MorphPositionWith_u0028_vf3_u003b_vf4_u003b_vf4_u003b(position_2: ptr<function, vec3<f32>>, w0_: ptr<function, vec4<f32>>, w1_: ptr<function, vec4<f32>>) -> vec3<f32> {
+    var count: i32;
+    var column_1: f32;
+    var rowStep_1: f32;
+    var normal_1: vec3<f32>;
+    var tangent_1: vec4<f32>;
+    var i: i32;
+    var weight_1: f32;
+    var local: f32;
+    var param: i32;
+    var param_1: f32;
+    var param_2: f32;
+    var param_3: f32;
+    var param_4: vec3<f32>;
+    var param_5: vec3<f32>;
+    var param_6: vec4<f32>;
+
+    let _e58 = MorphCount_u0028_();
+    count = _e58;
+    let _e59 = count;
+    if (_e59 <= 0i) {
+        let _e61 = (*position_2);
+        return _e61;
+    }
+    let _e62 = MorphColumn_u0028_();
+    column_1 = _e62;
+    let _e65 = morph_info.morph_params[2u];
+    rowStep_1 = _e65;
+    normal_1 = vec3<f32>(0f, 0f, 0f);
+    tangent_1 = vec4<f32>(0f, 0f, 0f, 0f);
+    i = 0i;
+    loop {
+        let _e66 = i;
+        if (_e66 < 8i) {
+            let _e68 = i;
+            let _e69 = count;
+            if (_e68 >= _e69) {
+                break;
+            }
+            let _e71 = i;
+            if (_e71 < 4i) {
+                let _e73 = i;
+                let _e75 = (*w0_)[_e73];
+                local = _e75;
+            } else {
+                let _e76 = i;
+                let _e79 = (*w1_)[(_e76 - 4i)];
+                local = _e79;
+            }
+            let _e80 = local;
+            weight_1 = _e80;
+            let _e81 = weight_1;
+            if (_e81 == 0f) {
+                continue;
+            }
+            let _e83 = i;
+            param = _e83;
+            let _e84 = weight_1;
+            param_1 = _e84;
+            let _e85 = column_1;
+            param_2 = _e85;
+            let _e86 = rowStep_1;
+            param_3 = _e86;
+            let _e87 = (*position_2);
+            param_4 = _e87;
+            let _e88 = normal_1;
+            param_5 = _e88;
+            let _e89 = tangent_1;
+            param_6 = _e89;
+            AddMorphTargetAt_u0028_i1_u003b_f1_u003b_f1_u003b_f1_u003b_vf3_u003b_vf3_u003b_vf4_u003b((&param), (&param_1), (&param_2), (&param_3), (&param_4), (&param_5), (&param_6));
+            let _e90 = param_4;
+            (*position_2) = _e90;
+            let _e91 = param_5;
+            normal_1 = _e91;
+            let _e92 = param_6;
+            tangent_1 = _e92;
+            continue;
+        } else {
+            break;
+        }
+        continuing {
+            let _e93 = i;
+            i = (_e93 + 1i);
+        }
+    }
+    let _e95 = (*position_2);
+    return _e95;
+}
+
+fn PrevJoint_u0028_f1_u003b(joint: ptr<function, f32>) -> mat4x4<f32> {
+    var v: f32;
+
+    let _e42 = (*joint);
+    v = ((_e42 + 0.5f) / 64f);
+    let _e45 = v;
+    let _e47 = textureSampleLevel(prev_joint_texture_tex, prev_joint_texture_smp, vec2<f32>(0.125f, _e45), 0f);
+    let _e48 = v;
+    let _e50 = textureSampleLevel(prev_joint_texture_tex, prev_joint_texture_smp, vec2<f32>(0.375f, _e48), 0f);
+    let _e51 = v;
+    let _e53 = textureSampleLevel(prev_joint_texture_tex, prev_joint_texture_smp, vec2<f32>(0.625f, _e51), 0f);
+    let _e54 = v;
+    let _e56 = textureSampleLevel(prev_joint_texture_tex, prev_joint_texture_smp, vec2<f32>(0.875f, _e54), 0f);
+    return mat4x4<f32>(vec4<f32>(_e47.x, _e47.y, _e47.z, _e47.w), vec4<f32>(_e50.x, _e50.y, _e50.z, _e50.w), vec4<f32>(_e53.x, _e53.y, _e53.z, _e53.w), vec4<f32>(_e56.x, _e56.y, _e56.z, _e56.w));
+}
+
+fn BlendWeights_u0028_() -> vec4<f32> {
+    var total: f32;
+    var local_1: vec4<f32>;
+
+    let _e43 = weights_1[0u];
+    let _e45 = weights_1[1u];
+    let _e48 = weights_1[2u];
+    let _e51 = weights_1[3u];
+    total = (((_e43 + _e45) + _e48) + _e51);
+    let _e53 = total;
+    if (_e53 > 0.00001f) {
+        let _e55 = weights_1;
+        let _e56 = total;
+        local_1 = (_e55 / vec4(_e56));
+    } else {
+        local_1 = vec4<f32>(1f, 0f, 0f, 0f);
+    }
+    let _e59 = local_1;
+    return _e59;
+}
+
+fn main_1() {
+    var w: vec4<f32>;
+    var skin: mat4x4<f32>;
+    var prevSkin: mat4x4<f32>;
+    var param_7: f32;
+    var param_8: f32;
+    var param_9: f32;
+    var param_10: f32;
+    var now: vec3<f32>;
+    var param_11: vec3<f32>;
+    var param_12: vec4<f32>;
+    var param_13: vec4<f32>;
+    var then: vec3<f32>;
+    var param_14: vec3<f32>;
+    var param_15: vec4<f32>;
+    var param_16: vec4<f32>;
+    var posed: vec4<f32>;
+    var param_17: vec4<f32>;
+
+    let _e57 = BlendWeights_u0028_();
+    w = _e57;
+    let _e59 = w[0u];
+    let _e61 = joints_1[0u];
+    let _e65 = skin_info.joint_matrices[i32(_e61)];
+    let _e66 = (_e65 * _e59);
+    let _e68 = w[1u];
+    let _e70 = joints_1[1u];
+    let _e74 = skin_info.joint_matrices[i32(_e70)];
+    let _e75 = (_e74 * _e68);
+    let _e88 = mat4x4<f32>((_e66[0] + _e75[0]), (_e66[1] + _e75[1]), (_e66[2] + _e75[2]), (_e66[3] + _e75[3]));
+    let _e90 = w[2u];
+    let _e92 = joints_1[2u];
+    let _e96 = skin_info.joint_matrices[i32(_e92)];
+    let _e97 = (_e96 * _e90);
+    let _e110 = mat4x4<f32>((_e88[0] + _e97[0]), (_e88[1] + _e97[1]), (_e88[2] + _e97[2]), (_e88[3] + _e97[3]));
+    let _e112 = w[3u];
+    let _e114 = joints_1[3u];
+    let _e118 = skin_info.joint_matrices[i32(_e114)];
+    let _e119 = (_e118 * _e112);
+    skin = mat4x4<f32>((_e110[0] + _e119[0]), (_e110[1] + _e119[1]), (_e110[2] + _e119[2]), (_e110[3] + _e119[3]));
+    let _e134 = w[0u];
+    let _e136 = joints_1[0u];
+    param_7 = _e136;
+    let _e137 = PrevJoint_u0028_f1_u003b((&param_7));
+    let _e138 = (_e137 * _e134);
+    let _e140 = w[1u];
+    let _e142 = joints_1[1u];
+    param_8 = _e142;
+    let _e143 = PrevJoint_u0028_f1_u003b((&param_8));
+    let _e144 = (_e143 * _e140);
+    let _e157 = mat4x4<f32>((_e138[0] + _e144[0]), (_e138[1] + _e144[1]), (_e138[2] + _e144[2]), (_e138[3] + _e144[3]));
+    let _e159 = w[2u];
+    let _e161 = joints_1[2u];
+    param_9 = _e161;
+    let _e162 = PrevJoint_u0028_f1_u003b((&param_9));
+    let _e163 = (_e162 * _e159);
+    let _e176 = mat4x4<f32>((_e157[0] + _e163[0]), (_e157[1] + _e163[1]), (_e157[2] + _e163[2]), (_e157[3] + _e163[3]));
+    let _e178 = w[3u];
+    let _e180 = joints_1[3u];
+    param_10 = _e180;
+    let _e181 = PrevJoint_u0028_f1_u003b((&param_10));
+    let _e182 = (_e181 * _e178);
+    prevSkin = mat4x4<f32>((_e176[0] + _e182[0]), (_e176[1] + _e182[1]), (_e176[2] + _e182[2]), (_e176[3] + _e182[3]));
+    let _e196 = position_3;
+    param_11 = _e196;
+    let _e199 = morph_info.morph_weights[0i];
+    param_12 = _e199;
+    let _e202 = morph_info.morph_weights[1i];
+    param_13 = _e202;
+    let _e203 = MorphPositionWith_u0028_vf3_u003b_vf4_u003b_vf4_u003b((&param_11), (&param_12), (&param_13));
+    now = _e203;
+    let _e204 = position_3;
+    param_14 = _e204;
+    let _e207 = prev_info.previous_morph_weights[0i];
+    param_15 = _e207;
+    let _e210 = prev_info.previous_morph_weights[1i];
+    param_16 = _e210;
+    let _e211 = MorphPositionWith_u0028_vf3_u003b_vf4_u003b_vf4_u003b((&param_14), (&param_15), (&param_16));
+    then = _e211;
+    let _e212 = skin;
+    let _e213 = now;
+    posed = (_e212 * vec4<f32>(_e213.x, _e213.y, _e213.z, 1f));
+    let _e220 = prev_info.current_mvp;
+    let _e221 = posed;
+    v_current = (_e220 * _e221);
+    let _e224 = frame_info.model;
+    let _e225 = posed;
+    param_17 = (_e224 * _e225);
+    let _e227 = DepthAlongAxis_u0028_vf4_u003b((&param_17));
+    v_depth = _e227;
+    let _e229 = prev_info.previous_mvp;
+    let _e230 = prevSkin;
+    let _e231 = then;
+    v_previous = (_e229 * (_e230 * vec4<f32>(_e231.x, _e231.y, _e231.z, 1f)));
+    let _e239 = frame_info.mvp;
+    let _e240 = posed;
+    unnamed.gl_Position = (_e239 * _e240);
+    return;
+}
+
+@vertex 
+fn main(@builtin(vertex_index) gl_VertexIndex: u32, @location(2) weights: vec4<f32>, @location(1) joints: vec4<f32>, @location(0) position: vec3<f32>) -> VertexOutput {
+    gl_VertexIndex_1 = i32(gl_VertexIndex);
+    weights_1 = weights;
+    joints_1 = joints;
+    position_3 = position;
+    main_1();
+    let _e14 = v_current;
+    let _e15 = v_depth;
+    let _e16 = v_previous;
+    let _e17 = unnamed.gl_Position;
+    return VertexOutput(_e14, _e15, _e16, _e17);
+}
+''',
+      attributes: <WebGpuAttribute>[
+        WebGpuAttribute(
+          name: 'position',
+          location: 0,
+          format: VertexFormat.float32x3,
+        ),
+        WebGpuAttribute(
+          name: 'joints',
+          location: 1,
+          format: VertexFormat.float32x4,
+        ),
+        WebGpuAttribute(
+          name: 'weights',
+          location: 2,
+          format: VertexFormat.float32x4,
+        ),
+      ],
+      blocks: <WebGpuBlock>[
+        WebGpuBlock(
+          name: 'FrameInfo',
+          group: 0,
+          binding: 0,
+          sizeInBytes: 192,
+          members: <WebGpuBlockMember>[
+            WebGpuBlockMember(name: 'mvp', offsetInBytes: 0, sizeInBytes: 64),
+            WebGpuBlockMember(
+              name: 'model',
+              offsetInBytes: 64,
+              sizeInBytes: 64,
+            ),
+            WebGpuBlockMember(
+              name: 'normal_matrix',
+              offsetInBytes: 128,
+              sizeInBytes: 64,
+            ),
+          ],
+        ),
+        WebGpuBlock(
+          name: 'MorphInfo',
+          group: 0,
+          binding: 1,
+          sizeInBytes: 48,
+          members: <WebGpuBlockMember>[
+            WebGpuBlockMember(
+              name: 'morph_weights',
+              offsetInBytes: 0,
+              sizeInBytes: 32,
+            ),
+            WebGpuBlockMember(
+              name: 'morph_params',
+              offsetInBytes: 32,
+              sizeInBytes: 16,
+            ),
+          ],
+        ),
+        WebGpuBlock(
+          name: 'PrevFrameInfo',
+          group: 0,
+          binding: 2,
+          sizeInBytes: 192,
+          members: <WebGpuBlockMember>[
+            WebGpuBlockMember(
+              name: 'current_mvp',
+              offsetInBytes: 0,
+              sizeInBytes: 64,
+            ),
+            WebGpuBlockMember(
+              name: 'previous_mvp',
+              offsetInBytes: 64,
+              sizeInBytes: 64,
+            ),
+            WebGpuBlockMember(
+              name: 'previous_morph_weights',
+              offsetInBytes: 128,
+              sizeInBytes: 32,
+            ),
+            WebGpuBlockMember(
+              name: 'camera',
+              offsetInBytes: 160,
+              sizeInBytes: 16,
+            ),
+            WebGpuBlockMember(
+              name: 'forward',
+              offsetInBytes: 176,
+              sizeInBytes: 16,
+            ),
+          ],
+        ),
+        WebGpuBlock(
+          name: 'SkinInfo',
+          group: 0,
+          binding: 3,
+          sizeInBytes: 4096,
+          members: <WebGpuBlockMember>[
+            WebGpuBlockMember(
+              name: 'joint_matrices',
+              offsetInBytes: 0,
+              sizeInBytes: 4096,
+            ),
+          ],
+        ),
+      ],
+      samplers: <WebGpuSampler>[
+        WebGpuSampler(
+          name: 'morph_texture',
+          group: 0,
+          textureBinding: 4,
+          samplerBinding: 5,
+          dimension: WebGpuTextureDimension.twoDimensional,
+        ),
+        WebGpuSampler(
+          name: 'prev_joint_texture',
+          group: 0,
+          textureBinding: 6,
+          samplerBinding: 7,
+          dimension: WebGpuTextureDimension.twoDimensional,
+        ),
+      ],
+    ),
+    'VelocityInstancedVertex': WebGpuStage(
+      wgsl: r'''
+struct MorphInfo {
+    morph_weights: array<vec4<f32>, 2>,
+    morph_params: vec4<f32>,
+}
+
+struct PrevFrameInfo {
+    current_mvp: mat4x4<f32>,
+    previous_mvp: mat4x4<f32>,
+    previous_morph_weights: array<vec4<f32>, 2>,
+    camera: vec4<f32>,
+    forward: vec4<f32>,
+}
+
+struct FrameInfo {
+    mvp: mat4x4<f32>,
+    model: mat4x4<f32>,
+    normal_matrix: mat4x4<f32>,
+}
+
+struct gl_PerVertex {
+    @builtin(position) gl_Position: vec4<f32>,
+    gl_PointSize: f32,
+    gl_ClipDistance: array<f32, 1>,
+    gl_CullDistance: array<f32, 1>,
+}
+
+struct VertexOutput {
+    @location(0) member: vec4<f32>,
+    @location(1) member_1: f32,
+    @location(2) member_2: vec4<f32>,
+    @builtin(position) gl_Position: vec4<f32>,
+}
+
+@group(0) @binding(1) 
+var<uniform> morph_info: MorphInfo;
+var<private> gl_VertexIndex_1: i32;
+@group(0) @binding(3) 
+var morph_texture_tex: texture_2d<f32>;
+@group(0) @binding(4) 
+var morph_texture_smp: sampler;
+@group(0) @binding(2) 
+var<uniform> prev_info: PrevFrameInfo;
+var<private> position_3: vec3<f32>;
+var<private> i_row0_1: vec4<f32>;
+var<private> i_row1_1: vec4<f32>;
+var<private> i_row2_1: vec4<f32>;
+var<private> i_prev_row0_1: vec4<f32>;
+var<private> i_prev_row1_1: vec4<f32>;
+var<private> i_prev_row2_1: vec4<f32>;
+var<private> v_current: vec4<f32>;
+var<private> v_depth: f32;
+@group(0) @binding(0) 
+var<uniform> frame_info: FrameInfo;
+var<private> v_previous: vec4<f32>;
+var<private> unnamed: gl_PerVertex = gl_PerVertex(vec4<f32>(0f, 0f, 0f, 1f), 1f, array<f32, 1>(), array<f32, 1>());
+
+fn DepthAlongAxis_u0028_vf4_u003b(world: ptr<function, vec4<f32>>) -> f32 {
+    let _e34 = (*world);
+    let _e37 = prev_info.camera;
+    let _e41 = prev_info.forward;
+    return dot((_e34.xyz - _e37.xyz), _e41.xyz);
+}
+
+fn Affine_u0028_vf4_u003b_vf4_u003b_vf4_u003b(row0_: ptr<function, vec4<f32>>, row1_: ptr<function, vec4<f32>>, row2_: ptr<function, vec4<f32>>) -> mat4x4<f32> {
+    let _e37 = (*row0_)[0u];
+    let _e39 = (*row1_)[0u];
+    let _e41 = (*row2_)[0u];
+    let _e42 = vec4<f32>(_e37, _e39, _e41, 0f);
+    let _e44 = (*row0_)[1u];
+    let _e46 = (*row1_)[1u];
+    let _e48 = (*row2_)[1u];
+    let _e49 = vec4<f32>(_e44, _e46, _e48, 0f);
+    let _e51 = (*row0_)[2u];
+    let _e53 = (*row1_)[2u];
+    let _e55 = (*row2_)[2u];
+    let _e56 = vec4<f32>(_e51, _e53, _e55, 0f);
+    let _e58 = (*row0_)[3u];
+    let _e60 = (*row1_)[3u];
+    let _e62 = (*row2_)[3u];
+    let _e63 = vec4<f32>(_e58, _e60, _e62, 1f);
+    return mat4x4<f32>(vec4<f32>(_e42.x, _e42.y, _e42.z, _e42.w), vec4<f32>(_e49.x, _e49.y, _e49.z, _e49.w), vec4<f32>(_e56.x, _e56.y, _e56.z, _e56.w), vec4<f32>(_e63.x, _e63.y, _e63.z, _e63.w));
+}
+
+fn AddMorphTargetAt_u0028_i1_u003b_f1_u003b_f1_u003b_f1_u003b_vf3_u003b_vf3_u003b_vf4_u003b(t: ptr<function, i32>, weight: ptr<function, f32>, column: ptr<function, f32>, rowStep: ptr<function, f32>, position_1: ptr<function, vec3<f32>>, normal: ptr<function, vec3<f32>>, tangent: ptr<function, vec4<f32>>) {
+    var row: f32;
+
+    let _e41 = (*t);
+    let _e45 = (*rowStep);
+    row = ((f32((_e41 * 3i)) + 0.5f) * _e45);
+    let _e47 = (*column);
+    let _e48 = row;
+    let _e50 = textureSampleLevel(morph_texture_tex, morph_texture_smp, vec2<f32>(_e47, _e48), 0f);
+    let _e52 = (*weight);
+    let _e54 = (*position_1);
+    (*position_1) = (_e54 + (_e50.xyz * _e52));
+    let _e56 = (*column);
+    let _e57 = row;
+    let _e58 = (*rowStep);
+    let _e61 = textureSampleLevel(morph_texture_tex, morph_texture_smp, vec2<f32>(_e56, (_e57 + _e58)), 0f);
+    let _e63 = (*weight);
+    let _e65 = (*normal);
+    (*normal) = (_e65 + (_e61.xyz * _e63));
+    let _e67 = (*column);
+    let _e68 = row;
+    let _e69 = (*rowStep);
+    let _e73 = textureSampleLevel(morph_texture_tex, morph_texture_smp, vec2<f32>(_e67, (_e68 + (_e69 * 2f))), 0f);
+    let _e75 = (*weight);
+    let _e77 = (*tangent);
+    let _e79 = (_e77.xyz + (_e73.xyz * _e75));
+    (*tangent)[0u] = _e79.x;
+    (*tangent)[1u] = _e79.y;
+    (*tangent)[2u] = _e79.z;
+    return;
+}
+
+fn MorphColumn_u0028_() -> f32 {
+    let _e33 = gl_VertexIndex_1;
+    let _e38 = morph_info.morph_params[1u];
+    return ((f32(_e33) + 0.5f) * _e38);
+}
+
+fn MorphCount_u0028_() -> i32 {
+    let _e35 = morph_info.morph_params[0u];
+    return i32((_e35 + 0.5f));
+}
+
+fn MorphPositionWith_u0028_vf3_u003b_vf4_u003b_vf4_u003b(position_2: ptr<function, vec3<f32>>, w0_: ptr<function, vec4<f32>>, w1_: ptr<function, vec4<f32>>) -> vec3<f32> {
+    var count: i32;
+    var column_1: f32;
+    var rowStep_1: f32;
+    var normal_1: vec3<f32>;
+    var tangent_1: vec4<f32>;
+    var i: i32;
+    var weight_1: f32;
+    var local: f32;
+    var param: i32;
+    var param_1: f32;
+    var param_2: f32;
+    var param_3: f32;
+    var param_4: vec3<f32>;
+    var param_5: vec3<f32>;
+    var param_6: vec4<f32>;
+
+    let _e51 = MorphCount_u0028_();
+    count = _e51;
+    let _e52 = count;
+    if (_e52 <= 0i) {
+        let _e54 = (*position_2);
+        return _e54;
+    }
+    let _e55 = MorphColumn_u0028_();
+    column_1 = _e55;
+    let _e58 = morph_info.morph_params[2u];
+    rowStep_1 = _e58;
+    normal_1 = vec3<f32>(0f, 0f, 0f);
+    tangent_1 = vec4<f32>(0f, 0f, 0f, 0f);
+    i = 0i;
+    loop {
+        let _e59 = i;
+        if (_e59 < 8i) {
+            let _e61 = i;
+            let _e62 = count;
+            if (_e61 >= _e62) {
+                break;
+            }
+            let _e64 = i;
+            if (_e64 < 4i) {
+                let _e66 = i;
+                let _e68 = (*w0_)[_e66];
+                local = _e68;
+            } else {
+                let _e69 = i;
+                let _e72 = (*w1_)[(_e69 - 4i)];
+                local = _e72;
+            }
+            let _e73 = local;
+            weight_1 = _e73;
+            let _e74 = weight_1;
+            if (_e74 == 0f) {
+                continue;
+            }
+            let _e76 = i;
+            param = _e76;
+            let _e77 = weight_1;
+            param_1 = _e77;
+            let _e78 = column_1;
+            param_2 = _e78;
+            let _e79 = rowStep_1;
+            param_3 = _e79;
+            let _e80 = (*position_2);
+            param_4 = _e80;
+            let _e81 = normal_1;
+            param_5 = _e81;
+            let _e82 = tangent_1;
+            param_6 = _e82;
+            AddMorphTargetAt_u0028_i1_u003b_f1_u003b_f1_u003b_f1_u003b_vf3_u003b_vf3_u003b_vf4_u003b((&param), (&param_1), (&param_2), (&param_3), (&param_4), (&param_5), (&param_6));
+            let _e83 = param_4;
+            (*position_2) = _e83;
+            let _e84 = param_5;
+            normal_1 = _e84;
+            let _e85 = param_6;
+            tangent_1 = _e85;
+            continue;
+        } else {
+            break;
+        }
+        continuing {
+            let _e86 = i;
+            i = (_e86 + 1i);
+        }
+    }
+    let _e88 = (*position_2);
+    return _e88;
+}
+
+fn main_1() {
+    var now: vec3<f32>;
+    var param_7: vec3<f32>;
+    var param_8: vec4<f32>;
+    var param_9: vec4<f32>;
+    var then: vec3<f32>;
+    var param_10: vec3<f32>;
+    var param_11: vec4<f32>;
+    var param_12: vec4<f32>;
+    var local_1: vec4<f32>;
+    var param_13: vec4<f32>;
+    var param_14: vec4<f32>;
+    var param_15: vec4<f32>;
+    var before: vec4<f32>;
+    var param_16: vec4<f32>;
+    var param_17: vec4<f32>;
+    var param_18: vec4<f32>;
+    var param_19: vec4<f32>;
+
+    let _e50 = position_3;
+    param_7 = _e50;
+    let _e53 = morph_info.morph_weights[0i];
+    param_8 = _e53;
+    let _e56 = morph_info.morph_weights[1i];
+    param_9 = _e56;
+    let _e57 = MorphPositionWith_u0028_vf3_u003b_vf4_u003b_vf4_u003b((&param_7), (&param_8), (&param_9));
+    now = _e57;
+    let _e58 = position_3;
+    param_10 = _e58;
+    let _e61 = prev_info.previous_morph_weights[0i];
+    param_11 = _e61;
+    let _e64 = prev_info.previous_morph_weights[1i];
+    param_12 = _e64;
+    let _e65 = MorphPositionWith_u0028_vf3_u003b_vf4_u003b_vf4_u003b((&param_10), (&param_11), (&param_12));
+    then = _e65;
+    let _e66 = i_row0_1;
+    param_13 = _e66;
+    let _e67 = i_row1_1;
+    param_14 = _e67;
+    let _e68 = i_row2_1;
+    param_15 = _e68;
+    let _e69 = Affine_u0028_vf4_u003b_vf4_u003b_vf4_u003b((&param_13), (&param_14), (&param_15));
+    let _e70 = now;
+    local_1 = (_e69 * vec4<f32>(_e70.x, _e70.y, _e70.z, 1f));
+    let _e76 = i_prev_row0_1;
+    param_16 = _e76;
+    let _e77 = i_prev_row1_1;
+    param_17 = _e77;
+    let _e78 = i_prev_row2_1;
+    param_18 = _e78;
+    let _e79 = Affine_u0028_vf4_u003b_vf4_u003b_vf4_u003b((&param_16), (&param_17), (&param_18));
+    let _e80 = then;
+    before = (_e79 * vec4<f32>(_e80.x, _e80.y, _e80.z, 1f));
+    let _e87 = prev_info.current_mvp;
+    let _e88 = local_1;
+    v_current = (_e87 * _e88);
+    let _e91 = frame_info.model;
+    let _e92 = local_1;
+    param_19 = (_e91 * _e92);
+    let _e94 = DepthAlongAxis_u0028_vf4_u003b((&param_19));
+    v_depth = _e94;
+    let _e96 = prev_info.previous_mvp;
+    let _e97 = before;
+    v_previous = (_e96 * _e97);
+    let _e100 = frame_info.mvp;
+    let _e101 = local_1;
+    unnamed.gl_Position = (_e100 * _e101);
+    return;
+}
+
+@vertex 
+fn main(@builtin(vertex_index) gl_VertexIndex: u32, @location(0) position: vec3<f32>, @location(1) i_row0_: vec4<f32>, @location(2) i_row1_: vec4<f32>, @location(3) i_row2_: vec4<f32>, @location(4) i_prev_row0_: vec4<f32>, @location(5) i_prev_row1_: vec4<f32>, @location(6) i_prev_row2_: vec4<f32>) -> VertexOutput {
+    gl_VertexIndex_1 = i32(gl_VertexIndex);
+    position_3 = position;
+    i_row0_1 = i_row0_;
+    i_row1_1 = i_row1_;
+    i_row2_1 = i_row2_;
+    i_prev_row0_1 = i_prev_row0_;
+    i_prev_row1_1 = i_prev_row1_;
+    i_prev_row2_1 = i_prev_row2_;
+    main_1();
+    let _e22 = v_current;
+    let _e23 = v_depth;
+    let _e24 = v_previous;
+    let _e25 = unnamed.gl_Position;
+    return VertexOutput(_e22, _e23, _e24, _e25);
+}
+''',
+      attributes: <WebGpuAttribute>[
+        WebGpuAttribute(
+          name: 'position',
+          location: 0,
+          format: VertexFormat.float32x3,
+        ),
+        WebGpuAttribute(
+          name: 'i_row0',
+          location: 1,
+          format: VertexFormat.float32x4,
+        ),
+        WebGpuAttribute(
+          name: 'i_row1',
+          location: 2,
+          format: VertexFormat.float32x4,
+        ),
+        WebGpuAttribute(
+          name: 'i_row2',
+          location: 3,
+          format: VertexFormat.float32x4,
+        ),
+        WebGpuAttribute(
+          name: 'i_prev_row0',
+          location: 4,
+          format: VertexFormat.float32x4,
+        ),
+        WebGpuAttribute(
+          name: 'i_prev_row1',
+          location: 5,
+          format: VertexFormat.float32x4,
+        ),
+        WebGpuAttribute(
+          name: 'i_prev_row2',
+          location: 6,
+          format: VertexFormat.float32x4,
+        ),
+      ],
+      blocks: <WebGpuBlock>[
+        WebGpuBlock(
+          name: 'FrameInfo',
+          group: 0,
+          binding: 0,
+          sizeInBytes: 192,
+          members: <WebGpuBlockMember>[
+            WebGpuBlockMember(name: 'mvp', offsetInBytes: 0, sizeInBytes: 64),
+            WebGpuBlockMember(
+              name: 'model',
+              offsetInBytes: 64,
+              sizeInBytes: 64,
+            ),
+            WebGpuBlockMember(
+              name: 'normal_matrix',
+              offsetInBytes: 128,
+              sizeInBytes: 64,
+            ),
+          ],
+        ),
+        WebGpuBlock(
+          name: 'MorphInfo',
+          group: 0,
+          binding: 1,
+          sizeInBytes: 48,
+          members: <WebGpuBlockMember>[
+            WebGpuBlockMember(
+              name: 'morph_weights',
+              offsetInBytes: 0,
+              sizeInBytes: 32,
+            ),
+            WebGpuBlockMember(
+              name: 'morph_params',
+              offsetInBytes: 32,
+              sizeInBytes: 16,
+            ),
+          ],
+        ),
+        WebGpuBlock(
+          name: 'PrevFrameInfo',
+          group: 0,
+          binding: 2,
+          sizeInBytes: 192,
+          members: <WebGpuBlockMember>[
+            WebGpuBlockMember(
+              name: 'current_mvp',
+              offsetInBytes: 0,
+              sizeInBytes: 64,
+            ),
+            WebGpuBlockMember(
+              name: 'previous_mvp',
+              offsetInBytes: 64,
+              sizeInBytes: 64,
+            ),
+            WebGpuBlockMember(
+              name: 'previous_morph_weights',
+              offsetInBytes: 128,
+              sizeInBytes: 32,
+            ),
+            WebGpuBlockMember(
+              name: 'camera',
+              offsetInBytes: 160,
+              sizeInBytes: 16,
+            ),
+            WebGpuBlockMember(
+              name: 'forward',
+              offsetInBytes: 176,
+              sizeInBytes: 16,
+            ),
+          ],
+        ),
+      ],
+      samplers: <WebGpuSampler>[
+        WebGpuSampler(
+          name: 'morph_texture',
+          group: 0,
+          textureBinding: 3,
+          samplerBinding: 4,
+          dimension: WebGpuTextureDimension.twoDimensional,
+        ),
+      ],
+    ),
     'PolylineVertex': WebGpuStage(
       wgsl: r'''
 struct MaterialParams {
@@ -16473,6 +17706,134 @@ fn main(@location(5) v_uv: vec2<f32>) -> @location(0) vec4<f32> {
             WebGpuBlockMember(
               name: 'forward',
               offsetInBytes: 144,
+              sizeInBytes: 16,
+            ),
+          ],
+        ),
+      ],
+      samplers: <WebGpuSampler>[
+        WebGpuSampler(
+          name: 'surface_texture',
+          group: 1,
+          textureBinding: 1,
+          samplerBinding: 2,
+          dimension: WebGpuTextureDimension.twoDimensional,
+        ),
+      ],
+    ),
+    'Velocity': WebGpuStage(
+      wgsl: r'''
+struct VelocityInfo {
+    target_: vec4<f32>,
+}
+
+var<private> gl_FragCoord_1: vec4<f32>;
+@group(1) @binding(0) 
+var<uniform> velocity_info: VelocityInfo;
+@group(1) @binding(1) 
+var surface_texture_tex: texture_2d<f32>;
+@group(1) @binding(2) 
+var surface_texture_smp: sampler;
+var<private> v_depth_1: f32;
+var<private> v_previous_1: vec4<f32>;
+var<private> frag_color: vec4<f32>;
+var<private> v_current_1: vec4<f32>;
+
+fn UvFromClip_u0028_vf4_u003b(clip: ptr<function, vec4<f32>>) -> vec2<f32> {
+    var ndc: vec2<f32>;
+
+    let _e20 = (*clip);
+    let _e23 = (*clip)[3u];
+    ndc = (_e20.xy / vec2(_e23));
+    let _e27 = ndc[0u];
+    let _e31 = ndc[1u];
+    return vec2<f32>(((_e27 * 0.5f) + 0.5f), (0.5f - (_e31 * 0.5f)));
+}
+
+fn FragCoordFromTop_u0028_f1_u003b(rows: ptr<function, f32>) -> vec2<f32> {
+    var local: vec2<f32>;
+
+    let _e20 = (*rows);
+    if (_e20 > 0f) {
+        let _e23 = gl_FragCoord_1[0u];
+        let _e24 = (*rows);
+        let _e26 = gl_FragCoord_1[1u];
+        local = vec2<f32>(_e23, (_e24 - _e26));
+    } else {
+        let _e29 = gl_FragCoord_1;
+        local = _e29.xy;
+    }
+    let _e31 = local;
+    return _e31;
+}
+
+fn main_1() {
+    var uv: vec2<f32>;
+    var param: f32;
+    var stored: f32;
+    var param_1: vec4<f32>;
+    var param_2: vec4<f32>;
+    var phi_113_: bool;
+
+    let _e25 = velocity_info.target_[2u];
+    param = _e25;
+    let _e26 = FragCoordFromTop_u0028_f1_u003b((&param));
+    let _e28 = velocity_info.target_;
+    uv = (_e26 * _e28.xy);
+    let _e31 = uv;
+    let _e32 = textureSampleLevel(surface_texture_tex, surface_texture_smp, _e31, 0f);
+    stored = _e32.w;
+    let _e34 = stored;
+    let _e35 = (_e34 <= 0f);
+    phi_113_ = _e35;
+    if !(_e35) {
+        let _e37 = v_depth_1;
+        let _e38 = stored;
+        let _e41 = velocity_info.target_[3u];
+        phi_113_ = (_e37 > ((_e38 * (1f + _e41)) + 0.001f));
+    }
+    let _e47 = phi_113_;
+    if _e47 {
+        discard;
+    }
+    let _e49 = v_previous_1[3u];
+    if (_e49 <= 0f) {
+        frag_color = vec4<f32>(0f, 0f, 0f, 1f);
+        return;
+    }
+    let _e51 = v_current_1;
+    param_1 = _e51;
+    let _e52 = UvFromClip_u0028_vf4_u003b((&param_1));
+    let _e53 = v_previous_1;
+    param_2 = _e53;
+    let _e54 = UvFromClip_u0028_vf4_u003b((&param_2));
+    let _e55 = (_e52 - _e54);
+    frag_color = vec4<f32>(_e55.x, _e55.y, 0f, 1f);
+    return;
+}
+
+@fragment 
+fn main(@builtin(position) gl_FragCoord: vec4<f32>, @location(1) v_depth: f32, @location(2) v_previous: vec4<f32>, @location(0) v_current: vec4<f32>) -> @location(0) vec4<f32> {
+    gl_FragCoord_1 = gl_FragCoord;
+    v_depth_1 = v_depth;
+    v_previous_1 = v_previous;
+    v_current_1 = v_current;
+    main_1();
+    let _e9 = frag_color;
+    return _e9;
+}
+''',
+      attributes: <WebGpuAttribute>[],
+      blocks: <WebGpuBlock>[
+        WebGpuBlock(
+          name: 'VelocityInfo',
+          group: 1,
+          binding: 0,
+          sizeInBytes: 16,
+          members: <WebGpuBlockMember>[
+            WebGpuBlockMember(
+              name: 'target',
+              offsetInBytes: 0,
               sizeInBytes: 16,
             ),
           ],

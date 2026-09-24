@@ -14,6 +14,7 @@ import 'dart:typed_data';
 import 'package:flutter3d_core/flutter3d_core.dart';
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
 import 'package:test/test.dart';
+import 'package:vector_math/vector_math.dart' show Matrix4;
 
 const int _width = 48;
 const int _height = 32;
@@ -167,5 +168,72 @@ void main() {
       result.passes.map((p) => p.name),
       isNot(contains('camera velocity')),
     );
+  });
+
+  group('a node that moved', () {
+    MeshNode box(_Staged it) => it.scene.meshes.first;
+
+    test('writes its own motion where it now stands', () {
+      // Mutation: skip `_encodeObjectVelocity` (return 0 at the top). The
+      // camera did not move, so every pixel reads zero.
+      final it = _staged();
+      _velocity(it);
+      box(it).setPosition(0.3, 0.0, -5.0);
+      final v = _velocity(it);
+
+      // The box's centre moved 0.3 m right at five metres: in UV, half of
+      // 0.3 over the half width there, and positive because it went right.
+      const fov = math.pi / 4;
+      final halfWidth = 5.0 * math.tan(fov / 2) * (_width / _height);
+      final nearHalfWidth = 4.5 * math.tan(fov / 2) * (_width / _height);
+      // The box's new centre, a little right of the frame's.
+      final x = (_width / 2 + 0.3 / (2 * halfWidth) * _width).round();
+      final at = _at(v, x, _height ~/ 2);
+      expect(
+        at.x,
+        inInclusiveRange(0.15 / halfWidth - 1e-3, 0.15 / nearHalfWidth + 1e-3),
+      );
+      expect(at.y.abs(), lessThan(1e-4));
+      // The sky around it stood still.
+      expect(_at(v, 0, 0).x.abs(), lessThan(1e-6));
+    });
+
+    test('stops at a wall in front of it', () {
+      final it = _staged();
+      // A wall between the camera and the box, covering the middle.
+      final device = it.device;
+      final wall = MeshNode(
+        DeviceMesh.upload(device, CuboidShape().build()),
+        Material(),
+      )..setPosition(0.0, 0.0, -2.0);
+      it.scene.add(wall);
+      _velocity(it);
+      box(it).setPosition(0.1, 0.0, -5.0);
+      final v = _velocity(it);
+      // Mutation: drop the depth comparison in `velocity.frag`'s mirror. The
+      // box's motion paints over the wall that hides it.
+      final centre = _at(v, _width ~/ 2, _height ~/ 2);
+      expect(centre.x.abs(), lessThan(1e-6));
+    });
+
+    test('a batch moves by the placements it had last frame', () {
+      final it = _staged();
+      final batch = InstancedMeshNode(
+        DeviceMesh.upload(it.device, CuboidShape().build()),
+        Material(),
+        capacity: 2,
+      )..addInstance(Matrix4.translationValues(0.0, 0.0, -5.0));
+      it.scene
+        ..remove(box(it))
+        ..add(batch);
+      _velocity(it);
+      // The batch's own node stays put; one instance moves.
+      batch.setTransform(0, Matrix4.translationValues(0.3, 0.0, -5.0));
+      final v = _velocity(it);
+      const fov = math.pi / 4;
+      final halfWidth = 5.0 * math.tan(fov / 2) * (_width / _height);
+      final x = (_width / 2 + 0.3 / (2 * halfWidth) * _width).round();
+      expect(_at(v, x, _height ~/ 2).x, greaterThan(0.1 / halfWidth));
+    });
   });
 }

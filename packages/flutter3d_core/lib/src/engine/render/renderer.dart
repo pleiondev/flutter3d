@@ -59,6 +59,7 @@ part 'renderer_resources.dart';
 part 'renderer_scene_pass.dart';
 part 'renderer_shadow_pass.dart';
 part 'renderer_sky_pass.dart';
+part 'renderer_velocity_pass.dart';
 part 'renderer_xray_pass.dart';
 
 const String _kFragInfoBlock = 'FragInfo';
@@ -127,6 +128,10 @@ final class Renderer implements RenderServices {
     required this.ssaoShader,
     required this.contactShadowShader,
     required this.cameraVelocityShader,
+    required this.velocityShader,
+    required this.velocityVertexShader,
+    required this.velocitySkinnedVertexShader,
+    required this.velocityInstancedVertexShader,
     required this.ssaoBlurShader,
     required this.lightShaftsShader,
     required this.depthOfFieldShader,
@@ -263,6 +268,13 @@ final class Renderer implements RenderServices {
 
   /// `post/camera_velocity.frag` — `R1`.
   final ShaderHandle cameraVelocityShader;
+
+  /// `post/velocity.frag` and the three vertex stages that feed it, for
+  /// nodes that moved — `R1`.
+  final ShaderHandle velocityShader;
+  final ShaderHandle velocityVertexShader;
+  final ShaderHandle velocitySkinnedVertexShader;
+  final ShaderHandle velocityInstancedVertexShader;
 
   /// `gfx-32n`'s depth-aware blur over what that pass produced.
   final ShaderHandle ssaoBlurShader;
@@ -556,6 +568,8 @@ final class Renderer implements RenderServices {
   final CompositeInfoBlock _compositeInfo = CompositeInfoBlock();
   final ContactShadowInfoBlock _contactShadowInfo = ContactShadowInfoBlock();
   final CameraVelocityInfoBlock _cameraVelocityInfo = CameraVelocityInfoBlock();
+  final PrevFrameInfoBlock _prevFrameInfo = PrevFrameInfoBlock();
+  final VelocityInfoBlock _velocityInfo = VelocityInfoBlock();
   final DofInfoBlock _dofInfo = DofInfoBlock();
   final FogInfoBlock _fogInfo = FogInfoBlock();
   final FrameInfoBlock _frameInfo = FrameInfoBlock();
@@ -1234,6 +1248,10 @@ final class Renderer implements RenderServices {
         ssaoShader: require('Ssao'),
         contactShadowShader: require('ContactShadow'),
         cameraVelocityShader: require('CameraVelocity'),
+        velocityShader: require('Velocity'),
+        velocityVertexShader: require('VelocityVertex'),
+        velocitySkinnedVertexShader: require('VelocitySkinnedVertex'),
+        velocityInstancedVertexShader: require('VelocityInstancedVertex'),
         ssaoBlurShader: require('SsaoBlur'),
         lightShaftsShader: require('LightShafts'),
         depthOfFieldShader: require('DepthOfField'),
@@ -2114,7 +2132,11 @@ final class Renderer implements RenderServices {
     graph.addNode(_ContactShadowNode(this, view, s, contactToLight));
     // `R1`: the motion of every pixel, for the temporal resolve. Before any
     // reader of it, which is all registration order has to promise here.
-    graph.addNode(_CameraVelocityNode(this, view, s));
+    graph
+      ..addNode(_CameraVelocityNode(this, view, s))
+      // And the nodes that moved, over it: the next version of the same
+      // resource, so registration order is what puts them on top.
+      ..addNode(_ObjectVelocityNode(this, view, s, composite._scene));
     // `gfx-33n`. After the occlusion and before bloom: a shaft is light in
     // the air, so it should glow the way any other light does. It is not a
     // surface, and the occlusion should have nothing to say about it — but
