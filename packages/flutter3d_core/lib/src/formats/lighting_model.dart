@@ -1,3 +1,5 @@
+import 'material_extensions.dart';
+
 /// A lighting model: one pre-built fragment shader and what the engine may
 /// bind to it.
 ///
@@ -125,6 +127,27 @@ final class LightingModel {
     usesMetallic: true,
     usesEnvironment: true,
   );
+  /// [pbr] with the layers glTF adds on top of it — `M1`: a clear coat, a
+  /// specular strength and tint, an index of refraction. See
+  /// `MaterialExtensions` for what each is.
+  ///
+  /// **A model of its own rather than a branch in [pbr]**, so a plain
+  /// metal-rough surface keeps its cost and its samplers: the layered stage
+  /// reads a block and a packed coat map the plain one never declares, and
+  /// the lit stages have two samplers left under WebGL2's sixteen. It is
+  /// `pbr.frag` compiled a second time with `F3D_LAYERED` defined, so the
+  /// two cannot drift apart below the layers. A loader hands it to a
+  /// material whose layers change its shading; with every layer at its
+  /// default it draws what [pbr] draws.
+  ///
+  /// Absent from [builtIn], for the reason [xray] is: it is not a choice a
+  /// picker offers, it is what a material's own layers ask for.
+  static const LightingModel pbrLayered = LightingModel(
+    'PBR (layered)',
+    'PbrLayered',
+    usesMetallic: true,
+    usesEnvironment: true,
+  );
   static const LightingModel toon = LightingModel('Toon', 'Toon');
   static const LightingModel normals = LightingModel(
     'Normals',
@@ -149,6 +172,13 @@ final class LightingModel {
     toon,
     normals,
   ];
+
+  /// The model a surface with [layers] is drawn with, when it asked for this
+  /// one: [pbrLayered] in place of [pbr] when a layer changes the shading,
+  /// and this model unchanged otherwise — `M1`. Every other model has no
+  /// layered form, and a surface that picked one keeps it.
+  LightingModel withLayers(MaterialExtensions? layers) =>
+      identical(this, pbr) && (layers?.shades ?? false) ? pbrLayered : this;
 
   /// Shown in the UI.
   final String label;

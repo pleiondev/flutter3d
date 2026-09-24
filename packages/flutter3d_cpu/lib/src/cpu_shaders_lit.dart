@@ -10,6 +10,7 @@ import 'package:vector_math/vector_math.dart';
 
 import 'cpu_shader.dart';
 import 'cpu_shaders_color.dart';
+import 'cpu_shaders_layout.dart';
 import 'cpu_shaders_lighting.dart';
 import 'cpu_shaders_surface.dart';
 
@@ -180,8 +181,68 @@ Vector2 _envBrdfApprox(double roughness, double nDotV) {
   return Vector2(-1.04 * a004 + rz, 1.04 * a004 + rw);
 }
 
+/// The layers `lib/pbr.glsl` reads under `F3D_LAYERED` — `M1`: resolved once
+/// per fragment, as `ReadLayers` fills its globals.
+final class _Layers {
+  _Layers({
+    required this.f0Dielectric,
+    required this.f90,
+    required this.coat,
+    required this.coatRoughness,
+    required this.coatNormal,
+    required this.coatNDotV,
+  }) : coatThrough =
+           1.0 -
+           coat * (0.04 + 0.96 * math.pow(1.0 - coatNDotV, 5.0).toDouble());
+
+  /// `ReadLayers`, from the `LayerInfo` block and the coat map, on [s] as it
+  /// is before the normal map bends it.
+  factory _Layers.read(Surface s, Float32List v, ShaderBindings b,
+      FragmentContext c) {
+    final specular = b.vec4('LayerInfo', 'specular', Vector4(1, 1, 1, 1));
+    final coat = b.vec4('LayerInfo', 'coat', Vector4(0, 0, 1.5, 0));
+    final map = b.textures['coat_texture'];
+    final uv = uvFootprint(c, bias: materialLodBias(b));
+    final texel = map == null
+        ? Vector4(1, 1, 1, 1)
+        : map.sample(v[kVUv], v[kVUv + 1], du: uv.du, dv: uv.dv);
+    final ior = math.max(coat.z, 1.0);
+    final r = (ior - 1.0) / (ior + 1.0);
+    return _Layers(
+      f0Dielectric: Vector3(
+        math.min(r * r * specular.x, 1.0) * specular.w,
+        math.min(r * r * specular.y, 1.0) * specular.w,
+        math.min(r * r * specular.z, 1.0) * specular.w,
+      ),
+      f90: specular.w,
+      coat: (coat.x * texel.x).clamp(0.0, 1.0),
+      coatRoughness: (coat.y * texel.y).clamp(0.02, 1.0),
+      coatNormal: s.normal.clone(),
+      coatNDotV: math.max(s.normal.dot(s.view), 1e-4),
+    );
+  }
+
+  final Vector3 f0Dielectric;
+  final double f90;
+  final double coat;
+  final double coatRoughness;
+  final Vector3 coatNormal;
+  final double coatNDotV;
+
+  /// What the coat's Fresnel lets through to the layer beneath.
+  final double coatThrough;
+}
+
 final class PbrShader implements CpuFragmentShader {
-  const PbrShader();
+  const PbrShader() : layered = false;
+
+  /// `pbr_layered.frag`: the same stage with `F3D_LAYERED` — `M1`.
+  const PbrShader.layered() : layered = true;
+
+  /// Whether this is the layered stage, which reads `LayerInfo` and the coat
+  /// map. Plain metal-rough takes none of the branches it guards, so the
+  /// thirty golden images of that stage see what they always saw.
+  final bool layered;
 
   static const double _pi = 3.141592653589793;
 
@@ -198,25 +259,55 @@ final class PbrShader implements CpuFragmentShader {
     return 0.5 / math.max(lambdaV + lambdaL, 1e-5);
   }
 
-  static Vector3 _fSchlick(Vector3 f0, double vDotH) {
+  static Vector3 _fSchlick(Vector3 f0, double vDotH, [double f90 = 1.0]) {
     final f = math.pow(1.0 - vDotH, 5.0).toDouble();
     return Vector3(
-      f0.x + (1.0 - f0.x) * f,
-      f0.y + (1.0 - f0.y) * f,
-      f0.z + (1.0 - f0.z) * f,
+      f0.x + (f90 - f0.x) * f,
+      f0.y + (f90 - f0.y) * f,
+      f0.z + (f90 - f0.z) * f,
     );
+  }
+
+  /// `CoatLobe`: the clear coat's GGX lobe on its own normal, scaled so the
+  /// loop's `nDotL` — the base's — becomes the coat's. A rectangle's is a form
+  /// factor and is left alone.
+  static double _coatLobe(
+    _Layers layers,
+    Surface s,
+    LightSample light,
+    double specularStrength,
+  ) {
+    final alpha = layers.coatRoughness * layers.coatRoughness;
+    final h = (light.direction + s.view)..normalize();
+    final nDotL = math.max(layers.coatNormal.dot(light.direction), 0.0);
+    final nDotH = math.max(layers.coatNormal.dot(h), 0.0);
+    final d = _dGgx(nDotH, alpha);
+    final vis = _vSmith(layers.coatNDotV, nDotL, alpha);
+    final f = 0.04 + 0.96 * math.pow(1.0 - light.vDotH, 5.0).toDouble();
+    final scale = light.ltc != null
+        ? 1.0
+        : nDotL / math.max(light.nDotL, 1e-6);
+    return d * vis * f * specularStrength * scale;
   }
 
   @override
   Vector4? run(Float32List v, ShaderBindings b, FragmentContext c) {
     final s = readSurface(v, b, c);
     if (s == null) return null;
+    final layers = layered ? _Layers.read(s, v, b, c) : null;
     applyCommonMaps(s, v, b, c);
     applyMetallicRoughnessMap(s, v, b, c);
     final specularStrength = b.vec4('FragInfo', 'material', Vector4.zero()).w;
     // `EnergyCompensation()` — `L1`.
     final compensate =
         b.vec4('FragInfo', 'target_origin', Vector4.zero()).z > 0.5;
+    // Plain metal-rough reflects four per cent head-on and all of it at
+    // grazing; the layered stage takes both from its layers. Doubles, not a
+    // `Vector3`: its float32 lanes would round the plain stage's 0.04.
+    final (d0x, d0y, d0z) = switch (layers?.f0Dielectric) {
+      final Vector3 f0 => (f0.x, f0.y, f0.z),
+      null => (0.04, 0.04, 0.04),
+    };
 
     final lit = accumulateLights(
       s,
@@ -231,15 +322,18 @@ final class PbrShader implements CpuFragmentShader {
         // Dielectrics reflect about four percent head-on; metals tint the
         // reflection with their albedo and have no diffuse response.
         final f0 = Vector3(
-          0.04 + (s.albedo.x - 0.04) * s.metallic,
-          0.04 + (s.albedo.y - 0.04) * s.metallic,
-          0.04 + (s.albedo.z - 0.04) * s.metallic,
+          d0x + (s.albedo.x - d0x) * s.metallic,
+          d0y + (s.albedo.y - d0y) * s.metallic,
+          d0z + (s.albedo.z - d0z) * s.metallic,
         );
+        final f90 = layers == null
+            ? 1.0
+            : layers.f90 + (1.0 - layers.f90) * s.metallic;
         final diffuseColour = s.albedo * (1.0 - s.metallic);
 
         final d = _dGgx(light.nDotH, alpha);
         final vis = _vSmith(s.nDotV, light.nDotL, alpha);
-        final f = _fSchlick(f0, light.vDotH);
+        final f = _fSchlick(f0, light.vDotH, f90);
 
         final ltc = light.ltc;
         final specular = ltc == null
@@ -247,9 +341,9 @@ final class PbrShader implements CpuFragmentShader {
             // `L7`: integrated over the rectangle already, with the fit's own
             // Fresnel, and over `nDotL` for `pbr.frag`'s reason.
             : Vector3(
-                    f0.x * ltc.y + (1.0 - f0.x) * ltc.z,
-                    f0.y * ltc.y + (1.0 - f0.y) * ltc.z,
-                    f0.z * ltc.y + (1.0 - f0.z) * ltc.z,
+                    f0.x * ltc.y + (f90 - f0.x) * ltc.z,
+                    f0.y * ltc.y + (f90 - f0.y) * ltc.z,
+                    f0.z * ltc.y + (f90 - f0.z) * ltc.z,
                   ) *
                   (ltc.x * specularStrength / math.max(light.nDotL, 1e-6));
         if (compensate) specular.multiply(_multiscatterScale(f0, s));
@@ -261,7 +355,14 @@ final class PbrShader implements CpuFragmentShader {
         );
         // The pi puts the result back on the scale the tone mapper and the
         // exposure default were calibrated against.
-        return (diffuse + specular)..scale(_pi);
+        final base = diffuse + specular;
+        if (layers == null) return base..scale(_pi);
+        // Under the coat, what its Fresnel lets through; on top, its lobe.
+        final coat =
+            layers.coat * _coatLobe(layers, s, light, specularStrength);
+        return (base..scale(layers.coatThrough))
+          ..add(Vector3.all(coat))
+          ..scale(_pi);
       },
     ).scaled(s.occlusion);
 
@@ -273,15 +374,18 @@ final class PbrShader implements CpuFragmentShader {
     var ambient = (diffuseColour.clone()..multiply(s.ambient)).scaled(
       s.occlusion,
     );
+    var coatAmbient = Vector3.zero();
 
     final levels = b.vec4('FragInfo', 'frame_params', Vector4.zero()).w;
     final environment = b.textures['environment_texture'];
     if (levels > 0.0 && environment != null) {
       // The term that made metal black: a metal has no diffuse response, so
       // with nothing to reflect it was lit by direct light alone.
-      final f0 =
-          Vector3(0.04, 0.04, 0.04) +
-          (s.albedo - Vector3(0.04, 0.04, 0.04)) * metallic;
+      final dielectric = Vector3(d0x, d0y, d0z);
+      final f0 = dielectric + (s.albedo - dielectric) * metallic;
+      final f90 = layers == null
+          ? 1.0
+          : layers.f90 + (1.0 - layers.f90) * metallic;
       // reflect(-v, n) = 2(n·v)n - v, with v already the direction to the eye.
       final nDotV = s.normal.dot(s.view);
       final reflected = s.normal * (2.0 * nDotV) - s.view;
@@ -307,7 +411,7 @@ final class PbrShader implements CpuFragmentShader {
       final strength = b.vec4('FragInfo', 'material', Vector4.zero()).z;
       final diffusePart = diffuseColour.clone()
         ..multiply(Vector3(irradiance.x, irradiance.y, irradiance.z));
-      final single = f0 * ab.x + Vector3(ab.y, ab.y, ab.y);
+      final single = f0 * ab.x + Vector3.all(f90 * ab.y);
       final specularPart = Vector3(prefiltered.x, prefiltered.y, prefiltered.z)
         ..multiply(single);
       if (compensate) {
@@ -326,12 +430,38 @@ final class PbrShader implements CpuFragmentShader {
         );
       }
       ambient = ((diffusePart + specularPart) * strength).scaled(s.occlusion);
+      if (layers != null) {
+        // The coat's own reflection of the environment, on its normal.
+        final n = layers.coatNormal;
+        final coatReflected = n * (2.0 * n.dot(s.view)) - s.view;
+        final coatPrefiltered = environment.sampleCube(
+          coatReflected.x,
+          coatReflected.y,
+          coatReflected.z,
+          layers.coatRoughness * levels,
+        );
+        final coatAb = _envBrdfApprox(layers.coatRoughness, layers.coatNDotV);
+        coatAmbient = Vector3(
+          coatPrefiltered.x,
+          coatPrefiltered.y,
+          coatPrefiltered.z,
+        )..scale(
+            (0.04 * coatAb.x + coatAb.y) *
+                layers.coat *
+                strength *
+                s.occlusion,
+          );
+      }
     }
     // The baked bounce light, diffuse only, as `pbr.frag` adds it.
     ambient += (diffuseColour.clone()..multiply(sampleLightmap(v, b, c)))
         .scaled(s.occlusion);
 
-    final total = lit + ambient + s.emissive;
+    // Under a coat, the ambient and the emission come out through it.
+    final through = layers?.coatThrough ?? 1.0;
+    final total = layers == null
+        ? lit + ambient + s.emissive
+        : lit + (ambient + s.emissive).scaled(through) + coatAmbient;
     return writeLit(
       c,
       v,

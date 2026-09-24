@@ -114,6 +114,14 @@ extension _GltfWriterMaterials on GltfWriter {
             };
             extensionsUsed.add('KHR_materials_emissive_strength');
           }
+          if (material.extensions case final layers?) {
+            final written = materialExtensionsToJson(
+              layers,
+              texture: textureInfo,
+            );
+            extensions.addAll(written);
+            extensionsUsed.addAll(written.keys);
+          }
 
           return <String, Object?>{
             if (material.name != null) 'name': material.name,

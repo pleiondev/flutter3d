@@ -98,6 +98,21 @@ Future<TextureHandle?> uploadEncodedImage(
   );
 }
 
+/// [image] uploaded through [device], with a mip chain when [sampling] asks
+/// for one — [uploadEncodedImage]'s own tail, for pixels that never were an
+/// encoded file: a map packed from several (`packed_maps.dart`).
+TextureHandle? uploadRgba8(
+  GraphicsDevice device,
+  Rgba8Image image, {
+  TextureSampling sampling = const TextureSampling(),
+}) => _uploadRgba8(
+  device,
+  sampling,
+  image.width,
+  image.height,
+  ByteData.sublistView(image.pixels),
+);
+
 /// The tail [uploadEncodedImage] shares between a [decodeImage] result and an
 /// ETC1S transcode: both end up holding straight RGBA8 bytes and a
 /// width/height at the same moment, which is exactly what [buildsMipChain]

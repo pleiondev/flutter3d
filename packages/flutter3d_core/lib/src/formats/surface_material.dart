@@ -3,6 +3,9 @@ import 'dart:typed_data';
 import 'package:vector_math/vector_math.dart';
 
 import 'lighting_model.dart';
+import 'material_extensions.dart';
+
+export 'material_extensions.dart';
 
 /// How a surface treats the alpha channel.
 enum SurfaceAlphaMode { opaque, mask, blend }
@@ -180,6 +183,7 @@ final class SurfaceMaterial {
     this.doubleSided = false,
     this.unlit = false,
     this.lightingModel,
+    this.extensions,
     this.extras,
   }) : baseColor = baseColor ?? Vector4(1.0, 1.0, 1.0, 1.0),
        emissive = emissive ?? Vector3.zero();
@@ -222,6 +226,11 @@ final class SurfaceMaterial {
   /// through a format that has no such concept just drops it, the same way
   /// [extras] would.
   final LightingModel? lightingModel;
+
+  /// The layers beyond metal-rough — clear coat, specular, index of
+  /// refraction — or null for a surface that has none, which is every
+  /// surface a format without them decodes. See [MaterialExtensions].
+  final MaterialExtensions? extensions;
 
   /// glTF's own `extras` on this material, carried opaquely — see
   /// [ModelNode.extras] for what that means and why.
