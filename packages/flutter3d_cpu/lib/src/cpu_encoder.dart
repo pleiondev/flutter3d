@@ -547,6 +547,7 @@ final class CpuEncoder implements CommandEncoder {
       // context serves every fragment, so a debug picture left over from the
       // last one would be shown for this one.
       context.debugSurface = null;
+      context.fragDepth = null;
       final colour = pipeline.fragment.run(interpolated, bindings, context);
       if (colour == null) continue;
       if (stencil != null) _stencilWrite(stencil, index, stencilState, op);
@@ -557,7 +558,9 @@ final class CpuEncoder implements CommandEncoder {
       target.pixels[at + 1] = colour.y;
       target.pixels[at + 2] = colour.z;
       target.pixels[at + 3] = colour.w;
-      if (depth != null && _depthWrite) depth[index] = z;
+      if (depth != null && _depthWrite) {
+        depth[index] = context.fragDepth ?? z;
+      }
     }
   }
 
@@ -1039,6 +1042,8 @@ final class CpuEncoder implements CommandEncoder {
         context.surface = null;
         context.albedo = null;
         context.debugSurface = null;
+        context.fragDepth = null;
+        context.fragDepth = null;
         final colour = pipeline.fragment.run(interpolated, bindings, context);
         if (colour == null) continue;
         if (stencil != null) _stencilWrite(stencil, index, stencilState, op);
@@ -1077,7 +1082,9 @@ final class CpuEncoder implements CommandEncoder {
           _blendInto(blend, _blendColor, target.pixels, at, colour, storage);
         }
 
-        if (depth != null && _depthWrite) depth[index] = z;
+        if (depth != null && _depthWrite) {
+          depth[index] = context.fragDepth ?? z;
+        }
       }
     }
   }

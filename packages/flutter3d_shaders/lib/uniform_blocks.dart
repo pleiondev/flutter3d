@@ -824,6 +824,11 @@ uniformBlocks = <String, Map<String, Map<String, UniformMemberLayout>>>{
       'screen': (offset: 176, byteLength: 16, elements: 1, type: 'Vector4'),
     },
   },
+  'ShadowCopy': <String, Map<String, UniformMemberLayout>>{
+    'ShadowCopyInfo': <String, UniformMemberLayout>{
+      'tile': (offset: 0, byteLength: 16, elements: 1, type: 'Vector4'),
+    },
+  },
   'ShadowDepthMasked': <String, Map<String, UniformMemberLayout>>{
     'MaskInfo': <String, UniformMemberLayout>{
       'mask': (offset: 0, byteLength: 16, elements: 1, type: 'Vector4'),

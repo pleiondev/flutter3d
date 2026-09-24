@@ -24595,6 +24595,73 @@ fn main(@location(4) v_texcoord: vec2<f32>, @location(6) v_world_position: vec3<
         ),
       ],
     ),
+    'ShadowCopy': WebGpuStage(
+      wgsl: r'''
+struct ShadowCopyInfo {
+    tile: vec4<f32>,
+}
+
+struct FragmentOutput {
+    @location(0) member: vec4<f32>,
+    @builtin(frag_depth) member_1: f32,
+}
+
+@group(1) @binding(1) 
+var static_shadow_texture_tex: texture_2d<f32>;
+@group(1) @binding(2) 
+var static_shadow_texture_smp: sampler;
+@group(1) @binding(0) 
+var<uniform> copy_info: ShadowCopyInfo;
+var<private> v_uv_1: vec2<f32>;
+var<private> frag_color: vec4<f32>;
+var<private> gl_FragDepth: f32 = 0f;
+
+fn main_1() {
+    var depth: f32;
+
+    let _e12 = copy_info.tile;
+    let _e14 = v_uv_1;
+    let _e16 = copy_info.tile;
+    let _e20 = textureSampleLevel(static_shadow_texture_tex, static_shadow_texture_smp, (_e12.xy + (_e14 * _e16.zw)), 0f);
+    depth = _e20.x;
+    let _e22 = depth;
+    frag_color = vec4<f32>(_e22, 0f, 0f, 1f);
+    let _e24 = depth;
+    gl_FragDepth = _e24;
+    return;
+}
+
+@fragment 
+fn main(@location(5) v_uv: vec2<f32>) -> FragmentOutput {
+    v_uv_1 = v_uv;
+    main_1();
+    let _e4 = frag_color;
+    let _e5 = gl_FragDepth;
+    return FragmentOutput(_e4, _e5);
+}
+''',
+      attributes: <WebGpuAttribute>[],
+      blocks: <WebGpuBlock>[
+        WebGpuBlock(
+          name: 'ShadowCopyInfo',
+          group: 1,
+          binding: 0,
+          sizeInBytes: 16,
+          members: <WebGpuBlockMember>[
+            WebGpuBlockMember(name: 'tile', offsetInBytes: 0, sizeInBytes: 16),
+          ],
+        ),
+      ],
+      samplers: <WebGpuSampler>[
+        WebGpuSampler(
+          name: 'static_shadow_texture',
+          group: 1,
+          textureBinding: 1,
+          samplerBinding: 2,
+          dimension: WebGpuTextureDimension.twoDimensional,
+        ),
+      ],
+    ),
     'ShadowTileReset': WebGpuStage(
       wgsl: r'''
 var<private> frag_color: vec4<f32>;

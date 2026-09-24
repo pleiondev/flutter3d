@@ -105,6 +105,16 @@ final class FragmentContext {
   /// what `g_albedo` holds in the GLSL for a stage that reflects nothing.
   Vector4? albedo;
 
+  /// `gl_FragDepth`, when the stage wrote one — `S1`: the depth the device
+  /// stores in place of the interpolated one. Null for every stage but the
+  /// shadow copy.
+  ///
+  /// **Written after the test, not tested.** The rasteriser tests depth
+  /// before running the stage, so a stage that moves its depth is tested at
+  /// the depth it had. The one stage that writes this draws with the test
+  /// off, where the order does not matter.
+  double? fragDepth;
+
   /// A picture a debug pass wants shown instead of the geometry.
   ///
   /// The stand-in for `g_debug_surface` and `g_debug_surface_on` in

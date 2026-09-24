@@ -94,6 +94,24 @@ final class ShadowDistanceMaskedShader implements CpuFragmentShader {
   }
 }
 
+/// `shadow_copy.frag`: one cascade's tile of the static atlas, into colour
+/// and depth — `S1`.
+final class ShadowCopyShader implements CpuFragmentShader {
+  const ShadowCopyShader();
+
+  @override
+  Vector4? run(Float32List v, ShaderBindings bindings, FragmentContext c) {
+    final source = bindings.textures['static_shadow_texture'];
+    if (source == null) return null;
+    final tile = bindings.vec4('ShadowCopyInfo', 'tile', Vector4.zero());
+    final depth = source
+        .sample(tile.x + v[0] * tile.z, tile.y + v[1] * tile.w)
+        .x;
+    c.fragDepth = depth;
+    return Vector4(depth, 0.0, 0.0, 1.0);
+  }
+}
+
 /// `shadow_tile_reset.frag`: one, the far end of the range.
 ///
 /// A texel no caster covers means "nothing between the light and its range",

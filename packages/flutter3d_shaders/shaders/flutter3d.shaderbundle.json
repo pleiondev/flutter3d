@@ -183,6 +183,10 @@
     "type": "fragment",
     "file": "shaders/lighting/shadow_distance_masked.frag"
   },
+  "ShadowCopy": {
+    "type": "fragment",
+    "file": "shaders/lighting/shadow_copy.frag"
+  },
   "ShadowTileReset": {
     "type": "fragment",
     "file": "shaders/lighting/shadow_tile_reset.frag"

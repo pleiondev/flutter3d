@@ -493,6 +493,7 @@ final class Renderer implements RenderServices {
       _fallbackBlack,
       _fallbackEnvironment,
       _shadowMap,
+      _shadowMapStatic,
       _shadowDepth,
       _cubeShadow,
       _cubeShadowStatic,
@@ -511,6 +512,7 @@ final class Renderer implements RenderServices {
     _fallbackBlack = null;
     _fallbackEnvironment = null;
     _shadowMap = null;
+    _shadowMapStatic = null;
     _shadowDepth = null;
     _cubeShadow = null;
     _cubeShadowStatic = null;
@@ -788,6 +790,7 @@ final class Renderer implements RenderServices {
     _skinnedCubeShadowPipeline = null;
     _instancedCubeShadowPipeline = null;
     _cubeShadowResetPipeline = null;
+    _shadowCopyPipeline = null;
   }
 
   final Map<String, ShaderHandle> _fragmentShaders = <String, ShaderHandle>{};
@@ -1058,6 +1061,11 @@ final class Renderer implements RenderServices {
   Float32List get _shadowCascadeBias => _fragInfo.shadowBias;
   final List<double> _shadowCascadeBiasScale = <double>[1.0, 1.0, 1.0];
   TextureHandle? _shadowMap;
+
+  /// The static casters' own directional atlas — `S1`: drawn when they
+  /// change, and copied tile by tile into [_shadowMap] under the dynamic
+  /// ones. Null while nothing in the scene is marked static.
+  TextureHandle? _shadowMapStatic;
 
   /// The depth buffer the cascade atlas is drawn with, kept for as long as the
   /// atlas is rather than borrowed from the pool a frame at a time.
@@ -2557,9 +2565,12 @@ final class Renderer implements RenderServices {
   /// pass, and a null entry is a tile that has to be drawn.
   final List<int?> _directionalBaked = <int?>[null, null, null];
 
-  /// How many casters the last directional pass actually drew, so a frame that
-  /// skips the pass can put the figure back after the frame zeroed it.
-  int _directionalCasters = 0;
+  /// What each tile of [_shadowMapStatic] holds, as the key that drew it.
+  final List<int?> _directionalStaticBaked = <int?>[null, null, null];
+
+  /// The copy from the static atlas into the frame's — `S1`.
+  PipelineHandle? _shadowCopyPipeline;
+  final ShadowCopyInfoBlock _shadowCopyInfo = ShadowCopyInfoBlock();
 
   /// One reusable batch per mesh-and-material pair — `gfx-67n`.
   ///
@@ -2852,6 +2863,15 @@ final class Renderer implements RenderServices {
   static const PassState _kShadowTileResetState = PassState(
     cullMode: CullMode.none,
     depthWrite: false,
+    depthCompare: CompareFunction.always,
+  );
+
+  /// The static tile's copy — `S1`: no test, and depth written, since the
+  /// stage writes the depth it copies and the dynamic casters that follow
+  /// test against it.
+  static const PassState _kShadowCopyState = PassState(
+    cullMode: CullMode.none,
+    depthWrite: true,
     depthCompare: CompareFunction.always,
   );
 

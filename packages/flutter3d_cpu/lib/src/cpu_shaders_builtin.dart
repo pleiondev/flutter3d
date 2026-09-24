@@ -195,6 +195,7 @@ Map<String, CpuStage> builtinCpuShaders() {
     'Fxaa': const CpuStage.fragment(FxaaShader()),
     'ShadowDepth': const CpuStage.fragment(ShadowDepthShader()),
     'ShadowDistance': const CpuStage.fragment(ShadowDistanceShader()),
+    'ShadowCopy': const CpuStage.fragment(ShadowCopyShader()),
     'ShadowTileReset': const CpuStage.fragment(ShadowTileResetShader()),
     'ShadowTileResetVertex': const CpuStage.vertex(
       ShadowTileResetVertexShader(),
