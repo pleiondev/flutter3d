@@ -11890,8 +11890,8 @@ layout(std140) uniform LayerInfo {
 }
 layer_info;
 
-/// The coat map: r the clear coat, g its roughness, each multiplying its
-/// factor; b and a are reserved for transmission and thickness. White when a
+/// The coat map: r the clear coat, g its roughness, b the transmission and a
+/// the thickness, each multiplying its factor — `M3` reads b and a. White when a
 /// material has none. One texture where glTF gives up to four, because the
 /// lit stages have two samplers left under WebGL2's sixteen.
 uniform sampler2D coat_texture;
@@ -12456,10 +12456,12 @@ precision highp int;
 precision highp sampler2D;
 precision highp samplerCube;
 
-// Metal-rough with glTF's layers on top — `M1`: the index of refraction, the
-// specular strength and tint, and a clear coat lit on the geometric normal.
-// `lib/pbr.glsl` compiled with `F3D_LAYERED`, so a plain metal-rough surface
-// keeps the cost and the samplers it had. See `LightingModel.pbrLayered`.
+// Metal-rough with glTF's layers on top — `M1`–`M3`: the index of refraction,
+// the specular strength and tint, a clear coat lit on the geometric normal, a
+// sheen, anisotropy, transmission through a volume, dispersion and a thin
+// film. `lib/pbr.glsl` compiled with `F3D_LAYERED`, so a plain metal-rough
+// surface keeps the cost and the samplers it had. See
+// `LightingModel.pbrLayered`.
 #define F3D_LAYERED
 // --- lib/pbr.glsl ---
 // Metal-rough physically based shading: Cook-Torrance specular with the GGX
@@ -14604,8 +14606,8 @@ layout(std140) uniform LayerInfo {
 }
 layer_info;
 
-/// The coat map: r the clear coat, g its roughness, each multiplying its
-/// factor; b and a are reserved for transmission and thickness. White when a
+/// The coat map: r the clear coat, g its roughness, b the transmission and a
+/// the thickness, each multiplying its factor — `M3` reads b and a. White when a
 /// material has none. One texture where glTF gives up to four, because the
 /// lit stages have two samplers left under WebGL2's sixteen.
 uniform sampler2D coat_texture;
