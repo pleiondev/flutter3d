@@ -132,7 +132,7 @@ final class LightShading {
   /// the tone curve would have rolled off.
   static double linearOf(double encoded) => encoded <= 0.04045
       ? math.max(encoded, 0.0) / 12.92
-      : math.pow((encoded + 0.055) / 1.055, 2.4).toDouble();
+      : Portable.pow((encoded + 0.055) / 1.055, 2.4).toDouble();
 
   /// A linear value as a display byte would show it at [exposure]: exposed,
   /// clipped and encoded — what the difference between two pictures is
@@ -141,6 +141,6 @@ final class LightShading {
     final c = (linear * exposure).clamp(0.0, 1.0);
     return c < 0.0031308
         ? c * 12.92
-        : 1.055 * math.pow(c, 1.0 / 2.4).toDouble() - 0.055;
+        : 1.055 * Portable.pow(c, 1.0 / 2.4).toDouble() - 0.055;
   }
 }
