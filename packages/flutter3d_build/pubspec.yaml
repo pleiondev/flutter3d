@@ -20,6 +20,13 @@ dependencies:
   # pub get` inside a `hook/build.dart` process has no window to ask for.
   flutter3d_core: ^0.8.0
 
+  # `bin/lights.dart`: the light optimizer (`flutter3d_editor_core`'s
+  # `light_opt/`) and the level and pose documents it reads
+  # (`flutter3d_sim`). Both plain Dart, and reached only from that command —
+  # `lib/flutter3d_build.dart`, which the hook imports, does not export it.
+  flutter3d_editor_core: ^0.8.0
+  flutter3d_sim: ^0.8.0
+
   # `hook/build.dart`'s own contract — `ap-00`'s spike proved this is the half
   # of the build-hook feature that is stable on Flutter 3.47/Dart 3.13; the
   # other half, `package:data_assets`, stays out (see `ap-00`'s own writeup
