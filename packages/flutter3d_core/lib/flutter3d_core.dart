@@ -72,6 +72,7 @@ export 'src/engine/assets/texture_upload.dart';
 // graph is.
 export 'src/engine/geometry/device_mesh.dart';
 // Rendering.
+export 'src/engine/render/adaptive_quality.dart';
 export 'src/engine/render/adaptive_scale.dart';
 export 'src/engine/render/debug_draw.dart';
 export 'src/engine/render/debug_draw_gizmos.dart';
@@ -92,6 +93,7 @@ export 'src/engine/render/pass_contribution.dart';
 export 'src/engine/render/pass_contributor.dart';
 export 'src/engine/render/probe_faces.dart';
 export 'src/engine/render/procedural_texture.dart';
+export 'src/engine/render/quality_table.dart';
 export 'src/engine/render/render_list.dart';
 export 'src/engine/render/render_node.dart';
 export 'src/engine/render/render_view.dart';
