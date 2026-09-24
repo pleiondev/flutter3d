@@ -323,6 +323,23 @@ extension _ScenePasses on Renderer {
       // enough gizmo would bleed into the bloom. The overlay belongs on top of
       // the finished image, so it is drawn in the composite pass below.
     }
+    // `S4`: the fog marches after this pass and reads the cells the view
+    // drew with. Built here if no lit draw built them — the list compares
+    // its rows first, so a view whose draws did costs a comparison — and
+    // kept with its row count, because a later pass may rebuild the list
+    // without cells before the fog runs. Only with the fog on: with it off
+    // nothing here happens and nothing is uploaded. The flag is read again
+    // after the build, which turns it off for a view whose cells would not
+    // fit the texture; the list it returns then holds no cells to read.
+    //
+    // With several views the cells are the last view's, cut with its matrix
+    // and looked up with that same matrix, so they stay consistent; a point
+    // off that view's screen reads an edge cell.
+    final fogCells = settings.volumetricFog.enabled && _clustersActive
+        ? _buildLightList(lights)
+        : null;
+    _fogCells = _clustersActive ? fogCells : null;
+    _fogCellRows = _lightListRows;
     _clustersActive = false;
 
     // Submitted before the post passes: they sample this target, and the queue

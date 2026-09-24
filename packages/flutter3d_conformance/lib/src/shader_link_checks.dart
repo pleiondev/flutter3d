@@ -125,6 +125,10 @@ Future<void> checkLinking(GraphicsDevice device) async {
       // into.
       'TemporalAccumulate',
       'LightShafts',
+      // `S4`: the half-resolution march and the upsample that lays it over
+      // the scene.
+      'VolumetricFog',
+      'VolumetricFogUpsample',
       'DepthOfField',
       'ViewportShade',
       'MrtProbe',
