@@ -91,6 +91,22 @@ final class ReflectionSettings {
   /// floor turned out to be the point light, and the reflection was
   /// contributing nothing at all.
   final bool debugOnly;
+
+  ReflectionSettings copyWith({
+    bool? enabled,
+    int? steps,
+    double? stride,
+    double? thickness,
+    double? intensity,
+    bool? debugOnly,
+  }) => ReflectionSettings(
+    enabled: enabled ?? this.enabled,
+    steps: steps ?? this.steps,
+    stride: stride ?? this.stride,
+    thickness: thickness ?? this.thickness,
+    intensity: intensity ?? this.intensity,
+    debugOnly: debugOnly ?? this.debugOnly,
+  );
 }
 
 /// Contact shadows: a short march toward the light, in screen space —
@@ -281,6 +297,28 @@ final class AmbientOcclusionSettings {
   /// a different physical distance at every range, so one tuned against a near
   /// wall leaves acne on a far one.
   final double bias;
+
+  AmbientOcclusionSettings copyWith({
+    bool? enabled,
+    double? radius,
+    int? samples,
+    double? strength,
+    double? bias,
+    int? blurTaps,
+    double? blurDepthFalloff,
+    AmbientOcclusionMethod? method,
+    double? thickness,
+  }) => AmbientOcclusionSettings(
+    enabled: enabled ?? this.enabled,
+    radius: radius ?? this.radius,
+    samples: samples ?? this.samples,
+    strength: strength ?? this.strength,
+    bias: bias ?? this.bias,
+    blurTaps: blurTaps ?? this.blurTaps,
+    blurDepthFalloff: blurDepthFalloff ?? this.blurDepthFalloff,
+    method: method ?? this.method,
+    thickness: thickness ?? this.thickness,
+  );
 }
 
 /// How the occlusion pass finds what hides a point — `L5`.
