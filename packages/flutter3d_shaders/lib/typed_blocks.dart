@@ -487,6 +487,18 @@ final class LayerInfoBlock extends UniformBlock {
   /// `iridescence`: Vector4, at byte 96.
   final Float32List iridescence = Float32List(4);
 
+  /// `scene_colour`: Vector4, at byte 112.
+  final Float32List sceneColour = Float32List(4);
+
+  /// `scene_viewport`: Vector4, at byte 128.
+  final Float32List sceneViewport = Float32List(4);
+
+  /// `scene_levels`: 6 × Vector4, at byte 144.
+  final Float32List sceneLevels = Float32List(24);
+
+  /// `scene_view_projection`: Matrix, at byte 240.
+  final Float32List sceneViewProjection = Float32List(16);
+
   @override
   late final Map<String, Float32List> members = <String, Float32List>{
     'specular': specular,
@@ -496,6 +508,10 @@ final class LayerInfoBlock extends UniformBlock {
     'transmission': transmission,
     'attenuation': attenuation,
     'iridescence': iridescence,
+    'scene_colour': sceneColour,
+    'scene_viewport': sceneViewport,
+    'scene_levels': sceneLevels,
+    'scene_view_projection': sceneViewProjection,
   };
 }
 
@@ -855,6 +871,19 @@ final class ReflectionInfoBlock extends UniformBlock {
     'forward': forward,
     'params': params,
     'screen': screen,
+  };
+}
+
+/// `SceneCopyInfo`.
+final class SceneCopyInfoBlock extends UniformBlock {
+  SceneCopyInfoBlock() : super('SceneCopyInfo');
+
+  /// `params`: Vector4, at byte 0.
+  final Float32List params = Float32List(4);
+
+  @override
+  late final Map<String, Float32List> members = <String, Float32List>{
+    'params': params,
   };
 }
 

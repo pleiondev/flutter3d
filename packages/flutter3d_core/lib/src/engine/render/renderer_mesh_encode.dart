@@ -838,6 +838,21 @@ extension _MeshEncode on Renderer {
         sampler: _anisotropic(material.sheenMapSampler, anisotropy),
       );
     }
+    // `M3`: the scene behind, while the transparent pass lends it, and black
+    // otherwise — the stage reads it only when `LayerInfo.scene_colour` says
+    // there is one, but a declared sampler nobody binds is a crash on Metal.
+    if (_keepsSampler(
+      fragmentShader,
+      _kSceneColourTextureSlot,
+      declared: layered,
+    )) {
+      encoder.bindTexture(
+        fragmentShader,
+        _kSceneColourTextureSlot,
+        _sceneColourRead?.texture ?? fallbackBlack,
+        sampler: SamplerOptions.linearClamp,
+      );
+    }
 
     encoder.draw(instanceCount: instanced?.count ?? 1);
     state.drawCalls++;

@@ -216,6 +216,7 @@ Map<String, CpuStage> builtinCpuShaders() {
     'ProbePrefilter': const CpuStage.fragment(ProbePrefilterShader()),
     'MrtProbe': const CpuStage.fragment(MrtProbeShader()),
     'WboitResolve': const CpuStage.fragment(WboitResolveShader()),
+    'SceneColourCopy': const CpuStage.fragment(SceneColourCopyShader()),
     'Composite': const CpuStage.fragment(CompositeShader()),
     'Easu': const CpuStage.fragment(EasuShader()),
     'Fxaa': const CpuStage.fragment(FxaaShader()),

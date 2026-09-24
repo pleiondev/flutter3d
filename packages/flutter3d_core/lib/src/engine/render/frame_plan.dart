@@ -98,6 +98,12 @@ abstract final class FrameResourceIds {
   /// only while `RenderSettings.occlusion` is `OcclusionMode.hiZ`.
   static const ResourceId depthPyramid = ResourceId('depth_pyramid');
 
+  /// The scene as the opaque half left it, at its own size and at five
+  /// halvings, side by side in one texture — `M3`, for the transmissive draws
+  /// to read. Produced only on a frame that holds one; see
+  /// `SceneColourChain`.
+  static const ResourceId sceneColour = ResourceId('scene_colour');
+
   /// Which node drew each pixel, as an id in RGBA8. Produced only on a frame
   /// something asked to pick from.
   static const ResourceId objectIds = ResourceId('object_ids');

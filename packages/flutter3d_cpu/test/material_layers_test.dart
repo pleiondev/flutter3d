@@ -19,6 +19,7 @@ const int _size = 48;
 ({Float32List hdr, CpuDevice device}) _render(
   Material Function(CpuDevice device) material, {
   bool environment = false,
+  Set<String> disabledPasses = const <String>{},
 }) {
   final device = CpuDevice(
     width: _size,
@@ -73,6 +74,7 @@ const int _size = 48;
     settings: RenderSettings(
       tonemap: false,
       bloom: const BloomSettings(enabled: false),
+      disabledPasses: disabledPasses,
     ),
   );
   return (hdr: device.readHdrPixels(result.frame), device: device);
@@ -311,6 +313,11 @@ void main() {
 
   group('transmission', () {
     /// A white glass sphere in the green-backed environment.
+    ///
+    /// Read through the environment, as a draw outside the transparent pass
+    /// reads it: with that pass on, the sphere splits the frame and the glass
+    /// reads the copy of the scene, whose backdrop here is the clear colour
+    /// rather than the cube — `M3`, held in `transmission_glass_test.dart`.
     Float32List glass(MaterialExtensions? layers) => _render(
       (_) => Material(
         lighting: LightingModel.pbrLayered,
@@ -319,6 +326,7 @@ void main() {
         extensions: layers,
       ),
       environment: true,
+      disabledPasses: const <String>{'transparent'},
     ).hdr;
 
     /// The centre pixel's colour.

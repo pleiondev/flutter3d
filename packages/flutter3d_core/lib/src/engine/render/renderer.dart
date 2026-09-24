@@ -48,6 +48,7 @@ import 'render_list.dart';
 import 'render_node.dart';
 import 'render_settings.dart';
 import 'render_view.dart';
+import 'scene_colour_chain.dart';
 import 'shadow_slots.dart';
 import 'sky_settings.dart';
 import 'static_bake_key.dart';
@@ -75,6 +76,7 @@ part 'renderer_scene_pass.dart';
 part 'renderer_shadow_pass.dart';
 part 'renderer_sky_pass.dart';
 part 'renderer_temporal_pass.dart';
+part 'renderer_transmission_pass.dart';
 part 'renderer_transparency_pass.dart';
 part 'renderer_velocity_pass.dart';
 part 'renderer_xray_pass.dart';
@@ -98,6 +100,9 @@ const String _kLtcTextureSlot = 'ltc_texture';
 /// The layered model's coat map and its block — `M1`. See `lib/pbr.glsl`.
 const String _kCoatTextureSlot = 'coat_texture';
 const String _kSheenTextureSlot = 'sheen_texture';
+
+/// The copy of the scene a transmissive draw reads — `M3`. Layered only.
+const String _kSceneColourTextureSlot = 'scene_colour_texture';
 const String _kOcclusionTextureSlot = 'occlusion_texture';
 const String _kEmissiveTextureSlot = 'emissive_texture';
 const String _kLightmapTextureSlot = 'lightmap_texture';
@@ -169,6 +174,7 @@ final class Renderer implements RenderServices {
     required this.motionBlurShader,
     required this.viewportShadeShader,
     required this.wboitResolveShader,
+    required this.sceneColourCopyShader,
     required TextureHandle fallbackAlbedo,
     required TextureHandle fallbackNormal,
     required TextureHandle fallbackBlack,
@@ -355,6 +361,9 @@ final class Renderer implements RenderServices {
   /// `R8`'s resolve: the transparent layers' weighted average, laid over the
   /// scene.
   final ShaderHandle wboitResolveShader;
+
+  /// `M3`'s copy: one level of the scene behind the transmissive draws.
+  final ShaderHandle sceneColourCopyShader;
 
   /// 1x1 opaque white, bound when a material has no base-colour texture.
   ///
@@ -701,6 +710,7 @@ final class Renderer implements RenderServices {
   final MotionBlurInfoBlock _motionBlurInfo = MotionBlurInfoBlock();
   final FogInfoBlock _fogInfo = FogInfoBlock();
   final LayerInfoBlock _layerInfo = LayerInfoBlock();
+  final SceneCopyInfoBlock _sceneCopyInfo = SceneCopyInfoBlock();
   final FrameInfoBlock _frameInfo = FrameInfoBlock();
   final IdInfoBlock _idInfo = IdInfoBlock();
   final LineInfoBlock _lineInfo = LineInfoBlock();
@@ -848,6 +858,7 @@ final class Renderer implements RenderServices {
     _instancedMaskedCubeShadowPipeline = null;
     _bloomUpsamplePipeline = null;
     _wboitResolvePipeline = null;
+    _sceneColourCopyPipeline = null;
     _compositePipeline = null;
     _probePrefilterPipeline = null;
     _skyPipeline = null;
@@ -1020,10 +1031,19 @@ final class Renderer implements RenderServices {
   /// with the others on a resize; see `renderer_transparency_pass.dart`.
   ///
   /// Their own depth rather than [_depthStencilSingle], which is
-  /// `deviceTransient` — memoryless on Apple GPUs, with nothing to load.
+  /// `deviceTransient` — memoryless on Apple GPUs, with nothing to load. The
+  /// same depth carries the opaque half over to the transparent pass when a
+  /// frame splits the scene around a copy of it — `M3`; see
+  /// `_storedSceneDepth`.
   TextureHandle? _wboitAccumulation;
   TextureHandle? _wboitRevealage;
   TextureHandle? _wboitDepth;
+
+  /// The copy of the scene the transparent pass lends its draws — `M3`: the
+  /// texture and the layout of its levels, for exactly as long as that pass
+  /// draws, and null everywhere else. Every other draw of the layered model
+  /// binds black in its place and reads the environment, as it always did.
+  ({TextureHandle texture, SceneColourChain chain})? _sceneColourRead;
 
   // `hdrFormat` is declared in `renderer_resources.dart`, alongside the
   // caches that key off it.
@@ -1078,6 +1098,7 @@ final class Renderer implements RenderServices {
   PipelineHandle? _instancedShadowPipeline;
   PipelineHandle? _bloomUpsamplePipeline;
   PipelineHandle? _wboitResolvePipeline;
+  PipelineHandle? _sceneColourCopyPipeline;
   PipelineHandle? _compositePipeline;
 
   /// Positions and UVs of the one triangle every full-screen pass draws.
@@ -1534,6 +1555,7 @@ final class Renderer implements RenderServices {
         motionBlurShader: require('MotionBlur'),
         viewportShadeShader: require('ViewportShade'),
         wboitResolveShader: require('WboitResolve'),
+        sceneColourCopyShader: require('SceneColourCopy'),
         fallbackAlbedo:
             fallbackAlbedo ?? SolidColorTexture.white.upload(device),
         fallbackNormal:
@@ -2443,6 +2465,11 @@ final class Renderer implements RenderServices {
     graph.addNode(irradiance);
     graph
       ..addNode(scene)
+      // `M3`: the copy of the scene and the transparent half drawn over it,
+      // straight after the scene they split, and culled on a frame without
+      // glass.
+      ..addNode(scene.copy)
+      ..addNode(scene.transparent)
       // After the scene, whose render list it builds and sorts again the same
       // way, and before anything else: it reads nothing and writes a name
       // nothing else reads, so its place in the chain is nobody's concern,
@@ -4010,6 +4037,7 @@ final class Renderer implements RenderServices {
       // the finished image, and each of them does it from inside the node that
       // produced it. What is left in this method is the one thing the graph
       // allocates for itself.
+      final sceneColourChain = SceneColourChain(width, height);
       resources =
           FrameResources(
               source: _DeferredTextureSource(this),
@@ -4105,6 +4133,18 @@ final class Renderer implements RenderServices {
               const ResourceDesc(
                 id: FrameResourceIds.objectIds,
                 format: TextureFormat.r8g8b8a8UNormInt,
+              ),
+            )
+            // `M3`: the scene and its halvings side by side, in the scene's
+            // own format, so the glass reads the light the scene held.
+            ..declare(
+              ResourceDesc(
+                id: FrameResourceIds.sceneColour,
+                format: hdrFormat,
+                size: AbsolutePixels(
+                  sceneColourChain.atlasWidth,
+                  sceneColourChain.atlasHeight,
+                ),
               ),
             );
     } catch (error, stack) {
