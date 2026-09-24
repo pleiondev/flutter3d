@@ -48,6 +48,7 @@ import 'package:vector_math/vector_math.dart';
 
 import 'cpu_shader.dart';
 import 'cpu_shaders_bloom.dart';
+import 'cpu_shaders_compute.dart';
 import 'cpu_shaders_contact_shadow.dart';
 import 'cpu_shaders_debug.dart';
 import 'cpu_shaders_lit.dart';
@@ -136,6 +137,8 @@ Map<String, CpuStage> builtinCpuShaders() {
     'ObjectId': const CpuStage.fragment(ObjectIdShader()),
     'Luminance': const CpuStage.fragment(LuminanceShader()),
     'FieldDecay': const CpuStage.fragment(FieldDecayShader()),
+    // `H6`: the compute stages, from `flutter3d.compute.json`.
+    'PrefixSum': const CpuStage.compute(PrefixSumShader()),
     'BloomThreshold': const CpuStage.fragment(BloomThresholdShader()),
     'BloomDownsample': const CpuStage.fragment(BloomDownsampleShader()),
     'BloomUpsample': const CpuStage.fragment(BloomUpsampleShader()),

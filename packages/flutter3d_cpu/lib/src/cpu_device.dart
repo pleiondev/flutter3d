@@ -44,34 +44,61 @@ final class CpuDevice implements GraphicsDevice {
   @override
   void onGpuTimings(void Function(GpuFrameTimings timings)? listener) {}
 
+  // Compute runs here — `H6`: a stage is a `CpuComputeShader`, a storage
+  // buffer is its bytes, and a dispatch runs its workgroups before it returns,
+  // which is as synchronous as every draw on this backend.
   @override
-  bool get supportsCompute => false;
+  bool get supportsCompute => true;
 
   @override
   StorageBuffer createStorageBuffer(
     ByteData bytes, {
     bool hostReadable = false,
-  }) => throw UnsupportedError(_noCompute);
+  }) => StorageBuffer(
+    backend: ByteData.sublistView(
+      Uint8List.fromList(
+        bytes.buffer.asUint8List(bytes.offsetInBytes, bytes.lengthInBytes),
+      ),
+    ),
+    lengthInBytes: bytes.lengthInBytes,
+    hostReadable: hostReadable,
+  );
 
   @override
-  ComputePipelineHandle createComputePipeline(ShaderHandle shader) =>
-      throw UnsupportedError(_noCompute);
+  ComputePipelineHandle createComputePipeline(ShaderHandle shader) {
+    final stage = shader.backend;
+    if (stage is! CpuStage || stage.compute == null) {
+      throw ArgumentError.value(
+        shader.name,
+        'shader',
+        'is not a compute stage on this device',
+      );
+    }
+    return ComputePipelineHandle(backend: stage.compute!, shader: shader);
+  }
 
   @override
-  ComputeEncoder beginComputePass({String? label}) =>
-      throw UnsupportedError(_noCompute);
+  ComputeEncoder beginComputePass({String? label}) => _CpuComputeEncoder();
 
   @override
-  Future<ByteData> readBuffer(StorageBuffer buffer) =>
-      throw UnsupportedError(_noCompute);
+  Future<ByteData> readBuffer(StorageBuffer buffer) async {
+    if (!buffer.hostReadable) {
+      throw ArgumentError.value(
+        buffer,
+        'buffer',
+        'was not created hostReadable, so it cannot be read back',
+      );
+    }
+    final bytes = buffer.backend as ByteData;
+    return ByteData.sublistView(
+      Uint8List.fromList(
+        bytes.buffer.asUint8List(bytes.offsetInBytes, bytes.lengthInBytes),
+      ),
+    );
+  }
 
   @override
-  void releaseStorageBuffer(StorageBuffer buffer) =>
-      throw UnsupportedError(_noCompute);
-
-  static const String _noCompute =
-      'The software rasteriser runs no compute: supportsCompute is false. Ask before '
-      'creating a storage buffer, a compute pipeline or a compute pass.';
+  void releaseStorageBuffer(StorageBuffer buffer) {}
 
   @override
   bool get supportsFloat32Filtering => false;
@@ -689,4 +716,59 @@ double _twoTo(int power) {
     value *= 2.0;
   }
   return power < 0 ? 1.0 / value : value;
+}
+
+/// A compute pass on the software rasteriser: bindings, and dispatches that
+/// run before they return.
+final class _CpuComputeEncoder implements ComputeEncoder {
+  CpuComputeShader? _shader;
+  final Map<String, ByteData> _storage = <String, ByteData>{};
+  final Map<String, Map<String, Float32List>> _blocks =
+      <String, Map<String, Float32List>>{};
+
+  @override
+  void bindPipeline(ComputePipelineHandle pipeline) {
+    _shader = pipeline.backend as CpuComputeShader;
+    _storage.clear();
+    _blocks.clear();
+  }
+
+  @override
+  bool bindStorageBuffer(
+    ShaderHandle stage,
+    String name,
+    StorageBuffer buffer,
+  ) {
+    _storage[name] = buffer.backend as ByteData;
+    return true;
+  }
+
+  @override
+  bool bindUniformBlock(
+    ShaderHandle stage,
+    String block,
+    Map<String, Float32List> members,
+  ) {
+    _blocks[block] = members;
+    return true;
+  }
+
+  @override
+  void dispatch(int x, [int y = 1, int z = 1]) {
+    final shader = _shader;
+    if (shader == null) {
+      throw StateError('dispatch before any compute pipeline was bound');
+    }
+    final bindings = CpuComputeBindings(_storage, _blocks);
+    for (var gz = 0; gz < z; gz++) {
+      for (var gy = 0; gy < y; gy++) {
+        for (var gx = 0; gx < x; gx++) {
+          shader.runWorkgroup((gx, gy, gz), bindings);
+        }
+      }
+    }
+  }
+
+  @override
+  void submit() {}
 }

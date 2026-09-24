@@ -1,0 +1,6 @@
+{
+  "PrefixSum": {
+    "type": "compute",
+    "file": "shaders/compute/prefix_sum.comp"
+  }
+}

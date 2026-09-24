@@ -158,6 +158,9 @@ step "webgl shaders" bash -c 'cd packages/flutter3d_webgl && dart run tool/gener
 # reason the shader bundle step does: a check that quietly does nothing is worse
 # than no check, because it reports green.
 step "webgpu shaders" bash -c 'cd packages/flutter3d_webgpu && dart run tool/generate_shaders.dart >/dev/null && git diff --exit-code -- lib/engine_shaders.dart'
+# `H6`: the compute stages, from their own manifest, through the same glslang
+# and naga. The same shape of check: regenerate, and fail on any difference.
+step "webgpu compute shaders" bash -c 'cd packages/flutter3d_webgpu && dart run tool/generate_compute_shaders.dart >/dev/null && git diff --exit-code -- lib/engine_compute_shaders.dart'
 
 # **`qa-09`: the real Khronos validator, against a fresh `GltfWriter` export.**
 # `fmt-11`'s own checker

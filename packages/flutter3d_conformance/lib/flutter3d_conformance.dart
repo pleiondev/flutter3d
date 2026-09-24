@@ -55,6 +55,7 @@ import 'package:test/test.dart' show markTestSkipped, test;
 import 'src/attachment_checks.dart';
 import 'src/blend_checks.dart';
 import 'src/compressed_checks.dart';
+import 'src/compute_checks.dart';
 import 'src/core_checks.dart';
 import 'src/draw_checks.dart';
 import 'src/field_checks.dart';
@@ -72,6 +73,7 @@ import 'src/shader_link_checks.dart';
 import 'src/stencil_checks.dart';
 import 'src/vertex_texture_checks.dart';
 
+export 'src/compute_checks.dart' show computeChecks;
 export 'src/fuzz/fuzz.dart'
     show
         FoldPowerOfTwo,
@@ -411,6 +413,7 @@ List<ConformanceCheck> get shaderChecks => <ConformanceCheck>[
 List<ConformanceCheck> get conformanceChecks => <ConformanceCheck>[
   ...coreChecks,
   ...shaderChecks,
+  ...computeChecks,
 ];
 
 /// [conformanceChecks] and the check that needs the backend's own shaders
