@@ -137,6 +137,13 @@ abstract final class F3dSection {
   /// older build skips the section and plays the same clips without their
   /// material and light tracks, which is the whole of what it cannot do.
   static const int pointerTracks = 24;
+
+  /// The impostor level a node falls to last — `C4`, `ModelLod.impostor`.
+  /// Sparse like [lods], one record per node that has one; a reader without
+  /// it sees the surface levels alone and draws the coarsest mesh as far as
+  /// the eye goes, which is the right thing for a build that cannot draw the
+  /// card.
+  static const int impostors = 25;
 }
 
 /// Fixed record sizes, in bytes. All multiples of four.
@@ -228,6 +235,10 @@ abstract final class F3dRecord {
   /// u32 nodeIndex, f32 maxScreenFraction, u32 surfaceOffset, u32
   /// surfaceCount
   static const int lod = 16;
+
+  /// u32 nodeIndex, f32 maxScreenFraction, u32 albedoImage, u32
+  /// normalDepthImage, u32 grid, f32 centre x, y, z, f32 radius
+  static const int impostor = 36;
 }
 
 /// Bit positions inside a `surfaceAttributes` record — one per name

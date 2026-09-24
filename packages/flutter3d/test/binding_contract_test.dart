@@ -16,6 +16,8 @@
 /// the morph bind out of a stage that declares it.
 library;
 
+import 'dart:typed_data';
+
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d/parity_scene.dart';
 import 'package:flutter3d_hardware/testing.dart';
@@ -69,6 +71,52 @@ void main() {
               ], width: 4.0),
             ),
             Material.polyline(viewportWidth: 64.0, viewportHeight: 64.0),
+          ),
+        )
+        ..add(
+          MeshNode(
+            DeviceMesh.upload(
+              device,
+              CuboidShape(size: Vector3.all(0.6)).build(),
+            ),
+            Material(name: 'lit'),
+          )..setPosition(1.0, 0.0, 0.0),
+        )
+        ..add(
+          LightNode(intensity: 3.0)
+            ..setPosition(2.0, 3.0, 4.0)
+            ..lookAt(Vector3.zero()),
+        )
+        ..add(CameraNode()..setPosition(0.0, 0.0, 4.0));
+      renderer.render(
+        width: 64,
+        height: 64,
+        scene: scene,
+        views: <RenderView>[RenderView(camera: scene.cameras.single)],
+      );
+    });
+    expect(unbound, isEmpty, reason: unbound.join('\n'));
+  });
+
+  test('nor does an impostor card, lit by a shadowed sun', () {
+    // `C4`: the card brings its own vertex stage and a lit fragment stage
+    // that reads two atlases through the albedo and normal slots, and nothing
+    // else a lit model binds.
+    final unbound = _unbound((FakeBackend device, Renderer renderer) {
+      TextureHandle atlas() => device.createTextureFromPixels(
+        width: 8,
+        height: 8,
+        format: TextureFormat.r8g8b8a8UNormInt,
+        pixels: ByteData(8 * 8 * 4),
+      )!;
+      final scene = Scene()
+        ..add(
+          ImpostorNode(
+            device,
+            albedo: atlas(),
+            normalDepth: atlas(),
+            centre: Vector3.zero(),
+            radius: 0.8,
           ),
         )
         ..add(

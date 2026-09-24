@@ -110,6 +110,22 @@ final class LightingModel {
     vertexStageMorphs: false,
   );
 
+  /// An octahedral impostor's card — `C4`: its own `ImpostorVertex`, which
+  /// turns the card to the eye, and the `Impostor` stage, which reads the
+  /// albedo atlas from the base colour slot and the normal-depth atlas from
+  /// the normal map slot and lights the result diffusely.
+  ///
+  /// Absent from [builtIn] for the reason [polyline] is: it draws one kind of
+  /// geometry, and a picker offering it would offer to draw a cube as a card.
+  static const LightingModel impostor = LightingModel(
+    'Impostor',
+    'Impostor',
+    vertexShaderName: 'ImpostorVertex',
+    usesMetallicRoughnessMap: false,
+    usesMaterialParameters: false,
+    vertexStageMorphs: false,
+  );
+
   static const LightingModel lambert = LightingModel(
     'Lambert',
     'Lambert',

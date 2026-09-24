@@ -162,6 +162,8 @@ extension _F3dWriteScene on F3dWriter {
 
     for (var i = 0; i < document.nodes.length; i++) {
       for (final lod in document.nodes[i].lods) {
+        // Its own section: see [_writeImpostors].
+        if (lod.impostor != null) continue;
         final surfaceOffset = _blobAppend(
           Int32List.fromList(lod.surfaceIndices),
         );
@@ -172,6 +174,34 @@ extension _F3dWriteScene on F3dWriter {
         record.setUint32(8, surfaceOffset, Endian.little);
         record.setUint32(12, lod.surfaceIndices.length, Endian.little);
 
+        records.add(record.buffer.asUint8List());
+        count++;
+      }
+    }
+    return (records.toBytes(), count);
+  }
+
+  /// One record per impostor level — `C4`. Kept out of [_writeLods] so a
+  /// reader that predates it finds an ordinary chain of surface levels rather
+  /// than a level naming no surfaces at all.
+  (Uint8List, int) _writeImpostors() {
+    final records = BytesBuilder();
+    var count = 0;
+
+    for (var i = 0; i < document.nodes.length; i++) {
+      for (final lod in document.nodes[i].lods) {
+        final impostor = lod.impostor;
+        if (impostor == null) continue;
+        final record = ByteData(F3dRecord.impostor)
+          ..setUint32(0, i, Endian.little)
+          ..setFloat32(4, lod.maxScreenFraction, Endian.little)
+          ..setUint32(8, impostor.albedoImage, Endian.little)
+          ..setUint32(12, impostor.normalDepthImage, Endian.little)
+          ..setUint32(16, impostor.grid, Endian.little)
+          ..setFloat32(20, impostor.centre.x, Endian.little)
+          ..setFloat32(24, impostor.centre.y, Endian.little)
+          ..setFloat32(28, impostor.centre.z, Endian.little)
+          ..setFloat32(32, impostor.radius, Endian.little);
         records.add(record.buffer.asUint8List());
         count++;
       }

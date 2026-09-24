@@ -114,6 +114,30 @@ final class Material {
     },
   );
 
+  /// The material an `ImpostorNode` is drawn with — `C4`.
+  ///
+  /// [albedo] is the baked colour and coverage, [normalDepth] the baked
+  /// normals and depths, each [kImpostorGrid] views to a side. They ride in
+  /// the albedo and normal map slots, which [LightingModel.impostor]'s stage
+  /// reads as atlases rather than as ordinary maps.
+  ///
+  /// **Opaque, not masked.** The stage discards by its own blended coverage;
+  /// a mask here would have the shared surface code discard first against a
+  /// read of the atlas at the card's own corner coordinates, which is not
+  /// any view at all.
+  factory Material.impostor({
+    String? name,
+    required TextureHandle albedo,
+    required TextureHandle normalDepth,
+  }) => Material(
+    name: name,
+    lighting: LightingModel.impostor,
+    albedo: albedo,
+    normal: normalDepth,
+    roughness: 1.0,
+    doubleSided: true,
+  );
+
   /// The render target size a [Material.polyline] widens its line against, as
   /// the list the renderer binds — so writing to it takes effect on the next
   /// frame, with nothing rebuilt. Null for any other material.

@@ -134,6 +134,27 @@ extension _F3dScene on F3dDocument {
         ),
       );
     }
+
+    // `C4`: an impostor is always the coarsest level, so it goes after the
+    // surface levels whatever order the sections sit in.
+    final impostors = _table(F3dSection.impostors, F3dRecord.impostor);
+    for (var i = 0; i < impostors.count; i++) {
+      final o = impostors.offset + i * F3dRecord.impostor;
+      double f32(int at) => _view.getFloat32(o + at, Endian.little);
+      int u32(int at) => _view.getUint32(o + at, Endian.little);
+      (grouped[u32(0)] ??= <ModelLod>[]).add(
+        ModelLod.impostor(
+          maxScreenFraction: f32(4),
+          impostor: ModelImpostor(
+            albedoImage: u32(8),
+            normalDepthImage: u32(12),
+            grid: u32(16),
+            centre: Vector3(f32(20), f32(24), f32(28)),
+            radius: f32(32),
+          ),
+        ),
+      );
+    }
     return grouped;
   }
 
