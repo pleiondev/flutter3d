@@ -162,6 +162,7 @@ final class Pose {
           scales[node * 3 + 2] = _sample3[2];
 
         case AnimationPath.weights:
+        case AnimationPath.pointer:
           break;
       }
     }

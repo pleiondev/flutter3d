@@ -233,6 +233,14 @@ final class F3dDocument extends ModelDocument {
   late final Map<int, List<double>> _morphWeights = _readMorphWeights();
   late final Map<int, List<ModelLod>> _lods = _readLods();
 
+  /// Section 23 read once: the names, and each surface's variant → material
+  /// map for [_readSurfaces] to hand to its surface.
+  late final (List<String>, Map<int, Map<int, int>>) _variants =
+      _readVariants();
+
+  @override
+  List<String> get variants => _variants.$1;
+
   @override
   late final List<ModelSurface> surfaces = _readSurfaces();
 

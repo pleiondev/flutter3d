@@ -18,12 +18,19 @@ final class ModelPart {
     this.morphTargetCount = 0,
     List<double>? morphWeights,
     List<Aabb3>? morphReaches,
+    Map<int, Material>? variantMaterials,
   }) : transform = transform ?? Matrix4.identity(),
        morphWeights = morphWeights ?? const <double>[],
-       morphReaches = morphReaches ?? const <Aabb3>[];
+       morphReaches = morphReaches ?? const <Aabb3>[],
+       variantMaterials = variantMaterials ?? const <int, Material>{};
 
   final DeviceMesh mesh;
   final Material material;
+
+  /// What this part wears in each material variant it takes part in, by
+  /// index into `ModelAsset.variants`; [material] in every other one. Bound
+  /// once at upload and shared by every instance, the same as [material].
+  final Map<int, Material> variantMaterials;
   final Matrix4 transform;
   final String? name;
 

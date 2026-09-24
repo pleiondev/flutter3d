@@ -18,6 +18,7 @@ extension _GltfMesh on GltfLoader {
     int meshIndex,
     GltfAccessorReader reader,
     List<String> warnings,
+    _VariantScope variantScope,
   ) {
     final primitives = _mapList(mesh['primitives']);
     final result = <_DecodedPrimitive>[];
@@ -137,6 +138,12 @@ extension _GltfMesh on GltfLoader {
               materialIndex: decoded.materialIndex,
               authoredAttributes: decoded.authoredAttributes,
               meshName: meshName is String ? meshName : null,
+              variantMaterials: _variantMappings(
+                primitive,
+                label,
+                variantScope,
+                warnings,
+              ),
             ),
           );
         }
@@ -624,16 +631,70 @@ List<MorphTarget> _readMorphTargets({
   return read;
 }
 
+/// How many variants the root declares and how many materials there are, so
+/// a primitive's `KHR_materials_variants` mappings can be checked against
+/// both before a surface is built from them.
+typedef _VariantScope = ({int variants, int materials});
+
+/// [primitive]'s `KHR_materials_variants` mappings as variant → material.
+///
+/// The file says it the other way round — each mapping is one material and
+/// the variants that choose it — which is the shape an author edits and the
+/// wrong one to look up at runtime. A variant named by two mappings keeps the
+/// first, with a warning: the extension forbids it, and the first is what a
+/// reader walking the list in order would have picked anyway.
+Map<int, int>? _variantMappings(
+  Map<String, Object?> primitive,
+  String label,
+  _VariantScope scope,
+  List<String> warnings,
+) {
+  final extensions = primitive['extensions'];
+  final block = extensions is Map ? extensions['KHR_materials_variants'] : null;
+  if (block is! Map) return null;
+
+  final byVariant = <int, int>{};
+  for (final mapping in _mapList(block['mappings'])) {
+    final material = _asInt(mapping['material']);
+    if (material == null || material < 0 || material >= scope.materials) {
+      warnings.add(
+        '$label maps variants to material $material, which does not exist; '
+        'that mapping skipped.',
+      );
+      continue;
+    }
+    for (final variant in _intList(mapping['variants'])) {
+      if (variant < 0 || variant >= scope.variants) {
+        warnings.add(
+          '$label maps variant $variant, which the file does not declare; '
+          'skipped.',
+        );
+      } else if (byVariant.containsKey(variant)) {
+        warnings.add(
+          '$label maps variant $variant twice; the first mapping is kept.',
+        );
+      } else {
+        byVariant[variant] = material;
+      }
+    }
+  }
+  return byVariant;
+}
+
 final class _DecodedPrimitive {
   const _DecodedPrimitive({
     required this.mesh,
     required this.materialIndex,
     required this.authoredAttributes,
     this.meshName,
+    this.variantMaterials,
   });
 
   final MeshData mesh;
   final int? materialIndex;
   final Set<String> authoredAttributes;
   final String? meshName;
+
+  /// See [ModelSurface.variantMaterials]; null for a primitive with none.
+  final Map<int, int>? variantMaterials;
 }

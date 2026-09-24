@@ -1,6 +1,10 @@
 import 'dart:math' as math;
 import 'dart:typed_data';
 
+import 'animation_pointer.dart';
+
+export 'animation_pointer.dart';
+
 /// How a track's values are blended between keyframes.
 ///
 /// The full glTF set. Leaving one out is not an option: `STEP` is what makes a
@@ -47,7 +51,12 @@ enum AnimationPath {
 
   /// Morph target weights. Decoded so the clip is complete, but the player has
   /// nothing to apply them to until morph targets exist.
-  weights(0);
+  weights(0),
+
+  /// A material or light property named by `KHR_animation_pointer` — see
+  /// [AnimationTrack.pointer], which says which one. A pointer track drives
+  /// no node, so its [AnimationTrack.nodeIndex] is -1.
+  pointer(0);
 
   const AnimationPath(this.componentCount);
 
@@ -60,6 +69,7 @@ enum AnimationPath {
     'rotation' => AnimationPath.rotation,
     'scale' => AnimationPath.scale,
     'weights' => AnimationPath.weights,
+    'pointer' => AnimationPath.pointer,
     _ => null,
   };
 
@@ -70,6 +80,7 @@ enum AnimationPath {
     AnimationPath.rotation => 'rotation',
     AnimationPath.scale => 'scale',
     AnimationPath.weights => 'weights',
+    AnimationPath.pointer => 'pointer',
   };
 }
 
@@ -87,7 +98,13 @@ final class AnimationTrack {
     required this.times,
     required this.values,
     required this.componentCount,
+    this.pointer,
   }) {
+    if ((path == AnimationPath.pointer) != (pointer != null)) {
+      throw ArgumentError(
+        'A pointer track needs its pointer, and only a pointer track has one.',
+      );
+    }
     if (times.isEmpty) {
       throw ArgumentError('An animation track needs at least one keyframe.');
     }
@@ -101,8 +118,13 @@ final class AnimationTrack {
     }
   }
 
-  /// Index into the model's node list.
+  /// Index into the model's node list; -1 for a [AnimationPath.pointer]
+  /// track, which drives a material or a light rather than a node.
   final int nodeIndex;
+
+  /// What a [AnimationPath.pointer] track drives, resolved at load; null for
+  /// every other path.
+  final AnimationPointer? pointer;
 
   final AnimationPath path;
   final AnimationInterpolation interpolation;
@@ -309,7 +331,7 @@ final class AnimationTrack {
 
   @override
   String toString() =>
-      'AnimationTrack(node $nodeIndex, ${path.name}, '
+      'AnimationTrack(${pointer?.pointer ?? 'node $nodeIndex'}, ${path.name}, '
       '${interpolation.name}, $keyCount keys)';
 }
 

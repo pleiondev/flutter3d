@@ -123,14 +123,23 @@ final class GltfLoader implements ModelDecoder {
     final materials = _decodeMaterials(json, warnings);
     final lights = _decodeLights(json, warnings);
     final cameras = _decodeCameras(json, warnings);
+    final variants = _decodeVariants(json);
     final graph = _decodeScene(
       json,
       reader,
       warnings,
       lights.length,
       cameras.length,
+      (variants: variants.length, materials: materials.length),
     );
-    final animations = _decodeAnimations(json, reader, graph.nodes, warnings);
+    final animations = _decodeAnimations(
+      json,
+      reader,
+      graph.nodes,
+      warnings,
+      materialCount: materials.length,
+      lightCount: lights.length,
+    );
     final skins = _decodeSkins(json, reader, graph.nodes.length, warnings);
 
     final assetBlock = json['asset'];
@@ -153,6 +162,7 @@ final class GltfLoader implements ModelDecoder {
       skins: skins,
       lights: lights,
       cameras: cameras,
+      variants: variants,
       asset: generator is String || documentExtras != null
           ? DocumentAsset(
               generator: generator is String ? generator : null,
@@ -160,6 +170,25 @@ final class GltfLoader implements ModelDecoder {
             )
           : null,
     );
+  }
+
+  /// The root's `KHR_materials_variants.variants`, by name. A variant with
+  /// no name — the extension requires one — is called by its index, so a
+  /// primitive's mapping to it still has something to select it by.
+  List<String> _decodeVariants(Map<String, Object?> json) {
+    final extensions = json['extensions'];
+    final block = extensions is Map
+        ? extensions['KHR_materials_variants']
+        : null;
+    if (block is! Map) return const <String>[];
+    final variants = _mapList(block['variants']);
+    return <String>[
+      for (var i = 0; i < variants.length; i++)
+        switch (variants[i]['name']) {
+          final String name => name,
+          _ => 'variant $i',
+        },
+    ];
   }
 
   void _checkRequiredExtensions(Map<String, Object?> json) {
@@ -208,6 +237,13 @@ final class GltfLoader implements ModelDecoder {
       // have no buffer views to fall back on; refusing the extension here
       // refused all of them.
       'KHR_draco_mesh_compression',
+      // `M4`: variants become `ModelSurface.variantMaterials` and
+      // `ModelInstance.selectVariant`; a pointer channel becomes a track
+      // on a material or light property. A pointer to a property the engine
+      // does not animate is skipped with a warning naming it, which costs
+      // that one channel rather than the file.
+      'KHR_materials_variants',
+      'KHR_animation_pointer',
     };
     final unsupported = required.whereType<String>().where(
       (e) => !supported.contains(e),

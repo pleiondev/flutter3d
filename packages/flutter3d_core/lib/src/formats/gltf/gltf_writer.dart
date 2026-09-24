@@ -170,6 +170,9 @@ final class GltfWriter {
     final animations = _writeAnimations();
     final lights = _writeLights();
     final cameras = _writeCameras();
+    if (document.variants.isNotEmpty) {
+      _extensionsUsed.add('KHR_materials_variants');
+    }
 
     final json = <String, Object?>{
       'asset': <String, Object?>{
@@ -184,9 +187,17 @@ final class GltfWriter {
         'extensionsUsed': _extensionsUsed.toList(),
       if (_extensionsRequired.isNotEmpty)
         'extensionsRequired': _extensionsRequired.toList(),
-      if (lights.isNotEmpty)
+      if (lights.isNotEmpty || document.variants.isNotEmpty)
         'extensions': <String, Object?>{
-          'KHR_lights_punctual': <String, Object?>{'lights': lights},
+          if (lights.isNotEmpty)
+            'KHR_lights_punctual': <String, Object?>{'lights': lights},
+          if (document.variants.isNotEmpty)
+            'KHR_materials_variants': <String, Object?>{
+              'variants': <Object?>[
+                for (final name in document.variants)
+                  <String, Object?>{'name': name},
+              ],
+            },
         },
       if (scenes.isNotEmpty) 'scene': 0,
       if (scenes.isNotEmpty) 'scenes': scenes,

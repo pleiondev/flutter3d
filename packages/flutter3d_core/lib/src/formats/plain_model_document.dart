@@ -35,6 +35,7 @@ final class PlainModelDocument extends ModelDocument {
     this.cameras = const <ModelCamera>[],
     this.warnings = const <String>[],
     this.asset,
+    this.variants = const <String>[],
   });
 
   @override
@@ -66,4 +67,7 @@ final class PlainModelDocument extends ModelDocument {
 
   @override
   final DocumentAsset? asset;
+
+  @override
+  final List<String> variants;
 }

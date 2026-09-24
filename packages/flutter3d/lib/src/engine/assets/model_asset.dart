@@ -31,6 +31,8 @@ final class ModelAsset {
     this.clips = const <AnimationClip>[],
     this.warnings = const <String>[],
     this.name,
+    this.variants = const <String>[],
+    this.materials = const <int, Material>{},
   }) : skins = List.unmodifiable(skins),
        nodes = nodes ?? _flatNodesFor(parts),
        roots = roots ?? <int>[for (var i = 0; i < parts.length; i++) i];
@@ -58,6 +60,19 @@ final class ModelAsset {
 
   final List<String> warnings;
   final String? name;
+
+  /// The material variants the file offers, by name — see
+  /// [ModelInstance.selectVariant] and [ModelPart.variantMaterials].
+  final List<String> variants;
+
+  /// The bound material for each of the document's materials that anything
+  /// uses, by its index there.
+  ///
+  /// Kept because an animation pointer addresses a material by that index,
+  /// not by the part that happens to wear it: one material on three parts is
+  /// one roughness track, and a material only a variant uses is still one a
+  /// clip may animate.
+  final Map<int, Material> materials;
 
   /// Whether the file brought any animation with it.
   ///
@@ -238,6 +253,13 @@ final class ModelAsset {
       );
     });
 
+    Future<Material> materialAt(int index) async =>
+        materialCache[index] ??= await bindSurfaceMaterial(
+          document.materials[index],
+          lighting: lighting,
+          textureFor: textureFor,
+        );
+
     final parts = <ModelPart>[];
     for (final surface in document.surfaces) {
       final index = surface.materialIndex;
@@ -259,15 +281,32 @@ final class ModelAsset {
       );
       final morph = morphFor(surface.mesh, surface.name ?? 'a surface');
 
-      Material material;
-      if (index != null && index >= 0 && index < document.materials.length) {
-        material = materialCache[index] ??= await bindSurfaceMaterial(
-          document.materials[index],
-          lighting: lighting,
-          textureFor: textureFor,
-        );
-      } else {
-        material = materialCache[-1] ??= Material(lighting: lighting);
+      final material =
+          index != null && index >= 0 && index < document.materials.length
+          ? await materialAt(index)
+          : materialCache[-1] ??= Material(lighting: lighting);
+
+      // Each variant's material is bound now, with the default one, so that
+      // switching variants is an assignment rather than an upload. The mesh
+      // is not re-uploaded per variant: the texture transform baked into it
+      // is the default material's, and a variant whose own transform differs
+      // is said so rather than drawn quietly with the wrong one.
+      final variantMaterials = <int, Material>{};
+      for (final MapEntry(key: variant, value: other)
+          in surface.variantMaterials.entries) {
+        if (other < 0 || other >= document.materials.length) continue;
+        variantMaterials[variant] = await materialAt(other);
+        final theirs = sharedTextureTransform(document.materials[other]);
+        final same = theirs == null
+            ? moved == null
+            : moved != null && theirs.sameAs(moved);
+        if (!same) {
+          warnings.add(
+            '${surface.name ?? 'a surface'}: variant $variant\'s material has '
+            'a different KHR_texture_transform from the default one; the '
+            'default\'s is the one baked into the mesh.',
+          );
+        }
       }
 
       parts.add(
@@ -282,11 +321,17 @@ final class ModelAsset {
           morphTargetCount: morph.count,
           morphWeights: surface.morphWeights,
           morphReaches: morph.reaches,
+          variantMaterials: variantMaterials,
         ),
       );
     }
 
     return ModelAsset(
+      variants: document.variants,
+      materials: <int, Material>{
+        for (final MapEntry(:key, :value) in materialCache.entries)
+          if (key >= 0) key: value,
+      },
       name: name,
       parts: parts,
       nodes: document.nodes,
@@ -316,15 +361,20 @@ final class ModelAsset {
     final textures = Set<TextureHandle>.identity();
     for (final part in parts) {
       meshes.add(part.mesh);
-      final material = part.material;
-      for (final texture in <TextureHandle?>[
-        material.albedo,
-        material.normal,
-        material.metallicRoughness,
-        material.occlusion,
-        material.emissiveTexture,
+      // A variant's material holds textures the default one may not.
+      for (final material in <Material>[
+        part.material,
+        ...part.variantMaterials.values,
       ]) {
-        if (texture != null) textures.add(texture);
+        for (final texture in <TextureHandle?>[
+          material.albedo,
+          material.normal,
+          material.metallicRoughness,
+          material.occlusion,
+          material.emissiveTexture,
+        ]) {
+          if (texture != null) textures.add(texture);
+        }
       }
     }
     for (final mesh in meshes) {
