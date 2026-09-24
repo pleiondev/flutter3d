@@ -13,6 +13,7 @@ import 'dart:typed_data';
 import 'package:flutter3d_core/formats.dart';
 import 'package:flutter3d_core/geometry.dart';
 
+import 'lod_generate.dart';
 import 'texture_encode.dart';
 
 /// The compression family a texture should target — `ap-09`'s own row.
@@ -89,6 +90,11 @@ Options:
   --no-mips                 Skip the mip chain and keep the base level alone.
                              Every compressed image otherwise carries one,
                              down to the last level that is whole 4x4 blocks.
+  --lods <ratios>           Comma-separated triangle ratios, each strictly
+                             between 0 and 1 (e.g. 0.5,0.25,0.1). Every node
+                             that draws something gains one simplified level
+                             per ratio, cut from its full mesh and switched
+                             in by screen size. Also --lods=<ratios>.
   -h, --help                Show this text.
 ''';
 
@@ -98,12 +104,17 @@ final class ConvertOptions {
     this.output,
     this.textures = TextureFamily.auto,
     this.mips = true,
+    this.lods = const <double>[],
   });
 
   final String input;
   final String? output;
   final TextureFamily textures;
   final bool mips;
+
+  /// The triangle ratios `--lods` asked for, or empty for none — see
+  /// [generateLods].
+  final List<double> lods;
 
   /// Parses [arguments], or returns null for anything [usage] should answer
   /// — an unknown flag, a missing value, more than one positional argument.
@@ -112,6 +123,7 @@ final class ConvertOptions {
     String? output;
     var textures = TextureFamily.auto;
     var mips = true;
+    var lods = const <double>[];
 
     for (var i = 0; i < arguments.length; i++) {
       final argument = arguments[i];
@@ -126,6 +138,15 @@ final class ConvertOptions {
           textures = family;
         case '--no-mips':
           mips = false;
+        case '--lods':
+          if (i + 1 >= arguments.length) return null;
+          lods = parseLodRatios(arguments[++i]) ?? const <double>[];
+          if (lods.isEmpty) return null;
+        case _ when argument.startsWith('--lods='):
+          lods =
+              parseLodRatios(argument.substring('--lods='.length)) ??
+              const <double>[];
+          if (lods.isEmpty) return null;
         case '-h' || '--help':
           return null;
         case _ when argument.startsWith('-'):
@@ -143,6 +164,7 @@ final class ConvertOptions {
       output: output,
       textures: textures,
       mips: mips,
+      lods: lods,
     );
   }
 }
@@ -210,6 +232,7 @@ Future<int> runConvert(
       stderrSink,
       textures: options.textures,
       mips: options.mips,
+      lods: options.lods,
       decoders: decoders,
     );
     if (!ok) failures++;
@@ -280,6 +303,7 @@ Future<bool> convertOne(
   IOSink err, {
   TextureFamily textures = TextureFamily.auto,
   bool mips = true,
+  List<double> lods = const <double>[],
   List<ModelDecoder> decoders = const <ModelDecoder>[],
 }) async {
   final input = File(inputPath);
@@ -305,6 +329,14 @@ Future<bool> convertOne(
     textures,
     mips: mips,
     report: (message) => out.writeln('  texture: $message'),
+  );
+
+  // After the textures, before the writer: a level is one more surface
+  // sharing its base's material, so it rides on whatever the images became.
+  document = generateLods(
+    document,
+    lods,
+    report: (level) => out.writeln('  $level'),
   );
 
   final writeClock = Stopwatch()..start();

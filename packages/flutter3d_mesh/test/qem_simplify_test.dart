@@ -450,6 +450,73 @@ void main() {
         expect(simplified.triangleCount, greaterThan(10));
       },
     );
+
+    test('the error reached grows as the target falls', () {
+      final sphere = _sphere(radius: 1.0, segments: 40, rings: 40);
+      final errors = <double>[
+        for (final ratio in <double>[0.5, 0.25, 0.1])
+          simplifyMeshWithAttributesMeasured(
+            sphere,
+            targetTriangleCount: (sphere.triangleCount * ratio).round(),
+          ).error,
+      ];
+      expect(errors.first, greaterThan(0.0));
+      expect(errors[1], greaterThan(errors[0]));
+      expect(errors[2], greaterThan(errors[1]));
+      // A tenth of a unit sphere is still a sphere: the error is a fraction of
+      // the radius, not a number in the boundary penalty's thousands.
+      expect(errors[2], lessThan(0.5));
+    });
+
+    test('the error bounds how far the surface actually moved', () {
+      // Every surviving vertex carries the planes of every face it absorbed,
+      // so its distance off the original sphere is no more than the error the
+      // run reports — the number means something about the shape, not only
+      // about the order collapses happened in.
+      final sphere = _sphere(radius: 1.0, segments: 40, rings: 40);
+      final result = simplifyMeshWithAttributesMeasured(
+        sphere,
+        targetTriangleCount: sphere.triangleCount ~/ 10,
+      );
+      final positions = result.mesh.vertices;
+      final stride = result.mesh.layout.floatsPerVertex;
+      var worst = 0.0;
+      for (var v = 0; v < result.mesh.vertexCount; v++) {
+        final p = Vector3(
+          positions[v * stride],
+          positions[v * stride + 1],
+          positions[v * stride + 2],
+        );
+        worst = math.max(worst, (p.length - 1.0).abs());
+      }
+      expect(worst, greaterThan(0.0));
+      expect(worst, lessThanOrEqualTo(result.error));
+    });
+
+    test('a target error stops the run short of the triangle target', () {
+      final sphere = _sphere(radius: 1.0, segments: 40, rings: 40);
+      final free = simplifyMeshWithAttributesMeasured(
+        sphere,
+        targetTriangleCount: 100,
+      );
+      final capped = simplifyMeshWithAttributesMeasured(
+        sphere,
+        targetTriangleCount: 100,
+        targetError: free.error / 4,
+      );
+      expect(capped.error, lessThanOrEqualTo(free.error / 4));
+      expect(capped.mesh.triangleCount, greaterThan(free.mesh.triangleCount));
+    });
+
+    test('a mesh already under its target reports no error', () {
+      final sphere = _sphere(radius: 1.0, segments: 8, rings: 8);
+      final result = simplifyMeshWithAttributesMeasured(
+        sphere,
+        targetTriangleCount: sphere.triangleCount,
+      );
+      expect(result.mesh, same(sphere));
+      expect(result.error, 0.0);
+    });
   });
 }
 
