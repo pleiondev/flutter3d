@@ -942,9 +942,10 @@ final class _IrradianceUpdateNode extends RenderNode {
 
 /// `R1`'s camera velocity, as the producer of the velocity resource.
 ///
-/// Active only while temporal anti-aliasing is on, and reading the surface
-/// buffer is what switches that buffer on — and multisampling off — for a
-/// frame that asked for the resolve.
+/// Active while temporal anti-aliasing or motion blur (`R6`) is on, the two
+/// readers of what it writes, and reading the surface buffer is what
+/// switches that buffer on — and multisampling off — for a frame that asked
+/// for either.
 final class _CameraVelocityNode extends RenderNode with _NeedsSurfaceBuffer {
   _CameraVelocityNode(this._renderer, this._view, this._settings);
 
@@ -959,7 +960,7 @@ final class _CameraVelocityNode extends RenderNode with _NeedsSurfaceBuffer {
   String get name => 'camera velocity';
 
   @override
-  bool get isActive => _settings.antiAlias.temporal.enabled;
+  bool get isActive => _settings._wantsVelocity;
 
   @override
   List<ResourceId> get reads => const <ResourceId>[
@@ -1002,7 +1003,7 @@ final class _ObjectVelocityNode extends RenderNode with _NeedsSurfaceBuffer {
   String get name => 'object velocity';
 
   @override
-  bool get isActive => _settings.antiAlias.temporal.enabled;
+  bool get isActive => _settings._wantsVelocity;
 
   @override
   List<ResourceId> get reads => const <ResourceId>[
@@ -1281,6 +1282,73 @@ final class _DepthOfFieldNode extends RenderNode with _NeedsSurfaceBuffer {
     // A different texture from the one it read — a pass cannot sample and
     // write one — so the version it produced is told which texture it is.
     frame.resources.provide(FrameResourceIds.hdrColour, focused);
+  }
+}
+
+/// The two readers of the velocity buffer — `R1`, `R6` — which is what
+/// decides whether the passes that fill it run at all.
+extension _VelocityReaders on RenderSettings {
+  /// Whether [_MotionBlurNode] has anything to do: no shutter or less than a
+  /// pixel of streak is a sharp frame.
+  bool get _blursMotion =>
+      motionBlur.enabled &&
+      motionBlur.shutterFraction > 0.0 &&
+      motionBlur.maxRadius >= 1.0;
+
+  bool get _wantsVelocity => antiAlias.temporal.enabled || _blursMotion;
+}
+
+/// `R6`'s motion blur, as a link in the lit-colour chain.
+///
+/// **After the lens and before the temporal resolve.** A streak is what the
+/// exposure did with the light the lens already bent, so the lens goes
+/// first; and the resolve blends each frame's blurred picture into the
+/// history the way it would blend a sharp one, which is also what smooths
+/// the gather's noise.
+///
+/// Reads the velocity hard: with the setting on, the velocity nodes run
+/// whether or not the resolve does, so the read is always satisfied on a
+/// device that can attach the surface buffer they are built from.
+final class _MotionBlurNode extends RenderNode with _NeedsSurfaceBuffer {
+  _MotionBlurNode(this._renderer, this._settings);
+
+  @override
+  Renderer get owner => _renderer;
+
+  final Renderer _renderer;
+  final RenderSettings _settings;
+
+  @override
+  String get name => 'motion blur';
+
+  @override
+  bool get isActive => _settings._blursMotion;
+
+  @override
+  List<ResourceId> get reads => const <ResourceId>[
+    FrameResourceIds.hdrColour,
+    FrameResourceIds.velocity,
+    FrameResourceIds.surfaceBuffer,
+  ];
+
+  @override
+  List<ResourceId> get writes => const <ResourceId>[FrameResourceIds.hdrColour];
+
+  @override
+  void execute(NodeFrame frame) {
+    final surface = frame.resources.tryTexture(FrameResourceIds.surfaceBuffer);
+    // A hard read, so this should not happen — and the velocity next to it
+    // was reconstructed from this buffer, so without it there is no motion
+    // worth trusting either.
+    if (surface == null) return;
+    final blurred = _renderer._encodeMotionBlur(
+      scene: frame.resources.texture(FrameResourceIds.hdrColour),
+      velocity: frame.resources.texture(FrameResourceIds.velocity),
+      surface: surface,
+      settings: _settings.motionBlur,
+      resources: frame.resources,
+    );
+    frame.resources.provide(FrameResourceIds.hdrColour, blurred);
   }
 }
 
