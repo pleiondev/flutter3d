@@ -102,10 +102,14 @@ scripts and compared with `git diff --exit-code` in CI. Editing the output by
 hand passes review and fails the next regeneration.
 
 ```bash
-python3 apps/flutter3d_demo_dungeon/tool/make_crypt.py   # the crypt's level document
 python3 tool/make_models.py                              # the editor's marks
-python3 tool/make_templates.py                           # the editor's project templates
+(cd packages/flutter3d_editor_core && dart run tool/regenerate_levels.dart)
+                                                         # every level, track and template
 ```
+
+The level generators are Dart, in `packages/flutter3d_editor_core/tool/levels/`;
+a document's `generatedBy` still names the script that first wrote it, and
+`tool/levels/shipped.dart` maps that name to the function that writes it now.
 
 If you change one of the applications the templates are copied from, re-run the
 generator in the same commit.
