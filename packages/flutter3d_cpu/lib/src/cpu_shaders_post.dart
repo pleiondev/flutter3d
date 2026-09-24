@@ -91,6 +91,16 @@ final class CompositeShader implements CpuFragmentShader {
       'contact',
       Vector4.zero(),
     );
+    // `R7`: the local exposure, in stops, before anything is added to the
+    // scene — `composite.frag` multiplies the scene alone.
+    if (contactInfo.w > 0.0) {
+      final stops = bindings.textures['local_exposure_texture'];
+      if (stops != null) {
+        colour.scale(
+          math.pow(2.0, stops.sample(v[0], v[1]).x * contactInfo.w).toDouble(),
+        );
+      }
+    }
     var shade = 1.0;
     // `L5`: the light the indirect method left in rgb, added below.
     Vector3? bounced;
@@ -731,5 +741,74 @@ final class EasuShader implements CpuFragmentShader {
       (sum.z * scale).clamp(lo.z, hi.z) + grain,
       1.0,
     );
+  }
+}
+
+/// `local_exposure.frag`: how well exposed each place would be at three
+/// exposures — `R7`.
+final class LocalExposureShader implements CpuFragmentShader {
+  const LocalExposureShader();
+
+  static double _luma(Vector4 c) => 0.2126 * c.x + 0.7152 * c.y + 0.0722 * c.z;
+
+  static double _wellExposed(double y) {
+    final display = math.pow(y / (1.0 + y), 1.0 / 2.2).toDouble();
+    final off = display - 0.5;
+    return math.exp(-off * off / 0.08);
+  }
+
+  @override
+  Vector4? run(Float32List v, ShaderBindings b, FragmentContext c) {
+    final scene = b.textures['scene_texture'];
+    if (scene == null) return Vector4(1.0, 1.0, 1.0, 1.0);
+    final stops = b.vec4('LocalExposureInfo', 'stops', Vector4.zero());
+    final tx = stops.z * 2.0;
+    final ty = stops.w * 2.0;
+    final y = math.max(
+      0.25 *
+          (_luma(scene.sample(v[0] - tx, v[1] - ty)) +
+              _luma(scene.sample(v[0] + tx, v[1] - ty)) +
+              _luma(scene.sample(v[0] - tx, v[1] + ty)) +
+              _luma(scene.sample(v[0] + tx, v[1] + ty))),
+      0.0,
+    );
+    final shadow = math.pow(2.0, stops.x).toDouble();
+    final highlight = math.pow(2.0, -stops.y).toDouble();
+    return Vector4(
+      _wellExposed(y * shadow) + 1e-4,
+      _wellExposed(y) + 1e-4,
+      _wellExposed(y * highlight) + 1e-4,
+      1.0,
+    );
+  }
+}
+
+/// `local_exposure_blur.frag`: the weights blurred along one axis, and on
+/// the second run the exposure in stops — `R7`.
+final class LocalExposureBlurShader implements CpuFragmentShader {
+  const LocalExposureBlurShader();
+
+  @override
+  Vector4? run(Float32List v, ShaderBindings b, FragmentContext c) {
+    final weights = b.textures['weight_texture'];
+    if (weights == null) return Vector4(0.0, 0.0, 0.0, 1.0);
+    final step = b.vec4('LocalExposureBlurInfo', 'step', Vector4.zero());
+    final stops = b.vec4('LocalExposureBlurInfo', 'stops', Vector4.zero());
+    final sum = Vector3.zero();
+    var total = 0.0;
+    for (var i = -6; i <= 6; i++) {
+      final w = math.exp(-(i * i) / 18.0);
+      final t = weights.sample(v[0] + step.x * i, v[1] + step.y * i);
+      sum.addScaled(Vector3(t.x, t.y, t.z), w);
+      total += w;
+    }
+    sum.scale(1.0 / total);
+    if (step.z > 0.5) {
+      final shift =
+          (sum.x * stops.x - sum.z * stops.y) /
+          math.max(sum.x + sum.y + sum.z, 1e-6);
+      return Vector4(shift, shift, shift, 1.0);
+    }
+    return Vector4(sum.x, sum.y, sum.z, 1.0);
   }
 }

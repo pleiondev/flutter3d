@@ -234,6 +234,66 @@ extension _PostPasses on Renderer {
     );
   }
 
+  /// `R7`: the three exposures' weights from [scene] at [target]'s size,
+  /// blurred across and down, the second blur writing the exposure in stops
+  /// into [target].
+  void _encodeLocalExposure({
+    required TextureHandle target,
+    required TextureHandle scene,
+    required LocalExposureSettings options,
+    required FrameResources resources,
+  }) {
+    TextureHandle scratch() => resources.transient(
+      RenderTargetSpec(
+        width: target.width,
+        height: target.height,
+        format: target.format,
+      ),
+    );
+    final weights = scratch();
+    final across = scratch();
+    _localExposureInfo.stops
+      ..[0] = math.max(options.shadowStops, 0.0)
+      ..[1] = math.max(options.highlightStops, 0.0)
+      ..[2] = 1.0 / math.max(scene.width, 1)
+      ..[3] = 1.0 / math.max(scene.height, 1);
+    drawFullscreen(
+      FullscreenDraw(
+        target: weights,
+        fragment: shaders['LocalExposure']!,
+        textures: <String, TextureHandle>{'scene_texture': scene},
+        uniforms: <String, Map<String, Float32List>>{
+          _localExposureInfo.name: _localExposureInfo.members,
+        },
+      ),
+    );
+    void blur(TextureHandle from, TextureHandle to, {required bool down}) {
+      _localExposureBlurInfo.step
+        ..[0] = down ? 0.0 : 1.0 / math.max(target.width, 1)
+        ..[1] = down ? 1.0 / math.max(target.height, 1) : 0.0
+        ..[2] = down ? 1.0 : 0.0
+        ..[3] = 0.0;
+      _localExposureBlurInfo.stops
+        ..[0] = math.max(options.shadowStops, 0.0)
+        ..[1] = math.max(options.highlightStops, 0.0)
+        ..[2] = 0.0
+        ..[3] = 0.0;
+      drawFullscreen(
+        FullscreenDraw(
+          target: to,
+          fragment: shaders['LocalExposureBlur']!,
+          textures: <String, TextureHandle>{'weight_texture': from},
+          uniforms: <String, Map<String, Float32List>>{
+            _localExposureBlurInfo.name: _localExposureBlurInfo.members,
+          },
+        ),
+      );
+    }
+
+    blur(weights, across, down: false);
+    blur(across, target, down: true);
+  }
+
   /// `R5`: [source], the composited picture at the scene's size, into
   /// [target] at the output's, by the edge-adaptive filter in `easu.frag`,
   /// with the [grain] the composite left out.
@@ -1009,6 +1069,7 @@ extension _PostPasses on Renderer {
     required TextureHandle? bloom,
     required TextureHandle? ao,
     required TextureHandle? contactShadow,
+    TextureHandle? localExposure,
     required TextureHandle? surface,
     required TextureHandle? shadowView,
     TextureHandle? velocity,
@@ -1139,6 +1200,16 @@ extension _PostPasses on Renderer {
     _compositeContact[0] = contact == null
         ? 0.0
         : settings.contactShadows.strength.clamp(0.0, 1.0);
+    // `R7`: the stops, or a black stand-in at a strength of nought.
+    _compositeContact[3] = localExposure == null
+        ? 0.0
+        : settings.localExposure.strength.clamp(0.0, 1.0);
+    pass.bindTexture(
+      compositeShader,
+      'local_exposure_texture',
+      localExposure ?? fallbackBlack,
+      sampler: Renderer._clampSampler,
+    );
     pass.bindTexture(
       compositeShader,
       _kContactShadowTextureSlot,

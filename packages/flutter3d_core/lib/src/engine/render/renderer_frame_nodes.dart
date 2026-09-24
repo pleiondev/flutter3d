@@ -1486,6 +1486,8 @@ final class _CompositeNode extends RenderNode {
     // unconditional read: its node knows whether it is on, and the graph
     // answering null is what "nobody produced it" looks like — `gfx-76n`.
     FrameResourceIds.contactShadow,
+    // `R7`: unconditional, for the occlusion's reason.
+    FrameResourceIds.localExposure,
     // Only when it is going to show it. An unconditional read would make
     // the buffer look wanted on every frame, and what wants it is what
     // decides whether the scene pass attaches it at all.
@@ -1562,6 +1564,7 @@ final class _CompositeNode extends RenderNode {
       // than a flag this pass was handed.
       ao: frame.resources.tryTexture(FrameResourceIds.ao),
       contactShadow: frame.resources.tryTexture(FrameResourceIds.contactShadow),
+      localExposure: frame.resources.tryTexture(FrameResourceIds.localExposure),
       surface: _showsSurface
           ? frame.resources.tryTexture(FrameResourceIds.surfaceBuffer)
           : null,
@@ -1645,6 +1648,49 @@ final class _FxaaNode extends RenderNode {
       settings: _settings,
       upscaleSharpen: upscaleSharpen,
     );
+    developer.Timeline.finishSync();
+  }
+}
+
+/// The local exposure, measured and blurred — `R7`.
+///
+/// Three draws at an eighth of the frame: the weights of the three
+/// exposures, then a wide blur across and a wide blur down, the second of
+/// which writes the exposure in stops. The composite reads the result.
+final class _LocalExposureNode extends RenderNode {
+  _LocalExposureNode(this._renderer, this._settings);
+
+  final Renderer _renderer;
+  final RenderSettings _settings;
+
+  @override
+  String get name => 'local exposure';
+
+  @override
+  bool get isActive =>
+      _settings.localExposure.enabled &&
+      _settings.localExposure.strength > 0.0 &&
+      _renderer.shaders['LocalExposure'] != null &&
+      _renderer.shaders['LocalExposureBlur'] != null;
+
+  @override
+  List<ResourceId> get reads => const <ResourceId>[FrameResourceIds.hdrColour];
+
+  @override
+  List<ResourceId> get writes => const <ResourceId>[
+    FrameResourceIds.localExposure,
+  ];
+
+  @override
+  void execute(NodeFrame frame) {
+    developer.Timeline.startSync('Renderer.localExposure');
+    _renderer._encodeLocalExposure(
+      target: frame.resources.texture(FrameResourceIds.localExposure),
+      scene: frame.resources.texture(FrameResourceIds.hdrColour),
+      options: _settings.localExposure,
+      resources: frame.resources,
+    );
+    frame.state.drawCalls += 3;
     developer.Timeline.finishSync();
   }
 }

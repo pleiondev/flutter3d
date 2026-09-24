@@ -653,6 +653,9 @@ final class Renderer implements RenderServices {
   final FragInfoBlock _fragInfo = FragInfoBlock();
   final FxaaInfoBlock _fxaaInfo = FxaaInfoBlock();
   final EasuInfoBlock _easuInfo = EasuInfoBlock();
+  final LocalExposureInfoBlock _localExposureInfo = LocalExposureInfoBlock();
+  final LocalExposureBlurInfoBlock _localExposureBlurInfo =
+      LocalExposureBlurInfoBlock();
   final LightListInfoBlock _lightListInfo = LightListInfoBlock();
   final LuminanceInfoBlock _luminanceInfo = LuminanceInfoBlock();
   final MaskInfoBlock _maskInfo = MaskInfoBlock();
@@ -2349,6 +2352,7 @@ final class Renderer implements RenderServices {
     final resolve = _TemporalResolveNode(this, view, s);
     graph
       ..addNode(resolve)
+      ..addNode(_LocalExposureNode(this, s))
       ..addNode(bloom)
       ..addNode(composite)
       ..addNode(easu)
@@ -3766,6 +3770,14 @@ final class Renderer implements RenderServices {
               ResourceDesc(
                 id: FrameResourceIds.contactShadow,
                 format: hdrFormat,
+              ),
+            )
+            // `R7`: an eighth of the frame; the stops are blurred wide.
+            ..declare(
+              ResourceDesc(
+                id: FrameResourceIds.localExposure,
+                format: hdrFormat,
+                size: const FrameFraction(8),
               ),
             )
             // The frame's size: a velocity is per pixel of the picture the

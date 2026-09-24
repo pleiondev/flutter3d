@@ -465,6 +465,36 @@ final class LineInfoBlock extends UniformBlock {
   };
 }
 
+/// `LocalExposureBlurInfo`.
+final class LocalExposureBlurInfoBlock extends UniformBlock {
+  LocalExposureBlurInfoBlock() : super('LocalExposureBlurInfo');
+
+  /// `step`: Vector4, at byte 0.
+  final Float32List step = Float32List(4);
+
+  /// `stops`: Vector4, at byte 16.
+  final Float32List stops = Float32List(4);
+
+  @override
+  late final Map<String, Float32List> members = <String, Float32List>{
+    'step': step,
+    'stops': stops,
+  };
+}
+
+/// `LocalExposureInfo`.
+final class LocalExposureInfoBlock extends UniformBlock {
+  LocalExposureInfoBlock() : super('LocalExposureInfo');
+
+  /// `stops`: Vector4, at byte 0.
+  final Float32List stops = Float32List(4);
+
+  @override
+  late final Map<String, Float32List> members = <String, Float32List>{
+    'stops': stops,
+  };
+}
+
 /// `LuminanceInfo`.
 final class LuminanceInfoBlock extends UniformBlock {
   LuminanceInfoBlock() : super('LuminanceInfo');

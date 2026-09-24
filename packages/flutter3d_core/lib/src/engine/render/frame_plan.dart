@@ -63,6 +63,10 @@ abstract final class FrameResourceIds {
   /// hemisphere, and only where a surface faces the light.
   static const ResourceId contactShadow = ResourceId('contact_shadow');
 
+  /// The local exposure, in stops per place, at an eighth of the frame —
+  /// `R7`. Produced only while `RenderSettings.localExposure` is on.
+  static const ResourceId localExposure = ResourceId('local_exposure');
+
   /// How far each pixel moved on screen since the last frame, in UV units,
   /// now minus then — `R1`. Red and green; produced only while temporal
   /// anti-aliasing is on.
