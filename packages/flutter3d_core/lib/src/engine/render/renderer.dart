@@ -2552,10 +2552,10 @@ final class Renderer implements RenderServices {
     wanted.complete(builder.build());
   }
 
-  /// What the directional atlas currently holds, as the key that drew it —
-  /// `gfx-68n`. Null until a first pass.
-  ({int matrices, int epoch, int generation, int faces, int casters})?
-  _directionalBaked;
+  /// What each tile of the directional atlas currently holds, as the key
+  /// that drew it — `gfx-68n`, per cascade since `S1`. Null until a first
+  /// pass, and a null entry is a tile that has to be drawn.
+  final List<int?> _directionalBaked = <int?>[null, null, null];
 
   /// How many casters the last directional pass actually drew, so a frame that
   /// skips the pass can put the figure back after the frame zeroed it.
