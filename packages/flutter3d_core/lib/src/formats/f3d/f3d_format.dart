@@ -123,6 +123,20 @@ abstract final class F3dSection {
   /// record naming its own node index costs less than a table of zeros in
   /// every file that never uses the feature. See `ModelNode.lods`.
   static const int lods = 21;
+
+  /// One record per material variant — `ModelDocument.variants` — carrying
+  /// its name and, in the blob, the `(surface, material)` pairs that choose
+  /// it. Per variant rather than per surface because that is how many there
+  /// are: a handful of looks, against a surface table nearly every row of
+  /// which takes part in none. See `ModelSurface.variantMaterials`.
+  static const int variants = 23;
+
+  /// `KHR_animation_pointer` tracks, one record each, kept out of [tracks]
+  /// on purpose: a reader before this section checks a track's path against
+  /// the paths it knows and refuses the file on one it does not. Here, an
+  /// older build skips the section and plays the same clips without their
+  /// material and light tracks, which is the whole of what it cannot do.
+  static const int pointerTracks = 24;
 }
 
 /// Fixed record sizes, in bytes. All multiples of four.
@@ -165,6 +179,20 @@ abstract final class F3dRecord {
 
   /// u32 offset, u32 length into the strings section
   static const int warning = 8;
+
+  /// u32 nameOffset, u32 nameLength, u32 pairOffset, u32 pairCount — the
+  /// pairs are i32 surfaceIndex, i32 materialIndex in the blob.
+  static const int variant = 16;
+
+  /// u32 animationIndex, u32 trackPosition, u32 interpolation,
+  /// u32 componentCount, u32 timesOffset, u32 timesCount, u32 valuesOffset,
+  /// u32 valuesCount, u32 pointerOffset, u32 pointerLength
+  ///
+  /// `trackPosition` is the track's index in its clip, so a clip mixing node
+  /// and pointer tracks reads back in the order it was written. The pointer
+  /// is the JSON pointer string, resolved again at load — the same place a
+  /// glTF file's is.
+  static const int pointerTrack = 40;
 
   /// u32 nameOffset, u32 nameLength, u32 jointOffset, u32 jointCount,
   /// u32 matrixOffset, i32 skeletonRoot

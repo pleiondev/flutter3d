@@ -24,7 +24,66 @@ final class ModelInstance {
     required this.meshes,
     required this.skeletons,
     required this.player,
-  });
+    this.variants = const <String>[],
+    this._drawn = const <(MeshNode, ModelPart)>[],
+    Material Function(Material)? materialFor,
+    PointerTargets? pointerTargets,
+  }) : _materialFor = materialFor ?? _same,
+       pointerTargets = pointerTargets ?? PointerTargets();
+
+  static Material _same(Material material) => material;
+
+  /// The material variants this model offers, by name — the asset's own.
+  final List<String> variants;
+
+  /// Each mesh node with the part it was built from, for [selectVariant].
+  final List<(MeshNode, ModelPart)> _drawn;
+
+  /// The instance's own copy of an asset material, or the material itself
+  /// when materials are shared — see [ModelAssetInstantiate.instantiate].
+  final Material Function(Material) _materialFor;
+
+  /// Where the player's `KHR_animation_pointer` tracks land: this instance's
+  /// materials by the file's index, and whatever lights the caller binds
+  /// with [bindLight].
+  ///
+  /// With shared materials — the default — a material track moves the
+  /// asset's material, and so every instance wearing it, the same way
+  /// tinting one does. Instantiate with `shareMaterials: false` for copies
+  /// that animate on their own.
+  final PointerTargets pointerTargets;
+
+  /// The variant [selectVariant] last chose, or null for the default look.
+  String? get variant => _variant;
+  String? _variant;
+
+  /// Dresses every part in its material for the variant called [name], or
+  /// in its default material when [name] is null.
+  ///
+  /// A part the variant does not mention wears its default, which is what
+  /// `KHR_materials_variants` says. Returns false, changing nothing, when no
+  /// variant has that name.
+  ///
+  /// Switching changes which material each mesh node points at, never the
+  /// materials themselves, so two instances sharing the asset's materials
+  /// can still wear two variants at once.
+  bool selectVariant(String? name) {
+    final index = name == null ? -1 : variants.indexOf(name);
+    if (name != null && index < 0) return false;
+    for (final (mesh, part) in _drawn) {
+      mesh.material = _materialFor(
+        part.variantMaterials[index] ?? part.material,
+      );
+    }
+    _variant = name;
+    return true;
+  }
+
+  /// Lets animation pointer tracks aimed at the file's light [index] drive
+  /// [light]. Instantiating a model creates no lights, so a clip that
+  /// animates one reaches only a light the caller has put in its place.
+  void bindLight(int index, LightNode light) =>
+      pointerTargets.lights[index] = light;
 
   /// The node the whole model hangs from.
   final SceneNode root;
@@ -72,6 +131,7 @@ extension ModelAssetInstantiate on ModelAsset {
 
     final created = List<SceneNode?>.filled(nodes.length, null);
     final meshNodes = <MeshNode>[];
+    final drawn = <(MeshNode, ModelPart)>[];
     final materials = <Material, Material>{};
     // Skeletons are attached after the walk: a joint may be created later than
     // the mesh that references it, so binding as we go would capture nulls.
@@ -120,6 +180,7 @@ extension ModelAssetInstantiate on ModelAsset {
           name: part.name,
         );
         meshNodes.add(mesh);
+        drawn.add((mesh, part));
         if (part.skinIndex != null) pendingSkins.add((mesh, part.skinIndex!));
 
         final deltas = part.morphTexture;
@@ -186,6 +247,15 @@ extension ModelAssetInstantiate on ModelAsset {
       skeletons.add(skeleton);
     }
 
+    // By the file's material index, through the same copy the parts got, so
+    // a track on an unshared instance moves that instance's material only.
+    final pointerTargets = PointerTargets(
+      materials: <int, Material>{
+        for (final MapEntry(:key, :value) in this.materials.entries)
+          key: materialFor(value),
+      },
+    );
+
     return ModelInstance(
       root: root,
       nodes: <SceneNode>[
@@ -201,7 +271,12 @@ extension ModelAssetInstantiate on ModelAsset {
               morphs: morphSinks.any((states) => states != null)
                   ? <MorphSink?>[for (final states in morphSinks) _sink(states)]
                   : null,
+              pointers: pointerTargets,
             ),
+      variants: variants,
+      drawn: drawn,
+      materialFor: materialFor,
+      pointerTargets: pointerTargets,
     );
   }
 
