@@ -24,6 +24,8 @@
 // `composite.frag` is: it is a function of screen position and of nothing
 // else, so a golden recorded with shafts on stays recorded.
 
+#include <lib/frag_coord_info.glsl>
+
 in vec2 v_uv;
 
 out vec4 frag_color;
@@ -54,12 +56,15 @@ uniform ShaftInfo {
   // air's density σ, per metre.
   vec4 scatter;
 
-  // x, y: the two cascade split distances. z: how many cascades. w: the
-  // depth bias, in the same units the map holds.
+  // x, y: the two cascade split distances. z: how many cascades. w unused.
   vec4 cascades;
 
   // xyz: towards the sun, a unit vector. w: Henyey–Greenstein's g.
   vec4 sun;
+
+  // x, y, z: each cascade's depth bias, in the units its part of the map
+  // holds — `FragInfo.shadow_bias`, for the reason given there. w unused.
+  vec4 bias;
 }
 shaft_info;
 
@@ -141,7 +146,10 @@ float LitAt(vec3 world, float viewDistance) {
     // Outside the map is lit rather than dark: a point beyond the shadow
     // volume has nothing recorded about it, and calling that shadow would
     // put a wall of darkness across the far half of every shaft.
-    return candidate.z - shaft_info.cascades.w > stored ? 0.0 : 1.0;
+    float bias = which == 0
+        ? shaft_info.bias.x
+        : (which == 1 ? shaft_info.bias.y : shaft_info.bias.z);
+    return candidate.z - bias > stored ? 0.0 : 1.0;
   }
   return 1.0;
 }
@@ -177,7 +185,7 @@ void main() {
   float stride = distance / float(steps);
   // The dithered start: a fraction of a step, so the banding sixteen samples
   // would otherwise draw is broken into a pattern the eye integrates.
-  float offset = BayerCell(gl_FragCoord.xy) * stride;
+  float offset = BayerCell(TargetFragCoord()) * stride;
 
   // **Single scattering with transmittance.** Each step in-scatters the
   // share of the light its own length of air catches, `1 − e^(−σ·stride)`,

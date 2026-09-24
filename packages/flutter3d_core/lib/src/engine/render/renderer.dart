@@ -83,6 +83,7 @@ const String _kSkinInfoBlock = 'SkinInfo';
 const String _kBloomInfoBlock = 'BloomInfo';
 const String _kFxaaInfoBlock = 'FxaaInfo';
 const String _kCompositeInfoBlock = 'CompositeInfo';
+const String _kFragCoordInfoBlock = 'FragCoordInfo';
 const String _kLuminanceInfoBlock = 'LuminanceInfo';
 const String _kIdInfoBlock = 'IdInfo';
 const String _kProbeInfoBlock = 'ProbeInfo';
@@ -900,6 +901,40 @@ final class Renderer implements RenderServices {
   /// [_shadowMatrix] in the backend's clip space, for drawing the map with.
   final vm.Matrix4 _shadowDrawMatrix = vm.Matrix4.identity();
   final Float32List _shadowParams = Float32List(4);
+
+  /// `FragInfo.target_origin`: the rows of the target the scene draws into
+  /// when its row zero is the bottom of the picture — see
+  /// `lib/frag_coord.glsl`. Set where each pass that draws meshes begins.
+  final Float32List _targetOrigin = Float32List(4);
+
+  /// `FragCoordInfo.origin`, the same number for a full-screen pass.
+  final Float32List _fragCoordOrigin = Float32List(4);
+
+  /// How many rows [target] has if this backend counts them from the bottom,
+  /// and zero if it counts from the top — what `FragCoordFromTop` turns
+  /// `gl_FragCoord` around with.
+  double _rowsFromBottom(TextureHandle target) =>
+      device.framebufferOrigin == FramebufferOrigin.bottomLeft
+      ? ScreenRect.of(target).height.toDouble()
+      : 0.0;
+
+  /// Binds `FragCoordInfo` for [stage] drawing into [target]. A stage that
+  /// does not declare the block answers false and nothing is bound.
+  void _bindFragCoord(
+    PassEncoder pass,
+    ShaderHandle stage,
+    TextureHandle target,
+  ) {
+    _fragCoordOrigin[0] = _rowsFromBottom(target);
+    pass.bindUniformBlock(stage, _kFragCoordInfoBlock, <String, Float32List>{
+      'origin': _fragCoordOrigin,
+    });
+  }
+
+  /// `ShadowSettings.bias` per cascade, in each cascade's own depth: see
+  /// `shadow_bias` in `surface.glsl`.
+  final Float32List _shadowCascadeBias = Float32List(4);
+  final List<double> _shadowCascadeBiasScale = <double>[1.0, 1.0, 1.0];
   TextureHandle? _shadowMap;
 
   /// The depth buffer the cascade atlas is drawn with, kept for as long as the
@@ -2451,6 +2486,9 @@ final class Renderer implements RenderServices {
         sampler: draw.samplerFor(slot),
       );
     });
+    // Before the draw's own blocks, so an application stage that happens to
+    // name `FragCoordInfo` itself is the one that wins.
+    _bindFragCoord(pass, draw.fragment, draw.target);
     draw.uniforms.forEach((block, members) {
       pass.bindUniformBlock(draw.fragment, block, members);
     });
@@ -3060,7 +3098,16 @@ final class Renderer implements RenderServices {
       _cubeLightData[row * 4 + 2] = _cubePosition.z;
       _cubeLightData[row * 4 + 3] = owner.range > 0.0 ? owner.range : 20.0;
 
-      final spot = owner.type == LightType.spot;
+      // **A cone wider than a cube face is drawn as the cube.** One tile
+      // through a frustum of half-angle θ spreads its texels over `tan θ` of
+      // what a face covers, so past forty-five degrees the single tile is
+      // coarser than the six faces would be, and past the clamp below it is
+      // cut off: the rim of a floodlight read as lit. As a cube the row is a
+      // point light's, and the cone still limits where its light falls,
+      // because that is the lighting's attenuation and not the shadow's.
+      final spot =
+          owner.type == LightType.spot &&
+          owner.outerConeAngle * _kSpotFrustumMargin <= math.pi / 4;
       // The frustum this row is drawn and read through. A cube face is ninety
       // degrees, so `tan(45°)` is exactly one; a cone opens to twice its outer
       // angle, and the margin is what keeps the very edge of the cone inside
@@ -3070,7 +3117,10 @@ final class Renderer implements RenderServices {
       // narrower cone than the light.
       final tanHalf = spot
           ? math.tan(
-              (owner.outerConeAngle * _kSpotFrustumMargin).clamp(0.02, 1.5),
+              (owner.outerConeAngle * _kSpotFrustumMargin).clamp(
+                0.02,
+                math.pi / 4,
+              ),
             )
           : 1.0;
       if (spot) owner.readDirection(_shadowAim);

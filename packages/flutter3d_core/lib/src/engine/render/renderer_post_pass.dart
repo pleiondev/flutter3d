@@ -507,10 +507,9 @@ extension _PostPasses on Renderer {
     _shaftCascades[0] = _shadowCascades[0];
     _shaftCascades[1] = _shadowCascades[1];
     _shaftCascades[2] = _shadowCascades[2];
-    // The same bias the surface lookup uses. A point in the air has no
-    // surface to lift off, so this is the only guard against a shaft
-    // shadowing itself along the map's own quantisation.
-    _shaftCascades[3] = _shadowParams[1];
+    // The same bias the surface lookup uses, cascade by cascade. A point in
+    // the air has no surface to lift off, so this is the only guard against a
+    // shaft shadowing itself along the map's own quantisation.
 
     drawFullscreen(
       FullscreenDraw(
@@ -532,6 +531,7 @@ extension _PostPasses on Renderer {
             'scatter': _shaftScatter,
             'cascades': _shaftCascades,
             'sun': _shaftSun,
+            'bias': _shadowCascadeBias,
           },
         },
         // Nearest on the surface buffer, as every other reader of it takes: a
@@ -1093,6 +1093,7 @@ extension _PostPasses on Renderer {
       'contact': _compositeContact,
     };
     pass.bindUniformBlock(compositeShader, _kCompositeInfoBlock, block);
+    _bindFragCoord(pass, compositeShader, target);
     var draws = 1;
     if (!perView) {
       pass.draw();

@@ -8,6 +8,7 @@ import '../image_sniff.dart';
 import '../meshopt/meshopt_index_codec.dart';
 import '../meshopt/meshopt_vertex_codec.dart';
 import '../model_document.dart';
+import '../srgb.dart';
 import 'glb_container.dart';
 import 'gltf_accessor.dart';
 // For `toGltfFilters`, the exact inverse of `_decodeSampler`'s filter half —

@@ -39,7 +39,7 @@ stageBindings = <String, ({Set<String> blocks, Set<String> samplers})>{
     samplers: <String>{'source_texture'},
   ),
   'Composite': (
-    blocks: <String>{'CompositeInfo'},
+    blocks: <String>{'CompositeInfo', 'FragCoordInfo'},
     samplers: <String>{
       'ao_texture',
       'bloom_texture',
@@ -49,13 +49,13 @@ stageBindings = <String, ({Set<String> blocks, Set<String> samplers})>{
     },
   ),
   'ContactShadow': (
-    blocks: <String>{'ContactShadowInfo'},
+    blocks: <String>{'ContactShadowInfo', 'FragCoordInfo'},
     samplers: <String>{'surface_texture'},
   ),
   'DebugLine': (blocks: <String>{}, samplers: <String>{}),
   'DebugLineVertex': (blocks: <String>{'LineInfo'}, samplers: <String>{}),
   'DepthOfField': (
-    blocks: <String>{'DofInfo'},
+    blocks: <String>{'DofInfo', 'FragCoordInfo'},
     samplers: <String>{'scene_texture', 'surface_texture'},
   ),
   'FullscreenVertex': (blocks: <String>{}, samplers: <String>{}),
@@ -75,7 +75,7 @@ stageBindings = <String, ({Set<String> blocks, Set<String> samplers})>{
     },
   ),
   'LightShafts': (
-    blocks: <String>{'ShaftInfo'},
+    blocks: <String>{'FragCoordInfo', 'ShaftInfo'},
     samplers: <String>{'scene_texture', 'shadow_texture', 'surface_texture'},
   ),
   'Luminance': (
@@ -140,7 +140,7 @@ stageBindings = <String, ({Set<String> blocks, Set<String> samplers})>{
     samplers: <String>{'capture_texture'},
   ),
   'Reflections': (
-    blocks: <String>{'ReflectionInfo'},
+    blocks: <String>{'FragCoordInfo', 'ReflectionInfo'},
     samplers: <String>{'scene_texture', 'surface_texture'},
   ),
   'ShadowDepth': (blocks: <String>{}, samplers: <String>{}),

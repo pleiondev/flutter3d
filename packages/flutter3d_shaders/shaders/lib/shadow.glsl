@@ -116,10 +116,23 @@ float ShadowFactor(Surface s, LightSample light, int lightIndex) {
   }
   if (!found) return 1.0;
 
-  float bias = frag_info.shadow_params.y;
+  float bias = cascade == 0
+      ? frag_info.shadow_bias.x
+      : (cascade == 1 ? frag_info.shadow_bias.y : frag_info.shadow_bias.z);
   // Horizontally a texel of the atlas, vertically a texel of a tile. With one
   // cascade they are the same number and this is the kernel it has always been.
   vec2 texel = vec2(frag_info.shadow_params.x, frag_info.shadow_cascades.w);
+
+  // **Every tap is held inside its own cascade's tile**, half a texel in from
+  // the edge, and after the offset rather than before: the cube atlas learned
+  // this first (`PointShadowDistance`). The cascades sit side by side, so a
+  // tap that stepped past a seam read the neighbouring cascade's depth,
+  // measured through another projection, and a fragment at the edge of the
+  // near tile took its shadow partly from the far one. With one cascade the
+  // tile is the whole texture and the clamp is the sampler's own edge.
+  vec2 tileLo = vec2(float(cascade) / float(cascadeCount), 0.0) + 0.5 * texel;
+  vec2 tileHi =
+      vec2(float(cascade + 1) / float(cascadeCount), 1.0) - 0.5 * texel;
 
   // **`textureLod` and not `texture`, and the level asked for is the only one
   // there is.** Everything above this loop is a reason not to be here — the
@@ -156,7 +169,9 @@ float ShadowFactor(Surface s, LightSample light, int lightIndex) {
     for (int y = -1; y <= 1; y++) {
       for (int x = -1; x <= 1; x++) {
         float occluder = textureLod(
-            shadow_texture, uv + vec2(float(x), float(y)) * texel, 0.0).r;
+            shadow_texture,
+            clamp(uv + vec2(float(x), float(y)) * texel, tileLo, tileHi),
+            0.0).r;
         lit += projected.z - bias > occluder ? 0.0 : 1.0;
       }
     }
@@ -176,7 +191,9 @@ float ShadowFactor(Surface s, LightSample light, int lightIndex) {
     float blockerCount = 0.0;
     for (int i = 0; i < 5; i++) {
       float occluder = textureLod(
-          shadow_texture, uv + kShadowDisc[i] * texel * searchRadius, 0.0).r;
+          shadow_texture,
+          clamp(uv + kShadowDisc[i] * texel * searchRadius, tileLo, tileHi),
+          0.0).r;
       if (projected.z - bias > occluder) {
         blockerSum += occluder;
         blockerCount += 1.0;
@@ -195,7 +212,9 @@ float ShadowFactor(Surface s, LightSample light, int lightIndex) {
 
     for (int i = 0; i < 5; i++) {
       float occluder = textureLod(
-          shadow_texture, uv + kShadowDisc[i] * texel * radius, 0.0).r;
+          shadow_texture,
+          clamp(uv + kShadowDisc[i] * texel * radius, tileLo, tileHi),
+          0.0).r;
       lit += projected.z - bias > occluder ? 0.0 : 1.0;
     }
     lit *= 1.0 / 5.0;

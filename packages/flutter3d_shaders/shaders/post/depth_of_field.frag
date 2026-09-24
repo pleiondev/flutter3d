@@ -31,6 +31,8 @@
 // bokeh, and the shape of an out-of-focus highlight is the one thing anybody
 // looks at in this effect.
 
+#include <lib/frag_coord_info.glsl>
+
 in vec2 v_uv;
 
 out vec4 frag_color;
@@ -136,7 +138,7 @@ void main() {
   // copies of a bright highlight. A Bayer cell rather than Jimenez's
   // interleaved gradient noise, which is a `fract` of a large product and
   // would not land on the same angle in the software backend's doubles.
-  float turn = 6.2831853 * BayerCell(gl_FragCoord.xy);
+  float turn = 6.2831853 * BayerCell(TargetFragCoord());
 
   // The golden angle, so consecutive samples never line up into a spoke.
   const float kGolden = 2.39996323;

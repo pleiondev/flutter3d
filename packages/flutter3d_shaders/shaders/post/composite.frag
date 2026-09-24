@@ -9,6 +9,8 @@
 // entirely a function of what is above display white.
 precision highp float;
 
+#include <lib/frag_coord_info.glsl>
+
 in vec2 v_uv;
 
 out vec4 frag_color;
@@ -562,7 +564,7 @@ void main() {
   // percent of the output range rather than of the light, which is what a
   // film grain control has always meant on every other tool.
   float grain = composite_info.look_more.z;
-  if (grain > 0.0) encoded += vec3((Hash(gl_FragCoord.xy) - 0.5) * grain);
+  if (grain > 0.0) encoded += vec3((Hash(TargetFragCoord()) - 0.5) * grain);
 
   // Dither last, because it is the one aimed at the quantiser itself.
   // **Centred exactly.** The cells run from -1/2 to 7/16, whose mean is
@@ -571,7 +573,7 @@ void main() {
   // gradient's bands fall changes.
   float dither = composite_info.output_encode.x;
   if (dither > 0.0) {
-    encoded += vec3((BayerCell(gl_FragCoord.xy) + 0.03125) * dither);
+    encoded += vec3((BayerCell(TargetFragCoord()) + 0.03125) * dither);
   }
 
   frag_color = vec4(encoded, scene.a);

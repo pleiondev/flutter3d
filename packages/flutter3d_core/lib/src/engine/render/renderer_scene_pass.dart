@@ -123,6 +123,7 @@ extension _ScenePasses on Renderer {
       ),
     );
 
+    _targetOrigin[0] = _rowsFromBottom(hdr);
     final cameraPosition = vm.Vector3.zero();
 
     for (final view in ordered) {

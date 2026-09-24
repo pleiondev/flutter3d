@@ -9,6 +9,7 @@ import '../asset_resolver.dart';
 import '../draco/draco.dart';
 import '../model_document.dart';
 import '../model_loader.dart';
+import '../srgb.dart';
 import '../texture_transform_bake.dart';
 import 'glb_container.dart';
 import 'gltf_accessor.dart';
@@ -294,6 +295,18 @@ Vector3? _vec3(Object? value) {
     _asDouble(value[2]) ?? 0.0,
   );
 }
+
+/// glTF's `baseColorFactor`, which is linear, as the authored tint
+/// [SurfaceMaterial.baseColor] holds — see `srgb.dart`. Alpha is not a colour
+/// and passes through.
+Vector4? _authoredTint(Vector4? linear) => linear == null
+    ? null
+    : Vector4(
+        linearToSrgb(linear.x),
+        linearToSrgb(linear.y),
+        linearToSrgb(linear.z),
+        linear.w,
+      );
 
 Vector4? _vec4(Object? value) {
   if (value is! List || value.length < 4) return null;

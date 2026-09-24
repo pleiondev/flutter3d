@@ -22,6 +22,8 @@
 // the first version did: the walls of the crypt lit up and the floor did not.
 precision highp float;
 
+#include <lib/frag_coord_info.glsl>
+
 in vec2 v_uv;
 
 out vec4 frag_color;
@@ -210,7 +212,7 @@ void main() {
   // the reflection comes back as a stack of shifted copies of it. Half a
   // stride at least, off a centimetre of normal bias, so the first sample does
   // not land on the pixel it came from.
-  float jitter = 0.5 + BayerCell(gl_FragCoord.xy);
+  float jitter = 0.5 + BayerCell(TargetFragCoord());
   float travelled = stride * jitter;
   vec3 march = position + normal * 0.01 + ray * travelled;
   float reach = stride * (float(steps) + 0.5);

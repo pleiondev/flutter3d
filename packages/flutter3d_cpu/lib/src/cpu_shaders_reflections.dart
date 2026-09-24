@@ -206,6 +206,7 @@ final class LightShaftsShader implements CpuFragmentShader {
     final camera = b.vec4('ShaftInfo', 'camera', Vector4.zero());
     final scatter = b.vec4('ShaftInfo', 'scatter', Vector4.zero());
     final cascades = b.vec4('ShaftInfo', 'cascades', Vector4.zero());
+    final bias = b.vec4('ShaftInfo', 'bias', Vector4.zero());
 
     final ndcX = v[0] * 2.0 - 1.0;
     final ndcY = 1.0 - v[1] * 2.0;
@@ -255,7 +256,7 @@ final class LightShaftsShader implements CpuFragmentShader {
           candidate.z = 1.0;
         }
         final stored = shadow.sample((tileX + which) / cascadeCount, tileY).x;
-        return candidate.z - cascades.w > stored ? 0.0 : 1.0;
+        return candidate.z - bias[which] > stored ? 0.0 : 1.0;
       }
       // Outside the map is lit: a point with nothing recorded about it is not
       // in shadow, and calling it shadow would put a wall of darkness across

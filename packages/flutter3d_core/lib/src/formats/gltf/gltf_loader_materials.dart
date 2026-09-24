@@ -133,7 +133,10 @@ extension _GltfMaterials on GltfLoader {
           return checked(
             SurfaceMaterial(
               name: name is String ? name : null,
-              baseColor: _vec4(pbrMap['baseColorFactor']),
+              // Linear in the file, authored in the engine: converted once,
+              // here. Taken raw, the shader's own conversion ran on a value
+              // already linear, and a factor of 0.5 drew as 0.21.
+              baseColor: _authoredTint(_vec4(pbrMap['baseColorFactor'])),
               metallic: _asDouble(pbrMap['metallicFactor']) ?? 1.0,
               roughness: _asDouble(pbrMap['roughnessFactor']) ?? 1.0,
               baseColorTexture: textureRef(pbrMap['baseColorTexture']),

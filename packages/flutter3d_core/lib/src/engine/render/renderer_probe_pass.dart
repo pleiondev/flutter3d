@@ -230,6 +230,10 @@ extension _ProbePasses on Renderer {
         depth: DepthTarget(texture: depth),
       ),
     );
+    // A cube face is square, so its rows are its size.
+    _targetOrigin[0] = device.framebufferOrigin == FramebufferOrigin.bottomLeft
+        ? size.toDouble()
+        : 0.0;
 
     final rect = ScreenRect(width: size, height: size);
     pass.setState(
