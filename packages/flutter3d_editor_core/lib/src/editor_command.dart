@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 
+import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:vector_math/vector_math.dart';
 
 import 'editing.dart';
@@ -121,6 +122,7 @@ sealed class EditorCommand {
       'setField' when key != null => SetField(key, json['value']),
       'brighten' when amount != null => Brighten(amount),
       'turn' when amount != null => Turn(amount),
+      'setLights' => SetLights.fromArguments(json),
       _ => null,
     };
   }
@@ -186,6 +188,7 @@ const List<String> editorCommandNames = <String>[
   'setField',
   'brighten',
   'turn',
+  'setLights',
 ];
 
 /// Moves whatever is selected, by a vector, onto the grid.
@@ -473,6 +476,61 @@ final class Turn extends EditorCommand {
   bool apply(Editing editing) {
     if (editing.entity == null) return false;
     editing.turn(by);
+    return true;
+  }
+}
+
+/// Puts a whole set of lights in place of the level's own.
+///
+/// **How the light optimizer's answer reaches the document.** The optimizer
+/// decides about every light at once — which go, which merge, how strong the
+/// rest are — and that is one edit a person takes or leaves, so it is one
+/// command and one step of undo rather than a delete per light removed.
+/// [why] is what the step is called: the optimizer's own sentence, "3 → 1
+/// lights" and the numbers, so the history says what the change bought.
+final class SetLights extends EditorCommand {
+  SetLights(List<LevelLight> lights, {this.why})
+    : lights = List<LevelLight>.unmodifiable(lights);
+
+  /// Reads the command's arguments, or null when a light in them cannot be
+  /// read — the whole set refused rather than the readable part applied, for
+  /// the reason [EditorCommand.fromJson] gives.
+  static SetLights? fromArguments(Map<String, Object?> json) {
+    final rows = json['lights'];
+    if (rows is! List || rows.any((Object? row) => row is! Map)) return null;
+    final why = json['why'];
+    try {
+      return SetLights(<LevelLight>[
+        for (final row in rows)
+          LevelLight.fromJson((row as Map).cast<String, Object?>()),
+      ], why: why is String ? why : null);
+    } on LevelFormatException {
+      return null;
+    }
+  }
+
+  final List<LevelLight> lights;
+
+  /// What the change was for, or null.
+  final String? why;
+
+  @override
+  String get name => 'setLights';
+
+  @override
+  String get says => why ?? 'set the lights to ${lights.length}';
+
+  @override
+  Map<String, Object?> get arguments => <String, Object?>{
+    'lights': <Map<String, Object?>>[
+      for (final light in lights) light.toJson(),
+    ],
+    if (why != null) 'why': why,
+  };
+
+  @override
+  bool apply(Editing editing) {
+    editing.setLights(lights);
     return true;
   }
 }

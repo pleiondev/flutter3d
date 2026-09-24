@@ -13,6 +13,7 @@ import 'dart:convert';
 import 'dart:math' as math;
 
 import 'package:flutter3d_editor_core/flutter3d_editor_core.dart';
+import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:test/test.dart';
 import 'package:vector_math/vector_math.dart';
 
@@ -78,6 +79,9 @@ List<EditorCommand> _everyCommand() => <EditorCommand>[
   const SetField('solid', false),
   const Brighten(1.25),
   const Turn(0.5),
+  SetLights(<LevelLight>[
+    LevelLight(position: Vector3(0.0, 2.5, 0.0), intensity: 9.0, range: 10.0),
+  ], why: '3 → 1 lights'),
 ];
 
 void main() {
