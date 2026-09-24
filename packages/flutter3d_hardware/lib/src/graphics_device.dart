@@ -690,12 +690,14 @@ abstract interface class GraphicsDevice implements TextureAllocator {
   /// Releases one storage buffer, as [releaseGeometry] releases geometry.
   void releaseStorageBuffer(StorageBuffer buffer);
 
-  /// Whether a 32-bit float texture can be sampled with linear filtering.
+  /// Whether a 32-bit float texture can be drawn into and sampled with
+  /// linear filtering.
   ///
-  /// Reserved for the shadow filter that stores moments in one (`S2`), which
-  /// declines on a device answering false. False everywhere in 0.8.0: it is
-  /// asked of a driver by the item that needs it, and until that item lands
-  /// nothing reads it.
+  /// Asked by the shadow filter that stores moments in one (`S2`), which
+  /// declines on a device answering false and falls back to the fixed
+  /// kernel. Both halves are one answer because that filter needs both: a
+  /// target it can render its moments into, and a sampler that blends
+  /// neighbouring texels of it.
   bool get supportsFloat32Filtering;
 
   /// Whether a pass with several colour targets can blend each differently.

@@ -187,6 +187,10 @@
     "type": "fragment",
     "file": "shaders/lighting/shadow_copy.frag"
   },
+  "EvsmFilter": {
+    "type": "fragment",
+    "file": "shaders/lighting/evsm_filter.frag"
+  },
   "ShadowTileReset": {
     "type": "fragment",
     "file": "shaders/lighting/shadow_tile_reset.frag"

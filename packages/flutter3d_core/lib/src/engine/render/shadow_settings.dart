@@ -31,6 +31,55 @@ enum ShadowCasterFaces {
   both,
 }
 
+/// How the directional light's shadow map is filtered into a soft edge —
+/// `S2`.
+///
+/// **A final class with const instances rather than an enum**, for the reason
+/// `PassSkip` gives: a published enum is a promise that the list is closed,
+/// and a fourth filter should not break somebody's exhaustive `switch`.
+final class ShadowFilter {
+  const ShadowFilter._(this.name);
+
+  /// The name it is written down as.
+  final String name;
+
+  /// Nine taps of the depth map in a 3×3 square: a fixed, texel-wide edge,
+  /// sharp or soft only as the map's resolution makes it. What this renderer
+  /// has always drawn, and cheap.
+  static const ShadowFilter pcf = ShadowFilter._('pcf');
+
+  /// Percentage-closer soft shadows: a search for what is blocking, then a
+  /// filter as wide as a light of [ShadowSettings.directionalLightRadius]
+  /// would leave, so a contact edge is hard and a distant one spreads.
+  /// Sixteen taps each way.
+  static const ShadowFilter pcss = ShadowFilter._('pcss');
+
+  /// Exponential variance shadow maps: the depth atlas turned into moments,
+  /// blurred once for the whole frame, and read back with **one** filtered
+  /// tap per fragment.
+  ///
+  /// A soft edge of even width, [ShadowSettings.evsmBlurRadius] texels
+  /// across, that costs the lit pass less than [pcf] does and the frame two
+  /// full-atlas passes more — cheap where many fragments are shaded, and the
+  /// blur is paid only when the atlas changes. What it trades: where two
+  /// casters overlap at very different depths the bound lets a little light
+  /// through the nearer one, which [ShadowSettings.evsmBleedReduction] cuts
+  /// back.
+  ///
+  /// It needs a 32-bit float target that can be filtered, which a device
+  /// states in `GraphicsDevice.supportsFloat32Filtering`. **A device without
+  /// it refuses this filter rather than faking it**: the pass named
+  /// `'shadow moments'` is reported in `FrameResult.skipped` as
+  /// `PassSkip.unsupported`, and the frame draws [pcf] instead.
+  static const ShadowFilter evsm = ShadowFilter._('evsm');
+
+  /// All of them.
+  static const List<ShadowFilter> values = <ShadowFilter>[pcf, pcss, evsm];
+
+  @override
+  String toString() => 'ShadowFilter.$name';
+}
+
 /// Shadow mapping settings: the directional cascades and the point and spot
 /// cube atlas.
 final class ShadowSettings {
@@ -52,7 +101,49 @@ final class ShadowSettings {
     this.pointLightRadius = 0.0,
     this.pointMaxSoftness = 16.0,
     this.casterFaces = ShadowCasterFaces.back,
+    this.filter,
+    this.evsmBlurRadius = 2,
+    this.evsmBleedReduction = 0.2,
   });
+
+  /// How the directional map is filtered — `S2`. Null picks from
+  /// [directionalLightRadius], as this renderer did before there was a
+  /// choice: [ShadowFilter.pcss] above zero, [ShadowFilter.pcf] at it. See
+  /// [directionalFilter] for the answer.
+  ///
+  /// Only the directional light's map; the cube atlas has its own soft path,
+  /// [pointLightRadius].
+  final ShadowFilter? filter;
+
+  /// The sun's apparent radius, in radians: what [ShadowFilter.pcss] uses
+  /// when it is asked for by name and [directionalLightRadius] is left at
+  /// zero, since a light of no size casts no penumbra to search for.
+  static const double sunAngularRadius = 0.0047;
+
+  /// The filter the directional map is drawn with: [filter], or what
+  /// [directionalLightRadius] implies when that is null.
+  ShadowFilter get directionalFilter =>
+      filter ??
+      (directionalLightRadius > 0.0 ? ShadowFilter.pcss : ShadowFilter.pcf);
+
+  /// How far [ShadowFilter.evsm]'s blur reaches to each side, in texels of
+  /// the cascade atlas, nought to eight.
+  ///
+  /// The width of the soft edge, and the same width everywhere: the blur is
+  /// the atlas's, not the receiver's, so unlike [ShadowFilter.pcss] it does
+  /// not harden at a contact. Two is a slightly softer edge than the 3×3
+  /// kernel; nought leaves only the sampler's own bilinear step.
+  final int evsmBlurRadius;
+
+  /// How much of [ShadowFilter.evsm]'s bound is cut off as light bleeding,
+  /// from nought to 0.95.
+  ///
+  /// The bound is an upper limit on the light that reaches a fragment, and
+  /// where one caster stands in front of another it admits a faint halo of
+  /// light through the nearer. Everything under this share is called shadow
+  /// and the rest stretched back over the range, which removes the halo and
+  /// darkens the soft edge with it; a fifth is the usual compromise.
+  final double evsmBleedReduction;
 
   /// How many cascades the directional map is split into, one to three.
   ///
@@ -362,6 +453,9 @@ final class ShadowSettings {
     int? cascades,
     double? cascadeSplit,
     double? viewDistance,
+    ShadowFilter? filter,
+    int? evsmBlurRadius,
+    double? evsmBleedReduction,
   }) =>
       // Every field, and that is not bookkeeping. This method already dropped
       // the point-shadow settings on the floor: `settingsFrom` calls it once a
@@ -390,5 +484,8 @@ final class ShadowSettings {
         cascades: cascades ?? this.cascades,
         cascadeSplit: cascadeSplit ?? this.cascadeSplit,
         viewDistance: viewDistance ?? this.viewDistance,
+        filter: filter ?? this.filter,
+        evsmBlurRadius: evsmBlurRadius ?? this.evsmBlurRadius,
+        evsmBleedReduction: evsmBleedReduction ?? this.evsmBleedReduction,
       );
 }

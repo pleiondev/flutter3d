@@ -88,6 +88,7 @@ final class FramePassState {
 final class SceneShadows {
   const SceneShadows({
     this.directional,
+    this.directionalMoments,
     this.point,
     this.pointStatic,
     this.casterIndex = -1,
@@ -126,6 +127,10 @@ final class SceneShadows {
       directional: drawnDirectional
           ? resources.tryTexture(FrameResourceIds.shadowMap)
           : null,
+      // Made from that map in this frame or not at all, so the same gate.
+      directionalMoments: drawnDirectional
+          ? declared(FrameResourceIds.shadowMoments)
+          : null,
       point: declared(FrameResourceIds.cubeShadow),
       pointStatic: declared(FrameResourceIds.cubeShadowStatic),
       casterIndex: casterIndex,
@@ -138,6 +143,13 @@ final class SceneShadows {
   /// shadow pass gave up, and binding a texture regardless would offer the last
   /// frame that had one.
   final TextureHandle? directional;
+
+  /// [directional] as blurred exponential moments, when the frame filters it
+  /// with `ShadowFilter.evsm` — `S2`. Null otherwise, and the draw then reads
+  /// [directional] with the fixed kernel: a node that did not declare the
+  /// moments, or a device that refused to make them, falls back rather than
+  /// going unshadowed.
+  final TextureHandle? directionalMoments;
 
   /// Which light in the packed buffer [directional] was drawn for; -1 for none.
   final int casterIndex;

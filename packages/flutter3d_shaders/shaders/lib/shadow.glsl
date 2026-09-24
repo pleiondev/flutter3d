@@ -7,9 +7,13 @@
 #ifndef SHADOW_GLSL_
 #define SHADOW_GLSL_
 
+#include <lib/evsm.glsl>
 #include <lib/surface.glsl>
 
-/// Linear depth from the light's point of view, in the red channel.
+/// Linear depth from the light's point of view, in the red channel — or,
+/// with the `evsm` filter (`S2`), the blurred moments `evsm_filter.frag`
+/// made of it, bound to the same slot so the lit stages spend no sampler on
+/// the choice.
 uniform sampler2D shadow_texture;
 
 /// Point [i] of [n] on a Vogel disc turned by [turn] radians — `S3`: the
@@ -173,9 +177,21 @@ float ShadowFactor(Surface s, LightSample light, int lightIndex) {
   // recorded golden where it is. Above zero the edge widens with the distance
   // between the occluder and what it falls on — what a real light does, and
   // what no fixed kernel can.
+  //
+  // **Below zero is the `evsm` filter** (`S2`), and the texture bound here is
+  // then the moments atlas rather than depth: one filtered tap replaces the
+  // kernel, and how far under minus one the value sits is the light-bleeding
+  // cut. A sign rather than another uniform, for the reason the softness
+  // itself rides here.
   float softness = frag_info.ambient_ground.w;
   float lit = 0.0;
-  if (softness <= 0.0) {
+  if (softness < 0.0) {
+    // The blur already happened, once for the whole atlas, so the one tap
+    // is the filter: the sampler's own bilinear step is all it adds.
+    vec4 moments = textureLod(shadow_texture, clamp(uv, tileLo, tileHi), 0.0);
+    lit = EvsmVisibility(moments, projected.z - bias,
+                         clamp(-softness - 1.0, 0.0, 0.95));
+  } else if (softness <= 0.0) {
     // PCF 3x3. Four samples would band visibly at this map size and nine is
     // the smallest kernel that reads as a soft edge rather than as stair
     // steps.
