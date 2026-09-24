@@ -134,7 +134,7 @@ final class ModelLod {
 /// A node baked into two octahedral atlases — `C4`.
 ///
 /// [grid] × [grid] views of the node from every direction on the sphere,
-/// laid out by the octahedral map (see `octahedralEncode` in
+/// laid out by the octahedral map (see `impostorEncode` in
 /// `flutter3d_core`'s engine), each view an orthographic picture of a sphere
 /// of [radius] around [centre], in the node's own space.
 ///

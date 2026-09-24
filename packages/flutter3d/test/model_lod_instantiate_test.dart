@@ -174,4 +174,53 @@ void main() {
         .single;
     expect(again.levels.last.node.mesh, same(card.mesh));
   });
+
+  test('an impostor whose atlases will not decode leaves the mesh chain '
+      'switching', () async {
+    final document = PlainModelDocument(
+      surfaces: <ModelSurface>[_triangle(size: 1.0), _triangle(size: 0.5)],
+      images: <EncodedImage>[
+        EncodedImage(bytes: Uint8List.fromList(<int>[1]), name: 'albedo'),
+        EncodedImage(bytes: Uint8List.fromList(<int>[2]), name: 'normals'),
+      ],
+      nodes: <ModelNode>[
+        ModelNode(
+          name: 'tree',
+          surfaces: <int>[0],
+          lods: <ModelLod>[
+            const ModelLod(surfaceIndices: <int>[1], maxScreenFraction: 0.3),
+            ModelLod.impostor(
+              maxScreenFraction: 0.05,
+              impostor: ModelImpostor(
+                albedoImage: 0,
+                normalDepthImage: 1,
+                grid: 8,
+                centre: Vector3(0, 0.5, 0),
+                radius: 1.2,
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+
+    final asset = await ModelAsset.fromDocument(
+      document,
+      device: FakeBackend(),
+      decodeImage: (_) async => null,
+    );
+    expect(asset.impostors, isEmpty);
+
+    // Mutation: require every level to be uploaded before building the
+    // group — the node then draws its base alone and never switches.
+    final group = asset
+        .instantiate(Scene())
+        .nodes
+        .single
+        .children
+        .whereType<LodGroup>()
+        .single;
+    expect(group.levels, hasLength(2));
+    expect(group.levels.last.maxScreenFraction, 0.3);
+  });
 }
