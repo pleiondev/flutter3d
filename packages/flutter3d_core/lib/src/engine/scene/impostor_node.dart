@@ -6,8 +6,8 @@
 /// **The grid, the card and the bake camera are one convention**, written
 /// three times — here for the bake, in `lib/impostor.glsl` for the GPU, in
 /// `flutter3d_cpu`'s `cpu_shaders_impostor.dart` for the reference — and a
-/// sign that differs between them reads a view mirrored. `impostor_test.dart`
-/// holds the Dart half to the round trip.
+/// sign that differs between them reads a view mirrored.
+/// `impostor_grid_test.dart` holds the Dart half to the round trip.
 library;
 
 import 'dart:math' as math;

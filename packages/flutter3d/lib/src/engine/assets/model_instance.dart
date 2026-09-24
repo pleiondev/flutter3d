@@ -148,10 +148,10 @@ extension ModelAssetInstantiate on ModelAsset {
       // 1.0), so it is always the finest and always sorts first.
       final singleSurfaceLevels =
           model.surfaces.length == 1 &&
+          // An impostor level whose atlases did not upload is skipped below
+          // rather than sinking the whole chain: the mesh levels still switch.
           model.lods.every(
-            (lod) =>
-                lod.surfaceIndices.length == 1 ||
-                impostors.containsKey(lod.impostor),
+            (lod) => lod.surfaceIndices.length == 1 || lod.impostor != null,
           );
       if (model.lods.isNotEmpty && singleSurfaceLevels) {
         final baseMesh = addSurface(model.surfaces.single);

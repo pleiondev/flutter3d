@@ -1,6 +1,6 @@
 /// `C5`: the levels of detail a converted model carries without anybody
 /// making them by hand — `convert --lods=0.5,0.25,0.1` and a manifest rule's
-/// `lods:` both end here, between texture encoding and `F3dWriter`.
+/// `lods:` both end here, before the impostor bake and texture encoding.
 library;
 
 import 'dart:math' as math;
