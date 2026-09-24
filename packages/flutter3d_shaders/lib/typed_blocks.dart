@@ -689,6 +689,19 @@ final class ShadeInfoBlock extends UniformBlock {
   };
 }
 
+/// `ShadowCopyInfo`.
+final class ShadowCopyInfoBlock extends UniformBlock {
+  ShadowCopyInfoBlock() : super('ShadowCopyInfo');
+
+  /// `tile`: Vector4, at byte 0.
+  final Float32List tile = Float32List(4);
+
+  @override
+  late final Map<String, Float32List> members = <String, Float32List>{
+    'tile': tile,
+  };
+}
+
 /// `ShadowLight`.
 final class ShadowLightBlock extends UniformBlock {
   ShadowLightBlock() : super('ShadowLight');

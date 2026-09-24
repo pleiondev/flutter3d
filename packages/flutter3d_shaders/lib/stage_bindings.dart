@@ -192,6 +192,10 @@ stageBindings = <String, ({Set<String> blocks, Set<String> samplers})>{
       'surface_texture',
     },
   ),
+  'ShadowCopy': (
+    blocks: <String>{'ShadowCopyInfo'},
+    samplers: <String>{'static_shadow_texture'},
+  ),
   'ShadowDepth': (blocks: <String>{}, samplers: <String>{}),
   'ShadowDepthMasked': (
     blocks: <String>{'MaskInfo'},
