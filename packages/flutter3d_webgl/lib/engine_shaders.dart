@@ -19772,6 +19772,393 @@ void main() {
 }
 
 ''',
+    'VelocityTileMax': r'''#version 300 es
+precision highp float;
+precision highp int;
+precision highp sampler2D;
+precision highp samplerCube;
+
+// The longest motion in a tile, one axis at a time — `R6`.
+//
+// The first half of the motion blur's neighbourhood: the frame is cut into
+// square tiles as wide as the longest blur, and each tile learns the longest
+// motion anywhere in it. Two passes rather than one, each over one axis of
+// the tile — a tile of twenty pixels is forty reads that way instead of four
+// hundred — and the same stage draws both: the step between taps says which
+// axis it is walking.
+//
+// **The first pass also turns the velocity into what the blur spreads**:
+// the velocity buffer holds a whole frame's motion in UV units, and the blur
+// wants half the exposed part of it in pixels, clamped to the largest radius.
+// The second pass reads what the first wrote and scales by one.
+
+in vec2 v_uv;
+
+layout(location = 0) out vec4 frag_color;
+
+uniform sampler2D velocity_texture;
+
+layout(std140) uniform TileMaxInfo {
+  // xy: one texel of the source. zw: the step between taps, in texels —
+  // (1, 0) walks a row, (0, 1) a column.
+  vec4 source;
+
+  // xy: what a source value is multiplied by to be a half-motion in pixels.
+  // z: the longest a half-motion may be, in pixels. w: taps per tile.
+  vec4 params;
+
+  // xy: this target's size in texels. zw unused.
+  vec4 target;
+}
+tile_info;
+
+// [motion] scaled into pixels and no longer than the largest radius.
+vec2 HalfMotion(vec2 motion) {
+  vec2 pixels = motion * tile_info.params.xy;
+  float span = length(pixels);
+  float most = max(tile_info.params.z, 0.0);
+  return span > most ? pixels * (most / span) : pixels;
+}
+
+void main() {
+  // `textureLod` for `depth_of_field.frag`'s reason: the reads sit in a loop
+  // whose exit is per fragment, and WGSL refuses an implicit derivative
+  // there.
+  vec2 walk = tile_info.source.zw;
+  vec2 tile = floor(v_uv * tile_info.target.xy);
+  int taps = int(tile_info.params.w + 0.5);
+  // A tile's first texel: a whole tile along the axis walked, the tile's own
+  // row or column across it.
+  vec2 start = tile * mix(vec2(1.0), vec2(float(taps)), walk);
+
+  vec2 longest = vec2(0.0);
+  float longestSpan = 0.0;
+  for (int i = 0; i < 64; i++) {
+    if (i >= taps) break;
+    vec2 at = (start + walk * float(i) + 0.5) * tile_info.source.xy;
+    vec2 motion = HalfMotion(textureLod(velocity_texture, at, 0.0).rg);
+    float span = dot(motion, motion);
+    if (span > longestSpan) {
+      longest = motion;
+      longestSpan = span;
+    }
+  }
+  frag_color = vec4(longest, 0.0, 1.0);
+}
+
+''',
+    'VelocityNeighborMax': r'''#version 300 es
+precision highp float;
+precision highp int;
+precision highp sampler2D;
+precision highp samplerCube;
+
+// The longest motion in a tile and the eight around it — `R6`.
+//
+// A pixel is blurred by what moves near it, and "near" reaches as far as the
+// longest blur, which is a tile. A pixel at the edge of its own tile can be
+// crossed by something moving in the next one, so the blur asks this
+// neighbourhood rather than its own tile: the dominant motion within one
+// radius of any pixel in the tile.
+
+in vec2 v_uv;
+
+layout(location = 0) out vec4 frag_color;
+
+uniform sampler2D tile_texture;
+
+layout(std140) uniform NeighborMaxInfo {
+  // xy: one tile texel. zw unused.
+  vec4 texel;
+}
+neighbor_info;
+
+void main() {
+  vec2 longest = vec2(0.0);
+  float longestSpan = 0.0;
+  for (int dy = -1; dy <= 1; dy++) {
+    for (int dx = -1; dx <= 1; dx++) {
+      vec2 at = v_uv + vec2(float(dx), float(dy)) * neighbor_info.texel.xy;
+      vec2 motion = textureLod(tile_texture, at, 0.0).rg;
+      float span = dot(motion, motion);
+      if (span > longestSpan) {
+        longest = motion;
+        longestSpan = span;
+      }
+    }
+  }
+  frag_color = vec4(longest, 0.0, 1.0);
+}
+
+''',
+    'MotionBlur': r'''#version 300 es
+precision highp float;
+precision highp int;
+precision highp sampler2D;
+precision highp samplerCube;
+
+// Motion blur: a gather along the motion that dominates each neighbourhood
+// — `R6`, after McGuire, Hennessy, Bukowski and Osman's reconstruction
+// filter (2012).
+//
+// **Along the neighbourhood's motion, not the pixel's own.** A still pixel
+// beside a moving object is still crossed by it for part of the exposure, so
+// sampling only along each pixel's own velocity would leave the moving
+// object's blur with a hard edge wherever it passes over the background.
+// Each pixel therefore walks the longest motion within one tile of it — the
+// `VelocityNeighborMax` pass's answer — and asks of every sample whether its
+// colour could have reached here.
+//
+// **Three ways a sample reaches a pixel**, weighed by which of the two is in
+// front: a sample in front, blurred by its own motion far enough to cover
+// here; a sample behind, seen because this pixel's own motion spread it
+// across; and two samples moving together, where neither is in front and
+// both are the same streak. The depth is the surface buffer's alpha, view
+// distance in metres, and "in front" is soft over a few centimetres so a
+// surface does not occlude itself.
+//
+// Fifteen samples, offset along the line by the per-pixel noise so the
+// steps between them are grain rather than fifteen copies of the object.
+//
+// The motion is half the exposed part of a frame's movement, either side of
+// the pixel: a shutter open for half the frame blurs a quarter of the
+// motion forward and a quarter back.
+
+// --- lib/frag_coord_info.glsl ---
+// The target's orientation, for a full-screen pass.
+//
+// Its own block rather than a member of each pass's, so the renderer binds it
+// in one place, `drawFullscreen`, for every stage that declares it — the
+// contract answers false for a stage that does not, and a pass that adds a
+// screen-space pattern later gets the right rows by including this file.
+
+#ifndef FRAG_COORD_INFO_GLSL_
+#define FRAG_COORD_INFO_GLSL_
+
+// --- lib/frag_coord.glsl ---
+// Where a fragment sits, counted from the top of its target on every backend.
+
+#ifndef FRAG_COORD_GLSL_
+#define FRAG_COORD_GLSL_
+
+/// `gl_FragCoord.xy` with row zero at the top of the picture.
+///
+/// [rows] is the target's height where the backend's row zero is the bottom
+/// of the picture, and zero where it is the top. WebGL2 is the first kind:
+/// window coordinates start at the lower left, and the engine draws the
+/// picture upright there rather than mirroring every projection. Metal,
+/// WebGPU and the software rasteriser are the second.
+///
+/// **Why a pattern cares and a picture does not.** Every screen-space pattern
+/// in the engine — the Bayer dither, the grain, the jitter a ray march starts
+/// from, the rotation of a shadow kernel — is a function of the pixel's row.
+/// Read from the bottom, the same frame gets the pattern turned upside down,
+/// and a four-row Bayer cell lands on different rows unless the height is a
+/// multiple of four. The picture underneath is identical; the pattern on top
+/// of it is not, and a comparison across backends counts every pixel it
+/// moved.
+vec2 FragCoordFromTop(float rows) {
+  return rows > 0.0 ? vec2(gl_FragCoord.x, rows - gl_FragCoord.y)
+                    : gl_FragCoord.xy;
+}
+
+#endif  // FRAG_COORD_GLSL_
+
+
+layout(std140) uniform FragCoordInfo {
+  /// x: the target's rows when its row zero is the bottom of the picture,
+  /// zero when it is the top — see [FragCoordFromTop]. yzw unused.
+  vec4 origin;
+}
+frag_coord_info;
+
+/// This fragment's position with row zero at the top of the target.
+vec2 TargetFragCoord() {
+  return FragCoordFromTop(frag_coord_info.origin.x);
+}
+
+#endif  // FRAG_COORD_INFO_GLSL_
+
+// --- lib/blue_noise.glsl ---
+// A per-pixel offset for a march or a kernel rotation — `R3`.
+//
+// **The engine's blue noise while a temporal resolve runs, the fixed 4 × 4
+// pattern otherwise.** A march jittered by a pattern that never changes puts
+// the same dither on every frame, and the eye finds it; with the resolve on,
+// each frame reads the next of 32 slices of blue noise and the history
+// averages them into a smooth answer. Off, the pattern is exactly what the
+// passes read before, so a frame without the resolve is the frame it was.
+//
+// The table is `EngineTables.blueNoise`: 32 slices of 64 × 64 in an 8 × 4
+// atlas, one byte a texel. Read at texel centres through a nearest sampler.
+//
+// Include after `lib/frag_coord_info.glsl` or anything else that gives the
+// pixel from the top.
+
+#ifndef BLUE_NOISE_GLSL_
+#define BLUE_NOISE_GLSL_
+
+uniform sampler2D blue_noise_texture;
+
+layout(std140) uniform NoiseInfo {
+  /// x: one to read the blue noise, nought for the pattern. y: this frame's
+  /// slice, the frame index modulo 32. zw unused.
+  vec4 noise;
+}
+noise_info;
+
+/// One cell of a 4 × 4 Bayer matrix, in [0, 1).
+float BayerCell(vec2 at) {
+  int x = int(mod(at.x, 4.0));
+  int y = int(mod(at.y, 4.0));
+  int index = y * 4 + x;
+  float value = 0.0;
+  if (index == 0) value = 0.0;
+  else if (index == 1) value = 8.0;
+  else if (index == 2) value = 2.0;
+  else if (index == 3) value = 10.0;
+  else if (index == 4) value = 12.0;
+  else if (index == 5) value = 4.0;
+  else if (index == 6) value = 14.0;
+  else if (index == 7) value = 6.0;
+  else if (index == 8) value = 3.0;
+  else if (index == 9) value = 11.0;
+  else if (index == 10) value = 1.0;
+  else if (index == 11) value = 9.0;
+  else if (index == 12) value = 15.0;
+  else if (index == 13) value = 7.0;
+  else if (index == 14) value = 13.0;
+  else value = 5.0;
+  return value / 16.0;
+}
+
+/// This frame's blue noise at the pixel [at], in [0, 1).
+float BlueNoise(vec2 at) {
+  float slice = noise_info.noise.y;
+  vec2 cell = mod(floor(at), 64.0);
+  vec2 corner = vec2(mod(slice, 8.0), floor(slice / 8.0)) * 64.0;
+  vec2 uv = (corner + cell + 0.5) / vec2(512.0, 256.0);
+  return textureLod(blue_noise_texture, uv, 0.0).r * (255.0 / 256.0);
+}
+
+/// The offset for the pixel [at]: blue noise or the pattern, per `noise.x`.
+float PixelNoise(vec2 at) {
+  return noise_info.noise.x > 0.5 ? BlueNoise(at) : BayerCell(at);
+}
+
+#endif  // BLUE_NOISE_GLSL_
+
+
+in vec2 v_uv;
+
+layout(location = 0) out vec4 frag_color;
+
+uniform sampler2D scene_texture;
+uniform sampler2D velocity_texture;
+uniform sampler2D surface_texture;
+uniform sampler2D neighbor_texture;
+
+layout(std140) uniform MotionBlurInfo {
+  // xy: one texel of the scene. zw: its size in texels.
+  vec4 scene;
+
+  // xy: what a velocity is multiplied by to be a half-motion in pixels.
+  // z: the longest a half-motion may be, in pixels. w: samples.
+  vec4 params;
+
+  // xy: the neighbourhood texture's size in tiles. z: a tile's width in
+  // pixels. w: how far apart in metres two depths are before one is in
+  // front of the other.
+  vec4 tiles;
+}
+blur_info;
+
+// [motion] scaled into pixels and no longer than the largest radius — the
+// same arithmetic `velocity_tile_max.frag` applies on its first pass.
+vec2 HalfMotion(vec2 motion) {
+  vec2 pixels = motion * blur_info.params.xy;
+  float span = length(pixels);
+  float most = max(blur_info.params.z, 0.0);
+  return span > most ? pixels * (most / span) : pixels;
+}
+
+// Nothing drawn is infinitely far.
+float Far(float depth) {
+  return depth <= 0.0 ? 1e9 : depth;
+}
+
+// How much of a streak [span] pixels long covers a point [gap] away:
+// all of it at the source, none at the streak's end.
+float Cone(float gap, float span) {
+  return clamp(1.0 - gap / span, 0.0, 1.0);
+}
+
+// Whether a point [gap] away is inside a streak [span] pixels long,
+// with a tenth of a streak of soft edge.
+float Cylinder(float gap, float span) {
+  return 1.0 - smoothstep(0.95 * span, 1.05 * span, gap);
+}
+
+void main() {
+  // `textureLod` throughout, for `depth_of_field.frag`'s reason: the gather
+  // sits behind an early return keyed on the neighbourhood's motion.
+  vec4 centre = textureLod(scene_texture, v_uv, 0.0);
+  vec2 here = v_uv * blur_info.scene.zw;
+  vec2 tile = floor(here / max(blur_info.tiles.z, 1.0));
+  vec2 dominant =
+      textureLod(neighbor_texture, (tile + 0.5) / blur_info.tiles.xy, 0.0).rg;
+  int samples = int(blur_info.params.w + 0.5);
+  // Under half a pixel of motion anywhere near: nothing here would move a
+  // sample off this pixel.
+  if (length(dominant) <= 0.5 || samples < 1) {
+    frag_color = centre;
+    return;
+  }
+
+  // Half a pixel at least, so a still pixel's own streak is the pixel it is
+  // in, and the division below has something to divide by.
+  float ownSpan =
+      max(length(HalfMotion(textureLod(velocity_texture, v_uv, 0.0).rg)), 0.5);
+  float ownDepth = Far(textureLod(surface_texture, v_uv, 0.0).a);
+  float extent = max(blur_info.tiles.w, 1e-4);
+
+  // The pixel itself, weighted by how little it moves: a still pixel keeps
+  // most of its own colour, a fast one is mostly what streaks across it.
+  float weight = 1.0 / ownSpan;
+  vec3 total = centre.rgb * weight;
+
+  float jitter = PixelNoise(TargetFragCoord()) - 0.5;
+  int middle = (samples - 1) / 2;
+  for (int i = 0; i < 64; i++) {
+    if (i >= samples) break;
+    // The middle sample is the pixel itself, counted above.
+    if (i == middle) continue;
+    float t = mix(-1.0, 1.0, (float(i) + jitter + 1.0) / float(samples + 1));
+    vec2 there = floor(here + dominant * t) + 0.5;
+    vec2 at = there * blur_info.scene.xy;
+    float gap = length(there - here);
+
+    vec4 tap = textureLod(scene_texture, at, 0.0);
+    float tapSpan =
+        max(length(HalfMotion(textureLod(velocity_texture, at, 0.0).rg)), 0.5);
+    float tapDepth = Far(textureLod(surface_texture, at, 0.0).a);
+
+    // Whether the sample is in front of this pixel, and whether this pixel
+    // is in front of the sample: both are one within the soft extent.
+    float front = clamp(1.0 - (tapDepth - ownDepth) / extent, 0.0, 1.0);
+    float back = clamp(1.0 - (ownDepth - tapDepth) / extent, 0.0, 1.0);
+    float reach =
+        front * Cone(gap, tapSpan) +
+        back * Cone(gap, ownSpan) +
+        Cylinder(gap, tapSpan) * Cylinder(gap, ownSpan) * 2.0;
+    total += tap.rgb * reach;
+    weight += reach;
+  }
+
+  frag_color = vec4(total / weight, centre.a);
+}
+
+''',
     'ViewportShade': r'''#version 300 es
 precision highp float;
 precision highp int;

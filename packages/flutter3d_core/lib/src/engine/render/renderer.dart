@@ -155,6 +155,9 @@ final class Renderer implements RenderServices {
     required this.volumetricFogShader,
     required this.volumetricFogUpsampleShader,
     required this.depthOfFieldShader,
+    required this.velocityTileMaxShader,
+    required this.velocityNeighborMaxShader,
+    required this.motionBlurShader,
     required this.viewportShadeShader,
     required TextureHandle fallbackAlbedo,
     required TextureHandle fallbackNormal,
@@ -325,6 +328,12 @@ final class Renderer implements RenderServices {
 
   /// `gfx-34n`'s thin lens and its gather.
   final ShaderHandle depthOfFieldShader;
+
+  /// `R6`'s motion blur: the tile search, walked once per axis, the
+  /// neighbourhood over the tiles, and the gather.
+  final ShaderHandle velocityTileMaxShader;
+  final ShaderHandle velocityNeighborMaxShader;
+  final ShaderHandle motionBlurShader;
 
   /// `gfx-43n`/`44n`/`45n`'s three branches over the surface buffer.
   final ShaderHandle viewportShadeShader;
@@ -662,6 +671,9 @@ final class Renderer implements RenderServices {
   }
 
   final DofInfoBlock _dofInfo = DofInfoBlock();
+  final TileMaxInfoBlock _tileMaxInfo = TileMaxInfoBlock();
+  final NeighborMaxInfoBlock _neighborMaxInfo = NeighborMaxInfoBlock();
+  final MotionBlurInfoBlock _motionBlurInfo = MotionBlurInfoBlock();
   final FogInfoBlock _fogInfo = FogInfoBlock();
   final FrameInfoBlock _frameInfo = FrameInfoBlock();
   final IdInfoBlock _idInfo = IdInfoBlock();
@@ -1444,6 +1456,9 @@ final class Renderer implements RenderServices {
         volumetricFogShader: require('VolumetricFog'),
         volumetricFogUpsampleShader: require('VolumetricFogUpsample'),
         depthOfFieldShader: require('DepthOfField'),
+        velocityTileMaxShader: require('VelocityTileMax'),
+        velocityNeighborMaxShader: require('VelocityNeighborMax'),
+        motionBlurShader: require('MotionBlur'),
         viewportShadeShader: require('ViewportShade'),
         fallbackAlbedo:
             fallbackAlbedo ?? SolidColorTexture.white.upload(device),
@@ -2421,6 +2436,9 @@ final class Renderer implements RenderServices {
     // behind it does; before bloom, because a glow is what the sensor does
     // with light that has already been through the lens.
     graph.addNode(_DepthOfFieldNode(this, s));
+    // `R6`. After the lens, whose light the exposure smears, and before the
+    // resolve, which blends the smeared frames as it would sharp ones.
+    graph.addNode(_MotionBlurNode(this, s));
     // Then bloom, so it reads the scene as everything before it left it — the
     // registration order *is* the version chain — and the composite last, so it
     // reads the end of that chain and the glow taken from it.
@@ -4147,7 +4165,7 @@ final class Renderer implements RenderServices {
     // back as last frame's. The view-projections are the unjittered ones, the
     // same matrices the scene pass derived, because a reprojection has to
     // undo motion and not the jitter.
-    if (settings.antiAlias.temporal.enabled) frameHistory.tracking = true;
+    if (settings._wantsVelocity) frameHistory.tracking = true;
     if (frameHistory.tracking) {
       frameHistory.endFrame(
         frame: _frameIndex,

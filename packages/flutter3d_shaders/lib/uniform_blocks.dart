@@ -611,6 +611,19 @@ uniformBlocks = <String, Map<String, Map<String, UniformMemberLayout>>>{
       ),
     },
   },
+  'MotionBlur': <String, Map<String, UniformMemberLayout>>{
+    'FragCoordInfo': <String, UniformMemberLayout>{
+      'origin': (offset: 0, byteLength: 16, elements: 1, type: 'Vector4'),
+    },
+    'MotionBlurInfo': <String, UniformMemberLayout>{
+      'scene': (offset: 0, byteLength: 16, elements: 1, type: 'Vector4'),
+      'params': (offset: 16, byteLength: 16, elements: 1, type: 'Vector4'),
+      'tiles': (offset: 32, byteLength: 16, elements: 1, type: 'Vector4'),
+    },
+    'NoiseInfo': <String, UniformMemberLayout>{
+      'noise': (offset: 0, byteLength: 16, elements: 1, type: 'Vector4'),
+    },
+  },
   'Normals': <String, Map<String, UniformMemberLayout>>{
     'FogInfo': <String, UniformMemberLayout>{
       'fog': (offset: 0, byteLength: 16, elements: 1, type: 'Vector4'),
@@ -1208,6 +1221,11 @@ uniformBlocks = <String, Map<String, Map<String, UniformMemberLayout>>>{
       'forward': (offset: 176, byteLength: 16, elements: 1, type: 'Vector4'),
     },
   },
+  'VelocityNeighborMax': <String, Map<String, UniformMemberLayout>>{
+    'NeighborMaxInfo': <String, UniformMemberLayout>{
+      'texel': (offset: 0, byteLength: 16, elements: 1, type: 'Vector4'),
+    },
+  },
   'VelocitySkinnedVertex': <String, Map<String, UniformMemberLayout>>{
     'FrameInfo': <String, UniformMemberLayout>{
       'mvp': (offset: 0, byteLength: 64, elements: 1, type: 'Matrix'),
@@ -1252,6 +1270,13 @@ uniformBlocks = <String, Map<String, Map<String, UniformMemberLayout>>>{
         elements: 64,
         type: 'Matrix',
       ),
+    },
+  },
+  'VelocityTileMax': <String, Map<String, UniformMemberLayout>>{
+    'TileMaxInfo': <String, UniformMemberLayout>{
+      'source': (offset: 0, byteLength: 16, elements: 1, type: 'Vector4'),
+      'params': (offset: 16, byteLength: 16, elements: 1, type: 'Vector4'),
+      'target': (offset: 32, byteLength: 16, elements: 1, type: 'Vector4'),
     },
   },
   'VelocityVertex': <String, Map<String, UniformMemberLayout>>{
