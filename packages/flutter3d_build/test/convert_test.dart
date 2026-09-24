@@ -263,6 +263,53 @@ map_Kd textured.png
       expect(err.text, contains('already a .f3d file'));
     },
   );
+
+  // `C7`: a splat capture becomes a paged tree of levels of detail. The
+  // fixture is `flutter3d_core`'s version 4 SPZ, 48 splats, written by the
+  // format's reference library.
+  test('a splat capture converts to a .f3dsplat beside it', () async {
+    final source = '${scratch.path}/capture.spz';
+    File('test/fixtures/cloud.spz').copySync(source);
+    final out = _BufferSink();
+
+    final code = await runConvert(<String>[source], out: out);
+
+    expect(code, 0);
+    final written = File('${scratch.path}/capture.f3dsplat');
+    expect(written.existsSync(), isTrue);
+    final tree = parseSplatOctree(written.readAsBytesSync());
+    expect(tree.leafSplatCount, 48);
+    expect(out.text, contains('48 splats'));
+  });
+
+  test('a directory walk picks splat captures up too', () async {
+    final models = Directory('${scratch.path}/in')..createSync();
+    File('test/fixtures/cloud.spz').copySync('${models.path}/cloud.spz');
+    File(_fixture).copySync('${models.path}/a.obj');
+
+    final code = await runConvert(<String>[
+      models.path,
+      '-o',
+      '${scratch.path}/out',
+    ], out: _BufferSink());
+
+    expect(code, 0);
+    expect(File('${scratch.path}/out/cloud.f3dsplat').existsSync(), isTrue);
+    expect(File('${scratch.path}/out/a.f3d').existsSync(), isTrue);
+  });
+
+  test('a PLY that is not a splat capture refuses and says why', () async {
+    final source = '${scratch.path}/mesh.ply';
+    File(source).writeAsStringSync(
+      'ply\nformat ascii 1.0\nelement vertex 0\nend_header\n',
+    );
+    final err = _BufferSink();
+
+    final code = await runConvert(<String>[source], err: err);
+
+    expect(code, 1);
+    expect(err.text, contains('as a splat capture'));
+  });
 }
 
 final class _BufferSink implements IOSink {
