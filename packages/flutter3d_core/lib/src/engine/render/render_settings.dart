@@ -721,6 +721,7 @@ final class RenderSettings {
     this.xray = const XraySettings(),
     this.disabledPasses = const <String>{},
     this.renderScale = 1.0,
+    this.energyCompensation = false,
     this.lightShafts = const LightShaftSettings(),
     this.depthOfField = const DepthOfFieldSettings(),
     this.viewportShading = const ViewportShadingSettings(),
@@ -960,6 +961,18 @@ final class RenderSettings {
   /// and the one a measurement wants.
   final double renderScale;
 
+  /// Puts back the light single-scattering GGX loses on rough surfaces —
+  /// `L1`. Off by default.
+  ///
+  /// A microfacet model counts one bounce off the facets and nothing after
+  /// it, so the rougher a metal, the more of its reflection is simply
+  /// missing: a rough gold sphere comes out darker than a polished one,
+  /// which no real gold does. On, the metal-rough model scales its direct
+  /// specular by `1 + f0·(1/E − 1)`, with E the albedo the split sum already
+  /// computes, and adds Fdez-Agüera's multiple-scattering term to the
+  /// environment's. Dielectrics barely move; rough metals brighten.
+  final bool energyCompensation;
+
   /// Frame-graph nodes to leave out of this frame, by name — `gfx-37n`.
   ///
   /// The name is the node's own [FrameGraphNode.name], exactly as
@@ -1116,6 +1129,7 @@ final class RenderSettings {
     XraySettings? xray,
     Set<String>? disabledPasses,
     double? renderScale,
+    bool? energyCompensation,
     LightShaftSettings? lightShafts,
     DepthOfFieldSettings? depthOfField,
     ViewportShadingSettings? viewportShading,
@@ -1150,6 +1164,7 @@ final class RenderSettings {
     xray: xray ?? this.xray,
     disabledPasses: disabledPasses ?? this.disabledPasses,
     renderScale: renderScale ?? this.renderScale,
+    energyCompensation: energyCompensation ?? this.energyCompensation,
     lightShafts: lightShafts ?? this.lightShafts,
     depthOfField: depthOfField ?? this.depthOfField,
     viewportShading: viewportShading ?? this.viewportShading,
