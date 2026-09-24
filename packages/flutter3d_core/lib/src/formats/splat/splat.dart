@@ -1,5 +1,5 @@
 /// Gaussian splats — `gfx-80n`: the fitted cloud a capture produces, read out
-/// of the PLY it ships in, with the arithmetic that turns its stored parameters
+/// of the PLY it ships in or the SPZ it is compressed to, with the arithmetic that turns its stored parameters
 /// into what a renderer needs.
 ///
 /// See `splat_cloud.dart` for what a splat is and why everything is a flat
@@ -9,3 +9,4 @@ library;
 
 export 'splat_cloud.dart';
 export 'splat_ply.dart';
+export 'splat_spz.dart';
