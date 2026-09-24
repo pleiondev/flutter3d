@@ -58,6 +58,9 @@ final class WebGlEncoder implements CommandEncoder {
       _sources.add(color.texture);
       _faces.add(color.face);
       _mipLevels.add(color.mipLevel);
+      if (color.texture.storageMode == StorageMode.deviceTransient) {
+        _invalidated.add(attachment);
+      }
     }
     _gl.drawBuffers(buffers.map((int b) => b.toJS).toList().toJS);
 
@@ -88,6 +91,9 @@ final class WebGlEncoder implements CommandEncoder {
         web.WebGL2RenderingContext.DEPTH_STENCIL_ATTACHMENT,
         depth.texture,
       );
+      if (depth.texture.storageMode == StorageMode.deviceTransient) {
+        _invalidated.add(web.WebGL2RenderingContext.DEPTH_STENCIL_ATTACHMENT);
+      }
       // Depth must be writable for a clear to land, whatever the pass sets
       // afterwards.
       _gl.depthMask(true);
@@ -277,6 +283,10 @@ final class WebGlEncoder implements CommandEncoder {
 
   final List<TextureHandle?> _resolves = <TextureHandle?>[];
   final List<TextureHandle> _sources = <TextureHandle>[];
+
+  /// The attachments whose texture is `deviceTransient`, which [submit] tells
+  /// the driver it may throw away — `H7`.
+  final List<int> _invalidated = <int>[];
 
   /// Which face and level each attachment named, so a resolve lands on the
   /// same subresource the pass drew into.
@@ -991,6 +1001,22 @@ final class WebGlEncoder implements CommandEncoder {
         web.WebGLRenderingContext.NEAREST,
       );
       _gl.deleteFramebuffer(target);
+    }
+
+    // **Tile memory, said the only way GL can: after the resolves, these
+    // attachments hold nothing anyone will read** — `H7`. `deviceTransient`
+    // promises exactly that, and `invalidateFramebuffer` is what lets a tiling
+    // GPU skip writing a depth or multisampled buffer back to memory at the
+    // end of the pass, which is most of what a mobile browser spends on one.
+    // After the blits, which read the multisampled colour, and never before.
+    if (_invalidated.isNotEmpty) {
+      _gl
+        ..bindFramebuffer(web.WebGLRenderingContext.FRAMEBUFFER, _framebuffer)
+        ..invalidateFramebuffer(
+          web.WebGLRenderingContext.FRAMEBUFFER,
+          <JSNumber>[for (final attachment in _invalidated) attachment.toJS]
+              .toJS,
+        );
     }
 
     _release();

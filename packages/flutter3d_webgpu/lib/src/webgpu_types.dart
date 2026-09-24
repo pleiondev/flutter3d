@@ -39,9 +39,18 @@ final class WebGpuTexture {
     required this.texture,
     required this.dimension,
     required this.sampleable,
+    this.transient = false,
   });
 
   final GPUTexture texture;
+
+  /// Whether this was allocated with `TRANSIENT_ATTACHMENT` — `H7`.
+  ///
+  /// A pass that attaches one has to clear it and discard it, which the
+  /// encoder reads from here rather than from the storage mode: a
+  /// `deviceTransient` target on a browser without the flag is an ordinary
+  /// attachment and keeps the operations it always had.
+  final bool transient;
 
   /// How a shader reads this: as a flat image or as six faces by direction.
   final WebGpuTextureDimension dimension;

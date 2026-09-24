@@ -1216,6 +1216,21 @@ abstract final class GpuTextureUsage {
   static const int textureBinding = 0x04;
   static const int storageBinding = 0x08;
   static const int renderAttachment = 0x10;
+
+  /// Contents that live for one pass and may never be given memory — `H7`.
+  /// Only with [renderAttachment] and nothing else, and only where
+  /// [gpuKnowsTransientAttachments] says the browser has it.
+  static const int transientAttachment = 0x20;
+}
+
+/// Whether this browser's `GPUTextureUsage` has `TRANSIENT_ATTACHMENT`.
+///
+/// A property of the API rather than a feature the adapter grants, so it is
+/// asked of the namespace object: a browser that predates the flag rejects a
+/// texture that names it, and one that has it lists it there.
+bool gpuKnowsTransientAttachments() {
+  final usage = globalContext.getProperty<JSObject?>('GPUTextureUsage'.toJS);
+  return usage != null && usage.has('TRANSIENT_ATTACHMENT');
 }
 
 /// Which stages a binding is visible to, for `GPUBindGroupLayoutEntry`.

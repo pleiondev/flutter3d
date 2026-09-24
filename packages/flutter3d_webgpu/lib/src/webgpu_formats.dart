@@ -282,6 +282,31 @@ String gpuStoreOp(StoreAction action) => switch (action) {
   StoreAction.storeAndMultisampleResolve => 'store',
 };
 
+/// Whether a target described by [spec] is allocated as a WebGPU transient
+/// attachment — `H7`.
+///
+/// `deviceTransient` is tile memory, and `GPUTextureUsage.TRANSIENT_ATTACHMENT`
+/// is the same promise in this API's words: the contents live for one pass and
+/// a tiler may keep them on chip without ever giving them memory. Only where
+/// the browser knows the flag ([supported]); elsewhere the target stays the
+/// attachment-only texture it always was.
+bool webgpuIsTransientAttachment(
+  RenderTargetSpec spec, {
+  required bool supported,
+}) => supported && spec.storageMode == StorageMode.deviceTransient;
+
+/// [gpuLoadOp] for an attachment, which for a [transient] one is always
+/// `"clear"`: WebGPU refuses `"load"` from a transient attachment, and there
+/// is nothing in one to load.
+String gpuAttachmentLoadOp(LoadAction action, {required bool transient}) =>
+    transient ? 'clear' : gpuLoadOp(action);
+
+/// [gpuStoreOp] for an attachment, which for a [transient] one is always
+/// `"discard"`: WebGPU refuses to store one, and a resolve — the only thing a
+/// multisampled transient target is for — is `resolveTarget`, not the store.
+String gpuAttachmentStoreOp(StoreAction action, {required bool transient}) =>
+    transient ? 'discard' : gpuStoreOp(action);
+
 /// Whether [action] asks for a resolve, which WebGPU takes as an attachment
 /// field rather than as part of the store operation.
 bool gpuResolves(StoreAction action) =>
