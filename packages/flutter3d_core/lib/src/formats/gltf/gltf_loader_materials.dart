@@ -164,6 +164,12 @@ extension _GltfMaterials on GltfLoader {
               alphaCutoff: _asDouble(material['alphaCutoff']) ?? 0.5,
               doubleSided: material['doubleSided'] == true,
               unlit: extensionsMap.containsKey('KHR_materials_unlit'),
+              extensions: materialExtensionsFromJson(
+                extensionsMap,
+                texture: textureRef,
+                warnings: warnings,
+                where: 'materials[$index]',
+              ),
               extras: _extrasOf(material),
             ),
             index,

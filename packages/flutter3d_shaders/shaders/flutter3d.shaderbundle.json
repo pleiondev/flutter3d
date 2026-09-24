@@ -23,6 +23,10 @@
     "type": "fragment",
     "file": "shaders/lighting/pbr.frag"
   },
+  "PbrLayered": {
+    "type": "fragment",
+    "file": "shaders/lighting/pbr_layered.frag"
+  },
   "Toon": {
     "type": "fragment",
     "file": "shaders/lighting/toon.frag"

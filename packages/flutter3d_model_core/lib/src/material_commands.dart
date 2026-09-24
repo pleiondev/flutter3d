@@ -690,6 +690,7 @@ final class LinkMaterialFile extends ModelCommand {
         alphaCutoff: document.surface.alphaCutoff,
         doubleSided: document.surface.doubleSided,
         unlit: document.surface.unlit,
+        extensions: document.surface.extensions,
       );
     }
     return Outcome.done(
@@ -791,6 +792,7 @@ SurfaceMaterial _surfaceWith(
   bool? doubleSided,
   bool? unlit,
   Object? lightingModel = _unset,
+  Object? extensions = _unset,
 }) => SurfaceMaterial(
   name: identical(name, _unset) ? s.name : name as String?,
   baseColor: baseColor ?? s.baseColor,
@@ -814,6 +816,9 @@ SurfaceMaterial _surfaceWith(
   lightingModel: identical(lightingModel, _unset)
       ? s.lightingModel
       : lightingModel as LightingModel?,
+  extensions: identical(extensions, _unset)
+      ? s.extensions
+      : extensions as MaterialExtensions?,
 );
 
 /// [s] with [field] set to [value], or null when [field] is not a field or

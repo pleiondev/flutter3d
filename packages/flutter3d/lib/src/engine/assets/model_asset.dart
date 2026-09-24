@@ -227,6 +227,26 @@ final class ModelAsset {
       return uploaded;
     }
 
+    // The pixels of each image the layers' maps pack, decoded once however
+    // many materials pack it — `M1`.
+    final decodedCache = <int, Future<Rgba8Image?>>{};
+    Future<Rgba8Image?> decodedImage(int imageIndex) {
+      if (imageIndex < 0 || imageIndex >= document.images.length) {
+        return Future<Rgba8Image?>.value();
+      }
+      return decodedCache[imageIndex] ??= () async {
+        try {
+          return await decodeImage(document.images[imageIndex].bytes);
+        } catch (_) {
+          warnings.add(
+            'images[$imageIndex] could not be decoded for a packed map; the '
+            'material falls back to its factors.',
+          );
+          return null;
+        }
+      }();
+    }
+
     /// Packs and uploads one mesh's morph deltas, or nothing when it has none.
     ///
     /// A failed upload is a model that draws its base shape, not a model that
@@ -274,6 +294,12 @@ final class ModelAsset {
           document.materials[index],
           lighting: lighting,
           textureFor: textureFor,
+          // `M1`–`M3`: the layer maps packed at load, for a variant's
+          // material as for the default one.
+          layerImages: (
+            device: device,
+            image: (binding) => decodedImage(binding.imageIndex),
+          ),
         );
 
     final parts = <ModelPart>[];

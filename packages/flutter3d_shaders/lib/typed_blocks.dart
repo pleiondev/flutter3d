@@ -462,6 +462,43 @@ final class IrradianceInfoBlock extends UniformBlock {
   };
 }
 
+/// `LayerInfo`.
+final class LayerInfoBlock extends UniformBlock {
+  LayerInfoBlock() : super('LayerInfo');
+
+  /// `specular`: Vector4, at byte 0.
+  final Float32List specular = Float32List(4);
+
+  /// `coat`: Vector4, at byte 16.
+  final Float32List coat = Float32List(4);
+
+  /// `sheen`: Vector4, at byte 32.
+  final Float32List sheen = Float32List(4);
+
+  /// `anisotropy`: Vector4, at byte 48.
+  final Float32List anisotropy = Float32List(4);
+
+  /// `transmission`: Vector4, at byte 64.
+  final Float32List transmission = Float32List(4);
+
+  /// `attenuation`: Vector4, at byte 80.
+  final Float32List attenuation = Float32List(4);
+
+  /// `iridescence`: Vector4, at byte 96.
+  final Float32List iridescence = Float32List(4);
+
+  @override
+  late final Map<String, Float32List> members = <String, Float32List>{
+    'specular': specular,
+    'coat': coat,
+    'sheen': sheen,
+    'anisotropy': anisotropy,
+    'transmission': transmission,
+    'attenuation': attenuation,
+    'iridescence': iridescence,
+  };
+}
+
 /// `LightListInfo`.
 final class LightListInfoBlock extends UniformBlock {
   LightListInfoBlock() : super('LightListInfo');

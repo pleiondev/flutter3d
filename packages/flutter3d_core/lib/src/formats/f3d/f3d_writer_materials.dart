@@ -62,6 +62,44 @@ extension _F3dWriteMaterials on F3dWriter {
     return table;
   }
 
+  /// Section 22: each material's layers, as glTF writes them — see
+  /// [F3dRecord.materialExtensions].
+  (Uint8List, int) _writeMaterialExtensions() {
+    final records = <(int, (int, int))>[
+      for (final (index, material) in document.materials.indexed)
+        if (material.extensions case final layers?)
+          if (materialExtensionsToJson(layers, texture: _bindingJson)
+              case final written when written.isNotEmpty)
+            (index, _string(jsonEncode(written))),
+    ];
+    final table = Uint8List(records.length * F3dRecord.materialExtensions);
+    final view = ByteData.view(table.buffer);
+    for (final (i, (material, (offset, length))) in records.indexed) {
+      final o = i * F3dRecord.materialExtensions;
+      view.setUint32(o, material, Endian.little);
+      view.setUint32(o + 4, offset, Endian.little);
+      view.setUint32(o + 8, length, Endian.little);
+    }
+    return (table, records.length);
+  }
+
+  /// One binding inside section 22's JSON: the image, the coordinate set and
+  /// the same sampling flags a material record's bindings carry.
+  Map<String, Object?> _bindingJson(TextureBinding binding) =>
+      <String, Object?>{
+        'image': binding.imageIndex,
+        if (binding.texCoordSet != 0) 'texCoord': binding.texCoordSet,
+        'sampling': _samplingFlags(binding.sampling),
+      };
+
+  int _samplingFlags(TextureSampling s) =>
+      (s.magLinear ? F3dSamplingFlags.magLinear : 0) |
+      (s.minLinear ? F3dSamplingFlags.minLinear : 0) |
+      (s.useMipmaps ? F3dSamplingFlags.useMipmaps : 0) |
+      (s.mipLinear ? 0 : F3dSamplingFlags.mipNearest) |
+      (s.wrapS.index << F3dSamplingFlags.wrapSShift) |
+      (s.wrapT.index << F3dSamplingFlags.wrapTShift);
+
   void _writeBinding(ByteData view, int offset, TextureBinding? binding) {
     if (binding == null) {
       // -1 rather than a separate "present" flag: an index is either a real
@@ -72,18 +110,9 @@ extension _F3dWriteMaterials on F3dWriter {
       return;
     }
 
-    final s = binding.sampling;
-    var flags = 0;
-    if (s.magLinear) flags |= F3dSamplingFlags.magLinear;
-    if (s.minLinear) flags |= F3dSamplingFlags.minLinear;
-    if (s.useMipmaps) flags |= F3dSamplingFlags.useMipmaps;
-    if (!s.mipLinear) flags |= F3dSamplingFlags.mipNearest;
-    flags |= s.wrapS.index << F3dSamplingFlags.wrapSShift;
-    flags |= s.wrapT.index << F3dSamplingFlags.wrapTShift;
-
     view.setInt32(offset, binding.imageIndex, Endian.little);
     view.setUint32(offset + 4, binding.texCoordSet, Endian.little);
-    view.setUint32(offset + 8, flags, Endian.little);
+    view.setUint32(offset + 8, _samplingFlags(binding.sampling), Endian.little);
   }
 
   // ------------------------------------------------------------------- images

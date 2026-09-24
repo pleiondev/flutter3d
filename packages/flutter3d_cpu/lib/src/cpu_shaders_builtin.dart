@@ -146,6 +146,7 @@ Map<String, CpuStage> builtinCpuShaders() {
     'Lambert': const CpuStage.fragment(LambertShader()),
     'BlinnPhong': const CpuStage.fragment(BlinnPhongShader()),
     'Pbr': const CpuStage.fragment(PbrShader()),
+    'PbrLayered': const CpuStage.fragment(PbrShader.layered()),
     'Toon': const CpuStage.fragment(ToonShader()),
     'Normals': const CpuStage.fragment(NormalsShader()),
     'ObjectId': const CpuStage.fragment(ObjectIdShader()),

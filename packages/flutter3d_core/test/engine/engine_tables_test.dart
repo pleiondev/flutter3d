@@ -20,6 +20,14 @@ int _fnv1a(Uint8List bytes) => bytes.fold(
   (hash, byte) => ((hash ^ byte) * 0x01000193) & 0xffffffff,
 );
 
+/// An IEEE half, for the few the tests read. Finite and normal here.
+double _half(int bits) {
+  final exponent = (bits >> 10) & 0x1f;
+  final mantissa = bits & 0x3ff;
+  if (exponent == 0) return mantissa / 1024.0 / 16384.0;
+  return (1.0 + mantissa / 1024.0) * (1 << exponent) / 32768.0;
+}
+
 void main() {
   test('each table is the size its descriptor says', () {
     for (final table in EngineTables.all) {
@@ -45,8 +53,31 @@ void main() {
     expect(hashes, <String, int>{
       'blueNoise': 1332832323,
       'aces2Display': 3566240564,
-      'ltc': 3759136739,
+      // `M2` wrote the sheen's albedo into the second table's z lane,
+      // which the published fit leaves empty and nothing read before.
+      'ltc': 1806585161,
     });
+  });
+
+  test('the LTC table carries the sheen albedo in its spare lane', () {
+    // Row `64 + j` of the second table is sqrt(1 − n·v) = j / 63 and column
+    // `i` is roughness i / 63; z is the half at byte 4 of each texel.
+    final view = ByteData.sublistView(
+      EngineTables.all.firstWhere((table) => table.name == 'ltc').bytes,
+    );
+    double z(int row, int column) => _half(
+      view.getUint16(((64 + row) * 64 + column) * 8 + 4, Endian.little),
+    );
+    // Mutation: skip the sheen loop in `ltcTable`. Every z is nought.
+    expect(z(0, 63), greaterThan(0.05));
+    // A cloth is brightest at grazing: the albedo grows away from head-on.
+    expect(z(60, 63), greaterThan(z(0, 63)));
+    // Never more light than arrives.
+    for (var row = 0; row < 64; row++) {
+      for (var column = 0; column < 64; column++) {
+        expect(z(row, column), inInclusiveRange(0.0, 1.0));
+      }
+    }
   });
 
   group('blue noise', () {

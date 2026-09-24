@@ -487,13 +487,15 @@ Material _materialOf(ModelProject project, ModelObject object) {
   return Material(
     name: surface.name,
     lighting:
-        surface.lightingModel ??
-        (surface.unlit ? LightingModel.unlit : LightingModel.pbr),
+        (surface.lightingModel ??
+                (surface.unlit ? LightingModel.unlit : LightingModel.pbr))
+            .withLayers(surface.extensions),
     baseColor: surface.baseColor,
     metallic: surface.metallic,
     roughness: surface.roughness,
     emissive: surface.emissive,
     emissiveStrength: surface.emissiveStrength,
     doubleSided: surface.doubleSided,
+    extensions: surface.extensions,
   );
 }

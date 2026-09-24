@@ -144,6 +144,13 @@ abstract final class F3dSection {
   /// the eye goes, which is the right thing for a build that cannot draw the
   /// card.
   static const int impostors = 25;
+
+  /// The layers beyond metal-rough a material carries — `M1`, see
+  /// `MaterialExtensions`. Sparse, one record per material that has any, each
+  /// naming its material, for the reason [lods] is: nearly every material has
+  /// none, and the 132-byte material record is what every existing file is
+  /// written to.
+  static const int materialExtensions = 22;
 }
 
 /// Fixed record sizes, in bytes. All multiples of four.
@@ -239,6 +246,18 @@ abstract final class F3dRecord {
   /// u32 nodeIndex, f32 maxScreenFraction, u32 albedoImage, u32
   /// normalDepthImage, u32 grid, f32 centre x, y, z, f32 radius
   static const int impostor = 36;
+
+  /// u32 materialIndex, u32 jsonOffset, u32 jsonLength into the strings
+  /// section.
+  ///
+  /// **The layers as glTF's own extension JSON, not as fixed fields.** They
+  /// are a handful of numbers per material that has any, read once at load,
+  /// and the list of them grows with every `KHR_materials_*` the renderer
+  /// learns; a fixed record would change size with each, where JSON keeps
+  /// one record that an older reader reads what it knows of. A texture is
+  /// `{"image": i, "texCoord": n, "sampling": flags}`, the flags those of
+  /// [F3dSamplingFlags].
+  static const int materialExtensions = 12;
 }
 
 /// Bit positions inside a `surfaceAttributes` record — one per name
