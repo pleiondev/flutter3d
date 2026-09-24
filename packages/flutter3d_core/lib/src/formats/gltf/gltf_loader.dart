@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'dart:typed_data';
 
 import 'package:flutter3d_core/geometry.dart';
@@ -9,6 +10,7 @@ import '../asset_resolver.dart';
 import '../draco/draco.dart';
 import '../model_document.dart';
 import '../model_loader.dart';
+import '../splat/splat_cloud.dart';
 import '../srgb.dart';
 import '../texture_transform_bake.dart';
 import 'glb_container.dart';
@@ -31,6 +33,7 @@ part 'gltf_loader_mesh.dart';
 // why.
 part 'gltf_loader_scene.dart';
 part 'gltf_loader_skins.dart';
+part 'gltf_loader_splats.dart';
 
 /// Decodes glTF 2.0 and GLB into engine geometry.
 ///
@@ -149,6 +152,7 @@ final class GltfLoader implements ModelDecoder {
       warnings: warnings,
       nodes: graph.nodes,
       roots: graph.roots,
+      splats: graph.splats,
       animations: animations,
       skins: skins,
       lights: lights,
@@ -208,6 +212,9 @@ final class GltfLoader implements ModelDecoder {
       // have no buffer views to fall back on; refusing the extension here
       // refused all of them.
       'KHR_draco_mesh_compression',
+      // `C1`: a splat primitive becomes a `ModelSplat` beside the surfaces —
+      // see `gltf_loader_splats.dart` for which text of it this follows.
+      'KHR_gaussian_splatting',
     };
     final unsupported = required.whereType<String>().where(
       (e) => !supported.contains(e),
