@@ -28,6 +28,10 @@ part of 'renderer.dart';
 /// Floats one light's row holds: four texels of four.
 const int _kLightRowFloats = 16;
 
+/// The tallest light list the cells may make: the height WebGL 2 promises,
+/// twice over, which every backend here exceeds.
+const int _kMaxListRows = 4096;
+
 extension _LightList on Renderer {
   /// Builds this frame's light texture from [lights]' candidates.
   ///
@@ -48,13 +52,30 @@ extension _LightList on Renderer {
     // first uploaded with for as long as nothing else in the scene moved.
     // Writing the rows costs sixteen floats a light, far less than the upload
     // it decides about, and the comparison is what makes skipping it honest.
-    final length = count * _kLightRowFloats;
+    // `L6`: the view's cells after the light rows, headers then entries, in
+    // the one texture a lit stage already samples. A view so crowded that
+    // they would outgrow a texture every backend can make reads the draws'
+    // own tails instead.
+    if (_clustersActive &&
+        count + LightClusters.headerRows + _lightClusters.entryRows >
+            _kMaxListRows) {
+      _clustersActive = false;
+    }
+    final rowCount = _clustersActive
+        ? count + LightClusters.headerRows + _lightClusters.entryRows
+        : count;
+    final length = rowCount * _kLightRowFloats;
     if (_lightListScratch.length < length) {
       _lightListScratch = Float32List(length);
     }
     final rows = Float32List.sublistView(_lightListScratch, 0, length);
     for (var i = 0; i < count; i++) {
       lights.writeCandidateRow(i, rows, i * _kLightRowFloats);
+    }
+    if (_clustersActive) {
+      _lightClusters.write(rows, count * _kLightRowFloats);
+      _clusterHeaderRow = count;
+      _clusterEntryRow = count + LightClusters.headerRows;
     }
     if (_lightListTexture != null && _sameRows(rows, _lightListUploaded)) {
       return _lightListTexture;
@@ -63,12 +84,12 @@ extension _LightList on Renderer {
     final previous = _lightListTexture;
     _lightListTexture = device.createTextureFromPixels(
       width: 4,
-      height: count,
+      height: rowCount,
       format: TextureFormat.r32g32b32a32Float,
       pixels: ByteData.sublistView(rows),
     );
     _lightListUploaded = Float32List.fromList(rows);
-    _lightListRows = count;
+    _lightListRows = rowCount;
     // After the new one is made rather than before: a device that refuses the
     // upload leaves the frame with the texture it had rather than with none.
     if (previous != null) _destroyAfterFrame(previous);
@@ -96,14 +117,36 @@ extension _LightList on Renderer {
     LightBuffer drawLights,
     TextureHandle? texture,
   ) {
-    final count = texture == null
+    // `L6`: a draw in a clustered view reads its tail from the cell, and
+    // hands the shader the rows its slots hold so a cell's copy is skipped.
+    final clustered = _clustersActive && texture != null;
+    final count = texture == null || clustered
         ? 0
         : math.min(drawLights.extraCount, LightBuffer.maxExtraLights);
 
     _lightListParams[0] = count.toDouble();
-    _lightListParams[1] = count == 0 ? 0.0 : 0.25;
-    _lightListParams[2] = count == 0 ? 0.0 : 1.0 / _lightListRows;
+    _lightListParams[1] = count == 0 && !clustered ? 0.0 : 0.25;
+    _lightListParams[2] = count == 0 && !clustered ? 0.0 : 1.0 / _lightListRows;
     _lightListParams[3] = 0.0;
+    _lightListInfo.clusterViewProjection.setAll(
+      0,
+      _lightClusters.viewProjection.storage,
+    );
+    _lightListInfo.clusterGrid
+      ..[0] = LightClusters.tilesX.toDouble()
+      ..[1] = LightClusters.tilesY.toDouble()
+      ..[2] = LightClusters.slices.toDouble()
+      ..[3] = clustered ? 1.0 : 0.0;
+    _lightListInfo.clusterDepth
+      ..[0] = _lightClusters.near
+      ..[1] = _lightClusters.sliceScale
+      ..[2] = _clusterHeaderRow.toDouble()
+      ..[3] = _clusterEntryRow.toDouble();
+    for (var i = 0; i < LightBuffer.maxLights; i++) {
+      _lightListInfo.slotRows[i] = i < drawLights.count
+          ? drawLights.slotCandidates[i].toDouble()
+          : -1.0;
+    }
     for (var i = 0; i < LightBuffer.maxExtraLights; i++) {
       _lightListIndices[i] = i < count
           ? drawLights.extraIndices[i].toDouble()

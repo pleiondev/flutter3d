@@ -183,6 +183,21 @@ extension _ScenePasses on Renderer {
       final viewMatrix = camera.viewMatrix;
       final viewProjection = _drawViewProjection(camera, viewRect, settings);
 
+      // `L6`: the cells, cut with the matrix the draws use, so a fragment
+      // finds its cell the way the builder placed the lights.
+      _clustersActive =
+          settings.clusteredLights &&
+          !lights.anyChannelled &&
+          lights.candidates.length > LightBuffer.maxLights;
+      if (_clustersActive) {
+        _lightClusters.build(
+          lights,
+          viewProjection,
+          near: camera.projection.near,
+          far: camera.projection.far,
+        );
+      }
+
       // Before the render list is built, because choosing a level changes which
       // nodes are visible and the list is built from what is.
       //
@@ -304,6 +319,7 @@ extension _ScenePasses on Renderer {
       // enough gizmo would bleed into the bloom. The overlay belongs on top of
       // the finished image, so it is drawn in the composite pass below.
     }
+    _clustersActive = false;
 
     // Submitted before the post passes: they sample this target, and the queue
     // orders command buffers by submission.

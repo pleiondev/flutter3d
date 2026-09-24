@@ -19,11 +19,74 @@ import 'cpu_shaders_surface.dart';
 /// `LightCount()`: the count lives in `frame_params.y`, not in a member of its
 /// own. Reading a member that does not exist is silent, which is how the first
 /// version of this file drew an unlit scene.
-int lightCount(ShaderBindings bindings) {
+int lightCount(ShaderBindings bindings, Vector3 world) {
   final params = bindings.vec4('FragInfo', 'frame_params', Vector4.zero());
   final list = bindings.vec4('LightListInfo', 'list', Vector4.zero());
+  // `L6`: the tail is the cell's, when the draw reads one.
+  // A draw with no list texture has `list.y` at nought and no cell to read,
+  // which keeps the ordinary draw at the one lookup it always made.
+  final tail = list.y > 0.0 && clustered(bindings)
+      ? clusterAt(bindings, world).count
+      : list.x;
   return (params.y + 0.5).floor().clamp(0, kMaxLights) +
-      (list.x + 0.5).floor().clamp(0, kExtraLights);
+      (tail + 0.5).floor().clamp(0, kExtraLights);
+}
+
+/// `Clustered` — `L6`.
+bool clustered(ShaderBindings bindings) =>
+    bindings.vec4('LightListInfo', 'cluster_grid', Vector4.zero()).w > 0.5;
+
+/// `FindCluster`: where the entries of [world]'s cell start, and how many.
+({double offset, double count}) clusterAt(
+  ShaderBindings bindings,
+  Vector3 world,
+) {
+  final m = bindings.mat4('LightListInfo', 'cluster_view_projection');
+  final grid = bindings.vec4('LightListInfo', 'cluster_grid', Vector4.zero());
+  final depth = bindings.vec4('LightListInfo', 'cluster_depth', Vector4.zero());
+  final clip = m.transformed(Vector4(world.x, world.y, world.z, 1.0));
+  final w = math.max(clip.w, 1e-6);
+  double cut(double at, double cells) =>
+      math.min(math.max((at * cells).floorToDouble(), 0.0), cells - 1.0);
+  final tx = cut(clip.x / w * 0.5 + 0.5, grid.x);
+  final ty = cut(clip.y / w * 0.5 + 0.5, grid.y);
+  final tz = clip.w <= depth.x
+      ? 0.0
+      : cut(math.log(clip.w / depth.x) * depth.y / grid.z, grid.z);
+  final cell = (tx + ty * grid.x + tz * grid.x * grid.y).round();
+  final header = lightListTexel(
+    bindings,
+    depth.z.round() + cell ~/ 4,
+    cell % 4,
+  );
+  return (offset: header.x, count: header.y);
+}
+
+/// `ClusterRow`: the row entry [slot] of [world]'s cell names.
+int clusterRow(ShaderBindings bindings, Vector3 world, int slot) {
+  final depth = bindings.vec4('LightListInfo', 'cluster_depth', Vector4.zero());
+  final entry = clusterAt(bindings, world).offset.round() + slot;
+  final four = lightListTexel(
+    bindings,
+    depth.w.round() + entry ~/ 16,
+    (entry % 16) ~/ 4,
+  );
+  return switch (entry % 4) {
+    0 => four.x,
+    1 => four.y,
+    2 => four.z,
+    _ => four.w,
+  }.round();
+}
+
+/// `InSlots`: whether one of the draw's slots already holds row [row].
+bool inSlots(ShaderBindings bindings, int row) {
+  for (var i = 0; i < kMaxLights; i++) {
+    if ((lightListLane(bindings, 'slot_rows', i) - row).abs() < 0.5) {
+      return true;
+    }
+  }
+  return false;
 }
 
 /// `kExtraLights` in `lib/surface.glsl` — `gfx-74n`.
@@ -158,7 +221,14 @@ LightSample? sampleLight(ShaderBindings bindings, int index, Surface s) {
   // everything below this reads one shape.
   final fromList = index >= kMaxLights;
   final slot = index - kMaxLights;
-  final row = fromList ? lightListRow(bindings, slot).round() : -1;
+  // `L6`: from the cell, when the draw reads one; a light the slots already
+  // hold is skipped by its intensity.
+  final fromCell = fromList && clustered(bindings);
+  final row = !fromList
+      ? -1
+      : fromCell
+      ? clusterRow(bindings, s.world, slot)
+      : lightListRow(bindings, slot).round();
 
   final position = fromList
       ? lightListTexel(bindings, row, 0)
@@ -167,7 +237,9 @@ LightSample? sampleLight(ShaderBindings bindings, int index, Surface s) {
       ? (lightListTexel(bindings, row, 1)
           // The intensity and not the colour, for `_pack`'s own reason: the
           // same multiply, and only one of them is a number nobody authored.
-          ..w *= lightListScale(bindings, slot))
+          ..w *= fromCell
+              ? (inSlots(bindings, row) ? 0.0 : 1.0)
+              : lightListScale(bindings, slot))
       : bindings.vec4('FragInfo', 'light_color', Vector4.zero(), at: index);
   final direction = fromList
       ? lightListTexel(bindings, row, 2)
@@ -294,7 +366,7 @@ Vector3 accumulateLights(
   required bool shadowed,
 }) {
   var total = Vector3.zero();
-  final count = lightCount(b);
+  final count = lightCount(b, s.world);
   for (var i = 0; i < count; i++) {
     final light = sampleLight(b, i, s);
     if (light == null) continue;

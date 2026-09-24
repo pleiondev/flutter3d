@@ -99,6 +99,24 @@ uniform LightListInfo {
   /// while its rival stayed bright, making the swap more visible rather than
   /// less.
   vec4 scales[6];
+
+  /// `L6`: the view-projection the light clusters were cut with, so this
+  /// finds a fragment's cell the way `LightClusters.clusterOf` does.
+  mat4 cluster_view_projection;
+
+  /// xyz: tiles across, tiles up, slices deep. w: one when this draw reads
+  /// its tail from the cell it is in rather than from `indices`.
+  vec4 cluster_grid;
+
+  /// x: where slices begin, in clip w. y: slices per unit of `ln(w / x)`.
+  /// z: the texture row the cells' headers start at, four to a row, each
+  /// (offset, count). w: the row their entries start at, sixteen to a row.
+  vec4 cluster_depth;
+
+  /// Which rows this draw already holds in its eight slots, minus one for
+  /// an empty slot. A cell lists every light that reaches it, and one the
+  /// slots already carry must not be counted again.
+  vec4 slot_rows[2];
 }
 light_list_info;
 
@@ -116,6 +134,59 @@ float LightListRow(int slot) {
 /// How much of light [slot] of the list survives the edge fade.
 float LightListScale(int slot) {
   return LightListLane(light_list_info.scales[slot / 4], slot);
+}
+
+/// The cell this fragment falls in, as `LightClusters` wrote it: where its
+/// entries start and how many there are. Found once, in [LightCount], and
+/// read by every [SampleLight] of the loop that follows.
+float g_cluster_offset = 0.0;
+float g_cluster_count = 0.0;
+
+bool Clustered() { return light_list_info.cluster_grid.w > 0.5; }
+
+/// One texel of the light list texture, [texel] across and [row] down.
+vec4 LightListTexel(float texel, float row) {
+  return textureLod(light_list_texture,
+                    vec2((texel + 0.5) * light_list_info.list.y,
+                         (row + 0.5) * light_list_info.list.z),
+                    0.0);
+}
+
+void FindCluster(vec3 world) {
+  vec4 clip = light_list_info.cluster_view_projection * vec4(world, 1.0);
+  vec2 ndc = clip.xy / max(clip.w, 1e-6);
+  vec3 grid = light_list_info.cluster_grid.xyz;
+  float near = light_list_info.cluster_depth.x;
+  float tx = clamp(floor((ndc.x * 0.5 + 0.5) * grid.x), 0.0, grid.x - 1.0);
+  float ty = clamp(floor((ndc.y * 0.5 + 0.5) * grid.y), 0.0, grid.y - 1.0);
+  float tz = clip.w <= near
+                 ? 0.0
+                 : clamp(floor(log(clip.w / near) *
+                               light_list_info.cluster_depth.y),
+                         0.0, grid.z - 1.0);
+  float cell = tx + ty * grid.x + tz * grid.x * grid.y;
+  float row = floor(cell / 4.0);
+  vec4 header =
+      LightListTexel(cell - row * 4.0, light_list_info.cluster_depth.z + row);
+  g_cluster_offset = header.x;
+  g_cluster_count = header.y;
+}
+
+/// The row entry [slot] of this fragment's cell names.
+float ClusterRow(int slot) {
+  float entry = g_cluster_offset + float(slot);
+  float row = floor(entry / 16.0);
+  float within = entry - row * 16.0;
+  float texel = floor(within / 4.0);
+  vec4 four = LightListTexel(texel, light_list_info.cluster_depth.w + row);
+  return LightListLane(four, int(within - texel * 4.0 + 0.5));
+}
+
+/// Whether one of the draw's slots already holds light list row [row].
+bool InSlots(float row) {
+  vec4 a = abs(light_list_info.slot_rows[0] - vec4(row));
+  vec4 b = abs(light_list_info.slot_rows[1] - vec4(row));
+  return min(min(min(a.x, a.y), min(a.z, a.w)), min(min(b.x, b.y), min(b.z, b.w))) < 0.5;
 }
 #endif  // F3D_NO_LIGHT_LIST
 
@@ -342,8 +413,14 @@ int LightCount() {
 #ifdef F3D_NO_LIGHT_LIST
   return clamp(int(frag_info.frame_params.y + 0.5), 0, kMaxLights);
 #else
+  // `L6`: the tail is the cell's, when the draw reads one.
+  float tail = light_list_info.list.x;
+  if (Clustered()) {
+    FindCluster(v_world_position);
+    tail = g_cluster_count;
+  }
   return clamp(int(frag_info.frame_params.y + 0.5), 0, kMaxLights) +
-      clamp(int(light_list_info.list.x + 0.5), 0, kExtraLights);
+      clamp(int(tail + 0.5), 0, kExtraLights);
 #endif
 }
 
@@ -493,7 +570,11 @@ LightSample SampleLight(int index, Surface s) {
     // driver's rounding cannot land a fetch on a neighbour, and the four texels
     // across the row are the same four vectors the arrays above hold.
     int slot = index - kMaxLights;
-    float v = (LightListRow(slot) + 0.5) * light_list_info.list.z;
+    // `L6`: from the cell rather than the draw's own tail, and a light the
+    // slots already hold is skipped by its intensity, as a faded one is.
+    bool clustered = Clustered();
+    float listRow = clustered ? ClusterRow(slot) : LightListRow(slot);
+    float v = (listRow + 0.5) * light_list_info.list.z;
     float u = light_list_info.list.y;
     // `textureLod` and not `texture`, for `shadow.glsl`'s own reason: `index`
     // reaches this branch through a function parameter, so a WGSL backend
@@ -506,7 +587,7 @@ LightSample SampleLight(int index, Surface s) {
     cone = textureLod(light_list_texture, vec2(3.5 * u, v), 0.0);
     // The intensity and not the colour, for `LightBuffer._pack`'s own reason:
     // the same multiply here, and only one of them is a number nobody authored.
-    color.w *= LightListScale(slot);
+    color.w *= clustered ? (InSlots(listRow) ? 0.0 : 1.0) : LightListScale(slot);
 #endif  // F3D_NO_LIGHT_LIST
   }
 

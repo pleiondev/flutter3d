@@ -4575,6 +4575,10 @@ struct LightListInfo {
     list: vec4<f32>,
     indices: array<vec4<f32>, 6>,
     scales: array<vec4<f32>, 6>,
+    cluster_view_projection: mat4x4<f32>,
+    cluster_grid: vec4<f32>,
+    cluster_depth: vec4<f32>,
+    slot_rows: array<vec4<f32>, 2>,
 }
 
 struct FragInfo {
@@ -4625,6 +4629,8 @@ struct FragmentOutput {
 var<private> g_albedo: vec3<f32>;
 var<private> g_debug_surface: vec3<f32>;
 var<private> g_debug_surface_on: bool;
+var<private> g_cluster_offset: f32;
+var<private> g_cluster_count: f32;
 var<private> v_world_position_1: vec3<f32>;
 @group(1) @binding(0) 
 var<uniform> fog_info: FogInfo;
@@ -4636,6 +4642,10 @@ var<private> frag_color: vec4<f32>;
 var<private> gl_FragCoord_1: vec4<f32>;
 @group(1) @binding(3) 
 var<uniform> light_list_info: LightListInfo;
+@group(1) @binding(11) 
+var light_list_texture_tex: texture_2d<f32>;
+@group(1) @binding(12) 
+var light_list_texture_smp: sampler;
 @group(1) @binding(1) 
 var<uniform> frag_info: FragInfo;
 @group(1) @binding(5) 
@@ -4644,10 +4654,6 @@ var base_color_texture_tex: texture_2d<f32>;
 var base_color_texture_smp: sampler;
 var<private> v_texcoord_1: vec2<f32>;
 var<private> v_color_1: vec4<f32>;
-@group(1) @binding(11) 
-var light_list_texture_tex: texture_2d<f32>;
-@group(1) @binding(12) 
-var light_list_texture_smp: sampler;
 @group(1) @binding(4) 
 var<uniform> point_shadow: PointShadow;
 @group(1) @binding(23) 
@@ -4694,36 +4700,36 @@ var metallic_roughness_texture_smp: sampler;
 fn EncodeOctahedral_u0028_vf3_u003b(n: ptr<function, vec3<f32>>) -> vec2<f32> {
     var e: vec2<f32>;
 
-    let _e165 = (*n)[0u];
-    let _e168 = (*n)[1u];
-    let _e172 = (*n)[2u];
-    let _e175 = (*n);
-    (*n) = (_e175 / vec3(((abs(_e165) + abs(_e168)) + abs(_e172))));
-    let _e178 = (*n);
-    e = _e178.xy;
-    let _e181 = (*n)[2u];
-    if (_e181 < 0f) {
-        let _e183 = (*n);
-        let _e189 = (*n)[0u];
-        let _e193 = (*n)[1u];
-        e = ((vec2(1f) - abs(_e183.yx)) * vec2<f32>(select(-1f, 1f, (_e189 >= 0f)), select(-1f, 1f, (_e193 >= 0f))));
+    let _e167 = (*n)[0u];
+    let _e170 = (*n)[1u];
+    let _e174 = (*n)[2u];
+    let _e177 = (*n);
+    (*n) = (_e177 / vec3(((abs(_e167) + abs(_e170)) + abs(_e174))));
+    let _e180 = (*n);
+    e = _e180.xy;
+    let _e183 = (*n)[2u];
+    if (_e183 < 0f) {
+        let _e185 = (*n);
+        let _e191 = (*n)[0u];
+        let _e195 = (*n)[1u];
+        e = ((vec2(1f) - abs(_e185.yx)) * vec2<f32>(select(-1f, 1f, (_e191 >= 0f)), select(-1f, 1f, (_e195 >= 0f))));
     }
-    let _e198 = e;
-    return ((_e198 * 0.5f) + vec2(0.5f));
+    let _e200 = e;
+    return ((_e200 * 0.5f) + vec2(0.5f));
 }
 
 fn ViewDepth_u0028_() -> f32 {
-    let _e162 = v_world_position_1;
-    let _e164 = fog_info.eye;
-    let _e168 = fog_info.forward;
-    return dot((_e162 - _e164.xyz), _e168.xyz);
+    let _e164 = v_world_position_1;
+    let _e166 = fog_info.eye;
+    let _e170 = fog_info.forward;
+    return dot((_e164 - _e166.xyz), _e170.xyz);
 }
 
 fn LinearToSrgb_u0028_vf3_u003b(linear: ptr<function, vec3<f32>>) -> vec3<f32> {
-    let _e163 = (*linear);
     let _e165 = (*linear);
-    let _e169 = (*linear);
-    return mix((_e163 * 12.92f), ((pow(_e165, vec3<f32>(0.41666666f, 0.41666666f, 0.41666666f)) * 1.055f) - vec3<f32>(0.055f, 0.055f, 0.055f)), step(vec3<f32>(0.0031308f, 0.0031308f, 0.0031308f), _e169));
+    let _e167 = (*linear);
+    let _e171 = (*linear);
+    return mix((_e165 * 12.92f), ((pow(_e167, vec3<f32>(0.41666666f, 0.41666666f, 0.41666666f)) * 1.055f) - vec3<f32>(0.055f, 0.055f, 0.055f)), step(vec3<f32>(0.0031308f, 0.0031308f, 0.0031308f), _e171));
 }
 
 fn WriteSurfaceGeometry_u0028_f1_u003b(roughness: ptr<function, f32>) {
@@ -4731,106 +4737,106 @@ fn WriteSurfaceGeometry_u0028_f1_u003b(roughness: ptr<function, f32>) {
     var geometric: vec3<f32>;
     var param_1: vec3<f32>;
 
-    let _e166 = g_albedo;
-    param = clamp(_e166, vec3<f32>(0f, 0f, 0f), vec3<f32>(1f, 1f, 1f));
-    let _e168 = LinearToSrgb_u0028_vf3_u003b((&param));
-    frag_albedo = vec4<f32>(_e168.x, _e168.y, _e168.z, 1f);
-    let _e173 = g_debug_surface_on;
-    if _e173 {
-        let _e174 = g_debug_surface;
-        let _e175 = ViewDepth_u0028_();
-        frag_surface = vec4<f32>(_e174.x, _e174.y, _e174.z, _e175);
+    let _e168 = g_albedo;
+    param = clamp(_e168, vec3<f32>(0f, 0f, 0f), vec3<f32>(1f, 1f, 1f));
+    let _e170 = LinearToSrgb_u0028_vf3_u003b((&param));
+    frag_albedo = vec4<f32>(_e170.x, _e170.y, _e170.z, 1f);
+    let _e175 = g_debug_surface_on;
+    if _e175 {
+        let _e176 = g_debug_surface;
+        let _e177 = ViewDepth_u0028_();
+        frag_surface = vec4<f32>(_e176.x, _e176.y, _e176.z, _e177);
         return;
     }
-    let _e180 = v_normal_1;
-    geometric = normalize(_e180);
-    let _e182 = gl_FrontFacing_1;
-    if !(_e182) {
-        let _e184 = geometric;
-        geometric = -(_e184);
+    let _e182 = v_normal_1;
+    geometric = normalize(_e182);
+    let _e184 = gl_FrontFacing_1;
+    if !(_e184) {
+        let _e186 = geometric;
+        geometric = -(_e186);
     }
-    let _e186 = geometric;
-    param_1 = _e186;
-    let _e187 = EncodeOctahedral_u0028_vf3_u003b((&param_1));
-    let _e188 = (*roughness);
-    let _e190 = ViewDepth_u0028_();
-    frag_surface = vec4<f32>(_e187.x, _e187.y, clamp(_e188, 0f, 1f), _e190);
+    let _e188 = geometric;
+    param_1 = _e188;
+    let _e189 = EncodeOctahedral_u0028_vf3_u003b((&param_1));
+    let _e190 = (*roughness);
+    let _e192 = ViewDepth_u0028_();
+    frag_surface = vec4<f32>(_e189.x, _e189.y, clamp(_e190, 0f, 1f), _e192);
     return;
 }
 
 fn EyeDistance_u0028_() -> f32 {
-    let _e162 = v_world_position_1;
-    let _e164 = fog_info.eye;
-    return distance(_e162, _e164.xyz);
+    let _e164 = v_world_position_1;
+    let _e166 = fog_info.eye;
+    return distance(_e164, _e166.xyz);
 }
 
 fn ApplyFog_u0028_vf3_u003b(color: ptr<function, vec3<f32>>) -> vec3<f32> {
     var density: f32;
     var d: f32;
 
-    let _e167 = fog_info.fog[3u];
-    density = _e167;
-    let _e168 = density;
-    if (_e168 <= 0f) {
-        let _e170 = (*color);
-        return _e170;
+    let _e169 = fog_info.fog[3u];
+    density = _e169;
+    let _e170 = density;
+    if (_e170 <= 0f) {
+        let _e172 = (*color);
+        return _e172;
     }
-    let _e171 = EyeDistance_u0028_();
-    d = _e171;
-    let _e173 = fog_info.fog;
-    let _e175 = (*color);
-    let _e176 = density;
-    let _e178 = d;
-    return mix(_e173.xyz, _e175, vec3(clamp(exp((-(_e176) * _e178)), 0f, 1f)));
+    let _e173 = EyeDistance_u0028_();
+    d = _e173;
+    let _e175 = fog_info.fog;
+    let _e177 = (*color);
+    let _e178 = density;
+    let _e180 = d;
+    return mix(_e175.xyz, _e177, vec3(clamp(exp((-(_e178) * _e180)), 0f, 1f)));
 }
 
 fn WriteSurface_u0028_vf3_u003b_f1_u003b_f1_u003b(linearColor: ptr<function, vec3<f32>>, alpha: ptr<function, f32>, roughness_1: ptr<function, f32>) {
     var param_2: vec3<f32>;
     var param_3: f32;
 
-    let _e167 = (*linearColor);
-    param_2 = _e167;
-    let _e168 = ApplyFog_u0028_vf3_u003b((&param_2));
-    let _e169 = (*alpha);
-    frag_color = vec4<f32>(_e168.x, _e168.y, _e168.z, _e169);
-    let _e174 = (*roughness_1);
-    param_3 = _e174;
+    let _e169 = (*linearColor);
+    param_2 = _e169;
+    let _e170 = ApplyFog_u0028_vf3_u003b((&param_2));
+    let _e171 = (*alpha);
+    frag_color = vec4<f32>(_e170.x, _e170.y, _e170.z, _e171);
+    let _e176 = (*roughness_1);
+    param_3 = _e176;
     WriteSurfaceGeometry_u0028_f1_u003b((&param_3));
     return;
 }
 
 fn ShadeLight_u0028_struct_u002d_Surface_u002d_vf3_u002d_f1_u002d_vf3_u002d_vf3_u002d_f1_u002d_f1_u002d_f1_u002d_f1_u002d_vf3_u002d_vf3_u002d_f11_u003b_struct_u002d_LightSample_u002d_vf3_u002d_vf3_u002d_vf3_u002d_f1_u002d_f1_u002d_f11_u003b(s: ptr<function, Surface>, light: ptr<function, LightSample>) -> vec3<f32> {
-    let _e165 = (*s).albedo;
-    return _e165;
+    let _e167 = (*s).albedo;
+    return _e167;
 }
 
 fn PointShadowDiskTap_u0028_i1_u003b(i: ptr<function, i32>) -> vec2<f32> {
-    let _e163 = (*i);
-    if (_e163 == 0i) {
+    let _e165 = (*i);
+    if (_e165 == 0i) {
         return vec2<f32>(-0.94201624f, -0.39906216f);
     }
-    let _e165 = (*i);
-    if (_e165 == 1i) {
+    let _e167 = (*i);
+    if (_e167 == 1i) {
         return vec2<f32>(0.9455861f, -0.76890725f);
     }
-    let _e167 = (*i);
-    if (_e167 == 2i) {
+    let _e169 = (*i);
+    if (_e169 == 2i) {
         return vec2<f32>(-0.0941841f, -0.9293887f);
     }
-    let _e169 = (*i);
-    if (_e169 == 3i) {
+    let _e171 = (*i);
+    if (_e171 == 3i) {
         return vec2<f32>(0.34495938f, 0.2938776f);
     }
-    let _e171 = (*i);
-    if (_e171 == 4i) {
+    let _e173 = (*i);
+    if (_e173 == 4i) {
         return vec2<f32>(-0.9158858f, 0.45771432f);
     }
-    let _e173 = (*i);
-    if (_e173 == 5i) {
+    let _e175 = (*i);
+    if (_e175 == 5i) {
         return vec2<f32>(-0.8154423f, -0.87912464f);
     }
-    let _e175 = (*i);
-    if (_e175 == 6i) {
+    let _e177 = (*i);
+    if (_e177 == 6i) {
         return vec2<f32>(-0.38277543f, 0.27676845f);
     }
     return vec2<f32>(0.974844f, 0.7564838f);
@@ -4840,20 +4846,20 @@ fn PointShadowOffset_u0028_i1_u003b_f1_u003b_f1_u003b_f1_u003b(i_1: ptr<function
     var p: vec2<f32>;
     var param_4: i32;
 
-    let _e168 = (*i_1);
-    param_4 = _e168;
-    let _e169 = PointShadowDiskTap_u0028_i1_u003b((&param_4));
-    p = _e169;
-    let _e171 = p[0u];
-    let _e172 = (*ca);
-    let _e175 = p[1u];
-    let _e176 = (*sa);
-    let _e180 = p[0u];
-    let _e181 = (*sa);
-    let _e184 = p[1u];
-    let _e185 = (*ca);
-    let _e189 = (*radius);
-    return (vec2<f32>(((_e171 * _e172) - (_e175 * _e176)), ((_e180 * _e181) + (_e184 * _e185))) * _e189);
+    let _e170 = (*i_1);
+    param_4 = _e170;
+    let _e171 = PointShadowDiskTap_u0028_i1_u003b((&param_4));
+    p = _e171;
+    let _e173 = p[0u];
+    let _e174 = (*ca);
+    let _e177 = p[1u];
+    let _e178 = (*sa);
+    let _e182 = p[0u];
+    let _e183 = (*sa);
+    let _e186 = p[1u];
+    let _e187 = (*ca);
+    let _e191 = (*radius);
+    return (vec2<f32>(((_e173 * _e174) - (_e177 * _e178)), ((_e182 * _e183) + (_e186 * _e187))) * _e191);
 }
 
 fn PointShadowDistance_u0028_vf2_u003b_vf2_u003b_vf2_u003b_f1_u003b(uv: ptr<function, vec2<f32>>, offset: ptr<function, vec2<f32>>, tile: ptr<function, vec2<f32>>, range: ptr<function, f32>) -> f32 {
@@ -4861,27 +4867,27 @@ fn PointShadowDistance_u0028_vf2_u003b_vf2_u003b_vf2_u003b_f1_u003b(uv: ptr<func
     var local: vec2<f32>;
     var atlas: vec2<f32>;
 
-    let _e171 = point_shadow.params[0u];
-    inset = _e171;
-    let _e172 = (*uv);
-    let _e173 = (*offset);
-    let _e175 = inset;
-    let _e176 = inset;
-    local = clamp((_e172 + _e173), vec2(_e175), vec2((1f - _e176)));
-    let _e181 = local;
-    let _e182 = (*tile);
-    atlas = ((_e181 + _e182) * vec2<f32>(0.16666667f, 0.16666667f));
-    let _e187 = point_shadow.params3_[0u];
-    if (_e187 > 0.5f) {
-        let _e190 = atlas[1u];
-        atlas[1u] = (1f - _e190);
+    let _e173 = point_shadow.params[0u];
+    inset = _e173;
+    let _e174 = (*uv);
+    let _e175 = (*offset);
+    let _e177 = inset;
+    let _e178 = inset;
+    local = clamp((_e174 + _e175), vec2(_e177), vec2((1f - _e178)));
+    let _e183 = local;
+    let _e184 = (*tile);
+    atlas = ((_e183 + _e184) * vec2<f32>(0.16666667f, 0.16666667f));
+    let _e189 = point_shadow.params3_[0u];
+    if (_e189 > 0.5f) {
+        let _e192 = atlas[1u];
+        atlas[1u] = (1f - _e192);
     }
-    let _e193 = atlas;
-    let _e194 = textureSampleLevel(point_shadow_texture_tex, point_shadow_texture_smp, _e193, 0f);
-    let _e196 = atlas;
-    let _e197 = textureSampleLevel(point_shadow_static_texture_tex, point_shadow_static_texture_smp, _e196, 0f);
-    let _e200 = (*range);
-    return (min(_e194.x, _e197.x) * _e200);
+    let _e195 = atlas;
+    let _e196 = textureSampleLevel(point_shadow_texture_tex, point_shadow_texture_smp, _e195, 0f);
+    let _e198 = atlas;
+    let _e199 = textureSampleLevel(point_shadow_static_texture_tex, point_shadow_static_texture_smp, _e198, 0f);
+    let _e202 = (*range);
+    return (min(_e196.x, _e199.x) * _e202);
 }
 
 fn PointShadowTap_u0028_vf2_u003b_vf2_u003b_vf2_u003b_f1_u003b_f1_u003b(uv_1: ptr<function, vec2<f32>>, offset_1: ptr<function, vec2<f32>>, tile_1: ptr<function, vec2<f32>>, range_1: ptr<function, f32>, receiver: ptr<function, f32>) -> f32 {
@@ -4891,24 +4897,24 @@ fn PointShadowTap_u0028_vf2_u003b_vf2_u003b_vf2_u003b_f1_u003b_f1_u003b(uv_1: pt
     var param_7: vec2<f32>;
     var param_8: f32;
 
-    let _e172 = (*uv_1);
-    param_5 = _e172;
-    let _e173 = (*offset_1);
-    param_6 = _e173;
-    let _e174 = (*tile_1);
-    param_7 = _e174;
-    let _e175 = (*range_1);
-    param_8 = _e175;
-    let _e176 = PointShadowDistance_u0028_vf2_u003b_vf2_u003b_vf2_u003b_f1_u003b((&param_5), (&param_6), (&param_7), (&param_8));
-    stored = _e176;
-    let _e177 = stored;
-    let _e178 = (*range_1);
-    if (_e177 >= (_e178 * 0.999f)) {
+    let _e174 = (*uv_1);
+    param_5 = _e174;
+    let _e175 = (*offset_1);
+    param_6 = _e175;
+    let _e176 = (*tile_1);
+    param_7 = _e176;
+    let _e177 = (*range_1);
+    param_8 = _e177;
+    let _e178 = PointShadowDistance_u0028_vf2_u003b_vf2_u003b_vf2_u003b_f1_u003b((&param_5), (&param_6), (&param_7), (&param_8));
+    stored = _e178;
+    let _e179 = stored;
+    let _e180 = (*range_1);
+    if (_e179 >= (_e180 * 0.999f)) {
         return 1f;
     }
-    let _e181 = (*receiver);
-    let _e182 = stored;
-    return select(1f, 0f, (_e181 > _e182));
+    let _e183 = (*receiver);
+    let _e184 = stored;
+    return select(1f, 0f, (_e183 > _e184));
 }
 
 fn PointShadowPenumbra_u0028_vf2_u003b_vf2_u003b_f1_u003b_f1_u003b_f1_u003b_f1_u003b_f1_u003b_f1_u003b(uv_2: ptr<function, vec2<f32>>, tile_2: ptr<function, vec2<f32>>, range_2: ptr<function, f32>, receiver_1: ptr<function, f32>, ca_1: ptr<function, f32>, sa_1: ptr<function, f32>, tanHalf: ptr<function, f32>, blockerOut: ptr<function, f32>) -> f32 {
@@ -4935,111 +4941,111 @@ fn PointShadowPenumbra_u0028_vf2_u003b_vf2_u003b_f1_u003b_f1_u003b_f1_u003b_f1_u
     var world: f32;
 
     (*blockerOut) = -1f;
-    let _e193 = point_shadow.params2_[1u];
-    lightRadius = _e193;
-    let _e196 = point_shadow.params2_[0u];
-    minRadius = _e196;
-    let _e199 = point_shadow.params2_[2u];
-    maxRadius = _e199;
-    let _e200 = lightRadius;
-    if (_e200 <= 0f) {
-        let _e202 = (*uv_2);
-        param_9 = _e202;
+    let _e195 = point_shadow.params2_[1u];
+    lightRadius = _e195;
+    let _e198 = point_shadow.params2_[0u];
+    minRadius = _e198;
+    let _e201 = point_shadow.params2_[2u];
+    maxRadius = _e201;
+    let _e202 = lightRadius;
+    if (_e202 <= 0f) {
+        let _e204 = (*uv_2);
+        param_9 = _e204;
         param_10 = vec2<f32>(0f, 0f);
-        let _e203 = (*tile_2);
-        param_11 = _e203;
-        let _e204 = (*range_2);
-        param_12 = _e204;
-        let _e205 = PointShadowDistance_u0028_vf2_u003b_vf2_u003b_vf2_u003b_f1_u003b((&param_9), (&param_10), (&param_11), (&param_12));
-        (*blockerOut) = _e205;
-        let _e206 = minRadius;
-        return _e206;
+        let _e205 = (*tile_2);
+        param_11 = _e205;
+        let _e206 = (*range_2);
+        param_12 = _e206;
+        let _e207 = PointShadowDistance_u0028_vf2_u003b_vf2_u003b_vf2_u003b_f1_u003b((&param_9), (&param_10), (&param_11), (&param_12));
+        (*blockerOut) = _e207;
+        let _e208 = minRadius;
+        return _e208;
     }
     sum = 0f;
     count = 0f;
     i_2 = 0i;
     loop {
-        let _e207 = i_2;
-        if (_e207 < 8i) {
-            let _e209 = i_2;
-            param_13 = _e209;
-            let _e210 = (*ca_1);
-            param_14 = _e210;
-            let _e211 = (*sa_1);
-            param_15 = _e211;
-            let _e212 = maxRadius;
-            param_16 = _e212;
-            let _e213 = PointShadowOffset_u0028_i1_u003b_f1_u003b_f1_u003b_f1_u003b((&param_13), (&param_14), (&param_15), (&param_16));
-            let _e214 = (*uv_2);
-            param_17 = _e214;
-            param_18 = _e213;
-            let _e215 = (*tile_2);
-            param_19 = _e215;
-            let _e216 = (*range_2);
-            param_20 = _e216;
-            let _e217 = PointShadowDistance_u0028_vf2_u003b_vf2_u003b_vf2_u003b_f1_u003b((&param_17), (&param_18), (&param_19), (&param_20));
-            stored_1 = _e217;
-            let _e218 = stored_1;
-            let _e219 = (*range_2);
-            if (_e218 >= (_e219 * 0.999f)) {
+        let _e209 = i_2;
+        if (_e209 < 8i) {
+            let _e211 = i_2;
+            param_13 = _e211;
+            let _e212 = (*ca_1);
+            param_14 = _e212;
+            let _e213 = (*sa_1);
+            param_15 = _e213;
+            let _e214 = maxRadius;
+            param_16 = _e214;
+            let _e215 = PointShadowOffset_u0028_i1_u003b_f1_u003b_f1_u003b_f1_u003b((&param_13), (&param_14), (&param_15), (&param_16));
+            let _e216 = (*uv_2);
+            param_17 = _e216;
+            param_18 = _e215;
+            let _e217 = (*tile_2);
+            param_19 = _e217;
+            let _e218 = (*range_2);
+            param_20 = _e218;
+            let _e219 = PointShadowDistance_u0028_vf2_u003b_vf2_u003b_vf2_u003b_f1_u003b((&param_17), (&param_18), (&param_19), (&param_20));
+            stored_1 = _e219;
+            let _e220 = stored_1;
+            let _e221 = (*range_2);
+            if (_e220 >= (_e221 * 0.999f)) {
                 continue;
             }
-            let _e222 = stored_1;
-            let _e223 = (*receiver_1);
-            if (_e222 >= _e223) {
+            let _e224 = stored_1;
+            let _e225 = (*receiver_1);
+            if (_e224 >= _e225) {
                 continue;
             }
-            let _e225 = stored_1;
-            let _e226 = sum;
-            sum = (_e226 + _e225);
-            let _e228 = count;
-            count = (_e228 + 1f);
+            let _e227 = stored_1;
+            let _e228 = sum;
+            sum = (_e228 + _e227);
+            let _e230 = count;
+            count = (_e230 + 1f);
             continue;
         } else {
             break;
         }
         continuing {
-            let _e230 = i_2;
-            i_2 = (_e230 + 1i);
+            let _e232 = i_2;
+            i_2 = (_e232 + 1i);
         }
     }
-    let _e232 = count;
-    if (_e232 < 0.5f) {
+    let _e234 = count;
+    if (_e234 < 0.5f) {
         return -1f;
     }
-    let _e234 = sum;
-    let _e235 = count;
-    blocker = max((_e234 / _e235), 0.0001f);
-    let _e238 = blocker;
-    (*blockerOut) = _e238;
-    let _e239 = lightRadius;
-    let _e240 = (*receiver_1);
-    let _e241 = blocker;
-    let _e245 = blocker;
-    world = ((_e239 * max((_e240 - _e241), 0f)) / _e245);
-    let _e247 = world;
-    let _e248 = (*receiver_1);
-    let _e250 = (*tanHalf);
-    let _e253 = minRadius;
-    let _e254 = maxRadius;
-    return clamp((_e247 / ((2f * _e248) * _e250)), _e253, _e254);
+    let _e236 = sum;
+    let _e237 = count;
+    blocker = max((_e236 / _e237), 0.0001f);
+    let _e240 = blocker;
+    (*blockerOut) = _e240;
+    let _e241 = lightRadius;
+    let _e242 = (*receiver_1);
+    let _e243 = blocker;
+    let _e247 = blocker;
+    world = ((_e241 * max((_e242 - _e243), 0f)) / _e247);
+    let _e249 = world;
+    let _e250 = (*receiver_1);
+    let _e252 = (*tanHalf);
+    let _e255 = minRadius;
+    let _e256 = maxRadius;
+    return clamp((_e249 / ((2f * _e250) * _e252)), _e255, _e256);
 }
 
 fn FragCoordFromTop_u0028_f1_u003b(rows: ptr<function, f32>) -> vec2<f32> {
     var local_1: vec2<f32>;
 
-    let _e164 = (*rows);
-    if (_e164 > 0f) {
-        let _e167 = gl_FragCoord_1[0u];
-        let _e168 = (*rows);
-        let _e170 = gl_FragCoord_1[1u];
-        local_1 = vec2<f32>(_e167, (_e168 - _e170));
+    let _e166 = (*rows);
+    if (_e166 > 0f) {
+        let _e169 = gl_FragCoord_1[0u];
+        let _e170 = (*rows);
+        let _e172 = gl_FragCoord_1[1u];
+        local_1 = vec2<f32>(_e169, (_e170 - _e172));
     } else {
-        let _e173 = gl_FragCoord_1;
-        local_1 = _e173.xy;
+        let _e175 = gl_FragCoord_1;
+        local_1 = _e175.xy;
     }
-    let _e175 = local_1;
-    return _e175;
+    let _e177 = local_1;
+    return _e177;
 }
 
 fn PointShadowFactor_u0028_vf3_u003b_vf3_u003b_i1_u003b(world_1: ptr<function, vec3<f32>>, normal: ptr<function, vec3<f32>>, lightIndex: ptr<function, i32>) -> f32 {
@@ -5094,231 +5100,231 @@ fn PointShadowFactor_u0028_vf3_u003b_vf3_u003b_i1_u003b(world_1: ptr<function, v
     var param_41: vec2<f32>;
     var param_42: f32;
     var param_43: f32;
-    var phi_1625_: bool;
-    var phi_1687_: bool;
+    var phi_1890_: bool;
+    var phi_1951_: bool;
 
-    let _e216 = (*lightIndex);
-    let _e220 = point_shadow.slots[_e216][0u];
-    slot = i32((_e220 + 0.5f));
-    let _e223 = (*lightIndex);
-    let _e227 = point_shadow.slots[_e223][0u];
-    if (_e227 < 0f) {
+    let _e218 = (*lightIndex);
+    let _e222 = point_shadow.slots[_e218][0u];
+    slot = i32((_e222 + 0.5f));
+    let _e225 = (*lightIndex);
+    let _e229 = point_shadow.slots[_e225][0u];
+    if (_e229 < 0f) {
         return 1f;
     }
-    let _e231 = point_shadow.params[2u];
-    strength = _e231;
-    let _e232 = strength;
-    if (_e232 <= 0f) {
+    let _e233 = point_shadow.params[2u];
+    strength = _e233;
+    let _e234 = strength;
+    if (_e234 <= 0f) {
         return 1f;
     }
-    let _e234 = slot;
-    let _e237 = point_shadow.lights[_e234];
-    let _e239 = (*world_1);
-    toLight = (_e237.xyz - _e239);
-    let _e241 = toLight;
-    toLightLength = max(length(_e241), 0.000001f);
-    let _e244 = (*normal);
-    let _e245 = toLight;
-    let _e246 = toLightLength;
-    nDotL = max(dot(_e244, (_e245 / vec3(_e246))), 0.15f);
-    let _e251 = nDotL;
-    let _e252 = nDotL;
-    let _e257 = nDotL;
-    let _e258 = nDotL;
-    slope = min((sqrt(max((1f - (_e251 * _e252)), 0f)) / (_e257 * _e258)), 8f);
-    let _e262 = toLightLength;
-    let _e264 = (*lightIndex);
-    let _e268 = point_shadow.slots[_e264][2u];
-    let _e273 = point_shadow.params3_[1u];
-    texel = (((2f * _e262) * max(_e268, 0.0001f)) * _e273);
-    let _e275 = (*world_1);
-    let _e276 = (*normal);
-    let _e277 = texel;
-    let _e281 = point_shadow.params[3u];
-    let _e283 = slope;
-    origin = (_e275 + (((_e276 * _e277) * _e281) * (1f + _e283)));
-    let _e287 = origin;
-    let _e288 = slot;
-    let _e291 = point_shadow.lights[_e288];
-    toFragment = (_e287 - _e291.xyz);
-    let _e294 = toFragment;
-    distance_ = length(_e294);
-    let _e296 = slot;
-    let _e300 = point_shadow.lights[_e296][3u];
-    range_3 = max(_e300, 0.0001f);
-    let _e302 = distance_;
-    let _e303 = range_3;
-    if (_e302 >= _e303) {
+    let _e236 = slot;
+    let _e239 = point_shadow.lights[_e236];
+    let _e241 = (*world_1);
+    toLight = (_e239.xyz - _e241);
+    let _e243 = toLight;
+    toLightLength = max(length(_e243), 0.000001f);
+    let _e246 = (*normal);
+    let _e247 = toLight;
+    let _e248 = toLightLength;
+    nDotL = max(dot(_e246, (_e247 / vec3(_e248))), 0.15f);
+    let _e253 = nDotL;
+    let _e254 = nDotL;
+    let _e259 = nDotL;
+    let _e260 = nDotL;
+    slope = min((sqrt(max((1f - (_e253 * _e254)), 0f)) / (_e259 * _e260)), 8f);
+    let _e264 = toLightLength;
+    let _e266 = (*lightIndex);
+    let _e270 = point_shadow.slots[_e266][2u];
+    let _e275 = point_shadow.params3_[1u];
+    texel = (((2f * _e264) * max(_e270, 0.0001f)) * _e275);
+    let _e277 = (*world_1);
+    let _e278 = (*normal);
+    let _e279 = texel;
+    let _e283 = point_shadow.params[3u];
+    let _e285 = slope;
+    origin = (_e277 + (((_e278 * _e279) * _e283) * (1f + _e285)));
+    let _e289 = origin;
+    let _e290 = slot;
+    let _e293 = point_shadow.lights[_e290];
+    toFragment = (_e289 - _e293.xyz);
+    let _e296 = toFragment;
+    distance_ = length(_e296);
+    let _e298 = slot;
+    let _e302 = point_shadow.lights[_e298][3u];
+    range_3 = max(_e302, 0.0001f);
+    let _e304 = distance_;
+    let _e305 = range_3;
+    if (_e304 >= _e305) {
         return 1f;
     }
     face = 0i;
-    let _e305 = (*lightIndex);
-    let _e309 = point_shadow.slots[_e305][1u];
-    if (_e309 < 0.5f) {
-        let _e311 = toFragment;
-        a = abs(_e311);
-        let _e314 = a[0u];
-        let _e316 = a[1u];
-        let _e317 = (_e314 >= _e316);
-        phi_1625_ = _e317;
-        if _e317 {
-            let _e319 = a[0u];
-            let _e321 = a[2u];
-            phi_1625_ = (_e319 >= _e321);
+    let _e307 = (*lightIndex);
+    let _e311 = point_shadow.slots[_e307][1u];
+    if (_e311 < 0.5f) {
+        let _e313 = toFragment;
+        a = abs(_e313);
+        let _e316 = a[0u];
+        let _e318 = a[1u];
+        let _e319 = (_e316 >= _e318);
+        phi_1890_ = _e319;
+        if _e319 {
+            let _e321 = a[0u];
+            let _e323 = a[2u];
+            phi_1890_ = (_e321 >= _e323);
         }
-        let _e324 = phi_1625_;
-        if _e324 {
-            let _e326 = toFragment[0u];
-            face = select(1i, 0i, (_e326 > 0f));
+        let _e326 = phi_1890_;
+        if _e326 {
+            let _e328 = toFragment[0u];
+            face = select(1i, 0i, (_e328 > 0f));
         } else {
-            let _e330 = a[1u];
-            let _e332 = a[2u];
-            if (_e330 >= _e332) {
-                let _e335 = toFragment[1u];
-                face = select(3i, 2i, (_e335 > 0f));
+            let _e332 = a[1u];
+            let _e334 = a[2u];
+            if (_e332 >= _e334) {
+                let _e337 = toFragment[1u];
+                face = select(3i, 2i, (_e337 > 0f));
             } else {
-                let _e339 = toFragment[2u];
-                face = select(5i, 4i, (_e339 > 0f));
+                let _e341 = toFragment[2u];
+                face = select(5i, 4i, (_e341 > 0f));
             }
         }
     }
-    let _e342 = slot;
-    let _e344 = face;
-    let _e348 = point_shadow.faces[((_e342 * 6i) + _e344)];
-    let _e349 = origin;
-    clip = (_e348 * vec4<f32>(_e349.x, _e349.y, _e349.z, 1f));
-    let _e356 = clip[3u];
-    if (_e356 <= 0f) {
+    let _e344 = slot;
+    let _e346 = face;
+    let _e350 = point_shadow.faces[((_e344 * 6i) + _e346)];
+    let _e351 = origin;
+    clip = (_e350 * vec4<f32>(_e351.x, _e351.y, _e351.z, 1f));
+    let _e358 = clip[3u];
+    if (_e358 <= 0f) {
         return 1f;
     }
-    let _e358 = clip;
-    let _e361 = clip[3u];
-    ndc = (_e358.xy / vec2(_e361));
-    let _e365 = ndc[0u];
-    let _e367 = (abs(_e365) > 1f);
-    phi_1687_ = _e367;
-    if !(_e367) {
-        let _e370 = ndc[1u];
-        phi_1687_ = (abs(_e370) > 1f);
+    let _e360 = clip;
+    let _e363 = clip[3u];
+    ndc = (_e360.xy / vec2(_e363));
+    let _e367 = ndc[0u];
+    let _e369 = (abs(_e367) > 1f);
+    phi_1951_ = _e369;
+    if !(_e369) {
+        let _e372 = ndc[1u];
+        phi_1951_ = (abs(_e372) > 1f);
     }
-    let _e374 = phi_1687_;
-    if _e374 {
+    let _e376 = phi_1951_;
+    if _e376 {
         return 1f;
     }
-    let _e376 = ndc[0u];
-    let _e380 = ndc[1u];
-    uv_3 = vec2<f32>(((_e376 * 0.5f) + 0.5f), (0.5f - (_e380 * 0.5f)));
-    let _e384 = face;
-    let _e386 = slot;
-    tile_3 = vec2<f32>(f32(_e384), f32(_e386));
-    let _e389 = distance_;
-    let _e392 = point_shadow.params[1u];
-    receiver_2 = (_e389 - _e392);
-    let _e396 = frag_info.target_origin[0u];
-    param_21 = _e396;
-    let _e397 = FragCoordFromTop_u0028_f1_u003b((&param_21));
-    noise = fract((52.982918f * fract(dot(_e397, vec2<f32>(0.06711056f, 0.00583715f)))));
-    let _e402 = noise;
-    angle = (_e402 * 6.2831855f);
-    let _e404 = angle;
-    ca_2 = cos(_e404);
+    let _e378 = ndc[0u];
+    let _e382 = ndc[1u];
+    uv_3 = vec2<f32>(((_e378 * 0.5f) + 0.5f), (0.5f - (_e382 * 0.5f)));
+    let _e386 = face;
+    let _e388 = slot;
+    tile_3 = vec2<f32>(f32(_e386), f32(_e388));
+    let _e391 = distance_;
+    let _e394 = point_shadow.params[1u];
+    receiver_2 = (_e391 - _e394);
+    let _e398 = frag_info.target_origin[0u];
+    param_21 = _e398;
+    let _e399 = FragCoordFromTop_u0028_f1_u003b((&param_21));
+    noise = fract((52.982918f * fract(dot(_e399, vec2<f32>(0.06711056f, 0.00583715f)))));
+    let _e404 = noise;
+    angle = (_e404 * 6.2831855f);
     let _e406 = angle;
-    sa_2 = sin(_e406);
-    let _e408 = (*lightIndex);
-    let _e412 = point_shadow.slots[_e408][2u];
-    tanHalf_1 = max(_e412, 0.0001f);
+    ca_2 = cos(_e406);
+    let _e408 = angle;
+    sa_2 = sin(_e408);
+    let _e410 = (*lightIndex);
+    let _e414 = point_shadow.slots[_e410][2u];
+    tanHalf_1 = max(_e414, 0.0001f);
     blocker_1 = -1f;
-    let _e414 = uv_3;
-    param_22 = _e414;
-    let _e415 = tile_3;
-    param_23 = _e415;
-    let _e416 = range_3;
-    param_24 = _e416;
-    let _e417 = receiver_2;
-    param_25 = _e417;
-    let _e418 = ca_2;
-    param_26 = _e418;
-    let _e419 = sa_2;
-    param_27 = _e419;
-    let _e420 = tanHalf_1;
-    param_28 = _e420;
-    let _e421 = PointShadowPenumbra_u0028_vf2_u003b_vf2_u003b_f1_u003b_f1_u003b_f1_u003b_f1_u003b_f1_u003b_f1_u003b((&param_22), (&param_23), (&param_24), (&param_25), (&param_26), (&param_27), (&param_28), (&param_29));
-    let _e422 = param_29;
-    blocker_1 = _e422;
-    radius_1 = _e421;
-    let _e425 = point_shadow.params2_[3u];
-    if (_e425 > 0.5f) {
+    let _e416 = uv_3;
+    param_22 = _e416;
+    let _e417 = tile_3;
+    param_23 = _e417;
+    let _e418 = range_3;
+    param_24 = _e418;
+    let _e419 = receiver_2;
+    param_25 = _e419;
+    let _e420 = ca_2;
+    param_26 = _e420;
+    let _e421 = sa_2;
+    param_27 = _e421;
+    let _e422 = tanHalf_1;
+    param_28 = _e422;
+    let _e423 = PointShadowPenumbra_u0028_vf2_u003b_vf2_u003b_f1_u003b_f1_u003b_f1_u003b_f1_u003b_f1_u003b_f1_u003b((&param_22), (&param_23), (&param_24), (&param_25), (&param_26), (&param_27), (&param_28), (&param_29));
+    let _e424 = param_29;
+    blocker_1 = _e424;
+    radius_1 = _e423;
+    let _e427 = point_shadow.params2_[3u];
+    if (_e427 > 0.5f) {
         g_debug_surface_on = true;
-        let _e427 = radius_1;
-        if (_e427 < 0f) {
+        let _e429 = radius_1;
+        if (_e429 < 0f) {
             local_2 = vec3<f32>(0f, 0f, 1f);
         } else {
-            let _e429 = radius_1;
-            let _e432 = point_shadow.params2_[2u];
-            let _e436 = blocker_1;
-            let _e437 = range_3;
-            local_2 = vec3<f32>(clamp((_e429 / max(_e432, 0.000001f)), 0f, 1f), clamp((_e436 / _e437), 0f, 1f), 0f);
+            let _e431 = radius_1;
+            let _e434 = point_shadow.params2_[2u];
+            let _e438 = blocker_1;
+            let _e439 = range_3;
+            local_2 = vec3<f32>(clamp((_e431 / max(_e434, 0.000001f)), 0f, 1f), clamp((_e438 / _e439), 0f, 1f), 0f);
         }
-        let _e441 = local_2;
-        g_debug_surface = _e441;
+        let _e443 = local_2;
+        g_debug_surface = _e443;
     }
-    let _e442 = radius_1;
-    if (_e442 < 0f) {
+    let _e444 = radius_1;
+    if (_e444 < 0f) {
         return 1f;
     }
-    let _e444 = uv_3;
-    param_30 = _e444;
+    let _e446 = uv_3;
+    param_30 = _e446;
     param_31 = vec2<f32>(0f, 0f);
-    let _e445 = tile_3;
-    param_32 = _e445;
-    let _e446 = range_3;
-    param_33 = _e446;
-    let _e447 = receiver_2;
-    param_34 = _e447;
-    let _e448 = PointShadowTap_u0028_vf2_u003b_vf2_u003b_vf2_u003b_f1_u003b_f1_u003b((&param_30), (&param_31), (&param_32), (&param_33), (&param_34));
-    lit = _e448;
-    let _e449 = radius_1;
-    if (_e449 > 0f) {
+    let _e447 = tile_3;
+    param_32 = _e447;
+    let _e448 = range_3;
+    param_33 = _e448;
+    let _e449 = receiver_2;
+    param_34 = _e449;
+    let _e450 = PointShadowTap_u0028_vf2_u003b_vf2_u003b_vf2_u003b_f1_u003b_f1_u003b((&param_30), (&param_31), (&param_32), (&param_33), (&param_34));
+    lit = _e450;
+    let _e451 = radius_1;
+    if (_e451 > 0f) {
         i_3 = 0i;
         loop {
-            let _e451 = i_3;
-            if (_e451 < 8i) {
-                let _e453 = i_3;
-                param_35 = _e453;
-                let _e454 = ca_2;
-                param_36 = _e454;
-                let _e455 = sa_2;
-                param_37 = _e455;
-                let _e456 = radius_1;
-                param_38 = _e456;
-                let _e457 = PointShadowOffset_u0028_i1_u003b_f1_u003b_f1_u003b_f1_u003b((&param_35), (&param_36), (&param_37), (&param_38));
-                let _e458 = uv_3;
-                param_39 = _e458;
-                param_40 = _e457;
-                let _e459 = tile_3;
-                param_41 = _e459;
-                let _e460 = range_3;
-                param_42 = _e460;
-                let _e461 = receiver_2;
-                param_43 = _e461;
-                let _e462 = PointShadowTap_u0028_vf2_u003b_vf2_u003b_vf2_u003b_f1_u003b_f1_u003b((&param_39), (&param_40), (&param_41), (&param_42), (&param_43));
-                let _e463 = lit;
-                lit = (_e463 + _e462);
+            let _e453 = i_3;
+            if (_e453 < 8i) {
+                let _e455 = i_3;
+                param_35 = _e455;
+                let _e456 = ca_2;
+                param_36 = _e456;
+                let _e457 = sa_2;
+                param_37 = _e457;
+                let _e458 = radius_1;
+                param_38 = _e458;
+                let _e459 = PointShadowOffset_u0028_i1_u003b_f1_u003b_f1_u003b_f1_u003b((&param_35), (&param_36), (&param_37), (&param_38));
+                let _e460 = uv_3;
+                param_39 = _e460;
+                param_40 = _e459;
+                let _e461 = tile_3;
+                param_41 = _e461;
+                let _e462 = range_3;
+                param_42 = _e462;
+                let _e463 = receiver_2;
+                param_43 = _e463;
+                let _e464 = PointShadowTap_u0028_vf2_u003b_vf2_u003b_vf2_u003b_f1_u003b_f1_u003b((&param_39), (&param_40), (&param_41), (&param_42), (&param_43));
+                let _e465 = lit;
+                lit = (_e465 + _e464);
                 continue;
             } else {
                 break;
             }
             continuing {
-                let _e465 = i_3;
-                i_3 = (_e465 + 1i);
+                let _e467 = i_3;
+                i_3 = (_e467 + 1i);
             }
         }
-        let _e467 = lit;
-        lit = (_e467 * 0.11111111f);
+        let _e469 = lit;
+        lit = (_e469 * 0.11111111f);
     }
-    let _e469 = lit;
-    let _e470 = strength;
-    return mix(1f, _e469, clamp(_e470, 0f, 1f));
+    let _e471 = lit;
+    let _e472 = strength;
+    return mix(1f, _e471, clamp(_e472, 0f, 1f));
 }
 
 fn ShadowFactor_u0028_struct_u002d_Surface_u002d_vf3_u002d_f1_u002d_vf3_u002d_vf3_u002d_f1_u002d_f1_u002d_f1_u002d_f1_u002d_vf3_u002d_vf3_u002d_f11_u003b_struct_u002d_LightSample_u002d_vf3_u002d_vf3_u002d_vf3_u002d_f1_u002d_f1_u002d_f11_u003b_i1_u003b(s_1: ptr<function, Surface>, light_1: ptr<function, LightSample>, lightIndex_1: ptr<function, i32>) -> f32 {
@@ -5364,58 +5370,58 @@ fn ShadowFactor_u0028_struct_u002d_Surface_u002d_vf3_u002d_f1_u002d_vf3_u002d_vf
     var i_5: i32;
     var occluder_2: f32;
     var indexable_1: array<vec2<f32>, 5>;
-    var phi_2568_: bool;
-    var phi_2579_: bool;
-    var phi_2698_: bool;
-    var phi_2705_: bool;
-    var phi_2712_: bool;
+    var phi_2832_: bool;
+    var phi_2843_: bool;
+    var phi_2961_: bool;
+    var phi_2968_: bool;
+    var phi_2975_: bool;
 
-    let _e209 = frag_info.shadow_params[3u];
-    strength_1 = _e209;
-    let _e210 = strength_1;
-    if (_e210 <= 0f) {
+    let _e211 = frag_info.shadow_params[3u];
+    strength_1 = _e211;
+    let _e212 = strength_1;
+    if (_e212 <= 0f) {
         return 1f;
     }
-    let _e212 = (*lightIndex_1);
-    let _e215 = frag_info.frame_params[2u];
-    if (_e212 != i32((_e215 + 0.5f))) {
+    let _e214 = (*lightIndex_1);
+    let _e217 = frag_info.frame_params[2u];
+    if (_e214 != i32((_e217 + 0.5f))) {
         return 1f;
     }
-    let _e220 = (*light_1).n_dot_l;
-    nDotL_1 = max(_e220, 0.15f);
-    let _e222 = nDotL_1;
-    let _e223 = nDotL_1;
-    let _e228 = nDotL_1;
-    let _e229 = nDotL_1;
-    slope_1 = min((sqrt(max((1f - (_e222 * _e223)), 0f)) / (_e228 * _e229)), 8f);
-    let _e235 = frag_info.shadow_cascades[2u];
-    cascadeCount = i32((_e235 + 0.5f));
-    let _e238 = v_world_position_1;
-    let _e240 = frag_info.camera_position;
-    viewDistance = length((_e238 - _e240.xyz));
+    let _e222 = (*light_1).n_dot_l;
+    nDotL_1 = max(_e222, 0.15f);
+    let _e224 = nDotL_1;
+    let _e225 = nDotL_1;
+    let _e230 = nDotL_1;
+    let _e231 = nDotL_1;
+    slope_1 = min((sqrt(max((1f - (_e224 * _e225)), 0f)) / (_e230 * _e231)), 8f);
+    let _e237 = frag_info.shadow_cascades[2u];
+    cascadeCount = i32((_e237 + 0.5f));
+    let _e240 = v_world_position_1;
+    let _e242 = frag_info.camera_position;
+    viewDistance = length((_e240 - _e242.xyz));
     cascade = 0i;
-    let _e244 = cascadeCount;
-    let _e245 = (_e244 > 1i);
-    phi_2568_ = _e245;
-    if _e245 {
-        let _e246 = viewDistance;
-        let _e249 = frag_info.shadow_cascades[0u];
-        phi_2568_ = (_e246 > _e249);
+    let _e246 = cascadeCount;
+    let _e247 = (_e246 > 1i);
+    phi_2832_ = _e247;
+    if _e247 {
+        let _e248 = viewDistance;
+        let _e251 = frag_info.shadow_cascades[0u];
+        phi_2832_ = (_e248 > _e251);
     }
-    let _e252 = phi_2568_;
-    if _e252 {
+    let _e254 = phi_2832_;
+    if _e254 {
         cascade = 1i;
     }
-    let _e253 = cascadeCount;
-    let _e254 = (_e253 > 2i);
-    phi_2579_ = _e254;
-    if _e254 {
-        let _e255 = viewDistance;
-        let _e258 = frag_info.shadow_cascades[1u];
-        phi_2579_ = (_e255 > _e258);
+    let _e255 = cascadeCount;
+    let _e256 = (_e255 > 2i);
+    phi_2843_ = _e256;
+    if _e256 {
+        let _e257 = viewDistance;
+        let _e260 = frag_info.shadow_cascades[1u];
+        phi_2843_ = (_e257 > _e260);
     }
-    let _e261 = phi_2579_;
-    if _e261 {
+    let _e263 = phi_2843_;
+    if _e263 {
         cascade = 2i;
     }
     uv_4 = vec2<f32>(0f, 0f);
@@ -5423,177 +5429,177 @@ fn ShadowFactor_u0028_struct_u002d_Surface_u002d_vf3_u002d_f1_u002d_vf3_u002d_vf
     found = false;
     attempt = 0i;
     loop {
-        let _e262 = attempt;
-        if (_e262 < 3i) {
-            let _e264 = cascade;
-            let _e265 = attempt;
-            which = (_e264 + _e265);
-            let _e267 = which;
-            let _e268 = cascadeCount;
-            if (_e267 >= _e268) {
+        let _e264 = attempt;
+        if (_e264 < 3i) {
+            let _e266 = cascade;
+            let _e267 = attempt;
+            which = (_e266 + _e267);
+            let _e269 = which;
+            let _e270 = cascadeCount;
+            if (_e269 >= _e270) {
                 break;
             }
-            let _e270 = which;
-            if (_e270 == 0i) {
-                let _e273 = frag_info.shadow_matrix;
-                local_3 = _e273;
+            let _e272 = which;
+            if (_e272 == 0i) {
+                let _e275 = frag_info.shadow_matrix;
+                local_3 = _e275;
             } else {
-                let _e274 = which;
-                if (_e274 == 1i) {
-                    let _e277 = frag_info.shadow_matrix_far;
-                    local_4 = _e277;
-                } else {
-                    let _e279 = frag_info.shadow_matrix_farthest;
+                let _e276 = which;
+                if (_e276 == 1i) {
+                    let _e279 = frag_info.shadow_matrix_far;
                     local_4 = _e279;
+                } else {
+                    let _e281 = frag_info.shadow_matrix_farthest;
+                    local_4 = _e281;
                 }
-                let _e280 = local_4;
-                local_3 = _e280;
+                let _e282 = local_4;
+                local_3 = _e282;
             }
-            let _e281 = local_3;
-            matrix = _e281;
-            let _e284 = matrix[0][0u];
-            let _e287 = matrix[1][0u];
-            let _e290 = matrix[2][0u];
-            rowX = length(vec3<f32>(_e284, _e287, _e290));
-            let _e295 = frag_info.shadow_cascades[3u];
-            let _e297 = rowX;
-            texelMetres = ((2f * _e295) / max(_e297, 0.000001f));
-            let _e300 = v_world_position_1;
-            let _e302 = (*s_1).n;
-            let _e305 = frag_info.shadow_params[2u];
-            let _e306 = texelMetres;
-            let _e307 = slope_1;
-            origin_1 = (_e300 + (_e302 * (_e305 + (_e306 * (1f + _e307)))));
-            let _e313 = matrix;
-            let _e314 = origin_1;
-            lightSpace = (_e313 * vec4<f32>(_e314.x, _e314.y, _e314.z, 1f));
-            let _e321 = lightSpace[3u];
-            if (_e321 <= 0f) {
+            let _e283 = local_3;
+            matrix = _e283;
+            let _e286 = matrix[0][0u];
+            let _e289 = matrix[1][0u];
+            let _e292 = matrix[2][0u];
+            rowX = length(vec3<f32>(_e286, _e289, _e292));
+            let _e297 = frag_info.shadow_cascades[3u];
+            let _e299 = rowX;
+            texelMetres = ((2f * _e297) / max(_e299, 0.000001f));
+            let _e302 = v_world_position_1;
+            let _e304 = (*s_1).n;
+            let _e307 = frag_info.shadow_params[2u];
+            let _e308 = texelMetres;
+            let _e309 = slope_1;
+            origin_1 = (_e302 + (_e304 * (_e307 + (_e308 * (1f + _e309)))));
+            let _e315 = matrix;
+            let _e316 = origin_1;
+            lightSpace = (_e315 * vec4<f32>(_e316.x, _e316.y, _e316.z, 1f));
+            let _e323 = lightSpace[3u];
+            if (_e323 <= 0f) {
                 continue;
             }
-            let _e323 = lightSpace;
-            let _e326 = lightSpace[3u];
-            candidate = (_e323.xyz / vec3(_e326));
-            let _e330 = candidate[0u];
-            let _e334 = candidate[1u];
-            inTile = vec2<f32>(((_e330 * 0.5f) + 0.5f), (0.5f - (_e334 * 0.5f)));
-            let _e339 = inTile[0u];
-            let _e340 = (_e339 < 0f);
-            phi_2698_ = _e340;
-            if !(_e340) {
-                let _e343 = inTile[0u];
-                phi_2698_ = (_e343 > 1f);
+            let _e325 = lightSpace;
+            let _e328 = lightSpace[3u];
+            candidate = (_e325.xyz / vec3(_e328));
+            let _e332 = candidate[0u];
+            let _e336 = candidate[1u];
+            inTile = vec2<f32>(((_e332 * 0.5f) + 0.5f), (0.5f - (_e336 * 0.5f)));
+            let _e341 = inTile[0u];
+            let _e342 = (_e341 < 0f);
+            phi_2961_ = _e342;
+            if !(_e342) {
+                let _e345 = inTile[0u];
+                phi_2961_ = (_e345 > 1f);
             }
-            let _e346 = phi_2698_;
-            phi_2705_ = _e346;
-            if !(_e346) {
-                let _e349 = inTile[1u];
-                phi_2705_ = (_e349 < 0f);
+            let _e348 = phi_2961_;
+            phi_2968_ = _e348;
+            if !(_e348) {
+                let _e351 = inTile[1u];
+                phi_2968_ = (_e351 < 0f);
             }
-            let _e352 = phi_2705_;
-            phi_2712_ = _e352;
-            if !(_e352) {
-                let _e355 = inTile[1u];
-                phi_2712_ = (_e355 > 1f);
+            let _e354 = phi_2968_;
+            phi_2975_ = _e354;
+            if !(_e354) {
+                let _e357 = inTile[1u];
+                phi_2975_ = (_e357 > 1f);
             }
-            let _e358 = phi_2712_;
-            if _e358 {
+            let _e360 = phi_2975_;
+            if _e360 {
                 continue;
             }
-            let _e360 = candidate[2u];
-            if (_e360 > 1f) {
-                let _e362 = which;
-                let _e363 = cascadeCount;
-                if (_e362 < (_e363 - 1i)) {
+            let _e362 = candidate[2u];
+            if (_e362 > 1f) {
+                let _e364 = which;
+                let _e365 = cascadeCount;
+                if (_e364 < (_e365 - 1i)) {
                     continue;
                 }
                 candidate[2u] = 1f;
             }
-            let _e368 = inTile[0u];
-            let _e369 = which;
-            let _e372 = cascadeCount;
-            let _e376 = inTile[1u];
-            uv_4 = vec2<f32>(((_e368 + f32(_e369)) / f32(_e372)), _e376);
-            let _e378 = candidate;
-            projected = _e378;
-            let _e379 = which;
-            cascade = _e379;
+            let _e370 = inTile[0u];
+            let _e371 = which;
+            let _e374 = cascadeCount;
+            let _e378 = inTile[1u];
+            uv_4 = vec2<f32>(((_e370 + f32(_e371)) / f32(_e374)), _e378);
+            let _e380 = candidate;
+            projected = _e380;
+            let _e381 = which;
+            cascade = _e381;
             found = true;
             break;
         } else {
             break;
         }
         continuing {
-            let _e380 = attempt;
-            attempt = (_e380 + 1i);
+            let _e382 = attempt;
+            attempt = (_e382 + 1i);
         }
     }
-    let _e382 = found;
-    if !(_e382) {
+    let _e384 = found;
+    if !(_e384) {
         return 1f;
     }
-    let _e384 = cascade;
-    if (_e384 == 0i) {
-        let _e388 = frag_info.shadow_bias[0u];
-        local_5 = _e388;
+    let _e386 = cascade;
+    if (_e386 == 0i) {
+        let _e390 = frag_info.shadow_bias[0u];
+        local_5 = _e390;
     } else {
-        let _e389 = cascade;
-        if (_e389 == 1i) {
-            let _e393 = frag_info.shadow_bias[1u];
-            local_6 = _e393;
+        let _e391 = cascade;
+        if (_e391 == 1i) {
+            let _e395 = frag_info.shadow_bias[1u];
+            local_6 = _e395;
         } else {
-            let _e396 = frag_info.shadow_bias[2u];
-            local_6 = _e396;
+            let _e398 = frag_info.shadow_bias[2u];
+            local_6 = _e398;
         }
-        let _e397 = local_6;
-        local_5 = _e397;
+        let _e399 = local_6;
+        local_5 = _e399;
     }
-    let _e398 = local_5;
-    bias = _e398;
-    let _e401 = frag_info.shadow_params[0u];
-    let _e404 = frag_info.shadow_cascades[3u];
-    texel_1 = vec2<f32>(_e401, _e404);
-    let _e406 = cascade;
-    let _e408 = cascadeCount;
-    let _e412 = texel_1;
-    tileLo = (vec2<f32>((f32(_e406) / f32(_e408)), 0f) + (_e412 * 0.5f));
-    let _e415 = cascade;
-    let _e418 = cascadeCount;
-    let _e422 = texel_1;
-    tileHi = (vec2<f32>((f32((_e415 + 1i)) / f32(_e418)), 1f) - (_e422 * 0.5f));
-    let _e427 = frag_info.ambient_ground[3u];
-    softness = _e427;
+    let _e400 = local_5;
+    bias = _e400;
+    let _e403 = frag_info.shadow_params[0u];
+    let _e406 = frag_info.shadow_cascades[3u];
+    texel_1 = vec2<f32>(_e403, _e406);
+    let _e408 = cascade;
+    let _e410 = cascadeCount;
+    let _e414 = texel_1;
+    tileLo = (vec2<f32>((f32(_e408) / f32(_e410)), 0f) + (_e414 * 0.5f));
+    let _e417 = cascade;
+    let _e420 = cascadeCount;
+    let _e424 = texel_1;
+    tileHi = (vec2<f32>((f32((_e417 + 1i)) / f32(_e420)), 1f) - (_e424 * 0.5f));
+    let _e429 = frag_info.ambient_ground[3u];
+    softness = _e429;
     lit_1 = 0f;
-    let _e428 = softness;
-    if (_e428 <= 0f) {
+    let _e430 = softness;
+    if (_e430 <= 0f) {
         y = -1i;
         loop {
-            let _e430 = y;
-            if (_e430 <= 1i) {
+            let _e432 = y;
+            if (_e432 <= 1i) {
                 x = -1i;
                 loop {
-                    let _e432 = x;
-                    if (_e432 <= 1i) {
-                        let _e434 = uv_4;
-                        let _e435 = x;
-                        let _e437 = y;
-                        let _e440 = texel_1;
-                        let _e443 = tileLo;
-                        let _e444 = tileHi;
-                        let _e446 = textureSampleLevel(shadow_texture_tex, shadow_texture_smp, clamp((_e434 + (vec2<f32>(f32(_e435), f32(_e437)) * _e440)), _e443, _e444), 0f);
-                        occluder = _e446.x;
-                        let _e449 = projected[2u];
-                        let _e450 = bias;
-                        let _e452 = occluder;
-                        let _e455 = lit_1;
-                        lit_1 = (_e455 + select(1f, 0f, ((_e449 - _e450) > _e452)));
+                    let _e434 = x;
+                    if (_e434 <= 1i) {
+                        let _e436 = uv_4;
+                        let _e437 = x;
+                        let _e439 = y;
+                        let _e442 = texel_1;
+                        let _e445 = tileLo;
+                        let _e446 = tileHi;
+                        let _e448 = textureSampleLevel(shadow_texture_tex, shadow_texture_smp, clamp((_e436 + (vec2<f32>(f32(_e437), f32(_e439)) * _e442)), _e445, _e446), 0f);
+                        occluder = _e448.x;
+                        let _e451 = projected[2u];
+                        let _e452 = bias;
+                        let _e454 = occluder;
+                        let _e457 = lit_1;
+                        lit_1 = (_e457 + select(1f, 0f, ((_e451 - _e452) > _e454)));
                         continue;
                     } else {
                         break;
                     }
                     continuing {
-                        let _e457 = x;
-                        x = (_e457 + 1i);
+                        let _e459 = x;
+                        x = (_e459 + 1i);
                     }
                 }
                 continue;
@@ -5601,95 +5607,95 @@ fn ShadowFactor_u0028_struct_u002d_Surface_u002d_vf3_u002d_f1_u002d_vf3_u002d_vf
                 break;
             }
             continuing {
-                let _e459 = y;
-                y = (_e459 + 1i);
+                let _e461 = y;
+                y = (_e461 + 1i);
             }
         }
-        let _e461 = lit_1;
-        lit_1 = (_e461 * 0.11111111f);
+        let _e463 = lit_1;
+        lit_1 = (_e463 * 0.11111111f);
     } else {
-        let _e463 = softness;
-        searchRadius = clamp((_e463 * 0.25f), 2f, 16f);
+        let _e465 = softness;
+        searchRadius = clamp((_e465 * 0.25f), 2f, 16f);
         blockerSum = 0f;
         blockerCount = 0f;
         i_4 = 0i;
         loop {
-            let _e466 = i_4;
-            if (_e466 < 5i) {
-                let _e468 = uv_4;
-                let _e469 = i_4;
+            let _e468 = i_4;
+            if (_e468 < 5i) {
+                let _e470 = uv_4;
+                let _e471 = i_4;
                 indexable = array<vec2<f32>, 5>(vec2<f32>(0f, 0f), vec2<f32>(0.7071f, 0.7071f), vec2<f32>(-0.7071f, 0.7071f), vec2<f32>(0.7071f, -0.7071f), vec2<f32>(-0.7071f, -0.7071f));
-                let _e471 = indexable[_e469];
-                let _e472 = texel_1;
-                let _e474 = searchRadius;
-                let _e477 = tileLo;
-                let _e478 = tileHi;
-                let _e480 = textureSampleLevel(shadow_texture_tex, shadow_texture_smp, clamp((_e468 + ((_e471 * _e472) * _e474)), _e477, _e478), 0f);
-                occluder_1 = _e480.x;
-                let _e483 = projected[2u];
-                let _e484 = bias;
-                let _e486 = occluder_1;
-                if ((_e483 - _e484) > _e486) {
-                    let _e488 = occluder_1;
-                    let _e489 = blockerSum;
-                    blockerSum = (_e489 + _e488);
-                    let _e491 = blockerCount;
-                    blockerCount = (_e491 + 1f);
+                let _e473 = indexable[_e471];
+                let _e474 = texel_1;
+                let _e476 = searchRadius;
+                let _e479 = tileLo;
+                let _e480 = tileHi;
+                let _e482 = textureSampleLevel(shadow_texture_tex, shadow_texture_smp, clamp((_e470 + ((_e473 * _e474) * _e476)), _e479, _e480), 0f);
+                occluder_1 = _e482.x;
+                let _e485 = projected[2u];
+                let _e486 = bias;
+                let _e488 = occluder_1;
+                if ((_e485 - _e486) > _e488) {
+                    let _e490 = occluder_1;
+                    let _e491 = blockerSum;
+                    blockerSum = (_e491 + _e490);
+                    let _e493 = blockerCount;
+                    blockerCount = (_e493 + 1f);
                 }
                 continue;
             } else {
                 break;
             }
             continuing {
-                let _e493 = i_4;
-                i_4 = (_e493 + 1i);
+                let _e495 = i_4;
+                i_4 = (_e495 + 1i);
             }
         }
-        let _e495 = blockerCount;
-        if (_e495 <= 0f) {
+        let _e497 = blockerCount;
+        if (_e497 <= 0f) {
             return 1f;
         }
-        let _e498 = projected[2u];
-        let _e499 = blockerSum;
-        let _e500 = blockerCount;
-        gap = max((_e498 - (_e499 / _e500)), 0f);
-        let _e504 = gap;
-        let _e505 = softness;
-        radius_2 = clamp((_e504 * _e505), 1f, 16f);
+        let _e500 = projected[2u];
+        let _e501 = blockerSum;
+        let _e502 = blockerCount;
+        gap = max((_e500 - (_e501 / _e502)), 0f);
+        let _e506 = gap;
+        let _e507 = softness;
+        radius_2 = clamp((_e506 * _e507), 1f, 16f);
         i_5 = 0i;
         loop {
-            let _e508 = i_5;
-            if (_e508 < 5i) {
-                let _e510 = uv_4;
-                let _e511 = i_5;
+            let _e510 = i_5;
+            if (_e510 < 5i) {
+                let _e512 = uv_4;
+                let _e513 = i_5;
                 indexable_1 = array<vec2<f32>, 5>(vec2<f32>(0f, 0f), vec2<f32>(0.7071f, 0.7071f), vec2<f32>(-0.7071f, 0.7071f), vec2<f32>(0.7071f, -0.7071f), vec2<f32>(-0.7071f, -0.7071f));
-                let _e513 = indexable_1[_e511];
-                let _e514 = texel_1;
-                let _e516 = radius_2;
-                let _e519 = tileLo;
-                let _e520 = tileHi;
-                let _e522 = textureSampleLevel(shadow_texture_tex, shadow_texture_smp, clamp((_e510 + ((_e513 * _e514) * _e516)), _e519, _e520), 0f);
-                occluder_2 = _e522.x;
-                let _e525 = projected[2u];
-                let _e526 = bias;
-                let _e528 = occluder_2;
-                let _e531 = lit_1;
-                lit_1 = (_e531 + select(1f, 0f, ((_e525 - _e526) > _e528)));
+                let _e515 = indexable_1[_e513];
+                let _e516 = texel_1;
+                let _e518 = radius_2;
+                let _e521 = tileLo;
+                let _e522 = tileHi;
+                let _e524 = textureSampleLevel(shadow_texture_tex, shadow_texture_smp, clamp((_e512 + ((_e515 * _e516) * _e518)), _e521, _e522), 0f);
+                occluder_2 = _e524.x;
+                let _e527 = projected[2u];
+                let _e528 = bias;
+                let _e530 = occluder_2;
+                let _e533 = lit_1;
+                lit_1 = (_e533 + select(1f, 0f, ((_e527 - _e528) > _e530)));
                 continue;
             } else {
                 break;
             }
             continuing {
-                let _e533 = i_5;
-                i_5 = (_e533 + 1i);
+                let _e535 = i_5;
+                i_5 = (_e535 + 1i);
             }
         }
-        let _e535 = lit_1;
-        lit_1 = (_e535 * 0.2f);
+        let _e537 = lit_1;
+        lit_1 = (_e537 * 0.2f);
     }
-    let _e537 = lit_1;
-    let _e538 = strength_1;
-    return mix(1f, _e537, clamp(_e538, 0f, 1f));
+    let _e539 = lit_1;
+    let _e540 = strength_1;
+    return mix(1f, _e539, clamp(_e540, 0f, 1f));
 }
 
 fn LightVisibility_u0028_struct_u002d_Surface_u002d_vf3_u002d_f1_u002d_vf3_u002d_vf3_u002d_f1_u002d_f1_u002d_f1_u002d_f1_u002d_vf3_u002d_vf3_u002d_f11_u003b_struct_u002d_LightSample_u002d_vf3_u002d_vf3_u002d_vf3_u002d_f1_u002d_f1_u002d_f11_u003b_i1_u003b(s_2: ptr<function, Surface>, light_2: ptr<function, LightSample>, index: ptr<function, i32>) -> f32 {
@@ -5697,19 +5703,19 @@ fn LightVisibility_u0028_struct_u002d_Surface_u002d_vf3_u002d_f1_u002d_vf3_u002d
     var param_45: LightSample;
     var param_46: i32;
 
-    let _e168 = (*s_2);
-    param_44 = _e168;
-    let _e169 = (*light_2);
-    param_45 = _e169;
-    let _e170 = (*index);
-    param_46 = _e170;
-    let _e171 = ShadowFactor_u0028_struct_u002d_Surface_u002d_vf3_u002d_f1_u002d_vf3_u002d_vf3_u002d_f1_u002d_f1_u002d_f1_u002d_f1_u002d_vf3_u002d_vf3_u002d_f11_u003b_struct_u002d_LightSample_u002d_vf3_u002d_vf3_u002d_vf3_u002d_f1_u002d_f1_u002d_f11_u003b_i1_u003b((&param_44), (&param_45), (&param_46));
-    return _e171;
+    let _e170 = (*s_2);
+    param_44 = _e170;
+    let _e171 = (*light_2);
+    param_45 = _e171;
+    let _e172 = (*index);
+    param_46 = _e172;
+    let _e173 = ShadowFactor_u0028_struct_u002d_Surface_u002d_vf3_u002d_f1_u002d_vf3_u002d_vf3_u002d_f1_u002d_f1_u002d_f1_u002d_f1_u002d_vf3_u002d_vf3_u002d_f11_u003b_struct_u002d_LightSample_u002d_vf3_u002d_vf3_u002d_vf3_u002d_f1_u002d_f1_u002d_f11_u003b_i1_u003b((&param_44), (&param_45), (&param_46));
+    return _e173;
 }
 
 fn LightHasShadow_u0028_i1_u003b(index_1: ptr<function, i32>) -> bool {
-    let _e163 = (*index_1);
-    return (_e163 < 8i);
+    let _e165 = (*index_1);
+    return (_e165 < 8i);
 }
 
 fn PunctualAttenuation_u0028_f1_u003b_f1_u003b(distance_1: ptr<function, f32>, range_4: ptr<function, f32>) -> f32 {
@@ -5717,26 +5723,26 @@ fn PunctualAttenuation_u0028_f1_u003b_f1_u003b(distance_1: ptr<function, f32>, r
     var ratio: f32;
     var window: f32;
 
-    let _e167 = (*distance_1);
-    let _e168 = (*distance_1);
-    attenuation = (1f / max((_e167 * _e168), 0.0001f));
-    let _e172 = (*range_4);
-    if (_e172 > 0f) {
-        let _e174 = (*distance_1);
-        let _e175 = (*range_4);
-        ratio = (_e174 / _e175);
-        let _e177 = ratio;
-        let _e178 = ratio;
+    let _e169 = (*distance_1);
+    let _e170 = (*distance_1);
+    attenuation = (1f / max((_e169 * _e170), 0.0001f));
+    let _e174 = (*range_4);
+    if (_e174 > 0f) {
+        let _e176 = (*distance_1);
+        let _e177 = (*range_4);
+        ratio = (_e176 / _e177);
+        let _e179 = ratio;
         let _e180 = ratio;
         let _e182 = ratio;
-        window = clamp((1f - (((_e177 * _e178) * _e180) * _e182)), 0f, 1f);
-        let _e186 = window;
-        let _e187 = window;
-        let _e189 = attenuation;
-        attenuation = (_e189 * (_e186 * _e187));
+        let _e184 = ratio;
+        window = clamp((1f - (((_e179 * _e180) * _e182) * _e184)), 0f, 1f);
+        let _e188 = window;
+        let _e189 = window;
+        let _e191 = attenuation;
+        attenuation = (_e191 * (_e188 * _e189));
     }
-    let _e191 = attenuation;
-    return _e191;
+    let _e193 = attenuation;
+    return _e193;
 }
 
 fn RectangleClosestPoint_u0028_vf3_u003b_vf3_u003b_vf3_u003b_vf3_u003b_vf3_u003b(centre: ptr<function, vec3<f32>>, halfWidth: ptr<function, vec3<f32>>, halfHeight: ptr<function, vec3<f32>>, world_2: ptr<function, vec3<f32>>, mirror: ptr<function, vec3<f32>>) -> vec3<f32> {
@@ -5753,75 +5759,75 @@ fn RectangleClosestPoint_u0028_vf3_u003b_vf3_u003b_vf3_u003b_vf3_u003b_vf3_u003b
     var u: f32;
     var v: f32;
 
-    let _e179 = (*halfWidth);
-    let _e180 = (*halfHeight);
-    n_1 = cross(_e179, _e180);
-    let _e182 = n_1;
-    nLen = length(_e182);
-    let _e184 = nLen;
-    if (_e184 < 0.000000000001f) {
-        let _e186 = (*centre);
-        return _e186;
+    let _e181 = (*halfWidth);
+    let _e182 = (*halfHeight);
+    n_1 = cross(_e181, _e182);
+    let _e184 = n_1;
+    nLen = length(_e184);
+    let _e186 = nLen;
+    if (_e186 < 0.000000000001f) {
+        let _e188 = (*centre);
+        return _e188;
     }
-    let _e187 = nLen;
-    let _e188 = n_1;
-    n_1 = (_e188 / vec3(_e187));
-    let _e191 = (*centre);
-    let _e192 = (*world_2);
-    toPlane = (_e191 - _e192);
-    let _e194 = (*mirror);
-    let _e195 = n_1;
-    denom = dot(_e194, _e195);
-    let _e197 = denom;
-    if (abs(_e197) < 0.00001f) {
-        let _e200 = toPlane;
-        let _e201 = n_1;
+    let _e189 = nLen;
+    let _e190 = n_1;
+    n_1 = (_e190 / vec3(_e189));
+    let _e193 = (*centre);
+    let _e194 = (*world_2);
+    toPlane = (_e193 - _e194);
+    let _e196 = (*mirror);
+    let _e197 = n_1;
+    denom = dot(_e196, _e197);
+    let _e199 = denom;
+    if (abs(_e199) < 0.00001f) {
         let _e202 = toPlane;
         let _e203 = n_1;
-        onPlane = (_e200 - (_e201 * dot(_e202, _e203)));
+        let _e204 = toPlane;
+        let _e205 = n_1;
+        onPlane = (_e202 - (_e203 * dot(_e204, _e205)));
     } else {
-        let _e207 = toPlane;
-        let _e208 = n_1;
-        let _e210 = denom;
-        t = (dot(_e207, _e208) / _e210);
-        let _e212 = t;
-        if (_e212 > 0f) {
-            let _e214 = (*mirror);
-            let _e215 = t;
-            local_7 = (_e214 * _e215);
+        let _e209 = toPlane;
+        let _e210 = n_1;
+        let _e212 = denom;
+        t = (dot(_e209, _e210) / _e212);
+        let _e214 = t;
+        if (_e214 > 0f) {
+            let _e216 = (*mirror);
+            let _e217 = t;
+            local_7 = (_e216 * _e217);
         } else {
-            let _e217 = toPlane;
-            let _e218 = n_1;
             let _e219 = toPlane;
             let _e220 = n_1;
-            local_7 = (_e217 - (_e218 * dot(_e219, _e220)));
+            let _e221 = toPlane;
+            let _e222 = n_1;
+            local_7 = (_e219 - (_e220 * dot(_e221, _e222)));
         }
-        let _e224 = local_7;
-        onPlane = _e224;
+        let _e226 = local_7;
+        onPlane = _e226;
     }
-    let _e225 = onPlane;
-    let _e226 = toPlane;
-    offset_2 = (_e225 - _e226);
-    let _e228 = (*halfWidth);
-    let _e229 = (*halfWidth);
-    wLen2_ = max(dot(_e228, _e229), 0.000000000001f);
-    let _e232 = (*halfHeight);
-    let _e233 = (*halfHeight);
-    hLen2_ = max(dot(_e232, _e233), 0.000000000001f);
-    let _e236 = offset_2;
-    let _e237 = (*halfWidth);
-    let _e239 = wLen2_;
-    u = clamp((dot(_e236, _e237) / _e239), -1f, 1f);
-    let _e242 = offset_2;
-    let _e243 = (*halfHeight);
-    let _e245 = hLen2_;
-    v = clamp((dot(_e242, _e243) / _e245), -1f, 1f);
-    let _e248 = (*centre);
-    let _e249 = (*halfWidth);
-    let _e250 = u;
-    let _e253 = (*halfHeight);
-    let _e254 = v;
-    return ((_e248 + (_e249 * _e250)) + (_e253 * _e254));
+    let _e227 = onPlane;
+    let _e228 = toPlane;
+    offset_2 = (_e227 - _e228);
+    let _e230 = (*halfWidth);
+    let _e231 = (*halfWidth);
+    wLen2_ = max(dot(_e230, _e231), 0.000000000001f);
+    let _e234 = (*halfHeight);
+    let _e235 = (*halfHeight);
+    hLen2_ = max(dot(_e234, _e235), 0.000000000001f);
+    let _e238 = offset_2;
+    let _e239 = (*halfWidth);
+    let _e241 = wLen2_;
+    u = clamp((dot(_e238, _e239) / _e241), -1f, 1f);
+    let _e244 = offset_2;
+    let _e245 = (*halfHeight);
+    let _e247 = hLen2_;
+    v = clamp((dot(_e244, _e245) / _e247), -1f, 1f);
+    let _e250 = (*centre);
+    let _e251 = (*halfWidth);
+    let _e252 = u;
+    let _e255 = (*halfHeight);
+    let _e256 = v;
+    return ((_e250 + (_e251 * _e252)) + (_e255 * _e256));
 }
 
 fn RectangleFormFactor_u0028_vf3_u005b_4_u005d_u003b_vf3_u003b(corners: ptr<function, array<vec3<f32>, 4>>, n_2: ptr<function, vec3<f32>>) -> f32 {
@@ -5836,42 +5842,42 @@ fn RectangleFormFactor_u0028_vf3_u005b_4_u005d_u003b_vf3_u003b(corners: ptr<func
     total = 0f;
     i_6 = 0i;
     loop {
-        let _e171 = i_6;
-        if (_e171 < 4i) {
-            let _e173 = i_6;
-            let _e175 = (*corners)[_e173];
-            a_1 = normalize(_e175);
-            let _e177 = i_6;
-            let _e181 = (*corners)[((_e177 + 1i) & 3i)];
-            b = normalize(_e181);
-            let _e183 = a_1;
-            let _e184 = b;
-            angle_1 = acos(clamp(dot(_e183, _e184), -1f, 1f));
-            let _e188 = a_1;
-            let _e189 = b;
-            axis = cross(_e188, _e189);
-            let _e191 = axis;
-            len = length(_e191);
-            let _e193 = len;
-            if (_e193 > 0.000001f) {
-                let _e195 = angle_1;
-                let _e196 = axis;
-                let _e197 = len;
-                let _e200 = (*n_2);
-                let _e203 = total;
-                total = (_e203 + (_e195 * dot((_e196 / vec3(_e197)), _e200)));
+        let _e173 = i_6;
+        if (_e173 < 4i) {
+            let _e175 = i_6;
+            let _e177 = (*corners)[_e175];
+            a_1 = normalize(_e177);
+            let _e179 = i_6;
+            let _e183 = (*corners)[((_e179 + 1i) & 3i)];
+            b = normalize(_e183);
+            let _e185 = a_1;
+            let _e186 = b;
+            angle_1 = acos(clamp(dot(_e185, _e186), -1f, 1f));
+            let _e190 = a_1;
+            let _e191 = b;
+            axis = cross(_e190, _e191);
+            let _e193 = axis;
+            len = length(_e193);
+            let _e195 = len;
+            if (_e195 > 0.000001f) {
+                let _e197 = angle_1;
+                let _e198 = axis;
+                let _e199 = len;
+                let _e202 = (*n_2);
+                let _e205 = total;
+                total = (_e205 + (_e197 * dot((_e198 / vec3(_e199)), _e202)));
             }
             continue;
         } else {
             break;
         }
         continuing {
-            let _e205 = i_6;
-            i_6 = (_e205 + 1i);
+            let _e207 = i_6;
+            i_6 = (_e207 + 1i);
         }
     }
-    let _e207 = total;
-    return max((-(_e207) * 0.5f), 0f);
+    let _e209 = total;
+    return max((-(_e209) * 0.5f), 0f);
 }
 
 fn LightListLane_u0028_vf4_u003b_i1_u003b(four: ptr<function, vec4<f32>>, slot_1: ptr<function, i32>) -> f32 {
@@ -5880,61 +5886,133 @@ fn LightListLane_u0028_vf4_u003b_i1_u003b(four: ptr<function, vec4<f32>>, slot_1
     var local_9: f32;
     var local_10: f32;
 
-    let _e168 = (*slot_1);
-    let _e169 = (*slot_1);
-    lane = (_e168 - ((_e169 / 4i) * 4i));
-    let _e173 = lane;
-    if (_e173 == 0i) {
-        let _e176 = (*four)[0u];
-        local_8 = _e176;
+    let _e170 = (*slot_1);
+    let _e171 = (*slot_1);
+    lane = (_e170 - ((_e171 / 4i) * 4i));
+    let _e175 = lane;
+    if (_e175 == 0i) {
+        let _e178 = (*four)[0u];
+        local_8 = _e178;
     } else {
-        let _e177 = lane;
-        if (_e177 == 1i) {
-            let _e180 = (*four)[1u];
-            local_9 = _e180;
+        let _e179 = lane;
+        if (_e179 == 1i) {
+            let _e182 = (*four)[1u];
+            local_9 = _e182;
         } else {
-            let _e181 = lane;
-            if (_e181 == 2i) {
-                let _e184 = (*four)[2u];
-                local_10 = _e184;
-            } else {
-                let _e186 = (*four)[3u];
+            let _e183 = lane;
+            if (_e183 == 2i) {
+                let _e186 = (*four)[2u];
                 local_10 = _e186;
+            } else {
+                let _e188 = (*four)[3u];
+                local_10 = _e188;
             }
-            let _e187 = local_10;
-            local_9 = _e187;
+            let _e189 = local_10;
+            local_9 = _e189;
         }
-        let _e188 = local_9;
-        local_8 = _e188;
+        let _e190 = local_9;
+        local_8 = _e190;
     }
-    let _e189 = local_8;
-    return _e189;
+    let _e191 = local_8;
+    return _e191;
 }
 
 fn LightListScale_u0028_i1_u003b(slot_2: ptr<function, i32>) -> f32 {
     var param_47: vec4<f32>;
     var param_48: i32;
 
-    let _e165 = (*slot_2);
-    let _e169 = light_list_info.scales[(_e165 / 4i)];
-    param_47 = _e169;
-    let _e170 = (*slot_2);
-    param_48 = _e170;
-    let _e171 = LightListLane_u0028_vf4_u003b_i1_u003b((&param_47), (&param_48));
-    return _e171;
+    let _e167 = (*slot_2);
+    let _e171 = light_list_info.scales[(_e167 / 4i)];
+    param_47 = _e171;
+    let _e172 = (*slot_2);
+    param_48 = _e172;
+    let _e173 = LightListLane_u0028_vf4_u003b_i1_u003b((&param_47), (&param_48));
+    return _e173;
+}
+
+fn InSlots_u0028_f1_u003b(row: ptr<function, f32>) -> bool {
+    var a_2: vec4<f32>;
+    var b_1: vec4<f32>;
+
+    let _e169 = light_list_info.slot_rows[0i];
+    let _e170 = (*row);
+    a_2 = abs((_e169 - vec4(_e170)));
+    let _e176 = light_list_info.slot_rows[1i];
+    let _e177 = (*row);
+    b_1 = abs((_e176 - vec4(_e177)));
+    let _e182 = a_2[0u];
+    let _e184 = a_2[1u];
+    let _e187 = a_2[2u];
+    let _e189 = a_2[3u];
+    let _e193 = b_1[0u];
+    let _e195 = b_1[1u];
+    let _e198 = b_1[2u];
+    let _e200 = b_1[3u];
+    return (min(min(min(_e182, _e184), min(_e187, _e189)), min(min(_e193, _e195), min(_e198, _e200))) < 0.5f);
 }
 
 fn LightListRow_u0028_i1_u003b(slot_3: ptr<function, i32>) -> f32 {
     var param_49: vec4<f32>;
     var param_50: i32;
 
-    let _e165 = (*slot_3);
-    let _e169 = light_list_info.indices[(_e165 / 4i)];
-    param_49 = _e169;
-    let _e170 = (*slot_3);
-    param_50 = _e170;
-    let _e171 = LightListLane_u0028_vf4_u003b_i1_u003b((&param_49), (&param_50));
-    return _e171;
+    let _e167 = (*slot_3);
+    let _e171 = light_list_info.indices[(_e167 / 4i)];
+    param_49 = _e171;
+    let _e172 = (*slot_3);
+    param_50 = _e172;
+    let _e173 = LightListLane_u0028_vf4_u003b_i1_u003b((&param_49), (&param_50));
+    return _e173;
+}
+
+fn LightListTexel_u0028_f1_u003b_f1_u003b(texel_2: ptr<function, f32>, row_1: ptr<function, f32>) -> vec4<f32> {
+    let _e166 = (*texel_2);
+    let _e170 = light_list_info.list[1u];
+    let _e172 = (*row_1);
+    let _e176 = light_list_info.list[2u];
+    let _e179 = textureSampleLevel(light_list_texture_tex, light_list_texture_smp, vec2<f32>(((_e166 + 0.5f) * _e170), ((_e172 + 0.5f) * _e176)), 0f);
+    return _e179;
+}
+
+fn ClusterRow_u0028_i1_u003b(slot_4: ptr<function, i32>) -> f32 {
+    var entry: f32;
+    var row_2: f32;
+    var within: f32;
+    var texel_3: f32;
+    var four_1: vec4<f32>;
+    var param_51: f32;
+    var param_52: f32;
+    var param_53: vec4<f32>;
+    var param_54: i32;
+
+    let _e174 = g_cluster_offset;
+    let _e175 = (*slot_4);
+    entry = (_e174 + f32(_e175));
+    let _e178 = entry;
+    row_2 = floor((_e178 / 16f));
+    let _e181 = entry;
+    let _e182 = row_2;
+    within = (_e181 - (_e182 * 16f));
+    let _e185 = within;
+    texel_3 = floor((_e185 / 4f));
+    let _e190 = light_list_info.cluster_depth[3u];
+    let _e191 = row_2;
+    let _e193 = texel_3;
+    param_51 = _e193;
+    param_52 = (_e190 + _e191);
+    let _e194 = LightListTexel_u0028_f1_u003b_f1_u003b((&param_51), (&param_52));
+    four_1 = _e194;
+    let _e195 = within;
+    let _e196 = texel_3;
+    let _e201 = four_1;
+    param_53 = _e201;
+    param_54 = i32(((_e195 - (_e196 * 4f)) + 0.5f));
+    let _e202 = LightListLane_u0028_vf4_u003b_i1_u003b((&param_53), (&param_54));
+    return _e202;
+}
+
+fn Clustered_u0028_() -> bool {
+    let _e166 = light_list_info.cluster_grid[3u];
+    return (_e166 > 0.5f);
 }
 
 fn SampleLight_u0028_i1_u003b_struct_u002d_Surface_u002d_vf3_u002d_f1_u002d_vf3_u002d_vf3_u002d_f1_u002d_f1_u002d_f1_u002d_f1_u002d_vf3_u002d_vf3_u002d_f11_u003b(index_2: ptr<function, i32>, s_3: ptr<function, Surface>) -> LightSample {
@@ -5942,273 +6020,386 @@ fn SampleLight_u0028_i1_u003b_struct_u002d_Surface_u002d_vf3_u002d_f1_u002d_vf3_
     var color_1: vec4<f32>;
     var direction: vec4<f32>;
     var cone: vec4<f32>;
-    var slot_4: i32;
+    var slot_5: i32;
+    var clustered: bool;
+    var listRow: f32;
+    var local_11: f32;
+    var param_55: i32;
+    var param_56: i32;
     var v_1: f32;
-    var param_51: i32;
     var u_1: f32;
-    var param_52: i32;
-    var type_39: f32;
+    var local_12: f32;
+    var param_57: f32;
+    var param_58: i32;
+    var type_40: f32;
     var halfWidth_1: vec3<f32>;
     var halfHeight_1: vec3<f32>;
     var toCentre: vec3<f32>;
     var corners_1: array<vec3<f32>, 4>;
     var formFactor: f32;
-    var param_53: array<vec3<f32>, 4>;
-    var param_54: vec3<f32>;
+    var param_59: array<vec3<f32>, 4>;
+    var param_60: vec3<f32>;
     var area: f32;
     var radiance: f32;
-    var local_11: f32;
+    var local_13: f32;
     var distance_2: f32;
     var ratio_1: f32;
     var window_1: f32;
     var mirror_1: vec3<f32>;
     var representative: vec3<f32>;
-    var param_55: vec3<f32>;
-    var param_56: vec3<f32>;
-    var param_57: vec3<f32>;
-    var param_58: vec3<f32>;
-    var param_59: vec3<f32>;
+    var param_61: vec3<f32>;
+    var param_62: vec3<f32>;
+    var param_63: vec3<f32>;
+    var param_64: vec3<f32>;
+    var param_65: vec3<f32>;
     var toPoint: vec3<f32>;
     var pointDistance: f32;
     var light_3: LightSample;
-    var local_12: vec3<f32>;
+    var local_14: vec3<f32>;
     var aim: vec3<f32>;
     var attenuation_1: f32;
     var toLight_1: vec3<f32>;
     var distance_3: f32;
-    var param_60: f32;
-    var param_61: f32;
+    var param_66: f32;
+    var param_67: f32;
     var cosAngle: f32;
 
-    let _e205 = (*index_2);
-    if (_e205 < 8i) {
-        let _e207 = (*index_2);
-        let _e210 = frag_info.light_position[_e207];
-        position = _e210;
-        let _e211 = (*index_2);
-        let _e214 = frag_info.light_color[_e211];
-        color_1 = _e214;
+    let _e213 = (*index_2);
+    if (_e213 < 8i) {
         let _e215 = (*index_2);
-        let _e218 = frag_info.light_direction[_e215];
-        direction = _e218;
+        let _e218 = frag_info.light_position[_e215];
+        position = _e218;
         let _e219 = (*index_2);
-        let _e222 = frag_info.light_cone[_e219];
-        cone = _e222;
-    } else {
+        let _e222 = frag_info.light_color[_e219];
+        color_1 = _e222;
         let _e223 = (*index_2);
-        slot_4 = (_e223 - 8i);
-        let _e225 = slot_4;
-        param_51 = _e225;
-        let _e226 = LightListRow_u0028_i1_u003b((&param_51));
-        let _e230 = light_list_info.list[2u];
-        v_1 = ((_e226 + 0.5f) * _e230);
-        let _e234 = light_list_info.list[1u];
-        u_1 = _e234;
-        let _e235 = u_1;
-        let _e237 = v_1;
-        let _e239 = textureSampleLevel(light_list_texture_tex, light_list_texture_smp, vec2<f32>((0.5f * _e235), _e237), 0f);
-        position = _e239;
-        let _e240 = u_1;
-        let _e242 = v_1;
-        let _e244 = textureSampleLevel(light_list_texture_tex, light_list_texture_smp, vec2<f32>((1.5f * _e240), _e242), 0f);
-        color_1 = _e244;
-        let _e245 = u_1;
-        let _e247 = v_1;
-        let _e249 = textureSampleLevel(light_list_texture_tex, light_list_texture_smp, vec2<f32>((2.5f * _e245), _e247), 0f);
-        direction = _e249;
-        let _e250 = u_1;
-        let _e252 = v_1;
-        let _e254 = textureSampleLevel(light_list_texture_tex, light_list_texture_smp, vec2<f32>((3.5f * _e250), _e252), 0f);
-        cone = _e254;
-        let _e255 = slot_4;
-        param_52 = _e255;
-        let _e256 = LightListScale_u0028_i1_u003b((&param_52));
-        let _e258 = color_1[3u];
-        color_1[3u] = (_e258 * _e256);
-    }
-    let _e262 = position[3u];
-    type_39 = _e262;
-    let _e263 = type_39;
-    if (_e263 > 2.5f) {
-        let _e265 = direction;
-        halfWidth_1 = _e265.xyz;
-        let _e267 = cone;
-        halfHeight_1 = _e267.xyz;
-        let _e269 = position;
-        let _e271 = v_world_position_1;
-        toCentre = (_e269.xyz - _e271);
-        let _e273 = toCentre;
-        let _e274 = halfWidth_1;
-        let _e276 = halfHeight_1;
-        corners_1[0i] = ((_e273 - _e274) - _e276);
-        let _e279 = toCentre;
-        let _e280 = halfWidth_1;
-        let _e282 = halfHeight_1;
-        corners_1[1i] = ((_e279 + _e280) - _e282);
-        let _e285 = toCentre;
-        let _e286 = halfWidth_1;
-        let _e288 = halfHeight_1;
-        corners_1[2i] = ((_e285 + _e286) + _e288);
-        let _e291 = toCentre;
-        let _e292 = halfWidth_1;
-        let _e294 = halfHeight_1;
-        corners_1[3i] = ((_e291 - _e292) + _e294);
-        let _e297 = corners_1;
-        param_53 = _e297;
-        let _e299 = (*s_3).n;
-        param_54 = _e299;
-        let _e300 = RectangleFormFactor_u0028_vf3_u005b_4_u005d_u003b_vf3_u003b((&param_53), (&param_54));
-        formFactor = _e300;
-        let _e301 = halfWidth_1;
-        let _e302 = halfHeight_1;
-        area = (length(cross(_e301, _e302)) * 4f);
-        let _e306 = area;
-        if (_e306 > 0.000000001f) {
-            let _e308 = area;
-            local_11 = (1f / _e308);
-        } else {
-            local_11 = 0f;
-        }
-        let _e310 = local_11;
-        radiance = _e310;
-        let _e311 = toCentre;
-        distance_2 = length(_e311);
-        let _e314 = direction[3u];
-        if (_e314 > 0f) {
-            let _e316 = distance_2;
-            let _e318 = direction[3u];
-            ratio_1 = (_e316 / _e318);
-            let _e320 = ratio_1;
-            let _e321 = ratio_1;
-            let _e323 = ratio_1;
-            let _e325 = ratio_1;
-            window_1 = clamp((1f - (((_e320 * _e321) * _e323) * _e325)), 0f, 1f);
-            let _e329 = window_1;
-            let _e330 = window_1;
-            let _e332 = radiance;
-            radiance = (_e332 * (_e329 * _e330));
-        }
-        let _e335 = (*s_3).v;
-        let _e338 = (*s_3).n;
-        mirror_1 = reflect(-(_e335), _e338);
-        let _e340 = position;
-        param_55 = _e340.xyz;
-        let _e342 = halfWidth_1;
-        param_56 = _e342;
-        let _e343 = halfHeight_1;
-        param_57 = _e343;
-        let _e344 = v_world_position_1;
-        param_58 = _e344;
-        let _e345 = mirror_1;
-        param_59 = _e345;
-        let _e346 = RectangleClosestPoint_u0028_vf3_u003b_vf3_u003b_vf3_u003b_vf3_u003b_vf3_u003b((&param_55), (&param_56), (&param_57), (&param_58), (&param_59));
-        representative = _e346;
-        let _e347 = representative;
-        let _e348 = v_world_position_1;
-        toPoint = (_e347 - _e348);
-        let _e350 = toPoint;
-        pointDistance = length(_e350);
-        let _e352 = pointDistance;
-        if (_e352 > 0.000001f) {
-            let _e354 = toPoint;
-            let _e355 = pointDistance;
-            local_12 = (_e354 / vec3(_e355));
-        } else {
-            let _e359 = (*s_3).n;
-            local_12 = _e359;
-        }
-        let _e360 = local_12;
-        light_3.l = _e360;
-        let _e363 = light_3.l;
-        let _e365 = (*s_3).v;
-        light_3.h = normalize((_e363 + _e365));
-        let _e369 = formFactor;
-        light_3.n_dot_l = _e369;
-        let _e372 = (*s_3).n;
-        let _e374 = light_3.h;
-        light_3.n_dot_h = max(dot(_e372, _e374), 0f);
-        let _e379 = (*s_3).v;
-        let _e381 = light_3.h;
-        light_3.v_dot_h = max(dot(_e379, _e381), 0f);
-        let _e385 = color_1;
-        let _e388 = color_1[3u];
-        let _e390 = radiance;
-        light_3.radiance = ((_e385.xyz * _e388) * _e390);
-        let _e393 = light_3;
-        return _e393;
-    }
-    let _e394 = direction;
-    aim = normalize(_e394.xyz);
-    attenuation_1 = 1f;
-    let _e397 = type_39;
-    if (_e397 < 0.5f) {
-        let _e399 = aim;
-        light_3.l = -(_e399);
+        let _e226 = frag_info.light_direction[_e223];
+        direction = _e226;
+        let _e227 = (*index_2);
+        let _e230 = frag_info.light_cone[_e227];
+        cone = _e230;
     } else {
-        let _e402 = position;
-        let _e404 = v_world_position_1;
-        toLight_1 = (_e402.xyz - _e404);
-        let _e406 = toLight_1;
-        distance_3 = length(_e406);
-        let _e408 = distance_3;
-        if (_e408 < 0.000001f) {
-            let _e411 = (*s_3).n;
-            light_3.l = _e411;
-            let _e414 = (*s_3).n;
-            light_3.h = _e414;
+        let _e231 = (*index_2);
+        slot_5 = (_e231 - 8i);
+        let _e233 = Clustered_u0028_();
+        clustered = _e233;
+        let _e234 = clustered;
+        if _e234 {
+            let _e235 = slot_5;
+            param_55 = _e235;
+            let _e236 = ClusterRow_u0028_i1_u003b((&param_55));
+            local_11 = _e236;
+        } else {
+            let _e237 = slot_5;
+            param_56 = _e237;
+            let _e238 = LightListRow_u0028_i1_u003b((&param_56));
+            local_11 = _e238;
+        }
+        let _e239 = local_11;
+        listRow = _e239;
+        let _e240 = listRow;
+        let _e244 = light_list_info.list[2u];
+        v_1 = ((_e240 + 0.5f) * _e244);
+        let _e248 = light_list_info.list[1u];
+        u_1 = _e248;
+        let _e249 = u_1;
+        let _e251 = v_1;
+        let _e253 = textureSampleLevel(light_list_texture_tex, light_list_texture_smp, vec2<f32>((0.5f * _e249), _e251), 0f);
+        position = _e253;
+        let _e254 = u_1;
+        let _e256 = v_1;
+        let _e258 = textureSampleLevel(light_list_texture_tex, light_list_texture_smp, vec2<f32>((1.5f * _e254), _e256), 0f);
+        color_1 = _e258;
+        let _e259 = u_1;
+        let _e261 = v_1;
+        let _e263 = textureSampleLevel(light_list_texture_tex, light_list_texture_smp, vec2<f32>((2.5f * _e259), _e261), 0f);
+        direction = _e263;
+        let _e264 = u_1;
+        let _e266 = v_1;
+        let _e268 = textureSampleLevel(light_list_texture_tex, light_list_texture_smp, vec2<f32>((3.5f * _e264), _e266), 0f);
+        cone = _e268;
+        let _e269 = clustered;
+        if _e269 {
+            let _e270 = listRow;
+            param_57 = _e270;
+            let _e271 = InSlots_u0028_f1_u003b((&param_57));
+            local_12 = select(1f, 0f, _e271);
+        } else {
+            let _e273 = slot_5;
+            param_58 = _e273;
+            let _e274 = LightListScale_u0028_i1_u003b((&param_58));
+            local_12 = _e274;
+        }
+        let _e275 = local_12;
+        let _e277 = color_1[3u];
+        color_1[3u] = (_e277 * _e275);
+    }
+    let _e281 = position[3u];
+    type_40 = _e281;
+    let _e282 = type_40;
+    if (_e282 > 2.5f) {
+        let _e284 = direction;
+        halfWidth_1 = _e284.xyz;
+        let _e286 = cone;
+        halfHeight_1 = _e286.xyz;
+        let _e288 = position;
+        let _e290 = v_world_position_1;
+        toCentre = (_e288.xyz - _e290);
+        let _e292 = toCentre;
+        let _e293 = halfWidth_1;
+        let _e295 = halfHeight_1;
+        corners_1[0i] = ((_e292 - _e293) - _e295);
+        let _e298 = toCentre;
+        let _e299 = halfWidth_1;
+        let _e301 = halfHeight_1;
+        corners_1[1i] = ((_e298 + _e299) - _e301);
+        let _e304 = toCentre;
+        let _e305 = halfWidth_1;
+        let _e307 = halfHeight_1;
+        corners_1[2i] = ((_e304 + _e305) + _e307);
+        let _e310 = toCentre;
+        let _e311 = halfWidth_1;
+        let _e313 = halfHeight_1;
+        corners_1[3i] = ((_e310 - _e311) + _e313);
+        let _e316 = corners_1;
+        param_59 = _e316;
+        let _e318 = (*s_3).n;
+        param_60 = _e318;
+        let _e319 = RectangleFormFactor_u0028_vf3_u005b_4_u005d_u003b_vf3_u003b((&param_59), (&param_60));
+        formFactor = _e319;
+        let _e320 = halfWidth_1;
+        let _e321 = halfHeight_1;
+        area = (length(cross(_e320, _e321)) * 4f);
+        let _e325 = area;
+        if (_e325 > 0.000000001f) {
+            let _e327 = area;
+            local_13 = (1f / _e327);
+        } else {
+            local_13 = 0f;
+        }
+        let _e329 = local_13;
+        radiance = _e329;
+        let _e330 = toCentre;
+        distance_2 = length(_e330);
+        let _e333 = direction[3u];
+        if (_e333 > 0f) {
+            let _e335 = distance_2;
+            let _e337 = direction[3u];
+            ratio_1 = (_e335 / _e337);
+            let _e339 = ratio_1;
+            let _e340 = ratio_1;
+            let _e342 = ratio_1;
+            let _e344 = ratio_1;
+            window_1 = clamp((1f - (((_e339 * _e340) * _e342) * _e344)), 0f, 1f);
+            let _e348 = window_1;
+            let _e349 = window_1;
+            let _e351 = radiance;
+            radiance = (_e351 * (_e348 * _e349));
+        }
+        let _e354 = (*s_3).v;
+        let _e357 = (*s_3).n;
+        mirror_1 = reflect(-(_e354), _e357);
+        let _e359 = position;
+        param_61 = _e359.xyz;
+        let _e361 = halfWidth_1;
+        param_62 = _e361;
+        let _e362 = halfHeight_1;
+        param_63 = _e362;
+        let _e363 = v_world_position_1;
+        param_64 = _e363;
+        let _e364 = mirror_1;
+        param_65 = _e364;
+        let _e365 = RectangleClosestPoint_u0028_vf3_u003b_vf3_u003b_vf3_u003b_vf3_u003b_vf3_u003b((&param_61), (&param_62), (&param_63), (&param_64), (&param_65));
+        representative = _e365;
+        let _e366 = representative;
+        let _e367 = v_world_position_1;
+        toPoint = (_e366 - _e367);
+        let _e369 = toPoint;
+        pointDistance = length(_e369);
+        let _e371 = pointDistance;
+        if (_e371 > 0.000001f) {
+            let _e373 = toPoint;
+            let _e374 = pointDistance;
+            local_14 = (_e373 / vec3(_e374));
+        } else {
+            let _e378 = (*s_3).n;
+            local_14 = _e378;
+        }
+        let _e379 = local_14;
+        light_3.l = _e379;
+        let _e382 = light_3.l;
+        let _e384 = (*s_3).v;
+        light_3.h = normalize((_e382 + _e384));
+        let _e388 = formFactor;
+        light_3.n_dot_l = _e388;
+        let _e391 = (*s_3).n;
+        let _e393 = light_3.h;
+        light_3.n_dot_h = max(dot(_e391, _e393), 0f);
+        let _e398 = (*s_3).v;
+        let _e400 = light_3.h;
+        light_3.v_dot_h = max(dot(_e398, _e400), 0f);
+        let _e404 = color_1;
+        let _e407 = color_1[3u];
+        let _e409 = radiance;
+        light_3.radiance = ((_e404.xyz * _e407) * _e409);
+        let _e412 = light_3;
+        return _e412;
+    }
+    let _e413 = direction;
+    aim = normalize(_e413.xyz);
+    attenuation_1 = 1f;
+    let _e416 = type_40;
+    if (_e416 < 0.5f) {
+        let _e418 = aim;
+        light_3.l = -(_e418);
+    } else {
+        let _e421 = position;
+        let _e423 = v_world_position_1;
+        toLight_1 = (_e421.xyz - _e423);
+        let _e425 = toLight_1;
+        distance_3 = length(_e425);
+        let _e427 = distance_3;
+        if (_e427 < 0.000001f) {
+            let _e430 = (*s_3).n;
+            light_3.l = _e430;
+            let _e433 = (*s_3).n;
+            light_3.h = _e433;
             light_3.radiance = vec3<f32>(0f, 0f, 0f);
             light_3.n_dot_l = 0f;
             light_3.n_dot_h = 0f;
             light_3.v_dot_h = 0f;
-            let _e420 = light_3;
-            return _e420;
+            let _e439 = light_3;
+            return _e439;
         }
-        let _e421 = toLight_1;
-        let _e422 = distance_3;
-        light_3.l = (_e421 / vec3(_e422));
-        let _e426 = distance_3;
-        param_60 = _e426;
-        let _e428 = direction[3u];
-        param_61 = _e428;
-        let _e429 = PunctualAttenuation_u0028_f1_u003b_f1_u003b((&param_60), (&param_61));
-        attenuation_1 = _e429;
-        let _e430 = type_39;
-        if (_e430 > 1.5f) {
-            let _e432 = aim;
-            let _e434 = light_3.l;
-            cosAngle = dot(_e432, -(_e434));
-            let _e437 = cosAngle;
-            let _e439 = cone[1u];
-            let _e442 = cone[0u];
-            let _e444 = cone[1u];
-            let _e448 = attenuation_1;
-            attenuation_1 = (_e448 * clamp(((_e437 - _e439) / (_e442 - _e444)), 0f, 1f));
+        let _e440 = toLight_1;
+        let _e441 = distance_3;
+        light_3.l = (_e440 / vec3(_e441));
+        let _e445 = distance_3;
+        param_66 = _e445;
+        let _e447 = direction[3u];
+        param_67 = _e447;
+        let _e448 = PunctualAttenuation_u0028_f1_u003b_f1_u003b((&param_66), (&param_67));
+        attenuation_1 = _e448;
+        let _e449 = type_40;
+        if (_e449 > 1.5f) {
+            let _e451 = aim;
+            let _e453 = light_3.l;
+            cosAngle = dot(_e451, -(_e453));
+            let _e456 = cosAngle;
+            let _e458 = cone[1u];
+            let _e461 = cone[0u];
+            let _e463 = cone[1u];
+            let _e467 = attenuation_1;
+            attenuation_1 = (_e467 * clamp(((_e456 - _e458) / (_e461 - _e463)), 0f, 1f));
         }
     }
-    let _e451 = light_3.l;
-    let _e453 = (*s_3).v;
-    light_3.h = normalize((_e451 + _e453));
-    let _e458 = (*s_3).n;
-    let _e460 = light_3.l;
-    light_3.n_dot_l = max(dot(_e458, _e460), 0f);
-    let _e465 = (*s_3).n;
-    let _e467 = light_3.h;
-    light_3.n_dot_h = max(dot(_e465, _e467), 0f);
+    let _e470 = light_3.l;
     let _e472 = (*s_3).v;
-    let _e474 = light_3.h;
-    light_3.v_dot_h = max(dot(_e472, _e474), 0f);
-    let _e478 = color_1;
-    let _e481 = color_1[3u];
-    let _e483 = attenuation_1;
-    light_3.radiance = ((_e478.xyz * _e481) * _e483);
-    let _e486 = light_3;
-    return _e486;
+    light_3.h = normalize((_e470 + _e472));
+    let _e477 = (*s_3).n;
+    let _e479 = light_3.l;
+    light_3.n_dot_l = max(dot(_e477, _e479), 0f);
+    let _e484 = (*s_3).n;
+    let _e486 = light_3.h;
+    light_3.n_dot_h = max(dot(_e484, _e486), 0f);
+    let _e491 = (*s_3).v;
+    let _e493 = light_3.h;
+    light_3.v_dot_h = max(dot(_e491, _e493), 0f);
+    let _e497 = color_1;
+    let _e500 = color_1[3u];
+    let _e502 = attenuation_1;
+    light_3.radiance = ((_e497.xyz * _e500) * _e502);
+    let _e505 = light_3;
+    return _e505;
+}
+
+fn FindCluster_u0028_vf3_u003b(world_3: ptr<function, vec3<f32>>) {
+    var clip_1: vec4<f32>;
+    var ndc_1: vec2<f32>;
+    var grid: vec3<f32>;
+    var near: f32;
+    var tx: f32;
+    var ty: f32;
+    var tz: f32;
+    var local_15: f32;
+    var cell: f32;
+    var row_3: f32;
+    var header: vec4<f32>;
+    var param_68: f32;
+    var param_69: f32;
+
+    let _e179 = light_list_info.cluster_view_projection;
+    let _e180 = (*world_3);
+    clip_1 = (_e179 * vec4<f32>(_e180.x, _e180.y, _e180.z, 1f));
+    let _e186 = clip_1;
+    let _e189 = clip_1[3u];
+    ndc_1 = (_e186.xy / vec2(max(_e189, 0.000001f)));
+    let _e194 = light_list_info.cluster_grid;
+    grid = _e194.xyz;
+    let _e198 = light_list_info.cluster_depth[0u];
+    near = _e198;
+    let _e200 = ndc_1[0u];
+    let _e204 = grid[0u];
+    let _e208 = grid[0u];
+    tx = clamp(floor((((_e200 * 0.5f) + 0.5f) * _e204)), 0f, (_e208 - 1f));
+    let _e212 = ndc_1[1u];
+    let _e216 = grid[1u];
+    let _e220 = grid[1u];
+    ty = clamp(floor((((_e212 * 0.5f) + 0.5f) * _e216)), 0f, (_e220 - 1f));
+    let _e224 = clip_1[3u];
+    let _e225 = near;
+    if (_e224 <= _e225) {
+        local_15 = 0f;
+    } else {
+        let _e228 = clip_1[3u];
+        let _e229 = near;
+        let _e234 = light_list_info.cluster_depth[1u];
+        let _e238 = grid[2u];
+        local_15 = clamp(floor((log((_e228 / _e229)) * _e234)), 0f, (_e238 - 1f));
+    }
+    let _e241 = local_15;
+    tz = _e241;
+    let _e242 = tx;
+    let _e243 = ty;
+    let _e245 = grid[0u];
+    let _e248 = tz;
+    let _e250 = grid[0u];
+    let _e253 = grid[1u];
+    cell = ((_e242 + (_e243 * _e245)) + ((_e248 * _e250) * _e253));
+    let _e256 = cell;
+    row_3 = floor((_e256 / 4f));
+    let _e259 = cell;
+    let _e260 = row_3;
+    let _e265 = light_list_info.cluster_depth[2u];
+    let _e266 = row_3;
+    param_68 = (_e259 - (_e260 * 4f));
+    param_69 = (_e265 + _e266);
+    let _e268 = LightListTexel_u0028_f1_u003b_f1_u003b((&param_68), (&param_69));
+    header = _e268;
+    let _e270 = header[0u];
+    g_cluster_offset = _e270;
+    let _e272 = header[1u];
+    g_cluster_count = _e272;
+    return;
 }
 
 fn LightCount_u0028_() -> i32 {
-    let _e164 = frag_info.frame_params[1u];
-    let _e170 = light_list_info.list[0u];
-    return (clamp(i32((_e164 + 0.5f)), 0i, 8i) + clamp(i32((_e170 + 0.5f)), 0i, 24i));
+    var tail: f32;
+    var param_70: vec3<f32>;
+
+    let _e168 = light_list_info.list[0u];
+    tail = _e168;
+    let _e169 = Clustered_u0028_();
+    if _e169 {
+        let _e170 = v_world_position_1;
+        param_70 = _e170;
+        FindCluster_u0028_vf3_u003b((&param_70));
+        let _e171 = g_cluster_count;
+        tail = _e171;
+    }
+    let _e174 = frag_info.frame_params[1u];
+    let _e178 = tail;
+    return (clamp(i32((_e174 + 0.5f)), 0i, 8i) + clamp(i32((_e178 + 0.5f)), 0i, 24i));
 }
 
 fn AccumulateLights_u0028_struct_u002d_Surface_u002d_vf3_u002d_f1_u002d_vf3_u002d_vf3_u002d_f1_u002d_f1_u002d_f1_u002d_f1_u002d_vf3_u002d_vf3_u002d_f11_u003b(s_4: ptr<function, Surface>) -> vec3<f32> {
@@ -6216,255 +6407,255 @@ fn AccumulateLights_u0028_struct_u002d_Surface_u002d_vf3_u002d_f1_u002d_vf3_u002
     var count_1: i32;
     var i_7: i32;
     var light_4: LightSample;
-    var param_62: i32;
-    var param_63: Surface;
+    var param_71: i32;
+    var param_72: Surface;
     var visibility: f32;
-    var param_64: i32;
-    var local_13: f32;
-    var param_65: Surface;
-    var param_66: LightSample;
-    var param_67: i32;
-    var param_68: vec3<f32>;
-    var param_69: vec3<f32>;
-    var param_70: i32;
-    var param_71: Surface;
-    var param_72: LightSample;
+    var param_73: i32;
+    var local_16: f32;
+    var param_74: Surface;
+    var param_75: LightSample;
+    var param_76: i32;
+    var param_77: vec3<f32>;
+    var param_78: vec3<f32>;
+    var param_79: i32;
+    var param_80: Surface;
+    var param_81: LightSample;
 
     total_1 = vec3<f32>(0f, 0f, 0f);
-    let _e180 = LightCount_u0028_();
-    count_1 = _e180;
+    let _e182 = LightCount_u0028_();
+    count_1 = _e182;
     i_7 = 0i;
     loop {
-        let _e181 = i_7;
-        if (_e181 < 32i) {
-            let _e183 = i_7;
-            let _e184 = count_1;
-            if (_e183 >= _e184) {
+        let _e183 = i_7;
+        if (_e183 < 32i) {
+            let _e185 = i_7;
+            let _e186 = count_1;
+            if (_e185 >= _e186) {
                 break;
             }
-            let _e186 = i_7;
-            param_62 = _e186;
-            let _e187 = (*s_4);
-            param_63 = _e187;
-            let _e188 = SampleLight_u0028_i1_u003b_struct_u002d_Surface_u002d_vf3_u002d_f1_u002d_vf3_u002d_vf3_u002d_f1_u002d_f1_u002d_f1_u002d_f1_u002d_vf3_u002d_vf3_u002d_f11_u003b((&param_62), (&param_63));
-            light_4 = _e188;
-            let _e190 = light_4.n_dot_l;
-            if (_e190 <= 0f) {
+            let _e188 = i_7;
+            param_71 = _e188;
+            let _e189 = (*s_4);
+            param_72 = _e189;
+            let _e190 = SampleLight_u0028_i1_u003b_struct_u002d_Surface_u002d_vf3_u002d_f1_u002d_vf3_u002d_vf3_u002d_f1_u002d_f1_u002d_f1_u002d_f1_u002d_vf3_u002d_vf3_u002d_f11_u003b((&param_71), (&param_72));
+            light_4 = _e190;
+            let _e192 = light_4.n_dot_l;
+            if (_e192 <= 0f) {
                 continue;
             }
-            let _e192 = i_7;
-            param_64 = _e192;
-            let _e193 = LightHasShadow_u0028_i1_u003b((&param_64));
-            if _e193 {
-                let _e194 = (*s_4);
-                param_65 = _e194;
-                let _e195 = light_4;
-                param_66 = _e195;
-                let _e196 = i_7;
-                param_67 = _e196;
-                let _e197 = LightVisibility_u0028_struct_u002d_Surface_u002d_vf3_u002d_f1_u002d_vf3_u002d_vf3_u002d_f1_u002d_f1_u002d_f1_u002d_f1_u002d_vf3_u002d_vf3_u002d_f11_u003b_struct_u002d_LightSample_u002d_vf3_u002d_vf3_u002d_vf3_u002d_f1_u002d_f1_u002d_f11_u003b_i1_u003b((&param_65), (&param_66), (&param_67));
-                let _e198 = v_world_position_1;
-                param_68 = _e198;
-                let _e200 = (*s_4).n;
-                param_69 = _e200;
-                let _e201 = i_7;
-                param_70 = _e201;
-                let _e202 = PointShadowFactor_u0028_vf3_u003b_vf3_u003b_i1_u003b((&param_68), (&param_69), (&param_70));
-                local_13 = (_e197 * _e202);
+            let _e194 = i_7;
+            param_73 = _e194;
+            let _e195 = LightHasShadow_u0028_i1_u003b((&param_73));
+            if _e195 {
+                let _e196 = (*s_4);
+                param_74 = _e196;
+                let _e197 = light_4;
+                param_75 = _e197;
+                let _e198 = i_7;
+                param_76 = _e198;
+                let _e199 = LightVisibility_u0028_struct_u002d_Surface_u002d_vf3_u002d_f1_u002d_vf3_u002d_vf3_u002d_f1_u002d_f1_u002d_f1_u002d_f1_u002d_vf3_u002d_vf3_u002d_f11_u003b_struct_u002d_LightSample_u002d_vf3_u002d_vf3_u002d_vf3_u002d_f1_u002d_f1_u002d_f11_u003b_i1_u003b((&param_74), (&param_75), (&param_76));
+                let _e200 = v_world_position_1;
+                param_77 = _e200;
+                let _e202 = (*s_4).n;
+                param_78 = _e202;
+                let _e203 = i_7;
+                param_79 = _e203;
+                let _e204 = PointShadowFactor_u0028_vf3_u003b_vf3_u003b_i1_u003b((&param_77), (&param_78), (&param_79));
+                local_16 = (_e199 * _e204);
             } else {
-                local_13 = 1f;
+                local_16 = 1f;
             }
-            let _e204 = local_13;
-            visibility = _e204;
-            let _e205 = visibility;
-            if (_e205 <= 0f) {
+            let _e206 = local_16;
+            visibility = _e206;
+            let _e207 = visibility;
+            if (_e207 <= 0f) {
                 continue;
             }
-            let _e207 = (*s_4);
-            param_71 = _e207;
-            let _e208 = light_4;
-            param_72 = _e208;
-            let _e209 = ShadeLight_u0028_struct_u002d_Surface_u002d_vf3_u002d_f1_u002d_vf3_u002d_vf3_u002d_f1_u002d_f1_u002d_f1_u002d_f1_u002d_vf3_u002d_vf3_u002d_f11_u003b_struct_u002d_LightSample_u002d_vf3_u002d_vf3_u002d_vf3_u002d_f1_u002d_f1_u002d_f11_u003b((&param_71), (&param_72));
-            let _e211 = light_4.radiance;
-            let _e214 = light_4.n_dot_l;
-            let _e216 = visibility;
-            let _e218 = total_1;
-            total_1 = (_e218 + (((_e209 * _e211) * _e214) * _e216));
+            let _e209 = (*s_4);
+            param_80 = _e209;
+            let _e210 = light_4;
+            param_81 = _e210;
+            let _e211 = ShadeLight_u0028_struct_u002d_Surface_u002d_vf3_u002d_f1_u002d_vf3_u002d_vf3_u002d_f1_u002d_f1_u002d_f1_u002d_f1_u002d_vf3_u002d_vf3_u002d_f11_u003b_struct_u002d_LightSample_u002d_vf3_u002d_vf3_u002d_vf3_u002d_f1_u002d_f1_u002d_f11_u003b((&param_80), (&param_81));
+            let _e213 = light_4.radiance;
+            let _e216 = light_4.n_dot_l;
+            let _e218 = visibility;
+            let _e220 = total_1;
+            total_1 = (_e220 + (((_e211 * _e213) * _e216) * _e218));
             continue;
         } else {
             break;
         }
         continuing {
-            let _e220 = i_7;
-            i_7 = (_e220 + 1i);
+            let _e222 = i_7;
+            i_7 = (_e222 + 1i);
         }
     }
-    let _e222 = total_1;
-    return _e222;
+    let _e224 = total_1;
+    return _e224;
 }
 
 fn SampleLightmap_u0028_() -> vec3<f32> {
-    var texel_2: vec4<f32>;
+    var texel_4: vec4<f32>;
 
-    let _e163 = v_lightmap_uv_1;
-    let _e164 = textureSample(lightmap_texture_tex, lightmap_texture_smp, _e163);
-    texel_2 = _e164;
-    let _e165 = texel_2;
-    let _e168 = texel_2[3u];
-    return ((_e165.xyz * _e168) * 8f);
+    let _e165 = v_lightmap_uv_1;
+    let _e166 = textureSample(lightmap_texture_tex, lightmap_texture_smp, _e165);
+    texel_4 = _e166;
+    let _e167 = texel_4;
+    let _e170 = texel_4[3u];
+    return ((_e167.xyz * _e170) * 8f);
 }
 
 fn SrgbToLinear_u0028_vf3_u003b(srgb: ptr<function, vec3<f32>>) -> vec3<f32> {
-    let _e163 = (*srgb);
-    let _e166 = (*srgb);
-    let _e171 = (*srgb);
-    return mix((_e163 / vec3(12.92f)), pow(((_e166 + vec3<f32>(0.055f, 0.055f, 0.055f)) / vec3(1.055f)), vec3<f32>(2.4f, 2.4f, 2.4f)), step(vec3<f32>(0.04045f, 0.04045f, 0.04045f), _e171));
+    let _e165 = (*srgb);
+    let _e168 = (*srgb);
+    let _e173 = (*srgb);
+    return mix((_e165 / vec3(12.92f)), pow(((_e168 + vec3<f32>(0.055f, 0.055f, 0.055f)) / vec3(1.055f)), vec3<f32>(2.4f, 2.4f, 2.4f)), step(vec3<f32>(0.04045f, 0.04045f, 0.04045f), _e173));
 }
 
 fn MaterialLodBias_u0028_() -> f32 {
-    let _e164 = frag_info.target_origin[1u];
-    return _e164;
+    let _e166 = frag_info.target_origin[1u];
+    return _e166;
 }
 
 fn ApplyEmissiveMap_u0028_struct_u002d_Surface_u002d_vf3_u002d_f1_u002d_vf3_u002d_vf3_u002d_f1_u002d_f1_u002d_f1_u002d_f1_u002d_vf3_u002d_vf3_u002d_f11_u003b(s_5: ptr<function, Surface>) {
     var emissive: vec3<f32>;
-    var param_73: vec3<f32>;
+    var param_82: vec3<f32>;
 
-    let _e165 = v_texcoord_1;
-    let _e166 = MaterialLodBias_u0028_();
-    let _e167 = textureSampleBias(emissive_texture_tex, emissive_texture_smp, _e165, _e166);
-    param_73 = _e167.xyz;
-    let _e169 = SrgbToLinear_u0028_vf3_u003b((&param_73));
-    emissive = _e169;
-    let _e170 = emissive;
-    let _e172 = frag_info.emissive;
-    let _e177 = frag_info.material2_[3u];
-    (*s_5).emissive = ((_e170 * _e172.xyz) * _e177);
+    let _e167 = v_texcoord_1;
+    let _e168 = MaterialLodBias_u0028_();
+    let _e169 = textureSampleBias(emissive_texture_tex, emissive_texture_smp, _e167, _e168);
+    param_82 = _e169.xyz;
+    let _e171 = SrgbToLinear_u0028_vf3_u003b((&param_82));
+    emissive = _e171;
+    let _e172 = emissive;
+    let _e174 = frag_info.emissive;
+    let _e179 = frag_info.material2_[3u];
+    (*s_5).emissive = ((_e172 * _e174.xyz) * _e179);
     return;
 }
 
 fn ApplyOcclusionMap_u0028_struct_u002d_Surface_u002d_vf3_u002d_f1_u002d_vf3_u002d_vf3_u002d_f1_u002d_f1_u002d_f1_u002d_f1_u002d_vf3_u002d_vf3_u002d_f11_u003b(s_6: ptr<function, Surface>) {
     var occlusion: f32;
 
-    let _e164 = v_texcoord_1;
-    let _e165 = MaterialLodBias_u0028_();
-    let _e166 = textureSampleBias(occlusion_texture_tex, occlusion_texture_smp, _e164, _e165);
-    occlusion = _e166.x;
-    let _e168 = occlusion;
-    let _e171 = frag_info.material2_[2u];
-    (*s_6).occlusion = mix(1f, _e168, clamp(_e171, 0f, 1f));
+    let _e166 = v_texcoord_1;
+    let _e167 = MaterialLodBias_u0028_();
+    let _e168 = textureSampleBias(occlusion_texture_tex, occlusion_texture_smp, _e166, _e167);
+    occlusion = _e168.x;
+    let _e170 = occlusion;
+    let _e173 = frag_info.material2_[2u];
+    (*s_6).occlusion = mix(1f, _e170, clamp(_e173, 0f, 1f));
     return;
 }
 
 fn ApplyNormalMap_u0028_struct_u002d_Surface_u002d_vf3_u002d_f1_u002d_vf3_u002d_vf3_u002d_f1_u002d_f1_u002d_f1_u002d_f1_u002d_vf3_u002d_vf3_u002d_f11_u003b(s_7: ptr<function, Surface>) {
     var sampledTexel: vec4<f32>;
     var t_1: vec3<f32>;
-    var b_1: vec3<f32>;
+    var b_2: vec3<f32>;
     var sampled: vec3<f32>;
 
-    let _e167 = v_texcoord_1;
-    let _e168 = MaterialLodBias_u0028_();
-    let _e169 = textureSampleBias(normal_texture_tex, normal_texture_smp, _e167, _e168);
-    sampledTexel = _e169;
-    let _e170 = v_tangent_1;
-    t_1 = _e170.xyz;
-    let _e172 = t_1;
-    let _e174 = (*s_7).n;
+    let _e169 = v_texcoord_1;
+    let _e170 = MaterialLodBias_u0028_();
+    let _e171 = textureSampleBias(normal_texture_tex, normal_texture_smp, _e169, _e170);
+    sampledTexel = _e171;
+    let _e172 = v_tangent_1;
+    t_1 = _e172.xyz;
+    let _e174 = t_1;
     let _e176 = (*s_7).n;
-    let _e177 = t_1;
-    t_1 = (_e172 - (_e174 * dot(_e176, _e177)));
-    let _e181 = t_1;
-    let _e182 = t_1;
-    if (dot(_e181, _e182) < 0.000000000001f) {
+    let _e178 = (*s_7).n;
+    let _e179 = t_1;
+    t_1 = (_e174 - (_e176 * dot(_e178, _e179)));
+    let _e183 = t_1;
+    let _e184 = t_1;
+    if (dot(_e183, _e184) < 0.000000000001f) {
         return;
     }
-    let _e185 = t_1;
-    t_1 = normalize(_e185);
-    let _e188 = (*s_7).n;
-    let _e189 = t_1;
-    let _e192 = v_tangent_1[3u];
-    b_1 = (cross(_e188, _e189) * _e192);
-    let _e194 = gl_FrontFacing_1;
-    if !(_e194) {
-        let _e196 = t_1;
-        t_1 = -(_e196);
+    let _e187 = t_1;
+    t_1 = normalize(_e187);
+    let _e190 = (*s_7).n;
+    let _e191 = t_1;
+    let _e194 = v_tangent_1[3u];
+    b_2 = (cross(_e190, _e191) * _e194);
+    let _e196 = gl_FrontFacing_1;
+    if !(_e196) {
+        let _e198 = t_1;
+        t_1 = -(_e198);
     }
-    let _e198 = sampledTexel;
-    sampled = ((_e198.xyz * 2f) - vec3(1f));
-    let _e205 = frag_info.material2_[1u];
-    let _e206 = sampled;
-    let _e208 = (_e206.xy * _e205);
-    sampled[0u] = _e208.x;
-    sampled[1u] = _e208.y;
-    let _e213 = t_1;
-    let _e215 = sampled[0u];
-    let _e217 = b_1;
-    let _e219 = sampled[1u];
-    let _e223 = (*s_7).n;
-    let _e225 = sampled[2u];
-    (*s_7).n = normalize((((_e213 * _e215) + (_e217 * _e219)) + (_e223 * _e225)));
-    let _e231 = (*s_7).n;
-    let _e233 = (*s_7).v;
-    (*s_7).n_dot_v = max(dot(_e231, _e233), 0.0001f);
+    let _e200 = sampledTexel;
+    sampled = ((_e200.xyz * 2f) - vec3(1f));
+    let _e207 = frag_info.material2_[1u];
+    let _e208 = sampled;
+    let _e210 = (_e208.xy * _e207);
+    sampled[0u] = _e210.x;
+    sampled[1u] = _e210.y;
+    let _e215 = t_1;
+    let _e217 = sampled[0u];
+    let _e219 = b_2;
+    let _e221 = sampled[1u];
+    let _e225 = (*s_7).n;
+    let _e227 = sampled[2u];
+    (*s_7).n = normalize((((_e215 * _e217) + (_e219 * _e221)) + (_e225 * _e227)));
+    let _e233 = (*s_7).n;
+    let _e235 = (*s_7).v;
+    (*s_7).n_dot_v = max(dot(_e233, _e235), 0.0001f);
     return;
 }
 
-fn AtlasTexel_u0028_vf2_u003b(texel_3: ptr<function, vec2<f32>>) -> vec4<f32> {
-    let _e163 = (*texel_3);
-    let _e167 = irradiance_info.atlas;
-    let _e170 = textureSampleLevel(irradiance_texture_tex, irradiance_texture_smp, ((_e163 + vec2(0.5f)) * _e167.xy), 0f);
-    return _e170;
+fn AtlasTexel_u0028_vf2_u003b(texel_5: ptr<function, vec2<f32>>) -> vec4<f32> {
+    let _e165 = (*texel_5);
+    let _e169 = irradiance_info.atlas;
+    let _e172 = textureSampleLevel(irradiance_texture_tex, irradiance_texture_smp, ((_e165 + vec2(0.5f)) * _e169.xy), 0f);
+    return _e172;
 }
 
 fn TileBilinear_u0028_vf2_u003b_f1_u003b_vf2_u003b(corner: ptr<function, vec2<f32>>, interior: ptr<function, f32>, uv_5: ptr<function, vec2<f32>>) -> vec4<f32> {
     var at: vec2<f32>;
     var low: vec2<f32>;
     var f: vec2<f32>;
-    var a_2: vec4<f32>;
-    var param_74: vec2<f32>;
-    var b_2: vec4<f32>;
-    var param_75: vec2<f32>;
+    var a_3: vec4<f32>;
+    var param_83: vec2<f32>;
+    var b_3: vec4<f32>;
+    var param_84: vec2<f32>;
     var c: vec4<f32>;
-    var param_76: vec2<f32>;
+    var param_85: vec2<f32>;
     var d_1: vec4<f32>;
-    var param_77: vec2<f32>;
+    var param_86: vec2<f32>;
 
-    let _e176 = (*uv_5);
-    let _e177 = (*interior);
-    at = ((vec2(1f) + (_e176 * _e177)) - vec2(0.5f));
-    let _e183 = at;
-    low = floor(_e183);
+    let _e178 = (*uv_5);
+    let _e179 = (*interior);
+    at = ((vec2(1f) + (_e178 * _e179)) - vec2(0.5f));
     let _e185 = at;
-    let _e186 = low;
-    f = (_e185 - _e186);
-    let _e188 = (*corner);
-    let _e189 = low;
-    param_74 = (_e188 + _e189);
-    let _e191 = AtlasTexel_u0028_vf2_u003b((&param_74));
-    a_2 = _e191;
-    let _e192 = (*corner);
-    let _e193 = low;
-    param_75 = ((_e192 + _e193) + vec2<f32>(1f, 0f));
-    let _e196 = AtlasTexel_u0028_vf2_u003b((&param_75));
-    b_2 = _e196;
-    let _e197 = (*corner);
-    let _e198 = low;
-    param_76 = ((_e197 + _e198) + vec2<f32>(0f, 1f));
-    let _e201 = AtlasTexel_u0028_vf2_u003b((&param_76));
-    c = _e201;
-    let _e202 = (*corner);
-    let _e203 = low;
-    param_77 = ((_e202 + _e203) + vec2<f32>(1f, 1f));
-    let _e206 = AtlasTexel_u0028_vf2_u003b((&param_77));
-    d_1 = _e206;
-    let _e207 = a_2;
-    let _e208 = b_2;
-    let _e210 = f[0u];
-    let _e213 = c;
-    let _e214 = d_1;
-    let _e216 = f[0u];
-    let _e220 = f[1u];
-    return mix(mix(_e207, _e208, vec4(_e210)), mix(_e213, _e214, vec4(_e216)), vec4(_e220));
+    low = floor(_e185);
+    let _e187 = at;
+    let _e188 = low;
+    f = (_e187 - _e188);
+    let _e190 = (*corner);
+    let _e191 = low;
+    param_83 = (_e190 + _e191);
+    let _e193 = AtlasTexel_u0028_vf2_u003b((&param_83));
+    a_3 = _e193;
+    let _e194 = (*corner);
+    let _e195 = low;
+    param_84 = ((_e194 + _e195) + vec2<f32>(1f, 0f));
+    let _e198 = AtlasTexel_u0028_vf2_u003b((&param_84));
+    b_3 = _e198;
+    let _e199 = (*corner);
+    let _e200 = low;
+    param_85 = ((_e199 + _e200) + vec2<f32>(0f, 1f));
+    let _e203 = AtlasTexel_u0028_vf2_u003b((&param_85));
+    c = _e203;
+    let _e204 = (*corner);
+    let _e205 = low;
+    param_86 = ((_e204 + _e205) + vec2<f32>(1f, 1f));
+    let _e208 = AtlasTexel_u0028_vf2_u003b((&param_86));
+    d_1 = _e208;
+    let _e209 = a_3;
+    let _e210 = b_3;
+    let _e212 = f[0u];
+    let _e215 = c;
+    let _e216 = d_1;
+    let _e218 = f[0u];
+    let _e222 = f[1u];
+    return mix(mix(_e209, _e210, vec4(_e212)), mix(_e215, _e216, vec4(_e218)), vec4(_e222));
 }
 
 fn ProbeOctahedral_u0028_vf3_u003b(direction_1: ptr<function, vec3<f32>>) -> vec2<f32> {
@@ -6472,32 +6663,32 @@ fn ProbeOctahedral_u0028_vf3_u003b(direction_1: ptr<function, vec3<f32>>) -> vec
     var n_3: vec3<f32>;
     var xy: vec2<f32>;
 
-    let _e167 = (*direction_1)[0u];
-    let _e170 = (*direction_1)[1u];
-    let _e174 = (*direction_1)[2u];
-    sum_1 = ((abs(_e167) + abs(_e170)) + abs(_e174));
-    let _e177 = sum_1;
-    if (_e177 <= 0f) {
+    let _e169 = (*direction_1)[0u];
+    let _e172 = (*direction_1)[1u];
+    let _e176 = (*direction_1)[2u];
+    sum_1 = ((abs(_e169) + abs(_e172)) + abs(_e176));
+    let _e179 = sum_1;
+    if (_e179 <= 0f) {
         return vec2<f32>(0.5f, 0.5f);
     }
-    let _e179 = (*direction_1);
-    let _e180 = sum_1;
-    n_3 = (_e179 / vec3(_e180));
-    let _e183 = n_3;
-    xy = _e183.xy;
-    let _e186 = n_3[2u];
-    if (_e186 < 0f) {
-        let _e189 = n_3[1u];
-        let _e193 = n_3[0u];
-        let _e198 = n_3[0u];
-        let _e202 = n_3[1u];
-        xy = vec2<f32>(((1f - abs(_e189)) * select(-1f, 1f, (_e193 >= 0f))), ((1f - abs(_e198)) * select(-1f, 1f, (_e202 >= 0f))));
+    let _e181 = (*direction_1);
+    let _e182 = sum_1;
+    n_3 = (_e181 / vec3(_e182));
+    let _e185 = n_3;
+    xy = _e185.xy;
+    let _e188 = n_3[2u];
+    if (_e188 < 0f) {
+        let _e191 = n_3[1u];
+        let _e195 = n_3[0u];
+        let _e200 = n_3[0u];
+        let _e204 = n_3[1u];
+        xy = vec2<f32>(((1f - abs(_e191)) * select(-1f, 1f, (_e195 >= 0f))), ((1f - abs(_e200)) * select(-1f, 1f, (_e204 >= 0f))));
     }
-    let _e207 = xy;
-    return ((_e207 * 0.5f) + vec2(0.5f));
+    let _e209 = xy;
+    return ((_e209 * 0.5f) + vec2(0.5f));
 }
 
-fn SampleIrradiance_u0028_vf3_u003b_vf3_u003b_vf3_u003b(world_3: ptr<function, vec3<f32>>, normal_1: ptr<function, vec3<f32>>, view: ptr<function, vec3<f32>>) -> vec3<f32> {
+fn SampleIrradiance_u0028_vf3_u003b_vf3_u003b_vf3_u003b(world_4: ptr<function, vec3<f32>>, normal_1: ptr<function, vec3<f32>>, view: ptr<function, vec3<f32>>) -> vec3<f32> {
     var origin_2: vec3<f32>;
     var spacing: vec3<f32>;
     var counts: vec3<f32>;
@@ -6507,19 +6698,19 @@ fn SampleIrradiance_u0028_vf3_u003b_vf3_u003b_vf3_u003b(world_3: ptr<function, v
     var momentsTop: f32;
     var unit: vec3<f32>;
     var biased: vec3<f32>;
-    var grid: vec3<f32>;
+    var grid_1: vec3<f32>;
     var base: vec3<f32>;
     var f_1: vec3<f32>;
     var total_2: vec3<f32>;
     var weights: f32;
     var corner_1: i32;
     var offset_3: vec3<f32>;
-    var cell: vec3<f32>;
+    var cell_1: vec3<f32>;
     var probe: f32;
     var tile_4: vec2<f32>;
     var irradianceCorner: vec2<f32>;
     var momentCorner: vec2<f32>;
-    var param_78: vec2<f32>;
+    var param_87: vec2<f32>;
     var trilinear: vec3<f32>;
     var weight: f32;
     var probePosition: vec3<f32>;
@@ -6528,355 +6719,357 @@ fn SampleIrradiance_u0028_vf3_u003b_vf3_u003b_vf3_u003b(world_3: ptr<function, v
     var direction_2: vec3<f32>;
     var facing: f32;
     var moments: vec2<f32>;
-    var param_79: vec3<f32>;
-    var param_80: vec2<f32>;
-    var param_81: f32;
-    var param_82: vec2<f32>;
+    var param_88: vec3<f32>;
+    var param_89: vec2<f32>;
+    var param_90: f32;
+    var param_91: vec2<f32>;
     var variance: f32;
     var difference: f32;
     var chebyshev: f32;
-    var param_83: vec3<f32>;
-    var param_84: vec2<f32>;
-    var param_85: f32;
-    var param_86: vec2<f32>;
-    var local_14: vec3<f32>;
+    var param_92: vec3<f32>;
+    var param_93: vec2<f32>;
+    var param_94: f32;
+    var param_95: vec2<f32>;
+    var local_17: vec3<f32>;
 
-    let _e208 = irradiance_info.origin;
-    origin_2 = _e208.xyz;
-    let _e211 = irradiance_info.spacing;
-    spacing = _e211.xyz;
-    let _e214 = irradiance_info.counts;
-    counts = _e214.xyz;
-    let _e218 = irradiance_info.tiles[0u];
-    irradianceTile = _e218;
-    let _e221 = irradiance_info.tiles[1u];
-    depthTile = _e221;
-    let _e224 = irradiance_info.tiles[2u];
-    columns = _e224;
-    let _e227 = irradiance_info.tiles[3u];
-    momentsTop = _e227;
-    let _e228 = (*normal_1);
-    unit = normalize(_e228);
-    let _e230 = (*world_3);
-    let _e231 = unit;
-    let _e234 = irradiance_info.spacing[3u];
-    let _e237 = (*view);
-    let _e240 = irradiance_info.counts[3u];
-    biased = ((_e230 + (_e231 * _e234)) + (_e237 * _e240));
-    let _e243 = biased;
-    let _e244 = origin_2;
-    let _e246 = spacing;
-    grid = ((_e243 - _e244) / _e246);
-    let _e248 = grid;
-    let _e250 = counts;
-    base = clamp(floor(_e248), vec3<f32>(0f, 0f, 0f), (_e250 - vec3(2f)));
-    let _e254 = grid;
-    let _e255 = base;
-    f_1 = clamp((_e254 - _e255), vec3<f32>(0f, 0f, 0f), vec3<f32>(1f, 1f, 1f));
+    let _e210 = irradiance_info.origin;
+    origin_2 = _e210.xyz;
+    let _e213 = irradiance_info.spacing;
+    spacing = _e213.xyz;
+    let _e216 = irradiance_info.counts;
+    counts = _e216.xyz;
+    let _e220 = irradiance_info.tiles[0u];
+    irradianceTile = _e220;
+    let _e223 = irradiance_info.tiles[1u];
+    depthTile = _e223;
+    let _e226 = irradiance_info.tiles[2u];
+    columns = _e226;
+    let _e229 = irradiance_info.tiles[3u];
+    momentsTop = _e229;
+    let _e230 = (*normal_1);
+    unit = normalize(_e230);
+    let _e232 = (*world_4);
+    let _e233 = unit;
+    let _e236 = irradiance_info.spacing[3u];
+    let _e239 = (*view);
+    let _e242 = irradiance_info.counts[3u];
+    biased = ((_e232 + (_e233 * _e236)) + (_e239 * _e242));
+    let _e245 = biased;
+    let _e246 = origin_2;
+    let _e248 = spacing;
+    grid_1 = ((_e245 - _e246) / _e248);
+    let _e250 = grid_1;
+    let _e252 = counts;
+    base = clamp(floor(_e250), vec3<f32>(0f, 0f, 0f), (_e252 - vec3(2f)));
+    let _e256 = grid_1;
+    let _e257 = base;
+    f_1 = clamp((_e256 - _e257), vec3<f32>(0f, 0f, 0f), vec3<f32>(1f, 1f, 1f));
     total_2 = vec3<f32>(0f, 0f, 0f);
     weights = 0f;
     corner_1 = 0i;
     loop {
-        let _e258 = corner_1;
-        if (_e258 < 8i) {
-            let _e260 = corner_1;
-            let _e263 = corner_1;
-            let _e268 = corner_1;
-            offset_3 = vec3<f32>(f32((_e260 & 1i)), f32(((_e263 >> bitcast<u32>(1i)) & 1i)), f32(((_e268 >> bitcast<u32>(2i)) & 1i)));
-            let _e274 = base;
-            let _e275 = offset_3;
-            cell = (_e274 + _e275);
-            let _e278 = cell[2u];
-            let _e280 = counts[1u];
-            let _e283 = cell[1u];
-            let _e286 = counts[0u];
-            let _e289 = cell[0u];
-            probe = ((((_e278 * _e280) + _e283) * _e286) + _e289);
-            let _e291 = probe;
-            let _e292 = columns;
-            let _e297 = probe;
-            let _e298 = columns;
-            tile_4 = vec2<f32>((_e291 - (floor((_e291 / _e292)) * _e292)), floor((_e297 / _e298)));
-            let _e302 = tile_4;
-            let _e303 = irradianceTile;
-            irradianceCorner = (_e302 * (_e303 + 2f));
-            let _e307 = tile_4[0u];
-            let _e308 = depthTile;
-            let _e311 = momentsTop;
-            let _e313 = tile_4[1u];
-            let _e314 = depthTile;
-            momentCorner = vec2<f32>((_e307 * (_e308 + 2f)), (_e311 + (_e313 * (_e314 + 2f))));
-            let _e319 = irradianceCorner;
-            param_78 = (_e319 + vec2(1f));
-            let _e322 = AtlasTexel_u0028_vf2_u003b((&param_78));
-            if (_e322.w < 0.5f) {
+        let _e260 = corner_1;
+        if (_e260 < 8i) {
+            let _e262 = corner_1;
+            let _e265 = corner_1;
+            let _e270 = corner_1;
+            offset_3 = vec3<f32>(f32((_e262 & 1i)), f32(((_e265 >> bitcast<u32>(1i)) & 1i)), f32(((_e270 >> bitcast<u32>(2i)) & 1i)));
+            let _e276 = base;
+            let _e277 = offset_3;
+            cell_1 = (_e276 + _e277);
+            let _e280 = cell_1[2u];
+            let _e282 = counts[1u];
+            let _e285 = cell_1[1u];
+            let _e288 = counts[0u];
+            let _e291 = cell_1[0u];
+            probe = ((((_e280 * _e282) + _e285) * _e288) + _e291);
+            let _e293 = probe;
+            let _e294 = columns;
+            let _e299 = probe;
+            let _e300 = columns;
+            tile_4 = vec2<f32>((_e293 - (floor((_e293 / _e294)) * _e294)), floor((_e299 / _e300)));
+            let _e304 = tile_4;
+            let _e305 = irradianceTile;
+            irradianceCorner = (_e304 * (_e305 + 2f));
+            let _e309 = tile_4[0u];
+            let _e310 = depthTile;
+            let _e313 = momentsTop;
+            let _e315 = tile_4[1u];
+            let _e316 = depthTile;
+            momentCorner = vec2<f32>((_e309 * (_e310 + 2f)), (_e313 + (_e315 * (_e316 + 2f))));
+            let _e321 = irradianceCorner;
+            param_87 = (_e321 + vec2(1f));
+            let _e324 = AtlasTexel_u0028_vf2_u003b((&param_87));
+            if (_e324.w < 0.5f) {
                 continue;
             }
-            let _e325 = f_1;
             let _e327 = f_1;
-            let _e328 = offset_3;
-            trilinear = mix((vec3<f32>(1f, 1f, 1f) - _e325), _e327, _e328);
-            let _e331 = trilinear[0u];
-            let _e333 = trilinear[1u];
-            let _e336 = trilinear[2u];
-            weight = max(((_e331 * _e333) * _e336), 0.001f);
-            let _e339 = origin_2;
-            let _e340 = spacing;
-            let _e341 = cell;
-            probePosition = (_e339 + (_e340 * _e341));
-            let _e344 = probePosition;
-            let _e345 = biased;
-            toProbe = (_e344 - _e345);
-            let _e347 = toProbe;
-            distance_4 = length(_e347);
-            let _e349 = distance_4;
-            if (_e349 > 0.000001f) {
-                let _e351 = toProbe;
-                let _e352 = distance_4;
-                direction_2 = (_e351 / vec3(_e352));
-                let _e355 = unit;
-                let _e356 = probePosition;
-                let _e357 = (*world_3);
-                facing = ((dot(_e355, normalize((_e356 - _e357))) * 0.5f) + 0.5f);
-                let _e363 = facing;
-                let _e364 = facing;
-                let _e366 = weight;
-                weight = (_e366 * (_e363 * _e364));
+            let _e329 = f_1;
+            let _e330 = offset_3;
+            trilinear = mix((vec3<f32>(1f, 1f, 1f) - _e327), _e329, _e330);
+            let _e333 = trilinear[0u];
+            let _e335 = trilinear[1u];
+            let _e338 = trilinear[2u];
+            weight = max(((_e333 * _e335) * _e338), 0.001f);
+            let _e341 = origin_2;
+            let _e342 = spacing;
+            let _e343 = cell_1;
+            probePosition = (_e341 + (_e342 * _e343));
+            let _e346 = probePosition;
+            let _e347 = biased;
+            toProbe = (_e346 - _e347);
+            let _e349 = toProbe;
+            distance_4 = length(_e349);
+            let _e351 = distance_4;
+            if (_e351 > 0.000001f) {
+                let _e353 = toProbe;
+                let _e354 = distance_4;
+                direction_2 = (_e353 / vec3(_e354));
+                let _e357 = unit;
+                let _e358 = probePosition;
+                let _e359 = (*world_4);
+                facing = ((dot(_e357, normalize((_e358 - _e359))) * 0.5f) + 0.5f);
+                let _e365 = facing;
+                let _e366 = facing;
                 let _e368 = weight;
-                if (_e368 <= 0f) {
+                weight = (_e368 * (_e365 * _e366));
+                let _e370 = weight;
+                if (_e370 <= 0f) {
                     continue;
                 }
-                let _e370 = direction_2;
-                param_79 = -(_e370);
-                let _e372 = ProbeOctahedral_u0028_vf3_u003b((&param_79));
-                let _e373 = momentCorner;
-                param_80 = _e373;
-                let _e374 = depthTile;
-                param_81 = _e374;
-                param_82 = _e372;
-                let _e375 = TileBilinear_u0028_vf2_u003b_f1_u003b_vf2_u003b((&param_80), (&param_81), (&param_82));
-                moments = _e375.xy;
-                let _e377 = distance_4;
-                let _e379 = moments[0u];
-                if (_e377 > _e379) {
-                    let _e382 = moments[1u];
-                    let _e384 = moments[0u];
+                let _e372 = direction_2;
+                param_88 = -(_e372);
+                let _e374 = ProbeOctahedral_u0028_vf3_u003b((&param_88));
+                let _e375 = momentCorner;
+                param_89 = _e375;
+                let _e376 = depthTile;
+                param_90 = _e376;
+                param_91 = _e374;
+                let _e377 = TileBilinear_u0028_vf2_u003b_f1_u003b_vf2_u003b((&param_89), (&param_90), (&param_91));
+                moments = _e377.xy;
+                let _e379 = distance_4;
+                let _e381 = moments[0u];
+                if (_e379 > _e381) {
+                    let _e384 = moments[1u];
                     let _e386 = moments[0u];
-                    variance = max((_e382 - (_e384 * _e386)), 0.000001f);
-                    let _e390 = distance_4;
-                    let _e392 = moments[0u];
-                    difference = (_e390 - _e392);
-                    let _e394 = variance;
-                    let _e395 = variance;
-                    let _e396 = difference;
-                    let _e397 = difference;
-                    chebyshev = (_e394 / (_e395 + (_e396 * _e397)));
-                    let _e401 = chebyshev;
-                    let _e402 = chebyshev;
+                    let _e388 = moments[0u];
+                    variance = max((_e384 - (_e386 * _e388)), 0.000001f);
+                    let _e392 = distance_4;
+                    let _e394 = moments[0u];
+                    difference = (_e392 - _e394);
+                    let _e396 = variance;
+                    let _e397 = variance;
+                    let _e398 = difference;
+                    let _e399 = difference;
+                    chebyshev = (_e396 / (_e397 + (_e398 * _e399)));
+                    let _e403 = chebyshev;
                     let _e404 = chebyshev;
-                    let _e407 = weight;
-                    weight = (_e407 * max(((_e401 * _e402) * _e404), 0f));
+                    let _e406 = chebyshev;
+                    let _e409 = weight;
+                    weight = (_e409 * max(((_e403 * _e404) * _e406), 0f));
                 }
-                let _e409 = weight;
-                if (_e409 <= 0f) {
+                let _e411 = weight;
+                if (_e411 <= 0f) {
                     continue;
                 }
             }
-            let _e411 = unit;
-            param_83 = _e411;
-            let _e412 = ProbeOctahedral_u0028_vf3_u003b((&param_83));
-            let _e413 = irradianceCorner;
-            param_84 = _e413;
-            let _e414 = irradianceTile;
-            param_85 = _e414;
-            param_86 = _e412;
-            let _e415 = TileBilinear_u0028_vf2_u003b_f1_u003b_vf2_u003b((&param_84), (&param_85), (&param_86));
-            let _e417 = weight;
-            let _e419 = total_2;
-            total_2 = (_e419 + (_e415.xyz * _e417));
-            let _e421 = weight;
-            let _e422 = weights;
-            weights = (_e422 + _e421);
+            let _e413 = unit;
+            param_92 = _e413;
+            let _e414 = ProbeOctahedral_u0028_vf3_u003b((&param_92));
+            let _e415 = irradianceCorner;
+            param_93 = _e415;
+            let _e416 = irradianceTile;
+            param_94 = _e416;
+            param_95 = _e414;
+            let _e417 = TileBilinear_u0028_vf2_u003b_f1_u003b_vf2_u003b((&param_93), (&param_94), (&param_95));
+            let _e419 = weight;
+            let _e421 = total_2;
+            total_2 = (_e421 + (_e417.xyz * _e419));
+            let _e423 = weight;
+            let _e424 = weights;
+            weights = (_e424 + _e423);
             continue;
         } else {
             break;
         }
         continuing {
-            let _e424 = corner_1;
-            corner_1 = (_e424 + 1i);
+            let _e426 = corner_1;
+            corner_1 = (_e426 + 1i);
         }
     }
-    let _e426 = weights;
-    if (_e426 > 0.000001f) {
-        let _e428 = total_2;
-        let _e429 = weights;
-        local_14 = (_e428 / vec3(_e429));
+    let _e428 = weights;
+    if (_e428 > 0.000001f) {
+        let _e430 = total_2;
+        let _e431 = weights;
+        local_17 = (_e430 / vec3(_e431));
     } else {
-        local_14 = vec3<f32>(0f, 0f, 0f);
+        local_17 = vec3<f32>(0f, 0f, 0f);
     }
-    let _e432 = local_14;
-    return _e432;
+    let _e434 = local_17;
+    return _e434;
 }
 
 fn IrradianceEnabled_u0028_() -> bool {
-    let _e164 = irradiance_info.origin[3u];
-    return (_e164 > 0.5f);
+    let _e166 = irradiance_info.origin[3u];
+    return (_e166 > 0.5f);
 }
 
 fn ApplyCommonMaps_u0028_struct_u002d_Surface_u002d_vf3_u002d_f1_u002d_vf3_u002d_vf3_u002d_f1_u002d_f1_u002d_f1_u002d_f1_u002d_vf3_u002d_vf3_u002d_f11_u003b(s_8: ptr<function, Surface>) {
-    var param_87: vec3<f32>;
-    var param_88: vec3<f32>;
-    var param_89: vec3<f32>;
-    var param_90: Surface;
-    var param_91: Surface;
-    var param_92: Surface;
+    var param_96: vec3<f32>;
+    var param_97: vec3<f32>;
+    var param_98: vec3<f32>;
+    var param_99: Surface;
+    var param_100: Surface;
+    var param_101: Surface;
 
-    let _e169 = IrradianceEnabled_u0028_();
-    if _e169 {
-        let _e170 = v_world_position_1;
-        param_87 = _e170;
-        let _e172 = (*s_8).n;
-        param_88 = _e172;
-        let _e174 = (*s_8).v;
-        param_89 = _e174;
-        let _e175 = SampleIrradiance_u0028_vf3_u003b_vf3_u003b_vf3_u003b((&param_87), (&param_88), (&param_89));
-        let _e178 = frag_info.material[2u];
-        (*s_8).ambient = (_e175 * _e178);
+    let _e171 = IrradianceEnabled_u0028_();
+    if _e171 {
+        let _e172 = v_world_position_1;
+        param_96 = _e172;
+        let _e174 = (*s_8).n;
+        param_97 = _e174;
+        let _e176 = (*s_8).v;
+        param_98 = _e176;
+        let _e177 = SampleIrradiance_u0028_vf3_u003b_vf3_u003b_vf3_u003b((&param_96), (&param_97), (&param_98));
+        let _e180 = frag_info.material[2u];
+        (*s_8).ambient = (_e177 * _e180);
     }
-    let _e181 = (*s_8);
-    param_90 = _e181;
-    ApplyNormalMap_u0028_struct_u002d_Surface_u002d_vf3_u002d_f1_u002d_vf3_u002d_vf3_u002d_f1_u002d_f1_u002d_f1_u002d_f1_u002d_vf3_u002d_vf3_u002d_f11_u003b((&param_90));
-    let _e182 = param_90;
-    (*s_8) = _e182;
     let _e183 = (*s_8);
-    param_91 = _e183;
-    ApplyOcclusionMap_u0028_struct_u002d_Surface_u002d_vf3_u002d_f1_u002d_vf3_u002d_vf3_u002d_f1_u002d_f1_u002d_f1_u002d_f1_u002d_vf3_u002d_vf3_u002d_f11_u003b((&param_91));
-    let _e184 = param_91;
+    param_99 = _e183;
+    ApplyNormalMap_u0028_struct_u002d_Surface_u002d_vf3_u002d_f1_u002d_vf3_u002d_vf3_u002d_f1_u002d_f1_u002d_f1_u002d_f1_u002d_vf3_u002d_vf3_u002d_f11_u003b((&param_99));
+    let _e184 = param_99;
     (*s_8) = _e184;
     let _e185 = (*s_8);
-    param_92 = _e185;
-    ApplyEmissiveMap_u0028_struct_u002d_Surface_u002d_vf3_u002d_f1_u002d_vf3_u002d_vf3_u002d_f1_u002d_f1_u002d_f1_u002d_f1_u002d_vf3_u002d_vf3_u002d_f11_u003b((&param_92));
-    let _e186 = param_92;
+    param_100 = _e185;
+    ApplyOcclusionMap_u0028_struct_u002d_Surface_u002d_vf3_u002d_f1_u002d_vf3_u002d_vf3_u002d_f1_u002d_f1_u002d_f1_u002d_f1_u002d_vf3_u002d_vf3_u002d_f11_u003b((&param_100));
+    let _e186 = param_100;
     (*s_8) = _e186;
+    let _e187 = (*s_8);
+    param_101 = _e187;
+    ApplyEmissiveMap_u0028_struct_u002d_Surface_u002d_vf3_u002d_f1_u002d_vf3_u002d_vf3_u002d_f1_u002d_f1_u002d_f1_u002d_f1_u002d_vf3_u002d_vf3_u002d_f11_u003b((&param_101));
+    let _e188 = param_101;
+    (*s_8) = _e188;
     return;
 }
 
 fn ReadSurface_u0028_() -> Surface {
-    var texel_4: vec4<f32>;
+    var texel_6: vec4<f32>;
     var s_9: Surface;
-    var param_93: vec3<f32>;
-    var param_94: vec3<f32>;
+    var param_102: vec3<f32>;
+    var param_103: vec3<f32>;
     var cutoff: f32;
     var anchored: vec3<f32>;
     var noise_1: f32;
 
-    let _e169 = v_texcoord_1;
-    let _e170 = MaterialLodBias_u0028_();
-    let _e171 = textureSampleBias(base_color_texture_tex, base_color_texture_smp, _e169, _e170);
-    texel_4 = _e171;
-    let _e172 = texel_4;
-    param_93 = _e172.xyz;
-    let _e174 = SrgbToLinear_u0028_vf3_u003b((&param_93));
-    let _e176 = frag_info.base_color;
-    param_94 = _e176.xyz;
-    let _e178 = SrgbToLinear_u0028_vf3_u003b((&param_94));
-    let _e180 = v_color_1;
-    s_9.albedo = ((_e174 * _e178) * _e180.xyz);
-    let _e185 = texel_4[3u];
-    let _e188 = frag_info.base_color[3u];
-    let _e191 = v_color_1[3u];
-    s_9.alpha = ((_e185 * _e188) * _e191);
-    let _e195 = s_9.albedo;
-    g_albedo = _e195;
-    let _e198 = frag_info.material2_[0u];
-    cutoff = _e198;
-    let _e199 = cutoff;
-    if (_e199 >= 0f) {
-        let _e202 = s_9.alpha;
-        let _e203 = cutoff;
-        if (_e202 < _e203) {
+    let _e171 = v_texcoord_1;
+    let _e172 = MaterialLodBias_u0028_();
+    let _e173 = textureSampleBias(base_color_texture_tex, base_color_texture_smp, _e171, _e172);
+    texel_6 = _e173;
+    let _e174 = texel_6;
+    param_102 = _e174.xyz;
+    let _e176 = SrgbToLinear_u0028_vf3_u003b((&param_102));
+    let _e178 = frag_info.base_color;
+    param_103 = _e178.xyz;
+    let _e180 = SrgbToLinear_u0028_vf3_u003b((&param_103));
+    let _e182 = v_color_1;
+    s_9.albedo = ((_e176 * _e180) * _e182.xyz);
+    let _e187 = texel_6[3u];
+    let _e190 = frag_info.base_color[3u];
+    let _e193 = v_color_1[3u];
+    s_9.alpha = ((_e187 * _e190) * _e193);
+    let _e197 = s_9.albedo;
+    g_albedo = _e197;
+    let _e200 = frag_info.material2_[0u];
+    cutoff = _e200;
+    let _e201 = cutoff;
+    if (_e201 >= 0f) {
+        let _e204 = s_9.alpha;
+        let _e205 = cutoff;
+        if (_e204 < _e205) {
             discard;
         }
     } else {
-        let _e205 = cutoff;
-        if (_e205 < -1.5f) {
-            let _e207 = v_world_position_1;
-            anchored = floor((_e207 * 16f));
-            let _e210 = anchored;
-            noise_1 = fract((sin(dot(_e210, vec3<f32>(12.9898f, 78.233f, 37.719f))) * 43758.547f));
-            let _e216 = s_9.alpha;
-            let _e217 = noise_1;
-            if (_e216 < _e217) {
+        let _e207 = cutoff;
+        if (_e207 < -1.5f) {
+            let _e209 = v_world_position_1;
+            anchored = floor((_e209 * 16f));
+            let _e212 = anchored;
+            noise_1 = fract((sin(dot(_e212, vec3<f32>(12.9898f, 78.233f, 37.719f))) * 43758.547f));
+            let _e218 = s_9.alpha;
+            let _e219 = noise_1;
+            if (_e218 < _e219) {
                 discard;
             }
         }
     }
-    let _e219 = v_normal_1;
-    s_9.n = normalize(_e219);
-    let _e222 = gl_FrontFacing_1;
-    if !(_e222) {
-        let _e225 = s_9.n;
-        s_9.n = -(_e225);
+    let _e221 = v_normal_1;
+    s_9.n = normalize(_e221);
+    let _e224 = gl_FrontFacing_1;
+    if !(_e224) {
+        let _e227 = s_9.n;
+        s_9.n = -(_e227);
     }
-    let _e229 = frag_info.camera_position;
-    let _e231 = v_world_position_1;
-    s_9.v = normalize((_e229.xyz - _e231));
-    let _e236 = s_9.n;
-    let _e238 = s_9.v;
-    s_9.n_dot_v = max(dot(_e236, _e238), 0.0001f);
-    let _e244 = frag_info.material[0u];
-    s_9.metallic = clamp(_e244, 0f, 1f);
-    let _e249 = frag_info.material[1u];
-    s_9.roughness = clamp(_e249, 0.02f, 1f);
-    let _e253 = frag_info.ambient_ground;
-    let _e256 = frag_info.ambient_sky;
-    let _e260 = s_9.n[1u];
-    let _e267 = frag_info.material[2u];
-    s_9.ambient = (mix(_e253.xyz, _e256.xyz, vec3(((_e260 * 0.5f) + 0.5f))) * _e267);
-    let _e272 = frag_info.frame_params[0u];
-    s_9.exposure = max(_e272, 0f);
+    let _e231 = frag_info.camera_position;
+    let _e233 = v_world_position_1;
+    s_9.v = normalize((_e231.xyz - _e233));
+    let _e238 = s_9.n;
+    let _e240 = s_9.v;
+    s_9.n_dot_v = max(dot(_e238, _e240), 0.0001f);
+    let _e246 = frag_info.material[0u];
+    s_9.metallic = clamp(_e246, 0f, 1f);
+    let _e251 = frag_info.material[1u];
+    s_9.roughness = clamp(_e251, 0.02f, 1f);
+    let _e255 = frag_info.ambient_ground;
+    let _e258 = frag_info.ambient_sky;
+    let _e262 = s_9.n[1u];
+    let _e269 = frag_info.material[2u];
+    s_9.ambient = (mix(_e255.xyz, _e258.xyz, vec3(((_e262 * 0.5f) + 0.5f))) * _e269);
+    let _e274 = frag_info.frame_params[0u];
+    s_9.exposure = max(_e274, 0f);
     s_9.occlusion = 1f;
     s_9.emissive = vec3<f32>(0f, 0f, 0f);
-    let _e277 = s_9;
-    return _e277;
+    let _e279 = s_9;
+    return _e279;
 }
 
 fn main_1() {
     var s_10: Surface;
-    var param_95: Surface;
+    var param_104: Surface;
     var ambient: vec3<f32>;
-    var param_96: Surface;
-    var param_97: vec3<f32>;
-    var param_98: f32;
-    var param_99: f32;
+    var param_105: Surface;
+    var param_106: vec3<f32>;
+    var param_107: f32;
+    var param_108: f32;
 
     g_albedo = vec3<f32>(0f, 0f, 0f);
     g_debug_surface = vec3<f32>(0f, 0f, 0f);
     g_debug_surface_on = false;
-    let _e169 = ReadSurface_u0028_();
-    s_10 = _e169;
-    let _e170 = s_10;
-    param_95 = _e170;
-    ApplyCommonMaps_u0028_struct_u002d_Surface_u002d_vf3_u002d_f1_u002d_vf3_u002d_vf3_u002d_f1_u002d_f1_u002d_f1_u002d_f1_u002d_vf3_u002d_vf3_u002d_f11_u003b((&param_95));
-    let _e171 = param_95;
+    g_cluster_offset = 0f;
+    g_cluster_count = 0f;
+    let _e171 = ReadSurface_u0028_();
     s_10 = _e171;
-    let _e173 = s_10.albedo;
-    let _e175 = s_10.ambient;
-    let _e176 = SampleLightmap_u0028_();
-    let _e180 = s_10.occlusion;
-    ambient = ((_e173 * (_e175 + _e176)) * _e180);
-    let _e182 = s_10;
-    param_96 = _e182;
-    let _e183 = AccumulateLights_u0028_struct_u002d_Surface_u002d_vf3_u002d_f1_u002d_vf3_u002d_vf3_u002d_f1_u002d_f1_u002d_f1_u002d_f1_u002d_vf3_u002d_vf3_u002d_f11_u003b((&param_96));
-    let _e185 = s_10.occlusion;
-    let _e187 = ambient;
-    let _e190 = s_10.emissive;
-    param_97 = (((_e183 * _e185) + _e187) + _e190);
-    let _e193 = s_10.alpha;
-    param_98 = _e193;
-    let _e195 = s_10.roughness;
-    param_99 = _e195;
-    WriteSurface_u0028_vf3_u003b_f1_u003b_f1_u003b((&param_97), (&param_98), (&param_99));
+    let _e172 = s_10;
+    param_104 = _e172;
+    ApplyCommonMaps_u0028_struct_u002d_Surface_u002d_vf3_u002d_f1_u002d_vf3_u002d_vf3_u002d_f1_u002d_f1_u002d_f1_u002d_f1_u002d_vf3_u002d_vf3_u002d_f11_u003b((&param_104));
+    let _e173 = param_104;
+    s_10 = _e173;
+    let _e175 = s_10.albedo;
+    let _e177 = s_10.ambient;
+    let _e178 = SampleLightmap_u0028_();
+    let _e182 = s_10.occlusion;
+    ambient = ((_e175 * (_e177 + _e178)) * _e182);
+    let _e184 = s_10;
+    param_105 = _e184;
+    let _e185 = AccumulateLights_u0028_struct_u002d_Surface_u002d_vf3_u002d_f1_u002d_vf3_u002d_vf3_u002d_f1_u002d_f1_u002d_f1_u002d_f1_u002d_vf3_u002d_vf3_u002d_f11_u003b((&param_105));
+    let _e187 = s_10.occlusion;
+    let _e189 = ambient;
+    let _e192 = s_10.emissive;
+    param_106 = (((_e185 * _e187) + _e189) + _e192);
+    let _e195 = s_10.alpha;
+    param_107 = _e195;
+    let _e197 = s_10.roughness;
+    param_108 = _e197;
+    WriteSurface_u0028_vf3_u003b_f1_u003b_f1_u003b((&param_106), (&param_107), (&param_108));
     return;
 }
 
@@ -7054,7 +7247,7 @@ fn main(@location(6) v_world_position: vec3<f32>, @location(2) v_normal: vec3<f3
           name: 'LightListInfo',
           group: 1,
           binding: 3,
-          sizeInBytes: 208,
+          sizeInBytes: 336,
           members: <WebGpuBlockMember>[
             WebGpuBlockMember(name: 'list', offsetInBytes: 0, sizeInBytes: 16),
             WebGpuBlockMember(
@@ -7066,6 +7259,26 @@ fn main(@location(6) v_world_position: vec3<f32>, @location(2) v_normal: vec3<f3
               name: 'scales',
               offsetInBytes: 112,
               sizeInBytes: 96,
+            ),
+            WebGpuBlockMember(
+              name: 'cluster_view_projection',
+              offsetInBytes: 208,
+              sizeInBytes: 64,
+            ),
+            WebGpuBlockMember(
+              name: 'cluster_grid',
+              offsetInBytes: 272,
+              sizeInBytes: 16,
+            ),
+            WebGpuBlockMember(
+              name: 'cluster_depth',
+              offsetInBytes: 288,
+              sizeInBytes: 16,
+            ),
+            WebGpuBlockMember(
+              name: 'slot_rows',
+              offsetInBytes: 304,
+              sizeInBytes: 32,
             ),
           ],
         ),
@@ -7223,6 +7436,10 @@ struct LightListInfo {
     list: vec4<f32>,
     indices: array<vec4<f32>, 6>,
     scales: array<vec4<f32>, 6>,
+    cluster_view_projection: mat4x4<f32>,
+    cluster_grid: vec4<f32>,
+    cluster_depth: vec4<f32>,
+    slot_rows: array<vec4<f32>, 2>,
 }
 
 struct FragInfo {
@@ -7273,6 +7490,8 @@ struct FragmentOutput {
 var<private> g_albedo: vec3<f32>;
 var<private> g_debug_surface: vec3<f32>;
 var<private> g_debug_surface_on: bool;
+var<private> g_cluster_offset: f32;
+var<private> g_cluster_count: f32;
 var<private> v_world_position_1: vec3<f32>;
 @group(1) @binding(0) 
 var<uniform> fog_info: FogInfo;
@@ -7284,6 +7503,10 @@ var<private> frag_color: vec4<f32>;
 var<private> gl_FragCoord_1: vec4<f32>;
 @group(1) @binding(3) 
 var<uniform> light_list_info: LightListInfo;
+@group(1) @binding(11) 
+var light_list_texture_tex: texture_2d<f32>;
+@group(1) @binding(12) 
+var light_list_texture_smp: sampler;
 @group(1) @binding(1) 
 var<uniform> frag_info: FragInfo;
 @group(1) @binding(5) 
@@ -7292,10 +7515,6 @@ var base_color_texture_tex: texture_2d<f32>;
 var base_color_texture_smp: sampler;
 var<private> v_texcoord_1: vec2<f32>;
 var<private> v_color_1: vec4<f32>;
-@group(1) @binding(11) 
-var light_list_texture_tex: texture_2d<f32>;
-@group(1) @binding(12) 
-var light_list_texture_smp: sampler;
 @group(1) @binding(4) 
 var<uniform> point_shadow: PointShadow;
 @group(1) @binding(23) 
@@ -7342,36 +7561,36 @@ var shadow_texture_smp: sampler;
 fn EncodeOctahedral_u0028_vf3_u003b(n: ptr<function, vec3<f32>>) -> vec2<f32> {
     var e: vec2<f32>;
 
-    let _e166 = (*n)[0u];
-    let _e169 = (*n)[1u];
-    let _e173 = (*n)[2u];
-    let _e176 = (*n);
-    (*n) = (_e176 / vec3(((abs(_e166) + abs(_e169)) + abs(_e173))));
-    let _e179 = (*n);
-    e = _e179.xy;
-    let _e182 = (*n)[2u];
-    if (_e182 < 0f) {
-        let _e184 = (*n);
-        let _e190 = (*n)[0u];
-        let _e194 = (*n)[1u];
-        e = ((vec2(1f) - abs(_e184.yx)) * vec2<f32>(select(-1f, 1f, (_e190 >= 0f)), select(-1f, 1f, (_e194 >= 0f))));
+    let _e168 = (*n)[0u];
+    let _e171 = (*n)[1u];
+    let _e175 = (*n)[2u];
+    let _e178 = (*n);
+    (*n) = (_e178 / vec3(((abs(_e168) + abs(_e171)) + abs(_e175))));
+    let _e181 = (*n);
+    e = _e181.xy;
+    let _e184 = (*n)[2u];
+    if (_e184 < 0f) {
+        let _e186 = (*n);
+        let _e192 = (*n)[0u];
+        let _e196 = (*n)[1u];
+        e = ((vec2(1f) - abs(_e186.yx)) * vec2<f32>(select(-1f, 1f, (_e192 >= 0f)), select(-1f, 1f, (_e196 >= 0f))));
     }
-    let _e199 = e;
-    return ((_e199 * 0.5f) + vec2(0.5f));
+    let _e201 = e;
+    return ((_e201 * 0.5f) + vec2(0.5f));
 }
 
 fn ViewDepth_u0028_() -> f32 {
-    let _e163 = v_world_position_1;
-    let _e165 = fog_info.eye;
-    let _e169 = fog_info.forward;
-    return dot((_e163 - _e165.xyz), _e169.xyz);
+    let _e165 = v_world_position_1;
+    let _e167 = fog_info.eye;
+    let _e171 = fog_info.forward;
+    return dot((_e165 - _e167.xyz), _e171.xyz);
 }
 
 fn LinearToSrgb_u0028_vf3_u003b(linear: ptr<function, vec3<f32>>) -> vec3<f32> {
-    let _e164 = (*linear);
     let _e166 = (*linear);
-    let _e170 = (*linear);
-    return mix((_e164 * 12.92f), ((pow(_e166, vec3<f32>(0.41666666f, 0.41666666f, 0.41666666f)) * 1.055f) - vec3<f32>(0.055f, 0.055f, 0.055f)), step(vec3<f32>(0.0031308f, 0.0031308f, 0.0031308f), _e170));
+    let _e168 = (*linear);
+    let _e172 = (*linear);
+    return mix((_e166 * 12.92f), ((pow(_e168, vec3<f32>(0.41666666f, 0.41666666f, 0.41666666f)) * 1.055f) - vec3<f32>(0.055f, 0.055f, 0.055f)), step(vec3<f32>(0.0031308f, 0.0031308f, 0.0031308f), _e172));
 }
 
 fn WriteSurfaceGeometry_u0028_f1_u003b(roughness: ptr<function, f32>) {
@@ -7379,70 +7598,70 @@ fn WriteSurfaceGeometry_u0028_f1_u003b(roughness: ptr<function, f32>) {
     var geometric: vec3<f32>;
     var param_1: vec3<f32>;
 
-    let _e167 = g_albedo;
-    param = clamp(_e167, vec3<f32>(0f, 0f, 0f), vec3<f32>(1f, 1f, 1f));
-    let _e169 = LinearToSrgb_u0028_vf3_u003b((&param));
-    frag_albedo = vec4<f32>(_e169.x, _e169.y, _e169.z, 1f);
-    let _e174 = g_debug_surface_on;
-    if _e174 {
-        let _e175 = g_debug_surface;
-        let _e176 = ViewDepth_u0028_();
-        frag_surface = vec4<f32>(_e175.x, _e175.y, _e175.z, _e176);
+    let _e169 = g_albedo;
+    param = clamp(_e169, vec3<f32>(0f, 0f, 0f), vec3<f32>(1f, 1f, 1f));
+    let _e171 = LinearToSrgb_u0028_vf3_u003b((&param));
+    frag_albedo = vec4<f32>(_e171.x, _e171.y, _e171.z, 1f);
+    let _e176 = g_debug_surface_on;
+    if _e176 {
+        let _e177 = g_debug_surface;
+        let _e178 = ViewDepth_u0028_();
+        frag_surface = vec4<f32>(_e177.x, _e177.y, _e177.z, _e178);
         return;
     }
-    let _e181 = v_normal_1;
-    geometric = normalize(_e181);
-    let _e183 = gl_FrontFacing_1;
-    if !(_e183) {
-        let _e185 = geometric;
-        geometric = -(_e185);
+    let _e183 = v_normal_1;
+    geometric = normalize(_e183);
+    let _e185 = gl_FrontFacing_1;
+    if !(_e185) {
+        let _e187 = geometric;
+        geometric = -(_e187);
     }
-    let _e187 = geometric;
-    param_1 = _e187;
-    let _e188 = EncodeOctahedral_u0028_vf3_u003b((&param_1));
-    let _e189 = (*roughness);
-    let _e191 = ViewDepth_u0028_();
-    frag_surface = vec4<f32>(_e188.x, _e188.y, clamp(_e189, 0f, 1f), _e191);
+    let _e189 = geometric;
+    param_1 = _e189;
+    let _e190 = EncodeOctahedral_u0028_vf3_u003b((&param_1));
+    let _e191 = (*roughness);
+    let _e193 = ViewDepth_u0028_();
+    frag_surface = vec4<f32>(_e190.x, _e190.y, clamp(_e191, 0f, 1f), _e193);
     return;
 }
 
 fn EyeDistance_u0028_() -> f32 {
-    let _e163 = v_world_position_1;
-    let _e165 = fog_info.eye;
-    return distance(_e163, _e165.xyz);
+    let _e165 = v_world_position_1;
+    let _e167 = fog_info.eye;
+    return distance(_e165, _e167.xyz);
 }
 
 fn ApplyFog_u0028_vf3_u003b(color: ptr<function, vec3<f32>>) -> vec3<f32> {
     var density: f32;
     var d: f32;
 
-    let _e168 = fog_info.fog[3u];
-    density = _e168;
-    let _e169 = density;
-    if (_e169 <= 0f) {
-        let _e171 = (*color);
-        return _e171;
+    let _e170 = fog_info.fog[3u];
+    density = _e170;
+    let _e171 = density;
+    if (_e171 <= 0f) {
+        let _e173 = (*color);
+        return _e173;
     }
-    let _e172 = EyeDistance_u0028_();
-    d = _e172;
-    let _e174 = fog_info.fog;
-    let _e176 = (*color);
-    let _e177 = density;
-    let _e179 = d;
-    return mix(_e174.xyz, _e176, vec3(clamp(exp((-(_e177) * _e179)), 0f, 1f)));
+    let _e174 = EyeDistance_u0028_();
+    d = _e174;
+    let _e176 = fog_info.fog;
+    let _e178 = (*color);
+    let _e179 = density;
+    let _e181 = d;
+    return mix(_e176.xyz, _e178, vec3(clamp(exp((-(_e179) * _e181)), 0f, 1f)));
 }
 
 fn WriteSurface_u0028_vf3_u003b_f1_u003b_f1_u003b(linearColor: ptr<function, vec3<f32>>, alpha: ptr<function, f32>, roughness_1: ptr<function, f32>) {
     var param_2: vec3<f32>;
     var param_3: f32;
 
-    let _e168 = (*linearColor);
-    param_2 = _e168;
-    let _e169 = ApplyFog_u0028_vf3_u003b((&param_2));
-    let _e170 = (*alpha);
-    frag_color = vec4<f32>(_e169.x, _e169.y, _e169.z, _e170);
-    let _e175 = (*roughness_1);
-    param_3 = _e175;
+    let _e170 = (*linearColor);
+    param_2 = _e170;
+    let _e171 = ApplyFog_u0028_vf3_u003b((&param_2));
+    let _e172 = (*alpha);
+    frag_color = vec4<f32>(_e171.x, _e171.y, _e171.z, _e172);
+    let _e177 = (*roughness_1);
+    param_3 = _e177;
     WriteSurfaceGeometry_u0028_f1_u003b((&param_3));
     return;
 }
@@ -7451,44 +7670,44 @@ fn ShadeLight_u0028_struct_u002d_Surface_u002d_vf3_u002d_f1_u002d_vf3_u002d_vf3_
     var shininess: f32;
     var specular: f32;
 
-    let _e168 = (*s).roughness;
-    shininess = mix(256f, 4f, _e168);
-    let _e171 = (*light).n_dot_h;
-    let _e172 = shininess;
-    let _e176 = frag_info.material[3u];
-    specular = (pow(_e171, _e172) * _e176);
-    let _e179 = (*s).albedo;
-    let _e180 = specular;
-    return (_e179 + vec3(_e180));
+    let _e170 = (*s).roughness;
+    shininess = mix(256f, 4f, _e170);
+    let _e173 = (*light).n_dot_h;
+    let _e174 = shininess;
+    let _e178 = frag_info.material[3u];
+    specular = (pow(_e173, _e174) * _e178);
+    let _e181 = (*s).albedo;
+    let _e182 = specular;
+    return (_e181 + vec3(_e182));
 }
 
 fn PointShadowDiskTap_u0028_i1_u003b(i: ptr<function, i32>) -> vec2<f32> {
-    let _e164 = (*i);
-    if (_e164 == 0i) {
+    let _e166 = (*i);
+    if (_e166 == 0i) {
         return vec2<f32>(-0.94201624f, -0.39906216f);
     }
-    let _e166 = (*i);
-    if (_e166 == 1i) {
+    let _e168 = (*i);
+    if (_e168 == 1i) {
         return vec2<f32>(0.9455861f, -0.76890725f);
     }
-    let _e168 = (*i);
-    if (_e168 == 2i) {
+    let _e170 = (*i);
+    if (_e170 == 2i) {
         return vec2<f32>(-0.0941841f, -0.9293887f);
     }
-    let _e170 = (*i);
-    if (_e170 == 3i) {
+    let _e172 = (*i);
+    if (_e172 == 3i) {
         return vec2<f32>(0.34495938f, 0.2938776f);
     }
-    let _e172 = (*i);
-    if (_e172 == 4i) {
+    let _e174 = (*i);
+    if (_e174 == 4i) {
         return vec2<f32>(-0.9158858f, 0.45771432f);
     }
-    let _e174 = (*i);
-    if (_e174 == 5i) {
+    let _e176 = (*i);
+    if (_e176 == 5i) {
         return vec2<f32>(-0.8154423f, -0.87912464f);
     }
-    let _e176 = (*i);
-    if (_e176 == 6i) {
+    let _e178 = (*i);
+    if (_e178 == 6i) {
         return vec2<f32>(-0.38277543f, 0.27676845f);
     }
     return vec2<f32>(0.974844f, 0.7564838f);
@@ -7498,20 +7717,20 @@ fn PointShadowOffset_u0028_i1_u003b_f1_u003b_f1_u003b_f1_u003b(i_1: ptr<function
     var p: vec2<f32>;
     var param_4: i32;
 
-    let _e169 = (*i_1);
-    param_4 = _e169;
-    let _e170 = PointShadowDiskTap_u0028_i1_u003b((&param_4));
-    p = _e170;
-    let _e172 = p[0u];
-    let _e173 = (*ca);
-    let _e176 = p[1u];
-    let _e177 = (*sa);
-    let _e181 = p[0u];
-    let _e182 = (*sa);
-    let _e185 = p[1u];
-    let _e186 = (*ca);
-    let _e190 = (*radius);
-    return (vec2<f32>(((_e172 * _e173) - (_e176 * _e177)), ((_e181 * _e182) + (_e185 * _e186))) * _e190);
+    let _e171 = (*i_1);
+    param_4 = _e171;
+    let _e172 = PointShadowDiskTap_u0028_i1_u003b((&param_4));
+    p = _e172;
+    let _e174 = p[0u];
+    let _e175 = (*ca);
+    let _e178 = p[1u];
+    let _e179 = (*sa);
+    let _e183 = p[0u];
+    let _e184 = (*sa);
+    let _e187 = p[1u];
+    let _e188 = (*ca);
+    let _e192 = (*radius);
+    return (vec2<f32>(((_e174 * _e175) - (_e178 * _e179)), ((_e183 * _e184) + (_e187 * _e188))) * _e192);
 }
 
 fn PointShadowDistance_u0028_vf2_u003b_vf2_u003b_vf2_u003b_f1_u003b(uv: ptr<function, vec2<f32>>, offset: ptr<function, vec2<f32>>, tile: ptr<function, vec2<f32>>, range: ptr<function, f32>) -> f32 {
@@ -7519,27 +7738,27 @@ fn PointShadowDistance_u0028_vf2_u003b_vf2_u003b_vf2_u003b_f1_u003b(uv: ptr<func
     var local: vec2<f32>;
     var atlas: vec2<f32>;
 
-    let _e172 = point_shadow.params[0u];
-    inset = _e172;
-    let _e173 = (*uv);
-    let _e174 = (*offset);
-    let _e176 = inset;
-    let _e177 = inset;
-    local = clamp((_e173 + _e174), vec2(_e176), vec2((1f - _e177)));
-    let _e182 = local;
-    let _e183 = (*tile);
-    atlas = ((_e182 + _e183) * vec2<f32>(0.16666667f, 0.16666667f));
-    let _e188 = point_shadow.params3_[0u];
-    if (_e188 > 0.5f) {
-        let _e191 = atlas[1u];
-        atlas[1u] = (1f - _e191);
+    let _e174 = point_shadow.params[0u];
+    inset = _e174;
+    let _e175 = (*uv);
+    let _e176 = (*offset);
+    let _e178 = inset;
+    let _e179 = inset;
+    local = clamp((_e175 + _e176), vec2(_e178), vec2((1f - _e179)));
+    let _e184 = local;
+    let _e185 = (*tile);
+    atlas = ((_e184 + _e185) * vec2<f32>(0.16666667f, 0.16666667f));
+    let _e190 = point_shadow.params3_[0u];
+    if (_e190 > 0.5f) {
+        let _e193 = atlas[1u];
+        atlas[1u] = (1f - _e193);
     }
-    let _e194 = atlas;
-    let _e195 = textureSampleLevel(point_shadow_texture_tex, point_shadow_texture_smp, _e194, 0f);
-    let _e197 = atlas;
-    let _e198 = textureSampleLevel(point_shadow_static_texture_tex, point_shadow_static_texture_smp, _e197, 0f);
-    let _e201 = (*range);
-    return (min(_e195.x, _e198.x) * _e201);
+    let _e196 = atlas;
+    let _e197 = textureSampleLevel(point_shadow_texture_tex, point_shadow_texture_smp, _e196, 0f);
+    let _e199 = atlas;
+    let _e200 = textureSampleLevel(point_shadow_static_texture_tex, point_shadow_static_texture_smp, _e199, 0f);
+    let _e203 = (*range);
+    return (min(_e197.x, _e200.x) * _e203);
 }
 
 fn PointShadowTap_u0028_vf2_u003b_vf2_u003b_vf2_u003b_f1_u003b_f1_u003b(uv_1: ptr<function, vec2<f32>>, offset_1: ptr<function, vec2<f32>>, tile_1: ptr<function, vec2<f32>>, range_1: ptr<function, f32>, receiver: ptr<function, f32>) -> f32 {
@@ -7549,24 +7768,24 @@ fn PointShadowTap_u0028_vf2_u003b_vf2_u003b_vf2_u003b_f1_u003b_f1_u003b(uv_1: pt
     var param_7: vec2<f32>;
     var param_8: f32;
 
-    let _e173 = (*uv_1);
-    param_5 = _e173;
-    let _e174 = (*offset_1);
-    param_6 = _e174;
-    let _e175 = (*tile_1);
-    param_7 = _e175;
-    let _e176 = (*range_1);
-    param_8 = _e176;
-    let _e177 = PointShadowDistance_u0028_vf2_u003b_vf2_u003b_vf2_u003b_f1_u003b((&param_5), (&param_6), (&param_7), (&param_8));
-    stored = _e177;
-    let _e178 = stored;
-    let _e179 = (*range_1);
-    if (_e178 >= (_e179 * 0.999f)) {
+    let _e175 = (*uv_1);
+    param_5 = _e175;
+    let _e176 = (*offset_1);
+    param_6 = _e176;
+    let _e177 = (*tile_1);
+    param_7 = _e177;
+    let _e178 = (*range_1);
+    param_8 = _e178;
+    let _e179 = PointShadowDistance_u0028_vf2_u003b_vf2_u003b_vf2_u003b_f1_u003b((&param_5), (&param_6), (&param_7), (&param_8));
+    stored = _e179;
+    let _e180 = stored;
+    let _e181 = (*range_1);
+    if (_e180 >= (_e181 * 0.999f)) {
         return 1f;
     }
-    let _e182 = (*receiver);
-    let _e183 = stored;
-    return select(1f, 0f, (_e182 > _e183));
+    let _e184 = (*receiver);
+    let _e185 = stored;
+    return select(1f, 0f, (_e184 > _e185));
 }
 
 fn PointShadowPenumbra_u0028_vf2_u003b_vf2_u003b_f1_u003b_f1_u003b_f1_u003b_f1_u003b_f1_u003b_f1_u003b(uv_2: ptr<function, vec2<f32>>, tile_2: ptr<function, vec2<f32>>, range_2: ptr<function, f32>, receiver_1: ptr<function, f32>, ca_1: ptr<function, f32>, sa_1: ptr<function, f32>, tanHalf: ptr<function, f32>, blockerOut: ptr<function, f32>) -> f32 {
@@ -7593,111 +7812,111 @@ fn PointShadowPenumbra_u0028_vf2_u003b_vf2_u003b_f1_u003b_f1_u003b_f1_u003b_f1_u
     var world: f32;
 
     (*blockerOut) = -1f;
-    let _e194 = point_shadow.params2_[1u];
-    lightRadius = _e194;
-    let _e197 = point_shadow.params2_[0u];
-    minRadius = _e197;
-    let _e200 = point_shadow.params2_[2u];
-    maxRadius = _e200;
-    let _e201 = lightRadius;
-    if (_e201 <= 0f) {
-        let _e203 = (*uv_2);
-        param_9 = _e203;
+    let _e196 = point_shadow.params2_[1u];
+    lightRadius = _e196;
+    let _e199 = point_shadow.params2_[0u];
+    minRadius = _e199;
+    let _e202 = point_shadow.params2_[2u];
+    maxRadius = _e202;
+    let _e203 = lightRadius;
+    if (_e203 <= 0f) {
+        let _e205 = (*uv_2);
+        param_9 = _e205;
         param_10 = vec2<f32>(0f, 0f);
-        let _e204 = (*tile_2);
-        param_11 = _e204;
-        let _e205 = (*range_2);
-        param_12 = _e205;
-        let _e206 = PointShadowDistance_u0028_vf2_u003b_vf2_u003b_vf2_u003b_f1_u003b((&param_9), (&param_10), (&param_11), (&param_12));
-        (*blockerOut) = _e206;
-        let _e207 = minRadius;
-        return _e207;
+        let _e206 = (*tile_2);
+        param_11 = _e206;
+        let _e207 = (*range_2);
+        param_12 = _e207;
+        let _e208 = PointShadowDistance_u0028_vf2_u003b_vf2_u003b_vf2_u003b_f1_u003b((&param_9), (&param_10), (&param_11), (&param_12));
+        (*blockerOut) = _e208;
+        let _e209 = minRadius;
+        return _e209;
     }
     sum = 0f;
     count = 0f;
     i_2 = 0i;
     loop {
-        let _e208 = i_2;
-        if (_e208 < 8i) {
-            let _e210 = i_2;
-            param_13 = _e210;
-            let _e211 = (*ca_1);
-            param_14 = _e211;
-            let _e212 = (*sa_1);
-            param_15 = _e212;
-            let _e213 = maxRadius;
-            param_16 = _e213;
-            let _e214 = PointShadowOffset_u0028_i1_u003b_f1_u003b_f1_u003b_f1_u003b((&param_13), (&param_14), (&param_15), (&param_16));
-            let _e215 = (*uv_2);
-            param_17 = _e215;
-            param_18 = _e214;
-            let _e216 = (*tile_2);
-            param_19 = _e216;
-            let _e217 = (*range_2);
-            param_20 = _e217;
-            let _e218 = PointShadowDistance_u0028_vf2_u003b_vf2_u003b_vf2_u003b_f1_u003b((&param_17), (&param_18), (&param_19), (&param_20));
-            stored_1 = _e218;
-            let _e219 = stored_1;
-            let _e220 = (*range_2);
-            if (_e219 >= (_e220 * 0.999f)) {
+        let _e210 = i_2;
+        if (_e210 < 8i) {
+            let _e212 = i_2;
+            param_13 = _e212;
+            let _e213 = (*ca_1);
+            param_14 = _e213;
+            let _e214 = (*sa_1);
+            param_15 = _e214;
+            let _e215 = maxRadius;
+            param_16 = _e215;
+            let _e216 = PointShadowOffset_u0028_i1_u003b_f1_u003b_f1_u003b_f1_u003b((&param_13), (&param_14), (&param_15), (&param_16));
+            let _e217 = (*uv_2);
+            param_17 = _e217;
+            param_18 = _e216;
+            let _e218 = (*tile_2);
+            param_19 = _e218;
+            let _e219 = (*range_2);
+            param_20 = _e219;
+            let _e220 = PointShadowDistance_u0028_vf2_u003b_vf2_u003b_vf2_u003b_f1_u003b((&param_17), (&param_18), (&param_19), (&param_20));
+            stored_1 = _e220;
+            let _e221 = stored_1;
+            let _e222 = (*range_2);
+            if (_e221 >= (_e222 * 0.999f)) {
                 continue;
             }
-            let _e223 = stored_1;
-            let _e224 = (*receiver_1);
-            if (_e223 >= _e224) {
+            let _e225 = stored_1;
+            let _e226 = (*receiver_1);
+            if (_e225 >= _e226) {
                 continue;
             }
-            let _e226 = stored_1;
-            let _e227 = sum;
-            sum = (_e227 + _e226);
-            let _e229 = count;
-            count = (_e229 + 1f);
+            let _e228 = stored_1;
+            let _e229 = sum;
+            sum = (_e229 + _e228);
+            let _e231 = count;
+            count = (_e231 + 1f);
             continue;
         } else {
             break;
         }
         continuing {
-            let _e231 = i_2;
-            i_2 = (_e231 + 1i);
+            let _e233 = i_2;
+            i_2 = (_e233 + 1i);
         }
     }
-    let _e233 = count;
-    if (_e233 < 0.5f) {
+    let _e235 = count;
+    if (_e235 < 0.5f) {
         return -1f;
     }
-    let _e235 = sum;
-    let _e236 = count;
-    blocker = max((_e235 / _e236), 0.0001f);
-    let _e239 = blocker;
-    (*blockerOut) = _e239;
-    let _e240 = lightRadius;
-    let _e241 = (*receiver_1);
-    let _e242 = blocker;
-    let _e246 = blocker;
-    world = ((_e240 * max((_e241 - _e242), 0f)) / _e246);
-    let _e248 = world;
-    let _e249 = (*receiver_1);
-    let _e251 = (*tanHalf);
-    let _e254 = minRadius;
-    let _e255 = maxRadius;
-    return clamp((_e248 / ((2f * _e249) * _e251)), _e254, _e255);
+    let _e237 = sum;
+    let _e238 = count;
+    blocker = max((_e237 / _e238), 0.0001f);
+    let _e241 = blocker;
+    (*blockerOut) = _e241;
+    let _e242 = lightRadius;
+    let _e243 = (*receiver_1);
+    let _e244 = blocker;
+    let _e248 = blocker;
+    world = ((_e242 * max((_e243 - _e244), 0f)) / _e248);
+    let _e250 = world;
+    let _e251 = (*receiver_1);
+    let _e253 = (*tanHalf);
+    let _e256 = minRadius;
+    let _e257 = maxRadius;
+    return clamp((_e250 / ((2f * _e251) * _e253)), _e256, _e257);
 }
 
 fn FragCoordFromTop_u0028_f1_u003b(rows: ptr<function, f32>) -> vec2<f32> {
     var local_1: vec2<f32>;
 
-    let _e165 = (*rows);
-    if (_e165 > 0f) {
-        let _e168 = gl_FragCoord_1[0u];
-        let _e169 = (*rows);
-        let _e171 = gl_FragCoord_1[1u];
-        local_1 = vec2<f32>(_e168, (_e169 - _e171));
+    let _e167 = (*rows);
+    if (_e167 > 0f) {
+        let _e170 = gl_FragCoord_1[0u];
+        let _e171 = (*rows);
+        let _e173 = gl_FragCoord_1[1u];
+        local_1 = vec2<f32>(_e170, (_e171 - _e173));
     } else {
-        let _e174 = gl_FragCoord_1;
-        local_1 = _e174.xy;
+        let _e176 = gl_FragCoord_1;
+        local_1 = _e176.xy;
     }
-    let _e176 = local_1;
-    return _e176;
+    let _e178 = local_1;
+    return _e178;
 }
 
 fn PointShadowFactor_u0028_vf3_u003b_vf3_u003b_i1_u003b(world_1: ptr<function, vec3<f32>>, normal: ptr<function, vec3<f32>>, lightIndex: ptr<function, i32>) -> f32 {
@@ -7752,231 +7971,231 @@ fn PointShadowFactor_u0028_vf3_u003b_vf3_u003b_i1_u003b(world_1: ptr<function, v
     var param_41: vec2<f32>;
     var param_42: f32;
     var param_43: f32;
-    var phi_1628_: bool;
-    var phi_1690_: bool;
+    var phi_1893_: bool;
+    var phi_1954_: bool;
 
-    let _e217 = (*lightIndex);
-    let _e221 = point_shadow.slots[_e217][0u];
-    slot = i32((_e221 + 0.5f));
-    let _e224 = (*lightIndex);
-    let _e228 = point_shadow.slots[_e224][0u];
-    if (_e228 < 0f) {
+    let _e219 = (*lightIndex);
+    let _e223 = point_shadow.slots[_e219][0u];
+    slot = i32((_e223 + 0.5f));
+    let _e226 = (*lightIndex);
+    let _e230 = point_shadow.slots[_e226][0u];
+    if (_e230 < 0f) {
         return 1f;
     }
-    let _e232 = point_shadow.params[2u];
-    strength = _e232;
-    let _e233 = strength;
-    if (_e233 <= 0f) {
+    let _e234 = point_shadow.params[2u];
+    strength = _e234;
+    let _e235 = strength;
+    if (_e235 <= 0f) {
         return 1f;
     }
-    let _e235 = slot;
-    let _e238 = point_shadow.lights[_e235];
-    let _e240 = (*world_1);
-    toLight = (_e238.xyz - _e240);
-    let _e242 = toLight;
-    toLightLength = max(length(_e242), 0.000001f);
-    let _e245 = (*normal);
-    let _e246 = toLight;
-    let _e247 = toLightLength;
-    nDotL = max(dot(_e245, (_e246 / vec3(_e247))), 0.15f);
-    let _e252 = nDotL;
-    let _e253 = nDotL;
-    let _e258 = nDotL;
-    let _e259 = nDotL;
-    slope = min((sqrt(max((1f - (_e252 * _e253)), 0f)) / (_e258 * _e259)), 8f);
-    let _e263 = toLightLength;
-    let _e265 = (*lightIndex);
-    let _e269 = point_shadow.slots[_e265][2u];
-    let _e274 = point_shadow.params3_[1u];
-    texel = (((2f * _e263) * max(_e269, 0.0001f)) * _e274);
-    let _e276 = (*world_1);
-    let _e277 = (*normal);
-    let _e278 = texel;
-    let _e282 = point_shadow.params[3u];
-    let _e284 = slope;
-    origin = (_e276 + (((_e277 * _e278) * _e282) * (1f + _e284)));
-    let _e288 = origin;
-    let _e289 = slot;
-    let _e292 = point_shadow.lights[_e289];
-    toFragment = (_e288 - _e292.xyz);
-    let _e295 = toFragment;
-    distance_ = length(_e295);
-    let _e297 = slot;
-    let _e301 = point_shadow.lights[_e297][3u];
-    range_3 = max(_e301, 0.0001f);
-    let _e303 = distance_;
-    let _e304 = range_3;
-    if (_e303 >= _e304) {
+    let _e237 = slot;
+    let _e240 = point_shadow.lights[_e237];
+    let _e242 = (*world_1);
+    toLight = (_e240.xyz - _e242);
+    let _e244 = toLight;
+    toLightLength = max(length(_e244), 0.000001f);
+    let _e247 = (*normal);
+    let _e248 = toLight;
+    let _e249 = toLightLength;
+    nDotL = max(dot(_e247, (_e248 / vec3(_e249))), 0.15f);
+    let _e254 = nDotL;
+    let _e255 = nDotL;
+    let _e260 = nDotL;
+    let _e261 = nDotL;
+    slope = min((sqrt(max((1f - (_e254 * _e255)), 0f)) / (_e260 * _e261)), 8f);
+    let _e265 = toLightLength;
+    let _e267 = (*lightIndex);
+    let _e271 = point_shadow.slots[_e267][2u];
+    let _e276 = point_shadow.params3_[1u];
+    texel = (((2f * _e265) * max(_e271, 0.0001f)) * _e276);
+    let _e278 = (*world_1);
+    let _e279 = (*normal);
+    let _e280 = texel;
+    let _e284 = point_shadow.params[3u];
+    let _e286 = slope;
+    origin = (_e278 + (((_e279 * _e280) * _e284) * (1f + _e286)));
+    let _e290 = origin;
+    let _e291 = slot;
+    let _e294 = point_shadow.lights[_e291];
+    toFragment = (_e290 - _e294.xyz);
+    let _e297 = toFragment;
+    distance_ = length(_e297);
+    let _e299 = slot;
+    let _e303 = point_shadow.lights[_e299][3u];
+    range_3 = max(_e303, 0.0001f);
+    let _e305 = distance_;
+    let _e306 = range_3;
+    if (_e305 >= _e306) {
         return 1f;
     }
     face = 0i;
-    let _e306 = (*lightIndex);
-    let _e310 = point_shadow.slots[_e306][1u];
-    if (_e310 < 0.5f) {
-        let _e312 = toFragment;
-        a = abs(_e312);
-        let _e315 = a[0u];
-        let _e317 = a[1u];
-        let _e318 = (_e315 >= _e317);
-        phi_1628_ = _e318;
-        if _e318 {
-            let _e320 = a[0u];
-            let _e322 = a[2u];
-            phi_1628_ = (_e320 >= _e322);
+    let _e308 = (*lightIndex);
+    let _e312 = point_shadow.slots[_e308][1u];
+    if (_e312 < 0.5f) {
+        let _e314 = toFragment;
+        a = abs(_e314);
+        let _e317 = a[0u];
+        let _e319 = a[1u];
+        let _e320 = (_e317 >= _e319);
+        phi_1893_ = _e320;
+        if _e320 {
+            let _e322 = a[0u];
+            let _e324 = a[2u];
+            phi_1893_ = (_e322 >= _e324);
         }
-        let _e325 = phi_1628_;
-        if _e325 {
-            let _e327 = toFragment[0u];
-            face = select(1i, 0i, (_e327 > 0f));
+        let _e327 = phi_1893_;
+        if _e327 {
+            let _e329 = toFragment[0u];
+            face = select(1i, 0i, (_e329 > 0f));
         } else {
-            let _e331 = a[1u];
-            let _e333 = a[2u];
-            if (_e331 >= _e333) {
-                let _e336 = toFragment[1u];
-                face = select(3i, 2i, (_e336 > 0f));
+            let _e333 = a[1u];
+            let _e335 = a[2u];
+            if (_e333 >= _e335) {
+                let _e338 = toFragment[1u];
+                face = select(3i, 2i, (_e338 > 0f));
             } else {
-                let _e340 = toFragment[2u];
-                face = select(5i, 4i, (_e340 > 0f));
+                let _e342 = toFragment[2u];
+                face = select(5i, 4i, (_e342 > 0f));
             }
         }
     }
-    let _e343 = slot;
-    let _e345 = face;
-    let _e349 = point_shadow.faces[((_e343 * 6i) + _e345)];
-    let _e350 = origin;
-    clip = (_e349 * vec4<f32>(_e350.x, _e350.y, _e350.z, 1f));
-    let _e357 = clip[3u];
-    if (_e357 <= 0f) {
+    let _e345 = slot;
+    let _e347 = face;
+    let _e351 = point_shadow.faces[((_e345 * 6i) + _e347)];
+    let _e352 = origin;
+    clip = (_e351 * vec4<f32>(_e352.x, _e352.y, _e352.z, 1f));
+    let _e359 = clip[3u];
+    if (_e359 <= 0f) {
         return 1f;
     }
-    let _e359 = clip;
-    let _e362 = clip[3u];
-    ndc = (_e359.xy / vec2(_e362));
-    let _e366 = ndc[0u];
-    let _e368 = (abs(_e366) > 1f);
-    phi_1690_ = _e368;
-    if !(_e368) {
-        let _e371 = ndc[1u];
-        phi_1690_ = (abs(_e371) > 1f);
+    let _e361 = clip;
+    let _e364 = clip[3u];
+    ndc = (_e361.xy / vec2(_e364));
+    let _e368 = ndc[0u];
+    let _e370 = (abs(_e368) > 1f);
+    phi_1954_ = _e370;
+    if !(_e370) {
+        let _e373 = ndc[1u];
+        phi_1954_ = (abs(_e373) > 1f);
     }
-    let _e375 = phi_1690_;
-    if _e375 {
+    let _e377 = phi_1954_;
+    if _e377 {
         return 1f;
     }
-    let _e377 = ndc[0u];
-    let _e381 = ndc[1u];
-    uv_3 = vec2<f32>(((_e377 * 0.5f) + 0.5f), (0.5f - (_e381 * 0.5f)));
-    let _e385 = face;
-    let _e387 = slot;
-    tile_3 = vec2<f32>(f32(_e385), f32(_e387));
-    let _e390 = distance_;
-    let _e393 = point_shadow.params[1u];
-    receiver_2 = (_e390 - _e393);
-    let _e397 = frag_info.target_origin[0u];
-    param_21 = _e397;
-    let _e398 = FragCoordFromTop_u0028_f1_u003b((&param_21));
-    noise = fract((52.982918f * fract(dot(_e398, vec2<f32>(0.06711056f, 0.00583715f)))));
-    let _e403 = noise;
-    angle = (_e403 * 6.2831855f);
-    let _e405 = angle;
-    ca_2 = cos(_e405);
+    let _e379 = ndc[0u];
+    let _e383 = ndc[1u];
+    uv_3 = vec2<f32>(((_e379 * 0.5f) + 0.5f), (0.5f - (_e383 * 0.5f)));
+    let _e387 = face;
+    let _e389 = slot;
+    tile_3 = vec2<f32>(f32(_e387), f32(_e389));
+    let _e392 = distance_;
+    let _e395 = point_shadow.params[1u];
+    receiver_2 = (_e392 - _e395);
+    let _e399 = frag_info.target_origin[0u];
+    param_21 = _e399;
+    let _e400 = FragCoordFromTop_u0028_f1_u003b((&param_21));
+    noise = fract((52.982918f * fract(dot(_e400, vec2<f32>(0.06711056f, 0.00583715f)))));
+    let _e405 = noise;
+    angle = (_e405 * 6.2831855f);
     let _e407 = angle;
-    sa_2 = sin(_e407);
-    let _e409 = (*lightIndex);
-    let _e413 = point_shadow.slots[_e409][2u];
-    tanHalf_1 = max(_e413, 0.0001f);
+    ca_2 = cos(_e407);
+    let _e409 = angle;
+    sa_2 = sin(_e409);
+    let _e411 = (*lightIndex);
+    let _e415 = point_shadow.slots[_e411][2u];
+    tanHalf_1 = max(_e415, 0.0001f);
     blocker_1 = -1f;
-    let _e415 = uv_3;
-    param_22 = _e415;
-    let _e416 = tile_3;
-    param_23 = _e416;
-    let _e417 = range_3;
-    param_24 = _e417;
-    let _e418 = receiver_2;
-    param_25 = _e418;
-    let _e419 = ca_2;
-    param_26 = _e419;
-    let _e420 = sa_2;
-    param_27 = _e420;
-    let _e421 = tanHalf_1;
-    param_28 = _e421;
-    let _e422 = PointShadowPenumbra_u0028_vf2_u003b_vf2_u003b_f1_u003b_f1_u003b_f1_u003b_f1_u003b_f1_u003b_f1_u003b((&param_22), (&param_23), (&param_24), (&param_25), (&param_26), (&param_27), (&param_28), (&param_29));
-    let _e423 = param_29;
-    blocker_1 = _e423;
-    radius_1 = _e422;
-    let _e426 = point_shadow.params2_[3u];
-    if (_e426 > 0.5f) {
+    let _e417 = uv_3;
+    param_22 = _e417;
+    let _e418 = tile_3;
+    param_23 = _e418;
+    let _e419 = range_3;
+    param_24 = _e419;
+    let _e420 = receiver_2;
+    param_25 = _e420;
+    let _e421 = ca_2;
+    param_26 = _e421;
+    let _e422 = sa_2;
+    param_27 = _e422;
+    let _e423 = tanHalf_1;
+    param_28 = _e423;
+    let _e424 = PointShadowPenumbra_u0028_vf2_u003b_vf2_u003b_f1_u003b_f1_u003b_f1_u003b_f1_u003b_f1_u003b_f1_u003b((&param_22), (&param_23), (&param_24), (&param_25), (&param_26), (&param_27), (&param_28), (&param_29));
+    let _e425 = param_29;
+    blocker_1 = _e425;
+    radius_1 = _e424;
+    let _e428 = point_shadow.params2_[3u];
+    if (_e428 > 0.5f) {
         g_debug_surface_on = true;
-        let _e428 = radius_1;
-        if (_e428 < 0f) {
+        let _e430 = radius_1;
+        if (_e430 < 0f) {
             local_2 = vec3<f32>(0f, 0f, 1f);
         } else {
-            let _e430 = radius_1;
-            let _e433 = point_shadow.params2_[2u];
-            let _e437 = blocker_1;
-            let _e438 = range_3;
-            local_2 = vec3<f32>(clamp((_e430 / max(_e433, 0.000001f)), 0f, 1f), clamp((_e437 / _e438), 0f, 1f), 0f);
+            let _e432 = radius_1;
+            let _e435 = point_shadow.params2_[2u];
+            let _e439 = blocker_1;
+            let _e440 = range_3;
+            local_2 = vec3<f32>(clamp((_e432 / max(_e435, 0.000001f)), 0f, 1f), clamp((_e439 / _e440), 0f, 1f), 0f);
         }
-        let _e442 = local_2;
-        g_debug_surface = _e442;
+        let _e444 = local_2;
+        g_debug_surface = _e444;
     }
-    let _e443 = radius_1;
-    if (_e443 < 0f) {
+    let _e445 = radius_1;
+    if (_e445 < 0f) {
         return 1f;
     }
-    let _e445 = uv_3;
-    param_30 = _e445;
+    let _e447 = uv_3;
+    param_30 = _e447;
     param_31 = vec2<f32>(0f, 0f);
-    let _e446 = tile_3;
-    param_32 = _e446;
-    let _e447 = range_3;
-    param_33 = _e447;
-    let _e448 = receiver_2;
-    param_34 = _e448;
-    let _e449 = PointShadowTap_u0028_vf2_u003b_vf2_u003b_vf2_u003b_f1_u003b_f1_u003b((&param_30), (&param_31), (&param_32), (&param_33), (&param_34));
-    lit = _e449;
-    let _e450 = radius_1;
-    if (_e450 > 0f) {
+    let _e448 = tile_3;
+    param_32 = _e448;
+    let _e449 = range_3;
+    param_33 = _e449;
+    let _e450 = receiver_2;
+    param_34 = _e450;
+    let _e451 = PointShadowTap_u0028_vf2_u003b_vf2_u003b_vf2_u003b_f1_u003b_f1_u003b((&param_30), (&param_31), (&param_32), (&param_33), (&param_34));
+    lit = _e451;
+    let _e452 = radius_1;
+    if (_e452 > 0f) {
         i_3 = 0i;
         loop {
-            let _e452 = i_3;
-            if (_e452 < 8i) {
-                let _e454 = i_3;
-                param_35 = _e454;
-                let _e455 = ca_2;
-                param_36 = _e455;
-                let _e456 = sa_2;
-                param_37 = _e456;
-                let _e457 = radius_1;
-                param_38 = _e457;
-                let _e458 = PointShadowOffset_u0028_i1_u003b_f1_u003b_f1_u003b_f1_u003b((&param_35), (&param_36), (&param_37), (&param_38));
-                let _e459 = uv_3;
-                param_39 = _e459;
-                param_40 = _e458;
-                let _e460 = tile_3;
-                param_41 = _e460;
-                let _e461 = range_3;
-                param_42 = _e461;
-                let _e462 = receiver_2;
-                param_43 = _e462;
-                let _e463 = PointShadowTap_u0028_vf2_u003b_vf2_u003b_vf2_u003b_f1_u003b_f1_u003b((&param_39), (&param_40), (&param_41), (&param_42), (&param_43));
-                let _e464 = lit;
-                lit = (_e464 + _e463);
+            let _e454 = i_3;
+            if (_e454 < 8i) {
+                let _e456 = i_3;
+                param_35 = _e456;
+                let _e457 = ca_2;
+                param_36 = _e457;
+                let _e458 = sa_2;
+                param_37 = _e458;
+                let _e459 = radius_1;
+                param_38 = _e459;
+                let _e460 = PointShadowOffset_u0028_i1_u003b_f1_u003b_f1_u003b_f1_u003b((&param_35), (&param_36), (&param_37), (&param_38));
+                let _e461 = uv_3;
+                param_39 = _e461;
+                param_40 = _e460;
+                let _e462 = tile_3;
+                param_41 = _e462;
+                let _e463 = range_3;
+                param_42 = _e463;
+                let _e464 = receiver_2;
+                param_43 = _e464;
+                let _e465 = PointShadowTap_u0028_vf2_u003b_vf2_u003b_vf2_u003b_f1_u003b_f1_u003b((&param_39), (&param_40), (&param_41), (&param_42), (&param_43));
+                let _e466 = lit;
+                lit = (_e466 + _e465);
                 continue;
             } else {
                 break;
             }
             continuing {
-                let _e466 = i_3;
-                i_3 = (_e466 + 1i);
+                let _e468 = i_3;
+                i_3 = (_e468 + 1i);
             }
         }
-        let _e468 = lit;
-        lit = (_e468 * 0.11111111f);
+        let _e470 = lit;
+        lit = (_e470 * 0.11111111f);
     }
-    let _e470 = lit;
-    let _e471 = strength;
-    return mix(1f, _e470, clamp(_e471, 0f, 1f));
+    let _e472 = lit;
+    let _e473 = strength;
+    return mix(1f, _e472, clamp(_e473, 0f, 1f));
 }
 
 fn ShadowFactor_u0028_struct_u002d_Surface_u002d_vf3_u002d_f1_u002d_vf3_u002d_vf3_u002d_f1_u002d_f1_u002d_f1_u002d_f1_u002d_vf3_u002d_vf3_u002d_f11_u003b_struct_u002d_LightSample_u002d_vf3_u002d_vf3_u002d_vf3_u002d_f1_u002d_f1_u002d_f11_u003b_i1_u003b(s_1: ptr<function, Surface>, light_1: ptr<function, LightSample>, lightIndex_1: ptr<function, i32>) -> f32 {
@@ -8022,58 +8241,58 @@ fn ShadowFactor_u0028_struct_u002d_Surface_u002d_vf3_u002d_f1_u002d_vf3_u002d_vf
     var i_5: i32;
     var occluder_2: f32;
     var indexable_1: array<vec2<f32>, 5>;
-    var phi_2595_: bool;
-    var phi_2606_: bool;
-    var phi_2725_: bool;
-    var phi_2732_: bool;
-    var phi_2739_: bool;
+    var phi_2859_: bool;
+    var phi_2870_: bool;
+    var phi_2988_: bool;
+    var phi_2995_: bool;
+    var phi_3002_: bool;
 
-    let _e210 = frag_info.shadow_params[3u];
-    strength_1 = _e210;
-    let _e211 = strength_1;
-    if (_e211 <= 0f) {
+    let _e212 = frag_info.shadow_params[3u];
+    strength_1 = _e212;
+    let _e213 = strength_1;
+    if (_e213 <= 0f) {
         return 1f;
     }
-    let _e213 = (*lightIndex_1);
-    let _e216 = frag_info.frame_params[2u];
-    if (_e213 != i32((_e216 + 0.5f))) {
+    let _e215 = (*lightIndex_1);
+    let _e218 = frag_info.frame_params[2u];
+    if (_e215 != i32((_e218 + 0.5f))) {
         return 1f;
     }
-    let _e221 = (*light_1).n_dot_l;
-    nDotL_1 = max(_e221, 0.15f);
-    let _e223 = nDotL_1;
-    let _e224 = nDotL_1;
-    let _e229 = nDotL_1;
-    let _e230 = nDotL_1;
-    slope_1 = min((sqrt(max((1f - (_e223 * _e224)), 0f)) / (_e229 * _e230)), 8f);
-    let _e236 = frag_info.shadow_cascades[2u];
-    cascadeCount = i32((_e236 + 0.5f));
-    let _e239 = v_world_position_1;
-    let _e241 = frag_info.camera_position;
-    viewDistance = length((_e239 - _e241.xyz));
+    let _e223 = (*light_1).n_dot_l;
+    nDotL_1 = max(_e223, 0.15f);
+    let _e225 = nDotL_1;
+    let _e226 = nDotL_1;
+    let _e231 = nDotL_1;
+    let _e232 = nDotL_1;
+    slope_1 = min((sqrt(max((1f - (_e225 * _e226)), 0f)) / (_e231 * _e232)), 8f);
+    let _e238 = frag_info.shadow_cascades[2u];
+    cascadeCount = i32((_e238 + 0.5f));
+    let _e241 = v_world_position_1;
+    let _e243 = frag_info.camera_position;
+    viewDistance = length((_e241 - _e243.xyz));
     cascade = 0i;
-    let _e245 = cascadeCount;
-    let _e246 = (_e245 > 1i);
-    phi_2595_ = _e246;
-    if _e246 {
-        let _e247 = viewDistance;
-        let _e250 = frag_info.shadow_cascades[0u];
-        phi_2595_ = (_e247 > _e250);
+    let _e247 = cascadeCount;
+    let _e248 = (_e247 > 1i);
+    phi_2859_ = _e248;
+    if _e248 {
+        let _e249 = viewDistance;
+        let _e252 = frag_info.shadow_cascades[0u];
+        phi_2859_ = (_e249 > _e252);
     }
-    let _e253 = phi_2595_;
-    if _e253 {
+    let _e255 = phi_2859_;
+    if _e255 {
         cascade = 1i;
     }
-    let _e254 = cascadeCount;
-    let _e255 = (_e254 > 2i);
-    phi_2606_ = _e255;
-    if _e255 {
-        let _e256 = viewDistance;
-        let _e259 = frag_info.shadow_cascades[1u];
-        phi_2606_ = (_e256 > _e259);
+    let _e256 = cascadeCount;
+    let _e257 = (_e256 > 2i);
+    phi_2870_ = _e257;
+    if _e257 {
+        let _e258 = viewDistance;
+        let _e261 = frag_info.shadow_cascades[1u];
+        phi_2870_ = (_e258 > _e261);
     }
-    let _e262 = phi_2606_;
-    if _e262 {
+    let _e264 = phi_2870_;
+    if _e264 {
         cascade = 2i;
     }
     uv_4 = vec2<f32>(0f, 0f);
@@ -8081,177 +8300,177 @@ fn ShadowFactor_u0028_struct_u002d_Surface_u002d_vf3_u002d_f1_u002d_vf3_u002d_vf
     found = false;
     attempt = 0i;
     loop {
-        let _e263 = attempt;
-        if (_e263 < 3i) {
-            let _e265 = cascade;
-            let _e266 = attempt;
-            which = (_e265 + _e266);
-            let _e268 = which;
-            let _e269 = cascadeCount;
-            if (_e268 >= _e269) {
+        let _e265 = attempt;
+        if (_e265 < 3i) {
+            let _e267 = cascade;
+            let _e268 = attempt;
+            which = (_e267 + _e268);
+            let _e270 = which;
+            let _e271 = cascadeCount;
+            if (_e270 >= _e271) {
                 break;
             }
-            let _e271 = which;
-            if (_e271 == 0i) {
-                let _e274 = frag_info.shadow_matrix;
-                local_3 = _e274;
+            let _e273 = which;
+            if (_e273 == 0i) {
+                let _e276 = frag_info.shadow_matrix;
+                local_3 = _e276;
             } else {
-                let _e275 = which;
-                if (_e275 == 1i) {
-                    let _e278 = frag_info.shadow_matrix_far;
-                    local_4 = _e278;
-                } else {
-                    let _e280 = frag_info.shadow_matrix_farthest;
+                let _e277 = which;
+                if (_e277 == 1i) {
+                    let _e280 = frag_info.shadow_matrix_far;
                     local_4 = _e280;
+                } else {
+                    let _e282 = frag_info.shadow_matrix_farthest;
+                    local_4 = _e282;
                 }
-                let _e281 = local_4;
-                local_3 = _e281;
+                let _e283 = local_4;
+                local_3 = _e283;
             }
-            let _e282 = local_3;
-            matrix = _e282;
-            let _e285 = matrix[0][0u];
-            let _e288 = matrix[1][0u];
-            let _e291 = matrix[2][0u];
-            rowX = length(vec3<f32>(_e285, _e288, _e291));
-            let _e296 = frag_info.shadow_cascades[3u];
-            let _e298 = rowX;
-            texelMetres = ((2f * _e296) / max(_e298, 0.000001f));
-            let _e301 = v_world_position_1;
-            let _e303 = (*s_1).n;
-            let _e306 = frag_info.shadow_params[2u];
-            let _e307 = texelMetres;
-            let _e308 = slope_1;
-            origin_1 = (_e301 + (_e303 * (_e306 + (_e307 * (1f + _e308)))));
-            let _e314 = matrix;
-            let _e315 = origin_1;
-            lightSpace = (_e314 * vec4<f32>(_e315.x, _e315.y, _e315.z, 1f));
-            let _e322 = lightSpace[3u];
-            if (_e322 <= 0f) {
+            let _e284 = local_3;
+            matrix = _e284;
+            let _e287 = matrix[0][0u];
+            let _e290 = matrix[1][0u];
+            let _e293 = matrix[2][0u];
+            rowX = length(vec3<f32>(_e287, _e290, _e293));
+            let _e298 = frag_info.shadow_cascades[3u];
+            let _e300 = rowX;
+            texelMetres = ((2f * _e298) / max(_e300, 0.000001f));
+            let _e303 = v_world_position_1;
+            let _e305 = (*s_1).n;
+            let _e308 = frag_info.shadow_params[2u];
+            let _e309 = texelMetres;
+            let _e310 = slope_1;
+            origin_1 = (_e303 + (_e305 * (_e308 + (_e309 * (1f + _e310)))));
+            let _e316 = matrix;
+            let _e317 = origin_1;
+            lightSpace = (_e316 * vec4<f32>(_e317.x, _e317.y, _e317.z, 1f));
+            let _e324 = lightSpace[3u];
+            if (_e324 <= 0f) {
                 continue;
             }
-            let _e324 = lightSpace;
-            let _e327 = lightSpace[3u];
-            candidate = (_e324.xyz / vec3(_e327));
-            let _e331 = candidate[0u];
-            let _e335 = candidate[1u];
-            inTile = vec2<f32>(((_e331 * 0.5f) + 0.5f), (0.5f - (_e335 * 0.5f)));
-            let _e340 = inTile[0u];
-            let _e341 = (_e340 < 0f);
-            phi_2725_ = _e341;
-            if !(_e341) {
-                let _e344 = inTile[0u];
-                phi_2725_ = (_e344 > 1f);
+            let _e326 = lightSpace;
+            let _e329 = lightSpace[3u];
+            candidate = (_e326.xyz / vec3(_e329));
+            let _e333 = candidate[0u];
+            let _e337 = candidate[1u];
+            inTile = vec2<f32>(((_e333 * 0.5f) + 0.5f), (0.5f - (_e337 * 0.5f)));
+            let _e342 = inTile[0u];
+            let _e343 = (_e342 < 0f);
+            phi_2988_ = _e343;
+            if !(_e343) {
+                let _e346 = inTile[0u];
+                phi_2988_ = (_e346 > 1f);
             }
-            let _e347 = phi_2725_;
-            phi_2732_ = _e347;
-            if !(_e347) {
-                let _e350 = inTile[1u];
-                phi_2732_ = (_e350 < 0f);
+            let _e349 = phi_2988_;
+            phi_2995_ = _e349;
+            if !(_e349) {
+                let _e352 = inTile[1u];
+                phi_2995_ = (_e352 < 0f);
             }
-            let _e353 = phi_2732_;
-            phi_2739_ = _e353;
-            if !(_e353) {
-                let _e356 = inTile[1u];
-                phi_2739_ = (_e356 > 1f);
+            let _e355 = phi_2995_;
+            phi_3002_ = _e355;
+            if !(_e355) {
+                let _e358 = inTile[1u];
+                phi_3002_ = (_e358 > 1f);
             }
-            let _e359 = phi_2739_;
-            if _e359 {
+            let _e361 = phi_3002_;
+            if _e361 {
                 continue;
             }
-            let _e361 = candidate[2u];
-            if (_e361 > 1f) {
-                let _e363 = which;
-                let _e364 = cascadeCount;
-                if (_e363 < (_e364 - 1i)) {
+            let _e363 = candidate[2u];
+            if (_e363 > 1f) {
+                let _e365 = which;
+                let _e366 = cascadeCount;
+                if (_e365 < (_e366 - 1i)) {
                     continue;
                 }
                 candidate[2u] = 1f;
             }
-            let _e369 = inTile[0u];
-            let _e370 = which;
-            let _e373 = cascadeCount;
-            let _e377 = inTile[1u];
-            uv_4 = vec2<f32>(((_e369 + f32(_e370)) / f32(_e373)), _e377);
-            let _e379 = candidate;
-            projected = _e379;
-            let _e380 = which;
-            cascade = _e380;
+            let _e371 = inTile[0u];
+            let _e372 = which;
+            let _e375 = cascadeCount;
+            let _e379 = inTile[1u];
+            uv_4 = vec2<f32>(((_e371 + f32(_e372)) / f32(_e375)), _e379);
+            let _e381 = candidate;
+            projected = _e381;
+            let _e382 = which;
+            cascade = _e382;
             found = true;
             break;
         } else {
             break;
         }
         continuing {
-            let _e381 = attempt;
-            attempt = (_e381 + 1i);
+            let _e383 = attempt;
+            attempt = (_e383 + 1i);
         }
     }
-    let _e383 = found;
-    if !(_e383) {
+    let _e385 = found;
+    if !(_e385) {
         return 1f;
     }
-    let _e385 = cascade;
-    if (_e385 == 0i) {
-        let _e389 = frag_info.shadow_bias[0u];
-        local_5 = _e389;
+    let _e387 = cascade;
+    if (_e387 == 0i) {
+        let _e391 = frag_info.shadow_bias[0u];
+        local_5 = _e391;
     } else {
-        let _e390 = cascade;
-        if (_e390 == 1i) {
-            let _e394 = frag_info.shadow_bias[1u];
-            local_6 = _e394;
+        let _e392 = cascade;
+        if (_e392 == 1i) {
+            let _e396 = frag_info.shadow_bias[1u];
+            local_6 = _e396;
         } else {
-            let _e397 = frag_info.shadow_bias[2u];
-            local_6 = _e397;
+            let _e399 = frag_info.shadow_bias[2u];
+            local_6 = _e399;
         }
-        let _e398 = local_6;
-        local_5 = _e398;
+        let _e400 = local_6;
+        local_5 = _e400;
     }
-    let _e399 = local_5;
-    bias = _e399;
-    let _e402 = frag_info.shadow_params[0u];
-    let _e405 = frag_info.shadow_cascades[3u];
-    texel_1 = vec2<f32>(_e402, _e405);
-    let _e407 = cascade;
-    let _e409 = cascadeCount;
-    let _e413 = texel_1;
-    tileLo = (vec2<f32>((f32(_e407) / f32(_e409)), 0f) + (_e413 * 0.5f));
-    let _e416 = cascade;
-    let _e419 = cascadeCount;
-    let _e423 = texel_1;
-    tileHi = (vec2<f32>((f32((_e416 + 1i)) / f32(_e419)), 1f) - (_e423 * 0.5f));
-    let _e428 = frag_info.ambient_ground[3u];
-    softness = _e428;
+    let _e401 = local_5;
+    bias = _e401;
+    let _e404 = frag_info.shadow_params[0u];
+    let _e407 = frag_info.shadow_cascades[3u];
+    texel_1 = vec2<f32>(_e404, _e407);
+    let _e409 = cascade;
+    let _e411 = cascadeCount;
+    let _e415 = texel_1;
+    tileLo = (vec2<f32>((f32(_e409) / f32(_e411)), 0f) + (_e415 * 0.5f));
+    let _e418 = cascade;
+    let _e421 = cascadeCount;
+    let _e425 = texel_1;
+    tileHi = (vec2<f32>((f32((_e418 + 1i)) / f32(_e421)), 1f) - (_e425 * 0.5f));
+    let _e430 = frag_info.ambient_ground[3u];
+    softness = _e430;
     lit_1 = 0f;
-    let _e429 = softness;
-    if (_e429 <= 0f) {
+    let _e431 = softness;
+    if (_e431 <= 0f) {
         y = -1i;
         loop {
-            let _e431 = y;
-            if (_e431 <= 1i) {
+            let _e433 = y;
+            if (_e433 <= 1i) {
                 x = -1i;
                 loop {
-                    let _e433 = x;
-                    if (_e433 <= 1i) {
-                        let _e435 = uv_4;
-                        let _e436 = x;
-                        let _e438 = y;
-                        let _e441 = texel_1;
-                        let _e444 = tileLo;
-                        let _e445 = tileHi;
-                        let _e447 = textureSampleLevel(shadow_texture_tex, shadow_texture_smp, clamp((_e435 + (vec2<f32>(f32(_e436), f32(_e438)) * _e441)), _e444, _e445), 0f);
-                        occluder = _e447.x;
-                        let _e450 = projected[2u];
-                        let _e451 = bias;
-                        let _e453 = occluder;
-                        let _e456 = lit_1;
-                        lit_1 = (_e456 + select(1f, 0f, ((_e450 - _e451) > _e453)));
+                    let _e435 = x;
+                    if (_e435 <= 1i) {
+                        let _e437 = uv_4;
+                        let _e438 = x;
+                        let _e440 = y;
+                        let _e443 = texel_1;
+                        let _e446 = tileLo;
+                        let _e447 = tileHi;
+                        let _e449 = textureSampleLevel(shadow_texture_tex, shadow_texture_smp, clamp((_e437 + (vec2<f32>(f32(_e438), f32(_e440)) * _e443)), _e446, _e447), 0f);
+                        occluder = _e449.x;
+                        let _e452 = projected[2u];
+                        let _e453 = bias;
+                        let _e455 = occluder;
+                        let _e458 = lit_1;
+                        lit_1 = (_e458 + select(1f, 0f, ((_e452 - _e453) > _e455)));
                         continue;
                     } else {
                         break;
                     }
                     continuing {
-                        let _e458 = x;
-                        x = (_e458 + 1i);
+                        let _e460 = x;
+                        x = (_e460 + 1i);
                     }
                 }
                 continue;
@@ -8259,95 +8478,95 @@ fn ShadowFactor_u0028_struct_u002d_Surface_u002d_vf3_u002d_f1_u002d_vf3_u002d_vf
                 break;
             }
             continuing {
-                let _e460 = y;
-                y = (_e460 + 1i);
+                let _e462 = y;
+                y = (_e462 + 1i);
             }
         }
-        let _e462 = lit_1;
-        lit_1 = (_e462 * 0.11111111f);
+        let _e464 = lit_1;
+        lit_1 = (_e464 * 0.11111111f);
     } else {
-        let _e464 = softness;
-        searchRadius = clamp((_e464 * 0.25f), 2f, 16f);
+        let _e466 = softness;
+        searchRadius = clamp((_e466 * 0.25f), 2f, 16f);
         blockerSum = 0f;
         blockerCount = 0f;
         i_4 = 0i;
         loop {
-            let _e467 = i_4;
-            if (_e467 < 5i) {
-                let _e469 = uv_4;
-                let _e470 = i_4;
+            let _e469 = i_4;
+            if (_e469 < 5i) {
+                let _e471 = uv_4;
+                let _e472 = i_4;
                 indexable = array<vec2<f32>, 5>(vec2<f32>(0f, 0f), vec2<f32>(0.7071f, 0.7071f), vec2<f32>(-0.7071f, 0.7071f), vec2<f32>(0.7071f, -0.7071f), vec2<f32>(-0.7071f, -0.7071f));
-                let _e472 = indexable[_e470];
-                let _e473 = texel_1;
-                let _e475 = searchRadius;
-                let _e478 = tileLo;
-                let _e479 = tileHi;
-                let _e481 = textureSampleLevel(shadow_texture_tex, shadow_texture_smp, clamp((_e469 + ((_e472 * _e473) * _e475)), _e478, _e479), 0f);
-                occluder_1 = _e481.x;
-                let _e484 = projected[2u];
-                let _e485 = bias;
-                let _e487 = occluder_1;
-                if ((_e484 - _e485) > _e487) {
-                    let _e489 = occluder_1;
-                    let _e490 = blockerSum;
-                    blockerSum = (_e490 + _e489);
-                    let _e492 = blockerCount;
-                    blockerCount = (_e492 + 1f);
+                let _e474 = indexable[_e472];
+                let _e475 = texel_1;
+                let _e477 = searchRadius;
+                let _e480 = tileLo;
+                let _e481 = tileHi;
+                let _e483 = textureSampleLevel(shadow_texture_tex, shadow_texture_smp, clamp((_e471 + ((_e474 * _e475) * _e477)), _e480, _e481), 0f);
+                occluder_1 = _e483.x;
+                let _e486 = projected[2u];
+                let _e487 = bias;
+                let _e489 = occluder_1;
+                if ((_e486 - _e487) > _e489) {
+                    let _e491 = occluder_1;
+                    let _e492 = blockerSum;
+                    blockerSum = (_e492 + _e491);
+                    let _e494 = blockerCount;
+                    blockerCount = (_e494 + 1f);
                 }
                 continue;
             } else {
                 break;
             }
             continuing {
-                let _e494 = i_4;
-                i_4 = (_e494 + 1i);
+                let _e496 = i_4;
+                i_4 = (_e496 + 1i);
             }
         }
-        let _e496 = blockerCount;
-        if (_e496 <= 0f) {
+        let _e498 = blockerCount;
+        if (_e498 <= 0f) {
             return 1f;
         }
-        let _e499 = projected[2u];
-        let _e500 = blockerSum;
-        let _e501 = blockerCount;
-        gap = max((_e499 - (_e500 / _e501)), 0f);
-        let _e505 = gap;
-        let _e506 = softness;
-        radius_2 = clamp((_e505 * _e506), 1f, 16f);
+        let _e501 = projected[2u];
+        let _e502 = blockerSum;
+        let _e503 = blockerCount;
+        gap = max((_e501 - (_e502 / _e503)), 0f);
+        let _e507 = gap;
+        let _e508 = softness;
+        radius_2 = clamp((_e507 * _e508), 1f, 16f);
         i_5 = 0i;
         loop {
-            let _e509 = i_5;
-            if (_e509 < 5i) {
-                let _e511 = uv_4;
-                let _e512 = i_5;
+            let _e511 = i_5;
+            if (_e511 < 5i) {
+                let _e513 = uv_4;
+                let _e514 = i_5;
                 indexable_1 = array<vec2<f32>, 5>(vec2<f32>(0f, 0f), vec2<f32>(0.7071f, 0.7071f), vec2<f32>(-0.7071f, 0.7071f), vec2<f32>(0.7071f, -0.7071f), vec2<f32>(-0.7071f, -0.7071f));
-                let _e514 = indexable_1[_e512];
-                let _e515 = texel_1;
-                let _e517 = radius_2;
-                let _e520 = tileLo;
-                let _e521 = tileHi;
-                let _e523 = textureSampleLevel(shadow_texture_tex, shadow_texture_smp, clamp((_e511 + ((_e514 * _e515) * _e517)), _e520, _e521), 0f);
-                occluder_2 = _e523.x;
-                let _e526 = projected[2u];
-                let _e527 = bias;
-                let _e529 = occluder_2;
-                let _e532 = lit_1;
-                lit_1 = (_e532 + select(1f, 0f, ((_e526 - _e527) > _e529)));
+                let _e516 = indexable_1[_e514];
+                let _e517 = texel_1;
+                let _e519 = radius_2;
+                let _e522 = tileLo;
+                let _e523 = tileHi;
+                let _e525 = textureSampleLevel(shadow_texture_tex, shadow_texture_smp, clamp((_e513 + ((_e516 * _e517) * _e519)), _e522, _e523), 0f);
+                occluder_2 = _e525.x;
+                let _e528 = projected[2u];
+                let _e529 = bias;
+                let _e531 = occluder_2;
+                let _e534 = lit_1;
+                lit_1 = (_e534 + select(1f, 0f, ((_e528 - _e529) > _e531)));
                 continue;
             } else {
                 break;
             }
             continuing {
-                let _e534 = i_5;
-                i_5 = (_e534 + 1i);
+                let _e536 = i_5;
+                i_5 = (_e536 + 1i);
             }
         }
-        let _e536 = lit_1;
-        lit_1 = (_e536 * 0.2f);
+        let _e538 = lit_1;
+        lit_1 = (_e538 * 0.2f);
     }
-    let _e538 = lit_1;
-    let _e539 = strength_1;
-    return mix(1f, _e538, clamp(_e539, 0f, 1f));
+    let _e540 = lit_1;
+    let _e541 = strength_1;
+    return mix(1f, _e540, clamp(_e541, 0f, 1f));
 }
 
 fn LightVisibility_u0028_struct_u002d_Surface_u002d_vf3_u002d_f1_u002d_vf3_u002d_vf3_u002d_f1_u002d_f1_u002d_f1_u002d_f1_u002d_vf3_u002d_vf3_u002d_f11_u003b_struct_u002d_LightSample_u002d_vf3_u002d_vf3_u002d_vf3_u002d_f1_u002d_f1_u002d_f11_u003b_i1_u003b(s_2: ptr<function, Surface>, light_2: ptr<function, LightSample>, index: ptr<function, i32>) -> f32 {
@@ -8355,19 +8574,19 @@ fn LightVisibility_u0028_struct_u002d_Surface_u002d_vf3_u002d_f1_u002d_vf3_u002d
     var param_45: LightSample;
     var param_46: i32;
 
-    let _e169 = (*s_2);
-    param_44 = _e169;
-    let _e170 = (*light_2);
-    param_45 = _e170;
-    let _e171 = (*index);
-    param_46 = _e171;
-    let _e172 = ShadowFactor_u0028_struct_u002d_Surface_u002d_vf3_u002d_f1_u002d_vf3_u002d_vf3_u002d_f1_u002d_f1_u002d_f1_u002d_f1_u002d_vf3_u002d_vf3_u002d_f11_u003b_struct_u002d_LightSample_u002d_vf3_u002d_vf3_u002d_vf3_u002d_f1_u002d_f1_u002d_f11_u003b_i1_u003b((&param_44), (&param_45), (&param_46));
-    return _e172;
+    let _e171 = (*s_2);
+    param_44 = _e171;
+    let _e172 = (*light_2);
+    param_45 = _e172;
+    let _e173 = (*index);
+    param_46 = _e173;
+    let _e174 = ShadowFactor_u0028_struct_u002d_Surface_u002d_vf3_u002d_f1_u002d_vf3_u002d_vf3_u002d_f1_u002d_f1_u002d_f1_u002d_f1_u002d_vf3_u002d_vf3_u002d_f11_u003b_struct_u002d_LightSample_u002d_vf3_u002d_vf3_u002d_vf3_u002d_f1_u002d_f1_u002d_f11_u003b_i1_u003b((&param_44), (&param_45), (&param_46));
+    return _e174;
 }
 
 fn LightHasShadow_u0028_i1_u003b(index_1: ptr<function, i32>) -> bool {
-    let _e164 = (*index_1);
-    return (_e164 < 8i);
+    let _e166 = (*index_1);
+    return (_e166 < 8i);
 }
 
 fn PunctualAttenuation_u0028_f1_u003b_f1_u003b(distance_1: ptr<function, f32>, range_4: ptr<function, f32>) -> f32 {
@@ -8375,26 +8594,26 @@ fn PunctualAttenuation_u0028_f1_u003b_f1_u003b(distance_1: ptr<function, f32>, r
     var ratio: f32;
     var window: f32;
 
-    let _e168 = (*distance_1);
-    let _e169 = (*distance_1);
-    attenuation = (1f / max((_e168 * _e169), 0.0001f));
-    let _e173 = (*range_4);
-    if (_e173 > 0f) {
-        let _e175 = (*distance_1);
-        let _e176 = (*range_4);
-        ratio = (_e175 / _e176);
-        let _e178 = ratio;
-        let _e179 = ratio;
+    let _e170 = (*distance_1);
+    let _e171 = (*distance_1);
+    attenuation = (1f / max((_e170 * _e171), 0.0001f));
+    let _e175 = (*range_4);
+    if (_e175 > 0f) {
+        let _e177 = (*distance_1);
+        let _e178 = (*range_4);
+        ratio = (_e177 / _e178);
+        let _e180 = ratio;
         let _e181 = ratio;
         let _e183 = ratio;
-        window = clamp((1f - (((_e178 * _e179) * _e181) * _e183)), 0f, 1f);
-        let _e187 = window;
-        let _e188 = window;
-        let _e190 = attenuation;
-        attenuation = (_e190 * (_e187 * _e188));
+        let _e185 = ratio;
+        window = clamp((1f - (((_e180 * _e181) * _e183) * _e185)), 0f, 1f);
+        let _e189 = window;
+        let _e190 = window;
+        let _e192 = attenuation;
+        attenuation = (_e192 * (_e189 * _e190));
     }
-    let _e192 = attenuation;
-    return _e192;
+    let _e194 = attenuation;
+    return _e194;
 }
 
 fn RectangleClosestPoint_u0028_vf3_u003b_vf3_u003b_vf3_u003b_vf3_u003b_vf3_u003b(centre: ptr<function, vec3<f32>>, halfWidth: ptr<function, vec3<f32>>, halfHeight: ptr<function, vec3<f32>>, world_2: ptr<function, vec3<f32>>, mirror: ptr<function, vec3<f32>>) -> vec3<f32> {
@@ -8411,75 +8630,75 @@ fn RectangleClosestPoint_u0028_vf3_u003b_vf3_u003b_vf3_u003b_vf3_u003b_vf3_u003b
     var u: f32;
     var v: f32;
 
-    let _e180 = (*halfWidth);
-    let _e181 = (*halfHeight);
-    n_1 = cross(_e180, _e181);
-    let _e183 = n_1;
-    nLen = length(_e183);
-    let _e185 = nLen;
-    if (_e185 < 0.000000000001f) {
-        let _e187 = (*centre);
-        return _e187;
+    let _e182 = (*halfWidth);
+    let _e183 = (*halfHeight);
+    n_1 = cross(_e182, _e183);
+    let _e185 = n_1;
+    nLen = length(_e185);
+    let _e187 = nLen;
+    if (_e187 < 0.000000000001f) {
+        let _e189 = (*centre);
+        return _e189;
     }
-    let _e188 = nLen;
-    let _e189 = n_1;
-    n_1 = (_e189 / vec3(_e188));
-    let _e192 = (*centre);
-    let _e193 = (*world_2);
-    toPlane = (_e192 - _e193);
-    let _e195 = (*mirror);
-    let _e196 = n_1;
-    denom = dot(_e195, _e196);
-    let _e198 = denom;
-    if (abs(_e198) < 0.00001f) {
-        let _e201 = toPlane;
-        let _e202 = n_1;
+    let _e190 = nLen;
+    let _e191 = n_1;
+    n_1 = (_e191 / vec3(_e190));
+    let _e194 = (*centre);
+    let _e195 = (*world_2);
+    toPlane = (_e194 - _e195);
+    let _e197 = (*mirror);
+    let _e198 = n_1;
+    denom = dot(_e197, _e198);
+    let _e200 = denom;
+    if (abs(_e200) < 0.00001f) {
         let _e203 = toPlane;
         let _e204 = n_1;
-        onPlane = (_e201 - (_e202 * dot(_e203, _e204)));
+        let _e205 = toPlane;
+        let _e206 = n_1;
+        onPlane = (_e203 - (_e204 * dot(_e205, _e206)));
     } else {
-        let _e208 = toPlane;
-        let _e209 = n_1;
-        let _e211 = denom;
-        t = (dot(_e208, _e209) / _e211);
-        let _e213 = t;
-        if (_e213 > 0f) {
-            let _e215 = (*mirror);
-            let _e216 = t;
-            local_7 = (_e215 * _e216);
+        let _e210 = toPlane;
+        let _e211 = n_1;
+        let _e213 = denom;
+        t = (dot(_e210, _e211) / _e213);
+        let _e215 = t;
+        if (_e215 > 0f) {
+            let _e217 = (*mirror);
+            let _e218 = t;
+            local_7 = (_e217 * _e218);
         } else {
-            let _e218 = toPlane;
-            let _e219 = n_1;
             let _e220 = toPlane;
             let _e221 = n_1;
-            local_7 = (_e218 - (_e219 * dot(_e220, _e221)));
+            let _e222 = toPlane;
+            let _e223 = n_1;
+            local_7 = (_e220 - (_e221 * dot(_e222, _e223)));
         }
-        let _e225 = local_7;
-        onPlane = _e225;
+        let _e227 = local_7;
+        onPlane = _e227;
     }
-    let _e226 = onPlane;
-    let _e227 = toPlane;
-    offset_2 = (_e226 - _e227);
-    let _e229 = (*halfWidth);
-    let _e230 = (*halfWidth);
-    wLen2_ = max(dot(_e229, _e230), 0.000000000001f);
-    let _e233 = (*halfHeight);
-    let _e234 = (*halfHeight);
-    hLen2_ = max(dot(_e233, _e234), 0.000000000001f);
-    let _e237 = offset_2;
-    let _e238 = (*halfWidth);
-    let _e240 = wLen2_;
-    u = clamp((dot(_e237, _e238) / _e240), -1f, 1f);
-    let _e243 = offset_2;
-    let _e244 = (*halfHeight);
-    let _e246 = hLen2_;
-    v = clamp((dot(_e243, _e244) / _e246), -1f, 1f);
-    let _e249 = (*centre);
-    let _e250 = (*halfWidth);
-    let _e251 = u;
-    let _e254 = (*halfHeight);
-    let _e255 = v;
-    return ((_e249 + (_e250 * _e251)) + (_e254 * _e255));
+    let _e228 = onPlane;
+    let _e229 = toPlane;
+    offset_2 = (_e228 - _e229);
+    let _e231 = (*halfWidth);
+    let _e232 = (*halfWidth);
+    wLen2_ = max(dot(_e231, _e232), 0.000000000001f);
+    let _e235 = (*halfHeight);
+    let _e236 = (*halfHeight);
+    hLen2_ = max(dot(_e235, _e236), 0.000000000001f);
+    let _e239 = offset_2;
+    let _e240 = (*halfWidth);
+    let _e242 = wLen2_;
+    u = clamp((dot(_e239, _e240) / _e242), -1f, 1f);
+    let _e245 = offset_2;
+    let _e246 = (*halfHeight);
+    let _e248 = hLen2_;
+    v = clamp((dot(_e245, _e246) / _e248), -1f, 1f);
+    let _e251 = (*centre);
+    let _e252 = (*halfWidth);
+    let _e253 = u;
+    let _e256 = (*halfHeight);
+    let _e257 = v;
+    return ((_e251 + (_e252 * _e253)) + (_e256 * _e257));
 }
 
 fn RectangleFormFactor_u0028_vf3_u005b_4_u005d_u003b_vf3_u003b(corners: ptr<function, array<vec3<f32>, 4>>, n_2: ptr<function, vec3<f32>>) -> f32 {
@@ -8494,42 +8713,42 @@ fn RectangleFormFactor_u0028_vf3_u005b_4_u005d_u003b_vf3_u003b(corners: ptr<func
     total = 0f;
     i_6 = 0i;
     loop {
-        let _e172 = i_6;
-        if (_e172 < 4i) {
-            let _e174 = i_6;
-            let _e176 = (*corners)[_e174];
-            a_1 = normalize(_e176);
-            let _e178 = i_6;
-            let _e182 = (*corners)[((_e178 + 1i) & 3i)];
-            b = normalize(_e182);
-            let _e184 = a_1;
-            let _e185 = b;
-            angle_1 = acos(clamp(dot(_e184, _e185), -1f, 1f));
-            let _e189 = a_1;
-            let _e190 = b;
-            axis = cross(_e189, _e190);
-            let _e192 = axis;
-            len = length(_e192);
-            let _e194 = len;
-            if (_e194 > 0.000001f) {
-                let _e196 = angle_1;
-                let _e197 = axis;
-                let _e198 = len;
-                let _e201 = (*n_2);
-                let _e204 = total;
-                total = (_e204 + (_e196 * dot((_e197 / vec3(_e198)), _e201)));
+        let _e174 = i_6;
+        if (_e174 < 4i) {
+            let _e176 = i_6;
+            let _e178 = (*corners)[_e176];
+            a_1 = normalize(_e178);
+            let _e180 = i_6;
+            let _e184 = (*corners)[((_e180 + 1i) & 3i)];
+            b = normalize(_e184);
+            let _e186 = a_1;
+            let _e187 = b;
+            angle_1 = acos(clamp(dot(_e186, _e187), -1f, 1f));
+            let _e191 = a_1;
+            let _e192 = b;
+            axis = cross(_e191, _e192);
+            let _e194 = axis;
+            len = length(_e194);
+            let _e196 = len;
+            if (_e196 > 0.000001f) {
+                let _e198 = angle_1;
+                let _e199 = axis;
+                let _e200 = len;
+                let _e203 = (*n_2);
+                let _e206 = total;
+                total = (_e206 + (_e198 * dot((_e199 / vec3(_e200)), _e203)));
             }
             continue;
         } else {
             break;
         }
         continuing {
-            let _e206 = i_6;
-            i_6 = (_e206 + 1i);
+            let _e208 = i_6;
+            i_6 = (_e208 + 1i);
         }
     }
-    let _e208 = total;
-    return max((-(_e208) * 0.5f), 0f);
+    let _e210 = total;
+    return max((-(_e210) * 0.5f), 0f);
 }
 
 fn LightListLane_u0028_vf4_u003b_i1_u003b(four: ptr<function, vec4<f32>>, slot_1: ptr<function, i32>) -> f32 {
@@ -8538,61 +8757,133 @@ fn LightListLane_u0028_vf4_u003b_i1_u003b(four: ptr<function, vec4<f32>>, slot_1
     var local_9: f32;
     var local_10: f32;
 
-    let _e169 = (*slot_1);
-    let _e170 = (*slot_1);
-    lane = (_e169 - ((_e170 / 4i) * 4i));
-    let _e174 = lane;
-    if (_e174 == 0i) {
-        let _e177 = (*four)[0u];
-        local_8 = _e177;
+    let _e171 = (*slot_1);
+    let _e172 = (*slot_1);
+    lane = (_e171 - ((_e172 / 4i) * 4i));
+    let _e176 = lane;
+    if (_e176 == 0i) {
+        let _e179 = (*four)[0u];
+        local_8 = _e179;
     } else {
-        let _e178 = lane;
-        if (_e178 == 1i) {
-            let _e181 = (*four)[1u];
-            local_9 = _e181;
+        let _e180 = lane;
+        if (_e180 == 1i) {
+            let _e183 = (*four)[1u];
+            local_9 = _e183;
         } else {
-            let _e182 = lane;
-            if (_e182 == 2i) {
-                let _e185 = (*four)[2u];
-                local_10 = _e185;
-            } else {
-                let _e187 = (*four)[3u];
+            let _e184 = lane;
+            if (_e184 == 2i) {
+                let _e187 = (*four)[2u];
                 local_10 = _e187;
+            } else {
+                let _e189 = (*four)[3u];
+                local_10 = _e189;
             }
-            let _e188 = local_10;
-            local_9 = _e188;
+            let _e190 = local_10;
+            local_9 = _e190;
         }
-        let _e189 = local_9;
-        local_8 = _e189;
+        let _e191 = local_9;
+        local_8 = _e191;
     }
-    let _e190 = local_8;
-    return _e190;
+    let _e192 = local_8;
+    return _e192;
 }
 
 fn LightListScale_u0028_i1_u003b(slot_2: ptr<function, i32>) -> f32 {
     var param_47: vec4<f32>;
     var param_48: i32;
 
-    let _e166 = (*slot_2);
-    let _e170 = light_list_info.scales[(_e166 / 4i)];
-    param_47 = _e170;
-    let _e171 = (*slot_2);
-    param_48 = _e171;
-    let _e172 = LightListLane_u0028_vf4_u003b_i1_u003b((&param_47), (&param_48));
-    return _e172;
+    let _e168 = (*slot_2);
+    let _e172 = light_list_info.scales[(_e168 / 4i)];
+    param_47 = _e172;
+    let _e173 = (*slot_2);
+    param_48 = _e173;
+    let _e174 = LightListLane_u0028_vf4_u003b_i1_u003b((&param_47), (&param_48));
+    return _e174;
+}
+
+fn InSlots_u0028_f1_u003b(row: ptr<function, f32>) -> bool {
+    var a_2: vec4<f32>;
+    var b_1: vec4<f32>;
+
+    let _e170 = light_list_info.slot_rows[0i];
+    let _e171 = (*row);
+    a_2 = abs((_e170 - vec4(_e171)));
+    let _e177 = light_list_info.slot_rows[1i];
+    let _e178 = (*row);
+    b_1 = abs((_e177 - vec4(_e178)));
+    let _e183 = a_2[0u];
+    let _e185 = a_2[1u];
+    let _e188 = a_2[2u];
+    let _e190 = a_2[3u];
+    let _e194 = b_1[0u];
+    let _e196 = b_1[1u];
+    let _e199 = b_1[2u];
+    let _e201 = b_1[3u];
+    return (min(min(min(_e183, _e185), min(_e188, _e190)), min(min(_e194, _e196), min(_e199, _e201))) < 0.5f);
 }
 
 fn LightListRow_u0028_i1_u003b(slot_3: ptr<function, i32>) -> f32 {
     var param_49: vec4<f32>;
     var param_50: i32;
 
-    let _e166 = (*slot_3);
-    let _e170 = light_list_info.indices[(_e166 / 4i)];
-    param_49 = _e170;
-    let _e171 = (*slot_3);
-    param_50 = _e171;
-    let _e172 = LightListLane_u0028_vf4_u003b_i1_u003b((&param_49), (&param_50));
-    return _e172;
+    let _e168 = (*slot_3);
+    let _e172 = light_list_info.indices[(_e168 / 4i)];
+    param_49 = _e172;
+    let _e173 = (*slot_3);
+    param_50 = _e173;
+    let _e174 = LightListLane_u0028_vf4_u003b_i1_u003b((&param_49), (&param_50));
+    return _e174;
+}
+
+fn LightListTexel_u0028_f1_u003b_f1_u003b(texel_2: ptr<function, f32>, row_1: ptr<function, f32>) -> vec4<f32> {
+    let _e167 = (*texel_2);
+    let _e171 = light_list_info.list[1u];
+    let _e173 = (*row_1);
+    let _e177 = light_list_info.list[2u];
+    let _e180 = textureSampleLevel(light_list_texture_tex, light_list_texture_smp, vec2<f32>(((_e167 + 0.5f) * _e171), ((_e173 + 0.5f) * _e177)), 0f);
+    return _e180;
+}
+
+fn ClusterRow_u0028_i1_u003b(slot_4: ptr<function, i32>) -> f32 {
+    var entry: f32;
+    var row_2: f32;
+    var within: f32;
+    var texel_3: f32;
+    var four_1: vec4<f32>;
+    var param_51: f32;
+    var param_52: f32;
+    var param_53: vec4<f32>;
+    var param_54: i32;
+
+    let _e175 = g_cluster_offset;
+    let _e176 = (*slot_4);
+    entry = (_e175 + f32(_e176));
+    let _e179 = entry;
+    row_2 = floor((_e179 / 16f));
+    let _e182 = entry;
+    let _e183 = row_2;
+    within = (_e182 - (_e183 * 16f));
+    let _e186 = within;
+    texel_3 = floor((_e186 / 4f));
+    let _e191 = light_list_info.cluster_depth[3u];
+    let _e192 = row_2;
+    let _e194 = texel_3;
+    param_51 = _e194;
+    param_52 = (_e191 + _e192);
+    let _e195 = LightListTexel_u0028_f1_u003b_f1_u003b((&param_51), (&param_52));
+    four_1 = _e195;
+    let _e196 = within;
+    let _e197 = texel_3;
+    let _e202 = four_1;
+    param_53 = _e202;
+    param_54 = i32(((_e196 - (_e197 * 4f)) + 0.5f));
+    let _e203 = LightListLane_u0028_vf4_u003b_i1_u003b((&param_53), (&param_54));
+    return _e203;
+}
+
+fn Clustered_u0028_() -> bool {
+    let _e167 = light_list_info.cluster_grid[3u];
+    return (_e167 > 0.5f);
 }
 
 fn SampleLight_u0028_i1_u003b_struct_u002d_Surface_u002d_vf3_u002d_f1_u002d_vf3_u002d_vf3_u002d_f1_u002d_f1_u002d_f1_u002d_f1_u002d_vf3_u002d_vf3_u002d_f11_u003b(index_2: ptr<function, i32>, s_3: ptr<function, Surface>) -> LightSample {
@@ -8600,273 +8891,386 @@ fn SampleLight_u0028_i1_u003b_struct_u002d_Surface_u002d_vf3_u002d_f1_u002d_vf3_
     var color_1: vec4<f32>;
     var direction: vec4<f32>;
     var cone: vec4<f32>;
-    var slot_4: i32;
+    var slot_5: i32;
+    var clustered: bool;
+    var listRow: f32;
+    var local_11: f32;
+    var param_55: i32;
+    var param_56: i32;
     var v_1: f32;
-    var param_51: i32;
     var u_1: f32;
-    var param_52: i32;
-    var type_39: f32;
+    var local_12: f32;
+    var param_57: f32;
+    var param_58: i32;
+    var type_40: f32;
     var halfWidth_1: vec3<f32>;
     var halfHeight_1: vec3<f32>;
     var toCentre: vec3<f32>;
     var corners_1: array<vec3<f32>, 4>;
     var formFactor: f32;
-    var param_53: array<vec3<f32>, 4>;
-    var param_54: vec3<f32>;
+    var param_59: array<vec3<f32>, 4>;
+    var param_60: vec3<f32>;
     var area: f32;
     var radiance: f32;
-    var local_11: f32;
+    var local_13: f32;
     var distance_2: f32;
     var ratio_1: f32;
     var window_1: f32;
     var mirror_1: vec3<f32>;
     var representative: vec3<f32>;
-    var param_55: vec3<f32>;
-    var param_56: vec3<f32>;
-    var param_57: vec3<f32>;
-    var param_58: vec3<f32>;
-    var param_59: vec3<f32>;
+    var param_61: vec3<f32>;
+    var param_62: vec3<f32>;
+    var param_63: vec3<f32>;
+    var param_64: vec3<f32>;
+    var param_65: vec3<f32>;
     var toPoint: vec3<f32>;
     var pointDistance: f32;
     var light_3: LightSample;
-    var local_12: vec3<f32>;
+    var local_14: vec3<f32>;
     var aim: vec3<f32>;
     var attenuation_1: f32;
     var toLight_1: vec3<f32>;
     var distance_3: f32;
-    var param_60: f32;
-    var param_61: f32;
+    var param_66: f32;
+    var param_67: f32;
     var cosAngle: f32;
 
-    let _e206 = (*index_2);
-    if (_e206 < 8i) {
-        let _e208 = (*index_2);
-        let _e211 = frag_info.light_position[_e208];
-        position = _e211;
-        let _e212 = (*index_2);
-        let _e215 = frag_info.light_color[_e212];
-        color_1 = _e215;
+    let _e214 = (*index_2);
+    if (_e214 < 8i) {
         let _e216 = (*index_2);
-        let _e219 = frag_info.light_direction[_e216];
-        direction = _e219;
+        let _e219 = frag_info.light_position[_e216];
+        position = _e219;
         let _e220 = (*index_2);
-        let _e223 = frag_info.light_cone[_e220];
-        cone = _e223;
-    } else {
+        let _e223 = frag_info.light_color[_e220];
+        color_1 = _e223;
         let _e224 = (*index_2);
-        slot_4 = (_e224 - 8i);
-        let _e226 = slot_4;
-        param_51 = _e226;
-        let _e227 = LightListRow_u0028_i1_u003b((&param_51));
-        let _e231 = light_list_info.list[2u];
-        v_1 = ((_e227 + 0.5f) * _e231);
-        let _e235 = light_list_info.list[1u];
-        u_1 = _e235;
-        let _e236 = u_1;
-        let _e238 = v_1;
-        let _e240 = textureSampleLevel(light_list_texture_tex, light_list_texture_smp, vec2<f32>((0.5f * _e236), _e238), 0f);
-        position = _e240;
-        let _e241 = u_1;
-        let _e243 = v_1;
-        let _e245 = textureSampleLevel(light_list_texture_tex, light_list_texture_smp, vec2<f32>((1.5f * _e241), _e243), 0f);
-        color_1 = _e245;
-        let _e246 = u_1;
-        let _e248 = v_1;
-        let _e250 = textureSampleLevel(light_list_texture_tex, light_list_texture_smp, vec2<f32>((2.5f * _e246), _e248), 0f);
-        direction = _e250;
-        let _e251 = u_1;
-        let _e253 = v_1;
-        let _e255 = textureSampleLevel(light_list_texture_tex, light_list_texture_smp, vec2<f32>((3.5f * _e251), _e253), 0f);
-        cone = _e255;
-        let _e256 = slot_4;
-        param_52 = _e256;
-        let _e257 = LightListScale_u0028_i1_u003b((&param_52));
-        let _e259 = color_1[3u];
-        color_1[3u] = (_e259 * _e257);
-    }
-    let _e263 = position[3u];
-    type_39 = _e263;
-    let _e264 = type_39;
-    if (_e264 > 2.5f) {
-        let _e266 = direction;
-        halfWidth_1 = _e266.xyz;
-        let _e268 = cone;
-        halfHeight_1 = _e268.xyz;
-        let _e270 = position;
-        let _e272 = v_world_position_1;
-        toCentre = (_e270.xyz - _e272);
-        let _e274 = toCentre;
-        let _e275 = halfWidth_1;
-        let _e277 = halfHeight_1;
-        corners_1[0i] = ((_e274 - _e275) - _e277);
-        let _e280 = toCentre;
-        let _e281 = halfWidth_1;
-        let _e283 = halfHeight_1;
-        corners_1[1i] = ((_e280 + _e281) - _e283);
-        let _e286 = toCentre;
-        let _e287 = halfWidth_1;
-        let _e289 = halfHeight_1;
-        corners_1[2i] = ((_e286 + _e287) + _e289);
-        let _e292 = toCentre;
-        let _e293 = halfWidth_1;
-        let _e295 = halfHeight_1;
-        corners_1[3i] = ((_e292 - _e293) + _e295);
-        let _e298 = corners_1;
-        param_53 = _e298;
-        let _e300 = (*s_3).n;
-        param_54 = _e300;
-        let _e301 = RectangleFormFactor_u0028_vf3_u005b_4_u005d_u003b_vf3_u003b((&param_53), (&param_54));
-        formFactor = _e301;
-        let _e302 = halfWidth_1;
-        let _e303 = halfHeight_1;
-        area = (length(cross(_e302, _e303)) * 4f);
-        let _e307 = area;
-        if (_e307 > 0.000000001f) {
-            let _e309 = area;
-            local_11 = (1f / _e309);
-        } else {
-            local_11 = 0f;
-        }
-        let _e311 = local_11;
-        radiance = _e311;
-        let _e312 = toCentre;
-        distance_2 = length(_e312);
-        let _e315 = direction[3u];
-        if (_e315 > 0f) {
-            let _e317 = distance_2;
-            let _e319 = direction[3u];
-            ratio_1 = (_e317 / _e319);
-            let _e321 = ratio_1;
-            let _e322 = ratio_1;
-            let _e324 = ratio_1;
-            let _e326 = ratio_1;
-            window_1 = clamp((1f - (((_e321 * _e322) * _e324) * _e326)), 0f, 1f);
-            let _e330 = window_1;
-            let _e331 = window_1;
-            let _e333 = radiance;
-            radiance = (_e333 * (_e330 * _e331));
-        }
-        let _e336 = (*s_3).v;
-        let _e339 = (*s_3).n;
-        mirror_1 = reflect(-(_e336), _e339);
-        let _e341 = position;
-        param_55 = _e341.xyz;
-        let _e343 = halfWidth_1;
-        param_56 = _e343;
-        let _e344 = halfHeight_1;
-        param_57 = _e344;
-        let _e345 = v_world_position_1;
-        param_58 = _e345;
-        let _e346 = mirror_1;
-        param_59 = _e346;
-        let _e347 = RectangleClosestPoint_u0028_vf3_u003b_vf3_u003b_vf3_u003b_vf3_u003b_vf3_u003b((&param_55), (&param_56), (&param_57), (&param_58), (&param_59));
-        representative = _e347;
-        let _e348 = representative;
-        let _e349 = v_world_position_1;
-        toPoint = (_e348 - _e349);
-        let _e351 = toPoint;
-        pointDistance = length(_e351);
-        let _e353 = pointDistance;
-        if (_e353 > 0.000001f) {
-            let _e355 = toPoint;
-            let _e356 = pointDistance;
-            local_12 = (_e355 / vec3(_e356));
-        } else {
-            let _e360 = (*s_3).n;
-            local_12 = _e360;
-        }
-        let _e361 = local_12;
-        light_3.l = _e361;
-        let _e364 = light_3.l;
-        let _e366 = (*s_3).v;
-        light_3.h = normalize((_e364 + _e366));
-        let _e370 = formFactor;
-        light_3.n_dot_l = _e370;
-        let _e373 = (*s_3).n;
-        let _e375 = light_3.h;
-        light_3.n_dot_h = max(dot(_e373, _e375), 0f);
-        let _e380 = (*s_3).v;
-        let _e382 = light_3.h;
-        light_3.v_dot_h = max(dot(_e380, _e382), 0f);
-        let _e386 = color_1;
-        let _e389 = color_1[3u];
-        let _e391 = radiance;
-        light_3.radiance = ((_e386.xyz * _e389) * _e391);
-        let _e394 = light_3;
-        return _e394;
-    }
-    let _e395 = direction;
-    aim = normalize(_e395.xyz);
-    attenuation_1 = 1f;
-    let _e398 = type_39;
-    if (_e398 < 0.5f) {
-        let _e400 = aim;
-        light_3.l = -(_e400);
+        let _e227 = frag_info.light_direction[_e224];
+        direction = _e227;
+        let _e228 = (*index_2);
+        let _e231 = frag_info.light_cone[_e228];
+        cone = _e231;
     } else {
-        let _e403 = position;
-        let _e405 = v_world_position_1;
-        toLight_1 = (_e403.xyz - _e405);
-        let _e407 = toLight_1;
-        distance_3 = length(_e407);
-        let _e409 = distance_3;
-        if (_e409 < 0.000001f) {
-            let _e412 = (*s_3).n;
-            light_3.l = _e412;
-            let _e415 = (*s_3).n;
-            light_3.h = _e415;
+        let _e232 = (*index_2);
+        slot_5 = (_e232 - 8i);
+        let _e234 = Clustered_u0028_();
+        clustered = _e234;
+        let _e235 = clustered;
+        if _e235 {
+            let _e236 = slot_5;
+            param_55 = _e236;
+            let _e237 = ClusterRow_u0028_i1_u003b((&param_55));
+            local_11 = _e237;
+        } else {
+            let _e238 = slot_5;
+            param_56 = _e238;
+            let _e239 = LightListRow_u0028_i1_u003b((&param_56));
+            local_11 = _e239;
+        }
+        let _e240 = local_11;
+        listRow = _e240;
+        let _e241 = listRow;
+        let _e245 = light_list_info.list[2u];
+        v_1 = ((_e241 + 0.5f) * _e245);
+        let _e249 = light_list_info.list[1u];
+        u_1 = _e249;
+        let _e250 = u_1;
+        let _e252 = v_1;
+        let _e254 = textureSampleLevel(light_list_texture_tex, light_list_texture_smp, vec2<f32>((0.5f * _e250), _e252), 0f);
+        position = _e254;
+        let _e255 = u_1;
+        let _e257 = v_1;
+        let _e259 = textureSampleLevel(light_list_texture_tex, light_list_texture_smp, vec2<f32>((1.5f * _e255), _e257), 0f);
+        color_1 = _e259;
+        let _e260 = u_1;
+        let _e262 = v_1;
+        let _e264 = textureSampleLevel(light_list_texture_tex, light_list_texture_smp, vec2<f32>((2.5f * _e260), _e262), 0f);
+        direction = _e264;
+        let _e265 = u_1;
+        let _e267 = v_1;
+        let _e269 = textureSampleLevel(light_list_texture_tex, light_list_texture_smp, vec2<f32>((3.5f * _e265), _e267), 0f);
+        cone = _e269;
+        let _e270 = clustered;
+        if _e270 {
+            let _e271 = listRow;
+            param_57 = _e271;
+            let _e272 = InSlots_u0028_f1_u003b((&param_57));
+            local_12 = select(1f, 0f, _e272);
+        } else {
+            let _e274 = slot_5;
+            param_58 = _e274;
+            let _e275 = LightListScale_u0028_i1_u003b((&param_58));
+            local_12 = _e275;
+        }
+        let _e276 = local_12;
+        let _e278 = color_1[3u];
+        color_1[3u] = (_e278 * _e276);
+    }
+    let _e282 = position[3u];
+    type_40 = _e282;
+    let _e283 = type_40;
+    if (_e283 > 2.5f) {
+        let _e285 = direction;
+        halfWidth_1 = _e285.xyz;
+        let _e287 = cone;
+        halfHeight_1 = _e287.xyz;
+        let _e289 = position;
+        let _e291 = v_world_position_1;
+        toCentre = (_e289.xyz - _e291);
+        let _e293 = toCentre;
+        let _e294 = halfWidth_1;
+        let _e296 = halfHeight_1;
+        corners_1[0i] = ((_e293 - _e294) - _e296);
+        let _e299 = toCentre;
+        let _e300 = halfWidth_1;
+        let _e302 = halfHeight_1;
+        corners_1[1i] = ((_e299 + _e300) - _e302);
+        let _e305 = toCentre;
+        let _e306 = halfWidth_1;
+        let _e308 = halfHeight_1;
+        corners_1[2i] = ((_e305 + _e306) + _e308);
+        let _e311 = toCentre;
+        let _e312 = halfWidth_1;
+        let _e314 = halfHeight_1;
+        corners_1[3i] = ((_e311 - _e312) + _e314);
+        let _e317 = corners_1;
+        param_59 = _e317;
+        let _e319 = (*s_3).n;
+        param_60 = _e319;
+        let _e320 = RectangleFormFactor_u0028_vf3_u005b_4_u005d_u003b_vf3_u003b((&param_59), (&param_60));
+        formFactor = _e320;
+        let _e321 = halfWidth_1;
+        let _e322 = halfHeight_1;
+        area = (length(cross(_e321, _e322)) * 4f);
+        let _e326 = area;
+        if (_e326 > 0.000000001f) {
+            let _e328 = area;
+            local_13 = (1f / _e328);
+        } else {
+            local_13 = 0f;
+        }
+        let _e330 = local_13;
+        radiance = _e330;
+        let _e331 = toCentre;
+        distance_2 = length(_e331);
+        let _e334 = direction[3u];
+        if (_e334 > 0f) {
+            let _e336 = distance_2;
+            let _e338 = direction[3u];
+            ratio_1 = (_e336 / _e338);
+            let _e340 = ratio_1;
+            let _e341 = ratio_1;
+            let _e343 = ratio_1;
+            let _e345 = ratio_1;
+            window_1 = clamp((1f - (((_e340 * _e341) * _e343) * _e345)), 0f, 1f);
+            let _e349 = window_1;
+            let _e350 = window_1;
+            let _e352 = radiance;
+            radiance = (_e352 * (_e349 * _e350));
+        }
+        let _e355 = (*s_3).v;
+        let _e358 = (*s_3).n;
+        mirror_1 = reflect(-(_e355), _e358);
+        let _e360 = position;
+        param_61 = _e360.xyz;
+        let _e362 = halfWidth_1;
+        param_62 = _e362;
+        let _e363 = halfHeight_1;
+        param_63 = _e363;
+        let _e364 = v_world_position_1;
+        param_64 = _e364;
+        let _e365 = mirror_1;
+        param_65 = _e365;
+        let _e366 = RectangleClosestPoint_u0028_vf3_u003b_vf3_u003b_vf3_u003b_vf3_u003b_vf3_u003b((&param_61), (&param_62), (&param_63), (&param_64), (&param_65));
+        representative = _e366;
+        let _e367 = representative;
+        let _e368 = v_world_position_1;
+        toPoint = (_e367 - _e368);
+        let _e370 = toPoint;
+        pointDistance = length(_e370);
+        let _e372 = pointDistance;
+        if (_e372 > 0.000001f) {
+            let _e374 = toPoint;
+            let _e375 = pointDistance;
+            local_14 = (_e374 / vec3(_e375));
+        } else {
+            let _e379 = (*s_3).n;
+            local_14 = _e379;
+        }
+        let _e380 = local_14;
+        light_3.l = _e380;
+        let _e383 = light_3.l;
+        let _e385 = (*s_3).v;
+        light_3.h = normalize((_e383 + _e385));
+        let _e389 = formFactor;
+        light_3.n_dot_l = _e389;
+        let _e392 = (*s_3).n;
+        let _e394 = light_3.h;
+        light_3.n_dot_h = max(dot(_e392, _e394), 0f);
+        let _e399 = (*s_3).v;
+        let _e401 = light_3.h;
+        light_3.v_dot_h = max(dot(_e399, _e401), 0f);
+        let _e405 = color_1;
+        let _e408 = color_1[3u];
+        let _e410 = radiance;
+        light_3.radiance = ((_e405.xyz * _e408) * _e410);
+        let _e413 = light_3;
+        return _e413;
+    }
+    let _e414 = direction;
+    aim = normalize(_e414.xyz);
+    attenuation_1 = 1f;
+    let _e417 = type_40;
+    if (_e417 < 0.5f) {
+        let _e419 = aim;
+        light_3.l = -(_e419);
+    } else {
+        let _e422 = position;
+        let _e424 = v_world_position_1;
+        toLight_1 = (_e422.xyz - _e424);
+        let _e426 = toLight_1;
+        distance_3 = length(_e426);
+        let _e428 = distance_3;
+        if (_e428 < 0.000001f) {
+            let _e431 = (*s_3).n;
+            light_3.l = _e431;
+            let _e434 = (*s_3).n;
+            light_3.h = _e434;
             light_3.radiance = vec3<f32>(0f, 0f, 0f);
             light_3.n_dot_l = 0f;
             light_3.n_dot_h = 0f;
             light_3.v_dot_h = 0f;
-            let _e421 = light_3;
-            return _e421;
+            let _e440 = light_3;
+            return _e440;
         }
-        let _e422 = toLight_1;
-        let _e423 = distance_3;
-        light_3.l = (_e422 / vec3(_e423));
-        let _e427 = distance_3;
-        param_60 = _e427;
-        let _e429 = direction[3u];
-        param_61 = _e429;
-        let _e430 = PunctualAttenuation_u0028_f1_u003b_f1_u003b((&param_60), (&param_61));
-        attenuation_1 = _e430;
-        let _e431 = type_39;
-        if (_e431 > 1.5f) {
-            let _e433 = aim;
-            let _e435 = light_3.l;
-            cosAngle = dot(_e433, -(_e435));
-            let _e438 = cosAngle;
-            let _e440 = cone[1u];
-            let _e443 = cone[0u];
-            let _e445 = cone[1u];
-            let _e449 = attenuation_1;
-            attenuation_1 = (_e449 * clamp(((_e438 - _e440) / (_e443 - _e445)), 0f, 1f));
+        let _e441 = toLight_1;
+        let _e442 = distance_3;
+        light_3.l = (_e441 / vec3(_e442));
+        let _e446 = distance_3;
+        param_66 = _e446;
+        let _e448 = direction[3u];
+        param_67 = _e448;
+        let _e449 = PunctualAttenuation_u0028_f1_u003b_f1_u003b((&param_66), (&param_67));
+        attenuation_1 = _e449;
+        let _e450 = type_40;
+        if (_e450 > 1.5f) {
+            let _e452 = aim;
+            let _e454 = light_3.l;
+            cosAngle = dot(_e452, -(_e454));
+            let _e457 = cosAngle;
+            let _e459 = cone[1u];
+            let _e462 = cone[0u];
+            let _e464 = cone[1u];
+            let _e468 = attenuation_1;
+            attenuation_1 = (_e468 * clamp(((_e457 - _e459) / (_e462 - _e464)), 0f, 1f));
         }
     }
-    let _e452 = light_3.l;
-    let _e454 = (*s_3).v;
-    light_3.h = normalize((_e452 + _e454));
-    let _e459 = (*s_3).n;
-    let _e461 = light_3.l;
-    light_3.n_dot_l = max(dot(_e459, _e461), 0f);
-    let _e466 = (*s_3).n;
-    let _e468 = light_3.h;
-    light_3.n_dot_h = max(dot(_e466, _e468), 0f);
+    let _e471 = light_3.l;
     let _e473 = (*s_3).v;
-    let _e475 = light_3.h;
-    light_3.v_dot_h = max(dot(_e473, _e475), 0f);
-    let _e479 = color_1;
-    let _e482 = color_1[3u];
-    let _e484 = attenuation_1;
-    light_3.radiance = ((_e479.xyz * _e482) * _e484);
-    let _e487 = light_3;
-    return _e487;
+    light_3.h = normalize((_e471 + _e473));
+    let _e478 = (*s_3).n;
+    let _e480 = light_3.l;
+    light_3.n_dot_l = max(dot(_e478, _e480), 0f);
+    let _e485 = (*s_3).n;
+    let _e487 = light_3.h;
+    light_3.n_dot_h = max(dot(_e485, _e487), 0f);
+    let _e492 = (*s_3).v;
+    let _e494 = light_3.h;
+    light_3.v_dot_h = max(dot(_e492, _e494), 0f);
+    let _e498 = color_1;
+    let _e501 = color_1[3u];
+    let _e503 = attenuation_1;
+    light_3.radiance = ((_e498.xyz * _e501) * _e503);
+    let _e506 = light_3;
+    return _e506;
+}
+
+fn FindCluster_u0028_vf3_u003b(world_3: ptr<function, vec3<f32>>) {
+    var clip_1: vec4<f32>;
+    var ndc_1: vec2<f32>;
+    var grid: vec3<f32>;
+    var near: f32;
+    var tx: f32;
+    var ty: f32;
+    var tz: f32;
+    var local_15: f32;
+    var cell: f32;
+    var row_3: f32;
+    var header: vec4<f32>;
+    var param_68: f32;
+    var param_69: f32;
+
+    let _e180 = light_list_info.cluster_view_projection;
+    let _e181 = (*world_3);
+    clip_1 = (_e180 * vec4<f32>(_e181.x, _e181.y, _e181.z, 1f));
+    let _e187 = clip_1;
+    let _e190 = clip_1[3u];
+    ndc_1 = (_e187.xy / vec2(max(_e190, 0.000001f)));
+    let _e195 = light_list_info.cluster_grid;
+    grid = _e195.xyz;
+    let _e199 = light_list_info.cluster_depth[0u];
+    near = _e199;
+    let _e201 = ndc_1[0u];
+    let _e205 = grid[0u];
+    let _e209 = grid[0u];
+    tx = clamp(floor((((_e201 * 0.5f) + 0.5f) * _e205)), 0f, (_e209 - 1f));
+    let _e213 = ndc_1[1u];
+    let _e217 = grid[1u];
+    let _e221 = grid[1u];
+    ty = clamp(floor((((_e213 * 0.5f) + 0.5f) * _e217)), 0f, (_e221 - 1f));
+    let _e225 = clip_1[3u];
+    let _e226 = near;
+    if (_e225 <= _e226) {
+        local_15 = 0f;
+    } else {
+        let _e229 = clip_1[3u];
+        let _e230 = near;
+        let _e235 = light_list_info.cluster_depth[1u];
+        let _e239 = grid[2u];
+        local_15 = clamp(floor((log((_e229 / _e230)) * _e235)), 0f, (_e239 - 1f));
+    }
+    let _e242 = local_15;
+    tz = _e242;
+    let _e243 = tx;
+    let _e244 = ty;
+    let _e246 = grid[0u];
+    let _e249 = tz;
+    let _e251 = grid[0u];
+    let _e254 = grid[1u];
+    cell = ((_e243 + (_e244 * _e246)) + ((_e249 * _e251) * _e254));
+    let _e257 = cell;
+    row_3 = floor((_e257 / 4f));
+    let _e260 = cell;
+    let _e261 = row_3;
+    let _e266 = light_list_info.cluster_depth[2u];
+    let _e267 = row_3;
+    param_68 = (_e260 - (_e261 * 4f));
+    param_69 = (_e266 + _e267);
+    let _e269 = LightListTexel_u0028_f1_u003b_f1_u003b((&param_68), (&param_69));
+    header = _e269;
+    let _e271 = header[0u];
+    g_cluster_offset = _e271;
+    let _e273 = header[1u];
+    g_cluster_count = _e273;
+    return;
 }
 
 fn LightCount_u0028_() -> i32 {
-    let _e165 = frag_info.frame_params[1u];
-    let _e171 = light_list_info.list[0u];
-    return (clamp(i32((_e165 + 0.5f)), 0i, 8i) + clamp(i32((_e171 + 0.5f)), 0i, 24i));
+    var tail: f32;
+    var param_70: vec3<f32>;
+
+    let _e169 = light_list_info.list[0u];
+    tail = _e169;
+    let _e170 = Clustered_u0028_();
+    if _e170 {
+        let _e171 = v_world_position_1;
+        param_70 = _e171;
+        FindCluster_u0028_vf3_u003b((&param_70));
+        let _e172 = g_cluster_count;
+        tail = _e172;
+    }
+    let _e175 = frag_info.frame_params[1u];
+    let _e179 = tail;
+    return (clamp(i32((_e175 + 0.5f)), 0i, 8i) + clamp(i32((_e179 + 0.5f)), 0i, 24i));
 }
 
 fn AccumulateLights_u0028_struct_u002d_Surface_u002d_vf3_u002d_f1_u002d_vf3_u002d_vf3_u002d_f1_u002d_f1_u002d_f1_u002d_f1_u002d_vf3_u002d_vf3_u002d_f11_u003b(s_4: ptr<function, Surface>) -> vec3<f32> {
@@ -8874,271 +9278,271 @@ fn AccumulateLights_u0028_struct_u002d_Surface_u002d_vf3_u002d_f1_u002d_vf3_u002
     var count_1: i32;
     var i_7: i32;
     var light_4: LightSample;
-    var param_62: i32;
-    var param_63: Surface;
+    var param_71: i32;
+    var param_72: Surface;
     var visibility: f32;
-    var param_64: i32;
-    var local_13: f32;
-    var param_65: Surface;
-    var param_66: LightSample;
-    var param_67: i32;
-    var param_68: vec3<f32>;
-    var param_69: vec3<f32>;
-    var param_70: i32;
-    var param_71: Surface;
-    var param_72: LightSample;
+    var param_73: i32;
+    var local_16: f32;
+    var param_74: Surface;
+    var param_75: LightSample;
+    var param_76: i32;
+    var param_77: vec3<f32>;
+    var param_78: vec3<f32>;
+    var param_79: i32;
+    var param_80: Surface;
+    var param_81: LightSample;
 
     total_1 = vec3<f32>(0f, 0f, 0f);
-    let _e181 = LightCount_u0028_();
-    count_1 = _e181;
+    let _e183 = LightCount_u0028_();
+    count_1 = _e183;
     i_7 = 0i;
     loop {
-        let _e182 = i_7;
-        if (_e182 < 32i) {
-            let _e184 = i_7;
-            let _e185 = count_1;
-            if (_e184 >= _e185) {
+        let _e184 = i_7;
+        if (_e184 < 32i) {
+            let _e186 = i_7;
+            let _e187 = count_1;
+            if (_e186 >= _e187) {
                 break;
             }
-            let _e187 = i_7;
-            param_62 = _e187;
-            let _e188 = (*s_4);
-            param_63 = _e188;
-            let _e189 = SampleLight_u0028_i1_u003b_struct_u002d_Surface_u002d_vf3_u002d_f1_u002d_vf3_u002d_vf3_u002d_f1_u002d_f1_u002d_f1_u002d_f1_u002d_vf3_u002d_vf3_u002d_f11_u003b((&param_62), (&param_63));
-            light_4 = _e189;
-            let _e191 = light_4.n_dot_l;
-            if (_e191 <= 0f) {
+            let _e189 = i_7;
+            param_71 = _e189;
+            let _e190 = (*s_4);
+            param_72 = _e190;
+            let _e191 = SampleLight_u0028_i1_u003b_struct_u002d_Surface_u002d_vf3_u002d_f1_u002d_vf3_u002d_vf3_u002d_f1_u002d_f1_u002d_f1_u002d_f1_u002d_vf3_u002d_vf3_u002d_f11_u003b((&param_71), (&param_72));
+            light_4 = _e191;
+            let _e193 = light_4.n_dot_l;
+            if (_e193 <= 0f) {
                 continue;
             }
-            let _e193 = i_7;
-            param_64 = _e193;
-            let _e194 = LightHasShadow_u0028_i1_u003b((&param_64));
-            if _e194 {
-                let _e195 = (*s_4);
-                param_65 = _e195;
-                let _e196 = light_4;
-                param_66 = _e196;
-                let _e197 = i_7;
-                param_67 = _e197;
-                let _e198 = LightVisibility_u0028_struct_u002d_Surface_u002d_vf3_u002d_f1_u002d_vf3_u002d_vf3_u002d_f1_u002d_f1_u002d_f1_u002d_f1_u002d_vf3_u002d_vf3_u002d_f11_u003b_struct_u002d_LightSample_u002d_vf3_u002d_vf3_u002d_vf3_u002d_f1_u002d_f1_u002d_f11_u003b_i1_u003b((&param_65), (&param_66), (&param_67));
-                let _e199 = v_world_position_1;
-                param_68 = _e199;
-                let _e201 = (*s_4).n;
-                param_69 = _e201;
-                let _e202 = i_7;
-                param_70 = _e202;
-                let _e203 = PointShadowFactor_u0028_vf3_u003b_vf3_u003b_i1_u003b((&param_68), (&param_69), (&param_70));
-                local_13 = (_e198 * _e203);
+            let _e195 = i_7;
+            param_73 = _e195;
+            let _e196 = LightHasShadow_u0028_i1_u003b((&param_73));
+            if _e196 {
+                let _e197 = (*s_4);
+                param_74 = _e197;
+                let _e198 = light_4;
+                param_75 = _e198;
+                let _e199 = i_7;
+                param_76 = _e199;
+                let _e200 = LightVisibility_u0028_struct_u002d_Surface_u002d_vf3_u002d_f1_u002d_vf3_u002d_vf3_u002d_f1_u002d_f1_u002d_f1_u002d_f1_u002d_vf3_u002d_vf3_u002d_f11_u003b_struct_u002d_LightSample_u002d_vf3_u002d_vf3_u002d_vf3_u002d_f1_u002d_f1_u002d_f11_u003b_i1_u003b((&param_74), (&param_75), (&param_76));
+                let _e201 = v_world_position_1;
+                param_77 = _e201;
+                let _e203 = (*s_4).n;
+                param_78 = _e203;
+                let _e204 = i_7;
+                param_79 = _e204;
+                let _e205 = PointShadowFactor_u0028_vf3_u003b_vf3_u003b_i1_u003b((&param_77), (&param_78), (&param_79));
+                local_16 = (_e200 * _e205);
             } else {
-                local_13 = 1f;
+                local_16 = 1f;
             }
-            let _e205 = local_13;
-            visibility = _e205;
-            let _e206 = visibility;
-            if (_e206 <= 0f) {
+            let _e207 = local_16;
+            visibility = _e207;
+            let _e208 = visibility;
+            if (_e208 <= 0f) {
                 continue;
             }
-            let _e208 = (*s_4);
-            param_71 = _e208;
-            let _e209 = light_4;
-            param_72 = _e209;
-            let _e210 = ShadeLight_u0028_struct_u002d_Surface_u002d_vf3_u002d_f1_u002d_vf3_u002d_vf3_u002d_f1_u002d_f1_u002d_f1_u002d_f1_u002d_vf3_u002d_vf3_u002d_f11_u003b_struct_u002d_LightSample_u002d_vf3_u002d_vf3_u002d_vf3_u002d_f1_u002d_f1_u002d_f11_u003b((&param_71), (&param_72));
-            let _e212 = light_4.radiance;
-            let _e215 = light_4.n_dot_l;
-            let _e217 = visibility;
-            let _e219 = total_1;
-            total_1 = (_e219 + (((_e210 * _e212) * _e215) * _e217));
+            let _e210 = (*s_4);
+            param_80 = _e210;
+            let _e211 = light_4;
+            param_81 = _e211;
+            let _e212 = ShadeLight_u0028_struct_u002d_Surface_u002d_vf3_u002d_f1_u002d_vf3_u002d_vf3_u002d_f1_u002d_f1_u002d_f1_u002d_f1_u002d_vf3_u002d_vf3_u002d_f11_u003b_struct_u002d_LightSample_u002d_vf3_u002d_vf3_u002d_vf3_u002d_f1_u002d_f1_u002d_f11_u003b((&param_80), (&param_81));
+            let _e214 = light_4.radiance;
+            let _e217 = light_4.n_dot_l;
+            let _e219 = visibility;
+            let _e221 = total_1;
+            total_1 = (_e221 + (((_e212 * _e214) * _e217) * _e219));
             continue;
         } else {
             break;
         }
         continuing {
-            let _e221 = i_7;
-            i_7 = (_e221 + 1i);
+            let _e223 = i_7;
+            i_7 = (_e223 + 1i);
         }
     }
-    let _e223 = total_1;
-    return _e223;
+    let _e225 = total_1;
+    return _e225;
 }
 
 fn SampleLightmap_u0028_() -> vec3<f32> {
-    var texel_2: vec4<f32>;
+    var texel_4: vec4<f32>;
 
-    let _e164 = v_lightmap_uv_1;
-    let _e165 = textureSample(lightmap_texture_tex, lightmap_texture_smp, _e164);
-    texel_2 = _e165;
-    let _e166 = texel_2;
-    let _e169 = texel_2[3u];
-    return ((_e166.xyz * _e169) * 8f);
+    let _e166 = v_lightmap_uv_1;
+    let _e167 = textureSample(lightmap_texture_tex, lightmap_texture_smp, _e166);
+    texel_4 = _e167;
+    let _e168 = texel_4;
+    let _e171 = texel_4[3u];
+    return ((_e168.xyz * _e171) * 8f);
 }
 
 fn MaterialLodBias_u0028_() -> f32 {
-    let _e165 = frag_info.target_origin[1u];
-    return _e165;
+    let _e167 = frag_info.target_origin[1u];
+    return _e167;
 }
 
 fn ApplyMetallicRoughnessMap_u0028_struct_u002d_Surface_u002d_vf3_u002d_f1_u002d_vf3_u002d_vf3_u002d_f1_u002d_f1_u002d_f1_u002d_f1_u002d_vf3_u002d_vf3_u002d_f11_u003b(s_5: ptr<function, Surface>) {
     var orm: vec3<f32>;
 
-    let _e165 = v_texcoord_1;
-    let _e166 = MaterialLodBias_u0028_();
-    let _e167 = textureSampleBias(metallic_roughness_texture_tex, metallic_roughness_texture_smp, _e165, _e166);
-    orm = _e167.xyz;
-    let _e170 = (*s_5).metallic;
-    let _e172 = orm[2u];
-    (*s_5).metallic = clamp((_e170 * _e172), 0f, 1f);
-    let _e177 = (*s_5).roughness;
-    let _e179 = orm[1u];
-    (*s_5).roughness = clamp((_e177 * _e179), 0.02f, 1f);
+    let _e167 = v_texcoord_1;
+    let _e168 = MaterialLodBias_u0028_();
+    let _e169 = textureSampleBias(metallic_roughness_texture_tex, metallic_roughness_texture_smp, _e167, _e168);
+    orm = _e169.xyz;
+    let _e172 = (*s_5).metallic;
+    let _e174 = orm[2u];
+    (*s_5).metallic = clamp((_e172 * _e174), 0f, 1f);
+    let _e179 = (*s_5).roughness;
+    let _e181 = orm[1u];
+    (*s_5).roughness = clamp((_e179 * _e181), 0.02f, 1f);
     return;
 }
 
 fn SrgbToLinear_u0028_vf3_u003b(srgb: ptr<function, vec3<f32>>) -> vec3<f32> {
-    let _e164 = (*srgb);
-    let _e167 = (*srgb);
-    let _e172 = (*srgb);
-    return mix((_e164 / vec3(12.92f)), pow(((_e167 + vec3<f32>(0.055f, 0.055f, 0.055f)) / vec3(1.055f)), vec3<f32>(2.4f, 2.4f, 2.4f)), step(vec3<f32>(0.04045f, 0.04045f, 0.04045f), _e172));
+    let _e166 = (*srgb);
+    let _e169 = (*srgb);
+    let _e174 = (*srgb);
+    return mix((_e166 / vec3(12.92f)), pow(((_e169 + vec3<f32>(0.055f, 0.055f, 0.055f)) / vec3(1.055f)), vec3<f32>(2.4f, 2.4f, 2.4f)), step(vec3<f32>(0.04045f, 0.04045f, 0.04045f), _e174));
 }
 
 fn ApplyEmissiveMap_u0028_struct_u002d_Surface_u002d_vf3_u002d_f1_u002d_vf3_u002d_vf3_u002d_f1_u002d_f1_u002d_f1_u002d_f1_u002d_vf3_u002d_vf3_u002d_f11_u003b(s_6: ptr<function, Surface>) {
     var emissive: vec3<f32>;
-    var param_73: vec3<f32>;
+    var param_82: vec3<f32>;
 
-    let _e166 = v_texcoord_1;
-    let _e167 = MaterialLodBias_u0028_();
-    let _e168 = textureSampleBias(emissive_texture_tex, emissive_texture_smp, _e166, _e167);
-    param_73 = _e168.xyz;
-    let _e170 = SrgbToLinear_u0028_vf3_u003b((&param_73));
-    emissive = _e170;
-    let _e171 = emissive;
-    let _e173 = frag_info.emissive;
-    let _e178 = frag_info.material2_[3u];
-    (*s_6).emissive = ((_e171 * _e173.xyz) * _e178);
+    let _e168 = v_texcoord_1;
+    let _e169 = MaterialLodBias_u0028_();
+    let _e170 = textureSampleBias(emissive_texture_tex, emissive_texture_smp, _e168, _e169);
+    param_82 = _e170.xyz;
+    let _e172 = SrgbToLinear_u0028_vf3_u003b((&param_82));
+    emissive = _e172;
+    let _e173 = emissive;
+    let _e175 = frag_info.emissive;
+    let _e180 = frag_info.material2_[3u];
+    (*s_6).emissive = ((_e173 * _e175.xyz) * _e180);
     return;
 }
 
 fn ApplyOcclusionMap_u0028_struct_u002d_Surface_u002d_vf3_u002d_f1_u002d_vf3_u002d_vf3_u002d_f1_u002d_f1_u002d_f1_u002d_f1_u002d_vf3_u002d_vf3_u002d_f11_u003b(s_7: ptr<function, Surface>) {
     var occlusion: f32;
 
-    let _e165 = v_texcoord_1;
-    let _e166 = MaterialLodBias_u0028_();
-    let _e167 = textureSampleBias(occlusion_texture_tex, occlusion_texture_smp, _e165, _e166);
-    occlusion = _e167.x;
-    let _e169 = occlusion;
-    let _e172 = frag_info.material2_[2u];
-    (*s_7).occlusion = mix(1f, _e169, clamp(_e172, 0f, 1f));
+    let _e167 = v_texcoord_1;
+    let _e168 = MaterialLodBias_u0028_();
+    let _e169 = textureSampleBias(occlusion_texture_tex, occlusion_texture_smp, _e167, _e168);
+    occlusion = _e169.x;
+    let _e171 = occlusion;
+    let _e174 = frag_info.material2_[2u];
+    (*s_7).occlusion = mix(1f, _e171, clamp(_e174, 0f, 1f));
     return;
 }
 
 fn ApplyNormalMap_u0028_struct_u002d_Surface_u002d_vf3_u002d_f1_u002d_vf3_u002d_vf3_u002d_f1_u002d_f1_u002d_f1_u002d_f1_u002d_vf3_u002d_vf3_u002d_f11_u003b(s_8: ptr<function, Surface>) {
     var sampledTexel: vec4<f32>;
     var t_1: vec3<f32>;
-    var b_1: vec3<f32>;
+    var b_2: vec3<f32>;
     var sampled: vec3<f32>;
 
-    let _e168 = v_texcoord_1;
-    let _e169 = MaterialLodBias_u0028_();
-    let _e170 = textureSampleBias(normal_texture_tex, normal_texture_smp, _e168, _e169);
-    sampledTexel = _e170;
-    let _e171 = v_tangent_1;
-    t_1 = _e171.xyz;
-    let _e173 = t_1;
-    let _e175 = (*s_8).n;
+    let _e170 = v_texcoord_1;
+    let _e171 = MaterialLodBias_u0028_();
+    let _e172 = textureSampleBias(normal_texture_tex, normal_texture_smp, _e170, _e171);
+    sampledTexel = _e172;
+    let _e173 = v_tangent_1;
+    t_1 = _e173.xyz;
+    let _e175 = t_1;
     let _e177 = (*s_8).n;
-    let _e178 = t_1;
-    t_1 = (_e173 - (_e175 * dot(_e177, _e178)));
-    let _e182 = t_1;
-    let _e183 = t_1;
-    if (dot(_e182, _e183) < 0.000000000001f) {
+    let _e179 = (*s_8).n;
+    let _e180 = t_1;
+    t_1 = (_e175 - (_e177 * dot(_e179, _e180)));
+    let _e184 = t_1;
+    let _e185 = t_1;
+    if (dot(_e184, _e185) < 0.000000000001f) {
         return;
     }
-    let _e186 = t_1;
-    t_1 = normalize(_e186);
-    let _e189 = (*s_8).n;
-    let _e190 = t_1;
-    let _e193 = v_tangent_1[3u];
-    b_1 = (cross(_e189, _e190) * _e193);
-    let _e195 = gl_FrontFacing_1;
-    if !(_e195) {
-        let _e197 = t_1;
-        t_1 = -(_e197);
+    let _e188 = t_1;
+    t_1 = normalize(_e188);
+    let _e191 = (*s_8).n;
+    let _e192 = t_1;
+    let _e195 = v_tangent_1[3u];
+    b_2 = (cross(_e191, _e192) * _e195);
+    let _e197 = gl_FrontFacing_1;
+    if !(_e197) {
+        let _e199 = t_1;
+        t_1 = -(_e199);
     }
-    let _e199 = sampledTexel;
-    sampled = ((_e199.xyz * 2f) - vec3(1f));
-    let _e206 = frag_info.material2_[1u];
-    let _e207 = sampled;
-    let _e209 = (_e207.xy * _e206);
-    sampled[0u] = _e209.x;
-    sampled[1u] = _e209.y;
-    let _e214 = t_1;
-    let _e216 = sampled[0u];
-    let _e218 = b_1;
-    let _e220 = sampled[1u];
-    let _e224 = (*s_8).n;
-    let _e226 = sampled[2u];
-    (*s_8).n = normalize((((_e214 * _e216) + (_e218 * _e220)) + (_e224 * _e226)));
-    let _e232 = (*s_8).n;
-    let _e234 = (*s_8).v;
-    (*s_8).n_dot_v = max(dot(_e232, _e234), 0.0001f);
+    let _e201 = sampledTexel;
+    sampled = ((_e201.xyz * 2f) - vec3(1f));
+    let _e208 = frag_info.material2_[1u];
+    let _e209 = sampled;
+    let _e211 = (_e209.xy * _e208);
+    sampled[0u] = _e211.x;
+    sampled[1u] = _e211.y;
+    let _e216 = t_1;
+    let _e218 = sampled[0u];
+    let _e220 = b_2;
+    let _e222 = sampled[1u];
+    let _e226 = (*s_8).n;
+    let _e228 = sampled[2u];
+    (*s_8).n = normalize((((_e216 * _e218) + (_e220 * _e222)) + (_e226 * _e228)));
+    let _e234 = (*s_8).n;
+    let _e236 = (*s_8).v;
+    (*s_8).n_dot_v = max(dot(_e234, _e236), 0.0001f);
     return;
 }
 
-fn AtlasTexel_u0028_vf2_u003b(texel_3: ptr<function, vec2<f32>>) -> vec4<f32> {
-    let _e164 = (*texel_3);
-    let _e168 = irradiance_info.atlas;
-    let _e171 = textureSampleLevel(irradiance_texture_tex, irradiance_texture_smp, ((_e164 + vec2(0.5f)) * _e168.xy), 0f);
-    return _e171;
+fn AtlasTexel_u0028_vf2_u003b(texel_5: ptr<function, vec2<f32>>) -> vec4<f32> {
+    let _e166 = (*texel_5);
+    let _e170 = irradiance_info.atlas;
+    let _e173 = textureSampleLevel(irradiance_texture_tex, irradiance_texture_smp, ((_e166 + vec2(0.5f)) * _e170.xy), 0f);
+    return _e173;
 }
 
 fn TileBilinear_u0028_vf2_u003b_f1_u003b_vf2_u003b(corner: ptr<function, vec2<f32>>, interior: ptr<function, f32>, uv_5: ptr<function, vec2<f32>>) -> vec4<f32> {
     var at: vec2<f32>;
     var low: vec2<f32>;
     var f: vec2<f32>;
-    var a_2: vec4<f32>;
-    var param_74: vec2<f32>;
-    var b_2: vec4<f32>;
-    var param_75: vec2<f32>;
+    var a_3: vec4<f32>;
+    var param_83: vec2<f32>;
+    var b_3: vec4<f32>;
+    var param_84: vec2<f32>;
     var c: vec4<f32>;
-    var param_76: vec2<f32>;
+    var param_85: vec2<f32>;
     var d_1: vec4<f32>;
-    var param_77: vec2<f32>;
+    var param_86: vec2<f32>;
 
-    let _e177 = (*uv_5);
-    let _e178 = (*interior);
-    at = ((vec2(1f) + (_e177 * _e178)) - vec2(0.5f));
-    let _e184 = at;
-    low = floor(_e184);
+    let _e179 = (*uv_5);
+    let _e180 = (*interior);
+    at = ((vec2(1f) + (_e179 * _e180)) - vec2(0.5f));
     let _e186 = at;
-    let _e187 = low;
-    f = (_e186 - _e187);
-    let _e189 = (*corner);
-    let _e190 = low;
-    param_74 = (_e189 + _e190);
-    let _e192 = AtlasTexel_u0028_vf2_u003b((&param_74));
-    a_2 = _e192;
-    let _e193 = (*corner);
-    let _e194 = low;
-    param_75 = ((_e193 + _e194) + vec2<f32>(1f, 0f));
-    let _e197 = AtlasTexel_u0028_vf2_u003b((&param_75));
-    b_2 = _e197;
-    let _e198 = (*corner);
-    let _e199 = low;
-    param_76 = ((_e198 + _e199) + vec2<f32>(0f, 1f));
-    let _e202 = AtlasTexel_u0028_vf2_u003b((&param_76));
-    c = _e202;
-    let _e203 = (*corner);
-    let _e204 = low;
-    param_77 = ((_e203 + _e204) + vec2<f32>(1f, 1f));
-    let _e207 = AtlasTexel_u0028_vf2_u003b((&param_77));
-    d_1 = _e207;
-    let _e208 = a_2;
-    let _e209 = b_2;
-    let _e211 = f[0u];
-    let _e214 = c;
-    let _e215 = d_1;
-    let _e217 = f[0u];
-    let _e221 = f[1u];
-    return mix(mix(_e208, _e209, vec4(_e211)), mix(_e214, _e215, vec4(_e217)), vec4(_e221));
+    low = floor(_e186);
+    let _e188 = at;
+    let _e189 = low;
+    f = (_e188 - _e189);
+    let _e191 = (*corner);
+    let _e192 = low;
+    param_83 = (_e191 + _e192);
+    let _e194 = AtlasTexel_u0028_vf2_u003b((&param_83));
+    a_3 = _e194;
+    let _e195 = (*corner);
+    let _e196 = low;
+    param_84 = ((_e195 + _e196) + vec2<f32>(1f, 0f));
+    let _e199 = AtlasTexel_u0028_vf2_u003b((&param_84));
+    b_3 = _e199;
+    let _e200 = (*corner);
+    let _e201 = low;
+    param_85 = ((_e200 + _e201) + vec2<f32>(0f, 1f));
+    let _e204 = AtlasTexel_u0028_vf2_u003b((&param_85));
+    c = _e204;
+    let _e205 = (*corner);
+    let _e206 = low;
+    param_86 = ((_e205 + _e206) + vec2<f32>(1f, 1f));
+    let _e209 = AtlasTexel_u0028_vf2_u003b((&param_86));
+    d_1 = _e209;
+    let _e210 = a_3;
+    let _e211 = b_3;
+    let _e213 = f[0u];
+    let _e216 = c;
+    let _e217 = d_1;
+    let _e219 = f[0u];
+    let _e223 = f[1u];
+    return mix(mix(_e210, _e211, vec4(_e213)), mix(_e216, _e217, vec4(_e219)), vec4(_e223));
 }
 
 fn ProbeOctahedral_u0028_vf3_u003b(direction_1: ptr<function, vec3<f32>>) -> vec2<f32> {
@@ -9146,32 +9550,32 @@ fn ProbeOctahedral_u0028_vf3_u003b(direction_1: ptr<function, vec3<f32>>) -> vec
     var n_3: vec3<f32>;
     var xy: vec2<f32>;
 
-    let _e168 = (*direction_1)[0u];
-    let _e171 = (*direction_1)[1u];
-    let _e175 = (*direction_1)[2u];
-    sum_1 = ((abs(_e168) + abs(_e171)) + abs(_e175));
-    let _e178 = sum_1;
-    if (_e178 <= 0f) {
+    let _e170 = (*direction_1)[0u];
+    let _e173 = (*direction_1)[1u];
+    let _e177 = (*direction_1)[2u];
+    sum_1 = ((abs(_e170) + abs(_e173)) + abs(_e177));
+    let _e180 = sum_1;
+    if (_e180 <= 0f) {
         return vec2<f32>(0.5f, 0.5f);
     }
-    let _e180 = (*direction_1);
-    let _e181 = sum_1;
-    n_3 = (_e180 / vec3(_e181));
-    let _e184 = n_3;
-    xy = _e184.xy;
-    let _e187 = n_3[2u];
-    if (_e187 < 0f) {
-        let _e190 = n_3[1u];
-        let _e194 = n_3[0u];
-        let _e199 = n_3[0u];
-        let _e203 = n_3[1u];
-        xy = vec2<f32>(((1f - abs(_e190)) * select(-1f, 1f, (_e194 >= 0f))), ((1f - abs(_e199)) * select(-1f, 1f, (_e203 >= 0f))));
+    let _e182 = (*direction_1);
+    let _e183 = sum_1;
+    n_3 = (_e182 / vec3(_e183));
+    let _e186 = n_3;
+    xy = _e186.xy;
+    let _e189 = n_3[2u];
+    if (_e189 < 0f) {
+        let _e192 = n_3[1u];
+        let _e196 = n_3[0u];
+        let _e201 = n_3[0u];
+        let _e205 = n_3[1u];
+        xy = vec2<f32>(((1f - abs(_e192)) * select(-1f, 1f, (_e196 >= 0f))), ((1f - abs(_e201)) * select(-1f, 1f, (_e205 >= 0f))));
     }
-    let _e208 = xy;
-    return ((_e208 * 0.5f) + vec2(0.5f));
+    let _e210 = xy;
+    return ((_e210 * 0.5f) + vec2(0.5f));
 }
 
-fn SampleIrradiance_u0028_vf3_u003b_vf3_u003b_vf3_u003b(world_3: ptr<function, vec3<f32>>, normal_1: ptr<function, vec3<f32>>, view: ptr<function, vec3<f32>>) -> vec3<f32> {
+fn SampleIrradiance_u0028_vf3_u003b_vf3_u003b_vf3_u003b(world_4: ptr<function, vec3<f32>>, normal_1: ptr<function, vec3<f32>>, view: ptr<function, vec3<f32>>) -> vec3<f32> {
     var origin_2: vec3<f32>;
     var spacing: vec3<f32>;
     var counts: vec3<f32>;
@@ -9181,19 +9585,19 @@ fn SampleIrradiance_u0028_vf3_u003b_vf3_u003b_vf3_u003b(world_3: ptr<function, v
     var momentsTop: f32;
     var unit: vec3<f32>;
     var biased: vec3<f32>;
-    var grid: vec3<f32>;
+    var grid_1: vec3<f32>;
     var base: vec3<f32>;
     var f_1: vec3<f32>;
     var total_2: vec3<f32>;
     var weights: f32;
     var corner_1: i32;
     var offset_3: vec3<f32>;
-    var cell: vec3<f32>;
+    var cell_1: vec3<f32>;
     var probe: f32;
     var tile_4: vec2<f32>;
     var irradianceCorner: vec2<f32>;
     var momentCorner: vec2<f32>;
-    var param_78: vec2<f32>;
+    var param_87: vec2<f32>;
     var trilinear: vec3<f32>;
     var weight: f32;
     var probePosition: vec3<f32>;
@@ -9202,361 +9606,363 @@ fn SampleIrradiance_u0028_vf3_u003b_vf3_u003b_vf3_u003b(world_3: ptr<function, v
     var direction_2: vec3<f32>;
     var facing: f32;
     var moments: vec2<f32>;
-    var param_79: vec3<f32>;
-    var param_80: vec2<f32>;
-    var param_81: f32;
-    var param_82: vec2<f32>;
+    var param_88: vec3<f32>;
+    var param_89: vec2<f32>;
+    var param_90: f32;
+    var param_91: vec2<f32>;
     var variance: f32;
     var difference: f32;
     var chebyshev: f32;
-    var param_83: vec3<f32>;
-    var param_84: vec2<f32>;
-    var param_85: f32;
-    var param_86: vec2<f32>;
-    var local_14: vec3<f32>;
+    var param_92: vec3<f32>;
+    var param_93: vec2<f32>;
+    var param_94: f32;
+    var param_95: vec2<f32>;
+    var local_17: vec3<f32>;
 
-    let _e209 = irradiance_info.origin;
-    origin_2 = _e209.xyz;
-    let _e212 = irradiance_info.spacing;
-    spacing = _e212.xyz;
-    let _e215 = irradiance_info.counts;
-    counts = _e215.xyz;
-    let _e219 = irradiance_info.tiles[0u];
-    irradianceTile = _e219;
-    let _e222 = irradiance_info.tiles[1u];
-    depthTile = _e222;
-    let _e225 = irradiance_info.tiles[2u];
-    columns = _e225;
-    let _e228 = irradiance_info.tiles[3u];
-    momentsTop = _e228;
-    let _e229 = (*normal_1);
-    unit = normalize(_e229);
-    let _e231 = (*world_3);
-    let _e232 = unit;
-    let _e235 = irradiance_info.spacing[3u];
-    let _e238 = (*view);
-    let _e241 = irradiance_info.counts[3u];
-    biased = ((_e231 + (_e232 * _e235)) + (_e238 * _e241));
-    let _e244 = biased;
-    let _e245 = origin_2;
-    let _e247 = spacing;
-    grid = ((_e244 - _e245) / _e247);
-    let _e249 = grid;
-    let _e251 = counts;
-    base = clamp(floor(_e249), vec3<f32>(0f, 0f, 0f), (_e251 - vec3(2f)));
-    let _e255 = grid;
-    let _e256 = base;
-    f_1 = clamp((_e255 - _e256), vec3<f32>(0f, 0f, 0f), vec3<f32>(1f, 1f, 1f));
+    let _e211 = irradiance_info.origin;
+    origin_2 = _e211.xyz;
+    let _e214 = irradiance_info.spacing;
+    spacing = _e214.xyz;
+    let _e217 = irradiance_info.counts;
+    counts = _e217.xyz;
+    let _e221 = irradiance_info.tiles[0u];
+    irradianceTile = _e221;
+    let _e224 = irradiance_info.tiles[1u];
+    depthTile = _e224;
+    let _e227 = irradiance_info.tiles[2u];
+    columns = _e227;
+    let _e230 = irradiance_info.tiles[3u];
+    momentsTop = _e230;
+    let _e231 = (*normal_1);
+    unit = normalize(_e231);
+    let _e233 = (*world_4);
+    let _e234 = unit;
+    let _e237 = irradiance_info.spacing[3u];
+    let _e240 = (*view);
+    let _e243 = irradiance_info.counts[3u];
+    biased = ((_e233 + (_e234 * _e237)) + (_e240 * _e243));
+    let _e246 = biased;
+    let _e247 = origin_2;
+    let _e249 = spacing;
+    grid_1 = ((_e246 - _e247) / _e249);
+    let _e251 = grid_1;
+    let _e253 = counts;
+    base = clamp(floor(_e251), vec3<f32>(0f, 0f, 0f), (_e253 - vec3(2f)));
+    let _e257 = grid_1;
+    let _e258 = base;
+    f_1 = clamp((_e257 - _e258), vec3<f32>(0f, 0f, 0f), vec3<f32>(1f, 1f, 1f));
     total_2 = vec3<f32>(0f, 0f, 0f);
     weights = 0f;
     corner_1 = 0i;
     loop {
-        let _e259 = corner_1;
-        if (_e259 < 8i) {
-            let _e261 = corner_1;
-            let _e264 = corner_1;
-            let _e269 = corner_1;
-            offset_3 = vec3<f32>(f32((_e261 & 1i)), f32(((_e264 >> bitcast<u32>(1i)) & 1i)), f32(((_e269 >> bitcast<u32>(2i)) & 1i)));
-            let _e275 = base;
-            let _e276 = offset_3;
-            cell = (_e275 + _e276);
-            let _e279 = cell[2u];
-            let _e281 = counts[1u];
-            let _e284 = cell[1u];
-            let _e287 = counts[0u];
-            let _e290 = cell[0u];
-            probe = ((((_e279 * _e281) + _e284) * _e287) + _e290);
-            let _e292 = probe;
-            let _e293 = columns;
-            let _e298 = probe;
-            let _e299 = columns;
-            tile_4 = vec2<f32>((_e292 - (floor((_e292 / _e293)) * _e293)), floor((_e298 / _e299)));
-            let _e303 = tile_4;
-            let _e304 = irradianceTile;
-            irradianceCorner = (_e303 * (_e304 + 2f));
-            let _e308 = tile_4[0u];
-            let _e309 = depthTile;
-            let _e312 = momentsTop;
-            let _e314 = tile_4[1u];
-            let _e315 = depthTile;
-            momentCorner = vec2<f32>((_e308 * (_e309 + 2f)), (_e312 + (_e314 * (_e315 + 2f))));
-            let _e320 = irradianceCorner;
-            param_78 = (_e320 + vec2(1f));
-            let _e323 = AtlasTexel_u0028_vf2_u003b((&param_78));
-            if (_e323.w < 0.5f) {
+        let _e261 = corner_1;
+        if (_e261 < 8i) {
+            let _e263 = corner_1;
+            let _e266 = corner_1;
+            let _e271 = corner_1;
+            offset_3 = vec3<f32>(f32((_e263 & 1i)), f32(((_e266 >> bitcast<u32>(1i)) & 1i)), f32(((_e271 >> bitcast<u32>(2i)) & 1i)));
+            let _e277 = base;
+            let _e278 = offset_3;
+            cell_1 = (_e277 + _e278);
+            let _e281 = cell_1[2u];
+            let _e283 = counts[1u];
+            let _e286 = cell_1[1u];
+            let _e289 = counts[0u];
+            let _e292 = cell_1[0u];
+            probe = ((((_e281 * _e283) + _e286) * _e289) + _e292);
+            let _e294 = probe;
+            let _e295 = columns;
+            let _e300 = probe;
+            let _e301 = columns;
+            tile_4 = vec2<f32>((_e294 - (floor((_e294 / _e295)) * _e295)), floor((_e300 / _e301)));
+            let _e305 = tile_4;
+            let _e306 = irradianceTile;
+            irradianceCorner = (_e305 * (_e306 + 2f));
+            let _e310 = tile_4[0u];
+            let _e311 = depthTile;
+            let _e314 = momentsTop;
+            let _e316 = tile_4[1u];
+            let _e317 = depthTile;
+            momentCorner = vec2<f32>((_e310 * (_e311 + 2f)), (_e314 + (_e316 * (_e317 + 2f))));
+            let _e322 = irradianceCorner;
+            param_87 = (_e322 + vec2(1f));
+            let _e325 = AtlasTexel_u0028_vf2_u003b((&param_87));
+            if (_e325.w < 0.5f) {
                 continue;
             }
-            let _e326 = f_1;
             let _e328 = f_1;
-            let _e329 = offset_3;
-            trilinear = mix((vec3<f32>(1f, 1f, 1f) - _e326), _e328, _e329);
-            let _e332 = trilinear[0u];
-            let _e334 = trilinear[1u];
-            let _e337 = trilinear[2u];
-            weight = max(((_e332 * _e334) * _e337), 0.001f);
-            let _e340 = origin_2;
-            let _e341 = spacing;
-            let _e342 = cell;
-            probePosition = (_e340 + (_e341 * _e342));
-            let _e345 = probePosition;
-            let _e346 = biased;
-            toProbe = (_e345 - _e346);
-            let _e348 = toProbe;
-            distance_4 = length(_e348);
-            let _e350 = distance_4;
-            if (_e350 > 0.000001f) {
-                let _e352 = toProbe;
-                let _e353 = distance_4;
-                direction_2 = (_e352 / vec3(_e353));
-                let _e356 = unit;
-                let _e357 = probePosition;
-                let _e358 = (*world_3);
-                facing = ((dot(_e356, normalize((_e357 - _e358))) * 0.5f) + 0.5f);
-                let _e364 = facing;
-                let _e365 = facing;
-                let _e367 = weight;
-                weight = (_e367 * (_e364 * _e365));
+            let _e330 = f_1;
+            let _e331 = offset_3;
+            trilinear = mix((vec3<f32>(1f, 1f, 1f) - _e328), _e330, _e331);
+            let _e334 = trilinear[0u];
+            let _e336 = trilinear[1u];
+            let _e339 = trilinear[2u];
+            weight = max(((_e334 * _e336) * _e339), 0.001f);
+            let _e342 = origin_2;
+            let _e343 = spacing;
+            let _e344 = cell_1;
+            probePosition = (_e342 + (_e343 * _e344));
+            let _e347 = probePosition;
+            let _e348 = biased;
+            toProbe = (_e347 - _e348);
+            let _e350 = toProbe;
+            distance_4 = length(_e350);
+            let _e352 = distance_4;
+            if (_e352 > 0.000001f) {
+                let _e354 = toProbe;
+                let _e355 = distance_4;
+                direction_2 = (_e354 / vec3(_e355));
+                let _e358 = unit;
+                let _e359 = probePosition;
+                let _e360 = (*world_4);
+                facing = ((dot(_e358, normalize((_e359 - _e360))) * 0.5f) + 0.5f);
+                let _e366 = facing;
+                let _e367 = facing;
                 let _e369 = weight;
-                if (_e369 <= 0f) {
+                weight = (_e369 * (_e366 * _e367));
+                let _e371 = weight;
+                if (_e371 <= 0f) {
                     continue;
                 }
-                let _e371 = direction_2;
-                param_79 = -(_e371);
-                let _e373 = ProbeOctahedral_u0028_vf3_u003b((&param_79));
-                let _e374 = momentCorner;
-                param_80 = _e374;
-                let _e375 = depthTile;
-                param_81 = _e375;
-                param_82 = _e373;
-                let _e376 = TileBilinear_u0028_vf2_u003b_f1_u003b_vf2_u003b((&param_80), (&param_81), (&param_82));
-                moments = _e376.xy;
-                let _e378 = distance_4;
-                let _e380 = moments[0u];
-                if (_e378 > _e380) {
-                    let _e383 = moments[1u];
-                    let _e385 = moments[0u];
+                let _e373 = direction_2;
+                param_88 = -(_e373);
+                let _e375 = ProbeOctahedral_u0028_vf3_u003b((&param_88));
+                let _e376 = momentCorner;
+                param_89 = _e376;
+                let _e377 = depthTile;
+                param_90 = _e377;
+                param_91 = _e375;
+                let _e378 = TileBilinear_u0028_vf2_u003b_f1_u003b_vf2_u003b((&param_89), (&param_90), (&param_91));
+                moments = _e378.xy;
+                let _e380 = distance_4;
+                let _e382 = moments[0u];
+                if (_e380 > _e382) {
+                    let _e385 = moments[1u];
                     let _e387 = moments[0u];
-                    variance = max((_e383 - (_e385 * _e387)), 0.000001f);
-                    let _e391 = distance_4;
-                    let _e393 = moments[0u];
-                    difference = (_e391 - _e393);
-                    let _e395 = variance;
-                    let _e396 = variance;
-                    let _e397 = difference;
-                    let _e398 = difference;
-                    chebyshev = (_e395 / (_e396 + (_e397 * _e398)));
-                    let _e402 = chebyshev;
-                    let _e403 = chebyshev;
+                    let _e389 = moments[0u];
+                    variance = max((_e385 - (_e387 * _e389)), 0.000001f);
+                    let _e393 = distance_4;
+                    let _e395 = moments[0u];
+                    difference = (_e393 - _e395);
+                    let _e397 = variance;
+                    let _e398 = variance;
+                    let _e399 = difference;
+                    let _e400 = difference;
+                    chebyshev = (_e397 / (_e398 + (_e399 * _e400)));
+                    let _e404 = chebyshev;
                     let _e405 = chebyshev;
-                    let _e408 = weight;
-                    weight = (_e408 * max(((_e402 * _e403) * _e405), 0f));
+                    let _e407 = chebyshev;
+                    let _e410 = weight;
+                    weight = (_e410 * max(((_e404 * _e405) * _e407), 0f));
                 }
-                let _e410 = weight;
-                if (_e410 <= 0f) {
+                let _e412 = weight;
+                if (_e412 <= 0f) {
                     continue;
                 }
             }
-            let _e412 = unit;
-            param_83 = _e412;
-            let _e413 = ProbeOctahedral_u0028_vf3_u003b((&param_83));
-            let _e414 = irradianceCorner;
-            param_84 = _e414;
-            let _e415 = irradianceTile;
-            param_85 = _e415;
-            param_86 = _e413;
-            let _e416 = TileBilinear_u0028_vf2_u003b_f1_u003b_vf2_u003b((&param_84), (&param_85), (&param_86));
-            let _e418 = weight;
-            let _e420 = total_2;
-            total_2 = (_e420 + (_e416.xyz * _e418));
-            let _e422 = weight;
-            let _e423 = weights;
-            weights = (_e423 + _e422);
+            let _e414 = unit;
+            param_92 = _e414;
+            let _e415 = ProbeOctahedral_u0028_vf3_u003b((&param_92));
+            let _e416 = irradianceCorner;
+            param_93 = _e416;
+            let _e417 = irradianceTile;
+            param_94 = _e417;
+            param_95 = _e415;
+            let _e418 = TileBilinear_u0028_vf2_u003b_f1_u003b_vf2_u003b((&param_93), (&param_94), (&param_95));
+            let _e420 = weight;
+            let _e422 = total_2;
+            total_2 = (_e422 + (_e418.xyz * _e420));
+            let _e424 = weight;
+            let _e425 = weights;
+            weights = (_e425 + _e424);
             continue;
         } else {
             break;
         }
         continuing {
-            let _e425 = corner_1;
-            corner_1 = (_e425 + 1i);
+            let _e427 = corner_1;
+            corner_1 = (_e427 + 1i);
         }
     }
-    let _e427 = weights;
-    if (_e427 > 0.000001f) {
-        let _e429 = total_2;
-        let _e430 = weights;
-        local_14 = (_e429 / vec3(_e430));
+    let _e429 = weights;
+    if (_e429 > 0.000001f) {
+        let _e431 = total_2;
+        let _e432 = weights;
+        local_17 = (_e431 / vec3(_e432));
     } else {
-        local_14 = vec3<f32>(0f, 0f, 0f);
+        local_17 = vec3<f32>(0f, 0f, 0f);
     }
-    let _e433 = local_14;
-    return _e433;
+    let _e435 = local_17;
+    return _e435;
 }
 
 fn IrradianceEnabled_u0028_() -> bool {
-    let _e165 = irradiance_info.origin[3u];
-    return (_e165 > 0.5f);
+    let _e167 = irradiance_info.origin[3u];
+    return (_e167 > 0.5f);
 }
 
 fn ApplyCommonMaps_u0028_struct_u002d_Surface_u002d_vf3_u002d_f1_u002d_vf3_u002d_vf3_u002d_f1_u002d_f1_u002d_f1_u002d_f1_u002d_vf3_u002d_vf3_u002d_f11_u003b(s_9: ptr<function, Surface>) {
-    var param_87: vec3<f32>;
-    var param_88: vec3<f32>;
-    var param_89: vec3<f32>;
-    var param_90: Surface;
-    var param_91: Surface;
-    var param_92: Surface;
+    var param_96: vec3<f32>;
+    var param_97: vec3<f32>;
+    var param_98: vec3<f32>;
+    var param_99: Surface;
+    var param_100: Surface;
+    var param_101: Surface;
 
-    let _e170 = IrradianceEnabled_u0028_();
-    if _e170 {
-        let _e171 = v_world_position_1;
-        param_87 = _e171;
-        let _e173 = (*s_9).n;
-        param_88 = _e173;
-        let _e175 = (*s_9).v;
-        param_89 = _e175;
-        let _e176 = SampleIrradiance_u0028_vf3_u003b_vf3_u003b_vf3_u003b((&param_87), (&param_88), (&param_89));
-        let _e179 = frag_info.material[2u];
-        (*s_9).ambient = (_e176 * _e179);
+    let _e172 = IrradianceEnabled_u0028_();
+    if _e172 {
+        let _e173 = v_world_position_1;
+        param_96 = _e173;
+        let _e175 = (*s_9).n;
+        param_97 = _e175;
+        let _e177 = (*s_9).v;
+        param_98 = _e177;
+        let _e178 = SampleIrradiance_u0028_vf3_u003b_vf3_u003b_vf3_u003b((&param_96), (&param_97), (&param_98));
+        let _e181 = frag_info.material[2u];
+        (*s_9).ambient = (_e178 * _e181);
     }
-    let _e182 = (*s_9);
-    param_90 = _e182;
-    ApplyNormalMap_u0028_struct_u002d_Surface_u002d_vf3_u002d_f1_u002d_vf3_u002d_vf3_u002d_f1_u002d_f1_u002d_f1_u002d_f1_u002d_vf3_u002d_vf3_u002d_f11_u003b((&param_90));
-    let _e183 = param_90;
-    (*s_9) = _e183;
     let _e184 = (*s_9);
-    param_91 = _e184;
-    ApplyOcclusionMap_u0028_struct_u002d_Surface_u002d_vf3_u002d_f1_u002d_vf3_u002d_vf3_u002d_f1_u002d_f1_u002d_f1_u002d_f1_u002d_vf3_u002d_vf3_u002d_f11_u003b((&param_91));
-    let _e185 = param_91;
+    param_99 = _e184;
+    ApplyNormalMap_u0028_struct_u002d_Surface_u002d_vf3_u002d_f1_u002d_vf3_u002d_vf3_u002d_f1_u002d_f1_u002d_f1_u002d_f1_u002d_vf3_u002d_vf3_u002d_f11_u003b((&param_99));
+    let _e185 = param_99;
     (*s_9) = _e185;
     let _e186 = (*s_9);
-    param_92 = _e186;
-    ApplyEmissiveMap_u0028_struct_u002d_Surface_u002d_vf3_u002d_f1_u002d_vf3_u002d_vf3_u002d_f1_u002d_f1_u002d_f1_u002d_f1_u002d_vf3_u002d_vf3_u002d_f11_u003b((&param_92));
-    let _e187 = param_92;
+    param_100 = _e186;
+    ApplyOcclusionMap_u0028_struct_u002d_Surface_u002d_vf3_u002d_f1_u002d_vf3_u002d_vf3_u002d_f1_u002d_f1_u002d_f1_u002d_f1_u002d_vf3_u002d_vf3_u002d_f11_u003b((&param_100));
+    let _e187 = param_100;
     (*s_9) = _e187;
+    let _e188 = (*s_9);
+    param_101 = _e188;
+    ApplyEmissiveMap_u0028_struct_u002d_Surface_u002d_vf3_u002d_f1_u002d_vf3_u002d_vf3_u002d_f1_u002d_f1_u002d_f1_u002d_f1_u002d_vf3_u002d_vf3_u002d_f11_u003b((&param_101));
+    let _e189 = param_101;
+    (*s_9) = _e189;
     return;
 }
 
 fn ReadSurface_u0028_() -> Surface {
-    var texel_4: vec4<f32>;
+    var texel_6: vec4<f32>;
     var s_10: Surface;
-    var param_93: vec3<f32>;
-    var param_94: vec3<f32>;
+    var param_102: vec3<f32>;
+    var param_103: vec3<f32>;
     var cutoff: f32;
     var anchored: vec3<f32>;
     var noise_1: f32;
 
-    let _e170 = v_texcoord_1;
-    let _e171 = MaterialLodBias_u0028_();
-    let _e172 = textureSampleBias(base_color_texture_tex, base_color_texture_smp, _e170, _e171);
-    texel_4 = _e172;
-    let _e173 = texel_4;
-    param_93 = _e173.xyz;
-    let _e175 = SrgbToLinear_u0028_vf3_u003b((&param_93));
-    let _e177 = frag_info.base_color;
-    param_94 = _e177.xyz;
-    let _e179 = SrgbToLinear_u0028_vf3_u003b((&param_94));
-    let _e181 = v_color_1;
-    s_10.albedo = ((_e175 * _e179) * _e181.xyz);
-    let _e186 = texel_4[3u];
-    let _e189 = frag_info.base_color[3u];
-    let _e192 = v_color_1[3u];
-    s_10.alpha = ((_e186 * _e189) * _e192);
-    let _e196 = s_10.albedo;
-    g_albedo = _e196;
-    let _e199 = frag_info.material2_[0u];
-    cutoff = _e199;
-    let _e200 = cutoff;
-    if (_e200 >= 0f) {
-        let _e203 = s_10.alpha;
-        let _e204 = cutoff;
-        if (_e203 < _e204) {
+    let _e172 = v_texcoord_1;
+    let _e173 = MaterialLodBias_u0028_();
+    let _e174 = textureSampleBias(base_color_texture_tex, base_color_texture_smp, _e172, _e173);
+    texel_6 = _e174;
+    let _e175 = texel_6;
+    param_102 = _e175.xyz;
+    let _e177 = SrgbToLinear_u0028_vf3_u003b((&param_102));
+    let _e179 = frag_info.base_color;
+    param_103 = _e179.xyz;
+    let _e181 = SrgbToLinear_u0028_vf3_u003b((&param_103));
+    let _e183 = v_color_1;
+    s_10.albedo = ((_e177 * _e181) * _e183.xyz);
+    let _e188 = texel_6[3u];
+    let _e191 = frag_info.base_color[3u];
+    let _e194 = v_color_1[3u];
+    s_10.alpha = ((_e188 * _e191) * _e194);
+    let _e198 = s_10.albedo;
+    g_albedo = _e198;
+    let _e201 = frag_info.material2_[0u];
+    cutoff = _e201;
+    let _e202 = cutoff;
+    if (_e202 >= 0f) {
+        let _e205 = s_10.alpha;
+        let _e206 = cutoff;
+        if (_e205 < _e206) {
             discard;
         }
     } else {
-        let _e206 = cutoff;
-        if (_e206 < -1.5f) {
-            let _e208 = v_world_position_1;
-            anchored = floor((_e208 * 16f));
-            let _e211 = anchored;
-            noise_1 = fract((sin(dot(_e211, vec3<f32>(12.9898f, 78.233f, 37.719f))) * 43758.547f));
-            let _e217 = s_10.alpha;
-            let _e218 = noise_1;
-            if (_e217 < _e218) {
+        let _e208 = cutoff;
+        if (_e208 < -1.5f) {
+            let _e210 = v_world_position_1;
+            anchored = floor((_e210 * 16f));
+            let _e213 = anchored;
+            noise_1 = fract((sin(dot(_e213, vec3<f32>(12.9898f, 78.233f, 37.719f))) * 43758.547f));
+            let _e219 = s_10.alpha;
+            let _e220 = noise_1;
+            if (_e219 < _e220) {
                 discard;
             }
         }
     }
-    let _e220 = v_normal_1;
-    s_10.n = normalize(_e220);
-    let _e223 = gl_FrontFacing_1;
-    if !(_e223) {
-        let _e226 = s_10.n;
-        s_10.n = -(_e226);
+    let _e222 = v_normal_1;
+    s_10.n = normalize(_e222);
+    let _e225 = gl_FrontFacing_1;
+    if !(_e225) {
+        let _e228 = s_10.n;
+        s_10.n = -(_e228);
     }
-    let _e230 = frag_info.camera_position;
-    let _e232 = v_world_position_1;
-    s_10.v = normalize((_e230.xyz - _e232));
-    let _e237 = s_10.n;
-    let _e239 = s_10.v;
-    s_10.n_dot_v = max(dot(_e237, _e239), 0.0001f);
-    let _e245 = frag_info.material[0u];
-    s_10.metallic = clamp(_e245, 0f, 1f);
-    let _e250 = frag_info.material[1u];
-    s_10.roughness = clamp(_e250, 0.02f, 1f);
-    let _e254 = frag_info.ambient_ground;
-    let _e257 = frag_info.ambient_sky;
-    let _e261 = s_10.n[1u];
-    let _e268 = frag_info.material[2u];
-    s_10.ambient = (mix(_e254.xyz, _e257.xyz, vec3(((_e261 * 0.5f) + 0.5f))) * _e268);
-    let _e273 = frag_info.frame_params[0u];
-    s_10.exposure = max(_e273, 0f);
+    let _e232 = frag_info.camera_position;
+    let _e234 = v_world_position_1;
+    s_10.v = normalize((_e232.xyz - _e234));
+    let _e239 = s_10.n;
+    let _e241 = s_10.v;
+    s_10.n_dot_v = max(dot(_e239, _e241), 0.0001f);
+    let _e247 = frag_info.material[0u];
+    s_10.metallic = clamp(_e247, 0f, 1f);
+    let _e252 = frag_info.material[1u];
+    s_10.roughness = clamp(_e252, 0.02f, 1f);
+    let _e256 = frag_info.ambient_ground;
+    let _e259 = frag_info.ambient_sky;
+    let _e263 = s_10.n[1u];
+    let _e270 = frag_info.material[2u];
+    s_10.ambient = (mix(_e256.xyz, _e259.xyz, vec3(((_e263 * 0.5f) + 0.5f))) * _e270);
+    let _e275 = frag_info.frame_params[0u];
+    s_10.exposure = max(_e275, 0f);
     s_10.occlusion = 1f;
     s_10.emissive = vec3<f32>(0f, 0f, 0f);
-    let _e278 = s_10;
-    return _e278;
+    let _e280 = s_10;
+    return _e280;
 }
 
 fn main_1() {
     var s_11: Surface;
-    var param_95: Surface;
-    var param_96: Surface;
+    var param_104: Surface;
+    var param_105: Surface;
     var ambient: vec3<f32>;
-    var param_97: Surface;
-    var param_98: vec3<f32>;
-    var param_99: f32;
-    var param_100: f32;
+    var param_106: Surface;
+    var param_107: vec3<f32>;
+    var param_108: f32;
+    var param_109: f32;
 
     g_albedo = vec3<f32>(0f, 0f, 0f);
     g_debug_surface = vec3<f32>(0f, 0f, 0f);
     g_debug_surface_on = false;
-    let _e171 = ReadSurface_u0028_();
-    s_11 = _e171;
-    let _e172 = s_11;
-    param_95 = _e172;
-    ApplyCommonMaps_u0028_struct_u002d_Surface_u002d_vf3_u002d_f1_u002d_vf3_u002d_vf3_u002d_f1_u002d_f1_u002d_f1_u002d_f1_u002d_vf3_u002d_vf3_u002d_f11_u003b((&param_95));
-    let _e173 = param_95;
+    g_cluster_offset = 0f;
+    g_cluster_count = 0f;
+    let _e173 = ReadSurface_u0028_();
     s_11 = _e173;
     let _e174 = s_11;
-    param_96 = _e174;
-    ApplyMetallicRoughnessMap_u0028_struct_u002d_Surface_u002d_vf3_u002d_f1_u002d_vf3_u002d_vf3_u002d_f1_u002d_f1_u002d_f1_u002d_f1_u002d_vf3_u002d_vf3_u002d_f11_u003b((&param_96));
-    let _e175 = param_96;
+    param_104 = _e174;
+    ApplyCommonMaps_u0028_struct_u002d_Surface_u002d_vf3_u002d_f1_u002d_vf3_u002d_vf3_u002d_f1_u002d_f1_u002d_f1_u002d_f1_u002d_vf3_u002d_vf3_u002d_f11_u003b((&param_104));
+    let _e175 = param_104;
     s_11 = _e175;
-    let _e177 = s_11.albedo;
-    let _e179 = s_11.ambient;
-    let _e180 = SampleLightmap_u0028_();
-    let _e184 = s_11.occlusion;
-    ambient = ((_e177 * (_e179 + _e180)) * _e184);
-    let _e186 = s_11;
-    param_97 = _e186;
-    let _e187 = AccumulateLights_u0028_struct_u002d_Surface_u002d_vf3_u002d_f1_u002d_vf3_u002d_vf3_u002d_f1_u002d_f1_u002d_f1_u002d_f1_u002d_vf3_u002d_vf3_u002d_f11_u003b((&param_97));
-    let _e189 = s_11.occlusion;
-    let _e191 = ambient;
-    let _e194 = s_11.emissive;
-    param_98 = (((_e187 * _e189) + _e191) + _e194);
-    let _e197 = s_11.alpha;
-    param_99 = _e197;
-    let _e199 = s_11.roughness;
-    param_100 = _e199;
-    WriteSurface_u0028_vf3_u003b_f1_u003b_f1_u003b((&param_98), (&param_99), (&param_100));
+    let _e176 = s_11;
+    param_105 = _e176;
+    ApplyMetallicRoughnessMap_u0028_struct_u002d_Surface_u002d_vf3_u002d_f1_u002d_vf3_u002d_vf3_u002d_f1_u002d_f1_u002d_f1_u002d_f1_u002d_vf3_u002d_vf3_u002d_f11_u003b((&param_105));
+    let _e177 = param_105;
+    s_11 = _e177;
+    let _e179 = s_11.albedo;
+    let _e181 = s_11.ambient;
+    let _e182 = SampleLightmap_u0028_();
+    let _e186 = s_11.occlusion;
+    ambient = ((_e179 * (_e181 + _e182)) * _e186);
+    let _e188 = s_11;
+    param_106 = _e188;
+    let _e189 = AccumulateLights_u0028_struct_u002d_Surface_u002d_vf3_u002d_f1_u002d_vf3_u002d_vf3_u002d_f1_u002d_f1_u002d_f1_u002d_f1_u002d_vf3_u002d_vf3_u002d_f11_u003b((&param_106));
+    let _e191 = s_11.occlusion;
+    let _e193 = ambient;
+    let _e196 = s_11.emissive;
+    param_107 = (((_e189 * _e191) + _e193) + _e196);
+    let _e199 = s_11.alpha;
+    param_108 = _e199;
+    let _e201 = s_11.roughness;
+    param_109 = _e201;
+    WriteSurface_u0028_vf3_u003b_f1_u003b_f1_u003b((&param_107), (&param_108), (&param_109));
     return;
 }
 
@@ -9734,7 +10140,7 @@ fn main(@location(6) v_world_position: vec3<f32>, @location(2) v_normal: vec3<f3
           name: 'LightListInfo',
           group: 1,
           binding: 3,
-          sizeInBytes: 208,
+          sizeInBytes: 336,
           members: <WebGpuBlockMember>[
             WebGpuBlockMember(name: 'list', offsetInBytes: 0, sizeInBytes: 16),
             WebGpuBlockMember(
@@ -9746,6 +10152,26 @@ fn main(@location(6) v_world_position: vec3<f32>, @location(2) v_normal: vec3<f3
               name: 'scales',
               offsetInBytes: 112,
               sizeInBytes: 96,
+            ),
+            WebGpuBlockMember(
+              name: 'cluster_view_projection',
+              offsetInBytes: 208,
+              sizeInBytes: 64,
+            ),
+            WebGpuBlockMember(
+              name: 'cluster_grid',
+              offsetInBytes: 272,
+              sizeInBytes: 16,
+            ),
+            WebGpuBlockMember(
+              name: 'cluster_depth',
+              offsetInBytes: 288,
+              sizeInBytes: 16,
+            ),
+            WebGpuBlockMember(
+              name: 'slot_rows',
+              offsetInBytes: 304,
+              sizeInBytes: 32,
             ),
           ],
         ),
@@ -9903,6 +10329,10 @@ struct LightListInfo {
     list: vec4<f32>,
     indices: array<vec4<f32>, 6>,
     scales: array<vec4<f32>, 6>,
+    cluster_view_projection: mat4x4<f32>,
+    cluster_grid: vec4<f32>,
+    cluster_depth: vec4<f32>,
+    slot_rows: array<vec4<f32>, 2>,
 }
 
 struct FragInfo {
@@ -9953,6 +10383,8 @@ struct FragmentOutput {
 var<private> g_albedo: vec3<f32>;
 var<private> g_debug_surface: vec3<f32>;
 var<private> g_debug_surface_on: bool;
+var<private> g_cluster_offset: f32;
+var<private> g_cluster_count: f32;
 var<private> v_world_position_1: vec3<f32>;
 @group(1) @binding(0) 
 var<uniform> fog_info: FogInfo;
@@ -9964,6 +10396,10 @@ var<private> frag_color: vec4<f32>;
 var<private> gl_FragCoord_1: vec4<f32>;
 @group(1) @binding(3) 
 var<uniform> light_list_info: LightListInfo;
+@group(1) @binding(13) 
+var light_list_texture_tex: texture_2d<f32>;
+@group(1) @binding(14) 
+var light_list_texture_smp: sampler;
 @group(1) @binding(1) 
 var<uniform> frag_info: FragInfo;
 @group(1) @binding(5) 
@@ -9972,10 +10408,6 @@ var base_color_texture_tex: texture_2d<f32>;
 var base_color_texture_smp: sampler;
 var<private> v_texcoord_1: vec2<f32>;
 var<private> v_color_1: vec4<f32>;
-@group(1) @binding(13) 
-var light_list_texture_tex: texture_2d<f32>;
-@group(1) @binding(14) 
-var light_list_texture_smp: sampler;
 @group(1) @binding(4) 
 var<uniform> point_shadow: PointShadow;
 @group(1) @binding(25) 
@@ -10026,36 +10458,36 @@ var environment_texture_smp: sampler;
 fn EncodeOctahedral_u0028_vf3_u003b(n: ptr<function, vec3<f32>>) -> vec2<f32> {
     var e: vec2<f32>;
 
-    let _e183 = (*n)[0u];
-    let _e186 = (*n)[1u];
-    let _e190 = (*n)[2u];
-    let _e193 = (*n);
-    (*n) = (_e193 / vec3(((abs(_e183) + abs(_e186)) + abs(_e190))));
-    let _e196 = (*n);
-    e = _e196.xy;
-    let _e199 = (*n)[2u];
-    if (_e199 < 0f) {
-        let _e201 = (*n);
-        let _e207 = (*n)[0u];
-        let _e211 = (*n)[1u];
-        e = ((vec2(1f) - abs(_e201.yx)) * vec2<f32>(select(-1f, 1f, (_e207 >= 0f)), select(-1f, 1f, (_e211 >= 0f))));
+    let _e185 = (*n)[0u];
+    let _e188 = (*n)[1u];
+    let _e192 = (*n)[2u];
+    let _e195 = (*n);
+    (*n) = (_e195 / vec3(((abs(_e185) + abs(_e188)) + abs(_e192))));
+    let _e198 = (*n);
+    e = _e198.xy;
+    let _e201 = (*n)[2u];
+    if (_e201 < 0f) {
+        let _e203 = (*n);
+        let _e209 = (*n)[0u];
+        let _e213 = (*n)[1u];
+        e = ((vec2(1f) - abs(_e203.yx)) * vec2<f32>(select(-1f, 1f, (_e209 >= 0f)), select(-1f, 1f, (_e213 >= 0f))));
     }
-    let _e216 = e;
-    return ((_e216 * 0.5f) + vec2(0.5f));
+    let _e218 = e;
+    return ((_e218 * 0.5f) + vec2(0.5f));
 }
 
 fn ViewDepth_u0028_() -> f32 {
-    let _e180 = v_world_position_1;
-    let _e182 = fog_info.eye;
-    let _e186 = fog_info.forward;
-    return dot((_e180 - _e182.xyz), _e186.xyz);
+    let _e182 = v_world_position_1;
+    let _e184 = fog_info.eye;
+    let _e188 = fog_info.forward;
+    return dot((_e182 - _e184.xyz), _e188.xyz);
 }
 
 fn LinearToSrgb_u0028_vf3_u003b(linear: ptr<function, vec3<f32>>) -> vec3<f32> {
-    let _e181 = (*linear);
     let _e183 = (*linear);
-    let _e187 = (*linear);
-    return mix((_e181 * 12.92f), ((pow(_e183, vec3<f32>(0.41666666f, 0.41666666f, 0.41666666f)) * 1.055f) - vec3<f32>(0.055f, 0.055f, 0.055f)), step(vec3<f32>(0.0031308f, 0.0031308f, 0.0031308f), _e187));
+    let _e185 = (*linear);
+    let _e189 = (*linear);
+    return mix((_e183 * 12.92f), ((pow(_e185, vec3<f32>(0.41666666f, 0.41666666f, 0.41666666f)) * 1.055f) - vec3<f32>(0.055f, 0.055f, 0.055f)), step(vec3<f32>(0.0031308f, 0.0031308f, 0.0031308f), _e189));
 }
 
 fn WriteSurfaceGeometry_u0028_f1_u003b(roughness: ptr<function, f32>) {
@@ -10063,70 +10495,70 @@ fn WriteSurfaceGeometry_u0028_f1_u003b(roughness: ptr<function, f32>) {
     var geometric: vec3<f32>;
     var param_1: vec3<f32>;
 
-    let _e184 = g_albedo;
-    param = clamp(_e184, vec3<f32>(0f, 0f, 0f), vec3<f32>(1f, 1f, 1f));
-    let _e186 = LinearToSrgb_u0028_vf3_u003b((&param));
-    frag_albedo = vec4<f32>(_e186.x, _e186.y, _e186.z, 1f);
-    let _e191 = g_debug_surface_on;
-    if _e191 {
-        let _e192 = g_debug_surface;
-        let _e193 = ViewDepth_u0028_();
-        frag_surface = vec4<f32>(_e192.x, _e192.y, _e192.z, _e193);
+    let _e186 = g_albedo;
+    param = clamp(_e186, vec3<f32>(0f, 0f, 0f), vec3<f32>(1f, 1f, 1f));
+    let _e188 = LinearToSrgb_u0028_vf3_u003b((&param));
+    frag_albedo = vec4<f32>(_e188.x, _e188.y, _e188.z, 1f);
+    let _e193 = g_debug_surface_on;
+    if _e193 {
+        let _e194 = g_debug_surface;
+        let _e195 = ViewDepth_u0028_();
+        frag_surface = vec4<f32>(_e194.x, _e194.y, _e194.z, _e195);
         return;
     }
-    let _e198 = v_normal_1;
-    geometric = normalize(_e198);
-    let _e200 = gl_FrontFacing_1;
-    if !(_e200) {
-        let _e202 = geometric;
-        geometric = -(_e202);
+    let _e200 = v_normal_1;
+    geometric = normalize(_e200);
+    let _e202 = gl_FrontFacing_1;
+    if !(_e202) {
+        let _e204 = geometric;
+        geometric = -(_e204);
     }
-    let _e204 = geometric;
-    param_1 = _e204;
-    let _e205 = EncodeOctahedral_u0028_vf3_u003b((&param_1));
-    let _e206 = (*roughness);
-    let _e208 = ViewDepth_u0028_();
-    frag_surface = vec4<f32>(_e205.x, _e205.y, clamp(_e206, 0f, 1f), _e208);
+    let _e206 = geometric;
+    param_1 = _e206;
+    let _e207 = EncodeOctahedral_u0028_vf3_u003b((&param_1));
+    let _e208 = (*roughness);
+    let _e210 = ViewDepth_u0028_();
+    frag_surface = vec4<f32>(_e207.x, _e207.y, clamp(_e208, 0f, 1f), _e210);
     return;
 }
 
 fn EyeDistance_u0028_() -> f32 {
-    let _e180 = v_world_position_1;
-    let _e182 = fog_info.eye;
-    return distance(_e180, _e182.xyz);
+    let _e182 = v_world_position_1;
+    let _e184 = fog_info.eye;
+    return distance(_e182, _e184.xyz);
 }
 
 fn ApplyFog_u0028_vf3_u003b(color: ptr<function, vec3<f32>>) -> vec3<f32> {
     var density: f32;
     var d: f32;
 
-    let _e185 = fog_info.fog[3u];
-    density = _e185;
-    let _e186 = density;
-    if (_e186 <= 0f) {
-        let _e188 = (*color);
-        return _e188;
+    let _e187 = fog_info.fog[3u];
+    density = _e187;
+    let _e188 = density;
+    if (_e188 <= 0f) {
+        let _e190 = (*color);
+        return _e190;
     }
-    let _e189 = EyeDistance_u0028_();
-    d = _e189;
-    let _e191 = fog_info.fog;
-    let _e193 = (*color);
-    let _e194 = density;
-    let _e196 = d;
-    return mix(_e191.xyz, _e193, vec3(clamp(exp((-(_e194) * _e196)), 0f, 1f)));
+    let _e191 = EyeDistance_u0028_();
+    d = _e191;
+    let _e193 = fog_info.fog;
+    let _e195 = (*color);
+    let _e196 = density;
+    let _e198 = d;
+    return mix(_e193.xyz, _e195, vec3(clamp(exp((-(_e196) * _e198)), 0f, 1f)));
 }
 
 fn WriteSurface_u0028_vf3_u003b_f1_u003b_f1_u003b(linearColor: ptr<function, vec3<f32>>, alpha: ptr<function, f32>, roughness_1: ptr<function, f32>) {
     var param_2: vec3<f32>;
     var param_3: f32;
 
-    let _e185 = (*linearColor);
-    param_2 = _e185;
-    let _e186 = ApplyFog_u0028_vf3_u003b((&param_2));
-    let _e187 = (*alpha);
-    frag_color = vec4<f32>(_e186.x, _e186.y, _e186.z, _e187);
-    let _e192 = (*roughness_1);
-    param_3 = _e192;
+    let _e187 = (*linearColor);
+    param_2 = _e187;
+    let _e188 = ApplyFog_u0028_vf3_u003b((&param_2));
+    let _e189 = (*alpha);
+    frag_color = vec4<f32>(_e188.x, _e188.y, _e188.z, _e189);
+    let _e194 = (*roughness_1);
+    param_3 = _e194;
     WriteSurfaceGeometry_u0028_f1_u003b((&param_3));
     return;
 }
@@ -10135,17 +10567,17 @@ fn EnvBrdfApprox_u0028_f1_u003b_f1_u003b(roughness_2: ptr<function, f32>, n_dot_
     var r: vec4<f32>;
     var a004_: f32;
 
-    let _e184 = (*roughness_2);
-    r = ((vec4<f32>(-1f, -0.0275f, -0.572f, 0.022f) * _e184) + vec4<f32>(1f, 0.0425f, 1.04f, -0.04f));
-    let _e188 = r[0u];
+    let _e186 = (*roughness_2);
+    r = ((vec4<f32>(-1f, -0.0275f, -0.572f, 0.022f) * _e186) + vec4<f32>(1f, 0.0425f, 1.04f, -0.04f));
     let _e190 = r[0u];
-    let _e192 = (*n_dot_v);
-    let _e197 = r[0u];
-    let _e200 = r[1u];
-    a004_ = ((min((_e188 * _e190), exp2((-9.28f * _e192))) * _e197) + _e200);
-    let _e202 = a004_;
-    let _e204 = r;
-    return ((vec2<f32>(-1.04f, 1.04f) * _e202) + _e204.zw);
+    let _e192 = r[0u];
+    let _e194 = (*n_dot_v);
+    let _e199 = r[0u];
+    let _e202 = r[1u];
+    a004_ = ((min((_e190 * _e192), exp2((-9.28f * _e194))) * _e199) + _e202);
+    let _e204 = a004_;
+    let _e206 = r;
+    return ((vec2<f32>(-1.04f, 1.04f) * _e204) + _e206.zw);
 }
 
 fn MultiscatterScale_u0028_vf3_u003b_struct_u002d_Surface_u002d_vf3_u002d_f1_u002d_vf3_u002d_vf3_u002d_f1_u002d_f1_u002d_f1_u002d_f1_u002d_vf3_u002d_vf3_u002d_f11_u003b(f0_: ptr<function, vec3<f32>>, s: ptr<function, Surface>) -> vec3<f32> {
@@ -10154,34 +10586,34 @@ fn MultiscatterScale_u0028_vf3_u003b_struct_u002d_Surface_u002d_vf3_u002d_f1_u00
     var param_5: f32;
     var ess: f32;
 
-    let _e187 = (*s).roughness;
-    param_4 = _e187;
-    let _e189 = (*s).n_dot_v;
-    param_5 = _e189;
-    let _e190 = EnvBrdfApprox_u0028_f1_u003b_f1_u003b((&param_4), (&param_5));
-    ab = _e190;
-    let _e192 = ab[0u];
-    let _e194 = ab[1u];
-    ess = max((_e192 + _e194), 0.0001f);
-    let _e197 = (*f0_);
-    let _e198 = ess;
-    return (vec3<f32>(1f, 1f, 1f) + (_e197 * ((1f / _e198) - 1f)));
+    let _e189 = (*s).roughness;
+    param_4 = _e189;
+    let _e191 = (*s).n_dot_v;
+    param_5 = _e191;
+    let _e192 = EnvBrdfApprox_u0028_f1_u003b_f1_u003b((&param_4), (&param_5));
+    ab = _e192;
+    let _e194 = ab[0u];
+    let _e196 = ab[1u];
+    ess = max((_e194 + _e196), 0.0001f);
+    let _e199 = (*f0_);
+    let _e200 = ess;
+    return (vec3<f32>(1f, 1f, 1f) + (_e199 * ((1f / _e200) - 1f)));
 }
 
 fn EnergyCompensation_u0028_() -> bool {
-    let _e182 = frag_info.target_origin[2u];
-    return (_e182 > 0.5f);
+    let _e184 = frag_info.target_origin[2u];
+    return (_e184 > 0.5f);
 }
 
 fn F_Schlick_u0028_vf3_u003b_f1_u003b(f0_1: ptr<function, vec3<f32>>, v_dot_h: ptr<function, f32>) -> vec3<f32> {
     var f: f32;
 
-    let _e183 = (*v_dot_h);
-    f = pow((1f - _e183), 5f);
-    let _e186 = (*f0_1);
-    let _e187 = (*f0_1);
-    let _e189 = f;
-    return (_e186 + ((vec3<f32>(1f, 1f, 1f) - _e187) * _e189));
+    let _e185 = (*v_dot_h);
+    f = pow((1f - _e185), 5f);
+    let _e188 = (*f0_1);
+    let _e189 = (*f0_1);
+    let _e191 = f;
+    return (_e188 + ((vec3<f32>(1f, 1f, 1f) - _e189) * _e191));
 }
 
 fn V_SmithGGXCorrelated_u0028_f1_u003b_f1_u003b_f1_u003b(n_dot_v_1: ptr<function, f32>, n_dot_l: ptr<function, f32>, alpha_1: ptr<function, f32>) -> f32 {
@@ -10189,42 +10621,42 @@ fn V_SmithGGXCorrelated_u0028_f1_u003b_f1_u003b_f1_u003b(n_dot_v_1: ptr<function
     var lambda_v: f32;
     var lambda_l: f32;
 
-    let _e186 = (*alpha_1);
-    let _e187 = (*alpha_1);
-    a2_ = (_e186 * _e187);
-    let _e189 = (*n_dot_l);
-    let _e190 = (*n_dot_v_1);
-    let _e191 = (*n_dot_v_1);
-    let _e193 = a2_;
-    let _e196 = a2_;
-    lambda_v = (_e189 * sqrt((((_e190 * _e191) * (1f - _e193)) + _e196)));
-    let _e200 = (*n_dot_v_1);
-    let _e201 = (*n_dot_l);
-    let _e202 = (*n_dot_l);
-    let _e204 = a2_;
-    let _e207 = a2_;
-    lambda_l = (_e200 * sqrt((((_e201 * _e202) * (1f - _e204)) + _e207)));
-    let _e211 = lambda_v;
-    let _e212 = lambda_l;
-    return (0.5f / max((_e211 + _e212), 0.00001f));
+    let _e188 = (*alpha_1);
+    let _e189 = (*alpha_1);
+    a2_ = (_e188 * _e189);
+    let _e191 = (*n_dot_l);
+    let _e192 = (*n_dot_v_1);
+    let _e193 = (*n_dot_v_1);
+    let _e195 = a2_;
+    let _e198 = a2_;
+    lambda_v = (_e191 * sqrt((((_e192 * _e193) * (1f - _e195)) + _e198)));
+    let _e202 = (*n_dot_v_1);
+    let _e203 = (*n_dot_l);
+    let _e204 = (*n_dot_l);
+    let _e206 = a2_;
+    let _e209 = a2_;
+    lambda_l = (_e202 * sqrt((((_e203 * _e204) * (1f - _e206)) + _e209)));
+    let _e213 = lambda_v;
+    let _e214 = lambda_l;
+    return (0.5f / max((_e213 + _e214), 0.00001f));
 }
 
 fn D_GGX_u0028_f1_u003b_f1_u003b(n_dot_h: ptr<function, f32>, alpha_2: ptr<function, f32>) -> f32 {
     var a: f32;
     var k: f32;
 
-    let _e184 = (*n_dot_h);
-    let _e185 = (*alpha_2);
-    a = (_e184 * _e185);
+    let _e186 = (*n_dot_h);
     let _e187 = (*alpha_2);
-    let _e188 = (*n_dot_h);
-    let _e189 = (*n_dot_h);
-    let _e192 = a;
-    let _e193 = a;
-    k = (_e187 / max(((1f - (_e188 * _e189)) + (_e192 * _e193)), 0.000001f));
-    let _e198 = k;
-    let _e199 = k;
-    return ((_e198 * _e199) * 0.31830987f);
+    a = (_e186 * _e187);
+    let _e189 = (*alpha_2);
+    let _e190 = (*n_dot_h);
+    let _e191 = (*n_dot_h);
+    let _e194 = a;
+    let _e195 = a;
+    k = (_e189 / max(((1f - (_e190 * _e191)) + (_e194 * _e195)), 0.000001f));
+    let _e200 = k;
+    let _e201 = k;
+    return ((_e200 * _e201) * 0.31830987f);
 }
 
 fn ShadeLight_u0028_struct_u002d_Surface_u002d_vf3_u002d_f1_u002d_vf3_u002d_vf3_u002d_f1_u002d_f1_u002d_f1_u002d_f1_u002d_vf3_u002d_vf3_u002d_f11_u003b_struct_u002d_LightSample_u002d_vf3_u002d_vf3_u002d_vf3_u002d_f1_u002d_f1_u002d_f11_u003b(s_1: ptr<function, Surface>, light: ptr<function, LightSample>) -> vec3<f32> {
@@ -10246,85 +10678,85 @@ fn ShadeLight_u0028_struct_u002d_Surface_u002d_vf3_u002d_f1_u002d_vf3_u002d_vf3_
     var param_14: Surface;
     var diffuse: vec3<f32>;
 
-    let _e200 = (*s_1).roughness;
     let _e202 = (*s_1).roughness;
-    alpha_3 = (_e200 * _e202);
-    let _e205 = (*s_1).albedo;
-    let _e207 = (*s_1).metallic;
-    f0_2 = mix(vec3<f32>(0.04f, 0.04f, 0.04f), _e205, vec3(_e207));
-    let _e211 = (*s_1).albedo;
-    let _e213 = (*s_1).metallic;
-    diffuseColor = (_e211 * (1f - _e213));
-    let _e217 = (*light).n_dot_h;
-    param_6 = _e217;
-    let _e218 = alpha_3;
-    param_7 = _e218;
-    let _e219 = D_GGX_u0028_f1_u003b_f1_u003b((&param_6), (&param_7));
-    d_1 = _e219;
-    let _e221 = (*s_1).n_dot_v;
-    param_8 = _e221;
-    let _e223 = (*light).n_dot_l;
-    param_9 = _e223;
-    let _e224 = alpha_3;
-    param_10 = _e224;
-    let _e225 = V_SmithGGXCorrelated_u0028_f1_u003b_f1_u003b_f1_u003b((&param_8), (&param_9), (&param_10));
-    vis = _e225;
-    let _e226 = f0_2;
-    param_11 = _e226;
-    let _e228 = (*light).v_dot_h;
-    param_12 = _e228;
-    let _e229 = F_Schlick_u0028_vf3_u003b_f1_u003b((&param_11), (&param_12));
-    f_1 = _e229;
-    let _e230 = d_1;
-    let _e231 = vis;
-    let _e233 = f_1;
-    let _e237 = frag_info.material[3u];
-    specular = ((_e233 * (_e230 * _e231)) * _e237);
-    let _e239 = EnergyCompensation_u0028_();
-    if _e239 {
-        let _e240 = f0_2;
-        param_13 = _e240;
-        let _e241 = (*s_1);
-        param_14 = _e241;
-        let _e242 = MultiscatterScale_u0028_vf3_u003b_struct_u002d_Surface_u002d_vf3_u002d_f1_u002d_vf3_u002d_vf3_u002d_f1_u002d_f1_u002d_f1_u002d_f1_u002d_vf3_u002d_vf3_u002d_f11_u003b((&param_13), (&param_14));
-        let _e243 = specular;
-        specular = (_e243 * _e242);
+    let _e204 = (*s_1).roughness;
+    alpha_3 = (_e202 * _e204);
+    let _e207 = (*s_1).albedo;
+    let _e209 = (*s_1).metallic;
+    f0_2 = mix(vec3<f32>(0.04f, 0.04f, 0.04f), _e207, vec3(_e209));
+    let _e213 = (*s_1).albedo;
+    let _e215 = (*s_1).metallic;
+    diffuseColor = (_e213 * (1f - _e215));
+    let _e219 = (*light).n_dot_h;
+    param_6 = _e219;
+    let _e220 = alpha_3;
+    param_7 = _e220;
+    let _e221 = D_GGX_u0028_f1_u003b_f1_u003b((&param_6), (&param_7));
+    d_1 = _e221;
+    let _e223 = (*s_1).n_dot_v;
+    param_8 = _e223;
+    let _e225 = (*light).n_dot_l;
+    param_9 = _e225;
+    let _e226 = alpha_3;
+    param_10 = _e226;
+    let _e227 = V_SmithGGXCorrelated_u0028_f1_u003b_f1_u003b_f1_u003b((&param_8), (&param_9), (&param_10));
+    vis = _e227;
+    let _e228 = f0_2;
+    param_11 = _e228;
+    let _e230 = (*light).v_dot_h;
+    param_12 = _e230;
+    let _e231 = F_Schlick_u0028_vf3_u003b_f1_u003b((&param_11), (&param_12));
+    f_1 = _e231;
+    let _e232 = d_1;
+    let _e233 = vis;
+    let _e235 = f_1;
+    let _e239 = frag_info.material[3u];
+    specular = ((_e235 * (_e232 * _e233)) * _e239);
+    let _e241 = EnergyCompensation_u0028_();
+    if _e241 {
+        let _e242 = f0_2;
+        param_13 = _e242;
+        let _e243 = (*s_1);
+        param_14 = _e243;
+        let _e244 = MultiscatterScale_u0028_vf3_u003b_struct_u002d_Surface_u002d_vf3_u002d_f1_u002d_vf3_u002d_vf3_u002d_f1_u002d_f1_u002d_f1_u002d_f1_u002d_vf3_u002d_vf3_u002d_f11_u003b((&param_13), (&param_14));
+        let _e245 = specular;
+        specular = (_e245 * _e244);
     }
-    let _e245 = diffuseColor;
-    let _e246 = f_1;
-    diffuse = ((_e245 * (vec3<f32>(1f, 1f, 1f) - _e246)) / vec3(3.1415927f));
-    let _e251 = diffuse;
-    let _e252 = specular;
-    return ((_e251 + _e252) * 3.1415927f);
+    let _e247 = diffuseColor;
+    let _e248 = f_1;
+    diffuse = ((_e247 * (vec3<f32>(1f, 1f, 1f) - _e248)) / vec3(3.1415927f));
+    let _e253 = diffuse;
+    let _e254 = specular;
+    return ((_e253 + _e254) * 3.1415927f);
 }
 
 fn PointShadowDiskTap_u0028_i1_u003b(i: ptr<function, i32>) -> vec2<f32> {
-    let _e181 = (*i);
-    if (_e181 == 0i) {
+    let _e183 = (*i);
+    if (_e183 == 0i) {
         return vec2<f32>(-0.94201624f, -0.39906216f);
     }
-    let _e183 = (*i);
-    if (_e183 == 1i) {
+    let _e185 = (*i);
+    if (_e185 == 1i) {
         return vec2<f32>(0.9455861f, -0.76890725f);
     }
-    let _e185 = (*i);
-    if (_e185 == 2i) {
+    let _e187 = (*i);
+    if (_e187 == 2i) {
         return vec2<f32>(-0.0941841f, -0.9293887f);
     }
-    let _e187 = (*i);
-    if (_e187 == 3i) {
+    let _e189 = (*i);
+    if (_e189 == 3i) {
         return vec2<f32>(0.34495938f, 0.2938776f);
     }
-    let _e189 = (*i);
-    if (_e189 == 4i) {
+    let _e191 = (*i);
+    if (_e191 == 4i) {
         return vec2<f32>(-0.9158858f, 0.45771432f);
     }
-    let _e191 = (*i);
-    if (_e191 == 5i) {
+    let _e193 = (*i);
+    if (_e193 == 5i) {
         return vec2<f32>(-0.8154423f, -0.87912464f);
     }
-    let _e193 = (*i);
-    if (_e193 == 6i) {
+    let _e195 = (*i);
+    if (_e195 == 6i) {
         return vec2<f32>(-0.38277543f, 0.27676845f);
     }
     return vec2<f32>(0.974844f, 0.7564838f);
@@ -10334,20 +10766,20 @@ fn PointShadowOffset_u0028_i1_u003b_f1_u003b_f1_u003b_f1_u003b(i_1: ptr<function
     var p: vec2<f32>;
     var param_15: i32;
 
-    let _e186 = (*i_1);
-    param_15 = _e186;
-    let _e187 = PointShadowDiskTap_u0028_i1_u003b((&param_15));
-    p = _e187;
-    let _e189 = p[0u];
-    let _e190 = (*ca);
-    let _e193 = p[1u];
-    let _e194 = (*sa);
-    let _e198 = p[0u];
-    let _e199 = (*sa);
-    let _e202 = p[1u];
-    let _e203 = (*ca);
-    let _e207 = (*radius);
-    return (vec2<f32>(((_e189 * _e190) - (_e193 * _e194)), ((_e198 * _e199) + (_e202 * _e203))) * _e207);
+    let _e188 = (*i_1);
+    param_15 = _e188;
+    let _e189 = PointShadowDiskTap_u0028_i1_u003b((&param_15));
+    p = _e189;
+    let _e191 = p[0u];
+    let _e192 = (*ca);
+    let _e195 = p[1u];
+    let _e196 = (*sa);
+    let _e200 = p[0u];
+    let _e201 = (*sa);
+    let _e204 = p[1u];
+    let _e205 = (*ca);
+    let _e209 = (*radius);
+    return (vec2<f32>(((_e191 * _e192) - (_e195 * _e196)), ((_e200 * _e201) + (_e204 * _e205))) * _e209);
 }
 
 fn PointShadowDistance_u0028_vf2_u003b_vf2_u003b_vf2_u003b_f1_u003b(uv: ptr<function, vec2<f32>>, offset: ptr<function, vec2<f32>>, tile: ptr<function, vec2<f32>>, range: ptr<function, f32>) -> f32 {
@@ -10355,27 +10787,27 @@ fn PointShadowDistance_u0028_vf2_u003b_vf2_u003b_vf2_u003b_f1_u003b(uv: ptr<func
     var local: vec2<f32>;
     var atlas: vec2<f32>;
 
-    let _e189 = point_shadow.params[0u];
-    inset = _e189;
-    let _e190 = (*uv);
-    let _e191 = (*offset);
-    let _e193 = inset;
-    let _e194 = inset;
-    local = clamp((_e190 + _e191), vec2(_e193), vec2((1f - _e194)));
-    let _e199 = local;
-    let _e200 = (*tile);
-    atlas = ((_e199 + _e200) * vec2<f32>(0.16666667f, 0.16666667f));
-    let _e205 = point_shadow.params3_[0u];
-    if (_e205 > 0.5f) {
-        let _e208 = atlas[1u];
-        atlas[1u] = (1f - _e208);
+    let _e191 = point_shadow.params[0u];
+    inset = _e191;
+    let _e192 = (*uv);
+    let _e193 = (*offset);
+    let _e195 = inset;
+    let _e196 = inset;
+    local = clamp((_e192 + _e193), vec2(_e195), vec2((1f - _e196)));
+    let _e201 = local;
+    let _e202 = (*tile);
+    atlas = ((_e201 + _e202) * vec2<f32>(0.16666667f, 0.16666667f));
+    let _e207 = point_shadow.params3_[0u];
+    if (_e207 > 0.5f) {
+        let _e210 = atlas[1u];
+        atlas[1u] = (1f - _e210);
     }
-    let _e211 = atlas;
-    let _e212 = textureSampleLevel(point_shadow_texture_tex, point_shadow_texture_smp, _e211, 0f);
-    let _e214 = atlas;
-    let _e215 = textureSampleLevel(point_shadow_static_texture_tex, point_shadow_static_texture_smp, _e214, 0f);
-    let _e218 = (*range);
-    return (min(_e212.x, _e215.x) * _e218);
+    let _e213 = atlas;
+    let _e214 = textureSampleLevel(point_shadow_texture_tex, point_shadow_texture_smp, _e213, 0f);
+    let _e216 = atlas;
+    let _e217 = textureSampleLevel(point_shadow_static_texture_tex, point_shadow_static_texture_smp, _e216, 0f);
+    let _e220 = (*range);
+    return (min(_e214.x, _e217.x) * _e220);
 }
 
 fn PointShadowTap_u0028_vf2_u003b_vf2_u003b_vf2_u003b_f1_u003b_f1_u003b(uv_1: ptr<function, vec2<f32>>, offset_1: ptr<function, vec2<f32>>, tile_1: ptr<function, vec2<f32>>, range_1: ptr<function, f32>, receiver: ptr<function, f32>) -> f32 {
@@ -10385,24 +10817,24 @@ fn PointShadowTap_u0028_vf2_u003b_vf2_u003b_vf2_u003b_f1_u003b_f1_u003b(uv_1: pt
     var param_18: vec2<f32>;
     var param_19: f32;
 
-    let _e190 = (*uv_1);
-    param_16 = _e190;
-    let _e191 = (*offset_1);
-    param_17 = _e191;
-    let _e192 = (*tile_1);
-    param_18 = _e192;
-    let _e193 = (*range_1);
-    param_19 = _e193;
-    let _e194 = PointShadowDistance_u0028_vf2_u003b_vf2_u003b_vf2_u003b_f1_u003b((&param_16), (&param_17), (&param_18), (&param_19));
-    stored = _e194;
-    let _e195 = stored;
-    let _e196 = (*range_1);
-    if (_e195 >= (_e196 * 0.999f)) {
+    let _e192 = (*uv_1);
+    param_16 = _e192;
+    let _e193 = (*offset_1);
+    param_17 = _e193;
+    let _e194 = (*tile_1);
+    param_18 = _e194;
+    let _e195 = (*range_1);
+    param_19 = _e195;
+    let _e196 = PointShadowDistance_u0028_vf2_u003b_vf2_u003b_vf2_u003b_f1_u003b((&param_16), (&param_17), (&param_18), (&param_19));
+    stored = _e196;
+    let _e197 = stored;
+    let _e198 = (*range_1);
+    if (_e197 >= (_e198 * 0.999f)) {
         return 1f;
     }
-    let _e199 = (*receiver);
-    let _e200 = stored;
-    return select(1f, 0f, (_e199 > _e200));
+    let _e201 = (*receiver);
+    let _e202 = stored;
+    return select(1f, 0f, (_e201 > _e202));
 }
 
 fn PointShadowPenumbra_u0028_vf2_u003b_vf2_u003b_f1_u003b_f1_u003b_f1_u003b_f1_u003b_f1_u003b_f1_u003b(uv_2: ptr<function, vec2<f32>>, tile_2: ptr<function, vec2<f32>>, range_2: ptr<function, f32>, receiver_1: ptr<function, f32>, ca_1: ptr<function, f32>, sa_1: ptr<function, f32>, tanHalf: ptr<function, f32>, blockerOut: ptr<function, f32>) -> f32 {
@@ -10429,111 +10861,111 @@ fn PointShadowPenumbra_u0028_vf2_u003b_vf2_u003b_f1_u003b_f1_u003b_f1_u003b_f1_u
     var world: f32;
 
     (*blockerOut) = -1f;
-    let _e211 = point_shadow.params2_[1u];
-    lightRadius = _e211;
-    let _e214 = point_shadow.params2_[0u];
-    minRadius = _e214;
-    let _e217 = point_shadow.params2_[2u];
-    maxRadius = _e217;
-    let _e218 = lightRadius;
-    if (_e218 <= 0f) {
-        let _e220 = (*uv_2);
-        param_20 = _e220;
+    let _e213 = point_shadow.params2_[1u];
+    lightRadius = _e213;
+    let _e216 = point_shadow.params2_[0u];
+    minRadius = _e216;
+    let _e219 = point_shadow.params2_[2u];
+    maxRadius = _e219;
+    let _e220 = lightRadius;
+    if (_e220 <= 0f) {
+        let _e222 = (*uv_2);
+        param_20 = _e222;
         param_21 = vec2<f32>(0f, 0f);
-        let _e221 = (*tile_2);
-        param_22 = _e221;
-        let _e222 = (*range_2);
-        param_23 = _e222;
-        let _e223 = PointShadowDistance_u0028_vf2_u003b_vf2_u003b_vf2_u003b_f1_u003b((&param_20), (&param_21), (&param_22), (&param_23));
-        (*blockerOut) = _e223;
-        let _e224 = minRadius;
-        return _e224;
+        let _e223 = (*tile_2);
+        param_22 = _e223;
+        let _e224 = (*range_2);
+        param_23 = _e224;
+        let _e225 = PointShadowDistance_u0028_vf2_u003b_vf2_u003b_vf2_u003b_f1_u003b((&param_20), (&param_21), (&param_22), (&param_23));
+        (*blockerOut) = _e225;
+        let _e226 = minRadius;
+        return _e226;
     }
     sum = 0f;
     count = 0f;
     i_2 = 0i;
     loop {
-        let _e225 = i_2;
-        if (_e225 < 8i) {
-            let _e227 = i_2;
-            param_24 = _e227;
-            let _e228 = (*ca_1);
-            param_25 = _e228;
-            let _e229 = (*sa_1);
-            param_26 = _e229;
-            let _e230 = maxRadius;
-            param_27 = _e230;
-            let _e231 = PointShadowOffset_u0028_i1_u003b_f1_u003b_f1_u003b_f1_u003b((&param_24), (&param_25), (&param_26), (&param_27));
-            let _e232 = (*uv_2);
-            param_28 = _e232;
-            param_29 = _e231;
-            let _e233 = (*tile_2);
-            param_30 = _e233;
-            let _e234 = (*range_2);
-            param_31 = _e234;
-            let _e235 = PointShadowDistance_u0028_vf2_u003b_vf2_u003b_vf2_u003b_f1_u003b((&param_28), (&param_29), (&param_30), (&param_31));
-            stored_1 = _e235;
-            let _e236 = stored_1;
-            let _e237 = (*range_2);
-            if (_e236 >= (_e237 * 0.999f)) {
+        let _e227 = i_2;
+        if (_e227 < 8i) {
+            let _e229 = i_2;
+            param_24 = _e229;
+            let _e230 = (*ca_1);
+            param_25 = _e230;
+            let _e231 = (*sa_1);
+            param_26 = _e231;
+            let _e232 = maxRadius;
+            param_27 = _e232;
+            let _e233 = PointShadowOffset_u0028_i1_u003b_f1_u003b_f1_u003b_f1_u003b((&param_24), (&param_25), (&param_26), (&param_27));
+            let _e234 = (*uv_2);
+            param_28 = _e234;
+            param_29 = _e233;
+            let _e235 = (*tile_2);
+            param_30 = _e235;
+            let _e236 = (*range_2);
+            param_31 = _e236;
+            let _e237 = PointShadowDistance_u0028_vf2_u003b_vf2_u003b_vf2_u003b_f1_u003b((&param_28), (&param_29), (&param_30), (&param_31));
+            stored_1 = _e237;
+            let _e238 = stored_1;
+            let _e239 = (*range_2);
+            if (_e238 >= (_e239 * 0.999f)) {
                 continue;
             }
-            let _e240 = stored_1;
-            let _e241 = (*receiver_1);
-            if (_e240 >= _e241) {
+            let _e242 = stored_1;
+            let _e243 = (*receiver_1);
+            if (_e242 >= _e243) {
                 continue;
             }
-            let _e243 = stored_1;
-            let _e244 = sum;
-            sum = (_e244 + _e243);
-            let _e246 = count;
-            count = (_e246 + 1f);
+            let _e245 = stored_1;
+            let _e246 = sum;
+            sum = (_e246 + _e245);
+            let _e248 = count;
+            count = (_e248 + 1f);
             continue;
         } else {
             break;
         }
         continuing {
-            let _e248 = i_2;
-            i_2 = (_e248 + 1i);
+            let _e250 = i_2;
+            i_2 = (_e250 + 1i);
         }
     }
-    let _e250 = count;
-    if (_e250 < 0.5f) {
+    let _e252 = count;
+    if (_e252 < 0.5f) {
         return -1f;
     }
-    let _e252 = sum;
-    let _e253 = count;
-    blocker = max((_e252 / _e253), 0.0001f);
-    let _e256 = blocker;
-    (*blockerOut) = _e256;
-    let _e257 = lightRadius;
-    let _e258 = (*receiver_1);
-    let _e259 = blocker;
-    let _e263 = blocker;
-    world = ((_e257 * max((_e258 - _e259), 0f)) / _e263);
-    let _e265 = world;
-    let _e266 = (*receiver_1);
-    let _e268 = (*tanHalf);
-    let _e271 = minRadius;
-    let _e272 = maxRadius;
-    return clamp((_e265 / ((2f * _e266) * _e268)), _e271, _e272);
+    let _e254 = sum;
+    let _e255 = count;
+    blocker = max((_e254 / _e255), 0.0001f);
+    let _e258 = blocker;
+    (*blockerOut) = _e258;
+    let _e259 = lightRadius;
+    let _e260 = (*receiver_1);
+    let _e261 = blocker;
+    let _e265 = blocker;
+    world = ((_e259 * max((_e260 - _e261), 0f)) / _e265);
+    let _e267 = world;
+    let _e268 = (*receiver_1);
+    let _e270 = (*tanHalf);
+    let _e273 = minRadius;
+    let _e274 = maxRadius;
+    return clamp((_e267 / ((2f * _e268) * _e270)), _e273, _e274);
 }
 
 fn FragCoordFromTop_u0028_f1_u003b(rows: ptr<function, f32>) -> vec2<f32> {
     var local_1: vec2<f32>;
 
-    let _e182 = (*rows);
-    if (_e182 > 0f) {
-        let _e185 = gl_FragCoord_1[0u];
-        let _e186 = (*rows);
-        let _e188 = gl_FragCoord_1[1u];
-        local_1 = vec2<f32>(_e185, (_e186 - _e188));
+    let _e184 = (*rows);
+    if (_e184 > 0f) {
+        let _e187 = gl_FragCoord_1[0u];
+        let _e188 = (*rows);
+        let _e190 = gl_FragCoord_1[1u];
+        local_1 = vec2<f32>(_e187, (_e188 - _e190));
     } else {
-        let _e191 = gl_FragCoord_1;
-        local_1 = _e191.xy;
+        let _e193 = gl_FragCoord_1;
+        local_1 = _e193.xy;
     }
-    let _e193 = local_1;
-    return _e193;
+    let _e195 = local_1;
+    return _e195;
 }
 
 fn PointShadowFactor_u0028_vf3_u003b_vf3_u003b_i1_u003b(world_1: ptr<function, vec3<f32>>, normal: ptr<function, vec3<f32>>, lightIndex: ptr<function, i32>) -> f32 {
@@ -10588,231 +11020,231 @@ fn PointShadowFactor_u0028_vf3_u003b_vf3_u003b_i1_u003b(world_1: ptr<function, v
     var param_52: vec2<f32>;
     var param_53: f32;
     var param_54: f32;
-    var phi_1655_: bool;
-    var phi_1717_: bool;
+    var phi_1920_: bool;
+    var phi_1981_: bool;
 
-    let _e234 = (*lightIndex);
-    let _e238 = point_shadow.slots[_e234][0u];
-    slot = i32((_e238 + 0.5f));
-    let _e241 = (*lightIndex);
-    let _e245 = point_shadow.slots[_e241][0u];
-    if (_e245 < 0f) {
+    let _e236 = (*lightIndex);
+    let _e240 = point_shadow.slots[_e236][0u];
+    slot = i32((_e240 + 0.5f));
+    let _e243 = (*lightIndex);
+    let _e247 = point_shadow.slots[_e243][0u];
+    if (_e247 < 0f) {
         return 1f;
     }
-    let _e249 = point_shadow.params[2u];
-    strength = _e249;
-    let _e250 = strength;
-    if (_e250 <= 0f) {
+    let _e251 = point_shadow.params[2u];
+    strength = _e251;
+    let _e252 = strength;
+    if (_e252 <= 0f) {
         return 1f;
     }
-    let _e252 = slot;
-    let _e255 = point_shadow.lights[_e252];
-    let _e257 = (*world_1);
-    toLight = (_e255.xyz - _e257);
-    let _e259 = toLight;
-    toLightLength = max(length(_e259), 0.000001f);
-    let _e262 = (*normal);
-    let _e263 = toLight;
-    let _e264 = toLightLength;
-    nDotL = max(dot(_e262, (_e263 / vec3(_e264))), 0.15f);
-    let _e269 = nDotL;
-    let _e270 = nDotL;
-    let _e275 = nDotL;
-    let _e276 = nDotL;
-    slope = min((sqrt(max((1f - (_e269 * _e270)), 0f)) / (_e275 * _e276)), 8f);
-    let _e280 = toLightLength;
-    let _e282 = (*lightIndex);
-    let _e286 = point_shadow.slots[_e282][2u];
-    let _e291 = point_shadow.params3_[1u];
-    texel = (((2f * _e280) * max(_e286, 0.0001f)) * _e291);
-    let _e293 = (*world_1);
-    let _e294 = (*normal);
-    let _e295 = texel;
-    let _e299 = point_shadow.params[3u];
-    let _e301 = slope;
-    origin = (_e293 + (((_e294 * _e295) * _e299) * (1f + _e301)));
-    let _e305 = origin;
-    let _e306 = slot;
-    let _e309 = point_shadow.lights[_e306];
-    toFragment = (_e305 - _e309.xyz);
-    let _e312 = toFragment;
-    distance_ = length(_e312);
-    let _e314 = slot;
-    let _e318 = point_shadow.lights[_e314][3u];
-    range_3 = max(_e318, 0.0001f);
-    let _e320 = distance_;
-    let _e321 = range_3;
-    if (_e320 >= _e321) {
+    let _e254 = slot;
+    let _e257 = point_shadow.lights[_e254];
+    let _e259 = (*world_1);
+    toLight = (_e257.xyz - _e259);
+    let _e261 = toLight;
+    toLightLength = max(length(_e261), 0.000001f);
+    let _e264 = (*normal);
+    let _e265 = toLight;
+    let _e266 = toLightLength;
+    nDotL = max(dot(_e264, (_e265 / vec3(_e266))), 0.15f);
+    let _e271 = nDotL;
+    let _e272 = nDotL;
+    let _e277 = nDotL;
+    let _e278 = nDotL;
+    slope = min((sqrt(max((1f - (_e271 * _e272)), 0f)) / (_e277 * _e278)), 8f);
+    let _e282 = toLightLength;
+    let _e284 = (*lightIndex);
+    let _e288 = point_shadow.slots[_e284][2u];
+    let _e293 = point_shadow.params3_[1u];
+    texel = (((2f * _e282) * max(_e288, 0.0001f)) * _e293);
+    let _e295 = (*world_1);
+    let _e296 = (*normal);
+    let _e297 = texel;
+    let _e301 = point_shadow.params[3u];
+    let _e303 = slope;
+    origin = (_e295 + (((_e296 * _e297) * _e301) * (1f + _e303)));
+    let _e307 = origin;
+    let _e308 = slot;
+    let _e311 = point_shadow.lights[_e308];
+    toFragment = (_e307 - _e311.xyz);
+    let _e314 = toFragment;
+    distance_ = length(_e314);
+    let _e316 = slot;
+    let _e320 = point_shadow.lights[_e316][3u];
+    range_3 = max(_e320, 0.0001f);
+    let _e322 = distance_;
+    let _e323 = range_3;
+    if (_e322 >= _e323) {
         return 1f;
     }
     face = 0i;
-    let _e323 = (*lightIndex);
-    let _e327 = point_shadow.slots[_e323][1u];
-    if (_e327 < 0.5f) {
-        let _e329 = toFragment;
-        a_1 = abs(_e329);
-        let _e332 = a_1[0u];
-        let _e334 = a_1[1u];
-        let _e335 = (_e332 >= _e334);
-        phi_1655_ = _e335;
-        if _e335 {
-            let _e337 = a_1[0u];
-            let _e339 = a_1[2u];
-            phi_1655_ = (_e337 >= _e339);
+    let _e325 = (*lightIndex);
+    let _e329 = point_shadow.slots[_e325][1u];
+    if (_e329 < 0.5f) {
+        let _e331 = toFragment;
+        a_1 = abs(_e331);
+        let _e334 = a_1[0u];
+        let _e336 = a_1[1u];
+        let _e337 = (_e334 >= _e336);
+        phi_1920_ = _e337;
+        if _e337 {
+            let _e339 = a_1[0u];
+            let _e341 = a_1[2u];
+            phi_1920_ = (_e339 >= _e341);
         }
-        let _e342 = phi_1655_;
-        if _e342 {
-            let _e344 = toFragment[0u];
-            face = select(1i, 0i, (_e344 > 0f));
+        let _e344 = phi_1920_;
+        if _e344 {
+            let _e346 = toFragment[0u];
+            face = select(1i, 0i, (_e346 > 0f));
         } else {
-            let _e348 = a_1[1u];
-            let _e350 = a_1[2u];
-            if (_e348 >= _e350) {
-                let _e353 = toFragment[1u];
-                face = select(3i, 2i, (_e353 > 0f));
+            let _e350 = a_1[1u];
+            let _e352 = a_1[2u];
+            if (_e350 >= _e352) {
+                let _e355 = toFragment[1u];
+                face = select(3i, 2i, (_e355 > 0f));
             } else {
-                let _e357 = toFragment[2u];
-                face = select(5i, 4i, (_e357 > 0f));
+                let _e359 = toFragment[2u];
+                face = select(5i, 4i, (_e359 > 0f));
             }
         }
     }
-    let _e360 = slot;
-    let _e362 = face;
-    let _e366 = point_shadow.faces[((_e360 * 6i) + _e362)];
-    let _e367 = origin;
-    clip = (_e366 * vec4<f32>(_e367.x, _e367.y, _e367.z, 1f));
-    let _e374 = clip[3u];
-    if (_e374 <= 0f) {
+    let _e362 = slot;
+    let _e364 = face;
+    let _e368 = point_shadow.faces[((_e362 * 6i) + _e364)];
+    let _e369 = origin;
+    clip = (_e368 * vec4<f32>(_e369.x, _e369.y, _e369.z, 1f));
+    let _e376 = clip[3u];
+    if (_e376 <= 0f) {
         return 1f;
     }
-    let _e376 = clip;
-    let _e379 = clip[3u];
-    ndc = (_e376.xy / vec2(_e379));
-    let _e383 = ndc[0u];
-    let _e385 = (abs(_e383) > 1f);
-    phi_1717_ = _e385;
-    if !(_e385) {
-        let _e388 = ndc[1u];
-        phi_1717_ = (abs(_e388) > 1f);
+    let _e378 = clip;
+    let _e381 = clip[3u];
+    ndc = (_e378.xy / vec2(_e381));
+    let _e385 = ndc[0u];
+    let _e387 = (abs(_e385) > 1f);
+    phi_1981_ = _e387;
+    if !(_e387) {
+        let _e390 = ndc[1u];
+        phi_1981_ = (abs(_e390) > 1f);
     }
-    let _e392 = phi_1717_;
-    if _e392 {
+    let _e394 = phi_1981_;
+    if _e394 {
         return 1f;
     }
-    let _e394 = ndc[0u];
-    let _e398 = ndc[1u];
-    uv_3 = vec2<f32>(((_e394 * 0.5f) + 0.5f), (0.5f - (_e398 * 0.5f)));
-    let _e402 = face;
-    let _e404 = slot;
-    tile_3 = vec2<f32>(f32(_e402), f32(_e404));
-    let _e407 = distance_;
-    let _e410 = point_shadow.params[1u];
-    receiver_2 = (_e407 - _e410);
-    let _e414 = frag_info.target_origin[0u];
-    param_32 = _e414;
-    let _e415 = FragCoordFromTop_u0028_f1_u003b((&param_32));
-    noise = fract((52.982918f * fract(dot(_e415, vec2<f32>(0.06711056f, 0.00583715f)))));
-    let _e420 = noise;
-    angle = (_e420 * 6.2831855f);
-    let _e422 = angle;
-    ca_2 = cos(_e422);
+    let _e396 = ndc[0u];
+    let _e400 = ndc[1u];
+    uv_3 = vec2<f32>(((_e396 * 0.5f) + 0.5f), (0.5f - (_e400 * 0.5f)));
+    let _e404 = face;
+    let _e406 = slot;
+    tile_3 = vec2<f32>(f32(_e404), f32(_e406));
+    let _e409 = distance_;
+    let _e412 = point_shadow.params[1u];
+    receiver_2 = (_e409 - _e412);
+    let _e416 = frag_info.target_origin[0u];
+    param_32 = _e416;
+    let _e417 = FragCoordFromTop_u0028_f1_u003b((&param_32));
+    noise = fract((52.982918f * fract(dot(_e417, vec2<f32>(0.06711056f, 0.00583715f)))));
+    let _e422 = noise;
+    angle = (_e422 * 6.2831855f);
     let _e424 = angle;
-    sa_2 = sin(_e424);
-    let _e426 = (*lightIndex);
-    let _e430 = point_shadow.slots[_e426][2u];
-    tanHalf_1 = max(_e430, 0.0001f);
+    ca_2 = cos(_e424);
+    let _e426 = angle;
+    sa_2 = sin(_e426);
+    let _e428 = (*lightIndex);
+    let _e432 = point_shadow.slots[_e428][2u];
+    tanHalf_1 = max(_e432, 0.0001f);
     blocker_1 = -1f;
-    let _e432 = uv_3;
-    param_33 = _e432;
-    let _e433 = tile_3;
-    param_34 = _e433;
-    let _e434 = range_3;
-    param_35 = _e434;
-    let _e435 = receiver_2;
-    param_36 = _e435;
-    let _e436 = ca_2;
-    param_37 = _e436;
-    let _e437 = sa_2;
-    param_38 = _e437;
-    let _e438 = tanHalf_1;
-    param_39 = _e438;
-    let _e439 = PointShadowPenumbra_u0028_vf2_u003b_vf2_u003b_f1_u003b_f1_u003b_f1_u003b_f1_u003b_f1_u003b_f1_u003b((&param_33), (&param_34), (&param_35), (&param_36), (&param_37), (&param_38), (&param_39), (&param_40));
-    let _e440 = param_40;
-    blocker_1 = _e440;
-    radius_1 = _e439;
-    let _e443 = point_shadow.params2_[3u];
-    if (_e443 > 0.5f) {
+    let _e434 = uv_3;
+    param_33 = _e434;
+    let _e435 = tile_3;
+    param_34 = _e435;
+    let _e436 = range_3;
+    param_35 = _e436;
+    let _e437 = receiver_2;
+    param_36 = _e437;
+    let _e438 = ca_2;
+    param_37 = _e438;
+    let _e439 = sa_2;
+    param_38 = _e439;
+    let _e440 = tanHalf_1;
+    param_39 = _e440;
+    let _e441 = PointShadowPenumbra_u0028_vf2_u003b_vf2_u003b_f1_u003b_f1_u003b_f1_u003b_f1_u003b_f1_u003b_f1_u003b((&param_33), (&param_34), (&param_35), (&param_36), (&param_37), (&param_38), (&param_39), (&param_40));
+    let _e442 = param_40;
+    blocker_1 = _e442;
+    radius_1 = _e441;
+    let _e445 = point_shadow.params2_[3u];
+    if (_e445 > 0.5f) {
         g_debug_surface_on = true;
-        let _e445 = radius_1;
-        if (_e445 < 0f) {
+        let _e447 = radius_1;
+        if (_e447 < 0f) {
             local_2 = vec3<f32>(0f, 0f, 1f);
         } else {
-            let _e447 = radius_1;
-            let _e450 = point_shadow.params2_[2u];
-            let _e454 = blocker_1;
-            let _e455 = range_3;
-            local_2 = vec3<f32>(clamp((_e447 / max(_e450, 0.000001f)), 0f, 1f), clamp((_e454 / _e455), 0f, 1f), 0f);
+            let _e449 = radius_1;
+            let _e452 = point_shadow.params2_[2u];
+            let _e456 = blocker_1;
+            let _e457 = range_3;
+            local_2 = vec3<f32>(clamp((_e449 / max(_e452, 0.000001f)), 0f, 1f), clamp((_e456 / _e457), 0f, 1f), 0f);
         }
-        let _e459 = local_2;
-        g_debug_surface = _e459;
+        let _e461 = local_2;
+        g_debug_surface = _e461;
     }
-    let _e460 = radius_1;
-    if (_e460 < 0f) {
+    let _e462 = radius_1;
+    if (_e462 < 0f) {
         return 1f;
     }
-    let _e462 = uv_3;
-    param_41 = _e462;
+    let _e464 = uv_3;
+    param_41 = _e464;
     param_42 = vec2<f32>(0f, 0f);
-    let _e463 = tile_3;
-    param_43 = _e463;
-    let _e464 = range_3;
-    param_44 = _e464;
-    let _e465 = receiver_2;
-    param_45 = _e465;
-    let _e466 = PointShadowTap_u0028_vf2_u003b_vf2_u003b_vf2_u003b_f1_u003b_f1_u003b((&param_41), (&param_42), (&param_43), (&param_44), (&param_45));
-    lit = _e466;
-    let _e467 = radius_1;
-    if (_e467 > 0f) {
+    let _e465 = tile_3;
+    param_43 = _e465;
+    let _e466 = range_3;
+    param_44 = _e466;
+    let _e467 = receiver_2;
+    param_45 = _e467;
+    let _e468 = PointShadowTap_u0028_vf2_u003b_vf2_u003b_vf2_u003b_f1_u003b_f1_u003b((&param_41), (&param_42), (&param_43), (&param_44), (&param_45));
+    lit = _e468;
+    let _e469 = radius_1;
+    if (_e469 > 0f) {
         i_3 = 0i;
         loop {
-            let _e469 = i_3;
-            if (_e469 < 8i) {
-                let _e471 = i_3;
-                param_46 = _e471;
-                let _e472 = ca_2;
-                param_47 = _e472;
-                let _e473 = sa_2;
-                param_48 = _e473;
-                let _e474 = radius_1;
-                param_49 = _e474;
-                let _e475 = PointShadowOffset_u0028_i1_u003b_f1_u003b_f1_u003b_f1_u003b((&param_46), (&param_47), (&param_48), (&param_49));
-                let _e476 = uv_3;
-                param_50 = _e476;
-                param_51 = _e475;
-                let _e477 = tile_3;
-                param_52 = _e477;
-                let _e478 = range_3;
-                param_53 = _e478;
-                let _e479 = receiver_2;
-                param_54 = _e479;
-                let _e480 = PointShadowTap_u0028_vf2_u003b_vf2_u003b_vf2_u003b_f1_u003b_f1_u003b((&param_50), (&param_51), (&param_52), (&param_53), (&param_54));
-                let _e481 = lit;
-                lit = (_e481 + _e480);
+            let _e471 = i_3;
+            if (_e471 < 8i) {
+                let _e473 = i_3;
+                param_46 = _e473;
+                let _e474 = ca_2;
+                param_47 = _e474;
+                let _e475 = sa_2;
+                param_48 = _e475;
+                let _e476 = radius_1;
+                param_49 = _e476;
+                let _e477 = PointShadowOffset_u0028_i1_u003b_f1_u003b_f1_u003b_f1_u003b((&param_46), (&param_47), (&param_48), (&param_49));
+                let _e478 = uv_3;
+                param_50 = _e478;
+                param_51 = _e477;
+                let _e479 = tile_3;
+                param_52 = _e479;
+                let _e480 = range_3;
+                param_53 = _e480;
+                let _e481 = receiver_2;
+                param_54 = _e481;
+                let _e482 = PointShadowTap_u0028_vf2_u003b_vf2_u003b_vf2_u003b_f1_u003b_f1_u003b((&param_50), (&param_51), (&param_52), (&param_53), (&param_54));
+                let _e483 = lit;
+                lit = (_e483 + _e482);
                 continue;
             } else {
                 break;
             }
             continuing {
-                let _e483 = i_3;
-                i_3 = (_e483 + 1i);
+                let _e485 = i_3;
+                i_3 = (_e485 + 1i);
             }
         }
-        let _e485 = lit;
-        lit = (_e485 * 0.11111111f);
+        let _e487 = lit;
+        lit = (_e487 * 0.11111111f);
     }
-    let _e487 = lit;
-    let _e488 = strength;
-    return mix(1f, _e487, clamp(_e488, 0f, 1f));
+    let _e489 = lit;
+    let _e490 = strength;
+    return mix(1f, _e489, clamp(_e490, 0f, 1f));
 }
 
 fn ShadowFactor_u0028_struct_u002d_Surface_u002d_vf3_u002d_f1_u002d_vf3_u002d_vf3_u002d_f1_u002d_f1_u002d_f1_u002d_f1_u002d_vf3_u002d_vf3_u002d_f11_u003b_struct_u002d_LightSample_u002d_vf3_u002d_vf3_u002d_vf3_u002d_f1_u002d_f1_u002d_f11_u003b_i1_u003b(s_2: ptr<function, Surface>, light_1: ptr<function, LightSample>, lightIndex_1: ptr<function, i32>) -> f32 {
@@ -10858,58 +11290,58 @@ fn ShadowFactor_u0028_struct_u002d_Surface_u002d_vf3_u002d_f1_u002d_vf3_u002d_vf
     var i_5: i32;
     var occluder_2: f32;
     var indexable_1: array<vec2<f32>, 5>;
-    var phi_2622_: bool;
-    var phi_2633_: bool;
-    var phi_2752_: bool;
-    var phi_2759_: bool;
-    var phi_2766_: bool;
+    var phi_2886_: bool;
+    var phi_2897_: bool;
+    var phi_3015_: bool;
+    var phi_3022_: bool;
+    var phi_3029_: bool;
 
-    let _e227 = frag_info.shadow_params[3u];
-    strength_1 = _e227;
-    let _e228 = strength_1;
-    if (_e228 <= 0f) {
+    let _e229 = frag_info.shadow_params[3u];
+    strength_1 = _e229;
+    let _e230 = strength_1;
+    if (_e230 <= 0f) {
         return 1f;
     }
-    let _e230 = (*lightIndex_1);
-    let _e233 = frag_info.frame_params[2u];
-    if (_e230 != i32((_e233 + 0.5f))) {
+    let _e232 = (*lightIndex_1);
+    let _e235 = frag_info.frame_params[2u];
+    if (_e232 != i32((_e235 + 0.5f))) {
         return 1f;
     }
-    let _e238 = (*light_1).n_dot_l;
-    nDotL_1 = max(_e238, 0.15f);
-    let _e240 = nDotL_1;
-    let _e241 = nDotL_1;
-    let _e246 = nDotL_1;
-    let _e247 = nDotL_1;
-    slope_1 = min((sqrt(max((1f - (_e240 * _e241)), 0f)) / (_e246 * _e247)), 8f);
-    let _e253 = frag_info.shadow_cascades[2u];
-    cascadeCount = i32((_e253 + 0.5f));
-    let _e256 = v_world_position_1;
-    let _e258 = frag_info.camera_position;
-    viewDistance = length((_e256 - _e258.xyz));
+    let _e240 = (*light_1).n_dot_l;
+    nDotL_1 = max(_e240, 0.15f);
+    let _e242 = nDotL_1;
+    let _e243 = nDotL_1;
+    let _e248 = nDotL_1;
+    let _e249 = nDotL_1;
+    slope_1 = min((sqrt(max((1f - (_e242 * _e243)), 0f)) / (_e248 * _e249)), 8f);
+    let _e255 = frag_info.shadow_cascades[2u];
+    cascadeCount = i32((_e255 + 0.5f));
+    let _e258 = v_world_position_1;
+    let _e260 = frag_info.camera_position;
+    viewDistance = length((_e258 - _e260.xyz));
     cascade = 0i;
-    let _e262 = cascadeCount;
-    let _e263 = (_e262 > 1i);
-    phi_2622_ = _e263;
-    if _e263 {
-        let _e264 = viewDistance;
-        let _e267 = frag_info.shadow_cascades[0u];
-        phi_2622_ = (_e264 > _e267);
+    let _e264 = cascadeCount;
+    let _e265 = (_e264 > 1i);
+    phi_2886_ = _e265;
+    if _e265 {
+        let _e266 = viewDistance;
+        let _e269 = frag_info.shadow_cascades[0u];
+        phi_2886_ = (_e266 > _e269);
     }
-    let _e270 = phi_2622_;
-    if _e270 {
+    let _e272 = phi_2886_;
+    if _e272 {
         cascade = 1i;
     }
-    let _e271 = cascadeCount;
-    let _e272 = (_e271 > 2i);
-    phi_2633_ = _e272;
-    if _e272 {
-        let _e273 = viewDistance;
-        let _e276 = frag_info.shadow_cascades[1u];
-        phi_2633_ = (_e273 > _e276);
+    let _e273 = cascadeCount;
+    let _e274 = (_e273 > 2i);
+    phi_2897_ = _e274;
+    if _e274 {
+        let _e275 = viewDistance;
+        let _e278 = frag_info.shadow_cascades[1u];
+        phi_2897_ = (_e275 > _e278);
     }
-    let _e279 = phi_2633_;
-    if _e279 {
+    let _e281 = phi_2897_;
+    if _e281 {
         cascade = 2i;
     }
     uv_4 = vec2<f32>(0f, 0f);
@@ -10917,177 +11349,177 @@ fn ShadowFactor_u0028_struct_u002d_Surface_u002d_vf3_u002d_f1_u002d_vf3_u002d_vf
     found = false;
     attempt = 0i;
     loop {
-        let _e280 = attempt;
-        if (_e280 < 3i) {
-            let _e282 = cascade;
-            let _e283 = attempt;
-            which = (_e282 + _e283);
-            let _e285 = which;
-            let _e286 = cascadeCount;
-            if (_e285 >= _e286) {
+        let _e282 = attempt;
+        if (_e282 < 3i) {
+            let _e284 = cascade;
+            let _e285 = attempt;
+            which = (_e284 + _e285);
+            let _e287 = which;
+            let _e288 = cascadeCount;
+            if (_e287 >= _e288) {
                 break;
             }
-            let _e288 = which;
-            if (_e288 == 0i) {
-                let _e291 = frag_info.shadow_matrix;
-                local_3 = _e291;
+            let _e290 = which;
+            if (_e290 == 0i) {
+                let _e293 = frag_info.shadow_matrix;
+                local_3 = _e293;
             } else {
-                let _e292 = which;
-                if (_e292 == 1i) {
-                    let _e295 = frag_info.shadow_matrix_far;
-                    local_4 = _e295;
-                } else {
-                    let _e297 = frag_info.shadow_matrix_farthest;
+                let _e294 = which;
+                if (_e294 == 1i) {
+                    let _e297 = frag_info.shadow_matrix_far;
                     local_4 = _e297;
+                } else {
+                    let _e299 = frag_info.shadow_matrix_farthest;
+                    local_4 = _e299;
                 }
-                let _e298 = local_4;
-                local_3 = _e298;
+                let _e300 = local_4;
+                local_3 = _e300;
             }
-            let _e299 = local_3;
-            matrix = _e299;
-            let _e302 = matrix[0][0u];
-            let _e305 = matrix[1][0u];
-            let _e308 = matrix[2][0u];
-            rowX = length(vec3<f32>(_e302, _e305, _e308));
-            let _e313 = frag_info.shadow_cascades[3u];
-            let _e315 = rowX;
-            texelMetres = ((2f * _e313) / max(_e315, 0.000001f));
-            let _e318 = v_world_position_1;
-            let _e320 = (*s_2).n;
-            let _e323 = frag_info.shadow_params[2u];
-            let _e324 = texelMetres;
-            let _e325 = slope_1;
-            origin_1 = (_e318 + (_e320 * (_e323 + (_e324 * (1f + _e325)))));
-            let _e331 = matrix;
-            let _e332 = origin_1;
-            lightSpace = (_e331 * vec4<f32>(_e332.x, _e332.y, _e332.z, 1f));
-            let _e339 = lightSpace[3u];
-            if (_e339 <= 0f) {
+            let _e301 = local_3;
+            matrix = _e301;
+            let _e304 = matrix[0][0u];
+            let _e307 = matrix[1][0u];
+            let _e310 = matrix[2][0u];
+            rowX = length(vec3<f32>(_e304, _e307, _e310));
+            let _e315 = frag_info.shadow_cascades[3u];
+            let _e317 = rowX;
+            texelMetres = ((2f * _e315) / max(_e317, 0.000001f));
+            let _e320 = v_world_position_1;
+            let _e322 = (*s_2).n;
+            let _e325 = frag_info.shadow_params[2u];
+            let _e326 = texelMetres;
+            let _e327 = slope_1;
+            origin_1 = (_e320 + (_e322 * (_e325 + (_e326 * (1f + _e327)))));
+            let _e333 = matrix;
+            let _e334 = origin_1;
+            lightSpace = (_e333 * vec4<f32>(_e334.x, _e334.y, _e334.z, 1f));
+            let _e341 = lightSpace[3u];
+            if (_e341 <= 0f) {
                 continue;
             }
-            let _e341 = lightSpace;
-            let _e344 = lightSpace[3u];
-            candidate = (_e341.xyz / vec3(_e344));
-            let _e348 = candidate[0u];
-            let _e352 = candidate[1u];
-            inTile = vec2<f32>(((_e348 * 0.5f) + 0.5f), (0.5f - (_e352 * 0.5f)));
-            let _e357 = inTile[0u];
-            let _e358 = (_e357 < 0f);
-            phi_2752_ = _e358;
-            if !(_e358) {
-                let _e361 = inTile[0u];
-                phi_2752_ = (_e361 > 1f);
+            let _e343 = lightSpace;
+            let _e346 = lightSpace[3u];
+            candidate = (_e343.xyz / vec3(_e346));
+            let _e350 = candidate[0u];
+            let _e354 = candidate[1u];
+            inTile = vec2<f32>(((_e350 * 0.5f) + 0.5f), (0.5f - (_e354 * 0.5f)));
+            let _e359 = inTile[0u];
+            let _e360 = (_e359 < 0f);
+            phi_3015_ = _e360;
+            if !(_e360) {
+                let _e363 = inTile[0u];
+                phi_3015_ = (_e363 > 1f);
             }
-            let _e364 = phi_2752_;
-            phi_2759_ = _e364;
-            if !(_e364) {
-                let _e367 = inTile[1u];
-                phi_2759_ = (_e367 < 0f);
+            let _e366 = phi_3015_;
+            phi_3022_ = _e366;
+            if !(_e366) {
+                let _e369 = inTile[1u];
+                phi_3022_ = (_e369 < 0f);
             }
-            let _e370 = phi_2759_;
-            phi_2766_ = _e370;
-            if !(_e370) {
-                let _e373 = inTile[1u];
-                phi_2766_ = (_e373 > 1f);
+            let _e372 = phi_3022_;
+            phi_3029_ = _e372;
+            if !(_e372) {
+                let _e375 = inTile[1u];
+                phi_3029_ = (_e375 > 1f);
             }
-            let _e376 = phi_2766_;
-            if _e376 {
+            let _e378 = phi_3029_;
+            if _e378 {
                 continue;
             }
-            let _e378 = candidate[2u];
-            if (_e378 > 1f) {
-                let _e380 = which;
-                let _e381 = cascadeCount;
-                if (_e380 < (_e381 - 1i)) {
+            let _e380 = candidate[2u];
+            if (_e380 > 1f) {
+                let _e382 = which;
+                let _e383 = cascadeCount;
+                if (_e382 < (_e383 - 1i)) {
                     continue;
                 }
                 candidate[2u] = 1f;
             }
-            let _e386 = inTile[0u];
-            let _e387 = which;
-            let _e390 = cascadeCount;
-            let _e394 = inTile[1u];
-            uv_4 = vec2<f32>(((_e386 + f32(_e387)) / f32(_e390)), _e394);
-            let _e396 = candidate;
-            projected = _e396;
-            let _e397 = which;
-            cascade = _e397;
+            let _e388 = inTile[0u];
+            let _e389 = which;
+            let _e392 = cascadeCount;
+            let _e396 = inTile[1u];
+            uv_4 = vec2<f32>(((_e388 + f32(_e389)) / f32(_e392)), _e396);
+            let _e398 = candidate;
+            projected = _e398;
+            let _e399 = which;
+            cascade = _e399;
             found = true;
             break;
         } else {
             break;
         }
         continuing {
-            let _e398 = attempt;
-            attempt = (_e398 + 1i);
+            let _e400 = attempt;
+            attempt = (_e400 + 1i);
         }
     }
-    let _e400 = found;
-    if !(_e400) {
+    let _e402 = found;
+    if !(_e402) {
         return 1f;
     }
-    let _e402 = cascade;
-    if (_e402 == 0i) {
-        let _e406 = frag_info.shadow_bias[0u];
-        local_5 = _e406;
+    let _e404 = cascade;
+    if (_e404 == 0i) {
+        let _e408 = frag_info.shadow_bias[0u];
+        local_5 = _e408;
     } else {
-        let _e407 = cascade;
-        if (_e407 == 1i) {
-            let _e411 = frag_info.shadow_bias[1u];
-            local_6 = _e411;
+        let _e409 = cascade;
+        if (_e409 == 1i) {
+            let _e413 = frag_info.shadow_bias[1u];
+            local_6 = _e413;
         } else {
-            let _e414 = frag_info.shadow_bias[2u];
-            local_6 = _e414;
+            let _e416 = frag_info.shadow_bias[2u];
+            local_6 = _e416;
         }
-        let _e415 = local_6;
-        local_5 = _e415;
+        let _e417 = local_6;
+        local_5 = _e417;
     }
-    let _e416 = local_5;
-    bias = _e416;
-    let _e419 = frag_info.shadow_params[0u];
-    let _e422 = frag_info.shadow_cascades[3u];
-    texel_1 = vec2<f32>(_e419, _e422);
-    let _e424 = cascade;
-    let _e426 = cascadeCount;
-    let _e430 = texel_1;
-    tileLo = (vec2<f32>((f32(_e424) / f32(_e426)), 0f) + (_e430 * 0.5f));
-    let _e433 = cascade;
-    let _e436 = cascadeCount;
-    let _e440 = texel_1;
-    tileHi = (vec2<f32>((f32((_e433 + 1i)) / f32(_e436)), 1f) - (_e440 * 0.5f));
-    let _e445 = frag_info.ambient_ground[3u];
-    softness = _e445;
+    let _e418 = local_5;
+    bias = _e418;
+    let _e421 = frag_info.shadow_params[0u];
+    let _e424 = frag_info.shadow_cascades[3u];
+    texel_1 = vec2<f32>(_e421, _e424);
+    let _e426 = cascade;
+    let _e428 = cascadeCount;
+    let _e432 = texel_1;
+    tileLo = (vec2<f32>((f32(_e426) / f32(_e428)), 0f) + (_e432 * 0.5f));
+    let _e435 = cascade;
+    let _e438 = cascadeCount;
+    let _e442 = texel_1;
+    tileHi = (vec2<f32>((f32((_e435 + 1i)) / f32(_e438)), 1f) - (_e442 * 0.5f));
+    let _e447 = frag_info.ambient_ground[3u];
+    softness = _e447;
     lit_1 = 0f;
-    let _e446 = softness;
-    if (_e446 <= 0f) {
+    let _e448 = softness;
+    if (_e448 <= 0f) {
         y = -1i;
         loop {
-            let _e448 = y;
-            if (_e448 <= 1i) {
+            let _e450 = y;
+            if (_e450 <= 1i) {
                 x = -1i;
                 loop {
-                    let _e450 = x;
-                    if (_e450 <= 1i) {
-                        let _e452 = uv_4;
-                        let _e453 = x;
-                        let _e455 = y;
-                        let _e458 = texel_1;
-                        let _e461 = tileLo;
-                        let _e462 = tileHi;
-                        let _e464 = textureSampleLevel(shadow_texture_tex, shadow_texture_smp, clamp((_e452 + (vec2<f32>(f32(_e453), f32(_e455)) * _e458)), _e461, _e462), 0f);
-                        occluder = _e464.x;
-                        let _e467 = projected[2u];
-                        let _e468 = bias;
-                        let _e470 = occluder;
-                        let _e473 = lit_1;
-                        lit_1 = (_e473 + select(1f, 0f, ((_e467 - _e468) > _e470)));
+                    let _e452 = x;
+                    if (_e452 <= 1i) {
+                        let _e454 = uv_4;
+                        let _e455 = x;
+                        let _e457 = y;
+                        let _e460 = texel_1;
+                        let _e463 = tileLo;
+                        let _e464 = tileHi;
+                        let _e466 = textureSampleLevel(shadow_texture_tex, shadow_texture_smp, clamp((_e454 + (vec2<f32>(f32(_e455), f32(_e457)) * _e460)), _e463, _e464), 0f);
+                        occluder = _e466.x;
+                        let _e469 = projected[2u];
+                        let _e470 = bias;
+                        let _e472 = occluder;
+                        let _e475 = lit_1;
+                        lit_1 = (_e475 + select(1f, 0f, ((_e469 - _e470) > _e472)));
                         continue;
                     } else {
                         break;
                     }
                     continuing {
-                        let _e475 = x;
-                        x = (_e475 + 1i);
+                        let _e477 = x;
+                        x = (_e477 + 1i);
                     }
                 }
                 continue;
@@ -11095,95 +11527,95 @@ fn ShadowFactor_u0028_struct_u002d_Surface_u002d_vf3_u002d_f1_u002d_vf3_u002d_vf
                 break;
             }
             continuing {
-                let _e477 = y;
-                y = (_e477 + 1i);
+                let _e479 = y;
+                y = (_e479 + 1i);
             }
         }
-        let _e479 = lit_1;
-        lit_1 = (_e479 * 0.11111111f);
+        let _e481 = lit_1;
+        lit_1 = (_e481 * 0.11111111f);
     } else {
-        let _e481 = softness;
-        searchRadius = clamp((_e481 * 0.25f), 2f, 16f);
+        let _e483 = softness;
+        searchRadius = clamp((_e483 * 0.25f), 2f, 16f);
         blockerSum = 0f;
         blockerCount = 0f;
         i_4 = 0i;
         loop {
-            let _e484 = i_4;
-            if (_e484 < 5i) {
-                let _e486 = uv_4;
-                let _e487 = i_4;
+            let _e486 = i_4;
+            if (_e486 < 5i) {
+                let _e488 = uv_4;
+                let _e489 = i_4;
                 indexable = array<vec2<f32>, 5>(vec2<f32>(0f, 0f), vec2<f32>(0.7071f, 0.7071f), vec2<f32>(-0.7071f, 0.7071f), vec2<f32>(0.7071f, -0.7071f), vec2<f32>(-0.7071f, -0.7071f));
-                let _e489 = indexable[_e487];
-                let _e490 = texel_1;
-                let _e492 = searchRadius;
-                let _e495 = tileLo;
-                let _e496 = tileHi;
-                let _e498 = textureSampleLevel(shadow_texture_tex, shadow_texture_smp, clamp((_e486 + ((_e489 * _e490) * _e492)), _e495, _e496), 0f);
-                occluder_1 = _e498.x;
-                let _e501 = projected[2u];
-                let _e502 = bias;
-                let _e504 = occluder_1;
-                if ((_e501 - _e502) > _e504) {
-                    let _e506 = occluder_1;
-                    let _e507 = blockerSum;
-                    blockerSum = (_e507 + _e506);
-                    let _e509 = blockerCount;
-                    blockerCount = (_e509 + 1f);
+                let _e491 = indexable[_e489];
+                let _e492 = texel_1;
+                let _e494 = searchRadius;
+                let _e497 = tileLo;
+                let _e498 = tileHi;
+                let _e500 = textureSampleLevel(shadow_texture_tex, shadow_texture_smp, clamp((_e488 + ((_e491 * _e492) * _e494)), _e497, _e498), 0f);
+                occluder_1 = _e500.x;
+                let _e503 = projected[2u];
+                let _e504 = bias;
+                let _e506 = occluder_1;
+                if ((_e503 - _e504) > _e506) {
+                    let _e508 = occluder_1;
+                    let _e509 = blockerSum;
+                    blockerSum = (_e509 + _e508);
+                    let _e511 = blockerCount;
+                    blockerCount = (_e511 + 1f);
                 }
                 continue;
             } else {
                 break;
             }
             continuing {
-                let _e511 = i_4;
-                i_4 = (_e511 + 1i);
+                let _e513 = i_4;
+                i_4 = (_e513 + 1i);
             }
         }
-        let _e513 = blockerCount;
-        if (_e513 <= 0f) {
+        let _e515 = blockerCount;
+        if (_e515 <= 0f) {
             return 1f;
         }
-        let _e516 = projected[2u];
-        let _e517 = blockerSum;
-        let _e518 = blockerCount;
-        gap = max((_e516 - (_e517 / _e518)), 0f);
-        let _e522 = gap;
-        let _e523 = softness;
-        radius_2 = clamp((_e522 * _e523), 1f, 16f);
+        let _e518 = projected[2u];
+        let _e519 = blockerSum;
+        let _e520 = blockerCount;
+        gap = max((_e518 - (_e519 / _e520)), 0f);
+        let _e524 = gap;
+        let _e525 = softness;
+        radius_2 = clamp((_e524 * _e525), 1f, 16f);
         i_5 = 0i;
         loop {
-            let _e526 = i_5;
-            if (_e526 < 5i) {
-                let _e528 = uv_4;
-                let _e529 = i_5;
+            let _e528 = i_5;
+            if (_e528 < 5i) {
+                let _e530 = uv_4;
+                let _e531 = i_5;
                 indexable_1 = array<vec2<f32>, 5>(vec2<f32>(0f, 0f), vec2<f32>(0.7071f, 0.7071f), vec2<f32>(-0.7071f, 0.7071f), vec2<f32>(0.7071f, -0.7071f), vec2<f32>(-0.7071f, -0.7071f));
-                let _e531 = indexable_1[_e529];
-                let _e532 = texel_1;
-                let _e534 = radius_2;
-                let _e537 = tileLo;
-                let _e538 = tileHi;
-                let _e540 = textureSampleLevel(shadow_texture_tex, shadow_texture_smp, clamp((_e528 + ((_e531 * _e532) * _e534)), _e537, _e538), 0f);
-                occluder_2 = _e540.x;
-                let _e543 = projected[2u];
-                let _e544 = bias;
-                let _e546 = occluder_2;
-                let _e549 = lit_1;
-                lit_1 = (_e549 + select(1f, 0f, ((_e543 - _e544) > _e546)));
+                let _e533 = indexable_1[_e531];
+                let _e534 = texel_1;
+                let _e536 = radius_2;
+                let _e539 = tileLo;
+                let _e540 = tileHi;
+                let _e542 = textureSampleLevel(shadow_texture_tex, shadow_texture_smp, clamp((_e530 + ((_e533 * _e534) * _e536)), _e539, _e540), 0f);
+                occluder_2 = _e542.x;
+                let _e545 = projected[2u];
+                let _e546 = bias;
+                let _e548 = occluder_2;
+                let _e551 = lit_1;
+                lit_1 = (_e551 + select(1f, 0f, ((_e545 - _e546) > _e548)));
                 continue;
             } else {
                 break;
             }
             continuing {
-                let _e551 = i_5;
-                i_5 = (_e551 + 1i);
+                let _e553 = i_5;
+                i_5 = (_e553 + 1i);
             }
         }
-        let _e553 = lit_1;
-        lit_1 = (_e553 * 0.2f);
+        let _e555 = lit_1;
+        lit_1 = (_e555 * 0.2f);
     }
-    let _e555 = lit_1;
-    let _e556 = strength_1;
-    return mix(1f, _e555, clamp(_e556, 0f, 1f));
+    let _e557 = lit_1;
+    let _e558 = strength_1;
+    return mix(1f, _e557, clamp(_e558, 0f, 1f));
 }
 
 fn LightVisibility_u0028_struct_u002d_Surface_u002d_vf3_u002d_f1_u002d_vf3_u002d_vf3_u002d_f1_u002d_f1_u002d_f1_u002d_f1_u002d_vf3_u002d_vf3_u002d_f11_u003b_struct_u002d_LightSample_u002d_vf3_u002d_vf3_u002d_vf3_u002d_f1_u002d_f1_u002d_f11_u003b_i1_u003b(s_3: ptr<function, Surface>, light_2: ptr<function, LightSample>, index: ptr<function, i32>) -> f32 {
@@ -11191,19 +11623,19 @@ fn LightVisibility_u0028_struct_u002d_Surface_u002d_vf3_u002d_f1_u002d_vf3_u002d
     var param_56: LightSample;
     var param_57: i32;
 
-    let _e186 = (*s_3);
-    param_55 = _e186;
-    let _e187 = (*light_2);
-    param_56 = _e187;
-    let _e188 = (*index);
-    param_57 = _e188;
-    let _e189 = ShadowFactor_u0028_struct_u002d_Surface_u002d_vf3_u002d_f1_u002d_vf3_u002d_vf3_u002d_f1_u002d_f1_u002d_f1_u002d_f1_u002d_vf3_u002d_vf3_u002d_f11_u003b_struct_u002d_LightSample_u002d_vf3_u002d_vf3_u002d_vf3_u002d_f1_u002d_f1_u002d_f11_u003b_i1_u003b((&param_55), (&param_56), (&param_57));
-    return _e189;
+    let _e188 = (*s_3);
+    param_55 = _e188;
+    let _e189 = (*light_2);
+    param_56 = _e189;
+    let _e190 = (*index);
+    param_57 = _e190;
+    let _e191 = ShadowFactor_u0028_struct_u002d_Surface_u002d_vf3_u002d_f1_u002d_vf3_u002d_vf3_u002d_f1_u002d_f1_u002d_f1_u002d_f1_u002d_vf3_u002d_vf3_u002d_f11_u003b_struct_u002d_LightSample_u002d_vf3_u002d_vf3_u002d_vf3_u002d_f1_u002d_f1_u002d_f11_u003b_i1_u003b((&param_55), (&param_56), (&param_57));
+    return _e191;
 }
 
 fn LightHasShadow_u0028_i1_u003b(index_1: ptr<function, i32>) -> bool {
-    let _e181 = (*index_1);
-    return (_e181 < 8i);
+    let _e183 = (*index_1);
+    return (_e183 < 8i);
 }
 
 fn PunctualAttenuation_u0028_f1_u003b_f1_u003b(distance_1: ptr<function, f32>, range_4: ptr<function, f32>) -> f32 {
@@ -11211,26 +11643,26 @@ fn PunctualAttenuation_u0028_f1_u003b_f1_u003b(distance_1: ptr<function, f32>, r
     var ratio: f32;
     var window: f32;
 
-    let _e185 = (*distance_1);
-    let _e186 = (*distance_1);
-    attenuation = (1f / max((_e185 * _e186), 0.0001f));
-    let _e190 = (*range_4);
-    if (_e190 > 0f) {
-        let _e192 = (*distance_1);
-        let _e193 = (*range_4);
-        ratio = (_e192 / _e193);
-        let _e195 = ratio;
-        let _e196 = ratio;
+    let _e187 = (*distance_1);
+    let _e188 = (*distance_1);
+    attenuation = (1f / max((_e187 * _e188), 0.0001f));
+    let _e192 = (*range_4);
+    if (_e192 > 0f) {
+        let _e194 = (*distance_1);
+        let _e195 = (*range_4);
+        ratio = (_e194 / _e195);
+        let _e197 = ratio;
         let _e198 = ratio;
         let _e200 = ratio;
-        window = clamp((1f - (((_e195 * _e196) * _e198) * _e200)), 0f, 1f);
-        let _e204 = window;
-        let _e205 = window;
-        let _e207 = attenuation;
-        attenuation = (_e207 * (_e204 * _e205));
+        let _e202 = ratio;
+        window = clamp((1f - (((_e197 * _e198) * _e200) * _e202)), 0f, 1f);
+        let _e206 = window;
+        let _e207 = window;
+        let _e209 = attenuation;
+        attenuation = (_e209 * (_e206 * _e207));
     }
-    let _e209 = attenuation;
-    return _e209;
+    let _e211 = attenuation;
+    return _e211;
 }
 
 fn RectangleClosestPoint_u0028_vf3_u003b_vf3_u003b_vf3_u003b_vf3_u003b_vf3_u003b(centre: ptr<function, vec3<f32>>, halfWidth: ptr<function, vec3<f32>>, halfHeight: ptr<function, vec3<f32>>, world_2: ptr<function, vec3<f32>>, mirror: ptr<function, vec3<f32>>) -> vec3<f32> {
@@ -11247,75 +11679,75 @@ fn RectangleClosestPoint_u0028_vf3_u003b_vf3_u003b_vf3_u003b_vf3_u003b_vf3_u003b
     var u: f32;
     var v: f32;
 
-    let _e197 = (*halfWidth);
-    let _e198 = (*halfHeight);
-    n_1 = cross(_e197, _e198);
-    let _e200 = n_1;
-    nLen = length(_e200);
-    let _e202 = nLen;
-    if (_e202 < 0.000000000001f) {
-        let _e204 = (*centre);
-        return _e204;
+    let _e199 = (*halfWidth);
+    let _e200 = (*halfHeight);
+    n_1 = cross(_e199, _e200);
+    let _e202 = n_1;
+    nLen = length(_e202);
+    let _e204 = nLen;
+    if (_e204 < 0.000000000001f) {
+        let _e206 = (*centre);
+        return _e206;
     }
-    let _e205 = nLen;
-    let _e206 = n_1;
-    n_1 = (_e206 / vec3(_e205));
-    let _e209 = (*centre);
-    let _e210 = (*world_2);
-    toPlane = (_e209 - _e210);
-    let _e212 = (*mirror);
-    let _e213 = n_1;
-    denom = dot(_e212, _e213);
-    let _e215 = denom;
-    if (abs(_e215) < 0.00001f) {
-        let _e218 = toPlane;
-        let _e219 = n_1;
+    let _e207 = nLen;
+    let _e208 = n_1;
+    n_1 = (_e208 / vec3(_e207));
+    let _e211 = (*centre);
+    let _e212 = (*world_2);
+    toPlane = (_e211 - _e212);
+    let _e214 = (*mirror);
+    let _e215 = n_1;
+    denom = dot(_e214, _e215);
+    let _e217 = denom;
+    if (abs(_e217) < 0.00001f) {
         let _e220 = toPlane;
         let _e221 = n_1;
-        onPlane = (_e218 - (_e219 * dot(_e220, _e221)));
+        let _e222 = toPlane;
+        let _e223 = n_1;
+        onPlane = (_e220 - (_e221 * dot(_e222, _e223)));
     } else {
-        let _e225 = toPlane;
-        let _e226 = n_1;
-        let _e228 = denom;
-        t = (dot(_e225, _e226) / _e228);
-        let _e230 = t;
-        if (_e230 > 0f) {
-            let _e232 = (*mirror);
-            let _e233 = t;
-            local_7 = (_e232 * _e233);
+        let _e227 = toPlane;
+        let _e228 = n_1;
+        let _e230 = denom;
+        t = (dot(_e227, _e228) / _e230);
+        let _e232 = t;
+        if (_e232 > 0f) {
+            let _e234 = (*mirror);
+            let _e235 = t;
+            local_7 = (_e234 * _e235);
         } else {
-            let _e235 = toPlane;
-            let _e236 = n_1;
             let _e237 = toPlane;
             let _e238 = n_1;
-            local_7 = (_e235 - (_e236 * dot(_e237, _e238)));
+            let _e239 = toPlane;
+            let _e240 = n_1;
+            local_7 = (_e237 - (_e238 * dot(_e239, _e240)));
         }
-        let _e242 = local_7;
-        onPlane = _e242;
+        let _e244 = local_7;
+        onPlane = _e244;
     }
-    let _e243 = onPlane;
-    let _e244 = toPlane;
-    offset_2 = (_e243 - _e244);
-    let _e246 = (*halfWidth);
-    let _e247 = (*halfWidth);
-    wLen2_ = max(dot(_e246, _e247), 0.000000000001f);
-    let _e250 = (*halfHeight);
-    let _e251 = (*halfHeight);
-    hLen2_ = max(dot(_e250, _e251), 0.000000000001f);
-    let _e254 = offset_2;
-    let _e255 = (*halfWidth);
-    let _e257 = wLen2_;
-    u = clamp((dot(_e254, _e255) / _e257), -1f, 1f);
-    let _e260 = offset_2;
-    let _e261 = (*halfHeight);
-    let _e263 = hLen2_;
-    v = clamp((dot(_e260, _e261) / _e263), -1f, 1f);
-    let _e266 = (*centre);
-    let _e267 = (*halfWidth);
-    let _e268 = u;
-    let _e271 = (*halfHeight);
-    let _e272 = v;
-    return ((_e266 + (_e267 * _e268)) + (_e271 * _e272));
+    let _e245 = onPlane;
+    let _e246 = toPlane;
+    offset_2 = (_e245 - _e246);
+    let _e248 = (*halfWidth);
+    let _e249 = (*halfWidth);
+    wLen2_ = max(dot(_e248, _e249), 0.000000000001f);
+    let _e252 = (*halfHeight);
+    let _e253 = (*halfHeight);
+    hLen2_ = max(dot(_e252, _e253), 0.000000000001f);
+    let _e256 = offset_2;
+    let _e257 = (*halfWidth);
+    let _e259 = wLen2_;
+    u = clamp((dot(_e256, _e257) / _e259), -1f, 1f);
+    let _e262 = offset_2;
+    let _e263 = (*halfHeight);
+    let _e265 = hLen2_;
+    v = clamp((dot(_e262, _e263) / _e265), -1f, 1f);
+    let _e268 = (*centre);
+    let _e269 = (*halfWidth);
+    let _e270 = u;
+    let _e273 = (*halfHeight);
+    let _e274 = v;
+    return ((_e268 + (_e269 * _e270)) + (_e273 * _e274));
 }
 
 fn RectangleFormFactor_u0028_vf3_u005b_4_u005d_u003b_vf3_u003b(corners: ptr<function, array<vec3<f32>, 4>>, n_2: ptr<function, vec3<f32>>) -> f32 {
@@ -11330,42 +11762,42 @@ fn RectangleFormFactor_u0028_vf3_u005b_4_u005d_u003b_vf3_u003b(corners: ptr<func
     total = 0f;
     i_6 = 0i;
     loop {
-        let _e189 = i_6;
-        if (_e189 < 4i) {
-            let _e191 = i_6;
-            let _e193 = (*corners)[_e191];
-            a_2 = normalize(_e193);
-            let _e195 = i_6;
-            let _e199 = (*corners)[((_e195 + 1i) & 3i)];
-            b = normalize(_e199);
-            let _e201 = a_2;
-            let _e202 = b;
-            angle_1 = acos(clamp(dot(_e201, _e202), -1f, 1f));
-            let _e206 = a_2;
-            let _e207 = b;
-            axis = cross(_e206, _e207);
-            let _e209 = axis;
-            len = length(_e209);
-            let _e211 = len;
-            if (_e211 > 0.000001f) {
-                let _e213 = angle_1;
-                let _e214 = axis;
-                let _e215 = len;
-                let _e218 = (*n_2);
-                let _e221 = total;
-                total = (_e221 + (_e213 * dot((_e214 / vec3(_e215)), _e218)));
+        let _e191 = i_6;
+        if (_e191 < 4i) {
+            let _e193 = i_6;
+            let _e195 = (*corners)[_e193];
+            a_2 = normalize(_e195);
+            let _e197 = i_6;
+            let _e201 = (*corners)[((_e197 + 1i) & 3i)];
+            b = normalize(_e201);
+            let _e203 = a_2;
+            let _e204 = b;
+            angle_1 = acos(clamp(dot(_e203, _e204), -1f, 1f));
+            let _e208 = a_2;
+            let _e209 = b;
+            axis = cross(_e208, _e209);
+            let _e211 = axis;
+            len = length(_e211);
+            let _e213 = len;
+            if (_e213 > 0.000001f) {
+                let _e215 = angle_1;
+                let _e216 = axis;
+                let _e217 = len;
+                let _e220 = (*n_2);
+                let _e223 = total;
+                total = (_e223 + (_e215 * dot((_e216 / vec3(_e217)), _e220)));
             }
             continue;
         } else {
             break;
         }
         continuing {
-            let _e223 = i_6;
-            i_6 = (_e223 + 1i);
+            let _e225 = i_6;
+            i_6 = (_e225 + 1i);
         }
     }
-    let _e225 = total;
-    return max((-(_e225) * 0.5f), 0f);
+    let _e227 = total;
+    return max((-(_e227) * 0.5f), 0f);
 }
 
 fn LightListLane_u0028_vf4_u003b_i1_u003b(four: ptr<function, vec4<f32>>, slot_1: ptr<function, i32>) -> f32 {
@@ -11374,61 +11806,133 @@ fn LightListLane_u0028_vf4_u003b_i1_u003b(four: ptr<function, vec4<f32>>, slot_1
     var local_9: f32;
     var local_10: f32;
 
-    let _e186 = (*slot_1);
-    let _e187 = (*slot_1);
-    lane = (_e186 - ((_e187 / 4i) * 4i));
-    let _e191 = lane;
-    if (_e191 == 0i) {
-        let _e194 = (*four)[0u];
-        local_8 = _e194;
+    let _e188 = (*slot_1);
+    let _e189 = (*slot_1);
+    lane = (_e188 - ((_e189 / 4i) * 4i));
+    let _e193 = lane;
+    if (_e193 == 0i) {
+        let _e196 = (*four)[0u];
+        local_8 = _e196;
     } else {
-        let _e195 = lane;
-        if (_e195 == 1i) {
-            let _e198 = (*four)[1u];
-            local_9 = _e198;
+        let _e197 = lane;
+        if (_e197 == 1i) {
+            let _e200 = (*four)[1u];
+            local_9 = _e200;
         } else {
-            let _e199 = lane;
-            if (_e199 == 2i) {
-                let _e202 = (*four)[2u];
-                local_10 = _e202;
-            } else {
-                let _e204 = (*four)[3u];
+            let _e201 = lane;
+            if (_e201 == 2i) {
+                let _e204 = (*four)[2u];
                 local_10 = _e204;
+            } else {
+                let _e206 = (*four)[3u];
+                local_10 = _e206;
             }
-            let _e205 = local_10;
-            local_9 = _e205;
+            let _e207 = local_10;
+            local_9 = _e207;
         }
-        let _e206 = local_9;
-        local_8 = _e206;
+        let _e208 = local_9;
+        local_8 = _e208;
     }
-    let _e207 = local_8;
-    return _e207;
+    let _e209 = local_8;
+    return _e209;
 }
 
 fn LightListScale_u0028_i1_u003b(slot_2: ptr<function, i32>) -> f32 {
     var param_58: vec4<f32>;
     var param_59: i32;
 
-    let _e183 = (*slot_2);
-    let _e187 = light_list_info.scales[(_e183 / 4i)];
-    param_58 = _e187;
-    let _e188 = (*slot_2);
-    param_59 = _e188;
-    let _e189 = LightListLane_u0028_vf4_u003b_i1_u003b((&param_58), (&param_59));
-    return _e189;
+    let _e185 = (*slot_2);
+    let _e189 = light_list_info.scales[(_e185 / 4i)];
+    param_58 = _e189;
+    let _e190 = (*slot_2);
+    param_59 = _e190;
+    let _e191 = LightListLane_u0028_vf4_u003b_i1_u003b((&param_58), (&param_59));
+    return _e191;
+}
+
+fn InSlots_u0028_f1_u003b(row: ptr<function, f32>) -> bool {
+    var a_3: vec4<f32>;
+    var b_1: vec4<f32>;
+
+    let _e187 = light_list_info.slot_rows[0i];
+    let _e188 = (*row);
+    a_3 = abs((_e187 - vec4(_e188)));
+    let _e194 = light_list_info.slot_rows[1i];
+    let _e195 = (*row);
+    b_1 = abs((_e194 - vec4(_e195)));
+    let _e200 = a_3[0u];
+    let _e202 = a_3[1u];
+    let _e205 = a_3[2u];
+    let _e207 = a_3[3u];
+    let _e211 = b_1[0u];
+    let _e213 = b_1[1u];
+    let _e216 = b_1[2u];
+    let _e218 = b_1[3u];
+    return (min(min(min(_e200, _e202), min(_e205, _e207)), min(min(_e211, _e213), min(_e216, _e218))) < 0.5f);
 }
 
 fn LightListRow_u0028_i1_u003b(slot_3: ptr<function, i32>) -> f32 {
     var param_60: vec4<f32>;
     var param_61: i32;
 
-    let _e183 = (*slot_3);
-    let _e187 = light_list_info.indices[(_e183 / 4i)];
-    param_60 = _e187;
-    let _e188 = (*slot_3);
-    param_61 = _e188;
-    let _e189 = LightListLane_u0028_vf4_u003b_i1_u003b((&param_60), (&param_61));
-    return _e189;
+    let _e185 = (*slot_3);
+    let _e189 = light_list_info.indices[(_e185 / 4i)];
+    param_60 = _e189;
+    let _e190 = (*slot_3);
+    param_61 = _e190;
+    let _e191 = LightListLane_u0028_vf4_u003b_i1_u003b((&param_60), (&param_61));
+    return _e191;
+}
+
+fn LightListTexel_u0028_f1_u003b_f1_u003b(texel_2: ptr<function, f32>, row_1: ptr<function, f32>) -> vec4<f32> {
+    let _e184 = (*texel_2);
+    let _e188 = light_list_info.list[1u];
+    let _e190 = (*row_1);
+    let _e194 = light_list_info.list[2u];
+    let _e197 = textureSampleLevel(light_list_texture_tex, light_list_texture_smp, vec2<f32>(((_e184 + 0.5f) * _e188), ((_e190 + 0.5f) * _e194)), 0f);
+    return _e197;
+}
+
+fn ClusterRow_u0028_i1_u003b(slot_4: ptr<function, i32>) -> f32 {
+    var entry: f32;
+    var row_2: f32;
+    var within: f32;
+    var texel_3: f32;
+    var four_1: vec4<f32>;
+    var param_62: f32;
+    var param_63: f32;
+    var param_64: vec4<f32>;
+    var param_65: i32;
+
+    let _e192 = g_cluster_offset;
+    let _e193 = (*slot_4);
+    entry = (_e192 + f32(_e193));
+    let _e196 = entry;
+    row_2 = floor((_e196 / 16f));
+    let _e199 = entry;
+    let _e200 = row_2;
+    within = (_e199 - (_e200 * 16f));
+    let _e203 = within;
+    texel_3 = floor((_e203 / 4f));
+    let _e208 = light_list_info.cluster_depth[3u];
+    let _e209 = row_2;
+    let _e211 = texel_3;
+    param_62 = _e211;
+    param_63 = (_e208 + _e209);
+    let _e212 = LightListTexel_u0028_f1_u003b_f1_u003b((&param_62), (&param_63));
+    four_1 = _e212;
+    let _e213 = within;
+    let _e214 = texel_3;
+    let _e219 = four_1;
+    param_64 = _e219;
+    param_65 = i32(((_e213 - (_e214 * 4f)) + 0.5f));
+    let _e220 = LightListLane_u0028_vf4_u003b_i1_u003b((&param_64), (&param_65));
+    return _e220;
+}
+
+fn Clustered_u0028_() -> bool {
+    let _e184 = light_list_info.cluster_grid[3u];
+    return (_e184 > 0.5f);
 }
 
 fn SampleLight_u0028_i1_u003b_struct_u002d_Surface_u002d_vf3_u002d_f1_u002d_vf3_u002d_vf3_u002d_f1_u002d_f1_u002d_f1_u002d_f1_u002d_vf3_u002d_vf3_u002d_f11_u003b(index_2: ptr<function, i32>, s_4: ptr<function, Surface>) -> LightSample {
@@ -11436,273 +11940,386 @@ fn SampleLight_u0028_i1_u003b_struct_u002d_Surface_u002d_vf3_u002d_f1_u002d_vf3_
     var color_1: vec4<f32>;
     var direction: vec4<f32>;
     var cone: vec4<f32>;
-    var slot_4: i32;
+    var slot_5: i32;
+    var clustered: bool;
+    var listRow: f32;
+    var local_11: f32;
+    var param_66: i32;
+    var param_67: i32;
     var v_1: f32;
-    var param_62: i32;
     var u_1: f32;
-    var param_63: i32;
-    var type_40: f32;
+    var local_12: f32;
+    var param_68: f32;
+    var param_69: i32;
+    var type_41: f32;
     var halfWidth_1: vec3<f32>;
     var halfHeight_1: vec3<f32>;
     var toCentre: vec3<f32>;
     var corners_1: array<vec3<f32>, 4>;
     var formFactor: f32;
-    var param_64: array<vec3<f32>, 4>;
-    var param_65: vec3<f32>;
+    var param_70: array<vec3<f32>, 4>;
+    var param_71: vec3<f32>;
     var area: f32;
     var radiance: f32;
-    var local_11: f32;
+    var local_13: f32;
     var distance_2: f32;
     var ratio_1: f32;
     var window_1: f32;
     var mirror_1: vec3<f32>;
     var representative: vec3<f32>;
-    var param_66: vec3<f32>;
-    var param_67: vec3<f32>;
-    var param_68: vec3<f32>;
-    var param_69: vec3<f32>;
-    var param_70: vec3<f32>;
+    var param_72: vec3<f32>;
+    var param_73: vec3<f32>;
+    var param_74: vec3<f32>;
+    var param_75: vec3<f32>;
+    var param_76: vec3<f32>;
     var toPoint: vec3<f32>;
     var pointDistance: f32;
     var light_3: LightSample;
-    var local_12: vec3<f32>;
+    var local_14: vec3<f32>;
     var aim: vec3<f32>;
     var attenuation_1: f32;
     var toLight_1: vec3<f32>;
     var distance_3: f32;
-    var param_71: f32;
-    var param_72: f32;
+    var param_77: f32;
+    var param_78: f32;
     var cosAngle: f32;
 
-    let _e223 = (*index_2);
-    if (_e223 < 8i) {
-        let _e225 = (*index_2);
-        let _e228 = frag_info.light_position[_e225];
-        position = _e228;
-        let _e229 = (*index_2);
-        let _e232 = frag_info.light_color[_e229];
-        color_1 = _e232;
+    let _e231 = (*index_2);
+    if (_e231 < 8i) {
         let _e233 = (*index_2);
-        let _e236 = frag_info.light_direction[_e233];
-        direction = _e236;
+        let _e236 = frag_info.light_position[_e233];
+        position = _e236;
         let _e237 = (*index_2);
-        let _e240 = frag_info.light_cone[_e237];
-        cone = _e240;
-    } else {
+        let _e240 = frag_info.light_color[_e237];
+        color_1 = _e240;
         let _e241 = (*index_2);
-        slot_4 = (_e241 - 8i);
-        let _e243 = slot_4;
-        param_62 = _e243;
-        let _e244 = LightListRow_u0028_i1_u003b((&param_62));
-        let _e248 = light_list_info.list[2u];
-        v_1 = ((_e244 + 0.5f) * _e248);
-        let _e252 = light_list_info.list[1u];
-        u_1 = _e252;
-        let _e253 = u_1;
-        let _e255 = v_1;
-        let _e257 = textureSampleLevel(light_list_texture_tex, light_list_texture_smp, vec2<f32>((0.5f * _e253), _e255), 0f);
-        position = _e257;
-        let _e258 = u_1;
-        let _e260 = v_1;
-        let _e262 = textureSampleLevel(light_list_texture_tex, light_list_texture_smp, vec2<f32>((1.5f * _e258), _e260), 0f);
-        color_1 = _e262;
-        let _e263 = u_1;
-        let _e265 = v_1;
-        let _e267 = textureSampleLevel(light_list_texture_tex, light_list_texture_smp, vec2<f32>((2.5f * _e263), _e265), 0f);
-        direction = _e267;
-        let _e268 = u_1;
-        let _e270 = v_1;
-        let _e272 = textureSampleLevel(light_list_texture_tex, light_list_texture_smp, vec2<f32>((3.5f * _e268), _e270), 0f);
-        cone = _e272;
-        let _e273 = slot_4;
-        param_63 = _e273;
-        let _e274 = LightListScale_u0028_i1_u003b((&param_63));
-        let _e276 = color_1[3u];
-        color_1[3u] = (_e276 * _e274);
-    }
-    let _e280 = position[3u];
-    type_40 = _e280;
-    let _e281 = type_40;
-    if (_e281 > 2.5f) {
-        let _e283 = direction;
-        halfWidth_1 = _e283.xyz;
-        let _e285 = cone;
-        halfHeight_1 = _e285.xyz;
-        let _e287 = position;
-        let _e289 = v_world_position_1;
-        toCentre = (_e287.xyz - _e289);
-        let _e291 = toCentre;
-        let _e292 = halfWidth_1;
-        let _e294 = halfHeight_1;
-        corners_1[0i] = ((_e291 - _e292) - _e294);
-        let _e297 = toCentre;
-        let _e298 = halfWidth_1;
-        let _e300 = halfHeight_1;
-        corners_1[1i] = ((_e297 + _e298) - _e300);
-        let _e303 = toCentre;
-        let _e304 = halfWidth_1;
-        let _e306 = halfHeight_1;
-        corners_1[2i] = ((_e303 + _e304) + _e306);
-        let _e309 = toCentre;
-        let _e310 = halfWidth_1;
-        let _e312 = halfHeight_1;
-        corners_1[3i] = ((_e309 - _e310) + _e312);
-        let _e315 = corners_1;
-        param_64 = _e315;
-        let _e317 = (*s_4).n;
-        param_65 = _e317;
-        let _e318 = RectangleFormFactor_u0028_vf3_u005b_4_u005d_u003b_vf3_u003b((&param_64), (&param_65));
-        formFactor = _e318;
-        let _e319 = halfWidth_1;
-        let _e320 = halfHeight_1;
-        area = (length(cross(_e319, _e320)) * 4f);
-        let _e324 = area;
-        if (_e324 > 0.000000001f) {
-            let _e326 = area;
-            local_11 = (1f / _e326);
-        } else {
-            local_11 = 0f;
-        }
-        let _e328 = local_11;
-        radiance = _e328;
-        let _e329 = toCentre;
-        distance_2 = length(_e329);
-        let _e332 = direction[3u];
-        if (_e332 > 0f) {
-            let _e334 = distance_2;
-            let _e336 = direction[3u];
-            ratio_1 = (_e334 / _e336);
-            let _e338 = ratio_1;
-            let _e339 = ratio_1;
-            let _e341 = ratio_1;
-            let _e343 = ratio_1;
-            window_1 = clamp((1f - (((_e338 * _e339) * _e341) * _e343)), 0f, 1f);
-            let _e347 = window_1;
-            let _e348 = window_1;
-            let _e350 = radiance;
-            radiance = (_e350 * (_e347 * _e348));
-        }
-        let _e353 = (*s_4).v;
-        let _e356 = (*s_4).n;
-        mirror_1 = reflect(-(_e353), _e356);
-        let _e358 = position;
-        param_66 = _e358.xyz;
-        let _e360 = halfWidth_1;
-        param_67 = _e360;
-        let _e361 = halfHeight_1;
-        param_68 = _e361;
-        let _e362 = v_world_position_1;
-        param_69 = _e362;
-        let _e363 = mirror_1;
-        param_70 = _e363;
-        let _e364 = RectangleClosestPoint_u0028_vf3_u003b_vf3_u003b_vf3_u003b_vf3_u003b_vf3_u003b((&param_66), (&param_67), (&param_68), (&param_69), (&param_70));
-        representative = _e364;
-        let _e365 = representative;
-        let _e366 = v_world_position_1;
-        toPoint = (_e365 - _e366);
-        let _e368 = toPoint;
-        pointDistance = length(_e368);
-        let _e370 = pointDistance;
-        if (_e370 > 0.000001f) {
-            let _e372 = toPoint;
-            let _e373 = pointDistance;
-            local_12 = (_e372 / vec3(_e373));
-        } else {
-            let _e377 = (*s_4).n;
-            local_12 = _e377;
-        }
-        let _e378 = local_12;
-        light_3.l = _e378;
-        let _e381 = light_3.l;
-        let _e383 = (*s_4).v;
-        light_3.h = normalize((_e381 + _e383));
-        let _e387 = formFactor;
-        light_3.n_dot_l = _e387;
-        let _e390 = (*s_4).n;
-        let _e392 = light_3.h;
-        light_3.n_dot_h = max(dot(_e390, _e392), 0f);
-        let _e397 = (*s_4).v;
-        let _e399 = light_3.h;
-        light_3.v_dot_h = max(dot(_e397, _e399), 0f);
-        let _e403 = color_1;
-        let _e406 = color_1[3u];
-        let _e408 = radiance;
-        light_3.radiance = ((_e403.xyz * _e406) * _e408);
-        let _e411 = light_3;
-        return _e411;
-    }
-    let _e412 = direction;
-    aim = normalize(_e412.xyz);
-    attenuation_1 = 1f;
-    let _e415 = type_40;
-    if (_e415 < 0.5f) {
-        let _e417 = aim;
-        light_3.l = -(_e417);
+        let _e244 = frag_info.light_direction[_e241];
+        direction = _e244;
+        let _e245 = (*index_2);
+        let _e248 = frag_info.light_cone[_e245];
+        cone = _e248;
     } else {
-        let _e420 = position;
-        let _e422 = v_world_position_1;
-        toLight_1 = (_e420.xyz - _e422);
-        let _e424 = toLight_1;
-        distance_3 = length(_e424);
-        let _e426 = distance_3;
-        if (_e426 < 0.000001f) {
-            let _e429 = (*s_4).n;
-            light_3.l = _e429;
-            let _e432 = (*s_4).n;
-            light_3.h = _e432;
+        let _e249 = (*index_2);
+        slot_5 = (_e249 - 8i);
+        let _e251 = Clustered_u0028_();
+        clustered = _e251;
+        let _e252 = clustered;
+        if _e252 {
+            let _e253 = slot_5;
+            param_66 = _e253;
+            let _e254 = ClusterRow_u0028_i1_u003b((&param_66));
+            local_11 = _e254;
+        } else {
+            let _e255 = slot_5;
+            param_67 = _e255;
+            let _e256 = LightListRow_u0028_i1_u003b((&param_67));
+            local_11 = _e256;
+        }
+        let _e257 = local_11;
+        listRow = _e257;
+        let _e258 = listRow;
+        let _e262 = light_list_info.list[2u];
+        v_1 = ((_e258 + 0.5f) * _e262);
+        let _e266 = light_list_info.list[1u];
+        u_1 = _e266;
+        let _e267 = u_1;
+        let _e269 = v_1;
+        let _e271 = textureSampleLevel(light_list_texture_tex, light_list_texture_smp, vec2<f32>((0.5f * _e267), _e269), 0f);
+        position = _e271;
+        let _e272 = u_1;
+        let _e274 = v_1;
+        let _e276 = textureSampleLevel(light_list_texture_tex, light_list_texture_smp, vec2<f32>((1.5f * _e272), _e274), 0f);
+        color_1 = _e276;
+        let _e277 = u_1;
+        let _e279 = v_1;
+        let _e281 = textureSampleLevel(light_list_texture_tex, light_list_texture_smp, vec2<f32>((2.5f * _e277), _e279), 0f);
+        direction = _e281;
+        let _e282 = u_1;
+        let _e284 = v_1;
+        let _e286 = textureSampleLevel(light_list_texture_tex, light_list_texture_smp, vec2<f32>((3.5f * _e282), _e284), 0f);
+        cone = _e286;
+        let _e287 = clustered;
+        if _e287 {
+            let _e288 = listRow;
+            param_68 = _e288;
+            let _e289 = InSlots_u0028_f1_u003b((&param_68));
+            local_12 = select(1f, 0f, _e289);
+        } else {
+            let _e291 = slot_5;
+            param_69 = _e291;
+            let _e292 = LightListScale_u0028_i1_u003b((&param_69));
+            local_12 = _e292;
+        }
+        let _e293 = local_12;
+        let _e295 = color_1[3u];
+        color_1[3u] = (_e295 * _e293);
+    }
+    let _e299 = position[3u];
+    type_41 = _e299;
+    let _e300 = type_41;
+    if (_e300 > 2.5f) {
+        let _e302 = direction;
+        halfWidth_1 = _e302.xyz;
+        let _e304 = cone;
+        halfHeight_1 = _e304.xyz;
+        let _e306 = position;
+        let _e308 = v_world_position_1;
+        toCentre = (_e306.xyz - _e308);
+        let _e310 = toCentre;
+        let _e311 = halfWidth_1;
+        let _e313 = halfHeight_1;
+        corners_1[0i] = ((_e310 - _e311) - _e313);
+        let _e316 = toCentre;
+        let _e317 = halfWidth_1;
+        let _e319 = halfHeight_1;
+        corners_1[1i] = ((_e316 + _e317) - _e319);
+        let _e322 = toCentre;
+        let _e323 = halfWidth_1;
+        let _e325 = halfHeight_1;
+        corners_1[2i] = ((_e322 + _e323) + _e325);
+        let _e328 = toCentre;
+        let _e329 = halfWidth_1;
+        let _e331 = halfHeight_1;
+        corners_1[3i] = ((_e328 - _e329) + _e331);
+        let _e334 = corners_1;
+        param_70 = _e334;
+        let _e336 = (*s_4).n;
+        param_71 = _e336;
+        let _e337 = RectangleFormFactor_u0028_vf3_u005b_4_u005d_u003b_vf3_u003b((&param_70), (&param_71));
+        formFactor = _e337;
+        let _e338 = halfWidth_1;
+        let _e339 = halfHeight_1;
+        area = (length(cross(_e338, _e339)) * 4f);
+        let _e343 = area;
+        if (_e343 > 0.000000001f) {
+            let _e345 = area;
+            local_13 = (1f / _e345);
+        } else {
+            local_13 = 0f;
+        }
+        let _e347 = local_13;
+        radiance = _e347;
+        let _e348 = toCentre;
+        distance_2 = length(_e348);
+        let _e351 = direction[3u];
+        if (_e351 > 0f) {
+            let _e353 = distance_2;
+            let _e355 = direction[3u];
+            ratio_1 = (_e353 / _e355);
+            let _e357 = ratio_1;
+            let _e358 = ratio_1;
+            let _e360 = ratio_1;
+            let _e362 = ratio_1;
+            window_1 = clamp((1f - (((_e357 * _e358) * _e360) * _e362)), 0f, 1f);
+            let _e366 = window_1;
+            let _e367 = window_1;
+            let _e369 = radiance;
+            radiance = (_e369 * (_e366 * _e367));
+        }
+        let _e372 = (*s_4).v;
+        let _e375 = (*s_4).n;
+        mirror_1 = reflect(-(_e372), _e375);
+        let _e377 = position;
+        param_72 = _e377.xyz;
+        let _e379 = halfWidth_1;
+        param_73 = _e379;
+        let _e380 = halfHeight_1;
+        param_74 = _e380;
+        let _e381 = v_world_position_1;
+        param_75 = _e381;
+        let _e382 = mirror_1;
+        param_76 = _e382;
+        let _e383 = RectangleClosestPoint_u0028_vf3_u003b_vf3_u003b_vf3_u003b_vf3_u003b_vf3_u003b((&param_72), (&param_73), (&param_74), (&param_75), (&param_76));
+        representative = _e383;
+        let _e384 = representative;
+        let _e385 = v_world_position_1;
+        toPoint = (_e384 - _e385);
+        let _e387 = toPoint;
+        pointDistance = length(_e387);
+        let _e389 = pointDistance;
+        if (_e389 > 0.000001f) {
+            let _e391 = toPoint;
+            let _e392 = pointDistance;
+            local_14 = (_e391 / vec3(_e392));
+        } else {
+            let _e396 = (*s_4).n;
+            local_14 = _e396;
+        }
+        let _e397 = local_14;
+        light_3.l = _e397;
+        let _e400 = light_3.l;
+        let _e402 = (*s_4).v;
+        light_3.h = normalize((_e400 + _e402));
+        let _e406 = formFactor;
+        light_3.n_dot_l = _e406;
+        let _e409 = (*s_4).n;
+        let _e411 = light_3.h;
+        light_3.n_dot_h = max(dot(_e409, _e411), 0f);
+        let _e416 = (*s_4).v;
+        let _e418 = light_3.h;
+        light_3.v_dot_h = max(dot(_e416, _e418), 0f);
+        let _e422 = color_1;
+        let _e425 = color_1[3u];
+        let _e427 = radiance;
+        light_3.radiance = ((_e422.xyz * _e425) * _e427);
+        let _e430 = light_3;
+        return _e430;
+    }
+    let _e431 = direction;
+    aim = normalize(_e431.xyz);
+    attenuation_1 = 1f;
+    let _e434 = type_41;
+    if (_e434 < 0.5f) {
+        let _e436 = aim;
+        light_3.l = -(_e436);
+    } else {
+        let _e439 = position;
+        let _e441 = v_world_position_1;
+        toLight_1 = (_e439.xyz - _e441);
+        let _e443 = toLight_1;
+        distance_3 = length(_e443);
+        let _e445 = distance_3;
+        if (_e445 < 0.000001f) {
+            let _e448 = (*s_4).n;
+            light_3.l = _e448;
+            let _e451 = (*s_4).n;
+            light_3.h = _e451;
             light_3.radiance = vec3<f32>(0f, 0f, 0f);
             light_3.n_dot_l = 0f;
             light_3.n_dot_h = 0f;
             light_3.v_dot_h = 0f;
-            let _e438 = light_3;
-            return _e438;
+            let _e457 = light_3;
+            return _e457;
         }
-        let _e439 = toLight_1;
-        let _e440 = distance_3;
-        light_3.l = (_e439 / vec3(_e440));
-        let _e444 = distance_3;
-        param_71 = _e444;
-        let _e446 = direction[3u];
-        param_72 = _e446;
-        let _e447 = PunctualAttenuation_u0028_f1_u003b_f1_u003b((&param_71), (&param_72));
-        attenuation_1 = _e447;
-        let _e448 = type_40;
-        if (_e448 > 1.5f) {
-            let _e450 = aim;
-            let _e452 = light_3.l;
-            cosAngle = dot(_e450, -(_e452));
-            let _e455 = cosAngle;
-            let _e457 = cone[1u];
-            let _e460 = cone[0u];
-            let _e462 = cone[1u];
-            let _e466 = attenuation_1;
-            attenuation_1 = (_e466 * clamp(((_e455 - _e457) / (_e460 - _e462)), 0f, 1f));
+        let _e458 = toLight_1;
+        let _e459 = distance_3;
+        light_3.l = (_e458 / vec3(_e459));
+        let _e463 = distance_3;
+        param_77 = _e463;
+        let _e465 = direction[3u];
+        param_78 = _e465;
+        let _e466 = PunctualAttenuation_u0028_f1_u003b_f1_u003b((&param_77), (&param_78));
+        attenuation_1 = _e466;
+        let _e467 = type_41;
+        if (_e467 > 1.5f) {
+            let _e469 = aim;
+            let _e471 = light_3.l;
+            cosAngle = dot(_e469, -(_e471));
+            let _e474 = cosAngle;
+            let _e476 = cone[1u];
+            let _e479 = cone[0u];
+            let _e481 = cone[1u];
+            let _e485 = attenuation_1;
+            attenuation_1 = (_e485 * clamp(((_e474 - _e476) / (_e479 - _e481)), 0f, 1f));
         }
     }
-    let _e469 = light_3.l;
-    let _e471 = (*s_4).v;
-    light_3.h = normalize((_e469 + _e471));
-    let _e476 = (*s_4).n;
-    let _e478 = light_3.l;
-    light_3.n_dot_l = max(dot(_e476, _e478), 0f);
-    let _e483 = (*s_4).n;
-    let _e485 = light_3.h;
-    light_3.n_dot_h = max(dot(_e483, _e485), 0f);
+    let _e488 = light_3.l;
     let _e490 = (*s_4).v;
-    let _e492 = light_3.h;
-    light_3.v_dot_h = max(dot(_e490, _e492), 0f);
-    let _e496 = color_1;
-    let _e499 = color_1[3u];
-    let _e501 = attenuation_1;
-    light_3.radiance = ((_e496.xyz * _e499) * _e501);
-    let _e504 = light_3;
-    return _e504;
+    light_3.h = normalize((_e488 + _e490));
+    let _e495 = (*s_4).n;
+    let _e497 = light_3.l;
+    light_3.n_dot_l = max(dot(_e495, _e497), 0f);
+    let _e502 = (*s_4).n;
+    let _e504 = light_3.h;
+    light_3.n_dot_h = max(dot(_e502, _e504), 0f);
+    let _e509 = (*s_4).v;
+    let _e511 = light_3.h;
+    light_3.v_dot_h = max(dot(_e509, _e511), 0f);
+    let _e515 = color_1;
+    let _e518 = color_1[3u];
+    let _e520 = attenuation_1;
+    light_3.radiance = ((_e515.xyz * _e518) * _e520);
+    let _e523 = light_3;
+    return _e523;
+}
+
+fn FindCluster_u0028_vf3_u003b(world_3: ptr<function, vec3<f32>>) {
+    var clip_1: vec4<f32>;
+    var ndc_1: vec2<f32>;
+    var grid: vec3<f32>;
+    var near: f32;
+    var tx: f32;
+    var ty: f32;
+    var tz: f32;
+    var local_15: f32;
+    var cell: f32;
+    var row_3: f32;
+    var header: vec4<f32>;
+    var param_79: f32;
+    var param_80: f32;
+
+    let _e197 = light_list_info.cluster_view_projection;
+    let _e198 = (*world_3);
+    clip_1 = (_e197 * vec4<f32>(_e198.x, _e198.y, _e198.z, 1f));
+    let _e204 = clip_1;
+    let _e207 = clip_1[3u];
+    ndc_1 = (_e204.xy / vec2(max(_e207, 0.000001f)));
+    let _e212 = light_list_info.cluster_grid;
+    grid = _e212.xyz;
+    let _e216 = light_list_info.cluster_depth[0u];
+    near = _e216;
+    let _e218 = ndc_1[0u];
+    let _e222 = grid[0u];
+    let _e226 = grid[0u];
+    tx = clamp(floor((((_e218 * 0.5f) + 0.5f) * _e222)), 0f, (_e226 - 1f));
+    let _e230 = ndc_1[1u];
+    let _e234 = grid[1u];
+    let _e238 = grid[1u];
+    ty = clamp(floor((((_e230 * 0.5f) + 0.5f) * _e234)), 0f, (_e238 - 1f));
+    let _e242 = clip_1[3u];
+    let _e243 = near;
+    if (_e242 <= _e243) {
+        local_15 = 0f;
+    } else {
+        let _e246 = clip_1[3u];
+        let _e247 = near;
+        let _e252 = light_list_info.cluster_depth[1u];
+        let _e256 = grid[2u];
+        local_15 = clamp(floor((log((_e246 / _e247)) * _e252)), 0f, (_e256 - 1f));
+    }
+    let _e259 = local_15;
+    tz = _e259;
+    let _e260 = tx;
+    let _e261 = ty;
+    let _e263 = grid[0u];
+    let _e266 = tz;
+    let _e268 = grid[0u];
+    let _e271 = grid[1u];
+    cell = ((_e260 + (_e261 * _e263)) + ((_e266 * _e268) * _e271));
+    let _e274 = cell;
+    row_3 = floor((_e274 / 4f));
+    let _e277 = cell;
+    let _e278 = row_3;
+    let _e283 = light_list_info.cluster_depth[2u];
+    let _e284 = row_3;
+    param_79 = (_e277 - (_e278 * 4f));
+    param_80 = (_e283 + _e284);
+    let _e286 = LightListTexel_u0028_f1_u003b_f1_u003b((&param_79), (&param_80));
+    header = _e286;
+    let _e288 = header[0u];
+    g_cluster_offset = _e288;
+    let _e290 = header[1u];
+    g_cluster_count = _e290;
+    return;
 }
 
 fn LightCount_u0028_() -> i32 {
-    let _e182 = frag_info.frame_params[1u];
-    let _e188 = light_list_info.list[0u];
-    return (clamp(i32((_e182 + 0.5f)), 0i, 8i) + clamp(i32((_e188 + 0.5f)), 0i, 24i));
+    var tail: f32;
+    var param_81: vec3<f32>;
+
+    let _e186 = light_list_info.list[0u];
+    tail = _e186;
+    let _e187 = Clustered_u0028_();
+    if _e187 {
+        let _e188 = v_world_position_1;
+        param_81 = _e188;
+        FindCluster_u0028_vf3_u003b((&param_81));
+        let _e189 = g_cluster_count;
+        tail = _e189;
+    }
+    let _e192 = frag_info.frame_params[1u];
+    let _e196 = tail;
+    return (clamp(i32((_e192 + 0.5f)), 0i, 8i) + clamp(i32((_e196 + 0.5f)), 0i, 24i));
 }
 
 fn AccumulateLights_u0028_struct_u002d_Surface_u002d_vf3_u002d_f1_u002d_vf3_u002d_vf3_u002d_f1_u002d_f1_u002d_f1_u002d_f1_u002d_vf3_u002d_vf3_u002d_f11_u003b(s_5: ptr<function, Surface>) -> vec3<f32> {
@@ -11710,271 +12327,271 @@ fn AccumulateLights_u0028_struct_u002d_Surface_u002d_vf3_u002d_f1_u002d_vf3_u002
     var count_1: i32;
     var i_7: i32;
     var light_4: LightSample;
-    var param_73: i32;
-    var param_74: Surface;
+    var param_82: i32;
+    var param_83: Surface;
     var visibility: f32;
-    var param_75: i32;
-    var local_13: f32;
-    var param_76: Surface;
-    var param_77: LightSample;
-    var param_78: i32;
-    var param_79: vec3<f32>;
-    var param_80: vec3<f32>;
-    var param_81: i32;
-    var param_82: Surface;
-    var param_83: LightSample;
+    var param_84: i32;
+    var local_16: f32;
+    var param_85: Surface;
+    var param_86: LightSample;
+    var param_87: i32;
+    var param_88: vec3<f32>;
+    var param_89: vec3<f32>;
+    var param_90: i32;
+    var param_91: Surface;
+    var param_92: LightSample;
 
     total_1 = vec3<f32>(0f, 0f, 0f);
-    let _e198 = LightCount_u0028_();
-    count_1 = _e198;
+    let _e200 = LightCount_u0028_();
+    count_1 = _e200;
     i_7 = 0i;
     loop {
-        let _e199 = i_7;
-        if (_e199 < 32i) {
-            let _e201 = i_7;
-            let _e202 = count_1;
-            if (_e201 >= _e202) {
+        let _e201 = i_7;
+        if (_e201 < 32i) {
+            let _e203 = i_7;
+            let _e204 = count_1;
+            if (_e203 >= _e204) {
                 break;
             }
-            let _e204 = i_7;
-            param_73 = _e204;
-            let _e205 = (*s_5);
-            param_74 = _e205;
-            let _e206 = SampleLight_u0028_i1_u003b_struct_u002d_Surface_u002d_vf3_u002d_f1_u002d_vf3_u002d_vf3_u002d_f1_u002d_f1_u002d_f1_u002d_f1_u002d_vf3_u002d_vf3_u002d_f11_u003b((&param_73), (&param_74));
-            light_4 = _e206;
-            let _e208 = light_4.n_dot_l;
-            if (_e208 <= 0f) {
+            let _e206 = i_7;
+            param_82 = _e206;
+            let _e207 = (*s_5);
+            param_83 = _e207;
+            let _e208 = SampleLight_u0028_i1_u003b_struct_u002d_Surface_u002d_vf3_u002d_f1_u002d_vf3_u002d_vf3_u002d_f1_u002d_f1_u002d_f1_u002d_f1_u002d_vf3_u002d_vf3_u002d_f11_u003b((&param_82), (&param_83));
+            light_4 = _e208;
+            let _e210 = light_4.n_dot_l;
+            if (_e210 <= 0f) {
                 continue;
             }
-            let _e210 = i_7;
-            param_75 = _e210;
-            let _e211 = LightHasShadow_u0028_i1_u003b((&param_75));
-            if _e211 {
-                let _e212 = (*s_5);
-                param_76 = _e212;
-                let _e213 = light_4;
-                param_77 = _e213;
-                let _e214 = i_7;
-                param_78 = _e214;
-                let _e215 = LightVisibility_u0028_struct_u002d_Surface_u002d_vf3_u002d_f1_u002d_vf3_u002d_vf3_u002d_f1_u002d_f1_u002d_f1_u002d_f1_u002d_vf3_u002d_vf3_u002d_f11_u003b_struct_u002d_LightSample_u002d_vf3_u002d_vf3_u002d_vf3_u002d_f1_u002d_f1_u002d_f11_u003b_i1_u003b((&param_76), (&param_77), (&param_78));
-                let _e216 = v_world_position_1;
-                param_79 = _e216;
-                let _e218 = (*s_5).n;
-                param_80 = _e218;
-                let _e219 = i_7;
-                param_81 = _e219;
-                let _e220 = PointShadowFactor_u0028_vf3_u003b_vf3_u003b_i1_u003b((&param_79), (&param_80), (&param_81));
-                local_13 = (_e215 * _e220);
+            let _e212 = i_7;
+            param_84 = _e212;
+            let _e213 = LightHasShadow_u0028_i1_u003b((&param_84));
+            if _e213 {
+                let _e214 = (*s_5);
+                param_85 = _e214;
+                let _e215 = light_4;
+                param_86 = _e215;
+                let _e216 = i_7;
+                param_87 = _e216;
+                let _e217 = LightVisibility_u0028_struct_u002d_Surface_u002d_vf3_u002d_f1_u002d_vf3_u002d_vf3_u002d_f1_u002d_f1_u002d_f1_u002d_f1_u002d_vf3_u002d_vf3_u002d_f11_u003b_struct_u002d_LightSample_u002d_vf3_u002d_vf3_u002d_vf3_u002d_f1_u002d_f1_u002d_f11_u003b_i1_u003b((&param_85), (&param_86), (&param_87));
+                let _e218 = v_world_position_1;
+                param_88 = _e218;
+                let _e220 = (*s_5).n;
+                param_89 = _e220;
+                let _e221 = i_7;
+                param_90 = _e221;
+                let _e222 = PointShadowFactor_u0028_vf3_u003b_vf3_u003b_i1_u003b((&param_88), (&param_89), (&param_90));
+                local_16 = (_e217 * _e222);
             } else {
-                local_13 = 1f;
+                local_16 = 1f;
             }
-            let _e222 = local_13;
-            visibility = _e222;
-            let _e223 = visibility;
-            if (_e223 <= 0f) {
+            let _e224 = local_16;
+            visibility = _e224;
+            let _e225 = visibility;
+            if (_e225 <= 0f) {
                 continue;
             }
-            let _e225 = (*s_5);
-            param_82 = _e225;
-            let _e226 = light_4;
-            param_83 = _e226;
-            let _e227 = ShadeLight_u0028_struct_u002d_Surface_u002d_vf3_u002d_f1_u002d_vf3_u002d_vf3_u002d_f1_u002d_f1_u002d_f1_u002d_f1_u002d_vf3_u002d_vf3_u002d_f11_u003b_struct_u002d_LightSample_u002d_vf3_u002d_vf3_u002d_vf3_u002d_f1_u002d_f1_u002d_f11_u003b((&param_82), (&param_83));
-            let _e229 = light_4.radiance;
-            let _e232 = light_4.n_dot_l;
-            let _e234 = visibility;
-            let _e236 = total_1;
-            total_1 = (_e236 + (((_e227 * _e229) * _e232) * _e234));
+            let _e227 = (*s_5);
+            param_91 = _e227;
+            let _e228 = light_4;
+            param_92 = _e228;
+            let _e229 = ShadeLight_u0028_struct_u002d_Surface_u002d_vf3_u002d_f1_u002d_vf3_u002d_vf3_u002d_f1_u002d_f1_u002d_f1_u002d_f1_u002d_vf3_u002d_vf3_u002d_f11_u003b_struct_u002d_LightSample_u002d_vf3_u002d_vf3_u002d_vf3_u002d_f1_u002d_f1_u002d_f11_u003b((&param_91), (&param_92));
+            let _e231 = light_4.radiance;
+            let _e234 = light_4.n_dot_l;
+            let _e236 = visibility;
+            let _e238 = total_1;
+            total_1 = (_e238 + (((_e229 * _e231) * _e234) * _e236));
             continue;
         } else {
             break;
         }
         continuing {
-            let _e238 = i_7;
-            i_7 = (_e238 + 1i);
+            let _e240 = i_7;
+            i_7 = (_e240 + 1i);
         }
     }
-    let _e240 = total_1;
-    return _e240;
+    let _e242 = total_1;
+    return _e242;
 }
 
 fn SampleLightmap_u0028_() -> vec3<f32> {
-    var texel_2: vec4<f32>;
+    var texel_4: vec4<f32>;
 
-    let _e181 = v_lightmap_uv_1;
-    let _e182 = textureSample(lightmap_texture_tex, lightmap_texture_smp, _e181);
-    texel_2 = _e182;
-    let _e183 = texel_2;
-    let _e186 = texel_2[3u];
-    return ((_e183.xyz * _e186) * 8f);
+    let _e183 = v_lightmap_uv_1;
+    let _e184 = textureSample(lightmap_texture_tex, lightmap_texture_smp, _e183);
+    texel_4 = _e184;
+    let _e185 = texel_4;
+    let _e188 = texel_4[3u];
+    return ((_e185.xyz * _e188) * 8f);
 }
 
 fn MaterialLodBias_u0028_() -> f32 {
-    let _e182 = frag_info.target_origin[1u];
-    return _e182;
+    let _e184 = frag_info.target_origin[1u];
+    return _e184;
 }
 
 fn ApplyMetallicRoughnessMap_u0028_struct_u002d_Surface_u002d_vf3_u002d_f1_u002d_vf3_u002d_vf3_u002d_f1_u002d_f1_u002d_f1_u002d_f1_u002d_vf3_u002d_vf3_u002d_f11_u003b(s_6: ptr<function, Surface>) {
     var orm: vec3<f32>;
 
-    let _e182 = v_texcoord_1;
-    let _e183 = MaterialLodBias_u0028_();
-    let _e184 = textureSampleBias(metallic_roughness_texture_tex, metallic_roughness_texture_smp, _e182, _e183);
-    orm = _e184.xyz;
-    let _e187 = (*s_6).metallic;
-    let _e189 = orm[2u];
-    (*s_6).metallic = clamp((_e187 * _e189), 0f, 1f);
-    let _e194 = (*s_6).roughness;
-    let _e196 = orm[1u];
-    (*s_6).roughness = clamp((_e194 * _e196), 0.02f, 1f);
+    let _e184 = v_texcoord_1;
+    let _e185 = MaterialLodBias_u0028_();
+    let _e186 = textureSampleBias(metallic_roughness_texture_tex, metallic_roughness_texture_smp, _e184, _e185);
+    orm = _e186.xyz;
+    let _e189 = (*s_6).metallic;
+    let _e191 = orm[2u];
+    (*s_6).metallic = clamp((_e189 * _e191), 0f, 1f);
+    let _e196 = (*s_6).roughness;
+    let _e198 = orm[1u];
+    (*s_6).roughness = clamp((_e196 * _e198), 0.02f, 1f);
     return;
 }
 
 fn SrgbToLinear_u0028_vf3_u003b(srgb: ptr<function, vec3<f32>>) -> vec3<f32> {
-    let _e181 = (*srgb);
-    let _e184 = (*srgb);
-    let _e189 = (*srgb);
-    return mix((_e181 / vec3(12.92f)), pow(((_e184 + vec3<f32>(0.055f, 0.055f, 0.055f)) / vec3(1.055f)), vec3<f32>(2.4f, 2.4f, 2.4f)), step(vec3<f32>(0.04045f, 0.04045f, 0.04045f), _e189));
+    let _e183 = (*srgb);
+    let _e186 = (*srgb);
+    let _e191 = (*srgb);
+    return mix((_e183 / vec3(12.92f)), pow(((_e186 + vec3<f32>(0.055f, 0.055f, 0.055f)) / vec3(1.055f)), vec3<f32>(2.4f, 2.4f, 2.4f)), step(vec3<f32>(0.04045f, 0.04045f, 0.04045f), _e191));
 }
 
 fn ApplyEmissiveMap_u0028_struct_u002d_Surface_u002d_vf3_u002d_f1_u002d_vf3_u002d_vf3_u002d_f1_u002d_f1_u002d_f1_u002d_f1_u002d_vf3_u002d_vf3_u002d_f11_u003b(s_7: ptr<function, Surface>) {
     var emissive: vec3<f32>;
-    var param_84: vec3<f32>;
+    var param_93: vec3<f32>;
 
-    let _e183 = v_texcoord_1;
-    let _e184 = MaterialLodBias_u0028_();
-    let _e185 = textureSampleBias(emissive_texture_tex, emissive_texture_smp, _e183, _e184);
-    param_84 = _e185.xyz;
-    let _e187 = SrgbToLinear_u0028_vf3_u003b((&param_84));
-    emissive = _e187;
-    let _e188 = emissive;
-    let _e190 = frag_info.emissive;
-    let _e195 = frag_info.material2_[3u];
-    (*s_7).emissive = ((_e188 * _e190.xyz) * _e195);
+    let _e185 = v_texcoord_1;
+    let _e186 = MaterialLodBias_u0028_();
+    let _e187 = textureSampleBias(emissive_texture_tex, emissive_texture_smp, _e185, _e186);
+    param_93 = _e187.xyz;
+    let _e189 = SrgbToLinear_u0028_vf3_u003b((&param_93));
+    emissive = _e189;
+    let _e190 = emissive;
+    let _e192 = frag_info.emissive;
+    let _e197 = frag_info.material2_[3u];
+    (*s_7).emissive = ((_e190 * _e192.xyz) * _e197);
     return;
 }
 
 fn ApplyOcclusionMap_u0028_struct_u002d_Surface_u002d_vf3_u002d_f1_u002d_vf3_u002d_vf3_u002d_f1_u002d_f1_u002d_f1_u002d_f1_u002d_vf3_u002d_vf3_u002d_f11_u003b(s_8: ptr<function, Surface>) {
     var occlusion: f32;
 
-    let _e182 = v_texcoord_1;
-    let _e183 = MaterialLodBias_u0028_();
-    let _e184 = textureSampleBias(occlusion_texture_tex, occlusion_texture_smp, _e182, _e183);
-    occlusion = _e184.x;
-    let _e186 = occlusion;
-    let _e189 = frag_info.material2_[2u];
-    (*s_8).occlusion = mix(1f, _e186, clamp(_e189, 0f, 1f));
+    let _e184 = v_texcoord_1;
+    let _e185 = MaterialLodBias_u0028_();
+    let _e186 = textureSampleBias(occlusion_texture_tex, occlusion_texture_smp, _e184, _e185);
+    occlusion = _e186.x;
+    let _e188 = occlusion;
+    let _e191 = frag_info.material2_[2u];
+    (*s_8).occlusion = mix(1f, _e188, clamp(_e191, 0f, 1f));
     return;
 }
 
 fn ApplyNormalMap_u0028_struct_u002d_Surface_u002d_vf3_u002d_f1_u002d_vf3_u002d_vf3_u002d_f1_u002d_f1_u002d_f1_u002d_f1_u002d_vf3_u002d_vf3_u002d_f11_u003b(s_9: ptr<function, Surface>) {
     var sampledTexel: vec4<f32>;
     var t_1: vec3<f32>;
-    var b_1: vec3<f32>;
+    var b_2: vec3<f32>;
     var sampled: vec3<f32>;
 
-    let _e185 = v_texcoord_1;
-    let _e186 = MaterialLodBias_u0028_();
-    let _e187 = textureSampleBias(normal_texture_tex, normal_texture_smp, _e185, _e186);
-    sampledTexel = _e187;
-    let _e188 = v_tangent_1;
-    t_1 = _e188.xyz;
-    let _e190 = t_1;
-    let _e192 = (*s_9).n;
+    let _e187 = v_texcoord_1;
+    let _e188 = MaterialLodBias_u0028_();
+    let _e189 = textureSampleBias(normal_texture_tex, normal_texture_smp, _e187, _e188);
+    sampledTexel = _e189;
+    let _e190 = v_tangent_1;
+    t_1 = _e190.xyz;
+    let _e192 = t_1;
     let _e194 = (*s_9).n;
-    let _e195 = t_1;
-    t_1 = (_e190 - (_e192 * dot(_e194, _e195)));
-    let _e199 = t_1;
-    let _e200 = t_1;
-    if (dot(_e199, _e200) < 0.000000000001f) {
+    let _e196 = (*s_9).n;
+    let _e197 = t_1;
+    t_1 = (_e192 - (_e194 * dot(_e196, _e197)));
+    let _e201 = t_1;
+    let _e202 = t_1;
+    if (dot(_e201, _e202) < 0.000000000001f) {
         return;
     }
-    let _e203 = t_1;
-    t_1 = normalize(_e203);
-    let _e206 = (*s_9).n;
-    let _e207 = t_1;
-    let _e210 = v_tangent_1[3u];
-    b_1 = (cross(_e206, _e207) * _e210);
-    let _e212 = gl_FrontFacing_1;
-    if !(_e212) {
-        let _e214 = t_1;
-        t_1 = -(_e214);
+    let _e205 = t_1;
+    t_1 = normalize(_e205);
+    let _e208 = (*s_9).n;
+    let _e209 = t_1;
+    let _e212 = v_tangent_1[3u];
+    b_2 = (cross(_e208, _e209) * _e212);
+    let _e214 = gl_FrontFacing_1;
+    if !(_e214) {
+        let _e216 = t_1;
+        t_1 = -(_e216);
     }
-    let _e216 = sampledTexel;
-    sampled = ((_e216.xyz * 2f) - vec3(1f));
-    let _e223 = frag_info.material2_[1u];
-    let _e224 = sampled;
-    let _e226 = (_e224.xy * _e223);
-    sampled[0u] = _e226.x;
-    sampled[1u] = _e226.y;
-    let _e231 = t_1;
-    let _e233 = sampled[0u];
-    let _e235 = b_1;
-    let _e237 = sampled[1u];
-    let _e241 = (*s_9).n;
-    let _e243 = sampled[2u];
-    (*s_9).n = normalize((((_e231 * _e233) + (_e235 * _e237)) + (_e241 * _e243)));
-    let _e249 = (*s_9).n;
-    let _e251 = (*s_9).v;
-    (*s_9).n_dot_v = max(dot(_e249, _e251), 0.0001f);
+    let _e218 = sampledTexel;
+    sampled = ((_e218.xyz * 2f) - vec3(1f));
+    let _e225 = frag_info.material2_[1u];
+    let _e226 = sampled;
+    let _e228 = (_e226.xy * _e225);
+    sampled[0u] = _e228.x;
+    sampled[1u] = _e228.y;
+    let _e233 = t_1;
+    let _e235 = sampled[0u];
+    let _e237 = b_2;
+    let _e239 = sampled[1u];
+    let _e243 = (*s_9).n;
+    let _e245 = sampled[2u];
+    (*s_9).n = normalize((((_e233 * _e235) + (_e237 * _e239)) + (_e243 * _e245)));
+    let _e251 = (*s_9).n;
+    let _e253 = (*s_9).v;
+    (*s_9).n_dot_v = max(dot(_e251, _e253), 0.0001f);
     return;
 }
 
-fn AtlasTexel_u0028_vf2_u003b(texel_3: ptr<function, vec2<f32>>) -> vec4<f32> {
-    let _e181 = (*texel_3);
-    let _e185 = irradiance_info.atlas;
-    let _e188 = textureSampleLevel(irradiance_texture_tex, irradiance_texture_smp, ((_e181 + vec2(0.5f)) * _e185.xy), 0f);
-    return _e188;
+fn AtlasTexel_u0028_vf2_u003b(texel_5: ptr<function, vec2<f32>>) -> vec4<f32> {
+    let _e183 = (*texel_5);
+    let _e187 = irradiance_info.atlas;
+    let _e190 = textureSampleLevel(irradiance_texture_tex, irradiance_texture_smp, ((_e183 + vec2(0.5f)) * _e187.xy), 0f);
+    return _e190;
 }
 
 fn TileBilinear_u0028_vf2_u003b_f1_u003b_vf2_u003b(corner: ptr<function, vec2<f32>>, interior: ptr<function, f32>, uv_5: ptr<function, vec2<f32>>) -> vec4<f32> {
     var at: vec2<f32>;
     var low: vec2<f32>;
     var f_2: vec2<f32>;
-    var a_3: vec4<f32>;
-    var param_85: vec2<f32>;
-    var b_2: vec4<f32>;
-    var param_86: vec2<f32>;
+    var a_4: vec4<f32>;
+    var param_94: vec2<f32>;
+    var b_3: vec4<f32>;
+    var param_95: vec2<f32>;
     var c: vec4<f32>;
-    var param_87: vec2<f32>;
+    var param_96: vec2<f32>;
     var d_2: vec4<f32>;
-    var param_88: vec2<f32>;
+    var param_97: vec2<f32>;
 
-    let _e194 = (*uv_5);
-    let _e195 = (*interior);
-    at = ((vec2(1f) + (_e194 * _e195)) - vec2(0.5f));
-    let _e201 = at;
-    low = floor(_e201);
+    let _e196 = (*uv_5);
+    let _e197 = (*interior);
+    at = ((vec2(1f) + (_e196 * _e197)) - vec2(0.5f));
     let _e203 = at;
-    let _e204 = low;
-    f_2 = (_e203 - _e204);
-    let _e206 = (*corner);
-    let _e207 = low;
-    param_85 = (_e206 + _e207);
-    let _e209 = AtlasTexel_u0028_vf2_u003b((&param_85));
-    a_3 = _e209;
-    let _e210 = (*corner);
-    let _e211 = low;
-    param_86 = ((_e210 + _e211) + vec2<f32>(1f, 0f));
-    let _e214 = AtlasTexel_u0028_vf2_u003b((&param_86));
-    b_2 = _e214;
-    let _e215 = (*corner);
-    let _e216 = low;
-    param_87 = ((_e215 + _e216) + vec2<f32>(0f, 1f));
-    let _e219 = AtlasTexel_u0028_vf2_u003b((&param_87));
-    c = _e219;
-    let _e220 = (*corner);
-    let _e221 = low;
-    param_88 = ((_e220 + _e221) + vec2<f32>(1f, 1f));
-    let _e224 = AtlasTexel_u0028_vf2_u003b((&param_88));
-    d_2 = _e224;
-    let _e225 = a_3;
-    let _e226 = b_2;
-    let _e228 = f_2[0u];
-    let _e231 = c;
-    let _e232 = d_2;
-    let _e234 = f_2[0u];
-    let _e238 = f_2[1u];
-    return mix(mix(_e225, _e226, vec4(_e228)), mix(_e231, _e232, vec4(_e234)), vec4(_e238));
+    low = floor(_e203);
+    let _e205 = at;
+    let _e206 = low;
+    f_2 = (_e205 - _e206);
+    let _e208 = (*corner);
+    let _e209 = low;
+    param_94 = (_e208 + _e209);
+    let _e211 = AtlasTexel_u0028_vf2_u003b((&param_94));
+    a_4 = _e211;
+    let _e212 = (*corner);
+    let _e213 = low;
+    param_95 = ((_e212 + _e213) + vec2<f32>(1f, 0f));
+    let _e216 = AtlasTexel_u0028_vf2_u003b((&param_95));
+    b_3 = _e216;
+    let _e217 = (*corner);
+    let _e218 = low;
+    param_96 = ((_e217 + _e218) + vec2<f32>(0f, 1f));
+    let _e221 = AtlasTexel_u0028_vf2_u003b((&param_96));
+    c = _e221;
+    let _e222 = (*corner);
+    let _e223 = low;
+    param_97 = ((_e222 + _e223) + vec2<f32>(1f, 1f));
+    let _e226 = AtlasTexel_u0028_vf2_u003b((&param_97));
+    d_2 = _e226;
+    let _e227 = a_4;
+    let _e228 = b_3;
+    let _e230 = f_2[0u];
+    let _e233 = c;
+    let _e234 = d_2;
+    let _e236 = f_2[0u];
+    let _e240 = f_2[1u];
+    return mix(mix(_e227, _e228, vec4(_e230)), mix(_e233, _e234, vec4(_e236)), vec4(_e240));
 }
 
 fn ProbeOctahedral_u0028_vf3_u003b(direction_1: ptr<function, vec3<f32>>) -> vec2<f32> {
@@ -11982,32 +12599,32 @@ fn ProbeOctahedral_u0028_vf3_u003b(direction_1: ptr<function, vec3<f32>>) -> vec
     var n_3: vec3<f32>;
     var xy: vec2<f32>;
 
-    let _e185 = (*direction_1)[0u];
-    let _e188 = (*direction_1)[1u];
-    let _e192 = (*direction_1)[2u];
-    sum_1 = ((abs(_e185) + abs(_e188)) + abs(_e192));
-    let _e195 = sum_1;
-    if (_e195 <= 0f) {
+    let _e187 = (*direction_1)[0u];
+    let _e190 = (*direction_1)[1u];
+    let _e194 = (*direction_1)[2u];
+    sum_1 = ((abs(_e187) + abs(_e190)) + abs(_e194));
+    let _e197 = sum_1;
+    if (_e197 <= 0f) {
         return vec2<f32>(0.5f, 0.5f);
     }
-    let _e197 = (*direction_1);
-    let _e198 = sum_1;
-    n_3 = (_e197 / vec3(_e198));
-    let _e201 = n_3;
-    xy = _e201.xy;
-    let _e204 = n_3[2u];
-    if (_e204 < 0f) {
-        let _e207 = n_3[1u];
-        let _e211 = n_3[0u];
-        let _e216 = n_3[0u];
-        let _e220 = n_3[1u];
-        xy = vec2<f32>(((1f - abs(_e207)) * select(-1f, 1f, (_e211 >= 0f))), ((1f - abs(_e216)) * select(-1f, 1f, (_e220 >= 0f))));
+    let _e199 = (*direction_1);
+    let _e200 = sum_1;
+    n_3 = (_e199 / vec3(_e200));
+    let _e203 = n_3;
+    xy = _e203.xy;
+    let _e206 = n_3[2u];
+    if (_e206 < 0f) {
+        let _e209 = n_3[1u];
+        let _e213 = n_3[0u];
+        let _e218 = n_3[0u];
+        let _e222 = n_3[1u];
+        xy = vec2<f32>(((1f - abs(_e209)) * select(-1f, 1f, (_e213 >= 0f))), ((1f - abs(_e218)) * select(-1f, 1f, (_e222 >= 0f))));
     }
-    let _e225 = xy;
-    return ((_e225 * 0.5f) + vec2(0.5f));
+    let _e227 = xy;
+    return ((_e227 * 0.5f) + vec2(0.5f));
 }
 
-fn SampleIrradiance_u0028_vf3_u003b_vf3_u003b_vf3_u003b(world_3: ptr<function, vec3<f32>>, normal_1: ptr<function, vec3<f32>>, view: ptr<function, vec3<f32>>) -> vec3<f32> {
+fn SampleIrradiance_u0028_vf3_u003b_vf3_u003b_vf3_u003b(world_4: ptr<function, vec3<f32>>, normal_1: ptr<function, vec3<f32>>, view: ptr<function, vec3<f32>>) -> vec3<f32> {
     var origin_2: vec3<f32>;
     var spacing: vec3<f32>;
     var counts: vec3<f32>;
@@ -12017,19 +12634,19 @@ fn SampleIrradiance_u0028_vf3_u003b_vf3_u003b_vf3_u003b(world_3: ptr<function, v
     var momentsTop: f32;
     var unit: vec3<f32>;
     var biased: vec3<f32>;
-    var grid: vec3<f32>;
+    var grid_1: vec3<f32>;
     var base: vec3<f32>;
     var f_3: vec3<f32>;
     var total_2: vec3<f32>;
     var weights: f32;
     var corner_1: i32;
     var offset_3: vec3<f32>;
-    var cell: vec3<f32>;
+    var cell_1: vec3<f32>;
     var probe: f32;
     var tile_4: vec2<f32>;
     var irradianceCorner: vec2<f32>;
     var momentCorner: vec2<f32>;
-    var param_89: vec2<f32>;
+    var param_98: vec2<f32>;
     var trilinear: vec3<f32>;
     var weight: f32;
     var probePosition: vec3<f32>;
@@ -12038,323 +12655,323 @@ fn SampleIrradiance_u0028_vf3_u003b_vf3_u003b_vf3_u003b(world_3: ptr<function, v
     var direction_2: vec3<f32>;
     var facing: f32;
     var moments: vec2<f32>;
-    var param_90: vec3<f32>;
-    var param_91: vec2<f32>;
-    var param_92: f32;
-    var param_93: vec2<f32>;
+    var param_99: vec3<f32>;
+    var param_100: vec2<f32>;
+    var param_101: f32;
+    var param_102: vec2<f32>;
     var variance: f32;
     var difference: f32;
     var chebyshev: f32;
-    var param_94: vec3<f32>;
-    var param_95: vec2<f32>;
-    var param_96: f32;
-    var param_97: vec2<f32>;
-    var local_14: vec3<f32>;
+    var param_103: vec3<f32>;
+    var param_104: vec2<f32>;
+    var param_105: f32;
+    var param_106: vec2<f32>;
+    var local_17: vec3<f32>;
 
-    let _e226 = irradiance_info.origin;
-    origin_2 = _e226.xyz;
-    let _e229 = irradiance_info.spacing;
-    spacing = _e229.xyz;
-    let _e232 = irradiance_info.counts;
-    counts = _e232.xyz;
-    let _e236 = irradiance_info.tiles[0u];
-    irradianceTile = _e236;
-    let _e239 = irradiance_info.tiles[1u];
-    depthTile = _e239;
-    let _e242 = irradiance_info.tiles[2u];
-    columns = _e242;
-    let _e245 = irradiance_info.tiles[3u];
-    momentsTop = _e245;
-    let _e246 = (*normal_1);
-    unit = normalize(_e246);
-    let _e248 = (*world_3);
-    let _e249 = unit;
-    let _e252 = irradiance_info.spacing[3u];
-    let _e255 = (*view);
-    let _e258 = irradiance_info.counts[3u];
-    biased = ((_e248 + (_e249 * _e252)) + (_e255 * _e258));
-    let _e261 = biased;
-    let _e262 = origin_2;
-    let _e264 = spacing;
-    grid = ((_e261 - _e262) / _e264);
-    let _e266 = grid;
-    let _e268 = counts;
-    base = clamp(floor(_e266), vec3<f32>(0f, 0f, 0f), (_e268 - vec3(2f)));
-    let _e272 = grid;
-    let _e273 = base;
-    f_3 = clamp((_e272 - _e273), vec3<f32>(0f, 0f, 0f), vec3<f32>(1f, 1f, 1f));
+    let _e228 = irradiance_info.origin;
+    origin_2 = _e228.xyz;
+    let _e231 = irradiance_info.spacing;
+    spacing = _e231.xyz;
+    let _e234 = irradiance_info.counts;
+    counts = _e234.xyz;
+    let _e238 = irradiance_info.tiles[0u];
+    irradianceTile = _e238;
+    let _e241 = irradiance_info.tiles[1u];
+    depthTile = _e241;
+    let _e244 = irradiance_info.tiles[2u];
+    columns = _e244;
+    let _e247 = irradiance_info.tiles[3u];
+    momentsTop = _e247;
+    let _e248 = (*normal_1);
+    unit = normalize(_e248);
+    let _e250 = (*world_4);
+    let _e251 = unit;
+    let _e254 = irradiance_info.spacing[3u];
+    let _e257 = (*view);
+    let _e260 = irradiance_info.counts[3u];
+    biased = ((_e250 + (_e251 * _e254)) + (_e257 * _e260));
+    let _e263 = biased;
+    let _e264 = origin_2;
+    let _e266 = spacing;
+    grid_1 = ((_e263 - _e264) / _e266);
+    let _e268 = grid_1;
+    let _e270 = counts;
+    base = clamp(floor(_e268), vec3<f32>(0f, 0f, 0f), (_e270 - vec3(2f)));
+    let _e274 = grid_1;
+    let _e275 = base;
+    f_3 = clamp((_e274 - _e275), vec3<f32>(0f, 0f, 0f), vec3<f32>(1f, 1f, 1f));
     total_2 = vec3<f32>(0f, 0f, 0f);
     weights = 0f;
     corner_1 = 0i;
     loop {
-        let _e276 = corner_1;
-        if (_e276 < 8i) {
-            let _e278 = corner_1;
-            let _e281 = corner_1;
-            let _e286 = corner_1;
-            offset_3 = vec3<f32>(f32((_e278 & 1i)), f32(((_e281 >> bitcast<u32>(1i)) & 1i)), f32(((_e286 >> bitcast<u32>(2i)) & 1i)));
-            let _e292 = base;
-            let _e293 = offset_3;
-            cell = (_e292 + _e293);
-            let _e296 = cell[2u];
-            let _e298 = counts[1u];
-            let _e301 = cell[1u];
-            let _e304 = counts[0u];
-            let _e307 = cell[0u];
-            probe = ((((_e296 * _e298) + _e301) * _e304) + _e307);
-            let _e309 = probe;
-            let _e310 = columns;
-            let _e315 = probe;
-            let _e316 = columns;
-            tile_4 = vec2<f32>((_e309 - (floor((_e309 / _e310)) * _e310)), floor((_e315 / _e316)));
-            let _e320 = tile_4;
-            let _e321 = irradianceTile;
-            irradianceCorner = (_e320 * (_e321 + 2f));
-            let _e325 = tile_4[0u];
-            let _e326 = depthTile;
-            let _e329 = momentsTop;
-            let _e331 = tile_4[1u];
-            let _e332 = depthTile;
-            momentCorner = vec2<f32>((_e325 * (_e326 + 2f)), (_e329 + (_e331 * (_e332 + 2f))));
-            let _e337 = irradianceCorner;
-            param_89 = (_e337 + vec2(1f));
-            let _e340 = AtlasTexel_u0028_vf2_u003b((&param_89));
-            if (_e340.w < 0.5f) {
+        let _e278 = corner_1;
+        if (_e278 < 8i) {
+            let _e280 = corner_1;
+            let _e283 = corner_1;
+            let _e288 = corner_1;
+            offset_3 = vec3<f32>(f32((_e280 & 1i)), f32(((_e283 >> bitcast<u32>(1i)) & 1i)), f32(((_e288 >> bitcast<u32>(2i)) & 1i)));
+            let _e294 = base;
+            let _e295 = offset_3;
+            cell_1 = (_e294 + _e295);
+            let _e298 = cell_1[2u];
+            let _e300 = counts[1u];
+            let _e303 = cell_1[1u];
+            let _e306 = counts[0u];
+            let _e309 = cell_1[0u];
+            probe = ((((_e298 * _e300) + _e303) * _e306) + _e309);
+            let _e311 = probe;
+            let _e312 = columns;
+            let _e317 = probe;
+            let _e318 = columns;
+            tile_4 = vec2<f32>((_e311 - (floor((_e311 / _e312)) * _e312)), floor((_e317 / _e318)));
+            let _e322 = tile_4;
+            let _e323 = irradianceTile;
+            irradianceCorner = (_e322 * (_e323 + 2f));
+            let _e327 = tile_4[0u];
+            let _e328 = depthTile;
+            let _e331 = momentsTop;
+            let _e333 = tile_4[1u];
+            let _e334 = depthTile;
+            momentCorner = vec2<f32>((_e327 * (_e328 + 2f)), (_e331 + (_e333 * (_e334 + 2f))));
+            let _e339 = irradianceCorner;
+            param_98 = (_e339 + vec2(1f));
+            let _e342 = AtlasTexel_u0028_vf2_u003b((&param_98));
+            if (_e342.w < 0.5f) {
                 continue;
             }
-            let _e343 = f_3;
             let _e345 = f_3;
-            let _e346 = offset_3;
-            trilinear = mix((vec3<f32>(1f, 1f, 1f) - _e343), _e345, _e346);
-            let _e349 = trilinear[0u];
-            let _e351 = trilinear[1u];
-            let _e354 = trilinear[2u];
-            weight = max(((_e349 * _e351) * _e354), 0.001f);
-            let _e357 = origin_2;
-            let _e358 = spacing;
-            let _e359 = cell;
-            probePosition = (_e357 + (_e358 * _e359));
-            let _e362 = probePosition;
-            let _e363 = biased;
-            toProbe = (_e362 - _e363);
-            let _e365 = toProbe;
-            distance_4 = length(_e365);
-            let _e367 = distance_4;
-            if (_e367 > 0.000001f) {
-                let _e369 = toProbe;
-                let _e370 = distance_4;
-                direction_2 = (_e369 / vec3(_e370));
-                let _e373 = unit;
-                let _e374 = probePosition;
-                let _e375 = (*world_3);
-                facing = ((dot(_e373, normalize((_e374 - _e375))) * 0.5f) + 0.5f);
-                let _e381 = facing;
-                let _e382 = facing;
-                let _e384 = weight;
-                weight = (_e384 * (_e381 * _e382));
+            let _e347 = f_3;
+            let _e348 = offset_3;
+            trilinear = mix((vec3<f32>(1f, 1f, 1f) - _e345), _e347, _e348);
+            let _e351 = trilinear[0u];
+            let _e353 = trilinear[1u];
+            let _e356 = trilinear[2u];
+            weight = max(((_e351 * _e353) * _e356), 0.001f);
+            let _e359 = origin_2;
+            let _e360 = spacing;
+            let _e361 = cell_1;
+            probePosition = (_e359 + (_e360 * _e361));
+            let _e364 = probePosition;
+            let _e365 = biased;
+            toProbe = (_e364 - _e365);
+            let _e367 = toProbe;
+            distance_4 = length(_e367);
+            let _e369 = distance_4;
+            if (_e369 > 0.000001f) {
+                let _e371 = toProbe;
+                let _e372 = distance_4;
+                direction_2 = (_e371 / vec3(_e372));
+                let _e375 = unit;
+                let _e376 = probePosition;
+                let _e377 = (*world_4);
+                facing = ((dot(_e375, normalize((_e376 - _e377))) * 0.5f) + 0.5f);
+                let _e383 = facing;
+                let _e384 = facing;
                 let _e386 = weight;
-                if (_e386 <= 0f) {
+                weight = (_e386 * (_e383 * _e384));
+                let _e388 = weight;
+                if (_e388 <= 0f) {
                     continue;
                 }
-                let _e388 = direction_2;
-                param_90 = -(_e388);
-                let _e390 = ProbeOctahedral_u0028_vf3_u003b((&param_90));
-                let _e391 = momentCorner;
-                param_91 = _e391;
-                let _e392 = depthTile;
-                param_92 = _e392;
-                param_93 = _e390;
-                let _e393 = TileBilinear_u0028_vf2_u003b_f1_u003b_vf2_u003b((&param_91), (&param_92), (&param_93));
-                moments = _e393.xy;
-                let _e395 = distance_4;
-                let _e397 = moments[0u];
-                if (_e395 > _e397) {
-                    let _e400 = moments[1u];
-                    let _e402 = moments[0u];
+                let _e390 = direction_2;
+                param_99 = -(_e390);
+                let _e392 = ProbeOctahedral_u0028_vf3_u003b((&param_99));
+                let _e393 = momentCorner;
+                param_100 = _e393;
+                let _e394 = depthTile;
+                param_101 = _e394;
+                param_102 = _e392;
+                let _e395 = TileBilinear_u0028_vf2_u003b_f1_u003b_vf2_u003b((&param_100), (&param_101), (&param_102));
+                moments = _e395.xy;
+                let _e397 = distance_4;
+                let _e399 = moments[0u];
+                if (_e397 > _e399) {
+                    let _e402 = moments[1u];
                     let _e404 = moments[0u];
-                    variance = max((_e400 - (_e402 * _e404)), 0.000001f);
-                    let _e408 = distance_4;
-                    let _e410 = moments[0u];
-                    difference = (_e408 - _e410);
-                    let _e412 = variance;
-                    let _e413 = variance;
-                    let _e414 = difference;
-                    let _e415 = difference;
-                    chebyshev = (_e412 / (_e413 + (_e414 * _e415)));
-                    let _e419 = chebyshev;
-                    let _e420 = chebyshev;
+                    let _e406 = moments[0u];
+                    variance = max((_e402 - (_e404 * _e406)), 0.000001f);
+                    let _e410 = distance_4;
+                    let _e412 = moments[0u];
+                    difference = (_e410 - _e412);
+                    let _e414 = variance;
+                    let _e415 = variance;
+                    let _e416 = difference;
+                    let _e417 = difference;
+                    chebyshev = (_e414 / (_e415 + (_e416 * _e417)));
+                    let _e421 = chebyshev;
                     let _e422 = chebyshev;
-                    let _e425 = weight;
-                    weight = (_e425 * max(((_e419 * _e420) * _e422), 0f));
+                    let _e424 = chebyshev;
+                    let _e427 = weight;
+                    weight = (_e427 * max(((_e421 * _e422) * _e424), 0f));
                 }
-                let _e427 = weight;
-                if (_e427 <= 0f) {
+                let _e429 = weight;
+                if (_e429 <= 0f) {
                     continue;
                 }
             }
-            let _e429 = unit;
-            param_94 = _e429;
-            let _e430 = ProbeOctahedral_u0028_vf3_u003b((&param_94));
-            let _e431 = irradianceCorner;
-            param_95 = _e431;
-            let _e432 = irradianceTile;
-            param_96 = _e432;
-            param_97 = _e430;
-            let _e433 = TileBilinear_u0028_vf2_u003b_f1_u003b_vf2_u003b((&param_95), (&param_96), (&param_97));
-            let _e435 = weight;
-            let _e437 = total_2;
-            total_2 = (_e437 + (_e433.xyz * _e435));
-            let _e439 = weight;
-            let _e440 = weights;
-            weights = (_e440 + _e439);
+            let _e431 = unit;
+            param_103 = _e431;
+            let _e432 = ProbeOctahedral_u0028_vf3_u003b((&param_103));
+            let _e433 = irradianceCorner;
+            param_104 = _e433;
+            let _e434 = irradianceTile;
+            param_105 = _e434;
+            param_106 = _e432;
+            let _e435 = TileBilinear_u0028_vf2_u003b_f1_u003b_vf2_u003b((&param_104), (&param_105), (&param_106));
+            let _e437 = weight;
+            let _e439 = total_2;
+            total_2 = (_e439 + (_e435.xyz * _e437));
+            let _e441 = weight;
+            let _e442 = weights;
+            weights = (_e442 + _e441);
             continue;
         } else {
             break;
         }
         continuing {
-            let _e442 = corner_1;
-            corner_1 = (_e442 + 1i);
+            let _e444 = corner_1;
+            corner_1 = (_e444 + 1i);
         }
     }
-    let _e444 = weights;
-    if (_e444 > 0.000001f) {
-        let _e446 = total_2;
-        let _e447 = weights;
-        local_14 = (_e446 / vec3(_e447));
+    let _e446 = weights;
+    if (_e446 > 0.000001f) {
+        let _e448 = total_2;
+        let _e449 = weights;
+        local_17 = (_e448 / vec3(_e449));
     } else {
-        local_14 = vec3<f32>(0f, 0f, 0f);
+        local_17 = vec3<f32>(0f, 0f, 0f);
     }
-    let _e450 = local_14;
-    return _e450;
+    let _e452 = local_17;
+    return _e452;
 }
 
 fn IrradianceEnabled_u0028_() -> bool {
-    let _e182 = irradiance_info.origin[3u];
-    return (_e182 > 0.5f);
+    let _e184 = irradiance_info.origin[3u];
+    return (_e184 > 0.5f);
 }
 
 fn ApplyCommonMaps_u0028_struct_u002d_Surface_u002d_vf3_u002d_f1_u002d_vf3_u002d_vf3_u002d_f1_u002d_f1_u002d_f1_u002d_f1_u002d_vf3_u002d_vf3_u002d_f11_u003b(s_10: ptr<function, Surface>) {
-    var param_98: vec3<f32>;
-    var param_99: vec3<f32>;
-    var param_100: vec3<f32>;
-    var param_101: Surface;
-    var param_102: Surface;
-    var param_103: Surface;
+    var param_107: vec3<f32>;
+    var param_108: vec3<f32>;
+    var param_109: vec3<f32>;
+    var param_110: Surface;
+    var param_111: Surface;
+    var param_112: Surface;
 
-    let _e187 = IrradianceEnabled_u0028_();
-    if _e187 {
-        let _e188 = v_world_position_1;
-        param_98 = _e188;
-        let _e190 = (*s_10).n;
-        param_99 = _e190;
-        let _e192 = (*s_10).v;
-        param_100 = _e192;
-        let _e193 = SampleIrradiance_u0028_vf3_u003b_vf3_u003b_vf3_u003b((&param_98), (&param_99), (&param_100));
-        let _e196 = frag_info.material[2u];
-        (*s_10).ambient = (_e193 * _e196);
+    let _e189 = IrradianceEnabled_u0028_();
+    if _e189 {
+        let _e190 = v_world_position_1;
+        param_107 = _e190;
+        let _e192 = (*s_10).n;
+        param_108 = _e192;
+        let _e194 = (*s_10).v;
+        param_109 = _e194;
+        let _e195 = SampleIrradiance_u0028_vf3_u003b_vf3_u003b_vf3_u003b((&param_107), (&param_108), (&param_109));
+        let _e198 = frag_info.material[2u];
+        (*s_10).ambient = (_e195 * _e198);
     }
-    let _e199 = (*s_10);
-    param_101 = _e199;
-    ApplyNormalMap_u0028_struct_u002d_Surface_u002d_vf3_u002d_f1_u002d_vf3_u002d_vf3_u002d_f1_u002d_f1_u002d_f1_u002d_f1_u002d_vf3_u002d_vf3_u002d_f11_u003b((&param_101));
-    let _e200 = param_101;
-    (*s_10) = _e200;
     let _e201 = (*s_10);
-    param_102 = _e201;
-    ApplyOcclusionMap_u0028_struct_u002d_Surface_u002d_vf3_u002d_f1_u002d_vf3_u002d_vf3_u002d_f1_u002d_f1_u002d_f1_u002d_f1_u002d_vf3_u002d_vf3_u002d_f11_u003b((&param_102));
-    let _e202 = param_102;
+    param_110 = _e201;
+    ApplyNormalMap_u0028_struct_u002d_Surface_u002d_vf3_u002d_f1_u002d_vf3_u002d_vf3_u002d_f1_u002d_f1_u002d_f1_u002d_f1_u002d_vf3_u002d_vf3_u002d_f11_u003b((&param_110));
+    let _e202 = param_110;
     (*s_10) = _e202;
     let _e203 = (*s_10);
-    param_103 = _e203;
-    ApplyEmissiveMap_u0028_struct_u002d_Surface_u002d_vf3_u002d_f1_u002d_vf3_u002d_vf3_u002d_f1_u002d_f1_u002d_f1_u002d_f1_u002d_vf3_u002d_vf3_u002d_f11_u003b((&param_103));
-    let _e204 = param_103;
+    param_111 = _e203;
+    ApplyOcclusionMap_u0028_struct_u002d_Surface_u002d_vf3_u002d_f1_u002d_vf3_u002d_vf3_u002d_f1_u002d_f1_u002d_f1_u002d_f1_u002d_vf3_u002d_vf3_u002d_f11_u003b((&param_111));
+    let _e204 = param_111;
     (*s_10) = _e204;
+    let _e205 = (*s_10);
+    param_112 = _e205;
+    ApplyEmissiveMap_u0028_struct_u002d_Surface_u002d_vf3_u002d_f1_u002d_vf3_u002d_vf3_u002d_f1_u002d_f1_u002d_f1_u002d_f1_u002d_vf3_u002d_vf3_u002d_f11_u003b((&param_112));
+    let _e206 = param_112;
+    (*s_10) = _e206;
     return;
 }
 
 fn ReadSurface_u0028_() -> Surface {
-    var texel_4: vec4<f32>;
+    var texel_6: vec4<f32>;
     var s_11: Surface;
-    var param_104: vec3<f32>;
-    var param_105: vec3<f32>;
+    var param_113: vec3<f32>;
+    var param_114: vec3<f32>;
     var cutoff: f32;
     var anchored: vec3<f32>;
     var noise_1: f32;
 
-    let _e187 = v_texcoord_1;
-    let _e188 = MaterialLodBias_u0028_();
-    let _e189 = textureSampleBias(base_color_texture_tex, base_color_texture_smp, _e187, _e188);
-    texel_4 = _e189;
-    let _e190 = texel_4;
-    param_104 = _e190.xyz;
-    let _e192 = SrgbToLinear_u0028_vf3_u003b((&param_104));
-    let _e194 = frag_info.base_color;
-    param_105 = _e194.xyz;
-    let _e196 = SrgbToLinear_u0028_vf3_u003b((&param_105));
-    let _e198 = v_color_1;
-    s_11.albedo = ((_e192 * _e196) * _e198.xyz);
-    let _e203 = texel_4[3u];
-    let _e206 = frag_info.base_color[3u];
-    let _e209 = v_color_1[3u];
-    s_11.alpha = ((_e203 * _e206) * _e209);
-    let _e213 = s_11.albedo;
-    g_albedo = _e213;
-    let _e216 = frag_info.material2_[0u];
-    cutoff = _e216;
-    let _e217 = cutoff;
-    if (_e217 >= 0f) {
-        let _e220 = s_11.alpha;
-        let _e221 = cutoff;
-        if (_e220 < _e221) {
+    let _e189 = v_texcoord_1;
+    let _e190 = MaterialLodBias_u0028_();
+    let _e191 = textureSampleBias(base_color_texture_tex, base_color_texture_smp, _e189, _e190);
+    texel_6 = _e191;
+    let _e192 = texel_6;
+    param_113 = _e192.xyz;
+    let _e194 = SrgbToLinear_u0028_vf3_u003b((&param_113));
+    let _e196 = frag_info.base_color;
+    param_114 = _e196.xyz;
+    let _e198 = SrgbToLinear_u0028_vf3_u003b((&param_114));
+    let _e200 = v_color_1;
+    s_11.albedo = ((_e194 * _e198) * _e200.xyz);
+    let _e205 = texel_6[3u];
+    let _e208 = frag_info.base_color[3u];
+    let _e211 = v_color_1[3u];
+    s_11.alpha = ((_e205 * _e208) * _e211);
+    let _e215 = s_11.albedo;
+    g_albedo = _e215;
+    let _e218 = frag_info.material2_[0u];
+    cutoff = _e218;
+    let _e219 = cutoff;
+    if (_e219 >= 0f) {
+        let _e222 = s_11.alpha;
+        let _e223 = cutoff;
+        if (_e222 < _e223) {
             discard;
         }
     } else {
-        let _e223 = cutoff;
-        if (_e223 < -1.5f) {
-            let _e225 = v_world_position_1;
-            anchored = floor((_e225 * 16f));
-            let _e228 = anchored;
-            noise_1 = fract((sin(dot(_e228, vec3<f32>(12.9898f, 78.233f, 37.719f))) * 43758.547f));
-            let _e234 = s_11.alpha;
-            let _e235 = noise_1;
-            if (_e234 < _e235) {
+        let _e225 = cutoff;
+        if (_e225 < -1.5f) {
+            let _e227 = v_world_position_1;
+            anchored = floor((_e227 * 16f));
+            let _e230 = anchored;
+            noise_1 = fract((sin(dot(_e230, vec3<f32>(12.9898f, 78.233f, 37.719f))) * 43758.547f));
+            let _e236 = s_11.alpha;
+            let _e237 = noise_1;
+            if (_e236 < _e237) {
                 discard;
             }
         }
     }
-    let _e237 = v_normal_1;
-    s_11.n = normalize(_e237);
-    let _e240 = gl_FrontFacing_1;
-    if !(_e240) {
-        let _e243 = s_11.n;
-        s_11.n = -(_e243);
+    let _e239 = v_normal_1;
+    s_11.n = normalize(_e239);
+    let _e242 = gl_FrontFacing_1;
+    if !(_e242) {
+        let _e245 = s_11.n;
+        s_11.n = -(_e245);
     }
-    let _e247 = frag_info.camera_position;
-    let _e249 = v_world_position_1;
-    s_11.v = normalize((_e247.xyz - _e249));
-    let _e254 = s_11.n;
-    let _e256 = s_11.v;
-    s_11.n_dot_v = max(dot(_e254, _e256), 0.0001f);
-    let _e262 = frag_info.material[0u];
-    s_11.metallic = clamp(_e262, 0f, 1f);
-    let _e267 = frag_info.material[1u];
-    s_11.roughness = clamp(_e267, 0.02f, 1f);
-    let _e271 = frag_info.ambient_ground;
-    let _e274 = frag_info.ambient_sky;
-    let _e278 = s_11.n[1u];
-    let _e285 = frag_info.material[2u];
-    s_11.ambient = (mix(_e271.xyz, _e274.xyz, vec3(((_e278 * 0.5f) + 0.5f))) * _e285);
-    let _e290 = frag_info.frame_params[0u];
-    s_11.exposure = max(_e290, 0f);
+    let _e249 = frag_info.camera_position;
+    let _e251 = v_world_position_1;
+    s_11.v = normalize((_e249.xyz - _e251));
+    let _e256 = s_11.n;
+    let _e258 = s_11.v;
+    s_11.n_dot_v = max(dot(_e256, _e258), 0.0001f);
+    let _e264 = frag_info.material[0u];
+    s_11.metallic = clamp(_e264, 0f, 1f);
+    let _e269 = frag_info.material[1u];
+    s_11.roughness = clamp(_e269, 0.02f, 1f);
+    let _e273 = frag_info.ambient_ground;
+    let _e276 = frag_info.ambient_sky;
+    let _e280 = s_11.n[1u];
+    let _e287 = frag_info.material[2u];
+    s_11.ambient = (mix(_e273.xyz, _e276.xyz, vec3(((_e280 * 0.5f) + 0.5f))) * _e287);
+    let _e292 = frag_info.frame_params[0u];
+    s_11.exposure = max(_e292, 0f);
     s_11.occlusion = 1f;
     s_11.emissive = vec3<f32>(0f, 0f, 0f);
-    let _e295 = s_11;
-    return _e295;
+    let _e297 = s_11;
+    return _e297;
 }
 
 fn main_1() {
     var s_12: Surface;
-    var param_106: Surface;
-    var param_107: Surface;
+    var param_115: Surface;
+    var param_116: Surface;
     var metallic: f32;
     var diffuseColor_1: vec3<f32>;
     var ambient: vec3<f32>;
@@ -12364,119 +12981,121 @@ fn main_1() {
     var irradiance: vec3<f32>;
     var prefiltered: vec3<f32>;
     var ab_1: vec2<f32>;
-    var param_108: f32;
-    var param_109: f32;
+    var param_117: f32;
+    var param_118: f32;
     var specular_1: vec3<f32>;
     var single: vec3<f32>;
     var missed: f32;
     var average: vec3<f32>;
     var multiple: vec3<f32>;
-    var param_110: Surface;
-    var param_111: vec3<f32>;
-    var param_112: f32;
-    var param_113: f32;
+    var param_119: Surface;
+    var param_120: vec3<f32>;
+    var param_121: f32;
+    var param_122: f32;
 
     g_albedo = vec3<f32>(0f, 0f, 0f);
     g_debug_surface = vec3<f32>(0f, 0f, 0f);
     g_debug_surface_on = false;
-    let _e203 = ReadSurface_u0028_();
-    s_12 = _e203;
-    let _e204 = s_12;
-    param_106 = _e204;
-    ApplyCommonMaps_u0028_struct_u002d_Surface_u002d_vf3_u002d_f1_u002d_vf3_u002d_vf3_u002d_f1_u002d_f1_u002d_f1_u002d_f1_u002d_vf3_u002d_vf3_u002d_f11_u003b((&param_106));
-    let _e205 = param_106;
+    g_cluster_offset = 0f;
+    g_cluster_count = 0f;
+    let _e205 = ReadSurface_u0028_();
     s_12 = _e205;
     let _e206 = s_12;
-    param_107 = _e206;
-    ApplyMetallicRoughnessMap_u0028_struct_u002d_Surface_u002d_vf3_u002d_f1_u002d_vf3_u002d_vf3_u002d_f1_u002d_f1_u002d_f1_u002d_f1_u002d_vf3_u002d_vf3_u002d_f11_u003b((&param_107));
-    let _e207 = param_107;
+    param_115 = _e206;
+    ApplyCommonMaps_u0028_struct_u002d_Surface_u002d_vf3_u002d_f1_u002d_vf3_u002d_vf3_u002d_f1_u002d_f1_u002d_f1_u002d_f1_u002d_vf3_u002d_vf3_u002d_f11_u003b((&param_115));
+    let _e207 = param_115;
     s_12 = _e207;
-    let _e209 = s_12.metallic;
-    metallic = clamp(_e209, 0f, 1f);
-    let _e212 = s_12.albedo;
-    let _e213 = metallic;
-    diffuseColor_1 = (_e212 * (1f - _e213));
-    let _e216 = diffuseColor_1;
-    let _e218 = s_12.ambient;
-    let _e221 = s_12.occlusion;
-    ambient = ((_e216 * _e218) * _e221);
-    let _e225 = frag_info.frame_params[3u];
-    levels = _e225;
-    let _e226 = levels;
-    if (_e226 > 0f) {
-        let _e229 = s_12.albedo;
-        let _e230 = metallic;
-        f0_3 = mix(vec3<f32>(0.04f, 0.04f, 0.04f), _e229, vec3(_e230));
-        let _e234 = s_12.v;
-        let _e237 = s_12.n;
-        reflected = reflect(-(_e234), _e237);
-        let _e240 = s_12.n;
-        let _e241 = levels;
-        let _e242 = textureSampleLevel(environment_texture_tex, environment_texture_smp, _e240, _e241);
-        irradiance = _e242.xyz;
-        let _e244 = reflected;
-        let _e246 = s_12.roughness;
-        let _e247 = levels;
-        let _e249 = textureSampleLevel(environment_texture_tex, environment_texture_smp, _e244, (_e246 * _e247));
-        prefiltered = _e249.xyz;
-        let _e252 = s_12.roughness;
-        param_108 = _e252;
-        let _e254 = s_12.n_dot_v;
-        param_109 = _e254;
-        let _e255 = EnvBrdfApprox_u0028_f1_u003b_f1_u003b((&param_108), (&param_109));
-        ab_1 = _e255;
-        let _e256 = prefiltered;
-        let _e257 = f0_3;
-        let _e259 = ab_1[0u];
-        let _e262 = ab_1[1u];
-        specular_1 = (_e256 * ((_e257 * _e259) + vec3(_e262)));
-        let _e266 = EnergyCompensation_u0028_();
-        if _e266 {
-            let _e267 = f0_3;
-            let _e269 = ab_1[0u];
-            let _e272 = ab_1[1u];
-            single = ((_e267 * _e269) + vec3(_e272));
-            let _e276 = ab_1[0u];
-            let _e278 = ab_1[1u];
-            missed = (1f - (_e276 + _e278));
-            let _e281 = f0_3;
-            let _e282 = f0_3;
-            average = (_e281 + ((vec3<f32>(1f, 1f, 1f) - _e282) / vec3(21f)));
-            let _e287 = single;
-            let _e288 = average;
-            let _e290 = missed;
-            let _e291 = average;
-            multiple = ((_e287 * _e288) / (vec3<f32>(1f, 1f, 1f) - (_e291 * _e290)));
-            let _e295 = multiple;
-            let _e296 = missed;
-            let _e298 = irradiance;
-            let _e300 = specular_1;
-            specular_1 = (_e300 + ((_e295 * _e296) * _e298));
+    let _e208 = s_12;
+    param_116 = _e208;
+    ApplyMetallicRoughnessMap_u0028_struct_u002d_Surface_u002d_vf3_u002d_f1_u002d_vf3_u002d_vf3_u002d_f1_u002d_f1_u002d_f1_u002d_f1_u002d_vf3_u002d_vf3_u002d_f11_u003b((&param_116));
+    let _e209 = param_116;
+    s_12 = _e209;
+    let _e211 = s_12.metallic;
+    metallic = clamp(_e211, 0f, 1f);
+    let _e214 = s_12.albedo;
+    let _e215 = metallic;
+    diffuseColor_1 = (_e214 * (1f - _e215));
+    let _e218 = diffuseColor_1;
+    let _e220 = s_12.ambient;
+    let _e223 = s_12.occlusion;
+    ambient = ((_e218 * _e220) * _e223);
+    let _e227 = frag_info.frame_params[3u];
+    levels = _e227;
+    let _e228 = levels;
+    if (_e228 > 0f) {
+        let _e231 = s_12.albedo;
+        let _e232 = metallic;
+        f0_3 = mix(vec3<f32>(0.04f, 0.04f, 0.04f), _e231, vec3(_e232));
+        let _e236 = s_12.v;
+        let _e239 = s_12.n;
+        reflected = reflect(-(_e236), _e239);
+        let _e242 = s_12.n;
+        let _e243 = levels;
+        let _e244 = textureSampleLevel(environment_texture_tex, environment_texture_smp, _e242, _e243);
+        irradiance = _e244.xyz;
+        let _e246 = reflected;
+        let _e248 = s_12.roughness;
+        let _e249 = levels;
+        let _e251 = textureSampleLevel(environment_texture_tex, environment_texture_smp, _e246, (_e248 * _e249));
+        prefiltered = _e251.xyz;
+        let _e254 = s_12.roughness;
+        param_117 = _e254;
+        let _e256 = s_12.n_dot_v;
+        param_118 = _e256;
+        let _e257 = EnvBrdfApprox_u0028_f1_u003b_f1_u003b((&param_117), (&param_118));
+        ab_1 = _e257;
+        let _e258 = prefiltered;
+        let _e259 = f0_3;
+        let _e261 = ab_1[0u];
+        let _e264 = ab_1[1u];
+        specular_1 = (_e258 * ((_e259 * _e261) + vec3(_e264)));
+        let _e268 = EnergyCompensation_u0028_();
+        if _e268 {
+            let _e269 = f0_3;
+            let _e271 = ab_1[0u];
+            let _e274 = ab_1[1u];
+            single = ((_e269 * _e271) + vec3(_e274));
+            let _e278 = ab_1[0u];
+            let _e280 = ab_1[1u];
+            missed = (1f - (_e278 + _e280));
+            let _e283 = f0_3;
+            let _e284 = f0_3;
+            average = (_e283 + ((vec3<f32>(1f, 1f, 1f) - _e284) / vec3(21f)));
+            let _e289 = single;
+            let _e290 = average;
+            let _e292 = missed;
+            let _e293 = average;
+            multiple = ((_e289 * _e290) / (vec3<f32>(1f, 1f, 1f) - (_e293 * _e292)));
+            let _e297 = multiple;
+            let _e298 = missed;
+            let _e300 = irradiance;
+            let _e302 = specular_1;
+            specular_1 = (_e302 + ((_e297 * _e298) * _e300));
         }
-        let _e302 = diffuseColor_1;
-        let _e303 = irradiance;
-        let _e305 = specular_1;
-        let _e309 = frag_info.material[2u];
-        let _e312 = s_12.occlusion;
-        ambient = ((((_e302 * _e303) + _e305) * _e309) * _e312);
+        let _e304 = diffuseColor_1;
+        let _e305 = irradiance;
+        let _e307 = specular_1;
+        let _e311 = frag_info.material[2u];
+        let _e314 = s_12.occlusion;
+        ambient = ((((_e304 * _e305) + _e307) * _e311) * _e314);
     }
-    let _e314 = diffuseColor_1;
-    let _e315 = SampleLightmap_u0028_();
-    let _e318 = s_12.occlusion;
-    let _e320 = ambient;
-    ambient = (_e320 + ((_e314 * _e315) * _e318));
-    let _e322 = s_12;
-    param_110 = _e322;
-    let _e323 = AccumulateLights_u0028_struct_u002d_Surface_u002d_vf3_u002d_f1_u002d_vf3_u002d_vf3_u002d_f1_u002d_f1_u002d_f1_u002d_f1_u002d_vf3_u002d_vf3_u002d_f11_u003b((&param_110));
-    let _e325 = s_12.occlusion;
-    let _e327 = ambient;
-    let _e330 = s_12.emissive;
-    param_111 = (((_e323 * _e325) + _e327) + _e330);
-    let _e333 = s_12.alpha;
-    param_112 = _e333;
-    let _e335 = s_12.roughness;
-    param_113 = _e335;
-    WriteSurface_u0028_vf3_u003b_f1_u003b_f1_u003b((&param_111), (&param_112), (&param_113));
+    let _e316 = diffuseColor_1;
+    let _e317 = SampleLightmap_u0028_();
+    let _e320 = s_12.occlusion;
+    let _e322 = ambient;
+    ambient = (_e322 + ((_e316 * _e317) * _e320));
+    let _e324 = s_12;
+    param_119 = _e324;
+    let _e325 = AccumulateLights_u0028_struct_u002d_Surface_u002d_vf3_u002d_f1_u002d_vf3_u002d_vf3_u002d_f1_u002d_f1_u002d_f1_u002d_f1_u002d_vf3_u002d_vf3_u002d_f11_u003b((&param_119));
+    let _e327 = s_12.occlusion;
+    let _e329 = ambient;
+    let _e332 = s_12.emissive;
+    param_120 = (((_e325 * _e327) + _e329) + _e332);
+    let _e335 = s_12.alpha;
+    param_121 = _e335;
+    let _e337 = s_12.roughness;
+    param_122 = _e337;
+    WriteSurface_u0028_vf3_u003b_f1_u003b_f1_u003b((&param_120), (&param_121), (&param_122));
     return;
 }
 
@@ -12654,7 +13273,7 @@ fn main(@location(6) v_world_position: vec3<f32>, @location(2) v_normal: vec3<f3
           name: 'LightListInfo',
           group: 1,
           binding: 3,
-          sizeInBytes: 208,
+          sizeInBytes: 336,
           members: <WebGpuBlockMember>[
             WebGpuBlockMember(name: 'list', offsetInBytes: 0, sizeInBytes: 16),
             WebGpuBlockMember(
@@ -12666,6 +13285,26 @@ fn main(@location(6) v_world_position: vec3<f32>, @location(2) v_normal: vec3<f3
               name: 'scales',
               offsetInBytes: 112,
               sizeInBytes: 96,
+            ),
+            WebGpuBlockMember(
+              name: 'cluster_view_projection',
+              offsetInBytes: 208,
+              sizeInBytes: 64,
+            ),
+            WebGpuBlockMember(
+              name: 'cluster_grid',
+              offsetInBytes: 272,
+              sizeInBytes: 16,
+            ),
+            WebGpuBlockMember(
+              name: 'cluster_depth',
+              offsetInBytes: 288,
+              sizeInBytes: 16,
+            ),
+            WebGpuBlockMember(
+              name: 'slot_rows',
+              offsetInBytes: 304,
+              sizeInBytes: 32,
             ),
           ],
         ),
@@ -12830,6 +13469,10 @@ struct LightListInfo {
     list: vec4<f32>,
     indices: array<vec4<f32>, 6>,
     scales: array<vec4<f32>, 6>,
+    cluster_view_projection: mat4x4<f32>,
+    cluster_grid: vec4<f32>,
+    cluster_depth: vec4<f32>,
+    slot_rows: array<vec4<f32>, 2>,
 }
 
 struct FragInfo {
@@ -12880,6 +13523,8 @@ struct FragmentOutput {
 var<private> g_albedo: vec3<f32>;
 var<private> g_debug_surface: vec3<f32>;
 var<private> g_debug_surface_on: bool;
+var<private> g_cluster_offset: f32;
+var<private> g_cluster_count: f32;
 var<private> v_world_position_1: vec3<f32>;
 @group(1) @binding(0) 
 var<uniform> fog_info: FogInfo;
@@ -12891,6 +13536,10 @@ var<private> frag_color: vec4<f32>;
 var<private> gl_FragCoord_1: vec4<f32>;
 @group(1) @binding(3) 
 var<uniform> light_list_info: LightListInfo;
+@group(1) @binding(11) 
+var light_list_texture_tex: texture_2d<f32>;
+@group(1) @binding(12) 
+var light_list_texture_smp: sampler;
 @group(1) @binding(1) 
 var<uniform> frag_info: FragInfo;
 @group(1) @binding(5) 
@@ -12899,10 +13548,6 @@ var base_color_texture_tex: texture_2d<f32>;
 var base_color_texture_smp: sampler;
 var<private> v_texcoord_1: vec2<f32>;
 var<private> v_color_1: vec4<f32>;
-@group(1) @binding(11) 
-var light_list_texture_tex: texture_2d<f32>;
-@group(1) @binding(12) 
-var light_list_texture_smp: sampler;
 @group(1) @binding(4) 
 var<uniform> point_shadow: PointShadow;
 @group(1) @binding(23) 
@@ -12949,36 +13594,36 @@ var shadow_texture_smp: sampler;
 fn EncodeOctahedral_u0028_vf3_u003b(n: ptr<function, vec3<f32>>) -> vec2<f32> {
     var e: vec2<f32>;
 
-    let _e169 = (*n)[0u];
-    let _e172 = (*n)[1u];
-    let _e176 = (*n)[2u];
-    let _e179 = (*n);
-    (*n) = (_e179 / vec3(((abs(_e169) + abs(_e172)) + abs(_e176))));
-    let _e182 = (*n);
-    e = _e182.xy;
-    let _e185 = (*n)[2u];
-    if (_e185 < 0f) {
-        let _e187 = (*n);
-        let _e193 = (*n)[0u];
-        let _e197 = (*n)[1u];
-        e = ((vec2(1f) - abs(_e187.yx)) * vec2<f32>(select(-1f, 1f, (_e193 >= 0f)), select(-1f, 1f, (_e197 >= 0f))));
+    let _e171 = (*n)[0u];
+    let _e174 = (*n)[1u];
+    let _e178 = (*n)[2u];
+    let _e181 = (*n);
+    (*n) = (_e181 / vec3(((abs(_e171) + abs(_e174)) + abs(_e178))));
+    let _e184 = (*n);
+    e = _e184.xy;
+    let _e187 = (*n)[2u];
+    if (_e187 < 0f) {
+        let _e189 = (*n);
+        let _e195 = (*n)[0u];
+        let _e199 = (*n)[1u];
+        e = ((vec2(1f) - abs(_e189.yx)) * vec2<f32>(select(-1f, 1f, (_e195 >= 0f)), select(-1f, 1f, (_e199 >= 0f))));
     }
-    let _e202 = e;
-    return ((_e202 * 0.5f) + vec2(0.5f));
+    let _e204 = e;
+    return ((_e204 * 0.5f) + vec2(0.5f));
 }
 
 fn ViewDepth_u0028_() -> f32 {
-    let _e166 = v_world_position_1;
-    let _e168 = fog_info.eye;
-    let _e172 = fog_info.forward;
-    return dot((_e166 - _e168.xyz), _e172.xyz);
+    let _e168 = v_world_position_1;
+    let _e170 = fog_info.eye;
+    let _e174 = fog_info.forward;
+    return dot((_e168 - _e170.xyz), _e174.xyz);
 }
 
 fn LinearToSrgb_u0028_vf3_u003b(linear: ptr<function, vec3<f32>>) -> vec3<f32> {
-    let _e167 = (*linear);
     let _e169 = (*linear);
-    let _e173 = (*linear);
-    return mix((_e167 * 12.92f), ((pow(_e169, vec3<f32>(0.41666666f, 0.41666666f, 0.41666666f)) * 1.055f) - vec3<f32>(0.055f, 0.055f, 0.055f)), step(vec3<f32>(0.0031308f, 0.0031308f, 0.0031308f), _e173));
+    let _e171 = (*linear);
+    let _e175 = (*linear);
+    return mix((_e169 * 12.92f), ((pow(_e171, vec3<f32>(0.41666666f, 0.41666666f, 0.41666666f)) * 1.055f) - vec3<f32>(0.055f, 0.055f, 0.055f)), step(vec3<f32>(0.0031308f, 0.0031308f, 0.0031308f), _e175));
 }
 
 fn WriteSurfaceGeometry_u0028_f1_u003b(roughness: ptr<function, f32>) {
@@ -12986,70 +13631,70 @@ fn WriteSurfaceGeometry_u0028_f1_u003b(roughness: ptr<function, f32>) {
     var geometric: vec3<f32>;
     var param_1: vec3<f32>;
 
-    let _e170 = g_albedo;
-    param = clamp(_e170, vec3<f32>(0f, 0f, 0f), vec3<f32>(1f, 1f, 1f));
-    let _e172 = LinearToSrgb_u0028_vf3_u003b((&param));
-    frag_albedo = vec4<f32>(_e172.x, _e172.y, _e172.z, 1f);
-    let _e177 = g_debug_surface_on;
-    if _e177 {
-        let _e178 = g_debug_surface;
-        let _e179 = ViewDepth_u0028_();
-        frag_surface = vec4<f32>(_e178.x, _e178.y, _e178.z, _e179);
+    let _e172 = g_albedo;
+    param = clamp(_e172, vec3<f32>(0f, 0f, 0f), vec3<f32>(1f, 1f, 1f));
+    let _e174 = LinearToSrgb_u0028_vf3_u003b((&param));
+    frag_albedo = vec4<f32>(_e174.x, _e174.y, _e174.z, 1f);
+    let _e179 = g_debug_surface_on;
+    if _e179 {
+        let _e180 = g_debug_surface;
+        let _e181 = ViewDepth_u0028_();
+        frag_surface = vec4<f32>(_e180.x, _e180.y, _e180.z, _e181);
         return;
     }
-    let _e184 = v_normal_1;
-    geometric = normalize(_e184);
-    let _e186 = gl_FrontFacing_1;
-    if !(_e186) {
-        let _e188 = geometric;
-        geometric = -(_e188);
+    let _e186 = v_normal_1;
+    geometric = normalize(_e186);
+    let _e188 = gl_FrontFacing_1;
+    if !(_e188) {
+        let _e190 = geometric;
+        geometric = -(_e190);
     }
-    let _e190 = geometric;
-    param_1 = _e190;
-    let _e191 = EncodeOctahedral_u0028_vf3_u003b((&param_1));
-    let _e192 = (*roughness);
-    let _e194 = ViewDepth_u0028_();
-    frag_surface = vec4<f32>(_e191.x, _e191.y, clamp(_e192, 0f, 1f), _e194);
+    let _e192 = geometric;
+    param_1 = _e192;
+    let _e193 = EncodeOctahedral_u0028_vf3_u003b((&param_1));
+    let _e194 = (*roughness);
+    let _e196 = ViewDepth_u0028_();
+    frag_surface = vec4<f32>(_e193.x, _e193.y, clamp(_e194, 0f, 1f), _e196);
     return;
 }
 
 fn EyeDistance_u0028_() -> f32 {
-    let _e166 = v_world_position_1;
-    let _e168 = fog_info.eye;
-    return distance(_e166, _e168.xyz);
+    let _e168 = v_world_position_1;
+    let _e170 = fog_info.eye;
+    return distance(_e168, _e170.xyz);
 }
 
 fn ApplyFog_u0028_vf3_u003b(color: ptr<function, vec3<f32>>) -> vec3<f32> {
     var density: f32;
     var d: f32;
 
-    let _e171 = fog_info.fog[3u];
-    density = _e171;
-    let _e172 = density;
-    if (_e172 <= 0f) {
-        let _e174 = (*color);
-        return _e174;
+    let _e173 = fog_info.fog[3u];
+    density = _e173;
+    let _e174 = density;
+    if (_e174 <= 0f) {
+        let _e176 = (*color);
+        return _e176;
     }
-    let _e175 = EyeDistance_u0028_();
-    d = _e175;
-    let _e177 = fog_info.fog;
-    let _e179 = (*color);
-    let _e180 = density;
-    let _e182 = d;
-    return mix(_e177.xyz, _e179, vec3(clamp(exp((-(_e180) * _e182)), 0f, 1f)));
+    let _e177 = EyeDistance_u0028_();
+    d = _e177;
+    let _e179 = fog_info.fog;
+    let _e181 = (*color);
+    let _e182 = density;
+    let _e184 = d;
+    return mix(_e179.xyz, _e181, vec3(clamp(exp((-(_e182) * _e184)), 0f, 1f)));
 }
 
 fn WriteSurface_u0028_vf3_u003b_f1_u003b_f1_u003b(linearColor: ptr<function, vec3<f32>>, alpha: ptr<function, f32>, roughness_1: ptr<function, f32>) {
     var param_2: vec3<f32>;
     var param_3: f32;
 
-    let _e171 = (*linearColor);
-    param_2 = _e171;
-    let _e172 = ApplyFog_u0028_vf3_u003b((&param_2));
-    let _e173 = (*alpha);
-    frag_color = vec4<f32>(_e172.x, _e172.y, _e172.z, _e173);
-    let _e178 = (*roughness_1);
-    param_3 = _e178;
+    let _e173 = (*linearColor);
+    param_2 = _e173;
+    let _e174 = ApplyFog_u0028_vf3_u003b((&param_2));
+    let _e175 = (*alpha);
+    frag_color = vec4<f32>(_e174.x, _e174.y, _e174.z, _e175);
+    let _e180 = (*roughness_1);
+    param_3 = _e180;
     WriteSurfaceGeometry_u0028_f1_u003b((&param_3));
     return;
 }
@@ -13060,54 +13705,54 @@ fn ShadeLight_u0028_struct_u002d_Surface_u002d_vf3_u002d_f1_u002d_vf3_u002d_vf3_
     var fraction: f32;
     var ramp: f32;
 
-    let _e173 = (*s).roughness;
-    bands = mix(5f, 2f, _e173);
-    let _e176 = (*light).n_dot_l;
-    let _e177 = bands;
-    let _e180 = bands;
-    quantized = (floor((_e176 * _e177)) / _e180);
-    let _e183 = (*light).n_dot_l;
-    let _e184 = bands;
-    fraction = fract((_e183 * _e184));
-    let _e187 = fraction;
-    let _e189 = bands;
-    let _e191 = quantized;
-    quantized = (_e191 + (smoothstep(0.85f, 1f, _e187) / _e189));
+    let _e175 = (*s).roughness;
+    bands = mix(5f, 2f, _e175);
+    let _e178 = (*light).n_dot_l;
+    let _e179 = bands;
+    let _e182 = bands;
+    quantized = (floor((_e178 * _e179)) / _e182);
+    let _e185 = (*light).n_dot_l;
+    let _e186 = bands;
+    fraction = fract((_e185 * _e186));
+    let _e189 = fraction;
+    let _e191 = bands;
     let _e193 = quantized;
-    let _e195 = (*light).n_dot_l;
-    ramp = (_e193 / max(_e195, 0.001f));
-    let _e199 = (*s).albedo;
-    let _e200 = ramp;
-    return (_e199 * _e200);
+    quantized = (_e193 + (smoothstep(0.85f, 1f, _e189) / _e191));
+    let _e195 = quantized;
+    let _e197 = (*light).n_dot_l;
+    ramp = (_e195 / max(_e197, 0.001f));
+    let _e201 = (*s).albedo;
+    let _e202 = ramp;
+    return (_e201 * _e202);
 }
 
 fn PointShadowDiskTap_u0028_i1_u003b(i: ptr<function, i32>) -> vec2<f32> {
-    let _e167 = (*i);
-    if (_e167 == 0i) {
+    let _e169 = (*i);
+    if (_e169 == 0i) {
         return vec2<f32>(-0.94201624f, -0.39906216f);
     }
-    let _e169 = (*i);
-    if (_e169 == 1i) {
+    let _e171 = (*i);
+    if (_e171 == 1i) {
         return vec2<f32>(0.9455861f, -0.76890725f);
     }
-    let _e171 = (*i);
-    if (_e171 == 2i) {
+    let _e173 = (*i);
+    if (_e173 == 2i) {
         return vec2<f32>(-0.0941841f, -0.9293887f);
     }
-    let _e173 = (*i);
-    if (_e173 == 3i) {
+    let _e175 = (*i);
+    if (_e175 == 3i) {
         return vec2<f32>(0.34495938f, 0.2938776f);
     }
-    let _e175 = (*i);
-    if (_e175 == 4i) {
+    let _e177 = (*i);
+    if (_e177 == 4i) {
         return vec2<f32>(-0.9158858f, 0.45771432f);
     }
-    let _e177 = (*i);
-    if (_e177 == 5i) {
+    let _e179 = (*i);
+    if (_e179 == 5i) {
         return vec2<f32>(-0.8154423f, -0.87912464f);
     }
-    let _e179 = (*i);
-    if (_e179 == 6i) {
+    let _e181 = (*i);
+    if (_e181 == 6i) {
         return vec2<f32>(-0.38277543f, 0.27676845f);
     }
     return vec2<f32>(0.974844f, 0.7564838f);
@@ -13117,20 +13762,20 @@ fn PointShadowOffset_u0028_i1_u003b_f1_u003b_f1_u003b_f1_u003b(i_1: ptr<function
     var p: vec2<f32>;
     var param_4: i32;
 
-    let _e172 = (*i_1);
-    param_4 = _e172;
-    let _e173 = PointShadowDiskTap_u0028_i1_u003b((&param_4));
-    p = _e173;
-    let _e175 = p[0u];
-    let _e176 = (*ca);
-    let _e179 = p[1u];
-    let _e180 = (*sa);
-    let _e184 = p[0u];
-    let _e185 = (*sa);
-    let _e188 = p[1u];
-    let _e189 = (*ca);
-    let _e193 = (*radius);
-    return (vec2<f32>(((_e175 * _e176) - (_e179 * _e180)), ((_e184 * _e185) + (_e188 * _e189))) * _e193);
+    let _e174 = (*i_1);
+    param_4 = _e174;
+    let _e175 = PointShadowDiskTap_u0028_i1_u003b((&param_4));
+    p = _e175;
+    let _e177 = p[0u];
+    let _e178 = (*ca);
+    let _e181 = p[1u];
+    let _e182 = (*sa);
+    let _e186 = p[0u];
+    let _e187 = (*sa);
+    let _e190 = p[1u];
+    let _e191 = (*ca);
+    let _e195 = (*radius);
+    return (vec2<f32>(((_e177 * _e178) - (_e181 * _e182)), ((_e186 * _e187) + (_e190 * _e191))) * _e195);
 }
 
 fn PointShadowDistance_u0028_vf2_u003b_vf2_u003b_vf2_u003b_f1_u003b(uv: ptr<function, vec2<f32>>, offset: ptr<function, vec2<f32>>, tile: ptr<function, vec2<f32>>, range: ptr<function, f32>) -> f32 {
@@ -13138,27 +13783,27 @@ fn PointShadowDistance_u0028_vf2_u003b_vf2_u003b_vf2_u003b_f1_u003b(uv: ptr<func
     var local: vec2<f32>;
     var atlas: vec2<f32>;
 
-    let _e175 = point_shadow.params[0u];
-    inset = _e175;
-    let _e176 = (*uv);
-    let _e177 = (*offset);
-    let _e179 = inset;
-    let _e180 = inset;
-    local = clamp((_e176 + _e177), vec2(_e179), vec2((1f - _e180)));
-    let _e185 = local;
-    let _e186 = (*tile);
-    atlas = ((_e185 + _e186) * vec2<f32>(0.16666667f, 0.16666667f));
-    let _e191 = point_shadow.params3_[0u];
-    if (_e191 > 0.5f) {
-        let _e194 = atlas[1u];
-        atlas[1u] = (1f - _e194);
+    let _e177 = point_shadow.params[0u];
+    inset = _e177;
+    let _e178 = (*uv);
+    let _e179 = (*offset);
+    let _e181 = inset;
+    let _e182 = inset;
+    local = clamp((_e178 + _e179), vec2(_e181), vec2((1f - _e182)));
+    let _e187 = local;
+    let _e188 = (*tile);
+    atlas = ((_e187 + _e188) * vec2<f32>(0.16666667f, 0.16666667f));
+    let _e193 = point_shadow.params3_[0u];
+    if (_e193 > 0.5f) {
+        let _e196 = atlas[1u];
+        atlas[1u] = (1f - _e196);
     }
-    let _e197 = atlas;
-    let _e198 = textureSampleLevel(point_shadow_texture_tex, point_shadow_texture_smp, _e197, 0f);
-    let _e200 = atlas;
-    let _e201 = textureSampleLevel(point_shadow_static_texture_tex, point_shadow_static_texture_smp, _e200, 0f);
-    let _e204 = (*range);
-    return (min(_e198.x, _e201.x) * _e204);
+    let _e199 = atlas;
+    let _e200 = textureSampleLevel(point_shadow_texture_tex, point_shadow_texture_smp, _e199, 0f);
+    let _e202 = atlas;
+    let _e203 = textureSampleLevel(point_shadow_static_texture_tex, point_shadow_static_texture_smp, _e202, 0f);
+    let _e206 = (*range);
+    return (min(_e200.x, _e203.x) * _e206);
 }
 
 fn PointShadowTap_u0028_vf2_u003b_vf2_u003b_vf2_u003b_f1_u003b_f1_u003b(uv_1: ptr<function, vec2<f32>>, offset_1: ptr<function, vec2<f32>>, tile_1: ptr<function, vec2<f32>>, range_1: ptr<function, f32>, receiver: ptr<function, f32>) -> f32 {
@@ -13168,24 +13813,24 @@ fn PointShadowTap_u0028_vf2_u003b_vf2_u003b_vf2_u003b_f1_u003b_f1_u003b(uv_1: pt
     var param_7: vec2<f32>;
     var param_8: f32;
 
-    let _e176 = (*uv_1);
-    param_5 = _e176;
-    let _e177 = (*offset_1);
-    param_6 = _e177;
-    let _e178 = (*tile_1);
-    param_7 = _e178;
-    let _e179 = (*range_1);
-    param_8 = _e179;
-    let _e180 = PointShadowDistance_u0028_vf2_u003b_vf2_u003b_vf2_u003b_f1_u003b((&param_5), (&param_6), (&param_7), (&param_8));
-    stored = _e180;
-    let _e181 = stored;
-    let _e182 = (*range_1);
-    if (_e181 >= (_e182 * 0.999f)) {
+    let _e178 = (*uv_1);
+    param_5 = _e178;
+    let _e179 = (*offset_1);
+    param_6 = _e179;
+    let _e180 = (*tile_1);
+    param_7 = _e180;
+    let _e181 = (*range_1);
+    param_8 = _e181;
+    let _e182 = PointShadowDistance_u0028_vf2_u003b_vf2_u003b_vf2_u003b_f1_u003b((&param_5), (&param_6), (&param_7), (&param_8));
+    stored = _e182;
+    let _e183 = stored;
+    let _e184 = (*range_1);
+    if (_e183 >= (_e184 * 0.999f)) {
         return 1f;
     }
-    let _e185 = (*receiver);
-    let _e186 = stored;
-    return select(1f, 0f, (_e185 > _e186));
+    let _e187 = (*receiver);
+    let _e188 = stored;
+    return select(1f, 0f, (_e187 > _e188));
 }
 
 fn PointShadowPenumbra_u0028_vf2_u003b_vf2_u003b_f1_u003b_f1_u003b_f1_u003b_f1_u003b_f1_u003b_f1_u003b(uv_2: ptr<function, vec2<f32>>, tile_2: ptr<function, vec2<f32>>, range_2: ptr<function, f32>, receiver_1: ptr<function, f32>, ca_1: ptr<function, f32>, sa_1: ptr<function, f32>, tanHalf: ptr<function, f32>, blockerOut: ptr<function, f32>) -> f32 {
@@ -13212,111 +13857,111 @@ fn PointShadowPenumbra_u0028_vf2_u003b_vf2_u003b_f1_u003b_f1_u003b_f1_u003b_f1_u
     var world: f32;
 
     (*blockerOut) = -1f;
-    let _e197 = point_shadow.params2_[1u];
-    lightRadius = _e197;
-    let _e200 = point_shadow.params2_[0u];
-    minRadius = _e200;
-    let _e203 = point_shadow.params2_[2u];
-    maxRadius = _e203;
-    let _e204 = lightRadius;
-    if (_e204 <= 0f) {
-        let _e206 = (*uv_2);
-        param_9 = _e206;
+    let _e199 = point_shadow.params2_[1u];
+    lightRadius = _e199;
+    let _e202 = point_shadow.params2_[0u];
+    minRadius = _e202;
+    let _e205 = point_shadow.params2_[2u];
+    maxRadius = _e205;
+    let _e206 = lightRadius;
+    if (_e206 <= 0f) {
+        let _e208 = (*uv_2);
+        param_9 = _e208;
         param_10 = vec2<f32>(0f, 0f);
-        let _e207 = (*tile_2);
-        param_11 = _e207;
-        let _e208 = (*range_2);
-        param_12 = _e208;
-        let _e209 = PointShadowDistance_u0028_vf2_u003b_vf2_u003b_vf2_u003b_f1_u003b((&param_9), (&param_10), (&param_11), (&param_12));
-        (*blockerOut) = _e209;
-        let _e210 = minRadius;
-        return _e210;
+        let _e209 = (*tile_2);
+        param_11 = _e209;
+        let _e210 = (*range_2);
+        param_12 = _e210;
+        let _e211 = PointShadowDistance_u0028_vf2_u003b_vf2_u003b_vf2_u003b_f1_u003b((&param_9), (&param_10), (&param_11), (&param_12));
+        (*blockerOut) = _e211;
+        let _e212 = minRadius;
+        return _e212;
     }
     sum = 0f;
     count = 0f;
     i_2 = 0i;
     loop {
-        let _e211 = i_2;
-        if (_e211 < 8i) {
-            let _e213 = i_2;
-            param_13 = _e213;
-            let _e214 = (*ca_1);
-            param_14 = _e214;
-            let _e215 = (*sa_1);
-            param_15 = _e215;
-            let _e216 = maxRadius;
-            param_16 = _e216;
-            let _e217 = PointShadowOffset_u0028_i1_u003b_f1_u003b_f1_u003b_f1_u003b((&param_13), (&param_14), (&param_15), (&param_16));
-            let _e218 = (*uv_2);
-            param_17 = _e218;
-            param_18 = _e217;
-            let _e219 = (*tile_2);
-            param_19 = _e219;
-            let _e220 = (*range_2);
-            param_20 = _e220;
-            let _e221 = PointShadowDistance_u0028_vf2_u003b_vf2_u003b_vf2_u003b_f1_u003b((&param_17), (&param_18), (&param_19), (&param_20));
-            stored_1 = _e221;
-            let _e222 = stored_1;
-            let _e223 = (*range_2);
-            if (_e222 >= (_e223 * 0.999f)) {
+        let _e213 = i_2;
+        if (_e213 < 8i) {
+            let _e215 = i_2;
+            param_13 = _e215;
+            let _e216 = (*ca_1);
+            param_14 = _e216;
+            let _e217 = (*sa_1);
+            param_15 = _e217;
+            let _e218 = maxRadius;
+            param_16 = _e218;
+            let _e219 = PointShadowOffset_u0028_i1_u003b_f1_u003b_f1_u003b_f1_u003b((&param_13), (&param_14), (&param_15), (&param_16));
+            let _e220 = (*uv_2);
+            param_17 = _e220;
+            param_18 = _e219;
+            let _e221 = (*tile_2);
+            param_19 = _e221;
+            let _e222 = (*range_2);
+            param_20 = _e222;
+            let _e223 = PointShadowDistance_u0028_vf2_u003b_vf2_u003b_vf2_u003b_f1_u003b((&param_17), (&param_18), (&param_19), (&param_20));
+            stored_1 = _e223;
+            let _e224 = stored_1;
+            let _e225 = (*range_2);
+            if (_e224 >= (_e225 * 0.999f)) {
                 continue;
             }
-            let _e226 = stored_1;
-            let _e227 = (*receiver_1);
-            if (_e226 >= _e227) {
+            let _e228 = stored_1;
+            let _e229 = (*receiver_1);
+            if (_e228 >= _e229) {
                 continue;
             }
-            let _e229 = stored_1;
-            let _e230 = sum;
-            sum = (_e230 + _e229);
-            let _e232 = count;
-            count = (_e232 + 1f);
+            let _e231 = stored_1;
+            let _e232 = sum;
+            sum = (_e232 + _e231);
+            let _e234 = count;
+            count = (_e234 + 1f);
             continue;
         } else {
             break;
         }
         continuing {
-            let _e234 = i_2;
-            i_2 = (_e234 + 1i);
+            let _e236 = i_2;
+            i_2 = (_e236 + 1i);
         }
     }
-    let _e236 = count;
-    if (_e236 < 0.5f) {
+    let _e238 = count;
+    if (_e238 < 0.5f) {
         return -1f;
     }
-    let _e238 = sum;
-    let _e239 = count;
-    blocker = max((_e238 / _e239), 0.0001f);
-    let _e242 = blocker;
-    (*blockerOut) = _e242;
-    let _e243 = lightRadius;
-    let _e244 = (*receiver_1);
-    let _e245 = blocker;
-    let _e249 = blocker;
-    world = ((_e243 * max((_e244 - _e245), 0f)) / _e249);
-    let _e251 = world;
-    let _e252 = (*receiver_1);
-    let _e254 = (*tanHalf);
-    let _e257 = minRadius;
-    let _e258 = maxRadius;
-    return clamp((_e251 / ((2f * _e252) * _e254)), _e257, _e258);
+    let _e240 = sum;
+    let _e241 = count;
+    blocker = max((_e240 / _e241), 0.0001f);
+    let _e244 = blocker;
+    (*blockerOut) = _e244;
+    let _e245 = lightRadius;
+    let _e246 = (*receiver_1);
+    let _e247 = blocker;
+    let _e251 = blocker;
+    world = ((_e245 * max((_e246 - _e247), 0f)) / _e251);
+    let _e253 = world;
+    let _e254 = (*receiver_1);
+    let _e256 = (*tanHalf);
+    let _e259 = minRadius;
+    let _e260 = maxRadius;
+    return clamp((_e253 / ((2f * _e254) * _e256)), _e259, _e260);
 }
 
 fn FragCoordFromTop_u0028_f1_u003b(rows: ptr<function, f32>) -> vec2<f32> {
     var local_1: vec2<f32>;
 
-    let _e168 = (*rows);
-    if (_e168 > 0f) {
-        let _e171 = gl_FragCoord_1[0u];
-        let _e172 = (*rows);
-        let _e174 = gl_FragCoord_1[1u];
-        local_1 = vec2<f32>(_e171, (_e172 - _e174));
+    let _e170 = (*rows);
+    if (_e170 > 0f) {
+        let _e173 = gl_FragCoord_1[0u];
+        let _e174 = (*rows);
+        let _e176 = gl_FragCoord_1[1u];
+        local_1 = vec2<f32>(_e173, (_e174 - _e176));
     } else {
-        let _e177 = gl_FragCoord_1;
-        local_1 = _e177.xy;
+        let _e179 = gl_FragCoord_1;
+        local_1 = _e179.xy;
     }
-    let _e179 = local_1;
-    return _e179;
+    let _e181 = local_1;
+    return _e181;
 }
 
 fn PointShadowFactor_u0028_vf3_u003b_vf3_u003b_i1_u003b(world_1: ptr<function, vec3<f32>>, normal: ptr<function, vec3<f32>>, lightIndex: ptr<function, i32>) -> f32 {
@@ -13371,231 +14016,231 @@ fn PointShadowFactor_u0028_vf3_u003b_vf3_u003b_i1_u003b(world_1: ptr<function, v
     var param_41: vec2<f32>;
     var param_42: f32;
     var param_43: f32;
-    var phi_1628_: bool;
-    var phi_1690_: bool;
+    var phi_1893_: bool;
+    var phi_1954_: bool;
 
-    let _e220 = (*lightIndex);
-    let _e224 = point_shadow.slots[_e220][0u];
-    slot = i32((_e224 + 0.5f));
-    let _e227 = (*lightIndex);
-    let _e231 = point_shadow.slots[_e227][0u];
-    if (_e231 < 0f) {
+    let _e222 = (*lightIndex);
+    let _e226 = point_shadow.slots[_e222][0u];
+    slot = i32((_e226 + 0.5f));
+    let _e229 = (*lightIndex);
+    let _e233 = point_shadow.slots[_e229][0u];
+    if (_e233 < 0f) {
         return 1f;
     }
-    let _e235 = point_shadow.params[2u];
-    strength = _e235;
-    let _e236 = strength;
-    if (_e236 <= 0f) {
+    let _e237 = point_shadow.params[2u];
+    strength = _e237;
+    let _e238 = strength;
+    if (_e238 <= 0f) {
         return 1f;
     }
-    let _e238 = slot;
-    let _e241 = point_shadow.lights[_e238];
-    let _e243 = (*world_1);
-    toLight = (_e241.xyz - _e243);
-    let _e245 = toLight;
-    toLightLength = max(length(_e245), 0.000001f);
-    let _e248 = (*normal);
-    let _e249 = toLight;
-    let _e250 = toLightLength;
-    nDotL = max(dot(_e248, (_e249 / vec3(_e250))), 0.15f);
-    let _e255 = nDotL;
-    let _e256 = nDotL;
-    let _e261 = nDotL;
-    let _e262 = nDotL;
-    slope = min((sqrt(max((1f - (_e255 * _e256)), 0f)) / (_e261 * _e262)), 8f);
-    let _e266 = toLightLength;
-    let _e268 = (*lightIndex);
-    let _e272 = point_shadow.slots[_e268][2u];
-    let _e277 = point_shadow.params3_[1u];
-    texel = (((2f * _e266) * max(_e272, 0.0001f)) * _e277);
-    let _e279 = (*world_1);
-    let _e280 = (*normal);
-    let _e281 = texel;
-    let _e285 = point_shadow.params[3u];
-    let _e287 = slope;
-    origin = (_e279 + (((_e280 * _e281) * _e285) * (1f + _e287)));
-    let _e291 = origin;
-    let _e292 = slot;
-    let _e295 = point_shadow.lights[_e292];
-    toFragment = (_e291 - _e295.xyz);
-    let _e298 = toFragment;
-    distance_ = length(_e298);
-    let _e300 = slot;
-    let _e304 = point_shadow.lights[_e300][3u];
-    range_3 = max(_e304, 0.0001f);
-    let _e306 = distance_;
-    let _e307 = range_3;
-    if (_e306 >= _e307) {
+    let _e240 = slot;
+    let _e243 = point_shadow.lights[_e240];
+    let _e245 = (*world_1);
+    toLight = (_e243.xyz - _e245);
+    let _e247 = toLight;
+    toLightLength = max(length(_e247), 0.000001f);
+    let _e250 = (*normal);
+    let _e251 = toLight;
+    let _e252 = toLightLength;
+    nDotL = max(dot(_e250, (_e251 / vec3(_e252))), 0.15f);
+    let _e257 = nDotL;
+    let _e258 = nDotL;
+    let _e263 = nDotL;
+    let _e264 = nDotL;
+    slope = min((sqrt(max((1f - (_e257 * _e258)), 0f)) / (_e263 * _e264)), 8f);
+    let _e268 = toLightLength;
+    let _e270 = (*lightIndex);
+    let _e274 = point_shadow.slots[_e270][2u];
+    let _e279 = point_shadow.params3_[1u];
+    texel = (((2f * _e268) * max(_e274, 0.0001f)) * _e279);
+    let _e281 = (*world_1);
+    let _e282 = (*normal);
+    let _e283 = texel;
+    let _e287 = point_shadow.params[3u];
+    let _e289 = slope;
+    origin = (_e281 + (((_e282 * _e283) * _e287) * (1f + _e289)));
+    let _e293 = origin;
+    let _e294 = slot;
+    let _e297 = point_shadow.lights[_e294];
+    toFragment = (_e293 - _e297.xyz);
+    let _e300 = toFragment;
+    distance_ = length(_e300);
+    let _e302 = slot;
+    let _e306 = point_shadow.lights[_e302][3u];
+    range_3 = max(_e306, 0.0001f);
+    let _e308 = distance_;
+    let _e309 = range_3;
+    if (_e308 >= _e309) {
         return 1f;
     }
     face = 0i;
-    let _e309 = (*lightIndex);
-    let _e313 = point_shadow.slots[_e309][1u];
-    if (_e313 < 0.5f) {
-        let _e315 = toFragment;
-        a = abs(_e315);
-        let _e318 = a[0u];
-        let _e320 = a[1u];
-        let _e321 = (_e318 >= _e320);
-        phi_1628_ = _e321;
-        if _e321 {
-            let _e323 = a[0u];
-            let _e325 = a[2u];
-            phi_1628_ = (_e323 >= _e325);
+    let _e311 = (*lightIndex);
+    let _e315 = point_shadow.slots[_e311][1u];
+    if (_e315 < 0.5f) {
+        let _e317 = toFragment;
+        a = abs(_e317);
+        let _e320 = a[0u];
+        let _e322 = a[1u];
+        let _e323 = (_e320 >= _e322);
+        phi_1893_ = _e323;
+        if _e323 {
+            let _e325 = a[0u];
+            let _e327 = a[2u];
+            phi_1893_ = (_e325 >= _e327);
         }
-        let _e328 = phi_1628_;
-        if _e328 {
-            let _e330 = toFragment[0u];
-            face = select(1i, 0i, (_e330 > 0f));
+        let _e330 = phi_1893_;
+        if _e330 {
+            let _e332 = toFragment[0u];
+            face = select(1i, 0i, (_e332 > 0f));
         } else {
-            let _e334 = a[1u];
-            let _e336 = a[2u];
-            if (_e334 >= _e336) {
-                let _e339 = toFragment[1u];
-                face = select(3i, 2i, (_e339 > 0f));
+            let _e336 = a[1u];
+            let _e338 = a[2u];
+            if (_e336 >= _e338) {
+                let _e341 = toFragment[1u];
+                face = select(3i, 2i, (_e341 > 0f));
             } else {
-                let _e343 = toFragment[2u];
-                face = select(5i, 4i, (_e343 > 0f));
+                let _e345 = toFragment[2u];
+                face = select(5i, 4i, (_e345 > 0f));
             }
         }
     }
-    let _e346 = slot;
-    let _e348 = face;
-    let _e352 = point_shadow.faces[((_e346 * 6i) + _e348)];
-    let _e353 = origin;
-    clip = (_e352 * vec4<f32>(_e353.x, _e353.y, _e353.z, 1f));
-    let _e360 = clip[3u];
-    if (_e360 <= 0f) {
+    let _e348 = slot;
+    let _e350 = face;
+    let _e354 = point_shadow.faces[((_e348 * 6i) + _e350)];
+    let _e355 = origin;
+    clip = (_e354 * vec4<f32>(_e355.x, _e355.y, _e355.z, 1f));
+    let _e362 = clip[3u];
+    if (_e362 <= 0f) {
         return 1f;
     }
-    let _e362 = clip;
-    let _e365 = clip[3u];
-    ndc = (_e362.xy / vec2(_e365));
-    let _e369 = ndc[0u];
-    let _e371 = (abs(_e369) > 1f);
-    phi_1690_ = _e371;
-    if !(_e371) {
-        let _e374 = ndc[1u];
-        phi_1690_ = (abs(_e374) > 1f);
+    let _e364 = clip;
+    let _e367 = clip[3u];
+    ndc = (_e364.xy / vec2(_e367));
+    let _e371 = ndc[0u];
+    let _e373 = (abs(_e371) > 1f);
+    phi_1954_ = _e373;
+    if !(_e373) {
+        let _e376 = ndc[1u];
+        phi_1954_ = (abs(_e376) > 1f);
     }
-    let _e378 = phi_1690_;
-    if _e378 {
+    let _e380 = phi_1954_;
+    if _e380 {
         return 1f;
     }
-    let _e380 = ndc[0u];
-    let _e384 = ndc[1u];
-    uv_3 = vec2<f32>(((_e380 * 0.5f) + 0.5f), (0.5f - (_e384 * 0.5f)));
-    let _e388 = face;
-    let _e390 = slot;
-    tile_3 = vec2<f32>(f32(_e388), f32(_e390));
-    let _e393 = distance_;
-    let _e396 = point_shadow.params[1u];
-    receiver_2 = (_e393 - _e396);
-    let _e400 = frag_info.target_origin[0u];
-    param_21 = _e400;
-    let _e401 = FragCoordFromTop_u0028_f1_u003b((&param_21));
-    noise = fract((52.982918f * fract(dot(_e401, vec2<f32>(0.06711056f, 0.00583715f)))));
-    let _e406 = noise;
-    angle = (_e406 * 6.2831855f);
-    let _e408 = angle;
-    ca_2 = cos(_e408);
+    let _e382 = ndc[0u];
+    let _e386 = ndc[1u];
+    uv_3 = vec2<f32>(((_e382 * 0.5f) + 0.5f), (0.5f - (_e386 * 0.5f)));
+    let _e390 = face;
+    let _e392 = slot;
+    tile_3 = vec2<f32>(f32(_e390), f32(_e392));
+    let _e395 = distance_;
+    let _e398 = point_shadow.params[1u];
+    receiver_2 = (_e395 - _e398);
+    let _e402 = frag_info.target_origin[0u];
+    param_21 = _e402;
+    let _e403 = FragCoordFromTop_u0028_f1_u003b((&param_21));
+    noise = fract((52.982918f * fract(dot(_e403, vec2<f32>(0.06711056f, 0.00583715f)))));
+    let _e408 = noise;
+    angle = (_e408 * 6.2831855f);
     let _e410 = angle;
-    sa_2 = sin(_e410);
-    let _e412 = (*lightIndex);
-    let _e416 = point_shadow.slots[_e412][2u];
-    tanHalf_1 = max(_e416, 0.0001f);
+    ca_2 = cos(_e410);
+    let _e412 = angle;
+    sa_2 = sin(_e412);
+    let _e414 = (*lightIndex);
+    let _e418 = point_shadow.slots[_e414][2u];
+    tanHalf_1 = max(_e418, 0.0001f);
     blocker_1 = -1f;
-    let _e418 = uv_3;
-    param_22 = _e418;
-    let _e419 = tile_3;
-    param_23 = _e419;
-    let _e420 = range_3;
-    param_24 = _e420;
-    let _e421 = receiver_2;
-    param_25 = _e421;
-    let _e422 = ca_2;
-    param_26 = _e422;
-    let _e423 = sa_2;
-    param_27 = _e423;
-    let _e424 = tanHalf_1;
-    param_28 = _e424;
-    let _e425 = PointShadowPenumbra_u0028_vf2_u003b_vf2_u003b_f1_u003b_f1_u003b_f1_u003b_f1_u003b_f1_u003b_f1_u003b((&param_22), (&param_23), (&param_24), (&param_25), (&param_26), (&param_27), (&param_28), (&param_29));
-    let _e426 = param_29;
-    blocker_1 = _e426;
-    radius_1 = _e425;
-    let _e429 = point_shadow.params2_[3u];
-    if (_e429 > 0.5f) {
+    let _e420 = uv_3;
+    param_22 = _e420;
+    let _e421 = tile_3;
+    param_23 = _e421;
+    let _e422 = range_3;
+    param_24 = _e422;
+    let _e423 = receiver_2;
+    param_25 = _e423;
+    let _e424 = ca_2;
+    param_26 = _e424;
+    let _e425 = sa_2;
+    param_27 = _e425;
+    let _e426 = tanHalf_1;
+    param_28 = _e426;
+    let _e427 = PointShadowPenumbra_u0028_vf2_u003b_vf2_u003b_f1_u003b_f1_u003b_f1_u003b_f1_u003b_f1_u003b_f1_u003b((&param_22), (&param_23), (&param_24), (&param_25), (&param_26), (&param_27), (&param_28), (&param_29));
+    let _e428 = param_29;
+    blocker_1 = _e428;
+    radius_1 = _e427;
+    let _e431 = point_shadow.params2_[3u];
+    if (_e431 > 0.5f) {
         g_debug_surface_on = true;
-        let _e431 = radius_1;
-        if (_e431 < 0f) {
+        let _e433 = radius_1;
+        if (_e433 < 0f) {
             local_2 = vec3<f32>(0f, 0f, 1f);
         } else {
-            let _e433 = radius_1;
-            let _e436 = point_shadow.params2_[2u];
-            let _e440 = blocker_1;
-            let _e441 = range_3;
-            local_2 = vec3<f32>(clamp((_e433 / max(_e436, 0.000001f)), 0f, 1f), clamp((_e440 / _e441), 0f, 1f), 0f);
+            let _e435 = radius_1;
+            let _e438 = point_shadow.params2_[2u];
+            let _e442 = blocker_1;
+            let _e443 = range_3;
+            local_2 = vec3<f32>(clamp((_e435 / max(_e438, 0.000001f)), 0f, 1f), clamp((_e442 / _e443), 0f, 1f), 0f);
         }
-        let _e445 = local_2;
-        g_debug_surface = _e445;
+        let _e447 = local_2;
+        g_debug_surface = _e447;
     }
-    let _e446 = radius_1;
-    if (_e446 < 0f) {
+    let _e448 = radius_1;
+    if (_e448 < 0f) {
         return 1f;
     }
-    let _e448 = uv_3;
-    param_30 = _e448;
+    let _e450 = uv_3;
+    param_30 = _e450;
     param_31 = vec2<f32>(0f, 0f);
-    let _e449 = tile_3;
-    param_32 = _e449;
-    let _e450 = range_3;
-    param_33 = _e450;
-    let _e451 = receiver_2;
-    param_34 = _e451;
-    let _e452 = PointShadowTap_u0028_vf2_u003b_vf2_u003b_vf2_u003b_f1_u003b_f1_u003b((&param_30), (&param_31), (&param_32), (&param_33), (&param_34));
-    lit = _e452;
-    let _e453 = radius_1;
-    if (_e453 > 0f) {
+    let _e451 = tile_3;
+    param_32 = _e451;
+    let _e452 = range_3;
+    param_33 = _e452;
+    let _e453 = receiver_2;
+    param_34 = _e453;
+    let _e454 = PointShadowTap_u0028_vf2_u003b_vf2_u003b_vf2_u003b_f1_u003b_f1_u003b((&param_30), (&param_31), (&param_32), (&param_33), (&param_34));
+    lit = _e454;
+    let _e455 = radius_1;
+    if (_e455 > 0f) {
         i_3 = 0i;
         loop {
-            let _e455 = i_3;
-            if (_e455 < 8i) {
-                let _e457 = i_3;
-                param_35 = _e457;
-                let _e458 = ca_2;
-                param_36 = _e458;
-                let _e459 = sa_2;
-                param_37 = _e459;
-                let _e460 = radius_1;
-                param_38 = _e460;
-                let _e461 = PointShadowOffset_u0028_i1_u003b_f1_u003b_f1_u003b_f1_u003b((&param_35), (&param_36), (&param_37), (&param_38));
-                let _e462 = uv_3;
-                param_39 = _e462;
-                param_40 = _e461;
-                let _e463 = tile_3;
-                param_41 = _e463;
-                let _e464 = range_3;
-                param_42 = _e464;
-                let _e465 = receiver_2;
-                param_43 = _e465;
-                let _e466 = PointShadowTap_u0028_vf2_u003b_vf2_u003b_vf2_u003b_f1_u003b_f1_u003b((&param_39), (&param_40), (&param_41), (&param_42), (&param_43));
-                let _e467 = lit;
-                lit = (_e467 + _e466);
+            let _e457 = i_3;
+            if (_e457 < 8i) {
+                let _e459 = i_3;
+                param_35 = _e459;
+                let _e460 = ca_2;
+                param_36 = _e460;
+                let _e461 = sa_2;
+                param_37 = _e461;
+                let _e462 = radius_1;
+                param_38 = _e462;
+                let _e463 = PointShadowOffset_u0028_i1_u003b_f1_u003b_f1_u003b_f1_u003b((&param_35), (&param_36), (&param_37), (&param_38));
+                let _e464 = uv_3;
+                param_39 = _e464;
+                param_40 = _e463;
+                let _e465 = tile_3;
+                param_41 = _e465;
+                let _e466 = range_3;
+                param_42 = _e466;
+                let _e467 = receiver_2;
+                param_43 = _e467;
+                let _e468 = PointShadowTap_u0028_vf2_u003b_vf2_u003b_vf2_u003b_f1_u003b_f1_u003b((&param_39), (&param_40), (&param_41), (&param_42), (&param_43));
+                let _e469 = lit;
+                lit = (_e469 + _e468);
                 continue;
             } else {
                 break;
             }
             continuing {
-                let _e469 = i_3;
-                i_3 = (_e469 + 1i);
+                let _e471 = i_3;
+                i_3 = (_e471 + 1i);
             }
         }
-        let _e471 = lit;
-        lit = (_e471 * 0.11111111f);
+        let _e473 = lit;
+        lit = (_e473 * 0.11111111f);
     }
-    let _e473 = lit;
-    let _e474 = strength;
-    return mix(1f, _e473, clamp(_e474, 0f, 1f));
+    let _e475 = lit;
+    let _e476 = strength;
+    return mix(1f, _e475, clamp(_e476, 0f, 1f));
 }
 
 fn ShadowFactor_u0028_struct_u002d_Surface_u002d_vf3_u002d_f1_u002d_vf3_u002d_vf3_u002d_f1_u002d_f1_u002d_f1_u002d_f1_u002d_vf3_u002d_vf3_u002d_f11_u003b_struct_u002d_LightSample_u002d_vf3_u002d_vf3_u002d_vf3_u002d_f1_u002d_f1_u002d_f11_u003b_i1_u003b(s_1: ptr<function, Surface>, light_1: ptr<function, LightSample>, lightIndex_1: ptr<function, i32>) -> f32 {
@@ -13641,58 +14286,58 @@ fn ShadowFactor_u0028_struct_u002d_Surface_u002d_vf3_u002d_f1_u002d_vf3_u002d_vf
     var i_5: i32;
     var occluder_2: f32;
     var indexable_1: array<vec2<f32>, 5>;
-    var phi_2595_: bool;
-    var phi_2606_: bool;
-    var phi_2725_: bool;
-    var phi_2732_: bool;
-    var phi_2739_: bool;
+    var phi_2859_: bool;
+    var phi_2870_: bool;
+    var phi_2988_: bool;
+    var phi_2995_: bool;
+    var phi_3002_: bool;
 
-    let _e213 = frag_info.shadow_params[3u];
-    strength_1 = _e213;
-    let _e214 = strength_1;
-    if (_e214 <= 0f) {
+    let _e215 = frag_info.shadow_params[3u];
+    strength_1 = _e215;
+    let _e216 = strength_1;
+    if (_e216 <= 0f) {
         return 1f;
     }
-    let _e216 = (*lightIndex_1);
-    let _e219 = frag_info.frame_params[2u];
-    if (_e216 != i32((_e219 + 0.5f))) {
+    let _e218 = (*lightIndex_1);
+    let _e221 = frag_info.frame_params[2u];
+    if (_e218 != i32((_e221 + 0.5f))) {
         return 1f;
     }
-    let _e224 = (*light_1).n_dot_l;
-    nDotL_1 = max(_e224, 0.15f);
-    let _e226 = nDotL_1;
-    let _e227 = nDotL_1;
-    let _e232 = nDotL_1;
-    let _e233 = nDotL_1;
-    slope_1 = min((sqrt(max((1f - (_e226 * _e227)), 0f)) / (_e232 * _e233)), 8f);
-    let _e239 = frag_info.shadow_cascades[2u];
-    cascadeCount = i32((_e239 + 0.5f));
-    let _e242 = v_world_position_1;
-    let _e244 = frag_info.camera_position;
-    viewDistance = length((_e242 - _e244.xyz));
+    let _e226 = (*light_1).n_dot_l;
+    nDotL_1 = max(_e226, 0.15f);
+    let _e228 = nDotL_1;
+    let _e229 = nDotL_1;
+    let _e234 = nDotL_1;
+    let _e235 = nDotL_1;
+    slope_1 = min((sqrt(max((1f - (_e228 * _e229)), 0f)) / (_e234 * _e235)), 8f);
+    let _e241 = frag_info.shadow_cascades[2u];
+    cascadeCount = i32((_e241 + 0.5f));
+    let _e244 = v_world_position_1;
+    let _e246 = frag_info.camera_position;
+    viewDistance = length((_e244 - _e246.xyz));
     cascade = 0i;
-    let _e248 = cascadeCount;
-    let _e249 = (_e248 > 1i);
-    phi_2595_ = _e249;
-    if _e249 {
-        let _e250 = viewDistance;
-        let _e253 = frag_info.shadow_cascades[0u];
-        phi_2595_ = (_e250 > _e253);
+    let _e250 = cascadeCount;
+    let _e251 = (_e250 > 1i);
+    phi_2859_ = _e251;
+    if _e251 {
+        let _e252 = viewDistance;
+        let _e255 = frag_info.shadow_cascades[0u];
+        phi_2859_ = (_e252 > _e255);
     }
-    let _e256 = phi_2595_;
-    if _e256 {
+    let _e258 = phi_2859_;
+    if _e258 {
         cascade = 1i;
     }
-    let _e257 = cascadeCount;
-    let _e258 = (_e257 > 2i);
-    phi_2606_ = _e258;
-    if _e258 {
-        let _e259 = viewDistance;
-        let _e262 = frag_info.shadow_cascades[1u];
-        phi_2606_ = (_e259 > _e262);
+    let _e259 = cascadeCount;
+    let _e260 = (_e259 > 2i);
+    phi_2870_ = _e260;
+    if _e260 {
+        let _e261 = viewDistance;
+        let _e264 = frag_info.shadow_cascades[1u];
+        phi_2870_ = (_e261 > _e264);
     }
-    let _e265 = phi_2606_;
-    if _e265 {
+    let _e267 = phi_2870_;
+    if _e267 {
         cascade = 2i;
     }
     uv_4 = vec2<f32>(0f, 0f);
@@ -13700,177 +14345,177 @@ fn ShadowFactor_u0028_struct_u002d_Surface_u002d_vf3_u002d_f1_u002d_vf3_u002d_vf
     found = false;
     attempt = 0i;
     loop {
-        let _e266 = attempt;
-        if (_e266 < 3i) {
-            let _e268 = cascade;
-            let _e269 = attempt;
-            which = (_e268 + _e269);
-            let _e271 = which;
-            let _e272 = cascadeCount;
-            if (_e271 >= _e272) {
+        let _e268 = attempt;
+        if (_e268 < 3i) {
+            let _e270 = cascade;
+            let _e271 = attempt;
+            which = (_e270 + _e271);
+            let _e273 = which;
+            let _e274 = cascadeCount;
+            if (_e273 >= _e274) {
                 break;
             }
-            let _e274 = which;
-            if (_e274 == 0i) {
-                let _e277 = frag_info.shadow_matrix;
-                local_3 = _e277;
+            let _e276 = which;
+            if (_e276 == 0i) {
+                let _e279 = frag_info.shadow_matrix;
+                local_3 = _e279;
             } else {
-                let _e278 = which;
-                if (_e278 == 1i) {
-                    let _e281 = frag_info.shadow_matrix_far;
-                    local_4 = _e281;
-                } else {
-                    let _e283 = frag_info.shadow_matrix_farthest;
+                let _e280 = which;
+                if (_e280 == 1i) {
+                    let _e283 = frag_info.shadow_matrix_far;
                     local_4 = _e283;
+                } else {
+                    let _e285 = frag_info.shadow_matrix_farthest;
+                    local_4 = _e285;
                 }
-                let _e284 = local_4;
-                local_3 = _e284;
+                let _e286 = local_4;
+                local_3 = _e286;
             }
-            let _e285 = local_3;
-            matrix = _e285;
-            let _e288 = matrix[0][0u];
-            let _e291 = matrix[1][0u];
-            let _e294 = matrix[2][0u];
-            rowX = length(vec3<f32>(_e288, _e291, _e294));
-            let _e299 = frag_info.shadow_cascades[3u];
-            let _e301 = rowX;
-            texelMetres = ((2f * _e299) / max(_e301, 0.000001f));
-            let _e304 = v_world_position_1;
-            let _e306 = (*s_1).n;
-            let _e309 = frag_info.shadow_params[2u];
-            let _e310 = texelMetres;
-            let _e311 = slope_1;
-            origin_1 = (_e304 + (_e306 * (_e309 + (_e310 * (1f + _e311)))));
-            let _e317 = matrix;
-            let _e318 = origin_1;
-            lightSpace = (_e317 * vec4<f32>(_e318.x, _e318.y, _e318.z, 1f));
-            let _e325 = lightSpace[3u];
-            if (_e325 <= 0f) {
+            let _e287 = local_3;
+            matrix = _e287;
+            let _e290 = matrix[0][0u];
+            let _e293 = matrix[1][0u];
+            let _e296 = matrix[2][0u];
+            rowX = length(vec3<f32>(_e290, _e293, _e296));
+            let _e301 = frag_info.shadow_cascades[3u];
+            let _e303 = rowX;
+            texelMetres = ((2f * _e301) / max(_e303, 0.000001f));
+            let _e306 = v_world_position_1;
+            let _e308 = (*s_1).n;
+            let _e311 = frag_info.shadow_params[2u];
+            let _e312 = texelMetres;
+            let _e313 = slope_1;
+            origin_1 = (_e306 + (_e308 * (_e311 + (_e312 * (1f + _e313)))));
+            let _e319 = matrix;
+            let _e320 = origin_1;
+            lightSpace = (_e319 * vec4<f32>(_e320.x, _e320.y, _e320.z, 1f));
+            let _e327 = lightSpace[3u];
+            if (_e327 <= 0f) {
                 continue;
             }
-            let _e327 = lightSpace;
-            let _e330 = lightSpace[3u];
-            candidate = (_e327.xyz / vec3(_e330));
-            let _e334 = candidate[0u];
-            let _e338 = candidate[1u];
-            inTile = vec2<f32>(((_e334 * 0.5f) + 0.5f), (0.5f - (_e338 * 0.5f)));
-            let _e343 = inTile[0u];
-            let _e344 = (_e343 < 0f);
-            phi_2725_ = _e344;
-            if !(_e344) {
-                let _e347 = inTile[0u];
-                phi_2725_ = (_e347 > 1f);
+            let _e329 = lightSpace;
+            let _e332 = lightSpace[3u];
+            candidate = (_e329.xyz / vec3(_e332));
+            let _e336 = candidate[0u];
+            let _e340 = candidate[1u];
+            inTile = vec2<f32>(((_e336 * 0.5f) + 0.5f), (0.5f - (_e340 * 0.5f)));
+            let _e345 = inTile[0u];
+            let _e346 = (_e345 < 0f);
+            phi_2988_ = _e346;
+            if !(_e346) {
+                let _e349 = inTile[0u];
+                phi_2988_ = (_e349 > 1f);
             }
-            let _e350 = phi_2725_;
-            phi_2732_ = _e350;
-            if !(_e350) {
-                let _e353 = inTile[1u];
-                phi_2732_ = (_e353 < 0f);
+            let _e352 = phi_2988_;
+            phi_2995_ = _e352;
+            if !(_e352) {
+                let _e355 = inTile[1u];
+                phi_2995_ = (_e355 < 0f);
             }
-            let _e356 = phi_2732_;
-            phi_2739_ = _e356;
-            if !(_e356) {
-                let _e359 = inTile[1u];
-                phi_2739_ = (_e359 > 1f);
+            let _e358 = phi_2995_;
+            phi_3002_ = _e358;
+            if !(_e358) {
+                let _e361 = inTile[1u];
+                phi_3002_ = (_e361 > 1f);
             }
-            let _e362 = phi_2739_;
-            if _e362 {
+            let _e364 = phi_3002_;
+            if _e364 {
                 continue;
             }
-            let _e364 = candidate[2u];
-            if (_e364 > 1f) {
-                let _e366 = which;
-                let _e367 = cascadeCount;
-                if (_e366 < (_e367 - 1i)) {
+            let _e366 = candidate[2u];
+            if (_e366 > 1f) {
+                let _e368 = which;
+                let _e369 = cascadeCount;
+                if (_e368 < (_e369 - 1i)) {
                     continue;
                 }
                 candidate[2u] = 1f;
             }
-            let _e372 = inTile[0u];
-            let _e373 = which;
-            let _e376 = cascadeCount;
-            let _e380 = inTile[1u];
-            uv_4 = vec2<f32>(((_e372 + f32(_e373)) / f32(_e376)), _e380);
-            let _e382 = candidate;
-            projected = _e382;
-            let _e383 = which;
-            cascade = _e383;
+            let _e374 = inTile[0u];
+            let _e375 = which;
+            let _e378 = cascadeCount;
+            let _e382 = inTile[1u];
+            uv_4 = vec2<f32>(((_e374 + f32(_e375)) / f32(_e378)), _e382);
+            let _e384 = candidate;
+            projected = _e384;
+            let _e385 = which;
+            cascade = _e385;
             found = true;
             break;
         } else {
             break;
         }
         continuing {
-            let _e384 = attempt;
-            attempt = (_e384 + 1i);
+            let _e386 = attempt;
+            attempt = (_e386 + 1i);
         }
     }
-    let _e386 = found;
-    if !(_e386) {
+    let _e388 = found;
+    if !(_e388) {
         return 1f;
     }
-    let _e388 = cascade;
-    if (_e388 == 0i) {
-        let _e392 = frag_info.shadow_bias[0u];
-        local_5 = _e392;
+    let _e390 = cascade;
+    if (_e390 == 0i) {
+        let _e394 = frag_info.shadow_bias[0u];
+        local_5 = _e394;
     } else {
-        let _e393 = cascade;
-        if (_e393 == 1i) {
-            let _e397 = frag_info.shadow_bias[1u];
-            local_6 = _e397;
+        let _e395 = cascade;
+        if (_e395 == 1i) {
+            let _e399 = frag_info.shadow_bias[1u];
+            local_6 = _e399;
         } else {
-            let _e400 = frag_info.shadow_bias[2u];
-            local_6 = _e400;
+            let _e402 = frag_info.shadow_bias[2u];
+            local_6 = _e402;
         }
-        let _e401 = local_6;
-        local_5 = _e401;
+        let _e403 = local_6;
+        local_5 = _e403;
     }
-    let _e402 = local_5;
-    bias = _e402;
-    let _e405 = frag_info.shadow_params[0u];
-    let _e408 = frag_info.shadow_cascades[3u];
-    texel_1 = vec2<f32>(_e405, _e408);
-    let _e410 = cascade;
-    let _e412 = cascadeCount;
-    let _e416 = texel_1;
-    tileLo = (vec2<f32>((f32(_e410) / f32(_e412)), 0f) + (_e416 * 0.5f));
-    let _e419 = cascade;
-    let _e422 = cascadeCount;
-    let _e426 = texel_1;
-    tileHi = (vec2<f32>((f32((_e419 + 1i)) / f32(_e422)), 1f) - (_e426 * 0.5f));
-    let _e431 = frag_info.ambient_ground[3u];
-    softness = _e431;
+    let _e404 = local_5;
+    bias = _e404;
+    let _e407 = frag_info.shadow_params[0u];
+    let _e410 = frag_info.shadow_cascades[3u];
+    texel_1 = vec2<f32>(_e407, _e410);
+    let _e412 = cascade;
+    let _e414 = cascadeCount;
+    let _e418 = texel_1;
+    tileLo = (vec2<f32>((f32(_e412) / f32(_e414)), 0f) + (_e418 * 0.5f));
+    let _e421 = cascade;
+    let _e424 = cascadeCount;
+    let _e428 = texel_1;
+    tileHi = (vec2<f32>((f32((_e421 + 1i)) / f32(_e424)), 1f) - (_e428 * 0.5f));
+    let _e433 = frag_info.ambient_ground[3u];
+    softness = _e433;
     lit_1 = 0f;
-    let _e432 = softness;
-    if (_e432 <= 0f) {
+    let _e434 = softness;
+    if (_e434 <= 0f) {
         y = -1i;
         loop {
-            let _e434 = y;
-            if (_e434 <= 1i) {
+            let _e436 = y;
+            if (_e436 <= 1i) {
                 x = -1i;
                 loop {
-                    let _e436 = x;
-                    if (_e436 <= 1i) {
-                        let _e438 = uv_4;
-                        let _e439 = x;
-                        let _e441 = y;
-                        let _e444 = texel_1;
-                        let _e447 = tileLo;
-                        let _e448 = tileHi;
-                        let _e450 = textureSampleLevel(shadow_texture_tex, shadow_texture_smp, clamp((_e438 + (vec2<f32>(f32(_e439), f32(_e441)) * _e444)), _e447, _e448), 0f);
-                        occluder = _e450.x;
-                        let _e453 = projected[2u];
-                        let _e454 = bias;
-                        let _e456 = occluder;
-                        let _e459 = lit_1;
-                        lit_1 = (_e459 + select(1f, 0f, ((_e453 - _e454) > _e456)));
+                    let _e438 = x;
+                    if (_e438 <= 1i) {
+                        let _e440 = uv_4;
+                        let _e441 = x;
+                        let _e443 = y;
+                        let _e446 = texel_1;
+                        let _e449 = tileLo;
+                        let _e450 = tileHi;
+                        let _e452 = textureSampleLevel(shadow_texture_tex, shadow_texture_smp, clamp((_e440 + (vec2<f32>(f32(_e441), f32(_e443)) * _e446)), _e449, _e450), 0f);
+                        occluder = _e452.x;
+                        let _e455 = projected[2u];
+                        let _e456 = bias;
+                        let _e458 = occluder;
+                        let _e461 = lit_1;
+                        lit_1 = (_e461 + select(1f, 0f, ((_e455 - _e456) > _e458)));
                         continue;
                     } else {
                         break;
                     }
                     continuing {
-                        let _e461 = x;
-                        x = (_e461 + 1i);
+                        let _e463 = x;
+                        x = (_e463 + 1i);
                     }
                 }
                 continue;
@@ -13878,95 +14523,95 @@ fn ShadowFactor_u0028_struct_u002d_Surface_u002d_vf3_u002d_f1_u002d_vf3_u002d_vf
                 break;
             }
             continuing {
-                let _e463 = y;
-                y = (_e463 + 1i);
+                let _e465 = y;
+                y = (_e465 + 1i);
             }
         }
-        let _e465 = lit_1;
-        lit_1 = (_e465 * 0.11111111f);
+        let _e467 = lit_1;
+        lit_1 = (_e467 * 0.11111111f);
     } else {
-        let _e467 = softness;
-        searchRadius = clamp((_e467 * 0.25f), 2f, 16f);
+        let _e469 = softness;
+        searchRadius = clamp((_e469 * 0.25f), 2f, 16f);
         blockerSum = 0f;
         blockerCount = 0f;
         i_4 = 0i;
         loop {
-            let _e470 = i_4;
-            if (_e470 < 5i) {
-                let _e472 = uv_4;
-                let _e473 = i_4;
+            let _e472 = i_4;
+            if (_e472 < 5i) {
+                let _e474 = uv_4;
+                let _e475 = i_4;
                 indexable = array<vec2<f32>, 5>(vec2<f32>(0f, 0f), vec2<f32>(0.7071f, 0.7071f), vec2<f32>(-0.7071f, 0.7071f), vec2<f32>(0.7071f, -0.7071f), vec2<f32>(-0.7071f, -0.7071f));
-                let _e475 = indexable[_e473];
-                let _e476 = texel_1;
-                let _e478 = searchRadius;
-                let _e481 = tileLo;
-                let _e482 = tileHi;
-                let _e484 = textureSampleLevel(shadow_texture_tex, shadow_texture_smp, clamp((_e472 + ((_e475 * _e476) * _e478)), _e481, _e482), 0f);
-                occluder_1 = _e484.x;
-                let _e487 = projected[2u];
-                let _e488 = bias;
-                let _e490 = occluder_1;
-                if ((_e487 - _e488) > _e490) {
-                    let _e492 = occluder_1;
-                    let _e493 = blockerSum;
-                    blockerSum = (_e493 + _e492);
-                    let _e495 = blockerCount;
-                    blockerCount = (_e495 + 1f);
+                let _e477 = indexable[_e475];
+                let _e478 = texel_1;
+                let _e480 = searchRadius;
+                let _e483 = tileLo;
+                let _e484 = tileHi;
+                let _e486 = textureSampleLevel(shadow_texture_tex, shadow_texture_smp, clamp((_e474 + ((_e477 * _e478) * _e480)), _e483, _e484), 0f);
+                occluder_1 = _e486.x;
+                let _e489 = projected[2u];
+                let _e490 = bias;
+                let _e492 = occluder_1;
+                if ((_e489 - _e490) > _e492) {
+                    let _e494 = occluder_1;
+                    let _e495 = blockerSum;
+                    blockerSum = (_e495 + _e494);
+                    let _e497 = blockerCount;
+                    blockerCount = (_e497 + 1f);
                 }
                 continue;
             } else {
                 break;
             }
             continuing {
-                let _e497 = i_4;
-                i_4 = (_e497 + 1i);
+                let _e499 = i_4;
+                i_4 = (_e499 + 1i);
             }
         }
-        let _e499 = blockerCount;
-        if (_e499 <= 0f) {
+        let _e501 = blockerCount;
+        if (_e501 <= 0f) {
             return 1f;
         }
-        let _e502 = projected[2u];
-        let _e503 = blockerSum;
-        let _e504 = blockerCount;
-        gap = max((_e502 - (_e503 / _e504)), 0f);
-        let _e508 = gap;
-        let _e509 = softness;
-        radius_2 = clamp((_e508 * _e509), 1f, 16f);
+        let _e504 = projected[2u];
+        let _e505 = blockerSum;
+        let _e506 = blockerCount;
+        gap = max((_e504 - (_e505 / _e506)), 0f);
+        let _e510 = gap;
+        let _e511 = softness;
+        radius_2 = clamp((_e510 * _e511), 1f, 16f);
         i_5 = 0i;
         loop {
-            let _e512 = i_5;
-            if (_e512 < 5i) {
-                let _e514 = uv_4;
-                let _e515 = i_5;
+            let _e514 = i_5;
+            if (_e514 < 5i) {
+                let _e516 = uv_4;
+                let _e517 = i_5;
                 indexable_1 = array<vec2<f32>, 5>(vec2<f32>(0f, 0f), vec2<f32>(0.7071f, 0.7071f), vec2<f32>(-0.7071f, 0.7071f), vec2<f32>(0.7071f, -0.7071f), vec2<f32>(-0.7071f, -0.7071f));
-                let _e517 = indexable_1[_e515];
-                let _e518 = texel_1;
-                let _e520 = radius_2;
-                let _e523 = tileLo;
-                let _e524 = tileHi;
-                let _e526 = textureSampleLevel(shadow_texture_tex, shadow_texture_smp, clamp((_e514 + ((_e517 * _e518) * _e520)), _e523, _e524), 0f);
-                occluder_2 = _e526.x;
-                let _e529 = projected[2u];
-                let _e530 = bias;
-                let _e532 = occluder_2;
-                let _e535 = lit_1;
-                lit_1 = (_e535 + select(1f, 0f, ((_e529 - _e530) > _e532)));
+                let _e519 = indexable_1[_e517];
+                let _e520 = texel_1;
+                let _e522 = radius_2;
+                let _e525 = tileLo;
+                let _e526 = tileHi;
+                let _e528 = textureSampleLevel(shadow_texture_tex, shadow_texture_smp, clamp((_e516 + ((_e519 * _e520) * _e522)), _e525, _e526), 0f);
+                occluder_2 = _e528.x;
+                let _e531 = projected[2u];
+                let _e532 = bias;
+                let _e534 = occluder_2;
+                let _e537 = lit_1;
+                lit_1 = (_e537 + select(1f, 0f, ((_e531 - _e532) > _e534)));
                 continue;
             } else {
                 break;
             }
             continuing {
-                let _e537 = i_5;
-                i_5 = (_e537 + 1i);
+                let _e539 = i_5;
+                i_5 = (_e539 + 1i);
             }
         }
-        let _e539 = lit_1;
-        lit_1 = (_e539 * 0.2f);
+        let _e541 = lit_1;
+        lit_1 = (_e541 * 0.2f);
     }
-    let _e541 = lit_1;
-    let _e542 = strength_1;
-    return mix(1f, _e541, clamp(_e542, 0f, 1f));
+    let _e543 = lit_1;
+    let _e544 = strength_1;
+    return mix(1f, _e543, clamp(_e544, 0f, 1f));
 }
 
 fn LightVisibility_u0028_struct_u002d_Surface_u002d_vf3_u002d_f1_u002d_vf3_u002d_vf3_u002d_f1_u002d_f1_u002d_f1_u002d_f1_u002d_vf3_u002d_vf3_u002d_f11_u003b_struct_u002d_LightSample_u002d_vf3_u002d_vf3_u002d_vf3_u002d_f1_u002d_f1_u002d_f11_u003b_i1_u003b(s_2: ptr<function, Surface>, light_2: ptr<function, LightSample>, index: ptr<function, i32>) -> f32 {
@@ -13974,19 +14619,19 @@ fn LightVisibility_u0028_struct_u002d_Surface_u002d_vf3_u002d_f1_u002d_vf3_u002d
     var param_45: LightSample;
     var param_46: i32;
 
-    let _e172 = (*s_2);
-    param_44 = _e172;
-    let _e173 = (*light_2);
-    param_45 = _e173;
-    let _e174 = (*index);
-    param_46 = _e174;
-    let _e175 = ShadowFactor_u0028_struct_u002d_Surface_u002d_vf3_u002d_f1_u002d_vf3_u002d_vf3_u002d_f1_u002d_f1_u002d_f1_u002d_f1_u002d_vf3_u002d_vf3_u002d_f11_u003b_struct_u002d_LightSample_u002d_vf3_u002d_vf3_u002d_vf3_u002d_f1_u002d_f1_u002d_f11_u003b_i1_u003b((&param_44), (&param_45), (&param_46));
-    return _e175;
+    let _e174 = (*s_2);
+    param_44 = _e174;
+    let _e175 = (*light_2);
+    param_45 = _e175;
+    let _e176 = (*index);
+    param_46 = _e176;
+    let _e177 = ShadowFactor_u0028_struct_u002d_Surface_u002d_vf3_u002d_f1_u002d_vf3_u002d_vf3_u002d_f1_u002d_f1_u002d_f1_u002d_f1_u002d_vf3_u002d_vf3_u002d_f11_u003b_struct_u002d_LightSample_u002d_vf3_u002d_vf3_u002d_vf3_u002d_f1_u002d_f1_u002d_f11_u003b_i1_u003b((&param_44), (&param_45), (&param_46));
+    return _e177;
 }
 
 fn LightHasShadow_u0028_i1_u003b(index_1: ptr<function, i32>) -> bool {
-    let _e167 = (*index_1);
-    return (_e167 < 8i);
+    let _e169 = (*index_1);
+    return (_e169 < 8i);
 }
 
 fn PunctualAttenuation_u0028_f1_u003b_f1_u003b(distance_1: ptr<function, f32>, range_4: ptr<function, f32>) -> f32 {
@@ -13994,26 +14639,26 @@ fn PunctualAttenuation_u0028_f1_u003b_f1_u003b(distance_1: ptr<function, f32>, r
     var ratio: f32;
     var window: f32;
 
-    let _e171 = (*distance_1);
-    let _e172 = (*distance_1);
-    attenuation = (1f / max((_e171 * _e172), 0.0001f));
-    let _e176 = (*range_4);
-    if (_e176 > 0f) {
-        let _e178 = (*distance_1);
-        let _e179 = (*range_4);
-        ratio = (_e178 / _e179);
-        let _e181 = ratio;
-        let _e182 = ratio;
+    let _e173 = (*distance_1);
+    let _e174 = (*distance_1);
+    attenuation = (1f / max((_e173 * _e174), 0.0001f));
+    let _e178 = (*range_4);
+    if (_e178 > 0f) {
+        let _e180 = (*distance_1);
+        let _e181 = (*range_4);
+        ratio = (_e180 / _e181);
+        let _e183 = ratio;
         let _e184 = ratio;
         let _e186 = ratio;
-        window = clamp((1f - (((_e181 * _e182) * _e184) * _e186)), 0f, 1f);
-        let _e190 = window;
-        let _e191 = window;
-        let _e193 = attenuation;
-        attenuation = (_e193 * (_e190 * _e191));
+        let _e188 = ratio;
+        window = clamp((1f - (((_e183 * _e184) * _e186) * _e188)), 0f, 1f);
+        let _e192 = window;
+        let _e193 = window;
+        let _e195 = attenuation;
+        attenuation = (_e195 * (_e192 * _e193));
     }
-    let _e195 = attenuation;
-    return _e195;
+    let _e197 = attenuation;
+    return _e197;
 }
 
 fn RectangleClosestPoint_u0028_vf3_u003b_vf3_u003b_vf3_u003b_vf3_u003b_vf3_u003b(centre: ptr<function, vec3<f32>>, halfWidth: ptr<function, vec3<f32>>, halfHeight: ptr<function, vec3<f32>>, world_2: ptr<function, vec3<f32>>, mirror: ptr<function, vec3<f32>>) -> vec3<f32> {
@@ -14030,75 +14675,75 @@ fn RectangleClosestPoint_u0028_vf3_u003b_vf3_u003b_vf3_u003b_vf3_u003b_vf3_u003b
     var u: f32;
     var v: f32;
 
-    let _e183 = (*halfWidth);
-    let _e184 = (*halfHeight);
-    n_1 = cross(_e183, _e184);
-    let _e186 = n_1;
-    nLen = length(_e186);
-    let _e188 = nLen;
-    if (_e188 < 0.000000000001f) {
-        let _e190 = (*centre);
-        return _e190;
+    let _e185 = (*halfWidth);
+    let _e186 = (*halfHeight);
+    n_1 = cross(_e185, _e186);
+    let _e188 = n_1;
+    nLen = length(_e188);
+    let _e190 = nLen;
+    if (_e190 < 0.000000000001f) {
+        let _e192 = (*centre);
+        return _e192;
     }
-    let _e191 = nLen;
-    let _e192 = n_1;
-    n_1 = (_e192 / vec3(_e191));
-    let _e195 = (*centre);
-    let _e196 = (*world_2);
-    toPlane = (_e195 - _e196);
-    let _e198 = (*mirror);
-    let _e199 = n_1;
-    denom = dot(_e198, _e199);
-    let _e201 = denom;
-    if (abs(_e201) < 0.00001f) {
-        let _e204 = toPlane;
-        let _e205 = n_1;
+    let _e193 = nLen;
+    let _e194 = n_1;
+    n_1 = (_e194 / vec3(_e193));
+    let _e197 = (*centre);
+    let _e198 = (*world_2);
+    toPlane = (_e197 - _e198);
+    let _e200 = (*mirror);
+    let _e201 = n_1;
+    denom = dot(_e200, _e201);
+    let _e203 = denom;
+    if (abs(_e203) < 0.00001f) {
         let _e206 = toPlane;
         let _e207 = n_1;
-        onPlane = (_e204 - (_e205 * dot(_e206, _e207)));
+        let _e208 = toPlane;
+        let _e209 = n_1;
+        onPlane = (_e206 - (_e207 * dot(_e208, _e209)));
     } else {
-        let _e211 = toPlane;
-        let _e212 = n_1;
-        let _e214 = denom;
-        t = (dot(_e211, _e212) / _e214);
-        let _e216 = t;
-        if (_e216 > 0f) {
-            let _e218 = (*mirror);
-            let _e219 = t;
-            local_7 = (_e218 * _e219);
+        let _e213 = toPlane;
+        let _e214 = n_1;
+        let _e216 = denom;
+        t = (dot(_e213, _e214) / _e216);
+        let _e218 = t;
+        if (_e218 > 0f) {
+            let _e220 = (*mirror);
+            let _e221 = t;
+            local_7 = (_e220 * _e221);
         } else {
-            let _e221 = toPlane;
-            let _e222 = n_1;
             let _e223 = toPlane;
             let _e224 = n_1;
-            local_7 = (_e221 - (_e222 * dot(_e223, _e224)));
+            let _e225 = toPlane;
+            let _e226 = n_1;
+            local_7 = (_e223 - (_e224 * dot(_e225, _e226)));
         }
-        let _e228 = local_7;
-        onPlane = _e228;
+        let _e230 = local_7;
+        onPlane = _e230;
     }
-    let _e229 = onPlane;
-    let _e230 = toPlane;
-    offset_2 = (_e229 - _e230);
-    let _e232 = (*halfWidth);
-    let _e233 = (*halfWidth);
-    wLen2_ = max(dot(_e232, _e233), 0.000000000001f);
-    let _e236 = (*halfHeight);
-    let _e237 = (*halfHeight);
-    hLen2_ = max(dot(_e236, _e237), 0.000000000001f);
-    let _e240 = offset_2;
-    let _e241 = (*halfWidth);
-    let _e243 = wLen2_;
-    u = clamp((dot(_e240, _e241) / _e243), -1f, 1f);
-    let _e246 = offset_2;
-    let _e247 = (*halfHeight);
-    let _e249 = hLen2_;
-    v = clamp((dot(_e246, _e247) / _e249), -1f, 1f);
-    let _e252 = (*centre);
-    let _e253 = (*halfWidth);
-    let _e254 = u;
-    let _e257 = (*halfHeight);
-    let _e258 = v;
-    return ((_e252 + (_e253 * _e254)) + (_e257 * _e258));
+    let _e231 = onPlane;
+    let _e232 = toPlane;
+    offset_2 = (_e231 - _e232);
+    let _e234 = (*halfWidth);
+    let _e235 = (*halfWidth);
+    wLen2_ = max(dot(_e234, _e235), 0.000000000001f);
+    let _e238 = (*halfHeight);
+    let _e239 = (*halfHeight);
+    hLen2_ = max(dot(_e238, _e239), 0.000000000001f);
+    let _e242 = offset_2;
+    let _e243 = (*halfWidth);
+    let _e245 = wLen2_;
+    u = clamp((dot(_e242, _e243) / _e245), -1f, 1f);
+    let _e248 = offset_2;
+    let _e249 = (*halfHeight);
+    let _e251 = hLen2_;
+    v = clamp((dot(_e248, _e249) / _e251), -1f, 1f);
+    let _e254 = (*centre);
+    let _e255 = (*halfWidth);
+    let _e256 = u;
+    let _e259 = (*halfHeight);
+    let _e260 = v;
+    return ((_e254 + (_e255 * _e256)) + (_e259 * _e260));
 }
 
 fn RectangleFormFactor_u0028_vf3_u005b_4_u005d_u003b_vf3_u003b(corners: ptr<function, array<vec3<f32>, 4>>, n_2: ptr<function, vec3<f32>>) -> f32 {
@@ -14113,42 +14758,42 @@ fn RectangleFormFactor_u0028_vf3_u005b_4_u005d_u003b_vf3_u003b(corners: ptr<func
     total = 0f;
     i_6 = 0i;
     loop {
-        let _e175 = i_6;
-        if (_e175 < 4i) {
-            let _e177 = i_6;
-            let _e179 = (*corners)[_e177];
-            a_1 = normalize(_e179);
-            let _e181 = i_6;
-            let _e185 = (*corners)[((_e181 + 1i) & 3i)];
-            b = normalize(_e185);
-            let _e187 = a_1;
-            let _e188 = b;
-            angle_1 = acos(clamp(dot(_e187, _e188), -1f, 1f));
-            let _e192 = a_1;
-            let _e193 = b;
-            axis = cross(_e192, _e193);
-            let _e195 = axis;
-            len = length(_e195);
-            let _e197 = len;
-            if (_e197 > 0.000001f) {
-                let _e199 = angle_1;
-                let _e200 = axis;
-                let _e201 = len;
-                let _e204 = (*n_2);
-                let _e207 = total;
-                total = (_e207 + (_e199 * dot((_e200 / vec3(_e201)), _e204)));
+        let _e177 = i_6;
+        if (_e177 < 4i) {
+            let _e179 = i_6;
+            let _e181 = (*corners)[_e179];
+            a_1 = normalize(_e181);
+            let _e183 = i_6;
+            let _e187 = (*corners)[((_e183 + 1i) & 3i)];
+            b = normalize(_e187);
+            let _e189 = a_1;
+            let _e190 = b;
+            angle_1 = acos(clamp(dot(_e189, _e190), -1f, 1f));
+            let _e194 = a_1;
+            let _e195 = b;
+            axis = cross(_e194, _e195);
+            let _e197 = axis;
+            len = length(_e197);
+            let _e199 = len;
+            if (_e199 > 0.000001f) {
+                let _e201 = angle_1;
+                let _e202 = axis;
+                let _e203 = len;
+                let _e206 = (*n_2);
+                let _e209 = total;
+                total = (_e209 + (_e201 * dot((_e202 / vec3(_e203)), _e206)));
             }
             continue;
         } else {
             break;
         }
         continuing {
-            let _e209 = i_6;
-            i_6 = (_e209 + 1i);
+            let _e211 = i_6;
+            i_6 = (_e211 + 1i);
         }
     }
-    let _e211 = total;
-    return max((-(_e211) * 0.5f), 0f);
+    let _e213 = total;
+    return max((-(_e213) * 0.5f), 0f);
 }
 
 fn LightListLane_u0028_vf4_u003b_i1_u003b(four: ptr<function, vec4<f32>>, slot_1: ptr<function, i32>) -> f32 {
@@ -14157,61 +14802,133 @@ fn LightListLane_u0028_vf4_u003b_i1_u003b(four: ptr<function, vec4<f32>>, slot_1
     var local_9: f32;
     var local_10: f32;
 
-    let _e172 = (*slot_1);
-    let _e173 = (*slot_1);
-    lane = (_e172 - ((_e173 / 4i) * 4i));
-    let _e177 = lane;
-    if (_e177 == 0i) {
-        let _e180 = (*four)[0u];
-        local_8 = _e180;
+    let _e174 = (*slot_1);
+    let _e175 = (*slot_1);
+    lane = (_e174 - ((_e175 / 4i) * 4i));
+    let _e179 = lane;
+    if (_e179 == 0i) {
+        let _e182 = (*four)[0u];
+        local_8 = _e182;
     } else {
-        let _e181 = lane;
-        if (_e181 == 1i) {
-            let _e184 = (*four)[1u];
-            local_9 = _e184;
+        let _e183 = lane;
+        if (_e183 == 1i) {
+            let _e186 = (*four)[1u];
+            local_9 = _e186;
         } else {
-            let _e185 = lane;
-            if (_e185 == 2i) {
-                let _e188 = (*four)[2u];
-                local_10 = _e188;
-            } else {
-                let _e190 = (*four)[3u];
+            let _e187 = lane;
+            if (_e187 == 2i) {
+                let _e190 = (*four)[2u];
                 local_10 = _e190;
+            } else {
+                let _e192 = (*four)[3u];
+                local_10 = _e192;
             }
-            let _e191 = local_10;
-            local_9 = _e191;
+            let _e193 = local_10;
+            local_9 = _e193;
         }
-        let _e192 = local_9;
-        local_8 = _e192;
+        let _e194 = local_9;
+        local_8 = _e194;
     }
-    let _e193 = local_8;
-    return _e193;
+    let _e195 = local_8;
+    return _e195;
 }
 
 fn LightListScale_u0028_i1_u003b(slot_2: ptr<function, i32>) -> f32 {
     var param_47: vec4<f32>;
     var param_48: i32;
 
-    let _e169 = (*slot_2);
-    let _e173 = light_list_info.scales[(_e169 / 4i)];
-    param_47 = _e173;
-    let _e174 = (*slot_2);
-    param_48 = _e174;
-    let _e175 = LightListLane_u0028_vf4_u003b_i1_u003b((&param_47), (&param_48));
-    return _e175;
+    let _e171 = (*slot_2);
+    let _e175 = light_list_info.scales[(_e171 / 4i)];
+    param_47 = _e175;
+    let _e176 = (*slot_2);
+    param_48 = _e176;
+    let _e177 = LightListLane_u0028_vf4_u003b_i1_u003b((&param_47), (&param_48));
+    return _e177;
+}
+
+fn InSlots_u0028_f1_u003b(row: ptr<function, f32>) -> bool {
+    var a_2: vec4<f32>;
+    var b_1: vec4<f32>;
+
+    let _e173 = light_list_info.slot_rows[0i];
+    let _e174 = (*row);
+    a_2 = abs((_e173 - vec4(_e174)));
+    let _e180 = light_list_info.slot_rows[1i];
+    let _e181 = (*row);
+    b_1 = abs((_e180 - vec4(_e181)));
+    let _e186 = a_2[0u];
+    let _e188 = a_2[1u];
+    let _e191 = a_2[2u];
+    let _e193 = a_2[3u];
+    let _e197 = b_1[0u];
+    let _e199 = b_1[1u];
+    let _e202 = b_1[2u];
+    let _e204 = b_1[3u];
+    return (min(min(min(_e186, _e188), min(_e191, _e193)), min(min(_e197, _e199), min(_e202, _e204))) < 0.5f);
 }
 
 fn LightListRow_u0028_i1_u003b(slot_3: ptr<function, i32>) -> f32 {
     var param_49: vec4<f32>;
     var param_50: i32;
 
-    let _e169 = (*slot_3);
-    let _e173 = light_list_info.indices[(_e169 / 4i)];
-    param_49 = _e173;
-    let _e174 = (*slot_3);
-    param_50 = _e174;
-    let _e175 = LightListLane_u0028_vf4_u003b_i1_u003b((&param_49), (&param_50));
-    return _e175;
+    let _e171 = (*slot_3);
+    let _e175 = light_list_info.indices[(_e171 / 4i)];
+    param_49 = _e175;
+    let _e176 = (*slot_3);
+    param_50 = _e176;
+    let _e177 = LightListLane_u0028_vf4_u003b_i1_u003b((&param_49), (&param_50));
+    return _e177;
+}
+
+fn LightListTexel_u0028_f1_u003b_f1_u003b(texel_2: ptr<function, f32>, row_1: ptr<function, f32>) -> vec4<f32> {
+    let _e170 = (*texel_2);
+    let _e174 = light_list_info.list[1u];
+    let _e176 = (*row_1);
+    let _e180 = light_list_info.list[2u];
+    let _e183 = textureSampleLevel(light_list_texture_tex, light_list_texture_smp, vec2<f32>(((_e170 + 0.5f) * _e174), ((_e176 + 0.5f) * _e180)), 0f);
+    return _e183;
+}
+
+fn ClusterRow_u0028_i1_u003b(slot_4: ptr<function, i32>) -> f32 {
+    var entry: f32;
+    var row_2: f32;
+    var within: f32;
+    var texel_3: f32;
+    var four_1: vec4<f32>;
+    var param_51: f32;
+    var param_52: f32;
+    var param_53: vec4<f32>;
+    var param_54: i32;
+
+    let _e178 = g_cluster_offset;
+    let _e179 = (*slot_4);
+    entry = (_e178 + f32(_e179));
+    let _e182 = entry;
+    row_2 = floor((_e182 / 16f));
+    let _e185 = entry;
+    let _e186 = row_2;
+    within = (_e185 - (_e186 * 16f));
+    let _e189 = within;
+    texel_3 = floor((_e189 / 4f));
+    let _e194 = light_list_info.cluster_depth[3u];
+    let _e195 = row_2;
+    let _e197 = texel_3;
+    param_51 = _e197;
+    param_52 = (_e194 + _e195);
+    let _e198 = LightListTexel_u0028_f1_u003b_f1_u003b((&param_51), (&param_52));
+    four_1 = _e198;
+    let _e199 = within;
+    let _e200 = texel_3;
+    let _e205 = four_1;
+    param_53 = _e205;
+    param_54 = i32(((_e199 - (_e200 * 4f)) + 0.5f));
+    let _e206 = LightListLane_u0028_vf4_u003b_i1_u003b((&param_53), (&param_54));
+    return _e206;
+}
+
+fn Clustered_u0028_() -> bool {
+    let _e170 = light_list_info.cluster_grid[3u];
+    return (_e170 > 0.5f);
 }
 
 fn SampleLight_u0028_i1_u003b_struct_u002d_Surface_u002d_vf3_u002d_f1_u002d_vf3_u002d_vf3_u002d_f1_u002d_f1_u002d_f1_u002d_f1_u002d_vf3_u002d_vf3_u002d_f11_u003b(index_2: ptr<function, i32>, s_3: ptr<function, Surface>) -> LightSample {
@@ -14219,273 +14936,386 @@ fn SampleLight_u0028_i1_u003b_struct_u002d_Surface_u002d_vf3_u002d_f1_u002d_vf3_
     var color_1: vec4<f32>;
     var direction: vec4<f32>;
     var cone: vec4<f32>;
-    var slot_4: i32;
+    var slot_5: i32;
+    var clustered: bool;
+    var listRow: f32;
+    var local_11: f32;
+    var param_55: i32;
+    var param_56: i32;
     var v_1: f32;
-    var param_51: i32;
     var u_1: f32;
-    var param_52: i32;
-    var type_39: f32;
+    var local_12: f32;
+    var param_57: f32;
+    var param_58: i32;
+    var type_40: f32;
     var halfWidth_1: vec3<f32>;
     var halfHeight_1: vec3<f32>;
     var toCentre: vec3<f32>;
     var corners_1: array<vec3<f32>, 4>;
     var formFactor: f32;
-    var param_53: array<vec3<f32>, 4>;
-    var param_54: vec3<f32>;
+    var param_59: array<vec3<f32>, 4>;
+    var param_60: vec3<f32>;
     var area: f32;
     var radiance: f32;
-    var local_11: f32;
+    var local_13: f32;
     var distance_2: f32;
     var ratio_1: f32;
     var window_1: f32;
     var mirror_1: vec3<f32>;
     var representative: vec3<f32>;
-    var param_55: vec3<f32>;
-    var param_56: vec3<f32>;
-    var param_57: vec3<f32>;
-    var param_58: vec3<f32>;
-    var param_59: vec3<f32>;
+    var param_61: vec3<f32>;
+    var param_62: vec3<f32>;
+    var param_63: vec3<f32>;
+    var param_64: vec3<f32>;
+    var param_65: vec3<f32>;
     var toPoint: vec3<f32>;
     var pointDistance: f32;
     var light_3: LightSample;
-    var local_12: vec3<f32>;
+    var local_14: vec3<f32>;
     var aim: vec3<f32>;
     var attenuation_1: f32;
     var toLight_1: vec3<f32>;
     var distance_3: f32;
-    var param_60: f32;
-    var param_61: f32;
+    var param_66: f32;
+    var param_67: f32;
     var cosAngle: f32;
 
-    let _e209 = (*index_2);
-    if (_e209 < 8i) {
-        let _e211 = (*index_2);
-        let _e214 = frag_info.light_position[_e211];
-        position = _e214;
-        let _e215 = (*index_2);
-        let _e218 = frag_info.light_color[_e215];
-        color_1 = _e218;
+    let _e217 = (*index_2);
+    if (_e217 < 8i) {
         let _e219 = (*index_2);
-        let _e222 = frag_info.light_direction[_e219];
-        direction = _e222;
+        let _e222 = frag_info.light_position[_e219];
+        position = _e222;
         let _e223 = (*index_2);
-        let _e226 = frag_info.light_cone[_e223];
-        cone = _e226;
-    } else {
+        let _e226 = frag_info.light_color[_e223];
+        color_1 = _e226;
         let _e227 = (*index_2);
-        slot_4 = (_e227 - 8i);
-        let _e229 = slot_4;
-        param_51 = _e229;
-        let _e230 = LightListRow_u0028_i1_u003b((&param_51));
-        let _e234 = light_list_info.list[2u];
-        v_1 = ((_e230 + 0.5f) * _e234);
-        let _e238 = light_list_info.list[1u];
-        u_1 = _e238;
-        let _e239 = u_1;
-        let _e241 = v_1;
-        let _e243 = textureSampleLevel(light_list_texture_tex, light_list_texture_smp, vec2<f32>((0.5f * _e239), _e241), 0f);
-        position = _e243;
-        let _e244 = u_1;
-        let _e246 = v_1;
-        let _e248 = textureSampleLevel(light_list_texture_tex, light_list_texture_smp, vec2<f32>((1.5f * _e244), _e246), 0f);
-        color_1 = _e248;
-        let _e249 = u_1;
-        let _e251 = v_1;
-        let _e253 = textureSampleLevel(light_list_texture_tex, light_list_texture_smp, vec2<f32>((2.5f * _e249), _e251), 0f);
-        direction = _e253;
-        let _e254 = u_1;
-        let _e256 = v_1;
-        let _e258 = textureSampleLevel(light_list_texture_tex, light_list_texture_smp, vec2<f32>((3.5f * _e254), _e256), 0f);
-        cone = _e258;
-        let _e259 = slot_4;
-        param_52 = _e259;
-        let _e260 = LightListScale_u0028_i1_u003b((&param_52));
-        let _e262 = color_1[3u];
-        color_1[3u] = (_e262 * _e260);
-    }
-    let _e266 = position[3u];
-    type_39 = _e266;
-    let _e267 = type_39;
-    if (_e267 > 2.5f) {
-        let _e269 = direction;
-        halfWidth_1 = _e269.xyz;
-        let _e271 = cone;
-        halfHeight_1 = _e271.xyz;
-        let _e273 = position;
-        let _e275 = v_world_position_1;
-        toCentre = (_e273.xyz - _e275);
-        let _e277 = toCentre;
-        let _e278 = halfWidth_1;
-        let _e280 = halfHeight_1;
-        corners_1[0i] = ((_e277 - _e278) - _e280);
-        let _e283 = toCentre;
-        let _e284 = halfWidth_1;
-        let _e286 = halfHeight_1;
-        corners_1[1i] = ((_e283 + _e284) - _e286);
-        let _e289 = toCentre;
-        let _e290 = halfWidth_1;
-        let _e292 = halfHeight_1;
-        corners_1[2i] = ((_e289 + _e290) + _e292);
-        let _e295 = toCentre;
-        let _e296 = halfWidth_1;
-        let _e298 = halfHeight_1;
-        corners_1[3i] = ((_e295 - _e296) + _e298);
-        let _e301 = corners_1;
-        param_53 = _e301;
-        let _e303 = (*s_3).n;
-        param_54 = _e303;
-        let _e304 = RectangleFormFactor_u0028_vf3_u005b_4_u005d_u003b_vf3_u003b((&param_53), (&param_54));
-        formFactor = _e304;
-        let _e305 = halfWidth_1;
-        let _e306 = halfHeight_1;
-        area = (length(cross(_e305, _e306)) * 4f);
-        let _e310 = area;
-        if (_e310 > 0.000000001f) {
-            let _e312 = area;
-            local_11 = (1f / _e312);
-        } else {
-            local_11 = 0f;
-        }
-        let _e314 = local_11;
-        radiance = _e314;
-        let _e315 = toCentre;
-        distance_2 = length(_e315);
-        let _e318 = direction[3u];
-        if (_e318 > 0f) {
-            let _e320 = distance_2;
-            let _e322 = direction[3u];
-            ratio_1 = (_e320 / _e322);
-            let _e324 = ratio_1;
-            let _e325 = ratio_1;
-            let _e327 = ratio_1;
-            let _e329 = ratio_1;
-            window_1 = clamp((1f - (((_e324 * _e325) * _e327) * _e329)), 0f, 1f);
-            let _e333 = window_1;
-            let _e334 = window_1;
-            let _e336 = radiance;
-            radiance = (_e336 * (_e333 * _e334));
-        }
-        let _e339 = (*s_3).v;
-        let _e342 = (*s_3).n;
-        mirror_1 = reflect(-(_e339), _e342);
-        let _e344 = position;
-        param_55 = _e344.xyz;
-        let _e346 = halfWidth_1;
-        param_56 = _e346;
-        let _e347 = halfHeight_1;
-        param_57 = _e347;
-        let _e348 = v_world_position_1;
-        param_58 = _e348;
-        let _e349 = mirror_1;
-        param_59 = _e349;
-        let _e350 = RectangleClosestPoint_u0028_vf3_u003b_vf3_u003b_vf3_u003b_vf3_u003b_vf3_u003b((&param_55), (&param_56), (&param_57), (&param_58), (&param_59));
-        representative = _e350;
-        let _e351 = representative;
-        let _e352 = v_world_position_1;
-        toPoint = (_e351 - _e352);
-        let _e354 = toPoint;
-        pointDistance = length(_e354);
-        let _e356 = pointDistance;
-        if (_e356 > 0.000001f) {
-            let _e358 = toPoint;
-            let _e359 = pointDistance;
-            local_12 = (_e358 / vec3(_e359));
-        } else {
-            let _e363 = (*s_3).n;
-            local_12 = _e363;
-        }
-        let _e364 = local_12;
-        light_3.l = _e364;
-        let _e367 = light_3.l;
-        let _e369 = (*s_3).v;
-        light_3.h = normalize((_e367 + _e369));
-        let _e373 = formFactor;
-        light_3.n_dot_l = _e373;
-        let _e376 = (*s_3).n;
-        let _e378 = light_3.h;
-        light_3.n_dot_h = max(dot(_e376, _e378), 0f);
-        let _e383 = (*s_3).v;
-        let _e385 = light_3.h;
-        light_3.v_dot_h = max(dot(_e383, _e385), 0f);
-        let _e389 = color_1;
-        let _e392 = color_1[3u];
-        let _e394 = radiance;
-        light_3.radiance = ((_e389.xyz * _e392) * _e394);
-        let _e397 = light_3;
-        return _e397;
-    }
-    let _e398 = direction;
-    aim = normalize(_e398.xyz);
-    attenuation_1 = 1f;
-    let _e401 = type_39;
-    if (_e401 < 0.5f) {
-        let _e403 = aim;
-        light_3.l = -(_e403);
+        let _e230 = frag_info.light_direction[_e227];
+        direction = _e230;
+        let _e231 = (*index_2);
+        let _e234 = frag_info.light_cone[_e231];
+        cone = _e234;
     } else {
-        let _e406 = position;
-        let _e408 = v_world_position_1;
-        toLight_1 = (_e406.xyz - _e408);
-        let _e410 = toLight_1;
-        distance_3 = length(_e410);
-        let _e412 = distance_3;
-        if (_e412 < 0.000001f) {
-            let _e415 = (*s_3).n;
-            light_3.l = _e415;
-            let _e418 = (*s_3).n;
-            light_3.h = _e418;
+        let _e235 = (*index_2);
+        slot_5 = (_e235 - 8i);
+        let _e237 = Clustered_u0028_();
+        clustered = _e237;
+        let _e238 = clustered;
+        if _e238 {
+            let _e239 = slot_5;
+            param_55 = _e239;
+            let _e240 = ClusterRow_u0028_i1_u003b((&param_55));
+            local_11 = _e240;
+        } else {
+            let _e241 = slot_5;
+            param_56 = _e241;
+            let _e242 = LightListRow_u0028_i1_u003b((&param_56));
+            local_11 = _e242;
+        }
+        let _e243 = local_11;
+        listRow = _e243;
+        let _e244 = listRow;
+        let _e248 = light_list_info.list[2u];
+        v_1 = ((_e244 + 0.5f) * _e248);
+        let _e252 = light_list_info.list[1u];
+        u_1 = _e252;
+        let _e253 = u_1;
+        let _e255 = v_1;
+        let _e257 = textureSampleLevel(light_list_texture_tex, light_list_texture_smp, vec2<f32>((0.5f * _e253), _e255), 0f);
+        position = _e257;
+        let _e258 = u_1;
+        let _e260 = v_1;
+        let _e262 = textureSampleLevel(light_list_texture_tex, light_list_texture_smp, vec2<f32>((1.5f * _e258), _e260), 0f);
+        color_1 = _e262;
+        let _e263 = u_1;
+        let _e265 = v_1;
+        let _e267 = textureSampleLevel(light_list_texture_tex, light_list_texture_smp, vec2<f32>((2.5f * _e263), _e265), 0f);
+        direction = _e267;
+        let _e268 = u_1;
+        let _e270 = v_1;
+        let _e272 = textureSampleLevel(light_list_texture_tex, light_list_texture_smp, vec2<f32>((3.5f * _e268), _e270), 0f);
+        cone = _e272;
+        let _e273 = clustered;
+        if _e273 {
+            let _e274 = listRow;
+            param_57 = _e274;
+            let _e275 = InSlots_u0028_f1_u003b((&param_57));
+            local_12 = select(1f, 0f, _e275);
+        } else {
+            let _e277 = slot_5;
+            param_58 = _e277;
+            let _e278 = LightListScale_u0028_i1_u003b((&param_58));
+            local_12 = _e278;
+        }
+        let _e279 = local_12;
+        let _e281 = color_1[3u];
+        color_1[3u] = (_e281 * _e279);
+    }
+    let _e285 = position[3u];
+    type_40 = _e285;
+    let _e286 = type_40;
+    if (_e286 > 2.5f) {
+        let _e288 = direction;
+        halfWidth_1 = _e288.xyz;
+        let _e290 = cone;
+        halfHeight_1 = _e290.xyz;
+        let _e292 = position;
+        let _e294 = v_world_position_1;
+        toCentre = (_e292.xyz - _e294);
+        let _e296 = toCentre;
+        let _e297 = halfWidth_1;
+        let _e299 = halfHeight_1;
+        corners_1[0i] = ((_e296 - _e297) - _e299);
+        let _e302 = toCentre;
+        let _e303 = halfWidth_1;
+        let _e305 = halfHeight_1;
+        corners_1[1i] = ((_e302 + _e303) - _e305);
+        let _e308 = toCentre;
+        let _e309 = halfWidth_1;
+        let _e311 = halfHeight_1;
+        corners_1[2i] = ((_e308 + _e309) + _e311);
+        let _e314 = toCentre;
+        let _e315 = halfWidth_1;
+        let _e317 = halfHeight_1;
+        corners_1[3i] = ((_e314 - _e315) + _e317);
+        let _e320 = corners_1;
+        param_59 = _e320;
+        let _e322 = (*s_3).n;
+        param_60 = _e322;
+        let _e323 = RectangleFormFactor_u0028_vf3_u005b_4_u005d_u003b_vf3_u003b((&param_59), (&param_60));
+        formFactor = _e323;
+        let _e324 = halfWidth_1;
+        let _e325 = halfHeight_1;
+        area = (length(cross(_e324, _e325)) * 4f);
+        let _e329 = area;
+        if (_e329 > 0.000000001f) {
+            let _e331 = area;
+            local_13 = (1f / _e331);
+        } else {
+            local_13 = 0f;
+        }
+        let _e333 = local_13;
+        radiance = _e333;
+        let _e334 = toCentre;
+        distance_2 = length(_e334);
+        let _e337 = direction[3u];
+        if (_e337 > 0f) {
+            let _e339 = distance_2;
+            let _e341 = direction[3u];
+            ratio_1 = (_e339 / _e341);
+            let _e343 = ratio_1;
+            let _e344 = ratio_1;
+            let _e346 = ratio_1;
+            let _e348 = ratio_1;
+            window_1 = clamp((1f - (((_e343 * _e344) * _e346) * _e348)), 0f, 1f);
+            let _e352 = window_1;
+            let _e353 = window_1;
+            let _e355 = radiance;
+            radiance = (_e355 * (_e352 * _e353));
+        }
+        let _e358 = (*s_3).v;
+        let _e361 = (*s_3).n;
+        mirror_1 = reflect(-(_e358), _e361);
+        let _e363 = position;
+        param_61 = _e363.xyz;
+        let _e365 = halfWidth_1;
+        param_62 = _e365;
+        let _e366 = halfHeight_1;
+        param_63 = _e366;
+        let _e367 = v_world_position_1;
+        param_64 = _e367;
+        let _e368 = mirror_1;
+        param_65 = _e368;
+        let _e369 = RectangleClosestPoint_u0028_vf3_u003b_vf3_u003b_vf3_u003b_vf3_u003b_vf3_u003b((&param_61), (&param_62), (&param_63), (&param_64), (&param_65));
+        representative = _e369;
+        let _e370 = representative;
+        let _e371 = v_world_position_1;
+        toPoint = (_e370 - _e371);
+        let _e373 = toPoint;
+        pointDistance = length(_e373);
+        let _e375 = pointDistance;
+        if (_e375 > 0.000001f) {
+            let _e377 = toPoint;
+            let _e378 = pointDistance;
+            local_14 = (_e377 / vec3(_e378));
+        } else {
+            let _e382 = (*s_3).n;
+            local_14 = _e382;
+        }
+        let _e383 = local_14;
+        light_3.l = _e383;
+        let _e386 = light_3.l;
+        let _e388 = (*s_3).v;
+        light_3.h = normalize((_e386 + _e388));
+        let _e392 = formFactor;
+        light_3.n_dot_l = _e392;
+        let _e395 = (*s_3).n;
+        let _e397 = light_3.h;
+        light_3.n_dot_h = max(dot(_e395, _e397), 0f);
+        let _e402 = (*s_3).v;
+        let _e404 = light_3.h;
+        light_3.v_dot_h = max(dot(_e402, _e404), 0f);
+        let _e408 = color_1;
+        let _e411 = color_1[3u];
+        let _e413 = radiance;
+        light_3.radiance = ((_e408.xyz * _e411) * _e413);
+        let _e416 = light_3;
+        return _e416;
+    }
+    let _e417 = direction;
+    aim = normalize(_e417.xyz);
+    attenuation_1 = 1f;
+    let _e420 = type_40;
+    if (_e420 < 0.5f) {
+        let _e422 = aim;
+        light_3.l = -(_e422);
+    } else {
+        let _e425 = position;
+        let _e427 = v_world_position_1;
+        toLight_1 = (_e425.xyz - _e427);
+        let _e429 = toLight_1;
+        distance_3 = length(_e429);
+        let _e431 = distance_3;
+        if (_e431 < 0.000001f) {
+            let _e434 = (*s_3).n;
+            light_3.l = _e434;
+            let _e437 = (*s_3).n;
+            light_3.h = _e437;
             light_3.radiance = vec3<f32>(0f, 0f, 0f);
             light_3.n_dot_l = 0f;
             light_3.n_dot_h = 0f;
             light_3.v_dot_h = 0f;
-            let _e424 = light_3;
-            return _e424;
+            let _e443 = light_3;
+            return _e443;
         }
-        let _e425 = toLight_1;
-        let _e426 = distance_3;
-        light_3.l = (_e425 / vec3(_e426));
-        let _e430 = distance_3;
-        param_60 = _e430;
-        let _e432 = direction[3u];
-        param_61 = _e432;
-        let _e433 = PunctualAttenuation_u0028_f1_u003b_f1_u003b((&param_60), (&param_61));
-        attenuation_1 = _e433;
-        let _e434 = type_39;
-        if (_e434 > 1.5f) {
-            let _e436 = aim;
-            let _e438 = light_3.l;
-            cosAngle = dot(_e436, -(_e438));
-            let _e441 = cosAngle;
-            let _e443 = cone[1u];
-            let _e446 = cone[0u];
-            let _e448 = cone[1u];
-            let _e452 = attenuation_1;
-            attenuation_1 = (_e452 * clamp(((_e441 - _e443) / (_e446 - _e448)), 0f, 1f));
+        let _e444 = toLight_1;
+        let _e445 = distance_3;
+        light_3.l = (_e444 / vec3(_e445));
+        let _e449 = distance_3;
+        param_66 = _e449;
+        let _e451 = direction[3u];
+        param_67 = _e451;
+        let _e452 = PunctualAttenuation_u0028_f1_u003b_f1_u003b((&param_66), (&param_67));
+        attenuation_1 = _e452;
+        let _e453 = type_40;
+        if (_e453 > 1.5f) {
+            let _e455 = aim;
+            let _e457 = light_3.l;
+            cosAngle = dot(_e455, -(_e457));
+            let _e460 = cosAngle;
+            let _e462 = cone[1u];
+            let _e465 = cone[0u];
+            let _e467 = cone[1u];
+            let _e471 = attenuation_1;
+            attenuation_1 = (_e471 * clamp(((_e460 - _e462) / (_e465 - _e467)), 0f, 1f));
         }
     }
-    let _e455 = light_3.l;
-    let _e457 = (*s_3).v;
-    light_3.h = normalize((_e455 + _e457));
-    let _e462 = (*s_3).n;
-    let _e464 = light_3.l;
-    light_3.n_dot_l = max(dot(_e462, _e464), 0f);
-    let _e469 = (*s_3).n;
-    let _e471 = light_3.h;
-    light_3.n_dot_h = max(dot(_e469, _e471), 0f);
+    let _e474 = light_3.l;
     let _e476 = (*s_3).v;
-    let _e478 = light_3.h;
-    light_3.v_dot_h = max(dot(_e476, _e478), 0f);
-    let _e482 = color_1;
-    let _e485 = color_1[3u];
-    let _e487 = attenuation_1;
-    light_3.radiance = ((_e482.xyz * _e485) * _e487);
-    let _e490 = light_3;
-    return _e490;
+    light_3.h = normalize((_e474 + _e476));
+    let _e481 = (*s_3).n;
+    let _e483 = light_3.l;
+    light_3.n_dot_l = max(dot(_e481, _e483), 0f);
+    let _e488 = (*s_3).n;
+    let _e490 = light_3.h;
+    light_3.n_dot_h = max(dot(_e488, _e490), 0f);
+    let _e495 = (*s_3).v;
+    let _e497 = light_3.h;
+    light_3.v_dot_h = max(dot(_e495, _e497), 0f);
+    let _e501 = color_1;
+    let _e504 = color_1[3u];
+    let _e506 = attenuation_1;
+    light_3.radiance = ((_e501.xyz * _e504) * _e506);
+    let _e509 = light_3;
+    return _e509;
+}
+
+fn FindCluster_u0028_vf3_u003b(world_3: ptr<function, vec3<f32>>) {
+    var clip_1: vec4<f32>;
+    var ndc_1: vec2<f32>;
+    var grid: vec3<f32>;
+    var near: f32;
+    var tx: f32;
+    var ty: f32;
+    var tz: f32;
+    var local_15: f32;
+    var cell: f32;
+    var row_3: f32;
+    var header: vec4<f32>;
+    var param_68: f32;
+    var param_69: f32;
+
+    let _e183 = light_list_info.cluster_view_projection;
+    let _e184 = (*world_3);
+    clip_1 = (_e183 * vec4<f32>(_e184.x, _e184.y, _e184.z, 1f));
+    let _e190 = clip_1;
+    let _e193 = clip_1[3u];
+    ndc_1 = (_e190.xy / vec2(max(_e193, 0.000001f)));
+    let _e198 = light_list_info.cluster_grid;
+    grid = _e198.xyz;
+    let _e202 = light_list_info.cluster_depth[0u];
+    near = _e202;
+    let _e204 = ndc_1[0u];
+    let _e208 = grid[0u];
+    let _e212 = grid[0u];
+    tx = clamp(floor((((_e204 * 0.5f) + 0.5f) * _e208)), 0f, (_e212 - 1f));
+    let _e216 = ndc_1[1u];
+    let _e220 = grid[1u];
+    let _e224 = grid[1u];
+    ty = clamp(floor((((_e216 * 0.5f) + 0.5f) * _e220)), 0f, (_e224 - 1f));
+    let _e228 = clip_1[3u];
+    let _e229 = near;
+    if (_e228 <= _e229) {
+        local_15 = 0f;
+    } else {
+        let _e232 = clip_1[3u];
+        let _e233 = near;
+        let _e238 = light_list_info.cluster_depth[1u];
+        let _e242 = grid[2u];
+        local_15 = clamp(floor((log((_e232 / _e233)) * _e238)), 0f, (_e242 - 1f));
+    }
+    let _e245 = local_15;
+    tz = _e245;
+    let _e246 = tx;
+    let _e247 = ty;
+    let _e249 = grid[0u];
+    let _e252 = tz;
+    let _e254 = grid[0u];
+    let _e257 = grid[1u];
+    cell = ((_e246 + (_e247 * _e249)) + ((_e252 * _e254) * _e257));
+    let _e260 = cell;
+    row_3 = floor((_e260 / 4f));
+    let _e263 = cell;
+    let _e264 = row_3;
+    let _e269 = light_list_info.cluster_depth[2u];
+    let _e270 = row_3;
+    param_68 = (_e263 - (_e264 * 4f));
+    param_69 = (_e269 + _e270);
+    let _e272 = LightListTexel_u0028_f1_u003b_f1_u003b((&param_68), (&param_69));
+    header = _e272;
+    let _e274 = header[0u];
+    g_cluster_offset = _e274;
+    let _e276 = header[1u];
+    g_cluster_count = _e276;
+    return;
 }
 
 fn LightCount_u0028_() -> i32 {
-    let _e168 = frag_info.frame_params[1u];
-    let _e174 = light_list_info.list[0u];
-    return (clamp(i32((_e168 + 0.5f)), 0i, 8i) + clamp(i32((_e174 + 0.5f)), 0i, 24i));
+    var tail: f32;
+    var param_70: vec3<f32>;
+
+    let _e172 = light_list_info.list[0u];
+    tail = _e172;
+    let _e173 = Clustered_u0028_();
+    if _e173 {
+        let _e174 = v_world_position_1;
+        param_70 = _e174;
+        FindCluster_u0028_vf3_u003b((&param_70));
+        let _e175 = g_cluster_count;
+        tail = _e175;
+    }
+    let _e178 = frag_info.frame_params[1u];
+    let _e182 = tail;
+    return (clamp(i32((_e178 + 0.5f)), 0i, 8i) + clamp(i32((_e182 + 0.5f)), 0i, 24i));
 }
 
 fn AccumulateLights_u0028_struct_u002d_Surface_u002d_vf3_u002d_f1_u002d_vf3_u002d_vf3_u002d_f1_u002d_f1_u002d_f1_u002d_f1_u002d_vf3_u002d_vf3_u002d_f11_u003b(s_4: ptr<function, Surface>) -> vec3<f32> {
@@ -14493,271 +15323,271 @@ fn AccumulateLights_u0028_struct_u002d_Surface_u002d_vf3_u002d_f1_u002d_vf3_u002
     var count_1: i32;
     var i_7: i32;
     var light_4: LightSample;
-    var param_62: i32;
-    var param_63: Surface;
+    var param_71: i32;
+    var param_72: Surface;
     var visibility: f32;
-    var param_64: i32;
-    var local_13: f32;
-    var param_65: Surface;
-    var param_66: LightSample;
-    var param_67: i32;
-    var param_68: vec3<f32>;
-    var param_69: vec3<f32>;
-    var param_70: i32;
-    var param_71: Surface;
-    var param_72: LightSample;
+    var param_73: i32;
+    var local_16: f32;
+    var param_74: Surface;
+    var param_75: LightSample;
+    var param_76: i32;
+    var param_77: vec3<f32>;
+    var param_78: vec3<f32>;
+    var param_79: i32;
+    var param_80: Surface;
+    var param_81: LightSample;
 
     total_1 = vec3<f32>(0f, 0f, 0f);
-    let _e184 = LightCount_u0028_();
-    count_1 = _e184;
+    let _e186 = LightCount_u0028_();
+    count_1 = _e186;
     i_7 = 0i;
     loop {
-        let _e185 = i_7;
-        if (_e185 < 32i) {
-            let _e187 = i_7;
-            let _e188 = count_1;
-            if (_e187 >= _e188) {
+        let _e187 = i_7;
+        if (_e187 < 32i) {
+            let _e189 = i_7;
+            let _e190 = count_1;
+            if (_e189 >= _e190) {
                 break;
             }
-            let _e190 = i_7;
-            param_62 = _e190;
-            let _e191 = (*s_4);
-            param_63 = _e191;
-            let _e192 = SampleLight_u0028_i1_u003b_struct_u002d_Surface_u002d_vf3_u002d_f1_u002d_vf3_u002d_vf3_u002d_f1_u002d_f1_u002d_f1_u002d_f1_u002d_vf3_u002d_vf3_u002d_f11_u003b((&param_62), (&param_63));
-            light_4 = _e192;
-            let _e194 = light_4.n_dot_l;
-            if (_e194 <= 0f) {
+            let _e192 = i_7;
+            param_71 = _e192;
+            let _e193 = (*s_4);
+            param_72 = _e193;
+            let _e194 = SampleLight_u0028_i1_u003b_struct_u002d_Surface_u002d_vf3_u002d_f1_u002d_vf3_u002d_vf3_u002d_f1_u002d_f1_u002d_f1_u002d_f1_u002d_vf3_u002d_vf3_u002d_f11_u003b((&param_71), (&param_72));
+            light_4 = _e194;
+            let _e196 = light_4.n_dot_l;
+            if (_e196 <= 0f) {
                 continue;
             }
-            let _e196 = i_7;
-            param_64 = _e196;
-            let _e197 = LightHasShadow_u0028_i1_u003b((&param_64));
-            if _e197 {
-                let _e198 = (*s_4);
-                param_65 = _e198;
-                let _e199 = light_4;
-                param_66 = _e199;
-                let _e200 = i_7;
-                param_67 = _e200;
-                let _e201 = LightVisibility_u0028_struct_u002d_Surface_u002d_vf3_u002d_f1_u002d_vf3_u002d_vf3_u002d_f1_u002d_f1_u002d_f1_u002d_f1_u002d_vf3_u002d_vf3_u002d_f11_u003b_struct_u002d_LightSample_u002d_vf3_u002d_vf3_u002d_vf3_u002d_f1_u002d_f1_u002d_f11_u003b_i1_u003b((&param_65), (&param_66), (&param_67));
-                let _e202 = v_world_position_1;
-                param_68 = _e202;
-                let _e204 = (*s_4).n;
-                param_69 = _e204;
-                let _e205 = i_7;
-                param_70 = _e205;
-                let _e206 = PointShadowFactor_u0028_vf3_u003b_vf3_u003b_i1_u003b((&param_68), (&param_69), (&param_70));
-                local_13 = (_e201 * _e206);
+            let _e198 = i_7;
+            param_73 = _e198;
+            let _e199 = LightHasShadow_u0028_i1_u003b((&param_73));
+            if _e199 {
+                let _e200 = (*s_4);
+                param_74 = _e200;
+                let _e201 = light_4;
+                param_75 = _e201;
+                let _e202 = i_7;
+                param_76 = _e202;
+                let _e203 = LightVisibility_u0028_struct_u002d_Surface_u002d_vf3_u002d_f1_u002d_vf3_u002d_vf3_u002d_f1_u002d_f1_u002d_f1_u002d_f1_u002d_vf3_u002d_vf3_u002d_f11_u003b_struct_u002d_LightSample_u002d_vf3_u002d_vf3_u002d_vf3_u002d_f1_u002d_f1_u002d_f11_u003b_i1_u003b((&param_74), (&param_75), (&param_76));
+                let _e204 = v_world_position_1;
+                param_77 = _e204;
+                let _e206 = (*s_4).n;
+                param_78 = _e206;
+                let _e207 = i_7;
+                param_79 = _e207;
+                let _e208 = PointShadowFactor_u0028_vf3_u003b_vf3_u003b_i1_u003b((&param_77), (&param_78), (&param_79));
+                local_16 = (_e203 * _e208);
             } else {
-                local_13 = 1f;
+                local_16 = 1f;
             }
-            let _e208 = local_13;
-            visibility = _e208;
-            let _e209 = visibility;
-            if (_e209 <= 0f) {
+            let _e210 = local_16;
+            visibility = _e210;
+            let _e211 = visibility;
+            if (_e211 <= 0f) {
                 continue;
             }
-            let _e211 = (*s_4);
-            param_71 = _e211;
-            let _e212 = light_4;
-            param_72 = _e212;
-            let _e213 = ShadeLight_u0028_struct_u002d_Surface_u002d_vf3_u002d_f1_u002d_vf3_u002d_vf3_u002d_f1_u002d_f1_u002d_f1_u002d_f1_u002d_vf3_u002d_vf3_u002d_f11_u003b_struct_u002d_LightSample_u002d_vf3_u002d_vf3_u002d_vf3_u002d_f1_u002d_f1_u002d_f11_u003b((&param_71), (&param_72));
-            let _e215 = light_4.radiance;
-            let _e218 = light_4.n_dot_l;
-            let _e220 = visibility;
-            let _e222 = total_1;
-            total_1 = (_e222 + (((_e213 * _e215) * _e218) * _e220));
+            let _e213 = (*s_4);
+            param_80 = _e213;
+            let _e214 = light_4;
+            param_81 = _e214;
+            let _e215 = ShadeLight_u0028_struct_u002d_Surface_u002d_vf3_u002d_f1_u002d_vf3_u002d_vf3_u002d_f1_u002d_f1_u002d_f1_u002d_f1_u002d_vf3_u002d_vf3_u002d_f11_u003b_struct_u002d_LightSample_u002d_vf3_u002d_vf3_u002d_vf3_u002d_f1_u002d_f1_u002d_f11_u003b((&param_80), (&param_81));
+            let _e217 = light_4.radiance;
+            let _e220 = light_4.n_dot_l;
+            let _e222 = visibility;
+            let _e224 = total_1;
+            total_1 = (_e224 + (((_e215 * _e217) * _e220) * _e222));
             continue;
         } else {
             break;
         }
         continuing {
-            let _e224 = i_7;
-            i_7 = (_e224 + 1i);
+            let _e226 = i_7;
+            i_7 = (_e226 + 1i);
         }
     }
-    let _e226 = total_1;
-    return _e226;
+    let _e228 = total_1;
+    return _e228;
 }
 
 fn SampleLightmap_u0028_() -> vec3<f32> {
-    var texel_2: vec4<f32>;
+    var texel_4: vec4<f32>;
 
-    let _e167 = v_lightmap_uv_1;
-    let _e168 = textureSample(lightmap_texture_tex, lightmap_texture_smp, _e167);
-    texel_2 = _e168;
-    let _e169 = texel_2;
-    let _e172 = texel_2[3u];
-    return ((_e169.xyz * _e172) * 8f);
+    let _e169 = v_lightmap_uv_1;
+    let _e170 = textureSample(lightmap_texture_tex, lightmap_texture_smp, _e169);
+    texel_4 = _e170;
+    let _e171 = texel_4;
+    let _e174 = texel_4[3u];
+    return ((_e171.xyz * _e174) * 8f);
 }
 
 fn MaterialLodBias_u0028_() -> f32 {
-    let _e168 = frag_info.target_origin[1u];
-    return _e168;
+    let _e170 = frag_info.target_origin[1u];
+    return _e170;
 }
 
 fn ApplyMetallicRoughnessMap_u0028_struct_u002d_Surface_u002d_vf3_u002d_f1_u002d_vf3_u002d_vf3_u002d_f1_u002d_f1_u002d_f1_u002d_f1_u002d_vf3_u002d_vf3_u002d_f11_u003b(s_5: ptr<function, Surface>) {
     var orm: vec3<f32>;
 
-    let _e168 = v_texcoord_1;
-    let _e169 = MaterialLodBias_u0028_();
-    let _e170 = textureSampleBias(metallic_roughness_texture_tex, metallic_roughness_texture_smp, _e168, _e169);
-    orm = _e170.xyz;
-    let _e173 = (*s_5).metallic;
-    let _e175 = orm[2u];
-    (*s_5).metallic = clamp((_e173 * _e175), 0f, 1f);
-    let _e180 = (*s_5).roughness;
-    let _e182 = orm[1u];
-    (*s_5).roughness = clamp((_e180 * _e182), 0.02f, 1f);
+    let _e170 = v_texcoord_1;
+    let _e171 = MaterialLodBias_u0028_();
+    let _e172 = textureSampleBias(metallic_roughness_texture_tex, metallic_roughness_texture_smp, _e170, _e171);
+    orm = _e172.xyz;
+    let _e175 = (*s_5).metallic;
+    let _e177 = orm[2u];
+    (*s_5).metallic = clamp((_e175 * _e177), 0f, 1f);
+    let _e182 = (*s_5).roughness;
+    let _e184 = orm[1u];
+    (*s_5).roughness = clamp((_e182 * _e184), 0.02f, 1f);
     return;
 }
 
 fn SrgbToLinear_u0028_vf3_u003b(srgb: ptr<function, vec3<f32>>) -> vec3<f32> {
-    let _e167 = (*srgb);
-    let _e170 = (*srgb);
-    let _e175 = (*srgb);
-    return mix((_e167 / vec3(12.92f)), pow(((_e170 + vec3<f32>(0.055f, 0.055f, 0.055f)) / vec3(1.055f)), vec3<f32>(2.4f, 2.4f, 2.4f)), step(vec3<f32>(0.04045f, 0.04045f, 0.04045f), _e175));
+    let _e169 = (*srgb);
+    let _e172 = (*srgb);
+    let _e177 = (*srgb);
+    return mix((_e169 / vec3(12.92f)), pow(((_e172 + vec3<f32>(0.055f, 0.055f, 0.055f)) / vec3(1.055f)), vec3<f32>(2.4f, 2.4f, 2.4f)), step(vec3<f32>(0.04045f, 0.04045f, 0.04045f), _e177));
 }
 
 fn ApplyEmissiveMap_u0028_struct_u002d_Surface_u002d_vf3_u002d_f1_u002d_vf3_u002d_vf3_u002d_f1_u002d_f1_u002d_f1_u002d_f1_u002d_vf3_u002d_vf3_u002d_f11_u003b(s_6: ptr<function, Surface>) {
     var emissive: vec3<f32>;
-    var param_73: vec3<f32>;
+    var param_82: vec3<f32>;
 
-    let _e169 = v_texcoord_1;
-    let _e170 = MaterialLodBias_u0028_();
-    let _e171 = textureSampleBias(emissive_texture_tex, emissive_texture_smp, _e169, _e170);
-    param_73 = _e171.xyz;
-    let _e173 = SrgbToLinear_u0028_vf3_u003b((&param_73));
-    emissive = _e173;
-    let _e174 = emissive;
-    let _e176 = frag_info.emissive;
-    let _e181 = frag_info.material2_[3u];
-    (*s_6).emissive = ((_e174 * _e176.xyz) * _e181);
+    let _e171 = v_texcoord_1;
+    let _e172 = MaterialLodBias_u0028_();
+    let _e173 = textureSampleBias(emissive_texture_tex, emissive_texture_smp, _e171, _e172);
+    param_82 = _e173.xyz;
+    let _e175 = SrgbToLinear_u0028_vf3_u003b((&param_82));
+    emissive = _e175;
+    let _e176 = emissive;
+    let _e178 = frag_info.emissive;
+    let _e183 = frag_info.material2_[3u];
+    (*s_6).emissive = ((_e176 * _e178.xyz) * _e183);
     return;
 }
 
 fn ApplyOcclusionMap_u0028_struct_u002d_Surface_u002d_vf3_u002d_f1_u002d_vf3_u002d_vf3_u002d_f1_u002d_f1_u002d_f1_u002d_f1_u002d_vf3_u002d_vf3_u002d_f11_u003b(s_7: ptr<function, Surface>) {
     var occlusion: f32;
 
-    let _e168 = v_texcoord_1;
-    let _e169 = MaterialLodBias_u0028_();
-    let _e170 = textureSampleBias(occlusion_texture_tex, occlusion_texture_smp, _e168, _e169);
-    occlusion = _e170.x;
-    let _e172 = occlusion;
-    let _e175 = frag_info.material2_[2u];
-    (*s_7).occlusion = mix(1f, _e172, clamp(_e175, 0f, 1f));
+    let _e170 = v_texcoord_1;
+    let _e171 = MaterialLodBias_u0028_();
+    let _e172 = textureSampleBias(occlusion_texture_tex, occlusion_texture_smp, _e170, _e171);
+    occlusion = _e172.x;
+    let _e174 = occlusion;
+    let _e177 = frag_info.material2_[2u];
+    (*s_7).occlusion = mix(1f, _e174, clamp(_e177, 0f, 1f));
     return;
 }
 
 fn ApplyNormalMap_u0028_struct_u002d_Surface_u002d_vf3_u002d_f1_u002d_vf3_u002d_vf3_u002d_f1_u002d_f1_u002d_f1_u002d_f1_u002d_vf3_u002d_vf3_u002d_f11_u003b(s_8: ptr<function, Surface>) {
     var sampledTexel: vec4<f32>;
     var t_1: vec3<f32>;
-    var b_1: vec3<f32>;
+    var b_2: vec3<f32>;
     var sampled: vec3<f32>;
 
-    let _e171 = v_texcoord_1;
-    let _e172 = MaterialLodBias_u0028_();
-    let _e173 = textureSampleBias(normal_texture_tex, normal_texture_smp, _e171, _e172);
-    sampledTexel = _e173;
-    let _e174 = v_tangent_1;
-    t_1 = _e174.xyz;
-    let _e176 = t_1;
-    let _e178 = (*s_8).n;
+    let _e173 = v_texcoord_1;
+    let _e174 = MaterialLodBias_u0028_();
+    let _e175 = textureSampleBias(normal_texture_tex, normal_texture_smp, _e173, _e174);
+    sampledTexel = _e175;
+    let _e176 = v_tangent_1;
+    t_1 = _e176.xyz;
+    let _e178 = t_1;
     let _e180 = (*s_8).n;
-    let _e181 = t_1;
-    t_1 = (_e176 - (_e178 * dot(_e180, _e181)));
-    let _e185 = t_1;
-    let _e186 = t_1;
-    if (dot(_e185, _e186) < 0.000000000001f) {
+    let _e182 = (*s_8).n;
+    let _e183 = t_1;
+    t_1 = (_e178 - (_e180 * dot(_e182, _e183)));
+    let _e187 = t_1;
+    let _e188 = t_1;
+    if (dot(_e187, _e188) < 0.000000000001f) {
         return;
     }
-    let _e189 = t_1;
-    t_1 = normalize(_e189);
-    let _e192 = (*s_8).n;
-    let _e193 = t_1;
-    let _e196 = v_tangent_1[3u];
-    b_1 = (cross(_e192, _e193) * _e196);
-    let _e198 = gl_FrontFacing_1;
-    if !(_e198) {
-        let _e200 = t_1;
-        t_1 = -(_e200);
+    let _e191 = t_1;
+    t_1 = normalize(_e191);
+    let _e194 = (*s_8).n;
+    let _e195 = t_1;
+    let _e198 = v_tangent_1[3u];
+    b_2 = (cross(_e194, _e195) * _e198);
+    let _e200 = gl_FrontFacing_1;
+    if !(_e200) {
+        let _e202 = t_1;
+        t_1 = -(_e202);
     }
-    let _e202 = sampledTexel;
-    sampled = ((_e202.xyz * 2f) - vec3(1f));
-    let _e209 = frag_info.material2_[1u];
-    let _e210 = sampled;
-    let _e212 = (_e210.xy * _e209);
-    sampled[0u] = _e212.x;
-    sampled[1u] = _e212.y;
-    let _e217 = t_1;
-    let _e219 = sampled[0u];
-    let _e221 = b_1;
-    let _e223 = sampled[1u];
-    let _e227 = (*s_8).n;
-    let _e229 = sampled[2u];
-    (*s_8).n = normalize((((_e217 * _e219) + (_e221 * _e223)) + (_e227 * _e229)));
-    let _e235 = (*s_8).n;
-    let _e237 = (*s_8).v;
-    (*s_8).n_dot_v = max(dot(_e235, _e237), 0.0001f);
+    let _e204 = sampledTexel;
+    sampled = ((_e204.xyz * 2f) - vec3(1f));
+    let _e211 = frag_info.material2_[1u];
+    let _e212 = sampled;
+    let _e214 = (_e212.xy * _e211);
+    sampled[0u] = _e214.x;
+    sampled[1u] = _e214.y;
+    let _e219 = t_1;
+    let _e221 = sampled[0u];
+    let _e223 = b_2;
+    let _e225 = sampled[1u];
+    let _e229 = (*s_8).n;
+    let _e231 = sampled[2u];
+    (*s_8).n = normalize((((_e219 * _e221) + (_e223 * _e225)) + (_e229 * _e231)));
+    let _e237 = (*s_8).n;
+    let _e239 = (*s_8).v;
+    (*s_8).n_dot_v = max(dot(_e237, _e239), 0.0001f);
     return;
 }
 
-fn AtlasTexel_u0028_vf2_u003b(texel_3: ptr<function, vec2<f32>>) -> vec4<f32> {
-    let _e167 = (*texel_3);
-    let _e171 = irradiance_info.atlas;
-    let _e174 = textureSampleLevel(irradiance_texture_tex, irradiance_texture_smp, ((_e167 + vec2(0.5f)) * _e171.xy), 0f);
-    return _e174;
+fn AtlasTexel_u0028_vf2_u003b(texel_5: ptr<function, vec2<f32>>) -> vec4<f32> {
+    let _e169 = (*texel_5);
+    let _e173 = irradiance_info.atlas;
+    let _e176 = textureSampleLevel(irradiance_texture_tex, irradiance_texture_smp, ((_e169 + vec2(0.5f)) * _e173.xy), 0f);
+    return _e176;
 }
 
 fn TileBilinear_u0028_vf2_u003b_f1_u003b_vf2_u003b(corner: ptr<function, vec2<f32>>, interior: ptr<function, f32>, uv_5: ptr<function, vec2<f32>>) -> vec4<f32> {
     var at: vec2<f32>;
     var low: vec2<f32>;
     var f: vec2<f32>;
-    var a_2: vec4<f32>;
-    var param_74: vec2<f32>;
-    var b_2: vec4<f32>;
-    var param_75: vec2<f32>;
+    var a_3: vec4<f32>;
+    var param_83: vec2<f32>;
+    var b_3: vec4<f32>;
+    var param_84: vec2<f32>;
     var c: vec4<f32>;
-    var param_76: vec2<f32>;
+    var param_85: vec2<f32>;
     var d_1: vec4<f32>;
-    var param_77: vec2<f32>;
+    var param_86: vec2<f32>;
 
-    let _e180 = (*uv_5);
-    let _e181 = (*interior);
-    at = ((vec2(1f) + (_e180 * _e181)) - vec2(0.5f));
-    let _e187 = at;
-    low = floor(_e187);
+    let _e182 = (*uv_5);
+    let _e183 = (*interior);
+    at = ((vec2(1f) + (_e182 * _e183)) - vec2(0.5f));
     let _e189 = at;
-    let _e190 = low;
-    f = (_e189 - _e190);
-    let _e192 = (*corner);
-    let _e193 = low;
-    param_74 = (_e192 + _e193);
-    let _e195 = AtlasTexel_u0028_vf2_u003b((&param_74));
-    a_2 = _e195;
-    let _e196 = (*corner);
-    let _e197 = low;
-    param_75 = ((_e196 + _e197) + vec2<f32>(1f, 0f));
-    let _e200 = AtlasTexel_u0028_vf2_u003b((&param_75));
-    b_2 = _e200;
-    let _e201 = (*corner);
-    let _e202 = low;
-    param_76 = ((_e201 + _e202) + vec2<f32>(0f, 1f));
-    let _e205 = AtlasTexel_u0028_vf2_u003b((&param_76));
-    c = _e205;
-    let _e206 = (*corner);
-    let _e207 = low;
-    param_77 = ((_e206 + _e207) + vec2<f32>(1f, 1f));
-    let _e210 = AtlasTexel_u0028_vf2_u003b((&param_77));
-    d_1 = _e210;
-    let _e211 = a_2;
-    let _e212 = b_2;
-    let _e214 = f[0u];
-    let _e217 = c;
-    let _e218 = d_1;
-    let _e220 = f[0u];
-    let _e224 = f[1u];
-    return mix(mix(_e211, _e212, vec4(_e214)), mix(_e217, _e218, vec4(_e220)), vec4(_e224));
+    low = floor(_e189);
+    let _e191 = at;
+    let _e192 = low;
+    f = (_e191 - _e192);
+    let _e194 = (*corner);
+    let _e195 = low;
+    param_83 = (_e194 + _e195);
+    let _e197 = AtlasTexel_u0028_vf2_u003b((&param_83));
+    a_3 = _e197;
+    let _e198 = (*corner);
+    let _e199 = low;
+    param_84 = ((_e198 + _e199) + vec2<f32>(1f, 0f));
+    let _e202 = AtlasTexel_u0028_vf2_u003b((&param_84));
+    b_3 = _e202;
+    let _e203 = (*corner);
+    let _e204 = low;
+    param_85 = ((_e203 + _e204) + vec2<f32>(0f, 1f));
+    let _e207 = AtlasTexel_u0028_vf2_u003b((&param_85));
+    c = _e207;
+    let _e208 = (*corner);
+    let _e209 = low;
+    param_86 = ((_e208 + _e209) + vec2<f32>(1f, 1f));
+    let _e212 = AtlasTexel_u0028_vf2_u003b((&param_86));
+    d_1 = _e212;
+    let _e213 = a_3;
+    let _e214 = b_3;
+    let _e216 = f[0u];
+    let _e219 = c;
+    let _e220 = d_1;
+    let _e222 = f[0u];
+    let _e226 = f[1u];
+    return mix(mix(_e213, _e214, vec4(_e216)), mix(_e219, _e220, vec4(_e222)), vec4(_e226));
 }
 
 fn ProbeOctahedral_u0028_vf3_u003b(direction_1: ptr<function, vec3<f32>>) -> vec2<f32> {
@@ -14765,32 +15595,32 @@ fn ProbeOctahedral_u0028_vf3_u003b(direction_1: ptr<function, vec3<f32>>) -> vec
     var n_3: vec3<f32>;
     var xy: vec2<f32>;
 
-    let _e171 = (*direction_1)[0u];
-    let _e174 = (*direction_1)[1u];
-    let _e178 = (*direction_1)[2u];
-    sum_1 = ((abs(_e171) + abs(_e174)) + abs(_e178));
-    let _e181 = sum_1;
-    if (_e181 <= 0f) {
+    let _e173 = (*direction_1)[0u];
+    let _e176 = (*direction_1)[1u];
+    let _e180 = (*direction_1)[2u];
+    sum_1 = ((abs(_e173) + abs(_e176)) + abs(_e180));
+    let _e183 = sum_1;
+    if (_e183 <= 0f) {
         return vec2<f32>(0.5f, 0.5f);
     }
-    let _e183 = (*direction_1);
-    let _e184 = sum_1;
-    n_3 = (_e183 / vec3(_e184));
-    let _e187 = n_3;
-    xy = _e187.xy;
-    let _e190 = n_3[2u];
-    if (_e190 < 0f) {
-        let _e193 = n_3[1u];
-        let _e197 = n_3[0u];
-        let _e202 = n_3[0u];
-        let _e206 = n_3[1u];
-        xy = vec2<f32>(((1f - abs(_e193)) * select(-1f, 1f, (_e197 >= 0f))), ((1f - abs(_e202)) * select(-1f, 1f, (_e206 >= 0f))));
+    let _e185 = (*direction_1);
+    let _e186 = sum_1;
+    n_3 = (_e185 / vec3(_e186));
+    let _e189 = n_3;
+    xy = _e189.xy;
+    let _e192 = n_3[2u];
+    if (_e192 < 0f) {
+        let _e195 = n_3[1u];
+        let _e199 = n_3[0u];
+        let _e204 = n_3[0u];
+        let _e208 = n_3[1u];
+        xy = vec2<f32>(((1f - abs(_e195)) * select(-1f, 1f, (_e199 >= 0f))), ((1f - abs(_e204)) * select(-1f, 1f, (_e208 >= 0f))));
     }
-    let _e211 = xy;
-    return ((_e211 * 0.5f) + vec2(0.5f));
+    let _e213 = xy;
+    return ((_e213 * 0.5f) + vec2(0.5f));
 }
 
-fn SampleIrradiance_u0028_vf3_u003b_vf3_u003b_vf3_u003b(world_3: ptr<function, vec3<f32>>, normal_1: ptr<function, vec3<f32>>, view: ptr<function, vec3<f32>>) -> vec3<f32> {
+fn SampleIrradiance_u0028_vf3_u003b_vf3_u003b_vf3_u003b(world_4: ptr<function, vec3<f32>>, normal_1: ptr<function, vec3<f32>>, view: ptr<function, vec3<f32>>) -> vec3<f32> {
     var origin_2: vec3<f32>;
     var spacing: vec3<f32>;
     var counts: vec3<f32>;
@@ -14800,19 +15630,19 @@ fn SampleIrradiance_u0028_vf3_u003b_vf3_u003b_vf3_u003b(world_3: ptr<function, v
     var momentsTop: f32;
     var unit: vec3<f32>;
     var biased: vec3<f32>;
-    var grid: vec3<f32>;
+    var grid_1: vec3<f32>;
     var base: vec3<f32>;
     var f_1: vec3<f32>;
     var total_2: vec3<f32>;
     var weights: f32;
     var corner_1: i32;
     var offset_3: vec3<f32>;
-    var cell: vec3<f32>;
+    var cell_1: vec3<f32>;
     var probe: f32;
     var tile_4: vec2<f32>;
     var irradianceCorner: vec2<f32>;
     var momentCorner: vec2<f32>;
-    var param_78: vec2<f32>;
+    var param_87: vec2<f32>;
     var trilinear: vec3<f32>;
     var weight: f32;
     var probePosition: vec3<f32>;
@@ -14821,366 +15651,368 @@ fn SampleIrradiance_u0028_vf3_u003b_vf3_u003b_vf3_u003b(world_3: ptr<function, v
     var direction_2: vec3<f32>;
     var facing: f32;
     var moments: vec2<f32>;
-    var param_79: vec3<f32>;
-    var param_80: vec2<f32>;
-    var param_81: f32;
-    var param_82: vec2<f32>;
+    var param_88: vec3<f32>;
+    var param_89: vec2<f32>;
+    var param_90: f32;
+    var param_91: vec2<f32>;
     var variance: f32;
     var difference: f32;
     var chebyshev: f32;
-    var param_83: vec3<f32>;
-    var param_84: vec2<f32>;
-    var param_85: f32;
-    var param_86: vec2<f32>;
-    var local_14: vec3<f32>;
+    var param_92: vec3<f32>;
+    var param_93: vec2<f32>;
+    var param_94: f32;
+    var param_95: vec2<f32>;
+    var local_17: vec3<f32>;
 
-    let _e212 = irradiance_info.origin;
-    origin_2 = _e212.xyz;
-    let _e215 = irradiance_info.spacing;
-    spacing = _e215.xyz;
-    let _e218 = irradiance_info.counts;
-    counts = _e218.xyz;
-    let _e222 = irradiance_info.tiles[0u];
-    irradianceTile = _e222;
-    let _e225 = irradiance_info.tiles[1u];
-    depthTile = _e225;
-    let _e228 = irradiance_info.tiles[2u];
-    columns = _e228;
-    let _e231 = irradiance_info.tiles[3u];
-    momentsTop = _e231;
-    let _e232 = (*normal_1);
-    unit = normalize(_e232);
-    let _e234 = (*world_3);
-    let _e235 = unit;
-    let _e238 = irradiance_info.spacing[3u];
-    let _e241 = (*view);
-    let _e244 = irradiance_info.counts[3u];
-    biased = ((_e234 + (_e235 * _e238)) + (_e241 * _e244));
-    let _e247 = biased;
-    let _e248 = origin_2;
-    let _e250 = spacing;
-    grid = ((_e247 - _e248) / _e250);
-    let _e252 = grid;
-    let _e254 = counts;
-    base = clamp(floor(_e252), vec3<f32>(0f, 0f, 0f), (_e254 - vec3(2f)));
-    let _e258 = grid;
-    let _e259 = base;
-    f_1 = clamp((_e258 - _e259), vec3<f32>(0f, 0f, 0f), vec3<f32>(1f, 1f, 1f));
+    let _e214 = irradiance_info.origin;
+    origin_2 = _e214.xyz;
+    let _e217 = irradiance_info.spacing;
+    spacing = _e217.xyz;
+    let _e220 = irradiance_info.counts;
+    counts = _e220.xyz;
+    let _e224 = irradiance_info.tiles[0u];
+    irradianceTile = _e224;
+    let _e227 = irradiance_info.tiles[1u];
+    depthTile = _e227;
+    let _e230 = irradiance_info.tiles[2u];
+    columns = _e230;
+    let _e233 = irradiance_info.tiles[3u];
+    momentsTop = _e233;
+    let _e234 = (*normal_1);
+    unit = normalize(_e234);
+    let _e236 = (*world_4);
+    let _e237 = unit;
+    let _e240 = irradiance_info.spacing[3u];
+    let _e243 = (*view);
+    let _e246 = irradiance_info.counts[3u];
+    biased = ((_e236 + (_e237 * _e240)) + (_e243 * _e246));
+    let _e249 = biased;
+    let _e250 = origin_2;
+    let _e252 = spacing;
+    grid_1 = ((_e249 - _e250) / _e252);
+    let _e254 = grid_1;
+    let _e256 = counts;
+    base = clamp(floor(_e254), vec3<f32>(0f, 0f, 0f), (_e256 - vec3(2f)));
+    let _e260 = grid_1;
+    let _e261 = base;
+    f_1 = clamp((_e260 - _e261), vec3<f32>(0f, 0f, 0f), vec3<f32>(1f, 1f, 1f));
     total_2 = vec3<f32>(0f, 0f, 0f);
     weights = 0f;
     corner_1 = 0i;
     loop {
-        let _e262 = corner_1;
-        if (_e262 < 8i) {
-            let _e264 = corner_1;
-            let _e267 = corner_1;
-            let _e272 = corner_1;
-            offset_3 = vec3<f32>(f32((_e264 & 1i)), f32(((_e267 >> bitcast<u32>(1i)) & 1i)), f32(((_e272 >> bitcast<u32>(2i)) & 1i)));
-            let _e278 = base;
-            let _e279 = offset_3;
-            cell = (_e278 + _e279);
-            let _e282 = cell[2u];
-            let _e284 = counts[1u];
-            let _e287 = cell[1u];
-            let _e290 = counts[0u];
-            let _e293 = cell[0u];
-            probe = ((((_e282 * _e284) + _e287) * _e290) + _e293);
-            let _e295 = probe;
-            let _e296 = columns;
-            let _e301 = probe;
-            let _e302 = columns;
-            tile_4 = vec2<f32>((_e295 - (floor((_e295 / _e296)) * _e296)), floor((_e301 / _e302)));
-            let _e306 = tile_4;
-            let _e307 = irradianceTile;
-            irradianceCorner = (_e306 * (_e307 + 2f));
-            let _e311 = tile_4[0u];
-            let _e312 = depthTile;
-            let _e315 = momentsTop;
-            let _e317 = tile_4[1u];
-            let _e318 = depthTile;
-            momentCorner = vec2<f32>((_e311 * (_e312 + 2f)), (_e315 + (_e317 * (_e318 + 2f))));
-            let _e323 = irradianceCorner;
-            param_78 = (_e323 + vec2(1f));
-            let _e326 = AtlasTexel_u0028_vf2_u003b((&param_78));
-            if (_e326.w < 0.5f) {
+        let _e264 = corner_1;
+        if (_e264 < 8i) {
+            let _e266 = corner_1;
+            let _e269 = corner_1;
+            let _e274 = corner_1;
+            offset_3 = vec3<f32>(f32((_e266 & 1i)), f32(((_e269 >> bitcast<u32>(1i)) & 1i)), f32(((_e274 >> bitcast<u32>(2i)) & 1i)));
+            let _e280 = base;
+            let _e281 = offset_3;
+            cell_1 = (_e280 + _e281);
+            let _e284 = cell_1[2u];
+            let _e286 = counts[1u];
+            let _e289 = cell_1[1u];
+            let _e292 = counts[0u];
+            let _e295 = cell_1[0u];
+            probe = ((((_e284 * _e286) + _e289) * _e292) + _e295);
+            let _e297 = probe;
+            let _e298 = columns;
+            let _e303 = probe;
+            let _e304 = columns;
+            tile_4 = vec2<f32>((_e297 - (floor((_e297 / _e298)) * _e298)), floor((_e303 / _e304)));
+            let _e308 = tile_4;
+            let _e309 = irradianceTile;
+            irradianceCorner = (_e308 * (_e309 + 2f));
+            let _e313 = tile_4[0u];
+            let _e314 = depthTile;
+            let _e317 = momentsTop;
+            let _e319 = tile_4[1u];
+            let _e320 = depthTile;
+            momentCorner = vec2<f32>((_e313 * (_e314 + 2f)), (_e317 + (_e319 * (_e320 + 2f))));
+            let _e325 = irradianceCorner;
+            param_87 = (_e325 + vec2(1f));
+            let _e328 = AtlasTexel_u0028_vf2_u003b((&param_87));
+            if (_e328.w < 0.5f) {
                 continue;
             }
-            let _e329 = f_1;
             let _e331 = f_1;
-            let _e332 = offset_3;
-            trilinear = mix((vec3<f32>(1f, 1f, 1f) - _e329), _e331, _e332);
-            let _e335 = trilinear[0u];
-            let _e337 = trilinear[1u];
-            let _e340 = trilinear[2u];
-            weight = max(((_e335 * _e337) * _e340), 0.001f);
-            let _e343 = origin_2;
-            let _e344 = spacing;
-            let _e345 = cell;
-            probePosition = (_e343 + (_e344 * _e345));
-            let _e348 = probePosition;
-            let _e349 = biased;
-            toProbe = (_e348 - _e349);
-            let _e351 = toProbe;
-            distance_4 = length(_e351);
-            let _e353 = distance_4;
-            if (_e353 > 0.000001f) {
-                let _e355 = toProbe;
-                let _e356 = distance_4;
-                direction_2 = (_e355 / vec3(_e356));
-                let _e359 = unit;
-                let _e360 = probePosition;
-                let _e361 = (*world_3);
-                facing = ((dot(_e359, normalize((_e360 - _e361))) * 0.5f) + 0.5f);
-                let _e367 = facing;
-                let _e368 = facing;
-                let _e370 = weight;
-                weight = (_e370 * (_e367 * _e368));
+            let _e333 = f_1;
+            let _e334 = offset_3;
+            trilinear = mix((vec3<f32>(1f, 1f, 1f) - _e331), _e333, _e334);
+            let _e337 = trilinear[0u];
+            let _e339 = trilinear[1u];
+            let _e342 = trilinear[2u];
+            weight = max(((_e337 * _e339) * _e342), 0.001f);
+            let _e345 = origin_2;
+            let _e346 = spacing;
+            let _e347 = cell_1;
+            probePosition = (_e345 + (_e346 * _e347));
+            let _e350 = probePosition;
+            let _e351 = biased;
+            toProbe = (_e350 - _e351);
+            let _e353 = toProbe;
+            distance_4 = length(_e353);
+            let _e355 = distance_4;
+            if (_e355 > 0.000001f) {
+                let _e357 = toProbe;
+                let _e358 = distance_4;
+                direction_2 = (_e357 / vec3(_e358));
+                let _e361 = unit;
+                let _e362 = probePosition;
+                let _e363 = (*world_4);
+                facing = ((dot(_e361, normalize((_e362 - _e363))) * 0.5f) + 0.5f);
+                let _e369 = facing;
+                let _e370 = facing;
                 let _e372 = weight;
-                if (_e372 <= 0f) {
+                weight = (_e372 * (_e369 * _e370));
+                let _e374 = weight;
+                if (_e374 <= 0f) {
                     continue;
                 }
-                let _e374 = direction_2;
-                param_79 = -(_e374);
-                let _e376 = ProbeOctahedral_u0028_vf3_u003b((&param_79));
-                let _e377 = momentCorner;
-                param_80 = _e377;
-                let _e378 = depthTile;
-                param_81 = _e378;
-                param_82 = _e376;
-                let _e379 = TileBilinear_u0028_vf2_u003b_f1_u003b_vf2_u003b((&param_80), (&param_81), (&param_82));
-                moments = _e379.xy;
-                let _e381 = distance_4;
-                let _e383 = moments[0u];
-                if (_e381 > _e383) {
-                    let _e386 = moments[1u];
-                    let _e388 = moments[0u];
+                let _e376 = direction_2;
+                param_88 = -(_e376);
+                let _e378 = ProbeOctahedral_u0028_vf3_u003b((&param_88));
+                let _e379 = momentCorner;
+                param_89 = _e379;
+                let _e380 = depthTile;
+                param_90 = _e380;
+                param_91 = _e378;
+                let _e381 = TileBilinear_u0028_vf2_u003b_f1_u003b_vf2_u003b((&param_89), (&param_90), (&param_91));
+                moments = _e381.xy;
+                let _e383 = distance_4;
+                let _e385 = moments[0u];
+                if (_e383 > _e385) {
+                    let _e388 = moments[1u];
                     let _e390 = moments[0u];
-                    variance = max((_e386 - (_e388 * _e390)), 0.000001f);
-                    let _e394 = distance_4;
-                    let _e396 = moments[0u];
-                    difference = (_e394 - _e396);
-                    let _e398 = variance;
-                    let _e399 = variance;
-                    let _e400 = difference;
-                    let _e401 = difference;
-                    chebyshev = (_e398 / (_e399 + (_e400 * _e401)));
-                    let _e405 = chebyshev;
-                    let _e406 = chebyshev;
+                    let _e392 = moments[0u];
+                    variance = max((_e388 - (_e390 * _e392)), 0.000001f);
+                    let _e396 = distance_4;
+                    let _e398 = moments[0u];
+                    difference = (_e396 - _e398);
+                    let _e400 = variance;
+                    let _e401 = variance;
+                    let _e402 = difference;
+                    let _e403 = difference;
+                    chebyshev = (_e400 / (_e401 + (_e402 * _e403)));
+                    let _e407 = chebyshev;
                     let _e408 = chebyshev;
-                    let _e411 = weight;
-                    weight = (_e411 * max(((_e405 * _e406) * _e408), 0f));
+                    let _e410 = chebyshev;
+                    let _e413 = weight;
+                    weight = (_e413 * max(((_e407 * _e408) * _e410), 0f));
                 }
-                let _e413 = weight;
-                if (_e413 <= 0f) {
+                let _e415 = weight;
+                if (_e415 <= 0f) {
                     continue;
                 }
             }
-            let _e415 = unit;
-            param_83 = _e415;
-            let _e416 = ProbeOctahedral_u0028_vf3_u003b((&param_83));
-            let _e417 = irradianceCorner;
-            param_84 = _e417;
-            let _e418 = irradianceTile;
-            param_85 = _e418;
-            param_86 = _e416;
-            let _e419 = TileBilinear_u0028_vf2_u003b_f1_u003b_vf2_u003b((&param_84), (&param_85), (&param_86));
-            let _e421 = weight;
-            let _e423 = total_2;
-            total_2 = (_e423 + (_e419.xyz * _e421));
-            let _e425 = weight;
-            let _e426 = weights;
-            weights = (_e426 + _e425);
+            let _e417 = unit;
+            param_92 = _e417;
+            let _e418 = ProbeOctahedral_u0028_vf3_u003b((&param_92));
+            let _e419 = irradianceCorner;
+            param_93 = _e419;
+            let _e420 = irradianceTile;
+            param_94 = _e420;
+            param_95 = _e418;
+            let _e421 = TileBilinear_u0028_vf2_u003b_f1_u003b_vf2_u003b((&param_93), (&param_94), (&param_95));
+            let _e423 = weight;
+            let _e425 = total_2;
+            total_2 = (_e425 + (_e421.xyz * _e423));
+            let _e427 = weight;
+            let _e428 = weights;
+            weights = (_e428 + _e427);
             continue;
         } else {
             break;
         }
         continuing {
-            let _e428 = corner_1;
-            corner_1 = (_e428 + 1i);
+            let _e430 = corner_1;
+            corner_1 = (_e430 + 1i);
         }
     }
-    let _e430 = weights;
-    if (_e430 > 0.000001f) {
-        let _e432 = total_2;
-        let _e433 = weights;
-        local_14 = (_e432 / vec3(_e433));
+    let _e432 = weights;
+    if (_e432 > 0.000001f) {
+        let _e434 = total_2;
+        let _e435 = weights;
+        local_17 = (_e434 / vec3(_e435));
     } else {
-        local_14 = vec3<f32>(0f, 0f, 0f);
+        local_17 = vec3<f32>(0f, 0f, 0f);
     }
-    let _e436 = local_14;
-    return _e436;
+    let _e438 = local_17;
+    return _e438;
 }
 
 fn IrradianceEnabled_u0028_() -> bool {
-    let _e168 = irradiance_info.origin[3u];
-    return (_e168 > 0.5f);
+    let _e170 = irradiance_info.origin[3u];
+    return (_e170 > 0.5f);
 }
 
 fn ApplyCommonMaps_u0028_struct_u002d_Surface_u002d_vf3_u002d_f1_u002d_vf3_u002d_vf3_u002d_f1_u002d_f1_u002d_f1_u002d_f1_u002d_vf3_u002d_vf3_u002d_f11_u003b(s_9: ptr<function, Surface>) {
-    var param_87: vec3<f32>;
-    var param_88: vec3<f32>;
-    var param_89: vec3<f32>;
-    var param_90: Surface;
-    var param_91: Surface;
-    var param_92: Surface;
+    var param_96: vec3<f32>;
+    var param_97: vec3<f32>;
+    var param_98: vec3<f32>;
+    var param_99: Surface;
+    var param_100: Surface;
+    var param_101: Surface;
 
-    let _e173 = IrradianceEnabled_u0028_();
-    if _e173 {
-        let _e174 = v_world_position_1;
-        param_87 = _e174;
-        let _e176 = (*s_9).n;
-        param_88 = _e176;
-        let _e178 = (*s_9).v;
-        param_89 = _e178;
-        let _e179 = SampleIrradiance_u0028_vf3_u003b_vf3_u003b_vf3_u003b((&param_87), (&param_88), (&param_89));
-        let _e182 = frag_info.material[2u];
-        (*s_9).ambient = (_e179 * _e182);
+    let _e175 = IrradianceEnabled_u0028_();
+    if _e175 {
+        let _e176 = v_world_position_1;
+        param_96 = _e176;
+        let _e178 = (*s_9).n;
+        param_97 = _e178;
+        let _e180 = (*s_9).v;
+        param_98 = _e180;
+        let _e181 = SampleIrradiance_u0028_vf3_u003b_vf3_u003b_vf3_u003b((&param_96), (&param_97), (&param_98));
+        let _e184 = frag_info.material[2u];
+        (*s_9).ambient = (_e181 * _e184);
     }
-    let _e185 = (*s_9);
-    param_90 = _e185;
-    ApplyNormalMap_u0028_struct_u002d_Surface_u002d_vf3_u002d_f1_u002d_vf3_u002d_vf3_u002d_f1_u002d_f1_u002d_f1_u002d_f1_u002d_vf3_u002d_vf3_u002d_f11_u003b((&param_90));
-    let _e186 = param_90;
-    (*s_9) = _e186;
     let _e187 = (*s_9);
-    param_91 = _e187;
-    ApplyOcclusionMap_u0028_struct_u002d_Surface_u002d_vf3_u002d_f1_u002d_vf3_u002d_vf3_u002d_f1_u002d_f1_u002d_f1_u002d_f1_u002d_vf3_u002d_vf3_u002d_f11_u003b((&param_91));
-    let _e188 = param_91;
+    param_99 = _e187;
+    ApplyNormalMap_u0028_struct_u002d_Surface_u002d_vf3_u002d_f1_u002d_vf3_u002d_vf3_u002d_f1_u002d_f1_u002d_f1_u002d_f1_u002d_vf3_u002d_vf3_u002d_f11_u003b((&param_99));
+    let _e188 = param_99;
     (*s_9) = _e188;
     let _e189 = (*s_9);
-    param_92 = _e189;
-    ApplyEmissiveMap_u0028_struct_u002d_Surface_u002d_vf3_u002d_f1_u002d_vf3_u002d_vf3_u002d_f1_u002d_f1_u002d_f1_u002d_f1_u002d_vf3_u002d_vf3_u002d_f11_u003b((&param_92));
-    let _e190 = param_92;
+    param_100 = _e189;
+    ApplyOcclusionMap_u0028_struct_u002d_Surface_u002d_vf3_u002d_f1_u002d_vf3_u002d_vf3_u002d_f1_u002d_f1_u002d_f1_u002d_f1_u002d_vf3_u002d_vf3_u002d_f11_u003b((&param_100));
+    let _e190 = param_100;
     (*s_9) = _e190;
+    let _e191 = (*s_9);
+    param_101 = _e191;
+    ApplyEmissiveMap_u0028_struct_u002d_Surface_u002d_vf3_u002d_f1_u002d_vf3_u002d_vf3_u002d_f1_u002d_f1_u002d_f1_u002d_f1_u002d_vf3_u002d_vf3_u002d_f11_u003b((&param_101));
+    let _e192 = param_101;
+    (*s_9) = _e192;
     return;
 }
 
 fn ReadSurface_u0028_() -> Surface {
-    var texel_4: vec4<f32>;
+    var texel_6: vec4<f32>;
     var s_10: Surface;
-    var param_93: vec3<f32>;
-    var param_94: vec3<f32>;
+    var param_102: vec3<f32>;
+    var param_103: vec3<f32>;
     var cutoff: f32;
     var anchored: vec3<f32>;
     var noise_1: f32;
 
-    let _e173 = v_texcoord_1;
-    let _e174 = MaterialLodBias_u0028_();
-    let _e175 = textureSampleBias(base_color_texture_tex, base_color_texture_smp, _e173, _e174);
-    texel_4 = _e175;
-    let _e176 = texel_4;
-    param_93 = _e176.xyz;
-    let _e178 = SrgbToLinear_u0028_vf3_u003b((&param_93));
-    let _e180 = frag_info.base_color;
-    param_94 = _e180.xyz;
-    let _e182 = SrgbToLinear_u0028_vf3_u003b((&param_94));
-    let _e184 = v_color_1;
-    s_10.albedo = ((_e178 * _e182) * _e184.xyz);
-    let _e189 = texel_4[3u];
-    let _e192 = frag_info.base_color[3u];
-    let _e195 = v_color_1[3u];
-    s_10.alpha = ((_e189 * _e192) * _e195);
-    let _e199 = s_10.albedo;
-    g_albedo = _e199;
-    let _e202 = frag_info.material2_[0u];
-    cutoff = _e202;
-    let _e203 = cutoff;
-    if (_e203 >= 0f) {
-        let _e206 = s_10.alpha;
-        let _e207 = cutoff;
-        if (_e206 < _e207) {
+    let _e175 = v_texcoord_1;
+    let _e176 = MaterialLodBias_u0028_();
+    let _e177 = textureSampleBias(base_color_texture_tex, base_color_texture_smp, _e175, _e176);
+    texel_6 = _e177;
+    let _e178 = texel_6;
+    param_102 = _e178.xyz;
+    let _e180 = SrgbToLinear_u0028_vf3_u003b((&param_102));
+    let _e182 = frag_info.base_color;
+    param_103 = _e182.xyz;
+    let _e184 = SrgbToLinear_u0028_vf3_u003b((&param_103));
+    let _e186 = v_color_1;
+    s_10.albedo = ((_e180 * _e184) * _e186.xyz);
+    let _e191 = texel_6[3u];
+    let _e194 = frag_info.base_color[3u];
+    let _e197 = v_color_1[3u];
+    s_10.alpha = ((_e191 * _e194) * _e197);
+    let _e201 = s_10.albedo;
+    g_albedo = _e201;
+    let _e204 = frag_info.material2_[0u];
+    cutoff = _e204;
+    let _e205 = cutoff;
+    if (_e205 >= 0f) {
+        let _e208 = s_10.alpha;
+        let _e209 = cutoff;
+        if (_e208 < _e209) {
             discard;
         }
     } else {
-        let _e209 = cutoff;
-        if (_e209 < -1.5f) {
-            let _e211 = v_world_position_1;
-            anchored = floor((_e211 * 16f));
-            let _e214 = anchored;
-            noise_1 = fract((sin(dot(_e214, vec3<f32>(12.9898f, 78.233f, 37.719f))) * 43758.547f));
-            let _e220 = s_10.alpha;
-            let _e221 = noise_1;
-            if (_e220 < _e221) {
+        let _e211 = cutoff;
+        if (_e211 < -1.5f) {
+            let _e213 = v_world_position_1;
+            anchored = floor((_e213 * 16f));
+            let _e216 = anchored;
+            noise_1 = fract((sin(dot(_e216, vec3<f32>(12.9898f, 78.233f, 37.719f))) * 43758.547f));
+            let _e222 = s_10.alpha;
+            let _e223 = noise_1;
+            if (_e222 < _e223) {
                 discard;
             }
         }
     }
-    let _e223 = v_normal_1;
-    s_10.n = normalize(_e223);
-    let _e226 = gl_FrontFacing_1;
-    if !(_e226) {
-        let _e229 = s_10.n;
-        s_10.n = -(_e229);
+    let _e225 = v_normal_1;
+    s_10.n = normalize(_e225);
+    let _e228 = gl_FrontFacing_1;
+    if !(_e228) {
+        let _e231 = s_10.n;
+        s_10.n = -(_e231);
     }
-    let _e233 = frag_info.camera_position;
-    let _e235 = v_world_position_1;
-    s_10.v = normalize((_e233.xyz - _e235));
-    let _e240 = s_10.n;
-    let _e242 = s_10.v;
-    s_10.n_dot_v = max(dot(_e240, _e242), 0.0001f);
-    let _e248 = frag_info.material[0u];
-    s_10.metallic = clamp(_e248, 0f, 1f);
-    let _e253 = frag_info.material[1u];
-    s_10.roughness = clamp(_e253, 0.02f, 1f);
-    let _e257 = frag_info.ambient_ground;
-    let _e260 = frag_info.ambient_sky;
-    let _e264 = s_10.n[1u];
-    let _e271 = frag_info.material[2u];
-    s_10.ambient = (mix(_e257.xyz, _e260.xyz, vec3(((_e264 * 0.5f) + 0.5f))) * _e271);
-    let _e276 = frag_info.frame_params[0u];
-    s_10.exposure = max(_e276, 0f);
+    let _e235 = frag_info.camera_position;
+    let _e237 = v_world_position_1;
+    s_10.v = normalize((_e235.xyz - _e237));
+    let _e242 = s_10.n;
+    let _e244 = s_10.v;
+    s_10.n_dot_v = max(dot(_e242, _e244), 0.0001f);
+    let _e250 = frag_info.material[0u];
+    s_10.metallic = clamp(_e250, 0f, 1f);
+    let _e255 = frag_info.material[1u];
+    s_10.roughness = clamp(_e255, 0.02f, 1f);
+    let _e259 = frag_info.ambient_ground;
+    let _e262 = frag_info.ambient_sky;
+    let _e266 = s_10.n[1u];
+    let _e273 = frag_info.material[2u];
+    s_10.ambient = (mix(_e259.xyz, _e262.xyz, vec3(((_e266 * 0.5f) + 0.5f))) * _e273);
+    let _e278 = frag_info.frame_params[0u];
+    s_10.exposure = max(_e278, 0f);
     s_10.occlusion = 1f;
     s_10.emissive = vec3<f32>(0f, 0f, 0f);
-    let _e281 = s_10;
-    return _e281;
+    let _e283 = s_10;
+    return _e283;
 }
 
 fn main_1() {
     var s_11: Surface;
-    var param_95: Surface;
-    var param_96: Surface;
+    var param_104: Surface;
+    var param_105: Surface;
     var rim: f32;
     var ambient: vec3<f32>;
-    var param_97: Surface;
-    var param_98: vec3<f32>;
-    var param_99: f32;
-    var param_100: f32;
+    var param_106: Surface;
+    var param_107: vec3<f32>;
+    var param_108: f32;
+    var param_109: f32;
 
     g_albedo = vec3<f32>(0f, 0f, 0f);
     g_debug_surface = vec3<f32>(0f, 0f, 0f);
     g_debug_surface_on = false;
-    let _e175 = ReadSurface_u0028_();
-    s_11 = _e175;
-    let _e176 = s_11;
-    param_95 = _e176;
-    ApplyCommonMaps_u0028_struct_u002d_Surface_u002d_vf3_u002d_f1_u002d_vf3_u002d_vf3_u002d_f1_u002d_f1_u002d_f1_u002d_f1_u002d_vf3_u002d_vf3_u002d_f11_u003b((&param_95));
-    let _e177 = param_95;
+    g_cluster_offset = 0f;
+    g_cluster_count = 0f;
+    let _e177 = ReadSurface_u0028_();
     s_11 = _e177;
     let _e178 = s_11;
-    param_96 = _e178;
-    ApplyMetallicRoughnessMap_u0028_struct_u002d_Surface_u002d_vf3_u002d_f1_u002d_vf3_u002d_vf3_u002d_f1_u002d_f1_u002d_f1_u002d_f1_u002d_vf3_u002d_vf3_u002d_f11_u003b((&param_96));
-    let _e179 = param_96;
+    param_104 = _e178;
+    ApplyCommonMaps_u0028_struct_u002d_Surface_u002d_vf3_u002d_f1_u002d_vf3_u002d_vf3_u002d_f1_u002d_f1_u002d_f1_u002d_f1_u002d_vf3_u002d_vf3_u002d_f11_u003b((&param_104));
+    let _e179 = param_104;
     s_11 = _e179;
-    let _e181 = s_11.n_dot_v;
-    let _e186 = frag_info.material[3u];
-    rim = (pow((1f - _e181), 3f) * _e186);
-    let _e189 = s_11.albedo;
-    let _e191 = s_11.ambient;
-    let _e192 = SampleLightmap_u0028_();
-    let _e196 = s_11.occlusion;
-    ambient = ((_e189 * (_e191 + _e192)) * _e196);
-    let _e198 = s_11;
-    param_97 = _e198;
-    let _e199 = AccumulateLights_u0028_struct_u002d_Surface_u002d_vf3_u002d_f1_u002d_vf3_u002d_vf3_u002d_f1_u002d_f1_u002d_f1_u002d_f1_u002d_vf3_u002d_vf3_u002d_f11_u003b((&param_97));
-    let _e201 = s_11.occlusion;
-    let _e203 = ambient;
-    let _e205 = rim;
-    let _e210 = s_11.emissive;
-    param_98 = ((((_e199 * _e201) + _e203) + vec3((_e205 * 0.35f))) + _e210);
-    let _e213 = s_11.alpha;
-    param_99 = _e213;
-    let _e215 = s_11.roughness;
-    param_100 = _e215;
-    WriteSurface_u0028_vf3_u003b_f1_u003b_f1_u003b((&param_98), (&param_99), (&param_100));
+    let _e180 = s_11;
+    param_105 = _e180;
+    ApplyMetallicRoughnessMap_u0028_struct_u002d_Surface_u002d_vf3_u002d_f1_u002d_vf3_u002d_vf3_u002d_f1_u002d_f1_u002d_f1_u002d_f1_u002d_vf3_u002d_vf3_u002d_f11_u003b((&param_105));
+    let _e181 = param_105;
+    s_11 = _e181;
+    let _e183 = s_11.n_dot_v;
+    let _e188 = frag_info.material[3u];
+    rim = (pow((1f - _e183), 3f) * _e188);
+    let _e191 = s_11.albedo;
+    let _e193 = s_11.ambient;
+    let _e194 = SampleLightmap_u0028_();
+    let _e198 = s_11.occlusion;
+    ambient = ((_e191 * (_e193 + _e194)) * _e198);
+    let _e200 = s_11;
+    param_106 = _e200;
+    let _e201 = AccumulateLights_u0028_struct_u002d_Surface_u002d_vf3_u002d_f1_u002d_vf3_u002d_vf3_u002d_f1_u002d_f1_u002d_f1_u002d_f1_u002d_vf3_u002d_vf3_u002d_f11_u003b((&param_106));
+    let _e203 = s_11.occlusion;
+    let _e205 = ambient;
+    let _e207 = rim;
+    let _e212 = s_11.emissive;
+    param_107 = ((((_e201 * _e203) + _e205) + vec3((_e207 * 0.35f))) + _e212);
+    let _e215 = s_11.alpha;
+    param_108 = _e215;
+    let _e217 = s_11.roughness;
+    param_109 = _e217;
+    WriteSurface_u0028_vf3_u003b_f1_u003b_f1_u003b((&param_107), (&param_108), (&param_109));
     return;
 }
 
@@ -15358,7 +16190,7 @@ fn main(@location(6) v_world_position: vec3<f32>, @location(2) v_normal: vec3<f3
           name: 'LightListInfo',
           group: 1,
           binding: 3,
-          sizeInBytes: 208,
+          sizeInBytes: 336,
           members: <WebGpuBlockMember>[
             WebGpuBlockMember(name: 'list', offsetInBytes: 0, sizeInBytes: 16),
             WebGpuBlockMember(
@@ -15370,6 +16202,26 @@ fn main(@location(6) v_world_position: vec3<f32>, @location(2) v_normal: vec3<f3
               name: 'scales',
               offsetInBytes: 112,
               sizeInBytes: 96,
+            ),
+            WebGpuBlockMember(
+              name: 'cluster_view_projection',
+              offsetInBytes: 208,
+              sizeInBytes: 64,
+            ),
+            WebGpuBlockMember(
+              name: 'cluster_grid',
+              offsetInBytes: 272,
+              sizeInBytes: 16,
+            ),
+            WebGpuBlockMember(
+              name: 'cluster_depth',
+              offsetInBytes: 288,
+              sizeInBytes: 16,
+            ),
+            WebGpuBlockMember(
+              name: 'slot_rows',
+              offsetInBytes: 304,
+              sizeInBytes: 32,
             ),
           ],
         ),
