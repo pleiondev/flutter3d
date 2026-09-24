@@ -3,6 +3,7 @@ import 'dart:typed_data';
 
 import 'package:vector_math/vector_math.dart';
 
+import 'mesh_clusters.dart';
 import 'morph_target.dart';
 import 'vertex_layout.dart';
 
@@ -49,6 +50,7 @@ final class MeshData {
     required this.vertices,
     required this.indices,
     List<MorphTarget> morphTargets = const <MorphTarget>[],
+    this.clusters,
   }) : morphTargets = List<MorphTarget>.unmodifiable(morphTargets) {
     final stride = layout.floatsPerVertex;
     if (vertices.length % stride != 0) {
@@ -72,6 +74,13 @@ final class MeshData {
           'model torn in half.',
         );
       }
+    }
+    if (clusters case final table? when table.indexCount != indices.length) {
+      throw ArgumentError(
+        'the cluster runs tile ${table.indexCount} indices and the mesh has '
+        '${indices.length}. A culled draw would read past the buffer or leave '
+        'triangles out of every cluster.',
+      );
     }
   }
 
@@ -106,7 +115,18 @@ final class MeshData {
     vertices: vertices,
     indices: indices,
     morphTargets: targets,
+    clusters: clusters,
   );
+
+  /// The index buffer read as runs of triangles the scene pass culls one by
+  /// one — `C9`. Null for almost every mesh; `flutter3d_mesh`'s
+  /// `clusterMesh` sets it on a mesh large enough to be worth it.
+  ///
+  /// Kept by the copies that keep [indices] and their positions as they are
+  /// ([withMorphTargets], a baked texture transform) and dropped by every
+  /// other: a transformed or re-laid mesh has boxes and cones the table no
+  /// longer describes, and a mesh without a table is only a mesh drawn whole.
+  final MeshClusters? clusters;
 
   /// Indices are always 32-bit on the CPU side; narrowing to 16 bit happens
   /// only when packing for the GPU.

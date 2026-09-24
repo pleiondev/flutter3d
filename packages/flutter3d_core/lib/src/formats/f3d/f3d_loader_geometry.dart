@@ -66,8 +66,37 @@ extension _F3dGeometry on F3dDocument {
       vertices: _floats(vertexOffset, vertexBytes ~/ 4),
       indices: _uint32s(indexOffset, indexBytes ~/ 4),
       morphTargets: _morphTargets[index] ?? const <MorphTarget>[],
+      clusters: _clusters[index],
     );
   });
+
+  // ----------------------------------------------------------------- clusters
+
+  /// Every mesh's cluster table, by mesh index — `C9`. None in a file written
+  /// before the section, or with nothing split.
+  Map<int, MeshClusters> _readClusters() {
+    final table = _table(F3dSection.clusters, F3dRecord.clusters);
+    final clusters = <int, MeshClusters>{};
+    for (var i = 0; i < table.count; i++) {
+      final o = table.offset + i * F3dRecord.clusters;
+      final meshIndex = _view.getUint32(o, Endian.little);
+      final count = _view.getUint32(o + 4, Endian.little);
+      try {
+        clusters[meshIndex] = MeshClusters(
+          firstIndices: _uint32s(_view.getUint32(o + 8, Endian.little), count + 1),
+          data: _floats(
+            _view.getUint32(o + 12, Endian.little),
+            count * MeshClusters.floatsPerCluster,
+          ),
+        );
+      } on ArgumentError catch (error) {
+        throw F3dFormatException(
+          'clusters[$i] for meshes[$meshIndex] is malformed: ${error.message}',
+        );
+      }
+    }
+    return clusters;
+  }
 
   // ------------------------------------------------------------ morph targets
 

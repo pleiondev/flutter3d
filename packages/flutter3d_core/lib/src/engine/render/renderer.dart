@@ -25,6 +25,7 @@ import '../scene/projection.dart';
 import '../scene/reflection_probe_node.dart';
 import '../scene/scene.dart';
 import '../scene/scene_node.dart';
+import 'cluster_draws.dart';
 import 'composite_mix.dart';
 import 'debug_draw.dart';
 import 'debug_draw_gizmos.dart';
@@ -462,6 +463,8 @@ final class Renderer implements RenderServices {
   void dispose() {
     _pipelineCache.clear();
     _fragmentShaders.clear();
+    _clusterDraws?.dispose();
+    _clusterDraws = null;
 
     // Whatever the last frames queued but no frame has retired yet: pooled
     // targets go back through the pool so the trim below frees them, owned
@@ -1286,6 +1289,21 @@ final class Renderer implements RenderServices {
   /// `C3`: the last depth reading and the grid it is reprojected into, made
   /// on the first frame that asks for [OcclusionMode.hiZ].
   HiZOcclusion? _hiZ;
+
+  /// `C9`: the repacked index buffers of split meshes, made on the first draw
+  /// of a mesh that has clusters, so a scene without one allocates nothing.
+  ClusterDraws? _clusterDraws;
+
+  /// `C9`: what the view being drawn culls clusters against, set by the
+  /// scene pass for each of its views and null everywhere else — a shadow,
+  /// a probe face or a layer drawn after the pass draws a split mesh whole.
+  ({
+    int view,
+    vm.Frustum frustum,
+    vm.Matrix4 viewProjection,
+    OcclusionTest? occlusion,
+  })?
+  _clusterView;
 
   /// Advanced whenever the reading is thrown away, so a readback that was
   /// already in the air lands on nothing rather than restoring a reading of
@@ -3703,6 +3721,10 @@ final class Renderer implements RenderServices {
       device.releaseTexture(texture);
     }
     finished.clear();
+
+    // `C9`: the split meshes' index buffers no view drew with for longer than
+    // the frames in flight go back to the device.
+    _clusterDraws?.beginFrame(_frameIndex);
 
     // Lights are gathered once up front now, because the shadow pass needs the
     // caster before any view is drawn — and the packed buffer is per frame, not
