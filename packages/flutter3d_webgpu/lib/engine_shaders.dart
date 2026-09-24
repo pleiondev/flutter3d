@@ -25251,9 +25251,9 @@ fn main_1() {
     let _e38 = pyramid_info.block;
     blockUv = _e38.xy;
     let _e42 = pyramid_info.block[2u];
-    tapsX = clamp(ceil((_e42 - 0.001f)), 1f, 16f);
+    tapsX = clamp(ceil((_e42 - 0.001f)), 1f, 32f);
     let _e48 = pyramid_info.block[3u];
-    tapsY = clamp(ceil((_e48 - 0.001f)), 1f, 16f);
+    tapsY = clamp(ceil((_e48 - 0.001f)), 1f, 32f);
     let _e52 = v_uv_1;
     let _e53 = blockUv;
     corner = (_e52 - (_e53 * 0.5f));
@@ -25266,7 +25266,7 @@ fn main_1() {
     j = 0i;
     loop {
         let _e61 = j;
-        if (_e61 < 16i) {
+        if (_e61 < 32i) {
             let _e63 = j;
             let _e65 = tapsY;
             if (f32(_e63) >= _e65) {
@@ -25275,7 +25275,7 @@ fn main_1() {
             i = 0i;
             loop {
                 let _e67 = i;
-                if (_e67 < 16i) {
+                if (_e67 < 32i) {
                     let _e69 = i;
                     let _e71 = tapsX;
                     if (f32(_e69) >= _e71) {
