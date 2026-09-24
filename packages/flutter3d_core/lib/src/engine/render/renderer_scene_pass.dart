@@ -363,6 +363,8 @@ extension _ScenePasses on Renderer {
             height: height,
             view: view,
             viewProjection: viewProjection,
+            frameIndex: _frameIndex,
+            temporal: temporal,
           ),
         );
       }

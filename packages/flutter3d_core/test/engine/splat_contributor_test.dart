@@ -73,6 +73,120 @@ void main() {
     );
     expect(indices.type, IndexType.int32);
   });
+
+  group('N5: splats without sorting', () {
+    FakePass encode(
+      SplatContributor contributor, {
+      required bool temporal,
+      int frameIndex = 0,
+    }) {
+      final pass = FakePass(
+        const RenderPassDescriptor(colors: <ColorTarget>[]),
+      );
+      contributor.encode(
+        ContributorFrame(
+          encoder: pass,
+          device: FakeBackend(),
+          services: _NoServices(),
+          state: FramePassState(),
+          settings: const RenderSettings(),
+          width: 320,
+          height: 200,
+          view: RenderView(camera: CameraNode()..setPosition(0.0, 0.0, 5.0)),
+          viewProjection: vm.Matrix4.identity(),
+          frameIndex: frameIndex,
+          temporal: temporal,
+        ),
+      );
+      return pass;
+    }
+
+    test('under a temporal resolve a cloud is hashed: depth written, '
+        'unblended, never sorted', () {
+      // Mutation: make `automatic` answer `false` — the draw goes back to the
+      // blended, sorted state and all three expectations fail.
+      final contributor = SplatContributor(_cloud(4));
+      final pass = encode(contributor, temporal: true, frameIndex: 70);
+
+      expect(pass.recordedOf<RecordedDepthWrite>().single.enabled, isTrue);
+      expect(pass.recordedOf<RecordedBlend>().single.state, isNull);
+      expect(contributor.quads.sorts, 0);
+      // The frame's slice of the blue noise reaches the stage, which is what
+      // turns the noise for the resolve to average: 70 wraps to 6 of 32.
+      final hash = pass.recordedOf<RecordedUniformBlock>().singleWhere(
+        (b) => b.block == 'SplatHashInfo',
+      );
+      expect(hash.members['frame']![0], 6.0);
+      // The camera sits at z 5 looking down -z: the eye and the view axis
+      // each splat measures its distance along.
+      expect(hash.members['eye']!.sublist(0, 3), <double>[0.0, 0.0, 5.0]);
+      expect(hash.members['forward']!.sublist(0, 3), <double>[0.0, 0.0, -1.0]);
+      expect(
+        pass.recordedOf<RecordedTexture>().map((t) => t.slot),
+        contains('blue_noise_texture'),
+      );
+    });
+
+    test('without one it sorts and blends exactly as before', () {
+      final contributor = SplatContributor(_cloud(4));
+      final pass = encode(contributor, temporal: false);
+
+      expect(pass.recordedOf<RecordedDepthWrite>().single.enabled, isFalse);
+      expect(
+        pass.recordedOf<RecordedBlend>().single.state,
+        BlendState.alphaBlend,
+      );
+      expect(contributor.quads.sorts, 1);
+      expect(
+        pass.recordedOf<RecordedUniformBlock>().map((b) => b.block),
+        isNot(contains('SplatHashInfo')),
+      );
+    });
+
+    test('an explicit choice outranks the temporal setting', () {
+      final sorted = SplatContributor(
+        _cloud(4),
+        composite: SplatComposite.sorted,
+      );
+      expect(
+        encode(
+          sorted,
+          temporal: true,
+        ).recordedOf<RecordedDepthWrite>().single.enabled,
+        isFalse,
+      );
+
+      final hashed = SplatContributor(
+        _cloud(4),
+        composite: SplatComposite.hashed,
+      );
+      expect(
+        encode(
+          hashed,
+          temporal: false,
+        ).recordedOf<RecordedDepthWrite>().single.enabled,
+        isTrue,
+      );
+      expect(hashed.quads.sorts, 0);
+    });
+  });
+
+  test('unsorted quads come out in the cloud order', () {
+    // The first splat's first corner leads the buffer when nothing sorts. The
+    // eye sits on the first splat's side, so a sort — furthest first — would
+    // have led with the last splat (x 0.6) and ended with the first.
+    final quads = SplatQuads(_cloud(3))
+      ..build(
+        eye: vm.Vector3(-5.0, 0.0, 0.0),
+        right: vm.Vector3(0.0, 0.0, 1.0),
+        up: vm.Vector3(0.0, 1.0, 0.0),
+        sorted: false,
+      );
+    expect(quads.sorts, 0);
+    final lastCorner = (quads.vertexCount - 1) * kSplatFloatsPerVertex;
+    expect(quads.vertices[lastCorner], closeTo(0.6, 1e-6));
+    expect(quads.vertices[0], closeTo(0.0, 1e-6));
+  });
 }
 
 final class _NoServices implements RenderServices {

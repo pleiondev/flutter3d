@@ -25751,6 +25751,157 @@ fn main(@location(5) v_uv: vec2<f32>, @location(0) v_color: vec4<f32>, @location
       ],
       samplers: <WebGpuSampler>[],
     ),
+    'SplatHashed': WebGpuStage(
+      wgsl: r'''
+struct SplatHashInfo {
+    frame: vec4<f32>,
+    eye: vec4<f32>,
+    forward: vec4<f32>,
+}
+
+struct FogInfo {
+    fog: vec4<f32>,
+    eye: vec4<f32>,
+}
+
+var<private> v_uv_1: vec2<f32>;
+var<private> v_color_1: vec4<f32>;
+var<private> v_world_position_1: vec3<f32>;
+@group(1) @binding(1) 
+var<uniform> splat_hash_info: SplatHashInfo;
+var<private> gl_FragCoord_1: vec4<f32>;
+@group(1) @binding(2) 
+var blue_noise_texture_tex: texture_2d<f32>;
+@group(1) @binding(3) 
+var blue_noise_texture_smp: sampler;
+@group(1) @binding(0) 
+var<uniform> fog_info: FogInfo;
+var<private> frag_color: vec4<f32>;
+
+fn main_1() {
+    var power: f32;
+    var alpha: f32;
+    var along: f32;
+    var identity: f32;
+    var offset: vec2<f32>;
+    var slice: f32;
+    var cell: vec2<f32>;
+    var corner: vec2<f32>;
+    var threshold: f32;
+    var colour: vec3<f32>;
+    var visibility: f32;
+
+    let _e48 = v_uv_1;
+    let _e49 = v_uv_1;
+    power = (-0.5f * dot(_e48, _e49));
+    let _e52 = power;
+    if (_e52 < -4.5f) {
+        discard;
+    }
+    let _e55 = v_color_1[3u];
+    let _e56 = power;
+    alpha = (_e55 * exp(_e56));
+    let _e59 = alpha;
+    if (_e59 < 0.003921569f) {
+        discard;
+    }
+    let _e61 = v_world_position_1;
+    let _e63 = splat_hash_info.eye;
+    let _e67 = splat_hash_info.forward;
+    along = dot((_e61 - _e63.xyz), _e67.xyz);
+    let _e70 = along;
+    let _e73 = v_color_1;
+    identity = (floor((_e70 * 1000f)) + floor(dot(_e73, vec4<f32>(255f, 1785f, 7905f, 32385f))));
+    let _e77 = identity;
+    identity = (_e77 - (floor((_e77 / 4096f)) * 4096f));
+    let _e82 = identity;
+    offset = floor((fract((sin((vec2<f32>(12.9898f, 78.233f) * _e82)) * 43758.547f)) * 64f));
+    let _e91 = splat_hash_info.frame[0u];
+    slice = _e91;
+    let _e92 = gl_FragCoord_1;
+    let _e95 = offset;
+    let _e96 = (floor(_e92.xy) + _e95);
+    let _e97 = vec2(64f);
+    cell = (_e96 - (floor((_e96 / _e97)) * _e97));
+    let _e102 = slice;
+    let _e107 = slice;
+    corner = (vec2<f32>((_e102 - (floor((_e102 / 8f)) * 8f)), floor((_e107 / 8f))) * 64f);
+    let _e112 = corner;
+    let _e113 = cell;
+    let _e118 = textureSampleLevel(blue_noise_texture_tex, blue_noise_texture_smp, (((_e112 + _e113) + vec2(0.5f)) / vec2<f32>(512f, 256f)), 0f);
+    threshold = (_e118.x * 0.99609375f);
+    let _e121 = alpha;
+    let _e122 = threshold;
+    if (_e121 <= _e122) {
+        discard;
+    }
+    let _e124 = v_color_1;
+    colour = _e124.xyz;
+    let _e128 = fog_info.fog[3u];
+    if (_e128 > 0f) {
+        let _e132 = fog_info.fog[3u];
+        let _e134 = v_world_position_1;
+        let _e136 = fog_info.eye;
+        visibility = clamp(exp((-(_e132) * distance(_e134, _e136.xyz))), 0f, 1f);
+        let _e143 = fog_info.fog;
+        let _e145 = colour;
+        let _e146 = visibility;
+        colour = mix(_e143.xyz, _e145, vec3(_e146));
+    }
+    let _e149 = colour;
+    frag_color = vec4<f32>(_e149.x, _e149.y, _e149.z, 1f);
+    return;
+}
+
+@fragment 
+fn main(@location(5) v_uv: vec2<f32>, @location(0) v_color: vec4<f32>, @location(6) v_world_position: vec3<f32>, @builtin(position) gl_FragCoord: vec4<f32>) -> @location(0) vec4<f32> {
+    v_uv_1 = v_uv;
+    v_color_1 = v_color;
+    v_world_position_1 = v_world_position;
+    gl_FragCoord_1 = gl_FragCoord;
+    main_1();
+    let _e9 = frag_color;
+    return _e9;
+}
+''',
+      attributes: <WebGpuAttribute>[],
+      blocks: <WebGpuBlock>[
+        WebGpuBlock(
+          name: 'FogInfo',
+          group: 1,
+          binding: 0,
+          sizeInBytes: 32,
+          members: <WebGpuBlockMember>[
+            WebGpuBlockMember(name: 'fog', offsetInBytes: 0, sizeInBytes: 16),
+            WebGpuBlockMember(name: 'eye', offsetInBytes: 16, sizeInBytes: 16),
+          ],
+        ),
+        WebGpuBlock(
+          name: 'SplatHashInfo',
+          group: 1,
+          binding: 1,
+          sizeInBytes: 48,
+          members: <WebGpuBlockMember>[
+            WebGpuBlockMember(name: 'frame', offsetInBytes: 0, sizeInBytes: 16),
+            WebGpuBlockMember(name: 'eye', offsetInBytes: 16, sizeInBytes: 16),
+            WebGpuBlockMember(
+              name: 'forward',
+              offsetInBytes: 32,
+              sizeInBytes: 16,
+            ),
+          ],
+        ),
+      ],
+      samplers: <WebGpuSampler>[
+        WebGpuSampler(
+          name: 'blue_noise_texture',
+          group: 1,
+          textureBinding: 2,
+          samplerBinding: 3,
+          dimension: WebGpuTextureDimension.twoDimensional,
+        ),
+      ],
+    ),
     'ParticleMesh': WebGpuStage(
       wgsl: r'''
 struct FogInfo {
