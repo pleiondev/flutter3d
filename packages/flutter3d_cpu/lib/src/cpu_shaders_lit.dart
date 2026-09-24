@@ -20,6 +20,8 @@ final class UnlitShader implements CpuFragmentShader {
   @override
   Vector4? run(Float32List v, ShaderBindings bindings, FragmentContext c) {
     final s = readSurface(v, bindings, c);
+    // `L5`: reflects no light, as `unlit.frag` says.
+    c.albedo = null;
     if (s == null) return null;
     // Fully rough, which is what WriteSurface's one-argument form means: a
     // surface that cannot say how polished it is should not be reflected off.

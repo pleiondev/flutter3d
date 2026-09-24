@@ -99,6 +99,12 @@ final class FragmentContext {
   /// which is the same thing a pass with one attachment does.
   Vector4? surface;
 
+  /// What the stage wrote to attachment two, the albedo buffer — `L5`: the
+  /// surface's colour, sRGB-encoded. Set by `readSurface` in the lit models;
+  /// a stage that writes [surface] and not this leaves black there, which is
+  /// what `g_albedo` holds in the GLSL for a stage that reflects nothing.
+  Vector4? albedo;
+
   /// A picture a debug pass wants shown instead of the geometry.
   ///
   /// The stand-in for `g_debug_surface` and `g_debug_surface_on` in

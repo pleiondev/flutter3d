@@ -445,6 +445,7 @@ final class Renderer implements RenderServices {
       _hdrColor,
       _hdrMsaa,
       _surfaceColor,
+      _albedoColor,
       _surfaceMsaa,
       _reflectionColor,
       _depthStencil,
@@ -467,6 +468,7 @@ final class Renderer implements RenderServices {
     _hdrColor = null;
     _hdrMsaa = null;
     _surfaceColor = null;
+    _albedoColor = null;
     _surfaceMsaa = null;
     _reflectionColor = null;
     _depthStencil = null;
@@ -902,6 +904,9 @@ final class Renderer implements RenderServices {
   final vm.Vector3 _reflectionForward = vm.Vector3.zero();
   TextureHandle? _reflectionColor;
   TextureHandle? _surfaceColor;
+
+  /// The albedo buffer — `L5`. See [FrameResourceIds.albedoBuffer].
+  TextureHandle? _albedoColor;
   TextureHandle? _surfaceMsaa;
   TextureHandle? _depthStencil;
 
@@ -1390,6 +1395,7 @@ final class Renderer implements RenderServices {
     _destroyAfterFrame(_hdrColor);
     _destroyAfterFrame(_hdrMsaa);
     _destroyAfterFrame(_surfaceColor);
+    _destroyAfterFrame(_albedoColor);
     _destroyAfterFrame(_surfaceMsaa);
     _destroyAfterFrame(_reflectionColor);
     _destroyAfterFrame(_depthStencil);
@@ -1461,6 +1467,11 @@ final class Renderer implements RenderServices {
     // resize is the only moment any of this is allowed to be reallocated and a
     // buffer that appears mid-session would be the one that is the wrong size.
     _surfaceColor = make(StorageMode.devicePrivate, hdrFormat);
+    // `L5`: the albedo buffer, eight bits a channel since it is a colour.
+    _albedoColor = make(
+      StorageMode.devicePrivate,
+      TextureFormat.r8g8b8a8UNormInt,
+    );
     _reflectionColor = make(StorageMode.devicePrivate, hdrFormat);
 
     _surfaceMsaa = msaaEnabled

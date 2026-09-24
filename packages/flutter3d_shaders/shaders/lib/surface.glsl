@@ -261,6 +261,8 @@ Surface ReadSurface() {
              SrgbToLinear(frag_info.base_color.rgb) *
              v_color.rgb;
   s.alpha = texel.a * frag_info.base_color.a * v_color.a;
+  // `L5`: the albedo buffer carries it, for the indirect light.
+  g_albedo = s.albedo;
 
   // Alpha masking, glTF's third alpha mode. A negative cutoff means the
   // material is opaque or blended, and discard would then be wrong rather than

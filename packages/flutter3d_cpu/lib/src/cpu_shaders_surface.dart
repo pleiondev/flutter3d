@@ -223,6 +223,14 @@ Surface? readSurface(
     (ground.z + (sky.z - ground.z) * up) * material.z,
   );
 
+  // `L5`: what `g_albedo` carries into the albedo buffer, sRGB-encoded as
+  // `WriteSurfaceGeometry` stores it.
+  c.albedo = Vector4(
+    toSrgb(albedo.x.clamp(0.0, 1.0)),
+    toSrgb(albedo.y.clamp(0.0, 1.0)),
+    toSrgb(albedo.z.clamp(0.0, 1.0)),
+    1.0,
+  );
   return Surface(
     albedo,
     alpha,

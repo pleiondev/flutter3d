@@ -988,6 +988,10 @@ final class CpuEncoder implements CommandEncoder {
     final extra = _descriptor.colors.length > 1
         ? _attachment(_descriptor.colors[1])
         : null;
+    // And the albedo buffer, attachment two, when the pass opened one — `L5`.
+    final albedoTarget = _descriptor.colors.length > 2
+        ? _attachment(_descriptor.colors[2])
+        : null;
 
     for (var y = minY; y <= maxY; y++) {
       for (var x = minX; x <= maxX; x++) {
@@ -1033,6 +1037,7 @@ final class CpuEncoder implements CommandEncoder {
         // to it would see the next fragment's values.
         context.coord.setValues(px, py, z, iw);
         context.surface = null;
+        context.albedo = null;
         context.debugSurface = null;
         final colour = pipeline.fragment.run(interpolated, bindings, context);
         if (colour == null) continue;
@@ -1049,6 +1054,16 @@ final class CpuEncoder implements CommandEncoder {
           extra.pixels[e + 1] = surface.y;
           extra.pixels[e + 2] = surface.z;
           extra.pixels[e + 3] = surface.w;
+        }
+        // Attachment two with it: whatever writes the surface writes its
+        // colour, black when it named none, as `WriteSurfaceGeometry` does.
+        if (surface != null && albedoTarget != null) {
+          final e = index * 4;
+          final albedo = context.albedo;
+          albedoTarget.pixels[e] = albedo?.x ?? 0.0;
+          albedoTarget.pixels[e + 1] = albedo?.y ?? 0.0;
+          albedoTarget.pixels[e + 2] = albedo?.z ?? 0.0;
+          albedoTarget.pixels[e + 3] = 1.0;
         }
 
         final at = index * 4;

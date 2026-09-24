@@ -47,7 +47,18 @@ out vec4 frag_color;
 // rather than discovering.
 #ifndef F3D_NO_SURFACE_BUFFER
 layout(location = 1) out vec4 frag_surface;
+
+/// The surface's own colour, sRGB-encoded into eight bits a channel, alpha
+/// one where a surface was drawn — `L5`. The third attachment, present only
+/// when a pass reads it (the indirect light does) and the device opens three;
+/// like the surface buffer, written unconditionally and discarded when absent.
+layout(location = 2) out vec4 frag_albedo;
 #endif
+
+/// What [frag_albedo] carries: the lit models set it in `ReadSurface`, and a
+/// stage that reflects nothing — unlit, the debug views — leaves it black,
+/// which is what light bounced onto it would come to.
+vec3 g_albedo = vec3(0.0);
 
 /// Octahedral encoding: a unit vector in two channels instead of three.
 ///
@@ -140,6 +151,34 @@ float ViewDepth() { return 0.0; }
 
 #endif  // F3D_NO_FOG
 
+/// sRGB to linear. Textures are authored in sRGB, but lighting is only correct
+/// in linear space; skipping this is what makes naive renderers look muddy.
+vec3 SrgbToLinear(vec3 srgb) {
+  return mix(
+      srgb / 12.92,
+      pow((srgb + vec3(0.055)) / 1.055, vec3(2.4)),
+      step(vec3(0.04045), srgb));
+}
+
+/// Linear to sRGB. The render target is a plain UNorm format rather than an
+/// sRGB one, so the encode has to happen here.
+vec3 LinearToSrgb(vec3 linear) {
+  return mix(
+      linear * 12.92,
+      1.055 * pow(linear, vec3(1.0 / 2.4)) - vec3(0.055),
+      step(vec3(0.0031308), linear));
+}
+
+/// Writes scene-referred linear light into the HDR target.
+///
+/// No tone map and no sRGB encode: those moved into the composite pass, which
+/// is the entire point of rendering into `r16g16b16a16Float` first. Applying
+/// them here meant every model wrote display-referred colour into an 8-bit
+/// buffer, so anything above display white was gone before post-processing
+/// could see it — and bloom is a function of exactly that.
+///
+/// Exposure moved with them, for the same reason: it belongs on the same side
+/// of the display transform as the tone map.
 /// Records the geometry of this fragment for whatever runs after the scene.
 ///
 /// Called from the same place that writes colour, so a surface cannot be lit
@@ -171,6 +210,8 @@ float ViewDepth() { return 0.0; }
 /// nothing is drawn in front of the near plane.
 void WriteSurfaceGeometry(float roughness) {
 #ifndef F3D_NO_SURFACE_BUFFER
+  // `L5`: the surface's colour, whatever the surface buffer ends up holding.
+  frag_albedo = vec4(LinearToSrgb(clamp(g_albedo, vec3(0.0), vec3(1.0))), 1.0);
   // A debug pass takes the buffer over rather than getting one of its own.
   // The surface buffer already has an attachment, a viewer and a golden; a
   // second one would need all three built before it could answer anything.
@@ -202,34 +243,6 @@ vec3 ApplyFog(vec3 color) {
 #endif
 }
 
-/// sRGB to linear. Textures are authored in sRGB, but lighting is only correct
-/// in linear space; skipping this is what makes naive renderers look muddy.
-vec3 SrgbToLinear(vec3 srgb) {
-  return mix(
-      srgb / 12.92,
-      pow((srgb + vec3(0.055)) / 1.055, vec3(2.4)),
-      step(vec3(0.04045), srgb));
-}
-
-/// Linear to sRGB. The render target is a plain UNorm format rather than an
-/// sRGB one, so the encode has to happen here.
-vec3 LinearToSrgb(vec3 linear) {
-  return mix(
-      linear * 12.92,
-      1.055 * pow(linear, vec3(1.0 / 2.4)) - vec3(0.055),
-      step(vec3(0.0031308), linear));
-}
-
-/// Writes scene-referred linear light into the HDR target.
-///
-/// No tone map and no sRGB encode: those moved into the composite pass, which
-/// is the entire point of rendering into `r16g16b16a16Float` first. Applying
-/// them here meant every model wrote display-referred colour into an 8-bit
-/// buffer, so anything above display white was gone before post-processing
-/// could see it — and bloom is a function of exactly that.
-///
-/// Exposure moved with them, for the same reason: it belongs on the same side
-/// of the display transform as the tone map.
 void WriteSurface(vec3 linearColor, float alpha, float roughness) {
   frag_color = vec4(ApplyFog(linearColor), alpha);
   WriteSurfaceGeometry(roughness);

@@ -322,8 +322,8 @@ final class GpuRenderBackend implements GraphicsDevice {
   bool get supportsRenderToMip =>
       gpu.gpuContext.doesSupportFramebufferRenderMipmap;
 
-  /// Two where this backend is not on its OpenGL ES path, one where it is —
-  /// `gfx-50n`.
+  /// Four where this backend is not on its OpenGL ES path, one where it is —
+  /// `gfx-50n`, `L5`.
   ///
   /// **Inferred, and that is stated rather than hidden.** flutter_gpu
   /// publishes no MRT capability and no backend name, so there is nothing
@@ -339,13 +339,13 @@ final class GpuRenderBackend implements GraphicsDevice {
   /// call that ends the process. An inference from a neighbouring capability
   /// is what is left.
   ///
-  /// Two rather than the four or eight Metal and Vulkan actually allow: two
-  /// is what this engine has ever opened and what the split above is evidence
-  /// for. A number this backend cannot support is not a number worth
-  /// publishing, and a caller who needs four should be told two and write the
-  /// pass that works.
+  /// Four where it is not, which is the floor both allow — Metal eight,
+  /// Vulkan's `maxColorAttachments` at least four on every conformant device.
+  /// Until `L5` this said two, because two was all the engine had ever opened;
+  /// the albedo buffer is a third, and the number published is now what the
+  /// two APIs guarantee rather than what the engine happened to use.
   @override
-  int get maxColorAttachments => supportsRenderToMip ? 2 : 1;
+  int get maxColorAttachments => supportsRenderToMip ? 4 : 1;
 
   @override
   TextureHandle? createCubeRenderTarget({
