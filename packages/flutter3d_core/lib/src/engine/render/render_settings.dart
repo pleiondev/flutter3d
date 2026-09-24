@@ -1038,6 +1038,7 @@ final class RenderSettings {
     this.frameWorkBudget = 0,
     this.energyCompensation = false,
     this.clusteredLights = false,
+    this.aliasTargets = false,
     this.lightShafts = const LightShaftSettings(),
     this.volumetricFog = const VolumetricFogSettings(),
     this.depthOfField = const DepthOfFieldSettings(),
@@ -1340,6 +1341,24 @@ final class RenderSettings {
   /// existed; see [TransparencyMode.weightedBlended] for what it costs.
   final TransparencyMode transparency;
 
+  /// Lends a pooled target whose last pass has run to a later pass of the
+  /// same frame — `H7`. Off by default.
+  ///
+  /// Off, every resource and every pass's scratch in a frame is its own
+  /// texture, and the pool holds that many per frame in flight. On, two
+  /// targets of one size and format whose lifetimes in the frame do not
+  /// overlap share one: occlusion's blur and the bloom chain, the contact
+  /// shadow and the depth of field's working buffers. The picture does not
+  /// change — every built-in pass clears or wholly overwrites what it draws
+  /// into — and `RenderTargetPool.createdCount` falls with the number of
+  /// effects that are on. See `FrameResources.alias` for why reuse within a
+  /// frame is safe when reuse across frames needs the ring.
+  ///
+  /// Off by default all the same, because a pass of the application's own
+  /// that loads a target it did not write would now load another pass's
+  /// pixels rather than an older frame's.
+  final bool aliasTargets;
+
   /// Frame-graph nodes to leave out of this frame, by name — `gfx-37n`.
   ///
   /// The name is the node's own [FrameGraphNode.name], exactly as
@@ -1502,6 +1521,7 @@ final class RenderSettings {
     int? frameWorkBudget,
     bool? energyCompensation,
     bool? clusteredLights,
+    bool? aliasTargets,
     LightShaftSettings? lightShafts,
     VolumetricFogSettings? volumetricFog,
     DepthOfFieldSettings? depthOfField,
@@ -1545,6 +1565,7 @@ final class RenderSettings {
     frameWorkBudget: frameWorkBudget ?? this.frameWorkBudget,
     energyCompensation: energyCompensation ?? this.energyCompensation,
     clusteredLights: clusteredLights ?? this.clusteredLights,
+    aliasTargets: aliasTargets ?? this.aliasTargets,
     lightShafts: lightShafts ?? this.lightShafts,
     volumetricFog: volumetricFog ?? this.volumetricFog,
     depthOfField: depthOfField ?? this.depthOfField,

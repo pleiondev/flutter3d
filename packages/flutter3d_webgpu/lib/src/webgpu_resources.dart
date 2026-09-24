@@ -217,11 +217,18 @@ bool webgpuIsDepthStencil(TextureFormat format) =>
 /// promises. Multisampled targets go the same way — this engine resolves them
 /// rather than sampling them, and a texture that cannot be sampled is one fewer
 /// usage flag for the implementation to plan around.
+///
+/// **Where the browser has `TRANSIENT_ATTACHMENT` ([transientAttachments]), a
+/// single-level `deviceTransient` target is allocated with it** — `H7`: the
+/// tile memory the storage mode names, which on a tiler is a depth or MSAA
+/// buffer that never reaches memory at all. The encoder then clears and
+/// discards it, the only operations WebGPU allows on one.
 TextureHandle webgpuCreateTexture(
   GPUDevice gpu,
   List<WebGpuTexture> tracked,
   RenderTargetSpec spec, {
   int levels = 1,
+  bool transientAttachments = false,
 }) {
   final format = gpuTextureFormat(spec.format);
   if (format == null) {
@@ -250,6 +257,9 @@ TextureHandle webgpuCreateTexture(
   }
   final attachmentOnly =
       spec.sampleCount > 1 || spec.storageMode == StorageMode.deviceTransient;
+  final transient =
+      levels == 1 &&
+      webgpuIsTransientAttachment(spec, supported: transientAttachments);
   final texture = gpu.createTexture(
     GPUTextureDescriptor(
       size: GPUExtent3DDict(
@@ -258,7 +268,10 @@ TextureHandle webgpuCreateTexture(
         depthOrArrayLayers: 1,
       ),
       format: format,
-      usage: attachmentOnly
+      usage: transient
+          ? GpuTextureUsage.renderAttachment |
+                GpuTextureUsage.transientAttachment
+          : attachmentOnly
           ? GpuTextureUsage.renderAttachment
           : GpuTextureUsage.renderAttachment |
                 GpuTextureUsage.textureBinding |
@@ -276,6 +289,7 @@ TextureHandle webgpuCreateTexture(
     texture: texture,
     dimension: WebGpuTextureDimension.twoDimensional,
     sampleable: !attachmentOnly,
+    transient: transient,
   );
   tracked.add(backend);
   return TextureHandle(
