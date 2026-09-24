@@ -52,7 +52,9 @@ import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:flutter3d_shaders/stage_bindings.dart';
 import 'package:flutter3d_shaders/uniform_blocks.dart' show uniformBlocks;
 
+import '../engine_compute_shaders.dart';
 import 'webgpu_bundle_section.dart';
+import 'webgpu_compute_stage.dart';
 
 /// Turns WGSL text into whatever the backend's module object is.
 ///
@@ -224,6 +226,19 @@ final class WebGpuShaderLibrary implements ShaderLibrary {
       _handles.putIfAbsent(name, () => _compile(name));
 
   ShaderHandle? _compile(String name) {
+    // `H6`: a compute stage is its own kind of handle, with the module and the
+    // bindings its pipeline layout is built from.
+    final compute = engineComputeShaders[name];
+    if (compute != null) {
+      return ShaderHandle(
+        backend: WebGpuComputeShader(
+          name: name,
+          stage: compute,
+          module: _compiler.compileModule(name, compute.wgsl),
+        ),
+        name: name,
+      );
+    }
     final isVertex = _stages.vertex.containsKey(name);
     final stage = isVertex ? _stages.vertex[name] : _stages.fragment[name];
     // Null rather than throwing: the contract says a missing name comes back

@@ -138,9 +138,40 @@ abstract interface class CpuFragmentShader {
 
 /// A stage, which is one or the other.
 final class CpuStage {
-  const CpuStage.vertex(this.vertex) : fragment = null;
-  const CpuStage.fragment(this.fragment) : vertex = null;
+  const CpuStage.vertex(this.vertex) : fragment = null, compute = null;
+  const CpuStage.fragment(this.fragment) : vertex = null, compute = null;
+
+  /// A compute stage — `H6`.
+  const CpuStage.compute(this.compute) : vertex = null, fragment = null;
 
   final CpuVertexShader? vertex;
   final CpuFragmentShader? fragment;
+  final CpuComputeShader? compute;
+}
+
+/// What a compute stage is handed: its storage buffers and uniform blocks,
+/// by the names the GLSL gives them.
+final class CpuComputeBindings {
+  CpuComputeBindings(this.storage, this.blocks);
+
+  /// The buffers themselves, not copies: a stage writes into them.
+  final Map<String, ByteData> storage;
+  final Map<String, Map<String, Float32List>> blocks;
+}
+
+/// A compute stage in Dart, standing in for a `.comp` shader — `H6`.
+///
+/// **Run a workgroup at a time, not an invocation at a time.** A compute
+/// shader that shares memory between its invocations synchronises them with
+/// `barrier()`, and every invocation has to reach one before any passes it.
+/// Run one invocation to the end and then the next, and the second reads
+/// what the first wrote after the barrier as if it had been there before. So
+/// the mirror is handed the whole group and runs the phases between barriers
+/// across all of its invocations in turn, which is what a barrier means.
+abstract interface class CpuComputeShader {
+  /// `local_size_x`, `local_size_y`, `local_size_z`.
+  (int, int, int) get workgroupSize;
+
+  /// Runs every invocation of the workgroup at [group].
+  void runWorkgroup((int, int, int) group, CpuComputeBindings bindings);
 }

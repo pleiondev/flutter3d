@@ -42,6 +42,8 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 
 import 'webgpu_bundle_section.dart';
+import 'webgpu_compute.dart';
+import 'webgpu_compute_stage.dart';
 import 'webgpu_encoder.dart';
 import 'webgpu_formats.dart';
 import 'webgpu_interop.dart';
@@ -159,34 +161,52 @@ final class WebGpuDevice implements GraphicsDevice, WgslModuleCompiler {
   @override
   void onGpuTimings(void Function(GpuFrameTimings timings)? listener) {}
 
+  // Compute — `H6`: storage buffers, pipelines built from the generated
+  // compute table, passes encoded as they go, and a readback through a
+  // mappable staging buffer.
   @override
-  bool get supportsCompute => false;
+  bool get supportsCompute => true;
 
   @override
   StorageBuffer createStorageBuffer(
     ByteData bytes, {
     bool hostReadable = false,
-  }) => throw UnsupportedError(_noCompute);
+  }) => guard(
+    'a ${bytes.lengthInBytes}-byte storage buffer',
+    () =>
+        webgpuCreateStorageBuffer(gpuDevice, bytes, hostReadable: hostReadable),
+  );
 
   @override
-  ComputePipelineHandle createComputePipeline(ShaderHandle shader) =>
-      throw UnsupportedError(_noCompute);
+  ComputePipelineHandle createComputePipeline(ShaderHandle shader) {
+    final stage = shader.backend;
+    if (stage is! WebGpuComputeShader) {
+      throw ArgumentError.value(
+        shader.name,
+        'shader',
+        'is not a compute stage on this device',
+      );
+    }
+    return ComputePipelineHandle(
+      backend: guard(
+        'the compute pipeline for ${shader.name}',
+        () => webgpuCreateComputePipeline(gpuDevice, stage),
+      ),
+      shader: shader,
+    );
+  }
 
   @override
   ComputeEncoder beginComputePass({String? label}) =>
-      throw UnsupportedError(_noCompute);
+      WebGpuComputeEncoder(gpuDevice, label: label);
 
   @override
   Future<ByteData> readBuffer(StorageBuffer buffer) =>
-      throw UnsupportedError(_noCompute);
+      webgpuReadBuffer(gpuDevice, buffer);
 
   @override
   void releaseStorageBuffer(StorageBuffer buffer) =>
-      throw UnsupportedError(_noCompute);
-
-  static const String _noCompute =
-      'WebGPU runs no compute: supportsCompute is false. Ask before '
-      'creating a storage buffer, a compute pipeline or a compute pass.';
+      (buffer.backend as WebGpuStorage).buffer.destroy();
 
   @override
   bool get supportsFloat32Filtering => false;

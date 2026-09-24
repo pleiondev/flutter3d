@@ -24,10 +24,10 @@
 /// package's own tests, so [GpuBufferUsage] and its siblings hold them. Nothing
 /// in this file imports anything but `dart:js_interop`.
 ///
-/// **What is deliberately absent:** compute pipelines, query sets, render
-/// bundles, indirect draws and external textures. `flutter3d_hardware` asks for
-/// none of them, and a declaration nobody calls is a declaration nobody has
-/// checked against a browser.
+/// **What is deliberately absent:** query sets, render bundles, indirect draws
+/// and external textures. `flutter3d_hardware` asks for none of them, and a
+/// declaration nobody calls is a declaration nobody has checked against a
+/// browser. Compute pipelines arrived with `H6`, when the contract did ask.
 @JS()
 library;
 
@@ -173,6 +173,11 @@ extension type GPUDevice._(JSObject _) implements JSObject {
   );
   external GPUBindGroup createBindGroup(GPUBindGroupDescriptor d);
   external GPUCommandEncoder createCommandEncoder();
+
+  /// A compute pipeline — `H6`.
+  external GPUComputePipeline createComputePipeline(
+    GPUComputePipelineDescriptor d,
+  );
 
   /// Starts catching errors of one kind instead of letting them reach the
   /// console.
@@ -336,6 +341,11 @@ extension type GPUBuffer._(JSObject _) implements JSObject {
 
 extension type GPUCommandEncoder._(JSObject _) implements JSObject {
   external GPURenderPassEncoder beginRenderPass(GPURenderPassDescriptor d);
+
+  /// Opens a compute pass — `H6`.
+  external GPUComputePassEncoder beginComputePass([
+    GPUComputePassDescriptor descriptor,
+  ]);
 
   /// Straight buffer-to-buffer bytes, for whoever is moving a staged upload
   /// into its final home rather than writing it through the queue.
@@ -1218,4 +1228,38 @@ abstract final class GpuFeature {
   /// `"unfilterable-float"` in a bind group layout and can only be read
   /// texel by texel.
   static const String float32Filterable = 'float32-filterable';
+}
+
+// ------------------------------------------------------------------ compute
+
+/// A compiled compute pipeline — `H6`.
+extension type GPUComputePipeline._(JSObject _) implements JSObject {
+  external GPUBindGroupLayout getBindGroupLayout(int index);
+}
+
+/// The stage a compute pipeline runs: a module and its entry point.
+extension type GPUProgrammableStage._(JSObject _) implements JSObject {
+  external factory GPUProgrammableStage({
+    GPUShaderModule module,
+    String entryPoint,
+  });
+}
+
+extension type GPUComputePipelineDescriptor._(JSObject _) implements JSObject {
+  external factory GPUComputePipelineDescriptor({
+    GPUPipelineLayout layout,
+    GPUProgrammableStage compute,
+    String label,
+  });
+}
+
+extension type GPUComputePassDescriptor._(JSObject _) implements JSObject {
+  external factory GPUComputePassDescriptor({String label});
+}
+
+extension type GPUComputePassEncoder._(JSObject _) implements JSObject {
+  external void setPipeline(GPUComputePipeline pipeline);
+  external void setBindGroup(int index, GPUBindGroup group);
+  external void dispatchWorkgroups(int x, [int y, int z]);
+  external void end();
 }

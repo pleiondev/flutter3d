@@ -80,10 +80,14 @@ CompiledStage compileStage(
   String glsl, {
   required String name,
   required bool fragment,
+  bool compute = false,
 }) {
   final directory = Directory.systemTemp.createTempSync('flutter3d_wgsl_');
   try {
-    final source = File('${directory.path}/$name.${fragment ? 'frag' : 'vert'}')
+    // glslang picks the stage from the extension, so the extension is the
+    // one place a compute stage (`H6`) differs from the other two here.
+    final extension = compute ? 'comp' : (fragment ? 'frag' : 'vert');
+    final source = File('${directory.path}/$name.$extension')
       ..writeAsStringSync(glsl);
     final spirv = '${directory.path}/$name.spv';
     final wgsl = '${directory.path}/$name.wgsl';
