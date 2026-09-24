@@ -53,6 +53,7 @@ export 'src/editor_command.dart';
 export 'src/editor_history.dart';
 export 'src/gizmos.dart';
 export 'src/lesson_authoring.dart';
+export 'src/level_scene.dart';
 export 'src/listing.dart';
 export 'src/looks.dart';
 export 'src/material_edit.dart';
