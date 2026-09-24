@@ -18,6 +18,11 @@ changes whose picture stays close to the original.
                         writes them while it plays a .f3drun back. May be
                         given more than once. Without one, the views are four
                         headings from every player spawn.
+  --state <file.json>   a lighting state the level must look right
+                        under: {"name": "noon", "lights": [...]}, the lights
+                        written as the level writes them and never changed.
+                        May be given more than once, and the level is then
+                        judged under each; a state with no lights is night.
   -o, --out <path>      where to write the level; default: over the input
   --preview <dir>       write before.png and after.png of the first view
   --dry-run             say what would change and write no level
@@ -65,6 +70,15 @@ Future<int> runLights(
     }
     poses.addAll(read);
   }
+  final states = <LightingState>[];
+  for (final path in options.states) {
+    final read = _stateIn(path);
+    if (read == null) {
+      complain.writeln('$path: not a lighting state');
+      return 1;
+    }
+    states.add(read);
+  }
   final views = poses.isNotEmpty
       ? viewsAlong(poses)
       : defaultLightViews(editing.level);
@@ -80,7 +94,11 @@ Future<int> runLights(
     return 1;
   }
 
-  final plan = const LightOptimizer().optimize(editing.level, views: views);
+  final plan = const LightOptimizer().optimize(
+    editing.level,
+    views: views,
+    states: states.isEmpty ? const <LightingState>[LightingState.asIs] : states,
+  );
   say.writeln(plan.says);
   for (final move in plan.moves) {
     say.writeln('  $move');
@@ -133,10 +151,35 @@ List<Pose>? _posesIn(String path) {
   ];
 }
 
+/// The lighting state in the file at [path], or null when it is not one.
+LightingState? _stateIn(String path) {
+  final file = File(path);
+  if (!file.existsSync()) return null;
+  try {
+    final decoded = jsonDecode(file.readAsStringSync());
+    if (decoded is! Map) return null;
+    final name = decoded['name'];
+    final lights = decoded['lights'] ?? const <Object?>[];
+    if (lights is! List) return null;
+    return LightingState(
+      name is String ? name : path,
+      lights: <LevelLight>[
+        for (final row in lights)
+          if (row is Map) LevelLight.fromJson(row.cast<String, Object?>()),
+      ],
+    );
+  } on FormatException {
+    return null;
+  } on LevelFormatException {
+    return null;
+  }
+}
+
 final class _LightsOptions {
   const _LightsOptions({
     required this.level,
     required this.poses,
+    required this.states,
     required this.out,
     required this.preview,
     required this.dryRun,
@@ -144,6 +187,7 @@ final class _LightsOptions {
 
   final String level;
   final List<String> poses;
+  final List<String> states;
   final String? out;
   final String? preview;
   final bool dryRun;
@@ -154,6 +198,7 @@ final class _LightsOptions {
     String? preview;
     var dryRun = false;
     final poses = <String>[];
+    final states = <String>[];
     for (var i = 0; i < arguments.length; i++) {
       final argument = arguments[i];
       final next = i + 1 < arguments.length ? arguments[i + 1] : null;
@@ -163,6 +208,9 @@ final class _LightsOptions {
           i++;
         case '--poses' when next != null:
           poses.add(next);
+          i++;
+        case '--state' when next != null:
+          states.add(next);
           i++;
         case '-o' || '--out' when next != null:
           out = next;
@@ -180,6 +228,7 @@ final class _LightsOptions {
     return _LightsOptions(
       level: level,
       poses: poses,
+      states: states,
       out: out,
       preview: preview,
       dryRun: dryRun,

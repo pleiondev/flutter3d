@@ -179,6 +179,45 @@ void main() {
     });
   });
 
+  group('against several lighting states', () {
+    // A lamp the noon sun drowns out is a lamp nobody misses at noon, and
+    // the only light in the room at night. The sun here is a bright light
+    // the state adds and the optimizer may not touch.
+    final level = _level(<Map<String, Object?>>[
+      _point(<double>[1.5, 1.0, -1.5], intensity: 0.6)..['range'] = 4.0,
+    ]);
+    final noon = LightingState(
+      'noon',
+      lights: <LevelLight>[
+        LevelLight.fromJson(_point(<double>[0.0, 2.5, 0.0], intensity: 60.0)),
+      ],
+    );
+    const night = LightingState('night');
+    const optimizer = LightOptimizer(width: 80, height: 50);
+
+    test('drops the lamp when only noon is asked about', () {
+      final plan = optimizer.optimize(
+        level,
+        views: _views,
+        states: <LightingState>[noon],
+      );
+      expect(plan.after, isEmpty);
+    });
+
+    test('keeps it when night is asked about too', () {
+      // The second state is the whole difference. Mutation: build the frames
+      // in `optimize` from `states.first` alone. Night is never looked at
+      // and the lamp goes.
+      final plan = optimizer.optimize(
+        level,
+        views: _views,
+        states: <LightingState>[noon, night],
+      );
+      expect(plan.after, hasLength(1));
+      expect(plan.difference, lessThan(optimizer.maxDifference));
+    });
+  });
+
   group('views', () {
     test('are taken along the path a player walked, at eye height', () {
       final poses = <Pose>[
