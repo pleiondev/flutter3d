@@ -495,11 +495,11 @@ Vector4 _sharpen(
   );
 }
 
-/// `SampleDisplay` from `composite.frag` — `L2`: the log2 shaper of −10…+6
+/// `SampleDisplay` from `composite.frag` — `L2`: the log2 shaper of −10…+10
 /// stops about 0.18, then [_sampleLut]'s lookup.
 Vector3 _sampleDisplay(BoundTexture table, Vector3 colour, double size) {
   double shaped(double x) =>
-      ((math.log(math.max(x, 1e-10) / 0.18) / math.ln2 + 10.0) / 16.0).clamp(
+      ((math.log(math.max(x, 1e-10) / 0.18) / math.ln2 + 10.0) / 20.0).clamp(
         0.0,
         1.0,
       );
