@@ -443,6 +443,7 @@ LightingModel? _readLighting(
     usesMetallic: value['metallic'] as bool? ?? false,
     usesEnvironment: value['environment'] as bool? ?? false,
     usesLightList: value['lightList'] as bool?,
+    usesFogInfo: value['fogInfo'] as bool?,
     // Absent in every file written before 0.7.3, a saved polyline among them,
     // and `PolylineVertex` declares no morphs: reading it as true brought back
     // the "Failed to bind texture" 0.7.2 fixed. Any other stage is written
@@ -475,6 +476,8 @@ Object _writeLighting(LightingModel model) {
       'metallicRoughnessMap': model.usesMetallicRoughnessMap,
     if (model.usesLightList != model.usesMaterialMaps)
       'lightList': model.usesLightList,
+    if (model.usesFogInfo != model.usesFragInfo)
+      'fogInfo': model.usesFogInfo,
     if (model.vertexStageMorphs != plain.vertexStageMorphs)
       'vertexMorphs': model.vertexStageMorphs,
     if (model.usesMaterialParameters != plain.usesMaterialParameters)
